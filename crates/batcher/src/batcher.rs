@@ -4,12 +4,14 @@ use std::sync::Arc;
 use blockifier::blockifier::block::BlockNumberHashPair;
 #[cfg(test)]
 use mockall::automock;
-use papyrus_storage::state::StateStorageReader;
+use papyrus_storage::state::{StateStorageReader, StateStorageWriter};
 use starknet_api::block::BlockNumber;
 use starknet_api::executable_transaction::Transaction;
+use starknet_api::state::ThinStateDiff;
 use starknet_batcher_types::batcher_types::{
     BatcherResult,
     BuildProposalInput,
+    DecisionReachedInput,
     GetProposalContent,
     GetProposalContentInput,
     GetProposalContentResponse,
@@ -36,7 +38,8 @@ struct Proposal {
 
 pub struct Batcher {
     pub config: BatcherConfig,
-    pub storage: Arc<dyn BatcherStorageReaderTrait>,
+    pub storage_reader: Arc<dyn BatcherStorageReaderTrait>,
+    pub storage_writer: Box<dyn BatcherStorageWriterTrait>,
     proposal_manager: Box<dyn ProposalManagerTrait>,
     proposals: HashMap<ProposalId, Proposal>,
 }
@@ -57,20 +60,22 @@ impl BlockBuilderFactoryTrait for DummyBlockBuilderFactory {
 impl Batcher {
     pub(crate) fn new(
         config: BatcherConfig,
-        storage: Arc<dyn BatcherStorageReaderTrait>,
+        storage_reader: Arc<dyn BatcherStorageReaderTrait>,
+        storage_writer: Box<dyn BatcherStorageWriterTrait>,
         proposal_manager: Box<dyn ProposalManagerTrait>,
     ) -> Self {
         Self {
             config: config.clone(),
-            storage: storage.clone(),
+            storage_reader,
+            storage_writer,
             proposal_manager,
             proposals: HashMap::new(),
         }
     }
 
-    pub fn start_height(&mut self, input: StartHeightInput) -> BatcherResult<()> {
+    pub async fn start_height(&mut self, input: StartHeightInput) -> BatcherResult<()> {
         self.proposals.clear();
-        self.proposal_manager.start_height(input.height).map_err(BatcherError::from)
+        self.proposal_manager.start_height(input.height).await.map_err(BatcherError::from)
     }
 
     #[instrument(skip(self), err)]
@@ -101,6 +106,7 @@ impl Batcher {
         Ok(())
     }
 
+    #[instrument(skip(self), err)]
     pub async fn get_proposal_content(
         &mut self,
         get_proposal_content_input: GetProposalContentInput,
@@ -124,19 +130,41 @@ impl Batcher {
 
         Ok(GetProposalContentResponse { content: GetProposalContent::Txs(txs) })
     }
+
+    #[instrument(skip(self), err)]
+    pub async fn decision_reached(&mut self, input: DecisionReachedInput) -> BatcherResult<()> {
+        let proposal_id = input.proposal_id;
+        let state_diff = self
+            .proposal_manager
+            .get_done_proposal(proposal_id)
+            .await
+            .ok_or(BatcherError::DoneProposalNotFound { proposal_id })?
+            .map_err(BatcherError::from)?;
+        // TODO: Keep the height from start_height or get it from the input.
+        let height = self.storage_reader.height().map_err(|err| {
+            error!("Failed to get height from storage: {}", err);
+            BatcherError::InternalError
+        })?;
+        self.storage_writer.commit_proposal(height, state_diff).map_err(|err| {
+            error!("Failed to commit proposal to storage: {}", err);
+            BatcherError::InternalError
+        })?;
+        Ok(())
+    }
 }
 
 pub fn create_batcher(config: BatcherConfig, mempool_client: SharedMempoolClient) -> Batcher {
-    let (storage_reader, _storage_writer) = papyrus_storage::open_storage(config.storage.clone())
+    let (storage_reader, storage_writer) = papyrus_storage::open_storage(config.storage.clone())
         .expect("Failed to open batcher's storage");
     let storage_reader = Arc::new(storage_reader);
+    let storage_writer = Box::new(storage_writer);
     let proposal_manager = Box::new(ProposalManager::new(
         config.proposal_manager.clone(),
         mempool_client.clone(),
         Arc::new(DummyBlockBuilderFactory {}),
         storage_reader.clone(),
     ));
-    Batcher::new(config, storage_reader, proposal_manager)
+    Batcher::new(config, storage_reader, storage_writer, proposal_manager)
 }
 
 #[cfg_attr(test, automock)]
@@ -152,6 +180,25 @@ impl BatcherStorageReaderTrait for papyrus_storage::StorageReader {
 
 // TODO: Make this work with streams.
 type OutputStream = tokio::sync::mpsc::UnboundedReceiver<Transaction>;
+#[cfg_attr(test, automock)]
+pub trait BatcherStorageWriterTrait: Send + Sync {
+    fn commit_proposal(
+        &mut self,
+        height: BlockNumber,
+        state_diff: ThinStateDiff,
+    ) -> papyrus_storage::StorageResult<()>;
+}
+
+impl BatcherStorageWriterTrait for papyrus_storage::StorageWriter {
+    fn commit_proposal(
+        &mut self,
+        height: BlockNumber,
+        state_diff: ThinStateDiff,
+    ) -> papyrus_storage::StorageResult<()> {
+        // TODO: write casms.
+        self.begin_rw_txn()?.append_state_diff(height, state_diff)?.commit()
+    }
+}
 
 impl From<StartHeightError> for BatcherError {
     fn from(err: StartHeightError) -> Self {

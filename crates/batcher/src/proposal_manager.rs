@@ -1,13 +1,15 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
 use async_trait::async_trait;
 use blockifier::blockifier::block::BlockNumberHashPair;
+use indexmap::IndexMap;
 use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::executable_transaction::Transaction;
+use starknet_api::state::ThinStateDiff;
 use starknet_batcher_types::batcher_types::ProposalId;
 use starknet_mempool_types::communication::{MempoolClientError, SharedMempoolClient};
 use thiserror::Error;
@@ -17,7 +19,12 @@ use tokio_stream::wrappers::ReceiverStream;
 use tracing::{debug, error, info, instrument, trace, Instrument};
 
 use crate::batcher::BatcherStorageReaderTrait;
-use crate::block_builder::{BlockBuilderError, BlockBuilderFactoryTrait, BlockBuilderTrait};
+use crate::block_builder::{
+    BlockBuilderError,
+    BlockBuilderFactoryTrait,
+    BlockBuilderTrait,
+    BlockExecutionArtifacts,
+};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct ProposalManagerConfig {
@@ -92,7 +99,7 @@ pub enum BuildProposalError {
 
 #[async_trait]
 pub trait ProposalManagerTrait: Send + Sync {
-    fn start_height(&mut self, height: BlockNumber) -> Result<(), StartHeightError>;
+    async fn start_height(&mut self, height: BlockNumber) -> Result<(), StartHeightError>;
 
     async fn build_block_proposal(
         &mut self,
@@ -101,6 +108,8 @@ pub trait ProposalManagerTrait: Send + Sync {
         deadline: tokio::time::Instant,
         tx_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
     ) -> Result<(), BuildProposalError>;
+
+    async fn get_done_proposal(&mut self, proposal_id: ProposalId) -> Option<DoneProposal>;
 }
 
 /// Main struct for handling block proposals.
@@ -122,23 +131,19 @@ pub(crate) struct ProposalManager {
     active_proposal_handle: Option<ActiveTaskHandle>,
     // Use a factory object, to be able to mock BlockBuilder in tests.
     block_builder_factory: Arc<dyn BlockBuilderFactoryTrait + Send + Sync>,
-    proposals: Vec<ProposalId>,
+    done_proposals: Arc<Mutex<HashMap<ProposalId, DoneProposal>>>,
 }
 
-type ActiveTaskHandle = tokio::task::JoinHandle<Result<(), BuildProposalError>>;
+type ActiveTaskHandle = tokio::task::JoinHandle<()>;
+pub type DoneProposal = Result<ThinStateDiff, BuildProposalError>;
 
 #[async_trait]
 impl ProposalManagerTrait for ProposalManager {
     /// Starts working on the given height.
     #[instrument(skip(self), err)]
-    fn start_height(&mut self, height: BlockNumber) -> Result<(), StartHeightError> {
-        // TODO: instead of returning an error, abort the current height.
-        if let Some(active_height) = self.active_height {
-            return Err(StartHeightError::AlreadyWorkingOnHeight {
-                active_height,
-                new_height: height,
-            });
-        }
+    async fn start_height(&mut self, height: BlockNumber) -> Result<(), StartHeightError> {
+        self.reset_height().await;
+
         let next_height = self.storage_reader.height()?;
         if next_height < height {
             error!(
@@ -156,8 +161,8 @@ impl ProposalManagerTrait for ProposalManager {
                 requested_height: height,
             });
         }
+        info!("Starting to work on height {}.", height);
         self.active_height = Some(height);
-        self.proposals.clear();
         Ok(())
     }
 
@@ -173,13 +178,11 @@ impl ProposalManagerTrait for ProposalManager {
         tx_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
     ) -> Result<(), BuildProposalError> {
         let height = self.active_height.ok_or(BuildProposalError::NoActiveHeight)?;
-        if self.proposals.contains(&proposal_id) {
+        if self.done_proposals.lock().await.contains_key(&proposal_id) {
             return Err(BuildProposalError::ProposalAlreadyExists { proposal_id });
         }
         info!("Starting generation of a new proposal with id {}.", proposal_id);
         self.set_active_proposal(proposal_id).await?;
-        self.proposals.push(proposal_id);
-
         let block_builder =
             self.block_builder_factory.create_block_builder(height, retrospective_block_hash)?;
 
@@ -192,12 +195,17 @@ impl ProposalManagerTrait for ProposalManager {
                 block_builder,
                 active_proposal: self.active_proposal.clone(),
                 deadline,
+                done_proposals: self.done_proposals.clone(),
             }
             .run()
             .in_current_span(),
         ));
 
         Ok(())
+    }
+
+    async fn get_done_proposal(&mut self, proposal_id: ProposalId) -> Option<DoneProposal> {
+        self.done_proposals.lock().await.remove(&proposal_id)
     }
 }
 
@@ -216,27 +224,34 @@ impl ProposalManager {
             block_builder_factory,
             active_proposal_handle: None,
             active_height: None,
-            proposals: Vec::new(),
+            done_proposals: Arc::new(Mutex::new(HashMap::new())),
         }
+    }
+
+    async fn reset_height(&mut self) {
+        if let Some(_active_proposal) = self.active_proposal.lock().await.take() {
+            // TODO: Abort the block_builder.
+        }
+        self.done_proposals.lock().await.clear();
+        self.active_height = None;
     }
 
     // Checks if there is already a proposal being generated, and if not, sets the given proposal_id
     // as the one being generated.
     async fn set_active_proposal(
         &mut self,
-        proposal_id: ProposalId,
+        active_proposal: ProposalId,
     ) -> Result<(), BuildProposalError> {
-        let mut lock = self.active_proposal.lock().await;
-
-        if let Some(active_proposal) = *lock {
+        let mut current_active_proposal = self.active_proposal.lock().await;
+        if let Some(current_generating_proposal_id) = *current_active_proposal {
             return Err(BuildProposalError::AlreadyGeneratingProposal {
-                current_generating_proposal_id: active_proposal,
-                new_proposal_id: proposal_id,
+                current_generating_proposal_id,
+                new_proposal_id: active_proposal,
             });
         }
 
-        *lock = Some(proposal_id);
-        debug!("Set proposal {} as the one being generated.", proposal_id);
+        *current_active_proposal = Some(active_proposal);
+        debug!("Set proposal {} as the one being generated.", active_proposal);
         Ok(())
     }
 
@@ -244,10 +259,9 @@ impl ProposalManager {
     // TODO: Consider making the tests a nested module to allow them to access private members.
     #[cfg(test)]
     pub async fn await_active_proposal(&mut self) {
-        match self.active_proposal_handle.take() {
-            Some(handle) => Some(handle.await.unwrap()),
-            None => None,
-        };
+        if let Some(handle) = self.active_proposal_handle.take() {
+            handle.await.unwrap();
+        }
     }
 }
 
@@ -259,10 +273,11 @@ struct BuildProposalTask {
     block_builder: Box<dyn BlockBuilderTrait + Send>,
     active_proposal: Arc<Mutex<Option<ProposalId>>>,
     deadline: tokio::time::Instant,
+    done_proposals: Arc<Mutex<HashMap<ProposalId, Result<ThinStateDiff, BuildProposalError>>>>,
 }
 
 impl BuildProposalTask {
-    async fn run(mut self) -> Result<(), BuildProposalError> {
+    async fn run(mut self) {
         // We convert the receiver to a stream and pass it to the block builder while using the
         // sender to feed the stream.
         let (mempool_tx_sender, mempool_tx_receiver) =
@@ -280,25 +295,22 @@ impl BuildProposalTask {
             &mempool_tx_sender,
         );
 
-        // Wait for either the block builder to finish or the feeding of transactions to error.
-        // The other task will be cancelled.
-        let _res = select! {
+        // Wait for either the block builder to finish / the feeding of transactions to error / the
+        // proposal to be aborted. The other tasks will be cancelled.
+        let result = select! {
             // This will send txs from the mempool to the stream we provided to the block builder.
             feeding_error = feed_mempool_txs_future => {
                 error!("Failed to feed more mempool txs: {}.", feeding_error);
                 // TODO: Notify the mempool about remaining txs.
-                // TODO: Abort the block builder or wait for it to finish.
+                // TODO: Abort the block builder.
                 Err(feeding_error)
             },
             builder_done = building_future => {
                 info!("Block builder finished.");
-                // TODO: Save the output in self.proposals.
-                Ok(builder_done)
+                builder_done.map(ThinStateDiff::from).map_err(BuildProposalError::BlockBuilderError)
             }
         };
-        self.active_proposal_finished().await;
-        // TODO: store the block artifacts, return the state_diff
-        Ok(())
+        Self::active_proposal_finished(self.active_proposal, result, self.done_proposals).await;
     }
 
     /// Feeds transactions from the mempool to the mempool_tx_sender channel.
@@ -335,10 +347,35 @@ impl BuildProposalTask {
         }
     }
 
-    async fn active_proposal_finished(&mut self) {
-        let mut proposal_id = self.active_proposal.lock().await;
-        *proposal_id = None;
+    async fn active_proposal_finished(
+        active_proposal: Arc<Mutex<Option<ProposalId>>>,
+        result: Result<ThinStateDiff, BuildProposalError>,
+        done_proposals: Arc<Mutex<HashMap<ProposalId, DoneProposal>>>,
+    ) {
+        let proposal_id =
+            active_proposal.lock().await.take().expect("Active proposal should exist.");
+        done_proposals.lock().await.insert(proposal_id, result);
     }
 }
 
 pub type InputTxStream = ReceiverStream<Transaction>;
+
+// TODO: Move this to a more appropriate place.
+impl From<BlockExecutionArtifacts> for ThinStateDiff {
+    fn from(artifacts: BlockExecutionArtifacts) -> Self {
+        let commitment_state_diff = artifacts.commitment_state_diff;
+
+        // TODO: Get these from the transactions.
+        let deployed_contracts = IndexMap::new();
+        let declared_classes = IndexMap::new();
+        ThinStateDiff {
+            deployed_contracts,
+            storage_diffs: commitment_state_diff.storage_updates,
+            declared_classes,
+            nonces: commitment_state_diff.address_to_nonce,
+            // TODO: Remove this when the structure of storage diffs changes.
+            deprecated_declared_classes: Vec::new(),
+            replaced_classes: IndexMap::new(),
+        }
+    }
+}
