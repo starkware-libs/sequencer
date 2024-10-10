@@ -1,4 +1,6 @@
-#[derive(Debug, Default, Clone)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub struct TransactionExecutorConfig {
     pub concurrency_config: ConcurrencyConfig,
 }
@@ -9,7 +11,7 @@ impl TransactionExecutorConfig {
     }
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub struct ConcurrencyConfig {
     pub enabled: bool,
     pub n_workers: usize,

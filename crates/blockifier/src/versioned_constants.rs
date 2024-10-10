@@ -11,7 +11,7 @@ use num_traits::Inv;
 use paste::paste;
 use semver::Version;
 use serde::de::Error as DeserializationError;
-use serde::{Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::{Map, Number, Value};
 use starknet_api::block::GasPrice;
 use starknet_api::execution_resources::GasAmount;
@@ -853,7 +853,7 @@ pub struct ResourcesByVersion {
     pub deprecated_resources: ResourcesParams,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct VersionedConstantsOverrides {
     pub validate_max_n_steps: u32,
     pub max_recursion_depth: usize,
