@@ -48,10 +48,6 @@ impl BouncerConfig {
         Self { block_max_capacity: BouncerWeights::max() }
     }
 
-    pub fn empty() -> Self {
-        Self::default()
-    }
-
     pub fn has_room(&self, weights: BouncerWeights) -> bool {
         self.block_max_capacity.has_room(weights)
     }
