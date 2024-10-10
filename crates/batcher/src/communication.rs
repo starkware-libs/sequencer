@@ -30,7 +30,10 @@ impl ComponentRequestHandler<BatcherRequest, BatcherResponse> for Batcher {
                 BatcherResponse::GetProposalContent(self.get_proposal_content(input).await)
             }
             BatcherRequest::StartHeight(input) => {
-                BatcherResponse::StartHeight(self.start_height(input))
+                BatcherResponse::StartHeight(self.start_height(input).await)
+            }
+            BatcherRequest::DecisionReached(input) => {
+                BatcherResponse::DecisionReached(self.decision_reached(input).await)
             }
             _ => unimplemented!(),
         }

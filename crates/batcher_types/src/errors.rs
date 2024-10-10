@@ -12,6 +12,11 @@ pub enum BatcherError {
     )]
     AlreadyWorkingOnHeight { active_height: BlockNumber, new_height: BlockNumber },
     #[error(
+        "Decision reached for proposal with ID {proposal_id} that does not exist (might still \
+         being executed)."
+    )]
+    DoneProposalNotFound { proposal_id: ProposalId },
+    #[error(
         "Height {storage_height} already passed, can't start working on height {requested_height}."
     )]
     HeightAlreadyPassed { storage_height: BlockNumber, requested_height: BlockNumber },
