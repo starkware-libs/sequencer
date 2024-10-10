@@ -40,13 +40,12 @@ use crate::test_utils::{
     CairoVersion,
     BALANCE,
     DEFAULT_L1_DATA_GAS_MAX_AMOUNT,
+    DEFAULT_L1_GAS_AMOUNT,
     DEFAULT_L2_GAS_MAX_AMOUNT,
     DEFAULT_STRK_L1_DATA_GAS_PRICE,
     DEFAULT_STRK_L1_GAS_PRICE,
     DEFAULT_STRK_L2_GAS_PRICE,
     MAX_FEE,
-    MAX_L1_GAS_AMOUNT,
-    MAX_L1_GAS_PRICE,
 };
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::constants;
@@ -92,7 +91,7 @@ pub fn max_fee() -> Fee {
 
 // TODO(Amos, 1/10/2024): Delete this fixture and use `create_resource_bounds`
 #[fixture]
-pub fn max_l1_resource_bounds() -> ValidResourceBounds {
+pub fn default_l1_resource_bounds() -> ValidResourceBounds {
     create_resource_bounds(&GasVectorComputationMode::NoL2Gas)
 }
 
@@ -104,11 +103,11 @@ pub fn default_all_resource_bounds() -> ValidResourceBounds {
 pub fn create_resource_bounds(computation_mode: &GasVectorComputationMode) -> ValidResourceBounds {
     match computation_mode {
         GasVectorComputationMode::NoL2Gas => {
-            l1_resource_bounds(MAX_L1_GAS_AMOUNT, MAX_L1_GAS_PRICE.into())
+            l1_resource_bounds(DEFAULT_L1_GAS_AMOUNT, DEFAULT_STRK_L1_GAS_PRICE.into())
         }
         GasVectorComputationMode::All => create_all_resource_bounds(
-            MAX_L1_GAS_AMOUNT,
-            MAX_L1_GAS_PRICE.into(),
+            DEFAULT_L1_GAS_AMOUNT,
+            DEFAULT_STRK_L1_GAS_PRICE.into(),
             DEFAULT_L2_GAS_MAX_AMOUNT,
             DEFAULT_STRK_L2_GAS_PRICE.into(),
             DEFAULT_L1_DATA_GAS_MAX_AMOUNT,
@@ -341,7 +340,7 @@ pub fn l1_resource_bounds(
 
 #[fixture]
 pub fn all_resource_bounds(
-    #[default(MAX_L1_GAS_AMOUNT)] l1_max_amount: GasAmount,
+    #[default(DEFAULT_L1_GAS_AMOUNT)] l1_max_amount: GasAmount,
     #[default(GasPrice::from(DEFAULT_STRK_L1_GAS_PRICE))] l1_max_price: GasPrice,
     #[default(DEFAULT_L2_GAS_MAX_AMOUNT)] l2_max_amount: GasAmount,
     #[default(GasPrice::from(DEFAULT_STRK_L2_GAS_PRICE))] l2_max_price: GasPrice,

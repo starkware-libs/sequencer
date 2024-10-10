@@ -746,7 +746,7 @@ impl Fee {
         self.0.checked_add(rhs.0).map(Fee)
     }
 
-    pub fn saturating_add(self, rhs: Self) -> Self {
+    pub const fn saturating_add(self, rhs: Self) -> Self {
         Self(self.0.saturating_add(rhs.0))
     }
 

@@ -18,16 +18,16 @@ use crate::fee::fee_checks::FeeCheckError;
 use crate::state::state_api::StateReader;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{create_calldata, CairoVersion, BALANCE, MAX_L1_GAS_PRICE};
+use crate::test_utils::{create_calldata, CairoVersion, BALANCE, DEFAULT_STRK_L1_GAS_PRICE};
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::{FeeType, HasRelatedFeeType, TransactionInfoCreator};
 use crate::transaction::test_utils::{
     account_invoke_tx,
     block_context,
+    default_l1_resource_bounds,
     l1_resource_bounds,
     max_fee,
-    max_l1_resource_bounds,
     run_invoke_tx,
     TestInitData,
 };
@@ -73,7 +73,7 @@ fn calldata_for_write_and_transfer(
 #[case(TransactionVersion::THREE, FeeType::Strk)]
 fn test_revert_on_overdraft(
     max_fee: Fee,
-    max_l1_resource_bounds: ValidResourceBounds,
+    default_l1_resource_bounds: ValidResourceBounds,
     block_context: BlockContext,
     #[case] version: TransactionVersion,
     #[case] fee_type: FeeType,
@@ -115,7 +115,7 @@ fn test_revert_on_overdraft(
         sender_address: account_address,
         calldata: approve_calldata,
         version,
-        resource_bounds: max_l1_resource_bounds,
+        resource_bounds: default_l1_resource_bounds,
         nonce: nonce_manager.next(account_address),
     });
     let tx_info = approve_tx.create_tx_info();
@@ -140,7 +140,7 @@ fn test_revert_on_overdraft(
                 fee_token_address
             ),
             version,
-            resource_bounds: max_l1_resource_bounds,
+            resource_bounds: default_l1_resource_bounds,
             nonce: nonce_manager.next(account_address),
         },
     )
@@ -171,7 +171,7 @@ fn test_revert_on_overdraft(
                 fee_token_address
             ),
             version,
-            resource_bounds: max_l1_resource_bounds,
+            resource_bounds: default_l1_resource_bounds,
             nonce: nonce_manager.next(account_address),
         },
     )
@@ -218,7 +218,7 @@ fn test_revert_on_overdraft(
 #[case(TransactionVersion::THREE,  &format!("Insufficient max {resource}", resource=Resource::L1Gas), true)]
 fn test_revert_on_resource_overuse(
     max_fee: Fee,
-    max_l1_resource_bounds: ValidResourceBounds,
+    default_l1_resource_bounds: ValidResourceBounds,
     block_context: BlockContext,
     #[case] version: TransactionVersion,
     #[case] expected_error_prefix: &str,
@@ -249,7 +249,7 @@ fn test_revert_on_resource_overuse(
         &block_context,
         invoke_tx_args! {
             max_fee,
-            resource_bounds: max_l1_resource_bounds,
+            resource_bounds: default_l1_resource_bounds,
             nonce: nonce_manager.next(account_address),
             calldata: write_a_lot_calldata(),
             ..base_args.clone()
@@ -276,7 +276,7 @@ fn test_revert_on_resource_overuse(
         &block_context,
         invoke_tx_args! {
             max_fee: actual_fee,
-            resource_bounds: l1_resource_bounds(actual_gas_usage, MAX_L1_GAS_PRICE.into()),
+            resource_bounds: l1_resource_bounds(actual_gas_usage, DEFAULT_STRK_L1_GAS_PRICE.into()),
             nonce: nonce_manager.next(account_address),
             calldata: write_a_lot_calldata(),
             ..base_args.clone()
@@ -296,7 +296,7 @@ fn test_revert_on_resource_overuse(
         invoke_tx_args! {
             max_fee: low_max_fee,
             resource_bounds: l1_resource_bounds(
-                (actual_gas_usage.0 - 1).into(), MAX_L1_GAS_PRICE.into()
+                (actual_gas_usage.0 - 1).into(), DEFAULT_STRK_L1_GAS_PRICE.into()
             ),
             nonce: nonce_manager.next(account_address),
             calldata: write_a_lot_calldata(),
