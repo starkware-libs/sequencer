@@ -69,12 +69,23 @@ impl BlockBuilderTrait for BlockBuilder {
     }
 }
 
-#[derive(Default, Debug, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct BlockExecutionArtifacts {
     pub execution_infos: IndexMap<TransactionHash, TransactionExecutionInfo>,
     pub commitment_state_diff: CommitmentStateDiff,
     pub visited_segments_mapping: VisitedSegmentsMapping,
     pub bouncer_weights: BouncerWeights,
+}
+
+impl Default for BlockExecutionArtifacts {
+    fn default() -> Self {
+        Self {
+            execution_infos: IndexMap::default(),
+            commitment_state_diff: CommitmentStateDiff::default(),
+            visited_segments_mapping: VisitedSegmentsMapping::default(),
+            bouncer_weights: BouncerWeights::empty(),
+        }
+    }
 }
 
 /// The BlockBuilderTrait is responsible for building a new block from transactions provided in
