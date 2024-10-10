@@ -64,7 +64,9 @@ use crate::test_utils::{
     get_tx_resources,
     CairoVersion,
     BALANCE,
+    DEFAULT_STRK_L1_DATA_GAS_PRICE,
     DEFAULT_STRK_L1_GAS_PRICE,
+    DEFAULT_STRK_L2_GAS_PRICE,
     MAX_FEE,
 };
 use crate::transaction::account_transaction::AccountTransaction;
@@ -163,21 +165,36 @@ fn test_rc96_holes(block_context: BlockContext, default_l1_resource_bounds: Vali
 }
 
 #[rstest]
+#[case::deprecated_tx(TransactionVersion::ONE, GasVectorComputationMode::NoL2Gas)]
+#[case::l1_bounds(TransactionVersion::THREE, GasVectorComputationMode::NoL2Gas)]
+#[case::all_bounds(TransactionVersion::THREE, GasVectorComputationMode::All)]
 fn test_fee_enforcement(
     block_context: BlockContext,
-    #[values(TransactionVersion::ONE, TransactionVersion::THREE)] version: TransactionVersion,
+    #[case] version: TransactionVersion,
+    #[case] gas_bounds_mode: GasVectorComputationMode,
     #[values(true, false)] zero_bounds: bool,
 ) {
     let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0);
     let state = &mut test_state(&block_context.chain_info, BALANCE, &[(account, 1)]);
+    let uint_bound = u8::from(!zero_bounds);
     let deploy_account_tx = deploy_account_tx(
         deploy_account_tx_args! {
             class_hash: account.get_class_hash(),
-            max_fee: Fee(u128::from(!zero_bounds)),
-            resource_bounds: l1_resource_bounds(
-                u8::from(!zero_bounds).into(),
-                DEFAULT_STRK_L1_GAS_PRICE.into()
-            ),
+            max_fee: Fee(u128::from(uint_bound)),
+            resource_bounds: match gas_bounds_mode {
+                GasVectorComputationMode::NoL2Gas => l1_resource_bounds(
+                    uint_bound.into(),
+                    DEFAULT_STRK_L1_GAS_PRICE.into()
+                ),
+                GasVectorComputationMode::All => create_all_resource_bounds(
+                    uint_bound.into(),
+                    DEFAULT_STRK_L1_GAS_PRICE.into(),
+                    uint_bound.into(),
+                    DEFAULT_STRK_L2_GAS_PRICE.into(),
+                    uint_bound.into(),
+                    DEFAULT_STRK_L1_DATA_GAS_PRICE.into(),
+                ),
+            },
             version,
         },
         &mut NonceManager::default(),
@@ -187,6 +204,32 @@ fn test_fee_enforcement(
     let enforce_fee = account_tx.create_tx_info().enforce_fee();
     let result = account_tx.execute(state, &block_context, true, true);
     assert_eq!(result.is_err(), enforce_fee);
+}
+
+#[rstest]
+#[case::l1_gas_only(1, 1, 0, 0, 0, 0)]
+#[case::l1_data_gas_only(0, 0, 1, 1, 0, 0)]
+#[case::l2_gas_only(0, 0, 0, 0, 1, 1)]
+fn test_all_bounds_combinations_enforce_fee(
+    #[case] l1_gas_bound: u64,
+    #[case] l1_gas_price_bound: u128,
+    #[case] l1_data_gas_bound: u64,
+    #[case] l1_data_gas_price_bound: u128,
+    #[case] l2_gas_bound: u64,
+    #[case] l2_gas_price_bound: u128,
+) {
+    let account_tx = account_invoke_tx(invoke_tx_args! {
+        version: TransactionVersion::THREE,
+        resource_bounds: create_all_resource_bounds(
+            l1_gas_bound.into(),
+            l1_gas_price_bound.into(),
+            l2_gas_bound.into(),
+            l2_gas_price_bound.into(),
+            l1_data_gas_bound.into(),
+            l1_data_gas_price_bound.into(),
+        ),
+    });
+    assert!(account_tx.create_tx_info().enforce_fee());
 }
 
 #[rstest]
