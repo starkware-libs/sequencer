@@ -242,6 +242,7 @@ Error in contract (contract address: {test_contract_address_2_felt:#064x}, class
     let expected_trace = match cairo_version {
         CairoVersion::Cairo0 => expected_trace_cairo0,
         CairoVersion::Cairo1 => expected_trace_cairo1,
+        CairoVersion::Native => panic!("Cairo Native contracts are not supported"),
     };
 
     assert_eq!(tx_execution_error.to_string(), expected_trace);
@@ -361,6 +362,9 @@ Error in contract (contract address: {contract_address_felt:#064x}, class hash: 
 {expected_error}.
 "
             )
+        }
+        CairoVersion::Native => {
+            todo!("Cairo Native is not yet supported here")
         }
     };
 
@@ -517,6 +521,9 @@ Error in contract (contract address: {address_felt:#064x}, class hash: {test_con
 "
             )
         }
+        CairoVersion::Native => {
+            todo!("Cairo Native not yet supported here.")
+        }
     };
 
     assert_eq!(tx_execution_error.to_string(), expected_trace);
@@ -617,6 +624,7 @@ Error in contract (contract address: {contract_address:#064x}, class hash: {:#06
 0x496e76616c6964207363656e6172696f ('Invalid scenario').",
             class_hash.0
         ),
+        CairoVersion::Native => todo!("Cairo Native is not yet supported here."),
     };
 
     // Clean pc locations from the trace.
@@ -689,6 +697,9 @@ Error in contract (contract address: {expected_address:#064x}, class hash: {:#06
                 class_hash.0
             )
             .to_string(),
+            CairoVersion::Native => {
+                todo!("Cairo Native not yet supported here.")
+            }
         };
 
     // Compare expected and actual error.
@@ -825,6 +836,9 @@ Error in contract (contract address: {expected_address:#064x}, class hash: {:#06
                 faulty_class_hash.0,
                 ctor_selector.0
             )
+        }
+        CairoVersion::Native => {
+            todo!("Cairo Native not yet supported here.")
         }
     };
 
