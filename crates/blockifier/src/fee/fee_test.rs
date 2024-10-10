@@ -322,11 +322,13 @@ fn test_get_fee_by_gas_vector_regression(
 }
 
 #[rstest]
-#[case::l1_saturates(u64::MAX, 0, 0)]
-#[case::l1_data_saturates(0, u64::MAX, 0)]
-#[case::l2_gas_saturates(0, 0, u64::MAX)]
-// TODO: Add L2 saturation case once `get_fee_by_gas_vector` implements L2 collection.
-fn test_get_fee_by_gas_vector_saturation(
+#[should_panic(expected = "L1Gas cost overflowed")]
+#[case::l1_overflows(u64::MAX, 0, 0)]
+#[should_panic(expected = "L1DataGas cost overflowed")]
+#[case::l1_data_overflows(0, u64::MAX, 0)]
+#[should_panic(expected = "L2Gas cost overflowed")]
+#[case::l2_gas_overflows(0, 0, u64::MAX)]
+fn test_get_fee_by_gas_vector_overflow(
     #[case] l1_gas: u64,
     #[case] l1_data_gas: u64,
     #[case] l2_gas: u64,

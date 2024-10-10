@@ -74,19 +74,11 @@ impl GasAmount {
     }
 }
 
-#[derive(
-    derive_more::Add,
-    derive_more::Sum,
-    derive_more::AddAssign,
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    Eq,
-    PartialEq,
-    Deserialize,
-    Serialize,
+#[cfg_attr(
+    any(test, feature = "testing"),
+    derive(derive_more::Add, derive_more::Sum, derive_more::AddAssign)
 )]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct GasVector {
     pub l1_gas: GasAmount,
     pub l1_data_gas: GasAmount,
@@ -95,6 +87,9 @@ pub struct GasVector {
 }
 
 impl GasVector {
+    pub const ZERO: GasVector =
+        GasVector { l1_gas: GasAmount(0), l1_data_gas: GasAmount(0), l2_gas: GasAmount(0) };
+
     pub fn from_l1_gas(l1_gas: GasAmount) -> Self {
         Self { l1_gas, ..Default::default() }
     }
@@ -107,8 +102,21 @@ impl GasVector {
         Self { l2_gas, ..Default::default() }
     }
 
-    /// Computes the cost (in fee token units) of the gas vector (saturating on overflow).
-    pub fn saturated_cost(&self, gas_prices: &GasPriceVector) -> Fee {
+    pub fn checked_add(self, rhs: Self) -> Option<Self> {
+        match (
+            self.l1_gas.checked_add(rhs.l1_gas),
+            self.l1_data_gas.checked_add(rhs.l1_data_gas),
+            self.l2_gas.checked_add(rhs.l2_gas),
+        ) {
+            (Some(l1_gas), Some(l1_data_gas), Some(l2_gas)) => {
+                Some(Self { l1_gas, l1_data_gas, l2_gas })
+            }
+            _ => None,
+        }
+    }
+
+    /// Computes the cost (in fee token units) of the gas vector (panicking on overflow).
+    pub fn cost(&self, gas_prices: &GasPriceVector) -> Fee {
         let mut sum = Fee(0);
         for (gas, price, resource) in [
             (self.l1_gas, gas_prices.l1_gas_price, Resource::L1Gas),
@@ -116,24 +124,18 @@ impl GasVector {
             (self.l2_gas, gas_prices.l2_gas_price, Resource::L2Gas),
         ] {
             let cost = gas.checked_mul(price.get()).unwrap_or_else(|| {
-                log::warn!(
+                panic!(
                     "{} cost overflowed: multiplication of gas amount ({}) by price per unit ({}) \
                      resulted in overflow.",
-                    resource,
-                    gas,
-                    price
-                );
-                Fee(u128::MAX)
+                    resource, gas, price
+                )
             });
             sum = sum.checked_add(cost).unwrap_or_else(|| {
-                log::warn!(
+                panic!(
                     "Total cost overflowed: addition of current sum ({}) and cost of {} ({}) \
                      resulted in overflow.",
-                    sum,
-                    resource,
-                    cost
-                );
-                Fee(u128::MAX)
+                    sum, resource, cost
+                )
             });
         }
         sum
