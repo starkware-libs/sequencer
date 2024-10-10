@@ -21,10 +21,14 @@ pub(crate) mod peer;
 #[cfg(test)]
 mod test;
 
+pub const MALICIOUS: f64 = 1.0;
+
 #[cfg_attr(test, derive(Debug, PartialEq))]
 #[derive(Clone, Copy)]
 pub enum ReputationModifier {
-    Malicious,
+    Malicious { misconduct_score: f64 }, /* misconduct_score is in the range [0, 1]. When a
+                                          * peer's misconduct_score reaches 1, it is
+                                          * considered malicious. */
     Unstable,
 }
 
@@ -184,10 +188,18 @@ impl PeerManager {
         self.pending_events
             .push(ToSwarm::GenerateEvent(ToOtherBehaviourEvent::PeerBlacklisted { peer_id }));
         if let Some(peer) = self.peers.get_mut(&peer_id) {
-            peer.update_reputation(match reason {
-                ReputationModifier::Malicious => self.config.malicious_timeout,
-                ReputationModifier::Unstable => self.config.unstable_timeout,
-            });
+            match reason {
+                ReputationModifier::Malicious { misconduct_score } => {
+                    peer.report(misconduct_score);
+                    if peer.is_malicious() {
+                        peer.blacklist_peer(self.config.malicious_timeout);
+                        peer.reset_misconduct_score();
+                    }
+                }
+                ReputationModifier::Unstable => {
+                    peer.blacklist_peer(self.config.unstable_timeout);
+                }
+            }
             Ok(())
         } else {
             Err(PeerManagerError::NoSuchPeer(peer_id))
@@ -200,15 +212,7 @@ impl PeerManager {
         reason: ReputationModifier,
     ) -> Result<(), PeerManagerError> {
         if let Some(peer_id) = self.session_to_peer_map.get(&outbound_session_id) {
-            if let Some(peer) = self.peers.get_mut(peer_id) {
-                peer.update_reputation(match reason {
-                    ReputationModifier::Malicious => self.config.malicious_timeout,
-                    ReputationModifier::Unstable => self.config.unstable_timeout,
-                });
-                Ok(())
-            } else {
-                Err(PeerManagerError::NoSuchPeer(*peer_id))
-            }
+            self.report_peer(*peer_id, reason)
         } else {
             Err(PeerManagerError::NoSuchSession(outbound_session_id))
         }

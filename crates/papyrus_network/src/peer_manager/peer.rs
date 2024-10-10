@@ -7,7 +7,7 @@ use tracing::info;
 pub trait PeerTrait {
     fn new(peer_id: PeerId, multiaddr: Multiaddr) -> Self;
 
-    fn update_reputation(&mut self, timeout_duration: Duration);
+    fn blacklist_peer(&mut self, timeout_duration: Duration);
 
     fn peer_id(&self) -> PeerId;
 
@@ -23,6 +23,12 @@ pub trait PeerTrait {
     fn add_connection_id(&mut self, connection_id: ConnectionId);
 
     fn remove_connection_id(&mut self, connection_id: ConnectionId);
+
+    fn reset_misconduct_score(&mut self);
+
+    fn report(&mut self, misconduct_score: f64);
+
+    fn is_malicious(&self) -> bool;
 }
 
 #[derive(Clone)]
@@ -31,14 +37,21 @@ pub struct Peer {
     multiaddr: Multiaddr,
     timed_out_until: Instant,
     connection_ids: Vec<ConnectionId>,
+    misconduct_score: f64,
 }
 
 impl PeerTrait for Peer {
     fn new(peer_id: PeerId, multiaddr: Multiaddr) -> Self {
-        Self { peer_id, multiaddr, timed_out_until: get_instant_now(), connection_ids: Vec::new() }
+        Self {
+            peer_id,
+            multiaddr,
+            timed_out_until: get_instant_now(),
+            connection_ids: Vec::new(),
+            misconduct_score: 0 as f64,
+        }
     }
 
-    fn update_reputation(&mut self, timeout_duration: Duration) {
+    fn blacklist_peer(&mut self, timeout_duration: Duration) {
         self.timed_out_until = get_instant_now() + timeout_duration;
         info!(
             "Peer {:?} misbehaved. Blacklisting it for {:.3} seconds.",
@@ -77,6 +90,18 @@ impl PeerTrait for Peer {
 
     fn remove_connection_id(&mut self, connection_id: ConnectionId) {
         self.connection_ids.retain(|&id| id != connection_id);
+    }
+
+    fn reset_misconduct_score(&mut self) {
+        self.misconduct_score = 0 as f64;
+    }
+
+    fn report(&mut self, misconduct_score: f64) {
+        self.misconduct_score += misconduct_score;
+    }
+
+    fn is_malicious(&self) -> bool {
+        1.0 <= self.misconduct_score
     }
 }
 
