@@ -70,13 +70,13 @@ function compile_cairo_native_runtime() {
     cargo build -p cairo-native-runtime --release --all-features --quiet
     popd || exit 1
 
-    mv ./cairo_native/target/release/libcairo_native_runtime.a ./libcairo_native_runtime.a
+    mv ./cairo_native/target/release/libcairo_native_runtime.a ./crates/blockifier/libcairo_native_runtime.a
     rm -rf ./cairo_native
 }
 
 function main() {
-    [ "$(uname)" = "Linux" ] && install_essential_deps_linux
-    setup_llvm_deps
+    # [ "$(uname)" = "Linux" ] && install_essential_deps_linux
+    # setup_llvm_deps
     echo "LLVM dependencies installed successfully."
 
     compile_cairo_native_runtime
