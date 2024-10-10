@@ -7,6 +7,7 @@ use serde::de::Error as DeserializationError;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
 
+use crate::contract_class::EntryPointType;
 use crate::core::EntryPointSelector;
 use crate::hash::StarkHash;
 use crate::serde_utils::deserialize_optional_contract_class_abi_entry_vector;
@@ -162,24 +163,6 @@ where
             // Convert the keys back to strings.
             .map(|(k, v)| (k.to_string(), v)),
     )
-}
-
-/// An entry point type of a [ContractClass](`crate::deprecated_contract_class::ContractClass`).
-#[derive(
-    Debug, Default, Clone, Copy, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord,
-)]
-#[serde(deny_unknown_fields)]
-pub enum EntryPointType {
-    /// A constructor entry point.
-    #[serde(rename = "CONSTRUCTOR")]
-    Constructor,
-    /// An external4 entry point.
-    #[serde(rename = "EXTERNAL")]
-    #[default]
-    External,
-    /// An L1 handler entry point.
-    #[serde(rename = "L1_HANDLER")]
-    L1Handler,
 }
 
 /// An entry point of a [ContractClass](`crate::deprecated_contract_class::ContractClass`).

@@ -13,8 +13,9 @@ use cairo_lang_utils::bigint::BigUintAsHex;
 use cairo_vm::types::program::Program;
 use flate2::bufread;
 use serde::Deserialize;
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::EntryPointSelector;
-use starknet_api::deprecated_contract_class::{EntryPoint, EntryPointOffset, EntryPointType};
+use starknet_api::deprecated_contract_class::{EntryPoint, EntryPointOffset};
 use starknet_api::hash::StarkHash;
 use starknet_core::types::{
     CompressedLegacyContractClass,
