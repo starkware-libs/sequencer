@@ -185,6 +185,10 @@ fn test_invalid_components_config() {
             ..ComponentExecutionConfig::default()
         },
         mempool: ComponentExecutionConfig { execute: false, ..ComponentExecutionConfig::default() },
+        sequencer_monitoring: ComponentExecutionConfig {
+            execute: false,
+            ..ComponentExecutionConfig::default()
+        },
     };
 
     check_validation_error(
@@ -197,17 +201,19 @@ fn test_invalid_components_config() {
 /// Test the validation of the struct ComponentConfig.
 /// The validation validates at least one of the components is set with execute: true.
 #[rstest]
-#[case(true, false, false, false, false)]
-#[case(false, true, false, false, false)]
-#[case(false, false, true, false, false)]
-#[case(false, false, false, true, false)]
-#[case(false, false, false, false, true)]
+#[case(true, false, false, false, false, false)]
+#[case(false, true, false, false, false, false)]
+#[case(false, false, true, false, false, false)]
+#[case(false, false, false, true, false, false)]
+#[case(false, false, false, false, true, false)]
+#[case(false, false, false, false, false, true)]
 fn test_valid_components_config(
     #[case] batcher_component_execute: bool,
     #[case] consensus_manager_component_execute: bool,
     #[case] gateway_component_execute: bool,
     #[case] http_server_component_execute: bool,
     #[case] mempool_component_execute: bool,
+    #[case] sequencer_monitoring_component_execute: bool,
 ) {
     // Initialize an invalid config and check that the validator finds an error.
     let component_config = ComponentConfig {
@@ -229,6 +235,10 @@ fn test_valid_components_config(
         },
         mempool: ComponentExecutionConfig {
             execute: mempool_component_execute,
+            ..ComponentExecutionConfig::default()
+        },
+        sequencer_monitoring: ComponentExecutionConfig {
+            execute: sequencer_monitoring_component_execute,
             ..ComponentExecutionConfig::default()
         },
     };

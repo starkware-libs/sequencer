@@ -28,6 +28,7 @@ use starknet_mempool_infra::component_definitions::{
     RemoteClientConfig,
     RemoteServerConfig,
 };
+use starknet_sequencer_monitoring_endpoint::config::SequencerMonitoringEndpointConfig;
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 use validator::{Validate, ValidationError};
 
@@ -135,6 +136,19 @@ impl ComponentExecutionConfig {
         }
     }
 
+    // TODO(Tsabary/Lev): There's a bug here: the sequencer monitoring endpoint component does not
+    // need a local nor a remote config. However, the validation function requires that at least
+    // one of them is set. As a workaround I've set the local one, but this should be addressed.
+    pub fn sequencer_monitoring_default_config() -> Self {
+        Self {
+            execute: true,
+            execution_mode: ComponentExecutionMode::Remote,
+            local_config: None,
+            remote_client_config: Some(RemoteClientConfig::default()),
+            remote_server_config: None,
+        }
+    }
+
     pub fn mempool_default_config() -> Self {
         Self {
             execute: true,
@@ -214,6 +228,8 @@ pub struct ComponentConfig {
     pub http_server: ComponentExecutionConfig,
     #[validate]
     pub mempool: ComponentExecutionConfig,
+    #[validate]
+    pub sequencer_monitoring: ComponentExecutionConfig,
 }
 
 impl Default for ComponentConfig {
@@ -224,6 +240,7 @@ impl Default for ComponentConfig {
             gateway: ComponentExecutionConfig::gateway_default_config(),
             http_server: ComponentExecutionConfig::http_server_default_config(),
             mempool: ComponentExecutionConfig::mempool_default_config(),
+            sequencer_monitoring: ComponentExecutionConfig::sequencer_monitoring_default_config(),
         }
     }
 }
@@ -237,6 +254,7 @@ impl SerializeConfig for ComponentConfig {
             append_sub_config_name(self.gateway.dump(), "gateway"),
             append_sub_config_name(self.http_server.dump(), "http_server"),
             append_sub_config_name(self.mempool.dump(), "mempool"),
+            append_sub_config_name(self.sequencer_monitoring.dump(), "sequencer_monitoring"),
         ];
 
         sub_configs.into_iter().flatten().collect()
@@ -252,6 +270,7 @@ pub fn validate_components_config(components: &ComponentConfig) -> Result<(), Va
         || components.batcher.execute
         || components.http_server.execute
         || components.consensus_manager.execute
+        || components.sequencer_monitoring.execute
     {
         return Ok(());
     }
@@ -281,6 +300,8 @@ pub struct SequencerNodeConfig {
     pub rpc_state_reader_config: RpcStateReaderConfig,
     #[validate]
     pub compiler_config: SierraToCasmCompilationConfig,
+    #[validate]
+    pub sequencer_monitoring_config: SequencerMonitoringEndpointConfig,
 }
 
 impl SerializeConfig for SequencerNodeConfig {
@@ -297,6 +318,10 @@ impl SerializeConfig for SequencerNodeConfig {
             append_sub_config_name(self.http_server_config.dump(), "http_server_config"),
             append_sub_config_name(self.rpc_state_reader_config.dump(), "rpc_state_reader_config"),
             append_sub_config_name(self.compiler_config.dump(), "compiler_config"),
+            append_sub_config_name(
+                self.sequencer_monitoring_config.dump(),
+                "sequencer_monitoring_config",
+            ),
         ];
 
         sub_configs.into_iter().flatten().collect()
@@ -314,6 +339,7 @@ impl Default for SequencerNodeConfig {
             http_server_config: Default::default(),
             rpc_state_reader_config: Default::default(),
             compiler_config: Default::default(),
+            sequencer_monitoring_config: Default::default(),
         }
     }
 }

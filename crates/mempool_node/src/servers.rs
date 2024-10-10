@@ -12,6 +12,10 @@ use starknet_http_server::communication::{create_http_server, HttpServer};
 use starknet_mempool::communication::{create_mempool_server, LocalMempoolServer};
 use starknet_mempool_infra::component_server::ComponentServerStarter;
 use starknet_mempool_infra::errors::ComponentServerError;
+use starknet_sequencer_monitoring_endpoint::communication::{
+    create_sequencer_monitoring_server,
+    SequencerMonitoringServer,
+};
 use tracing::error;
 
 use crate::communication::SequencerNodeCommunication;
@@ -29,6 +33,7 @@ pub struct LocalServers {
 pub struct WrapperServers {
     pub consensus_manager: Option<Box<ConsensusManagerServer>>,
     pub http_server: Option<Box<HttpServer>>,
+    pub sequencer_monitoring: Option<Box<SequencerMonitoringServer>>,
 }
 
 /// TODO(Tsabary): make these fields private, currently public to support the outdated e2e test.
@@ -81,11 +86,24 @@ pub fn create_node_servers(
         None
     };
 
+    let sequencer_monitoring_server = if config.components.sequencer_monitoring.execute {
+        Some(Box::new(create_sequencer_monitoring_server(
+            components
+                .sequencer_monitoring
+                .expect("Sequencer Monitoring Endpoint is not initialized."),
+        )))
+    } else {
+        None
+    };
+
     let local_servers =
         LocalServers { batcher: batcher_server, gateway: gateway_server, mempool: mempool_server };
 
-    let wrapper_servers =
-        WrapperServers { consensus_manager: consensus_manager_server, http_server };
+    let wrapper_servers = WrapperServers {
+        consensus_manager: consensus_manager_server,
+        http_server,
+        sequencer_monitoring: sequencer_monitoring_server,
+    };
 
     SequencerNodeServers { local_servers, wrapper_servers }
 }
@@ -129,12 +147,20 @@ pub async fn run_component_servers(
         servers.local_servers.mempool,
     );
 
+    // Sequencer Monitoring server.
+    let sequencer_monitoring_future = get_server_future(
+        "Sequencer Monitoring Endpoint",
+        config.components.sequencer_monitoring.execute,
+        servers.wrapper_servers.sequencer_monitoring,
+    );
+
     // Start servers.
     let batcher_handle = tokio::spawn(batcher_future);
     let consensus_manager_handle = tokio::spawn(consensus_manager_future);
     let gateway_handle = tokio::spawn(gateway_future);
     let http_server_handle = tokio::spawn(http_server_future);
     let mempool_handle = tokio::spawn(mempool_future);
+    let sequencer_monitoring_handle = tokio::spawn(sequencer_monitoring_future);
 
     let result = tokio::select! {
         res = batcher_handle => {
@@ -155,6 +181,10 @@ pub async fn run_component_servers(
         }
         res = mempool_handle => {
             error!("Mempool Server stopped.");
+            res?
+        }
+        res = sequencer_monitoring_handle => {
+            error!("Sequencer Monitoring Server stopped.");
             res?
         }
     };
