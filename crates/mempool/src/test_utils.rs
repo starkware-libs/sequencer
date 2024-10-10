@@ -16,6 +16,20 @@ use crate::mempool::Mempool;
 macro_rules! tx {
     (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr,
         tx_nonce: $tx_nonce:expr, max_l2_gas_price: $max_l2_gas_price:expr) => {{
+            use starknet_api::block::GasPrice;
+            use starknet_api::executable_transaction::Transaction;
+            use starknet_api::hash::StarkHash;
+            use starknet_api::test_utils::invoke::executable_invoke_tx;
+            use starknet_api::transaction::{
+                AllResourceBounds,
+                ResourceBounds,
+                Tip,
+                TransactionHash,
+                ValidResourceBounds,
+            };
+            use mempool_test_utils::starknet_api_test_utils::VALID_L2_GAS_MAX_PRICE_PER_UNIT;
+
+
             let resource_bounds = ValidResourceBounds::AllResources(AllResourceBounds {
                 l2_gas: ResourceBounds {
                     max_price_per_unit: GasPrice(VALID_L2_GAS_MAX_PRICE_PER_UNIT),
@@ -59,10 +73,13 @@ macro_rules! tx {
 macro_rules! add_tx_input {
     (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr,
         tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr, max_l2_gas_price: $max_l2_gas_price:expr) => {{
-        let tx = tx!(tip: $tip, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: $tx_nonce, max_l2_gas_price: $max_l2_gas_price);
+        use starknet_api::{contract_address, nonce};
+        use starknet_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
+
+        let tx = $crate::tx!(tip: $tip, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: $tx_nonce, max_l2_gas_price: $max_l2_gas_price);
         let address = contract_address!($sender_address);
         let account_nonce = nonce!($account_nonce);
-        let account_state = AccountState { address, nonce: account_nonce};
+        let account_state = AccountState {address, nonce: account_nonce};
 
         AddTransactionArgs { tx, account_state }
     }};

@@ -1,18 +1,7 @@
-use mempool_test_utils::starknet_api_test_utils::VALID_L2_GAS_MAX_PRICE_PER_UNIT;
 use rstest::{fixture, rstest};
-use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, PatriciaKey};
-use starknet_api::executable_transaction::Transaction;
-use starknet_api::hash::StarkHash;
-use starknet_api::test_utils::invoke::executable_invoke_tx;
-use starknet_api::transaction::{
-    AllResourceBounds,
-    ResourceBounds,
-    Tip,
-    TransactionHash,
-    ValidResourceBounds,
-};
 use starknet_api::{contract_address, felt, invoke_tx_args, nonce, patricia_key};
+use starknet_mempool::add_tx_input;
 use starknet_mempool::mempool::Mempool;
 use starknet_mempool::test_utils::{
     add_tx,
@@ -20,9 +9,7 @@ use starknet_mempool::test_utils::{
     commit_block,
     get_txs_and_assert_expected,
 };
-use starknet_mempool::{add_tx_input, tx};
 use starknet_mempool_types::errors::MempoolError;
-use starknet_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
 
 // Fixtures.
 
