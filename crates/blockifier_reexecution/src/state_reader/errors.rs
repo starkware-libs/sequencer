@@ -1,4 +1,5 @@
 use blockifier::state::errors::StateError;
+use blockifier::transaction::errors::TransactionExecutionError;
 use blockifier::versioned_constants::VersionedConstantsError;
 use serde_json::Error as SerdeError;
 use starknet_gateway::errors::RPCStateReaderError;
@@ -13,6 +14,8 @@ pub enum ReexecutionError {
     Rpc(#[from] RPCStateReaderError),
     #[error(transparent)]
     Serde(#[from] SerdeError),
+    #[error(transparent)]
+    TransactionExecutionError(#[from] TransactionExecutionError),
     #[error(transparent)]
     VersionedConstants(#[from] VersionedConstantsError),
 }
