@@ -1,12 +1,12 @@
 use starknet_api::test_utils::invoke::InvokeTxArgs;
-use starknet_api::transaction::{InvokeTransactionV0, TransactionHash, TransactionVersion};
+use starknet_api::transaction::{InvokeTransactionV0, TransactionVersion};
 
 use crate::abi::abi_utils::selector_from_name;
 use crate::transaction::constants::EXECUTE_ENTRY_POINT_NAME;
 use crate::transaction::transactions::InvokeTransaction;
 
 pub fn invoke_tx(invoke_args: InvokeTxArgs) -> InvokeTransaction {
-    let default_tx_hash = TransactionHash::default();
+    let tx_hash = invoke_args.tx_hash;
     let only_query = invoke_args.only_query;
     // TODO: Make TransactionVersion an enum and use match here.
     let invoke_tx = if invoke_args.version == TransactionVersion::ZERO {
@@ -23,7 +23,7 @@ pub fn invoke_tx(invoke_args: InvokeTxArgs) -> InvokeTransaction {
     };
 
     match only_query {
-        true => InvokeTransaction::new_for_query(invoke_tx, default_tx_hash),
-        false => InvokeTransaction::new(invoke_tx, default_tx_hash),
+        true => InvokeTransaction::new_for_query(invoke_tx, tx_hash),
+        false => InvokeTransaction::new(invoke_tx, tx_hash),
     }
 }
