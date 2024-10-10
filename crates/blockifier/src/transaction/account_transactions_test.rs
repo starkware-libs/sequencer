@@ -1161,9 +1161,11 @@ fn test_max_fee_to_max_steps_conversion(
 /// recorded and max_fee is charged.
 fn test_insufficient_max_fee_reverts(
     block_context: BlockContext,
-    default_l1_resource_bounds: ValidResourceBounds,
+    #[values(default_l1_resource_bounds(), default_all_resource_bounds())]
+    resource_bounds: ValidResourceBounds,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
 ) {
+    let gas_mode = resource_bounds.get_gas_vector_computation_mode();
     let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
         create_test_init_data(&block_context.chain_info, cairo_version);
     let recursion_base_args = invoke_tx_args! {
@@ -1175,7 +1177,7 @@ fn test_insufficient_max_fee_reverts(
         &mut state,
         &block_context,
         invoke_tx_args! {
-            resource_bounds: default_l1_resource_bounds,
+            resource_bounds,
             nonce: nonce_manager.next(account_address),
             calldata: recursive_function_calldata(&contract_address, 1, false),
             ..recursion_base_args.clone()
@@ -1183,32 +1185,51 @@ fn test_insufficient_max_fee_reverts(
     )
     .unwrap();
     assert!(!tx_execution_info1.is_reverted());
-    let actual_fee_depth1 = tx_execution_info1.receipt.fee;
-    let gas_price =
-        block_context.block_info.gas_prices.get_l1_gas_price_by_fee_type(&FeeType::Strk);
-    let gas_ammount = actual_fee_depth1.checked_div(gas_price).unwrap();
 
-    // Invoke the `recurse` function with depth of 2 and the actual fee of depth 1 as max_fee.
-    // This call should fail due to insufficient max fee (steps bound based on max_fee is not so
-    // tight as to stop execution between iterations 1 and 2).
+    // Invoke the `recurse` function with depth of 2 and the actual gas usage of depth 1 as the
+    // resource bounds. This call should fail in post-execution due to insufficient max gas (steps
+    // bound based on the resource bounds are not so tight as to stop execution between iterations 1
+    // and 2).
+    let resource_used_depth1 = match gas_mode {
+        GasVectorComputationMode::NoL2Gas => l1_resource_bounds(
+            tx_execution_info1.receipt.gas.l1_gas,
+            block_context.block_info.gas_prices.get_l1_gas_price_by_fee_type(&FeeType::Strk).into(),
+        ),
+        GasVectorComputationMode::All => ValidResourceBounds::all_bounds_from_vectors(
+            &tx_execution_info1.receipt.gas,
+            block_context.block_info.gas_prices.get_gas_prices_by_fee_type(&FeeType::Strk),
+        ),
+    };
     let tx_execution_info2 = run_invoke_tx(
         &mut state,
         &block_context,
         invoke_tx_args! {
-            resource_bounds: l1_resource_bounds(gas_ammount, gas_price.into()),
+            resource_bounds: resource_used_depth1,
             nonce: nonce_manager.next(account_address),
             calldata: recursive_function_calldata(&contract_address, 2, false),
             ..recursion_base_args.clone()
         },
     )
     .unwrap();
+    // In the L1 gas bounds case, due to resource limit being estimated by steps, the execution
+    // will not fail due to insufficient resources; there are not enough steps in execution to hit
+    // the bound. Post-execution will fail due to insufficient max fee.
+    // The expected revert fee is therefore the same as the original fee (snap to bounds on
+    // post-execution error).
+    let overdraft_resource = match gas_mode {
+        GasVectorComputationMode::NoL2Gas => Resource::L1Gas,
+        GasVectorComputationMode::All => Resource::L2Gas,
+    };
     assert!(tx_execution_info2.is_reverted());
-    assert!(tx_execution_info2.receipt.fee == actual_fee_depth1);
+    // DA costs should be identical, regardless of bounds; as should the final fee (computed by
+    // snapping to bounds).
+    assert_eq!(tx_execution_info2.receipt.da_gas, tx_execution_info1.receipt.da_gas);
+    assert_eq!(tx_execution_info2.receipt.fee, tx_execution_info1.receipt.fee);
     assert!(
         tx_execution_info2
             .revert_error
             .unwrap()
-            .starts_with(&format!("Insufficient max {resource}", resource = Resource::L1Gas))
+            .contains(&format!("Insufficient max {overdraft_resource}"))
     );
 
     // Invoke the `recurse` function with depth of 824 and the actual fee of depth 1 as max_fee.
@@ -1218,7 +1239,7 @@ fn test_insufficient_max_fee_reverts(
         &mut state,
         &block_context,
         invoke_tx_args! {
-            resource_bounds: l1_resource_bounds(gas_ammount, gas_price.into()),
+            resource_bounds: resource_used_depth1,
             nonce: nonce_manager.next(account_address),
             calldata: recursive_function_calldata(&contract_address, 824, false),
             ..recursion_base_args
@@ -1226,10 +1247,9 @@ fn test_insufficient_max_fee_reverts(
     )
     .unwrap();
     assert!(tx_execution_info3.is_reverted());
-    assert!(tx_execution_info3.receipt.fee == actual_fee_depth1);
-    assert!(
-        tx_execution_info3.revert_error.unwrap().contains("RunResources has no remaining steps.")
-    );
+    assert_eq!(tx_execution_info3.receipt.da_gas, tx_execution_info1.receipt.da_gas);
+    assert_eq!(tx_execution_info3.receipt.fee, tx_execution_info1.receipt.fee);
+    assert!(tx_execution_info3.revert_error.unwrap().contains("no remaining steps"));
 }
 
 #[rstest]
