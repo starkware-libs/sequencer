@@ -18,8 +18,8 @@ use thiserror::Error;
 use crate::errors::MempoolError;
 use crate::mempool_types::{AddTransactionArgs, CommitBlockArgs};
 
-pub type LocalMempoolClientImpl = LocalComponentClient<MempoolRequest, MempoolResponse>;
-pub type RemoteMempoolClientImpl = RemoteComponentClient<MempoolRequest, MempoolResponse>;
+pub type LocalMempoolClient = LocalComponentClient<MempoolRequest, MempoolResponse>;
+pub type RemoteMempoolClient = RemoteComponentClient<MempoolRequest, MempoolResponse>;
 pub type MempoolResult<T> = Result<T, MempoolError>;
 pub type MempoolClientResult<T> = Result<T, MempoolClientError>;
 pub type MempoolRequestAndResponseSender =
@@ -67,7 +67,7 @@ pub enum MempoolClientError {
 }
 
 #[async_trait]
-impl MempoolClient for LocalMempoolClientImpl {
+impl MempoolClient for LocalMempoolClient {
     async fn add_tx(&self, args: AddTransactionArgsWrapper) -> MempoolClientResult<()> {
         let request = MempoolRequest::AddTransaction(args);
         let response = self.send(request).await;
@@ -93,7 +93,7 @@ impl MempoolClient for LocalMempoolClientImpl {
 }
 
 #[async_trait]
-impl MempoolClient for RemoteMempoolClientImpl {
+impl MempoolClient for RemoteMempoolClient {
     async fn add_tx(&self, args: AddTransactionArgsWrapper) -> MempoolClientResult<()> {
         let request = MempoolRequest::AddTransaction(args);
         let response = self.send(request).await?;

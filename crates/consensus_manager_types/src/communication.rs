@@ -23,9 +23,9 @@ use crate::consensus_manager_types::{
 };
 use crate::errors::ConsensusManagerError;
 
-pub type LocalConsensusManagerClientImpl =
+pub type LocalConsensusManagerClient =
     LocalComponentClient<ConsensusManagerRequest, ConsensusManagerResponse>;
-pub type RemoteConsensusManagerClientImpl =
+pub type RemoteConsensusManagerClient =
     RemoteComponentClient<ConsensusManagerRequest, ConsensusManagerResponse>;
 pub type ConsensusManagerClientResult<T> = Result<T, ConsensusManagerClientError>;
 pub type ConsensusManagerRequestAndResponseSender =
@@ -69,7 +69,7 @@ pub enum ConsensusManagerClientError {
 }
 
 #[async_trait]
-impl ConsensusManagerClient for LocalConsensusManagerClientImpl {
+impl ConsensusManagerClient for LocalConsensusManagerClient {
     async fn consensus_manager_fn_one(
         &self,
         consensus_manager_fn_one_input: ConsensusManagerFnOneInput,
@@ -102,7 +102,7 @@ impl ConsensusManagerClient for LocalConsensusManagerClientImpl {
 }
 
 #[async_trait]
-impl ConsensusManagerClient for RemoteConsensusManagerClientImpl {
+impl ConsensusManagerClient for RemoteConsensusManagerClient {
     async fn consensus_manager_fn_one(
         &self,
         consensus_manager_fn_one_input: ConsensusManagerFnOneInput,

@@ -31,7 +31,7 @@ pub trait MempoolP2pSenderClient: Send + Sync {
 }
 
 // TODO: Implement remote MempoolP2pSenderClient.
-pub type LocalMempoolP2pSenderClientImpl =
+pub type LocalMempoolP2pSenderClient =
     LocalComponentClient<MempoolP2pSenderRequest, MempoolP2pSenderResponse>;
 pub type SharedMempoolP2pSenderClient = Arc<dyn MempoolP2pSenderClient>;
 pub type MempoolP2pSenderClientResult<T> = Result<T, MempoolP2pSenderClientError>;
@@ -57,7 +57,7 @@ pub enum MempoolP2pSenderClientError {
 }
 
 #[async_trait]
-impl MempoolP2pSenderClient for LocalMempoolP2pSenderClientImpl {
+impl MempoolP2pSenderClient for LocalMempoolP2pSenderClient {
     async fn add_transaction(
         &self,
         transaction: RpcTransaction,
