@@ -32,9 +32,9 @@ use crate::test_utils::{
     get_tx_resources,
     CairoVersion,
     BALANCE,
+    DEFAULT_L1_GAS_AMOUNT,
+    DEFAULT_STRK_L1_GAS_PRICE,
     MAX_FEE,
-    MAX_L1_GAS_AMOUNT,
-    MAX_L1_GAS_PRICE,
 };
 use crate::transaction::errors::{
     TransactionExecutionError,
@@ -44,8 +44,8 @@ use crate::transaction::errors::{
 use crate::transaction::objects::{FeeType, TransactionExecutionInfo, TransactionExecutionResult};
 use crate::transaction::test_utils::{
     account_invoke_tx,
+    default_l1_resource_bounds,
     l1_resource_bounds,
-    max_l1_resource_bounds,
     INVALID,
 };
 use crate::transaction::transaction_types::TransactionType;
@@ -187,7 +187,8 @@ fn get_pre_validate_test_args(
     let max_fee = MAX_FEE;
     // The max resource bounds fixture is not used here because this function already has the
     // maximum number of arguments.
-    let resource_bounds = l1_resource_bounds(MAX_L1_GAS_AMOUNT, MAX_L1_GAS_PRICE.into());
+    let resource_bounds =
+        l1_resource_bounds(DEFAULT_L1_GAS_AMOUNT, DEFAULT_STRK_L1_GAS_PRICE.into());
     let FlavorTestInitialState {
         state, account_address, test_contract_address, nonce_manager, ..
     } = create_flavors_test_state(&block_context.chain_info, cairo_version);
@@ -328,7 +329,7 @@ fn test_simulate_validate_pre_validate_with_charge_fee(
     // Third scenario: L1 gas price bound lower than the price on the block.
     if !is_deprecated {
         let err = account_invoke_tx(invoke_tx_args! {
-            resource_bounds: l1_resource_bounds(MAX_L1_GAS_AMOUNT, (gas_price.get().0 - 1).into()),
+            resource_bounds: l1_resource_bounds(DEFAULT_L1_GAS_AMOUNT, (gas_price.get().0 - 1).into()),
             nonce: nonce_manager.next(account_address),
             ..pre_validation_base_args
         })
@@ -419,7 +420,7 @@ fn test_simulate_validate_pre_validate_not_charge_fee(
     if !is_deprecated {
         execute_and_check_gas_and_fee!(
             pre_validation_base_args.max_fee,
-            l1_resource_bounds(MAX_L1_GAS_AMOUNT, (gas_price.get().0 - 1).into())
+            l1_resource_bounds(DEFAULT_L1_GAS_AMOUNT, (gas_price.get().0 - 1).into())
         );
     }
 }
@@ -469,7 +470,7 @@ fn test_simulate_charge_fee_with_validation_fail_validate(
     // TODO(Dori, 1/1/2024): Add Cairo1 case, after price abstraction is implemented.
     #[values(CairoVersion::Cairo0)] cairo_version: CairoVersion,
     #[values(TransactionVersion::ONE, TransactionVersion::THREE)] version: TransactionVersion,
-    max_l1_resource_bounds: ValidResourceBounds,
+    default_l1_resource_bounds: ValidResourceBounds,
 ) {
     let validate = true;
     assert!(
@@ -479,7 +480,7 @@ fn test_simulate_charge_fee_with_validation_fail_validate(
             charge_fee,
             cairo_version,
             version,
-            max_l1_resource_bounds,
+            default_l1_resource_bounds,
         )
         .unwrap_err()
         .to_string()
@@ -499,7 +500,7 @@ fn test_simulate_charge_fee_no_validation_fail_validate(
     #[values(CairoVersion::Cairo0)] cairo_version: CairoVersion,
     #[case] version: TransactionVersion,
     #[case] fee_type: FeeType,
-    max_l1_resource_bounds: ValidResourceBounds,
+    default_l1_resource_bounds: ValidResourceBounds,
 ) {
     let validate = false;
     let tx_execution_info = execute_fail_validation(
@@ -508,7 +509,7 @@ fn test_simulate_charge_fee_no_validation_fail_validate(
         charge_fee,
         cairo_version,
         version,
-        max_l1_resource_bounds,
+        default_l1_resource_bounds,
     )
     .unwrap();
 
@@ -543,7 +544,7 @@ fn test_simulate_validate_charge_fee_mid_execution(
     #[values(CairoVersion::Cairo0)] cairo_version: CairoVersion,
     #[case] version: TransactionVersion,
     #[case] fee_type: FeeType,
-    max_l1_resource_bounds: ValidResourceBounds,
+    default_l1_resource_bounds: ValidResourceBounds,
 ) {
     let block_context = BlockContext::create_for_account_testing();
     let chain_info = &block_context.chain_info;
@@ -567,7 +568,7 @@ fn test_simulate_validate_charge_fee_mid_execution(
     // 3. Execution fails due to out-of-resources error, due to max block bounds, mid-run.
     let execution_base_args = invoke_tx_args! {
         max_fee: MAX_FEE,
-        resource_bounds: max_l1_resource_bounds,
+        resource_bounds: default_l1_resource_bounds,
         sender_address: account_address,
         version,
         only_query,
