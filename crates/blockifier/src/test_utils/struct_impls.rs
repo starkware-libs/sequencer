@@ -297,3 +297,37 @@ impl NativeContractClassV1 {
         Self::try_from_json_string(&raw_contract_class).unwrap()
     }
 }
+
+impl NativeContractClassV1 {
+    /// Convenience function to construct a NativeContractClassV1 from a raw contract class.
+    /// If control over the compilation is desired use [Self::new] instead.
+    pub fn try_from_json_string(
+        raw_contract_class: &str,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
+        // Compile the Sierra Program to native code and loads it into the process'
+        // memory space.
+        fn compile_and_load(
+            sierra_program: &cairo_lang_sierra::program::Program,
+        ) -> Result<AotNativeExecutor, cairo_native::error::Error> {
+            let native_context = cairo_native::context::NativeContext::new();
+            let native_program = native_context.compile(sierra_program, false)?;
+            Ok(AotNativeExecutor::from_native_module(
+                native_program,
+                cairo_native::OptLevel::Default,
+            ))
+        }
+
+        let sierra_contract_class: cairo_lang_starknet_classes::contract_class::ContractClass =
+            serde_json::from_str(raw_contract_class)?;
+
+        let sierra_program = sierra_contract_class.extract_sierra_program()?;
+        let executor = compile_and_load(&sierra_program)?;
+
+        Ok(Self::new(executor, sierra_contract_class))
+    }
+
+    pub fn from_file(contract_path: &str) -> Self {
+        let raw_contract_class = get_raw_contract_class(contract_path);
+        Self::try_from_json_string(&raw_contract_class).unwrap()
+    }
+}
