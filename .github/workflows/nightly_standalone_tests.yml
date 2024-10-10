@@ -1,0 +1,22 @@
+name: Nightly Standalone Tests
+
+on:
+  push:
+    branches:
+      - main
+      - main-v[0-9].**
+    tags:
+      - v[0-9].**
+
+jobs:
+  standalone_tests:
+    name: Standalone Tests
+    runs-on: starkware-ubuntu-latest-medium
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/install_rust
+      - name: Run standalone tests.
+        run: |
+          python3 -m venv ci
+          ci/bin/pip install -r scripts/requirements.txt
+          ci/bin/python scripts/run_tests.py --standalone
