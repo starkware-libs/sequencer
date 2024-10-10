@@ -1,5 +1,6 @@
 use axum::http::StatusCode;
 use blockifier::state::errors::StateError;
+use blockifier::transaction::errors::TransactionExecutionError;
 use serde_json::{Error as SerdeError, Value};
 use starknet_api::block::GasPrice;
 use starknet_api::transaction::{Resource, ResourceBounds};
@@ -112,4 +113,9 @@ impl From<RPCStateReaderError> for StateError {
 // Converts a serde error to the error type of the state reader.
 pub fn serde_err_to_state_err(err: SerdeError) -> StateError {
     StateError::StateReadError(format!("Failed to parse rpc result {:?}", err.to_string()))
+}
+
+// Converts a transaction execution error to the error type of the state reader.
+pub fn transaction_execution_err_to_state_err(err: TransactionExecutionError) -> StateError {
+    StateError::StateReadError(format!("Failed to execute tx: {:?}", err.to_string()))
 }
