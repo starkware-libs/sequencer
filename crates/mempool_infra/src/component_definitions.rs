@@ -93,6 +93,7 @@ impl Default for LocalComponentCommunicationConfig {
     }
 }
 
+// TODO(Nadin): Move the RemoteClientConfig and RemoteServerConfig to relevant modules.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct RemoteClientConfig {
     pub socket: SocketAddr,
