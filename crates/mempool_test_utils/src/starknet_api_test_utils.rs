@@ -122,6 +122,19 @@ pub fn test_resource_bounds_mapping() -> AllResourceBounds {
     }
 }
 
+pub fn create_resource_bounds_with_l2_max_price_per_unit(
+    l2_max_price_per_unit: u128,
+) -> ValidResourceBounds {
+    ValidResourceBounds::AllResources(AllResourceBounds {
+        l1_gas: ResourceBounds::default(),
+        l1_data_gas: ResourceBounds::default(),
+        l2_gas: ResourceBounds {
+            max_price_per_unit: GasPrice(l2_max_price_per_unit),
+            ..Default::default()
+        },
+    })
+}
+
 pub fn test_valid_resource_bounds() -> ValidResourceBounds {
     ValidResourceBounds::AllResources(test_resource_bounds_mapping())
 }
