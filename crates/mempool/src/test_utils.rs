@@ -18,7 +18,7 @@ macro_rules! tx {
         tx_nonce: $tx_nonce:expr, max_l2_gas_price: $max_l2_gas_price:expr) => {{
             let resource_bounds = ValidResourceBounds::AllResources(AllResourceBounds {
                 l2_gas: ResourceBounds {
-                    max_price_per_unit: GasPrice(VALID_L2_GAS_MAX_PRICE_PER_UNIT),
+                    max_price_per_unit: $max_l2_gas_price.into(),
                     ..Default::default()
                 },
                 ..Default::default()
