@@ -64,6 +64,12 @@ pub enum TrackedResource {
     SierraGas, // AKA Sierra mode.
 }
 
+impl TrackedResource {
+    pub fn is_cairo_steps(&self) -> bool {
+        matches!(self, TrackedResource::CairoSteps)
+    }
+}
+
 /// Represents a runnable Starknet contract class (meaning, the program is runnable by the VM).
 #[derive(Clone, Debug, Eq, PartialEq, derive_more::From)]
 pub enum ContractClass {
