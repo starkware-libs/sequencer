@@ -49,6 +49,10 @@ impl_from_uint_for_gas_amount!(u8, u16, u32, u64);
 impl GasAmount {
     pub const MAX: Self = Self(u64::MAX);
 
+    pub fn checked_add(self, rhs: Self) -> Option<Self> {
+        self.0.checked_add(rhs.0).map(Self)
+    }
+
     pub fn saturating_add(self, rhs: Self) -> Self {
         self.0.saturating_add(rhs.0).into()
     }
@@ -142,21 +146,26 @@ impl GasVector {
     /// X non-data-related gas consumption and Y bytes of data, in non-blob mode, would
     /// cost (X + 16*Y) units of gas. Applying the discount ratio to the data-related
     /// summand, we get total_gas = (X + Y * DGP / GP).
-    /// If this function is called with kzg_flag==false, then l1_data_gas==0, and this dicount
+    /// If this function is called with kzg_flag==false, then l1_data_gas==0, and this discount
     /// function does nothing.
+    /// Panics on overflow.
     pub fn to_discounted_l1_gas(&self, gas_prices: &GasPriceVector) -> GasAmount {
         let l1_data_gas_fee = self.l1_data_gas.nonzero_saturating_mul(gas_prices.l1_data_gas_price);
         let l1_data_gas_in_l1_gas_units =
             l1_data_gas_fee.checked_div_ceil(gas_prices.l1_gas_price).unwrap_or_else(|| {
-                log::warn!(
+                panic!(
                     "Discounted L1 gas cost overflowed: division of L1 data fee ({}) by regular \
                      L1 gas price ({}) resulted in overflow.",
-                    l1_data_gas_fee,
-                    gas_prices.l1_gas_price
+                    l1_data_gas_fee, gas_prices.l1_gas_price
                 );
-                GasAmount::MAX
             });
-        self.l1_gas.saturating_add(l1_data_gas_in_l1_gas_units)
+        self.l1_gas.checked_add(l1_data_gas_in_l1_gas_units).unwrap_or_else(|| {
+            panic!(
+                "Overflow while computing discounted L1 gas: L1 gas ({}) + L1 data gas in L1 gas \
+                 units ({}) resulted in overflow.",
+                self.l1_gas, l1_data_gas_in_l1_gas_units
+            )
+        })
     }
 }
 
