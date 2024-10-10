@@ -141,7 +141,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
 
         let mut execution_resources = ExecutionResources::default();
         let mut context = EntryPointExecutionContext::new_invoke(tx_context.clone(), true);
-        let mut remaining_gas = block_context.versioned_constants.tx_default_initial_gas();
+        let mut remaining_gas = tx_context.initial_sierra_gas();
         let execute_call_info =
             self.run_execute(state, &mut execution_resources, &mut context, &mut remaining_gas)?;
         let l1_handler_payload_size = self.payload_size();

@@ -805,7 +805,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
         )?;
 
         // Run validation and execution.
-        let mut remaining_gas = block_context.versioned_constants.tx_default_initial_gas();
+        let mut remaining_gas = tx_context.initial_sierra_gas();
         let ValidateExecuteCallInfo {
             validate_call_info,
             execute_call_info,
