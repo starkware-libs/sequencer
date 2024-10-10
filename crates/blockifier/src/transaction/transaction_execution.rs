@@ -4,7 +4,7 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::core::{calculate_contract_address, ContractAddress, Nonce};
 use starknet_api::transaction::{Fee, Transaction as StarknetApiTransaction, TransactionHash};
 
-use crate::bouncer::verify_tx_weights_in_bounds;
+use crate::bouncer::verify_tx_weights_within_max_capacity;
 use crate::context::BlockContext;
 use crate::execution::call_info::CallInfo;
 use crate::execution::contract_class::ClassInfo;
@@ -208,7 +208,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for Transaction {
             &tx_execution_info,
             concurrency_mode,
         );
-        verify_tx_weights_in_bounds(
+        verify_tx_weights_within_max_capacity(
             state,
             &tx_execution_summary,
             &tx_execution_info.receipt.resources,

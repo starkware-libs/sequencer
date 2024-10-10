@@ -1,7 +1,9 @@
 use std::cmp::Ordering;
 use std::collections::{BTreeSet, HashMap};
 
+use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::{
     AllResourceBounds,
     ResourceBounds,
@@ -21,7 +23,7 @@ pub mod transaction_queue_test_utils;
 // used.
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct TransactionQueue {
-    gas_price_threshold: u128,
+    gas_price_threshold: GasPrice,
     // Transactions with gas price above gas price threshold (sorted by tip).
     priority_queue: BTreeSet<PriorityTransaction>,
     // Transactions with gas price below gas price threshold (sorted by price).
@@ -89,7 +91,7 @@ impl TransactionQueue {
         self.priority_queue.is_empty()
     }
 
-    pub fn _update_gas_price_threshold(&mut self, threshold: u128) {
+    pub fn _update_gas_price_threshold(&mut self, threshold: GasPrice) {
         match threshold.cmp(&self.gas_price_threshold) {
             Ordering::Less => self._promote_txs_to_priority(threshold),
             Ordering::Greater => self._demote_txs_to_pending(threshold),
@@ -99,10 +101,10 @@ impl TransactionQueue {
         self.gas_price_threshold = threshold;
     }
 
-    fn _promote_txs_to_priority(&mut self, threshold: u128) {
+    fn _promote_txs_to_priority(&mut self, threshold: GasPrice) {
         let tmp_split_tx = PendingTransaction(TransactionReference {
             resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds {
-                l2_gas: ResourceBounds { max_amount: 0, max_price_per_unit: threshold },
+                l2_gas: ResourceBounds { max_amount: GasAmount(0), max_price_per_unit: threshold },
                 ..Default::default()
             }),
             sender_address: ContractAddress::default(),
@@ -121,7 +123,7 @@ impl TransactionQueue {
         self.priority_queue.extend(txs_over_threshold.map(|tx| PriorityTransaction::from(tx.0)));
     }
 
-    fn _demote_txs_to_pending(&mut self, threshold: u128) {
+    fn _demote_txs_to_pending(&mut self, threshold: GasPrice) {
         let mut txs_to_remove = Vec::new();
 
         // Remove all transactions from the priority queue that are below the threshold.

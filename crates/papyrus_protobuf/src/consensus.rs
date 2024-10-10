@@ -59,6 +59,31 @@ pub struct StreamMessage<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufCon
     pub message_id: u64,
 }
 
+impl<T> std::fmt::Display for StreamMessage<T>
+where
+    T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // TODO(guyn): add option to display when message is Fin and doesn't have content (PR #1048)
+        if let StreamMessageBody::Content(message) = &self.message {
+            let message: Vec<u8> = message.clone().into();
+            write!(
+                f,
+                "StreamMessage {{ stream_id: {}, message_id: {}, message_length: {}}}",
+                self.stream_id,
+                self.message_id,
+                message.len(),
+            )
+        } else {
+            write!(
+                f,
+                "StreamMessage {{ stream_id: {}, message_id: {}, message is fin }}",
+                self.stream_id, self.message_id,
+            )
+        }
+    }
+}
+
 // TODO(Guy): Remove after implementing broadcast streams.
 #[allow(missing_docs)]
 pub struct ProposalWrapper(pub Proposal);

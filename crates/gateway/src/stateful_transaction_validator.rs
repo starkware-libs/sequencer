@@ -4,7 +4,7 @@ use blockifier::blockifier::stateful_validator::{
     StatefulValidatorResult as BlockifierStatefulValidatorResult,
 };
 use blockifier::bouncer::BouncerConfig;
-use blockifier::context::BlockContext;
+use blockifier::context::{BlockContext, ChainInfo};
 use blockifier::state::cached_state::CachedState;
 use blockifier::transaction::account_transaction::AccountTransaction;
 use blockifier::versioned_constants::VersionedConstants;
@@ -88,6 +88,7 @@ impl StatefulTransactionValidator {
     pub fn instantiate_validator(
         &self,
         state_reader_factory: &dyn StateReaderFactory,
+        chain_info: &ChainInfo,
     ) -> StatefulTransactionValidatorResult<BlockifierStatefulValidator> {
         // TODO(yael 6/5/2024): consider storing the block_info as part of the
         // StatefulTransactionValidator and update it only once a new block is created.
@@ -104,7 +105,7 @@ impl StatefulTransactionValidator {
         // able to read the block_hash of 10 blocks ago from papyrus.
         let block_context = BlockContext::new(
             block_info,
-            self.config.chain_info.clone(),
+            chain_info.clone(),
             versioned_constants,
             BouncerConfig::max(),
         );

@@ -7,7 +7,7 @@ members = [
   "crates/batcher",
   "crates/batcher_types",
   "crates/blockifier",
-  "crates/blockifier_regression_test",
+  "crates/blockifier_reexecution",
   "crates/committer_cli",
   "crates/consensus_manager",
   "crates/consensus_manager_types",

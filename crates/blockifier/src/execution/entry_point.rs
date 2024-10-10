@@ -28,7 +28,7 @@ use crate::execution::execution_utils::execute_entry_point_call_wrapper;
 use crate::state::state_api::{State, StateResult};
 use crate::transaction::objects::{HasRelatedFeeType, TransactionInfo};
 use crate::transaction::transaction_types::TransactionType;
-use crate::utils::usize_from_u128;
+use crate::utils::usize_from_u64;
 use crate::versioned_constants::{GasCosts, VersionedConstants};
 
 #[cfg(test)]
@@ -257,17 +257,14 @@ impl EntryPointExecutionContext {
         let TransactionContext { block_context, tx_info } = tx_context;
         let BlockContext { block_info, versioned_constants, .. } = block_context;
         let block_upper_bound = match mode {
-            // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion
-            // works.
-            ExecutionMode::Validate => versioned_constants
-                .validate_max_n_steps
-                .try_into()
-                .expect("Failed to convert validate_max_n_steps (u32) to usize."),
-            ExecutionMode::Execute => versioned_constants
-                .invoke_tx_max_n_steps
-                .try_into()
-                .expect("Failed to convert invoke_tx_max_n_steps (u32) to usize."),
-        };
+            ExecutionMode::Validate => versioned_constants.validate_max_n_steps,
+            ExecutionMode::Execute => versioned_constants.invoke_tx_max_n_steps,
+        }
+        .try_into()
+        .unwrap_or_else(|error| {
+            log::warn!("Failed to convert global step limit to to usize: {error}.");
+            usize::MAX
+        });
 
         if !limit_steps_by_resources || !tx_info.enforce_fee() {
             return block_upper_bound;
@@ -278,24 +275,24 @@ impl EntryPointExecutionContext {
         // New transactions derive the step limit by the L1 gas resource bounds; deprecated
         // transactions derive this value from the `max_fee`.
         let tx_gas_upper_bound = match tx_info {
-            TransactionInfo::Deprecated(context) => {
-                context.max_fee
-                    / block_info.gas_prices.get_l1_gas_price_by_fee_type(&tx_info.fee_type())
-            }
-            TransactionInfo::Current(context) => context.l1_resource_bounds().max_amount.into(),
+            // Fee is a larger uint type than GasAmount, so we need to saturate the division.
+            // This is just a computation of an upper bound, so it's safe to saturate.
+            TransactionInfo::Deprecated(context) => context.max_fee.saturating_div(
+                block_info.gas_prices.get_l1_gas_price_by_fee_type(&tx_info.fee_type()),
+            ),
+            TransactionInfo::Current(context) => context.l1_resource_bounds().max_amount,
         };
 
         // Use saturating upper bound to avoid overflow. This is safe because the upper bound is
         // bounded above by the block's limit, which is a usize.
-
-        let upper_bound_u128 = if gas_per_step.is_zero() {
-            u128::MAX
+        let upper_bound_u64 = if gas_per_step.is_zero() {
+            u64::MAX
         } else {
             (gas_per_step.inv() * tx_gas_upper_bound.0).to_integer()
         };
-        let tx_upper_bound = usize_from_u128(upper_bound_u128).unwrap_or_else(|_| {
+        let tx_upper_bound = usize_from_u64(upper_bound_u64).unwrap_or_else(|_| {
             log::warn!(
-                "Failed to convert u128 to usize: {upper_bound_u128}. Upper bound from tx is \
+                "Failed to convert u64 to usize: {upper_bound_u64}. Upper bound from tx is \
                  {tx_gas_upper_bound}, gas per step is {gas_per_step}."
             );
             usize::MAX

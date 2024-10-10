@@ -4,7 +4,9 @@ mod transaction_test;
 use std::convert::{TryFrom, TryInto};
 
 use prost::Message;
+use starknet_api::block::GasPrice;
 use starknet_api::core::{ClassHash, CompiledClassHash, EntryPointSelector, Nonce};
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::{
     AccountDeploymentData,
     AllResourceBounds,
@@ -592,15 +594,18 @@ impl TryFrom<protobuf::ResourceLimits> for ResourceBounds {
                     value_as_str: format!("{max_price_per_unit_felt:?}"),
                 }
             })?;
-        Ok(ResourceBounds { max_amount, max_price_per_unit })
+        Ok(ResourceBounds {
+            max_amount: GasAmount(max_amount),
+            max_price_per_unit: GasPrice(max_price_per_unit),
+        })
     }
 }
 
 impl From<ResourceBounds> for protobuf::ResourceLimits {
     fn from(value: ResourceBounds) -> Self {
         protobuf::ResourceLimits {
-            max_amount: value.max_amount,
-            max_price_per_unit: Some(Felt::from(value.max_price_per_unit).into()),
+            max_amount: value.max_amount.0,
+            max_price_per_unit: Some(Felt::from(value.max_price_per_unit.0).into()),
         }
     }
 }

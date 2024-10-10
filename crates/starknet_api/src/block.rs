@@ -7,6 +7,7 @@ use std::fmt::Display;
 use derive_more::Display;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
+use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Poseidon, StarkHash as CoreStarkHash};
 
 use crate::core::{
@@ -264,13 +265,20 @@ impl From<GasPrice> for PrefixedBytesAsHex<16_usize> {
     }
 }
 
+impl From<GasPrice> for Felt {
+    fn from(val: GasPrice) -> Self {
+        Felt::from(val.0)
+    }
+}
+
 impl GasPrice {
     pub const fn saturating_mul(self, rhs: GasAmount) -> Fee {
-        Fee(self.0.saturating_mul(rhs.0))
+        #[allow(clippy::as_conversions)]
+        Fee(self.0.saturating_mul(rhs.0 as u128))
     }
 
     pub fn checked_mul(self, rhs: GasAmount) -> Option<Fee> {
-        self.0.checked_mul(rhs.0).map(Fee)
+        self.0.checked_mul(u128::from(rhs.0)).map(Fee)
     }
 }
 
@@ -342,6 +350,13 @@ macro_rules! impl_try_from_uint_for_nonzero_gas_price {
 }
 
 impl_try_from_uint_for_nonzero_gas_price!(u8, u16, u32, u64, u128);
+
+#[derive(Clone, Debug)]
+pub struct GasPriceVector {
+    pub l1_gas_price: NonzeroGasPrice,
+    pub l1_data_gas_price: NonzeroGasPrice,
+    pub l2_gas_price: NonzeroGasPrice,
+}
 
 /// The timestamp of a [Block](`crate::block::Block`).
 #[derive(

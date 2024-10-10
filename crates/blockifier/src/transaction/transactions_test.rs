@@ -8,8 +8,10 @@ use num_bigint::BigUint;
 use num_traits::Pow;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
+use starknet_api::block::GasPriceVector;
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, EthAddress, Nonce, PatriciaKey};
 use starknet_api::deprecated_contract_class::EntryPointType;
+use starknet_api::execution_resources::GasVector;
 use starknet_api::state::StorageKey;
 use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::test_utils::NonceManager;
@@ -50,7 +52,6 @@ use crate::abi::abi_utils::{
 };
 use crate::abi::constants as abi_constants;
 use crate::abi::sierra_types::next_storage_key;
-use crate::blockifier::block::GasPricesForFeeType;
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use crate::execution::call_info::{
     CallExecution,
@@ -75,7 +76,6 @@ use crate::fee::gas_usage::{
 use crate::fee::receipt::TransactionReceipt;
 use crate::fee::resources::{
     ComputationResources,
-    GasVector,
     StarknetResources,
     StateResources,
     TransactionResources,
@@ -905,7 +905,7 @@ fn test_max_fee_exceeds_balance(
 
     let invalid_max_fee = Fee(BALANCE.0 + 1);
     // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion works.
-    let balance_over_gas_price = BALANCE / MAX_L1_GAS_PRICE;
+    let balance_over_gas_price = BALANCE.checked_div(MAX_L1_GAS_PRICE).unwrap();
     let invalid_resource_bounds =
         l1_resource_bounds((balance_over_gas_price.0 + 1).into(), MAX_L1_GAS_PRICE.into());
 
@@ -972,7 +972,7 @@ fn test_insufficient_new_resource_bounds(
     let tx = &account_invoke_tx(valid_invoke_tx_args.clone());
 
     // V3 transaction.
-    let GasPricesForFeeType {
+    let GasPriceVector {
         l1_gas_price: actual_strk_l1_gas_price,
         l1_data_gas_price: actual_strk_l1_data_gas_price,
         l2_gas_price: actual_strk_l2_gas_price,
@@ -983,16 +983,16 @@ fn test_insufficient_new_resource_bounds(
 
     let default_resource_bounds = AllResourceBounds {
         l1_gas: ResourceBounds {
-            max_amount: minimal_gas_vector.l1_gas.0.try_into().unwrap(),
-            max_price_per_unit: actual_strk_l1_gas_price.get().0,
+            max_amount: minimal_gas_vector.l1_gas,
+            max_price_per_unit: actual_strk_l1_gas_price.get(),
         },
         l2_gas: ResourceBounds {
-            max_amount: minimal_gas_vector.l2_gas.0.try_into().unwrap(),
-            max_price_per_unit: actual_strk_l2_gas_price.get().0,
+            max_amount: minimal_gas_vector.l2_gas,
+            max_price_per_unit: actual_strk_l2_gas_price.get(),
         },
         l1_data_gas: ResourceBounds {
-            max_amount: minimal_gas_vector.l1_data_gas.0.try_into().unwrap(),
-            max_price_per_unit: actual_strk_l1_data_gas_price.get().0,
+            max_amount: minimal_gas_vector.l1_data_gas,
+            max_price_per_unit: actual_strk_l1_data_gas_price.get(),
         },
     };
 
@@ -1029,14 +1029,14 @@ fn test_insufficient_new_resource_bounds(
         (L2Gas, default_resource_bounds.l2_gas),
         (L1DataGas, default_resource_bounds.l1_data_gas),
     ] {
-        if resource_bounds.max_amount == 0 {
+        if resource_bounds.max_amount == 0_u8.into() {
             continue;
         }
         let mut invalid_resources = default_resource_bounds;
         match insufficient_resource {
-            L1Gas => invalid_resources.l1_gas.max_amount -= 1,
-            L2Gas => invalid_resources.l2_gas.max_amount -= 1,
-            L1DataGas => invalid_resources.l1_data_gas.max_amount -= 1,
+            L1Gas => invalid_resources.l1_gas.max_amount.0 -= 1,
+            L2Gas => invalid_resources.l2_gas.max_amount.0 -= 1,
+            L1DataGas => invalid_resources.l1_data_gas.max_amount.0 -= 1,
         }
         let invalid_v3_tx = account_invoke_tx(InvokeTxArgs {
             resource_bounds: ValidResourceBounds::AllResources(invalid_resources),
@@ -1059,9 +1059,9 @@ fn test_insufficient_new_resource_bounds(
     for insufficient_resource in [L1Gas, L2Gas, L1DataGas] {
         let mut invalid_resources = default_resource_bounds;
         match insufficient_resource {
-            L1Gas => invalid_resources.l1_gas.max_price_per_unit -= 1,
-            L2Gas => invalid_resources.l2_gas.max_price_per_unit -= 1,
-            L1DataGas => invalid_resources.l1_data_gas.max_price_per_unit -= 1,
+            L1Gas => invalid_resources.l1_gas.max_price_per_unit.0 -= 1,
+            L2Gas => invalid_resources.l2_gas.max_price_per_unit.0 -= 1,
+            L1DataGas => invalid_resources.l1_data_gas.max_price_per_unit.0 -= 1,
         }
 
         let invalid_v3_tx = account_invoke_tx(InvokeTxArgs {

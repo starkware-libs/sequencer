@@ -10,7 +10,8 @@ use papyrus_config::validators::{ParsedValidationError, ParsedValidationErrors};
 use rstest::rstest;
 use starknet_mempool_infra::component_definitions::{
     LocalComponentCommunicationConfig,
-    RemoteComponentCommunicationConfig,
+    RemoteClientConfig,
+    RemoteServerConfig,
 };
 use validator::{Validate, ValidationErrors};
 
@@ -51,40 +52,86 @@ fn check_validation_error(
 #[case(
     ComponentExecutionMode::Local,
     Some(LocalComponentCommunicationConfig::default()),
-    Some(RemoteComponentCommunicationConfig::default()),
-    "Local config and Remote config are mutually exclusive, can't be both active."
+    Some(RemoteClientConfig::default()),
+    Some(RemoteServerConfig::default()),
+    "Local config and Remote config are mutually exclusive in Local mode execution, can't be both \
+     active."
+)]
+#[case(
+    ComponentExecutionMode::Local,
+    Some(LocalComponentCommunicationConfig::default()),
+    None,
+    Some(RemoteServerConfig::default()),
+    "Local config and Remote config are mutually exclusive in Local mode execution, can't be both \
+     active."
+)]
+#[case(
+    ComponentExecutionMode::Local,
+    Some(LocalComponentCommunicationConfig::default()),
+    Some(RemoteClientConfig::default()),
+    None,
+    "Local config and Remote config are mutually exclusive in Local mode execution, can't be both \
+     active."
 )]
 #[case(
     ComponentExecutionMode::Local,
     None,
-    Some(RemoteComponentCommunicationConfig::default()),
+    Some(RemoteClientConfig::default()),
+    Some(RemoteServerConfig::default()),
     "Local communication config is missing."
 )]
-#[case(ComponentExecutionMode::Local, None, None, "Local communication config is missing.")]
 #[case(
-    ComponentExecutionMode::Remote,
-    Some(LocalComponentCommunicationConfig::default()),
-    Some(RemoteComponentCommunicationConfig::default()),
-    "Local config and Remote config are mutually exclusive, can't be both active."
+    ComponentExecutionMode::Local,
+    None,
+    None,
+    Some(RemoteServerConfig::default()),
+    "Local communication config is missing."
 )]
+#[case(
+    ComponentExecutionMode::Local,
+    None,
+    Some(RemoteClientConfig::default()),
+    None,
+    "Local communication config is missing."
+)]
+#[case(ComponentExecutionMode::Local, None, None, None, "Local communication config is missing.")]
 #[case(
     ComponentExecutionMode::Remote,
     Some(LocalComponentCommunicationConfig::default()),
     None,
+    None,
     "Remote communication config is missing."
 )]
-#[case(ComponentExecutionMode::Remote, None, None, "Remote communication config is missing.")]
+#[case(
+    ComponentExecutionMode::Remote,
+    None,
+    Some(RemoteClientConfig::default()),
+    Some(RemoteServerConfig::default()),
+    "Remote client and Remote server are mutually exclusive in Remote mode execution, can't be \
+     both active."
+)]
+#[case(
+    ComponentExecutionMode::Remote,
+    Some(LocalComponentCommunicationConfig::default()),
+    Some(RemoteClientConfig::default()),
+    Some(RemoteServerConfig::default()),
+    "Remote client and Remote server are mutually exclusive in Remote mode execution, can't be \
+     both active."
+)]
+#[case(ComponentExecutionMode::Remote, None, None, None, "Remote communication config is missing.")]
 fn test_invalid_component_execution_config(
     #[case] execution_mode: ComponentExecutionMode,
     #[case] local_config: Option<LocalComponentCommunicationConfig>,
-    #[case] remote_config: Option<RemoteComponentCommunicationConfig>,
+    #[case] remote_client_config: Option<RemoteClientConfig>,
+    #[case] remote_server_config: Option<RemoteServerConfig>,
     #[case] expected_error_message: &str,
 ) {
     // Initialize an invalid config and check that the validator finds an error.
     let component_exe_config = ComponentExecutionConfig {
         execution_mode,
         local_config,
-        remote_config,
+        remote_client_config,
+        remote_server_config,
         ..ComponentExecutionConfig::default()
     };
     check_validation_error(
@@ -97,24 +144,27 @@ fn test_invalid_component_execution_config(
 /// Test the validation of the struct ComponentExecutionConfig.
 /// Validates that execution mode of the component and the local/remote config are at sync.
 #[rstest]
-#[case::local(ComponentExecutionMode::Local)]
-#[case::remote(ComponentExecutionMode::Remote)]
-fn test_valid_component_execution_config(#[case] execution_mode: ComponentExecutionMode) {
+#[case::local(ComponentExecutionMode::Local, None, None)]
+#[case::remote(ComponentExecutionMode::Remote, Some(RemoteClientConfig::default()), None)]
+#[case::remote(ComponentExecutionMode::Remote, None, Some(RemoteServerConfig::default()))]
+fn test_valid_component_execution_config(
+    #[case] execution_mode: ComponentExecutionMode,
+    #[case] remote_client_config: Option<RemoteClientConfig>,
+    #[case] remote_server_config: Option<RemoteServerConfig>,
+) {
     // Initialize a valid config and check that the validator returns Ok.
+
     let local_config = if execution_mode == ComponentExecutionMode::Local {
         Some(LocalComponentCommunicationConfig::default())
     } else {
         None
     };
-    let remote_config = if execution_mode == ComponentExecutionMode::Remote {
-        Some(RemoteComponentCommunicationConfig::default())
-    } else {
-        None
-    };
+
     let component_exe_config = ComponentExecutionConfig {
         execution_mode,
         local_config,
-        remote_config,
+        remote_client_config,
+        remote_server_config,
         ..ComponentExecutionConfig::default()
     };
     assert_eq!(component_exe_config.validate(), Ok(()));

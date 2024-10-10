@@ -12,7 +12,7 @@ use starknet_types_core::felt::Felt;
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::state::cached_state::StorageEntry;
-use crate::utils::u128_from_usize;
+use crate::utils::u64_from_usize;
 
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
@@ -65,8 +65,8 @@ pub struct CallExecution {
 #[derive(Clone, Debug, Default, derive_more::AddAssign, PartialEq)]
 pub struct EventSummary {
     pub n_events: usize,
-    pub total_event_keys: u128,
-    pub total_event_data_size: u128,
+    pub total_event_keys: u64,
+    pub total_event_data_size: u64,
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -150,8 +150,8 @@ impl CallInfo {
                 // TODO(barak: 18/03/2024): Once we start charging per byte
                 // change to num_bytes_keys
                 // and num_bytes_data.
-                event_summary.total_event_data_size += u128_from_usize(event.data.0.len());
-                event_summary.total_event_keys += u128_from_usize(event.keys.len());
+                event_summary.total_event_data_size += u64_from_usize(event.data.0.len());
+                event_summary.total_event_keys += u64_from_usize(event.keys.len());
             }
         }
 

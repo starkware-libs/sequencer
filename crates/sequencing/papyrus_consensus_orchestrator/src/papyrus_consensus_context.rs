@@ -224,7 +224,7 @@ impl ConsensusContext for PapyrusConsensusContext {
     }
 
     fn proposer(&self, _height: BlockNumber, _round: Round) -> ValidatorId {
-        *self.validators.first().expect("validators should have at least 2 validators")
+        *self.validators.first().expect("there should be at least one validator")
     }
 
     async fn broadcast(&mut self, message: ConsensusMessage) -> Result<(), ConsensusError> {

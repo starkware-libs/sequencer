@@ -1,5 +1,5 @@
 use std::fmt::Debug;
-use std::net::{IpAddr, SocketAddr};
+use std::net::SocketAddr;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -11,7 +11,7 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 
 use crate::component_client::{ClientError, LocalComponentClient};
-use crate::component_definitions::{ServerError, APPLICATION_OCTET_STREAM};
+use crate::component_definitions::{RemoteServerConfig, ServerError, APPLICATION_OCTET_STREAM};
 use crate::component_server::ComponentServerStarter;
 use crate::errors::ComponentServerError;
 use crate::serde_utils::BincodeSerdeWrapper;
@@ -47,6 +47,7 @@ use crate::serde_utils::BincodeSerdeWrapper;
 /// use crate::starknet_mempool_infra::component_definitions::{
 ///     ComponentRequestHandler,
 ///     ComponentStarter,
+///     RemoteServerConfig,
 /// };
 /// use crate::starknet_mempool_infra::component_server::{
 ///     ComponentServerStarter,
@@ -87,10 +88,10 @@ use crate::serde_utils::BincodeSerdeWrapper;
 ///     // Set the ip address and port of the server's socket.
 ///     let ip_address = std::net::IpAddr::V6(std::net::Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1));
 ///     let port: u16 = 8080;
+///     let config = RemoteServerConfig { socket: std::net::SocketAddr::new(ip_address, port) };
 ///
 ///     // Instantiate the server.
-///     let mut server =
-///         RemoteComponentServer::<MyRequest, MyResponse>::new(local_client, ip_address, port);
+///     let mut server = RemoteComponentServer::<MyRequest, MyResponse>::new(local_client, config);
 ///
 ///     // Start the server in a new task.
 ///     task::spawn(async move {
@@ -114,10 +115,9 @@ where
 {
     pub fn new(
         local_client: LocalComponentClient<Request, Response>,
-        ip_address: IpAddr,
-        port: u16,
+        config: RemoteServerConfig,
     ) -> Self {
-        Self { local_client, socket: SocketAddr::new(ip_address, port) }
+        Self { local_client, socket: config.socket }
     }
 
     async fn remote_component_server_handler(

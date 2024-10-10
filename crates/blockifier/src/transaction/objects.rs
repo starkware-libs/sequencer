@@ -4,6 +4,7 @@ use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
+use starknet_api::execution_resources::GasVector;
 use starknet_api::transaction::{
     signed_tx_version,
     AccountDeploymentData,
@@ -25,7 +26,6 @@ use crate::blockifier::block::BlockInfo;
 use crate::execution::call_info::{CallInfo, ExecutionSummary};
 use crate::fee::fee_utils::get_fee_by_gas_vector;
 use crate::fee::receipt::TransactionReceipt;
-use crate::fee::resources::GasVector;
 use crate::transaction::errors::{TransactionExecutionError, TransactionPreValidationError};
 
 #[cfg(test)]

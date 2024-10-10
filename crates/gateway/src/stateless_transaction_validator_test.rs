@@ -4,7 +4,6 @@ use std::vec;
 use assert_matches::assert_matches;
 use mempool_test_utils::declare_tx_args;
 use mempool_test_utils::starknet_api_test_utils::{
-    create_resource_bounds_mapping,
     rpc_declare_tx,
     rpc_tx_for_testing,
     zero_resource_bounds_mapping,
@@ -73,11 +72,10 @@ fn default_validator_config_for_testing() -> &'static StatelessTransactionValida
         validate_non_zero_l2_gas_fee: false,
         ..default_validator_config_for_testing().clone()
     },
-    create_resource_bounds_mapping(
-        NON_EMPTY_RESOURCE_BOUNDS,
-        ResourceBounds::default(),
-        ResourceBounds::default(),
-    ),
+    AllResourceBounds {
+        l1_gas: NON_EMPTY_RESOURCE_BOUNDS,
+        ..Default::default()
+    },
     calldata![],
     TransactionSignature::default()
 )]
@@ -87,11 +85,10 @@ fn default_validator_config_for_testing() -> &'static StatelessTransactionValida
         validate_non_zero_l2_gas_fee: true,
         ..default_validator_config_for_testing().clone()
     },
-    create_resource_bounds_mapping(
-        ResourceBounds::default(),
-        NON_EMPTY_RESOURCE_BOUNDS,
-        ResourceBounds::default(),
-    ),
+    AllResourceBounds {
+        l2_gas: NON_EMPTY_RESOURCE_BOUNDS,
+        ..Default::default()
+    },
     calldata![],
     TransactionSignature::default()
 )]
@@ -101,11 +98,11 @@ fn default_validator_config_for_testing() -> &'static StatelessTransactionValida
         validate_non_zero_l2_gas_fee: true,
         ..default_validator_config_for_testing().clone()
     },
-    create_resource_bounds_mapping(
-        NON_EMPTY_RESOURCE_BOUNDS,
-        NON_EMPTY_RESOURCE_BOUNDS,
-        ResourceBounds::default(),
-    ),
+    AllResourceBounds {
+        l1_gas: NON_EMPTY_RESOURCE_BOUNDS,
+        l2_gas: NON_EMPTY_RESOURCE_BOUNDS,
+        ..Default::default()
+    },
     calldata![],
     TransactionSignature::default()
 )]
@@ -159,11 +156,10 @@ fn test_positive_flow(
         validate_non_zero_l2_gas_fee: true,
         ..default_validator_config_for_testing().clone()
     },
-    create_resource_bounds_mapping(
-        NON_EMPTY_RESOURCE_BOUNDS,
-        ResourceBounds::default(),
-        ResourceBounds::default(),
-    ),
+    AllResourceBounds {
+        l1_gas: NON_EMPTY_RESOURCE_BOUNDS,
+        ..Default::default()
+    },
     StatelessTransactionValidatorError::ZeroResourceBounds{
         resource: Resource::L2Gas, resource_bounds: ResourceBounds::default()
     }

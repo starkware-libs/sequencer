@@ -19,6 +19,7 @@ use indexmap::IndexMap;
 #[cfg(test)]
 use mockall::automock;
 use papyrus_storage::StorageReader;
+use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockNumber, BlockTimestamp, NonzeroGasPrice};
 use starknet_api::core::ContractAddress;
 use starknet_api::executable_transaction::Transaction;
@@ -44,7 +45,7 @@ pub enum BlockBuilderError {
 
 pub type BlockBuilderResult<T> = Result<T, BlockBuilderError>;
 
-#[derive(Clone)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct ExecutionConfig {
     // TODO(Yael 1/10/2024): add to config pointers
     pub chain_info: ChainInfo,

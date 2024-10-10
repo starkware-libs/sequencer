@@ -1,13 +1,19 @@
+use rstest::rstest;
+
+use crate::blockifier::config::ConcurrencyConfig;
 use crate::test_utils::transfers_generator::{
     RecipientGeneratorType,
     TransfersGenerator,
     TransfersGeneratorConfig,
 };
 
-#[test]
-pub fn transfers_flow_test() {
+#[rstest]
+#[case::concurrency_enabled(ConcurrencyConfig{enabled: true, n_workers: 4, chunk_size: 100})]
+#[case::concurrency_disabled(ConcurrencyConfig{enabled: false, n_workers: 0, chunk_size: 0})]
+pub fn transfers_flow_test(#[case] concurrency_config: ConcurrencyConfig) {
     let transfers_generator_config = TransfersGeneratorConfig {
         recipient_generator_type: RecipientGeneratorType::DisjointFromSenders,
+        concurrency_config,
         ..Default::default()
     };
     assert!(

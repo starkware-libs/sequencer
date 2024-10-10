@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use starknet_api::block::GasPriceVector;
 use starknet_api::calldata;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
@@ -21,7 +22,6 @@ use starknet_api::transaction::{
 use starknet_types_core::felt::Felt;
 
 use crate::abi::abi_utils::selector_from_name;
-use crate::blockifier::block::GasPricesForFeeType;
 use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::{CallInfo, Retdata};
 use crate::execution::contract_class::ContractClass;
@@ -320,7 +320,7 @@ impl AccountTransaction {
                     ValidResourceBounds::L1Gas(l1_gas_resource_bounds) => vec![(
                         L1Gas,
                         l1_gas_resource_bounds,
-                        minimal_gas_amount_vector.to_discounted_l1_gas(tx_context),
+                        minimal_gas_amount_vector.to_discounted_l1_gas(tx_context.get_gas_prices()),
                         block_info.gas_prices.get_l1_gas_price_by_fee_type(fee_type),
                     )],
                     ValidResourceBounds::AllResources(AllResourceBounds {
@@ -328,26 +328,26 @@ impl AccountTransaction {
                         l2_gas: l2_gas_resource_bounds,
                         l1_data_gas: l1_data_gas_resource_bounds,
                     }) => {
-                        let GasPricesForFeeType { l1_gas_price, l1_data_gas_price, l2_gas_price } =
+                        let GasPriceVector { l1_gas_price, l1_data_gas_price, l2_gas_price } =
                             block_info.gas_prices.get_gas_prices_by_fee_type(fee_type);
                         vec![
                             (
                                 L1Gas,
                                 l1_gas_resource_bounds,
                                 minimal_gas_amount_vector.l1_gas,
-                                l1_gas_price,
+                                *l1_gas_price,
                             ),
                             (
                                 L1DataGas,
                                 l1_data_gas_resource_bounds,
                                 minimal_gas_amount_vector.l1_data_gas,
-                                l1_data_gas_price,
+                                *l1_data_gas_price,
                             ),
                             (
                                 L2Gas,
                                 l2_gas_resource_bounds,
                                 minimal_gas_amount_vector.l2_gas,
-                                l2_gas_price,
+                                *l2_gas_price,
                             ),
                         ]
                     }
@@ -357,18 +357,18 @@ impl AccountTransaction {
                 {
                     // TODO(Aner): refactor to indicate both amount and price are too low.
                     // TODO(Aner): refactor to return all amounts that are too low.
-                    if minimal_gas_amount > resource_bounds.max_amount.into() {
+                    if minimal_gas_amount > resource_bounds.max_amount {
                         return Err(TransactionFeeError::MaxGasAmountTooLow {
                             resource,
-                            max_gas_amount: resource_bounds.max_amount.into(),
+                            max_gas_amount: resource_bounds.max_amount,
                             minimal_gas_amount,
                         })?;
                     }
                     // TODO(Aner): refactor to return all prices that are too low.
-                    if resource_bounds.max_price_per_unit < actual_gas_price.get().0 {
+                    if resource_bounds.max_price_per_unit < actual_gas_price.get() {
                         return Err(TransactionFeeError::MaxGasPriceTooLow {
                             resource,
-                            max_gas_price: resource_bounds.max_price_per_unit.into(),
+                            max_gas_price: resource_bounds.max_price_per_unit,
                             actual_gas_price: actual_gas_price.into(),
                         })?;
                     }

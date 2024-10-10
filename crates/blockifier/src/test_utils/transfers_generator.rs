@@ -25,12 +25,6 @@ const RANDOMIZATION_SEED: u64 = 0;
 const CAIRO_VERSION: CairoVersion = CairoVersion::Cairo0;
 const TRANSACTION_VERSION: TransactionVersion = TransactionVersion(Felt::THREE);
 const RECIPIENT_GENERATOR_TYPE: RecipientGeneratorType = RecipientGeneratorType::RoundRobin;
-#[cfg(feature = "concurrency")]
-const CONCURRENCY_MODE: bool = true;
-#[cfg(not(feature = "concurrency"))]
-const CONCURRENCY_MODE: bool = false;
-const N_WORKERS: usize = 4;
-const CHUNK_SIZE: usize = 100;
 
 pub struct TransfersGeneratorConfig {
     pub n_accounts: u16,
@@ -55,11 +49,7 @@ impl Default for TransfersGeneratorConfig {
             cairo_version: CAIRO_VERSION,
             tx_version: TRANSACTION_VERSION,
             recipient_generator_type: RECIPIENT_GENERATOR_TYPE,
-            concurrency_config: ConcurrencyConfig {
-                enabled: CONCURRENCY_MODE,
-                n_workers: N_WORKERS,
-                chunk_size: CHUNK_SIZE,
-            },
+            concurrency_config: ConcurrencyConfig::default(),
         }
     }
 }

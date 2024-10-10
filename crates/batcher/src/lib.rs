@@ -1,4 +1,6 @@
 pub mod batcher;
+#[cfg(test)]
+mod batcher_test;
 pub mod block_builder;
 pub mod communication;
 pub mod config;

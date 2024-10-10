@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::transaction::{Tip, TransactionHash, ValidResourceBounds};
@@ -47,9 +48,7 @@ impl Mempool {
     /// Retrieves up to `n_txs` transactions with the highest priority from the mempool.
     /// Transactions are guaranteed to be unique across calls until the block in-progress is
     /// created.
-    // TODO: the last part about commit_block is incorrect if we delete txs in get_txs and then push
-    // back. TODO: Consider renaming to `pop_txs` to be more consistent with the standard
-    // library.
+    // TODO: Consider renaming to `pop_txs` to be more consistent with the standard library.
     pub fn get_txs(&mut self, n_txs: usize) -> MempoolResult<Vec<Transaction>> {
         let mut eligible_tx_references: Vec<TransactionReference> = Vec::with_capacity(n_txs);
         let mut n_remaining_txs = n_txs;
@@ -61,20 +60,20 @@ impl Mempool {
             eligible_tx_references.extend(chunk);
         }
 
-        let mut eligible_txs: Vec<Transaction> = Vec::with_capacity(n_txs);
-        for tx_ref in &eligible_tx_references {
-            let tx = self.tx_pool.remove(tx_ref.tx_hash)?;
-            // TODO(clean_account_nonces): remove address from nonce table after a block cycle /
-            // TTL.
-            eligible_txs.push(tx);
-        }
-
         // Update the mempool state with the given transactions' nonces.
         for tx_ref in &eligible_tx_references {
             self.mempool_state.insert(tx_ref.sender_address, tx_ref.nonce);
         }
 
-        Ok(eligible_txs)
+        Ok(eligible_tx_references
+            .iter()
+            .map(|tx_ref| {
+                self.tx_pool
+                    .get_by_tx_hash(tx_ref.tx_hash)
+                    .expect("Transaction hash from queue must appear in pool.")
+            })
+            .cloned() // Soft-delete: return without deleting from mempool.
+            .collect())
     }
 
     /// Adds a new transaction to the mempool.
@@ -100,8 +99,6 @@ impl Mempool {
 
     /// Update the mempool's internal state according to the committed block (resolves nonce gaps,
     /// updates account balances).
-    // TODO: the part about resolving nonce gaps is incorrect if we delete txs in get_txs and then
-    // push back.
     pub fn commit_block(&mut self, args: CommitBlockArgs) -> MempoolResult<()> {
         for (&address, &nonce) in &args.nonces {
             let next_nonce = nonce.try_increment().map_err(|_| MempoolError::FeltOutOfRange)?;
@@ -109,11 +106,27 @@ impl Mempool {
             self.align_to_account_state(account_state);
         }
 
+        // Hard-delete: finally, remove committed transactions from the mempool.
+        for tx_hash in args.tx_hashes {
+            let Ok(_tx) = self.tx_pool.remove(tx_hash) else {
+                continue; // Transaction hash unknown to mempool, from a different node.
+            };
+
+            // TODO(clean_account_nonces): remove address from nonce table after a block cycle /
+            // TTL.
+        }
+
         // Rewind nonces of addresses that were not included in block.
-        let addresses_not_included_in_block =
+        let known_addresses_not_included_in_block =
             self.mempool_state.keys().filter(|&key| !args.nonces.contains_key(key));
-        for address in addresses_not_included_in_block {
-            self.tx_queue.remove(*address);
+        for address in known_addresses_not_included_in_block {
+            // Account nonce is the minimal nonce of this address: it was proposed but not included.
+            let tx_reference = self
+                .tx_pool
+                .account_txs_sorted_by_nonce(*address)
+                .next()
+                .expect("Address {address} should appear in transaction pool.");
+            self.tx_queue.insert(*tx_reference);
         }
 
         // Commit: clear block creation staged state.
@@ -123,7 +136,7 @@ impl Mempool {
     }
 
     // TODO(Mohammad): Rename this method once consensus API is added.
-    fn _update_gas_price_threshold(&mut self, threshold: u128) {
+    fn _update_gas_price_threshold(&mut self, threshold: GasPrice) {
         self.tx_queue._update_gas_price_threshold(threshold);
     }
 
@@ -154,7 +167,7 @@ impl Mempool {
         if self
             .tx_queue
             .get_nonce(sender_address)
-            .is_some_and(|queued_nonce| queued_nonce > tx_nonce)
+            .is_some_and(|queued_nonce| queued_nonce >= tx_nonce)
         {
             return Err(duplicate_nonce_error);
         }
@@ -225,7 +238,7 @@ impl TransactionReference {
         }
     }
 
-    pub fn get_l2_gas_price(&self) -> u128 {
+    pub fn get_l2_gas_price(&self) -> GasPrice {
         self.resource_bounds.get_l2_bounds().max_price_per_unit
     }
 }

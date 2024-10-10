@@ -10,9 +10,11 @@ use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{create_trivial_calldata, CairoVersion};
 use pretty_assertions::assert_ne;
 use serde_json::to_string_pretty;
+use starknet_api::block::GasPrice;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::executable_transaction::Transaction;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::{
     ContractClass,
     RpcDeclareTransactionV3,
@@ -97,40 +99,27 @@ pub fn rpc_tx_for_testing(
 }
 
 pub const NON_EMPTY_RESOURCE_BOUNDS: ResourceBounds =
-    ResourceBounds { max_amount: 1, max_price_per_unit: 1 };
-
-// TODO(Nimrod): Delete this function.
-pub fn create_resource_bounds_mapping(
-    l1_resource_bounds: ResourceBounds,
-    l2_resource_bounds: ResourceBounds,
-    l1_data_resource_bounds: ResourceBounds,
-) -> AllResourceBounds {
-    AllResourceBounds {
-        l1_gas: l1_resource_bounds,
-        l2_gas: l2_resource_bounds,
-        l1_data_gas: l1_data_resource_bounds,
-    }
-}
+    ResourceBounds { max_amount: GasAmount(1), max_price_per_unit: GasPrice(1) };
 
 pub fn zero_resource_bounds_mapping() -> AllResourceBounds {
     AllResourceBounds::default()
 }
 
 pub fn test_resource_bounds_mapping() -> AllResourceBounds {
-    create_resource_bounds_mapping(
-        ResourceBounds {
-            max_amount: VALID_L1_GAS_MAX_AMOUNT,
-            max_price_per_unit: VALID_L1_GAS_MAX_PRICE_PER_UNIT,
+    AllResourceBounds {
+        l1_gas: ResourceBounds {
+            max_amount: GasAmount(VALID_L1_GAS_MAX_AMOUNT),
+            max_price_per_unit: GasPrice(VALID_L1_GAS_MAX_PRICE_PER_UNIT),
         },
-        ResourceBounds {
-            max_amount: VALID_L2_GAS_MAX_AMOUNT,
-            max_price_per_unit: VALID_L2_GAS_MAX_PRICE_PER_UNIT,
+        l2_gas: ResourceBounds {
+            max_amount: GasAmount(VALID_L2_GAS_MAX_AMOUNT),
+            max_price_per_unit: GasPrice(VALID_L2_GAS_MAX_PRICE_PER_UNIT),
         },
-        ResourceBounds {
-            max_amount: VALID_L1_DATA_GAS_MAX_AMOUNT,
-            max_price_per_unit: VALID_L1_DATA_GAS_MAX_PRICE_PER_UNIT,
+        l1_data_gas: ResourceBounds {
+            max_amount: GasAmount(VALID_L1_DATA_GAS_MAX_AMOUNT),
+            max_price_per_unit: GasPrice(VALID_L1_DATA_GAS_MAX_PRICE_PER_UNIT),
         },
-    )
+    }
 }
 
 pub fn test_valid_resource_bounds() -> ValidResourceBounds {

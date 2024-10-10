@@ -5,6 +5,7 @@ use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ResourceTracker;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
+use starknet_api::block::GasPrice;
 use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress, PatriciaKey};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::hash::StarkHash;
@@ -44,7 +45,7 @@ use crate::abi::abi_utils::{
     selector_from_name,
 };
 use crate::check_tx_execution_error_for_invalid_scenario;
-use crate::context::BlockContext;
+use crate::context::{BlockContext, TransactionContext};
 use crate::execution::contract_class::{ContractClass, ContractClassV1};
 use crate::execution::entry_point::EntryPointExecutionContext;
 use crate::execution::syscalls::SyscallSelector;
@@ -74,7 +75,9 @@ use crate::transaction::test_utils::{
     block_context,
     calculate_class_info_for_testing,
     create_account_tx_for_validate_test_nonce_0,
+    create_all_resource_bounds,
     create_test_init_data,
+    default_all_resource_bounds,
     deploy_and_fund_account,
     l1_resource_bounds,
     max_fee,
@@ -86,7 +89,7 @@ use crate::transaction::test_utils::{
 };
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::{DeclareTransaction, ExecutableTransaction, ExecutionFlags};
-use crate::utils::u128_from_usize;
+use crate::utils::u64_from_usize;
 
 #[rstest]
 fn test_circuit(block_context: BlockContext, max_l1_resource_bounds: ValidResourceBounds) {
@@ -171,7 +174,10 @@ fn test_fee_enforcement(
         deploy_account_tx_args! {
             class_hash: account.get_class_hash(),
             max_fee: Fee(u128::from(!zero_bounds)),
-            resource_bounds: l1_resource_bounds(u128::from(!zero_bounds).into(), DEFAULT_STRK_L1_GAS_PRICE.into()),
+            resource_bounds: l1_resource_bounds(
+                u8::from(!zero_bounds).into(),
+                DEFAULT_STRK_L1_GAS_PRICE.into()
+            ),
             version,
         },
         &mut NonceManager::default(),
@@ -195,31 +201,29 @@ fn test_assert_actual_fee_in_bounds(
     #[case] positive_flow: bool,
     #[case] deprecated_tx: bool,
 ) {
-    let actual_fee_offset = if positive_flow { 0 } else { 1 };
+    let actual_fee_offset = Fee(if positive_flow { 0 } else { 1 });
     if deprecated_tx {
-        let max_fee = 100;
-        let tx = account_invoke_tx(invoke_tx_args! {
-            max_fee: Fee(max_fee),
-            version: TransactionVersion::ONE,
-        });
+        let max_fee = Fee(100);
+        let tx = account_invoke_tx(invoke_tx_args! { max_fee, version: TransactionVersion::ONE });
         let context = Arc::new(block_context.to_tx_context(&tx));
-        AccountTransaction::assert_actual_fee_in_bounds(&context, Fee(max_fee + actual_fee_offset));
+        AccountTransaction::assert_actual_fee_in_bounds(&context, max_fee + actual_fee_offset);
     } else {
         // All resources.
-        let l1_gas = ResourceBounds { max_amount: 2, max_price_per_unit: 3 };
-        let l2_gas = ResourceBounds { max_amount: 4, max_price_per_unit: 5 };
-        let l1_data_gas = ResourceBounds { max_amount: 6, max_price_per_unit: 7 };
+        let l1_gas = ResourceBounds { max_amount: GasAmount(2), max_price_per_unit: GasPrice(3) };
+        let l2_gas = ResourceBounds { max_amount: GasAmount(4), max_price_per_unit: GasPrice(5) };
+        let l1_data_gas =
+            ResourceBounds { max_amount: GasAmount(6), max_price_per_unit: GasPrice(7) };
         let all_resource_bounds =
             ValidResourceBounds::AllResources(AllResourceBounds { l1_gas, l2_gas, l1_data_gas });
-        let all_resource_fee = u128::from(l1_gas.max_amount) * l1_gas.max_price_per_unit
-            + u128::from(l2_gas.max_amount) * l2_gas.max_price_per_unit
-            + u128::from(l1_data_gas.max_amount) * l1_data_gas.max_price_per_unit
+        let all_resource_fee = l1_gas.max_amount.checked_mul(l1_gas.max_price_per_unit).unwrap()
+            + l2_gas.max_amount.checked_mul(l2_gas.max_price_per_unit).unwrap()
+            + l1_data_gas.max_amount.checked_mul(l1_data_gas.max_price_per_unit).unwrap()
             + actual_fee_offset;
 
         // L1 resources.
         let l1_resource_bounds = ValidResourceBounds::L1Gas(l1_gas);
         let l1_resource_fee =
-            u128::from(l1_gas.max_amount) * l1_gas.max_price_per_unit + actual_fee_offset;
+            l1_gas.max_amount.checked_mul(l1_gas.max_price_per_unit).unwrap() + actual_fee_offset;
 
         for (bounds, actual_fee) in
             [(all_resource_bounds, all_resource_fee), (l1_resource_bounds, l1_resource_fee)]
@@ -229,7 +233,7 @@ fn test_assert_actual_fee_in_bounds(
                 version: TransactionVersion::THREE,
             });
             let context = Arc::new(block_context.to_tx_context(&tx));
-            AccountTransaction::assert_actual_fee_in_bounds(&context, Fee(actual_fee));
+            AccountTransaction::assert_actual_fee_in_bounds(&context, actual_fee);
         }
     }
 }
@@ -392,16 +396,19 @@ fn test_infinite_recursion(
 }
 
 /// Tests that validation fails on insufficient steps if max fee is too low.
-// TODO(Aner, 21/01/24) modify test for 4844.
 #[rstest]
-#[case(TransactionVersion::ONE)]
-#[case(TransactionVersion::THREE)]
+#[case::v1(TransactionVersion::ONE, max_l1_resource_bounds())]
+#[case::v3_l1_bounds_only(TransactionVersion::THREE, max_l1_resource_bounds())]
+#[case::v3_all_bounds(TransactionVersion::THREE, default_all_resource_bounds())]
 fn test_max_fee_limit_validate(
-    block_context: BlockContext,
+    mut block_context: BlockContext,
     #[case] version: TransactionVersion,
-    max_l1_resource_bounds: ValidResourceBounds,
+    #[case] resource_bounds: ValidResourceBounds,
+    #[values(true, false)] use_kzg_da: bool,
 ) {
+    block_context.block_info.use_kzg_da = use_kzg_da;
     let chain_info = &block_context.chain_info;
+    let gas_computation_mode = resource_bounds.get_gas_vector_computation_mode();
     let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
         create_test_init_data(chain_info, CairoVersion::Cairo1);
     let grindy_validate_account = FeatureContract::AccountWithLongValidate(CairoVersion::Cairo1);
@@ -414,7 +421,7 @@ fn test_max_fee_limit_validate(
         declare_tx_args! {
             class_hash: grindy_class_hash,
             sender_address: account_address,
-            resource_bounds: max_l1_resource_bounds,
+            resource_bounds,
             nonce: nonce_manager.next(account_address),
         },
         class_info,
@@ -423,6 +430,9 @@ fn test_max_fee_limit_validate(
 
     // Deploy grindy account with a lot of grind in the constructor.
     // Expect this to fail without bumping nonce, so pass a temporary nonce manager.
+    // We want to test the block step bounds here - so set them to something low.
+    let old_validate_max_n_steps = block_context.versioned_constants.validate_max_n_steps;
+    block_context.versioned_constants.validate_max_n_steps = 1000;
     let mut ctor_grind_arg = felt!(1_u8); // Grind in deploy phase.
     let ctor_storage_arg = felt!(1_u8); // Not relevant for this test.
     let (deploy_account_tx, _) = deploy_and_fund_account(
@@ -431,13 +441,14 @@ fn test_max_fee_limit_validate(
         chain_info,
         deploy_account_tx_args! {
             class_hash: grindy_class_hash,
-            resource_bounds: max_l1_resource_bounds,
+            resource_bounds,
             constructor_calldata: calldata![ctor_grind_arg, ctor_storage_arg],
         },
     );
     let error_trace =
         deploy_account_tx.execute(&mut state, &block_context, true, true).unwrap_err().to_string();
     assert!(error_trace.contains("no remaining steps"));
+    block_context.versioned_constants.validate_max_n_steps = old_validate_max_n_steps;
 
     // Deploy grindy account successfully this time.
     ctor_grind_arg = felt!(0_u8); // Do not grind in deploy phase.
@@ -447,7 +458,7 @@ fn test_max_fee_limit_validate(
         chain_info,
         deploy_account_tx_args! {
             class_hash: grindy_class_hash,
-            resource_bounds: max_l1_resource_bounds,
+            resource_bounds,
             constructor_calldata: calldata![ctor_grind_arg, ctor_storage_arg],
         },
     );
@@ -455,11 +466,13 @@ fn test_max_fee_limit_validate(
 
     // Invoke a function that grinds validate (any function will do); set bounds low enough to fail
     // on this grind.
+    // Only grind a small number of iterations (in the calldata) to ensure we are limited by the
+    // transaction bounds, and not the global block bounds.
     // To ensure bounds are low enough, estimate minimal resources consumption, and set bounds
     // slightly above them.
     let tx_args = invoke_tx_args! {
         sender_address: grindy_account_address,
-        calldata: create_trivial_calldata(contract_address),
+        calldata: create_calldata(contract_address, "return_result", &[1000_u32.into()]),
         version,
         nonce: nonce_manager.next(grindy_account_address)
     };
@@ -467,34 +480,55 @@ fn test_max_fee_limit_validate(
     let account_tx = account_invoke_tx(invoke_tx_args! {
         // Temporary upper bounds; just for gas estimation.
         max_fee: MAX_FEE,
-        resource_bounds: max_l1_resource_bounds,
+        resource_bounds,
         ..tx_args.clone()
     });
-    let estimated_min_gas_usage_vector = estimate_minimal_gas_vector(
-        &block_context,
-        &account_tx,
-        &GasVectorComputationMode::NoL2Gas,
-    );
-    let estimated_min_l1_gas = estimated_min_gas_usage_vector.l1_gas;
+    let estimated_min_gas_usage_vector =
+        estimate_minimal_gas_vector(&block_context, &account_tx, &gas_computation_mode);
     let estimated_min_fee =
         get_fee_by_gas_vector(block_info, estimated_min_gas_usage_vector, &account_tx.fee_type());
 
+    // Make sure the resource bounds are the limiting factor by blowing up the block bounds.
+    let old_validate_max_n_steps = block_context.versioned_constants.validate_max_n_steps;
+    block_context.versioned_constants.validate_max_n_steps = u32::MAX;
     let error_trace = run_invoke_tx(
         &mut state,
         &block_context,
         invoke_tx_args! {
             max_fee: estimated_min_fee,
-            // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion
-            // works.
-            resource_bounds: l1_resource_bounds(
-                estimated_min_l1_gas,
-                block_info.gas_prices.get_l1_gas_price_by_fee_type(&account_tx.fee_type()).into()
-            ),
+            resource_bounds: match resource_bounds.get_gas_vector_computation_mode() {
+                GasVectorComputationMode::NoL2Gas => {
+                    // If KZG DA mode is active, the L1 gas amount in the minimal fee estimate does
+                    // not include DA. To cover minimal cost with only an L1 gas bound, need to
+                    // convert the L1 data gas to L1 gas.
+                    let tx_context = TransactionContext {
+                        block_context: block_context.clone(),
+                        tx_info: account_tx.create_tx_info(),
+                    };
+                    let gas_prices = tx_context.get_gas_prices();
+                    l1_resource_bounds(
+                        estimated_min_gas_usage_vector.to_discounted_l1_gas(gas_prices),
+                        gas_prices.l1_gas_price.into(),
+                    )
+                }
+                GasVectorComputationMode::All => create_all_resource_bounds(
+                    estimated_min_gas_usage_vector.l1_gas,
+                    block_info.gas_prices
+                        .get_l1_gas_price_by_fee_type(&account_tx.fee_type()).into(),
+                    estimated_min_gas_usage_vector.l2_gas,
+                    block_info.gas_prices
+                        .get_l2_gas_price_by_fee_type(&account_tx.fee_type()).into(),
+                    estimated_min_gas_usage_vector.l1_data_gas,
+                    block_info.gas_prices
+                        .get_l1_data_gas_price_by_fee_type(&account_tx.fee_type()).into(),
+                ),
+            },
             ..tx_args
         },
     )
     .unwrap_err()
     .to_string();
+    block_context.versioned_constants.validate_max_n_steps = old_validate_max_n_steps;
 
     assert!(error_trace.contains("no remaining steps"));
 }
@@ -965,13 +999,13 @@ fn test_max_fee_to_max_steps_conversion(
 ) {
     let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
         create_test_init_data(&block_context.chain_info, CairoVersion::Cairo0);
-    let actual_gas_used: GasAmount = u128_from_usize(
+    let actual_gas_used: GasAmount = u64_from_usize(
         get_syscall_resources(SyscallSelector::CallContract).n_steps
             + get_tx_resources(TransactionType::InvokeFunction).n_steps
             + 1751,
     )
     .into();
-    let actual_fee = actual_gas_used.0 * 100000000000;
+    let actual_fee = u128::from(actual_gas_used.0) * 100000000000;
     let actual_strk_gas_price =
         block_context.block_info.gas_prices.get_l1_gas_price_by_fee_type(&FeeType::Strk);
     let execute_calldata = create_calldata(
@@ -1062,7 +1096,7 @@ fn test_insufficient_max_fee_reverts(
     let actual_fee_depth1 = tx_execution_info1.receipt.fee;
     let gas_price =
         block_context.block_info.gas_prices.get_l1_gas_price_by_fee_type(&FeeType::Strk);
-    let gas_ammount = actual_fee_depth1 / gas_price;
+    let gas_ammount = actual_fee_depth1.checked_div(gas_price).unwrap();
 
     // Invoke the `recurse` function with depth of 2 and the actual fee of depth 1 as max_fee.
     // This call should fail due to insufficient max fee (steps bound based on max_fee is not so

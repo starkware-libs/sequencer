@@ -239,7 +239,7 @@ fn test_l1_handler(block_context: BlockContext) {
 }
 
 #[rstest]
-#[case::happy_flow(BouncerWeights::default(), 10)]
+#[case::happy_flow(BouncerWeights::empty(), 10)]
 #[should_panic(expected = "BlockFull: Transaction cannot be added to the current block, block \
                            capacity reached.")]
 #[case::block_full(
@@ -249,9 +249,8 @@ fn test_l1_handler(block_context: BlockContext) {
     },
     7
 )]
-#[should_panic(expected = "TransactionExecutionError(TransactionTooLarge): Transaction size \
-                           exceeds the maximum block capacity.")]
-#[case::transaction_too_large(BouncerWeights::default(), 11)]
+#[should_panic(expected = "Transaction size exceeds the maximum block capacity.")]
+#[case::transaction_too_large(BouncerWeights::empty(), 11)]
 
 fn test_bouncing(#[case] initial_bouncer_weights: BouncerWeights, #[case] n_events: usize) {
     let max_n_events_in_block = 10;
@@ -281,8 +280,8 @@ fn test_bouncing(#[case] initial_bouncer_weights: BouncerWeights, #[case] n_even
 }
 
 #[rstest]
-fn test_execute_txs_bouncing() {
-    let config = TransactionExecutorConfig::create_for_testing();
+fn test_execute_txs_bouncing(#[values(true, false)] concurrency_enabled: bool) {
+    let config = TransactionExecutorConfig::create_for_testing(concurrency_enabled);
     let max_n_events_in_block = 10;
     let block_context = BlockContext::create_for_bouncer_testing(max_n_events_in_block);
 
@@ -321,7 +320,7 @@ fn test_execute_txs_bouncing() {
     assert_matches!(
         results[1].as_ref().unwrap_err(),
         TransactionExecutorError::TransactionExecutionError(
-            TransactionExecutionError::TransactionTooLarge
+            TransactionExecutionError::TransactionTooLarge { .. }
         )
     );
     assert!(results[2].is_ok());
