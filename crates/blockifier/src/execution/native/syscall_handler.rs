@@ -11,7 +11,7 @@ use cairo_native::starknet::{
     U256,
 };
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
-use starknet_api::core::{ContractAddress, EntryPointSelector};
+use starknet_api::core::{ContractAddress, EntryPointSelector, PatriciaKey};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
@@ -93,7 +93,6 @@ impl<'state> NativeSyscallHandler<'state> {
     // Handles gas related logic when executing a syscall. Required because Native calls the
     // syscalls directly unlike the VM where the `execute_syscall` method perform this operation
     // first.
-    #[allow(dead_code)]
     fn substract_syscall_gas_cost(
         &mut self,
         remaining_gas: &mut u128,
@@ -175,20 +174,48 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
     fn storage_read(
         &mut self,
         _address_domain: u32,
-        _address: Felt,
-        _remaining_gas: &mut u128,
+        address: Felt,
+        remaining_gas: &mut u128,
     ) -> SyscallResult<Felt> {
-        todo!("Implement storage_read syscall.");
+        self.substract_syscall_gas_cost(
+            remaining_gas,
+            self.context.gas_costs().storage_read_gas_cost,
+        )?;
+
+        let key = StorageKey(
+            PatriciaKey::try_from(address).map_err(|e| encode_str_as_felts(&e.to_string()))?,
+        );
+
+        let read_result = self.state.get_storage_at(self.contract_address, key);
+        let value = read_result.map_err(|e| encode_str_as_felts(&e.to_string()))?;
+
+        self.accessed_keys.insert(key);
+        self.read_values.push(value);
+
+        Ok(value)
     }
 
     fn storage_write(
         &mut self,
         _address_domain: u32,
-        _address: Felt,
-        _value: Felt,
-        _remaining_gas: &mut u128,
+        address: Felt,
+        value: Felt,
+        remaining_gas: &mut u128,
     ) -> SyscallResult<()> {
-        todo!("Implement storage_write syscall.");
+        self.substract_syscall_gas_cost(
+            remaining_gas,
+            self.context.gas_costs().storage_write_gas_cost,
+        )?;
+
+        let key = StorageKey(
+            PatriciaKey::try_from(address).map_err(|e| encode_str_as_felts(&e.to_string()))?,
+        );
+        self.accessed_keys.insert(key);
+
+        let write_result = self.state.set_storage_at(self.contract_address, key, value);
+        write_result.map_err(|e| encode_str_as_felts(&e.to_string()))?;
+
+        Ok(())
     }
 
     fn emit_event(
