@@ -1139,6 +1139,27 @@ impl ValidResourceBounds {
     pub fn create_for_testing() -> Self {
         Self::L1Gas(ResourceBounds { max_amount: GasAmount(0), max_price_per_unit: GasPrice(1) })
     }
+
+    /// Utility method to "zip" an amount vector and a price vector to get an AllResourceBounds.
+    #[cfg(any(feature = "testing", test))]
+    pub fn all_bounds_from_vectors(
+        gas: &crate::execution_resources::GasVector,
+        prices: &crate::block::GasPriceVector,
+    ) -> Self {
+        let l1_gas = ResourceBounds {
+            max_amount: gas.l1_gas,
+            max_price_per_unit: prices.l1_gas_price.into(),
+        };
+        let l2_gas = ResourceBounds {
+            max_amount: gas.l2_gas,
+            max_price_per_unit: prices.l2_gas_price.into(),
+        };
+        let l1_data_gas = ResourceBounds {
+            max_amount: gas.l1_data_gas,
+            max_price_per_unit: prices.l1_data_gas_price.into(),
+        };
+        Self::AllResources(AllResourceBounds { l1_gas, l2_gas, l1_data_gas })
+    }
 }
 
 #[derive(
