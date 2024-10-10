@@ -6,13 +6,8 @@ use blockifier::abi::abi_utils::get_fee_token_var_address;
 use blockifier::context::{BlockContext, ChainInfo};
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{
-    CairoVersion,
-    BALANCE,
-    CURRENT_BLOCK_TIMESTAMP,
-    DEFAULT_ETH_L1_GAS_PRICE,
-    DEFAULT_STRK_L1_GAS_PRICE,
-    DEFAULT_STRK_L2_GAS_PRICE,
-    TEST_SEQUENCER_ADDRESS,
+    CairoVersion, BALANCE, CURRENT_BLOCK_TIMESTAMP, DEFAULT_ETH_L1_GAS_PRICE,
+    DEFAULT_STRK_L1_GAS_PRICE, DEFAULT_STRK_L2_GAS_PRICE, TEST_SEQUENCER_ADDRESS,
 };
 use blockifier::transaction::objects::FeeType;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
@@ -28,19 +23,10 @@ use papyrus_storage::state::StateStorageWriter;
 use papyrus_storage::test_utils::{get_test_storage, get_test_storage_with_config_by_scope};
 use papyrus_storage::{StorageConfig, StorageReader, StorageWriter};
 use starknet_api::block::{
-    BlockBody,
-    BlockHeader,
-    BlockHeaderWithoutHash,
-    BlockNumber,
-    BlockTimestamp,
-    GasPricePerToken,
+    BlockBody, BlockHeader, BlockHeaderWithoutHash, BlockNumber, BlockTimestamp, GasPricePerToken,
 };
 use starknet_api::core::{
-    ClassHash,
-    ContractAddress,
-    Nonce,
-    PatriciaKey,
-    SequencerContractAddress,
+    ClassHash, ContractAddress, Nonce, PatriciaKey, SequencerContractAddress,
 };
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{StorageKey, ThinStateDiff};
@@ -180,6 +166,7 @@ fn prepare_compiled_contract_classes(
                     serde_json::from_str(&contract.raw_class()).unwrap(),
                 ));
             }
+            CairoVersion::Native => todo!("look up what we need here"),
         }
     }
 
@@ -308,6 +295,9 @@ impl<'a> ThinStateDiffBuilder<'a> {
                 }
                 CairoVersion::Cairo1 => {
                     self.declared_classes.insert(contract.class_hash(), Default::default());
+                }
+                CairoVersion::Native => {
+                    todo!("look up what we need to do here")
                 }
             }
         }
