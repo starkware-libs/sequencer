@@ -12,6 +12,16 @@ pub enum BatcherError {
     )]
     AlreadyWorkingOnHeight { active_height: BlockNumber, new_height: BlockNumber },
     #[error(
+        "Decision reached for proposal with ID {proposal_id} that does not exist (might still \
+         being executed)."
+    )]
+    DoneProposalNotFound { proposal_id: ProposalId },
+    #[error(
+        "Can't get content for proposal with ID {proposal_id}, as it was not built by calling the \
+         BuildProposal API."
+    )]
+    GetContentOnNonBuildProposal { proposal_id: ProposalId },
+    #[error(
         "Height {storage_height} already passed, can't start working on height {requested_height}."
     )]
     HeightAlreadyPassed { storage_height: BlockNumber, requested_height: BlockNumber },
@@ -19,6 +29,10 @@ pub enum BatcherError {
     InternalError,
     #[error("Attempt to start proposal with no active height.")]
     NoActiveHeight,
+    #[error("Proposal with ID {proposal_id} was aborted.")]
+    ProposalAborted { proposal_id: ProposalId },
+    #[error("Proposal with ID {proposal_id} is still being generated.")]
+    ProposalNotDone { proposal_id: ProposalId },
     #[error(
         "There is already an active proposal {}, can't start proposal {}.",
         active_proposal_id,
