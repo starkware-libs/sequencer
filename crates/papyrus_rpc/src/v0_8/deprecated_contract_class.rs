@@ -2,7 +2,11 @@ use std::collections::HashMap;
 
 use papyrus_storage::db::serialization::StorageSerdeError;
 use serde::{Deserialize, Serialize};
-use starknet_api::deprecated_contract_class::{ContractClassAbiEntry, EntryPoint, EntryPointType};
+use starknet_api::deprecated_contract_class::{
+    ContractClassAbiEntry,
+    EntryPointType,
+    EntryPointV0,
+};
 
 use crate::compression_utils::compress_and_encode;
 
@@ -12,7 +16,7 @@ pub struct ContractClass {
     /// A base64 encoding of the gzip-compressed JSON representation of program.
     pub program: String,
     /// The selector of each entry point is a unique identifier in the program.
-    pub entry_points_by_type: HashMap<EntryPointType, Vec<EntryPoint>>,
+    pub entry_points_by_type: HashMap<EntryPointType, Vec<EntryPointV0>>,
 }
 
 impl TryFrom<starknet_api::deprecated_contract_class::ContractClass> for ContractClass {

@@ -33,15 +33,16 @@ use starknet_api::contract_class::ContractClass as RawContractClass;
 use starknet_api::core::EntryPointSelector;
 use starknet_api::deprecated_contract_class::{
     ContractClass as DeprecatedContractClass,
-    EntryPoint,
     EntryPointOffset,
     EntryPointType,
+    EntryPointV0,
     Program as DeprecatedProgram,
 };
 use starknet_types_core::felt::Felt;
 
 use crate::abi::constants::{self};
 use crate::execution::entry_point::CallEntryPoint;
+use crate::execution::entry_point_execution::get_entry_point;
 use crate::execution::errors::{ContractClassError, PreExecutionError};
 use crate::execution::execution_utils::{poseidon_hash_many_cost, sn_api_to_cairo_vm_program};
 use crate::execution::native::utils::contract_entrypoint_to_entrypoint_selector;
@@ -62,6 +63,21 @@ pub enum TrackedResource {
     #[default]
     CairoSteps, // AKA VM mode.
     SierraGas, // AKA Sierra mode.
+}
+
+#[derive(Clone)]
+pub enum EntryPoint {
+    V1(EntryPointV1),
+    Native(NativeEntryPoint),
+}
+
+impl EntryPoint {
+    pub fn selector(&self) -> &EntryPointSelector {
+        match self {
+            EntryPoint::V1(ep) => &ep.selector,
+            EntryPoint::Native(ep) => &ep.selector,
+        }
+    }
 }
 
 /// Represents a runnable Starknet contract class (meaning, the program is runnable by the VM).
@@ -105,6 +121,20 @@ impl ContractClass {
             ContractClass::V1Native(_) => {
                 todo!("Use casm to estimate casm hash computation resources")
             }
+        }
+    }
+
+    pub fn entry_points_of_same_type(&self, entry_point_type: EntryPointType) -> Vec<EntryPoint> {
+        match self {
+            ContractClass::V0(_) => panic!("V0 contracts do not support entry points."),
+            ContractClass::V1(class) => class.entry_points_by_type[&entry_point_type]
+                .iter()
+                .map(|ep| EntryPoint::V1(ep.clone()))
+                .collect(),
+            ContractClass::V1Native(class) => class.entry_points_by_type[entry_point_type]
+                .iter()
+                .map(|ep| EntryPoint::Native(ep.clone()))
+                .collect(),
         }
     }
 
@@ -208,7 +238,7 @@ impl ContractClassV0 {
 pub struct ContractClassV0Inner {
     #[serde(deserialize_with = "deserialize_program")]
     pub program: Program,
-    pub entry_points_by_type: HashMap<EntryPointType, Vec<EntryPoint>>,
+    pub entry_points_by_type: HashMap<EntryPointType, Vec<EntryPointV0>>,
 }
 
 impl TryFrom<DeprecatedContractClass> for ContractClassV0 {
@@ -254,21 +284,9 @@ impl ContractClassV1 {
         &self,
         call: &CallEntryPoint,
     ) -> Result<EntryPointV1, PreExecutionError> {
-        call.verify_constructor()?;
-
-        let entry_points_of_same_type = &self.0.entry_points_by_type[&call.entry_point_type];
-        let filtered_entry_points: Vec<_> = entry_points_of_same_type
-            .iter()
-            .filter(|ep| ep.selector == call.entry_point_selector)
-            .collect();
-
-        match &filtered_entry_points[..] {
-            [] => Err(PreExecutionError::EntryPointNotFound(call.entry_point_selector)),
-            [entry_point] => Ok((*entry_point).clone()),
-            _ => Err(PreExecutionError::DuplicatedEntryPointSelector {
-                selector: call.entry_point_selector,
-                typ: call.entry_point_type,
-            }),
+        match get_entry_point(&ContractClass::V1(self.clone()), call)? {
+            EntryPoint::V1(entry_point) => Ok(entry_point),
+            EntryPoint::Native(_) => panic!("Unexpected entry point type."),
         }
     }
 
@@ -640,22 +658,10 @@ impl NativeContractClassV1 {
     }
 
     /// Returns an entry point into the natively compiled contract.
-    pub fn get_entry_point(&self, call: &CallEntryPoint) -> Result<&FunctionId, PreExecutionError> {
-        call.verify_constructor()?;
-
-        let entry_points_of_same_type = &self.0.entry_points_by_type[call.entry_point_type];
-        let filtered_entry_points: Vec<_> = entry_points_of_same_type
-            .iter()
-            .filter(|ep| ep.selector == call.entry_point_selector)
-            .collect();
-
-        match &filtered_entry_points[..] {
-            [] => Err(PreExecutionError::EntryPointNotFound(call.entry_point_selector)),
-            [entry_point] => Ok(&entry_point.function_id),
-            _ => Err(PreExecutionError::DuplicatedEntryPointSelector {
-                selector: call.entry_point_selector,
-                typ: call.entry_point_type,
-            }),
+    pub fn get_entry_point(&self, call: &CallEntryPoint) -> Result<FunctionId, PreExecutionError> {
+        match get_entry_point(&ContractClass::V1Native(self.clone()), call)? {
+            EntryPoint::Native(entry_point) => Ok(entry_point.function_id),
+            EntryPoint::V1(_) => panic!("Unexpected entry point type."),
         }
     }
 }
@@ -734,9 +740,9 @@ fn sierra_eps_to_native_eps(
     sierra_eps.iter().map(|sierra_ep| NativeEntryPoint::from(func_ids, sierra_ep)).collect()
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 /// Provides a relation between a function in a contract and a compiled contract.
-struct NativeEntryPoint {
+pub struct NativeEntryPoint {
     /// The selector is the key to find the function in the contract.
     selector: EntryPointSelector,
     /// And the function_id is the key to find the function in the compiled contract.
