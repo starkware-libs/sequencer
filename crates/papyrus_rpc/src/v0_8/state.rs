@@ -2,13 +2,9 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockHash;
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, GlobalRoot, Nonce};
-use starknet_api::state::{
-    EntryPoint,
-    EntryPointType,
-    StorageKey,
-    ThinStateDiff as starknet_api_ThinStateDiff,
-};
+use starknet_api::state::{EntryPoint, StorageKey, ThinStateDiff as starknet_api_ThinStateDiff};
 use starknet_client::reader::objects::state::{
     DeclaredClassHashEntry as ClientDeclaredClassHashEntry,
     DeployedContract as ClientDeployedContract,

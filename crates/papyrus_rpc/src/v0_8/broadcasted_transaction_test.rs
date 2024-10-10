@@ -8,12 +8,12 @@ use papyrus_test_utils::{
     get_rng,
     GetTestInstance,
 };
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::deprecated_contract_class::{
     ContractClassAbiEntry as DeprecatedContractClassAbiEntry,
     EntryPoint as DeprecatedEntryPoint,
-    EntryPointType as DeprecatedEntryPointType,
     EventAbiEntry,
     FunctionAbiEntry,
     StructAbiEntry,
@@ -140,15 +140,15 @@ fn declare_v1_fits_rpc() {
                 abi,
                 entry_points_by_type: HashMap::from([
                     (
-                        DeprecatedEntryPointType::Constructor,
+                        EntryPointType::Constructor,
                         vec![DeprecatedEntryPoint::get_test_instance(&mut rng)],
                     ),
                     (
-                        DeprecatedEntryPointType::External,
+                        EntryPointType::External,
                         vec![DeprecatedEntryPoint::get_test_instance(&mut rng)],
                     ),
                     (
-                        DeprecatedEntryPointType::L1Handler,
+                        EntryPointType::L1Handler,
                         vec![DeprecatedEntryPoint::get_test_instance(&mut rng)],
                     ),
                 ]),

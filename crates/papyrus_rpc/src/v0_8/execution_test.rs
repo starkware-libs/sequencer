@@ -50,6 +50,7 @@ use starknet_api::block::{
     BlockTimestamp,
     GasPricePerToken,
 };
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{
     ClassHash,
     CompiledClassHash,
@@ -61,10 +62,7 @@ use starknet_api::core::{
     SequencerContractAddress,
 };
 use starknet_api::data_availability::L1DataAvailabilityMode;
-use starknet_api::deprecated_contract_class::{
-    ContractClass as SN_API_DeprecatedContractClass,
-    EntryPointType,
-};
+use starknet_api::deprecated_contract_class::ContractClass as SN_API_DeprecatedContractClass;
 use starknet_api::hash::StarkHash;
 use starknet_api::state::{StorageKey, ThinStateDiff as StarknetApiStateDiff};
 use starknet_api::test_utils::read_json_file;

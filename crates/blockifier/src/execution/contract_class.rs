@@ -29,13 +29,12 @@ use itertools::Itertools;
 use semver::Version;
 use serde::de::Error as DeserializationError;
 use serde::{Deserialize, Deserializer, Serialize};
-use starknet_api::contract_class::ContractClass as RawContractClass;
+use starknet_api::contract_class::{ContractClass as RawContractClass, EntryPointType};
 use starknet_api::core::EntryPointSelector;
 use starknet_api::deprecated_contract_class::{
     ContractClass as DeprecatedContractClass,
     EntryPoint,
     EntryPointOffset,
-    EntryPointType,
     Program as DeprecatedProgram,
 };
 use starknet_types_core::felt::Felt;

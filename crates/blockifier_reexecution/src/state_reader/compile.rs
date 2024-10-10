@@ -6,7 +6,12 @@ use std::collections::HashMap;
 use std::io::{self, Read};
 use std::sync::Arc;
 
-use blockifier::execution::contract_class::{ContractClass, ContractClassV0, ContractClassV0Inner};
+use blockifier::execution::contract_class::{
+    ContractClass,
+    ContractClassV0,
+    ContractClassV0Inner,
+    EntryPointType,
+};
 use blockifier::state::state_api::StateResult;
 use cairo_lang_starknet_classes::contract_class::ContractEntryPoints;
 use cairo_lang_utils::bigint::BigUintAsHex;
@@ -14,7 +19,7 @@ use cairo_vm::types::program::Program;
 use flate2::bufread;
 use serde::Deserialize;
 use starknet_api::core::EntryPointSelector;
-use starknet_api::deprecated_contract_class::{EntryPoint, EntryPointOffset, EntryPointType};
+use starknet_api::deprecated_contract_class::{EntryPoint, EntryPointOffset};
 use starknet_api::hash::StarkHash;
 use starknet_core::types::{
     CompressedLegacyContractClass,

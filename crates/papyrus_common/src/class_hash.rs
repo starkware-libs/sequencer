@@ -3,9 +3,10 @@
 mod class_hash_test;
 use lazy_static::lazy_static;
 use sha3::Digest;
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::ClassHash;
 use starknet_api::hash::PoseidonHash;
-use starknet_api::state::{ContractClass, EntryPointType};
+use starknet_api::state::ContractClass;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Poseidon, StarkHash};
 

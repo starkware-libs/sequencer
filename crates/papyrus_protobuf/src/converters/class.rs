@@ -3,6 +3,7 @@ use std::convert::{TryFrom, TryInto};
 
 use papyrus_common::pending_classes::ApiContractClass;
 use prost::Message;
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, EntryPointSelector};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::{deprecated_contract_class, state};
@@ -100,7 +101,7 @@ impl TryFrom<protobuf::Cairo0Class> for deprecated_contract_class::ContractClass
 
         if !value.constructors.is_empty() {
             entry_points_by_type.insert(
-                deprecated_contract_class::EntryPointType::Constructor,
+                EntryPointType::Constructor,
                 value
                     .constructors
                     .into_iter()
@@ -110,7 +111,7 @@ impl TryFrom<protobuf::Cairo0Class> for deprecated_contract_class::ContractClass
         }
         if !value.externals.is_empty() {
             entry_points_by_type.insert(
-                deprecated_contract_class::EntryPointType::External,
+                EntryPointType::External,
                 value
                     .externals
                     .into_iter()
@@ -120,7 +121,7 @@ impl TryFrom<protobuf::Cairo0Class> for deprecated_contract_class::ContractClass
         }
         if !value.l1_handlers.is_empty() {
             entry_points_by_type.insert(
-                deprecated_contract_class::EntryPointType::L1Handler,
+                EntryPointType::L1Handler,
                 value
                     .l1_handlers
                     .into_iter()
@@ -142,7 +143,7 @@ impl From<deprecated_contract_class::ContractClass> for protobuf::Cairo0Class {
         protobuf::Cairo0Class {
             constructors: value
                 .entry_points_by_type
-                .get(&deprecated_contract_class::EntryPointType::Constructor)
+                .get(&EntryPointType::Constructor)
                 .unwrap_or(&vec![])
                 .iter()
                 .cloned()
@@ -150,7 +151,7 @@ impl From<deprecated_contract_class::ContractClass> for protobuf::Cairo0Class {
                 .collect(),
             externals: value
                 .entry_points_by_type
-                .get(&deprecated_contract_class::EntryPointType::External)
+                .get(&EntryPointType::External)
                 .unwrap_or(&vec![])
                 .iter()
                 .cloned()
@@ -158,7 +159,7 @@ impl From<deprecated_contract_class::ContractClass> for protobuf::Cairo0Class {
                 .collect(),
             l1_handlers: value
                 .entry_points_by_type
-                .get(&deprecated_contract_class::EntryPointType::L1Handler)
+                .get(&EntryPointType::L1Handler)
                 .unwrap_or(&vec![])
                 .iter()
                 .cloned()
@@ -186,7 +187,7 @@ impl TryFrom<protobuf::Cairo1Class> for state::ContractClass {
             })?;
         if !entry_points.constructors.is_empty() {
             entry_points_by_type.insert(
-                state::EntryPointType::Constructor,
+                EntryPointType::Constructor,
                 entry_points
                     .constructors
                     .into_iter()
@@ -196,7 +197,7 @@ impl TryFrom<protobuf::Cairo1Class> for state::ContractClass {
         }
         if !entry_points.externals.is_empty() {
             entry_points_by_type.insert(
-                state::EntryPointType::External,
+                EntryPointType::External,
                 entry_points
                     .externals
                     .into_iter()
@@ -206,7 +207,7 @@ impl TryFrom<protobuf::Cairo1Class> for state::ContractClass {
         }
         if !entry_points.l1_handlers.is_empty() {
             entry_points_by_type.insert(
-                state::EntryPointType::L1Handler,
+                EntryPointType::L1Handler,
                 entry_points
                     .l1_handlers
                     .into_iter()
@@ -229,7 +230,7 @@ impl From<state::ContractClass> for protobuf::Cairo1Class {
         let entry_points = Some(protobuf::Cairo1EntryPoints {
             constructors: value
                 .entry_points_by_type
-                .get(&state::EntryPointType::Constructor)
+                .get(&EntryPointType::Constructor)
                 .unwrap_or(&vec![])
                 .iter()
                 .cloned()
@@ -238,7 +239,7 @@ impl From<state::ContractClass> for protobuf::Cairo1Class {
 
             externals: value
                 .entry_points_by_type
-                .get(&state::EntryPointType::External)
+                .get(&EntryPointType::External)
                 .unwrap_or(&vec![])
                 .iter()
                 .cloned()
@@ -246,7 +247,7 @@ impl From<state::ContractClass> for protobuf::Cairo1Class {
                 .collect(),
             l1_handlers: value
                 .entry_points_by_type
-                .get(&state::EntryPointType::L1Handler)
+                .get(&EntryPointType::L1Handler)
                 .unwrap_or(&vec![])
                 .iter()
                 .cloned()

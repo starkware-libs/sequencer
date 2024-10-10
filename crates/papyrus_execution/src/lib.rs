@@ -57,13 +57,10 @@ use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::{StorageError, StorageReader};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockNumber, NonzeroGasPrice, StarknetVersion};
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, EntryPointSelector, PatriciaKey};
 use starknet_api::data_availability::L1DataAvailabilityMode;
-// TODO: merge multiple EntryPointType structs in SN_API into one.
-use starknet_api::deprecated_contract_class::{
-    ContractClass as DeprecatedContractClass,
-    EntryPointType,
-};
+use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{StateNumber, ThinStateDiff};
 use starknet_api::transaction::{
     Calldata,

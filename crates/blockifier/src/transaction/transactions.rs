@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
-use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::transaction::{
     AccountDeploymentData,
     Calldata,
