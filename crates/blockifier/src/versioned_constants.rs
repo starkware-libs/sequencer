@@ -259,6 +259,10 @@ impl VersionedConstants {
         os_consts.gas_costs.default_initial_gas_cost - os_consts.gas_costs.transaction_gas_cost
     }
 
+    pub fn default_initial_gas_cost(&self) -> u64 {
+        self.os_constants.gas_costs.default_initial_gas_cost
+    }
+
     pub fn vm_resource_fee_cost(&self) -> &VmResourceCosts {
         &self.vm_resource_fee_cost
     }

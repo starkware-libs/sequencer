@@ -1,10 +1,17 @@
 use assert_matches::assert_matches;
 use cairo_vm::types::builtin_name::BuiltinName;
 use rstest::rstest;
-use starknet_api::block::NonzeroGasPrice;
+use starknet_api::block::{GasPrice, NonzeroGasPrice};
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::invoke_tx_args;
-use starknet_api::transaction::{Fee, GasVectorComputationMode, Resource, ValidResourceBounds};
+use starknet_api::transaction::{
+    AllResourceBounds,
+    Fee,
+    GasVectorComputationMode,
+    Resource,
+    ResourceBounds,
+    ValidResourceBounds,
+};
 
 use crate::blockifier::block::GasPrices;
 use crate::context::BlockContext;
@@ -26,7 +33,12 @@ use crate::test_utils::{
     MAX_L1_GAS_AMOUNT,
 };
 use crate::transaction::objects::FeeType;
-use crate::transaction::test_utils::{account_invoke_tx, all_resource_bounds, l1_resource_bounds};
+use crate::transaction::test_utils::{
+    account_invoke_tx,
+    all_resource_bounds,
+    block_context,
+    l1_resource_bounds,
+};
 use crate::utils::u64_from_usize;
 use crate::versioned_constants::VersionedConstants;
 
@@ -344,4 +356,34 @@ fn test_get_fee_by_gas_vector_saturation(
     let gas_vector =
         GasVector { l1_gas: l1_gas.into(), l1_data_gas: l1_data_gas.into(), l2_gas: l2_gas.into() };
     assert_eq!(get_fee_by_gas_vector(&block_info, gas_vector, &FeeType::Eth), Fee(u128::MAX));
+}
+
+#[rstest]
+#[case::default(
+    VersionedConstants::create_for_account_testing().tx_default_initial_gas(),
+    GasVectorComputationMode::NoL2Gas
+)]
+#[case::from_l2_gas(4321, GasVectorComputationMode::All)]
+fn test_initial_sierra_gas(
+    #[case] expected: u64,
+    #[case] gas_mode: GasVectorComputationMode,
+    block_context: BlockContext,
+) {
+    let tx_gas_cost = block_context.versioned_constants.os_constants.gas_costs.transaction_gas_cost;
+    let resource_bounds = match gas_mode {
+        GasVectorComputationMode::NoL2Gas => ValidResourceBounds::L1Gas(ResourceBounds {
+            max_amount: GasAmount(1234),
+            max_price_per_unit: GasPrice(56),
+        }),
+        GasVectorComputationMode::All => ValidResourceBounds::AllResources(AllResourceBounds {
+            l2_gas: ResourceBounds {
+                max_amount: GasAmount(tx_gas_cost + expected),
+                max_price_per_unit: GasPrice(1),
+            },
+            ..Default::default()
+        }),
+    };
+    let account_tx = account_invoke_tx(invoke_tx_args!(resource_bounds));
+    let actual = block_context.to_tx_context(&account_tx).initial_sierra_gas();
+    assert_eq!(actual, expected)
 }

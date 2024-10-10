@@ -5,11 +5,12 @@ use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::GasPriceVector;
 use starknet_api::core::{ChainId, ContractAddress};
-use starknet_api::transaction::GasVectorComputationMode;
+use starknet_api::transaction::{AllResourceBounds, GasVectorComputationMode, ValidResourceBounds};
 
 use crate::blockifier::block::BlockInfo;
 use crate::bouncer::BouncerConfig;
 use crate::transaction::objects::{
+    CurrentTransactionInfo,
     FeeType,
     HasRelatedFeeType,
     TransactionInfo,
@@ -43,6 +44,33 @@ impl TransactionContext {
             .block_info
             .gas_prices
             .get_gas_prices_by_fee_type(&self.tx_info.fee_type())
+    }
+
+    /// Returns the initial Sierra gas of the transaction.
+    /// This value is used to limit the transaction's run.
+    // TODO(tzahi): replace returned value from u64 to GasAmount.
+    pub fn initial_sierra_gas(&self) -> u64 {
+        match &self.tx_info {
+            TransactionInfo::Deprecated(_)
+            | TransactionInfo::Current(CurrentTransactionInfo {
+                resource_bounds: ValidResourceBounds::L1Gas(_),
+                ..
+            }) => self.block_context.versioned_constants.tx_default_initial_gas(),
+            TransactionInfo::Current(CurrentTransactionInfo {
+                resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds { l2_gas, .. }),
+                ..
+            }) => l2_gas
+                .max_amount
+                .0
+                .checked_sub(
+                    self.block_context
+                        .versioned_constants
+                        .os_constants
+                        .gas_costs
+                        .transaction_gas_cost,
+                )
+                .unwrap_or_default(),
+        }
     }
 }
 
