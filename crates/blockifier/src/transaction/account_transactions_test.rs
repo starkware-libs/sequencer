@@ -94,7 +94,7 @@ use crate::transaction::transactions::{DeclareTransaction, ExecutableTransaction
 use crate::utils::u64_from_usize;
 
 #[rstest]
-fn test_circuit(block_context: BlockContext, default_l1_resource_bounds: ValidResourceBounds) {
+fn test_circuit(block_context: BlockContext, default_all_resource_bounds: ValidResourceBounds) {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1);
     let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
     let chain_info = &block_context.chain_info;
@@ -117,7 +117,7 @@ fn test_circuit(block_context: BlockContext, default_l1_resource_bounds: ValidRe
         state,
         &block_context,
         invoke_tx_args! {
-            resource_bounds: default_l1_resource_bounds,
+            resource_bounds: default_all_resource_bounds,
             ..tx_args
         },
     )
@@ -127,7 +127,7 @@ fn test_circuit(block_context: BlockContext, default_l1_resource_bounds: ValidRe
 }
 
 #[rstest]
-fn test_rc96_holes(block_context: BlockContext, default_l1_resource_bounds: ValidResourceBounds) {
+fn test_rc96_holes(block_context: BlockContext, default_all_resource_bounds: ValidResourceBounds) {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1);
     let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
     let chain_info = &block_context.chain_info;
@@ -150,7 +150,7 @@ fn test_rc96_holes(block_context: BlockContext, default_l1_resource_bounds: Vali
         state,
         &block_context,
         invoke_tx_args! {
-            resource_bounds: default_l1_resource_bounds,
+            resource_bounds: default_all_resource_bounds,
             ..tx_args
         },
     )
@@ -307,12 +307,15 @@ fn test_enforce_fee_false_works(block_context: BlockContext, #[case] version: Tr
 
 // TODO(Dori, 15/9/2023): Convert version variance to attribute macro.
 #[rstest]
+#[case::v0(TransactionVersion::ZERO, default_all_resource_bounds())]
+#[case::v1(TransactionVersion::ONE, default_all_resource_bounds())]
+#[case::l1_bounds(TransactionVersion::THREE, default_l1_resource_bounds())]
+#[case::all_bounds(TransactionVersion::THREE, default_all_resource_bounds())]
 fn test_account_flow_test(
     block_context: BlockContext,
     max_fee: Fee,
-    default_l1_resource_bounds: ValidResourceBounds,
-    #[values(TransactionVersion::ZERO, TransactionVersion::ONE, TransactionVersion::THREE)]
-    tx_version: TransactionVersion,
+    #[case] tx_version: TransactionVersion,
+    #[case] resource_bounds: ValidResourceBounds,
     #[values(true, false)] only_query: bool,
 ) {
     let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
@@ -327,7 +330,7 @@ fn test_account_flow_test(
             sender_address: account_address,
             calldata: create_trivial_calldata(contract_address),
             version: tx_version,
-            resource_bounds: default_l1_resource_bounds,
+            resource_bounds,
             nonce: nonce_manager.next(account_address),
             only_query,
         },
@@ -342,7 +345,7 @@ fn test_account_flow_test(
 fn test_invoke_tx_from_non_deployed_account(
     block_context: BlockContext,
     max_fee: Fee,
-    default_l1_resource_bounds: ValidResourceBounds,
+    default_all_resource_bounds: ValidResourceBounds,
     #[case] tx_version: TransactionVersion,
 ) {
     let TestInitData { mut state, account_address, contract_address: _, mut nonce_manager } =
@@ -364,7 +367,7 @@ fn test_invoke_tx_from_non_deployed_account(
                 felt!(1_u8),         // Calldata length.
                 felt!(2_u8)          // Calldata: num.
             ],
-            resource_bounds: default_l1_resource_bounds,
+            resource_bounds: default_all_resource_bounds,
             version: tx_version,
             nonce: nonce_manager.next(account_address),
         },
@@ -391,7 +394,8 @@ fn test_infinite_recursion(
     #[values(true, false)] success: bool,
     #[values(true, false)] normal_recurse: bool,
     mut block_context: BlockContext,
-    default_l1_resource_bounds: ValidResourceBounds,
+    #[values(default_l1_resource_bounds(), default_all_resource_bounds())]
+    resource_bounds: ValidResourceBounds,
 ) {
     // Limit the number of execution steps (so we quickly hit the limit).
     block_context.versioned_constants.invoke_tx_max_n_steps = 4200;
@@ -419,7 +423,7 @@ fn test_infinite_recursion(
         &mut state,
         &block_context,
         invoke_tx_args! {
-            resource_bounds: default_l1_resource_bounds,
+            resource_bounds,
             sender_address: account_address,
             calldata: execute_calldata,
             nonce: nonce_manager.next(account_address),
@@ -577,14 +581,15 @@ fn test_max_fee_limit_validate(
 }
 
 #[rstest]
-#[case(TransactionVersion::ONE)]
-#[case(TransactionVersion::THREE)]
+#[case::v1(TransactionVersion::ONE, default_all_resource_bounds())]
+#[case::l1_bounds(TransactionVersion::THREE, default_l1_resource_bounds())]
+#[case::all_bounds(TransactionVersion::THREE, default_all_resource_bounds())]
 fn test_recursion_depth_exceeded(
     #[case] tx_version: TransactionVersion,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
     block_context: BlockContext,
     max_fee: Fee,
-    default_l1_resource_bounds: ValidResourceBounds,
+    #[case] resource_bounds: ValidResourceBounds,
 ) {
     let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
         create_test_init_data(&block_context.chain_info, cairo_version);
@@ -618,7 +623,7 @@ fn test_recursion_depth_exceeded(
         calldata,
         version: tx_version,
         nonce: nonce_manager.next(account_address),
-        resource_bounds: default_l1_resource_bounds,
+        resource_bounds,
     };
     let tx_execution_info = run_invoke_tx(&mut state, &block_context, invoke_args.clone());
 
@@ -652,6 +657,7 @@ fn test_recursion_depth_exceeded(
 fn test_revert_invoke(
     block_context: BlockContext,
     max_fee: Fee,
+    default_all_resource_bounds: ValidResourceBounds,
     #[case] transaction_version: TransactionVersion,
     #[case] fee_type: FeeType,
 ) {
@@ -670,6 +676,7 @@ fn test_revert_invoke(
         &block_context,
         invoke_tx_args! {
             max_fee,
+            resource_bounds: default_all_resource_bounds,
             sender_address: account_address,
             calldata: create_calldata(
                 test_contract_address,
@@ -821,13 +828,14 @@ fn recursive_function_calldata(
 /// Tests that reverted transactions are charged more fee and steps than their (recursive) prefix
 /// successful counterparts.
 /// In this test reverted transactions are valid function calls that got insufficient steps limit.
-#[case(TransactionVersion::ONE)]
-#[case(TransactionVersion::THREE)]
+#[case::v1(TransactionVersion::ONE, default_all_resource_bounds())]
+#[case::l1_bounds(TransactionVersion::THREE, default_l1_resource_bounds())]
+#[case::all_bounds(TransactionVersion::THREE, default_all_resource_bounds())]
 fn test_reverted_reach_steps_limit(
     max_fee: Fee,
-    default_l1_resource_bounds: ValidResourceBounds,
     mut block_context: BlockContext,
     #[case] version: TransactionVersion,
+    #[case] resource_bounds: ValidResourceBounds,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
 ) {
     let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
@@ -837,7 +845,7 @@ fn test_reverted_reach_steps_limit(
     block_context.versioned_constants.invoke_tx_max_n_steps = 6000;
     let recursion_base_args = invoke_tx_args! {
         max_fee,
-        resource_bounds: default_l1_resource_bounds,
+        resource_bounds,
         sender_address: account_address,
         version,
     };
@@ -935,13 +943,14 @@ fn test_reverted_reach_steps_limit(
 /// asserts false. We test deltas between consecutive depths, and further depths.
 fn test_n_reverted_steps(
     block_context: BlockContext,
-    default_l1_resource_bounds: ValidResourceBounds,
+    #[values(default_l1_resource_bounds(), default_all_resource_bounds())]
+    resource_bounds: ValidResourceBounds,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
 ) {
     let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
         create_test_init_data(&block_context.chain_info, cairo_version);
     let recursion_base_args = invoke_tx_args! {
-        resource_bounds: default_l1_resource_bounds,
+        resource_bounds,
         sender_address: account_address,
     };
 
