@@ -10513,6 +10513,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "starknet_sequencer_monitoring_endpoint"
+version = "0.0.0"
+dependencies = [
+ "axum",
+ "http-body 0.4.6",
+ "hyper 0.14.30",
+ "papyrus_config",
+ "pretty_assertions",
+ "serde",
+ "starknet_mempool_infra",
+ "tracing",
+ "validator",
+]
+
+[[package]]
 name = "starknet_sierra_compile"
 version = "0.0.0"
 dependencies = [
