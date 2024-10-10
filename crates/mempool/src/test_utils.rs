@@ -15,18 +15,24 @@ use crate::mempool::Mempool;
 #[macro_export]
 macro_rules! tx {
     (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr,
-        tx_nonce: $tx_nonce:expr, resource_bounds: $resource_bounds:expr) => {{
-            let sender_address = contract_address!($sender_address);
+        tx_nonce: $tx_nonce:expr, max_l2_gas_price: $max_l2_gas_price:expr) => {{
+            let resource_bounds = ValidResourceBounds::AllResources(AllResourceBounds {
+                l2_gas: ResourceBounds {
+                    max_price_per_unit: GasPrice(VALID_L2_GAS_MAX_PRICE_PER_UNIT),
+                    ..Default::default()
+                },
+                ..Default::default()
+            });
             Transaction::Invoke(executable_invoke_tx(invoke_tx_args!{
-                sender_address: sender_address,
+                sender_address: contract_address!($sender_address),
                 tx_hash: TransactionHash(StarkHash::from($tx_hash)),
                 tip: Tip($tip),
                 nonce: nonce!($tx_nonce),
-                resource_bounds: $resource_bounds,
+                resource_bounds,
             }))
     }};
     (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr, tx_nonce: $tx_nonce:expr) => {
-        tx!(tip: $tip, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: $tx_nonce, resource_bounds: ValidResourceBounds::AllResources(test_resource_bounds_mapping()))
+        tx!(tip: $tip, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: $tx_nonce, max_l2_gas_price: VALID_L2_GAS_MAX_PRICE_PER_UNIT)
     };
     (tx_hash: $tx_hash:expr, sender_address: $sender_address:expr, tx_nonce: $tx_nonce:expr) => {
         tx!(tip: 0, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: $tx_nonce)
@@ -52,8 +58,8 @@ macro_rules! tx {
 #[macro_export]
 macro_rules! add_tx_input {
     (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr,
-        tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr, resource_bounds: $resource_bounds:expr) => {{
-        let tx = tx!(tip: $tip, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: $tx_nonce, resource_bounds: $resource_bounds);
+        tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr, max_l2_gas_price: $max_l2_gas_price:expr) => {{
+        let tx = tx!(tip: $tip, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: $tx_nonce, max_l2_gas_price: $max_l2_gas_price);
         let address = contract_address!($sender_address);
         let account_nonce = nonce!($account_nonce);
         let account_state = AccountState { address, nonce: account_nonce};
@@ -62,7 +68,7 @@ macro_rules! add_tx_input {
     }};
     (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr,
         tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr) => {{
-            add_tx_input!(tip: $tip, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: $tx_nonce, account_nonce: $account_nonce, resource_bounds: ValidResourceBounds::AllResources(test_resource_bounds_mapping()))
+            add_tx_input!(tip: $tip, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: $tx_nonce, account_nonce: $account_nonce, max_l2_gas_price: VALID_L2_GAS_MAX_PRICE_PER_UNIT)
     }};
     (tx_hash: $tx_hash:expr, sender_address: $sender_address:expr, tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr) => {
         add_tx_input!(tip: 0, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: $tx_nonce, account_nonce: $account_nonce)
