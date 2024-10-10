@@ -50,7 +50,7 @@ use crate::transaction::objects::HasRelatedFeeType;
 use crate::transaction::test_utils::{
     account_invoke_tx,
     calculate_class_info_for_testing,
-    default_l1_resource_bounds,
+    default_all_resource_bounds,
     emit_n_events_tx,
     max_fee,
 };
@@ -64,7 +64,7 @@ fn trivial_calldata_invoke_tx(
     account_invoke_tx(invoke_tx_args! {
         sender_address: account_address,
         calldata: create_trivial_calldata(test_contract_address),
-        resource_bounds: default_l1_resource_bounds(),
+        resource_bounds: default_all_resource_bounds(),
         nonce,
     })
 }
@@ -263,7 +263,7 @@ fn test_commit_tx_when_sender_is_sequencer() {
 }
 
 #[rstest]
-fn test_worker_execute(default_l1_resource_bounds: ValidResourceBounds) {
+fn test_worker_execute(default_all_resource_bounds: ValidResourceBounds) {
     // Settings.
     let block_context = BlockContext::create_for_account_testing();
     let account_contract = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
@@ -288,7 +288,7 @@ fn test_worker_execute(default_l1_resource_bounds: ValidResourceBounds) {
             "test_storage_read_write",
             &[*storage_key.0.key(),storage_value ], // Calldata:  address, value.
         ),
-        resource_bounds: default_l1_resource_bounds,
+        resource_bounds: default_all_resource_bounds,
         nonce: nonce_manager.next(account_address)
     });
 
@@ -301,7 +301,7 @@ fn test_worker_execute(default_l1_resource_bounds: ValidResourceBounds) {
             "test_storage_read_write",
             &[*storage_key.0.key(),storage_value ], // Calldata:  address, value.
         ),
-        resource_bounds: default_l1_resource_bounds,
+        resource_bounds: default_all_resource_bounds,
         nonce: nonce_manager.next(account_address)
 
     });
@@ -313,7 +313,7 @@ fn test_worker_execute(default_l1_resource_bounds: ValidResourceBounds) {
             "write_and_revert",
             &[felt!(1991_u16),storage_value ], // Calldata:  address, value.
         ),
-        resource_bounds: default_l1_resource_bounds,
+        resource_bounds: default_all_resource_bounds,
         nonce: nonce_manager.next(account_address)
 
     });
@@ -437,7 +437,7 @@ fn test_worker_execute(default_l1_resource_bounds: ValidResourceBounds) {
 }
 
 #[rstest]
-fn test_worker_validate(default_l1_resource_bounds: ValidResourceBounds) {
+fn test_worker_validate(default_all_resource_bounds: ValidResourceBounds) {
     // Settings.
     let block_context = BlockContext::create_for_account_testing();
     let account_contract = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
@@ -464,7 +464,7 @@ fn test_worker_validate(default_l1_resource_bounds: ValidResourceBounds) {
             "test_storage_read_write",
             &[*storage_key.0.key(),storage_value0 ], // Calldata:  address, value.
         ),
-        resource_bounds: default_l1_resource_bounds,
+        resource_bounds: default_all_resource_bounds,
         nonce: nonce_manager.next(account_address)
     });
 
@@ -475,7 +475,7 @@ fn test_worker_validate(default_l1_resource_bounds: ValidResourceBounds) {
             "test_storage_read_write",
             &[*storage_key.0.key(),storage_value1 ], // Calldata:  address, value.
         ),
-        resource_bounds: default_l1_resource_bounds,
+        resource_bounds: default_all_resource_bounds,
         nonce: nonce_manager.next(account_address)
 
     });
@@ -544,7 +544,7 @@ fn test_worker_validate(default_l1_resource_bounds: ValidResourceBounds) {
 #[case::declare_cairo1(CairoVersion::Cairo1, TransactionVersion::THREE)]
 fn test_deploy_before_declare(
     max_fee: Fee,
-    default_l1_resource_bounds: ValidResourceBounds,
+    default_all_resource_bounds: ValidResourceBounds,
     #[case] cairo_version: CairoVersion,
     #[case] version: TransactionVersion,
 ) {
@@ -565,7 +565,7 @@ fn test_deploy_before_declare(
     let declare_tx = declare_tx(
         declare_tx_args! {
             sender_address: account_address_0,
-            resource_bounds: default_l1_resource_bounds,
+            resource_bounds: default_all_resource_bounds,
             class_hash: test_class_hash,
             compiled_class_hash: test_compiled_class_hash,
             version,
@@ -589,7 +589,7 @@ fn test_deploy_before_declare(
                 felt!(1_u8),                  // Constructor calldata arg2.
             ]
         ),
-        resource_bounds: default_l1_resource_bounds,
+        resource_bounds: default_all_resource_bounds,
         nonce: nonce!(0_u8)
     });
 
@@ -634,7 +634,7 @@ fn test_deploy_before_declare(
 }
 
 #[rstest]
-fn test_worker_commit_phase(default_l1_resource_bounds: ValidResourceBounds) {
+fn test_worker_commit_phase(default_all_resource_bounds: ValidResourceBounds) {
     // Settings.
     let block_context = BlockContext::create_for_account_testing();
     let account_contract = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
@@ -662,7 +662,7 @@ fn test_worker_commit_phase(default_l1_resource_bounds: ValidResourceBounds) {
             Transaction::Account(account_invoke_tx(invoke_tx_args! {
                 sender_address,
                 calldata: calldata.clone(),
-                resource_bounds: default_l1_resource_bounds,
+                resource_bounds: default_all_resource_bounds,
                 nonce: nonce_manager.next(sender_address)
             }))
         })
