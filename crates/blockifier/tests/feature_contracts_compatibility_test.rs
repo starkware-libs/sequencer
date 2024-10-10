@@ -13,7 +13,6 @@ const CAIRO_NATIVE_FEATURE_CONTRACTS_DIR: &str = "feature_contracts/cairo1";
 const COMPILED_CONTRACTS_SUBDIR_CAIRO0: &str = "compiled";
 const COMPILED_CONTRACTS_SUBDIR_CASM: &str = "compiled_casm";
 const COMPILED_CONTRACTS_SUBDIR_SIERRA: &str = "compiled_sierra";
-
 const FIX_COMMAND: &str = "FIX_FEATURE_TEST=1 cargo test -p blockifier --test \
                            feature_contracts_compatibility_test --features testing -- \
                            --include-ignored";

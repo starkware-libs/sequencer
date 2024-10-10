@@ -282,6 +282,7 @@ impl FeatureContract {
                 match self.cairo_version() {
                     CairoVersion::Cairo0 => "0",
                     CairoVersion::Cairo1 | CairoVersion::Native => "1",
+                    CairoVersion::Native => "_native",
                 },
                 self.get_non_erc20_base_name()
             )
