@@ -152,8 +152,8 @@ static VERSIONED_CONSTANTS: LazyLock<VersionedConstants> =
     LazyLock::new(VersionedConstants::create_for_testing);
 
 #[fixture]
-fn tx_default_initial_gas() -> u64 {
-    VERSIONED_CONSTANTS.tx_default_initial_gas()
+fn default_initial_gas_cost() -> u64 {
+    VERSIONED_CONSTANTS.default_initial_gas_cost()
 }
 
 #[fixture]
@@ -216,7 +216,7 @@ fn expected_validate_call_info(
             storage_address,
             caller_address: ContractAddress::default(),
             call_type: CallType::Call,
-            initial_gas: tx_default_initial_gas(),
+            initial_gas: default_initial_gas_cost(),
         },
         // The account contract we use for testing has trivial `validate` functions.
         resources,
@@ -388,7 +388,7 @@ fn add_kzg_da_resources_to_resources_mapping(
         },
         validate_gas_consumed: 0,
         execute_gas_consumed: 0,
-        inner_call_initial_gas: versioned_constants_for_account_testing().os_constants.gas_costs.default_initial_gas_cost,
+        inner_call_initial_gas: versioned_constants_for_account_testing().default_initial_gas_cost(),
     },
     CairoVersion::Cairo0)]
 #[case::with_cairo1_account(
@@ -401,9 +401,10 @@ fn add_kzg_da_resources_to_resources_mapping(
         validate_gas_consumed: 4740, // The gas consumption results from parsing the input
             // arguments.
         execute_gas_consumed: 163280,
-        inner_call_initial_gas: 9999395189,
+        inner_call_initial_gas: versioned_constants_for_account_testing().default_initial_gas_cost(),
     },
     CairoVersion::Cairo1)]
+// TODO(Tzahi): Add calls to cairo1 test contracts (where gas flows to and from the inner call).
 fn test_invoke_tx(
     max_l1_resource_bounds: ValidResourceBounds,
     #[case] expected_arguments: ExpectedResultTestInvokeTx,
@@ -478,10 +479,11 @@ fn test_invoke_tx(
         call_type: CallType::Call,
         initial_gas: expected_arguments.inner_call_initial_gas,
     };
+    let expected_validated_call = expected_validate_call_info.as_ref().unwrap().call.clone();
     let expected_execute_call = CallEntryPoint {
         entry_point_selector: selector_from_name(constants::EXECUTE_ENTRY_POINT_NAME),
-        initial_gas: tx_default_initial_gas() - expected_arguments.validate_gas_consumed,
-        ..expected_validate_call_info.as_ref().unwrap().call.clone()
+        initial_gas: expected_validated_call.initial_gas - expected_arguments.validate_gas_consumed,
+        ..expected_validated_call
     };
     let expected_return_result_retdata = Retdata(expected_return_result_calldata);
     let expected_execute_call_info = Some(CallInfo {
@@ -1563,7 +1565,7 @@ fn test_deploy_account_tx(
             entry_point_type: EntryPointType::Constructor,
             entry_point_selector: selector_from_name(abi_constants::CONSTRUCTOR_ENTRY_POINT_NAME),
             storage_address: deployed_account_address,
-            initial_gas: tx_default_initial_gas(),
+            initial_gas: default_initial_gas_cost(),
             ..Default::default()
         },
         ..Default::default()
@@ -2064,7 +2066,7 @@ fn test_l1_handler(
             storage_address: contract_address,
             caller_address: ContractAddress::default(),
             call_type: CallType::Call,
-            initial_gas: tx_default_initial_gas(),
+            initial_gas: default_initial_gas_cost(),
         },
         execution: CallExecution {
             retdata: Retdata(vec![value]),
