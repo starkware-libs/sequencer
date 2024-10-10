@@ -195,6 +195,7 @@ pub fn call_contract(
         storage_address,
         caller_address: syscall_handler.storage_address(),
         call_type: CallType::Call,
+        // NOTE: this value might be overridden later on.
         initial_gas: *remaining_gas,
     };
 
