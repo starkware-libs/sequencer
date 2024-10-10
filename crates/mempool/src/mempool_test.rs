@@ -373,7 +373,10 @@ fn test_add_tx_multi_nonce_success(mut mempool: Mempool) {
 fn test_add_tx_failure_on_duplicate_tx_hash(mut mempool: Mempool) {
     // Setup.
     let input = add_tx_input!(tx_hash: 1, tx_nonce: 1, account_nonce: 0);
-    let duplicate_input = input.clone(); // Same hash is possible if signature is different.
+    // Same hash is possible if signature is different, for example.
+    // This is an artificially crafted transaction with a different nonce in order to skip
+    // replacement logic.
+    let duplicate_input = add_tx_input!(tx_hash: 1, tx_nonce: 2, account_nonce: 0);
 
     // Test.
     add_tx(&mut mempool, &input);
