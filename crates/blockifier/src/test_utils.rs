@@ -22,11 +22,7 @@ use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::hash::StarkHash;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{
-    Calldata,
-    ContractAddressSalt,
-    Fee,
-    GasVectorComputationMode,
-    TransactionVersion,
+    Calldata, ContractAddressSalt, Fee, GasVectorComputationMode, TransactionVersion,
 };
 use starknet_api::{contract_address, felt};
 use starknet_types_core::felt::Felt;
@@ -65,6 +61,7 @@ pub const ERC20_CONTRACT_PATH: &str = "./ERC20/ERC20_Cairo0/ERC20_without_some_s
 pub enum CairoVersion {
     Cairo0,
     Cairo1,
+    Native,
 }
 
 impl Default for CairoVersion {
@@ -91,6 +88,7 @@ impl CairoVersion {
         match self {
             Self::Cairo0 => Self::Cairo1,
             Self::Cairo1 => Self::Cairo0,
+            Self::Native => todo!("who should be your other?"),
         }
     }
 }
@@ -329,8 +327,10 @@ macro_rules! check_tx_execution_error_for_invalid_scenario {
                     $validate_constructor,
                 );
             }
-            CairoVersion::Cairo1 => {
-                if let TransactionExecutionError::ValidateTransactionError { error, .. } = $error {
+            CairoVersion::Cairo1 | CairoVersion::Native => {
+                if let $crate::transaction::errors::TransactionExecutionError::ValidateTransactionError {
+                    error, ..
+                } = $error {
                     assert_eq!(
                         error.to_string(),
                         "Execution failed. Failure reason: 0x496e76616c6964207363656e6172696f \

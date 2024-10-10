@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use cairo_native::executor::AotNativeExecutor;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use serde_json::Value;
 use starknet_api::block::{BlockNumber, BlockTimestamp, NonzeroGasPrice};
@@ -14,22 +15,15 @@ use crate::bouncer::{BouncerConfig, BouncerWeights, BuiltinCount};
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::common_hints::ExecutionMode;
+use crate::execution::contract_class::{ContractClassV0, ContractClassV1, NativeContractClassV1};
 use crate::execution::entry_point::{
-    CallEntryPoint,
-    EntryPointExecutionContext,
-    EntryPointExecutionResult,
+    CallEntryPoint, EntryPointExecutionContext, EntryPointExecutionResult,
 };
 use crate::state::state_api::State;
 use crate::test_utils::{
-    get_raw_contract_class,
-    CURRENT_BLOCK_NUMBER,
-    CURRENT_BLOCK_TIMESTAMP,
-    DEFAULT_ETH_L1_DATA_GAS_PRICE,
-    DEFAULT_ETH_L1_GAS_PRICE,
-    DEFAULT_STRK_L1_DATA_GAS_PRICE,
-    DEFAULT_STRK_L1_GAS_PRICE,
-    TEST_ERC20_CONTRACT_ADDRESS,
-    TEST_ERC20_CONTRACT_ADDRESS2,
+    get_raw_contract_class, CURRENT_BLOCK_NUMBER, CURRENT_BLOCK_TIMESTAMP,
+    DEFAULT_ETH_L1_DATA_GAS_PRICE, DEFAULT_ETH_L1_GAS_PRICE, DEFAULT_STRK_L1_DATA_GAS_PRICE,
+    DEFAULT_STRK_L1_GAS_PRICE, TEST_ERC20_CONTRACT_ADDRESS, TEST_ERC20_CONTRACT_ADDRESS2,
     TEST_SEQUENCER_ADDRESS,
 };
 use crate::transaction::objects::{
@@ -38,10 +32,7 @@ use crate::transaction::objects::{
     TransactionInfo,
 };
 use crate::versioned_constants::{
-    GasCosts,
-    OsConstants,
-    VersionedConstants,
-    VERSIONED_CONSTANTS_LATEST_JSON,
+    GasCosts, OsConstants, VersionedConstants, VERSIONED_CONSTANTS_LATEST_JSON,
 };
 
 impl CallEntryPoint {
@@ -222,8 +213,56 @@ pub trait LoadContractFromFile: serde::de::DeserializeOwned {
 impl LoadContractFromFile for CasmContractClass {}
 impl LoadContractFromFile for DeprecatedContractClass {}
 
+impl ContractClassV0 {
+    pub fn from_file(contract_path: &str) -> Self {
+        let raw_contract_class = get_raw_contract_class(contract_path);
+        Self::try_from_json_string(&raw_contract_class).unwrap()
+    }
+}
+
+impl ContractClassV1 {
+    pub fn from_file(contract_path: &str) -> Self {
+        let raw_contract_class = get_raw_contract_class(contract_path);
+        Self::try_from_json_string(&raw_contract_class).unwrap()
+    }
+}
+
 impl BouncerWeights {
     pub fn create_for_testing(builtin_count: BuiltinCount) -> Self {
         Self { builtin_count, ..Self::empty() }
+    }
+}
+
+impl NativeContractClassV1 {
+    /// Convenience function to construct a NativeContractClassV1 from a raw contract class.
+    /// If control over the compilation is desired use [Self::new] instead.
+    pub fn try_from_json_string(
+        raw_contract_class: &str,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
+        // Compile the Sierra Program to native code and loads it into the process'
+        // memory space.
+        fn compile_and_load(
+            sierra_program: &cairo_lang_sierra::program::Program,
+        ) -> Result<AotNativeExecutor, cairo_native::error::Error> {
+            let native_context = cairo_native::context::NativeContext::new();
+            let native_program = native_context.compile(sierra_program, false)?;
+            Ok(AotNativeExecutor::from_native_module(
+                native_program,
+                cairo_native::OptLevel::Default,
+            ))
+        }
+
+        let sierra_contract_class: cairo_lang_starknet_classes::contract_class::ContractClass =
+            serde_json::from_str(raw_contract_class)?;
+
+        let sierra_program = sierra_contract_class.extract_sierra_program()?;
+        let executor = compile_and_load(&sierra_program)?;
+
+        Ok(Self::new(executor, sierra_contract_class))
+    }
+
+    pub fn from_file(contract_path: &str) -> Self {
+        let raw_contract_class = get_raw_contract_class(contract_path);
+        Self::try_from_json_string(&raw_contract_class).unwrap()
     }
 }
