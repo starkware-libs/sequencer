@@ -1,4 +1,5 @@
 pub mod compile;
+mod errors;
 #[cfg(test)]
 pub mod raw_rpc_json_test;
 #[cfg(test)]
