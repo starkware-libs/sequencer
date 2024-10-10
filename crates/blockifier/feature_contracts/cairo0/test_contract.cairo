@@ -97,6 +97,7 @@ func write_a_lot{syscall_ptr: felt*}(n_writes: felt, value: felt) {
     if (n_writes == 0) {
         return ();
     }
+    send_message(7);
     storage_write(address=n_writes, value=value);
     return write_a_lot(n_writes - 1, value);
 }
