@@ -493,7 +493,7 @@ mod tests {
         sender1.close_channel();
 
         // Check that we got a fin message.
-        // let broadcasted_message = broadcasted_messages_receiver.next().await.unwrap();
+        let broadcasted_message = broadcasted_messages_receiver.next().await.unwrap();
         // assert_eq!(broadcasted_message.message, StreamMessageBody::Fin);
 
         let mut stream_handler = join_handle.await.expect("Task should succeed");

@@ -121,22 +121,27 @@ impl<T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversi
                 Some((stream_id, receiver)) = self.broadcast_channel_receiver.next() => {
                     self.broadcast_stream_receivers.insert(stream_id, receiver);
                 }
-                Some((key, message)) = self.broadcast_stream_receivers.next() => {
-                    println!("Got message! ");
-                    self.broadcast(key, message).await;
+                output = self.broadcast_stream_receivers.next() => {
+                    match output {
+                        Some((key, message)) => {
+                            println!("Got message! ");
+                            self.broadcast(key, message).await;
+                        }
+                        None => {
+                            let after: HashSet<_> = self.broadcast_stream_receivers.keys().cloned().collect();
+                            println!("before: {:?} | after: {:?}", before, after);
+                            let diff = before.difference(&after).collect::<HashSet<_>>();
+                            for key in diff {
+                                println!("Removing key: {:?}", key);
+                                self.broadcast_fin(*key).await;
+                            }
+                        }
+                    }
                 }
                 Some(message) = self.listen_receiver.next() => {
                     self.handle_message(message);
                 }
             );
-            let after: HashSet<_> = self.broadcast_stream_receivers.keys().cloned().collect();
-
-            println!("before: {:?} | after: {:?}", before, after);
-            let diff = before.difference(&after).collect::<HashSet<_>>();
-            for key in diff {
-                println!("Removing key: {:?}", key);
-                self.broadcast_fin(*key).await;
-            }
         }
     }
 
