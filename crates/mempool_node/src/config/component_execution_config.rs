@@ -94,6 +94,19 @@ impl ComponentExecutionConfig {
         }
     }
 
+    // TODO(Tsabary/Lev): There's a bug here: the sequencer monitoring endpoint component does not
+    // need a local nor a remote config. However, the validation function requires that at least
+    // one of them is set. As a workaround I've set the local one, but this should be addressed.
+    pub fn sequencer_monitoring_default_config() -> Self {
+        Self {
+            execute: true,
+            execution_mode: ComponentExecutionMode::Remote,
+            local_config: None,
+            remote_client_config: Some(RemoteClientConfig::default()),
+            remote_server_config: None,
+        }
+    }
+
     pub fn mempool_default_config() -> Self {
         Self {
             execute: true,
