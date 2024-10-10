@@ -86,11 +86,17 @@ impl MempoolContentBuilder {
         self
     }
 
-    fn _with_pending_queue<Q>(mut self, queue_txs: Q) -> Self
+    fn with_pending_queue<Q>(mut self, queue_txs: Q) -> Self
     where
         Q: IntoIterator<Item = TransactionReference>,
     {
-        self.tx_queue_content_builder = self.tx_queue_content_builder._with_pending(queue_txs);
+        self.tx_queue_content_builder = self.tx_queue_content_builder.with_pending(queue_txs);
+        self
+    }
+
+    fn with_gas_price_threshold(mut self, gas_price_threshold: u128) -> Self {
+        self.tx_queue_content_builder =
+            self.tx_queue_content_builder.with_gas_price_threshold(gas_price_threshold);
         self
     }
 
@@ -348,28 +354,41 @@ fn test_add_tx(mut mempool: Mempool) {
 }
 
 #[rstest]
-fn test_add_tx_multi_nonce_success(mut mempool: Mempool) {
+fn test_add_tx_multi_nonce_success() {
     // Setup.
-    let input_address_0_nonce_0 =
+    let priority_tx_input_address_0_nonce_0 =
         add_tx_input!(tx_hash: 1, sender_address: "0x0", tx_nonce: 0, account_nonce: 0);
-    let input_address_0_nonce_1 =
+    let priority_tx_input_address_0_nonce_1 =
         add_tx_input!(tx_hash: 3, sender_address: "0x0", tx_nonce: 1, account_nonce: 0);
-    let input_address_1_nonce_0 =
-        add_tx_input!(tx_hash: 2, sender_address: "0x1", tx_nonce: 0,account_nonce: 0);
+    let pending_tx_input_address_1_nonce_0 = add_tx_input!(tx_hash: 2, sender_address: "0x1",
+        tx_nonce: 0, account_nonce: 0, max_l2_gas_price: 99);
+
+    let mut mempool =
+        MempoolContentBuilder::new().with_gas_price_threshold(100).build_into_mempool();
 
     // Test.
-    for input in [&input_address_0_nonce_0, &input_address_1_nonce_0, &input_address_0_nonce_1] {
+    for input in [
+        &priority_tx_input_address_0_nonce_0,
+        &pending_tx_input_address_1_nonce_0,
+        &priority_tx_input_address_0_nonce_1,
+    ] {
         add_tx(&mut mempool, input);
     }
 
     // Assert: only the eligible transactions appear in the queue.
-    let expected_queue_txs =
-        [&input_address_1_nonce_0.tx, &input_address_0_nonce_0.tx].map(TransactionReference::new);
-    let expected_pool_txs =
-        [input_address_0_nonce_0.tx, input_address_1_nonce_0.tx, input_address_0_nonce_1.tx];
+    let expected_priority_queue_txs =
+        [TransactionReference::new(&priority_tx_input_address_0_nonce_0.tx)];
+    let expected_pending_queue_txs =
+        [TransactionReference::new(&pending_tx_input_address_1_nonce_0.tx)];
+    let expected_pool_txs = [
+        priority_tx_input_address_0_nonce_0.tx,
+        pending_tx_input_address_1_nonce_0.tx,
+        priority_tx_input_address_0_nonce_1.tx,
+    ];
     let expected_mempool_content = MempoolContentBuilder::new()
         .with_pool(expected_pool_txs)
-        .with_priority_queue(expected_queue_txs)
+        .with_priority_queue(expected_priority_queue_txs)
+        .with_pending_queue(expected_pending_queue_txs)
         .build();
     expected_mempool_content.assert_eq(&mempool);
 }
