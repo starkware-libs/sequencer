@@ -10439,6 +10439,7 @@ dependencies = [
  "starknet_mempool_p2p",
  "starknet_mempool_p2p_types",
  "starknet_mempool_types",
+ "starknet_sequencer_monitoring_endpoint",
  "starknet_sierra_compile",
  "tokio",
  "tracing",
