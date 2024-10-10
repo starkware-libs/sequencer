@@ -1,4 +1,5 @@
 use blockifier::context::{ChainInfo, FeeTokenAddresses};
+use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use papyrus_execution::{ETH_FEE_CONTRACT_ADDRESS, STRK_FEE_CONTRACT_ADDRESS};
 use serde_json::Value;
 use starknet_api::core::{ChainId, ContractAddress, PatriciaKey};
@@ -7,9 +8,12 @@ use starknet_api::transaction::{
     DeployAccountTransaction,
     InvokeTransaction,
     Transaction,
+    TransactionHash,
 };
 use starknet_api::{contract_address, felt, patricia_key};
 use starknet_gateway::config::RpcStateReaderConfig;
+
+use crate::state_reader::test_state_reader::ReexecutionResult;
 
 pub const RPC_NODE_URL: &str = "https://free-rpc.nethermind.io/mainnet-juno/";
 pub const JSON_RPC_VERSION: &str = "2.0";
@@ -91,4 +95,20 @@ pub fn deserialize_transaction_json_to_starknet_api_tx(
             "unimplemented transaction type: {tx_type} version: {tx_version}"
         ))),
     }
+}
+
+// TODO(Aner): extend/refactor to accomodate all types of transactions.
+#[allow(dead_code)]
+pub(crate) fn from_api_txs_to_blockifier_txs(
+    txs_and_hashes: Vec<(Transaction, TransactionHash)>,
+) -> ReexecutionResult<Vec<BlockifierTransaction>> {
+    Ok(txs_and_hashes
+        .into_iter()
+        .map(|(tx, tx_hash)| match tx {
+            Transaction::Invoke(_) => {
+                BlockifierTransaction::from_api(tx, tx_hash, None, None, None, false)
+            }
+            _ => unimplemented!(),
+        })
+        .collect::<Result<_, _>>()?)
 }
