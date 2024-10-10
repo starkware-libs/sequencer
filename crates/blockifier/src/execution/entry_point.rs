@@ -257,17 +257,14 @@ impl EntryPointExecutionContext {
         let TransactionContext { block_context, tx_info } = tx_context;
         let BlockContext { block_info, versioned_constants, .. } = block_context;
         let block_upper_bound = match mode {
-            // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion
-            // works.
-            ExecutionMode::Validate => versioned_constants
-                .validate_max_n_steps
-                .try_into()
-                .expect("Failed to convert validate_max_n_steps (u32) to usize."),
-            ExecutionMode::Execute => versioned_constants
-                .invoke_tx_max_n_steps
-                .try_into()
-                .expect("Failed to convert invoke_tx_max_n_steps (u32) to usize."),
-        };
+            ExecutionMode::Validate => versioned_constants.validate_max_n_steps,
+            ExecutionMode::Execute => versioned_constants.invoke_tx_max_n_steps,
+        }
+        .try_into()
+        .unwrap_or_else(|error| {
+            log::warn!("Failed to convert global step limit to to usize: {error}.");
+            usize::MAX
+        });
 
         if !limit_steps_by_resources || !tx_info.enforce_fee() {
             return block_upper_bound;
