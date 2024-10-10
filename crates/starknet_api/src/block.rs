@@ -305,10 +305,6 @@ impl NonzeroGasPrice {
         self.get().saturating_mul(rhs)
     }
 
-    pub fn checked_mul(self, rhs: GasAmount) -> Option<Fee> {
-        self.get().checked_mul(rhs)
-    }
-
     #[cfg(any(test, feature = "testing"))]
     pub const fn new_unchecked(price: GasPrice) -> Self {
         Self(price)

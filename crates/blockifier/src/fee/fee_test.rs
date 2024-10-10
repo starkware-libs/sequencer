@@ -206,7 +206,7 @@ fn test_discounted_gas_overdraft(
     if expect_failure {
         let error = report.error().unwrap();
         let expected_actual_amount = l1_gas_used
-            + (l1_data_gas_used.nonzero_checked_mul(data_gas_price).unwrap())
+            + (l1_data_gas_used.checked_mul(data_gas_price.into()).unwrap())
                 .checked_div(gas_price)
                 .unwrap();
         assert_matches!(

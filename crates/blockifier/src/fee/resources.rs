@@ -204,7 +204,14 @@ impl ArchivalDataResources {
             self.get_events_gas_cost(archival_gas_costs),
         ]
         .into_iter()
-        .sum();
+        .fold(GasAmount::ZERO, |accumulator, cost| {
+            accumulator.checked_add(cost).unwrap_or_else(|| {
+                panic!(
+                    "Archival data resources to gas vector overflowed: tried to add \
+                     {accumulator:?} gas to {cost:?} gas.",
+                )
+            })
+        });
         match mode {
             GasVectorComputationMode::All => GasVector::from_l2_gas(gas_amount),
             GasVectorComputationMode::NoL2Gas => GasVector::from_l1_gas(gas_amount),
