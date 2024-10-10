@@ -22,11 +22,14 @@ use starknet_gateway::rpc_state_reader::RpcStateReader;
 use starknet_types_core::felt::Felt;
 
 use crate::state_reader::compile::{legacy_to_contract_class_v0, sierra_to_contact_class_v1};
+use crate::state_reader::errors::{serde_err_to_reexecution_err, ReexecutionError};
 use crate::state_reader::utils::{
     deserialize_transaction_json_to_starknet_api_tx,
     get_chain_info,
     get_rpc_state_reader_config,
 };
+
+pub type ReexecutionResult<T> = Result<T, ReexecutionError>;
 
 pub struct TestStateReader(RpcStateReader);
 
@@ -75,7 +78,7 @@ impl TestStateReader {
 
     /// Get the block info of the current block.
     /// If l2_gas_price is not present in the block header, it will be set to 1.
-    pub fn get_block_info(&self) -> StateResult<BlockInfo> {
+    pub fn get_block_info(&self) -> ReexecutionResult<BlockInfo> {
         let get_block_params = GetBlockWithTxHashesParams { block_id: self.0.block_id };
         let default_l2_price =
             ResourcePrice { price_in_wei: 1_u8.into(), price_in_fri: 1_u8.into() };
@@ -114,7 +117,7 @@ impl TestStateReader {
     }
 
     /// Get all transaction hashes in the current block.
-    pub fn get_tx_hashes(&self) -> StateResult<Vec<String>> {
+    pub fn get_tx_hashes(&self) -> ReexecutionResult<Vec<String>> {
         let get_block_params = GetBlockWithTxHashesParams { block_id: self.0.block_id };
         let raw_tx_hashes = serde_json::from_value(
             self.0.send_rpc_request("starknet_getBlockWithTxHashes", &get_block_params)?
@@ -122,16 +125,16 @@ impl TestStateReader {
                 .clone(),
         )
         .map_err(serde_err_to_state_err)?;
-        serde_json::from_value(raw_tx_hashes).map_err(serde_err_to_state_err)
+        serde_json::from_value(raw_tx_hashes).map_err(serde_err_to_reexecution_err)
     }
 
-    pub fn get_tx_by_hash(&self, tx_hash: &str) -> StateResult<Transaction> {
+    pub fn get_tx_by_hash(&self, tx_hash: &str) -> ReexecutionResult<Transaction> {
         let method = "starknet_getTransactionByHash";
         let params = json!({
             "transaction_hash": tx_hash,
         });
         deserialize_transaction_json_to_starknet_api_tx(self.0.send_rpc_request(method, params)?)
-            .map_err(serde_err_to_state_err)
+            .map_err(serde_err_to_reexecution_err)
     }
 
     pub fn get_contract_class(&self, class_hash: &ClassHash) -> StateResult<StarknetContractClass> {
@@ -145,7 +148,7 @@ impl TestStateReader {
         Ok(contract_class)
     }
 
-    pub fn get_all_txs_in_block(&self) -> StateResult<Vec<(Transaction, TransactionHash)>> {
+    pub fn get_all_txs_in_block(&self) -> ReexecutionResult<Vec<(Transaction, TransactionHash)>> {
         // TODO(Aviv): Use batch request to get all txs in a block.
         self.get_tx_hashes()?
             .iter()
@@ -156,11 +159,11 @@ impl TestStateReader {
             .collect::<Result<_, _>>()
     }
 
-    pub fn get_versioned_constants(&self) -> StateResult<&'static VersionedConstants> {
+    pub fn get_versioned_constants(&self) -> ReexecutionResult<&'static VersionedConstants> {
         Ok(self.get_starknet_version()?.into())
     }
 
-    pub fn get_block_context(&self) -> StateResult<BlockContext> {
+    pub fn get_block_context(&self) -> ReexecutionResult<BlockContext> {
         Ok(BlockContext::new(
             self.get_block_info()?,
             get_chain_info(),
@@ -171,7 +174,7 @@ impl TestStateReader {
 
     pub fn get_transaction_executor(
         test_state_reader: TestStateReader,
-    ) -> StateResult<TransactionExecutor<TestStateReader>> {
+    ) -> ReexecutionResult<TransactionExecutor<TestStateReader>> {
         let block_context = test_state_reader.get_block_context()?;
         Ok(TransactionExecutor::<TestStateReader>::new(
             CachedState::new(test_state_reader),
