@@ -180,6 +180,7 @@ fn prepare_compiled_contract_classes(
                     serde_json::from_str(&contract.raw_class()).unwrap(),
                 ));
             }
+            CairoVersion::Native => todo!("look up what we need here"),
         }
     }
 
@@ -308,6 +309,9 @@ impl<'a> ThinStateDiffBuilder<'a> {
                 }
                 CairoVersion::Cairo1 => {
                     self.declared_classes.insert(contract.class_hash(), Default::default());
+                }
+                CairoVersion::Native => {
+                    todo!("look up what we need to do here")
                 }
             }
         }
