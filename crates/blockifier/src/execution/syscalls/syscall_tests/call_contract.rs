@@ -128,12 +128,15 @@ fn test_track_resources(
     let execution = entry_point_call.execute_directly(&mut state).unwrap();
     let expected_outer_resource = match outer_version {
         CairoVersion::Cairo0 => TrackedResource::CairoSteps,
-        CairoVersion::Cairo1 => TrackedResource::SierraGas,
+        CairoVersion::Cairo1 | CairoVersion::Native => TrackedResource::SierraGas,
     };
     assert_eq!(execution.tracked_resource, expected_outer_resource);
 
     let expected_inner_resource = match (outer_version, inner_version) {
-        (CairoVersion::Cairo1, CairoVersion::Cairo1) => TrackedResource::SierraGas,
+        (
+            CairoVersion::Cairo1 | CairoVersion::Native,
+            CairoVersion::Cairo1 | CairoVersion::Native,
+        ) => TrackedResource::SierraGas,
         _ => TrackedResource::CairoSteps,
     };
     assert_eq!(execution.inner_calls.first().unwrap().tracked_resource, expected_inner_resource);
