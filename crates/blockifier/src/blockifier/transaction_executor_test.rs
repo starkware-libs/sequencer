@@ -70,7 +70,7 @@ fn tx_executor_test_body<S: StateReader>(
         state_diff_size: 0,
         message_segment_length: 0,
         n_events: 0,
-        ..Default::default()
+        ..BouncerWeights::empty()
     }
 )]
 #[case::tx_version_1(
@@ -80,7 +80,7 @@ fn tx_executor_test_body<S: StateReader>(
         state_diff_size: 2,
         message_segment_length: 0,
         n_events: 0,
-        ..Default::default()
+        ..BouncerWeights::empty()
     }
 )]
 #[case::tx_version_2(
@@ -90,7 +90,7 @@ fn tx_executor_test_body<S: StateReader>(
         state_diff_size: 4,
         message_segment_length: 0,
         n_events: 0,
-        ..Default::default()
+        ..BouncerWeights::empty()
     }
 )]
 #[case::tx_version_3(
@@ -100,7 +100,7 @@ fn tx_executor_test_body<S: StateReader>(
         state_diff_size: 4,
         message_segment_length: 0,
         n_events: 0,
-        ..Default::default()
+        ..BouncerWeights::empty()
     }
 )]
 fn test_declare(
@@ -150,7 +150,7 @@ fn test_deploy_account(
         state_diff_size: 3,
         message_segment_length: 0,
         n_events: 0,
-        ..Default::default()
+        ..BouncerWeights::empty()
     };
     tx_executor_test_body(state, block_context, tx, expected_bouncer_weights);
 }
@@ -166,7 +166,7 @@ fn test_deploy_account(
         state_diff_size: 2,
         message_segment_length: 0,
         n_events: 0,
-        ..Default::default()
+        ..BouncerWeights::empty()
     }
 )]
 #[case::emit_event_syscall(
@@ -180,7 +180,7 @@ fn test_deploy_account(
         state_diff_size: 2,
         message_segment_length: 0,
         n_events: 1,
-        ..Default::default()
+        ..BouncerWeights::empty()
     }
 )]
 #[case::storage_write_syscall(
@@ -190,7 +190,7 @@ fn test_deploy_account(
         state_diff_size: 6,
         message_segment_length: 0,
         n_events: 0,
-        ..Default::default()
+        ..BouncerWeights::empty()
     }
 )]
 fn test_invoke(
@@ -233,7 +233,7 @@ fn test_l1_handler(block_context: BlockContext) {
         state_diff_size: 4,
         message_segment_length: 7,
         n_events: 0,
-        ..Default::default()
+        ..BouncerWeights::empty()
     };
     tx_executor_test_body(state, block_context, tx, expected_bouncer_weights);
 }
@@ -245,7 +245,7 @@ fn test_l1_handler(block_context: BlockContext) {
 #[case::block_full(
     BouncerWeights {
         n_events: 4,
-        ..Default::default()
+        ..BouncerWeights::empty()
     },
     7
 )]

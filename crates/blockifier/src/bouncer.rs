@@ -38,12 +38,16 @@ macro_rules! impl_checked_sub {
 
 pub type HashMapWrapper = HashMap<BuiltinName, usize>;
 
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct BouncerConfig {
     pub block_max_capacity: BouncerWeights,
 }
 
 impl BouncerConfig {
+    pub fn empty() -> Self {
+        Self { block_max_capacity: BouncerWeights::empty() }
+    }
+
     pub fn max() -> Self {
         Self { block_max_capacity: BouncerWeights::max() }
     }
@@ -71,7 +75,6 @@ impl BouncerConfig {
     Clone,
     Copy,
     Debug,
-    Default,
     derive_more::Add,
     derive_more::AddAssign,
     derive_more::Sub,
@@ -113,6 +116,17 @@ impl BouncerWeights {
             builtin_count: BuiltinCount::max(),
         }
     }
+
+    pub fn empty() -> Self {
+        Self {
+            n_events: 0,
+            builtin_count: BuiltinCount::empty(),
+            gas: 0,
+            message_segment_length: 0,
+            n_steps: 0,
+            state_diff_size: 0,
+        }
+    }
 }
 
 impl std::fmt::Display for BouncerWeights {
@@ -135,7 +149,6 @@ impl std::fmt::Display for BouncerWeights {
     Clone,
     Copy,
     Debug,
-    Default,
     derive_more::Add,
     derive_more::AddAssign,
     derive_more::Sub,
@@ -199,6 +212,21 @@ impl BuiltinCount {
             range_check96: usize::MAX,
         }
     }
+
+    pub fn empty() -> Self {
+        Self {
+            add_mod: 0,
+            bitwise: 0,
+            ecdsa: 0,
+            ec_op: 0,
+            keccak: 0,
+            mul_mod: 0,
+            pedersen: 0,
+            poseidon: 0,
+            range_check: 0,
+            range_check96: 0,
+        }
+    }
 }
 
 impl From<HashMapWrapper> for BuiltinCount {
@@ -247,7 +275,7 @@ impl std::fmt::Display for BuiltinCount {
     }
 }
 
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, PartialEq)]
 #[cfg_attr(test, derive(Clone))]
 pub struct Bouncer {
     // Additional info; maintained and used to calculate the residual contribution of a transaction
@@ -263,7 +291,17 @@ pub struct Bouncer {
 
 impl Bouncer {
     pub fn new(bouncer_config: BouncerConfig) -> Self {
-        Bouncer { bouncer_config, ..Default::default() }
+        Bouncer { bouncer_config, ..Self::empty() }
+    }
+
+    pub fn empty() -> Self {
+        Bouncer {
+            executed_class_hashes: HashSet::default(),
+            visited_storage_entries: HashSet::default(),
+            state_changes_keys: StateChangesKeys::default(),
+            bouncer_config: BouncerConfig::empty(),
+            accumulated_weights: BouncerWeights::empty(),
+        }
     }
 
     pub fn get_accumulated_weights(&self) -> &BouncerWeights {

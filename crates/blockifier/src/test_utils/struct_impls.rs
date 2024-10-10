@@ -260,21 +260,8 @@ impl L1HandlerTransaction {
     }
 }
 
-impl BouncerConfig {
-    pub fn empty() -> Self {
-        Self { block_max_capacity: BouncerWeights::empty() }
-    }
-}
-
 impl BouncerWeights {
-    pub fn empty() -> Self {
-        Self {
-            n_events: 0,
-            builtin_count: BuiltinCount::default(),
-            gas: 0,
-            message_segment_length: 0,
-            n_steps: 0,
-            state_diff_size: 0,
-        }
+    pub fn create_for_testing(builtin_count: BuiltinCount) -> Self {
+        Self { builtin_count, ..Self::empty() }
     }
 }
