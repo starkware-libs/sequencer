@@ -97,7 +97,7 @@ pub trait ProposalManagerTrait: Send + Sync {
         proposal_id: ProposalId,
         retrospective_block_hash: Option<BlockNumberHashPair>,
         deadline: tokio::time::Instant,
-        output_content_sender: tokio::sync::mpsc::Sender<Transaction>,
+        tx_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
     ) -> ProposalManagerResult<()>;
 }
 
@@ -120,7 +120,6 @@ pub(crate) struct ProposalManager {
     active_proposal_handle: Option<ActiveTaskHandle>,
     // Use a factory object, to be able to mock BlockBuilder in tests.
     block_builder_factory: Arc<dyn BlockBuilderFactoryTrait + Send + Sync>,
-    // The list of all proposals that were generated in the current height.
     proposals: Vec<ProposalId>,
 }
 
@@ -131,8 +130,7 @@ impl ProposalManagerTrait for ProposalManager {
     /// Starts working on the given height.
     #[instrument(skip(self), err)]
     fn start_height(&mut self, height: BlockNumber) -> ProposalManagerResult<()> {
-        // TODO: handle the case when `next_height==height && active_height<next_height` - can
-        // happen if the batcher got out of sync and got re-synced manually.
+        // TODO: instead of returning an error, abort the current height.
         if let Some(active_height) = self.active_height {
             return Err(ProposalManagerError::AlreadyWorkingOnHeight {
                 active_height,
@@ -153,24 +151,22 @@ impl ProposalManagerTrait for ProposalManager {
             });
         }
         self.active_height = Some(height);
+        self.proposals.clear();
         Ok(())
     }
 
     /// Starts a new block proposal generation task for the given proposal_id and height with
     /// transactions from the mempool.
-    /// Requires output_content_sender for sending the generated transactions to the caller.
-    #[instrument(skip(self, output_content_sender), err, fields(self.active_height))]
+    /// Requires tx_sender for sending the generated transactions to the caller.
+    #[instrument(skip(self, tx_sender), err, fields(self.active_height))]
     async fn build_block_proposal(
         &mut self,
         proposal_id: ProposalId,
         retrospective_block_hash: Option<BlockNumberHashPair>,
         deadline: tokio::time::Instant,
-        // TODO: Should this be an unbounded channel?
-        output_content_sender: tokio::sync::mpsc::Sender<Transaction>,
+        tx_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
     ) -> ProposalManagerResult<()> {
-        if self.active_height.is_none() {
-            return Err(ProposalManagerError::NoActiveHeight);
-        }
+        let height = self.active_height.ok_or(ProposalManagerError::NoActiveHeight)?;
         if self.proposals.contains(&proposal_id) {
             return Err(ProposalManagerError::ProposalAlreadyExists { proposal_id });
         }
@@ -178,15 +174,13 @@ impl ProposalManagerTrait for ProposalManager {
         self.set_active_proposal(proposal_id).await?;
         self.proposals.push(proposal_id);
 
-        // TODO(yael 7/10/2024) : pass the real block_number instead of 0
-        let block_builder = self
-            .block_builder_factory
-            .create_block_builder(BlockNumber(0), retrospective_block_hash)?;
+        let block_builder =
+            self.block_builder_factory.create_block_builder(height, retrospective_block_hash)?;
 
         self.active_proposal_handle = Some(tokio::spawn(
             BuildProposalTask {
                 mempool_client: self.mempool_client.clone(),
-                output_content_sender,
+                tx_sender,
                 block_builder_next_txs_buffer_size: self.config.block_builder_next_txs_buffer_size,
                 max_txs_per_mempool_request: self.config.max_txs_per_mempool_request,
                 block_builder,
@@ -250,7 +244,7 @@ impl ProposalManager {
 
 struct BuildProposalTask {
     mempool_client: SharedMempoolClient,
-    output_content_sender: tokio::sync::mpsc::Sender<Transaction>,
+    tx_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
     max_txs_per_mempool_request: usize,
     block_builder_next_txs_buffer_size: usize,
     block_builder: Box<dyn BlockBuilderTrait + Send>,
@@ -268,7 +262,7 @@ impl BuildProposalTask {
         let building_future = self.block_builder.build_block(
             self.deadline,
             mempool_tx_stream,
-            self.output_content_sender.clone(),
+            self.tx_sender.clone(),
         );
 
         let feed_mempool_txs_future = Self::feed_mempool_txs(

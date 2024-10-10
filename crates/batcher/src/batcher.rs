@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use blockifier::blockifier::block::BlockNumberHashPair;
@@ -5,21 +6,34 @@ use blockifier::blockifier::block::BlockNumberHashPair;
 use mockall::automock;
 use papyrus_storage::state::StateStorageReader;
 use starknet_api::block::BlockNumber;
-use starknet_batcher_types::batcher_types::{BatcherResult, BuildProposalInput, StartHeightInput};
+use starknet_api::executable_transaction::Transaction;
+use starknet_batcher_types::batcher_types::{
+    BatcherResult,
+    BuildProposalInput,
+    GetProposalContent,
+    GetProposalContentInput,
+    GetProposalContentResponse,
+    ProposalId,
+    StartHeightInput,
+};
 use starknet_batcher_types::errors::BatcherError;
 use starknet_mempool_infra::component_definitions::ComponentStarter;
 use starknet_mempool_types::communication::SharedMempoolClient;
-use tracing::error;
+use tracing::{error, instrument};
 
 use crate::block_builder::{BlockBuilderFactoryTrait, BlockBuilderResult, BlockBuilderTrait};
 use crate::config::BatcherConfig;
 use crate::proposal_manager::{ProposalManager, ProposalManagerError, ProposalManagerTrait};
 
+struct Proposal {
+    content_stream: OutputStream,
+}
+
 pub struct Batcher {
     pub config: BatcherConfig,
-    pub mempool_client: SharedMempoolClient,
     pub storage: Arc<dyn BatcherStorageReaderTrait>,
     proposal_manager: Box<dyn ProposalManagerTrait>,
+    proposals: HashMap<ProposalId, Proposal>,
 }
 
 // TODO(Yael 7/10/2024): remove DummyBlockBuilderFactory and pass the real BlockBuilderFactory
@@ -36,21 +50,21 @@ impl BlockBuilderFactoryTrait for DummyBlockBuilderFactory {
 }
 
 impl Batcher {
-    fn new(
+    pub(crate) fn new(
         config: BatcherConfig,
-        mempool_client: SharedMempoolClient,
         storage: Arc<dyn BatcherStorageReaderTrait>,
         proposal_manager: Box<dyn ProposalManagerTrait>,
     ) -> Self {
         Self {
             config: config.clone(),
-            mempool_client: mempool_client.clone(),
             storage: storage.clone(),
             proposal_manager,
+            proposals: HashMap::new(),
         }
     }
 
     pub fn start_height(&mut self, input: StartHeightInput) -> BatcherResult<()> {
+        self.proposals.clear();
         self.proposal_manager.start_height(input.height).map_err(|err| match err {
             ProposalManagerError::AlreadyWorkingOnHeight { active_height, new_height } => {
                 BatcherError::AlreadyWorkingOnHeight { active_height, new_height }
@@ -69,30 +83,32 @@ impl Batcher {
             ProposalManagerError::AlreadyGeneratingProposal { .. }
             | ProposalManagerError::MempoolError { .. }
             | ProposalManagerError::NoActiveHeight
-            | ProposalManagerError::ProposalAlreadyExists { .. }
-            | ProposalManagerError::BlockBuilderError(..) => {
+            | ProposalManagerError::BlockBuilderError(..)
+            | ProposalManagerError::ProposalAlreadyExists { .. } => {
                 unreachable!("Shouldn't happen here: {}", err)
             }
         })
     }
 
+    #[instrument(skip(self), err)]
     pub async fn build_proposal(
         &mut self,
         build_proposal_input: BuildProposalInput,
     ) -> BatcherResult<()> {
-        // TODO: Save the receiver as a stream for later use.
-        let (content_sender, _content_receiver) =
-            tokio::sync::mpsc::channel(self.config.outstream_content_buffer_size);
+        let proposal_id = build_proposal_input.proposal_id;
         let deadline =
             tokio::time::Instant::from_std(build_proposal_input.deadline_as_instant().map_err(
                 |_| BatcherError::TimeToDeadlineError { deadline: build_proposal_input.deadline },
             )?);
+
+        let (tx_sender, tx_receiver) = tokio::sync::mpsc::unbounded_channel();
+
         self.proposal_manager
             .build_block_proposal(
                 build_proposal_input.proposal_id,
                 build_proposal_input.retrospective_block_hash,
                 deadline,
-                content_sender,
+                tx_sender,
             )
             .await
             .map_err(|err| match err {
@@ -104,14 +120,14 @@ impl Batcher {
                     new_proposal_id,
                 },
                 ProposalManagerError::BlockBuilderError(..) => BatcherError::InternalError,
-                ProposalManagerError::ProposalAlreadyExists { proposal_id } => {
-                    BatcherError::ProposalAlreadyExists { proposal_id }
-                }
                 ProposalManagerError::MempoolError(..) => {
                     error!("MempoolError: {}", err);
                     BatcherError::InternalError
                 }
                 ProposalManagerError::NoActiveHeight => BatcherError::NoActiveHeight,
+                ProposalManagerError::ProposalAlreadyExists { proposal_id } => {
+                    BatcherError::ProposalAlreadyExists { proposal_id }
+                }
                 ProposalManagerError::AlreadyWorkingOnHeight { .. }
                 | ProposalManagerError::HeightAlreadyPassed { .. }
                 | ProposalManagerError::StorageError(..)
@@ -119,7 +135,35 @@ impl Batcher {
                     unreachable!("Shouldn't happen here: {}", err)
                 }
             })?;
+
+        let content_stream = tx_receiver;
+        self.proposals.insert(proposal_id, Proposal { content_stream });
         Ok(())
+    }
+
+    #[instrument(skip(self), err)]
+    pub async fn get_proposal_content(
+        &mut self,
+        get_proposal_content_input: GetProposalContentInput,
+    ) -> BatcherResult<GetProposalContentResponse> {
+        let proposal_id = get_proposal_content_input.proposal_id;
+        let proposal = self
+            .proposals
+            .get_mut(&proposal_id)
+            .ok_or(BatcherError::ProposalNotFound { proposal_id })?;
+
+        let mut txs = Vec::new();
+        if proposal
+            .content_stream
+            .recv_many(&mut txs, self.config.outstream_content_buffer_size)
+            .await
+            == 0
+        {
+            // TODO: send `Finished` and then exhausted.
+            return Err(BatcherError::StreamExhausted);
+        }
+
+        Ok(GetProposalContentResponse { content: GetProposalContent::Txs(txs) })
     }
 }
 
@@ -133,7 +177,7 @@ pub fn create_batcher(config: BatcherConfig, mempool_client: SharedMempoolClient
         Arc::new(DummyBlockBuilderFactory {}),
         storage_reader.clone(),
     ));
-    Batcher::new(config, mempool_client, storage_reader, proposal_manager)
+    Batcher::new(config, storage_reader, proposal_manager)
 }
 
 #[cfg_attr(test, automock)]
@@ -146,5 +190,8 @@ impl BatcherStorageReaderTrait for papyrus_storage::StorageReader {
         self.begin_ro_txn()?.get_state_marker()
     }
 }
+
+// TODO: Make this work with streams.
+type OutputStream = tokio::sync::mpsc::UnboundedReceiver<Transaction>;
 
 impl ComponentStarter for Batcher {}
