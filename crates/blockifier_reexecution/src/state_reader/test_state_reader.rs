@@ -12,7 +12,7 @@ use serde_json::{json, to_value};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::Transaction;
+use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_core::types::ContractClass as StarknetContractClass;
 use starknet_core::types::ContractClass::{Legacy, Sierra};
 use starknet_gateway::config::RpcStateReaderConfig;
@@ -145,14 +145,16 @@ impl TestStateReader {
         Ok(contract_class)
     }
 
-    pub fn get_all_txs_in_block(&self) -> StateResult<Vec<Transaction>> {
+    pub fn get_all_txs_in_block(&self) -> StateResult<Vec<(Transaction, TransactionHash)>> {
         // TODO(Aviv): Use batch request to get all txs in a block.
-        let txs: Vec<_> = self
-            .get_tx_hashes()?
-            .iter()
-            .map(|tx_hash| self.get_tx_by_hash(tx_hash))
-            .collect::<Result<_, _>>()?;
-        Ok(txs)
+        let mut txs_and_hashes = vec![];
+        for tx_hash in self.get_tx_hashes()? {
+            txs_and_hashes.push((
+                self.get_tx_by_hash(&tx_hash)?,
+                TransactionHash(Felt::from_hex_unchecked(&tx_hash)),
+            ));
+        }
+        Ok(txs_and_hashes)
     }
 
     pub fn get_versioned_constants(&self) -> StateResult<&'static VersionedConstants> {
