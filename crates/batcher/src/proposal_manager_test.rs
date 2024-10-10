@@ -99,12 +99,13 @@ fn proposal_manager(
         requested_height: INITIAL_HEIGHT.unchecked_next()
     }
 ))]
-fn start_height(
+#[tokio::test]
+async fn start_height(
     mut proposal_manager: ProposalManager,
     #[case] height: BlockNumber,
     #[case] expected_result: Result<(), StartHeightError>,
 ) {
-    let result = proposal_manager.start_height(height);
+    let result = proposal_manager.start_height(height).await;
     // Unfortunatelly ProposalManagerError doesn't implement PartialEq.
     assert_eq!(format!("{:?}", result), format!("{:?}", expected_result));
 }
@@ -158,7 +159,7 @@ async fn proposal_generation_success(
         Arc::new(storage_reader),
     );
 
-    proposal_manager.start_height(INITIAL_HEIGHT).unwrap();
+    proposal_manager.start_height(INITIAL_HEIGHT).await.unwrap();
 
     proposal_manager
         .build_block_proposal(ProposalId(0), None, arbitrary_deadline(), output_streaming.0)
@@ -193,7 +194,7 @@ async fn consecutive_proposal_generations_success(
         Arc::new(storage_reader),
     );
 
-    proposal_manager.start_height(INITIAL_HEIGHT).unwrap();
+    proposal_manager.start_height(INITIAL_HEIGHT).await.unwrap();
 
     let (output_sender_0, _rec_0) = output_streaming();
     proposal_manager
@@ -237,7 +238,7 @@ async fn multiple_proposals_generation_fail(
         Arc::new(storage_reader),
     );
 
-    proposal_manager.start_height(INITIAL_HEIGHT).unwrap();
+    proposal_manager.start_height(INITIAL_HEIGHT).await.unwrap();
 
     // A proposal that will never finish.
     let (output_sender_0, _rec_0) = output_streaming();
@@ -258,6 +259,60 @@ async fn multiple_proposals_generation_fail(
             new_proposal_id
         }) if current_generating_proposal_id == ProposalId(0) && new_proposal_id == ProposalId(1)
     );
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_get_proposal_result_no_active_proposal(
+    proposal_manager_config: ProposalManagerConfig,
+    mut block_builder_factory: MockBlockBuilderFactoryTrait,
+    mut mempool_client: MockMempoolClient,
+    storage_reader: MockBatcherStorageReaderTrait,
+) {
+    let n_txs = proposal_manager_config.max_txs_per_mempool_request;
+    let (output_sender_0, _rec_0) = output_streaming();
+    let (output_sender_1, _rec_1) = output_streaming();
+    block_builder_factory
+        .expect_create_block_builder()
+        .once()
+        .returning(move |_, _| simulate_build_block(Some(n_txs)));
+
+    block_builder_factory
+        .expect_create_block_builder()
+        .once()
+        .returning(move |_, _| simulate_build_block(Some(n_txs)));
+
+    let expected_txs = test_txs(0..n_txs);
+    let mempool_txs = expected_txs.clone();
+    mempool_client.expect_get_txs().returning(move |_max_n_txs| Ok(mempool_txs.clone()));
+
+    let mut proposal_manager = ProposalManager::new(
+        proposal_manager_config.clone(),
+        Arc::new(mempool_client),
+        Arc::new(block_builder_factory),
+        Arc::new(storage_reader),
+    );
+
+    proposal_manager.start_height(INITIAL_HEIGHT).await.unwrap();
+
+    proposal_manager
+        .build_block_proposal(ProposalId(0), None, arbitrary_deadline(), output_sender_0)
+        .await
+        .unwrap();
+
+    // Make sure the first proposal generated successfully.
+    proposal_manager.await_active_proposal().await;
+
+    proposal_manager
+        .build_block_proposal(ProposalId(1), None, arbitrary_deadline(), output_sender_1)
+        .await
+        .unwrap();
+
+    // Make sure the proposal generated successfully.
+    proposal_manager.await_active_proposal().await;
+
+    proposal_manager.get_proposal_result(ProposalId(0)).await.unwrap().unwrap();
+    proposal_manager.get_proposal_result(ProposalId(1)).await.unwrap().unwrap();
 }
 
 fn arbitrary_deadline() -> tokio::time::Instant {
@@ -286,7 +341,6 @@ async fn simulate_block_builder(
     while let Some(tx) = mempool_tx_stream.next().await {
         output_sender.send(tx).unwrap();
     }
-
     Ok(BlockExecutionArtifacts::create_for_testing())
 }
 

@@ -6,11 +6,14 @@ use blockifier::blockifier::block::BlockNumberHashPair;
 use futures::future::BoxFuture;
 use futures::FutureExt;
 use mockall::automock;
+use mockall::predicate::eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
 use starknet_api::executable_transaction::Transaction;
+use starknet_api::state::ThinStateDiff;
 use starknet_batcher_types::batcher_types::{
     BuildProposalInput,
+    DecisionReachedInput,
     GetProposalContent,
     GetProposalContentInput,
     ProposalId,
@@ -18,9 +21,15 @@ use starknet_batcher_types::batcher_types::{
 };
 use starknet_batcher_types::errors::BatcherError;
 
-use crate::batcher::{Batcher, MockBatcherStorageReaderTrait};
+use crate::batcher::{Batcher, MockBatcherStorageReaderTrait, MockBatcherStorageWriterTrait};
 use crate::config::BatcherConfig;
-use crate::proposal_manager::{BuildProposalError, ProposalManagerTrait, StartHeightError};
+use crate::proposal_manager::{
+    BuildProposalError,
+    GetProposalResultError,
+    ProposalManagerTrait,
+    ProposalOutput,
+    StartHeightError,
+};
 use crate::test_utils::test_txs;
 
 const INITIAL_HEIGHT: BlockNumber = BlockNumber(3);
@@ -34,6 +43,11 @@ fn storage_reader() -> MockBatcherStorageReaderTrait {
 }
 
 #[fixture]
+fn storage_writer() -> MockBatcherStorageWriterTrait {
+    MockBatcherStorageWriterTrait::new()
+}
+
+#[fixture]
 fn batcher_config() -> BatcherConfig {
     BatcherConfig { outstream_content_buffer_size: STREAMING_CHUNK_SIZE, ..Default::default() }
 }
@@ -43,15 +57,15 @@ fn batcher_config() -> BatcherConfig {
 async fn get_stream_content(
     batcher_config: BatcherConfig,
     storage_reader: MockBatcherStorageReaderTrait,
+    storage_writer: MockBatcherStorageWriterTrait,
 ) {
-    starknet_mempool_infra::trace_util::configure_tracing();
     const PROPOSAL_ID: ProposalId = ProposalId(0);
     // Expecting 3 chunks of streamed txs.
     let expected_streamed_txs = test_txs(0..STREAMING_CHUNK_SIZE * 2 + 1);
     let txs_to_stream = expected_streamed_txs.clone();
 
     let mut proposal_manager = MockProposalManagerTraitWrapper::new();
-    proposal_manager.expect_wrap_start_height().return_once(|_| Ok(()));
+    proposal_manager.expect_wrap_start_height().return_once(|_| async { Ok(()) }.boxed());
 
     proposal_manager.expect_wrap_build_block_proposal().return_once(
         move |_proposal_id, _block_hash, _deadline, tx_sender| {
@@ -59,10 +73,14 @@ async fn get_stream_content(
         },
     );
 
-    let mut batcher =
-        Batcher::new(batcher_config, Arc::new(storage_reader), Box::new(proposal_manager));
+    let mut batcher = Batcher::new(
+        batcher_config,
+        Arc::new(storage_reader),
+        Box::new(storage_writer),
+        Box::new(proposal_manager),
+    );
 
-    batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).unwrap();
+    batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
     batcher
         .build_proposal(BuildProposalInput {
             proposal_id: PROPOSAL_ID,
@@ -93,6 +111,65 @@ async fn get_stream_content(
     assert_matches!(exhausted, Err(BatcherError::StreamExhausted));
 }
 
+#[rstest]
+#[tokio::test]
+async fn decision_reached(
+    batcher_config: BatcherConfig,
+    storage_reader: MockBatcherStorageReaderTrait,
+    mut storage_writer: MockBatcherStorageWriterTrait,
+) {
+    const PROPOSAL_ID: ProposalId = ProposalId(0);
+    let expected_state_diff = ThinStateDiff::default();
+    let state_diff_clone = expected_state_diff.clone();
+
+    let mut proposal_manager = MockProposalManagerTraitWrapper::new();
+    proposal_manager
+        .expect_wrap_get_proposal_result()
+        .with(eq(PROPOSAL_ID))
+        .return_once(|_| async { Ok(Ok(state_diff_clone)) }.boxed());
+
+    storage_writer
+        .expect_commit_proposal()
+        .with(eq(INITIAL_HEIGHT), eq(expected_state_diff))
+        .returning(|_, _| Ok(()));
+
+    let mut batcher = Batcher::new(
+        batcher_config,
+        Arc::new(storage_reader),
+        Box::new(storage_writer),
+        Box::new(proposal_manager),
+    );
+    batcher.decision_reached(DecisionReachedInput { proposal_id: ProposalId(0) }).await.unwrap();
+}
+
+#[rstest]
+#[tokio::test]
+async fn decision_reached_no_done_proposal(
+    batcher_config: BatcherConfig,
+    storage_reader: MockBatcherStorageReaderTrait,
+    storage_writer: MockBatcherStorageWriterTrait,
+) {
+    const PROPOSAL_ID: ProposalId = ProposalId(0);
+    let expected_error = BatcherError::DoneProposalNotFound { proposal_id: PROPOSAL_ID };
+
+    let mut proposal_manager = MockProposalManagerTraitWrapper::new();
+    proposal_manager.expect_wrap_get_proposal_result().with(eq(PROPOSAL_ID)).return_once(
+        |proposal_id| {
+            async move { Err(GetProposalResultError::ProposalDoesNotExist { proposal_id }) }.boxed()
+        },
+    );
+
+    let mut batcher = Batcher::new(
+        batcher_config,
+        Arc::new(storage_reader),
+        Box::new(storage_writer),
+        Box::new(proposal_manager),
+    );
+    let decision_reached_result =
+        batcher.decision_reached(DecisionReachedInput { proposal_id: PROPOSAL_ID }).await;
+    assert_eq!(decision_reached_result, Err(expected_error));
+}
+
 async fn simulate_build_block_proposal(
     tx_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
     txs: Vec<Transaction>,
@@ -108,7 +185,10 @@ async fn simulate_build_block_proposal(
 // A wrapper trait to allow mocking the ProposalManagerTrait in tests.
 #[automock]
 trait ProposalManagerTraitWrapper: Send + Sync {
-    fn wrap_start_height(&mut self, height: BlockNumber) -> Result<(), StartHeightError>;
+    fn wrap_start_height(
+        &mut self,
+        height: BlockNumber,
+    ) -> BoxFuture<'_, Result<(), StartHeightError>>;
 
     fn wrap_build_block_proposal(
         &mut self,
@@ -117,12 +197,17 @@ trait ProposalManagerTraitWrapper: Send + Sync {
         deadline: tokio::time::Instant,
         output_content_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
     ) -> BoxFuture<'_, Result<(), BuildProposalError>>;
+
+    fn wrap_get_proposal_result(
+        &mut self,
+        proposal_id: ProposalId,
+    ) -> BoxFuture<'_, Result<ProposalOutput, GetProposalResultError>>;
 }
 
 #[async_trait]
 impl<T: ProposalManagerTraitWrapper> ProposalManagerTrait for T {
-    fn start_height(&mut self, height: BlockNumber) -> Result<(), StartHeightError> {
-        self.wrap_start_height(height)
+    async fn start_height(&mut self, height: BlockNumber) -> Result<(), StartHeightError> {
+        self.wrap_start_height(height).await
     }
 
     async fn build_block_proposal(
@@ -139,5 +224,12 @@ impl<T: ProposalManagerTraitWrapper> ProposalManagerTrait for T {
             output_content_sender,
         )
         .await
+    }
+
+    async fn get_proposal_result(
+        &mut self,
+        proposal_id: ProposalId,
+    ) -> Result<ProposalOutput, GetProposalResultError> {
+        self.wrap_get_proposal_result(proposal_id).await
     }
 }
