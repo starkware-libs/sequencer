@@ -149,7 +149,7 @@ impl ComponentExecutionConfig {
 
     pub fn consensus_manager_default_config() -> Self {
         Self {
-            execute: false,
+            execute: true,
             execution_mode: ComponentExecutionMode::Local,
             local_config: Some(LocalComponentCommunicationConfig::default()),
             remote_config: None,
