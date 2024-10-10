@@ -69,7 +69,7 @@ impl BlockBuilderTrait for BlockBuilder {
     }
 }
 
-#[derive(Default, Debug, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct BlockExecutionArtifacts {
     pub execution_infos: IndexMap<TransactionHash, TransactionExecutionInfo>,
     pub commitment_state_diff: CommitmentStateDiff,
