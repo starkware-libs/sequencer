@@ -9988,6 +9988,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
 
 [[package]]
+name = "starknenet_sequencer_monitoring_endpoint"
+version = "0.0.0"
+dependencies = [
+ "axum",
+ "http-body 0.4.6",
+ "hyper 0.14.30",
+ "papyrus_config",
+ "pretty_assertions",
+ "serde",
+ "starknet_mempool_infra",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "validator",
+]
+
+[[package]]
 name = "starknet-core"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
