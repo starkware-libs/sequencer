@@ -115,7 +115,7 @@ impl ConsensusContext for PapyrusConsensusContext {
 
                 proposals.entry(height).or_default().insert(block_hash, transactions);
                 // Done after inserting the proposal into the map to avoid race conditions between
-                // insertion and calls to `get_proposal`.
+                // insertion and calls to `repropose`.
                 fin_sender.send(block_hash).expect("Send should succeed");
             }
             .instrument(debug_span!("consensus_build_proposal")),
@@ -177,7 +177,7 @@ impl ConsensusContext for PapyrusConsensusContext {
 
                 proposals.entry(height).or_default().insert(block_hash, transactions);
                 // Done after inserting the proposal into the map to avoid race conditions between
-                // insertion and calls to `get_proposal`.
+                // insertion and calls to `repropose`.
                 // This can happen as a result of sync interrupting `run_height`.
                 fin_sender.send(block_hash).unwrap_or_else(|_| {
                     warn!("Failed to send block to consensus. height={height}");
@@ -189,34 +189,48 @@ impl ConsensusContext for PapyrusConsensusContext {
         fin_receiver
     }
 
-    async fn get_proposal(
+    async fn repropose(
         &self,
-        height: BlockNumber,
         id: ProposalContentId,
-    ) -> mpsc::Receiver<Transaction> {
-        let (mut sender, receiver) = mpsc::channel(CHANNEL_SIZE);
+        init: ProposalInit,
+    ) -> Result<(), ConsensusError> {
         let valid_proposals = Arc::clone(&self.valid_proposals);
-        tokio::spawn(async move {
-            let transactions = {
-                let valid_proposals_lock = valid_proposals
-                    .lock()
-                    .expect("Lock on active proposals was poisoned due to a previous panic");
-                let Some(proposals_at_height) = valid_proposals_lock.get(&height) else {
-                    error!("No proposals found for height {height}");
-                    return;
-                };
-                let Some(transactions) = proposals_at_height.get(&id) else {
-                    error!("No proposal found for height {height} and id {id}");
-                    return;
-                };
-                transactions.clone()
+        let transactions = {
+            let valid_proposals_lock = valid_proposals
+                .lock()
+                .expect("Lock on active proposals was poisoned due to a previous panic");
+            let Some(proposals_at_height) = valid_proposals_lock.get(&init.height) else {
+                error!("No proposals found for height {}", init.height);
+                return Err(ConsensusError::InvalidProposal(
+                    init.proposer,
+                    init.height,
+                    format!("No proposals found for height {}", init.height),
+                ));
             };
-            for tx in transactions.clone() {
-                sender.try_send(tx).expect("Send should succeed");
-            }
-            sender.close_channel();
-        });
-        receiver
+            let Some(transactions) = proposals_at_height.get(&id) else {
+                error!("No proposal found for height {} and id {}", init.height, id);
+                return Err(ConsensusError::InvalidProposal(
+                    init.proposer,
+                    init.height,
+                    format!("No proposal found for height {} and id {}", init.height, id),
+                ));
+            };
+            transactions.clone()
+        };
+        let proposal = Proposal {
+            height: init.height.0,
+            round: init.round,
+            proposer: init.proposer,
+            transactions,
+            block_hash: id,
+            valid_round: init.valid_round,
+        };
+        let mut network_broadcast_sender = self.network_broadcast_client.clone();
+        network_broadcast_sender
+            .broadcast_message(ConsensusMessage::Proposal(proposal))
+            .await
+            .expect("Failed to send proposal");
+        Ok(())
     }
 
     async fn validators(&self, _height: BlockNumber) -> Vec<ValidatorId> {
