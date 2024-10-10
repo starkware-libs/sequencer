@@ -114,9 +114,9 @@ Unknown location (pc=0:{entry_point_location})
 2: Error in the called contract (contract address: {test_contract_address_2_felt:#064x}, class \
          hash: {test_contract_hash:#064x}, selector: {inner_entry_point_selector_felt:#064x}):
 Error message: You shall not pass!
-Error at pc=0:1290:
+Error at pc=0:1294:
 Cairo traceback (most recent call last):
-Unknown location (pc=0:1294)
+Unknown location (pc=0:1298)
 
 An ASSERT_EQ instruction failed: 1 != 0.
 "
@@ -202,9 +202,9 @@ Unknown location (pc=0:{entry_point_location})
 2: Error in the called contract (contract address: {test_contract_address_2_felt:#064x}, class \
          hash: {test_contract_hash:#064x}, selector: {inner_entry_point_selector_felt:#064x}):
 Error message: You shall not pass!
-Error at pc=0:1290:
+Error at pc=0:1294:
 Cairo traceback (most recent call last):
-Unknown location (pc=0:1294)
+Unknown location (pc=0:1298)
 
 An ASSERT_EQ instruction failed: 1 != 0.
 "
@@ -230,8 +230,8 @@ Execution failed. Failure reason: (0x6661696c ('fail'), 0x454e545259504f494e545f
 }
 
 #[rstest]
-#[case(CairoVersion::Cairo0, "invoke_call_chain", "Couldn't compute operand op0. Unknown value for memory cell 1:37", (1187_u16, 1233_u16))]
-#[case(CairoVersion::Cairo0, "fail", "An ASSERT_EQ instruction failed: 1 != 0.", (1290_u16, 1241_u16))]
+#[case(CairoVersion::Cairo0, "invoke_call_chain", "Couldn't compute operand op0. Unknown value for memory cell 1:37", (1191_u16, 1237_u16))]
+#[case(CairoVersion::Cairo0, "fail", "An ASSERT_EQ instruction failed: 1 != 0.", (1294_u16, 1245_u16))]
 #[case(CairoVersion::Cairo1, "invoke_call_chain", "0x4469766973696f6e2062792030 ('Division by 0')", (0_u16, 0_u16))]
 #[case(CairoVersion::Cairo1, "fail", "0x6661696c ('fail')", (0_u16, 0_u16))]
 fn test_trace_callchain_ends_with_regular_call(
@@ -345,10 +345,10 @@ Execution failed. Failure reason: ({expected_error}, 0x454e545259504f494e545f464
 }
 
 #[rstest]
-#[case(CairoVersion::Cairo0, "invoke_call_chain", "Couldn't compute operand op0. Unknown value for memory cell 1:23", 1_u8, 0_u8, (37_u16, 1199_u16, 1187_u16, 1272_u16))]
-#[case(CairoVersion::Cairo0, "invoke_call_chain", "Couldn't compute operand op0. Unknown value for memory cell 1:23", 1_u8, 1_u8, (49_u16, 1217_u16, 1187_u16, 1272_u16))]
-#[case(CairoVersion::Cairo0, "fail", "An ASSERT_EQ instruction failed: 1 != 0.", 0_u8, 0_u8, (37_u16, 1199_u16, 1290_u16, 1294_u16))]
-#[case(CairoVersion::Cairo0, "fail", "An ASSERT_EQ instruction failed: 1 != 0.", 0_u8, 1_u8, (49_u16, 1217_u16, 1290_u16, 1294_u16))]
+#[case(CairoVersion::Cairo0, "invoke_call_chain", "Couldn't compute operand op0. Unknown value for memory cell 1:23", 1_u8, 0_u8, (37_u16, 1203_u16, 1191_u16, 1276_u16))]
+#[case(CairoVersion::Cairo0, "invoke_call_chain", "Couldn't compute operand op0. Unknown value for memory cell 1:23", 1_u8, 1_u8, (49_u16, 1221_u16, 1191_u16, 1276_u16))]
+#[case(CairoVersion::Cairo0, "fail", "An ASSERT_EQ instruction failed: 1 != 0.", 0_u8, 0_u8, (37_u16, 1203_u16, 1294_u16, 1298_u16))]
+#[case(CairoVersion::Cairo0, "fail", "An ASSERT_EQ instruction failed: 1 != 0.", 0_u8, 1_u8, (49_u16, 1221_u16, 1294_u16, 1298_u16))]
 #[case(CairoVersion::Cairo1, "invoke_call_chain", "0x4469766973696f6e2062792030 ('Division by 0')", 1_u8, 0_u8, (9631_u16, 9631_u16, 0_u16, 0_u16))]
 #[case(CairoVersion::Cairo1, "invoke_call_chain", "0x4469766973696f6e2062792030 ('Division by 0')", 1_u8, 1_u8, (9631_u16, 9700_u16, 0_u16, 0_u16))]
 #[case(CairoVersion::Cairo1, "fail", "0x6661696c ('fail')", 0_u8, 0_u8, (9631_u16, 9631_u16, 0_u16, 0_u16))]
