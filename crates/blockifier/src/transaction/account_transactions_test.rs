@@ -466,11 +466,13 @@ fn test_max_fee_limit_validate(
 
     // Invoke a function that grinds validate (any function will do); set bounds low enough to fail
     // on this grind.
+    // Only grind a small number of iterations (in the calldata) to ensure we are limited by the
+    // transaction bounds, and not the global block bounds.
     // To ensure bounds are low enough, estimate minimal resources consumption, and set bounds
     // slightly above them.
     let tx_args = invoke_tx_args! {
         sender_address: grindy_account_address,
-        calldata: create_trivial_calldata(contract_address),
+        calldata: create_calldata(contract_address, "return_result", &[1000_u32.into()]),
         version,
         nonce: nonce_manager.next(grindy_account_address)
     };
@@ -486,6 +488,9 @@ fn test_max_fee_limit_validate(
     let estimated_min_fee =
         get_fee_by_gas_vector(block_info, estimated_min_gas_usage_vector, &account_tx.fee_type());
 
+    // Make sure the resource bounds are the limiting factor by blowing up the block bounds.
+    let old_validate_max_n_steps = block_context.versioned_constants.validate_max_n_steps;
+    block_context.versioned_constants.validate_max_n_steps = u32::MAX;
     let error_trace = run_invoke_tx(
         &mut state,
         &block_context,
@@ -523,6 +528,7 @@ fn test_max_fee_limit_validate(
     )
     .unwrap_err()
     .to_string();
+    block_context.versioned_constants.validate_max_n_steps = old_validate_max_n_steps;
 
     assert!(error_trace.contains("no remaining steps"));
 }
