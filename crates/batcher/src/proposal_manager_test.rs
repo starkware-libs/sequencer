@@ -21,12 +21,12 @@ use crate::block_builder::{
     MockBlockBuilderFactoryTrait,
 };
 use crate::proposal_manager::{
+    BuildProposalError,
     InputTxStream,
     ProposalManager,
     ProposalManagerConfig,
-    ProposalManagerError,
-    ProposalManagerResult,
     ProposalManagerTrait,
+    StartHeightError,
 };
 use crate::test_utils::test_txs;
 
@@ -83,18 +83,18 @@ fn proposal_manager(
 #[rstest]
 #[case::height_already_passed(
     INITIAL_HEIGHT.prev().unwrap(),
-    ProposalManagerResult::Err(ProposalManagerError::HeightAlreadyPassed {
+    Result::Err(StartHeightError::HeightAlreadyPassed {
         storage_height: INITIAL_HEIGHT,
         requested_height: INITIAL_HEIGHT.prev().unwrap()
     }
 ))]
 #[case::happy(
     INITIAL_HEIGHT,
-    ProposalManagerResult::Ok(())
+    Result::Ok(())
 )]
 #[case::storage_not_synced(
     INITIAL_HEIGHT.unchecked_next(),
-    ProposalManagerResult::Err(ProposalManagerError::StorageNotSynced {
+    Result::Err(StartHeightError::StorageNotSynced {
         storage_height: INITIAL_HEIGHT,
         requested_height: INITIAL_HEIGHT.unchecked_next()
     }
@@ -102,7 +102,7 @@ fn proposal_manager(
 fn start_height(
     mut proposal_manager: ProposalManager,
     #[case] height: BlockNumber,
-    #[case] expected_result: ProposalManagerResult<()>,
+    #[case] expected_result: Result<(), StartHeightError>,
 ) {
     let result = proposal_manager.start_height(height);
     // Unfortunatelly ProposalManagerError doesn't implement PartialEq.
@@ -121,7 +121,7 @@ async fn proposal_generation_fails_without_start_height(
     let err = proposal_manager
         .build_block_proposal(ProposalId(0), None, arbitrary_deadline(), output_streaming.0)
         .await;
-    assert_matches!(err, Err(ProposalManagerError::NoActiveHeight));
+    assert_matches!(err, Err(BuildProposalError::NoActiveHeight));
 }
 
 #[rstest]
@@ -165,7 +165,7 @@ async fn proposal_generation_success(
         .await
         .unwrap();
 
-    assert_matches!(proposal_manager.await_active_proposal().await, Some(Ok(())));
+    proposal_manager.await_active_proposal().await;
 }
 
 #[rstest]
@@ -202,7 +202,7 @@ async fn consecutive_proposal_generations_success(
         .unwrap();
 
     // Make sure the first proposal generated successfully.
-    assert_matches!(proposal_manager.await_active_proposal().await, Some(Ok(())));
+    proposal_manager.await_active_proposal().await;
 
     let (output_sender_1, _rec_1) = output_streaming();
     proposal_manager
@@ -211,7 +211,7 @@ async fn consecutive_proposal_generations_success(
         .unwrap();
 
     // Make sure the proposal generated successfully.
-    assert_matches!(proposal_manager.await_active_proposal().await, Some(Ok(())));
+    proposal_manager.await_active_proposal().await;
 }
 
 #[rstest]
@@ -253,7 +253,7 @@ async fn multiple_proposals_generation_fail(
         .await;
     assert_matches!(
         another_generate_request,
-        Err(ProposalManagerError::AlreadyGeneratingProposal {
+        Err(BuildProposalError::AlreadyGeneratingProposal {
             current_generating_proposal_id,
             new_proposal_id
         }) if current_generating_proposal_id == ProposalId(0) && new_proposal_id == ProposalId(1)
