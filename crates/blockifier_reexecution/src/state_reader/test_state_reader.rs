@@ -30,6 +30,34 @@ use crate::state_reader::utils::{
 };
 
 pub type ReexecutionResult<T> = Result<T, ReexecutionError>;
+pub struct ConsecutiveTestStateReaders {
+    pub last_block_state_reader: TestStateReader,
+    pub next_block_state_reader: TestStateReader,
+}
+
+impl ConsecutiveTestStateReaders {
+    pub fn new_for_testing(last_constructed_block_number: BlockNumber) -> Self {
+        let config = &get_rpc_state_reader_config();
+        ConsecutiveTestStateReaders {
+            last_block_state_reader: TestStateReader::new(config, last_constructed_block_number),
+            next_block_state_reader: TestStateReader::new(
+                config,
+                last_constructed_block_number.next().expect("Overflow in block number"),
+            ),
+        }
+    }
+
+    pub fn get_transaction_executor(
+        self,
+        transaction_executor_config: Option<TransactionExecutorConfig>,
+    ) -> ReexecutionResult<TransactionExecutor<TestStateReader>> {
+        Ok(TransactionExecutor::<TestStateReader>::new(
+            CachedState::new(self.last_block_state_reader),
+            self.next_block_state_reader.get_block_context()?,
+            transaction_executor_config.unwrap_or_default(),
+        ))
+    }
+}
 
 pub struct TestStateReader(RpcStateReader);
 
@@ -80,8 +108,6 @@ impl TestStateReader {
     /// If l2_gas_price is not present in the block header, it will be set to 1.
     pub fn get_block_info(&self) -> ReexecutionResult<BlockInfo> {
         let get_block_params = GetBlockWithTxHashesParams { block_id: self.0.block_id };
-        let default_l2_price =
-            ResourcePrice { price_in_wei: 1_u8.into(), price_in_fri: 1_u8.into() };
 
         let mut json =
             self.0.send_rpc_request("starknet_getBlockWithTxHashes", get_block_params)?;
@@ -94,7 +120,8 @@ impl TestStateReader {
             // In old blocks, the l2_gas_price field is not present.
             block_header_map.insert(
                 "l2_gas_price".to_string(),
-                to_value(default_l2_price).map_err(serde_err_to_state_err)?,
+                to_value(ResourcePrice { price_in_wei: 1_u8.into(), price_in_fri: 1_u8.into() })
+                    .map_err(serde_err_to_state_err)?,
             );
         }
 
@@ -172,12 +199,13 @@ impl TestStateReader {
 
     pub fn get_transaction_executor(
         test_state_reader: TestStateReader,
+        block_context_next_block: BlockContext,
+        transaction_executor_config: Option<TransactionExecutorConfig>,
     ) -> ReexecutionResult<TransactionExecutor<TestStateReader>> {
-        let block_context = test_state_reader.get_block_context()?;
         Ok(TransactionExecutor::<TestStateReader>::new(
             CachedState::new(test_state_reader),
-            block_context,
-            TransactionExecutorConfig::default(),
+            block_context_next_block,
+            transaction_executor_config.unwrap_or_default(),
         ))
     }
 }
