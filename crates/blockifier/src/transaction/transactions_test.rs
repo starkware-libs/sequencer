@@ -128,6 +128,7 @@ use crate::transaction::test_utils::{
     calculate_class_info_for_testing,
     create_account_tx_for_validate_test,
     create_account_tx_for_validate_test_nonce_0,
+    default_all_resource_bounds,
     default_l1_resource_bounds,
     l1_resource_bounds,
     FaultyAccountTxCreatorArgs,
@@ -406,7 +407,8 @@ fn add_kzg_da_resources_to_resources_mapping(
     },
     CairoVersion::Cairo1)]
 fn test_invoke_tx(
-    default_l1_resource_bounds: ValidResourceBounds,
+    #[values(default_l1_resource_bounds(), default_all_resource_bounds())]
+    resource_bounds: ValidResourceBounds,
     #[case] expected_arguments: ExpectedResultTestInvokeTx,
     #[case] account_cairo_version: CairoVersion,
     #[values(false, true)] use_kzg_da: bool,
@@ -422,7 +424,7 @@ fn test_invoke_tx(
     let invoke_tx = invoke_tx(invoke_tx_args! {
         sender_address: account_contract_address,
         calldata: create_trivial_calldata(test_contract_address),
-        resource_bounds: default_l1_resource_bounds,
+        resource_bounds,
     });
 
     // Extract invoke transaction fields for testing, as it is consumed when creating an account
@@ -539,7 +541,7 @@ fn test_invoke_tx(
     let total_gas = expected_actual_resources.to_gas_vector(
         &block_context.versioned_constants,
         block_context.block_info.use_kzg_da,
-        &GasVectorComputationMode::NoL2Gas,
+        &resource_bounds.get_gas_vector_computation_mode(),
     );
 
     let expected_execution_info = TransactionExecutionInfo {
