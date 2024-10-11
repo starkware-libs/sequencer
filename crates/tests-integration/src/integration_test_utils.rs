@@ -23,11 +23,13 @@ pub async fn create_config(
     rpc_server_addr: SocketAddr,
     batcher_storage_config: StorageConfig,
 ) -> SequencerNodeConfig {
+    let chain_id = batcher_storage_config.db_config.chain_id.clone();
     let batcher_config = create_batcher_config(batcher_storage_config);
     let gateway_config = create_gateway_config().await;
     let http_server_config = create_http_server_config().await;
     let rpc_state_reader_config = test_rpc_state_reader_config(rpc_server_addr);
     SequencerNodeConfig {
+        chain_id,
         batcher_config,
         gateway_config,
         http_server_config,

@@ -10401,6 +10401,7 @@ dependencies = [
  "strum 0.25.0",
  "tempfile",
  "tokio",
+ "tracing",
 ]
 
 [[package]]

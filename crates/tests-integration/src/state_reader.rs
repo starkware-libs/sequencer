@@ -58,6 +58,7 @@ type ContractClassesMap =
     (Vec<(ClassHash, DeprecatedContractClass)>, Vec<(ClassHash, CasmContractClass)>);
 
 pub struct StorageTestSetup {
+    // TODO(Tsabary): add chain id as member.
     pub rpc_storage_reader: StorageReader,
     pub rpc_storage_handle: TempDir,
     pub batcher_storage_config: StorageConfig,
