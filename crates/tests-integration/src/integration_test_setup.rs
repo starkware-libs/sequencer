@@ -6,9 +6,8 @@ use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_http_server::config::HttpServerConfig;
-use starknet_mempool_infra::errors::ComponentServerError;
 use starknet_mempool_infra::trace_util::configure_tracing;
-use starknet_mempool_node::servers::get_server_future;
+use starknet_mempool_node::servers::run_component_servers;
 use starknet_mempool_node::utils::create_node_modules;
 use starknet_mempool_types::communication::SharedMempoolClient;
 use starknet_task_executor::tokio_executor::TokioExecutor;
@@ -21,17 +20,19 @@ use crate::state_reader::{spawn_test_rpc_state_reader, StorageTestSetup};
 
 pub struct IntegrationTestSetup {
     pub task_executor: TokioExecutor,
-    pub http_test_client: HttpTestClient,
 
+    // Client for adding transactions to the sequencer node.
+    pub add_tx_http_client: HttpTestClient,
+
+    // Handlers for the storage files, maintained so the files are not deleted.
     pub batcher_storage_file_handle: TempDir,
+    pub rpc_storage_file_handle: TempDir,
+
     // TODO(Arni): Replace with a batcher server handle and a batcher client.
     pub mempool_client: SharedMempoolClient,
 
-    pub rpc_storage_file_handle: TempDir,
-    pub gateway_handle: JoinHandle<Result<(), ComponentServerError>>,
-
-    pub http_server_handle: JoinHandle<Result<(), ComponentServerError>>,
-    pub mempool_handle: JoinHandle<Result<(), ComponentServerError>>,
+    // Handle of the sequencer node.
+    pub sequencer_node_handle: JoinHandle<Result<(), anyhow::Error>>,
 }
 
 impl IntegrationTestSetup {
@@ -55,41 +56,33 @@ impl IntegrationTestSetup {
         let (clients, servers) = create_node_modules(&config);
 
         let HttpServerConfig { ip, port } = config.http_server_config;
-        let http_test_client = HttpTestClient::new(SocketAddr::from((ip, port)));
+        let add_tx_http_client = HttpTestClient::new(SocketAddr::from((ip, port)));
 
-        let gateway_future = get_server_future(servers.local_servers.gateway);
-        let gateway_handle = task_executor.spawn_with_handle(gateway_future);
-
-        let http_server_future = get_server_future(servers.wrapper_servers.http_server);
-        let http_server_handle = task_executor.spawn_with_handle(http_server_future);
+        // Build and run the sequencer node.
+        let sequencer_node_future = run_component_servers(servers);
+        let sequencer_node_handle = task_executor.spawn_with_handle(sequencer_node_future);
 
         // Wait for server to spin up.
-        // TODO(Gilad): Replace with a persistant Client with a built-in retry mechanism,
-        // to avoid the sleep and to protect against CI flakiness.
+        // TODO(Gilad): Replace with a persistent Client with a built-in retry to protect against CI
+        // flakiness.
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-
-        // Build and run mempool.
-        let mempool_future = get_server_future(servers.local_servers.mempool);
-        let mempool_handle = task_executor.spawn_with_handle(mempool_future);
 
         Self {
             task_executor,
-            http_test_client,
+            add_tx_http_client,
             batcher_storage_file_handle: storage_for_test.batcher_storage_handle,
             mempool_client: clients.get_mempool_client().unwrap().clone(),
             rpc_storage_file_handle: storage_for_test.rpc_storage_handle,
-            gateway_handle,
-            http_server_handle,
-            mempool_handle,
+            sequencer_node_handle,
         }
     }
 
     pub async fn assert_add_tx_success(&self, tx: &RpcTransaction) -> TransactionHash {
-        self.http_test_client.assert_add_tx_success(tx).await
+        self.add_tx_http_client.assert_add_tx_success(tx).await
     }
 
     pub async fn assert_add_tx_error(&self, tx: &RpcTransaction) -> GatewaySpecError {
-        self.http_test_client.assert_add_tx_error(tx).await
+        self.add_tx_http_client.assert_add_tx_error(tx).await
     }
 
     pub async fn get_txs(&self, n_txs: usize) -> Vec<Transaction> {
