@@ -141,7 +141,7 @@ fn test_get_execution_info(
     }
 
     let tx_hash = TransactionHash(felt!(1991_u16));
-    let max_fee = Fee(42);
+    let max_fee = Fee(42 * crate::test_utils::DEFAULT_ETH_L1_GAS_PRICE.get().0);
     let nonce = nonce!(3_u16);
     let sender_address = test_contract_address;
 
@@ -246,11 +246,9 @@ fn test_get_execution_info(
 
     let result = match execution_mode {
         ExecutionMode::Validate => {
-            entry_point_call.execute_directly_given_tx_info_in_validate_mode(state, tx_info, false)
+            entry_point_call.execute_directly_given_tx_info_in_validate_mode(state, tx_info)
         }
-        ExecutionMode::Execute => {
-            entry_point_call.execute_directly_given_tx_info(state, tx_info, false)
-        }
+        ExecutionMode::Execute => entry_point_call.execute_directly_given_tx_info(state, tx_info),
     };
 
     assert!(!result.unwrap().execution.failed);
