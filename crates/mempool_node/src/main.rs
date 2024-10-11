@@ -17,12 +17,14 @@ async fn main() -> anyhow::Result<()> {
     if let Err(ConfigError::CommandInput(clap_err)) = config {
         clap_err.exit();
     }
+    info!("Finished loading configuration.");
 
     let config = config?;
     if let Err(error) = config_validate(&config) {
         error!("{}", error);
         exit(1);
     }
+    info!("Finished validating configuration.");
 
     // Clients are currently unused, but should not be dropped.
     let (_clients, servers) = create_node_modules(&config);
@@ -30,5 +32,6 @@ async fn main() -> anyhow::Result<()> {
     info!("Starting components!");
     run_component_servers(&config, servers).await?;
 
+    // TODO(Tsabary): Add graceful shutdown.
     Ok(())
 }
