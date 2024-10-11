@@ -8,6 +8,7 @@
 
 # We start by creating a base image using 'clux/muslrust' with additional required tools.
 FROM ubuntu:22.04 AS base
+USER worker
 WORKDIR /app
 
 COPY scripts/install_build_tools.sh .
