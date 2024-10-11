@@ -7,7 +7,7 @@ use starknet_api::core::ContractAddress;
 use starknet_api::execution_resources::GasVector;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::ValidResourceBounds::{AllResources, L1Gas};
-use starknet_api::transaction::{AllResourceBounds, Fee, GasVectorComputationMode, Resource};
+use starknet_api::transaction::{Fee, GasVectorComputationMode, Resource};
 use starknet_types_core::felt::Felt;
 
 use crate::abi::abi_utils::get_fee_token_var_address;
@@ -125,17 +125,10 @@ pub fn verify_can_pay_committed_bounds(
                     max_price: l1_gas.max_price_per_unit,
                     balance: balance_to_big_uint(&balance_low, &balance_high),
                 },
-                AllResources(AllResourceBounds { l1_gas, l2_gas, l1_data_gas }) => {
-                    TransactionFeeError::ResourcesBoundsExceedBalance {
-                        balance: balance_to_big_uint(&balance_low, &balance_high),
-                        l1_max_amount: l1_gas.max_amount,
-                        l1_max_price: l1_gas.max_price_per_unit,
-                        l1_data_max_amount: l1_data_gas.max_amount,
-                        l1_data_max_price: l1_data_gas.max_price_per_unit,
-                        l2_max_amount: l2_gas.max_amount,
-                        l2_max_price: l2_gas.max_price_per_unit,
-                    }
-                }
+                AllResources(bounds) => TransactionFeeError::ResourcesBoundsExceedBalance {
+                    bounds: bounds.clone(),
+                    balance: balance_to_big_uint(&balance_low, &balance_high),
+                },
             },
             TransactionInfo::Deprecated(context) => TransactionFeeError::MaxFeeExceedsBalance {
                 max_fee: context.max_fee,
