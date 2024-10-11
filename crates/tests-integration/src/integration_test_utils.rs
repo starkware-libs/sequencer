@@ -2,7 +2,12 @@ use std::net::SocketAddr;
 
 use axum::body::Body;
 use blockifier::context::ChainInfo;
-use mempool_test_utils::starknet_api_test_utils::rpc_tx_to_json;
+use blockifier::test_utils::contracts::FeatureContract;
+use blockifier::test_utils::CairoVersion;
+use mempool_test_utils::starknet_api_test_utils::{
+    rpc_tx_to_json,
+    MultiAccountTransactionGenerator,
+};
 use papyrus_storage::StorageConfig;
 use reqwest::{Client, Response};
 use starknet_api::rpc_transaction::RpcTransaction;
@@ -98,6 +103,21 @@ impl HttpTestClient {
             .await
             .unwrap()
     }
+}
+
+/// Creates a multi-account transaction generator for integration tests.
+pub fn create_integration_test_tx_generator() -> MultiAccountTransactionGenerator {
+    // TODO(Tsabary): Code duplication with the end-to-end test. Refactor to avoid it.
+    let mut tx_generator: MultiAccountTransactionGenerator =
+        MultiAccountTransactionGenerator::new();
+
+    for account in [
+        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1),
+        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0),
+    ] {
+        tx_generator.register_account_for_flow_test(account);
+    }
+    tx_generator
 }
 
 async fn create_gateway_config() -> GatewayConfig {
