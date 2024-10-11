@@ -25,6 +25,7 @@ use starknet_api::transaction::{
     Fee,
     GasVectorComputationMode,
     L2ToL1Payload,
+    Resource,
     ResourceBounds,
     TransactionSignature,
     TransactionVersion,
@@ -1287,49 +1288,82 @@ fn test_insufficient_resource_bounds(
     );
 }
 
-// TODO(Aner, 21/01/24) modify test for 4844.
 #[rstest]
+#[case::l1_bounds(default_l1_resource_bounds(), Resource::L1Gas)]
+#[case::all_bounds_l1_gas_overdraft(default_all_resource_bounds(), Resource::L1Gas)]
+#[case::all_bounds_l2_gas_overdraft(default_all_resource_bounds(), Resource::L2Gas)]
+#[case::all_bounds_l1_data_gas_overdraft(default_all_resource_bounds(), Resource::L1DataGas)]
 fn test_actual_fee_gt_resource_bounds(
-    block_context: BlockContext,
-    default_l1_resource_bounds: ValidResourceBounds,
+    mut block_context: BlockContext,
+    #[case] resource_bounds: ValidResourceBounds,
+    #[case] overdraft_resource: Resource,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] account_cairo_version: CairoVersion,
 ) {
-    let block_context = &block_context;
+    let block_context = &mut block_context;
+    block_context.block_info.use_kzg_da = true;
+    let mut nonce_manager = NonceManager::default();
+    let gas_mode = resource_bounds.get_gas_vector_computation_mode();
+    let gas_prices = block_context.block_info.gas_prices.get_gas_prices_by_fee_type(&FeeType::Strk);
     let account_contract = FeatureContract::AccountWithoutValidations(account_cairo_version);
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
     let state = &mut test_state(
         &block_context.chain_info,
         BALANCE,
-        &[(account_contract, 1), (test_contract, 1)],
+        &[(account_contract, 2), (test_contract, 1)],
     );
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: account_contract.get_instance_address(0),
-        calldata: create_trivial_calldata(test_contract.get_instance_address(0)),
-        resource_bounds: default_l1_resource_bounds
+    let sender_address0 = account_contract.get_instance_address(0);
+    let sender_address1 = account_contract.get_instance_address(1);
+    let tx_args = invoke_tx_args! {
+        sender_address: sender_address0,
+        calldata: create_calldata(
+            test_contract.get_instance_address(0), "write_a_lot", &[felt!(2_u8), felt!(7_u8)]
+        ),
+        resource_bounds,
+        nonce: nonce_manager.next(sender_address0),
     };
-    let tx = &account_invoke_tx(invoke_tx_args.clone());
-    let minimal_l1_gas =
-        estimate_minimal_gas_vector(block_context, tx, &GasVectorComputationMode::NoL2Gas).l1_gas;
-    let minimal_resource_bounds = l1_resource_bounds(
-        minimal_l1_gas,
-        block_context.block_info.gas_prices.get_l1_gas_price_by_fee_type(&FeeType::Strk).into(),
-    );
-    // The estimated minimal fee is lower than the actual fee.
-    let invalid_tx = account_invoke_tx(
-        invoke_tx_args! { resource_bounds: minimal_resource_bounds, ..invoke_tx_args },
-    );
 
+    // Execute the tx to compute the final gas costs.
+    let tx = &account_invoke_tx(tx_args.clone());
+    let execution_result = tx.execute(state, block_context, true, true).unwrap();
+    let mut actual_gas = execution_result.receipt.gas;
+
+    // Create new gas bounds that are lower than the actual gas.
+    let (expected_fee, overdraft_resource_bounds) = match gas_mode {
+        GasVectorComputationMode::NoL2Gas => {
+            let l1_gas_bound = GasAmount(actual_gas.to_discounted_l1_gas(gas_prices).0 - 1);
+            (
+                GasVector::from_l1_gas(l1_gas_bound).cost(gas_prices),
+                l1_resource_bounds(l1_gas_bound, gas_prices.l1_gas_price.into()),
+            )
+        }
+        GasVectorComputationMode::All => {
+            match overdraft_resource {
+                Resource::L1Gas => actual_gas.l1_gas.0 -= 1,
+                Resource::L2Gas => actual_gas.l2_gas.0 -= 1,
+                Resource::L1DataGas => actual_gas.l1_data_gas.0 -= 1,
+            }
+            (
+                actual_gas.cost(gas_prices),
+                ValidResourceBounds::all_bounds_from_vectors(&actual_gas, gas_prices),
+            )
+        }
+    };
+    let invalid_tx = account_invoke_tx(invoke_tx_args! {
+        sender_address: sender_address1,
+        resource_bounds: overdraft_resource_bounds,
+        // To get the same DA cost, write a different value.
+        calldata: create_calldata(
+            test_contract.get_instance_address(0), "write_a_lot", &[felt!(2_u8), felt!(8_u8)]
+        ),
+        nonce: nonce_manager.next(sender_address1),
+    });
     let execution_result = invalid_tx.execute(state, block_context, true, true).unwrap();
     let execution_error = execution_result.revert_error.unwrap();
-    // Test error.
-    assert!(execution_error.starts_with(&format!("Insufficient max {resource}", resource = L1Gas)));
-    // Test that fee was charged.
-    let minimal_fee = minimal_l1_gas
-        .checked_mul(
-            block_context.block_info.gas_prices.get_l1_gas_price_by_fee_type(&FeeType::Strk).into(),
-        )
-        .unwrap();
-    assert_eq!(execution_result.receipt.fee, minimal_fee);
+
+    // Test error and that fee was charged. Should be at most the fee charged in a successful
+    // execution.
+    assert!(execution_error.starts_with(&format!("Insufficient max {overdraft_resource}")));
+    assert_eq!(execution_result.receipt.fee, expected_fee);
 }
 
 #[rstest]
