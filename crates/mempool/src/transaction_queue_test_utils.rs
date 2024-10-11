@@ -15,12 +15,14 @@ pub struct TransactionQueueContent {
 }
 
 impl TransactionQueueContent {
-    pub fn assert_eq_priority_queue_content(&self, tx_queue: &TransactionQueue) {
-        assert_eq!(self.priority_queue.as_ref().unwrap(), &tx_queue.priority_queue);
-    }
+    pub fn assert_eq(&self, tx_queue: &TransactionQueue) {
+        if let Some(priority_queue) = &self.priority_queue {
+            assert_eq!(&tx_queue.priority_queue, priority_queue);
+        }
 
-    pub fn _assert_eq_pending_queue_content(&self, tx_queue: &TransactionQueue) {
-        assert_eq!(self.pending_queue.as_ref().unwrap(), &tx_queue.pending_queue);
+        if let Some(pending_queue) = &self.pending_queue {
+            assert_eq!(&tx_queue.pending_queue, pending_queue);
+        }
     }
 
     pub fn complete_to_tx_queue(self) -> TransactionQueue {
@@ -40,7 +42,12 @@ impl TransactionQueueContent {
             }
         }
 
-        TransactionQueue { priority_queue, pending_queue, address_to_tx, gas_price_threshold: 0 }
+        TransactionQueue {
+            priority_queue,
+            pending_queue,
+            address_to_tx,
+            gas_price_threshold: 0_u8.into(),
+        }
     }
 }
 

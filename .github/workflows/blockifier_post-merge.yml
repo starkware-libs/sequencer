@@ -8,6 +8,7 @@ on:
       - '.github/workflows/blockifier_post-merge.yml'
       - 'crates/blockifier/**'
       - 'crates/native_blockifier/**'
+      - 'scripts/dependencies.sh'
 
 jobs:
   if_merged:
@@ -16,7 +17,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
-      - uses: Noelware/setup-protoc@1.1.0
 
       # Setup pypy and link to the location expected by .cargo/config.toml.
       - uses: actions/setup-python@v5

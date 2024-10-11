@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   # TODO: Uncomment and run this automatically when the storage benchmark is fixed.
   # push:
-  # branches: [main]
+    # branches: [main]
 
 jobs:
   storage-benchmark:

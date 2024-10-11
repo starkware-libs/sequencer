@@ -1,9 +1,9 @@
 use std::net::SocketAddr;
 
 use axum::body::Body;
+use blockifier::context::ChainInfo;
 use mempool_test_utils::starknet_api_test_utils::rpc_tx_to_json;
-use papyrus_storage::test_utils::get_test_config;
-use papyrus_storage::StorageScope::StateOnly;
+use papyrus_storage::StorageConfig;
 use reqwest::{Client, Response};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
@@ -16,8 +16,7 @@ use starknet_gateway::config::{
 };
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_http_server::config::HttpServerConfig;
-use starknet_mempool_node::config::MempoolNodeConfig;
-use tempfile::TempDir;
+use starknet_mempool_node::config::SequencerNodeConfig;
 use tokio::net::TcpListener;
 
 async fn create_gateway_config() -> GatewayConfig {
@@ -27,10 +26,10 @@ async fn create_gateway_config() -> GatewayConfig {
         max_signature_length: 2,
         ..Default::default()
     };
+    let stateful_tx_validator_config = StatefulTransactionValidatorConfig::default();
+    let chain_info = ChainInfo::create_for_testing();
 
-    let stateful_tx_validator_config = StatefulTransactionValidatorConfig::create_for_testing();
-
-    GatewayConfig { stateless_tx_validator_config, stateful_tx_validator_config }
+    GatewayConfig { stateless_tx_validator_config, stateful_tx_validator_config, chain_info }
 }
 
 async fn create_http_server_config() -> HttpServerConfig {
@@ -38,20 +37,21 @@ async fn create_http_server_config() -> HttpServerConfig {
     HttpServerConfig { ip: socket.ip(), port: socket.port() }
 }
 
-pub async fn create_config(rpc_server_addr: SocketAddr) -> (MempoolNodeConfig, TempDir) {
-    let (batcher_config, storage_file_handle) = create_batcher_config();
+pub async fn create_config(
+    rpc_server_addr: SocketAddr,
+    batcher_storage_config: StorageConfig,
+) -> SequencerNodeConfig {
+    let batcher_config = create_batcher_config(batcher_storage_config);
     let gateway_config = create_gateway_config().await;
     let http_server_config = create_http_server_config().await;
     let rpc_state_reader_config = test_rpc_state_reader_config(rpc_server_addr);
-    let mempool_node_config = MempoolNodeConfig {
+    SequencerNodeConfig {
         batcher_config,
         gateway_config,
         http_server_config,
         rpc_state_reader_config,
-        ..MempoolNodeConfig::default()
-    };
-
-    (mempool_node_config, storage_file_handle)
+        ..SequencerNodeConfig::default()
+    }
 }
 
 /// A test utility client for interacting with an http server.
@@ -101,11 +101,8 @@ fn test_rpc_state_reader_config(rpc_server_addr: SocketAddr) -> RpcStateReaderCo
     }
 }
 
-fn create_batcher_config() -> (BatcherConfig, TempDir) {
-    let storage_scope = Some(StateOnly);
-    // Need to keep the file handle alive to prevent the tempdir from being deleted.
-    let (storage_test_config, tempdir_file_handle) = get_test_config(storage_scope);
-    (BatcherConfig { storage: storage_test_config }, tempdir_file_handle)
+fn create_batcher_config(batcher_storage_config: StorageConfig) -> BatcherConfig {
+    BatcherConfig { storage: batcher_storage_config, ..Default::default() }
 }
 
 /// Returns a unique IP address and port for testing purposes.

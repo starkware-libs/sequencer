@@ -1,10 +1,10 @@
 use std::any::type_name;
 use std::collections::BTreeMap;
 use std::fmt::Debug;
-use std::net::IpAddr;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 
 use async_trait::async_trait;
-use papyrus_config::dumping::{ser_param, SerializeConfig};
+use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -17,6 +17,8 @@ use crate::errors::ComponentError;
 pub const APPLICATION_OCTET_STREAM: &str = "application/octet-stream";
 const DEFAULT_CHANNEL_BUFFER_SIZE: usize = 32;
 const DEFAULT_RETRIES: usize = 3;
+const DEFAULT_IDLE_CONNECTIONS: usize = usize::MAX;
+const DEFAULT_IDLE_TIMEOUT: u64 = 90;
 
 #[async_trait]
 pub trait ComponentRequestHandler<Request, Response> {
@@ -26,7 +28,7 @@ pub trait ComponentRequestHandler<Request, Response> {
 #[async_trait]
 pub trait ComponentStarter {
     async fn start(&mut self) -> Result<(), ComponentError> {
-        info!("Starting component {}.", type_name::<Self>());
+        info!("Starting component {} with the default starter.", type_name::<Self>());
         Ok(())
     }
 }
@@ -65,6 +67,9 @@ pub enum ServerError {
     RequestDeserializationFailure(String),
 }
 
+// TODO(Nadin): Refactor this into two separate structs: LocalClientConfig (empty struct for the
+// client) and LocalServerConfig (which holds the current channel_buffer_size field).
+
 // The communication configuration of the local component.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct LocalComponentCommunicationConfig {
@@ -88,27 +93,33 @@ impl Default for LocalComponentCommunicationConfig {
     }
 }
 
-// The communication configuration of the remote component.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
-pub struct RemoteComponentCommunicationConfig {
-    pub ip: IpAddr,
-    pub port: u16,
+pub struct RemoteClientConfig {
+    pub socket: SocketAddr,
     pub retries: usize,
+    pub idle_connections: usize,
+    pub idle_timeout: u64,
 }
 
-impl SerializeConfig for RemoteComponentCommunicationConfig {
+impl Default for RemoteClientConfig {
+    fn default() -> Self {
+        let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 8080);
+        Self {
+            socket,
+            retries: DEFAULT_RETRIES,
+            idle_connections: DEFAULT_IDLE_CONNECTIONS,
+            idle_timeout: DEFAULT_IDLE_TIMEOUT,
+        }
+    }
+}
+
+impl SerializeConfig for RemoteClientConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from_iter([
             ser_param(
-                "ip",
-                &self.ip.to_string(),
-                "The remote component server ip.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "port",
-                &self.port,
-                "The remote component server port.",
+                "socket",
+                &self.socket.to_string(),
+                "The remote component socket.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -117,12 +128,57 @@ impl SerializeConfig for RemoteComponentCommunicationConfig {
                 "The max number of retries for sending a message.",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "idle_connections",
+                &self.idle_connections,
+                "The maximum number of idle connections to keep alive.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "idle_timeout",
+                &self.idle_timeout,
+                "The duration in seconds to keep an idle connection open before closing.",
+                ParamPrivacyInput::Public,
+            ),
         ])
     }
 }
 
-impl Default for RemoteComponentCommunicationConfig {
+#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
+pub struct RemoteServerConfig {
+    pub socket: SocketAddr,
+}
+
+impl Default for RemoteServerConfig {
     fn default() -> Self {
-        Self { ip: "0.0.0.0".parse().unwrap(), port: 8080, retries: DEFAULT_RETRIES }
+        let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 8080);
+        Self { socket }
+    }
+}
+
+impl SerializeConfig for RemoteServerConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([ser_param(
+            "socket",
+            &self.socket.to_string(),
+            "The remote component socket.",
+            ParamPrivacyInput::Public,
+        )])
+    }
+}
+
+// The communication configuration of the remote component.
+#[derive(Clone, Default, Debug, Serialize, Deserialize, Validate, PartialEq)]
+pub struct RemoteComponentCommunicationConfig {
+    pub client_config: RemoteClientConfig,
+    pub server_config: RemoteServerConfig,
+}
+
+impl SerializeConfig for RemoteComponentCommunicationConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        let mut result = append_sub_config_name(self.client_config.dump(), "client_config");
+        let server_config_dump = append_sub_config_name(self.server_config.dump(), "server_config");
+        result.extend(server_config_dump);
+        result
     }
 }

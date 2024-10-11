@@ -1,13 +1,14 @@
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use starknet_api::execution_resources::GasVector;
+use starknet_api::transaction::GasVectorComputationMode;
 
 use super::fee_utils::get_vm_resources_cost;
 use crate::abi::constants;
 use crate::context::BlockContext;
 use crate::fee::eth_gas_constants;
-use crate::fee::resources::{GasVector, GasVectorComputationMode};
 use crate::state::cached_state::StateChangesCount;
 use crate::transaction::account_transaction::AccountTransaction;
-use crate::utils::u128_from_usize;
+use crate::utils::u64_from_usize;
 
 #[cfg(test)]
 #[path = "gas_usage_test.rs"]
@@ -41,10 +42,11 @@ pub fn get_da_gas_cost(state_changes_count: &StateChangesCount, use_kzg_da: bool
 
     let (l1_gas, blob_gas) = if use_kzg_da {
         (
-            0,
-            u128_from_usize(
+            0_u8.into(),
+            u64_from_usize(
                 onchain_data_segment_length * eth_gas_constants::DATA_GAS_PER_FIELD_ELEMENT,
-            ),
+            )
+            .into(),
         )
     } else {
         // TODO(Yoni, 1/5/2024): count the exact amount of nonzero bytes for each DA entry.
@@ -69,7 +71,7 @@ pub fn get_da_gas_cost(state_changes_count: &StateChangesCount, use_kzg_da: bool
             naive_cost - discount
         };
 
-        (u128_from_usize(gas), 0)
+        (u64_from_usize(gas).into(), 0_u8.into())
     };
 
     GasVector { l1_gas, l1_data_gas: blob_gas, ..Default::default() }
@@ -133,11 +135,14 @@ pub fn get_log_message_to_l1_emissions_cost(l2_to_l1_payload_lengths: &[usize]) 
 }
 
 fn get_event_emission_cost(n_topics: usize, data_length: usize) -> GasVector {
-    GasVector::from_l1_gas(u128_from_usize(
-        eth_gas_constants::GAS_PER_LOG
-            + (n_topics + constants::N_DEFAULT_TOPICS) * eth_gas_constants::GAS_PER_LOG_TOPIC
-            + data_length * eth_gas_constants::GAS_PER_LOG_DATA_WORD,
-    ))
+    GasVector::from_l1_gas(
+        u64_from_usize(
+            eth_gas_constants::GAS_PER_LOG
+                + (n_topics + constants::N_DEFAULT_TOPICS) * eth_gas_constants::GAS_PER_LOG_TOPIC
+                + data_length * eth_gas_constants::GAS_PER_LOG_DATA_WORD,
+        )
+        .into(),
+    )
 }
 
 /// Returns an estimated lower bound for the gas required by the given account transaction.

@@ -1,8 +1,7 @@
 use std::any::Any;
-use std::collections::{HashMap, HashSet};
+use std::collections::{hash_map, HashMap, HashSet};
 
 use cairo_lang_casm::hints::{Hint, StarknetHint};
-use cairo_lang_casm::operand::{BinOpOperand, DerefOrImmediate, Operation, Register, ResOperand};
 use cairo_lang_runner::casm_run::execute_core_hint_base;
 use cairo_vm::hint_processor::hint_processor_definition::{HintProcessorLogic, HintReference};
 use cairo_vm::serde::deserialize_program::ApTracking;
@@ -194,6 +193,9 @@ pub const OUT_OF_GAS_ERROR: &str =
 // "Block number out of range";
 pub const BLOCK_NUMBER_OUT_OF_RANGE_ERROR: &str =
     "0x00000000000000426c6f636b206e756d626572206f7574206f662072616e6765";
+// "ENTRYPOINT_FAILED";
+pub const ENTRYPOINT_FAILED_ERROR: &str =
+    "0x000000000000000000000000000000454e545259504f494e545f4641494c4544";
 // "Invalid input length";
 pub const INVALID_INPUT_LENGTH_ERROR: &str =
     "0x000000000000000000000000496e76616c696420696e707574206c656e677468";
@@ -225,6 +227,10 @@ pub struct SyscallHintProcessor<'a> {
     pub read_values: Vec<Felt>,
     pub accessed_keys: HashSet<StorageKey>,
 
+    // The original storage value of the executed contract.
+    // Should be moved back `context.revert_info` before executing an inner call.
+    pub original_values: HashMap<StorageKey, Felt>,
+
     // Secp hint processors.
     pub secp256k1_hint_processor: SecpHintProcessor<ark_secp256k1::Config>,
     pub secp256r1_hint_processor: SecpHintProcessor<ark_secp256r1::Config>,
@@ -247,6 +253,14 @@ impl<'a> SyscallHintProcessor<'a> {
         hints: &'a HashMap<String, Hint>,
         read_only_segments: ReadOnlySegments,
     ) -> Self {
+        let original_values = std::mem::take(
+            &mut context
+                .revert_infos
+                .0
+                .last_mut()
+                .expect("Missing contract revert info.")
+                .original_values,
+        );
         SyscallHintProcessor {
             state,
             resources,
@@ -260,6 +274,7 @@ impl<'a> SyscallHintProcessor<'a> {
             syscall_ptr: initial_syscall_ptr,
             read_values: vec![],
             accessed_keys: HashSet::new(),
+            original_values,
             hints,
             execution_info_ptr: None,
             secp256k1_hint_processor: SecpHintProcessor::default(),
@@ -288,17 +303,6 @@ impl<'a> SyscallHintProcessor<'a> {
         self.execution_mode() == ExecutionMode::Validate
     }
 
-    pub fn verify_syscall_ptr(&self, actual_ptr: Relocatable) -> SyscallResult<()> {
-        if actual_ptr != self.syscall_ptr {
-            return Err(SyscallExecutionError::BadSyscallPointer {
-                expected_ptr: self.syscall_ptr,
-                actual_ptr,
-            });
-        }
-
-        Ok(())
-    }
-
     /// Infers and executes the next syscall.
     /// Must comply with the API of a hint function, as defined by the `HintProcessor`.
     pub fn execute_next_syscall(
@@ -306,13 +310,11 @@ impl<'a> SyscallHintProcessor<'a> {
         vm: &mut VirtualMachine,
         hint: &StarknetHint,
     ) -> HintExecutionResult {
-        let StarknetHint::SystemCall { system: syscall } = hint else {
+        let StarknetHint::SystemCall { .. } = hint else {
             return Err(HintError::Internal(VirtualMachineError::Other(anyhow::anyhow!(
                 "Test functions are unsupported on starknet."
             ))));
         };
-        let initial_syscall_ptr = get_ptr_from_res_operand_unchecked(vm, syscall);
-        self.verify_syscall_ptr(initial_syscall_ptr)?;
 
         let selector = SyscallSelector::try_from(self.read_next_syscall_selector(vm)?)?;
 
@@ -689,31 +691,29 @@ impl<'a> SyscallHintProcessor<'a> {
         key: StorageKey,
         value: Felt,
     ) -> SyscallResult<StorageWriteResponse> {
+        let contract_address = self.storage_address();
+
+        match self.original_values.entry(key) {
+            hash_map::Entry::Vacant(entry) => {
+                entry.insert(self.state.get_storage_at(contract_address, key)?);
+            }
+            hash_map::Entry::Occupied(_) => {}
+        }
+
         self.accessed_keys.insert(key);
-        self.state.set_storage_at(self.storage_address(), key, value)?;
+        self.state.set_storage_at(contract_address, key, value)?;
 
         Ok(StorageWriteResponse {})
     }
-}
 
-/// Retrieves a [Relocatable] from the VM given a [ResOperand].
-/// A [ResOperand] represents a CASM result expression, and is deserialized with the hint.
-fn get_ptr_from_res_operand_unchecked(vm: &mut VirtualMachine, res: &ResOperand) -> Relocatable {
-    let (cell, base_offset) = match res {
-        ResOperand::Deref(cell) => (cell, Felt::from(0)),
-        ResOperand::BinOp(BinOpOperand {
-            op: Operation::Add,
-            a,
-            b: DerefOrImmediate::Immediate(b),
-        }) => (a, Felt::from(b.clone().value)),
-        _ => panic!("Illegal argument for a buffer."),
-    };
-    let base = match cell.register {
-        Register::AP => vm.get_ap(),
-        Register::FP => vm.get_fp(),
-    };
-    let cell_reloc = (base + (i32::from(cell.offset))).unwrap();
-    (vm.get_relocatable(cell_reloc).unwrap() + &base_offset).unwrap()
+    pub fn finalize(&mut self) {
+        self.context
+            .revert_infos
+            .0
+            .last_mut()
+            .expect("Missing contract revert info.")
+            .original_values = std::mem::take(&mut self.original_values);
+    }
 }
 
 impl ResourceTracker for SyscallHintProcessor<'_> {
@@ -791,22 +791,38 @@ pub fn execute_inner_call(
     syscall_handler: &mut SyscallHintProcessor<'_>,
     remaining_gas: &mut u64,
 ) -> SyscallResult<ReadOnlySegment> {
+    let revert_idx = syscall_handler.context.revert_infos.0.len();
+
     let call_info =
         call.execute(syscall_handler.state, syscall_handler.resources, syscall_handler.context)?;
-    let raw_retdata = &call_info.execution.retdata.0;
 
-    if call_info.execution.failed {
-        // TODO(spapini): Append an error word according to starknet spec if needed.
-        // Something like "EXECUTION_ERROR".
-        return Err(SyscallExecutionError::SyscallError { error_data: raw_retdata.clone() });
-    }
-
-    let retdata_segment = create_retdata_segment(vm, syscall_handler, raw_retdata)?;
+    let mut raw_retdata = call_info.execution.retdata.0.clone();
     update_remaining_gas(remaining_gas, &call_info);
 
+    let failed = call_info.execution.failed;
     syscall_handler.inner_calls.push(call_info);
+    if failed {
+        syscall_handler.context.revert(revert_idx, syscall_handler.state)?;
 
-    Ok(retdata_segment)
+        // Delete events and l2_to_l1_messages from the reverted call.
+        let reverted_call = &mut syscall_handler.inner_calls.last_mut().unwrap();
+        let mut stack: Vec<&mut CallInfo> = vec![reverted_call];
+        while let Some(call_info) = stack.pop() {
+            call_info.execution.events.clear();
+            call_info.execution.l2_to_l1_messages.clear();
+            // Add inner calls that did not fail to the stack.
+            // The events and l2_to_l1_messages of the failed calls were already cleared.
+            stack.extend(
+                call_info.inner_calls.iter_mut().filter(|call_info| !call_info.execution.failed),
+            );
+        }
+
+        raw_retdata
+            .push(Felt::from_hex(ENTRYPOINT_FAILED_ERROR).map_err(SyscallExecutionError::from)?);
+        return Err(SyscallExecutionError::SyscallError { error_data: raw_retdata });
+    }
+
+    create_retdata_segment(vm, syscall_handler, &raw_retdata)
 }
 
 pub fn create_retdata_segment(
@@ -843,12 +859,14 @@ pub fn execute_library_call(
         initial_gas: *remaining_gas,
     };
 
-    execute_inner_call(entry_point, vm, syscall_handler, remaining_gas).map_err(|error| {
-        error.as_lib_call_execution_error(
+    execute_inner_call(entry_point, vm, syscall_handler, remaining_gas).map_err(|error| match error
+    {
+        SyscallExecutionError::SyscallError { .. } => error,
+        _ => error.as_lib_call_execution_error(
             class_hash,
             syscall_handler.storage_address(),
             entry_point_selector,
-        )
+        ),
     })
 }
 

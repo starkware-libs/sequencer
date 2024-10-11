@@ -95,7 +95,7 @@ where
         |(x, report_sender)| (T::try_from(x), report_sender);
     let broadcasted_messages_receiver = broadcasted_messages_receiver.map(broadcasted_messages_fn);
 
-    let (reported_messages_sender, _mock_reported_messages_receiver) =
+    let (reported_messages_sender, mock_reported_messages_receiver) =
         futures::channel::mpsc::channel(CHANNEL_BUFFER_SIZE);
     let reported_messages_fn: fn(BroadcastedMessageManager) -> Ready<Result<PeerId, SendError>> =
         |broadcasted_message_manager| {
@@ -103,16 +103,16 @@ where
         };
     let reported_messages_sender = reported_messages_sender.with(reported_messages_fn);
 
-    let (continue_propagation_sender, _mock_continue_propagation_receiver) =
+    let (continue_propagation_sender, mock_continue_propagation_receiver) =
         futures::channel::mpsc::channel(CHANNEL_BUFFER_SIZE);
 
     let subscriber_channels = BroadcastTopicChannels {
         broadcasted_messages_receiver,
-        broadcast_topic_client: BroadcastTopicClient {
+        broadcast_topic_client: BroadcastTopicClient::new(
             messages_to_broadcast_sender,
             reported_messages_sender,
             continue_propagation_sender,
-        },
+        ),
     };
 
     let mock_broadcasted_messages_fn: MockBroadcastedMessagesFn<T> =
@@ -132,6 +132,8 @@ where
     let mock_network = BroadcastNetworkMock {
         broadcasted_messages_sender: mock_broadcasted_messages_sender,
         messages_to_broadcast_receiver: mock_messages_to_broadcast_receiver,
+        reported_messages_receiver: mock_reported_messages_receiver,
+        continue_propagation_receiver: mock_continue_propagation_receiver,
     };
 
     Ok(TestSubscriberChannels { subscriber_channels, mock_network })
@@ -195,6 +197,8 @@ pub type MockMessagesToBroadcastReceiver<T> = Map<Receiver<Bytes>, fn(Bytes) -> 
 pub struct BroadcastNetworkMock<T: TryFrom<Bytes>> {
     pub broadcasted_messages_sender: MockBroadcastedMessagesSender<T>,
     pub messages_to_broadcast_receiver: MockMessagesToBroadcastReceiver<T>,
+    pub reported_messages_receiver: Receiver<PeerId>,
+    pub continue_propagation_receiver: Receiver<BroadcastedMessageManager>,
 }
 
 pub struct TestSubscriberChannels<T: TryFrom<Bytes>> {

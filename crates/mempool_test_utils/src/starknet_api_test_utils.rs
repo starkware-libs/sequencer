@@ -10,9 +10,11 @@ use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{create_trivial_calldata, CairoVersion};
 use pretty_assertions::assert_ne;
 use serde_json::to_string_pretty;
+use starknet_api::block::GasPrice;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::executable_transaction::Transaction;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::{
     ContractClass,
     RpcDeclareTransactionV3,
@@ -97,40 +99,27 @@ pub fn rpc_tx_for_testing(
 }
 
 pub const NON_EMPTY_RESOURCE_BOUNDS: ResourceBounds =
-    ResourceBounds { max_amount: 1, max_price_per_unit: 1 };
-
-// TODO(Nimrod): Delete this function.
-pub fn create_resource_bounds_mapping(
-    l1_resource_bounds: ResourceBounds,
-    l2_resource_bounds: ResourceBounds,
-    l1_data_resource_bounds: ResourceBounds,
-) -> AllResourceBounds {
-    AllResourceBounds {
-        l1_gas: l1_resource_bounds,
-        l2_gas: l2_resource_bounds,
-        l1_data_gas: l1_data_resource_bounds,
-    }
-}
+    ResourceBounds { max_amount: GasAmount(1), max_price_per_unit: GasPrice(1) };
 
 pub fn zero_resource_bounds_mapping() -> AllResourceBounds {
     AllResourceBounds::default()
 }
 
 pub fn test_resource_bounds_mapping() -> AllResourceBounds {
-    create_resource_bounds_mapping(
-        ResourceBounds {
-            max_amount: VALID_L1_GAS_MAX_AMOUNT,
-            max_price_per_unit: VALID_L1_GAS_MAX_PRICE_PER_UNIT,
+    AllResourceBounds {
+        l1_gas: ResourceBounds {
+            max_amount: GasAmount(VALID_L1_GAS_MAX_AMOUNT),
+            max_price_per_unit: GasPrice(VALID_L1_GAS_MAX_PRICE_PER_UNIT),
         },
-        ResourceBounds {
-            max_amount: VALID_L2_GAS_MAX_AMOUNT,
-            max_price_per_unit: VALID_L2_GAS_MAX_PRICE_PER_UNIT,
+        l2_gas: ResourceBounds {
+            max_amount: GasAmount(VALID_L2_GAS_MAX_AMOUNT),
+            max_price_per_unit: GasPrice(VALID_L2_GAS_MAX_PRICE_PER_UNIT),
         },
-        ResourceBounds {
-            max_amount: VALID_L1_DATA_GAS_MAX_AMOUNT,
-            max_price_per_unit: VALID_L1_DATA_GAS_MAX_PRICE_PER_UNIT,
+        l1_data_gas: ResourceBounds {
+            max_amount: GasAmount(VALID_L1_DATA_GAS_MAX_AMOUNT),
+            max_price_per_unit: GasPrice(VALID_L1_DATA_GAS_MAX_PRICE_PER_UNIT),
         },
-    )
+    }
 }
 
 pub fn test_valid_resource_bounds() -> ValidResourceBounds {
@@ -234,9 +223,9 @@ type SharedNonceManager = Rc<RefCell<NonceManager>>;
 /// tx_generator.register_account_for_flow_test(some_account_type.clone());
 /// tx_generator.register_account_for_flow_test(some_account_type);
 ///
-/// let account_0_tx_with_nonce_0 = tx_generator.account_with_id(0).generate_invoke();
-/// let account_1_tx_with_nonce_0 = tx_generator.account_with_id(1).generate_invoke();
-/// let account_0_tx_with_nonce_1 = tx_generator.account_with_id(0).generate_invoke();
+/// let account_0_tx_with_nonce_0 = tx_generator.account_with_id(0).generate_invoke_with_tip(1);
+/// let account_1_tx_with_nonce_0 = tx_generator.account_with_id(1).generate_invoke_with_tip(3);
+/// let account_0_tx_with_nonce_1 = tx_generator.account_with_id(0).generate_invoke_with_tip(1);
 /// ```
 // Note: when moving this to starknet api crate, see if blockifier's
 // [blockifier::transaction::test_utils::FaultyAccountTxCreatorArgs] can be made to use this.
@@ -282,7 +271,7 @@ impl MultiAccountTransactionGenerator {
         self.register_account(account_contract);
     }
 
-    pub fn accounts(&self) -> Vec<FeatureAccount> {
+    pub fn accounts(&self) -> Vec<Contract> {
         self.account_tx_generators.iter().map(|tx_gen| &tx_gen.account).copied().collect()
     }
 }
@@ -296,13 +285,13 @@ impl MultiAccountTransactionGenerator {
 /// TODO: add more transaction generation methods as needed.
 #[derive(Debug)]
 pub struct AccountTransactionGenerator {
-    account: FeatureAccount,
+    account: Contract,
     nonce_manager: SharedNonceManager,
 }
 
 impl AccountTransactionGenerator {
     /// Generate a valid `RpcTransaction` with default parameters.
-    pub fn generate_invoke(&mut self) -> RpcTransaction {
+    pub fn generate_invoke_with_tip(&mut self, tip: u64) -> RpcTransaction {
         let nonce = self.next_nonce();
         assert_ne!(
             nonce,
@@ -310,11 +299,11 @@ impl AccountTransactionGenerator {
             "Cannot invoke on behalf of an undeployed account: the first transaction of every \
              account must be a deploy account transaction."
         );
-
         let invoke_args = invoke_tx_args!(
+            nonce,
+            tip : Tip(tip),
             sender_address: self.sender_address(),
             resource_bounds: test_resource_bounds_mapping(),
-            nonce,
             calldata: create_trivial_calldata(self.sender_address()),
         );
         rpc_invoke_tx(invoke_args)
@@ -343,7 +332,7 @@ impl AccountTransactionGenerator {
     ///
     /// Caller must manually handle bumping nonce and fetching the correct sender address via
     /// [AccountTransactionGenerator::next_nonce] and [AccountTransactionGenerator::sender_address].
-    /// See [AccountTransactionGenerator::generate_invoke] to have these filled up by
+    /// See [AccountTransactionGenerator::generate_invoke_with_tip] to have these filled up by
     /// default.
     ///
     /// Note: This is a best effort attempt to make the API more useful; amend or add new methods
@@ -378,7 +367,7 @@ impl AccountTransactionGenerator {
             generate_deploy_account_with_salt(&account, contract_address_salt);
 
         let mut account_tx_generator = Self {
-            account: FeatureAccount::new(account, &default_deploy_account_tx),
+            account: Contract::new_for_account(account, &default_deploy_account_tx),
             nonce_manager,
         };
         // Bump the account nonce after transaction creation.
@@ -394,25 +383,25 @@ impl AccountTransactionGenerator {
 // not related to an actual deploy account transaction, which is the way real account addresses are
 // calculated.
 #[derive(Clone, Copy, Debug)]
-pub struct FeatureAccount {
-    pub account: FeatureContract,
+pub struct Contract {
+    pub contract: FeatureContract,
     pub sender_address: ContractAddress,
 }
 
-impl FeatureAccount {
+impl Contract {
     pub fn class_hash(&self) -> ClassHash {
-        self.account.get_class_hash()
+        self.contract.get_class_hash()
     }
 
     pub fn cairo_version(&self) -> CairoVersion {
-        self.account.cairo_version()
+        self.contract.cairo_version()
     }
 
     pub fn raw_class(&self) -> String {
-        self.account.get_raw_class()
+        self.contract.get_raw_class()
     }
 
-    fn new(account: FeatureContract, deploy_account_tx: &RpcTransaction) -> Self {
+    fn new_for_account(account: FeatureContract, deploy_account_tx: &RpcTransaction) -> Self {
         assert_matches!(
             deploy_account_tx,
             RpcTransaction::DeployAccount(_),
@@ -426,7 +415,10 @@ impl FeatureAccount {
             "{account:?} is not an account"
         );
 
-        Self { account, sender_address: deploy_account_tx.calculate_sender_address().unwrap() }
+        Self {
+            contract: account,
+            sender_address: deploy_account_tx.calculate_sender_address().unwrap(),
+        }
     }
 }
 

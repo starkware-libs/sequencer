@@ -314,8 +314,7 @@ impl From<StorageView> for IndexMap<ContractAddress, IndexMap<StorageKey, Felt>>
     }
 }
 
-#[cfg_attr(any(feature = "testing", test), derive(Clone))]
-#[derive(Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct StateMaps {
     pub nonces: HashMap<ContractAddress, Nonce>,
     pub class_hashes: HashMap<ContractAddress, ClassHash>,
@@ -537,7 +536,7 @@ type StorageDiff = IndexMap<ContractAddress, IndexMap<StorageKey, Felt>>;
 
 /// Holds uncommitted changes induced on Starknet contracts.
 #[cfg_attr(any(feature = "testing", test), derive(Clone))]
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Default, Eq, PartialEq)]
 pub struct CommitmentStateDiff {
     // Contract instance attributes (per address).
     pub address_to_class_hash: IndexMap<ContractAddress, ClassHash>,

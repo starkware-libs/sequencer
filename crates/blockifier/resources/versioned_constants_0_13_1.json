@@ -188,6 +188,8 @@
         },
         "error_block_number_out_of_range": "Block number out of range",
         "error_out_of_gas": "Out of gas",
+        "error_entry_point_failed": "ENTRYPOINT_FAILED",
+        "error_entry_point_not_found": "ENTRYPOINT_NOT_FOUND",
         "error_invalid_input_len": "Invalid input length",
         "error_invalid_argument": "Invalid argument",
         "validated": "VALID",

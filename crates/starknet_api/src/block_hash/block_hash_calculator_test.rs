@@ -7,7 +7,6 @@ use crate::block::{
     BlockHeaderWithoutHash,
     BlockNumber,
     BlockTimestamp,
-    GasPrice,
     GasPricePerToken,
 };
 use crate::block_hash::block_hash_calculator::{
@@ -45,18 +44,19 @@ macro_rules! test_hash_changes {
         {
             let header = BlockHeaderWithoutHash {
                 l1_da_mode: L1DataAvailabilityMode::Blob,
+                starknet_version: BlockHashVersion::VO_13_3.into(),
                 $($header_field: $header_value),*
             };
             let commitments = BlockHeaderCommitments {
                 $($commitments_field: $commitments_value),*
             };
-            let original_hash = calculate_block_hash(header.clone(), commitments.clone());
+            let original_hash = calculate_block_hash(header.clone(), commitments.clone()).unwrap();
 
             $(
                 // Test changing the field in the header.
                 let mut modified_header = header.clone();
                 modified_header.$header_field = Default::default();
-                let new_hash = calculate_block_hash(modified_header, commitments.clone());
+                let new_hash = calculate_block_hash(modified_header, commitments.clone()).unwrap();
                 assert_ne!(original_hash, new_hash, concat!("Hash should change when ", stringify!($header_field), " is modified"));
             )*
 
@@ -64,7 +64,7 @@ macro_rules! test_hash_changes {
                 // Test changing the field in the commitments.
                 let mut modified_commitments = commitments.clone();
                 modified_commitments.$commitments_field = Default::default();
-                let new_hash = calculate_block_hash(header.clone(), modified_commitments);
+                let new_hash = calculate_block_hash(header.clone(), modified_commitments).unwrap();
                 assert_ne!(original_hash, new_hash, concat!("Hash should change when ", stringify!($commitments_field), " is modified"));
             )*
         }
@@ -82,44 +82,51 @@ fn test_block_hash_regression(
         sequencer: SequencerContractAddress(ContractAddress(PatriciaKey::from(3_u8))),
         timestamp: BlockTimestamp(4),
         l1_da_mode: L1DataAvailabilityMode::Blob,
-        l1_gas_price: GasPricePerToken { price_in_fri: GasPrice(6), price_in_wei: GasPrice(7) },
+        l1_gas_price: GasPricePerToken { price_in_fri: 6_u8.into(), price_in_wei: 7_u8.into() },
         l1_data_gas_price: GasPricePerToken {
-            price_in_fri: GasPrice(10),
-            price_in_wei: GasPrice(9),
+            price_in_fri: 10_u8.into(),
+            price_in_wei: 9_u8.into(),
         },
-        l2_gas_price: GasPricePerToken { price_in_fri: GasPrice(11), price_in_wei: GasPrice(12) },
-        starknet_version: block_hash_version.to_owned().into(),
+        l2_gas_price: GasPricePerToken { price_in_fri: 11_u8.into(), price_in_wei: 12_u8.into() },
+        starknet_version: block_hash_version.clone().into(),
         parent_hash: BlockHash(Felt::from(11_u8)),
     };
     let transactions_data = vec![TransactionHashingData {
-        transaction_signature: Some(TransactionSignature(vec![Felt::TWO, Felt::THREE])),
+        transaction_signature: TransactionSignature(vec![Felt::TWO, Felt::THREE]),
         transaction_output: get_transaction_output(),
         transaction_hash: TransactionHash(Felt::ONE),
     }];
 
     let state_diff = get_state_diff();
-    let block_commitments =
-        calculate_block_commitments(&transactions_data, &state_diff, block_header.l1_da_mode);
+    let block_commitments = calculate_block_commitments(
+        &transactions_data,
+        &state_diff,
+        block_header.l1_da_mode,
+        &block_hash_version.to_owned().into(),
+    );
 
     let expected_hash = match block_hash_version {
         BlockHashVersion::VO_13_2 => {
             felt!("0xe248d6ce583f8fa48d1d401d4beb9ceced3733e38d8eacb0d8d3669a7d901c")
         }
         BlockHashVersion::VO_13_3 => {
-            felt!("0x65b653f5bc0939cdc39f98230affc8fbd1a01ea801e025271a4cfba912ba59a")
+            felt!("0x566c0aaa2bb5fbd7957224108f089100d58f1d8767dd2b53698e27efbf2a28b")
         }
     };
 
-    assert_eq!(BlockHash(expected_hash), calculate_block_hash(block_header, block_commitments),);
+    assert_eq!(
+        BlockHash(expected_hash),
+        calculate_block_hash(block_header, block_commitments).unwrap()
+    );
 }
 
 #[test]
 fn l2_gas_price_pre_v0_13_3() {
     let block_header = {
-        |l2_gas_price| BlockHeaderWithoutHash {
+        |l2_gas_price: u8| BlockHeaderWithoutHash {
             l2_gas_price: GasPricePerToken {
-                price_in_fri: GasPrice(l2_gas_price),
-                price_in_wei: GasPrice(l2_gas_price),
+                price_in_fri: l2_gas_price.into(),
+                price_in_wei: l2_gas_price.into(),
             },
             starknet_version: BlockHashVersion::VO_13_2.into(),
             ..Default::default()
@@ -148,16 +155,15 @@ fn change_field_of_hash_input() {
         BlockHeaderWithoutHash {
             parent_hash: BlockHash(Felt::ONE),
             block_number: BlockNumber(1),
-            l1_gas_price: GasPricePerToken { price_in_fri: GasPrice(1), price_in_wei: GasPrice(1) },
+            l1_gas_price: GasPricePerToken { price_in_fri: 1_u8.into(), price_in_wei: 1_u8.into() },
             l1_data_gas_price: GasPricePerToken {
-                price_in_fri: GasPrice(1),
-                price_in_wei: GasPrice(1),
+                price_in_fri: 1_u8.into(),
+                price_in_wei: 1_u8.into(),
             },
-            l2_gas_price: GasPricePerToken { price_in_fri: GasPrice(1), price_in_wei: GasPrice(1) },
+            l2_gas_price: GasPricePerToken { price_in_fri: 1_u8.into(), price_in_wei: 1_u8.into() },
             state_root: GlobalRoot(Felt::ONE),
             sequencer: SequencerContractAddress(ContractAddress::from(1_u128)),
-            timestamp: BlockTimestamp(1),
-            starknet_version: BlockHashVersion::VO_13_3.into()
+            timestamp: BlockTimestamp(1)
         },
         BlockHeaderCommitments {
             transaction_commitment: TransactionCommitment(Felt::ONE),

@@ -1,4 +1,19 @@
 {
+  "batcher_config.outstream_content_buffer_size": {
+    "description": "Maximum items to add to the outstream buffer before blocking further filling of the stream.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "batcher_config.proposal_manager.block_builder_next_txs_buffer_size": {
+    "description": "Maximum transactions to fill in the stream buffer for the block builder before blocking further filling of the stream.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "batcher_config.proposal_manager.max_txs_per_mempool_request": {
+    "description": "Maximum transactions to get from the mempool in a single get_txs request.",
+    "privacy": "Public",
+    "value": 10
+  },
   "batcher_config.storage.db_config.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
     "pointer_target": "chain_id",
@@ -59,15 +74,15 @@
     "privacy": "Public",
     "value": 81920
   },
-  "components.batcher.component_type": {
-    "description": "The component type.",
-    "privacy": "Public",
-    "value": "Reactive"
-  },
   "components.batcher.execute": {
     "description": "The component execution flag.",
     "privacy": "Public",
     "value": true
+  },
+  "components.batcher.execution_mode": {
+    "description": "The component execution mode.",
+    "privacy": "Public",
+    "value": "Local"
   },
   "components.batcher.local_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -79,40 +94,50 @@
     "privacy": "Public",
     "value": 32
   },
-  "components.batcher.location": {
-    "description": "The component location.",
-    "privacy": "Public",
-    "value": "Local"
-  },
-  "components.batcher.remote_config.#is_none": {
+  "components.batcher.remote_client_config.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": true
   },
-  "components.batcher.remote_config.ip": {
-    "description": "The remote component server ip.",
+  "components.batcher.remote_client_config.idle_connections": {
+    "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
-    "value": "0.0.0.0"
+    "value": 18446744073709551615
   },
-  "components.batcher.remote_config.port": {
-    "description": "The remote component server port.",
+  "components.batcher.remote_client_config.idle_timeout": {
+    "description": "The duration in seconds to keep an idle connection open before closing.",
     "privacy": "Public",
-    "value": 8080
+    "value": 90
   },
-  "components.batcher.remote_config.retries": {
+  "components.batcher.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 3
   },
-  "components.consensus_manager.component_type": {
-    "description": "The component type.",
+  "components.batcher.remote_client_config.socket": {
+    "description": "The remote component socket.",
     "privacy": "Public",
-    "value": "Reactive"
+    "value": "0.0.0.0:8080"
+  },
+  "components.batcher.remote_server_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "components.batcher.remote_server_config.socket": {
+    "description": "The remote component socket.",
+    "privacy": "Public",
+    "value": "0.0.0.0:8080"
   },
   "components.consensus_manager.execute": {
     "description": "The component execution flag.",
     "privacy": "Public",
-    "value": true
+    "value": false
+  },
+  "components.consensus_manager.execution_mode": {
+    "description": "The component execution mode.",
+    "privacy": "Public",
+    "value": "Local"
   },
   "components.consensus_manager.local_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -124,40 +149,50 @@
     "privacy": "Public",
     "value": 32
   },
-  "components.consensus_manager.location": {
-    "description": "The component location.",
-    "privacy": "Public",
-    "value": "Local"
-  },
-  "components.consensus_manager.remote_config.#is_none": {
+  "components.consensus_manager.remote_client_config.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": true
   },
-  "components.consensus_manager.remote_config.ip": {
-    "description": "The remote component server ip.",
+  "components.consensus_manager.remote_client_config.idle_connections": {
+    "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
-    "value": "0.0.0.0"
+    "value": 18446744073709551615
   },
-  "components.consensus_manager.remote_config.port": {
-    "description": "The remote component server port.",
+  "components.consensus_manager.remote_client_config.idle_timeout": {
+    "description": "The duration in seconds to keep an idle connection open before closing.",
     "privacy": "Public",
-    "value": 8080
+    "value": 90
   },
-  "components.consensus_manager.remote_config.retries": {
+  "components.consensus_manager.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 3
   },
-  "components.gateway.component_type": {
-    "description": "The component type.",
+  "components.consensus_manager.remote_client_config.socket": {
+    "description": "The remote component socket.",
     "privacy": "Public",
-    "value": "Autonomous"
+    "value": "0.0.0.0:8080"
+  },
+  "components.consensus_manager.remote_server_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "components.consensus_manager.remote_server_config.socket": {
+    "description": "The remote component socket.",
+    "privacy": "Public",
+    "value": "0.0.0.0:8080"
   },
   "components.gateway.execute": {
     "description": "The component execution flag.",
     "privacy": "Public",
     "value": true
+  },
+  "components.gateway.execution_mode": {
+    "description": "The component execution mode.",
+    "privacy": "Public",
+    "value": "Local"
   },
   "components.gateway.local_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -169,40 +204,105 @@
     "privacy": "Public",
     "value": 32
   },
-  "components.gateway.location": {
-    "description": "The component location.",
-    "privacy": "Public",
-    "value": "Local"
-  },
-  "components.gateway.remote_config.#is_none": {
+  "components.gateway.remote_client_config.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": true
   },
-  "components.gateway.remote_config.ip": {
-    "description": "The remote component server ip.",
+  "components.gateway.remote_client_config.idle_connections": {
+    "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
-    "value": "0.0.0.0"
+    "value": 18446744073709551615
   },
-  "components.gateway.remote_config.port": {
-    "description": "The remote component server port.",
+  "components.gateway.remote_client_config.idle_timeout": {
+    "description": "The duration in seconds to keep an idle connection open before closing.",
     "privacy": "Public",
-    "value": 8080
+    "value": 90
   },
-  "components.gateway.remote_config.retries": {
+  "components.gateway.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 3
   },
-  "components.mempool.component_type": {
-    "description": "The component type.",
+  "components.gateway.remote_client_config.socket": {
+    "description": "The remote component socket.",
     "privacy": "Public",
-    "value": "Reactive"
+    "value": "0.0.0.0:8080"
+  },
+  "components.gateway.remote_server_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "components.gateway.remote_server_config.socket": {
+    "description": "The remote component socket.",
+    "privacy": "Public",
+    "value": "0.0.0.0:8080"
+  },
+  "components.http_server.execute": {
+    "description": "The component execution flag.",
+    "privacy": "Public",
+    "value": true
+  },
+  "components.http_server.execution_mode": {
+    "description": "The component execution mode.",
+    "privacy": "Public",
+    "value": "Remote"
+  },
+  "components.http_server.local_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "components.http_server.local_config.channel_buffer_size": {
+    "description": "The communication channel buffer size.",
+    "privacy": "Public",
+    "value": 32
+  },
+  "components.http_server.remote_client_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
+  "components.http_server.remote_client_config.idle_connections": {
+    "description": "The maximum number of idle connections to keep alive.",
+    "privacy": "Public",
+    "value": 18446744073709551615
+  },
+  "components.http_server.remote_client_config.idle_timeout": {
+    "description": "The duration in seconds to keep an idle connection open before closing.",
+    "privacy": "Public",
+    "value": 90
+  },
+  "components.http_server.remote_client_config.retries": {
+    "description": "The max number of retries for sending a message.",
+    "privacy": "Public",
+    "value": 3
+  },
+  "components.http_server.remote_client_config.socket": {
+    "description": "The remote component socket.",
+    "privacy": "Public",
+    "value": "0.0.0.0:8080"
+  },
+  "components.http_server.remote_server_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "components.http_server.remote_server_config.socket": {
+    "description": "The remote component socket.",
+    "privacy": "Public",
+    "value": "0.0.0.0:8080"
   },
   "components.mempool.execute": {
     "description": "The component execution flag.",
     "privacy": "Public",
     "value": true
+  },
+  "components.mempool.execution_mode": {
+    "description": "The component execution mode.",
+    "privacy": "Public",
+    "value": "Local"
   },
   "components.mempool.local_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -214,47 +314,57 @@
     "privacy": "Public",
     "value": 32
   },
-  "components.mempool.location": {
-    "description": "The component location.",
-    "privacy": "Public",
-    "value": "Local"
-  },
-  "components.mempool.remote_config.#is_none": {
+  "components.mempool.remote_client_config.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": true
   },
-  "components.mempool.remote_config.ip": {
-    "description": "The remote component server ip.",
+  "components.mempool.remote_client_config.idle_connections": {
+    "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
-    "value": "0.0.0.0"
+    "value": 18446744073709551615
   },
-  "components.mempool.remote_config.port": {
-    "description": "The remote component server port.",
+  "components.mempool.remote_client_config.idle_timeout": {
+    "description": "The duration in seconds to keep an idle connection open before closing.",
     "privacy": "Public",
-    "value": 8080
+    "value": 90
   },
-  "components.mempool.remote_config.retries": {
+  "components.mempool.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 3
+  },
+  "components.mempool.remote_client_config.socket": {
+    "description": "The remote component socket.",
+    "privacy": "Public",
+    "value": "0.0.0.0:8080"
+  },
+  "components.mempool.remote_server_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "components.mempool.remote_server_config.socket": {
+    "description": "The remote component socket.",
+    "privacy": "Public",
+    "value": "0.0.0.0:8080"
   },
   "consensus_manager_config.consensus_config_param_1": {
     "description": "The first consensus manager configuration parameter",
     "privacy": "Public",
     "value": 1
   },
-  "gateway_config.stateful_tx_validator_config.chain_info.chain_id": {
+  "gateway_config.chain_info.chain_id": {
     "description": "The chain ID of the StarkNet chain.",
-    "privacy": "Public",
-    "value": "0x0"
+    "pointer_target": "chain_id",
+    "privacy": "Public"
   },
-  "gateway_config.stateful_tx_validator_config.chain_info.fee_token_addresses.eth_fee_token_address": {
+  "gateway_config.chain_info.fee_token_addresses.eth_fee_token_address": {
     "description": "Address of the ETH fee token.",
     "privacy": "Public",
     "value": "0x0"
   },
-  "gateway_config.stateful_tx_validator_config.chain_info.fee_token_addresses.strk_fee_token_address": {
+  "gateway_config.chain_info.fee_token_addresses.strk_fee_token_address": {
     "description": "Address of the STRK fee token.",
     "privacy": "Public",
     "value": "0x0"

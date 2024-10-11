@@ -2,7 +2,7 @@ name: Papyrus-CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
     paths:
       - '.github/workflows/papyrus_ci.yml'
       - 'Dockerfile'
@@ -12,6 +12,7 @@ on:
       - 'crates/papyrus**/**'
       - 'crates/sequencing/**'
       - 'crates/starknet_client/**'
+      - 'scripts/dependencies.sh'
 
   pull_request:
     types:
@@ -29,17 +30,15 @@ on:
       - 'crates/papyrus**/**'
       - 'crates/sequencing/**'
       - 'crates/starknet_client/**'
+      - 'scripts/dependencies.sh'
 
   merge_group:
-    types: [ checks_requested ]
+    types: [checks_requested]
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.job }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-
-env:
-  PROTOC_VERSION: v25.1
 
 jobs:
   executable-run:
@@ -47,9 +46,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
-      - uses: Noelware/setup-protoc@1.1.0
-        with:
-          version: ${{env.PROTOC_VERSION}}
       - name: Build node
         run: |
           mkdir data
@@ -65,9 +61,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
-      - uses: Noelware/setup-protoc@1.1.0
-        with:
-          version: ${{env.PROTOC_VERSION}}
       - name: Build node
         run: |
           mkdir data
@@ -83,9 +76,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
-      - uses: Noelware/setup-protoc@1.1.0
-        with:
-          version: ${{env.PROTOC_VERSION}}
 
       - name: Build node
         run: cargo build -r -p papyrus_node
@@ -98,9 +88,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
-      - uses: Noelware/setup-protoc@1.1.0
-        with:
-          version: ${{env.PROTOC_VERSION}}
       - run: >
           cargo test -r
           --test latency_histogram
@@ -114,7 +101,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
-      - uses: Noelware/setup-protoc@1.1.0
       - run: |
           cargo test -p papyrus_node --no-default-features
         env:

@@ -1,22 +1,21 @@
-use std::collections::HashMap;
-
 use assert_matches::assert_matches;
 use cairo_vm::types::builtin_name::BuiltinName;
-use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use rstest::rstest;
+use starknet_api::block::NonzeroGasPrice;
+use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::invoke_tx_args;
-use starknet_api::transaction::{Fee, Resource, ValidResourceBounds};
+use starknet_api::transaction::{Fee, GasVectorComputationMode, Resource, ValidResourceBounds};
 
 use crate::blockifier::block::GasPrices;
 use crate::context::BlockContext;
 use crate::fee::fee_checks::{FeeCheckError, FeeCheckReportFields, PostExecutionReport};
-use crate::fee::fee_utils::get_vm_resources_cost;
+use crate::fee::fee_utils::{get_fee_by_gas_vector, get_vm_resources_cost};
 use crate::fee::receipt::TransactionReceipt;
-use crate::fee::resources::{GasVector, GasVectorComputationMode};
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{
     gas_vector_from_vm_usage,
+    get_vm_resource_usage,
     CairoVersion,
     BALANCE,
     DEFAULT_ETH_L1_DATA_GAS_PRICE,
@@ -26,23 +25,10 @@ use crate::test_utils::{
     DEFAULT_STRK_L1_GAS_PRICE,
     MAX_L1_GAS_AMOUNT,
 };
+use crate::transaction::objects::FeeType;
 use crate::transaction::test_utils::{account_invoke_tx, all_resource_bounds, l1_resource_bounds};
-use crate::utils::u128_from_usize;
+use crate::utils::u64_from_usize;
 use crate::versioned_constants::VersionedConstants;
-
-fn get_vm_resource_usage() -> ExecutionResources {
-    ExecutionResources {
-        n_steps: 10000,
-        n_memory_holes: 0,
-        builtin_instance_counter: HashMap::from([
-            (BuiltinName::pedersen, 10),
-            (BuiltinName::range_check, 24),
-            (BuiltinName::ecdsa, 1),
-            (BuiltinName::bitwise, 1),
-            (BuiltinName::poseidon, 1),
-        ]),
-    }
-}
 
 #[rstest]
 fn test_simple_get_vm_resource_usage(
@@ -56,9 +42,10 @@ fn test_simple_get_vm_resource_usage(
     // Positive flow.
     // Verify calculation - in our case, n_steps is the heaviest resource.
     let vm_usage_in_l1_gas = (versioned_constants.vm_resource_fee_cost().n_steps
-        * (u128_from_usize(vm_resource_usage.n_steps + n_reverted_steps)))
+        * (u64_from_usize(vm_resource_usage.n_steps + n_reverted_steps)))
     .ceil()
-    .to_integer();
+    .to_integer()
+    .into();
     let expected_gas_vector = gas_vector_from_vm_usage(
         vm_usage_in_l1_gas,
         &gas_vector_computation_mode,
@@ -78,9 +65,10 @@ fn test_simple_get_vm_resource_usage(
     let n_reverted_steps = 0;
     vm_resource_usage.n_steps =
         vm_resource_usage.builtin_instance_counter.get(&BuiltinName::range_check).unwrap() - 1;
-    let vm_usage_in_l1_gas = u128_from_usize(
+    let vm_usage_in_l1_gas = u64_from_usize(
         *vm_resource_usage.builtin_instance_counter.get(&BuiltinName::range_check).unwrap(),
-    );
+    )
+    .into();
     let expected_gas_vector = gas_vector_from_vm_usage(
         vm_usage_in_l1_gas,
         &gas_vector_computation_mode,
@@ -109,9 +97,10 @@ fn test_float_get_vm_resource_usage(
     // Verify calculation - in our case, n_steps is the heaviest resource.
     let n_reverted_steps = 300;
     let vm_usage_in_l1_gas = (versioned_constants.vm_resource_fee_cost().n_steps
-        * u128_from_usize(vm_resource_usage.n_steps + n_reverted_steps))
+        * u64_from_usize(vm_resource_usage.n_steps + n_reverted_steps))
     .ceil()
-    .to_integer();
+    .to_integer()
+    .into();
     let expected_gas_vector = gas_vector_from_vm_usage(
         vm_usage_in_l1_gas,
         &gas_vector_computation_mode,
@@ -131,11 +120,12 @@ fn test_float_get_vm_resource_usage(
     vm_resource_usage.n_steps = 200;
     let vm_usage_in_l1_gas =
         ((*versioned_constants.vm_resource_fee_cost().builtins.get(&BuiltinName::ecdsa).unwrap())
-            * u128_from_usize(
+            * u64_from_usize(
                 *vm_resource_usage.builtin_instance_counter.get(&BuiltinName::ecdsa).unwrap(),
             ))
         .ceil()
-        .to_integer();
+        .to_integer()
+        .into();
     let expected_gas_vector = gas_vector_from_vm_usage(
         vm_usage_in_l1_gas,
         &gas_vector_computation_mode,
@@ -164,24 +154,30 @@ fn test_float_get_vm_resource_usage(
 fn test_discounted_gas_overdraft(
     #[case] gas_price: u128,
     #[case] data_gas_price: u128,
-    #[case] l1_gas_used: usize,
-    #[case] l1_data_gas_used: usize,
+    #[case] l1_gas_used: u64,
+    #[case] l1_data_gas_used: u64,
     #[case] gas_bound: u64,
     #[case] expect_failure: bool,
 ) {
+    let (l1_gas_used, l1_data_gas_used, gas_bound) =
+        (GasAmount(l1_gas_used), GasAmount(l1_data_gas_used), GasAmount(gas_bound));
+    let (gas_price, data_gas_price) = (
+        NonzeroGasPrice::try_from(gas_price).unwrap(),
+        NonzeroGasPrice::try_from(data_gas_price).unwrap(),
+    );
     let mut block_context = BlockContext::create_for_account_testing();
     block_context.block_info.gas_prices = GasPrices::new(
-        DEFAULT_ETH_L1_GAS_PRICE.try_into().unwrap(),
-        gas_price.try_into().unwrap(),
-        DEFAULT_ETH_L1_DATA_GAS_PRICE.try_into().unwrap(),
-        data_gas_price.try_into().unwrap(),
+        DEFAULT_ETH_L1_GAS_PRICE,
+        gas_price,
+        DEFAULT_ETH_L1_DATA_GAS_PRICE,
+        data_gas_price,
         VersionedConstants::latest_constants()
-            .convert_l1_to_l2_gas_price_round_up(DEFAULT_ETH_L1_GAS_PRICE)
+            .convert_l1_to_l2_gas_price_round_up(DEFAULT_ETH_L1_GAS_PRICE.into())
             .try_into()
             .unwrap(),
         VersionedConstants::latest_constants()
             //TODO!(Aner): fix test parameters to allow using `gas_price` here!
-            .convert_l1_to_l2_gas_price_round_up(DEFAULT_STRK_L1_GAS_PRICE)
+            .convert_l1_to_l2_gas_price_round_up(DEFAULT_STRK_L1_GAS_PRICE.into())
             .try_into()
             .unwrap(),
     );
@@ -190,16 +186,12 @@ fn test_discounted_gas_overdraft(
     let mut state = test_state(&block_context.chain_info, BALANCE, &[(account, 1)]);
     let tx = account_invoke_tx(invoke_tx_args! {
         sender_address: account.get_instance_address(0),
-        resource_bounds: l1_resource_bounds(gas_bound, gas_price * 10),
+        resource_bounds: l1_resource_bounds(gas_bound, (gas_price.get().0 * 10).into()),
     });
 
     let tx_receipt = TransactionReceipt {
         fee: Fee(7),
-        gas: GasVector {
-            l1_gas: u128_from_usize(l1_gas_used),
-            l1_data_gas: u128_from_usize(l1_data_gas_used),
-            ..Default::default()
-        },
+        gas: GasVector { l1_gas: l1_gas_used, l1_data_gas: l1_data_gas_used, ..Default::default() },
         ..Default::default()
     };
     let charge_fee = true;
@@ -213,11 +205,15 @@ fn test_discounted_gas_overdraft(
 
     if expect_failure {
         let error = report.error().unwrap();
-        let expected_actual_amount = u128_from_usize(l1_gas_used)
-            + (u128_from_usize(l1_data_gas_used) * data_gas_price) / gas_price;
+        let expected_actual_amount = l1_gas_used
+            + (l1_data_gas_used.nonzero_checked_mul(data_gas_price).unwrap())
+                .checked_div(gas_price)
+                .unwrap();
         assert_matches!(
             error, FeeCheckError::MaxGasAmountExceeded { resource, max_amount, actual_amount }
-            if max_amount == u128::from(gas_bound) && actual_amount == expected_actual_amount && resource == Resource::L1Gas
+            if max_amount == gas_bound
+             && actual_amount == expected_actual_amount
+             && resource == Resource::L1Gas
         )
     } else {
         assert_matches!(report.error(), None);
@@ -228,20 +224,35 @@ fn test_discounted_gas_overdraft(
 /// The transaction is signed on all resources, and the gas limit is set to default for each
 /// resource. If the gas used exceeds the limit, the post-execution validation should fail.
 #[rstest]
-#[case::l1_bound_overdraft(2*MAX_L1_GAS_AMOUNT, DEFAULT_L2_GAS_MAX_AMOUNT, DEFAULT_L1_DATA_GAS_MAX_AMOUNT, Some(Resource::L1Gas))]
-#[case::l2_bound_overdraft(MAX_L1_GAS_AMOUNT, 2* DEFAULT_L2_GAS_MAX_AMOUNT, DEFAULT_L1_DATA_GAS_MAX_AMOUNT, Some(Resource::L2Gas))]
+#[case::l1_bound_overdraft(
+    (2 * MAX_L1_GAS_AMOUNT.0).into(),
+    DEFAULT_L2_GAS_MAX_AMOUNT,
+    DEFAULT_L1_DATA_GAS_MAX_AMOUNT,
+    Some(Resource::L1Gas)
+)]
+#[case::l2_bound_overdraft(
+    MAX_L1_GAS_AMOUNT,
+    (2 * DEFAULT_L2_GAS_MAX_AMOUNT.0).into(),
+    DEFAULT_L1_DATA_GAS_MAX_AMOUNT,
+    Some(Resource::L2Gas)
+)]
 #[case::l1_data_bound_overdraft(
     MAX_L1_GAS_AMOUNT,
     DEFAULT_L2_GAS_MAX_AMOUNT,
-    2*DEFAULT_L1_DATA_GAS_MAX_AMOUNT,
+    (2 * DEFAULT_L1_DATA_GAS_MAX_AMOUNT.0).into(),
     Some(Resource::L1DataGas)
 )]
-#[case::no_overdraft(MAX_L1_GAS_AMOUNT/2, DEFAULT_L2_GAS_MAX_AMOUNT/2, DEFAULT_L1_DATA_GAS_MAX_AMOUNT/2, None)]
+#[case::no_overdraft(
+    (MAX_L1_GAS_AMOUNT.0 / 2).into(),
+    (DEFAULT_L2_GAS_MAX_AMOUNT.0 / 2).into(),
+    (DEFAULT_L1_DATA_GAS_MAX_AMOUNT.0 / 2).into(),
+    None
+)]
 fn test_post_execution_gas_overdraft_all_resource_bounds(
     all_resource_bounds: ValidResourceBounds,
-    #[case] l1_gas_used: u64,
-    #[case] l2_gas_used: u64,
-    #[case] l1_data_gas_used: u64,
+    #[case] l1_gas_used: GasAmount,
+    #[case] l2_gas_used: GasAmount,
+    #[case] l1_data_gas_used: GasAmount,
     #[case] resource_out_of_bounds: Option<Resource>,
 ) {
     let block_context = BlockContext::create_for_account_testing();
@@ -255,11 +266,7 @@ fn test_post_execution_gas_overdraft_all_resource_bounds(
 
     let tx_receipt = TransactionReceipt {
         fee: Fee(0),
-        gas: GasVector {
-            l1_gas: l1_gas_used.into(),
-            l2_gas: l2_gas_used.into(),
-            l1_data_gas: l1_data_gas_used.into(),
-        },
+        gas: GasVector { l1_gas: l1_gas_used, l2_gas: l2_gas_used, l1_data_gas: l1_data_gas_used },
         ..Default::default()
     };
     let charge_fee = true;
@@ -280,4 +287,61 @@ fn test_post_execution_gas_overdraft_all_resource_bounds(
             assert_matches!(report.error(), None);
         }
     }
+}
+
+#[rstest]
+#[case::happy_flow_l1_gas_only(10, 0, 0, 10, 2*10)]
+#[case::happy_flow_no_l2_gas(10, 20, 0, 10 + 3*20, 2*10 + 4*20)]
+#[case::happy_flow_all(10, 20, 30, 10 + 3*20 + 5*30, 2*10 + 4*20 + 6*30)]
+fn test_get_fee_by_gas_vector_regression(
+    #[case] l1_gas: u64,
+    #[case] l1_data_gas: u64,
+    #[case] l2_gas: u64,
+    #[case] expected_fee_eth: u128,
+    #[case] expected_fee_strk: u128,
+) {
+    let mut block_info = BlockContext::create_for_account_testing().block_info;
+    block_info.gas_prices = GasPrices::new(
+        1_u8.try_into().unwrap(),
+        2_u8.try_into().unwrap(),
+        3_u8.try_into().unwrap(),
+        4_u8.try_into().unwrap(),
+        5_u8.try_into().unwrap(),
+        6_u8.try_into().unwrap(),
+    );
+    let gas_vector =
+        GasVector { l1_gas: l1_gas.into(), l1_data_gas: l1_data_gas.into(), l2_gas: l2_gas.into() };
+    assert_eq!(
+        get_fee_by_gas_vector(&block_info, gas_vector, &FeeType::Eth),
+        Fee(expected_fee_eth)
+    );
+    assert_eq!(
+        get_fee_by_gas_vector(&block_info, gas_vector, &FeeType::Strk),
+        Fee(expected_fee_strk)
+    );
+}
+
+#[rstest]
+#[case::l1_saturates(u64::MAX, 0, 0)]
+#[case::l1_data_saturates(0, u64::MAX, 0)]
+#[case::l2_gas_saturates(0, 0, u64::MAX)]
+// TODO: Add L2 saturation case once `get_fee_by_gas_vector` implements L2 collection.
+fn test_get_fee_by_gas_vector_saturation(
+    #[case] l1_gas: u64,
+    #[case] l1_data_gas: u64,
+    #[case] l2_gas: u64,
+) {
+    let huge_gas_price = NonzeroGasPrice::try_from(2_u128 * u128::from(u64::MAX)).unwrap();
+    let mut block_info = BlockContext::create_for_account_testing().block_info;
+    block_info.gas_prices = GasPrices::new(
+        huge_gas_price,
+        huge_gas_price,
+        huge_gas_price,
+        huge_gas_price,
+        huge_gas_price,
+        huge_gas_price,
+    );
+    let gas_vector =
+        GasVector { l1_gas: l1_gas.into(), l1_data_gas: l1_data_gas.into(), l2_gas: l2_gas.into() };
+    assert_eq!(get_fee_by_gas_vector(&block_info, gas_vector, &FeeType::Eth), Fee(u128::MAX));
 }

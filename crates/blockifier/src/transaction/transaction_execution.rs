@@ -4,7 +4,7 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::core::{calculate_contract_address, ContractAddress, Nonce};
 use starknet_api::transaction::{Fee, Transaction as StarknetApiTransaction, TransactionHash};
 
-use crate::bouncer::verify_tx_weights_in_bounds;
+use crate::bouncer::verify_tx_weights_within_max_capacity;
 use crate::context::BlockContext;
 use crate::execution::call_info::CallInfo;
 use crate::execution::contract_class::ClassInfo;
@@ -85,7 +85,7 @@ impl Transaction {
                     }
                     false => DeclareTransaction::new(declare, tx_hash, non_optional_class_info),
                 };
-                Ok(Self::Account(AccountTransaction::Declare(declare_tx?)))
+                Ok(declare_tx?.into())
             }
             StarknetApiTransaction::DeployAccount(deploy_account) => {
                 let contract_address = match deployed_contract_address {
@@ -107,14 +107,14 @@ impl Transaction {
                         DeployAccountTransaction::new(deploy_account, tx_hash, contract_address)
                     }
                 };
-                Ok(Self::Account(AccountTransaction::DeployAccount(deploy_account_tx)))
+                Ok(deploy_account_tx.into())
             }
             StarknetApiTransaction::Invoke(invoke) => {
                 let invoke_tx = match only_query {
                     true => InvokeTransaction::new_for_query(invoke, tx_hash),
                     false => InvokeTransaction::new(invoke, tx_hash),
                 };
-                Ok(Self::Account(AccountTransaction::Invoke(invoke_tx)))
+                Ok(invoke_tx.into())
             }
             _ => unimplemented!(),
         }
@@ -208,7 +208,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for Transaction {
             &tx_execution_info,
             concurrency_mode,
         );
-        verify_tx_weights_in_bounds(
+        verify_tx_weights_within_max_capacity(
             state,
             &tx_execution_summary,
             &tx_execution_info.receipt.resources,
@@ -217,5 +217,23 @@ impl<U: UpdatableState> ExecutableTransaction<U> for Transaction {
         )?;
 
         Ok(tx_execution_info)
+    }
+}
+
+impl From<DeclareTransaction> for Transaction {
+    fn from(value: DeclareTransaction) -> Self {
+        Self::Account(AccountTransaction::Declare(value))
+    }
+}
+
+impl From<DeployAccountTransaction> for Transaction {
+    fn from(value: DeployAccountTransaction) -> Self {
+        Self::Account(AccountTransaction::DeployAccount(value))
+    }
+}
+
+impl From<InvokeTransaction> for Transaction {
+    fn from(value: InvokeTransaction) -> Self {
+        Self::Account(AccountTransaction::Invoke(value))
     }
 }

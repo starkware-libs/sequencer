@@ -3,12 +3,12 @@ use std::collections::BTreeMap;
 use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
+use starknet_api::block::GasPriceVector;
 use starknet_api::core::{ChainId, ContractAddress};
-use starknet_api::transaction::ValidResourceBounds;
+use starknet_api::transaction::GasVectorComputationMode;
 
 use crate::blockifier::block::BlockInfo;
 use crate::bouncer::BouncerConfig;
-use crate::fee::resources::GasVectorComputationMode;
 use crate::transaction::objects::{
     FeeType,
     HasRelatedFeeType,
@@ -32,12 +32,17 @@ impl TransactionContext {
     }
     pub fn get_gas_vector_computation_mode(&self) -> GasVectorComputationMode {
         match &self.tx_info {
-            TransactionInfo::Current(info) => match info.resource_bounds {
-                ValidResourceBounds::AllResources(_) => GasVectorComputationMode::All,
-                ValidResourceBounds::L1Gas(_) => GasVectorComputationMode::NoL2Gas,
-            },
+            TransactionInfo::Current(info) => {
+                info.resource_bounds.get_gas_vector_computation_mode()
+            }
             TransactionInfo::Deprecated(_) => GasVectorComputationMode::NoL2Gas,
         }
+    }
+    pub fn get_gas_prices(&self) -> &GasPriceVector {
+        self.block_context
+            .block_info
+            .gas_prices
+            .get_gas_prices_by_fee_type(&self.tx_info.fee_type())
     }
 }
 

@@ -7,6 +7,7 @@ use std::fmt::Display;
 use derive_more::Display;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
+use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Poseidon, StarkHash as CoreStarkHash};
 
 use crate::core::{
@@ -20,9 +21,10 @@ use crate::core::{
 };
 use crate::crypto::utils::{verify_message_hash_signature, CryptoError, Signature};
 use crate::data_availability::L1DataAvailabilityMode;
+use crate::execution_resources::GasAmount;
 use crate::hash::StarkHash;
 use crate::serde_utils::{BytesAsHex, PrefixedBytesAsHex};
-use crate::transaction::{Transaction, TransactionHash, TransactionOutput};
+use crate::transaction::{Fee, Transaction, TransactionHash, TransactionOutput};
 use crate::StarknetApiError;
 
 /// A block.
@@ -221,14 +223,39 @@ pub struct GasPricePerToken {
 
 /// The gas price at a [Block](`crate::block::Block`).
 #[derive(
-    Debug, Copy, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord,
+    Debug,
+    Copy,
+    Clone,
+    Default,
+    derive_more::Display,
+    Eq,
+    PartialEq,
+    Hash,
+    Deserialize,
+    Serialize,
+    PartialOrd,
+    Ord,
 )]
 #[serde(from = "PrefixedBytesAsHex<16_usize>", into = "PrefixedBytesAsHex<16_usize>")]
 pub struct GasPrice(pub u128);
 
+macro_rules! impl_from_uint_for_gas_price {
+    ($($uint:ty),*) => {
+        $(
+            impl From<$uint> for GasPrice {
+                fn from(val: $uint) -> Self {
+                    GasPrice(u128::from(val))
+                }
+            }
+        )*
+    };
+}
+
+impl_from_uint_for_gas_price!(u8, u16, u32, u64, u128);
+
 impl From<PrefixedBytesAsHex<16_usize>> for GasPrice {
     fn from(val: PrefixedBytesAsHex<16_usize>) -> Self {
-        GasPrice(u128::from_be_bytes(val.0))
+        u128::from_be_bytes(val.0).into()
     }
 }
 
@@ -236,6 +263,99 @@ impl From<GasPrice> for PrefixedBytesAsHex<16_usize> {
     fn from(val: GasPrice) -> Self {
         BytesAsHex(val.0.to_be_bytes())
     }
+}
+
+impl From<GasPrice> for Felt {
+    fn from(val: GasPrice) -> Self {
+        Felt::from(val.0)
+    }
+}
+
+impl GasPrice {
+    pub const fn saturating_mul(self, rhs: GasAmount) -> Fee {
+        #[allow(clippy::as_conversions)]
+        Fee(self.0.saturating_mul(rhs.0 as u128))
+    }
+
+    pub fn checked_mul(self, rhs: GasAmount) -> Option<Fee> {
+        self.0.checked_mul(u128::from(rhs.0)).map(Fee)
+    }
+}
+
+/// Utility struct representing a non-zero gas price. Useful when a gas amount must be computed by
+/// taking a fee amount and dividing by the gas price.
+#[derive(Copy, Clone, Debug, derive_more::Display)]
+pub struct NonzeroGasPrice(GasPrice);
+
+impl NonzeroGasPrice {
+    pub const MIN: Self = Self(GasPrice(1));
+
+    pub fn new(price: GasPrice) -> Result<Self, StarknetApiError> {
+        if price.0 == 0 {
+            return Err(StarknetApiError::ZeroGasPrice);
+        }
+        Ok(Self(price))
+    }
+
+    pub const fn get(&self) -> GasPrice {
+        self.0
+    }
+
+    pub const fn saturating_mul(self, rhs: GasAmount) -> Fee {
+        self.get().saturating_mul(rhs)
+    }
+
+    pub fn checked_mul(self, rhs: GasAmount) -> Option<Fee> {
+        self.get().checked_mul(rhs)
+    }
+
+    #[cfg(any(test, feature = "testing"))]
+    pub const fn new_unchecked(price: GasPrice) -> Self {
+        Self(price)
+    }
+}
+
+impl Default for NonzeroGasPrice {
+    fn default() -> Self {
+        Self::MIN
+    }
+}
+
+impl From<NonzeroGasPrice> for GasPrice {
+    fn from(val: NonzeroGasPrice) -> Self {
+        val.0
+    }
+}
+
+impl TryFrom<GasPrice> for NonzeroGasPrice {
+    type Error = StarknetApiError;
+
+    fn try_from(price: GasPrice) -> Result<Self, Self::Error> {
+        NonzeroGasPrice::new(price)
+    }
+}
+
+macro_rules! impl_try_from_uint_for_nonzero_gas_price {
+    ($($uint:ty),*) => {
+        $(
+            impl TryFrom<$uint> for NonzeroGasPrice {
+                type Error = StarknetApiError;
+
+                fn try_from(val: $uint) -> Result<Self, Self::Error> {
+                    NonzeroGasPrice::new(GasPrice::from(val))
+                }
+            }
+        )*
+    };
+}
+
+impl_try_from_uint_for_nonzero_gas_price!(u8, u16, u32, u64, u128);
+
+#[derive(Clone, Debug)]
+pub struct GasPriceVector {
+    pub l1_gas_price: NonzeroGasPrice,
+    pub l1_data_gas_price: NonzeroGasPrice,
+    pub l2_gas_price: NonzeroGasPrice,
 }
 
 /// The timestamp of a [Block](`crate::block::Block`).

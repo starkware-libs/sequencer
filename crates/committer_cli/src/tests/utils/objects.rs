@@ -11,7 +11,7 @@ use starknet_api::core::{
     Nonce,
     PatriciaKey,
 };
-use starknet_api::execution_resources::GasVector;
+use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::state::{StorageKey, ThinStateDiff};
 use starknet_api::transaction::{
     Event,
@@ -49,7 +49,11 @@ pub(crate) fn get_transaction_output_for_hash(
             },
         }],
         execution_status: expected_execution_status,
-        gas_consumed: GasVector { l1_gas: 0, l2_gas: 0, l1_data_gas: 64 },
+        gas_consumed: GasVector {
+            l1_gas: GasAmount(0),
+            l2_gas: GasAmount(0),
+            l1_data_gas: GasAmount(64),
+        },
         messages_sent: vec![MessageToL1 {
             from_address: ContractAddress(PatriciaKey::from(2_u128)),
             to_address: EthAddress::try_from(Felt::from_bytes_be_slice(&[1_u8]))
@@ -86,10 +90,10 @@ pub(crate) fn get_thin_state_diff() -> ThinStateDiff {
 
 pub(crate) fn get_tx_data(execution_status: &TransactionExecutionStatus) -> TransactionHashingData {
     TransactionHashingData {
-        transaction_signature: Some(TransactionSignature(vec![
+        transaction_signature: TransactionSignature(vec![
             Felt::from_bytes_be_slice(&[1_u8]),
             Felt::from_bytes_be_slice(&[2_u8]),
-        ])),
+        ]),
         transaction_output: get_transaction_output_for_hash(execution_status),
         transaction_hash: TransactionHash(Felt::from_bytes_be_slice(&[3_u8])),
     }

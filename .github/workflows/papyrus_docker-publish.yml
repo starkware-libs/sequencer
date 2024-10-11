@@ -3,20 +3,22 @@ name: Papyrus-Docker-Publish
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
-    tags: [ "v*.*.*" ]
+    branches: [main]
+    tags: ["v*.*.*"]
     paths:
       - '.github/workflows/papyrus_docker-publish.yml'
       - 'crates/papyrus**/**'
+      - 'scripts/dependencies.sh'
 
   pull_request:
     paths:
       - '.github/workflows/papyrus_docker-publish.yml'
       - 'crates/papyrus**/**'
+      - 'scripts/dependencies.sh'
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.job }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:

@@ -17,6 +17,6 @@ ENV CARGO_HOME=${RUSTUP_HOME}
 ENV PATH=$PATH:${RUSTUP_HOME}/bin
 
 COPY install_build_tools.sh .
-COPY setup_native_deps.sh .
+COPY dependencies.sh .
 
 RUN ./install_build_tools.sh

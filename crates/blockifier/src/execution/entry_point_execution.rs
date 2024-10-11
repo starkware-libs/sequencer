@@ -10,7 +10,6 @@ use cairo_vm::vm::runners::builtin_runner::BuiltinRunner;
 use cairo_vm::vm::runners::cairo_runner::{CairoArg, CairoRunner, ExecutionResources};
 use cairo_vm::vm::security::verify_secure_runner;
 use num_traits::{ToPrimitive, Zero};
-use starknet_api::felt;
 use starknet_types_core::felt::Felt;
 
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
@@ -107,7 +106,7 @@ pub fn execute_entry_point_call(
         program_extra_data_length,
         tracked_resource,
     )?;
-    if call_info.execution.failed {
+    if call_info.execution.failed && !context.versioned_constants().enable_reverts {
         return Err(EntryPointExecutionError::ExecutionFailed {
             error_data: call_info.execution.retdata.0,
         });
@@ -224,7 +223,7 @@ fn prepare_program_extra_data(
     // additional `ret` statement).
     let mut ptr = (runner.vm.get_pc() + contract_class.bytecode_length())?;
     // Push a `ret` opcode.
-    write_felt(&mut runner.vm, &mut ptr, felt!(0x208b7fff7fff7ffe_u128))?;
+    write_felt(&mut runner.vm, &mut ptr, Felt::from(0x208b7fff7fff7ffe_u128))?;
     // Push a pointer to the builtin cost segment.
     write_maybe_relocatable(&mut runner.vm, &mut ptr, builtin_cost_segment_start)?;
 
@@ -372,7 +371,7 @@ fn maybe_fill_holes(
 
 pub fn finalize_execution(
     mut runner: CairoRunner,
-    syscall_handler: SyscallHintProcessor<'_>,
+    mut syscall_handler: SyscallHintProcessor<'_>,
     previous_resources: ExecutionResources,
     n_total_args: usize,
     program_extra_data_length: usize,
@@ -412,6 +411,8 @@ pub fn finalize_execution(
     // Take into account the syscall resources of the current call.
     *syscall_handler.resources +=
         &versioned_constants.get_additional_os_syscall_resources(&syscall_handler.syscall_counter);
+
+    syscall_handler.finalize();
 
     let full_call_resources = &*syscall_handler.resources - &previous_resources;
     Ok(CallInfo {

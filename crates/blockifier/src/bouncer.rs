@@ -16,7 +16,7 @@ use crate::state::cached_state::{StateChangesKeys, StorageEntry};
 use crate::state::state_api::StateReader;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::{ExecutionResourcesTraits, TransactionExecutionResult};
-use crate::utils::usize_from_u128;
+use crate::utils::usize_from_u64;
 
 #[cfg(test)]
 #[path = "bouncer_test.rs"]
@@ -38,7 +38,7 @@ macro_rules! impl_checked_sub {
 
 pub type HashMapWrapper = HashMap<BuiltinName, usize>;
 
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub struct BouncerConfig {
     pub block_max_capacity: BouncerWeights,
 }
@@ -48,12 +48,22 @@ impl BouncerConfig {
         Self { block_max_capacity: BouncerWeights::max() }
     }
 
-    pub fn empty() -> Self {
-        Self::default()
-    }
-
     pub fn has_room(&self, weights: BouncerWeights) -> bool {
         self.block_max_capacity.has_room(weights)
+    }
+
+    pub fn within_max_capacity_or_err(
+        &self,
+        weights: BouncerWeights,
+    ) -> TransactionExecutionResult<()> {
+        if self.block_max_capacity.has_room(weights) {
+            Ok(())
+        } else {
+            Err(TransactionExecutionError::TransactionTooLarge {
+                max_capacity: Box::new(self.block_max_capacity),
+                tx_size: Box::new(weights),
+            })
+        }
     }
 }
 
@@ -102,6 +112,22 @@ impl BouncerWeights {
             n_events: usize::MAX,
             builtin_count: BuiltinCount::max(),
         }
+    }
+}
+
+impl std::fmt::Display for BouncerWeights {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "BouncerWeights {{ gas: {}, n_steps: {}, message_segment_length: {}, n_events: {}, \
+             state_diff_size: {}, builtin_count: {} }}",
+            self.gas,
+            self.n_steps,
+            self.message_segment_length,
+            self.n_events,
+            self.state_diff_size,
+            self.builtin_count
+        )
     }
 }
 
@@ -201,6 +227,26 @@ impl From<HashMapWrapper> for BuiltinCount {
     }
 }
 
+impl std::fmt::Display for BuiltinCount {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "BuiltinCount {{ add_mod: {}, bitwise: {}, ecdsa: {}, ec_op: {}, keccak: {}, mul_mod: \
+             {}, pedersen: {}, poseidon: {}, range_check: {}, range_check96: {} }}",
+            self.add_mod,
+            self.bitwise,
+            self.ecdsa,
+            self.ec_op,
+            self.keccak,
+            self.mul_mod,
+            self.pedersen,
+            self.poseidon,
+            self.range_check,
+            self.range_check96
+        )
+    }
+}
+
 #[derive(Debug, Default, PartialEq)]
 #[cfg_attr(test, derive(Clone))]
 pub struct Bouncer {
@@ -296,7 +342,7 @@ pub fn get_tx_weights<S: StateReader>(
     state_changes_keys: &StateChangesKeys,
 ) -> TransactionExecutionResult<BouncerWeights> {
     let message_resources = &tx_resources.starknet_resources.messages;
-    let message_starknet_gas = usize_from_u128(message_resources.get_starknet_gas_cost().l1_gas)
+    let message_starknet_gas = usize_from_u64(message_resources.get_starknet_gas_cost().l1_gas.0)
         .expect("This conversion should not fail as the value is a converted usize.");
     let mut additional_os_resources =
         get_casm_hash_calculation_resources(state_reader, executed_class_hashes)?;
@@ -348,7 +394,7 @@ pub fn get_particia_update_resources(n_visited_storage_entries: usize) -> Execut
     }
 }
 
-pub fn verify_tx_weights_in_bounds<S: StateReader>(
+pub fn verify_tx_weights_within_max_capacity<S: StateReader>(
     state_reader: &S,
     tx_execution_summary: &ExecutionSummary,
     tx_resources: &TransactionResources,
@@ -363,9 +409,5 @@ pub fn verify_tx_weights_in_bounds<S: StateReader>(
         tx_state_changes_keys,
     )?;
 
-    if !bouncer_config.has_room(tx_weights) {
-        return Err(TransactionExecutionError::TransactionTooLarge);
-    }
-
-    Ok(())
+    bouncer_config.within_max_capacity_or_err(tx_weights)
 }

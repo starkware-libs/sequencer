@@ -52,4 +52,4 @@ install_common_packages
 install_pypy &
 install_rust &
 wait
-./setup_native_deps.sh
+./dependencies.sh

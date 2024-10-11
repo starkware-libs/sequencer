@@ -119,7 +119,9 @@ impl SingleHeightConsensus {
             return Ok(ShcReturn::Tasks(Vec::new()));
         };
 
-        let block_receiver = context.validate_proposal(self.height, p2p_messages_receiver).await;
+        let block_receiver = context
+            .validate_proposal(self.height, self.timeouts.proposal_timeout, p2p_messages_receiver)
+            .await;
 
         let block = match block_receiver.await {
             Ok(block) => block,
@@ -337,7 +339,10 @@ impl SingleHeightConsensus {
         );
         debug!("Proposer");
 
-        let (p2p_messages_receiver, block_receiver) = context.build_proposal(self.height).await;
+        // TODO: Figure out how to handle failed proposal building. I believe this should be handled
+        // by applying timeoutPropose when we are the leader.
+        let (p2p_messages_receiver, block_receiver) =
+            context.build_proposal(self.height, self.timeouts.proposal_timeout).await;
         let (fin_sender, fin_receiver) = oneshot::channel();
         let init =
             ProposalInit { height: self.height, round, proposer: self.id, valid_round: None };

@@ -13,6 +13,7 @@ use crate::abi::abi_utils::selector_from_name;
 use crate::context::ChainInfo;
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::entry_point::{CallEntryPoint, CallType};
+use crate::execution::execution_utils::format_panic_data;
 use crate::execution::syscalls::syscall_tests::constants::{
     REQUIRED_GAS_LIBRARY_CALL_TEST,
     REQUIRED_GAS_STORAGE_READ_WRITE_TEST,
@@ -79,8 +80,12 @@ fn test_library_call_assert_fails(test_contract: FeatureContract) {
         ..trivial_external_entry_point_new(test_contract)
     };
 
-    let err = entry_point_call.execute_directly(&mut state).unwrap_err();
-    assert!(err.to_string().contains("x != y"));
+    let call_info = entry_point_call.execute_directly(&mut state).unwrap();
+    assert!(call_info.execution.failed);
+    assert_eq!(
+        format_panic_data(&call_info.execution.retdata.0),
+        "(0x7820213d2079 ('x != y'), 0x454e545259504f494e545f4641494c4544 ('ENTRYPOINT_FAILED'))"
+    );
 }
 
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 478110; "VM")]

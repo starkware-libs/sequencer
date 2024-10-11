@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use mockall::mock;
@@ -29,7 +31,7 @@ mock! {
     impl ConsensusContext for TestContext {
         type ProposalChunk = u32;
 
-        async fn build_proposal(&mut self, height: BlockNumber) -> (
+        async fn build_proposal(&mut self, height: BlockNumber, timeout: Duration) -> (
             mpsc::Receiver<u32>,
             oneshot::Receiver<ProposalContentId>
         );
@@ -37,6 +39,7 @@ mock! {
         async fn validate_proposal(
             &mut self,
             height: BlockNumber,
+            timeout: Duration,
             content: mpsc::Receiver<u32>
         ) -> oneshot::Receiver<ProposalContentId>;
 

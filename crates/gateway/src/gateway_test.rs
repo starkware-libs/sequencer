@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use assert_matches::assert_matches;
+use blockifier::context::ChainInfo;
 use blockifier::test_utils::CairoVersion;
 use mempool_test_utils::starknet_api_test_utils::{declare_tx, invoke_tx};
 use mockall::predicate::eq;
@@ -8,8 +9,8 @@ use starknet_api::core::{ChainId, CompiledClassHash, ContractAddress};
 use starknet_api::executable_transaction::{InvokeTransaction, Transaction};
 use starknet_api::rpc_transaction::{RpcDeclareTransaction, RpcTransaction};
 use starknet_gateway_types::errors::GatewaySpecError;
-use starknet_mempool_types::communication::{MempoolWrapperInput, MockMempoolClient};
-use starknet_mempool_types::mempool_types::{AccountState, MempoolInput};
+use starknet_mempool_types::communication::{AddTransactionArgsWrapper, MockMempoolClient};
+use starknet_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 
 use crate::compilation::GatewayCompiler;
@@ -28,13 +29,14 @@ pub fn app_state(
             config: StatelessTransactionValidatorConfig::default(),
         },
         stateful_tx_validator: Arc::new(StatefulTransactionValidator {
-            config: StatefulTransactionValidatorConfig::create_for_testing(),
+            config: StatefulTransactionValidatorConfig::default(),
         }),
         gateway_compiler: GatewayCompiler::new_command_line_compiler(
             SierraToCasmCompilationConfig::default(),
         ),
         state_reader_factory: Arc::new(state_reader_factory),
         mempool_client,
+        chain_info: ChainInfo::create_for_testing(),
     }
 }
 
@@ -64,16 +66,14 @@ async fn test_add_tx() {
     let tx_hash = executable_tx.tx_hash();
 
     let mut mock_mempool_client = MockMempoolClient::new();
+    let add_tx_args = AddTransactionArgs {
+        tx: executable_tx,
+        account_state: AccountState { address, nonce: *rpc_tx.nonce() },
+    };
     mock_mempool_client
         .expect_add_tx()
         .once()
-        .with(eq(MempoolWrapperInput {
-            mempool_input: MempoolInput {
-                tx: executable_tx,
-                account_state: AccountState { address, nonce: *rpc_tx.nonce() },
-            },
-            message_metadata: None,
-        }))
+        .with(eq(AddTransactionArgsWrapper { args: add_tx_args, p2p_message_metadata: None }))
         .return_once(|_| Ok(()));
     let state_reader_factory = local_test_state_reader_factory(CairoVersion::Cairo1, false);
     let app_state = app_state(Arc::new(mock_mempool_client), state_reader_factory);

@@ -18,39 +18,15 @@ on:
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.job }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  commitlint:
-    runs-on: starkware-ubuntu-latest-small
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Install commitlint
-        run: npm install --global @commitlint/cli @commitlint/config-conventional
-
-      - name: Validate PR commits with commitlint
-        if: github.event_name == 'pull_request' && !(contains(github.event.pull_request.title, 'merge-main') || contains(github.event.pull_request.title, 'merge main'))
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: commitlint --from "$BASE_SHA" --to "$HEAD_SHA" --verbose
-
-      - name: Validate PR title with commitlint
-        if: github.event_name != 'merge_group' && github.event_name != 'push' && !(contains(github.event.pull_request.title, 'merge-main') || contains(github.event.pull_request.title, 'merge main'))
-        env:
-          TITLE: ${{ github.event.pull_request.title }}
-        run: echo "$TITLE" | commitlint --verbose
-
   code_style:
     runs-on: starkware-ubuntu-20-04-medium
     steps:
       # Enviorment setup.
       - uses: actions/checkout@v4
-      - uses: Noelware/setup-protoc@1.1.0
       - uses: baptiste0928/cargo-install@v3
         with:
           crate: taplo-cli
@@ -86,7 +62,6 @@ jobs:
       - name: Run Machete (detect unused dependencies)
         uses: bnjbvr/cargo-machete@main
 
-
   run-workspace-tests:
     runs-on: starkware-ubuntu-latest-medium
     steps:
@@ -102,7 +77,6 @@ jobs:
           # Fetch the entire history.
           fetch-depth: 0
       - uses: ./.github/actions/bootstrap
-      - uses: Noelware/setup-protoc@1.1.0
 
       # Setup pypy and link to the location expected by .cargo/config.toml.
       - uses: actions/setup-python@v5
@@ -132,33 +106,6 @@ jobs:
         env:
           SEED: 0
 
-  merge-gatekeeper:
-    runs-on: starkware-ubuntu-latest-small
-    # Restrict permissions of the GITHUB_TOKEN.
-    # Docs: https://docs.github.com/en/actions/using-jobs/assigning-permissions-to-jobs
-    permissions:
-      checks: read
-      statuses: read
-    steps:
-      - name: Run Merge Gatekeeper on pull request
-        if: github.event_name == 'pull_request'
-        uses: upsidr/merge-gatekeeper@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          timeout: 1500
-          interval: 30
-          ignored: "code-review/reviewable"
-
-      - name: Run Merge Gatekeeper on Merge Queue || push
-        if: github.event_name == 'merge_group' || github.event_name == 'push'
-        uses: upsidr/merge-gatekeeper@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          ref: ${{github.ref}}
-          timeout: 1500
-          interval: 30
-          ignored: "code-review/reviewable"
-
   codecov:
     runs-on: starkware-ubuntu-latest-medium
     steps:
@@ -167,9 +114,6 @@ jobs:
           # Fetch the entire history.
           fetch-depth: 0
       - uses: ./.github/actions/bootstrap
-      - uses: Noelware/setup-protoc@1.1.0
-        with:
-          version: ${{env.PROTOC_VERSION}}
 
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov

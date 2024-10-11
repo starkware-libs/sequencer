@@ -1,3 +1,8 @@
+//! Implementation of the ConsensusContext interface for Papyrus.
+//!
+//! It connects to papyrus storage and runs consensus on actual blocks that already exist on the
+//! network. Useful for testing the consensus algorithm without the need to actually build new
+//! blocks.
 #[cfg(test)]
 #[path = "papyrus_consensus_context_test.rs"]
 mod papyrus_consensus_context_test;
@@ -69,6 +74,7 @@ impl ConsensusContext for PapyrusConsensusContext {
     async fn build_proposal(
         &mut self,
         height: BlockNumber,
+        _timeout: Duration,
     ) -> (mpsc::Receiver<Transaction>, oneshot::Receiver<ProposalContentId>) {
         let (mut sender, receiver) = mpsc::channel(CHANNEL_SIZE);
         let (fin_sender, fin_receiver) = oneshot::channel();
@@ -121,6 +127,7 @@ impl ConsensusContext for PapyrusConsensusContext {
     async fn validate_proposal(
         &mut self,
         height: BlockNumber,
+        _timeout: Duration,
         mut content: mpsc::Receiver<Transaction>,
     ) -> oneshot::Receiver<ProposalContentId> {
         let (fin_sender, fin_receiver) = oneshot::channel();
@@ -217,7 +224,7 @@ impl ConsensusContext for PapyrusConsensusContext {
     }
 
     fn proposer(&self, _height: BlockNumber, _round: Round) -> ValidatorId {
-        *self.validators.first().expect("validators should have at least 2 validators")
+        *self.validators.first().expect("there should be at least one validator")
     }
 
     async fn broadcast(&mut self, message: ConsensusMessage) -> Result<(), ConsensusError> {

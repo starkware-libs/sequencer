@@ -7,7 +7,7 @@ members = [
   "crates/batcher",
   "crates/batcher_types",
   "crates/blockifier",
-  "crates/blockifier_regression_test",
+  "crates/blockifier_reexecution",
   "crates/committer_cli",
   "crates/consensus_manager",
   "crates/consensus_manager_types",
@@ -114,6 +114,7 @@ ethers = "2.0.3"
 ethers-core = "2.0.3"
 ethnum = "1.5.0"
 flate2 = "1.0.24"
+fs2 = "0.4"
 futures = "0.3.21"
 futures-channel = "0.3.21"
 futures-util = "0.3.21"
@@ -144,6 +145,7 @@ metrics-exporter-prometheus = "0.12.1"
 metrics-process = "1.0.11"
 mockall = "0.12.1"
 mockito = "1.4.0"
+nix = "0.20.0"
 num-bigint = "0.4"
 num-integer = "0.1.45"
 num-rational = "0.4"

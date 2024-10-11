@@ -7,6 +7,7 @@ use papyrus_test_utils::{
 use rand::Rng;
 use starknet_api::block::BlockHash;
 use starknet_api::core::ContractAddress;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::{
     DeclareTransaction,
     DeclareTransactionV3,
@@ -18,7 +19,14 @@ use starknet_api::transaction::{
     ValidResourceBounds,
 };
 
-use crate::consensus::{ConsensusMessage, Proposal, StreamMessage, Vote, VoteType};
+use crate::consensus::{
+    ConsensusMessage,
+    Proposal,
+    StreamMessage,
+    StreamMessageBody,
+    Vote,
+    VoteType,
+};
 
 auto_impl_get_test_instance! {
     pub enum ConsensusMessage {
@@ -55,14 +63,16 @@ auto_impl_get_test_instance! {
     }
 }
 
+// The auto_impl_get_test_instance macro does not work for StreamMessage because it has
+// a generic type. TODO(guyn): try to make the macro work with generic types.
 impl GetTestInstance for StreamMessage<ConsensusMessage> {
     fn get_test_instance(rng: &mut rand_chacha::ChaCha8Rng) -> Self {
-        Self {
-            message: ConsensusMessage::Proposal(Proposal::default()),
-            stream_id: rng.gen_range(0..100),
-            message_id: rng.gen_range(0..1000),
-            fin: rng.gen_bool(0.5),
-        }
+        let message = if rng.gen_bool(0.5) {
+            StreamMessageBody::Content(ConsensusMessage::Proposal(Proposal::get_test_instance(rng)))
+        } else {
+            StreamMessageBody::Fin
+        };
+        Self { message, stream_id: rng.gen_range(0..100), message_id: rng.gen_range(0..1000) }
     }
 }
 
@@ -127,7 +137,7 @@ fn convert_proposal_to_vec_u8_and_back() {
             ..
         })) => {
             if let ValidResourceBounds::AllResources(ref mut bounds) = resource_bounds {
-                bounds.l2_gas.max_amount = 1;
+                bounds.l2_gas.max_amount = GasAmount(1);
             }
         }
         _ => {}
@@ -136,4 +146,36 @@ fn convert_proposal_to_vec_u8_and_back() {
     let bytes_data: Vec<u8> = proposal.clone().into();
     let res_data = Proposal::try_from(bytes_data).unwrap();
     assert_eq!(proposal, res_data);
+}
+
+#[test]
+fn stream_message_display() {
+    let mut rng = get_rng();
+    let stream_id = 42;
+    let message_id = 127;
+    let proposal = Proposal::get_test_instance(&mut rng);
+    let proposal_bytes: Vec<u8> = proposal.clone().into();
+    let proposal_length = proposal_bytes.len();
+    let content = StreamMessageBody::Content(proposal);
+    let message = StreamMessage { message: content, stream_id, message_id };
+
+    let txt = message.to_string();
+    assert_eq!(
+        txt,
+        format!(
+            "StreamMessage {{ stream_id: {}, message_id: {}, message_length: {}}}",
+            stream_id, message_id, proposal_length
+        )
+    );
+
+    let content: StreamMessageBody<Proposal> = StreamMessageBody::Fin;
+    let message = StreamMessage { message: content, stream_id, message_id };
+    let txt = message.to_string();
+    assert_eq!(
+        txt,
+        format!(
+            "StreamMessage {{ stream_id: {}, message_id: {}, message is fin }}",
+            stream_id, message_id
+        )
+    );
 }

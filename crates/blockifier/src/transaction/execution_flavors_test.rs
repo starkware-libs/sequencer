@@ -2,11 +2,13 @@ use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::core::ContractAddress;
+use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::{
     Calldata,
     Fee,
+    GasVectorComputationMode,
     Resource,
     TransactionSignature,
     TransactionVersion,
@@ -18,7 +20,6 @@ use starknet_types_core::felt::Felt;
 use crate::context::{BlockContext, ChainInfo};
 use crate::execution::syscalls::SyscallSelector;
 use crate::fee::fee_utils::get_fee_by_gas_vector;
-use crate::fee::resources::{GasVector, GasVectorComputationMode};
 use crate::state::cached_state::CachedState;
 use crate::state::state_api::StateReader;
 use crate::test_utils::contracts::FeatureContract;
@@ -29,7 +30,6 @@ use crate::test_utils::{
     create_trivial_calldata,
     get_syscall_resources,
     get_tx_resources,
-    u64_from_usize,
     CairoVersion,
     BALANCE,
     MAX_FEE,
@@ -50,7 +50,8 @@ use crate::transaction::test_utils::{
 };
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::ExecutableTransaction;
-const VALIDATE_GAS_OVERHEAD: u64 = 21;
+use crate::utils::u64_from_usize;
+const VALIDATE_GAS_OVERHEAD: GasAmount = GasAmount(21);
 
 struct FlavorTestInitialState {
     pub state: CachedState<DictStateReader>,
@@ -104,14 +105,18 @@ fn check_balance<S: StateReader>(
 
 /// Returns the amount of L1 gas and derived fee, given base gas amount and a boolean indicating
 /// if validation is to be done.
-fn gas_and_fee(base_gas: u64, add_validation_overhead: bool, fee_type: &FeeType) -> (u64, Fee) {
+fn gas_and_fee(
+    base_gas: GasAmount,
+    add_validation_overhead: bool,
+    fee_type: &FeeType,
+) -> (GasAmount, Fee) {
     // Validation incurs a constant gas overhead.
-    let gas = base_gas + if add_validation_overhead { VALIDATE_GAS_OVERHEAD } else { 0 };
+    let gas = base_gas + if add_validation_overhead { VALIDATE_GAS_OVERHEAD } else { 0_u8.into() };
     (
         gas,
         get_fee_by_gas_vector(
             &BlockContext::create_for_account_testing().block_info,
-            GasVector::from_l1_gas(gas.into()),
+            GasVector::from_l1_gas(gas),
             fee_type,
         ),
     )
@@ -123,8 +128,8 @@ fn calculate_actual_gas(
     tx_execution_info: &TransactionExecutionInfo,
     block_context: &BlockContext,
     remove_validation_overhead: bool,
-) -> u128 {
-    tx_execution_info
+) -> GasAmount {
+    (tx_execution_info
         .receipt
         .resources
         .to_gas_vector(
@@ -133,7 +138,9 @@ fn calculate_actual_gas(
             &GasVectorComputationMode::NoL2Gas,
         )
         .l1_gas
-        - if remove_validation_overhead { VALIDATE_GAS_OVERHEAD.into() } else { 0 }
+        .0
+        - if remove_validation_overhead { VALIDATE_GAS_OVERHEAD.0 } else { 0 })
+    .into()
 }
 
 /// Asserts gas used and reported fee are as expected.
@@ -142,14 +149,11 @@ fn check_gas_and_fee(
     block_context: &BlockContext,
     tx_execution_info: &TransactionExecutionInfo,
     fee_type: &FeeType,
-    expected_actual_gas: u64,
+    expected_actual_gas: GasAmount,
     expected_actual_fee: Fee,
     expected_cost_of_resources: Fee,
 ) {
-    assert_eq!(
-        calculate_actual_gas(tx_execution_info, block_context, false),
-        expected_actual_gas.into()
-    );
+    assert_eq!(calculate_actual_gas(tx_execution_info, block_context, false), expected_actual_gas);
 
     assert_eq!(tx_execution_info.receipt.fee, expected_actual_fee);
     // Future compatibility: resources other than the L1 gas usage may affect the fee (currently,
@@ -175,10 +179,10 @@ fn get_pre_validate_test_args(
     only_query: bool,
 ) -> (BlockContext, CachedState<DictStateReader>, InvokeTxArgs, NonceManager) {
     let block_context = BlockContext::create_for_account_testing();
-    let max_fee = Fee(MAX_FEE);
+    let max_fee = MAX_FEE;
     // The max resource bounds fixture is not used here because this function already has the
     // maximum number of arguments.
-    let resource_bounds = l1_resource_bounds(MAX_L1_GAS_AMOUNT, MAX_L1_GAS_PRICE);
+    let resource_bounds = l1_resource_bounds(MAX_L1_GAS_AMOUNT, MAX_L1_GAS_PRICE.into());
     let FlavorTestInitialState {
         state, account_address, test_contract_address, nonce_manager, ..
     } = create_flavors_test_state(&block_context.chain_info, cairo_version);
@@ -252,7 +256,7 @@ fn test_simulate_validate_pre_validate_with_charge_fee(
     // First scenario: minimal fee not covered. Actual fee is precomputed.
     let err = account_invoke_tx(invoke_tx_args! {
         max_fee: Fee(10),
-        resource_bounds: l1_resource_bounds(10, 10),
+        resource_bounds: l1_resource_bounds(10_u8.into(), 10_u8.into()),
         nonce: nonce_manager.next(account_address),
         ..pre_validation_base_args.clone()
     })
@@ -282,11 +286,13 @@ fn test_simulate_validate_pre_validate_with_charge_fee(
 
     // Second scenario: resource bounds greater than balance.
     let gas_price = block_context.block_info.gas_prices.get_l1_gas_price_by_fee_type(&fee_type);
-    let balance_over_gas_price: u64 =
-        (BALANCE / gas_price).try_into().expect("Failed to convert u128 to u64.");
+    let balance_over_gas_price = BALANCE.checked_div(gas_price).unwrap();
     let result = account_invoke_tx(invoke_tx_args! {
-        max_fee: Fee(BALANCE + 1),
-        resource_bounds: l1_resource_bounds(balance_over_gas_price + 10, gas_price.into()),
+        max_fee: Fee(BALANCE.0 + 1),
+        resource_bounds: l1_resource_bounds(
+            (balance_over_gas_price.0 + 10).into(),
+            gas_price.into()
+        ),
         nonce: nonce_manager.next(account_address),
         ..pre_validation_base_args.clone()
     })
@@ -317,7 +323,7 @@ fn test_simulate_validate_pre_validate_with_charge_fee(
     // Third scenario: L1 gas price bound lower than the price on the block.
     if !is_deprecated {
         let err = account_invoke_tx(invoke_tx_args! {
-            resource_bounds: l1_resource_bounds(MAX_L1_GAS_AMOUNT, u128::from(gas_price) - 1),
+            resource_bounds: l1_resource_bounds(MAX_L1_GAS_AMOUNT, (gas_price.get().0 - 1).into()),
             nonce: nonce_manager.next(account_address),
             ..pre_validation_base_args
         })
@@ -361,14 +367,14 @@ fn test_simulate_validate_pre_validate_not_charge_fee(
     })
     .execute(&mut state, &block_context, charge_fee, false)
     .unwrap();
-    let base_gas =
-        calculate_actual_gas(&tx_execution_info, &block_context, false).try_into().unwrap();
+    let base_gas = calculate_actual_gas(&tx_execution_info, &block_context, false);
     assert!(
         base_gas
             > u64_from_usize(
                 get_syscall_resources(SyscallSelector::CallContract).n_steps
                     + get_tx_resources(TransactionType::InvokeFunction).n_steps
             )
+            .into()
     );
 
     let (actual_gas_used, actual_fee) = gas_and_fee(base_gas, validate, &fee_type);
@@ -394,22 +400,21 @@ fn test_simulate_validate_pre_validate_not_charge_fee(
     }
 
     // First scenario: minimal fee not covered. Actual fee is precomputed.
-    execute_and_check_gas_and_fee!(Fee(10), l1_resource_bounds(10, 10));
+    execute_and_check_gas_and_fee!(Fee(10), l1_resource_bounds(10_u8.into(), 10_u8.into()));
 
     // Second scenario: resource bounds greater than balance.
     let gas_price = block_context.block_info.gas_prices.get_l1_gas_price_by_fee_type(&fee_type);
-    let balance_over_gas_price: u64 =
-        (BALANCE / gas_price).try_into().expect("Failed to convert u128 to u64.");
+    let balance_over_gas_price = BALANCE.checked_div(gas_price).unwrap();
     execute_and_check_gas_and_fee!(
-        Fee(BALANCE + 1),
-        l1_resource_bounds(balance_over_gas_price + 10, gas_price.into())
+        Fee(BALANCE.0 + 1),
+        l1_resource_bounds((balance_over_gas_price.0 + 10).into(), gas_price.into())
     );
 
     // Third scenario: L1 gas price bound lower than the price on the block.
     if !is_deprecated {
         execute_and_check_gas_and_fee!(
             pre_validation_base_args.max_fee,
-            l1_resource_bounds(MAX_L1_GAS_AMOUNT, u128::from(gas_price) - 1)
+            l1_resource_bounds(MAX_L1_GAS_AMOUNT, (gas_price.get().0 - 1).into())
         );
     }
 }
@@ -424,7 +429,7 @@ fn execute_fail_validation(
     max_resource_bounds: ValidResourceBounds,
 ) -> TransactionExecutionResult<TransactionExecutionInfo> {
     let block_context = BlockContext::create_for_account_testing();
-    let max_fee = Fee(MAX_FEE);
+    let max_fee = MAX_FEE;
 
     // Create a state with a contract that can fail validation on demand.
     let FlavorTestInitialState {
@@ -504,9 +509,10 @@ fn test_simulate_charge_fee_no_validation_fail_validate(
 
     // Validation scenario: fallible validation.
     let block_context = BlockContext::create_for_account_testing();
-    let base_gas =
-        calculate_actual_gas(&tx_execution_info, &block_context, validate).try_into().unwrap();
-    assert!(base_gas > u64_from_usize(get_tx_resources(TransactionType::InvokeFunction).n_steps));
+    let base_gas = calculate_actual_gas(&tx_execution_info, &block_context, validate);
+    assert!(
+        base_gas > u64_from_usize(get_tx_resources(TransactionType::InvokeFunction).n_steps).into()
+    );
     let (actual_gas_used, actual_fee) = gas_and_fee(base_gas, validate, &fee_type);
 
     // The reported fee should be the actual cost, regardless of whether or not fee is charged.
@@ -555,7 +561,7 @@ fn test_simulate_validate_charge_fee_mid_execution(
     // 2. Execution fails due to out-of-resources error, due to max sender bounds, mid-run.
     // 3. Execution fails due to out-of-resources error, due to max block bounds, mid-run.
     let execution_base_args = invoke_tx_args! {
-        max_fee: Fee(MAX_FEE),
+        max_fee: MAX_FEE,
         resource_bounds: max_l1_resource_bounds,
         sender_address: account_address,
         version,
@@ -570,10 +576,11 @@ fn test_simulate_validate_charge_fee_mid_execution(
     })
     .execute(&mut state, &block_context, charge_fee, validate)
     .unwrap();
-    let base_gas: u64 =
-        calculate_actual_gas(&tx_execution_info, &block_context, validate).try_into().unwrap();
+    let base_gas = calculate_actual_gas(&tx_execution_info, &block_context, validate);
     let (revert_gas_used, revert_fee) = gas_and_fee(base_gas, validate, &fee_type);
-    assert!(base_gas > u64_from_usize(get_tx_resources(TransactionType::InvokeFunction).n_steps));
+    assert!(
+        base_gas > u64_from_usize(get_tx_resources(TransactionType::InvokeFunction).n_steps).into()
+    );
     assert!(tx_execution_info.is_reverted());
     check_gas_and_fee(
         &block_context,
@@ -594,16 +601,17 @@ fn test_simulate_validate_charge_fee_mid_execution(
 
     // Second scenario: limit resources via sender bounds. Should revert if and only if step limit
     // is derived from sender bounds (`charge_fee` mode).
-    let (gas_bound, fee_bound) = gas_and_fee(6107, validate, &fee_type);
+    let (gas_bound, fee_bound) = gas_and_fee(6111_u32.into(), validate, &fee_type);
     // If `charge_fee` is true, execution is limited by sender bounds, so less resources will be
     // used. Otherwise, execution is limited by block bounds, so more resources will be used.
-    let (limited_gas_used, limited_fee) = gas_and_fee(7759, validate, &fee_type);
+    let (limited_gas_used, limited_fee) = gas_and_fee(7763_u32.into(), validate, &fee_type);
     let (unlimited_gas_used, unlimited_fee) = gas_and_fee(
         u64_from_usize(
             get_syscall_resources(SyscallSelector::CallContract).n_steps
                 + get_tx_resources(TransactionType::InvokeFunction).n_steps
                 + 5730,
-        ),
+        )
+        .into(),
         validate,
         &fee_type,
     );
@@ -641,16 +649,16 @@ fn test_simulate_validate_charge_fee_mid_execution(
     // whether or not `charge_fee` is true.
     let mut low_step_block_context = block_context.clone();
     low_step_block_context.versioned_constants.invoke_tx_max_n_steps = 10000;
-    let (huge_gas_limit, huge_fee) = gas_and_fee(100000, validate, &fee_type);
+    let (huge_gas_limit, huge_fee) = gas_and_fee(100000_u32.into(), validate, &fee_type);
     // Gas usage does not depend on `validate` flag in this scenario, because we reach the block
     // step limit during execution anyway. The actual limit when execution phase starts is slightly
     // lower when `validate` is true, but this is not reflected in the actual gas usage.
     let invoke_tx_max_n_steps_as_u64: u64 =
         low_step_block_context.versioned_constants.invoke_tx_max_n_steps.into();
-    let block_limit_gas = invoke_tx_max_n_steps_as_u64 + 1652;
+    let block_limit_gas = (invoke_tx_max_n_steps_as_u64 + 1652).into();
     let block_limit_fee = get_fee_by_gas_vector(
         &block_context.block_info,
-        GasVector::from_l1_gas(block_limit_gas.into()),
+        GasVector::from_l1_gas(block_limit_gas),
         &fee_type,
     );
     let tx_execution_info = account_invoke_tx(invoke_tx_args! {
@@ -715,13 +723,13 @@ fn test_simulate_validate_charge_fee_post_execution(
     // If `charge_fee` is false - we do not revert, and simply report the fee and resources as used.
     // If `charge_fee` is true, we revert, charge the maximal allowed fee (derived from sender
     // bounds), and report resources base on execution steps reverted + other overhead.
-    let base_gas_bound = 8000;
+    let base_gas_bound = 8010_u32.into();
     let (just_not_enough_gas_bound, just_not_enough_fee_bound) =
         gas_and_fee(base_gas_bound, validate, &fee_type);
     // `__validate__` and overhead resources + number of reverted steps, comes out slightly more
     // than the gas bound.
     let (revert_gas_usage, revert_fee) = gas_and_fee(
-        u64_from_usize(get_tx_resources(TransactionType::InvokeFunction).n_steps) + 5730,
+        (u64_from_usize(get_tx_resources(TransactionType::InvokeFunction).n_steps) + 5730).into(),
         validate,
         &fee_type,
     );
@@ -730,7 +738,8 @@ fn test_simulate_validate_charge_fee_post_execution(
             get_syscall_resources(SyscallSelector::CallContract).n_steps
                 + get_tx_resources(TransactionType::InvokeFunction).n_steps
                 + 5730,
-        ),
+        )
+        .into(),
         validate,
         &fee_type,
     );
@@ -774,12 +783,13 @@ fn test_simulate_validate_charge_fee_post_execution(
             get_syscall_resources(SyscallSelector::CallContract).n_steps
                 + get_tx_resources(TransactionType::InvokeFunction).n_steps
                 + 4260,
-        ),
+        )
+        .into(),
         validate,
         &fee_type,
     );
     let (fail_actual_gas, fail_actual_fee) = gas_and_fee(
-        u64_from_usize(get_tx_resources(TransactionType::InvokeFunction).n_steps + 2252),
+        u64_from_usize(get_tx_resources(TransactionType::InvokeFunction).n_steps + 2252).into(),
         validate,
         &fee_type,
     );

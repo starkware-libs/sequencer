@@ -1,5 +1,7 @@
 use rstest::fixture;
+use starknet_api::block::GasPrice;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::deploy_account::DeployAccountTxArgs;
 use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::test_utils::NonceManager;
@@ -8,6 +10,7 @@ use starknet_api::transaction::{
     Calldata,
     ContractAddressSalt,
     Fee,
+    GasVectorComputationMode,
     InvokeTransactionV0,
     InvokeTransactionV1,
     InvokeTransactionV3,
@@ -24,7 +27,6 @@ use strum::IntoEnumIterator;
 use crate::abi::abi_utils::get_fee_token_var_address;
 use crate::context::{BlockContext, ChainInfo};
 use crate::execution::contract_class::{ClassInfo, ContractClass};
-use crate::fee::resources::GasVectorComputationMode;
 use crate::state::cached_state::CachedState;
 use crate::state::state_api::State;
 use crate::test_utils::contracts::FeatureContract;
@@ -85,7 +87,7 @@ impl_from_versioned_tx!(
 
 #[fixture]
 pub fn max_fee() -> Fee {
-    Fee(MAX_FEE)
+    MAX_FEE
 }
 
 // TODO(Amos, 1/10/2024): Delete this fixture and use `create_resource_bounds`
@@ -94,18 +96,23 @@ pub fn max_l1_resource_bounds() -> ValidResourceBounds {
     create_resource_bounds(&GasVectorComputationMode::NoL2Gas)
 }
 
+#[fixture]
+pub fn default_all_resource_bounds() -> ValidResourceBounds {
+    create_resource_bounds(&GasVectorComputationMode::All)
+}
+
 pub fn create_resource_bounds(computation_mode: &GasVectorComputationMode) -> ValidResourceBounds {
     match computation_mode {
         GasVectorComputationMode::NoL2Gas => {
-            l1_resource_bounds(MAX_L1_GAS_AMOUNT, MAX_L1_GAS_PRICE)
+            l1_resource_bounds(MAX_L1_GAS_AMOUNT, MAX_L1_GAS_PRICE.into())
         }
         GasVectorComputationMode::All => create_all_resource_bounds(
             MAX_L1_GAS_AMOUNT,
-            MAX_L1_GAS_PRICE,
+            MAX_L1_GAS_PRICE.into(),
             DEFAULT_L2_GAS_MAX_AMOUNT,
-            DEFAULT_STRK_L2_GAS_PRICE,
+            DEFAULT_STRK_L2_GAS_PRICE.into(),
             DEFAULT_L1_DATA_GAS_MAX_AMOUNT,
-            DEFAULT_STRK_L1_DATA_GAS_PRICE,
+            DEFAULT_STRK_L1_DATA_GAS_PRICE.into(),
         ),
     }
 }
@@ -143,7 +150,7 @@ pub fn deploy_and_fund_account(
     for fee_type in FeeType::iter() {
         let fee_token_address = chain_info.fee_token_address(&fee_type);
         state
-            .set_storage_at(fee_token_address, deployed_account_balance_key, felt!(BALANCE))
+            .set_storage_at(fee_token_address, deployed_account_balance_key, felt!(BALANCE.0))
             .unwrap();
     }
 
@@ -321,18 +328,22 @@ pub fn run_invoke_tx(
 
 /// Creates a `ResourceBoundsMapping` with the given `max_amount` and `max_price` for L1 gas limits.
 /// No guarantees on the values of the other resources bounds.
-pub fn l1_resource_bounds(max_amount: u64, max_price: u128) -> ValidResourceBounds {
-    ValidResourceBounds::L1Gas(ResourceBounds { max_amount, max_price_per_unit: max_price })
+// TODO: Check usages of this function and update to using all gas bounds.
+pub fn l1_resource_bounds(
+    max_amount: GasAmount,
+    max_price_per_unit: GasPrice,
+) -> ValidResourceBounds {
+    ValidResourceBounds::L1Gas(ResourceBounds { max_amount, max_price_per_unit })
 }
 
 #[fixture]
 pub fn all_resource_bounds(
-    #[default(MAX_L1_GAS_AMOUNT)] l1_max_amount: u64,
-    #[default(DEFAULT_STRK_L1_GAS_PRICE)] l1_max_price: u128,
-    #[default(DEFAULT_L2_GAS_MAX_AMOUNT)] l2_max_amount: u64,
-    #[default(DEFAULT_STRK_L2_GAS_PRICE)] l2_max_price: u128,
-    #[default(DEFAULT_L1_DATA_GAS_MAX_AMOUNT)] l1_data_max_amount: u64,
-    #[default(DEFAULT_STRK_L1_DATA_GAS_PRICE)] l1_data_max_price: u128,
+    #[default(MAX_L1_GAS_AMOUNT)] l1_max_amount: GasAmount,
+    #[default(GasPrice::from(DEFAULT_STRK_L1_GAS_PRICE))] l1_max_price: GasPrice,
+    #[default(DEFAULT_L2_GAS_MAX_AMOUNT)] l2_max_amount: GasAmount,
+    #[default(GasPrice::from(DEFAULT_STRK_L2_GAS_PRICE))] l2_max_price: GasPrice,
+    #[default(DEFAULT_L1_DATA_GAS_MAX_AMOUNT)] l1_data_max_amount: GasAmount,
+    #[default(GasPrice::from(DEFAULT_STRK_L1_DATA_GAS_PRICE))] l1_data_max_price: GasPrice,
 ) -> ValidResourceBounds {
     create_all_resource_bounds(
         l1_max_amount,
@@ -344,13 +355,13 @@ pub fn all_resource_bounds(
     )
 }
 
-fn create_all_resource_bounds(
-    l1_max_amount: u64,
-    l1_max_price: u128,
-    l2_max_amount: u64,
-    l2_max_price: u128,
-    l1_data_max_amount: u64,
-    l1_data_max_price: u128,
+pub fn create_all_resource_bounds(
+    l1_max_amount: GasAmount,
+    l1_max_price: GasPrice,
+    l2_max_amount: GasAmount,
+    l2_max_price: GasPrice,
+    l1_data_max_amount: GasAmount,
+    l1_data_max_price: GasPrice,
 ) -> ValidResourceBounds {
     ValidResourceBounds::AllResources(AllResourceBounds {
         l1_gas: ResourceBounds { max_amount: l1_max_amount, max_price_per_unit: l1_max_price },
@@ -365,7 +376,7 @@ fn create_all_resource_bounds(
 pub fn calculate_class_info_for_testing(contract_class: ContractClass) -> ClassInfo {
     let sierra_program_length = match contract_class {
         ContractClass::V0(_) => 0,
-        ContractClass::V1(_) => 100,
+        ContractClass::V1(_) | ContractClass::V1Native(_) => 100,
     };
     ClassInfo::new(&contract_class, sierra_program_length, 100).unwrap()
 }

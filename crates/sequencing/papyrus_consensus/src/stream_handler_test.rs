@@ -1,12 +1,22 @@
 use futures::channel::mpsc;
 use futures::stream::StreamExt;
-use papyrus_protobuf::consensus::{ConsensusMessage, Proposal, StreamMessage};
+use futures::SinkExt;
+use papyrus_network::network_manager::test_utils::{
+    mock_register_broadcast_topic,
+    MockBroadcastedMessagesSender,
+    TestSubscriberChannels,
+};
+use papyrus_network::network_manager::BroadcastTopicChannels;
+use papyrus_protobuf::consensus::{ConsensusMessage, Proposal, StreamMessage, StreamMessageBody};
+use papyrus_test_utils::{get_rng, GetTestInstance};
 
 use super::StreamHandler;
 
 #[cfg(test)]
 mod tests {
     use std::time::Duration;
+
+    use papyrus_network_types::network_types::BroadcastedMessageManager;
 
     use super::*;
 
@@ -15,12 +25,11 @@ mod tests {
         message_id: u64,
         fin: bool,
     ) -> StreamMessage<ConsensusMessage> {
-        StreamMessage {
-            message: ConsensusMessage::Proposal(Proposal::default()),
-            stream_id,
-            message_id,
-            fin,
-        }
+        let content = match fin {
+            true => StreamMessageBody::Fin,
+            false => StreamMessageBody::Content(ConsensusMessage::Proposal(Proposal::default())),
+        };
+        StreamMessage { message: content, stream_id, message_id }
     }
 
     // Check if two vectors are the same:
@@ -29,25 +38,43 @@ mod tests {
         matching == a.len() && matching == b.len()
     }
 
+    // TODO(guyn): should I make this a public function in `manager_test.rs` or just have a copy
+    // here?
+    async fn send(
+        sender: &mut MockBroadcastedMessagesSender<StreamMessage<ConsensusMessage>>,
+        msg: StreamMessage<ConsensusMessage>,
+    ) {
+        let broadcasted_message_manager =
+            BroadcastedMessageManager::get_test_instance(&mut get_rng());
+        sender.send((msg, broadcasted_message_manager)).await.unwrap();
+    }
+
     fn setup_test() -> (
         StreamHandler<ConsensusMessage>,
-        mpsc::Sender<StreamMessage<ConsensusMessage>>,
+        MockBroadcastedMessagesSender<StreamMessage<ConsensusMessage>>,
         mpsc::Receiver<mpsc::Receiver<ConsensusMessage>>,
     ) {
-        let (tx_input, rx_input) = mpsc::channel::<StreamMessage<ConsensusMessage>>(100);
+        let TestSubscriberChannels { mock_network, subscriber_channels } =
+            mock_register_broadcast_topic().unwrap();
+        let network_sender = mock_network.broadcasted_messages_sender;
+        let BroadcastTopicChannels { broadcasted_messages_receiver, broadcast_topic_client: _ } =
+            subscriber_channels;
+
+        // TODO(guyn): We should also give the broadcast_topic_client to the StreamHandler
         let (tx_output, rx_output) = mpsc::channel::<mpsc::Receiver<ConsensusMessage>>(100);
-        let handler = StreamHandler::new(tx_output, rx_input);
-        (handler, tx_input, rx_output)
+        let handler = StreamHandler::new(tx_output, broadcasted_messages_receiver);
+        (handler, network_sender, rx_output)
     }
 
     #[tokio::test]
     async fn stream_handler_in_order() {
-        let (mut stream_handler, mut tx_input, mut rx_output) = setup_test();
+        let (mut stream_handler, mut network_sender, mut rx_output) = setup_test();
 
         let stream_id = 127;
         for i in 0..10 {
             let message = make_test_message(stream_id, i, i == 9);
-            tx_input.try_send(message).expect("Send should succeed");
+            // tx_input.try_send(message).expect("Send should succeed");
+            send(&mut network_sender, message).await;
         }
 
         let join_handle = tokio::spawn(async move {
@@ -57,7 +84,8 @@ mod tests {
         join_handle.await.expect("Task should succeed");
 
         let mut receiver = rx_output.next().await.unwrap();
-        for _ in 0..10 {
+        for _ in 0..9 {
+            // message number 9 is Fin, so it will not be sent!
             let _ = receiver.next().await.unwrap();
         }
         // Check that the receiver was closed:
@@ -66,12 +94,12 @@ mod tests {
 
     #[tokio::test]
     async fn stream_handler_in_reverse() {
-        let (mut stream_handler, mut tx_input, mut rx_output) = setup_test();
+        let (mut stream_handler, mut network_sender, mut rx_output) = setup_test();
 
         let stream_id = 127;
         for i in 0..5 {
             let message = make_test_message(stream_id, 5 - i, i == 0);
-            tx_input.try_send(message).expect("Send should succeed");
+            send(&mut network_sender, message).await;
         }
 
         let join_handle = tokio::spawn(async move {
@@ -93,8 +121,7 @@ mod tests {
         assert!(do_vecs_match(&keys, &range));
 
         // Now send the last message:
-        tx_input.try_send(make_test_message(stream_id, 0, false)).expect("Send should succeed");
-
+        send(&mut network_sender, make_test_message(stream_id, 0, false)).await;
         let join_handle = tokio::spawn(async move {
             let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.listen()).await;
             stream_handler
@@ -103,7 +130,8 @@ mod tests {
         let stream_handler = join_handle.await.expect("Task should succeed");
         assert!(stream_handler.stream_data.is_empty());
 
-        for _ in 0..6 {
+        for _ in 0..5 {
+            // message number 5 is Fin, so it will not be sent!
             let _ = receiver.next().await.unwrap();
         }
         // Check that the receiver was closed:
@@ -112,29 +140,29 @@ mod tests {
 
     #[tokio::test]
     async fn stream_handler_multiple_streams() {
-        let (mut stream_handler, mut tx_input, mut rx_output) = setup_test();
+        let (mut stream_handler, mut network_sender, mut rx_output) = setup_test();
 
         let stream_id1 = 127; // Send all messages in order (except the first one).
         let stream_id2 = 10; // Send in reverse order (except the first one).
-        let stream_id3 = 1; // Send in two batches of 5 messages, without the first one, don't send fin.
+        let stream_id3 = 1; // Send in two batches, without the first one, don't send fin.
 
         for i in 1..10 {
             let message = make_test_message(stream_id1, i, i == 9);
-            tx_input.try_send(message).expect("Send should succeed");
+            send(&mut network_sender, message).await;
         }
 
         for i in 0..5 {
             let message = make_test_message(stream_id2, 5 - i, i == 0);
-            tx_input.try_send(message).expect("Send should succeed");
+            send(&mut network_sender, message).await;
         }
 
         for i in 5..10 {
             let message = make_test_message(stream_id3, i, false);
-            tx_input.try_send(message).expect("Send should succeed");
+            send(&mut network_sender, message).await;
         }
         for i in 1..5 {
             let message = make_test_message(stream_id3, i, false);
-            tx_input.try_send(message).expect("Send should succeed");
+            send(&mut network_sender, message).await;
         }
 
         let join_handle = tokio::spawn(async move {
@@ -195,7 +223,7 @@ mod tests {
         assert!(receiver3.try_next().is_err());
 
         // Send the last message on stream_id1:
-        tx_input.try_send(make_test_message(stream_id1, 0, false)).expect("Send should succeed");
+        send(&mut network_sender, make_test_message(stream_id1, 0, false)).await;
         let join_handle = tokio::spawn(async move {
             let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.listen()).await;
             stream_handler
@@ -204,7 +232,8 @@ mod tests {
         let mut stream_handler = join_handle.await.expect("Task should succeed");
 
         // Should be able to read all the messages for stream_id1.
-        for _ in 0..10 {
+        for _ in 0..9 {
+            // message number 9 is Fin, so it will not be sent!
             let _ = receiver1.next().await.unwrap();
         }
 
@@ -216,7 +245,7 @@ mod tests {
         assert!(stream_handler.stream_data.clone().into_keys().all(|item| values.contains(&item)));
 
         // Send the last message on stream_id2:
-        tx_input.try_send(make_test_message(stream_id2, 0, false)).expect("Send should succeed");
+        send(&mut network_sender, make_test_message(stream_id2, 0, false)).await;
         let join_handle = tokio::spawn(async move {
             let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.listen()).await;
             stream_handler
@@ -225,7 +254,8 @@ mod tests {
         let mut stream_handler = join_handle.await.expect("Task should succeed");
 
         // Should be able to read all the messages for stream_id2.
-        for _ in 0..6 {
+        for _ in 0..5 {
+            // message number 5 is Fin, so it will not be sent!
             let _ = receiver2.next().await.unwrap();
         }
 
@@ -237,7 +267,7 @@ mod tests {
         assert!(stream_handler.stream_data.clone().into_keys().all(|item| values.contains(&item)));
 
         // Send the last message on stream_id3:
-        tx_input.try_send(make_test_message(stream_id3, 0, false)).expect("Send should succeed");
+        send(&mut network_sender, make_test_message(stream_id3, 0, false)).await;
 
         let join_handle = tokio::spawn(async move {
             let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.listen()).await;
@@ -246,6 +276,7 @@ mod tests {
 
         let stream_handler = join_handle.await.expect("Task should succeed");
         for _ in 0..10 {
+            // All messages are received, including number 9 which is not Fin
             let _ = receiver3.next().await.unwrap();
         }
 

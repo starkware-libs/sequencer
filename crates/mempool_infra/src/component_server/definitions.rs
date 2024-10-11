@@ -21,6 +21,8 @@ pub async fn request_response_loop<Request, Response, Component>(
     Request: Send + Sync,
     Response: Send + Sync,
 {
+    info!("Starting server loop for component {}", type_name::<Component>());
+
     // TODO(Tsabary): Make requests and responses implement `std::fmt::Display`, and add the request
     // to the log.
     // TODO(Tsabary): Move this function to be part of the `local_server` module.
@@ -34,6 +36,8 @@ pub async fn request_response_loop<Request, Response, Component>(
 
         tx.send(res).await.expect("Response connection should be open.");
     }
+
+    info!("Finished server loop for component {}", type_name::<Component>());
 }
 
 // TODO(Tsabary): Create an error module and move this error there.

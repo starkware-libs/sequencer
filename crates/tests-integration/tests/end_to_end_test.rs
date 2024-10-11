@@ -24,9 +24,9 @@ async fn test_end_to_end(mut tx_generator: MultiAccountTransactionGenerator) {
 
     let mock_running_system = IntegrationTestSetup::new_from_tx_generator(&tx_generator).await;
 
-    let account0_invoke_nonce1 = tx_generator.account_with_id(0).generate_invoke();
-    let account0_invoke_nonce2 = tx_generator.account_with_id(0).generate_invoke();
-    let account1_invoke_nonce1 = tx_generator.account_with_id(1).generate_invoke();
+    let account0_invoke_nonce1 = tx_generator.account_with_id(0).generate_invoke_with_tip(1);
+    let account0_invoke_nonce2 = tx_generator.account_with_id(0).generate_invoke_with_tip(1);
+    let account1_invoke_nonce1 = tx_generator.account_with_id(1).generate_invoke_with_tip(1);
 
     let account0_invoke_nonce1_tx_hash =
         mock_running_system.assert_add_tx_success(&account0_invoke_nonce1).await;

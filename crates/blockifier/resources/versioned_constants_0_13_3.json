@@ -74,6 +74,8 @@
         "error_invalid_input_len": "Invalid input length",
         "error_invalid_argument": "Invalid argument",
         "error_out_of_gas": "Out of gas",
+        "error_entry_point_failed": "ENTRYPOINT_FAILED",
+        "error_entry_point_not_found": "ENTRYPOINT_NOT_FOUND",
         "execute_entry_point_selector": "0x15d40a3d6ca2ac30f4031e42be28da9b056fef9bb7357ac5e85627ee876e5ad",
         "get_block_hash_gas_cost": {
             "step_gas_cost": 104,
@@ -206,7 +208,7 @@
     "os_resources": {
         "execute_syscalls": {
             "CallContract": {
-                "n_steps": 860,
+                "n_steps": 866,
                 "builtin_instance_counter": {
                     "range_check_builtin": 15
                 },
@@ -227,7 +229,7 @@
                 "n_memory_holes": 0
             },
             "Deploy": {
-                "n_steps": 1130,
+                "n_steps": 1132,
                 "builtin_instance_counter": {
                     "pedersen_builtin": 7,
                     "range_check_builtin": 18
@@ -306,7 +308,7 @@
                 "n_memory_holes": 0
             },
             "LibraryCall": {
-                "n_steps": 836,
+                "n_steps": 842,
                 "builtin_instance_counter": {
                     "range_check_builtin": 15
                 },
@@ -404,7 +406,7 @@
                 "n_memory_holes": 0
             },
             "Sha256ProcessBlock": {
-                "n_steps": 1855,
+                "n_steps": 1865,
                 "builtin_instance_counter": {
                     "range_check_builtin": 65,
                     "bitwise_builtin": 1115
@@ -430,7 +432,7 @@
             "Declare": {
                 "deprecated_resources": {
                     "constant": {
-                        "n_steps": 3201,
+                        "n_steps": 3203,
                         "builtin_instance_counter": {
                             "pedersen_builtin": 16,
                             "range_check_builtin": 56,
@@ -446,7 +448,7 @@
                 },
                 "resources": {
                     "constant": {
-                        "n_steps": 3344,
+                        "n_steps": 3346,
                         "builtin_instance_counter": {
                             "pedersen_builtin": 4,
                             "range_check_builtin": 64,
@@ -464,7 +466,7 @@
             "DeployAccount": {
                 "deprecated_resources": {
                     "constant": {
-                        "n_steps": 4157,
+                        "n_steps": 4161,
                         "builtin_instance_counter": {
                             "pedersen_builtin": 23,
                             "range_check_builtin": 72
@@ -481,7 +483,7 @@
                 },
                 "resources": {
                     "constant": {
-                        "n_steps": 4317,
+                        "n_steps": 4321,
                         "builtin_instance_counter": {
                             "pedersen_builtin": 11,
                             "range_check_builtin": 80,
@@ -501,7 +503,7 @@
             "InvokeFunction": {
                 "deprecated_resources": {
                     "constant": {
-                        "n_steps": 3914,
+                        "n_steps": 3918,
                         "builtin_instance_counter": {
                             "pedersen_builtin": 14,
                             "range_check_builtin": 69
@@ -518,7 +520,7 @@
                 },
                 "resources": {
                     "constant": {
-                        "n_steps": 4098,
+                        "n_steps": 4102,
                         "builtin_instance_counter": {
                             "pedersen_builtin": 4,
                             "range_check_builtin": 77,
@@ -538,7 +540,7 @@
             "L1Handler": {
                 "deprecated_resources": {
                     "constant": {
-                        "n_steps": 1277,
+                        "n_steps": 1279,
                         "builtin_instance_counter": {
                             "pedersen_builtin": 11,
                             "range_check_builtin": 16

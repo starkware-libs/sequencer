@@ -4,16 +4,16 @@ use starknet_consensus_manager_types::communication::{
     ConsensusManagerResponse,
 };
 use starknet_mempool_infra::component_definitions::ComponentRequestHandler;
-use starknet_mempool_infra::component_server::EmptyServer;
+use starknet_mempool_infra::component_server::WrapperServer;
 
 use crate::consensus_manager::ConsensusManager;
 
-pub type ConsensusManagerServer = EmptyServer<ConsensusManager>;
+pub type ConsensusManagerServer = WrapperServer<ConsensusManager>;
 
 pub fn create_consensus_manager_server(
     consensus_manager: ConsensusManager,
 ) -> ConsensusManagerServer {
-    EmptyServer::new(consensus_manager)
+    WrapperServer::new(consensus_manager)
 }
 
 #[async_trait]

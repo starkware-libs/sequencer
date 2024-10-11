@@ -22,7 +22,6 @@ use crate::test_utils::declare::declare_tx;
 use crate::test_utils::deploy_account::deploy_account_tx;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{create_calldata, CairoVersion, BALANCE, DEFAULT_STRK_L1_GAS_PRICE};
-use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::test_utils::{
     account_invoke_tx,
@@ -115,16 +114,17 @@ fn test_declare(
     let declared_contract = FeatureContract::Empty(cairo_version);
     let state = test_state(&block_context.chain_info, BALANCE, &[(account_contract, 1)]);
 
-    let tx = Transaction::Account(declare_tx(
+    let tx = declare_tx(
         declare_tx_args! {
             sender_address: account_contract.get_instance_address(0),
             class_hash: declared_contract.get_class_hash(),
             compiled_class_hash: declared_contract.get_compiled_class_hash(),
             version: tx_version,
-            resource_bounds: l1_resource_bounds(0, DEFAULT_STRK_L1_GAS_PRICE),
+            resource_bounds: l1_resource_bounds(0_u8.into(), DEFAULT_STRK_L1_GAS_PRICE.into()),
         },
         calculate_class_info_for_testing(declared_contract.get_class()),
-    ));
+    )
+    .into();
     tx_executor_test_body(state, block_context, tx, expected_bouncer_weights);
 }
 
@@ -137,14 +137,15 @@ fn test_deploy_account(
     let account_contract = FeatureContract::AccountWithoutValidations(cairo_version);
     let state = test_state(&block_context.chain_info, BALANCE, &[(account_contract, 0)]);
 
-    let tx = Transaction::Account(AccountTransaction::DeployAccount(deploy_account_tx(
+    let tx = deploy_account_tx(
         deploy_account_tx_args! {
             class_hash: account_contract.get_class_hash(),
-            resource_bounds: l1_resource_bounds(0, DEFAULT_STRK_L1_GAS_PRICE),
+            resource_bounds: l1_resource_bounds(0_u8.into(), DEFAULT_STRK_L1_GAS_PRICE.into()),
             version,
         },
         &mut NonceManager::default(),
-    )));
+    )
+    .into();
     let expected_bouncer_weights = BouncerWeights {
         state_diff_size: 3,
         message_segment_length: 0,
@@ -210,11 +211,12 @@ fn test_invoke(
 
     let calldata =
         create_calldata(test_contract.get_instance_address(0), entry_point_name, &entry_point_args);
-    let tx = Transaction::Account(account_invoke_tx(invoke_tx_args! {
+    let tx = account_invoke_tx(invoke_tx_args! {
         sender_address: account_contract.get_instance_address(0),
         calldata,
         version,
-    }));
+    })
+    .into();
     tx_executor_test_body(state, block_context, tx, expected_bouncer_weights);
 }
 
@@ -237,7 +239,7 @@ fn test_l1_handler(block_context: BlockContext) {
 }
 
 #[rstest]
-#[case::happy_flow(BouncerWeights::default(), 10)]
+#[case::happy_flow(BouncerWeights::empty(), 10)]
 #[should_panic(expected = "BlockFull: Transaction cannot be added to the current block, block \
                            capacity reached.")]
 #[case::block_full(
@@ -247,9 +249,8 @@ fn test_l1_handler(block_context: BlockContext) {
     },
     7
 )]
-#[should_panic(expected = "TransactionExecutionError(TransactionTooLarge): Transaction size \
-                           exceeds the maximum block capacity.")]
-#[case::transaction_too_large(BouncerWeights::default(), 11)]
+#[should_panic(expected = "Transaction size exceeds the maximum block capacity.")]
+#[case::transaction_too_large(BouncerWeights::empty(), 11)]
 
 fn test_bouncing(#[case] initial_bouncer_weights: BouncerWeights, #[case] n_events: usize) {
     let max_n_events_in_block = 10;
@@ -265,19 +266,22 @@ fn test_bouncing(#[case] initial_bouncer_weights: BouncerWeights, #[case] n_even
     tx_executor.bouncer.set_accumulated_weights(initial_bouncer_weights);
 
     tx_executor
-        .execute(&Transaction::Account(emit_n_events_tx(
-            n_events,
-            account_address,
-            contract_address,
-            nonce_manager.next(account_address),
-        )))
+        .execute(
+            &emit_n_events_tx(
+                n_events,
+                account_address,
+                contract_address,
+                nonce_manager.next(account_address),
+            )
+            .into(),
+        )
         .map_err(|error| panic!("{error:?}: {error}"))
         .unwrap();
 }
 
 #[rstest]
-fn test_execute_txs_bouncing() {
-    let config = TransactionExecutorConfig::create_for_testing();
+fn test_execute_txs_bouncing(#[values(true, false)] concurrency_enabled: bool) {
+    let config = TransactionExecutorConfig::create_for_testing(concurrency_enabled);
     let max_n_events_in_block = 10;
     let block_context = BlockContext::create_for_bouncer_testing(max_n_events_in_block);
 
@@ -316,7 +320,7 @@ fn test_execute_txs_bouncing() {
     assert_matches!(
         results[1].as_ref().unwrap_err(),
         TransactionExecutorError::TransactionExecutionError(
-            TransactionExecutionError::TransactionTooLarge
+            TransactionExecutionError::TransactionTooLarge { .. }
         )
     );
     assert!(results[2].is_ok());

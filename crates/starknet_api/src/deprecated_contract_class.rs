@@ -13,7 +13,7 @@ use crate::serde_utils::deserialize_optional_contract_class_abi_entry_vector;
 use crate::StarknetApiError;
 
 /// A deprecated contract class.
-#[derive(Debug, Clone, Default, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ContractClass {
     // Starknet does not verify the abi. If we can't parse it, we set it to None.
     #[serde(default, deserialize_with = "deserialize_optional_contract_class_abi_entry_vector")]

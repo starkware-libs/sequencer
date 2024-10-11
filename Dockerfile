@@ -11,7 +11,7 @@ FROM ubuntu:22.04 AS base
 WORKDIR /app
 
 COPY scripts/install_build_tools.sh .
-COPY scripts/setup_native_deps.sh .
+COPY scripts/dependencies.sh .
 RUN apt update && apt -y install curl bzip2
 
 
@@ -23,9 +23,7 @@ RUN ./install_build_tools.sh
 
 RUN cargo install cargo-chef
 RUN apt update && apt -y install unzip
-ENV PROTOC_VERSION=25.1
-RUN curl -L "https://github.com/protocolbuffers/protobuf/releases/download/v$PROTOC_VERSION/protoc-$PROTOC_VERSION-linux-x86_64.zip" -o protoc.zip && unzip ./protoc.zip -d $HOME/.local &&  rm ./protoc.zip
-ENV PROTOC=/root/.local/bin/protoc
+
 
 # # Reinstalling the stable Rust toolchain to ensure a clean environment
 # RUN rustup toolchain uninstall stable-x86_64-unknown-linux-gnu && rustup toolchain install stable-x86_64-unknown-linux-gnu

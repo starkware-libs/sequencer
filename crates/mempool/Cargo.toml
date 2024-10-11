@@ -11,6 +11,9 @@ workspace = true
 [dependencies]
 async-trait.workspace = true
 derive_more.workspace = true
+mempool_test_utils = { workspace = true, optional = true }
+pretty_assertions = { workspace = true, optional = true }
+starknet-types-core = { workspace = true, optional = true }
 starknet_api.workspace = true
 starknet_mempool_infra.workspace = true
 starknet_mempool_types.workspace = true
@@ -19,9 +22,14 @@ tokio.workspace = true
 [dev-dependencies]
 assert_matches.workspace = true
 itertools.workspace = true
-mempool_test_utils.workspace = true
-pretty_assertions.workspace = true
 rstest.workspace = true
-starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 tokio.workspace = true
+# Enable test utils feature for integration tests.
+starknet_mempool = { workspace = true, features = ["testing"] }
+
+[features]
+testing = ["mempool_test_utils", "pretty_assertions", "starknet-types-core"]
+
+[package.metadata.cargo-machete]
+ignored = ["starknet-types-core"]

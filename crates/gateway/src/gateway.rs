@@ -1,13 +1,14 @@
 use std::clone::Clone;
 use std::sync::Arc;
 
+use blockifier::context::ChainInfo;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_mempool_infra::component_definitions::ComponentStarter;
-use starknet_mempool_types::communication::{MempoolWrapperInput, SharedMempoolClient};
-use starknet_mempool_types::mempool_types::{AccountState, MempoolInput};
+use starknet_mempool_types::communication::{AddTransactionArgsWrapper, SharedMempoolClient};
+use starknet_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 use tracing::{error, instrument};
 
@@ -38,6 +39,7 @@ pub struct AppState {
     pub state_reader_factory: Arc<dyn StateReaderFactory>,
     pub gateway_compiler: GatewayCompiler,
     pub mempool_client: SharedMempoolClient,
+    pub chain_info: ChainInfo,
 }
 
 impl Gateway {
@@ -57,6 +59,7 @@ impl Gateway {
             state_reader_factory,
             gateway_compiler,
             mempool_client,
+            chain_info: config.chain_info.clone(),
         };
         Gateway { config, app_state }
     }
@@ -74,12 +77,13 @@ async fn internal_add_tx(
     app_state: AppState,
     tx: RpcTransaction,
 ) -> GatewayResult<TransactionHash> {
-    let mempool_input = tokio::task::spawn_blocking(move || {
+    let add_tx_args = tokio::task::spawn_blocking(move || {
         process_tx(
             app_state.stateless_tx_validator,
             app_state.stateful_tx_validator.as_ref(),
             app_state.state_reader_factory.as_ref(),
             app_state.gateway_compiler,
+            &app_state.chain_info,
             tx,
         )
     })
@@ -89,10 +93,10 @@ async fn internal_add_tx(
         GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
     })??;
 
-    let tx_hash = mempool_input.tx.tx_hash();
+    let tx_hash = add_tx_args.tx.tx_hash();
 
-    let mempool_wrapper_input = MempoolWrapperInput { mempool_input, message_metadata: None };
-    app_state.mempool_client.add_tx(mempool_wrapper_input).await.map_err(|e| {
+    let add_tx_args = AddTransactionArgsWrapper { args: add_tx_args, p2p_message_metadata: None };
+    app_state.mempool_client.add_tx(add_tx_args).await.map_err(|e| {
         error!("Failed to send tx to mempool: {}", e);
         GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
     })?;
@@ -105,18 +109,16 @@ fn process_tx(
     stateful_tx_validator: &StatefulTransactionValidator,
     state_reader_factory: &dyn StateReaderFactory,
     gateway_compiler: GatewayCompiler,
+    chain_info: &ChainInfo,
     tx: RpcTransaction,
-) -> GatewayResult<MempoolInput> {
+) -> GatewayResult<AddTransactionArgs> {
     // TODO(Arni, 1/5/2024): Perform congestion control.
 
     // Perform stateless validations.
     stateless_tx_validator.validate(&tx)?;
 
-    let executable_tx = compile_contract_and_build_executable_tx(
-        tx,
-        &gateway_compiler,
-        &stateful_tx_validator.config.chain_info.chain_id,
-    )?;
+    let executable_tx =
+        compile_contract_and_build_executable_tx(tx, &gateway_compiler, &chain_info.chain_id)?;
 
     // Perfom post compilation validations.
     if let Transaction::Declare(executable_declare_tx) = &executable_tx {
@@ -125,7 +127,8 @@ fn process_tx(
         }
     }
 
-    let mut validator = stateful_tx_validator.instantiate_validator(state_reader_factory)?;
+    let mut validator =
+        stateful_tx_validator.instantiate_validator(state_reader_factory, chain_info)?;
     let address = executable_tx.contract_address();
     let nonce = validator.get_nonce(address).map_err(|e| {
         error!("Failed to get nonce for sender address {}: {}", address, e);
@@ -135,7 +138,7 @@ fn process_tx(
     stateful_tx_validator.run_validate(&executable_tx, nonce, validator)?;
 
     // TODO(Arni): Add the Sierra and the Casm to the mempool input.
-    Ok(MempoolInput { tx: executable_tx, account_state: AccountState { address, nonce } })
+    Ok(AddTransactionArgs { tx: executable_tx, account_state: AccountState { address, nonce } })
 }
 
 pub fn create_gateway(
