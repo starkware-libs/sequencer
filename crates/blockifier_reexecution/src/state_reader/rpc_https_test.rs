@@ -13,6 +13,7 @@ use starknet_core::types::ContractClass::{Legacy, Sierra};
 
 use crate::state_reader::compile::legacy_to_contract_class_v0;
 use crate::state_reader::test_state_reader::{ConsecutiveTestStateReaders, TestStateReader};
+use crate::state_reader::utils::from_api_txs_to_blockifier_txs;
 
 const EXAMPLE_INVOKE_TX_HASH: &str =
     "0xa7c7db686c7f756ceb7ca85a759caef879d425d156da83d6a836f86851983";
@@ -110,12 +111,9 @@ pub fn test_full_blockifier_via_rpc(
         test_state_readers_last_and_current_block;
     // 1. Read txs via RPC, convert to blockifier txs
     let all_txs = next_block_state_reader.get_all_txs_in_block().unwrap();
-    println!("all_txs_api: {:?}", all_txs);
     let all_txs = from_api_txs_to_blockifier_txs(all_txs).unwrap();
-    println!("all_txs_blockifier: {:?}", all_txs);
     // 2. Read expected statediff via RPC
     let expected_state_diff = next_block_state_reader.get_state_diff().unwrap();
-    println!("expected_state_diff: {:?}", expected_state_diff);
     // 3. Create TransactionExecutor (Read block_header via RPC)
     let mut transaction_executor =
         test_state_readers_last_and_current_block.get_transaction_executor(None).unwrap();
