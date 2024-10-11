@@ -17,6 +17,7 @@ cairo-lang-starknet-classes.workspace = true
 indexmap.workspace = true
 mempool_test_utils.workspace = true
 papyrus_common.workspace = true
+papyrus_config.workspace = true
 papyrus_rpc.workspace = true
 papyrus_storage = { workspace = true, features = ["testing"] }
 reqwest.workspace = true
