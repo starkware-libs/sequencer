@@ -1,27 +1,19 @@
-use blockifier::test_utils::contracts::FeatureContract;
-use blockifier::test_utils::CairoVersion;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::transaction::TransactionHash;
 use starknet_mempool_integration_tests::integration_test_setup::IntegrationTestSetup;
+use starknet_mempool_integration_tests::integration_test_utils::create_integration_test_tx_generator;
 
 #[fixture]
 fn tx_generator() -> MultiAccountTransactionGenerator {
-    MultiAccountTransactionGenerator::new()
+    create_integration_test_tx_generator()
 }
 
 #[rstest]
 #[tokio::test]
 async fn test_end_to_end(mut tx_generator: MultiAccountTransactionGenerator) {
     // Setup.
-    for account in [
-        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1),
-        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0),
-    ] {
-        tx_generator.register_account_for_flow_test(account);
-    }
-
     let mock_running_system = IntegrationTestSetup::new_from_tx_generator(&tx_generator).await;
 
     let account0_invoke_nonce1 = tx_generator.account_with_id(0).generate_invoke_with_tip(1);
