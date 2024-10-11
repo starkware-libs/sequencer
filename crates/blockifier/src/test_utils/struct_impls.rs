@@ -7,7 +7,11 @@ use starknet_api::block::{BlockHash, BlockNumber, BlockTimestamp, NonzeroGasPric
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, Nonce, PatriciaKey};
 use starknet_api::hash::StarkHash;
 use starknet_api::transaction::{
-    Calldata, Fee, GasVectorComputationMode, TransactionHash, TransactionVersion,
+    Calldata,
+    Fee,
+    GasVectorComputationMode,
+    TransactionHash,
+    TransactionVersion,
 };
 use starknet_api::{calldata, contract_address, felt, patricia_key};
 use starknet_types_core::felt::Felt;
@@ -21,21 +25,32 @@ use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionCont
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::contract_class::{ContractClassV0, ContractClassV1, NativeContractClassV1};
 use crate::execution::entry_point::{
-    CallEntryPoint, EntryPointExecutionContext, EntryPointExecutionResult,
+    CallEntryPoint,
+    EntryPointExecutionContext,
+    EntryPointExecutionResult,
 };
 use crate::fee::fee_utils::get_fee_by_gas_vector;
 use crate::fee::resources::TransactionResources;
 use crate::state::state_api::State;
 use crate::test_utils::{
-    get_raw_contract_class, CURRENT_BLOCK_NUMBER, CURRENT_BLOCK_TIMESTAMP,
-    DEFAULT_ETH_L1_DATA_GAS_PRICE, DEFAULT_ETH_L1_GAS_PRICE, DEFAULT_STRK_L1_DATA_GAS_PRICE,
-    DEFAULT_STRK_L1_GAS_PRICE, TEST_ERC20_CONTRACT_ADDRESS, TEST_ERC20_CONTRACT_ADDRESS2,
+    get_raw_contract_class,
+    CURRENT_BLOCK_NUMBER,
+    CURRENT_BLOCK_TIMESTAMP,
+    DEFAULT_ETH_L1_DATA_GAS_PRICE,
+    DEFAULT_ETH_L1_GAS_PRICE,
+    DEFAULT_STRK_L1_DATA_GAS_PRICE,
+    DEFAULT_STRK_L1_GAS_PRICE,
+    TEST_ERC20_CONTRACT_ADDRESS,
+    TEST_ERC20_CONTRACT_ADDRESS2,
     TEST_SEQUENCER_ADDRESS,
 };
 use crate::transaction::objects::{DeprecatedTransactionInfo, FeeType, TransactionInfo};
 use crate::transaction::transactions::L1HandlerTransaction;
 use crate::versioned_constants::{
-    GasCosts, OsConstants, VersionedConstants, VERSIONED_CONSTANTS_LATEST_JSON,
+    GasCosts,
+    OsConstants,
+    VersionedConstants,
+    VERSIONED_CONSTANTS_LATEST_JSON,
 };
 
 impl CallEntryPoint {
