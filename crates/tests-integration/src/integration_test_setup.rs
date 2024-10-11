@@ -57,11 +57,10 @@ impl IntegrationTestSetup {
         let HttpServerConfig { ip, port } = config.http_server_config;
         let http_test_client = HttpTestClient::new(SocketAddr::from((ip, port)));
 
-        let gateway_future = get_server_future("Gateway", true, servers.local_servers.gateway);
+        let gateway_future = get_server_future(servers.local_servers.gateway);
         let gateway_handle = task_executor.spawn_with_handle(gateway_future);
 
-        let http_server_future =
-            get_server_future("HttpServer", true, servers.wrapper_servers.http_server);
+        let http_server_future = get_server_future(servers.wrapper_servers.http_server);
         let http_server_handle = task_executor.spawn_with_handle(http_server_future);
 
         // Wait for server to spin up.
@@ -70,7 +69,7 @@ impl IntegrationTestSetup {
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
         // Build and run mempool.
-        let mempool_future = get_server_future("Mempool", true, servers.local_servers.mempool);
+        let mempool_future = get_server_future(servers.local_servers.mempool);
         let mempool_handle = task_executor.spawn_with_handle(mempool_future);
 
         Self {
