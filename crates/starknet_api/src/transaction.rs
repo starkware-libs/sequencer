@@ -1046,6 +1046,16 @@ pub struct ResourceBounds {
     pub max_price_per_unit: GasPrice,
 }
 
+impl std::fmt::Display for ResourceBounds {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{{ max_amount: {}, max_price_per_unit: {} }}",
+            self.max_amount, self.max_price_per_unit
+        )
+    }
+}
+
 impl ResourceBounds {
     /// Returns true iff both the max amount and the max amount per unit is zero.
     pub fn is_zero(&self) -> bool {
@@ -1183,6 +1193,16 @@ pub struct AllResourceBounds {
     pub l1_gas: ResourceBounds,
     pub l2_gas: ResourceBounds,
     pub l1_data_gas: ResourceBounds,
+}
+
+impl std::fmt::Display for AllResourceBounds {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{{ l1_gas: {}, l2_gas: {}, l1_data_gas: {} }}",
+            self.l1_gas, self.l2_gas, self.l1_data_gas
+        )
+    }
 }
 
 impl AllResourceBounds {
