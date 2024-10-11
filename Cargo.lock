@@ -10369,6 +10369,7 @@ dependencies = [
  "indexmap 2.6.0",
  "mempool_test_utils",
  "papyrus_common",
+ "papyrus_config",
  "papyrus_rpc",
  "papyrus_storage",
  "pretty_assertions",
