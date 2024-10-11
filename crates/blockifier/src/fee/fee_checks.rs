@@ -1,3 +1,4 @@
+use starknet_api::block::GasPriceVector;
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::transaction::Resource::{self, L1DataGas, L1Gas, L2Gas};
 use starknet_api::transaction::{AllResourceBounds, Fee, ResourceBounds, ValidResourceBounds};
