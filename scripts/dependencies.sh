@@ -66,7 +66,7 @@ function compile_cairo_native_runtime() {
     fi
 
     # Then we clone and build the runtime from the repo
-    git clone https://github.com/lambdaclass/cairo_native.git
+    $SUDO git clone https://github.com/lambdaclass/cairo_native.git
     pushd ./cairo_native || exit 1
     git switch v0.2.0-alpha.2 --detach
     cargo build -p cairo-native-runtime --release --all-features --quiet
