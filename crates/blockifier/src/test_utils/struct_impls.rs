@@ -59,7 +59,6 @@ impl CallEntryPoint {
         self.execute_directly_given_tx_info(
             state,
             TransactionInfo::Deprecated(DeprecatedTransactionInfo::default()),
-            true,
         )
     }
 
@@ -67,12 +66,10 @@ impl CallEntryPoint {
         self,
         state: &mut dyn State,
         tx_info: TransactionInfo,
-        limit_steps_by_resources: bool,
     ) -> EntryPointExecutionResult<CallInfo> {
         let tx_context =
             TransactionContext { block_context: BlockContext::create_for_testing(), tx_info };
-        let mut context =
-            EntryPointExecutionContext::new_invoke(Arc::new(tx_context), limit_steps_by_resources);
+        let mut context = EntryPointExecutionContext::new_invoke(Arc::new(tx_context), true);
         self.execute(state, &mut ExecutionResources::default(), &mut context)
     }
 
@@ -85,7 +82,6 @@ impl CallEntryPoint {
         self.execute_directly_given_tx_info_in_validate_mode(
             state,
             TransactionInfo::Deprecated(DeprecatedTransactionInfo::default()),
-            true,
         )
     }
 
@@ -93,14 +89,10 @@ impl CallEntryPoint {
         self,
         state: &mut dyn State,
         tx_info: TransactionInfo,
-        limit_steps_by_resources: bool,
     ) -> EntryPointExecutionResult<CallInfo> {
         let tx_context =
             TransactionContext { block_context: BlockContext::create_for_testing(), tx_info };
-        let mut context = EntryPointExecutionContext::new_validate(
-            Arc::new(tx_context),
-            limit_steps_by_resources,
-        );
+        let mut context = EntryPointExecutionContext::new_validate(Arc::new(tx_context), true);
         self.execute(state, &mut ExecutionResources::default(), &mut context)
     }
 }
