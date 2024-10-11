@@ -108,6 +108,9 @@ macro_rules! add_tx_input {
     (tx_hash: $tx_hash:expr, tx_nonce: $tx_nonce:expr) => {
         add_tx_input!(tip: 0, tx_hash: $tx_hash, sender_address: "0x0", tx_nonce: $tx_nonce, account_nonce: 0)
     };
+    (tx_hash: $tx_hash:expr, tip: $tip:expr, max_l2_gas_price: $max_l2_gas_price:expr) => {
+        add_tx_input!(tip: $tip, tx_hash: $tx_hash, sender_address: "0x0", tx_nonce: 0, account_nonce: 0)
+    };
 }
 
 #[track_caller]
