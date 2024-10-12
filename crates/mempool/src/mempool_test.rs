@@ -37,6 +37,7 @@ use crate::{add_tx_input, tx};
 struct MempoolContent {
     tx_pool: Option<TransactionPool>,
     tx_queue_content: Option<TransactionQueueContent>,
+    fee_escalation_percentage: u8,
 }
 
 impl MempoolContent {
@@ -53,7 +54,8 @@ impl MempoolContent {
 
 impl From<MempoolContent> for Mempool {
     fn from(mempool_content: MempoolContent) -> Mempool {
-        let MempoolContent { tx_pool, tx_queue_content } = mempool_content;
+        let MempoolContent { tx_pool, tx_queue_content, fee_escalation_percentage } =
+            mempool_content;
         Mempool {
             tx_pool: tx_pool.unwrap_or_default(),
             tx_queue: tx_queue_content
@@ -62,6 +64,7 @@ impl From<MempoolContent> for Mempool {
             // TODO: Add implementation when needed.
             mempool_state: Default::default(),
             account_nonces: Default::default(),
+            fee_escalation_percentage,
         }
     }
 }
@@ -70,6 +73,7 @@ impl From<MempoolContent> for Mempool {
 struct MempoolContentBuilder {
     tx_pool: Option<TransactionPool>,
     tx_queue_content_builder: TransactionQueueContentBuilder,
+    fee_escalation_percentage: u8,
 }
 
 impl MempoolContentBuilder {
@@ -101,10 +105,16 @@ impl MempoolContentBuilder {
         self
     }
 
+    fn with_fee_escalation_percentage(mut self, fee_escalation_percentage: u8) -> Self {
+        self.fee_escalation_percentage = fee_escalation_percentage;
+        self
+    }
+
     fn build(self) -> MempoolContent {
         MempoolContent {
             tx_pool: self.tx_pool,
             tx_queue_content: self.tx_queue_content_builder.build(),
+            fee_escalation_percentage: self.fee_escalation_percentage,
         }
     }
 
@@ -588,6 +598,48 @@ fn test_add_tx_fills_nonce_gap(mut mempool: Mempool) {
         .with_pool(expected_pool_txs)
         .with_priority_queue(expected_queue_txs)
         .build();
+    expected_mempool_content.assert_eq(&mempool);
+}
+
+#[rstest]
+fn test_fee_escalation() {
+    let mut mempool =
+        MempoolContentBuilder::new().with_fee_escalation_percentage(10).build_into_mempool();
+
+    // Valid replacement.
+
+    // Setup.
+    let input = add_tx_input!(tx_hash: 1, tip: 90, max_l2_gas_price: 90, tx_nonce: 1, sender_address: "0x0");
+    let valid_replacement_input = add_tx_input!(tx_hash: 2, tip: 100, max_l2_gas_price: 100, tx_nonce: 1, sender_address: "0x0");
+
+    // Test and assert.
+    add_tx(&mut mempool, &input);
+    add_tx(&mut mempool, &valid_replacement_input);
+
+    // Verify transaction was replaced.
+    let expected_mempool_content =
+        MempoolContentBuilder::new().with_pool([valid_replacement_input.tx.clone()]).build();
+    expected_mempool_content.assert_eq(&mempool);
+
+    // Invalid replacement.
+
+    // Setup.
+    let input_not_enough_tip = add_tx_input!(tx_hash: 3, tip: 109, max_l2_gas_price: 110, tx_nonce: 1, sender_address: "0x0");
+    let input_not_enough_gas_price = add_tx_input!(tx_hash: 4, tip: 110, max_l2_gas_price: 109, tx_nonce: 1, sender_address: "0x0");
+    let input_not_enough_both = add_tx_input!(tx_hash: 5, tip: 109, max_l2_gas_price: 109, tx_nonce: 1, sender_address: "0x0");
+
+    // Test and assert.
+    for input in [&input_not_enough_tip, &input_not_enough_gas_price, &input_not_enough_both] {
+        add_tx_expect_error(
+            &mut mempool,
+            input,
+            MempoolError::DuplicateNonce { address: contract_address!("0x0"), nonce: nonce!(1) },
+        );
+    }
+
+    // Assert: transaction was not replaced.
+    let expected_mempool_content =
+        MempoolContentBuilder::new().with_pool([valid_replacement_input.tx]).build();
     expected_mempool_content.assert_eq(&mempool);
 }
 
