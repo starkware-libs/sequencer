@@ -1,4 +1,5 @@
 use rstest::{fixture, rstest};
+use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, PatriciaKey};
 use starknet_api::{contract_address, felt, invoke_tx_args, nonce, patricia_key};
 use starknet_mempool::add_tx_input;
