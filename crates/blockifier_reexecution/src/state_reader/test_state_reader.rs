@@ -30,34 +30,6 @@ use crate::state_reader::utils::{
 };
 
 pub type ReexecutionResult<T> = Result<T, ReexecutionError>;
-pub struct ConsecutiveTestStateReaders {
-    pub last_block_state_reader: TestStateReader,
-    pub next_block_state_reader: TestStateReader,
-}
-
-impl ConsecutiveTestStateReaders {
-    pub fn new_for_testing(last_constructed_block_number: BlockNumber) -> Self {
-        let config = &get_rpc_state_reader_config();
-        ConsecutiveTestStateReaders {
-            last_block_state_reader: TestStateReader::new(config, last_constructed_block_number),
-            next_block_state_reader: TestStateReader::new(
-                config,
-                last_constructed_block_number.next().expect("Overflow in block number"),
-            ),
-        }
-    }
-
-    pub fn get_transaction_executor(
-        self,
-        transaction_executor_config: Option<TransactionExecutorConfig>,
-    ) -> ReexecutionResult<TransactionExecutor<TestStateReader>> {
-        Ok(TransactionExecutor::<TestStateReader>::new(
-            CachedState::new(self.last_block_state_reader),
-            self.next_block_state_reader.get_block_context()?,
-            transaction_executor_config.unwrap_or_default(),
-        ))
-    }
-}
 
 pub struct TestStateReader(RpcStateReader);
 
@@ -205,6 +177,38 @@ impl TestStateReader {
         Ok(TransactionExecutor::<TestStateReader>::new(
             CachedState::new(test_state_reader),
             block_context_next_block,
+            transaction_executor_config.unwrap_or_default(),
+        ))
+    }
+}
+
+pub struct ConsecutiveTestStateReaders {
+    pub last_block_state_reader: TestStateReader,
+    pub next_block_state_reader: TestStateReader,
+}
+
+impl ConsecutiveTestStateReaders {
+    pub fn new(
+        last_constructed_block_number: BlockNumber,
+        config: Option<RpcStateReaderConfig>,
+    ) -> Self {
+        let config = config.unwrap_or(get_rpc_state_reader_config());
+        ConsecutiveTestStateReaders {
+            last_block_state_reader: TestStateReader::new(&config, last_constructed_block_number),
+            next_block_state_reader: TestStateReader::new(
+                &config,
+                last_constructed_block_number.next().expect("Overflow in block number"),
+            ),
+        }
+    }
+
+    pub fn get_transaction_executor(
+        self,
+        transaction_executor_config: Option<TransactionExecutorConfig>,
+    ) -> ReexecutionResult<TransactionExecutor<TestStateReader>> {
+        Ok(TransactionExecutor::<TestStateReader>::new(
+            CachedState::new(self.last_block_state_reader),
+            self.next_block_state_reader.get_block_context()?,
             transaction_executor_config.unwrap_or_default(),
         ))
     }
