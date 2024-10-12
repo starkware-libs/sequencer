@@ -18,11 +18,12 @@ macro_rules! tx {
         tx_nonce: $tx_nonce:expr, max_l2_gas_price: $max_l2_gas_price:expr) => {{
             let resource_bounds = ValidResourceBounds::AllResources(AllResourceBounds {
                 l2_gas: ResourceBounds {
-                    max_price_per_unit: $max_l2_gas_price.into(),
+                    max_price_per_unit: GasPrice($max_l2_gas_price),
                     ..Default::default()
                 },
                 ..Default::default()
             });
+
             Transaction::Invoke(executable_invoke_tx(invoke_tx_args!{
                 sender_address: contract_address!($sender_address),
                 tx_hash: TransactionHash(StarkHash::from($tx_hash)),
@@ -90,6 +91,9 @@ macro_rules! add_tx_input {
     };
     (tx_hash: $tx_hash:expr, tx_nonce: $tx_nonce:expr) => {
         add_tx_input!(tip: 0, tx_hash: $tx_hash, sender_address: "0x0", tx_nonce: $tx_nonce, account_nonce: 0)
+    };
+    (tx_hash: $tx_hash:expr, tip: $tip:expr, max_l2_gas_price: $max_l2_gas_price:expr, tx_nonce: $tx_nonce:expr, sender_address: $sender_address:expr) => {
+        add_tx_input!(tip: $tip, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: $tx_nonce, account_nonce: 0,  max_l2_gas_price: $max_l2_gas_price)
     };
 }
 
