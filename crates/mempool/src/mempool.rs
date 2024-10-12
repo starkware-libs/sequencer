@@ -32,6 +32,7 @@ pub struct Mempool {
     mempool_state: HashMap<ContractAddress, Nonce>,
     // The most recent account nonces received, for all account in the pool.
     account_nonces: AccountToNonce,
+    _fee_escalation_percentage: u8, // E.g., 10 for a 10% increase.
 }
 
 impl Mempool {
