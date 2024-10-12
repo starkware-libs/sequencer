@@ -11,7 +11,7 @@ use starknet_api::{class_hash, felt};
 use starknet_core::types::ContractClass::{Legacy, Sierra};
 
 use crate::state_reader::compile::legacy_to_contract_class_v0;
-use crate::state_reader::test_state_reader::TestStateReader;
+use crate::state_reader::test_state_reader::{ConsecutiveTestStateReaders, TestStateReader};
 
 const EXAMPLE_INVOKE_TX_HASH: &str =
     "0xa7c7db686c7f756ceb7ca85a759caef879d425d156da83d6a836f86851983";
@@ -37,6 +37,18 @@ pub fn test_get_block_info(test_state_reader: TestStateReader, test_block_number
         test_state_reader.get_block_info(),
         Ok(BlockInfo { block_number, .. }) if block_number == test_block_number
     );
+}
+
+#[fixture]
+pub fn last_constructed_block() -> BlockNumber {
+    BlockNumber(EXAMPLE_BLOCK_NUMBER - 1)
+}
+
+#[fixture]
+pub fn test_state_readers_last_and_current_block(
+    last_constructed_block: BlockNumber,
+) -> ConsecutiveTestStateReaders {
+    ConsecutiveTestStateReaders::new(last_constructed_block, None)
 }
 
 #[rstest]
