@@ -86,11 +86,17 @@ impl MempoolContentBuilder {
         self
     }
 
-    fn _with_pending_queue<Q>(mut self, queue_txs: Q) -> Self
+    fn with_pending_queue<Q>(mut self, queue_txs: Q) -> Self
     where
         Q: IntoIterator<Item = TransactionReference>,
     {
-        self.tx_queue_content_builder = self.tx_queue_content_builder._with_pending(queue_txs);
+        self.tx_queue_content_builder = self.tx_queue_content_builder.with_pending(queue_txs);
+        self
+    }
+
+    fn with_gas_price_threshold(mut self, gas_price_threshold: u128) -> Self {
+        self.tx_queue_content_builder =
+            self.tx_queue_content_builder.with_gas_price_threshold(gas_price_threshold);
         self
     }
 
@@ -524,24 +530,39 @@ fn test_add_tx_tip_priority_over_tx_hash(mut mempool: Mempool) {
 }
 
 #[rstest]
-fn test_add_tx_account_state_fills_nonce_gap(mut mempool: Mempool) {
+#[case::test_add_tx_account_state_fills_hole_for_priority_tx(true)]
+#[case::test_add_tx_account_state_fills_hole_for_pending_tx(false)]
+fn test_add_tx_account_state_fills_nonce_gap(#[case] is_priority_tx: bool) {
     // Setup.
-    let tx_input_nonce_1 = add_tx_input!(tx_hash: 1, tx_nonce: 1, account_nonce: 0);
+    let tx_input_nonce_1 = add_tx_input!(
+        tx_hash: 1,
+        tx_nonce: 1,
+        account_nonce: 0,
+        max_l2_gas_price: if is_priority_tx { 150_u128 } else { 43_u128 }
+    );
     // Input that increments the account state.
     let tx_input_nonce_2 = add_tx_input!(tx_hash: 2, tx_nonce: 2, account_nonce: 1);
+
+    let mut mempool =
+        MempoolContentBuilder::new().with_gas_price_threshold(100_u128).build_into_mempool();
 
     // Test and assert.
 
     // First, with gap.
     add_tx(&mut mempool, &tx_input_nonce_1);
+
     let expected_mempool_content = MempoolContentBuilder::new().with_priority_queue([]).build();
     expected_mempool_content.assert_eq(&mempool);
 
     // Then, fill it.
     add_tx(&mut mempool, &tx_input_nonce_2);
-    let expected_mempool_content = MempoolContentBuilder::new()
-        .with_priority_queue([TransactionReference::new(&tx_input_nonce_1.tx)])
-        .build();
+
+    let queue_txs = [TransactionReference::new(&tx_input_nonce_1.tx)];
+    let expected_mempool_content = if is_priority_tx {
+        MempoolContentBuilder::new().with_priority_queue(queue_txs).build()
+    } else {
+        MempoolContentBuilder::new().with_pending_queue(queue_txs).build()
+    };
     expected_mempool_content.assert_eq(&mempool);
 }
 
