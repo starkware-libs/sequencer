@@ -39,6 +39,18 @@ pub fn test_get_block_info(test_state_reader: TestStateReader, test_block_number
     );
 }
 
+#[fixture]
+pub fn last_constructed_block() -> BlockNumber {
+    BlockNumber(EXAMPLE_BLOCK_NUMBER - 1)
+}
+
+#[fixture]
+pub fn test_state_readers_last_and_current_block(
+    last_constructed_block: BlockNumber,
+) -> ConsecutiveTestStateReaders {
+    ConsecutiveTestStateReaders::new_for_testing(last_constructed_block)
+}
+
 #[rstest]
 pub fn test_get_starknet_version(test_state_reader: TestStateReader) {
     assert_eq!(test_state_reader.get_starknet_version().unwrap(), StarknetVersion::V0_13_2_1)
