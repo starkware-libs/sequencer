@@ -32,7 +32,7 @@ pub struct Mempool {
     mempool_state: HashMap<ContractAddress, Nonce>,
     // The most recent account nonces received, for all account in the pool.
     account_nonces: AccountToNonce,
-    // TODO(Elin): make configurable.
+    // TODO(Elin): make configurable; should be bounded?
     // Percentage increase for tip and max gas price to enable transaction replacement.
     fee_escalation_percentage: u8, // E.g., 10 for a 10% increase.
 }
