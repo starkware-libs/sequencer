@@ -65,6 +65,15 @@ macro_rules! tx {
     (tx_hash: $tx_hash:expr, address: $address:expr, tip: $tip:expr) => {
         tx!(tx_hash: $tx_hash, address: $address, tx_nonce: 0, tip: $tip)
     };
+    (tx_hash: $tx_hash:expr, address: $address:expr, max_l2_gas_price: $max_l2_gas_price:expr) => {
+        tx!(
+            tx_hash: $tx_hash,
+            address: $address,
+            tx_nonce: 0,
+            tip: 0,
+            max_l2_gas_price: $max_l2_gas_price
+        )
+    };
     (tx_hash: $tx_hash:expr, tip: $tip:expr, max_l2_gas_price: $max_l2_gas_price:expr) => {
         tx!(
             tx_hash: $tx_hash,
