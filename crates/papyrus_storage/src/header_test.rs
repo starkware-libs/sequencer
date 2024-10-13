@@ -181,8 +181,8 @@ async fn starknet_version() {
         reader.begin_ro_txn().unwrap().get_starknet_version(BlockNumber(1)).unwrap();
     assert!(non_existing_block_starknet_version.is_none());
 
-    let second_version = StarknetVersion(vec![2]);
-    let yet_another_version = StarknetVersion(vec![3]);
+    let second_version = StarknetVersion::V0_9_1;
+    let yet_another_version = StarknetVersion::V0_12_0;
 
     writer
         .begin_rw_txn()
