@@ -10,7 +10,7 @@ use mempool_test_utils::starknet_api_test_utils::{
 };
 use papyrus_storage::StorageConfig;
 use reqwest::{Client, Response};
-use starknet_api::rpc_transaction::RpcTransaction;
+use starknet_api::{core::ChainId, rpc_transaction::RpcTransaction};
 use starknet_api::transaction::TransactionHash;
 use starknet_batcher::config::BatcherConfig;
 use starknet_gateway::config::{
@@ -30,7 +30,7 @@ pub async fn create_config(
 ) -> SequencerNodeConfig {
     let chain_id = batcher_storage_config.db_config.chain_id.clone();
     let batcher_config = create_batcher_config(batcher_storage_config);
-    let gateway_config = create_gateway_config().await;
+    let gateway_config = create_gateway_config(chain_id.clone()).await;
     let http_server_config = create_http_server_config().await;
     let rpc_state_reader_config = test_rpc_state_reader_config(rpc_server_addr);
     SequencerNodeConfig {
@@ -120,7 +120,7 @@ pub fn create_integration_test_tx_generator() -> MultiAccountTransactionGenerato
     tx_generator
 }
 
-async fn create_gateway_config() -> GatewayConfig {
+async fn create_gateway_config(chain_id: ChainId) -> GatewayConfig {
     let stateless_tx_validator_config = StatelessTransactionValidatorConfig {
         validate_non_zero_l1_gas_fee: true,
         max_calldata_length: 10,
@@ -128,7 +128,8 @@ async fn create_gateway_config() -> GatewayConfig {
         ..Default::default()
     };
     let stateful_tx_validator_config = StatefulTransactionValidatorConfig::default();
-    let chain_info = ChainInfo::create_for_testing();
+    let mut chain_info = ChainInfo::create_for_testing();
+    chain_info.chain_id = chain_id;
 
     GatewayConfig { stateless_tx_validator_config, stateful_tx_validator_config, chain_info }
 }

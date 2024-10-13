@@ -36,7 +36,10 @@ pub fn dump_config_file_changes(config: SequencerNodeConfig) -> anyhow::Result<(
         config.chain_id,
         config.rpc_state_reader_config.json_rpc_version,
         config.rpc_state_reader_config.url,
-        config.batcher_config.storage.db_config.path_prefix
+        config.batcher_config.storage.db_config.path_prefix,
+        config.http_server_config.ip, config.http_server_config.port,
+        config.gateway_config.chain_info.fee_token_addresses.eth_fee_token_address,
+        config.gateway_config.chain_info.fee_token_addresses.strk_fee_token_address
     );
     dump_json_data(json_data, NODE_CONFIG_CHANGES_FILE_PATH)?;
 

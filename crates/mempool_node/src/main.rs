@@ -29,6 +29,12 @@ async fn main() -> anyhow::Result<()> {
     // Clients are currently unused, but should not be dropped.
     let (_clients, servers) = create_node_modules(&config);
 
+
+    info!("config chain id: {:?}", config.chain_id);
+    info!("batcher chain id: {:?}", config.batcher_config.storage.db_config.chain_id);
+    info!("gateway chain id: {:?}", config.gateway_config.chain_info.chain_id);
+
+
     info!("Starting components!");
     run_component_servers(servers).await?;
 
