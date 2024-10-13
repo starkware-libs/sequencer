@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -9,8 +9,10 @@ use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
+use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::state::ThinStateDiff;
+use starknet_api::transaction::TransactionHash;
 use starknet_batcher_types::batcher_types::{ProposalCommitment, ProposalId};
 use starknet_mempool_types::communication::{MempoolClientError, SharedMempoolClient};
 use thiserror::Error;
@@ -147,14 +149,8 @@ type ActiveTaskHandle = tokio::task::JoinHandle<()>;
 pub struct DoneProposal {
     pub state_diff: ThinStateDiff,
     pub commitment: ProposalCommitment,
-}
-
-impl From<ThinStateDiff> for DoneProposal {
-    fn from(state_diff: ThinStateDiff) -> Self {
-        let commitment =
-            ProposalCommitment { state_diff_commitment: calculate_state_diff_hash(&state_diff) };
-        Self { state_diff, commitment }
-    }
+    pub tx_hashes: HashSet<TransactionHash>,
+    pub nonces: HashMap<ContractAddress, Nonce>,
 }
 
 #[async_trait]
@@ -337,10 +333,9 @@ impl BuildProposalTask {
             },
             builder_done = building_future => {
                 info!("Block builder finished.");
-                builder_done.map(ThinStateDiff::from).map_err(BuildProposalError::BlockBuilderError)
+                builder_done.map(DoneProposal::from).map_err(BuildProposalError::BlockBuilderError)
             }
-        }
-        .map(DoneProposal::from);
+        };
         Self::active_proposal_finished(self.active_proposal, result, self.done_proposals).await;
     }
 
@@ -392,14 +387,20 @@ impl BuildProposalTask {
 pub type InputTxStream = ReceiverStream<Transaction>;
 
 // TODO: Move this to a more appropriate place.
-impl From<BlockExecutionArtifacts> for ThinStateDiff {
+impl From<BlockExecutionArtifacts> for DoneProposal {
     fn from(artifacts: BlockExecutionArtifacts) -> Self {
         let commitment_state_diff = artifacts.commitment_state_diff;
+        let nonces = HashMap::from_iter(
+            commitment_state_diff
+                .address_to_nonce
+                .iter()
+                .map(|(address, nonce)| (*address, *nonce)),
+        );
 
         // TODO: Get these from the transactions.
         let deployed_contracts = IndexMap::new();
         let declared_classes = IndexMap::new();
-        ThinStateDiff {
+        let state_diff = ThinStateDiff {
             deployed_contracts,
             storage_diffs: commitment_state_diff.storage_updates,
             declared_classes,
@@ -407,6 +408,11 @@ impl From<BlockExecutionArtifacts> for ThinStateDiff {
             // TODO: Remove this when the structure of storage diffs changes.
             deprecated_declared_classes: Vec::new(),
             replaced_classes: IndexMap::new(),
-        }
+        };
+        let commitment =
+            ProposalCommitment { state_diff_commitment: calculate_state_diff_hash(&state_diff) };
+        let tx_hashes = HashSet::from_iter(artifacts.execution_infos.keys().copied());
+
+        Self { state_diff, commitment, tx_hashes, nonces }
     }
 }
