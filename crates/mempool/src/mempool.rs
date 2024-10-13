@@ -254,8 +254,9 @@ impl Mempool {
         // E.g., 110 for a 10% increase.
         let escalation_factor = 100 + u128::from(self.fee_escalation_percentage);
 
+        // TODO(Elin): add overflow tests; 2^127 existing with 10% increase should not overflow.
         let Some(escalation_qualified_value) =
-            existing_value.checked_mul(escalation_factor).and_then(|v| v.checked_div(100))
+            existing_value.checked_mul(escalation_factor).map(|v| v / 100)
         else {
             // Overflow occurred; cannot calculate required increase. Reject the transaction.
             return false;

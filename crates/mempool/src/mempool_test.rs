@@ -26,6 +26,7 @@ use crate::{add_tx_input, tx};
 struct MempoolContent {
     tx_pool: Option<TransactionPool>,
     tx_queue_content: Option<TransactionQueueContent>,
+    fee_escalation_percentage: u8,
 }
 
 impl MempoolContent {
