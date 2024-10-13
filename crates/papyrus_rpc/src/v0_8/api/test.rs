@@ -494,7 +494,7 @@ async fn get_block_w_full_transactions() {
     let block_hash = BlockHash(random::<u64>().into());
     let sequencer_address = SequencerContractAddress(random::<u64>().into());
     let timestamp = BlockTimestamp(random::<u64>());
-    let starknet_version = StarknetVersion(vec![123]);
+    let starknet_version = StarknetVersion::V0_10_0;
     block.header.block_hash = block_hash;
     block.header.block_header_without_hash.sequencer = sequencer_address;
     block.header.block_header_without_hash.timestamp = timestamp;
@@ -680,7 +680,7 @@ async fn get_block_w_full_transactions_and_receipts() {
     let block_hash = BlockHash(random::<u64>().into());
     let sequencer_address = SequencerContractAddress(random::<u64>().into());
     let timestamp = BlockTimestamp(random::<u64>());
-    let starknet_version = StarknetVersion(vec![123]);
+    let starknet_version = StarknetVersion::V0_10_0;
     let block_number = block.header.block_header_without_hash.block_number;
     block.header.block_hash = block_hash;
     block.header.block_header_without_hash.sequencer = sequencer_address;
@@ -882,7 +882,7 @@ async fn get_block_w_transaction_hashes() {
     let block_hash = BlockHash(random::<u64>().into());
     let sequencer_address = SequencerContractAddress(random::<u64>().into());
     let timestamp = BlockTimestamp(random::<u64>());
-    let starknet_version = StarknetVersion(vec![123]);
+    let starknet_version = StarknetVersion::V0_10_0;
     block.header.block_hash = block_hash;
     block.header.block_header_without_hash.sequencer = sequencer_address;
     block.header.block_header_without_hash.timestamp = timestamp;
