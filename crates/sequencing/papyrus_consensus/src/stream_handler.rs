@@ -15,10 +15,8 @@ use tracing::{instrument, warn};
 mod stream_handler_test;
 
 type PeerId = OpaquePeerId;
-type StreamId = u64;
 type MessageId = u64;
-
-type StreamKey = (PeerId, StreamId);
+type StreamKey = (PeerId, u64);
 
 const CHANNEL_BUFFER_LENGTH: usize = 100;
 
@@ -28,28 +26,23 @@ fn get_metadata_peer_id(metadata: &BroadcastedMessageManager) -> PeerId {
 
 #[derive(Debug, Clone)]
 struct StreamData<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> {
-    peer_id: PeerId,
-
     next_message_id: MessageId,
     // The message_id of the message that is marked as "fin" (the last message),
     // if None, it means we have not yet gotten to it.
     fin_message_id: Option<MessageId>,
-    max_message_id: MessageId,
-
+    max_message_id_received: MessageId,
     // The sender that corresponds to the receiver that was sent out for this stream.
     sender: mpsc::Sender<T>,
-
     // A buffer for messages that were received out of order.
     message_buffer: BTreeMap<MessageId, StreamMessage<T>>,
 }
 
 impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> StreamData<T> {
-    fn new(peer_id: PeerId, sender: mpsc::Sender<T>) -> Self {
+    fn new(sender: mpsc::Sender<T>) -> Self {
         StreamData {
-            peer_id,
             next_message_id: 0,
             fin_message_id: None,
-            max_message_id: 0,
+            max_message_id_received: 0,
             sender,
             message_buffer: BTreeMap::new(),
         }
@@ -64,7 +57,6 @@ pub struct StreamHandler<
     sender: mpsc::Sender<mpsc::Receiver<T>>,
     // An end of a channel used to receive messages.
     receiver: BroadcastTopicServer<StreamMessage<T>>,
-
     // A map from stream_id to a struct that contains all the information about the stream.
     // This includes both the message buffer and some metadata (like the latest message_id).
     stream_data: HashMap<StreamKey, StreamData<T>>,
@@ -128,13 +120,13 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
                 // TODO(guyn): reconsider the "expect" here.
                 self.sender.try_send(receiver).expect("Send should succeed");
 
-                let data = StreamData::new(peer_id.clone(), sender);
+                let data = StreamData::new(sender);
                 e.insert(data)
             }
         };
 
-        if data.max_message_id < message_id {
-            data.max_message_id = message_id;
+        if data.max_message_id_received < message_id {
+            data.max_message_id_received = message_id;
         }
 
         // Check for Fin type message
@@ -142,12 +134,12 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
             StreamMessageBody::Content(_) => {}
             StreamMessageBody::Fin => {
                 data.fin_message_id = Some(message_id);
-                if data.max_message_id > message_id {
+                if data.max_message_id_received > message_id {
                     // TODO(guyn): replace warnings with more graceful error handling
                     warn!(
                         "Received fin message with id that is smaller than a previous message! \
-                         stream_id: {}, fin_message_id: {}, max_message_id: {}",
-                        stream_id, message_id, data.max_message_id
+                         stream_id: {}, fin_message_id: {}, max_message_id_received: {}",
+                        stream_id, message_id, data.max_message_id_received
                     );
                     return;
                 }
@@ -178,7 +170,7 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
                 self.stream_data.remove(&key);
             }
         } else if message_id > data.next_message_id {
-            Self::store(data, message);
+            Self::store(data, peer_id, message);
         } else {
             // TODO(guyn): replace warnings with more graceful error handling
             warn!(
@@ -190,7 +182,7 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
         }
     }
 
-    fn store(data: &mut StreamData<T>, message: StreamMessage<T>) {
+    fn store(data: &mut StreamData<T>, peer_id: PeerId, message: StreamMessage<T>) {
         let stream_id = message.stream_id;
         let message_id = message.message_id;
 
@@ -199,7 +191,7 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
             warn!(
                 "Two messages with the same message_id in buffer! peer_id: {:?}, stream_id: {}, \
                  message_id: {}",
-                data.peer_id.clone(),
+                peer_id.clone(),
                 stream_id,
                 message_id
             );
