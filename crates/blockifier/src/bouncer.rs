@@ -1,7 +1,9 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
+use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ClassHash;
 
@@ -71,6 +73,12 @@ impl BouncerConfig {
     }
 }
 
+impl SerializeConfig for BouncerConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        append_sub_config_name(self.block_max_capacity.dump(), "block_max_capacity")
+    }
+}
+
 #[derive(
     Clone,
     Copy,
@@ -126,6 +134,43 @@ impl BouncerWeights {
             n_steps: 0,
             state_diff_size: 0,
         }
+    }
+}
+
+impl SerializeConfig for BouncerWeights {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        let mut dump = append_sub_config_name(self.builtin_count.dump(), "builtin_count");
+        dump.append(&mut BTreeMap::from([ser_param(
+            "gas",
+            &self.gas,
+            "An upper bound on the total gas used in a block.",
+            ParamPrivacyInput::Public,
+        )]));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "n_steps",
+            &self.n_steps,
+            "An upper bound on the total number of steps in a block.",
+            ParamPrivacyInput::Public,
+        )]));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "message_segment_length",
+            &self.message_segment_length,
+            "An upper bound on the message segment length in a block.",
+            ParamPrivacyInput::Public,
+        )]));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "n_events",
+            &self.n_events,
+            "An upper bound on the total number of events generated in a block.",
+            ParamPrivacyInput::Public,
+        )]));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "state_diff_size",
+            &self.state_diff_size,
+            "An upper bound on the total state diff size in a block.",
+            ParamPrivacyInput::Public,
+        )]));
+        dump
     }
 }
 
@@ -272,6 +317,73 @@ impl std::fmt::Display for BuiltinCount {
             self.range_check,
             self.range_check96
         )
+    }
+}
+
+impl SerializeConfig for BuiltinCount {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([
+            ser_param(
+                "add_mod",
+                &self.add_mod,
+                "Max number of add mod builtin usage in a block.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "bitwise",
+                &self.bitwise,
+                "Max number of bitwise builtin usage in a block.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "ecdsa",
+                &self.ecdsa,
+                "Max number of ECDSA builtin usage in a block.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "ec_op",
+                &self.ec_op,
+                "Max number of EC operation builtin usage in a block.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "keccak",
+                &self.keccak,
+                "Max number of keccak builtin usage in a block.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "mul_mod",
+                &self.mul_mod,
+                "Max number of mul mod builtin usage in a block.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "pedersen",
+                &self.pedersen,
+                "Max number of pedersen builtin usage in a block.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "poseidon",
+                &self.poseidon,
+                "Max number of poseidon builtin usage in a block.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "range_check",
+                &self.range_check,
+                "Max number of range check builtin usage in a block.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "range_check96",
+                &self.range_check96,
+                "Max number of range check 96 builtin usage in a block.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
     }
 }
 

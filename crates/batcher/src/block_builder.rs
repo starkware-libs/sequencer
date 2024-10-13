@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use async_trait::async_trait;
 use blockifier::blockifier::block::{BlockInfo, BlockNumberHashPair, GasPrices};
 use blockifier::blockifier::config::TransactionExecutorConfig;
@@ -21,6 +23,8 @@ use blockifier::versioned_constants::{VersionedConstants, VersionedConstantsOver
 use indexmap::IndexMap;
 #[cfg(test)]
 use mockall::automock;
+use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
+use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_storage::StorageReader;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockNumber, BlockTimestamp, NonzeroGasPrice};
@@ -76,6 +80,37 @@ pub struct ExecutionConfig {
     pub use_kzg_da: bool,
     pub tx_chunk_size: usize,
     pub versioned_constants_overrides: VersionedConstantsOverrides,
+}
+
+impl SerializeConfig for ExecutionConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        let mut dump = append_sub_config_name(self.chain_info.dump(), "chain_info");
+        dump.append(&mut append_sub_config_name(self.execute_config.dump(), "execute_config"));
+        dump.append(&mut append_sub_config_name(self.bouncer_config.dump(), "bouncer_config"));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "sequencer_address",
+            &self.sequencer_address,
+            "The address of the sequencer.",
+            ParamPrivacyInput::Public,
+        )]));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "use_kzg_da",
+            &self.use_kzg_da,
+            "Indicates whether the kzg mechanism is used for data availability.",
+            ParamPrivacyInput::Public,
+        )]));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "tx_chunk_size",
+            &self.tx_chunk_size,
+            "The size of the transaction chunk.",
+            ParamPrivacyInput::Public,
+        )]));
+        dump.append(&mut append_sub_config_name(
+            self.versioned_constants_overrides.dump(),
+            "versioned_constants_overrides",
+        ));
+        dump
+    }
 }
 
 #[async_trait]
