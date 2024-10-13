@@ -1,9 +1,8 @@
 use assert_matches::assert_matches;
 use blockifier::blockifier::block::BlockInfo;
-use blockifier::versioned_constants::StarknetVersion;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockNumber, StarknetVersion};
 use starknet_api::core::ClassHash;
 use starknet_api::test_utils::read_json_file;
 use starknet_api::transaction::Transaction;

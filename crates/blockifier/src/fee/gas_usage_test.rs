@@ -3,6 +3,7 @@ use std::sync::Arc;
 use num_rational::Ratio;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
+use starknet_api::block::StarknetVersion;
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::invoke_tx_args;
 use starknet_api::transaction::{EventContent, EventData, EventKey, GasVectorComputationMode};
@@ -29,12 +30,7 @@ use crate::test_utils::{
 use crate::transaction::objects::FeeType;
 use crate::transaction::test_utils::account_invoke_tx;
 use crate::utils::u64_from_usize;
-use crate::versioned_constants::{
-    ResourceCost,
-    StarknetVersion,
-    VersionedConstants,
-    VmResourceCosts,
-};
+use crate::versioned_constants::{ResourceCost, VersionedConstants, VmResourceCosts};
 
 pub fn create_event_for_testing(keys_size: usize, data_size: usize) -> OrderedEvent {
     OrderedEvent {
@@ -317,7 +313,8 @@ fn test_gas_computation_regression_test(
     // Use a constant version of the versioned constants so that version changes do not break this
     // test. This specific version is arbitrary.
     // TODO(Amos, 1/10/2024): Parameterize the version.
-    let mut versioned_constants = VersionedConstants::get(StarknetVersion::V0_13_2_1).clone();
+    let mut versioned_constants =
+        VersionedConstants::get(&StarknetVersion::V0_13_2_1).unwrap().clone();
 
     // Change the VM resource fee cost so that the L2 / L1 gas ratio is a fraction.
     let vm_resource_fee_cost = VmResourceCosts {

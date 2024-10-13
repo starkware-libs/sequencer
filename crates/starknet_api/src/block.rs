@@ -62,6 +62,12 @@ pub enum StarknetVersion {
     V0_13_3,
 }
 
+impl StarknetVersion {
+    pub fn latest() -> Self {
+        Self::V0_13_3
+    }
+}
+
 impl From<&StarknetVersion> for Vec<u8> {
     fn from(value: &StarknetVersion) -> Self {
         match value {
@@ -128,6 +134,12 @@ impl TryFrom<Vec<u8>> for StarknetVersion {
 impl Display for StarknetVersion {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", Vec::<u8>::from(self).iter().map(|x| x.to_string()).join("."))
+    }
+}
+
+impl From<StarknetVersion> for String {
+    fn from(version: StarknetVersion) -> Self {
+        format!("{version}")
     }
 }
 

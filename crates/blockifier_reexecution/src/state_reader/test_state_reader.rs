@@ -7,9 +7,9 @@ use blockifier::execution::contract_class::ContractClass as BlockifierContractCl
 use blockifier::state::cached_state::CachedState;
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader, StateResult};
-use blockifier::versioned_constants::{StarknetVersion, VersionedConstants};
+use blockifier::versioned_constants::VersionedConstants;
 use serde_json::{json, to_value};
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockNumber, StarknetVersion};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{Transaction, TransactionHash};
@@ -158,7 +158,7 @@ impl TestStateReader {
     }
 
     pub fn get_versioned_constants(&self) -> ReexecutionResult<&'static VersionedConstants> {
-        Ok(self.get_starknet_version()?.into())
+        Ok(VersionedConstants::get(&self.get_starknet_version()?)?)
     }
 
     pub fn get_block_context(&self) -> ReexecutionResult<BlockContext> {
