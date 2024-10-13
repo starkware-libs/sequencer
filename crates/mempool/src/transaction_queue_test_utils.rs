@@ -1,6 +1,7 @@
 use std::collections::{BTreeSet, HashMap};
 
 use pretty_assertions::assert_eq;
+use starknet_api::block::GasPrice;
 
 use crate::mempool::TransactionReference;
 use crate::transaction_queue::{PendingTransaction, PriorityTransaction, TransactionQueue};
@@ -12,6 +13,7 @@ use crate::transaction_queue::{PendingTransaction, PriorityTransaction, Transact
 pub struct TransactionQueueContent {
     priority_queue: Option<BTreeSet<PriorityTransaction>>,
     pending_queue: Option<BTreeSet<PendingTransaction>>,
+    gas_price_threshold: Option<GasPrice>,
 }
 
 impl TransactionQueueContent {
@@ -28,6 +30,7 @@ impl TransactionQueueContent {
     pub fn complete_to_tx_queue(self) -> TransactionQueue {
         let pending_queue = self.pending_queue.unwrap_or_default();
         let priority_queue = self.priority_queue.unwrap_or_default();
+        let gas_price_threshold = self.gas_price_threshold.unwrap_or_default();
 
         // Build address to nonce mapping, check queues are mutually exclusive in addresses.
         let tx_references = pending_queue
@@ -42,12 +45,7 @@ impl TransactionQueueContent {
             }
         }
 
-        TransactionQueue {
-            priority_queue,
-            pending_queue,
-            address_to_tx,
-            gas_price_threshold: 0_u8.into(),
-        }
+        TransactionQueue { priority_queue, pending_queue, address_to_tx, gas_price_threshold }
     }
 }
 
@@ -55,6 +53,7 @@ impl TransactionQueueContent {
 pub struct TransactionQueueContentBuilder {
     priority_queue: Option<BTreeSet<PriorityTransaction>>,
     pending_queue: Option<BTreeSet<PendingTransaction>>,
+    gas_price_threshold: Option<GasPrice>,
 }
 
 impl TransactionQueueContentBuilder {
@@ -75,6 +74,11 @@ impl TransactionQueueContentBuilder {
         self
     }
 
+    pub fn with_gas_price_threshold(mut self, gas_price_threshold: u128) -> Self {
+        self.gas_price_threshold = Some(gas_price_threshold.into());
+        self
+    }
+
     pub fn build(self) -> Option<TransactionQueueContent> {
         if self.is_default() {
             return None;
@@ -83,10 +87,13 @@ impl TransactionQueueContentBuilder {
         Some(TransactionQueueContent {
             priority_queue: self.priority_queue,
             pending_queue: self.pending_queue,
+            gas_price_threshold: self.gas_price_threshold,
         })
     }
 
     fn is_default(&self) -> bool {
-        self.priority_queue.is_none() && self.pending_queue.is_none()
+        self.priority_queue.is_none()
+            && self.pending_queue.is_none()
+            && self.gas_price_threshold.is_none()
     }
 }
