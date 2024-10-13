@@ -59,7 +59,13 @@ impl MempoolCommunicationWrapper {
 
     async fn add_tx(&mut self, args_wrapper: AddTransactionArgsWrapper) -> MempoolResult<()> {
         self.mempool.add_tx(args_wrapper.args.clone())?;
-        self.send_tx_to_p2p(args_wrapper.p2p_message_metadata, args_wrapper.args.tx).await;
+        // TODO: handle declare correctly and remove this match.
+        match args_wrapper.args.tx {
+            Transaction::Declare(_) => {}
+            _ => {
+                self.send_tx_to_p2p(args_wrapper.p2p_message_metadata, args_wrapper.args.tx).await;
+            }
+        }
         Ok(())
     }
 
