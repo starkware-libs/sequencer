@@ -144,5 +144,26 @@ fn test_old_json_parsing() {
 
 #[test]
 fn test_all_jsons_in_enum() {
-    assert_eq!(StarknetVersion::iter().count(), all_jsons_in_dir().count());
+    let all_jsons: Vec<PathBuf> = all_jsons_in_dir().map(Result::unwrap).collect();
+
+    // Check that the number of new starknet versions (versions supporting VC) is equal to the
+    // number of JSON files.
+    assert_eq!(
+        StarknetVersion::iter().filter(|version| version >= &StarknetVersion::V0_13_0).count(),
+        all_jsons.len()
+    );
+
+    // Check that all JSON files are in the enum and can be loaded.
+    for file in all_jsons {
+        let filename = file.file_stem().unwrap().to_str().unwrap().to_string();
+        assert!(filename.starts_with("versioned_constants_"));
+        let version_str = filename.trim_start_matches("versioned_constants_").replace("_", ".");
+        let version = StarknetVersion::try_from(version_str).unwrap();
+        assert!(VersionedConstants::get(&version).is_ok());
+    }
+}
+
+#[test]
+fn test_latest_no_panic() {
+    VersionedConstants::latest_constants();
 }

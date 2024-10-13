@@ -71,3 +71,12 @@ fn test_version_byte_vec_order() {
         assert!(Vec::<u8>::from(versions[i]) <= Vec::<u8>::from(versions[i + 1]));
     }
 }
+
+#[test]
+fn test_latest_version() {
+    let latest = StarknetVersion::LATEST;
+    assert_eq!(StarknetVersion::default(), latest);
+    for version in StarknetVersion::iter() {
+        assert!(version <= latest);
+    }
+}

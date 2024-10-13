@@ -13,11 +13,10 @@ use semver::Version;
 use serde::de::Error as DeserializationError;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::{Map, Number, Value};
-use starknet_api::block::GasPrice;
+use starknet_api::block::{GasPrice, StarknetVersion};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::GasVectorComputationMode;
 use strum::IntoEnumIterator;
-use strum_macros::{EnumCount, EnumIter};
 use thiserror::Error;
 
 use crate::execution::deprecated_syscalls::hint_processor::SyscallCounter;
@@ -32,35 +31,7 @@ pub mod test;
 
 /// Auto-generate getters for listed versioned constants versions.
 macro_rules! define_versioned_constants {
-    ($(($variant:ident, $path_to_json:expr, $version_str:expr)),*, $latest_variant:ident) => {
-        /// Enum of all the Starknet versions supporting versioned constants.
-        #[derive(Clone, Debug, EnumCount, EnumIter, Hash, Eq, PartialEq)]
-        pub enum StarknetVersion {
-            $($variant,)*
-        }
-
-        impl StarknetVersion {
-            pub fn path_to_versioned_constants_json(&self) -> &'static str {
-                match self {
-                    $(StarknetVersion::$variant => $path_to_json,)*
-                }
-            }
-
-            pub fn latest() -> Self {
-                StarknetVersion::$latest_variant
-            }
-        }
-
-        impl From<StarknetVersion> for String {
-            fn from(version: StarknetVersion) -> Self {
-                match version {
-                    $(StarknetVersion::$variant => String::from(
-                        stringify!($variant)
-                    ).to_lowercase().replace("_", "."),)*
-                }
-            }
-        }
-
+    ($(($variant:ident, $path_to_json:expr)),* $(,)?) => {
         // Static (lazy) instances of the versioned constants.
         // For internal use only; for access to a static instance use the `StarknetVersion` enum.
         paste! {
@@ -75,64 +46,70 @@ macro_rules! define_versioned_constants {
         }
 
         /// API to access a static instance of the versioned constants.
-        impl From<StarknetVersion> for &'static VersionedConstants {
-            fn from(version: StarknetVersion) -> Self {
+        impl TryFrom<StarknetVersion> for &'static VersionedConstants {
+            type Error = VersionedConstantsError;
+
+            fn try_from(version: StarknetVersion) -> VersionedConstantsResult<Self> {
                 match version {
                     $(
                         StarknetVersion::$variant => {
-                           & paste! { [<VERSIONED_CONSTANTS_ $variant:upper>] }
+                           Ok(& paste! { [<VERSIONED_CONSTANTS_ $variant:upper>] })
                         }
                     )*
+                    _ => Err(VersionedConstantsError::InvalidStarknetVersion(version)),
+                }
+            }
+        }
+
+        impl VersionedConstants {
+            pub fn path_to_json(version: &StarknetVersion) -> VersionedConstantsResult<&'static str> {
+                match version {
+                    $(StarknetVersion::$variant => Ok($path_to_json),)*
+                    _ => Err(VersionedConstantsError::InvalidStarknetVersion(*version)),
+                }
+            }
+
+            /// Gets the constants that shipped with the current version of the Blockifier.
+            /// To use custom constants, initialize the struct from a file using `from_path`.
+            pub fn latest_constants() -> &'static Self {
+                Self::get(&StarknetVersion::LATEST)
+                    .expect("Latest version should support VC.")
+            }
+
+            /// Gets the constants for the specified Starknet version.
+            pub fn get(version: &StarknetVersion) -> VersionedConstantsResult<&'static Self> {
+                match version {
+                    $(
+                        StarknetVersion::$variant => Ok(
+                            & paste! { [<VERSIONED_CONSTANTS_ $variant:upper>] }
+                        ),
+                    )*
+                    _ => Err(VersionedConstantsError::InvalidStarknetVersion(*version)),
                 }
             }
         }
 
         pub static VERSIONED_CONSTANTS_LATEST_JSON: LazyLock<String> = LazyLock::new(|| {
-            let latest_variant = StarknetVersion::$latest_variant;
+            let latest_variant = StarknetVersion::LATEST;
             let path_to_json: PathBuf = [
-                env!("CARGO_MANIFEST_DIR"), "src", latest_variant.path_to_versioned_constants_json()
+                env!("CARGO_MANIFEST_DIR"),
+                "src",
+                VersionedConstants::path_to_json(&latest_variant)
+                    .expect("Latest variant should have a path to json.")
             ].iter().collect();
             fs::read_to_string(path_to_json.clone())
                 .expect(&format!("Failed to read file {}.", path_to_json.display()))
         });
-
-        impl TryFrom<&str> for StarknetVersion {
-            type Error = VersionedConstantsError;
-            fn try_from(raw_version: &str) -> Result<Self, Self::Error> {
-                match raw_version {
-                    $(
-                        $version_str => Ok(StarknetVersion::$variant),
-                    )*
-                    _ => Err(VersionedConstantsError::InvalidVersion { version: raw_version.to_string()}),
-                }
-            }
-        }
-
-        #[cfg(test)]
-        mod tests {
-            use crate::versioned_constants::StarknetVersion;
-
-            #[test]
-            fn test_variant_name_string_consistency() {
-                $(
-                    assert_eq!(
-                        "v".to_owned() + $version_str,
-                        String::from(StarknetVersion::$variant)
-                    );
-                )*
-            }
-        }
     };
 }
 
 define_versioned_constants! {
-    (V0_13_0, "../resources/versioned_constants_0_13_0.json", "0.13.0"),
-    (V0_13_1, "../resources/versioned_constants_0_13_1.json", "0.13.1"),
-    (V0_13_1_1, "../resources/versioned_constants_0_13_1_1.json", "0.13.1.1"),
-    (V0_13_2, "../resources/versioned_constants_0_13_2.json", "0.13.2"),
-    (V0_13_2_1, "../resources/versioned_constants_0_13_2_1.json", "0.13.2.1"),
-    (V0_13_3, "../resources/versioned_constants_0_13_3.json", "0.13.3"),
-    V0_13_3
+    (V0_13_0, "../resources/versioned_constants_0_13_0.json"),
+    (V0_13_1, "../resources/versioned_constants_0_13_1.json"),
+    (V0_13_1_1, "../resources/versioned_constants_0_13_1_1.json"),
+    (V0_13_2, "../resources/versioned_constants_0_13_2.json"),
+    (V0_13_2_1, "../resources/versioned_constants_0_13_2_1.json"),
+    (V0_13_3, "../resources/versioned_constants_0_13_3.json"),
 }
 
 pub type ResourceCost = Ratio<u64>;
@@ -213,18 +190,7 @@ pub struct VersionedConstants {
 }
 
 impl VersionedConstants {
-    /// Gets the constants that shipped with the current version of the Blockifier.
-    /// To use custom constants, initialize the struct from a file using `from_path`.
-    pub fn latest_constants() -> &'static Self {
-        Self::get(StarknetVersion::latest())
-    }
-
-    /// Gets the constants for the specified Starknet version.
-    pub fn get(version: StarknetVersion) -> &'static Self {
-        version.into()
-    }
-
-    pub fn from_path(path: &Path) -> Result<Self, VersionedConstantsError> {
+    pub fn from_path(path: &Path) -> VersionedConstantsResult<Self> {
         Ok(serde_json::from_reader(std::fs::File::open(path)?)?)
     }
 
@@ -767,7 +733,11 @@ pub enum VersionedConstantsError {
     ParseError(#[from] serde_json::Error),
     #[error("Invalid version: {version:?}")]
     InvalidVersion { version: String },
+    #[error("Invalid Starknet version: {0}")]
+    InvalidStarknetVersion(StarknetVersion),
 }
+
+pub type VersionedConstantsResult<T> = Result<T, VersionedConstantsError>;
 
 #[derive(Debug, Error)]
 pub enum OsConstantsSerdeError {
@@ -806,7 +776,7 @@ struct ResourceParamsRaw {
 impl TryFrom<ResourceParamsRaw> for ResourcesParams {
     type Error = VersionedConstantsError;
 
-    fn try_from(mut json_data: ResourceParamsRaw) -> Result<Self, Self::Error> {
+    fn try_from(mut json_data: ResourceParamsRaw) -> VersionedConstantsResult<Self> {
         let constant_value = json_data.raw_resource_params_as_dict.remove("constant");
         let calldata_factor_value = json_data.raw_resource_params_as_dict.remove("calldata_factor");
 
