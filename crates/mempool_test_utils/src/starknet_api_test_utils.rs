@@ -22,6 +22,7 @@ use starknet_api::rpc_transaction::{
     RpcInvokeTransactionV3,
     RpcTransaction,
 };
+use starknet_api::test_utils::deploy_account::DeployAccountTxArgs;
 use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::{
@@ -36,12 +37,11 @@ use starknet_api::transaction::{
     TransactionVersion,
     ValidResourceBounds,
 };
-use starknet_api::{felt, invoke_tx_args, nonce};
+use starknet_api::{deploy_account_tx_args, felt, invoke_tx_args, nonce};
 use starknet_types_core::felt::Felt;
 
 use crate::{
     declare_tx_args,
-    deploy_account_tx_args,
     get_absolute_path,
     COMPILED_CLASS_HASH_OF_CONTRACT_CLASS,
     CONTRACT_CLASS_FILE,
@@ -88,7 +88,7 @@ pub fn rpc_tx_for_testing(
             rpc_declare_tx(declare_tx_args!(resource_bounds, signature, contract_class))
         }
         TransactionType::DeployAccount => rpc_deploy_account_tx(deploy_account_tx_args!(
-            resource_bounds,
+            resource_bounds: ValidResourceBounds::AllResources(resource_bounds),
             constructor_calldata: calldata,
             signature
         )),
@@ -171,7 +171,7 @@ pub fn invoke_tx(cairo_version: CairoVersion) -> RpcTransaction {
     let mut nonce_manager = NonceManager::default();
 
     rpc_invoke_tx(invoke_tx_args!(
-        resource_bounds: ValidResourceBounds::AllResources(test_resource_bounds_mapping()),
+        resource_bounds: test_valid_resource_bounds(),
         nonce : nonce_manager.next(sender_address),
         sender_address,
         calldata: create_trivial_calldata(test_contract.get_instance_address(0))
@@ -192,7 +192,7 @@ pub fn generate_deploy_account_with_salt(
 ) -> RpcTransaction {
     let deploy_account_args = deploy_account_tx_args!(
         class_hash: account.get_class_hash(),
-        resource_bounds: test_resource_bounds_mapping(),
+        resource_bounds: test_valid_resource_bounds(),
         contract_address_salt
     );
 
@@ -305,7 +305,7 @@ impl AccountTransactionGenerator {
             nonce,
             tip : Tip(tip),
             sender_address: self.sender_address(),
-            resource_bounds: ValidResourceBounds::AllResources(test_resource_bounds_mapping()),
+            resource_bounds: test_valid_resource_bounds(),
             calldata: create_trivial_calldata(self.sender_address()),
         );
         rpc_invoke_tx(invoke_args)
@@ -425,22 +425,6 @@ impl Contract {
 }
 
 #[macro_export]
-macro_rules! deploy_account_tx_args {
-    ($($field:ident $(: $value:expr)?),* $(,)?) => {
-        $crate::starknet_api_test_utils::DeployAccountTxArgs {
-            $($field $(: $value)?,)*
-            ..Default::default()
-        }
-    };
-    ($($field:ident $(: $value:expr)?),* , ..$defaults:expr) => {
-        $crate::starknet_api_test_utils::DeployAccountTxArgs {
-            $($field $(: $value)?,)*
-            ..$defaults
-        }
-    };
-}
-
-#[macro_export]
 macro_rules! declare_tx_args {
     ($($field:ident $(: $value:expr)?),* $(,)?) => {
         $crate::starknet_api_test_utils::DeclareTxArgs {
@@ -454,39 +438,6 @@ macro_rules! declare_tx_args {
             ..$defaults
         }
     };
-}
-
-#[derive(Clone)]
-pub struct DeployAccountTxArgs {
-    pub signature: TransactionSignature,
-    pub version: TransactionVersion,
-    pub resource_bounds: AllResourceBounds,
-    pub tip: Tip,
-    pub nonce_data_availability_mode: DataAvailabilityMode,
-    pub fee_data_availability_mode: DataAvailabilityMode,
-    pub paymaster_data: PaymasterData,
-    pub nonce: Nonce,
-    pub class_hash: ClassHash,
-    pub contract_address_salt: ContractAddressSalt,
-    pub constructor_calldata: Calldata,
-}
-
-impl Default for DeployAccountTxArgs {
-    fn default() -> Self {
-        DeployAccountTxArgs {
-            signature: TransactionSignature::default(),
-            version: TransactionVersion::THREE,
-            resource_bounds: zero_resource_bounds_mapping(),
-            tip: Tip::default(),
-            nonce_data_availability_mode: DataAvailabilityMode::L1,
-            fee_data_availability_mode: DataAvailabilityMode::L1,
-            paymaster_data: PaymasterData::default(),
-            nonce: Nonce::default(),
-            class_hash: ClassHash::default(),
-            contract_address_salt: ContractAddressSalt::default(),
-            constructor_calldata: Calldata::default(),
-        }
-    }
 }
 
 #[derive(Clone)]
@@ -554,10 +505,14 @@ pub fn rpc_deploy_account_tx(deploy_tx_args: DeployAccountTxArgs) -> RpcTransact
         panic!("Unsupported transaction version: {:?}.", deploy_tx_args.version);
     }
 
+    let ValidResourceBounds::AllResources(resource_bounds) = deploy_tx_args.resource_bounds else {
+        panic!("Unspported resource bounds type: {:?}.", deploy_tx_args.resource_bounds)
+    };
+
     starknet_api::rpc_transaction::RpcTransaction::DeployAccount(
         starknet_api::rpc_transaction::RpcDeployAccountTransaction::V3(
             RpcDeployAccountTransactionV3 {
-                resource_bounds: deploy_tx_args.resource_bounds,
+                resource_bounds,
                 tip: deploy_tx_args.tip,
                 contract_address_salt: deploy_tx_args.contract_address_salt,
                 class_hash: deploy_tx_args.class_hash,
