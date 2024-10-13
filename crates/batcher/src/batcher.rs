@@ -21,6 +21,7 @@ use starknet_batcher_types::batcher_types::{
 use starknet_batcher_types::errors::BatcherError;
 use starknet_mempool_infra::component_definitions::ComponentStarter;
 use starknet_mempool_types::communication::SharedMempoolClient;
+use starknet_mempool_types::mempool_types::CommitBlockArgs;
 use tracing::{debug, error, instrument};
 
 use crate::block_builder::{BlockBuilderConfig, BlockBuilderFactory};
@@ -30,6 +31,7 @@ use crate::proposal_manager::{
     GetProposalResultError,
     ProposalManager,
     ProposalManagerTrait,
+    ProposalOutput,
     StartHeightError,
 };
 
@@ -41,6 +43,7 @@ pub struct Batcher {
     pub config: BatcherConfig,
     pub storage_reader: Arc<dyn BatcherStorageReaderTrait>,
     pub storage_writer: Box<dyn BatcherStorageWriterTrait>,
+    pub mempool_client: SharedMempoolClient,
     proposal_manager: Box<dyn ProposalManagerTrait>,
     proposals: HashMap<ProposalId, Proposal>,
 }
@@ -50,12 +53,14 @@ impl Batcher {
         config: BatcherConfig,
         storage_reader: Arc<dyn BatcherStorageReaderTrait>,
         storage_writer: Box<dyn BatcherStorageWriterTrait>,
+        mempool_client: SharedMempoolClient,
         proposal_manager: Box<dyn ProposalManagerTrait>,
     ) -> Self {
         Self {
             config: config.clone(),
             storage_reader,
             storage_writer,
+            mempool_client,
             proposal_manager,
             proposals: HashMap::new(),
         }
@@ -134,9 +139,8 @@ impl Batcher {
     #[instrument(skip(self), err)]
     pub async fn decision_reached(&mut self, input: DecisionReachedInput) -> BatcherResult<()> {
         let proposal_id = input.proposal_id;
-
-        let state_diff = self.proposal_manager.take_proposal_result(proposal_id).await?.state_diff;
-
+        let proposal_output = self.proposal_manager.take_proposal_result(proposal_id).await?;
+        let ProposalOutput { state_diff, nonces, tx_hashes, .. } = proposal_output;
         // TODO: Keep the height from start_height or get it from the input.
         let height = self.storage_reader.height().map_err(|err| {
             error!("Failed to get height from storage: {}", err);
@@ -145,7 +149,14 @@ impl Batcher {
         self.storage_writer.commit_proposal(height, state_diff).map_err(|err| {
             error!("Failed to commit proposal to storage: {}", err);
             BatcherError::InternalError
-        })
+        })?;
+        if let Err(mempool_err) =
+            self.mempool_client.commit_block(CommitBlockArgs { nonces, tx_hashes }).await
+        {
+            error!("Failed to commit block to mempool: {}", mempool_err);
+            // TODO: Should we rollback the state diff and return an error?
+        }
+        Ok(())
     }
 }
 
@@ -170,7 +181,7 @@ pub fn create_batcher(config: BatcherConfig, mempool_client: SharedMempoolClient
         block_builder_factory,
         storage_reader.clone(),
     ));
-    Batcher::new(config, storage_reader, storage_writer, proposal_manager)
+    Batcher::new(config, storage_reader, storage_writer, mempool_client, proposal_manager)
 }
 
 #[cfg_attr(test, automock)]
