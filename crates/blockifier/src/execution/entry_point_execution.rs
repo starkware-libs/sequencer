@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
@@ -123,7 +121,7 @@ fn register_visited_pcs(
     program_segment_size: usize,
     bytecode_length: usize,
 ) -> EntryPointExecutionResult<()> {
-    let mut class_visited_pcs = HashSet::new();
+    let mut class_visited_pcs = Vec::new();
     // Relocate the trace, putting the program segment at address 1 and the execution segment right
     // after it.
     // TODO(lior): Avoid unnecessary relocation once the VM has a non-relocated `get_trace()`
@@ -140,7 +138,7 @@ fn register_visited_pcs(
         // Jumping to a PC that is not inside the bytecode is possible. For example, to obtain
         // the builtin costs. Filter out these values.
         if real_pc < bytecode_length {
-            class_visited_pcs.insert(real_pc);
+            class_visited_pcs.push(real_pc);
         }
     }
     state.add_visited_pcs(class_hash, &class_visited_pcs);

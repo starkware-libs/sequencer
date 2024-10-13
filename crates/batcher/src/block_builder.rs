@@ -12,6 +12,7 @@ use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::state::errors::StateError;
 use blockifier::state::global_cache::GlobalContractCache;
 use blockifier::state::state_api::StateReader;
+use blockifier::state::visited_pcs::{VisitedPcs, VisitedPcsSet};
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use blockifier::versioned_constants::{VersionedConstants, VersionedConstantsOverrides};
@@ -112,7 +113,7 @@ impl BlockBuilderFactory {
         &self,
         height: BlockNumber,
         retrospective_block_hash: Option<BlockNumberHashPair>,
-    ) -> BlockBuilderResult<TransactionExecutor<PapyrusReader>> {
+    ) -> BlockBuilderResult<TransactionExecutor<PapyrusReader, VisitedPcsSet>> {
         let execution_config = self.execution_config.clone();
         let next_block_info = BlockInfo {
             block_number: height,
@@ -183,7 +184,9 @@ pub trait TransactionExecutorTrait: Send {
     ) -> TransactionExecutorResult<(CommitmentStateDiff, VisitedSegmentsMapping, BouncerWeights)>;
 }
 
-impl<S: StateReader + Send + Sync> TransactionExecutorTrait for TransactionExecutor<S> {
+impl<S: StateReader + Send + Sync, V: VisitedPcs + Send + Sync> TransactionExecutorTrait
+    for TransactionExecutor<S, V>
+{
     /// Adds the transactions to the generated block and returns the execution results.
     fn add_txs_to_block(
         &mut self,

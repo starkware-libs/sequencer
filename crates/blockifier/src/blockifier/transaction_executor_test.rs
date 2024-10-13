@@ -17,6 +17,7 @@ use crate::bouncer::{Bouncer, BouncerWeights};
 use crate::context::BlockContext;
 use crate::state::cached_state::CachedState;
 use crate::state::state_api::StateReader;
+use crate::state::visited_pcs::VisitedPcs;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::declare::declare_tx;
 use crate::test_utils::deploy_account::deploy_account_tx;
@@ -34,21 +35,23 @@ use crate::transaction::test_utils::{
 };
 use crate::transaction::transaction_execution::Transaction;
 use crate::transaction::transactions::L1HandlerTransaction;
-fn tx_executor_test_body<S: StateReader>(
-    state: CachedState<S>,
+
+fn tx_executor_test_body<S: StateReader, V: VisitedPcs>(
+    state: CachedState<S, V>,
     block_context: BlockContext,
     tx: Transaction,
     expected_bouncer_weights: BouncerWeights,
 ) {
     let block_number_hash_pair =
         BlockNumberHashPair::create_dummy_given_current(block_context.block_info().block_number);
-    let mut tx_executor = TransactionExecutor::pre_process_and_create(
-        state,
-        block_context,
-        block_number_hash_pair,
-        TransactionExecutorConfig::default(),
-    )
-    .unwrap();
+    let mut tx_executor: TransactionExecutor<CachedState<S, V>, V> =
+        TransactionExecutor::pre_process_and_create(
+            state,
+            block_context,
+            block_number_hash_pair,
+            TransactionExecutorConfig::default(),
+        )
+        .unwrap();
     // TODO(Arni, 30/03/2024): Consider adding a test for the transaction execution info. If A test
     // should not be added, rename the test to `test_bouncer_info`.
     // TODO(Arni, 30/03/2024): Test all bouncer weights.

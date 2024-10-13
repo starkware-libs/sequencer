@@ -38,6 +38,7 @@ use crate::fee::receipt::TransactionReceipt;
 use crate::retdata;
 use crate::state::cached_state::{StateChanges, TransactionalState};
 use crate::state::state_api::{State, StateReader, UpdatableState};
+use crate::state::visited_pcs::VisitedPcs;
 use crate::transaction::constants;
 use crate::transaction::errors::{
     TransactionExecutionError,
@@ -452,8 +453,8 @@ impl AccountTransaction {
         }
     }
 
-    fn handle_fee<S: StateReader>(
-        state: &mut TransactionalState<'_, S>,
+    fn handle_fee<S: StateReader, V: VisitedPcs>(
+        state: &mut TransactionalState<'_, S, V>,
         tx_context: Arc<TransactionContext>,
         actual_fee: Fee,
         charge_fee: bool,
@@ -521,8 +522,8 @@ impl AccountTransaction {
     /// manipulates the state to avoid that part.
     /// Note: the returned transfer call info is partial, and should be completed at the commit
     /// stage, as well as the actual sequencer balance.
-    fn concurrency_execute_fee_transfer<S: StateReader>(
-        state: &mut TransactionalState<'_, S>,
+    fn concurrency_execute_fee_transfer<S: StateReader, V: VisitedPcs>(
+        state: &mut TransactionalState<'_, S, V>,
         tx_context: Arc<TransactionContext>,
         actual_fee: Fee,
     ) -> TransactionExecutionResult<CallInfo> {
@@ -561,9 +562,9 @@ impl AccountTransaction {
         }
     }
 
-    fn run_non_revertible<S: StateReader>(
+    fn run_non_revertible<S: StateReader, V: VisitedPcs>(
         &self,
-        state: &mut TransactionalState<'_, S>,
+        state: &mut TransactionalState<'_, S, V>,
         tx_context: Arc<TransactionContext>,
         remaining_gas: &mut u64,
         validate: bool,
@@ -624,9 +625,9 @@ impl AccountTransaction {
         }
     }
 
-    fn run_revertible<S: StateReader>(
+    fn run_revertible<S: StateReader, V: VisitedPcs>(
         &self,
-        state: &mut TransactionalState<'_, S>,
+        state: &mut TransactionalState<'_, S, V>,
         tx_context: Arc<TransactionContext>,
         remaining_gas: &mut u64,
         validate: bool,
@@ -767,9 +768,9 @@ impl AccountTransaction {
     }
 
     /// Runs validation and execution.
-    fn run_or_revert<S: StateReader>(
+    fn run_or_revert<S: StateReader, V: VisitedPcs>(
         &self,
-        state: &mut TransactionalState<'_, S>,
+        state: &mut TransactionalState<'_, S, V>,
         remaining_gas: &mut u64,
         tx_context: Arc<TransactionContext>,
         validate: bool,
@@ -783,10 +784,10 @@ impl AccountTransaction {
     }
 }
 
-impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
+impl<V: VisitedPcs, U: UpdatableState<Pcs = V>> ExecutableTransaction<V, U> for AccountTransaction {
     fn execute_raw(
         &self,
-        state: &mut TransactionalState<'_, U>,
+        state: &mut TransactionalState<'_, U, V>,
         block_context: &BlockContext,
         execution_flags: ExecutionFlags,
     ) -> TransactionExecutionResult<TransactionExecutionInfo> {

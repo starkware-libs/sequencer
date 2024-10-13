@@ -7,6 +7,7 @@ use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
+use super::visited_pcs::{VisitedPcs, VisitedPcsSet};
 use crate::abi::abi_utils::get_fee_token_var_address;
 use crate::context::TransactionContext;
 use crate::execution::contract_class::ContractClass;
@@ -26,23 +27,23 @@ pub type ContractClassMapping = HashMap<ClassHash, ContractClass>;
 /// Writer functionality is builtin, whereas Reader functionality is injected through
 /// initialization.
 #[derive(Debug)]
-pub struct CachedState<S: StateReader> {
+pub struct CachedState<S: StateReader, V: VisitedPcs> {
     pub state: S,
     // Invariant: read/write access is managed by CachedState.
     // Using interior mutability to update caches during `State`'s immutable getters.
     pub(crate) cache: RefCell<StateCache>,
     pub(crate) class_hash_to_class: RefCell<ContractClassMapping>,
     /// A map from class hash to the set of PC values that were visited in the class.
-    pub visited_pcs: HashMap<ClassHash, HashSet<usize>>,
+    pub visited_pcs: V,
 }
 
-impl<S: StateReader> CachedState<S> {
+impl<S: StateReader, V: VisitedPcs> CachedState<S, V> {
     pub fn new(state: S) -> Self {
         Self {
             state,
             cache: RefCell::new(StateCache::default()),
             class_hash_to_class: RefCell::new(HashMap::default()),
-            visited_pcs: HashMap::default(),
+            visited_pcs: V::default(),
         }
     }
 
@@ -73,9 +74,9 @@ impl<S: StateReader> CachedState<S> {
         self.class_hash_to_class.get_mut().extend(local_contract_cache_updates);
     }
 
-    pub fn update_visited_pcs_cache(&mut self, visited_pcs: &HashMap<ClassHash, HashSet<usize>>) {
-        for (class_hash, class_visited_pcs) in visited_pcs {
-            self.add_visited_pcs(*class_hash, class_visited_pcs);
+    pub fn update_visited_pcs_cache(&mut self, visited_pcs: &V) {
+        for (class_hash, class_visited_pcs) in visited_pcs.iter() {
+            V::add_visited_pcs(self, class_hash, class_visited_pcs.clone())
         }
     }
 
@@ -107,12 +108,13 @@ impl<S: StateReader> CachedState<S> {
     }
 }
 
-impl<S: StateReader> UpdatableState for CachedState<S> {
+impl<S: StateReader, V: VisitedPcs> UpdatableState for CachedState<S, V> {
+    type Pcs = V;
     fn apply_writes(
         &mut self,
         writes: &StateMaps,
         class_hash_to_class: &ContractClassMapping,
-        visited_pcs: &HashMap<ClassHash, HashSet<usize>>,
+        visited_pcs: &V,
     ) {
         // TODO(Noa,15/5/24): Reconsider the clone.
         self.update_cache(writes, class_hash_to_class.clone());
@@ -121,13 +123,13 @@ impl<S: StateReader> UpdatableState for CachedState<S> {
 }
 
 #[cfg(any(feature = "testing", test))]
-impl<S: StateReader> From<S> for CachedState<S> {
+impl<S: StateReader> From<S> for CachedState<S, VisitedPcsSet> {
     fn from(state_reader: S) -> Self {
         CachedState::new(state_reader)
     }
 }
 
-impl<S: StateReader> StateReader for CachedState<S> {
+impl<S: StateReader, V: VisitedPcs> StateReader for CachedState<S, V> {
     fn get_storage_at(
         &self,
         contract_address: ContractAddress,
@@ -222,7 +224,7 @@ impl<S: StateReader> StateReader for CachedState<S> {
     }
 }
 
-impl<S: StateReader> State for CachedState<S> {
+impl<S: StateReader, V: VisitedPcs> State for CachedState<S, V> {
     fn set_storage_at(
         &mut self,
         contract_address: ContractAddress,
@@ -275,13 +277,18 @@ impl<S: StateReader> State for CachedState<S> {
         Ok(())
     }
 
-    fn add_visited_pcs(&mut self, class_hash: ClassHash, pcs: &HashSet<usize>) {
-        self.visited_pcs.entry(class_hash).or_default().extend(pcs);
+    fn add_visited_pcs(&mut self, class_hash: ClassHash, pcs: &[usize]) {
+        self.visited_pcs.insert(&class_hash, pcs);
     }
 }
 
 #[cfg(any(feature = "testing", test))]
-impl Default for CachedState<crate::test_utils::dict_state_reader::DictStateReader> {
+impl Default
+    for CachedState<
+        crate::test_utils::dict_state_reader::DictStateReader,
+        super::visited_pcs::VisitedPcsSet,
+    >
+{
     fn default() -> Self {
         Self {
             state: Default::default(),
@@ -503,14 +510,21 @@ impl<'a, S: StateReader + ?Sized> StateReader for MutRefState<'a, S> {
     }
 }
 
-pub type TransactionalState<'a, U> = CachedState<MutRefState<'a, U>>;
-
-impl<'a, S: StateReader> TransactionalState<'a, S> {
+pub type TransactionalState<'a, U, V> = CachedState<MutRefState<'a, U>, V>;
+impl<'a, S: StateReader> TransactionalState<'a, S, VisitedPcsSet> {
+    #[cfg(test)]
+    pub fn create_transactional_for_testing(
+        state: &mut S,
+    ) -> TransactionalState<'_, S, VisitedPcsSet> {
+        TransactionalState::create_transactional(state)
+    }
+}
+impl<'a, S: StateReader, V: VisitedPcs> TransactionalState<'a, S, V> {
     /// Creates a transactional instance from the given updatable state.
     /// It allows performing buffered modifying actions on the given state, which
     /// will either all happen (will be updated in the state and committed)
     /// or none of them (will be discarded).
-    pub fn create_transactional(state: &mut S) -> TransactionalState<'_, S> {
+    pub fn create_transactional(state: &mut S) -> TransactionalState<'_, S, V> {
         CachedState::new(MutRefState::new(state))
     }
 
@@ -519,7 +533,7 @@ impl<'a, S: StateReader> TransactionalState<'a, S> {
 }
 
 /// Adds the ability to perform a transactional execution.
-impl<'a, U: UpdatableState> TransactionalState<'a, U> {
+impl<'a, V: VisitedPcs, U: UpdatableState<Pcs = V>> TransactionalState<'a, U, V> {
     /// Commits changes in the child (wrapping) state to its parent.
     pub fn commit(self) {
         let state = self.state.0;

@@ -7,6 +7,7 @@ use blockifier::retdata;
 use blockifier::state::cached_state::CachedState;
 use blockifier::state::global_cache::{GlobalContractCache, GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST};
 use blockifier::state::state_api::StateReader;
+use blockifier::state::visited_pcs::VisitedPcsSet;
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{trivial_external_entry_point_new, CairoVersion};
 use indexmap::IndexMap;
@@ -56,7 +57,7 @@ fn test_entry_point_with_papyrus_state() -> papyrus_storage::StorageResult<()> {
         block_number,
         GlobalContractCache::new(GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST),
     );
-    let mut state = CachedState::from(papyrus_reader);
+    let mut state: CachedState<_, VisitedPcsSet> = CachedState::from(papyrus_reader);
 
     // Call entrypoint that want to write to storage, which updates the cached state's write cache.
     let key = felt!(1234_u16);

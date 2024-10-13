@@ -11,6 +11,7 @@ use blockifier::execution::contract_class::{
 };
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, MutRefState};
 use blockifier::state::state_api::StateReader;
+use blockifier::state::visited_pcs::VisitedPcsSet;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use cairo_vm::types::errors::program_errors::ProgramError;
 use indexmap::IndexMap;
@@ -117,7 +118,10 @@ pub fn get_trace_constructor(
 /// is a deprecated Declare, the user is required to pass the class hash of the deprecated class as
 /// it is not provided by the blockifier API.
 pub fn induced_state_diff(
-    transactional_state: &mut CachedState<MutRefState<'_, CachedState<ExecutionStateReader>>>,
+    transactional_state: &mut CachedState<
+        MutRefState<'_, CachedState<ExecutionStateReader, VisitedPcsSet>>,
+        VisitedPcsSet,
+    >,
     deprecated_declared_class_hash: Option<ClassHash>,
 ) -> ExecutionResult<ThinStateDiff> {
     let blockifier_state_diff = CommitmentStateDiff::from(transactional_state.to_state_diff()?);

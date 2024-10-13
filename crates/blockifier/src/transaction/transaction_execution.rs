@@ -12,6 +12,7 @@ use crate::execution::entry_point::EntryPointExecutionContext;
 use crate::fee::receipt::TransactionReceipt;
 use crate::state::cached_state::TransactionalState;
 use crate::state::state_api::UpdatableState;
+use crate::state::visited_pcs::VisitedPcs;
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::errors::TransactionFeeError;
 use crate::transaction::objects::{
@@ -130,10 +131,12 @@ impl TransactionInfoCreator for Transaction {
     }
 }
 
-impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
+impl<V: VisitedPcs, U: UpdatableState<Pcs = V>> ExecutableTransaction<V, U>
+    for L1HandlerTransaction
+{
     fn execute_raw(
         &self,
-        state: &mut TransactionalState<'_, U>,
+        state: &mut TransactionalState<'_, U, V>,
         block_context: &BlockContext,
         _execution_flags: ExecutionFlags,
     ) -> TransactionExecutionResult<TransactionExecutionInfo> {
@@ -181,10 +184,10 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
     }
 }
 
-impl<U: UpdatableState> ExecutableTransaction<U> for Transaction {
+impl<V: VisitedPcs, U: UpdatableState<Pcs = V>> ExecutableTransaction<V, U> for Transaction {
     fn execute_raw(
         &self,
-        state: &mut TransactionalState<'_, U>,
+        state: &mut TransactionalState<'_, U, V>,
         block_context: &BlockContext,
         execution_flags: ExecutionFlags,
     ) -> TransactionExecutionResult<TransactionExecutionInfo> {

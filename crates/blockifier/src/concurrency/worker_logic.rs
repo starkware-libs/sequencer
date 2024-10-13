@@ -1,10 +1,8 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
-
-use starknet_api::core::ClassHash;
 
 use super::versioned_state::VersionedState;
 use crate::blockifier::transaction_executor::TransactionExecutorError;
@@ -22,6 +20,7 @@ use crate::state::cached_state::{
     TransactionalState,
 };
 use crate::state::state_api::{StateReader, UpdatableState};
+use crate::state::visited_pcs::{VisitedPcs, VisitedPcsSet};
 use crate::transaction::objects::{TransactionExecutionInfo, TransactionExecutionResult};
 use crate::transaction::transaction_execution::Transaction;
 use crate::transaction::transactions::{ExecutableTransaction, ExecutionFlags};
@@ -33,24 +32,35 @@ pub mod test;
 const EXECUTION_OUTPUTS_UNWRAP_ERROR: &str = "Execution task outputs should not be None.";
 
 #[derive(Debug)]
-pub struct ExecutionTaskOutput {
+pub struct ExecutionTaskOutput<V: VisitedPcs> {
     pub reads: StateMaps,
     // TODO(Yoni): rename to state_diff.
     pub writes: StateMaps,
     pub contract_classes: ContractClassMapping,
-    pub visited_pcs: HashMap<ClassHash, HashSet<usize>>,
+    pub visited_pcs: V,
     pub result: TransactionExecutionResult<TransactionExecutionInfo>,
 }
 
-pub struct WorkerExecutor<'a, S: StateReader> {
+pub struct WorkerExecutor<'a, S: StateReader, V: VisitedPcs> {
     pub scheduler: Scheduler,
     pub state: ThreadSafeVersionedState<S>,
     pub chunk: &'a [Transaction],
-    pub execution_outputs: Box<[Mutex<Option<ExecutionTaskOutput>>]>,
+    pub execution_outputs: Box<[Mutex<Option<ExecutionTaskOutput<V>>>]>,
     pub block_context: &'a BlockContext,
     pub bouncer: Mutex<&'a mut Bouncer>,
 }
-impl<'a, S: StateReader> WorkerExecutor<'a, S> {
+impl<'a, S: StateReader> WorkerExecutor<'a, S, VisitedPcsSet> {
+    #[cfg(test)]
+    pub fn new_for_testing(
+        state: ThreadSafeVersionedState<S>,
+        chunk: &'a [Transaction],
+        block_context: &'a BlockContext,
+        bouncer: Mutex<&'a mut Bouncer>,
+    ) -> WorkerExecutor<'a, S, VisitedPcsSet> {
+        WorkerExecutor::new(state, chunk, block_context, bouncer)
+    }
+}
+impl<'a, S: StateReader, V: VisitedPcs> WorkerExecutor<'a, S, V> {
     pub fn new(
         state: ThreadSafeVersionedState<S>,
         chunk: &'a [Transaction],
@@ -142,8 +152,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
                 let writes = tx_reads_writes.to_state_diff();
                 let contract_classes = transactional_state.class_hash_to_class.take();
                 let visited_pcs = transactional_state.visited_pcs;
-                // The versioned state does not carry the visited PCs.
-                tx_versioned_state.apply_writes(&writes, &contract_classes, &HashMap::default());
+                tx_versioned_state.apply_writes(&writes, &contract_classes, &V::default());
                 ExecutionTaskOutput {
                     reads: tx_reads_writes.initial_reads,
                     writes,
@@ -157,7 +166,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
                 // Failed transaction - ignore the writes and visited PCs.
                 writes: StateMaps::default(),
                 contract_classes: HashMap::default(),
-                visited_pcs: HashMap::default(),
+                visited_pcs: V::default(),
                 result: execution_result,
             },
         };
@@ -166,7 +175,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
     }
 
     fn validate(&self, tx_index: TxIndex) -> Task {
-        let tx_versioned_state = self.state.pin_version(tx_index);
+        let tx_versioned_state = self.state.pin_version::<V>(tx_index);
         let execution_output = lock_mutex_in_array(&self.execution_outputs, tx_index);
         let execution_output = execution_output.as_ref().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR);
         let reads = &execution_output.reads;
@@ -199,7 +208,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
         let execution_output_ref = execution_output.as_ref().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR);
         let reads = &execution_output_ref.reads;
 
-        let mut tx_versioned_state = self.state.pin_version(tx_index);
+        let mut tx_versioned_state = self.state.pin_version::<V>(tx_index);
         let reads_valid = tx_versioned_state.validate_reads(reads);
 
         // First, re-validate the transaction.
@@ -266,12 +275,8 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
     }
 }
 
-impl<'a, U: UpdatableState> WorkerExecutor<'a, U> {
-    pub fn commit_chunk_and_recover_block_state(
-        self,
-        n_committed_txs: usize,
-        visited_pcs: HashMap<ClassHash, HashSet<usize>>,
-    ) -> U {
+impl<'a, V: VisitedPcs, U: UpdatableState<Pcs = V>> WorkerExecutor<'a, U, V> {
+    pub fn commit_chunk_and_recover_block_state(self, n_committed_txs: usize, visited_pcs: V) -> U {
         self.state
             .into_inner_state()
             .commit_chunk_and_recover_block_state(n_committed_txs, visited_pcs)

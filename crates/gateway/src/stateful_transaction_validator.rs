@@ -6,6 +6,7 @@ use blockifier::blockifier::stateful_validator::{
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo};
 use blockifier::state::cached_state::CachedState;
+use blockifier::state::visited_pcs::VisitedPcsSet;
 use blockifier::transaction::account_transaction::AccountTransaction;
 use blockifier::versioned_constants::VersionedConstants;
 #[cfg(test)]
@@ -31,7 +32,7 @@ pub struct StatefulTransactionValidator {
     pub config: StatefulTransactionValidatorConfig,
 }
 
-type BlockifierStatefulValidator = StatefulValidator<Box<dyn MempoolStateReader>>;
+type BlockifierStatefulValidator = StatefulValidator<Box<dyn MempoolStateReader>, VisitedPcsSet>;
 
 // TODO(yair): move the trait to Blockifier.
 #[cfg_attr(test, automock)]

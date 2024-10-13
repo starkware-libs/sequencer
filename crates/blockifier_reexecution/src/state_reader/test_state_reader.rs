@@ -7,6 +7,7 @@ use blockifier::execution::contract_class::ContractClass as BlockifierContractCl
 use blockifier::state::cached_state::CachedState;
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader, StateResult};
+use blockifier::state::visited_pcs::VisitedPcsSet;
 use blockifier::versioned_constants::{StarknetVersion, VersionedConstants};
 use serde_json::{json, to_value};
 use starknet_api::block::BlockNumber;
@@ -171,9 +172,9 @@ impl TestStateReader {
 
     pub fn get_transaction_executor(
         test_state_reader: TestStateReader,
-    ) -> StateResult<TransactionExecutor<TestStateReader>> {
+    ) -> StateResult<TransactionExecutor<TestStateReader, VisitedPcsSet>> {
         let block_context = test_state_reader.get_block_context()?;
-        Ok(TransactionExecutor::<TestStateReader>::new(
+        Ok(TransactionExecutor::<TestStateReader, VisitedPcsSet>::new(
             CachedState::new(test_state_reader),
             block_context,
             TransactionExecutorConfig::default(),
