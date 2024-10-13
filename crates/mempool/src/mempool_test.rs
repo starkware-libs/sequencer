@@ -85,17 +85,17 @@ impl MempoolContentBuilder {
         self
     }
 
-    fn _with_pending_queue<Q>(mut self, queue_txs: Q) -> Self
+    fn with_pending_queue<Q>(mut self, queue_txs: Q) -> Self
     where
         Q: IntoIterator<Item = TransactionReference>,
     {
-        self.tx_queue_content_builder = self.tx_queue_content_builder._with_pending(queue_txs);
+        self.tx_queue_content_builder = self.tx_queue_content_builder.with_pending(queue_txs);
         self
     }
 
-    fn _with_gas_price_threshold(mut self, gas_price_threshold: u128) -> Self {
+    fn with_gas_price_threshold(mut self, gas_price_threshold: u128) -> Self {
         self.tx_queue_content_builder =
-            self.tx_queue_content_builder._with_gas_price_threshold(gas_price_threshold);
+            self.tx_queue_content_builder.with_gas_price_threshold(gas_price_threshold);
         self
     }
 
@@ -205,27 +205,51 @@ fn test_get_txs_does_not_remove_returned_txs_from_pool() {
 #[rstest]
 fn test_get_txs_replenishes_queue_only_between_chunks() {
     // Setup.
-    let tx_address_0_nonce_0 = tx!(tip: 20, tx_hash: 1, sender_address: "0x0", tx_nonce: 0);
-    let tx_address_0_nonce_1 = tx!(tip: 20, tx_hash: 2, sender_address: "0x0", tx_nonce: 1);
-    let tx_address_1_nonce_0 = tx!(tip: 10, tx_hash: 3, sender_address: "0x1", tx_nonce: 0);
+    let priority_tx_address_0_nonce_0 = tx!(tip: 20, tx_hash: 1, sender_address: "0x0", tx_nonce: 0,
+        max_l2_gas_price: 100);
+    let priority_tx_address_0_nonce_1 = tx!(tip: 20, tx_hash: 2, sender_address: "0x0", tx_nonce: 1,
+        max_l2_gas_price: 100);
+    let pending_tx_address_0_nonce_2 = tx!(tip: 20, tx_hash: 3, sender_address: "0x0", tx_nonce: 2,
+        max_l2_gas_price: 99);
+    let priority_tx_address_0_nonce_3 = tx!(tip: 20, tx_hash: 4, sender_address: "0x0", tx_nonce: 3,
+        max_l2_gas_price: 100);
+    let priority_tx_address_1_nonce_0 = tx!(tip: 10, tx_hash: 5, sender_address: "0x1", tx_nonce: 0,
+        max_l2_gas_price: 100);
 
-    let queue_txs = [&tx_address_0_nonce_0, &tx_address_1_nonce_0].map(TransactionReference::new);
-    let pool_txs =
-        [&tx_address_0_nonce_0, &tx_address_0_nonce_1, &tx_address_1_nonce_0].map(|tx| tx.clone());
+    let queue_txs = [&priority_tx_address_0_nonce_0, &priority_tx_address_1_nonce_0]
+        .map(TransactionReference::new);
+    let pool_txs = [
+        &priority_tx_address_0_nonce_0,
+        &priority_tx_address_0_nonce_1,
+        &pending_tx_address_0_nonce_2,
+        &priority_tx_address_0_nonce_3,
+        &priority_tx_address_1_nonce_0,
+    ]
+    .map(|tx| tx.clone());
     let mut mempool = MempoolContentBuilder::new()
         .with_pool(pool_txs)
         .with_priority_queue(queue_txs)
+        .with_gas_price_threshold(100)
         .build_into_mempool();
 
-    // Test and assert: all transactions returned.
-    // Replenishment done in chunks: account 1 transaction is returned before the one of account 0,
+    // Test and assert: only priority transactions are returned.
+    // Replenishment done in chunks: account 1's transaction is returned before the second
+    // transaction of account 0, although its priority is higher.
+
     // although its priority is higher.
     get_txs_and_assert_expected(
         &mut mempool,
-        3,
-        &[tx_address_0_nonce_0, tx_address_1_nonce_0, tx_address_0_nonce_1],
+        5,
+        &[
+            priority_tx_address_0_nonce_0,
+            priority_tx_address_1_nonce_0,
+            priority_tx_address_0_nonce_1,
+        ],
     );
-    let expected_mempool_content = MempoolContentBuilder::new().with_priority_queue([]).build();
+    let expected_mempool_content = MempoolContentBuilder::new()
+        .with_priority_queue([])
+        .with_pending_queue([TransactionReference::new(&pending_tx_address_0_nonce_2)])
+        .build();
     expected_mempool_content.assert_eq(&mempool);
 }
 
