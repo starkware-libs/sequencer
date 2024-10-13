@@ -8,9 +8,10 @@ use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
+use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::state::ThinStateDiff;
-use starknet_batcher_types::batcher_types::ProposalId;
+use starknet_batcher_types::batcher_types::{ProposalCommitment, ProposalId};
 use starknet_mempool_types::communication::{MempoolClientError, SharedMempoolClient};
 use thiserror::Error;
 use tokio::select;
@@ -89,16 +90,18 @@ pub enum BuildProposalError {
     },
     #[error(transparent)]
     BlockBuilderError(#[from] BlockBuilderError),
-    #[error(transparent)]
-    MempoolError(#[from] MempoolClientError),
     #[error("No active height to work on.")]
     NoActiveHeight,
     #[error("Proposal with id {proposal_id} already exists.")]
     ProposalAlreadyExists { proposal_id: ProposalId },
 }
 
-#[derive(Debug, Error, PartialEq)]
+#[derive(Debug, Error)]
 pub enum GetProposalResultError {
+    #[error(transparent)]
+    BlockBuilderError(#[from] BlockBuilderError),
+    #[error(transparent)]
+    MempoolError(#[from] MempoolClientError),
     #[error("Proposal with id {proposal_id} does not exist.")]
     ProposalDoesNotExist { proposal_id: ProposalId },
 }
@@ -115,10 +118,12 @@ pub trait ProposalManagerTrait: Send + Sync {
         tx_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
     ) -> Result<(), BuildProposalError>;
 
-    async fn get_proposal_result(
-        &mut self,
+    async fn get_proposal_result(&mut self, proposal_id: ProposalId) -> ProposalResult;
+
+    async fn get_done_proposal_commitment(
+        &self,
         proposal_id: ProposalId,
-    ) -> Result<ProposalOutput, GetProposalResultError>;
+    ) -> Option<ProposalCommitment>;
 }
 
 /// Main struct for handling block proposals.
@@ -140,11 +145,16 @@ pub(crate) struct ProposalManager {
     active_proposal_handle: Option<ActiveTaskHandle>,
     // Use a factory object, to be able to mock BlockBuilder in tests.
     block_builder_factory: Arc<dyn BlockBuilderFactoryTrait + Send + Sync>,
-    done_proposals: Arc<Mutex<HashMap<ProposalId, ProposalOutput>>>,
+    done_proposals: Arc<Mutex<HashMap<ProposalId, ProposalResult>>>,
 }
 
 type ActiveTaskHandle = tokio::task::JoinHandle<()>;
-pub type ProposalOutput = Result<ThinStateDiff, BuildProposalError>;
+pub type ProposalResult = Result<ProposalOutput, GetProposalResultError>;
+
+pub struct ProposalOutput {
+    pub state_diff: ThinStateDiff,
+    pub commitment: ProposalCommitment,
+}
 
 #[async_trait]
 impl ProposalManagerTrait for ProposalManager {
@@ -213,15 +223,19 @@ impl ProposalManagerTrait for ProposalManager {
         Ok(())
     }
 
-    async fn get_proposal_result(
-        &mut self,
-        proposal_id: ProposalId,
-    ) -> Result<ProposalOutput, GetProposalResultError> {
+    async fn get_proposal_result(&mut self, proposal_id: ProposalId) -> ProposalResult {
         self.done_proposals
             .lock()
             .await
             .remove(&proposal_id)
-            .ok_or(GetProposalResultError::ProposalDoesNotExist { proposal_id })
+            .ok_or(GetProposalResultError::ProposalDoesNotExist { proposal_id })?
+    }
+
+    async fn get_done_proposal_commitment(
+        &self,
+        proposal_id: ProposalId,
+    ) -> Option<ProposalCommitment> {
+        Some(self.done_proposals.lock().await.get(&proposal_id)?.as_ref().ok()?.commitment)
     }
 }
 
@@ -289,7 +303,7 @@ struct BuildProposalTask {
     block_builder: Box<dyn BlockBuilderTrait + Send>,
     active_proposal: Arc<Mutex<Option<ProposalId>>>,
     deadline: tokio::time::Instant,
-    done_proposals: Arc<Mutex<HashMap<ProposalId, Result<ThinStateDiff, BuildProposalError>>>>,
+    done_proposals: Arc<Mutex<HashMap<ProposalId, ProposalResult>>>,
 }
 
 impl BuildProposalTask {
@@ -325,7 +339,7 @@ impl BuildProposalTask {
             },
             builder_done = building_future => {
                 info!("Block builder finished.");
-                builder_done.map(ThinStateDiff::from).map_err(BuildProposalError::BlockBuilderError)
+                builder_done.map(ProposalOutput::from).map_err(GetProposalResultError::BlockBuilderError)
             }
         };
         self.mark_active_proposal_as_done(result).await;
@@ -337,7 +351,7 @@ impl BuildProposalTask {
         mempool_client: &SharedMempoolClient,
         max_txs_per_mempool_request: usize,
         mempool_tx_sender: &tokio::sync::mpsc::Sender<Transaction>,
-    ) -> BuildProposalError {
+    ) -> GetProposalResultError {
         loop {
             // TODO: Get L1 transactions.
             let mempool_txs = match mempool_client.get_txs(max_txs_per_mempool_request).await {
@@ -365,7 +379,7 @@ impl BuildProposalTask {
         }
     }
 
-    async fn mark_active_proposal_as_done(self, result: Result<ThinStateDiff, BuildProposalError>) {
+    async fn mark_active_proposal_as_done(self, result: ProposalResult) {
         let proposal_id =
             self.active_proposal.lock().await.take().expect("Active proposal should exist.");
         self.done_proposals.lock().await.insert(proposal_id, result);
@@ -374,15 +388,14 @@ impl BuildProposalTask {
 
 pub type InputTxStream = ReceiverStream<Transaction>;
 
-// TODO: Move this to a more appropriate place.
-impl From<BlockExecutionArtifacts> for ThinStateDiff {
+impl From<BlockExecutionArtifacts> for ProposalOutput {
     fn from(artifacts: BlockExecutionArtifacts) -> Self {
         let commitment_state_diff = artifacts.commitment_state_diff;
 
         // TODO: Get these from the transactions.
         let deployed_contracts = IndexMap::new();
         let declared_classes = IndexMap::new();
-        ThinStateDiff {
+        let state_diff = ThinStateDiff {
             deployed_contracts,
             storage_diffs: commitment_state_diff.storage_updates,
             declared_classes,
@@ -390,6 +403,9 @@ impl From<BlockExecutionArtifacts> for ThinStateDiff {
             // TODO: Remove this when the structure of storage diffs changes.
             deprecated_declared_classes: Vec::new(),
             replaced_classes: IndexMap::new(),
-        }
+        };
+        let commitment =
+            ProposalCommitment { state_diff_commitment: calculate_state_diff_hash(&state_diff) };
+        Self { state_diff, commitment }
     }
 }
