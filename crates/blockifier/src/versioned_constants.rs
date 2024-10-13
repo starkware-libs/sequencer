@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock};
 use std::{fs, io};
@@ -8,6 +8,8 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use indexmap::{IndexMap, IndexSet};
 use num_rational::Ratio;
 use num_traits::Inv;
+use papyrus_config::dumping::{ser_param, SerializeConfig};
+use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use paste::paste;
 use semver::Version;
 use serde::de::Error as DeserializationError;
@@ -867,5 +869,30 @@ impl Default for VersionedConstantsOverrides {
             max_recursion_depth: 50,
             invoke_tx_max_n_steps: 10000000,
         }
+    }
+}
+
+impl SerializeConfig for VersionedConstantsOverrides {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([
+            ser_param(
+                "validate_max_n_steps",
+                &self.validate_max_n_steps,
+                "Maximum number of steps the validation function is allowed to run.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_recursion_depth",
+                &self.max_recursion_depth,
+                "Maximum recursion depth for nested calls during blockifier validation.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "invoke_tx_max_n_steps",
+                &self.invoke_tx_max_n_steps,
+                "Maximum number of steps the invoke function is allowed to run.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
     }
 }
