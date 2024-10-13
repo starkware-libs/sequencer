@@ -63,49 +63,12 @@ pub enum TrackedResource {
     SierraGas, // AKA Sierra mode.
 }
 
-#[derive(Clone)]
-pub enum Cairo1EntryPoint {
-    Casm(EntryPointV1),
-    Native(NativeEntryPoint),
-}
-
-impl Cairo1EntryPoint {
-    pub fn selector(&self) -> &EntryPointSelector {
-        match self {
-            Cairo1EntryPoint::Casm(ep) => &ep.selector,
-            Cairo1EntryPoint::Native(ep) => &ep.selector,
-        }
-    }
-}
-
 /// Represents a runnable Starknet contract class (meaning, the program is runnable by the VM).
 #[derive(Clone, Debug, Eq, PartialEq, derive_more::From)]
 pub enum ContractClass {
     V0(ContractClassV0),
     V1(ContractClassV1),
     V1Native(NativeContractClassV1),
-}
-
-pub fn get_entry_point(
-    contract_class: &ContractClass,
-    call: &CallEntryPoint,
-) -> Result<Cairo1EntryPoint, PreExecutionError> {
-    call.verify_constructor()?;
-
-    let entry_points_of_same_type = contract_class.entry_points_of_same_type(call.entry_point_type);
-    let filtered_entry_points: Vec<_> = entry_points_of_same_type
-        .iter()
-        .filter(|ep| *ep.selector() == call.entry_point_selector)
-        .collect();
-
-    match &filtered_entry_points[..] {
-        [] => Err(PreExecutionError::EntryPointNotFound(call.entry_point_selector)),
-        [entry_point] => Ok((**entry_point).clone()),
-        _ => Err(PreExecutionError::DuplicatedEntryPointSelector {
-            selector: call.entry_point_selector,
-            typ: call.entry_point_type,
-        }),
-    }
 }
 
 impl TryFrom<RawContractClass> for ContractClass {
@@ -141,23 +104,6 @@ impl ContractClass {
             ContractClass::V1Native(_) => {
                 todo!("Use casm to estimate casm hash computation resources")
             }
-        }
-    }
-
-    pub fn entry_points_of_same_type(
-        &self,
-        entry_point_type: EntryPointType,
-    ) -> Vec<Cairo1EntryPoint> {
-        match self {
-            ContractClass::V0(_) => panic!("V0 contracts do not support entry points."),
-            ContractClass::V1(class) => class.entry_points_by_type[&entry_point_type]
-                .iter()
-                .map(|ep| Cairo1EntryPoint::Casm(ep.clone()))
-                .collect(),
-            ContractClass::V1Native(class) => class.entry_points_by_type[entry_point_type]
-                .iter()
-                .map(|ep| Cairo1EntryPoint::Native(ep.clone()))
-                .collect(),
         }
     }
 
@@ -292,7 +238,7 @@ impl Deref for ContractClassV1 {
 
 impl ContractClassV1 {
     fn constructor_selector(&self) -> Option<EntryPointSelector> {
-        Some(self.0.entry_points_by_type[&EntryPointType::Constructor].first()?.selector)
+        self.0.entry_points_by_type.constructor.first().map(|ep| ep.selector)
     }
 
     pub fn bytecode_length(&self) -> usize {
@@ -307,10 +253,7 @@ impl ContractClassV1 {
         &self,
         call: &CallEntryPoint,
     ) -> Result<EntryPointV1, PreExecutionError> {
-        match get_entry_point(&ContractClass::V1(self.clone()), call)? {
-            Cairo1EntryPoint::Casm(entry_point) => Ok(entry_point),
-            Cairo1EntryPoint::Native(_) => panic!("Unexpected entry point type."),
-        }
+        self.entry_points_by_type.get_entry_point(call)
     }
 
     /// Returns whether this contract should run using Cairo steps or Sierra gas.
@@ -453,7 +396,7 @@ fn get_visited_segments(
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ContractClassV1Inner {
     pub program: Program,
-    pub entry_points_by_type: HashMap<EntryPointType, Vec<EntryPointV1>>,
+    pub entry_points_by_type: EntryPointsByType<EntryPointV1>,
     pub hints: HashMap<String, Hint>,
     pub compiler_version: CompilerVersion,
     bytecode_segment_lengths: NestedIntList,
@@ -469,6 +412,12 @@ pub struct EntryPointV1 {
 impl EntryPointV1 {
     pub fn pc(&self) -> usize {
         self.offset.0
+    }
+}
+
+impl HasSelector for EntryPointV1 {
+    fn selector(&self) -> &EntryPointSelector {
+        &self.selector
     }
 }
 
@@ -513,19 +462,11 @@ impl TryFrom<CasmContractClass> for ContractClassV1 {
             instruction_locations,
         )?;
 
-        let mut entry_points_by_type = HashMap::new();
-        entry_points_by_type.insert(
-            EntryPointType::Constructor,
-            convert_entry_points_v1(&class.entry_points_by_type.constructor),
-        );
-        entry_points_by_type.insert(
-            EntryPointType::External,
-            convert_entry_points_v1(&class.entry_points_by_type.external),
-        );
-        entry_points_by_type.insert(
-            EntryPointType::L1Handler,
-            convert_entry_points_v1(&class.entry_points_by_type.l1_handler),
-        );
+        let entry_points_by_type = EntryPointsByType {
+            constructor: convert_entry_points_v1(&class.entry_points_by_type.constructor),
+            external: convert_entry_points_v1(&class.entry_points_by_type.external),
+            l1_handler: convert_entry_points_v1(&class.entry_points_by_type.l1_handler),
+        };
         let bytecode_segment_lengths = class
             .bytecode_segment_lengths
             .unwrap_or_else(|| NestedIntList::Leaf(program.data_len()));
@@ -682,18 +623,15 @@ impl NativeContractClassV1 {
 
     /// Returns an entry point into the natively compiled contract.
     pub fn get_entry_point(&self, call: &CallEntryPoint) -> Result<FunctionId, PreExecutionError> {
-        match get_entry_point(&ContractClass::V1Native(self.clone()), call)? {
-            Cairo1EntryPoint::Native(entry_point) => Ok(entry_point.function_id),
-            Cairo1EntryPoint::Casm(_) => panic!("Unexpected entry point type."),
-        }
+        self.entry_points_by_type.get_entry_point(call).map(|ep| ep.function_id)
     }
 }
 
 #[derive(Debug)]
 pub struct NativeContractClassV1Inner {
     pub executor: AotNativeExecutor,
-    entry_points_by_type: NativeContractEntryPoints,
-    // Storing the raw sierra program and entry points to be able to compare the contract class
+    entry_points_by_type: EntryPointsByType<NativeEntryPoint>,
+    // Storing the raw sierra program and entry points to be able to compare the contract class.
     sierra_program: Vec<BigUintAsHex>,
 }
 
@@ -701,7 +639,7 @@ impl NativeContractClassV1Inner {
     fn new(executor: AotNativeExecutor, sierra_contract_class: SierraContractClass) -> Self {
         NativeContractClassV1Inner {
             executor,
-            entry_points_by_type: NativeContractEntryPoints::from(&sierra_contract_class),
+            entry_points_by_type: EntryPointsByType::from(&sierra_contract_class),
             sierra_program: sierra_contract_class.sierra_program,
         }
     }
@@ -718,34 +656,38 @@ impl PartialEq for NativeContractClassV1Inner {
 
 impl Eq for NativeContractClassV1Inner {}
 
-#[derive(Debug, PartialEq)]
-/// Modelled after [cairo_lang_starknet_classes::contract_class::ContractEntryPoints]
-/// and enriched with information for the Cairo Native ABI.
-struct NativeContractEntryPoints {
-    constructor: Vec<NativeEntryPoint>,
-    external: Vec<NativeEntryPoint>,
-    l1_handler: Vec<NativeEntryPoint>,
+// TODO(Yoni): organize this file.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+/// Modelled after [cairo_lang_starknet_classes::contract_class::ContractEntryPoints].
+pub struct EntryPointsByType<EP: HasSelector> {
+    constructor: Vec<EP>,
+    external: Vec<EP>,
+    l1_handler: Vec<EP>,
 }
 
-impl From<&SierraContractClass> for NativeContractEntryPoints {
-    fn from(sierra_contract_class: &SierraContractClass) -> Self {
-        let program =
-            sierra_contract_class.extract_sierra_program().expect("Can't get sierra program.");
+impl<EP: Clone + HasSelector> EntryPointsByType<EP> {
+    pub fn get_entry_point(&self, call: &CallEntryPoint) -> Result<EP, PreExecutionError> {
+        call.verify_constructor()?;
 
-        let func_ids = program.funcs.iter().map(|func| &func.id).collect::<Vec<&FunctionId>>();
+        let entry_points_of_same_type = &self[call.entry_point_type];
+        let filtered_entry_points: Vec<_> = entry_points_of_same_type
+            .iter()
+            .filter(|ep| *ep.selector() == call.entry_point_selector)
+            .collect();
 
-        let entry_points_by_type = &sierra_contract_class.entry_points_by_type;
-
-        NativeContractEntryPoints {
-            constructor: sierra_eps_to_native_eps(&func_ids, &entry_points_by_type.constructor),
-            external: sierra_eps_to_native_eps(&func_ids, &entry_points_by_type.external),
-            l1_handler: sierra_eps_to_native_eps(&func_ids, &entry_points_by_type.l1_handler),
+        match filtered_entry_points[..] {
+            [] => Err(PreExecutionError::EntryPointNotFound(call.entry_point_selector)),
+            [entry_point] => Ok(entry_point.clone()),
+            _ => Err(PreExecutionError::DuplicatedEntryPointSelector {
+                selector: call.entry_point_selector,
+                typ: call.entry_point_type,
+            }),
         }
     }
 }
 
-impl Index<EntryPointType> for NativeContractEntryPoints {
-    type Output = Vec<NativeEntryPoint>;
+impl<EP: HasSelector> Index<EntryPointType> for EntryPointsByType<EP> {
+    type Output = Vec<EP>;
 
     fn index(&self, index: EntryPointType) -> &Self::Output {
         match index {
@@ -756,11 +698,32 @@ impl Index<EntryPointType> for NativeContractEntryPoints {
     }
 }
 
+impl From<&SierraContractClass> for EntryPointsByType<NativeEntryPoint> {
+    fn from(sierra_contract_class: &SierraContractClass) -> Self {
+        let program =
+            sierra_contract_class.extract_sierra_program().expect("Can't get sierra program.");
+
+        let func_ids = program.funcs.iter().map(|func| &func.id).collect::<Vec<&FunctionId>>();
+
+        let entry_points_by_type = &sierra_contract_class.entry_points_by_type;
+
+        EntryPointsByType::<NativeEntryPoint> {
+            constructor: sierra_eps_to_native_eps(&func_ids, &entry_points_by_type.constructor),
+            external: sierra_eps_to_native_eps(&func_ids, &entry_points_by_type.external),
+            l1_handler: sierra_eps_to_native_eps(&func_ids, &entry_points_by_type.l1_handler),
+        }
+    }
+}
+
 fn sierra_eps_to_native_eps(
     func_ids: &[&FunctionId],
     sierra_eps: &[SierraContractEntryPoint],
 ) -> Vec<NativeEntryPoint> {
     sierra_eps.iter().map(|sierra_ep| NativeEntryPoint::from(func_ids, sierra_ep)).collect()
+}
+
+pub trait HasSelector {
+    fn selector(&self) -> &EntryPointSelector;
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -779,5 +742,11 @@ impl NativeEntryPoint {
             selector: contract_entrypoint_to_entrypoint_selector(sierra_ep),
             function_id: function_id.clone(),
         }
+    }
+}
+
+impl HasSelector for NativeEntryPoint {
+    fn selector(&self) -> &EntryPointSelector {
+        &self.selector
     }
 }

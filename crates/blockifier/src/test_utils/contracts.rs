@@ -18,6 +18,7 @@ use strum_macros::EnumIter;
 use crate::abi::abi_utils::selector_from_name;
 use crate::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use crate::execution::contract_class::{ContractClass, ContractClassV0, ContractClassV1};
+use crate::execution::entry_point::CallEntryPoint;
 use crate::test_utils::cairo_compile::{cairo0_compile, cairo1_compile};
 use crate::test_utils::{get_raw_contract_class, CairoVersion};
 
@@ -329,10 +330,11 @@ impl FeatureContract {
             ContractClass::V1(class) => {
                 class
                     .entry_points_by_type
-                    .get(&entry_point_type)
-                    .unwrap()
-                    .iter()
-                    .find(|ep| ep.selector == entry_point_selector)
+                    .get_entry_point(&CallEntryPoint {
+                        entry_point_type,
+                        entry_point_selector,
+                        ..Default::default()
+                    })
                     .unwrap()
                     .offset
             }
