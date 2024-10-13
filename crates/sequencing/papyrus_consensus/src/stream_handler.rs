@@ -20,8 +20,8 @@ type StreamKey = (PeerId, u64);
 
 const CHANNEL_BUFFER_LENGTH: usize = 100;
 
-fn get_metadata_peer_id(metadata: &BroadcastedMessageManager) -> PeerId {
-    metadata.originator_id.clone()
+fn get_metadata_peer_id(metadata: BroadcastedMessageManager) -> PeerId {
+    metadata.originator_id
 }
 
 #[derive(Debug, Clone)]
@@ -106,9 +106,9 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
                 return;
             }
         };
-        let peer_id = get_metadata_peer_id(&metadata);
+        let peer_id = get_metadata_peer_id(metadata);
         let stream_id = message.stream_id;
-        let key = (peer_id.clone(), stream_id);
+        let key = (peer_id, stream_id);
         let message_id = message.message_id;
 
         let data = match self.stream_data.entry(key.clone()) {
@@ -149,10 +149,9 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
         if message_id > data.fin_message_id.unwrap_or(u64::MAX) {
             // TODO(guyn): replace warnings with more graceful error handling
             warn!(
-                "Received message with id that is bigger than the id of the fin message! peer_id: \
-                 {:?}, stream_id: {}, message_id: {}, fin_message_id: {}",
-                peer_id.clone(),
-                stream_id,
+                "Received message with id that is bigger than the id of the fin message! 
+                key: {:?}, message_id: {}, fin_message_id: {}",
+                key,
                 message_id,
                 data.fin_message_id.unwrap_or(u64::MAX)
             );
@@ -170,13 +169,13 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
                 self.stream_data.remove(&key);
             }
         } else if message_id > data.next_message_id {
-            Self::store(data, peer_id, message);
+            Self::store(data, key.0, message);
         } else {
             // TODO(guyn): replace warnings with more graceful error handling
             warn!(
-                "Received message with id that is smaller than the next message expected! \
-                 peer_id: {:?}, stream_id: {}, message_id: {}, next_message_id: {}",
-                peer_id, stream_id, message_id, data.next_message_id
+                "Received message with id that is smaller than the next message expected! key: \
+                 {:?}, message_id: {}, next_message_id: {}",
+                key, message_id, data.next_message_id
             );
             return;
         }
@@ -191,9 +190,7 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
             warn!(
                 "Two messages with the same message_id in buffer! peer_id: {:?}, stream_id: {}, \
                  message_id: {}",
-                peer_id.clone(),
-                stream_id,
-                message_id
+                peer_id, stream_id, message_id
             );
         } else {
             data.message_buffer.insert(message_id, message);

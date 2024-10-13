@@ -97,7 +97,7 @@ mod tests {
     #[tokio::test]
     async fn stream_handler_in_reverse() {
         let (mut stream_handler, mut network_sender, mut rx_output, metadata) = setup_test();
-        let peer_id = get_metadata_peer_id(&metadata);
+        let peer_id = get_metadata_peer_id(metadata.clone());
         let stream_id = 127;
 
         for i in 0..5 {
@@ -149,7 +149,7 @@ mod tests {
     #[tokio::test]
     async fn stream_handler_multiple_streams() {
         let (mut stream_handler, mut network_sender, mut rx_output, metadata) = setup_test();
-        let peer_id = get_metadata_peer_id(&metadata);
+        let peer_id = get_metadata_peer_id(metadata.clone());
 
         let stream_id1 = 127; // Send all messages in order (except the first one).
         let stream_id2 = 10; // Send in reverse order (except the first one).
