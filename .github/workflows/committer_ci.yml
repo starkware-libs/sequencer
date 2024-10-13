@@ -7,7 +7,6 @@ on:
       - reopened
       - synchronize
       - auto_merge_enabled
-      - edited
     paths:
       - '.github/workflows/committer_ci.yml'
       - 'Cargo.toml'

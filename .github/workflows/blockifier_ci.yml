@@ -18,7 +18,6 @@ on:
       - reopened
       - synchronize
       - auto_merge_enabled
-      - edited
     paths:
       # Other than code-related changes, all changes related to the native-blockifier build-and-push
       # process should trigger the build (e.g., changes to the Dockerfile, build scripts, etc.).

@@ -23,7 +23,6 @@ on:
       - reopened
       - synchronize
       - auto_merge_enabled
-      - edited
     paths:
       - '.github/workflows/committer_cli_push.yml'
       - 'Cargo.toml'

@@ -20,7 +20,6 @@ on:
       - reopened
       - synchronize
       - auto_merge_enabled
-      - edited # for when the PR title is edited
     paths:
       - '.github/workflows/papyrus_ci.yml'
       - 'Dockerfile'

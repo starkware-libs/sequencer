@@ -7,7 +7,6 @@ on:
     types:
       - opened
       - reopened
-      - edited
       - synchronize
   # Scan on-demand through GitHub Actions interface:
   workflow_dispatch: {}

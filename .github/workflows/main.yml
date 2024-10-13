@@ -14,7 +14,6 @@ on:
       - reopened
       - synchronize
       - auto_merge_enabled
-      - edited
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 concurrency:
