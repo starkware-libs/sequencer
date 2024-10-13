@@ -10301,6 +10301,7 @@ dependencies = [
  "axum",
  "enum-assoc",
  "mockall",
+ "papyrus_network_types",
  "papyrus_rpc",
  "serde",
  "serde_json",
