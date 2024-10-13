@@ -1,3 +1,4 @@
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use assert_matches::assert_matches;
@@ -9,11 +10,12 @@ use mockall::automock;
 use mockall::predicate::eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
-use starknet_api::core::StateDiffCommitment;
+use starknet_api::core::{ContractAddress, Nonce, PatriciaKey, StateDiffCommitment};
 use starknet_api::executable_transaction::Transaction;
-use starknet_api::felt;
 use starknet_api::hash::PoseidonHash;
 use starknet_api::state::ThinStateDiff;
+use starknet_api::transaction::TransactionHash;
+use starknet_api::{felt, nonce, patricia_key};
 use starknet_batcher_types::batcher_types::{
     BuildProposalInput,
     DecisionReachedInput,
@@ -25,6 +27,8 @@ use starknet_batcher_types::batcher_types::{
     StartHeightInput,
 };
 use starknet_batcher_types::errors::BatcherError;
+use starknet_mempool_types::communication::MockMempoolClient;
+use starknet_mempool_types::mempool_types::CommitBlockArgs;
 
 use crate::batcher::{Batcher, MockBatcherStorageReaderTrait, MockBatcherStorageWriterTrait};
 use crate::config::BatcherConfig;
@@ -58,12 +62,18 @@ fn batcher_config() -> BatcherConfig {
     BatcherConfig { outstream_content_buffer_size: STREAMING_CHUNK_SIZE, ..Default::default() }
 }
 
+#[fixture]
+fn mempool_client() -> MockMempoolClient {
+    MockMempoolClient::new()
+}
+
 #[rstest]
 #[tokio::test]
 async fn get_stream_content(
     batcher_config: BatcherConfig,
     storage_reader: MockBatcherStorageReaderTrait,
     storage_writer: MockBatcherStorageWriterTrait,
+    mempool_client: MockMempoolClient,
 ) {
     const PROPOSAL_ID: ProposalId = ProposalId(0);
     // Expecting 3 chunks of streamed txs.
@@ -88,6 +98,7 @@ async fn get_stream_content(
         batcher_config,
         Arc::new(storage_reader),
         Box::new(storage_writer),
+        Arc::new(mempool_client),
         Box::new(proposal_manager),
     );
 
@@ -137,11 +148,16 @@ async fn decision_reached(
     batcher_config: BatcherConfig,
     storage_reader: MockBatcherStorageReaderTrait,
     mut storage_writer: MockBatcherStorageWriterTrait,
+    mut mempool_client: MockMempoolClient,
 ) {
     const PROPOSAL_ID: ProposalId = ProposalId(0);
     let expected_state_diff = ThinStateDiff::default();
     let state_diff_clone = expected_state_diff.clone();
     let expected_proposal_commitment = ProposalCommitment::default();
+    let tx_hashes = test_tx_hashes(0..5);
+    let tx_hashes_clone = tx_hashes.clone();
+    let nonces = test_contract_nonces(0..3);
+    let nonces_clone = nonces.clone();
 
     let mut proposal_manager = MockProposalManagerTraitWrapper::new();
     proposal_manager.expect_wrap_take_proposal_result().with(eq(PROPOSAL_ID)).return_once(
@@ -150,11 +166,17 @@ async fn decision_reached(
                 Ok(ProposalOutput {
                     state_diff: state_diff_clone,
                     commitment: expected_proposal_commitment,
+                    tx_hashes: tx_hashes_clone,
+                    nonces: nonces_clone,
                 })
             }
             .boxed()
         },
     );
+    mempool_client
+        .expect_commit_block()
+        .with(eq(CommitBlockArgs { nonces, tx_hashes }))
+        .returning(|_| Ok(()));
 
     storage_writer
         .expect_commit_proposal()
@@ -165,6 +187,7 @@ async fn decision_reached(
         batcher_config,
         Arc::new(storage_reader),
         Box::new(storage_writer),
+        Arc::new(mempool_client),
         Box::new(proposal_manager),
     );
     batcher.decision_reached(DecisionReachedInput { proposal_id: ProposalId(0) }).await.unwrap();
@@ -176,6 +199,7 @@ async fn decision_reached_no_done_proposal(
     batcher_config: BatcherConfig,
     storage_reader: MockBatcherStorageReaderTrait,
     storage_writer: MockBatcherStorageWriterTrait,
+    mempool_client: MockMempoolClient,
 ) {
     const PROPOSAL_ID: ProposalId = ProposalId(0);
     let expected_error = BatcherError::DoneProposalNotFound { proposal_id: PROPOSAL_ID };
@@ -191,6 +215,7 @@ async fn decision_reached_no_done_proposal(
         batcher_config,
         Arc::new(storage_reader),
         Box::new(storage_writer),
+        Arc::new(mempool_client),
         Box::new(proposal_manager),
     );
     let decision_reached_result =
@@ -272,4 +297,12 @@ impl<T: ProposalManagerTraitWrapper> ProposalManagerTrait for T {
     ) -> ProposalResult<ProposalCommitment> {
         self.wrap_done_proposal_commitment(proposal_id).await
     }
+}
+
+fn test_tx_hashes(range: std::ops::Range<u128>) -> HashSet<TransactionHash> {
+    range.map(|i| TransactionHash(felt!(i))).collect()
+}
+
+fn test_contract_nonces(range: std::ops::Range<u128>) -> HashMap<ContractAddress, Nonce> {
+    HashMap::from_iter(range.map(|i| (ContractAddress(patricia_key!(i)), nonce!(i))))
 }
