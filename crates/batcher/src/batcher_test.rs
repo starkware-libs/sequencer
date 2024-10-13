@@ -9,13 +9,18 @@ use mockall::automock;
 use mockall::predicate::eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
+use starknet_api::core::StateDiffCommitment;
 use starknet_api::executable_transaction::Transaction;
+use starknet_api::felt;
+use starknet_api::hash::PoseidonHash;
 use starknet_api::state::ThinStateDiff;
 use starknet_batcher_types::batcher_types::{
     BuildProposalInput,
     DecisionReachedInput,
     GetProposalContent,
     GetProposalContentInput,
+    GetProposalContentResponse,
+    ProposalCommitment,
     ProposalId,
     StartHeightInput,
 };
@@ -28,6 +33,7 @@ use crate::proposal_manager::{
     GetProposalResultError,
     ProposalManagerTrait,
     ProposalOutput,
+    ProposalResult,
     StartHeightError,
 };
 use crate::test_utils::test_txs;
@@ -63,15 +69,20 @@ async fn get_stream_content(
     // Expecting 3 chunks of streamed txs.
     let expected_streamed_txs = test_txs(0..STREAMING_CHUNK_SIZE * 2 + 1);
     let txs_to_stream = expected_streamed_txs.clone();
+    let expected_proposal_commitment = ProposalCommitment {
+        state_diff_commitment: StateDiffCommitment(PoseidonHash(felt!(u128::try_from(7).unwrap()))),
+    };
 
     let mut proposal_manager = MockProposalManagerTraitWrapper::new();
     proposal_manager.expect_wrap_start_height().return_once(|_| async { Ok(()) }.boxed());
-
     proposal_manager.expect_wrap_build_block_proposal().return_once(
         move |_proposal_id, _block_hash, _deadline, tx_sender| {
             simulate_build_block_proposal(tx_sender, txs_to_stream).boxed()
         },
     );
+    proposal_manager
+        .expect_wrap_done_proposal_commitment()
+        .return_once(move |_| async move { Some(expected_proposal_commitment) }.boxed());
 
     let mut batcher = Batcher::new(
         batcher_config,
@@ -104,11 +115,20 @@ async fn get_stream_content(
     }
     assert_eq!(aggregated_streamed_txs, expected_streamed_txs);
 
-    // TODO: Test that we get `Finished` after all the txs are streamed once it is implemented.
+    let commitment = batcher
+        .get_proposal_content(GetProposalContentInput { proposal_id: PROPOSAL_ID })
+        .await
+        .unwrap();
+    assert_matches!(
+        commitment,
+        GetProposalContentResponse {
+            content: GetProposalContent::Finished(proposal_commitment)
+        } if proposal_commitment == expected_proposal_commitment
+    );
 
     let exhausted =
         batcher.get_proposal_content(GetProposalContentInput { proposal_id: PROPOSAL_ID }).await;
-    assert_matches!(exhausted, Err(BatcherError::StreamExhausted));
+    assert_matches!(exhausted, Err(BatcherError::ProposalNotFound { .. }));
 }
 
 #[rstest]
@@ -121,12 +141,20 @@ async fn decision_reached(
     const PROPOSAL_ID: ProposalId = ProposalId(0);
     let expected_state_diff = ThinStateDiff::default();
     let state_diff_clone = expected_state_diff.clone();
+    let expected_proposal_commitment = ProposalCommitment::default();
 
     let mut proposal_manager = MockProposalManagerTraitWrapper::new();
-    proposal_manager
-        .expect_wrap_get_proposal_result()
-        .with(eq(PROPOSAL_ID))
-        .return_once(|_| async { Ok(Ok(state_diff_clone)) }.boxed());
+    proposal_manager.expect_wrap_take_proposal_result().with(eq(PROPOSAL_ID)).return_once(
+        move |_| {
+            async move {
+                Ok(ProposalOutput {
+                    state_diff: state_diff_clone,
+                    commitment: expected_proposal_commitment,
+                })
+            }
+            .boxed()
+        },
+    );
 
     storage_writer
         .expect_commit_proposal()
@@ -153,7 +181,7 @@ async fn decision_reached_no_done_proposal(
     let expected_error = BatcherError::DoneProposalNotFound { proposal_id: PROPOSAL_ID };
 
     let mut proposal_manager = MockProposalManagerTraitWrapper::new();
-    proposal_manager.expect_wrap_get_proposal_result().with(eq(PROPOSAL_ID)).return_once(
+    proposal_manager.expect_wrap_take_proposal_result().with(eq(PROPOSAL_ID)).return_once(
         |proposal_id| {
             async move { Err(GetProposalResultError::ProposalDoesNotExist { proposal_id }) }.boxed()
         },
@@ -198,10 +226,15 @@ trait ProposalManagerTraitWrapper: Send + Sync {
         output_content_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
     ) -> BoxFuture<'_, Result<(), BuildProposalError>>;
 
-    fn wrap_get_proposal_result(
+    fn wrap_take_proposal_result(
         &mut self,
         proposal_id: ProposalId,
-    ) -> BoxFuture<'_, Result<ProposalOutput, GetProposalResultError>>;
+    ) -> BoxFuture<'_, ProposalResult>;
+
+    fn wrap_done_proposal_commitment(
+        &self,
+        proposal_id: ProposalId,
+    ) -> BoxFuture<'_, Option<ProposalCommitment>>;
 }
 
 #[async_trait]
@@ -226,10 +259,14 @@ impl<T: ProposalManagerTraitWrapper> ProposalManagerTrait for T {
         .await
     }
 
-    async fn get_proposal_result(
-        &mut self,
+    async fn take_proposal_result(&mut self, proposal_id: ProposalId) -> ProposalResult {
+        self.wrap_take_proposal_result(proposal_id).await
+    }
+
+    async fn get_done_proposal_commitment(
+        &self,
         proposal_id: ProposalId,
-    ) -> Result<ProposalOutput, GetProposalResultError> {
-        self.wrap_get_proposal_result(proposal_id).await
+    ) -> Option<ProposalCommitment> {
+        self.wrap_done_proposal_commitment(proposal_id).await
     }
 }
