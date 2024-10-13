@@ -156,12 +156,17 @@ fn check_gas_and_fee(
     assert_eq!(calculate_actual_gas(tx_execution_info, block_context, false), expected_actual_gas);
 
     assert_eq!(tx_execution_info.receipt.fee, expected_actual_fee);
-    // Future compatibility: resources other than the L1 gas usage may affect the fee (currently,
-    // `calculate_tx_fee` is simply the result of `calculate_tx_gas_usage_vector` times gas price).
-    assert_eq!(
-        tx_execution_info.receipt.resources.calculate_tx_fee(block_context, fee_type),
-        expected_cost_of_resources
+    // Future compatibility: resources other than the L1 gas usage may affect the fee. These tests
+    // are not implemented for the AllBounds case.
+    let no_l2_gas_vector = tx_execution_info.receipt.resources.to_gas_vector(
+        &block_context.versioned_constants,
+        block_context.block_info.use_kzg_da,
+        &GasVectorComputationMode::NoL2Gas,
     );
+    let no_l2_gas_fee =
+        get_fee_by_gas_vector(&block_context.block_info, no_l2_gas_vector, fee_type);
+
+    assert_eq!(no_l2_gas_fee, expected_cost_of_resources);
 }
 
 fn recurse_calldata(contract_address: ContractAddress, fail: bool, depth: u32) -> Calldata {
