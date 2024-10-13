@@ -16,7 +16,6 @@ use crate::mempool::Mempool;
 macro_rules! tx {
     (tip: $tip:expr, tx_hash: $tx_hash:expr, sender_address: $sender_address:expr,
         tx_nonce: $tx_nonce:expr, max_l2_gas_price: $max_l2_gas_price:expr) => {{
-            use starknet_api::block::GasPrice;
             use starknet_api::executable_transaction::Transaction;
             use starknet_api::hash::StarkHash;
             use starknet_api::test_utils::invoke::executable_invoke_tx;
