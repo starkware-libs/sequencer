@@ -2,7 +2,6 @@ use std::cmp::Reverse;
 
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
-use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, PatriciaKey};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::{contract_address, felt, invoke_tx_args, nonce, patricia_key};
@@ -51,6 +50,8 @@ impl From<MempoolContent> for Mempool {
             // TODO: Add implementation when needed.
             mempool_state: Default::default(),
             account_nonces: Default::default(),
+            // TODO(Elin): add field to builder, together with tests.
+            fee_escalation_percentage: 0,
         }
     }
 }
