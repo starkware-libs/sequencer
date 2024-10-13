@@ -132,7 +132,7 @@
   "components.consensus_manager.execute": {
     "description": "The component execution flag.",
     "privacy": "Public",
-    "value": false
+    "value": true
   },
   "components.consensus_manager.execution_mode": {
     "description": "The component execution mode.",
