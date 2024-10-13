@@ -42,7 +42,6 @@ use crate::{
     declare_tx_args,
     deploy_account_tx_args,
     get_absolute_path,
-    invoke_tx_args,
     COMPILED_CLASS_HASH_OF_CONTRACT_CLASS,
     CONTRACT_CLASS_FILE,
     TEST_FILES_FOLDER,
@@ -92,9 +91,11 @@ pub fn rpc_tx_for_testing(
             constructor_calldata: calldata,
             signature
         )),
-        TransactionType::Invoke => {
-            rpc_invoke_tx(invoke_tx_args!(signature, resource_bounds, calldata))
-        }
+        TransactionType::Invoke => rpc_invoke_tx(starknet_api::invoke_tx_args!(
+            signature,
+            resource_bounds: ValidResourceBounds::AllResources(resource_bounds),
+            calldata
+        )),
     }
 }
 
@@ -168,8 +169,8 @@ pub fn invoke_tx(cairo_version: CairoVersion) -> RpcTransaction {
     let sender_address = account_contract.get_instance_address(0);
     let mut nonce_manager = NonceManager::default();
 
-    rpc_invoke_tx(invoke_tx_args!(
-        resource_bounds: test_resource_bounds_mapping(),
+    rpc_invoke_tx(starknet_api::invoke_tx_args!(
+        resource_bounds: ValidResourceBounds::AllResources(test_resource_bounds_mapping()),
         nonce : nonce_manager.next(sender_address),
         sender_address,
         calldata: create_trivial_calldata(test_contract.get_instance_address(0))
@@ -299,11 +300,11 @@ impl AccountTransactionGenerator {
             "Cannot invoke on behalf of an undeployed account: the first transaction of every \
              account must be a deploy account transaction."
         );
-        let invoke_args = invoke_tx_args!(
+        let invoke_args = starknet_api::invoke_tx_args!(
             nonce,
             tip : Tip(tip),
             sender_address: self.sender_address(),
-            resource_bounds: test_resource_bounds_mapping(),
+            resource_bounds: ValidResourceBounds::AllResources(test_resource_bounds_mapping()),
             calldata: create_trivial_calldata(self.sender_address()),
         );
         rpc_invoke_tx(invoke_args)
@@ -337,7 +338,10 @@ impl AccountTransactionGenerator {
     ///
     /// Note: This is a best effort attempt to make the API more useful; amend or add new methods
     /// as needed.
-    pub fn generate_raw_invoke(&mut self, invoke_tx_args: InvokeTxArgs) -> RpcTransaction {
+    pub fn generate_raw_invoke(
+        &mut self,
+        invoke_tx_args: starknet_api::test_utils::invoke::InvokeTxArgs,
+    ) -> RpcTransaction {
         rpc_invoke_tx(invoke_tx_args)
     }
 
@@ -420,24 +424,6 @@ impl Contract {
             sender_address: deploy_account_tx.calculate_sender_address().unwrap(),
         }
     }
-}
-
-// TODO(Ayelet, 28/5/2025): Try unifying the macros.
-// TODO(Ayelet, 28/5/2025): Consider moving the macros StarkNet API.
-#[macro_export]
-macro_rules! invoke_tx_args {
-    ($($field:ident $(: $value:expr)?),* $(,)?) => {
-        $crate::starknet_api_test_utils::InvokeTxArgs {
-            $($field $(: $value)?,)*
-            ..Default::default()
-        }
-    };
-    ($($field:ident $(: $value:expr)?),* , ..$defaults:expr) => {
-        $crate::starknet_api_test_utils::InvokeTxArgs {
-            $($field $(: $value)?,)*
-            ..$defaults
-        }
-    };
 }
 
 #[macro_export]
@@ -573,14 +559,20 @@ impl Default for DeclareTxArgs {
     }
 }
 
-pub fn rpc_invoke_tx(invoke_args: InvokeTxArgs) -> RpcTransaction {
+pub fn rpc_invoke_tx(
+    invoke_args: starknet_api::test_utils::invoke::InvokeTxArgs,
+) -> RpcTransaction {
     if invoke_args.version != TransactionVersion::THREE {
         panic!("Unsupported transaction version: {:?}.", invoke_args.version);
     }
 
+    let ValidResourceBounds::AllResources(resource_bounds) = invoke_args.resource_bounds else {
+        panic!("Unspported resource bounds type: {:?}.", invoke_args.resource_bounds)
+    };
+
     starknet_api::rpc_transaction::RpcTransaction::Invoke(
         starknet_api::rpc_transaction::RpcInvokeTransaction::V3(RpcInvokeTransactionV3 {
-            resource_bounds: invoke_args.resource_bounds,
+            resource_bounds,
             tip: invoke_args.tip,
             calldata: invoke_args.calldata,
             sender_address: invoke_args.sender_address,
