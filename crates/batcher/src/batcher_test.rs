@@ -9,13 +9,18 @@ use mockall::automock;
 use mockall::predicate::eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
+use starknet_api::core::StateDiffCommitment;
 use starknet_api::executable_transaction::Transaction;
+use starknet_api::felt;
+use starknet_api::hash::PoseidonHash;
 use starknet_api::state::ThinStateDiff;
 use starknet_batcher_types::batcher_types::{
     BuildProposalInput,
     DecisionReachedInput,
     GetProposalContent,
     GetProposalContentInput,
+    GetProposalContentResponse,
+    ProposalCommitment,
     ProposalId,
     StartHeightInput,
 };
@@ -62,15 +67,20 @@ async fn get_stream_content(
     // Expecting 3 chunks of streamed txs.
     let expected_streamed_txs = test_txs(0..STREAMING_CHUNK_SIZE * 2 + 1);
     let txs_to_stream = expected_streamed_txs.clone();
+    let expected_proposal_commitment = ProposalCommitment {
+        state_diff_commitment: StateDiffCommitment(PoseidonHash(felt!(u128::try_from(7).unwrap()))),
+    };
 
     let mut proposal_manager = MockProposalManagerTraitWrapper::new();
     proposal_manager.expect_wrap_start_height().return_once(|_| async { Ok(()) }.boxed());
-
     proposal_manager.expect_wrap_build_block_proposal().return_once(
         move |_proposal_id, _block_hash, _deadline, tx_sender| {
             simulate_build_block_proposal(tx_sender, txs_to_stream).boxed()
         },
     );
+    proposal_manager
+        .expect_wrap_done_proposal_commitment()
+        .return_once(move |_| async move { Some(expected_proposal_commitment) }.boxed());
 
     let mut batcher = Batcher::new(
         batcher_config,
@@ -103,11 +113,20 @@ async fn get_stream_content(
     }
     assert_eq!(aggregated_streamed_txs, expected_streamed_txs);
 
-    // TODO: Test that we get `Finished` after all the txs are streamed once it is implemented.
+    let commitment = batcher
+        .get_proposal_content(GetProposalContentInput { proposal_id: PROPOSAL_ID })
+        .await
+        .unwrap();
+    assert_matches!(
+        commitment,
+        GetProposalContentResponse {
+            content: GetProposalContent::Finished(proposal_commitment)
+        } if proposal_commitment == expected_proposal_commitment
+    );
 
     let exhausted =
         batcher.get_proposal_content(GetProposalContentInput { proposal_id: PROPOSAL_ID }).await;
-    assert_matches!(exhausted, Err(BatcherError::StreamExhausted));
+    assert_matches!(exhausted, Err(BatcherError::ProposalNotFound { .. }));
 }
 
 #[rstest]
@@ -120,12 +139,18 @@ async fn decision_reached(
     const PROPOSAL_ID: ProposalId = ProposalId(0);
     let expected_state_diff = ThinStateDiff::default();
     let state_diff_clone = expected_state_diff.clone();
+    let expected_proposal_commitment = ProposalCommitment::default();
 
     let mut proposal_manager = MockProposalManagerTraitWrapper::new();
-    proposal_manager
-        .expect_wrap_get_done_proposal()
-        .with(eq(PROPOSAL_ID))
-        .return_once(|_| async { Some(Ok(state_diff_clone)) }.boxed());
+    proposal_manager.expect_wrap_get_done_proposal().with(eq(PROPOSAL_ID)).return_once(move |_| {
+        async move {
+            Some(Ok(DoneProposal {
+                state_diff: state_diff_clone,
+                commitment: expected_proposal_commitment,
+            }))
+        }
+        .boxed()
+    });
 
     storage_writer
         .expect_commit_proposal()
@@ -172,7 +197,12 @@ trait ProposalManagerTraitWrapper: Send + Sync {
     fn wrap_get_done_proposal(
         &mut self,
         proposal_id: ProposalId,
-    ) -> BoxFuture<'_, Option<DoneProposal>>;
+    ) -> BoxFuture<'_, Option<Result<DoneProposal, BuildProposalError>>>;
+
+    fn wrap_done_proposal_commitment(
+        &self,
+        proposal_id: ProposalId,
+    ) -> BoxFuture<'_, Option<ProposalCommitment>>;
 }
 
 #[async_trait]
@@ -197,7 +227,17 @@ impl<T: ProposalManagerTraitWrapper> ProposalManagerTrait for T {
         .await
     }
 
-    async fn get_done_proposal(&mut self, proposal_id: ProposalId) -> Option<DoneProposal> {
+    async fn get_done_proposal(
+        &mut self,
+        proposal_id: ProposalId,
+    ) -> Option<Result<DoneProposal, BuildProposalError>> {
         self.wrap_get_done_proposal(proposal_id).await
+    }
+
+    async fn get_done_proposal_commitment(
+        &self,
+        proposal_id: ProposalId,
+    ) -> Option<ProposalCommitment> {
+        self.wrap_done_proposal_commitment(proposal_id).await
     }
 }

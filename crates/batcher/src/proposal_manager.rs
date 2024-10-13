@@ -8,9 +8,10 @@ use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
+use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::state::ThinStateDiff;
-use starknet_batcher_types::batcher_types::ProposalId;
+use starknet_batcher_types::batcher_types::{ProposalCommitment, ProposalId};
 use starknet_mempool_types::communication::{MempoolClientError, SharedMempoolClient};
 use thiserror::Error;
 use tokio::select;
@@ -109,7 +110,15 @@ pub trait ProposalManagerTrait: Send + Sync {
         tx_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
     ) -> Result<(), BuildProposalError>;
 
-    async fn get_done_proposal(&mut self, proposal_id: ProposalId) -> Option<DoneProposal>;
+    async fn get_done_proposal(
+        &mut self,
+        proposal_id: ProposalId,
+    ) -> Option<Result<DoneProposal, BuildProposalError>>;
+
+    async fn get_done_proposal_commitment(
+        &self,
+        proposal_id: ProposalId,
+    ) -> Option<ProposalCommitment>;
 }
 
 /// Main struct for handling block proposals.
@@ -131,11 +140,22 @@ pub(crate) struct ProposalManager {
     active_proposal_handle: Option<ActiveTaskHandle>,
     // Use a factory object, to be able to mock BlockBuilder in tests.
     block_builder_factory: Arc<dyn BlockBuilderFactoryTrait + Send + Sync>,
-    done_proposals: Arc<Mutex<HashMap<ProposalId, DoneProposal>>>,
+    pub done_proposals: Arc<Mutex<HashMap<ProposalId, Result<DoneProposal, BuildProposalError>>>>,
 }
 
 type ActiveTaskHandle = tokio::task::JoinHandle<()>;
-pub type DoneProposal = Result<ThinStateDiff, BuildProposalError>;
+pub struct DoneProposal {
+    pub state_diff: ThinStateDiff,
+    pub commitment: ProposalCommitment,
+}
+
+impl From<ThinStateDiff> for DoneProposal {
+    fn from(state_diff: ThinStateDiff) -> Self {
+        let commitment =
+            ProposalCommitment { state_diff_commitment: calculate_state_diff_hash(&state_diff) };
+        Self { state_diff, commitment }
+    }
+}
 
 #[async_trait]
 impl ProposalManagerTrait for ProposalManager {
@@ -204,8 +224,18 @@ impl ProposalManagerTrait for ProposalManager {
         Ok(())
     }
 
-    async fn get_done_proposal(&mut self, proposal_id: ProposalId) -> Option<DoneProposal> {
+    async fn get_done_proposal(
+        &mut self,
+        proposal_id: ProposalId,
+    ) -> Option<Result<DoneProposal, BuildProposalError>> {
         self.done_proposals.lock().await.remove(&proposal_id)
+    }
+
+    async fn get_done_proposal_commitment(
+        &self,
+        proposal_id: ProposalId,
+    ) -> Option<ProposalCommitment> {
+        Some(self.done_proposals.lock().await.get(&proposal_id)?.as_ref().ok()?.commitment)
     }
 }
 
@@ -273,7 +303,7 @@ struct BuildProposalTask {
     block_builder: Box<dyn BlockBuilderTrait + Send>,
     active_proposal: Arc<Mutex<Option<ProposalId>>>,
     deadline: tokio::time::Instant,
-    done_proposals: Arc<Mutex<HashMap<ProposalId, Result<ThinStateDiff, BuildProposalError>>>>,
+    done_proposals: Arc<Mutex<HashMap<ProposalId, Result<DoneProposal, BuildProposalError>>>>,
 }
 
 impl BuildProposalTask {
@@ -309,7 +339,8 @@ impl BuildProposalTask {
                 info!("Block builder finished.");
                 builder_done.map(ThinStateDiff::from).map_err(BuildProposalError::BlockBuilderError)
             }
-        };
+        }
+        .map(DoneProposal::from);
         Self::active_proposal_finished(self.active_proposal, result, self.done_proposals).await;
     }
 
@@ -349,8 +380,8 @@ impl BuildProposalTask {
 
     async fn active_proposal_finished(
         active_proposal: Arc<Mutex<Option<ProposalId>>>,
-        result: Result<ThinStateDiff, BuildProposalError>,
-        done_proposals: Arc<Mutex<HashMap<ProposalId, DoneProposal>>>,
+        result: Result<DoneProposal, BuildProposalError>,
+        done_proposals: Arc<Mutex<HashMap<ProposalId, Result<DoneProposal, BuildProposalError>>>>,
     ) {
         let proposal_id =
             active_proposal.lock().await.take().expect("Active proposal should exist.");
