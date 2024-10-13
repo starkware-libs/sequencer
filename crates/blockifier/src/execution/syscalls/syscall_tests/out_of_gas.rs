@@ -1,3 +1,4 @@
+use starknet_api::execution_utils::format_panic_data;
 use starknet_api::transaction::Calldata;
 use starknet_api::{calldata, felt};
 use test_case::test_case;
@@ -5,7 +6,6 @@ use test_case::test_case;
 use crate::abi::abi_utils::selector_from_name;
 use crate::context::ChainInfo;
 use crate::execution::entry_point::CallEntryPoint;
-use crate::execution::execution_utils::format_panic_data;
 use crate::execution::syscalls::syscall_tests::constants::REQUIRED_GAS_STORAGE_READ_WRITE_TEST;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;

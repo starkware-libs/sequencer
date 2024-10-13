@@ -11,6 +11,7 @@ pub mod data_availability;
 pub mod deprecated_contract_class;
 pub mod executable_transaction;
 pub mod execution_resources;
+pub mod execution_utils;
 pub mod hash;
 pub mod rpc_transaction;
 pub mod serde_utils;

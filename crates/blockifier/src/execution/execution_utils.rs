@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use cairo_lang_runner::casm_run::format_next_item;
 use cairo_vm::serde::deserialize_program::{
     deserialize_array_of_bigint_hex,
     Attribute,
@@ -297,15 +296,6 @@ pub fn max_fee_for_execution_info(tx_info: &TransactionInfo) -> Felt {
         TransactionInfo::Deprecated(tx_info) => tx_info.max_fee.0,
     }
     .into()
-}
-
-pub fn format_panic_data(felts: &[Felt]) -> String {
-    let mut felts = felts.iter().copied();
-    let mut items = Vec::new();
-    while let Some(item) = format_next_item(&mut felts) {
-        items.push(item.quote_if_string());
-    }
-    if let [item] = &items[..] { item.clone() } else { format!("({})", items.join(", ")) }
 }
 
 /// Returns the VM resources required for running `poseidon_hash_many` in the Starknet OS.
