@@ -4,6 +4,23 @@ use serde::{Deserialize, Serialize};
 use crate::core::CompiledClassHash;
 use crate::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 
+#[derive(
+    Debug, Default, Clone, Copy, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord,
+)]
+#[serde(deny_unknown_fields)]
+pub enum EntryPointType {
+    /// A constructor entry point.
+    #[serde(rename = "CONSTRUCTOR")]
+    Constructor,
+    /// An external entry point.
+    #[serde(rename = "EXTERNAL")]
+    #[default]
+    External,
+    /// An L1 handler entry point.
+    #[serde(rename = "L1_HANDLER")]
+    L1Handler,
+}
+
 /// Represents a raw Starknet contract class.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum ContractClass {

@@ -14,6 +14,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{
     ClassHash,
     CompiledClassHash,
@@ -24,9 +25,8 @@ use starknet_api::core::{
 use starknet_api::deprecated_contract_class::{
     ContractClassAbiEntry as DeprecatedContractClassAbiEntry,
     EntryPoint as DeprecatedEntryPoint,
-    EntryPointType as DeprecatedEntryPointType,
 };
-use starknet_api::state::{EntryPoint, EntryPointType};
+use starknet_api::state::EntryPoint;
 use starknet_api::transaction::{
     AccountDeploymentData,
     Calldata,
@@ -270,7 +270,7 @@ pub struct DeprecatedContractClass {
     #[serde(rename = "program")]
     // TODO(shahak): Create a struct for a compressed base64 value.
     pub compressed_program: String,
-    pub entry_points_by_type: HashMap<DeprecatedEntryPointType, Vec<DeprecatedEntryPoint>>,
+    pub entry_points_by_type: HashMap<EntryPointType, Vec<DeprecatedEntryPoint>>,
 }
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, Deserialize, Serialize)]

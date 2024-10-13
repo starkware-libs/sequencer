@@ -2,6 +2,7 @@ use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use serde::Deserialize;
 use starknet_api::block::{BlockNumber, BlockTimestamp};
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{
     calculate_contract_address,
     ClassHash,
@@ -9,7 +10,6 @@ use starknet_api::core::{
     EntryPointSelector,
     EthAddress,
 };
-use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{
     Calldata,
