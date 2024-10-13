@@ -8,7 +8,7 @@ pub use starknet_consensus_manager_types::consensus_manager_types::ProposalId;
 
 use crate::errors::BatcherError;
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Copy, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ProposalCommitment {
     pub state_diff_commitment: StateDiffCommitment,
 }
