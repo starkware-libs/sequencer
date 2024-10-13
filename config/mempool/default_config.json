@@ -132,7 +132,7 @@
   "components.consensus_manager.execute": {
     "description": "The component execution flag.",
     "privacy": "Public",
-    "value": false
+    "value": true
   },
   "components.consensus_manager.execution_mode": {
     "description": "The component execution mode.",
@@ -362,7 +362,7 @@
   "consensus_manager_config.consensus_config.num_validators": {
     "description": "The number of validators in the consensus.",
     "privacy": "Public",
-    "value": 4
+    "value": 1
   },
   "consensus_manager_config.consensus_config.start_height": {
     "description": "The height to start the consensus from.",
@@ -385,9 +385,9 @@
     "value": 3.0
   },
   "consensus_manager_config.consensus_config.validator_id": {
-    "description": "A required param! The validator id of the node.",
-    "param_type": "String",
-    "privacy": "Public"
+    "description": "The validator id of the node.",
+    "privacy": "Public",
+    "value": "0x0"
   },
   "gateway_config.chain_info.chain_id": {
     "description": "The chain ID of the StarkNet chain.",
