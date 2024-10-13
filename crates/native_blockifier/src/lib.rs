@@ -20,12 +20,12 @@ pub mod state_readers;
 pub mod storage;
 pub mod test_utils;
 
-use blockifier::versioned_constants::StarknetVersion;
 use errors::{add_py_exceptions, UndeclaredClassHashError};
 use py_block_executor::PyBlockExecutor;
 use py_objects::PyExecutionResources;
 use py_validator::PyValidator;
 use pyo3::prelude::*;
+use starknet_api::block::StarknetVersion;
 use storage::StorageConfig;
 
 use crate::py_objects::PyVersionedConstantsOverrides;

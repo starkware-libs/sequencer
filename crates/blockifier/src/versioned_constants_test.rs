@@ -146,3 +146,8 @@ fn test_old_json_parsing() {
 fn test_all_jsons_in_enum() {
     assert_eq!(StarknetVersion::iter().count(), all_jsons_in_dir().count());
 }
+
+#[test]
+fn test_latest_no_panic() {
+    VersionedConstants::latest_constants();
+}

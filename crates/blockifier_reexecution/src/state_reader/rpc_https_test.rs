@@ -1,6 +1,5 @@
 use assert_matches::assert_matches;
 use blockifier::blockifier::block::BlockInfo;
-use blockifier::versioned_constants::StarknetVersion;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;

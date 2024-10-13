@@ -69,3 +69,12 @@ fn test_version_order() {
         }
     }
 }
+
+#[test]
+fn test_latest_version() {
+    let latest = StarknetVersion::latest();
+    assert_eq!(StarknetVersion::default(), latest);
+    for version in StarknetVersion::iter() {
+        assert!(version <= latest);
+    }
+}

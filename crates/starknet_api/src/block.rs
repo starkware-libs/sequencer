@@ -62,6 +62,12 @@ pub enum StarknetVersion {
     V0_13_3,
 }
 
+impl StarknetVersion {
+    pub fn latest() -> Self {
+        Self::V0_13_3
+    }
+}
+
 impl From<&StarknetVersion> for Vec<u8> {
     fn from(value: &StarknetVersion) -> Self {
         match value {
@@ -131,6 +137,12 @@ impl Display for StarknetVersion {
     }
 }
 
+impl From<StarknetVersion> for String {
+    fn from(version: StarknetVersion) -> Self {
+        format!("{version}")
+    }
+}
+
 impl TryFrom<String> for StarknetVersion {
     type Error = StarknetApiError;
 
@@ -139,6 +151,13 @@ impl TryFrom<String> for StarknetVersion {
         let version: Vec<u8> =
             starknet_version.split('.').map(|x| x.parse::<u8>()).try_collect()?;
         Ok(Self::try_from(version)?)
+    }
+}
+
+impl TryFrom<&str> for StarknetVersion {
+    type Error = StarknetApiError;
+    fn try_from(starknet_version: &str) -> Result<Self, StarknetApiError> {
+        Self::try_from(starknet_version.to_string())
     }
 }
 
