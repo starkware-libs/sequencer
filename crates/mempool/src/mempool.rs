@@ -32,6 +32,9 @@ pub struct Mempool {
     mempool_state: HashMap<ContractAddress, Nonce>,
     // The most recent account nonces received, for all account in the pool.
     account_nonces: AccountToNonce,
+    // TODO(Elin): make configurable.
+    // Percentage increase for tip and max gas price to enable transaction replacement.
+    fee_escalation_percentage: u8, // E.g., 10 for a 10% increase.
 }
 
 impl Mempool {
@@ -83,6 +86,7 @@ impl Mempool {
         self.validate_input(&args)?;
 
         let AddTransactionArgs { tx, account_state } = args;
+        self.handle_fee_escalation(&tx)?;
         self.tx_pool.insert(tx)?;
 
         // Align to account nonce, only if it is at least the one stored.
@@ -209,6 +213,57 @@ impl Mempool {
                 self.tx_queue.insert(*tx_reference);
             }
         }
+    }
+
+    fn handle_fee_escalation(&mut self, incoming_tx: &Transaction) -> MempoolResult<()> {
+        let incoming_tx_ref = TransactionReference::new(incoming_tx);
+        let TransactionReference { sender_address, nonce, .. } = incoming_tx_ref;
+        let Some(existing_tx_ref) = self.tx_pool.get_by_address_and_nonce(sender_address, nonce)
+        else {
+            // Replacement irrelevant: no existing transaction with the same nonce for address.
+            return Ok(());
+        };
+
+        if !self.should_replace_tx(existing_tx_ref, &incoming_tx_ref) {
+            // TODO(Elin): consider adding a more specific error type / message.
+            return Err(MempoolError::DuplicateNonce { address: sender_address, nonce });
+        }
+
+        self.tx_queue.remove(sender_address);
+        self.tx_pool
+            .remove(existing_tx_ref.tx_hash)
+            .expect("Transaction hash from pool must exist.");
+
+        Ok(())
+    }
+
+    fn should_replace_tx(
+        &self,
+        existing_tx: &TransactionReference,
+        incoming_tx: &TransactionReference,
+    ) -> bool {
+        let [existing_tip, incoming_tip] =
+            [existing_tx, incoming_tx].map(|tx| u128::from(tx.tip.0));
+        let [existing_max_l2_gas_price, incoming_max_l2_gas_price] =
+            [existing_tx, incoming_tx].map(|tx| tx.get_l2_gas_price().0);
+
+        self.increased_enough(existing_tip, incoming_tip)
+            && self.increased_enough(existing_max_l2_gas_price, incoming_max_l2_gas_price)
+    }
+
+    fn increased_enough(&self, existing_value: u128, incoming_value: u128) -> bool {
+        // E.g., 110 for a 10% increase.
+        let escalation_factor = 100 + u128::from(self.fee_escalation_percentage);
+
+        // TODO(Elin): add overflow tests; 2^127 existing with 10% increase should not overflow.
+        let Some(escalation_qualified_value) =
+            existing_value.checked_mul(escalation_factor).map(|v| v / 100)
+        else {
+            // Overflow occurred; cannot calculate required increase. Reject the transaction.
+            return false;
+        };
+
+        incoming_value >= escalation_qualified_value
     }
 }
 
