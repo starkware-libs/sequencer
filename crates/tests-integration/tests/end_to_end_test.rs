@@ -3,7 +3,10 @@ use blockifier::test_utils::CairoVersion;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
+use starknet_api::block::BlockNumber;
 use starknet_api::transaction::TransactionHash;
+use starknet_batcher_types::batcher_types::StartHeightInput;
+use starknet_batcher_types::communication::SharedBatcherClient;
 use starknet_mempool_integration_tests::integration_test_setup::IntegrationTestSetup;
 
 #[fixture]
@@ -40,6 +43,8 @@ async fn test_end_to_end(mut tx_generator: MultiAccountTransactionGenerator) {
     // Test.
     let mempool_txs = mock_running_system.get_txs(4).await;
 
+    run_consensus_for_end_to_end_test(&mock_running_system.batcher_client).await;
+
     // Assert.
     let expected_tx_hashes_from_get_txs = [
         account1_invoke_nonce1_tx_hash,
@@ -49,4 +54,17 @@ async fn test_end_to_end(mut tx_generator: MultiAccountTransactionGenerator) {
     let actual_tx_hashes: Vec<TransactionHash> =
         mempool_txs.iter().map(|tx| tx.tx_hash()).collect();
     assert_eq!(expected_tx_hashes_from_get_txs, *actual_tx_hashes);
+}
+
+/// This function should mirror
+/// [`run_consensus`](papyrus_consensus::manager::run_consensus). It makes requests
+/// from the batcher client and asserts the expected responses were received.
+pub async fn run_consensus_for_end_to_end_test(batcher_client: &SharedBatcherClient) {
+    // Setup. Holds the state of the consensus manager.
+
+    // Set start height.
+    let current_height = BlockNumber(1);
+
+    // Test.
+    batcher_client.start_height(StartHeightInput { height: current_height }).await.unwrap();
 }
