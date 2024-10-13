@@ -51,6 +51,8 @@ impl From<MempoolContent> for Mempool {
             // TODO: Add implementation when needed.
             mempool_state: Default::default(),
             account_nonces: Default::default(),
+            // TODO(Elin): add field to builder, together with tests.
+            fee_escalation_percentage: 0,
         }
     }
 }
