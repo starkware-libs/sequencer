@@ -59,6 +59,7 @@ impl FeeCheckReport {
     /// Given a fee error and the current context, constructs and returns a report.
     pub fn from_fee_check_error(
         actual_fee: Fee,
+        actual_gas: GasVector,
         error: FeeCheckError,
         tx_context: &TransactionContext,
     ) -> Self {
@@ -66,20 +67,52 @@ impl FeeCheckReport {
             // If the error is insufficient balance, the recommended fee is the actual fee.
             // This recommendation assumes (a) the pre-validation checks were applied and pass (i.e.
             // the sender initially could cover the resource bounds), and (b) the actual resources
-            // are within the resource bounds set by the sender.
+            // are within the resource bounds set by the sender; which ensures the (after reverting
+            // execution state changes) the user *can* cover the fee.
             FeeCheckError::InsufficientFeeTokenBalance { .. } => actual_fee,
-            // If the error is resource overdraft, the recommended fee is the resource bounds.
-            // If the transaction passed pre-validation checks (i.e. balance initially covered the
-            // resource bounds), the sender should be able to pay this fee.
-            FeeCheckError::MaxFeeExceeded { .. } | FeeCheckError::MaxGasAmountExceeded { .. } => {
-                match &tx_context.tx_info {
-                    TransactionInfo::Current(info) => get_fee_by_gas_vector(
-                        &tx_context.block_context.block_info,
-                        GasVector::from_l1_gas(info.l1_resource_bounds().max_amount),
-                        &FeeType::Strk,
-                    ),
-                    TransactionInfo::Deprecated(context) => context.max_fee,
-                }
+            // If max fee exceeded (deprecated tx), the recommended fee is the max fee. The
+            // pre-validation phase ensures the account can cover the max fee, and after reverting
+            // the execution state changes we return to this state.
+            FeeCheckError::MaxFeeExceeded { .. } => {
+                let TransactionInfo::Deprecated(ref context) = tx_context.tx_info else {
+                    panic!("MaxFeeExceeded can only originate from a deprecated transaction.");
+                };
+                context.max_fee
+            }
+            // If the error is resource overdraft, charge for the minimum between (a) actual gas
+            // used and (b) the user bound, for each gas type. Pre-validation phase ensures the
+            // account balance can pay for maximal amount of each gas type.
+            FeeCheckError::MaxGasAmountExceeded { .. } => {
+                let TransactionInfo::Current(ref context) = tx_context.tx_info else {
+                    panic!("MaxGasAmountExceeded can only originate from a V3 transaction.");
+                };
+                let gas_for_fee_charge = match context.resource_bounds {
+                    // For deprecated resource bounds, the total L1 gas for fee charge includes the
+                    // discounted L1 data gas cost.
+                    ValidResourceBounds::L1Gas(l1_bounds) => {
+                        GasVector::from_l1_gas(l1_bounds.max_amount)
+                    }
+                    ValidResourceBounds::AllResources(all_resource_bounds) => GasVector {
+                        l1_gas: std::cmp::min(
+                            all_resource_bounds.l1_gas.max_amount,
+                            actual_gas.l1_gas,
+                        ),
+                        l2_gas: std::cmp::min(
+                            all_resource_bounds.l2_gas.max_amount,
+                            actual_gas.l2_gas,
+                        ),
+                        l1_data_gas: std::cmp::min(
+                            all_resource_bounds.l1_data_gas.max_amount,
+                            actual_gas.l1_data_gas,
+                        ),
+                    },
+                };
+
+                get_fee_by_gas_vector(
+                    &tx_context.block_context.block_info,
+                    gas_for_fee_charge,
+                    &FeeType::Strk,
+                )
             }
         };
         Self { recommended_fee, error: Some(error) }
@@ -232,7 +265,7 @@ impl PostExecutionReport {
         tx_receipt: &TransactionReceipt,
         charge_fee: bool,
     ) -> TransactionExecutionResult<Self> {
-        let TransactionReceipt { fee, .. } = tx_receipt;
+        let TransactionReceipt { fee, gas, .. } = tx_receipt;
 
         // If fee is not enforced, no need to check post-execution.
         if !charge_fee || !tx_context.tx_info.enforce_fee() {
@@ -241,7 +274,7 @@ impl PostExecutionReport {
 
         // First, compare the actual resources used against the upper bound(s) defined by the
         // sender.
-        let cost_with_bounds_result =
+        let cost_within_bounds_result =
             FeeCheckReport::check_actual_cost_within_bounds(tx_context, tx_receipt);
 
         // Next, verify the actual cost is covered by the account balance, which may have changed
@@ -249,7 +282,7 @@ impl PostExecutionReport {
         // cost for sure.
         let can_pay_fee_result = FeeCheckReport::check_can_pay_fee(state, tx_context, tx_receipt);
 
-        for fee_check_result in [cost_with_bounds_result, can_pay_fee_result] {
+        for fee_check_result in [cost_within_bounds_result, can_pay_fee_result] {
             match fee_check_result {
                 Ok(_) => continue,
                 Err(TransactionExecutionError::FeeCheckError(fee_check_error)) => {
@@ -257,6 +290,7 @@ impl PostExecutionReport {
                     // current context, and return the report.
                     return Ok(Self(FeeCheckReport::from_fee_check_error(
                         *fee,
+                        *gas,
                         fee_check_error,
                         tx_context,
                     )));
