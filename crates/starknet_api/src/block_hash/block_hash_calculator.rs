@@ -54,8 +54,8 @@ pub enum BlockHashVersion {
 impl From<BlockHashVersion> for StarknetVersion {
     fn from(value: BlockHashVersion) -> Self {
         match value {
-            BlockHashVersion::VO_13_2 => StarknetVersion(vec![0, 13, 2]),
-            BlockHashVersion::VO_13_3 => StarknetVersion(vec![0, 13, 3]),
+            BlockHashVersion::VO_13_2 => StarknetVersion::V0_13_2,
+            BlockHashVersion::VO_13_3 => StarknetVersion::V0_13_3,
         }
     }
 }
