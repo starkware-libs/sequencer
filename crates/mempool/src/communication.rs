@@ -1,7 +1,9 @@
 use async_trait::async_trait;
+use papyrus_network_types::network_types::BroadcastedMessageManager;
 use starknet_api::executable_transaction::Transaction;
 use starknet_mempool_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
 use starknet_mempool_infra::component_server::LocalComponentServer;
+use starknet_mempool_p2p_types::communication::SharedMempoolP2pSenderClient;
 use starknet_mempool_types::communication::{
     AddTransactionArgsWrapper,
     MempoolRequest,
@@ -19,23 +21,46 @@ pub type LocalMempoolServer =
 pub fn create_mempool_server(
     mempool: Mempool,
     rx_mempool: Receiver<MempoolRequestAndResponseSender>,
+    mempool_p2p_sender_client: SharedMempoolP2pSenderClient,
 ) -> LocalMempoolServer {
-    let communication_wrapper = MempoolCommunicationWrapper::new(mempool);
+    let communication_wrapper =
+        MempoolCommunicationWrapper::new(mempool, mempool_p2p_sender_client);
     LocalComponentServer::new(communication_wrapper, rx_mempool)
 }
 
 /// Wraps the mempool to enable inbound async communication from other components.
 pub struct MempoolCommunicationWrapper {
     mempool: Mempool,
+    mempool_p2p_sender_client: SharedMempoolP2pSenderClient,
 }
 
 impl MempoolCommunicationWrapper {
-    pub fn new(mempool: Mempool) -> Self {
-        MempoolCommunicationWrapper { mempool }
+    pub fn new(mempool: Mempool, mempool_p2p_sender_client: SharedMempoolP2pSenderClient) -> Self {
+        MempoolCommunicationWrapper { mempool, mempool_p2p_sender_client }
     }
 
-    fn add_tx(&mut self, args_wrapper: AddTransactionArgsWrapper) -> MempoolResult<()> {
-        self.mempool.add_tx(args_wrapper.args)
+    async fn send_tx_to_p2p(
+        &self,
+        message_metadata: Option<BroadcastedMessageManager>,
+        tx: Transaction,
+    ) {
+        match message_metadata {
+            Some(message_metadata) => {
+                self.mempool_p2p_sender_client
+                    .continue_propagation(message_metadata)
+                    .await
+                    .unwrap();
+            }
+            None => {
+                self.mempool_p2p_sender_client.add_transaction(tx.into()).await.unwrap();
+            }
+        }
+    }
+
+    async fn add_tx(&mut self, args_wrapper: AddTransactionArgsWrapper) -> MempoolResult<()> {
+        self.mempool.add_tx(args_wrapper.args.clone())?;
+        self.send_tx_to_p2p(args_wrapper.p2p_message_metadata, args_wrapper.args.tx).await;
+        Ok(())
     }
 
     fn commit_block(&mut self, args: CommitBlockArgs) -> MempoolResult<()> {
@@ -52,7 +77,7 @@ impl ComponentRequestHandler<MempoolRequest, MempoolResponse> for MempoolCommuni
     async fn handle_request(&mut self, request: MempoolRequest) -> MempoolResponse {
         match request {
             MempoolRequest::AddTransaction(args) => {
-                MempoolResponse::AddTransaction(self.add_tx(args))
+                MempoolResponse::AddTransaction(self.add_tx(args).await)
             }
             MempoolRequest::CommitBlock(args) => {
                 MempoolResponse::CommitBlock(self.commit_block(args))
