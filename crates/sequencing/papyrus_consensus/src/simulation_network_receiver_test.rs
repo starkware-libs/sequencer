@@ -3,7 +3,7 @@ use papyrus_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
     TestSubscriberChannels,
 };
-use papyrus_network_types::network_types::BroadcastedMessageManager;
+use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_protobuf::consensus::ConsensusMessage;
 use papyrus_test_utils::{get_rng, GetTestInstance};
 use test_case::test_case;
@@ -35,7 +35,7 @@ async fn test_invalid(distinct_messages: bool, is_vote: bool) {
     for height in 0..1000 {
         let msg = create_consensus_msg(if distinct_messages { height } else { 0 }, is_vote);
         let broadcasted_message_manager =
-            BroadcastedMessageManager::get_test_instance(&mut get_rng());
+            BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
         mock_network
             .broadcasted_messages_sender
             .send((msg.clone(), broadcasted_message_manager))
@@ -68,7 +68,7 @@ async fn test_drops(distinct_messages: bool, is_vote: bool) {
     for height in 0..1000 {
         let msg = create_consensus_msg(if distinct_messages { height } else { 0 }, is_vote);
         let broadcasted_message_manager =
-            BroadcastedMessageManager::get_test_instance(&mut get_rng());
+            BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
         mock_network
             .broadcasted_messages_sender
             .send((msg.clone(), broadcasted_message_manager))
