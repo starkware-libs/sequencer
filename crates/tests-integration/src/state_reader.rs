@@ -36,11 +36,7 @@ use starknet_api::block::{
     GasPricePerToken,
 };
 use starknet_api::core::{
-    ClassHash,
-    ContractAddress,
-    Nonce,
-    PatriciaKey,
-    SequencerContractAddress,
+    ChainId, ClassHash, ContractAddress, Nonce, PatriciaKey, SequencerContractAddress
 };
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{StorageKey, ThinStateDiff};
@@ -51,6 +47,7 @@ use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 use tempfile::TempDir;
 use tokio::sync::RwLock;
+use tracing::info;
 
 use crate::integration_test_utils::get_available_socket;
 
@@ -58,6 +55,7 @@ type ContractClassesMap =
     (Vec<(ClassHash, DeprecatedContractClass)>, Vec<(ClassHash, CasmContractClass)>);
 
 pub struct StorageTestSetup {
+    pub chain_id : ChainId,
     pub rpc_storage_reader: StorageReader,
     pub rpc_storage_handle: TempDir,
     pub batcher_storage_config: StorageConfig,
@@ -73,6 +71,7 @@ impl StorageTestSetup {
             get_test_storage_with_config_by_scope(papyrus_storage::StorageScope::StateOnly);
         create_test_state(&mut batcher_storage_writer, test_defined_accounts);
         Self {
+            chain_id: batcher_storage_config.db_config.chain_id.clone(),
             rpc_storage_reader,
             rpc_storage_handle: rpc_storage_file_handle,
             batcher_storage_config,
@@ -241,11 +240,13 @@ fn test_block_header(block_number: BlockNumber) -> BlockHeader {
 
 /// Spawns a papyrus rpc server for given state reader.
 /// Returns the address of the rpc server.
-pub async fn spawn_test_rpc_state_reader(storage_reader: StorageReader) -> SocketAddr {
+pub async fn spawn_test_rpc_state_reader(storage_reader: StorageReader, chain_id:ChainId) -> SocketAddr {
     let rpc_config = RpcConfig {
+        chain_id,
         server_address: get_available_socket().await.to_string(),
         ..Default::default()
     };
+    info!("Starting RPC server at: {}", rpc_config.server_address);
     let (addr, handle) = run_server(
         &rpc_config,
         Arc::new(RwLock::new(None)),

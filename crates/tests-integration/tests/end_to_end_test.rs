@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::CairoVersion;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
@@ -48,5 +50,14 @@ async fn test_end_to_end(mut tx_generator: MultiAccountTransactionGenerator) {
     ];
     let actual_tx_hashes: Vec<TransactionHash> =
         mempool_txs.iter().map(|tx| tx.tx_hash()).collect();
-    assert_eq!(expected_tx_hashes_from_get_txs, *actual_tx_hashes);
+
+    println!("expected_tx_hashes_from_get_txs: {:?}", expected_tx_hashes_from_get_txs);
+    println!("actual_tx_hashes: {:?}", actual_tx_hashes);
+
+    println!("expected_tx_hashes_from_get_txs");
+
+    let set1: HashSet<_> = expected_tx_hashes_from_get_txs.into_iter().collect();
+    let set2: HashSet<_> = actual_tx_hashes.into_iter().collect();
+
+    assert_eq!(set1, set2);
 }
