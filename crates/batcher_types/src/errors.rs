@@ -32,6 +32,8 @@ pub enum BatcherError {
     ServerBusy { active_proposal_id: ProposalId, new_proposal_id: ProposalId },
     #[error("Proposal with ID {proposal_id} already exists.")]
     ProposalAlreadyExists { proposal_id: ProposalId },
+    #[error("Proposal failed.")]
+    ProposalFailed,
     #[error("Proposal with ID {proposal_id} not found.")]
     ProposalNotFound { proposal_id: ProposalId },
     #[error(
@@ -39,8 +41,6 @@ pub enum BatcherError {
          {requested_height}."
     )]
     StorageNotSynced { storage_height: BlockNumber, requested_height: BlockNumber },
-    #[error("Stream exhausted.")]
-    StreamExhausted,
     #[error("Time to deadline is out of range. Got {deadline}.")]
     TimeToDeadlineError { deadline: chrono::DateTime<Utc> },
 }

@@ -21,7 +21,7 @@ use starknet_batcher_types::batcher_types::{
 use starknet_batcher_types::errors::BatcherError;
 use starknet_mempool_infra::component_definitions::ComponentStarter;
 use starknet_mempool_types::communication::SharedMempoolClient;
-use tracing::{error, instrument};
+use tracing::{debug, error, instrument};
 
 use crate::block_builder::{BlockBuilderConfig, BlockBuilderFactory};
 use crate::config::BatcherConfig;
@@ -34,7 +34,7 @@ use crate::proposal_manager::{
 };
 
 struct Proposal {
-    content_stream: OutputStream,
+    tx_stream: OutputStream,
 }
 
 pub struct Batcher {
@@ -89,8 +89,8 @@ impl Batcher {
             .await
             .map_err(BatcherError::from)?;
 
-        let content_stream = tx_receiver;
-        self.proposals.insert(proposal_id, Proposal { content_stream });
+        let tx_stream = tx_receiver;
+        self.proposals.insert(proposal_id, Proposal { tx_stream });
         Ok(())
     }
 
@@ -100,29 +100,41 @@ impl Batcher {
         get_proposal_content_input: GetProposalContentInput,
     ) -> BatcherResult<GetProposalContentResponse> {
         let proposal_id = get_proposal_content_input.proposal_id;
-        let proposal = self
+
+        let tx_stream = &mut self
             .proposals
             .get_mut(&proposal_id)
-            .ok_or(BatcherError::ProposalNotFound { proposal_id })?;
+            .ok_or(BatcherError::ProposalNotFound { proposal_id })?
+            .tx_stream;
 
+        // Blocking until we have some txs to stream or the proposal is done.
         let mut txs = Vec::new();
-        if proposal
-            .content_stream
-            .recv_many(&mut txs, self.config.outstream_content_buffer_size)
-            .await
-            == 0
-        {
-            // TODO: send `Finished` and then exhausted.
-            return Err(BatcherError::StreamExhausted);
+        let n_executed_txs =
+            tx_stream.recv_many(&mut txs, self.config.outstream_content_buffer_size).await;
+
+        if n_executed_txs != 0 {
+            debug!("Streaming {} txs", n_executed_txs);
+            return Ok(GetProposalContentResponse { content: GetProposalContent::Txs(txs) });
         }
 
-        Ok(GetProposalContentResponse { content: GetProposalContent::Txs(txs) })
+        // Proposal is done.
+        self.proposals.remove(&proposal_id);
+        let proposal_commitment = self
+            .proposal_manager
+            .get_done_proposal_commitment(proposal_id)
+            .await
+            .ok_or(BatcherError::ProposalFailed)?;
+        Ok(GetProposalContentResponse {
+            content: GetProposalContent::Finished(proposal_commitment),
+        })
     }
 
     #[instrument(skip(self), err)]
     pub async fn decision_reached(&mut self, input: DecisionReachedInput) -> BatcherResult<()> {
         let proposal_id = input.proposal_id;
-        let state_diff = self.proposal_manager.get_proposal_result(proposal_id).await??;
+
+        let state_diff = self.proposal_manager.get_proposal_result(proposal_id).await?.state_diff;
+
         // TODO: Keep the height from start_height or get it from the input.
         let height = self.storage_reader.height().map_err(|err| {
             error!("Failed to get height from storage: {}", err);
@@ -224,7 +236,6 @@ impl From<BuildProposalError> for BatcherError {
                 new_proposal_id,
             },
             BuildProposalError::BlockBuilderError(..) => BatcherError::InternalError,
-            BuildProposalError::MempoolError(..) => BatcherError::InternalError,
             BuildProposalError::NoActiveHeight => BatcherError::NoActiveHeight,
             BuildProposalError::ProposalAlreadyExists { proposal_id } => {
                 BatcherError::ProposalAlreadyExists { proposal_id }
@@ -236,6 +247,8 @@ impl From<BuildProposalError> for BatcherError {
 impl From<GetProposalResultError> for BatcherError {
     fn from(err: GetProposalResultError) -> Self {
         match err {
+            GetProposalResultError::BlockBuilderError(..) => BatcherError::InternalError,
+            GetProposalResultError::MempoolError(..) => BatcherError::InternalError,
             GetProposalResultError::ProposalDoesNotExist { proposal_id } => {
                 BatcherError::DoneProposalNotFound { proposal_id }
             }
