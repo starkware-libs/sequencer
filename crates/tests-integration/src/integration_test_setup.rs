@@ -49,8 +49,11 @@ impl IntegrationTestSetup {
         let storage_for_test = StorageTestSetup::new(accounts);
 
         // Spawn a papyrus rpc server for a papyrus storage reader.
-        let rpc_server_addr =
-            spawn_test_rpc_state_reader(storage_for_test.rpc_storage_reader).await;
+        let rpc_server_addr = spawn_test_rpc_state_reader(
+            storage_for_test.rpc_storage_reader,
+            storage_for_test.chain_id,
+        )
+        .await;
 
         // Derive the configuration for the mempool node.
         let config = create_config(rpc_server_addr, storage_for_test.batcher_storage_config).await;

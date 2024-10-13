@@ -22,7 +22,9 @@ async fn main() -> anyhow::Result<()> {
     let storage_for_test = StorageTestSetup::new(create_integration_test_tx_generator().accounts());
 
     // Spawn a papyrus rpc server for a papyrus storage reader.
-    let rpc_server_addr = spawn_test_rpc_state_reader(storage_for_test.rpc_storage_reader).await;
+    let rpc_server_addr =
+        spawn_test_rpc_state_reader(storage_for_test.rpc_storage_reader, storage_for_test.chain_id)
+            .await;
 
     // Derive the configuration for the sequencer node.
     let config = create_config(rpc_server_addr, storage_for_test.batcher_storage_config).await;
