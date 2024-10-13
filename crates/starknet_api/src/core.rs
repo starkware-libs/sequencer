@@ -310,7 +310,9 @@ pub struct EventCommitment(pub StarkHash);
 )]
 pub struct ReceiptCommitment(pub StarkHash);
 
-#[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
+#[derive(
+    Debug, Copy, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord,
+)]
 pub struct StateDiffCommitment(pub PoseidonHash);
 
 /// A key for nodes of a Patricia tree.
