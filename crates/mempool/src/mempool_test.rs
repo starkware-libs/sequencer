@@ -86,17 +86,17 @@ impl MempoolContentBuilder {
         self
     }
 
-    fn _with_pending_queue<Q>(mut self, queue_txs: Q) -> Self
+    fn with_pending_queue<Q>(mut self, queue_txs: Q) -> Self
     where
         Q: IntoIterator<Item = TransactionReference>,
     {
-        self.tx_queue_content_builder = self.tx_queue_content_builder._with_pending(queue_txs);
+        self.tx_queue_content_builder = self.tx_queue_content_builder.with_pending(queue_txs);
         self
     }
 
-    fn _with_gas_price_threshold(mut self, gas_price_threshold: u128) -> Self {
+    fn with_gas_price_threshold(mut self, gas_price_threshold: u128) -> Self {
         self.tx_queue_content_builder =
-            self.tx_queue_content_builder._with_gas_price_threshold(gas_price_threshold);
+            self.tx_queue_content_builder.with_gas_price_threshold(gas_price_threshold);
         self
     }
 
@@ -752,4 +752,42 @@ fn test_fee_escalation_invalid_replacement() {
     let invalid_replacement_inputs =
         [input_not_enough_tip, input_not_enough_gas_price, input_not_enough_both];
     add_txs_and_verify_no_replacement(mempool, existing_tx, invalid_replacement_inputs);
+}
+
+// `update_gas_price_threshold` tests.
+
+#[rstest]
+fn test_update_gas_price_threshold_increases_threshold() {
+    // Setup.
+    let tx = TransactionReference::new(&tx!(max_l2_gas_price: 100));
+    let mut mempool: Mempool = MempoolContentBuilder::new()
+        .with_priority_queue([tx])
+        .with_gas_price_threshold(100)
+        .build()
+        .into();
+
+    // Test.
+    mempool._update_gas_price_threshold(101_u8.into());
+
+    // Assert.
+    let expected_mempool_content = MempoolContentBuilder::new().with_pending_queue([tx]).build();
+    expected_mempool_content.assert_eq(&mempool);
+}
+
+#[rstest]
+fn test_update_gas_price_threshold_decreases_threshold() {
+    // Setup.
+    let tx = TransactionReference::new(&tx!(max_l2_gas_price: 99));
+    let mut mempool: Mempool = MempoolContentBuilder::new()
+        .with_pending_queue([tx])
+        .with_gas_price_threshold(100)
+        .build()
+        .into();
+
+    // Test.
+    mempool._update_gas_price_threshold(99_u8.into());
+
+    // Assert.
+    let expected_mempool_content = MempoolContentBuilder::new().with_priority_queue([tx]).build();
+    expected_mempool_content.assert_eq(&mempool);
 }
