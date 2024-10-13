@@ -32,10 +32,14 @@ async fn test_end_to_end(mut tx_generator: MultiAccountTransactionGenerator) {
     // Test.
     let mempool_txs = mock_running_system.get_txs(4).await;
 
+    // TODO(Gilad/Tsabary): The following order-based assertion is sensitive to the tx hashes, e.g.,
+    // changing the chain id might change the returned order. Consider asserting non-decreasing
+    // priority on the vector, and un-ordered (set) comparison of same priority tx hashes.
+
     // Assert.
     let expected_tx_hashes_from_get_txs = [
-        account1_invoke_nonce1_tx_hash,
         account0_invoke_nonce1_tx_hash,
+        account1_invoke_nonce1_tx_hash,
         account0_invoke_nonce2_tx_hash,
     ];
     let actual_tx_hashes: Vec<TransactionHash> =
