@@ -349,10 +349,45 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
-  "consensus_manager_config.consensus_config_param_1": {
-    "description": "The first consensus manager configuration parameter",
+  "consensus_manager_config.consensus_config.consensus_delay": {
+    "description": "Delay (seconds) before starting consensus to give time for network peering.",
     "privacy": "Public",
-    "value": 1
+    "value": 5
+  },
+  "consensus_manager_config.consensus_config.network_topic": {
+    "description": "The network topic of the consensus.",
+    "privacy": "Public",
+    "value": "consensus"
+  },
+  "consensus_manager_config.consensus_config.num_validators": {
+    "description": "The number of validators in the consensus.",
+    "privacy": "Public",
+    "value": 4
+  },
+  "consensus_manager_config.consensus_config.start_height": {
+    "description": "The height to start the consensus from.",
+    "privacy": "Public",
+    "value": 0
+  },
+  "consensus_manager_config.consensus_config.timeouts.precommit_timeout": {
+    "description": "The timeout (seconds) for a precommit.",
+    "privacy": "Public",
+    "value": 1.0
+  },
+  "consensus_manager_config.consensus_config.timeouts.prevote_timeout": {
+    "description": "The timeout (seconds) for a prevote.",
+    "privacy": "Public",
+    "value": 1.0
+  },
+  "consensus_manager_config.consensus_config.timeouts.proposal_timeout": {
+    "description": "The timeout (seconds) for a proposal.",
+    "privacy": "Public",
+    "value": 3.0
+  },
+  "consensus_manager_config.consensus_config.validator_id": {
+    "description": "A required param! The validator id of the node.",
+    "param_type": "String",
+    "privacy": "Public"
   },
   "gateway_config.chain_info.chain_id": {
     "description": "The chain ID of the StarkNet chain.",
