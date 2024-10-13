@@ -45,7 +45,7 @@ pub const SEGMENT_ARENA_BUILTIN_SIZE: usize = 3;
 
 /// A wrapper for execute_entry_point_call that performs pre and post-processing.
 pub fn execute_entry_point_call_wrapper(
-    call: CallEntryPoint,
+    mut call: CallEntryPoint,
     contract_class: ContractClass,
     state: &mut dyn State,
     resources: &mut ExecutionResources,
@@ -57,11 +57,19 @@ pub fn execute_entry_point_call_wrapper(
     // pop commands.
 
     // Once we ran with CairoSteps, we will continue to run using it for all nested calls.
-    if context.tracked_resource_stack.last().is_some_and(|x| *x == TrackedResource::CairoSteps) {
-        context.tracked_resource_stack.push(TrackedResource::CairoSteps);
-    } else {
-        context.tracked_resource_stack.push(tracked_resource);
-    }
+    match context.tracked_resource_stack.last() {
+        Some(TrackedResource::CairoSteps) => {
+            context.tracked_resource_stack.push(TrackedResource::CairoSteps)
+        }
+        Some(TrackedResource::SierraGas) => {
+            if tracked_resource == TrackedResource::CairoSteps {
+                // Override initial_gas with a high value so it won't limit the run.
+                call.initial_gas = context.versioned_constants().default_initial_gas_cost();
+            };
+            context.tracked_resource_stack.push(tracked_resource)
+        }
+        _ => context.tracked_resource_stack.push(tracked_resource),
+    };
 
     let res = execute_entry_point_call(call, contract_class, state, resources, context);
     context.tracked_resource_stack.pop();

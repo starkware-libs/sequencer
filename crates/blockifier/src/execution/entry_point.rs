@@ -143,15 +143,6 @@ impl CallEntryPoint {
         self.class_hash = Some(class_hash);
         let contract_class = state.get_compiled_contract_class(class_hash)?;
 
-        // If the contract class should run in VM mode, override initial_gas with a high value so it
-        // won't limit the run.
-        let versioned_constants = context.tx_context.block_context.versioned_constants();
-        if contract_class.tracked_resource(&versioned_constants.min_compiler_version_for_sierra_gas)
-            == TrackedResource::CairoSteps
-        {
-            self.initial_gas = versioned_constants.default_initial_gas_cost()
-        }
-
         context.revert_infos.0.push(EntryPointRevertInfo::new(
             self.storage_address,
             storage_class_hash,
