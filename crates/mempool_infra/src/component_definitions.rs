@@ -120,7 +120,7 @@ impl SerializeConfig for RemoteClientConfig {
             ser_param(
                 "socket",
                 &self.socket.to_string(),
-                "The remote component socket.",
+                "The remote component server socket.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -162,7 +162,7 @@ impl SerializeConfig for RemoteServerConfig {
         BTreeMap::from_iter([ser_param(
             "socket",
             &self.socket.to_string(),
-            "The remote component socket.",
+            "The remote component server socket.",
             ParamPrivacyInput::Public,
         )])
     }
