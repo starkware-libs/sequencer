@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -9,8 +9,10 @@ use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
+use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::state::ThinStateDiff;
+use starknet_api::transaction::TransactionHash;
 use starknet_batcher_types::batcher_types::{ProposalCommitment, ProposalId};
 use starknet_mempool_types::communication::{MempoolClientError, SharedMempoolClient};
 use thiserror::Error;
@@ -154,6 +156,8 @@ pub type ProposalResult = Result<ProposalOutput, GetProposalResultError>;
 pub struct ProposalOutput {
     pub state_diff: ThinStateDiff,
     pub commitment: ProposalCommitment,
+    pub tx_hashes: HashSet<TransactionHash>,
+    pub nonces: HashMap<ContractAddress, Nonce>,
 }
 
 #[async_trait]
@@ -391,6 +395,12 @@ pub type InputTxStream = ReceiverStream<Transaction>;
 impl From<BlockExecutionArtifacts> for ProposalOutput {
     fn from(artifacts: BlockExecutionArtifacts) -> Self {
         let commitment_state_diff = artifacts.commitment_state_diff;
+        let nonces = HashMap::from_iter(
+            commitment_state_diff
+                .address_to_nonce
+                .iter()
+                .map(|(address, nonce)| (*address, *nonce)),
+        );
 
         // TODO: Get these from the transactions.
         let deployed_contracts = IndexMap::new();
@@ -406,6 +416,8 @@ impl From<BlockExecutionArtifacts> for ProposalOutput {
         };
         let commitment =
             ProposalCommitment { state_diff_commitment: calculate_state_diff_hash(&state_diff) };
-        Self { state_diff, commitment }
+        let tx_hashes = HashSet::from_iter(artifacts.execution_infos.keys().copied());
+
+        Self { state_diff, commitment, tx_hashes, nonces }
     }
 }
