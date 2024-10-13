@@ -10,11 +10,11 @@ use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use num_bigint::{BigInt, TryFromBigIntError};
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
+use starknet_api::execution_utils::format_panic_data;
 use starknet_types_core::felt::Felt;
 use thiserror::Error;
 
 use crate::execution::entry_point::ConstructorContext;
-use crate::execution::execution_utils::format_panic_data;
 use crate::state::errors::StateError;
 
 // TODO(AlonH, 21/12/2022): Implement Display for all types that appear in errors.

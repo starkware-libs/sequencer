@@ -11,7 +11,7 @@ use thiserror::Error;
 use crate::bouncer::BouncerWeights;
 use crate::execution::call_info::Retdata;
 use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
-use crate::execution::execution_utils::format_panic_data;
+use starknet_api::execution_utils::format_panic_data;
 use crate::execution::stack_trace::gen_tx_execution_error_trace;
 use crate::fee::fee_checks::FeeCheckError;
 use crate::state::errors::StateError;

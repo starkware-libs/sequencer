@@ -14,7 +14,7 @@ use crate::context::ChainInfo;
 use crate::execution::call_info::{CallExecution, Retdata};
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::CallEntryPoint;
-use crate::execution::execution_utils::format_panic_data;
+use starknet_api::execution_utils::format_panic_data;
 use crate::retdata;
 use crate::state::state_api::StateReader;
 use crate::test_utils::contracts::FeatureContract;

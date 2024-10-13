@@ -12,6 +12,7 @@ testing = []
 [dependencies]
 bitvec.workspace = true
 cairo-lang-starknet-classes.workspace = true
+cairo-lang-runner.workspace = true
 derive_more.workspace = true
 hex.workspace = true
 indexmap = { workspace = true, features = ["serde"] }

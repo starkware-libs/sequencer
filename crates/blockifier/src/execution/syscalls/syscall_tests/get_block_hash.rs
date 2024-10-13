@@ -11,7 +11,7 @@ use crate::abi::constants;
 use crate::context::ChainInfo;
 use crate::execution::call_info::{CallExecution, Retdata};
 use crate::execution::entry_point::CallEntryPoint;
-use crate::execution::execution_utils::format_panic_data;
+use starknet_api::execution_utils::format_panic_data;
 use crate::state::cached_state::CachedState;
 use crate::state::state_api::State;
 use crate::test_utils::contracts::FeatureContract;
