@@ -93,6 +93,12 @@ impl MempoolContentBuilder {
         self
     }
 
+    fn with_gas_price_threshold(mut self, gas_price_threshold: u128) -> Self {
+        self.tx_queue_content_builder =
+            self.tx_queue_content_builder.with_gas_price_threshold(gas_price_threshold);
+        self
+    }
+
     fn with_fee_escalation_percentage(mut self, fee_escalation_percentage: u8) -> Self {
         self.fee_escalation_percentage = fee_escalation_percentage;
         self
@@ -721,5 +727,46 @@ fn test_fee_escalation_invalid_replacement() {
 
     // Verify transaction was not replaced.
     let expected_mempool_content = MempoolContentBuilder::new().with_pool([tx]).build();
+    expected_mempool_content.assert_eq(&mempool);
+}
+
+// `update_gas_price_threshold` tests.
+
+#[rstest]
+fn test_update_gas_price_threshold_increases_threshold() {
+    // Setup.
+    let tx = TransactionReference::new(&tx!(max_l2_gas_price: 100));
+    let mut mempool: Mempool = MempoolContentBuilder::new()
+        .with_priority_queue([tx])
+        .with_gas_price_threshold(100)
+        .build()
+        .into();
+
+    // Test.
+    // All txs should be in the pending queue.
+    mempool._update_gas_price_threshold(101_u8.into());
+
+    // Assert.
+    let expected_mempool_content = MempoolContentBuilder::new()._with_pending_queue([tx]).build();
+    expected_mempool_content.assert_eq(&mempool);
+}
+
+#[rstest]
+fn test_update_gas_price_threshold_decreases_threshold() {
+    // Setup.
+    let tx =
+        TransactionReference::new(&tx!(tx_hash: 1, max_l2_gas_price: 99, sender_address: "0x1"));
+    let mut mempool: Mempool = MempoolContentBuilder::new()
+        ._with_pending_queue([tx])
+        .with_gas_price_threshold(100)
+        .build()
+        .into();
+
+    // Test.
+    // All txs should be in the pending queue.
+    mempool._update_gas_price_threshold(99_u8.into());
+
+    // Assert.
+    let expected_mempool_content = MempoolContentBuilder::new().with_priority_queue([tx]).build();
     expected_mempool_content.assert_eq(&mempool);
 }
