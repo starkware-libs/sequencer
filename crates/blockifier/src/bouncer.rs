@@ -1,7 +1,9 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
+use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ClassHash;
 
@@ -71,6 +73,12 @@ impl BouncerConfig {
     }
 }
 
+impl SerializeConfig for BouncerConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        append_sub_config_name(self.block_max_capacity.dump(), "block_max_capacity")
+    }
+}
+
 #[derive(
     Clone,
     Copy,
@@ -126,6 +134,43 @@ impl BouncerWeights {
             n_steps: 0,
             state_diff_size: 0,
         }
+    }
+}
+
+impl SerializeConfig for BouncerWeights {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        let mut dump = append_sub_config_name(self.builtin_count.dump(), "builtin_count");
+        dump.append(&mut BTreeMap::from([ser_param(
+            "gas",
+            &self.gas,
+            "An upper bound on the total gas used by block transactions",
+            ParamPrivacyInput::Public,
+        )]));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "n_steps",
+            &self.n_steps,
+            "An upper bound on the total number of steps used by block transactions",
+            ParamPrivacyInput::Public,
+        )]));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "message_segment_length",
+            &self.message_segment_length,
+            "An upper bound on the message segment length used by block transactions",
+            ParamPrivacyInput::Public,
+        )]));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "n_events",
+            &self.n_events,
+            "An upper bound on the total number of events that occurred by the block transactions.",
+            ParamPrivacyInput::Public,
+        )]));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "state_diff_size",
+            &self.state_diff_size,
+            "An upper bound on the total state diff size used by block transactions",
+            ParamPrivacyInput::Public,
+        )]));
+        dump
     }
 }
 
@@ -272,6 +317,33 @@ impl std::fmt::Display for BuiltinCount {
             self.range_check,
             self.range_check96
         )
+    }
+}
+
+impl SerializeConfig for BuiltinCount {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([
+            ser_param("add_mod", &self.add_mod, "Add mod builtin.", ParamPrivacyInput::Public),
+            ser_param("bitwise", &self.bitwise, "Bitwise builtin.", ParamPrivacyInput::Public),
+            ser_param("ecdsa", &self.ecdsa, "ECDSA builtin.", ParamPrivacyInput::Public),
+            ser_param("ec_op", &self.ec_op, "EC operation builtin.", ParamPrivacyInput::Public),
+            ser_param("keccak", &self.keccak, "Keccak builtin.", ParamPrivacyInput::Public),
+            ser_param("mul_mod", &self.mul_mod, "Mul mod builtin.", ParamPrivacyInput::Public),
+            ser_param("pedersen", &self.pedersen, "Pedersen builtin.", ParamPrivacyInput::Public),
+            ser_param("poseidon", &self.poseidon, "Poseidon builtin.", ParamPrivacyInput::Public),
+            ser_param(
+                "range_check",
+                &self.range_check,
+                "Range check builtin.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "range_check96",
+                &self.range_check96,
+                "Range check 96 builtin.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
     }
 }
 
