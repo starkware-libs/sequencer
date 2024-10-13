@@ -1,5 +1,6 @@
 use std::future::pending;
 use std::pin::Pin;
+use std::sync::Arc;
 
 use futures::{Future, FutureExt};
 use starknet_batcher::communication::{create_local_batcher_server, LocalBatcherServer};
@@ -12,6 +13,7 @@ use starknet_http_server::communication::{create_http_server, HttpServer};
 use starknet_mempool::communication::{create_mempool_server, LocalMempoolServer};
 use starknet_mempool_infra::component_server::ComponentServerStarter;
 use starknet_mempool_infra::errors::ComponentServerError;
+use starknet_mempool_p2p::sender::EmptyMempoolP2pSenderClient;
 use tracing::error;
 
 use crate::communication::SequencerNodeCommunication;
@@ -76,6 +78,7 @@ pub fn create_node_servers(
         Some(Box::new(create_mempool_server(
             components.mempool.expect("Mempool is not initialized."),
             communication.take_mempool_rx(),
+            Arc::new(EmptyMempoolP2pSenderClient),
         )))
     } else {
         None
