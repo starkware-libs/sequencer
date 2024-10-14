@@ -4,6 +4,7 @@ use cairo_lang_sierra::ids::FunctionId;
 use cairo_native::execution_result::ContractExecutionResult;
 use cairo_native::executor::AotNativeExecutor;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use num_traits::ToPrimitive;
 
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::contract_class::{NativeContractClassV1, TrackedResource};
@@ -12,7 +13,7 @@ use crate::execution::entry_point::{
     EntryPointExecutionContext,
     EntryPointExecutionResult,
 };
-use crate::execution::errors::EntryPointExecutionError;
+use crate::execution::errors::{EntryPointExecutionError, PostExecutionError};
 use crate::execution::native::syscall_handler::NativeSyscallHandler;
 use crate::execution::native::utils::decode_felts_as_str;
 use crate::state::state_api::State;
@@ -51,10 +52,8 @@ fn run_native_executor(
         &mut syscall_handler,
     );
 
-    let run_result = match execution_result {
-        Err(runner_err) => {
-            Err(EntryPointExecutionError::NativeUnexpectedError { source: runner_err })
-        }
+    let call_result = match execution_result {
+        Err(runner_err) => Err(EntryPointExecutionError::NativeUnexpectedError(runner_err)),
         Ok(res) if res.failure_flag => Err(EntryPointExecutionError::NativeExecutionError {
             info: if !res.return_values.is_empty() {
                 decode_felts_as_str(&res.return_values)
@@ -65,7 +64,7 @@ fn run_native_executor(
         Ok(res) => Ok(res),
     }?;
 
-    create_callinfo(call.clone(), run_result, syscall_handler)
+    create_callinfo(call, run_result, syscall_handler)
 }
 
 fn create_callinfo(
@@ -73,18 +72,17 @@ fn create_callinfo(
     run_result: ContractExecutionResult,
     syscall_handler: NativeSyscallHandler<'_>,
 ) -> Result<CallInfo, EntryPointExecutionError> {
-    let gas_consumed = {
-        // We can use `.unwrap()` directly in both cases because the most significant bit is could
-        // be only 63 here (128 = 64 + 64).
-        let low: u64 = (run_result.remaining_gas & ((1u128 << 64) - 1)).try_into().unwrap();
-        let high: u64 = (run_result.remaining_gas >> 64).try_into().unwrap();
-        if high != 0 {
-            return Err(EntryPointExecutionError::NativeExecutionError {
-                info: "Overflow: gas consumed bigger than 64 bit".into(),
-            });
-        }
-        call.initial_gas - low
-    };
+    // todo(rodro): Even if the property is called `remaining_gas` it behaves like gas used.
+    // Update once gas works on Native side has been completed (or at least this part)
+    let gas_used =
+        run_result.remaining_gas.to_u64().ok_or(PostExecutionError::MalformedReturnData {
+            error_message: format!(
+                "Unexpected remaining gas (bigger than u64): {}",
+                run_result.remaining_gas
+            ),
+        });
+
+    let gas_consumed = call.initial_gas - gas_used;
 
     Ok(CallInfo {
         call,
@@ -97,11 +95,7 @@ fn create_callinfo(
         },
         // todo(rodrigo): execution resources rely heavily on how the VM work, therefore
         // the dummy values
-        resources: ExecutionResources {
-            n_steps: 0,
-            n_memory_holes: 0,
-            builtin_instance_counter: HashMap::default(),
-        },
+        resources: ExecutionResources::default(),
         inner_calls: syscall_handler.inner_calls,
         storage_read_values: syscall_handler.read_values,
         accessed_storage_keys: syscall_handler.accessed_keys,
