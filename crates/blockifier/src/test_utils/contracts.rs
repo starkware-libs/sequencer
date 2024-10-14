@@ -16,7 +16,7 @@ use crate::execution::contract_class::{
     ContractClass, ContractClassV0, ContractClassV1, NativeContractClassV1,
 };
 use crate::execution::entry_point::CallEntryPoint;
-use crate::test_utils::cairo_compile::{cairo0_compile, cairo1_compile, sierra_compile};
+use crate::test_utils::cairo_compile::{cairo0_compile, cairo1_compile, starknet_compile};
 use crate::test_utils::struct_impls::LoadContractFromFile;
 use crate::test_utils::{get_raw_contract_class, CairoVersion};
 
@@ -321,7 +321,7 @@ impl FeatureContract {
                 let (tag_override, cargo_nightly_arg) = self.fixed_tag_and_rust_toolchain();
                 cairo1_compile(self.get_source_path(), tag_override, cargo_nightly_arg)
             }
-            CairoVersion::Native => sierra_compile(self.get_source_path(), None, None),
+            CairoVersion::Native => starknet_compile(self.get_source_path(), None, None),
         }
     }
 
