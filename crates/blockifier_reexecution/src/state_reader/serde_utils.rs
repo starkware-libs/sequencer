@@ -1,4 +1,3 @@
-use blockifier::state::state_api::StateResult;
 use indexmap::IndexMap;
 use serde::Deserialize;
 use serde_json::Value;
@@ -8,7 +7,8 @@ use starknet_api::transaction::{
     InvokeTransaction,
     Transaction,
 };
-use starknet_gateway::errors::serde_err_to_state_err;
+
+use super::test_state_reader::ReexecutionResult;
 
 pub fn deserialize_transaction_json_to_starknet_api_tx(
     mut raw_transaction: Value,
@@ -77,9 +77,9 @@ pub(crate) fn hashmap_from_raw<
     vec_str: &str,
     key_str: &str,
     value_str: &str,
-) -> StateResult<IndexMap<K, V>> {
+) -> ReexecutionResult<IndexMap<K, V>> {
     Ok(vec_to_hashmap::<K, V>(
-        serde_json::from_value(raw_object[vec_str].clone()).map_err(serde_err_to_state_err)?,
+        serde_json::from_value(raw_object[vec_str].clone())?,
         key_str,
         value_str,
     ))
@@ -96,9 +96,9 @@ pub(crate) fn nested_hashmap_from_raw<
     value_str: &str,
     inner_key_str: &str,
     inner_value_str: &str,
-) -> StateResult<IndexMap<K, IndexMap<VK, VV>>> {
+) -> ReexecutionResult<IndexMap<K, IndexMap<VK, VV>>> {
     Ok(vec_to_nested_hashmap::<K, VK, VV>(
-        serde_json::from_value(raw_object[vec_str].clone()).map_err(serde_err_to_state_err)?,
+        serde_json::from_value(raw_object[vec_str].clone())?,
         key_str,
         value_str,
         inner_key_str,
