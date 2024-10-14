@@ -26,6 +26,6 @@ COPY boostrap.sh .
 
 RUN ./install_build_tools.sh /cairo_native
 
-RUN /bin/echo "${SEQUENCER_DIR}"
+RUN /bin/echo "asdf docker seq_dir: ${SEQUENCER_DIR}"
 
 ENTRYPOINT [ "sh", "-c", "/cairo_native/boostrap.sh ${SEQUENCER_DIR} $0 $@" ]

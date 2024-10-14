@@ -6,6 +6,9 @@ set -e
 # Set LIBCAIRO_NATIVE_DIR as first argument, or by default the pwd.
 LIBCAIRO_NATIVE_DIR=${1:-$(pwd)}
 
+echo "asdf install sh args: $@"
+echo "asdf install sh arg 1: $1"
+
 function install_common_packages() {
     $SUDO  bash -c '
         apt update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt -y install \
