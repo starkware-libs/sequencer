@@ -8,7 +8,7 @@ use blockifier::state::cached_state::{CachedState, CommitmentStateDiff};
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader, StateResult};
 use blockifier::versioned_constants::{StarknetVersion, VersionedConstants};
-use serde_json::{json, to_value, Value};
+use serde_json::{json, to_value};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
@@ -23,13 +23,15 @@ use starknet_types_core::felt::Felt;
 
 use crate::state_reader::compile::{legacy_to_contract_class_v0, sierra_to_contact_class_v1};
 use crate::state_reader::errors::ReexecutionError;
-use crate::state_reader::utils::{
+use crate::state_reader::serde_utils::{
     deserialize_transaction_json_to_starknet_api_tx,
+    hashmap_from_raw,
+    nested_hashmap_from_raw,
+};
+use crate::state_reader::utils::{
     disjoint_hashmap_union,
     get_chain_info,
     get_rpc_state_reader_config,
-    hashmap_from_raw,
-    nested_hashmap_from_raw,
 };
 
 pub type ReexecutionResult<T> = Result<T, ReexecutionError>;
@@ -220,9 +222,6 @@ impl TestStateReader {
             "class_hash",
             "contract_address",
         )?;
-        let _deprecated_declared_classes: Vec<Value> =
-            serde_json::from_value(raw_statediff["deprecated_declared_classes"].clone())
-                .map_err(serde_err_to_state_err)?;
         // We expect the deployed_contracts and replaced_classes to have disjoint addresses.
         let address_to_class_hash = disjoint_hashmap_union(deployed_contracts, replaced_classes);
         Ok(CommitmentStateDiff {
