@@ -569,11 +569,12 @@ impl AccountTransaction {
         &self,
         state: &mut TransactionalState<'_, S>,
         tx_context: Arc<TransactionContext>,
-        remaining_gas: &mut u64,
+        initial_gas: u64,
         validate: bool,
         charge_fee: bool,
     ) -> TransactionExecutionResult<ValidateExecuteCallInfo> {
         let mut resources = ExecutionResources::default();
+        let mut remaining_gas = initial_gas;
         let validate_call_info: Option<CallInfo>;
         let execute_call_info: Option<CallInfo>;
         if matches!(self, Self::DeployAccount(_)) {
@@ -582,13 +583,17 @@ impl AccountTransaction {
             // validation context.
             let mut execution_context =
                 EntryPointExecutionContext::new_validate(tx_context.clone(), charge_fee);
-            execute_call_info =
-                self.run_execute(state, &mut resources, &mut execution_context, remaining_gas)?;
+            execute_call_info = self.run_execute(
+                state,
+                &mut resources,
+                &mut execution_context,
+                &mut remaining_gas,
+            )?;
             validate_call_info = self.handle_validate_tx(
                 state,
                 &mut resources,
                 tx_context.clone(),
-                remaining_gas,
+                &mut remaining_gas,
                 validate,
                 charge_fee,
             )?;
@@ -599,12 +604,16 @@ impl AccountTransaction {
                 state,
                 &mut resources,
                 tx_context.clone(),
-                remaining_gas,
+                &mut remaining_gas,
                 validate,
                 charge_fee,
             )?;
-            execute_call_info =
-                self.run_execute(state, &mut resources, &mut execution_context, remaining_gas)?;
+            execute_call_info = self.run_execute(
+                state,
+                &mut resources,
+                &mut execution_context,
+                &mut remaining_gas,
+            )?;
         }
 
         let tx_receipt = TransactionReceipt::from_account_tx(
@@ -632,19 +641,20 @@ impl AccountTransaction {
         &self,
         state: &mut TransactionalState<'_, S>,
         tx_context: Arc<TransactionContext>,
-        remaining_gas: &mut u64,
+        initial_gas: u64,
         validate: bool,
         charge_fee: bool,
     ) -> TransactionExecutionResult<ValidateExecuteCallInfo> {
         let mut resources = ExecutionResources::default();
         let mut execution_context =
             EntryPointExecutionContext::new_invoke(tx_context.clone(), charge_fee);
+        let mut remaining_gas = initial_gas;
         // Run the validation, and if execution later fails, only keep the validation diff.
         let validate_call_info = self.handle_validate_tx(
             state,
             &mut resources,
             tx_context.clone(),
-            remaining_gas,
+            &mut remaining_gas,
             validate,
             charge_fee,
         )?;
@@ -668,7 +678,7 @@ impl AccountTransaction {
             &mut execution_state,
             &mut execution_resources,
             &mut execution_context,
-            remaining_gas,
+            &mut remaining_gas,
         );
 
         // Pre-compute cost in case of revert.
@@ -774,16 +784,16 @@ impl AccountTransaction {
     fn run_or_revert<S: StateReader>(
         &self,
         state: &mut TransactionalState<'_, S>,
-        remaining_gas: &mut u64,
         tx_context: Arc<TransactionContext>,
         validate: bool,
         charge_fee: bool,
     ) -> TransactionExecutionResult<ValidateExecuteCallInfo> {
+        let initial_gas = tx_context.block_context.versioned_constants.tx_default_initial_gas();
         if self.is_non_revertible(&tx_context.tx_info) {
-            return self.run_non_revertible(state, tx_context, remaining_gas, validate, charge_fee);
+            return self.run_non_revertible(state, tx_context, initial_gas, validate, charge_fee);
         }
 
-        self.run_revertible(state, tx_context, remaining_gas, validate, charge_fee)
+        self.run_revertible(state, tx_context, initial_gas, validate, charge_fee)
     }
 }
 
@@ -807,7 +817,6 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
         )?;
 
         // Run validation and execution.
-        let mut remaining_gas = block_context.versioned_constants.tx_default_initial_gas();
         let ValidateExecuteCallInfo {
             validate_call_info,
             execute_call_info,
@@ -821,7 +830,6 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
                 },
         } = self.run_or_revert(
             state,
-            &mut remaining_gas,
             tx_context.clone(),
             execution_flags.validate,
             execution_flags.charge_fee,
