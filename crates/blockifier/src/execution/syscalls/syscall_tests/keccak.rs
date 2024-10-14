@@ -11,6 +11,10 @@ use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, BALANCE};
 
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 254910; "VM")]
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(FeatureContract::TestContract(CairoVersion::Native), 265110; "Native")
+)]
 fn test_keccak(test_contract: FeatureContract, expected_gas: u64) {
     let chain_info = &ChainInfo::create_for_testing();
     let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1)]);
@@ -22,7 +26,7 @@ fn test_keccak(test_contract: FeatureContract, expected_gas: u64) {
         ..trivial_external_entry_point_new(test_contract)
     };
 
-    assert_eq!(
+    pretty_assertions::assert_eq!(
         entry_point_call.execute_directly(&mut state).unwrap().execution,
         CallExecution { gas_consumed: expected_gas, ..CallExecution::from_retdata(retdata![]) }
     );
