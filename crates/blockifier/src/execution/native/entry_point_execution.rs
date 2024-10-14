@@ -1,13 +1,12 @@
 use cairo_native::execution_result::ContractExecutionResult;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use num_traits::ToPrimitive;
+use starknet_api::execution_utils::format_panic_data;
 
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::contract_class::{NativeContractClassV1, TrackedResource};
 use crate::execution::entry_point::{
-    CallEntryPoint,
-    EntryPointExecutionContext,
-    EntryPointExecutionResult,
+    CallEntryPoint, EntryPointExecutionContext, EntryPointExecutionResult,
 };
 use crate::execution::errors::{EntryPointExecutionError, PostExecutionError};
 use crate::execution::native::syscall_handler::NativeSyscallHandler;
@@ -22,28 +21,33 @@ pub fn execute_entry_point_call(
 ) -> EntryPointExecutionResult<CallInfo> {
     let function_id = contract_class.get_entry_point(&call)?;
 
-    let mut syscall_handler: NativeSyscallHandler<'_> = NativeSyscallHandler::new(
-        state,
-        call.caller_address,
-        call.storage_address,
-        call.entry_point_selector,
-        resources,
-        context,
-    );
+    let mut syscall_handler: NativeSyscallHandler<'_> =
+        NativeSyscallHandler::new(call, state, resources, context);
 
     let execution_result = contract_class.executor.invoke_contract_dynamic(
         &function_id,
-        &call.calldata.0,
-        Some(call.initial_gas.into()),
+        &syscall_handler.call.calldata.0.clone(),
+        Some(syscall_handler.call.initial_gas.into()),
         &mut syscall_handler,
     );
 
-    let call_result = execution_result.map_err(EntryPointExecutionError::NativeUnexpectedError)?;
-    create_call_info(call, call_result, syscall_handler)
+    let call_result = match execution_result {
+        Err(runner_err) => Err(EntryPointExecutionError::NativeUnexpectedError(runner_err)),
+        Ok(res)
+            if res.failure_flag
+                && !syscall_handler.context.versioned_constants().enable_reverts =>
+        {
+            Err(EntryPointExecutionError::ExecutionFailed {
+                error_trace: format_panic_data(&res.return_values),
+            })
+        }
+        Ok(res) => Ok(res),
+    }?;
+
+    create_callinfo(call_result, syscall_handler)
 }
 
-fn create_call_info(
-    call: CallEntryPoint,
+fn create_callinfo(
     call_result: ContractExecutionResult,
     syscall_handler: NativeSyscallHandler<'_>,
 ) -> Result<CallInfo, EntryPointExecutionError> {
@@ -54,20 +58,21 @@ fn create_call_info(
                 call_result.remaining_gas
             ),
         })?;
-    if remaining_gas > call.initial_gas {
+
+    if remaining_gas > syscall_handler.call.initial_gas {
         return Err(PostExecutionError::MalformedReturnData {
             error_message: format!(
                 "Unexpected remaining gas. Used gas is greater than initial gas: {} > {}",
-                remaining_gas, call.initial_gas
+                remaining_gas, syscall_handler.call.initial_gas
             ),
         }
         .into());
     }
 
-    let gas_consumed = call.initial_gas - remaining_gas;
+    let gas_consumed = syscall_handler.call.initial_gas - remaining_gas;
 
     Ok(CallInfo {
-        call,
+        call: syscall_handler.call,
         execution: CallExecution {
             retdata: Retdata(call_result.return_values),
             events: syscall_handler.events,
