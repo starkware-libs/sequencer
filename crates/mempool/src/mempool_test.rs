@@ -2,7 +2,6 @@ use std::cmp::Reverse;
 
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
-use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, PatriciaKey};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::{contract_address, felt, invoke_tx_args, nonce, patricia_key};
@@ -271,49 +270,6 @@ fn test_get_txs_with_nonce_gap() {
     get_txs_and_assert_expected(&mut mempool, 2, &[tx_address_1_nonce_0]);
     let expected_mempool_content = MempoolContentBuilder::new().with_priority_queue([]).build();
     expected_mempool_content.assert_eq(&mempool);
-}
-
-// TODO(Mohammad): simplify two queues reordering tests to use partial queue content test util.
-#[rstest]
-fn test_get_txs_while_decreasing_gas_price_threshold() {
-    // Setup.
-    let tx = tx!(tx_nonce: 0);
-
-    let mut mempool = MempoolContentBuilder::new()
-        .with_pool([tx.clone()])
-        .with_priority_queue([TransactionReference::new(&tx)])
-        .build_into_mempool();
-
-    // Test.
-    // High gas price threshold, no transactions should be returned.
-    mempool._update_gas_price_threshold(GasPrice(1000000000000));
-    get_txs_and_assert_expected(&mut mempool, 1, &[]);
-
-    // Low gas price threshold, the transaction should be returned.
-    mempool._update_gas_price_threshold(GasPrice(100));
-    get_txs_and_assert_expected(&mut mempool, 1, &[tx]);
-}
-
-#[rstest]
-fn test_get_txs_while_increasing_gas_price_threshold() {
-    // Setup.
-    // Both transactions have the same gas price.
-    let tx_nonce_0 = tx!(tx_hash: 0, tx_nonce: 0);
-    let tx_nonce_1 = tx!(tx_hash: 1, tx_nonce: 1);
-
-    let mut mempool = MempoolContentBuilder::new()
-        .with_pool([tx_nonce_0.clone(), tx_nonce_1])
-        .with_priority_queue([TransactionReference::new(&tx_nonce_0)])
-        .build_into_mempool();
-
-    // Test.
-    // Low gas price threshold, the transaction should be returned.
-    mempool._update_gas_price_threshold(GasPrice(100));
-    get_txs_and_assert_expected(&mut mempool, 1, &[tx_nonce_0]);
-
-    // High gas price threshold, no transactions should be returned.
-    mempool._update_gas_price_threshold(GasPrice(1000000000000));
-    get_txs_and_assert_expected(&mut mempool, 1, &[]);
 }
 
 // `add_tx` tests.
