@@ -75,6 +75,8 @@ function compile_cairo_native_runtime() {
 
     mv ./cairo_native/target/release/libcairo_native_runtime.a ${LIBCAIRO_NATIVE_DIR}/libcairo_native_runtime.a
     rm -rf ./cairo_native
+
+        ls /cairo_native/libcairo_native_runtime.a # asdf
 }
 
 function main() {

@@ -19,6 +19,7 @@ function copy_cairo_native_lib() {
     echo "Copying cairo native runtime library to blockifier crate"
     echo "SEQUENCER_DIR: ${SEQUENCER_DIR}"
     set -x
+    ls /cairo_native/libcairo_native_runtime.a # asdf
     cp /cairo_native/libcairo_native_runtime.a "${SEQUENCER_DIR}/crates/blockifier/libcairo_native_runtime.a"
     { set +x; } 2>/dev/null
 }
@@ -28,7 +29,7 @@ echo "------"
 echo "$SEQUENCER_DIR"
 echo "${SEQUENCER_DIR}"
 echo "------"
-ls $SEQUENCER_DIR
+ls -lsah $SEQUENCER_DIR
 echo "------"
 copy_cairo_native_lib "${SEQUENCER_DIR}"
 
