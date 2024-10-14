@@ -23,13 +23,15 @@ use starknet_types_core::felt::Felt;
 
 use crate::state_reader::compile::{legacy_to_contract_class_v0, sierra_to_contact_class_v1};
 use crate::state_reader::errors::ReexecutionError;
-use crate::state_reader::utils::{
+use crate::state_reader::serde_utils::{
     deserialize_transaction_json_to_starknet_api_tx,
+    hashmap_from_raw,
+    nested_hashmap_from_raw,
+};
+use crate::state_reader::utils::{
     disjoint_hashmap_union,
     get_chain_info,
     get_rpc_state_reader_config,
-    hashmap_from_raw,
-    nested_hashmap_from_raw,
 };
 
 pub type ReexecutionResult<T> = Result<T, ReexecutionError>;
