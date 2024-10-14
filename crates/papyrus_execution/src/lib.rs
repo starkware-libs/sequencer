@@ -81,9 +81,6 @@ use tracing::trace;
 
 use crate::objects::{tx_execution_output_to_fee_estimation, FeeEstimation, PendingData};
 
-const STARKNET_VERSION_O_13_0: &str = "0.13.0";
-const STARKNET_VERSION_O_13_1: &str = "0.13.1";
-const STARKNET_VERSION_O_13_2: &str = "0.13.2";
 /// The address of the STRK fee contract on Starknet.
 pub const STRK_FEE_CONTRACT_ADDRESS: &str =
     "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d";
@@ -865,23 +862,16 @@ fn to_blockifier_tx(
 fn get_versioned_constants(
     starknet_version: Option<&StarknetVersion>,
 ) -> ExecutionResult<&'static VersionedConstants> {
-    let versioned_constants = match starknet_version {
-        Some(starknet_version) => {
-            let version = starknet_version.to_string();
-            let starknet_api_starknet_version = if version == STARKNET_VERSION_O_13_0 {
-                StarknetVersion::V0_13_0
-            } else if version == STARKNET_VERSION_O_13_1 {
-                StarknetVersion::V0_13_1
-            } else if version == STARKNET_VERSION_O_13_2 {
-                StarknetVersion::V0_13_2
-            } else {
-                StarknetVersion::V0_13_3
-            };
-            VersionedConstants::get(&starknet_api_starknet_version)?
-        }
-        None => VersionedConstants::latest_constants(),
-    };
-    Ok(versioned_constants)
+    if let Some(starknet_version) = starknet_version {
+        Ok(match starknet_version {
+            StarknetVersion::V0_13_0 | StarknetVersion::V0_13_1 | StarknetVersion::V0_13_2 => {
+                VersionedConstants::get(&starknet_version)?
+            }
+            _ => VersionedConstants::get(&StarknetVersion::V0_13_3)?,
+        })
+    } else {
+        Ok(VersionedConstants::latest_constants())
+    }
 }
 
 /// Simulates a series of transactions and returns the transaction traces and the fee estimations.
