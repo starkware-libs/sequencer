@@ -287,7 +287,7 @@ async fn simulate_block_builder(
         output_sender.send(tx).unwrap();
     }
 
-    Ok(BlockExecutionArtifacts::default())
+    Ok(BlockExecutionArtifacts::create_for_testing())
 }
 
 // A wrapper trait to allow mocking the BlockBuilderTrait in tests.

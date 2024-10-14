@@ -226,7 +226,7 @@ fn test_bouncer_try_update(#[case] added_ecdsa: usize, #[case] scenario: &'stati
         state_diff_size: 10,
     };
 
-    let mut bouncer = Bouncer { accumulated_weights, bouncer_config, ..Default::default() };
+    let mut bouncer = Bouncer { accumulated_weights, bouncer_config, ..Bouncer::empty() };
 
     // Prepare the resources to be added to the bouncer.
     let execution_summary = ExecutionSummary { ..Default::default() };
@@ -263,7 +263,7 @@ fn test_bouncer_try_update(#[case] added_ecdsa: usize, #[case] scenario: &'stati
     )
     .map_err(TransactionExecutorError::TransactionExecutionError);
     let expected_weights =
-        BouncerWeights { builtin_count: builtin_counter.into(), ..Default::default() };
+        BouncerWeights { builtin_count: builtin_counter.into(), ..BouncerWeights::empty() };
 
     if result.is_ok() {
         // Try to update the bouncer.
