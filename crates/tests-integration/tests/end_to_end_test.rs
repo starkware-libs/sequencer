@@ -25,8 +25,8 @@ async fn test_end_to_end(mut tx_generator: MultiAccountTransactionGenerator) {
     let mock_running_system = IntegrationTestSetup::new_from_tx_generator(&tx_generator).await;
 
     let account0_invoke_nonce1 = tx_generator.account_with_id(0).generate_invoke_with_tip(1);
-    let account0_invoke_nonce2 = tx_generator.account_with_id(0).generate_invoke_with_tip(1);
-    let account1_invoke_nonce1 = tx_generator.account_with_id(1).generate_invoke_with_tip(1);
+    let account0_invoke_nonce2 = tx_generator.account_with_id(0).generate_invoke_with_tip(2);
+    let account1_invoke_nonce1 = tx_generator.account_with_id(1).generate_invoke_with_tip(3);
 
     let account0_invoke_nonce1_tx_hash =
         mock_running_system.assert_add_tx_success(&account0_invoke_nonce1).await;
@@ -41,6 +41,10 @@ async fn test_end_to_end(mut tx_generator: MultiAccountTransactionGenerator) {
     let mempool_txs = mock_running_system.get_txs(4).await;
 
     // Assert.
+    // account1_invoke_nonce1 precedes account0_invoke_nonce1 as its nonce is lower, despite the
+    // higher tip of the latter. account1_invoke_nonce1 precedes account0_invoke_nonce1 as it
+    // offers a higher tip, regardless of the nonce. Hence the expected tx order, regardless of
+    // tx hashes, is: account1_invoke_nonce1, account0_invoke_nonce1, and account0_invoke_nonce2.
     let expected_tx_hashes_from_get_txs = [
         account1_invoke_nonce1_tx_hash,
         account0_invoke_nonce1_tx_hash,
