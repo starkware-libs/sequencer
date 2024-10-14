@@ -1549,12 +1549,11 @@ fn test_revert_in_execute(
 }
 
 #[rstest]
-#[case(true)]
-#[case(false)]
 fn test_call_contract_that_panics(
     mut block_context: BlockContext,
     max_l1_resource_bounds: ValidResourceBounds,
-    #[case] enable_reverts: bool,
+    #[values(true, false)] enable_reverts: bool,
+    #[values("test_revert_helper", "bad_selector")] inner_selector: &str,
 ) {
     // Override enable reverts.
     block_context.versioned_constants.enable_reverts = enable_reverts;
@@ -1570,7 +1569,7 @@ fn test_call_contract_that_panics(
 
     let calldata = [
         *FeatureContract::TestContract(CairoVersion::Cairo1).get_instance_address(0).0.key(),
-        selector_from_name("test_revert_helper").0,
+        selector_from_name(inner_selector).0,
         felt!(1_u8),
         new_class_hash.0,
     ];

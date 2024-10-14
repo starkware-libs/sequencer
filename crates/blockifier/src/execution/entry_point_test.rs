@@ -4,6 +4,7 @@ use cairo_vm::types::builtin_name::BuiltinName;
 use num_bigint::BigInt;
 use pretty_assertions::assert_eq;
 use starknet_api::core::{EntryPointSelector, PatriciaKey};
+use starknet_api::execution_utils::format_panic_data;
 use starknet_api::transaction::{Calldata, Fee};
 use starknet_api::{calldata, felt, storage_key};
 
@@ -164,10 +165,11 @@ fn test_entry_point_not_found_in_contract() {
     let entry_point_selector = EntryPointSelector(felt!(2_u8));
     let entry_point_call =
         CallEntryPoint { entry_point_selector, ..trivial_external_entry_point_new(test_contract) };
-    let error = entry_point_call.execute_directly(&mut state).unwrap_err();
+    let call_info = entry_point_call.execute_directly(&mut state).unwrap();
+    assert!(call_info.execution.failed);
     assert_eq!(
-        format!("Entry point {entry_point_selector:?} not found in contract."),
-        format!("{error}")
+        format_panic_data(&call_info.execution.retdata.0),
+        "0x454e545259504f494e545f4e4f545f464f554e44 ('ENTRYPOINT_NOT_FOUND')"
     );
 }
 
@@ -394,13 +396,6 @@ fn test_syscall_execution_security_failures() {
         security_contract,
         "Expected relocatable",
         "test_bad_syscall_request_arg_type",
-        calldata![],
-    );
-    run_security_test(
-        state,
-        security_contract,
-        "Entry point EntryPointSelector(0x19) not found in contract",
-        "test_bad_call_selector",
         calldata![],
     );
     run_security_test(

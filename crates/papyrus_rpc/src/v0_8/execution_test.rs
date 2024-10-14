@@ -287,7 +287,17 @@ async fn execution_call() {
         .unwrap_err();
 
     const CONTRACT_ERROR_CODE: i32 = 40;
-    assert_matches!(err, Error::Call(err) if err.code() == CONTRACT_ERROR_CODE);
+
+    match err {
+        Error::Call(err) => {
+            assert_eq!(err.code(), CONTRACT_ERROR_CODE);
+            assert_eq!(
+                err.data().unwrap().get(),
+                r##"{"revert_error":"0x454e545259504f494e545f4e4f545f464f554e44 ('ENTRYPOINT_NOT_FOUND')"}"##
+            );
+        }
+        _ => panic!("Expected Error::Call"),
+    }
 
     // Test that the block context is passed correctly to blockifier.
     let mut calldata = get_calldata_for_test_execution_info(

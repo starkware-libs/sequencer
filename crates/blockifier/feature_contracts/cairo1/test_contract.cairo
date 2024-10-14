@@ -106,7 +106,7 @@ mod TestContract {
         syscalls::replace_class_syscall(class_hash).unwrap_syscall();
         syscalls::send_message_to_l1_syscall(17.try_into().unwrap(), dummy_span).unwrap_syscall();
         self.my_storage_var.write(17);
-        panic!("test_revert_helper");
+        panic(array!['test_revert_helper']);
     }
 
     #[external(v0)]
@@ -626,6 +626,12 @@ mod TestContract {
                     *error_span.pop_back().unwrap() == 'ENTRYPOINT_FAILED',
                     'Unexpected error',
                 );
+                let inner_error = *error_span.pop_back().unwrap();
+                if entry_point_selector == selector!("bad_selector") {
+                    assert(inner_error == 'ENTRYPOINT_NOT_FOUND', 'Unexpected error');
+                } else {
+                    assert(inner_error == 'test_revert_helper', 'Unexpected error');
+                }
             },
         };
         // TODO(Yoni, 1/12/2024): test replace class once get_class_hash_at syscall is supported.
