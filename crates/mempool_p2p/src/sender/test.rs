@@ -40,11 +40,11 @@ async fn process_handle_continue_propagation() {
     let BroadcastTopicChannels { broadcasted_messages_receiver: _, broadcast_topic_client } =
         subscriber_channels;
     let BroadcastNetworkMock { mut continue_propagation_receiver, .. } = mock_network;
-    let propagation_manager = BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
+    let propagation_metadata = BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
     let mut mempool_sender = MempoolP2pSender::new(broadcast_topic_client);
     mempool_sender
-        .handle_request(MempoolP2pSenderRequest::ContinuePropagation(propagation_manager.clone()))
+        .handle_request(MempoolP2pSenderRequest::ContinuePropagation(propagation_metadata.clone()))
         .await;
     let message = timeout(TIMEOUT, continue_propagation_receiver.next()).await.unwrap().unwrap();
-    assert_eq!(message, propagation_manager);
+    assert_eq!(message, propagation_metadata);
 }
