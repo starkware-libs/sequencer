@@ -23,19 +23,13 @@ pub fn execute_entry_point_call(
 ) -> EntryPointExecutionResult<CallInfo> {
     let function_id = contract_class.get_entry_point(&call)?;
 
-    let mut syscall_handler: NativeSyscallHandler<'_> = NativeSyscallHandler::new(
-        state,
-        call.caller_address,
-        call.storage_address,
-        call.entry_point_selector,
-        resources,
-        context,
-    );
+    let mut syscall_handler: NativeSyscallHandler<'_> =
+        NativeSyscallHandler::new(call, state, resources, context);
 
     let execution_result = contract_class.executor.invoke_contract_dynamic(
         &function_id,
-        &call.calldata.0,
-        Some(call.initial_gas.into()),
+        &syscall_handler.call.calldata.0.clone(),
+        Some(syscall_handler.call.initial_gas.into()),
         &mut syscall_handler,
     );
 
@@ -52,11 +46,10 @@ pub fn execute_entry_point_call(
         Ok(res) => Ok(res),
     }?;
 
-    create_callinfo(call, call_result, syscall_handler)
+    create_callinfo(call_result, syscall_handler)
 }
 
 fn create_callinfo(
-    call: CallEntryPoint,
     call_result: ContractExecutionResult,
     syscall_handler: NativeSyscallHandler<'_>,
 ) -> Result<CallInfo, EntryPointExecutionError> {
@@ -67,20 +60,21 @@ fn create_callinfo(
                 call_result.remaining_gas
             ),
         })?;
-    if remaining_gas > call.initial_gas {
+
+    if remaining_gas > syscall_handler.call.initial_gas {
         return Err(PostExecutionError::MalformedReturnData {
             error_message: format!(
                 "Unexpected remaining gas. Used gas is greater than initial gas: {} > {}",
-                remaining_gas, call.initial_gas
+                remaining_gas, syscall_handler.call.initial_gas
             ),
         }
         .into());
     }
 
-    let gas_consumed = call.initial_gas - remaining_gas;
+    let gas_consumed = syscall_handler.call.initial_gas - remaining_gas;
 
     Ok(CallInfo {
-        call,
+        call: syscall_handler.call,
         execution: CallExecution {
             retdata: Retdata(call_result.return_values),
             events: syscall_handler.events,
