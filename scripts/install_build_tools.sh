@@ -2,17 +2,9 @@
 
 set -e
 
-ls /home/
-ls /home/runner/
-ls /home/runner/work/
-ls /home/runner/work/sequencer
-ls /home/runner/work/sequencer/sequencer
-ls /home/runner/work/sequencer/sequencer/crates/
-ls /home/runner/work/sequencer/sequencer/crates/blockifier
-
 [[ ${UID} == "0" ]] || SUDO="sudo"
-# Set SEQUENCER_DIR as first argument, or by default the pwd.
-SEQUENCER_DIR=${1:-$(pwd)}
+# Set LIBCAIRO_NATIVE_DIR as first argument, or by default the pwd.
+LIBCAIRO_NATIVE_DIR=${1:-$(pwd)}
 
 function install_common_packages() {
     $SUDO  bash -c '
@@ -62,4 +54,4 @@ install_common_packages
 install_pypy &
 install_rust &
 wait
-./dependencies.sh "$1"
+./dependencies.sh "$LIBCAIRO_NATIVE_DIR"

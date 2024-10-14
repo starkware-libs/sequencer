@@ -13,7 +13,7 @@ RUN echo "%${USERNAME}        ALL=(ALL)       NOPASSWD: ALL" >> /etc/sudoers.d/d
 
 USER ${USERNAME}
 
-WORKDIR /app
+WORKDIR /cairo_native
 
 ENV RUSTUP_HOME=/var/tmp/rust
 ENV CARGO_HOME=${RUSTUP_HOME}
@@ -21,5 +21,8 @@ ENV PATH=$PATH:${RUSTUP_HOME}/bin
 
 COPY install_build_tools.sh .
 COPY dependencies.sh .
+COPY boostrap.sh .
 
-RUN ./install_build_tools.sh "${SEQUENCER_DIR}"
+RUN ./install_build_tools.sh /cairo_native
+
+ENTRYPOINT [ "/cairo_native/boostrap.sh", ${SEQUENCER_DIR} ]

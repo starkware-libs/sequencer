@@ -47,7 +47,7 @@ function setup_llvm_deps() {
 }
 
 function compile_cairo_native_runtime() {
-    SEQUENCER_DIR="$1"
+    TARGET_LIB_DIR="$1"
     # First we need to make sure Cargo exists
     if command -v cargo >/dev/null 2>&1; then
         echo "Rust is already installed with cargo available in PATH."
@@ -71,19 +71,22 @@ function compile_cairo_native_runtime() {
     cargo build -p cairo-native-runtime --release --all-features --quiet
     popd || exit 1
 
-    mv ./cairo_native/target/release/libcairo_native_runtime.a ${SEQUENCER_DIR}/crates/blockifier/libcairo_native_runtime.a
+    mv ./cairo_native/target/release/libcairo_native_runtime.a /home/runner/sequencer/sequencer/crates/blockifier/libcairo_native_runtime.a
+    mv ./cairo_native/target/release/libcairo_native_runtime.a /libcairo_native_runtime.a
+    mv ./cairo_native/target/release/libcairo_native_runtime.a crates/blockifier/libcairo_native_runtime.a
+    mv ./cairo_native/target/release/libcairo_native_runtime.a ${LIBCAIRO_NATIVE_DIR}/libcairo_native_runtime.a
     rm -rf ./cairo_native
 }
 
 function main() {
-    # Set SEQUENCER_DIR as first argument, or by default the pwd.
-    SEQUENCER_DIR=${1:-$(pwd)}
+    # Set LIBCAIRO_NATIVE_DIR as first argument, or by default the pwd.
+    LIBCAIRO_NATIVE_DIR=${1:-$(pwd)}
 
     [ "$(uname)" = "Linux" ] && install_essential_deps_linux
     setup_llvm_deps
     echo "LLVM dependencies installed successfully."
 
-    compile_cairo_native_runtime "$SEQUENCER_DIR"
+    compile_cairo_native_runtime "$LIBCAIRO_NATIVE_DIR"
     echo "Cairo Native runtime compiled successfully."
 }
 
