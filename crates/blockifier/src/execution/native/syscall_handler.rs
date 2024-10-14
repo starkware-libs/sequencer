@@ -17,7 +17,11 @@ use starknet_types_core::felt::Felt;
 use crate::execution::call_info::{CallInfo, OrderedEvent, OrderedL2ToL1Message, Retdata};
 use crate::execution::entry_point::{CallEntryPoint, EntryPointExecutionContext};
 use crate::execution::native::utils::encode_str_as_felts;
-use crate::execution::syscalls::hint_processor::{SyscallCounter, OUT_OF_GAS_ERROR};
+use crate::execution::syscalls::hint_processor::{
+    SyscallCounter,
+    INVALID_INPUT_LENGTH_ERROR,
+    OUT_OF_GAS_ERROR,
+};
 use crate::execution::syscalls::SyscallSelector;
 use crate::state::state_api::State;
 
@@ -219,8 +223,49 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
         todo!("Implement send_message_to_l1 syscall.");
     }
 
-    fn keccak(&mut self, _input: &[u64], _remaining_gas: &mut u128) -> SyscallResult<U256> {
-        todo!("Implement keccak syscall.");
+    fn keccak(&mut self, input: &[u64], remaining_gas: &mut u128) -> SyscallResult<U256> {
+        self.substract_syscall_gas_cost(
+            remaining_gas,
+            SyscallSelector::Keccak,
+            self.context.gas_costs().keccak_gas_cost,
+        )?;
+
+        const KECCAK_FULL_RATE_IN_WORDS: usize = 17;
+
+        let input_length = input.len();
+        let (n_rounds, remainder) = num_integer::div_rem(input_length, KECCAK_FULL_RATE_IN_WORDS);
+
+        if remainder != 0 {
+            // In VM this error is wrapped into `SyscallExecutionError::SyscallError`
+            return Err(vec![Felt::from_hex(INVALID_INPUT_LENGTH_ERROR).unwrap()]);
+        }
+
+        // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion
+        // works.
+        let n_rounds_as_u128 = u128::try_from(n_rounds).expect("Failed to convert usize to u128.");
+        let gas_cost =
+            n_rounds_as_u128 * u128::from(self.context.gas_costs().keccak_round_cost_gas_cost);
+
+        if gas_cost > *remaining_gas {
+            // In VM this error is wrapped into `SyscallExecutionError::SyscallError`
+            return Err(vec![Felt::from_hex(OUT_OF_GAS_ERROR).unwrap()]);
+        }
+        *remaining_gas -= gas_cost;
+
+        self.increment_syscall_count_by(&SyscallSelector::Keccak, n_rounds);
+
+        let mut state = [0u64; 25];
+        for chunk in input.chunks(KECCAK_FULL_RATE_IN_WORDS) {
+            for (i, val) in chunk.iter().enumerate() {
+                state[i] ^= val;
+            }
+            keccak::f1600(&mut state)
+        }
+
+        Ok(U256 {
+            hi: u128::from(state[2]) | (u128::from(state[3]) << 64),
+            lo: u128::from(state[0]) | (u128::from(state[1]) << 64),
+        })
     }
 
     fn secp256k1_new(
