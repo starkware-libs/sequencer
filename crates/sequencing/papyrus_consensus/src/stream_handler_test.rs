@@ -16,7 +16,7 @@ use super::StreamHandler;
 mod tests {
     use std::time::Duration;
 
-    use papyrus_network_types::network_types::BroadcastedMessageManager;
+    use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 
     use super::*;
 
@@ -45,7 +45,7 @@ mod tests {
         msg: StreamMessage<ConsensusMessage>,
     ) {
         let broadcasted_message_manager =
-            BroadcastedMessageManager::get_test_instance(&mut get_rng());
+            BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
         sender.send((msg, broadcasted_message_manager)).await.unwrap();
     }
 

@@ -12,7 +12,7 @@ use papyrus_network::network_manager::test_utils::{
     MockBroadcastedMessagesSender,
     TestSubscriberChannels,
 };
-use papyrus_network_types::network_types::BroadcastedMessageManager;
+use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_protobuf::consensus::{ConsensusMessage, Vote};
 use papyrus_test_utils::{get_rng, GetTestInstance};
 use starknet_api::block::{BlockHash, BlockNumber};
@@ -86,7 +86,7 @@ mock! {
 }
 
 async fn send(sender: &mut MockBroadcastedMessagesSender<ConsensusMessage>, msg: ConsensusMessage) {
-    let broadcasted_message_manager = BroadcastedMessageManager::get_test_instance(&mut get_rng());
+    let broadcasted_message_manager = BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
     sender.send((msg, broadcasted_message_manager)).await.unwrap();
 }
 

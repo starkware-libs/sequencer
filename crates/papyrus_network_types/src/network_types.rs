@@ -2,9 +2,8 @@ use libp2p::PeerId;
 use serde::{Deserialize, Serialize};
 
 // TODO(alonl): remove clone
-// TODO(shahak): rename to BroadcastedMessageMetadata
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash)]
-pub struct BroadcastedMessageManager {
+pub struct BroadcastedMessageMetadata {
     pub originator_id: OpaquePeerId,
 }
 

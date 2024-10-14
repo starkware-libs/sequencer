@@ -21,7 +21,7 @@ use libp2p::swarm::SwarmEvent;
 use libp2p::{Multiaddr, PeerId, StreamProtocol, Swarm};
 use metrics::gauge;
 use papyrus_common::metrics as papyrus_metrics;
-use papyrus_network_types::network_types::{BroadcastedMessageManager, OpaquePeerId};
+use papyrus_network_types::network_types::{BroadcastedMessageMetadata, OpaquePeerId};
 use sqmr::Bytes;
 use tracing::{debug, error, info, trace, warn};
 
@@ -55,13 +55,13 @@ pub struct GenericNetworkManager<SwarmT: SwarmTrait> {
     // receivers simultaneously.
     // Each receiver has a matching sender and vice versa (i.e the maps have the same keys).
     messages_to_broadcast_receivers: StreamHashMap<TopicHash, Receiver<Bytes>>,
-    broadcasted_messages_senders: HashMap<TopicHash, Sender<(Bytes, BroadcastedMessageManager)>>,
+    broadcasted_messages_senders: HashMap<TopicHash, Sender<(Bytes, BroadcastedMessageMetadata)>>,
     reported_peer_receivers: FuturesUnordered<BoxFuture<'static, Option<PeerId>>>,
     advertised_multiaddr: Option<Multiaddr>,
     reported_peers_receiver: Receiver<PeerId>,
     reported_peers_sender: Sender<PeerId>,
-    continue_propagation_sender: Sender<BroadcastedMessageManager>,
-    continue_propagation_receiver: Receiver<BroadcastedMessageManager>,
+    continue_propagation_sender: Sender<BroadcastedMessageMetadata>,
+    continue_propagation_receiver: Receiver<BroadcastedMessageMetadata>,
     // Fields for metrics
     num_active_inbound_sessions: usize,
     num_active_outbound_sessions: usize,
@@ -233,7 +233,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             messages_to_broadcast_sender.with(messages_to_broadcast_fn);
 
         let reported_messages_fn: fn(
-            BroadcastedMessageManager,
+            BroadcastedMessageMetadata,
         ) -> Ready<Result<PeerId, SendError>> = |broadcasted_message_manager| {
             ready(Ok(broadcasted_message_manager.originator_id.private_get_peer_id()))
         };
@@ -484,7 +484,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     fn handle_gossipsub_behaviour_event(&mut self, event: gossipsub_impl::ExternalEvent) {
         let gossipsub_impl::ExternalEvent::Received { originated_peer_id, message, topic_hash } =
             event;
-        let broadcasted_message_manager = BroadcastedMessageManager {
+        let broadcasted_message_manager = BroadcastedMessageMetadata {
             originator_id: OpaquePeerId::private_new(originated_peer_id),
         };
         let Some(sender) = self.broadcasted_messages_senders.get_mut(&topic_hash) else {
@@ -844,27 +844,27 @@ pub trait BroadcastTopicClientTrait<T> {
     async fn broadcast_message(&mut self, message: T) -> Result<(), SendError>;
     async fn report_peer(
         &mut self,
-        broadcasted_message_manager: BroadcastedMessageManager,
+        broadcasted_message_manager: BroadcastedMessageMetadata,
     ) -> Result<(), SendError>;
     async fn continue_propagation(
         &mut self,
-        broadcasted_message_manager: &BroadcastedMessageManager,
+        broadcasted_message_manager: &BroadcastedMessageMetadata,
     ) -> Result<(), SendError>;
 }
 
 #[derive(Clone)]
 pub struct BroadcastTopicClient<T: TryFrom<Bytes>> {
     messages_to_broadcast_sender: BroadcastTopicSender<T, Bytes>,
-    reported_messages_sender: BroadcastTopicSender<BroadcastedMessageManager, PeerId>,
-    continue_propagation_sender: Sender<BroadcastedMessageManager>,
+    reported_messages_sender: BroadcastTopicSender<BroadcastedMessageMetadata, PeerId>,
+    continue_propagation_sender: Sender<BroadcastedMessageMetadata>,
 }
 
 impl<T: TryFrom<Bytes>> BroadcastTopicClient<T> {
     // TODO(matan): Remove once consensus_manager no longer needs to build fake channels.
     pub fn new(
         messages_to_broadcast_sender: BroadcastTopicSender<T, Bytes>,
-        reported_messages_sender: BroadcastTopicSender<BroadcastedMessageManager, PeerId>,
-        continue_propagation_sender: Sender<BroadcastedMessageManager>,
+        reported_messages_sender: BroadcastTopicSender<BroadcastedMessageMetadata, PeerId>,
+        continue_propagation_sender: Sender<BroadcastedMessageMetadata>,
     ) -> Self {
         BroadcastTopicClient {
             messages_to_broadcast_sender,
@@ -882,14 +882,14 @@ impl<T: TryFrom<Bytes> + Send> BroadcastTopicClientTrait<T> for BroadcastTopicCl
 
     async fn report_peer(
         &mut self,
-        broadcasted_message_manager: BroadcastedMessageManager,
+        broadcasted_message_manager: BroadcastedMessageMetadata,
     ) -> Result<(), SendError> {
         self.reported_messages_sender.send(broadcasted_message_manager).await
     }
 
     async fn continue_propagation(
         &mut self,
-        broadcasted_message_manager: &BroadcastedMessageManager,
+        broadcasted_message_manager: &BroadcastedMessageMetadata,
     ) -> Result<(), SendError> {
         self.continue_propagation_sender.send(broadcasted_message_manager.clone()).await
     }
@@ -904,13 +904,13 @@ pub type BroadcastTopicSender<T, Message> = With<
 >;
 
 pub type BroadcastTopicServer<T> =
-    Map<Receiver<(Bytes, BroadcastedMessageManager)>, BroadcastReceivedMessagesConverterFn<T>>;
+    Map<Receiver<(Bytes, BroadcastedMessageMetadata)>, BroadcastReceivedMessagesConverterFn<T>>;
 
 type ReceivedBroadcastedMessage<Message> =
-    (Result<Message, <Message as TryFrom<Bytes>>::Error>, BroadcastedMessageManager);
+    (Result<Message, <Message as TryFrom<Bytes>>::Error>, BroadcastedMessageMetadata);
 
 type BroadcastReceivedMessagesConverterFn<T> =
-    fn((Bytes, BroadcastedMessageManager)) -> ReceivedBroadcastedMessage<T>;
+    fn((Bytes, BroadcastedMessageMetadata)) -> ReceivedBroadcastedMessage<T>;
 
 pub struct BroadcastTopicChannels<T: TryFrom<Bytes>> {
     pub broadcasted_messages_receiver: BroadcastTopicServer<T>,

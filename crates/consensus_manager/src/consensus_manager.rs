@@ -9,7 +9,7 @@ use libp2p::PeerId;
 use papyrus_consensus::types::{BroadcastConsensusMessageChannel, ConsensusError};
 use papyrus_consensus_orchestrator::sequencer_consensus_context::SequencerConsensusContext;
 use papyrus_network::network_manager::BroadcastTopicClient;
-use papyrus_network_types::network_types::BroadcastedMessageManager;
+use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_protobuf::consensus::ConsensusMessage;
 use starknet_batcher_types::communication::SharedBatcherClient;
 use starknet_mempool_infra::component_definitions::ComponentStarter;
@@ -58,7 +58,7 @@ fn create_fake_network_channels() -> BroadcastConsensusMessageChannel {
     let messages_to_broadcast_fn: fn(ConsensusMessage) -> Ready<Result<Vec<u8>, SendError>> =
         |_| todo!("messages_to_broadcast_sender should not be used");
     let reported_messages_sender_fn: fn(
-        BroadcastedMessageManager,
+        BroadcastedMessageMetadata,
     ) -> Ready<Result<PeerId, SendError>> =
         |_| todo!("messages_to_broadcast_sender should not be used");
     let broadcast_topic_client = BroadcastTopicClient::new(
