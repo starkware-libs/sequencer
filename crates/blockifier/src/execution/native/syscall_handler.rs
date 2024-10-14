@@ -11,7 +11,7 @@ use cairo_native::starknet::{
     U256,
 };
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
-use starknet_api::core::{ContractAddress, EntryPointSelector};
+use starknet_api::core::ContractAddress;
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
@@ -45,18 +45,16 @@ pub struct NativeSyscallHandler<'state> {
 
 impl<'state> NativeSyscallHandler<'state> {
     pub fn new(
+        call: &CallEntryPoint,
         state: &'state mut dyn State,
-        caller_address: ContractAddress,
-        contract_address: ContractAddress,
-        entry_point_selector: EntryPointSelector,
         resources: &'state mut ExecutionResources,
         context: &'state mut EntryPointExecutionContext,
     ) -> NativeSyscallHandler<'state> {
         NativeSyscallHandler {
             state,
-            caller_address,
-            contract_address,
-            entry_point_selector: entry_point_selector.0,
+            caller_address: call.caller_address,
+            contract_address: call.storage_address,
+            entry_point_selector: call.entry_point_selector.0,
             resources,
             context,
             events: Vec::new(),

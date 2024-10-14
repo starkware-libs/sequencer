@@ -25,14 +25,8 @@ pub fn execute_entry_point_call(
 ) -> EntryPointExecutionResult<CallInfo> {
     let function_id = contract_class.get_entry_point(&call)?;
 
-    let syscall_handler: NativeSyscallHandler<'_> = NativeSyscallHandler::new(
-        state,
-        call.caller_address,
-        call.storage_address,
-        call.entry_point_selector,
-        resources,
-        context,
-    );
+    let syscall_handler: NativeSyscallHandler<'_> =
+        NativeSyscallHandler::new(&call, state, resources, context);
 
     run_native_executor(&contract_class.executor, function_id, call, syscall_handler)
 }
