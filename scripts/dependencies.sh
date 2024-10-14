@@ -70,7 +70,7 @@ function compile_cairo_native_runtime() {
     cargo build -p cairo-native-runtime --release --all-features --quiet
     popd || exit 1
 
-    mv ./cairo_native/target/release/libcairo_native_runtime.a ./libcairo_native_runtime.so
+    mv ./cairo_native/target/release/libcairo_native_runtime.a ./libcairo_native_runtime.a
     rm -rf ./cairo_native
 }
 
