@@ -1,5 +1,4 @@
 use starknet_api::execution_utils::format_panic_data;
-use starknet_api::transaction::Calldata;
 use starknet_api::{calldata, felt};
 use test_case::test_case;
 
