@@ -5,6 +5,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::transaction::TransactionHash;
 use starknet_batcher_types::batcher_types::{
     BuildProposalInput,
+    DecisionReachedInput,
     GetProposalContent,
     GetProposalContentInput,
     ProposalId,
@@ -104,6 +105,8 @@ pub async fn run_consensus_for_end_to_end_test(
             }
         }
     };
+
+    batcher_client.decision_reached(DecisionReachedInput { proposal_id }).await.unwrap();
 
     // Assert.
     assert_eq!(expected_batched_tx_hashes, executed_tx_hashes);
