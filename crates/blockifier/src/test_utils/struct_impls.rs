@@ -16,6 +16,7 @@ use crate::blockifier::block::{BlockInfo, BlockNumberHashPair, GasPrices};
 use crate::bouncer::{BouncerConfig, BouncerWeights, BuiltinCount};
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
+use crate::execution::common_hints::ExecutionMode;
 use crate::execution::contract_class::{ContractClassV0, ContractClassV1};
 use crate::execution::entry_point::{
     CallEntryPoint,
@@ -50,8 +51,10 @@ impl CallEntryPoint {
     pub fn execute_directly(self, state: &mut dyn State) -> EntryPointExecutionResult<CallInfo> {
         self.execute_directly_given_tx_info(
             state,
+            // TODO(Yoni, 1/12/2024): change the default to V3.
             TransactionInfo::Deprecated(DeprecatedTransactionInfo::default()),
             true,
+            ExecutionMode::Execute,
         )
     }
 
@@ -60,12 +63,22 @@ impl CallEntryPoint {
         state: &mut dyn State,
         tx_info: TransactionInfo,
         limit_steps_by_resources: bool,
+        execution_mode: ExecutionMode,
     ) -> EntryPointExecutionResult<CallInfo> {
         let tx_context =
             TransactionContext { block_context: BlockContext::create_for_testing(), tx_info };
-        let mut context =
-            EntryPointExecutionContext::new_invoke(Arc::new(tx_context), limit_steps_by_resources);
-        self.execute(state, &mut ExecutionResources::default(), &mut context)
+        let mut context = match execution_mode {
+            ExecutionMode::Execute => EntryPointExecutionContext::new_invoke(
+                Arc::new(tx_context),
+                limit_steps_by_resources,
+            ),
+            ExecutionMode::Validate => EntryPointExecutionContext::new_validate(
+                Arc::new(tx_context),
+                limit_steps_by_resources,
+            ),
+        };
+        let mut remaining_gas = self.initial_gas;
+        self.execute(state, &mut ExecutionResources::default(), &mut context, &mut remaining_gas)
     }
 
     /// Executes the call directly in validate mode, without account context. Limits the number of
@@ -74,26 +87,12 @@ impl CallEntryPoint {
         self,
         state: &mut dyn State,
     ) -> EntryPointExecutionResult<CallInfo> {
-        self.execute_directly_given_tx_info_in_validate_mode(
+        self.execute_directly_given_tx_info(
             state,
             TransactionInfo::Deprecated(DeprecatedTransactionInfo::default()),
             true,
+            ExecutionMode::Validate,
         )
-    }
-
-    pub fn execute_directly_given_tx_info_in_validate_mode(
-        self,
-        state: &mut dyn State,
-        tx_info: TransactionInfo,
-        limit_steps_by_resources: bool,
-    ) -> EntryPointExecutionResult<CallInfo> {
-        let tx_context =
-            TransactionContext { block_context: BlockContext::create_for_testing(), tx_info };
-        let mut context = EntryPointExecutionContext::new_validate(
-            Arc::new(tx_context),
-            limit_steps_by_resources,
-        );
-        self.execute(state, &mut ExecutionResources::default(), &mut context)
     }
 }
 

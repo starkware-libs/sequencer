@@ -25,7 +25,7 @@ use crate::execution::entry_point::{
     ConstructorContext,
     EntryPointExecutionContext,
 };
-use crate::execution::execution_utils::{execute_deployment, update_remaining_gas};
+use crate::execution::execution_utils::execute_deployment;
 use crate::state::cached_state::TransactionalState;
 use crate::state::errors::StateError;
 use crate::state::state_api::{State, UpdatableState};
@@ -399,9 +399,8 @@ impl<S: State> Executable<S> for DeployAccountTransaction {
             context,
             ctor_context,
             self.constructor_calldata(),
-            *remaining_gas,
+            remaining_gas,
         )?;
-        update_remaining_gas(remaining_gas, &call_info);
 
         Ok(Some(call_info))
     }
@@ -511,16 +510,14 @@ impl<S: State> Executable<S> for InvokeTransaction {
             initial_gas: *remaining_gas,
         };
 
-        let call_info =
-            execute_call.non_reverting_execute(state, resources, context).map_err(|error| {
-                TransactionExecutionError::ExecutionError {
-                    error,
-                    class_hash,
-                    storage_address,
-                    selector: entry_point_selector,
-                }
+        let call_info = execute_call
+            .non_reverting_execute(state, resources, context, remaining_gas)
+            .map_err(|error| TransactionExecutionError::ExecutionError {
+                error,
+                class_hash,
+                storage_address,
+                selector: entry_point_selector,
             })?;
-        update_remaining_gas(remaining_gas, &call_info);
 
         Ok(Some(call_info))
     }
@@ -613,14 +610,15 @@ impl<S: State> Executable<S> for L1HandlerTransaction {
             initial_gas: *remaining_gas,
         };
 
-        execute_call.non_reverting_execute(state, resources, context).map(Some).map_err(|error| {
-            TransactionExecutionError::ExecutionError {
+        execute_call
+            .non_reverting_execute(state, resources, context, remaining_gas)
+            .map(Some)
+            .map_err(|error| TransactionExecutionError::ExecutionError {
                 error,
                 class_hash,
                 storage_address,
                 selector,
-            }
-        })
+            })
     }
 }
 

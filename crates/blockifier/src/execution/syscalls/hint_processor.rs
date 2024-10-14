@@ -30,7 +30,6 @@ use crate::execution::execution_utils::{
     felt_from_ptr,
     felt_range_from_ptr,
     max_fee_for_execution_info,
-    update_remaining_gas,
     write_maybe_relocatable,
     ReadOnlySegment,
     ReadOnlySegments,
@@ -793,12 +792,14 @@ pub fn execute_inner_call(
 ) -> SyscallResult<ReadOnlySegment> {
     let revert_idx = syscall_handler.context.revert_infos.0.len();
 
-    let call_info =
-        call.execute(syscall_handler.state, syscall_handler.resources, syscall_handler.context)?;
+    let call_info = call.execute(
+        syscall_handler.state,
+        syscall_handler.resources,
+        syscall_handler.context,
+        remaining_gas,
+    )?;
 
     let mut raw_retdata = call_info.execution.retdata.0.clone();
-    update_remaining_gas(remaining_gas, &call_info);
-
     let failed = call_info.execution.failed;
     syscall_handler.inner_calls.push(call_info);
     if failed {
@@ -856,6 +857,7 @@ pub fn execute_library_call(
         storage_address: syscall_handler.storage_address(),
         caller_address: syscall_handler.caller_address(),
         call_type: CallType::Delegate,
+        // TODO(Yoni): make the initial_gas None, and set it inside EntryPointCall.execute().
         initial_gas: *remaining_gas,
     };
 
