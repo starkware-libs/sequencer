@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, HashMap};
 use futures::channel::mpsc;
 use futures::StreamExt;
 use papyrus_network::network_manager::BroadcastTopicServer;
-use papyrus_network_types::network_types::{BroadcastedMessageManager, OpaquePeerId};
+use papyrus_network_types::network_types::{BroadcastedMessageMetadata, OpaquePeerId};
 use papyrus_protobuf::consensus::{StreamMessage, StreamMessageBody};
 use papyrus_protobuf::converters::ProtobufConversionError;
 use tracing::{instrument, warn};
@@ -19,10 +19,6 @@ type MessageId = u64;
 type StreamKey = (PeerId, u64);
 
 const CHANNEL_BUFFER_LENGTH: usize = 100;
-
-fn get_metadata_peer_id(metadata: BroadcastedMessageManager) -> PeerId {
-    metadata.originator_id
-}
 
 #[derive(Debug, Clone)]
 struct StreamData<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> {
@@ -96,7 +92,7 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
     #[instrument(skip_all, level = "warn")]
     fn handle_message(
         &mut self,
-        message: (Result<StreamMessage<T>, ProtobufConversionError>, BroadcastedMessageManager),
+        message: (Result<StreamMessage<T>, ProtobufConversionError>, BroadcastedMessageMetadata),
     ) {
         let (message, metadata) = message;
         let message = match message {
@@ -106,7 +102,7 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
                 return;
             }
         };
-        let peer_id = get_metadata_peer_id(metadata);
+        let peer_id = metadata.originator_id;
         let stream_id = message.stream_id;
         let key = (peer_id, stream_id);
         let message_id = message.message_id;

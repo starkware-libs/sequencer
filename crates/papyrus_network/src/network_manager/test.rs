@@ -204,7 +204,7 @@ impl SwarmTrait for MockSwarm {
     }
 
     // TODO (shahak): Add test for continue propagation.
-    fn continue_propagation(&mut self, _message_manager: super::BroadcastedMessageManager) {
+    fn continue_propagation(&mut self, _message_metadata: super::BroadcastedMessageMetadata) {
         unimplemented!()
     }
 }
@@ -370,9 +370,9 @@ async fn receive_broadcasted_message_and_report_it() {
         // running while we call report_callback.
         reported_peer_result = tokio::time::timeout(TIMEOUT, async {
             let result = broadcasted_messages_receiver.next().await;
-            let (message_result, broadcasted_message_manager) = result.unwrap();
+            let (message_result, broadcasted_message_metadata) = result.unwrap();
             assert_eq!(message, message_result.unwrap());
-            broadcast_topic_client.report_peer(broadcasted_message_manager).await.unwrap();
+            broadcast_topic_client.report_peer(broadcasted_message_metadata).await.unwrap();
             reported_peer_receiver.next().await
         }) => {
             assert_eq!(originated_peer_id, reported_peer_result.unwrap().unwrap());

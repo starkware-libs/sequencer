@@ -12,7 +12,7 @@ use papyrus_network::network_manager::test_utils::{
 };
 use papyrus_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use papyrus_network::NetworkConfig;
-use papyrus_network_types::network_types::BroadcastedMessageManager;
+use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_protobuf::mempool::RpcTransactionWrapper;
 use papyrus_test_utils::{get_rng, GetTestInstance};
 use starknet_api::rpc_transaction::RpcTransaction;
@@ -58,13 +58,13 @@ async fn start_component_receive_tx_happy_flow() {
         broadcast_topic_client,
         mock_gateway_client,
     );
-    let broadcasted_message_manager = BroadcastedMessageManager::get_test_instance(&mut get_rng());
+    let message_metadata = BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
     let expected_rpc_transaction =
         RpcTransactionWrapper(RpcTransaction::get_test_instance(&mut get_rng()));
 
     // Sending the expected transaction to the mempool receiver
-    let res = mock_broadcasted_messages_sender
-        .send((expected_rpc_transaction.clone(), broadcasted_message_manager));
+    let res =
+        mock_broadcasted_messages_sender.send((expected_rpc_transaction.clone(), message_metadata));
 
     res.await.expect("Failed to send message");
     tokio::select! {

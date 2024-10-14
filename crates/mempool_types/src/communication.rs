@@ -3,7 +3,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use mockall::predicate::*;
 use mockall::*;
-use papyrus_network_types::network_types::BroadcastedMessageManager;
+use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_proc_macros::handle_response_variants;
 use serde::{Deserialize, Serialize};
 use starknet_api::executable_transaction::Transaction;
@@ -29,7 +29,7 @@ pub type SharedMempoolClient = Arc<dyn MempoolClient>;
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct AddTransactionArgsWrapper {
     pub args: AddTransactionArgs,
-    pub p2p_message_metadata: Option<BroadcastedMessageManager>,
+    pub p2p_message_metadata: Option<BroadcastedMessageMetadata>,
 }
 
 /// Serves as the mempool's shared interface. Requires `Send + Sync` to allow transferring and
@@ -37,7 +37,7 @@ pub struct AddTransactionArgsWrapper {
 #[automock]
 #[async_trait]
 pub trait MempoolClient: Send + Sync {
-    // TODO: Add Option<BroadcastedMessageManager> as an argument for add_transaction
+    // TODO: Add Option<BroadcastedMessageMetadata> as an argument for add_transaction
     // TODO: Rename tx to transaction
     async fn add_tx(&self, args: AddTransactionArgsWrapper) -> MempoolClientResult<()>;
     async fn commit_block(&self, args: CommitBlockArgs) -> MempoolClientResult<()>;

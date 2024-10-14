@@ -1,9 +1,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-// TODO(Shahak): Create a papyrus_network_types crate and move BroadcastedMessageManager to
-// there.
-use papyrus_network_types::network_types::BroadcastedMessageManager;
+use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_proc_macros::handle_response_variants;
 use serde::{Deserialize, Serialize};
 use starknet_api::rpc_transaction::RpcTransaction;
@@ -26,7 +24,7 @@ pub trait MempoolP2pSenderClient: Send + Sync {
     /// Continues the propagation of a transaction we've received from another peer.
     async fn continue_propagation(
         &self,
-        propagation_manager: BroadcastedMessageManager,
+        propagation_metadata: BroadcastedMessageMetadata,
     ) -> MempoolP2pSenderClientResult<()>;
 }
 
@@ -39,7 +37,7 @@ pub type MempoolP2pSenderClientResult<T> = Result<T, MempoolP2pSenderClientError
 #[derive(Debug, Serialize, Deserialize)]
 pub enum MempoolP2pSenderRequest {
     AddTransaction(RpcTransaction),
-    ContinuePropagation(BroadcastedMessageManager),
+    ContinuePropagation(BroadcastedMessageMetadata),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -74,9 +72,9 @@ impl MempoolP2pSenderClient for LocalMempoolP2pSenderClient {
 
     async fn continue_propagation(
         &self,
-        propagation_manager: BroadcastedMessageManager,
+        propagation_metadata: BroadcastedMessageMetadata,
     ) -> MempoolP2pSenderClientResult<()> {
-        let request = MempoolP2pSenderRequest::ContinuePropagation(propagation_manager);
+        let request = MempoolP2pSenderRequest::ContinuePropagation(propagation_metadata);
         let response = self.send(request).await;
         handle_response_variants!(
             MempoolP2pSenderResponse,

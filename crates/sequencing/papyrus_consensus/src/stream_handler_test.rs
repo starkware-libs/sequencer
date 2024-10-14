@@ -12,12 +12,12 @@ use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{ConsensusMessage, Proposal, StreamMessage, StreamMessageBody};
 use papyrus_test_utils::{get_rng, GetTestInstance};
 
-use super::{get_metadata_peer_id, StreamHandler};
+use super::StreamHandler;
 
 #[cfg(test)]
 mod tests {
 
-    use papyrus_network_types::network_types::BroadcastedMessageManager;
+    use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 
     use super::*;
 
@@ -41,7 +41,7 @@ mod tests {
 
     async fn send(
         sender: &mut MockBroadcastedMessagesSender<StreamMessage<ConsensusMessage>>,
-        metadata: &BroadcastedMessageManager,
+        metadata: &BroadcastedMessageMetadata,
         msg: StreamMessage<ConsensusMessage>,
     ) {
         sender.send((msg, metadata.clone())).await.unwrap();
@@ -51,7 +51,7 @@ mod tests {
         StreamHandler<ConsensusMessage>,
         MockBroadcastedMessagesSender<StreamMessage<ConsensusMessage>>,
         mpsc::Receiver<mpsc::Receiver<ConsensusMessage>>,
-        BroadcastedMessageManager,
+        BroadcastedMessageMetadata,
     ) {
         let TestSubscriberChannels { mock_network, subscriber_channels } =
             mock_register_broadcast_topic().unwrap();
@@ -63,10 +63,10 @@ mod tests {
         let (tx_output, rx_output) = mpsc::channel::<mpsc::Receiver<ConsensusMessage>>(100);
         let handler = StreamHandler::new(tx_output, broadcasted_messages_receiver);
 
-        let broadcasted_message_manager =
-            BroadcastedMessageManager::get_test_instance(&mut get_rng());
+        let broadcasted_message_metadata =
+            BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
 
-        (handler, network_sender, rx_output, broadcasted_message_manager)
+        (handler, network_sender, rx_output, broadcasted_message_metadata)
     }
 
     #[tokio::test]
@@ -97,7 +97,7 @@ mod tests {
     #[tokio::test]
     async fn stream_handler_in_reverse() {
         let (mut stream_handler, mut network_sender, mut rx_output, metadata) = setup_test();
-        let peer_id = get_metadata_peer_id(metadata.clone());
+        let peer_id = metadata.originator_id.clone();
         let stream_id = 127;
 
         for i in 0..5 {
@@ -149,7 +149,7 @@ mod tests {
     #[tokio::test]
     async fn stream_handler_multiple_streams() {
         let (mut stream_handler, mut network_sender, mut rx_output, metadata) = setup_test();
-        let peer_id = get_metadata_peer_id(metadata.clone());
+        let peer_id = metadata.originator_id.clone();
 
         let stream_id1 = 127; // Send all messages in order (except the first one).
         let stream_id2 = 10; // Send in reverse order (except the first one).
