@@ -111,7 +111,6 @@ pub fn cairo1_compile(
     git_tag_override: Option<String>,
     cargo_nightly_arg: Option<String>,
 ) -> Vec<u8> {
-    prepare_cairo1_compiler_deps(git_tag_override);
     let cairo1_compiler_path = local_cairo1_compiler_repo_path();
 
     // Command args common to both compilation phases.
@@ -121,18 +120,14 @@ pub fn cairo1_compile(
         "--bin".into(),
     ];
     // Add additional cargo arg if provided. Should be first arg (base command is `cargo`).
-    if let Some(nightly_version) = cargo_nightly_arg {
+    if let Some(ref nightly_version) = cargo_nightly_arg {
         base_compile_args.insert(0, format!("+nightly-{nightly_version}"));
     }
 
-    // Cairo -> Sierra.
-    let mut starknet_compile_commmand = Command::new("cargo");
-    starknet_compile_commmand.args(base_compile_args.clone());
-    starknet_compile_commmand.args(["starknet-compile", "--", "--single-file", &path]);
-    let sierra_output = run_and_verify_output(&mut starknet_compile_commmand);
+    let sierra_output = starknet_compile(path, git_tag_override, cargo_nightly_arg);
 
     let mut temp_file = NamedTempFile::new().unwrap();
-    temp_file.write_all(&sierra_output.stdout).unwrap();
+    temp_file.write_all(&sierra_output).unwrap();
     let temp_path_str = temp_file.into_temp_path();
 
     // Sierra -> CASM.
@@ -144,7 +139,7 @@ pub fn cairo1_compile(
     casm_output.stdout
 }
 
-pub fn sierra_compile(
+pub fn starknet_compile(
     path: String,
     git_tag_override: Option<String>,
     cargo_nightly_arg: Option<String>,
