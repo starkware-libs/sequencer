@@ -5,6 +5,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::transaction::TransactionHash;
 use starknet_batcher_types::batcher_types::{
     BuildProposalInput,
+    DecisionReachedInput,
     GetProposalContent,
     GetProposalContentInput,
     ProposalId,
@@ -49,21 +50,14 @@ pub async fn run_consensus_for_end_to_end_test(
     batcher_client: &SharedBatcherClient,
     expected_batched_tx_hashes: &[TransactionHash],
 ) {
-    // Setup. Holds the state of the consensus manager.
-
-    // Set start height.
+    // Start height.
     // TODO(Arni): Get the current height and retrospective_block_hash from the rpc storage
     let current_height = BlockNumber(1);
-
-    // Test.
-
-    // Start height.
     batcher_client.start_height(StartHeightInput { height: current_height }).await.unwrap();
 
     // Build proposal.
     let proposal_id = ProposalId(0);
     let retrospective_block_hash = None;
-
     let build_proposal_duaration = chrono::TimeDelta::new(1, 0).unwrap();
     batcher_client
         .build_proposal(BuildProposalInput {
@@ -90,6 +84,9 @@ pub async fn run_consensus_for_end_to_end_test(
             }
         }
     };
+
+    // Decision reached.
+    batcher_client.decision_reached(DecisionReachedInput { proposal_id }).await.unwrap();
 
     assert_eq!(expected_batched_tx_hashes, executed_tx_hashes);
 }
