@@ -67,6 +67,7 @@ fn fee_transfer_resources(
         caller_address: account_contract_address,
         ..Default::default()
     };
+    let mut remaining_gas = fee_transfer_call.initial_gas;
     fee_transfer_call
         .execute(
             state,
@@ -76,6 +77,7 @@ fn fee_transfer_resources(
                 ExecutionMode::Execute,
                 false,
             ),
+            &mut remaining_gas,
         )
         .unwrap()
         .resources

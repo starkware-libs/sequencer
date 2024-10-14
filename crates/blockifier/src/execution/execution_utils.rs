@@ -49,6 +49,7 @@ pub fn execute_entry_point_call_wrapper(
     state: &mut dyn State,
     resources: &mut ExecutionResources,
     context: &mut EntryPointExecutionContext,
+    remaining_gas: &mut u64,
 ) -> EntryPointExecutionResult<CallInfo> {
     let tracked_resource = contract_class
         .tracked_resource(&context.versioned_constants().min_compiler_version_for_sierra_gas);
@@ -64,6 +65,11 @@ pub fn execute_entry_point_call_wrapper(
 
     let res = execute_entry_point_call(call, contract_class, state, resources, context);
     context.tracked_resource_stack.pop();
+
+    if let Ok(call_info) = &res {
+        update_remaining_gas(remaining_gas, call_info);
+    }
+
     res
 }
 
@@ -241,7 +247,7 @@ pub fn execute_deployment(
     context: &mut EntryPointExecutionContext,
     ctor_context: ConstructorContext,
     constructor_calldata: Calldata,
-    remaining_gas: u64,
+    remaining_gas: &mut u64,
 ) -> ConstructorEntryPointExecutionResult<CallInfo> {
     // Address allocation in the state is done before calling the constructor, so that it is
     // visible from it.
