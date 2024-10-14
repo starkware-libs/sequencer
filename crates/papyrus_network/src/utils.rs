@@ -66,6 +66,11 @@ impl<K: Unpin + Clone + Eq + Hash, V: Stream + Unpin> Stream for StreamHashMap<K
         }
         HashMap::retain(&mut unpinned_self.map, |key, _| !finished_streams.contains(key));
         unpinned_self.wakers_waiting_for_new_stream.push(cx.waker().clone());
+        // Poll::Pending
+        // Below is a hack. I've added this so that my code manages to know that
+        // one of the channels has been closed. But I'm waiting for Shahak to implement
+        // a better solution. Once that is in, my StreamHandler will be able to update
+        // when a channel is closed, instead of using this.
         if finished_streams.is_empty() { Poll::Pending } else { Poll::Ready(None) }
     }
 }

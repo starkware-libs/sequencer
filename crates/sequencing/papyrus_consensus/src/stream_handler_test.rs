@@ -9,6 +9,7 @@ use papyrus_network::network_manager::test_utils::{
     TestSubscriberChannels,
 };
 use papyrus_network::network_manager::BroadcastTopicChannels;
+use papyrus_network_types::network_types::BroadcastedMessageManager;
 use papyrus_protobuf::consensus::{ConsensusMessage, Proposal, StreamMessage, StreamMessageBody};
 use papyrus_test_utils::{get_rng, GetTestInstance};
 
@@ -17,14 +18,7 @@ use super::{get_metadata_peer_id, StreamHandler};
 #[cfg(test)]
 mod tests {
 
-    use core::net;
-
-    use papyrus_network::network_manager::test_utils::BroadcastNetworkMock;
-    use papyrus_network::network_manager::{BroadcastTopicClientTrait, BroadcastTopicServer};
-    use papyrus_network_types::network_types::BroadcastedMessageManager;
-
     use super::*;
-    use crate::stream_handler;
 
     fn make_test_message(
         stream_id: u64,
@@ -155,7 +149,7 @@ mod tests {
             _,
             _,
         ) = setup_test();
-        let peer_id = get_metadata_peer_id(&listen_metadata);
+        let peer_id = get_metadata_peer_id(listen_metadata.clone());
         let stream_id = 127;
 
         for i in 0..5 {
@@ -214,7 +208,7 @@ mod tests {
             _,
             _,
         ) = setup_test();
-        let peer_id = get_metadata_peer_id(&listen_metadata);
+        let peer_id = get_metadata_peer_id(listen_metadata.clone());
 
         let stream_id1 = 127; // Send all messages in order (except the first one).
         let stream_id2 = 10; // Send in reverse order (except the first one).
@@ -418,11 +412,11 @@ mod tests {
         let message1 = ConsensusMessage::Proposal(Proposal::default());
         sender1.send(message1.clone()).await.unwrap();
 
-        // Wait for an incoming message.
+        // Wait for an outgoing broadcast message.
         let broadcasted_message = broadcasted_messages_receiver.next().await.unwrap();
         let mut stream_handler = join_handle.await.expect("Task should succeed");
 
-        // Check that message was broadcasted.
+        // Check message content matches.
         assert_eq!(broadcasted_message.message, StreamMessageBody::Content(message1));
         assert_eq!(broadcasted_message.stream_id, stream_id1);
         assert_eq!(broadcasted_message.message_id, 0);
@@ -468,12 +462,12 @@ mod tests {
         let message3 = ConsensusMessage::Proposal(Proposal::default());
         sender2.send(message3.clone()).await.unwrap();
 
-        // Wait for an incoming message.
+        // Wait for an outbound broadcast message.
         let broadcasted_message = broadcasted_messages_receiver.next().await.unwrap();
 
         let mut stream_handler = join_handle.await.expect("Task should succeed");
 
-        // Check that message was broadcasted.
+        // Check message content matches.
         assert_eq!(broadcasted_message.message, StreamMessageBody::Content(message3));
         assert_eq!(broadcasted_message.stream_id, stream_id2);
         assert_eq!(broadcasted_message.message_id, 0);
@@ -484,7 +478,6 @@ mod tests {
         assert_eq!(stream_handler.broadcast_stream_number[&stream_id2], 1);
 
         // Close the first channel.
-
         let join_handle = tokio::spawn(async move {
             let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.run()).await;
             stream_handler
@@ -494,13 +487,15 @@ mod tests {
 
         // Check that we got a fin message.
         let broadcasted_message = broadcasted_messages_receiver.next().await.unwrap();
-        // assert_eq!(broadcasted_message.message, StreamMessageBody::Fin);
+        assert_eq!(broadcasted_message.message, StreamMessageBody::Fin);
 
-        let mut stream_handler = join_handle.await.expect("Task should succeed");
+        let stream_handler = join_handle.await.expect("Task should succeed");
         println!("{:?}", stream_handler.broadcast_stream_receivers.keys().collect::<Vec<&u64>>());
 
         // Check that the information about this stream is gone.
-        // assert_eq!(stream_handler.broadcast_stream_receivers.keys().collect::<Vec<&u64>>(),
-        // vec![&stream_id2]);
+        assert_eq!(
+            stream_handler.broadcast_stream_receivers.keys().collect::<Vec<&u64>>(),
+            vec![&stream_id2]
+        );
     }
 }
