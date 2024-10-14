@@ -131,7 +131,14 @@ pub fn get_log_message_to_l1_emissions_cost(l2_to_l1_payload_lengths: &[usize]) 
                 constants::LOG_MSG_TO_L1_ENCODED_DATA_SIZE + *length,
             )
         })
-        .sum()
+        .fold(GasVector::ZERO, |accumulator, cost| {
+            accumulator.checked_add(cost).unwrap_or_else(|| {
+                panic!(
+                    "Overflow in message emission gas costs; attempted to add {accumulator:?} to \
+                     {cost:?}"
+                )
+            })
+        })
 }
 
 fn get_event_emission_cost(n_topics: usize, data_length: usize) -> GasVector {
@@ -184,11 +191,17 @@ pub fn estimate_minimal_gas_vector(
             + versioned_constants.os_kzg_da_resources(data_segment_length).n_steps;
 
     let resources = ExecutionResources { n_steps: os_steps_for_type, ..Default::default() };
-    get_da_gas_cost(&state_changes_by_account_tx, block_info.use_kzg_da)
-        + get_vm_resources_cost(
-            versioned_constants,
-            &resources,
-            0,
-            gas_usage_vector_computation_mode,
+    let da_gas_cost = get_da_gas_cost(&state_changes_by_account_tx, block_info.use_kzg_da);
+    let vm_resources_cost = get_vm_resources_cost(
+        versioned_constants,
+        &resources,
+        0,
+        gas_usage_vector_computation_mode,
+    );
+    da_gas_cost.checked_add(vm_resources_cost).unwrap_or_else(|| {
+        panic!(
+            "Overflow in minimal gas estimation; attempted to add {da_gas_cost:?} to \
+             {vm_resources_cost:?}"
         )
+    })
 }
