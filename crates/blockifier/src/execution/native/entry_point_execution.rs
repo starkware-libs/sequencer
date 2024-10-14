@@ -39,12 +39,12 @@ pub fn execute_entry_point_call(
 
 fn run_native_executor(
     native_executor: &AotNativeExecutor,
-    function_id: &FunctionId,
+    function_id: FunctionId,
     call: CallEntryPoint,
     mut syscall_handler: NativeSyscallHandler<'_>,
 ) -> EntryPointExecutionResult<CallInfo> {
     let execution_result = native_executor.invoke_contract_dynamic(
-        function_id,
+        &function_id,
         &call.calldata.0,
         Some(call.initial_gas.into()),
         &mut syscall_handler,
