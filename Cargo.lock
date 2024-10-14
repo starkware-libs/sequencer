@@ -10109,6 +10109,7 @@ version = "0.0.0"
 dependencies = [
  "assert_matches",
  "bitvec",
+ "cairo-lang-runner",
  "cairo-lang-starknet-classes",
  "derive_more 0.99.18",
  "hex",
