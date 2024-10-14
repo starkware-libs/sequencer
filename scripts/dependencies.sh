@@ -48,6 +48,8 @@ function setup_llvm_deps() {
 
 function compile_cairo_native_runtime() {
     TARGET_LIB_DIR="$1"
+  echo "asdf compile lib args: $TARGET_LIB_DIR"
+  echo "asdf compile lib 1: $1"
     # First we need to make sure Cargo exists
     if command -v cargo >/dev/null 2>&1; then
         echo "Rust is already installed with cargo available in PATH."
@@ -77,9 +79,12 @@ function compile_cairo_native_runtime() {
 
 function main() {
     # Set LIBCAIRO_NATIVE_DIR as first argument, or by default the pwd.
+echo "asdf func args: $@"
+echo "asdf func arg 1: $1"
     THIS_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
     DEFAULT_DIR="$THIS_DIR/../crates/blockifier"
-    LIBCAIRO_NATIVE_DIR=${1:-DEFAULT_DIR}
+    LIBCAIRO_NATIVE_DIR=${1:-"$DEFAULT_DIR"}
+echo "asdf func LIBCAIRO_NATIVE_DIR: $LIBCAIRO_NATIVE_DIR"
 
     [ "$(uname)" = "Linux" ] && install_essential_deps_linux
     setup_llvm_deps
@@ -89,5 +94,6 @@ function main() {
     echo "Cairo Native runtime compiled successfully."
 }
 
+echo "asdf args: $@"
 main "$@"
 

@@ -24,7 +24,7 @@ COPY install_build_tools.sh .
 COPY dependencies.sh .
 COPY boostrap.sh .
 
-# RUN ./install_build_tools.sh /cairo_native
+RUN ./install_build_tools.sh /cairo_native
 
 RUN /bin/echo "${SEQUENCER_DIR}"
 
