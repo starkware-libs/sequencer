@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use papyrus_network_types::network_types::BroadcastedMessageManager;
+use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use starknet_api::executable_transaction::Transaction;
 use starknet_mempool_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
 use starknet_mempool_infra::component_server::LocalComponentServer;
@@ -10,6 +10,7 @@ use starknet_mempool_types::communication::{
     MempoolRequestAndResponseSender,
     MempoolResponse,
 };
+use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{CommitBlockArgs, MempoolResult};
 use tokio::sync::mpsc::Receiver;
 
@@ -41,26 +42,26 @@ impl MempoolCommunicationWrapper {
 
     async fn send_tx_to_p2p(
         &self,
-        message_metadata: Option<BroadcastedMessageManager>,
+        message_metadata: Option<BroadcastedMessageMetadata>,
         tx: Transaction,
-    ) {
+    ) -> Result<(), MempoolError> {
         match message_metadata {
-            Some(message_metadata) => {
-                self.mempool_p2p_sender_client
-                    .continue_propagation(message_metadata)
-                    .await
-                    .unwrap();
-            }
+            Some(message_metadata) => self
+                .mempool_p2p_sender_client
+                .continue_propagation(message_metadata)
+                .await
+                .map_err(|_| MempoolError::P2pSenderClientError { tx_hash: tx.tx_hash() }),
             None => {
                 self.mempool_p2p_sender_client.add_transaction(tx.into()).await.unwrap();
+                Ok(())
             }
         }
     }
 
     async fn add_tx(&mut self, args_wrapper: AddTransactionArgsWrapper) -> MempoolResult<()> {
         self.mempool.add_tx(args_wrapper.args.clone())?;
-        self.send_tx_to_p2p(args_wrapper.p2p_message_metadata, args_wrapper.args.tx).await;
-        Ok(())
+        // TODO: Verify that only transactions that were added to the mempool are sent.
+        self.send_tx_to_p2p(args_wrapper.p2p_message_metadata, args_wrapper.args.tx).await
     }
 
     fn commit_block(&mut self, args: CommitBlockArgs) -> MempoolResult<()> {
