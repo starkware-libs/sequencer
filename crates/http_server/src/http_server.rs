@@ -6,7 +6,7 @@ use axum::extract::State;
 use axum::routing::{get, post};
 use axum::{async_trait, Json, Router};
 use starknet_api::rpc_transaction::RpcTransaction;
-use starknet_api::transaction::TransactionHash;
+use starknet_api::transaction::fields::TransactionHash;
 use starknet_gateway::errors::GatewayRunError;
 use starknet_gateway_types::communication::SharedGatewayClient;
 use starknet_gateway_types::errors::GatewaySpecError;

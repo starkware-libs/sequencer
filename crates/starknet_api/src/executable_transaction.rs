@@ -4,18 +4,18 @@ use crate::contract_class::ClassInfo;
 use crate::core::{calculate_contract_address, ChainId, ClassHash, ContractAddress, Nonce};
 use crate::data_availability::DataAvailabilityMode;
 use crate::rpc_transaction::{RpcDeployAccountTransaction, RpcInvokeTransaction, RpcTransaction};
-use crate::transaction::{
+use crate::transaction::fields::{
     AccountDeploymentData,
     Calldata,
     ContractAddressSalt,
     PaymasterData,
     Tip,
     TransactionHash,
-    TransactionHasher,
     TransactionSignature,
     TransactionVersion,
     ValidResourceBounds,
 };
+use crate::transaction::TransactionHasher;
 use crate::StarknetApiError;
 
 macro_rules! implement_inner_tx_getter_calls {

@@ -5,7 +5,7 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use pretty_assertions::assert_eq;
 use starknet_api::core::PatriciaKey;
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::Calldata;
+use starknet_api::transaction::fields::Calldata;
 use starknet_api::{calldata, felt, patricia_key};
 use test_case::test_case;
 

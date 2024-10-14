@@ -1,4 +1,4 @@
-use starknet_api::transaction::Calldata;
+use starknet_api::transaction::fields::Calldata;
 use starknet_api::{calldata, felt};
 use test_case::test_case;
 

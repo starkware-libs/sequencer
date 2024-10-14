@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ContractAddress, Nonce};
-use starknet_api::transaction::TransactionHash;
+use starknet_api::transaction::fields::TransactionHash;
 use thiserror::Error;
 
 #[derive(Clone, Debug, Error, PartialEq, Eq, Serialize, Deserialize)]

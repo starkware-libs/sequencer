@@ -3,7 +3,8 @@
 mod event_test;
 use prost::Message;
 use starknet_api::core::{ContractAddress, PatriciaKey};
-use starknet_api::transaction::{Event, EventContent, EventData, EventKey, TransactionHash};
+use starknet_api::transaction::fields::TransactionHash;
+use starknet_api::transaction::{Event, EventContent, EventData, EventKey};
 use starknet_types_core::felt::Felt;
 
 use super::ProtobufConversionError;

@@ -24,7 +24,8 @@ use crate::data_availability::L1DataAvailabilityMode;
 use crate::execution_resources::GasAmount;
 use crate::hash::StarkHash;
 use crate::serde_utils::{BytesAsHex, PrefixedBytesAsHex};
-use crate::transaction::{Fee, Transaction, TransactionHash, TransactionOutput};
+use crate::transaction::fields::{Fee, TransactionHash};
+use crate::transaction::{Transaction, TransactionOutput};
 use crate::StarknetApiError;
 
 /// A block.

@@ -4,7 +4,7 @@ use std::collections::{BTreeSet, HashMap};
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::execution_resources::GasAmount;
-use starknet_api::transaction::{
+use starknet_api::transaction::fields::{
     AllResourceBounds,
     ResourceBounds,
     Tip,

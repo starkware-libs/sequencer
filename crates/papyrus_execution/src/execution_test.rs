@@ -22,7 +22,7 @@ use starknet_api::core::{
     PatriciaKey,
 };
 use starknet_api::state::{StateNumber, ThinStateDiff};
-use starknet_api::transaction::{Calldata, Fee};
+use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::{calldata, class_hash, contract_address, felt, patricia_key};
 use starknet_types_core::felt::Felt;
 

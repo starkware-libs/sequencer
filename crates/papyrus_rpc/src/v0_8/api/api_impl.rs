@@ -25,14 +25,12 @@ use starknet_api::block::{BlockHash, BlockHeaderWithoutHash, BlockNumber, BlockS
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, GlobalRoot, Nonce};
 use starknet_api::hash::StarkHash;
 use starknet_api::state::{StateNumber, StorageKey};
+use starknet_api::transaction::fields::{Fee, TransactionHash, TransactionVersion};
 use starknet_api::transaction::{
     EventContent,
     EventIndexInTransactionOutput,
-    Fee,
     Transaction as StarknetApiTransaction,
-    TransactionHash,
     TransactionOffsetInBlock,
-    TransactionVersion,
 };
 use starknet_client::reader::objects::pending_data::{
     DeprecatedPendingBlock,

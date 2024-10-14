@@ -5,7 +5,7 @@ use itertools::Itertools;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::felt;
-use starknet_api::transaction::Calldata;
+use starknet_api::transaction::fields::Calldata;
 use test_case::test_case;
 
 use super::constants::REQUIRED_GAS_CALL_CONTRACT_TEST;
