@@ -15,8 +15,8 @@ use tracing::{instrument, warn};
 mod stream_handler_test;
 
 type PeerId = OpaquePeerId;
-type StreamId = u64;
 type MessageId = u64;
+type StreamKey = (PeerId, u64);
 
 const CHANNEL_BUFFER_LENGTH: usize = 100;
 
@@ -26,17 +26,13 @@ fn get_metadata_peer_id(metadata: BroadcastedMessageManager) -> PeerId {
 
 #[derive(Debug, Clone)]
 struct StreamData<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> {
-    // The next message_id that is expected.
     next_message_id: MessageId,
     // The message_id of the message that is marked as "fin" (the last message),
     // if None, it means we have not yet gotten to it.
     fin_message_id: Option<MessageId>,
-    // The highest message_id that was received.
-    max_message_id: MessageId,
-
+    max_message_id_received: MessageId,
     // The sender that corresponds to the receiver that was sent out for this stream.
     sender: mpsc::Sender<T>,
-
     // A buffer for messages that were received out of order.
     message_buffer: BTreeMap<MessageId, StreamMessage<T>>,
 }
@@ -46,7 +42,7 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
         StreamData {
             next_message_id: 0,
             fin_message_id: None,
-            max_message_id: 0,
+            max_message_id_received: 0,
             sender,
             message_buffer: BTreeMap::new(),
         }
@@ -61,10 +57,9 @@ pub struct StreamHandler<
     sender: mpsc::Sender<mpsc::Receiver<T>>,
     // An end of a channel used to receive messages.
     receiver: BroadcastTopicServer<StreamMessage<T>>,
-
     // A map from stream_id to a struct that contains all the information about the stream.
     // This includes both the message buffer and some metadata (like the latest message_id).
-    stream_data: HashMap<StreamId, StreamData<T>>,
+    stream_data: HashMap<StreamKey, StreamData<T>>,
     // TODO(guyn): perhaps make input_stream_data and output_stream_data?
 }
 
@@ -111,11 +106,12 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
                 return;
             }
         };
-        let _peer_id = get_metadata_peer_id(metadata); // TODO(guyn): use peer_id
+        let peer_id = get_metadata_peer_id(metadata);
         let stream_id = message.stream_id;
+        let key = (peer_id, stream_id);
         let message_id = message.message_id;
 
-        let data = match self.stream_data.entry(stream_id) {
+        let data = match self.stream_data.entry(key.clone()) {
             Entry::Occupied(entry) => entry.into_mut(),
             Entry::Vacant(e) => {
                 // If we received a message for a stream that we have not seen before,
@@ -129,8 +125,8 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
             }
         };
 
-        if data.max_message_id < message_id {
-            data.max_message_id = message_id;
+        if data.max_message_id_received < message_id {
+            data.max_message_id_received = message_id;
         }
 
         // Check for Fin type message
@@ -138,25 +134,24 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
             StreamMessageBody::Content(_) => {}
             StreamMessageBody::Fin => {
                 data.fin_message_id = Some(message_id);
-                if data.max_message_id > message_id {
+                if data.max_message_id_received > message_id {
                     // TODO(guyn): replace warnings with more graceful error handling
                     warn!(
                         "Received fin message with id that is smaller than a previous message! \
-                         stream_id: {}, fin_message_id: {}, max_message_id: {}",
-                        stream_id, message_id, data.max_message_id
+                         stream_id: {}, fin_message_id: {}, max_message_id_received: {}",
+                        stream_id, message_id, data.max_message_id_received
                     );
                     return;
                 }
             }
         }
 
-        // Check that message_id is not bigger than the fin_message_id.
         if message_id > data.fin_message_id.unwrap_or(u64::MAX) {
             // TODO(guyn): replace warnings with more graceful error handling
             warn!(
-                "Received message with id that is bigger than the id of the fin message! \
-                 stream_id: {}, message_id: {}, fin_message_id: {}",
-                stream_id,
+                "Received message with id that is bigger than the id of the fin message! 
+                key: {:?}, message_id: {}, fin_message_id: {}",
+                key,
                 message_id,
                 data.fin_message_id.unwrap_or(u64::MAX)
             );
@@ -167,37 +162,35 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
         if message_id == data.next_message_id {
             Self::send(data, message);
 
-            // Try to drain the buffer.
             Self::process_buffer(data);
 
-            // If empty, remove this buffer and close the channel.
             if data.message_buffer.is_empty() && data.fin_message_id.is_some() {
                 data.sender.close_channel();
-                self.stream_data.remove(&stream_id);
+                self.stream_data.remove(&key);
             }
         } else if message_id > data.next_message_id {
-            // Save the message in the buffer.
-            Self::store(data, message);
+            Self::store(data, key.0, message);
         } else {
             // TODO(guyn): replace warnings with more graceful error handling
             warn!(
-                "Received message with id that is smaller than the next message expected! \
-                 stream_id: {}, message_id: {}, next_message_id: {}",
-                stream_id, message_id, data.next_message_id
+                "Received message with id that is smaller than the next message expected! key: \
+                 {:?}, message_id: {}, next_message_id: {}",
+                key, message_id, data.next_message_id
             );
             return;
         }
     }
 
-    fn store(data: &mut StreamData<T>, message: StreamMessage<T>) {
+    fn store(data: &mut StreamData<T>, peer_id: PeerId, message: StreamMessage<T>) {
         let stream_id = message.stream_id;
         let message_id = message.message_id;
 
         if data.message_buffer.contains_key(&message_id) {
             // TODO(guyn): replace warnings with more graceful error handling
             warn!(
-                "Two messages with the same message_id in buffer! stream_id: {}, message_id: {}",
-                stream_id, message_id
+                "Two messages with the same message_id in buffer! peer_id: {:?}, stream_id: {}, \
+                 message_id: {}",
+                peer_id, stream_id, message_id
             );
         } else {
             data.message_buffer.insert(message_id, message);

@@ -8,7 +8,7 @@ pub struct BroadcastedMessageManager {
     pub originator_id: OpaquePeerId,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct OpaquePeerId(PeerId);
 
 impl OpaquePeerId {
