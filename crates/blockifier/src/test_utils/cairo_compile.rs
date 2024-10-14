@@ -168,35 +168,6 @@ pub fn starknet_compile(
     sierra_output.stdout
 }
 
-pub fn sierra_compile(
-    path: String,
-    git_tag_override: Option<String>,
-    cargo_nightly_arg: Option<String>,
-) -> Vec<u8> {
-    prepare_cairo1_compiler_deps(git_tag_override);
-
-    let cairo1_compiler_path = local_cairo1_compiler_repo_path();
-
-    // Command args common to both compilation phases.
-    let mut base_compile_args = vec![
-        "run".into(),
-        format!("--manifest-path={}/Cargo.toml", cairo1_compiler_path.to_string_lossy()),
-        "--bin".into(),
-    ];
-    // Add additional cargo arg if provided. Should be first arg (base command is `cargo`).
-    if let Some(nightly_version) = cargo_nightly_arg {
-        base_compile_args.insert(0, format!("+nightly-{nightly_version}"));
-    }
-
-    // Cairo -> Sierra.
-    let mut starknet_compile_commmand = Command::new("cargo");
-    starknet_compile_commmand.args(base_compile_args.clone());
-    starknet_compile_commmand.args(["starknet-compile", "--", "--single-file", &path]);
-    let sierra_output = run_and_verify_output(&mut starknet_compile_commmand);
-
-    sierra_output.stdout
-}
-
 /// Verifies that the required dependencies are available before compiling; panics if unavailable.
 fn verify_cairo0_compiler_deps() {
     // Python compiler. Verify correct version.
