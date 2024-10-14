@@ -71,10 +71,10 @@ fn local_cairo1_compiler_repo_path() -> PathBuf {
     // Location of blockifier's Cargo.toml.
     let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
 
-    Path::new(&manifest_dir).join(match std::env::var(CAIRO1_REPO_RELATIVE_PATH_OVERRIDE_ENV_VAR) {
-        Ok(cairo1_repo_relative_path) => cairo1_repo_relative_path,
-        Err(_) => DEFAULT_CAIRO1_REPO_RELATIVE_PATH.into(),
-    })
+    Path::new(&manifest_dir).join(
+        env::var(CAIRO1_REPO_RELATIVE_PATH_OVERRIDE_ENV_VAR)
+            .unwrap_or_else(|_| DEFAULT_CAIRO1_REPO_RELATIVE_PATH.into()),
+    )
 }
 
 /// Runs a command. If it has succeeded, it returns the command's output; otherwise, it panics with
