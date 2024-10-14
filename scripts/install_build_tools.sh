@@ -8,6 +8,7 @@ LIBCAIRO_NATIVE_DIR=${1:-$(pwd)}
 
 echo "asdf install sh args: $@"
 echo "asdf install sh arg 1: $1"
+echo "asdf install sh arg LIBCAIRO_NATIVE_DIR: $LIBCAIRO_NATIVE_DIR"
 
 function install_common_packages() {
     $SUDO  bash -c '
