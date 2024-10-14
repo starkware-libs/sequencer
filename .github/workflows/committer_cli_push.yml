@@ -44,7 +44,6 @@ jobs:
     runs-on: starkware-ubuntu-20-04-medium
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/bootstrap
 
         # Commit hash on pull request event would be the head commit of the branch.
       - name: Get commit hash prefix for PR update
