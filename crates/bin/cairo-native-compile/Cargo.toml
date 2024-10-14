@@ -1,12 +1,13 @@
 [package]
-name = "starknet_native_compile"
+name = "cairo_native_compile"
 version = "0.2.0"
 edition.workspace = true
 repository.workspace = true
 license.workspace = true
 
 [dependencies]
-clap = {workspace = true, features = ["derive"]}
+clap = { workspace = true, features = ["derive"] }
+cairo-native.workspace = true
 
 [lints]
 workspace = true
