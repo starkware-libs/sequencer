@@ -41,7 +41,7 @@ pub enum NetworkError {
 }
 
 // TODO: Understand whats the correct thing to do here.
-const MESSAGE_MANAGER_BUFFER_SIZE: usize = 100000;
+const MESSAGE_METADATA_BUFFER_SIZE: usize = 100000;
 
 pub struct GenericNetworkManager<SwarmT: SwarmTrait> {
     swarm: SwarmT,
@@ -98,9 +98,9 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             swarm.add_external_address(address);
         }
         let (reported_peers_sender, reported_peers_receiver) =
-            futures::channel::mpsc::channel(MESSAGE_MANAGER_BUFFER_SIZE);
+            futures::channel::mpsc::channel(MESSAGE_METADATA_BUFFER_SIZE);
         let (continue_propagation_sender, continue_propagation_receiver) =
-            futures::channel::mpsc::channel(MESSAGE_MANAGER_BUFFER_SIZE);
+            futures::channel::mpsc::channel(MESSAGE_METADATA_BUFFER_SIZE);
         Self {
             swarm,
             inbound_protocol_to_buffer_size: HashMap::new(),
@@ -234,8 +234,8 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
 
         let reported_messages_fn: fn(
             BroadcastedMessageMetadata,
-        ) -> Ready<Result<PeerId, SendError>> = |broadcasted_message_manager| {
-            ready(Ok(broadcasted_message_manager.originator_id.private_get_peer_id()))
+        ) -> Ready<Result<PeerId, SendError>> = |broadcasted_message_metadata| {
+            ready(Ok(broadcasted_message_metadata.originator_id.private_get_peer_id()))
         };
         let reported_messages_sender =
             self.reported_peers_sender.clone().with(reported_messages_fn);
@@ -882,16 +882,16 @@ impl<T: TryFrom<Bytes> + Send> BroadcastTopicClientTrait<T> for BroadcastTopicCl
 
     async fn report_peer(
         &mut self,
-        broadcasted_message_manager: BroadcastedMessageMetadata,
+        broadcasted_message_metadata: BroadcastedMessageMetadata,
     ) -> Result<(), SendError> {
-        self.reported_messages_sender.send(broadcasted_message_manager).await
+        self.reported_messages_sender.send(broadcasted_message_metadata).await
     }
 
     async fn continue_propagation(
         &mut self,
-        broadcasted_message_manager: &BroadcastedMessageMetadata,
+        broadcasted_message_metadata: &BroadcastedMessageMetadata,
     ) -> Result<(), SendError> {
-        self.continue_propagation_sender.send(broadcasted_message_manager.clone()).await
+        self.continue_propagation_sender.send(broadcasted_message_metadata.clone()).await
     }
 }
 

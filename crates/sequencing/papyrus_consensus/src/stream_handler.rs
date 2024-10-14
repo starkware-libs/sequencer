@@ -5,7 +5,7 @@ use std::collections::{BTreeMap, HashMap};
 use futures::channel::mpsc;
 use futures::StreamExt;
 use papyrus_network::network_manager::BroadcastTopicServer;
-use papyrus_network_types::network_types::BroadcastedMessageMetadata;
+use papyrus_network_types::network_types::{BroadcastedMessageMetadata, OpaquePeerId};
 use papyrus_protobuf::consensus::{StreamMessage, StreamMessageBody};
 use papyrus_protobuf::converters::ProtobufConversionError;
 use tracing::{instrument, warn};
@@ -14,6 +14,7 @@ use tracing::{instrument, warn};
 #[path = "stream_handler_test.rs"]
 mod stream_handler_test;
 
+type PeerId = OpaquePeerId;
 type MessageId = u64;
 type StreamKey = (PeerId, u64);
 

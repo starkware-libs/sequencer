@@ -34,11 +34,11 @@ async fn test_invalid(distinct_messages: bool, is_vote: bool) {
 
     for height in 0..1000 {
         let msg = create_consensus_msg(if distinct_messages { height } else { 0 }, is_vote);
-        let broadcasted_message_manager =
+        let broadcasted_message_metadata =
             BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
         mock_network
             .broadcasted_messages_sender
-            .send((msg.clone(), broadcasted_message_manager))
+            .send((msg.clone(), broadcasted_message_metadata))
             .await
             .unwrap();
         if receiver.next().await.unwrap().0.unwrap() != msg {
@@ -67,11 +67,11 @@ async fn test_drops(distinct_messages: bool, is_vote: bool) {
 
     for height in 0..1000 {
         let msg = create_consensus_msg(if distinct_messages { height } else { 0 }, is_vote);
-        let broadcasted_message_manager =
+        let broadcasted_message_metadata =
             BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
         mock_network
             .broadcasted_messages_sender
-            .send((msg.clone(), broadcasted_message_manager))
+            .send((msg.clone(), broadcasted_message_metadata))
             .await
             .unwrap();
     }

@@ -12,7 +12,7 @@ use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{ConsensusMessage, Proposal, StreamMessage, StreamMessageBody};
 use papyrus_test_utils::{get_rng, GetTestInstance};
 
-use super::{get_metadata_peer_id, StreamHandler};
+use super::StreamHandler;
 
 #[cfg(test)]
 mod tests {
@@ -41,9 +41,10 @@ mod tests {
 
     async fn send(
         sender: &mut MockBroadcastedMessagesSender<StreamMessage<ConsensusMessage>>,
-        metadata: &BroadcastedMessageManager,
+        metadata: &BroadcastedMessageMetadata,
         msg: StreamMessage<ConsensusMessage>,
     ) {
+        sender.send((msg, metadata.clone())).await.unwrap();
     }
 
     fn setup_test() -> (
@@ -96,7 +97,7 @@ mod tests {
     #[tokio::test]
     async fn stream_handler_in_reverse() {
         let (mut stream_handler, mut network_sender, mut rx_output, metadata) = setup_test();
-        let peer_id = get_metadata_peer_id(metadata.clone());
+        let peer_id = metadata.originator_id.clone();
         let stream_id = 127;
 
         for i in 0..5 {
@@ -148,7 +149,7 @@ mod tests {
     #[tokio::test]
     async fn stream_handler_multiple_streams() {
         let (mut stream_handler, mut network_sender, mut rx_output, metadata) = setup_test();
-        let peer_id = get_metadata_peer_id(metadata.clone());
+        let peer_id = metadata.originator_id.clone();
 
         let stream_id1 = 127; // Send all messages in order (except the first one).
         let stream_id2 = 10; // Send in reverse order (except the first one).
