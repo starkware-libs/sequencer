@@ -92,11 +92,8 @@ pub enum EntryPointExecutionError {
     #[error("Native execution error: {info}")]
     NativeExecutionError { info: String },
     #[cfg(feature = "cairo_native")]
-    #[error("Native unexpected error: {source}")]
-    NativeUnexpectedError {
-        #[source]
-        source: NativeError,
-    },
+    #[error(transparent)]
+    NativeUnexpectedError(#[from] NativeError),
     #[error(transparent)]
     NativeUnexpectedError(#[from] NativeError),
     #[error(transparent)]
