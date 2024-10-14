@@ -34,7 +34,6 @@ use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContract
 use starknet_api::state::{ContractClass, StateNumber, ThinStateDiff};
 use starknet_api::test_utils::read_json_file;
 use starknet_api::transaction::{
-    Calldata,
     DeclareTransactionV0V1,
     DeclareTransactionV2,
     DeployAccountTransaction,
