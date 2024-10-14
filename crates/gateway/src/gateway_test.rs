@@ -92,6 +92,8 @@ async fn test_add_tx() {
 // Gateway spec errors tests.
 // TODO(Arni): Add tests for all the error cases. Check the response (use `into_response` on the
 // result of `add_tx`).
+// TODO(shahak): Test that when an error occurs in handle_request, then it returns the given p2p
+// metadata.
 
 #[tokio::test]
 async fn test_compiled_class_hash_mismatch() {
