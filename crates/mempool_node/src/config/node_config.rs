@@ -120,11 +120,9 @@ impl SequencerNodeConfig {
     }
 }
 
-// TODO(Tsabary): Rename the cli function.
-
 /// The command line interface of this node.
-pub fn node_command() -> Command {
-    Command::new("Mempool")
+fn node_command() -> Command {
+    Command::new("Sequencer")
         .version(VERSION_FULL)
-        .about("Mempool is a Starknet mempool node written in Rust.")
+        .about("A Starknet sequencer node written in Rust.")
 }
