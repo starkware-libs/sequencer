@@ -71,16 +71,15 @@ function compile_cairo_native_runtime() {
     cargo build -p cairo-native-runtime --release --all-features --quiet
     popd || exit 1
 
-    mv ./cairo_native/target/release/libcairo_native_runtime.a /home/runner/sequencer/sequencer/crates/blockifier/libcairo_native_runtime.a
-    mv ./cairo_native/target/release/libcairo_native_runtime.a /libcairo_native_runtime.a
-    mv ./cairo_native/target/release/libcairo_native_runtime.a crates/blockifier/libcairo_native_runtime.a
     mv ./cairo_native/target/release/libcairo_native_runtime.a ${LIBCAIRO_NATIVE_DIR}/libcairo_native_runtime.a
     rm -rf ./cairo_native
 }
 
 function main() {
     # Set LIBCAIRO_NATIVE_DIR as first argument, or by default the pwd.
-    LIBCAIRO_NATIVE_DIR=${1:-$(pwd)}
+    THIS_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+    DEFAULT_DIR="$THIS_DIR/../crates/blockifier"
+    LIBCAIRO_NATIVE_DIR=${1:-DEFAULT_DIR}
 
     [ "$(uname)" = "Linux" ] && install_essential_deps_linux
     setup_llvm_deps

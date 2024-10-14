@@ -4,6 +4,7 @@ ARG USERNAME=sequencer
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
 ARG SEQUENCER_DIR=local
+ENV SEQUENCER_DIR=${SEQUENCER_DIR}
 
 RUN apt update && apt install -y sudo
 
@@ -23,6 +24,8 @@ COPY install_build_tools.sh .
 COPY dependencies.sh .
 COPY boostrap.sh .
 
-RUN ./install_build_tools.sh /cairo_native
+# RUN ./install_build_tools.sh /cairo_native
 
-ENTRYPOINT [ "/cairo_native/boostrap.sh", ${SEQUENCER_DIR} ]
+RUN /bin/echo "${SEQUENCER_DIR}"
+
+ENTRYPOINT [ "sh", "-c", "/cairo_native/boostrap.sh ${SEQUENCER_DIR} $0 $@" ]
