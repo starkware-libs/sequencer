@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 // TODO(alonl): remove clone
 // TODO(shahak): rename to BroadcastedMessageMetadata
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct BroadcastedMessageMetadata {
     pub originator_id: OpaquePeerId,
 }
