@@ -3,6 +3,7 @@ FROM ubuntu:20.04
 ARG USERNAME=sequencer
 ARG USER_UID=1000
 ARG USER_GID=$USER_UID
+ARG SEQUENCER_DIR=local
 
 RUN apt update && apt install -y sudo
 
@@ -21,4 +22,4 @@ ENV PATH=$PATH:${RUSTUP_HOME}/bin
 COPY install_build_tools.sh .
 COPY dependencies.sh .
 
-RUN ./install_build_tools.sh
+RUN ./install_build_tools.sh "${SEQUENCER_DIR}"

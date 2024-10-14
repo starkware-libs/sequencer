@@ -3,6 +3,8 @@
 set -e
 
 [[ ${UID} == "0" ]] || SUDO="sudo"
+# Set SEQUENCER_DIR as first argument, or by default the pwd.
+SEQUENCER_DIR=${1:-$(pwd)}
 
 function install_common_packages() {
     $SUDO  bash -c '
@@ -52,4 +54,4 @@ install_common_packages
 install_pypy &
 install_rust &
 wait
-./dependencies.sh
+./dependencies.sh "$1"

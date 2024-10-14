@@ -6,7 +6,7 @@ docker_image_name=sequencer-ci
 SEQUENCER_DIR=${PWD}
 (
     cd scripts
-    docker build . -t ${docker_image_name} --file ${docker_image_name}.Dockerfile -e SEQUENCER_DIR=${SEQUENCER_DIR}
+    docker build . -t ${docker_image_name} --file ${docker_image_name}.Dockerfile --build-arg SEQUENCER_DIR=${SEQUENCER_DIR}
 )
 
 docker run \
