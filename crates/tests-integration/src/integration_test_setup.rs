@@ -4,6 +4,7 @@ use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerato
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
+use starknet_batcher_types::communication::SharedBatcherClient;
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_http_server::config::HttpServerConfig;
 use starknet_mempool_infra::trace_util::configure_tracing;
@@ -30,6 +31,7 @@ pub struct IntegrationTestSetup {
 
     // TODO(Arni): Replace with a batcher server handle and a batcher client.
     pub mempool_client: SharedMempoolClient,
+    pub batcher_client: SharedBatcherClient,
 
     // Handle of the sequencer node.
     pub sequencer_node_handle: JoinHandle<Result<(), anyhow::Error>>,
@@ -72,6 +74,7 @@ impl IntegrationTestSetup {
             add_tx_http_client,
             batcher_storage_file_handle: storage_for_test.batcher_storage_handle,
             mempool_client: clients.get_mempool_client().unwrap().clone(),
+            batcher_client: clients.get_batcher_client().unwrap(),
             rpc_storage_file_handle: storage_for_test.rpc_storage_handle,
             sequencer_node_handle,
         }
@@ -85,6 +88,7 @@ impl IntegrationTestSetup {
         self.add_tx_http_client.assert_add_tx_error(tx).await
     }
 
+    // TODO(Arni): consider deleting this function if it is not used in any test.
     pub async fn get_txs(&self, n_txs: usize) -> Vec<Transaction> {
         self.mempool_client.get_txs(n_txs).await.unwrap()
     }
