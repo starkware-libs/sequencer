@@ -92,14 +92,11 @@ impl TestStateReader {
             // In old blocks, the l2_gas_price field is not present.
             block_header_map.insert(
                 "l2_gas_price".to_string(),
-                to_value(ResourcePrice { price_in_wei: 1_u8.into(), price_in_fri: 1_u8.into() })
-                    .map_err(serde_err_to_state_err)?,
+                to_value(ResourcePrice { price_in_wei: 1_u8.into(), price_in_fri: 1_u8.into() })?,
             );
         }
 
-        Ok(serde_json::from_value::<BlockHeader>(json)
-            .map_err(serde_err_to_state_err)?
-            .try_into()?)
+        Ok(serde_json::from_value::<BlockHeader>(json)?.try_into()?)
     }
 
     pub fn get_starknet_version(&self) -> ReexecutionResult<StarknetVersion> {
@@ -108,8 +105,7 @@ impl TestStateReader {
             self.0.send_rpc_request("starknet_getBlockWithTxHashes", get_block_params)?
                 ["starknet_version"]
                 .clone(),
-        )
-        .map_err(serde_err_to_state_err)?;
+        )?;
         Ok(StarknetVersion::try_from(raw_version.as_str())?)
     }
 
