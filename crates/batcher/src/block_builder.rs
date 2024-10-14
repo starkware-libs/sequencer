@@ -28,9 +28,10 @@ use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_storage::StorageReader;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockNumber, BlockTimestamp, NonzeroGasPrice};
-use starknet_api::core::ContractAddress;
+use starknet_api::core::{ContractAddress, PatriciaKey};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::transaction::TransactionHash;
+use starknet_api::{contract_address, felt, patricia_key};
 use thiserror::Error;
 use tokio::sync::Mutex;
 use tokio::{pin, time};
@@ -126,6 +127,18 @@ impl SerializeConfig for BlockBuilderConfig {
             "versioned_constants_overrides",
         ));
         dump
+    }
+}
+
+const SEQUENCER_ADDRESS_FOR_TESTING: u128 = 1991;
+
+impl BlockBuilderConfig {
+    pub fn create_for_testing(chain_info: ChainInfo) -> Self {
+        Self {
+            chain_info,
+            sequencer_address: contract_address!(SEQUENCER_ADDRESS_FOR_TESTING),
+            ..Default::default()
+        }
     }
 }
 

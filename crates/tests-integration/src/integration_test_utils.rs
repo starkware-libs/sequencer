@@ -147,7 +147,7 @@ fn create_batcher_config(
 ) -> BatcherConfig {
     BatcherConfig {
         storage: batcher_storage_config,
-        block_builder_config: BlockBuilderConfig { chain_info, ..Default::default() },
+        block_builder_config: BlockBuilderConfig::create_for_testing(chain_info),
         ..Default::default()
     }
 }
