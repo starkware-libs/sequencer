@@ -118,6 +118,7 @@ impl CallEntryPoint {
         state: &mut dyn State,
         resources: &mut ExecutionResources,
         context: &mut EntryPointExecutionContext,
+        remaining_gas: &mut u64,
     ) -> EntryPointExecutionResult<CallInfo> {
         let tx_context = &context.tx_context;
         let mut decrement_when_dropped = RecursionDepthGuard::new(
@@ -156,7 +157,14 @@ impl CallEntryPoint {
             context.n_sent_messages_to_l1,
         ));
 
-        execute_entry_point_call_wrapper(self, contract_class, state, resources, context)
+        execute_entry_point_call_wrapper(
+            self,
+            contract_class,
+            state,
+            resources,
+            context,
+            remaining_gas,
+        )
     }
 
     /// Similar to `execute`, but returns an error if the outer call is reverted.
@@ -165,8 +173,9 @@ impl CallEntryPoint {
         state: &mut dyn State,
         resources: &mut ExecutionResources,
         context: &mut EntryPointExecutionContext,
+        remaining_gas: &mut u64,
     ) -> EntryPointExecutionResult<CallInfo> {
-        let execution_result = self.execute(state, resources, context);
+        let execution_result = self.execute(state, resources, context, remaining_gas);
         if let Ok(call_info) = &execution_result {
             // If the execution of the outer call failed, revert the transction.
             if call_info.execution.failed {
@@ -402,7 +411,7 @@ pub fn execute_constructor_entry_point(
     context: &mut EntryPointExecutionContext,
     ctor_context: ConstructorContext,
     calldata: Calldata,
-    remaining_gas: u64,
+    remaining_gas: &mut u64,
 ) -> ConstructorEntryPointExecutionResult<CallInfo> {
     // Ensure the class is declared (by reading it).
     let contract_class =
@@ -411,7 +420,7 @@ pub fn execute_constructor_entry_point(
         })?;
     let Some(constructor_selector) = contract_class.constructor_selector() else {
         // Contract has no constructor.
-        return handle_empty_constructor(&ctor_context, calldata, remaining_gas)
+        return handle_empty_constructor(&ctor_context, calldata, *remaining_gas)
             .map_err(|error| ConstructorEntryPointExecutionError::new(error, &ctor_context, None));
     };
 
@@ -424,12 +433,18 @@ pub fn execute_constructor_entry_point(
         storage_address: ctor_context.storage_address,
         caller_address: ctor_context.caller_address,
         call_type: CallType::Call,
-        initial_gas: remaining_gas,
+        initial_gas: *remaining_gas,
     };
 
-    constructor_call.non_reverting_execute(state, resources, context).map_err(|error| {
-        ConstructorEntryPointExecutionError::new(error, &ctor_context, Some(constructor_selector))
-    })
+    constructor_call.non_reverting_execute(state, resources, context, remaining_gas).map_err(
+        |error| {
+            ConstructorEntryPointExecutionError::new(
+                error,
+                &ctor_context,
+                Some(constructor_selector),
+            )
+        },
+    )
 }
 
 pub fn handle_empty_constructor(

@@ -493,7 +493,12 @@ fn test_tx_info(#[values(false, true)] only_query: bool) {
     });
     let limit_steps_by_resources = true;
     let result = entry_point_call
-        .execute_directly_given_tx_info(&mut state, tx_info, limit_steps_by_resources)
+        .execute_directly_given_tx_info(
+            &mut state,
+            tx_info,
+            limit_steps_by_resources,
+            ExecutionMode::Execute,
+        )
         .unwrap();
 
     assert!(!result.execution.failed)

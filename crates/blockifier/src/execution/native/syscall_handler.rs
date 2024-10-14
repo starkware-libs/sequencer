@@ -17,7 +17,6 @@ use starknet_types_core::felt::Felt;
 
 use crate::execution::call_info::{CallInfo, OrderedEvent, OrderedL2ToL1Message, Retdata};
 use crate::execution::entry_point::{CallEntryPoint, EntryPointExecutionContext};
-use crate::execution::execution_utils::update_remaining_gas;
 use crate::execution::native::utils::encode_str_as_felts;
 use crate::execution::syscalls::hint_processor::OUT_OF_GAS_ERROR;
 use crate::state::state_api::State;
@@ -73,8 +72,10 @@ impl<'state> NativeSyscallHandler<'state> {
         entry_point: CallEntryPoint,
         remaining_gas: &mut u128,
     ) -> SyscallResult<Retdata> {
+        let mut remaining_gas_u64 =
+            u64::try_from(*remaining_gas).expect("Failed to convert gas to u64.");
         let call_info = entry_point
-            .execute(self.state, self.resources, self.context)
+            .execute(self.state, self.resources, self.context, &mut remaining_gas_u64)
             .map_err(|e| encode_str_as_felts(&e.to_string()))?;
         let retdata = call_info.execution.retdata.clone();
 
@@ -83,7 +84,9 @@ impl<'state> NativeSyscallHandler<'state> {
             return Err(retdata.0.clone());
         }
 
-        native_update_remaining_gas(remaining_gas, &call_info);
+        // TODO(Noa, 1/11/2024): remove this once the gas type is u64.
+        // Change the remaining gas value.
+        *remaining_gas = u128::from(remaining_gas_u64);
 
         self.inner_calls.push(call_info);
 
@@ -309,20 +312,4 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
     ) -> SyscallResult<[u32; 8]> {
         todo!("Implement sha256_process_block syscall.");
     }
-}
-
-/// Wrapper function around [update_remaining_gas] which takes a u128 as an input, converts it to
-/// u64 and uses [update_remaining_gas] to withdraw the right amount. Finally, updates the value
-/// to which `remaining_gas` points to.
-#[allow(dead_code)]
-fn native_update_remaining_gas(remaining_gas: &mut u128, call_info: &CallInfo) {
-    // Create a new variable with converted type.
-    let mut remaining_gas_u64 =
-        u64::try_from(*remaining_gas).expect("Failed to convert gas to u64.");
-
-    // Pass the reference to the function.
-    update_remaining_gas(&mut remaining_gas_u64, call_info);
-
-    // Change the remaining gas value.
-    *remaining_gas = u128::from(remaining_gas_u64);
 }
