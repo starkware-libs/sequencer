@@ -44,9 +44,9 @@ mod tests {
         sender: &mut MockBroadcastedMessagesSender<StreamMessage<ConsensusMessage>>,
         msg: StreamMessage<ConsensusMessage>,
     ) {
-        let broadcasted_message_manager =
+        let broadcasted_message_metadata =
             BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
-        sender.send((msg, broadcasted_message_manager)).await.unwrap();
+        sender.send((msg, broadcasted_message_metadata)).await.unwrap();
     }
 
     fn setup_test() -> (

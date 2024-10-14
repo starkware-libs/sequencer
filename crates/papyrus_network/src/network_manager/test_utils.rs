@@ -98,8 +98,8 @@ where
     let (reported_messages_sender, mock_reported_messages_receiver) =
         futures::channel::mpsc::channel(CHANNEL_BUFFER_SIZE);
     let reported_messages_fn: fn(BroadcastedMessageMetadata) -> Ready<Result<PeerId, SendError>> =
-        |broadcasted_message_manager| {
-            ready(Ok(broadcasted_message_manager.originator_id.private_get_peer_id()))
+        |broadcasted_message_metadata| {
+            ready(Ok(broadcasted_message_metadata.originator_id.private_get_peer_id()))
         };
     let reported_messages_sender = reported_messages_sender.with(reported_messages_fn);
 

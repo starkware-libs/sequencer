@@ -86,8 +86,9 @@ mock! {
 }
 
 async fn send(sender: &mut MockBroadcastedMessagesSender<ConsensusMessage>, msg: ConsensusMessage) {
-    let broadcasted_message_manager = BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
-    sender.send((msg, broadcasted_message_manager)).await.unwrap();
+    let broadcasted_message_metadata =
+        BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
+    sender.send((msg, broadcasted_message_metadata)).await.unwrap();
 }
 
 #[tokio::test]
