@@ -12,7 +12,7 @@ WORKDIR /app
 
 COPY scripts/install_build_tools.sh .
 COPY scripts/dependencies.sh .
-RUN apt update && apt -y install curl bzip2
+RUN apt update && apt -y install curl bzip2 lld clang
 
 
 ENV RUSTUP_HOME=/var/tmp/rust
