@@ -5,7 +5,7 @@ use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
 use starknet_api::transaction::TransactionHash;
-use starknet_batcher_types::batcher_types::StartHeightInput;
+use starknet_batcher_types::batcher_types::{BuildProposalInput, ProposalId, StartHeightInput};
 use starknet_batcher_types::communication::SharedBatcherClient;
 use starknet_mempool_integration_tests::integration_test_setup::IntegrationTestSetup;
 
@@ -67,5 +67,18 @@ pub async fn run_consensus_for_end_to_end_test(batcher_client: &SharedBatcherCli
     let current_height = BlockNumber(1);
 
     // Test.
+    // Start height.
     batcher_client.start_height(StartHeightInput { height: current_height }).await.unwrap();
+
+    // Build proposal.
+    // Set the current proposal id.
+    let proposal_id = ProposalId(0);
+    batcher_client
+        .build_proposal(BuildProposalInput {
+            proposal_id,
+            deadline: chrono::Utc::now() + chrono::TimeDelta::new(1, 0).unwrap(),
+            retrospective_block_hash: None,
+        })
+        .await
+        .unwrap();
 }
