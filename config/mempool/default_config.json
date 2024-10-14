@@ -115,7 +115,7 @@
     "value": 3
   },
   "components.batcher.remote_client_config.socket": {
-    "description": "The remote component socket.",
+    "description": "The remote component server socket.",
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
@@ -125,7 +125,7 @@
     "value": true
   },
   "components.batcher.remote_server_config.socket": {
-    "description": "The remote component socket.",
+    "description": "The remote component server socket.",
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
@@ -170,7 +170,7 @@
     "value": 3
   },
   "components.consensus_manager.remote_client_config.socket": {
-    "description": "The remote component socket.",
+    "description": "The remote component server socket.",
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
@@ -180,7 +180,7 @@
     "value": true
   },
   "components.consensus_manager.remote_server_config.socket": {
-    "description": "The remote component socket.",
+    "description": "The remote component server socket.",
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
@@ -225,7 +225,7 @@
     "value": 3
   },
   "components.gateway.remote_client_config.socket": {
-    "description": "The remote component socket.",
+    "description": "The remote component server socket.",
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
@@ -235,7 +235,7 @@
     "value": true
   },
   "components.gateway.remote_server_config.socket": {
-    "description": "The remote component socket.",
+    "description": "The remote component server socket.",
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
@@ -280,7 +280,7 @@
     "value": 3
   },
   "components.http_server.remote_client_config.socket": {
-    "description": "The remote component socket.",
+    "description": "The remote component server socket.",
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
@@ -290,7 +290,7 @@
     "value": true
   },
   "components.http_server.remote_server_config.socket": {
-    "description": "The remote component socket.",
+    "description": "The remote component server socket.",
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
@@ -335,7 +335,7 @@
     "value": 3
   },
   "components.mempool.remote_client_config.socket": {
-    "description": "The remote component socket.",
+    "description": "The remote component server socket.",
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
@@ -345,7 +345,7 @@
     "value": true
   },
   "components.mempool.remote_server_config.socket": {
-    "description": "The remote component socket.",
+    "description": "The remote component server socket.",
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
