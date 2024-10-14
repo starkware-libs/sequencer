@@ -3,7 +3,7 @@ use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
 use starknet_api::transaction::TransactionHash;
-use starknet_batcher_types::batcher_types::StartHeightInput;
+use starknet_batcher_types::batcher_types::{BuildProposalInput, ProposalId, StartHeightInput};
 use starknet_batcher_types::communication::SharedBatcherClient;
 use starknet_mempool_integration_tests::integration_test_setup::IntegrationTestSetup;
 use starknet_mempool_integration_tests::integration_test_utils::create_integration_test_tx_generator;
@@ -59,9 +59,25 @@ pub async fn run_consensus_for_end_to_end_test(batcher_client: &SharedBatcherCli
     // Setup. Holds the state of the consensus manager.
 
     // Set start height.
-    // TODO(Arni): Get the current height from the mock_running_system object.
+    // TODO(Arni): Get the current height and retrospective_block_hash from the rpc storage
     let current_height = BlockNumber(1);
 
     // Test.
+
+    // Start height.
     batcher_client.start_height(StartHeightInput { height: current_height }).await.unwrap();
+
+    // Build proposal.
+    let proposal_id = ProposalId(0);
+    let retrospective_block_hash = None;
+
+    let build_proposal_duaration = chrono::TimeDelta::new(1, 0).unwrap();
+    batcher_client
+        .build_proposal(BuildProposalInput {
+            proposal_id,
+            deadline: chrono::Utc::now() + build_proposal_duaration,
+            retrospective_block_hash,
+        })
+        .await
+        .unwrap();
 }
