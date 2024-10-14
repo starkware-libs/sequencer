@@ -35,6 +35,7 @@ use crate::test_utils::{
     CURRENT_BLOCK_NUMBER_FOR_VALIDATE,
     CURRENT_BLOCK_TIMESTAMP,
     CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE,
+    MAX_FEE,
     TEST_SEQUENCER_ADDRESS,
 };
 use crate::transaction::objects::{
@@ -141,7 +142,7 @@ fn test_get_execution_info(
     }
 
     let tx_hash = TransactionHash(felt!(1991_u16));
-    let max_fee = Fee(42);
+    let max_fee = Fee(MAX_FEE);
     let nonce = nonce!(3_u16);
     let sender_address = test_contract_address;
 
@@ -246,11 +247,9 @@ fn test_get_execution_info(
 
     let result = match execution_mode {
         ExecutionMode::Validate => {
-            entry_point_call.execute_directly_given_tx_info_in_validate_mode(state, tx_info, false)
+            entry_point_call.execute_directly_given_tx_info_in_validate_mode(state, tx_info)
         }
-        ExecutionMode::Execute => {
-            entry_point_call.execute_directly_given_tx_info(state, tx_info, false)
-        }
+        ExecutionMode::Execute => entry_point_call.execute_directly_given_tx_info(state, tx_info),
     };
 
     assert!(!result.unwrap().execution.failed);
