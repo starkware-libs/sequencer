@@ -100,3 +100,8 @@ pub fn test_get_tx_by_hash(test_state_reader: TestStateReader) {
     let actual_tx = test_state_reader.get_tx_by_hash(EXAMPLE_INVOKE_TX_HASH).unwrap();
     assert_matches!(actual_tx, Transaction::Invoke(..));
 }
+
+#[rstest]
+pub fn test_get_statediff_rpc(test_state_reader: TestStateReader) {
+    assert!(test_state_reader.get_state_diff().is_ok());
+}
