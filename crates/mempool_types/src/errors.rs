@@ -14,4 +14,6 @@ pub enum MempoolError {
     // TODO(Mohammad): Consider using `StarknetApiError` once it implements `PartialEq`.
     #[error("Out of range.")]
     FeltOutOfRange,
+    #[error("Transaction with hash: {tx_hash} could not be sent using p2p client.")]
+    P2pSenderClientError { tx_hash: TransactionHash },
 }
