@@ -13,6 +13,7 @@ async-trait.workspace = true
 axum.workspace = true
 enum-assoc.workspace = true
 mockall.workspace = true
+papyrus_network_types.workspace = true
 papyrus_rpc.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
