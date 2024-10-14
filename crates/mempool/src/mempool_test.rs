@@ -719,14 +719,14 @@ fn test_fee_escalation_valid_replacement() {
     ];
     for increased_value in increased_values {
         // Setup.
-        let tx = tx!(tx_hash: 1, tip: 90, max_l2_gas_price: 90, tx_nonce: 1, sender_address: "0x0");
+        let tx = tx!(tip: 90, max_l2_gas_price: 90);
         let mut mempool = MempoolContentBuilder::new()
             .with_pool([tx])
             .with_fee_escalation_percentage(10)
             .build_into_mempool();
 
-        let valid_replacement_input = add_tx_input!(tx_hash: 2, tip: increased_value,
-            max_l2_gas_price: u128::from(increased_value), tx_nonce: 1, sender_address: "0x0");
+        let valid_replacement_input = add_tx_input!(tip: increased_value,
+            max_l2_gas_price: u128::from(increased_value));
 
         // Test and assert.
         add_tx(&mut mempool, &valid_replacement_input);
