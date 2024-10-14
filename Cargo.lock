@@ -10379,6 +10379,7 @@ dependencies = [
  "axum",
  "blockifier",
  "cairo-lang-starknet-classes",
+ "chrono",
  "indexmap 2.6.0",
  "mempool_test_utils",
  "papyrus_common",
