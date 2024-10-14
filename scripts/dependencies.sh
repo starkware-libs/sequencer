@@ -83,6 +83,7 @@ function main() {
     # Set LIBCAIRO_NATIVE_DIR as first argument, or by default the pwd.
 echo "asdf func args: $@"
 echo "asdf func arg 1: $1"
+ls -lsah . # asdf
     THIS_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
     DEFAULT_DIR="$THIS_DIR/crates/blockifier"
     LIBCAIRO_NATIVE_DIR=${1:-"$DEFAULT_DIR"}
