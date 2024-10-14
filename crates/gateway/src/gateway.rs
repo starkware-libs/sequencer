@@ -2,6 +2,7 @@ use std::clone::Clone;
 use std::sync::Arc;
 
 use blockifier::context::ChainInfo;
+use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
@@ -64,9 +65,13 @@ impl Gateway {
         Gateway { config, app_state }
     }
 
-    pub async fn add_tx(&mut self, tx: RpcTransaction) -> GatewayResult<TransactionHash> {
+    pub async fn add_tx(
+        &mut self,
+        tx: RpcTransaction,
+        p2p_message_metadata: Option<BroadcastedMessageMetadata>,
+    ) -> GatewayResult<TransactionHash> {
         let app_state = self.app_state.clone();
-        internal_add_tx(app_state, tx).await
+        internal_add_tx(app_state, tx, p2p_message_metadata).await
     }
 }
 
@@ -76,6 +81,7 @@ impl Gateway {
 async fn internal_add_tx(
     app_state: AppState,
     tx: RpcTransaction,
+    p2p_message_metadata: Option<BroadcastedMessageMetadata>,
 ) -> GatewayResult<TransactionHash> {
     let add_tx_args = tokio::task::spawn_blocking(move || {
         process_tx(
@@ -95,7 +101,7 @@ async fn internal_add_tx(
 
     let tx_hash = add_tx_args.tx.tx_hash();
 
-    let add_tx_args = AddTransactionArgsWrapper { args: add_tx_args, p2p_message_metadata: None };
+    let add_tx_args = AddTransactionArgsWrapper { args: add_tx_args, p2p_message_metadata };
     app_state.mempool_client.add_tx(add_tx_args).await.map_err(|e| {
         error!("Failed to send tx to mempool: {}", e);
         GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
