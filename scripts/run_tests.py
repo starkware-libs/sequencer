@@ -20,7 +20,7 @@ def packages_to_test_due_to_global_changes(files: List[str]) -> Set[str]:
     return set()
 
 
-def test_crates(crates: Set[str]):
+def test_crates(crates: Set[str], codecov: bool):
     """
     Runs tests for the given crates.
     If no crates provided, runs tests for all crates.
@@ -30,7 +30,11 @@ def test_crates(crates: Set[str]):
         args.extend(["--package", package])
 
     # If crates is empty (i.e. changes_only is False), all packages will be tested (no args).
-    cmd = ["cargo", "test"] + args
+    cmd = (
+        ["cargo", "llvm-cov", "--codecov", "-r", "--output-path", "codecov.json"]
+        if codecov
+        else ["cargo", "test"]
+    ) + args
 
     print("Running tests...")
     print(cmd, flush=True)
@@ -38,7 +42,7 @@ def test_crates(crates: Set[str]):
     print("Tests complete.")
 
 
-def run_test(changes_only: bool, commit_id: Optional[str]):
+def run_test(changes_only: bool, commit_id: Optional[str], codecov: bool):
     """
     Runs tests.
     If changes_only is True, only tests packages that have been modified; if no packages have been
@@ -61,19 +65,20 @@ def run_test(changes_only: bool, commit_id: Optional[str]):
             print("No changes detected.")
             return
 
-    test_crates(crates=tested_packages)
+    test_crates(crates=tested_packages, codecov=codecov)
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Presubmit script.")
     parser.add_argument("--changes_only", action="store_true")
     parser.add_argument("--commit_id", type=str, help="GIT commit ID to compare against.")
+    parser.add_argument("--codecov", action="store_true", help="Run with codecov.")
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
-    run_test(changes_only=args.changes_only, commit_id=args.commit_id)
+    run_test(changes_only=args.changes_only, commit_id=args.commit_id, codecov=args.codecov)
 
 
 if __name__ == "__main__":

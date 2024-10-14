@@ -135,7 +135,7 @@ jobs:
         run: |
           python3 -m venv ci
           ci/bin/pip install -r scripts/requirements.txt
-          ci/bin/python scripts/run_codecov.py --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
+          ci/bin/python scripts/run_tests.py --codecov --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
           if [ -f codecov.json ]; then
             echo "codecov_output=true" >> $GITHUB_OUTPUT
           else
@@ -150,7 +150,7 @@ jobs:
         run: |
           python3 -m venv ci
           ci/bin/pip install -r scripts/requirements.txt
-          ci/bin/python scripts/run_codecov.py
+          ci/bin/python scripts/run_tests.py --codecov
           echo "codecov_output=true" >> $GITHUB_OUTPUT
         env:
           SEED: 0
