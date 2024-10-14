@@ -216,6 +216,8 @@ pub fn execute_call(
         maybe_pending_data.as_ref(),
     )?;
 
+    // TODO(yair): check if this is the correct value.
+    let mut remaining_gas = execution_config.default_initial_gas_cost;
     let call_entry_point = CallEntryPoint {
         class_hash: None,
         code_address: Some(*contract_address),
@@ -225,8 +227,7 @@ pub fn execute_call(
         storage_address: *contract_address,
         caller_address: ContractAddress::default(),
         call_type: BlockifierCallType::Call,
-        // TODO(yair): check if this is the correct value.
-        initial_gas: execution_config.default_initial_gas_cost,
+        initial_gas: remaining_gas,
     };
 
     let mut cached_state = CachedState::new(ExecutionStateReader {
@@ -256,7 +257,12 @@ pub fn execute_call(
     );
 
     let res = call_entry_point
-        .execute(&mut cached_state, &mut ExecutionResources::default(), &mut context)
+        .execute(
+            &mut cached_state,
+            &mut ExecutionResources::default(),
+            &mut context,
+            &mut remaining_gas,
+        )
         .map_err(|error| {
             if let Some(class_hash) = cached_state.state.missing_compiled_class.get() {
                 ExecutionError::MissingCompiledClass { class_hash }
