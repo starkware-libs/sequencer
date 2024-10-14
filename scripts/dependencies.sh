@@ -84,7 +84,7 @@ function main() {
 echo "asdf func args: $@"
 echo "asdf func arg 1: $1"
     THIS_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-    DEFAULT_DIR="$THIS_DIR/../crates/blockifier"
+    DEFAULT_DIR="$THIS_DIR/crates/blockifier"
     LIBCAIRO_NATIVE_DIR=${1:-"$DEFAULT_DIR"}
 echo "asdf func LIBCAIRO_NATIVE_DIR: $LIBCAIRO_NATIVE_DIR"
 

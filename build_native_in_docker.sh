@@ -9,6 +9,11 @@ SEQUENCER_DIR=${PWD}
     docker build . -t ${docker_image_name} --file ${docker_image_name}.Dockerfile --build-arg SEQUENCER_DIR=${SEQUENCER_DIR}
 )
 
+echo "asdf uid: $UID"
+echo "asdf build_native home: ${HOME}"
+echo "asdf build_native pwd: ${PWD}"
+echo "asdf build_native dock: ${docker_image_name}"
+
 docker run \
     --rm \
     --net host \
