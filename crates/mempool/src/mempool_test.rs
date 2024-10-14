@@ -86,11 +86,17 @@ impl MempoolContentBuilder {
         self
     }
 
-    fn _with_pending_queue<Q>(mut self, queue_txs: Q) -> Self
+    fn with_pending_queue<Q>(mut self, queue_txs: Q) -> Self
     where
         Q: IntoIterator<Item = TransactionReference>,
     {
-        self.tx_queue_content_builder = self.tx_queue_content_builder._with_pending(queue_txs);
+        self.tx_queue_content_builder = self.tx_queue_content_builder.with_pending(queue_txs);
+        self
+    }
+
+    fn with_gas_price_threshold(mut self, gas_price_threshold: u128) -> Self {
+        self.tx_queue_content_builder =
+            self.tx_queue_content_builder.with_gas_price_threshold(gas_price_threshold);
         self
     }
 
@@ -667,11 +673,13 @@ fn test_commit_block_rewinds_queued_nonce() {
 }
 
 #[rstest]
-fn test_commit_block_from_different_leader() {
+#[case::test_commit_block_from_different_leader_state_fills_hole_for_priority_tx(true)]
+#[case::test_commit_block_from_different_leader_state_fills_hole_for_pending_tx(false)]
+fn test_commit_block_from_different_leader(#[case] is_priority_tx: bool) {
     // Setup.
     let tx_address_0_nonce_3 = tx!(tx_hash: 1, sender_address: "0x0", tx_nonce: 3);
     let tx_address_0_nonce_5 = tx!(tx_hash: 2, sender_address: "0x0", tx_nonce: 5);
-    let tx_address_0_nonce_6 = tx!(tx_hash: 3, sender_address: "0x0", tx_nonce: 6);
+    let tx_address_0_nonce_6 = tx!(tx_hash: 3, sender_address: "0x0", tx_nonce: 6, max_l2_gas_price: if is_priority_tx { 916_u128 } else { 177_u128 });
     let tx_address_1_nonce_2 = tx!(tx_hash: 4, sender_address: "0x1", tx_nonce: 2);
 
     let queued_txs = [TransactionReference::new(&tx_address_1_nonce_2)];
@@ -684,6 +692,7 @@ fn test_commit_block_from_different_leader() {
     let mut mempool = MempoolContentBuilder::new()
         .with_pool(pool_txs)
         .with_priority_queue(queued_txs)
+        .with_gas_price_threshold(200)
         .build_into_mempool();
 
     // Test.
@@ -701,10 +710,12 @@ fn test_commit_block_from_different_leader() {
     // Assert.
     let expected_queue_txs = [TransactionReference::new(&tx_address_0_nonce_6)];
     let expected_pool_txs = [tx_address_0_nonce_6, tx_address_1_nonce_2];
-    let expected_mempool_content = MempoolContentBuilder::new()
-        .with_pool(expected_pool_txs)
-        .with_priority_queue(expected_queue_txs)
-        .build();
+    let mempool_content_builder = MempoolContentBuilder::new().with_pool(expected_pool_txs);
+    let expected_mempool_content = if is_priority_tx {
+        mempool_content_builder.with_priority_queue(expected_queue_txs).build()
+    } else {
+        mempool_content_builder.with_pending_queue(expected_queue_txs).build()
+    };
     expected_mempool_content.assert_eq(&mempool);
 }
 
