@@ -11,8 +11,9 @@ use num_traits::Inv;
 use paste::paste;
 use semver::Version;
 use serde::de::Error as DeserializationError;
-use serde::{Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::{Map, Number, Value};
+use starknet_api::block::GasPrice;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::GasVectorComputationMode;
 use strum::IntoEnumIterator;
@@ -134,7 +135,14 @@ define_versioned_constants! {
     V0_13_3
 }
 
-pub type ResourceCost = Ratio<u128>;
+pub type ResourceCost = Ratio<u64>;
+
+// TODO: Delete this ratio-converter function once event keys / data length are no longer 128 bits
+//   (no other usage is expected).
+pub fn resource_cost_to_u128_ratio(cost: ResourceCost) -> Ratio<u128> {
+    Ratio::new((*cost.numer()).into(), (*cost.denom()).into())
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, PartialOrd)]
 pub struct CompilerVersion(pub Version);
 impl Default for CompilerVersion {
@@ -193,11 +201,12 @@ pub struct VersionedConstants {
     // See the struct's docstring for more details.
     pub os_constants: Arc<OsConstants>,
 
+    // Fee related.
+    pub(crate) vm_resource_fee_cost: Arc<VmResourceCosts>,
+
     // Resources.
     os_resources: Arc<OsResources>,
 
-    // Fee related.
-    vm_resource_fee_cost: Arc<VmResourceCosts>,
     // Just to make sure the value exists, but don't use the actual values.
     #[allow(dead_code)]
     gateway: serde::de::IgnoredAny,
@@ -220,19 +229,22 @@ impl VersionedConstants {
     }
 
     /// Converts from L1 gas price to L2 gas price with **upward rounding**.
-    pub fn convert_l1_to_l2_gas_price_round_up(&self, l1_gas_price: u128) -> u128 {
-        *(self.l1_to_l2_gas_price_ratio() * l1_gas_price).ceil().numer()
+    pub fn convert_l1_to_l2_gas_price_round_up(&self, l1_gas_price: GasPrice) -> GasPrice {
+        (*(resource_cost_to_u128_ratio(self.l1_to_l2_gas_price_ratio()) * l1_gas_price.0)
+            .ceil()
+            .numer())
+        .into()
     }
 
     /// Converts from L1 gas amount to L2 gas amount with **upward rounding**.
     pub fn convert_l1_to_l2_gas_amount_round_up(&self, l1_gas_amount: GasAmount) -> GasAmount {
         // The amount ratio is the inverse of the price ratio.
-        GasAmount(*(self.l1_to_l2_gas_price_ratio().inv() * l1_gas_amount.0).ceil().numer())
+        (*(self.l1_to_l2_gas_price_ratio().inv() * l1_gas_amount.0).ceil().numer()).into()
     }
 
     /// Returns the following ratio: L2_gas_price/L1_gas_price.
     fn l1_to_l2_gas_price_ratio(&self) -> ResourceCost {
-        Ratio::new(1, u128::from(self.os_constants.gas_costs.step_gas_cost))
+        Ratio::new(1, self.os_constants.gas_costs.step_gas_cost)
             * self.vm_resource_fee_cost().n_steps
     }
 
@@ -841,6 +853,7 @@ pub struct ResourcesByVersion {
     pub deprecated_resources: ResourcesParams,
 }
 
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct VersionedConstantsOverrides {
     pub validate_max_n_steps: u32,
     pub max_recursion_depth: usize,

@@ -1,11 +1,6 @@
-#[cfg(feature = "concurrency")]
 use std::collections::{HashMap, HashSet};
-#[cfg(feature = "concurrency")]
 use std::panic::{self, catch_unwind, AssertUnwindSafe};
-#[cfg(feature = "concurrency")]
-use std::sync::Arc;
-#[cfg(feature = "concurrency")]
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use itertools::FoldWhile::{Continue, Done};
 use itertools::Itertools;
@@ -15,14 +10,13 @@ use thiserror::Error;
 use crate::blockifier::block::{pre_process_block, BlockNumberHashPair};
 use crate::blockifier::config::TransactionExecutorConfig;
 use crate::bouncer::{Bouncer, BouncerWeights};
-#[cfg(feature = "concurrency")]
 use crate::concurrency::worker_logic::WorkerExecutor;
 use crate::context::BlockContext;
 use crate::state::cached_state::{CachedState, CommitmentStateDiff, TransactionalState};
 use crate::state::errors::StateError;
 use crate::state::state_api::{StateReader, StateResult};
 use crate::transaction::errors::TransactionExecutionError;
-use crate::transaction::objects::TransactionExecutionInfo;
+use crate::transaction::objects::{TransactionExecutionInfo, TransactionInfoCreator};
 use crate::transaction::transaction_execution::Transaction;
 use crate::transaction::transactions::{ExecutableTransaction, ExecutionFlags};
 
@@ -104,9 +98,11 @@ impl<S: StateReader> TransactionExecutor<S> {
         let mut transactional_state = TransactionalState::create_transactional(
             self.block_state.as_mut().expect(BLOCK_STATE_ACCESS_ERR),
         );
+        let tx_charge_fee = tx.create_tx_info().enforce_fee();
+
         // Executing a single transaction cannot be done in a concurrent mode.
         let execution_flags =
-            ExecutionFlags { charge_fee: true, validate: true, concurrency_mode: false };
+            ExecutionFlags { charge_fee: tx_charge_fee, validate: true, concurrency_mode: false };
         let tx_execution_result =
             tx.execute_raw(&mut transactional_state, &self.block_context, execution_flags);
         match tx_execution_result {
@@ -142,14 +138,6 @@ impl<S: StateReader> TransactionExecutor<S> {
             }
         }
         results
-    }
-
-    #[cfg(not(feature = "concurrency"))]
-    pub fn execute_chunk(
-        &mut self,
-        _chunk: &[Transaction],
-    ) -> Vec<TransactionExecutorResult<TransactionExecutionInfo>> {
-        unimplemented!()
     }
 
     /// Returns the state diff, a list of contract class hash with the corresponding list of
@@ -229,7 +217,6 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
         }
     }
 
-    #[cfg(feature = "concurrency")]
     pub fn execute_chunk(
         &mut self,
         chunk: &[Transaction],

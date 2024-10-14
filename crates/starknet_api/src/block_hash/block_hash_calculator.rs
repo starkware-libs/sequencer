@@ -28,6 +28,7 @@ use crate::transaction::{
     TransactionHash,
     TransactionSignature,
 };
+use crate::{StarknetApiError, StarknetApiResult};
 
 #[cfg(test)]
 #[path = "block_hash_calculator_test.rs"]
@@ -36,12 +37,15 @@ mod block_hash_calculator_test;
 static STARKNET_BLOCK_HASH0: LazyLock<Felt> = LazyLock::new(|| {
     ascii_as_felt("STARKNET_BLOCK_HASH0").expect("ascii_as_felt failed for 'STARKNET_BLOCK_HASH0'")
 });
+static STARKNET_BLOCK_HASH1: LazyLock<Felt> = LazyLock::new(|| {
+    ascii_as_felt("STARKNET_BLOCK_HASH1").expect("ascii_as_felt failed for 'STARKNET_BLOCK_HASH1'")
+});
 static STARKNET_GAS_PRICES0: LazyLock<Felt> = LazyLock::new(|| {
     ascii_as_felt("STARKNET_GAS_PRICES0").expect("ascii_as_felt failed for 'STARKNET_GAS_PRICES0'")
 });
 
 #[allow(non_camel_case_types)]
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd)]
 pub enum BlockHashVersion {
     VO_13_2,
     VO_13_3,
@@ -50,8 +54,34 @@ pub enum BlockHashVersion {
 impl From<BlockHashVersion> for StarknetVersion {
     fn from(value: BlockHashVersion) -> Self {
         match value {
-            BlockHashVersion::VO_13_2 => Self(vec![0, 13, 2]),
-            BlockHashVersion::VO_13_3 => Self(vec![0, 13, 3]),
+            BlockHashVersion::VO_13_2 => StarknetVersion(vec![0, 13, 2]),
+            BlockHashVersion::VO_13_3 => StarknetVersion(vec![0, 13, 3]),
+        }
+    }
+}
+
+impl TryFrom<StarknetVersion> for BlockHashVersion {
+    type Error = StarknetApiError;
+
+    fn try_from(value: StarknetVersion) -> StarknetApiResult<Self> {
+        if value < Self::VO_13_2.into() {
+            Err(StarknetApiError::BlockHashVersion { version: value.to_string() })
+        } else if value < Self::VO_13_3.into() {
+            Ok(Self::VO_13_2)
+        } else {
+            Ok(Self::VO_13_3)
+        }
+    }
+}
+
+// The prefix constant for the block hash calculation.
+type BlockHashConstant = Felt;
+
+impl From<BlockHashVersion> for BlockHashConstant {
+    fn from(block_hash_version: BlockHashVersion) -> Self {
+        match block_hash_version {
+            BlockHashVersion::VO_13_2 => *STARKNET_BLOCK_HASH0,
+            BlockHashVersion::VO_13_3 => *STARKNET_BLOCK_HASH1,
         }
     }
 }
@@ -84,17 +114,18 @@ pub struct BlockHeaderCommitments {
 }
 
 /// Poseidon (
-///     “STARKNET_BLOCK_HASH0”, block_number, global_state_root, sequencer_address,
+///     block_hash_constant, block_number, global_state_root, sequencer_address,
 ///     block_timestamp, concat_counts, state_diff_hash, transaction_commitment,
 ///     event_commitment, receipt_commitment, gas_prices, starknet_version, 0, parent_block_hash
 /// ).
 pub fn calculate_block_hash(
     header: BlockHeaderWithoutHash,
     block_commitments: BlockHeaderCommitments,
-) -> BlockHash {
-    BlockHash(
+) -> StarknetApiResult<BlockHash> {
+    let block_hash_version: BlockHashVersion = header.starknet_version.clone().try_into()?;
+    Ok(BlockHash(
         HashChain::new()
-            .chain(&STARKNET_BLOCK_HASH0)
+            .chain(&block_hash_version.clone().into())
             .chain(&header.block_number.0.into())
             .chain(&header.state_root.0)
             .chain(&header.sequencer.0)
@@ -109,7 +140,7 @@ pub fn calculate_block_hash(
                     &header.l1_gas_price,
                     &header.l1_data_gas_price,
                     &header.l2_gas_price,
-                    &header.starknet_version,
+                    &block_hash_version,
                 )
                 .iter(),
             )
@@ -119,7 +150,7 @@ pub fn calculate_block_hash(
             .chain(&Felt::ZERO)
             .chain(&header.parent_hash.0)
             .get_poseidon_hash(),
-    )
+    ))
 }
 
 /// Calculates the commitments of the transactions data for the block hash.
@@ -127,9 +158,20 @@ pub fn calculate_block_commitments(
     transactions_data: &[TransactionHashingData],
     state_diff: &ThinStateDiff,
     l1_da_mode: L1DataAvailabilityMode,
+    starknet_version: &StarknetVersion,
 ) -> BlockHeaderCommitments {
-    let transaction_leaf_elements: Vec<TransactionLeafElement> =
-        transactions_data.iter().map(TransactionLeafElement::from).collect();
+    let transaction_leaf_elements: Vec<TransactionLeafElement> = transactions_data
+        .iter()
+        .map(|tx_leaf| {
+            let mut tx_leaf_element = TransactionLeafElement::from(tx_leaf);
+            if starknet_version < &BlockHashVersion::VO_13_3.into()
+                && tx_leaf.transaction_signature.0.is_empty()
+            {
+                tx_leaf_element.transaction_signature.0.push(Felt::ZERO);
+            }
+            tx_leaf_element
+        })
+        .collect();
     let transaction_commitment =
         calculate_transaction_commitment::<Poseidon>(&transaction_leaf_elements);
 
@@ -204,9 +246,9 @@ fn gas_prices_to_hash(
     l1_gas_price: &GasPricePerToken,
     l1_data_gas_price: &GasPricePerToken,
     l2_gas_price: &GasPricePerToken,
-    starknet_version: &StarknetVersion,
+    block_hash_version: &BlockHashVersion,
 ) -> Vec<Felt> {
-    if *starknet_version >= BlockHashVersion::VO_13_3.into() {
+    if block_hash_version >= &BlockHashVersion::VO_13_3 {
         vec![
             HashChain::new()
                 .chain(&STARKNET_GAS_PRICES0)

@@ -21,7 +21,6 @@ pub mod testing_instances;
 pub mod objects;
 use std::cell::Cell;
 use std::collections::BTreeMap;
-use std::num::NonZeroU128;
 use std::sync::Arc;
 
 use blockifier::blockifier::block::{pre_process_block, BlockInfo, BlockNumberHashPair, GasPrices};
@@ -57,14 +56,11 @@ use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::{StorageError, StorageReader};
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockNumber, StarknetVersion};
+use starknet_api::block::{BlockNumber, NonzeroGasPrice, StarknetVersion};
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, EntryPointSelector, PatriciaKey};
 use starknet_api::data_availability::L1DataAvailabilityMode;
-// TODO: merge multiple EntryPointType structs in SN_API into one.
-use starknet_api::deprecated_contract_class::{
-    ContractClass as DeprecatedContractClass,
-    EntryPointType,
-};
+use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{StateNumber, ThinStateDiff};
 use starknet_api::transaction::{
     Calldata,
@@ -353,12 +349,12 @@ fn create_block_context(
         block_number,
         // TODO(yair): What to do about blocks pre 0.13.1 where the data gas price were 0?
         gas_prices: GasPrices::new(
-            NonZeroU128::new(l1_gas_price.price_in_wei.0).unwrap_or(NonZeroU128::MIN),
-            NonZeroU128::new(l1_gas_price.price_in_fri.0).unwrap_or(NonZeroU128::MIN),
-            NonZeroU128::new(l1_data_gas_price.price_in_wei.0).unwrap_or(NonZeroU128::MIN),
-            NonZeroU128::new(l1_data_gas_price.price_in_fri.0).unwrap_or(NonZeroU128::MIN),
-            NonZeroU128::new(l2_gas_price.price_in_wei.0).unwrap_or(NonZeroU128::MIN),
-            NonZeroU128::new(l2_gas_price.price_in_fri.0).unwrap_or(NonZeroU128::MIN),
+            NonzeroGasPrice::new(l1_gas_price.price_in_wei).unwrap_or(NonzeroGasPrice::MIN),
+            NonzeroGasPrice::new(l1_gas_price.price_in_fri).unwrap_or(NonzeroGasPrice::MIN),
+            NonzeroGasPrice::new(l1_data_gas_price.price_in_wei).unwrap_or(NonzeroGasPrice::MIN),
+            NonzeroGasPrice::new(l1_data_gas_price.price_in_fri).unwrap_or(NonzeroGasPrice::MIN),
+            NonzeroGasPrice::new(l2_gas_price.price_in_wei).unwrap_or(NonzeroGasPrice::MIN),
+            NonzeroGasPrice::new(l2_gas_price.price_in_fri).unwrap_or(NonzeroGasPrice::MIN),
         ),
     };
     let chain_info = ChainInfo {

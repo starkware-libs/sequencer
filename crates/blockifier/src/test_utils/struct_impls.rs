@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use serde_json::Value;
-use starknet_api::block::{BlockHash, BlockNumber, BlockTimestamp};
+use starknet_api::block::{BlockHash, BlockNumber, BlockTimestamp, NonzeroGasPrice};
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, Nonce, PatriciaKey};
 use starknet_api::hash::StarkHash;
 use starknet_api::transaction::{
@@ -19,7 +19,7 @@ use super::update_json_value;
 use crate::abi::abi_utils::selector_from_name;
 use crate::abi::constants;
 use crate::blockifier::block::{BlockInfo, BlockNumberHashPair, GasPrices};
-use crate::bouncer::{BouncerConfig, BouncerWeights};
+use crate::bouncer::{BouncerConfig, BouncerWeights, BuiltinCount};
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::contract_class::{ContractClassV0, ContractClassV1};
@@ -28,8 +28,6 @@ use crate::execution::entry_point::{
     EntryPointExecutionContext,
     EntryPointExecutionResult,
 };
-use crate::fee::fee_utils::get_fee_by_gas_vector;
-use crate::fee::resources::TransactionResources;
 use crate::state::state_api::State;
 use crate::test_utils::{
     get_raw_contract_class,
@@ -43,7 +41,7 @@ use crate::test_utils::{
     TEST_ERC20_CONTRACT_ADDRESS2,
     TEST_SEQUENCER_ADDRESS,
 };
-use crate::transaction::objects::{DeprecatedTransactionInfo, FeeType, TransactionInfo};
+use crate::transaction::objects::{DeprecatedTransactionInfo, TransactionInfo};
 use crate::transaction::transactions::L1HandlerTransaction;
 use crate::versioned_constants::{
     GasCosts,
@@ -118,17 +116,6 @@ impl VersionedConstants {
     }
 }
 
-impl TransactionResources {
-    pub fn calculate_tx_fee(&self, block_context: &BlockContext, fee_type: &FeeType) -> Fee {
-        let gas_vector = self.to_gas_vector(
-            &block_context.versioned_constants,
-            block_context.block_info.use_kzg_da,
-            &GasVectorComputationMode::NoL2Gas,
-        );
-        get_fee_by_gas_vector(&block_context.block_info, gas_vector, fee_type)
-    }
-}
-
 impl GasCosts {
     pub fn create_for_testing_from_subset(subset_of_os_constants: &str) -> Self {
         let subset_of_os_constants: Value = serde_json::from_str(subset_of_os_constants).unwrap();
@@ -175,18 +162,20 @@ impl BlockInfo {
             block_timestamp: BlockTimestamp(CURRENT_BLOCK_TIMESTAMP),
             sequencer_address: contract_address!(TEST_SEQUENCER_ADDRESS),
             gas_prices: GasPrices::new(
-                DEFAULT_ETH_L1_GAS_PRICE.try_into().unwrap(),
-                DEFAULT_STRK_L1_GAS_PRICE.try_into().unwrap(),
-                DEFAULT_ETH_L1_DATA_GAS_PRICE.try_into().unwrap(),
-                DEFAULT_STRK_L1_DATA_GAS_PRICE.try_into().unwrap(),
-                VersionedConstants::latest_constants()
-                    .convert_l1_to_l2_gas_price_round_up(DEFAULT_ETH_L1_GAS_PRICE)
-                    .try_into()
-                    .unwrap(),
-                VersionedConstants::latest_constants()
-                    .convert_l1_to_l2_gas_price_round_up(DEFAULT_STRK_L1_GAS_PRICE)
-                    .try_into()
-                    .unwrap(),
+                DEFAULT_ETH_L1_GAS_PRICE,
+                DEFAULT_STRK_L1_GAS_PRICE,
+                DEFAULT_ETH_L1_DATA_GAS_PRICE,
+                DEFAULT_STRK_L1_DATA_GAS_PRICE,
+                NonzeroGasPrice::new(
+                    VersionedConstants::latest_constants()
+                        .convert_l1_to_l2_gas_price_round_up(DEFAULT_ETH_L1_GAS_PRICE.into()),
+                )
+                .unwrap(),
+                NonzeroGasPrice::new(
+                    VersionedConstants::latest_constants()
+                        .convert_l1_to_l2_gas_price_round_up(DEFAULT_STRK_L1_GAS_PRICE.into()),
+                )
+                .unwrap(),
             ),
             use_kzg_da: false,
         }
@@ -274,5 +263,11 @@ impl L1HandlerTransaction {
         };
         let tx_hash = TransactionHash::default();
         Self { tx, tx_hash, paid_fee_on_l1: l1_fee }
+    }
+}
+
+impl BouncerWeights {
+    pub fn create_for_testing(builtin_count: BuiltinCount) -> Self {
+        Self { builtin_count, ..Self::empty() }
     }
 }

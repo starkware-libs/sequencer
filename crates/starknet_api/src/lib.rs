@@ -29,6 +29,9 @@ use serde_utils::InnerDeserializationError;
 // Note: if you need `Eq` see InnerDeserializationError's docstring.
 #[derive(thiserror::Error, Clone, Debug, PartialEq)]
 pub enum StarknetApiError {
+    /// An error when a starknet version is out of range.
+    #[error("Starknet version {version} is out of range for block hash calculation")]
+    BlockHashVersion { version: String },
     /// Error in the inner deserialization of the node.
     #[error(transparent)]
     InnerDeserialization(#[from] InnerDeserializationError),
@@ -41,4 +44,8 @@ pub enum StarknetApiError {
     /// Missing resource type / duplicated resource type.
     #[error("Missing resource type / duplicated resource type; got {0}.")]
     InvalidResourceMappingInitializer(String),
+    #[error("NonzeroGasPrice cannot be zero.")]
+    ZeroGasPrice,
 }
+
+pub type StarknetApiResult<T> = Result<T, StarknetApiError>;

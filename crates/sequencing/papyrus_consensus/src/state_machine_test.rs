@@ -144,8 +144,6 @@ fn validator_receives_votes_first() {
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Prevote(BLOCK_HASH, ROUND));
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPrevote(ROUND));
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Precommit(BLOCK_HASH, ROUND));
-    // Timeout events should be triggered only once, will be fixed.
-    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPrecommit(ROUND));
     assert_eq!(
         wrapper.next_event().unwrap(),
         StateMachineEvent::Decision(BLOCK_HASH.unwrap(), ROUND)
@@ -249,7 +247,9 @@ fn advance_to_the_next_round() {
 
     wrapper.send_precommit(None, ROUND);
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPrecommit(ROUND));
+    wrapper.send_timeout_precommit(ROUND);
     // The Node sends Prevote after advancing to the next round.
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPropose(ROUND + 1));
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Prevote(BLOCK_HASH, ROUND + 1));
 }
 
@@ -265,6 +265,7 @@ fn prevote_when_receiving_proposal_in_current_round() {
     wrapper.send_precommit(None, ROUND);
     wrapper.send_precommit(None, ROUND);
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPrecommit(ROUND));
+    wrapper.send_timeout_precommit(ROUND);
 
     // The node starts the next round, shouldn't prevote when receiving a proposal for the
     // previous round.
@@ -334,6 +335,9 @@ fn dont_handle_enqueued_while_awaiting_get_proposal() {
     wrapper.send_get_proposal(BLOCK_HASH, ROUND);
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Proposal(BLOCK_HASH, ROUND, None));
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPrecommit(ROUND));
+
+    // Timeout and advance on to the next round.
+    wrapper.send_timeout_precommit(ROUND);
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::GetProposal(None, ROUND + 1));
     assert!(wrapper.next_event().is_none());
 
@@ -344,8 +348,6 @@ fn dont_handle_enqueued_while_awaiting_get_proposal() {
         StateMachineEvent::Proposal(BLOCK_HASH, ROUND + 1, None)
     );
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPrecommit(ROUND + 1));
-    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::GetProposal(None, ROUND + 2));
-    assert!(wrapper.next_event().is_none());
 }
 
 #[test]

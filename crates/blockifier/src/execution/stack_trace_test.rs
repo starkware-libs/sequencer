@@ -114,9 +114,9 @@ Unknown location (pc=0:{entry_point_location})
 2: Error in the called contract (contract address: {test_contract_address_2_felt:#064x}, class \
          hash: {test_contract_hash:#064x}, selector: {inner_entry_point_selector_felt:#064x}):
 Error message: You shall not pass!
-Error at pc=0:1215:
+Error at pc=0:1290:
 Cairo traceback (most recent call last):
-Unknown location (pc=0:1219)
+Unknown location (pc=0:1294)
 
 An ASSERT_EQ instruction failed: 1 != 0.
 "
@@ -202,9 +202,9 @@ Unknown location (pc=0:{entry_point_location})
 2: Error in the called contract (contract address: {test_contract_address_2_felt:#064x}, class \
          hash: {test_contract_hash:#064x}, selector: {inner_entry_point_selector_felt:#064x}):
 Error message: You shall not pass!
-Error at pc=0:1215:
+Error at pc=0:1290:
 Cairo traceback (most recent call last):
-Unknown location (pc=0:1219)
+Unknown location (pc=0:1294)
 
 An ASSERT_EQ instruction failed: 1 != 0.
 "
@@ -230,8 +230,8 @@ Execution failed. Failure reason: (0x6661696c ('fail'), 0x454e545259504f494e545f
 }
 
 #[rstest]
-#[case(CairoVersion::Cairo0, "invoke_call_chain", "Couldn't compute operand op0. Unknown value for memory cell 1:37", (1112_u16, 1158_u16))]
-#[case(CairoVersion::Cairo0, "fail", "An ASSERT_EQ instruction failed: 1 != 0.", (1215_u16, 1166_u16))]
+#[case(CairoVersion::Cairo0, "invoke_call_chain", "Couldn't compute operand op0. Unknown value for memory cell 1:37", (1187_u16, 1233_u16))]
+#[case(CairoVersion::Cairo0, "fail", "An ASSERT_EQ instruction failed: 1 != 0.", (1290_u16, 1241_u16))]
 #[case(CairoVersion::Cairo1, "invoke_call_chain", "0x4469766973696f6e2062792030 ('Division by 0')", (0_u16, 0_u16))]
 #[case(CairoVersion::Cairo1, "fail", "0x6661696c ('fail')", (0_u16, 0_u16))]
 fn test_trace_callchain_ends_with_regular_call(
@@ -345,10 +345,10 @@ Execution failed. Failure reason: ({expected_error}, 0x454e545259504f494e545f464
 }
 
 #[rstest]
-#[case(CairoVersion::Cairo0, "invoke_call_chain", "Couldn't compute operand op0. Unknown value for memory cell 1:23", 1_u8, 0_u8, (37_u16, 1124_u16, 1112_u16, 1197_u16))]
-#[case(CairoVersion::Cairo0, "invoke_call_chain", "Couldn't compute operand op0. Unknown value for memory cell 1:23", 1_u8, 1_u8, (49_u16, 1142_u16, 1112_u16, 1197_u16))]
-#[case(CairoVersion::Cairo0, "fail", "An ASSERT_EQ instruction failed: 1 != 0.", 0_u8, 0_u8, (37_u16, 1124_u16, 1215_u16, 1219_u16))]
-#[case(CairoVersion::Cairo0, "fail", "An ASSERT_EQ instruction failed: 1 != 0.", 0_u8, 1_u8, (49_u16, 1142_u16, 1215_u16, 1219_u16))]
+#[case(CairoVersion::Cairo0, "invoke_call_chain", "Couldn't compute operand op0. Unknown value for memory cell 1:23", 1_u8, 0_u8, (37_u16, 1199_u16, 1187_u16, 1272_u16))]
+#[case(CairoVersion::Cairo0, "invoke_call_chain", "Couldn't compute operand op0. Unknown value for memory cell 1:23", 1_u8, 1_u8, (49_u16, 1217_u16, 1187_u16, 1272_u16))]
+#[case(CairoVersion::Cairo0, "fail", "An ASSERT_EQ instruction failed: 1 != 0.", 0_u8, 0_u8, (37_u16, 1199_u16, 1290_u16, 1294_u16))]
+#[case(CairoVersion::Cairo0, "fail", "An ASSERT_EQ instruction failed: 1 != 0.", 0_u8, 1_u8, (49_u16, 1217_u16, 1290_u16, 1294_u16))]
 #[case(CairoVersion::Cairo1, "invoke_call_chain", "0x4469766973696f6e2062792030 ('Division by 0')", 1_u8, 0_u8, (9631_u16, 9631_u16, 0_u16, 0_u16))]
 #[case(CairoVersion::Cairo1, "invoke_call_chain", "0x4469766973696f6e2062792030 ('Division by 0')", 1_u8, 1_u8, (9631_u16, 9700_u16, 0_u16, 0_u16))]
 #[case(CairoVersion::Cairo1, "fail", "0x6661696c ('fail')", 0_u8, 0_u8, (9631_u16, 9631_u16, 0_u16, 0_u16))]
@@ -544,7 +544,7 @@ fn test_validate_trace(
     let faulty_account = FeatureContract::FaultyAccount(cairo_version);
     let mut sender_address = faulty_account.get_instance_address(0);
     let class_hash = faulty_account.get_class_hash();
-    let state = &mut test_state(&block_context.chain_info, 0, &[(faulty_account, 1)]);
+    let state = &mut test_state(&block_context.chain_info, Fee(0), &[(faulty_account, 1)]);
     let selector = selector_from_name(entry_point_name).0;
 
     // Logic failure.
@@ -591,7 +591,8 @@ An ASSERT_EQ instruction failed: 1 != 0.
     // Clean pc locations from the trace.
     let re = Regex::new(r"pc=0:[0-9]+").unwrap();
     let cleaned_expected_error = &re.replace_all(&expected_error, "pc=0:*");
-    let actual_error = account_tx.execute(state, block_context, true, true).unwrap_err();
+    let charge_fee = account_tx.enforce_fee();
+    let actual_error = account_tx.execute(state, block_context, charge_fee, true).unwrap_err();
     let actual_error_str = actual_error.to_string();
     let cleaned_actual_error = &re.replace_all(&actual_error_str, "pc=0:*");
     // Compare actual trace to the expected trace (sans pc locations).
@@ -616,7 +617,8 @@ fn test_account_ctor_frame_stack_trace(
             tx_type: TransactionType::DeployAccount,
             scenario: INVALID,
             class_hash,
-            max_fee: Fee(BALANCE),
+            max_fee: BALANCE,
+            resource_bounds: max_l1_resource_bounds(),
             validate_constructor: true,
             ..Default::default()
         });
@@ -626,7 +628,7 @@ fn test_account_ctor_frame_stack_trace(
         AccountTransaction::DeployAccount(deploy_tx) => deploy_tx.contract_address(),
         _ => unreachable!("deploy_account_tx is a DeployAccount"),
     };
-    fund_account(chain_info, deploy_address, BALANCE * 2, &mut state.state);
+    fund_account(chain_info, deploy_address, Fee(BALANCE.0 * 2), &mut state.state);
 
     let expected_selector = selector_from_name(CONSTRUCTOR_ENTRY_POINT_NAME).0;
     let expected_address = deploy_address.0.key();

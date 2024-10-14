@@ -106,7 +106,7 @@ fn test_revert_on_overdraft(
         "approve",
         &[
             *contract_address.0.key(), // Calldata: to.
-            felt!(BALANCE),
+            felt!(BALANCE.0),
             felt!(0_u8),
         ],
     );
@@ -277,7 +277,7 @@ fn test_revert_on_resource_overuse(
         &block_context,
         invoke_tx_args! {
             max_fee: actual_fee,
-            resource_bounds: l1_resource_bounds(actual_gas_usage, MAX_L1_GAS_PRICE),
+            resource_bounds: l1_resource_bounds(actual_gas_usage, MAX_L1_GAS_PRICE.into()),
             nonce: nonce_manager.next(account_address),
             calldata: write_a_lot_calldata(),
             ..base_args.clone()
@@ -296,7 +296,9 @@ fn test_revert_on_resource_overuse(
         &block_context,
         invoke_tx_args! {
             max_fee: low_max_fee,
-            resource_bounds: l1_resource_bounds(GasAmount(actual_gas_usage.0 - 1), MAX_L1_GAS_PRICE),
+            resource_bounds: l1_resource_bounds(
+                (actual_gas_usage.0 - 1).into(), MAX_L1_GAS_PRICE.into()
+            ),
             nonce: nonce_manager.next(account_address),
             calldata: write_a_lot_calldata(),
             ..base_args

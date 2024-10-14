@@ -2,6 +2,7 @@ use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::vm_core::VirtualMachine;
 use num_traits::ToPrimitive;
 use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{
     calculate_contract_address,
     ClassHash,
@@ -9,7 +10,6 @@ use starknet_api::core::{
     EntryPointSelector,
     EthAddress,
 };
-use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{
     Calldata,
@@ -524,7 +524,7 @@ pub fn replace_class(
         ContractClass::V0(_) => {
             Err(SyscallExecutionError::ForbiddenClassReplacement { class_hash })
         }
-        ContractClass::V1(_) => {
+        ContractClass::V1(_) | ContractClass::V1Native(_) => {
             syscall_handler
                 .state
                 .set_class_hash_at(syscall_handler.storage_address(), class_hash)?;

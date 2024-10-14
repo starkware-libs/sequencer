@@ -9,7 +9,6 @@ use blockifier::execution::call_info::{
     Retdata as BlockifierRetdata,
 };
 use blockifier::execution::entry_point::CallType as BlockifierCallType;
-use blockifier::fee::resources::GasVector;
 use blockifier::transaction::objects::{FeeType, TransactionExecutionInfo};
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources as VmExecutionResources;
@@ -24,6 +23,7 @@ use papyrus_common::state::{
 };
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockTimestamp, GasPrice, GasPricePerToken};
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{
     ClassHash,
     ContractAddress,
@@ -32,10 +32,10 @@ use starknet_api::core::{
     SequencerContractAddress,
 };
 use starknet_api::data_availability::L1DataAvailabilityMode;
-use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::execution_resources::{
     Builtin,
     ExecutionResources,
+    GasVector,
     GasVector as StarknetApiGasVector,
 };
 use starknet_api::state::ThinStateDiff;
@@ -159,17 +159,9 @@ pub(crate) fn tx_execution_output_to_fee_estimation(
 ) -> ExecutionResult<FeeEstimation> {
     let gas_prices = &block_context.block_info().gas_prices;
     let (l1_gas_price, l1_data_gas_price, l2_gas_price) = (
-        GasPrice(
-            gas_prices.get_l1_gas_price_by_fee_type(&tx_execution_output.price_unit.into()).get(),
-        ),
-        GasPrice(
-            gas_prices
-                .get_l1_data_gas_price_by_fee_type(&tx_execution_output.price_unit.into())
-                .get(),
-        ),
-        GasPrice(
-            gas_prices.get_l2_gas_price_by_fee_type(&tx_execution_output.price_unit.into()).get(),
-        ),
+        gas_prices.get_l1_gas_price_by_fee_type(&tx_execution_output.price_unit.into()).get(),
+        gas_prices.get_l1_data_gas_price_by_fee_type(&tx_execution_output.price_unit.into()).get(),
+        gas_prices.get_l2_gas_price_by_fee_type(&tx_execution_output.price_unit.into()).get(),
     );
 
     let gas_vector = tx_execution_output.execution_info.receipt.gas;
@@ -396,14 +388,7 @@ fn vm_resources_to_execution_resources(
         steps: vm_resources.n_steps as u64,
         builtin_instance_counter,
         memory_holes: vm_resources.n_memory_holes as u64,
-        da_gas_consumed: StarknetApiGasVector {
-            l1_gas: l1_gas.0.try_into().map_err(|_| ExecutionError::GasConsumedOutOfRange)?,
-            l2_gas: l2_gas.0.try_into().map_err(|_| ExecutionError::GasConsumedOutOfRange)?,
-            l1_data_gas: l1_data_gas
-                .0
-                .try_into()
-                .map_err(|_| ExecutionError::GasConsumedOutOfRange)?,
-        },
+        da_gas_consumed: StarknetApiGasVector { l1_gas, l2_gas, l1_data_gas },
         gas_consumed: StarknetApiGasVector::default(),
     })
 }

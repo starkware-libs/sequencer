@@ -12,13 +12,16 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
+use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use starknet_api::block::{GasPrice, NonzeroGasPrice};
 use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey};
-use starknet_api::execution_resources::GasAmount;
+use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{
     Calldata,
     ContractAddressSalt,
+    Fee,
     GasVectorComputationMode,
     TransactionVersion,
 };
@@ -30,10 +33,10 @@ use crate::execution::call_info::ExecutionSummary;
 use crate::execution::deprecated_syscalls::hint_processor::SyscallCounter;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::execution::syscalls::SyscallSelector;
-use crate::fee::resources::{GasVector, StarknetResources, StateResources};
+use crate::fee::resources::{StarknetResources, StateResources};
 use crate::test_utils::contracts::FeatureContract;
 use crate::transaction::transaction_types::TransactionType;
-use crate::utils::{const_max, u128_from_usize};
+use crate::utils::{const_max, u64_from_usize};
 use crate::versioned_constants::VersionedConstants;
 // TODO(Dori, 1/2/2024): Remove these constants once all tests use the `contracts` and
 //   `initial_test_state` modules for testing.
@@ -93,24 +96,27 @@ pub fn test_erc20_sequencer_balance_key() -> StorageKey {
 }
 
 // The max_fee / resource bounds used for txs in this test.
-pub const MAX_L1_GAS_AMOUNT: u64 = 1000000;
-#[allow(clippy::as_conversions)]
-pub const MAX_L1_GAS_AMOUNT_U128: GasAmount = GasAmount(MAX_L1_GAS_AMOUNT as u128);
-pub const MAX_L1_GAS_PRICE: u128 = DEFAULT_STRK_L1_GAS_PRICE;
-pub const MAX_RESOURCE_COMMITMENT: u128 = MAX_L1_GAS_AMOUNT_U128.0 * MAX_L1_GAS_PRICE;
-pub const MAX_FEE: u128 = MAX_L1_GAS_AMOUNT_U128.0 * DEFAULT_ETH_L1_GAS_PRICE;
+pub const MAX_L1_GAS_AMOUNT: GasAmount = GasAmount(1000000);
+pub const MAX_L1_GAS_PRICE: NonzeroGasPrice = DEFAULT_STRK_L1_GAS_PRICE;
+pub const MAX_RESOURCE_COMMITMENT: Fee = MAX_L1_GAS_AMOUNT.nonzero_saturating_mul(MAX_L1_GAS_PRICE);
+pub const MAX_FEE: Fee = MAX_L1_GAS_AMOUNT.nonzero_saturating_mul(DEFAULT_ETH_L1_GAS_PRICE);
 
 // The amount of test-token allocated to the account in this test, set to a multiple of the max
 // amount deprecated / non-deprecated transactions commit to paying.
-pub const BALANCE: u128 = 10 * const_max(MAX_FEE, MAX_RESOURCE_COMMITMENT);
+pub const BALANCE: Fee = Fee(10 * const_max(MAX_FEE.0, MAX_RESOURCE_COMMITMENT.0));
 
-pub const DEFAULT_ETH_L1_GAS_PRICE: u128 = 100 * u128::pow(10, 9); // Given in units of Wei.
-pub const DEFAULT_STRK_L1_GAS_PRICE: u128 = 100 * u128::pow(10, 9); // Given in units of STRK.
-pub const DEFAULT_ETH_L1_DATA_GAS_PRICE: u128 = u128::pow(10, 6); // Given in units of Wei.
-pub const DEFAULT_STRK_L1_DATA_GAS_PRICE: u128 = u128::pow(10, 9); // Given in units of STRK.
-pub const DEFAULT_L1_DATA_GAS_MAX_AMOUNT: u64 = u64::pow(10, 6);
-pub const DEFAULT_STRK_L2_GAS_PRICE: u128 = u128::pow(10, 9);
-pub const DEFAULT_L2_GAS_MAX_AMOUNT: u64 = u64::pow(10, 6);
+pub const DEFAULT_ETH_L1_GAS_PRICE: NonzeroGasPrice =
+    NonzeroGasPrice::new_unchecked(GasPrice(100 * u128::pow(10, 9))); // Given in units of Wei.
+pub const DEFAULT_STRK_L1_GAS_PRICE: NonzeroGasPrice =
+    NonzeroGasPrice::new_unchecked(GasPrice(100 * u128::pow(10, 9))); // Given in units of STRK.
+pub const DEFAULT_ETH_L1_DATA_GAS_PRICE: NonzeroGasPrice =
+    NonzeroGasPrice::new_unchecked(GasPrice(u128::pow(10, 6))); // Given in units of Wei.
+pub const DEFAULT_STRK_L1_DATA_GAS_PRICE: NonzeroGasPrice =
+    NonzeroGasPrice::new_unchecked(GasPrice(u128::pow(10, 9))); // Given in units of STRK.
+pub const DEFAULT_L1_DATA_GAS_MAX_AMOUNT: GasAmount = GasAmount(u64::pow(10, 6));
+pub const DEFAULT_STRK_L2_GAS_PRICE: NonzeroGasPrice =
+    NonzeroGasPrice::new_unchecked(GasPrice(u128::pow(10, 9)));
+pub const DEFAULT_L2_GAS_MAX_AMOUNT: GasAmount = GasAmount(u64::pow(10, 6));
 
 // The block number of the BlockContext being used for testing.
 pub const CURRENT_BLOCK_NUMBER: u64 = 2001;
@@ -328,7 +334,7 @@ pub fn calldata_for_deploy_test(
             vec![
                 class_hash.0,
                 ContractAddressSalt::default().0,
-                felt!(u128_from_usize(constructor_calldata.len())),
+                felt!(u64_from_usize(constructor_calldata.len())),
             ],
             constructor_calldata.into(),
             vec![felt!(if valid_deploy_from_zero { 0_u8 } else { 2_u8 })],
@@ -359,7 +365,7 @@ pub fn create_calldata(
             vec![
                 *contract_address.0.key(),              // Contract address.
                 selector_from_name(entry_point_name).0, // EP selector name.
-                felt!(u128_from_usize(entry_point_args.len())),
+                felt!(u64_from_usize(entry_point_args.len())),
             ],
             entry_point_args.into(),
         ]
@@ -375,10 +381,6 @@ pub fn create_trivial_calldata(test_contract_address: ContractAddress) -> Callda
         "return_result",
         &[felt!(2_u8)], // Calldata: num.
     )
-}
-
-pub fn u64_from_usize(val: usize) -> u64 {
-    val.try_into().unwrap()
 }
 
 pub fn update_json_value(base: &mut serde_json::Value, update: serde_json::Value) {
@@ -400,5 +402,19 @@ pub fn gas_vector_from_vm_usage(
         GasVectorComputationMode::All => GasVector::from_l2_gas(
             versioned_constants.convert_l1_to_l2_gas_amount_round_up(vm_usage_in_l1_gas),
         ),
+    }
+}
+
+pub fn get_vm_resource_usage() -> ExecutionResources {
+    ExecutionResources {
+        n_steps: 10000,
+        n_memory_holes: 0,
+        builtin_instance_counter: HashMap::from([
+            (BuiltinName::pedersen, 10),
+            (BuiltinName::range_check, 24),
+            (BuiltinName::ecdsa, 1),
+            (BuiltinName::bitwise, 1),
+            (BuiltinName::poseidon, 1),
+        ]),
     }
 }

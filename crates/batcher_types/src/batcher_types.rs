@@ -1,24 +1,23 @@
+use blockifier::blockifier::block::BlockNumberHashPair;
 use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockHash, BlockNumber};
-use starknet_api::core::TransactionCommitment;
+use starknet_api::block::BlockNumber;
+use starknet_api::core::StateDiffCommitment;
 use starknet_api::executable_transaction::Transaction;
-use starknet_api::state::ThinStateDiff;
 pub use starknet_consensus_manager_types::consensus_manager_types::ProposalId;
 
 use crate::errors::BatcherError;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ProposalCommitment {
-    pub tx_commitment: TransactionCommitment,
-    pub state_diff: ThinStateDiff,
+    pub state_diff_commitment: StateDiffCommitment,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct BuildProposalInput {
     pub proposal_id: ProposalId,
     pub deadline: chrono::DateTime<Utc>,
-    pub block_hash_10_blocks_ago: BlockHash,
+    pub retrospective_block_hash: Option<BlockNumberHashPair>,
     // TODO: Should we get the gas price here?
 }
 
@@ -43,6 +42,14 @@ pub enum GetProposalContent {
 pub struct ValidateProposalInput {
     pub proposal_id: ProposalId,
     pub deadline: chrono::DateTime<Utc>,
+}
+
+impl BuildProposalInput {
+    pub fn deadline_as_instant(&self) -> Result<std::time::Instant, chrono::OutOfRangeError> {
+        let time_to_deadline = self.deadline - chrono::Utc::now();
+        let as_duration = time_to_deadline.to_std()?;
+        Ok(std::time::Instant::now() + as_duration)
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

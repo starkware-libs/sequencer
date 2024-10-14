@@ -51,7 +51,7 @@ fn fee_transfer_resources(
         .set_storage_at(
             token_address,
             get_fee_token_var_address(account_contract_address),
-            felt!(BALANCE),
+            felt!(BALANCE.0),
         )
         .unwrap();
 

@@ -69,7 +69,7 @@ async fn proposer() {
     );
 
     context.expect_proposer().times(1).returning(move |_, _| *PROPOSER_ID);
-    context.expect_build_proposal().times(1).returning(move |_| {
+    context.expect_build_proposal().times(1).returning(move |_, _| {
         let (_, content_receiver) = mpsc::channel(1);
         let (block_sender, block_receiver) = oneshot::channel();
         block_sender.send(BLOCK.id).unwrap();
@@ -162,7 +162,7 @@ async fn validator(repeat_proposal: bool) {
     fin_sender.send(BLOCK.id).unwrap();
 
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
-    context.expect_validate_proposal().times(1).returning(move |_, _| {
+    context.expect_validate_proposal().times(1).returning(move |_, _, _| {
         let (block_sender, block_receiver) = oneshot::channel();
         block_sender.send(BLOCK.id).unwrap();
         block_receiver
@@ -256,7 +256,7 @@ async fn vote_twice(same_vote: bool) {
     fin_sender.send(BLOCK.id).unwrap();
 
     context.expect_proposer().times(1).returning(move |_, _| *PROPOSER_ID);
-    context.expect_validate_proposal().times(1).returning(move |_, _| {
+    context.expect_validate_proposal().times(1).returning(move |_, _, _| {
         let (block_sender, block_receiver) = oneshot::channel();
         block_sender.send(BLOCK.id).unwrap();
         block_receiver
@@ -327,7 +327,7 @@ async fn rebroadcast_votes() {
     );
 
     context.expect_proposer().times(1).returning(move |_, _| *PROPOSER_ID);
-    context.expect_build_proposal().times(1).returning(move |_| {
+    context.expect_build_proposal().times(1).returning(move |_, _| {
         let (_, content_receiver) = mpsc::channel(1);
         let (block_sender, block_receiver) = oneshot::channel();
         block_sender.send(BLOCK.id).unwrap();
@@ -389,7 +389,7 @@ async fn repropose() {
     );
 
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
-    context.expect_build_proposal().times(1).returning(move |_| {
+    context.expect_build_proposal().times(1).returning(move |_, _| {
         let (_, content_receiver) = mpsc::channel(1);
         let (block_sender, block_receiver) = oneshot::channel();
         block_sender.send(BLOCK.id).unwrap();
@@ -397,7 +397,7 @@ async fn repropose() {
     });
     let fin_receiver = Arc::new(OnceLock::new());
     let fin_receiver_clone = Arc::clone(&fin_receiver);
-    context.expect_propose().times(2).returning(move |init, _, fin_receiver| {
+    context.expect_propose().times(1).returning(move |init, _, fin_receiver| {
         // Ignore content receiver, since this is the context's responsibility.
         assert_eq!(init.height, BlockNumber(0));
         assert_eq!(init.proposer, *PROPOSER_ID);
@@ -438,11 +438,9 @@ async fn repropose() {
     shc.handle_message(&mut context, precommits[0].clone()).await.unwrap();
     shc.handle_message(&mut context, precommits[1].clone()).await.unwrap();
     // After NIL precommits, the proposer should re-propose.
-    context.expect_get_proposal().returning(move |height, id| {
-        assert!(height == BlockNumber(0));
+    context.expect_repropose().returning(move |id, init| {
+        assert_eq!(init.height, BlockNumber(0));
         assert_eq!(id, BLOCK.id);
-        let (_content_sender, content_receiver) = mpsc::channel(1);
-        content_receiver
     });
     context
         .expect_broadcast()
@@ -450,6 +448,7 @@ async fn repropose() {
         .withf(move |msg: &ConsensusMessage| msg == &prevote(Some(BLOCK.id.0), 0, 1, *PROPOSER_ID))
         .returning(move |_| Ok(()));
     shc.handle_message(&mut context, precommits[2].clone()).await.unwrap();
+    shc.handle_event(&mut context, StateMachineEvent::TimeoutPrecommit(0)).await.unwrap();
 
     let precommits = vec![
         precommit(Some(BLOCK.id.0), 0, 1, *VALIDATOR_ID_1),

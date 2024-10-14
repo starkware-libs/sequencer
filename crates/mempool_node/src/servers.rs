@@ -90,44 +90,21 @@ pub fn create_node_servers(
     SequencerNodeServers { local_servers, wrapper_servers }
 }
 
-pub async fn run_component_servers(
-    config: &SequencerNodeConfig,
-    servers: SequencerNodeServers,
-) -> anyhow::Result<()> {
+pub async fn run_component_servers(servers: SequencerNodeServers) -> anyhow::Result<()> {
     // Batcher server.
-    let batcher_future = get_server_future(
-        "Batcher",
-        config.components.batcher.execute,
-        servers.local_servers.batcher,
-    );
+    let batcher_future = get_server_future(servers.local_servers.batcher);
 
     // Consensus Manager server.
-    let consensus_manager_future = get_server_future(
-        "Consensus Manager",
-        config.components.consensus_manager.execute,
-        servers.wrapper_servers.consensus_manager,
-    );
+    let consensus_manager_future = get_server_future(servers.wrapper_servers.consensus_manager);
 
     // Gateway server.
-    let gateway_future = get_server_future(
-        "Gateway",
-        config.components.gateway.execute,
-        servers.local_servers.gateway,
-    );
+    let gateway_future = get_server_future(servers.local_servers.gateway);
 
     // HttpServer server.
-    let http_server_future = get_server_future(
-        "HttpServer",
-        config.components.http_server.execute,
-        servers.wrapper_servers.http_server,
-    );
+    let http_server_future = get_server_future(servers.wrapper_servers.http_server);
 
     // Mempool server.
-    let mempool_future = get_server_future(
-        "Mempool",
-        config.components.mempool.execute,
-        servers.local_servers.mempool,
-    );
+    let mempool_future = get_server_future(servers.local_servers.mempool);
 
     // Start servers.
     let batcher_handle = tokio::spawn(batcher_future);
@@ -164,13 +141,10 @@ pub async fn run_component_servers(
 }
 
 pub fn get_server_future(
-    name: &str,
-    execute_flag: bool,
     server: Option<Box<impl ComponentServerStarter + Send + 'static>>,
 ) -> Pin<Box<dyn Future<Output = Result<(), ComponentServerError>> + Send>> {
-    if !execute_flag {
-        return pending().boxed();
+    match server {
+        Some(mut server) => async move { server.start().await }.boxed(),
+        None => pending().boxed(),
     }
-    let mut server = server.unwrap_or_else(|| panic!("{} component is not initialized.", name));
-    async move { server.start().await }.boxed()
 }

@@ -6,14 +6,21 @@ use std::sync::Arc;
 use cairo_vm::vm::runners::cairo_runner::{ExecutionResources, ResourceTracker, RunResources};
 use num_traits::{Inv, Zero};
 use serde::Serialize;
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
-use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::{Calldata, TransactionVersion};
+use starknet_api::transaction::{
+    AllResourceBounds,
+    Calldata,
+    ResourceBounds,
+    TransactionVersion,
+    ValidResourceBounds,
+};
 use starknet_types_core::felt::Felt;
 
 use crate::abi::abi_utils::selector_from_name;
 use crate::abi::constants;
+use crate::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::CallInfo;
 use crate::execution::common_hints::ExecutionMode;
@@ -27,7 +34,7 @@ use crate::execution::execution_utils::execute_entry_point_call_wrapper;
 use crate::state::state_api::{State, StateResult};
 use crate::transaction::objects::{HasRelatedFeeType, TransactionInfo};
 use crate::transaction::transaction_types::TransactionType;
-use crate::utils::{u128_from_usize, usize_from_u128};
+use crate::utils::usize_from_u64;
 use crate::versioned_constants::{GasCosts, VersionedConstants};
 
 #[cfg(test)]
@@ -173,6 +180,15 @@ impl CallEntryPoint {
 
         execution_result
     }
+    pub fn verify_constructor(&self) -> Result<(), PreExecutionError> {
+        if self.entry_point_type == EntryPointType::Constructor
+            && self.entry_point_selector != selector_from_name(CONSTRUCTOR_ENTRY_POINT_NAME)
+        {
+            Err(PreExecutionError::InvalidConstructorEntryPointName)
+        } else {
+            Ok(())
+        }
+    }
 }
 
 pub struct ConstructorContext {
@@ -239,6 +255,7 @@ impl EntryPointExecutionContext {
     /// Returns the maximum number of cairo steps allowed, given the max fee, gas price and the
     /// execution mode.
     /// If fee is disabled, returns the global maximum.
+    /// The bound computation is saturating (no panic on overflow).
     fn max_steps(
         tx_context: &TransactionContext,
         mode: &ExecutionMode,
@@ -247,63 +264,64 @@ impl EntryPointExecutionContext {
         let TransactionContext { block_context, tx_info } = tx_context;
         let BlockContext { block_info, versioned_constants, .. } = block_context;
         let block_upper_bound = match mode {
-            // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion
-            // works.
-            ExecutionMode::Validate => versioned_constants
-                .validate_max_n_steps
-                .try_into()
-                .expect("Failed to convert validate_max_n_steps (u32) to usize."),
-            ExecutionMode::Execute => versioned_constants
-                .invoke_tx_max_n_steps
-                .try_into()
-                .expect("Failed to convert invoke_tx_max_n_steps (u32) to usize."),
-        };
+            ExecutionMode::Validate => versioned_constants.validate_max_n_steps,
+            ExecutionMode::Execute => versioned_constants.invoke_tx_max_n_steps,
+        }
+        .try_into()
+        .unwrap_or_else(|error| {
+            log::warn!("Failed to convert global step limit to to usize: {error}.");
+            usize::MAX
+        });
 
         if !limit_steps_by_resources || !tx_info.enforce_fee() {
             return block_upper_bound;
         }
 
-        let gas_per_step = versioned_constants.vm_resource_fee_cost().n_steps;
+        // Deprecated transactions derive the step limit from the `max_fee`, by computing the L1 gas
+        // limit induced by the max fee and translating into cairo steps.
+        // New transactions with only L1 bounds use the L1 resource bounds directly.
+        // New transactions with L2 bounds use the L2 bounds directly.
+        let l1_gas_per_step = versioned_constants.vm_resource_fee_cost().n_steps;
+        let l2_gas_per_step = versioned_constants.os_constants.gas_costs.step_gas_cost;
 
-        // New transactions derive the step limit by the L1 gas resource bounds; deprecated
-        // transactions derive this value from the `max_fee`.
-        let tx_gas_upper_bound = match tx_info {
+        let tx_upper_bound_u64 = match tx_info {
+            // Fee is a larger uint type than GasAmount, so we need to saturate the division.
+            // This is just a computation of an upper bound, so it's safe to saturate.
             TransactionInfo::Deprecated(context) => {
-                let max_cairo_steps = context.max_fee.0
-                    / block_info.gas_prices.get_l1_gas_price_by_fee_type(&tx_info.fee_type());
-                // FIXME: This is saturating in the python bootstrapping test. Fix the value so
-                // that it'll fit in a usize and remove the `as`.
-                usize::try_from(max_cairo_steps).unwrap_or_else(|_| {
-                    log::error!(
-                        "Performed a saturating cast from u128 to usize: {max_cairo_steps:?}"
+                if l1_gas_per_step.is_zero() {
+                    u64::MAX
+                } else {
+                    let induced_l1_gas_limit = context.max_fee.saturating_div(
+                        block_info.gas_prices.get_l1_gas_price_by_fee_type(&tx_info.fee_type()),
                     );
-                    usize::MAX
-                })
+                    (l1_gas_per_step.inv() * induced_l1_gas_limit.0).to_integer()
+                }
             }
-            TransactionInfo::Current(context) => {
-                // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the
-                // convertion works.
-                context
-                    .l1_resource_bounds()
-                    .max_amount
-                    .try_into()
-                    .expect("Failed to convert u64 to usize.")
-            }
+            TransactionInfo::Current(context) => match context.resource_bounds {
+                ValidResourceBounds::L1Gas(ResourceBounds { max_amount, .. }) => {
+                    if l1_gas_per_step.is_zero() {
+                        u64::MAX
+                    } else {
+                        (l1_gas_per_step.inv() * max_amount.0).to_integer()
+                    }
+                }
+                ValidResourceBounds::AllResources(AllResourceBounds {
+                    l2_gas: ResourceBounds { max_amount, .. },
+                    ..
+                }) => {
+                    if l2_gas_per_step.is_zero() {
+                        u64::MAX
+                    } else {
+                        max_amount.0.saturating_div(l2_gas_per_step)
+                    }
+                }
+            },
         };
 
         // Use saturating upper bound to avoid overflow. This is safe because the upper bound is
         // bounded above by the block's limit, which is a usize.
-
-        let upper_bound_u128 = if gas_per_step.is_zero() {
-            u128::MAX
-        } else {
-            (gas_per_step.inv() * u128_from_usize(tx_gas_upper_bound)).to_integer()
-        };
-        let tx_upper_bound = usize_from_u128(upper_bound_u128).unwrap_or_else(|_| {
-            log::warn!(
-                "Failed to convert u128 to usize: {upper_bound_u128}. Upper bound from tx is \
-                 {tx_gas_upper_bound}, gas per step is {gas_per_step}."
-            );
+        let tx_upper_bound = usize_from_u64(tx_upper_bound_u64).unwrap_or_else(|_| {
+            log::warn!("Failed to convert u64 to usize: {tx_upper_bound_u64}.");
             usize::MAX
         });
         min(tx_upper_bound, block_upper_bound)

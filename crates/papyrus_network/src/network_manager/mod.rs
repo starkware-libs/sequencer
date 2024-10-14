@@ -244,11 +244,11 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
 
         Ok(BroadcastTopicChannels {
             broadcasted_messages_receiver,
-            broadcast_topic_client: BroadcastTopicClient {
+            broadcast_topic_client: BroadcastTopicClient::new(
                 messages_to_broadcast_sender,
                 reported_messages_sender,
                 continue_propagation_sender,
-            },
+            ),
         })
     }
 
@@ -839,28 +839,6 @@ struct SqmrServerPayload {
     responses_sender: ResponsesSender,
 }
 
-pub type BroadcastTopicSender<T, Message> = With<
-    Sender<Message>,
-    Message,
-    T,
-    Ready<Result<Message, SendError>>,
-    fn(T) -> Ready<Result<Message, SendError>>,
->;
-
-pub type BroadcastTopicServer<T> =
-    Map<Receiver<(Bytes, BroadcastedMessageManager)>, BroadcastReceivedMessagesConverterFn<T>>;
-
-type ReceivedBroadcastedMessage<Message> =
-    (Result<Message, <Message as TryFrom<Bytes>>::Error>, BroadcastedMessageManager);
-
-type BroadcastReceivedMessagesConverterFn<T> =
-    fn((Bytes, BroadcastedMessageManager)) -> ReceivedBroadcastedMessage<T>;
-
-pub struct BroadcastTopicChannels<T: TryFrom<Bytes>> {
-    pub broadcasted_messages_receiver: BroadcastTopicServer<T>,
-    pub broadcast_topic_client: BroadcastTopicClient<T>,
-}
-
 #[async_trait]
 pub trait BroadcastTopicClientTrait<T> {
     async fn broadcast_message(&mut self, message: T) -> Result<(), SendError>;
@@ -879,6 +857,21 @@ pub struct BroadcastTopicClient<T: TryFrom<Bytes>> {
     messages_to_broadcast_sender: BroadcastTopicSender<T, Bytes>,
     reported_messages_sender: BroadcastTopicSender<BroadcastedMessageManager, PeerId>,
     continue_propagation_sender: Sender<BroadcastedMessageManager>,
+}
+
+impl<T: TryFrom<Bytes>> BroadcastTopicClient<T> {
+    // TODO(matan): Remove once consensus_manager no longer needs to build fake channels.
+    pub fn new(
+        messages_to_broadcast_sender: BroadcastTopicSender<T, Bytes>,
+        reported_messages_sender: BroadcastTopicSender<BroadcastedMessageManager, PeerId>,
+        continue_propagation_sender: Sender<BroadcastedMessageManager>,
+    ) -> Self {
+        BroadcastTopicClient {
+            messages_to_broadcast_sender,
+            reported_messages_sender,
+            continue_propagation_sender,
+        }
+    }
 }
 
 #[async_trait]
@@ -900,4 +893,26 @@ impl<T: TryFrom<Bytes> + Send> BroadcastTopicClientTrait<T> for BroadcastTopicCl
     ) -> Result<(), SendError> {
         self.continue_propagation_sender.send(broadcasted_message_manager.clone()).await
     }
+}
+
+pub type BroadcastTopicSender<T, Message> = With<
+    Sender<Message>,
+    Message,
+    T,
+    Ready<Result<Message, SendError>>,
+    fn(T) -> Ready<Result<Message, SendError>>,
+>;
+
+pub type BroadcastTopicServer<T> =
+    Map<Receiver<(Bytes, BroadcastedMessageManager)>, BroadcastReceivedMessagesConverterFn<T>>;
+
+type ReceivedBroadcastedMessage<Message> =
+    (Result<Message, <Message as TryFrom<Bytes>>::Error>, BroadcastedMessageManager);
+
+type BroadcastReceivedMessagesConverterFn<T> =
+    fn((Bytes, BroadcastedMessageManager)) -> ReceivedBroadcastedMessage<T>;
+
+pub struct BroadcastTopicChannels<T: TryFrom<Bytes>> {
+    pub broadcasted_messages_receiver: BroadcastTopicServer<T>,
+    pub broadcast_topic_client: BroadcastTopicClient<T>,
 }

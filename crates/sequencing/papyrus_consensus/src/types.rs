@@ -1,4 +1,5 @@
 use std::fmt::Debug;
+use std::time::Duration;
 
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
@@ -40,6 +41,7 @@ pub trait ConsensusContext {
     /// Params:
     /// - `height`: The height of the block to be built. Specifically this indicates the initial
     ///   state of the block.
+    /// - `timeout`: The maximum time to wait for the block to be built.
     ///
     /// Returns:
     /// - A receiver for the stream of the block's content.
@@ -49,6 +51,7 @@ pub trait ConsensusContext {
     async fn build_proposal(
         &mut self,
         height: BlockNumber,
+        timeout: Duration,
     ) -> (mpsc::Receiver<Self::ProposalChunk>, oneshot::Receiver<ProposalContentId>);
 
     /// This function is called by consensus to validate a block. It expects that this call will
@@ -58,7 +61,8 @@ pub trait ConsensusContext {
     /// Params:
     /// - `height`: The height of the block to be built. Specifically this indicates the initial
     ///   state of the block.
-    /// - A receiver for the stream of the block's content.
+    /// - `timeout`: The maximum time to wait for the block to be built.
+    /// - `content`: A receiver for the stream of the block's content.
     ///
     /// Returns:
     /// - A receiver for the block id. If a valid block cannot be built the Sender will be dropped
@@ -66,24 +70,17 @@ pub trait ConsensusContext {
     async fn validate_proposal(
         &mut self,
         height: BlockNumber,
+        timeout: Duration,
         content: mpsc::Receiver<Self::ProposalChunk>,
     ) -> oneshot::Receiver<ProposalContentId>;
 
     /// This function is called by consensus to retrieve the content of a previously built or
-    /// validated proposal. It expects that this call will return immediately, allowing
-    /// consensus to stream the block's content.
+    /// validated proposal. It broadcasts the proposal to the network.
     ///
     /// Params:
-    /// - `height`: The height of the block that was built or validated.
     /// - `id`: The `ProposalContentId` associated with the block's content.
-    ///
-    /// Returns:
-    /// - A receiver for the stream of the block's content.
-    async fn get_proposal(
-        &self,
-        height: BlockNumber,
-        id: ProposalContentId,
-    ) -> mpsc::Receiver<Self::ProposalChunk>;
+    /// - `init`: The `ProposalInit` that is broadcast to the network.
+    async fn repropose(&mut self, id: ProposalContentId, init: ProposalInit);
 
     /// Get the set of validators for a given height. These are the nodes that can propose and vote
     /// on blocks.

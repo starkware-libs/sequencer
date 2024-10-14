@@ -1,13 +1,14 @@
 use std::collections::{HashMap, HashSet};
-use std::ops::Deref;
+use std::ops::{Deref, Index};
 use std::sync::Arc;
 
 use cairo_lang_casm;
 use cairo_lang_casm::hints::Hint;
-use cairo_lang_starknet_classes::casm_contract_class::{
-    CasmContractClass,
-    CasmContractEntryPoint,
-    CasmContractEntryPoints,
+use cairo_lang_sierra::ids::FunctionId;
+use cairo_lang_starknet_classes::casm_contract_class::{CasmContractClass, CasmContractEntryPoint};
+use cairo_lang_starknet_classes::contract_class::{
+    ContractClass as SierraContractClass,
+    ContractEntryPoint as SierraContractEntryPoint,
 };
 use cairo_lang_starknet_classes::NestedIntList;
 use cairo_lang_utils::bigint::BigUintAsHex;
@@ -28,22 +29,21 @@ use itertools::Itertools;
 use semver::Version;
 use serde::de::Error as DeserializationError;
 use serde::{Deserialize, Deserializer, Serialize};
+use starknet_api::contract_class::{ContractClass as RawContractClass, EntryPointType};
 use starknet_api::core::EntryPointSelector;
 use starknet_api::deprecated_contract_class::{
     ContractClass as DeprecatedContractClass,
-    EntryPoint,
     EntryPointOffset,
-    EntryPointType,
+    EntryPointV0,
     Program as DeprecatedProgram,
 };
 use starknet_types_core::felt::Felt;
 
-use super::execution_utils::poseidon_hash_many_cost;
-use crate::abi::abi_utils::selector_from_name;
-use crate::abi::constants::{self, CONSTRUCTOR_ENTRY_POINT_NAME};
+use crate::abi::constants::{self};
 use crate::execution::entry_point::CallEntryPoint;
 use crate::execution::errors::{ContractClassError, PreExecutionError};
-use crate::execution::execution_utils::sn_api_to_cairo_vm_program;
+use crate::execution::execution_utils::{poseidon_hash_many_cost, sn_api_to_cairo_vm_program};
+use crate::execution::native::utils::contract_entrypoint_to_entrypoint_selector;
 use crate::fee::eth_gas_constants;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::versioned_constants::CompilerVersion;
@@ -63,26 +63,65 @@ pub enum TrackedResource {
     SierraGas, // AKA Sierra mode.
 }
 
+#[derive(Clone)]
+pub enum Cairo1EntryPoint {
+    Casm(EntryPointV1),
+    Native(NativeEntryPoint),
+}
+
+impl Cairo1EntryPoint {
+    pub fn selector(&self) -> &EntryPointSelector {
+        match self {
+            Cairo1EntryPoint::Casm(ep) => &ep.selector,
+            Cairo1EntryPoint::Native(ep) => &ep.selector,
+        }
+    }
+}
+
 /// Represents a runnable Starknet contract class (meaning, the program is runnable by the VM).
 #[derive(Clone, Debug, Eq, PartialEq, derive_more::From)]
 pub enum ContractClass {
     V0(ContractClassV0),
     V1(ContractClassV1),
+    V1Native(NativeContractClassV1),
 }
 
-impl TryFrom<&CasmContractClass> for ContractClass {
-    type Error = ProgramError;
+pub fn get_entry_point(
+    contract_class: &ContractClass,
+    call: &CallEntryPoint,
+) -> Result<Cairo1EntryPoint, PreExecutionError> {
+    call.verify_constructor()?;
 
-    fn try_from(contract_class: &CasmContractClass) -> Result<Self, Self::Error> {
-        Ok(ContractClass::V1(contract_class.try_into()?))
+    let entry_points_of_same_type = contract_class.entry_points_of_same_type(call.entry_point_type);
+    let filtered_entry_points: Vec<_> = entry_points_of_same_type
+        .iter()
+        .filter(|ep| *ep.selector() == call.entry_point_selector)
+        .collect();
+
+    match &filtered_entry_points[..] {
+        [] => Err(PreExecutionError::EntryPointNotFound(call.entry_point_selector)),
+        [entry_point] => Ok((**entry_point).clone()),
+        _ => Err(PreExecutionError::DuplicatedEntryPointSelector {
+            selector: call.entry_point_selector,
+            typ: call.entry_point_type,
+        }),
     }
 }
 
-impl TryFrom<CasmContractClass> for ContractClass {
+impl TryFrom<RawContractClass> for ContractClass {
     type Error = ProgramError;
 
-    fn try_from(contract_class: CasmContractClass) -> Result<Self, Self::Error> {
-        Ok(ContractClass::V1(contract_class.try_into()?))
+    fn try_from(raw_contract_class: RawContractClass) -> Result<Self, Self::Error> {
+        let contract_class: ContractClass = match raw_contract_class {
+            RawContractClass::V0(raw_contract_class) => {
+                ContractClass::V0(raw_contract_class.try_into()?)
+            }
+            RawContractClass::V1(raw_contract_class) => {
+                ContractClass::V1(raw_contract_class.try_into()?)
+            }
+        };
+
+        Ok(contract_class)
     }
 }
 
@@ -91,6 +130,7 @@ impl ContractClass {
         match self {
             ContractClass::V0(class) => class.constructor_selector(),
             ContractClass::V1(class) => class.constructor_selector(),
+            ContractClass::V1Native(class) => class.constructor_selector(),
         }
     }
 
@@ -98,6 +138,26 @@ impl ContractClass {
         match self {
             ContractClass::V0(class) => class.estimate_casm_hash_computation_resources(),
             ContractClass::V1(class) => class.estimate_casm_hash_computation_resources(),
+            ContractClass::V1Native(_) => {
+                todo!("Use casm to estimate casm hash computation resources")
+            }
+        }
+    }
+
+    pub fn entry_points_of_same_type(
+        &self,
+        entry_point_type: EntryPointType,
+    ) -> Vec<Cairo1EntryPoint> {
+        match self {
+            ContractClass::V0(_) => panic!("V0 contracts do not support entry points."),
+            ContractClass::V1(class) => class.entry_points_by_type[&entry_point_type]
+                .iter()
+                .map(|ep| Cairo1EntryPoint::Casm(ep.clone()))
+                .collect(),
+            ContractClass::V1Native(class) => class.entry_points_by_type[entry_point_type]
+                .iter()
+                .map(|ep| Cairo1EntryPoint::Native(ep.clone()))
+                .collect(),
         }
     }
 
@@ -110,6 +170,9 @@ impl ContractClass {
                 panic!("get_visited_segments is not supported for v0 contracts.")
             }
             ContractClass::V1(class) => class.get_visited_segments(visited_pcs),
+            ContractClass::V1Native(_) => {
+                panic!("get_visited_segments is not supported for native contracts.")
+            }
         }
     }
 
@@ -117,6 +180,9 @@ impl ContractClass {
         match self {
             ContractClass::V0(class) => class.bytecode_length(),
             ContractClass::V1(class) => class.bytecode_length(),
+            ContractClass::V1Native(_) => {
+                todo!("implement bytecode_length for native contracts.")
+            }
         }
     }
 
@@ -127,6 +193,7 @@ impl ContractClass {
             ContractClass::V1(contract_class) => {
                 contract_class.tracked_resource(min_sierra_version)
             }
+            ContractClass::V1Native(_) => TrackedResource::SierraGas,
         }
     }
 }
@@ -194,7 +261,7 @@ impl ContractClassV0 {
 pub struct ContractClassV0Inner {
     #[serde(deserialize_with = "deserialize_program")]
     pub program: Program,
-    pub entry_points_by_type: HashMap<EntryPointType, Vec<EntryPoint>>,
+    pub entry_points_by_type: HashMap<EntryPointType, Vec<EntryPointV0>>,
 }
 
 impl TryFrom<DeprecatedContractClass> for ContractClassV0 {
@@ -240,25 +307,9 @@ impl ContractClassV1 {
         &self,
         call: &CallEntryPoint,
     ) -> Result<EntryPointV1, PreExecutionError> {
-        if call.entry_point_type == EntryPointType::Constructor
-            && call.entry_point_selector != selector_from_name(CONSTRUCTOR_ENTRY_POINT_NAME)
-        {
-            return Err(PreExecutionError::InvalidConstructorEntryPointName);
-        }
-
-        let entry_points_of_same_type = &self.0.entry_points_by_type[&call.entry_point_type];
-        let filtered_entry_points: Vec<_> = entry_points_of_same_type
-            .iter()
-            .filter(|ep| ep.selector == call.entry_point_selector)
-            .collect();
-
-        match &filtered_entry_points[..] {
-            [] => Err(PreExecutionError::EntryPointNotFound(call.entry_point_selector)),
-            [entry_point] => Ok((*entry_point).clone()),
-            _ => Err(PreExecutionError::DuplicatedEntryPointSelector {
-                selector: call.entry_point_selector,
-                typ: call.entry_point_type,
-            }),
+        match get_entry_point(&ContractClass::V1(self.clone()), call)? {
+            Cairo1EntryPoint::Casm(entry_point) => Ok(entry_point),
+            Cairo1EntryPoint::Native(_) => panic!("Unexpected entry point type."),
         }
     }
 
@@ -290,7 +341,7 @@ impl ContractClassV1 {
 
     pub fn try_from_json_string(raw_contract_class: &str) -> Result<ContractClassV1, ProgramError> {
         let casm_contract_class: CasmContractClass = serde_json::from_str(raw_contract_class)?;
-        let contract_class = ContractClassV1::try_from(&casm_contract_class)?;
+        let contract_class = ContractClassV1::try_from(casm_contract_class)?;
 
         Ok(contract_class)
     }
@@ -425,27 +476,70 @@ impl TryFrom<CasmContractClass> for ContractClassV1 {
     type Error = ProgramError;
 
     fn try_from(class: CasmContractClass) -> Result<Self, Self::Error> {
-        try_from_casm_contract_class_internal(
-            &class.bytecode,
-            &class.hints,
-            &class.entry_points_by_type,
-            class.bytecode_segment_lengths,
-            &class.compiler_version,
-        )
-    }
-}
+        let data: Vec<MaybeRelocatable> =
+            class.bytecode.iter().map(|x| MaybeRelocatable::from(Felt::from(&x.value))).collect();
 
-impl TryFrom<&CasmContractClass> for ContractClassV1 {
-    type Error = ProgramError;
+        let mut hints: HashMap<usize, Vec<HintParams>> = HashMap::new();
+        for (i, hint_list) in class.hints.iter() {
+            let hint_params: Result<Vec<HintParams>, ProgramError> =
+                hint_list.iter().map(hint_to_hint_params).collect();
+            hints.insert(*i, hint_params?);
+        }
 
-    fn try_from(class: &CasmContractClass) -> Result<Self, Self::Error> {
-        try_from_casm_contract_class_internal(
-            &class.bytecode,
-            &class.hints,
-            &class.entry_points_by_type,
-            class.bytecode_segment_lengths.clone(),
-            &class.compiler_version,
-        )
+        // Collect a sting to hint map so that the hint processor can fetch the correct [Hint]
+        // for each instruction.
+        let mut string_to_hint: HashMap<String, Hint> = HashMap::new();
+        for (_, hint_list) in class.hints.iter() {
+            for hint in hint_list.iter() {
+                string_to_hint.insert(serde_json::to_string(hint)?, hint.clone());
+            }
+        }
+
+        let builtins = vec![]; // The builtins are initialize later.
+        let main = Some(0);
+        let reference_manager = ReferenceManager { references: Vec::new() };
+        let identifiers = HashMap::new();
+        let error_message_attributes = vec![];
+        let instruction_locations = None;
+
+        let program = Program::new(
+            builtins,
+            data,
+            main,
+            hints,
+            reference_manager,
+            identifiers,
+            error_message_attributes,
+            instruction_locations,
+        )?;
+
+        let mut entry_points_by_type = HashMap::new();
+        entry_points_by_type.insert(
+            EntryPointType::Constructor,
+            convert_entry_points_v1(&class.entry_points_by_type.constructor),
+        );
+        entry_points_by_type.insert(
+            EntryPointType::External,
+            convert_entry_points_v1(&class.entry_points_by_type.external),
+        );
+        entry_points_by_type.insert(
+            EntryPointType::L1Handler,
+            convert_entry_points_v1(&class.entry_points_by_type.l1_handler),
+        );
+        let bytecode_segment_lengths = class
+            .bytecode_segment_lengths
+            .unwrap_or_else(|| NestedIntList::Leaf(program.data_len()));
+        let compiler_version = CompilerVersion(
+            Version::parse(&class.compiler_version)
+                .unwrap_or_else(|_| panic!("Invalid version: '{}'", class.compiler_version)),
+        );
+        Ok(ContractClassV1(Arc::new(ContractClassV1Inner {
+            program,
+            entry_points_by_type,
+            hints: string_to_hint,
+            compiler_version,
+            bytecode_segment_lengths,
+        })))
     }
 }
 
@@ -462,80 +556,8 @@ pub fn deserialize_program<'de, D: Deserializer<'de>>(
 
 // V1 utilities.
 
-fn try_from_casm_contract_class_internal(
-    bytecode: &[BigUintAsHex],
-    casm_class_hints: &[(usize, Vec<Hint>)],
-    casm_class_entry_points_by_type: &CasmContractEntryPoints,
-    bytecode_segment_lengths: Option<NestedIntList>,
-    compiler_version: &str,
-) -> Result<ContractClassV1, ProgramError> {
-    let data: Vec<MaybeRelocatable> =
-        bytecode.iter().map(|x| MaybeRelocatable::from(Felt::from(&x.value))).collect();
-
-    let mut hints: HashMap<usize, Vec<HintParams>> = HashMap::new();
-    for (i, hint_list) in casm_class_hints.iter() {
-        let hint_params: Result<Vec<HintParams>, ProgramError> =
-            hint_list.iter().map(hint_to_hint_params).collect();
-        hints.insert(*i, hint_params?);
-    }
-
-    // Collect a sting to hint map so that the hint processor can fetch the correct [Hint]
-    // for each instruction.
-    let mut string_to_hint: HashMap<String, Hint> = HashMap::new();
-    for (_, hint_list) in casm_class_hints.iter() {
-        for hint in hint_list.iter() {
-            string_to_hint.insert(serde_json::to_string(hint)?, hint.clone());
-        }
-    }
-
-    let builtins = vec![]; // The builtins are initialize later.
-    let main = Some(0);
-    let reference_manager = ReferenceManager { references: Vec::new() };
-    let identifiers = HashMap::new();
-    let error_message_attributes = vec![];
-    let instruction_locations = None;
-
-    let program = Program::new(
-        builtins,
-        data,
-        main,
-        hints,
-        reference_manager,
-        identifiers,
-        error_message_attributes,
-        instruction_locations,
-    )?;
-
-    let mut entry_points_by_type = HashMap::new();
-    entry_points_by_type.insert(
-        EntryPointType::Constructor,
-        convert_entry_points_v1(&casm_class_entry_points_by_type.constructor),
-    );
-    entry_points_by_type.insert(
-        EntryPointType::External,
-        convert_entry_points_v1(&casm_class_entry_points_by_type.external),
-    );
-    entry_points_by_type.insert(
-        EntryPointType::L1Handler,
-        convert_entry_points_v1(&casm_class_entry_points_by_type.l1_handler),
-    );
-    let bytecode_segment_lengths =
-        bytecode_segment_lengths.unwrap_or_else(|| NestedIntList::Leaf(program.data_len()));
-    let compiler_version = CompilerVersion(
-        Version::parse(compiler_version)
-            .unwrap_or_else(|_| panic!("Invalid version: '{}'", compiler_version)),
-    );
-    Ok(ContractClassV1(Arc::new(ContractClassV1Inner {
-        program,
-        entry_points_by_type,
-        hints: string_to_hint,
-        compiler_version,
-        bytecode_segment_lengths,
-    })))
-}
-
 // TODO(spapini): Share with cairo-lang-runner.
-fn hint_to_hint_params(hint: &cairo_lang_casm::hints::Hint) -> Result<HintParams, ProgramError> {
+fn hint_to_hint_params(hint: &Hint) -> Result<HintParams, ProgramError> {
     Ok(HintParams {
         code: serde_json::to_string(hint)?,
         accessible_scopes: vec![],
@@ -569,39 +591,17 @@ pub struct ClassInfo {
     abi_length: usize,
 }
 
-impl TryFrom<&starknet_api::contract_class::ClassInfo> for ClassInfo {
-    type Error = ProgramError;
-
-    fn try_from(class_info: &starknet_api::contract_class::ClassInfo) -> Result<Self, Self::Error> {
-        let starknet_api::contract_class::ClassInfo {
-            casm_contract_class,
-            sierra_program_length,
-            abi_length,
-        } = class_info;
-
-        Ok(Self {
-            contract_class: casm_contract_class.try_into()?,
-            sierra_program_length: *sierra_program_length,
-            abi_length: *abi_length,
-        })
-    }
-}
-
 impl TryFrom<starknet_api::contract_class::ClassInfo> for ClassInfo {
     type Error = ProgramError;
 
     fn try_from(class_info: starknet_api::contract_class::ClassInfo) -> Result<Self, Self::Error> {
         let starknet_api::contract_class::ClassInfo {
-            casm_contract_class,
+            contract_class,
             sierra_program_length,
             abi_length,
         } = class_info;
 
-        Ok(Self {
-            contract_class: casm_contract_class.try_into()?,
-            sierra_program_length,
-            abi_length,
-        })
+        Ok(Self { contract_class: contract_class.try_into()?, sierra_program_length, abi_length })
     }
 }
 
@@ -636,7 +636,7 @@ impl ClassInfo {
     ) -> ContractClassResult<Self> {
         let (contract_class_version, condition) = match contract_class {
             ContractClass::V0(_) => (0, sierra_program_length == 0),
-            ContractClass::V1(_) => (1, sierra_program_length > 0),
+            ContractClass::V1(_) | ContractClass::V1Native(_) => (1, sierra_program_length > 0),
         };
 
         if condition {
@@ -646,6 +646,138 @@ impl ClassInfo {
                 contract_class_version,
                 sierra_program_length,
             })
+        }
+    }
+}
+
+// Cairo-native utilities.
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NativeContractClassV1(pub Arc<NativeContractClassV1Inner>);
+impl Deref for NativeContractClassV1 {
+    type Target = NativeContractClassV1Inner;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl NativeContractClassV1 {
+    fn constructor_selector(&self) -> Option<EntryPointSelector> {
+        self.entry_points_by_type.constructor.first().map(|ep| ep.selector)
+    }
+
+    /// Initialize a compiled contract class for native.
+    ///
+    /// executor must be derived from sierra_program which in turn must be derived from
+    /// sierra_contract_class.
+    pub fn new(
+        executor: AotNativeExecutor,
+        sierra_contract_class: SierraContractClass,
+    ) -> NativeContractClassV1 {
+        let contract = NativeContractClassV1Inner::new(executor, sierra_contract_class);
+
+        Self(Arc::new(contract))
+    }
+
+    /// Returns an entry point into the natively compiled contract.
+    pub fn get_entry_point(&self, call: &CallEntryPoint) -> Result<FunctionId, PreExecutionError> {
+        match get_entry_point(&ContractClass::V1Native(self.clone()), call)? {
+            Cairo1EntryPoint::Native(entry_point) => Ok(entry_point.function_id),
+            Cairo1EntryPoint::Casm(_) => panic!("Unexpected entry point type."),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct NativeContractClassV1Inner {
+    pub executor: AotNativeExecutor,
+    entry_points_by_type: NativeContractEntryPoints,
+    // Storing the raw sierra program and entry points to be able to compare the contract class
+    sierra_program: Vec<BigUintAsHex>,
+}
+
+impl NativeContractClassV1Inner {
+    fn new(executor: AotNativeExecutor, sierra_contract_class: SierraContractClass) -> Self {
+        NativeContractClassV1Inner {
+            executor,
+            entry_points_by_type: NativeContractEntryPoints::from(&sierra_contract_class),
+            sierra_program: sierra_contract_class.sierra_program,
+        }
+    }
+}
+
+// The location where the compiled contract is loaded into memory will not
+// be the same therefore we exclude it from the comparison.
+impl PartialEq for NativeContractClassV1Inner {
+    fn eq(&self, other: &Self) -> bool {
+        self.entry_points_by_type == other.entry_points_by_type
+            && self.sierra_program == other.sierra_program
+    }
+}
+
+impl Eq for NativeContractClassV1Inner {}
+
+#[derive(Debug, PartialEq)]
+/// Modelled after [cairo_lang_starknet_classes::contract_class::ContractEntryPoints]
+/// and enriched with information for the Cairo Native ABI.
+struct NativeContractEntryPoints {
+    constructor: Vec<NativeEntryPoint>,
+    external: Vec<NativeEntryPoint>,
+    l1_handler: Vec<NativeEntryPoint>,
+}
+
+impl From<&SierraContractClass> for NativeContractEntryPoints {
+    fn from(sierra_contract_class: &SierraContractClass) -> Self {
+        let program =
+            sierra_contract_class.extract_sierra_program().expect("Can't get sierra program.");
+
+        let func_ids = program.funcs.iter().map(|func| &func.id).collect::<Vec<&FunctionId>>();
+
+        let entry_points_by_type = &sierra_contract_class.entry_points_by_type;
+
+        NativeContractEntryPoints {
+            constructor: sierra_eps_to_native_eps(&func_ids, &entry_points_by_type.constructor),
+            external: sierra_eps_to_native_eps(&func_ids, &entry_points_by_type.external),
+            l1_handler: sierra_eps_to_native_eps(&func_ids, &entry_points_by_type.l1_handler),
+        }
+    }
+}
+
+impl Index<EntryPointType> for NativeContractEntryPoints {
+    type Output = Vec<NativeEntryPoint>;
+
+    fn index(&self, index: EntryPointType) -> &Self::Output {
+        match index {
+            EntryPointType::Constructor => &self.constructor,
+            EntryPointType::External => &self.external,
+            EntryPointType::L1Handler => &self.l1_handler,
+        }
+    }
+}
+
+fn sierra_eps_to_native_eps(
+    func_ids: &[&FunctionId],
+    sierra_eps: &[SierraContractEntryPoint],
+) -> Vec<NativeEntryPoint> {
+    sierra_eps.iter().map(|sierra_ep| NativeEntryPoint::from(func_ids, sierra_ep)).collect()
+}
+
+#[derive(Clone, Debug, PartialEq)]
+/// Provides a relation between a function in a contract and a compiled contract.
+pub struct NativeEntryPoint {
+    /// The selector is the key to find the function in the contract.
+    selector: EntryPointSelector,
+    /// And the function_id is the key to find the function in the compiled contract.
+    function_id: FunctionId,
+}
+
+impl NativeEntryPoint {
+    fn from(func_ids: &[&FunctionId], sierra_ep: &SierraContractEntryPoint) -> NativeEntryPoint {
+        let &function_id = func_ids.get(sierra_ep.function_idx).expect("Can't find function id.");
+        NativeEntryPoint {
+            selector: contract_entrypoint_to_entrypoint_selector(sierra_ep),
+            function_id: function_id.clone(),
         }
     }
 }

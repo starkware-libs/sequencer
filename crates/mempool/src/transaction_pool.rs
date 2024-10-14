@@ -83,7 +83,14 @@ impl TransactionPool {
         }
     }
 
-    pub fn _get_by_tx_hash(&self, tx_hash: TransactionHash) -> MempoolResult<&Transaction> {
+    pub fn account_txs_sorted_by_nonce(
+        &self,
+        address: ContractAddress,
+    ) -> impl Iterator<Item = &TransactionReference> {
+        self.txs_by_account.account_txs_sorted_by_nonce(address)
+    }
+
+    pub fn get_by_tx_hash(&self, tx_hash: TransactionHash) -> MempoolResult<&Transaction> {
         self.tx_pool.get(&tx_hash).ok_or(MempoolError::TransactionNotFound { tx_hash })
     }
 
@@ -105,8 +112,8 @@ impl TransactionPool {
         Ok(self.get_by_address_and_nonce(address, next_nonce))
     }
 
-    pub fn contains_account(&self, address: ContractAddress) -> bool {
-        self.txs_by_account.contains(address)
+    pub fn _contains_account(&self, address: ContractAddress) -> bool {
+        self.txs_by_account._contains(address)
     }
 }
 
@@ -136,6 +143,13 @@ impl AccountTransactionIndex {
         self.0.get(&address)?.get(&nonce)
     }
 
+    fn account_txs_sorted_by_nonce(
+        &self,
+        address: ContractAddress,
+    ) -> impl Iterator<Item = &TransactionReference> {
+        self.0.get(&address).into_iter().flat_map(|nonce_to_tx_ref| nonce_to_tx_ref.values())
+    }
+
     fn remove_up_to_nonce(
         &mut self,
         address: ContractAddress,
@@ -157,7 +171,7 @@ impl AccountTransactionIndex {
         txs_with_lower_nonce.into_values().collect()
     }
 
-    fn contains(&self, address: ContractAddress) -> bool {
+    fn _contains(&self, address: ContractAddress) -> bool {
         self.0.contains_key(&address)
     }
 }

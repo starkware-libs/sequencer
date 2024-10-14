@@ -119,7 +119,9 @@ impl SingleHeightConsensus {
             return Ok(ShcReturn::Tasks(Vec::new()));
         };
 
-        let block_receiver = context.validate_proposal(self.height, p2p_messages_receiver).await;
+        let block_receiver = context
+            .validate_proposal(self.height, self.timeouts.proposal_timeout, p2p_messages_receiver)
+            .await;
 
         let block = match block_receiver.await {
             Ok(block) => block,
@@ -337,7 +339,10 @@ impl SingleHeightConsensus {
         );
         debug!("Proposer");
 
-        let (p2p_messages_receiver, block_receiver) = context.build_proposal(self.height).await;
+        // TODO: Figure out how to handle failed proposal building. I believe this should be handled
+        // by applying timeoutPropose when we are the leader.
+        let (p2p_messages_receiver, block_receiver) =
+            context.build_proposal(self.height, self.timeouts.proposal_timeout).await;
         let (fin_sender, fin_receiver) = oneshot::channel();
         let init =
             ProposalInit { height: self.height, round, proposer: self.id, valid_round: None };
@@ -379,19 +384,13 @@ impl SingleHeightConsensus {
             .expect("proposals should have proposal for valid_round")
             .expect("proposal should not be None");
         assert_eq!(id, block_hash, "proposal should match the stored proposal");
-        let content_receiver = context.get_proposal(self.height, id).await;
         let init = ProposalInit {
             height: self.height,
             round,
             proposer: self.id,
             valid_round: Some(valid_round),
         };
-        let (fin_sender, fin_receiver) = oneshot::channel();
-        fin_sender.send(id).expect("Send should succeed");
-        context
-            .propose(init, content_receiver, fin_receiver)
-            .await
-            .expect("Failed broadcasting Proposal");
+        context.repropose(id, init).await;
         let old = self.proposals.insert(round, Some(block_hash));
         assert!(old.is_none(), "There should be no entry for this round.");
     }

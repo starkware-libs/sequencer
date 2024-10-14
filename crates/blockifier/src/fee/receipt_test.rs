@@ -1,5 +1,5 @@
 use rstest::{fixture, rstest};
-use starknet_api::execution_resources::GasAmount;
+use starknet_api::execution_resources::GasVector;
 use starknet_api::transaction::{GasVectorComputationMode, L2ToL1Payload};
 use starknet_api::{invoke_tx_args, nonce};
 use starknet_types_core::felt::Felt;
@@ -18,7 +18,7 @@ use crate::fee::gas_usage::{
     get_log_message_to_l1_emissions_cost,
     get_message_segment_length,
 };
-use crate::fee::resources::{GasVector, StarknetResources, StateResources};
+use crate::fee::resources::{StarknetResources, StateResources};
 use crate::state::cached_state::StateChangesCount;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
@@ -31,7 +31,7 @@ use crate::transaction::test_utils::{
     create_resource_bounds,
 };
 use crate::transaction::transactions::ExecutableTransaction;
-use crate::utils::{u128_from_usize, usize_from_u128};
+use crate::utils::{u64_from_usize, usize_from_u64};
 use crate::versioned_constants::VersionedConstants;
 
 #[fixture]
@@ -82,15 +82,14 @@ fn test_calculate_tx_gas_usage_basic<'a>(
         let gas_per_code_byte = versioned_constants
             .get_archival_data_gas_costs(&gas_vector_computation_mode)
             .gas_per_code_byte;
-        let code_gas_cost = GasAmount(
-            (gas_per_code_byte
-                * u128_from_usize(
-                    (class_info.bytecode_length() + class_info.sierra_program_length())
-                        * eth_gas_constants::WORD_WIDTH
-                        + class_info.abi_length(),
-                ))
-            .to_integer(),
-        );
+        let code_gas_cost = (gas_per_code_byte
+            * u64_from_usize(
+                (class_info.bytecode_length() + class_info.sierra_program_length())
+                    * eth_gas_constants::WORD_WIDTH
+                    + class_info.abi_length(),
+            ))
+        .to_integer()
+        .into();
         let manual_gas_vector = match gas_vector_computation_mode {
             GasVectorComputationMode::NoL2Gas => GasVector::from_l1_gas(code_gas_cost),
             GasVectorComputationMode::All => GasVector::from_l2_gas(code_gas_cost),
@@ -127,7 +126,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(
         .get_archival_data_gas_costs(&gas_vector_computation_mode)
         .gas_per_data_felt;
     let calldata_and_signature_gas_cost = (gas_per_data_felt
-        * u128_from_usize(calldata_length + signature_length))
+        * u64_from_usize(calldata_length + signature_length))
     .to_integer()
     .into();
     let manual_starknet_gas_usage_vector = match gas_vector_computation_mode {
@@ -166,7 +165,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(
     // Manual calculation.
     let message_segment_length = get_message_segment_length(&[], Some(l1_handler_payload_size));
     let calldata_and_signature_gas_cost = (gas_per_data_felt
-        * u128_from_usize(l1_handler_payload_size + signature_length))
+        * u64_from_usize(l1_handler_payload_size + signature_length))
     .to_integer()
     .into();
     let calldata_and_signature_gas_cost_vector = match gas_vector_computation_mode {
@@ -178,16 +177,16 @@ fn test_calculate_tx_gas_usage_basic<'a>(
     let manual_starknet_l1_gas_usage = message_segment_length
         * eth_gas_constants::GAS_PER_MEMORY_WORD
         + eth_gas_constants::GAS_PER_COUNTER_DECREASE
-        + usize_from_u128(
+        + usize_from_u64(
             get_consumed_message_to_l2_emissions_cost(Some(l1_handler_payload_size)).l1_gas.0,
         )
         .unwrap();
     let manual_starknet_l1_gas_usage_vector =
-        GasVector::from_l1_gas(u128_from_usize(manual_starknet_l1_gas_usage).into());
+        GasVector::from_l1_gas(u64_from_usize(manual_starknet_l1_gas_usage).into());
     let manual_sharp_gas_usage =
         message_segment_length * eth_gas_constants::SHARP_GAS_PER_MEMORY_WORD;
     let manual_gas_computation =
-        GasVector::from_l1_gas(u128_from_usize(manual_sharp_gas_usage).into())
+        GasVector::from_l1_gas(u64_from_usize(manual_sharp_gas_usage).into())
             + manual_starknet_l1_gas_usage_vector
             + calldata_and_signature_gas_cost_vector;
     assert_eq!(l1_handler_gas_usage_vector, manual_gas_computation);
@@ -246,16 +245,16 @@ fn test_calculate_tx_gas_usage_basic<'a>(
     let n_l2_to_l1_messages = l2_to_l1_payload_lengths.len();
     let manual_starknet_gas_usage = message_segment_length * eth_gas_constants::GAS_PER_MEMORY_WORD
         + n_l2_to_l1_messages * eth_gas_constants::GAS_PER_ZERO_TO_NONZERO_STORAGE_SET
-        + usize_from_u128(get_log_message_to_l1_emissions_cost(&l2_to_l1_payload_lengths).l1_gas.0)
+        + usize_from_u64(get_log_message_to_l1_emissions_cost(&l2_to_l1_payload_lengths).l1_gas.0)
             .unwrap();
     let manual_sharp_gas_usage = message_segment_length
         * eth_gas_constants::SHARP_GAS_PER_MEMORY_WORD
-        + usize_from_u128(l2_to_l1_starknet_resources.state.to_gas_vector(use_kzg_da).l1_gas.0)
+        + usize_from_u64(l2_to_l1_starknet_resources.state.to_gas_vector(use_kzg_da).l1_gas.0)
             .unwrap();
     let manual_sharp_blob_gas_usage =
         l2_to_l1_starknet_resources.state.to_gas_vector(use_kzg_da).l1_data_gas;
     let manual_gas_computation = GasVector {
-        l1_gas: u128_from_usize(manual_starknet_gas_usage + manual_sharp_gas_usage).into(),
+        l1_gas: u64_from_usize(manual_starknet_gas_usage + manual_sharp_gas_usage).into(),
         l1_data_gas: manual_sharp_blob_gas_usage,
         ..Default::default()
     };
@@ -330,7 +329,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(
         + storage_writings_gas_usage_vector.l1_gas
         // l2_to_l1_messages_gas_usage and storage_writings_gas_usage got a discount each, while
         // the combined calculation got it once.
-        + u128_from_usize(fee_balance_discount).into(),
+        + u64_from_usize(fee_balance_discount).into(),
         // Expected blob gas usage is from data availability only.
         l1_data_gas: combined_cases_starknet_resources.state.to_gas_vector(use_kzg_da).l1_data_gas,
         l2_gas: l1_handler_gas_usage_vector.l2_gas,
@@ -341,8 +340,6 @@ fn test_calculate_tx_gas_usage_basic<'a>(
 
 // Test that we exclude the fee token contract modification and adds the account’s balance change
 // in the state changes.
-// TODO(Nimrod, 1/5/2024): Test regression w.r.t. all resources (including VM). (Only starknet
-// resources are taken into account).
 #[rstest]
 fn test_calculate_tx_gas_usage(
     #[values(false, true)] use_kzg_da: bool,

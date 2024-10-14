@@ -28,6 +28,7 @@ use starknet_api::block::{
     GasPricePerToken,
     StarknetVersion,
 };
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{
     ClassHash,
     CompiledClassHash,
@@ -49,9 +50,8 @@ use starknet_api::deprecated_contract_class::{
     ConstructorType,
     ContractClass as DeprecatedContractClass,
     ContractClassAbiEntry,
-    EntryPoint as DeprecatedEntryPoint,
     EntryPointOffset,
-    EntryPointType as DeprecatedEntryPointType,
+    EntryPointV0 as DeprecatedEntryPoint,
     EventAbiEntry,
     EventType,
     FunctionAbiEntry,
@@ -64,16 +64,9 @@ use starknet_api::deprecated_contract_class::{
     StructType,
     TypedParameter,
 };
-use starknet_api::execution_resources::{Builtin, ExecutionResources, GasVector};
+use starknet_api::execution_resources::{Builtin, ExecutionResources, GasAmount, GasVector};
 use starknet_api::hash::{PoseidonHash, StarkHash};
-use starknet_api::state::{
-    ContractClass,
-    EntryPoint,
-    EntryPointType,
-    FunctionIndex,
-    StorageKey,
-    ThinStateDiff,
-};
+use starknet_api::state::{ContractClass, EntryPoint, FunctionIndex, StorageKey, ThinStateDiff};
 use starknet_api::transaction::{
     AccountDeploymentData,
     AllResourceBounds,
@@ -238,11 +231,6 @@ auto_storage_serde! {
         pub selector: EntryPointSelector,
         pub offset: EntryPointOffset,
     }
-    pub enum DeprecatedEntryPointType {
-        Constructor = 0,
-        External = 1,
-        L1Handler = 2,
-    }
     pub struct EntryPoint {
         pub function_idx: FunctionIndex,
         pub selector: EntryPointSelector,
@@ -284,14 +272,15 @@ auto_storage_serde! {
         View = 0,
     }
     pub struct GasPrice(pub u128);
+    pub struct GasAmount(pub u64);
     pub struct GasPricePerToken {
         pub price_in_fri: GasPrice,
         pub price_in_wei: GasPrice,
     }
     pub struct GasVector {
-        pub l1_gas: u64,
-        pub l1_data_gas: u64,
-        pub l2_gas: u64,
+        pub l1_gas: GasAmount,
+        pub l1_data_gas: GasAmount,
+        pub l2_gas: GasAmount,
     }
     pub struct GlobalRoot(pub StarkHash);
     pub struct H160(pub [u8; 20]);
@@ -366,8 +355,8 @@ auto_storage_serde! {
         L1DataGas = 2,
     }
     pub struct ResourceBounds {
-        pub max_amount: u64,
-        pub max_price_per_unit: u128,
+        pub max_amount: GasAmount,
+        pub max_price_per_unit: GasPrice,
     }
     pub struct SequencerContractAddress(pub ContractAddress);
     pub struct Signature {
@@ -998,9 +987,7 @@ impl StorageSerde for DeprecatedContractClass {
             abi: Option::<Vec<ContractClassAbiEntry>>::deserialize_from(data)?,
             program: Program::deserialize_from(data)?,
             entry_points_by_type:
-                HashMap::<DeprecatedEntryPointType, Vec<DeprecatedEntryPoint>>::deserialize_from(
-                    bytes,
-                )?,
+                HashMap::<EntryPointType, Vec<DeprecatedEntryPoint>>::deserialize_from(bytes)?,
         })
     }
 }

@@ -30,7 +30,7 @@ pub fn test_fill_sequencer_balance_reads(
     let chain_info = &block_context.chain_info;
     let state = &mut test_state_inner(chain_info, BALANCE, &[(account, 1)], erc20_version);
 
-    let sequencer_balance = 100;
+    let sequencer_balance = Fee(100);
     let sequencer_address = block_context.block_info.sequencer_address;
     fund_account(chain_info, sequencer_address, sequencer_balance, &mut state.state);
 
@@ -58,7 +58,7 @@ pub fn test_add_fee_to_sequencer_balance(
 ) {
     let block_context = BlockContext::create_for_account_testing();
     let account = FeatureContract::Empty(CairoVersion::Cairo1);
-    let mut state = test_state(&block_context.chain_info, 0, &[(account, 1)]);
+    let mut state = test_state(&block_context.chain_info, Fee(0), &[(account, 1)]);
     let (sequencer_balance_key_low, sequencer_balance_key_high) =
         get_sequencer_balance_keys(&block_context);
 

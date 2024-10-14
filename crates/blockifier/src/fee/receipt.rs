@@ -1,12 +1,12 @@
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::core::ContractAddress;
+use starknet_api::execution_resources::GasVector;
 use starknet_api::transaction::Fee;
 
 use crate::context::TransactionContext;
 use crate::execution::call_info::ExecutionSummary;
 use crate::fee::resources::{
     ComputationResources,
-    GasVector,
     StarknetResources,
     StateResources,
     TransactionResources,
@@ -37,6 +37,7 @@ struct TransactionReceiptParameters<'a> {
 
 // TODO(Gilad): Use everywhere instead of passing the `actual_{fee,resources}` tuple, which often
 // get passed around together.
+#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Default, Debug, PartialEq)]
 pub struct TransactionReceipt {
