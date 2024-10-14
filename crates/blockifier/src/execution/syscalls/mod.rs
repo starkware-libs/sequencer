@@ -43,7 +43,6 @@ use crate::execution::entry_point::{CallEntryPoint, CallType, ConstructorContext
 use crate::execution::execution_utils::{
     execute_deployment,
     felt_from_ptr,
-    update_remaining_gas,
     write_felt,
     write_maybe_relocatable,
     ReadOnlySegment,
@@ -280,13 +279,11 @@ pub fn deploy(
         syscall_handler.context,
         ctor_context,
         request.constructor_calldata,
-        *remaining_gas,
+        remaining_gas,
     )?;
 
     let constructor_retdata =
         create_retdata_segment(vm, syscall_handler, &call_info.execution.retdata.0)?;
-    update_remaining_gas(remaining_gas, &call_info);
-
     syscall_handler.inner_calls.push(call_info);
 
     Ok(DeployResponse { contract_address: deployed_contract_address, constructor_retdata })

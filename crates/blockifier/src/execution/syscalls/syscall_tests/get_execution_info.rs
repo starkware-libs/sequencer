@@ -244,14 +244,8 @@ fn test_get_execution_info(
         ..trivial_external_entry_point_with_address(test_contract_address)
     };
 
-    let result = match execution_mode {
-        ExecutionMode::Validate => {
-            entry_point_call.execute_directly_given_tx_info_in_validate_mode(state, tx_info, false)
-        }
-        ExecutionMode::Execute => {
-            entry_point_call.execute_directly_given_tx_info(state, tx_info, false)
-        }
-    };
+    let result =
+        entry_point_call.execute_directly_given_tx_info(state, tx_info, false, execution_mode);
 
     assert!(!result.unwrap().execution.failed);
 }
