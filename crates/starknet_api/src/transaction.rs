@@ -892,7 +892,7 @@ pub struct Calldata(pub Arc<Vec<Felt>>);
 #[macro_export]
 macro_rules! calldata {
     ( $( $x:expr ),* ) => {
-        Calldata(vec![$($x),*].into())
+        $crate::transaction::Calldata(vec![$($x),*].into())
     };
 }
 

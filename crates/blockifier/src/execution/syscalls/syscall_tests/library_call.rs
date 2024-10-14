@@ -6,7 +6,6 @@ use pretty_assertions::assert_eq;
 use starknet_api::core::PatriciaKey;
 use starknet_api::execution_utils::format_panic_data;
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::Calldata;
 use starknet_api::{calldata, felt, patricia_key};
 use test_case::test_case;
 

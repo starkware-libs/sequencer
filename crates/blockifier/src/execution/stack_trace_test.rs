@@ -3,7 +3,6 @@ use regex::Regex;
 use rstest::rstest;
 use starknet_api::core::{calculate_contract_address, Nonce};
 use starknet_api::transaction::{
-    Calldata,
     ContractAddressSalt,
     Fee,
     TransactionSignature,
