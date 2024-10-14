@@ -15,6 +15,7 @@ pub struct BatcherConfig {
     pub proposal_manager: ProposalManagerConfig,
     pub outstream_content_buffer_size: usize,
     pub block_builder_config: BlockBuilderConfig,
+    pub global_contract_cache_size: usize,
 }
 
 impl SerializeConfig for BatcherConfig {
@@ -26,6 +27,13 @@ impl SerializeConfig for BatcherConfig {
             &self.outstream_content_buffer_size,
             "Maximum items to add to the outstream buffer before blocking further filling of the \
              stream.",
+            ParamPrivacyInput::Public,
+        )]));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "global_contract_cache_size",
+            &self.global_contract_cache_size,
+            "Cache size for the global_class_hash_to_class. Initialized with this size on \
+             creation.",
             ParamPrivacyInput::Public,
         )]));
         dump.append(&mut append_sub_config_name(self.storage.dump(), "storage"));
@@ -54,6 +62,7 @@ impl Default for BatcherConfig {
             // TODO: set a more reasonable default value.
             outstream_content_buffer_size: 100,
             block_builder_config: BlockBuilderConfig::default(),
+            global_contract_cache_size: 100,
         }
     }
 }
