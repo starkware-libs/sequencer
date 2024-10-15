@@ -102,20 +102,11 @@ impl Mempool {
     /// Update the mempool's internal state according to the committed block (resolves nonce gaps,
     /// updates account balances).
     pub fn commit_block(&mut self, args: CommitBlockArgs) -> MempoolResult<()> {
+        // Align mempool data to committed nonces.
         for (&address, &nonce) in &args.nonces {
             let next_nonce = nonce.try_increment().map_err(|_| MempoolError::FeltOutOfRange)?;
             let account_state = AccountState { address, nonce: next_nonce };
             self.align_to_account_state(account_state);
-        }
-
-        // Hard-delete: finally, remove committed transactions from the mempool.
-        for tx_hash in args.tx_hashes {
-            let Ok(_tx) = self.tx_pool.remove(tx_hash) else {
-                continue; // Transaction hash unknown to mempool, from a different node.
-            };
-
-            // TODO(clean_account_nonces): remove address from nonce table after a block cycle /
-            // TTL.
         }
 
         // Rewind nonces of addresses that were not included in block.
@@ -129,6 +120,16 @@ impl Mempool {
                 .next()
                 .expect("Address {address} should appear in transaction pool.");
             self.tx_queue.insert(*tx_reference);
+        }
+
+        // Hard-delete: finally, remove committed transactions from the mempool.
+        for tx_hash in args.tx_hashes {
+            let Ok(_tx) = self.tx_pool.remove(tx_hash) else {
+                continue; // Transaction hash unknown to mempool, from a different node.
+            };
+
+            // TODO(clean_account_nonces): remove address from nonce table after a block cycle /
+            // TTL.
         }
 
         // Commit: clear block creation staged state.
