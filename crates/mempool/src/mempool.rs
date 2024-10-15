@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::Transaction;
-use starknet_api::transaction::{Tip, TransactionHash, ValidResourceBounds};
+use starknet_api::transaction::{Tip, TransactionHash};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{
     AccountState,
@@ -239,7 +239,7 @@ impl Mempool {
         let [existing_tip, incoming_tip] =
             [existing_tx, incoming_tx].map(|tx| u128::from(tx.tip.0));
         let [existing_max_l2_gas_price, incoming_max_l2_gas_price] =
-            [existing_tx, incoming_tx].map(|tx| tx.get_l2_gas_price().0);
+            [existing_tx, incoming_tx].map(|tx| tx.max_l2_gas_price.0);
 
         self.increased_enough(existing_tip, incoming_tip)
             && self.increased_enough(existing_max_l2_gas_price, incoming_max_l2_gas_price)
@@ -271,7 +271,7 @@ pub struct TransactionReference {
     pub nonce: Nonce,
     pub tx_hash: TransactionHash,
     pub tip: Tip,
-    pub resource_bounds: ValidResourceBounds,
+    pub max_l2_gas_price: GasPrice,
 }
 
 impl TransactionReference {
@@ -281,13 +281,11 @@ impl TransactionReference {
             nonce: tx.nonce(),
             tx_hash: tx.tx_hash(),
             tip: tx.tip().expect("Expected a valid tip value."),
-            resource_bounds: *tx
+            max_l2_gas_price: tx
                 .resource_bounds()
-                .expect("Expected a valid resource bounds value."),
+                .expect("Expected a valid resource bounds value.")
+                .get_l2_bounds()
+                .max_price_per_unit,
         }
-    }
-
-    pub fn get_l2_gas_price(&self) -> GasPrice {
-        self.resource_bounds.get_l2_bounds().max_price_per_unit
     }
 }
