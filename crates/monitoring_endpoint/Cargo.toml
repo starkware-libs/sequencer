@@ -1,5 +1,5 @@
 [package]
-name = "starknet_sequencer_monitoring_endpoint"
+name = "starknet_monitoring_endpoint"
 version.workspace = true
 edition.workspace = true
 repository.workspace = true

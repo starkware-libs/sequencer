@@ -8,18 +8,18 @@ use starknet_mempool_infra::component_definitions::ComponentStarter;
 use starknet_mempool_infra::errors::ComponentError;
 use tracing::{info, instrument};
 
-use crate::config::SequencerMonitoringEndpointConfig;
+use crate::config::MonitoringEndpointConfig;
 
 const MONITORING_PREFIX: &str = "monitoring";
 
-pub struct SequencerMonitoringEndpoint {
-    config: SequencerMonitoringEndpointConfig,
+pub struct MonitoringEndpoint {
+    config: MonitoringEndpointConfig,
     version: &'static str,
 }
 
-impl SequencerMonitoringEndpoint {
-    pub fn new(config: SequencerMonitoringEndpointConfig, version: &'static str) -> Self {
-        SequencerMonitoringEndpoint { config, version }
+impl MonitoringEndpoint {
+    pub fn new(config: MonitoringEndpointConfig, version: &'static str) -> Self {
+        MonitoringEndpoint { config, version }
     }
 
     #[instrument(
@@ -30,11 +30,11 @@ impl SequencerMonitoringEndpoint {
         ),
         level = "debug")]
     pub async fn run(&self) -> std::result::Result<(), hyper::Error> {
-        let SequencerMonitoringEndpointConfig { ip, port } = self.config;
+        let MonitoringEndpointConfig { ip, port } = self.config;
         let endpoint_addr = SocketAddr::new(ip, port);
 
         let app = self.app();
-        info!("SequencerMonitoringEndpoint running using socket: {}", endpoint_addr);
+        info!("MonitoringEndpoint running using socket: {}", endpoint_addr);
 
         axum::Server::bind(&endpoint_addr).serve(app.into_make_service()).await
     }
@@ -58,15 +58,15 @@ impl SequencerMonitoringEndpoint {
     }
 }
 
-pub fn create_sequencer_monitoring_endpoint(
-    config: SequencerMonitoringEndpointConfig,
+pub fn create_monitoring_endpoint(
+    config: MonitoringEndpointConfig,
     version: &'static str,
-) -> SequencerMonitoringEndpoint {
-    SequencerMonitoringEndpoint::new(config, version)
+) -> MonitoringEndpoint {
+    MonitoringEndpoint::new(config, version)
 }
 
 #[async_trait]
-impl ComponentStarter for SequencerMonitoringEndpoint {
+impl ComponentStarter for MonitoringEndpoint {
     async fn start(&mut self) -> Result<(), ComponentError> {
         info!("Starting component {}.", type_name::<Self>());
         self.run().await.map_err(|_| ComponentError::InternalComponentError)
