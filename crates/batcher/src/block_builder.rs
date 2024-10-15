@@ -75,8 +75,7 @@ pub struct BlockBuilderConfig {
     pub sequencer_address: ContractAddress,
     pub use_kzg_da: bool,
     pub tx_chunk_size: usize,
-    // TODO(Ayelet): Make this field optional.
-    pub versioned_constants_overrides: VersionedConstantsOverrides,
+    pub versioned_constants_overrides: Option<VersionedConstantsOverrides>,
 }
 
 impl Default for BlockBuilderConfig {
@@ -89,7 +88,7 @@ impl Default for BlockBuilderConfig {
             sequencer_address: ContractAddress::default(),
             use_kzg_da: true,
             tx_chunk_size: 100,
-            versioned_constants_overrides: VersionedConstantsOverrides::default(),
+            versioned_constants_overrides: Some(VersionedConstantsOverrides::default()),
         }
     }
 }
@@ -228,12 +227,16 @@ impl BlockBuilderFactory {
             },
             use_kzg_da: execution_config.use_kzg_da,
         };
+        let versioned_constants =
+            if let Some(overrides) = execution_config.versioned_constants_overrides {
+                VersionedConstants::get_versioned_constants(overrides)
+            } else {
+                VersionedConstants::get_versioned_constants(VersionedConstantsOverrides::default())
+            };
         let block_context = BlockContext::new(
             next_block_info,
             execution_config.chain_info,
-            VersionedConstants::get_versioned_constants(
-                execution_config.versioned_constants_overrides,
-            ),
+            versioned_constants,
             execution_config.bouncer_config,
         );
 
