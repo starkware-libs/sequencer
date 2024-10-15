@@ -4,7 +4,6 @@ mod block_test;
 
 use std::fmt::Display;
 
-use derive_more::Display;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
@@ -239,7 +238,7 @@ pub enum BlockStatus {
     Serialize,
     PartialOrd,
     Ord,
-    Display,
+    derive_more::Display,
 )]
 pub struct BlockHash(pub StarkHash);
 
@@ -248,7 +247,7 @@ pub struct BlockHash(pub StarkHash);
     Debug,
     Default,
     Copy,
-    Display,
+    derive_more::Display,
     Clone,
     Eq,
     PartialEq,
