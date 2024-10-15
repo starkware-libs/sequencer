@@ -10248,12 +10248,8 @@ dependencies = [
 name = "starknet_consensus_manager_types"
 version = "0.0.0"
 dependencies = [
- "async-trait",
  "derive_more 0.99.18",
- "mockall",
- "papyrus_proc_macros",
  "serde",
- "starknet_mempool_infra",
  "thiserror",
 ]
 
@@ -10429,7 +10425,6 @@ dependencies = [
  "starknet_batcher",
  "starknet_batcher_types",
  "starknet_consensus_manager",
- "starknet_consensus_manager_types",
  "starknet_gateway",
  "starknet_gateway_types",
  "starknet_http_server",
