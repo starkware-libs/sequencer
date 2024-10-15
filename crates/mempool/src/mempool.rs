@@ -80,8 +80,6 @@ impl Mempool {
     }
 
     /// Adds a new transaction to the mempool.
-    /// TODO: support fee escalation and transactions with future nonces.
-    /// TODO: check Account nonce and balance.
     pub fn add_tx(&mut self, args: AddTransactionArgs) -> MempoolResult<()> {
         self.validate_input(&args)?;
 
