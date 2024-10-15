@@ -5,6 +5,7 @@ use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
+use crate::block_builder::BlockBuilderConfig;
 use crate::proposal_manager::ProposalManagerConfig;
 
 /// The batcher related configuration.
@@ -13,6 +14,7 @@ pub struct BatcherConfig {
     pub storage: papyrus_storage::StorageConfig,
     pub proposal_manager: ProposalManagerConfig,
     pub outstream_content_buffer_size: usize,
+    pub block_builder_config: BlockBuilderConfig,
 }
 
 impl SerializeConfig for BatcherConfig {
@@ -27,6 +29,10 @@ impl SerializeConfig for BatcherConfig {
             ParamPrivacyInput::Public,
         )]));
         dump.append(&mut append_sub_config_name(self.storage.dump(), "storage"));
+        dump.append(&mut append_sub_config_name(
+            self.block_builder_config.dump(),
+            "block_builder_config",
+        ));
         dump
     }
 }
@@ -47,6 +53,7 @@ impl Default for BatcherConfig {
             proposal_manager: ProposalManagerConfig::default(),
             // TODO: set a more reasonable default value.
             outstream_content_buffer_size: 100,
+            block_builder_config: BlockBuilderConfig::default(),
         }
     }
 }

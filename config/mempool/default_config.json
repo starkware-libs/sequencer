@@ -1,4 +1,139 @@
 {
+  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.add_mod": {
+    "description": "Max number of add mod builtin usage in a block.",
+    "privacy": "Public",
+    "value": 156250
+  },
+  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.bitwise": {
+    "description": "Max number of bitwise builtin usage in a block.",
+    "privacy": "Public",
+    "value": 39062
+  },
+  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.ec_op": {
+    "description": "Max number of EC operation builtin usage in a block.",
+    "privacy": "Public",
+    "value": 2441
+  },
+  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.ecdsa": {
+    "description": "Max number of ECDSA builtin usage in a block.",
+    "privacy": "Public",
+    "value": 1220
+  },
+  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.keccak": {
+    "description": "Max number of keccak builtin usage in a block.",
+    "privacy": "Public",
+    "value": 1220
+  },
+  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.mul_mod": {
+    "description": "Max number of mul mod builtin usage in a block.",
+    "privacy": "Public",
+    "value": 156250
+  },
+  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.pedersen": {
+    "description": "Max number of pedersen builtin usage in a block.",
+    "privacy": "Public",
+    "value": 78125
+  },
+  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.poseidon": {
+    "description": "Max number of poseidon builtin usage in a block.",
+    "privacy": "Public",
+    "value": 78125
+  },
+  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.range_check": {
+    "description": "Max number of range check builtin usage in a block.",
+    "privacy": "Public",
+    "value": 156250
+  },
+  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.range_check96": {
+    "description": "Max number of range check 96 builtin usage in a block.",
+    "privacy": "Public",
+    "value": 156250
+  },
+  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.gas": {
+    "description": "An upper bound on the total gas used in a block.",
+    "privacy": "Public",
+    "value": 2500000
+  },
+  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.message_segment_length": {
+    "description": "An upper bound on the message segment length in a block.",
+    "privacy": "Public",
+    "value": 3700
+  },
+  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.n_events": {
+    "description": "An upper bound on the total number of events generated in a block.",
+    "privacy": "Public",
+    "value": 5000
+  },
+  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.n_steps": {
+    "description": "An upper bound on the total number of steps in a block.",
+    "privacy": "Public",
+    "value": 2500000
+  },
+  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.state_diff_size": {
+    "description": "An upper bound on the total state diff size in a block.",
+    "privacy": "Public",
+    "value": 4000
+  },
+  "batcher_config.block_builder_config.chain_info.chain_id": {
+    "description": "The chain ID of the StarkNet chain.",
+    "privacy": "Public",
+    "value": "0x0"
+  },
+  "batcher_config.block_builder_config.chain_info.fee_token_addresses.eth_fee_token_address": {
+    "description": "Address of the ETH fee token.",
+    "privacy": "Public",
+    "value": "0x0"
+  },
+  "batcher_config.block_builder_config.chain_info.fee_token_addresses.strk_fee_token_address": {
+    "description": "Address of the STRK fee token.",
+    "privacy": "Public",
+    "value": "0x0"
+  },
+  "batcher_config.block_builder_config.execute_config.concurrency_config.chunk_size": {
+    "description": "The size of the transaction chunk executed in parallel.",
+    "privacy": "Public",
+    "value": 0
+  },
+  "batcher_config.block_builder_config.execute_config.concurrency_config.enabled": {
+    "description": "Enables concurrency of transaction execution.",
+    "privacy": "Public",
+    "value": false
+  },
+  "batcher_config.block_builder_config.execute_config.concurrency_config.n_workers": {
+    "description": "Number of parallel transaction execution workers.",
+    "privacy": "Public",
+    "value": 0
+  },
+  "batcher_config.block_builder_config.sequencer_address": {
+    "description": "The address of the sequencer.",
+    "privacy": "Public",
+    "value": "0x0"
+  },
+  "batcher_config.block_builder_config.tx_chunk_size": {
+    "description": "The size of the transaction chunk.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "batcher_config.block_builder_config.use_kzg_da": {
+    "description": "Indicates whether the kzg mechanism is used for data availability.",
+    "privacy": "Public",
+    "value": true
+  },
+  "batcher_config.block_builder_config.versioned_constants_overrides.invoke_tx_max_n_steps": {
+    "description": "Maximum number of steps the invoke function is allowed to run.",
+    "privacy": "Public",
+    "value": 10000000
+  },
+  "batcher_config.block_builder_config.versioned_constants_overrides.max_recursion_depth": {
+    "description": "Maximum recursion depth for nested calls during blockifier validation.",
+    "privacy": "Public",
+    "value": 50
+  },
+  "batcher_config.block_builder_config.versioned_constants_overrides.validate_max_n_steps": {
+    "description": "Maximum number of steps the validation function is allowed to run.",
+    "privacy": "Public",
+    "value": 1000000
+  },
   "batcher_config.outstream_content_buffer_size": {
     "description": "Maximum items to add to the outstream buffer before blocking further filling of the stream.",
     "privacy": "Public",
