@@ -32,7 +32,7 @@ async fn collect_events_from_swarms<BehaviourTrait: NetworkBehaviour, T>(
     loop {
         // Swarms should never finish, so we can unwrap the option.
         let (peer_id, event) = swarms_stream.next().await.unwrap();
-        if let Some((other_peer_id, value)) = map_and_filter_event(peer_id, event) {
+        if let Some((other_peer_id, value)) = map_and_filter_event(peer_id, event.unwrap()) {
             let is_unique = results.insert((peer_id, other_peer_id), value).is_none();
             if assert_unique {
                 assert!(is_unique);
