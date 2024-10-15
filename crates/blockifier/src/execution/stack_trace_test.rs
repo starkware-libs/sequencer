@@ -31,7 +31,7 @@ use crate::transaction::test_utils::{
     account_invoke_tx,
     block_context,
     create_account_tx_for_validate_test_nonce_0,
-    default_l1_resource_bounds,
+    default_all_resource_bounds,
     run_invoke_tx,
     FaultyAccountTxCreatorArgs,
     INVALID,
@@ -618,7 +618,7 @@ fn test_account_ctor_frame_stack_trace(
             scenario: INVALID,
             class_hash,
             max_fee: BALANCE,
-            resource_bounds: default_l1_resource_bounds(),
+            resource_bounds: default_all_resource_bounds(),
             validate_constructor: true,
             ..Default::default()
         });
@@ -666,7 +666,7 @@ An ASSERT_EQ instruction failed: 1 != 0.
 /// point selector).
 fn test_contract_ctor_frame_stack_trace(
     block_context: BlockContext,
-    default_l1_resource_bounds: ValidResourceBounds,
+    default_all_resource_bounds: ValidResourceBounds,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
 ) {
     let chain_info = &block_context.chain_info;
@@ -703,7 +703,7 @@ fn test_contract_ctor_frame_stack_trace(
                 validate_constructor,
             ]
         ),
-        resource_bounds: default_l1_resource_bounds,
+        resource_bounds: default_all_resource_bounds,
         nonce: Nonce(felt!(0_u8)),
     });
 
