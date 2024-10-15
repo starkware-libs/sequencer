@@ -52,24 +52,24 @@ impl<K: Unpin + Clone + Eq + Hash, V: Stream + Unpin> Stream for StreamHashMap<K
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let unpinned_self = Pin::into_inner(self);
-        let mut finished_stream: Option<K> = None;
+        let mut finished_stream_key: Option<K> = None;
         for (key, stream) in &mut unpinned_self.map {
             match stream.poll_next_unpin(cx) {
                 Poll::Ready(Some(value)) => {
                     return Poll::Ready(Some((key.clone(), Some(value))));
                 }
                 Poll::Ready(None) => {
-                    // The channel finished_stream is closed, so we break the loop so we can remove
-                    // it from the map. In this case we return the key and None.
-                    finished_stream = Some(key.clone());
+                    finished_stream_key = Some(key.clone());
+                    // breaking and removing the finished stream from the map outside of the loop
+                    // because we can't have two mutable references to the map.
                     break;
                 }
                 Poll::Pending => {}
             }
         }
-        if let Some(finished_stream) = finished_stream {
-            HashMap::remove(&mut unpinned_self.map, &finished_stream);
-            return Poll::Ready(Some((finished_stream, None)));
+        if let Some(finished_stream_key) = finished_stream_key {
+            unpinned_self.map.remove(&finished_stream_key);
+            return Poll::Ready(Some((finished_stream_key, None)));
         }
         unpinned_self.wakers_waiting_for_new_stream.push(cx.waker().clone());
         Poll::Pending
