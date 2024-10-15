@@ -26,9 +26,11 @@ pub const MALICIOUS: f64 = 1.0;
 #[cfg_attr(test, derive(Debug, PartialEq))]
 #[derive(Clone, Copy)]
 pub enum ReputationModifier {
-    Malicious { misconduct_score: f64 }, /* misconduct_score is in the range [0, 1]. When a
-                                          * peer's misconduct_score reaches 1, it is
-                                          * considered malicious. */
+    /// misconduct_score is in the range [0, 1]. When a peer's total misconduct_score reaches 1, it
+    /// is considered malicious.
+    Misconduct {
+        misconduct_score: f64,
+    },
     Unstable,
 }
 
@@ -189,7 +191,7 @@ impl PeerManager {
             .push(ToSwarm::GenerateEvent(ToOtherBehaviourEvent::PeerBlacklisted { peer_id }));
         if let Some(peer) = self.peers.get_mut(&peer_id) {
             match reason {
-                ReputationModifier::Malicious { misconduct_score } => {
+                ReputationModifier::Misconduct { misconduct_score } => {
                     peer.report(misconduct_score);
                     if peer.is_malicious() {
                         peer.blacklist_peer(self.config.malicious_timeout);

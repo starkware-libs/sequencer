@@ -47,7 +47,7 @@ impl PeerTrait for Peer {
             multiaddr,
             timed_out_until: get_instant_now(),
             connection_ids: Vec::new(),
-            misconduct_score: 0 as f64,
+            misconduct_score: 0f64,
         }
     }
 
@@ -93,7 +93,7 @@ impl PeerTrait for Peer {
     }
 
     fn reset_misconduct_score(&mut self) {
-        self.misconduct_score = 0 as f64;
+        self.misconduct_score = 0f64;
     }
 
     fn report(&mut self, misconduct_score: f64) {
@@ -101,7 +101,7 @@ impl PeerTrait for Peer {
     }
 
     fn is_malicious(&self) -> bool {
-        1.0 <= self.misconduct_score
+        1.0f64 <= self.misconduct_score
     }
 }
 
