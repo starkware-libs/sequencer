@@ -11,8 +11,6 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
-use futures::sink::SinkExt;
-use futures::stream::StreamExt;
 use papyrus_consensus::types::{
     ConsensusContext,
     ConsensusError,
@@ -40,10 +38,6 @@ use tracing::{debug, debug_span, info, warn, Instrument};
 // store one of them.
 type HeightToIdToContent =
     BTreeMap<BlockNumber, HashMap<ProposalContentId, (Vec<Transaction>, ProposalId)>>;
-
-// Channel size for streaming proposal parts.
-// TODO(matan): Consider making this configurable. May want to define `max_proposal_parts`.
-const CHANNEL_SIZE: usize = 5000;
 
 pub struct SequencerConsensusContext {
     batcher: Arc<dyn BatcherClient>,
@@ -79,10 +73,10 @@ impl ConsensusContext for SequencerConsensusContext {
     async fn build_proposal(
         &mut self,
         height: BlockNumber,
+        _init: ProposalInit,
         timeout: Duration,
-    ) -> (mpsc::Receiver<Self::ProposalChunk>, oneshot::Receiver<ProposalContentId>) {
+    ) -> oneshot::Receiver<ProposalContentId> {
         debug!("Building proposal for height: {height} with timeout: {timeout:?}");
-        let (content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
         let (fin_sender, fin_receiver) = oneshot::channel();
 
         let batcher = Arc::clone(&self.batcher);
@@ -109,20 +103,13 @@ impl ConsensusContext for SequencerConsensusContext {
             .expect("Failed to initiate proposal build");
         tokio::spawn(
             async move {
-                stream_build_proposal(
-                    height,
-                    proposal_id,
-                    batcher,
-                    valid_proposals,
-                    content_sender,
-                    fin_sender,
-                )
-                .await;
+                stream_build_proposal(height, proposal_id, batcher, valid_proposals, fin_sender)
+                    .await;
             }
             .instrument(debug_span!("consensus_build_proposal")),
         );
 
-        (content_receiver, fin_receiver)
+        fin_receiver
     }
 
     async fn validate_proposal(
@@ -148,21 +135,6 @@ impl ConsensusContext for SequencerConsensusContext {
 
     async fn broadcast(&mut self, message: ConsensusMessage) -> Result<(), ConsensusError> {
         debug!("No-op broadcasting message: {message:?}");
-        Ok(())
-    }
-
-    async fn propose(
-        &self,
-        init: ProposalInit,
-        mut content_receiver: mpsc::Receiver<Self::ProposalChunk>,
-        fin_receiver: oneshot::Receiver<ProposalContentId>,
-    ) -> Result<(), ConsensusError> {
-        // Spawn a task to keep receivers alive.
-        tokio::spawn(async move {
-            while content_receiver.next().await.is_some() {}
-            let fin = fin_receiver.await.expect("Failed to receive fin");
-            debug!("No-op propose message: {init:?} {fin:?}");
-        });
         Ok(())
     }
 
@@ -219,7 +191,6 @@ async fn stream_build_proposal(
     proposal_id: ProposalId,
     batcher: Arc<dyn BatcherClient>,
     valid_proposals: Arc<Mutex<HeightToIdToContent>>,
-    mut content_sender: mpsc::Sender<Vec<Transaction>>,
     fin_sender: oneshot::Sender<ProposalContentId>,
 ) {
     let mut content = Vec::new();
@@ -237,12 +208,7 @@ async fn stream_build_proposal(
                 content.extend_from_slice(&txs[..]);
                 // TODO(matan): Convert to protobuf and make sure this isn't too large for a single
                 // proto message (could this be a With adapter added to the channel in `new`?).
-                if let Err(e) = content_sender.send(txs).await {
-                    // Consensus may exit early (e.g. sync).
-                    warn!("Failed to send proposal content: {e:?}");
-                    // TODO: Discuss with the batcher team updating them of the abort.
-                    break;
-                }
+                // TODO: Broadcast the transactions to the network.
             }
             GetProposalContent::Finished(id) => {
                 let proposal_content_id = BlockHash(id.state_diff_commitment.0.0);

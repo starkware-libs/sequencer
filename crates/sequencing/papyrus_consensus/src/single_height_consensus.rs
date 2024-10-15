@@ -341,23 +341,11 @@ impl SingleHeightConsensus {
 
         // TODO: Figure out how to handle failed proposal building. I believe this should be handled
         // by applying timeoutPropose when we are the leader.
-        let (p2p_messages_receiver, block_receiver) =
-            context.build_proposal(self.height, self.timeouts.proposal_timeout).await;
-        let (fin_sender, fin_receiver) = oneshot::channel();
         let init =
             ProposalInit { height: self.height, round, proposer: self.id, valid_round: None };
-        // Peering is a permanent component, so if sending to it fails we cannot continue.
-        context
-            .propose(init, p2p_messages_receiver, fin_receiver)
-            .await
-            .expect("Failed broadcasting Proposal");
-        let block = block_receiver.await.expect("Block building failed.");
-        // If we choose to ignore this error, we should carefully consider how this affects
-        // Tendermint. The partially synchronous model assumes all messages arrive at some point,
-        // and this failure means this proposal will never arrive.
-        //
-        // TODO(matan): Switch this to the Proposal signature.
-        fin_sender.send(block).expect("Failed to send ProposalFin to Peering.");
+        let fin_receiver =
+            context.build_proposal(self.height, init, self.timeouts.proposal_timeout).await;
+        let block = fin_receiver.await.expect("Block building failed.");
         let old = self.proposals.insert(round, Some(block));
         assert!(old.is_none(), "There should be no entry for this round.");
         let leader_fn = |round: Round| -> ValidatorId { context.proposer(self.height, round) };
