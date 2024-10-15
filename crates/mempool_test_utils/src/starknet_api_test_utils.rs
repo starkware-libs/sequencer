@@ -178,8 +178,10 @@ pub fn invoke_tx(cairo_version: CairoVersion) -> RpcTransaction {
 
 pub fn executable_invoke_tx(cairo_version: CairoVersion) -> Transaction {
     let default_account = FeatureContract::AccountWithoutValidations(cairo_version);
+    let test_contract = FeatureContract::TestContract(cairo_version);
 
-    let mut tx_generator = MultiAccountTransactionGenerator::new();
+    let mut tx_generator =
+        MultiAccountTransactionGenerator::new(test_contract.get_instance_address(0));
     tx_generator.register_account(default_account);
     tx_generator.account_with_id(0).generate_executable_invoke()
 }
@@ -229,18 +231,22 @@ type SharedNonceManager = Rc<RefCell<NonceManager>>;
 /// ```
 // Note: when moving this to starknet api crate, see if blockifier's
 // [blockifier::transaction::test_utils::FaultyAccountTxCreatorArgs] can be made to use this.
-#[derive(Default)]
 pub struct MultiAccountTransactionGenerator {
     // Invariant: coupled with the nonce manager.
     account_tx_generators: Vec<AccountTransactionGenerator>,
     // Invariant: nonces managed internally thorugh `generate` API of the account transaction
     // generator.
     nonce_manager: SharedNonceManager,
+    called_contract_address: ContractAddress,
 }
 
 impl MultiAccountTransactionGenerator {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(called_contract_address: ContractAddress) -> Self {
+        Self {
+            account_tx_generators: Default::default(),
+            nonce_manager: Default::default(),
+            called_contract_address,
+        }
     }
 
     pub fn register_account(&mut self, account_contract: FeatureContract) -> RpcTransaction {
@@ -248,6 +254,7 @@ impl MultiAccountTransactionGenerator {
         let (account_tx_generator, default_deploy_account_tx) = AccountTransactionGenerator::new(
             new_account_id,
             account_contract,
+            self.called_contract_address,
             self.nonce_manager.clone(),
         );
         self.account_tx_generators.push(account_tx_generator);
@@ -286,6 +293,7 @@ impl MultiAccountTransactionGenerator {
 #[derive(Debug)]
 pub struct AccountTransactionGenerator {
     account: Contract,
+    called_contract_address: ContractAddress,
     nonce_manager: SharedNonceManager,
 }
 
@@ -304,7 +312,7 @@ impl AccountTransactionGenerator {
             tip : Tip(tip),
             sender_address: self.sender_address(),
             resource_bounds: test_resource_bounds_mapping(),
-            calldata: create_trivial_calldata(self.sender_address()),
+            calldata: create_trivial_calldata(self.called_contract_address),
         );
         rpc_invoke_tx(invoke_args)
     }
@@ -358,6 +366,7 @@ impl AccountTransactionGenerator {
     fn new(
         account_id: usize,
         account: FeatureContract,
+        called_contract_address: ContractAddress,
         nonce_manager: SharedNonceManager,
     ) -> (Self, RpcTransaction) {
         let contract_address_salt = ContractAddressSalt(account_id.into());
@@ -368,6 +377,7 @@ impl AccountTransactionGenerator {
 
         let mut account_tx_generator = Self {
             account: Contract::new_for_account(account, &default_deploy_account_tx),
+            called_contract_address,
             nonce_manager,
         };
         // Bump the account nonce after transaction creation.

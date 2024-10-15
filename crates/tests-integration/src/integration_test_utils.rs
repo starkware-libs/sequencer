@@ -109,8 +109,10 @@ impl HttpTestClient {
 
 /// Creates a multi-account transaction generator for integration tests.
 pub fn create_integration_test_tx_generator() -> MultiAccountTransactionGenerator {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
+    let called_contract_address = test_contract.get_instance_address(0);
     let mut tx_generator: MultiAccountTransactionGenerator =
-        MultiAccountTransactionGenerator::new();
+        MultiAccountTransactionGenerator::new(called_contract_address);
 
     for account in [
         FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1),
