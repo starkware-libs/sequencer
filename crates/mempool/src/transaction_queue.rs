@@ -37,7 +37,7 @@ impl TransactionQueue {
     /// Panics: if given a duplicate tx.
     pub fn insert(&mut self, tx_reference: TransactionReference) {
         assert_eq!(
-            self.address_to_tx.insert(tx_reference.sender_address, tx_reference),
+            self.address_to_tx.insert(tx_reference.address, tx_reference),
             None,
             "Only a single transaction from the same contract class can be in the mempool at a \
              time."
@@ -60,7 +60,7 @@ impl TransactionQueue {
         let txs: Vec<TransactionReference> =
             (0..n_txs).filter_map(|_| self.priority_queue.pop_last().map(|tx| tx.0)).collect();
         for tx in &txs {
-            self.address_to_tx.remove(&tx.sender_address);
+            self.address_to_tx.remove(&tx.address);
         }
 
         txs
@@ -107,7 +107,7 @@ impl TransactionQueue {
                 l2_gas: ResourceBounds { max_amount: GasAmount(0), max_price_per_unit: threshold },
                 ..Default::default()
             }),
-            sender_address: ContractAddress::default(),
+            address: ContractAddress::default(),
             nonce: Nonce::default(),
             tx_hash: TransactionHash::default(),
             tip: Tip::default(),

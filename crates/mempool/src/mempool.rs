@@ -65,7 +65,7 @@ impl Mempool {
 
         // Update the mempool state with the given transactions' nonces.
         for tx_ref in &eligible_tx_references {
-            self.mempool_state.insert(tx_ref.sender_address, tx_ref.nonce);
+            self.mempool_state.insert(tx_ref.address, tx_ref.nonce);
         }
 
         Ok(eligible_tx_references
@@ -145,10 +145,9 @@ impl Mempool {
     }
 
     fn validate_input(&self, args: &AddTransactionArgs) -> MempoolResult<()> {
-        let sender_address = args.tx.contract_address();
+        let address = args.tx.contract_address();
         let tx_nonce = args.tx.nonce();
-        let duplicate_nonce_error =
-            MempoolError::DuplicateNonce { address: sender_address, nonce: tx_nonce };
+        let duplicate_nonce_error = MempoolError::DuplicateNonce { address, nonce: tx_nonce };
 
         // Stateless checks.
 
@@ -161,18 +160,14 @@ impl Mempool {
         // Stateful checks.
 
         // Check nonce against mempool state.
-        if let Some(mempool_state_nonce) = self.mempool_state.get(&sender_address) {
+        if let Some(mempool_state_nonce) = self.mempool_state.get(&address) {
             if mempool_state_nonce >= &tx_nonce {
                 return Err(duplicate_nonce_error);
             }
         }
 
         // Check nonce against the queue.
-        if self
-            .tx_queue
-            .get_nonce(sender_address)
-            .is_some_and(|queued_nonce| queued_nonce >= tx_nonce)
-        {
+        if self.tx_queue.get_nonce(address).is_some_and(|queued_nonce| queued_nonce >= tx_nonce) {
             return Err(duplicate_nonce_error);
         }
 
@@ -181,8 +176,7 @@ impl Mempool {
 
     fn enqueue_next_eligible_txs(&mut self, txs: &[TransactionReference]) -> MempoolResult<()> {
         for tx in txs {
-            let current_account_state =
-                AccountState { address: tx.sender_address, nonce: tx.nonce };
+            let current_account_state = AccountState { address: tx.address, nonce: tx.nonce };
 
             if let Some(next_tx_reference) =
                 self.tx_pool.get_next_eligible_tx(current_account_state)?
@@ -217,19 +211,18 @@ impl Mempool {
 
     fn handle_fee_escalation(&mut self, incoming_tx: &Transaction) -> MempoolResult<()> {
         let incoming_tx_ref = TransactionReference::new(incoming_tx);
-        let TransactionReference { sender_address, nonce, .. } = incoming_tx_ref;
-        let Some(existing_tx_ref) = self.tx_pool.get_by_address_and_nonce(sender_address, nonce)
-        else {
+        let TransactionReference { address, nonce, .. } = incoming_tx_ref;
+        let Some(existing_tx_ref) = self.tx_pool.get_by_address_and_nonce(address, nonce) else {
             // Replacement irrelevant: no existing transaction with the same nonce for address.
             return Ok(());
         };
 
         if !self.should_replace_tx(existing_tx_ref, &incoming_tx_ref) {
             // TODO(Elin): consider adding a more specific error type / message.
-            return Err(MempoolError::DuplicateNonce { address: sender_address, nonce });
+            return Err(MempoolError::DuplicateNonce { address, nonce });
         }
 
-        self.tx_queue.remove(sender_address);
+        self.tx_queue.remove(address);
         self.tx_pool
             .remove(existing_tx_ref.tx_hash)
             .expect("Transaction hash from pool must exist.");
@@ -273,7 +266,7 @@ impl Mempool {
 /// becomes available, to better reflect its purpose and usage.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct TransactionReference {
-    pub sender_address: ContractAddress,
+    pub address: ContractAddress,
     pub nonce: Nonce,
     pub tx_hash: TransactionHash,
     pub tip: Tip,
@@ -283,7 +276,7 @@ pub struct TransactionReference {
 impl TransactionReference {
     pub fn new(tx: &Transaction) -> Self {
         TransactionReference {
-            sender_address: tx.contract_address(),
+            address: tx.contract_address(),
             nonce: tx.nonce(),
             tx_hash: tx.tx_hash(),
             tip: tx.tip().expect("Expected a valid tip value."),

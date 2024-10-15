@@ -36,7 +36,7 @@ impl TransactionQueueContent {
             .chain(priority_queue.iter().map(|priority_tx| priority_tx.0));
         let mut address_to_tx = HashMap::new();
         for tx_ref in tx_references {
-            let address = tx_ref.sender_address;
+            let address = tx_ref.address;
             if address_to_tx.insert(address, tx_ref).is_some() {
                 panic!("Duplicate address: {address}; queues must be mutually exclusive.");
             }
