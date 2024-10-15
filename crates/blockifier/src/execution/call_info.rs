@@ -21,7 +21,7 @@ pub struct Retdata(pub Vec<Felt>);
 #[macro_export]
 macro_rules! retdata {
     ( $( $x:expr ),* ) => {
-        Retdata(vec![$($x),*])
+        $crate::execution::call_info::Retdata(vec![$($x),*])
     };
 }
 
