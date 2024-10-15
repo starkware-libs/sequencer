@@ -81,9 +81,9 @@ impl Mempool {
 
     /// Adds a new transaction to the mempool.
     pub fn add_tx(&mut self, args: AddTransactionArgs) -> MempoolResult<()> {
-        self.validate_input(&args)?;
-
         let AddTransactionArgs { tx, account_state } = args;
+        self.validate_incoming_nonce(tx.nonce(), account_state)?;
+
         self.handle_fee_escalation(&tx)?;
         self.tx_pool.insert(tx)?;
 
@@ -142,15 +142,17 @@ impl Mempool {
         self.tx_queue._update_gas_price_threshold(threshold);
     }
 
-    fn validate_input(&self, args: &AddTransactionArgs) -> MempoolResult<()> {
-        let address = args.tx.contract_address();
-        let tx_nonce = args.tx.nonce();
+    fn validate_incoming_nonce(
+        &self,
+        tx_nonce: Nonce,
+        account_state: AccountState,
+    ) -> MempoolResult<()> {
+        let AccountState { address, nonce: account_nonce } = account_state;
         let duplicate_nonce_error = MempoolError::DuplicateNonce { address, nonce: tx_nonce };
 
         // Stateless checks.
 
         // Check the input: transaction nonce against given account state.
-        let account_nonce = args.account_state.nonce;
         if account_nonce > tx_nonce {
             return Err(duplicate_nonce_error);
         }
