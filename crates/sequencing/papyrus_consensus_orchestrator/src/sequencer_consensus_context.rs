@@ -28,6 +28,7 @@ use starknet_batcher_types::batcher_types::{
     DecisionReachedInput,
     GetProposalContent,
     GetProposalContentInput,
+    ProposalId,
     ProposalStatus,
     SendProposalContent,
     SendProposalContentInput,
@@ -35,7 +36,6 @@ use starknet_batcher_types::batcher_types::{
     ValidateProposalInput,
 };
 use starknet_batcher_types::communication::BatcherClient;
-use starknet_consensus_manager_types::consensus_manager_types::ProposalId;
 use tracing::{debug, debug_span, error, info, warn, Instrument};
 
 // {height: {proposal_id: (content, [proposal_ids])}}

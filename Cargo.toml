@@ -10,7 +10,6 @@ members = [
   "crates/blockifier_reexecution",
   "crates/committer_cli",
   "crates/consensus_manager",
-  "crates/consensus_manager_types",
   "crates/gateway",
   "crates/gateway_types",
   "crates/http_server",
@@ -209,7 +208,6 @@ starknet_batcher_types = { path = "crates/batcher_types", version = "0.0.0" }
 starknet_client = { path = "crates/starknet_client", version = "0.0.0" }
 starknet_committer = { path = "crates/starknet_committer", version = "0.0.0" }
 starknet_consensus_manager = { path = "crates/consensus_manager", version = "0.0.0" }
-starknet_consensus_manager_types = { path = "crates/consensus_manager_types", version = "0.0.0" }
 starknet_gateway = { path = "crates/gateway", version = "0.0.0" }
 starknet_gateway_types = { path = "crates/gateway_types", version = "0.0.0" }
 starknet_http_server = { path = "crates/http_server", version = "0.0.0" }

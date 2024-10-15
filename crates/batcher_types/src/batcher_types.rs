@@ -1,12 +1,31 @@
+use std::fmt::Debug;
+
 use blockifier::blockifier::block::BlockNumberHashPair;
 use chrono::prelude::*;
+use derive_more::Display;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::StateDiffCommitment;
 use starknet_api::executable_transaction::Transaction;
-pub use starknet_consensus_manager_types::consensus_manager_types::ProposalId;
 
 use crate::errors::BatcherError;
+
+// TODO (Matan) decide on the id structure
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Default,
+    Display,
+    Hash,
+)]
+pub struct ProposalId(pub u64);
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ProposalCommitment {
