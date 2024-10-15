@@ -1,5 +1,3 @@
-use std::cmp::Reverse;
-
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::core::{ContractAddress, PatriciaKey};
@@ -8,7 +6,7 @@ use starknet_api::{contract_address, felt, invoke_tx_args, nonce, patricia_key};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::AddTransactionArgs;
 
-use crate::mempool::{Mempool, TransactionReference};
+use crate::mempool::{tip, Mempool, TransactionReference};
 use crate::test_utils::{add_tx, add_tx_expect_error, commit_block, get_txs_and_assert_expected};
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::transaction_queue_test_utils::{
@@ -206,7 +204,7 @@ fn test_get_txs_returns_by_priority_order(#[case] n_requested_txs: usize) {
     let fetched_txs = mempool.get_txs(n_requested_txs).unwrap();
 
     // Check that the returned transactions are the ones with the highest priority.
-    txs.sort_by_key(|tx| Reverse(tx.tip()));
+    txs.sort_by_key(|tx| std::cmp::Reverse(tip(tx)));
     let (expected_fetched_txs, remaining_txs) = txs.split_at(fetched_txs.len());
     assert_eq!(fetched_txs, expected_fetched_txs);
 
@@ -332,7 +330,7 @@ fn test_add_tx(mut mempool: Mempool) {
 
     // TODO(Ayelet): Consider share this code.
     // Sort in an ascending priority order.
-    add_tx_inputs.sort_by_key(|input| std::cmp::Reverse(input.tx.tip().unwrap()));
+    add_tx_inputs.sort_by_key(|input| std::cmp::Reverse(tip(&input.tx)));
 
     // Assert: transactions are ordered by priority.
     let expected_queue_txs: Vec<TransactionReference> =
