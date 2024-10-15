@@ -52,6 +52,7 @@ impl Mempool {
     /// Transactions are guaranteed to be unique across calls until the block in-progress is
     /// created.
     // TODO: Consider renaming to `pop_txs` to be more consistent with the standard library.
+    #[tracing::instrument(skip(self), err)]
     pub fn get_txs(&mut self, n_txs: usize) -> MempoolResult<Vec<Transaction>> {
         let mut eligible_tx_references: Vec<TransactionReference> = Vec::with_capacity(n_txs);
         let mut n_remaining_txs = n_txs;
@@ -68,6 +69,11 @@ impl Mempool {
             self.mempool_state.insert(tx_ref.address, tx_ref.nonce);
         }
 
+        tracing::info!(
+            "Returned {} out of {n_txs} transactions, ready for sequencing.",
+            eligible_tx_references.len()
+        );
+
         Ok(eligible_tx_references
             .iter()
             .map(|tx_ref| {
@@ -80,6 +86,17 @@ impl Mempool {
     }
 
     /// Adds a new transaction to the mempool.
+    #[tracing::instrument(
+        skip(self, args),
+        fields( // Log subset of (informative) fields.
+            tx_nonce = %args.tx.nonce(),
+            tx_hash = %args.tx.tx_hash(),
+            tx_tip = %tip(&args.tx),
+            tx_max_l2_gas_price = %max_l2_gas_price(&args.tx),
+            account_state = %args.account_state
+        ),
+        err
+    )]
     pub fn add_tx(&mut self, args: AddTransactionArgs) -> MempoolResult<()> {
         let AddTransactionArgs { tx, account_state } = args;
         self.validate_incoming_nonce(tx.nonce(), account_state)?;
@@ -101,17 +118,22 @@ impl Mempool {
 
     /// Update the mempool's internal state according to the committed block (resolves nonce gaps,
     /// updates account balances).
+    #[tracing::instrument(skip(self, args), err)]
     pub fn commit_block(&mut self, args: CommitBlockArgs) -> MempoolResult<()> {
+        let CommitBlockArgs { nonces, tx_hashes } = args;
+        tracing::debug!("Committing block with {} transactions to mempool.", tx_hashes.len());
+
         // Align mempool data to committed nonces.
-        for (&address, &nonce) in &args.nonces {
+        for (&address, &nonce) in &nonces {
             let next_nonce = nonce.try_increment().map_err(|_| MempoolError::FeltOutOfRange)?;
             let account_state = AccountState { address, nonce: next_nonce };
             self.align_to_account_state(account_state);
         }
+        tracing::debug!("Aligned mempool to committed nonces.");
 
         // Rewind nonces of addresses that were not included in block.
         let known_addresses_not_included_in_block =
-            self.mempool_state.keys().filter(|&key| !args.nonces.contains_key(key));
+            self.mempool_state.keys().filter(|&key| !nonces.contains_key(key));
         for address in known_addresses_not_included_in_block {
             // Account nonce is the minimal nonce of this address: it was proposed but not included.
             let tx_reference = self
@@ -123,7 +145,7 @@ impl Mempool {
         }
 
         // Hard-delete: finally, remove committed transactions from the mempool.
-        for tx_hash in args.tx_hashes {
+        for tx_hash in tx_hashes {
             let Ok(_tx) = self.tx_pool.remove(tx_hash) else {
                 continue; // Transaction hash unknown to mempool, from a different node.
             };
@@ -131,9 +153,12 @@ impl Mempool {
             // TODO(clean_account_nonces): remove address from nonce table after a block cycle /
             // TTL.
         }
+        tracing::debug!("Removed committed transactions known to mempool.");
 
         // Commit: clear block creation staged state.
         self.mempool_state.clear();
+
+        tracing::debug!("Successfully committed block to mempool.");
 
         Ok(())
     }
@@ -210,6 +235,7 @@ impl Mempool {
         }
     }
 
+    #[tracing::instrument(level = "debug", skip(self, incoming_tx), err)]
     fn handle_fee_escalation(&mut self, incoming_tx: &Transaction) -> MempoolResult<()> {
         let incoming_tx_ref = TransactionReference::new(incoming_tx);
         let TransactionReference { address, nonce, .. } = incoming_tx_ref;
@@ -219,9 +245,15 @@ impl Mempool {
         };
 
         if !self.should_replace_tx(existing_tx_ref, &incoming_tx_ref) {
+            tracing::debug!(
+                "{existing_tx_ref} was not replaced by {incoming_tx_ref} due to insufficient
+                fee escalation."
+            );
             // TODO(Elin): consider adding a more specific error type / message.
             return Err(MempoolError::DuplicateNonce { address, nonce });
         }
+
+        tracing::debug!("{existing_tx_ref} will be replaced by {incoming_tx_ref}.");
 
         self.tx_queue.remove(address);
         self.tx_pool
@@ -261,6 +293,18 @@ impl Mempool {
     }
 }
 
+// TODO(Elin): move to a shared location with other next-gen node crates.
+fn tip(tx: &Transaction) -> Tip {
+    tx.tip().expect("Expected a valid tip value.")
+}
+
+fn max_l2_gas_price(tx: &Transaction) -> GasPrice {
+    tx.resource_bounds()
+        .expect("Expected a valid resource bounds value.")
+        .get_l2_bounds()
+        .max_price_per_unit
+}
+
 /// Provides a lightweight representation of a transaction for mempool usage (e.g., excluding
 /// execution fields).
 /// TODO(Mohammad): rename this struct to `ThinTransaction` once that name
@@ -280,12 +324,19 @@ impl TransactionReference {
             address: tx.contract_address(),
             nonce: tx.nonce(),
             tx_hash: tx.tx_hash(),
-            tip: tx.tip().expect("Expected a valid tip value."),
-            max_l2_gas_price: tx
-                .resource_bounds()
-                .expect("Expected a valid resource bounds value.")
-                .get_l2_bounds()
-                .max_price_per_unit,
+            tip: tip(tx),
+            max_l2_gas_price: max_l2_gas_price(tx),
         }
+    }
+}
+
+impl std::fmt::Display for TransactionReference {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let TransactionReference { address, nonce, tx_hash, tip, max_l2_gas_price } = self;
+        write!(
+            f,
+            "TransactionReference {{ address: {address}, nonce: {nonce}, tx_hash: {tx_hash},
+            tip: {tip}, max_l2_gas_price: {max_l2_gas_price} }}"
+        )
     }
 }

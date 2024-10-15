@@ -203,6 +203,7 @@ pub struct CompiledClassHash(pub StarkHash);
 #[derive(
     Debug,
     Default,
+    Display,
     Copy,
     Clone,
     Eq,
