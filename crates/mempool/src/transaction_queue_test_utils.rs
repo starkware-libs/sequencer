@@ -74,7 +74,7 @@ impl TransactionQueueContentBuilder {
         self
     }
 
-    pub fn _with_gas_price_threshold(mut self, gas_price_threshold: u128) -> Self {
+    pub fn with_gas_price_threshold(mut self, gas_price_threshold: u128) -> Self {
         self.gas_price_threshold = Some(gas_price_threshold.into());
         self
     }

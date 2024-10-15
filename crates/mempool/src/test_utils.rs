@@ -73,6 +73,9 @@ macro_rules! tx {
     (tip: $tip:expr, max_l2_gas_price: $max_l2_gas_price:expr) => {
         tx!(tip: $tip, tx_hash: 0, sender_address: "0x0", tx_nonce: 0, max_l2_gas_price: $max_l2_gas_price)
     };
+    (max_l2_gas_price: $max_l2_gas_price:expr) => {
+        tx!(tip: 0, tx_hash: 0, sender_address: "0x0", tx_nonce: 0, max_l2_gas_price: $max_l2_gas_price)
+    };
 }
 
 /// Creates an input for `add_tx` with the given field subset (the rest receive default values).
