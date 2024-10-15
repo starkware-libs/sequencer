@@ -134,8 +134,8 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
                     // TODO(guyn): replace warnings with more graceful error handling
                     warn!(
                         "Received fin message with id that is smaller than a previous message! \
-                         stream_id: {}, fin_message_id: {}, max_message_id_received: {}",
-                        stream_id, message_id, data.max_message_id_received
+                         key: {:?}, fin_message_id: {}, max_message_id_received: {}",
+                        key, message_id, data.max_message_id_received
                     );
                     return;
                 }
@@ -165,7 +165,7 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
                 self.stream_data.remove(&key);
             }
         } else if message_id > data.next_message_id {
-            Self::store(data, key.0, message);
+            Self::store(data, key, message);
         } else {
             // TODO(guyn): replace warnings with more graceful error handling
             warn!(
@@ -177,16 +177,14 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
         }
     }
 
-    fn store(data: &mut StreamData<T>, peer_id: PeerId, message: StreamMessage<T>) {
-        let stream_id = message.stream_id;
+    fn store(data: &mut StreamData<T>, key: StreamKey, message: StreamMessage<T>) {
         let message_id = message.message_id;
 
         if data.message_buffer.contains_key(&message_id) {
             // TODO(guyn): replace warnings with more graceful error handling
             warn!(
-                "Two messages with the same message_id in buffer! peer_id: {:?}, stream_id: {}, \
-                 message_id: {}",
-                peer_id, stream_id, message_id
+                "Two messages with the same message_id in buffer! key: {:?}, message_id: {}",
+                key, message_id
             );
         } else {
             data.message_buffer.insert(message_id, message);
