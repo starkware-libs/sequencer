@@ -75,8 +75,6 @@ impl Gateway {
     }
 }
 
-// TODO(Tsabary/yair): consider consolidating internal_add_tx into add_tx.
-
 #[instrument(skip(app_state))]
 async fn internal_add_tx(
     app_state: AppState,
