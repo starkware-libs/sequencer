@@ -39,7 +39,7 @@ members = [
   "crates/papyrus_storage",
   "crates/papyrus_sync",
   "crates/papyrus_test_utils",
-  "crates/sequencer_monitoring_endpoint",
+  "crates/monitoring_endpoint",
   "crates/sequencing/papyrus_consensus",
   "crates/sequencing/papyrus_consensus_orchestrator",
   "crates/starknet_api",
@@ -221,7 +221,7 @@ starknet_mempool_p2p = { path = "crates/mempool_p2p", version = "0.0.0" }
 starknet_mempool_p2p_types = { path = "crates/mempool_p2p_types", version = "0.0.0" }
 starknet_mempool_types = { path = "crates/mempool_types", version = "0.0.0" }
 starknet_patricia = { path = "crates/starknet_patricia", version = "0.0.0" }
-starknet_sequencer_monitoring_endpoint = { path = "crates/sequencer_monitoring_endpoint", version = "0.0.0" }
+starknet_monitoring_endpoint = { path = "crates/monitoring_endpoint", version = "0.0.0" }
 starknet_sierra_compile = { path = "crates/starknet_sierra_compile", version = "0.0.0" }
 starknet_task_executor = { path = "crates/task_executor", version = "0.0.0" }
 static_assertions = "1.1.0"

@@ -22,7 +22,7 @@ pub struct ComponentConfig {
     #[validate]
     pub mempool: ComponentExecutionConfig,
     #[validate]
-    pub sequencer_monitoring: ComponentExecutionConfig,
+    pub monitoring_endpoint: ComponentExecutionConfig,
 }
 
 impl Default for ComponentConfig {
@@ -33,7 +33,7 @@ impl Default for ComponentConfig {
             gateway: ComponentExecutionConfig::gateway_default_config(),
             http_server: ComponentExecutionConfig::http_server_default_config(),
             mempool: ComponentExecutionConfig::mempool_default_config(),
-            sequencer_monitoring: ComponentExecutionConfig::sequencer_monitoring_default_config(),
+            monitoring_endpoint: ComponentExecutionConfig::monitoring_endpoint_default_config(),
         }
     }
 }
@@ -47,7 +47,7 @@ impl SerializeConfig for ComponentConfig {
             append_sub_config_name(self.gateway.dump(), "gateway"),
             append_sub_config_name(self.http_server.dump(), "http_server"),
             append_sub_config_name(self.mempool.dump(), "mempool"),
-            append_sub_config_name(self.sequencer_monitoring.dump(), "sequencer_monitoring"),
+            append_sub_config_name(self.monitoring_endpoint.dump(), "monitoring_endpoint"),
         ];
 
         sub_configs.into_iter().flatten().collect()
@@ -63,7 +63,7 @@ pub fn validate_components_config(components: &ComponentConfig) -> Result<(), Va
         || components.batcher.execute
         || components.http_server.execute
         || components.consensus_manager.execute
-        || components.sequencer_monitoring.execute
+        || components.monitoring_endpoint.execute
     {
         return Ok(());
     }
