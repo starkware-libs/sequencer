@@ -58,6 +58,9 @@ macro_rules! tx {
     (tx_hash: $tx_hash:expr, tx_nonce: $tx_nonce:expr) => {
         tx!(tip: 0, tx_hash: $tx_hash, sender_address: "0x0", tx_nonce: $tx_nonce)
     };
+    (tx_hash: $tx_hash:expr, sender_address: $sender_address:expr, tx_nonce: $tx_nonce:expr,  max_l2_gas_price: $max_l2_gas_price:expr) => {
+        tx!(tip: 0, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: $tx_nonce, max_l2_gas_price: $max_l2_gas_price)
+    };
     (tx_nonce: $tx_nonce:expr, sender_address: $sender_address:expr) => {
         tx!(tip: 0, tx_hash: 0, sender_address: $sender_address, tx_nonce: $tx_nonce)
     };
