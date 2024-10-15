@@ -1,16 +1,13 @@
 use std::future::pending;
 
 use anyhow::Ok;
-use starknet_mempool_infra::trace_util::configure_tracing;
-use starknet_mempool_integration_tests::integration_test_config_utils::dump_config_file_changes;
-use starknet_mempool_integration_tests::integration_test_utils::{
+use starknet_integration_tests::integration_test_config_utils::dump_config_file_changes;
+use starknet_integration_tests::integration_test_utils::{
     create_config,
     create_integration_test_tx_generator,
 };
-use starknet_mempool_integration_tests::state_reader::{
-    spawn_test_rpc_state_reader,
-    StorageTestSetup,
-};
+use starknet_integration_tests::state_reader::{spawn_test_rpc_state_reader, StorageTestSetup};
+use starknet_mempool_infra::trace_util::configure_tracing;
 use tracing::info;
 
 #[tokio::main]
