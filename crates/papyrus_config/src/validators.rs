@@ -1,6 +1,5 @@
 //! Utils for config validations.
 
-use std::fmt::Display;
 use std::path::Path;
 
 use validator::{Validate, ValidationError, ValidationErrors, ValidationErrorsKind};
@@ -60,7 +59,7 @@ impl From<ValidationErrors> for ParsedValidationErrors {
     }
 }
 
-impl Display for ParsedValidationErrors {
+impl std::fmt::Display for ParsedValidationErrors {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut error_string = String::new();
         for error in &self.0 {

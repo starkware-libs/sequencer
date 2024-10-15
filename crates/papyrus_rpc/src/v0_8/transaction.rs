@@ -3,7 +3,6 @@
 mod transaction_test;
 
 use std::collections::BTreeMap;
-use std::fmt::Display;
 use std::num::NonZeroU64;
 use std::ops::Add;
 use std::sync::Arc;
@@ -1171,7 +1170,7 @@ pub fn get_block_tx_hashes_by_number<Mode: TransactionKind>(
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, PartialOrd, Ord)]
 pub struct L1L2MsgHash(pub [u8; 32]);
 
-impl Display for L1L2MsgHash {
+impl std::fmt::Display for L1L2MsgHash {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "0x{}", hex::encode(self.0))
     }

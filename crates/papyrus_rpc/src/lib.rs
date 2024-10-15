@@ -16,7 +16,6 @@ mod v0_8;
 mod version_config;
 
 use std::collections::BTreeMap;
-use std::fmt::Display;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
@@ -160,12 +159,12 @@ impl SerializeConfig for RpcConfig {
     }
 }
 
-fn internal_server_error(err: impl Display) -> ErrorObjectOwned {
+fn internal_server_error(err: impl std::fmt::Display) -> ErrorObjectOwned {
     error!("{}: {}", INTERNAL_ERROR_MSG, err);
     ErrorObjectOwned::owned(InternalError.code(), INTERNAL_ERROR_MSG, None::<()>)
 }
 
-fn internal_server_error_with_msg(err: impl Display) -> ErrorObjectOwned {
+fn internal_server_error_with_msg(err: impl std::fmt::Display) -> ErrorObjectOwned {
     error!("{}: {}", INTERNAL_ERROR_MSG, err);
     ErrorObjectOwned::owned(InternalError.code(), err.to_string(), None::<()>)
 }
