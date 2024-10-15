@@ -36,6 +36,7 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
     )]
 });
 
+// TODO(yair): Make the GW and batcher execution config point to the same values.
 /// The configurations of the various components of the node.
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
 pub struct SequencerNodeConfig {
