@@ -154,6 +154,7 @@ async fn collect_execution_results_and_stream_txs(
     for (input_tx, result) in tx_chunk.into_iter().zip(results.into_iter()) {
         match result {
             Ok(tx_execution_info) => {
+                debug!("Transaction {:?} was executed successfully.", input_tx);
                 execution_infos.insert(input_tx.tx_hash(), tx_execution_info);
                 output_content_sender.send(input_tx)?;
             }

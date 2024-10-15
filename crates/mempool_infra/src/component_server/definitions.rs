@@ -27,7 +27,7 @@ pub async fn request_response_loop<Request, Response, Component>(
     // to the log.
     // TODO(Tsabary): Move this function to be part of the `local_server` module.
     while let Some(request_and_res_tx) = rx.recv().await {
-        info!("Component {} received request", type_name::<Component>());
+        // info!("Component {} received request", type_name::<Component>());
 
         let request = request_and_res_tx.request;
         let tx = request_and_res_tx.tx;

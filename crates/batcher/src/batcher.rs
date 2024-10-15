@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use blockifier::context::ChainInfo;
 use blockifier::state::global_cache::GlobalContractCache;
 #[cfg(test)]
 use mockall::automock;
@@ -154,7 +155,8 @@ pub fn create_batcher(config: BatcherConfig, mempool_client: SharedMempoolClient
         .expect("Failed to open batcher's storage");
 
     // TODO(Arni): use real config - add as part of batcher config.
-    let execution_config = BlockBuilderConfig::default();
+    let execution_config =
+        BlockBuilderConfig { chain_info: ChainInfo::create_for_testing(), ..Default::default() };
     let cache_size = 100;
 
     let block_builder_factory = Arc::new(BlockBuilderFactory {

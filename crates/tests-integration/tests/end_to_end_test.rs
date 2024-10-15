@@ -98,6 +98,7 @@ pub async fn run_consensus_for_end_to_end_test(
             .unwrap();
         match response.content {
             GetProposalContent::Txs(batched_txs) => {
+                println!("Batched txs: {:?}", batched_txs);
                 actual_tx_hashes.append(&mut batched_txs.iter().map(|tx| tx.tx_hash()).collect());
             }
             GetProposalContent::Finished(proposal_commitment) => {
