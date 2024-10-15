@@ -3,11 +3,11 @@ use std::time::Duration;
 use std::vec;
 
 use futures::channel::mpsc;
-use futures::{SinkExt, StreamExt};
+use futures::SinkExt;
 use lazy_static::lazy_static;
 use papyrus_consensus::types::{ConsensusContext, ProposalInit};
 use starknet_api::block::{BlockHash, BlockNumber};
-use starknet_api::core::StateDiffCommitment;
+use starknet_api::core::{ContractAddress, StateDiffCommitment};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::hash::PoseidonHash;
 use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
@@ -74,10 +74,14 @@ async fn build_proposal() {
         })
     });
     let mut context = SequencerConsensusContext::new(Arc::new(batcher), NUM_VALIDATORS);
-    let (mut content_receiver, fin_receiver) =
-        context.build_proposal(BlockNumber(0), TIMEOUT).await;
-    assert_eq!(content_receiver.next().await, Some(TX_BATCH.clone()));
-    assert!(content_receiver.next().await.is_none());
+    let init = ProposalInit {
+        height: BlockNumber(0),
+        round: 0,
+        proposer: ContractAddress::default(),
+        valid_round: None,
+    };
+    // TODO(Asmaa): Test proposal content.
+    let fin_receiver = context.build_proposal(init, TIMEOUT).await;
     assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
 }
 
