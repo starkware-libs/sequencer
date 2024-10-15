@@ -6,6 +6,7 @@ use starknet_api::core::{ContractAddress, PatriciaKey};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::{contract_address, felt, invoke_tx_args, nonce, patricia_key};
 use starknet_mempool_types::errors::MempoolError;
+use starknet_mempool_types::mempool_types::AddTransactionArgs;
 
 use crate::mempool::{Mempool, TransactionReference};
 use crate::test_utils::{add_tx, add_tx_expect_error, commit_block, get_txs_and_assert_expected};
@@ -129,6 +130,41 @@ impl FromIterator<TransactionReference> for TransactionQueue {
         }
         queue
     }
+}
+
+#[track_caller]
+fn add_tx_and_verify_replacement(
+    mut mempool: Mempool,
+    valid_replacement_input: AddTransactionArgs,
+) {
+    add_tx(&mut mempool, &valid_replacement_input);
+
+    // Verify transaction was replaced.
+    let expected_mempool_content =
+        MempoolContentBuilder::new().with_pool([valid_replacement_input.tx]).build();
+    expected_mempool_content.assert_eq(&mempool);
+}
+
+#[track_caller]
+fn add_txs_and_verify_no_replacement(
+    mut mempool: Mempool,
+    existing_tx: Transaction,
+    invalid_replacement_inputs: impl IntoIterator<Item = AddTransactionArgs>,
+) {
+    for input in invalid_replacement_inputs {
+        add_tx_expect_error(
+            &mut mempool,
+            &input,
+            MempoolError::DuplicateNonce {
+                address: input.tx.contract_address(),
+                nonce: input.tx.nonce(),
+            },
+        );
+    }
+
+    // Verify transaction was not replaced.
+    let expected_mempool_content = MempoolContentBuilder::new().with_pool([existing_tx]).build();
+    expected_mempool_content.assert_eq(&mempool);
 }
 
 // Fixtures.
@@ -676,7 +712,7 @@ fn test_fee_escalation_valid_replacement() {
     for increased_value in increased_values {
         // Setup.
         let tx = tx!(tip: 90, max_l2_gas_price: 90);
-        let mut mempool = MempoolContentBuilder::new()
+        let mempool = MempoolContentBuilder::new()
             .with_pool([tx])
             .with_fee_escalation_percentage(10)
             .build_into_mempool();
@@ -685,21 +721,17 @@ fn test_fee_escalation_valid_replacement() {
             max_l2_gas_price: u128::from(increased_value));
 
         // Test and assert.
-        add_tx(&mut mempool, &valid_replacement_input);
-
-        // Verify transaction was replaced.
-        let expected_mempool_content =
-            MempoolContentBuilder::new().with_pool([valid_replacement_input.tx]).build();
-        expected_mempool_content.assert_eq(&mempool);
+        add_tx_and_verify_replacement(mempool, valid_replacement_input);
     }
 }
 
 #[rstest]
 fn test_fee_escalation_invalid_replacement() {
     // Setup.
-    let tx = tx!(tx_hash: 1, tip: 100, max_l2_gas_price: 100, tx_nonce: 1, sender_address: "0x0");
-    let mut mempool = MempoolContentBuilder::new()
-        .with_pool([tx.clone()])
+    let existing_tx = tx!(tx_hash: 1, tip: 100, max_l2_gas_price: 100, tx_nonce: 1,
+        sender_address: "0x0");
+    let mempool = MempoolContentBuilder::new()
+        .with_pool([existing_tx.clone()])
         .with_fee_escalation_percentage(10)
         .build_into_mempool();
 
@@ -711,15 +743,7 @@ fn test_fee_escalation_invalid_replacement() {
         tx_nonce: 1, sender_address: "0x0");
 
     // Test and assert.
-    for input in [&input_not_enough_tip, &input_not_enough_gas_price, &input_not_enough_both] {
-        add_tx_expect_error(
-            &mut mempool,
-            input,
-            MempoolError::DuplicateNonce { address: contract_address!("0x0"), nonce: nonce!(1) },
-        );
-    }
-
-    // Verify transaction was not replaced.
-    let expected_mempool_content = MempoolContentBuilder::new().with_pool([tx]).build();
-    expected_mempool_content.assert_eq(&mempool);
+    let invalid_replacement_inputs =
+        [input_not_enough_tip, input_not_enough_gas_price, input_not_enough_both];
+    add_txs_and_verify_no_replacement(mempool, existing_tx, invalid_replacement_inputs);
 }
