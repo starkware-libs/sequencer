@@ -128,6 +128,7 @@ use crate::transaction::test_utils::{
     calculate_class_info_for_testing,
     create_account_tx_for_validate_test,
     create_account_tx_for_validate_test_nonce_0,
+    default_all_resource_bounds,
     default_l1_resource_bounds,
     l1_resource_bounds,
     FaultyAccountTxCreatorArgs,
@@ -177,6 +178,7 @@ fn expected_validate_call_info(
     storage_address: ContractAddress,
     cairo_version: CairoVersion,
     tracked_resource: TrackedResource,
+    resource_bounds: ValidResourceBounds,
 ) -> Option<CallInfo> {
     let retdata = match cairo_version {
         CairoVersion::Cairo0 => Retdata::default(),
@@ -206,6 +208,10 @@ fn expected_validate_call_info(
         builtin_instance_counter: HashMap::from([(BuiltinName::range_check, n_range_checks)]),
     }
     .filter_unused_builtins();
+    let initial_gas = match resource_bounds {
+        ValidResourceBounds::L1Gas(_) => default_initial_gas_cost(),
+        ValidResourceBounds::AllResources(AllResourceBounds { l2_gas, .. }) => l2_gas.max_amount.0,
+    };
 
     Some(CallInfo {
         call: CallEntryPoint {
@@ -217,8 +223,7 @@ fn expected_validate_call_info(
             storage_address,
             caller_address: ContractAddress::default(),
             call_type: CallType::Call,
-            // TODO(tzahi): make compatible with l2 gas in resource bounds once used in tests.
-            initial_gas: default_initial_gas_cost(),
+            initial_gas,
         },
         // The account contract we use for testing has trivial `validate` functions.
         resources,
@@ -408,7 +413,8 @@ fn add_kzg_da_resources_to_resources_mapping(
     CairoVersion::Cairo1)]
 // TODO(Tzahi): Add calls to cairo1 test contracts (where gas flows to and from the inner call).
 fn test_invoke_tx(
-    default_l1_resource_bounds: ValidResourceBounds,
+    #[values(default_l1_resource_bounds(), default_all_resource_bounds())]
+    resource_bounds: ValidResourceBounds,
     #[case] expected_arguments: ExpectedResultTestInvokeTx,
     #[case] account_cairo_version: CairoVersion,
     #[values(false, true)] use_kzg_da: bool,
@@ -424,7 +430,7 @@ fn test_invoke_tx(
     let invoke_tx = invoke_tx(invoke_tx_args! {
         sender_address: account_contract_address,
         calldata: create_trivial_calldata(test_contract_address),
-        resource_bounds: default_l1_resource_bounds,
+        resource_bounds,
     });
 
     // Extract invoke transaction fields for testing, as it is consumed when creating an account
@@ -466,6 +472,7 @@ fn test_invoke_tx(
         sender_address,
         account_cairo_version,
         tracked_resource,
+        resource_bounds,
     );
 
     // Build expected execute call info.
@@ -542,7 +549,7 @@ fn test_invoke_tx(
     let total_gas = expected_actual_resources.to_gas_vector(
         &block_context.versioned_constants,
         block_context.block_info.use_kzg_da,
-        &GasVectorComputationMode::NoL2Gas,
+        &resource_bounds.get_gas_vector_computation_mode(),
     );
 
     let expected_execution_info = TransactionExecutionInfo {
@@ -1295,6 +1302,7 @@ fn declare_validate_callinfo(
     account_class_hash: ClassHash,
     account_address: ContractAddress,
     tracked_resource: TrackedResource,
+    resource_bounds: ValidResourceBounds,
 ) -> Option<CallInfo> {
     // V0 transactions do not run validate.
     if version == TransactionVersion::ZERO {
@@ -1308,6 +1316,7 @@ fn declare_validate_callinfo(
             account_address,
             declared_contract_version,
             tracked_resource,
+            resource_bounds,
         )
     }
 }
@@ -1405,6 +1414,7 @@ fn test_declare_tx(
         account
             .get_class()
             .tracked_resource(&versioned_constants.min_compiler_version_for_sierra_gas),
+        default_l1_resource_bounds,
     );
 
     // Build expected fee transfer call info.
@@ -1558,6 +1568,7 @@ fn test_deploy_account_tx(
         account
             .get_class()
             .tracked_resource(&versioned_constants.min_compiler_version_for_sierra_gas),
+        default_l1_resource_bounds,
     );
 
     // Build expected execute call info.
