@@ -205,7 +205,7 @@ pub trait BlockBuilderFactoryTrait {
 }
 
 pub struct BlockBuilderFactory {
-    pub execution_config: BlockBuilderConfig,
+    pub block_builder_config: BlockBuilderConfig,
     pub storage_reader: StorageReader,
     pub global_class_hash_to_class: GlobalContractCache,
 }
@@ -216,25 +216,25 @@ impl BlockBuilderFactory {
         height: BlockNumber,
         retrospective_block_hash: Option<BlockNumberHashPair>,
     ) -> BlockBuilderResult<TransactionExecutor<PapyrusReader>> {
-        let execution_config = self.execution_config.clone();
+        let block_builder_config = self.block_builder_config.clone();
         let next_block_info = BlockInfo {
             block_number: height,
             block_timestamp: BlockTimestamp(chrono::Utc::now().timestamp().try_into()?),
-            sequencer_address: execution_config.sequencer_address,
+            sequencer_address: block_builder_config.sequencer_address,
             // TODO (yael 7/10/2024): add logic to compute gas prices
             gas_prices: {
                 let tmp_val = NonzeroGasPrice::MIN;
                 GasPrices::new(tmp_val, tmp_val, tmp_val, tmp_val, tmp_val, tmp_val)
             },
-            use_kzg_da: execution_config.use_kzg_da,
+            use_kzg_da: block_builder_config.use_kzg_da,
         };
         let block_context = BlockContext::new(
             next_block_info,
-            execution_config.chain_info,
+            block_builder_config.chain_info,
             VersionedConstants::get_versioned_constants(
-                execution_config.versioned_constants_overrides,
+                block_builder_config.versioned_constants_overrides,
             ),
-            execution_config.bouncer_config,
+            block_builder_config.bouncer_config,
         );
 
         // TODO(Yael: 8/9/2024) Need to reconsider which StateReader to use. the papyrus execution
@@ -253,7 +253,7 @@ impl BlockBuilderFactory {
             state_reader,
             block_context,
             retrospective_block_hash,
-            execution_config.execute_config,
+            block_builder_config.execute_config,
         )?;
 
         Ok(executor)
@@ -268,7 +268,7 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
     ) -> BlockBuilderResult<Box<dyn BlockBuilderTrait>> {
         let executor =
             self.preprocess_and_create_transaction_executor(height, retrospective_block_hash)?;
-        Ok(Box::new(BlockBuilder::new(Box::new(executor), self.execution_config.tx_chunk_size)))
+        Ok(Box::new(BlockBuilder::new(Box::new(executor), self.block_builder_config.tx_chunk_size)))
     }
 }
 
