@@ -718,8 +718,75 @@ fn test_fee_escalation_invalid_replacement() {
             MempoolError::DuplicateNonce { address: contract_address!("0x0"), nonce: nonce!(1) },
         );
     }
+}
 
-    // Verify transaction was not replaced.
-    let expected_mempool_content = MempoolContentBuilder::new().with_pool([tx]).build();
-    expected_mempool_content.assert_eq(&mempool);
+#[rstest]
+fn test_fee_escalation_valid_replacement_minimum_values() {
+    // Setup.
+    let tx = tx!(tip: 0, max_l2_gas_price: 0);
+    let mempool = MempoolContentBuilder::new()
+        .with_pool([tx])
+        .with_fee_escalation_percentage(0) // Always replace.
+        .build_into_mempool();
+
+    // Test and assert: replacement with maximum values.
+    let valid_replacement_input = add_tx_input!(tip: 0, max_l2_gas_price: 0);
+    add_tx_and_verify_replacement(mempool, valid_replacement_input);
+}
+
+#[rstest]
+fn test_fee_escalation_valid_replacement_maximum_values() {
+    // Setup.
+    let tx = tx!(tip: u64::MAX >> 1, max_l2_gas_price: u128::MAX >> 1);
+    let mempool = MempoolContentBuilder::new()
+        .with_pool([tx])
+        .with_fee_escalation_percentage(100)
+        .build_into_mempool();
+
+    // Test and assert: replacement with maximum values.
+    let valid_replacement_input = add_tx_input!(tip: u64::MAX, max_l2_gas_price: u128::MAX);
+    add_tx_and_verify_replacement(mempool, valid_replacement_input);
+}
+
+#[rstest]
+fn test_fee_escalation_invalid_replacement_overflow_gracefully_handled() {
+    // Initial transaction with high values.
+
+    // Setup.
+    let initial_values = [
+        (u64::MAX - 10, 10),
+        (u64::MAX, 10),
+        (10, u128::MAX - 10),
+        (10, u128::MAX),
+        (u64::MAX - 10, u128::MAX - 10),
+        (u64::MAX, u128::MAX),
+    ];
+    for (tip, max_l2_gas_price) in initial_values {
+        let existing_tx = tx!(tip: tip, max_l2_gas_price: max_l2_gas_price, tx_nonce: 1,
+            sender_address: "0x0");
+        let mempool = MempoolContentBuilder::new()
+            .with_pool([existing_tx.clone()])
+            .with_fee_escalation_percentage(10)
+            .build_into_mempool();
+
+        // Test and assert: overflow gracefully handled.
+        let invalid_replacement_input = add_tx_input!(tip: u64::MAX, max_l2_gas_price: u128::MAX,
+            tx_nonce: 1, sender_address: "0x0");
+        add_txs_and_verify_no_replacement(mempool, existing_tx, [invalid_replacement_input]);
+    }
+
+    // Large percentage.
+
+    // Setup.
+    let existing_tx = tx!(tip: u64::MAX >> 1, max_l2_gas_price: u128::MAX >> 1, tx_nonce: 1,
+        sender_address: "0x0");
+    let mempool = MempoolContentBuilder::new()
+        .with_pool([existing_tx.clone()])
+        .with_fee_escalation_percentage(200)
+        .build_into_mempool();
+
+    // Test and assert: overflow gracefully handled.
+    let invalid_replacement_input = add_tx_input!(tip: u64::MAX, max_l2_gas_price: u128::MAX,
+        tx_nonce: 1, sender_address: "0x0");
+    add_txs_and_verify_no_replacement(mempool, existing_tx, [invalid_replacement_input]);
 }
