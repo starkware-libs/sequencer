@@ -73,9 +73,8 @@ impl<S: StateReader> StatefulValidator<S> {
         }
 
         // `__validate__` call.
-        let versioned_constants = &tx_context.block_context.versioned_constants();
         let (_optional_call_info, actual_cost) =
-            self.validate(&tx, versioned_constants.tx_default_initial_gas())?;
+            self.validate(&tx, tx_context.initial_sierra_gas())?;
 
         // Post validations.
         PostValidationReport::verify(&tx_context, &actual_cost)?;
