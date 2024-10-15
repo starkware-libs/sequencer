@@ -23,7 +23,12 @@ use blockifier::versioned_constants::{VersionedConstants, VersionedConstantsOver
 use indexmap::IndexMap;
 #[cfg(test)]
 use mockall::automock;
-use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
+use papyrus_config::dumping::{
+    append_sub_config_name,
+    ser_optional_sub_config,
+    ser_param,
+    SerializeConfig,
+};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_storage::StorageReader;
 use serde::{Deserialize, Serialize};
@@ -79,8 +84,7 @@ pub struct BlockBuilderConfig {
     pub sequencer_address: ContractAddress,
     pub use_kzg_da: bool,
     pub tx_chunk_size: usize,
-    // TODO(Ayelet): Make this field optional.
-    pub versioned_constants_overrides: VersionedConstantsOverrides,
+    pub versioned_constants_overrides: Option<VersionedConstantsOverrides>,
 }
 
 impl Default for BlockBuilderConfig {
@@ -93,7 +97,7 @@ impl Default for BlockBuilderConfig {
             sequencer_address: ContractAddress::default(),
             use_kzg_da: true,
             tx_chunk_size: 100,
-            versioned_constants_overrides: VersionedConstantsOverrides::default(),
+            versioned_constants_overrides: None,
         }
     }
 }
@@ -121,8 +125,8 @@ impl SerializeConfig for BlockBuilderConfig {
             "The size of the transaction chunk.",
             ParamPrivacyInput::Public,
         )]));
-        dump.append(&mut append_sub_config_name(
-            self.versioned_constants_overrides.dump(),
+        dump.append(&mut ser_optional_sub_config(
+            &self.versioned_constants_overrides,
             "versioned_constants_overrides",
         ));
         dump

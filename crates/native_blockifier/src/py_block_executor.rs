@@ -141,8 +141,9 @@ impl PyBlockExecutor {
         log::debug!("Initializing Block Executor...");
         let storage =
             PapyrusStorage::new(target_storage_config).expect("Failed to initialize storage.");
-        let versioned_constants =
-            VersionedConstants::get_versioned_constants(py_versioned_constants_overrides.into());
+        let versioned_constants = VersionedConstants::get_versioned_constants(Some(
+            py_versioned_constants_overrides.into(),
+        ));
         log::debug!("Initialized Block Executor.");
 
         Self {
