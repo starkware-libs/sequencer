@@ -10239,7 +10239,6 @@ dependencies = [
  "papyrus_protobuf",
  "serde",
  "starknet_batcher_types",
- "starknet_consensus_manager_types",
  "starknet_mempool_infra",
  "tracing",
  "validator",
