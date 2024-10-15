@@ -7,7 +7,6 @@ use serde::{Deserialize, Serialize};
 use validator::Validate;
 
 /// The consensus manager related configuration.
-/// TODO(Lev/Tsabary/Matan): Define actual configuration.
 /// TODO(Matan): Remove ConsensusManagerConfig if it's only field remains ConsensusConfig.
 #[derive(Clone, Default, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct ConsensusManagerConfig {
