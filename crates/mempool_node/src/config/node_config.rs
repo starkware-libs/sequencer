@@ -14,7 +14,7 @@ use starknet_batcher::config::BatcherConfig;
 use starknet_consensus_manager::config::ConsensusManagerConfig;
 use starknet_gateway::config::{GatewayConfig, RpcStateReaderConfig};
 use starknet_http_server::config::HttpServerConfig;
-use starknet_sequencer_monitoring_endpoint::config::SequencerMonitoringEndpointConfig;
+use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 use validator::Validate;
 
@@ -59,7 +59,7 @@ pub struct SequencerNodeConfig {
     #[validate]
     pub compiler_config: SierraToCasmCompilationConfig,
     #[validate]
-    pub sequencer_monitoring_config: SequencerMonitoringEndpointConfig,
+    pub monitoring_endpoint_config: MonitoringEndpointConfig,
 }
 
 impl SerializeConfig for SequencerNodeConfig {
@@ -77,8 +77,8 @@ impl SerializeConfig for SequencerNodeConfig {
             append_sub_config_name(self.rpc_state_reader_config.dump(), "rpc_state_reader_config"),
             append_sub_config_name(self.compiler_config.dump(), "compiler_config"),
             append_sub_config_name(
-                self.sequencer_monitoring_config.dump(),
-                "sequencer_monitoring_config",
+                self.monitoring_endpoint_config.dump(),
+                "monitoring_endpoint_config",
             ),
         ];
 
@@ -97,7 +97,7 @@ impl Default for SequencerNodeConfig {
             http_server_config: Default::default(),
             rpc_state_reader_config: Default::default(),
             compiler_config: Default::default(),
-            sequencer_monitoring_config: Default::default(),
+            monitoring_endpoint_config: Default::default(),
         }
     }
 }
