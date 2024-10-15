@@ -5,6 +5,8 @@ use blockifier::context::ChainInfo;
 use blockifier::test_utils::CairoVersion;
 use mempool_test_utils::starknet_api_test_utils::{declare_tx, invoke_tx};
 use mockall::predicate::eq;
+use papyrus_network_types::network_types::BroadcastedMessageMetadata;
+use papyrus_test_utils::{get_rng, GetTestInstance};
 use starknet_api::core::{ChainId, CompiledClassHash, ContractAddress};
 use starknet_api::executable_transaction::{InvokeTransaction, Transaction};
 use starknet_api::rpc_transaction::{RpcDeclareTransaction, RpcTransaction};
@@ -66,6 +68,7 @@ async fn test_add_tx() {
     let tx_hash = executable_tx.tx_hash();
 
     let mut mock_mempool_client = MockMempoolClient::new();
+    let p2p_message_metadata = Some(BroadcastedMessageMetadata::get_test_instance(&mut get_rng()));
     let add_tx_args = AddTransactionArgs {
         tx: executable_tx,
         account_state: AccountState { address, nonce: *rpc_tx.nonce() },
@@ -73,12 +76,15 @@ async fn test_add_tx() {
     mock_mempool_client
         .expect_add_tx()
         .once()
-        .with(eq(AddTransactionArgsWrapper { args: add_tx_args, p2p_message_metadata: None }))
+        .with(eq(AddTransactionArgsWrapper {
+            args: add_tx_args,
+            p2p_message_metadata: p2p_message_metadata.clone(),
+        }))
         .return_once(|_| Ok(()));
     let state_reader_factory = local_test_state_reader_factory(CairoVersion::Cairo1, false);
     let app_state = app_state(Arc::new(mock_mempool_client), state_reader_factory);
 
-    let response_tx_hash = internal_add_tx(app_state, rpc_tx).await.unwrap();
+    let response_tx_hash = internal_add_tx(app_state, rpc_tx, p2p_message_metadata).await.unwrap();
 
     assert_eq!(tx_hash, response_tx_hash);
 }
@@ -98,6 +104,6 @@ async fn test_compiled_class_hash_mismatch() {
     let state_reader_factory = local_test_state_reader_factory(CairoVersion::Cairo1, false);
     let app_state = app_state(Arc::new(mock_mempool_client), state_reader_factory);
 
-    let err = internal_add_tx(app_state, tx).await.unwrap_err();
+    let err = internal_add_tx(app_state, tx, None).await.unwrap_err();
     assert_matches!(err, GatewaySpecError::CompiledClassHashMismatch);
 }

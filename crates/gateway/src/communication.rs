@@ -27,7 +27,9 @@ impl ComponentRequestHandler<GatewayRequest, GatewayResponse> for Gateway {
     async fn handle_request(&mut self, request: GatewayRequest) -> GatewayResponse {
         match request {
             GatewayRequest::AddTransaction(gateway_input) => GatewayResponse::AddTransaction(
-                self.add_tx(gateway_input.rpc_tx).await.map_err(GatewayError::GatewaySpecError),
+                self.add_tx(gateway_input.rpc_tx, gateway_input.message_metadata)
+                    .await
+                    .map_err(GatewayError::GatewaySpecError),
             ),
         }
     }
