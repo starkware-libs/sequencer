@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::fmt::Display;
 use std::sync::Arc;
 
 use derive_more::{Display, From};
@@ -811,7 +810,7 @@ impl From<Fee> for Felt {
 )]
 pub struct TransactionHash(pub StarkHash);
 
-impl Display for TransactionHash {
+impl std::fmt::Display for TransactionHash {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }
