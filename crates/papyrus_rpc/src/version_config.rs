@@ -2,8 +2,6 @@
 #[path = "version_config_test.rs"]
 mod version_config_test;
 
-use std::fmt;
-
 pub const VERSION_PATTERN: &str = "[Vv][0-9]+_[0-9]+(_[0-9]+)?";
 
 #[derive(Eq, PartialEq, Hash)]
@@ -25,8 +23,8 @@ pub struct VersionId {
     pub patch: u8,
 }
 
-impl fmt::Display for VersionId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl std::fmt::Display for VersionId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}_{}", self.name, self.patch)
     }
 }

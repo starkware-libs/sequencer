@@ -1,5 +1,3 @@
-use std::fmt::Display;
-
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use enum_assoc::Assoc;
@@ -80,7 +78,7 @@ impl IntoResponse for GatewaySpecError {
     }
 }
 
-impl Display for GatewaySpecError {
+impl std::fmt::Display for GatewaySpecError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let as_rpc = self.clone().into_rpc();
         write!(

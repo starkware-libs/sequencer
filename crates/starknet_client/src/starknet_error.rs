@@ -2,8 +2,6 @@
 #[path = "starknet_error_test.rs"]
 mod starknet_error_test;
 
-use std::fmt::{self, Display, Formatter};
-
 #[cfg(any(feature = "testing", test))]
 use enum_iterator::Sequence;
 use serde::de::Error;
@@ -70,8 +68,8 @@ pub struct StarknetError {
     pub message: String,
 }
 
-impl Display for StarknetError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+impl std::fmt::Display for StarknetError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{self:?}")
     }
 }

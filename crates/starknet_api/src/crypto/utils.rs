@@ -5,9 +5,6 @@
 #[allow(clippy::explicit_auto_deref)]
 mod crypto_test;
 
-use std::fmt;
-use std::fmt::LowerHex;
-
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Pedersen, Poseidon, StarkHash as CoreStarkHash};
@@ -34,9 +31,9 @@ pub enum CryptoError {
 )]
 pub struct PublicKey(pub Felt);
 
-impl LowerHex for PublicKey {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::LowerHex::fmt(&self.0, f)
+impl std::fmt::LowerHex for PublicKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::LowerHex::fmt(&self.0, f)
     }
 }
 
