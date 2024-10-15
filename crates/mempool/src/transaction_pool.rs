@@ -123,17 +123,17 @@ struct AccountTransactionIndex(HashMap<ContractAddress, BTreeMap<Nonce, Transact
 impl AccountTransactionIndex {
     /// If the transaction already exists in the mapping, the old value is returned.
     fn insert(&mut self, tx: TransactionReference) -> Option<TransactionReference> {
-        self.0.entry(tx.sender_address).or_default().insert(tx.nonce, tx)
+        self.0.entry(tx.address).or_default().insert(tx.nonce, tx)
     }
 
     fn remove(&mut self, tx: TransactionReference) -> Option<TransactionReference> {
-        let TransactionReference { sender_address, nonce, .. } = tx;
-        let account_txs = self.0.get_mut(&sender_address)?;
+        let TransactionReference { address, nonce, .. } = tx;
+        let account_txs = self.0.get_mut(&address)?;
 
         let removed_tx = account_txs.remove(&nonce);
 
         if removed_tx.is_some() && account_txs.is_empty() {
-            self.0.remove(&sender_address);
+            self.0.remove(&address);
         }
 
         removed_tx
