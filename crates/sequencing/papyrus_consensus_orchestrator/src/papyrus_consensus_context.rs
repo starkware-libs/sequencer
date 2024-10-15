@@ -28,7 +28,7 @@ use papyrus_protobuf::consensus::{ConsensusMessage, Proposal, Vote};
 use papyrus_storage::body::BodyStorageReader;
 use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::{StorageError, StorageReader};
-use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::block::BlockNumber;
 use starknet_api::core::ContractAddress;
 use starknet_api::transaction::Transaction;
 use tracing::{debug, debug_span, info, warn, Instrument};
@@ -65,18 +65,16 @@ impl PapyrusConsensusContext {
     }
 }
 
-const CHANNEL_SIZE: usize = 5000;
-
 #[async_trait]
 impl ConsensusContext for PapyrusConsensusContext {
     type ProposalChunk = Transaction;
 
     async fn build_proposal(
         &mut self,
-        height: BlockNumber,
+        init: ProposalInit,
         _timeout: Duration,
-    ) -> (mpsc::Receiver<Transaction>, oneshot::Receiver<ProposalContentId>) {
-        let (mut sender, receiver) = mpsc::channel(CHANNEL_SIZE);
+    ) -> oneshot::Receiver<ProposalContentId> {
+        let mut network_broadcast_sender = self.network_broadcast_client.clone();
         let (fin_sender, fin_receiver) = oneshot::channel();
 
         let storage_reader = self.storage_reader.clone();
@@ -86,34 +84,50 @@ impl ConsensusContext for PapyrusConsensusContext {
                 // TODO(dvir): consider fix this for the case of reverts. If between the check that
                 // the block in storage and to getting the transaction was a revert
                 // this flow will fail.
-                wait_for_block(&storage_reader, height).await.expect("Failed to wait to block");
+                wait_for_block(&storage_reader, init.height)
+                    .await
+                    .expect("Failed to wait to block");
 
                 let txn = storage_reader.begin_ro_txn().expect("Failed to begin ro txn");
                 let transactions = txn
-                    .get_block_transactions(height)
+                    .get_block_transactions(init.height)
                     .expect("Get transactions from storage failed")
                     .unwrap_or_else(|| {
-                        panic!("Block in {height} was not found in storage despite waiting for it")
+                        panic!(
+                            "Block in {} was not found in storage despite waiting for it",
+                            init.height
+                        )
                     });
 
-                for tx in transactions.clone() {
-                    sender.try_send(tx).expect("Send should succeed");
-                }
-                sender.close_channel();
-
                 let block_hash = txn
-                    .get_block_header(height)
+                    .get_block_header(init.height)
                     .expect("Get header from storage failed")
                     .unwrap_or_else(|| {
-                        panic!("Block in {height} was not found in storage despite waiting for it")
+                        panic!(
+                            "Block in {} was not found in storage despite waiting for it",
+                            init.height
+                        )
                     })
                     .block_hash;
 
-                let mut proposals = valid_proposals
-                    .lock()
-                    .expect("Lock on active proposals was poisoned due to a previous panic");
-
-                proposals.entry(height).or_default().insert(block_hash, transactions);
+                let proposal = Proposal {
+                    height: init.height.0,
+                    round: init.round,
+                    proposer: init.proposer,
+                    transactions: transactions.clone(),
+                    block_hash,
+                    valid_round: init.valid_round,
+                };
+                network_broadcast_sender
+                    .broadcast_message(ConsensusMessage::Proposal(proposal))
+                    .await
+                    .expect("Failed to send proposal");
+                {
+                    let mut proposals = valid_proposals
+                        .lock()
+                        .expect("Lock on active proposals was poisoned due to a previous panic");
+                    proposals.entry(init.height).or_default().insert(block_hash, transactions);
+                }
                 // Done after inserting the proposal into the map to avoid race conditions between
                 // insertion and calls to `repropose`.
                 fin_sender.send(block_hash).expect("Send should succeed");
@@ -121,7 +135,7 @@ impl ConsensusContext for PapyrusConsensusContext {
             .instrument(debug_span!("consensus_build_proposal")),
         );
 
-        (receiver, fin_receiver)
+        fin_receiver
     }
 
     async fn validate_proposal(
@@ -225,52 +239,6 @@ impl ConsensusContext for PapyrusConsensusContext {
     async fn broadcast(&mut self, message: ConsensusMessage) -> Result<(), ConsensusError> {
         debug!("Broadcasting message: {message:?}");
         self.network_broadcast_client.broadcast_message(message).await?;
-        Ok(())
-    }
-
-    async fn propose(
-        &self,
-        init: ProposalInit,
-        mut content_receiver: mpsc::Receiver<Transaction>,
-        fin_receiver: oneshot::Receiver<BlockHash>,
-    ) -> Result<(), ConsensusError> {
-        let mut network_broadcast_sender = self.network_broadcast_client.clone();
-
-        tokio::spawn(
-            async move {
-                let mut transactions = Vec::new();
-                while let Some(tx) = content_receiver.next().await {
-                    transactions.push(tx);
-                }
-
-                let Ok(block_hash) = fin_receiver.await else {
-                    // This can occur due to sync interrupting a height.
-                    warn!("Failed to get block hash from fin receiver. {init:?}");
-                    return;
-                };
-                let proposal = Proposal {
-                    height: init.height.0,
-                    round: init.round,
-                    proposer: init.proposer,
-                    transactions,
-                    block_hash,
-                    valid_round: init.valid_round,
-                };
-                debug!(
-                    "Sending proposal: height={:?} id={:?} num_txs={} block_hash={:?}",
-                    proposal.height,
-                    proposal.proposer,
-                    proposal.transactions.len(),
-                    proposal.block_hash
-                );
-
-                network_broadcast_sender
-                    .broadcast_message(ConsensusMessage::Proposal(proposal))
-                    .await
-                    .expect("Failed to send proposal");
-            }
-            .instrument(debug_span!("consensus_propose")),
-        );
         Ok(())
     }
 
