@@ -832,7 +832,6 @@ pub struct VersionedConstantsOverrides {
 }
 
 impl Default for VersionedConstantsOverrides {
-    // TODO: update the default values once the actual values are known.
     fn default() -> Self {
         Self {
             validate_max_n_steps: 1000000,

@@ -119,6 +119,11 @@
     "privacy": "Public",
     "value": true
   },
+  "batcher_config.block_builder_config.versioned_constants_overrides.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
   "batcher_config.block_builder_config.versioned_constants_overrides.invoke_tx_max_n_steps": {
     "description": "Maximum number of steps the invoke function is allowed to run.",
     "privacy": "Public",
