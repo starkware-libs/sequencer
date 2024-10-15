@@ -5,7 +5,6 @@
 #[allow(clippy::explicit_auto_deref)]
 mod crypto_test;
 
-use std::fmt;
 use std::fmt::LowerHex;
 
 use serde::{Deserialize, Serialize};
