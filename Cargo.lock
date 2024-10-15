@@ -7306,7 +7306,6 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "starknet_batcher_types",
- "starknet_consensus_manager_types",
  "test-case",
  "tokio",
  "tracing",
@@ -10165,11 +10164,11 @@ dependencies = [
  "async-trait",
  "blockifier",
  "chrono",
+ "derive_more 0.99.18",
  "mockall",
  "papyrus_proc_macros",
  "serde",
  "starknet_api",
- "starknet_consensus_manager_types",
  "starknet_mempool_infra",
  "thiserror",
 ]
@@ -10242,15 +10241,6 @@ dependencies = [
  "starknet_mempool_infra",
  "tracing",
  "validator",
-]
-
-[[package]]
-name = "starknet_consensus_manager_types"
-version = "0.0.0"
-dependencies = [
- "derive_more 0.99.18",
- "serde",
- "thiserror",
 ]
 
 [[package]]
