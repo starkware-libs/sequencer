@@ -377,7 +377,27 @@ auto_storage_serde! {
     pub enum StructType {
         Struct = 0,
     }
-    pub struct StarknetVersion(pub Vec<u8>);
+    pub enum StarknetVersion {
+        V0_9_1 = 0,
+        V0_10_0 = 1,
+        V0_10_1 = 2,
+        V0_10_2 = 3,
+        V0_10_3 = 4,
+        V0_11_0 = 5,
+        V0_11_0_2 = 6,
+        V0_11_1 = 7,
+        V0_11_2 = 8,
+        V0_12_0 = 9,
+        V0_12_1 = 10,
+        V0_12_2 = 11,
+        V0_12_3 = 12,
+        V0_13_0 = 13,
+        V0_13_1 = 14,
+        V0_13_1_1 = 15,
+        V0_13_2 = 16,
+        V0_13_2_1 = 17,
+        V0_13_3 = 18,
+    }
     pub struct StateDiffCommitment(pub PoseidonHash);
     pub struct Tip(pub u64);
     pub struct TransactionCommitment(pub StarkHash);

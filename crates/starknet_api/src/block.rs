@@ -36,19 +36,85 @@ pub struct Block {
     pub body: BlockBody,
 }
 
-/// A version of the Starknet protocol used when creating a block.
-#[derive(Clone, Debug, Eq, PartialEq, Hash, PartialOrd, Ord)]
-pub struct StarknetVersion(pub Vec<u8>);
+macro_rules! starknet_version_enum {
+    (
+        $(($variant:ident, $major:literal, $minor:literal, $patch:literal $(, $fourth:literal)?)),+,
+        $latest:ident
+    ) => {
+        /// A version of the Starknet protocol used when creating a block.
+        #[cfg_attr(any(test, feature = "testing"), derive(strum_macros::EnumIter))]
+        #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, PartialOrd, Ord)]
+        pub enum StarknetVersion {
+            $($variant,)+
+        }
+
+        impl StarknetVersion {
+            pub const LATEST: Self = Self::$latest;
+        }
+
+        impl From<&StarknetVersion> for Vec<u8> {
+            fn from(value: &StarknetVersion) -> Self {
+                match value {
+                    $(
+                        StarknetVersion::$variant => vec![$major, $minor, $patch $(, $fourth)?],
+                    )+
+                }
+            }
+        }
+
+        impl TryFrom<Vec<u8>> for StarknetVersion {
+            type Error = StarknetApiError;
+
+            fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
+                match value[..] {
+                    $(
+                        [$major, $minor, $patch $(, $fourth)?] => Ok(Self::$variant),
+                    )+
+                    _ => Err(StarknetApiError::InvalidStarknetVersion(value)),
+                }
+            }
+        }
+    }
+}
+
+starknet_version_enum! {
+    (V0_9_1, 0, 9, 1),
+    (V0_10_0, 0, 10, 0),
+    (V0_10_1, 0, 10, 1),
+    (V0_10_2, 0, 10, 2),
+    (V0_10_3, 0, 10, 3),
+    (V0_11_0, 0, 11, 0),
+    (V0_11_0_2, 0, 11, 0, 2),
+    (V0_11_1, 0, 11, 1),
+    (V0_11_2, 0, 11, 2),
+    (V0_12_0, 0, 12, 0),
+    (V0_12_1, 0, 12, 1),
+    (V0_12_2, 0, 12, 2),
+    (V0_12_3, 0, 12, 3),
+    (V0_13_0, 0, 13, 0),
+    (V0_13_1, 0, 13, 1),
+    (V0_13_1_1, 0, 13, 1, 1),
+    (V0_13_2, 0, 13, 2),
+    (V0_13_2_1, 0, 13, 2, 1),
+    (V0_13_3, 0, 13, 3),
+    V0_13_3
+}
 
 impl Default for StarknetVersion {
     fn default() -> Self {
-        Self(vec![0, 0, 0])
+        Self::LATEST
+    }
+}
+
+impl From<StarknetVersion> for Vec<u8> {
+    fn from(value: StarknetVersion) -> Self {
+        Vec::<u8>::from(&value)
     }
 }
 
 impl Display for StarknetVersion {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0.iter().map(|x| x.to_string()).join("."))
+        write!(f, "{}", Vec::<u8>::from(self).iter().map(|x| x.to_string()).join("."))
     }
 }
 
@@ -57,7 +123,16 @@ impl TryFrom<String> for StarknetVersion {
 
     /// Parses a string separated by dots into a StarknetVersion.
     fn try_from(starknet_version: String) -> Result<Self, StarknetApiError> {
-        Ok(Self(starknet_version.split('.').map(|x| x.parse::<u8>()).try_collect()?))
+        let version: Vec<u8> =
+            starknet_version.split('.').map(|x| x.parse::<u8>()).try_collect()?;
+        Ok(Self::try_from(version)?)
+    }
+}
+
+impl TryFrom<&str> for StarknetVersion {
+    type Error = StarknetApiError;
+    fn try_from(starknet_version: &str) -> Result<Self, StarknetApiError> {
+        Self::try_from(starknet_version.to_string())
     }
 }
 
