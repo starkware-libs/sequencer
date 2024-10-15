@@ -2,8 +2,6 @@
 #[path = "block_test.rs"]
 mod block_test;
 
-use std::fmt::Display;
-
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
@@ -111,7 +109,7 @@ impl From<StarknetVersion> for Vec<u8> {
     }
 }
 
-impl Display for StarknetVersion {
+impl std::fmt::Display for StarknetVersion {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", Vec::<u8>::from(self).iter().map(|x| x.to_string()).join("."))
     }
