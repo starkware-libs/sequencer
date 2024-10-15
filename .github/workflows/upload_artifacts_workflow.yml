@@ -2,7 +2,7 @@ name: Upload-Artifacts
 
 on:
   workflow_run:
-    workflows: [Blockifier-CI]
+    workflows: [Trigger-Workflow]
     types: [completed]
 
 jobs:
@@ -19,7 +19,7 @@ jobs:
       - name: Check tests status
         if: ${{ github.event.workflow_run.conclusion == 'failure' }}
         run: |
-          echo 'Blockifier-CI workflow failed'
+          echo 'Trigger-Workflow failed'
           exit 1
       - uses: actions/checkout@v4
         with:
@@ -27,10 +27,6 @@ jobs:
       - uses: ./.github/actions/bootstrap
       - name: Build native blockifier
         run: ./build_native_in_docker.sh scripts/build_native_blockifier.sh
-
-        # Commit hash on pull request event would be the head commit of the branch.
-
-      # TODO: Add post merge event to get the commit hash.
 
       # Rename is required; see https://pyo3.rs/v0.19.2/building_and_distribution#manual-builds.
       - name: Rename shared object
