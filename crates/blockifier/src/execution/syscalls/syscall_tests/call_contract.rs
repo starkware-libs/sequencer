@@ -12,7 +12,7 @@ use test_case::test_case;
 use super::constants::REQUIRED_GAS_CALL_CONTRACT_TEST;
 use crate::abi::abi_utils::selector_from_name;
 use crate::context::ChainInfo;
-use crate::execution::call_info::{CallExecution, Retdata};
+use crate::execution::call_info::CallExecution;
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::retdata;

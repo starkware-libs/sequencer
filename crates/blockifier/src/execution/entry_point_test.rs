@@ -9,7 +9,7 @@ use starknet_api::{calldata, felt, storage_key};
 
 use crate::abi::abi_utils::{get_storage_var_address, selector_from_name};
 use crate::context::ChainInfo;
-use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
+use crate::execution::call_info::{CallExecution, CallInfo};
 use crate::execution::entry_point::CallEntryPoint;
 use crate::retdata;
 use crate::state::cached_state::CachedState;
