@@ -53,7 +53,7 @@ use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{CairoVersion, BALANCE, DEFAULT_STRK_L1_GAS_PRICE};
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::objects::HasRelatedFeeType;
-use crate::transaction::test_utils::{default_l1_resource_bounds, l1_resource_bounds};
+use crate::transaction::test_utils::{default_all_resource_bounds, l1_resource_bounds};
 use crate::transaction::transactions::ExecutableTransaction;
 
 #[fixture]
@@ -211,7 +211,7 @@ fn test_versioned_state_proxy() {
 
 #[rstest]
 // Test parallel execution of two transactions that use the same versioned state.
-fn test_run_parallel_txs(default_l1_resource_bounds: ValidResourceBounds) {
+fn test_run_parallel_txs(default_all_resource_bounds: ValidResourceBounds) {
     let block_context = BlockContext::create_for_account_testing();
     let chain_info = &block_context.chain_info;
     let zero_bounds = true;
@@ -254,7 +254,7 @@ fn test_run_parallel_txs(default_l1_resource_bounds: ValidResourceBounds) {
     let constructor_calldata = calldata![ctor_grind_arg, ctor_storage_arg];
     let deploy_tx_args = deploy_account_tx_args! {
         class_hash,
-        resource_bounds: default_l1_resource_bounds,
+        resource_bounds: default_all_resource_bounds,
         constructor_calldata: constructor_calldata.clone(),
     };
     let nonce_manager = &mut NonceManager::default();
