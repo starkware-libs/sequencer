@@ -78,9 +78,12 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
     /// Guarantees that messages are sent in order.
     pub async fn run(&mut self) {
         loop {
-            if let Some(message) = self.inbound_receiver.next().await {
-                self.handle_message(message);
-            }
+            // TODO(guyn): this select is here to allow us to add the outbound flow.
+            tokio::select!(
+                Some(message) = self.inbound_receiver.next() => {
+                    self.handle_message(message);
+                }
+            );
         }
     }
 
