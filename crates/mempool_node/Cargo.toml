@@ -20,7 +20,6 @@ starknet_api.workspace = true
 starknet_batcher.workspace = true
 starknet_batcher_types.workspace = true
 starknet_consensus_manager.workspace = true
-starknet_consensus_manager_types.workspace = true
 starknet_gateway.workspace = true
 starknet_gateway_types.workspace = true
 starknet_http_server.workspace = true

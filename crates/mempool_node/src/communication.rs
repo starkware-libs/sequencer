@@ -5,11 +5,6 @@ use starknet_batcher_types::communication::{
     LocalBatcherClient,
     SharedBatcherClient,
 };
-use starknet_consensus_manager_types::communication::{
-    ConsensusManagerRequestAndResponseSender,
-    LocalConsensusManagerClient,
-    SharedConsensusManagerClient,
-};
 use starknet_gateway_types::communication::{
     GatewayRequestAndResponseSender,
     LocalGatewayClient,
@@ -27,8 +22,6 @@ use crate::config::SequencerNodeConfig;
 
 pub struct SequencerNodeCommunication {
     batcher_channel: ComponentCommunication<BatcherRequestAndResponseSender>,
-    /// TODO(Tsabary): remove the redundant consensus_manager_channel.
-    consensus_manager_channel: ComponentCommunication<ConsensusManagerRequestAndResponseSender>,
     mempool_channel: ComponentCommunication<MempoolRequestAndResponseSender>,
     gateway_channel: ComponentCommunication<GatewayRequestAndResponseSender>,
 }
@@ -40,18 +33,6 @@ impl SequencerNodeCommunication {
 
     pub fn take_batcher_rx(&mut self) -> Receiver<BatcherRequestAndResponseSender> {
         self.batcher_channel.take_rx()
-    }
-
-    pub fn take_consensus_manager_tx(
-        &mut self,
-    ) -> Sender<ConsensusManagerRequestAndResponseSender> {
-        self.consensus_manager_channel.take_tx()
-    }
-
-    pub fn take_consensus_manager_rx(
-        &mut self,
-    ) -> Receiver<ConsensusManagerRequestAndResponseSender> {
-        self.consensus_manager_channel.take_rx()
     }
 
     pub fn take_mempool_tx(&mut self) -> Sender<MempoolRequestAndResponseSender> {
@@ -79,18 +60,11 @@ pub fn create_node_channels() -> SequencerNodeCommunication {
     let (tx_batcher, rx_batcher) =
         channel::<BatcherRequestAndResponseSender>(DEFAULT_INVOCATIONS_QUEUE_SIZE);
 
-    let (tx_consensus_manager, rx_consensus_manager) =
-        channel::<ConsensusManagerRequestAndResponseSender>(DEFAULT_INVOCATIONS_QUEUE_SIZE);
-
     let (tx_gateway, rx_gateway) =
         channel::<GatewayRequestAndResponseSender>(DEFAULT_INVOCATIONS_QUEUE_SIZE);
 
     SequencerNodeCommunication {
         mempool_channel: ComponentCommunication::new(Some(tx_mempool), Some(rx_mempool)),
-        consensus_manager_channel: ComponentCommunication::new(
-            Some(tx_consensus_manager),
-            Some(rx_consensus_manager),
-        ),
         batcher_channel: ComponentCommunication::new(Some(tx_batcher), Some(rx_batcher)),
         gateway_channel: ComponentCommunication::new(Some(tx_gateway), Some(rx_gateway)),
     }
@@ -98,7 +72,6 @@ pub fn create_node_channels() -> SequencerNodeCommunication {
 
 pub struct SequencerNodeClients {
     batcher_client: Option<SharedBatcherClient>,
-    consensus_manager_client: Option<SharedConsensusManagerClient>,
     mempool_client: Option<SharedMempoolClient>,
     gateway_client: Option<SharedGatewayClient>,
     // TODO (Lev): Change to Option<Box<dyn MemPoolClient>>.
@@ -107,10 +80,6 @@ pub struct SequencerNodeClients {
 impl SequencerNodeClients {
     pub fn get_batcher_client(&self) -> Option<SharedBatcherClient> {
         self.batcher_client.clone()
-    }
-
-    pub fn get_consensus_manager_client(&self) -> Option<SharedConsensusManagerClient> {
-        self.consensus_manager_client.clone()
     }
 
     pub fn get_mempool_client(&self) -> Option<SharedMempoolClient> {
@@ -130,13 +99,6 @@ pub fn create_node_clients(
         true => Some(Arc::new(LocalBatcherClient::new(channels.take_batcher_tx()))),
         false => None,
     };
-    let consensus_manager_client: Option<SharedConsensusManagerClient> =
-        match config.components.consensus_manager.execute {
-            true => Some(Arc::new(LocalConsensusManagerClient::new(
-                channels.take_consensus_manager_tx(),
-            ))),
-            false => None,
-        };
     let mempool_client: Option<SharedMempoolClient> = match config.components.mempool.execute {
         true => Some(Arc::new(LocalMempoolClient::new(channels.take_mempool_tx()))),
         false => None,
@@ -145,10 +107,5 @@ pub fn create_node_clients(
         true => Some(Arc::new(LocalGatewayClient::new(channels.take_gateway_tx()))),
         false => None,
     };
-    SequencerNodeClients {
-        batcher_client,
-        consensus_manager_client,
-        mempool_client,
-        gateway_client,
-    }
+    SequencerNodeClients { batcher_client, mempool_client, gateway_client }
 }
