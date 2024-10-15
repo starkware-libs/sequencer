@@ -18,8 +18,6 @@ use tracing::{error, info};
 
 use crate::config::ConsensusManagerConfig;
 
-// TODO(Tsabary/Matan): Replace with actual consensus manager code.
-
 #[derive(Clone)]
 pub struct ConsensusManager {
     pub config: ConsensusManagerConfig,
