@@ -23,7 +23,7 @@ use starknet_mempool_infra::component_definitions::ComponentStarter;
 use starknet_mempool_types::communication::SharedMempoolClient;
 use tracing::{debug, error, instrument};
 
-use crate::block_builder::{BlockBuilderConfig, BlockBuilderFactory};
+use crate::block_builder::BlockBuilderFactory;
 use crate::config::BatcherConfig;
 use crate::proposal_manager::{
     BuildProposalError,
@@ -150,12 +150,11 @@ pub fn create_batcher(config: BatcherConfig, mempool_client: SharedMempoolClient
     let (storage_reader, storage_writer) = papyrus_storage::open_storage(config.storage.clone())
         .expect("Failed to open batcher's storage");
 
-    // TODO(Arni): use real config - add as part of batcher config.
-    let block_builder_config = BlockBuilderConfig::default();
+    // TODO(Yael 15/10/2024): Add cache_size to the config.
     let cache_size = 100;
 
     let block_builder_factory = Arc::new(BlockBuilderFactory {
-        block_builder_config,
+        block_builder_config: config.block_builder_config.clone(),
         storage_reader: storage_reader.clone(),
         global_class_hash_to_class: GlobalContractCache::new(cache_size),
     });
