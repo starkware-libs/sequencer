@@ -76,7 +76,7 @@ function compile_cairo_native_runtime() {
     mv ./cairo_native/target/release/libcairo_native_runtime.a ${LIBCAIRO_NATIVE_DIR}/libcairo_native_runtime.a
     rm -rf ./cairo_native
 
-        ls /cairo_native/libcairo_native_runtime.a # asdf
+        ls ${LIBCAIRO_NATIVE_DIR}/libcairo_native_runtime.a # asdf
 }
 
 function main() {
@@ -85,7 +85,7 @@ echo "asdf func args: $@"
 echo "asdf func arg 1: $1"
 ls -lsah . # asdf
     THIS_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-    DEFAULT_DIR="$THIS_DIR/crates/blockifier"
+    DEFAULT_DIR="$THIS_DIR/../crates/blockifier"
     LIBCAIRO_NATIVE_DIR=${1:-"$DEFAULT_DIR"}
 echo "asdf func LIBCAIRO_NATIVE_DIR: $LIBCAIRO_NATIVE_DIR"
 
