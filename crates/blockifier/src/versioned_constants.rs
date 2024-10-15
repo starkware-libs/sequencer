@@ -859,3 +859,14 @@ pub struct VersionedConstantsOverrides {
     pub max_recursion_depth: usize,
     pub invoke_tx_max_n_steps: u32,
 }
+
+impl Default for VersionedConstantsOverrides {
+    // TODO: update the default values once the actual values are known.
+    fn default() -> Self {
+        Self {
+            validate_max_n_steps: 1000000,
+            max_recursion_depth: 50,
+            invoke_tx_max_n_steps: 10000000,
+        }
+    }
+}
