@@ -10423,6 +10423,7 @@ dependencies = [
  "futures",
  "mempool_test_utils",
  "papyrus_config",
+ "papyrus_network",
  "pretty_assertions",
  "rstest",
  "serde",

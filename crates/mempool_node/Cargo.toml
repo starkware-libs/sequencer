@@ -14,6 +14,7 @@ clap.workspace = true
 const_format.workspace = true
 futures.workspace = true
 papyrus_config.workspace = true
+papyrus_network.workspace = true
 rstest.workspace = true
 serde.workspace = true
 starknet_api.workspace = true
