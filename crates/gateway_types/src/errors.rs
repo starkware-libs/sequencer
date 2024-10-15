@@ -92,7 +92,6 @@ impl Display for GatewaySpecError {
     }
 }
 
-// TODO(Tsabary/Shahak): Populate with actual errors.
 #[derive(Clone, Debug, Error, PartialEq, Eq, Serialize, Deserialize)]
 pub enum GatewayError {
     #[error(transparent)]
