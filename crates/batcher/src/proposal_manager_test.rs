@@ -263,7 +263,7 @@ async fn multiple_proposals_generation_fail(
 
 #[rstest]
 #[tokio::test]
-async fn test_get_proposal_result_no_active_proposal(
+async fn test_take_proposal_result_no_active_proposal(
     proposal_manager_config: ProposalManagerConfig,
     mut block_builder_factory: MockBlockBuilderFactoryTrait,
     mut mempool_client: MockMempoolClient,
@@ -311,8 +311,8 @@ async fn test_get_proposal_result_no_active_proposal(
     // Make sure the proposal generated successfully.
     proposal_manager.await_active_proposal().await;
 
-    proposal_manager.get_proposal_result(ProposalId(0)).await.unwrap().unwrap();
-    proposal_manager.get_proposal_result(ProposalId(1)).await.unwrap().unwrap();
+    proposal_manager.take_proposal_result(ProposalId(0)).await.unwrap();
+    proposal_manager.take_proposal_result(ProposalId(1)).await.unwrap();
 }
 
 fn arbitrary_deadline() -> tokio::time::Instant {
