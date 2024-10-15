@@ -98,7 +98,7 @@ jobs:
 
       - name: "Run tests on push"
         if: github.event_name == 'push'
-        # TODO: Better support for running tests on push.
+        # TODO: Better support for running tests on push. test2
         run: |
           python3 -m venv ci
           ci/bin/pip install -r scripts/requirements.txt
