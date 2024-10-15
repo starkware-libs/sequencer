@@ -92,7 +92,7 @@ jobs:
         run: |
           python3 -m venv ci
           ci/bin/pip install -r scripts/requirements.txt
-          ci/bin/python scripts/run_tests.py --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
+          ci/bin/python scripts/run_tests.py --changes_only --include_dependencies --commit_id ${{ github.event.pull_request.base.sha }}
         env:
           SEED: 0
 
