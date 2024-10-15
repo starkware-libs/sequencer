@@ -130,7 +130,7 @@ impl Debug for Decision {
     }
 }
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Default, Clone)]
 pub struct ProposalInit {
     pub height: BlockNumber,
     pub round: Round,

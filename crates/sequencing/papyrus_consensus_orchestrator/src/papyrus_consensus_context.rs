@@ -190,8 +190,8 @@ impl ConsensusContext for PapyrusConsensusContext {
     }
 
     async fn repropose(&mut self, id: ProposalContentId, init: ProposalInit) {
-        let valid_proposals = Arc::clone(&self.valid_proposals);
-        let transactions = valid_proposals
+        let transactions = self
+            .valid_proposals
             .lock()
             .expect("valid_proposals lock was poisoned")
             .get(&init.height)
