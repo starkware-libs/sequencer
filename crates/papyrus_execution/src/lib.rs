@@ -42,10 +42,7 @@ use blockifier::transaction::objects::{
 };
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use blockifier::transaction::transactions::ExecutableTransaction;
-use blockifier::versioned_constants::{
-    StarknetVersion as BlockifierStarknetVersion,
-    VersionedConstants,
-};
+use blockifier::versioned_constants::{VersionedConstants, VersionedConstantsError};
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
@@ -187,6 +184,8 @@ pub enum ExecutionError {
     TransactionHashCalculationFailed(StarknetApiError),
     #[error("Unknown builtin name: {builtin_name}")]
     UnknownBuiltin { builtin_name: BuiltinName },
+    #[error(transparent)]
+    VersionedConstants(#[from] VersionedConstantsError),
 }
 
 /// Whether the only-query bit of the transaction version is on.
@@ -868,16 +867,16 @@ fn get_versioned_constants(
     let versioned_constants = match starknet_version {
         Some(starknet_version) => {
             let version = starknet_version.to_string();
-            let blockifier_starknet_version = if version == STARKNET_VERSION_O_13_0 {
-                BlockifierStarknetVersion::V0_13_0
+            let starknet_api_starknet_version = if version == STARKNET_VERSION_O_13_0 {
+                StarknetVersion::V0_13_0
             } else if version == STARKNET_VERSION_O_13_1 {
-                BlockifierStarknetVersion::V0_13_1
+                StarknetVersion::V0_13_1
             } else if version == STARKNET_VERSION_O_13_2 {
-                BlockifierStarknetVersion::V0_13_2
+                StarknetVersion::V0_13_2
             } else {
-                BlockifierStarknetVersion::V0_13_3
+                StarknetVersion::V0_13_3
             };
-            VersionedConstants::get(blockifier_starknet_version)
+            VersionedConstants::get(&starknet_api_starknet_version)?
         }
         None => VersionedConstants::latest_constants(),
     };
