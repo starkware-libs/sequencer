@@ -3,6 +3,7 @@ use std::fmt::Display;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use enum_assoc::Assoc;
+use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_rpc::error::{
     unexpected_error,
     validation_failure,
@@ -95,6 +96,9 @@ impl Display for GatewaySpecError {
 // TODO(Tsabary/Shahak): Populate with actual errors.
 #[derive(Clone, Debug, Error, PartialEq, Eq, Serialize, Deserialize)]
 pub enum GatewayError {
-    #[error(transparent)]
-    GatewaySpecError(#[from] GatewaySpecError),
+    #[error("{source:?}")]
+    GatewaySpecError {
+        source: GatewaySpecError,
+        p2p_message_metadata: Option<BroadcastedMessageMetadata>,
+    },
 }
