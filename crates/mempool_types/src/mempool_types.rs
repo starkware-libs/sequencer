@@ -14,6 +14,12 @@ pub struct AccountState {
     pub nonce: Nonce,
 }
 
+impl std::fmt::Display for AccountState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "AccountState {{ address: {}, nonce: {} }}", self.address, self.nonce)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct AddTransactionArgs {
     pub tx: Transaction,

@@ -11,6 +11,7 @@ use starknet_mempool_types::mempool_types::{
     CommitBlockArgs,
     MempoolResult,
 };
+use tracing;
 
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::TransactionQueue;
@@ -52,6 +53,7 @@ impl Mempool {
     /// Transactions are guaranteed to be unique across calls until the block in-progress is
     /// created.
     // TODO: Consider renaming to `pop_txs` to be more consistent with the standard library.
+    #[tracing::instrument(skip(self), err)]
     pub fn get_txs(&mut self, n_txs: usize) -> MempoolResult<Vec<Transaction>> {
         let mut eligible_tx_references: Vec<TransactionReference> = Vec::with_capacity(n_txs);
         let mut n_remaining_txs = n_txs;
@@ -68,6 +70,11 @@ impl Mempool {
             self.mempool_state.insert(tx_ref.address, tx_ref.nonce);
         }
 
+        tracing::info!(
+            "Returned {} out of {n_txs} transactions, ready for sequencing.",
+            eligible_tx_references.len()
+        );
+
         Ok(eligible_tx_references
             .iter()
             .map(|tx_ref| {
@@ -80,6 +87,16 @@ impl Mempool {
     }
 
     /// Adds a new transaction to the mempool.
+    #[tracing::instrument(
+        skip(self, args),
+        fields( // Log subset of (informative) fields.
+            tx_nonce = %args.tx.nonce(),
+            tx_hash = %args.tx.tx_hash(),
+            account_state = %args.account_state
+        ),
+        ret,
+        err
+    )]
     pub fn add_tx(&mut self, args: AddTransactionArgs) -> MempoolResult<()> {
         let AddTransactionArgs { tx, account_state } = args;
         self.validate_incoming_nonce(tx.nonce(), account_state)?;
@@ -101,17 +118,22 @@ impl Mempool {
 
     /// Update the mempool's internal state according to the committed block (resolves nonce gaps,
     /// updates account balances).
+    #[tracing::instrument(skip(self, args), ret, err)]
     pub fn commit_block(&mut self, args: CommitBlockArgs) -> MempoolResult<()> {
+        let CommitBlockArgs { nonces, tx_hashes } = args;
+        tracing::info!("Committing block with {} transactions to mempool.", tx_hashes.len());
+
         // Align mempool data to committed nonces.
-        for (&address, &nonce) in &args.nonces {
+        for (&address, &nonce) in &nonces {
             let next_nonce = nonce.try_increment().map_err(|_| MempoolError::FeltOutOfRange)?;
             let account_state = AccountState { address, nonce: next_nonce };
             self.align_to_account_state(account_state);
         }
+        tracing::info!("Aligned mempool to committed nonces.");
 
         // Rewind nonces of addresses that were not included in block.
         let known_addresses_not_included_in_block =
-            self.mempool_state.keys().filter(|&key| !args.nonces.contains_key(key));
+            self.mempool_state.keys().filter(|&key| !nonces.contains_key(key));
         for address in known_addresses_not_included_in_block {
             // Account nonce is the minimal nonce of this address: it was proposed but not included.
             let tx_reference = self
@@ -123,7 +145,7 @@ impl Mempool {
         }
 
         // Hard-delete: finally, remove committed transactions from the mempool.
-        for tx_hash in args.tx_hashes {
+        for tx_hash in tx_hashes {
             let Ok(_tx) = self.tx_pool.remove(tx_hash) else {
                 continue; // Transaction hash unknown to mempool, from a different node.
             };
@@ -131,9 +153,12 @@ impl Mempool {
             // TODO(clean_account_nonces): remove address from nonce table after a block cycle /
             // TTL.
         }
+        tracing::info!("Removed committed transactions known to mempool.");
 
         // Commit: clear block creation staged state.
         self.mempool_state.clear();
+
+        tracing::info!("Successfully committed block to mempool.");
 
         Ok(())
     }
@@ -218,15 +243,23 @@ impl Mempool {
             return Ok(());
         };
 
+        let existing_tx_hash = existing_tx_ref.tx_hash;
         if !self.should_replace_tx(existing_tx_ref, &incoming_tx_ref) {
+            tracing::info!(
+                "Transaction of hash {existing_tx_hash} was not replaced due to insufficient fee \
+                 escalation."
+            );
             // TODO(Elin): consider adding a more specific error type / message.
             return Err(MempoolError::DuplicateNonce { address, nonce });
         }
 
+        tracing::info!(
+            "Transaction with hash {existing_tx_hash}, will be replaced by transaction of hash {}.",
+            incoming_tx_ref.tx_hash
+        );
+
         self.tx_queue.remove(address);
-        self.tx_pool
-            .remove(existing_tx_ref.tx_hash)
-            .expect("Transaction hash from pool must exist.");
+        self.tx_pool.remove(existing_tx_hash).expect("Transaction hash from pool must exist.");
 
         Ok(())
     }

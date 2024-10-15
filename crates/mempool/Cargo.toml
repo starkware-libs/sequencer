@@ -18,6 +18,7 @@ starknet_api.workspace = true
 starknet_mempool_infra.workspace = true
 starknet_mempool_types.workspace = true
 tokio.workspace = true
+tracing.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true
