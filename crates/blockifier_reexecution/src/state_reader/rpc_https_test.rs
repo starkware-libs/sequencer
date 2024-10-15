@@ -4,7 +4,7 @@ use blockifier::versioned_constants::StarknetVersion;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
-use starknet_api::core::ClassHash;
+use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::test_utils::read_json_file;
 use starknet_api::transaction::Transaction;
 use starknet_api::{class_hash, felt};
@@ -12,6 +12,7 @@ use starknet_core::types::ContractClass::{Legacy, Sierra};
 
 use crate::state_reader::compile::legacy_to_contract_class_v0;
 use crate::state_reader::test_state_reader::{ConsecutiveTestStateReaders, TestStateReader};
+use crate::state_reader::utils::from_api_txs_to_blockifier_txs;
 
 const EXAMPLE_INVOKE_TX_HASH: &str =
     "0xa7c7db686c7f756ceb7ca85a759caef879d425d156da83d6a836f86851983";
@@ -104,4 +105,29 @@ pub fn test_get_tx_by_hash(test_state_reader: TestStateReader) {
 #[rstest]
 pub fn test_get_statediff_rpc(test_state_reader: TestStateReader) {
     assert!(test_state_reader.get_state_diff().is_ok());
+}
+
+#[rstest]
+pub fn test_full_blockifier_via_rpc(
+    test_state_readers_last_and_current_block: ConsecutiveTestStateReaders,
+) {
+    let ConsecutiveTestStateReaders { ref next_block_state_reader, .. } =
+        test_state_readers_last_and_current_block;
+    // 1. Read txs via RPC, convert to blockifier txs
+    let all_txs = next_block_state_reader.get_all_txs_in_block().unwrap();
+    let all_txs = from_api_txs_to_blockifier_txs(all_txs).unwrap();
+    // 2. Read expected statediff via RPC
+    let mut expected_state_diff = next_block_state_reader.get_state_diff().unwrap();
+    // 3. Create TransactionExecutor (Read block_header via RPC)
+    let mut transaction_executor =
+        test_state_readers_last_and_current_block.get_transaction_executor(None).unwrap();
+    // 4. Run execute_txs on txs from (1)
+    transaction_executor.execute_txs(all_txs.as_slice());
+    // 5. Run finalize and read statediff
+    let (actual_state_diff, _, _) =
+        transaction_executor.finalize().expect("Couldn't finalize block");
+    // 6. Compare results of (2) (expected) and (5) (actual)
+    // TODO(Aner): replace next line with computing the value and inserting to computed state diff
+    expected_state_diff.storage_updates.shift_remove(&ContractAddress(1_u128.into()));
+    assert_eq!(expected_state_diff, actual_state_diff);
 }
