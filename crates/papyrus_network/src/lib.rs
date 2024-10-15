@@ -18,6 +18,7 @@ mod utils;
 use std::collections::BTreeMap;
 use std::time::Duration;
 
+use discovery::DiscoveryConfig;
 use libp2p::Multiaddr;
 use papyrus_config::converters::{
     deserialize_optional_vec_u8,
@@ -27,6 +28,7 @@ use papyrus_config::converters::{
 use papyrus_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
 use papyrus_config::validators::validate_vec_u256;
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use peer_manager::PeerManagerConfig;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ChainId;
 use validator::Validate;
@@ -46,6 +48,8 @@ pub struct NetworkConfig {
     pub(crate) secret_key: Option<Vec<u8>>,
     pub advertised_multiaddr: Option<Multiaddr>,
     pub chain_id: ChainId,
+    pub discovery_config: DiscoveryConfig,
+    pub peer_manager_config: PeerManagerConfig,
 }
 
 impl SerializeConfig for NetworkConfig {
@@ -80,6 +84,18 @@ impl SerializeConfig for NetworkConfig {
                 "chain_id",
                 &self.chain_id,
                 "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "discovery_config",
+                &self.discovery_config,
+                "Config for the discovery protocol.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "peer_manager_config",
+                &self.peer_manager_config,
+                "Config for the peer manager.",
                 ParamPrivacyInput::Public,
             ),
         ]);
@@ -121,6 +137,8 @@ impl Default for NetworkConfig {
             secret_key: None,
             advertised_multiaddr: None,
             chain_id: ChainId::Mainnet,
+            discovery_config: DiscoveryConfig::default(),
+            peer_manager_config: PeerManagerConfig::default(),
         }
     }
 }
