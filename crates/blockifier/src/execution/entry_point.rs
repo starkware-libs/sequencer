@@ -283,7 +283,7 @@ impl EntryPointExecutionContext {
             usize::MAX
         });
 
-        if !limit_steps_by_resources || !tx_info.enforce_fee() {
+        if !limit_steps_by_resources {
             return block_upper_bound;
         }
 
