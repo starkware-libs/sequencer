@@ -14,6 +14,7 @@ use starknet_batcher::config::BatcherConfig;
 use starknet_consensus_manager::config::ConsensusManagerConfig;
 use starknet_gateway::config::{GatewayConfig, RpcStateReaderConfig};
 use starknet_http_server::config::HttpServerConfig;
+use starknet_mempool_p2p::MempoolP2pConfig;
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 use validator::Validate;
 
@@ -32,6 +33,7 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
         vec![
             "batcher_config.storage.db_config.chain_id".to_owned(),
             "gateway_config.chain_info.chain_id".to_owned(),
+            "mempool_p2p_config.network_config.chain_id".to_owned(),
         ],
     )]
 });
@@ -57,6 +59,8 @@ pub struct SequencerNodeConfig {
     pub rpc_state_reader_config: RpcStateReaderConfig,
     #[validate]
     pub compiler_config: SierraToCasmCompilationConfig,
+    #[validate]
+    pub mempool_p2p_config: MempoolP2pConfig,
 }
 
 impl SerializeConfig for SequencerNodeConfig {
@@ -73,6 +77,7 @@ impl SerializeConfig for SequencerNodeConfig {
             append_sub_config_name(self.http_server_config.dump(), "http_server_config"),
             append_sub_config_name(self.rpc_state_reader_config.dump(), "rpc_state_reader_config"),
             append_sub_config_name(self.compiler_config.dump(), "compiler_config"),
+            append_sub_config_name(self.mempool_p2p_config.dump(), "mempool_p2p_config"),
         ];
 
         sub_configs.into_iter().flatten().collect()
@@ -90,6 +95,7 @@ impl Default for SequencerNodeConfig {
             http_server_config: Default::default(),
             rpc_state_reader_config: Default::default(),
             compiler_config: Default::default(),
+            mempool_p2p_config: Default::default(),
         }
     }
 }
