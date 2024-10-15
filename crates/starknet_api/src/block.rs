@@ -118,6 +118,12 @@ impl Display for StarknetVersion {
     }
 }
 
+impl From<StarknetVersion> for String {
+    fn from(version: StarknetVersion) -> Self {
+        format!("{version}")
+    }
+}
+
 impl TryFrom<String> for StarknetVersion {
     type Error = StarknetApiError;
 
