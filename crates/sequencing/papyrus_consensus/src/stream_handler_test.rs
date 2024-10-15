@@ -80,7 +80,7 @@ mod tests {
         }
 
         let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.listen()).await;
+            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.run()).await;
         });
 
         join_handle.await.expect("Task should succeed");
@@ -105,7 +105,7 @@ mod tests {
             send(&mut network_sender, &metadata, message).await;
         }
         let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.listen()).await;
+            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.run()).await;
             stream_handler
         });
         let mut stream_handler = join_handle.await.expect("Task should succeed");
@@ -115,13 +115,13 @@ mod tests {
         // Check that the channel is empty (no messages were sent yet).
         assert!(receiver.try_next().is_err());
 
-        assert_eq!(stream_handler.stream_data.len(), 1);
+        assert_eq!(stream_handler.inbound_stream_data.len(), 1);
         assert_eq!(
-            stream_handler.stream_data[&(peer_id.clone(), stream_id)].message_buffer.len(),
+            stream_handler.inbound_stream_data[&(peer_id.clone(), stream_id)].message_buffer.len(),
             5
         );
         let range: Vec<u64> = (1..6).collect();
-        let keys: Vec<u64> = stream_handler.stream_data[&(peer_id, stream_id)]
+        let keys: Vec<u64> = stream_handler.inbound_stream_data[&(peer_id, stream_id)]
             .clone()
             .message_buffer
             .into_keys()
@@ -131,12 +131,12 @@ mod tests {
         // Now send the last message:
         send(&mut network_sender, &metadata, make_test_message(stream_id, 0, false)).await;
         let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.listen()).await;
+            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.run()).await;
             stream_handler
         });
 
         let stream_handler = join_handle.await.expect("Task should succeed");
-        assert!(stream_handler.stream_data.is_empty());
+        assert!(stream_handler.inbound_stream_data.is_empty());
 
         for _ in 0..5 {
             // message number 5 is Fin, so it will not be sent!
@@ -175,17 +175,23 @@ mod tests {
         }
 
         let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.listen()).await;
+            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.run()).await;
             stream_handler
         });
         let mut stream_handler = join_handle.await.expect("Task should succeed");
 
         let values = vec![(peer_id.clone(), 1), (peer_id.clone(), 10), (peer_id.clone(), 127)];
-        assert!(stream_handler.stream_data.clone().into_keys().all(|item| values.contains(&item)));
+        assert!(
+            stream_handler
+                .inbound_stream_data
+                .clone()
+                .into_keys()
+                .all(|item| values.contains(&item))
+        );
 
         // We have all message from 1 to 9 buffered.
         assert!(do_vecs_match(
-            &stream_handler.stream_data[&(peer_id.clone(), stream_id1)]
+            &stream_handler.inbound_stream_data[&(peer_id.clone(), stream_id1)]
                 .message_buffer
                 .clone()
                 .into_keys()
@@ -195,7 +201,7 @@ mod tests {
 
         // We have all message from 1 to 5 buffered.
         assert!(do_vecs_match(
-            &stream_handler.stream_data[&(peer_id.clone(), stream_id2)]
+            &stream_handler.inbound_stream_data[&(peer_id.clone(), stream_id2)]
                 .message_buffer
                 .clone()
                 .into_keys()
@@ -205,7 +211,7 @@ mod tests {
 
         // We have all message from 1 to 5 buffered.
         assert!(do_vecs_match(
-            &stream_handler.stream_data[&(peer_id.clone(), stream_id3)]
+            &stream_handler.inbound_stream_data[&(peer_id.clone(), stream_id3)]
                 .message_buffer
                 .clone()
                 .into_keys()
@@ -234,7 +240,7 @@ mod tests {
         // Send the last message on stream_id1:
         send(&mut network_sender, &metadata, make_test_message(stream_id1, 0, false)).await;
         let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.listen()).await;
+            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.run()).await;
             stream_handler
         });
 
@@ -251,12 +257,18 @@ mod tests {
 
         // stream_id1 should be gone
         let values = vec![(peer_id.clone(), 1), (peer_id.clone(), 10)];
-        assert!(stream_handler.stream_data.clone().into_keys().all(|item| values.contains(&item)));
+        assert!(
+            stream_handler
+                .inbound_stream_data
+                .clone()
+                .into_keys()
+                .all(|item| values.contains(&item))
+        );
 
         // Send the last message on stream_id2:
         send(&mut network_sender, &metadata, make_test_message(stream_id2, 0, false)).await;
         let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.listen()).await;
+            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.run()).await;
             stream_handler
         });
 
@@ -273,13 +285,19 @@ mod tests {
 
         // Stream_id2 should also be gone.
         let values = vec![(peer_id.clone(), 1)];
-        assert!(stream_handler.stream_data.clone().into_keys().all(|item| values.contains(&item)));
+        assert!(
+            stream_handler
+                .inbound_stream_data
+                .clone()
+                .into_keys()
+                .all(|item| values.contains(&item))
+        );
 
         // Send the last message on stream_id3:
         send(&mut network_sender, &metadata, make_test_message(stream_id3, 0, false)).await;
 
         let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.listen()).await;
+            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.run()).await;
             stream_handler
         });
 
@@ -294,9 +312,17 @@ mod tests {
 
         // Stream_id3 should still be there, because we didn't send a fin.
         let values = vec![(peer_id.clone(), 1)];
-        assert!(stream_handler.stream_data.clone().into_keys().all(|item| values.contains(&item)));
+        assert!(
+            stream_handler
+                .inbound_stream_data
+                .clone()
+                .into_keys()
+                .all(|item| values.contains(&item))
+        );
 
         // But the buffer should be empty, as we've successfully drained it all.
-        assert!(stream_handler.stream_data[&(peer_id, stream_id3)].message_buffer.is_empty());
+        assert!(
+            stream_handler.inbound_stream_data[&(peer_id, stream_id3)].message_buffer.is_empty()
+        );
     }
 }

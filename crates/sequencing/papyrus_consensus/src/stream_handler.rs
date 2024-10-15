@@ -50,12 +50,12 @@ pub struct StreamHandler<
     T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>,
 > {
     // An end of a channel used to send out receivers, one for each stream.
-    sender: mpsc::Sender<mpsc::Receiver<T>>,
+    inbound_channel_sender: mpsc::Sender<mpsc::Receiver<T>>,
     // An end of a channel used to receive messages.
-    receiver: BroadcastTopicServer<StreamMessage<T>>,
+    inbound_receiver: BroadcastTopicServer<StreamMessage<T>>,
     // A map from stream_id to a struct that contains all the information about the stream.
     // This includes both the message buffer and some metadata (like the latest message_id).
-    stream_data: HashMap<StreamKey, StreamData<T>>,
+    inbound_stream_data: HashMap<StreamKey, StreamData<T>>,
     // TODO(guyn): perhaps make input_stream_data and output_stream_data?
 }
 
@@ -64,23 +64,27 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
 {
     /// Create a new StreamHandler.
     pub fn new(
-        sender: mpsc::Sender<mpsc::Receiver<T>>,
-        receiver: BroadcastTopicServer<StreamMessage<T>>,
+        inbound_channel_sender: mpsc::Sender<mpsc::Receiver<T>>,
+        inbound_receiver: BroadcastTopicServer<StreamMessage<T>>,
     ) -> Self {
-        StreamHandler { sender, receiver, stream_data: HashMap::new() }
+        StreamHandler {
+            inbound_channel_sender,
+            inbound_receiver,
+            inbound_stream_data: HashMap::new(),
+        }
     }
 
     /// Listen for messages on the receiver channel, buffering them if necessary.
     /// Guarantees that messages are sent in order.
-    pub async fn listen(&mut self) {
+    pub async fn run(&mut self) {
         loop {
-            if let Some(message) = self.receiver.next().await {
+            if let Some(message) = self.inbound_receiver.next().await {
                 self.handle_message(message);
             }
         }
     }
 
-    fn send(data: &mut StreamData<T>, message: StreamMessage<T>) {
+    fn inbound_send(data: &mut StreamData<T>, message: StreamMessage<T>) {
         // TODO(guyn): reconsider the "expect" here.
         let sender = &mut data.sender;
         if let StreamMessageBody::Content(content) = message.message {
@@ -107,14 +111,14 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
         let key = (peer_id, stream_id);
         let message_id = message.message_id;
 
-        let data = match self.stream_data.entry(key.clone()) {
+        let data = match self.inbound_stream_data.entry(key.clone()) {
             Entry::Occupied(entry) => entry.into_mut(),
             Entry::Vacant(e) => {
                 // If we received a message for a stream that we have not seen before,
                 // we need to create a new receiver for it.
                 let (sender, receiver) = mpsc::channel(CHANNEL_BUFFER_LENGTH);
                 // TODO(guyn): reconsider the "expect" here.
-                self.sender.try_send(receiver).expect("Send should succeed");
+                self.inbound_channel_sender.try_send(receiver).expect("Send should succeed");
 
                 let data = StreamData::new(sender);
                 e.insert(data)
@@ -156,13 +160,13 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
 
         // This means we can just send the message without buffering it.
         if message_id == data.next_message_id {
-            Self::send(data, message);
+            Self::inbound_send(data, message);
 
             Self::process_buffer(data);
 
             if data.message_buffer.is_empty() && data.fin_message_id.is_some() {
                 data.sender.close_channel();
-                self.stream_data.remove(&key);
+                self.inbound_stream_data.remove(&key);
             }
         } else if message_id > data.next_message_id {
             Self::store(data, key.0, message);
@@ -197,7 +201,7 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
     // DOES NOT guarantee that the buffer will be empty after calling this function.
     fn process_buffer(data: &mut StreamData<T>) {
         while let Some(message) = data.message_buffer.remove(&data.next_message_id) {
-            Self::send(data, message);
+            Self::inbound_send(data, message);
         }
     }
 }
