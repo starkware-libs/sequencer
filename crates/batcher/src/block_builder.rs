@@ -12,7 +12,6 @@ use blockifier::context::{BlockContext, ChainInfo};
 use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::state::errors::StateError;
 use blockifier::state::global_cache::GlobalContractCache;
-use blockifier::state::state_api::StateReader;
 use blockifier::transaction::account_transaction::AccountTransaction;
 use blockifier::transaction::errors::TransactionExecutionError as BlockifierTransactionExecutionError;
 use blockifier::transaction::objects::TransactionExecutionInfo;
@@ -35,18 +34,7 @@ use tracing::{debug, info};
 
 use crate::papyrus_state::PapyrusReader;
 use crate::proposal_manager::InputTxStream;
-
-pub struct BlockBuilder {
-    // TODO(Yael 14/10/2024): make the executor thread safe and delete this mutex.
-    executor: Mutex<Box<dyn TransactionExecutorTrait>>,
-    tx_chunk_size: usize,
-}
-
-impl BlockBuilder {
-    pub fn new(executor: Box<dyn TransactionExecutorTrait>, tx_chunk_size: usize) -> Self {
-        Self { executor: Mutex::new(executor), tx_chunk_size }
-    }
-}
+use crate::transaction_executor::TransactionExecutorTrait;
 
 #[derive(Debug, Error)]
 pub enum BlockBuilderError {
@@ -66,16 +54,39 @@ pub enum BlockBuilderError {
 
 pub type BlockBuilderResult<T> = Result<T, BlockBuilderError>;
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-pub struct ExecutionConfig {
-    // TODO(Yael 1/10/2024): add to config pointers
-    pub chain_info: ChainInfo,
-    pub execute_config: TransactionExecutorConfig,
-    pub bouncer_config: BouncerConfig,
-    pub sequencer_address: ContractAddress,
-    pub use_kzg_da: bool,
-    pub tx_chunk_size: usize,
-    pub versioned_constants_overrides: VersionedConstantsOverrides,
+#[cfg_attr(test, derive(Clone))]
+#[derive(Debug, PartialEq)]
+pub struct BlockExecutionArtifacts {
+    pub execution_infos: IndexMap<TransactionHash, TransactionExecutionInfo>,
+    pub commitment_state_diff: CommitmentStateDiff,
+    pub visited_segments_mapping: VisitedSegmentsMapping,
+    pub bouncer_weights: BouncerWeights,
+}
+
+/// The BlockBuilderTrait is responsible for building a new block from transactions provided in
+/// tx_stream. The block building will stop at time deadline.
+/// The transactions that were added to the block will be streamed to the output_content_sender.
+#[cfg_attr(test, automock)]
+#[async_trait]
+pub trait BlockBuilderTrait: Send {
+    async fn build_block(
+        &mut self,
+        deadline: tokio::time::Instant,
+        tx_stream: InputTxStream,
+        output_content_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
+    ) -> BlockBuilderResult<BlockExecutionArtifacts>;
+}
+
+pub struct BlockBuilder {
+    // TODO(Yael 14/10/2024): make the executor thread safe and delete this mutex.
+    executor: Mutex<Box<dyn TransactionExecutorTrait>>,
+    tx_chunk_size: usize,
+}
+
+impl BlockBuilder {
+    pub fn new(executor: Box<dyn TransactionExecutorTrait>, tx_chunk_size: usize) -> Self {
+        Self { executor: Mutex::new(executor), tx_chunk_size }
+    }
 }
 
 #[async_trait]
@@ -155,29 +166,6 @@ async fn collect_execution_results_and_stream_txs(
     Ok(false)
 }
 
-#[cfg_attr(test, derive(Clone))]
-#[derive(Debug, PartialEq)]
-pub struct BlockExecutionArtifacts {
-    pub execution_infos: IndexMap<TransactionHash, TransactionExecutionInfo>,
-    pub commitment_state_diff: CommitmentStateDiff,
-    pub visited_segments_mapping: VisitedSegmentsMapping,
-    pub bouncer_weights: BouncerWeights,
-}
-
-/// The BlockBuilderTrait is responsible for building a new block from transactions provided in
-/// tx_stream. The block building will stop at time deadline.
-/// The transactions that were added to the block will be streamed to the output_content_sender.
-#[cfg_attr(test, automock)]
-#[async_trait]
-pub trait BlockBuilderTrait: Send {
-    async fn build_block(
-        &mut self,
-        deadline: tokio::time::Instant,
-        tx_stream: InputTxStream,
-        output_content_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
-    ) -> BlockBuilderResult<BlockExecutionArtifacts>;
-}
-
 /// The BlockBuilderFactoryTrait is responsible for creating a new block builder.
 #[cfg_attr(test, automock)]
 pub trait BlockBuilderFactoryTrait {
@@ -186,6 +174,18 @@ pub trait BlockBuilderFactoryTrait {
         height: BlockNumber,
         retrospective_block_hash: Option<BlockNumberHashPair>,
     ) -> BlockBuilderResult<Box<dyn BlockBuilderTrait>>;
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+pub struct ExecutionConfig {
+    // TODO(Yael 1/10/2024): add to config pointers
+    pub chain_info: ChainInfo,
+    pub execute_config: TransactionExecutorConfig,
+    pub bouncer_config: BouncerConfig,
+    pub sequencer_address: ContractAddress,
+    pub use_kzg_da: bool,
+    pub tx_chunk_size: usize,
+    pub versioned_constants_overrides: VersionedConstantsOverrides,
 }
 
 pub struct BlockBuilderFactory {
@@ -253,34 +253,5 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
         let executor =
             self.preprocess_and_create_transaction_executor(height, retrospective_block_hash)?;
         Ok(Box::new(BlockBuilder::new(Box::new(executor), self.execution_config.tx_chunk_size)))
-    }
-}
-
-#[cfg_attr(test, automock)]
-pub trait TransactionExecutorTrait: Send {
-    fn add_txs_to_block(
-        &mut self,
-        txs: &[BlockifierTransaction],
-    ) -> Vec<TransactionExecutorResult<TransactionExecutionInfo>>;
-    fn close_block(
-        &mut self,
-    ) -> TransactionExecutorResult<(CommitmentStateDiff, VisitedSegmentsMapping, BouncerWeights)>;
-}
-
-impl<S: StateReader + Send + Sync> TransactionExecutorTrait for TransactionExecutor<S> {
-    /// Adds the transactions to the generated block and returns the execution results.
-    fn add_txs_to_block(
-        &mut self,
-        txs: &[BlockifierTransaction],
-    ) -> Vec<TransactionExecutorResult<TransactionExecutionInfo>> {
-        self.execute_txs(txs)
-    }
-    /// Finalizes the block creation and returns the commitment state diff, visited
-    /// segments mapping and bouncer.
-    fn close_block(
-        &mut self,
-    ) -> TransactionExecutorResult<(CommitmentStateDiff, VisitedSegmentsMapping, BouncerWeights)>
-    {
-        self.finalize()
     }
 }
