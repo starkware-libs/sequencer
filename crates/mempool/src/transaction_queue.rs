@@ -3,14 +3,7 @@ use std::collections::{BTreeSet, HashMap};
 
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
-use starknet_api::execution_resources::GasAmount;
-use starknet_api::transaction::{
-    AllResourceBounds,
-    ResourceBounds,
-    Tip,
-    TransactionHash,
-    ValidResourceBounds,
-};
+use starknet_api::transaction::{Tip, TransactionHash};
 
 use crate::mempool::TransactionReference;
 
@@ -44,7 +37,7 @@ impl TransactionQueue {
         );
 
         let new_tx_successfully_inserted =
-            if tx_reference.get_l2_gas_price() < self.gas_price_threshold {
+            if tx_reference.max_l2_gas_price < self.gas_price_threshold {
                 self.pending_queue.insert(tx_reference.into())
             } else {
                 self.priority_queue.insert(tx_reference.into())
@@ -103,10 +96,7 @@ impl TransactionQueue {
 
     fn _promote_txs_to_priority(&mut self, threshold: GasPrice) {
         let tmp_split_tx = PendingTransaction(TransactionReference {
-            resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds {
-                l2_gas: ResourceBounds { max_amount: GasAmount(0), max_price_per_unit: threshold },
-                ..Default::default()
-            }),
+            max_l2_gas_price: threshold,
             address: ContractAddress::default(),
             nonce: Nonce::default(),
             tx_hash: TransactionHash::default(),
@@ -128,7 +118,7 @@ impl TransactionQueue {
 
         // Remove all transactions from the priority queue that are below the threshold.
         for priority_tx in &self.priority_queue {
-            if priority_tx.get_l2_gas_price() < threshold {
+            if priority_tx.max_l2_gas_price < threshold {
                 txs_to_remove.push(*priority_tx);
             }
         }
@@ -148,7 +138,7 @@ struct PendingTransaction(pub TransactionReference);
 /// two gas price are either exactly equal or not.
 impl PartialEq for PendingTransaction {
     fn eq(&self, other: &PendingTransaction) -> bool {
-        self.get_l2_gas_price() == other.get_l2_gas_price() && self.tx_hash == other.tx_hash
+        self.max_l2_gas_price == other.max_l2_gas_price && self.tx_hash == other.tx_hash
     }
 }
 
@@ -159,8 +149,8 @@ impl Eq for PendingTransaction {}
 
 impl Ord for PendingTransaction {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.get_l2_gas_price()
-            .cmp(&other.get_l2_gas_price())
+        self.max_l2_gas_price
+            .cmp(&other.max_l2_gas_price)
             .then_with(|| self.tx_hash.cmp(&other.tx_hash))
     }
 }
