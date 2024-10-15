@@ -1,5 +1,3 @@
-use std::sync::{Arc, OnceLock};
-
 use futures::channel::{mpsc, oneshot};
 use lazy_static::lazy_static;
 use papyrus_protobuf::consensus::ConsensusMessage;
@@ -69,21 +67,10 @@ async fn proposer() {
     );
 
     context.expect_proposer().times(1).returning(move |_, _| *PROPOSER_ID);
-    context.expect_build_proposal().times(1).returning(move |_, _| {
-        let (_, content_receiver) = mpsc::channel(1);
+    context.expect_build_proposal().times(1).returning(move |_, _, _| {
         let (block_sender, block_receiver) = oneshot::channel();
         block_sender.send(BLOCK.id).unwrap();
-        (content_receiver, block_receiver)
-    });
-    let fin_receiver = Arc::new(OnceLock::new());
-    let fin_receiver_clone = Arc::clone(&fin_receiver);
-    context.expect_propose().times(1).return_once(move |init, _, fin_receiver| {
-        // Ignore content receiver, since this is the context's responsibility.
-        assert_eq!(init.height, BlockNumber(0));
-        assert_eq!(init.proposer, *PROPOSER_ID);
-        // This is done so that we can return immediately without dropping the receiver.
-        fin_receiver_clone.set(fin_receiver).unwrap();
-        Ok(())
+        block_receiver
     });
     context
         .expect_broadcast()
@@ -327,21 +314,10 @@ async fn rebroadcast_votes() {
     );
 
     context.expect_proposer().times(1).returning(move |_, _| *PROPOSER_ID);
-    context.expect_build_proposal().times(1).returning(move |_, _| {
-        let (_, content_receiver) = mpsc::channel(1);
+    context.expect_build_proposal().times(1).returning(move |_, _, _| {
         let (block_sender, block_receiver) = oneshot::channel();
         block_sender.send(BLOCK.id).unwrap();
-        (content_receiver, block_receiver)
-    });
-    let fin_receiver = Arc::new(OnceLock::new());
-    let fin_receiver_clone = Arc::clone(&fin_receiver);
-    context.expect_propose().times(1).return_once(move |init, _, fin_receiver| {
-        // Ignore content receiver, since this is the context's responsibility.
-        assert_eq!(init.height, BlockNumber(0));
-        assert_eq!(init.proposer, *PROPOSER_ID);
-        // This is done so that we can return immediately without dropping the receiver.
-        fin_receiver_clone.set(fin_receiver).unwrap();
-        Ok(())
+        block_receiver
     });
     context
         .expect_broadcast()
@@ -389,23 +365,10 @@ async fn repropose() {
     );
 
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
-    context.expect_build_proposal().times(1).returning(move |_, _| {
-        let (_, content_receiver) = mpsc::channel(1);
+    context.expect_build_proposal().times(1).returning(move |_, _, _| {
         let (block_sender, block_receiver) = oneshot::channel();
         block_sender.send(BLOCK.id).unwrap();
-        (content_receiver, block_receiver)
-    });
-    let fin_receiver = Arc::new(OnceLock::new());
-    let fin_receiver_clone = Arc::clone(&fin_receiver);
-    context.expect_propose().times(1).returning(move |init, _, fin_receiver| {
-        // Ignore content receiver, since this is the context's responsibility.
-        assert_eq!(init.height, BlockNumber(0));
-        assert_eq!(init.proposer, *PROPOSER_ID);
-        // Only set the OnceLock if it hasn't been set yet.
-        if fin_receiver_clone.get().is_none() {
-            fin_receiver_clone.set(fin_receiver).unwrap();
-        }
-        Ok(())
+        block_receiver
     });
     context
         .expect_broadcast()

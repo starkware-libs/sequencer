@@ -46,10 +46,12 @@ mock! {
     impl ConsensusContext for TestContext {
         type ProposalChunk = Transaction;
 
-        async fn build_proposal(&mut self, height: BlockNumber, timeout: Duration) -> (
-            mpsc::Receiver<Transaction>,
-            oneshot::Receiver<ProposalContentId>
-        );
+        async fn build_proposal(
+            &mut self,
+            height: BlockNumber,
+            init: ProposalInit,
+            timeout: Duration
+        ) -> oneshot::Receiver<ProposalContentId>;
 
         async fn validate_proposal(
             &mut self,
@@ -69,13 +71,6 @@ mock! {
         fn proposer(&self, height: BlockNumber, round: Round) -> ValidatorId;
 
         async fn broadcast(&mut self, message: ConsensusMessage) -> Result<(), ConsensusError>;
-
-        async fn propose(
-            &self,
-            init: ProposalInit,
-            content_receiver: mpsc::Receiver<Transaction>,
-            fin_receiver: oneshot::Receiver<BlockHash>,
-        ) -> Result<(), ConsensusError>;
 
         async fn decision_reached(
             &mut self,

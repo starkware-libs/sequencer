@@ -7,7 +7,7 @@ use papyrus_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
     BroadcastNetworkMock,
 };
-use papyrus_protobuf::consensus::{ConsensusMessage, Proposal, Vote};
+use papyrus_protobuf::consensus::{ConsensusMessage, Vote};
 use papyrus_storage::body::BodyStorageWriter;
 use papyrus_storage::header::HeaderStorageWriter;
 use papyrus_storage::test_utils::get_test_storage;
@@ -26,15 +26,14 @@ const TEST_CHANNEL_SIZE: usize = 10;
 async fn build_proposal() {
     let (block, mut papyrus_context, _mock_network, _) = test_setup();
     let block_number = block.header.block_header_without_hash.block_number;
-
-    let (mut proposal_receiver, fin_receiver) =
-        papyrus_context.build_proposal(block_number, Duration::MAX).await;
-
-    let mut transactions = Vec::new();
-    while let Some(tx) = proposal_receiver.next().await {
-        transactions.push(tx);
-    }
-    assert_eq!(transactions, block.body.transactions);
+    let proposal_init = ProposalInit {
+        height: block_number,
+        round: 0,
+        proposer: ContractAddress::default(),
+        valid_round: None,
+    };
+    let fin_receiver =
+        papyrus_context.build_proposal(block_number, proposal_init, Duration::MAX).await;
 
     let fin = fin_receiver.await.unwrap();
     assert_eq!(fin, block.header.block_hash);
@@ -77,40 +76,6 @@ async fn validate_proposal_fail() {
         .await
         .await;
     assert_eq!(fin, Err(oneshot::Canceled));
-}
-
-#[tokio::test]
-async fn propose() {
-    let (block, papyrus_context, mut mock_network, _) = test_setup();
-    let block_number = block.header.block_header_without_hash.block_number;
-
-    let (mut content_sender, content_receiver) = mpsc::channel(TEST_CHANNEL_SIZE);
-    for tx in block.body.transactions.clone() {
-        content_sender.try_send(tx).unwrap();
-    }
-    content_sender.close_channel();
-
-    let (fin_sender, fin_receiver) = oneshot::channel();
-    fin_sender.send(block.header.block_hash).unwrap();
-
-    let proposal_init = ProposalInit {
-        height: block_number,
-        round: 0,
-        proposer: ContractAddress::default(),
-        valid_round: None,
-    };
-    papyrus_context.propose(proposal_init.clone(), content_receiver, fin_receiver).await.unwrap();
-
-    let expected_message = ConsensusMessage::Proposal(Proposal {
-        height: proposal_init.height.0,
-        round: 0,
-        proposer: proposal_init.proposer,
-        transactions: block.body.transactions,
-        block_hash: block.header.block_hash,
-        valid_round: None,
-    });
-
-    assert_eq!(mock_network.messages_to_broadcast_receiver.next().await.unwrap(), expected_message);
 }
 
 #[tokio::test]

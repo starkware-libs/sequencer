@@ -41,18 +41,19 @@ pub trait ConsensusContext {
     /// Params:
     /// - `height`: The height of the block to be built. Specifically this indicates the initial
     ///   state of the block.
+    /// - `init`: The `ProposalInit` that is broadcast to the network.
     /// - `timeout`: The maximum time to wait for the block to be built.
     ///
     /// Returns:
-    /// - A receiver for the stream of the block's content.
     /// - A receiver for the block id once ConsensusContext has finished streaming out the content
     ///   and building it. If the block fails to be built, the Sender will be dropped by
     ///   ConsensusContext.
     async fn build_proposal(
         &mut self,
         height: BlockNumber,
+        init: ProposalInit,
         timeout: Duration,
-    ) -> (mpsc::Receiver<Self::ProposalChunk>, oneshot::Receiver<ProposalContentId>);
+    ) -> oneshot::Receiver<ProposalContentId>;
 
     /// This function is called by consensus to validate a block. It expects that this call will
     /// return immediately and that context can then stream in the block's content in parallel to
@@ -93,16 +94,6 @@ pub trait ConsensusContext {
     fn proposer(&self, height: BlockNumber, round: Round) -> ValidatorId;
 
     async fn broadcast(&mut self, message: ConsensusMessage) -> Result<(), ConsensusError>;
-
-    /// This should be non-blocking. Meaning it returns immediately and waits to receive from the
-    /// input channels in parallel (ie on a separate task).
-    // TODO(matan): change to just be a generic broadcast function.
-    async fn propose(
-        &self,
-        init: ProposalInit,
-        content_receiver: mpsc::Receiver<Self::ProposalChunk>,
-        fin_receiver: oneshot::Receiver<ProposalContentId>,
-    ) -> Result<(), ConsensusError>;
 
     /// Update the context that a decision has been reached for a given height.
     /// - `block` identifies the decision.
