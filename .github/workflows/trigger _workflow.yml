@@ -1,0 +1,53 @@
+name: Trigger-Workflow
+
+# This workflow exists to trigger the upload_artifacts workflow on both pull requests and push
+# events. It solves the issue of forked PRs not having access to secrets. Since external
+# contributors don’t have permission to access secrets, this dummy workflow runs with their
+# privileges and triggers the upload_artifacts workflow via the workflow_run event.
+# The upload_artifacts workflow runs in the context of the main branch, where it has access to
+# the necessary secrets for uploading artifacts, providing a secure solution for managing artifacts
+# in forked PRs.
+
+on:
+  push:
+    branches:
+      - main
+      - main-v[0-9].**
+    tags:
+      - v[0-9].**
+
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - auto_merge_enabled
+      - edited
+    paths:
+      # Other than code-related changes, all changes related to the native-blockifier build-and-push
+      # process should trigger the build (e.g., changes to the Dockerfile, build scripts, etc.).
+      - '.github/workflows/blockifier_ci.yml'
+      - '.github/workflows/trigger_workflow.yml'
+      - '.github/workflows/upload_artifacts_workflow.yml'
+      - 'build_native_in_docker.sh'
+      - 'Cargo.lock'
+      - 'Cargo.toml'
+      - 'crates/blockifier/**'
+      - 'crates/native_blockifier/**'
+      - 'scripts/build_native_blockifier.sh'
+      - 'scripts/dependencies.sh'
+      - 'scripts/install_build_tools.sh'
+      - 'scripts/sequencer-ci.Dockerfile'
+
+# On PR events, cancel existing CI runs on this same PR for this workflow.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.job }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  dummy_job:
+    runs-on: starkware-ubuntu-latest-small
+    if: false # This job should never run, as it only exists to trigger the upload_artifacts workflow.
+    steps:
+      - name: Dummy step
+        run: echo "This is a dummy job to trigger the upload_artifacts workflow."
