@@ -93,6 +93,13 @@ impl MempoolContentBuilder {
         self
     }
 
+    fn _with_gas_price_threshold(mut self, gas_price_threshold: u128) -> Self {
+        self.tx_queue_content_builder =
+            self.tx_queue_content_builder._with_gas_price_threshold(gas_price_threshold);
+        self
+    }
+
+
     fn with_fee_escalation_percentage(mut self, fee_escalation_percentage: u8) -> Self {
         self.fee_escalation_percentage = fee_escalation_percentage;
         self
