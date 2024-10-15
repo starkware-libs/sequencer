@@ -8,6 +8,10 @@ use starknet_batcher_types::communication::SharedBatcherClient;
 use starknet_mempool_integration_tests::integration_test_setup::IntegrationTestSetup;
 use starknet_mempool_integration_tests::integration_test_utils::create_integration_test_tx_generator;
 
+// TODO(Gilad/ Arni): The multi-account transaction generator is created before the tested state is
+// created. This decouples the contracts that play a role in the test from the state. The hint that
+// shows us this is that there is more than one location where the feature contracts - test contract
+// appears.
 #[fixture]
 fn tx_generator() -> MultiAccountTransactionGenerator {
     create_integration_test_tx_generator()
