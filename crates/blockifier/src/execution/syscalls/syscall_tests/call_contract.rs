@@ -19,7 +19,14 @@ use crate::retdata;
 use crate::state::state_api::StateReader;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{create_calldata, trivial_external_entry_point_new, CairoVersion, BALANCE};
+use crate::test_utils::syscall::build_recurse_calldata;
+use crate::test_utils::{
+    create_calldata,
+    trivial_external_entry_point_new,
+    CairoVersion,
+    CompilerBasedVersion,
+    BALANCE,
+};
 
 #[test]
 fn test_call_contract_that_panics() {
@@ -76,7 +83,7 @@ fn test_call_contract(
         inner_contract.get_instance_address(0),
         "test_storage_read_write",
         &[
-            felt!(405_u16), // Calldata: address.
+            felt!(405_u16), // Calldata: storage address.
             felt!(48_u8),   // Calldata: value.
         ],
     );
@@ -96,26 +103,29 @@ fn test_call_contract(
     );
 }
 
-/// Cairo0 / Cairo1 calls to Cairo0 / Cairo1.
+/// Cairo0 / Old Cairo1 / Cairo1 calls to Cairo0 / Old Cairo1/ Cairo1.
 #[rstest]
-fn test_track_resources(
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] outer_version: CairoVersion,
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] inner_version: CairoVersion,
+fn test_tracked_resources(
+    #[values(
+        CompilerBasedVersion::CairoVersion(CairoVersion::Cairo0),
+        CompilerBasedVersion::OldCairo1,
+        CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1)
+    )]
+    outer_version: CompilerBasedVersion,
+    #[values(
+        CompilerBasedVersion::CairoVersion(CairoVersion::Cairo0),
+        CompilerBasedVersion::OldCairo1,
+        CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1)
+    )]
+    inner_version: CompilerBasedVersion,
 ) {
-    let outer_contract = FeatureContract::TestContract(outer_version);
-    let inner_contract = FeatureContract::TestContract(inner_version);
+    let outer_contract = outer_version.get_test_contract();
+    let inner_contract = inner_version.get_test_contract();
     let chain_info = &ChainInfo::create_for_testing();
     let mut state = test_state(chain_info, BALANCE, &[(outer_contract, 1), (inner_contract, 1)]);
 
     let outer_entry_point_selector = selector_from_name("test_call_contract");
-    let calldata = create_calldata(
-        inner_contract.get_instance_address(0),
-        "test_storage_read_write",
-        &[
-            felt!(405_u16), // Calldata: address.
-            felt!(48_u8),   // Calldata: value.
-        ],
-    );
+    let calldata = build_recurse_calldata(&[inner_version]);
     let entry_point_call = CallEntryPoint {
         entry_point_selector: outer_entry_point_selector,
         calldata,
@@ -123,15 +133,14 @@ fn test_track_resources(
     };
 
     let execution = entry_point_call.execute_directly(&mut state).unwrap();
-    let expected_outer_resource = match outer_version {
-        CairoVersion::Cairo0 => TrackedResource::CairoSteps,
-        CairoVersion::Cairo1 => TrackedResource::SierraGas,
-    };
+    let expected_outer_resource = outer_version.own_tracked_resource();
     assert_eq!(execution.tracked_resource, expected_outer_resource);
 
-    let expected_inner_resource = match (outer_version, inner_version) {
-        (CairoVersion::Cairo1, CairoVersion::Cairo1) => TrackedResource::SierraGas,
-        _ => TrackedResource::CairoSteps,
+    let expected_inner_resource = if expected_outer_resource == inner_version.own_tracked_resource()
+    {
+        expected_outer_resource
+    } else {
+        TrackedResource::CairoSteps
     };
     assert_eq!(execution.inner_calls.first().unwrap().tracked_resource, expected_inner_resource);
 }
@@ -140,37 +149,26 @@ fn test_track_resources(
 /// 1) Cairo-Steps contract that calls Sierra-Gas (nested) contract.
 /// 2) Sierra-Gas contract.
 #[rstest]
-fn test_track_resources_nested(
+fn test_tracked_resources_nested(
     #[values(
-        FeatureContract::TestContract(CairoVersion::Cairo0),
-        FeatureContract::CairoStepsTestContract
+        CompilerBasedVersion::CairoVersion(CairoVersion::Cairo0),
+        CompilerBasedVersion::OldCairo1
     )]
-    cairo_steps_contract: FeatureContract,
+    cairo_steps_contract_version: CompilerBasedVersion,
 ) {
+    let cairo_steps_contract = cairo_steps_contract_version.get_test_contract();
     let sierra_gas_contract = FeatureContract::TestContract(CairoVersion::Cairo1);
     let chain_info = &ChainInfo::create_for_testing();
     let mut state =
         test_state(chain_info, BALANCE, &[(sierra_gas_contract, 1), (cairo_steps_contract, 1)]);
 
-    let first_calldata = create_calldata(
-        cairo_steps_contract.get_instance_address(0),
-        "test_call_contract",
-        &[
-            sierra_gas_contract.get_instance_address(0).into(),
-            selector_from_name("test_storage_read_write").0,
-            felt!(2_u8),    // Calldata length
-            felt!(405_u16), // Calldata: address.
-            felt!(48_u8),   // Calldata: value.
-        ],
-    );
-    let second_calldata = create_calldata(
-        sierra_gas_contract.get_instance_address(0),
-        "test_storage_read_write",
-        &[
-            felt!(406_u16), // Calldata: address.
-            felt!(49_u8),   // Calldata: value.
-        ],
-    );
+    let first_calldata = build_recurse_calldata(&[
+        cairo_steps_contract_version,
+        CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1),
+    ]);
+
+    let second_calldata =
+        build_recurse_calldata(&[CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1)]);
 
     let concated_calldata_felts = [first_calldata.0, second_calldata.0]
         .into_iter()
