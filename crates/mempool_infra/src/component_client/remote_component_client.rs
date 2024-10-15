@@ -98,8 +98,6 @@ where
             IpAddr::V4(ip_address) => format!("http://{}:{}/", ip_address, port).parse().unwrap(),
             IpAddr::V6(ip_address) => format!("http://[{}]:{}/", ip_address, port).parse().unwrap(),
         };
-        // TODO(Tsabary): Add a configuration for the maximum number of idle connections.
-        // TODO(Tsabary): Add a configuration for "keep-alive" time of idle connections.
         let client = Client::builder()
             .http2_only(true)
             .pool_max_idle_per_host(config.idle_connections)
