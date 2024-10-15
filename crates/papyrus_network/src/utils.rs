@@ -1,6 +1,6 @@
 use core::net::Ipv4Addr;
 use std::collections::hash_map::{Keys, ValuesMut};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::hash::Hash;
 use std::pin::Pin;
 use std::task::{Context, Poll, Waker};
@@ -48,23 +48,29 @@ impl<K: Unpin + Clone + Eq + Hash, V: Stream + Unpin> StreamHashMap<K, V> {
 }
 
 impl<K: Unpin + Clone + Eq + Hash, V: Stream + Unpin> Stream for StreamHashMap<K, V> {
-    type Item = (K, <V as Stream>::Item);
+    type Item = (K, Option<<V as Stream>::Item>);
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let unpinned_self = Pin::into_inner(self);
-        let mut finished_streams = HashSet::new();
+        let mut finished_stream: Option<K> = None;
         for (key, stream) in &mut unpinned_self.map {
             match stream.poll_next_unpin(cx) {
                 Poll::Ready(Some(value)) => {
-                    return Poll::Ready(Some((key.clone(), value)));
+                    return Poll::Ready(Some((key.clone(), Some(value))));
                 }
                 Poll::Ready(None) => {
-                    finished_streams.insert(key.clone());
+                    // The channel finished_stream is closed, so we break the loop so we can remove
+                    // it from the map. In this case we return the key and None.
+                    finished_stream = Some(key.clone());
+                    break;
                 }
                 Poll::Pending => {}
             }
         }
-        HashMap::retain(&mut unpinned_self.map, |key, _| !finished_streams.contains(key));
+        if let Some(finished_stream) = finished_stream {
+            HashMap::remove(&mut unpinned_self.map, &finished_stream);
+            return Poll::Ready(Some((finished_stream, None)));
+        }
         unpinned_self.wakers_waiting_for_new_stream.push(cx.waker().clone());
         Poll::Pending
     }
