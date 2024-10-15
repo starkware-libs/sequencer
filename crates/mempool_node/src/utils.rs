@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use starknet_mempool_p2p::sender::EmptyMempoolP2pSenderClient;
+use starknet_mempool_p2p::sender::EmptyMempoolP2pPropagatorClient;
 
 use crate::communication::{create_node_channels, create_node_clients, SequencerNodeClients};
 use crate::components::create_node_components;
@@ -17,7 +17,7 @@ pub fn create_node_modules(
         config,
         &mut channels,
         components,
-        Arc::new(EmptyMempoolP2pSenderClient),
+        Arc::new(EmptyMempoolP2pPropagatorClient),
     );
 
     (clients, servers)

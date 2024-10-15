@@ -22,7 +22,7 @@ use starknet_gateway_types::gateway_types::GatewayInput;
 use starknet_mempool_infra::component_definitions::ComponentStarter;
 use tokio::time::sleep;
 
-use crate::receiver::MempoolP2pReceiver;
+use crate::receiver::MempoolP2pRunner;
 
 // TODO(eitan): Make it an automock
 #[derive(Clone)]
@@ -52,7 +52,7 @@ async fn start_component_receive_tx_happy_flow() {
     let placeholder_network_manager = NetworkManager::new(NetworkConfig::default(), None);
     let (add_tx_sender, mut add_tx_receiver) = futures::channel::mpsc::channel(1);
     let mock_gateway_client = Arc::new(MockGatewayClient { add_tx_sender });
-    let mut mempool_receiver = MempoolP2pReceiver::new(
+    let mut mempool_p2p_runner = MempoolP2pRunner::new(
         Some(placeholder_network_manager),
         broadcasted_messages_receiver,
         broadcast_topic_client,
@@ -68,7 +68,7 @@ async fn start_component_receive_tx_happy_flow() {
 
     res.await.expect("Failed to send message");
     tokio::select! {
-        _ = mempool_receiver.start() => {panic!("Mempool receiver failed to start");}
+        _ = mempool_p2p_runner.start() => {panic!("Mempool receiver failed to start");}
         actual_rpc_transaction = add_tx_receiver.next() => {
             assert_eq!(actual_rpc_transaction, Some(expected_rpc_transaction.0));
         }

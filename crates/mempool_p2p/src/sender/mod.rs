@@ -8,67 +8,67 @@ use papyrus_protobuf::mempool::RpcTransactionWrapper;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_mempool_infra::component_definitions::ComponentRequestHandler;
 use starknet_mempool_p2p_types::communication::{
-    MempoolP2pSenderClient,
-    MempoolP2pSenderClientResult,
-    MempoolP2pSenderRequest,
-    MempoolP2pSenderResponse,
+    MempoolP2pPropagatorClient,
+    MempoolP2pPropagatorClientResult,
+    MempoolP2pPropagatorRequest,
+    MempoolP2pPropagatorResponse,
 };
-use starknet_mempool_p2p_types::errors::MempoolP2pSenderError;
+use starknet_mempool_p2p_types::errors::MempoolP2pPropagatorError;
 
-pub struct MempoolP2pSender {
+pub struct MempoolP2pPropagator {
     broadcast_topic_client: BroadcastTopicClient<RpcTransactionWrapper>,
 }
 
-impl MempoolP2pSender {
+impl MempoolP2pPropagator {
     pub fn new(broadcast_topic_client: BroadcastTopicClient<RpcTransactionWrapper>) -> Self {
         Self { broadcast_topic_client }
     }
 }
 
 #[async_trait]
-impl ComponentRequestHandler<MempoolP2pSenderRequest, MempoolP2pSenderResponse>
-    for MempoolP2pSender
+impl ComponentRequestHandler<MempoolP2pPropagatorRequest, MempoolP2pPropagatorResponse>
+    for MempoolP2pPropagator
 {
     async fn handle_request(
         &mut self,
-        request: MempoolP2pSenderRequest,
-    ) -> MempoolP2pSenderResponse {
+        request: MempoolP2pPropagatorRequest,
+    ) -> MempoolP2pPropagatorResponse {
         match request {
-            MempoolP2pSenderRequest::AddTransaction(transaction) => {
+            MempoolP2pPropagatorRequest::AddTransaction(transaction) => {
                 let result = self
                     .broadcast_topic_client
                     .broadcast_message(RpcTransactionWrapper(transaction))
                     .await
-                    .map_err(|_| MempoolP2pSenderError::NetworkSendError);
-                MempoolP2pSenderResponse::AddTransaction(result)
+                    .map_err(|_| MempoolP2pPropagatorError::NetworkSendError);
+                MempoolP2pPropagatorResponse::AddTransaction(result)
             }
-            MempoolP2pSenderRequest::ContinuePropagation(propagation_manager) => {
+            MempoolP2pPropagatorRequest::ContinuePropagation(propagation_manager) => {
                 let result = self
                     .broadcast_topic_client
                     .continue_propagation(&propagation_manager)
                     .await
-                    .map_err(|_| MempoolP2pSenderError::NetworkSendError);
-                MempoolP2pSenderResponse::ContinuePropagation(result)
+                    .map_err(|_| MempoolP2pPropagatorError::NetworkSendError);
+                MempoolP2pPropagatorResponse::ContinuePropagation(result)
             }
         }
     }
 }
 
-pub struct EmptyMempoolP2pSenderClient;
+pub struct EmptyMempoolP2pPropagatorClient;
 
 #[async_trait]
-impl MempoolP2pSenderClient for EmptyMempoolP2pSenderClient {
+impl MempoolP2pPropagatorClient for EmptyMempoolP2pPropagatorClient {
     async fn add_transaction(
         &self,
         _transaction: RpcTransaction,
-    ) -> MempoolP2pSenderClientResult<()> {
+    ) -> MempoolP2pPropagatorClientResult<()> {
         Ok(())
     }
 
     async fn continue_propagation(
         &self,
         _propagation_manager: BroadcastedMessageMetadata,
-    ) -> MempoolP2pSenderClientResult<()> {
+    ) -> MempoolP2pPropagatorClientResult<()> {
         Ok(())
     }
 }

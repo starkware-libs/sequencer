@@ -16,14 +16,14 @@ use starknet_mempool_infra::component_definitions::ComponentStarter;
 use starknet_mempool_infra::errors::ComponentError;
 use tracing::warn;
 
-pub struct MempoolP2pReceiver {
+pub struct MempoolP2pRunner {
     network_manager: Option<NetworkManager>,
     broadcasted_topic_server: BroadcastTopicServer<RpcTransactionWrapper>,
     broadcast_topic_client: BroadcastTopicClient<RpcTransactionWrapper>,
     gateway_client: SharedGatewayClient,
 }
 
-impl MempoolP2pReceiver {
+impl MempoolP2pRunner {
     pub fn new(
         network_manager: Option<NetworkManager>,
         broadcasted_topic_server: BroadcastTopicServer<RpcTransactionWrapper>,
@@ -35,7 +35,7 @@ impl MempoolP2pReceiver {
 }
 
 #[async_trait]
-impl ComponentStarter for MempoolP2pReceiver {
+impl ComponentStarter for MempoolP2pRunner {
     async fn start(&mut self) -> Result<(), ComponentError> {
         let network_future = self
             .network_manager
@@ -58,10 +58,13 @@ impl ComponentStarter for MempoolP2pReceiver {
                             // TODO(eitan): Add message metadata.
                             // TODO(eitan): make this call non blocking by adding this future to a
                             // FuturesUnordered that will be polled in the select.
-                            match self.gateway_client.add_tx(GatewayInput { rpc_tx: message.0, message_metadata: None }).await {
+                            match self.gateway_client.add_tx(
+                                GatewayInput { rpc_tx: message.0, message_metadata: None }
+                            ).await {
                                 Ok(_tx_hash) => {}
                                 Err(e) => {
-                                    warn!("Failed to forward transaction from p2p receiver to gateway: {:?}", e);
+                                    warn!(
+                                        "Failed to forward transaction from MempoolP2pRunner to gateway: {:?}", e);
                                     if let Err(e) = self.broadcast_topic_client.report_peer(broadcasted_message_manager).await {
                                         warn!("Failed to report peer: {:?}", e);
                                     }
