@@ -7,6 +7,7 @@ pub mod initial_test_state;
 pub mod invoke;
 pub mod prices;
 pub mod struct_impls;
+pub mod syscall;
 pub mod transfers_generator;
 use std::collections::HashMap;
 use std::fs;
@@ -30,6 +31,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::abi::abi_utils::{get_fee_token_var_address, selector_from_name};
 use crate::execution::call_info::ExecutionSummary;
+use crate::execution::contract_class::TrackedResource;
 use crate::execution::deprecated_syscalls::hint_processor::SyscallCounter;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::execution::syscalls::SyscallSelector;
@@ -86,6 +88,32 @@ impl CairoVersion {
         match self {
             Self::Cairo0 => Self::Cairo1,
             Self::Cairo1 => Self::Cairo0,
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum CompilerBasedVersion {
+    CairoVersion(CairoVersion),
+    OldCairo1,
+}
+
+impl CompilerBasedVersion {
+    pub fn get_test_contract(&self) -> FeatureContract {
+        match self {
+            Self::CairoVersion(version) => FeatureContract::TestContract(*version),
+            Self::OldCairo1 => FeatureContract::CairoStepsTestContract,
+        }
+    }
+
+    /// Returns the tracked resource for a contract execution with the current version, assuming no
+    /// calls were made to other contracts prior to this execution.
+    pub fn own_tracked_resource(&self) -> TrackedResource {
+        match self {
+            Self::CairoVersion(CairoVersion::Cairo0) | Self::OldCairo1 => {
+                TrackedResource::CairoSteps
+            }
+            Self::CairoVersion(CairoVersion::Cairo1) => TrackedResource::SierraGas,
         }
     }
 }
