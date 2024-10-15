@@ -24,7 +24,7 @@ use test_case::test_case;
 
 use crate::abi::abi_utils::selector_from_name;
 use crate::context::ChainInfo;
-use crate::execution::call_info::{CallExecution, CallInfo, OrderedEvent, Retdata};
+use crate::execution::call_info::{CallExecution, CallInfo, OrderedEvent};
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::deprecated_syscalls::DeprecatedSyscallSelector;
 use crate::execution::entry_point::{CallEntryPoint, CallType};
