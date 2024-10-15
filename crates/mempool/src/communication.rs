@@ -3,7 +3,7 @@ use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use starknet_api::executable_transaction::Transaction;
 use starknet_mempool_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
 use starknet_mempool_infra::component_server::LocalComponentServer;
-use starknet_mempool_p2p_types::communication::SharedMempoolP2pSenderClient;
+use starknet_mempool_p2p_types::communication::SharedMempoolP2pPropagatorClient;
 use starknet_mempool_types::communication::{
     AddTransactionArgsWrapper,
     MempoolRequest,
@@ -22,22 +22,25 @@ pub type LocalMempoolServer =
 pub fn create_mempool_server(
     mempool: Mempool,
     rx_mempool: Receiver<MempoolRequestAndResponseSender>,
-    mempool_p2p_sender_client: SharedMempoolP2pSenderClient,
+    mempool_p2p_propagator_client: SharedMempoolP2pPropagatorClient,
 ) -> LocalMempoolServer {
     let communication_wrapper =
-        MempoolCommunicationWrapper::new(mempool, mempool_p2p_sender_client);
+        MempoolCommunicationWrapper::new(mempool, mempool_p2p_propagator_client);
     LocalComponentServer::new(communication_wrapper, rx_mempool)
 }
 
 /// Wraps the mempool to enable inbound async communication from other components.
 pub struct MempoolCommunicationWrapper {
     mempool: Mempool,
-    mempool_p2p_sender_client: SharedMempoolP2pSenderClient,
+    mempool_p2p_propagator_client: SharedMempoolP2pPropagatorClient,
 }
 
 impl MempoolCommunicationWrapper {
-    pub fn new(mempool: Mempool, mempool_p2p_sender_client: SharedMempoolP2pSenderClient) -> Self {
-        MempoolCommunicationWrapper { mempool, mempool_p2p_sender_client }
+    pub fn new(
+        mempool: Mempool,
+        mempool_p2p_propagator_client: SharedMempoolP2pPropagatorClient,
+    ) -> Self {
+        MempoolCommunicationWrapper { mempool, mempool_p2p_propagator_client }
     }
 
     async fn send_tx_to_p2p(
@@ -47,12 +50,12 @@ impl MempoolCommunicationWrapper {
     ) -> Result<(), MempoolError> {
         match message_metadata {
             Some(message_metadata) => self
-                .mempool_p2p_sender_client
+                .mempool_p2p_propagator_client
                 .continue_propagation(message_metadata)
                 .await
-                .map_err(|_| MempoolError::P2pSenderClientError { tx_hash: tx.tx_hash() }),
+                .map_err(|_| MempoolError::P2pPropagatorClientError { tx_hash: tx.tx_hash() }),
             None => {
-                self.mempool_p2p_sender_client.add_transaction(tx.into()).await.unwrap();
+                self.mempool_p2p_propagator_client.add_transaction(tx.into()).await.unwrap();
                 Ok(())
             }
         }

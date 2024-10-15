@@ -1,3 +1,3 @@
-use crate::errors::MempoolP2pSenderError;
+use crate::errors::MempoolP2pPropagatorError;
 
-pub type MempoolP2pSenderResult<T> = Result<T, MempoolP2pSenderError>;
+pub type MempoolP2pPropagatorResult<T> = Result<T, MempoolP2pPropagatorError>;

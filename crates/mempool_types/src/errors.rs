@@ -15,5 +15,5 @@ pub enum MempoolError {
     #[error("Out of range.")]
     FeltOutOfRange,
     #[error("Transaction with hash: {tx_hash} could not be sent using p2p client.")]
-    P2pSenderClientError { tx_hash: TransactionHash },
+    P2pPropagatorClientError { tx_hash: TransactionHash },
 }

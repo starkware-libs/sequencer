@@ -10,10 +10,10 @@ use papyrus_protobuf::mempool::RpcTransactionWrapper;
 use papyrus_test_utils::{get_rng, GetTestInstance};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_mempool_infra::component_definitions::ComponentRequestHandler;
-use starknet_mempool_p2p_types::communication::MempoolP2pSenderRequest;
+use starknet_mempool_p2p_types::communication::MempoolP2pPropagatorRequest;
 use tokio::time::timeout;
 
-use crate::sender::MempoolP2pSender;
+use crate::sender::MempoolP2pPropagator;
 
 const TIMEOUT: std::time::Duration = std::time::Duration::from_secs(1);
 
@@ -25,9 +25,9 @@ async fn process_handle_add_tx() {
         subscriber_channels;
     let BroadcastNetworkMock { mut messages_to_broadcast_receiver, .. } = mock_network;
     let rpc_transaction = RpcTransaction::get_test_instance(&mut get_rng());
-    let mut mempool_sender = MempoolP2pSender::new(broadcast_topic_client);
-    mempool_sender
-        .handle_request(MempoolP2pSenderRequest::AddTransaction(rpc_transaction.clone()))
+    let mut mempool_p2p_propagator = MempoolP2pPropagator::new(broadcast_topic_client);
+    mempool_p2p_propagator
+        .handle_request(MempoolP2pPropagatorRequest::AddTransaction(rpc_transaction.clone()))
         .await;
     let message = timeout(TIMEOUT, messages_to_broadcast_receiver.next()).await.unwrap().unwrap();
     assert_eq!(message, RpcTransactionWrapper(rpc_transaction));
@@ -41,9 +41,11 @@ async fn process_handle_continue_propagation() {
         subscriber_channels;
     let BroadcastNetworkMock { mut continue_propagation_receiver, .. } = mock_network;
     let propagation_metadata = BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
-    let mut mempool_sender = MempoolP2pSender::new(broadcast_topic_client);
-    mempool_sender
-        .handle_request(MempoolP2pSenderRequest::ContinuePropagation(propagation_metadata.clone()))
+    let mut mempool_p2p_propagator = MempoolP2pPropagator::new(broadcast_topic_client);
+    mempool_p2p_propagator
+        .handle_request(MempoolP2pPropagatorRequest::ContinuePropagation(
+            propagation_metadata.clone(),
+        ))
         .await;
     let message = timeout(TIMEOUT, continue_propagation_receiver.next()).await.unwrap().unwrap();
     assert_eq!(message, propagation_metadata);
