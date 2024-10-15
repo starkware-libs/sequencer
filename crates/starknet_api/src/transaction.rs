@@ -969,6 +969,7 @@ pub struct EventIndexInTransactionOutput(pub usize);
     PartialOrd,
     Serialize,
     derive_more::Deref,
+    derive_more::Display,
 )]
 #[serde(from = "PrefixedBytesAsHex<8_usize>", into = "PrefixedBytesAsHex<8_usize>")]
 pub struct Tip(pub u64);
