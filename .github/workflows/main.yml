@@ -25,7 +25,7 @@ jobs:
   code_style:
     runs-on: starkware-ubuntu-20-04-medium
     steps:
-      # Enviorment setup.
+      # Environment setup.
       - uses: actions/checkout@v4
       - uses: baptiste0928/cargo-install@v3
         with:
@@ -47,7 +47,7 @@ jobs:
       - uses: ./.github/actions/bootstrap
 
       # Run tests.
-      - name: "Run rustfmt and clippy"
+      - name: "Run rustfmt"
         run: scripts/rust_fmt.sh --check
       - name: "Run clippy"
         run: scripts/clippy.sh
