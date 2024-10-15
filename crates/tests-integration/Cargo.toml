@@ -14,6 +14,7 @@ assert_matches.workspace = true
 axum.workspace = true
 blockifier.workspace = true
 cairo-lang-starknet-classes.workspace = true
+chrono.workspace = true
 indexmap.workspace = true
 mempool_test_utils.workspace = true
 papyrus_common.workspace = true
