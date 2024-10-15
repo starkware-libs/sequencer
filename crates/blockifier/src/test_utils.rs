@@ -7,6 +7,7 @@ pub mod initial_test_state;
 pub mod invoke;
 pub mod prices;
 pub mod struct_impls;
+pub mod syscall;
 pub mod transfers_generator;
 use std::collections::HashMap;
 use std::fs;
@@ -90,6 +91,24 @@ impl CairoVersion {
     }
 }
 
+pub enum CompilerBasedVersion {
+    CairoVersion(CairoVersion),
+    OldCairo1,
+}
+
+impl From<CairoVersion> for CompilerBasedVersion {
+    fn from(version: CairoVersion) -> Self {
+        Self::CairoVersion(version)
+    }
+}
+impl CompilerBasedVersion {
+    pub fn get_test_contract(&self) -> FeatureContract {
+        match self {
+            Self::CairoVersion(version) => FeatureContract::TestContract(*version),
+            Self::OldCairo1 => FeatureContract::CairoStepsTestContract,
+        }
+    }
+}
 // Storage keys.
 pub fn test_erc20_sequencer_balance_key() -> StorageKey {
     get_fee_token_var_address(contract_address!(TEST_SEQUENCER_ADDRESS))
