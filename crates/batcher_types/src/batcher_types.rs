@@ -2,7 +2,6 @@ use std::fmt::Debug;
 
 use blockifier::blockifier::block::BlockNumberHashPair;
 use chrono::prelude::*;
-use derive_more::Display;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::StateDiffCommitment;
@@ -22,7 +21,7 @@ use crate::errors::BatcherError;
     PartialOrd,
     Ord,
     Default,
-    Display,
+    derive_more::Display,
     Hash,
 )]
 pub struct ProposalId(pub u64);

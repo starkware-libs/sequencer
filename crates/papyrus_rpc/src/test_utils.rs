@@ -1,7 +1,6 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use derive_more::Display;
 use jsonrpsee::core::RpcResult;
 use jsonrpsee::server::RpcModule;
 use jsonrpsee::types::ErrorObjectOwned;
@@ -137,7 +136,7 @@ pub fn validate_schema(schema: &JSONSchema, result: &Value) -> bool {
     result != &Value::Null && schema.is_valid(result)
 }
 
-#[derive(Clone, Copy, Display, EnumIter)]
+#[derive(Clone, Copy, derive_more::Display, EnumIter)]
 pub enum SpecFile {
     #[display(fmt = "starknet_api_openrpc.json")]
     StarknetApiOpenrpc,
