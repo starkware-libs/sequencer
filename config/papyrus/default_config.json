@@ -92,7 +92,7 @@
   "consensus.num_validators": {
     "description": "The number of validators in the consensus.",
     "privacy": "Public",
-    "value": 4
+    "value": 1
   },
   "consensus.start_height": {
     "description": "The height to start the consensus from.",
@@ -115,9 +115,9 @@
     "value": 3.0
   },
   "consensus.validator_id": {
-    "description": "A required param! The validator id of the node.",
-    "param_type": "String",
-    "privacy": "Public"
+    "description": "The validator id of the node.",
+    "privacy": "Public",
+    "value": "0x0"
   },
   "monitoring_gateway.collect_metrics": {
     "description": "If true, collect and return metrics in the monitoring gateway.",
