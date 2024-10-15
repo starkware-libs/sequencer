@@ -28,9 +28,9 @@ use crate::test_utils::{
     DEFAULT_ETH_L1_DATA_GAS_PRICE,
     DEFAULT_ETH_L1_GAS_PRICE,
     DEFAULT_L1_DATA_GAS_MAX_AMOUNT,
+    DEFAULT_L1_GAS_AMOUNT,
     DEFAULT_L2_GAS_MAX_AMOUNT,
     DEFAULT_STRK_L1_GAS_PRICE,
-    MAX_L1_GAS_AMOUNT,
 };
 use crate::transaction::objects::FeeType;
 use crate::transaction::test_utils::{
@@ -237,25 +237,25 @@ fn test_discounted_gas_overdraft(
 /// resource. If the gas used exceeds the limit, the post-execution validation should fail.
 #[rstest]
 #[case::l1_bound_overdraft(
-    (2 * MAX_L1_GAS_AMOUNT.0).into(),
+    (2 * DEFAULT_L1_GAS_AMOUNT.0).into(),
     DEFAULT_L2_GAS_MAX_AMOUNT,
     DEFAULT_L1_DATA_GAS_MAX_AMOUNT,
     Some(Resource::L1Gas)
 )]
 #[case::l2_bound_overdraft(
-    MAX_L1_GAS_AMOUNT,
+    DEFAULT_L1_GAS_AMOUNT,
     (2 * DEFAULT_L2_GAS_MAX_AMOUNT.0).into(),
     DEFAULT_L1_DATA_GAS_MAX_AMOUNT,
     Some(Resource::L2Gas)
 )]
 #[case::l1_data_bound_overdraft(
-    MAX_L1_GAS_AMOUNT,
+    DEFAULT_L1_GAS_AMOUNT,
     DEFAULT_L2_GAS_MAX_AMOUNT,
     (2 * DEFAULT_L1_DATA_GAS_MAX_AMOUNT.0).into(),
     Some(Resource::L1DataGas)
 )]
 #[case::no_overdraft(
-    (MAX_L1_GAS_AMOUNT.0 / 2).into(),
+    (DEFAULT_L1_GAS_AMOUNT.0 / 2).into(),
     (DEFAULT_L2_GAS_MAX_AMOUNT.0 / 2).into(),
     (DEFAULT_L1_DATA_GAS_MAX_AMOUNT.0 / 2).into(),
     None
