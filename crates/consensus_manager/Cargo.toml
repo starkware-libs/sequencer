@@ -21,7 +21,6 @@ papyrus_network_types.workspace = true
 papyrus_protobuf.workspace = true
 serde.workspace = true
 starknet_batcher_types.workspace = true
-starknet_consensus_manager_types.workspace = true
 starknet_mempool_infra.workspace = true
 tracing.workspace = true
 validator.workspace = true
