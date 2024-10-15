@@ -5,7 +5,7 @@ This tool allows you to dump the entire `declared_classes` table from Papyrus st
 ## Instructions
 
 1. **Run a Docker**
-   Please refer to the main [README](../../../../README.adoc#running-papyrus-with-docker) for instructions.
+   Please refer to the main [README](https://github.com/starkware-libs/sequencer/tree/main/docs/papyrus#running-papyrus-with-docker) for instructions.
 
    Note: use a released Docker image
 
