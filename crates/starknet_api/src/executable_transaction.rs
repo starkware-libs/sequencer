@@ -3,9 +3,15 @@ use serde::{Deserialize, Serialize};
 use crate::contract_class::ClassInfo;
 use crate::core::{calculate_contract_address, ChainId, ClassHash, ContractAddress, Nonce};
 use crate::data_availability::DataAvailabilityMode;
-use crate::rpc_transaction::{RpcDeployAccountTransaction, RpcInvokeTransaction, RpcTransaction};
+use crate::rpc_transaction::{
+    RpcDeployAccountTransaction,
+    RpcInvokeTransaction,
+    RpcInvokeTransactionV3,
+    RpcTransaction,
+};
 use crate::transaction::{
     AccountDeploymentData,
+    AllResourceBounds,
     Calldata,
     ContractAddressSalt,
     PaymasterData,
@@ -131,6 +137,29 @@ impl Transaction {
             ),
             tx_hash,
         })
+    }
+}
+
+// TODO: replace with proper implementation.
+impl From<Transaction> for RpcTransaction {
+    fn from(tx: Transaction) -> Self {
+        Self::Invoke(RpcInvokeTransaction::V3(RpcInvokeTransactionV3 {
+            sender_address: tx.contract_address(),
+            tip: tx.tip().unwrap_or_default(),
+            nonce: Nonce::default(),
+            resource_bounds: match tx.resource_bounds() {
+                Some(ValidResourceBounds::AllResources(all_resource_bounds)) => {
+                    *all_resource_bounds
+                }
+                _ => AllResourceBounds::default(),
+            },
+            signature: TransactionSignature::default(),
+            calldata: Calldata::default(),
+            nonce_data_availability_mode: DataAvailabilityMode::L1,
+            fee_data_availability_mode: DataAvailabilityMode::L1,
+            paymaster_data: PaymasterData::default(),
+            account_deployment_data: AccountDeploymentData::default(),
+        }))
     }
 }
 

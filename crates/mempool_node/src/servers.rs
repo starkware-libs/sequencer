@@ -12,6 +12,7 @@ use starknet_http_server::communication::{create_http_server, HttpServer};
 use starknet_mempool::communication::{create_mempool_server, LocalMempoolServer};
 use starknet_mempool_infra::component_server::ComponentServerStarter;
 use starknet_mempool_infra::errors::ComponentServerError;
+use starknet_mempool_p2p_types::communication::SharedMempoolP2pSenderClient;
 use tracing::error;
 
 use crate::communication::SequencerNodeCommunication;
@@ -41,6 +42,7 @@ pub fn create_node_servers(
     config: &SequencerNodeConfig,
     communication: &mut SequencerNodeCommunication,
     components: SequencerNodeComponents,
+    mempool_p2p_sender_client: SharedMempoolP2pSenderClient,
 ) -> SequencerNodeServers {
     let batcher_server = if config.components.batcher.execute {
         Some(Box::new(create_local_batcher_server(
@@ -76,6 +78,7 @@ pub fn create_node_servers(
         Some(Box::new(create_mempool_server(
             components.mempool.expect("Mempool is not initialized."),
             communication.take_mempool_rx(),
+            mempool_p2p_sender_client,
         )))
     } else {
         None
