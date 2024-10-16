@@ -2233,8 +2233,7 @@ dependencies = [
 [[package]]
 name = "cairo-native"
 version = "0.2.0-alpha.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dde4be6d8ba366c1adc51d0ad728907bac1cffa4f7d2c9c442d4d4f3734565bc"
+source = "git+https://github.com/NethermindEth/cairo_native?branch=rdr/resolve-runtime-library-path-2.8.2#bae24e846ed5d5d156e0c0916a6a66654f6e036f"
 dependencies = [
  "anyhow",
  "aquamarine",
@@ -2286,8 +2285,7 @@ dependencies = [
 [[package]]
 name = "cairo-native-runtime"
 version = "0.2.0-alpha.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f61fd24fe792b11ded659bc1868cec3e5e47bd7fc01e0e8f75f3a71c24c74a34"
+source = "git+https://github.com/NethermindEth/cairo_native?branch=rdr/resolve-runtime-library-path-2.8.2#bae24e846ed5d5d156e0c0916a6a66654f6e036f"
 dependencies = [
  "cairo-lang-sierra-gas",
  "itertools 0.13.0",
