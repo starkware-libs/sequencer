@@ -107,7 +107,7 @@ jobs:
           SEED: 0
 
   codecov:
-    runs-on: starkware-ubuntu-latest-medium
+    runs-on: starkware-ubuntu-latest-large
     steps:
       - uses: actions/checkout@v4
         with:
