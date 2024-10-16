@@ -7,6 +7,7 @@ use blockifier::execution::contract_class::ContractClass as BlockifierContractCl
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff};
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader, StateResult};
+use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use blockifier::versioned_constants::VersionedConstants;
 use serde_json::{json, to_value};
 use starknet_api::block::{BlockNumber, StarknetVersion};
@@ -30,6 +31,7 @@ use crate::state_reader::serde_utils::{
 };
 use crate::state_reader::utils::{
     disjoint_hashmap_union,
+    from_api_txs_to_blockifier_txs,
     get_chain_info,
     get_rpc_state_reader_config,
 };
@@ -257,5 +259,13 @@ impl ConsecutiveTestStateReaders {
             self.next_block_state_reader.get_block_context()?,
             transaction_executor_config,
         )
+    }
+
+    pub fn get_next_block_txs(&self) -> ReexecutionResult<Vec<BlockifierTransaction>> {
+        from_api_txs_to_blockifier_txs(self.next_block_state_reader.get_all_txs_in_block()?)
+    }
+
+    pub fn get_next_block_state_diff(&self) -> ReexecutionResult<CommitmentStateDiff> {
+        self.next_block_state_reader.get_state_diff()
     }
 }
