@@ -1,6 +1,4 @@
-use cairo_lang_sierra::ids::FunctionId;
 use cairo_native::execution_result::ContractExecutionResult;
-use cairo_native::executor::AotNativeExecutor;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use num_traits::ToPrimitive;
 
@@ -13,7 +11,6 @@ use crate::execution::entry_point::{
 };
 use crate::execution::errors::{EntryPointExecutionError, PostExecutionError};
 use crate::execution::native::syscall_handler::NativeSyscallHandler;
-use crate::execution::native::utils::decode_felts_as_str;
 use crate::state::state_api::State;
 
 pub fn execute_entry_point_call(
@@ -25,7 +22,7 @@ pub fn execute_entry_point_call(
 ) -> EntryPointExecutionResult<CallInfo> {
     let function_id = contract_class.get_entry_point(&call)?;
 
-    let syscall_handler: NativeSyscallHandler<'_> = NativeSyscallHandler::new(
+    let mut syscall_handler: NativeSyscallHandler<'_> = NativeSyscallHandler::new(
         state,
         call.caller_address,
         call.storage_address,
@@ -34,16 +31,7 @@ pub fn execute_entry_point_call(
         context,
     );
 
-    run_native_executor(&contract_class.executor, function_id, call, syscall_handler)
-}
-
-fn run_native_executor(
-    native_executor: &AotNativeExecutor,
-    function_id: FunctionId,
-    call: CallEntryPoint,
-    mut syscall_handler: NativeSyscallHandler<'_>,
-) -> EntryPointExecutionResult<CallInfo> {
-    let execution_result = native_executor.invoke_contract_dynamic(
+    let execution_result = contract_class.executor.invoke_contract_dynamic(
         &function_id,
         &call.calldata.0,
         Some(call.initial_gas.into()),
@@ -52,13 +40,12 @@ fn run_native_executor(
 
     let call_result = match execution_result {
         Err(runner_err) => Err(EntryPointExecutionError::NativeUnexpectedError(runner_err)),
-        Ok(res) if res.failure_flag => Err(EntryPointExecutionError::NativeExecutionError {
-            info: if !res.return_values.is_empty() {
-                decode_felts_as_str(&res.return_values)
-            } else {
-                String::from("Unknown error")
-            },
-        }),
+        Ok(res)
+            if res.failure_flag
+                && !syscall_handler.context.versioned_constants().enable_reverts =>
+        {
+            Err(EntryPointExecutionError::ExecutionFailed { error_data: res.return_values })
+        }
         Ok(res) => Ok(res),
     }?;
 
@@ -70,17 +57,24 @@ fn create_callinfo(
     call_result: ContractExecutionResult,
     syscall_handler: NativeSyscallHandler<'_>,
 ) -> Result<CallInfo, EntryPointExecutionError> {
-    // todo(rodro): Even if the property is called `remaining_gas` it behaves like gas used.
-    // Update once gas works on Native side has been completed (or at least this part)
-    let gas_used =
+    let remaining_gas =
         call_result.remaining_gas.to_u64().ok_or(PostExecutionError::MalformedReturnData {
             error_message: format!(
-                "Unexpected remaining gas (bigger than u64): {}",
+                "Unexpected remaining gas. Gas value is bigger than u64: {}",
                 call_result.remaining_gas
             ),
         })?;
+    if remaining_gas > call.initial_gas {
+        return Err(PostExecutionError::MalformedReturnData {
+            error_message: format!(
+                "Unexpected remaining gas. Used gas is greater than initial gas: {} > {}",
+                remaining_gas, call.initial_gas
+            ),
+        }
+        .into());
+    }
 
-    let gas_consumed = call.initial_gas - gas_used;
+    let gas_consumed = call.initial_gas - remaining_gas;
 
     Ok(CallInfo {
         call,
