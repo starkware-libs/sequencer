@@ -4,9 +4,9 @@ use pretty_assertions::assert_eq;
 use starknet_api::core::EntryPointSelector;
 use starknet_types_core::felt::Felt;
 
+use crate::execution::execution_utils::format_panic_data;
 use crate::execution::native::utils::{
     contract_entrypoint_to_entrypoint_selector,
-    decode_felts_as_str,
     encode_str_as_felts,
 };
 
@@ -22,23 +22,33 @@ fn test_contract_entrypoint_to_entrypoint_selector() {
 }
 
 #[test]
-fn test_encode_decode_str() {
-    const STR: &str = "normal utf8 string:";
+fn test_encode_small_str() {
+    const STR: &str = "I fit in a felt :)";
 
     let encoded_felt_array = encode_str_as_felts(STR);
 
-    let decoded_felt_array = decode_felts_as_str(encoded_felt_array.as_slice());
+    let decoded_felt_array = format_panic_data(&encoded_felt_array);
 
-    assert_eq!(&decoded_felt_array, STR);
+    assert_eq!(
+        &decoded_felt_array,
+        "0x492066697420696e20612066656c74203a2900000000000000000000000000 ('I fit in a felt :)')"
+    );
 }
 
 #[test]
-fn test_decode_non_utf8_str() {
-    let v1 = Felt::from_dec_str("1234").unwrap();
-    let v2_msg = "i am utf8";
-    let v2 = Felt::from_bytes_be_slice(v2_msg.as_bytes());
-    let v3 = Felt::from_dec_str("13299428").unwrap();
-    let felts = [v1, v2, v3];
+fn test_encode_large_str() {
+    const STR: &str =
+        "Three sad tigers ate wheat. Two tigers were full. The other tiger not so much";
 
-    assert_eq!(decode_felts_as_str(&felts), format!("[{}, {} ({}), {}]", v1, v2_msg, v2, v3))
+    let encoded_felt_array = encode_str_as_felts(STR);
+
+    let decoded_felt_array = format_panic_data(&encoded_felt_array);
+
+    assert_eq!(
+        &decoded_felt_array,
+        "(0x54687265652073616420746967657273206174652077686561742e2054776f ('Three sad tigers ate \
+         wheat. Two'), 0x2074696765727320776572652066756c6c2e20546865206f74686572207469 (' tigers \
+         were full. The other ti'), \
+         0x676572206e6f7420736f206d75636800000000000000000000000000000000 ('ger not so much'))"
+    );
 }
