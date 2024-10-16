@@ -5,6 +5,7 @@ use starknet_api::core::EntryPointSelector;
 use starknet_api::execution_utils::format_panic_data;
 use starknet_types_core::felt::Felt;
 
+use crate::execution::execution_utils::format_panic_data;
 use crate::execution::native::utils::{
     contract_entrypoint_to_entrypoint_selector,
     encode_str_as_felts,
