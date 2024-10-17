@@ -75,6 +75,18 @@ impl Default for CairoVersion {
     }
 }
 
+impl From<isize> for CairoVersion {
+    fn from(value: isize) -> Self {
+        match value {
+            0 => Self::Cairo0,
+            1 => Self::Cairo1,
+            #[cfg(feature = "cairo_native")]
+            2 => Self::Native,
+            _ => panic!("Invalid value for CairoVersion: {}", value),
+        }
+    }
+}
+
 impl CairoVersion {
     // A declare transaction of the given version, can be used to declare contracts of the returned
     // cairo version.
@@ -333,7 +345,7 @@ macro_rules! check_tx_execution_error_for_invalid_scenario {
                     $validate_constructor,
                 );
             }
-            CairoVersion::Cairo1  => {
+            CairoVersion::Cairo1 => {
                 if let $crate::transaction::errors::TransactionExecutionError::ValidateTransactionError {
                     error, ..
                 } = $error {
@@ -345,7 +357,7 @@ macro_rules! check_tx_execution_error_for_invalid_scenario {
                 }
             }
             #[cfg(feature = "cairo_native")]
-            CairoVersion::Native   => {
+            CairoVersion::Native => {
                 if let $crate::transaction::errors::TransactionExecutionError::ValidateTransactionError {
                     error, ..
                 } = $error {
