@@ -201,6 +201,17 @@ fn verify_cairo0_compiler_deps() {
     );
 }
 
+// Lock to prevent concurrent git operations that create a git index.lock file.
+// If removed some tests will fail i.e. feature contract tests with following error:
+// """
+// Another git process seems to be running in this repository, e.g.
+// an editor opened by 'git commit'. Please make sure all processes
+// are terminated then try again. If it still fails, a git process
+// may have crashed in this repository earlier:
+// remove the file manually to continue.
+// """
+static GIT_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 fn prepare_cairo1_compiler_deps(git_tag_override: Option<String>) {
     let cairo_repo_path = local_cairo1_compiler_repo_path();
     let tag = git_tag_override.unwrap_or(cairo1_compiler_tag());
@@ -212,6 +223,8 @@ fn prepare_cairo1_compiler_deps(git_tag_override: Option<String>) {
         git clone https://github.com/starkware-libs/cairo {0}\nThen rerun the test.",
         cairo_repo_path.to_string_lossy(),
     );
+
+    let _lock = GIT_LOCK.lock().unwrap();
 
     // Checkout the required version in the compiler repo.
     run_and_verify_output(Command::new("git").args([
