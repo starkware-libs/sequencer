@@ -9,7 +9,10 @@ use crate::fee::gas_usage::compute_discounted_gas_from_gas_vector;
 use crate::state::state_api::StateReader;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::{
-    FeeType, GasVector, TransactionExecutionResult, TransactionInfo,
+    FeeType,
+    GasVector,
+    TransactionExecutionResult,
+    TransactionInfo,
 };
 
 #[derive(Clone, Copy, Debug, Error)]

@@ -14,7 +14,7 @@ use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, BALANCE};
 
-#[test_case(FeatureContract::TestContract(CairoVersion::Native), 27290; "Native")]
+#[test_case(FeatureContract::TestContract(CairoVersion::Native), 25920; "Native")]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), REQUIRED_GAS_STORAGE_READ_WRITE_TEST; "VM"
 )]
 fn test_storage_read_write(test_contract: FeatureContract, expected_gas: u64) {

@@ -4,7 +4,10 @@ use std::num::NonZeroU128;
 use pretty_assertions::assert_eq;
 
 use crate::utils::{
-    strict_subtract_mappings, subtract_mappings, u128_div_ceil, STRICT_SUBTRACT_MAPPING_ERROR,
+    strict_subtract_mappings,
+    subtract_mappings,
+    u128_div_ceil,
+    STRICT_SUBTRACT_MAPPING_ERROR,
 };
 
 #[test]

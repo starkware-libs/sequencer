@@ -9,8 +9,12 @@ use starknet_api::{contract_address, felt, patricia_key};
 use starknet_types_core::felt::Felt;
 
 use super::{
-    big4int_to_u256, contract_address_to_native_felt, contract_entrypoint_to_entrypoint_selector,
-    decode_felts_as_str, encode_str_as_felts, u256_to_biguint,
+    big4int_to_u256,
+    contract_address_to_native_felt,
+    contract_entrypoint_to_entrypoint_selector,
+    decode_felts_as_str,
+    encode_str_as_felts,
+    u256_to_biguint,
 };
 
 #[test]

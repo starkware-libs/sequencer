@@ -5,38 +5,65 @@ use std::sync::Arc;
 
 use ark_ec::short_weierstrass::{Affine, Projective, SWCurveConfig};
 use cairo_native::starknet::{
-    BlockInfo, ExecutionInfo, ExecutionInfoV2, Secp256k1Point, Secp256r1Point,
-    StarknetSyscallHandler, SyscallResult, TxInfo, TxV2Info, U256,
+    BlockInfo,
+    ExecutionInfo,
+    ExecutionInfoV2,
+    Secp256k1Point,
+    Secp256r1Point,
+    StarknetSyscallHandler,
+    SyscallResult,
+    TxInfo,
+    TxV2Info,
+    U256,
 };
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use num_traits::{ToPrimitive, Zero};
 use starknet_api::core::{
-    calculate_contract_address, ClassHash, ContractAddress, EntryPointSelector, EthAddress,
+    calculate_contract_address,
+    ClassHash,
+    ContractAddress,
+    EntryPointSelector,
+    EthAddress,
     PatriciaKey,
 };
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{
-    Calldata, ContractAddressSalt, EventContent, EventData, EventKey, L2ToL1Payload,
+    Calldata,
+    ContractAddressSalt,
+    EventContent,
+    EventData,
+    EventKey,
+    L2ToL1Payload,
 };
 use starknet_types_core::felt::Felt;
 
 use super::utils::{
-    big4int_to_u256, calculate_resource_bounds, contract_address_to_native_felt,
-    default_tx_v2_info, encode_str_as_felts, u256_to_biguint,
+    big4int_to_u256,
+    calculate_resource_bounds,
+    contract_address_to_native_felt,
+    default_tx_v2_info,
+    encode_str_as_felts,
+    u256_to_biguint,
 };
 use crate::abi::constants;
 use crate::execution::call_info::{CallInfo, MessageToL1, OrderedEvent, OrderedL2ToL1Message};
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::contract_class::ContractClass;
 use crate::execution::entry_point::{
-    CallEntryPoint, CallType, ConstructorContext, EntryPointExecutionContext,
+    CallEntryPoint,
+    CallType,
+    ConstructorContext,
+    EntryPointExecutionContext,
 };
 use crate::execution::execution_utils::{execute_deployment, max_fee_for_execution_info};
 use crate::execution::syscalls::hint_processor::{
-    SyscallCounter, SyscallExecutionError, BLOCK_NUMBER_OUT_OF_RANGE_ERROR,
-    INVALID_INPUT_LENGTH_ERROR, OUT_OF_GAS_ERROR,
+    SyscallCounter,
+    SyscallExecutionError,
+    BLOCK_NUMBER_OUT_OF_RANGE_ERROR,
+    INVALID_INPUT_LENGTH_ERROR,
+    OUT_OF_GAS_ERROR,
 };
 use crate::execution::syscalls::{exceeds_event_size_limit, SyscallSelector};
 use crate::state::state_api::State;
@@ -848,10 +875,10 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
 
     fn sha256_process_block(
         &mut self,
-        prev_state: &[u32; 8],
+        prev_state: &mut [u32; 8],
         current_block: &[u32; 16],
         remaining_gas: &mut u128,
-    ) -> SyscallResult<[u32; 8]> {
+    ) -> SyscallResult<()> {
         const SHA256_STATE_SIZE: usize = 8;
 
         self.pre_execute_syscall(
@@ -868,7 +895,796 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
         );
         let mut state: [u32; SHA256_STATE_SIZE] = *prev_state;
         sha2::compress256(&mut state, &[data_as_bytes]);
-        Ok(state)
+        Ok(())
+    }
+}
+
+pub mod sierra_emu_impl {
+    use std::sync::Arc;
+
+    use num_traits::ToPrimitive;
+    use sierra_emu::starknet::{
+        BlockInfo,
+        ExecutionInfo,
+        ExecutionInfoV2,
+        ResourceBounds,
+        Secp256k1Point,
+        Secp256r1Point,
+        SyscallResult,
+        TxInfo,
+        TxV2Info,
+        U256,
+    };
+    use starknet_api::core::{
+        calculate_contract_address,
+        ClassHash,
+        ContractAddress,
+        EntryPointSelector,
+        EthAddress,
+        PatriciaKey,
+    };
+    use starknet_api::data_availability::DataAvailabilityMode;
+    use starknet_api::deprecated_contract_class::EntryPointType;
+    use starknet_api::state::StorageKey;
+    use starknet_api::transaction::{
+        Calldata,
+        ContractAddressSalt,
+        EventContent,
+        EventData,
+        EventKey,
+        L2ToL1Payload,
+    };
+    use starknet_types_core::felt::Felt;
+
+    use super::{to_u256_native, NativeSyscallHandler, Secp256Point};
+    use crate::abi::constants;
+    use crate::execution::call_info::{MessageToL1, OrderedEvent, OrderedL2ToL1Message};
+    use crate::execution::common_hints::ExecutionMode;
+    use crate::execution::contract_class::ContractClass;
+    use crate::execution::entry_point::{CallEntryPoint, CallType, ConstructorContext};
+    use crate::execution::execution_utils::{execute_deployment, max_fee_for_execution_info};
+    use crate::execution::native::utils::{
+        calculate_resource_bounds,
+        contract_address_to_native_felt,
+        default_tx_v2_info_sierra_emu,
+        encode_str_as_felts,
+    };
+    use crate::execution::syscalls::hint_processor::{
+        SyscallExecutionError,
+        BLOCK_NUMBER_OUT_OF_RANGE_ERROR,
+        INVALID_INPUT_LENGTH_ERROR,
+        OUT_OF_GAS_ERROR,
+    };
+    use crate::execution::syscalls::{exceeds_event_size_limit, SyscallSelector};
+    use crate::transaction::objects::TransactionInfo;
+
+    impl<'state> sierra_emu::starknet::StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
+        fn get_block_hash(
+            &mut self,
+            block_number: u64,
+            remaining_gas: &mut u128,
+        ) -> SyscallResult<Felt> {
+            self.pre_execute_syscall(
+                remaining_gas,
+                SyscallSelector::GetBlockHash,
+                self.execution_context.gas_costs().get_block_hash_gas_cost,
+            )?;
+
+            if self.execution_context.execution_mode == ExecutionMode::Validate {
+                let err = SyscallExecutionError::InvalidSyscallInExecutionMode {
+                    syscall_name: "get_block_hash".to_string(),
+                    execution_mode: ExecutionMode::Validate,
+                };
+
+                return Err(encode_str_as_felts(&err.to_string()));
+            }
+
+            let current_block_number =
+                self.execution_context.tx_context.block_context.block_info.block_number.0;
+
+            if current_block_number < constants::STORED_BLOCK_HASH_BUFFER
+                || block_number > current_block_number - constants::STORED_BLOCK_HASH_BUFFER
+            {
+                // `panic` is unreachable in this case, also this is covered by tests so we can
+                // safely unwrap
+                let out_of_range_felt = Felt::from_hex(BLOCK_NUMBER_OUT_OF_RANGE_ERROR).unwrap();
+
+                // This error is wrapped into a `SyscallExecutionError::SyscallError` in the VM
+                // implementation, but here it would be more convenient to return it directly, since
+                // wrapping it like VM does will result in a double encoding to felts, which adds
+                // extra layer of complication
+                return Err(vec![out_of_range_felt]);
+            }
+
+            let key = StorageKey::try_from(Felt::from(block_number))
+                .map_err(|e| encode_str_as_felts(&e.to_string()))?;
+            let block_hash_address =
+                ContractAddress::try_from(Felt::from(constants::BLOCK_HASH_CONTRACT_ADDRESS))
+                    .map_err(|e| encode_str_as_felts(&e.to_string()))?;
+
+            match self.state.get_storage_at(block_hash_address, key) {
+                Ok(value) => Ok(value),
+                Err(e) => Err(encode_str_as_felts(&e.to_string())),
+            }
+        }
+
+        fn get_execution_info(&mut self, remaining_gas: &mut u128) -> SyscallResult<ExecutionInfo> {
+            self.pre_execute_syscall(
+                remaining_gas,
+                SyscallSelector::GetExecutionInfo,
+                self.execution_context.gas_costs().get_execution_info_gas_cost,
+            )?;
+
+            let block_info = &self.execution_context.tx_context.block_context.block_info;
+            let native_block_info: BlockInfo =
+                if self.execution_context.execution_mode == ExecutionMode::Validate {
+                    // TODO: Literal copy from get execution info v2, could be refactored
+                    let versioned_constants = self.execution_context.versioned_constants();
+                    let block_number = block_info.block_number.0;
+                    let block_timestamp = block_info.block_timestamp.0;
+                    // Round down to the nearest multiple of validate_block_number_rounding.
+                    let validate_block_number_rounding =
+                        versioned_constants.get_validate_block_number_rounding();
+                    let rounded_block_number = (block_number / validate_block_number_rounding)
+                        * validate_block_number_rounding;
+                    // Round down to the nearest multiple of validate_timestamp_rounding.
+                    let validate_timestamp_rounding =
+                        versioned_constants.get_validate_timestamp_rounding();
+                    let rounded_timestamp = (block_timestamp / validate_timestamp_rounding)
+                        * validate_timestamp_rounding;
+                    BlockInfo {
+                        block_number: rounded_block_number,
+                        block_timestamp: rounded_timestamp,
+                        sequencer_address: Felt::ZERO,
+                    }
+                } else {
+                    BlockInfo {
+                        block_number: block_info.block_number.0,
+                        block_timestamp: block_info.block_timestamp.0,
+                        sequencer_address: contract_address_to_native_felt(
+                            block_info.sequencer_address,
+                        ),
+                    }
+                };
+
+            let tx_info = &self.execution_context.tx_context.tx_info;
+            let native_tx_info = TxInfo {
+                version: tx_info.version().0,
+                account_contract_address: contract_address_to_native_felt(tx_info.sender_address()),
+                max_fee: tx_info.max_fee().unwrap_or_default().0,
+                signature: tx_info.signature().0,
+                transaction_hash: tx_info.transaction_hash().0,
+                chain_id: Felt::from_hex(
+                    &self.execution_context.tx_context.block_context.chain_info.chain_id.as_hex(),
+                )
+                .unwrap(),
+                nonce: tx_info.nonce().0,
+            };
+
+            let caller_address = contract_address_to_native_felt(self.caller_address);
+            let contract_address = contract_address_to_native_felt(self.contract_address);
+            let entry_point_selector = self.entry_point_selector;
+
+            Ok(ExecutionInfo {
+                block_info: native_block_info,
+                tx_info: native_tx_info,
+                caller_address,
+                contract_address,
+                entry_point_selector,
+            })
+        }
+
+        fn get_execution_info_v2(
+            &mut self,
+            remaining_gas: &mut u128,
+        ) -> SyscallResult<ExecutionInfoV2> {
+            self.pre_execute_syscall(
+                remaining_gas,
+                SyscallSelector::GetExecutionInfo,
+                self.execution_context.gas_costs().get_execution_info_gas_cost,
+            )?;
+
+            // Get Block Info
+            let block_info = &self.execution_context.tx_context.block_context.block_info;
+            let native_block_info: BlockInfo =
+                if self.execution_context.execution_mode == ExecutionMode::Validate {
+                    let versioned_constants = self.execution_context.versioned_constants();
+                    let block_number = block_info.block_number.0;
+                    let block_timestamp = block_info.block_timestamp.0;
+                    // Round down to the nearest multiple of validate_block_number_rounding.
+                    let validate_block_number_rounding =
+                        versioned_constants.get_validate_block_number_rounding();
+                    let rounded_block_number = (block_number / validate_block_number_rounding)
+                        * validate_block_number_rounding;
+                    // Round down to the nearest multiple of validate_timestamp_rounding.
+                    let validate_timestamp_rounding =
+                        versioned_constants.get_validate_timestamp_rounding();
+                    let rounded_timestamp = (block_timestamp / validate_timestamp_rounding)
+                        * validate_timestamp_rounding;
+                    BlockInfo {
+                        block_number: rounded_block_number,
+                        block_timestamp: rounded_timestamp,
+                        sequencer_address: Felt::ZERO,
+                    }
+                } else {
+                    BlockInfo {
+                        block_number: block_info.block_number.0,
+                        block_timestamp: block_info.block_timestamp.0,
+                        sequencer_address: contract_address_to_native_felt(
+                            block_info.sequencer_address,
+                        ),
+                    }
+                };
+
+            // Get Transaction Info
+            let tx_info = &self.execution_context.tx_context.tx_info;
+            let mut native_tx_info = TxV2Info {
+                version: tx_info.signed_version().0,
+                account_contract_address: contract_address_to_native_felt(tx_info.sender_address()),
+                max_fee: max_fee_for_execution_info(tx_info).to_u128().unwrap(),
+                signature: tx_info.signature().0,
+                transaction_hash: tx_info.transaction_hash().0,
+                chain_id: Felt::from_hex(
+                    &self.execution_context.tx_context.block_context.chain_info.chain_id.as_hex(),
+                )
+                .unwrap(),
+                nonce: tx_info.nonce().0,
+                ..default_tx_v2_info_sierra_emu()
+            };
+            // If handling V3 transaction fill the "default" fields
+            if let TransactionInfo::Current(context) = tx_info {
+                let to_u32 = |x| match x {
+                    DataAvailabilityMode::L1 => 0,
+                    DataAvailabilityMode::L2 => 1,
+                };
+                native_tx_info = TxV2Info {
+                    resource_bounds: calculate_resource_bounds(context)?
+                        .iter()
+                        .map(|x| ResourceBounds {
+                            resource: x.resource,
+                            max_amount: x.max_amount,
+                            max_price_per_unit: x.max_price_per_unit,
+                        })
+                        .collect(),
+                    tip: context.tip.0.into(),
+                    paymaster_data: context.paymaster_data.0.clone(),
+                    nonce_data_availability_mode: to_u32(context.nonce_data_availability_mode),
+                    fee_data_availability_mode: to_u32(context.fee_data_availability_mode),
+                    account_deployment_data: context.account_deployment_data.0.clone(),
+                    ..native_tx_info
+                };
+            }
+
+            let caller_address = contract_address_to_native_felt(self.caller_address);
+            let contract_address = contract_address_to_native_felt(self.contract_address);
+            let entry_point_selector = self.entry_point_selector;
+
+            Ok(ExecutionInfoV2 {
+                block_info: native_block_info,
+                tx_info: native_tx_info,
+                caller_address,
+                contract_address,
+                entry_point_selector,
+            })
+        }
+
+        fn deploy(
+            &mut self,
+            class_hash: Felt,
+            contract_address_salt: Felt,
+            calldata: Vec<Felt>,
+            deploy_from_zero: bool,
+            remaining_gas: &mut u128,
+        ) -> SyscallResult<(Felt, Vec<Felt>)> {
+            self.pre_execute_syscall(
+                remaining_gas,
+                SyscallSelector::Deploy,
+                self.execution_context.gas_costs().deploy_gas_cost,
+            )?;
+
+            let deployer_address =
+                if deploy_from_zero { ContractAddress::default() } else { self.contract_address };
+
+            let class_hash = ClassHash(class_hash);
+            let wrapper_calldata = Calldata(Arc::new(calldata.to_vec()));
+            let calculated_contract_address = calculate_contract_address(
+                ContractAddressSalt(contract_address_salt),
+                class_hash,
+                &wrapper_calldata,
+                deployer_address,
+            )
+            .map_err(|err| encode_str_as_felts(&err.to_string()))?;
+
+            let ctor_context = ConstructorContext {
+                class_hash,
+                code_address: Some(calculated_contract_address),
+                storage_address: calculated_contract_address,
+                caller_address: deployer_address,
+            };
+
+            let call_info = execute_deployment(
+                self.state,
+                self.execution_resources,
+                self.execution_context,
+                ctor_context,
+                wrapper_calldata,
+                // Warning: converting of reference would create a new reference to different data,
+                // example:
+                //     let mut a: u128 = 1;
+                //     let a_ref: &mut u128 = &mut a;
+                //
+                //     let mut b: u64 = u64::try_from(*a_ref).unwrap();
+                //
+                //     assert_eq!(b, 1);
+                //
+                //     b += 1;
+                //
+                //     assert_eq!(b, 2);
+                //     assert_eq!(a, 1);
+                // in this case we don't pass a reference, so everything is OK, but still can cause
+                // conversion issues
+                u64::try_from(*remaining_gas).unwrap(),
+            )
+            .map_err(|error| encode_str_as_felts(&error.to_string()))?;
+
+            self.update_remaining_gas(remaining_gas, &call_info);
+
+            let return_data = call_info.execution.retdata.0[..].to_vec();
+            let contract_address_felt = Felt::from(calculated_contract_address);
+
+            self.inner_calls.push(call_info);
+
+            Ok((contract_address_felt, return_data))
+        }
+
+        fn replace_class(
+            &mut self,
+            class_hash: Felt,
+            remaining_gas: &mut u128,
+        ) -> SyscallResult<()> {
+            self.pre_execute_syscall(
+                remaining_gas,
+                SyscallSelector::ReplaceClass,
+                self.execution_context.gas_costs().replace_class_gas_cost,
+            )?;
+
+            let class_hash = ClassHash(class_hash);
+            let contract_class = self
+                .state
+                .get_compiled_contract_class(class_hash)
+                .map_err(|e| encode_str_as_felts(&e.to_string()))?;
+
+            match contract_class {
+                ContractClass::V0(_) => Err(encode_str_as_felts(
+                    &SyscallExecutionError::ForbiddenClassReplacement { class_hash }.to_string(),
+                )),
+                ContractClass::V1(_) | ContractClass::V1Native(_) => {
+                    self.state
+                        .set_class_hash_at(self.contract_address, class_hash)
+                        .map_err(|e| encode_str_as_felts(&e.to_string()))?;
+
+                    Ok(())
+                }
+            }
+        }
+
+        fn library_call(
+            &mut self,
+            class_hash: Felt,
+            function_selector: Felt,
+            calldata: Vec<Felt>,
+            remaining_gas: &mut u128,
+        ) -> SyscallResult<Vec<Felt>> {
+            self.pre_execute_syscall(
+                remaining_gas,
+                SyscallSelector::LibraryCall,
+                self.execution_context.gas_costs().library_call_gas_cost,
+            )?;
+
+            let class_hash = ClassHash(class_hash);
+
+            let wrapper_calldata = Calldata(Arc::new(calldata.to_vec()));
+
+            let entry_point = CallEntryPoint {
+                class_hash: Some(class_hash),
+                code_address: None,
+                entry_point_type: EntryPointType::External,
+                entry_point_selector: EntryPointSelector(function_selector),
+                calldata: wrapper_calldata,
+                // The call context remains the same in a library call.
+                storage_address: self.contract_address,
+                caller_address: self.caller_address,
+                call_type: CallType::Delegate,
+                initial_gas: u64::try_from(*remaining_gas).unwrap(),
+            };
+
+            let retdata = self
+                .execute_inner_call(entry_point, remaining_gas)
+                .map(|call_info| call_info.execution.retdata.0.clone())?;
+
+            Ok(retdata)
+        }
+
+        fn call_contract(
+            &mut self,
+            address: Felt,
+            entry_point_selector: Felt,
+            calldata: Vec<Felt>,
+            remaining_gas: &mut u128,
+        ) -> SyscallResult<Vec<Felt>> {
+            self.pre_execute_syscall(
+                remaining_gas,
+                SyscallSelector::CallContract,
+                self.execution_context.gas_costs().call_contract_gas_cost,
+            )?;
+
+            let contract_address = ContractAddress::try_from(address)
+                .map_err(|error| encode_str_as_felts(&error.to_string()))?;
+
+            if self.execution_context.execution_mode == ExecutionMode::Validate
+                && self.contract_address != contract_address
+            {
+                let err = SyscallExecutionError::InvalidSyscallInExecutionMode {
+                    syscall_name: "call_contract".to_string(),
+                    execution_mode: ExecutionMode::Validate,
+                };
+
+                return Err(encode_str_as_felts(&err.to_string()));
+            }
+
+            let wrapper_calldata = Calldata(Arc::new(calldata.to_vec()));
+
+            let entry_point = CallEntryPoint {
+                class_hash: None,
+                code_address: Some(contract_address),
+                entry_point_type: EntryPointType::External,
+                entry_point_selector: EntryPointSelector(entry_point_selector),
+                calldata: wrapper_calldata,
+                storage_address: contract_address,
+                caller_address: self.contract_address,
+                call_type: CallType::Call,
+                initial_gas: u64::try_from(*remaining_gas).unwrap(),
+            };
+
+            let retdata = self
+                .execute_inner_call(entry_point, remaining_gas)
+                .map(|call_info| call_info.execution.retdata.0.clone())?;
+
+            Ok(retdata)
+        }
+
+        fn storage_read(
+            &mut self,
+            _address_domain: u32,
+            address: Felt,
+            remaining_gas: &mut u128,
+        ) -> SyscallResult<Felt> {
+            self.pre_execute_syscall(
+                remaining_gas,
+                SyscallSelector::StorageRead,
+                self.execution_context.gas_costs().storage_read_gas_cost,
+            )?;
+
+            let key = StorageKey(
+                PatriciaKey::try_from(address).map_err(|e| encode_str_as_felts(&e.to_string()))?,
+            );
+
+            let read_result = self.state.get_storage_at(self.contract_address, key);
+            let value = read_result.map_err(|e| encode_str_as_felts(&e.to_string()))?;
+
+            self.accessed_storage_keys.insert(key);
+            self.storage_read_values.push(value);
+
+            Ok(value)
+        }
+
+        fn storage_write(
+            &mut self,
+            _address_domain: u32,
+            address: Felt,
+            value: Felt,
+            remaining_gas: &mut u128,
+        ) -> SyscallResult<()> {
+            self.pre_execute_syscall(
+                remaining_gas,
+                SyscallSelector::StorageWrite,
+                self.execution_context.gas_costs().storage_write_gas_cost,
+            )?;
+
+            let key = StorageKey(
+                PatriciaKey::try_from(address).map_err(|e| encode_str_as_felts(&e.to_string()))?,
+            );
+            self.accessed_storage_keys.insert(key);
+
+            let write_result = self.state.set_storage_at(self.contract_address, key, value);
+            write_result.map_err(|e| encode_str_as_felts(&e.to_string()))?;
+
+            Ok(())
+        }
+
+        fn emit_event(
+            &mut self,
+            keys: Vec<Felt>,
+            data: Vec<Felt>,
+            remaining_gas: &mut u128,
+        ) -> SyscallResult<()> {
+            self.pre_execute_syscall(
+                remaining_gas,
+                SyscallSelector::EmitEvent,
+                self.execution_context.gas_costs().emit_event_gas_cost,
+            )?;
+
+            let order = self.execution_context.n_emitted_events;
+            let event = EventContent {
+                keys: keys.iter().copied().map(EventKey).collect(),
+                data: EventData(data.to_vec()),
+            };
+
+            exceeds_event_size_limit(
+                self.execution_context.versioned_constants(),
+                self.execution_context.n_emitted_events + 1,
+                &event,
+            )
+            .map_err(|e| encode_str_as_felts(&e.to_string()))?;
+
+            self.events.push(OrderedEvent { order, event });
+            self.execution_context.n_emitted_events += 1;
+
+            Ok(())
+        }
+
+        fn send_message_to_l1(
+            &mut self,
+            to_address: Felt,
+            payload: Vec<Felt>,
+            remaining_gas: &mut u128,
+        ) -> SyscallResult<()> {
+            self.pre_execute_syscall(
+                remaining_gas,
+                SyscallSelector::SendMessageToL1,
+                self.execution_context.gas_costs().send_message_to_l1_gas_cost,
+            )?;
+
+            let order = self.execution_context.n_sent_messages_to_l1;
+
+            self.l2_to_l1_messages.push(OrderedL2ToL1Message {
+                order,
+                message: MessageToL1 {
+                    to_address: EthAddress::try_from(to_address)
+                        .map_err(|e| encode_str_as_felts(&e.to_string()))?,
+                    payload: L2ToL1Payload(payload.to_vec()),
+                },
+            });
+
+            self.execution_context.n_sent_messages_to_l1 += 1;
+
+            Ok(())
+        }
+
+        fn keccak(&mut self, input: Vec<u64>, remaining_gas: &mut u128) -> SyscallResult<U256> {
+            self.pre_execute_syscall(
+                remaining_gas,
+                SyscallSelector::Keccak,
+                self.execution_context.gas_costs().keccak_gas_cost,
+            )?;
+
+            const KECCAK_FULL_RATE_IN_WORDS: usize = 17;
+
+            let length = input.len();
+            let (n_rounds, remainder) = num_integer::div_rem(length, KECCAK_FULL_RATE_IN_WORDS);
+
+            if remainder != 0 {
+                // In VM this error is wrapped into `SyscallExecutionError::SyscallError`
+                return Err(vec![Felt::from_hex(INVALID_INPUT_LENGTH_ERROR).unwrap()]);
+            }
+
+            // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion
+            // works.
+            let n_rounds_as_u64 = u64::try_from(n_rounds).expect("Failed to convert usize to u64.");
+            let gas_cost = u128::from(
+                n_rounds_as_u64 * self.execution_context.gas_costs().keccak_round_cost_gas_cost,
+            );
+
+            if gas_cost > *remaining_gas {
+                // In VM this error is wrapped into `SyscallExecutionError::SyscallError`
+                return Err(vec![Felt::from_hex(OUT_OF_GAS_ERROR).unwrap()]);
+            }
+            *remaining_gas -= gas_cost;
+
+            self.increment_syscall_count_by(&SyscallSelector::Keccak, n_rounds);
+
+            let mut state = [0u64; 25];
+            for chunk in input.chunks(KECCAK_FULL_RATE_IN_WORDS) {
+                for (i, val) in chunk.iter().enumerate() {
+                    state[i] ^= val;
+                }
+                keccak::f1600(&mut state)
+            }
+
+            Ok(U256 {
+                hi: u128::from(state[2]) | (u128::from(state[3]) << 64),
+                lo: u128::from(state[0]) | (u128::from(state[1]) << 64),
+            })
+        }
+
+        // The secp256 syscalls are implement in impl<Curve: SWCurveConfig> SecpHintProcessor<Curve>
+        // The trait methods are responsible for routing to the correct hint processor (r1 or k1).
+
+        fn secp256k1_new(
+            &mut self,
+            x: U256,
+            y: U256,
+            remaining_gas: &mut u128,
+        ) -> SyscallResult<Option<Secp256k1Point>> {
+            self.pre_execute_syscall(
+                remaining_gas,
+                SyscallSelector::Secp256k1New,
+                self.execution_context.gas_costs().secp256k1_new_gas_cost,
+            )?;
+
+            Secp256Point::new(to_u256_native(x), to_u256_native(y)).map(|op| op.map(|p| p.into()))
+        }
+
+        fn secp256k1_add(
+            &mut self,
+            p0: Secp256k1Point,
+            p1: Secp256k1Point,
+            remaining_gas: &mut u128,
+        ) -> SyscallResult<Secp256k1Point> {
+            self.pre_execute_syscall(
+                remaining_gas,
+                SyscallSelector::Secp256k1Add,
+                self.execution_context.gas_costs().secp256k1_add_gas_cost,
+            )?;
+
+            Ok(Secp256Point::add(p0.into(), p1.into()).into())
+        }
+
+        fn secp256k1_mul(
+            &mut self,
+            p: Secp256k1Point,
+            m: U256,
+            remaining_gas: &mut u128,
+        ) -> SyscallResult<Secp256k1Point> {
+            self.pre_execute_syscall(
+                remaining_gas,
+                SyscallSelector::Secp256k1Mul,
+                self.execution_context.gas_costs().secp256k1_mul_gas_cost,
+            )?;
+
+            Ok(Secp256Point::mul(p.into(), to_u256_native(m)).into())
+        }
+
+        fn secp256k1_get_point_from_x(
+            &mut self,
+            x: U256,
+            y_parity: bool,
+            remaining_gas: &mut u128,
+        ) -> SyscallResult<Option<Secp256k1Point>> {
+            self.pre_execute_syscall(
+                remaining_gas,
+                SyscallSelector::Secp256k1GetPointFromX,
+                self.execution_context.gas_costs().secp256k1_get_point_from_x_gas_cost,
+            )?;
+
+            Secp256Point::get_point_from_x(to_u256_native(x), y_parity)
+                .map(|op| op.map(|p| p.into()))
+        }
+
+        fn secp256k1_get_xy(
+            &mut self,
+            p: Secp256k1Point,
+            remaining_gas: &mut u128,
+        ) -> SyscallResult<(U256, U256)> {
+            self.pre_execute_syscall(
+                remaining_gas,
+                SyscallSelector::Secp256k1GetXy,
+                self.execution_context.gas_costs().secp256k1_get_xy_gas_cost,
+            )?;
+
+            Ok((p.x, p.y))
+        }
+
+        fn secp256r1_new(
+            &mut self,
+            x: U256,
+            y: U256,
+            remaining_gas: &mut u128,
+        ) -> SyscallResult<Option<Secp256r1Point>> {
+            self.pre_execute_syscall(
+                remaining_gas,
+                SyscallSelector::Secp256r1New,
+                self.execution_context.gas_costs().secp256r1_new_gas_cost,
+            )?;
+
+            Secp256Point::new(to_u256_native(x), to_u256_native(y)).map(|op| op.map(|p| p.into()))
+        }
+
+        fn secp256r1_add(
+            &mut self,
+            p0: Secp256r1Point,
+            p1: Secp256r1Point,
+            remaining_gas: &mut u128,
+        ) -> SyscallResult<Secp256r1Point> {
+            self.pre_execute_syscall(
+                remaining_gas,
+                SyscallSelector::Secp256r1Add,
+                self.execution_context.gas_costs().secp256r1_add_gas_cost,
+            )?;
+
+            Ok(Secp256Point::add(p0.into(), p1.into()).into())
+        }
+
+        fn secp256r1_mul(
+            &mut self,
+            p: Secp256r1Point,
+            m: U256,
+            remaining_gas: &mut u128,
+        ) -> SyscallResult<Secp256r1Point> {
+            self.pre_execute_syscall(
+                remaining_gas,
+                SyscallSelector::Secp256r1Mul,
+                self.execution_context.gas_costs().secp256r1_mul_gas_cost,
+            )?;
+
+            Ok(Secp256Point::mul(p.into(), to_u256_native(m)).into())
+        }
+
+        fn secp256r1_get_point_from_x(
+            &mut self,
+            x: U256,
+            y_parity: bool,
+            remaining_gas: &mut u128,
+        ) -> SyscallResult<Option<Secp256r1Point>> {
+            self.pre_execute_syscall(
+                remaining_gas,
+                SyscallSelector::Secp256r1GetPointFromX,
+                self.execution_context.gas_costs().secp256r1_get_point_from_x_gas_cost,
+            )?;
+
+            Secp256Point::get_point_from_x(to_u256_native(x), y_parity)
+                .map(|op| op.map(|p| p.into()))
+        }
+
+        fn secp256r1_get_xy(
+            &mut self,
+            p: Secp256r1Point,
+            remaining_gas: &mut u128,
+        ) -> SyscallResult<(U256, U256)> {
+            self.pre_execute_syscall(
+                remaining_gas,
+                SyscallSelector::Secp256r1GetXy,
+                self.execution_context.gas_costs().secp256r1_get_xy_gas_cost,
+            )?;
+
+            Ok((p.x, p.y))
+        }
+
+        fn sha256_process_block(
+            &mut self,
+            prev_state: [u32; 8],
+            current_block: [u32; 16],
+            remaining_gas: &mut u128,
+        ) -> SyscallResult<[u32; 8]> {
+            const SHA256_STATE_SIZE: usize = 8;
+
+            self.pre_execute_syscall(
+                remaining_gas,
+                SyscallSelector::Sha256ProcessBlock,
+                self.execution_context.gas_costs().sha256_process_block_gas_cost,
+            )?;
+
+            let data_as_bytes = sha2::digest::generic_array::GenericArray::from_exact_iter(
+                current_block.iter().flat_map(|x| x.to_be_bytes()),
+            )
+            .expect(
+                "u32.to_be_bytes() returns 4 bytes, and data.len() == 16. So data contains 64 \
+                 bytes.",
+            );
+            let mut state: [u32; SHA256_STATE_SIZE] = prev_state;
+            sha2::compress256(&mut state, &[data_as_bytes]);
+            Ok(state)
+        }
     }
 }
 
@@ -982,13 +1798,13 @@ use crate::transaction::transaction_utils::update_remaining_gas;
 
 impl From<Secp256Point<ark_secp256k1::Config>> for Secp256k1Point {
     fn from(p: Secp256Point<ark_secp256k1::Config>) -> Self {
-        Secp256k1Point { x: p.x, y: p.y }
+        Secp256k1Point { x: p.x, y: p.y, is_infinity: false }
     }
 }
 
 impl From<Secp256Point<ark_secp256r1::Config>> for Secp256r1Point {
     fn from(p: Secp256Point<ark_secp256r1::Config>) -> Self {
-        Secp256r1Point { x: p.x, y: p.y }
+        Secp256r1Point { x: p.x, y: p.y, is_infinity: false }
     }
 }
 
@@ -1001,6 +1817,38 @@ impl From<Secp256k1Point> for Secp256Point<ark_secp256k1::Config> {
 impl From<Secp256r1Point> for Secp256Point<ark_secp256r1::Config> {
     fn from(p: Secp256r1Point) -> Self {
         Self { x: p.x, y: p.y, _phantom: Default::default() }
+    }
+}
+
+fn to_u256_emu(value: cairo_native::starknet::U256) -> sierra_emu::starknet::U256 {
+    sierra_emu::starknet::U256 { lo: value.lo, hi: value.hi }
+}
+
+fn to_u256_native(value: sierra_emu::starknet::U256) -> cairo_native::starknet::U256 {
+    cairo_native::starknet::U256 { lo: value.lo, hi: value.hi }
+}
+
+impl From<Secp256Point<ark_secp256k1::Config>> for sierra_emu::starknet::Secp256k1Point {
+    fn from(p: Secp256Point<ark_secp256k1::Config>) -> Self {
+        sierra_emu::starknet::Secp256k1Point { x: to_u256_emu(p.x), y: to_u256_emu(p.y) }
+    }
+}
+
+impl From<Secp256Point<ark_secp256r1::Config>> for sierra_emu::starknet::Secp256r1Point {
+    fn from(p: Secp256Point<ark_secp256r1::Config>) -> Self {
+        sierra_emu::starknet::Secp256r1Point { x: to_u256_emu(p.x), y: to_u256_emu(p.y) }
+    }
+}
+
+impl From<sierra_emu::starknet::Secp256k1Point> for Secp256Point<ark_secp256k1::Config> {
+    fn from(p: sierra_emu::starknet::Secp256k1Point) -> Self {
+        Self { x: to_u256_native(p.x), y: to_u256_native(p.y), _phantom: Default::default() }
+    }
+}
+
+impl From<sierra_emu::starknet::Secp256r1Point> for Secp256Point<ark_secp256r1::Config> {
+    fn from(p: sierra_emu::starknet::Secp256r1Point) -> Self {
+        Self { x: to_u256_native(p.x), y: to_u256_native(p.y), _phantom: Default::default() }
     }
 }
 

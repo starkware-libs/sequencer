@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
@@ -14,7 +16,9 @@ use crate::execution::call_info::{CallExecution, CallInfo};
 use crate::execution::contract_class::ContractClassV0;
 use crate::execution::deprecated_syscalls::hint_processor::DeprecatedSyscallHintProcessor;
 use crate::execution::entry_point::{
-    CallEntryPoint, EntryPointExecutionContext, EntryPointExecutionResult,
+    CallEntryPoint,
+    EntryPointExecutionContext,
+    EntryPointExecutionResult,
 };
 use crate::execution::errors::{PostExecutionError, PreExecutionError};
 use crate::execution::execution_utils::{read_execution_retdata, Args, ReadOnlySegments};
@@ -50,7 +54,17 @@ pub fn execute_entry_point_call(
     let previous_resources = syscall_handler.resources.clone();
 
     // Execute.
-    run_entry_point(&mut runner, &mut syscall_handler, entry_point_pc, args)?;
+    let _contract_span = tracing::info_span!(
+        "deprecated vm contract execution",
+        class_hash = call.class_hash.unwrap().to_string()
+    )
+    .entered();
+    tracing::info!("deprecated vm contract execution started");
+    let pre_execution_instant = Instant::now();
+    let result = run_entry_point(&mut runner, &mut syscall_handler, entry_point_pc, args);
+    let execution_time = pre_execution_instant.elapsed().as_millis();
+    tracing::info!(time = execution_time, "deprecated vm contract execution finished");
+    result?;
 
     Ok(finalize_execution(
         runner,
