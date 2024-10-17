@@ -72,6 +72,17 @@ impl Default for CairoVersion {
     }
 }
 
+impl From<isize> for CairoVersion {
+    fn from(value: isize) -> Self {
+        match value {
+            0 => Self::Cairo0,
+            1 => Self::Cairo1,
+            2 => Self::Native,
+            _ => panic!("Invalid value for CairoVersion: {}", value),
+        }
+    }
+}
+
 impl CairoVersion {
     // A declare transaction of the given version, can be used to declare contracts of the returned
     // cairo version.

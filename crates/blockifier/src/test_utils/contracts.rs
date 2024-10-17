@@ -115,16 +115,39 @@ impl FeatureContract {
         }
     }
 
-    fn has_two_versions(&self) -> bool {
-        match self {
-            Self::AccountWithLongValidate(_)
-            | Self::AccountWithoutValidations(_)
-            | Self::Empty(_)
-            | Self::FaultyAccount(_)
-            | Self::TestContract(_)
-            | Self::ERC20(_) => true,
-            Self::SecurityTests | Self::LegacyTestContract | Self::CairoStepsTestContract => false,
-        }
+    /// Returns a bit mask of supported Cairo versions for the feature contract.
+    ///
+    /// Each bit identifies a supported Cairo version. The least significant bit is Cairo0, the next
+    /// bit is Cairo1, and the most significant bit is the native version.
+    ///
+    /// This order is defined in [CairoVersion] enum.
+    fn supported_versions(&self) -> u32 {
+        let supports_legacy = matches!(
+            self,
+            Self::FaultyAccount(_)
+                | Self::AccountWithoutValidations(_)
+                | Self::AccountWithLongValidate(_)
+                | Self::Empty(_)
+                | Self::TestContract(_)
+                | Self::SecurityTests
+                | Self::ERC20(_)
+        );
+
+        let supports_cairo1 = matches!(
+            self,
+            Self::FaultyAccount(_)
+                | Self::AccountWithoutValidations(_)
+                | Self::AccountWithLongValidate(_)
+                | Self::Empty(_)
+                | Self::LegacyTestContract
+                | Self::TestContract(_)
+                | Self::ERC20(_)
+                | Self::CairoStepsTestContract
+        );
+
+        let supports_native = matches!(self, Self::TestContract(_));
+
+        (supports_legacy as u32) | (supports_cairo1 as u32) << 1 | (supports_native as u32) << 2
     }
 
     pub fn set_cairo_version(&mut self, version: CairoVersion) {
@@ -283,12 +306,16 @@ impl FeatureContract {
         } else {
             let cairo_version = self.cairo_version();
             format!(
-                "feature_contracts/cairo{}/compiled/{}{}.json",
+                "feature_contracts/cairo{}/compiled{}/{}{}.json",
                 match cairo_version {
                     CairoVersion::Cairo0 => "0",
-                    CairoVersion::Cairo1 => "1",
+                    CairoVersion::Cairo1 | CairoVersion::Native => "1",
+                },
+                match self.cairo_version() {
+                    CairoVersion::Cairo0 => "",
+                    CairoVersion::Cairo1 => "_casm",
                     #[cfg(feature = "cairo_native")]
-                    CairoVersion::Native => "_native",
+                    CairoVersion::Native => "_sierra",
                 },
                 self.get_non_erc20_base_name(),
                 match cairo_version {
@@ -389,12 +416,24 @@ impl FeatureContract {
         // EnumIter iterates over all variants with Default::default() as the cairo
         // version.
         Self::iter().flat_map(|contract| {
-            if contract.has_two_versions() {
-                let mut other_contract = contract;
-                other_contract.set_cairo_version(contract.cairo_version().other());
-                vec![contract, other_contract].into_iter()
-            } else {
+            // if we have only one supported version, return the contract as is.
+            if contract.supported_versions().is_power_of_two() {
                 vec![contract].into_iter()
+            } else {
+                let supported_versions = contract.supported_versions();
+
+                // if we have multiple supported versions, return the contract for each supported
+                // version.
+                (0..3isize)
+                    .filter(|i| supported_versions & (1u32 << i) != 0)
+                    .map(move |i| {
+                        let mut contract = contract;
+                        contract.set_cairo_version(CairoVersion::from(i));
+
+                        contract
+                    })
+                    .collect::<Vec<_>>()
+                    .into_iter()
             }
         })
     }
