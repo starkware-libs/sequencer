@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use starknet_api::contract_class::{ContractClass, EntryPointType};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, EntryPointSelector};
@@ -119,18 +121,48 @@ impl FeatureContract {
         }
     }
 
-    fn has_two_versions(&self) -> bool {
-        match self {
-            Self::AccountWithLongValidate(_)
-            | Self::AccountWithoutValidations(_)
-            | Self::Empty(_)
-            | Self::FaultyAccount(_)
-            | Self::TestContract(_)
-            | Self::ERC20(_) => true,
-            #[cfg(feature = "cairo_native")]
-            Self::SierraExecutionInfoV1Contract => false,
-            Self::SecurityTests | Self::LegacyTestContract | Self::CairoStepsTestContract => false,
+    /// Returns a bit mask of supported Cairo versions for the feature contract.
+    ///
+    /// Each bit identifies a supported Cairo version. The least significant bit is Cairo0, the next
+    /// bit is Cairo1, and the most significant bit is the native version.
+    ///
+    /// This order is defined in [CairoVersion] enum.
+    fn supported_versions(&self) -> HashSet<CairoVersion> {
+        let mut supported_versions = HashSet::new();
+
+        if matches!(
+            self,
+            Self::FaultyAccount(_)
+                | Self::AccountWithoutValidations(_)
+                | Self::AccountWithLongValidate(_)
+                | Self::Empty(_)
+                | Self::TestContract(_)
+                | Self::SecurityTests
+                | Self::ERC20(_)
+        ) {
+            supported_versions.insert(CairoVersion::Cairo0);
         }
+
+        if matches!(
+            self,
+            Self::FaultyAccount(_)
+                | Self::AccountWithoutValidations(_)
+                | Self::AccountWithLongValidate(_)
+                | Self::Empty(_)
+                | Self::LegacyTestContract
+                | Self::TestContract(_)
+                | Self::ERC20(_)
+                | Self::CairoStepsTestContract
+        ) {
+            supported_versions.insert(CairoVersion::Cairo1);
+        }
+
+        #[cfg(feature = "cairo_native")]
+        if matches!(self, Self::TestContract(_) | Self::SierraExecutionInfoV1Contract) {
+            supported_versions.insert(CairoVersion::Native);
+        }
+
+        supported_versions
     }
 
     pub fn set_cairo_version(&mut self, version: CairoVersion) {
@@ -276,7 +308,7 @@ impl FeatureContract {
                     CairoVersion::Cairo0 => "0",
                     CairoVersion::Cairo1 => "1",
                     #[cfg(feature = "cairo_native")]
-                    CairoVersion::Native => "_native",
+                    CairoVersion::Native => "1",
                 },
                 self.get_non_erc20_base_name()
             )
@@ -296,12 +328,12 @@ impl FeatureContract {
         } else {
             let cairo_version = self.cairo_version();
             format!(
-                "feature_contracts/cairo{}/compiled/{}{}.json",
+                "feature_contracts/cairo{}/{}{}.json",
                 match cairo_version {
-                    CairoVersion::Cairo0 => "0",
-                    CairoVersion::Cairo1 => "1",
+                    CairoVersion::Cairo0 => "0/compiled",
+                    CairoVersion::Cairo1 => "1/compiled_casm",
                     #[cfg(feature = "cairo_native")]
-                    CairoVersion::Native => "_native",
+                    CairoVersion::Native => "1/compiled_sierra",
                 },
                 self.get_non_erc20_base_name(),
                 match cairo_version {
@@ -412,12 +444,24 @@ impl FeatureContract {
         // EnumIter iterates over all variants with Default::default() as the cairo
         // version.
         Self::iter().flat_map(|contract| {
-            if contract.has_two_versions() {
-                let mut other_contract = contract;
-                other_contract.set_cairo_version(contract.cairo_version().other());
-                vec![contract, other_contract].into_iter()
-            } else {
+            // If only one supported version exists, add the contract to the array as is.
+            if contract.supported_versions().len() == 1 {
                 vec![contract].into_iter()
+            } else {
+                let supported_versions = contract.supported_versions();
+
+                // If multiple supported versions exist, add each supported version of the
+                // contract to the array.
+                supported_versions
+                    .into_iter()
+                    .map(move |version| {
+                        let mut contract = contract;
+                        contract.set_cairo_version(version);
+
+                        contract
+                    })
+                    .collect::<Vec<_>>()
+                    .into_iter()
             }
         })
     }
