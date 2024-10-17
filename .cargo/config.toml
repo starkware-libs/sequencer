@@ -6,7 +6,7 @@ TABLEGEN_190_PREFIX = "/usr/lib/llvm-19/"
 
 # Limit concurrency to prevent crash during "cargo build" due to excessive memory usage. Should be removed in the future. Slows down performance.
 [build]
-jobs = 8
+jobs = 4
 
 # Limit concurrency to prevent crash during "cargo test" due to excessive memory usage. Should be removed in the future. Slows down performance.
 [test]
