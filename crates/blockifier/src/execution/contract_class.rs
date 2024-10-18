@@ -626,7 +626,7 @@ impl NativeContractClassV1 {
     }
 
     pub fn bytecode_length(&self) -> usize {
-        self.sierra_program_raw.len()
+        self.0.sierra_raw_program.len()
     }
 }
 
@@ -636,6 +636,7 @@ pub struct NativeContractClassV1Inner {
     pub program: cairo_lang_sierra::program::Program, // for sierra emu
     // Used for PartialEq
     sierra_program_hash: starknet_api::hash::StarkHash,
+    sierra_raw_program: Vec<BigUintAsHex>
 }
 
 impl std::fmt::Debug for NativeContractClassV1Inner {
@@ -650,6 +651,7 @@ impl NativeContractClassV1Inner {
         executor: Arc<AotContractExecutor>,
         sierra_contract_class: SierraContractClass,
     ) -> Result<Self, NativeEntryPointError> {
+        let bytecode = sierra_contract_class.sierra_program.clone();
         // This exception should never occur as it was also used to create the AotContractExecutor
         let sierra_program =
             sierra_contract_class.extract_sierra_program().expect("can't extract sierra program");
@@ -676,6 +678,7 @@ impl NativeContractClassV1Inner {
             sierra_program_hash: calculate_sierra_program_hash(
                 sierra_contract_class.sierra_program,
             ),
+            sierra_raw_program: bytecode
         })
     }
 }
