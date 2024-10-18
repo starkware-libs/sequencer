@@ -111,7 +111,7 @@ impl ContractClass {
         match self {
             ContractClass::V0(class) => class.bytecode_length(),
             ContractClass::V1(class) => class.bytecode_length(),
-            ContractClass::V1Native(_) => todo!("sierra estimate casm hash computation resources"),
+            ContractClass::V1Native(class) => class.bytecode_length(),
         }
     }
 }
@@ -624,6 +624,10 @@ impl NativeContractClassV1 {
                 info: format!("Entrypoint selector {} not found", entrypoint_selector.0),
             })
     }
+
+    pub fn bytecode_length(&self) -> usize {
+        self.0.sierra_raw_program.len()
+    }
 }
 
 pub struct NativeContractClassV1Inner {
@@ -632,6 +636,7 @@ pub struct NativeContractClassV1Inner {
     pub program: cairo_lang_sierra::program::Program, // for sierra emu
     // Used for PartialEq
     sierra_program_hash: starknet_api::hash::StarkHash,
+    sierra_raw_program: Vec<BigUintAsHex>
 }
 
 impl std::fmt::Debug for NativeContractClassV1Inner {
@@ -646,6 +651,7 @@ impl NativeContractClassV1Inner {
         executor: Arc<AotContractExecutor>,
         sierra_contract_class: SierraContractClass,
     ) -> Result<Self, NativeEntryPointError> {
+        let bytecode = sierra_contract_class.sierra_program.clone();
         // This exception should never occur as it was also used to create the AotContractExecutor
         let sierra_program =
             sierra_contract_class.extract_sierra_program().expect("can't extract sierra program");
@@ -672,6 +678,7 @@ impl NativeContractClassV1Inner {
             sierra_program_hash: calculate_sierra_program_hash(
                 sierra_contract_class.sierra_program,
             ),
+            sierra_raw_program: bytecode
         })
     }
 }
