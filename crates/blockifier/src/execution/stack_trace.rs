@@ -159,8 +159,13 @@ pub fn extract_trailing_cairo1_revert_trace(root_callinfo: &CallInfo) -> String 
         .tail_iter()
         .map(|callinfo| {
             format!(
-                "Error in contract (contract address: {:#064x}, selector: {:#064x}):\n{}",
+                "Error in contract (contract address: {:#064x}, class hash: {}, selector: \
+                 {:#064x}):\n{}",
                 callinfo.call.storage_address.0.key(),
+                match callinfo.call.class_hash {
+                    Some(class_hash) => format!("{:#064x}", class_hash.0),
+                    None => "_".to_string(),
+                },
                 callinfo.call.entry_point_selector.0,
                 format_panic_data(&callinfo.execution.retdata.0)
             )

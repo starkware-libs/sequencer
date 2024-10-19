@@ -34,7 +34,7 @@ fn test_syscall_failure_format() {
         error.to_string(),
         format!(
             "Execution failed. Failure reason:
-Error in contract (contract address: {:#064x}, selector: {:#064x}):
+Error in contract (contract address: {:#064x}, class hash: _, selector: {:#064x}):
 \"Execution failure\".",
             ContractAddress::default().0.key(),
             EntryPointSelector::default().0

@@ -215,17 +215,17 @@ An ASSERT_EQ instruction failed: 1 != 0.
 0: Error in the called contract (contract address: {account_address_felt:#064x}, class hash: \
          {account_contract_hash:#064x}, selector: {execute_selector_felt:#064x}):
 Execution failed. Failure reason:
-Error in contract (contract address: {account_address_felt:#064x}, selector: \
-         {execute_selector_felt:#064x}):
+Error in contract (contract address: {account_address_felt:#064x}, class hash: \
+         {account_contract_hash:#064x}, selector: {execute_selector_felt:#064x}):
 (0x6661696c ('fail'), 0x454e545259504f494e545f4641494c4544 ('ENTRYPOINT_FAILED'), \
          0x454e545259504f494e545f4641494c4544 ('ENTRYPOINT_FAILED'))
 
-Error in contract (contract address: {test_contract_address_felt:#064x}, selector: \
-         {external_entry_point_selector_felt:#064x}):
+Error in contract (contract address: {test_contract_address_felt:#064x}, class hash: \
+         {test_contract_hash:#064x}, selector: {external_entry_point_selector_felt:#064x}):
 (0x6661696c ('fail'), 0x454e545259504f494e545f4641494c4544 ('ENTRYPOINT_FAILED'))
 
-Error in contract (contract address: {test_contract_address_2_felt:#064x}, selector: \
-         {inner_entry_point_selector_felt:#064x}):
+Error in contract (contract address: {test_contract_address_2_felt:#064x}, class hash: \
+         {test_contract_hash:#064x}, selector: {inner_entry_point_selector_felt:#064x}):
 0x6661696c ('fail').
 "
     );
@@ -343,17 +343,17 @@ Unknown location (pc=0:{expected_pc1})
 0: Error in the called contract (contract address: {account_address_felt:#064x}, class hash: \
                  {account_contract_hash:#064x}, selector: {execute_selector_felt:#064x}):
 Execution failed. Failure reason:
-Error in contract (contract address: {account_address_felt:#064x}, selector: \
-                 {execute_selector_felt:#064x}):
+Error in contract (contract address: {account_address_felt:#064x}, class hash: \
+                 {account_contract_hash:#064x}, selector: {execute_selector_felt:#064x}):
 ({expected_error}, 0x454e545259504f494e545f4641494c4544 ('ENTRYPOINT_FAILED'), \
                  0x454e545259504f494e545f4641494c4544 ('ENTRYPOINT_FAILED'))
 
-Error in contract (contract address: {contract_address_felt:#064x}, selector: \
-                 {invoke_call_chain_selector_felt:#064x}):
+Error in contract (contract address: {contract_address_felt:#064x}, class hash: \
+                 {test_contract_hash:#064x}, selector: {invoke_call_chain_selector_felt:#064x}):
 ({expected_error}, 0x454e545259504f494e545f4641494c4544 ('ENTRYPOINT_FAILED'))
 
-Error in contract (contract address: {contract_address_felt:#064x}, selector: \
-                 {invoke_call_chain_selector_felt:#064x}):
+Error in contract (contract address: {contract_address_felt:#064x}, class hash: \
+                 {test_contract_hash:#064x}, selector: {invoke_call_chain_selector_felt:#064x}):
 {expected_error}.
 "
             )
@@ -501,23 +501,23 @@ Unknown location (pc=0:{expected_pc3})
 0: Error in the called contract (contract address: {account_address_felt:#064x}, class hash: \
                  {account_contract_hash:#064x}, selector: {execute_selector_felt:#064x}):
 Execution failed. Failure reason:
-Error in contract (contract address: {account_address_felt:#064x}, selector: \
-                 {execute_selector_felt:#064x}):
+Error in contract (contract address: {account_address_felt:#064x}, class hash: \
+                 {account_contract_hash:#064x}, selector: {execute_selector_felt:#064x}):
 ({expected_error}, 0x454e545259504f494e545f4641494c4544 ('ENTRYPOINT_FAILED'), \
                  0x454e545259504f494e545f4641494c4544 ('ENTRYPOINT_FAILED'), \
                  0x454e545259504f494e545f4641494c4544 ('ENTRYPOINT_FAILED'))
 
-Error in contract (contract address: {address_felt:#064x}, selector: \
-                 {invoke_call_chain_selector_felt:#064x}):
+Error in contract (contract address: {address_felt:#064x}, class hash: {test_contract_hash:#064x}, \
+                 selector: {invoke_call_chain_selector_felt:#064x}):
 ({expected_error}, 0x454e545259504f494e545f4641494c4544 ('ENTRYPOINT_FAILED'), \
                  0x454e545259504f494e545f4641494c4544 ('ENTRYPOINT_FAILED'))
 
-Error in contract (contract address: {address_felt:#064x}, selector: \
-                 {invoke_call_chain_selector_felt:#064x}):
+Error in contract (contract address: {address_felt:#064x}, class hash: {test_contract_hash:#064x}, \
+                 selector: {invoke_call_chain_selector_felt:#064x}):
 ({expected_error}, 0x454e545259504f494e545f4641494c4544 ('ENTRYPOINT_FAILED'))
 
-Error in contract (contract address: {address_felt:#064x}, selector: \
-                 {last_func_selector_felt:#064x}):
+Error in contract (contract address: {address_felt:#064x}, class hash: {test_contract_hash:#064x}, \
+                 selector: {last_func_selector_felt:#064x}):
 {expected_error}.
 "
             )
@@ -617,8 +617,10 @@ An ASSERT_EQ instruction failed: 1 != 0.
         ),
         CairoVersion::Cairo1 => format!(
             "The `validate` entry point panicked with:
-Error in contract (contract address: {contract_address:#064x}, selector: {selector:#064x}):
-0x496e76616c6964207363656e6172696f ('Invalid scenario')."
+Error in contract (contract address: {contract_address:#064x}, class hash: {:#064x}, selector: \
+             {selector:#064x}):
+0x496e76616c6964207363656e6172696f ('Invalid scenario').",
+            class_hash.0
         ),
     };
 
@@ -685,10 +687,11 @@ An ASSERT_EQ instruction failed: 1 != 0.
             .to_string(),
             CairoVersion::Cairo1 => format!(
                 "Execution failed. Failure reason:
-Error in contract (contract address: {expected_address:#064x}, selector: \
+Error in contract (contract address: {expected_address:#064x}, class hash: {:#064x}, selector: \
                  {expected_selector:#064x}):
 0x496e76616c6964207363656e6172696f ('Invalid scenario').
-"
+",
+                class_hash.0
             )
             .to_string(),
         };
@@ -818,11 +821,13 @@ Error at pc=0:{}:
 Error at pc=0:{}:
 {frame_2}
 Execution failed. Failure reason:
-Error in contract (contract address: {expected_address:#064x}, selector: {:#064x}):
+Error in contract (contract address: {expected_address:#064x}, class hash: {:#064x}, selector: \
+                 {:#064x}):
 0x496e76616c6964207363656e6172696f ('Invalid scenario').
 ",
                 execute_offset + 205,
                 deploy_offset + 194,
+                faulty_class_hash.0,
                 ctor_selector.0
             )
         }
