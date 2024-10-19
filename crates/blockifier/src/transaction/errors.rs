@@ -103,7 +103,7 @@ pub enum TransactionExecutionError {
     FeeCheckError(#[from] FeeCheckError),
     #[error(transparent)]
     FromStr(#[from] FromStrError),
-    #[error("The `validate` entry point panicked with {panic_reason}.")]
+    #[error("The `validate` entry point panicked with:\n{panic_reason}.")]
     PanicInValidate { panic_reason: String },
     #[error("The `validate` entry point should return `VALID`. Got {actual:?}.")]
     InvalidValidateReturnData { actual: Retdata },
