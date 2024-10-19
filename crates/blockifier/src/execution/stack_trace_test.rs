@@ -213,8 +213,14 @@ An ASSERT_EQ instruction failed: 1 != 0.
         "Transaction execution has failed:
 0: Error in the called contract (contract address: {account_address_felt:#064x}, class hash: \
          {account_contract_hash:#064x}, selector: {execute_selector_felt:#064x}):
-Execution failed. Failure reason: (0x6661696c ('fail'), 0x454e545259504f494e545f4641494c4544 \
-         ('ENTRYPOINT_FAILED'), 0x454e545259504f494e545f4641494c4544 ('ENTRYPOINT_FAILED')).
+Execution failed. Failure reason:
+Error in contract (contract address: {account_address_felt:#064x}, selector: \
+         {execute_selector_felt:#064x}):
+Error in contract (contract address: {test_contract_address_felt:#064x}, selector: \
+         {external_entry_point_selector_felt:#064x}):
+Error in contract (contract address: {test_contract_address_2_felt:#064x}, selector: \
+         {inner_entry_point_selector_felt:#064x}):
+0x6661696c ('fail').
 "
     );
 
@@ -330,9 +336,14 @@ Unknown location (pc=0:{expected_pc1})
                 "Transaction execution has failed:
 0: Error in the called contract (contract address: {account_address_felt:#064x}, class hash: \
                  {account_contract_hash:#064x}, selector: {execute_selector_felt:#064x}):
-Execution failed. Failure reason: ({expected_error}, 0x454e545259504f494e545f4641494c4544 \
-                 ('ENTRYPOINT_FAILED'), 0x454e545259504f494e545f4641494c4544 \
-                 ('ENTRYPOINT_FAILED')).
+Execution failed. Failure reason:
+Error in contract (contract address: {account_address_felt:#064x}, selector: \
+                 {execute_selector_felt:#064x}):
+Error in contract (contract address: {contract_address_felt:#064x}, selector: \
+                 {invoke_call_chain_selector_felt:#064x}):
+Error in contract (contract address: {contract_address_felt:#064x}, selector: \
+                 {invoke_call_chain_selector_felt:#064x}):
+{expected_error}.
 "
             )
         }
@@ -478,10 +489,16 @@ Unknown location (pc=0:{expected_pc3})
                 "Transaction execution has failed:
 0: Error in the called contract (contract address: {account_address_felt:#064x}, class hash: \
                  {account_contract_hash:#064x}, selector: {execute_selector_felt:#064x}):
-Execution failed. Failure reason: ({expected_error}, 0x454e545259504f494e545f4641494c4544 \
-                 ('ENTRYPOINT_FAILED'), 0x454e545259504f494e545f4641494c4544 \
-                 ('ENTRYPOINT_FAILED'), 0x454e545259504f494e545f4641494c4544 \
-                 ('ENTRYPOINT_FAILED')).
+Execution failed. Failure reason:
+Error in contract (contract address: {account_address_felt:#064x}, selector: \
+                 {execute_selector_felt:#064x}):
+Error in contract (contract address: {address_felt:#064x}, selector: \
+                 {invoke_call_chain_selector_felt:#064x}):
+Error in contract (contract address: {address_felt:#064x}, selector: \
+                 {invoke_call_chain_selector_felt:#064x}):
+Error in contract (contract address: {address_felt:#064x}, selector: \
+                 {last_func_selector_felt:#064x}):
+{expected_error}.
 "
             )
         }
@@ -578,9 +595,11 @@ An ASSERT_EQ instruction failed: 1 != 0.
 ",
             class_hash.0
         ),
-        CairoVersion::Cairo1 => "The `validate` entry point panicked with \
-                                 0x496e76616c6964207363656e6172696f ('Invalid scenario')."
-            .into(),
+        CairoVersion::Cairo1 => format!(
+            "The `validate` entry point panicked with:
+Error in contract (contract address: {contract_address:#064x}, selector: {selector:#064x}):
+0x496e76616c6964207363656e6172696f ('Invalid scenario')."
+        ),
     };
 
     // Clean pc locations from the trace.
@@ -633,22 +652,26 @@ fn test_account_ctor_frame_stack_trace(
          hash: {:#064x}, selector: {expected_selector:#064x}):
 ",
         class_hash.0
-    ) + match cairo_version {
-        CairoVersion::Cairo0 => {
-            "Error at pc=0:223:
+    )
+    .to_string()
+        + &match cairo_version {
+            CairoVersion::Cairo0 => "Error at pc=0:223:
 Cairo traceback (most recent call last):
 Unknown location (pc=0:195)
 Unknown location (pc=0:179)
 
 An ASSERT_EQ instruction failed: 1 != 0.
 "
-        }
-        CairoVersion::Cairo1 => {
-            "Execution failed. Failure reason: 0x496e76616c6964207363656e6172696f ('Invalid \
-             scenario').
+            .to_string(),
+            CairoVersion::Cairo1 => format!(
+                "Execution failed. Failure reason:
+Error in contract (contract address: {expected_address:#064x}, selector: \
+                 {expected_selector:#064x}):
+0x496e76616c6964207363656e6172696f ('Invalid scenario').
 "
-        }
-    };
+            )
+            .to_string(),
+        };
 
     // Compare expected and actual error.
     let error = deploy_account_tx.execute(state, &block_context, true, true).unwrap_err();
@@ -774,10 +797,13 @@ Error at pc=0:{}:
 {frame_1}
 Error at pc=0:{}:
 {frame_2}
-Execution failed. Failure reason: 0x496e76616c6964207363656e6172696f ('Invalid scenario').
+Execution failed. Failure reason:
+Error in contract (contract address: {expected_address:#064x}, selector: {:#064x}):
+0x496e76616c6964207363656e6172696f ('Invalid scenario').
 ",
                 execute_offset + 205,
-                deploy_offset + 194
+                deploy_offset + 194,
+                ctor_selector.0
             )
         }
     };
