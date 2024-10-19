@@ -1,7 +1,6 @@
 use cairo_native::execution_result::ContractExecutionResult;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use num_traits::ToPrimitive;
-use starknet_api::execution_utils::format_panic_data;
 
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::contract_class::{NativeContractClassV1, TrackedResource};
@@ -12,6 +11,7 @@ use crate::execution::entry_point::{
 };
 use crate::execution::errors::{EntryPointExecutionError, PostExecutionError};
 use crate::execution::native::syscall_handler::NativeSyscallHandler;
+use crate::execution::stack_trace::extract_trailing_cairo1_revert_trace;
 use crate::state::state_api::State;
 
 pub fn execute_entry_point_call(
@@ -39,18 +39,7 @@ pub fn execute_entry_point_call(
         &mut syscall_handler,
     );
 
-    let call_result = match execution_result {
-        Err(runner_err) => Err(EntryPointExecutionError::NativeUnexpectedError(runner_err)),
-        Ok(res)
-            if res.failure_flag
-                && !syscall_handler.context.versioned_constants().enable_reverts =>
-        {
-            Err(EntryPointExecutionError::ExecutionFailed {
-                error_trace: format_panic_data(&res.return_values),
-            })
-        }
-        Ok(res) => Ok(res),
-    }?;
+    let call_result = execution_result.map_err(EntryPointExecutionError::NativeUnexpectedError)?;
 
     create_callinfo(call, call_result, syscall_handler)
 }
@@ -79,7 +68,7 @@ fn create_callinfo(
 
     let gas_consumed = call.initial_gas - remaining_gas;
 
-    Ok(CallInfo {
+    let call_info = CallInfo {
         call,
         execution: CallExecution {
             retdata: Retdata(call_result.return_values),
@@ -95,5 +84,13 @@ fn create_callinfo(
         storage_read_values: syscall_handler.read_values,
         accessed_storage_keys: syscall_handler.accessed_keys,
         tracked_resource: TrackedResource::SierraGas,
-    })
+    };
+
+    if call_result.failure_flag && !syscall_handler.context.versioned_constants().enable_reverts {
+        Err(EntryPointExecutionError::ExecutionFailed {
+            error_trace: extract_trailing_cairo1_revert_trace(&call_info),
+        })
+    } else {
+        Ok(call_info)
+    }
 }
