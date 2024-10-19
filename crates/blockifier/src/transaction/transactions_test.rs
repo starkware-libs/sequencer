@@ -1901,7 +1901,7 @@ fn test_validate_accounts_tx(
                 additional_data: Some(vec![
                     Felt::from(CURRENT_BLOCK_NUMBER_FOR_VALIDATE),
                     Felt::from(CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE),
-                    Felt::from(0_u64), // Sequencer address for validate.
+                    Felt::ZERO, // Sequencer address for validate.
                 ]),
                 declared_contract: Some(FeatureContract::Empty(declared_contract_cairo_version)),
                 resource_bounds: ValidResourceBounds::create_for_testing(),

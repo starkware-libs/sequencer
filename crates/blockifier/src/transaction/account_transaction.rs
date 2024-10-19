@@ -486,7 +486,7 @@ impl AccountTransaction {
         // The least significant 128 bits of the amount transferred.
         let lsb_amount = Felt::from(actual_fee.0);
         // The most significant 128 bits of the amount transferred.
-        let msb_amount = Felt::from(0_u8);
+        let msb_amount = Felt::ZERO;
 
         let TransactionContext { block_context, tx_info } = tx_context.as_ref();
         let storage_address = tx_context.fee_token_address();
