@@ -1,3 +1,5 @@
+use std::fmt::{Display, Formatter};
+
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::errors::cairo_run_errors::CairoRunError;
 use cairo_vm::vm::errors::hint_errors::HintError;
@@ -6,10 +8,10 @@ use itertools::Itertools;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::execution_utils::format_panic_data;
 
-use super::deprecated_syscalls::hint_processor::DeprecatedSyscallExecutionError;
-use super::syscalls::hint_processor::SyscallExecutionError;
-use crate::execution::call_info::CallInfo;
+use crate::execution::call_info::{CallInfo, Retdata};
+use crate::execution::deprecated_syscalls::hint_processor::DeprecatedSyscallExecutionError;
 use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
+use crate::execution::syscalls::hint_processor::SyscallExecutionError;
 use crate::transaction::errors::TransactionExecutionError;
 
 #[cfg(test)]
@@ -154,23 +156,59 @@ impl ErrorStack {
     }
 }
 
-pub fn extract_trailing_cairo1_revert_trace(root_callinfo: &CallInfo) -> String {
-    root_callinfo
-        .tail_iter()
-        .map(|callinfo| {
-            format!(
-                "Error in contract (contract address: {:#064x}, class hash: {}, selector: \
-                 {:#064x}):\n{}",
-                callinfo.call.storage_address.0.key(),
-                match callinfo.call.class_hash {
-                    Some(class_hash) => format!("{:#064x}", class_hash.0),
-                    None => "_".to_string(),
-                },
-                callinfo.call.entry_point_selector.0,
-                format_panic_data(&callinfo.execution.retdata.0)
-            )
-        })
-        .join("\n\n")
+#[derive(Debug)]
+pub struct Cairo1RevertFrame {
+    pub contract_address: ContractAddress,
+    pub class_hash: Option<ClassHash>,
+    pub selector: EntryPointSelector,
+    pub retdata: Retdata,
+}
+
+impl From<&CallInfo> for Cairo1RevertFrame {
+    fn from(callinfo: &CallInfo) -> Self {
+        Self {
+            contract_address: callinfo.call.storage_address,
+            class_hash: callinfo.call.class_hash,
+            selector: callinfo.call.entry_point_selector,
+            retdata: callinfo.execution.retdata.clone(),
+        }
+    }
+}
+
+impl Display for Cairo1RevertFrame {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Error in contract (contract address: {:#064x}, class hash: {}, selector: \
+             {:#064x}):\n{}",
+            self.contract_address.0.key(),
+            match self.class_hash {
+                Some(class_hash) => format!("{:#064x}", class_hash.0),
+                None => "_".to_string(),
+            },
+            self.selector.0,
+            format_panic_data(&self.retdata.0)
+        )
+    }
+}
+
+#[derive(Debug)]
+pub struct Cairo1RevertStack {
+    pub stack: Vec<Cairo1RevertFrame>,
+}
+
+impl Display for Cairo1RevertStack {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            self.stack.iter().map(|frame| frame.to_string()).collect::<Vec<String>>().join("\n\n")
+        )
+    }
+}
+
+pub fn extract_trailing_cairo1_revert_trace(root_callinfo: &CallInfo) -> Cairo1RevertStack {
+    Cairo1RevertStack { stack: root_callinfo.tail_iter().map(Cairo1RevertFrame::from).collect() }
 }
 
 /// Extracts the error trace from a `TransactionExecutionError`. This is a top level function.
