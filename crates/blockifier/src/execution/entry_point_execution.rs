@@ -28,6 +28,7 @@ use crate::execution::execution_utils::{
     ReadOnlySegments,
     SEGMENT_ARENA_BUILTIN_SIZE,
 };
+use crate::execution::stack_trace::extract_trailing_cairo1_revert_trace;
 use crate::execution::syscalls::hint_processor::SyscallHintProcessor;
 use crate::state::state_api::State;
 use crate::versioned_constants::GasCosts;
@@ -108,7 +109,7 @@ pub fn execute_entry_point_call(
     )?;
     if call_info.execution.failed && !context.versioned_constants().enable_reverts {
         return Err(EntryPointExecutionError::ExecutionFailed {
-            error_data: call_info.execution.retdata.0,
+            error_trace: extract_trailing_cairo1_revert_trace(&call_info),
         });
     }
 
