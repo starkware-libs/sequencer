@@ -208,7 +208,7 @@ pub fn create_root_edge_entry(
         Felt::from(old_root)
             .to_bytes_be()
             .into_iter()
-            .chain(Felt::from(0_u128).to_bytes_be())
+            .chain(Felt::ZERO.to_bytes_be())
             .chain([length])
             .collect(),
     );
