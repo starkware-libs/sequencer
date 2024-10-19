@@ -14,6 +14,7 @@ use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use thiserror::Error;
 
 use crate::execution::entry_point::ConstructorContext;
+use crate::execution::stack_trace::Cairo1RevertStack;
 use crate::state::errors::StateError;
 
 // TODO(AlonH, 21/12/2022): Implement Display for all types that appear in errors.
@@ -81,7 +82,7 @@ pub enum EntryPointExecutionError {
     #[error(transparent)]
     CairoRunError(#[from] CairoRunError),
     #[error("Execution failed. Failure reason:\n{error_trace}.")]
-    ExecutionFailed { error_trace: String },
+    ExecutionFailed { error_trace: Cairo1RevertStack },
     #[error("Internal error: {0}")]
     InternalError(String),
     #[error("Invalid input: {input_descriptor}; {info}")]
