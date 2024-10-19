@@ -5,9 +5,10 @@ use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use itertools::Itertools;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::execution_utils::format_panic_data;
+use starknet_types_core::felt::Felt;
 
 use super::deprecated_syscalls::hint_processor::DeprecatedSyscallExecutionError;
-use super::syscalls::hint_processor::SyscallExecutionError;
+use super::syscalls::hint_processor::{SyscallExecutionError, ENTRYPOINT_FAILED_ERROR};
 use crate::execution::call_info::CallInfo;
 use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
 use crate::transaction::errors::TransactionExecutionError;
@@ -154,8 +155,52 @@ impl ErrorStack {
     }
 }
 
-pub fn extract_trailing_cairo1_revert_trace(root_callinfo: &CallInfo) -> String {
-    format_panic_data(&root_callinfo.execution.retdata.0)
+pub fn extract_trailing_cairo1_revert_trace(root_call: &CallInfo) -> String {
+    let fallback_value = format_panic_data(&root_call.execution.retdata.0);
+
+    // For stack trace extraction, the last call chain is all that's relevant: sibling calls are not
+    // a source or error.
+    let mut error_calls: Vec<&CallInfo> = vec![];
+    for call_info in root_call.tail_iter() {
+        // It is possible that a failing contract managed to call another (non-failing) contract
+        // before hitting an error; stop iteration if the current call was successful.
+        if !call_info.execution.failed {
+            break;
+        }
+        error_calls.push(call_info);
+    }
+
+    // Verify the failure reasons are as expected; if not, return the fallback value.
+    // Each call should contain the actual failure reason as the first felt, and the
+    // ENTRYPOINT_FAILED felt once per inner call.
+    let entrypoint_failed_tail = vec![
+        Felt::from_hex(ENTRYPOINT_FAILED_ERROR).unwrap_or_else(
+            |_| panic!("{ENTRYPOINT_FAILED_ERROR} does not fit in a felt.")
+        );
+        error_calls.len() - 1
+    ];
+    for depth in 0..error_calls.len() {
+        let retdata = &error_calls[depth].execution.retdata.0;
+        let expected_retdata_len = error_calls.len() - depth;
+        if retdata.len() != expected_retdata_len || retdata[1..] != entrypoint_failed_tail[depth..]
+        {
+            return fallback_value;
+        }
+    }
+
+    // Add one line per call, and append the failure reason.
+    let Some(last_call) = error_calls.last() else { return fallback_value };
+    error_calls
+        .iter()
+        .map(|call_info| {
+            format!(
+                "Error in contract (contract address: {:#064x}, selector: {:#064x}):",
+                call_info.call.storage_address.0.key(),
+                call_info.call.entry_point_selector.0,
+            )
+        })
+        .chain([format_panic_data(&last_call.execution.retdata.0)])
+        .join("\n")
 }
 
 /// Extracts the error trace from a `TransactionExecutionError`. This is a top level function.
