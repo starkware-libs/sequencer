@@ -79,7 +79,7 @@ impl From<RunnerError> for PostExecutionError {
 pub enum EntryPointExecutionError {
     #[error(transparent)]
     CairoRunError(#[from] CairoRunError),
-    #[error("Execution failed. Failure reason: {error_trace}.")]
+    #[error("Execution failed. Failure reason:\n{error_trace}.")]
     ExecutionFailed { error_trace: String },
     #[error("Internal error: {0}")]
     InternalError(String),
