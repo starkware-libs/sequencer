@@ -155,7 +155,17 @@ impl ErrorStack {
 }
 
 pub fn extract_trailing_cairo1_revert_trace(root_callinfo: &CallInfo) -> String {
-    format_panic_data(&root_callinfo.execution.retdata.0)
+    root_callinfo
+        .tail_iter()
+        .map(|callinfo| {
+            format!(
+                "Error in contract (contract address: {:#064x}, selector: {:#064x}):\n{}",
+                callinfo.call.storage_address.0.key(),
+                callinfo.call.entry_point_selector.0,
+                format_panic_data(&callinfo.execution.retdata.0)
+            )
+        })
+        .join("\n\n")
 }
 
 /// Extracts the error trace from a `TransactionExecutionError`. This is a top level function.

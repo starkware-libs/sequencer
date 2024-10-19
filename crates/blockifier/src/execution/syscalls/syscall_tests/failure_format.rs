@@ -1,4 +1,5 @@
 use cairo_lang_utils::byte_array::BYTE_ARRAY_MAGIC;
+use starknet_api::core::{ContractAddress, EntryPointSelector};
 use starknet_types_core::felt::Felt;
 
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
@@ -29,5 +30,14 @@ fn test_syscall_failure_format() {
     let error = EntryPointExecutionError::ExecutionFailed {
         error_trace: extract_trailing_cairo1_revert_trace(&callinfo),
     };
-    assert_eq!(error.to_string(), "Execution failed. Failure reason: \"Execution failure\".");
+    assert_eq!(
+        error.to_string(),
+        format!(
+            "Execution failed. Failure reason:
+Error in contract (contract address: {:#064x}, selector: {:#064x}):
+\"Execution failure\".",
+            ContractAddress::default().0.key(),
+            EntryPointSelector::default().0
+        )
+    );
 }

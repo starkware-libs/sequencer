@@ -117,6 +117,11 @@ impl CallInfo {
         CallInfoIter { call_infos }
     }
 
+    /// Iterator over the rightmost branch of the callinfo tree rooted at self.
+    pub fn tail_iter(&self) -> CallInfoTailIter<'_> {
+        CallInfoTailIter { call_infos: vec![self] }
+    }
+
     pub fn summarize(&self) -> ExecutionSummary {
         let mut executed_class_hashes: HashSet<ClassHash> = HashSet::new();
         let mut visited_storage_entries: HashSet<StorageEntry> = HashSet::new();
@@ -181,6 +186,22 @@ impl<'a> Iterator for CallInfoIter<'a> {
 
         // Push order is right to left.
         self.call_infos.extend(call_info.inner_calls.iter().rev());
+        Some(call_info)
+    }
+}
+
+pub struct CallInfoTailIter<'a> {
+    call_infos: Vec<&'a CallInfo>,
+}
+
+impl<'a> Iterator for CallInfoTailIter<'a> {
+    type Item = &'a CallInfo;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let call_info = self.call_infos.pop()?;
+        if let Some(next) = call_info.inner_calls.last() {
+            self.call_infos.push(next);
+        }
         Some(call_info)
     }
 }
