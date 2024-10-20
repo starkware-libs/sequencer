@@ -545,7 +545,7 @@ fn revert_state() {
     assert!(state_reader.get_nonce_at(state_number, &contract1).unwrap().is_none());
     assert_eq!(
         state_reader.get_storage_at(state_number, contract0, &updated_storage_key).unwrap(),
-        Felt::from(0_u8)
+        Felt::ZERO
     );
     assert!(txn.get_casm(&class2).unwrap().is_none());
 }

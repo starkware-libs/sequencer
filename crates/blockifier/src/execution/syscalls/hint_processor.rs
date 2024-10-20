@@ -236,10 +236,11 @@ pub struct SyscallHintProcessor<'a> {
 
     pub sha256_segment_end_ptr: Option<Relocatable>,
 
+    // Execution info, for get_execution_info syscall; allocated on-demand.
+    execution_info_ptr: Option<Relocatable>,
+
     // Additional fields.
     hints: &'a HashMap<String, Hint>,
-    // Transaction info. and signature segments; allocated on-demand.
-    execution_info_ptr: Option<Relocatable>,
 }
 
 impl<'a> SyscallHintProcessor<'a> {
@@ -535,9 +536,7 @@ impl<'a> SyscallHintProcessor<'a> {
     }
 
     fn read_next_syscall_selector(&mut self, vm: &mut VirtualMachine) -> SyscallResult<Felt> {
-        let selector = felt_from_ptr(vm, &mut self.syscall_ptr)?;
-
-        Ok(selector)
+        Ok(felt_from_ptr(vm, &mut self.syscall_ptr)?)
     }
 
     pub fn increment_syscall_count_by(&mut self, selector: &SyscallSelector, n: usize) {
@@ -761,9 +760,9 @@ impl HintProcessorLogic for SyscallHintProcessor<'_> {
 }
 
 pub fn felt_to_bool(felt: Felt, error_info: &str) -> SyscallResult<bool> {
-    if felt == Felt::from(0_u8) {
+    if felt == Felt::ZERO {
         Ok(false)
-    } else if felt == Felt::from(1_u8) {
+    } else if felt == Felt::ONE {
         Ok(true)
     } else {
         Err(SyscallExecutionError::InvalidSyscallInput { input: felt, info: error_info.into() })

@@ -359,9 +359,7 @@ impl<'a> DeprecatedSyscallHintProcessor<'a> {
         &mut self,
         vm: &mut VirtualMachine,
     ) -> DeprecatedSyscallResult<Felt> {
-        let selector = felt_from_ptr(vm, &mut self.syscall_ptr)?;
-
-        Ok(selector)
+        Ok(felt_from_ptr(vm, &mut self.syscall_ptr)?)
     }
 
     fn increment_syscall_count(&mut self, selector: &DeprecatedSyscallSelector) {
@@ -466,9 +464,9 @@ impl HintProcessorLogic for DeprecatedSyscallHintProcessor<'_> {
 }
 
 pub fn felt_to_bool(felt: Felt) -> DeprecatedSyscallResult<bool> {
-    if felt == Felt::from(0_u8) {
+    if felt == Felt::ZERO {
         Ok(false)
-    } else if felt == Felt::from(1_u8) {
+    } else if felt == Felt::ONE {
         Ok(true)
     } else {
         Err(DeprecatedSyscallExecutionError::InvalidSyscallInput {

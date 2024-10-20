@@ -97,7 +97,7 @@ pub fn get_balance_and_if_covers_fee(
         balance_high,
         // TODO(Dori,1/10/2023): If/when fees can be more than 128 bit integers, this should be
         //   updated.
-        balance_high > Felt::from(0_u8) || balance_low >= Felt::from(fee.0),
+        balance_high > Felt::ZERO || balance_low >= Felt::from(fee.0),
     ))
 }
 
