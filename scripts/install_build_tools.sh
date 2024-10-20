@@ -8,6 +8,7 @@ function install_common_packages() {
     $SUDO  bash -c '
         apt update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt -y install \
             build-essential \
+            lld \
             clang \
             curl \
             gnupg \
