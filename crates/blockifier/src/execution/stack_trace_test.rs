@@ -1,7 +1,13 @@
 use pretty_assertions::assert_eq;
 use regex::Regex;
 use rstest::rstest;
-use starknet_api::core::{calculate_contract_address, Nonce};
+use starknet_api::core::{
+    calculate_contract_address,
+    ClassHash,
+    ContractAddress,
+    EntryPointSelector,
+    Nonce,
+};
 use starknet_api::transaction::{
     ContractAddressSalt,
     Fee,
@@ -14,6 +20,15 @@ use starknet_api::{calldata, felt, invoke_tx_args};
 use crate::abi::abi_utils::selector_from_name;
 use crate::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use crate::context::{BlockContext, ChainInfo};
+use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
+use crate::execution::entry_point::CallEntryPoint;
+use crate::execution::stack_trace::{
+    extract_trailing_cairo1_revert_trace,
+    Cairo1RevertStack,
+    MIN_CAIRO1_FRAME_LENGTH,
+    TRACE_LENGTH_CAP,
+};
+use crate::execution::syscalls::hint_processor::ENTRYPOINT_FAILED_ERROR;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::{fund_account, test_state};
 use crate::test_utils::{create_calldata, CairoVersion, BALANCE};
@@ -817,4 +832,110 @@ Error in contract (contract address: {expected_address:#064x}, class hash: {:#06
     let error =
         invoke_deploy_tx.execute(state, &block_context, true, true).unwrap().revert_error.unwrap();
     assert_eq!(error.to_string(), expected_error);
+}
+
+#[test]
+fn test_min_cairo1_frame_length() {
+    let failure_hex = "0xdeadbeef";
+    let call_info = CallInfo {
+        call: CallEntryPoint {
+            class_hash: Some(ClassHash::default()),
+            storage_address: ContractAddress::default(),
+            entry_point_selector: EntryPointSelector::default(),
+            ..Default::default()
+        },
+        execution: CallExecution {
+            retdata: Retdata(vec![felt!(failure_hex)]),
+            failed: true,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let error_stack = extract_trailing_cairo1_revert_trace(&call_info);
+    let error_string = error_stack.to_string();
+    // Frame, newline, failure reason.
+    // Min frame length includes the newline.
+    assert_eq!(error_string.len(), *MIN_CAIRO1_FRAME_LENGTH + failure_hex.len());
+}
+
+#[rstest]
+#[case::too_many_frames(TRACE_LENGTH_CAP / *MIN_CAIRO1_FRAME_LENGTH + 10, 1, "too_many_frames")]
+// Each (large) felt should require at least 30 chars.
+#[case::too_much_retdata(1, TRACE_LENGTH_CAP / 30, "too_much_retdata")]
+#[case::both_too_much(
+    TRACE_LENGTH_CAP / (2 * *MIN_CAIRO1_FRAME_LENGTH), TRACE_LENGTH_CAP / 40, "both_too_much"
+)]
+fn test_cairo1_revert_error_truncation(
+    #[case] n_frames: usize,
+    #[case] n_retdata: usize,
+    #[case] scenario: &str,
+) {
+    let failure_felt = "0xbeefbeefbeefbeefbeefbeefbeefbeef";
+    let call = CallEntryPoint {
+        class_hash: Some(ClassHash::default()),
+        storage_address: ContractAddress::default(),
+        entry_point_selector: EntryPointSelector::default(),
+        ..Default::default()
+    };
+    let mut retdata = Retdata(vec![felt!(failure_felt); n_retdata]);
+    let mut next_call_info = CallInfo {
+        call: call.clone(),
+        execution: CallExecution { retdata: retdata.clone(), failed: true, ..Default::default() },
+        ..Default::default()
+    };
+    for _ in 1..n_frames {
+        retdata.0.push(felt!(ENTRYPOINT_FAILED_ERROR));
+        next_call_info = CallInfo {
+            call: call.clone(),
+            inner_calls: vec![next_call_info],
+            execution: CallExecution {
+                retdata: retdata.clone(),
+                failed: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+    }
+
+    // Check that the error message is structured as expected.
+    let error_stack = extract_trailing_cairo1_revert_trace(&next_call_info);
+    let error_string = error_stack.to_string();
+    let first_frame = error_stack.stack.first().unwrap().to_string();
+    let last_frame = error_stack.stack.last().unwrap().to_string();
+    match scenario {
+        // Frames truncated, entire failure reason (a single felt) is output.
+        "too_many_frames" => {
+            assert!(error_string.starts_with(&format!("{first_frame}\n")));
+            assert!(
+                error_string.ends_with(
+                    &[
+                        Cairo1RevertStack::TRUNCATION_SEPARATOR.into(),
+                        last_frame,
+                        // One failure felt.
+                        failure_felt.to_string(),
+                    ]
+                    .join("\n")
+                )
+            );
+        }
+        // A single frame, but failure reason itself is too long. No frames printed.
+        "too_much_retdata" => {
+            assert!(error_string.starts_with(&format!("({failure_felt}")));
+            assert!(error_string.ends_with(Cairo1RevertStack::TRUNCATION_SEPARATOR));
+        }
+        // Too many frames and too much retdata - retdata takes precedence.
+        "both_too_much" => {
+            assert!(error_string.starts_with(&format!("{first_frame}\n")));
+            let retdata_tail =
+                format!("({}{failure_felt})", format!("{failure_felt}, ").repeat(n_retdata - 1));
+            assert!(
+                error_string.ends_with(
+                    &[Cairo1RevertStack::TRUNCATION_SEPARATOR.into(), last_frame, retdata_tail]
+                        .join("\n")
+                )
+            );
+        }
+        _ => panic!("Test not implemented for {n_frames} frames."),
+    }
+    assert!(error_string.len() <= TRACE_LENGTH_CAP);
 }

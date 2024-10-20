@@ -1,4 +1,5 @@
 use std::fmt::{Display, Formatter};
+use std::sync::LazyLock;
 
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::errors::cairo_run_errors::CairoRunError;
@@ -163,6 +164,16 @@ pub struct Cairo1RevertFrame {
     pub selector: EntryPointSelector,
 }
 
+pub static MIN_CAIRO1_FRAME_LENGTH: LazyLock<usize> = LazyLock::new(|| {
+    let frame = Cairo1RevertFrame {
+        contract_address: ContractAddress::default(),
+        class_hash: Some(ClassHash::default()),
+        selector: EntryPointSelector::default(),
+    };
+    // +1 for newline.
+    format!("{}", frame).len() + 1
+});
+
 impl From<&&CallInfo> for Cairo1RevertFrame {
     fn from(callinfo: &&CallInfo) -> Self {
         Self {
@@ -194,16 +205,83 @@ pub struct Cairo1RevertStack {
     pub last_retdata: Retdata,
 }
 
+impl Cairo1RevertStack {
+    pub const TRUNCATION_SEPARATOR: &'static str = "\n...";
+}
+
+pub static MIN_CAIRO1_FRAMES_STACK_LENGTH: LazyLock<usize> = LazyLock::new(|| {
+    // Two frames (first and last) + separator.
+    2 * *MIN_CAIRO1_FRAME_LENGTH + Cairo1RevertStack::TRUNCATION_SEPARATOR.len()
+});
+
 impl Display for Cairo1RevertStack {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        // Total string length is limited by TRACE_LENGTH_CAP.
+
+        // Prioritize the failure reason felts over the frames.
+        // If the failure reason is too long to include a minimal frame trace, display only the
+        // failure reason (truncated if necessary).
+        let failure_reason = format_panic_data(&self.last_retdata.0);
+        if failure_reason.len() >= TRACE_LENGTH_CAP - *MIN_CAIRO1_FRAMES_STACK_LENGTH {
+            let output = if failure_reason.len() <= TRACE_LENGTH_CAP {
+                failure_reason
+            } else {
+                failure_reason
+                    .chars()
+                    .take(TRACE_LENGTH_CAP - Self::TRUNCATION_SEPARATOR.len())
+                    .collect::<String>()
+                    + Self::TRUNCATION_SEPARATOR
+            };
+            return write!(f, "{}", output);
+        }
+
+        let untruncated_string = self
+            .stack
+            .iter()
+            .map(|frame| frame.to_string())
+            .chain([failure_reason.clone()])
+            .join("\n");
+        if untruncated_string.len() <= TRACE_LENGTH_CAP {
+            return write!(f, "{}", untruncated_string);
+        }
+
+        // If the number of frames is too large, drop frames above the last frame (two frames are
+        // not too many, as checked above with MIN_CAIRO1_FRAMES_STACK_LENGTH).
+        let n_frames_to_drop = (untruncated_string.len() - TRACE_LENGTH_CAP
+            + Self::TRUNCATION_SEPARATOR.len())
+        .div_ceil(*MIN_CAIRO1_FRAME_LENGTH);
+
+        // If the number of frames is not as expected, fall back to the failure reason.
+        let final_string =
+            match (self.stack.get(..self.stack.len() - n_frames_to_drop - 1), self.stack.last()) {
+                (Some(frames), Some(last_frame)) => {
+                    let combined_string = frames
+                        .iter()
+                        .map(|frame| frame.to_string())
+                        .chain([
+                            String::from(Self::TRUNCATION_SEPARATOR),
+                            last_frame.to_string(),
+                            failure_reason,
+                        ])
+                        .join("\n");
+                    if combined_string.len() <= TRACE_LENGTH_CAP {
+                        combined_string
+                    } else {
+                        // If the combined string is too long, truncate it.
+                        combined_string
+                            .chars()
+                            .take(TRACE_LENGTH_CAP - Self::TRUNCATION_SEPARATOR.len())
+                            .collect::<String>()
+                            + Self::TRUNCATION_SEPARATOR
+                    }
+                }
+                _ => failure_reason,
+            };
         write!(
             f,
             "{}",
-            self.stack
-                .iter()
-                .map(|frame| frame.to_string())
-                .chain([format_panic_data(&self.last_retdata.0)])
-                .join("\n")
+            // Truncate again as a failsafe.
+            final_string.chars().take(TRACE_LENGTH_CAP).collect::<String>()
         )
     }
 }
