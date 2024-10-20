@@ -557,7 +557,7 @@
   "consensus_manager_config.consensus_config.start_height": {
     "description": "The height to start the consensus from.",
     "privacy": "Public",
-    "value": 0
+    "value": 1
   },
   "consensus_manager_config.consensus_config.timeouts.precommit_timeout": {
     "description": "The timeout (seconds) for a precommit.",

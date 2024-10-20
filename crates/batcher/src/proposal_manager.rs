@@ -389,6 +389,7 @@ impl BuildProposalTask {
                 mempool_txs.len()
             );
             for tx in mempool_txs {
+                info!("Consensus manager feeding tx: {:?}", tx);
                 mempool_tx_sender
                     .send(tx)
                     .await

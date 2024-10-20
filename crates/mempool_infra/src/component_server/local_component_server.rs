@@ -1,4 +1,5 @@
 use std::any::type_name;
+use std::fmt::Debug;
 use std::marker::PhantomData;
 
 use async_trait::async_trait;
@@ -120,8 +121,8 @@ impl<Component, Request, Response> ComponentServerStarter
     for LocalComponentServer<Component, Request, Response>
 where
     Component: ComponentRequestHandler<Request, Response> + Send + Sync + ComponentStarter,
-    Request: Send + Sync,
-    Response: Send + Sync,
+    Request: Send + Sync + Debug,
+    Response: Send + Sync + Debug,
 {
     async fn start(&mut self) -> Result<(), ComponentServerError> {
         info!("Starting LocalComponentServer for {}.", type_name::<Component>());
@@ -141,8 +142,8 @@ impl<Component, Request, Response> ComponentServerStarter
     for LocalActiveComponentServer<Component, Request, Response>
 where
     Component: ComponentRequestHandler<Request, Response> + ComponentStarter + Clone + Send + Sync,
-    Request: Send + Sync,
-    Response: Send + Sync,
+    Request: Send + Sync + Debug,
+    Response: Send + Sync + Debug,
 {
     async fn start(&mut self) -> Result<(), ComponentServerError> {
         let mut component = self.component.clone();
