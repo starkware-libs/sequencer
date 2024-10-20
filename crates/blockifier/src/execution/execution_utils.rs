@@ -21,8 +21,14 @@ use starknet_api::deprecated_contract_class::Program as DeprecatedProgram;
 use starknet_api::transaction::Calldata;
 use starknet_types_core::felt::Felt;
 
+use super::call_info::CallExecution;
 use super::entry_point::ConstructorEntryPointExecutionResult;
-use super::errors::ConstructorEntryPointExecutionError;
+use super::errors::{
+    ConstructorEntryPointExecutionError,
+    EntryPointExecutionError,
+    PreExecutionError,
+};
+use super::syscalls::hint_processor::ENTRYPOINT_NOT_FOUND_ERROR;
 use crate::execution::call_info::{CallInfo, Retdata};
 use crate::execution::contract_class::{ContractClass, TrackedResource};
 use crate::execution::entry_point::{
@@ -72,14 +78,32 @@ pub fn execute_entry_point_call_wrapper(
         None => context.tracked_resource_stack.push(contract_tracked_resource),
     };
 
+    let orig_call = call.clone();
     let res = execute_entry_point_call(call, contract_class, state, resources, context);
-    context.tracked_resource_stack.pop();
+    let current_tracked_resource =
+        context.tracked_resource_stack.pop().expect("Unexpected empty tracked resource.");
 
-    if let Ok(call_info) = &res {
-        update_remaining_gas(remaining_gas, call_info);
+    match res {
+        Ok(call_info) => {
+            update_remaining_gas(remaining_gas, &call_info);
+            Ok(call_info)
+        }
+        Err(EntryPointExecutionError::PreExecutionError(
+            PreExecutionError::EntryPointNotFound(_)
+            | PreExecutionError::NoEntryPointOfTypeFound(_),
+        )) if context.versioned_constants().enable_reverts => Ok(CallInfo {
+            call: orig_call,
+            execution: CallExecution {
+                retdata: Retdata(vec![Felt::from_hex(ENTRYPOINT_NOT_FOUND_ERROR).unwrap()]),
+                failed: true,
+                gas_consumed: 0,
+                ..CallExecution::default()
+            },
+            tracked_resource: current_tracked_resource,
+            ..CallInfo::default()
+        }),
+        Err(err) => Err(err),
     }
-
-    res
 }
 
 /// Executes a specific call to a contract entry point and returns its output.
