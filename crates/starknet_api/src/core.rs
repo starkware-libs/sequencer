@@ -6,7 +6,6 @@ use core::fmt::Display;
 use std::fmt::Debug;
 use std::sync::LazyLock;
 
-use derive_more::Display;
 use primitive_types::H160;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use starknet_types_core::felt::{Felt, NonZeroFelt};
@@ -97,7 +96,7 @@ pub const BLOCK_HASH_TABLE_ADDRESS: ContractAddress = ContractAddress(PatriciaKe
     Default,
     Copy,
     Clone,
-    Display,
+    derive_more::Display,
     Eq,
     PartialEq,
     Hash,
@@ -177,7 +176,7 @@ pub fn calculate_contract_address(
     Serialize,
     PartialOrd,
     Ord,
-    Display,
+    derive_more::Display,
     derive_more::Deref,
 )]
 pub struct ClassHash(pub StarkHash);
@@ -195,7 +194,7 @@ pub struct ClassHash(pub StarkHash);
     Serialize,
     PartialOrd,
     Ord,
-    Display,
+    derive_more::Display,
 )]
 pub struct CompiledClassHash(pub StarkHash);
 
@@ -255,7 +254,7 @@ pub struct EntryPointSelector(pub StarkHash);
     Serialize,
     PartialOrd,
     Ord,
-    Display,
+    derive_more::Display,
 )]
 pub struct GlobalRoot(pub StarkHash);
 
@@ -272,7 +271,7 @@ pub struct GlobalRoot(pub StarkHash);
     Serialize,
     PartialOrd,
     Ord,
-    Display,
+    derive_more::Display,
 )]
 pub struct TransactionCommitment(pub StarkHash);
 
@@ -289,7 +288,7 @@ pub struct TransactionCommitment(pub StarkHash);
     Serialize,
     PartialOrd,
     Ord,
-    Display,
+    derive_more::Display,
 )]
 pub struct EventCommitment(pub StarkHash);
 
@@ -306,7 +305,7 @@ pub struct EventCommitment(pub StarkHash);
     Serialize,
     PartialOrd,
     Ord,
-    Display,
+    derive_more::Display,
 )]
 pub struct ReceiptCommitment(pub StarkHash);
 
@@ -320,7 +319,7 @@ pub struct StateDiffCommitment(pub PoseidonHash);
 #[derive(
     Copy,
     Clone,
-    Display,
+    derive_more::Display,
     Eq,
     PartialEq,
     Default,

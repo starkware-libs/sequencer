@@ -1,7 +1,6 @@
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 
-use derive_more::IntoIterator;
 use indexmap::IndexMap;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
@@ -294,7 +293,7 @@ impl Default for CachedState<crate::test_utils::dict_state_reader::DictStateRead
 
 pub type StorageEntry = (ContractAddress, StorageKey);
 
-#[derive(Debug, Default, IntoIterator)]
+#[derive(Debug, Default, derive_more::IntoIterator)]
 pub struct StorageView(pub HashMap<StorageEntry, Felt>);
 
 /// Converts a `CachedState`'s storage mapping into a `StateDiff`'s storage mapping.

@@ -2,7 +2,6 @@ use std::collections::BTreeMap;
 use std::fmt::Display;
 use std::sync::Arc;
 
-use derive_more::{Display, From};
 use num_bigint::BigUint;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use starknet_types_core::felt::Felt;
@@ -394,7 +393,9 @@ impl TransactionHasher for DeployAccountTransactionV3 {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord, From)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord, derive_more::From,
+)]
 pub enum DeployAccountTransaction {
     V1(DeployAccountTransactionV1),
     V3(DeployAccountTransactionV3),
@@ -539,7 +540,9 @@ impl TransactionHasher for InvokeTransactionV3 {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord, From)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord, derive_more::From,
+)]
 pub enum InvokeTransaction {
     V0(InvokeTransactionV0),
     V1(InvokeTransactionV1),
@@ -729,7 +732,7 @@ pub struct RevertedTransactionExecutionStatus {
     Copy,
     Clone,
     Default,
-    Display,
+    derive_more::Display,
     Eq,
     PartialEq,
     Hash,
@@ -997,7 +1000,7 @@ impl From<Tip> for Felt {
     Copy,
     Debug,
     Deserialize,
-    Display,
+    derive_more::Display,
     EnumIter,
     Eq,
     Hash,
