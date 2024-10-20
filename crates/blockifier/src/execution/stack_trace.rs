@@ -204,6 +204,9 @@ impl Display for Cairo1RevertStack {
                 .map(|frame| frame.to_string())
                 .chain([format_panic_data(&self.last_retdata.0)])
                 .join("\n")
+                .chars()
+                .take(TRACE_LENGTH_CAP)
+                .collect::<String>()
         )
     }
 }
