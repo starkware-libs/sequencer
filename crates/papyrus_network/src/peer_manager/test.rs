@@ -220,6 +220,7 @@ fn report_peer_calls_update_reputation_and_notifies_kad() {
     peer_manager.report_peer(peer_id, ReputationModifier::Unstable).unwrap();
     peer_manager.get_mut_peer(peer_id).unwrap();
 
+    // TODO(Arni): Imrove self.
     // Validate that we have an event to notify Kademlia
     assert_eq!(peer_manager.pending_events.len(), 1);
     assert_matches!(
