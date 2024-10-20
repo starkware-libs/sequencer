@@ -19,6 +19,7 @@ indexmap.workspace = true
 mempool_test_utils.workspace = true
 papyrus_common.workspace = true
 papyrus_config.workspace = true
+papyrus_consensus.workspace = true
 papyrus_rpc.workspace = true
 papyrus_storage = { workspace = true, features = ["testing"] }
 reqwest.workspace = true
@@ -28,6 +29,7 @@ starknet_api.workspace = true
 starknet_batcher.workspace = true
 starknet_batcher_types.workspace = true
 starknet_client.workspace = true
+starknet_consensus_manager.workspace = true
 starknet_gateway = { workspace = true, features = ["testing"] }
 starknet_gateway_types.workspace = true
 starknet_http_server.workspace = true
