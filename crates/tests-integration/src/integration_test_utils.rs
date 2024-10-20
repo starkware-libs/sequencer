@@ -8,12 +8,15 @@ use mempool_test_utils::starknet_api_test_utils::{
     rpc_tx_to_json,
     MultiAccountTransactionGenerator,
 };
+use papyrus_consensus::config::ConsensusConfig;
 use papyrus_storage::StorageConfig;
 use reqwest::{Client, Response};
+use starknet_api::block::BlockNumber;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_batcher::block_builder::BlockBuilderConfig;
 use starknet_batcher::config::BatcherConfig;
+use starknet_consensus_manager::config::ConsensusManagerConfig;
 use starknet_gateway::config::{
     GatewayConfig,
     RpcStateReaderConfig,
@@ -36,9 +39,13 @@ pub async fn create_config(
     let gateway_config = create_gateway_config(chain_info).await;
     let http_server_config = create_http_server_config().await;
     let rpc_state_reader_config = test_rpc_state_reader_config(rpc_server_addr);
+    let consensus_manager_config = ConsensusManagerConfig {
+        consensus_config: ConsensusConfig { start_height: BlockNumber(1), ..Default::default() },
+    };
     SequencerNodeConfig {
         chain_id,
         batcher_config,
+        consensus_manager_config,
         gateway_config,
         http_server_config,
         rpc_state_reader_config,
