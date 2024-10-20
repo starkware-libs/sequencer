@@ -1,3 +1,7 @@
+// #[cfg(test)]
+#[path = "test_instances.rs"]
+mod test_instances;
+
 use papyrus_test_utils::{get_rng, GetTestInstance};
 use starknet_api::transaction::{
     DeclareTransaction,
