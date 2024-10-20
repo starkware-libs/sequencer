@@ -96,13 +96,13 @@ impl<T: SyscallResponse> SyscallResponse for SyscallResponseWrapper<T> {
             Self::Success { gas_counter, response } => {
                 write_felt(vm, ptr, Felt::from(gas_counter))?;
                 // 0 to indicate success.
-                write_felt(vm, ptr, Felt::from(0_u8))?;
+                write_felt(vm, ptr, Felt::ZERO)?;
                 response.write(vm, ptr)
             }
             Self::Failure { gas_counter, error_data } => {
                 write_felt(vm, ptr, Felt::from(gas_counter))?;
                 // 1 to indicate failure.
-                write_felt(vm, ptr, Felt::from(1_u8))?;
+                write_felt(vm, ptr, Felt::ONE)?;
 
                 // Write the error data to a new memory segment.
                 let revert_reason_start = vm.add_memory_segment();
@@ -579,7 +579,7 @@ pub struct StorageReadRequest {
 impl SyscallRequest for StorageReadRequest {
     fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallResult<StorageReadRequest> {
         let address_domain = felt_from_ptr(vm, ptr)?;
-        if address_domain != Felt::from(0_u8) {
+        if address_domain != Felt::ZERO {
             return Err(SyscallExecutionError::InvalidAddressDomain { address_domain });
         }
         let address = StorageKey::try_from(felt_from_ptr(vm, ptr)?)?;
@@ -620,7 +620,7 @@ pub struct StorageWriteRequest {
 impl SyscallRequest for StorageWriteRequest {
     fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallResult<StorageWriteRequest> {
         let address_domain = felt_from_ptr(vm, ptr)?;
-        if address_domain != Felt::from(0_u8) {
+        if address_domain != Felt::ZERO {
             return Err(SyscallExecutionError::InvalidAddressDomain { address_domain });
         }
         let address = StorageKey::try_from(felt_from_ptr(vm, ptr)?)?;
