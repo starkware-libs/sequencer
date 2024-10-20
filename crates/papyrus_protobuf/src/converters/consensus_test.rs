@@ -23,9 +23,6 @@ use crate::consensus::{
     Vote,
 };
 
-#[path = "test_instances.rs"]
-mod test_instances;
-
 // If all the fields of `AllResources` are 0 upon serialization,
 // then the deserialized value will be interpreted as the `L1Gas` variant.
 fn add_gas_values_to_transaction(transactions: &mut Vec<Transaction>) {
