@@ -5,11 +5,11 @@ use std::process::exit;
 use papyrus_config::validators::config_validate;
 use papyrus_config::ConfigError;
 use starknet_http_server::config::HttpServerConfig;
-use starknet_mempool_infra::trace_util::configure_tracing;
-use starknet_mempool_integration_tests::integration_test_utils::{
+use starknet_integration_tests::integration_test_utils::{
     create_integration_test_tx_generator,
     HttpTestClient,
 };
+use starknet_mempool_infra::trace_util::configure_tracing;
 use starknet_mempool_node::config::SequencerNodeConfig;
 use tracing::{error, info};
 

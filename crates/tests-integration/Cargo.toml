@@ -1,5 +1,5 @@
 [package]
-name = "starknet_mempool_integration_tests"
+name = "starknet_integration_tests"
 version.workspace = true
 edition.workspace = true
 repository.workspace = true
