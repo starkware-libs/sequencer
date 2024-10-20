@@ -1,7 +1,8 @@
+use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use regex::Regex;
 use rstest::rstest;
-use starknet_api::core::{calculate_contract_address, Nonce};
+use starknet_api::core::{calculate_contract_address, ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::transaction::{
     Calldata,
     ContractAddressSalt,
@@ -11,10 +12,15 @@ use starknet_api::transaction::{
     ValidResourceBounds,
 };
 use starknet_api::{calldata, felt, invoke_tx_args};
+use starknet_types_core::felt::Felt;
 
 use crate::abi::abi_utils::selector_from_name;
 use crate::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use crate::context::{BlockContext, ChainInfo};
+use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
+use crate::execution::errors::EntryPointExecutionError;
+use crate::execution::stack_trace::{extract_trailing_cairo1_revert_trace, Cairo1RevertStack};
+use crate::execution::syscalls::hint_processor::ENTRYPOINT_FAILED_ERROR;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::{fund_account, test_state};
 use crate::test_utils::{create_calldata, CairoVersion, BALANCE};
@@ -38,6 +44,29 @@ use crate::transaction::test_utils::{
 };
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::ExecutableTransaction;
+
+// Utils.
+
+/// Constructs a failing call stack with the given retdata in each call.
+fn call_chain_from_retdatas(retdatas: &[Vec<&str>]) -> CallInfo {
+    let mut next_inner_calls = vec![];
+    for retdata in retdatas {
+        let error_felts: Vec<Felt> = retdata.iter().map(|s| Felt::from_hex(s).unwrap()).collect();
+        let callinfo = CallInfo {
+            execution: CallExecution {
+                retdata: Retdata(error_felts),
+                failed: true,
+                ..Default::default()
+            },
+            inner_calls: next_inner_calls,
+            ..Default::default()
+        };
+        next_inner_calls = vec![callinfo];
+    }
+    next_inner_calls[0].clone()
+}
+
+// Tests.
 
 #[rstest]
 fn test_stack_trace_with_inner_error_msg(block_context: BlockContext) {
@@ -818,4 +847,91 @@ Error in contract (contract address: {expected_address:#064x}, class hash: {:#06
     let error =
         invoke_deploy_tx.execute(state, &block_context, true, true).unwrap().revert_error.unwrap();
     assert_eq!(error.to_string(), expected_error);
+}
+
+#[test]
+fn test_cairo1_stack_extraction_inner_call_successful() {
+    let error_data = Retdata(vec![Felt::from_hex("0xdeadbeef").unwrap()]);
+    let callinfo = CallInfo {
+        execution: CallExecution { retdata: error_data, failed: true, ..Default::default() },
+        inner_calls: vec![CallInfo {
+            execution: CallExecution { failed: false, ..Default::default() },
+            ..Default::default()
+        }],
+        ..Default::default()
+    };
+    let error = EntryPointExecutionError::ExecutionFailed {
+        error_trace: extract_trailing_cairo1_revert_trace(&callinfo),
+    };
+    assert_eq!(
+        error.to_string(),
+        format!(
+            "Execution failed. Failure reason:
+Error in contract (contract address: {:#064x}, class hash: _, selector: {:#064x}):
+0xdeadbeef.",
+            ContractAddress::default().0.key(),
+            EntryPointSelector::default().0
+        )
+    );
+}
+
+#[test]
+fn test_cairo1_stack_extraction_extra_retdata() {
+    let failure_reason = vec!["0x1", "0x2"];
+    let failure_reason_felts: Vec<Felt> =
+        failure_reason.iter().map(|s| Felt::from_hex(s).unwrap()).collect();
+    let retdatas = &[
+        failure_reason,
+        // Extra 0x3 after the failure reason.
+        vec!["0x1", "0x2", "0x3", ENTRYPOINT_FAILED_ERROR],
+        // Extra 0x4 and 0x5 after the entrypoint failure.
+        vec!["0x1", "0x2", "0x3", ENTRYPOINT_FAILED_ERROR, "0x4", "0x5", ENTRYPOINT_FAILED_ERROR],
+    ];
+    let root_call_info = call_chain_from_retdatas(retdatas);
+    assert_matches!(
+        extract_trailing_cairo1_revert_trace(&root_call_info),
+        Cairo1RevertStack { stack, last_retdata }
+        if stack.len() == retdatas.len() && last_retdata == Retdata(failure_reason_felts)
+    );
+}
+
+/// If retdata does not end with the entrypoint failure felt, nested errors should be ignored.
+#[test]
+fn test_cairo1_stack_extraction_ignore_inner_failures() {
+    let innermost_retdata = vec![
+        "0xbeef",
+        "0x1",
+        "0x2",
+        ENTRYPOINT_FAILED_ERROR,
+        "0x4",
+        // Second calldata ends with 0x4, so the third failure will not be part of the stack.
+        "0x5",
+        ENTRYPOINT_FAILED_ERROR,
+    ];
+    let failure_reason = innermost_retdata[..5].to_vec();
+    let failure_reason_felts: Vec<Felt> =
+        failure_reason.iter().map(|s| Felt::from_hex(s).unwrap()).collect();
+    let retdatas = &[innermost_retdata[..2].to_vec(), failure_reason, innermost_retdata];
+    let root_call_info = call_chain_from_retdatas(retdatas);
+    assert_matches!(
+        extract_trailing_cairo1_revert_trace(&root_call_info),
+        Cairo1RevertStack { stack, last_retdata }
+        if stack.len() == retdatas.len() - 1 && last_retdata == Retdata(failure_reason_felts)
+    );
+}
+
+/// If extraction function is called with a successful callinfo, it should return an empty stack and
+/// the original retdata.
+#[test]
+fn test_cairo1_stack_extraction_not_failure_fallback() {
+    let expected_retdata = Retdata(vec![Felt::ONE, Felt::THREE]);
+    let successful_call = CallInfo {
+        execution: CallExecution { retdata: expected_retdata.clone(), ..Default::default() },
+        ..Default::default()
+    };
+    assert_matches!(
+        extract_trailing_cairo1_revert_trace(&successful_call),
+        Cairo1RevertStack { stack, last_retdata }
+        if stack.is_empty() && last_retdata == expected_retdata
+    );
 }
