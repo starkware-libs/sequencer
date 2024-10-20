@@ -21,9 +21,9 @@ pub mod mempool_test;
 
 type AccountToNonce = HashMap<ContractAddress, Nonce>;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Mempool {
-    _config: MempoolConfig,
+    config: MempoolConfig,
     // TODO: add docstring explaining visibility and coupling of the fields.
     // All transactions currently held in the mempool.
     tx_pool: TransactionPool,
@@ -33,9 +33,6 @@ pub struct Mempool {
     mempool_state: HashMap<ContractAddress, Nonce>,
     // The most recent account nonces received, for all account in the pool.
     account_nonces: AccountToNonce,
-    // TODO(Elin): make configurable; should be bounded?
-    // Percentage increase for tip and max gas price to enable transaction replacement.
-    fee_escalation_percentage: u8, // E.g., 10 for a 10% increase.
 }
 
 impl Mempool {
@@ -98,7 +95,9 @@ impl Mempool {
         let AddTransactionArgs { tx, account_state } = args;
         self.validate_incoming_nonce(tx.nonce(), account_state)?;
 
-        self.handle_fee_escalation(&tx)?;
+        if self.config.enable_fee_escalation {
+            self.handle_fee_escalation(&tx)?;
+        }
         self.tx_pool.insert(tx)?;
 
         // Align to account nonce, only if it is at least the one stored.
@@ -275,7 +274,7 @@ impl Mempool {
     }
 
     fn increased_enough(&self, existing_value: u128, incoming_value: u128) -> bool {
-        let percentage = u128::from(self.fee_escalation_percentage);
+        let percentage = u128::from(self.config.fee_escalation_percentage);
 
         let Some(escalation_qualified_value) = existing_value
             .checked_mul(percentage)
@@ -290,22 +289,18 @@ impl Mempool {
     }
 }
 
-impl Default for Mempool {
-    fn default() -> Self {
-        Mempool {
-            _config: MempoolConfig::default(),
-            tx_pool: TransactionPool::default(),
-            tx_queue: TransactionQueue::default(),
-            mempool_state: HashMap::new(),
-            account_nonces: HashMap::new(),
-            fee_escalation_percentage: 10,
-        }
-    }
+#[derive(Debug)]
+pub struct MempoolConfig {
+    enable_fee_escalation: bool,
+    // Percentage increase for tip and max gas price to enable transaction replacement.
+    fee_escalation_percentage: u8, // E.g., 10 for a 10% increase.
 }
 
-// TODO(Ayelet): Add custom Default implementation for MempoolConfig when fields are added.
-#[derive(Debug, Default)]
-pub struct MempoolConfig {}
+impl Default for MempoolConfig {
+    fn default() -> Self {
+        MempoolConfig { enable_fee_escalation: true, fee_escalation_percentage: 10 }
+    }
+}
 
 // TODO(Elin): move to a shared location with other next-gen node crates.
 fn tip(tx: &Transaction) -> Tip {
