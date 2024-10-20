@@ -72,6 +72,6 @@ impl GetTestInstance for StreamMessage<ConsensusMessage> {
         } else {
             StreamMessageBody::Fin
         };
-        Self { message, stream_id: rng.gen_range(0..100), message_id: rng.gen_range(0..1000) }
+        Self { message, stream_id: 12, message_id: 47 }
     }
 }
