@@ -1,4 +1,5 @@
 use serde_json::json;
+use strum::IntoEnumIterator;
 
 use super::{verify_block_signature, StarknetVersion};
 use crate::block::{BlockHash, BlockNumber, BlockSignature};
@@ -49,18 +50,33 @@ fn block_signature_verification() {
 }
 
 #[test]
-fn test_vec_version() {
-    assert_eq!(StarknetVersion::default().to_string(), "0.0.0");
+fn test_version_serde() {
+    for version in StarknetVersion::iter() {
+        // To/from Vec<u8>.
+        assert_eq!(StarknetVersion::try_from(Vec::<u8>::from(&version)).unwrap(), version);
+        // To/from json.
+        assert_eq!(serde_json::from_value::<StarknetVersion>(json!(version)).unwrap(), version);
+    }
 
-    let version_123 = StarknetVersion::try_from("1.2.3".to_owned()).unwrap();
-    assert_eq!(version_123, StarknetVersion(vec![1, 2, 3]));
+    // Sanity check substring deserialization.
+    assert_eq!(StarknetVersion::try_from("0.13.1").unwrap(), StarknetVersion::V0_13_1);
+    assert_eq!(StarknetVersion::try_from("0.13.1.1").unwrap(), StarknetVersion::V0_13_1_1);
+}
 
-    let serialized_123 = json!(version_123);
-    assert_eq!(serialized_123, "1.2.3".to_owned());
-    assert_eq!(serde_json::from_value::<StarknetVersion>(serialized_123).unwrap(), version_123);
+/// Order of version variants should match byte-vector lexicographic order.
+#[test]
+fn test_version_byte_vec_order() {
+    let versions = StarknetVersion::iter().collect::<Vec<_>>();
+    for i in 0..(versions.len() - 1) {
+        assert!(Vec::<u8>::from(versions[i]) <= Vec::<u8>::from(versions[i + 1]));
+    }
+}
 
-    assert!(StarknetVersion(vec![0, 10, 0]) > StarknetVersion(vec![0, 2, 5]));
-    assert!(StarknetVersion(vec![0, 13, 1]) > StarknetVersion(vec![0, 12, 2]));
-    assert!(StarknetVersion(vec![0, 13, 0, 1]) > StarknetVersion(vec![0, 13, 0]));
-    assert!(StarknetVersion(vec![0, 13, 0]) > StarknetVersion(vec![0, 13]));
+#[test]
+fn test_latest_version() {
+    let latest = StarknetVersion::LATEST;
+    assert_eq!(StarknetVersion::default(), latest);
+    for version in StarknetVersion::iter() {
+        assert!(version <= latest);
+    }
 }

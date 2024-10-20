@@ -1,39 +1,14 @@
-use blockifier::context::{ChainInfo, FeeTokenAddresses};
-use papyrus_execution::{ETH_FEE_CONTRACT_ADDRESS, STRK_FEE_CONTRACT_ADDRESS};
+use indexmap::IndexMap;
+use serde::Deserialize;
 use serde_json::Value;
-use starknet_api::core::{ChainId, ContractAddress, PatriciaKey};
 use starknet_api::transaction::{
     DeclareTransaction,
     DeployAccountTransaction,
     InvokeTransaction,
     Transaction,
 };
-use starknet_api::{contract_address, felt, patricia_key};
-use starknet_gateway::config::RpcStateReaderConfig;
 
-pub const RPC_NODE_URL: &str = "https://free-rpc.nethermind.io/mainnet-juno/";
-pub const JSON_RPC_VERSION: &str = "2.0";
-
-/// Returns the fee token addresses of mainnet.
-pub fn get_fee_token_addresses() -> FeeTokenAddresses {
-    FeeTokenAddresses {
-        strk_fee_token_address: contract_address!(STRK_FEE_CONTRACT_ADDRESS),
-        eth_fee_token_address: contract_address!(ETH_FEE_CONTRACT_ADDRESS),
-    }
-}
-
-/// Returns the RPC state reader configuration with the constants RPC_NODE_URL and JSON_RPC_VERSION.
-pub fn get_rpc_state_reader_config() -> RpcStateReaderConfig {
-    RpcStateReaderConfig {
-        url: RPC_NODE_URL.to_string(),
-        json_rpc_version: JSON_RPC_VERSION.to_string(),
-    }
-}
-
-/// Returns the chain info of mainnet.
-pub fn get_chain_info() -> ChainInfo {
-    ChainInfo { chain_id: ChainId::Mainnet, fee_token_addresses: get_fee_token_addresses() }
-}
+use crate::state_reader::test_state_reader::ReexecutionResult;
 
 pub fn deserialize_transaction_json_to_starknet_api_tx(
     mut raw_transaction: Value,
@@ -91,4 +66,88 @@ pub fn deserialize_transaction_json_to_starknet_api_tx(
             "unimplemented transaction type: {tx_type} version: {tx_version}"
         ))),
     }
+}
+
+// TODO(Aner): import the following functions instead, to reduce code duplication.
+pub(crate) fn hashmap_from_raw<
+    K: for<'de> Deserialize<'de> + Eq + std::hash::Hash,
+    V: for<'de> Deserialize<'de>,
+>(
+    raw_object: &Value,
+    vec_str: &str,
+    key_str: &str,
+    value_str: &str,
+) -> ReexecutionResult<IndexMap<K, V>> {
+    Ok(vec_to_hashmap::<K, V>(
+        serde_json::from_value(raw_object[vec_str].clone())?,
+        key_str,
+        value_str,
+    ))
+}
+
+pub(crate) fn nested_hashmap_from_raw<
+    K: for<'de> Deserialize<'de> + Eq + std::hash::Hash,
+    VK: for<'de> Deserialize<'de> + Eq + std::hash::Hash,
+    VV: for<'de> Deserialize<'de>,
+>(
+    raw_object: &Value,
+    vec_str: &str,
+    key_str: &str,
+    value_str: &str,
+    inner_key_str: &str,
+    inner_value_str: &str,
+) -> ReexecutionResult<IndexMap<K, IndexMap<VK, VV>>> {
+    Ok(vec_to_nested_hashmap::<K, VK, VV>(
+        serde_json::from_value(raw_object[vec_str].clone())?,
+        key_str,
+        value_str,
+        inner_key_str,
+        inner_value_str,
+    ))
+}
+
+pub(crate) fn vec_to_hashmap<
+    K: for<'de> Deserialize<'de> + Eq + std::hash::Hash,
+    V: for<'de> Deserialize<'de>,
+>(
+    vec: Vec<Value>,
+    key_str: &str,
+    value_str: &str,
+) -> IndexMap<K, V> {
+    vec.iter()
+        .map(|element| {
+            (
+                serde_json::from_value(element[key_str].clone())
+                    .expect("Key string doesn't match expected."),
+                serde_json::from_value(element[value_str].clone())
+                    .expect("Value string doesn't match expected."),
+            )
+        })
+        .collect()
+}
+
+pub(crate) fn vec_to_nested_hashmap<
+    K: for<'de> Deserialize<'de> + Eq + std::hash::Hash,
+    VK: for<'de> Deserialize<'de> + Eq + std::hash::Hash,
+    VV: for<'de> Deserialize<'de>,
+>(
+    vec: Vec<Value>,
+    key_str: &str,
+    value_str: &str,
+    inner_key_str: &str,
+    inner_value_str: &str,
+) -> IndexMap<K, IndexMap<VK, VV>> {
+    vec.iter()
+        .map(|element| {
+            (
+                serde_json::from_value(element[key_str].clone()).expect("Couldn't deserialize key"),
+                vec_to_hashmap(
+                    serde_json::from_value(element[value_str].clone())
+                        .expect("Couldn't deserialize value"),
+                    inner_key_str,
+                    inner_value_str,
+                ),
+            )
+        })
+        .collect()
 }

@@ -494,7 +494,7 @@ async fn get_block_w_full_transactions() {
     let block_hash = BlockHash(random::<u64>().into());
     let sequencer_address = SequencerContractAddress(random::<u64>().into());
     let timestamp = BlockTimestamp(random::<u64>());
-    let starknet_version = StarknetVersion(vec![123]);
+    let starknet_version = StarknetVersion::V0_10_0;
     block.header.block_hash = block_hash;
     block.header.block_header_without_hash.sequencer = sequencer_address;
     block.header.block_header_without_hash.timestamp = timestamp;
@@ -603,11 +603,11 @@ async fn get_block_w_full_transactions() {
     let pending_sequencer_address = SequencerContractAddress(random::<u64>().into());
     let pending_timestamp = BlockTimestamp(random::<u64>());
     let pending_l1_gas_price = GasPricePerToken {
-        price_in_wei: GasPrice(random::<u128>()),
-        price_in_fri: GasPrice(random::<u128>()),
+        price_in_wei: random::<u128>().into(),
+        price_in_fri: random::<u128>().into(),
     };
     let pending_l2_gas_price =
-        GasPricePerToken { price_in_wei: GasPrice(0), price_in_fri: GasPrice(0) };
+        GasPricePerToken { price_in_wei: 0_u8.into(), price_in_fri: 0_u8.into() };
     let expected_pending_block = Block {
         header: GeneralBlockHeader::PendingBlockHeader(PendingBlockHeader {
             parent_hash: block_hash,
@@ -680,7 +680,7 @@ async fn get_block_w_full_transactions_and_receipts() {
     let block_hash = BlockHash(random::<u64>().into());
     let sequencer_address = SequencerContractAddress(random::<u64>().into());
     let timestamp = BlockTimestamp(random::<u64>());
-    let starknet_version = StarknetVersion(vec![123]);
+    let starknet_version = StarknetVersion::V0_10_0;
     let block_number = block.header.block_header_without_hash.block_number;
     block.header.block_hash = block_hash;
     block.header.block_header_without_hash.sequencer = sequencer_address;
@@ -795,11 +795,11 @@ async fn get_block_w_full_transactions_and_receipts() {
     let pending_sequencer_address = SequencerContractAddress(random::<u64>().into());
     let pending_timestamp = BlockTimestamp(random::<u64>());
     let pending_l1_gas_price = GasPricePerToken {
-        price_in_wei: GasPrice(rng.next_u64().into()),
-        price_in_fri: GasPrice(rng.next_u64().into()),
+        price_in_wei: rng.next_u64().into(),
+        price_in_fri: rng.next_u64().into(),
     };
     let pending_l2_gas_price =
-        GasPricePerToken { price_in_wei: GasPrice(0), price_in_fri: GasPrice(0) };
+        GasPricePerToken { price_in_wei: 0_u8.into(), price_in_fri: 0_u8.into() };
     let expected_pending_block = Block {
         header: GeneralBlockHeader::PendingBlockHeader(PendingBlockHeader {
             parent_hash: block_hash,
@@ -882,7 +882,7 @@ async fn get_block_w_transaction_hashes() {
     let block_hash = BlockHash(random::<u64>().into());
     let sequencer_address = SequencerContractAddress(random::<u64>().into());
     let timestamp = BlockTimestamp(random::<u64>());
-    let starknet_version = StarknetVersion(vec![123]);
+    let starknet_version = StarknetVersion::V0_10_0;
     block.header.block_hash = block_hash;
     block.header.block_header_without_hash.sequencer = sequencer_address;
     block.header.block_header_without_hash.timestamp = timestamp;
@@ -987,11 +987,11 @@ async fn get_block_w_transaction_hashes() {
     let pending_sequencer_address = SequencerContractAddress(random::<u64>().into());
     let pending_timestamp = BlockTimestamp(random::<u64>());
     let pending_l1_gas_price = GasPricePerToken {
-        price_in_wei: GasPrice(random::<u128>()),
-        price_in_fri: GasPrice(random::<u128>()),
+        price_in_wei: random::<u128>().into(),
+        price_in_fri: random::<u128>().into(),
     };
     let pending_l2_gas_price =
-        GasPricePerToken { price_in_wei: GasPrice(0), price_in_fri: GasPrice(0) };
+        GasPricePerToken { price_in_wei: 0_u8.into(), price_in_fri: 0_u8.into() };
     let expected_pending_block = Block {
         header: GeneralBlockHeader::PendingBlockHeader(PendingBlockHeader {
             parent_hash: block_hash,

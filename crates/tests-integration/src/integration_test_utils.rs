@@ -1,16 +1,18 @@
 use std::net::SocketAddr;
-use std::path::Path;
 
 use axum::body::Body;
-use mempool_test_utils::starknet_api_test_utils::rpc_tx_to_json;
-use papyrus_storage::db::DbConfig;
-use papyrus_storage::test_utils::get_mmap_file_test_config;
+use blockifier::context::ChainInfo;
+use blockifier::test_utils::contracts::FeatureContract;
+use blockifier::test_utils::CairoVersion;
+use mempool_test_utils::starknet_api_test_utils::{
+    rpc_tx_to_json,
+    MultiAccountTransactionGenerator,
+};
 use papyrus_storage::StorageConfig;
-use papyrus_storage::StorageScope::StateOnly;
 use reqwest::{Client, Response};
-use starknet_api::core::ChainId;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
+use starknet_batcher::block_builder::BlockBuilderConfig;
 use starknet_batcher::config::BatcherConfig;
 use starknet_gateway::config::{
     GatewayConfig,
@@ -21,52 +23,52 @@ use starknet_gateway::config::{
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_http_server::config::HttpServerConfig;
 use starknet_mempool_node::config::SequencerNodeConfig;
-use tempfile::{tempdir, TempDir};
-use tokio::fs;
 use tokio::net::TcpListener;
-
-async fn create_gateway_config() -> GatewayConfig {
-    let stateless_tx_validator_config = StatelessTransactionValidatorConfig {
-        validate_non_zero_l1_gas_fee: true,
-        max_calldata_length: 10,
-        max_signature_length: 2,
-        ..Default::default()
-    };
-
-    let stateful_tx_validator_config = StatefulTransactionValidatorConfig::create_for_testing();
-
-    GatewayConfig { stateless_tx_validator_config, stateful_tx_validator_config }
-}
-
-async fn create_http_server_config() -> HttpServerConfig {
-    let socket = get_available_socket().await;
-    HttpServerConfig { ip: socket.ip(), port: socket.port() }
-}
 
 pub async fn create_config(
     rpc_server_addr: SocketAddr,
-    initialized_storage_path: &TempDir,
-) -> (SequencerNodeConfig, TempDir) {
-    let batcher_storage_path = tempdir().unwrap();
-    fs::copy(
-        initialized_storage_path.path().join("mdbx.dat"),
-        &batcher_storage_path.path().join("mdbx.dat"),
-    )
-    .await
-    .unwrap();
-    let batcher_config = create_batcher_config(batcher_storage_path.path());
-    let gateway_config = create_gateway_config().await;
+    batcher_storage_config: StorageConfig,
+) -> SequencerNodeConfig {
+    let chain_id = batcher_storage_config.db_config.chain_id.clone();
+    let mut chain_info = ChainInfo::create_for_testing();
+    chain_info.chain_id = chain_id.clone();
+    let batcher_config = create_batcher_config(batcher_storage_config, chain_info.clone());
+    let gateway_config = create_gateway_config(chain_info).await;
     let http_server_config = create_http_server_config().await;
     let rpc_state_reader_config = test_rpc_state_reader_config(rpc_server_addr);
-    let sequencer_node_config = SequencerNodeConfig {
+    SequencerNodeConfig {
+        chain_id,
         batcher_config,
         gateway_config,
         http_server_config,
         rpc_state_reader_config,
         ..SequencerNodeConfig::default()
-    };
+    }
+}
 
-    (sequencer_node_config, batcher_storage_path)
+pub fn test_rpc_state_reader_config(rpc_server_addr: SocketAddr) -> RpcStateReaderConfig {
+    // TODO(Tsabary): get the latest version from the RPC crate.
+    const RPC_SPEC_VERSION: &str = "V0_8";
+    const JSON_RPC_VERSION: &str = "2.0";
+    RpcStateReaderConfig {
+        url: format!("http://{rpc_server_addr:?}/rpc/{RPC_SPEC_VERSION}"),
+        json_rpc_version: JSON_RPC_VERSION.to_string(),
+    }
+}
+
+/// Returns a unique IP address and port for testing purposes.
+///
+/// Tests run in parallel, so servers (like RPC or web) running on separate tests must have
+/// different ports, otherwise the server will fail with "address already in use".
+pub async fn get_available_socket() -> SocketAddr {
+    // Dynamically select port.
+    // First, set the port to 0 (dynamic port).
+    TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("Failed to bind to address")
+        // Then, resolve to the actual selected port.
+        .local_addr()
+        .expect("Failed to get local address")
 }
 
 /// A test utility client for interacting with an http server.
@@ -107,42 +109,45 @@ impl HttpTestClient {
     }
 }
 
-fn test_rpc_state_reader_config(rpc_server_addr: SocketAddr) -> RpcStateReaderConfig {
-    const RPC_SPEC_VERION: &str = "V0_8";
-    const JSON_RPC_VERSION: &str = "2.0";
-    RpcStateReaderConfig {
-        url: format!("http://{rpc_server_addr:?}/rpc/{RPC_SPEC_VERION}"),
-        json_rpc_version: JSON_RPC_VERSION.to_string(),
+/// Creates a multi-account transaction generator for integration tests.
+pub fn create_integration_test_tx_generator() -> MultiAccountTransactionGenerator {
+    let mut tx_generator: MultiAccountTransactionGenerator =
+        MultiAccountTransactionGenerator::new();
+
+    for account in [
+        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1),
+        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0),
+    ] {
+        tx_generator.register_account_for_flow_test(account);
     }
+    tx_generator
 }
 
-fn create_batcher_config(batcher_storage_path: &Path) -> BatcherConfig {
-    let storage_config = StorageConfig {
-        db_config: DbConfig {
-            path_prefix: batcher_storage_path.to_path_buf(),
-            chain_id: ChainId::Other("".to_owned()),
-            enforce_file_exists: true,
-            min_size: 1 << 20,    // 1MB
-            max_size: 1 << 35,    // 32GB
-            growth_step: 1 << 26, // 64MB
-        },
-        scope: StateOnly,
-        mmap_file_config: get_mmap_file_test_config(),
+async fn create_gateway_config(chain_info: ChainInfo) -> GatewayConfig {
+    let stateless_tx_validator_config = StatelessTransactionValidatorConfig {
+        validate_non_zero_l1_gas_fee: true,
+        max_calldata_length: 10,
+        max_signature_length: 2,
+        ..Default::default()
     };
-    BatcherConfig { storage: storage_config }
+    let stateful_tx_validator_config = StatefulTransactionValidatorConfig::default();
+
+    GatewayConfig { stateless_tx_validator_config, stateful_tx_validator_config, chain_info }
 }
 
-/// Returns a unique IP address and port for testing purposes.
-///
-/// Tests run in parallel, so servers (like RPC or web) running on separate tests must have
-/// different ports, otherwise the server will fail with "address already in use".
-pub async fn get_available_socket() -> SocketAddr {
-    // Dynamically select port.
-    // First, set the port to 0 (dynamic port).
-    TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("Failed to bind to address")
-        // Then, resolve to the actual selected port.
-        .local_addr()
-        .expect("Failed to get local address")
+async fn create_http_server_config() -> HttpServerConfig {
+    // TODO(Tsabary): use ser_generated_param.
+    let socket = get_available_socket().await;
+    HttpServerConfig { ip: socket.ip(), port: socket.port() }
+}
+
+fn create_batcher_config(
+    batcher_storage_config: StorageConfig,
+    chain_info: ChainInfo,
+) -> BatcherConfig {
+    BatcherConfig {
+        storage: batcher_storage_config,
+        block_builder_config: BlockBuilderConfig { chain_info, ..Default::default() },
+        ..Default::default()
+    }
 }

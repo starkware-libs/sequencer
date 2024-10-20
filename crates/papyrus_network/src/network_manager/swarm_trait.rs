@@ -5,10 +5,10 @@ use libp2p::swarm::{DialError, NetworkBehaviour, SwarmEvent};
 use libp2p::{Multiaddr, PeerId, StreamProtocol, Swarm};
 use tracing::{error, info};
 
-use super::BroadcastedMessageManager;
+use super::BroadcastedMessageMetadata;
 use crate::gossipsub_impl::Topic;
 use crate::mixed_behaviour;
-use crate::peer_manager::ReputationModifier;
+use crate::peer_manager::{ReputationModifier, MALICIOUS};
 use crate::sqmr::behaviour::{PeerNotConnected, SessionIdNotFoundError};
 use crate::sqmr::{Bytes, InboundSessionId, OutboundSessionId, SessionId};
 
@@ -50,11 +50,12 @@ pub trait SwarmTrait: Stream<Item = Event> + Unpin {
 
     fn broadcast_message(&mut self, message: Bytes, topic_hash: TopicHash);
 
+    // TODO: change this to report_peer and add an argument for the score.
     fn report_peer_as_malicious(&mut self, peer_id: PeerId);
 
     fn add_new_supported_inbound_protocol(&mut self, protocol_name: StreamProtocol);
 
-    fn continue_propagation(&mut self, message_manager: BroadcastedMessageManager);
+    fn continue_propagation(&mut self, message_metadata: BroadcastedMessageMetadata);
 }
 
 impl SwarmTrait for Swarm<mixed_behaviour::MixedBehaviour> {
@@ -126,8 +127,10 @@ impl SwarmTrait for Swarm<mixed_behaviour::MixedBehaviour> {
     }
 
     fn report_peer_as_malicious(&mut self, peer_id: PeerId) {
-        let _ =
-            self.behaviour_mut().peer_manager.report_peer(peer_id, ReputationModifier::Malicious);
+        let _ = self
+            .behaviour_mut()
+            .peer_manager
+            .report_peer(peer_id, ReputationModifier::Misconduct { misconduct_score: MALICIOUS });
     }
 
     fn add_new_supported_inbound_protocol(&mut self, protocol: StreamProtocol) {
@@ -135,5 +138,5 @@ impl SwarmTrait for Swarm<mixed_behaviour::MixedBehaviour> {
     }
 
     // TODO(shahak): Implement this function.
-    fn continue_propagation(&mut self, _message_manager: BroadcastedMessageManager) {}
+    fn continue_propagation(&mut self, _message_metadata: BroadcastedMessageMetadata) {}
 }

@@ -19,6 +19,7 @@ cairo-lang-starknet-classes.workspace = true
 hyper.workspace = true
 mempool_test_utils.workspace = true
 papyrus_config.workspace = true
+papyrus_network_types.workspace = true
 papyrus_rpc.workspace = true
 reqwest.workspace = true
 serde.workspace = true
@@ -40,6 +41,8 @@ cairo-lang-sierra-to-casm.workspace = true
 mockall.workspace = true
 mockito.workspace = true
 num-bigint.workspace = true
+papyrus_network_types = { workspace = true, features = ["testing"] }
+papyrus_test_utils.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
 starknet_mempool.workspace = true

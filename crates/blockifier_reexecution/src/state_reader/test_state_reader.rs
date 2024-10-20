@@ -4,15 +4,15 @@ use blockifier::blockifier::transaction_executor::TransactionExecutor;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::BlockContext;
 use blockifier::execution::contract_class::ContractClass as BlockifierContractClass;
-use blockifier::state::cached_state::CachedState;
+use blockifier::state::cached_state::{CachedState, CommitmentStateDiff};
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader, StateResult};
-use blockifier::versioned_constants::{StarknetVersion, VersionedConstants};
+use blockifier::versioned_constants::VersionedConstants;
 use serde_json::{json, to_value};
-use starknet_api::block::{BlockNumber, GasPrice};
+use starknet_api::block::{BlockNumber, StarknetVersion};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::Transaction;
+use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_core::types::ContractClass as StarknetContractClass;
 use starknet_core::types::ContractClass::{Legacy, Sierra};
 use starknet_gateway::config::RpcStateReaderConfig;
@@ -22,11 +22,19 @@ use starknet_gateway::rpc_state_reader::RpcStateReader;
 use starknet_types_core::felt::Felt;
 
 use crate::state_reader::compile::{legacy_to_contract_class_v0, sierra_to_contact_class_v1};
-use crate::state_reader::utils::{
+use crate::state_reader::errors::ReexecutionError;
+use crate::state_reader::serde_utils::{
     deserialize_transaction_json_to_starknet_api_tx,
+    hashmap_from_raw,
+    nested_hashmap_from_raw,
+};
+use crate::state_reader::utils::{
+    disjoint_hashmap_union,
     get_chain_info,
     get_rpc_state_reader_config,
 };
+
+pub type ReexecutionResult<T> = Result<T, ReexecutionError>;
 
 pub struct TestStateReader(RpcStateReader);
 
@@ -75,10 +83,8 @@ impl TestStateReader {
 
     /// Get the block info of the current block.
     /// If l2_gas_price is not present in the block header, it will be set to 1.
-    pub fn get_block_info(&self) -> StateResult<BlockInfo> {
+    pub fn get_block_info(&self) -> ReexecutionResult<BlockInfo> {
         let get_block_params = GetBlockWithTxHashesParams { block_id: self.0.block_id };
-        let default_l2_price =
-            ResourcePrice { price_in_wei: GasPrice(1), price_in_fri: GasPrice(1) };
 
         let mut json =
             self.0.send_rpc_request("starknet_getBlockWithTxHashes", get_block_params)?;
@@ -91,47 +97,42 @@ impl TestStateReader {
             // In old blocks, the l2_gas_price field is not present.
             block_header_map.insert(
                 "l2_gas_price".to_string(),
-                to_value(default_l2_price).map_err(serde_err_to_state_err)?,
+                to_value(ResourcePrice { price_in_wei: 1_u8.into(), price_in_fri: 1_u8.into() })?,
             );
         }
 
-        Ok(serde_json::from_value::<BlockHeader>(json)
-            .map_err(serde_err_to_state_err)?
-            .try_into()?)
+        Ok(serde_json::from_value::<BlockHeader>(json)?.try_into()?)
     }
 
-    pub fn get_starknet_version(&self) -> StateResult<StarknetVersion> {
+    pub fn get_starknet_version(&self) -> ReexecutionResult<StarknetVersion> {
         let get_block_params = GetBlockWithTxHashesParams { block_id: self.0.block_id };
         let raw_version: String = serde_json::from_value(
             self.0.send_rpc_request("starknet_getBlockWithTxHashes", get_block_params)?
                 ["starknet_version"]
                 .clone(),
-        )
-        .map_err(serde_err_to_state_err)?;
-        StarknetVersion::try_from(raw_version.as_str()).map_err(|err| {
-            StateError::StateReadError(format!("Failed to match starknet version: {}", err))
-        })
+        )?;
+        Ok(StarknetVersion::try_from(raw_version.as_str())?)
     }
 
     /// Get all transaction hashes in the current block.
-    pub fn get_tx_hashes(&self) -> StateResult<Vec<String>> {
+    pub fn get_tx_hashes(&self) -> ReexecutionResult<Vec<String>> {
         let get_block_params = GetBlockWithTxHashesParams { block_id: self.0.block_id };
         let raw_tx_hashes = serde_json::from_value(
             self.0.send_rpc_request("starknet_getBlockWithTxHashes", &get_block_params)?
                 ["transactions"]
                 .clone(),
-        )
-        .map_err(serde_err_to_state_err)?;
-        serde_json::from_value(raw_tx_hashes).map_err(serde_err_to_state_err)
+        )?;
+        Ok(serde_json::from_value(raw_tx_hashes)?)
     }
 
-    pub fn get_tx_by_hash(&self, tx_hash: &str) -> StateResult<Transaction> {
+    pub fn get_tx_by_hash(&self, tx_hash: &str) -> ReexecutionResult<Transaction> {
         let method = "starknet_getTransactionByHash";
         let params = json!({
             "transaction_hash": tx_hash,
         });
-        deserialize_transaction_json_to_starknet_api_tx(self.0.send_rpc_request(method, params)?)
-            .map_err(serde_err_to_state_err)
+        Ok(deserialize_transaction_json_to_starknet_api_tx(
+            self.0.send_rpc_request(method, params)?,
+        )?)
     }
 
     pub fn get_contract_class(&self, class_hash: &ClassHash) -> StateResult<StarknetContractClass> {
@@ -145,21 +146,22 @@ impl TestStateReader {
         Ok(contract_class)
     }
 
-    pub fn get_all_txs_in_block(&self) -> StateResult<Vec<Transaction>> {
+    pub fn get_all_txs_in_block(&self) -> ReexecutionResult<Vec<(Transaction, TransactionHash)>> {
         // TODO(Aviv): Use batch request to get all txs in a block.
-        let txs: Vec<_> = self
-            .get_tx_hashes()?
+        self.get_tx_hashes()?
             .iter()
-            .map(|tx_hash| self.get_tx_by_hash(tx_hash))
-            .collect::<Result<_, _>>()?;
-        Ok(txs)
+            .map(|tx_hash| match self.get_tx_by_hash(tx_hash) {
+                Err(error) => Err(error),
+                Ok(tx) => Ok((tx, TransactionHash(Felt::from_hex_unchecked(tx_hash)))),
+            })
+            .collect::<Result<_, _>>()
     }
 
-    pub fn get_versioned_constants(&self) -> StateResult<&'static VersionedConstants> {
-        Ok(self.get_starknet_version()?.into())
+    pub fn get_versioned_constants(&self) -> ReexecutionResult<&'static VersionedConstants> {
+        Ok(VersionedConstants::get(&self.get_starknet_version()?)?)
     }
 
-    pub fn get_block_context(&self) -> StateResult<BlockContext> {
+    pub fn get_block_context(&self) -> ReexecutionResult<BlockContext> {
         Ok(BlockContext::new(
             self.get_block_info()?,
             get_chain_info(),
@@ -169,13 +171,91 @@ impl TestStateReader {
     }
 
     pub fn get_transaction_executor(
-        test_state_reader: TestStateReader,
-    ) -> StateResult<TransactionExecutor<TestStateReader>> {
-        let block_context = test_state_reader.get_block_context()?;
+        self,
+        block_context_next_block: BlockContext,
+        transaction_executor_config: Option<TransactionExecutorConfig>,
+    ) -> ReexecutionResult<TransactionExecutor<TestStateReader>> {
         Ok(TransactionExecutor::<TestStateReader>::new(
-            CachedState::new(test_state_reader),
-            block_context,
-            TransactionExecutorConfig::default(),
+            CachedState::new(self),
+            block_context_next_block,
+            transaction_executor_config.unwrap_or_default(),
         ))
+    }
+
+    pub fn get_state_diff(&self) -> ReexecutionResult<CommitmentStateDiff> {
+        let get_block_params = GetBlockWithTxHashesParams { block_id: self.0.block_id };
+        let raw_statediff =
+            &self.0.send_rpc_request("starknet_getStateUpdate", get_block_params)?["state_diff"];
+        let deployed_contracts = hashmap_from_raw::<ContractAddress, ClassHash>(
+            raw_statediff,
+            "deployed_contracts",
+            "address",
+            "class_hash",
+        )?;
+        let storage_diffs = nested_hashmap_from_raw::<ContractAddress, StorageKey, Felt>(
+            raw_statediff,
+            "storage_diffs",
+            "address",
+            "storage_entries",
+            "key",
+            "value",
+        )?;
+        let declared_classes = hashmap_from_raw::<ClassHash, CompiledClassHash>(
+            raw_statediff,
+            "declared_classes",
+            "class_hash",
+            "compiled_class_hash",
+        )?;
+        let nonces = hashmap_from_raw::<ContractAddress, Nonce>(
+            raw_statediff,
+            "nonces",
+            "contract_address",
+            "nonce",
+        )?;
+        let replaced_classes = hashmap_from_raw::<ContractAddress, ClassHash>(
+            raw_statediff,
+            "replaced_classes",
+            "class_hash",
+            "contract_address",
+        )?;
+        // We expect the deployed_contracts and replaced_classes to have disjoint addresses.
+        let address_to_class_hash = disjoint_hashmap_union(deployed_contracts, replaced_classes);
+        Ok(CommitmentStateDiff {
+            address_to_class_hash,
+            address_to_nonce: nonces,
+            storage_updates: storage_diffs,
+            class_hash_to_compiled_class_hash: declared_classes,
+        })
+    }
+}
+
+pub struct ConsecutiveTestStateReaders {
+    pub last_block_state_reader: TestStateReader,
+    pub next_block_state_reader: TestStateReader,
+}
+
+impl ConsecutiveTestStateReaders {
+    pub fn new(
+        last_constructed_block_number: BlockNumber,
+        config: Option<RpcStateReaderConfig>,
+    ) -> Self {
+        let config = config.unwrap_or(get_rpc_state_reader_config());
+        ConsecutiveTestStateReaders {
+            last_block_state_reader: TestStateReader::new(&config, last_constructed_block_number),
+            next_block_state_reader: TestStateReader::new(
+                &config,
+                last_constructed_block_number.next().expect("Overflow in block number"),
+            ),
+        }
+    }
+
+    pub fn get_transaction_executor(
+        self,
+        transaction_executor_config: Option<TransactionExecutorConfig>,
+    ) -> ReexecutionResult<TransactionExecutor<TestStateReader>> {
+        self.last_block_state_reader.get_transaction_executor(
+            self.next_block_state_reader.get_block_context()?,
+            transaction_executor_config,
+        )
     }
 }

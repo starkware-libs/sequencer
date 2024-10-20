@@ -1,14 +1,9 @@
 use std::cmp::Ordering;
 use std::collections::{BTreeSet, HashMap};
 
+use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
-use starknet_api::transaction::{
-    AllResourceBounds,
-    ResourceBounds,
-    Tip,
-    TransactionHash,
-    ValidResourceBounds,
-};
+use starknet_api::transaction::{Tip, TransactionHash};
 
 use crate::mempool::TransactionReference;
 
@@ -21,7 +16,7 @@ pub mod transaction_queue_test_utils;
 // used.
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct TransactionQueue {
-    gas_price_threshold: u128,
+    gas_price_threshold: GasPrice,
     // Transactions with gas price above gas price threshold (sorted by tip).
     priority_queue: BTreeSet<PriorityTransaction>,
     // Transactions with gas price below gas price threshold (sorted by price).
@@ -35,14 +30,14 @@ impl TransactionQueue {
     /// Panics: if given a duplicate tx.
     pub fn insert(&mut self, tx_reference: TransactionReference) {
         assert_eq!(
-            self.address_to_tx.insert(tx_reference.sender_address, tx_reference),
+            self.address_to_tx.insert(tx_reference.address, tx_reference),
             None,
             "Only a single transaction from the same contract class can be in the mempool at a \
              time."
         );
 
         let new_tx_successfully_inserted =
-            if tx_reference.get_l2_gas_price() < self.gas_price_threshold {
+            if tx_reference.max_l2_gas_price < self.gas_price_threshold {
                 self.pending_queue.insert(tx_reference.into())
             } else {
                 self.priority_queue.insert(tx_reference.into())
@@ -53,12 +48,12 @@ impl TransactionQueue {
         );
     }
 
-    // TODO(gilad): remove collect
+    // TODO(gilad): remove collect, if returning an iterator is possible.
     pub fn pop_ready_chunk(&mut self, n_txs: usize) -> Vec<TransactionReference> {
         let txs: Vec<TransactionReference> =
             (0..n_txs).filter_map(|_| self.priority_queue.pop_last().map(|tx| tx.0)).collect();
         for tx in &txs {
-            self.address_to_tx.remove(&tx.sender_address);
+            self.address_to_tx.remove(&tx.address);
         }
 
         txs
@@ -89,7 +84,7 @@ impl TransactionQueue {
         self.priority_queue.is_empty()
     }
 
-    pub fn _update_gas_price_threshold(&mut self, threshold: u128) {
+    pub fn _update_gas_price_threshold(&mut self, threshold: GasPrice) {
         match threshold.cmp(&self.gas_price_threshold) {
             Ordering::Less => self._promote_txs_to_priority(threshold),
             Ordering::Greater => self._demote_txs_to_pending(threshold),
@@ -99,13 +94,10 @@ impl TransactionQueue {
         self.gas_price_threshold = threshold;
     }
 
-    fn _promote_txs_to_priority(&mut self, threshold: u128) {
+    fn _promote_txs_to_priority(&mut self, threshold: GasPrice) {
         let tmp_split_tx = PendingTransaction(TransactionReference {
-            resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds {
-                l2_gas: ResourceBounds { max_amount: 0, max_price_per_unit: threshold },
-                ..Default::default()
-            }),
-            sender_address: ContractAddress::default(),
+            max_l2_gas_price: threshold,
+            address: ContractAddress::default(),
             nonce: Nonce::default(),
             tx_hash: TransactionHash::default(),
             tip: Tip::default(),
@@ -121,12 +113,12 @@ impl TransactionQueue {
         self.priority_queue.extend(txs_over_threshold.map(|tx| PriorityTransaction::from(tx.0)));
     }
 
-    fn _demote_txs_to_pending(&mut self, threshold: u128) {
+    fn _demote_txs_to_pending(&mut self, threshold: GasPrice) {
         let mut txs_to_remove = Vec::new();
 
         // Remove all transactions from the priority queue that are below the threshold.
         for priority_tx in &self.priority_queue {
-            if priority_tx.get_l2_gas_price() < threshold {
+            if priority_tx.max_l2_gas_price < threshold {
                 txs_to_remove.push(*priority_tx);
             }
         }
@@ -146,7 +138,7 @@ struct PendingTransaction(pub TransactionReference);
 /// two gas price are either exactly equal or not.
 impl PartialEq for PendingTransaction {
     fn eq(&self, other: &PendingTransaction) -> bool {
-        self.get_l2_gas_price() == other.get_l2_gas_price() && self.tx_hash == other.tx_hash
+        self.max_l2_gas_price == other.max_l2_gas_price && self.tx_hash == other.tx_hash
     }
 }
 
@@ -157,8 +149,8 @@ impl Eq for PendingTransaction {}
 
 impl Ord for PendingTransaction {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.get_l2_gas_price()
-            .cmp(&other.get_l2_gas_price())
+        self.max_l2_gas_price
+            .cmp(&other.max_l2_gas_price)
             .then_with(|| self.tx_hash.cmp(&other.tx_hash))
     }
 }

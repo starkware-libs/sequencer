@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
-use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::transaction::{
     AccountDeploymentData,
     Calldata,
@@ -25,7 +25,7 @@ use crate::execution::entry_point::{
     ConstructorContext,
     EntryPointExecutionContext,
 };
-use crate::execution::execution_utils::{execute_deployment, update_remaining_gas};
+use crate::execution::execution_utils::execute_deployment;
 use crate::state::cached_state::TransactionalState;
 use crate::state::errors::StateError;
 use crate::state::state_api::{State, UpdatableState};
@@ -133,18 +133,6 @@ pub struct DeclareTransaction {
     pub class_info: ClassInfo,
 }
 
-/// This implementation of try_from clones the base transaction struct. This method's advantage is
-/// that it does not clone the Casm contract class code.
-impl TryFrom<&starknet_api::executable_transaction::DeclareTransaction> for DeclareTransaction {
-    type Error = TransactionExecutionError;
-
-    fn try_from(
-        declare_tx: &starknet_api::executable_transaction::DeclareTransaction,
-    ) -> Result<Self, Self::Error> {
-        Self::new_from_ref_to_executable_tx(declare_tx, false)
-    }
-}
-
 impl TryFrom<starknet_api::executable_transaction::DeclareTransaction> for DeclareTransaction {
     type Error = TransactionExecutionError;
 
@@ -174,7 +162,7 @@ impl DeclareTransaction {
                     })?
                 }
             }
-            ContractClass::V1(_) => {
+            ContractClass::V1(_) | ContractClass::V1Native(_) => {
                 if declare_version <= TransactionVersion::ONE {
                     Err(TransactionExecutionError::ContractClassVersionMismatch {
                         declare_version,
@@ -200,17 +188,6 @@ impl DeclareTransaction {
         class_info: ClassInfo,
     ) -> TransactionExecutionResult<Self> {
         Self::create(declare_tx, tx_hash, class_info, true)
-    }
-
-    fn new_from_ref_to_executable_tx(
-        declare_tx: &starknet_api::executable_transaction::DeclareTransaction,
-        only_query: bool,
-    ) -> Result<Self, TransactionExecutionError> {
-        let starknet_api::executable_transaction::DeclareTransaction { tx, tx_hash, class_info } =
-            declare_tx;
-        let class_info = class_info.try_into()?;
-
-        Self::create(tx.clone(), *tx_hash, class_info, only_query)
     }
 
     fn new_from_executable_tx(
@@ -422,9 +399,8 @@ impl<S: State> Executable<S> for DeployAccountTransaction {
             context,
             ctor_context,
             self.constructor_calldata(),
-            *remaining_gas,
+            remaining_gas,
         )?;
-        update_remaining_gas(remaining_gas, &call_info);
 
         Ok(Some(call_info))
     }
@@ -534,16 +510,14 @@ impl<S: State> Executable<S> for InvokeTransaction {
             initial_gas: *remaining_gas,
         };
 
-        let call_info =
-            execute_call.non_reverting_execute(state, resources, context).map_err(|error| {
-                TransactionExecutionError::ExecutionError {
-                    error,
-                    class_hash,
-                    storage_address,
-                    selector: entry_point_selector,
-                }
+        let call_info = execute_call
+            .non_reverting_execute(state, resources, context, remaining_gas)
+            .map_err(|error| TransactionExecutionError::ExecutionError {
+                error,
+                class_hash,
+                storage_address,
+                selector: entry_point_selector,
             })?;
-        update_remaining_gas(remaining_gas, &call_info);
 
         Ok(Some(call_info))
     }
@@ -636,14 +610,15 @@ impl<S: State> Executable<S> for L1HandlerTransaction {
             initial_gas: *remaining_gas,
         };
 
-        execute_call.non_reverting_execute(state, resources, context).map(Some).map_err(|error| {
-            TransactionExecutionError::ExecutionError {
+        execute_call
+            .non_reverting_execute(state, resources, context, remaining_gas)
+            .map(Some)
+            .map_err(|error| TransactionExecutionError::ExecutionError {
                 error,
                 class_hash,
                 storage_address,
                 selector,
-            }
-        })
+            })
     }
 }
 

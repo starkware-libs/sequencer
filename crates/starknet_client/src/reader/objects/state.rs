@@ -9,8 +9,9 @@ pub use papyrus_common::state::{
 };
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockHash;
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, GlobalRoot, Nonce};
-use starknet_api::state::{EntryPoint, EntryPointType};
+use starknet_api::state::EntryPoint;
 use starknet_types_core::felt::Felt;
 
 /// A state update derived from a single block as returned by the starknet gateway.

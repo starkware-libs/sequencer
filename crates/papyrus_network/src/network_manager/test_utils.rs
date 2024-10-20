@@ -9,7 +9,7 @@ use libp2p::PeerId;
 
 use super::{
     BroadcastTopicClient,
-    BroadcastedMessageManager,
+    BroadcastedMessageMetadata,
     GenericReceiver,
     ReportReceiver,
     ServerQueryManager,
@@ -95,24 +95,24 @@ where
         |(x, report_sender)| (T::try_from(x), report_sender);
     let broadcasted_messages_receiver = broadcasted_messages_receiver.map(broadcasted_messages_fn);
 
-    let (reported_messages_sender, _mock_reported_messages_receiver) =
+    let (reported_messages_sender, mock_reported_messages_receiver) =
         futures::channel::mpsc::channel(CHANNEL_BUFFER_SIZE);
-    let reported_messages_fn: fn(BroadcastedMessageManager) -> Ready<Result<PeerId, SendError>> =
-        |broadcasted_message_manager| {
-            ready(Ok(broadcasted_message_manager.originator_id.private_get_peer_id()))
+    let reported_messages_fn: fn(BroadcastedMessageMetadata) -> Ready<Result<PeerId, SendError>> =
+        |broadcasted_message_metadata| {
+            ready(Ok(broadcasted_message_metadata.originator_id.private_get_peer_id()))
         };
     let reported_messages_sender = reported_messages_sender.with(reported_messages_fn);
 
-    let (continue_propagation_sender, _mock_continue_propagation_receiver) =
+    let (continue_propagation_sender, mock_continue_propagation_receiver) =
         futures::channel::mpsc::channel(CHANNEL_BUFFER_SIZE);
 
     let subscriber_channels = BroadcastTopicChannels {
         broadcasted_messages_receiver,
-        broadcast_topic_client: BroadcastTopicClient {
+        broadcast_topic_client: BroadcastTopicClient::new(
             messages_to_broadcast_sender,
             reported_messages_sender,
             continue_propagation_sender,
-        },
+        ),
     };
 
     let mock_broadcasted_messages_fn: MockBroadcastedMessagesFn<T> =
@@ -132,6 +132,8 @@ where
     let mock_network = BroadcastNetworkMock {
         broadcasted_messages_sender: mock_broadcasted_messages_sender,
         messages_to_broadcast_receiver: mock_messages_to_broadcast_receiver,
+        reported_messages_receiver: mock_reported_messages_receiver,
+        continue_propagation_receiver: mock_continue_propagation_receiver,
     };
 
     Ok(TestSubscriberChannels { subscriber_channels, mock_network })
@@ -178,23 +180,25 @@ where
 }
 
 pub type MockBroadcastedMessagesSender<T> = With<
-    Sender<(Bytes, BroadcastedMessageManager)>,
-    (Bytes, BroadcastedMessageManager),
-    (T, BroadcastedMessageManager),
-    Ready<Result<(Bytes, BroadcastedMessageManager), SendError>>,
+    Sender<(Bytes, BroadcastedMessageMetadata)>,
+    (Bytes, BroadcastedMessageMetadata),
+    (T, BroadcastedMessageMetadata),
+    Ready<Result<(Bytes, BroadcastedMessageMetadata), SendError>>,
     MockBroadcastedMessagesFn<T>,
 >;
 
 pub(crate) type MockBroadcastedMessagesFn<T> =
     fn(
-        (T, BroadcastedMessageManager),
-    ) -> Ready<Result<(Bytes, BroadcastedMessageManager), SendError>>;
+        (T, BroadcastedMessageMetadata),
+    ) -> Ready<Result<(Bytes, BroadcastedMessageMetadata), SendError>>;
 
 pub type MockMessagesToBroadcastReceiver<T> = Map<Receiver<Bytes>, fn(Bytes) -> T>;
 
 pub struct BroadcastNetworkMock<T: TryFrom<Bytes>> {
     pub broadcasted_messages_sender: MockBroadcastedMessagesSender<T>,
     pub messages_to_broadcast_receiver: MockMessagesToBroadcastReceiver<T>,
+    pub reported_messages_receiver: Receiver<PeerId>,
+    pub continue_propagation_receiver: Receiver<BroadcastedMessageMetadata>,
 }
 
 pub struct TestSubscriberChannels<T: TryFrom<Bytes>> {

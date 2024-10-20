@@ -3,9 +3,14 @@ use starknet_consensus_manager::consensus_manager::ConsensusManager;
 use starknet_gateway::gateway::{create_gateway, Gateway};
 use starknet_http_server::http_server::{create_http_server, HttpServer};
 use starknet_mempool::mempool::Mempool;
+use starknet_monitoring_endpoint::monitoring_endpoint::{
+    create_monitoring_endpoint,
+    MonitoringEndpoint,
+};
 
 use crate::communication::SequencerNodeClients;
 use crate::config::SequencerNodeConfig;
+use crate::version::VERSION_FULL;
 
 pub struct SequencerNodeComponents {
     pub batcher: Option<Batcher>,
@@ -13,6 +18,7 @@ pub struct SequencerNodeComponents {
     pub gateway: Option<Gateway>,
     pub http_server: Option<HttpServer>,
     pub mempool: Option<Mempool>,
+    pub monitoring_endpoint: Option<MonitoringEndpoint>,
 }
 
 pub fn create_node_components(
@@ -60,5 +66,18 @@ pub fn create_node_components(
 
     let mempool = if config.components.mempool.execute { Some(Mempool::empty()) } else { None };
 
-    SequencerNodeComponents { batcher, consensus_manager, gateway, http_server, mempool }
+    let monitoring_endpoint = if config.components.monitoring_endpoint.execute {
+        Some(create_monitoring_endpoint(config.monitoring_endpoint_config.clone(), VERSION_FULL))
+    } else {
+        None
+    };
+
+    SequencerNodeComponents {
+        batcher,
+        consensus_manager,
+        gateway,
+        http_server,
+        mempool,
+        monitoring_endpoint,
+    }
 }

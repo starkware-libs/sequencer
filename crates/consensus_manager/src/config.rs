@@ -1,30 +1,23 @@
 use std::collections::BTreeMap;
 
-use papyrus_config::dumping::{ser_param, SerializeConfig};
-use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use papyrus_config::dumping::{append_sub_config_name, SerializeConfig};
+use papyrus_config::{ParamPath, SerializedParam};
+use papyrus_consensus::config::ConsensusConfig;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
 /// The consensus manager related configuration.
-/// TODO(Lev/Tsabary/Matan): Define actual configuration.
-#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
+/// TODO(Matan): Remove ConsensusManagerConfig if it's only field remains ConsensusConfig.
+#[derive(Clone, Default, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct ConsensusManagerConfig {
-    pub consensus_config_param_1: usize,
+    pub consensus_config: ConsensusConfig,
 }
 
 impl SerializeConfig for ConsensusManagerConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([ser_param(
-            "consensus_config_param_1",
-            &self.consensus_config_param_1,
-            "The first consensus manager configuration parameter",
-            ParamPrivacyInput::Public,
-        )])
-    }
-}
+        let sub_configs =
+            vec![append_sub_config_name(self.consensus_config.dump(), "consensus_config")];
 
-impl Default for ConsensusManagerConfig {
-    fn default() -> Self {
-        Self { consensus_config_param_1: 1 }
+        sub_configs.into_iter().flatten().collect()
     }
 }

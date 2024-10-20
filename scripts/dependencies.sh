@@ -49,7 +49,8 @@ function setup_llvm_deps() {
 function main() {
     [ "$(uname)" = "Linux" ] && install_essential_deps_linux
     setup_llvm_deps
-    echo "LLVM and Cairo native runtime dependencies installed successfully."
+    echo "LLVM dependencies installed successfully."
 }
 
 main "$@"
+

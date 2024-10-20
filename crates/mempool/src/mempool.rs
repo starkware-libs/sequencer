@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 
+use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::Transaction;
-use starknet_api::transaction::{Tip, TransactionHash, ValidResourceBounds};
+use starknet_api::transaction::{Tip, TransactionHash};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{
     AccountState,
@@ -31,6 +32,9 @@ pub struct Mempool {
     mempool_state: HashMap<ContractAddress, Nonce>,
     // The most recent account nonces received, for all account in the pool.
     account_nonces: AccountToNonce,
+    // TODO(Elin): make configurable; should be bounded?
+    // Percentage increase for tip and max gas price to enable transaction replacement.
+    fee_escalation_percentage: u8, // E.g., 10 for a 10% increase.
 }
 
 impl Mempool {
@@ -45,10 +49,9 @@ impl Mempool {
     }
 
     /// Retrieves up to `n_txs` transactions with the highest priority from the mempool.
-    /// Transactions are guaranteed to be unique across calls until `commit_block` is invoked.
-    // TODO: the last part about commit_block is incorrect if we delete txs in get_txs and then push
-    // back. TODO: Consider renaming to `pop_txs` to be more consistent with the standard
-    // library.
+    /// Transactions are guaranteed to be unique across calls until the block in-progress is
+    /// created.
+    // TODO: Consider renaming to `pop_txs` to be more consistent with the standard library.
     pub fn get_txs(&mut self, n_txs: usize) -> MempoolResult<Vec<Transaction>> {
         let mut eligible_tx_references: Vec<TransactionReference> = Vec::with_capacity(n_txs);
         let mut n_remaining_txs = n_txs;
@@ -60,42 +63,46 @@ impl Mempool {
             eligible_tx_references.extend(chunk);
         }
 
-        let mut eligible_txs: Vec<Transaction> = Vec::with_capacity(n_txs);
-        for tx_ref in &eligible_tx_references {
-            let tx = self.tx_pool.remove(tx_ref.tx_hash)?;
-            let address = tx.contract_address();
-            if !self.tx_pool.contains_account(address) {
-                self.account_nonces.remove(&address);
-            }
-            eligible_txs.push(tx);
-        }
-
         // Update the mempool state with the given transactions' nonces.
         for tx_ref in &eligible_tx_references {
-            self.mempool_state.insert(tx_ref.sender_address, tx_ref.nonce);
+            self.mempool_state.insert(tx_ref.address, tx_ref.nonce);
         }
 
-        Ok(eligible_txs)
+        Ok(eligible_tx_references
+            .iter()
+            .map(|tx_ref| {
+                self.tx_pool
+                    .get_by_tx_hash(tx_ref.tx_hash)
+                    .expect("Transaction hash from queue must appear in pool.")
+            })
+            .cloned() // Soft-delete: return without deleting from mempool.
+            .collect())
     }
 
     /// Adds a new transaction to the mempool.
-    /// TODO: support fee escalation and transactions with future nonces.
-    /// TODO: check Account nonce and balance.
     pub fn add_tx(&mut self, args: AddTransactionArgs) -> MempoolResult<()> {
-        self.validate_input(&args)?;
-
         let AddTransactionArgs { tx, account_state } = args;
+        self.validate_incoming_nonce(tx.nonce(), account_state)?;
+
+        self.handle_fee_escalation(&tx)?;
         self.tx_pool.insert(tx)?;
-        self.align_to_account_state(account_state);
+
+        // Align to account nonce, only if it is at least the one stored.
+        let AccountState { address, nonce } = account_state;
+        match self.account_nonces.get(&address) {
+            Some(stored_account_nonce) if &nonce < stored_account_nonce => {}
+            _ => {
+                self.align_to_account_state(account_state);
+            }
+        }
 
         Ok(())
     }
 
     /// Update the mempool's internal state according to the committed block (resolves nonce gaps,
     /// updates account balances).
-    // TODO: the part about resolving nonce gaps is incorrect if we delete txs in get_txs and then
-    // push back.
     pub fn commit_block(&mut self, args: CommitBlockArgs) -> MempoolResult<()> {
+        // Align mempool data to committed nonces.
         for (&address, &nonce) in &args.nonces {
             let next_nonce = nonce.try_increment().map_err(|_| MempoolError::FeltOutOfRange)?;
             let account_state = AccountState { address, nonce: next_nonce };
@@ -103,32 +110,50 @@ impl Mempool {
         }
 
         // Rewind nonces of addresses that were not included in block.
-        let addresses_not_included_in_block =
+        let known_addresses_not_included_in_block =
             self.mempool_state.keys().filter(|&key| !args.nonces.contains_key(key));
-        for address in addresses_not_included_in_block {
-            self.tx_queue.remove(*address);
+        for address in known_addresses_not_included_in_block {
+            // Account nonce is the minimal nonce of this address: it was proposed but not included.
+            let tx_reference = self
+                .tx_pool
+                .account_txs_sorted_by_nonce(*address)
+                .next()
+                .expect("Address {address} should appear in transaction pool.");
+            self.tx_queue.insert(*tx_reference);
         }
 
+        // Hard-delete: finally, remove committed transactions from the mempool.
+        for tx_hash in args.tx_hashes {
+            let Ok(_tx) = self.tx_pool.remove(tx_hash) else {
+                continue; // Transaction hash unknown to mempool, from a different node.
+            };
+
+            // TODO(clean_account_nonces): remove address from nonce table after a block cycle /
+            // TTL.
+        }
+
+        // Commit: clear block creation staged state.
         self.mempool_state.clear();
 
         Ok(())
     }
 
     // TODO(Mohammad): Rename this method once consensus API is added.
-    fn _update_gas_price_threshold(&mut self, threshold: u128) {
+    fn _update_gas_price_threshold(&mut self, threshold: GasPrice) {
         self.tx_queue._update_gas_price_threshold(threshold);
     }
 
-    fn validate_input(&self, args: &AddTransactionArgs) -> MempoolResult<()> {
-        let sender_address = args.tx.contract_address();
-        let tx_nonce = args.tx.nonce();
-        let duplicate_nonce_error =
-            MempoolError::DuplicateNonce { address: sender_address, nonce: tx_nonce };
+    fn validate_incoming_nonce(
+        &self,
+        tx_nonce: Nonce,
+        account_state: AccountState,
+    ) -> MempoolResult<()> {
+        let AccountState { address, nonce: account_nonce } = account_state;
+        let duplicate_nonce_error = MempoolError::DuplicateNonce { address, nonce: tx_nonce };
 
         // Stateless checks.
 
         // Check the input: transaction nonce against given account state.
-        let account_nonce = args.account_state.nonce;
         if account_nonce > tx_nonce {
             return Err(duplicate_nonce_error);
         }
@@ -136,18 +161,14 @@ impl Mempool {
         // Stateful checks.
 
         // Check nonce against mempool state.
-        if let Some(mempool_state_nonce) = self.mempool_state.get(&sender_address) {
+        if let Some(mempool_state_nonce) = self.mempool_state.get(&address) {
             if mempool_state_nonce >= &tx_nonce {
                 return Err(duplicate_nonce_error);
             }
         }
 
         // Check nonce against the queue.
-        if self
-            .tx_queue
-            .get_nonce(sender_address)
-            .is_some_and(|queued_nonce| queued_nonce > tx_nonce)
-        {
+        if self.tx_queue.get_nonce(address).is_some_and(|queued_nonce| queued_nonce >= tx_nonce) {
             return Err(duplicate_nonce_error);
         }
 
@@ -156,8 +177,7 @@ impl Mempool {
 
     fn enqueue_next_eligible_txs(&mut self, txs: &[TransactionReference]) -> MempoolResult<()> {
         for tx in txs {
-            let current_account_state =
-                AccountState { address: tx.sender_address, nonce: tx.nonce };
+            let current_account_state = AccountState { address: tx.address, nonce: tx.nonce };
 
             if let Some(next_tx_reference) =
                 self.tx_pool.get_next_eligible_tx(current_account_state)?
@@ -179,19 +199,8 @@ impl Mempool {
 
         // Remove from pool.
         self.tx_pool.remove_up_to_nonce(address, nonce);
-
-        if self.tx_pool.contains_account(address) {
-            match self.account_nonces.get(&address) {
-                // Skip updating the account nonce if it is greater than the received nonce.
-                Some(current_account_nonce) if current_account_nonce > &nonce => {}
-                _ => {
-                    self.account_nonces.insert(address, nonce);
-                }
-            }
-        } else {
-            // Remove address if no transactions from it left.
-            self.account_nonces.remove(&address);
-        }
+        // TODO(clean_account_nonces): remove address from nonce table after a block cycle / TTL.
+        self.account_nonces.insert(address, nonce);
 
         // Maybe close nonce gap.
         if self.tx_queue.get_nonce(address).is_none() {
@@ -199,6 +208,56 @@ impl Mempool {
                 self.tx_queue.insert(*tx_reference);
             }
         }
+    }
+
+    fn handle_fee_escalation(&mut self, incoming_tx: &Transaction) -> MempoolResult<()> {
+        let incoming_tx_ref = TransactionReference::new(incoming_tx);
+        let TransactionReference { address, nonce, .. } = incoming_tx_ref;
+        let Some(existing_tx_ref) = self.tx_pool.get_by_address_and_nonce(address, nonce) else {
+            // Replacement irrelevant: no existing transaction with the same nonce for address.
+            return Ok(());
+        };
+
+        if !self.should_replace_tx(existing_tx_ref, &incoming_tx_ref) {
+            // TODO(Elin): consider adding a more specific error type / message.
+            return Err(MempoolError::DuplicateNonce { address, nonce });
+        }
+
+        self.tx_queue.remove(address);
+        self.tx_pool
+            .remove(existing_tx_ref.tx_hash)
+            .expect("Transaction hash from pool must exist.");
+
+        Ok(())
+    }
+
+    fn should_replace_tx(
+        &self,
+        existing_tx: &TransactionReference,
+        incoming_tx: &TransactionReference,
+    ) -> bool {
+        let [existing_tip, incoming_tip] =
+            [existing_tx, incoming_tx].map(|tx| u128::from(tx.tip.0));
+        let [existing_max_l2_gas_price, incoming_max_l2_gas_price] =
+            [existing_tx, incoming_tx].map(|tx| tx.max_l2_gas_price.0);
+
+        self.increased_enough(existing_tip, incoming_tip)
+            && self.increased_enough(existing_max_l2_gas_price, incoming_max_l2_gas_price)
+    }
+
+    fn increased_enough(&self, existing_value: u128, incoming_value: u128) -> bool {
+        // E.g., 110 for a 10% increase.
+        let escalation_factor = 100 + u128::from(self.fee_escalation_percentage);
+
+        // TODO(Elin): add overflow tests; 2^127 existing with 10% increase should not overflow.
+        let Some(escalation_qualified_value) =
+            existing_value.checked_mul(escalation_factor).map(|v| v / 100)
+        else {
+            // Overflow occurred; cannot calculate required increase. Reject the transaction.
+            return false;
+        };
+
+        incoming_value >= escalation_qualified_value
     }
 }
 
@@ -208,27 +267,25 @@ impl Mempool {
 /// becomes available, to better reflect its purpose and usage.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct TransactionReference {
-    pub sender_address: ContractAddress,
+    pub address: ContractAddress,
     pub nonce: Nonce,
     pub tx_hash: TransactionHash,
     pub tip: Tip,
-    pub resource_bounds: ValidResourceBounds,
+    pub max_l2_gas_price: GasPrice,
 }
 
 impl TransactionReference {
     pub fn new(tx: &Transaction) -> Self {
         TransactionReference {
-            sender_address: tx.contract_address(),
+            address: tx.contract_address(),
             nonce: tx.nonce(),
             tx_hash: tx.tx_hash(),
             tip: tx.tip().expect("Expected a valid tip value."),
-            resource_bounds: *tx
+            max_l2_gas_price: tx
                 .resource_bounds()
-                .expect("Expected a valid resource bounds value."),
+                .expect("Expected a valid resource bounds value.")
+                .get_l2_bounds()
+                .max_price_per_unit,
         }
-    }
-
-    pub fn get_l2_gas_price(&self) -> u128 {
-        self.resource_bounds.get_l2_bounds().max_price_per_unit
     }
 }

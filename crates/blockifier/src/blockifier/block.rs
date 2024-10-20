@@ -1,7 +1,13 @@
-use std::num::NonZeroU128;
-
 use log::warn;
-use starknet_api::block::{BlockHash, BlockNumber, BlockTimestamp};
+use serde::{Deserialize, Serialize};
+use starknet_api::block::{
+    BlockHash,
+    BlockNumber,
+    BlockTimestamp,
+    GasPrice,
+    GasPriceVector,
+    NonzeroGasPrice,
+};
 use starknet_api::core::ContractAddress;
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
@@ -29,34 +35,23 @@ pub struct BlockInfo {
 
 #[derive(Clone, Debug)]
 pub struct GasPrices {
-    eth_l1_gas_price: NonZeroU128,       // In wei.
-    strk_l1_gas_price: NonZeroU128,      // In fri.
-    eth_l1_data_gas_price: NonZeroU128,  // In wei.
-    strk_l1_data_gas_price: NonZeroU128, // In fri.
-    eth_l2_gas_price: NonZeroU128,       // In wei.
-    strk_l2_gas_price: NonZeroU128,      // In fri.
-}
-
-#[derive(Debug)]
-pub struct GasPricesForFeeType {
-    pub l1_gas_price: NonZeroU128,
-    pub l1_data_gas_price: NonZeroU128,
-    pub l2_gas_price: NonZeroU128,
+    eth_gas_prices: GasPriceVector,  // In wei.
+    strk_gas_prices: GasPriceVector, // In fri.
 }
 
 impl GasPrices {
     pub fn new(
-        eth_l1_gas_price: NonZeroU128,
-        strk_l1_gas_price: NonZeroU128,
-        eth_l1_data_gas_price: NonZeroU128,
-        strk_l1_data_gas_price: NonZeroU128,
-        eth_l2_gas_price: NonZeroU128,
-        strk_l2_gas_price: NonZeroU128,
+        eth_l1_gas_price: NonzeroGasPrice,
+        strk_l1_gas_price: NonzeroGasPrice,
+        eth_l1_data_gas_price: NonzeroGasPrice,
+        strk_l1_data_gas_price: NonzeroGasPrice,
+        eth_l2_gas_price: NonzeroGasPrice,
+        strk_l2_gas_price: NonzeroGasPrice,
     ) -> Self {
         // TODO(Aner): fix backwards compatibility.
         let expected_eth_l2_gas_price = VersionedConstants::latest_constants()
             .convert_l1_to_l2_gas_price_round_up(eth_l1_gas_price.into());
-        if u128::from(eth_l2_gas_price) != expected_eth_l2_gas_price {
+        if GasPrice::from(eth_l2_gas_price) != expected_eth_l2_gas_price {
             // TODO!(Aner): change to panic! Requires fixing several tests.
             warn!(
                 "eth_l2_gas_price does not match expected! eth_l2_gas_price:{eth_l2_gas_price}, \
@@ -65,7 +60,7 @@ impl GasPrices {
         }
         let expected_strk_l2_gas_price = VersionedConstants::latest_constants()
             .convert_l1_to_l2_gas_price_round_up(strk_l1_gas_price.into());
-        if u128::from(strk_l2_gas_price) != expected_strk_l2_gas_price {
+        if GasPrice::from(strk_l2_gas_price) != expected_strk_l2_gas_price {
             // TODO!(Aner): change to panic! Requires fixing test_discounted_gas_overdraft
             warn!(
                 "strk_l2_gas_price does not match expected! \
@@ -73,42 +68,36 @@ impl GasPrices {
             )
         }
 
-        GasPrices {
-            eth_l1_gas_price,
-            strk_l1_gas_price,
-            eth_l1_data_gas_price,
-            strk_l1_data_gas_price,
-            eth_l2_gas_price,
-            strk_l2_gas_price,
+        Self {
+            eth_gas_prices: GasPriceVector {
+                l1_gas_price: eth_l1_gas_price,
+                l1_data_gas_price: eth_l1_data_gas_price,
+                l2_gas_price: eth_l2_gas_price,
+            },
+            strk_gas_prices: GasPriceVector {
+                l1_gas_price: strk_l1_gas_price,
+                l1_data_gas_price: strk_l1_data_gas_price,
+                l2_gas_price: strk_l2_gas_price,
+            },
         }
     }
 
-    pub fn get_l1_gas_price_by_fee_type(&self, fee_type: &FeeType) -> NonZeroU128 {
+    pub fn get_l1_gas_price_by_fee_type(&self, fee_type: &FeeType) -> NonzeroGasPrice {
+        self.get_gas_prices_by_fee_type(fee_type).l1_gas_price
+    }
+
+    pub fn get_l1_data_gas_price_by_fee_type(&self, fee_type: &FeeType) -> NonzeroGasPrice {
+        self.get_gas_prices_by_fee_type(fee_type).l1_data_gas_price
+    }
+
+    pub fn get_l2_gas_price_by_fee_type(&self, fee_type: &FeeType) -> NonzeroGasPrice {
+        self.get_gas_prices_by_fee_type(fee_type).l2_gas_price
+    }
+
+    pub fn get_gas_prices_by_fee_type(&self, fee_type: &FeeType) -> &GasPriceVector {
         match fee_type {
-            FeeType::Strk => self.strk_l1_gas_price,
-            FeeType::Eth => self.eth_l1_gas_price,
-        }
-    }
-
-    pub fn get_l1_data_gas_price_by_fee_type(&self, fee_type: &FeeType) -> NonZeroU128 {
-        match fee_type {
-            FeeType::Strk => self.strk_l1_data_gas_price,
-            FeeType::Eth => self.eth_l1_data_gas_price,
-        }
-    }
-
-    pub fn get_l2_gas_price_by_fee_type(&self, fee_type: &FeeType) -> NonZeroU128 {
-        match fee_type {
-            FeeType::Strk => self.strk_l2_gas_price,
-            FeeType::Eth => self.eth_l2_gas_price,
-        }
-    }
-
-    pub fn get_gas_prices_by_fee_type(&self, fee_type: &FeeType) -> GasPricesForFeeType {
-        GasPricesForFeeType {
-            l1_gas_price: self.get_l1_gas_price_by_fee_type(fee_type),
-            l1_data_gas_price: self.get_l1_data_gas_price_by_fee_type(fee_type),
-            l2_gas_price: self.get_l2_gas_price_by_fee_type(fee_type),
+            FeeType::Strk => &self.strk_gas_prices,
+            FeeType::Eth => &self.eth_gas_prices,
         }
     }
 }
@@ -143,6 +132,7 @@ pub fn pre_process_block(
     Ok(())
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BlockNumberHashPair {
     pub number: BlockNumber,
     pub hash: BlockHash,

@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock};
 use std::{fs, io};
@@ -8,15 +8,17 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use indexmap::{IndexMap, IndexSet};
 use num_rational::Ratio;
 use num_traits::Inv;
+use papyrus_config::dumping::{ser_param, SerializeConfig};
+use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use paste::paste;
 use semver::Version;
 use serde::de::Error as DeserializationError;
-use serde::{Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::{Map, Number, Value};
+use starknet_api::block::{GasPrice, StarknetVersion};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::GasVectorComputationMode;
 use strum::IntoEnumIterator;
-use strum_macros::{EnumCount, EnumIter};
 use thiserror::Error;
 
 use crate::execution::deprecated_syscalls::hint_processor::SyscallCounter;
@@ -31,35 +33,7 @@ pub mod test;
 
 /// Auto-generate getters for listed versioned constants versions.
 macro_rules! define_versioned_constants {
-    ($(($variant:ident, $path_to_json:expr, $version_str:expr)),*, $latest_variant:ident) => {
-        /// Enum of all the Starknet versions supporting versioned constants.
-        #[derive(Clone, Debug, EnumCount, EnumIter, Hash, Eq, PartialEq)]
-        pub enum StarknetVersion {
-            $($variant,)*
-        }
-
-        impl StarknetVersion {
-            pub fn path_to_versioned_constants_json(&self) -> &'static str {
-                match self {
-                    $(StarknetVersion::$variant => $path_to_json,)*
-                }
-            }
-
-            pub fn latest() -> Self {
-                StarknetVersion::$latest_variant
-            }
-        }
-
-        impl From<StarknetVersion> for String {
-            fn from(version: StarknetVersion) -> Self {
-                match version {
-                    $(StarknetVersion::$variant => String::from(
-                        stringify!($variant)
-                    ).to_lowercase().replace("_", "."),)*
-                }
-            }
-        }
-
+    ($(($variant:ident, $path_to_json:expr)),* $(,)?) => {
         // Static (lazy) instances of the versioned constants.
         // For internal use only; for access to a static instance use the `StarknetVersion` enum.
         paste! {
@@ -74,67 +48,80 @@ macro_rules! define_versioned_constants {
         }
 
         /// API to access a static instance of the versioned constants.
-        impl From<StarknetVersion> for &'static VersionedConstants {
-            fn from(version: StarknetVersion) -> Self {
+        impl TryFrom<StarknetVersion> for &'static VersionedConstants {
+            type Error = VersionedConstantsError;
+
+            fn try_from(version: StarknetVersion) -> VersionedConstantsResult<Self> {
                 match version {
                     $(
                         StarknetVersion::$variant => {
-                           & paste! { [<VERSIONED_CONSTANTS_ $variant:upper>] }
+                           Ok(& paste! { [<VERSIONED_CONSTANTS_ $variant:upper>] })
                         }
                     )*
+                    _ => Err(VersionedConstantsError::InvalidStarknetVersion(version)),
+                }
+            }
+        }
+
+        impl VersionedConstants {
+            pub fn path_to_json(version: &StarknetVersion) -> VersionedConstantsResult<&'static str> {
+                match version {
+                    $(StarknetVersion::$variant => Ok($path_to_json),)*
+                    _ => Err(VersionedConstantsError::InvalidStarknetVersion(*version)),
+                }
+            }
+
+            /// Gets the constants that shipped with the current version of the Blockifier.
+            /// To use custom constants, initialize the struct from a file using `from_path`.
+            pub fn latest_constants() -> &'static Self {
+                Self::get(&StarknetVersion::LATEST)
+                    .expect("Latest version should support VC.")
+            }
+
+            /// Gets the constants for the specified Starknet version.
+            pub fn get(version: &StarknetVersion) -> VersionedConstantsResult<&'static Self> {
+                match version {
+                    $(
+                        StarknetVersion::$variant => Ok(
+                            & paste! { [<VERSIONED_CONSTANTS_ $variant:upper>] }
+                        ),
+                    )*
+                    _ => Err(VersionedConstantsError::InvalidStarknetVersion(*version)),
                 }
             }
         }
 
         pub static VERSIONED_CONSTANTS_LATEST_JSON: LazyLock<String> = LazyLock::new(|| {
-            let latest_variant = StarknetVersion::$latest_variant;
+            let latest_variant = StarknetVersion::LATEST;
             let path_to_json: PathBuf = [
-                env!("CARGO_MANIFEST_DIR"), "src", latest_variant.path_to_versioned_constants_json()
+                env!("CARGO_MANIFEST_DIR"),
+                "src",
+                VersionedConstants::path_to_json(&latest_variant)
+                    .expect("Latest variant should have a path to json.")
             ].iter().collect();
             fs::read_to_string(path_to_json.clone())
                 .expect(&format!("Failed to read file {}.", path_to_json.display()))
         });
-
-        impl TryFrom<&str> for StarknetVersion {
-            type Error = VersionedConstantsError;
-            fn try_from(raw_version: &str) -> Result<Self, Self::Error> {
-                match raw_version {
-                    $(
-                        $version_str => Ok(StarknetVersion::$variant),
-                    )*
-                    _ => Err(VersionedConstantsError::InvalidVersion { version: raw_version.to_string()}),
-                }
-            }
-        }
-
-        #[cfg(test)]
-        mod tests {
-            use crate::versioned_constants::StarknetVersion;
-
-            #[test]
-            fn test_variant_name_string_consistency() {
-                $(
-                    assert_eq!(
-                        "v".to_owned() + $version_str,
-                        String::from(StarknetVersion::$variant)
-                    );
-                )*
-            }
-        }
     };
 }
 
 define_versioned_constants! {
-    (V0_13_0, "../resources/versioned_constants_0_13_0.json", "0.13.0"),
-    (V0_13_1, "../resources/versioned_constants_0_13_1.json", "0.13.1"),
-    (V0_13_1_1, "../resources/versioned_constants_0_13_1_1.json", "0.13.1.1"),
-    (V0_13_2, "../resources/versioned_constants_0_13_2.json", "0.13.2"),
-    (V0_13_2_1, "../resources/versioned_constants_0_13_2_1.json", "0.13.2.1"),
-    (V0_13_3, "../resources/versioned_constants_0_13_3.json", "0.13.3"),
-    V0_13_3
+    (V0_13_0, "../resources/versioned_constants_0_13_0.json"),
+    (V0_13_1, "../resources/versioned_constants_0_13_1.json"),
+    (V0_13_1_1, "../resources/versioned_constants_0_13_1_1.json"),
+    (V0_13_2, "../resources/versioned_constants_0_13_2.json"),
+    (V0_13_2_1, "../resources/versioned_constants_0_13_2_1.json"),
+    (V0_13_3, "../resources/versioned_constants_0_13_3.json"),
 }
 
-pub type ResourceCost = Ratio<u128>;
+pub type ResourceCost = Ratio<u64>;
+
+// TODO: Delete this ratio-converter function once event keys / data length are no longer 128 bits
+//   (no other usage is expected).
+pub fn resource_cost_to_u128_ratio(cost: ResourceCost) -> Ratio<u128> {
+    Ratio::new((*cost.numer()).into(), (*cost.denom()).into())
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, PartialOrd)]
 pub struct CompilerVersion(pub Version);
 impl Default for CompilerVersion {
@@ -193,46 +180,39 @@ pub struct VersionedConstants {
     // See the struct's docstring for more details.
     pub os_constants: Arc<OsConstants>,
 
+    // Fee related.
+    pub(crate) vm_resource_fee_cost: Arc<VmResourceCosts>,
+
     // Resources.
     os_resources: Arc<OsResources>,
 
-    // Fee related.
-    vm_resource_fee_cost: Arc<VmResourceCosts>,
     // Just to make sure the value exists, but don't use the actual values.
     #[allow(dead_code)]
     gateway: serde::de::IgnoredAny,
 }
 
 impl VersionedConstants {
-    /// Gets the constants that shipped with the current version of the Blockifier.
-    /// To use custom constants, initialize the struct from a file using `from_path`.
-    pub fn latest_constants() -> &'static Self {
-        Self::get(StarknetVersion::latest())
-    }
-
-    /// Gets the constants for the specified Starknet version.
-    pub fn get(version: StarknetVersion) -> &'static Self {
-        version.into()
-    }
-
-    pub fn from_path(path: &Path) -> Result<Self, VersionedConstantsError> {
+    pub fn from_path(path: &Path) -> VersionedConstantsResult<Self> {
         Ok(serde_json::from_reader(std::fs::File::open(path)?)?)
     }
 
     /// Converts from L1 gas price to L2 gas price with **upward rounding**.
-    pub fn convert_l1_to_l2_gas_price_round_up(&self, l1_gas_price: u128) -> u128 {
-        *(self.l1_to_l2_gas_price_ratio() * l1_gas_price).ceil().numer()
+    pub fn convert_l1_to_l2_gas_price_round_up(&self, l1_gas_price: GasPrice) -> GasPrice {
+        (*(resource_cost_to_u128_ratio(self.l1_to_l2_gas_price_ratio()) * l1_gas_price.0)
+            .ceil()
+            .numer())
+        .into()
     }
 
     /// Converts from L1 gas amount to L2 gas amount with **upward rounding**.
     pub fn convert_l1_to_l2_gas_amount_round_up(&self, l1_gas_amount: GasAmount) -> GasAmount {
         // The amount ratio is the inverse of the price ratio.
-        GasAmount(*(self.l1_to_l2_gas_price_ratio().inv() * l1_gas_amount.0).ceil().numer())
+        (*(self.l1_to_l2_gas_price_ratio().inv() * l1_gas_amount.0).ceil().numer()).into()
     }
 
     /// Returns the following ratio: L2_gas_price/L1_gas_price.
     fn l1_to_l2_gas_price_ratio(&self) -> ResourceCost {
-        Ratio::new(1, u128::from(self.os_constants.gas_costs.step_gas_cost))
+        Ratio::new(1, self.os_constants.gas_costs.step_gas_cost)
             * self.vm_resource_fee_cost().n_steps
     }
 
@@ -241,10 +221,9 @@ impl VersionedConstants {
         self.l1_to_l2_gas_price_ratio()
     }
 
-    /// Returns the default initial gas of any transaction to run with.
-    pub fn tx_default_initial_gas(&self) -> u64 {
-        let os_consts = &self.os_constants;
-        os_consts.gas_costs.default_initial_gas_cost - os_consts.gas_costs.transaction_gas_cost
+    /// Returns the default initial gas for VM mode transactions.
+    pub fn default_initial_gas_cost(&self) -> u64 {
+        self.os_constants.gas_costs.default_initial_gas_cost
     }
 
     pub fn vm_resource_fee_cost(&self) -> &VmResourceCosts {
@@ -756,7 +735,11 @@ pub enum VersionedConstantsError {
     ParseError(#[from] serde_json::Error),
     #[error("Invalid version: {version:?}")]
     InvalidVersion { version: String },
+    #[error("Invalid Starknet version: {0}")]
+    InvalidStarknetVersion(StarknetVersion),
 }
+
+pub type VersionedConstantsResult<T> = Result<T, VersionedConstantsError>;
 
 #[derive(Debug, Error)]
 pub enum OsConstantsSerdeError {
@@ -795,7 +778,7 @@ struct ResourceParamsRaw {
 impl TryFrom<ResourceParamsRaw> for ResourcesParams {
     type Error = VersionedConstantsError;
 
-    fn try_from(mut json_data: ResourceParamsRaw) -> Result<Self, Self::Error> {
+    fn try_from(mut json_data: ResourceParamsRaw) -> VersionedConstantsResult<Self> {
         let constant_value = json_data.raw_resource_params_as_dict.remove("constant");
         let calldata_factor_value = json_data.raw_resource_params_as_dict.remove("calldata_factor");
 
@@ -841,8 +824,45 @@ pub struct ResourcesByVersion {
     pub deprecated_resources: ResourcesParams,
 }
 
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct VersionedConstantsOverrides {
     pub validate_max_n_steps: u32,
     pub max_recursion_depth: usize,
     pub invoke_tx_max_n_steps: u32,
+}
+
+impl Default for VersionedConstantsOverrides {
+    // TODO: update the default values once the actual values are known.
+    fn default() -> Self {
+        Self {
+            validate_max_n_steps: 1000000,
+            max_recursion_depth: 50,
+            invoke_tx_max_n_steps: 10000000,
+        }
+    }
+}
+
+impl SerializeConfig for VersionedConstantsOverrides {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([
+            ser_param(
+                "validate_max_n_steps",
+                &self.validate_max_n_steps,
+                "Maximum number of steps the validation function is allowed to run.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_recursion_depth",
+                &self.max_recursion_depth,
+                "Maximum recursion depth for nested calls during blockifier validation.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "invoke_tx_max_n_steps",
+                &self.invoke_tx_max_n_steps,
+                "Maximum number of steps the invoke function is allowed to run.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
+    }
 }

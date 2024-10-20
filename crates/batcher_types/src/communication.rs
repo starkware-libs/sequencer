@@ -26,8 +26,8 @@ use crate::batcher_types::{
 };
 use crate::errors::BatcherError;
 
-pub type LocalBatcherClientImpl = LocalComponentClient<BatcherRequest, BatcherResponse>;
-pub type RemoteBatcherClientImpl = RemoteComponentClient<BatcherRequest, BatcherResponse>;
+pub type LocalBatcherClient = LocalComponentClient<BatcherRequest, BatcherResponse>;
+pub type RemoteBatcherClient = RemoteComponentClient<BatcherRequest, BatcherResponse>;
 pub type BatcherClientResult<T> = Result<T, BatcherClientError>;
 pub type BatcherRequestAndResponseSender =
     ComponentRequestAndResponseSender<BatcherRequest, BatcherResponse>;
@@ -97,7 +97,7 @@ pub enum BatcherClientError {
 }
 
 #[async_trait]
-impl BatcherClient for LocalBatcherClientImpl {
+impl BatcherClient for LocalBatcherClient {
     async fn build_proposal(&self, input: BuildProposalInput) -> BatcherClientResult<()> {
         let request = BatcherRequest::BuildProposal(input);
         let response = self.send(request).await;
@@ -162,7 +162,7 @@ impl BatcherClient for LocalBatcherClientImpl {
 }
 
 #[async_trait]
-impl BatcherClient for RemoteBatcherClientImpl {
+impl BatcherClient for RemoteBatcherClient {
     async fn build_proposal(&self, input: BuildProposalInput) -> BatcherClientResult<()> {
         let request = BatcherRequest::BuildProposal(input);
         let response = self.send(request).await?;

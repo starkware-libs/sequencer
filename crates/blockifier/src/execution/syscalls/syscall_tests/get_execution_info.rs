@@ -1,7 +1,9 @@
 use cairo_vm::Felt252;
 use num_traits::Pow;
+use starknet_api::block::GasPrice;
 use starknet_api::core::ChainId;
 use starknet_api::data_availability::DataAvailabilityMode;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::{
     AccountDeploymentData,
     Calldata,
@@ -143,8 +145,8 @@ fn test_get_execution_info(
     let nonce = nonce!(3_u16);
     let sender_address = test_contract_address;
 
-    let max_amount = Fee(13);
-    let max_price_per_unit = Fee(61);
+    let max_amount = GasAmount(13);
+    let max_price_per_unit = GasPrice(61);
 
     let expected_resource_bounds: Vec<Felt> = match (test_contract, version) {
         (FeatureContract::LegacyTestContract, _) => vec![],
@@ -154,8 +156,8 @@ fn test_get_execution_info(
         (_, _) => vec![
             Felt::from(2u32),                // Length of ResourceBounds array.
             felt!(Resource::L1Gas.to_hex()), // Resource.
-            felt!(max_amount.0),             // Max amount.
-            felt!(max_price_per_unit.0),     // Max price per unit.
+            max_amount.into(),               // Max amount.
+            max_price_per_unit.into(),       // Max price per unit.
             felt!(Resource::L2Gas.to_hex()), // Resource.
             Felt::ZERO,                      // Max amount.
             Felt::ZERO,                      // Max price per unit.
@@ -209,8 +211,8 @@ fn test_get_execution_info(
                 ..Default::default()
             },
             resource_bounds: ValidResourceBounds::L1Gas(ResourceBounds {
-                max_amount: max_amount.0.try_into().expect("Failed to convert u128 to u64."),
-                max_price_per_unit: max_price_per_unit.0,
+                max_amount,
+                max_price_per_unit,
             }),
             tip: Tip::default(),
             nonce_data_availability_mode: DataAvailabilityMode::L1,
@@ -241,15 +243,8 @@ fn test_get_execution_info(
         ),
         ..trivial_external_entry_point_with_address(test_contract_address)
     };
-
-    let result = match execution_mode {
-        ExecutionMode::Validate => {
-            entry_point_call.execute_directly_given_tx_info_in_validate_mode(state, tx_info, false)
-        }
-        ExecutionMode::Execute => {
-            entry_point_call.execute_directly_given_tx_info(state, tx_info, false)
-        }
-    };
+    let result =
+        entry_point_call.execute_directly_given_tx_info(state, tx_info, false, execution_mode);
 
     assert!(!result.unwrap().execution.failed);
 }

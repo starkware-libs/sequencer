@@ -13,8 +13,9 @@ use cairo_lang_utils::bigint::BigUintAsHex;
 use cairo_vm::types::program::Program;
 use flate2::bufread;
 use serde::Deserialize;
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::EntryPointSelector;
-use starknet_api::deprecated_contract_class::{EntryPoint, EntryPointOffset, EntryPointType};
+use starknet_api::deprecated_contract_class::{EntryPointOffset, EntryPointV0};
 use starknet_api::hash::StarkHash;
 use starknet_core::types::{
     CompressedLegacyContractClass,
@@ -36,16 +37,16 @@ pub struct MiddleSierraContractClass {
 /// from legacy format to new `EntryPoint` struct.
 pub fn map_entry_points_by_type_legacy(
     entry_points_by_type: LegacyEntryPointsByType,
-) -> HashMap<EntryPointType, Vec<EntryPoint>> {
+) -> HashMap<EntryPointType, Vec<EntryPointV0>> {
     let entry_types_to_points = HashMap::from([
         (EntryPointType::Constructor, entry_points_by_type.constructor),
         (EntryPointType::External, entry_points_by_type.external),
         (EntryPointType::L1Handler, entry_points_by_type.l1_handler),
     ]);
 
-    let to_contract_entry_point = |entrypoint: &LegacyContractEntryPoint| -> EntryPoint {
+    let to_contract_entry_point = |entrypoint: &LegacyContractEntryPoint| -> EntryPointV0 {
         let felt: StarkHash = StarkHash::from_bytes_be(&entrypoint.selector.to_bytes_be());
-        EntryPoint {
+        EntryPointV0 {
             offset: EntryPointOffset(usize::try_from(entrypoint.offset).unwrap()),
             selector: EntryPointSelector(felt),
         }

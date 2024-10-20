@@ -7,10 +7,9 @@ members = [
   "crates/batcher",
   "crates/batcher_types",
   "crates/blockifier",
-  "crates/blockifier_regression_test",
+  "crates/blockifier_reexecution",
   "crates/committer_cli",
   "crates/consensus_manager",
-  "crates/consensus_manager_types",
   "crates/gateway",
   "crates/gateway_types",
   "crates/http_server",
@@ -22,6 +21,7 @@ members = [
   "crates/mempool_p2p_types",
   "crates/mempool_test_utils",
   "crates/mempool_types",
+  "crates/monitoring_endpoint",
   "crates/native_blockifier",
   "crates/papyrus_base_layer",
   "crates/papyrus_common",
@@ -209,7 +209,6 @@ starknet_batcher_types = { path = "crates/batcher_types", version = "0.0.0" }
 starknet_client = { path = "crates/starknet_client", version = "0.0.0" }
 starknet_committer = { path = "crates/starknet_committer", version = "0.0.0" }
 starknet_consensus_manager = { path = "crates/consensus_manager", version = "0.0.0" }
-starknet_consensus_manager_types = { path = "crates/consensus_manager_types", version = "0.0.0" }
 starknet_gateway = { path = "crates/gateway", version = "0.0.0" }
 starknet_gateway_types = { path = "crates/gateway_types", version = "0.0.0" }
 starknet_http_server = { path = "crates/http_server", version = "0.0.0" }
@@ -219,6 +218,7 @@ starknet_mempool_node = { path = "crates/mempool_node", version = "0.0.0" }
 starknet_mempool_p2p = { path = "crates/mempool_p2p", version = "0.0.0" }
 starknet_mempool_p2p_types = { path = "crates/mempool_p2p_types", version = "0.0.0" }
 starknet_mempool_types = { path = "crates/mempool_types", version = "0.0.0" }
+starknet_monitoring_endpoint = { path = "crates/monitoring_endpoint", version = "0.0.0" }
 starknet_patricia = { path = "crates/starknet_patricia", version = "0.0.0" }
 starknet_sierra_compile = { path = "crates/starknet_sierra_compile", version = "0.0.0" }
 starknet_task_executor = { path = "crates/task_executor", version = "0.0.0" }

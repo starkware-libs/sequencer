@@ -2,6 +2,7 @@ use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use serde::Deserialize;
 use starknet_api::block::{BlockNumber, BlockTimestamp};
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{
     calculate_contract_address,
     ClassHash,
@@ -9,7 +10,6 @@ use starknet_api::core::{
     EntryPointSelector,
     EthAddress,
 };
-use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{
     Calldata,
@@ -348,13 +348,14 @@ pub fn deploy(
         storage_address: deployed_contract_address,
         caller_address: deployer_address,
     };
+    let mut remaining_gas = syscall_handler.context.gas_costs().default_initial_gas_cost;
     let call_info = execute_deployment(
         syscall_handler.state,
         syscall_handler.resources,
         syscall_handler.context,
         ctor_context,
         request.constructor_calldata,
-        syscall_handler.context.gas_costs().default_initial_gas_cost,
+        &mut remaining_gas,
     )?;
     syscall_handler.inner_calls.push(call_info);
 
