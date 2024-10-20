@@ -31,6 +31,7 @@ use crate::execution::errors::{
     PreExecutionError,
 };
 use crate::execution::execution_utils::execute_entry_point_call_wrapper;
+use crate::execution::stack_trace::extract_trailing_cairo1_revert_trace;
 use crate::state::state_api::{State, StateResult};
 use crate::transaction::objects::{HasRelatedFeeType, TransactionInfo};
 use crate::transaction::transaction_types::TransactionType;
@@ -180,10 +181,8 @@ impl CallEntryPoint {
         if let Ok(call_info) = &execution_result {
             // If the execution of the outer call failed, revert the transction.
             if call_info.execution.failed {
-                let retdata = &call_info.execution.retdata.0;
-
                 return Err(EntryPointExecutionError::ExecutionFailed {
-                    error_data: retdata.clone(),
+                    error_trace: extract_trailing_cairo1_revert_trace(call_info),
                 });
             }
         }
