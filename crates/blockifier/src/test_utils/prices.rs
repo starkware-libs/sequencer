@@ -51,7 +51,7 @@ fn fee_transfer_resources(
         .set_storage_at(
             token_address,
             get_fee_token_var_address(account_contract_address),
-            felt!(BALANCE),
+            felt!(BALANCE.0),
         )
         .unwrap();
 
@@ -67,6 +67,7 @@ fn fee_transfer_resources(
         caller_address: account_contract_address,
         ..Default::default()
     };
+    let mut remaining_gas = fee_transfer_call.initial_gas;
     fee_transfer_call
         .execute(
             state,
@@ -76,6 +77,7 @@ fn fee_transfer_resources(
                 ExecutionMode::Execute,
                 false,
             ),
+            &mut remaining_gas,
         )
         .unwrap()
         .resources

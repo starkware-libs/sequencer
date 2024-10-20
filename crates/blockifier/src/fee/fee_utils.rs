@@ -4,7 +4,7 @@ use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use num_bigint::BigUint;
 use starknet_api::core::ContractAddress;
-use starknet_api::execution_resources::GasAmount;
+use starknet_api::execution_resources::GasVector;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::ValidResourceBounds::{AllResources, L1Gas};
 use starknet_api::transaction::{AllResourceBounds, Fee, GasVectorComputationMode, Resource};
@@ -14,11 +14,11 @@ use crate::abi::abi_utils::get_fee_token_var_address;
 use crate::abi::sierra_types::next_storage_key;
 use crate::blockifier::block::BlockInfo;
 use crate::context::{BlockContext, TransactionContext};
-use crate::fee::resources::{GasVector, TransactionFeeResult};
+use crate::fee::resources::TransactionFeeResult;
 use crate::state::state_api::StateReader;
 use crate::transaction::errors::TransactionFeeError;
 use crate::transaction::objects::{ExecutionResourcesTraits, FeeType, TransactionInfo};
-use crate::utils::u128_from_usize;
+use crate::utils::u64_from_usize;
 use crate::versioned_constants::VersionedConstants;
 
 #[cfg(test)]
@@ -51,8 +51,7 @@ pub fn get_vm_resources_cost(
 
     // Convert Cairo resource usage to L1 gas usage.
     // Do so by taking the maximum of the usage of each builtin + step usage.
-    let vm_l1_gas_usage = GasAmount(
-        vm_resource_fee_costs
+    let vm_l1_gas_usage = vm_resource_fee_costs
         .builtins
         .iter()
         // Builtin costs and usage.
@@ -64,9 +63,8 @@ pub fn get_vm_resources_cost(
             vm_resource_fee_costs.n_steps,
             vm_resource_usage.total_n_steps() + n_reverted_steps,
         )])
-        .map(|(cost, usage)| (cost * u128_from_usize(usage)).ceil().to_integer())
-        .fold(0, u128::max),
-    );
+        .map(|(cost, usage)| (cost * u64_from_usize(usage)).ceil().to_integer())
+        .fold(0, u64::max).into();
 
     match computation_mode {
         GasVectorComputationMode::NoL2Gas => GasVector::from_l1_gas(vm_l1_gas_usage),
@@ -82,10 +80,7 @@ pub fn get_fee_by_gas_vector(
     gas_vector: GasVector,
     fee_type: &FeeType,
 ) -> Fee {
-    gas_vector.saturated_cost(
-        u128::from(block_info.gas_prices.get_l1_gas_price_by_fee_type(fee_type)),
-        u128::from(block_info.gas_prices.get_l1_data_gas_price_by_fee_type(fee_type)),
-    )
+    gas_vector.cost(block_info.gas_prices.get_gas_prices_by_fee_type(fee_type))
 }
 
 /// Returns the current fee balance and a boolean indicating whether the balance covers the fee.
@@ -114,26 +109,7 @@ pub fn verify_can_pay_committed_bounds(
 ) -> TransactionFeeResult<()> {
     let tx_info = &tx_context.tx_info;
     let committed_fee = match tx_info {
-        TransactionInfo::Current(context) => {
-            match &context.resource_bounds {
-                L1Gas(l1_gas) =>
-                // Sender will not be charged by `max_price_per_unit`, but this check should not
-                // depend on the current gas price.
-                {
-                    Fee(u128::from(l1_gas.max_amount) * l1_gas.max_price_per_unit)
-                }
-                // TODO!(Aner): add tests
-                AllResources(AllResourceBounds { l1_gas, l2_gas, l1_data_gas }) => {
-                    // Committed fee is sum of products (resource_max_amount * resource_max_price)
-                    // of the different resources.
-                    // The Sender will not be charged by`max_price_per_unit`, but this check should
-                    // not depend on the current gas price
-                    Fee(u128::from(l1_gas.max_amount) * l1_gas.max_price_per_unit
-                        + u128::from(l1_data_gas.max_amount) * l1_data_gas.max_price_per_unit
-                        + u128::from(l2_gas.max_amount) * l2_gas.max_price_per_unit)
-                }
-            }
-        }
+        TransactionInfo::Current(context) => context.resource_bounds.max_possible_fee(),
         TransactionInfo::Deprecated(context) => context.max_fee,
     };
     let (balance_low, balance_high, can_pay) =

@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use starknet_api::block::GasPriceVector;
 use starknet_api::calldata;
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
-use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::transaction::Resource::{L1DataGas, L1Gas, L2Gas};
 use starknet_api::transaction::{
     AccountDeploymentData,
@@ -21,12 +22,10 @@ use starknet_api::transaction::{
 use starknet_types_core::felt::Felt;
 
 use crate::abi::abi_utils::selector_from_name;
-use crate::blockifier::block::GasPricesForFeeType;
 use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::{CallInfo, Retdata};
 use crate::execution::contract_class::ContractClass;
 use crate::execution::entry_point::{CallEntryPoint, CallType, EntryPointExecutionContext};
-use crate::execution::execution_utils::update_remaining_gas;
 use crate::fee::fee_checks::{FeeCheckReportFields, PostExecutionReport};
 use crate::fee::fee_utils::{
     get_fee_by_gas_vector,
@@ -96,8 +95,6 @@ macro_rules! implement_account_tx_inner_getters {
     };
 }
 
-/// This implementation of try_from clones the base transaction struct. This method's advantage is
-/// that it does not clone the Casm contract class code.
 impl TryFrom<&starknet_api::executable_transaction::Transaction> for AccountTransaction {
     type Error = TransactionExecutionError;
 
@@ -106,7 +103,7 @@ impl TryFrom<&starknet_api::executable_transaction::Transaction> for AccountTran
     ) -> Result<Self, Self::Error> {
         match value {
             starknet_api::executable_transaction::Transaction::Declare(declare_tx) => {
-                Ok(Self::Declare(declare_tx.try_into()?))
+                Ok(Self::Declare(declare_tx.clone().try_into()?))
             }
             starknet_api::executable_transaction::Transaction::DeployAccount(deploy_account_tx) => {
                 Ok(Self::DeployAccount(DeployAccountTransaction {
@@ -257,6 +254,10 @@ impl AccountTransaction {
         }
     }
 
+    pub fn enforce_fee(&self) -> bool {
+        self.create_tx_info().enforce_fee()
+    }
+
     fn verify_tx_version(&self, version: TransactionVersion) -> TransactionExecutionResult<()> {
         let allowed_versions: Vec<TransactionVersion> = match self {
             // Support `Declare` of version 0 in order to allow bootstrapping of a new system.
@@ -294,7 +295,7 @@ impl AccountTransaction {
         let tx_info = &tx_context.tx_info;
         Self::handle_nonce(state, tx_info, strict_nonce_check)?;
 
-        if charge_fee && tx_info.enforce_fee() {
+        if charge_fee {
             self.check_fee_bounds(tx_context)?;
 
             verify_can_pay_committed_bounds(state, tx_context)?;
@@ -322,34 +323,34 @@ impl AccountTransaction {
                     ValidResourceBounds::L1Gas(l1_gas_resource_bounds) => vec![(
                         L1Gas,
                         l1_gas_resource_bounds,
-                        minimal_gas_amount_vector.to_discounted_l1_gas(tx_context),
-                        u128::from(block_info.gas_prices.get_l1_gas_price_by_fee_type(fee_type)),
+                        minimal_gas_amount_vector.to_discounted_l1_gas(tx_context.get_gas_prices()),
+                        block_info.gas_prices.get_l1_gas_price_by_fee_type(fee_type),
                     )],
                     ValidResourceBounds::AllResources(AllResourceBounds {
                         l1_gas: l1_gas_resource_bounds,
                         l2_gas: l2_gas_resource_bounds,
                         l1_data_gas: l1_data_gas_resource_bounds,
                     }) => {
-                        let GasPricesForFeeType { l1_gas_price, l1_data_gas_price, l2_gas_price } =
+                        let GasPriceVector { l1_gas_price, l1_data_gas_price, l2_gas_price } =
                             block_info.gas_prices.get_gas_prices_by_fee_type(fee_type);
                         vec![
                             (
                                 L1Gas,
                                 l1_gas_resource_bounds,
                                 minimal_gas_amount_vector.l1_gas,
-                                l1_gas_price.into(),
+                                *l1_gas_price,
                             ),
                             (
                                 L1DataGas,
                                 l1_data_gas_resource_bounds,
                                 minimal_gas_amount_vector.l1_data_gas,
-                                l1_data_gas_price.into(),
+                                *l1_data_gas_price,
                             ),
                             (
                                 L2Gas,
                                 l2_gas_resource_bounds,
                                 minimal_gas_amount_vector.l2_gas,
-                                l2_gas_price.into(),
+                                *l2_gas_price,
                             ),
                         ]
                     }
@@ -359,19 +360,19 @@ impl AccountTransaction {
                 {
                     // TODO(Aner): refactor to indicate both amount and price are too low.
                     // TODO(Aner): refactor to return all amounts that are too low.
-                    if minimal_gas_amount > resource_bounds.max_amount.into() {
+                    if minimal_gas_amount > resource_bounds.max_amount {
                         return Err(TransactionFeeError::MaxGasAmountTooLow {
                             resource,
-                            max_gas_amount: resource_bounds.max_amount.into(),
+                            max_gas_amount: resource_bounds.max_amount,
                             minimal_gas_amount,
                         })?;
                     }
                     // TODO(Aner): refactor to return all prices that are too low.
-                    if resource_bounds.max_price_per_unit < actual_gas_price {
+                    if resource_bounds.max_price_per_unit < actual_gas_price.get() {
                         return Err(TransactionFeeError::MaxGasPriceTooLow {
                             resource,
                             max_gas_price: resource_bounds.max_price_per_unit,
-                            actual_gas_price,
+                            actual_gas_price: actual_gas_price.into(),
                         })?;
                     }
                 }
@@ -462,7 +463,7 @@ impl AccountTransaction {
         concurrency_mode: bool,
     ) -> TransactionExecutionResult<Option<CallInfo>> {
         if !charge_fee || actual_fee == Fee(0) {
-            // Fee charging is not enforced in some transaction simulations and tests.
+            // Fee charging is not enforced in some tests.
             return Ok(None);
         }
 
@@ -489,6 +490,10 @@ impl AccountTransaction {
 
         let TransactionContext { block_context, tx_info } = tx_context.as_ref();
         let storage_address = tx_context.fee_token_address();
+        // The fee contains the cost of running this transfer, and the token contract is
+        // well known to the sequencer, so there is no need to limit its run.
+        let mut remaining_gas_for_fee_transfer =
+            block_context.versioned_constants.os_constants.gas_costs.default_initial_gas_cost;
         let fee_transfer_call = CallEntryPoint {
             class_hash: None,
             code_address: None,
@@ -502,18 +507,18 @@ impl AccountTransaction {
             storage_address,
             caller_address: tx_info.sender_address(),
             call_type: CallType::Call,
-            // The fee-token contract is a Cairo 0 contract, hence the initial gas is irrelevant.
-            initial_gas: block_context
-                .versioned_constants
-                .os_constants
-                .gas_costs
-                .default_initial_gas_cost,
-        };
 
+            initial_gas: remaining_gas_for_fee_transfer,
+        };
         let mut context = EntryPointExecutionContext::new_invoke(tx_context, true);
 
         Ok(fee_transfer_call
-            .execute(state, &mut ExecutionResources::default(), &mut context)
+            .execute(
+                state,
+                &mut ExecutionResources::default(),
+                &mut context,
+                &mut remaining_gas_for_fee_transfer,
+            )
             .map_err(TransactionFeeError::ExecuteFeeTransferError)?)
     }
 
@@ -805,7 +810,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
         )?;
 
         // Run validation and execution.
-        let mut remaining_gas = block_context.versioned_constants.tx_default_initial_gas();
+        let mut remaining_gas = tx_context.initial_sierra_gas();
         let ValidateExecuteCallInfo {
             validate_call_info,
             execute_call_info,
@@ -921,19 +926,18 @@ impl ValidatableTransaction for AccountTransaction {
         };
 
         // Note that we allow a revert here and we handle it bellow to get a better error message.
-        let validate_call_info =
-            validate_call.execute(state, resources, &mut context).map_err(|error| {
-                TransactionExecutionError::ValidateTransactionError {
-                    error,
-                    class_hash,
-                    storage_address,
-                    selector: validate_selector,
-                }
+        let validate_call_info = validate_call
+            .execute(state, resources, &mut context, remaining_gas)
+            .map_err(|error| TransactionExecutionError::ValidateTransactionError {
+                error,
+                class_hash,
+                storage_address,
+                selector: validate_selector,
             })?;
 
         // Validate return data.
         let contract_class = state.get_compiled_contract_class(class_hash)?;
-        if let ContractClass::V1(_) = contract_class {
+        if matches!(contract_class, ContractClass::V1(_) | ContractClass::V1Native(_)) {
             // The account contract class is a Cairo 1.0 contract; the `validate` entry point should
             // return `VALID`.
             let expected_retdata = retdata![Felt::from_hex(constants::VALIDATE_RETDATA)?];
@@ -950,9 +954,6 @@ impl ValidatableTransaction for AccountTransaction {
                 });
             }
         }
-
-        update_remaining_gas(remaining_gas, &validate_call_info);
-
         Ok(Some(validate_call_info))
     }
 }

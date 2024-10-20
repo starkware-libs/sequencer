@@ -1,9 +1,8 @@
 use assert_matches::assert_matches;
 use blockifier::blockifier::block::BlockInfo;
-use blockifier::versioned_constants::StarknetVersion;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockNumber, StarknetVersion};
 use starknet_api::core::ClassHash;
 use starknet_api::test_utils::read_json_file;
 use starknet_api::transaction::Transaction;
@@ -11,7 +10,7 @@ use starknet_api::{class_hash, felt};
 use starknet_core::types::ContractClass::{Legacy, Sierra};
 
 use crate::state_reader::compile::legacy_to_contract_class_v0;
-use crate::state_reader::test_state_reader::TestStateReader;
+use crate::state_reader::test_state_reader::{ConsecutiveTestStateReaders, TestStateReader};
 
 const EXAMPLE_INVOKE_TX_HASH: &str =
     "0xa7c7db686c7f756ceb7ca85a759caef879d425d156da83d6a836f86851983";
@@ -37,6 +36,18 @@ pub fn test_get_block_info(test_state_reader: TestStateReader, test_block_number
         test_state_reader.get_block_info(),
         Ok(BlockInfo { block_number, .. }) if block_number == test_block_number
     );
+}
+
+#[fixture]
+pub fn last_constructed_block() -> BlockNumber {
+    BlockNumber(EXAMPLE_BLOCK_NUMBER - 1)
+}
+
+#[fixture]
+pub fn test_state_readers_last_and_current_block(
+    last_constructed_block: BlockNumber,
+) -> ConsecutiveTestStateReaders {
+    ConsecutiveTestStateReaders::new(last_constructed_block, None)
 }
 
 #[rstest]
@@ -87,4 +98,9 @@ pub fn test_get_tx_hashes(test_state_reader: TestStateReader, test_block_number:
 pub fn test_get_tx_by_hash(test_state_reader: TestStateReader) {
     let actual_tx = test_state_reader.get_tx_by_hash(EXAMPLE_INVOKE_TX_HASH).unwrap();
     assert_matches!(actual_tx, Transaction::Invoke(..));
+}
+
+#[rstest]
+pub fn test_get_statediff_rpc(test_state_reader: TestStateReader) {
+    assert!(test_state_reader.get_state_diff().is_ok());
 }

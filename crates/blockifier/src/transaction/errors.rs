@@ -1,15 +1,17 @@
 use cairo_vm::types::errors::program_errors::ProgramError;
 use num_bigint::BigUint;
+use starknet_api::block::GasPrice;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::execution_resources::GasAmount;
+use starknet_api::execution_utils::format_panic_data;
 use starknet_api::transaction::{Fee, Resource, TransactionVersion};
 use starknet_api::StarknetApiError;
 use starknet_types_core::felt::FromStrError;
 use thiserror::Error;
 
+use crate::bouncer::BouncerWeights;
 use crate::execution::call_info::Retdata;
 use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
-use crate::execution::execution_utils::format_panic_data;
 use crate::execution::stack_trace::gen_tx_execution_error_trace;
 use crate::fee::fee_checks::FeeCheckError;
 use crate::state::errors::StateError;
@@ -32,12 +34,12 @@ pub enum TransactionFeeError {
          ({balance})."
     )]
     ResourcesBoundsExceedBalance {
-        l1_max_amount: u64,
-        l1_max_price: u128,
-        l1_data_max_amount: u64,
-        l1_data_max_price: u128,
-        l2_max_amount: u64,
-        l2_max_price: u128,
+        l1_max_amount: GasAmount,
+        l1_max_price: GasPrice,
+        l1_data_max_amount: GasAmount,
+        l1_data_max_price: GasPrice,
+        l2_max_amount: GasAmount,
+        l2_max_price: GasPrice,
         balance: BigUint,
     },
     #[error(
@@ -46,8 +48,8 @@ pub enum TransactionFeeError {
     )]
     GasBoundsExceedBalance {
         resource: Resource,
-        max_amount: u64,
-        max_price: u128,
+        max_amount: GasAmount,
+        max_price: GasPrice,
         balance: BigUint,
     },
     #[error("Max fee ({}) exceeds balance ({balance}).", max_fee.0, )]
@@ -58,7 +60,7 @@ pub enum TransactionFeeError {
         "Max {resource} price ({max_gas_price}) is lower than the actual gas price: \
          {actual_gas_price}."
     )]
-    MaxGasPriceTooLow { resource: Resource, max_gas_price: u128, actual_gas_price: u128 },
+    MaxGasPriceTooLow { resource: Resource, max_gas_price: GasPrice, actual_gas_price: GasPrice },
     #[error(
         "Max {resource} amount ({max_gas_amount}) is lower than the minimal gas amount: \
          {minimal_gas_amount}."
@@ -121,8 +123,11 @@ pub enum TransactionExecutionError {
     TransactionPreValidationError(#[from] TransactionPreValidationError),
     #[error(transparent)]
     TryFromIntError(#[from] std::num::TryFromIntError),
-    #[error("Transaction size exceeds the maximum block capacity.")]
-    TransactionTooLarge,
+    #[error(
+        "Transaction size exceeds the maximum block capacity. Max block capacity: {}, \
+         transaction size: {}.", *max_capacity, *tx_size
+    )]
+    TransactionTooLarge { max_capacity: Box<BouncerWeights>, tx_size: Box<BouncerWeights> },
     #[error(
         "Transaction validation has failed:\n{}",
         String::from(gen_tx_execution_error_trace(self))
@@ -165,4 +170,6 @@ pub enum ParseError {
 pub enum NumericConversionError {
     #[error("Conversion of {0} to u128 unsuccessful.")]
     U128ToUsizeError(u128),
+    #[error("Conversion of {0} to u64 unsuccessful.")]
+    U64ToUsizeError(u64),
 }

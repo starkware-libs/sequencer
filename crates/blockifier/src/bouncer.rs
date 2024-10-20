@@ -1,7 +1,9 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
+use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ClassHash;
 
@@ -16,7 +18,7 @@ use crate::state::cached_state::{StateChangesKeys, StorageEntry};
 use crate::state::state_api::StateReader;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::{ExecutionResourcesTraits, TransactionExecutionResult};
-use crate::utils::usize_from_u128;
+use crate::utils::usize_from_u64;
 
 #[cfg(test)]
 #[path = "bouncer_test.rs"]
@@ -38,22 +40,42 @@ macro_rules! impl_checked_sub {
 
 pub type HashMapWrapper = HashMap<BuiltinName, usize>;
 
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub struct BouncerConfig {
     pub block_max_capacity: BouncerWeights,
 }
 
 impl BouncerConfig {
+    pub fn empty() -> Self {
+        Self { block_max_capacity: BouncerWeights::empty() }
+    }
+
     pub fn max() -> Self {
         Self { block_max_capacity: BouncerWeights::max() }
     }
 
-    pub fn empty() -> Self {
-        Self::default()
-    }
-
     pub fn has_room(&self, weights: BouncerWeights) -> bool {
         self.block_max_capacity.has_room(weights)
+    }
+
+    pub fn within_max_capacity_or_err(
+        &self,
+        weights: BouncerWeights,
+    ) -> TransactionExecutionResult<()> {
+        if self.block_max_capacity.has_room(weights) {
+            Ok(())
+        } else {
+            Err(TransactionExecutionError::TransactionTooLarge {
+                max_capacity: Box::new(self.block_max_capacity),
+                tx_size: Box::new(weights),
+            })
+        }
+    }
+}
+
+impl SerializeConfig for BouncerConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        append_sub_config_name(self.block_max_capacity.dump(), "block_max_capacity")
     }
 }
 
@@ -61,7 +83,6 @@ impl BouncerConfig {
     Clone,
     Copy,
     Debug,
-    Default,
     derive_more::Add,
     derive_more::AddAssign,
     derive_more::Sub,
@@ -103,13 +124,90 @@ impl BouncerWeights {
             builtin_count: BuiltinCount::max(),
         }
     }
+
+    pub fn empty() -> Self {
+        Self {
+            n_events: 0,
+            builtin_count: BuiltinCount::empty(),
+            gas: 0,
+            message_segment_length: 0,
+            n_steps: 0,
+            state_diff_size: 0,
+        }
+    }
+}
+
+impl Default for BouncerWeights {
+    // TODO: update the default values once the actual values are known.
+    fn default() -> Self {
+        Self {
+            gas: 2500000,
+            n_steps: 2500000,
+            message_segment_length: 3700,
+            n_events: 5000,
+            state_diff_size: 4000,
+            builtin_count: BuiltinCount::default(),
+        }
+    }
+}
+
+impl SerializeConfig for BouncerWeights {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        let mut dump = append_sub_config_name(self.builtin_count.dump(), "builtin_count");
+        dump.append(&mut BTreeMap::from([ser_param(
+            "gas",
+            &self.gas,
+            "An upper bound on the total gas used in a block.",
+            ParamPrivacyInput::Public,
+        )]));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "message_segment_length",
+            &self.message_segment_length,
+            "An upper bound on the message segment length in a block.",
+            ParamPrivacyInput::Public,
+        )]));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "n_events",
+            &self.n_events,
+            "An upper bound on the total number of events generated in a block.",
+            ParamPrivacyInput::Public,
+        )]));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "n_steps",
+            &self.n_steps,
+            "An upper bound on the total number of steps in a block.",
+            ParamPrivacyInput::Public,
+        )]));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "state_diff_size",
+            &self.state_diff_size,
+            "An upper bound on the total state diff size in a block.",
+            ParamPrivacyInput::Public,
+        )]));
+        dump
+    }
+}
+
+impl std::fmt::Display for BouncerWeights {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "BouncerWeights {{ gas: {}, n_steps: {}, message_segment_length: {}, n_events: {}, \
+             state_diff_size: {}, builtin_count: {} }}",
+            self.gas,
+            self.n_steps,
+            self.message_segment_length,
+            self.n_events,
+            self.state_diff_size,
+            self.builtin_count
+        )
+    }
 }
 
 #[derive(
     Clone,
     Copy,
     Debug,
-    Default,
     derive_more::Add,
     derive_more::AddAssign,
     derive_more::Sub,
@@ -173,6 +271,21 @@ impl BuiltinCount {
             range_check96: usize::MAX,
         }
     }
+
+    pub fn empty() -> Self {
+        Self {
+            add_mod: 0,
+            bitwise: 0,
+            ecdsa: 0,
+            ec_op: 0,
+            keccak: 0,
+            mul_mod: 0,
+            pedersen: 0,
+            poseidon: 0,
+            range_check: 0,
+            range_check96: 0,
+        }
+    }
 }
 
 impl From<HashMapWrapper> for BuiltinCount {
@@ -201,7 +314,112 @@ impl From<HashMapWrapper> for BuiltinCount {
     }
 }
 
-#[derive(Debug, Default, PartialEq)]
+impl std::fmt::Display for BuiltinCount {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "BuiltinCount {{ add_mod: {}, bitwise: {}, ecdsa: {}, ec_op: {}, keccak: {}, mul_mod: \
+             {}, pedersen: {}, poseidon: {}, range_check: {}, range_check96: {} }}",
+            self.add_mod,
+            self.bitwise,
+            self.ecdsa,
+            self.ec_op,
+            self.keccak,
+            self.mul_mod,
+            self.pedersen,
+            self.poseidon,
+            self.range_check,
+            self.range_check96
+        )
+    }
+}
+
+impl Default for BuiltinCount {
+    // TODO: update the default values once the actual production values are known.
+    fn default() -> Self {
+        Self {
+            add_mod: 156250,
+            bitwise: 39062,
+            ecdsa: 1220,
+            ec_op: 2441,
+            keccak: 1220,
+            mul_mod: 156250,
+            pedersen: 78125,
+            poseidon: 78125,
+            range_check: 156250,
+            range_check96: 156250,
+        }
+    }
+}
+
+impl SerializeConfig for BuiltinCount {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([
+            ser_param(
+                "add_mod",
+                &self.add_mod,
+                "Max number of add mod builtin usage in a block.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "bitwise",
+                &self.bitwise,
+                "Max number of bitwise builtin usage in a block.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "ecdsa",
+                &self.ecdsa,
+                "Max number of ECDSA builtin usage in a block.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "ec_op",
+                &self.ec_op,
+                "Max number of EC operation builtin usage in a block.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "keccak",
+                &self.keccak,
+                "Max number of keccak builtin usage in a block.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "mul_mod",
+                &self.mul_mod,
+                "Max number of mul mod builtin usage in a block.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "pedersen",
+                &self.pedersen,
+                "Max number of pedersen builtin usage in a block.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "poseidon",
+                &self.poseidon,
+                "Max number of poseidon builtin usage in a block.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "range_check",
+                &self.range_check,
+                "Max number of range check builtin usage in a block.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "range_check96",
+                &self.range_check96,
+                "Max number of range check 96 builtin usage in a block.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
+    }
+}
+
+#[derive(Debug, PartialEq)]
 #[cfg_attr(test, derive(Clone))]
 pub struct Bouncer {
     // Additional info; maintained and used to calculate the residual contribution of a transaction
@@ -217,7 +435,17 @@ pub struct Bouncer {
 
 impl Bouncer {
     pub fn new(bouncer_config: BouncerConfig) -> Self {
-        Bouncer { bouncer_config, ..Default::default() }
+        Bouncer { bouncer_config, ..Self::empty() }
+    }
+
+    pub fn empty() -> Self {
+        Bouncer {
+            executed_class_hashes: HashSet::default(),
+            visited_storage_entries: HashSet::default(),
+            state_changes_keys: StateChangesKeys::default(),
+            bouncer_config: BouncerConfig::empty(),
+            accumulated_weights: BouncerWeights::empty(),
+        }
     }
 
     pub fn get_accumulated_weights(&self) -> &BouncerWeights {
@@ -296,7 +524,7 @@ pub fn get_tx_weights<S: StateReader>(
     state_changes_keys: &StateChangesKeys,
 ) -> TransactionExecutionResult<BouncerWeights> {
     let message_resources = &tx_resources.starknet_resources.messages;
-    let message_starknet_gas = usize_from_u128(message_resources.get_starknet_gas_cost().l1_gas.0)
+    let message_starknet_gas = usize_from_u64(message_resources.get_starknet_gas_cost().l1_gas.0)
         .expect("This conversion should not fail as the value is a converted usize.");
     let mut additional_os_resources =
         get_casm_hash_calculation_resources(state_reader, executed_class_hashes)?;
@@ -348,7 +576,7 @@ pub fn get_particia_update_resources(n_visited_storage_entries: usize) -> Execut
     }
 }
 
-pub fn verify_tx_weights_in_bounds<S: StateReader>(
+pub fn verify_tx_weights_within_max_capacity<S: StateReader>(
     state_reader: &S,
     tx_execution_summary: &ExecutionSummary,
     tx_resources: &TransactionResources,
@@ -363,9 +591,5 @@ pub fn verify_tx_weights_in_bounds<S: StateReader>(
         tx_state_changes_keys,
     )?;
 
-    if !bouncer_config.has_room(tx_weights) {
-        return Err(TransactionExecutionError::TransactionTooLarge);
-    }
-
-    Ok(())
+    bouncer_config.within_max_capacity_or_err(tx_weights)
 }

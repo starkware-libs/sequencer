@@ -3,12 +3,14 @@ use std::collections::BTreeMap;
 use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
+use starknet_api::block::GasPriceVector;
 use starknet_api::core::{ChainId, ContractAddress};
-use starknet_api::transaction::{GasVectorComputationMode, ValidResourceBounds};
+use starknet_api::transaction::{AllResourceBounds, GasVectorComputationMode, ValidResourceBounds};
 
 use crate::blockifier::block::BlockInfo;
 use crate::bouncer::BouncerConfig;
 use crate::transaction::objects::{
+    CurrentTransactionInfo,
     FeeType,
     HasRelatedFeeType,
     TransactionInfo,
@@ -31,11 +33,33 @@ impl TransactionContext {
     }
     pub fn get_gas_vector_computation_mode(&self) -> GasVectorComputationMode {
         match &self.tx_info {
-            TransactionInfo::Current(info) => match info.resource_bounds {
-                ValidResourceBounds::AllResources(_) => GasVectorComputationMode::All,
-                ValidResourceBounds::L1Gas(_) => GasVectorComputationMode::NoL2Gas,
-            },
+            TransactionInfo::Current(info) => {
+                info.resource_bounds.get_gas_vector_computation_mode()
+            }
             TransactionInfo::Deprecated(_) => GasVectorComputationMode::NoL2Gas,
+        }
+    }
+    pub fn get_gas_prices(&self) -> &GasPriceVector {
+        self.block_context
+            .block_info
+            .gas_prices
+            .get_gas_prices_by_fee_type(&self.tx_info.fee_type())
+    }
+
+    /// Returns the initial Sierra gas of the transaction.
+    /// This value is used to limit the transaction's run.
+    // TODO(tzahi): replace returned value from u64 to GasAmount.
+    pub fn initial_sierra_gas(&self) -> u64 {
+        match &self.tx_info {
+            TransactionInfo::Deprecated(_)
+            | TransactionInfo::Current(CurrentTransactionInfo {
+                resource_bounds: ValidResourceBounds::L1Gas(_),
+                ..
+            }) => self.block_context.versioned_constants.default_initial_gas_cost(),
+            TransactionInfo::Current(CurrentTransactionInfo {
+                resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds { l2_gas, .. }),
+                ..
+            }) => l2_gas.max_amount.0,
         }
     }
 }

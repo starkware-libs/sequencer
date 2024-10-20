@@ -9,13 +9,8 @@ use papyrus_config::converters::{
     deserialize_float_seconds_to_duration,
     deserialize_seconds_to_duration,
 };
-use papyrus_config::dumping::{
-    append_sub_config_name,
-    ser_param,
-    ser_required_param,
-    SerializeConfig,
-};
-use papyrus_config::{ParamPath, ParamPrivacyInput, SerializationType, SerializedParam};
+use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
+use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 
@@ -43,9 +38,9 @@ pub struct ConsensusConfig {
 impl SerializeConfig for ConsensusConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let mut config = BTreeMap::from_iter([
-            ser_required_param(
+            ser_param(
                 "validator_id",
-                SerializationType::String,
+                &self.validator_id,
                 "The validator id of the node.",
                 ParamPrivacyInput::Public,
             ),
@@ -85,7 +80,7 @@ impl Default for ConsensusConfig {
             validator_id: ValidatorId::default(),
             network_topic: "consensus".to_string(),
             start_height: BlockNumber::default(),
-            num_validators: 4,
+            num_validators: 1,
             consensus_delay: Duration::from_secs(5),
             timeouts: TimeoutsConfig::default(),
         }

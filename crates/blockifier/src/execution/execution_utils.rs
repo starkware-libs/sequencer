@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use cairo_lang_runner::casm_run::format_next_item;
 use cairo_vm::serde::deserialize_program::{
     deserialize_array_of_bigint_hex,
     Attribute,
@@ -45,26 +44,41 @@ pub const SEGMENT_ARENA_BUILTIN_SIZE: usize = 3;
 
 /// A wrapper for execute_entry_point_call that performs pre and post-processing.
 pub fn execute_entry_point_call_wrapper(
-    call: CallEntryPoint,
+    mut call: CallEntryPoint,
     contract_class: ContractClass,
     state: &mut dyn State,
     resources: &mut ExecutionResources,
     context: &mut EntryPointExecutionContext,
+    remaining_gas: &mut u64,
 ) -> EntryPointExecutionResult<CallInfo> {
-    let tracked_resource = contract_class
+    let contract_tracked_resource = contract_class
         .tracked_resource(&context.versioned_constants().min_compiler_version_for_sierra_gas);
     // Note: no return statements (explicit or implicit) should be added between the push and the
     // pop commands.
 
     // Once we ran with CairoSteps, we will continue to run using it for all nested calls.
-    if context.tracked_resource_stack.last().is_some_and(|x| *x == TrackedResource::CairoSteps) {
-        context.tracked_resource_stack.push(TrackedResource::CairoSteps);
-    } else {
-        context.tracked_resource_stack.push(tracked_resource);
-    }
+    match context.tracked_resource_stack.last() {
+        Some(TrackedResource::CairoSteps) => {
+            context.tracked_resource_stack.push(TrackedResource::CairoSteps)
+        }
+        Some(TrackedResource::SierraGas) => {
+            if contract_tracked_resource == TrackedResource::CairoSteps {
+                // Switching from SierraGas to CairoSteps: override initial_gas with a high value so
+                // it won't limit the run.
+                call.initial_gas = context.versioned_constants().default_initial_gas_cost();
+            };
+            context.tracked_resource_stack.push(contract_tracked_resource)
+        }
+        None => context.tracked_resource_stack.push(contract_tracked_resource),
+    };
 
     let res = execute_entry_point_call(call, contract_class, state, resources, context);
     context.tracked_resource_stack.pop();
+
+    if let Ok(call_info) = &res {
+        update_remaining_gas(remaining_gas, call_info);
+    }
+
     res
 }
 
@@ -93,6 +107,9 @@ pub fn execute_entry_point_call(
             resources,
             context,
         ),
+        ContractClass::V1Native(_contract_class) => {
+            unimplemented!("Native contract entry point execution is not yet implemented.")
+        }
     }
 }
 
@@ -239,7 +256,7 @@ pub fn execute_deployment(
     context: &mut EntryPointExecutionContext,
     ctor_context: ConstructorContext,
     constructor_calldata: Calldata,
-    remaining_gas: u64,
+    remaining_gas: &mut u64,
 ) -> ConstructorEntryPointExecutionResult<CallInfo> {
     // Address allocation in the state is done before calling the constructor, so that it is
     // visible from it.
@@ -294,15 +311,6 @@ pub fn max_fee_for_execution_info(tx_info: &TransactionInfo) -> Felt {
         TransactionInfo::Deprecated(tx_info) => tx_info.max_fee.0,
     }
     .into()
-}
-
-pub fn format_panic_data(felts: &[Felt]) -> String {
-    let mut felts = felts.iter().copied();
-    let mut items = Vec::new();
-    while let Some(item) = format_next_item(&mut felts) {
-        items.push(item.quote_if_string());
-    }
-    if let [item] = &items[..] { item.clone() } else { format!("({})", items.join(", ")) }
 }
 
 /// Returns the VM resources required for running `poseidon_hash_many` in the Starknet OS.

@@ -1,5 +1,6 @@
 use pretty_assertions::assert_eq;
 use starknet_api::core::ContractAddress;
+use starknet_api::execution_utils::format_panic_data;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::Calldata;
 use starknet_api::{calldata, felt};
@@ -11,7 +12,6 @@ use crate::abi::constants;
 use crate::context::ChainInfo;
 use crate::execution::call_info::{CallExecution, Retdata};
 use crate::execution::entry_point::CallEntryPoint;
-use crate::execution::execution_utils::format_panic_data;
 use crate::state::cached_state::CachedState;
 use crate::state::state_api::State;
 use crate::test_utils::contracts::FeatureContract;

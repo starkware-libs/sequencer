@@ -23,6 +23,7 @@ use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::{StorageError, StorageReader, StorageTxn};
 use starknet_api::block::{BlockHash, BlockHeaderWithoutHash, BlockNumber, BlockStatus};
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, GlobalRoot, Nonce};
+use starknet_api::execution_utils::format_panic_data;
 use starknet_api::hash::StarkHash;
 use starknet_api::state::{StateNumber, StorageKey};
 use starknet_api::transaction::{
@@ -900,6 +901,12 @@ impl JsonRpcServer for JsonRpcServerImpl {
         .await
         .map_err(internal_server_error)?
         .map_err(execution_error_to_error_object_owned)?;
+
+        if res.failed {
+            let contract_err = ContractError { revert_error: format_panic_data(&res.retdata.0) };
+            let rpc_err: JsonRpcError<ContractError> = contract_err.into();
+            return Err(rpc_err.into());
+        }
 
         block_not_reverted_validator.validate(&self.storage_reader)?;
 

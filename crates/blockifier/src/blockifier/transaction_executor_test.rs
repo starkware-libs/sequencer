@@ -1,7 +1,6 @@
 use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
-use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::{Fee, TransactionVersion};
 use starknet_api::{declare_tx_args, deploy_account_tx_args, felt, invoke_tx_args, nonce};
@@ -71,7 +70,7 @@ fn tx_executor_test_body<S: StateReader>(
         state_diff_size: 0,
         message_segment_length: 0,
         n_events: 0,
-        ..Default::default()
+        ..BouncerWeights::empty()
     }
 )]
 #[case::tx_version_1(
@@ -81,7 +80,7 @@ fn tx_executor_test_body<S: StateReader>(
         state_diff_size: 2,
         message_segment_length: 0,
         n_events: 0,
-        ..Default::default()
+        ..BouncerWeights::empty()
     }
 )]
 #[case::tx_version_2(
@@ -91,7 +90,7 @@ fn tx_executor_test_body<S: StateReader>(
         state_diff_size: 4,
         message_segment_length: 0,
         n_events: 0,
-        ..Default::default()
+        ..BouncerWeights::empty()
     }
 )]
 #[case::tx_version_3(
@@ -101,7 +100,7 @@ fn tx_executor_test_body<S: StateReader>(
         state_diff_size: 4,
         message_segment_length: 0,
         n_events: 0,
-        ..Default::default()
+        ..BouncerWeights::empty()
     }
 )]
 fn test_declare(
@@ -121,7 +120,7 @@ fn test_declare(
             class_hash: declared_contract.get_class_hash(),
             compiled_class_hash: declared_contract.get_compiled_class_hash(),
             version: tx_version,
-            resource_bounds: l1_resource_bounds(GasAmount(0), DEFAULT_STRK_L1_GAS_PRICE),
+            resource_bounds: l1_resource_bounds(0_u8.into(), DEFAULT_STRK_L1_GAS_PRICE.into()),
         },
         calculate_class_info_for_testing(declared_contract.get_class()),
     )
@@ -141,7 +140,7 @@ fn test_deploy_account(
     let tx = deploy_account_tx(
         deploy_account_tx_args! {
             class_hash: account_contract.get_class_hash(),
-            resource_bounds: l1_resource_bounds(GasAmount(0), DEFAULT_STRK_L1_GAS_PRICE),
+            resource_bounds: l1_resource_bounds(0_u8.into(), DEFAULT_STRK_L1_GAS_PRICE.into()),
             version,
         },
         &mut NonceManager::default(),
@@ -151,7 +150,7 @@ fn test_deploy_account(
         state_diff_size: 3,
         message_segment_length: 0,
         n_events: 0,
-        ..Default::default()
+        ..BouncerWeights::empty()
     };
     tx_executor_test_body(state, block_context, tx, expected_bouncer_weights);
 }
@@ -167,7 +166,7 @@ fn test_deploy_account(
         state_diff_size: 2,
         message_segment_length: 0,
         n_events: 0,
-        ..Default::default()
+        ..BouncerWeights::empty()
     }
 )]
 #[case::emit_event_syscall(
@@ -181,7 +180,7 @@ fn test_deploy_account(
         state_diff_size: 2,
         message_segment_length: 0,
         n_events: 1,
-        ..Default::default()
+        ..BouncerWeights::empty()
     }
 )]
 #[case::storage_write_syscall(
@@ -191,7 +190,7 @@ fn test_deploy_account(
         state_diff_size: 6,
         message_segment_length: 0,
         n_events: 0,
-        ..Default::default()
+        ..BouncerWeights::empty()
     }
 )]
 fn test_invoke(
@@ -234,25 +233,24 @@ fn test_l1_handler(block_context: BlockContext) {
         state_diff_size: 4,
         message_segment_length: 7,
         n_events: 0,
-        ..Default::default()
+        ..BouncerWeights::empty()
     };
     tx_executor_test_body(state, block_context, tx, expected_bouncer_weights);
 }
 
 #[rstest]
-#[case::happy_flow(BouncerWeights::default(), 10)]
+#[case::happy_flow(BouncerWeights::empty(), 10)]
 #[should_panic(expected = "BlockFull: Transaction cannot be added to the current block, block \
                            capacity reached.")]
 #[case::block_full(
     BouncerWeights {
         n_events: 4,
-        ..Default::default()
+        ..BouncerWeights::empty()
     },
     7
 )]
-#[should_panic(expected = "TransactionExecutionError(TransactionTooLarge): Transaction size \
-                           exceeds the maximum block capacity.")]
-#[case::transaction_too_large(BouncerWeights::default(), 11)]
+#[should_panic(expected = "Transaction size exceeds the maximum block capacity.")]
+#[case::transaction_too_large(BouncerWeights::empty(), 11)]
 
 fn test_bouncing(#[case] initial_bouncer_weights: BouncerWeights, #[case] n_events: usize) {
     let max_n_events_in_block = 10;
@@ -282,8 +280,8 @@ fn test_bouncing(#[case] initial_bouncer_weights: BouncerWeights, #[case] n_even
 }
 
 #[rstest]
-fn test_execute_txs_bouncing() {
-    let config = TransactionExecutorConfig::create_for_testing();
+fn test_execute_txs_bouncing(#[values(true, false)] concurrency_enabled: bool) {
+    let config = TransactionExecutorConfig::create_for_testing(concurrency_enabled);
     let max_n_events_in_block = 10;
     let block_context = BlockContext::create_for_bouncer_testing(max_n_events_in_block);
 
@@ -322,7 +320,7 @@ fn test_execute_txs_bouncing() {
     assert_matches!(
         results[1].as_ref().unwrap_err(),
         TransactionExecutorError::TransactionExecutionError(
-            TransactionExecutionError::TransactionTooLarge
+            TransactionExecutionError::TransactionTooLarge { .. }
         )
     );
     assert!(results[2].is_ok());

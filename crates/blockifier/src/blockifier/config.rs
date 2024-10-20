@@ -1,30 +1,63 @@
-#[derive(Debug, Default, Clone)]
+use std::collections::BTreeMap;
+
+use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
+use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub struct TransactionExecutorConfig {
     pub concurrency_config: ConcurrencyConfig,
 }
 impl TransactionExecutorConfig {
     #[cfg(any(test, feature = "testing"))]
-    pub fn create_for_testing() -> Self {
-        Self { concurrency_config: ConcurrencyConfig::create_for_testing() }
+    pub fn create_for_testing(concurrency_enabled: bool) -> Self {
+        Self { concurrency_config: ConcurrencyConfig::create_for_testing(concurrency_enabled) }
     }
 }
 
-#[derive(Debug, Default, Clone)]
+impl SerializeConfig for TransactionExecutorConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        append_sub_config_name(self.concurrency_config.dump(), "concurrency_config")
+    }
+}
+
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub struct ConcurrencyConfig {
     pub enabled: bool,
     pub n_workers: usize,
     pub chunk_size: usize,
 }
-#[cfg(all(any(test, feature = "testing"), not(feature = "concurrency")))]
+
 impl ConcurrencyConfig {
-    pub fn create_for_testing() -> Self {
+    pub fn create_for_testing(concurrency_enabled: bool) -> Self {
+        if concurrency_enabled {
+            return Self { enabled: true, n_workers: 4, chunk_size: 64 };
+        }
         Self { enabled: false, n_workers: 0, chunk_size: 0 }
     }
 }
 
-#[cfg(all(any(test, feature = "testing"), feature = "concurrency"))]
-impl ConcurrencyConfig {
-    pub fn create_for_testing() -> Self {
-        Self { enabled: true, n_workers: 4, chunk_size: 64 }
+impl SerializeConfig for ConcurrencyConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([
+            ser_param(
+                "enabled",
+                &self.enabled,
+                "Enables concurrency of transaction execution.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "n_workers",
+                &self.n_workers,
+                "Number of parallel transaction execution workers.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "chunk_size",
+                &self.chunk_size,
+                "The size of the transaction chunk executed in parallel.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
     }
 }

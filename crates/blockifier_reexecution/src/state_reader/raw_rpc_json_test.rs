@@ -9,7 +9,7 @@ use starknet_core::types::ContractClass;
 use starknet_gateway::rpc_objects::BlockHeader;
 
 use crate::state_reader::compile::legacy_to_contract_class_v0;
-use crate::state_reader::utils::deserialize_transaction_json_to_starknet_api_tx;
+use crate::state_reader::serde_utils::deserialize_transaction_json_to_starknet_api_tx;
 
 #[fixture]
 fn block_header() -> BlockHeader {

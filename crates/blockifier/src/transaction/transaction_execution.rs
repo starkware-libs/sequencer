@@ -4,7 +4,7 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::core::{calculate_contract_address, ContractAddress, Nonce};
 use starknet_api::transaction::{Fee, Transaction as StarknetApiTransaction, TransactionHash};
 
-use crate::bouncer::verify_tx_weights_in_bounds;
+use crate::bouncer::verify_tx_weights_within_max_capacity;
 use crate::context::BlockContext;
 use crate::execution::call_info::CallInfo;
 use crate::execution::contract_class::ClassInfo;
@@ -138,10 +138,11 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
         _execution_flags: ExecutionFlags,
     ) -> TransactionExecutionResult<TransactionExecutionInfo> {
         let tx_context = Arc::new(block_context.to_tx_context(self));
-
+        let limit_steps_by_resources = false;
         let mut execution_resources = ExecutionResources::default();
-        let mut context = EntryPointExecutionContext::new_invoke(tx_context.clone(), true);
-        let mut remaining_gas = block_context.versioned_constants.tx_default_initial_gas();
+        let mut context =
+            EntryPointExecutionContext::new_invoke(tx_context.clone(), limit_steps_by_resources);
+        let mut remaining_gas = tx_context.initial_sierra_gas();
         let execute_call_info =
             self.run_execute(state, &mut execution_resources, &mut context, &mut remaining_gas)?;
         let l1_handler_payload_size = self.payload_size();
@@ -208,7 +209,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for Transaction {
             &tx_execution_info,
             concurrency_mode,
         );
-        verify_tx_weights_in_bounds(
+        verify_tx_weights_within_max_capacity(
             state,
             &tx_execution_summary,
             &tx_execution_info.receipt.resources,

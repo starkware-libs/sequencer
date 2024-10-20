@@ -16,8 +16,8 @@ use thiserror::Error;
 use crate::errors::GatewayError;
 use crate::gateway_types::{GatewayInput, GatewayResult};
 
-pub type LocalGatewayClientImpl = LocalComponentClient<GatewayRequest, GatewayResponse>;
-pub type RemoteGatewayClientImpl = RemoteComponentClient<GatewayRequest, GatewayResponse>;
+pub type LocalGatewayClient = LocalComponentClient<GatewayRequest, GatewayResponse>;
+pub type RemoteGatewayClient = RemoteComponentClient<GatewayRequest, GatewayResponse>;
 pub type GatewayClientResult<T> = Result<T, GatewayClientError>;
 pub type GatewayRequestAndResponseSender =
     ComponentRequestAndResponseSender<GatewayRequest, GatewayResponse>;
@@ -51,7 +51,7 @@ pub enum GatewayClientError {
 }
 
 #[async_trait]
-impl GatewayClient for LocalGatewayClientImpl {
+impl GatewayClient for LocalGatewayClient {
     #[instrument(skip(self))]
     async fn add_tx(&self, gateway_input: GatewayInput) -> GatewayClientResult<TransactionHash> {
         let request = GatewayRequest::AddTransaction(gateway_input);

@@ -21,7 +21,6 @@ pub mod testing_instances;
 pub mod objects;
 use std::cell::Cell;
 use std::collections::BTreeMap;
-use std::num::NonZeroU128;
 use std::sync::Arc;
 
 use blockifier::blockifier::block::{pre_process_block, BlockInfo, BlockNumberHashPair, GasPrices};
@@ -43,10 +42,7 @@ use blockifier::transaction::objects::{
 };
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use blockifier::transaction::transactions::ExecutableTransaction;
-use blockifier::versioned_constants::{
-    StarknetVersion as BlockifierStarknetVersion,
-    VersionedConstants,
-};
+use blockifier::versioned_constants::{VersionedConstants, VersionedConstantsError};
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
@@ -57,14 +53,11 @@ use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::{StorageError, StorageReader};
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockNumber, StarknetVersion};
+use starknet_api::block::{BlockNumber, NonzeroGasPrice, StarknetVersion};
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, EntryPointSelector, PatriciaKey};
 use starknet_api::data_availability::L1DataAvailabilityMode;
-// TODO: merge multiple EntryPointType structs in SN_API into one.
-use starknet_api::deprecated_contract_class::{
-    ContractClass as DeprecatedContractClass,
-    EntryPointType,
-};
+use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{StateNumber, ThinStateDiff};
 use starknet_api::transaction::{
     Calldata,
@@ -191,6 +184,8 @@ pub enum ExecutionError {
     TransactionHashCalculationFailed(StarknetApiError),
     #[error("Unknown builtin name: {builtin_name}")]
     UnknownBuiltin { builtin_name: BuiltinName },
+    #[error(transparent)]
+    VersionedConstants(#[from] VersionedConstantsError),
 }
 
 /// Whether the only-query bit of the transaction version is on.
@@ -220,6 +215,8 @@ pub fn execute_call(
         maybe_pending_data.as_ref(),
     )?;
 
+    // TODO(yair): check if this is the correct value.
+    let mut remaining_gas = execution_config.default_initial_gas_cost;
     let call_entry_point = CallEntryPoint {
         class_hash: None,
         code_address: Some(*contract_address),
@@ -229,8 +226,7 @@ pub fn execute_call(
         storage_address: *contract_address,
         caller_address: ContractAddress::default(),
         call_type: BlockifierCallType::Call,
-        // TODO(yair): check if this is the correct value.
-        initial_gas: execution_config.default_initial_gas_cost,
+        initial_gas: remaining_gas,
     };
 
     let mut cached_state = CachedState::new(ExecutionStateReader {
@@ -249,18 +245,22 @@ pub fn execute_call(
         execution_config,
         override_kzg_da_to_false,
     )?;
+    // TODO(yair): fix when supporting v3 transactions
+    let tx_info = TransactionInfo::Deprecated(DeprecatedTransactionInfo::default());
+    let limit_steps_by_resources = false; // Default resource bounds.
 
     let mut context = EntryPointExecutionContext::new_invoke(
-        // TODO(yair): fix when supporting v3 transactions
-        Arc::new(TransactionContext {
-            block_context,
-            tx_info: TransactionInfo::Deprecated(DeprecatedTransactionInfo::default()),
-        }),
-        true, // limit_steps_by_resources
+        Arc::new(TransactionContext { block_context, tx_info }),
+        limit_steps_by_resources,
     );
 
     let res = call_entry_point
-        .execute(&mut cached_state, &mut ExecutionResources::default(), &mut context)
+        .execute(
+            &mut cached_state,
+            &mut ExecutionResources::default(),
+            &mut context,
+            &mut remaining_gas,
+        )
         .map_err(|error| {
             if let Some(class_hash) = cached_state.state.missing_compiled_class.get() {
                 ExecutionError::MissingCompiledClass { class_hash }
@@ -353,12 +353,12 @@ fn create_block_context(
         block_number,
         // TODO(yair): What to do about blocks pre 0.13.1 where the data gas price were 0?
         gas_prices: GasPrices::new(
-            NonZeroU128::new(l1_gas_price.price_in_wei.0).unwrap_or(NonZeroU128::MIN),
-            NonZeroU128::new(l1_gas_price.price_in_fri.0).unwrap_or(NonZeroU128::MIN),
-            NonZeroU128::new(l1_data_gas_price.price_in_wei.0).unwrap_or(NonZeroU128::MIN),
-            NonZeroU128::new(l1_data_gas_price.price_in_fri.0).unwrap_or(NonZeroU128::MIN),
-            NonZeroU128::new(l2_gas_price.price_in_wei.0).unwrap_or(NonZeroU128::MIN),
-            NonZeroU128::new(l2_gas_price.price_in_fri.0).unwrap_or(NonZeroU128::MIN),
+            NonzeroGasPrice::new(l1_gas_price.price_in_wei).unwrap_or(NonzeroGasPrice::MIN),
+            NonzeroGasPrice::new(l1_gas_price.price_in_fri).unwrap_or(NonzeroGasPrice::MIN),
+            NonzeroGasPrice::new(l1_data_gas_price.price_in_wei).unwrap_or(NonzeroGasPrice::MIN),
+            NonzeroGasPrice::new(l1_data_gas_price.price_in_fri).unwrap_or(NonzeroGasPrice::MIN),
+            NonzeroGasPrice::new(l2_gas_price.price_in_wei).unwrap_or(NonzeroGasPrice::MIN),
+            NonzeroGasPrice::new(l2_gas_price.price_in_fri).unwrap_or(NonzeroGasPrice::MIN),
         ),
     };
     let chain_info = ChainInfo {
@@ -867,16 +867,16 @@ fn get_versioned_constants(
     let versioned_constants = match starknet_version {
         Some(starknet_version) => {
             let version = starknet_version.to_string();
-            let blockifier_starknet_version = if version == STARKNET_VERSION_O_13_0 {
-                BlockifierStarknetVersion::V0_13_0
+            let starknet_api_starknet_version = if version == STARKNET_VERSION_O_13_0 {
+                StarknetVersion::V0_13_0
             } else if version == STARKNET_VERSION_O_13_1 {
-                BlockifierStarknetVersion::V0_13_1
+                StarknetVersion::V0_13_1
             } else if version == STARKNET_VERSION_O_13_2 {
-                BlockifierStarknetVersion::V0_13_2
+                StarknetVersion::V0_13_2
             } else {
-                BlockifierStarknetVersion::V0_13_3
+                StarknetVersion::V0_13_3
             };
-            VersionedConstants::get(blockifier_starknet_version)
+            VersionedConstants::get(&starknet_api_starknet_version)?
         }
         None => VersionedConstants::latest_constants(),
     };

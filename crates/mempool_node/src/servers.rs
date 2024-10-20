@@ -12,6 +12,11 @@ use starknet_http_server::communication::{create_http_server, HttpServer};
 use starknet_mempool::communication::{create_mempool_server, LocalMempoolServer};
 use starknet_mempool_infra::component_server::ComponentServerStarter;
 use starknet_mempool_infra::errors::ComponentServerError;
+use starknet_mempool_p2p_types::communication::SharedMempoolP2pPropagatorClient;
+use starknet_monitoring_endpoint::communication::{
+    create_monitoring_endpoint_server,
+    MonitoringEndpointServer,
+};
 use tracing::error;
 
 use crate::communication::SequencerNodeCommunication;
@@ -29,6 +34,7 @@ pub struct LocalServers {
 pub struct WrapperServers {
     pub consensus_manager: Option<Box<ConsensusManagerServer>>,
     pub http_server: Option<Box<HttpServer>>,
+    pub monitoring_endpoint: Option<Box<MonitoringEndpointServer>>,
 }
 
 /// TODO(Tsabary): make these fields private, currently public to support the outdated e2e test.
@@ -41,6 +47,7 @@ pub fn create_node_servers(
     config: &SequencerNodeConfig,
     communication: &mut SequencerNodeCommunication,
     components: SequencerNodeComponents,
+    mempool_p2p_propagator_client: SharedMempoolP2pPropagatorClient,
 ) -> SequencerNodeServers {
     let batcher_server = if config.components.batcher.execute {
         Some(Box::new(create_local_batcher_server(
@@ -76,6 +83,15 @@ pub fn create_node_servers(
         Some(Box::new(create_mempool_server(
             components.mempool.expect("Mempool is not initialized."),
             communication.take_mempool_rx(),
+            mempool_p2p_propagator_client,
+        )))
+    } else {
+        None
+    };
+
+    let monitoring_endpoint_server = if config.components.monitoring_endpoint.execute {
+        Some(Box::new(create_monitoring_endpoint_server(
+            components.monitoring_endpoint.expect("Monitoring Endpoint is not initialized."),
         )))
     } else {
         None
@@ -84,50 +100,33 @@ pub fn create_node_servers(
     let local_servers =
         LocalServers { batcher: batcher_server, gateway: gateway_server, mempool: mempool_server };
 
-    let wrapper_servers =
-        WrapperServers { consensus_manager: consensus_manager_server, http_server };
+    let wrapper_servers = WrapperServers {
+        consensus_manager: consensus_manager_server,
+        http_server,
+        monitoring_endpoint: monitoring_endpoint_server,
+    };
 
     SequencerNodeServers { local_servers, wrapper_servers }
 }
 
-pub async fn run_component_servers(
-    config: &SequencerNodeConfig,
-    servers: SequencerNodeServers,
-) -> anyhow::Result<()> {
+pub async fn run_component_servers(servers: SequencerNodeServers) -> anyhow::Result<()> {
     // Batcher server.
-    let batcher_future = get_server_future(
-        "Batcher",
-        config.components.batcher.execute,
-        servers.local_servers.batcher,
-    );
+    let batcher_future = get_server_future(servers.local_servers.batcher);
 
     // Consensus Manager server.
-    let consensus_manager_future = get_server_future(
-        "Consensus Manager",
-        config.components.consensus_manager.execute,
-        servers.wrapper_servers.consensus_manager,
-    );
+    let consensus_manager_future = get_server_future(servers.wrapper_servers.consensus_manager);
 
     // Gateway server.
-    let gateway_future = get_server_future(
-        "Gateway",
-        config.components.gateway.execute,
-        servers.local_servers.gateway,
-    );
+    let gateway_future = get_server_future(servers.local_servers.gateway);
 
     // HttpServer server.
-    let http_server_future = get_server_future(
-        "HttpServer",
-        config.components.http_server.execute,
-        servers.wrapper_servers.http_server,
-    );
+    let http_server_future = get_server_future(servers.wrapper_servers.http_server);
 
     // Mempool server.
-    let mempool_future = get_server_future(
-        "Mempool",
-        config.components.mempool.execute,
-        servers.local_servers.mempool,
-    );
+    let mempool_future = get_server_future(servers.local_servers.mempool);
+
+    // Sequencer Monitoring server.
+    let monitoring_endpoint_future = get_server_future(servers.wrapper_servers.monitoring_endpoint);
 
     // Start servers.
     let batcher_handle = tokio::spawn(batcher_future);
@@ -135,6 +134,7 @@ pub async fn run_component_servers(
     let gateway_handle = tokio::spawn(gateway_future);
     let http_server_handle = tokio::spawn(http_server_future);
     let mempool_handle = tokio::spawn(mempool_future);
+    let monitoring_endpoint_handle = tokio::spawn(monitoring_endpoint_future);
 
     let result = tokio::select! {
         res = batcher_handle => {
@@ -157,6 +157,10 @@ pub async fn run_component_servers(
             error!("Mempool Server stopped.");
             res?
         }
+        res = monitoring_endpoint_handle => {
+            error!("Monitoring Endpoint Server stopped.");
+            res?
+        }
     };
     error!("Servers ended with unexpected Ok.");
 
@@ -164,13 +168,10 @@ pub async fn run_component_servers(
 }
 
 pub fn get_server_future(
-    name: &str,
-    execute_flag: bool,
     server: Option<Box<impl ComponentServerStarter + Send + 'static>>,
 ) -> Pin<Box<dyn Future<Output = Result<(), ComponentServerError>> + Send>> {
-    if !execute_flag {
-        return pending().boxed();
+    match server {
+        Some(mut server) => async move { server.start().await }.boxed(),
+        None => pending().boxed(),
     }
-    let mut server = server.unwrap_or_else(|| panic!("{} component is not initialized.", name));
-    async move { server.start().await }.boxed()
 }

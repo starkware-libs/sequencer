@@ -18,13 +18,13 @@ impl _SuspendedTransactionPool {
 
     pub fn _insert(&mut self, tx: TransactionReference) {
         assert_eq!(
-            self.suspended_tx_pool.insert((tx.sender_address, tx.nonce), tx),
+            self.suspended_tx_pool.insert((tx.address, tx.nonce), tx),
             None,
             "Keys should be unique; duplicates are checked prior."
         );
     }
 
     pub fn _remove(&mut self, tx: &TransactionReference) -> bool {
-        self.suspended_tx_pool.remove(&(tx.sender_address, tx.nonce)).is_some()
+        self.suspended_tx_pool.remove(&(tx.address, tx.nonce)).is_some()
     }
 }

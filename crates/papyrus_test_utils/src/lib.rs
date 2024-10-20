@@ -50,6 +50,7 @@ use starknet_api::block::{
     GasPricePerToken,
     StarknetVersion,
 };
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{
     ClassHash,
     CompiledClassHash,
@@ -70,9 +71,8 @@ use starknet_api::deprecated_contract_class::{
     ConstructorType,
     ContractClass as DeprecatedContractClass,
     ContractClassAbiEntry,
-    EntryPoint as DeprecatedEntryPoint,
     EntryPointOffset,
-    EntryPointType as DeprecatedEntryPointType,
+    EntryPointV0 as DeprecatedEntryPoint,
     EventAbiEntry,
     EventType,
     FunctionAbiEntry,
@@ -85,7 +85,7 @@ use starknet_api::deprecated_contract_class::{
     StructType,
     TypedParameter,
 };
-use starknet_api::execution_resources::{Builtin, ExecutionResources, GasVector};
+use starknet_api::execution_resources::{Builtin, ExecutionResources, GasAmount, GasVector};
 use starknet_api::felt;
 use starknet_api::hash::{PoseidonHash, StarkHash};
 use starknet_api::rpc_transaction::{
@@ -102,7 +102,6 @@ use starknet_api::rpc_transaction::{
 use starknet_api::state::{
     ContractClass,
     EntryPoint,
-    EntryPointType,
     FunctionIndex,
     StateDiff,
     StorageKey,
@@ -475,7 +474,27 @@ auto_impl_get_test_instance! {
         MulMod = 9,
         RangeCheck96 = 10,
     }
-    pub struct StarknetVersion(pub Vec<u8>);
+    pub enum StarknetVersion {
+        V0_9_1 = 0,
+        V0_10_0 = 1,
+        V0_10_1 = 2,
+        V0_10_2 = 3,
+        V0_10_3 = 4,
+        V0_11_0 = 5,
+        V0_11_0_2 = 6,
+        V0_11_1 = 7,
+        V0_11_2 = 8,
+        V0_12_0 = 9,
+        V0_12_1 = 10,
+        V0_12_2 = 11,
+        V0_12_3 = 12,
+        V0_13_0 = 13,
+        V0_13_1 = 14,
+        V0_13_1_1 = 15,
+        V0_13_2 = 16,
+        V0_13_2_1 = 17,
+        V0_13_3 = 18,
+    }
     pub struct Calldata(pub Arc<Vec<Felt>>);
     pub struct ClassHash(pub StarkHash);
     pub struct CompiledClassHash(pub StarkHash);
@@ -488,7 +507,7 @@ auto_impl_get_test_instance! {
     pub struct DeprecatedContractClass {
         pub abi: Option<Vec<ContractClassAbiEntry>>,
         pub program: Program,
-        pub entry_points_by_type: HashMap<DeprecatedEntryPointType, Vec<DeprecatedEntryPoint>>,
+        pub entry_points_by_type: HashMap<EntryPointType, Vec<DeprecatedEntryPoint>>,
     }
     pub enum ContractClassAbiEntry {
         Event(EventAbiEntry) = 0,
@@ -592,11 +611,6 @@ auto_impl_get_test_instance! {
         pub selector: EntryPointSelector,
         pub offset: EntryPointOffset,
     }
-    pub enum DeprecatedEntryPointType {
-        Constructor = 0,
-        External = 1,
-        L1Handler = 2,
-    }
     pub struct EntryPoint {
         pub function_idx: FunctionIndex,
         pub selector: EntryPointSelector,
@@ -637,6 +651,7 @@ auto_impl_get_test_instance! {
     pub enum FunctionType {
         Function = 0,
     }
+    pub struct GasAmount(pub u64);
     pub struct GasPrice(pub u128);
     pub struct GasPricePerToken {
         pub price_in_fri: GasPrice,
@@ -732,8 +747,8 @@ auto_impl_get_test_instance! {
         L2Gas = 1,
     }
     pub struct ResourceBounds {
-        pub max_amount: u64,
-        pub max_price_per_unit: u128,
+        pub max_amount: GasAmount,
+        pub max_price_per_unit: GasPrice,
     }
     pub struct RpcContractClass {
         pub sierra_program: Vec<Felt>,
@@ -1130,7 +1145,11 @@ impl GetTestInstance for ExecutionResources {
 
 impl GetTestInstance for GasVector {
     fn get_test_instance(rng: &mut ChaCha8Rng) -> Self {
-        Self { l1_gas: rng.next_u64(), l2_gas: rng.next_u64(), l1_data_gas: rng.next_u64() }
+        Self {
+            l1_gas: GasAmount(rng.next_u64()),
+            l2_gas: GasAmount(rng.next_u64()),
+            l1_data_gas: GasAmount(rng.next_u64()),
+        }
     }
 }
 

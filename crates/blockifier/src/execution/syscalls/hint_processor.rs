@@ -2,7 +2,6 @@ use std::any::Any;
 use std::collections::{hash_map, HashMap, HashSet};
 
 use cairo_lang_casm::hints::{Hint, StarknetHint};
-use cairo_lang_casm::operand::{BinOpOperand, DerefOrImmediate, Operation, Register, ResOperand};
 use cairo_lang_runner::casm_run::execute_core_hint_base;
 use cairo_vm::hint_processor::hint_processor_definition::{HintProcessorLogic, HintReference};
 use cairo_vm::serde::deserialize_program::ApTracking;
@@ -14,8 +13,8 @@ use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::runners::cairo_runner::{ExecutionResources, ResourceTracker, RunResources};
 use cairo_vm::vm::vm_core::VirtualMachine;
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
-use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{AllResourceBounds, Calldata, Resource, ValidResourceBounds};
 use starknet_api::StarknetApiError;
@@ -31,7 +30,6 @@ use crate::execution::execution_utils::{
     felt_from_ptr,
     felt_range_from_ptr,
     max_fee_for_execution_info,
-    update_remaining_gas,
     write_maybe_relocatable,
     ReadOnlySegment,
     ReadOnlySegments,
@@ -304,17 +302,6 @@ impl<'a> SyscallHintProcessor<'a> {
         self.execution_mode() == ExecutionMode::Validate
     }
 
-    pub fn verify_syscall_ptr(&self, actual_ptr: Relocatable) -> SyscallResult<()> {
-        if actual_ptr != self.syscall_ptr {
-            return Err(SyscallExecutionError::BadSyscallPointer {
-                expected_ptr: self.syscall_ptr,
-                actual_ptr,
-            });
-        }
-
-        Ok(())
-    }
-
     /// Infers and executes the next syscall.
     /// Must comply with the API of a hint function, as defined by the `HintProcessor`.
     pub fn execute_next_syscall(
@@ -322,13 +309,11 @@ impl<'a> SyscallHintProcessor<'a> {
         vm: &mut VirtualMachine,
         hint: &StarknetHint,
     ) -> HintExecutionResult {
-        let StarknetHint::SystemCall { system: syscall } = hint else {
+        let StarknetHint::SystemCall { .. } = hint else {
             return Err(HintError::Internal(VirtualMachineError::Other(anyhow::anyhow!(
                 "Test functions are unsupported on starknet."
             ))));
         };
-        let initial_syscall_ptr = get_ptr_from_res_operand_unchecked(vm, syscall);
-        self.verify_syscall_ptr(initial_syscall_ptr)?;
 
         let selector = SyscallSelector::try_from(self.read_next_syscall_selector(vm)?)?;
 
@@ -730,26 +715,6 @@ impl<'a> SyscallHintProcessor<'a> {
     }
 }
 
-/// Retrieves a [Relocatable] from the VM given a [ResOperand].
-/// A [ResOperand] represents a CASM result expression, and is deserialized with the hint.
-fn get_ptr_from_res_operand_unchecked(vm: &mut VirtualMachine, res: &ResOperand) -> Relocatable {
-    let (cell, base_offset) = match res {
-        ResOperand::Deref(cell) => (cell, Felt::from(0)),
-        ResOperand::BinOp(BinOpOperand {
-            op: Operation::Add,
-            a,
-            b: DerefOrImmediate::Immediate(b),
-        }) => (a, Felt::from(b.clone().value)),
-        _ => panic!("Illegal argument for a buffer."),
-    };
-    let base = match cell.register {
-        Register::AP => vm.get_ap(),
-        Register::FP => vm.get_fp(),
-    };
-    let cell_reloc = (base + (i32::from(cell.offset))).unwrap();
-    (vm.get_relocatable(cell_reloc).unwrap() + &base_offset).unwrap()
-}
-
 impl ResourceTracker for SyscallHintProcessor<'_> {
     fn consumed(&self) -> bool {
         self.context.vm_run_resources.consumed()
@@ -827,12 +792,14 @@ pub fn execute_inner_call(
 ) -> SyscallResult<ReadOnlySegment> {
     let revert_idx = syscall_handler.context.revert_infos.0.len();
 
-    let call_info =
-        call.execute(syscall_handler.state, syscall_handler.resources, syscall_handler.context)?;
+    let call_info = call.execute(
+        syscall_handler.state,
+        syscall_handler.resources,
+        syscall_handler.context,
+        remaining_gas,
+    )?;
 
     let mut raw_retdata = call_info.execution.retdata.0.clone();
-    update_remaining_gas(remaining_gas, &call_info);
-
     let failed = call_info.execution.failed;
     syscall_handler.inner_calls.push(call_info);
     if failed {
@@ -890,6 +857,7 @@ pub fn execute_library_call(
         storage_address: syscall_handler.storage_address(),
         caller_address: syscall_handler.caller_address(),
         call_type: CallType::Delegate,
+        // NOTE: this value might be overridden later on.
         initial_gas: *remaining_gas,
     };
 

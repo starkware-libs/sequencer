@@ -5,8 +5,8 @@ use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::runners::cairo_runner::{CairoArg, CairoRunner, ExecutionResources};
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::EntryPointSelector;
-use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::hash::StarkHash;
 
 use super::execution_utils::SEGMENT_ARENA_BUILTIN_SIZE;

@@ -10,8 +10,8 @@ use papyrus_execution::objects::{
     TransactionTrace as ExecutionTransactionTrace,
 };
 use serde::{Deserialize, Serialize};
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress};
-use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::state::ThinStateDiff as StarknetApiThinStateDiff;
 
 use super::state::ThinStateDiff;

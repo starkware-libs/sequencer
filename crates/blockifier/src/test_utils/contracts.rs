@@ -1,3 +1,4 @@
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{
     ClassHash,
     CompiledClassHash,
@@ -8,7 +9,6 @@ use starknet_api::core::{
 use starknet_api::deprecated_contract_class::{
     ContractClass as DeprecatedContractClass,
     EntryPointOffset,
-    EntryPointType,
 };
 use starknet_api::{class_hash, contract_address, felt, patricia_key};
 use starknet_types_core::felt::Felt;
@@ -18,6 +18,7 @@ use strum_macros::EnumIter;
 use crate::abi::abi_utils::selector_from_name;
 use crate::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use crate::execution::contract_class::{ContractClass, ContractClassV0, ContractClassV1};
+use crate::execution::entry_point::CallEntryPoint;
 use crate::test_utils::cairo_compile::{cairo0_compile, cairo1_compile};
 use crate::test_utils::{get_raw_contract_class, CairoVersion};
 
@@ -53,6 +54,7 @@ const LEGACY_CONTRACT_BASE: u32 = 5 * CLASS_HASH_BASE;
 const SECURITY_TEST_CONTRACT_BASE: u32 = 6 * CLASS_HASH_BASE;
 const TEST_CONTRACT_BASE: u32 = 7 * CLASS_HASH_BASE;
 const ERC20_CONTRACT_BASE: u32 = 8 * CLASS_HASH_BASE;
+const CAIRO_STEPS_TEST_CONTRACT_BASE: u32 = 9 * CLASS_HASH_BASE;
 
 // Contract names.
 const ACCOUNT_LONG_VALIDATE_NAME: &str = "account_with_long_validate";
@@ -62,6 +64,7 @@ const FAULTY_ACCOUNT_NAME: &str = "account_faulty";
 const LEGACY_CONTRACT_NAME: &str = "legacy_test_contract";
 const SECURITY_TEST_CONTRACT_NAME: &str = "security_tests_contract";
 const TEST_CONTRACT_NAME: &str = "test_contract";
+const CAIRO_STEPS_TEST_CONTRACT_NAME: &str = "cairo_steps_test_contract";
 
 // ERC20 contract is in a unique location.
 const ERC20_CAIRO0_CONTRACT_SOURCE_PATH: &str =
@@ -71,10 +74,13 @@ const ERC20_CAIRO0_CONTRACT_PATH: &str = "./ERC20/ERC20_Cairo0/ERC20_without_som
 const ERC20_CAIRO1_CONTRACT_SOURCE_PATH: &str = "./ERC20/ERC20_Cairo1/ERC20.cairo";
 const ERC20_CAIRO1_CONTRACT_PATH: &str = "./ERC20/ERC20_Cairo1/erc20.casm.json";
 
-// Legacy contract is compiled with a fixed version of the compiler. This compiler version no longer
-// compiles with stable rust, so the toolchain is also fixed.
+// The following contracts are compiled with a fixed version of the compiler. This compiler version
+// no longer compiles with stable rust, so the toolchain is also fixed.
 const LEGACY_CONTRACT_COMPILER_TAG: &str = "v2.1.0";
 const LEGACY_CONTRACT_RUST_TOOLCHAIN: &str = "2023-07-05";
+
+const CAIRO_STEPS_TEST_CONTRACT_COMPILER_TAG: &str = "v2.7.0";
+const CAIRO_STEPS_TEST_CONTRACT_RUST_TOOLCHAIN: &str = "2024-04-29";
 
 /// Enum representing all feature contracts.
 /// The contracts that are implemented in both Cairo versions include a version field.
@@ -88,6 +94,7 @@ pub enum FeatureContract {
     LegacyTestContract,
     SecurityTests,
     TestContract(CairoVersion),
+    CairoStepsTestContract,
 }
 
 impl FeatureContract {
@@ -100,7 +107,7 @@ impl FeatureContract {
             | Self::TestContract(version)
             | Self::ERC20(version) => *version,
             Self::SecurityTests => CairoVersion::Cairo0,
-            Self::LegacyTestContract => CairoVersion::Cairo1,
+            Self::LegacyTestContract | Self::CairoStepsTestContract => CairoVersion::Cairo1,
         }
     }
 
@@ -112,7 +119,7 @@ impl FeatureContract {
             | Self::FaultyAccount(_)
             | Self::TestContract(_)
             | Self::ERC20(_) => true,
-            Self::SecurityTests | Self::LegacyTestContract => false,
+            Self::SecurityTests | Self::LegacyTestContract | Self::CairoStepsTestContract => false,
         }
     }
 
@@ -124,7 +131,7 @@ impl FeatureContract {
             | Self::FaultyAccount(v)
             | Self::TestContract(v)
             | Self::ERC20(v) => *v = version,
-            Self::LegacyTestContract | Self::SecurityTests => {
+            Self::LegacyTestContract | Self::SecurityTests | Self::CairoStepsTestContract => {
                 panic!("{self:?} contract has no configurable version.")
             }
         }
@@ -180,8 +187,21 @@ impl FeatureContract {
         }
     }
 
-    pub fn is_legacy(&self) -> bool {
-        matches!(self, Self::LegacyTestContract)
+    /// Some contracts are designed to test behavior of code compiled with a
+    /// specific (old) compiler tag. To run the (old) compiler, older rust
+    /// version is required.
+    pub fn fixed_tag_and_rust_toolchain(&self) -> (Option<String>, Option<String>) {
+        match self {
+            Self::LegacyTestContract => (
+                Some(LEGACY_CONTRACT_COMPILER_TAG.into()),
+                Some(LEGACY_CONTRACT_RUST_TOOLCHAIN.into()),
+            ),
+            Self::CairoStepsTestContract => (
+                Some(CAIRO_STEPS_TEST_CONTRACT_COMPILER_TAG.into()),
+                Some(CAIRO_STEPS_TEST_CONTRACT_RUST_TOOLCHAIN.into()),
+            ),
+            _ => (None, None),
+        }
     }
 
     /// Unique integer representing each unique contract. Used to derive "class hash" and "address".
@@ -196,6 +216,7 @@ impl FeatureContract {
                 Self::LegacyTestContract => LEGACY_CONTRACT_BASE,
                 Self::SecurityTests => SECURITY_TEST_CONTRACT_BASE,
                 Self::TestContract(_) => TEST_CONTRACT_BASE,
+                Self::CairoStepsTestContract => CAIRO_STEPS_TEST_CONTRACT_BASE,
             }
     }
 
@@ -208,6 +229,7 @@ impl FeatureContract {
             Self::LegacyTestContract => LEGACY_CONTRACT_NAME,
             Self::SecurityTests => SECURITY_TEST_CONTRACT_NAME,
             Self::TestContract(_) => TEST_CONTRACT_NAME,
+            Self::CairoStepsTestContract => CAIRO_STEPS_TEST_CONTRACT_NAME,
             Self::ERC20(_) => unreachable!(),
         }
     }
@@ -273,23 +295,14 @@ impl FeatureContract {
                     FeatureContract::SecurityTests => Some("--disable_hint_validation".into()),
                     FeatureContract::Empty(_)
                     | FeatureContract::TestContract(_)
-                    | FeatureContract::LegacyTestContract => None,
+                    | FeatureContract::LegacyTestContract
+                    | FeatureContract::CairoStepsTestContract => None,
                     FeatureContract::ERC20(_) => unreachable!(),
                 };
                 cairo0_compile(self.get_source_path(), extra_arg, false)
             }
             CairoVersion::Cairo1 => {
-                let (tag_override, cargo_nightly_arg) = if self.is_legacy() {
-                    (
-                        // Legacy contract is designed to test behavior of code compiled with a
-                        // specific (old) compiler tag. To run the (old) compiler, older rust
-                        // version is required.
-                        Some(LEGACY_CONTRACT_COMPILER_TAG.into()),
-                        Some(LEGACY_CONTRACT_RUST_TOOLCHAIN.into()),
-                    )
-                } else {
-                    (None, None)
-                };
+                let (tag_override, cargo_nightly_arg) = self.fixed_tag_and_rust_toolchain();
                 cairo1_compile(self.get_source_path(), tag_override, cargo_nightly_arg)
             }
         }
@@ -317,12 +330,16 @@ impl FeatureContract {
             ContractClass::V1(class) => {
                 class
                     .entry_points_by_type
-                    .get(&entry_point_type)
-                    .unwrap()
-                    .iter()
-                    .find(|ep| ep.selector == entry_point_selector)
+                    .get_entry_point(&CallEntryPoint {
+                        entry_point_type,
+                        entry_point_selector,
+                        ..Default::default()
+                    })
                     .unwrap()
                     .offset
+            }
+            ContractClass::V1Native(_) => {
+                panic!("Not implemented for cairo native contracts")
             }
         }
     }
