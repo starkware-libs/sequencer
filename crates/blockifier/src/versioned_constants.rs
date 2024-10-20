@@ -332,6 +332,104 @@ impl VersionedConstants {
             GasVectorComputationMode::NoL2Gas => &self.deprecated_l2_resource_gas_costs,
         }
     }
+
+    // Old cairo 0 syscalls that are present in os resources but not in os constants and thus don't
+    // need to be calculated
+    fn is_excess(&self, syscall_selector: &SyscallSelector) -> bool {
+        *syscall_selector == SyscallSelector::DelegateCall
+            || *syscall_selector == SyscallSelector::DelegateL1Handler
+            || *syscall_selector == SyscallSelector::GetBlockNumber
+            || *syscall_selector == SyscallSelector::GetBlockTimestamp
+            || *syscall_selector == SyscallSelector::GetCallerAddress
+            || *syscall_selector == SyscallSelector::GetContractAddress
+            || *syscall_selector == SyscallSelector::GetSequencerAddress
+            || *syscall_selector == SyscallSelector::GetTxInfo
+            || *syscall_selector == SyscallSelector::GetTxSignature
+            || *syscall_selector == SyscallSelector::LibraryCallL1Handler
+    }
+
+    // calculating syscalls gas costs using os resources
+    pub fn calc_syscall_gas_cost(&self) -> SyscallGasCosts {
+        let constants = &self.os_constants.gas_costs;
+        let mut syscall_gas_costs = SyscallGasCosts::default();
+        for (syscall_selector, execution_resources) in &self.os_resources.execute_syscalls {
+            if self.is_excess(syscall_selector) {
+                continue;
+            }
+            let mut cost: u64 = 0;
+            cost += std::cmp::max(u64::try_from(execution_resources.n_steps).unwrap(), 100)
+                * constants.step_gas_cost
+                + u64::try_from(execution_resources.n_memory_holes).unwrap()
+                    * constants.memory_hole_gas_cost;
+            for (builtin, amount) in &execution_resources.builtin_instance_counter {
+                let builtin_cost = match builtin {
+                    BuiltinName::output => 0,
+                    BuiltinName::range_check => constants.range_check_gas_cost,
+                    BuiltinName::pedersen => constants.pedersen_gas_cost,
+                    BuiltinName::ecdsa => 0,
+                    BuiltinName::keccak => 0, // TODO: need to understand how to approch this one
+                    BuiltinName::bitwise => constants.bitwise_builtin_gas_cost,
+                    BuiltinName::ec_op => constants.ecop_gas_cost,
+                    BuiltinName::poseidon => constants.poseidon_gas_cost,
+                    BuiltinName::segment_arena => 0,
+                    BuiltinName::range_check96 => constants.range_check_gas_cost,
+                    BuiltinName::add_mod => constants.add_mod_gas_cost,
+                    BuiltinName::mul_mod => constants.mul_mod_gas_cost,
+                };
+                cost += builtin_cost * u64::try_from(*amount).unwrap();
+            }
+
+            if matches!(
+                syscall_selector,
+                SyscallSelector::CallContract
+                    | SyscallSelector::Deploy
+                    | SyscallSelector::LibraryCall
+            ) {
+                cost += constants.entry_point_gas_cost; //for now the amount of entry points is just 1 in all ofthem
+            }
+
+            match syscall_selector {
+                SyscallSelector::CallContract => syscall_gas_costs.call_contract_gas_cost = cost,
+                SyscallSelector::Deploy => syscall_gas_costs.deploy_gas_cost = cost,
+                SyscallSelector::GetBlockHash => syscall_gas_costs.get_block_hash_gas_cost = cost,
+                SyscallSelector::GetExecutionInfo => {
+                    syscall_gas_costs.get_execution_info_gas_cost = cost
+                }
+                SyscallSelector::LibraryCall => syscall_gas_costs.library_call_gas_cost = cost,
+                SyscallSelector::ReplaceClass => syscall_gas_costs.replace_class_gas_cost = cost,
+                SyscallSelector::StorageRead => syscall_gas_costs.storage_read_gas_cost = cost,
+                SyscallSelector::StorageWrite => syscall_gas_costs.storage_write_gas_cost = cost,
+                SyscallSelector::EmitEvent => syscall_gas_costs.emit_event_gas_cost = cost,
+                SyscallSelector::SendMessageToL1 => {
+                    syscall_gas_costs.send_message_to_l1_gas_cost = cost
+                }
+                SyscallSelector::Secp256k1Add => syscall_gas_costs.secp256k1_add_gas_cost = cost,
+                SyscallSelector::Secp256k1Mul => syscall_gas_costs.secp256k1_mul_gas_cost = cost,
+                SyscallSelector::Secp256k1GetPointFromX => {
+                    syscall_gas_costs.secp256k1_get_point_from_x_gas_cost = cost
+                }
+                SyscallSelector::Secp256k1GetXy => {
+                    syscall_gas_costs.secp256k1_get_xy_gas_cost = cost
+                }
+                SyscallSelector::Secp256k1New => syscall_gas_costs.secp256k1_new_gas_cost = cost,
+                SyscallSelector::Secp256r1Add => syscall_gas_costs.secp256r1_add_gas_cost = cost,
+                SyscallSelector::Secp256r1Mul => syscall_gas_costs.secp256r1_mul_gas_cost = cost,
+                SyscallSelector::Secp256r1GetPointFromX => {
+                    syscall_gas_costs.secp256r1_get_point_from_x_gas_cost = cost
+                }
+                SyscallSelector::Secp256r1GetXy => {
+                    syscall_gas_costs.secp256r1_get_xy_gas_cost = cost
+                }
+                SyscallSelector::Secp256r1New => syscall_gas_costs.secp256r1_new_gas_cost = cost,
+                SyscallSelector::Keccak => syscall_gas_costs.keccak_gas_cost = cost,
+                SyscallSelector::Sha256ProcessBlock => {
+                    syscall_gas_costs.sha256_process_block_gas_cost = cost
+                }
+                _ => continue,
+            }
+        }
+        syscall_gas_costs
+    }
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
@@ -864,5 +962,65 @@ impl SerializeConfig for VersionedConstantsOverrides {
                 ParamPrivacyInput::Public,
             ),
         ])
+    }
+}
+
+pub struct SyscallGasCosts {
+    pub call_contract_gas_cost: u64,
+    pub deploy_gas_cost: u64,
+    pub get_block_hash_gas_cost: u64,
+    pub get_execution_info_gas_cost: u64,
+    pub library_call_gas_cost: u64,
+    pub replace_class_gas_cost: u64,
+    pub storage_read_gas_cost: u64,
+    pub storage_write_gas_cost: u64,
+    pub emit_event_gas_cost: u64,
+    pub send_message_to_l1_gas_cost: u64,
+    pub secp256k1_add_gas_cost: u64,
+    pub secp256k1_get_point_from_x_gas_cost: u64,
+    pub secp256k1_get_xy_gas_cost: u64,
+    pub secp256k1_mul_gas_cost: u64,
+    pub secp256k1_new_gas_cost: u64,
+    pub secp256r1_add_gas_cost: u64,
+    pub secp256r1_get_point_from_x_gas_cost: u64,
+    pub secp256r1_get_xy_gas_cost: u64,
+    pub secp256r1_mul_gas_cost: u64,
+    pub secp256r1_new_gas_cost: u64,
+    pub keccak_gas_cost: u64,
+    pub sha256_process_block_gas_cost: u64,
+}
+
+impl Default for SyscallGasCosts {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl SyscallGasCosts {
+    pub fn new() -> SyscallGasCosts {
+        SyscallGasCosts {
+            call_contract_gas_cost: 0,
+            deploy_gas_cost: 0,
+            get_block_hash_gas_cost: 0,
+            get_execution_info_gas_cost: 0,
+            library_call_gas_cost: 0,
+            replace_class_gas_cost: 0,
+            storage_read_gas_cost: 0,
+            storage_write_gas_cost: 0,
+            emit_event_gas_cost: 0,
+            send_message_to_l1_gas_cost: 0,
+            secp256k1_add_gas_cost: 0,
+            secp256k1_get_point_from_x_gas_cost: 0,
+            secp256k1_get_xy_gas_cost: 0,
+            secp256k1_mul_gas_cost: 0,
+            secp256k1_new_gas_cost: 0,
+            secp256r1_add_gas_cost: 0,
+            secp256r1_get_point_from_x_gas_cost: 0,
+            secp256r1_get_xy_gas_cost: 0,
+            secp256r1_mul_gas_cost: 0,
+            secp256r1_new_gas_cost: 0,
+            keccak_gas_cost: 0,
+            sha256_process_block_gas_cost: 0,
+        }
     }
 }
