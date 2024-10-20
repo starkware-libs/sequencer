@@ -2,7 +2,6 @@
 #[path = "core_test.rs"]
 mod core_test;
 
-use core::fmt::Display;
 use std::fmt::Debug;
 use std::sync::LazyLock;
 
@@ -60,7 +59,7 @@ impl From<String> for ChainId {
         }
     }
 }
-impl Display for ChainId {
+impl std::fmt::Display for ChainId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ChainId::Mainnet => write!(f, "SN_MAIN"),
