@@ -17,6 +17,7 @@ use crate::consensus::{
     VoteType,
 };
 
+#[cfg(test)]
 auto_impl_get_test_instance! {
     pub enum ConsensusMessage {
         Proposal(Proposal) = 0,
@@ -63,6 +64,7 @@ auto_impl_get_test_instance! {
 
 // The auto_impl_get_test_instance macro does not work for StreamMessage because it has
 // a generic type. TODO(guyn): try to make the macro work with generic types.
+#[cfg(test)]
 impl GetTestInstance for StreamMessage<ConsensusMessage> {
     fn get_test_instance(rng: &mut rand_chacha::ChaCha8Rng) -> Self {
         let message = if rng.gen_bool(0.5) {
