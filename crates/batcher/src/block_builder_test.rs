@@ -13,13 +13,9 @@ use starknet_api::transaction::TransactionHash;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use tokio_stream::wrappers::ReceiverStream;
 
-use crate::block_builder::{
-    BlockBuilder,
-    BlockBuilderTrait,
-    BlockExecutionArtifacts,
-    MockTransactionExecutorTrait,
-};
+use crate::block_builder::{BlockBuilder, BlockBuilderTrait, BlockExecutionArtifacts};
 use crate::test_utils::test_txs;
+use crate::transaction_executor::MockTransactionExecutorTrait;
 
 const TEST_DEADLINE_SECS: u64 = 1;
 const TEST_CHANNEL_SIZE: usize = 50;
