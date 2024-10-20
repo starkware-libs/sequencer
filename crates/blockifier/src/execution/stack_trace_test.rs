@@ -1,3 +1,4 @@
+use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use regex::Regex;
 use rstest::rstest;
@@ -16,12 +17,14 @@ use starknet_api::transaction::{
     ValidResourceBounds,
 };
 use starknet_api::{calldata, felt, invoke_tx_args};
+use starknet_types_core::felt::Felt;
 
 use crate::abi::abi_utils::selector_from_name;
 use crate::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use crate::context::{BlockContext, ChainInfo};
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::entry_point::CallEntryPoint;
+use crate::execution::errors::EntryPointExecutionError;
 use crate::execution::stack_trace::{
     extract_trailing_cairo1_revert_trace,
     Cairo1RevertStack,
@@ -938,4 +941,117 @@ fn test_cairo1_revert_error_truncation(
         _ => panic!("Test not implemented for {n_frames} frames."),
     }
     assert!(error_string.len() <= TRACE_LENGTH_CAP);
+}
+
+#[test]
+fn test_cairo1_stack_extraction_inner_call_successful() {
+    let failure_reason_str = "0x1";
+    let error_data = Retdata(vec![felt!(failure_reason_str)]);
+    let callinfo = CallInfo {
+        execution: CallExecution { retdata: error_data, failed: true, ..Default::default() },
+        inner_calls: vec![CallInfo::default()],
+        ..Default::default()
+    };
+    let error = EntryPointExecutionError::ExecutionFailed {
+        error_trace: extract_trailing_cairo1_revert_trace(&callinfo),
+    };
+    assert_eq!(
+        error.to_string(),
+        format!(
+            "Execution failed. Failure reason:
+Error in contract (contract address: {:#064x}, class hash: _, selector: {:#064x}):
+{failure_reason_str}.",
+            ContractAddress::default().0.key(),
+            EntryPointSelector::default().0
+        )
+    );
+}
+
+#[test]
+fn test_ambiguous_inner_cairo1_failure() {
+    let (failure_reason_0, failure_reason_1) = (Felt::ONE, Felt::TWO);
+    let outer_retdata =
+        Retdata(vec![failure_reason_0, failure_reason_1, felt!(ENTRYPOINT_FAILED_ERROR)]);
+    let inner_call_info = CallInfo {
+        execution: CallExecution {
+            retdata: Retdata(vec![failure_reason_0, failure_reason_1]),
+            failed: true,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let call_info = CallInfo {
+        execution: CallExecution {
+            retdata: outer_retdata.clone(),
+            failed: true,
+            ..Default::default()
+        },
+        // Both of these inner calls can be the source of error; expect fallback value.
+        inner_calls: vec![inner_call_info.clone(), inner_call_info],
+        ..Default::default()
+    };
+    assert_matches!(
+        extract_trailing_cairo1_revert_trace(&call_info),
+        Cairo1RevertStack { stack, last_retdata }
+        if stack.is_empty() && last_retdata == outer_retdata
+    );
+}
+
+#[rstest]
+fn test_inner_cairo1_failure_not_last(#[values(true, false)] last_is_failed: bool) {
+    let (failure_reason_0, failure_reason_1) = (Felt::ONE, Felt::TWO);
+    let outer_retdata =
+        Retdata(vec![failure_reason_0, failure_reason_1, felt!(ENTRYPOINT_FAILED_ERROR)]);
+    let first_inner_retdata = Retdata(outer_retdata.0[..outer_retdata.0.len() - 1].into());
+    let first_inner_call_info = CallInfo {
+        execution: CallExecution {
+            retdata: first_inner_retdata.clone(),
+            failed: true,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let last_inner_call_info = CallInfo {
+        execution: CallExecution {
+            retdata: Retdata(
+                // Not a prefix of the outer retdata. Should not be selected as inner failure.
+                vec![failure_reason_1, felt!(ENTRYPOINT_FAILED_ERROR)],
+            ),
+            failed: last_is_failed,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let call_info = CallInfo {
+        execution: CallExecution {
+            retdata: outer_retdata.clone(),
+            failed: true,
+            ..Default::default()
+        },
+        inner_calls: vec![first_inner_call_info, last_inner_call_info],
+        ..Default::default()
+    };
+    assert_matches!(
+        extract_trailing_cairo1_revert_trace(&call_info),
+        Cairo1RevertStack { stack, last_retdata }
+        if stack.len() == 2 && last_retdata == first_inner_retdata
+    );
+}
+
+/// If extraction function is called with a successful callinfo, it should return an empty stack and
+/// the original retdata.
+/// We don't expect the extraction function to ever be called with a successful callinfo, but it
+/// shouldn't panic anyway.
+#[test]
+fn test_cairo1_stack_extraction_not_failure_fallback() {
+    let expected_retdata = Retdata(vec![Felt::ONE, Felt::THREE]);
+    let successful_call = CallInfo {
+        execution: CallExecution { retdata: expected_retdata.clone(), ..Default::default() },
+        ..Default::default()
+    };
+    assert_matches!(
+        extract_trailing_cairo1_revert_trace(&successful_call),
+        Cairo1RevertStack { stack, last_retdata }
+        if stack.is_empty() && last_retdata == expected_retdata
+    );
 }
