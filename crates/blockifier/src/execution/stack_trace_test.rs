@@ -210,16 +210,14 @@ An ASSERT_EQ instruction failed: 1 != 0.
 "
     );
 
-    let expected_trace_cairo1 =
+    let expected_trace_cairo1 = format!(
         "Transaction execution has failed:
-0: Error in the called contract (contract address: \
-         0x00000000000000000000000000000000000000000000000000000000c0020000, class hash: \
-         0x0000000000000000000000000000000000000000000000000000000080020000, selector: \
-         0x015d40a3d6ca2ac30f4031e42be28da9b056fef9bb7357ac5e85627ee876e5ad):
+0: Error in the called contract (contract address: {account_address_felt:#064x}, class hash: \
+         {account_contract_hash:#064x}, selector: {execute_selector_felt:#064x}):
 Execution failed. Failure reason: (0x6661696c ('fail'), 0x454e545259504f494e545f4641494c4544 \
          ('ENTRYPOINT_FAILED'), 0x454e545259504f494e545f4641494c4544 ('ENTRYPOINT_FAILED')).
 "
-        .into();
+    );
 
     let expected_trace = match cairo_version {
         CairoVersion::Cairo0 => expected_trace_cairo0,
@@ -479,10 +477,8 @@ Unknown location (pc=0:{expected_pc3})
         CairoVersion::Cairo1 => {
             format!(
                 "Transaction execution has failed:
-0: Error in the called contract (contract address: \
-                 0x00000000000000000000000000000000000000000000000000000000c0020000, class hash: \
-                 0x0000000000000000000000000000000000000000000000000000000080020000, selector: \
-                 0x015d40a3d6ca2ac30f4031e42be28da9b056fef9bb7357ac5e85627ee876e5ad):
+0: Error in the called contract (contract address: {account_address_felt:#064x}, class hash: \
+                 {account_contract_hash:#064x}, selector: {execute_selector_felt:#064x}):
 Execution failed. Failure reason: ({expected_error}, 0x454e545259504f494e545f4641494c4544 \
                  ('ENTRYPOINT_FAILED'), 0x454e545259504f494e545f4641494c4544 \
                  ('ENTRYPOINT_FAILED'), 0x454e545259504f494e545f4641494c4544 \
