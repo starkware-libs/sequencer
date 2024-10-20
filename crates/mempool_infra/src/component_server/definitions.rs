@@ -23,8 +23,6 @@ pub async fn request_response_loop<Request, Response, Component>(
 {
     info!("Starting server loop for component {}", type_name::<Component>());
 
-    // TODO(Tsabary): Make requests and responses implement `std::fmt::Display`, and add the request
-    // to the log.
     // TODO(Tsabary): Move this function to be part of the `local_server` module.
     while let Some(request_and_res_tx) = rx.recv().await {
         info!("Component {} received request", type_name::<Component>());
@@ -34,7 +32,11 @@ pub async fn request_response_loop<Request, Response, Component>(
 
         let res = component.handle_request(request).await;
 
-        tx.send(res).await.expect("Response connection should be open.");
+        // TODO(Tsabary): revert `try_send` to `send` once the client is guaranteed to be alive,
+        // i.e., tx.send(res).await.expect("Response connection should be open.");
+        // Tries sending the response to the client. If the client has disconnected then this
+        // becomes a null operation.
+        let _ = tx.try_send(res);
     }
 
     info!("Finished server loop for component {}", type_name::<Component>());
