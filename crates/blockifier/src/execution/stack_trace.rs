@@ -4,9 +4,11 @@ use cairo_vm::vm::errors::hint_errors::HintError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use itertools::Itertools;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
+use starknet_api::execution_utils::format_panic_data;
 
 use super::deprecated_syscalls::hint_processor::DeprecatedSyscallExecutionError;
 use super::syscalls::hint_processor::SyscallExecutionError;
+use crate::execution::call_info::CallInfo;
 use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
 use crate::transaction::errors::TransactionExecutionError;
 
@@ -150,6 +152,10 @@ impl ErrorStack {
     pub fn push(&mut self, frame: Frame) {
         self.stack.push(frame);
     }
+}
+
+pub fn extract_trailing_cairo1_revert_trace(root_callinfo: &CallInfo) -> String {
+    format_panic_data(&root_callinfo.execution.retdata.0)
 }
 
 /// Extracts the error trace from a `TransactionExecutionError`. This is a top level function.

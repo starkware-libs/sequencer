@@ -26,6 +26,7 @@ use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::{CallInfo, Retdata};
 use crate::execution::contract_class::ContractClass;
 use crate::execution::entry_point::{CallEntryPoint, CallType, EntryPointExecutionContext};
+use crate::execution::stack_trace::extract_trailing_cairo1_revert_trace;
 use crate::fee::fee_checks::{FeeCheckReportFields, PostExecutionReport};
 use crate::fee::fee_utils::{
     get_fee_by_gas_vector,
@@ -944,7 +945,7 @@ impl ValidatableTransaction for AccountTransaction {
 
             if validate_call_info.execution.failed {
                 return Err(TransactionExecutionError::PanicInValidate {
-                    panic_reason: validate_call_info.execution.retdata,
+                    panic_reason: extract_trailing_cairo1_revert_trace(&validate_call_info),
                 });
             }
 

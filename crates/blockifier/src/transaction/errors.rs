@@ -3,7 +3,6 @@ use num_bigint::BigUint;
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::execution_resources::GasAmount;
-use starknet_api::execution_utils::format_panic_data;
 use starknet_api::transaction::{Fee, Resource, TransactionVersion};
 use starknet_api::StarknetApiError;
 use starknet_types_core::felt::FromStrError;
@@ -104,8 +103,8 @@ pub enum TransactionExecutionError {
     FeeCheckError(#[from] FeeCheckError),
     #[error(transparent)]
     FromStr(#[from] FromStrError),
-    #[error("The `validate` entry point panicked with {}.", format_panic_data(&panic_reason.0))]
-    PanicInValidate { panic_reason: Retdata },
+    #[error("The `validate` entry point panicked with {panic_reason}.")]
+    PanicInValidate { panic_reason: String },
     #[error("The `validate` entry point should return `VALID`. Got {actual:?}.")]
     InvalidValidateReturnData { actual: Retdata },
     #[error(

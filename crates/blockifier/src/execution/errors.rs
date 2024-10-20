@@ -10,8 +10,6 @@ use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use num_bigint::{BigInt, TryFromBigIntError};
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
-use starknet_api::execution_utils::format_panic_data;
-use starknet_types_core::felt::Felt;
 use thiserror::Error;
 
 use crate::execution::entry_point::ConstructorContext;
@@ -81,8 +79,8 @@ impl From<RunnerError> for PostExecutionError {
 pub enum EntryPointExecutionError {
     #[error(transparent)]
     CairoRunError(#[from] CairoRunError),
-    #[error("Execution failed. Failure reason: {}.", format_panic_data(.error_data))]
-    ExecutionFailed { error_data: Vec<Felt> },
+    #[error("Execution failed. Failure reason: {error_trace}.")]
+    ExecutionFailed { error_trace: String },
     #[error("Internal error: {0}")]
     InternalError(String),
     #[error("Invalid input: {input_descriptor}; {info}")]
