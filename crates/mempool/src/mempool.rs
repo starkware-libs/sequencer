@@ -23,7 +23,7 @@ type AccountToNonce = HashMap<ContractAddress, Nonce>;
 
 #[derive(Debug, Default)]
 pub struct Mempool {
-    _config: MempoolConfig,
+    config: MempoolConfig,
     // TODO: add docstring explaining visibility and coupling of the fields.
     // All transactions currently held in the mempool.
     tx_pool: TransactionPool,
@@ -33,9 +33,6 @@ pub struct Mempool {
     mempool_state: HashMap<ContractAddress, Nonce>,
     // The most recent account nonces received, for all account in the pool.
     account_nonces: AccountToNonce,
-    // TODO(Elin): make configurable; should be bounded?
-    // Percentage increase for tip and max gas price to enable transaction replacement.
-    fee_escalation_percentage: u8, // E.g., 10 for a 10% increase.
 }
 
 impl Mempool {
@@ -247,7 +244,7 @@ impl Mempool {
     }
 
     fn increased_enough(&self, existing_value: u128, incoming_value: u128) -> bool {
-        let percentage = u128::from(self.fee_escalation_percentage);
+        let percentage = u128::from(self.config.fee_escalation_percentage);
 
         let Some(escalation_qualified_value) = existing_value
             .checked_mul(percentage)
@@ -263,7 +260,10 @@ impl Mempool {
 }
 
 #[derive(Debug, Default)]
-pub struct MempoolConfig {}
+pub struct MempoolConfig {
+    // Percentage increase for tip and max gas price to enable transaction replacement.
+    fee_escalation_percentage: u8, // E.g., 10 for a 10% increase.
+}
 
 /// Provides a lightweight representation of a transaction for mempool usage (e.g., excluding
 /// execution fields).
