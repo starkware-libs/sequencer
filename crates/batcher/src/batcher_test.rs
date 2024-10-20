@@ -91,7 +91,7 @@ async fn get_stream_content(
         },
     );
     proposal_manager
-        .expect_wrap_done_proposal_commitment()
+        .expect_wrap_executed_proposal_commitment()
         .return_once(move |_| async move { Ok(expected_proposal_commitment) }.boxed());
 
     let mut batcher = Batcher::new(
@@ -195,14 +195,14 @@ async fn decision_reached(
 
 #[rstest]
 #[tokio::test]
-async fn decision_reached_no_done_proposal(
+async fn decision_reached_no_executed_proposal(
     batcher_config: BatcherConfig,
     storage_reader: MockBatcherStorageReaderTrait,
     storage_writer: MockBatcherStorageWriterTrait,
     mempool_client: MockMempoolClient,
 ) {
     const PROPOSAL_ID: ProposalId = ProposalId(0);
-    let expected_error = BatcherError::DoneProposalNotFound { proposal_id: PROPOSAL_ID };
+    let expected_error = BatcherError::ExecutedProposalNotFound { proposal_id: PROPOSAL_ID };
 
     let mut proposal_manager = MockProposalManagerTraitWrapper::new();
     proposal_manager.expect_wrap_take_proposal_result().with(eq(PROPOSAL_ID)).return_once(
@@ -256,7 +256,7 @@ trait ProposalManagerTraitWrapper: Send + Sync {
         proposal_id: ProposalId,
     ) -> BoxFuture<'_, ProposalResult<ProposalOutput>>;
 
-    fn wrap_done_proposal_commitment(
+    fn wrap_executed_proposal_commitment(
         &self,
         proposal_id: ProposalId,
     ) -> BoxFuture<'_, ProposalResult<ProposalCommitment>>;
@@ -291,11 +291,11 @@ impl<T: ProposalManagerTraitWrapper> ProposalManagerTrait for T {
         self.wrap_take_proposal_result(proposal_id).await
     }
 
-    async fn get_done_proposal_commitment(
+    async fn get_executed_proposal_commitment(
         &self,
         proposal_id: ProposalId,
     ) -> ProposalResult<ProposalCommitment> {
-        self.wrap_done_proposal_commitment(proposal_id).await
+        self.wrap_executed_proposal_commitment(proposal_id).await
     }
 }
 
