@@ -1,20 +1,22 @@
-use papyrus_test_utils::{auto_impl_get_test_instance, get_number_of_variants, GetTestInstance};
-use rand::Rng;
-use starknet_api::block::BlockHash;
-use starknet_api::core::ContractAddress;
-use starknet_api::transaction::Transaction;
-
-use crate::consensus::{
-    ConsensusMessage,
-    Proposal,
-    ProposalFin,
-    ProposalInit,
-    ProposalPart,
-    StreamMessage,
-    StreamMessageBody,
-    TransactionBatch,
-    Vote,
-    VoteType,
+#[cfg(test)]
+use {
+    crate::consensus::{
+        ConsensusMessage,
+        Proposal,
+        ProposalFin,
+        ProposalInit,
+        ProposalPart,
+        StreamMessage,
+        StreamMessageBody,
+        TransactionBatch,
+        Vote,
+        VoteType,
+    },
+    papyrus_test_utils::{auto_impl_get_test_instance, get_number_of_variants, GetTestInstance},
+    rand::Rng,
+    starknet_api::block::BlockHash,
+    starknet_api::core::ContractAddress,
+    starknet_api::transaction::Transaction,
 };
 
 #[cfg(test)]
