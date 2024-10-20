@@ -210,23 +210,25 @@ impl Mempool {
     }
 
     fn handle_fee_escalation(&mut self, incoming_tx: &Transaction) -> MempoolResult<()> {
-        let incoming_tx_ref = TransactionReference::new(incoming_tx);
-        let TransactionReference { address, nonce, .. } = incoming_tx_ref;
-        let Some(existing_tx_ref) = self.tx_pool.get_by_address_and_nonce(address, nonce) else {
-            // Replacement irrelevant: no existing transaction with the same nonce for address.
-            return Ok(());
-        };
+        if self.config.enable_fee_escalation {
+            let incoming_tx_ref = TransactionReference::new(incoming_tx);
+            let TransactionReference { address, nonce, .. } = incoming_tx_ref;
+            let Some(existing_tx_ref) = self.tx_pool.get_by_address_and_nonce(address, nonce)
+            else {
+                // Replacement irrelevant: no existing transaction with the same nonce for address.
+                return Ok(());
+            };
 
-        if !self.should_replace_tx(existing_tx_ref, &incoming_tx_ref) {
-            // TODO(Elin): consider adding a more specific error type / message.
-            return Err(MempoolError::DuplicateNonce { address, nonce });
+            if !self.should_replace_tx(existing_tx_ref, &incoming_tx_ref) {
+                // TODO(Elin): consider adding a more specific error type / message.
+                return Err(MempoolError::DuplicateNonce { address, nonce });
+            }
+
+            self.tx_queue.remove(address);
+            self.tx_pool
+                .remove(existing_tx_ref.tx_hash)
+                .expect("Transaction hash from pool must exist.");
         }
-
-        self.tx_queue.remove(address);
-        self.tx_pool
-            .remove(existing_tx_ref.tx_hash)
-            .expect("Transaction hash from pool must exist.");
-
         Ok(())
     }
 
@@ -291,6 +293,7 @@ impl TransactionReference {
 
 #[derive(Debug, Default)]
 pub struct MempoolConfig {
+    enable_fee_escalation: bool,
     // Percentage increase for tip and max gas price to enable transaction replacement.
     fee_escalation_percentage: u8, // E.g., 10 for a 10% increase.
 }
