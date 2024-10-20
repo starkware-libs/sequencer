@@ -75,7 +75,7 @@ use starknet_api::transaction::{
     TransactionVersion,
 };
 use starknet_api::transaction_hash::get_transaction_hash;
-use starknet_api::{contract_address, felt, patricia_key, StarknetApiError};
+use starknet_api::{contract_address, patricia_key, StarknetApiError};
 use state_reader::ExecutionStateReader;
 use tracing::trace;
 
