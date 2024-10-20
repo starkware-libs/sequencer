@@ -6,6 +6,7 @@ use starknet_api::{contract_address, invoke_tx_args, nonce, patricia_key};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::AddTransactionArgs;
 
+use super::MempoolConfig;
 use crate::mempool::{tip, Mempool, TransactionReference};
 use crate::test_utils::{add_tx, add_tx_expect_error, commit_block, get_txs_and_assert_expected};
 use crate::transaction_pool::TransactionPool;
@@ -24,7 +25,7 @@ use crate::{add_tx_input, tx};
 struct MempoolContent {
     tx_pool: Option<TransactionPool>,
     tx_queue_content: Option<TransactionQueueContent>,
-    fee_escalation_percentage: u8,
+    config: MempoolConfig,
 }
 
 impl MempoolContent {
@@ -41,27 +42,25 @@ impl MempoolContent {
 
 impl From<MempoolContent> for Mempool {
     fn from(mempool_content: MempoolContent) -> Mempool {
-        let MempoolContent { tx_pool, tx_queue_content, fee_escalation_percentage } =
-            mempool_content;
+        let MempoolContent { tx_pool, tx_queue_content, config } = mempool_content;
         Mempool {
             tx_pool: tx_pool.unwrap_or_default(),
             tx_queue: tx_queue_content
                 .map(|content| content.complete_to_tx_queue())
                 .unwrap_or_default(),
-            fee_escalation_percentage,
+            config,
             // TODO: Add implementation when needed.
             mempool_state: Default::default(),
             account_nonces: Default::default(),
-            _config: Default::default(),
         }
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 struct MempoolContentBuilder {
     tx_pool: Option<TransactionPool>,
     tx_queue_content_builder: TransactionQueueContentBuilder,
-    fee_escalation_percentage: u8,
+    config: MempoolConfig,
 }
 
 impl MempoolContentBuilder {
@@ -100,7 +99,8 @@ impl MempoolContentBuilder {
     }
 
     fn with_fee_escalation_percentage(mut self, fee_escalation_percentage: u8) -> Self {
-        self.fee_escalation_percentage = fee_escalation_percentage;
+        self.config.enable_fee_escalation = true;
+        self.config.fee_escalation_percentage = fee_escalation_percentage;
         self
     }
 
@@ -108,12 +108,22 @@ impl MempoolContentBuilder {
         MempoolContent {
             tx_pool: self.tx_pool,
             tx_queue_content: self.tx_queue_content_builder.build(),
-            fee_escalation_percentage: self.fee_escalation_percentage,
+            config: self.config,
         }
     }
 
     fn build_into_mempool(self) -> Mempool {
         self.build().into()
+    }
+}
+
+impl Default for MempoolContentBuilder {
+    fn default() -> Self {
+        Self {
+            tx_pool: Default::default(),
+            tx_queue_content_builder: Default::default(),
+            config: MempoolConfig { enable_fee_escalation: false, fee_escalation_percentage: 0 },
+        }
     }
 }
 
