@@ -289,6 +289,14 @@ async fn stream_build_proposal(
             }
             GetProposalContent::Finished(id) => {
                 let proposal_content_id = BlockHash(id.state_diff_commitment.0.0);
+                info!(
+                    "Finished building proposal {:?}: content_id = {:?}, num_txs = {:?}, height = \
+                     {:?}",
+                    proposal_id,
+                    proposal_content_id,
+                    content.len(),
+                    height
+                );
                 // Update valid_proposals before sending fin to avoid a race condition
                 // with `repropose` being called before `valid_proposals` is updated.
                 let mut valid_proposals = valid_proposals.lock().expect("Lock was poisoned");
@@ -357,6 +365,13 @@ async fn stream_validate_proposal(
         }
     };
     let proposal_content_id = BlockHash(id.state_diff_commitment.0.0);
+    info!(
+        "Finished validating proposal {:?}: content_id = {:?}, num_txs = {:?}, height = {:?}",
+        proposal_id,
+        proposal_content_id,
+        content.len(),
+        height
+    );
     // Update valid_proposals before sending fin to avoid a race condition
     // with `get_proposal` being called before `valid_proposals` is updated.
     let mut valid_proposals = valid_proposals.lock().unwrap();
