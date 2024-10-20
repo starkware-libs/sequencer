@@ -6,7 +6,7 @@ use starknet_api::block::{BlockHash, BlockNumber, BlockTimestamp, NonzeroGasPric
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, Nonce, PatriciaKey};
 use starknet_api::hash::StarkHash;
 use starknet_api::transaction::{Fee, TransactionHash, TransactionVersion};
-use starknet_api::{calldata, contract_address, felt, patricia_key};
+use starknet_api::{calldata, contract_address, patricia_key};
 use starknet_types_core::felt::Felt;
 
 use super::update_json_value;
