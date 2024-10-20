@@ -23,6 +23,7 @@ type AccountToNonce = HashMap<ContractAddress, Nonce>;
 
 #[derive(Debug, Default)]
 pub struct Mempool {
+    _config: MempoolConfig,
     // TODO: add docstring explaining visibility and coupling of the fields.
     // All transactions currently held in the mempool.
     tx_pool: TransactionPool,
@@ -260,6 +261,9 @@ impl Mempool {
         incoming_value >= escalation_qualified_value
     }
 }
+
+#[derive(Debug, Default)]
+pub struct MempoolConfig {}
 
 /// Provides a lightweight representation of a transaction for mempool usage (e.g., excluding
 /// execution fields).
