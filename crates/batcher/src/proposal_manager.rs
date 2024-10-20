@@ -125,7 +125,7 @@ pub trait ProposalManagerTrait: Send + Sync {
         proposal_id: ProposalId,
     ) -> ProposalResult<ProposalOutput>;
 
-    async fn get_done_proposal_commitment(
+    async fn get_executed_proposal_commitment(
         &self,
         proposal_id: ProposalId,
     ) -> ProposalResult<ProposalCommitment>;
@@ -150,7 +150,7 @@ pub(crate) struct ProposalManager {
     active_proposal_handle: Option<ActiveTaskHandle>,
     // Use a factory object, to be able to mock BlockBuilder in tests.
     block_builder_factory: Arc<dyn BlockBuilderFactoryTrait + Send + Sync>,
-    done_proposals: Arc<Mutex<HashMap<ProposalId, ProposalResult<ProposalOutput>>>>,
+    executed_proposals: Arc<Mutex<HashMap<ProposalId, ProposalResult<ProposalOutput>>>>,
 }
 
 type ActiveTaskHandle = tokio::task::JoinHandle<()>;
@@ -204,7 +204,7 @@ impl ProposalManagerTrait for ProposalManager {
         tx_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
     ) -> Result<(), BuildProposalError> {
         let height = self.active_height.ok_or(BuildProposalError::NoActiveHeight)?;
-        if self.done_proposals.lock().await.contains_key(&proposal_id) {
+        if self.executed_proposals.lock().await.contains_key(&proposal_id) {
             return Err(BuildProposalError::ProposalAlreadyExists { proposal_id });
         }
         info!("Starting generation of a new proposal with id {}.", proposal_id);
@@ -221,7 +221,7 @@ impl ProposalManagerTrait for ProposalManager {
                 block_builder,
                 active_proposal: self.active_proposal.clone(),
                 deadline,
-                done_proposals: self.done_proposals.clone(),
+                executed_proposals: self.executed_proposals.clone(),
             }
             .run()
             .in_current_span(),
@@ -234,18 +234,18 @@ impl ProposalManagerTrait for ProposalManager {
         &mut self,
         proposal_id: ProposalId,
     ) -> ProposalResult<ProposalOutput> {
-        self.done_proposals
+        self.executed_proposals
             .lock()
             .await
             .remove(&proposal_id)
             .ok_or(GetProposalResultError::ProposalDoesNotExist { proposal_id })?
     }
 
-    async fn get_done_proposal_commitment(
+    async fn get_executed_proposal_commitment(
         &self,
         proposal_id: ProposalId,
     ) -> ProposalResult<ProposalCommitment> {
-        let g = self.done_proposals.lock().await;
+        let g = self.executed_proposals.lock().await;
         let output = g
             .get(&proposal_id)
             .ok_or(GetProposalResultError::ProposalDoesNotExist { proposal_id })?;
@@ -271,7 +271,7 @@ impl ProposalManager {
             block_builder_factory,
             active_proposal_handle: None,
             active_height: None,
-            done_proposals: Arc::new(Mutex::new(HashMap::new())),
+            executed_proposals: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -279,7 +279,7 @@ impl ProposalManager {
         if let Some(_active_proposal) = self.active_proposal.lock().await.take() {
             // TODO: Abort the block_builder.
         }
-        self.done_proposals.lock().await.clear();
+        self.executed_proposals.lock().await.clear();
         self.active_height = None;
     }
 
@@ -320,7 +320,7 @@ struct BuildProposalTask {
     block_builder: Box<dyn BlockBuilderTrait + Send>,
     active_proposal: Arc<Mutex<Option<ProposalId>>>,
     deadline: tokio::time::Instant,
-    done_proposals: Arc<Mutex<HashMap<ProposalId, ProposalResult<ProposalOutput>>>>,
+    executed_proposals: Arc<Mutex<HashMap<ProposalId, ProposalResult<ProposalOutput>>>>,
 }
 
 impl BuildProposalTask {
@@ -400,7 +400,7 @@ impl BuildProposalTask {
     async fn mark_active_proposal_as_done(self, result: ProposalResult<ProposalOutput>) {
         let proposal_id =
             self.active_proposal.lock().await.take().expect("Active proposal should exist.");
-        self.done_proposals.lock().await.insert(proposal_id, result);
+        self.executed_proposals.lock().await.insert(proposal_id, result);
     }
 }
 

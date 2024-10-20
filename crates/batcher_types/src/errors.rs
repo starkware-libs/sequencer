@@ -15,7 +15,7 @@ pub enum BatcherError {
         "Decision reached for proposal with ID {proposal_id} that does not exist (might still \
          being executed)."
     )]
-    DoneProposalNotFound { proposal_id: ProposalId },
+    ExecutedProposalNotFound { proposal_id: ProposalId },
     #[error(
         "Height {storage_height} already passed, can't start working on height {requested_height}."
     )]

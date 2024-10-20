@@ -127,7 +127,7 @@ impl Batcher {
         // for decision reached.
         self.proposals.remove(&proposal_id);
         let proposal_commitment =
-            self.proposal_manager.get_done_proposal_commitment(proposal_id).await?;
+            self.proposal_manager.get_executed_proposal_commitment(proposal_id).await?;
         Ok(GetProposalContentResponse {
             content: GetProposalContent::Finished(proposal_commitment),
         })
@@ -264,7 +264,7 @@ impl From<GetProposalResultError> for BatcherError {
             GetProposalResultError::BlockBuilderError(..) => BatcherError::InternalError,
             GetProposalResultError::MempoolError(..) => BatcherError::InternalError,
             GetProposalResultError::ProposalDoesNotExist { proposal_id } => {
-                BatcherError::DoneProposalNotFound { proposal_id }
+                BatcherError::ExecutedProposalNotFound { proposal_id }
             }
         }
     }
