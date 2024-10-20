@@ -1,7 +1,8 @@
+use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use regex::Regex;
 use rstest::rstest;
-use starknet_api::core::{calculate_contract_address, Nonce};
+use starknet_api::core::{calculate_contract_address, ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::transaction::{
     Calldata,
     ContractAddressSalt,
@@ -11,10 +12,15 @@ use starknet_api::transaction::{
     ValidResourceBounds,
 };
 use starknet_api::{calldata, felt, invoke_tx_args};
+use starknet_types_core::felt::Felt;
 
 use crate::abi::abi_utils::selector_from_name;
 use crate::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use crate::context::{BlockContext, ChainInfo};
+use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
+use crate::execution::errors::EntryPointExecutionError;
+use crate::execution::stack_trace::{extract_trailing_cairo1_revert_trace, Cairo1RevertStack};
+use crate::execution::syscalls::hint_processor::ENTRYPOINT_FAILED_ERROR;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::{fund_account, test_state};
 use crate::test_utils::{create_calldata, CairoVersion, BALANCE};
@@ -818,4 +824,71 @@ Error in contract (contract address: {expected_address:#064x}, class hash: {:#06
     let error =
         invoke_deploy_tx.execute(state, &block_context, true, true).unwrap().revert_error.unwrap();
     assert_eq!(error.to_string(), expected_error);
+}
+
+#[test]
+fn test_cairo1_stack_extraction_inner_call_successful() {
+    let error_data = Retdata(vec![Felt::from_hex("0xdeadbeef").unwrap()]);
+    let callinfo = CallInfo {
+        execution: CallExecution { retdata: error_data, failed: true, ..Default::default() },
+        inner_calls: vec![CallInfo {
+            execution: CallExecution { failed: false, ..Default::default() },
+            ..Default::default()
+        }],
+        ..Default::default()
+    };
+    let error = EntryPointExecutionError::ExecutionFailed {
+        error_trace: extract_trailing_cairo1_revert_trace(&callinfo),
+    };
+    assert_eq!(
+        error.to_string(),
+        format!(
+            "Execution failed. Failure reason:
+Error in contract (contract address: {:#064x}, class hash: _, selector: {:#064x}):
+0xdeadbeef.",
+            ContractAddress::default().0.key(),
+            EntryPointSelector::default().0
+        )
+    );
+}
+
+#[rstest]
+#[case::depth_2(&["0xdeadbeef", "0xbeefdead"], 2)]
+#[case::depth_3_third_wrong(&["0xdeadbeef", ENTRYPOINT_FAILED_ERROR, "0xbeefdead"], 3)]
+#[case::depth_3_second_wrong(&["0xdeadbeef", "0xbeefdead", ENTRYPOINT_FAILED_ERROR], 3)]
+fn test_cairo1_stack_extraction_malformed_retdata(#[case] retdata: &[&str], #[case] depth: usize) {
+    let error_felts: Vec<Felt> = retdata.iter().map(|s| Felt::from_hex(s).unwrap()).collect();
+    let callinfo = CallInfo {
+        execution: CallExecution {
+            retdata: Retdata(error_felts.clone()),
+            failed: true,
+            ..Default::default()
+        },
+        inner_calls: vec![CallInfo {
+            execution: CallExecution {
+                retdata: Retdata(error_felts.clone()[..depth - 1].into()),
+                failed: true,
+                ..Default::default()
+            },
+            inner_calls: match depth {
+                2 => vec![],
+                3 => vec![CallInfo {
+                    execution: CallExecution {
+                        retdata: Retdata(error_felts[..depth - 2].into()),
+                        failed: true,
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                }],
+                _ => panic!("Test not implemented for depth {depth}."),
+            },
+            ..Default::default()
+        }],
+        ..Default::default()
+    };
+    assert_matches!(
+        extract_trailing_cairo1_revert_trace(&callinfo),
+        Cairo1RevertStack { stack, last_retdata }
+        if stack.is_empty() && last_retdata == callinfo.execution.retdata
+    );
 }
