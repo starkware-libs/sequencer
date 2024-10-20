@@ -58,17 +58,19 @@ jobs:
           target/release/papyrus_node --base_layer.node_url ${{ secrets.CI_BASE_LAYER_NODE_URL }}
           & sleep 30 ; kill $!
 
-  p2p-sync-e2e-test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/bootstrap
+  # FIXME: Job is currently running out of disk space, error is hidden inside the `Annoatations`
+  # tab on github. FIX THE ISSUE AND RE-ENABLE THE JOB.
+  # p2p-sync-e2e-test:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: ./.github/actions/bootstrap
 
-      - name: Build node
-        run: cargo build -r -p papyrus_node
+  #     - name: Build node
+  #       run: cargo build -r -p papyrus_node
 
-      - name: Run p2p sync end-to-end test
-        run: scripts/papyrus/p2p_sync_e2e_test/main.sh ${{ secrets.CI_BASE_LAYER_NODE_URL }}
+  #     - name: Run p2p sync end-to-end test
+  #       run: scripts/papyrus/p2p_sync_e2e_test/main.sh ${{ secrets.CI_BASE_LAYER_NODE_URL }}
 
   integration-test:
     runs-on: starkware-ubuntu-latest-medium
