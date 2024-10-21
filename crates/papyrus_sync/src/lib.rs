@@ -18,8 +18,8 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use chrono::{TimeZone, Utc};
 use futures_util::{pin_mut, select, Stream, StreamExt};
 use indexmap::IndexMap;
+use papyrus_common::metrics as papyrus_metrics;
 use papyrus_common::pending_classes::PendingClasses;
-use papyrus_common::{metrics as papyrus_metrics, BlockHashAndNumber};
 use papyrus_config::converters::deserialize_seconds_to_duration;
 use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
@@ -34,7 +34,7 @@ use papyrus_storage::state::{StateStorageReader, StateStorageWriter};
 use papyrus_storage::{StorageError, StorageReader, StorageWriter};
 use serde::{Deserialize, Serialize};
 use sources::base_layer::BaseLayerSourceError;
-use starknet_api::block::{Block, BlockHash, BlockNumber, BlockSignature};
+use starknet_api::block::{Block, BlockHash, BlockHashAndNumber, BlockNumber, BlockSignature};
 use starknet_api::core::{ClassHash, CompiledClassHash, SequencerPublicKey};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{StateDiff, ThinStateDiff};
@@ -683,7 +683,7 @@ fn stream_new_blocks<
             let latest_central_block = central_source.get_latest_block().await?;
             *shared_highest_block.write().await = latest_central_block;
             let central_block_marker = latest_central_block.map_or(
-                BlockNumber::default(), |block| block.block_number.unchecked_next()
+                BlockNumber::default(), |block_hash_and_number| block_hash_and_number.number.unchecked_next()
             );
             metrics::gauge!(
                 papyrus_metrics::PAPYRUS_CENTRAL_BLOCK_MARKER, central_block_marker.0 as f64

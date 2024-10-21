@@ -18,14 +18,13 @@ use lru::LruCache;
 #[cfg(test)]
 use mockall::automock;
 use papyrus_common::pending_classes::ApiContractClass;
-use papyrus_common::BlockHashAndNumber;
 use papyrus_config::converters::{deserialize_optional_map, serialize_optional_map};
 use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::{StorageError, StorageReader};
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{Block, BlockHash, BlockNumber, BlockSignature};
+use starknet_api::block::{Block, BlockHash, BlockHashAndNumber, BlockNumber, BlockSignature};
 use starknet_api::core::{ClassHash, CompiledClassHash, SequencerPublicKey};
 use starknet_api::crypto::utils::Signature;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
@@ -216,10 +215,7 @@ impl<TStarknetClient: StarknetReader + Send + Sync + 'static> CentralSourceTrait
     // Returns the block hash and the block number of the latest block from the central source.
     async fn get_latest_block(&self) -> Result<Option<BlockHashAndNumber>, CentralError> {
         self.starknet_client.latest_block().await.map_err(Arc::new)?.map_or(Ok(None), |block| {
-            Ok(Some(BlockHashAndNumber {
-                block_hash: block.block_hash(),
-                block_number: block.block_number(),
-            }))
+            Ok(Some(BlockHashAndNumber { hash: block.block_hash(), number: block.block_number() }))
         })
     }
 
