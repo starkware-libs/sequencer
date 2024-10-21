@@ -11,6 +11,7 @@ use mempool_test_utils::starknet_api_test_utils::{
 use papyrus_consensus::config::ConsensusConfig;
 use papyrus_storage::StorageConfig;
 use reqwest::{Client, Response};
+use starknet_add_tx_endpoint::config::AddTxEndpointConfig;
 use starknet_api::block::BlockNumber;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
@@ -24,7 +25,6 @@ use starknet_gateway::config::{
     StatelessTransactionValidatorConfig,
 };
 use starknet_gateway_types::errors::GatewaySpecError;
-use starknet_http_server::config::HttpServerConfig;
 use starknet_mempool_node::config::SequencerNodeConfig;
 use tokio::net::TcpListener;
 
@@ -37,7 +37,7 @@ pub async fn create_config(
     chain_info.chain_id = chain_id.clone();
     let batcher_config = create_batcher_config(batcher_storage_config, chain_info.clone());
     let gateway_config = create_gateway_config(chain_info).await;
-    let http_server_config = create_http_server_config().await;
+    let add_tx_endpoint_config = create_add_tx_endpoint_config().await;
     let rpc_state_reader_config = test_rpc_state_reader_config(rpc_server_addr);
     let consensus_manager_config = ConsensusManagerConfig {
         consensus_config: ConsensusConfig { start_height: BlockNumber(1), ..Default::default() },
@@ -47,7 +47,7 @@ pub async fn create_config(
         batcher_config,
         consensus_manager_config,
         gateway_config,
-        http_server_config,
+        add_tx_endpoint_config,
         rpc_state_reader_config,
         ..SequencerNodeConfig::default()
     }
@@ -142,10 +142,10 @@ async fn create_gateway_config(chain_info: ChainInfo) -> GatewayConfig {
     GatewayConfig { stateless_tx_validator_config, stateful_tx_validator_config, chain_info }
 }
 
-async fn create_http_server_config() -> HttpServerConfig {
+async fn create_add_tx_endpoint_config() -> AddTxEndpointConfig {
     // TODO(Tsabary): use ser_generated_param.
     let socket = get_available_socket().await;
-    HttpServerConfig { ip: socket.ip(), port: socket.port() }
+    AddTxEndpointConfig { ip: socket.ip(), port: socket.port() }
 }
 
 fn create_batcher_config(

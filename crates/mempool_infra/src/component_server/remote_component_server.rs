@@ -174,7 +174,7 @@ where
         Server::bind(&self.socket.clone())
             .serve(make_svc)
             .await
-            .map_err(|err| ComponentServerError::HttpServerStartError(err.to_string()))?;
+            .map_err(|err| ComponentServerError::AddTxEndpointStartError(err.to_string()))?;
         Ok(())
     }
 }

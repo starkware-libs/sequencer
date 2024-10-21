@@ -1,12 +1,12 @@
 use std::net::SocketAddr;
 
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
+use starknet_add_tx_endpoint::config::AddTxEndpointConfig;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_batcher_types::communication::SharedBatcherClient;
 use starknet_gateway_types::errors::GatewaySpecError;
-use starknet_http_server::config::HttpServerConfig;
 use starknet_mempool_infra::trace_util::configure_tracing;
 use starknet_mempool_node::servers::run_component_servers;
 use starknet_mempool_node::utils::create_node_modules;
@@ -60,7 +60,7 @@ impl IntegrationTestSetup {
 
         let (clients, servers) = create_node_modules(&config);
 
-        let HttpServerConfig { ip, port } = config.http_server_config;
+        let AddTxEndpointConfig { ip, port } = config.add_tx_endpoint_config;
         let add_tx_http_client = HttpTestClient::new(SocketAddr::from((ip, port)));
 
         // Build and run the sequencer node.

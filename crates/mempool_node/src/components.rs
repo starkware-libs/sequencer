@@ -1,7 +1,7 @@
+use starknet_add_tx_endpoint::add_tx_endpoint::{create_add_tx_endpoint, AddTxEndpoint};
 use starknet_batcher::batcher::{create_batcher, Batcher};
 use starknet_consensus_manager::consensus_manager::ConsensusManager;
 use starknet_gateway::gateway::{create_gateway, Gateway};
-use starknet_http_server::http_server::{create_http_server, HttpServer};
 use starknet_mempool::mempool::Mempool;
 use starknet_monitoring_endpoint::monitoring_endpoint::{
     create_monitoring_endpoint,
@@ -16,7 +16,7 @@ pub struct SequencerNodeComponents {
     pub batcher: Option<Batcher>,
     pub consensus_manager: Option<ConsensusManager>,
     pub gateway: Option<Gateway>,
-    pub http_server: Option<HttpServer>,
+    pub add_tx_endpoint: Option<AddTxEndpoint>,
     pub mempool: Option<Mempool>,
     pub monitoring_endpoint: Option<MonitoringEndpoint>,
 }
@@ -55,11 +55,11 @@ pub fn create_node_components(
         None
     };
 
-    let http_server = if config.components.http_server.execute {
+    let add_tx_endpoint = if config.components.add_tx_endpoint.execute {
         let gateway_client =
             clients.get_gateway_client().expect("Gateway Client should be available");
 
-        Some(create_http_server(config.http_server_config.clone(), gateway_client))
+        Some(create_add_tx_endpoint(config.add_tx_endpoint_config.clone(), gateway_client))
     } else {
         None
     };
@@ -76,7 +76,7 @@ pub fn create_node_components(
         batcher,
         consensus_manager,
         gateway,
-        http_server,
+        add_tx_endpoint,
         mempool,
         monitoring_endpoint,
     }

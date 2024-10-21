@@ -2,13 +2,13 @@ use std::future::pending;
 use std::pin::Pin;
 
 use futures::{Future, FutureExt};
+use starknet_add_tx_endpoint::communication::{create_add_tx_endpoint, AddTxEndpointServer};
 use starknet_batcher::communication::{create_local_batcher_server, LocalBatcherServer};
 use starknet_consensus_manager::communication::{
     create_consensus_manager_server,
     ConsensusManagerServer,
 };
 use starknet_gateway::communication::{create_gateway_server, LocalGatewayServer};
-use starknet_http_server::communication::{create_http_server, HttpServer};
 use starknet_mempool::communication::{create_mempool_server, LocalMempoolServer};
 use starknet_mempool_infra::component_server::ComponentServerStarter;
 use starknet_mempool_infra::errors::ComponentServerError;
@@ -33,7 +33,7 @@ struct LocalServers {
 // Component servers that wrap a component without a server.
 struct WrapperServers {
     pub(crate) consensus_manager: Option<Box<ConsensusManagerServer>>,
-    pub(crate) http_server: Option<Box<HttpServer>>,
+    pub(crate) add_tx_endpoint: Option<Box<AddTxEndpointServer>>,
     pub(crate) monitoring_endpoint: Option<Box<MonitoringEndpointServer>>,
 }
 
@@ -71,9 +71,9 @@ pub fn create_node_servers(
     } else {
         None
     };
-    let http_server = if config.components.http_server.execute {
-        Some(Box::new(create_http_server(
-            components.http_server.expect("Http Server is not initialized."),
+    let add_tx_endpoint = if config.components.add_tx_endpoint.execute {
+        Some(Box::new(create_add_tx_endpoint(
+            components.add_tx_endpoint.expect("Http Server is not initialized."),
         )))
     } else {
         None
@@ -101,7 +101,7 @@ pub fn create_node_servers(
 
     let wrapper_servers = WrapperServers {
         consensus_manager: consensus_manager_server,
-        http_server,
+        add_tx_endpoint,
         monitoring_endpoint: monitoring_endpoint_server,
     };
 
@@ -118,8 +118,8 @@ pub async fn run_component_servers(servers: SequencerNodeServers) -> anyhow::Res
     // Gateway server.
     let gateway_future = get_server_future(servers.local_servers.gateway);
 
-    // HttpServer server.
-    let http_server_future = get_server_future(servers.wrapper_servers.http_server);
+    // Add Tx Endpoint server.
+    let add_tx_endpoint_future = get_server_future(servers.wrapper_servers.add_tx_endpoint);
 
     // Mempool server.
     let mempool_future = get_server_future(servers.local_servers.mempool);
@@ -131,7 +131,7 @@ pub async fn run_component_servers(servers: SequencerNodeServers) -> anyhow::Res
     let batcher_handle = tokio::spawn(batcher_future);
     let consensus_manager_handle = tokio::spawn(consensus_manager_future);
     let gateway_handle = tokio::spawn(gateway_future);
-    let http_server_handle = tokio::spawn(http_server_future);
+    let add_tx_endpoint_handle = tokio::spawn(add_tx_endpoint_future);
     let mempool_handle = tokio::spawn(mempool_future);
     let monitoring_endpoint_handle = tokio::spawn(monitoring_endpoint_future);
 
@@ -148,7 +148,7 @@ pub async fn run_component_servers(servers: SequencerNodeServers) -> anyhow::Res
             error!("Gateway Server stopped.");
             res?
         }
-        res = http_server_handle => {
+        res = add_tx_endpoint_handle => {
             error!("Http Server stopped.");
             res?
         }

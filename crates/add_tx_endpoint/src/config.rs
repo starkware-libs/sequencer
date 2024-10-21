@@ -8,12 +8,12 @@ use validator::Validate;
 
 /// The http server connection related configuration.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
-pub struct HttpServerConfig {
+pub struct AddTxEndpointConfig {
     pub ip: IpAddr,
     pub port: u16,
 }
 
-impl SerializeConfig for HttpServerConfig {
+impl SerializeConfig for AddTxEndpointConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from_iter([
             ser_param("ip", &self.ip.to_string(), "The http server ip.", ParamPrivacyInput::Public),
@@ -22,7 +22,7 @@ impl SerializeConfig for HttpServerConfig {
     }
 }
 
-impl Default for HttpServerConfig {
+impl Default for AddTxEndpointConfig {
     fn default() -> Self {
         Self { ip: "0.0.0.0".parse().unwrap(), port: 8080 }
     }

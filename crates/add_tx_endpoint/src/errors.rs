@@ -1,8 +1,8 @@
 use thiserror::Error;
 
-/// Errors originating from `[`HttpServer::run`]` command.
+/// Errors originating from `[`AddTxEndpoint::run`]` command.
 #[derive(Debug, Error)]
-pub enum HttpServerRunError {
+pub enum AddTxEndpointRunError {
     #[error(transparent)]
     ServerStartupError(#[from] hyper::Error),
 }

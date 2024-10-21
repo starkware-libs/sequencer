@@ -1,4 +1,14 @@
 {
+  "add_tx_endpoint_config.ip": {
+    "description": "The http server ip.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
+  "add_tx_endpoint_config.port": {
+    "description": "The http server port.",
+    "privacy": "Public",
+    "value": 8080
+  },
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.builtin_count.add_mod": {
     "description": "Max number of add mod builtin usage in a block.",
     "privacy": "Public",
@@ -209,6 +219,61 @@
     "privacy": "Public",
     "value": 81920
   },
+  "components.add_tx_endpoint.execute": {
+    "description": "The component execution flag.",
+    "privacy": "Public",
+    "value": true
+  },
+  "components.add_tx_endpoint.execution_mode": {
+    "description": "The component execution mode.",
+    "privacy": "Public",
+    "value": "Remote"
+  },
+  "components.add_tx_endpoint.local_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "components.add_tx_endpoint.local_config.channel_buffer_size": {
+    "description": "The communication channel buffer size.",
+    "privacy": "Public",
+    "value": 32
+  },
+  "components.add_tx_endpoint.remote_client_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
+  "components.add_tx_endpoint.remote_client_config.idle_connections": {
+    "description": "The maximum number of idle connections to keep alive.",
+    "privacy": "Public",
+    "value": 18446744073709551615
+  },
+  "components.add_tx_endpoint.remote_client_config.idle_timeout": {
+    "description": "The duration in seconds to keep an idle connection open before closing.",
+    "privacy": "Public",
+    "value": 90
+  },
+  "components.add_tx_endpoint.remote_client_config.retries": {
+    "description": "The max number of retries for sending a message.",
+    "privacy": "Public",
+    "value": 3
+  },
+  "components.add_tx_endpoint.remote_client_config.socket": {
+    "description": "The remote component server socket.",
+    "privacy": "Public",
+    "value": "0.0.0.0:8080"
+  },
+  "components.add_tx_endpoint.remote_server_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "components.add_tx_endpoint.remote_server_config.socket": {
+    "description": "The remote component server socket.",
+    "privacy": "Public",
+    "value": "0.0.0.0:8080"
+  },
   "components.batcher.execute": {
     "description": "The component execution flag.",
     "privacy": "Public",
@@ -370,61 +435,6 @@
     "value": true
   },
   "components.gateway.remote_server_config.socket": {
-    "description": "The remote component server socket.",
-    "privacy": "Public",
-    "value": "0.0.0.0:8080"
-  },
-  "components.http_server.execute": {
-    "description": "The component execution flag.",
-    "privacy": "Public",
-    "value": true
-  },
-  "components.http_server.execution_mode": {
-    "description": "The component execution mode.",
-    "privacy": "Public",
-    "value": "Remote"
-  },
-  "components.http_server.local_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
-  "components.http_server.local_config.channel_buffer_size": {
-    "description": "The communication channel buffer size.",
-    "privacy": "Public",
-    "value": 32
-  },
-  "components.http_server.remote_client_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
-  "components.http_server.remote_client_config.idle_connections": {
-    "description": "The maximum number of idle connections to keep alive.",
-    "privacy": "Public",
-    "value": 18446744073709551615
-  },
-  "components.http_server.remote_client_config.idle_timeout": {
-    "description": "The duration in seconds to keep an idle connection open before closing.",
-    "privacy": "Public",
-    "value": 90
-  },
-  "components.http_server.remote_client_config.retries": {
-    "description": "The max number of retries for sending a message.",
-    "privacy": "Public",
-    "value": 3
-  },
-  "components.http_server.remote_client_config.socket": {
-    "description": "The remote component server socket.",
-    "privacy": "Public",
-    "value": "0.0.0.0:8080"
-  },
-  "components.http_server.remote_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
-  "components.http_server.remote_server_config.socket": {
     "description": "The remote component server socket.",
     "privacy": "Public",
     "value": "0.0.0.0:8080"
@@ -663,16 +673,6 @@
     "description": "If true, validates that a transaction has non-zero L2 resource bounds.",
     "privacy": "Public",
     "value": false
-  },
-  "http_server_config.ip": {
-    "description": "The http server ip.",
-    "privacy": "Public",
-    "value": "0.0.0.0"
-  },
-  "http_server_config.port": {
-    "description": "The http server port.",
-    "privacy": "Public",
-    "value": 8080
   },
   "monitoring_endpoint_config.ip": {
     "description": "The monitoring endpoint ip address.",
