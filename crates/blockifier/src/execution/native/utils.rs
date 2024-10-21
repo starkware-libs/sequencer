@@ -56,7 +56,6 @@ pub fn run_native_executor(
         function_id,
         &call.calldata.0,
         Some(call.initial_gas.into()),
-        None,
         &mut syscall_handler,
     );
 
