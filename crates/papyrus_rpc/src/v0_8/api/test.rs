@@ -498,7 +498,7 @@ async fn get_block_w_full_transactions() {
     block.header.block_hash = block_hash;
     block.header.block_header_without_hash.sequencer = sequencer_address;
     block.header.block_header_without_hash.timestamp = timestamp;
-    block.header.block_header_without_hash.starknet_version = starknet_version.clone();
+    block.header.block_header_without_hash.starknet_version = starknet_version;
     storage_writer
         .begin_rw_txn()
         .unwrap()
@@ -685,7 +685,7 @@ async fn get_block_w_full_transactions_and_receipts() {
     block.header.block_hash = block_hash;
     block.header.block_header_without_hash.sequencer = sequencer_address;
     block.header.block_header_without_hash.timestamp = timestamp;
-    block.header.block_header_without_hash.starknet_version = starknet_version.clone();
+    block.header.block_header_without_hash.starknet_version = starknet_version;
     storage_writer
         .begin_rw_txn()
         .unwrap()

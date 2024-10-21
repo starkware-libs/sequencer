@@ -122,7 +122,7 @@ pub fn calculate_block_hash(
     header: BlockHeaderWithoutHash,
     block_commitments: BlockHeaderCommitments,
 ) -> StarknetApiResult<BlockHash> {
-    let block_hash_version: BlockHashVersion = header.starknet_version.clone().try_into()?;
+    let block_hash_version: BlockHashVersion = header.starknet_version.try_into()?;
     Ok(BlockHash(
         HashChain::new()
             .chain(&block_hash_version.clone().into())
