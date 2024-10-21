@@ -73,7 +73,7 @@ async fn last_block_number() {
         compiled_class_cache: get_test_compiled_class_cache(),
     };
 
-    let last_block_number = central_source.get_latest_block().await.unwrap().unwrap().block_number;
+    let last_block_number = central_source.get_latest_block().await.unwrap().unwrap().number;
     assert_eq!(last_block_number, EXPECTED_LAST_BLOCK_NUMBER);
 }
 

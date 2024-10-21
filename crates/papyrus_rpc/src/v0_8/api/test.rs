@@ -15,7 +15,6 @@ use jsonschema::JSONSchema;
 use lazy_static::lazy_static;
 use mockall::predicate::eq;
 use papyrus_common::pending_classes::{ApiContractClass, PendingClassesTrait};
-use papyrus_common::BlockHashAndNumber;
 use papyrus_storage::base_layer::BaseLayerStorageWriter;
 use papyrus_storage::body::events::EventIndex;
 use papyrus_storage::body::{BodyStorageWriter, TransactionIndex};
@@ -43,6 +42,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::{
     Block as StarknetApiBlock,
     BlockHash,
+    BlockHashAndNumber,
     BlockHeader,
     BlockHeaderWithoutHash,
     BlockNumber,
@@ -293,8 +293,8 @@ async fn block_hash_and_number() {
         &VERSION,
         SpecFile::StarknetApiOpenrpc,
         &BlockHashAndNumber {
-            block_hash: block.header.block_hash,
-            block_number: block.header.block_header_without_hash.block_number,
+            hash: block.header.block_hash,
+            number: block.header.block_header_without_hash.block_number,
         },
     )
     .await;
@@ -379,7 +379,7 @@ async fn syncing() {
     .await;
 
     *shared_highest_block.write().await =
-        Some(BlockHashAndNumber { block_number: BlockNumber(5), ..Default::default() });
+        Some(BlockHashAndNumber { number: BlockNumber(5), ..Default::default() });
     call_api_then_assert_and_validate_schema_for_result(
         &module,
         API_METHOD_NAME,

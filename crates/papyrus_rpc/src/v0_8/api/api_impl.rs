@@ -182,7 +182,7 @@ impl JsonRpcServer for JsonRpcServerImpl {
             get_latest_block_number(&txn)?.ok_or_else(|| ErrorObjectOwned::from(NO_BLOCKS))?;
         let header: BlockHeader = get_block_header_by_number(&txn, block_number)?.into();
 
-        Ok(BlockHashAndNumber { block_hash: header.block_hash, block_number })
+        Ok(BlockHashAndNumber { hash: header.block_hash, number: block_number })
     }
 
     #[instrument(skip(self), level = "debug", err, ret)]
@@ -850,16 +850,16 @@ impl JsonRpcServer for JsonRpcServerImpl {
         };
         let current_block =
             get_last_synced_block(self.storage_reader.clone()).map_err(internal_server_error)?;
-        if highest_block.block_number <= current_block.block_number {
+        if highest_block.number <= current_block.number {
             return Ok(SyncingState::Synced);
         }
         Ok(SyncingState::SyncStatus(SyncStatus {
-            starting_block_hash: self.starting_block.block_hash,
-            starting_block_num: self.starting_block.block_number,
-            current_block_hash: current_block.block_hash,
-            current_block_num: current_block.block_number,
-            highest_block_hash: highest_block.block_hash,
-            highest_block_num: highest_block.block_number,
+            starting_block_hash: self.starting_block.hash,
+            starting_block_num: self.starting_block.number,
+            current_block_hash: current_block.hash,
+            current_block_num: current_block.number,
+            highest_block_hash: highest_block.hash,
+            highest_block_num: highest_block.number,
         }))
     }
 

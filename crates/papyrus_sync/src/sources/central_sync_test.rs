@@ -8,7 +8,6 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use futures::StreamExt;
 use indexmap::IndexMap;
 use papyrus_common::pending_classes::{ApiContractClass, PendingClasses};
-use papyrus_common::BlockHashAndNumber;
 use papyrus_storage::base_layer::BaseLayerStorageReader;
 use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::state::StateStorageReader;
@@ -18,6 +17,7 @@ use starknet_api::block::{
     Block,
     BlockBody,
     BlockHash,
+    BlockHashAndNumber,
     BlockHeader,
     BlockHeaderWithoutHash,
     BlockNumber,
@@ -183,8 +183,8 @@ async fn sync_happy_flow() {
     let mut central_mock = MockCentralSourceTrait::new();
     central_mock.expect_get_latest_block().returning(|| {
         Ok(Some(BlockHashAndNumber {
-            block_number: LATEST_BLOCK_NUMBER,
-            block_hash: create_block_hash(LATEST_BLOCK_NUMBER, false),
+            number: LATEST_BLOCK_NUMBER,
+            hash: create_block_hash(LATEST_BLOCK_NUMBER, false),
         }))
     });
     central_mock.expect_stream_new_blocks().returning(move |initial, up_to| {
@@ -449,8 +449,8 @@ async fn sync_with_revert() {
             .prev()
             .unwrap();
             Ok(Some(BlockHashAndNumber {
-                block_hash: create_block_hash(block_number, already_reverted),
-                block_number,
+                hash: create_block_hash(block_number, already_reverted),
+                number: block_number,
             }))
         }
 
@@ -611,8 +611,8 @@ async fn test_unrecoverable_sync_error_flow() {
     let mut mock = MockCentralSourceTrait::new();
     mock.expect_get_latest_block().returning(|| {
         Ok(Some(BlockHashAndNumber {
-            block_number: LATEST_BLOCK_NUMBER,
-            block_hash: create_block_hash(LATEST_BLOCK_NUMBER, false),
+            number: LATEST_BLOCK_NUMBER,
+            hash: create_block_hash(LATEST_BLOCK_NUMBER, false),
         }))
     });
     mock.expect_stream_new_blocks().returning(move |_, _| {
