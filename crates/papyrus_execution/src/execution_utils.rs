@@ -116,6 +116,9 @@ pub fn get_trace_constructor(
 /// Returns the state diff induced by a single transaction. If the transaction
 /// is a deprecated Declare, the user is required to pass the class hash of the deprecated class as
 /// it is not provided by the blockifier API.
+// TODO(Dan, Yair): consider box large elements (because of BadDeclareTransaction) or use ID
+// instead.
+#[allow(clippy::result_large_err)]
 pub fn induced_state_diff(
     transactional_state: &mut CachedState<MutRefState<'_, CachedState<ExecutionStateReader>>>,
     deprecated_declared_class_hash: Option<ClassHash>,
