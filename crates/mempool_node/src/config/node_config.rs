@@ -15,7 +15,6 @@ use starknet_consensus_manager::config::ConsensusManagerConfig;
 use starknet_gateway::config::{GatewayConfig, RpcStateReaderConfig};
 use starknet_http_server::config::HttpServerConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
-use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 use validator::Validate;
 
 use crate::config::ComponentConfig;
@@ -57,8 +56,6 @@ pub struct SequencerNodeConfig {
     #[validate]
     pub rpc_state_reader_config: RpcStateReaderConfig,
     #[validate]
-    pub compiler_config: SierraToCasmCompilationConfig,
-    #[validate]
     pub monitoring_endpoint_config: MonitoringEndpointConfig,
 }
 
@@ -75,7 +72,6 @@ impl SerializeConfig for SequencerNodeConfig {
             append_sub_config_name(self.gateway_config.dump(), "gateway_config"),
             append_sub_config_name(self.http_server_config.dump(), "http_server_config"),
             append_sub_config_name(self.rpc_state_reader_config.dump(), "rpc_state_reader_config"),
-            append_sub_config_name(self.compiler_config.dump(), "compiler_config"),
             append_sub_config_name(
                 self.monitoring_endpoint_config.dump(),
                 "monitoring_endpoint_config",
@@ -96,7 +92,6 @@ impl Default for SequencerNodeConfig {
             gateway_config: Default::default(),
             http_server_config: Default::default(),
             rpc_state_reader_config: Default::default(),
-            compiler_config: Default::default(),
             monitoring_endpoint_config: Default::default(),
         }
     }
