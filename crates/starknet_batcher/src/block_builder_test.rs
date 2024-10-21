@@ -4,7 +4,8 @@ use blockifier::blockifier::transaction_executor::{
     TransactionExecutorError as BlockifierTransactionExecutorError,
 };
 use blockifier::bouncer::BouncerWeights;
-use blockifier::transaction::objects::TransactionExecutionInfo;
+use blockifier::fee::fee_checks::FeeCheckError;
+use blockifier::transaction::objects::{RevertError, TransactionExecutionInfo};
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use indexmap::IndexMap;
 use mockall::predicate::eq;
@@ -12,6 +13,7 @@ use mockall::Sequence;
 use rstest::rstest;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::felt;
+use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::TransactionHash;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
@@ -49,7 +51,13 @@ fn block_execution_artifacts(
 
 // Filling the execution_info with some non-default values to make sure the block_builder uses them.
 fn execution_info() -> TransactionExecutionInfo {
-    TransactionExecutionInfo { revert_error: Some("Test string".to_string()), ..Default::default() }
+    TransactionExecutionInfo {
+        revert_error: Some(RevertError::PostExecution(FeeCheckError::MaxFeeExceeded {
+            max_fee: Fee(100),
+            actual_fee: Fee(101),
+        })),
+        ..Default::default()
+    }
 }
 
 fn one_chunk_test_expectations(

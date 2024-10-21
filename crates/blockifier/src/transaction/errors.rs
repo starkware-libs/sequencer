@@ -70,17 +70,11 @@ pub enum TransactionExecutionError {
          version {cairo_version:?}.", **declare_version
     )]
     ContractClassVersionMismatch { declare_version: TransactionVersion, cairo_version: u64 },
-    #[error(
-        "Contract constructor execution has failed:\n{}",
-        String::from(gen_tx_execution_error_trace(self))
-    )]
+    #[error("{}", gen_tx_execution_error_trace(self))]
     ContractConstructorExecutionFailed(#[from] ConstructorEntryPointExecutionError),
     #[error("Class with hash {:#064x} is already declared.", **class_hash)]
     DeclareTransactionError { class_hash: ClassHash },
-    #[error(
-        "Transaction execution has failed:\n{}",
-        String::from(gen_tx_execution_error_trace(self))
-    )]
+    #[error("{}", gen_tx_execution_error_trace(self))]
     ExecutionError {
         error: EntryPointExecutionError,
         class_hash: ClassHash,
@@ -115,10 +109,7 @@ pub enum TransactionExecutionError {
          transaction size: {}.", *max_capacity, *tx_size
     )]
     TransactionTooLarge { max_capacity: Box<BouncerWeights>, tx_size: Box<BouncerWeights> },
-    #[error(
-        "Transaction validation has failed:\n{}",
-        String::from(gen_tx_execution_error_trace(self))
-    )]
+    #[error("{}", gen_tx_execution_error_trace(self))]
     ValidateTransactionError {
         error: EntryPointExecutionError,
         class_hash: ClassHash,
