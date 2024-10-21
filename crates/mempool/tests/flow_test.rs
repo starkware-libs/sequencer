@@ -24,11 +24,11 @@ fn mempool() -> Mempool {
 fn test_add_tx_fills_nonce_gap(mut mempool: Mempool) {
     // Setup.
     let input_address_0_nonce_0 =
-        add_tx_input!(tx_hash: 1, sender_address: "0x0", tx_nonce: 0, account_nonce: 0);
+        add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 0, account_nonce: 0);
     let input_address_0_nonce_1 =
-        add_tx_input!(tx_hash: 2, sender_address: "0x0", tx_nonce: 1, account_nonce: 0);
+        add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 1, account_nonce: 0);
     let input_address_1_nonce_0 =
-        add_tx_input!(tx_hash: 3, sender_address: "0x1", tx_nonce: 0, account_nonce: 0);
+        add_tx_input!(tx_hash: 3, address: "0x1", tx_nonce: 0, account_nonce: 0);
 
     for input in [&input_address_0_nonce_1, &input_address_1_nonce_0] {
         add_tx(&mut mempool, input);
@@ -68,11 +68,11 @@ fn test_add_tx_after_get_txs_fails_on_duplicate_nonce(mut mempool: Mempool) {
 fn test_add_same_nonce_tx_after_previous_not_included_in_block(mut mempool: Mempool) {
     // Setup.
     let tx_nonce_3_account_nonce_3 =
-        add_tx_input!(tx_hash: 1, sender_address: "0x0", tx_nonce: 3, account_nonce: 3);
+        add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 3, account_nonce: 3);
     let tx_nonce_4_account_nonce_3 =
-        add_tx_input!(tx_hash: 2, sender_address: "0x0", tx_nonce: 4, account_nonce: 3);
+        add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 4, account_nonce: 3);
     let tx_nonce_5_account_nonce_3 =
-        add_tx_input!(tx_hash: 3, sender_address: "0x0", tx_nonce: 5, account_nonce: 3);
+        add_tx_input!(tx_hash: 3, address: "0x0", tx_nonce: 5, account_nonce: 3);
 
     for input in
         [&tx_nonce_3_account_nonce_3, &tx_nonce_4_account_nonce_3, &tx_nonce_5_account_nonce_3]
@@ -92,7 +92,7 @@ fn test_add_same_nonce_tx_after_previous_not_included_in_block(mut mempool: Memp
     commit_block(&mut mempool, nonces, tx_hashes);
 
     let tx_nonce_4_account_nonce_4 =
-        add_tx_input!(tx_hash: 4, sender_address: "0x0", tx_nonce: 4, account_nonce: 4);
+        add_tx_input!(tx_hash: 4, address: "0x0", tx_nonce: 4, account_nonce: 4);
     add_tx_expect_error(
         &mut mempool,
         &tx_nonce_4_account_nonce_4,
@@ -110,19 +110,19 @@ fn test_add_same_nonce_tx_after_previous_not_included_in_block(mut mempool: Memp
 fn test_commit_block_includes_proposed_txs_subset(mut mempool: Mempool) {
     // Setup.
     let tx_address_0_nonce_3 =
-        add_tx_input!(tx_hash: 1, sender_address: "0x0", tx_nonce: 3, account_nonce: 3);
+        add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 3, account_nonce: 3);
     let tx_address_0_nonce_5 =
-        add_tx_input!(tx_hash: 2, sender_address: "0x0", tx_nonce: 5, account_nonce: 3);
+        add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 5, account_nonce: 3);
     let tx_address_0_nonce_6 =
-        add_tx_input!(tx_hash: 3, sender_address: "0x0", tx_nonce: 6, account_nonce: 3);
+        add_tx_input!(tx_hash: 3, address: "0x0", tx_nonce: 6, account_nonce: 3);
     let tx_address_1_nonce_0 =
-        add_tx_input!(tx_hash: 4, sender_address: "0x1", tx_nonce: 0, account_nonce: 0);
+        add_tx_input!(tx_hash: 4, address: "0x1", tx_nonce: 0, account_nonce: 0);
     let tx_address_1_nonce_1 =
-        add_tx_input!(tx_hash: 5, sender_address: "0x1", tx_nonce: 1, account_nonce: 0);
+        add_tx_input!(tx_hash: 5, address: "0x1", tx_nonce: 1, account_nonce: 0);
     let tx_address_1_nonce_2 =
-        add_tx_input!(tx_hash: 6, sender_address: "0x1", tx_nonce: 2, account_nonce: 0);
+        add_tx_input!(tx_hash: 6, address: "0x1", tx_nonce: 2, account_nonce: 0);
     let tx_address_2_nonce_2 =
-        add_tx_input!(tx_hash: 7, sender_address: "0x2", tx_nonce: 2, account_nonce: 2);
+        add_tx_input!(tx_hash: 7, address: "0x2", tx_nonce: 2, account_nonce: 2);
 
     for input in [
         &tx_address_0_nonce_5,
@@ -164,9 +164,9 @@ fn test_commit_block_includes_proposed_txs_subset(mut mempool: Mempool) {
 fn test_flow_commit_block_fills_nonce_gap(mut mempool: Mempool) {
     // Setup.
     let tx_nonce_3_account_nonce_3 =
-        add_tx_input!(tx_hash: 1, sender_address: "0x0", tx_nonce: 3, account_nonce: 3);
+        add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 3, account_nonce: 3);
     let tx_nonce_5_account_nonce_3 =
-        add_tx_input!(tx_hash: 2, sender_address: "0x0", tx_nonce: 5, account_nonce: 3);
+        add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 5, account_nonce: 3);
 
     // Test.
     for input in [&tx_nonce_3_account_nonce_3, &tx_nonce_5_account_nonce_3] {
@@ -181,7 +181,7 @@ fn test_flow_commit_block_fills_nonce_gap(mut mempool: Mempool) {
 
     // Assert: hole was indeed closed.
     let tx_nonce_4_account_nonce_4 =
-        add_tx_input!(tx_hash: 3, sender_address: "0x0", tx_nonce: 4, account_nonce: 4);
+        add_tx_input!(tx_hash: 3, address: "0x0", tx_nonce: 4, account_nonce: 4);
     add_tx_expect_error(
         &mut mempool,
         &tx_nonce_4_account_nonce_4,
