@@ -2,8 +2,6 @@
 #[path = "version_test.rs"]
 mod version_test;
 
-use std::fmt::Display;
-
 use crate::db::table_types::Table;
 use crate::db::{TransactionKind, RW};
 use crate::{StorageError, StorageResult, StorageTxn};
@@ -126,7 +124,7 @@ impl<'env> VersionStorageWriter for StorageTxn<'env, RW> {
     }
 }
 
-impl Display for Version {
+impl std::fmt::Display for Version {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let major = self.major.to_string();
         let minor = self.minor.to_string();

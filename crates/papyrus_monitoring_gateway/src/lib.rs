@@ -6,7 +6,6 @@
 mod gateway_test;
 
 use std::collections::{BTreeMap, HashMap};
-use std::fmt::Display;
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -103,7 +102,7 @@ impl SerializeConfig for MonitoringGatewayConfig {
     }
 }
 
-impl Display for MonitoringGatewayConfig {
+impl std::fmt::Display for MonitoringGatewayConfig {
     #[cfg_attr(coverage_nightly, coverage_attribute)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{self:?}")
