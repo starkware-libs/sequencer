@@ -1,8 +1,11 @@
+use std::sync::Arc;
+
 use starknet_batcher::batcher::{create_batcher, Batcher};
 use starknet_consensus_manager::consensus_manager::ConsensusManager;
 use starknet_gateway::gateway::{create_gateway, Gateway};
 use starknet_http_server::http_server::{create_http_server, HttpServer};
-use starknet_mempool::mempool::Mempool;
+use starknet_mempool::communication::{create_mempool, MempoolCommunicationWrapper};
+use starknet_mempool_p2p::sender::EmptyMempoolP2pPropagatorClient;
 use starknet_monitoring_endpoint::monitoring_endpoint::{
     create_monitoring_endpoint,
     MonitoringEndpoint,
@@ -17,7 +20,7 @@ pub struct SequencerNodeComponents {
     pub consensus_manager: Option<ConsensusManager>,
     pub gateway: Option<Gateway>,
     pub http_server: Option<HttpServer>,
-    pub mempool: Option<Mempool>,
+    pub mempool: Option<MempoolCommunicationWrapper>,
     pub monitoring_endpoint: Option<MonitoringEndpoint>,
 }
 
@@ -64,7 +67,15 @@ pub fn create_node_components(
         None
     };
 
-    let mempool = if config.components.mempool.execute { Some(Mempool::empty()) } else { None };
+    let mempool = if config.components.mempool.execute {
+        // TODO(Lukach): obtain the mempool_p2p_propagator_client from 'clients', pass it as an
+        // argument to create_mempool.
+        let mempool_p2p_propagator_client = Arc::new(EmptyMempoolP2pPropagatorClient);
+        let mempool = create_mempool(mempool_p2p_propagator_client);
+        Some(mempool)
+    } else {
+        None
+    };
 
     let monitoring_endpoint = if config.components.monitoring_endpoint.execute {
         Some(create_monitoring_endpoint(config.monitoring_endpoint_config.clone(), VERSION_FULL))
