@@ -16,7 +16,6 @@ async-trait.workspace = true
 axum.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
 cairo-lang-starknet-classes.workspace = true
-hyper.workspace = true
 mempool_test_utils.workspace = true
 papyrus_config.workspace = true
 papyrus_network_types.workspace = true
