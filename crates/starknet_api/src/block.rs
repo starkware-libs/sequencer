@@ -289,6 +289,14 @@ impl BlockNumber {
     }
 }
 
+/// A pair of a [BlockHash](`crate::block::BlockHash`) and a
+/// [BlockNumber](`crate::block::BlockNumber`).
+#[derive(Copy, Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+pub struct BlockHashAndNumber {
+    pub block_hash: BlockHash,
+    pub block_number: BlockNumber,
+}
+
 // TODO(yair): Consider moving GasPricePerToken and GasPrice to core.
 /// The gas price per token.
 #[derive(
