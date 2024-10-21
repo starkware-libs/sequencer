@@ -1,7 +1,6 @@
 use cairo_native::execution_result::ContractExecutionResult;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use num_traits::ToPrimitive;
-use starknet_api::execution_utils::format_panic_data;
 
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::contract_class::{NativeContractClassV1, TrackedResource};
@@ -39,23 +38,11 @@ pub fn execute_entry_point_call(
         &mut syscall_handler,
     );
 
-    let call_result = match execution_result {
-        Err(runner_err) => Err(EntryPointExecutionError::NativeUnexpectedError(runner_err)),
-        Ok(res)
-            if res.failure_flag
-                && !syscall_handler.context.versioned_constants().enable_reverts =>
-        {
-            Err(EntryPointExecutionError::ExecutionFailed {
-                error_trace: format_panic_data(&res.return_values),
-            })
-        }
-        Ok(res) => Ok(res),
-    }?;
-
-    create_callinfo(call, call_result, syscall_handler)
+    let call_result = execution_result.map_err(EntryPointExecutionError::NativeUnexpectedError)?;
+    create_call_info(call, call_result, syscall_handler)
 }
 
-fn create_callinfo(
+fn create_call_info(
     call: CallEntryPoint,
     call_result: ContractExecutionResult,
     syscall_handler: NativeSyscallHandler<'_>,

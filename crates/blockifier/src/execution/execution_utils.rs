@@ -31,8 +31,13 @@ use crate::execution::entry_point::{
     EntryPointExecutionContext,
     EntryPointExecutionResult,
 };
-use crate::execution::errors::{ConstructorEntryPointExecutionError, PostExecutionError};
+use crate::execution::errors::{
+    ConstructorEntryPointExecutionError,
+    EntryPointExecutionError,
+    PostExecutionError,
+};
 use crate::execution::native::entry_point_execution as native_entry_point_execution;
+use crate::execution::stack_trace::extract_trailing_cairo1_revert_trace;
 use crate::execution::{deprecated_entry_point_execution, entry_point_execution};
 use crate::state::errors::StateError;
 use crate::state::state_api::State;
@@ -76,6 +81,13 @@ pub fn execute_entry_point_call_wrapper(
     context.tracked_resource_stack.pop();
 
     if let Ok(call_info) = &res {
+        if call_info.execution.failed && !context.versioned_constants().enable_reverts {
+            // Reverts are disabled.
+            return Err(EntryPointExecutionError::ExecutionFailed {
+                error_trace: extract_trailing_cairo1_revert_trace(call_info),
+            });
+        }
+
         update_remaining_gas(remaining_gas, call_info);
     }
 
