@@ -605,7 +605,10 @@ pub fn estimate_fee(
     for (index, tx_execution_output) in txs_execution_info.into_iter().enumerate() {
         // If the transaction reverted, fail the entire estimation.
         if let Some(revert_reason) = tx_execution_output.execution_info.revert_error {
-            return Ok(Err(RevertedTransaction { index, revert_reason }));
+            return Ok(Err(RevertedTransaction {
+                index,
+                revert_reason: revert_reason.to_string(),
+            }));
         } else {
             result
                 .push(tx_execution_output_to_fee_estimation(&tx_execution_output, &block_context)?);
