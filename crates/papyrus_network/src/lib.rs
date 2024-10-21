@@ -25,7 +25,12 @@ use papyrus_config::converters::{
     deserialize_seconds_to_duration,
     serialize_optional_vec_u8,
 };
-use papyrus_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
+use papyrus_config::dumping::{
+    append_sub_config_name,
+    ser_optional_param,
+    ser_param,
+    SerializeConfig,
+};
 use papyrus_config::validators::validate_vec_u256;
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use peer_manager::PeerManagerConfig;
@@ -86,18 +91,6 @@ impl SerializeConfig for NetworkConfig {
                 "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
                 ParamPrivacyInput::Public,
             ),
-            ser_param(
-                "discovery_config",
-                &self.discovery_config,
-                "Config for the discovery protocol.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "peer_manager_config",
-                &self.peer_manager_config,
-                "Config for the peer manager.",
-                ParamPrivacyInput::Public,
-            ),
         ]);
         config.extend(ser_optional_param(
             &self.bootstrap_peer_multiaddr,
@@ -122,6 +115,9 @@ impl SerializeConfig for NetworkConfig {
              instead",
             ParamPrivacyInput::Public,
         ));
+        config.extend(append_sub_config_name(self.discovery_config.dump(), "discovery_config"));
+        config
+            .extend(append_sub_config_name(self.peer_manager_config.dump(), "peer_manager_config"));
         config
     }
 }
