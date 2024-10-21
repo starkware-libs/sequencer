@@ -11,6 +11,7 @@ mod state_diff;
 mod test_instances;
 mod transaction;
 
+use papyrus_common::compression_utils::CompressionError;
 use prost::DecodeError;
 
 #[derive(thiserror::Error, PartialEq, Debug, Clone)]
@@ -23,6 +24,24 @@ pub enum ProtobufConversionError {
     BytesDataLengthMismatch { type_description: &'static str, num_expected: usize, value: Vec<u8> },
     #[error(transparent)]
     DecodeError(#[from] DecodeError),
+    /// For CompressionError and serde_json::Error we put the string of the error instead of the
+    /// original error because the original error does not derive ParitalEq and Clone Traits
+    #[error("Unexpected compression utils error: {0}")]
+    CompressionError(String),
+    #[error("Unexpected serde_json error: {0}")]
+    SerdeJsonError(String),
+}
+
+impl From<CompressionError> for ProtobufConversionError {
+    fn from(error: CompressionError) -> Self {
+        ProtobufConversionError::CompressionError(error.to_string())
+    }
+}
+
+impl From<serde_json::Error> for ProtobufConversionError {
+    fn from(error: serde_json::Error) -> Self {
+        ProtobufConversionError::SerdeJsonError(error.to_string())
+    }
 }
 
 #[macro_export]
