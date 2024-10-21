@@ -17,7 +17,7 @@ use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 
 use crate::integration_test_utils::{create_config, HttpTestClient};
-use crate::state_reader::{spawn_test_rpc_state_reader, StorageTestSetup};
+use crate::state_reader::{spawn_test_rpc_state_reader, StorageTestSetup, TestedContractAdresses};
 
 pub struct IntegrationTestSetup {
     pub task_executor: TokioExecutor,
@@ -35,6 +35,9 @@ pub struct IntegrationTestSetup {
 
     // Handle of the sequencer node.
     pub sequencer_node_handle: JoinHandle<Result<(), anyhow::Error>>,
+
+    // Contract addresses of the contracts used in the tests.
+    pub tested_contract_addresses: TestedContractAdresses,
 }
 
 impl IntegrationTestSetup {
@@ -80,6 +83,7 @@ impl IntegrationTestSetup {
             batcher_client: clients.get_batcher_client().unwrap(),
             rpc_storage_file_handle: storage_for_test.rpc_storage_handle,
             sequencer_node_handle,
+            tested_contract_addresses: storage_for_test.tested_contract_addresses,
         }
     }
 

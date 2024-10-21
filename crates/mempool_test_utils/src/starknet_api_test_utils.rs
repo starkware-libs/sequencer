@@ -180,10 +180,12 @@ pub fn invoke_tx(cairo_version: CairoVersion) -> RpcTransaction {
 
 pub fn executable_invoke_tx(cairo_version: CairoVersion) -> Transaction {
     let default_account = FeatureContract::AccountWithoutValidations(cairo_version);
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
 
     let mut tx_generator = MultiAccountTransactionGenerator::new();
     tx_generator.register_account(default_account);
-    tx_generator.account_with_id(0).generate_executable_invoke()
+    let calldata = create_trivial_calldata(test_contract.get_instance_address(0));
+    tx_generator.account_with_id(0).generate_executable_invoke(calldata)
 }
 
 pub fn generate_deploy_account_with_salt(
@@ -293,7 +295,7 @@ pub struct AccountTransactionGenerator {
 
 impl AccountTransactionGenerator {
     /// Generate a valid `RpcTransaction` with default parameters.
-    pub fn generate_invoke_with_tip(&mut self, tip: u64) -> RpcTransaction {
+    pub fn generate_invoke_with_tip(&mut self, tip: u64, calldata: Calldata) -> RpcTransaction {
         let nonce = self.next_nonce();
         assert_ne!(
             nonce,
@@ -306,12 +308,12 @@ impl AccountTransactionGenerator {
             tip : Tip(tip),
             sender_address: self.sender_address(),
             resource_bounds: ValidResourceBounds::AllResources(test_resource_bounds_mapping()),
-            calldata: create_trivial_calldata(self.sender_address()),
+            calldata,
         );
         rpc_invoke_tx(invoke_args)
     }
 
-    pub fn generate_executable_invoke(&mut self) -> Transaction {
+    pub fn generate_executable_invoke(&mut self, calldata: Calldata) -> Transaction {
         let nonce = self.next_nonce();
         assert_ne!(
             nonce,
@@ -324,7 +326,7 @@ impl AccountTransactionGenerator {
             sender_address: self.sender_address(),
             resource_bounds: test_valid_resource_bounds(),
             nonce,
-            calldata: create_trivial_calldata(self.sender_address()),
+            calldata,
         );
 
         Transaction::Invoke(starknet_api::test_utils::invoke::executable_invoke_tx(invoke_args))

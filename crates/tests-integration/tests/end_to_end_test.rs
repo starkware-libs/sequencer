@@ -1,3 +1,4 @@
+use blockifier::test_utils::create_trivial_calldata;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
@@ -18,10 +19,16 @@ fn tx_generator() -> MultiAccountTransactionGenerator {
 async fn test_end_to_end(mut tx_generator: MultiAccountTransactionGenerator) {
     // Setup.
     let mock_running_system = IntegrationTestSetup::new_from_tx_generator(&tx_generator).await;
+    let calldata = create_trivial_calldata(
+        mock_running_system.tested_contract_addresses.test_contract_address,
+    );
 
-    let account0_invoke_nonce1 = tx_generator.account_with_id(0).generate_invoke_with_tip(1);
-    let account0_invoke_nonce2 = tx_generator.account_with_id(0).generate_invoke_with_tip(2);
-    let account1_invoke_nonce1 = tx_generator.account_with_id(1).generate_invoke_with_tip(3);
+    let account0_invoke_nonce1 =
+        tx_generator.account_with_id(0).generate_invoke_with_tip(1, calldata.clone());
+    let account0_invoke_nonce2 =
+        tx_generator.account_with_id(0).generate_invoke_with_tip(2, calldata.clone());
+    let account1_invoke_nonce1 =
+        tx_generator.account_with_id(1).generate_invoke_with_tip(3, calldata);
 
     let account0_invoke_nonce1_tx_hash =
         mock_running_system.assert_add_tx_success(&account0_invoke_nonce1).await;

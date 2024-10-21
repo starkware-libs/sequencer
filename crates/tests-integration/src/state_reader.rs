@@ -58,19 +58,25 @@ use crate::integration_test_utils::get_available_socket;
 type ContractClassesMap =
     (Vec<(ClassHash, DeprecatedContractClass)>, Vec<(ClassHash, CasmContractClass)>);
 
+pub struct TestedContractAdresses {
+    pub test_contract_address: ContractAddress,
+}
+
 pub struct StorageTestSetup {
     pub chain_id: ChainId,
     pub rpc_storage_reader: StorageReader,
     pub rpc_storage_handle: TempDir,
     pub batcher_storage_config: StorageConfig,
     pub batcher_storage_handle: TempDir,
+    pub tested_contract_addresses: TestedContractAdresses,
 }
 
 impl StorageTestSetup {
     pub fn new(test_defined_accounts: Vec<Contract>) -> Self {
         let ((rpc_storage_reader, mut rpc_storage_writer), rpc_storage_file_handle) =
             get_test_storage();
-        create_test_state(&mut rpc_storage_writer, test_defined_accounts.clone());
+        let tested_contract_addresses =
+            create_test_state(&mut rpc_storage_writer, test_defined_accounts.clone());
         let ((_, mut batcher_storage_writer), batcher_storage_config, batcher_storage_file_handle) =
             get_test_storage_with_config_by_scope(papyrus_storage::StorageScope::StateOnly);
         create_test_state(&mut batcher_storage_writer, test_defined_accounts);
@@ -80,25 +86,35 @@ impl StorageTestSetup {
             rpc_storage_handle: rpc_storage_file_handle,
             batcher_storage_config,
             batcher_storage_handle: batcher_storage_file_handle,
+            tested_contract_addresses,
         }
     }
 }
 
 /// A variable number of identical accounts and test contracts are initialized and funded.
-fn create_test_state(storage_writer: &mut StorageWriter, test_defined_accounts: Vec<Contract>) {
+fn create_test_state(
+    storage_writer: &mut StorageWriter,
+    test_defined_accounts: Vec<Contract>,
+) -> TestedContractAdresses {
     let block_context = BlockContext::create_for_testing();
 
     let into_contract = |contract: FeatureContract| Contract {
         contract,
         sender_address: contract.get_instance_address(0),
     };
-    let default_test_contracts = [
-        FeatureContract::TestContract(CairoVersion::Cairo0),
-        FeatureContract::TestContract(CairoVersion::Cairo1),
-    ]
-    .into_iter()
-    .map(into_contract)
-    .collect();
+
+    let cairo_0_test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
+    let tested_addresses = TestedContractAdresses {
+        test_contract_address: cairo_0_test_contract.get_instance_address(0),
+    };
+
+    // TODO(Arni/Gilad): test contracts are not account contracts, so they do not need the
+    // ['Contract'] wrapper and the extended functionality it provides.
+    let default_test_contracts: Vec<Contract> =
+        [cairo_0_test_contract, FeatureContract::TestContract(CairoVersion::Cairo1)]
+            .into_iter()
+            .map(into_contract)
+            .collect();
 
     let erc20_contract = FeatureContract::ERC20(CairoVersion::Cairo0);
     let erc20_contract = into_contract(erc20_contract);
@@ -110,6 +126,8 @@ fn create_test_state(storage_writer: &mut StorageWriter, test_defined_accounts: 
         default_test_contracts,
         erc20_contract,
     );
+
+    tested_addresses
 }
 
 fn initialize_papyrus_test_state(
