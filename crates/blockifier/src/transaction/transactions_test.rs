@@ -1506,6 +1506,103 @@ fn test_declare_tx(
 }
 
 #[rstest]
+fn test_declare_tx_v0(default_l1_resource_bounds: ValidResourceBounds) {
+    let account_cairo_version = CairoVersion::Cairo0; //defoult
+    let use_kzg_da = true; //default
+    let tx_version = TransactionVersion::ZERO;
+    let block_context = &BlockContext::create_for_account_testing_with_kzg(use_kzg_da);
+    let versioned_constants = &block_context.versioned_constants;
+    let empty_contract = FeatureContract::Empty(CairoVersion::Cairo0);
+    let account = FeatureContract::AccountWithoutValidations(account_cairo_version);
+    let chain_info = &block_context.chain_info;
+    let state = &mut test_state(chain_info, BALANCE, &[(account, 1)]);
+    let class_hash = empty_contract.get_class_hash();
+    let compiled_class_hash = empty_contract.get_compiled_class_hash();
+    let class_info = calculate_class_info_for_testing(empty_contract.get_class());
+    let sender_address = account.get_instance_address(0);
+    let mut nonce_manager = NonceManager::default();
+    let state_changes_for_fee = declare_expected_state_changes_count(tx_version);
+    let starknet_resources = StarknetResources::new(
+        0,
+        0,
+        class_info.code_size(),
+        StateResources::new_for_testing(state_changes_for_fee),
+        None,
+        ExecutionSummary::default(),
+    );
+    let account_tx = declare_tx(
+        declare_tx_args! {
+            max_fee: MAX_FEE,
+            sender_address,
+            version: tx_version,
+            resource_bounds: default_l1_resource_bounds,
+            class_hash,
+            compiled_class_hash,
+            nonce: nonce_manager.next(sender_address),
+        },
+        class_info.clone(),
+    );
+
+    let actual_execution_info = account_tx.execute(state, block_context, true, true).unwrap();
+
+    // Build expected validate call info.
+    let expected_validate_call_info = declare_validate_callinfo(
+        tx_version,
+        account_cairo_version,
+        class_hash,
+        account.get_class_hash(),
+        sender_address,
+        account
+            .get_class()
+            .tracked_resource(&versioned_constants.min_compiler_version_for_sierra_gas),
+    );
+
+    let da_gas = starknet_resources.state.to_gas_vector(use_kzg_da);
+    let expected_cairo_resources = get_expected_cairo_resources(
+        versioned_constants,
+        TransactionType::Declare,
+        &starknet_resources,
+        vec![&expected_validate_call_info],
+    );
+    let mut expected_actual_resources = TransactionResources {
+        starknet_resources,
+        computation: ComputationResources {
+            vm_resources: expected_cairo_resources,
+            ..Default::default()
+        },
+    };
+
+    add_kzg_da_resources_to_resources_mapping(
+        &mut expected_actual_resources.computation.vm_resources,
+        &state_changes_for_fee,
+        versioned_constants,
+        use_kzg_da,
+    );
+
+    let expected_total_gas = expected_actual_resources.to_gas_vector(
+        versioned_constants,
+        use_kzg_da,
+        &GasVectorComputationMode::NoL2Gas,
+    );
+
+    let expected_execution_info = TransactionExecutionInfo {
+        validate_call_info: expected_validate_call_info,
+        execute_call_info: None,
+        fee_transfer_call_info: None,
+        receipt: TransactionReceipt {
+            fee: Fee(0),
+            da_gas,
+            resources: expected_actual_resources,
+            gas: expected_total_gas,
+        },
+        revert_error: None,
+    };
+
+    // Test execution info result.
+    assert_eq!(actual_execution_info, expected_execution_info);
+}
+
+#[rstest]
 fn test_deploy_account_tx(
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
     #[values(false, true)] use_kzg_da: bool,
