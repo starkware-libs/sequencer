@@ -187,14 +187,14 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
     fn store(data: &mut StreamData<T>, key: StreamKey, message: StreamMessage<T>) {
         let message_id = message.message_id;
 
-        if data.message_buffer.contains_key(&message_id) {
+        if let std::collections::btree_map::Entry::Vacant(e) = data.message_buffer.entry(message_id) {
+            e.insert(message);
+        } else {
             // TODO(guyn): replace warnings with more graceful error handling
             warn!(
                 "Two messages with the same message_id in buffer! key: {:?}, message_id: {}",
                 key, message_id
             );
-        } else {
-            data.message_buffer.insert(message_id, message);
         }
     }
 
