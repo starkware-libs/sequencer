@@ -12,7 +12,7 @@ use thiserror::Error;
 use crate::bouncer::BouncerWeights;
 use crate::execution::call_info::Retdata;
 use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
-use crate::execution::stack_trace::{gen_tx_execution_error_trace, Cairo1RevertStack};
+use crate::execution::stack_trace::{gen_tx_execution_error_trace, Cairo1RevertSummary};
 use crate::fee::fee_checks::FeeCheckError;
 use crate::state::errors::StateError;
 
@@ -91,8 +91,8 @@ pub enum TransactionExecutionError {
     FeeCheckError(#[from] FeeCheckError),
     #[error(transparent)]
     FromStr(#[from] FromStrError),
-    #[error("The `validate` entry point panicked with:\n{panic_reason}.")]
-    PanicInValidate { panic_reason: Cairo1RevertStack },
+    #[error("{panic_reason}")]
+    PanicInValidate { panic_reason: Cairo1RevertSummary },
     #[error("The `validate` entry point should return `VALID`. Got {actual:?}.")]
     InvalidValidateReturnData { actual: Retdata },
     #[error(

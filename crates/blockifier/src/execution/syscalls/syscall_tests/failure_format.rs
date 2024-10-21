@@ -3,7 +3,7 @@ use starknet_api::felt;
 
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::errors::EntryPointExecutionError;
-use crate::execution::stack_trace::extract_trailing_cairo1_revert_trace;
+use crate::execution::stack_trace::{extract_trailing_cairo1_revert_trace, Cairo1RevertHeader};
 
 #[test]
 fn test_syscall_failure_format() {
@@ -14,14 +14,15 @@ fn test_syscall_failure_format() {
         ..Default::default()
     };
     let error = EntryPointExecutionError::ExecutionFailed {
-        error_trace: extract_trailing_cairo1_revert_trace(&callinfo),
+        error_trace: extract_trailing_cairo1_revert_trace(&callinfo, Cairo1RevertHeader::Execution),
     };
     assert_eq!(
         error.to_string(),
         format!(
             "Execution failed. Failure reason:
 Error in contract (contract address: {:#064x}, class hash: _, selector: {:#064x}):
-{execution_failure} ('Execution failure').",
+{execution_failure} ('Execution failure').
+",
             ContractAddress::default().0.key(),
             EntryPointSelector::default().0
         )
