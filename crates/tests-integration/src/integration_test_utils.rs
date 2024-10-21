@@ -91,8 +91,8 @@ impl HttpTestClient {
         Self { socket, client }
     }
 
-    pub async fn assert_add_tx_success(&self, tx: RpcTransaction) -> TransactionHash {
-        let response = self.add_tx(tx).await;
+    pub async fn assert_add_tx_success(&self, rpc_tx: RpcTransaction) -> TransactionHash {
+        let response = self.add_tx(rpc_tx).await;
         assert!(response.status().is_success());
 
         response.json().await.unwrap()
@@ -105,8 +105,8 @@ impl HttpTestClient {
 
     // Prefer using assert_add_tx_success or other higher level methods of this client, to ensure
     // tests are boilerplate and implementation-detail free.
-    pub async fn add_tx(&self, tx: RpcTransaction) -> Response {
-        let tx_json = rpc_tx_to_json(&tx);
+    pub async fn add_tx(&self, rpc_tx: RpcTransaction) -> Response {
+        let tx_json = rpc_tx_to_json(&rpc_tx);
         self.client
             .post(format!("http://{}/add_tx", self.socket))
             .header("content-type", "application/json")
