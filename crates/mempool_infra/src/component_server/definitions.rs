@@ -2,12 +2,11 @@ use std::any::type_name;
 use std::fmt::Debug;
 
 use async_trait::async_trait;
-use thiserror::Error;
 use tokio::sync::mpsc::Receiver;
 use tracing::{debug, info};
 
 use crate::component_definitions::{ComponentRequestAndResponseSender, ComponentRequestHandler};
-use crate::errors::ComponentServerError;
+use crate::errors::{ComponentServerError, ReplaceComponentError};
 
 #[async_trait]
 pub trait ComponentServerStarter {
@@ -41,13 +40,6 @@ pub async fn request_response_loop<Request, Response, Component>(
     }
 
     info!("Stopping server for component {}", type_name::<Component>());
-}
-
-// TODO(Tsabary): Create an error module and move this error there.
-#[derive(Clone, Debug, Error)]
-pub enum ReplaceComponentError {
-    #[error("Internal error.")]
-    InternalError,
 }
 
 pub trait ComponentReplacer<Component> {
