@@ -308,7 +308,7 @@ mod tests {
         }
 
         // In this case the receiver is not closed, because we didn't send a fin.
-        assert!(matches!(receiver3.try_next(), Err(_)));
+        assert!(receiver3.try_next().is_err());
 
         // Stream_id3 should still be there, because we didn't send a fin.
         let values = [(peer_id.clone(), 1)];
