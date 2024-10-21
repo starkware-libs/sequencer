@@ -166,13 +166,10 @@ pub fn create_batcher(config: BatcherConfig, mempool_client: SharedMempoolClient
     let (storage_reader, storage_writer) = papyrus_storage::open_storage(config.storage.clone())
         .expect("Failed to open batcher's storage");
 
-    // TODO(Yael 15/10/2024): Add cache_size to the config.
-    let cache_size = 100;
-
     let block_builder_factory = Arc::new(BlockBuilderFactory {
         block_builder_config: config.block_builder_config.clone(),
         storage_reader: storage_reader.clone(),
-        global_class_hash_to_class: GlobalContractCache::new(cache_size),
+        global_class_hash_to_class: GlobalContractCache::new(config.global_contract_cache_size),
     });
     let storage_reader = Arc::new(storage_reader);
     let storage_writer = Box::new(storage_writer);

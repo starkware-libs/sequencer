@@ -134,6 +134,11 @@
     "privacy": "Public",
     "value": 1000000
   },
+  "batcher_config.global_contract_cache_size": {
+    "description": "Cache size for the global_class_hash_to_class. Initialized with this size on creation.",
+    "privacy": "Public",
+    "value": 100
+  },
   "batcher_config.outstream_content_buffer_size": {
     "description": "Maximum items to add to the outstream buffer before blocking further filling of the stream.",
     "privacy": "Public",
