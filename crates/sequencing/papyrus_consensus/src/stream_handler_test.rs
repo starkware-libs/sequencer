@@ -47,6 +47,7 @@ mod tests {
         sender.send((msg, metadata.clone())).await.unwrap();
     }
 
+    #[allow(clippy::type_complexity)]
     fn setup_test() -> (
         StreamHandler<ConsensusMessage>,
         MockBroadcastedMessagesSender<StreamMessage<ConsensusMessage>>,
