@@ -98,6 +98,7 @@ impl From<&VmExceptionFrame> for String {
 #[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Frame {
     EntryPoint(EntryPointErrorFrame),
+    Cairo1Tail(Cairo1RevertStack),
     Vm(VmExceptionFrame),
     StringFrame(String),
 }
@@ -106,6 +107,7 @@ impl From<&Frame> for String {
     fn from(value: &Frame) -> Self {
         match value {
             Frame::EntryPoint(entry_point_frame) => entry_point_frame.into(),
+            Frame::Cairo1Tail(cairo1_revert_stack) => cairo1_revert_stack.to_string(),
             Frame::Vm(vm_exception_frame) => vm_exception_frame.into(),
             Frame::StringFrame(error) => error.clone(),
         }
@@ -114,19 +116,25 @@ impl From<&Frame> for String {
 
 impl From<EntryPointErrorFrame> for Frame {
     fn from(value: EntryPointErrorFrame) -> Self {
-        Frame::EntryPoint(value)
+        Self::EntryPoint(value)
+    }
+}
+
+impl From<Cairo1RevertStack> for Frame {
+    fn from(value: Cairo1RevertStack) -> Self {
+        Self::Cairo1Tail(value)
     }
 }
 
 impl From<VmExceptionFrame> for Frame {
     fn from(value: VmExceptionFrame) -> Self {
-        Frame::Vm(value)
+        Self::Vm(value)
     }
 }
 
 impl From<String> for Frame {
     fn from(value: String) -> Self {
-        Frame::StringFrame(value)
+        Self::StringFrame(value)
     }
 }
 
@@ -157,7 +165,8 @@ impl ErrorStack {
         self.stack.push(frame);
     }
 }
-#[derive(Debug)]
+#[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, Debug)]
 pub struct Cairo1RevertFrame {
     pub contract_address: ContractAddress,
     pub class_hash: Option<ClassHash>,
@@ -199,8 +208,30 @@ impl Display for Cairo1RevertFrame {
     }
 }
 
-#[derive(Debug)]
+#[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, Copy, Debug)]
+pub enum Cairo1RevertHeader {
+    Execution,
+    Validation,
+}
+
+impl Display for Cairo1RevertHeader {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Execution => "Execution failed. Failure reason:",
+                Self::Validation => "The `validate` entry point panicked with:",
+            }
+        )
+    }
+}
+
+#[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, Debug)]
 pub struct Cairo1RevertStack {
+    pub header: Cairo1RevertHeader,
     pub stack: Vec<Cairo1RevertFrame>,
     pub last_retdata: Retdata,
 }
@@ -218,15 +249,20 @@ impl Display for Cairo1RevertStack {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         // Total string length is limited by TRACE_LENGTH_CAP.
 
+        let header = format!("{}", self.header);
+        let tail = ".\n";
+
         // Prioritize the failure reason felts over the frames.
-        // If the failure reason is too long to include a minimal frame trace, display only the
-        // failure reason (truncated if necessary).
+        // If the failure reason is too long to include a minimal frame trace + header + newline,
+        // display only the failure reason (truncated if necessary).
         let failure_reason = format_panic_data(&self.last_retdata.0);
-        if failure_reason.len() >= TRACE_LENGTH_CAP - *MIN_CAIRO1_FRAMES_STACK_LENGTH {
-            let output = if failure_reason.len() <= TRACE_LENGTH_CAP {
-                failure_reason
+        let string_without_frames =
+            [header.clone(), failure_reason.clone(), tail.into()].join("\n");
+        if string_without_frames.len() >= TRACE_LENGTH_CAP - *MIN_CAIRO1_FRAMES_STACK_LENGTH - 1 {
+            let output = if string_without_frames.len() <= TRACE_LENGTH_CAP {
+                string_without_frames
             } else {
-                failure_reason
+                string_without_frames
                     .chars()
                     .take(TRACE_LENGTH_CAP - Self::TRUNCATION_SEPARATOR.len())
                     .collect::<String>()
@@ -235,12 +271,12 @@ impl Display for Cairo1RevertStack {
             return write!(f, "{}", output);
         }
 
-        let untruncated_string = self
-            .stack
-            .iter()
-            .map(|frame| frame.to_string())
+        let untruncated_string = [header.clone()]
+            .into_iter()
+            .chain(self.stack.iter().map(|frame| frame.to_string()))
             .chain([failure_reason.clone()])
-            .join("\n");
+            .join("\n")
+            + tail;
         if untruncated_string.len() <= TRACE_LENGTH_CAP {
             return write!(f, "{}", untruncated_string);
         }
@@ -255,15 +291,16 @@ impl Display for Cairo1RevertStack {
         let final_string =
             match (self.stack.get(..self.stack.len() - n_frames_to_drop - 1), self.stack.last()) {
                 (Some(frames), Some(last_frame)) => {
-                    let combined_string = frames
-                        .iter()
-                        .map(|frame| frame.to_string())
+                    let combined_string = [header]
+                        .into_iter()
+                        .chain(frames.iter().map(|frame| frame.to_string()))
                         .chain([
                             String::from(Self::TRUNCATION_SEPARATOR),
                             last_frame.to_string(),
                             failure_reason,
                         ])
-                        .join("\n");
+                        .join("\n")
+                        + tail;
                     if combined_string.len() <= TRACE_LENGTH_CAP {
                         combined_string
                     } else {
@@ -286,9 +323,15 @@ impl Display for Cairo1RevertStack {
     }
 }
 
-pub fn extract_trailing_cairo1_revert_trace(root_call: &CallInfo) -> Cairo1RevertStack {
-    let fallback_value =
-        Cairo1RevertStack { stack: vec![], last_retdata: root_call.execution.retdata.clone() };
+pub fn extract_trailing_cairo1_revert_trace(
+    root_call: &CallInfo,
+    header: Cairo1RevertHeader,
+) -> Cairo1RevertStack {
+    let fallback_value = Cairo1RevertStack {
+        header,
+        stack: vec![],
+        last_retdata: root_call.execution.retdata.clone(),
+    };
     let entrypoint_failed_felt = Felt::from_hex(ENTRYPOINT_FAILED_ERROR)
         .unwrap_or_else(|_| panic!("{ENTRYPOINT_FAILED_ERROR} does not fit in a felt."));
 
@@ -336,6 +379,7 @@ pub fn extract_trailing_cairo1_revert_trace(root_call: &CallInfo) -> Cairo1Rever
     // If error_calls is empty, that means the root call is non-failing; return the fallback value.
     let Some(last_call) = error_calls.last() else { return fallback_value };
     Cairo1RevertStack {
+        header,
         stack: error_calls.iter().map(Cairo1RevertFrame::from).collect(),
         last_retdata: last_call.execution.retdata.clone(),
     }
@@ -376,6 +420,11 @@ pub fn gen_tx_execution_error_trace(error: &TransactionExecutionError) -> ErrorS
             constructor_selector.as_ref(),
             PreambleType::Constructor,
         ),
+        TransactionExecutionError::PanicInValidate { panic_reason } => {
+            let mut stack = ErrorStack::default();
+            stack.push(panic_reason.clone().into());
+            stack
+        }
         _ => {
             // Top-level error is unrelated to Cairo execution, no "real" frames.
             let mut stack = ErrorStack::default();
@@ -635,6 +684,9 @@ fn extract_entry_point_execution_error_into_stack_trace(
     match entry_point_error {
         EntryPointExecutionError::CairoRunError(cairo_run_error) => {
             extract_cairo_run_error_into_stack_trace(error_stack, depth, cairo_run_error)
+        }
+        EntryPointExecutionError::ExecutionFailed { error_trace } => {
+            error_stack.push(error_trace.clone().into())
         }
         _ => error_stack.push(format!("{}\n", entry_point_error).into()),
     }
