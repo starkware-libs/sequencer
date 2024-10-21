@@ -24,6 +24,7 @@ pub const TRACE_LENGTH_CAP: usize = 15000;
 pub const TRACE_EXTRA_CHARS_SLACK: usize = 100;
 
 #[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, Debug, PartialEq)]
 pub enum PreambleType {
     CallContract,
     LibraryCall,
@@ -40,7 +41,9 @@ impl PreambleType {
     }
 }
 
+#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, PartialEq)]
 pub struct EntryPointErrorFrame {
     pub depth: usize,
     pub preamble_type: PreambleType,
@@ -72,7 +75,9 @@ impl From<&EntryPointErrorFrame> for String {
     }
 }
 
+#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, PartialEq)]
 pub struct VmExceptionFrame {
     pub pc: Relocatable,
     pub error_attr_value: Option<String>,
@@ -95,7 +100,9 @@ impl From<&VmExceptionFrame> for String {
     }
 }
 
+#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, PartialEq)]
 pub enum Frame {
     EntryPoint(EntryPointErrorFrame),
     Cairo1Tail(Cairo1RevertStack),
@@ -139,24 +146,52 @@ impl From<String> for Frame {
 }
 
 #[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
+pub enum ErrorStackHeader {
+    Constructor,
+    Execution,
+    Validation,
+    #[default]
+    None,
+}
+
+impl Display for ErrorStackHeader {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Constructor => "Contract constructor execution has failed:\n",
+                Self::Execution => "Transaction execution has failed:\n",
+                Self::Validation => "Transaction validation has failed:\n",
+                Self::None => "",
+            }
+        )
+    }
+}
+
+#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
+#[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, Default, PartialEq)]
 pub struct ErrorStack {
+    pub header: ErrorStackHeader,
     pub stack: Vec<Frame>,
 }
 
-impl From<ErrorStack> for String {
-    fn from(value: ErrorStack) -> Self {
-        let error_stack_str = value.stack.iter().map(String::from).join("\n");
+impl Display for ErrorStack {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let error_stack_str = self.stack.iter().map(String::from).join("\n");
 
         // When the trace string is too long, trim it in a way that keeps both the beginning and
         // end.
-        if error_stack_str.len() > TRACE_LENGTH_CAP + TRACE_EXTRA_CHARS_SLACK {
+        let final_str = if error_stack_str.len() > TRACE_LENGTH_CAP + TRACE_EXTRA_CHARS_SLACK {
             error_stack_str[..(TRACE_LENGTH_CAP / 2)].to_string()
                 + "\n\n...\n\n"
                 + &error_stack_str[(error_stack_str.len() - TRACE_LENGTH_CAP / 2)..]
         } else {
             error_stack_str
-        }
+        };
+        write!(f, "{}{}", self.header, final_str)
     }
 }
 
@@ -165,8 +200,9 @@ impl ErrorStack {
         self.stack.push(frame);
     }
 }
+
 #[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Cairo1RevertFrame {
     pub contract_address: ContractAddress,
     pub class_hash: Option<ClassHash>,
@@ -209,7 +245,7 @@ impl Display for Cairo1RevertFrame {
 }
 
 #[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Cairo1RevertHeader {
     Execution,
     Validation,
@@ -229,7 +265,7 @@ impl Display for Cairo1RevertHeader {
 }
 
 #[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Cairo1RevertStack {
     pub header: Cairo1RevertHeader,
     pub stack: Vec<Cairo1RevertFrame>,
@@ -393,13 +429,21 @@ pub fn gen_tx_execution_error_trace(error: &TransactionExecutionError) -> ErrorS
             class_hash,
             storage_address,
             selector,
-        }
-        | TransactionExecutionError::ValidateTransactionError {
+        } => gen_error_trace_from_entry_point_error(
+            ErrorStackHeader::Execution,
+            error,
+            storage_address,
+            class_hash,
+            Some(selector),
+            PreambleType::CallContract,
+        ),
+        TransactionExecutionError::ValidateTransactionError {
             error,
             class_hash,
             storage_address,
             selector,
         } => gen_error_trace_from_entry_point_error(
+            ErrorStackHeader::Validation,
             error,
             storage_address,
             class_hash,
@@ -414,6 +458,7 @@ pub fn gen_tx_execution_error_trace(error: &TransactionExecutionError) -> ErrorS
                 constructor_selector,
             },
         ) => gen_error_trace_from_entry_point_error(
+            ErrorStackHeader::Constructor,
             error,
             storage_address,
             class_hash,
@@ -436,13 +481,14 @@ pub fn gen_tx_execution_error_trace(error: &TransactionExecutionError) -> ErrorS
 
 /// Generate error stack from top-level entry point execution error.
 fn gen_error_trace_from_entry_point_error(
+    header: ErrorStackHeader,
     error: &EntryPointExecutionError,
     storage_address: &ContractAddress,
     class_hash: &ClassHash,
     entry_point_selector: Option<&EntryPointSelector>,
     preamble_type: PreambleType,
 ) -> ErrorStack {
-    let mut error_stack: ErrorStack = ErrorStack::default();
+    let mut error_stack = ErrorStack { header, ..Default::default() };
     let depth = 0;
     error_stack.push(
         EntryPointErrorFrame {
