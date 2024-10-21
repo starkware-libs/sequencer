@@ -12,8 +12,8 @@ use papyrus_network::network_manager::BroadcastTopicClient;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_protobuf::consensus::ConsensusMessage;
 use starknet_batcher_types::communication::SharedBatcherClient;
-use starknet_mempool_infra::component_definitions::ComponentStarter;
-use starknet_mempool_infra::errors::ComponentError;
+use starknet_sequencer_infra::component_definitions::ComponentStarter;
+use starknet_sequencer_infra::errors::ComponentError;
 use tracing::{error, info};
 
 use crate::config::ConsensusManagerConfig;

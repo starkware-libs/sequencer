@@ -4,8 +4,8 @@ use starknet_batcher_types::communication::{
     BatcherRequestAndResponseSender,
     BatcherResponse,
 };
-use starknet_mempool_infra::component_definitions::ComponentRequestHandler;
-use starknet_mempool_infra::component_server::LocalComponentServer;
+use starknet_sequencer_infra::component_definitions::ComponentRequestHandler;
+use starknet_sequencer_infra::component_server::LocalComponentServer;
 use tokio::sync::mpsc::Receiver;
 
 use crate::batcher::Batcher;

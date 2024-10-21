@@ -16,8 +16,8 @@ papyrus_network_types = { workspace = true, features = ["testing"] }
 papyrus_protobuf.workspace = true
 starknet_api.workspace = true
 starknet_gateway_types.workspace = true
-starknet_mempool_infra.workspace = true
 starknet_mempool_p2p_types.workspace = true
+starknet_sequencer_infra.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 

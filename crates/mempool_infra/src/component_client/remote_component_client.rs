@@ -33,8 +33,8 @@ use crate::serde_utils::BincodeSerdeWrapper;
 ///
 /// use serde::{Deserialize, Serialize};
 ///
-/// use crate::starknet_mempool_infra::component_client::RemoteComponentClient;
-/// use crate::starknet_mempool_infra::component_definitions::RemoteClientConfig;
+/// use crate::starknet_sequencer_infra::component_client::RemoteComponentClient;
+/// use crate::starknet_sequencer_infra::component_definitions::RemoteClientConfig;
 ///
 /// // Define your request and response types
 /// #[derive(Serialize, Deserialize, Debug, Clone)]

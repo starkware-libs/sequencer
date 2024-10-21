@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use papyrus_config::dumping::{ser_optional_sub_config, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
-use starknet_mempool_infra::component_definitions::{
+use starknet_sequencer_infra::component_definitions::{
     LocalComponentCommunicationConfig,
     RemoteClientConfig,
     RemoteServerConfig,

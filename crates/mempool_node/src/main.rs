@@ -3,10 +3,10 @@ use std::process::exit;
 
 use papyrus_config::validators::config_validate;
 use papyrus_config::ConfigError;
-use starknet_mempool_infra::trace_util::configure_tracing;
 use starknet_mempool_node::config::SequencerNodeConfig;
 use starknet_mempool_node::servers::run_component_servers;
 use starknet_mempool_node::utils::create_node_modules;
+use starknet_sequencer_infra::trace_util::configure_tracing;
 use tracing::{error, info};
 
 #[tokio::main]
