@@ -1210,7 +1210,11 @@ fn test_actual_fee_gt_resource_bounds(
     let execution_result = invalid_tx.execute(state, block_context, true, true).unwrap();
     let execution_error = execution_result.revert_error.unwrap();
     // Test error.
-    assert!(execution_error.starts_with(&format!("Insufficient max {resource}", resource = L1Gas)));
+    assert!(
+        execution_error
+            .to_string()
+            .starts_with(&format!("Insufficient max {resource}", resource = L1Gas))
+    );
     // Test that fee was charged.
     let minimal_fee = minimal_l1_gas
         .checked_mul(
@@ -2223,6 +2227,7 @@ fn test_execute_tx_with_invalid_tx_version(
         execution_info
             .revert_error
             .unwrap()
+            .to_string()
             .contains(format!("ASSERT_EQ instruction failed: {} != 3.", invalid_version).as_str())
     );
 }
@@ -2316,7 +2321,7 @@ fn test_emit_event_exceeds_limit(
     let execution_info = account_tx.execute(state, block_context, true, true).unwrap();
     match &expected_error {
         Some(expected_error) => {
-            let error_string = execution_info.revert_error.unwrap();
+            let error_string = execution_info.revert_error.unwrap().to_string();
             assert!(error_string.contains(&format!("{}", expected_error)));
         }
         None => {
