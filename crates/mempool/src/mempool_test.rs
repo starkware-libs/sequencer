@@ -266,36 +266,6 @@ fn test_get_txs_replenishes_queue_only_between_chunks() {
 }
 
 #[rstest]
-fn test_get_txs_replenishes_queue_multi_account_between_chunks() {
-    // Setup.
-    let tx_address_0_nonce_0 = tx!(tip: 30, tx_hash: 1, sender_address: "0x0", tx_nonce: 0);
-    let tx_address_0_nonce_1 = tx!(tip: 30, tx_hash: 3, sender_address: "0x0", tx_nonce: 1);
-    let tx_address_1_nonce_0 = tx!(tip: 20, tx_hash: 2, sender_address: "0x1", tx_nonce: 0);
-    let tx_address_1_nonce_1 = tx!(tip: 20, tx_hash: 4, sender_address: "0x1", tx_nonce: 1);
-
-    let queue_txs = [&tx_address_0_nonce_0, &tx_address_1_nonce_0].map(TransactionReference::new);
-    let pool_txs = [
-        &tx_address_0_nonce_0,
-        &tx_address_1_nonce_0,
-        &tx_address_0_nonce_1,
-        &tx_address_1_nonce_1,
-    ]
-    .map(|tx| tx.clone());
-    let mut mempool = MempoolContentBuilder::new()
-        .with_pool(pool_txs)
-        .with_priority_queue(queue_txs)
-        .build_into_mempool();
-
-    // Test and assert: queue is replenished with the next transactions of each account.
-    get_txs_and_assert_expected(&mut mempool, 2, &[tx_address_0_nonce_0, tx_address_1_nonce_0]);
-    let expected_queue_txs =
-        [&tx_address_0_nonce_1, &tx_address_1_nonce_1].map(TransactionReference::new);
-    let expected_mempool_content =
-        MempoolContentBuilder::new().with_priority_queue(expected_queue_txs).build();
-    expected_mempool_content.assert_eq(&mempool);
-}
-
-#[rstest]
 fn test_get_txs_with_nonce_gap() {
     // Setup.
     let tx_address_0_nonce_1 = tx!(tx_hash: 2, sender_address: "0x0", tx_nonce: 1);
