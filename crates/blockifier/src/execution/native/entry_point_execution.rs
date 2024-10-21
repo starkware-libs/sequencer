@@ -1,6 +1,7 @@
 use cairo_native::execution_result::ContractExecutionResult;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use num_traits::ToPrimitive;
+use starknet_api::execution_utils::format_panic_data;
 
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::contract_class::{NativeContractClassV1, TrackedResource};
@@ -44,7 +45,9 @@ pub fn execute_entry_point_call(
             if res.failure_flag
                 && !syscall_handler.context.versioned_constants().enable_reverts =>
         {
-            Err(EntryPointExecutionError::ExecutionFailed { error_data: res.return_values })
+            Err(EntryPointExecutionError::ExecutionFailed {
+                error_trace: format_panic_data(&res.return_values),
+            })
         }
         Ok(res) => Ok(res),
     }?;
