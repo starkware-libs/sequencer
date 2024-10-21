@@ -21,6 +21,7 @@ use starknet_api::deprecated_contract_class::Program as DeprecatedProgram;
 use starknet_api::transaction::Calldata;
 use starknet_types_core::felt::Felt;
 
+use super::stack_trace::Cairo1RevertHeader;
 use crate::execution::call_info::{CallInfo, Retdata};
 use crate::execution::contract_class::{ContractClass, TrackedResource};
 use crate::execution::entry_point::{
@@ -84,7 +85,10 @@ pub fn execute_entry_point_call_wrapper(
         if call_info.execution.failed && !context.versioned_constants().enable_reverts {
             // Reverts are disabled.
             return Err(EntryPointExecutionError::ExecutionFailed {
-                error_trace: extract_trailing_cairo1_revert_trace(call_info),
+                error_trace: extract_trailing_cairo1_revert_trace(
+                    call_info,
+                    Cairo1RevertHeader::Execution,
+                ),
             });
         }
 
