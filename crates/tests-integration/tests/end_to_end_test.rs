@@ -6,7 +6,10 @@ use starknet_api::transaction::TransactionHash;
 use starknet_batcher_types::batcher_types::{BuildProposalInput, ProposalId, StartHeightInput};
 use starknet_batcher_types::communication::SharedBatcherClient;
 use starknet_integration_tests::integration_test_setup::IntegrationTestSetup;
-use starknet_integration_tests::integration_test_utils::create_integration_test_tx_generator;
+use starknet_integration_tests::integration_test_utils::{
+    create_integration_test_tx_generator,
+    send_rpc_tx,
+};
 
 #[fixture]
 fn tx_generator() -> MultiAccountTransactionGenerator {
@@ -19,18 +22,21 @@ async fn test_end_to_end(mut tx_generator: MultiAccountTransactionGenerator) {
     // Setup.
     let mock_running_system = IntegrationTestSetup::new_from_tx_generator(&tx_generator).await;
 
+    // Create RPC transactions.
     let account0_invoke_nonce1 = tx_generator.account_with_id(0).generate_invoke_with_tip(1);
     let account0_invoke_nonce2 = tx_generator.account_with_id(0).generate_invoke_with_tip(2);
     let account1_invoke_nonce1 = tx_generator.account_with_id(1).generate_invoke_with_tip(3);
 
+    // Send RPC transactions.
     let account0_invoke_nonce1_tx_hash =
-        mock_running_system.assert_add_tx_success(&account0_invoke_nonce1).await;
-
+        send_rpc_tx(account0_invoke_nonce1, |tx| mock_running_system.assert_add_tx_success(tx))
+            .await;
     let account1_invoke_nonce1_tx_hash =
-        mock_running_system.assert_add_tx_success(&account1_invoke_nonce1).await;
-
+        send_rpc_tx(account1_invoke_nonce1, |tx| mock_running_system.assert_add_tx_success(tx))
+            .await;
     let account0_invoke_nonce2_tx_hash =
-        mock_running_system.assert_add_tx_success(&account0_invoke_nonce2).await;
+        send_rpc_tx(account0_invoke_nonce2, |tx| mock_running_system.assert_add_tx_success(tx))
+            .await;
 
     // Test.
     let mempool_txs = mock_running_system.get_txs(4).await;
