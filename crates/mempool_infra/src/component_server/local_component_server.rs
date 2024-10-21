@@ -4,9 +4,8 @@ use std::marker::PhantomData;
 
 use async_trait::async_trait;
 use tokio::sync::mpsc::Receiver;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
-use super::definitions::request_response_loop;
 use crate::component_definitions::{
     ComponentRequestAndResponseSender,
     ComponentRequestHandler,
@@ -202,4 +201,32 @@ where
         self.component = component;
         Ok(())
     }
+}
+
+async fn request_response_loop<Request, Response, Component>(
+    rx: &mut Receiver<ComponentRequestAndResponseSender<Request, Response>>,
+    component: &mut Component,
+) where
+    Component: ComponentRequestHandler<Request, Response> + Send + Sync,
+    Request: Send + Sync + Debug,
+    Response: Send + Sync + Debug,
+{
+    info!("Starting server for component {}", type_name::<Component>());
+
+    while let Some(request_and_res_tx) = rx.recv().await {
+        let request = request_and_res_tx.request;
+        let tx = request_and_res_tx.tx;
+        debug!("Component {} received request {:?}", type_name::<Component>(), request);
+
+        let response = component.handle_request(request).await;
+        debug!("Component {} is sending response {:?}", type_name::<Component>(), response);
+
+        // TODO(Tsabary): revert `try_send` to `send` once the client is guaranteed to be alive,
+        // i.e., tx.send(response).await.expect("Response connection should be open.");
+        // Tries sending the response to the client. If the client has disconnected then this
+        // becomes a null operation.
+        let _ = tx.try_send(response);
+    }
+
+    info!("Stopping server for component {}", type_name::<Component>());
 }
