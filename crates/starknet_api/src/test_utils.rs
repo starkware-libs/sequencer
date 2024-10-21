@@ -22,7 +22,7 @@ pub fn read_json_file(path_in_resource_dir: &str) -> serde_json::Value {
         .join("resources")
         .join(path_in_resource_dir);
     let json_str = read_to_string(path.to_str().unwrap())
-        .expect(format!("Failed to read file at path: {}", path.display()).as_str());
+        .unwrap_or_else(|_| panic!("Failed to read file at path: {}", path.display()));
     serde_json::from_str(&json_str).unwrap()
 }
 
