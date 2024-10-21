@@ -192,9 +192,9 @@ fn mempool() -> Mempool {
 fn test_get_txs_returns_by_priority_order(#[case] n_requested_txs: usize) {
     // Setup.
     let mut txs = [
-        tx!(tip: 20, tx_hash: 1, sender_address: "0x0"),
-        tx!(tip: 30, tx_hash: 2, sender_address: "0x1"),
-        tx!(tip: 10, tx_hash: 3, sender_address: "0x2"),
+        tx!(tip: 20, tx_hash: 1, address: "0x0"),
+        tx!(tip: 30, tx_hash: 2, address: "0x1"),
+        tx!(tip: 10, tx_hash: 3, address: "0x2"),
     ];
 
     let mut mempool = MempoolContentBuilder::new()
@@ -220,9 +220,9 @@ fn test_get_txs_returns_by_priority_order(#[case] n_requested_txs: usize) {
 #[rstest]
 fn test_get_txs_does_not_remove_returned_txs_from_pool() {
     // Setup.
-    let tx_nonce_0 = tx!(tx_hash: 1, sender_address: "0x0", tx_nonce: 0);
-    let tx_nonce_1 = tx!(tx_hash: 2, sender_address: "0x0", tx_nonce: 1);
-    let tx_nonce_2 = tx!(tx_hash: 3, sender_address: "0x0", tx_nonce: 2);
+    let tx_nonce_0 = tx!(tx_hash: 1, address: "0x0", tx_nonce: 0);
+    let tx_nonce_1 = tx!(tx_hash: 2, address: "0x0", tx_nonce: 1);
+    let tx_nonce_2 = tx!(tx_hash: 3, address: "0x0", tx_nonce: 2);
 
     let queue_txs = [TransactionReference::new(&tx_nonce_0)];
     let pool_txs = [tx_nonce_0, tx_nonce_1, tx_nonce_2];
@@ -241,9 +241,9 @@ fn test_get_txs_does_not_remove_returned_txs_from_pool() {
 #[rstest]
 fn test_get_txs_replenishes_queue_only_between_chunks() {
     // Setup.
-    let tx_address_0_nonce_0 = tx!(tip: 20, tx_hash: 1, sender_address: "0x0", tx_nonce: 0);
-    let tx_address_0_nonce_1 = tx!(tip: 20, tx_hash: 2, sender_address: "0x0", tx_nonce: 1);
-    let tx_address_1_nonce_0 = tx!(tip: 10, tx_hash: 3, sender_address: "0x1", tx_nonce: 0);
+    let tx_address_0_nonce_0 = tx!(tip: 20, tx_hash: 1, address: "0x0", tx_nonce: 0);
+    let tx_address_0_nonce_1 = tx!(tip: 20, tx_hash: 2, address: "0x0", tx_nonce: 1);
+    let tx_address_1_nonce_0 = tx!(tip: 10, tx_hash: 3, address: "0x1", tx_nonce: 0);
 
     let queue_txs = [&tx_address_0_nonce_0, &tx_address_1_nonce_0].map(TransactionReference::new);
     let pool_txs =
@@ -268,8 +268,8 @@ fn test_get_txs_replenishes_queue_only_between_chunks() {
 #[rstest]
 fn test_get_txs_with_nonce_gap() {
     // Setup.
-    let tx_address_0_nonce_1 = tx!(tx_hash: 2, sender_address: "0x0", tx_nonce: 1);
-    let tx_address_1_nonce_0 = tx!(tx_hash: 3, sender_address: "0x1", tx_nonce: 0);
+    let tx_address_0_nonce_1 = tx!(tx_hash: 2, address: "0x0", tx_nonce: 1);
+    let tx_address_1_nonce_0 = tx!(tx_hash: 3, address: "0x1", tx_nonce: 0);
 
     let queue_txs = [TransactionReference::new(&tx_address_1_nonce_0)];
     let pool_txs = [tx_address_0_nonce_1, tx_address_1_nonce_0.clone()];
@@ -290,9 +290,9 @@ fn test_get_txs_with_nonce_gap() {
 fn test_add_tx(mut mempool: Mempool) {
     // Setup.
     let mut add_tx_inputs = [
-        add_tx_input!(tip: 50, tx_hash: 1, sender_address: "0x0", tx_nonce: 0, account_nonce: 0),
-        add_tx_input!(tip: 100, tx_hash: 2, sender_address: "0x1", tx_nonce: 1, account_nonce: 1),
-        add_tx_input!(tip: 80, tx_hash: 3, sender_address: "0x2", tx_nonce: 2, account_nonce: 2),
+        add_tx_input!(tip: 50, tx_hash: 1, address: "0x0", tx_nonce: 0, account_nonce: 0),
+        add_tx_input!(tip: 100, tx_hash: 2, address: "0x1", tx_nonce: 1, account_nonce: 1),
+        add_tx_input!(tip: 80, tx_hash: 3, address: "0x2", tx_nonce: 2, account_nonce: 2),
     ];
 
     // Test.
@@ -319,11 +319,11 @@ fn test_add_tx(mut mempool: Mempool) {
 fn test_add_tx_multi_nonce_success(mut mempool: Mempool) {
     // Setup.
     let input_address_0_nonce_0 =
-        add_tx_input!(tx_hash: 1, sender_address: "0x0", tx_nonce: 0, account_nonce: 0);
+        add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 0, account_nonce: 0);
     let input_address_0_nonce_1 =
-        add_tx_input!(tx_hash: 3, sender_address: "0x0", tx_nonce: 1, account_nonce: 0);
+        add_tx_input!(tx_hash: 3, address: "0x0", tx_nonce: 1, account_nonce: 0);
     let input_address_1_nonce_0 =
-        add_tx_input!(tx_hash: 2, sender_address: "0x1", tx_nonce: 0,account_nonce: 0);
+        add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 0,account_nonce: 0);
 
     // Test.
     for input in [&input_address_0_nonce_0, &input_address_1_nonce_0, &input_address_0_nonce_1] {
@@ -368,7 +368,7 @@ fn test_add_tx_failure_on_duplicate_tx_hash(mut mempool: Mempool) {
 #[rstest]
 fn test_add_tx_lower_than_queued_nonce() {
     // Setup.
-    let tx = tx!(tx_hash: 1, sender_address: "0x0", tx_nonce: 1);
+    let tx = tx!(tx_hash: 1, address: "0x0", tx_nonce: 1);
     let queue_txs = [TransactionReference::new(&tx)];
     let pool_txs = [tx];
     let mut mempool = MempoolContentBuilder::new()
@@ -379,7 +379,7 @@ fn test_add_tx_lower_than_queued_nonce() {
     // Test and assert: original transaction remains.
     for tx_nonce in [0, 1] {
         let invalid_input =
-            add_tx_input!(tx_hash: 2, sender_address: "0x0", tx_nonce: tx_nonce, account_nonce: 0);
+            add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: tx_nonce, account_nonce: 0);
         add_tx_expect_error(
             &mut mempool,
             &invalid_input,
@@ -398,9 +398,9 @@ fn test_add_tx_lower_than_queued_nonce() {
 #[rstest]
 fn test_add_tx_updates_queue_with_higher_account_nonce() {
     // Setup.
-    let input = add_tx_input!(tx_hash: 1, sender_address: "0x0", tx_nonce: 0, account_nonce: 0);
+    let input = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 0, account_nonce: 0);
     let higher_account_nonce_input =
-        add_tx_input!(tx_hash: 2, sender_address: "0x0", tx_nonce: 1, account_nonce: 1);
+        add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 1, account_nonce: 1);
 
     let queue_txs = [TransactionReference::new(&input.tx)];
     let mut mempool =
@@ -419,10 +419,10 @@ fn test_add_tx_updates_queue_with_higher_account_nonce() {
 #[rstest]
 fn test_add_tx_with_identical_tip_succeeds(mut mempool: Mempool) {
     // Setup.
-    let input1 = add_tx_input!(tip: 1, tx_hash: 2, sender_address: "0x0");
+    let input1 = add_tx_input!(tip: 1, tx_hash: 2, address: "0x0");
     // Create a transaction with identical tip, it should be allowed through since the priority
     // queue tie-breaks identical tips by other tx-unique identifiers (for example tx hash).
-    let input2 = add_tx_input!(tip: 1, tx_hash: 1, sender_address: "0x1");
+    let input2 = add_tx_input!(tip: 1, tx_hash: 1, address: "0x1");
 
     // Test.
     for input in [&input1, &input2] {
@@ -446,9 +446,9 @@ fn test_add_tx_with_identical_tip_succeeds(mut mempool: Mempool) {
 fn test_add_tx_delete_tx_with_lower_nonce_than_account_nonce() {
     // Setup.
     let tx_nonce_0_account_nonce_0 =
-        add_tx_input!(tx_hash: 1, sender_address: "0x0", tx_nonce: 0, account_nonce: 0);
+        add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 0, account_nonce: 0);
     let tx_nonce_1_account_nonce_1 =
-        add_tx_input!(tx_hash: 2, sender_address: "0x0", tx_nonce: 1, account_nonce: 1);
+        add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 1, account_nonce: 1);
 
     let queue_txs = [TransactionReference::new(&tx_nonce_0_account_nonce_0.tx)];
     let pool_txs = [tx_nonce_0_account_nonce_0.tx];
@@ -473,10 +473,10 @@ fn test_add_tx_delete_tx_with_lower_nonce_than_account_nonce() {
 #[rstest]
 fn test_add_tx_tip_priority_over_tx_hash(mut mempool: Mempool) {
     // Setup.
-    let input_big_tip_small_hash = add_tx_input!(tip: 2, tx_hash: 1, sender_address: "0x0");
+    let input_big_tip_small_hash = add_tx_input!(tip: 2, tx_hash: 1, address: "0x0");
     // Create a transaction with identical tip, it should be allowed through since the priority
     // queue tie-breaks identical tips by other tx-unique identifiers (for example tx hash).
-    let input_small_tip_big_hash = add_tx_input!(tip: 1, tx_hash: 2, sender_address: "0x1");
+    let input_small_tip_big_hash = add_tx_input!(tip: 1, tx_hash: 2, address: "0x1");
 
     // Test.
     for input in [&input_big_tip_small_hash, &input_small_tip_big_hash] {
@@ -567,12 +567,12 @@ fn test_add_tx_fills_nonce_gap(mut mempool: Mempool) {
 #[rstest]
 fn test_commit_block_includes_all_proposed_txs() {
     // Setup.
-    let tx_address_0_nonce_3 = tx!(tx_hash: 1, sender_address: "0x0", tx_nonce: 3);
-    let tx_address_0_nonce_4 = tx!(tx_hash: 2, sender_address: "0x0", tx_nonce: 4);
-    let tx_address_0_nonce_5 = tx!(tx_hash: 3, sender_address: "0x0", tx_nonce: 5);
-    let tx_address_1_nonce_2 = tx!(tx_hash: 4, sender_address: "0x1", tx_nonce: 2);
-    let tx_address_1_nonce_3 = tx!(tx_hash: 5, sender_address: "0x1", tx_nonce: 3);
-    let tx_address_2_nonce_1 = tx!(tx_hash: 6, sender_address: "0x2", tx_nonce: 1);
+    let tx_address_0_nonce_3 = tx!(tx_hash: 1, address: "0x0", tx_nonce: 3);
+    let tx_address_0_nonce_4 = tx!(tx_hash: 2, address: "0x0", tx_nonce: 4);
+    let tx_address_0_nonce_5 = tx!(tx_hash: 3, address: "0x0", tx_nonce: 5);
+    let tx_address_1_nonce_2 = tx!(tx_hash: 4, address: "0x1", tx_nonce: 2);
+    let tx_address_1_nonce_3 = tx!(tx_hash: 5, address: "0x1", tx_nonce: 3);
+    let tx_address_2_nonce_1 = tx!(tx_hash: 6, address: "0x2", tx_nonce: 1);
 
     let queue_txs = [&tx_address_0_nonce_4, &tx_address_1_nonce_3, &tx_address_2_nonce_1]
         .map(TransactionReference::new);
@@ -605,10 +605,10 @@ fn test_commit_block_includes_all_proposed_txs() {
 #[rstest]
 fn test_commit_block_rewinds_queued_nonce() {
     // Setup.
-    let tx_address_0_nonce_3 = tx!(tx_hash: 1, sender_address: "0x0", tx_nonce: 3);
-    let tx_address_0_nonce_4 = tx!(tx_hash: 2, sender_address: "0x0", tx_nonce: 4);
-    let tx_address_0_nonce_5 = tx!(tx_hash: 3, sender_address: "0x0", tx_nonce: 5);
-    let tx_address_1_nonce_1 = tx!(tx_hash: 4, sender_address: "0x1", tx_nonce: 1);
+    let tx_address_0_nonce_3 = tx!(tx_hash: 1, address: "0x0", tx_nonce: 3);
+    let tx_address_0_nonce_4 = tx!(tx_hash: 2, address: "0x0", tx_nonce: 4);
+    let tx_address_0_nonce_5 = tx!(tx_hash: 3, address: "0x0", tx_nonce: 5);
+    let tx_address_1_nonce_1 = tx!(tx_hash: 4, address: "0x1", tx_nonce: 1);
 
     let queued_txs = [&tx_address_0_nonce_5, &tx_address_1_nonce_1].map(TransactionReference::new);
     let pool_txs = [
@@ -637,10 +637,10 @@ fn test_commit_block_rewinds_queued_nonce() {
 #[rstest]
 fn test_commit_block_from_different_leader() {
     // Setup.
-    let tx_address_0_nonce_3 = tx!(tx_hash: 1, sender_address: "0x0", tx_nonce: 3);
-    let tx_address_0_nonce_5 = tx!(tx_hash: 2, sender_address: "0x0", tx_nonce: 5);
-    let tx_address_0_nonce_6 = tx!(tx_hash: 3, sender_address: "0x0", tx_nonce: 6);
-    let tx_address_1_nonce_2 = tx!(tx_hash: 4, sender_address: "0x1", tx_nonce: 2);
+    let tx_address_0_nonce_3 = tx!(tx_hash: 1, address: "0x0", tx_nonce: 3);
+    let tx_address_0_nonce_5 = tx!(tx_hash: 2, address: "0x0", tx_nonce: 5);
+    let tx_address_0_nonce_6 = tx!(tx_hash: 3, address: "0x0", tx_nonce: 6);
+    let tx_address_1_nonce_2 = tx!(tx_hash: 4, address: "0x1", tx_nonce: 2);
 
     let queued_txs = [TransactionReference::new(&tx_address_1_nonce_2)];
     let pool_txs = [
@@ -693,8 +693,8 @@ fn test_fee_escalation_valid_replacement() {
             .with_fee_escalation_percentage(10)
             .build_into_mempool();
 
-        let valid_replacement_input = add_tx_input!(tip: increased_value,
-            max_l2_gas_price: u128::from(increased_value));
+        let valid_replacement_input =
+            add_tx_input!(tip: increased_value, max_l2_gas_price: u128::from(increased_value));
 
         // Test and assert.
         add_tx_and_verify_replacement(mempool, valid_replacement_input);
