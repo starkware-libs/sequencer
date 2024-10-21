@@ -220,19 +220,17 @@ fn test_get_txs_returns_by_priority_order(#[case] n_requested_txs: usize) {
 #[rstest]
 fn test_get_txs_does_not_remove_returned_txs_from_pool() {
     // Setup.
-    let tx_nonce_0 = tx!(tx_hash: 1, sender_address: "0x0", tx_nonce: 0);
-    let tx_nonce_1 = tx!(tx_hash: 2, sender_address: "0x0", tx_nonce: 1);
-    let tx_nonce_2 = tx!(tx_hash: 3, sender_address: "0x0", tx_nonce: 2);
+    let tx = tx!();
 
-    let queue_txs = [TransactionReference::new(&tx_nonce_0)];
-    let pool_txs = [tx_nonce_0, tx_nonce_1, tx_nonce_2];
+    let queue_txs = [TransactionReference::new(&tx)];
+    let pool_txs = [tx];
     let mut mempool = MempoolContentBuilder::new()
         .with_pool(pool_txs.clone())
         .with_priority_queue(queue_txs)
         .build_into_mempool();
 
     // Test and assert: all transactions are returned.
-    get_txs_and_assert_expected(&mut mempool, 3, &pool_txs);
+    get_txs_and_assert_expected(&mut mempool, 1, &pool_txs);
     let expected_mempool_content =
         MempoolContentBuilder::new().with_pool(pool_txs).with_priority_queue([]).build();
     expected_mempool_content.assert_eq(&mempool);
