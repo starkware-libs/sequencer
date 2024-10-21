@@ -7,7 +7,7 @@ use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo};
 use blockifier::state::cached_state::CachedState;
 use blockifier::transaction::account_transaction::AccountTransaction;
-use blockifier::versioned_constants::VersionedConstants;
+use blockifier::versioned_constants::{VersionedConstants, VersionedConstantsOverrides};
 #[cfg(test)]
 use mockall::automock;
 use starknet_api::core::{ContractAddress, Nonce};
@@ -95,10 +95,13 @@ impl StatefulTransactionValidator {
         let latest_block_info = get_latest_block_info(state_reader_factory)?;
         let state_reader = state_reader_factory.get_state_reader(latest_block_info.block_number);
         let state = CachedState::new(state_reader);
-        let versioned_constants = VersionedConstants::latest_constants_with_overrides(
-            self.config.validate_max_n_steps,
-            self.config.max_recursion_depth,
-        );
+        let versioned_constants_overrides = VersionedConstantsOverrides {
+            validate_max_n_steps: Some(self.config.validate_max_n_steps),
+            max_recursion_depth: Some(self.config.max_recursion_depth),
+            invoke_tx_max_n_steps: None,
+        };
+        let versioned_constants =
+            VersionedConstants::get_versioned_constants(versioned_constants_overrides);
         let mut block_info = latest_block_info;
         block_info.block_number = block_info.block_number.unchecked_next();
         // TODO(yael 21/4/24): create the block context using pre_process_block once we will be

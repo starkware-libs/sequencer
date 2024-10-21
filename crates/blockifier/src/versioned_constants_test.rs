@@ -44,11 +44,11 @@ fn test_versioned_constants_overrides() {
     let updated_validate_max_n_steps = versioned_constants.validate_max_n_steps + 1;
     let updated_max_recursion_depth = versioned_constants.max_recursion_depth + 1;
 
-    // Create a versioned constants copy with overriden values.
+    // Create a versioned constants copy with overridden values.
     let result = VersionedConstants::get_versioned_constants(VersionedConstantsOverrides {
-        validate_max_n_steps: updated_validate_max_n_steps,
-        max_recursion_depth: updated_max_recursion_depth,
-        invoke_tx_max_n_steps: updated_invoke_tx_max_n_steps,
+        validate_max_n_steps: Some(updated_validate_max_n_steps),
+        max_recursion_depth: Some(updated_max_recursion_depth),
+        invoke_tx_max_n_steps: Some(updated_invoke_tx_max_n_steps),
     });
 
     // Assert the new values are used.
