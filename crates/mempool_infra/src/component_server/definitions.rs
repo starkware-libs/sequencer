@@ -37,7 +37,8 @@ pub async fn request_response_loop<Request, Response, Component>(
         // i.e., tx.send(response).await.expect("Response connection should be open.");
         // Tries sending the response to the client. If the client has disconnected then this
         // becomes a null operation.
-        let _ = tx.try_send(response);
+        // let _ = tx.try_send(response);
+        tx.send(response).await.expect("Response connection should be open.");
     }
 
     info!("Stopping server for component {}", type_name::<Component>());
