@@ -257,7 +257,7 @@ impl<'env> HeaderStorageWriter for StorageTxn<'env, RW> {
             sequencer: block_header.block_header_without_hash.sequencer,
             timestamp: block_header.block_header_without_hash.timestamp,
             l1_da_mode: block_header.block_header_without_hash.l1_da_mode,
-            state_diff_commitment: block_header.state_diff_commitment.clone(),
+            state_diff_commitment: block_header.state_diff_commitment,
             transaction_commitment: block_header.transaction_commitment,
             event_commitment: block_header.event_commitment,
             receipt_commitment: block_header.receipt_commitment,
