@@ -36,7 +36,8 @@ function setup_llvm_deps() {
             libmlir-18-dev \
             libpolly-18-dev \
             libzstd-dev \
-            mlir-18-tools
+            mlir-18-tools \
+            lld
         '
         ;;
     *)
