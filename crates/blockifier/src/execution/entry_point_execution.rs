@@ -28,7 +28,6 @@ use crate::execution::execution_utils::{
     ReadOnlySegments,
     SEGMENT_ARENA_BUILTIN_SIZE,
 };
-use crate::execution::stack_trace::extract_trailing_cairo1_revert_trace;
 use crate::execution::syscalls::hint_processor::SyscallHintProcessor;
 use crate::state::state_api::State;
 use crate::versioned_constants::GasCosts;
@@ -99,21 +98,14 @@ pub fn execute_entry_point_call(
         bytecode_length,
     )?;
 
-    let call_info = finalize_execution(
+    Ok(finalize_execution(
         runner,
         syscall_handler,
         previous_resources,
         n_total_args,
         program_extra_data_length,
         tracked_resource,
-    )?;
-    if call_info.execution.failed && !context.versioned_constants().enable_reverts {
-        return Err(EntryPointExecutionError::ExecutionFailed {
-            error_trace: extract_trailing_cairo1_revert_trace(&call_info),
-        });
-    }
-
-    Ok(call_info)
+    )?)
 }
 
 // Collects the set PC values that were visited during the entry point execution.
