@@ -10260,7 +10260,6 @@ dependencies = [
  "blockifier",
  "cairo-lang-sierra-to-casm",
  "cairo-lang-starknet-classes",
- "hyper 0.14.30",
  "mempool_test_utils",
  "mockall",
  "mockito 1.5.0",
@@ -10311,13 +10310,14 @@ name = "starknet_http_server"
 version = "0.0.0"
 dependencies = [
  "axum",
+ "hyper 0.14.30",
  "papyrus_config",
  "serde",
  "serde_json",
  "starknet_api",
- "starknet_gateway",
  "starknet_gateway_types",
  "starknet_mempool_infra",
+ "thiserror",
  "tokio",
  "tracing",
  "validator",

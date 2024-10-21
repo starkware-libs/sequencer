@@ -3,11 +3,10 @@ use std::clone::Clone;
 use std::net::SocketAddr;
 
 use axum::extract::State;
-use axum::routing::{get, post};
+use axum::routing::post;
 use axum::{async_trait, Json, Router};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
-use starknet_gateway::errors::GatewayRunError;
 use starknet_gateway_types::communication::SharedGatewayClient;
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_gateway_types::gateway_types::GatewayInput;
@@ -16,6 +15,7 @@ use starknet_mempool_infra::errors::ComponentError;
 use tracing::{error, info, instrument};
 
 use crate::config::HttpServerConfig;
+use crate::errors::HttpServerRunError;
 
 #[cfg(test)]
 #[path = "http_server_test.rs"]
@@ -39,8 +39,7 @@ impl HttpServer {
         HttpServer { config, app_state }
     }
 
-    // TODO(Tsabary/Lev): Rename "GatewayRunError" to "HttpServerRunError".
-    pub async fn run(&mut self) -> Result<(), GatewayRunError> {
+    pub async fn run(&mut self) -> Result<(), HttpServerRunError> {
         // Parses the bind address from HttpServerConfig, returning an error for invalid addresses.
         let HttpServerConfig { ip, port } = self.config;
         let addr = SocketAddr::new(ip, port);
@@ -52,32 +51,23 @@ impl HttpServer {
     }
 
     pub fn app(&self) -> Router {
-        Router::new()
-            .route("/is_alive", get(is_alive))
-            .route("/add_tx", post(add_tx))
-            .with_state(self.app_state.clone())
+        Router::new().route("/add_tx", post(add_tx)).with_state(self.app_state.clone())
     }
 }
 
 // HttpServer handlers.
-
-#[instrument]
-async fn is_alive() -> HttpServerResult<String> {
-    unimplemented!("Future handling should be implemented here.");
-}
 
 #[instrument(skip(app_state))]
 async fn add_tx(
     State(app_state): State<AppState>,
     Json(tx): Json<RpcTransaction>,
 ) -> HttpServerResult<Json<TransactionHash>> {
-    let gateway_input: GatewayInput = GatewayInput { rpc_tx: tx.clone(), message_metadata: None };
-
+    info!("Received tx: {:?}", tx);
+    let gateway_input = GatewayInput { rpc_tx: tx, message_metadata: None };
     let add_tx_result = app_state.gateway_client.add_tx(gateway_input).await.map_err(|join_err| {
         error!("Failed to process tx: {}", join_err);
         GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
     });
-
     add_tx_result_as_json(add_tx_result)
 }
 

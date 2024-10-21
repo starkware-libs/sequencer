@@ -68,13 +68,6 @@ pub type StatelessTransactionValidatorResult<T> = Result<T, StatelessTransaction
 
 pub type StatefulTransactionValidatorResult<T> = Result<T, GatewaySpecError>;
 
-/// Errors originating from `[`Gateway::run`]` command, to be handled by infrastructure code.
-#[derive(Debug, Error)]
-pub enum GatewayRunError {
-    #[error(transparent)]
-    ServerStartupError(#[from] hyper::Error),
-}
-
 #[derive(Debug, Error)]
 pub enum RPCStateReaderError {
     #[error("Block not found for request {0}")]
