@@ -25,6 +25,7 @@ papyrus_storage = { workspace = true, features = ["testing"] }
 reqwest.workspace = true
 serde_json.workspace = true
 starknet-types-core.workspace = true
+starknet_add_tx_endpoint.workspace = true
 starknet_api.workspace = true
 starknet_batcher.workspace = true
 starknet_batcher_types.workspace = true
@@ -32,7 +33,6 @@ starknet_client.workspace = true
 starknet_consensus_manager.workspace = true
 starknet_gateway = { workspace = true, features = ["testing"] }
 starknet_gateway_types.workspace = true
-starknet_http_server.workspace = true
 starknet_mempool_infra.workspace = true
 starknet_mempool_node.workspace = true
 starknet_mempool_types.workspace = true

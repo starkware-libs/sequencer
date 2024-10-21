@@ -10111,6 +10111,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "starknet_add_tx_endpoint"
+version = "0.0.0"
+dependencies = [
+ "axum",
+ "hyper 0.14.30",
+ "papyrus_config",
+ "serde",
+ "serde_json",
+ "starknet_api",
+ "starknet_gateway_types",
+ "starknet_mempool_infra",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "validator",
+]
+
+[[package]]
 name = "starknet_api"
 version = "0.0.0"
 dependencies = [
@@ -10306,24 +10324,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "starknet_http_server"
-version = "0.0.0"
-dependencies = [
- "axum",
- "hyper 0.14.30",
- "papyrus_config",
- "serde",
- "serde_json",
- "starknet_api",
- "starknet_gateway_types",
- "starknet_mempool_infra",
- "thiserror",
- "tokio",
- "tracing",
- "validator",
-]
-
-[[package]]
 name = "starknet_integration_tests"
 version = "0.0.0"
 dependencies = [
@@ -10345,6 +10345,7 @@ dependencies = [
  "rstest",
  "serde_json",
  "starknet-types-core",
+ "starknet_add_tx_endpoint",
  "starknet_api",
  "starknet_batcher",
  "starknet_batcher_types",
@@ -10352,7 +10353,6 @@ dependencies = [
  "starknet_consensus_manager",
  "starknet_gateway",
  "starknet_gateway_types",
- "starknet_http_server",
  "starknet_mempool_infra",
  "starknet_mempool_node",
  "starknet_mempool_types",
@@ -10422,13 +10422,13 @@ dependencies = [
  "rstest",
  "serde",
  "serde_json",
+ "starknet_add_tx_endpoint",
  "starknet_api",
  "starknet_batcher",
  "starknet_batcher_types",
  "starknet_consensus_manager",
  "starknet_gateway",
  "starknet_gateway_types",
- "starknet_http_server",
  "starknet_mempool",
  "starknet_mempool_infra",
  "starknet_mempool_p2p",

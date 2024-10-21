@@ -4,7 +4,7 @@ use std::process::exit;
 
 use papyrus_config::validators::config_validate;
 use papyrus_config::ConfigError;
-use starknet_http_server::config::HttpServerConfig;
+use starknet_add_tx_endpoint::config::AddTxEndpointConfig;
 use starknet_integration_tests::integration_test_utils::{
     create_integration_test_tx_generator,
     HttpTestClient,
@@ -35,7 +35,7 @@ async fn main() -> anyhow::Result<()> {
     let account0_invoke_nonce2 = tx_generator.account_with_id(0).generate_invoke_with_tip(1);
     let account1_invoke_nonce1 = tx_generator.account_with_id(1).generate_invoke_with_tip(1);
 
-    let HttpServerConfig { ip, port } = config.http_server_config;
+    let AddTxEndpointConfig { ip, port } = config.add_tx_endpoint_config;
     let http_test_client = HttpTestClient::new(SocketAddr::from((ip, port)));
 
     let account0_invoke_nonce1_tx_hash =

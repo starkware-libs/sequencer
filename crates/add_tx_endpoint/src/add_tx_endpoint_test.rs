@@ -3,7 +3,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use starknet_api::transaction::TransactionHash;
 
-use crate::http_server::add_tx_result_as_json;
+use crate::add_tx_endpoint::add_tx_result_as_json;
 
 #[tokio::test]
 async fn test_tx_hash_json_conversion() {

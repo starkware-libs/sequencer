@@ -18,7 +18,7 @@ pub struct ComponentConfig {
     #[validate]
     pub gateway: ComponentExecutionConfig,
     #[validate]
-    pub http_server: ComponentExecutionConfig,
+    pub add_tx_endpoint: ComponentExecutionConfig,
     #[validate]
     pub mempool: ComponentExecutionConfig,
     #[validate]
@@ -31,7 +31,7 @@ impl Default for ComponentConfig {
             batcher: ComponentExecutionConfig::batcher_default_config(),
             consensus_manager: ComponentExecutionConfig::consensus_manager_default_config(),
             gateway: ComponentExecutionConfig::gateway_default_config(),
-            http_server: ComponentExecutionConfig::http_server_default_config(),
+            add_tx_endpoint: ComponentExecutionConfig::add_tx_endpoint_default_config(),
             mempool: ComponentExecutionConfig::mempool_default_config(),
             monitoring_endpoint: ComponentExecutionConfig::monitoring_endpoint_default_config(),
         }
@@ -45,7 +45,7 @@ impl SerializeConfig for ComponentConfig {
             append_sub_config_name(self.batcher.dump(), "batcher"),
             append_sub_config_name(self.consensus_manager.dump(), "consensus_manager"),
             append_sub_config_name(self.gateway.dump(), "gateway"),
-            append_sub_config_name(self.http_server.dump(), "http_server"),
+            append_sub_config_name(self.add_tx_endpoint.dump(), "add_tx_endpoint"),
             append_sub_config_name(self.mempool.dump(), "mempool"),
             append_sub_config_name(self.monitoring_endpoint.dump(), "monitoring_endpoint"),
         ];
@@ -61,7 +61,7 @@ pub fn validate_components_config(components: &ComponentConfig) -> Result<(), Va
     if components.gateway.execute
         || components.mempool.execute
         || components.batcher.execute
-        || components.http_server.execute
+        || components.add_tx_endpoint.execute
         || components.consensus_manager.execute
         || components.monitoring_endpoint.execute
     {

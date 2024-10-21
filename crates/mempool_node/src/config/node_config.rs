@@ -9,11 +9,11 @@ use papyrus_config::loading::load_and_process_config;
 use papyrus_config::validators::validate_ascii;
 use papyrus_config::{ConfigError, ParamPath, SerializedParam};
 use serde::{Deserialize, Serialize};
+use starknet_add_tx_endpoint::config::AddTxEndpointConfig;
 use starknet_api::core::ChainId;
 use starknet_batcher::config::BatcherConfig;
 use starknet_consensus_manager::config::ConsensusManagerConfig;
 use starknet_gateway::config::{GatewayConfig, RpcStateReaderConfig};
-use starknet_http_server::config::HttpServerConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 use validator::Validate;
@@ -53,7 +53,7 @@ pub struct SequencerNodeConfig {
     #[validate]
     pub gateway_config: GatewayConfig,
     #[validate]
-    pub http_server_config: HttpServerConfig,
+    pub add_tx_endpoint_config: AddTxEndpointConfig,
     #[validate]
     pub rpc_state_reader_config: RpcStateReaderConfig,
     #[validate]
@@ -73,7 +73,7 @@ impl SerializeConfig for SequencerNodeConfig {
                 "consensus_manager_config",
             ),
             append_sub_config_name(self.gateway_config.dump(), "gateway_config"),
-            append_sub_config_name(self.http_server_config.dump(), "http_server_config"),
+            append_sub_config_name(self.add_tx_endpoint_config.dump(), "add_tx_endpoint_config"),
             append_sub_config_name(self.rpc_state_reader_config.dump(), "rpc_state_reader_config"),
             append_sub_config_name(self.compiler_config.dump(), "compiler_config"),
             append_sub_config_name(
@@ -94,7 +94,7 @@ impl Default for SequencerNodeConfig {
             batcher_config: Default::default(),
             consensus_manager_config: Default::default(),
             gateway_config: Default::default(),
-            http_server_config: Default::default(),
+            add_tx_endpoint_config: Default::default(),
             rpc_state_reader_config: Default::default(),
             compiler_config: Default::default(),
             monitoring_endpoint_config: Default::default(),

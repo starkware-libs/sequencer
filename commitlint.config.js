@@ -19,6 +19,7 @@ const Configuration = {
      */
     rules: {
         'scope-enum': [2, 'always', [
+            'add_tx_endpoint',
             'base_layer',
             'batcher',
             'block_hash',

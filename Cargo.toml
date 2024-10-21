@@ -4,6 +4,7 @@
 resolver = "2"
 
 members = [
+  "crates/add_tx_endpoint",
   "crates/batcher",
   "crates/batcher_types",
   "crates/blockifier",
@@ -12,7 +13,6 @@ members = [
   "crates/consensus_manager",
   "crates/gateway",
   "crates/gateway_types",
-  "crates/http_server",
   "crates/l1-provider",
   "crates/mempool",
   "crates/mempool_infra",
@@ -202,6 +202,7 @@ simple_logger = "4.0.0"
 starknet-core = "0.6.0"
 starknet-crypto = "0.7.1"
 starknet-types-core = "0.1.6"
+starknet_add_tx_endpoint = { path = "crates/add_tx_endpoint", version = "0.0.0" }
 starknet_api = { path = "crates/starknet_api", version = "0.0.0" }
 starknet_batcher = { path = "crates/batcher", version = "0.0.0" }
 starknet_batcher_types = { path = "crates/batcher_types", version = "0.0.0" }
@@ -210,7 +211,6 @@ starknet_committer = { path = "crates/starknet_committer", version = "0.0.0" }
 starknet_consensus_manager = { path = "crates/consensus_manager", version = "0.0.0" }
 starknet_gateway = { path = "crates/gateway", version = "0.0.0" }
 starknet_gateway_types = { path = "crates/gateway_types", version = "0.0.0" }
-starknet_http_server = { path = "crates/http_server", version = "0.0.0" }
 starknet_mempool = { path = "crates/mempool", version = "0.0.0" }
 starknet_mempool_infra = { path = "crates/mempool_infra", version = "0.0.0" }
 starknet_mempool_node = { path = "crates/mempool_node", version = "0.0.0" }

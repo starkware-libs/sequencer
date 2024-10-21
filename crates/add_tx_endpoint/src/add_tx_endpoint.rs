@@ -14,17 +14,17 @@ use starknet_mempool_infra::component_definitions::ComponentStarter;
 use starknet_mempool_infra::errors::ComponentError;
 use tracing::{error, info, instrument};
 
-use crate::config::HttpServerConfig;
-use crate::errors::HttpServerRunError;
+use crate::config::AddTxEndpointConfig;
+use crate::errors::AddTxEndpointRunError;
 
 #[cfg(test)]
-#[path = "http_server_test.rs"]
-pub mod http_server_test;
+#[path = "add_tx_endpoint_test.rs"]
+pub mod add_tx_endpoint_test;
 
-pub type HttpServerResult<T> = Result<T, GatewaySpecError>;
+pub type AddTxEndpointResult<T> = Result<T, GatewaySpecError>;
 
-pub struct HttpServer {
-    pub config: HttpServerConfig,
+pub struct AddTxEndpoint {
+    pub config: AddTxEndpointConfig,
     app_state: AppState,
 }
 
@@ -33,18 +33,19 @@ pub struct AppState {
     pub gateway_client: SharedGatewayClient,
 }
 
-impl HttpServer {
-    pub fn new(config: HttpServerConfig, gateway_client: SharedGatewayClient) -> Self {
+impl AddTxEndpoint {
+    pub fn new(config: AddTxEndpointConfig, gateway_client: SharedGatewayClient) -> Self {
         let app_state = AppState { gateway_client };
-        HttpServer { config, app_state }
+        AddTxEndpoint { config, app_state }
     }
 
-    pub async fn run(&mut self) -> Result<(), HttpServerRunError> {
-        // Parses the bind address from HttpServerConfig, returning an error for invalid addresses.
-        let HttpServerConfig { ip, port } = self.config;
+    pub async fn run(&mut self) -> Result<(), AddTxEndpointRunError> {
+        // Parses the bind address from AddTxEndpointConfig, returning an error for invalid
+        // addresses.
+        let AddTxEndpointConfig { ip, port } = self.config;
         let addr = SocketAddr::new(ip, port);
         let app = self.app();
-        info!("HttpServer running using socket: {}", addr);
+        info!("AddTxEndpoint running using socket: {}", addr);
 
         // Create a server that runs forever.
         Ok(axum::Server::bind(&addr).serve(app.into_make_service()).await?)
@@ -55,13 +56,13 @@ impl HttpServer {
     }
 }
 
-// HttpServer handlers.
+// AddTxEndpoint handlers.
 
 #[instrument(skip(app_state))]
 async fn add_tx(
     State(app_state): State<AppState>,
     Json(tx): Json<RpcTransaction>,
-) -> HttpServerResult<Json<TransactionHash>> {
+) -> AddTxEndpointResult<Json<TransactionHash>> {
     let gateway_input: GatewayInput = GatewayInput { rpc_tx: tx.clone(), message_metadata: None };
 
     let add_tx_result = app_state.gateway_client.add_tx(gateway_input).await.map_err(|join_err| {
@@ -74,20 +75,20 @@ async fn add_tx(
 
 pub(crate) fn add_tx_result_as_json(
     result: Result<TransactionHash, GatewaySpecError>,
-) -> HttpServerResult<Json<TransactionHash>> {
+) -> AddTxEndpointResult<Json<TransactionHash>> {
     let tx_hash = result?;
     Ok(Json(tx_hash))
 }
 
-pub fn create_http_server(
-    config: HttpServerConfig,
+pub fn create_add_tx_endpoint(
+    config: AddTxEndpointConfig,
     gateway_client: SharedGatewayClient,
-) -> HttpServer {
-    HttpServer::new(config, gateway_client)
+) -> AddTxEndpoint {
+    AddTxEndpoint::new(config, gateway_client)
 }
 
 #[async_trait]
-impl ComponentStarter for HttpServer {
+impl ComponentStarter for AddTxEndpoint {
     async fn start(&mut self) -> Result<(), ComponentError> {
         info!("Starting component {}.", type_name::<Self>());
         self.run().await.map_err(|_| ComponentError::InternalComponentError)
