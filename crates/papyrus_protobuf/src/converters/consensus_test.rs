@@ -30,7 +30,7 @@ use crate::consensus::{
 
 // If all the fields of `AllResources` are 0 upon serialization,
 // then the deserialized value will be interpreted as the `L1Gas` variant.
-fn add_gas_values_to_transaction(transactions: &mut Vec<Transaction>) {
+fn add_gas_values_to_transaction(transactions: &mut [Transaction]) {
     let transaction = &mut transactions[0];
     match transaction {
         Transaction::Declare(DeclareTransaction::V3(DeclareTransactionV3 {
