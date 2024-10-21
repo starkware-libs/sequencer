@@ -515,27 +515,6 @@ fn test_add_tx_account_state_fills_nonce_gap(mut mempool: Mempool) {
 }
 
 #[rstest]
-fn test_add_tx_sequential_nonces(mut mempool: Mempool) {
-    // Setup.
-    let input_nonce_0 = add_tx_input!(tx_hash: 0, tx_nonce: 0, account_nonce: 0);
-    let input_nonce_1 = add_tx_input!(tx_hash: 1, tx_nonce: 1, account_nonce: 0);
-
-    // Test.
-    for input in [&input_nonce_0, &input_nonce_1] {
-        add_tx(&mut mempool, input);
-    }
-
-    // Assert: only eligible transaction appears in the queue.
-    let expected_queue_txs = [TransactionReference::new(&input_nonce_0.tx)];
-    let expected_pool_txs = [input_nonce_0.tx, input_nonce_1.tx];
-    let expected_mempool_content = MempoolContentBuilder::new()
-        .with_pool(expected_pool_txs)
-        .with_priority_queue(expected_queue_txs)
-        .build();
-    expected_mempool_content.assert_eq(&mempool);
-}
-
-#[rstest]
 fn test_add_tx_fills_nonce_gap(mut mempool: Mempool) {
     // Setup.
     let input_nonce_0 = add_tx_input!(tx_hash: 1, tx_nonce: 0, account_nonce: 0);
