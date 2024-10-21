@@ -256,7 +256,7 @@ mod tests {
         assert!(matches!(receiver1.try_next(), Ok(None)));
 
         // stream_id1 should be gone
-        let values = vec![(peer_id.clone(), 1), (peer_id.clone(), 10)];
+        let values = [(peer_id.clone(), 1), (peer_id.clone(), 10)];
         assert!(
             stream_handler
                 .inbound_stream_data
@@ -284,7 +284,7 @@ mod tests {
         assert!(matches!(receiver2.try_next(), Ok(None)));
 
         // Stream_id2 should also be gone.
-        let values = vec![(peer_id.clone(), 1)];
+        let values = [(peer_id.clone(), 1)];
         assert!(
             stream_handler
                 .inbound_stream_data
@@ -311,7 +311,7 @@ mod tests {
         assert!(matches!(receiver3.try_next(), Err(_)));
 
         // Stream_id3 should still be there, because we didn't send a fin.
-        let values = vec![(peer_id.clone(), 1)];
+        let values = [(peer_id.clone(), 1)];
         assert!(
             stream_handler
                 .inbound_stream_data
