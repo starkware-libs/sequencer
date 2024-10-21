@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use async_trait::async_trait;
-use blockifier::blockifier::block::{BlockInfo, BlockNumberHashPair, GasPrices};
+use blockifier::blockifier::block::{BlockInfo, GasPrices};
 use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::{
     TransactionExecutor,
@@ -26,7 +26,7 @@ use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_storage::StorageReader;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockNumber, BlockTimestamp, NonzeroGasPrice};
+use starknet_api::block::{BlockHashAndNumber, BlockNumber, BlockTimestamp, NonzeroGasPrice};
 use starknet_api::core::ContractAddress;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::transaction::TransactionHash;
@@ -216,7 +216,7 @@ pub trait BlockBuilderFactoryTrait {
     fn create_block_builder(
         &self,
         height: BlockNumber,
-        retrospective_block_hash: Option<BlockNumberHashPair>,
+        retrospective_block_hash: Option<BlockHashAndNumber>,
     ) -> BlockBuilderResult<Box<dyn BlockBuilderTrait>>;
 }
 
@@ -243,7 +243,7 @@ impl BlockBuilderFactory {
     fn preprocess_and_create_transaction_executor(
         &self,
         height: BlockNumber,
-        retrospective_block_hash: Option<BlockNumberHashPair>,
+        retrospective_block_hash: Option<BlockHashAndNumber>,
     ) -> BlockBuilderResult<TransactionExecutor<PapyrusReader>> {
         let block_builder_config = self.block_builder_config.clone();
         let next_block_info = BlockInfo {
@@ -293,7 +293,7 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
     fn create_block_builder(
         &self,
         height: BlockNumber,
-        retrospective_block_hash: Option<BlockNumberHashPair>,
+        retrospective_block_hash: Option<BlockHashAndNumber>,
     ) -> BlockBuilderResult<Box<dyn BlockBuilderTrait>> {
         let executor =
             self.preprocess_and_create_transaction_executor(height, retrospective_block_hash)?;

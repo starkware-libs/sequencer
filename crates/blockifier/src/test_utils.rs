@@ -15,9 +15,10 @@ use std::path::PathBuf;
 
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
-use starknet_api::block::{GasPrice, NonzeroGasPrice};
+use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber, GasPrice, NonzeroGasPrice};
 use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey};
 use starknet_api::execution_resources::{GasAmount, GasVector};
+use starknet_api::hash::StarkHash;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{
     Calldata,
@@ -30,6 +31,7 @@ use starknet_api::{contract_address, felt, patricia_key};
 use starknet_types_core::felt::Felt;
 
 use crate::abi::abi_utils::{get_fee_token_var_address, selector_from_name};
+use crate::abi::constants;
 use crate::execution::call_info::ExecutionSummary;
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::deprecated_syscalls::hint_processor::SyscallCounter;
@@ -458,4 +460,14 @@ pub fn get_vm_resource_usage() -> ExecutionResources {
             (BuiltinName::poseidon, 1),
         ]),
     }
+}
+
+pub fn maybe_dummy_block_hash_and_number(block_number: BlockNumber) -> Option<BlockHashAndNumber> {
+    if block_number.0 < constants::STORED_BLOCK_HASH_BUFFER {
+        return None;
+    }
+    Some(BlockHashAndNumber {
+        number: BlockNumber(block_number.0 - constants::STORED_BLOCK_HASH_BUFFER),
+        hash: BlockHash(StarkHash::ONE),
+    })
 }

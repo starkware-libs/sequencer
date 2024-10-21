@@ -10171,7 +10171,6 @@ name = "starknet_batcher_types"
 version = "0.0.0"
 dependencies = [
  "async-trait",
- "blockifier",
  "chrono",
  "derive_more 0.99.18",
  "mockall",
