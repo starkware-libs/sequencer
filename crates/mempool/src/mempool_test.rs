@@ -54,6 +54,7 @@ impl From<MempoolContent> for Mempool {
             // TODO: Add implementation when needed.
             mempool_state: Default::default(),
             account_nonces: Default::default(),
+            _config: Default::default(),
         }
     }
 }
