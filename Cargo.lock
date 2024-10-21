@@ -10305,6 +10305,7 @@ name = "starknet_http_server"
 version = "0.0.0"
 dependencies = [
  "axum",
+ "hyper 0.14.30",
  "papyrus_config",
  "serde",
  "serde_json",
@@ -10312,6 +10313,7 @@ dependencies = [
  "starknet_gateway",
  "starknet_gateway_types",
  "starknet_mempool_infra",
+ "thiserror",
  "tokio",
  "tracing",
  "validator",
