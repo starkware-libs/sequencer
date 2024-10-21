@@ -7238,7 +7238,9 @@ name = "papyrus_common"
 version = "0.0.0"
 dependencies = [
  "assert_matches",
+ "base64 0.13.1",
  "cairo-lang-starknet-classes",
+ "flate2",
  "indexmap 2.6.0",
  "lazy_static",
  "papyrus_test_utils",

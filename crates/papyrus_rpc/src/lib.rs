@@ -3,7 +3,6 @@
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 
 mod api;
-mod compression_utils;
 mod middleware;
 mod pending;
 mod rpc_metrics;

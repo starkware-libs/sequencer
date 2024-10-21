@@ -3,6 +3,7 @@ use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_types_core::felt::Felt;
 
 pub mod class_hash;
+pub mod compression_utils;
 pub mod deprecated_class_abi;
 pub mod metrics;
 pub mod pending_classes;

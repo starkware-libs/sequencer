@@ -10,6 +10,7 @@
 #[path = "broadcasted_transaction_test.rs"]
 mod broadcasted_transaction_test;
 
+use papyrus_common::compression_utils::compress_and_encode;
 use papyrus_storage::db::serialization::StorageSerdeError;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{CompiledClassHash, ContractAddress, Nonce};
@@ -27,7 +28,6 @@ use starknet_client::writer::objects::transaction::DeprecatedContractClass;
 
 use super::state::ContractClass;
 use super::transaction::{DeployAccountTransaction, InvokeTransaction, ResourceBoundsMapping};
-use crate::compression_utils::compress_and_encode;
 
 /// Transactions that are ready to be broadcasted to the network and are not included in a block.
 #[derive(Clone, Debug, Serialize, Deserialize)]
