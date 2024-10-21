@@ -4,8 +4,8 @@ use std::net::SocketAddr;
 use axum::http::StatusCode;
 use axum::routing::get;
 use axum::{async_trait, Router};
-use starknet_mempool_infra::component_definitions::ComponentStarter;
-use starknet_mempool_infra::errors::ComponentError;
+use starknet_sequencer_infra::component_definitions::ComponentStarter;
+use starknet_sequencer_infra::errors::ComponentError;
 use tracing::{info, instrument};
 
 use crate::config::MonitoringEndpointConfig;

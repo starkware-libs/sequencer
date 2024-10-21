@@ -10,12 +10,12 @@ use starknet_gateway_types::communication::{
     LocalGatewayClient,
     SharedGatewayClient,
 };
-use starknet_mempool_infra::component_definitions::ComponentCommunication;
 use starknet_mempool_types::communication::{
     LocalMempoolClient,
     MempoolRequestAndResponseSender,
     SharedMempoolClient,
 };
+use starknet_sequencer_infra::component_definitions::ComponentCommunication;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 
 use crate::config::SequencerNodeConfig;

@@ -1,5 +1,5 @@
 [package]
-name = "starknet_mempool_infra"
+name = "starknet_sequencer_infra"
 version.workspace = true
 edition.workspace = true
 repository.workspace = true
