@@ -163,6 +163,8 @@ impl<T: StorageSerde + Debug + Migratable, const VERSION: u8> ValueSerde
 #[derive(thiserror::Error, Debug)]
 pub enum StorageSerdeError {
     #[error(transparent)]
+    CompressionUtilsError(#[from] papyrus_common::compression_utils::CompressionUtilsError),
+    #[error(transparent)]
     Io(#[from] std::io::Error),
     #[error(transparent)]
     Serde(#[from] serde_json::Error),

@@ -7251,6 +7251,7 @@ dependencies = [
  "sha3",
  "starknet-types-core",
  "starknet_api",
+ "thiserror",
 ]
 
 [[package]]
