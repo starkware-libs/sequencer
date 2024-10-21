@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::time::Duration;
 
 use futures::future::BoxFuture;
@@ -6,6 +6,8 @@ use futures::FutureExt;
 use libp2p::swarm::dial_opts::DialOpts;
 use libp2p::swarm::ToSwarm;
 use libp2p::PeerId;
+use papyrus_config::dumping::{ser_param, SerializeConfig};
+use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use peer::Peer;
 use serde::{Deserialize, Serialize};
 use tracing::info;
@@ -65,6 +67,25 @@ impl Default for PeerManagerConfig {
             malicious_timeout: Duration::from_secs(3600 * 24 * 365),
             unstable_timeout: Duration::from_secs(1),
         }
+    }
+}
+
+impl SerializeConfig for PeerManagerConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from([
+            ser_param(
+                "malicious_timeout",
+                &self.malicious_timeout,
+                "The duration a peer is blacklisted after being marked as malicious.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "unstable_timeout",
+                &self.unstable_timeout,
+                "The duration a peer blacklisted after being reported as unstable.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
     }
 }
 

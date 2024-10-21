@@ -5,6 +5,7 @@ mod flow_test;
 pub mod identify_impl;
 pub mod kad_impl;
 
+use std::collections::BTreeMap;
 use std::task::{ready, Context, Poll, Waker};
 use std::time::Duration;
 
@@ -27,6 +28,8 @@ use libp2p::swarm::{
     ToSwarm,
 };
 use libp2p::{Multiaddr, PeerId};
+use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
+use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use tokio_retry::strategy::ExponentialBackoff;
 
@@ -197,6 +200,23 @@ impl Default for DiscoveryConfig {
     }
 }
 
+impl SerializeConfig for DiscoveryConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        let mut dump = BTreeMap::new();
+        dump.append(&mut append_sub_config_name(
+            self.bootstrap_dial_retry_config.dump(),
+            "bootstrap_dial_retry_config",
+        ));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "heartbeat_interval",
+            &self.heartbeat_interval,
+            "The interval between each Kademlia (discovery) query.",
+            ParamPrivacyInput::Public,
+        )]));
+        dump
+    }
+}
+
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct RetryConfig {
     pub base_delay_millis: u64,
@@ -207,6 +227,31 @@ pub struct RetryConfig {
 impl Default for RetryConfig {
     fn default() -> Self {
         Self { base_delay_millis: 2, max_delay: Duration::from_secs(5), factor: 5 }
+    }
+}
+
+impl SerializeConfig for RetryConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from([
+            ser_param(
+                "base_delay_millis",
+                &self.base_delay_millis,
+                "The base delay in milliseconds for the exponential backoff strategy.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_delay",
+                &self.max_delay,
+                "The maximum delay for the exponential backoff strategy.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "factor",
+                &self.factor,
+                "The factor for the exponential backoff strategy.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
     }
 }
 

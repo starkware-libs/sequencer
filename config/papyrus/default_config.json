@@ -174,22 +174,30 @@
     "pointer_target": "chain_id",
     "privacy": "Public"
   },
-  "network.discovery_config": {
-    "description": "Config for the discovery protocol.",
+  "network.discovery_config.bootstrap_dial_retry_config.base_delay_millis": {
+    "description": "The base delay in milliseconds for the exponential backoff strategy.",
+    "privacy": "Public",
+    "value": 2
+  },
+  "network.discovery_config.bootstrap_dial_retry_config.factor": {
+    "description": "The factor for the exponential backoff strategy.",
+    "privacy": "Public",
+    "value": 5
+  },
+  "network.discovery_config.bootstrap_dial_retry_config.max_delay": {
+    "description": "The maximum delay for the exponential backoff strategy.",
     "privacy": "Public",
     "value": {
-      "bootstrap_dial_retry_config": {
-        "base_delay_millis": 2,
-        "factor": 5,
-        "max_delay": {
-          "nanos": 0,
-          "secs": 5
-        }
-      },
-      "heartbeat_interval": {
-        "nanos": 100000000,
-        "secs": 0
-      }
+      "nanos": 0,
+      "secs": 5
+    }
+  },
+  "network.discovery_config.heartbeat_interval": {
+    "description": "The interval between each Kademlia (discovery) query.",
+    "privacy": "Public",
+    "value": {
+      "nanos": 100000000,
+      "secs": 0
     }
   },
   "network.idle_connection_timeout": {
@@ -197,18 +205,20 @@
     "privacy": "Public",
     "value": 120
   },
-  "network.peer_manager_config": {
-    "description": "Config for the peer manager.",
+  "network.peer_manager_config.malicious_timeout": {
+    "description": "The duration a peer is blacklisted after being marked as malicious.",
     "privacy": "Public",
     "value": {
-      "malicious_timeout": {
-        "nanos": 0,
-        "secs": 31536000
-      },
-      "unstable_timeout": {
-        "nanos": 0,
-        "secs": 1
-      }
+      "nanos": 0,
+      "secs": 31536000
+    }
+  },
+  "network.peer_manager_config.unstable_timeout": {
+    "description": "The duration a peer blacklisted after being reported as unstable.",
+    "privacy": "Public",
+    "value": {
+      "nanos": 0,
+      "secs": 1
     }
   },
   "network.quic_port": {
