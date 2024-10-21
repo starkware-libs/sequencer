@@ -201,6 +201,7 @@ pub struct CompiledClassHash(pub StarkHash);
 #[derive(
     Debug,
     Default,
+    derive_more::Display,
     Copy,
     Clone,
     Eq,
