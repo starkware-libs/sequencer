@@ -28,8 +28,8 @@ use starknet_gateway::config::{
 };
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_http_server::config::HttpServerConfig;
-use starknet_mempool_node::config::component_config::ComponentConfig;
-use starknet_mempool_node::config::{ComponentExecutionConfig, SequencerNodeConfig};
+use starknet_sequencer_node::config::component_config::ComponentConfig;
+use starknet_sequencer_node::config::{ComponentExecutionConfig, SequencerNodeConfig};
 use tokio::net::TcpListener;
 
 pub async fn create_config(
