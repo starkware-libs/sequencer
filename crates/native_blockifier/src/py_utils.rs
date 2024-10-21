@@ -1,7 +1,7 @@
-use blockifier::blockifier::block::BlockNumberHashPair;
 use num_bigint::BigUint;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
+use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, EthAddress};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
@@ -100,7 +100,9 @@ where
 
 pub fn into_block_number_hash_pair(
     old_block_number_and_hash: Option<(u64, PyFelt)>,
-) -> Option<BlockNumberHashPair> {
-    old_block_number_and_hash
-        .map(|(block_number, block_hash)| BlockNumberHashPair::new(block_number, block_hash.0))
+) -> Option<BlockHashAndNumber> {
+    old_block_number_and_hash.map(|(block_number, block_hash)| BlockHashAndNumber {
+        block_number: BlockNumber(block_number),
+        block_hash: BlockHash(block_hash.0),
+    })
 }

@@ -1,7 +1,6 @@
 use log::warn;
-use serde::{Deserialize, Serialize};
 use starknet_api::block::{
-    BlockHash,
+    BlockHashAndNumber,
     BlockNumber,
     BlockTimestamp,
     GasPrice,
@@ -10,7 +9,6 @@ use starknet_api::block::{
 };
 use starknet_api::core::ContractAddress;
 use starknet_api::state::StorageKey;
-use starknet_types_core::felt::Felt;
 
 use crate::abi::constants;
 use crate::state::errors::StateError;
@@ -109,14 +107,12 @@ impl GasPrices {
 // block hash table.
 pub fn pre_process_block(
     state: &mut dyn State,
-    old_block_number_and_hash: Option<BlockNumberHashPair>,
+    old_block_number_and_hash: Option<BlockHashAndNumber>,
     next_block_number: BlockNumber,
 ) -> StateResult<()> {
     let should_block_hash_be_provided =
         next_block_number >= BlockNumber(constants::STORED_BLOCK_HASH_BUFFER);
-    if let Some(BlockNumberHashPair { number: block_number, hash: block_hash }) =
-        old_block_number_and_hash
-    {
+    if let Some(BlockHashAndNumber { block_number, block_hash }) = old_block_number_and_hash {
         let block_hash_contract_address =
             ContractAddress::from(constants::BLOCK_HASH_CONTRACT_ADDRESS);
         let block_number_as_storage_key = StorageKey::from(block_number.0);
@@ -130,16 +126,4 @@ pub fn pre_process_block(
     }
 
     Ok(())
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct BlockNumberHashPair {
-    pub number: BlockNumber,
-    pub hash: BlockHash,
-}
-
-impl BlockNumberHashPair {
-    pub fn new(block_number: u64, block_hash: Felt) -> BlockNumberHashPair {
-        BlockNumberHashPair { number: BlockNumber(block_number), hash: BlockHash(block_hash) }
-    }
 }

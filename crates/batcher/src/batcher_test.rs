@@ -3,13 +3,12 @@ use std::sync::Arc;
 
 use assert_matches::assert_matches;
 use async_trait::async_trait;
-use blockifier::blockifier::block::BlockNumberHashPair;
 use futures::future::BoxFuture;
 use futures::FutureExt;
 use mockall::automock;
 use mockall::predicate::eq;
 use rstest::{fixture, rstest};
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockHashAndNumber, BlockNumber};
 use starknet_api::core::{ContractAddress, Nonce, PatriciaKey, StateDiffCommitment};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::hash::PoseidonHash;
@@ -246,7 +245,7 @@ trait ProposalManagerTraitWrapper: Send + Sync {
     fn wrap_build_block_proposal(
         &mut self,
         proposal_id: ProposalId,
-        retrospective_block_hash: Option<BlockNumberHashPair>,
+        retrospective_block_hash: Option<BlockHashAndNumber>,
         deadline: tokio::time::Instant,
         output_content_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
     ) -> BoxFuture<'_, Result<(), BuildProposalError>>;
@@ -271,7 +270,7 @@ impl<T: ProposalManagerTraitWrapper> ProposalManagerTrait for T {
     async fn build_block_proposal(
         &mut self,
         proposal_id: ProposalId,
-        retrospective_block_hash: Option<BlockNumberHashPair>,
+        retrospective_block_hash: Option<BlockHashAndNumber>,
         deadline: tokio::time::Instant,
         output_content_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
     ) -> Result<(), BuildProposalError> {
