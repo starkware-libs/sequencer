@@ -128,7 +128,7 @@ impl TryFrom<String> for StarknetVersion {
     fn try_from(starknet_version: String) -> Result<Self, StarknetApiError> {
         let version: Vec<u8> =
             starknet_version.split('.').map(|x| x.parse::<u8>()).try_collect()?;
-        Ok(Self::try_from(version)?)
+        Self::try_from(version)
     }
 }
 
