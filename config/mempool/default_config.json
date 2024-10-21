@@ -204,11 +204,6 @@
     "privacy": "TemporaryValue",
     "value": "SN_MAIN"
   },
-  "compiler_config.max_bytecode_size": {
-    "description": "Limitation of contract bytecode size.",
-    "privacy": "Public",
-    "value": 81920
-  },
   "components.batcher.execute": {
     "description": "The component execution flag.",
     "privacy": "Public",
@@ -593,6 +588,11 @@
     "description": "Address of the STRK fee token.",
     "privacy": "Public",
     "value": "0x0"
+  },
+  "gateway_config.compiler_config.max_bytecode_size": {
+    "description": "Limitation of contract bytecode size.",
+    "privacy": "Public",
+    "value": 81920
   },
   "gateway_config.stateful_tx_validator_config.max_nonce_for_validation_skip": {
     "description": "Maximum nonce for which the validation is skipped.",

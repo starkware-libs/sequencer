@@ -48,7 +48,6 @@ pub fn create_node_components(
         Some(create_gateway(
             config.gateway_config.clone(),
             config.rpc_state_reader_config.clone(),
-            config.compiler_config.clone(),
             mempool_client,
         ))
     } else {
