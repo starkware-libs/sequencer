@@ -6,7 +6,6 @@ use starknet_api::transaction::{Fee, TransactionVersion};
 use starknet_api::{declare_tx_args, deploy_account_tx_args, felt, invoke_tx_args, nonce};
 use starknet_types_core::felt::Felt;
 
-use crate::blockifier::block::BlockNumberHashPair;
 use crate::blockifier::config::TransactionExecutorConfig;
 use crate::blockifier::transaction_executor::{
     TransactionExecutor,
@@ -21,7 +20,13 @@ use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::declare::declare_tx;
 use crate::test_utils::deploy_account::deploy_account_tx;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{create_calldata, CairoVersion, BALANCE, DEFAULT_STRK_L1_GAS_PRICE};
+use crate::test_utils::{
+    create_calldata,
+    maybe_dummy_block_hash_and_number,
+    CairoVersion,
+    BALANCE,
+    DEFAULT_STRK_L1_GAS_PRICE,
+};
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::test_utils::{
     account_invoke_tx,
@@ -41,7 +46,7 @@ fn tx_executor_test_body<S: StateReader>(
     expected_bouncer_weights: BouncerWeights,
 ) {
     let block_number_hash_pair =
-        BlockNumberHashPair::create_dummy_given_current(block_context.block_info().block_number);
+        maybe_dummy_block_hash_and_number(block_context.block_info().block_number);
     let mut tx_executor = TransactionExecutor::pre_process_and_create(
         state,
         block_context,

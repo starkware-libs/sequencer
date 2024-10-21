@@ -1,10 +1,8 @@
 use std::fmt::Debug;
 
-// TODO(Dan): move to SN_API
-pub use blockifier::blockifier::block::BlockNumberHashPair;
 use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockHashAndNumber, BlockNumber};
 use starknet_api::core::StateDiffCommitment;
 use starknet_api::executable_transaction::Transaction;
 
@@ -36,7 +34,7 @@ pub struct ProposalCommitment {
 pub struct BuildProposalInput {
     pub proposal_id: ProposalId,
     pub deadline: chrono::DateTime<Utc>,
-    pub retrospective_block_hash: Option<BlockNumberHashPair>,
+    pub retrospective_block_hash: Option<BlockHashAndNumber>,
     // TODO: Should we get the gas price here?
 }
 

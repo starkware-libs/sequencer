@@ -23,7 +23,7 @@ use std::cell::Cell;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use blockifier::blockifier::block::{pre_process_block, BlockInfo, BlockNumberHashPair, GasPrices};
+use blockifier::blockifier::block::{pre_process_block, BlockInfo, GasPrices};
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use blockifier::execution::call_info::CallExecution;
@@ -53,7 +53,7 @@ use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::{StorageError, StorageReader};
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockNumber, NonzeroGasPrice, StarknetVersion};
+use starknet_api::block::{BlockHashAndNumber, BlockNumber, NonzeroGasPrice, StarknetVersion};
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, EntryPointSelector, PatriciaKey};
 use starknet_api::data_availability::L1DataAvailabilityMode;
@@ -715,7 +715,7 @@ impl From<(usize, BlockifierTransactionExecutionError)> for ExecutionError {
 fn get_10_blocks_ago(
     block_number: &BlockNumber,
     cached_state: &CachedState<ExecutionStateReader>,
-) -> ExecutionResult<Option<BlockNumberHashPair>> {
+) -> ExecutionResult<Option<BlockHashAndNumber>> {
     if block_number.0 < 10 {
         return Ok(None);
     }
@@ -725,9 +725,9 @@ fn get_10_blocks_ago(
     else {
         return Ok(None);
     };
-    Ok(Some(BlockNumberHashPair {
-        number: header_10_blocks_ago.block_header_without_hash.block_number,
-        hash: header_10_blocks_ago.block_hash,
+    Ok(Some(BlockHashAndNumber {
+        block_number: header_10_blocks_ago.block_header_without_hash.block_number,
+        block_hash: header_10_blocks_ago.block_hash,
     }))
 }
 
