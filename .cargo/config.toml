@@ -1,7 +1,7 @@
 [env]
-LLVM_SYS_181_PREFIX = "/usr/lib/llvm-18/"
-MLIR_SYS_180_PREFIX = "/usr/lib/llvm-18/"
-TABLEGEN_180_PREFIX = "/usr/lib/llvm-18/"
+LLVM_SYS_191_PREFIX = "/usr/lib/llvm-19/"
+MLIR_SYS_190_PREFIX = "/usr/lib/llvm-19/"
+TABLEGEN_190_PREFIX = "/usr/lib/llvm-19/"
 
 # Use `lld` for linking instead of `ld`, since we run out of memory while linking with `ld` on
 # 16-cores linux machines, see:
