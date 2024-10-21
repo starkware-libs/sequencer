@@ -1,5 +1,5 @@
 [package]
-name = "starknet_mempool_node"
+name = "starknet_sequencer_node"
 version.workspace = true
 edition.workspace = true
 repository.workspace = true
