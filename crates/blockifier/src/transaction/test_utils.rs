@@ -7,7 +7,6 @@ use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::{
     AllResourceBounds,
-    Calldata,
     ContractAddressSalt,
     Fee,
     GasVectorComputationMode,
