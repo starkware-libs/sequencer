@@ -2,11 +2,10 @@ use std::sync::Arc;
 
 use jsonrpsee::{Methods, RpcModule};
 use papyrus_common::pending_classes::PendingClasses;
-use papyrus_common::BlockHashAndNumber;
 use papyrus_execution::ExecutionConfig;
 use papyrus_storage::StorageReader;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::core::{ChainId, ContractAddress, EntryPointSelector};
 use starknet_api::transaction::Calldata;
 use starknet_client::reader::PendingData;
