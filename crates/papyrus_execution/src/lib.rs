@@ -196,6 +196,9 @@ type BlockifierError = anyhow::Error;
 
 /// Executes a StarkNet call and returns the execution result.
 #[allow(clippy::too_many_arguments)]
+// TODO(Dan, Yair): consider box large elements (because of BadDeclareTransaction) or use ID
+// instead.
+#[allow(clippy::result_large_err)]
 pub fn execute_call(
     storage_reader: StorageReader,
     maybe_pending_data: Option<PendingData>,
@@ -272,6 +275,9 @@ pub fn execute_call(
     Ok(res.execution)
 }
 
+// TODO(Dan, Yair): consider box large elements (because of BadDeclareTransaction) or use ID
+// instead.
+#[allow(clippy::result_large_err)]
 fn verify_contract_exists(
     contract_address: ContractAddress,
     storage_reader: &StorageReader,
@@ -290,6 +296,9 @@ fn verify_contract_exists(
     Ok(())
 }
 
+// TODO(Dan, Yair): consider box large elements (because of BadDeclareTransaction) or use ID
+// instead.
+#[allow(clippy::result_large_err)]
 fn create_block_context(
     cached_state: &mut CachedState<ExecutionStateReader>,
     block_context_number: BlockNumber,
@@ -410,6 +419,9 @@ pub enum ExecutableTransactionInput {
 }
 
 impl ExecutableTransactionInput {
+    // TODO(Dan, Yair): consider box large elements (because of BadDeclareTransaction) or use ID
+    // instead.
+    #[allow(clippy::result_large_err)]
     fn calc_tx_hash(self, chain_id: &ChainId) -> ExecutionResult<(Self, TransactionHash)> {
         match self.apply_on_transaction(|tx, only_query| {
             get_transaction_hash(tx, chain_id, &TransactionOptions { only_query })
@@ -513,6 +525,9 @@ impl ExecutableTransactionInput {
 }
 
 /// Calculates the transaction hashes for a series of transactions without cloning the transactions.
+// TODO(Dan, Yair): consider box large elements (because of BadDeclareTransaction) or use ID
+// instead.
+#[allow(clippy::result_large_err)]
 fn calc_tx_hashes(
     txs: Vec<ExecutableTransactionInput>,
     chain_id: &ChainId,
@@ -540,6 +555,9 @@ pub type FeeEstimationResult = Result<Vec<FeeEstimation>, RevertedTransaction>;
 
 /// Returns the fee estimation for a series of transactions.
 #[allow(clippy::too_many_arguments)]
+// TODO(Dan, Yair): consider box large elements (because of BadDeclareTransaction) or use ID
+// instead.
+#[allow(clippy::result_large_err)]
 pub fn estimate_fee(
     txs: Vec<ExecutableTransactionInput>,
     chain_id: &ChainId,
@@ -586,6 +604,9 @@ struct TransactionExecutionOutput {
 // Executes a series of transactions and returns the execution results.
 // TODO(yair): Return structs instead of tuples.
 #[allow(clippy::too_many_arguments)]
+// TODO(Dan, Yair): consider box large elements (because of BadDeclareTransaction) or use ID
+// instead.
+#[allow(clippy::result_large_err)]
 fn execute_transactions(
     txs: Vec<ExecutableTransactionInput>,
     tx_hashes: Option<Vec<TransactionHash>>,
@@ -688,6 +709,9 @@ impl From<(usize, BlockifierTransactionExecutionError)> for ExecutionError {
     }
 }
 
+// TODO(Dan, Yair): consider box large elements (because of BadDeclareTransaction) or use ID
+// instead.
+#[allow(clippy::result_large_err)]
 fn get_10_blocks_ago(
     block_number: &BlockNumber,
     cached_state: &CachedState<ExecutionStateReader>,
@@ -707,6 +731,9 @@ fn get_10_blocks_ago(
     }))
 }
 
+// TODO(Dan, Yair): consider box large elements (because of BadDeclareTransaction) or use ID
+// instead.
+#[allow(clippy::result_large_err)]
 fn to_blockifier_tx(
     tx: ExecutableTransactionInput,
     tx_hash: TransactionHash,
@@ -861,6 +888,9 @@ fn to_blockifier_tx(
 }
 
 // TODO(dan): add 0_13_1_1 support
+// TODO(Dan, Yair): consider box large elements (because of BadDeclareTransaction) or use ID
+// instead.
+#[allow(clippy::result_large_err)]
 fn get_versioned_constants(
     starknet_version: Option<&StarknetVersion>,
 ) -> ExecutionResult<&'static VersionedConstants> {
@@ -885,6 +915,9 @@ fn get_versioned_constants(
 
 /// Simulates a series of transactions and returns the transaction traces and the fee estimations.
 // TODO(yair): Return structs instead of tuples.
+// TODO(Dan, Yair): consider box large elements (because of BadDeclareTransaction) or use ID
+// instead.
+#[allow(clippy::result_large_err)]
 #[allow(clippy::too_many_arguments)]
 pub fn simulate_transactions(
     txs: Vec<ExecutableTransactionInput>,
