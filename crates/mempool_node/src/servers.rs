@@ -24,23 +24,22 @@ use crate::components::SequencerNodeComponents;
 use crate::config::SequencerNodeConfig;
 
 // Component servers that can run locally.
-pub struct LocalServers {
-    pub batcher: Option<Box<LocalBatcherServer>>,
-    pub gateway: Option<Box<LocalGatewayServer>>,
-    pub mempool: Option<Box<LocalMempoolServer>>,
+struct LocalServers {
+    pub(crate) batcher: Option<Box<LocalBatcherServer>>,
+    pub(crate) gateway: Option<Box<LocalGatewayServer>>,
+    pub(crate) mempool: Option<Box<LocalMempoolServer>>,
 }
 
 // Component servers that wrap a component without a server.
-pub struct WrapperServers {
-    pub consensus_manager: Option<Box<ConsensusManagerServer>>,
-    pub http_server: Option<Box<HttpServer>>,
-    pub monitoring_endpoint: Option<Box<MonitoringEndpointServer>>,
+struct WrapperServers {
+    pub(crate) consensus_manager: Option<Box<ConsensusManagerServer>>,
+    pub(crate) http_server: Option<Box<HttpServer>>,
+    pub(crate) monitoring_endpoint: Option<Box<MonitoringEndpointServer>>,
 }
 
-/// TODO(Tsabary): make these fields private, currently public to support the outdated e2e test.
 pub struct SequencerNodeServers {
-    pub local_servers: LocalServers,
-    pub wrapper_servers: WrapperServers,
+    local_servers: LocalServers,
+    wrapper_servers: WrapperServers,
 }
 
 pub fn create_node_servers(
