@@ -533,6 +533,7 @@ impl<'a> SyscallHintProcessor<'a> {
             Err(error) => return Err(error.into()),
         };
 
+        self.context.remaining_gas = remaining_gas;
         response.write(vm, &mut self.syscall_ptr)?;
 
         Ok(())
