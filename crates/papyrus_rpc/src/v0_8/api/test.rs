@@ -15,7 +15,6 @@ use jsonschema::JSONSchema;
 use lazy_static::lazy_static;
 use mockall::predicate::eq;
 use papyrus_common::pending_classes::{ApiContractClass, PendingClassesTrait};
-use papyrus_common::BlockHashAndNumber;
 use papyrus_storage::base_layer::BaseLayerStorageWriter;
 use papyrus_storage::body::events::EventIndex;
 use papyrus_storage::body::{BodyStorageWriter, TransactionIndex};
@@ -43,6 +42,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::{
     Block as StarknetApiBlock,
     BlockHash,
+    BlockHashAndNumber,
     BlockHeader,
     BlockHeaderWithoutHash,
     BlockNumber,
