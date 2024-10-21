@@ -124,7 +124,7 @@ impl TryFrom<TransactionExecutionInfo> for InvokeTransactionTrace {
     fn try_from(transaction_execution_info: TransactionExecutionInfo) -> ExecutionResult<Self> {
         let execute_invocation = match transaction_execution_info.revert_error {
             Some(revert_error) => {
-                FunctionInvocationResult::Err(RevertReason::RevertReason(revert_error))
+                FunctionInvocationResult::Err(RevertReason::RevertReason(revert_error.to_string()))
             }
             None => FunctionInvocationResult::Ok(
                 (
