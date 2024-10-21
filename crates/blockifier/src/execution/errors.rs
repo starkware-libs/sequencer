@@ -80,7 +80,7 @@ impl From<RunnerError> for PostExecutionError {
 pub enum EntryPointExecutionError {
     #[error(transparent)]
     CairoRunError(#[from] CairoRunError),
-    #[error("Execution failed. Failure reason:\n{error_trace}.")]
+    #[error("{error_trace}")]
     ExecutionFailed { error_trace: Cairo1RevertStack },
     #[error("Internal error: {0}")]
     InternalError(String),

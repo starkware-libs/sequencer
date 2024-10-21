@@ -18,6 +18,7 @@ use starknet_api::transaction::{
 };
 use starknet_types_core::felt::Felt;
 
+use super::stack_trace::Cairo1RevertHeader;
 use crate::abi::abi_utils::selector_from_name;
 use crate::abi::constants;
 use crate::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
@@ -182,7 +183,10 @@ impl CallEntryPoint {
             // If the execution of the outer call failed, revert the transction.
             if call_info.execution.failed {
                 return Err(EntryPointExecutionError::ExecutionFailed {
-                    error_trace: extract_trailing_cairo1_revert_trace(call_info),
+                    error_trace: extract_trailing_cairo1_revert_trace(
+                        call_info,
+                        Cairo1RevertHeader::Execution,
+                    ),
                 });
             }
         }

@@ -97,6 +97,7 @@ impl From<&VmExceptionFrame> for String {
 #[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Frame {
     EntryPoint(EntryPointErrorFrame),
+    Cairo1Tail(Cairo1RevertStack),
     Vm(VmExceptionFrame),
     StringFrame(String),
 }
@@ -105,6 +106,7 @@ impl From<&Frame> for String {
     fn from(value: &Frame) -> Self {
         match value {
             Frame::EntryPoint(entry_point_frame) => entry_point_frame.into(),
+            Frame::Cairo1Tail(cairo1_revert_stack) => cairo1_revert_stack.to_string(),
             Frame::Vm(vm_exception_frame) => vm_exception_frame.into(),
             Frame::StringFrame(error) => error.clone(),
         }
@@ -113,19 +115,25 @@ impl From<&Frame> for String {
 
 impl From<EntryPointErrorFrame> for Frame {
     fn from(value: EntryPointErrorFrame) -> Self {
-        Frame::EntryPoint(value)
+        Self::EntryPoint(value)
+    }
+}
+
+impl From<Cairo1RevertStack> for Frame {
+    fn from(value: Cairo1RevertStack) -> Self {
+        Self::Cairo1Tail(value)
     }
 }
 
 impl From<VmExceptionFrame> for Frame {
     fn from(value: VmExceptionFrame) -> Self {
-        Frame::Vm(value)
+        Self::Vm(value)
     }
 }
 
 impl From<String> for Frame {
     fn from(value: String) -> Self {
-        Frame::StringFrame(value)
+        Self::StringFrame(value)
     }
 }
 
@@ -156,7 +164,7 @@ impl ErrorStack {
         self.stack.push(frame);
     }
 }
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Cairo1RevertFrame {
     pub contract_address: ContractAddress,
     pub class_hash: Option<ClassHash>,
@@ -188,8 +196,28 @@ impl Display for Cairo1RevertFrame {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
+pub enum Cairo1RevertHeader {
+    Execution,
+    Validation,
+}
+
+impl Display for Cairo1RevertHeader {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Execution => "Execution failed. Failure reason:",
+                Self::Validation => "The `validate` entry point panicked with:",
+            }
+        )
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct Cairo1RevertStack {
+    pub header: Cairo1RevertHeader,
     pub stack: Vec<Cairo1RevertFrame>,
     pub last_retdata: Retdata,
 }
@@ -198,7 +226,8 @@ impl Display for Cairo1RevertStack {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{}",
+            "{}\n{}.\n",
+            self.header,
             self.stack
                 .iter()
                 .map(|frame| frame.to_string())
@@ -211,9 +240,15 @@ impl Display for Cairo1RevertStack {
     }
 }
 
-pub fn extract_trailing_cairo1_revert_trace(root_call: &CallInfo) -> Cairo1RevertStack {
-    let fallback_value =
-        Cairo1RevertStack { stack: vec![], last_retdata: root_call.execution.retdata.clone() };
+pub fn extract_trailing_cairo1_revert_trace(
+    root_call: &CallInfo,
+    header: Cairo1RevertHeader,
+) -> Cairo1RevertStack {
+    let fallback_value = Cairo1RevertStack {
+        header,
+        stack: vec![],
+        last_retdata: root_call.execution.retdata.clone(),
+    };
     let entrypoint_failed_felt = Felt::from_hex(ENTRYPOINT_FAILED_ERROR)
         .unwrap_or_else(|_| panic!("{ENTRYPOINT_FAILED_ERROR} does not fit in a felt."));
 
@@ -241,6 +276,7 @@ pub fn extract_trailing_cairo1_revert_trace(root_call: &CallInfo) -> Cairo1Rever
     // Add one line per call, and append the failure reason.
     let Some(last_call) = error_calls.last() else { return fallback_value };
     Cairo1RevertStack {
+        header,
         stack: error_calls.iter().map(Cairo1RevertFrame::from).collect(),
         last_retdata: last_call.execution.retdata.clone(),
     }
@@ -281,6 +317,11 @@ pub fn gen_tx_execution_error_trace(error: &TransactionExecutionError) -> ErrorS
             constructor_selector.as_ref(),
             PreambleType::Constructor,
         ),
+        TransactionExecutionError::PanicInValidate { panic_reason } => {
+            let mut stack = ErrorStack::default();
+            stack.push(Frame::from(panic_reason.clone()));
+            stack
+        }
         _ => {
             // Top-level error is unrelated to Cairo execution, no "real" frames.
             let mut stack = ErrorStack::default();
@@ -540,6 +581,9 @@ fn extract_entry_point_execution_error_into_stack_trace(
     match entry_point_error {
         EntryPointExecutionError::CairoRunError(cairo_run_error) => {
             extract_cairo_run_error_into_stack_trace(error_stack, depth, cairo_run_error)
+        }
+        EntryPointExecutionError::ExecutionFailed { error_trace } => {
+            error_stack.push(error_trace.clone().into())
         }
         _ => error_stack.push(format!("{}\n", entry_point_error).into()),
     }

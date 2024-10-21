@@ -19,7 +19,11 @@ use crate::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use crate::context::{BlockContext, ChainInfo};
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::errors::EntryPointExecutionError;
-use crate::execution::stack_trace::{extract_trailing_cairo1_revert_trace, Cairo1RevertStack};
+use crate::execution::stack_trace::{
+    extract_trailing_cairo1_revert_trace,
+    Cairo1RevertHeader,
+    Cairo1RevertStack,
+};
 use crate::execution::syscalls::hint_processor::ENTRYPOINT_FAILED_ERROR;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::{fund_account, test_state};
@@ -629,7 +633,8 @@ An ASSERT_EQ instruction failed: 1 != 0.
             "The `validate` entry point panicked with:
 Error in contract (contract address: {contract_address:#064x}, class hash: {:#064x}, selector: \
              {selector:#064x}):
-0x496e76616c6964207363656e6172696f ('Invalid scenario').",
+0x496e76616c6964207363656e6172696f ('Invalid scenario').
+",
             class_hash.0
         ),
     };
@@ -861,14 +866,15 @@ fn test_cairo1_stack_extraction_inner_call_successful() {
         ..Default::default()
     };
     let error = EntryPointExecutionError::ExecutionFailed {
-        error_trace: extract_trailing_cairo1_revert_trace(&callinfo),
+        error_trace: extract_trailing_cairo1_revert_trace(&callinfo, Cairo1RevertHeader::Execution),
     };
     assert_eq!(
         error.to_string(),
         format!(
             "Execution failed. Failure reason:
 Error in contract (contract address: {:#064x}, class hash: _, selector: {:#064x}):
-0xdeadbeef.",
+0xdeadbeef.
+",
             ContractAddress::default().0.key(),
             EntryPointSelector::default().0
         )
@@ -889,8 +895,8 @@ fn test_cairo1_stack_extraction_extra_retdata() {
     ];
     let root_call_info = call_chain_from_retdatas(retdatas);
     assert_matches!(
-        extract_trailing_cairo1_revert_trace(&root_call_info),
-        Cairo1RevertStack { stack, last_retdata }
+        extract_trailing_cairo1_revert_trace(&root_call_info, Cairo1RevertHeader::Execution),
+        Cairo1RevertStack { stack, last_retdata, .. }
         if stack.len() == retdatas.len() && last_retdata == Retdata(failure_reason_felts)
     );
 }
@@ -914,8 +920,8 @@ fn test_cairo1_stack_extraction_ignore_inner_failures() {
     let retdatas = &[innermost_retdata[..2].to_vec(), failure_reason, innermost_retdata];
     let root_call_info = call_chain_from_retdatas(retdatas);
     assert_matches!(
-        extract_trailing_cairo1_revert_trace(&root_call_info),
-        Cairo1RevertStack { stack, last_retdata }
+        extract_trailing_cairo1_revert_trace(&root_call_info, Cairo1RevertHeader::Execution),
+        Cairo1RevertStack { stack, last_retdata, .. }
         if stack.len() == retdatas.len() - 1 && last_retdata == Retdata(failure_reason_felts)
     );
 }
@@ -930,8 +936,8 @@ fn test_cairo1_stack_extraction_not_failure_fallback() {
         ..Default::default()
     };
     assert_matches!(
-        extract_trailing_cairo1_revert_trace(&successful_call),
-        Cairo1RevertStack { stack, last_retdata }
+        extract_trailing_cairo1_revert_trace(&successful_call, Cairo1RevertHeader::Execution),
+        Cairo1RevertStack { stack, last_retdata, .. }
         if stack.is_empty() && last_retdata == expected_retdata
     );
 }

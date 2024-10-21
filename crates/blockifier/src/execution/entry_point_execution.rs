@@ -12,6 +12,7 @@ use cairo_vm::vm::security::verify_secure_runner;
 use num_traits::{ToPrimitive, Zero};
 use starknet_types_core::felt::Felt;
 
+use super::stack_trace::Cairo1RevertHeader;
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::contract_class::{ContractClassV1, EntryPointV1, TrackedResource};
 use crate::execution::entry_point::{
@@ -109,7 +110,10 @@ pub fn execute_entry_point_call(
     )?;
     if call_info.execution.failed && !context.versioned_constants().enable_reverts {
         return Err(EntryPointExecutionError::ExecutionFailed {
-            error_trace: extract_trailing_cairo1_revert_trace(&call_info),
+            error_trace: extract_trailing_cairo1_revert_trace(
+                &call_info,
+                Cairo1RevertHeader::Execution,
+            ),
         });
     }
 
