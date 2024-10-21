@@ -1,3 +1,4 @@
+use std::future::Future;
 use std::net::SocketAddr;
 
 use axum::body::Body;
@@ -90,7 +91,7 @@ impl HttpTestClient {
         Self { socket, client }
     }
 
-    pub async fn assert_add_tx_success(&self, tx: &RpcTransaction) -> TransactionHash {
+    pub async fn assert_add_tx_success(&self, tx: RpcTransaction) -> TransactionHash {
         let response = self.add_tx(tx).await;
         assert!(response.status().is_success());
 
@@ -98,14 +99,14 @@ impl HttpTestClient {
     }
 
     // TODO: implement when usage eventually arises.
-    pub async fn assert_add_tx_error(&self, _tx: &RpcTransaction) -> GatewaySpecError {
+    pub async fn assert_add_tx_error(&self, _tx: RpcTransaction) -> GatewaySpecError {
         todo!()
     }
 
     // Prefer using assert_add_tx_success or other higher level methods of this client, to ensure
     // tests are boilerplate and implementation-detail free.
-    pub async fn add_tx(&self, tx: &RpcTransaction) -> Response {
-        let tx_json = rpc_tx_to_json(tx);
+    pub async fn add_tx(&self, tx: RpcTransaction) -> Response {
+        let tx_json = rpc_tx_to_json(&tx);
         self.client
             .post(format!("http://{}/add_tx", self.socket))
             .header("content-type", "application/json")
@@ -128,6 +129,14 @@ pub fn create_integration_test_tx_generator() -> MultiAccountTransactionGenerato
         tx_generator.register_account_for_flow_test(account);
     }
     tx_generator
+}
+
+pub fn send_rpc_tx<SendRpcTxFn, Fut>(tx: RpcTransaction, func: SendRpcTxFn) -> Fut
+where
+    SendRpcTxFn: Fn(RpcTransaction) -> Fut,
+    Fut: Future<Output = TransactionHash>,
+{
+    func(tx)
 }
 
 async fn create_gateway_config(chain_info: ChainInfo) -> GatewayConfig {

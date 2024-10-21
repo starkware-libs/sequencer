@@ -7,6 +7,7 @@ use papyrus_config::ConfigError;
 use starknet_http_server::config::HttpServerConfig;
 use starknet_integration_tests::integration_test_utils::{
     create_integration_test_tx_generator,
+    send_rpc_tx,
     HttpTestClient,
 };
 use starknet_mempool_infra::trace_util::configure_tracing;
@@ -39,13 +40,11 @@ async fn main() -> anyhow::Result<()> {
     let http_test_client = HttpTestClient::new(SocketAddr::from((ip, port)));
 
     let account0_invoke_nonce1_tx_hash =
-        http_test_client.assert_add_tx_success(&account0_invoke_nonce1).await;
-
+        send_rpc_tx(account0_invoke_nonce1, |tx| http_test_client.assert_add_tx_success(tx)).await;
     let account1_invoke_nonce1_tx_hash =
-        http_test_client.assert_add_tx_success(&account1_invoke_nonce1).await;
-
+        send_rpc_tx(account1_invoke_nonce1, |tx| http_test_client.assert_add_tx_success(tx)).await;
     let account0_invoke_nonce2_tx_hash =
-        http_test_client.assert_add_tx_success(&account0_invoke_nonce2).await;
+        send_rpc_tx(account0_invoke_nonce2, |tx| http_test_client.assert_add_tx_success(tx)).await;
 
     info!("Add tx result: {:?}", account0_invoke_nonce1_tx_hash);
     info!("Add tx result: {:?}", account1_invoke_nonce1_tx_hash);

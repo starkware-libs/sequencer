@@ -83,11 +83,11 @@ impl IntegrationTestSetup {
         }
     }
 
-    pub async fn assert_add_tx_success(&self, tx: &RpcTransaction) -> TransactionHash {
+    pub async fn assert_add_tx_success(&self, tx: RpcTransaction) -> TransactionHash {
         self.add_tx_http_client.assert_add_tx_success(tx).await
     }
 
-    pub async fn assert_add_tx_error(&self, tx: &RpcTransaction) -> GatewaySpecError {
+    pub async fn assert_add_tx_error(&self, tx: RpcTransaction) -> GatewaySpecError {
         self.add_tx_http_client.assert_add_tx_error(tx).await
     }
 
