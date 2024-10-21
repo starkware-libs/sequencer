@@ -8,7 +8,6 @@ use jsonrpsee::proc_macros::rpc;
 use jsonrpsee::types::ErrorObjectOwned;
 use papyrus_common::deprecated_class_abi::calculate_deprecated_class_abi_length;
 use papyrus_common::pending_classes::ApiContractClass;
-use papyrus_common::BlockHashAndNumber;
 use papyrus_execution::objects::FeeEstimation;
 use papyrus_execution::{AbiSize, ExecutableTransactionInput, ExecutionError, SierraSize};
 use papyrus_proc_macros::versioned_rpc;
@@ -18,7 +17,7 @@ use papyrus_storage::db::RO;
 use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::StorageTxn;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockHashAndNumber, BlockNumber};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::{
     ContractClass as StarknetApiDeprecatedContractClass,
