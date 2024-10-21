@@ -2,12 +2,11 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use blockifier::blockifier::block::BlockNumberHashPair;
 use indexmap::IndexMap;
 use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockHashAndNumber, BlockNumber};
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::Transaction;
@@ -115,7 +114,7 @@ pub trait ProposalManagerTrait: Send + Sync {
     async fn build_block_proposal(
         &mut self,
         proposal_id: ProposalId,
-        retrospective_block_hash: Option<BlockNumberHashPair>,
+        retrospective_block_hash: Option<BlockHashAndNumber>,
         deadline: tokio::time::Instant,
         tx_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
     ) -> Result<(), BuildProposalError>;
@@ -199,7 +198,7 @@ impl ProposalManagerTrait for ProposalManager {
     async fn build_block_proposal(
         &mut self,
         proposal_id: ProposalId,
-        retrospective_block_hash: Option<BlockNumberHashPair>,
+        retrospective_block_hash: Option<BlockHashAndNumber>,
         deadline: tokio::time::Instant,
         tx_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
     ) -> Result<(), BuildProposalError> {

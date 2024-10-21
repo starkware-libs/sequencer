@@ -4,10 +4,11 @@ use std::sync::{Arc, Mutex};
 
 use itertools::FoldWhile::{Continue, Done};
 use itertools::Itertools;
+use starknet_api::block::BlockHashAndNumber;
 use starknet_api::core::ClassHash;
 use thiserror::Error;
 
-use crate::blockifier::block::{pre_process_block, BlockNumberHashPair};
+use crate::blockifier::block::pre_process_block;
 use crate::blockifier::config::TransactionExecutorConfig;
 use crate::bouncer::{Bouncer, BouncerWeights};
 use crate::concurrency::worker_logic::WorkerExecutor;
@@ -59,7 +60,7 @@ impl<S: StateReader> TransactionExecutor<S> {
     pub fn pre_process_and_create(
         initial_state_reader: S,
         block_context: BlockContext,
-        old_block_number_and_hash: Option<BlockNumberHashPair>,
+        old_block_number_and_hash: Option<BlockHashAndNumber>,
         config: TransactionExecutorConfig,
     ) -> StateResult<Self> {
         let mut block_state = CachedState::new(initial_state_reader);
