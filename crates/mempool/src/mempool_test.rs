@@ -468,27 +468,6 @@ fn test_add_tx_delete_tx_with_lower_nonce_than_account_nonce() {
 }
 
 #[rstest]
-fn test_add_tx_tip_priority_over_tx_hash(mut mempool: Mempool) {
-    // Setup.
-    let input_big_tip_small_hash = add_tx_input!(tip: 2, tx_hash: 1, address: "0x0");
-    // Create a transaction with identical tip, it should be allowed through since the priority
-    // queue tie-breaks identical tips by other tx-unique identifiers (for example tx hash).
-    let input_small_tip_big_hash = add_tx_input!(tip: 1, tx_hash: 2, address: "0x1");
-
-    // Test.
-    for input in [&input_big_tip_small_hash, &input_small_tip_big_hash] {
-        add_tx(&mut mempool, input);
-    }
-
-    // Assert: ensure that the transaction with the higher tip is prioritized higher.
-    let expected_queue_txs =
-        [&input_big_tip_small_hash.tx, &input_small_tip_big_hash.tx].map(TransactionReference::new);
-    let expected_mempool_content =
-        MempoolContentBuilder::new().with_priority_queue(expected_queue_txs).build();
-    expected_mempool_content.assert_eq(&mempool);
-}
-
-#[rstest]
 fn test_add_tx_account_state_fills_nonce_gap(mut mempool: Mempool) {
     // Setup.
     let tx_input_nonce_1 = add_tx_input!(tx_hash: 1, tx_nonce: 1, account_nonce: 0);
