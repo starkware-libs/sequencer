@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 
-use blockifier::blockifier::block::BlockNumberHashPair;
+// TODO(Dan): move to SN_API
+pub use blockifier::blockifier::block::BlockNumberHashPair;
 use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
