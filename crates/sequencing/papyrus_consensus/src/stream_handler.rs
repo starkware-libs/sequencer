@@ -1,4 +1,5 @@
 //! Stream handler, see StreamManager struct.
+use std::cmp::Ordering;
 use std::collections::hash_map::Entry;
 use std::collections::{BTreeMap, HashMap};
 
@@ -152,8 +153,8 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
         if message_id > data.fin_message_id.unwrap_or(u64::MAX) {
             // TODO(guyn): replace warnings with more graceful error handling
             warn!(
-                "Received message with id that is bigger than the id of the fin message! 
-                key: {:?}, message_id: {}, fin_message_id: {}",
+                "Received message with id that is bigger than the id of the fin message! key: \
+                 {:?}, message_id: {}, fin_message_id: {}",
                 key,
                 message_id,
                 data.fin_message_id.unwrap_or(u64::MAX)
@@ -162,32 +163,39 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
         }
 
         // This means we can just send the message without buffering it.
-        if message_id == data.next_message_id {
-            Self::inbound_send(data, message);
+        match message_id.cmp(&data.next_message_id) {
+            Ordering::Equal => {
+                Self::inbound_send(data, message);
 
-            Self::process_buffer(data);
+                Self::process_buffer(data);
 
-            if data.message_buffer.is_empty() && data.fin_message_id.is_some() {
-                data.sender.close_channel();
-                self.inbound_stream_data.remove(&key);
+                if data.message_buffer.is_empty() && data.fin_message_id.is_some() {
+                    data.sender.close_channel();
+                    self.inbound_stream_data.remove(&key);
+                }
             }
-        } else if message_id > data.next_message_id {
-            Self::store(data, key, message);
-        } else {
-            // TODO(guyn): replace warnings with more graceful error handling
-            warn!(
-                "Received message with id that is smaller than the next message expected! key: \
-                 {:?}, message_id: {}, next_message_id: {}",
-                key, message_id, data.next_message_id
-            );
-            return;
+            Ordering::Greater => {
+                Self::store(data, key, message);
+            }
+            Ordering::Less => {
+                // TODO(guyn): replace warnings with more graceful error handling
+                warn!(
+                    "Received message with id that is smaller than the next message expected! \
+                     key: {:?}, message_id: {}, next_message_id: {}",
+                    key, message_id, data.next_message_id
+                );
+                return;
+            }
         }
     }
 
     fn store(data: &mut StreamData<T>, key: StreamKey, message: StreamMessage<T>) {
         let message_id = message.message_id;
 
-        if data.message_buffer.contains_key(&message_id) {
+        if let std::collections::btree_map::Entry::Vacant(e) = data.message_buffer.entry(message_id)
+        {
+            e.insert(message);
+        } else {
             // TODO(guyn): replace warnings with more graceful error handling
             warn!(
                 "Two messages with the same message_id in buffer! key: {:?}, message_id: {}",
