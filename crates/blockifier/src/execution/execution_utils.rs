@@ -21,18 +21,18 @@ use starknet_api::deprecated_contract_class::Program as DeprecatedProgram;
 use starknet_api::transaction::Calldata;
 use starknet_types_core::felt::Felt;
 
-use super::entry_point::ConstructorEntryPointExecutionResult;
-use super::errors::ConstructorEntryPointExecutionError;
 use crate::execution::call_info::{CallInfo, Retdata};
 use crate::execution::contract_class::{ContractClass, TrackedResource};
 use crate::execution::entry_point::{
     execute_constructor_entry_point,
     CallEntryPoint,
     ConstructorContext,
+    ConstructorEntryPointExecutionResult,
     EntryPointExecutionContext,
     EntryPointExecutionResult,
 };
-use crate::execution::errors::PostExecutionError;
+use crate::execution::errors::{ConstructorEntryPointExecutionError, PostExecutionError};
+use crate::execution::native::entry_point_execution as native_entry_point_execution;
 use crate::execution::{deprecated_entry_point_execution, entry_point_execution};
 use crate::state::errors::StateError;
 use crate::state::state_api::State;
@@ -107,8 +107,14 @@ pub fn execute_entry_point_call(
             resources,
             context,
         ),
-        ContractClass::V1Native(_contract_class) => {
-            unimplemented!("Native contract entry point execution is not yet implemented.")
+        ContractClass::V1Native(contract_class) => {
+            native_entry_point_execution::execute_entry_point_call(
+                call,
+                contract_class,
+                state,
+                resources,
+                context,
+            )
         }
     }
 }
