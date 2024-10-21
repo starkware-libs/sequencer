@@ -2,6 +2,8 @@ use std::env::args;
 use std::net::SocketAddr;
 use std::process::exit;
 
+use blockifier::test_utils::contracts::FeatureContract;
+use blockifier::test_utils::{create_trivial_calldata, CairoVersion};
 use papyrus_config::validators::config_validate;
 use papyrus_config::ConfigError;
 use starknet_http_server::config::HttpServerConfig;
@@ -31,9 +33,15 @@ async fn main() -> anyhow::Result<()> {
         exit(1);
     }
 
-    let account0_invoke_nonce1 = tx_generator.account_with_id(0).generate_invoke_with_tip(1);
-    let account0_invoke_nonce2 = tx_generator.account_with_id(0).generate_invoke_with_tip(1);
-    let account1_invoke_nonce1 = tx_generator.account_with_id(1).generate_invoke_with_tip(1);
+    let calldata = create_trivial_calldata(
+        FeatureContract::TestContract(CairoVersion::Cairo0).get_instance_address(0),
+    );
+    let account0_invoke_nonce1 =
+        tx_generator.account_with_id(0).generate_invoke_with_tip(1, calldata.clone());
+    let account0_invoke_nonce2 =
+        tx_generator.account_with_id(0).generate_invoke_with_tip(1, calldata.clone());
+    let account1_invoke_nonce1 =
+        tx_generator.account_with_id(1).generate_invoke_with_tip(1, calldata);
 
     let HttpServerConfig { ip, port } = config.http_server_config;
     let http_test_client = HttpTestClient::new(SocketAddr::from((ip, port)));
