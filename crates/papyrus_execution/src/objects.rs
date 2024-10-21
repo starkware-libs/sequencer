@@ -153,7 +153,8 @@ impl TryFrom<TransactionExecutionInfo> for InvokeTransactionTrace {
     }
 }
 
-// TODO(Dan, Yair): consider box large elements (because of BadDeclareTransaction) or use ID instead.
+// TODO(Dan, Yair): consider box large elements (because of BadDeclareTransaction) or use ID
+// instead.
 #[allow(clippy::result_large_err)]
 pub(crate) fn tx_execution_output_to_fee_estimation(
     tx_execution_output: &TransactionExecutionOutput,
@@ -355,7 +356,8 @@ impl TryFrom<(CallInfo, GasVector)> for FunctionInvocation {
 }
 
 // Can't implement `TryFrom` because both types are from external crates.
-// TODO(Dan, Yair): consider box large elements (because of BadDeclareTransaction) or use ID instead.
+// TODO(Dan, Yair): consider box large elements (because of BadDeclareTransaction) or use ID
+// instead.
 #[allow(clippy::result_large_err)]
 fn vm_resources_to_execution_resources(
     vm_resources: VmExecutionResources,

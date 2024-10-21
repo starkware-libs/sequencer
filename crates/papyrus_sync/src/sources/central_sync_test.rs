@@ -8,7 +8,6 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use futures::StreamExt;
 use indexmap::IndexMap;
 use papyrus_common::pending_classes::{ApiContractClass, PendingClasses};
-use papyrus_common::BlockHashAndNumber;
 use papyrus_storage::base_layer::BaseLayerStorageReader;
 use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::state::StateStorageReader;
@@ -18,6 +17,7 @@ use starknet_api::block::{
     Block,
     BlockBody,
     BlockHash,
+    BlockHashAndNumber,
     BlockHeader,
     BlockHeaderWithoutHash,
     BlockNumber,

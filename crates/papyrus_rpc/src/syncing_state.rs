@@ -1,10 +1,9 @@
-use papyrus_common::BlockHashAndNumber;
 use papyrus_storage::compiled_class::CasmStorageReader;
 use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::{StorageReader, StorageResult};
 use serde::ser::Serializer;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 
 /// Represents the syncing status of the node.
 #[derive(Copy, Clone, Debug, Deserialize, Eq, PartialEq)]
