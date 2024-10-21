@@ -182,7 +182,13 @@ fn test_revert_on_overdraft(
 
     // Verify the execution was reverted (including nonce bump) with the correct error.
     assert!(execution_info.is_reverted());
-    assert!(execution_info.revert_error.unwrap().starts_with("Insufficient fee token balance"));
+    assert!(
+        execution_info
+            .revert_error
+            .unwrap()
+            .to_string()
+            .starts_with("Insufficient fee token balance")
+    );
     assert_eq!(state.get_nonce_at(account_address).unwrap(), nonce_manager.next(account_address));
 
     // Verify the storage key/value were not updated in the last tx.
@@ -307,7 +313,12 @@ fn test_revert_on_resource_overuse(
     // Assert the transaction was reverted with the correct error.
     if is_revertible {
         assert!(
-            execution_info_result.unwrap().revert_error.unwrap().starts_with(expected_error_prefix)
+            execution_info_result
+                .unwrap()
+                .revert_error
+                .unwrap()
+                .to_string()
+                .starts_with(expected_error_prefix)
         );
     } else {
         assert_matches!(

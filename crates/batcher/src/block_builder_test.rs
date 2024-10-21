@@ -3,7 +3,7 @@ use blockifier::blockifier::transaction_executor::{
     TransactionExecutorResult,
 };
 use blockifier::bouncer::BouncerWeights;
-use blockifier::transaction::objects::TransactionExecutionInfo;
+use blockifier::transaction::objects::{RevertError, TransactionExecutionInfo};
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use indexmap::IndexMap;
 use rstest::{fixture, rstest};
@@ -195,5 +195,5 @@ fn block_builder_expected_output(
 }
 
 fn execution_info() -> TransactionExecutionInfo {
-    TransactionExecutionInfo { revert_error: Some("Test string".to_string()), ..Default::default() }
+    TransactionExecutionInfo { revert_error: Some(RevertError::default()), ..Default::default() }
 }
