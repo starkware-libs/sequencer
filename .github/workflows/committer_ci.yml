@@ -87,6 +87,7 @@ jobs:
           gcloud storage cp -r gs://committer-testing-artifacts/$NEW_BENCH_INPUT_FILES_PREFIX/* ./crates/committer_cli/test_inputs
 
       # Benchmark the new code, splitting the benchmarks, and prepare the results for posting a comment.
+      - uses: ./.github/actions/bootstrap
       - run: bash ./crates/committer_cli/benches/bench_split_and_prepare_post.sh benchmarks_list.txt bench_new.txt
 
       - run: echo BENCHES_RESULT=$(cat bench_new.txt) >> $GITHUB_ENV

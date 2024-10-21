@@ -3,10 +3,10 @@ LLVM_SYS_181_PREFIX = "/usr/lib/llvm-18/"
 MLIR_SYS_180_PREFIX = "/usr/lib/llvm-18/"
 TABLEGEN_180_PREFIX = "/usr/lib/llvm-18/"
 
-# Limit concurrency to prevent crash during "cargo build" due to excessive memory usage. Should be removed in the future. Slows down performance.
-[build]
-jobs = 8
-
-# Limit concurrency to prevent crash during "cargo test" due to excessive memory usage. Should be removed in the future. Slows down performance.
-[test]
-jobs = 8
+# Use `lld` for linking instead of `ld`, since we run out of memory while linking with `ld` on
+# 16-cores linux machines, see:
+# https://nnethercote.github.io/perf-book/build-configuration.html#linking.
+# TODO: remove this once `rust` stabilizes `lld` as the default linker, currently only on nightly:
+# https://github.com/rust-lang/rust/issues/39915#issuecomment-618726211
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-Clink-arg=-fuse-ld=lld"]
