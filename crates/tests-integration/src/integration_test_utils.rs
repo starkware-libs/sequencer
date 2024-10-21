@@ -12,8 +12,10 @@ use papyrus_consensus::config::ConsensusConfig;
 use papyrus_storage::StorageConfig;
 use reqwest::{Client, Response};
 use starknet_api::block::BlockNumber;
+use starknet_api::core::{ContractAddress, PatriciaKey};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
+use starknet_api::{contract_address, felt, patricia_key};
 use starknet_batcher::block_builder::BlockBuilderConfig;
 use starknet_batcher::config::BatcherConfig;
 use starknet_consensus_manager::config::ConsensusManagerConfig;
@@ -152,9 +154,16 @@ fn create_batcher_config(
     batcher_storage_config: StorageConfig,
     chain_info: ChainInfo,
 ) -> BatcherConfig {
+    // TODO(Arni): Create BlockBuilderConfig create for testing method and use here.
+    const SEQUENCER_ADDRESS_FOR_TESTING: u128 = 1991;
+
     BatcherConfig {
         storage: batcher_storage_config,
-        block_builder_config: BlockBuilderConfig { chain_info, ..Default::default() },
+        block_builder_config: BlockBuilderConfig {
+            chain_info,
+            sequencer_address: contract_address!(SEQUENCER_ADDRESS_FOR_TESTING),
+            ..Default::default()
+        },
         ..Default::default()
     }
 }
