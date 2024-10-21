@@ -5,12 +5,12 @@ use mockall::predicate::*;
 use mockall::*;
 use serde::{Deserialize, Serialize};
 use starknet_api::transaction::TransactionHash;
-use starknet_mempool_infra::component_client::{
+use starknet_sequencer_infra::component_client::{
     ClientError,
     LocalComponentClient,
     RemoteComponentClient,
 };
-use starknet_mempool_infra::component_definitions::ComponentRequestAndResponseSender;
+use starknet_sequencer_infra::component_definitions::ComponentRequestAndResponseSender;
 use thiserror::Error;
 
 use crate::errors::GatewayError;

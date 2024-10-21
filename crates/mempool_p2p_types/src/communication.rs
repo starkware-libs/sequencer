@@ -5,7 +5,7 @@ use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_proc_macros::handle_response_variants;
 use serde::{Deserialize, Serialize};
 use starknet_api::rpc_transaction::RpcTransaction;
-use starknet_mempool_infra::component_client::{ClientError, LocalComponentClient};
+use starknet_sequencer_infra::component_client::{ClientError, LocalComponentClient};
 use thiserror::Error;
 
 use crate::errors::MempoolP2pPropagatorError;

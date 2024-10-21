@@ -7,9 +7,9 @@ use starknet_api::executable_transaction::Transaction;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::errors::GatewaySpecError;
-use starknet_mempool_infra::component_definitions::ComponentStarter;
 use starknet_mempool_types::communication::{AddTransactionArgsWrapper, SharedMempoolClient};
 use starknet_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
+use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 use tracing::{error, instrument};
 

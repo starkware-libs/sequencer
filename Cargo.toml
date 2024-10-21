@@ -212,13 +212,13 @@ starknet_gateway = { path = "crates/gateway", version = "0.0.0" }
 starknet_gateway_types = { path = "crates/gateway_types", version = "0.0.0" }
 starknet_http_server = { path = "crates/http_server", version = "0.0.0" }
 starknet_mempool = { path = "crates/mempool", version = "0.0.0" }
-starknet_mempool_infra = { path = "crates/mempool_infra", version = "0.0.0" }
 starknet_mempool_node = { path = "crates/mempool_node", version = "0.0.0" }
 starknet_mempool_p2p = { path = "crates/mempool_p2p", version = "0.0.0" }
 starknet_mempool_p2p_types = { path = "crates/mempool_p2p_types", version = "0.0.0" }
 starknet_mempool_types = { path = "crates/mempool_types", version = "0.0.0" }
 starknet_monitoring_endpoint = { path = "crates/monitoring_endpoint", version = "0.0.0" }
 starknet_patricia = { path = "crates/starknet_patricia", version = "0.0.0" }
+starknet_sequencer_infra = { path = "crates/mempool_infra", version = "0.0.0" }
 starknet_sierra_compile = { path = "crates/starknet_sierra_compile", version = "0.0.0" }
 starknet_task_executor = { path = "crates/task_executor", version = "0.0.0" }
 static_assertions = "1.1.0"
