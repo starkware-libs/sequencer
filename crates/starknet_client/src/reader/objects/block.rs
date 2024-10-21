@@ -225,7 +225,7 @@ impl Block {
 
     pub fn starknet_version(&self) -> StarknetVersion {
         match self {
-            Block::PostV0_13_1(block) => block.starknet_version.clone(),
+            Block::PostV0_13_1(block) => block.starknet_version,
         }
     }
 
@@ -251,7 +251,7 @@ impl Block {
         match self {
             // TODO(shahak): in SN API, make StateDiffCommitment implement Copy and remove this
             // clone.
-            Block::PostV0_13_1(block) => block.state_diff_commitment.clone(),
+            Block::PostV0_13_1(block) => block.state_diff_commitment,
         }
     }
 
