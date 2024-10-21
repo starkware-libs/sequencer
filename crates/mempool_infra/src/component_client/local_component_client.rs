@@ -21,8 +21,8 @@ use crate::component_definitions::ComponentRequestAndResponseSender;
 /// // Example usage of the LocalComponentClient
 /// use tokio::sync::mpsc::Sender;
 ///
-/// use crate::starknet_mempool_infra::component_client::LocalComponentClient;
-/// use crate::starknet_mempool_infra::component_definitions::ComponentRequestAndResponseSender;
+/// use crate::starknet_sequencer_infra::component_client::LocalComponentClient;
+/// use crate::starknet_sequencer_infra::component_definitions::ComponentRequestAndResponseSender;
 ///
 /// // Define your request and response types
 /// struct MyRequest {

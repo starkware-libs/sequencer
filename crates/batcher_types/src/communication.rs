@@ -5,12 +5,12 @@ use mockall::predicate::*;
 use mockall::*;
 use papyrus_proc_macros::handle_response_variants;
 use serde::{Deserialize, Serialize};
-use starknet_mempool_infra::component_client::{
+use starknet_sequencer_infra::component_client::{
     ClientError,
     LocalComponentClient,
     RemoteComponentClient,
 };
-use starknet_mempool_infra::component_definitions::ComponentRequestAndResponseSender;
+use starknet_sequencer_infra::component_definitions::ComponentRequestAndResponseSender;
 use thiserror::Error;
 
 use crate::batcher_types::{

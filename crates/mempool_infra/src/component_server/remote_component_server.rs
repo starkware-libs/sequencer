@@ -43,17 +43,17 @@ use crate::serde_utils::BincodeSerdeWrapper;
 /// use serde::{Deserialize, Serialize};
 /// use tokio::task;
 ///
-/// use crate::starknet_mempool_infra::component_client::LocalComponentClient;
-/// use crate::starknet_mempool_infra::component_definitions::{
+/// use crate::starknet_sequencer_infra::component_client::LocalComponentClient;
+/// use crate::starknet_sequencer_infra::component_definitions::{
 ///     ComponentRequestHandler,
 ///     ComponentStarter,
 ///     RemoteServerConfig,
 /// };
-/// use crate::starknet_mempool_infra::component_server::{
+/// use crate::starknet_sequencer_infra::component_server::{
 ///     ComponentServerStarter,
 ///     RemoteComponentServer,
 /// };
-/// use crate::starknet_mempool_infra::errors::ComponentError;
+/// use crate::starknet_sequencer_infra::errors::ComponentError;
 ///
 /// // Define your component
 /// struct MyComponent {}

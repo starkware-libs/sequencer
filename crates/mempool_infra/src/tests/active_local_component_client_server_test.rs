@@ -3,18 +3,18 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use starknet_mempool_infra::component_client::{ClientError, ClientResult, LocalComponentClient};
-use starknet_mempool_infra::component_definitions::{
+use starknet_sequencer_infra::component_client::{ClientError, ClientResult, LocalComponentClient};
+use starknet_sequencer_infra::component_definitions::{
     ComponentRequestAndResponseSender,
     ComponentRequestHandler,
     ComponentStarter,
 };
-use starknet_mempool_infra::component_server::{
+use starknet_sequencer_infra::component_server::{
     ComponentServerStarter,
     LocalActiveComponentServer,
     WrapperServer,
 };
-use starknet_mempool_infra::errors::ComponentError;
+use starknet_sequencer_infra::errors::ComponentError;
 use tokio::sync::mpsc::{channel, Sender};
 use tokio::sync::{Barrier, Mutex};
 use tokio::task;

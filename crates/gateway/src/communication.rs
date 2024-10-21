@@ -5,8 +5,8 @@ use starknet_gateway_types::communication::{
     GatewayResponse,
 };
 use starknet_gateway_types::errors::GatewayError;
-use starknet_mempool_infra::component_definitions::ComponentRequestHandler;
-use starknet_mempool_infra::component_server::LocalComponentServer;
+use starknet_sequencer_infra::component_definitions::ComponentRequestHandler;
+use starknet_sequencer_infra::component_server::LocalComponentServer;
 use tokio::sync::mpsc::Receiver;
 use tracing::instrument;
 

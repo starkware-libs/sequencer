@@ -1,4 +1,4 @@
-use starknet_mempool_infra::component_server::{create_empty_server, WrapperServer};
+use starknet_sequencer_infra::component_server::{create_empty_server, WrapperServer};
 
 use crate::http_server::HttpServer as HttpServerComponent;
 

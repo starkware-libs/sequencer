@@ -10,13 +10,13 @@ use starknet_consensus_manager::communication::{
 use starknet_gateway::communication::{create_gateway_server, LocalGatewayServer};
 use starknet_http_server::communication::{create_http_server, HttpServer};
 use starknet_mempool::communication::{create_mempool_server, LocalMempoolServer};
-use starknet_mempool_infra::component_server::ComponentServerStarter;
-use starknet_mempool_infra::errors::ComponentServerError;
 use starknet_mempool_p2p_types::communication::SharedMempoolP2pPropagatorClient;
 use starknet_monitoring_endpoint::communication::{
     create_monitoring_endpoint_server,
     MonitoringEndpointServer,
 };
+use starknet_sequencer_infra::component_server::ComponentServerStarter;
+use starknet_sequencer_infra::errors::ComponentServerError;
 use tracing::error;
 
 use crate::communication::SequencerNodeCommunication;

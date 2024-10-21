@@ -1,8 +1,6 @@
 use async_trait::async_trait;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use starknet_api::executable_transaction::Transaction;
-use starknet_mempool_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
-use starknet_mempool_infra::component_server::LocalComponentServer;
 use starknet_mempool_p2p_types::communication::SharedMempoolP2pPropagatorClient;
 use starknet_mempool_types::communication::{
     AddTransactionArgsWrapper,
@@ -12,6 +10,8 @@ use starknet_mempool_types::communication::{
 };
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{CommitBlockArgs, MempoolResult};
+use starknet_sequencer_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
+use starknet_sequencer_infra::component_server::LocalComponentServer;
 use tokio::sync::mpsc::Receiver;
 
 use crate::mempool::Mempool;

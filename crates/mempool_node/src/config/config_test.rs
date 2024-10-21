@@ -7,7 +7,7 @@ use colored::Colorize;
 use mempool_test_utils::get_absolute_path;
 use papyrus_config::dumping::SerializeConfig;
 use rstest::rstest;
-use starknet_mempool_infra::component_definitions::{
+use starknet_sequencer_infra::component_definitions::{
     LocalComponentCommunicationConfig,
     RemoteClientConfig,
     RemoteServerConfig,

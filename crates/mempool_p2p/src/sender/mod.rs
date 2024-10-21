@@ -6,7 +6,6 @@ use papyrus_network::network_manager::{BroadcastTopicClient, BroadcastTopicClien
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_protobuf::mempool::RpcTransactionWrapper;
 use starknet_api::rpc_transaction::RpcTransaction;
-use starknet_mempool_infra::component_definitions::ComponentRequestHandler;
 use starknet_mempool_p2p_types::communication::{
     MempoolP2pPropagatorClient,
     MempoolP2pPropagatorClientResult,
@@ -14,6 +13,7 @@ use starknet_mempool_p2p_types::communication::{
     MempoolP2pPropagatorResponse,
 };
 use starknet_mempool_p2p_types::errors::MempoolP2pPropagatorError;
+use starknet_sequencer_infra::component_definitions::ComponentRequestHandler;
 
 pub struct MempoolP2pPropagator {
     broadcast_topic_client: BroadcastTopicClient<RpcTransactionWrapper>,

@@ -10,8 +10,8 @@ use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::communication::SharedGatewayClient;
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_gateway_types::gateway_types::GatewayInput;
-use starknet_mempool_infra::component_definitions::ComponentStarter;
-use starknet_mempool_infra::errors::ComponentError;
+use starknet_sequencer_infra::component_definitions::ComponentStarter;
+use starknet_sequencer_infra::errors::ComponentError;
 use tracing::{error, info, instrument};
 
 use crate::config::HttpServerConfig;

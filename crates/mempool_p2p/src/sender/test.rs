@@ -9,8 +9,8 @@ use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_protobuf::mempool::RpcTransactionWrapper;
 use papyrus_test_utils::{get_rng, GetTestInstance};
 use starknet_api::rpc_transaction::RpcTransaction;
-use starknet_mempool_infra::component_definitions::ComponentRequestHandler;
 use starknet_mempool_p2p_types::communication::MempoolP2pPropagatorRequest;
+use starknet_sequencer_infra::component_definitions::ComponentRequestHandler;
 use tokio::time::timeout;
 
 use crate::sender::MempoolP2pPropagator;

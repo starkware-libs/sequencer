@@ -16,7 +16,7 @@ axum.workspace = true
 hyper = { workspace = true, features = ["full"] }
 papyrus_config.workspace = true
 serde.workspace = true
-starknet_mempool_infra.workspace = true
+starknet_sequencer_infra.workspace = true
 tracing.workspace = true
 validator.workspace = true
 

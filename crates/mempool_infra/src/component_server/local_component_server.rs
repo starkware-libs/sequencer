@@ -45,16 +45,16 @@ use crate::errors::{ComponentServerError, ReplaceComponentError};
 /// use async_trait::async_trait;
 /// use tokio::task;
 ///
-/// use crate::starknet_mempool_infra::component_definitions::{
+/// use crate::starknet_sequencer_infra::component_definitions::{
 ///     ComponentRequestAndResponseSender,
 ///     ComponentRequestHandler,
 ///     ComponentStarter,
 /// };
-/// use crate::starknet_mempool_infra::component_server::{
+/// use crate::starknet_sequencer_infra::component_server::{
 ///     ComponentServerStarter,
 ///     LocalComponentServer,
 /// };
-/// use crate::starknet_mempool_infra::errors::ComponentServerError;
+/// use crate::starknet_sequencer_infra::errors::ComponentServerError;
 ///
 /// // Define your component
 /// struct MyComponent {}
