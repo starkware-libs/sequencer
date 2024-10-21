@@ -131,12 +131,45 @@ pub fn create_integration_test_tx_generator() -> MultiAccountTransactionGenerato
     tx_generator
 }
 
-pub fn send_rpc_tx<SendRpcTxFn, Fut>(tx: RpcTransaction, func: SendRpcTxFn) -> Fut
+/// Creates and runs a scenario for the sequencer integration test. Returns a list of transaction
+/// hashes, in the order they are expected to be in the mempool.
+pub async fn run_integration_test_scenario<'a, Fut>(
+    mut tx_generator: MultiAccountTransactionGenerator,
+    send_rpc_tx_fn: &'a dyn Fn(RpcTransaction) -> Fut,
+) -> Vec<TransactionHash>
 where
-    SendRpcTxFn: Fn(RpcTransaction) -> Fut,
-    Fut: Future<Output = TransactionHash>,
+    Fut: Future<Output = TransactionHash> + 'a,
 {
-    func(tx)
+    // Create RPC transactions.
+    let account0_invoke_nonce1 = tx_generator.account_with_id(0).generate_invoke_with_tip(1);
+    let account0_invoke_nonce2 = tx_generator.account_with_id(0).generate_invoke_with_tip(2);
+    let account1_invoke_nonce1 = tx_generator.account_with_id(1).generate_invoke_with_tip(3);
+
+    // Send RPC transactions.
+    let account0_invoke_nonce1_tx_hash = send_rpc_tx(account0_invoke_nonce1, send_rpc_tx_fn).await;
+    let account1_invoke_nonce1_tx_hash = send_rpc_tx(account1_invoke_nonce1, send_rpc_tx_fn).await;
+    let account0_invoke_nonce2_tx_hash = send_rpc_tx(account0_invoke_nonce2, send_rpc_tx_fn).await;
+
+    // account1_invoke_nonce1 precedes account0_invoke_nonce1 as its nonce is lower, despite the
+    // higher tip of the latter. account1_invoke_nonce1 precedes account0_invoke_nonce1 as it
+    // offers a higher tip, regardless of the nonce. Hence the expected tx order, regardless of
+    // tx hashes, is: account1_invoke_nonce1, account0_invoke_nonce1, and account0_invoke_nonce2.
+    vec![
+        account1_invoke_nonce1_tx_hash,
+        account0_invoke_nonce1_tx_hash,
+        account0_invoke_nonce2_tx_hash,
+    ]
+}
+
+/// Sends an RPC transaction using the supplied sending function, and returns its hash.
+fn send_rpc_tx<'a, Fut>(
+    rpc_tx: RpcTransaction,
+    send_rpc_tx_fn: &'a dyn Fn(RpcTransaction) -> Fut,
+) -> Fut
+where
+    Fut: Future<Output = TransactionHash> + 'a,
+{
+    send_rpc_tx_fn(rpc_tx)
 }
 
 async fn create_gateway_config(chain_info: ChainInfo) -> GatewayConfig {
