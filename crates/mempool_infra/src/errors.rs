@@ -17,3 +17,9 @@ pub enum ComponentServerError {
     #[error("Server unexpectedly stopped.")]
     ServerUnexpectedlyStopped,
 }
+
+#[derive(Clone, Debug, Error)]
+pub enum ReplaceComponentError {
+    #[error("Internal error.")]
+    InternalError,
+}

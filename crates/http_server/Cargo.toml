@@ -14,7 +14,6 @@ hyper.workspace = true
 papyrus_config.workspace = true
 serde.workspace = true
 starknet_api.workspace = true
-starknet_gateway.workspace = true
 starknet_gateway_types.workspace = true
 starknet_mempool_infra.workspace = true
 thiserror.workspace = true
