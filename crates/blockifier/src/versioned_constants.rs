@@ -308,18 +308,22 @@ impl VersionedConstants {
 
     /// Returns the latest versioned constants after applying the given overrides.
     pub fn get_versioned_constants(
-        versioned_constants_overrides: VersionedConstantsOverrides,
+        versioned_constants_overrides: Option<VersionedConstantsOverrides>,
     ) -> Self {
-        let VersionedConstantsOverrides {
-            validate_max_n_steps,
-            max_recursion_depth,
-            invoke_tx_max_n_steps,
-        } = versioned_constants_overrides;
-        Self {
-            validate_max_n_steps,
-            max_recursion_depth,
-            invoke_tx_max_n_steps,
-            ..Self::latest_constants().clone()
+        if let Some(overrides) = versioned_constants_overrides {
+            let VersionedConstantsOverrides {
+                validate_max_n_steps,
+                max_recursion_depth,
+                invoke_tx_max_n_steps,
+            } = overrides;
+            Self {
+                validate_max_n_steps,
+                max_recursion_depth,
+                invoke_tx_max_n_steps,
+                ..Self::latest_constants().clone()
+            }
+        } else {
+            Self::latest_constants().clone()
         }
     }
 
@@ -824,22 +828,12 @@ pub struct ResourcesByVersion {
     pub deprecated_resources: ResourcesParams,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+// TODO(Ayelet): Make fields optional.
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub struct VersionedConstantsOverrides {
     pub validate_max_n_steps: u32,
     pub max_recursion_depth: usize,
     pub invoke_tx_max_n_steps: u32,
-}
-
-impl Default for VersionedConstantsOverrides {
-    // TODO: update the default values once the actual values are known.
-    fn default() -> Self {
-        Self {
-            validate_max_n_steps: 1000000,
-            max_recursion_depth: 50,
-            invoke_tx_max_n_steps: 10000000,
-        }
-    }
 }
 
 impl SerializeConfig for VersionedConstantsOverrides {

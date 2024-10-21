@@ -119,20 +119,25 @@
     "privacy": "Public",
     "value": true
   },
+  "batcher_config.block_builder_config.versioned_constants_overrides.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
   "batcher_config.block_builder_config.versioned_constants_overrides.invoke_tx_max_n_steps": {
     "description": "Maximum number of steps the invoke function is allowed to run.",
     "privacy": "Public",
-    "value": 10000000
+    "value": 0
   },
   "batcher_config.block_builder_config.versioned_constants_overrides.max_recursion_depth": {
     "description": "Maximum recursion depth for nested calls during blockifier validation.",
     "privacy": "Public",
-    "value": 50
+    "value": 0
   },
   "batcher_config.block_builder_config.versioned_constants_overrides.validate_max_n_steps": {
     "description": "Maximum number of steps the validation function is allowed to run.",
     "privacy": "Public",
-    "value": 1000000
+    "value": 0
   },
   "batcher_config.outstream_content_buffer_size": {
     "description": "Maximum items to add to the outstream buffer before blocking further filling of the stream.",
