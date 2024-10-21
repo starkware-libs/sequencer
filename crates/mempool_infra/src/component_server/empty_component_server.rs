@@ -4,8 +4,8 @@ use async_trait::async_trait;
 use tracing::info;
 
 use crate::component_definitions::ComponentStarter;
-use crate::component_server::{ComponentReplacer, ComponentServerStarter, ReplaceComponentError};
-use crate::errors::ComponentServerError;
+use crate::component_server::{ComponentReplacer, ComponentServerStarter};
+use crate::errors::{ComponentServerError, ReplaceComponentError};
 
 pub struct WrapperServer<Component> {
     component: Component,
