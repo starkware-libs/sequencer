@@ -2,6 +2,10 @@
 
 set -e
 
+# TODO: Fix installation of lld in CI.
+[[ ${UID} == "0" ]] || SUDO="sudo"
+$SUDO bash -c 'apt update && apt install -y lld'
+
 benchmarks_list=${1}
 benchmark_results=${2}
 # Benchmark the new code, splitting the benchmarks
