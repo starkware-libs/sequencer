@@ -1,6 +1,6 @@
 use num_bigint::BigUint;
 use rstest::rstest;
-use starknet_api::transaction::{Fee, ValidResourceBounds};
+use starknet_api::transaction::fields::{Fee, ValidResourceBounds};
 use starknet_api::{felt, invoke_tx_args};
 use starknet_types_core::felt::Felt;
 
@@ -56,7 +56,7 @@ pub fn test_fill_sequencer_balance_reads(
 #[case::overflow(Fee(150_u128), felt!(u128::MAX), felt!(5_u128))]
 #[case::overflow_edge_case(Fee(500_u128), felt!(u128::MAX), felt!(u128::MAX-1))]
 pub fn test_add_fee_to_sequencer_balance(
-    #[case] actual_fee: starknet_api::transaction::Fee,
+    #[case] actual_fee: Fee,
     #[case] sequencer_balance_low: Felt,
     #[case] sequencer_balance_high: Felt,
 ) {

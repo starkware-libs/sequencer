@@ -4,7 +4,8 @@ use starknet_types_core::hash::StarkHash;
 use crate::core::EventCommitment;
 use crate::crypto::patricia_hash::calculate_root;
 use crate::crypto::utils::HashChain;
-use crate::transaction::{Event, TransactionHash};
+use crate::transaction::fields::TransactionHash;
+use crate::transaction::Event;
 
 #[cfg(test)]
 #[path = "event_commitment_test.rs"]

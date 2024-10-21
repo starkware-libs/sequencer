@@ -2,7 +2,7 @@ use axum::http::StatusCode;
 use blockifier::state::errors::StateError;
 use serde_json::{Error as SerdeError, Value};
 use starknet_api::block::GasPrice;
-use starknet_api::transaction::{Resource, ResourceBounds};
+use starknet_api::transaction::fields::{Resource, ResourceBounds};
 use starknet_gateway_types::errors::GatewaySpecError;
 use thiserror::Error;
 

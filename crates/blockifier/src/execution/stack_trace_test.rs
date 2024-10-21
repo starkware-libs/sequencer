@@ -2,7 +2,7 @@ use pretty_assertions::assert_eq;
 use regex::Regex;
 use rstest::rstest;
 use starknet_api::core::{calculate_contract_address, Nonce};
-use starknet_api::transaction::{
+use starknet_api::transaction::fields::{
     ContractAddressSalt,
     Fee,
     TransactionSignature,

@@ -126,7 +126,8 @@ use starknet_api::block::{BlockHash, BlockNumber, BlockSignature, StarknetVersio
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{ContractClass, StateNumber, StorageKey, ThinStateDiff};
-use starknet_api::transaction::{Transaction, TransactionHash, TransactionOutput};
+use starknet_api::transaction::fields::TransactionHash;
+use starknet_api::transaction::{Transaction, TransactionOutput};
 use starknet_types_core::felt::Felt;
 use tracing::{debug, warn};
 use validator::Validate;

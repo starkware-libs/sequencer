@@ -23,7 +23,7 @@ use starknet_api::rpc_transaction::{
     RpcTransaction,
 };
 use starknet_api::test_utils::NonceManager;
-use starknet_api::transaction::{
+use starknet_api::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
     Calldata,

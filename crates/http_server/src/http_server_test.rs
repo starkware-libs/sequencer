@@ -1,7 +1,7 @@
 use axum::body::{Bytes, HttpBody};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use starknet_api::transaction::TransactionHash;
+use starknet_api::transaction::fields::TransactionHash;
 
 use crate::http_server::add_tx_result_as_json;
 

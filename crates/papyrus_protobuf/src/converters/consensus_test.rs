@@ -8,6 +8,7 @@ use rand::Rng;
 use starknet_api::block::BlockHash;
 use starknet_api::core::ContractAddress;
 use starknet_api::execution_resources::GasAmount;
+use starknet_api::transaction::fields::ValidResourceBounds;
 use starknet_api::transaction::{
     DeclareTransaction,
     DeclareTransactionV3,
@@ -16,7 +17,6 @@ use starknet_api::transaction::{
     InvokeTransaction,
     InvokeTransactionV3,
     Transaction,
-    ValidResourceBounds,
 };
 
 use crate::consensus::{
