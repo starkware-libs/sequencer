@@ -23,7 +23,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::abi::abi_utils::selector_from_name;
 use crate::context::{BlockContext, TransactionContext};
-use crate::execution::call_info::{CallInfo, Retdata};
+use crate::execution::call_info::CallInfo;
 use crate::execution::contract_class::ContractClass;
 use crate::execution::entry_point::{CallEntryPoint, CallType, EntryPointExecutionContext};
 use crate::execution::stack_trace::extract_trailing_cairo1_revert_trace;
