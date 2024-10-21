@@ -77,6 +77,7 @@ impl MempoolContentBuilder {
         self
     }
 
+    // Note: Transactions are not stored in the input order due to internal sorting by priority.
     fn with_priority_queue<Q>(mut self, queue_txs: Q) -> Self
     where
         Q: IntoIterator<Item = TransactionReference>,
@@ -85,6 +86,7 @@ impl MempoolContentBuilder {
         self
     }
 
+    // Note: Transactions are not stored in the input order due to internal sorting by priority.
     fn _with_pending_queue<Q>(mut self, queue_txs: Q) -> Self
     where
         Q: IntoIterator<Item = TransactionReference>,
@@ -284,7 +286,7 @@ fn test_get_txs_with_nonce_gap() {
 // `add_tx` tests.
 
 #[rstest]
-fn test_add_tx(mut mempool: Mempool) {
+fn test_add_tx_insertion_sorted_by_priority(mut mempool: Mempool) {
     // Setup.
     let mut add_tx_inputs = [
         add_tx_input!(tip: 50, tx_hash: 1, address: "0x0", tx_nonce: 0, account_nonce: 0),
@@ -297,19 +299,15 @@ fn test_add_tx(mut mempool: Mempool) {
         add_tx(&mut mempool, input);
     }
 
-    // TODO(Ayelet): Consider share this code.
     // Sort in an ascending priority order.
     add_tx_inputs.sort_by_key(|input| std::cmp::Reverse(tip(&input.tx)));
 
     // Assert: transactions are ordered by priority.
+    let mempool_queue_txs = mempool.tx_queue.iter_over_ready_txs();
     let expected_queue_txs: Vec<TransactionReference> =
         add_tx_inputs.iter().map(|input| TransactionReference::new(&input.tx)).collect();
-    let expected_pool_txs = add_tx_inputs.into_iter().map(|input| input.tx);
-    let expected_mempool_content = MempoolContentBuilder::new()
-        .with_pool(expected_pool_txs)
-        .with_priority_queue(expected_queue_txs)
-        .build();
-    expected_mempool_content.assert_eq(&mempool);
+    // MempoolContent cannot be used here because the transaction order needs to be verified.
+    assert!(expected_queue_txs.iter().eq(mempool_queue_txs));
 }
 
 #[rstest]
@@ -464,27 +462,6 @@ fn test_add_tx_delete_tx_with_lower_nonce_than_account_nonce() {
         .with_pool(expected_pool_txs)
         .with_priority_queue(expected_queue_txs)
         .build();
-    expected_mempool_content.assert_eq(&mempool);
-}
-
-#[rstest]
-fn test_add_tx_tip_priority_over_tx_hash(mut mempool: Mempool) {
-    // Setup.
-    let input_big_tip_small_hash = add_tx_input!(tip: 2, tx_hash: 1, address: "0x0");
-    // Create a transaction with identical tip, it should be allowed through since the priority
-    // queue tie-breaks identical tips by other tx-unique identifiers (for example tx hash).
-    let input_small_tip_big_hash = add_tx_input!(tip: 1, tx_hash: 2, address: "0x1");
-
-    // Test.
-    for input in [&input_big_tip_small_hash, &input_small_tip_big_hash] {
-        add_tx(&mut mempool, input);
-    }
-
-    // Assert: ensure that the transaction with the higher tip is prioritized higher.
-    let expected_queue_txs =
-        [&input_big_tip_small_hash.tx, &input_small_tip_big_hash.tx].map(TransactionReference::new);
-    let expected_mempool_content =
-        MempoolContentBuilder::new().with_priority_queue(expected_queue_txs).build();
     expected_mempool_content.assert_eq(&mempool);
 }
 
