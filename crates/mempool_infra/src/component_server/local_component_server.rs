@@ -12,8 +12,8 @@ use crate::component_definitions::{
     ComponentRequestHandler,
     ComponentStarter,
 };
-use crate::component_server::{ComponentReplacer, ComponentServerStarter, ReplaceComponentError};
-use crate::errors::ComponentServerError;
+use crate::component_server::{ComponentReplacer, ComponentServerStarter};
+use crate::errors::{ComponentServerError, ReplaceComponentError};
 
 /// The `LocalComponentServer` struct is a generic server that handles requests and responses for a
 /// specified component. It receives requests, processes them using the provided component, and
