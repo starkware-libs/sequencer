@@ -28,7 +28,8 @@ use crate::execution::entry_point::CallEntryPoint;
 use crate::execution::errors::EntryPointExecutionError;
 use crate::execution::stack_trace::{
     extract_trailing_cairo1_revert_trace,
-    Cairo1RevertStack,
+    Cairo1RevertHeader,
+    Cairo1RevertSummary,
     MIN_CAIRO1_FRAME_LENGTH,
     TRACE_LENGTH_CAP,
 };
@@ -627,7 +628,8 @@ An ASSERT_EQ instruction failed: 1 != 0.
             "The `validate` entry point panicked with:
 Error in contract (contract address: {contract_address:#064x}, class hash: {:#064x}, selector: \
              {selector:#064x}):
-0x496e76616c6964207363656e6172696f ('Invalid scenario').",
+0x496e76616c6964207363656e6172696f ('Invalid scenario').
+",
             class_hash.0
         ),
         #[cfg(feature = "cairo_native")]
@@ -860,7 +862,7 @@ Error in contract (contract address: {expected_address:#064x}, class hash: {:#06
 #[test]
 fn test_min_cairo1_frame_length() {
     let failure_hex = "0xdeadbeef";
-    let call_info = CallInfo {
+    let call_info_1_frame = CallInfo {
         call: CallEntryPoint {
             class_hash: Some(ClassHash::default()),
             storage_address: ContractAddress::default(),
@@ -874,11 +876,27 @@ fn test_min_cairo1_frame_length() {
         },
         ..Default::default()
     };
-    let error_stack = extract_trailing_cairo1_revert_trace(&call_info);
-    let error_string = error_stack.to_string();
-    // Frame, newline, failure reason.
-    // Min frame length includes the newline.
-    assert_eq!(error_string.len(), *MIN_CAIRO1_FRAME_LENGTH + failure_hex.len());
+    let call_info_2_frames = CallInfo {
+        call: CallEntryPoint {
+            class_hash: Some(ClassHash::default()),
+            storage_address: ContractAddress::default(),
+            entry_point_selector: EntryPointSelector::default(),
+            ..Default::default()
+        },
+        execution: CallExecution {
+            retdata: Retdata(vec![felt!(failure_hex), felt!(ENTRYPOINT_FAILED_ERROR)]),
+            failed: true,
+            ..Default::default()
+        },
+        inner_calls: vec![call_info_1_frame.clone()],
+        ..Default::default()
+    };
+    let error_stack_1_frame =
+        extract_trailing_cairo1_revert_trace(&call_info_1_frame, Cairo1RevertHeader::Execution);
+    let error_stack_2_frames =
+        extract_trailing_cairo1_revert_trace(&call_info_2_frames, Cairo1RevertHeader::Execution);
+    let diff = error_stack_2_frames.to_string().len() - error_stack_1_frame.to_string().len();
+    assert_eq!(diff, *MIN_CAIRO1_FRAME_LENGTH);
 }
 
 #[rstest]
@@ -921,46 +939,49 @@ fn test_cairo1_revert_error_truncation(
     }
 
     // Check that the error message is structured as expected.
-    let error_stack = extract_trailing_cairo1_revert_trace(&next_call_info);
+    let header_type = Cairo1RevertHeader::Execution;
+    let header_str = header_type.to_string();
+    let tail_str = ".\n";
+    let error_stack = extract_trailing_cairo1_revert_trace(&next_call_info, header_type);
     let error_string = error_stack.to_string();
     let first_frame = error_stack.stack.first().unwrap().to_string();
     let last_frame = error_stack.stack.last().unwrap().to_string();
-    match scenario {
+    let (expected_head, expected_tail) = match scenario {
         // Frames truncated, entire failure reason (a single felt) is output.
         "too_many_frames" => {
-            assert!(error_string.starts_with(&format!("{first_frame}\n")));
-            assert!(
-                error_string.ends_with(
-                    &[
-                        Cairo1RevertStack::TRUNCATION_SEPARATOR.into(),
-                        last_frame,
-                        // One failure felt.
-                        failure_felt.to_string(),
-                    ]
-                    .join("\n")
-                )
-            );
+            (
+                format!("{header_str}\n{first_frame}\n"),
+                [
+                    Cairo1RevertSummary::TRUNCATION_SEPARATOR.into(),
+                    last_frame,
+                    // One failure felt.
+                    format!("{failure_felt}{tail_str}"),
+                ]
+                .join("\n"),
+            )
         }
         // A single frame, but failure reason itself is too long. No frames printed.
-        "too_much_retdata" => {
-            assert!(error_string.starts_with(&format!("({failure_felt}")));
-            assert!(error_string.ends_with(Cairo1RevertStack::TRUNCATION_SEPARATOR));
-        }
+        "too_much_retdata" => (
+            format!("{header_str}\n({failure_felt}"),
+            Cairo1RevertSummary::TRUNCATION_SEPARATOR.into(),
+        ),
         // Too many frames and too much retdata - retdata takes precedence.
         "both_too_much" => {
-            assert!(error_string.starts_with(&format!("{first_frame}\n")));
-            let retdata_tail =
-                format!("({}{failure_felt})", format!("{failure_felt}, ").repeat(n_retdata - 1));
-            assert!(
-                error_string.ends_with(
-                    &[Cairo1RevertStack::TRUNCATION_SEPARATOR.into(), last_frame, retdata_tail]
-                        .join("\n")
-                )
+            let retdata_tail = format!(
+                "({}{failure_felt}){tail_str}",
+                format!("{failure_felt}, ").repeat(n_retdata - 1)
             );
+            (
+                format!("{header_str}\n{first_frame}\n"),
+                [Cairo1RevertSummary::TRUNCATION_SEPARATOR.into(), last_frame, retdata_tail]
+                    .join("\n"),
+            )
         }
         _ => panic!("Test not implemented for {n_frames} frames."),
-    }
+    };
     assert!(error_string.len() <= TRACE_LENGTH_CAP);
+    assert_eq!(error_string[..expected_head.len()], expected_head);
+    assert_eq!(error_string[error_string.len() - expected_tail.len()..], expected_tail);
 }
 
 #[test]
@@ -973,14 +994,15 @@ fn test_cairo1_stack_extraction_inner_call_successful() {
         ..Default::default()
     };
     let error = EntryPointExecutionError::ExecutionFailed {
-        error_trace: extract_trailing_cairo1_revert_trace(&callinfo),
+        error_trace: extract_trailing_cairo1_revert_trace(&callinfo, Cairo1RevertHeader::Execution),
     };
     assert_eq!(
         error.to_string(),
         format!(
             "Execution failed. Failure reason:
 Error in contract (contract address: {:#064x}, class hash: _, selector: {:#064x}):
-{failure_reason_str}.",
+{failure_reason_str}.
+",
             ContractAddress::default().0.key(),
             EntryPointSelector::default().0
         )
@@ -1011,8 +1033,8 @@ fn test_ambiguous_inner_cairo1_failure() {
         ..Default::default()
     };
     assert_matches!(
-        extract_trailing_cairo1_revert_trace(&call_info),
-        Cairo1RevertStack { stack, last_retdata }
+        extract_trailing_cairo1_revert_trace(&call_info, Cairo1RevertHeader::Execution),
+        Cairo1RevertSummary { stack, last_retdata, .. }
         if stack.is_empty() && last_retdata == outer_retdata
     );
 }
@@ -1052,8 +1074,8 @@ fn test_inner_cairo1_failure_not_last(#[values(true, false)] last_is_failed: boo
         ..Default::default()
     };
     assert_matches!(
-        extract_trailing_cairo1_revert_trace(&call_info),
-        Cairo1RevertStack { stack, last_retdata }
+        extract_trailing_cairo1_revert_trace(&call_info, Cairo1RevertHeader::Execution),
+        Cairo1RevertSummary { stack, last_retdata, .. }
         if stack.len() == 2 && last_retdata == first_inner_retdata
     );
 }
@@ -1070,8 +1092,8 @@ fn test_cairo1_stack_extraction_not_failure_fallback() {
         ..Default::default()
     };
     assert_matches!(
-        extract_trailing_cairo1_revert_trace(&successful_call),
-        Cairo1RevertStack { stack, last_retdata }
+        extract_trailing_cairo1_revert_trace(&successful_call, Cairo1RevertHeader::Execution),
+        Cairo1RevertSummary { stack, last_retdata, .. }
         if stack.is_empty() && last_retdata == expected_retdata
     );
 }
