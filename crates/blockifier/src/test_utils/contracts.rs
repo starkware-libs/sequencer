@@ -148,7 +148,9 @@ impl FeatureContract {
 
         let supports_native = matches!(self, Self::TestContract(_));
 
-        (supports_legacy as u32) | (supports_cairo1 as u32) << 1 | (supports_native as u32) << 2
+        u32::from(supports_legacy)
+            | u32::from(supports_cairo1) << 1
+            | u32::from(supports_native) << 2
     }
 
     pub fn set_cairo_version(&mut self, version: CairoVersion) {
