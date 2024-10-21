@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 
+use papyrus_common::compression_utils::compress_and_encode;
 use papyrus_common::pending_classes::ApiContractClass;
 use prost::Message;
 use starknet_api::contract_class::EntryPointType;
@@ -140,6 +141,14 @@ impl TryFrom<protobuf::Cairo0Class> for deprecated_contract_class::ContractClass
 
 impl From<deprecated_contract_class::ContractClass> for protobuf::Cairo0Class {
     fn from(value: deprecated_contract_class::ContractClass) -> Self {
+        // TODO: remove expects and handle results properly
+        let serialized_program = serde_json::to_value(&value.program)
+            .expect("Failed to serialize deprecated_contract_class::Program to JSON");
+
+        // TODO: consider storing the encoded program
+        let encoded_program = compress_and_encode(serialized_program)
+            .expect("Failed to compress and encode serialized deprecated_contract_class::Program");
+
         protobuf::Cairo0Class {
             constructors: value
                 .entry_points_by_type
@@ -165,9 +174,9 @@ impl From<deprecated_contract_class::ContractClass> for protobuf::Cairo0Class {
                 .cloned()
                 .map(protobuf::EntryPoint::from)
                 .collect(),
-            // TODO: fill abi and program
+            // TODO: fill abi
             abi: "".to_string(),
-            program: "".to_string(),
+            program: encoded_program,
         }
     }
 }
