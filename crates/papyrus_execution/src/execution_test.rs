@@ -814,11 +814,7 @@ fn blockifier_error_mapping() {
         storage_address,
         selector,
     };
-    let expected = format!(
-        "Transaction execution has failed:\n{}",
-        // TODO: consider adding ErrorStack display instead.
-        String::from(gen_tx_execution_error_trace(&blockifier_err))
-    );
+    let expected = format!("{}", gen_tx_execution_error_trace(&blockifier_err));
     let err = ExecutionError::from((0, blockifier_err));
     let ExecutionError::TransactionExecutionError { transaction_index, execution_error } = err
     else {
@@ -834,10 +830,7 @@ fn blockifier_error_mapping() {
         storage_address,
         selector,
     };
-    let expected = format!(
-        "Transaction validation has failed:\n{}",
-        String::from(gen_tx_execution_error_trace(&blockifier_err))
-    );
+    let expected = format!("{}", gen_tx_execution_error_trace(&blockifier_err));
     let err = ExecutionError::from((0, blockifier_err));
     let ExecutionError::TransactionExecutionError { transaction_index, execution_error } = err
     else {

@@ -11,7 +11,8 @@ use crate::state::state_api::StateReader;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::{FeeType, TransactionExecutionResult, TransactionInfo};
 
-#[derive(Clone, Copy, Debug, Error)]
+#[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, Copy, Debug, Error, PartialEq)]
 pub enum FeeCheckError {
     #[error(
         "Insufficient max {resource}: max amount: {max_amount}, actual used: {actual_amount}."
