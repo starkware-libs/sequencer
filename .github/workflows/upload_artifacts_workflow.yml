@@ -48,7 +48,7 @@ jobs:
       - name: Build native blockifier
         run: ./build_native_in_docker.sh scripts/build_native_blockifier.sh
 
-      # Rename is required; see https://pyo3.rs/v0.19.2/building_and_distribution#manual-builds.
+      # Rename is required; see https://pyo3.rs/v0.19.2/building_and_distribution#manual-builds. t
       - name: Rename shared object
         run: |
           mv \
