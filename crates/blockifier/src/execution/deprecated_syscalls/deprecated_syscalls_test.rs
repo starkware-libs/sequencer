@@ -5,7 +5,7 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use num_traits::Pow;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
-use starknet_api::core::{calculate_contract_address, ChainId, PatriciaKey};
+use starknet_api::core::{calculate_contract_address, ChainId};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{
     Calldata,

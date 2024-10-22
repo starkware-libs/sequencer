@@ -27,7 +27,6 @@ use starknet_api::core::{
     CompiledClassHash,
     ContractAddress,
     Nonce,
-    PatriciaKey,
     SequencerContractAddress,
 };
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
@@ -43,7 +42,7 @@ use starknet_api::transaction::{
     InvokeTransactionV1,
     TransactionHash,
 };
-use starknet_api::{calldata, class_hash, contract_address, felt, nonce, patricia_key};
+use starknet_api::{calldata, class_hash, contract_address, felt, nonce};
 use starknet_types_core::felt::Felt;
 
 use crate::execution_utils::selector_from_name;

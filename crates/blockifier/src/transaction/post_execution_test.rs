@@ -1,6 +1,6 @@
 use assert_matches::assert_matches;
 use rstest::rstest;
-use starknet_api::core::{ContractAddress, PatriciaKey};
+use starknet_api::core::ContractAddress;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{
@@ -13,7 +13,7 @@ use starknet_api::transaction::{
     TransactionVersion,
     ValidResourceBounds,
 };
-use starknet_api::{contract_address, felt, invoke_tx_args, patricia_key};
+use starknet_api::{contract_address, felt, invoke_tx_args};
 use starknet_types_core::felt::Felt;
 
 use crate::context::{BlockContext, ChainInfo};

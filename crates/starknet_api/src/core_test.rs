@@ -6,7 +6,6 @@ use crate::core::{
     ascii_as_felt,
     calculate_contract_address,
     ChainId,
-    ClassHash,
     ContractAddress,
     EthAddress,
     Nonce,

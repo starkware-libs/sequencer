@@ -4,7 +4,7 @@ use std::thread;
 
 use assert_matches::assert_matches;
 use rstest::{fixture, rstest};
-use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress, PatriciaKey};
+use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress};
 use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::{ContractAddressSalt, ValidResourceBounds};
 use starknet_api::{
@@ -15,7 +15,6 @@ use starknet_api::{
     deploy_account_tx_args,
     felt,
     nonce,
-    patricia_key,
     storage_key,
 };
 

@@ -3,9 +3,9 @@ use std::sync::Arc;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use serde_json::Value;
 use starknet_api::block::{BlockNumber, BlockTimestamp, NonzeroGasPrice};
-use starknet_api::core::{ChainId, ClassHash, ContractAddress, Nonce, PatriciaKey};
+use starknet_api::core::{ChainId, ClassHash, ContractAddress, Nonce};
 use starknet_api::transaction::{Fee, TransactionHash, TransactionVersion};
-use starknet_api::{calldata, contract_address, patricia_key};
+use starknet_api::{calldata, contract_address};
 use starknet_types_core::felt::Felt;
 
 use super::update_json_value;
