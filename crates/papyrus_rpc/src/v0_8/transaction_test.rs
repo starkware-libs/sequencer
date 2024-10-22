@@ -5,7 +5,7 @@ use papyrus_test_utils::{
     GetTestInstance,
 };
 use pretty_assertions::assert_eq;
-use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, Nonce, PatriciaKey};
+use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::transaction::{
     AccountDeploymentData,
@@ -19,7 +19,7 @@ use starknet_api::transaction::{
     TransactionSignature,
     TransactionVersion,
 };
-use starknet_api::{calldata, contract_address, felt, nonce, patricia_key};
+use starknet_api::{calldata, contract_address, felt, nonce};
 use starknet_client::writer::objects::transaction as client_transaction;
 
 use super::super::transaction::{L1HandlerMsgHash, L1L2MsgHash};

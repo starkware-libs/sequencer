@@ -2,9 +2,9 @@ use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::Poseidon;
 
 use super::{calculate_event_commitment, calculate_event_hash, EventLeafElement};
-use crate::core::{ContractAddress, EventCommitment, PatriciaKey};
+use crate::core::EventCommitment;
 use crate::transaction::{Event, EventContent, EventData, EventKey, TransactionHash};
-use crate::{contract_address, felt, patricia_key};
+use crate::{contract_address, felt};
 
 #[test]
 fn test_event_commitment_regression() {
