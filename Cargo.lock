@@ -968,7 +968,7 @@ dependencies = [
 
 [[package]]
 name = "blockifier"
-version = "0.8.0"
+version = "0.14.0-rc.0"
 dependencies = [
  "anyhow",
  "ark-ec",
@@ -8750,7 +8750,7 @@ dependencies = [
 
 [[package]]
 name = "starknet_api"
-version = "0.13.0-rc.1"
+version = "0.14.0-rc.0"
 dependencies = [
  "assert_matches",
  "bitvec",
