@@ -31,6 +31,7 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
     vec![(
         ser_pointer_target_param("chain_id", &DEFAULT_CHAIN_ID, "The chain to follow."),
         vec![
+            "batcher_config.block_builder_config.chain_info.chain_id".to_owned(),
             "batcher_config.storage.db_config.chain_id".to_owned(),
             "gateway_config.chain_info.chain_id".to_owned(),
         ],
