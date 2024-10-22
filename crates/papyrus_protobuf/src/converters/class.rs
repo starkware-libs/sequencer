@@ -3,7 +3,9 @@ use std::convert::{TryFrom, TryInto};
 
 use papyrus_common::compression_utils::{compress_and_encode, decode_and_decompress};
 use papyrus_common::pending_classes::ApiContractClass;
+use papyrus_common::python_json::PythonJsonFormatter;
 use prost::Message;
+use serde::Serialize;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, EntryPointSelector};
 use starknet_api::data_availability::DataAvailabilityMode;
@@ -147,6 +149,21 @@ impl From<deprecated_contract_class::ContractClass> for protobuf::Cairo0Class {
         let encoded_program = compress_and_encode(serialized_program)
             .expect("Failed to compress and encode serialized Cairo 0 program");
 
+        // TODO: remove expects and handle results properly
+        let encoded_abi = match value.abi {
+            Some(abi_entries) => {
+                let mut abi_bytes = vec![];
+                abi_entries
+                    .serialize(&mut serde_json::Serializer::with_formatter(
+                        &mut abi_bytes,
+                        PythonJsonFormatter,
+                    ))
+                    .expect("ABI is not in the expected Pythonic JSON byte format");
+                String::from_utf8(abi_bytes).expect("Failed decoding ABI bytes as utf8 string")
+            }
+            None => "".to_string(),
+        };
+
         protobuf::Cairo0Class {
             constructors: value
                 .entry_points_by_type
@@ -172,8 +189,7 @@ impl From<deprecated_contract_class::ContractClass> for protobuf::Cairo0Class {
                 .cloned()
                 .map(protobuf::EntryPoint::from)
                 .collect(),
-            // TODO: fill abi
-            abi: "".to_string(),
+            abi: encoded_abi,
             program: encoded_program,
         }
     }
