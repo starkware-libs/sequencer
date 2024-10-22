@@ -6,6 +6,7 @@ use papyrus_proc_macros::handle_response_variants;
 use serde::{Deserialize, Serialize};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_mempool_infra::component_client::{ClientError, LocalComponentClient};
+use starknet_mempool_infra::component_definitions::ComponentRequestAndResponseSender;
 use thiserror::Error;
 
 use crate::errors::MempoolP2pPropagatorError;
@@ -31,6 +32,8 @@ pub trait MempoolP2pPropagatorClient: Send + Sync {
 // TODO: Implement remote MempoolP2pPropagatorClient.
 pub type LocalMempoolP2pPropagatorClient =
     LocalComponentClient<MempoolP2pPropagatorRequest, MempoolP2pPropagatorResponse>;
+pub type PropagatorRequestAndResponseSender =
+    ComponentRequestAndResponseSender<MempoolP2pPropagatorRequest, MempoolP2pPropagatorResponse>;
 pub type SharedMempoolP2pPropagatorClient = Arc<dyn MempoolP2pPropagatorClient>;
 pub type MempoolP2pPropagatorClientResult<T> = Result<T, MempoolP2pPropagatorClientError>;
 
