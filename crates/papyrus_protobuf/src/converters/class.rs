@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 
-use papyrus_common::compression_utils::compress_and_encode;
+use papyrus_common::compression_utils::{compress_and_encode, decode_and_decompress};
 use papyrus_common::pending_classes::ApiContractClass;
 use prost::Message;
 use starknet_api::contract_class::EntryPointType;
@@ -132,8 +132,7 @@ impl TryFrom<protobuf::Cairo0Class> for deprecated_contract_class::ContractClass
         }
         // TODO: fill abi
         let abi = None;
-        // TODO: fill program
-        let program = deprecated_contract_class::Program::default();
+        let program = serde_json::from_value(decode_and_decompress(&value.program)?)?;
 
         Ok(Self { program, entry_points_by_type, abi })
     }
