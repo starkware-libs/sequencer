@@ -968,7 +968,7 @@ dependencies = [
 
 [[package]]
 name = "blockifier"
-version = "0.8.0-rc.3"
+version = "0.8.0"
 dependencies = [
  "anyhow",
  "ark-ec",
