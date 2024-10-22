@@ -98,10 +98,6 @@ impl<T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversi
     /// Guarantees that messages are sent in order.
     pub async fn run(&mut self) {
         loop {
-            // The StreamHashMap doesn't report back that some of the channels were closed,
-            // but the relevant keys are removed when that happens. So check before-after:
-            let before: HashSet<_> = self.outbound_stream_receivers.keys().cloned().collect();
-
             // Go over the outbound_channel_receiver to see if there is a new receiver,
             // and go over all existing outbound_receivers to see if there are any messages to
             // send. Finally, check if there is an input message from the network.
@@ -111,16 +107,13 @@ impl<T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversi
                 }
                 output = self.outbound_stream_receivers.next() => {
                     match output {
-                        Some((key, message)) => {
+                        Some((key, Some(message))) => {
                             self.broadcast(key, message).await;
                         }
-                        None => {
-                            let after: HashSet<_> = self.outbound_stream_receivers.keys().cloned().collect();
-                            let diff = before.difference(&after).collect::<HashSet<_>>();
-                            for key in diff {
-                                self.broadcast_fin(*key).await;
-                            }
+                        Some((key, None)) => {
+                            self.broadcast_fin(key).await;
                         }
+                        None => {}  // This should generally never happen
                     }
                 }
                 Some(message) = self.inbound_receiver.next() => {
