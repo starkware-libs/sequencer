@@ -373,7 +373,7 @@ impl Debug for PatriciaKey {
 #[macro_export]
 macro_rules! patricia_key {
     ($s:expr) => {
-        PatriciaKey::try_from($crate::felt!($s)).unwrap()
+        $crate::core::PatriciaKey::try_from($crate::felt!($s)).unwrap()
     };
 }
 
@@ -382,7 +382,7 @@ macro_rules! patricia_key {
 #[macro_export]
 macro_rules! class_hash {
     ($s:expr) => {
-        ClassHash($crate::felt!($s))
+        $crate::core::ClassHash($crate::felt!($s))
     };
 }
 
@@ -392,7 +392,7 @@ macro_rules! class_hash {
 #[macro_export]
 macro_rules! contract_address {
     ($s:expr) => {
-        ContractAddress(patricia_key!($s))
+        $crate::core::ContractAddress($crate::patricia_key!($s))
     };
 }
 

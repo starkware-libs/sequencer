@@ -7,7 +7,7 @@ use num_traits::Inv;
 use pretty_assertions::{assert_eq, assert_ne};
 use rstest::rstest;
 use starknet_api::block::GasPrice;
-use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress, PatriciaKey};
+use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::hash::StarkHash;
 use starknet_api::state::StorageKey;
@@ -35,7 +35,6 @@ use starknet_api::{
     felt,
     invoke_tx_args,
     nonce,
-    patricia_key,
     storage_key,
 };
 use starknet_types_core::felt::Felt;

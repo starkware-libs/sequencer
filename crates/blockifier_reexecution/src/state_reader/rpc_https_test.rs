@@ -4,7 +4,6 @@ use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::{BlockNumber, StarknetVersion};
 use starknet_api::class_hash;
-use starknet_api::core::ClassHash;
 use starknet_api::test_utils::read_json_file;
 use starknet_api::transaction::Transaction;
 use starknet_core::types::ContractClass::{Legacy, Sierra};

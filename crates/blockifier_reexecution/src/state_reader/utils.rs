@@ -2,9 +2,9 @@ use blockifier::context::{ChainInfo, FeeTokenAddresses};
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use indexmap::IndexMap;
 use papyrus_execution::{ETH_FEE_CONTRACT_ADDRESS, STRK_FEE_CONTRACT_ADDRESS};
-use starknet_api::core::{ChainId, ContractAddress, PatriciaKey};
+use starknet_api::contract_address;
+use starknet_api::core::ChainId;
 use starknet_api::transaction::{Transaction, TransactionHash};
-use starknet_api::{contract_address, patricia_key};
 use starknet_gateway::config::RpcStateReaderConfig;
 
 use crate::state_reader::test_state_reader::ReexecutionResult;

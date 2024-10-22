@@ -58,7 +58,6 @@ use starknet_api::core::{
     ContractAddress,
     GlobalRoot,
     Nonce,
-    PatriciaKey,
     SequencerContractAddress,
 };
 use starknet_api::data_availability::L1DataAvailabilityMode;
@@ -81,7 +80,7 @@ use starknet_api::transaction::{
     TransactionOffsetInBlock,
     TransactionOutput as StarknetApiTransactionOutput,
 };
-use starknet_api::{contract_address, felt, patricia_key, storage_key};
+use starknet_api::{contract_address, felt, storage_key};
 use starknet_client::reader::objects::pending_data::{
     DeprecatedPendingBlock,
     PendingBlockOrDeprecated,

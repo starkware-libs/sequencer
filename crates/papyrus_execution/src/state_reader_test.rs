@@ -24,10 +24,10 @@ use papyrus_storage::header::HeaderStorageWriter;
 use papyrus_storage::state::StateStorageWriter;
 use papyrus_storage::test_utils::get_test_storage;
 use starknet_api::block::{BlockBody, BlockHash, BlockHeader, BlockHeaderWithoutHash, BlockNumber};
-use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce, PatriciaKey};
+use starknet_api::core::{ClassHash, CompiledClassHash, Nonce};
 use starknet_api::hash::StarkHash;
 use starknet_api::state::{ContractClass, StateNumber, ThinStateDiff};
-use starknet_api::{contract_address, felt, patricia_key, storage_key};
+use starknet_api::{contract_address, felt, storage_key};
 use starknet_types_core::felt::Felt;
 
 use crate::objects::PendingData;

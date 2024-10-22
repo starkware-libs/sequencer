@@ -74,7 +74,7 @@ use starknet_api::transaction::{
     TransactionOffsetInBlock,
     TransactionVersion,
 };
-use starknet_api::{calldata, class_hash, contract_address, felt, nonce, patricia_key};
+use starknet_api::{calldata, class_hash, contract_address, felt, nonce};
 use starknet_client::reader::objects::pending_data::{
     PendingBlock,
     PendingBlockOrDeprecated,

@@ -10,12 +10,12 @@ use mockall::automock;
 use mockall::predicate::eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
-use starknet_api::core::{ContractAddress, Nonce, PatriciaKey, StateDiffCommitment};
+use starknet_api::core::{ContractAddress, Nonce, StateDiffCommitment};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::hash::PoseidonHash;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
-use starknet_api::{contract_address, felt, nonce, patricia_key};
+use starknet_api::{contract_address, felt, nonce};
 use starknet_batcher_types::batcher_types::{
     BuildProposalInput,
     DecisionReachedInput,

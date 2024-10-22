@@ -55,7 +55,7 @@ use papyrus_storage::{StorageError, StorageReader};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockNumber, NonzeroGasPrice, StarknetVersion};
 use starknet_api::contract_class::EntryPointType;
-use starknet_api::core::{ChainId, ClassHash, ContractAddress, EntryPointSelector, PatriciaKey};
+use starknet_api::core::{ChainId, ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{StateNumber, ThinStateDiff};
@@ -75,7 +75,7 @@ use starknet_api::transaction::{
     TransactionVersion,
 };
 use starknet_api::transaction_hash::get_transaction_hash;
-use starknet_api::{contract_address, patricia_key, StarknetApiError};
+use starknet_api::{contract_address, StarknetApiError};
 use state_reader::ExecutionStateReader;
 use tracing::trace;
 

@@ -16,7 +16,7 @@ use std::path::PathBuf;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::block::{GasPrice, NonzeroGasPrice};
-use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey};
+use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{
@@ -26,7 +26,7 @@ use starknet_api::transaction::{
     GasVectorComputationMode,
     TransactionVersion,
 };
-use starknet_api::{contract_address, felt, patricia_key};
+use starknet_api::{contract_address, felt};
 use starknet_types_core::felt::Felt;
 
 use crate::abi::abi_utils::{get_fee_token_var_address, selector_from_name};

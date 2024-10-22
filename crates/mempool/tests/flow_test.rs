@@ -1,6 +1,5 @@
 use rstest::{fixture, rstest};
-use starknet_api::core::{ContractAddress, PatriciaKey};
-use starknet_api::{contract_address, invoke_tx_args, nonce, patricia_key};
+use starknet_api::{contract_address, invoke_tx_args, nonce};
 use starknet_mempool::add_tx_input;
 use starknet_mempool::mempool::Mempool;
 use starknet_mempool::test_utils::{
