@@ -205,9 +205,9 @@
     "value": "StateOnly"
   },
   "chain_id": {
-    "description": "The chain to follow.",
-    "privacy": "TemporaryValue",
-    "value": "SN_MAIN"
+    "description": "A required param! The chain to follow.",
+    "param_type": "String",
+    "privacy": "TemporaryValue"
   },
   "compiler_config.max_bytecode_size": {
     "description": "Limitation of contract bytecode size.",
