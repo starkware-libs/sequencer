@@ -7,15 +7,10 @@ use colored::Colorize;
 use mempool_test_utils::get_absolute_path;
 use papyrus_config::dumping::SerializeConfig;
 use rstest::rstest;
-use starknet_mempool_infra::component_definitions::{
-    LocalComponentCommunicationConfig,
-    RemoteClientConfig,
-    RemoteServerConfig,
-};
+use starknet_mempool_infra::component_definitions::{RemoteClientConfig, RemoteServerConfig};
 use validator::Validate;
 
 use crate::config::{
-    ComponentExecutionConfig,
     ComponentExecutionMode,
     SequencerNodeConfig,
     CONFIG_POINTERS,
@@ -25,9 +20,9 @@ use crate::config::{
 /// Test the validation of the struct ComponentExecutionConfig.
 /// Validates that execution mode of the component and the local/remote config are at sync.
 #[rstest]
-#[case::local(ComponentExecutionMode::Local, None, None)]
-#[case::remote(ComponentExecutionMode::Remote, Some(RemoteClientConfig::default()), None)]
-#[case::remote(ComponentExecutionMode::Remote, None, Some(RemoteServerConfig::default()))]
+#[case::local(ComponentExecutionMode::LocalExecution {enable_remote_connection: false}, None, None)]
+#[case::remote(ComponentExecutionMode::LocalExecution {enable_remote_connection: true}, Some(RemoteClientConfig::default()), None)]
+#[case::remote(ComponentExecutionMode::LocalExecution {enable_remote_connection: true}, None, Some(RemoteServerConfig::default()))]
 fn test_valid_component_execution_config(
     #[case] execution_mode: ComponentExecutionMode,
     #[case] remote_client_config: Option<RemoteClientConfig>,
@@ -35,7 +30,13 @@ fn test_valid_component_execution_config(
 ) {
     // Initialize a valid config and check that the validator returns Ok.
 
-    let local_config = if execution_mode == ComponentExecutionMode::Local {
+    use starknet_mempool_infra::component_definitions::LocalComponentCommunicationConfig;
+
+    use crate::config::ComponentExecutionConfig;
+
+    let local_execution_mode =
+        ComponentExecutionMode::LocalExecution { enable_remote_connection: false };
+    let local_config = if execution_mode == local_execution_mode {
         Some(LocalComponentCommunicationConfig::default())
     } else {
         None
@@ -46,7 +47,6 @@ fn test_valid_component_execution_config(
         local_config,
         remote_client_config,
         remote_server_config,
-        ..ComponentExecutionConfig::default()
     };
     assert_eq!(component_exe_config.validate(), Ok(()));
 }
