@@ -1,4 +1,6 @@
 use async_trait::async_trait;
+#[cfg(test)]
+use mockall::automock;
 use starknet_api::executable_transaction::Transaction;
 use starknet_mempool_types::communication::{MempoolClientError, SharedMempoolClient};
 use thiserror::Error;
@@ -9,6 +11,7 @@ pub enum TransactionProviderError {
     MempoolError(#[from] MempoolClientError),
 }
 
+#[cfg_attr(test, automock)]
 #[async_trait]
 pub trait TransactionProvider: Send + Sync {
     async fn get_txs(&self, n_txs: usize) -> Result<Vec<Transaction>, TransactionProviderError>;
