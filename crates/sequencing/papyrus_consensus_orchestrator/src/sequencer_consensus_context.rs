@@ -24,6 +24,7 @@ use papyrus_protobuf::consensus::{ConsensusMessage, Vote};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::executable_transaction::Transaction;
 use starknet_batcher_types::batcher_types::{
+    BlockNumberHashPair,
     BuildProposalInput,
     DecisionReachedInput,
     GetProposalContent,
@@ -95,7 +96,10 @@ impl ConsensusContext for SequencerConsensusContext {
             // TODO: Discuss with batcher team passing std Duration instead.
             deadline: chrono::Utc::now() + timeout,
             // TODO: This is not part of Milestone 1.
-            retrospective_block_hash: None,
+            retrospective_block_hash: Some(BlockNumberHashPair {
+                number: BlockNumber::default(),
+                hash: BlockHash::default(),
+            }),
         };
         self.maybe_start_height(init.height).await;
         // TODO: Should we be returning an error?
