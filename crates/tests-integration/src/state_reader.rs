@@ -11,10 +11,10 @@ use blockifier::test_utils::{
     CURRENT_BLOCK_TIMESTAMP,
     DEFAULT_ETH_L1_GAS_PRICE,
     DEFAULT_STRK_L1_GAS_PRICE,
-    DEFAULT_STRK_L2_GAS_PRICE,
     TEST_SEQUENCER_ADDRESS,
 };
 use blockifier::transaction::objects::FeeType;
+use blockifier::versioned_constants::VersionedConstants;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::IndexMap;
 use mempool_test_utils::starknet_api_test_utils::Contract;
@@ -219,6 +219,8 @@ fn write_state_to_papyrus_storage(
 }
 
 fn test_block_header(block_number: BlockNumber) -> BlockHeader {
+    let versioned_constants = VersionedConstants::latest_constants();
+
     BlockHeader {
         block_header_without_hash: BlockHeaderWithoutHash {
             block_number,
@@ -232,8 +234,10 @@ fn test_block_header(block_number: BlockNumber) -> BlockHeader {
                 price_in_fri: DEFAULT_STRK_L1_GAS_PRICE.into(),
             },
             l2_gas_price: GasPricePerToken {
-                price_in_wei: DEFAULT_ETH_L1_GAS_PRICE.into(),
-                price_in_fri: DEFAULT_STRK_L2_GAS_PRICE.into(),
+                price_in_wei: versioned_constants
+                    .convert_l1_to_l2_gas_price_round_up(DEFAULT_ETH_L1_GAS_PRICE.into()),
+                price_in_fri: versioned_constants
+                    .convert_l1_to_l2_gas_price_round_up(DEFAULT_STRK_L1_GAS_PRICE.into()),
             },
             timestamp: BlockTimestamp(CURRENT_BLOCK_TIMESTAMP),
             ..Default::default()
