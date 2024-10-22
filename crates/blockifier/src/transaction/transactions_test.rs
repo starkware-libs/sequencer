@@ -11,7 +11,7 @@ use rstest::{fixture, rstest};
 use starknet_api::block::GasPriceVector;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, EthAddress, Nonce, PatriciaKey};
-use starknet_api::execution_resources::GasVector;
+use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::state::StorageKey;
 use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::test_utils::NonceManager;
@@ -169,6 +169,14 @@ struct ExpectedResultTestInvokeTx {
     inner_call_initial_gas: u64,
 }
 
+fn user_initial_gas_from_bounds(bounds: ValidResourceBounds) -> Option<GasAmount> {
+    match bounds {
+        ValidResourceBounds::L1Gas(_) => None,
+        ValidResourceBounds::AllResources(bounds) => Some(bounds.l2_gas.max_amount),
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
 fn expected_validate_call_info(
     class_hash: ClassHash,
     entry_point_selector_name: &str,
@@ -177,6 +185,7 @@ fn expected_validate_call_info(
     storage_address: ContractAddress,
     cairo_version: CairoVersion,
     tracked_resource: TrackedResource,
+    user_initial_gas: Option<GasAmount>,
 ) -> Option<CallInfo> {
     let retdata = match cairo_version {
         CairoVersion::Cairo0 => Retdata::default(),
@@ -206,6 +215,7 @@ fn expected_validate_call_info(
         builtin_instance_counter: HashMap::from([(BuiltinName::range_check, n_range_checks)]),
     }
     .filter_unused_builtins();
+    let initial_gas = user_initial_gas.unwrap_or(GasAmount(default_initial_gas_cost())).0;
 
     Some(CallInfo {
         call: CallEntryPoint {
@@ -217,8 +227,7 @@ fn expected_validate_call_info(
             storage_address,
             caller_address: ContractAddress::default(),
             call_type: CallType::Call,
-            // TODO(tzahi): make compatible with l2 gas in resource bounds once used in tests.
-            initial_gas: default_initial_gas_cost(),
+            initial_gas,
         },
         // The account contract we use for testing has trivial `validate` functions.
         resources,
@@ -466,6 +475,7 @@ fn test_invoke_tx(
         sender_address,
         account_cairo_version,
         tracked_resource,
+        user_initial_gas_from_bounds(default_l1_resource_bounds),
     );
 
     // Build expected execute call info.
@@ -1295,6 +1305,7 @@ fn declare_validate_callinfo(
     account_class_hash: ClassHash,
     account_address: ContractAddress,
     tracked_resource: TrackedResource,
+    user_initial_gas: Option<GasAmount>,
 ) -> Option<CallInfo> {
     // V0 transactions do not run validate.
     if version == TransactionVersion::ZERO {
@@ -1308,6 +1319,7 @@ fn declare_validate_callinfo(
             account_address,
             declared_contract_version,
             tracked_resource,
+            user_initial_gas,
         )
     }
 }
@@ -1405,6 +1417,11 @@ fn test_declare_tx(
         account
             .get_class()
             .tracked_resource(&versioned_constants.min_compiler_version_for_sierra_gas),
+        if tx_version >= TransactionVersion::THREE {
+            user_initial_gas_from_bounds(default_l1_resource_bounds)
+        } else {
+            None
+        },
     );
 
     // Build expected fee transfer call info.
@@ -1558,6 +1575,7 @@ fn test_deploy_account_tx(
         account
             .get_class()
             .tracked_resource(&versioned_constants.min_compiler_version_for_sierra_gas),
+        user_initial_gas_from_bounds(default_l1_resource_bounds),
     );
 
     // Build expected execute call info.
