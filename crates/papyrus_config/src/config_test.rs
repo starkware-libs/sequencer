@@ -19,11 +19,13 @@ use crate::converters::deserialize_milliseconds_to_duration;
 use crate::dumping::{
     append_sub_config_name,
     combine_config_map_and_pointers,
+    required_param_description,
     ser_generated_param,
     ser_optional_param,
     ser_optional_sub_config,
     ser_param,
     ser_pointer_target_param,
+    ser_pointer_target_required_param,
     ser_required_param,
     SerializeConfig,
 };
@@ -283,7 +285,6 @@ fn test_pointers_flow() {
             privacy: ParamPrivacy::TemporaryValue,
         })
     );
-
     let serialized = serde_json::to_string(&stored_map).unwrap();
     let loaded = serde_json::from_str(&serialized).unwrap();
     let (loaded_config_map, loaded_pointers_map) = split_pointers_map(loaded);
@@ -291,6 +292,56 @@ fn test_pointers_flow() {
     update_config_map_by_pointers(&mut config_map, &loaded_pointers_map).unwrap();
     assert_eq!(config_map["a1"], json!(10));
     assert_eq!(config_map["a1"], config_map["a2"]);
+}
+
+#[test]
+fn test_required_pointers_flow() {
+    // Set up the config map and pointers.
+    const REQUIRED_PARAM_NAME: &str = "common_required_b";
+    const REQUIRED_PARAM_DESCRIPTION: &str = "This is common required b.";
+    const POINTING_PARAM_DESCRIPTION: &str = "This is b.";
+
+    let config_map = BTreeMap::from([
+        ser_param("b1", &json!(6), POINTING_PARAM_DESCRIPTION, ParamPrivacyInput::Public),
+        ser_param("b2", &json!(6), POINTING_PARAM_DESCRIPTION, ParamPrivacyInput::Private),
+    ]);
+    let pointers = vec![(
+        ser_pointer_target_required_param(
+            REQUIRED_PARAM_NAME,
+            SerializationType::PositiveInteger,
+            REQUIRED_PARAM_DESCRIPTION,
+        ),
+        vec!["b1".to_owned(), "b2".to_owned()],
+    )];
+    let stored_map = combine_config_map_and_pointers(config_map, &pointers).unwrap();
+
+    // Assert the pointing parameters are correctly set.
+    assert_eq!(
+        stored_map["b1"],
+        json!(SerializedParam {
+            description: POINTING_PARAM_DESCRIPTION.to_owned(),
+            content: SerializedContent::PointerTarget(REQUIRED_PARAM_NAME.to_owned()),
+            privacy: ParamPrivacy::Public,
+        })
+    );
+    assert_eq!(
+        stored_map["b2"],
+        json!(SerializedParam {
+            description: POINTING_PARAM_DESCRIPTION.to_owned(),
+            content: SerializedContent::PointerTarget(REQUIRED_PARAM_NAME.to_owned()),
+            privacy: ParamPrivacy::Private,
+        })
+    );
+
+    // Assert the pointed parameter is correctly set as a required parameter.
+    assert_eq!(
+        stored_map[REQUIRED_PARAM_NAME],
+        json!(SerializedParam {
+            description: required_param_description(REQUIRED_PARAM_DESCRIPTION).to_owned(),
+            content: SerializedContent::ParamType(SerializationType::PositiveInteger),
+            privacy: ParamPrivacy::TemporaryValue,
+        })
+    );
 }
 
 #[test]
