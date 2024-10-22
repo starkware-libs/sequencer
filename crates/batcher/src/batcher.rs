@@ -147,7 +147,7 @@ impl Batcher {
             "Committing proposal {} at height {} and notifying mempool of the block.",
             proposal_id, height
         );
-        trace!("Transactions: {:#?}, State diff: {:#?}.", tx_hashes, state_diff);
+        debug!("Transactions: {:#?}, State diff: {:#?}.", tx_hashes, state_diff);
         self.storage_writer.commit_proposal(height, state_diff).map_err(|err| {
             error!("Failed to commit proposal to storage: {}", err);
             BatcherError::InternalError

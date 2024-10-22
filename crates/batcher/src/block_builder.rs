@@ -161,7 +161,10 @@ impl BlockBuilderTrait for BlockBuilder {
                     debug!("No further transactions to execute, timeout was reached.");
                     break;
                 }
-                Ok(Some(tx_chunk)) => tx_chunk,
+                Ok(Some(tx_chunk)) => {
+                    debug!("Got a chunk of {} transactions.", tx_chunk.len());
+                    tx_chunk
+                }
                 Ok(None) => return Err(BlockBuilderError::InputStreamTerminated),
             };
             let mut executor_input_chunk = vec![];
@@ -170,6 +173,7 @@ impl BlockBuilderTrait for BlockBuilder {
                     .push(BlockifierTransaction::Account(AccountTransaction::try_from(tx)?));
             }
             let results = self.executor.lock().await.add_txs_to_block(&executor_input_chunk);
+            debug!("Transaction execution results: {:?}", results);
             should_close_block = collect_execution_results_and_stream_txs(
                 next_tx_chunk,
                 results,
