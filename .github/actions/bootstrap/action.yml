@@ -1,0 +1,5 @@
+runs:
+  using: "composite"
+  steps:
+    - name: Install rust.
+      uses: ./.github/actions/install_rust

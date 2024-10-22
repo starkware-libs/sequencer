@@ -16,7 +16,7 @@ from typing import Dict, List, Optional
 
 FINAL_BRANCH = "main"
 MERGE_PATHS_FILE = "scripts/merge_paths.json"
-FILES_TO_PRESERVE = {".github/actions/install_rust/rust_version.txt"}
+FILES_TO_PRESERVE = {"rust-toolchain.toml"}
 
 
 def load_merge_paths() -> Dict[str, str]:
@@ -137,7 +137,6 @@ def merge_branches(src_branch: str, dst_branch: Optional[str]):
     conflicts = [line.strip() for line in open(conflicts_file).readlines() if line.strip() != ""]
     conflict_line = " ".join(conflicts)
     run_command(f"git add {conflict_line}", allow_error=True)
-    run_command("git add changed_files/*", allow_error=True)
     print("Committing conflicts...")
     if len(conflicts) == 0:
         run_command(

@@ -46,8 +46,7 @@ jobs:
     runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
+      - uses: ./.github/actions/bootstrap
       - uses: Noelware/setup-protoc@1.1.0
         with:
           version: ${{env.PROTOC_VERSION}}
@@ -65,8 +64,7 @@ jobs:
     runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
+      - uses: ./.github/actions/bootstrap
       - uses: Noelware/setup-protoc@1.1.0
         with:
           version: ${{env.PROTOC_VERSION}}
@@ -84,8 +82,7 @@ jobs:
     runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
+      - uses: ./.github/actions/bootstrap
       - uses: Noelware/setup-protoc@1.1.0
         with:
           version: ${{env.PROTOC_VERSION}}
@@ -101,8 +98,7 @@ jobs:
     runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
+      - uses: ./.github/actions/bootstrap
       - uses: Noelware/setup-protoc@1.1.0
 
       - run: |
@@ -149,8 +145,7 @@ jobs:
           filters: |
             target_directory:
               - 'crates/papyrus_storage/src/db/**'
-      - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
+      - uses: ./.github/actions/bootstrap
       # repeat this job 32 times. this is a random test for part of the code that may cause a corrupted database.
       - run: for run in {1..32}; do cargo test -r -p papyrus_storage -- --include-ignored common_prefix_compare_with_simple_table_random; done
         if: steps.changes.outputs.target_directory == 'true'

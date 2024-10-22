@@ -42,10 +42,7 @@ jobs:
     runs-on: starkware-ubuntu-20-04-medium
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
-        with:
-          prefix-key: "v0-rust-ubuntu-20.04"
+      - uses: ./.github/actions/bootstrap
       - run: cargo build -p blockifier
       - run: cargo test -p blockifier
 
@@ -53,12 +50,7 @@ jobs:
     runs-on: starkware-ubuntu-20-04-medium
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/install_rust
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          prefix-key: "v1-rust-ubuntu-20.04"
-
+      - uses: ./.github/actions/bootstrap
       - name: Build native blockifier
         run: ./build_native_in_docker.sh scripts/build_native_blockifier.sh
 

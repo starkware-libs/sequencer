@@ -68,9 +68,7 @@ jobs:
         run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
 
       # Install rust components.
-      - uses: ./.github/actions/install_rust
-        with:
-          components: rustfmt, clippy
+      - uses: ./.github/actions/bootstrap
 
       # Run tests.
       - name: "Run rustfmt and clippy"
@@ -81,20 +79,15 @@ jobs:
         run: cargo doc --workspace -r --document-private-items --no-deps
       - name: "Run taplo"
         run: scripts/taplo.sh
-      - name: "Run cargo check"
-        env:
-          RUSTDOCFLAGS: "-D warnings"
-        run: cargo check --workspace -r --all-features
       - name: Run Machete (detect unused dependencies)
         uses: bnjbvr/cargo-machete@main
 
 
   run-workspace-tests:
-    runs-on: starkware-ubuntu-latest-small
+    runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
+      - uses: ./.github/actions/bootstrap
       - run: cargo test -p workspace_tests
 
   run-tests:
@@ -104,11 +97,8 @@ jobs:
         with:
           # Fetch the entire history.
           fetch-depth: 0
-      - uses: ./.github/actions/install_rust
+      - uses: ./.github/actions/bootstrap
       - uses: Noelware/setup-protoc@1.1.0
-      - uses: Swatinem/rust-cache@v2
-        with:
-          prefix-key: "v0-rust-ubuntu-20.04"
 
       # Setup pypy and link to the location expected by .cargo/config.toml.
       - uses: actions/setup-python@v5
@@ -172,7 +162,7 @@ jobs:
         with:
           # Fetch the entire history.
           fetch-depth: 0
-      - uses: ./.github/actions/install_rust
+      - uses: ./.github/actions/bootstrap
       - name: Set-Up
         run: |
           sudo apt-get update
@@ -183,9 +173,6 @@ jobs:
 
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
-      - uses: Swatinem/rust-cache@v2
-        with:
-          prefix-key: "v0-rust-ubuntu-20.04"
       - run: npm install -g ganache@7.4.3
 
       # Setup pypy and link to the location expected by .cargo/config.toml.

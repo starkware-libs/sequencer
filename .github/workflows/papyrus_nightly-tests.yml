@@ -13,7 +13,7 @@ jobs:
   GW-integration-test-ubuntu:
     uses: ./.github/workflows/papyrus_nightly-tests-call.yml
     with:
-      os: starkware-ubuntu-latest-small
+      os: starkware-ubuntu-latest-medium
     secrets:
       INTEGRATION_TESTNET_NODE_URL: ${{ secrets.INTEGRATION_TESTNET_NODE_URL }}
       INTEGRATION_TESTNET_SENDER_PRIVATE_KEY: ${{ secrets.INTEGRATION_TESTNET_SENDER_PRIVATE_KEY }}
@@ -37,8 +37,7 @@ jobs:
     if: github.event.schedule == '30 0 * * *'
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
+      - uses: ./.github/actions/bootstrap
 
       - run: mkdir data
 
@@ -57,8 +56,7 @@ jobs:
     if: github.event.schedule == '30 0 * * *'
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
+      - uses: ./.github/actions/bootstrap
       - run: npm install -g ganache@7.4.3
 
       - run: brew install protobuf@$PROTOC_VERSION
@@ -73,8 +71,7 @@ jobs:
     if: github.event.schedule == '30 0 * * *'
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
+      - uses: ./.github/actions/bootstrap
       - run: cargo build -r -p papyrus_load_test
 
   integration-test:
@@ -82,8 +79,7 @@ jobs:
     if: github.event.schedule == '30 0 * * *'
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
+      - uses: ./.github/actions/bootstrap
       - run: >
           cargo test -r
           --test latency_histogram
@@ -95,9 +91,8 @@ jobs:
   # TODO(dvir): make this run only if the path 'crates/papyrus_storage/src/db/**' (same path as in the CI)  was changed on the
   # last day and increase the number of repetitions.
   random-table-test:
-    runs-on: starkware-ubuntu-latest-small
+    runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
+      - uses: ./.github/actions/bootstrap
       - run: for run in {1..100}; do cargo test -r -p papyrus_storage -- --include-ignored common_prefix_compare_with_simple_table_random; done
