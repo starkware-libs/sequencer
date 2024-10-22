@@ -41,7 +41,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.14.0-rc.0"
+version = "0.14.0"
 edition = "2021"
 repository = "https://github.com/starkware-libs/sequencer/"
 license = "Apache-2.0"
@@ -65,7 +65,7 @@ base64 = "0.13.0"
 bincode = "1.3.3"
 bisection = "0.1.0"
 bitvec = "1.0.1"
-blockifier = { path = "crates/blockifier", version = "0.14.0-rc.0" }
+blockifier = { path = "crates/blockifier", version = "0.14.0" }
 byteorder = "1.4.3"
 bytes = "1"
 cached = "0.44.0"
@@ -111,7 +111,7 @@ libp2p-swarm-test = "0.3.0"
 log = "0.4"
 lru = "0.12.0"
 memmap2 = "0.8.0"
-mempool_test_utils = { path = "crates/mempool_test_utils", version = "0.14.0-rc.0" }
+mempool_test_utils = { path = "crates/mempool_test_utils", version = "0.14.0" }
 metrics = "0.21.0"
 metrics-exporter-prometheus = "0.12.1"
 mockall = "0.12.1"
@@ -122,20 +122,20 @@ num-traits = "0.2.15"
 once_cell = "1.19.0"
 os_info = "3.6.0"
 page_size = "0.6.0"
-papyrus_base_layer = { path = "crates/papyrus_base_layer", version = "0.14.0-rc.0" }
-papyrus_common = { path = "crates/papyrus_common", version = "0.14.0-rc.0" }
-papyrus_config = { path = "crates/papyrus_config", version = "0.14.0-rc.0" }
-papyrus_consensus = { path = "crates/sequencing/papyrus_consensus", version = "0.14.0-rc.0" }
-papyrus_execution = { path = "crates/papyrus_execution", version = "0.14.0-rc.0" }
-papyrus_monitoring_gateway = { path = "crates/papyrus_monitoring_gateway", version = "0.14.0-rc.0" }
-papyrus_network = { path = "crates/papyrus_network", version = "0.14.0-rc.0" }
-papyrus_p2p_sync = { path = "crates/papyrus_p2p_sync", version = "0.14.0-rc.0" }
-papyrus_proc_macros = { path = "crates/papyrus_proc_macros", version = "0.14.0-rc.0" }
-papyrus_protobuf = { path = "crates/papyrus_protobuf", version = "0.14.0-rc.0" }
-papyrus_rpc = { path = "crates/papyrus_rpc", version = "0.14.0-rc.0" }
-papyrus_storage = { path = "crates/papyrus_storage", version = "0.14.0-rc.0" }
-papyrus_sync = { path = "crates/papyrus_sync", version = "0.14.0-rc.0" }
-papyrus_test_utils = { path = "crates/papyrus_test_utils", version = "0.14.0-rc.0" }
+papyrus_base_layer = { path = "crates/papyrus_base_layer", version = "0.14.0" }
+papyrus_common = { path = "crates/papyrus_common", version = "0.14.0" }
+papyrus_config = { path = "crates/papyrus_config", version = "0.14.0" }
+papyrus_consensus = { path = "crates/sequencing/papyrus_consensus", version = "0.14.0" }
+papyrus_execution = { path = "crates/papyrus_execution", version = "0.14.0" }
+papyrus_monitoring_gateway = { path = "crates/papyrus_monitoring_gateway", version = "0.14.0" }
+papyrus_network = { path = "crates/papyrus_network", version = "0.14.0" }
+papyrus_p2p_sync = { path = "crates/papyrus_p2p_sync", version = "0.14.0" }
+papyrus_proc_macros = { path = "crates/papyrus_proc_macros", version = "0.14.0" }
+papyrus_protobuf = { path = "crates/papyrus_protobuf", version = "0.14.0" }
+papyrus_rpc = { path = "crates/papyrus_rpc", version = "0.14.0" }
+papyrus_storage = { path = "crates/papyrus_storage", version = "0.14.0" }
+papyrus_sync = { path = "crates/papyrus_sync", version = "0.14.0" }
+papyrus_test_utils = { path = "crates/papyrus_test_utils", version = "0.14.0" }
 parity-scale-codec = "=3.6.9"
 parity-scale-codec-derive = "=3.6.9"
 paste = "1.0.15"
@@ -167,17 +167,17 @@ simple_logger = "4.0.0"
 starknet-core = "0.6.0"
 starknet-crypto = "0.5.1"
 starknet-types-core = { version = "0.1.5", features = ["hash", "prime-bigint", "std"] }
-starknet_api = { path = "crates/starknet_api", version = "0.14.0-rc.0" }
-starknet_client = { path = "crates/starknet_client", version = "0.14.0-rc.0" }
-starknet_committer = { path = "crates/starknet_committer", version = "0.14.0-rc.0" }
-starknet_gateway = { path = "crates/gateway", version = "0.14.0-rc.0" }
-starknet_mempool = { path = "crates/mempool", version = "0.14.0-rc.0" }
-starknet_mempool_infra = { path = "crates/mempool_infra", version = "0.14.0-rc.0" }
-starknet_mempool_node = { path = "crates/mempool_node", version = "0.14.0-rc.0" }
-starknet_mempool_types = { path = "crates/mempool_types", version = "0.14.0-rc.0" }
-starknet_patricia = { path = "crates/starknet_patricia", version = "0.14.0-rc.0" }
-starknet_sierra_compile = { path = "crates/starknet_sierra_compile", version = "0.14.0-rc.0" }
-starknet_task_executor = { path = "crates/task_executor", version = "0.14.0-rc.0" }
+starknet_api = { path = "crates/starknet_api", version = "0.14.0" }
+starknet_client = { path = "crates/starknet_client", version = "0.14.0" }
+starknet_committer = { path = "crates/starknet_committer", version = "0.14.0" }
+starknet_gateway = { path = "crates/gateway", version = "0.14.0" }
+starknet_mempool = { path = "crates/mempool", version = "0.14.0" }
+starknet_mempool_infra = { path = "crates/mempool_infra", version = "0.14.0" }
+starknet_mempool_node = { path = "crates/mempool_node", version = "0.14.0" }
+starknet_mempool_types = { path = "crates/mempool_types", version = "0.14.0" }
+starknet_patricia = { path = "crates/starknet_patricia", version = "0.14.0" }
+starknet_sierra_compile = { path = "crates/starknet_sierra_compile", version = "0.14.0" }
+starknet_task_executor = { path = "crates/task_executor", version = "0.14.0" }
 static_assertions = "1.1.0"
 statistical = "1.0.0"
 strum = "0.25.0"

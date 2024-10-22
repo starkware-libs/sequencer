@@ -1,7 +1,9 @@
+#!/usr/bin/env python3.9
+
 import argparse
 import subprocess
 import sys
-from typing import List, Tuple
+from typing import List
 import toml
 import json
 import asyncio
@@ -103,7 +105,10 @@ async def main():
         description="Publish a crate and it's dependencies in the local workspace."
     )
     parser.add_argument(
-        "--crate", type=str, help="Crate to publish (dependencies will also be published)."
+        "--crate",
+        required=True,
+        type=str,
+        help="Crate to publish (dependencies will also be published).",
     )
     parser.add_argument("--dry_run", required=False, action="store_true", help="Dry run.")
     args = parser.parse_args()
