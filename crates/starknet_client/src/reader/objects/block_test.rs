@@ -2,10 +2,10 @@ use assert_matches::assert_matches;
 use indexmap::IndexMap;
 use pretty_assertions::assert_eq;
 use starknet_api::block::BlockHash;
-use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce, PatriciaKey};
+use starknet_api::core::{CompiledClassHash, Nonce};
 use starknet_api::hash::StarkHash;
 use starknet_api::transaction::{TransactionHash, TransactionOffsetInBlock};
-use starknet_api::{class_hash, contract_address, felt, patricia_key, storage_key};
+use starknet_api::{class_hash, contract_address, felt, storage_key};
 
 use super::{Block, GlobalRoot, TransactionReceiptsError};
 use crate::reader::objects::block::BlockPostV0_13_1;

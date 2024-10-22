@@ -1,8 +1,8 @@
 use rstest::rstest;
-use starknet_api::core::{ClassHash, ContractAddress, EthAddress, PatriciaKey};
+use starknet_api::core::{ClassHash, ContractAddress, EthAddress};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::L2ToL1Payload;
-use starknet_api::{class_hash, contract_address, patricia_key, storage_key};
+use starknet_api::{class_hash, contract_address, storage_key};
 use starknet_types_core::felt::Felt;
 
 use crate::execution::call_info::{
