@@ -38,8 +38,9 @@ impl NativeContractClassV1 {
     pub fn new(
         executor: AotNativeExecutor,
         sierra_contract_class: SierraContractClass,
+        casm: ContractClassV1,
     ) -> NativeContractClassV1 {
-        let contract = NativeContractClassV1Inner::new(executor, sierra_contract_class);
+        let contract = NativeContractClassV1Inner::new(executor, sierra_contract_class, casm);
 
         Self(Arc::new(contract))
     }
@@ -54,16 +55,19 @@ impl NativeContractClassV1 {
 pub struct NativeContractClassV1Inner {
     pub executor: AotNativeExecutor,
     entry_points_by_type: EntryPointsByType<NativeEntryPoint>,
-    // Storing the raw sierra program and entry points to be able to compare the contract class.
-    sierra_program: Vec<BigUintAsHex>,
+    casm: ContractClassV1,
 }
 
 impl NativeContractClassV1Inner {
-    fn new(executor: AotNativeExecutor, sierra_contract_class: SierraContractClass) -> Self {
+    fn new(
+        executor: AotNativeExecutor,
+        sierra_contract_class: SierraContractClass,
+        casm: ContractClassV1,
+    ) -> Self {
         NativeContractClassV1Inner {
             executor,
             entry_points_by_type: EntryPointsByType::from(&sierra_contract_class),
-            sierra_program: sierra_contract_class.sierra_program,
+            casm,
         }
     }
 }
@@ -72,8 +76,7 @@ impl NativeContractClassV1Inner {
 // be the same therefore we exclude it from the comparison.
 impl PartialEq for NativeContractClassV1Inner {
     fn eq(&self, other: &Self) -> bool {
-        self.entry_points_by_type == other.entry_points_by_type
-            && self.sierra_program == other.sierra_program
+        self.entry_points_by_type == other.entry_points_by_type && self.casm == other.casm
     }
 }
 
