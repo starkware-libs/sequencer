@@ -9,17 +9,37 @@ jobs:
   native-blockifier-artifacts-push:
     runs-on: starkware-ubuntu-20-04-medium
     steps:
-      - name: Get commit hash prefix for PR update
-        env:
-          COMMIT_SHA: ${{ github.event.workflow_run.head_commit.id }}
-        run: |
-          echo "SHORT_HASH=${COMMIT_SHA:0:7}" >> $GITHUB_ENV
-          echo "COMMIT_SHA=${COMMIT_SHA}" >> $GITHUB_ENV
 
       # This workflow is always triggered in `main` branch context, so need to checkout the commit.
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.COMMIT_SHA }}
+
+      # Set environment variables.
+      - name: Set environment variable
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            COMMIT_SHA: ${{ github.event.workflow_run.head_commit.id }}
+        run: |
+          pr_number=$(gh pr list --head "${{ github.event.workflow_run.head_branch }}" --json number --jq '.[0].number')
+          echo "PR_NUMBER=$pr_number" >> $GITHUB_ENV
+          echo "WORKFLOW_LINK=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >> $GITHUB_ENV
+          echo "SHORT_HASH=${COMMIT_SHA:0:7}" >> $GITHUB_ENV
+          echo "COMMIT_SHA=${COMMIT_SHA}" >> $GITHUB_ENV
+
+      - name: Add a comment to the PR
+        if: env.PR_NUMBER != ''
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const workflowLink = process.env.WORKFLOW_LINK;
+            github.rest.issues.createComment({
+              issue_number: process.env.PR_NUMBER,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `Artifacts upload triggered. [View details here](${workflowLink})`
+            })
 
       - uses: actions/checkout@v4
         with:
