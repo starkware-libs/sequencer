@@ -27,7 +27,7 @@ const TX_GEN_CONFIG_CHANGES_FILE_PATH: &str = "tx_gen_integration_test_config_ch
 /// let json_data = config_fields_to_json!(config.field_1, config.field_2);
 /// assert_eq!(json_data, json!({"field_1": 1, "field_2": "2"}));
 macro_rules! config_fields_to_json {
-    ( $( $expr:expr ),+ ) => {
+    ( $( $expr:expr ),+ , ) => {
         json!({
             $(
                 strip_config_prefix(stringify!($expr)): $expr
@@ -53,13 +53,13 @@ pub fn dump_config_file_changes(config: SequencerNodeConfig) -> anyhow::Result<(
         config.http_server_config.port,
         config.gateway_config.chain_info.fee_token_addresses.eth_fee_token_address,
         config.gateway_config.chain_info.fee_token_addresses.strk_fee_token_address,
-        config.consensus_manager_config.consensus_config.start_height
+        config.consensus_manager_config.consensus_config.start_height,
     );
     dump_json_data(json_data, NODE_CONFIG_CHANGES_FILE_PATH)?;
 
     //  Dump config changes file for the transaction generator.
     let json_data =
-        config_fields_to_json!(config.http_server_config.ip, config.http_server_config.port);
+        config_fields_to_json!(config.http_server_config.ip, config.http_server_config.port,);
     dump_json_data(json_data, TX_GEN_CONFIG_CHANGES_FILE_PATH)?;
 
     Ok(())
