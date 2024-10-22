@@ -1,12 +1,4 @@
-use papyrus_test_utils::{
-    auto_impl_get_test_instance,
-    get_number_of_variants,
-    get_rng,
-    GetTestInstance,
-};
-use rand::Rng;
-use starknet_api::block::BlockHash;
-use starknet_api::core::ContractAddress;
+use papyrus_test_utils::{get_rng, GetTestInstance};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::{
     DeclareTransaction,
@@ -22,10 +14,13 @@ use starknet_api::transaction::{
 use crate::consensus::{
     ConsensusMessage,
     Proposal,
+    ProposalFin,
+    ProposalInit,
+    ProposalPart,
     StreamMessage,
     StreamMessageBody,
+    TransactionBatch,
     Vote,
-    VoteType,
 };
 
 // If all the fields of `AllResources` are 0 upon serialization,
@@ -49,54 +44,6 @@ fn add_gas_values_to_transaction(transactions: &mut Vec<Transaction>) {
             }
         }
         _ => {}
-    }
-}
-
-auto_impl_get_test_instance! {
-    pub enum ConsensusMessage {
-        Proposal(Proposal) = 0,
-        Vote(Vote) = 1,
-    }
-}
-
-auto_impl_get_test_instance! {
-    pub struct Proposal {
-        pub height: u64,
-        pub round: u32,
-        pub proposer: ContractAddress,
-        pub transactions: Vec<Transaction>,
-        pub block_hash: BlockHash,
-        pub valid_round: Option<u32>,
-    }
-}
-
-auto_impl_get_test_instance! {
-    pub struct Vote {
-        pub vote_type: VoteType,
-        pub height: u64,
-        pub round: u32,
-        pub block_hash: Option<BlockHash>,
-        pub voter: ContractAddress,
-    }
-}
-
-auto_impl_get_test_instance! {
-    pub enum VoteType {
-        Prevote = 0,
-        Precommit = 1,
-    }
-}
-
-// The auto_impl_get_test_instance macro does not work for StreamMessage because it has
-// a generic type. TODO(guyn): try to make the macro work with generic types.
-impl GetTestInstance for StreamMessage<ConsensusMessage> {
-    fn get_test_instance(rng: &mut rand_chacha::ChaCha8Rng) -> Self {
-        let message = if rng.gen_bool(0.5) {
-            StreamMessageBody::Content(ConsensusMessage::Proposal(Proposal::get_test_instance(rng)))
-        } else {
-            StreamMessageBody::Fin
-        };
-        Self { message, stream_id: rng.gen_range(0..100), message_id: rng.gen_range(0..1000) }
     }
 }
 
@@ -157,6 +104,59 @@ fn convert_proposal_to_vec_u8_and_back() {
     let bytes_data: Vec<u8> = proposal.clone().into();
     let res_data = Proposal::try_from(bytes_data).unwrap();
     assert_eq!(proposal, res_data);
+}
+
+#[test]
+fn convert_proposal_init_to_vec_u8_and_back() {
+    let mut rng = get_rng();
+
+    let proposal_init = ProposalInit::get_test_instance(&mut rng);
+
+    let bytes_data: Vec<u8> = proposal_init.clone().into();
+    let res_data = ProposalInit::try_from(bytes_data).unwrap();
+    assert_eq!(proposal_init, res_data);
+}
+
+#[test]
+fn convert_transaction_batch_to_vec_u8_and_back() {
+    let mut rng = get_rng();
+
+    let mut transaction_batch = TransactionBatch::get_test_instance(&mut rng);
+
+    add_gas_values_to_transaction(&mut transaction_batch.transactions);
+
+    let bytes_data: Vec<u8> = transaction_batch.clone().into();
+    let res_data = TransactionBatch::try_from(bytes_data).unwrap();
+    assert_eq!(transaction_batch, res_data);
+}
+
+#[test]
+fn convert_proposal_fin_to_vec_u8_and_back() {
+    let mut rng = get_rng();
+
+    let proposal_fin = ProposalFin::get_test_instance(&mut rng);
+
+    let bytes_data: Vec<u8> = proposal_fin.clone().into();
+    let res_data = ProposalFin::try_from(bytes_data).unwrap();
+    assert_eq!(proposal_fin, res_data);
+}
+
+#[test]
+fn convert_proposal_part_to_vec_u8_and_back() {
+    let mut rng = get_rng();
+
+    let mut proposal_part = ProposalPart::get_test_instance(&mut rng);
+
+    match proposal_part {
+        ProposalPart::Transactions(ref mut transaction_batch) => {
+            add_gas_values_to_transaction(&mut transaction_batch.transactions);
+        }
+        _ => {}
+    }
+
+    let bytes_data: Vec<u8> = proposal_part.clone().into();
+    let res_data = ProposalPart::try_from(bytes_data).unwrap();
+    assert_eq!(proposal_part, res_data);
 }
 
 #[test]
