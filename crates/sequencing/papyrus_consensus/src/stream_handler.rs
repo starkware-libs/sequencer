@@ -1,6 +1,6 @@
 //! Stream handler, see StreamManager struct.
 use std::collections::hash_map::Entry;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap};
 
 use futures::channel::mpsc;
 use futures::StreamExt;
@@ -133,7 +133,7 @@ impl<T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversi
     }
 
     // Send the message to the network.
-    async fn broadcast(self: &mut Self, key: StreamId, message: T) {
+    async fn broadcast(&mut self, key: StreamId, message: T) {
         let message = StreamMessage {
             message: StreamMessageBody::Content(message),
             stream_id: key,
@@ -146,7 +146,7 @@ impl<T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversi
     }
 
     // Send a fin message to the network.
-    async fn broadcast_fin(self: &mut Self, key: StreamId) {
+    async fn broadcast_fin(&mut self, key: StreamId) {
         let message = StreamMessage {
             message: StreamMessageBody::Fin,
             stream_id: key,
