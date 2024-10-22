@@ -22,7 +22,7 @@ use starknet_batcher_types::errors::BatcherError;
 use starknet_mempool_infra::component_definitions::ComponentStarter;
 use starknet_mempool_types::communication::SharedMempoolClient;
 use starknet_mempool_types::mempool_types::CommitBlockArgs;
-use tracing::{debug, error, info, instrument, trace};
+use tracing::{debug, error, info, instrument};
 
 use crate::block_builder::BlockBuilderFactory;
 use crate::config::BatcherConfig;
@@ -147,7 +147,7 @@ impl Batcher {
             "Committing proposal {} at height {} and notifying mempool of the block.",
             proposal_id, height
         );
-        trace!("Transactions: {:#?}, State diff: {:#?}.", tx_hashes, state_diff);
+        debug!("Transactions: {:#?}, State diff: {:#?}.", tx_hashes, state_diff);
         self.storage_writer.commit_proposal(height, state_diff).map_err(|err| {
             error!("Failed to commit proposal to storage: {}", err);
             BatcherError::InternalError
