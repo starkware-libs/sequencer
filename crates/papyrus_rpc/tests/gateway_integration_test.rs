@@ -9,10 +9,10 @@ use papyrus_rpc::{
     InvokeTransactionV1RPC0_8,
     TransactionVersion1RPC0_8,
 };
-use starknet_api::core::{ChainId, ContractAddress, EntryPointSelector, Nonce, PatriciaKey};
+use starknet_api::core::{ChainId, ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::transaction::{Fee, Transaction, TransactionOptions, TransactionSignature};
 use starknet_api::transaction_hash::get_transaction_hash;
-use starknet_api::{calldata, contract_address, felt, patricia_key};
+use starknet_api::{calldata, contract_address, felt};
 use starknet_client::writer::objects::transaction::InvokeTransaction as SNClientInvokeTransaction;
 use starknet_core::crypto::ecdsa_sign;
 use starknet_core::types::FieldElement;

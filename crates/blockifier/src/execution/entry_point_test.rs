@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use cairo_vm::types::builtin_name::BuiltinName;
 use num_bigint::BigInt;
 use pretty_assertions::assert_eq;
-use starknet_api::core::{EntryPointSelector, PatriciaKey};
+use starknet_api::core::EntryPointSelector;
 use starknet_api::execution_utils::format_panic_data;
 use starknet_api::transaction::{Calldata, Fee};
 use starknet_api::{calldata, felt, storage_key};

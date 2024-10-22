@@ -5,8 +5,7 @@ use papyrus_rpc::CompiledContractClass;
 use serde::Serialize;
 use serde_json::json;
 use starknet_api::block::BlockNumber;
-use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey};
-use starknet_api::{class_hash, contract_address, felt, nonce, patricia_key};
+use starknet_api::{class_hash, contract_address, felt, nonce};
 
 use crate::config::RpcStateReaderConfig;
 use crate::rpc_objects::{

@@ -13,20 +13,12 @@ use papyrus_storage::test_utils::get_test_storage;
 use pretty_assertions::assert_eq;
 use reqwest::StatusCode;
 use starknet_api::block::{BlockHash, BlockNumber};
-use starknet_api::core::{
-    ClassHash,
-    CompiledClassHash,
-    ContractAddress,
-    GlobalRoot,
-    Nonce,
-    PatriciaKey,
-    SequencerPublicKey,
-};
+use starknet_api::core::{ClassHash, CompiledClassHash, GlobalRoot, Nonce, SequencerPublicKey};
 use starknet_api::crypto::utils::PublicKey;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::hash::StarkHash;
 use starknet_api::state::{ContractClass as sn_api_ContractClass, ThinStateDiff};
-use starknet_api::{class_hash, contract_address, felt, patricia_key, storage_key};
+use starknet_api::{class_hash, contract_address, felt, storage_key};
 use starknet_client::reader::objects::block::BlockPostV0_13_1;
 use starknet_client::reader::{
     Block,
