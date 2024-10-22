@@ -161,7 +161,7 @@ pub fn ser_required_param(
     common_ser_param(
         name,
         SerializedContent::ParamType(serialization_type),
-        format!("A required param! {}", description).as_str(),
+        required_param_description(description).as_str(),
         privacy.into(),
     )
 }
@@ -263,6 +263,20 @@ pub fn ser_pointer_target_param<T: Serialize>(
     )
 }
 
+/// Serializes a pointer target for a required param of a config.
+pub fn ser_pointer_target_required_param(
+    name: &str,
+    serialization_type: SerializationType,
+    description: &str,
+) -> (String, SerializedParam) {
+    common_ser_param(
+        name,
+        SerializedContent::ParamType(serialization_type),
+        required_param_description(description).as_str(),
+        ParamPrivacy::TemporaryValue,
+    )
+}
+
 // Takes a config map and a vector of {target param, serialized pointer, and vector of params that
 // will point to it}.
 // Adds to the map the target params.
@@ -290,4 +304,8 @@ pub(crate) fn combine_config_map_and_pointers(
         }
     }
     Ok(json!(config_map))
+}
+
+pub(crate) fn required_param_description(description: &str) -> String {
+    format!("A required param! {}", description)
 }
