@@ -1,16 +1,10 @@
 use starknet_api::contract_class::EntryPointType;
-use starknet_api::core::{
-    ClassHash,
-    CompiledClassHash,
-    ContractAddress,
-    EntryPointSelector,
-    PatriciaKey,
-};
+use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::deprecated_contract_class::{
     ContractClass as DeprecatedContractClass,
     EntryPointOffset,
 };
-use starknet_api::{class_hash, contract_address, felt, patricia_key};
+use starknet_api::{class_hash, contract_address, felt};
 use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;

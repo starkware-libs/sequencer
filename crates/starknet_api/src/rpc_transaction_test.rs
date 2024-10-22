@@ -4,10 +4,9 @@ use rstest::rstest;
 use starknet_types_core::felt::Felt;
 
 use crate::block::GasPrice;
-use crate::core::{CompiledClassHash, ContractAddress, PatriciaKey};
+use crate::core::CompiledClassHash;
 use crate::execution_resources::GasAmount;
 use crate::rpc_transaction::{
-    ClassHash,
     ContractClass,
     DataAvailabilityMode,
     RpcDeclareTransaction,
@@ -28,7 +27,7 @@ use crate::transaction::{
     Tip,
     TransactionSignature,
 };
-use crate::{class_hash, contract_address, felt, nonce, patricia_key};
+use crate::{class_hash, contract_address, felt, nonce};
 
 fn create_resource_bounds_for_testing() -> AllResourceBounds {
     AllResourceBounds {

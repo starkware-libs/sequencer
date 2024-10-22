@@ -3,8 +3,7 @@ use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
 use rstest::rstest;
-use starknet_api::core::{ContractAddress, PatriciaKey};
-use starknet_api::{contract_address, felt, patricia_key, storage_key};
+use starknet_api::{contract_address, felt, storage_key};
 
 use crate::abi::sierra_types::{SierraType, SierraU128};
 use crate::concurrency::scheduler::{Scheduler, Task, TransactionStatus};

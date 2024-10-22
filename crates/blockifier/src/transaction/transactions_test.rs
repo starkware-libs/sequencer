@@ -10,7 +10,7 @@ use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::GasPriceVector;
 use starknet_api::contract_class::EntryPointType;
-use starknet_api::core::{ChainId, ClassHash, ContractAddress, EthAddress, Nonce, PatriciaKey};
+use starknet_api::core::{ChainId, ClassHash, ContractAddress, EthAddress, Nonce};
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::state::StorageKey;
 use starknet_api::test_utils::invoke::InvokeTxArgs;
@@ -40,7 +40,6 @@ use starknet_api::{
     felt,
     invoke_tx_args,
     nonce,
-    patricia_key,
 };
 use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
