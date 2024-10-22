@@ -147,8 +147,8 @@ impl BlockBuilderTrait for BlockBuilder {
         input_tx_stream: InputTxStream,
         output_content_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
     ) -> BlockBuilderResult<BlockExecutionArtifacts> {
-        // TODO(9/10/2024): Reconsider what will be the best duration to wait for the next chunk.
-        let chunk_wait_duration = deadline - tokio::time::Instant::now();
+        // TODO(9/10/2024): Refactor so there isn't a race condition.
+        let chunk_wait_duration = (deadline - tokio::time::Instant::now()) / 2;
         let chunk_stream = input_tx_stream.chunks_timeout(self.tx_chunk_size, chunk_wait_duration);
         pin!(chunk_stream);
         let mut should_close_block = false;
