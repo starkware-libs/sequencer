@@ -18,7 +18,7 @@ use starknet_mempool_types::communication::{
 use starknet_sequencer_infra::component_definitions::ComponentCommunication;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 
-use crate::config::SequencerNodeConfig;
+use crate::config::{ComponentExecutionMode, SequencerNodeConfig};
 
 pub struct SequencerNodeCommunication {
     batcher_channel: ComponentCommunication<BatcherRequestAndResponseSender>,
@@ -95,17 +95,26 @@ pub fn create_node_clients(
     config: &SequencerNodeConfig,
     channels: &mut SequencerNodeCommunication,
 ) -> SequencerNodeClients {
-    let batcher_client: Option<SharedBatcherClient> = match config.components.batcher.execute {
-        true => Some(Arc::new(LocalBatcherClient::new(channels.take_batcher_tx()))),
-        false => None,
+    let batcher_client: Option<SharedBatcherClient> = match config.components.batcher.execution_mode
+    {
+        ComponentExecutionMode::LocalExecution { enable_remote_connection: _ } => {
+            Some(Arc::new(LocalBatcherClient::new(channels.take_batcher_tx())))
+        }
+        ComponentExecutionMode::Disabled => None,
     };
-    let mempool_client: Option<SharedMempoolClient> = match config.components.mempool.execute {
-        true => Some(Arc::new(LocalMempoolClient::new(channels.take_mempool_tx()))),
-        false => None,
+    let mempool_client: Option<SharedMempoolClient> = match config.components.mempool.execution_mode
+    {
+        ComponentExecutionMode::LocalExecution { enable_remote_connection: _ } => {
+            Some(Arc::new(LocalMempoolClient::new(channels.take_mempool_tx())))
+        }
+        ComponentExecutionMode::Disabled => None,
     };
-    let gateway_client: Option<SharedGatewayClient> = match config.components.gateway.execute {
-        true => Some(Arc::new(LocalGatewayClient::new(channels.take_gateway_tx()))),
-        false => None,
+    let gateway_client: Option<SharedGatewayClient> = match config.components.gateway.execution_mode
+    {
+        ComponentExecutionMode::LocalExecution { enable_remote_connection: _ } => {
+            Some(Arc::new(LocalGatewayClient::new(channels.take_gateway_tx())))
+        }
+        ComponentExecutionMode::Disabled => None,
     };
     SequencerNodeClients { batcher_client, mempool_client, gateway_client }
 }
