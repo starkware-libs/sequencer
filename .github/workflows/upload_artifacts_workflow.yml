@@ -21,9 +21,29 @@ jobs:
         with:
           ref: ${{ env.COMMIT_SHA }}
 
-      - uses: actions/checkout@v4
+      # Set environment variables.
+      - name: Set environment variable
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          pr_number=$(gh pr list --head "${{ github.event.workflow_run.head_branch }}" --json number --jq '.[0].number')
+          echo "PR_NUMBER=$pr_number" >> $GITHUB_ENV
+          echo "WORKFLOW_LINK=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >> $GITHUB_ENV
+
+      - name: Add a comment to the PR
+        if: env.PR_NUMBER != ''
+        uses: actions/github-script@v6
         with:
-          ref: ${{ env.COMMIT_SHA }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const workflowLink = process.env.WORKFLOW_LINK;
+            github.rest.issues.createComment({
+              issue_number: process.env.PR_NUMBER,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `Artifacts upload triggered. [View details here](${workflowLink})`
+            })
+
       - uses: ./.github/actions/bootstrap
       - name: Build native blockifier
         run: ./build_native_in_docker.sh scripts/build_native_blockifier.sh
