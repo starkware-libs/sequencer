@@ -20,13 +20,16 @@ pub type LocalMempoolServer =
     LocalComponentServer<MempoolCommunicationWrapper, MempoolRequest, MempoolResponse>;
 
 pub fn create_mempool_server(
-    mempool: Mempool,
+    mempool: MempoolCommunicationWrapper,
     rx_mempool: Receiver<MempoolRequestAndResponseSender>,
-    mempool_p2p_propagator_client: SharedMempoolP2pPropagatorClient,
 ) -> LocalMempoolServer {
-    let communication_wrapper =
-        MempoolCommunicationWrapper::new(mempool, mempool_p2p_propagator_client);
-    LocalComponentServer::new(communication_wrapper, rx_mempool)
+    LocalComponentServer::new(mempool, rx_mempool)
+}
+
+pub fn create_mempool(
+    mempool_p2p_propagator_client: SharedMempoolP2pPropagatorClient,
+) -> MempoolCommunicationWrapper {
+    MempoolCommunicationWrapper::new(Mempool::empty(), mempool_p2p_propagator_client)
 }
 
 /// Wraps the mempool to enable inbound async communication from other components.
