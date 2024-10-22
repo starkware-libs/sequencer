@@ -21,7 +21,7 @@ use tracing::error;
 
 use crate::communication::SequencerNodeCommunication;
 use crate::components::SequencerNodeComponents;
-use crate::config::SequencerNodeConfig;
+use crate::config::{ComponentExecutionMode, SequencerNodeConfig};
 
 // Component servers that can run locally.
 struct LocalServers {
@@ -48,52 +48,63 @@ pub fn create_node_servers(
     components: SequencerNodeComponents,
     mempool_p2p_propagator_client: SharedMempoolP2pPropagatorClient,
 ) -> SequencerNodeServers {
-    let batcher_server = if config.components.batcher.execute {
-        Some(Box::new(create_local_batcher_server(
-            components.batcher.expect("Batcher is not initialized."),
-            communication.take_batcher_rx(),
-        )))
-    } else {
-        None
+    let batcher_server = match config.components.batcher.execution_mode {
+        ComponentExecutionMode::LocalExecution { enable_remote_connection: false } => {
+            Some(Box::new(create_local_batcher_server(
+                components.batcher.expect("Batcher is not initialized."),
+                communication.take_batcher_rx(),
+            )))
+        }
+        ComponentExecutionMode::LocalExecution { enable_remote_connection: true } => None,
+        ComponentExecutionMode::SkipComponent => None,
     };
-    let consensus_manager_server = if config.components.consensus_manager.execute {
-        Some(Box::new(create_consensus_manager_server(
-            components.consensus_manager.expect("Consensus Manager is not initialized."),
-        )))
-    } else {
-        None
+    let consensus_manager_server = match config.components.consensus_manager.execution_mode {
+        ComponentExecutionMode::LocalExecution { enable_remote_connection: false } => {
+            Some(Box::new(create_consensus_manager_server(
+                components.consensus_manager.expect("Consensus Manager is not initialized."),
+            )))
+        }
+        ComponentExecutionMode::LocalExecution { enable_remote_connection: true } => None,
+        ComponentExecutionMode::SkipComponent => None,
     };
-    let gateway_server = if config.components.gateway.execute {
-        Some(Box::new(create_gateway_server(
-            components.gateway.expect("Gateway is not initialized."),
-            communication.take_gateway_rx(),
-        )))
-    } else {
-        None
+    let gateway_server = match config.components.gateway.execution_mode {
+        ComponentExecutionMode::LocalExecution { enable_remote_connection: false } => {
+            Some(Box::new(create_gateway_server(
+                components.gateway.expect("Gateway is not initialized."),
+                communication.take_gateway_rx(),
+            )))
+        }
+        ComponentExecutionMode::LocalExecution { enable_remote_connection: true } => None,
+        ComponentExecutionMode::SkipComponent => None,
     };
-    let http_server = if config.components.http_server.execute {
-        Some(Box::new(create_http_server(
-            components.http_server.expect("Http Server is not initialized."),
-        )))
-    } else {
-        None
+    let http_server = match config.components.http_server.execution_mode {
+        ComponentExecutionMode::LocalExecution { enable_remote_connection: true } => {
+            Some(Box::new(create_http_server(
+                components.http_server.expect("Http Server is not initialized."),
+            )))
+        }
+        ComponentExecutionMode::LocalExecution { enable_remote_connection: false } => None,
+        ComponentExecutionMode::SkipComponent => None,
     };
-    let mempool_server = if config.components.mempool.execute {
-        Some(Box::new(create_mempool_server(
-            components.mempool.expect("Mempool is not initialized."),
-            communication.take_mempool_rx(),
-            mempool_p2p_propagator_client,
-        )))
-    } else {
-        None
+    let monitoring_endpoint_server = match config.components.monitoring_endpoint.execution_mode {
+        ComponentExecutionMode::LocalExecution { enable_remote_connection: true } => {
+            Some(Box::new(create_monitoring_endpoint_server(
+                components.monitoring_endpoint.expect("Monitoring Endpoint is not initialized."),
+            )))
+        }
+        ComponentExecutionMode::LocalExecution { enable_remote_connection: false } => None,
+        ComponentExecutionMode::SkipComponent => None,
     };
-
-    let monitoring_endpoint_server = if config.components.monitoring_endpoint.execute {
-        Some(Box::new(create_monitoring_endpoint_server(
-            components.monitoring_endpoint.expect("Monitoring Endpoint is not initialized."),
-        )))
-    } else {
-        None
+    let mempool_server = match config.components.mempool.execution_mode {
+        ComponentExecutionMode::LocalExecution { enable_remote_connection: false } => {
+            Some(Box::new(create_mempool_server(
+                components.mempool.expect("Mempool is not initialized."),
+                communication.take_mempool_rx(),
+                mempool_p2p_propagator_client,
+            )))
+        }
+        ComponentExecutionMode::LocalExecution { enable_remote_connection: true } => None,
+        ComponentExecutionMode::SkipComponent => None,
     };
 
     let local_servers =
