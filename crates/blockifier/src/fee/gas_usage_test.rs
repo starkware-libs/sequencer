@@ -6,7 +6,8 @@ use rstest::{fixture, rstest};
 use starknet_api::block::StarknetVersion;
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::invoke_tx_args;
-use starknet_api::transaction::{EventContent, EventData, EventKey, GasVectorComputationMode};
+use starknet_api::transaction::fields::GasVectorComputationMode;
+use starknet_api::transaction::{EventContent, EventData, EventKey};
 use starknet_types_core::felt::Felt;
 
 use crate::abi::constants;

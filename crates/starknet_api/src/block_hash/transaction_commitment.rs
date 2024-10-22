@@ -5,7 +5,7 @@ use super::block_hash_calculator::TransactionHashingData;
 use crate::core::TransactionCommitment;
 use crate::crypto::patricia_hash::calculate_root;
 use crate::crypto::utils::HashChain;
-use crate::transaction::{TransactionHash, TransactionSignature};
+use crate::transaction::fields::{TransactionHash, TransactionSignature};
 
 #[cfg(test)]
 #[path = "transaction_commitment_test.rs"]

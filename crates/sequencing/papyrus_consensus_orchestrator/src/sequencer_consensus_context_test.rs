@@ -11,7 +11,7 @@ use starknet_api::core::{ContractAddress, StateDiffCommitment};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::hash::PoseidonHash;
 use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
-use starknet_api::transaction::TransactionHash;
+use starknet_api::transaction::fields::TransactionHash;
 use starknet_batcher_types::batcher_types::{
     BuildProposalInput,
     GetProposalContent,

@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use mockall::predicate::*;
 use mockall::*;
 use serde::{Deserialize, Serialize};
-use starknet_api::transaction::TransactionHash;
+use starknet_api::transaction::fields::TransactionHash;
 use starknet_mempool_infra::component_client::{
     ClientError,
     LocalComponentClient,

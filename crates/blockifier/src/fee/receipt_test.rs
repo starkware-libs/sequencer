@@ -1,6 +1,7 @@
 use rstest::{fixture, rstest};
 use starknet_api::execution_resources::GasVector;
-use starknet_api::transaction::{GasVectorComputationMode, L2ToL1Payload};
+use starknet_api::transaction::fields::GasVectorComputationMode;
+use starknet_api::transaction::L2ToL1Payload;
 use starknet_api::{invoke_tx_args, nonce};
 use starknet_types_core::felt::Felt;
 

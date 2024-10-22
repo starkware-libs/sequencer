@@ -23,9 +23,10 @@ use starknet_api::core::{
     TransactionCommitment,
 };
 use starknet_api::data_availability::L1DataAvailabilityMode;
+use starknet_api::transaction::fields::TransactionHash;
+use starknet_api::transaction::TransactionOffsetInBlock;
 #[cfg(doc)]
 use starknet_api::transaction::TransactionOutput as starknet_api_transaction_output;
-use starknet_api::transaction::{TransactionHash, TransactionOffsetInBlock};
 use starknet_types_core::felt::Felt;
 
 use crate::reader::objects::transaction::{

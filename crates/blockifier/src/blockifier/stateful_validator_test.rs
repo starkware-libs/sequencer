@@ -1,6 +1,6 @@
 use assert_matches::assert_matches;
 use rstest::rstest;
-use starknet_api::transaction::{TransactionVersion, ValidResourceBounds};
+use starknet_api::transaction::fields::{TransactionVersion, ValidResourceBounds};
 
 use crate::blockifier::stateful_validator::StatefulValidator;
 use crate::context::BlockContext;
