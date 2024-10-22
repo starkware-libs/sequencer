@@ -16,7 +16,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::core::{ContractAddress, PatriciaKey};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
-use starknet_api::{contract_address, felt, patricia_key};
+use starknet_api::{contract_address, patricia_key};
 use starknet_batcher::block_builder::BlockBuilderConfig;
 use starknet_batcher::config::BatcherConfig;
 use starknet_consensus_manager::config::ConsensusManagerConfig;
@@ -29,7 +29,11 @@ use starknet_gateway::config::{
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_http_server::config::HttpServerConfig;
 use starknet_mempool_node::config::component_config::ComponentConfig;
-use starknet_mempool_node::config::{ComponentExecutionConfig, SequencerNodeConfig};
+use starknet_mempool_node::config::{
+    ComponentExecutionConfig,
+    ComponentExecutionMode,
+    SequencerNodeConfig,
+};
 use tokio::net::TcpListener;
 
 pub async fn create_config(
@@ -38,7 +42,10 @@ pub async fn create_config(
 ) -> SequencerNodeConfig {
     // TODO(Arni/ Matan): Enable the consensus in the end to end test.
     let components = ComponentConfig {
-        consensus_manager: ComponentExecutionConfig { execute: false, ..Default::default() },
+        consensus_manager: ComponentExecutionConfig {
+            execution_mode: ComponentExecutionMode::Disabled,
+            ..Default::default()
+        },
         ..Default::default()
     };
 
