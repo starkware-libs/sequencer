@@ -7,7 +7,7 @@ mod header;
 mod receipt;
 mod rpc_transaction;
 mod state_diff;
-#[path = "test_instances.rs"]
+#[cfg(test)]
 mod test_instances;
 mod transaction;
 
