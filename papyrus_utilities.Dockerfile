@@ -12,14 +12,14 @@ INCLUDE Dockerfile
 FROM builder AS utilities_builder
 
 # Build papyrus_load_test and copy its resources.
-RUN cargo build --target x86_64-unknown-linux-musl --release --package papyrus_load_test --bin papyrus_load_test
+RUN cargo build --release --package papyrus_load_test --bin papyrus_load_test
 
 # Build dump_declared_classes.
-RUN cargo build --target x86_64-unknown-linux-musl --release --package papyrus_storage --features "clap" \
+RUN cargo build --release --package papyrus_storage --features "clap" \
     --bin dump_declared_classes
 
 # Build storage_benchmark.
-RUN cargo build --target x86_64-unknown-linux-musl --release --package papyrus_storage \
+RUN cargo build --release --package papyrus_storage \
     --features "clap statistical" --bin storage_benchmark
 
 # Starting a new stage so that the final image will contain only the executables.
@@ -29,14 +29,14 @@ FROM alpine:3.17.0 AS papyrus_utilities
 WORKDIR /app
 
 # Copy the load test executable and its resources.
-COPY --from=utilities_builder /app/target/x86_64-unknown-linux-musl/release/papyrus_load_test /app/target/release/papyrus_load_test
+COPY --from=utilities_builder /app/target/x86_64-unknown-linux-gnu/release/papyrus_load_test /app/target/release/papyrus_load_test
 COPY crates/papyrus_load_test/resources/ /app/crates/papyrus_load_test/resources
 
 # Copy the dump_declared_classes executable.
-COPY --from=utilities_builder /app/target/x86_64-unknown-linux-musl/release/dump_declared_classes /app/target/release/dump_declared_classes
+COPY --from=utilities_builder /app/target/x86_64-unknown-linux-gnu/release/dump_declared_classes /app/target/release/dump_declared_classes
 
 # Copy the storage_benchmark executable.
-COPY --from=utilities_builder /app/target/x86_64-unknown-linux-musl/release/storage_benchmark /app/target/release/storage_benchmark
+COPY --from=utilities_builder /app/target/x86_64-unknown-linux-gnu/release/storage_benchmark /app/target/release/storage_benchmark
 
 # Set the PATH environment variable to enable running an executable only with its name.
 ENV PATH="/app/target/release:${PATH}"

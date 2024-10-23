@@ -104,7 +104,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
       - name: Build Papyrus utilites docker image
         uses: docker/build-push-action@v3.2.0
-        continue-on-error: true # ignore the failure of a step and avoid terminating the job.
+        continue-on-error: false
         with:
           push: false
           context: .
