@@ -279,7 +279,7 @@ fn test_invoke_tx_from_non_deployed_account(
     match tx_result {
         Ok(info) => {
             //  Make sure the error is because the account wasn't deployed.
-            assert!(info.revert_error.is_some_and(|err_str| err_str.contains(expected_error)));
+            assert!(info.revert_error.unwrap().to_string().contains(expected_error));
         }
         Err(err) => {
             //  Make sure the error is because the account wasn't deployed.
@@ -339,6 +339,7 @@ fn test_infinite_recursion(
             tx_execution_info
                 .revert_error
                 .unwrap()
+                .to_string()
                 .contains("RunResources has no remaining steps.")
         );
     }
@@ -546,7 +547,14 @@ fn test_recursion_depth_exceeded(
         InvokeTxArgs { calldata, nonce: nonce_manager.next(account_address), ..invoke_args };
     let tx_execution_info = run_invoke_tx(&mut state, &block_context, invoke_args);
 
-    assert!(tx_execution_info.unwrap().revert_error.unwrap().contains("recursion depth exceeded"));
+    assert!(
+        tx_execution_info
+            .unwrap()
+            .revert_error
+            .unwrap()
+            .to_string()
+            .contains("recursion depth exceeded")
+    );
 }
 
 #[rstest]
@@ -1128,6 +1136,7 @@ fn test_insufficient_max_fee_reverts(
         tx_execution_info2
             .revert_error
             .unwrap()
+            .to_string()
             .starts_with(&format!("Insufficient max {resource}", resource = Resource::L1Gas))
     );
 
@@ -1148,7 +1157,11 @@ fn test_insufficient_max_fee_reverts(
     assert!(tx_execution_info3.is_reverted());
     assert!(tx_execution_info3.receipt.fee == actual_fee_depth1);
     assert!(
-        tx_execution_info3.revert_error.unwrap().contains("RunResources has no remaining steps.")
+        tx_execution_info3
+            .revert_error
+            .unwrap()
+            .to_string()
+            .contains("RunResources has no remaining steps.")
     );
 }
 
@@ -1544,7 +1557,13 @@ fn test_revert_in_execute(
     .unwrap();
 
     assert!(tx_execution_info.is_reverted());
-    assert!(tx_execution_info.revert_error.unwrap().contains("Failed to deserialize param #1"));
+    assert!(
+        tx_execution_info
+            .revert_error
+            .unwrap()
+            .to_string()
+            .contains("Failed to deserialize param #1")
+    );
 }
 
 #[rstest]
