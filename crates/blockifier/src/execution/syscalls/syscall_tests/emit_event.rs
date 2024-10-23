@@ -24,11 +24,11 @@ const DATA: [Felt; 3] = [
 ];
 const N_EMITTED_EVENTS: [Felt; 1] = [Felt::from_hex_unchecked("0x1")];
 
+#[test_case(FeatureContract::TestContract(CairoVersion::Native), 58930; "Native")]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 48930; "VM")]
 fn positive_flow(test_contract: FeatureContract, expected_gas: u64) {
-    // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion
-    // works.
-    let call_info = emit_events(test_contract, &N_EMITTED_EVENTS, &KEYS, &DATA).unwrap();
+    let call_info = emit_events(test_contract, &N_EMITTED_EVENTS, &KEYS, &DATA)
+        .expect("emit_events failed with valued parameters");
     let event = EventContent {
         keys: KEYS.into_iter().map(EventKey).collect(),
         data: EventData(DATA.to_vec()),
@@ -44,6 +44,7 @@ fn positive_flow(test_contract: FeatureContract, expected_gas: u64) {
     );
 }
 
+#[test_case(FeatureContract::TestContract(CairoVersion::Native); "Native")]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1); "VM")]
 fn data_length_exceeds_limit(test_contract: FeatureContract) {
     let versioned_constants = VersionedConstants::create_for_testing();
@@ -58,6 +59,7 @@ fn data_length_exceeds_limit(test_contract: FeatureContract) {
     assert!(error.to_string().contains(&expected_error.to_string()));
 }
 
+#[test_case(FeatureContract::TestContract(CairoVersion::Native); "Native")]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1); "VM")]
 fn keys_length_exceeds_limit(test_contract: FeatureContract) {
     let versioned_constants = VersionedConstants::create_for_testing();
@@ -73,6 +75,7 @@ fn keys_length_exceeds_limit(test_contract: FeatureContract) {
     assert!(error.to_string().contains(&expected_error.to_string()));
 }
 
+#[test_case(FeatureContract::TestContract(CairoVersion::Native); "Native")]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1); "VM")]
 fn event_number_exceeds_limit(test_contract: FeatureContract) {
     let versioned_constants = VersionedConstants::create_for_testing();
