@@ -71,6 +71,30 @@ mod TestContract {
             .span()
     }
 
+    #[external(v0)]
+    #[raw_output]
+    fn test_call_two_contracts(
+        self: @ContractState,
+        contract_address_0: ContractAddress,
+        entry_point_selector_0: felt252,
+        calldata_0: Array::<felt252>,
+        contract_address_1: ContractAddress,
+        entry_point_selector_1: felt252,
+        calldata_1: Array::<felt252>
+    ) -> Span::<felt252> {
+        let result_0 = syscalls::call_contract_syscall(contract_address_0, entry_point_selector_0, calldata_0.span())
+            .unwrap_syscall()
+            .snapshot
+            .span();
+        let result_1 = syscalls::call_contract_syscall(contract_address_1, entry_point_selector_1, calldata_1.span())
+            .unwrap_syscall()
+            .snapshot
+            .span();
+        let mut ret: Array::<felt252> = Default::default();
+        ret.append_span(result_0.snapshot.span());
+        ret.append_span(result_1.snapshot.span());
+        ret.span()
+    }
 
     #[external(v0)]
     fn test_call_contract_revert(
