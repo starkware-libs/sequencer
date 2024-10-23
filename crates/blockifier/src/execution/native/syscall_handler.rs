@@ -14,7 +14,14 @@ use cairo_native::starknet::{
     U256,
 };
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
-use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress, EthAddress};
+use starknet_api::contract_class::EntryPointType;
+use starknet_api::core::{
+    calculate_contract_address,
+    ClassHash,
+    ContractAddress,
+    EntryPointSelector,
+    EthAddress,
+};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt};
 use starknet_api::transaction::L2ToL1Payload;
@@ -30,6 +37,7 @@ use crate::execution::call_info::{
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::entry_point::{
     CallEntryPoint,
+    CallType,
     ConstructorContext,
     EntryPointExecutionContext,
 };
@@ -83,7 +91,6 @@ impl<'state> NativeSyscallHandler<'state> {
         }
     }
 
-    #[allow(dead_code)]
     fn execute_inner_call(
         &mut self,
         entry_point: CallEntryPoint,
@@ -331,12 +338,41 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
 
     fn call_contract(
         &mut self,
-        _address: Felt,
-        _entry_point_selector: Felt,
-        _calldata: &[Felt],
-        _remaining_gas: &mut u128,
+        address: Felt,
+        entry_point_selector: Felt,
+        calldata: &[Felt],
+        remaining_gas: &mut u128,
     ) -> SyscallResult<Vec<Felt>> {
-        todo!("Implement call_contract syscall.");
+        self.pre_execute_syscall(remaining_gas, self.context.gas_costs().call_contract_gas_cost)?;
+
+        let contract_address = ContractAddress::try_from(address)
+            .map_err(|error| self.handle_error(remaining_gas, error.into()))?;
+        if self.context.execution_mode == ExecutionMode::Validate
+            && self.call.storage_address != contract_address
+        {
+            let err = SyscallExecutionError::InvalidSyscallInExecutionMode {
+                syscall_name: "call_contract".to_string(),
+                execution_mode: self.context.execution_mode,
+            };
+            return Err(self.handle_error(remaining_gas, err));
+        }
+
+        let wrapper_calldata = Calldata(Arc::new(calldata.to_vec()));
+
+        let entry_point = CallEntryPoint {
+            class_hash: None,
+            code_address: Some(contract_address),
+            entry_point_type: EntryPointType::External,
+            entry_point_selector: EntryPointSelector(entry_point_selector),
+            calldata: wrapper_calldata,
+            storage_address: contract_address,
+            caller_address: self.call.caller_address,
+            call_type: CallType::Call,
+            initial_gas: u64::try_from(*remaining_gas)
+                .expect("Failed to convert gas from u128 to u64."),
+        };
+
+        Ok(self.execute_inner_call(entry_point, remaining_gas)?.0)
     }
 
     fn storage_read(
