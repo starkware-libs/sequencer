@@ -61,6 +61,12 @@ fn test_call_contract_that_panics() {
 }
 
 #[test_case(
+  FeatureContract::TestContract(CairoVersion::Native),
+  FeatureContract::TestContract(CairoVersion::Native),
+  191870;
+  "Call Contract between two contracts using Native"
+)]
+#[test_case(
     FeatureContract::TestContract(CairoVersion::Cairo1),
     FeatureContract::TestContract(CairoVersion::Cairo1),
     REQUIRED_GAS_CALL_CONTRACT_TEST;
@@ -102,8 +108,10 @@ fn test_call_contract(
 /// Cairo0 / Cairo1 calls to Cairo0 / Cairo1.
 #[rstest]
 fn test_track_resources(
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] outer_version: CairoVersion,
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] inner_version: CairoVersion,
+    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1, CairoVersion::Native)]
+    outer_version: CairoVersion,
+    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1, CairoVersion::Native)]
+    inner_version: CairoVersion,
 ) {
     let outer_contract = FeatureContract::TestContract(outer_version);
     let inner_contract = FeatureContract::TestContract(inner_version);
@@ -132,12 +140,9 @@ fn test_track_resources(
     };
     assert_eq!(execution.tracked_resource, expected_outer_resource);
 
-    let expected_inner_resource = match (outer_version, inner_version) {
-        (
-            CairoVersion::Cairo1 | CairoVersion::Native,
-            CairoVersion::Cairo1 | CairoVersion::Native,
-        ) => TrackedResource::SierraGas,
-        _ => TrackedResource::CairoSteps,
+    let expected_inner_resource = match inner_version {
+        CairoVersion::Cairo0 => TrackedResource::CairoSteps,
+        CairoVersion::Cairo1 | CairoVersion::Native => TrackedResource::SierraGas,
     };
     assert_eq!(execution.inner_calls.first().unwrap().tracked_resource, expected_inner_resource);
 }
