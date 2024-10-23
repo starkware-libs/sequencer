@@ -29,6 +29,7 @@ use crate::test_utils::{
 };
 use crate::versioned_constants::VersionedConstants;
 
+#[test_case(FeatureContract::TestContract(CairoVersion::Native), 189470; "Native")]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), REQUIRED_GAS_LIBRARY_CALL_TEST; "VM")]
 fn test_library_call(test_contract: FeatureContract, expected_gas: u64) {
     let chain_info = &ChainInfo::create_for_testing();
@@ -60,6 +61,7 @@ fn test_library_call(test_contract: FeatureContract, expected_gas: u64) {
     );
 }
 
+#[test_case(FeatureContract::TestContract(CairoVersion::Native); "Native")]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1); "VM")]
 fn test_library_call_assert_fails(test_contract: FeatureContract) {
     let chain_info = &ChainInfo::create_for_testing();
@@ -81,12 +83,18 @@ fn test_library_call_assert_fails(test_contract: FeatureContract) {
 
     let call_info = entry_point_call.execute_directly(&mut state).unwrap();
     assert!(call_info.execution.failed);
-    assert_eq!(
-        format_panic_data(&call_info.execution.retdata.0),
-        "(0x7820213d2079 ('x != y'), 0x454e545259504f494e545f4641494c4544 ('ENTRYPOINT_FAILED'))"
-    );
+
+    let expected_err = match test_contract.cairo_version() {
+        CairoVersion::Cairo0 | CairoVersion::Cairo1 => {
+            "(0x7820213d2079 ('x != y'), 0x454e545259504f494e545f4641494c4544 \
+             ('ENTRYPOINT_FAILED'))"
+        }
+        CairoVersion::Native => "0x7820213d2079 ('x != y')",
+    };
+    assert_eq!(format_panic_data(&call_info.execution.retdata.0), expected_err);
 }
 
+#[test_case(FeatureContract::TestContract(CairoVersion::Native), 518110; "Native")]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 478110; "VM")]
 fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
     let chain_info = &ChainInfo::create_for_testing();
