@@ -10,8 +10,8 @@ use starknet_integration_tests::integration_test_utils::{
     run_integration_test_scenario,
     HttpTestClient,
 };
-use starknet_mempool_node::config::SequencerNodeConfig;
 use starknet_sequencer_infra::trace_util::configure_tracing;
+use starknet_sequencer_node::config::SequencerNodeConfig;
 use tracing::{error, info};
 
 #[tokio::main]

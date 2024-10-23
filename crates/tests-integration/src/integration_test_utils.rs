@@ -26,7 +26,7 @@ use starknet_gateway::config::{
 };
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_http_server::config::HttpServerConfig;
-use starknet_mempool_node::config::SequencerNodeConfig;
+use starknet_sequencer_node::config::SequencerNodeConfig;
 use tokio::net::TcpListener;
 
 pub async fn create_config(

@@ -10353,9 +10353,9 @@ dependencies = [
  "starknet_gateway",
  "starknet_gateway_types",
  "starknet_http_server",
- "starknet_mempool_node",
  "starknet_mempool_types",
  "starknet_sequencer_infra",
+ "starknet_sequencer_node",
  "starknet_task_executor",
  "strum 0.25.0",
  "tempfile",
@@ -10383,41 +10383,6 @@ dependencies = [
  "starknet_sequencer_infra",
  "tokio",
  "tracing",
-]
-
-[[package]]
-name = "starknet_mempool_node"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "assert-json-diff",
- "assert_matches",
- "clap",
- "colored",
- "const_format",
- "futures",
- "mempool_test_utils",
- "papyrus_config",
- "pretty_assertions",
- "rstest",
- "serde",
- "serde_json",
- "starknet_api",
- "starknet_batcher",
- "starknet_batcher_types",
- "starknet_consensus_manager",
- "starknet_gateway",
- "starknet_gateway_types",
- "starknet_http_server",
- "starknet_mempool",
- "starknet_mempool_p2p",
- "starknet_mempool_types",
- "starknet_monitoring_endpoint",
- "starknet_sequencer_infra",
- "starknet_sierra_compile",
- "tokio",
- "tracing",
- "validator",
 ]
 
 [[package]]
@@ -10519,6 +10484,41 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "validator",
+]
+
+[[package]]
+name = "starknet_sequencer_node"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "assert-json-diff",
+ "assert_matches",
+ "clap",
+ "colored",
+ "const_format",
+ "futures",
+ "mempool_test_utils",
+ "papyrus_config",
+ "pretty_assertions",
+ "rstest",
+ "serde",
+ "serde_json",
+ "starknet_api",
+ "starknet_batcher",
+ "starknet_batcher_types",
+ "starknet_consensus_manager",
+ "starknet_gateway",
+ "starknet_gateway_types",
+ "starknet_http_server",
+ "starknet_mempool",
+ "starknet_mempool_p2p",
+ "starknet_mempool_types",
+ "starknet_monitoring_endpoint",
+ "starknet_sequencer_infra",
+ "starknet_sierra_compile",
+ "tokio",
+ "tracing",
  "validator",
 ]
 

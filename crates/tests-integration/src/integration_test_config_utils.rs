@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::Write;
 
 use serde_json::{json, Value};
-use starknet_mempool_node::config::SequencerNodeConfig;
+use starknet_sequencer_node::config::SequencerNodeConfig;
 use tokio::io::Result;
 use tracing::info;
 
@@ -39,7 +39,7 @@ macro_rules! config_fields_to_json {
 /// Returns config files to be supplied for the sequencer node and the transaction generator. Then
 ///
 /// Sequencer node:
-/// cargo run --bin starknet_mempool_node -- --config_file NODE_CONFIG_CHANGES_FILE_PATH
+/// cargo run --bin starknet_sequencer_node -- --config_file NODE_CONFIG_CHANGES_FILE_PATH
 /// Transaction generator:
 /// cargo run --bin run_test_tx_generator -- --config_file TX_GEN_CONFIG_CHANGES_FILE_PATH
 pub fn dump_config_file_changes(config: SequencerNodeConfig) -> anyhow::Result<()> {
