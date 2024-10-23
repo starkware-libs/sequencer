@@ -13,6 +13,7 @@ use cairo_native::starknet::{
 use cairo_native::starknet_stub::encode_str_as_felts;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::state::StorageKey;
+use starknet_api::transaction::{EventContent, EventData, EventKey};
 use starknet_types_core::felt::Felt;
 
 use crate::execution::call_info::{CallInfo, OrderedEvent, OrderedL2ToL1Message, Retdata};
@@ -22,7 +23,7 @@ use crate::execution::syscalls::hint_processor::{
     SyscallExecutionError,
     OUT_OF_GAS_ERROR,
 };
-use crate::execution::syscalls::SyscallSelector;
+use crate::execution::syscalls::{exceeds_event_size_limit, SyscallSelector};
 use crate::state::state_api::State;
 
 pub struct NativeSyscallHandler<'state> {
@@ -243,11 +244,33 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
 
     fn emit_event(
         &mut self,
-        _keys: &[Felt],
-        _data: &[Felt],
-        _remaining_gas: &mut u128,
+        keys: &[Felt],
+        data: &[Felt],
+        remaining_gas: &mut u128,
     ) -> SyscallResult<()> {
-        todo!("Implement emit_event syscall.");
+        self.pre_execute_syscall(
+            remaining_gas,
+            SyscallSelector::EmitEvent,
+            self.context.gas_costs().emit_event_gas_cost,
+        )?;
+
+        let order = self.context.n_emitted_events;
+        let event = EventContent {
+            keys: keys.iter().copied().map(EventKey).collect(),
+            data: EventData(data.to_vec()),
+        };
+
+        exceeds_event_size_limit(
+            self.context.versioned_constants(),
+            self.context.n_emitted_events + 1,
+            &event,
+        )
+        .map_err(|e| encode_str_as_felts(&e.to_string()))?;
+
+        self.events.push(OrderedEvent { order, event });
+        self.context.n_emitted_events += 1;
+
+        Ok(())
     }
 
     fn send_message_to_l1(
