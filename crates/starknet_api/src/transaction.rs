@@ -1,13 +1,12 @@
 use std::collections::BTreeMap;
-use std::fmt::Display;
 use std::sync::Arc;
 
-use derive_more::{Display, From};
+use num_bigint::BigUint;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use starknet_types_core::felt::Felt;
 use strum_macros::EnumIter;
 
-use crate::block::{BlockHash, BlockNumber};
+use crate::block::{BlockHash, BlockNumber, GasPrice, NonzeroGasPrice};
 use crate::core::{
     ChainId,
     ClassHash,
@@ -18,7 +17,7 @@ use crate::core::{
     Nonce,
 };
 use crate::data_availability::DataAvailabilityMode;
-use crate::execution_resources::ExecutionResources;
+use crate::execution_resources::{ExecutionResources, GasAmount};
 use crate::hash::StarkHash;
 use crate::serde_utils::PrefixedBytesAsHex;
 use crate::transaction_hash::{
@@ -35,6 +34,14 @@ use crate::transaction_hash::{
     get_l1_handler_transaction_hash,
 };
 use crate::StarknetApiError;
+
+#[cfg(test)]
+#[path = "transaction_test.rs"]
+mod transaction_test;
+
+// TODO(Noa, 14/11/2023): Replace QUERY_VERSION_BASE_BIT with a lazy calculation.
+//      pub static QUERY_VERSION_BASE: Lazy<Felt> = ...
+pub const QUERY_VERSION_BASE_BIT: u32 = 128;
 
 pub trait TransactionHasher {
     fn calculate_transaction_hash(
@@ -96,6 +103,26 @@ impl Transaction {
             }
         }
     }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Default)]
+pub struct TransactionOptions {
+    /// Transaction that shouldn't be broadcasted to StarkNet. For example, users that want to
+    /// test the execution result of a transaction without the risk of it being rebroadcasted (the
+    /// signature will be different while the execution remain the same). Using this flag will
+    /// modify the transaction version by setting the 128-th bit to 1.
+    pub only_query: bool,
+}
+
+macro_rules! implement_v3_tx_getters {
+    ($(($field:ident, $field_type:ty)),*) => {
+        $(pub fn $field(&self) -> $field_type {
+            match self {
+                Self::V3(tx) => tx.$field.clone(),
+                _ => panic!("{:?} do not support the field {}; they are only available for V3 transactions.", self.version(), stringify!($field)),
+            }
+        })*
+    };
 }
 
 /// A transaction output.
@@ -267,6 +294,25 @@ impl DeclareTransaction {
         (signature, TransactionSignature)
     );
 
+    implement_v3_tx_getters!(
+        (resource_bounds, ValidResourceBounds),
+        (tip, Tip),
+        (nonce_data_availability_mode, DataAvailabilityMode),
+        (fee_data_availability_mode, DataAvailabilityMode),
+        (paymaster_data, PaymasterData),
+        (account_deployment_data, AccountDeploymentData)
+    );
+
+    pub fn compiled_class_hash(&self) -> CompiledClassHash {
+        match self {
+            DeclareTransaction::V0(_) | DeclareTransaction::V1(_) => {
+                panic!("Cairo0 DeclareTransaction (V0, V1) doesn't have compiled class hash.")
+            }
+            DeclareTransaction::V2(tx) => tx.compiled_class_hash,
+            DeclareTransaction::V3(tx) => tx.compiled_class_hash,
+        }
+    }
+
     pub fn version(&self) -> TransactionVersion {
         match self {
             DeclareTransaction::V0(_) => TransactionVersion::ZERO,
@@ -346,7 +392,9 @@ impl TransactionHasher for DeployAccountTransactionV3 {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord, From)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord, derive_more::From,
+)]
 pub enum DeployAccountTransaction {
     V1(DeployAccountTransactionV1),
     V3(DeployAccountTransactionV3),
@@ -372,6 +420,14 @@ impl DeployAccountTransaction {
         (contract_address_salt, ContractAddressSalt),
         (nonce, Nonce),
         (signature, TransactionSignature)
+    );
+
+    implement_v3_tx_getters!(
+        (resource_bounds, ValidResourceBounds),
+        (tip, Tip),
+        (nonce_data_availability_mode, DataAvailabilityMode),
+        (fee_data_availability_mode, DataAvailabilityMode),
+        (paymaster_data, PaymasterData)
     );
 
     pub fn version(&self) -> TransactionVersion {
@@ -483,7 +539,9 @@ impl TransactionHasher for InvokeTransactionV3 {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord, From)]
+#[derive(
+    Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord, derive_more::From,
+)]
 pub enum InvokeTransaction {
     V0(InvokeTransactionV0),
     V1(InvokeTransactionV1),
@@ -504,6 +562,15 @@ macro_rules! implement_invoke_tx_getters {
 
 impl InvokeTransaction {
     implement_invoke_tx_getters!((calldata, Calldata), (signature, TransactionSignature));
+
+    implement_v3_tx_getters!(
+        (resource_bounds, ValidResourceBounds),
+        (tip, Tip),
+        (nonce_data_availability_mode, DataAvailabilityMode),
+        (fee_data_availability_mode, DataAvailabilityMode),
+        (paymaster_data, PaymasterData),
+        (account_deployment_data, AccountDeploymentData)
+    );
 
     pub fn nonce(&self) -> Nonce {
         match self {
@@ -658,12 +725,13 @@ pub struct RevertedTransactionExecutionStatus {
 }
 
 /// A fee.
+#[cfg_attr(any(test, feature = "testing"), derive(derive_more::Add, derive_more::Deref))]
 #[derive(
     Debug,
     Copy,
     Clone,
     Default,
-    Display,
+    derive_more::Display,
     Eq,
     PartialEq,
     Hash,
@@ -671,10 +739,44 @@ pub struct RevertedTransactionExecutionStatus {
     Serialize,
     PartialOrd,
     Ord,
-    derive_more::Deref,
 )]
 #[serde(from = "PrefixedBytesAsHex<16_usize>", into = "PrefixedBytesAsHex<16_usize>")]
 pub struct Fee(pub u128);
+
+impl Fee {
+    pub fn checked_add(self, rhs: Fee) -> Option<Fee> {
+        self.0.checked_add(rhs.0).map(Fee)
+    }
+
+    pub const fn saturating_add(self, rhs: Self) -> Self {
+        Self(self.0.saturating_add(rhs.0))
+    }
+
+    pub fn checked_div_ceil(self, rhs: NonzeroGasPrice) -> Option<GasAmount> {
+        self.checked_div(rhs).map(|value| {
+            if value
+                .checked_mul(rhs.into())
+                .expect("Multiplying by denominator of floor division cannot overflow.")
+                < self
+            {
+                (value.0 + 1).into()
+            } else {
+                value
+            }
+        })
+    }
+
+    pub fn checked_div(self, rhs: NonzeroGasPrice) -> Option<GasAmount> {
+        match u64::try_from(self.0 / rhs.get().0) {
+            Ok(value) => Some(value.into()),
+            Err(_) => None,
+        }
+    }
+
+    pub fn saturating_div(self, rhs: NonzeroGasPrice) -> GasAmount {
+        self.checked_div(rhs).unwrap_or(GasAmount::MAX)
+    }
+}
 
 impl From<PrefixedBytesAsHex<16_usize>> for Fee {
     fn from(value: PrefixedBytesAsHex<16_usize>) -> Self {
@@ -711,7 +813,7 @@ impl From<Fee> for Felt {
 )]
 pub struct TransactionHash(pub StarkHash);
 
-impl Display for TransactionHash {
+impl std::fmt::Display for TransactionHash {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }
@@ -758,6 +860,33 @@ impl TransactionVersion {
     pub const THREE: Self = { Self(Felt::THREE) };
 }
 
+// TODO: TransactionVersion and SignedTransactionVersion should probably be separate types.
+// Returns the transaction version taking into account the transaction options.
+pub fn signed_tx_version_from_tx(
+    tx: &Transaction,
+    transaction_options: &TransactionOptions,
+) -> TransactionVersion {
+    signed_tx_version(&tx.version(), transaction_options)
+}
+
+pub fn signed_tx_version(
+    tx_version: &TransactionVersion,
+    transaction_options: &TransactionOptions,
+) -> TransactionVersion {
+    // If only_query is true, set the 128-th bit.
+    let query_only_bit = Felt::TWO.pow(QUERY_VERSION_BASE_BIT);
+    assert_eq!(
+        tx_version.0.to_biguint() & query_only_bit.to_biguint(),
+        BigUint::from(0_u8),
+        "Requested signed tx version with version that already has query bit set: {tx_version:?}."
+    );
+    if transaction_options.only_query {
+        TransactionVersion(tx_version.0 + query_only_bit)
+    } else {
+        *tx_version
+    }
+}
+
 /// The calldata of a transaction.
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct Calldata(pub Arc<Vec<Felt>>);
@@ -765,7 +894,7 @@ pub struct Calldata(pub Arc<Vec<Felt>>);
 #[macro_export]
 macro_rules! calldata {
     ( $( $x:expr ),* ) => {
-        Calldata(vec![$($x),*].into())
+        $crate::transaction::Calldata(vec![$($x),*].into())
     };
 }
 
@@ -842,6 +971,7 @@ pub struct EventIndexInTransactionOutput(pub usize);
     PartialOrd,
     Serialize,
     derive_more::Deref,
+    derive_more::Display,
 )]
 #[serde(from = "PrefixedBytesAsHex<8_usize>", into = "PrefixedBytesAsHex<8_usize>")]
 pub struct Tip(pub u64);
@@ -866,7 +996,18 @@ impl From<Tip> for Felt {
 
 /// Execution resource.
 #[derive(
-    Clone, Copy, Debug, Deserialize, EnumIter, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Deserialize,
+    derive_more::Display,
+    EnumIter,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    Serialize,
 )]
 pub enum Resource {
     #[serde(rename = "L1_GAS")]
@@ -877,6 +1018,18 @@ pub enum Resource {
     L1DataGas,
 }
 
+impl Resource {
+    pub fn to_hex(&self) -> &'static str {
+        match self {
+            Resource::L1Gas => "0x00000000000000000000000000000000000000000000000000004c315f474153",
+            Resource::L2Gas => "0x00000000000000000000000000000000000000000000000000004c325f474153",
+            Resource::L1DataGas => {
+                "0x000000000000000000000000000000000000000000000000004c315f44415441"
+            }
+        }
+    }
+}
+
 /// Fee bounds for an execution resource.
 /// TODO(Yael): add types ResourceAmount and ResourcePrice and use them instead of u64 and u128.
 #[derive(
@@ -885,49 +1038,59 @@ pub enum Resource {
 // TODO(Nimrod): Consider renaming this struct.
 pub struct ResourceBounds {
     // Specifies the maximum amount of each resource allowed for usage during the execution.
-    #[serde(serialize_with = "u64_to_hex", deserialize_with = "hex_to_u64")]
-    pub max_amount: u64,
+    #[serde(serialize_with = "gas_amount_to_hex", deserialize_with = "hex_to_gas_amount")]
+    pub max_amount: GasAmount,
 
     // Specifies the maximum price the user is willing to pay for each resource unit.
-    #[serde(serialize_with = "u128_to_hex", deserialize_with = "hex_to_u128")]
-    pub max_price_per_unit: u128,
+    #[serde(serialize_with = "gas_price_to_hex", deserialize_with = "hex_to_gas_price")]
+    pub max_price_per_unit: GasPrice,
 }
 
 impl ResourceBounds {
     /// Returns true iff both the max amount and the max amount per unit is zero.
     pub fn is_zero(&self) -> bool {
-        self.max_amount == 0 && self.max_price_per_unit == 0
+        self.max_amount == GasAmount(0) && self.max_price_per_unit == GasPrice(0)
     }
 }
 
-fn u64_to_hex<S>(value: &u64, serializer: S) -> Result<S::Ok, S::Error>
+fn gas_amount_to_hex<S>(value: &GasAmount, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
-    serializer.serialize_str(&format!("0x{:x}", value))
+    serializer.serialize_str(&format!("0x{:x}", value.0))
 }
 
-fn hex_to_u64<'de, D>(deserializer: D) -> Result<u64, D::Error>
+fn hex_to_gas_amount<'de, D>(deserializer: D) -> Result<GasAmount, D::Error>
 where
     D: Deserializer<'de>,
 {
     let s: String = Deserialize::deserialize(deserializer)?;
-    u64::from_str_radix(s.trim_start_matches("0x"), 16).map_err(serde::de::Error::custom)
+    Ok(GasAmount(
+        u64::from_str_radix(s.trim_start_matches("0x"), 16).map_err(serde::de::Error::custom)?,
+    ))
 }
 
-fn u128_to_hex<S>(value: &u128, serializer: S) -> Result<S::Ok, S::Error>
+fn gas_price_to_hex<S>(value: &GasPrice, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
-    serializer.serialize_str(&format!("0x{:x}", value))
+    serializer.serialize_str(&format!("0x{:x}", value.0))
 }
 
-fn hex_to_u128<'de, D>(deserializer: D) -> Result<u128, D::Error>
+fn hex_to_gas_price<'de, D>(deserializer: D) -> Result<GasPrice, D::Error>
 where
     D: Deserializer<'de>,
 {
     let s: String = Deserialize::deserialize(deserializer)?;
-    u128::from_str_radix(s.trim_start_matches("0x"), 16).map_err(serde::de::Error::custom)
+    Ok(GasPrice(
+        u128::from_str_radix(s.trim_start_matches("0x"), 16).map_err(serde::de::Error::custom)?,
+    ))
+}
+
+#[derive(Debug, PartialEq)]
+pub enum GasVectorComputationMode {
+    All,
+    NoL2Gas,
 }
 
 /// A mapping from execution resources to their corresponding fee bounds..
@@ -935,7 +1098,7 @@ where
 // TODO(Nimrod): Remove this struct definition.
 pub struct DeprecatedResourceBoundsMapping(pub BTreeMap<Resource, ResourceBounds>);
 
-#[derive(Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub enum ValidResourceBounds {
     L1Gas(ResourceBounds), // Pre 0.13.3. Only L1 gas. L2 bounds are signed but never used.
     AllResources(AllResourceBounds),
@@ -956,14 +1119,45 @@ impl ValidResourceBounds {
         }
     }
 
+    /// Returns the maximum possible fee that can be charged for the transaction.
+    /// The computation is saturating, meaning that if the result is larger than the maximum
+    /// possible fee, the maximum possible fee is returned.
+    pub fn max_possible_fee(&self) -> Fee {
+        match self {
+            ValidResourceBounds::L1Gas(l1_bounds) => {
+                l1_bounds.max_amount.saturating_mul(l1_bounds.max_price_per_unit)
+            }
+            ValidResourceBounds::AllResources(AllResourceBounds {
+                l1_gas,
+                l2_gas,
+                l1_data_gas,
+            }) => l1_gas
+                .max_amount
+                .saturating_mul(l1_gas.max_price_per_unit)
+                .saturating_add(l2_gas.max_amount.saturating_mul(l2_gas.max_price_per_unit))
+                .saturating_add(
+                    l1_data_gas.max_amount.saturating_mul(l1_data_gas.max_price_per_unit),
+                ),
+        }
+    }
+
+    pub fn get_gas_vector_computation_mode(&self) -> GasVectorComputationMode {
+        match self {
+            Self::AllResources(_) => GasVectorComputationMode::All,
+            Self::L1Gas(_) => GasVectorComputationMode::NoL2Gas,
+        }
+    }
+
     // TODO(Nimrod): Default testing bounds should probably be AllResourceBounds variant.
     #[cfg(any(feature = "testing", test))]
     pub fn create_for_testing() -> Self {
-        Self::L1Gas(ResourceBounds { max_amount: 0, max_price_per_unit: 1 })
+        Self::L1Gas(ResourceBounds { max_amount: GasAmount(0), max_price_per_unit: GasPrice(1) })
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize)]
+#[derive(
+    Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize,
+)]
 pub struct AllResourceBounds {
     pub l1_gas: ResourceBounds,
     pub l2_gas: ResourceBounds,

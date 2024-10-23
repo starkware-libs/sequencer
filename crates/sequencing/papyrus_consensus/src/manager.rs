@@ -11,41 +11,42 @@ use futures::channel::{mpsc, oneshot};
 use futures::stream::FuturesUnordered;
 use futures::{Stream, StreamExt};
 use papyrus_common::metrics::{PAPYRUS_CONSENSUS_HEIGHT, PAPYRUS_CONSENSUS_SYNC_COUNT};
-use papyrus_network::network_manager::BroadcastClientTrait;
-use papyrus_protobuf::consensus::{ConsensusMessage, Proposal};
+use papyrus_network::network_manager::BroadcastTopicClientTrait;
+use papyrus_protobuf::consensus::{ConsensusMessage, ProposalWrapper};
 use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::core::ContractAddress;
 use tracing::{debug, info, instrument};
 
 use crate::config::TimeoutsConfig;
 use crate::single_height_consensus::{ShcReturn, ShcTask, SingleHeightConsensus};
 use crate::types::{
-    ConsensusBlock,
+    BroadcastConsensusMessageChannel,
     ConsensusContext,
     ConsensusError,
     Decision,
-    ProposalInit,
     ValidatorId,
 };
 
 // TODO(dvir): add test for this.
 #[instrument(skip_all, level = "info")]
 #[allow(missing_docs)]
-pub async fn run_consensus<BlockT, ContextT, BroadcastClientT, SyncReceiverT>(
+pub async fn run_consensus<ContextT, SyncReceiverT>(
     mut context: ContextT,
     start_height: BlockNumber,
     validator_id: ValidatorId,
     consensus_delay: Duration,
     timeouts: TimeoutsConfig,
-    mut broadcast_client: BroadcastClientT,
+    mut broadcast_channels: BroadcastConsensusMessageChannel,
     mut sync_receiver: SyncReceiverT,
 ) -> Result<(), ConsensusError>
 where
-    BlockT: ConsensusBlock,
-    ContextT: ConsensusContext<Block = BlockT>,
-    BroadcastClientT: BroadcastClientTrait<ConsensusMessage>,
+    ContextT: ConsensusContext,
     SyncReceiverT: Stream<Item = BlockNumber> + Unpin,
-    ProposalWrapper:
-        Into<(ProposalInit, mpsc::Receiver<BlockT::ProposalChunk>, oneshot::Receiver<BlockHash>)>,
+    ProposalWrapper: Into<(
+        (BlockNumber, u32, ContractAddress, Option<u32>),
+        mpsc::Receiver<ContextT::ProposalChunk>,
+        oneshot::Receiver<BlockHash>,
+    )>,
 {
     info!(
         "Running consensus, start_height={}, validator_id={}, consensus_delay={}, timeouts={:?}",
@@ -62,7 +63,7 @@ where
     loop {
         metrics::gauge!(PAPYRUS_CONSENSUS_HEIGHT, current_height.0 as f64);
 
-        let run_height = manager.run_height(&mut context, current_height, &mut broadcast_client);
+        let run_height = manager.run_height(&mut context, current_height, &mut broadcast_channels);
 
         // `run_height` is not cancel safe. Our implementation doesn't enable us to start and stop
         // it. We also cannot restart the height; when we dropped the future we dropped the state it
@@ -81,11 +82,6 @@ where
         }
     }
 }
-
-// `Proposal` is defined in the protobuf crate so we can't implement `Into` for it because of the
-// orphan rule. This wrapper enables us to implement `Into` for the inner `Proposal`.
-#[allow(missing_docs)]
-pub struct ProposalWrapper(pub Proposal);
 
 /// Runs Tendermint repeatedly across different heights. Handles issues which are not explicitly
 /// part of the single height consensus algorithm (e.g. messages from future heights).
@@ -106,20 +102,18 @@ impl MultiHeightManager {
     ///
     /// Assumes that `height` is monotonically increasing across calls for the sake of filtering
     /// `cached_messaged`.
-    #[instrument(skip(self, context, broadcast_client), level = "info")]
-    pub async fn run_height<BlockT, ContextT, BroadcastClientT>(
+    #[instrument(skip(self, context, broadcast_channels), level = "info")]
+    pub async fn run_height<ContextT>(
         &mut self,
         context: &mut ContextT,
         height: BlockNumber,
-        broadcast_client: &mut BroadcastClientT,
-    ) -> Result<Decision<BlockT>, ConsensusError>
+        broadcast_channels: &mut BroadcastConsensusMessageChannel,
+    ) -> Result<Decision, ConsensusError>
     where
-        BlockT: ConsensusBlock,
-        ContextT: ConsensusContext<Block = BlockT>,
-        BroadcastClientT: BroadcastClientTrait<ConsensusMessage>,
+        ContextT: ConsensusContext,
         ProposalWrapper: Into<(
-            ProposalInit,
-            mpsc::Receiver<BlockT::ProposalChunk>,
+            (BlockNumber, u32, ContractAddress, Option<u32>),
+            mpsc::Receiver<ContextT::ProposalChunk>,
             oneshot::Receiver<BlockHash>,
         )>,
     {
@@ -145,7 +139,7 @@ impl MultiHeightManager {
         let mut current_height_messages = self.get_current_height_messages(height);
         loop {
             let shc_return = tokio::select! {
-                message = next_message(&mut current_height_messages, broadcast_client) => {
+                message = next_message(&mut current_height_messages, broadcast_channels) => {
                     self.handle_message(context, height, &mut shc, message?).await?
                 },
                 Some(shc_task) = shc_tasks.next() => {
@@ -165,19 +159,18 @@ impl MultiHeightManager {
     }
 
     // Handle a single consensus message.
-    async fn handle_message<BlockT, ContextT>(
+    async fn handle_message<ContextT>(
         &mut self,
         context: &mut ContextT,
         height: BlockNumber,
-        shc: &mut SingleHeightConsensus<BlockT>,
+        shc: &mut SingleHeightConsensus,
         message: ConsensusMessage,
-    ) -> Result<ShcReturn<BlockT>, ConsensusError>
+    ) -> Result<ShcReturn, ConsensusError>
     where
-        BlockT: ConsensusBlock,
-        ContextT: ConsensusContext<Block = BlockT>,
+        ContextT: ConsensusContext,
         ProposalWrapper: Into<(
-            ProposalInit,
-            mpsc::Receiver<BlockT::ProposalChunk>,
+            (BlockNumber, u32, ContractAddress, Option<u32>),
+            mpsc::Receiver<ContextT::ProposalChunk>,
             oneshot::Receiver<BlockHash>,
         )>,
     {
@@ -198,7 +191,7 @@ impl MultiHeightManager {
                 let (proposal_init, content_receiver, fin_receiver) =
                     ProposalWrapper(proposal).into();
                 let res = shc
-                    .handle_proposal(context, proposal_init, content_receiver, fin_receiver)
+                    .handle_proposal(context, proposal_init.into(), content_receiver, fin_receiver)
                     .await?;
                 Ok(res)
             }
@@ -230,29 +223,33 @@ impl MultiHeightManager {
     }
 }
 
-async fn next_message<BroadcastClientT>(
+async fn next_message(
     cached_messages: &mut Vec<ConsensusMessage>,
-    broadcast_client: &mut BroadcastClientT,
+    broadcast_channels: &mut BroadcastConsensusMessageChannel,
 ) -> Result<ConsensusMessage, ConsensusError>
 where
-    BroadcastClientT: BroadcastClientTrait<ConsensusMessage>,
 {
+    let BroadcastConsensusMessageChannel { broadcasted_messages_receiver, broadcast_topic_client } =
+        broadcast_channels;
     if let Some(msg) = cached_messages.pop() {
         return Ok(msg);
     }
 
-    let (msg, broadcasted_message_manager) = broadcast_client.next().await.ok_or_else(|| {
-        ConsensusError::InternalNetworkError("NetworkReceiver should never be closed".to_string())
-    })?;
+    let (msg, broadcasted_message_manager) =
+        broadcasted_messages_receiver.next().await.ok_or_else(|| {
+            ConsensusError::InternalNetworkError(
+                "NetworkReceiver should never be closed".to_string(),
+            )
+        })?;
     match msg {
         // TODO(matan): Return report_sender for use in later errors by SHC.
         Ok(msg) => {
-            broadcast_client.continue_propagation(&broadcasted_message_manager).await;
+            let _ = broadcast_topic_client.continue_propagation(&broadcasted_message_manager).await;
             Ok(msg)
         }
         Err(e) => {
             // Failed to parse consensus message
-            broadcast_client.report_message(broadcasted_message_manager).await;
+            let _ = broadcast_topic_client.report_peer(broadcasted_message_manager).await;
             Err(e.into())
         }
     }

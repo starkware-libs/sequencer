@@ -9,14 +9,8 @@ use papyrus_config::converters::{
     deserialize_float_seconds_to_duration,
     deserialize_seconds_to_duration,
 };
-use papyrus_config::dumping::{
-    append_sub_config_name,
-    ser_optional_sub_config,
-    ser_param,
-    ser_required_param,
-    SerializeConfig,
-};
-use papyrus_config::{ParamPath, ParamPrivacyInput, SerializationType, SerializedParam};
+use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
+use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 
@@ -39,16 +33,14 @@ pub struct ConsensusConfig {
     pub consensus_delay: Duration,
     /// Timeouts configuration for consensus.
     pub timeouts: TimeoutsConfig,
-    /// Test configuration for consensus.
-    pub test: Option<ConsensusTestConfig>,
 }
 
 impl SerializeConfig for ConsensusConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let mut config = BTreeMap::from_iter([
-            ser_required_param(
+            ser_param(
                 "validator_id",
-                SerializationType::String,
+                &self.validator_id,
                 "The validator id of the node.",
                 ParamPrivacyInput::Public,
             ),
@@ -78,7 +70,6 @@ impl SerializeConfig for ConsensusConfig {
             ),
         ]);
         config.extend(append_sub_config_name(self.timeouts.dump(), "timeouts"));
-        config.extend(ser_optional_sub_config(&self.test, "test"));
         config
     }
 }
@@ -89,74 +80,9 @@ impl Default for ConsensusConfig {
             validator_id: ValidatorId::default(),
             network_topic: "consensus".to_string(),
             start_height: BlockNumber::default(),
-            num_validators: 4,
+            num_validators: 1,
             consensus_delay: Duration::from_secs(5),
             timeouts: TimeoutsConfig::default(),
-            test: None,
-        }
-    }
-}
-
-/// Test configuration for consensus.
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
-pub struct ConsensusTestConfig {
-    /// The cache size for the test simulation.
-    pub cache_size: usize,
-    /// The random seed for the test simulation to ensure repeatable test results.
-    pub random_seed: u64,
-    /// The probability of dropping a message.
-    pub drop_probability: f64,
-    /// The probability of sending an invalid message.
-    pub invalid_probability: f64,
-    /// The network topic for sync messages.
-    pub sync_topic: String,
-}
-
-impl SerializeConfig for ConsensusTestConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "cache_size",
-                &self.cache_size,
-                "The cache size for the test simulation.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "random_seed",
-                &self.random_seed,
-                "The random seed for the test simulation to ensure repeatable test results.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "drop_probability",
-                &self.drop_probability,
-                "The probability of dropping a message.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "invalid_probability",
-                &self.invalid_probability,
-                "The probability of sending an invalid message.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "sync_topic",
-                &self.sync_topic,
-                "The network topic for sync messages.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
-    }
-}
-
-impl Default for ConsensusTestConfig {
-    fn default() -> Self {
-        Self {
-            cache_size: 1000,
-            random_seed: 0,
-            drop_probability: 0.0,
-            invalid_probability: 0.0,
-            sync_topic: "consensus_test_sync".to_string(),
         }
     }
 }

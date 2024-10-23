@@ -9,7 +9,7 @@ use papyrus_storage::compiled_class::CasmStorageWriter;
 use papyrus_storage::header::{HeaderStorageReader, HeaderStorageWriter};
 use papyrus_storage::state::{StateStorageReader, StateStorageWriter};
 use pyo3::prelude::*;
-use starknet_api::block::{BlockHash, BlockHeader, BlockNumber};
+use starknet_api::block::{BlockHash, BlockHeader, BlockHeaderWithoutHash, BlockNumber};
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::hash::StarkHash;
@@ -215,8 +215,11 @@ impl Storage for PapyrusStorage {
         let previous_block_id = previous_block_id.unwrap_or_else(|| PyFelt::from(GENESIS_BLOCK_ID));
         let block_header = BlockHeader {
             block_hash: BlockHash(StarkHash::from(block_id)),
-            parent_hash: BlockHash(previous_block_id.0),
-            block_number,
+            block_header_without_hash: BlockHeaderWithoutHash {
+                parent_hash: BlockHash(previous_block_id.0),
+                block_number,
+                ..Default::default()
+            },
             ..Default::default()
         };
         append_txn = append_txn.append_header(block_number, &block_header)?;

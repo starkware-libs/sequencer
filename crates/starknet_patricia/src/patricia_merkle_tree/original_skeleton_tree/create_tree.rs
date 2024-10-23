@@ -12,7 +12,7 @@ use crate::patricia_merkle_tree::node_data::inner_node::{
     NodeData,
     PathToBottom,
 };
-use crate::patricia_merkle_tree::node_data::leaf::Leaf;
+use crate::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
 use crate::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::{
@@ -118,6 +118,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
         &mut self,
         subtrees: Vec<SubTree<'a>>,
         storage: &impl Storage,
+        leaf_modifications: &LeafModifications<L>,
         config: &impl OriginalSkeletonTreeConfig<L>,
         mut previous_leaves: Option<&mut HashMap<NodeIndex, L>>,
     ) -> OriginalSkeletonTreeResult<()> {
@@ -178,6 +179,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
                     }
                     OriginalSkeletonTreeImpl::log_warning_for_empty_leaves(
                         &previously_empty_leaves_indices,
+                        leaf_modifications,
                         config,
                     )?;
 
@@ -194,7 +196,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
                     } else {
                         // Modified leaf.
                         if config.compare_modified_leaves()
-                            && config.compare_leaf(&subtree.root_index, &previous_leaf)?
+                            && L::compare(leaf_modifications, &subtree.root_index, &previous_leaf)?
                         {
                             log_trivial_modification!(subtree.root_index, previous_leaf);
                         }
@@ -206,7 +208,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
                 }
             }
         }
-        self.fetch_nodes::<L>(next_subtrees, storage, config, previous_leaves)
+        self.fetch_nodes::<L>(next_subtrees, storage, leaf_modifications, config, previous_leaves)
     }
 
     // TODO(Aviv, 17/07/2024): Split between storage prefix implementation and function logic.
@@ -244,6 +246,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
         root_hash: HashOutput,
         sorted_leaf_indices: SortedLeafIndices<'a>,
         config: &impl OriginalSkeletonTreeConfig<L>,
+        leaf_modifications: &LeafModifications<L>,
     ) -> OriginalSkeletonTreeResult<Self> {
         if sorted_leaf_indices.is_empty() {
             return Ok(Self::create_unmodified(root_hash));
@@ -251,13 +254,20 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
         if root_hash == HashOutput::ROOT_OF_EMPTY_TREE {
             OriginalSkeletonTreeImpl::log_warning_for_empty_leaves(
                 sorted_leaf_indices.get_indices(),
+                leaf_modifications,
                 config,
             )?;
             return Ok(Self::create_empty(sorted_leaf_indices));
         }
         let main_subtree = SubTree { sorted_leaf_indices, root_index: NodeIndex::ROOT, root_hash };
         let mut skeleton_tree = Self { nodes: HashMap::new(), sorted_leaf_indices };
-        skeleton_tree.fetch_nodes::<L>(vec![main_subtree], storage, config, None)?;
+        skeleton_tree.fetch_nodes::<L>(
+            vec![main_subtree],
+            storage,
+            leaf_modifications,
+            config,
+            None,
+        )?;
         Ok(skeleton_tree)
     }
 
@@ -265,6 +275,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
         storage: &impl Storage,
         root_hash: HashOutput,
         sorted_leaf_indices: SortedLeafIndices<'a>,
+        leaf_modifications: &LeafModifications<L>,
         config: &impl OriginalSkeletonTreeConfig<L>,
     ) -> OriginalSkeletonTreeResult<(Self, HashMap<NodeIndex, L>)> {
         if sorted_leaf_indices.is_empty() {
@@ -280,7 +291,13 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
         let main_subtree = SubTree { sorted_leaf_indices, root_index: NodeIndex::ROOT, root_hash };
         let mut skeleton_tree = Self { nodes: HashMap::new(), sorted_leaf_indices };
         let mut leaves = HashMap::new();
-        skeleton_tree.fetch_nodes::<L>(vec![main_subtree], storage, config, Some(&mut leaves))?;
+        skeleton_tree.fetch_nodes::<L>(
+            vec![main_subtree],
+            storage,
+            leaf_modifications,
+            config,
+            Some(&mut leaves),
+        )?;
         Ok((skeleton_tree, leaves))
     }
 
@@ -322,6 +339,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
     /// If this check is suppressed by configuration, does nothing.
     fn log_warning_for_empty_leaves<L: Leaf, T: Borrow<NodeIndex> + Debug>(
         leaf_indices: &[T],
+        leaf_modifications: &LeafModifications<L>,
         config: &impl OriginalSkeletonTreeConfig<L>,
     ) -> OriginalSkeletonTreeResult<()> {
         if !config.compare_modified_leaves() {
@@ -329,7 +347,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
         }
         let empty_leaf = L::default();
         for leaf_index in leaf_indices {
-            if config.compare_leaf(leaf_index.borrow(), &empty_leaf)? {
+            if L::compare(leaf_modifications, leaf_index.borrow(), &empty_leaf)? {
                 log_trivial_modification!(leaf_index, empty_leaf);
             }
         }

@@ -18,7 +18,7 @@ use papyrus_storage::state::StateStorageReader;
 use papyrus_test_utils::{get_rng, GetTestInstance};
 use rand::RngCore;
 use rand_chacha::ChaCha8Rng;
-use starknet_api::block::{BlockHeader, BlockNumber};
+use starknet_api::block::{BlockHeader, BlockHeaderWithoutHash, BlockNumber};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::{StorageKey, ThinStateDiff};
 use starknet_types_core::felt::Felt;
@@ -47,10 +47,11 @@ async fn state_diff_basic_flow() {
     let TestArgs {
         p2p_sync,
         storage_reader,
-        mut state_diff_receiver,
-        mut header_receiver,
+        mut mock_state_diff_response_manager,
+        mut mock_header_response_manager,
         // The test will fail if we drop these
-        transaction_receiver: _mock_transaction_responses_manager,
+        mock_transaction_response_manager: _mock_transaction_responses_manager,
+        mock_class_response_manager: _mock_class_responses_manager,
         ..
     } = setup();
 
@@ -69,8 +70,8 @@ async fn state_diff_basic_flow() {
         tokio::time::sleep(SLEEP_DURATION_TO_LET_SYNC_ADVANCE).await;
 
         // Check that before we send headers there is no state diff query.
-        assert!(state_diff_receiver.next().now_or_never().is_none());
-        let mut mock_header_responses_manager = header_receiver.next().await.unwrap();
+        assert!(mock_state_diff_response_manager.next().now_or_never().is_none());
+        let mut mock_header_responses_manager = mock_header_response_manager.next().await.unwrap();
 
         // Send headers for entire query.
         for (i, ((block_hash, block_signature), state_diff)) in
@@ -80,8 +81,11 @@ async fn state_diff_basic_flow() {
             mock_header_responses_manager
                 .send_response(DataOrFin(Some(SignedBlockHeader {
                     block_header: BlockHeader {
-                        block_number: BlockNumber(i.try_into().unwrap()),
                         block_hash: *block_hash,
+                        block_header_without_hash: BlockHeaderWithoutHash {
+                            block_number: BlockNumber(i.try_into().unwrap()),
+                            ..Default::default()
+                        },
                         state_diff_length: Some(state_diff.len()),
                         ..Default::default()
                     },
@@ -105,7 +109,8 @@ async fn state_diff_basic_flow() {
             (STATE_DIFF_QUERY_LENGTH, HEADER_QUERY_LENGTH - STATE_DIFF_QUERY_LENGTH),
         ] {
             // Get a state diff query and validate it
-            let mut mock_state_diff_responses_manager = state_diff_receiver.next().await.unwrap();
+            let mut mock_state_diff_responses_manager =
+                mock_state_diff_response_manager.next().await.unwrap();
             assert_eq!(
                 *mock_state_diff_responses_manager.query(),
                 Ok(StateDiffQuery(Query {
@@ -318,10 +323,11 @@ async fn validate_state_diff_fails(
     let TestArgs {
         p2p_sync,
         storage_reader,
-        mut state_diff_receiver,
-        mut header_receiver,
+        mut mock_state_diff_response_manager,
+        mut mock_header_response_manager,
         // The test will fail if we drop these
-        transaction_receiver: _mock_transaction_responses_manager,
+        mock_transaction_response_manager: _mock_transaction_responses_manager,
+        mock_class_response_manager: _mock_class_responses_manager,
         ..
     } = setup();
 
@@ -330,12 +336,15 @@ async fn validate_state_diff_fails(
     // Create a future that will receive queries, send responses and validate the results.
     let parse_queries_future = async move {
         // Send a single header. There's no need to fill the entire query.
-        let mut mock_header_responses_manager = header_receiver.next().await.unwrap();
+        let mut mock_header_responses_manager = mock_header_response_manager.next().await.unwrap();
         mock_header_responses_manager
             .send_response(DataOrFin(Some(SignedBlockHeader {
                 block_header: BlockHeader {
-                    block_number: BlockNumber(0),
                     block_hash,
+                    block_header_without_hash: BlockHeaderWithoutHash {
+                        block_number: BlockNumber(0),
+                        ..Default::default()
+                    },
                     state_diff_length: Some(state_diff_length_in_header),
                     ..Default::default()
                 },
@@ -354,7 +363,8 @@ async fn validate_state_diff_fails(
         tokio::time::resume();
 
         // Get a state diff query and validate it
-        let mut mock_state_diff_responses_manager = state_diff_receiver.next().await.unwrap();
+        let mut mock_state_diff_responses_manager =
+            mock_state_diff_response_manager.next().await.unwrap();
         assert_eq!(
             *mock_state_diff_responses_manager.query(),
             Ok(StateDiffQuery(Query {

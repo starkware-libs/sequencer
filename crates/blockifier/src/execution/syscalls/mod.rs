@@ -2,6 +2,7 @@ use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::vm_core::VirtualMachine;
 use num_traits::ToPrimitive;
 use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{
     calculate_contract_address,
     ClassHash,
@@ -9,7 +10,6 @@ use starknet_api::core::{
     EntryPointSelector,
     EthAddress,
 };
-use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{
     Calldata,
@@ -48,7 +48,6 @@ use crate::execution::execution_utils::{
     ReadOnlySegment,
 };
 use crate::execution::syscalls::hint_processor::{INVALID_INPUT_LENGTH_ERROR, OUT_OF_GAS_ERROR};
-use crate::transaction::transaction_utils::update_remaining_gas;
 use crate::versioned_constants::{EventLimits, VersionedConstants};
 
 pub mod hint_processor;
@@ -97,13 +96,13 @@ impl<T: SyscallResponse> SyscallResponse for SyscallResponseWrapper<T> {
             Self::Success { gas_counter, response } => {
                 write_felt(vm, ptr, Felt::from(gas_counter))?;
                 // 0 to indicate success.
-                write_felt(vm, ptr, Felt::from(0_u8))?;
+                write_felt(vm, ptr, Felt::ZERO)?;
                 response.write(vm, ptr)
             }
             Self::Failure { gas_counter, error_data } => {
                 write_felt(vm, ptr, Felt::from(gas_counter))?;
                 // 1 to indicate failure.
-                write_felt(vm, ptr, Felt::from(1_u8))?;
+                write_felt(vm, ptr, Felt::ONE)?;
 
                 // Write the error data to a new memory segment.
                 let revert_reason_start = vm.add_memory_segment();
@@ -196,11 +195,14 @@ pub fn call_contract(
         storage_address,
         caller_address: syscall_handler.storage_address(),
         call_type: CallType::Call,
+        // NOTE: this value might be overridden later on.
         initial_gas: *remaining_gas,
     };
+
     let retdata_segment = execute_inner_call(entry_point, vm, syscall_handler, remaining_gas)
-        .map_err(|error| {
-            error.as_call_contract_execution_error(class_hash, storage_address, selector)
+        .map_err(|error| match error {
+            SyscallExecutionError::SyscallError { .. } => error,
+            _ => error.as_call_contract_execution_error(class_hash, storage_address, selector),
         })?;
 
     Ok(CallContractResponse { segment: retdata_segment })
@@ -278,13 +280,11 @@ pub fn deploy(
         syscall_handler.context,
         ctor_context,
         request.constructor_calldata,
-        *remaining_gas,
+        remaining_gas,
     )?;
 
     let constructor_retdata =
         create_retdata_segment(vm, syscall_handler, &call_info.execution.retdata.0)?;
-    update_remaining_gas(remaining_gas, &call_info);
-
     syscall_handler.inner_calls.push(call_info);
 
     Ok(DeployResponse { contract_address: deployed_contract_address, constructor_retdata })
@@ -491,28 +491,6 @@ pub fn library_call(
     Ok(LibraryCallResponse { segment: retdata_segment })
 }
 
-// LibraryCallL1Handler syscall.
-
-pub fn library_call_l1_handler(
-    request: LibraryCallRequest,
-    vm: &mut VirtualMachine,
-    syscall_handler: &mut SyscallHintProcessor<'_>,
-    remaining_gas: &mut u64,
-) -> SyscallResult<LibraryCallResponse> {
-    let call_to_external = false;
-    let retdata_segment = execute_library_call(
-        syscall_handler,
-        vm,
-        request.class_hash,
-        call_to_external,
-        request.function_selector,
-        request.calldata,
-        remaining_gas,
-    )?;
-
-    Ok(LibraryCallResponse { segment: retdata_segment })
-}
-
 // ReplaceClass syscall.
 
 #[derive(Debug, Eq, PartialEq)]
@@ -544,7 +522,7 @@ pub fn replace_class(
         ContractClass::V0(_) => {
             Err(SyscallExecutionError::ForbiddenClassReplacement { class_hash })
         }
-        ContractClass::V1(_) => {
+        ContractClass::V1(_) | ContractClass::V1Native(_) => {
             syscall_handler
                 .state
                 .set_class_hash_at(syscall_handler.storage_address(), class_hash)?;
@@ -601,7 +579,7 @@ pub struct StorageReadRequest {
 impl SyscallRequest for StorageReadRequest {
     fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallResult<StorageReadRequest> {
         let address_domain = felt_from_ptr(vm, ptr)?;
-        if address_domain != Felt::from(0_u8) {
+        if address_domain != Felt::ZERO {
             return Err(SyscallExecutionError::InvalidAddressDomain { address_domain });
         }
         let address = StorageKey::try_from(felt_from_ptr(vm, ptr)?)?;
@@ -642,7 +620,7 @@ pub struct StorageWriteRequest {
 impl SyscallRequest for StorageWriteRequest {
     fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallResult<StorageWriteRequest> {
         let address_domain = felt_from_ptr(vm, ptr)?;
-        if address_domain != Felt::from(0_u8) {
+        if address_domain != Felt::ZERO {
             return Err(SyscallExecutionError::InvalidAddressDomain { address_domain });
         }
         let address = StorageKey::try_from(felt_from_ptr(vm, ptr)?)?;

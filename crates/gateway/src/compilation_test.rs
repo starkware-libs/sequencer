@@ -4,18 +4,17 @@ use mempool_test_utils::starknet_api_test_utils::{
     declare_tx as rpc_declare_tx,
 };
 use rstest::{fixture, rstest};
-use starknet_api::core::CompiledClassHash;
 use starknet_api::rpc_transaction::{
     RpcDeclareTransaction,
     RpcDeclareTransactionV3,
     RpcTransaction,
 };
+use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 use starknet_sierra_compile::errors::CompilationUtilError;
 use tracing_test::traced_test;
 
 use crate::compilation::GatewayCompiler;
-use crate::errors::GatewaySpecError;
 
 #[fixture]
 fn gateway_compiler() -> GatewayCompiler {
@@ -77,8 +76,7 @@ fn test_process_declare_tx_success(
     let declare_tx = RpcDeclareTransaction::V3(declare_tx_v3);
 
     let class_info = gateway_compiler.process_declare_tx(&declare_tx).unwrap();
-    let compiled_class_hash =
-        CompiledClassHash(class_info.casm_contract_class.compiled_class_hash());
+    let compiled_class_hash = class_info.contract_class.compiled_class_hash();
     assert_eq!(compiled_class_hash, *test_contract_compiled_class_hash());
     assert_eq!(class_info.sierra_program_length, sierra_program_length);
     assert_eq!(class_info.abi_length, abi_length);

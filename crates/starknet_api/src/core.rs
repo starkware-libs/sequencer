@@ -2,11 +2,9 @@
 #[path = "core_test.rs"]
 mod core_test;
 
-use core::fmt::Display;
 use std::fmt::Debug;
 use std::sync::LazyLock;
 
-use derive_more::Display;
 use primitive_types::H160;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use starknet_types_core::felt::{Felt, NonZeroFelt};
@@ -17,6 +15,12 @@ use crate::hash::{PoseidonHash, StarkHash};
 use crate::serde_utils::{BytesAsHex, PrefixedBytesAsHex};
 use crate::transaction::{Calldata, ContractAddressSalt};
 use crate::{impl_from_through_intermediate, StarknetApiError};
+
+/// Felt.
+pub fn ascii_as_felt(ascii_str: &str) -> Result<Felt, StarknetApiError> {
+    Felt::from_hex(hex::encode(ascii_str).as_str())
+        .map_err(|_| StarknetApiError::OutOfRange { string: ascii_str.to_string() })
+}
 
 /// A chain id.
 #[derive(Clone, Debug, Eq, PartialEq, Hash, PartialOrd, Ord)]
@@ -55,7 +59,7 @@ impl From<String> for ChainId {
         }
     }
 }
-impl Display for ChainId {
+impl std::fmt::Display for ChainId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ChainId::Mainnet => write!(f, "SN_MAIN"),
@@ -91,7 +95,7 @@ pub const BLOCK_HASH_TABLE_ADDRESS: ContractAddress = ContractAddress(PatriciaKe
     Default,
     Copy,
     Clone,
-    Display,
+    derive_more::Display,
     Eq,
     PartialEq,
     Hash,
@@ -171,7 +175,7 @@ pub fn calculate_contract_address(
     Serialize,
     PartialOrd,
     Ord,
-    Display,
+    derive_more::Display,
     derive_more::Deref,
 )]
 pub struct ClassHash(pub StarkHash);
@@ -189,7 +193,7 @@ pub struct ClassHash(pub StarkHash);
     Serialize,
     PartialOrd,
     Ord,
-    Display,
+    derive_more::Display,
 )]
 pub struct CompiledClassHash(pub StarkHash);
 
@@ -197,6 +201,7 @@ pub struct CompiledClassHash(pub StarkHash);
 #[derive(
     Debug,
     Default,
+    derive_more::Display,
     Copy,
     Clone,
     Eq,
@@ -249,7 +254,7 @@ pub struct EntryPointSelector(pub StarkHash);
     Serialize,
     PartialOrd,
     Ord,
-    Display,
+    derive_more::Display,
 )]
 pub struct GlobalRoot(pub StarkHash);
 
@@ -266,7 +271,7 @@ pub struct GlobalRoot(pub StarkHash);
     Serialize,
     PartialOrd,
     Ord,
-    Display,
+    derive_more::Display,
 )]
 pub struct TransactionCommitment(pub StarkHash);
 
@@ -283,7 +288,7 @@ pub struct TransactionCommitment(pub StarkHash);
     Serialize,
     PartialOrd,
     Ord,
-    Display,
+    derive_more::Display,
 )]
 pub struct EventCommitment(pub StarkHash);
 
@@ -300,11 +305,13 @@ pub struct EventCommitment(pub StarkHash);
     Serialize,
     PartialOrd,
     Ord,
-    Display,
+    derive_more::Display,
 )]
 pub struct ReceiptCommitment(pub StarkHash);
 
-#[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
+#[derive(
+    Debug, Copy, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord,
+)]
 pub struct StateDiffCommitment(pub PoseidonHash);
 
 /// A key for nodes of a Patricia tree.
@@ -312,7 +319,7 @@ pub struct StateDiffCommitment(pub PoseidonHash);
 #[derive(
     Copy,
     Clone,
-    Display,
+    derive_more::Display,
     Eq,
     PartialEq,
     Default,

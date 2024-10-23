@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use cairo_native::error::Error as NativeError;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::errors::math_errors::MathError;
 use cairo_vm::vm::errors::cairo_run_errors::CairoRunError;
@@ -8,13 +9,12 @@ use cairo_vm::vm::errors::runner_errors::RunnerError;
 use cairo_vm::vm::errors::trace_errors::TraceError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use num_bigint::{BigInt, TryFromBigIntError};
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
-use starknet_api::deprecated_contract_class::EntryPointType;
-use starknet_types_core::felt::Felt;
 use thiserror::Error;
 
 use crate::execution::entry_point::ConstructorContext;
-use crate::execution::execution_utils::format_panic_data;
+use crate::execution::stack_trace::Cairo1RevertStack;
 use crate::state::errors::StateError;
 
 // TODO(AlonH, 21/12/2022): Implement Display for all types that appear in errors.
@@ -58,7 +58,7 @@ impl From<RunnerError> for PreExecutionError {
 #[derive(Debug, Error)]
 pub enum PostExecutionError {
     #[error(transparent)]
-    MathError(#[from] cairo_vm::types::errors::math_errors::MathError),
+    MathError(#[from] MathError),
     #[error(transparent)]
     MemoryError(#[from] MemoryError),
     #[error(transparent)]
@@ -81,12 +81,14 @@ impl From<RunnerError> for PostExecutionError {
 pub enum EntryPointExecutionError {
     #[error(transparent)]
     CairoRunError(#[from] CairoRunError),
-    #[error("Execution failed. Failure reason: {}.", format_panic_data(.error_data))]
-    ExecutionFailed { error_data: Vec<Felt> },
+    #[error("Execution failed. Failure reason:\n{error_trace}.")]
+    ExecutionFailed { error_trace: Cairo1RevertStack },
     #[error("Internal error: {0}")]
     InternalError(String),
     #[error("Invalid input: {input_descriptor}; {info}")]
     InvalidExecutionInput { input_descriptor: String, info: String },
+    #[error(transparent)]
+    NativeUnexpectedError(#[from] NativeError),
     #[error(transparent)]
     PostExecutionError(#[from] PostExecutionError),
     #[error(transparent)]

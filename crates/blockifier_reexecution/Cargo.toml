@@ -1,0 +1,33 @@
+[package]
+name = "blockifier_reexecution"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[features]
+blockifier_regression_https_testing = []
+
+[dependencies]
+blockifier.workspace = true
+cairo-lang-starknet-classes.workspace = true
+cairo-lang-utils.workspace = true
+cairo-vm.workspace = true
+flate2.workspace = true
+indexmap = { workspace = true, features = ["serde"] }
+papyrus_execution.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+starknet-core.workspace = true
+starknet-types-core.workspace = true
+starknet_api.workspace = true
+starknet_gateway.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+assert_matches.workspace = true
+pretty_assertions.workspace = true
+rstest.workspace = true
+
+[lints]
+workspace = true

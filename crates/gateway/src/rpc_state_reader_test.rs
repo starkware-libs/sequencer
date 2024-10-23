@@ -4,7 +4,7 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use papyrus_rpc::CompiledContractClass;
 use serde::Serialize;
 use serde_json::json;
-use starknet_api::block::{BlockNumber, GasPrice};
+use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce, PatriciaKey};
 use starknet_api::{class_hash, contract_address, felt, patricia_key};
 
@@ -67,12 +67,16 @@ async fn test_get_block_info() {
                 block_number: expected_result,
                 // GasPrice must be non-zero.
                 l1_gas_price: ResourcePrice {
-                    price_in_wei: GasPrice(1),
-                    price_in_fri: GasPrice(1),
+                    price_in_wei: 1_u8.into(),
+                    price_in_fri: 1_u8.into(),
                 },
                 l1_data_gas_price: ResourcePrice {
-                    price_in_wei: GasPrice(1),
-                    price_in_fri: GasPrice(1),
+                    price_in_wei: 1_u8.into(),
+                    price_in_fri: 1_u8.into(),
+                },
+                l2_gas_price: ResourcePrice {
+                    price_in_wei: 1_u8.into(),
+                    price_in_fri: 1_u8.into(),
                 },
                 ..Default::default()
             })
@@ -154,7 +158,8 @@ async fn test_get_compiled_contract_class() {
     let mut server = run_rpc_server().await;
     let config = RpcStateReaderConfig { url: server.url(), ..Default::default() };
 
-    let expected_result = CasmContractClass::default();
+    let expected_result =
+        CasmContractClass { compiler_version: "0.0.0".to_string(), ..Default::default() };
 
     let mock = mock_rpc_interaction(
         &mut server,
@@ -165,7 +170,8 @@ async fn test_get_compiled_contract_class() {
             class_hash: class_hash!("0x1"),
         },
         &RpcResponse::Success(RpcSuccessResponse {
-            result: serde_json::to_value(CompiledContractClass::V1(expected_result)).unwrap(),
+            result: serde_json::to_value(CompiledContractClass::V1(expected_result.clone()))
+                .unwrap(),
             ..Default::default()
         }),
     );
@@ -176,7 +182,7 @@ async fn test_get_compiled_contract_class() {
             .await
             .unwrap()
             .unwrap();
-    assert_eq!(result, ContractClass::V1(CasmContractClass::default().try_into().unwrap()));
+    assert_eq!(result, ContractClass::V1(expected_result.try_into().unwrap()));
     mock.assert_async().await;
 }
 

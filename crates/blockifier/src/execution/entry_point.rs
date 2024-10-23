@@ -1,30 +1,41 @@
 use std::cell::RefCell;
 use std::cmp::min;
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use cairo_vm::vm::runners::cairo_runner::{ExecutionResources, ResourceTracker, RunResources};
 use num_traits::{Inv, Zero};
 use serde::Serialize;
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
-use starknet_api::deprecated_contract_class::EntryPointType;
-use starknet_api::transaction::{Calldata, TransactionVersion};
+use starknet_api::state::StorageKey;
+use starknet_api::transaction::{
+    AllResourceBounds,
+    Calldata,
+    ResourceBounds,
+    TransactionVersion,
+    ValidResourceBounds,
+};
 use starknet_types_core::felt::Felt;
 
 use crate::abi::abi_utils::selector_from_name;
 use crate::abi::constants;
+use crate::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::CallInfo;
 use crate::execution::common_hints::ExecutionMode;
+use crate::execution::contract_class::TrackedResource;
 use crate::execution::errors::{
     ConstructorEntryPointExecutionError,
     EntryPointExecutionError,
     PreExecutionError,
 };
-use crate::execution::execution_utils::execute_entry_point_call;
-use crate::state::state_api::State;
+use crate::execution::execution_utils::execute_entry_point_call_wrapper;
+use crate::execution::stack_trace::extract_trailing_cairo1_revert_trace;
+use crate::state::state_api::{State, StateResult};
 use crate::transaction::objects::{HasRelatedFeeType, TransactionInfo};
 use crate::transaction::transaction_types::TransactionType;
-use crate::utils::{u128_from_usize, usize_from_u128};
+use crate::utils::usize_from_u64;
 use crate::versioned_constants::{GasCosts, VersionedConstants};
 
 #[cfg(test)]
@@ -36,6 +47,43 @@ pub const FAULTY_CLASS_HASH: &str =
 
 pub type EntryPointExecutionResult<T> = Result<T, EntryPointExecutionError>;
 pub type ConstructorEntryPointExecutionResult<T> = Result<T, ConstructorEntryPointExecutionError>;
+
+/// Holds the the information required to revert the execution of an entry point.
+#[derive(Debug)]
+pub struct EntryPointRevertInfo {
+    // The contract address that the revert info applies to.
+    pub contract_address: ContractAddress,
+    /// The original class hash of the contract that was called.
+    pub original_class_hash: ClassHash,
+    /// The original storage values.
+    pub original_values: HashMap<StorageKey, Felt>,
+    // The number of emitted events before the call.
+    n_emitted_events: usize,
+    // The number of sent messages to L1 before the call.
+    n_sent_messages_to_l1: usize,
+}
+impl EntryPointRevertInfo {
+    pub fn new(
+        contract_address: ContractAddress,
+        original_class_hash: ClassHash,
+        n_emitted_events: usize,
+        n_sent_messages_to_l1: usize,
+    ) -> Self {
+        Self {
+            contract_address,
+            original_class_hash,
+            original_values: HashMap::new(),
+            n_emitted_events,
+            n_sent_messages_to_l1,
+        }
+    }
+}
+
+/// The ExecutionRevertInfo stores a vector of entry point revert infos.
+/// We don't merge infos related same contract as doing it on every nesting level would
+/// result in O(N^2) complexity.
+#[derive(Default, Debug)]
+pub struct ExecutionRevertInfo(pub Vec<EntryPointRevertInfo>);
 
 /// Represents a the type of the call (used for debugging).
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
@@ -71,6 +119,7 @@ impl CallEntryPoint {
         state: &mut dyn State,
         resources: &mut ExecutionResources,
         context: &mut EntryPointExecutionContext,
+        remaining_gas: &mut u64,
     ) -> EntryPointExecutionResult<CallInfo> {
         let tx_context = &context.tx_context;
         let mut decrement_when_dropped = RecursionDepthGuard::new(
@@ -102,7 +151,52 @@ impl CallEntryPoint {
         self.class_hash = Some(class_hash);
         let contract_class = state.get_compiled_contract_class(class_hash)?;
 
-        execute_entry_point_call(self, contract_class, state, resources, context)
+        context.revert_infos.0.push(EntryPointRevertInfo::new(
+            self.storage_address,
+            storage_class_hash,
+            context.n_emitted_events,
+            context.n_sent_messages_to_l1,
+        ));
+
+        // This is the last operation of this function.
+        execute_entry_point_call_wrapper(
+            self,
+            contract_class,
+            state,
+            resources,
+            context,
+            remaining_gas,
+        )
+    }
+
+    /// Similar to `execute`, but returns an error if the outer call is reverted.
+    pub fn non_reverting_execute(
+        self,
+        state: &mut dyn State,
+        resources: &mut ExecutionResources,
+        context: &mut EntryPointExecutionContext,
+        remaining_gas: &mut u64,
+    ) -> EntryPointExecutionResult<CallInfo> {
+        let execution_result = self.execute(state, resources, context, remaining_gas);
+        if let Ok(call_info) = &execution_result {
+            // If the execution of the outer call failed, revert the transction.
+            if call_info.execution.failed {
+                return Err(EntryPointExecutionError::ExecutionFailed {
+                    error_trace: extract_trailing_cairo1_revert_trace(call_info),
+                });
+            }
+        }
+
+        execution_result
+    }
+    pub fn verify_constructor(&self) -> Result<(), PreExecutionError> {
+        if self.entry_point_type == EntryPointType::Constructor
+            && self.entry_point_selector != selector_from_name(CONSTRUCTOR_ENTRY_POINT_NAME)
+        {
+            Err(PreExecutionError::InvalidConstructorEntryPointName)
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -130,6 +224,11 @@ pub struct EntryPointExecutionContext {
 
     // The execution mode affects the behavior of the hint processor.
     pub execution_mode: ExecutionMode,
+    // The call stack of tracked resources from the first entry point to the current.
+    pub tracked_resource_stack: Vec<TrackedResource>,
+
+    // Information for reverting the state (inludes the revert info of the callers).
+    pub revert_infos: ExecutionRevertInfo,
 }
 
 impl EntryPointExecutionContext {
@@ -146,6 +245,8 @@ impl EntryPointExecutionContext {
             tx_context: tx_context.clone(),
             current_recursion_depth: Default::default(),
             execution_mode: mode,
+            tracked_resource_stack: vec![],
+            revert_infos: ExecutionRevertInfo(vec![]),
         }
     }
 
@@ -163,6 +264,7 @@ impl EntryPointExecutionContext {
     /// Returns the maximum number of cairo steps allowed, given the max fee, gas price and the
     /// execution mode.
     /// If fee is disabled, returns the global maximum.
+    /// The bound computation is saturating (no panic on overflow).
     fn max_steps(
         tx_context: &TransactionContext,
         mode: &ExecutionMode,
@@ -171,68 +273,64 @@ impl EntryPointExecutionContext {
         let TransactionContext { block_context, tx_info } = tx_context;
         let BlockContext { block_info, versioned_constants, .. } = block_context;
         let block_upper_bound = match mode {
-            // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion
-            // works.
-            ExecutionMode::Validate => versioned_constants
-                .validate_max_n_steps
-                .try_into()
-                .expect("Failed to convert validate_max_n_steps (u32) to usize."),
-            ExecutionMode::Execute => versioned_constants
-                .invoke_tx_max_n_steps
-                .try_into()
-                .expect("Failed to convert invoke_tx_max_n_steps (u32) to usize."),
-        };
+            ExecutionMode::Validate => versioned_constants.validate_max_n_steps,
+            ExecutionMode::Execute => versioned_constants.invoke_tx_max_n_steps,
+        }
+        .try_into()
+        .unwrap_or_else(|error| {
+            log::warn!("Failed to convert global step limit to to usize: {error}.");
+            usize::MAX
+        });
 
-        if !limit_steps_by_resources || !tx_info.enforce_fee() {
+        if !limit_steps_by_resources {
             return block_upper_bound;
         }
 
-        let gas_per_step = versioned_constants
-            .vm_resource_fee_cost()
-            .get(constants::N_STEPS_RESOURCE)
-            .unwrap_or_else(|| {
-                panic!("{} must appear in `vm_resource_fee_cost`.", constants::N_STEPS_RESOURCE)
-            });
+        // Deprecated transactions derive the step limit from the `max_fee`, by computing the L1 gas
+        // limit induced by the max fee and translating into cairo steps.
+        // New transactions with only L1 bounds use the L1 resource bounds directly.
+        // New transactions with L2 bounds use the L2 bounds directly.
+        let l1_gas_per_step = versioned_constants.vm_resource_fee_cost().n_steps;
+        let l2_gas_per_step = versioned_constants.os_constants.gas_costs.step_gas_cost;
 
-        // New transactions derive the step limit by the L1 gas resource bounds; deprecated
-        // transactions derive this value from the `max_fee`.
-        let tx_gas_upper_bound = match tx_info {
+        let tx_upper_bound_u64 = match tx_info {
+            // Fee is a larger uint type than GasAmount, so we need to saturate the division.
+            // This is just a computation of an upper bound, so it's safe to saturate.
             TransactionInfo::Deprecated(context) => {
-                let max_cairo_steps = context.max_fee.0
-                    / block_info.gas_prices.get_l1_gas_price_by_fee_type(&tx_info.fee_type());
-                // FIXME: This is saturating in the python bootstrapping test. Fix the value so
-                // that it'll fit in a usize and remove the `as`.
-                usize::try_from(max_cairo_steps).unwrap_or_else(|_| {
-                    log::error!(
-                        "Performed a saturating cast from u128 to usize: {max_cairo_steps:?}"
+                if l1_gas_per_step.is_zero() {
+                    u64::MAX
+                } else {
+                    let induced_l1_gas_limit = context.max_fee.saturating_div(
+                        block_info.gas_prices.get_l1_gas_price_by_fee_type(&tx_info.fee_type()),
                     );
-                    usize::MAX
-                })
+                    (l1_gas_per_step.inv() * induced_l1_gas_limit.0).to_integer()
+                }
             }
-            TransactionInfo::Current(context) => {
-                // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the
-                // convertion works.
-                context
-                    .l1_resource_bounds()
-                    .max_amount
-                    .try_into()
-                    .expect("Failed to convert u64 to usize.")
-            }
+            TransactionInfo::Current(context) => match context.resource_bounds {
+                ValidResourceBounds::L1Gas(ResourceBounds { max_amount, .. }) => {
+                    if l1_gas_per_step.is_zero() {
+                        u64::MAX
+                    } else {
+                        (l1_gas_per_step.inv() * max_amount.0).to_integer()
+                    }
+                }
+                ValidResourceBounds::AllResources(AllResourceBounds {
+                    l2_gas: ResourceBounds { max_amount, .. },
+                    ..
+                }) => {
+                    if l2_gas_per_step.is_zero() {
+                        u64::MAX
+                    } else {
+                        max_amount.0.saturating_div(l2_gas_per_step)
+                    }
+                }
+            },
         };
 
         // Use saturating upper bound to avoid overflow. This is safe because the upper bound is
         // bounded above by the block's limit, which is a usize.
-
-        let upper_bound_u128 = if gas_per_step.is_zero() {
-            u128::MAX
-        } else {
-            (gas_per_step.inv() * u128_from_usize(tx_gas_upper_bound)).to_integer()
-        };
-        let tx_upper_bound = usize_from_u128(upper_bound_u128).unwrap_or_else(|_| {
-            log::warn!(
-                "Failed to convert u128 to usize: {upper_bound_u128}. Upper bound from tx is \
-                 {tx_gas_upper_bound}, gas per step is {gas_per_step}."
-            );
+        let tx_upper_bound = usize_from_u64(tx_upper_bound_u64).unwrap_or_else(|_| {
+            log::warn!("Failed to convert u64 to usize: {tx_upper_bound_u64}.");
             usize::MAX
         });
         min(tx_upper_bound, block_upper_bound)
@@ -287,6 +385,24 @@ impl EntryPointExecutionContext {
     pub fn gas_costs(&self) -> &GasCosts {
         &self.versioned_constants().os_constants.gas_costs
     }
+
+    /// Reverts the state back to the way it was when self.revert_infos.0['revert_idx'] was created.
+    pub fn revert(&mut self, revert_idx: usize, state: &mut dyn State) -> StateResult<()> {
+        for contract_revert_info in self.revert_infos.0.drain(revert_idx..).rev() {
+            for (key, value) in contract_revert_info.original_values.iter() {
+                state.set_storage_at(contract_revert_info.contract_address, *key, *value)?;
+            }
+            state.set_class_hash_at(
+                contract_revert_info.contract_address,
+                contract_revert_info.original_class_hash,
+            )?;
+
+            self.n_emitted_events = contract_revert_info.n_emitted_events;
+            self.n_sent_messages_to_l1 = contract_revert_info.n_sent_messages_to_l1;
+        }
+
+        Ok(())
+    }
 }
 
 pub fn execute_constructor_entry_point(
@@ -295,7 +411,7 @@ pub fn execute_constructor_entry_point(
     context: &mut EntryPointExecutionContext,
     ctor_context: ConstructorContext,
     calldata: Calldata,
-    remaining_gas: u64,
+    remaining_gas: &mut u64,
 ) -> ConstructorEntryPointExecutionResult<CallInfo> {
     // Ensure the class is declared (by reading it).
     let contract_class =
@@ -304,7 +420,7 @@ pub fn execute_constructor_entry_point(
         })?;
     let Some(constructor_selector) = contract_class.constructor_selector() else {
         // Contract has no constructor.
-        return handle_empty_constructor(&ctor_context, calldata, remaining_gas)
+        return handle_empty_constructor(&ctor_context, calldata, *remaining_gas)
             .map_err(|error| ConstructorEntryPointExecutionError::new(error, &ctor_context, None));
     };
 
@@ -317,12 +433,18 @@ pub fn execute_constructor_entry_point(
         storage_address: ctor_context.storage_address,
         caller_address: ctor_context.caller_address,
         call_type: CallType::Call,
-        initial_gas: remaining_gas,
+        initial_gas: *remaining_gas,
     };
 
-    constructor_call.execute(state, resources, context).map_err(|error| {
-        ConstructorEntryPointExecutionError::new(error, &ctor_context, Some(constructor_selector))
-    })
+    constructor_call.non_reverting_execute(state, resources, context, remaining_gas).map_err(
+        |error| {
+            ConstructorEntryPointExecutionError::new(
+                error,
+                &ctor_context,
+                Some(constructor_selector),
+            )
+        },
+    )
 }
 
 pub fn handle_empty_constructor(

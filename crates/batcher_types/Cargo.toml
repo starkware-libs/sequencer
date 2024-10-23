@@ -11,8 +11,12 @@ workspace = true
 
 [dependencies]
 async-trait.workspace = true
+blockifier.workspace = true
+chrono = { workspace = true, features = ["serde"] }
+derive_more.workspace = true
 mockall.workspace = true
 papyrus_proc_macros.workspace = true
 serde = { workspace = true, features = ["derive"] }
-starknet_mempool_infra.workspace = true
+starknet_api.workspace = true
+starknet_sequencer_infra.workspace = true
 thiserror.workspace = true

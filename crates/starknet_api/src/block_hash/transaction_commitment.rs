@@ -15,7 +15,7 @@ mod transaction_commitment_test;
 #[derive(Clone)]
 pub struct TransactionLeafElement {
     pub(crate) transaction_hash: TransactionHash,
-    pub(crate) transaction_signature: Option<TransactionSignature>,
+    pub(crate) transaction_signature: TransactionSignature,
 }
 
 impl From<&TransactionHashingData> for TransactionLeafElement {
@@ -41,13 +41,6 @@ pub fn calculate_transaction_commitment<H: CoreStarkHash>(
 fn calculate_transaction_leaf(transaction_leaf_elements: &TransactionLeafElement) -> Felt {
     HashChain::new()
         .chain(&transaction_leaf_elements.transaction_hash.0)
-        .chain_iter(
-            transaction_leaf_elements
-                .transaction_signature
-                .as_ref()
-                .unwrap_or(&TransactionSignature(vec![Felt::ZERO]))
-                .0
-                .iter(),
-        )
+        .chain_iter(transaction_leaf_elements.transaction_signature.0.iter())
         .get_poseidon_hash()
 }

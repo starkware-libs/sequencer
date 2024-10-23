@@ -7,16 +7,21 @@ members = [
   "crates/batcher",
   "crates/batcher_types",
   "crates/blockifier",
+  "crates/blockifier_reexecution",
   "crates/committer_cli",
   "crates/consensus_manager",
-  "crates/consensus_manager_types",
   "crates/gateway",
+  "crates/gateway_types",
+  "crates/http_server",
+  "crates/l1-provider",
   "crates/mempool",
   "crates/mempool_infra",
   "crates/mempool_node",
   "crates/mempool_p2p",
+  "crates/mempool_p2p_types",
   "crates/mempool_test_utils",
   "crates/mempool_types",
+  "crates/monitoring_endpoint",
   "crates/native_blockifier",
   "crates/papyrus_base_layer",
   "crates/papyrus_common",
@@ -25,6 +30,7 @@ members = [
   "crates/papyrus_load_test",
   "crates/papyrus_monitoring_gateway",
   "crates/papyrus_network",
+  "crates/papyrus_network_types",
   "crates/papyrus_node",
   "crates/papyrus_p2p_sync",
   "crates/papyrus_proc_macros",
@@ -34,6 +40,7 @@ members = [
   "crates/papyrus_sync",
   "crates/papyrus_test_utils",
   "crates/sequencing/papyrus_consensus",
+  "crates/sequencing/papyrus_consensus_orchestrator",
   "crates/starknet_api",
   "crates/starknet_client",
   "crates/starknet_committer",
@@ -54,6 +61,14 @@ license-file = "LICENSE"
 [workspace.dependencies]
 # fixating the version of parity-scale-codec and parity-scale-codec-derive due to an error in udeps.
 # TODO: Remove this once udeps is fixed.
+alloy-contract = "0.3.5"
+alloy-dyn-abi = "0.8.3"
+alloy-json-rpc = "0.3.5"
+alloy-primitives = "0.8.3"
+alloy-provider = "0.3.5"
+alloy-sol-types = "0.8.3"
+alloy-transport = "0.3.5"
+alloy-transport-http = "0.3.5"
 anyhow = "1.0.44"
 ark-ec = "0.4.2"
 ark-ff = "0.4.0-alpha.7"
@@ -64,6 +79,7 @@ assert_matches = "1.5.0"
 async-recursion = "1.1.0"
 async-stream = "0.3.3"
 async-trait = "0.1.79"
+atomic_refcell = "0.1.13"
 axum = "0.6.12"
 base64 = "0.13.0"
 bincode = "1.3.3"
@@ -74,12 +90,13 @@ byteorder = "1.4.3"
 bytes = "1"
 cached = "0.44.0"
 cairo-felt = "0.9.1"
-cairo-lang-casm = "2.7.0"
-cairo-lang-runner = "2.7.0"
-cairo-lang-sierra = "=2.7.0"
-cairo-lang-sierra-to-casm = "2.7.0"
-cairo-lang-starknet-classes = "2.7.0"
-cairo-lang-utils = "2.7.0"
+cairo-lang-casm = "2.8.2"
+cairo-lang-runner = "2.8.2"
+cairo-lang-sierra = "=2.8.2"
+cairo-lang-sierra-to-casm = "2.8.2"
+cairo-lang-starknet-classes = "2.8.2"
+cairo-lang-utils = "2.8.2"
+cairo-native = "0.2.0-alpha.2"
 cairo-vm = "=1.0.1"
 camelpaste = "0.1.0"
 chrono = "0.4.26"
@@ -96,6 +113,7 @@ ethers = "2.0.3"
 ethers-core = "2.0.3"
 ethnum = "1.5.0"
 flate2 = "1.0.24"
+fs2 = "0.4"
 futures = "0.3.21"
 futures-channel = "0.3.21"
 futures-util = "0.3.21"
@@ -113,7 +131,7 @@ itertools = "0.12.1"
 jsonrpsee = "0.20.3"
 jsonschema = "0.17.0"
 keccak = "0.1.3"
-lazy_static = "1.4.0"
+lazy_static = "1.5.0"
 libmdbx = "0.3.5"
 libp2p = "0.53.2"
 libp2p-swarm-test = "0.3.0"
@@ -126,6 +144,7 @@ metrics-exporter-prometheus = "0.12.1"
 metrics-process = "1.0.11"
 mockall = "0.12.1"
 mockito = "1.4.0"
+nix = "0.20.0"
 num-bigint = "0.4"
 num-integer = "0.1.45"
 num-rational = "0.4"
@@ -137,9 +156,11 @@ papyrus_base_layer = { path = "crates/papyrus_base_layer", version = "0.0.0" }
 papyrus_common = { path = "crates/papyrus_common", version = "0.0.0" }
 papyrus_config = { path = "crates/papyrus_config", version = "0.0.0" }
 papyrus_consensus = { path = "crates/sequencing/papyrus_consensus", version = "0.0.0" }
+papyrus_consensus_orchestrator = { path = "crates/sequencing/papyrus_consensus_orchestrator", version = "0.0.0" }
 papyrus_execution = { path = "crates/papyrus_execution", version = "0.0.0" }
 papyrus_monitoring_gateway = { path = "crates/papyrus_monitoring_gateway", version = "0.0.0" }
 papyrus_network = { path = "crates/papyrus_network", version = "0.0.0" }
+papyrus_network_types = { path = "crates/papyrus_network_types", version = "0.0.0" }
 papyrus_p2p_sync = { path = "crates/papyrus_p2p_sync", version = "0.0.0" }
 papyrus_proc_macros = { path = "crates/papyrus_proc_macros", version = "0.0.0" }
 papyrus_protobuf = { path = "crates/papyrus_protobuf", version = "0.0.0" }
@@ -170,6 +191,7 @@ reqwest = "0.11"
 rstest = "0.17.0"
 rustc-hex = "2.1.0"
 schemars = "0.8.12"
+semver = "1.0.23"
 serde = "1.0.197"
 serde_json = "1.0.116"
 serde_repr = "0.1.19"
@@ -178,21 +200,25 @@ sha2 = "0.10.8"
 sha3 = "0.10.8"
 simple_logger = "4.0.0"
 starknet-core = "0.6.0"
-starknet-crypto = "0.5.1"
-starknet-types-core = "0.1.5"
+starknet-crypto = "0.7.1"
+starknet-types-core = "0.1.6"
 starknet_api = { path = "crates/starknet_api", version = "0.0.0" }
 starknet_batcher = { path = "crates/batcher", version = "0.0.0" }
 starknet_batcher_types = { path = "crates/batcher_types", version = "0.0.0" }
 starknet_client = { path = "crates/starknet_client", version = "0.0.0" }
 starknet_committer = { path = "crates/starknet_committer", version = "0.0.0" }
 starknet_consensus_manager = { path = "crates/consensus_manager", version = "0.0.0" }
-starknet_consensus_manager_types = { path = "crates/consensus_manager_types", version = "0.0.0" }
 starknet_gateway = { path = "crates/gateway", version = "0.0.0" }
+starknet_gateway_types = { path = "crates/gateway_types", version = "0.0.0" }
+starknet_http_server = { path = "crates/http_server", version = "0.0.0" }
 starknet_mempool = { path = "crates/mempool", version = "0.0.0" }
-starknet_mempool_infra = { path = "crates/mempool_infra", version = "0.0.0" }
 starknet_mempool_node = { path = "crates/mempool_node", version = "0.0.0" }
+starknet_mempool_p2p = { path = "crates/mempool_p2p", version = "0.0.0" }
+starknet_mempool_p2p_types = { path = "crates/mempool_p2p_types", version = "0.0.0" }
 starknet_mempool_types = { path = "crates/mempool_types", version = "0.0.0" }
+starknet_monitoring_endpoint = { path = "crates/monitoring_endpoint", version = "0.0.0" }
 starknet_patricia = { path = "crates/starknet_patricia", version = "0.0.0" }
+starknet_sequencer_infra = { path = "crates/mempool_infra", version = "0.0.0" }
 starknet_sierra_compile = { path = "crates/starknet_sierra_compile", version = "0.0.0" }
 starknet_task_executor = { path = "crates/task_executor", version = "0.0.0" }
 static_assertions = "1.1.0"

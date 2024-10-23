@@ -14,7 +14,7 @@ use starknet_api::core::{
     EthAddress,
     Nonce,
 };
-use starknet_api::execution_resources::GasVector;
+use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::hash::StarkHash;
 use starknet_api::transaction::{
     AccountDeploymentData,
@@ -716,7 +716,8 @@ impl From<ExecutionResources> for starknet_api::execution_resources::ExecutionRe
                 None => GasVector {
                     // It's hardcoded that this field is 0 for pre-v0.13.2 blocks (this field is
                     // only used in calculating the receipt hash)
-                    l1_gas: 0,
+                    l1_gas: GasAmount(0),
+                    l2_gas: GasAmount(0),
                     l1_data_gas: da_gas_consumed.l1_data_gas,
                 },
             },

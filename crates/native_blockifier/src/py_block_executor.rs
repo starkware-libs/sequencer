@@ -1,15 +1,16 @@
 use std::collections::HashMap;
 
-use blockifier::blockifier::block::pre_process_block;
+use blockifier::abi::constants as abi_constants;
 use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::{TransactionExecutor, TransactionExecutorError};
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
 use blockifier::execution::call_info::CallInfo;
-use blockifier::state::cached_state::CachedState;
+use blockifier::fee::receipt::TransactionReceipt;
 use blockifier::state::global_cache::GlobalContractCache;
-use blockifier::transaction::objects::{GasVector, ResourcesMapping, TransactionExecutionInfo};
+use blockifier::transaction::objects::{ExecutionResourcesTraits, TransactionExecutionInfo};
 use blockifier::transaction::transaction_execution::Transaction;
+use blockifier::utils::usize_from_u64;
 use blockifier::versioned_constants::VersionedConstants;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyList};
@@ -17,6 +18,7 @@ use pyo3::{FromPyObject, PyAny, Python};
 use serde::Serialize;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, ContractAddress};
+use starknet_api::execution_resources::GasVector;
 use starknet_api::transaction::Fee;
 use starknet_types_core::felt::Felt;
 
@@ -36,6 +38,10 @@ pub(crate) type PyVisitedSegmentsMapping = Vec<(PyFelt, Vec<usize>)>;
 mod py_block_executor_test;
 
 const RESULT_SERIALIZE_ERR: &str = "Failed serializing execution info.";
+
+/// A mapping from a transaction execution resource to its actual usage.
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
+pub struct ResourcesMapping(pub HashMap<String, usize>);
 
 /// Stripped down `TransactionExecutionInfo` for Python serialization, containing only the required
 /// fields.
@@ -59,13 +65,52 @@ impl ThinTransactionExecutionInfo {
             fee_transfer_call_info: tx_execution_info.fee_transfer_call_info,
             actual_fee: tx_execution_info.receipt.fee,
             da_gas: tx_execution_info.receipt.da_gas,
-            actual_resources: tx_execution_info.receipt.to_resources_mapping(true),
+            actual_resources: ThinTransactionExecutionInfo::receipt_to_resources_mapping(
+                &tx_execution_info.receipt,
+            ),
             revert_error: tx_execution_info.revert_error,
             total_gas: tx_execution_info.receipt.gas,
         }
     }
     pub fn serialize(self) -> RawTransactionExecutionResult {
         serde_json::to_vec(&self).expect(RESULT_SERIALIZE_ERR)
+    }
+
+    pub fn receipt_to_resources_mapping(receipt: &TransactionReceipt) -> ResourcesMapping {
+        let GasVector { l1_gas, l1_data_gas, l2_gas } = receipt.gas;
+        let vm_resources = &receipt.resources.computation.vm_resources;
+        let mut resources = HashMap::from([(
+            abi_constants::N_STEPS_RESOURCE.to_string(),
+            vm_resources.total_n_steps(),
+        )]);
+        resources.extend(
+            vm_resources
+                .prover_builtins()
+                .iter()
+                .map(|(builtin, value)| (builtin.to_str_with_suffix().to_string(), *value)),
+        );
+        // TODO(Yoni) remove these since we pass the gas vector in separate.
+        resources.extend(HashMap::from([
+            (
+                abi_constants::L1_GAS_USAGE.to_string(),
+                usize_from_u64(l1_gas.0)
+                    .expect("This conversion should not fail as the value is a converted usize."),
+            ),
+            (
+                abi_constants::BLOB_GAS_USAGE.to_string(),
+                usize_from_u64(l1_data_gas.0)
+                    .expect("This conversion should not fail as the value is a converted usize."),
+            ),
+            (
+                abi_constants::L2_GAS_USAGE.to_string(),
+                usize_from_u64(l2_gas.0)
+                    .expect("This conversion should not fail as the value is a converted usize."),
+            ),
+        ]));
+        *resources.get_mut(abi_constants::N_STEPS_RESOURCE).unwrap_or(&mut 0) +=
+            receipt.resources.computation.n_reverted_steps;
+
+        ResourcesMapping(resources)
     }
 }
 
@@ -133,18 +178,13 @@ impl PyBlockExecutor {
 
         // Create state reader.
         let papyrus_reader = self.get_aligned_reader(next_block_number);
-        let mut state = CachedState::new(papyrus_reader);
-
-        pre_process_block(
-            &mut state,
+        // Create and set executor.
+        self.tx_executor = Some(TransactionExecutor::pre_process_and_create(
+            papyrus_reader,
+            block_context,
             into_block_number_hash_pair(old_block_number_and_hash),
-            next_block_number,
-        )?;
-
-        let tx_executor =
-            TransactionExecutor::new(state, block_context, self.tx_executor_config.clone());
-        self.tx_executor = Some(tx_executor);
-
+            self.tx_executor_config.clone(),
+        )?);
         Ok(())
     }
 
@@ -375,7 +415,7 @@ impl PyBlockExecutor {
         use blockifier::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
         Self {
             bouncer_config: BouncerConfig::max(),
-            tx_executor_config: TransactionExecutorConfig::create_for_testing(),
+            tx_executor_config: TransactionExecutorConfig::create_for_testing(true),
             storage: Box::new(storage),
             chain_info: ChainInfo::default(),
             versioned_constants: VersionedConstants::latest_constants().clone(),

@@ -107,7 +107,7 @@ pub trait State: StateReader {
     /// Marks the given set of PC values as visited for the given class hash.
     // TODO(lior): Once we have a BlockResources object, move this logic there. Make sure reverted
     //   entry points do not affect the final set of PCs.
-    fn add_visited_pcs(&mut self, class_hash: ClassHash, pcs: &HashSet<usize>);
+    fn add_visited_pcs(&mut self, _class_hash: ClassHash, _pcs: &HashSet<usize>) {}
 }
 
 /// A class defining the API for updating a state with transactions writes.

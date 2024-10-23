@@ -1,7 +1,7 @@
 use pretty_assertions::assert_eq;
 use starknet_api::core::ContractAddress;
+use starknet_api::execution_utils::format_panic_data;
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::Calldata;
 use starknet_api::{calldata, felt};
 use starknet_types_core::felt::Felt;
 use test_case::test_case;
@@ -9,7 +9,7 @@ use test_case::test_case;
 use crate::abi::abi_utils::selector_from_name;
 use crate::abi::constants;
 use crate::context::ChainInfo;
-use crate::execution::call_info::{CallExecution, Retdata};
+use crate::execution::call_info::CallExecution;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::state::cached_state::CachedState;
 use crate::state::state_api::State;
@@ -92,6 +92,10 @@ fn negative_flow_block_number_out_of_range(test_contract: FeatureContract) {
         ..trivial_external_entry_point_new(test_contract)
     };
 
-    let error = entry_point_call.execute_directly(&mut state).unwrap_err().to_string();
-    assert!(error.contains("Block number out of range"));
+    let call_info = entry_point_call.execute_directly(&mut state).unwrap();
+    assert!(call_info.execution.failed);
+    assert_eq!(
+        format_panic_data(&call_info.execution.retdata.0),
+        "0x426c6f636b206e756d626572206f7574206f662072616e6765 ('Block number out of range')"
+    );
 }

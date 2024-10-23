@@ -5,15 +5,15 @@ use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::runners::cairo_runner::{CairoArg, CairoRunner, ExecutionResources};
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::EntryPointSelector;
-use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::hash::StarkHash;
 
 use super::execution_utils::SEGMENT_ARENA_BUILTIN_SIZE;
 use crate::abi::abi_utils::selector_from_name;
 use crate::abi::constants::{CONSTRUCTOR_ENTRY_POINT_NAME, DEFAULT_ENTRY_POINT_SELECTOR};
 use crate::execution::call_info::{CallExecution, CallInfo};
-use crate::execution::contract_class::ContractClassV0;
+use crate::execution::contract_class::{ContractClassV0, TrackedResource};
 use crate::execution::deprecated_syscalls::hint_processor::DeprecatedSyscallHintProcessor;
 use crate::execution::entry_point::{
     CallEntryPoint,
@@ -265,8 +265,8 @@ pub fn finalize_execution(
     }
     *syscall_handler.resources += &vm_resources_without_inner_calls;
     // Take into account the syscall resources of the current call.
-    *syscall_handler.resources += &versioned_constants
-        .get_additional_os_syscall_resources(&syscall_handler.syscall_counter)?;
+    *syscall_handler.resources +=
+        &versioned_constants.get_additional_os_syscall_resources(&syscall_handler.syscall_counter);
 
     let full_call_resources = &*syscall_handler.resources - &previous_resources;
     Ok(CallInfo {
@@ -280,6 +280,7 @@ pub fn finalize_execution(
         },
         resources: full_call_resources.filter_unused_builtins(),
         inner_calls: syscall_handler.inner_calls,
+        tracked_resource: TrackedResource::CairoSteps,
         storage_read_values: syscall_handler.read_values,
         accessed_storage_keys: syscall_handler.accessed_keys,
     })

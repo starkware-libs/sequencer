@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
-use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::transaction::{
     AccountDeploymentData,
     Calldata,
@@ -41,8 +41,6 @@ use crate::transaction::objects::{
     TransactionInfo,
     TransactionInfoCreator,
 };
-use crate::transaction::transaction_utils::{update_remaining_gas, verify_contract_class_version};
-
 #[cfg(test)]
 #[path = "transactions_test.rs"]
 mod test;
@@ -153,7 +151,26 @@ impl DeclareTransaction {
         only_query: bool,
     ) -> TransactionExecutionResult<Self> {
         let declare_version = declare_tx.version();
-        verify_contract_class_version(&class_info.contract_class(), declare_version)?;
+        // Verify contract class version.
+        match &class_info.contract_class() {
+            // TODO: Make TransactionVersion an enum and use match here.
+            ContractClass::V0(_) => {
+                if declare_version > TransactionVersion::ONE {
+                    Err(TransactionExecutionError::ContractClassVersionMismatch {
+                        declare_version,
+                        cairo_version: 0,
+                    })?
+                }
+            }
+            ContractClass::V1(_) | ContractClass::V1Native(_) => {
+                if declare_version <= TransactionVersion::ONE {
+                    Err(TransactionExecutionError::ContractClassVersionMismatch {
+                        declare_version,
+                        cairo_version: 1,
+                    })?
+                }
+            }
+        }
         Ok(Self { tx: declare_tx, tx_hash, class_info, only_query })
     }
 
@@ -179,7 +196,7 @@ impl DeclareTransaction {
     ) -> Result<Self, TransactionExecutionError> {
         let starknet_api::executable_transaction::DeclareTransaction { tx, tx_hash, class_info } =
             declare_tx;
-        let class_info: ClassInfo = class_info.try_into()?;
+        let class_info = class_info.try_into()?;
 
         Self::create(tx, tx_hash, class_info, only_query)
     }
@@ -296,7 +313,7 @@ impl TransactionInfoCreator for DeclareTransaction {
             starknet_api::transaction::DeclareTransaction::V3(tx) => {
                 TransactionInfo::Current(CurrentTransactionInfo {
                     common_fields,
-                    resource_bounds: tx.resource_bounds.clone(),
+                    resource_bounds: tx.resource_bounds,
                     tip: tx.tip,
                     nonce_data_availability_mode: tx.nonce_data_availability_mode,
                     fee_data_availability_mode: tx.fee_data_availability_mode,
@@ -382,9 +399,8 @@ impl<S: State> Executable<S> for DeployAccountTransaction {
             context,
             ctor_context,
             self.constructor_calldata(),
-            *remaining_gas,
+            remaining_gas,
         )?;
-        update_remaining_gas(remaining_gas, &call_info);
 
         Ok(Some(call_info))
     }
@@ -411,7 +427,7 @@ impl TransactionInfoCreator for DeployAccountTransaction {
             starknet_api::transaction::DeployAccountTransaction::V3(tx) => {
                 TransactionInfo::Current(CurrentTransactionInfo {
                     common_fields,
-                    resource_bounds: tx.resource_bounds.clone(),
+                    resource_bounds: tx.resource_bounds,
                     tip: tx.tip,
                     nonce_data_availability_mode: tx.nonce_data_availability_mode,
                     fee_data_availability_mode: tx.fee_data_availability_mode,
@@ -494,15 +510,14 @@ impl<S: State> Executable<S> for InvokeTransaction {
             initial_gas: *remaining_gas,
         };
 
-        let call_info = execute_call.execute(state, resources, context).map_err(|error| {
-            TransactionExecutionError::ExecutionError {
+        let call_info = execute_call
+            .non_reverting_execute(state, resources, context, remaining_gas)
+            .map_err(|error| TransactionExecutionError::ExecutionError {
                 error,
                 class_hash,
                 storage_address,
                 selector: entry_point_selector,
-            }
-        })?;
-        update_remaining_gas(remaining_gas, &call_info);
+            })?;
 
         Ok(Some(call_info))
     }
@@ -535,7 +550,7 @@ impl TransactionInfoCreator for InvokeTransaction {
             starknet_api::transaction::InvokeTransaction::V3(tx) => {
                 TransactionInfo::Current(CurrentTransactionInfo {
                     common_fields,
-                    resource_bounds: tx.resource_bounds.clone(),
+                    resource_bounds: tx.resource_bounds,
                     tip: tx.tip,
                     nonce_data_availability_mode: tx.nonce_data_availability_mode,
                     fee_data_availability_mode: tx.fee_data_availability_mode,
@@ -595,14 +610,15 @@ impl<S: State> Executable<S> for L1HandlerTransaction {
             initial_gas: *remaining_gas,
         };
 
-        execute_call.execute(state, resources, context).map(Some).map_err(|error| {
-            TransactionExecutionError::ExecutionError {
+        execute_call
+            .non_reverting_execute(state, resources, context, remaining_gas)
+            .map(Some)
+            .map_err(|error| TransactionExecutionError::ExecutionError {
                 error,
                 class_hash,
                 storage_address,
                 selector,
-            }
-        })
+            })
     }
 }
 

@@ -5,7 +5,6 @@ mod precision_test;
 use std::cmp::max;
 use std::collections::{BTreeMap, HashMap};
 use std::env;
-use std::fs::read_to_string;
 use std::hash::Hash;
 use std::net::SocketAddr;
 use std::num::NonZeroU64;
@@ -42,6 +41,7 @@ use starknet_api::block::{
     BlockBody,
     BlockHash,
     BlockHeader,
+    BlockHeaderWithoutHash,
     BlockNumber,
     BlockSignature,
     BlockStatus,
@@ -50,6 +50,7 @@ use starknet_api::block::{
     GasPricePerToken,
     StarknetVersion,
 };
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{
     ClassHash,
     CompiledClassHash,
@@ -70,9 +71,8 @@ use starknet_api::deprecated_contract_class::{
     ConstructorType,
     ContractClass as DeprecatedContractClass,
     ContractClassAbiEntry,
-    EntryPoint as DeprecatedEntryPoint,
     EntryPointOffset,
-    EntryPointType as DeprecatedEntryPointType,
+    EntryPointV0 as DeprecatedEntryPoint,
     EventAbiEntry,
     EventType,
     FunctionAbiEntry,
@@ -85,18 +85,29 @@ use starknet_api::deprecated_contract_class::{
     StructType,
     TypedParameter,
 };
-use starknet_api::execution_resources::{Builtin, ExecutionResources, GasVector};
+use starknet_api::execution_resources::{Builtin, ExecutionResources, GasAmount, GasVector};
 use starknet_api::felt;
 use starknet_api::hash::{PoseidonHash, StarkHash};
+use starknet_api::rpc_transaction::{
+    ContractClass as RpcContractClass,
+    EntryPointByType as RpcEntryPointByType,
+    RpcDeclareTransaction,
+    RpcDeclareTransactionV3,
+    RpcDeployAccountTransaction,
+    RpcDeployAccountTransactionV3,
+    RpcInvokeTransaction,
+    RpcInvokeTransactionV3,
+    RpcTransaction,
+};
 use starknet_api::state::{
     ContractClass,
     EntryPoint,
-    EntryPointType,
     FunctionIndex,
     StateDiff,
     StorageKey,
     ThinStateDiff,
 };
+use starknet_api::test_utils::read_json_file;
 use starknet_api::transaction::{
     AccountDeploymentData,
     AllResourceBounds,
@@ -173,15 +184,6 @@ pub async fn send_request(
 /// Returns the absolute path from the project root.
 pub fn get_absolute_path(relative_path: &str) -> PathBuf {
     Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap()).join("../..").join(relative_path)
-}
-
-/// Reads from the directory containing the manifest at run time, same as current working directory.
-pub fn read_json_file(path_in_resource_dir: &str) -> serde_json::Value {
-    let path = Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap())
-        .join("resources")
-        .join(path_in_resource_dir);
-    let json_str = read_to_string(path.to_str().unwrap()).unwrap();
-    serde_json::from_str(&json_str).unwrap()
 }
 
 pub fn validate_load_and_dump<T: Serialize + for<'a> Deserialize<'a>>(path_in_resource_dir: &str) {
@@ -429,14 +431,7 @@ auto_impl_get_test_instance! {
     pub struct BlockHash(pub StarkHash);
     pub struct BlockHeader {
         pub block_hash: BlockHash,
-        pub parent_hash: BlockHash,
-        pub block_number: BlockNumber,
-        pub l1_gas_price: GasPricePerToken,
-        pub l1_data_gas_price: GasPricePerToken,
-        pub state_root: GlobalRoot,
-        pub sequencer: SequencerContractAddress,
-        pub timestamp: BlockTimestamp,
-        pub l1_da_mode: L1DataAvailabilityMode,
+        pub block_header_without_hash: BlockHeaderWithoutHash,
         pub state_diff_commitment: Option<StateDiffCommitment>,
         pub transaction_commitment: Option<TransactionCommitment>,
         pub event_commitment: Option<EventCommitment>,
@@ -444,6 +439,17 @@ auto_impl_get_test_instance! {
         pub state_diff_length: Option<usize>,
         pub n_transactions: usize,
         pub n_events: usize,
+    }
+    pub struct BlockHeaderWithoutHash {
+        pub parent_hash: BlockHash,
+        pub block_number: BlockNumber,
+        pub l1_gas_price: GasPricePerToken,
+        pub l1_data_gas_price: GasPricePerToken,
+        pub l2_gas_price: GasPricePerToken,
+        pub state_root: GlobalRoot,
+        pub sequencer: SequencerContractAddress,
+        pub timestamp: BlockTimestamp,
+        pub l1_da_mode: L1DataAvailabilityMode,
         pub starknet_version: StarknetVersion,
     }
     pub struct BlockNumber(pub u64);
@@ -468,7 +474,27 @@ auto_impl_get_test_instance! {
         MulMod = 9,
         RangeCheck96 = 10,
     }
-    pub struct StarknetVersion(pub String);
+    pub enum StarknetVersion {
+        V0_9_1 = 0,
+        V0_10_0 = 1,
+        V0_10_1 = 2,
+        V0_10_2 = 3,
+        V0_10_3 = 4,
+        V0_11_0 = 5,
+        V0_11_0_2 = 6,
+        V0_11_1 = 7,
+        V0_11_2 = 8,
+        V0_12_0 = 9,
+        V0_12_1 = 10,
+        V0_12_2 = 11,
+        V0_12_3 = 12,
+        V0_13_0 = 13,
+        V0_13_1 = 14,
+        V0_13_1_1 = 15,
+        V0_13_2 = 16,
+        V0_13_2_1 = 17,
+        V0_13_3 = 18,
+    }
     pub struct Calldata(pub Arc<Vec<Felt>>);
     pub struct ClassHash(pub StarkHash);
     pub struct CompiledClassHash(pub StarkHash);
@@ -481,7 +507,7 @@ auto_impl_get_test_instance! {
     pub struct DeprecatedContractClass {
         pub abi: Option<Vec<ContractClassAbiEntry>>,
         pub program: Program,
-        pub entry_points_by_type: HashMap<DeprecatedEntryPointType, Vec<DeprecatedEntryPoint>>,
+        pub entry_points_by_type: HashMap<EntryPointType, Vec<DeprecatedEntryPoint>>,
     }
     pub enum ContractClassAbiEntry {
         Event(EventAbiEntry) = 0,
@@ -585,11 +611,6 @@ auto_impl_get_test_instance! {
         pub selector: EntryPointSelector,
         pub offset: EntryPointOffset,
     }
-    pub enum DeprecatedEntryPointType {
-        Constructor = 0,
-        External = 1,
-        L1Handler = 2,
-    }
     pub struct EntryPoint {
         pub function_idx: FunctionIndex,
         pub selector: EntryPointSelector,
@@ -630,6 +651,7 @@ auto_impl_get_test_instance! {
     pub enum FunctionType {
         Function = 0,
     }
+    pub struct GasAmount(pub u64);
     pub struct GasPrice(pub u128);
     pub struct GasPricePerToken {
         pub price_in_fri: GasPrice,
@@ -725,8 +747,70 @@ auto_impl_get_test_instance! {
         L2Gas = 1,
     }
     pub struct ResourceBounds {
-        pub max_amount: u64,
-        pub max_price_per_unit: u128,
+        pub max_amount: GasAmount,
+        pub max_price_per_unit: GasPrice,
+    }
+    pub struct RpcContractClass {
+        pub sierra_program: Vec<Felt>,
+        pub contract_class_version: String,
+        pub entry_points_by_type: RpcEntryPointByType,
+        pub abi: String,
+    }
+    pub enum RpcTransaction {
+        Declare(RpcDeclareTransaction) = 0,
+        DeployAccount(RpcDeployAccountTransaction) = 1,
+        Invoke(RpcInvokeTransaction) = 2,
+    }
+    pub enum RpcDeclareTransaction {
+        V3(RpcDeclareTransactionV3) = 0,
+    }
+    pub struct RpcDeclareTransactionV3 {
+        pub resource_bounds: AllResourceBounds,
+        pub tip: Tip,
+        pub signature: TransactionSignature,
+        pub nonce: Nonce,
+        pub contract_class: RpcContractClass,
+        pub compiled_class_hash: CompiledClassHash,
+        pub sender_address: ContractAddress,
+        pub nonce_data_availability_mode: DataAvailabilityMode,
+        pub fee_data_availability_mode: DataAvailabilityMode,
+        pub paymaster_data: PaymasterData,
+        pub account_deployment_data: AccountDeploymentData,
+    }
+    pub enum RpcDeployAccountTransaction {
+        V3(RpcDeployAccountTransactionV3) = 0,
+    }
+    pub struct RpcDeployAccountTransactionV3 {
+        pub resource_bounds: AllResourceBounds,
+        pub tip: Tip,
+        pub signature: TransactionSignature,
+        pub nonce: Nonce,
+        pub class_hash: ClassHash,
+        pub contract_address_salt: ContractAddressSalt,
+        pub constructor_calldata: Calldata,
+        pub nonce_data_availability_mode: DataAvailabilityMode,
+        pub fee_data_availability_mode: DataAvailabilityMode,
+        pub paymaster_data: PaymasterData,
+    }
+    pub struct RpcEntryPointByType {
+        pub constructor: Vec<EntryPoint>,
+        pub external: Vec<EntryPoint>,
+        pub l1handler: Vec<EntryPoint>,
+    }
+    pub enum RpcInvokeTransaction {
+        V3(RpcInvokeTransactionV3) = 0,
+    }
+    pub struct RpcInvokeTransactionV3 {
+        pub resource_bounds: AllResourceBounds,
+        pub tip: Tip,
+        pub signature: TransactionSignature,
+        pub nonce: Nonce,
+        pub sender_address: ContractAddress,
+        pub calldata: Calldata,
+        pub nonce_data_availability_mode: DataAvailabilityMode,
+        pub fee_data_availability_mode: DataAvailabilityMode,
+        pub paymaster_data: PaymasterData,
+        pub account_deployment_data: AccountDeploymentData,
     }
     pub struct SequencerContractAddress(pub ContractAddress);
     pub struct Signature {
@@ -1061,7 +1145,11 @@ impl GetTestInstance for ExecutionResources {
 
 impl GetTestInstance for GasVector {
     fn get_test_instance(rng: &mut ChaCha8Rng) -> Self {
-        Self { l1_gas: rng.next_u64(), l1_data_gas: rng.next_u64() }
+        Self {
+            l1_gas: GasAmount(rng.next_u64()),
+            l2_gas: GasAmount(rng.next_u64()),
+            l1_data_gas: GasAmount(rng.next_u64()),
+        }
     }
 }
 

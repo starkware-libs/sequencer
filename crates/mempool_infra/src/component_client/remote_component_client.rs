@@ -1,8 +1,9 @@
+use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::net::IpAddr;
 use std::sync::Arc;
+use std::time::Duration;
 
-use bincode::{deserialize, serialize};
 use hyper::body::to_bytes;
 use hyper::header::CONTENT_TYPE;
 use hyper::{Body, Client, Request as HyperRequest, Response as HyperResponse, StatusCode, Uri};
@@ -10,7 +11,8 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 
 use super::definitions::{ClientError, ClientResult};
-use crate::component_definitions::APPLICATION_OCTET_STREAM;
+use crate::component_definitions::{RemoteClientConfig, APPLICATION_OCTET_STREAM};
+use crate::serde_utils::BincodeSerdeWrapper;
 
 /// The `RemoteComponentClient` struct is a generic client for sending component requests and
 /// receiving responses asynchronously through HTTP connection.
@@ -23,8 +25,7 @@ use crate::component_definitions::APPLICATION_OCTET_STREAM;
 /// # Fields
 /// - `uri`: URI address of the server.
 /// - `client`: The inner HTTP client that initiates the connection to the server and manages it.
-/// - `max_retries`: Configurable number of extra attempts to send a request to server in case of a
-///   failure.
+/// - `config`: Client configuration.
 ///
 /// # Example
 /// ```rust
@@ -32,15 +33,16 @@ use crate::component_definitions::APPLICATION_OCTET_STREAM;
 ///
 /// use serde::{Deserialize, Serialize};
 ///
-/// use crate::starknet_mempool_infra::component_client::RemoteComponentClient;
+/// use crate::starknet_sequencer_infra::component_client::RemoteComponentClient;
+/// use crate::starknet_sequencer_infra::component_definitions::RemoteClientConfig;
 ///
 /// // Define your request and response types
-/// #[derive(Serialize)]
+/// #[derive(Serialize, Deserialize, Debug, Clone)]
 /// struct MyRequest {
 ///     pub content: String,
 /// }
 ///
-/// #[derive(Deserialize)]
+/// #[derive(Serialize, Deserialize, Debug)]
 /// struct MyResponse {
 ///     content: String,
 /// }
@@ -51,7 +53,14 @@ use crate::component_definitions::APPLICATION_OCTET_STREAM;
 ///     // Instantiate the client.
 ///     let ip_address = std::net::IpAddr::V6(std::net::Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1));
 ///     let port: u16 = 8080;
-///     let client = RemoteComponentClient::<MyRequest, MyResponse>::new(ip_address, port, 2);
+///     let socket = std::net::SocketAddr::new(ip_address, port);
+///     let config = RemoteClientConfig {
+///         socket,
+///         retries: 3,
+///         idle_connections: usize::MAX,
+///         idle_timeout: 90,
+///     };
+///     let client = RemoteComponentClient::<MyRequest, MyResponse>::new(config);
 ///
 ///     // Instantiate a request.
 ///     let request = MyRequest { content: "Hello, world!".to_string() };
@@ -72,49 +81,54 @@ where
 {
     uri: Uri,
     client: Client<hyper::client::HttpConnector>,
-    max_retries: usize,
+    config: RemoteClientConfig,
     _req: PhantomData<Request>,
     _res: PhantomData<Response>,
 }
 
 impl<Request, Response> RemoteComponentClient<Request, Response>
 where
-    Request: Serialize,
-    Response: DeserializeOwned,
+    Request: Serialize + DeserializeOwned + Debug + Clone,
+    Response: Serialize + DeserializeOwned + Debug,
 {
-    pub fn new(ip_address: IpAddr, port: u16, max_retries: usize) -> Self {
+    pub fn new(config: RemoteClientConfig) -> Self {
+        let ip_address = config.socket.ip();
+        let port = config.socket.port();
         let uri = match ip_address {
             IpAddr::V4(ip_address) => format!("http://{}:{}/", ip_address, port).parse().unwrap(),
             IpAddr::V6(ip_address) => format!("http://[{}]:{}/", ip_address, port).parse().unwrap(),
         };
-        // TODO(Tsabary): Add a configuration for the maximum number of idle connections.
-        // TODO(Tsabary): Add a configuration for "keep-alive" time of idle connections.
-        let client =
-            Client::builder().http2_only(true).pool_max_idle_per_host(usize::MAX).build_http();
-        Self { uri, client, max_retries, _req: PhantomData, _res: PhantomData }
+        let client = Client::builder()
+            .http2_only(true)
+            .pool_max_idle_per_host(config.idle_connections)
+            .pool_idle_timeout(Duration::from_secs(config.idle_timeout))
+            .build_http();
+        Self { uri, client, config, _req: PhantomData, _res: PhantomData }
     }
 
     pub async fn send(&self, component_request: Request) -> ClientResult<Response> {
         // Construct and request, and send it up to 'max_retries' times. Return if received a
         // successful response.
-        for _ in 0..self.max_retries {
-            let http_request = self.construct_http_request(&component_request);
+        for _ in 0..self.config.retries {
+            let http_request = self.construct_http_request(component_request.clone());
             let res = self.try_send(http_request).await;
             if res.is_ok() {
                 return res;
             }
         }
-        // Construct and send the request, return the received respone regardless whether it
+        // Construct and send the request, return the received response regardless whether it
         // successful or not.
-        let http_request = self.construct_http_request(&component_request);
+        let http_request = self.construct_http_request(component_request);
         self.try_send(http_request).await
     }
 
-    fn construct_http_request(&self, component_request: &Request) -> HyperRequest<Body> {
+    fn construct_http_request(&self, component_request: Request) -> HyperRequest<Body> {
         HyperRequest::post(self.uri.clone())
             .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
             .body(Body::from(
-                serialize(component_request).expect("Request serialization should succeed"),
+                BincodeSerdeWrapper::new(component_request)
+                    .to_bincode()
+                    .expect("Request serialization should succeed"),
             ))
             .expect("Request building should succeed")
     }
@@ -138,12 +152,14 @@ where
 
 async fn get_response_body<Response>(response: HyperResponse<Body>) -> Result<Response, ClientError>
 where
-    Response: DeserializeOwned,
+    Response: Serialize + DeserializeOwned + Debug,
 {
     let body_bytes = to_bytes(response.into_body())
         .await
         .map_err(|e| ClientError::ResponseParsingFailure(Arc::new(e)))?;
-    deserialize(&body_bytes).map_err(|e| ClientError::ResponseDeserializationFailure(Arc::new(e)))
+
+    BincodeSerdeWrapper::<Response>::from_bincode(&body_bytes)
+        .map_err(|e| ClientError::ResponseDeserializationFailure(Arc::new(e)))
 }
 
 // Can't derive because derive forces the generics to also be `Clone`, which we prefer not to do
@@ -157,7 +173,7 @@ where
         Self {
             uri: self.uri.clone(),
             client: self.client.clone(),
-            max_retries: self.max_retries,
+            config: self.config.clone(),
             _req: PhantomData,
             _res: PhantomData,
         }

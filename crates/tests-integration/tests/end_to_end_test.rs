@@ -1,48 +1,70 @@
-use blockifier::test_utils::contracts::FeatureContract;
-use blockifier::test_utils::CairoVersion;
+use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
+use pretty_assertions::assert_eq;
+use rstest::{fixture, rstest};
+use starknet_api::block::BlockNumber;
 use starknet_api::transaction::TransactionHash;
-use starknet_mempool_integration_tests::integration_test_utils::setup_with_tx_generation;
+use starknet_batcher_types::batcher_types::{BuildProposalInput, ProposalId, StartHeightInput};
+use starknet_batcher_types::communication::SharedBatcherClient;
+use starknet_integration_tests::integration_test_setup::IntegrationTestSetup;
+use starknet_integration_tests::integration_test_utils::{
+    create_integration_test_tx_generator,
+    run_integration_test_scenario,
+};
 
+#[fixture]
+fn tx_generator() -> MultiAccountTransactionGenerator {
+    create_integration_test_tx_generator()
+}
+
+#[rstest]
 #[tokio::test]
-async fn test_end_to_end() {
+async fn test_end_to_end(tx_generator: MultiAccountTransactionGenerator) {
     // Setup.
-    let accounts = [
-        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1),
-        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0),
-    ];
-    let (mock_running_system, mut tx_generator) = setup_with_tx_generation(&accounts).await;
+    let mock_running_system = IntegrationTestSetup::new_from_tx_generator(&tx_generator).await;
 
-    let account0_deploy_nonce0 = &tx_generator.account_with_id(0).generate_default_deploy_account();
-    let account0_invoke_nonce1 = tx_generator.account_with_id(0).generate_default_invoke();
-    let account1_invoke_nonce0 = tx_generator.account_with_id(1).generate_default_invoke();
-    let account0_invoke_nonce2 = tx_generator.account_with_id(0).generate_default_invoke();
+    // Create and send transactions.
+    let expected_tx_hashes = run_integration_test_scenario(tx_generator, &|tx| {
+        mock_running_system.assert_add_tx_success(tx)
+    })
+    .await;
+
+    // Test.
+    let mempool_txs = mock_running_system.get_txs(4).await;
+
+    run_consensus_for_end_to_end_test(&mock_running_system.batcher_client).await;
+
+    // Assert.
+    let actual_tx_hashes: Vec<TransactionHash> =
+        mempool_txs.iter().map(|tx| tx.tx_hash()).collect();
+    assert_eq!(expected_tx_hashes, *actual_tx_hashes);
+}
+
+/// This function should mirror
+/// [`run_consensus`](papyrus_consensus::manager::run_consensus). It makes requests
+/// from the batcher client and asserts the expected responses were received.
+pub async fn run_consensus_for_end_to_end_test(batcher_client: &SharedBatcherClient) {
+    // Setup. Holds the state of the consensus manager.
+
+    // Set start height.
+    // TODO(Arni): Get the current height and retrospective_block_hash from the rpc storage
+    let current_height = BlockNumber(1);
 
     // Test.
 
-    let account0_deploy_nonce0_tx_hash =
-        mock_running_system.assert_add_tx_success(account0_deploy_nonce0).await;
+    // Start height.
+    batcher_client.start_height(StartHeightInput { height: current_height }).await.unwrap();
 
-    mock_running_system.assert_add_tx_success(&account0_invoke_nonce1).await;
+    // Build proposal.
+    let proposal_id = ProposalId(0);
+    let retrospective_block_hash = None;
 
-    // FIXME: invoke with nonce0 shouldn't be possible, fix it, make this FAIL.
-    let account1_invoke_nonce0_tx_hash =
-        mock_running_system.assert_add_tx_success(&account1_invoke_nonce0).await;
-
-    mock_running_system.assert_add_tx_success(&account0_invoke_nonce2).await;
-
-    let mempool_txs = mock_running_system.get_txs(4).await;
-
-    // Assert.
-
-    // Only the transactions with nonce 0 should be returned from the mempool,
-    // because we haven't merged queue-replenishment yet.
-    let expected_tx_hashes_from_get_txs =
-        [account1_invoke_nonce0_tx_hash, account0_deploy_nonce0_tx_hash];
-
-    // This assert should be replaced with 4 once queue-replenishment is merged, also add a tx hole
-    // at that point, and ensure the assert doesn't change due to that.
-    assert_eq!(mempool_txs.len(), 2);
-    let actual_tx_hashes: Vec<TransactionHash> =
-        mempool_txs.iter().map(|tx| tx.tx_hash()).collect();
-    assert_eq!(expected_tx_hashes_from_get_txs, *actual_tx_hashes);
+    let build_proposal_duaration = chrono::TimeDelta::new(1, 0).unwrap();
+    batcher_client
+        .build_proposal(BuildProposalInput {
+            proposal_id,
+            deadline: chrono::Utc::now() + build_proposal_duaration,
+            retrospective_block_hash,
+        })
+        .await
+        .unwrap();
 }

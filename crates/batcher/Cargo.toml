@@ -10,12 +10,17 @@ workspace = true
 
 [dependencies]
 async-trait.workspace = true
+blockifier.workspace = true
+chrono.workspace = true
+indexmap.workspace = true
 papyrus_config.workspace = true
+papyrus_storage.workspace = true
 serde.workspace = true
+starknet-types-core.workspace = true
 starknet_api.workspace = true
 starknet_batcher_types.workspace = true
-starknet_mempool_infra.workspace = true
 starknet_mempool_types.workspace = true
+starknet_sequencer_infra.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tokio-stream.workspace = true
@@ -24,4 +29,9 @@ validator.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true
+chrono = { workspace = true }
+futures.workspace = true
+mempool_test_utils.workspace = true
 mockall.workspace = true
+rstest.workspace = true
+starknet_api = { workspace = true, features = ["testing"] }

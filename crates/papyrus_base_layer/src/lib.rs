@@ -15,6 +15,6 @@ pub trait BaseLayerContract {
     /// Optionally, require minimum confirmations.
     async fn latest_proved_block(
         &self,
-        min_confirmations: Option<u64>,
+        finality: u64,
     ) -> Result<Option<(BlockNumber, BlockHash)>, Self::Error>;
 }

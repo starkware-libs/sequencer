@@ -1,0 +1,25 @@
+[package]
+name = "starknet_http_server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+axum.workspace = true
+hyper.workspace = true
+papyrus_config.workspace = true
+serde.workspace = true
+starknet_api.workspace = true
+starknet_gateway_types.workspace = true
+starknet_sequencer_infra.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+validator.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+tokio = { workspace = true, features = ["rt"] }

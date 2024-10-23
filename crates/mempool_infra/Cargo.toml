@@ -1,5 +1,5 @@
 [package]
-name = "starknet_mempool_infra"
+name = "starknet_sequencer_infra"
 version.workspace = true
 edition.workspace = true
 repository.workspace = true
@@ -27,3 +27,4 @@ validator.workspace = true
 [dev-dependencies]
 assert_matches.workspace = true
 pretty_assertions.workspace = true
+starknet-types-core.workspace = true

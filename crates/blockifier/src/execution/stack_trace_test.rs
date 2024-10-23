@@ -3,7 +3,6 @@ use regex::Regex;
 use rstest::rstest;
 use starknet_api::core::{calculate_contract_address, Nonce};
 use starknet_api::transaction::{
-    Calldata,
     ContractAddressSalt,
     Fee,
     TransactionSignature,
@@ -31,15 +30,13 @@ use crate::transaction::test_utils::{
     account_invoke_tx,
     block_context,
     create_account_tx_for_validate_test_nonce_0,
-    max_resource_bounds,
+    default_all_resource_bounds,
     run_invoke_tx,
     FaultyAccountTxCreatorArgs,
     INVALID,
 };
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::ExecutableTransaction;
-
-const INNER_CALL_CONTRACT_IN_CALL_CHAIN_OFFSET: usize = 117;
 
 #[rstest]
 fn test_stack_trace_with_inner_error_msg(block_context: BlockContext) {
@@ -116,9 +113,9 @@ Unknown location (pc=0:{entry_point_location})
 2: Error in the called contract (contract address: {test_contract_address_2_felt:#064x}, class \
          hash: {test_contract_hash:#064x}, selector: {inner_entry_point_selector_felt:#064x}):
 Error message: You shall not pass!
-Error at pc=0:1215:
+Error at pc=0:1290:
 Cairo traceback (most recent call last):
-Unknown location (pc=0:1219)
+Unknown location (pc=0:1294)
 
 An ASSERT_EQ instruction failed: 1 != 0.
 "
@@ -204,9 +201,9 @@ Unknown location (pc=0:{entry_point_location})
 2: Error in the called contract (contract address: {test_contract_address_2_felt:#064x}, class \
          hash: {test_contract_hash:#064x}, selector: {inner_entry_point_selector_felt:#064x}):
 Error message: You shall not pass!
-Error at pc=0:1215:
+Error at pc=0:1290:
 Cairo traceback (most recent call last):
-Unknown location (pc=0:1219)
+Unknown location (pc=0:1294)
 
 An ASSERT_EQ instruction failed: 1 != 0.
 "
@@ -216,13 +213,14 @@ An ASSERT_EQ instruction failed: 1 != 0.
         "Transaction execution has failed:
 0: Error in the called contract (contract address: {account_address_felt:#064x}, class hash: \
          {account_contract_hash:#064x}, selector: {execute_selector_felt:#064x}):
-Error at pc=0:767:
-1: Error in the called contract (contract address: {test_contract_address_felt:#064x}, class hash: \
+Execution failed. Failure reason:
+Error in contract (contract address: {account_address_felt:#064x}, class hash: \
+         {account_contract_hash:#064x}, selector: {execute_selector_felt:#064x}):
+Error in contract (contract address: {test_contract_address_felt:#064x}, class hash: \
          {test_contract_hash:#064x}, selector: {external_entry_point_selector_felt:#064x}):
-Error at pc=0:612:
-2: Error in the called contract (contract address: {test_contract_address_2_felt:#064x}, class \
-         hash: {test_contract_hash:#064x}, selector: {inner_entry_point_selector_felt:#064x}):
-Execution failed. Failure reason: 0x6661696c ('fail').
+Error in contract (contract address: {test_contract_address_2_felt:#064x}, class hash: \
+         {test_contract_hash:#064x}, selector: {inner_entry_point_selector_felt:#064x}):
+0x6661696c ('fail').
 "
     );
 
@@ -235,8 +233,8 @@ Execution failed. Failure reason: 0x6661696c ('fail').
 }
 
 #[rstest]
-#[case(CairoVersion::Cairo0, "invoke_call_chain", "Couldn't compute operand op0. Unknown value for memory cell 1:37", (1112_u16, 1158_u16))]
-#[case(CairoVersion::Cairo0, "fail", "An ASSERT_EQ instruction failed: 1 != 0.", (1215_u16, 1166_u16))]
+#[case(CairoVersion::Cairo0, "invoke_call_chain", "Couldn't compute operand op0. Unknown value for memory cell 1:37", (1187_u16, 1233_u16))]
+#[case(CairoVersion::Cairo0, "fail", "An ASSERT_EQ instruction failed: 1 != 0.", (1290_u16, 1241_u16))]
 #[case(CairoVersion::Cairo1, "invoke_call_chain", "0x4469766973696f6e2062792030 ('Division by 0')", (0_u16, 0_u16))]
 #[case(CairoVersion::Cairo1, "fail", "0x6661696c ('fail')", (0_u16, 0_u16))]
 fn test_trace_callchain_ends_with_regular_call(
@@ -334,21 +332,18 @@ Unknown location (pc=0:{expected_pc1})
             )
         }
         CairoVersion::Cairo1 => {
-            let pc_location = entry_point_offset.0 + INNER_CALL_CONTRACT_IN_CALL_CHAIN_OFFSET;
             format!(
                 "Transaction execution has failed:
 0: Error in the called contract (contract address: {account_address_felt:#064x}, class hash: \
                  {account_contract_hash:#064x}, selector: {execute_selector_felt:#064x}):
-Error at pc=0:767:
-1: Error in the called contract (contract address: {contract_address_felt:#064x}, class hash: \
+Execution failed. Failure reason:
+Error in contract (contract address: {account_address_felt:#064x}, class hash: \
+                 {account_contract_hash:#064x}, selector: {execute_selector_felt:#064x}):
+Error in contract (contract address: {contract_address_felt:#064x}, class hash: \
                  {test_contract_hash:#064x}, selector: {invoke_call_chain_selector_felt:#064x}):
-Error at pc=0:9631:
-Cairo traceback (most recent call last):
-Unknown location (pc=0:{pc_location})
-
-2: Error in the called contract (contract address: {contract_address_felt:#064x}, class hash: \
+Error in contract (contract address: {contract_address_felt:#064x}, class hash: \
                  {test_contract_hash:#064x}, selector: {invoke_call_chain_selector_felt:#064x}):
-Execution failed. Failure reason: {expected_error}.
+{expected_error}.
 "
             )
         }
@@ -358,10 +353,10 @@ Execution failed. Failure reason: {expected_error}.
 }
 
 #[rstest]
-#[case(CairoVersion::Cairo0, "invoke_call_chain", "Couldn't compute operand op0. Unknown value for memory cell 1:23", 1_u8, 0_u8, (37_u16, 1124_u16, 1112_u16, 1197_u16))]
-#[case(CairoVersion::Cairo0, "invoke_call_chain", "Couldn't compute operand op0. Unknown value for memory cell 1:23", 1_u8, 1_u8, (49_u16, 1142_u16, 1112_u16, 1197_u16))]
-#[case(CairoVersion::Cairo0, "fail", "An ASSERT_EQ instruction failed: 1 != 0.", 0_u8, 0_u8, (37_u16, 1124_u16, 1215_u16, 1219_u16))]
-#[case(CairoVersion::Cairo0, "fail", "An ASSERT_EQ instruction failed: 1 != 0.", 0_u8, 1_u8, (49_u16, 1142_u16, 1215_u16, 1219_u16))]
+#[case(CairoVersion::Cairo0, "invoke_call_chain", "Couldn't compute operand op0. Unknown value for memory cell 1:23", 1_u8, 0_u8, (37_u16, 1199_u16, 1187_u16, 1272_u16))]
+#[case(CairoVersion::Cairo0, "invoke_call_chain", "Couldn't compute operand op0. Unknown value for memory cell 1:23", 1_u8, 1_u8, (49_u16, 1217_u16, 1187_u16, 1272_u16))]
+#[case(CairoVersion::Cairo0, "fail", "An ASSERT_EQ instruction failed: 1 != 0.", 0_u8, 0_u8, (37_u16, 1199_u16, 1290_u16, 1294_u16))]
+#[case(CairoVersion::Cairo0, "fail", "An ASSERT_EQ instruction failed: 1 != 0.", 0_u8, 1_u8, (49_u16, 1217_u16, 1290_u16, 1294_u16))]
 #[case(CairoVersion::Cairo1, "invoke_call_chain", "0x4469766973696f6e2062792030 ('Division by 0')", 1_u8, 0_u8, (9631_u16, 9631_u16, 0_u16, 0_u16))]
 #[case(CairoVersion::Cairo1, "invoke_call_chain", "0x4469766973696f6e2062792030 ('Division by 0')", 1_u8, 1_u8, (9631_u16, 9700_u16, 0_u16, 0_u16))]
 #[case(CairoVersion::Cairo1, "fail", "0x6661696c ('fail')", 0_u8, 0_u8, (9631_u16, 9631_u16, 0_u16, 0_u16))]
@@ -490,27 +485,20 @@ Unknown location (pc=0:{expected_pc3})
             )
         }
         CairoVersion::Cairo1 => {
-            let pc_location = entry_point_offset.0 + INNER_CALL_CONTRACT_IN_CALL_CHAIN_OFFSET;
-            let (expected_pc0, expected_pc1, _, _) = expected_pcs;
             format!(
                 "Transaction execution has failed:
 0: Error in the called contract (contract address: {account_address_felt:#064x}, class hash: \
                  {account_contract_hash:#064x}, selector: {execute_selector_felt:#064x}):
-Error at pc=0:767:
-1: Error in the called contract (contract address: {address_felt:#064x}, class hash: \
-                 {test_contract_hash:#064x}, selector: {invoke_call_chain_selector_felt:#064x}):
-Error at pc=0:{expected_pc0}:
-Cairo traceback (most recent call last):
-Unknown location (pc=0:{pc_location})
-
-2: Error in the called contract (contract address: {address_felt:#064x}, class hash: \
-                 {test_contract_hash:#064x}, selector: {invoke_call_chain_selector_felt:#064x}):
-Error at pc=0:{expected_pc1}:
-Cairo traceback (most recent call last):
-Unknown location (pc=0:{pc_location})
-
-3: {last_call_preamble}:
-Execution failed. Failure reason: {expected_error}.
+Execution failed. Failure reason:
+Error in contract (contract address: {account_address_felt:#064x}, class hash: \
+                 {account_contract_hash:#064x}, selector: {execute_selector_felt:#064x}):
+Error in contract (contract address: {address_felt:#064x}, class hash: {test_contract_hash:#064x}, \
+                 selector: {invoke_call_chain_selector_felt:#064x}):
+Error in contract (contract address: {address_felt:#064x}, class hash: {test_contract_hash:#064x}, \
+                 selector: {invoke_call_chain_selector_felt:#064x}):
+Error in contract (contract address: {address_felt:#064x}, class hash: {test_contract_hash:#064x}, \
+                 selector: {last_func_selector_felt:#064x}):
+{expected_error}.
 "
             )
         }
@@ -568,7 +556,7 @@ fn test_validate_trace(
     let faulty_account = FeatureContract::FaultyAccount(cairo_version);
     let mut sender_address = faulty_account.get_instance_address(0);
     let class_hash = faulty_account.get_class_hash();
-    let state = &mut test_state(&block_context.chain_info, 0, &[(faulty_account, 1)]);
+    let state = &mut test_state(&block_context.chain_info, Fee(0), &[(faulty_account, 1)]);
     let selector = selector_from_name(entry_point_name).0;
 
     // Logic failure.
@@ -608,11 +596,10 @@ An ASSERT_EQ instruction failed: 1 != 0.
             class_hash.0
         ),
         CairoVersion::Cairo1 => format!(
-            "Transaction validation has failed:
-0: Error in the called contract (contract address: {contract_address:#064x}, class hash: {:#064x}, \
-             selector: {selector:#064x}):
-Execution failed. Failure reason: 0x496e76616c6964207363656e6172696f ('Invalid scenario').
-",
+            "The `validate` entry point panicked with:
+Error in contract (contract address: {contract_address:#064x}, class hash: {:#064x}, selector: \
+             {selector:#064x}):
+0x496e76616c6964207363656e6172696f ('Invalid scenario').",
             class_hash.0
         ),
     };
@@ -620,7 +607,8 @@ Execution failed. Failure reason: 0x496e76616c6964207363656e6172696f ('Invalid s
     // Clean pc locations from the trace.
     let re = Regex::new(r"pc=0:[0-9]+").unwrap();
     let cleaned_expected_error = &re.replace_all(&expected_error, "pc=0:*");
-    let actual_error = account_tx.execute(state, block_context, true, true).unwrap_err();
+    let charge_fee = account_tx.enforce_fee();
+    let actual_error = account_tx.execute(state, block_context, charge_fee, true).unwrap_err();
     let actual_error_str = actual_error.to_string();
     let cleaned_actual_error = &re.replace_all(&actual_error_str, "pc=0:*");
     // Compare actual trace to the expected trace (sans pc locations).
@@ -645,7 +633,8 @@ fn test_account_ctor_frame_stack_trace(
             tx_type: TransactionType::DeployAccount,
             scenario: INVALID,
             class_hash,
-            max_fee: Fee(BALANCE),
+            max_fee: BALANCE,
+            resource_bounds: default_all_resource_bounds(),
             validate_constructor: true,
             ..Default::default()
         });
@@ -655,7 +644,7 @@ fn test_account_ctor_frame_stack_trace(
         AccountTransaction::DeployAccount(deploy_tx) => deploy_tx.contract_address(),
         _ => unreachable!("deploy_account_tx is a DeployAccount"),
     };
-    fund_account(chain_info, deploy_address, BALANCE * 2, &mut state.state);
+    fund_account(chain_info, deploy_address, Fee(BALANCE.0 * 2), &mut state.state);
 
     let expected_selector = selector_from_name(CONSTRUCTOR_ENTRY_POINT_NAME).0;
     let expected_address = deploy_address.0.key();
@@ -665,22 +654,27 @@ fn test_account_ctor_frame_stack_trace(
          hash: {:#064x}, selector: {expected_selector:#064x}):
 ",
         class_hash.0
-    ) + match cairo_version {
-        CairoVersion::Cairo0 => {
-            "Error at pc=0:223:
+    )
+    .to_string()
+        + &match cairo_version {
+            CairoVersion::Cairo0 => "Error at pc=0:223:
 Cairo traceback (most recent call last):
 Unknown location (pc=0:195)
 Unknown location (pc=0:179)
 
 An ASSERT_EQ instruction failed: 1 != 0.
 "
-        }
-        CairoVersion::Cairo1 => {
-            "Execution failed. Failure reason: 0x496e76616c6964207363656e6172696f ('Invalid \
-             scenario').
-"
-        }
-    };
+            .to_string(),
+            CairoVersion::Cairo1 => format!(
+                "Execution failed. Failure reason:
+Error in contract (contract address: {expected_address:#064x}, class hash: {:#064x}, selector: \
+                 {expected_selector:#064x}):
+0x496e76616c6964207363656e6172696f ('Invalid scenario').
+",
+                class_hash.0
+            )
+            .to_string(),
+        };
 
     // Compare expected and actual error.
     let error = deploy_account_tx.execute(state, &block_context, true, true).unwrap_err();
@@ -693,7 +687,7 @@ An ASSERT_EQ instruction failed: 1 != 0.
 /// point selector).
 fn test_contract_ctor_frame_stack_trace(
     block_context: BlockContext,
-    max_resource_bounds: ValidResourceBounds,
+    default_all_resource_bounds: ValidResourceBounds,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
 ) {
     let chain_info = &block_context.chain_info;
@@ -730,7 +724,7 @@ fn test_contract_ctor_frame_stack_trace(
                 validate_constructor,
             ]
         ),
-        resource_bounds: max_resource_bounds,
+        resource_bounds: default_all_resource_bounds,
         nonce: Nonce(felt!(0_u8)),
     });
 
@@ -806,10 +800,15 @@ Error at pc=0:{}:
 {frame_1}
 Error at pc=0:{}:
 {frame_2}
-Execution failed. Failure reason: 0x496e76616c6964207363656e6172696f ('Invalid scenario').
+Execution failed. Failure reason:
+Error in contract (contract address: {expected_address:#064x}, class hash: {:#064x}, selector: \
+                 {:#064x}):
+0x496e76616c6964207363656e6172696f ('Invalid scenario').
 ",
                 execute_offset + 205,
-                deploy_offset + 194
+                deploy_offset + 194,
+                faulty_class_hash.0,
+                ctor_selector.0
             )
         }
     };

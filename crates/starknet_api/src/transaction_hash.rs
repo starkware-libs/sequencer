@@ -3,10 +3,11 @@ use std::sync::LazyLock;
 use starknet_types_core::felt::Felt;
 
 use crate::block::BlockNumber;
-use crate::core::{calculate_contract_address, ChainId, ContractAddress};
+use crate::core::{ascii_as_felt, calculate_contract_address, ChainId, ContractAddress};
 use crate::crypto::utils::HashChain;
 use crate::data_availability::DataAvailabilityMode;
 use crate::transaction::{
+    signed_tx_version_from_tx,
     DeclareTransaction,
     DeclareTransactionV0V1,
     DeclareTransactionV2,
@@ -24,10 +25,15 @@ use crate::transaction::{
     Tip,
     Transaction,
     TransactionHash,
+    TransactionOptions,
     TransactionVersion,
     ValidResourceBounds,
 };
 use crate::StarknetApiError;
+
+#[cfg(test)]
+#[path = "transaction_hash_test.rs"]
+mod transaction_hash_test;
 
 type ResourceName = [u8; 7];
 
@@ -53,8 +59,9 @@ const CONSTRUCTOR_ENTRY_POINT_SELECTOR: Felt =
 pub fn get_transaction_hash(
     transaction: &Transaction,
     chain_id: &ChainId,
-    transaction_version: &TransactionVersion,
+    transaction_options: &TransactionOptions,
 ) -> Result<TransactionHash, StarknetApiError> {
+    let transaction_version = &signed_tx_version_from_tx(transaction, transaction_options);
     match transaction {
         Transaction::Declare(declare) => match declare {
             DeclareTransaction::V0(declare_v0) => {
@@ -108,15 +115,16 @@ pub fn get_transaction_hash(
 
 // On mainnet, from this block number onwards, there are no deprecated transactions,
 // enabling us to validate against a single hash calculation.
-const MAINNET_TRANSACTION_HASH_WITH_VERSION: BlockNumber = BlockNumber(1470);
+pub const MAINNET_TRANSACTION_HASH_WITH_VERSION: BlockNumber = BlockNumber(1470);
 
 // Calculates a list of deprecated hashes for a transaction.
 fn get_deprecated_transaction_hashes(
     chain_id: &ChainId,
     block_number: &BlockNumber,
     transaction: &Transaction,
-    transaction_version: &TransactionVersion,
+    transaction_options: &TransactionOptions,
 ) -> Result<Vec<TransactionHash>, StarknetApiError> {
+    let transaction_version = &signed_tx_version_from_tx(transaction, transaction_options);
     Ok(if chain_id == &ChainId::Mainnet && block_number > &MAINNET_TRANSACTION_HASH_WITH_VERSION {
         vec![]
     } else {
@@ -155,26 +163,20 @@ pub fn validate_transaction_hash(
     block_number: &BlockNumber,
     chain_id: &ChainId,
     expected_hash: TransactionHash,
-    transaction_version: &TransactionVersion,
+    transaction_options: &TransactionOptions,
 ) -> Result<bool, StarknetApiError> {
     let mut possible_hashes = get_deprecated_transaction_hashes(
         chain_id,
         block_number,
         transaction,
-        transaction_version,
+        transaction_options,
     )?;
-    possible_hashes.push(get_transaction_hash(transaction, chain_id, transaction_version)?);
+    possible_hashes.push(get_transaction_hash(transaction, chain_id, transaction_options)?);
     Ok(possible_hashes.contains(&expected_hash))
 }
 
-// TODO: should be part of core::Felt
-pub(crate) fn ascii_as_felt(ascii_str: &str) -> Result<Felt, StarknetApiError> {
-    Felt::from_hex(hex::encode(ascii_str).as_str())
-        .map_err(|_| StarknetApiError::OutOfRange { string: ascii_str.to_string() })
-}
-
 // An implementation of the SNIP: https://github.com/EvyatarO/SNIPs/blob/snip-8/SNIPS/snip-8.md
-fn get_tip_resource_bounds_hash(
+pub fn get_tip_resource_bounds_hash(
     resource_bounds: &ValidResourceBounds,
     tip: &Tip,
 ) -> Result<Felt, StarknetApiError> {
@@ -198,8 +200,8 @@ fn get_concat_resource(
     resource_bounds: &ResourceBounds,
     resource_name: &ResourceName,
 ) -> Result<Felt, StarknetApiError> {
-    let max_amount = resource_bounds.max_amount.to_be_bytes();
-    let max_price = resource_bounds.max_price_per_unit.to_be_bytes();
+    let max_amount = resource_bounds.max_amount.0.to_be_bytes();
+    let max_price = resource_bounds.max_price_per_unit.0.to_be_bytes();
     let concat_bytes =
         [[0_u8].as_slice(), resource_name.as_slice(), max_amount.as_slice(), max_price.as_slice()]
             .concat();

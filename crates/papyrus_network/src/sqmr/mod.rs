@@ -9,17 +9,16 @@ mod flow_test;
 use std::time::Duration;
 
 pub use behaviour::{Behaviour, ToOtherBehaviourEvent};
-use derive_more::Display;
 use libp2p::{PeerId, StreamProtocol};
 
 pub type Bytes = Vec<u8>;
 
-#[derive(Clone, Copy, Debug, Default, Display, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, derive_more::Display, Eq, Hash, PartialEq)]
 pub struct OutboundSessionId {
     pub value: usize,
 }
 
-#[derive(Clone, Copy, Debug, Default, Display, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, derive_more::Display, Eq, Hash, PartialEq)]
 pub struct InboundSessionId {
     pub value: usize,
 }

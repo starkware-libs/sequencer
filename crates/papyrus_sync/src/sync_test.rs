@@ -12,7 +12,7 @@ use papyrus_storage::test_utils::get_test_storage;
 use papyrus_storage::{StorageReader, StorageWriter};
 use papyrus_test_utils::{get_rng, GetTestInstance};
 use pretty_assertions::assert_eq;
-use starknet_api::block::{BlockHash, BlockHeader, BlockNumber};
+use starknet_api::block::{BlockHash, BlockHeader, BlockHeaderWithoutHash, BlockNumber};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce, PatriciaKey};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::hash::StarkHash;
@@ -177,9 +177,12 @@ fn store_base_layer_block_test() {
 
     let header_hash = BlockHash(felt!("0x0"));
     let header = BlockHeader {
-        block_number: BlockNumber(0),
         block_hash: header_hash,
-        ..BlockHeader::default()
+        block_header_without_hash: BlockHeaderWithoutHash {
+            block_number: BlockNumber(0),
+            ..Default::default()
+        },
+        ..Default::default()
     };
     writer
         .begin_rw_txn()
@@ -222,9 +225,12 @@ fn store_base_layer_block_test() {
 fn add_headers(headers_num: u64, writer: &mut StorageWriter) {
     for i in 0..headers_num {
         let header = BlockHeader {
-            block_number: BlockNumber(i),
             block_hash: BlockHash(i.into()),
-            ..BlockHeader::default()
+            block_header_without_hash: BlockHeaderWithoutHash {
+                block_number: BlockNumber(i),
+                ..Default::default()
+            },
+            ..Default::default()
         };
         writer
             .begin_rw_txn()
@@ -369,8 +375,11 @@ async fn pending_sync_new_data_has_more_advanced_hash_and_less_transactions() {
             BlockNumber(0),
             &BlockHeader {
                 block_hash: FIRST_BLOCK_HASH,
-                parent_hash: genesis_hash,
-                block_number: BlockNumber(0),
+                block_header_without_hash: BlockHeaderWithoutHash {
+                    parent_hash: genesis_hash,
+                    block_number: BlockNumber(0),
+                    ..Default::default()
+                },
                 ..Default::default()
             },
         )
@@ -483,8 +492,11 @@ async fn pending_sync_doesnt_stop_when_data_has_block_hash_field_with_the_same_h
             BlockNumber(0),
             &BlockHeader {
                 block_hash: FIRST_BLOCK_HASH,
-                parent_hash: genesis_hash,
-                block_number: BlockNumber(0),
+                block_header_without_hash: BlockHeaderWithoutHash {
+                    parent_hash: genesis_hash,
+                    block_number: BlockNumber(0),
+                    ..Default::default()
+                },
                 ..Default::default()
             },
         )
@@ -557,8 +569,11 @@ async fn pending_sync_updates_when_data_has_block_hash_field_with_the_same_hash_
             BlockNumber(0),
             &BlockHeader {
                 block_hash: FIRST_BLOCK_HASH,
-                parent_hash: genesis_hash,
-                block_number: BlockNumber(0),
+                block_header_without_hash: BlockHeaderWithoutHash {
+                    parent_hash: genesis_hash,
+                    block_number: BlockNumber(0),
+                    ..Default::default()
+                },
                 ..Default::default()
             },
         )
@@ -709,8 +724,11 @@ async fn pending_sync_classes_are_cleaned_on_first_pending_data_from_latest_bloc
             BlockNumber(0),
             &BlockHeader {
                 block_hash: FIRST_BLOCK_HASH,
-                parent_hash: genesis_hash,
-                block_number: BlockNumber(0),
+                block_header_without_hash: BlockHeaderWithoutHash {
+                    parent_hash: genesis_hash,
+                    block_number: BlockNumber(0),
+                    ..Default::default()
+                },
                 ..Default::default()
             },
         )

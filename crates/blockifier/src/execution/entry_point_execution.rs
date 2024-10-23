@@ -10,11 +10,10 @@ use cairo_vm::vm::runners::builtin_runner::BuiltinRunner;
 use cairo_vm::vm::runners::cairo_runner::{CairoArg, CairoRunner, ExecutionResources};
 use cairo_vm::vm::security::verify_secure_runner;
 use num_traits::{ToPrimitive, Zero};
-use starknet_api::felt;
 use starknet_types_core::felt::Felt;
 
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
-use crate::execution::contract_class::{ContractClassV1, EntryPointV1};
+use crate::execution::contract_class::{ContractClassV1, EntryPointV1, TrackedResource};
 use crate::execution::entry_point::{
     CallEntryPoint,
     EntryPointExecutionContext,
@@ -63,6 +62,8 @@ pub fn execute_entry_point_call(
         "Class hash must not be None when executing an entry point.".into(),
     ))?;
 
+    let tracked_resource =
+        *context.tracked_resource_stack.last().expect("Unexpected empty tracked resource.");
     let VmExecutionContext {
         mut runner,
         mut syscall_handler,
@@ -97,20 +98,14 @@ pub fn execute_entry_point_call(
         bytecode_length,
     )?;
 
-    let call_info = finalize_execution(
+    Ok(finalize_execution(
         runner,
         syscall_handler,
         previous_resources,
         n_total_args,
         program_extra_data_length,
-    )?;
-    if call_info.execution.failed {
-        return Err(EntryPointExecutionError::ExecutionFailed {
-            error_data: call_info.execution.retdata.0,
-        });
-    }
-
-    Ok(call_info)
+        tracked_resource,
+    )?)
 }
 
 // Collects the set PC values that were visited during the entry point execution.
@@ -221,7 +216,7 @@ fn prepare_program_extra_data(
     // additional `ret` statement).
     let mut ptr = (runner.vm.get_pc() + contract_class.bytecode_length())?;
     // Push a `ret` opcode.
-    write_felt(&mut runner.vm, &mut ptr, felt!(0x208b7fff7fff7ffe_u128))?;
+    write_felt(&mut runner.vm, &mut ptr, Felt::from(0x208b7fff7fff7ffe_u128))?;
     // Push a pointer to the builtin cost segment.
     write_maybe_relocatable(&mut runner.vm, &mut ptr, builtin_cost_segment_start)?;
 
@@ -369,10 +364,11 @@ fn maybe_fill_holes(
 
 pub fn finalize_execution(
     mut runner: CairoRunner,
-    syscall_handler: SyscallHintProcessor<'_>,
+    mut syscall_handler: SyscallHintProcessor<'_>,
     previous_resources: ExecutionResources,
     n_total_args: usize,
     program_extra_data_length: usize,
+    tracked_resource: TrackedResource,
 ) -> Result<CallInfo, PostExecutionError> {
     // Close memory holes in segments (OS code touches those memory cells, we simulate it).
     let program_start_ptr = runner
@@ -406,8 +402,10 @@ pub fn finalize_execution(
     }
     *syscall_handler.resources += &vm_resources_without_inner_calls;
     // Take into account the syscall resources of the current call.
-    *syscall_handler.resources += &versioned_constants
-        .get_additional_os_syscall_resources(&syscall_handler.syscall_counter)?;
+    *syscall_handler.resources +=
+        &versioned_constants.get_additional_os_syscall_resources(&syscall_handler.syscall_counter);
+
+    syscall_handler.finalize();
 
     let full_call_resources = &*syscall_handler.resources - &previous_resources;
     Ok(CallInfo {
@@ -421,6 +419,7 @@ pub fn finalize_execution(
         },
         resources: full_call_resources.filter_unused_builtins(),
         inner_calls: syscall_handler.inner_calls,
+        tracked_resource,
         storage_read_values: syscall_handler.read_values,
         accessed_storage_keys: syscall_handler.accessed_keys,
     })

@@ -18,57 +18,20 @@ on:
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.job }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  commitlint:
-    runs-on: starkware-ubuntu-latest-small
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Install commitlint
-        run: npm install --global @commitlint/cli @commitlint/config-conventional
-
-      - name: Validate PR commits with commitlint
-        if: github.event_name == 'pull_request' && !(contains(github.event.pull_request.title, 'merge-main') || contains(github.event.pull_request.title, 'merge main'))
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: commitlint --from "$BASE_SHA" --to "$HEAD_SHA" --verbose
-
-      - name: Validate PR title with commitlint
-        if: github.event_name != 'merge_group' && github.event_name != 'push' && !(contains(github.event.pull_request.title, 'merge-main') || contains(github.event.pull_request.title, 'merge main'))
-        env:
-          TITLE: ${{ github.event.pull_request.title }}
-        run: echo "$TITLE" | commitlint --verbose
-
-  format:
+  code_style:
     runs-on: starkware-ubuntu-20-04-medium
     steps:
+      # Environment setup.
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@master # TODO(Nimrod, 15/8/2024): Use stable toolchain.
+      - uses: baptiste0928/cargo-install@v3
         with:
-          components: rustfmt
-          toolchain: nightly-2024-04-29
-      - uses: Swatinem/rust-cache@v2
-        with:
-          prefix-key: "v0-rust-ubuntu-20.04"
-      - run: scripts/rust_fmt.sh --check
-
-  clippy:
-    runs-on: starkware-ubuntu-20-04-medium
-    steps:
-      - uses: actions/checkout@v4
-      - uses: Noelware/setup-protoc@1.1.0
-      - uses: ./.github/actions/install_rust
-        with:
-          components: clippy
-      - uses: Swatinem/rust-cache@v2
-        with:
-          prefix-key: "v0-rust-ubuntu-20.04"
+          crate: taplo-cli
+          version: '0.9.0'
+          locked: true
 
       # Setup pypy and link to the location expected by .cargo/config.toml.
       - uses: actions/setup-python@v5
@@ -80,41 +43,36 @@ jobs:
           LD_LIBRARY_PATH: ${{ steps.setup-pypy.outputs.pythonLocation }}/bin
         run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
 
-      - run: scripts/clippy.sh
+      # Install rust components.
+      - uses: ./.github/actions/bootstrap
 
-  doc:
-    runs-on: starkware-ubuntu-latest-small
-    env:
-      RUSTDOCFLAGS: "-D warnings"
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
-      - uses: Noelware/setup-protoc@1.1.0
-        with:
-          version: ${{env.PROTOC_VERSION}}
-      - run: cargo doc --workspace -r --document-private-items --no-deps
+      # Run tests.
+      - name: "Run rustfmt"
+        run: scripts/rust_fmt.sh --check
+      - name: "Run clippy"
+        run: scripts/clippy.sh
+      - name: "Run cargo doc"
+        run: cargo doc --workspace -r --document-private-items --no-deps
+      - name: "Run taplo"
+        run: scripts/taplo.sh
+      - name: Run Machete (detect unused dependencies)
+        uses: bnjbvr/cargo-machete@main
 
   run-workspace-tests:
-    runs-on: starkware-ubuntu-latest-small
+    runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
+      - uses: ./.github/actions/bootstrap
       - run: cargo test -p workspace_tests
 
   run-tests:
-    runs-on: starkware-ubuntu-20-04-medium
+    runs-on: starkware-ubuntu-latest-large
     steps:
       - uses: actions/checkout@v4
         with:
           # Fetch the entire history.
           fetch-depth: 0
-      - uses: ./.github/actions/install_rust
-      - uses: Noelware/setup-protoc@1.1.0
-      - uses: Swatinem/rust-cache@v2
-        with:
-          prefix-key: "v0-rust-ubuntu-20.04"
+      - uses: ./.github/actions/bootstrap
 
       # Setup pypy and link to the location expected by .cargo/config.toml.
       - uses: actions/setup-python@v5
@@ -130,7 +88,7 @@ jobs:
         run: |
           python3 -m venv ci
           ci/bin/pip install -r scripts/requirements.txt
-          ci/bin/python scripts/run_tests.py --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
+          ci/bin/python scripts/run_tests.py --changes_only --include_dependencies --commit_id ${{ github.event.pull_request.base.sha }}
         env:
           SEED: 0
 
@@ -144,87 +102,17 @@ jobs:
         env:
           SEED: 0
 
-  taplo:
-    runs-on: starkware-ubuntu-latest-small
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
-      - uses: baptiste0928/cargo-install@v3
-        with:
-          crate: taplo-cli
-          version: "0.9.0"
-          locked: true
-      - run: scripts/taplo.sh
-
-  machete:
-    runs-on: starkware-ubuntu-latest-small
-    steps:
-      - uses: actions/checkout@v4
-      - name: Run Machete (detect unused dependencies)
-        uses: bnjbvr/cargo-machete@main
-
-  check:
-    runs-on: starkware-ubuntu-latest-small
-    env:
-      RUSTDOCFLAGS: "-D warnings"
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
-      - uses: Noelware/setup-protoc@1.1.0
-        with:
-          version: ${{env.PROTOC_VERSION}}
-      - run: cargo check --workspace -r --all-features
-
-  merge-gatekeeper:
-    runs-on: starkware-ubuntu-latest-small
-    # Restrict permissions of the GITHUB_TOKEN.
-    # Docs: https://docs.github.com/en/actions/using-jobs/assigning-permissions-to-jobs
-    permissions:
-      checks: read
-      statuses: read
-    steps:
-      - name: Run Merge Gatekeeper on pull request
-        if: github.event_name == 'pull_request'
-        uses: upsidr/merge-gatekeeper@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          timeout: 1200
-          interval: 30
-          ignored: "code-review/reviewable"
-
-      - name: Run Merge Gatekeeper on Merge Queue || push
-        if: github.event_name == 'merge_group' || github.event_name == 'push'
-        uses: upsidr/merge-gatekeeper@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          ref: ${{github.ref}}
-          timeout: 1200
-          interval: 30
-          ignored: "code-review/reviewable"
-
   codecov:
-    runs-on: starkware-ubuntu-latest-medium
+    runs-on: starkware-ubuntu-latest-large
     steps:
       - uses: actions/checkout@v4
         with:
           # Fetch the entire history.
           fetch-depth: 0
-      - uses: ./.github/actions/install_rust
-      - name: Set-Up
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang llvm libudev-dev
-      - uses: Noelware/setup-protoc@1.1.0
-        with:
-          version: ${{env.PROTOC_VERSION}}
+      - uses: ./.github/actions/bootstrap
 
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
-      - uses: Swatinem/rust-cache@v2
-        with:
-          prefix-key: "v0-rust-ubuntu-20.04"
       - run: npm install -g ganache@7.4.3
 
       # Setup pypy and link to the location expected by .cargo/config.toml.
@@ -243,7 +131,7 @@ jobs:
         run: |
           python3 -m venv ci
           ci/bin/pip install -r scripts/requirements.txt
-          ci/bin/python scripts/run_codecov.py --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
+          ci/bin/python scripts/run_tests.py --codecov --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
           if [ -f codecov.json ]; then
             echo "codecov_output=true" >> $GITHUB_OUTPUT
           else
@@ -258,7 +146,7 @@ jobs:
         run: |
           python3 -m venv ci
           ci/bin/pip install -r scripts/requirements.txt
-          ci/bin/python scripts/run_codecov.py
+          ci/bin/python scripts/run_tests.py --codecov
           echo "codecov_output=true" >> $GITHUB_OUTPUT
         env:
           SEED: 0

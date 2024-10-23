@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use blockifier::abi::abi_utils::selector_from_name;
-use blockifier::execution::call_info::{CallExecution, Retdata};
+use blockifier::execution::call_info::CallExecution;
 use blockifier::execution::entry_point::CallEntryPoint;
 use blockifier::retdata;
 use blockifier::state::cached_state::CachedState;
@@ -15,7 +15,6 @@ use papyrus_storage::state::StateStorageWriter;
 use starknet_api::block::BlockNumber;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{StateDiff, StorageKey};
-use starknet_api::transaction::Calldata;
 use starknet_api::{calldata, felt};
 use starknet_types_core::felt::Felt;
 

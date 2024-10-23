@@ -1,6 +1,12 @@
 use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
-use starknet_api::block::{BlockHash, BlockHeader, BlockNumber, BlockSignature};
+use starknet_api::block::{
+    BlockHash,
+    BlockHeader,
+    BlockHeaderWithoutHash,
+    BlockNumber,
+    BlockSignature,
+};
 use starknet_api::felt;
 
 use crate::header::{HeaderStorageReader, HeaderStorageWriter, StarknetVersion};
@@ -145,8 +151,11 @@ async fn starknet_version() {
     fn block_header(hash: u8, starknet_version: StarknetVersion) -> BlockHeader {
         BlockHeader {
             block_hash: BlockHash(felt!(hash)),
-            starknet_version,
-            ..BlockHeader::default()
+            block_header_without_hash: BlockHeaderWithoutHash {
+                starknet_version,
+                ..Default::default()
+            },
+            ..Default::default()
         }
     }
 
@@ -172,21 +181,21 @@ async fn starknet_version() {
         reader.begin_ro_txn().unwrap().get_starknet_version(BlockNumber(1)).unwrap();
     assert!(non_existing_block_starknet_version.is_none());
 
-    let second_version = StarknetVersion("second_version".to_string());
-    let yet_another_version = StarknetVersion("yet_another_version".to_string());
+    let second_version = StarknetVersion::V0_9_1;
+    let yet_another_version = StarknetVersion::V0_12_0;
 
     writer
         .begin_rw_txn()
         .unwrap()
         .append_header(BlockNumber(1), &block_header(1, StarknetVersion::default()))
         .unwrap()
-        .append_header(BlockNumber(2), &block_header(2, second_version.clone()))
+        .append_header(BlockNumber(2), &block_header(2, second_version))
         .unwrap()
-        .append_header(BlockNumber(3), &block_header(3, second_version.clone()))
+        .append_header(BlockNumber(3), &block_header(3, second_version))
         .unwrap()
-        .append_header(BlockNumber(4), &block_header(4, yet_another_version.clone()))
+        .append_header(BlockNumber(4), &block_header(4, yet_another_version))
         .unwrap()
-        .append_header(BlockNumber(5), &block_header(5, yet_another_version.clone()))
+        .append_header(BlockNumber(5), &block_header(5, yet_another_version))
         .unwrap()
         .commit()
         .unwrap();

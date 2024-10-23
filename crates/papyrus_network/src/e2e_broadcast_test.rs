@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use futures::{FutureExt, SinkExt, StreamExt};
+use futures::{FutureExt, StreamExt};
 use libp2p::core::multiaddr::Protocol;
 use libp2p::swarm::SwarmEvent;
 use libp2p::{Multiaddr, Swarm};
@@ -9,7 +9,7 @@ use starknet_api::core::ChainId;
 
 use crate::gossipsub_impl::Topic;
 use crate::mixed_behaviour::MixedBehaviour;
-use crate::network_manager::GenericNetworkManager;
+use crate::network_manager::{BroadcastTopicClientTrait, GenericNetworkManager};
 use crate::sqmr;
 use crate::sqmr::Bytes;
 
@@ -106,11 +106,11 @@ async fn broadcast_subscriber_end_to_end_test() {
                 let number1 = Number(1);
                 let number2 = Number(2);
                 let mut broadcast_client2_1 =
-                    subscriber_channels2_1.broadcast_client_channels;
+                    subscriber_channels2_1.broadcasted_messages_receiver;
                 let mut broadcast_client2_2 =
-                    subscriber_channels2_2.broadcast_client_channels;
-                subscriber_channels1_1.messages_to_broadcast_sender.send(number1).await.unwrap();
-                subscriber_channels1_2.messages_to_broadcast_sender.send(number2).await.unwrap();
+                    subscriber_channels2_2.broadcasted_messages_receiver;
+                subscriber_channels1_1.broadcast_topic_client.broadcast_message(number1).await.unwrap();
+                subscriber_channels1_2.broadcast_topic_client.broadcast_message(number2).await.unwrap();
                 let (received_number1, _report_callback) =
                     broadcast_client2_1.next().await.unwrap();
                 let (received_number2, _report_callback) =

@@ -92,42 +92,12 @@
   "consensus.num_validators": {
     "description": "The number of validators in the consensus.",
     "privacy": "Public",
-    "value": 4
+    "value": 1
   },
   "consensus.start_height": {
     "description": "The height to start the consensus from.",
     "privacy": "Public",
     "value": 0
-  },
-  "consensus.test.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
-  "consensus.test.cache_size": {
-    "description": "The cache size for the test simulation.",
-    "privacy": "Public",
-    "value": 1000
-  },
-  "consensus.test.drop_probability": {
-    "description": "The probability of dropping a message.",
-    "privacy": "Public",
-    "value": 0.0
-  },
-  "consensus.test.invalid_probability": {
-    "description": "The probability of sending an invalid message.",
-    "privacy": "Public",
-    "value": 0.0
-  },
-  "consensus.test.random_seed": {
-    "description": "The random seed for the test simulation to ensure repeatable test results.",
-    "privacy": "Public",
-    "value": 0
-  },
-  "consensus.test.sync_topic": {
-    "description": "The network topic for sync messages.",
-    "privacy": "Public",
-    "value": "consensus_test_sync"
   },
   "consensus.timeouts.precommit_timeout": {
     "description": "The timeout (seconds) for a precommit.",
@@ -145,9 +115,9 @@
     "value": 3.0
   },
   "consensus.validator_id": {
-    "description": "A required param! The validator id of the node.",
-    "param_type": "String",
-    "privacy": "Public"
+    "description": "The validator id of the node.",
+    "privacy": "Public",
+    "value": "0x0"
   },
   "monitoring_gateway.collect_metrics": {
     "description": "If true, collect and return metrics in the monitoring gateway.",
@@ -279,15 +249,15 @@
     "pointer_target": "collect_metrics",
     "privacy": "Public"
   },
+  "rpc.execution_config.default_initial_gas_cost": {
+    "description": "The initial gas cost for a transaction",
+    "privacy": "Public",
+    "value": 10000000000
+  },
   "rpc.execution_config.eth_fee_contract_address": {
     "description": "The eth fee token address to receive fees",
     "privacy": "Public",
     "value": "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7"
-  },
-  "rpc.execution_config.initial_gas_cost": {
-    "description": "The initial gas cost for a transaction",
-    "privacy": "Public",
-    "value": 10000000000
   },
   "rpc.execution_config.strk_fee_contract_address": {
     "description": "The strk fee token address to receive fees",

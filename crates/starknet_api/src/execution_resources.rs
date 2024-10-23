@@ -1,12 +1,177 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
+use starknet_types_core::felt::Felt;
 use strum_macros::EnumIter;
 
-#[derive(Debug, Default, Deserialize, Serialize, Clone, Eq, PartialEq)]
+use crate::block::{GasPrice, GasPriceVector, NonzeroGasPrice};
+use crate::transaction::{Fee, Resource};
+
+#[cfg_attr(
+    any(test, feature = "testing"),
+    derive(derive_more::Add, derive_more::Sum, derive_more::AddAssign)
+)]
+#[derive(
+    derive_more::Display,
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    PartialOrd,
+    Ord,
+    Serialize,
+    Deserialize,
+    Hash,
+)]
+pub struct GasAmount(pub u64);
+
+impl From<GasAmount> for Felt {
+    fn from(gas_amount: GasAmount) -> Self {
+        Self::from(gas_amount.0)
+    }
+}
+
+macro_rules! impl_from_uint_for_gas_amount {
+    ($($uint:ty),*) => {
+        $(
+            impl From<$uint> for GasAmount {
+                fn from(value: $uint) -> Self {
+                    Self(u64::from(value))
+                }
+            }
+        )*
+    };
+}
+
+impl_from_uint_for_gas_amount!(u8, u16, u32, u64);
+
+impl GasAmount {
+    pub const ZERO: Self = Self(0);
+    pub const MAX: Self = Self(u64::MAX);
+
+    pub fn checked_add(self, rhs: Self) -> Option<Self> {
+        self.0.checked_add(rhs.0).map(Self)
+    }
+
+    pub const fn nonzero_saturating_mul(self, rhs: NonzeroGasPrice) -> Fee {
+        rhs.saturating_mul(self)
+    }
+
+    pub const fn saturating_mul(self, rhs: GasPrice) -> Fee {
+        rhs.saturating_mul(self)
+    }
+
+    pub fn checked_mul(self, rhs: GasPrice) -> Option<Fee> {
+        rhs.checked_mul(self)
+    }
+}
+
+#[cfg_attr(
+    any(test, feature = "testing"),
+    derive(derive_more::Add, derive_more::Sum, derive_more::AddAssign)
+)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct GasVector {
-    pub l1_gas: u64,
-    pub l1_data_gas: u64,
+    pub l1_gas: GasAmount,
+    pub l1_data_gas: GasAmount,
+    #[serde(default)]
+    pub l2_gas: GasAmount,
+}
+
+impl GasVector {
+    pub const ZERO: GasVector =
+        GasVector { l1_gas: GasAmount(0), l1_data_gas: GasAmount(0), l2_gas: GasAmount(0) };
+
+    pub fn from_l1_gas(l1_gas: GasAmount) -> Self {
+        Self { l1_gas, ..Default::default() }
+    }
+
+    pub fn from_l1_data_gas(l1_data_gas: GasAmount) -> Self {
+        Self { l1_data_gas, ..Default::default() }
+    }
+
+    pub fn from_l2_gas(l2_gas: GasAmount) -> Self {
+        Self { l2_gas, ..Default::default() }
+    }
+
+    pub fn checked_add(self, rhs: Self) -> Option<Self> {
+        match (
+            self.l1_gas.checked_add(rhs.l1_gas),
+            self.l1_data_gas.checked_add(rhs.l1_data_gas),
+            self.l2_gas.checked_add(rhs.l2_gas),
+        ) {
+            (Some(l1_gas), Some(l1_data_gas), Some(l2_gas)) => {
+                Some(Self { l1_gas, l1_data_gas, l2_gas })
+            }
+            _ => None,
+        }
+    }
+
+    /// Computes the cost (in fee token units) of the gas vector (panicking on overflow).
+    pub fn cost(&self, gas_prices: &GasPriceVector) -> Fee {
+        let mut sum = Fee(0);
+        for (gas, price, resource) in [
+            (self.l1_gas, gas_prices.l1_gas_price, Resource::L1Gas),
+            (self.l1_data_gas, gas_prices.l1_data_gas_price, Resource::L1DataGas),
+            (self.l2_gas, gas_prices.l2_gas_price, Resource::L2Gas),
+        ] {
+            let cost = gas.checked_mul(price.get()).unwrap_or_else(|| {
+                panic!(
+                    "{} cost overflowed: multiplication of gas amount ({}) by price per unit ({}) \
+                     resulted in overflow.",
+                    resource, gas, price
+                )
+            });
+            sum = sum.checked_add(cost).unwrap_or_else(|| {
+                panic!(
+                    "Total cost overflowed: addition of current sum ({}) and cost of {} ({}) \
+                     resulted in overflow.",
+                    sum, resource, cost
+                )
+            });
+        }
+        sum
+    }
+
+    /// Compute l1_gas estimation from gas_vector using the following formula:
+    /// One byte of data costs either 1 data gas (in blob mode) or 16 gas (in calldata
+    /// mode). For gas price GP and data gas price DGP, the discount for using blobs
+    /// would be DGP / (16 * GP).
+    /// X non-data-related gas consumption and Y bytes of data, in non-blob mode, would
+    /// cost (X + 16*Y) units of gas. Applying the discount ratio to the data-related
+    /// summand, we get total_gas = (X + Y * DGP / GP).
+    /// If this function is called with kzg_flag==false, then l1_data_gas==0, and this discount
+    /// function does nothing.
+    /// Panics on overflow.
+    pub fn to_discounted_l1_gas(&self, gas_prices: &GasPriceVector) -> GasAmount {
+        let l1_data_gas_fee = self
+            .l1_data_gas
+            .checked_mul(gas_prices.l1_data_gas_price.into())
+            .unwrap_or_else(|| {
+                panic!(
+                    "Discounted L1 gas cost overflowed: multiplication of L1 data gas ({}) by L1 \
+                     data gas price ({}) resulted in overflow.",
+                    self.l1_data_gas, gas_prices.l1_data_gas_price
+                );
+            });
+        let l1_data_gas_in_l1_gas_units =
+            l1_data_gas_fee.checked_div_ceil(gas_prices.l1_gas_price).unwrap_or_else(|| {
+                panic!(
+                    "Discounted L1 gas cost overflowed: division of L1 data fee ({}) by regular \
+                     L1 gas price ({}) resulted in overflow.",
+                    l1_data_gas_fee, gas_prices.l1_gas_price
+                );
+            });
+        self.l1_gas.checked_add(l1_data_gas_in_l1_gas_units).unwrap_or_else(|| {
+            panic!(
+                "Overflow while computing discounted L1 gas: L1 gas ({}) + L1 data gas in L1 gas \
+                 units ({}) resulted in overflow.",
+                self.l1_gas, l1_data_gas_in_l1_gas_units
+            )
+        })
+    }
 }
 
 /// The execution resources used by a transaction.

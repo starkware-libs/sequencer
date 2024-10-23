@@ -11,11 +11,17 @@ normal = ["clap", "papyrus_base_layer", "reqwest", "tokio"]
 [features]
 default = ["rpc"]
 rpc = ["papyrus_rpc"]
+testing = []
 
 [[bin]]
 name = "central_source_integration_test"
 path = "src/bin/central_source_integration_test.rs"
 required-features = ["futures-util", "tokio-stream"]
+
+[[bin]]
+name = "run_consensus"
+path = "src/bin/run_consensus.rs"
+required-features = ["testing"]
 
 [dependencies]
 anyhow.workspace = true
@@ -29,6 +35,7 @@ papyrus_base_layer.workspace = true
 papyrus_common.workspace = true
 papyrus_config.workspace = true
 papyrus_consensus.workspace = true
+papyrus_consensus_orchestrator.workspace = true
 papyrus_monitoring_gateway.workspace = true
 papyrus_network.workspace = true
 papyrus_p2p_sync.workspace = true

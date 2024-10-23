@@ -1,18 +1,6 @@
 name: Blockifier-Compiled-Cairo
 
 on:
-  push:
-    branches:
-      - main
-      - main-v[0-9].**
-    tags:
-      - v[0-9].**
-    paths:
-      - '.github/workflows/blockifier_compiled_cairo.yml'
-      - 'crates/blockifier/feature_contracts/**'
-      - 'crates/blockifier/src/test_utils/cairo_compile.rs'
-      - 'crates/blockifier/tests/feature_contracts_compatibility_test.rs'
-      - 'crates/blockifier/tests/requirements.txt'
   pull_request:
     types:
       - opened
@@ -24,10 +12,11 @@ on:
       - 'crates/blockifier/src/test_utils/cairo_compile.rs'
       - 'crates/blockifier/tests/feature_contracts_compatibility_test.rs'
       - 'crates/blockifier/tests/requirements.txt'
+      - 'scripts/dependencies.sh'
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.job }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -35,10 +24,7 @@ jobs:
     runs-on: starkware-ubuntu-20-04-medium
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
-        with:
-          prefix-key: "v0-rust-ubuntu-20.04"
+      - uses: ./.github/actions/bootstrap
 
       # Setup pypy and link to the location expected by .cargo/config.toml.
       - uses: actions/setup-python@v5
@@ -69,6 +55,11 @@ jobs:
         uses: actions-rs/toolchain@master
         with:
           toolchain: nightly-2023-07-05
+
+      - name: install toolchain for cairo steps test contract compilation (old compiler tag)
+        uses: actions-rs/toolchain@master
+        with:
+          toolchain: nightly-2024-04-29
 
       - name: Verify cairo contract recompilation (both cairo versions).
         run:

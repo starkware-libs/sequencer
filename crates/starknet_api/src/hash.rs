@@ -6,7 +6,9 @@ use starknet_types_core::felt::Felt;
 
 pub type StarkHash = Felt;
 
-#[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
+#[derive(
+    Debug, Clone, Copy, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord,
+)]
 pub struct PoseidonHash(pub Felt);
 
 /// Computes the first 250 bits of the Keccak256 hash, in order to fit into a field element.

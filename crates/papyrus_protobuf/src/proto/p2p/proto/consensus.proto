@@ -8,6 +8,7 @@ message Proposal {
     Address              proposer     = 3;
     repeated Transaction transactions = 4;
     Hash                 block_hash   = 5;
+    optional uint32      valid_round  = 6;
 }
 
 message Vote {
@@ -27,6 +28,7 @@ message Vote {
     Address       voter      = 6;
 }
 
+// TODO(guyn): remove this after we have integrated streams for the proposal
 message ConsensusMessage {
     oneof message {
         Proposal proposal = 1;
@@ -35,8 +37,38 @@ message ConsensusMessage {
 }
 
 message StreamMessage {
-    bytes message = 1;
-    uint64 stream_id = 2;
-    uint64 chunk_id = 3;
-    bool fin = 4;
+    oneof message {
+        bytes content = 1;
+        Fin fin = 2;
+    }
+    uint64 stream_id = 3;
+    uint64 message_id = 4;
+}
+
+message ProposalInit {
+    uint64 height = 1;
+    uint32 round = 2;
+    optional uint32 valid_round = 3;
+    Address proposer = 4;
+}
+
+message TransactionBatch {
+    repeated Transaction transactions = 1;
+}
+
+message ProposalFin {
+    // Identifies all of the content streamed in the proposal.
+    Hash proposal_content_id = 1;
+}
+
+// Network format:
+// 1. First message is ProposalInit
+// 2. Last message is ProposalFin
+// 3. In between can be any number of other messages.
+message ProposalPart {
+    oneof message {
+        ProposalInit init = 1;
+        ProposalFin fin = 2;
+        TransactionBatch transactions = 3;
+    }
 }

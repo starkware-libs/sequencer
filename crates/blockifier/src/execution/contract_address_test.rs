@@ -5,7 +5,7 @@ use starknet_api::{calldata, felt};
 
 use crate::abi::abi_utils::selector_from_name;
 use crate::context::ChainInfo;
-use crate::execution::call_info::{CallExecution, Retdata};
+use crate::execution::call_info::CallExecution;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::retdata;
 use crate::state::cached_state::CachedState;
@@ -34,7 +34,7 @@ fn test_calculate_contract_address() {
             calldata,
             entry_point_selector: selector_from_name("test_contract_address"),
             storage_address: deployer_address,
-            initial_gas: versioned_constants.os_constants.gas_costs.initial_gas_cost,
+            initial_gas: versioned_constants.default_initial_gas_cost(),
             ..Default::default()
         };
         let contract_address =

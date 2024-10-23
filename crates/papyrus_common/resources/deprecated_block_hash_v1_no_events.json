@@ -11,6 +11,10 @@
       "price_in_fri": "0x1",
       "price_in_wei": "0x1"
     },
+    "l2_gas_price": {
+      "price_in_fri": "0x0",
+      "price_in_wei": "0x0"
+    },
     "state_root": "0x5a5f26ce761d20ac9dfdc3a009b6adeaabac74b97de38c7633af690efd9b175",
     "sequencer": "0x0",
     "timestamp": 1643609156,

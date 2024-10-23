@@ -1,4 +1,3 @@
-use cairo_vm::types::builtin_name::BuiltinName;
 use glob::{glob, Paths};
 use pretty_assertions::assert_eq;
 
@@ -37,65 +36,10 @@ fn test_successful_gas_costs_parsing() {
     assert_eq!(versioned_constants.os_constants.gas_costs.entry_point_gas_cost, 6 * 4 + 2 * 5);
 }
 
-fn get_json_value_without_defaults() -> serde_json::Value {
-    let json_data = r#"
-    {
-        "invoke_tx_max_n_steps": 2,
-        "validate_max_n_steps": 1,
-        "os_constants": {},
-        "os_resources": {
-            "execute_syscalls":{},
-            "execute_txs_inner": {
-                "Declare": {
-                    "deprecated_resources":{
-                        "builtin_instance_counter": {
-                            "pedersen_builtin": 16,
-                            "range_check_builtin": 63
-                        },
-                        "n_memory_holes": 0,
-                        "n_steps": 2839
-                    },
-                    "resources": {
-                        "builtin_instance_counter": {
-                            "pedersen_builtin": 16,
-                            "range_check_builtin": 63
-                        },
-                        "n_memory_holes": 0,
-                        "n_steps": 2839
-                    }
-                }
-            },
-            "compute_os_kzg_commitment_info": {
-                "builtin_instance_counter": {},
-                "n_memory_holes": 1,
-                "n_steps": 2
-            }
-        },
-        "vm_resource_fee_cost": {},
-        "max_recursion_depth": 2
-    }"#;
-    // Fill the os constants with the gas cost values (do not have a default value).
-    let mut os_constants: Value = serde_json::from_str::<Value>(VERSIONED_CONSTANTS_LATEST_JSON)
-        .unwrap()
-        .get("os_constants")
-        .unwrap()
-        .clone();
-    // Remove defaults from OsConstants.
-    os_constants.as_object_mut().unwrap().remove("validate_rounding_consts");
-
-    let mut json_value_without_defaults: Value = serde_json::from_str(json_data).unwrap();
-    json_value_without_defaults
-        .as_object_mut()
-        .unwrap()
-        .insert("os_constants".to_string(), os_constants);
-
-    json_value_without_defaults
-}
-
 /// Assert versioned constants overrides are used when provided.
 #[test]
 fn test_versioned_constants_overrides() {
-    let versioned_constants = VERSIONED_CONSTANTS_LATEST.clone();
+    let versioned_constants = VersionedConstants::latest_constants().clone();
     let updated_invoke_tx_max_n_steps = versioned_constants.invoke_tx_max_n_steps + 1;
     let updated_validate_max_n_steps = versioned_constants.validate_max_n_steps + 1;
     let updated_max_recursion_depth = versioned_constants.max_recursion_depth + 1;
@@ -111,38 +55,6 @@ fn test_versioned_constants_overrides() {
     assert_eq!(result.invoke_tx_max_n_steps, updated_invoke_tx_max_n_steps);
     assert_eq!(result.validate_max_n_steps, updated_validate_max_n_steps);
     assert_eq!(result.max_recursion_depth, updated_max_recursion_depth);
-}
-
-#[test]
-fn test_default_values() {
-    let json_value_without_defaults = get_json_value_without_defaults();
-
-    let versioned_constants: VersionedConstants =
-        serde_json::from_value(json_value_without_defaults).unwrap();
-
-    assert_eq!(versioned_constants.get_validate_block_number_rounding(), 1);
-    assert_eq!(versioned_constants.get_validate_timestamp_rounding(), 1);
-
-    assert_eq!(versioned_constants.tx_event_limits, EventLimits::max());
-    assert_eq!(versioned_constants.archival_data_gas_costs, ArchivalDataGasCosts::default());
-
-    // Calldata factor was initialized as 0, and did not affect the expected result, even if
-    // calldata length is nonzero.
-    let calldata_length = 2;
-    let expected_declare_resources = ExecutionResources {
-        n_steps: 2839,
-        builtin_instance_counter: HashMap::from([
-            (BuiltinName::pedersen, 16),
-            (BuiltinName::range_check, 63),
-        ]),
-        ..Default::default()
-    };
-    assert_eq!(
-        versioned_constants.os_resources_for_tx_type(&TransactionType::Declare, calldata_length),
-        expected_declare_resources
-    );
-    // The default value of disabled_cairo0_redeclaration is false to allow backward compatibility.
-    assert_eq!(versioned_constants.disable_cairo0_redeclaration, false);
 }
 
 #[test]
@@ -232,5 +144,26 @@ fn test_old_json_parsing() {
 
 #[test]
 fn test_all_jsons_in_enum() {
-    assert_eq!(StarknetVersion::iter().count(), all_jsons_in_dir().count());
+    let all_jsons: Vec<PathBuf> = all_jsons_in_dir().map(Result::unwrap).collect();
+
+    // Check that the number of new starknet versions (versions supporting VC) is equal to the
+    // number of JSON files.
+    assert_eq!(
+        StarknetVersion::iter().filter(|version| version >= &StarknetVersion::V0_13_0).count(),
+        all_jsons.len()
+    );
+
+    // Check that all JSON files are in the enum and can be loaded.
+    for file in all_jsons {
+        let filename = file.file_stem().unwrap().to_str().unwrap().to_string();
+        assert!(filename.starts_with("versioned_constants_"));
+        let version_str = filename.trim_start_matches("versioned_constants_").replace("_", ".");
+        let version = StarknetVersion::try_from(version_str).unwrap();
+        assert!(VersionedConstants::get(&version).is_ok());
+    }
+}
+
+#[test]
+fn test_latest_no_panic() {
+    VersionedConstants::latest_constants();
 }

@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::net::IpAddr;
 
 use blockifier::context::ChainInfo;
 use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
@@ -13,15 +12,14 @@ use crate::compiler_version::VersionId;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
 pub struct GatewayConfig {
-    pub network_config: GatewayNetworkConfig,
     pub stateless_tx_validator_config: StatelessTransactionValidatorConfig,
     pub stateful_tx_validator_config: StatefulTransactionValidatorConfig,
+    pub chain_info: ChainInfo,
 }
 
 impl SerializeConfig for GatewayConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         vec![
-            append_sub_config_name(self.network_config.dump(), "network_config"),
             append_sub_config_name(
                 self.stateless_tx_validator_config.dump(),
                 "stateless_tx_validator_config",
@@ -30,37 +28,11 @@ impl SerializeConfig for GatewayConfig {
                 self.stateful_tx_validator_config.dump(),
                 "stateful_tx_validator_config",
             ),
+            append_sub_config_name(self.chain_info.dump(), "chain_info"),
         ]
         .into_iter()
         .flatten()
         .collect()
-    }
-}
-
-/// The gateway network connection related configuration.
-#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
-pub struct GatewayNetworkConfig {
-    pub ip: IpAddr,
-    pub port: u16,
-}
-
-impl SerializeConfig for GatewayNetworkConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "ip",
-                &self.ip.to_string(),
-                "The gateway server ip.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param("port", &self.port, "The gateway server port.", ParamPrivacyInput::Public),
-        ])
-    }
-}
-
-impl Default for GatewayNetworkConfig {
-    fn default() -> Self {
-        Self { ip: "0.0.0.0".parse().unwrap(), port: 8080 }
     }
 }
 
@@ -169,7 +141,6 @@ pub struct StatefulTransactionValidatorConfig {
     pub max_nonce_for_validation_skip: Nonce,
     pub validate_max_n_steps: u32,
     pub max_recursion_depth: usize,
-    pub chain_info: ChainInfo,
 }
 
 impl Default for StatefulTransactionValidatorConfig {
@@ -178,14 +149,13 @@ impl Default for StatefulTransactionValidatorConfig {
             max_nonce_for_validation_skip: Nonce(Felt::ONE),
             validate_max_n_steps: 1_000_000,
             max_recursion_depth: 50,
-            chain_info: ChainInfo::default(),
         }
     }
 }
 
 impl SerializeConfig for StatefulTransactionValidatorConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let members = BTreeMap::from_iter([
+        BTreeMap::from_iter([
             ser_param(
                 "max_nonce_for_validation_skip",
                 &self.max_nonce_for_validation_skip,
@@ -204,20 +174,6 @@ impl SerializeConfig for StatefulTransactionValidatorConfig {
                 "Maximum recursion depth for nested calls during blockifier validation.",
                 ParamPrivacyInput::Public,
             ),
-        ]);
-        let sub_configs = append_sub_config_name(self.chain_info.dump(), "chain_info");
-        vec![members, sub_configs].into_iter().flatten().collect()
-    }
-}
-
-impl StatefulTransactionValidatorConfig {
-    #[cfg(any(test, feature = "testing"))]
-    pub fn create_for_testing() -> Self {
-        StatefulTransactionValidatorConfig {
-            max_nonce_for_validation_skip: Default::default(),
-            validate_max_n_steps: 1000000,
-            max_recursion_depth: 50,
-            chain_info: ChainInfo::create_for_testing(),
-        }
+        ])
     }
 }

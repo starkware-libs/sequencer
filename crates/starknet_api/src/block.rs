@@ -2,10 +2,9 @@
 #[path = "block_test.rs"]
 mod block_test;
 
-use std::fmt::Display;
-
-use derive_more::Display;
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
+use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Poseidon, StarkHash as CoreStarkHash};
 
 use crate::core::{
@@ -19,9 +18,11 @@ use crate::core::{
 };
 use crate::crypto::utils::{verify_message_hash_signature, CryptoError, Signature};
 use crate::data_availability::L1DataAvailabilityMode;
+use crate::execution_resources::GasAmount;
 use crate::hash::StarkHash;
 use crate::serde_utils::{BytesAsHex, PrefixedBytesAsHex};
-use crate::transaction::{Transaction, TransactionHash, TransactionOutput};
+use crate::transaction::{Fee, Transaction, TransactionHash, TransactionOutput};
+use crate::StarknetApiError;
 
 /// A block.
 #[derive(Debug, Default, Clone, Eq, PartialEq, Deserialize, Serialize)]
@@ -32,19 +33,131 @@ pub struct Block {
     pub body: BlockBody,
 }
 
-/// A version of the Starknet protocol used when creating a block.
-#[derive(Clone, Debug, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
-pub struct StarknetVersion(pub String);
+macro_rules! starknet_version_enum {
+    (
+        $(($variant:ident, $major:literal, $minor:literal, $patch:literal $(, $fourth:literal)?)),+,
+        $latest:ident
+    ) => {
+        /// A version of the Starknet protocol used when creating a block.
+        #[cfg_attr(any(test, feature = "testing"), derive(strum_macros::EnumIter))]
+        #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, PartialOrd, Ord)]
+        pub enum StarknetVersion {
+            $($variant,)+
+        }
 
-impl Default for StarknetVersion {
-    fn default() -> Self {
-        Self("0.0.0".to_string())
+        impl StarknetVersion {
+            pub const LATEST: Self = Self::$latest;
+        }
+
+        impl From<&StarknetVersion> for Vec<u8> {
+            fn from(value: &StarknetVersion) -> Self {
+                match value {
+                    $(
+                        StarknetVersion::$variant => vec![$major, $minor, $patch $(, $fourth)?],
+                    )+
+                }
+            }
+        }
+
+        impl TryFrom<Vec<u8>> for StarknetVersion {
+            type Error = StarknetApiError;
+
+            fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
+                match value[..] {
+                    $(
+                        [$major, $minor, $patch $(, $fourth)?] => Ok(Self::$variant),
+                    )+
+                    _ => Err(StarknetApiError::InvalidStarknetVersion(value)),
+                }
+            }
+        }
     }
 }
 
-impl Display for StarknetVersion {
+starknet_version_enum! {
+    (V0_9_1, 0, 9, 1),
+    (V0_10_0, 0, 10, 0),
+    (V0_10_1, 0, 10, 1),
+    (V0_10_2, 0, 10, 2),
+    (V0_10_3, 0, 10, 3),
+    (V0_11_0, 0, 11, 0),
+    (V0_11_0_2, 0, 11, 0, 2),
+    (V0_11_1, 0, 11, 1),
+    (V0_11_2, 0, 11, 2),
+    (V0_12_0, 0, 12, 0),
+    (V0_12_1, 0, 12, 1),
+    (V0_12_2, 0, 12, 2),
+    (V0_12_3, 0, 12, 3),
+    (V0_13_0, 0, 13, 0),
+    (V0_13_1, 0, 13, 1),
+    (V0_13_1_1, 0, 13, 1, 1),
+    (V0_13_2, 0, 13, 2),
+    (V0_13_2_1, 0, 13, 2, 1),
+    (V0_13_3, 0, 13, 3),
+    V0_13_3
+}
+
+impl Default for StarknetVersion {
+    fn default() -> Self {
+        Self::LATEST
+    }
+}
+
+impl From<StarknetVersion> for Vec<u8> {
+    fn from(value: StarknetVersion) -> Self {
+        Vec::<u8>::from(&value)
+    }
+}
+
+impl std::fmt::Display for StarknetVersion {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
+        write!(f, "{}", Vec::<u8>::from(self).iter().map(|x| x.to_string()).join("."))
+    }
+}
+
+impl From<StarknetVersion> for String {
+    fn from(version: StarknetVersion) -> Self {
+        format!("{version}")
+    }
+}
+
+impl TryFrom<String> for StarknetVersion {
+    type Error = StarknetApiError;
+
+    /// Parses a string separated by dots into a StarknetVersion.
+    fn try_from(starknet_version: String) -> Result<Self, StarknetApiError> {
+        let version: Vec<u8> =
+            starknet_version.split('.').map(|x| x.parse::<u8>()).try_collect()?;
+        Self::try_from(version)
+    }
+}
+
+impl TryFrom<&str> for StarknetVersion {
+    type Error = StarknetApiError;
+    fn try_from(starknet_version: &str) -> Result<Self, StarknetApiError> {
+        Self::try_from(starknet_version.to_string())
+    }
+}
+
+impl Serialize for StarknetVersion {
+    fn serialize<S>(
+        &self,
+        serializer: S,
+    ) -> Result<<S as serde::Serializer>::Ok, <S as serde::Serializer>::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.to_string().serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for StarknetVersion {
+    fn deserialize<D>(deserializer: D) -> Result<Self, <D as serde::Deserializer<'de>>::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let version = String::deserialize(deserializer)?;
+        StarknetVersion::try_from(version).map_err(serde::de::Error::custom)
     }
 }
 
@@ -54,14 +167,7 @@ pub struct BlockHeader {
     // TODO: Consider removing the block hash from the header (note it can be computed from
     // the rest of the fields.
     pub block_hash: BlockHash,
-    pub parent_hash: BlockHash,
-    pub block_number: BlockNumber,
-    pub l1_gas_price: GasPricePerToken,
-    pub l1_data_gas_price: GasPricePerToken,
-    pub state_root: GlobalRoot,
-    pub sequencer: SequencerContractAddress,
-    pub timestamp: BlockTimestamp,
-    pub l1_da_mode: L1DataAvailabilityMode,
+    pub block_header_without_hash: BlockHeaderWithoutHash,
     // The optional fields below are not included in older versions of the block.
     // Currently they are not included in any RPC spec, so we skip their serialization.
     // TODO: Once all environments support these fields, remove the Option (make sure to
@@ -80,7 +186,6 @@ pub struct BlockHeader {
     pub n_events: usize,
     #[serde(skip_serializing)]
     pub receipt_commitment: Option<ReceiptCommitment>,
-    pub starknet_version: StarknetVersion,
 }
 
 /// The header of a [Block](`crate::block::Block`) without hashing.
@@ -90,6 +195,7 @@ pub struct BlockHeaderWithoutHash {
     pub block_number: BlockNumber,
     pub l1_gas_price: GasPricePerToken,
     pub l1_data_gas_price: GasPricePerToken,
+    pub l2_gas_price: GasPricePerToken,
     pub state_root: GlobalRoot,
     pub sequencer: SequencerContractAddress,
     pub timestamp: BlockTimestamp,
@@ -136,7 +242,7 @@ pub enum BlockStatus {
     Serialize,
     PartialOrd,
     Ord,
-    Display,
+    derive_more::Display,
 )]
 pub struct BlockHash(pub StarkHash);
 
@@ -145,7 +251,7 @@ pub struct BlockHash(pub StarkHash);
     Debug,
     Default,
     Copy,
-    Display,
+    derive_more::Display,
     Clone,
     Eq,
     PartialEq,
@@ -195,14 +301,39 @@ pub struct GasPricePerToken {
 
 /// The gas price at a [Block](`crate::block::Block`).
 #[derive(
-    Debug, Copy, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord,
+    Debug,
+    Copy,
+    Clone,
+    Default,
+    derive_more::Display,
+    Eq,
+    PartialEq,
+    Hash,
+    Deserialize,
+    Serialize,
+    PartialOrd,
+    Ord,
 )]
 #[serde(from = "PrefixedBytesAsHex<16_usize>", into = "PrefixedBytesAsHex<16_usize>")]
 pub struct GasPrice(pub u128);
 
+macro_rules! impl_from_uint_for_gas_price {
+    ($($uint:ty),*) => {
+        $(
+            impl From<$uint> for GasPrice {
+                fn from(val: $uint) -> Self {
+                    GasPrice(u128::from(val))
+                }
+            }
+        )*
+    };
+}
+
+impl_from_uint_for_gas_price!(u8, u16, u32, u64, u128);
+
 impl From<PrefixedBytesAsHex<16_usize>> for GasPrice {
     fn from(val: PrefixedBytesAsHex<16_usize>) -> Self {
-        GasPrice(u128::from_be_bytes(val.0))
+        u128::from_be_bytes(val.0).into()
     }
 }
 
@@ -210,6 +341,95 @@ impl From<GasPrice> for PrefixedBytesAsHex<16_usize> {
     fn from(val: GasPrice) -> Self {
         BytesAsHex(val.0.to_be_bytes())
     }
+}
+
+impl From<GasPrice> for Felt {
+    fn from(val: GasPrice) -> Self {
+        Felt::from(val.0)
+    }
+}
+
+impl GasPrice {
+    pub const fn saturating_mul(self, rhs: GasAmount) -> Fee {
+        #[allow(clippy::as_conversions)]
+        Fee(self.0.saturating_mul(rhs.0 as u128))
+    }
+
+    pub fn checked_mul(self, rhs: GasAmount) -> Option<Fee> {
+        self.0.checked_mul(u128::from(rhs.0)).map(Fee)
+    }
+}
+
+/// Utility struct representing a non-zero gas price. Useful when a gas amount must be computed by
+/// taking a fee amount and dividing by the gas price.
+#[derive(Copy, Clone, Debug, derive_more::Display)]
+pub struct NonzeroGasPrice(GasPrice);
+
+impl NonzeroGasPrice {
+    pub const MIN: Self = Self(GasPrice(1));
+
+    pub fn new(price: GasPrice) -> Result<Self, StarknetApiError> {
+        if price.0 == 0 {
+            return Err(StarknetApiError::ZeroGasPrice);
+        }
+        Ok(Self(price))
+    }
+
+    pub const fn get(&self) -> GasPrice {
+        self.0
+    }
+
+    pub const fn saturating_mul(self, rhs: GasAmount) -> Fee {
+        self.get().saturating_mul(rhs)
+    }
+
+    #[cfg(any(test, feature = "testing"))]
+    pub const fn new_unchecked(price: GasPrice) -> Self {
+        Self(price)
+    }
+}
+
+impl Default for NonzeroGasPrice {
+    fn default() -> Self {
+        Self::MIN
+    }
+}
+
+impl From<NonzeroGasPrice> for GasPrice {
+    fn from(val: NonzeroGasPrice) -> Self {
+        val.0
+    }
+}
+
+impl TryFrom<GasPrice> for NonzeroGasPrice {
+    type Error = StarknetApiError;
+
+    fn try_from(price: GasPrice) -> Result<Self, Self::Error> {
+        NonzeroGasPrice::new(price)
+    }
+}
+
+macro_rules! impl_try_from_uint_for_nonzero_gas_price {
+    ($($uint:ty),*) => {
+        $(
+            impl TryFrom<$uint> for NonzeroGasPrice {
+                type Error = StarknetApiError;
+
+                fn try_from(val: $uint) -> Result<Self, Self::Error> {
+                    NonzeroGasPrice::new(GasPrice::from(val))
+                }
+            }
+        )*
+    };
+}
+
+impl_try_from_uint_for_nonzero_gas_price!(u8, u16, u32, u64, u128);
+
+#[derive(Clone, Debug)]
+pub struct GasPriceVector {
+    pub l1_gas_price: NonzeroGasPrice,
+    pub l1_data_gas_price: NonzeroGasPrice,
+    pub l2_gas_price: NonzeroGasPrice,
 }
 
 /// The timestamp of a [Block](`crate::block::Block`).

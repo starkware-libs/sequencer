@@ -23,7 +23,7 @@ use papyrus_storage::compiled_class::CasmStorageWriter;
 use papyrus_storage::header::HeaderStorageWriter;
 use papyrus_storage::state::StateStorageWriter;
 use papyrus_storage::test_utils::get_test_storage;
-use starknet_api::block::{BlockBody, BlockHash, BlockHeader, BlockNumber};
+use starknet_api::block::{BlockBody, BlockHash, BlockHeader, BlockHeaderWithoutHash, BlockNumber};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce, PatriciaKey};
 use starknet_api::hash::StarkHash;
 use starknet_api::state::{ContractClass, StateNumber, StorageKey, ThinStateDiff};
@@ -86,7 +86,10 @@ fn read_state() {
             BlockNumber(1),
             &BlockHeader {
                 block_hash: BlockHash(felt!(1_u128)),
-                block_number: BlockNumber(1),
+                block_header_without_hash: BlockHeaderWithoutHash {
+                    block_number: BlockNumber(1),
+                    ..Default::default()
+                },
                 ..Default::default()
             },
         )
@@ -130,7 +133,10 @@ fn read_state() {
             BlockNumber(2),
             &BlockHeader {
                 block_hash: BlockHash(felt!(2_u128)),
-                block_number: BlockNumber(2),
+                block_header_without_hash: BlockHeaderWithoutHash {
+                    block_number: BlockNumber(2),
+                    ..Default::default()
+                },
                 ..Default::default()
             },
         )

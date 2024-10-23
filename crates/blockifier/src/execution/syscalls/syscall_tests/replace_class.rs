@@ -1,4 +1,3 @@
-use starknet_api::transaction::Calldata;
 use starknet_api::{calldata, felt};
 use test_case::test_case;
 
@@ -45,7 +44,7 @@ fn cairo0_class_hash(test_contract: FeatureContract) {
     assert!(error.contains("Cannot replace V1 class hash with V0 class hash"));
 }
 
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 4820; "VM")]
+#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 5220; "VM")]
 fn positive_flow(test_contract: FeatureContract, gas_consumed: u64) {
     let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1);
     let empty_contract_cairo0 = FeatureContract::Empty(CairoVersion::Cairo0);

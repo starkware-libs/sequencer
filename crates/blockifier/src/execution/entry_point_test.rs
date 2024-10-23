@@ -4,20 +4,21 @@ use cairo_vm::types::builtin_name::BuiltinName;
 use num_bigint::BigInt;
 use pretty_assertions::assert_eq;
 use starknet_api::core::{EntryPointSelector, PatriciaKey};
-use starknet_api::transaction::Calldata;
-use starknet_api::{calldata, felt};
+use starknet_api::execution_utils::format_panic_data;
+use starknet_api::transaction::{Calldata, Fee};
+use starknet_api::{calldata, felt, storage_key};
 
 use crate::abi::abi_utils::{get_storage_var_address, selector_from_name};
 use crate::context::ChainInfo;
-use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
+use crate::execution::call_info::{CallExecution, CallInfo};
 use crate::execution::entry_point::CallEntryPoint;
+use crate::retdata;
 use crate::state::cached_state::CachedState;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, BALANCE};
 use crate::versioned_constants::VersionedConstants;
-use crate::{retdata, storage_key};
 
 #[test]
 fn test_call_info_iteration() {
@@ -60,7 +61,7 @@ fn test_call_info_iteration() {
 #[test]
 fn test_entry_point_without_arg() {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
-    let mut state = test_state(&ChainInfo::create_for_testing(), 0, &[(test_contract, 1)]);
+    let mut state = test_state(&ChainInfo::create_for_testing(), Fee(0), &[(test_contract, 1)]);
     let entry_point_call = CallEntryPoint {
         entry_point_selector: selector_from_name("without_arg"),
         ..trivial_external_entry_point_new(test_contract)
@@ -74,7 +75,7 @@ fn test_entry_point_without_arg() {
 #[test]
 fn test_entry_point_with_arg() {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
-    let mut state = test_state(&ChainInfo::create_for_testing(), 0, &[(test_contract, 1)]);
+    let mut state = test_state(&ChainInfo::create_for_testing(), Fee(0), &[(test_contract, 1)]);
     let calldata = calldata![felt!(25_u8)];
     let entry_point_call = CallEntryPoint {
         calldata,
@@ -90,7 +91,7 @@ fn test_entry_point_with_arg() {
 #[test]
 fn test_long_retdata() {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
-    let mut state = test_state(&ChainInfo::create_for_testing(), 0, &[(test_contract, 1)]);
+    let mut state = test_state(&ChainInfo::create_for_testing(), Fee(0), &[(test_contract, 1)]);
     let calldata = calldata![];
     let entry_point_call = CallEntryPoint {
         calldata,
@@ -112,7 +113,7 @@ fn test_long_retdata() {
 #[test]
 fn test_entry_point_with_builtin() {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
-    let mut state = test_state(&ChainInfo::create_for_testing(), 0, &[(test_contract, 1)]);
+    let mut state = test_state(&ChainInfo::create_for_testing(), Fee(0), &[(test_contract, 1)]);
     let calldata = calldata![felt!(47_u8), felt!(31_u8)];
     let entry_point_call = CallEntryPoint {
         calldata,
@@ -128,7 +129,7 @@ fn test_entry_point_with_builtin() {
 #[test]
 fn test_entry_point_with_hint() {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
-    let mut state = test_state(&ChainInfo::create_for_testing(), 0, &[(test_contract, 1)]);
+    let mut state = test_state(&ChainInfo::create_for_testing(), Fee(0), &[(test_contract, 1)]);
     let calldata = calldata![felt!(81_u8)];
     let entry_point_call = CallEntryPoint {
         calldata,
@@ -144,7 +145,7 @@ fn test_entry_point_with_hint() {
 #[test]
 fn test_entry_point_with_return_value() {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
-    let mut state = test_state(&ChainInfo::create_for_testing(), 0, &[(test_contract, 1)]);
+    let mut state = test_state(&ChainInfo::create_for_testing(), Fee(0), &[(test_contract, 1)]);
     let calldata = calldata![felt!(23_u8)];
     let entry_point_call = CallEntryPoint {
         calldata,
@@ -160,21 +161,22 @@ fn test_entry_point_with_return_value() {
 #[test]
 fn test_entry_point_not_found_in_contract() {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
-    let mut state = test_state(&ChainInfo::create_for_testing(), 0, &[(test_contract, 1)]);
+    let mut state = test_state(&ChainInfo::create_for_testing(), Fee(0), &[(test_contract, 1)]);
     let entry_point_selector = EntryPointSelector(felt!(2_u8));
     let entry_point_call =
         CallEntryPoint { entry_point_selector, ..trivial_external_entry_point_new(test_contract) };
-    let error = entry_point_call.execute_directly(&mut state).unwrap_err();
+    let call_info = entry_point_call.execute_directly(&mut state).unwrap();
+    assert!(call_info.execution.failed);
     assert_eq!(
-        format!("Entry point {entry_point_selector:?} not found in contract."),
-        format!("{error}")
+        format_panic_data(&call_info.execution.retdata.0),
+        "0x454e545259504f494e545f4e4f545f464f554e44 ('ENTRYPOINT_NOT_FOUND')"
     );
 }
 
 #[test]
 fn test_storage_var() {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
-    let mut state = test_state(&ChainInfo::create_for_testing(), 0, &[(test_contract, 1)]);
+    let mut state = test_state(&ChainInfo::create_for_testing(), Fee(0), &[(test_contract, 1)]);
     let entry_point_call = CallEntryPoint {
         entry_point_selector: selector_from_name("test_storage_var"),
         ..trivial_external_entry_point_new(test_contract)
@@ -198,7 +200,7 @@ fn run_security_test(
         entry_point_selector: selector_from_name(entry_point_name),
         calldata,
         storage_address: security_contract.get_instance_address(0),
-        initial_gas: versioned_constants.os_constants.gas_costs.initial_gas_cost,
+        initial_gas: versioned_constants.default_initial_gas_cost(),
         ..Default::default()
     };
     let error = match entry_point_call.execute_directly(state) {
@@ -399,13 +401,6 @@ fn test_syscall_execution_security_failures() {
     run_security_test(
         state,
         security_contract,
-        "Entry point EntryPointSelector(0x19) not found in contract",
-        "test_bad_call_selector",
-        calldata![],
-    );
-    run_security_test(
-        state,
-        security_contract,
         "The deploy_from_zero field in the deploy system call must be 0 or 1.",
         "test_bad_deploy_from_zero_field",
         calldata![],
@@ -488,7 +483,7 @@ fn test_post_run_validation_security_failure() {
 #[test]
 fn test_storage_related_members() {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
-    let mut state = test_state(&ChainInfo::create_for_testing(), 0, &[(test_contract, 1)]);
+    let mut state = test_state(&ChainInfo::create_for_testing(), Fee(0), &[(test_contract, 1)]);
 
     // Test storage variable.
     let entry_point_call = CallEntryPoint {

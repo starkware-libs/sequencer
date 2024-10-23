@@ -1,4 +1,7 @@
+use std::any::type_name;
+
 use tokio::sync::mpsc::{channel, Sender};
+use tracing::info;
 
 use crate::component_definitions::ComponentRequestAndResponseSender;
 
@@ -18,8 +21,8 @@ use crate::component_definitions::ComponentRequestAndResponseSender;
 /// // Example usage of the LocalComponentClient
 /// use tokio::sync::mpsc::Sender;
 ///
-/// use crate::starknet_mempool_infra::component_client::LocalComponentClient;
-/// use crate::starknet_mempool_infra::component_definitions::ComponentRequestAndResponseSender;
+/// use crate::starknet_sequencer_infra::component_client::LocalComponentClient;
+/// use crate::starknet_sequencer_infra::component_definitions::ComponentRequestAndResponseSender;
 ///
 /// // Define your request and response types
 /// struct MyRequest {
@@ -74,8 +77,17 @@ where
         let (res_tx, mut res_rx) = channel::<Response>(1);
         let request_and_res_tx = ComponentRequestAndResponseSender { request, tx: res_tx };
         self.tx.send(request_and_res_tx).await.expect("Outbound connection should be open.");
-
         res_rx.recv().await.expect("Inbound connection should be open.")
+    }
+}
+
+impl<Request, Response> Drop for LocalComponentClient<Request, Response>
+where
+    Request: Send + Sync,
+    Response: Send + Sync,
+{
+    fn drop(&mut self) {
+        info!("Dropping LocalComponentClient {}.", type_name::<Self>());
     }
 }
 

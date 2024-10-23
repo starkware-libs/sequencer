@@ -1,23 +1,21 @@
 use std::clone::Clone;
-use std::net::SocketAddr;
 use std::sync::Arc;
 
-use async_trait::async_trait;
-use axum::extract::State;
-use axum::routing::{get, post};
-use axum::{Json, Router};
+use blockifier::context::ChainInfo;
+use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
-use starknet_mempool_infra::component_runner::{ComponentStartError, ComponentStarter};
-use starknet_mempool_types::communication::SharedMempoolClient;
-use starknet_mempool_types::mempool_types::{Account, AccountState, MempoolInput};
+use starknet_gateway_types::errors::GatewaySpecError;
+use starknet_mempool_types::communication::{AddTransactionArgsWrapper, SharedMempoolClient};
+use starknet_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
+use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
-use tracing::{error, info, instrument};
+use tracing::{error, instrument};
 
 use crate::compilation::GatewayCompiler;
-use crate::config::{GatewayConfig, GatewayNetworkConfig, RpcStateReaderConfig};
-use crate::errors::{GatewayResult, GatewayRunError, GatewaySpecError};
+use crate::config::{GatewayConfig, RpcStateReaderConfig};
+use crate::errors::GatewayResult;
 use crate::rpc_state_reader::RpcStateReaderFactory;
 use crate::state_reader::StateReaderFactory;
 use crate::stateful_transaction_validator::StatefulTransactionValidator;
@@ -27,6 +25,8 @@ use crate::utils::compile_contract_and_build_executable_tx;
 #[cfg(test)]
 #[path = "gateway_test.rs"]
 pub mod gateway_test;
+
+// TODO(yair): remove the usage of app_state.
 
 pub struct Gateway {
     pub config: GatewayConfig,
@@ -40,6 +40,7 @@ pub struct AppState {
     pub state_reader_factory: Arc<dyn StateReaderFactory>,
     pub gateway_compiler: GatewayCompiler,
     pub mempool_client: SharedMempoolClient,
+    pub chain_info: ChainInfo,
 }
 
 impl Gateway {
@@ -59,46 +60,36 @@ impl Gateway {
             state_reader_factory,
             gateway_compiler,
             mempool_client,
+            chain_info: config.chain_info.clone(),
         };
         Gateway { config, app_state }
     }
 
-    pub async fn run(&mut self) -> Result<(), GatewayRunError> {
-        // Parses the bind address from GatewayConfig, returning an error for invalid addresses.
-        let GatewayNetworkConfig { ip, port } = self.config.network_config;
-        let addr = SocketAddr::new(ip, port);
-        let app = self.app();
-
-        // Create a server that runs forever.
-        Ok(axum::Server::bind(&addr).serve(app.into_make_service()).await?)
-    }
-
-    pub fn app(&self) -> Router {
-        Router::new()
-            .route("/is_alive", get(is_alive))
-            .route("/add_tx", post(add_tx))
-            .with_state(self.app_state.clone())
+    pub async fn add_tx(
+        &mut self,
+        tx: RpcTransaction,
+        p2p_message_metadata: Option<BroadcastedMessageMetadata>,
+    ) -> GatewayResult<TransactionHash> {
+        let app_state = self.app_state.clone();
+        internal_add_tx(app_state, tx, p2p_message_metadata).await
     }
 }
 
-// Gateway handlers.
-
-#[instrument]
-async fn is_alive() -> GatewayResult<String> {
-    unimplemented!("Future handling should be implemented here.");
-}
+// TODO(Yair): consider consolidating internal_add_tx into add_tx.
 
 #[instrument(skip(app_state))]
-async fn add_tx(
-    State(app_state): State<AppState>,
-    Json(tx): Json<RpcTransaction>,
-) -> GatewayResult<Json<TransactionHash>> {
-    let mempool_input = tokio::task::spawn_blocking(move || {
+async fn internal_add_tx(
+    app_state: AppState,
+    tx: RpcTransaction,
+    p2p_message_metadata: Option<BroadcastedMessageMetadata>,
+) -> GatewayResult<TransactionHash> {
+    let add_tx_args = tokio::task::spawn_blocking(move || {
         process_tx(
             app_state.stateless_tx_validator,
             app_state.stateful_tx_validator.as_ref(),
             app_state.state_reader_factory.as_ref(),
             app_state.gateway_compiler,
+            &app_state.chain_info,
             tx,
         )
     })
@@ -108,14 +99,15 @@ async fn add_tx(
         GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
     })??;
 
-    let tx_hash = mempool_input.tx.tx_hash();
+    let tx_hash = add_tx_args.tx.tx_hash();
 
-    app_state.mempool_client.add_tx(mempool_input).await.map_err(|e| {
+    let add_tx_args = AddTransactionArgsWrapper { args: add_tx_args, p2p_message_metadata };
+    app_state.mempool_client.add_tx(add_tx_args).await.map_err(|e| {
         error!("Failed to send tx to mempool: {}", e);
         GatewaySpecError::UnexpectedError { data: "Internal server error".to_owned() }
     })?;
     // TODO: Also return `ContractAddress` for deploy and `ClassHash` for Declare.
-    Ok(Json(tx_hash))
+    Ok(tx_hash)
 }
 
 fn process_tx(
@@ -123,20 +115,16 @@ fn process_tx(
     stateful_tx_validator: &StatefulTransactionValidator,
     state_reader_factory: &dyn StateReaderFactory,
     gateway_compiler: GatewayCompiler,
+    chain_info: &ChainInfo,
     tx: RpcTransaction,
-) -> GatewayResult<MempoolInput> {
+) -> GatewayResult<AddTransactionArgs> {
     // TODO(Arni, 1/5/2024): Perform congestion control.
 
     // Perform stateless validations.
     stateless_tx_validator.validate(&tx)?;
 
-    // TODO(Arni): remove copy_of_rpc_tx and use executable_tx directly as the mempool input.
-    let copy_of_rpc_tx = tx.clone();
-    let executable_tx = compile_contract_and_build_executable_tx(
-        tx,
-        &gateway_compiler,
-        &stateful_tx_validator.config.chain_info.chain_id,
-    )?;
+    let executable_tx =
+        compile_contract_and_build_executable_tx(tx, &gateway_compiler, &chain_info.chain_id)?;
 
     // Perfom post compilation validations.
     if let Transaction::Declare(executable_declare_tx) = &executable_tx {
@@ -145,34 +133,18 @@ fn process_tx(
         }
     }
 
-    let optional_class_info = match executable_tx {
-        starknet_api::executable_transaction::Transaction::Declare(tx) => {
-            Some(tx.class_info.try_into().map_err(|e| {
-                error!("Failed to convert Starknet API ClassInfo to Blockifier ClassInfo: {:?}", e);
-                GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
-            })?)
-        }
-        _ => None,
-    };
+    let mut validator =
+        stateful_tx_validator.instantiate_validator(state_reader_factory, chain_info)?;
+    let address = executable_tx.contract_address();
+    let nonce = validator.get_nonce(address).map_err(|e| {
+        error!("Failed to get nonce for sender address {}: {}", address, e);
+        GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
+    })?;
 
-    let validator = stateful_tx_validator.instantiate_validator(state_reader_factory)?;
-    // TODO(Yael 31/7/24): refactor after IntrnalTransaction is ready, delete validate_info and
-    // compute all the info outside of run_validate.
-    let validate_info =
-        stateful_tx_validator.run_validate(&copy_of_rpc_tx, optional_class_info, validator)?;
+    stateful_tx_validator.run_validate(&executable_tx, nonce, validator)?;
 
     // TODO(Arni): Add the Sierra and the Casm to the mempool input.
-    Ok(MempoolInput {
-        tx: Transaction::new_from_rpc_tx(
-            copy_of_rpc_tx,
-            validate_info.tx_hash,
-            validate_info.sender_address,
-        ),
-        account: Account {
-            sender_address: validate_info.sender_address,
-            state: AccountState { nonce: validate_info.account_nonce },
-        },
-    })
+    Ok(AddTransactionArgs { tx: executable_tx, account_state: AccountState { address, nonce } })
 }
 
 pub fn create_gateway(
@@ -187,10 +159,4 @@ pub fn create_gateway(
     Gateway::new(config, state_reader_factory, gateway_compiler, mempool_client)
 }
 
-#[async_trait]
-impl ComponentStarter for Gateway {
-    async fn start(&mut self) -> Result<(), ComponentStartError> {
-        info!("Gateway::start()");
-        self.run().await.map_err(|_| ComponentStartError::InternalComponentError)
-    }
-}
+impl ComponentStarter for Gateway {}

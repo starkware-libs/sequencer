@@ -104,7 +104,7 @@ expression: dumped_default_config
   "consensus.num_validators": {
     "description": "The number of validators in the consensus.",
     "value": {
-      "$serde_json::private::Number": "4"
+      "$serde_json::private::Number": "1"
     },
     "privacy": "Public"
   },
@@ -113,44 +113,6 @@ expression: dumped_default_config
     "value": {
       "$serde_json::private::Number": "0"
     },
-    "privacy": "Public"
-  },
-  "consensus.test.#is_none": {
-    "description": "Flag for an optional field.",
-    "value": true,
-    "privacy": "TemporaryValue"
-  },
-  "consensus.test.cache_size": {
-    "description": "The cache size for the test simulation.",
-    "value": {
-      "$serde_json::private::Number": "1000"
-    },
-    "privacy": "Public"
-  },
-  "consensus.test.drop_probability": {
-    "description": "The probability of dropping a message.",
-    "value": {
-      "$serde_json::private::Number": "0.0"
-    },
-    "privacy": "Public"
-  },
-  "consensus.test.invalid_probability": {
-    "description": "The probability of sending an invalid message.",
-    "value": {
-      "$serde_json::private::Number": "0.0"
-    },
-    "privacy": "Public"
-  },
-  "consensus.test.random_seed": {
-    "description": "The random seed for the test simulation to ensure repeatable test results.",
-    "value": {
-      "$serde_json::private::Number": "0"
-    },
-    "privacy": "Public"
-  },
-  "consensus.test.sync_topic": {
-    "description": "The network topic for sync messages.",
-    "value": "consensus_test_sync",
     "privacy": "Public"
   },
   "consensus.timeouts.precommit_timeout": {
@@ -175,8 +137,8 @@ expression: dumped_default_config
     "privacy": "Public"
   },
   "consensus.validator_id": {
-    "description": "A required param! The validator id of the node.",
-    "param_type": "String",
+    "description": "The validator id of the node.",
+    "value": "0x0",
     "privacy": "Public"
   },
   "monitoring_gateway.collect_metrics": {
@@ -329,16 +291,16 @@ expression: dumped_default_config
     "value": false,
     "privacy": "Public"
   },
-  "rpc.execution_config.eth_fee_contract_address": {
-    "description": "The eth fee token address to receive fees",
-    "value": "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7",
-    "privacy": "Public"
-  },
-  "rpc.execution_config.initial_gas_cost": {
+  "rpc.execution_config.default_initial_gas_cost": {
     "description": "The initial gas cost for a transaction",
     "value": {
       "$serde_json::private::Number": "10000000000"
     },
+    "privacy": "Public"
+  },
+  "rpc.execution_config.eth_fee_contract_address": {
+    "description": "The eth fee token address to receive fees",
+    "value": "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7",
     "privacy": "Public"
   },
   "rpc.execution_config.strk_fee_contract_address": {

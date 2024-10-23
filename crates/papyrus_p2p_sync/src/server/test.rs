@@ -32,7 +32,14 @@ use papyrus_storage::test_utils::get_test_storage;
 use papyrus_storage::{StorageReader, StorageWriter};
 use papyrus_test_utils::{get_rng, get_test_body, GetTestInstance};
 use rand::random;
-use starknet_api::block::{BlockBody, BlockHash, BlockHeader, BlockNumber, BlockSignature};
+use starknet_api::block::{
+    BlockBody,
+    BlockHash,
+    BlockHeader,
+    BlockHeaderWithoutHash,
+    BlockNumber,
+    BlockSignature,
+};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::ContractClass;
 use starknet_api::transaction::{
@@ -63,7 +70,10 @@ async fn header_query_positive_flow() {
         let len = data.len();
         assert!(len == NUM_OF_BLOCKS as usize);
         for (i, signed_header) in data.into_iter().enumerate() {
-            assert_eq!(signed_header.block_header.block_number.0, i as u64);
+            assert_eq!(
+                signed_header.block_header.block_header_without_hash.block_number.0,
+                i as u64
+            );
         }
     };
 
@@ -166,7 +176,7 @@ async fn header_query_some_blocks_are_missing() {
         assert!(len == BLOCKS_DELTA as usize);
         for (i, signed_header) in data.into_iter().enumerate() {
             assert_eq!(
-                signed_header.block_header.block_number.0,
+                signed_header.block_header.block_header_without_hash.block_number.0,
                 i as u64 + NUM_OF_BLOCKS - BLOCKS_DELTA
             );
         }
@@ -416,8 +426,11 @@ fn insert_to_storage_test_blocks_up_to(storage_writer: &mut StorageWriter) {
     for i in 0..NUM_OF_BLOCKS {
         let i_usize = usize::try_from(i).unwrap();
         let block_header = BlockHeader {
-            block_number: BlockNumber(i),
             block_hash: BlockHash(random::<u64>().into()),
+            block_header_without_hash: BlockHeaderWithoutHash {
+                block_number: BlockNumber(i),
+                ..Default::default()
+            },
             ..Default::default()
         };
         let classes_with_hashes = CLASSES_WITH_HASHES[i_usize]

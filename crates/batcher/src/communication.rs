@@ -1,19 +1,16 @@
-use std::net::IpAddr;
-
 use async_trait::async_trait;
 use starknet_batcher_types::communication::{
     BatcherRequest,
     BatcherRequestAndResponseSender,
     BatcherResponse,
 };
-use starknet_mempool_infra::component_definitions::ComponentRequestHandler;
-use starknet_mempool_infra::component_server::{LocalComponentServer, RemoteComponentServer};
+use starknet_sequencer_infra::component_definitions::ComponentRequestHandler;
+use starknet_sequencer_infra::component_server::LocalComponentServer;
 use tokio::sync::mpsc::Receiver;
 
 use crate::batcher::Batcher;
 
 pub type LocalBatcherServer = LocalComponentServer<Batcher, BatcherRequest, BatcherResponse>;
-pub type RemoteBatcherServer = RemoteComponentServer<Batcher, BatcherRequest, BatcherResponse>;
 
 pub fn create_local_batcher_server(
     batcher: Batcher,
@@ -22,30 +19,23 @@ pub fn create_local_batcher_server(
     LocalComponentServer::new(batcher, rx_batcher)
 }
 
-pub fn create_remote_batcher_server(
-    batcher: Batcher,
-    ip_address: IpAddr,
-    port: u16,
-) -> RemoteBatcherServer {
-    RemoteComponentServer::new(batcher, ip_address, port)
-}
-
 #[async_trait]
 impl ComponentRequestHandler<BatcherRequest, BatcherResponse> for Batcher {
     async fn handle_request(&mut self, request: BatcherRequest) -> BatcherResponse {
         match request {
-            BatcherRequest::BatcherFnOne(_batcher_input) => {
-                // TODO(Tsabary/Yael/Dafna): Invoke a function that returns a
-                // BatcherResult<BatcherFnOneReturnValue>, and return
-                // the BatcherResponse::BatcherFnOneInput accordingly.
-                unimplemented!()
+            BatcherRequest::BuildProposal(input) => {
+                BatcherResponse::BuildProposal(self.build_proposal(input).await)
             }
-            BatcherRequest::BatcherFnTwo(_batcher_input) => {
-                // TODO(Tsabary/Yael/Dafna): Invoke a function that returns a
-                // BatcherResult<BatcherFnTwoReturnValue>, and return
-                // the BatcherResponse::BatcherFnTwoInput accordingly.
-                unimplemented!()
+            BatcherRequest::GetProposalContent(input) => {
+                BatcherResponse::GetProposalContent(self.get_proposal_content(input).await)
             }
+            BatcherRequest::StartHeight(input) => {
+                BatcherResponse::StartHeight(self.start_height(input).await)
+            }
+            BatcherRequest::DecisionReached(input) => {
+                BatcherResponse::DecisionReached(self.decision_reached(input).await)
+            }
+            _ => unimplemented!(),
         }
     }
 }

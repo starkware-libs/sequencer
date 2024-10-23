@@ -13,24 +13,28 @@ use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::{fund_account, test_state, test_state_inner};
 use crate::test_utils::{create_trivial_calldata, CairoVersion, BALANCE};
 use crate::transaction::objects::FeeType;
-use crate::transaction::test_utils::{account_invoke_tx, block_context, max_resource_bounds};
+use crate::transaction::test_utils::{
+    account_invoke_tx,
+    block_context,
+    default_l1_resource_bounds,
+};
 
 #[rstest]
 pub fn test_fill_sequencer_balance_reads(
     block_context: BlockContext,
-    max_resource_bounds: ValidResourceBounds,
+    default_l1_resource_bounds: ValidResourceBounds,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] erc20_version: CairoVersion,
 ) {
     let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
     let account_tx = account_invoke_tx(invoke_tx_args! {
         sender_address: account.get_instance_address(0),
         calldata: create_trivial_calldata(account.get_instance_address(0)),
-        resource_bounds: max_resource_bounds,
+        resource_bounds: default_l1_resource_bounds,
     });
     let chain_info = &block_context.chain_info;
     let state = &mut test_state_inner(chain_info, BALANCE, &[(account, 1)], erc20_version);
 
-    let sequencer_balance = 100;
+    let sequencer_balance = Fee(100);
     let sequencer_address = block_context.block_info.sequencer_address;
     fund_account(chain_info, sequencer_address, sequencer_balance, &mut state.state);
 
@@ -58,7 +62,7 @@ pub fn test_add_fee_to_sequencer_balance(
 ) {
     let block_context = BlockContext::create_for_account_testing();
     let account = FeatureContract::Empty(CairoVersion::Cairo1);
-    let mut state = test_state(&block_context.chain_info, 0, &[(account, 1)]);
+    let mut state = test_state(&block_context.chain_info, Fee(0), &[(account, 1)]);
     let (sequencer_balance_key_low, sequencer_balance_key_high) =
         get_sequencer_balance_keys(&block_context);
 

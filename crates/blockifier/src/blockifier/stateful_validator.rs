@@ -12,13 +12,14 @@ use crate::blockifier::transaction_executor::{
 };
 use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::CallInfo;
-use crate::fee::actual_cost::TransactionReceipt;
 use crate::fee::fee_checks::PostValidationReport;
+use crate::fee::receipt::TransactionReceipt;
 use crate::state::cached_state::CachedState;
 use crate::state::errors::StateError;
 use crate::state::state_api::StateReader;
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::errors::{TransactionExecutionError, TransactionPreValidationError};
+use crate::transaction::objects::TransactionInfoCreator;
 use crate::transaction::transaction_execution::Transaction;
 use crate::transaction::transactions::ValidatableTransaction;
 
@@ -73,9 +74,8 @@ impl<S: StateReader> StatefulValidator<S> {
         }
 
         // `__validate__` call.
-        let versioned_constants = &tx_context.block_context.versioned_constants();
         let (_optional_call_info, actual_cost) =
-            self.validate(&tx, versioned_constants.tx_initial_gas())?;
+            self.validate(&tx, tx_context.initial_sierra_gas())?;
 
         // Post validations.
         PostValidationReport::verify(&tx_context, &actual_cost)?;
@@ -84,7 +84,7 @@ impl<S: StateReader> StatefulValidator<S> {
     }
 
     fn execute(&mut self, tx: AccountTransaction) -> StatefulValidatorResult<()> {
-        self.tx_executor.execute(&Transaction::AccountTransaction(tx))?;
+        self.tx_executor.execute(&Transaction::Account(tx))?;
         Ok(())
     }
 
@@ -95,7 +95,7 @@ impl<S: StateReader> StatefulValidator<S> {
     ) -> StatefulValidatorResult<()> {
         let strict_nonce_check = false;
         // Run pre-validation in charge fee mode to perform fee and balance related checks.
-        let charge_fee = true;
+        let charge_fee = tx.enforce_fee();
         tx.perform_pre_validation_stage(
             self.tx_executor.block_state.as_mut().expect(BLOCK_STATE_ACCESS_ERR),
             tx_context,
@@ -114,7 +114,7 @@ impl<S: StateReader> StatefulValidator<S> {
         let mut execution_resources = ExecutionResources::default();
         let tx_context = Arc::new(self.tx_executor.block_context.to_tx_context(tx));
 
-        let limit_steps_by_resources = true;
+        let limit_steps_by_resources = tx.create_tx_info().enforce_fee();
         let validate_call_info = tx.validate_tx(
             self.tx_executor.block_state.as_mut().expect(BLOCK_STATE_ACCESS_ERR),
             &mut execution_resources,
@@ -133,9 +133,9 @@ impl<S: StateReader> StatefulValidator<S> {
                 .expect(BLOCK_STATE_ACCESS_ERR)
                 .get_actual_state_changes()?,
             &execution_resources,
-            validate_call_info.iter(),
+            CallInfo::summarize_many(validate_call_info.iter()),
             0,
-        )?;
+        );
 
         Ok((validate_call_info, tx_receipt))
     }

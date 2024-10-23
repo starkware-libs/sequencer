@@ -8,10 +8,13 @@ use starknet_api::felt;
 use tar::Archive;
 use tempfile::{tempdir, TempDir};
 
-use crate::ethereum_base_layer_contract::{EthereumBaseLayerConfig, EthereumBaseLayerContract};
+use crate::ethereum_base_layer_contract::{
+    EthereumBaseLayerConfig,
+    EthereumBaseLayerContract,
+    EthereumContractAddress,
+};
 use crate::BaseLayerContract;
 
-type EthereumContractAddress = String;
 type TestEthereumNodeHandle = (GanacheInstance, TempDir);
 
 const MINIMAL_GANACHE_VERSION: u8 = 7;
@@ -24,6 +27,9 @@ const MINIMAL_GANACHE_VERSION: u8 = 7;
 //      30                      300                     0x300
 // The blockchain is at Ethereum block number 31.
 // Note: Requires Ganache@7.4.3 installed.
+// TODO: `Ganache` and `ethers` have both been deprecated. Also, `ethers`s' replacement, `alloy`,
+// no longer supports `Ganache`. Once we decide on a Ganache replacement, fix this test and fully
+// remove `ethers`.
 fn get_test_ethereum_node() -> (TestEthereumNodeHandle, EthereumContractAddress) {
     const SN_CONTRACT_ADDR: &str = "0xe2aF2c1AE11fE13aFDb7598D0836398108a4db0A";
     // Verify correct Ganache version.
@@ -62,7 +68,7 @@ fn get_test_ethereum_node() -> (TestEthereumNodeHandle, EthereumContractAddress)
     let db_path = ganache_db.path().join(DB_NAME);
     let ganache = Ganache::new().args(["--db", db_path.to_str().unwrap()]).spawn();
 
-    ((ganache, ganache_db), SN_CONTRACT_ADDR.to_owned())
+    ((ganache, ganache_db), SN_CONTRACT_ADDR.to_string().parse().unwrap())
 }
 
 #[test_with::executable(ganache)]
@@ -70,21 +76,23 @@ fn get_test_ethereum_node() -> (TestEthereumNodeHandle, EthereumContractAddress)
 // Note: the test requires ganache-cli installed, otherwise it is ignored.
 async fn latest_proved_block_ethereum() {
     let (node_handle, starknet_contract_address) = get_test_ethereum_node();
-    let config =
-        EthereumBaseLayerConfig { node_url: node_handle.0.endpoint(), starknet_contract_address };
+    let config = EthereumBaseLayerConfig {
+        node_url: node_handle.0.endpoint().parse().unwrap(),
+        starknet_contract_address,
+    };
     let contract = EthereumBaseLayerContract::new(config).unwrap();
 
     let first_sn_state_update = (BlockNumber(100), BlockHash(felt!("0x100")));
     let second_sn_state_update = (BlockNumber(200), BlockHash(felt!("0x200")));
     let third_sn_state_update = (BlockNumber(300), BlockHash(felt!("0x300")));
 
-    type Scenario = (Option<u64>, Option<(BlockNumber, BlockHash)>);
+    type Scenario = (u64, Option<(BlockNumber, BlockHash)>);
     let scenarios: Vec<Scenario> = vec![
-        (None, Some(third_sn_state_update)),
-        (Some(5), Some(third_sn_state_update)),
-        (Some(15), Some(second_sn_state_update)),
-        (Some(25), Some(first_sn_state_update)),
-        (Some(1000), None),
+        (0, Some(third_sn_state_update)),
+        (5, Some(third_sn_state_update)),
+        (15, Some(second_sn_state_update)),
+        (25, Some(first_sn_state_update)),
+        (1000, None),
     ];
     for (scenario, expected) in scenarios {
         let latest_block = contract.latest_proved_block(scenario).await.unwrap();

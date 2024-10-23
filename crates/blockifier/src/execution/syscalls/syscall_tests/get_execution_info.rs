@@ -1,19 +1,23 @@
 use cairo_vm::Felt252;
 use num_traits::Pow;
+use starknet_api::block::GasPrice;
 use starknet_api::core::ChainId;
 use starknet_api::data_availability::DataAvailabilityMode;
-use starknet_api::felt;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::{
     AccountDeploymentData,
     Calldata,
     Fee,
     PaymasterData,
+    Resource,
     ResourceBounds,
     Tip,
     TransactionHash,
     TransactionVersion,
     ValidResourceBounds,
+    QUERY_VERSION_BASE_BIT,
 };
+use starknet_api::{felt, nonce};
 use starknet_types_core::felt::Felt;
 use test_case::test_case;
 
@@ -21,8 +25,6 @@ use crate::abi::abi_utils::selector_from_name;
 use crate::context::ChainInfo;
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::entry_point::CallEntryPoint;
-use crate::execution::syscalls::hint_processor::{L1_DATA, L1_GAS, L2_GAS};
-use crate::nonce;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{
@@ -35,7 +37,6 @@ use crate::test_utils::{
     CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE,
     TEST_SEQUENCER_ADDRESS,
 };
-use crate::transaction::constants::QUERY_VERSION_BASE_BIT;
 use crate::transaction::objects::{
     CommonAccountFields,
     CurrentTransactionInfo,
@@ -144,8 +145,8 @@ fn test_get_execution_info(
     let nonce = nonce!(3_u16);
     let sender_address = test_contract_address;
 
-    let max_amount = Fee(13);
-    let max_price_per_unit = Fee(61);
+    let max_amount = GasAmount(13);
+    let max_price_per_unit = GasPrice(61);
 
     let expected_resource_bounds: Vec<Felt> = match (test_contract, version) {
         (FeatureContract::LegacyTestContract, _) => vec![],
@@ -153,13 +154,13 @@ fn test_get_execution_info(
             felt!(0_u16), // Length of resource bounds array.
         ],
         (_, _) => vec![
-            Felt::from(2u32),            // Length of ResourceBounds array.
-            felt!(L1_GAS),               // Resource.
-            felt!(max_amount.0),         // Max amount.
-            felt!(max_price_per_unit.0), // Max price per unit.
-            felt!(L2_GAS),               // Resource.
-            Felt::ZERO,                  // Max amount.
-            Felt::ZERO,                  // Max price per unit.
+            Felt::from(2u32),                // Length of ResourceBounds array.
+            felt!(Resource::L1Gas.to_hex()), // Resource.
+            max_amount.into(),               // Max amount.
+            max_price_per_unit.into(),       // Max price per unit.
+            felt!(Resource::L2Gas.to_hex()), // Resource.
+            Felt::ZERO,                      // Max amount.
+            Felt::ZERO,                      // Max price per unit.
         ],
     };
 
@@ -210,8 +211,8 @@ fn test_get_execution_info(
                 ..Default::default()
             },
             resource_bounds: ValidResourceBounds::L1Gas(ResourceBounds {
-                max_amount: max_amount.0.try_into().expect("Failed to convert u128 to u64."),
-                max_price_per_unit: max_price_per_unit.0,
+                max_amount,
+                max_price_per_unit,
             }),
             tip: Tip::default(),
             nonce_data_availability_mode: DataAvailabilityMode::L1,
@@ -242,24 +243,17 @@ fn test_get_execution_info(
         ),
         ..trivial_external_entry_point_with_address(test_contract_address)
     };
-
-    let result = match execution_mode {
-        ExecutionMode::Validate => {
-            entry_point_call.execute_directly_given_tx_info_in_validate_mode(state, tx_info, false)
-        }
-        ExecutionMode::Execute => {
-            entry_point_call.execute_directly_given_tx_info(state, tx_info, false)
-        }
-    };
+    let result =
+        entry_point_call.execute_directly_given_tx_info(state, tx_info, false, execution_mode);
 
     assert!(!result.unwrap().execution.failed);
 }
 
 #[test]
 fn test_gas_types_constants() {
-    assert_eq!(str_to_32_bytes_in_hex("L1_GAS"), L1_GAS);
-    assert_eq!(str_to_32_bytes_in_hex("L2_GAS"), L2_GAS);
-    assert_eq!(str_to_32_bytes_in_hex("L1_DATA"), L1_DATA);
+    assert_eq!(str_to_32_bytes_in_hex("L1_GAS"), Resource::L1Gas.to_hex());
+    assert_eq!(str_to_32_bytes_in_hex("L2_GAS"), Resource::L2Gas.to_hex());
+    assert_eq!(str_to_32_bytes_in_hex("L1_DATA"), Resource::L1DataGas.to_hex());
 }
 
 fn str_to_32_bytes_in_hex(s: &str) -> String {

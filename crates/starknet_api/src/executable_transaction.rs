@@ -1,18 +1,17 @@
 use serde::{Deserialize, Serialize};
 
 use crate::contract_class::ClassInfo;
-use crate::core::{
-    calculate_contract_address,
-    ChainId,
-    ClassHash,
-    CompiledClassHash,
-    ContractAddress,
-    Nonce,
-};
+use crate::core::{calculate_contract_address, ChainId, ClassHash, ContractAddress, Nonce};
 use crate::data_availability::DataAvailabilityMode;
-use crate::rpc_transaction::{RpcDeployAccountTransaction, RpcInvokeTransaction, RpcTransaction};
+use crate::rpc_transaction::{
+    RpcDeployAccountTransaction,
+    RpcInvokeTransaction,
+    RpcInvokeTransactionV3,
+    RpcTransaction,
+};
 use crate::transaction::{
     AccountDeploymentData,
+    AllResourceBounds,
     Calldata,
     ContractAddressSalt,
     PaymasterData,
@@ -56,6 +55,10 @@ impl Transaction {
             Transaction::DeployAccount(tx_data) => tx_data.contract_address,
             Transaction::Invoke(tx_data) => tx_data.tx.sender_address(),
         }
+    }
+
+    pub fn sender_address(&self) -> ContractAddress {
+        self.contract_address()
     }
 
     pub fn nonce(&self) -> Nonce {
@@ -123,9 +126,7 @@ impl Transaction {
                     sender_address,
                     tip: *rpc_tx.tip(),
                     nonce: *rpc_tx.nonce(),
-                    resource_bounds: ValidResourceBounds::AllResources(
-                        rpc_tx.resource_bounds().clone(),
-                    ),
+                    resource_bounds: ValidResourceBounds::AllResources(*rpc_tx.resource_bounds()),
                     signature: TransactionSignature::default(),
                     calldata: Calldata::default(),
                     nonce_data_availability_mode: DataAvailabilityMode::L1,
@@ -136,6 +137,29 @@ impl Transaction {
             ),
             tx_hash,
         })
+    }
+}
+
+// TODO: replace with proper implementation.
+impl From<Transaction> for RpcTransaction {
+    fn from(tx: Transaction) -> Self {
+        Self::Invoke(RpcInvokeTransaction::V3(RpcInvokeTransactionV3 {
+            sender_address: tx.contract_address(),
+            tip: tx.tip().unwrap_or_default(),
+            nonce: Nonce::default(),
+            resource_bounds: match tx.resource_bounds() {
+                Some(ValidResourceBounds::AllResources(all_resource_bounds)) => {
+                    *all_resource_bounds
+                }
+                _ => AllResourceBounds::default(),
+            },
+            signature: TransactionSignature::default(),
+            calldata: Calldata::default(),
+            nonce_data_availability_mode: DataAvailabilityMode::L1,
+            fee_data_availability_mode: DataAvailabilityMode::L1,
+            paymaster_data: PaymasterData::default(),
+            account_deployment_data: AccountDeploymentData::default(),
+        }))
     }
 }
 
@@ -168,8 +192,8 @@ impl DeclareTransaction {
             | crate::transaction::DeclareTransaction::V0(_) => return true,
         };
 
-        let casm_contract_class = &self.class_info.casm_contract_class;
-        let compiled_class_hash = CompiledClassHash(casm_contract_class.compiled_class_hash());
+        let contract_class = &self.class_info.contract_class;
+        let compiled_class_hash = contract_class.compiled_class_hash();
 
         compiled_class_hash == supplied_compiled_class_hash
     }
@@ -189,7 +213,12 @@ impl DeployAccountTransaction {
         (contract_address_salt, ContractAddressSalt),
         (nonce, Nonce),
         (signature, TransactionSignature),
-        (version, TransactionVersion)
+        (version, TransactionVersion),
+        (resource_bounds, ValidResourceBounds),
+        (tip, Tip),
+        (nonce_data_availability_mode, DataAvailabilityMode),
+        (fee_data_availability_mode, DataAvailabilityMode),
+        (paymaster_data, PaymasterData)
     );
     implement_getter_calls!((tx_hash, TransactionHash), (contract_address, ContractAddress));
 
@@ -233,7 +262,13 @@ impl InvokeTransaction {
         (nonce, Nonce),
         (signature, TransactionSignature),
         (sender_address, ContractAddress),
-        (version, TransactionVersion)
+        (version, TransactionVersion),
+        (resource_bounds, ValidResourceBounds),
+        (tip, Tip),
+        (nonce_data_availability_mode, DataAvailabilityMode),
+        (fee_data_availability_mode, DataAvailabilityMode),
+        (paymaster_data, PaymasterData),
+        (account_deployment_data, AccountDeploymentData)
     );
     implement_getter_calls!((tx_hash, TransactionHash));
 

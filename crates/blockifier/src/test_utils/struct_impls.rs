@@ -2,25 +2,27 @@ use std::sync::Arc;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use serde_json::Value;
-use starknet_api::block::{BlockNumber, BlockTimestamp};
-use starknet_api::core::{ChainId, ContractAddress, Nonce, PatriciaKey};
-use starknet_api::transaction::{Calldata, Fee, TransactionHash, TransactionVersion};
+use starknet_api::block::{BlockHash, BlockNumber, BlockTimestamp, NonzeroGasPrice};
+use starknet_api::core::{ChainId, ClassHash, ContractAddress, Nonce, PatriciaKey};
+use starknet_api::hash::StarkHash;
+use starknet_api::transaction::{Fee, TransactionHash, TransactionVersion};
 use starknet_api::{calldata, contract_address, felt, patricia_key};
 use starknet_types_core::felt::Felt;
 
 use super::update_json_value;
 use crate::abi::abi_utils::selector_from_name;
-use crate::blockifier::block::{BlockInfo, GasPrices};
-use crate::bouncer::{BouncerConfig, BouncerWeights};
+use crate::abi::constants;
+use crate::blockifier::block::{BlockInfo, BlockNumberHashPair, GasPrices};
+use crate::bouncer::{BouncerConfig, BouncerWeights, BuiltinCount};
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
+use crate::execution::common_hints::ExecutionMode;
 use crate::execution::contract_class::{ContractClassV0, ContractClassV1};
 use crate::execution::entry_point::{
     CallEntryPoint,
     EntryPointExecutionContext,
     EntryPointExecutionResult,
 };
-use crate::fee::fee_utils::get_fee_by_gas_vector;
 use crate::state::state_api::State;
 use crate::test_utils::{
     get_raw_contract_class,
@@ -34,14 +36,7 @@ use crate::test_utils::{
     TEST_ERC20_CONTRACT_ADDRESS2,
     TEST_SEQUENCER_ADDRESS,
 };
-use crate::transaction::objects::{
-    DeprecatedTransactionInfo,
-    FeeType,
-    GasVectorComputationMode,
-    TransactionFeeResult,
-    TransactionInfo,
-    TransactionResources,
-};
+use crate::transaction::objects::{DeprecatedTransactionInfo, TransactionInfo};
 use crate::transaction::transactions::L1HandlerTransaction;
 use crate::versioned_constants::{
     GasCosts,
@@ -54,10 +49,13 @@ impl CallEntryPoint {
     /// Executes the call directly, without account context. Limits the number of steps by resource
     /// bounds.
     pub fn execute_directly(self, state: &mut dyn State) -> EntryPointExecutionResult<CallInfo> {
+        let limit_steps_by_resources = false; // Do not limit steps by resources as we use default reasources.
         self.execute_directly_given_tx_info(
             state,
+            // TODO(Yoni, 1/12/2024): change the default to V3.
             TransactionInfo::Deprecated(DeprecatedTransactionInfo::default()),
-            true,
+            limit_steps_by_resources,
+            ExecutionMode::Execute,
         )
     }
 
@@ -66,12 +64,17 @@ impl CallEntryPoint {
         state: &mut dyn State,
         tx_info: TransactionInfo,
         limit_steps_by_resources: bool,
+        execution_mode: ExecutionMode,
     ) -> EntryPointExecutionResult<CallInfo> {
         let tx_context =
             TransactionContext { block_context: BlockContext::create_for_testing(), tx_info };
-        let mut context =
-            EntryPointExecutionContext::new_invoke(Arc::new(tx_context), limit_steps_by_resources);
-        self.execute(state, &mut ExecutionResources::default(), &mut context)
+        let mut context = EntryPointExecutionContext::new(
+            Arc::new(tx_context),
+            execution_mode,
+            limit_steps_by_resources,
+        );
+        let mut remaining_gas = self.initial_gas;
+        self.execute(state, &mut ExecutionResources::default(), &mut context, &mut remaining_gas)
     }
 
     /// Executes the call directly in validate mode, without account context. Limits the number of
@@ -80,26 +83,21 @@ impl CallEntryPoint {
         self,
         state: &mut dyn State,
     ) -> EntryPointExecutionResult<CallInfo> {
-        self.execute_directly_given_tx_info_in_validate_mode(
+        let limit_steps_by_resources = false; // Do not limit steps by resources as we use default reasources.
+        self.execute_directly_given_tx_info(
             state,
+            // TODO(Yoni, 1/12/2024): change the default to V3.
             TransactionInfo::Deprecated(DeprecatedTransactionInfo::default()),
-            true,
+            limit_steps_by_resources,
+            ExecutionMode::Validate,
         )
     }
+}
 
-    pub fn execute_directly_given_tx_info_in_validate_mode(
-        self,
-        state: &mut dyn State,
-        tx_info: TransactionInfo,
-        limit_steps_by_resources: bool,
-    ) -> EntryPointExecutionResult<CallInfo> {
-        let tx_context =
-            TransactionContext { block_context: BlockContext::create_for_testing(), tx_info };
-        let mut context = EntryPointExecutionContext::new_validate(
-            Arc::new(tx_context),
-            limit_steps_by_resources,
-        );
-        self.execute(state, &mut ExecutionResources::default(), &mut context)
+impl CallInfo {
+    pub fn with_some_class_hash(mut self) -> Self {
+        self.call.class_hash = Some(ClassHash::default());
+        self
     }
 }
 
@@ -109,26 +107,11 @@ impl VersionedConstants {
     }
 }
 
-impl TransactionResources {
-    pub fn calculate_tx_fee(
-        &self,
-        block_context: &BlockContext,
-        fee_type: &FeeType,
-    ) -> TransactionFeeResult<Fee> {
-        let gas_vector = self.to_gas_vector(
-            &block_context.versioned_constants,
-            block_context.block_info.use_kzg_da,
-            &GasVectorComputationMode::NoL2Gas,
-        )?;
-        Ok(get_fee_by_gas_vector(&block_context.block_info, gas_vector, fee_type))
-    }
-}
-
 impl GasCosts {
     pub fn create_for_testing_from_subset(subset_of_os_constants: &str) -> Self {
         let subset_of_os_constants: Value = serde_json::from_str(subset_of_os_constants).unwrap();
         let mut os_constants: Value =
-            serde_json::from_str::<Value>(VERSIONED_CONSTANTS_LATEST_JSON)
+            serde_json::from_str::<Value>(VERSIONED_CONSTANTS_LATEST_JSON.as_str())
                 .unwrap()
                 .get("os_constants")
                 .unwrap()
@@ -136,6 +119,18 @@ impl GasCosts {
         update_json_value(&mut os_constants, subset_of_os_constants);
         let os_constants: OsConstants = serde_json::from_value(os_constants).unwrap();
         os_constants.gas_costs
+    }
+}
+
+impl BlockNumberHashPair {
+    pub fn create_dummy_given_current(block_number: BlockNumber) -> Option<Self> {
+        if block_number.0 < constants::STORED_BLOCK_HASH_BUFFER {
+            return None;
+        }
+        Some(Self {
+            number: BlockNumber(block_number.0 - constants::STORED_BLOCK_HASH_BUFFER),
+            hash: BlockHash(StarkHash::ONE),
+        })
     }
 }
 
@@ -158,18 +153,20 @@ impl BlockInfo {
             block_timestamp: BlockTimestamp(CURRENT_BLOCK_TIMESTAMP),
             sequencer_address: contract_address!(TEST_SEQUENCER_ADDRESS),
             gas_prices: GasPrices::new(
-                DEFAULT_ETH_L1_GAS_PRICE.try_into().unwrap(),
-                DEFAULT_STRK_L1_GAS_PRICE.try_into().unwrap(),
-                DEFAULT_ETH_L1_DATA_GAS_PRICE.try_into().unwrap(),
-                DEFAULT_STRK_L1_DATA_GAS_PRICE.try_into().unwrap(),
-                VersionedConstants::latest_constants()
-                    .convert_l1_to_l2_gas(DEFAULT_ETH_L1_GAS_PRICE)
-                    .try_into()
-                    .unwrap(),
-                VersionedConstants::latest_constants()
-                    .convert_l1_to_l2_gas(DEFAULT_STRK_L1_GAS_PRICE)
-                    .try_into()
-                    .unwrap(),
+                DEFAULT_ETH_L1_GAS_PRICE,
+                DEFAULT_STRK_L1_GAS_PRICE,
+                DEFAULT_ETH_L1_DATA_GAS_PRICE,
+                DEFAULT_STRK_L1_DATA_GAS_PRICE,
+                NonzeroGasPrice::new(
+                    VersionedConstants::latest_constants()
+                        .convert_l1_to_l2_gas_price_round_up(DEFAULT_ETH_L1_GAS_PRICE.into()),
+                )
+                .unwrap(),
+                NonzeroGasPrice::new(
+                    VersionedConstants::latest_constants()
+                        .convert_l1_to_l2_gas_price_round_up(DEFAULT_STRK_L1_GAS_PRICE.into()),
+                )
+                .unwrap(),
             ),
             use_kzg_da: false,
         }
@@ -257,5 +254,11 @@ impl L1HandlerTransaction {
         };
         let tx_hash = TransactionHash::default();
         Self { tx, tx_hash, paid_fee_on_l1: l1_fee }
+    }
+}
+
+impl BouncerWeights {
+    pub fn create_for_testing(builtin_count: BuiltinCount) -> Self {
+        Self { builtin_count, ..Self::empty() }
     }
 }

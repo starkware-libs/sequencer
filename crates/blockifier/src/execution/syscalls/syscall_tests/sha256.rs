@@ -3,14 +3,14 @@ use test_case::test_case;
 
 use crate::abi::abi_utils::selector_from_name;
 use crate::context::ChainInfo;
-use crate::execution::call_info::{CallExecution, Retdata};
+use crate::execution::call_info::CallExecution;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::retdata;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, BALANCE};
 
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 893890; "VM")]
+#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 881625; "VM")]
 fn test_sha256(test_contract: FeatureContract, gas_consumed: u64) {
     let chain_info = &ChainInfo::create_for_testing();
     let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1)]);

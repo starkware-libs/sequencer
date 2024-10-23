@@ -4,15 +4,15 @@ use std::ops::Add;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use serde::Serialize;
-use starknet_api::core::{ClassHash, ContractAddress, EthAddress, PatriciaKey};
+use starknet_api::core::{ClassHash, EthAddress};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{EventContent, L2ToL1Payload};
-use starknet_api::{felt, patricia_key};
 use starknet_types_core::felt::Felt;
 
+use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::CallEntryPoint;
-use crate::fee::gas_usage::get_message_segment_length;
 use crate::state::cached_state::StorageEntry;
+use crate::utils::u64_from_usize;
 
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
@@ -21,11 +21,11 @@ pub struct Retdata(pub Vec<Felt>);
 #[macro_export]
 macro_rules! retdata {
     ( $( $x:expr ),* ) => {
-        Retdata(vec![$($x),*])
+        $crate::execution::call_info::Retdata(vec![$($x),*])
     };
 }
 
-#[cfg_attr(test, derive(Clone))]
+#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Debug, Default, Eq, PartialEq, Serialize)]
 pub struct OrderedEvent {
@@ -33,31 +33,7 @@ pub struct OrderedEvent {
     pub event: EventContent,
 }
 
-#[cfg_attr(feature = "transaction_serde", derive(Serialize, serde::Deserialize))]
-#[derive(Debug, Default, Eq, PartialEq, Clone)]
-pub struct MessageL1CostInfo {
-    pub l2_to_l1_payload_lengths: Vec<usize>,
-    pub message_segment_length: usize,
-}
-
-impl MessageL1CostInfo {
-    pub fn calculate<'a>(
-        call_infos: impl Iterator<Item = &'a CallInfo>,
-        l1_handler_payload_size: Option<usize>,
-    ) -> Self {
-        let mut l2_to_l1_payload_lengths = Vec::new();
-        for call_info in call_infos {
-            l2_to_l1_payload_lengths.extend(call_info.get_l2_to_l1_payload_lengths());
-        }
-
-        let message_segment_length =
-            get_message_segment_length(&l2_to_l1_payload_lengths, l1_handler_payload_size);
-
-        Self { l2_to_l1_payload_lengths, message_segment_length }
-    }
-}
-
-#[cfg_attr(test, derive(Clone))]
+#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Debug, Default, Eq, PartialEq, Serialize)]
 pub struct MessageToL1 {
@@ -65,7 +41,7 @@ pub struct MessageToL1 {
     pub payload: L2ToL1Payload,
 }
 
-#[cfg_attr(test, derive(Clone))]
+#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Debug, Default, Eq, PartialEq, Serialize)]
 pub struct OrderedL2ToL1Message {
@@ -73,12 +49,8 @@ pub struct OrderedL2ToL1Message {
     pub message: MessageToL1,
 }
 
-pub fn get_payload_lengths(l2_to_l1_messages: &[OrderedL2ToL1Message]) -> Vec<usize> {
-    l2_to_l1_messages.iter().map(|message| message.message.payload.0.len()).collect()
-}
-
 /// Represents the effects of executing a single entry point.
-#[cfg_attr(test, derive(Clone))]
+#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Debug, Default, Eq, PartialEq, Serialize)]
 pub struct CallExecution {
@@ -89,12 +61,20 @@ pub struct CallExecution {
     pub gas_consumed: u64,
 }
 
-#[derive(Default)]
+#[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, Debug, Default, derive_more::AddAssign, PartialEq)]
+pub struct EventSummary {
+    pub n_events: usize,
+    pub total_event_keys: u64,
+    pub total_event_data_size: u64,
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct ExecutionSummary {
     pub executed_class_hashes: HashSet<ClassHash>,
     pub visited_storage_entries: HashSet<StorageEntry>,
     pub l2_to_l1_payload_lengths: Vec<usize>,
-    pub n_events: usize,
+    pub event_summary: EventSummary,
 }
 
 impl Add for ExecutionSummary {
@@ -104,7 +84,7 @@ impl Add for ExecutionSummary {
         self.executed_class_hashes.extend(other.executed_class_hashes);
         self.visited_storage_entries.extend(other.visited_storage_entries);
         self.l2_to_l1_payload_lengths.extend(other.l2_to_l1_payload_lengths);
-        self.n_events += other.n_events;
+        self.event_summary += other.event_summary;
         self
     }
 }
@@ -115,59 +95,8 @@ impl Sum for ExecutionSummary {
     }
 }
 
-#[derive(Debug, Default)]
-pub struct TestExecutionSummary {
-    pub num_of_events: usize,
-    pub num_of_messages: usize,
-    pub class_hash: ClassHash,
-    pub storage_address: ContractAddress,
-    pub storage_key: StorageKey,
-}
-
-impl TestExecutionSummary {
-    pub fn new(
-        num_of_events: usize,
-        num_of_messages: usize,
-        class_hash: ClassHash,
-        storage_address: &str,
-        storage_key: &str,
-    ) -> Self {
-        TestExecutionSummary {
-            num_of_events,
-            num_of_messages,
-            class_hash,
-            storage_address: ContractAddress(patricia_key!(storage_address)),
-            storage_key: StorageKey(patricia_key!(storage_key)),
-        }
-    }
-
-    pub fn to_call_info(&self) -> CallInfo {
-        CallInfo {
-            call: CallEntryPoint {
-                class_hash: Some(self.class_hash),
-                storage_address: self.storage_address,
-                ..Default::default()
-            },
-            execution: CallExecution {
-                events: (0..self.num_of_events).map(|_| OrderedEvent::default()).collect(),
-                l2_to_l1_messages: (0..self.num_of_messages)
-                    .map(|i| OrderedL2ToL1Message {
-                        order: i,
-                        message: MessageToL1 {
-                            to_address: EthAddress::default(),
-                            payload: L2ToL1Payload(vec![Felt::default()]),
-                        },
-                    })
-                    .collect(),
-                ..Default::default()
-            },
-            accessed_storage_keys: vec![self.storage_key].into_iter().collect(),
-            ..Default::default()
-        }
-    }
-}
-
 /// Represents the full effects of executing an entry point, including the inner calls it invoked.
+#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Debug, Default, Eq, PartialEq, Serialize)]
 pub struct CallInfo {
@@ -175,6 +104,7 @@ pub struct CallInfo {
     pub execution: CallExecution,
     pub resources: ExecutionResources,
     pub inner_calls: Vec<CallInfo>,
+    pub tracked_resource: TrackedResource,
 
     // Additional information gathered during execution.
     pub storage_read_values: Vec<Felt>,
@@ -187,42 +117,55 @@ impl CallInfo {
         CallInfoIter { call_infos }
     }
 
-    pub fn get_l2_to_l1_payload_lengths(&self) -> Vec<usize> {
-        self.iter().fold(Vec::new(), |mut acc, call_info| {
-            acc.extend(get_payload_lengths(&call_info.execution.l2_to_l1_messages));
-            acc
-        })
-    }
-
     pub fn summarize(&self) -> ExecutionSummary {
         let mut executed_class_hashes: HashSet<ClassHash> = HashSet::new();
         let mut visited_storage_entries: HashSet<StorageEntry> = HashSet::new();
-        let mut n_events: usize = 0;
+        let mut event_summary = EventSummary::default();
         let mut l2_to_l1_payload_lengths = Vec::new();
 
         for call_info in self.iter() {
+            // Class hashes.
             let class_hash =
                 call_info.call.class_hash.expect("Class hash must be set after execution.");
             executed_class_hashes.insert(class_hash);
 
+            // Storage entries.
             let call_storage_entries = call_info
                 .accessed_storage_keys
                 .iter()
                 .map(|storage_key| (call_info.call.storage_address, *storage_key));
             visited_storage_entries.extend(call_storage_entries);
 
-            n_events += call_info.execution.events.len();
+            // Messages.
+            l2_to_l1_payload_lengths.extend(
+                call_info
+                    .execution
+                    .l2_to_l1_messages
+                    .iter()
+                    .map(|message| message.message.payload.0.len()),
+            );
 
-            l2_to_l1_payload_lengths
-                .extend(get_payload_lengths(&call_info.execution.l2_to_l1_messages));
+            // Events.
+            event_summary.n_events += call_info.execution.events.len();
+            for OrderedEvent { event, .. } in call_info.execution.events.iter() {
+                // TODO(barak: 18/03/2024): Once we start charging per byte
+                // change to num_bytes_keys
+                // and num_bytes_data.
+                event_summary.total_event_data_size += u64_from_usize(event.data.0.len());
+                event_summary.total_event_keys += u64_from_usize(event.keys.len());
+            }
         }
 
         ExecutionSummary {
             executed_class_hashes,
             visited_storage_entries,
             l2_to_l1_payload_lengths,
-            n_events,
+            event_summary,
         }
+    }
+
+    pub fn summarize_many<'a>(call_infos: impl Iterator<Item = &'a CallInfo>) -> ExecutionSummary {
+        call_infos.map(|call_info| call_info.summarize()).sum()
     }
 }
 

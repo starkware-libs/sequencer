@@ -1,26 +1,16 @@
+use std::any::type_name;
+use std::fmt::Debug;
+
 use async_trait::async_trait;
 use tokio::sync::mpsc::Receiver;
-use tracing::{error, info};
+use tracing::{debug, info};
 
 use crate::component_definitions::{ComponentRequestAndResponseSender, ComponentRequestHandler};
-use crate::component_runner::ComponentStarter;
+use crate::errors::{ComponentServerError, ReplaceComponentError};
 
 #[async_trait]
-pub trait ComponentServerStarter: Send + Sync {
-    async fn start(&mut self);
-}
-
-pub async fn start_component<Component>(component: &mut Component) -> bool
-where
-    Component: ComponentStarter + Sync + Send,
-{
-    if let Err(err) = component.start().await {
-        error!("ComponentServer::start() failed: {:?}", err);
-        return false;
-    }
-
-    info!("ComponentServer::start() completed.");
-    true
+pub trait ComponentServerStarter {
+    async fn start(&mut self) -> Result<(), ComponentServerError>;
 }
 
 pub async fn request_response_loop<Request, Response, Component>(
@@ -28,15 +18,30 @@ pub async fn request_response_loop<Request, Response, Component>(
     component: &mut Component,
 ) where
     Component: ComponentRequestHandler<Request, Response> + Send + Sync,
-    Request: Send + Sync,
-    Response: Send + Sync,
+    Request: Send + Sync + Debug,
+    Response: Send + Sync + Debug,
 {
+    info!("Starting server for component {}", type_name::<Component>());
+
+    // TODO(Tsabary): Move this function to be part of the `local_server` module.
     while let Some(request_and_res_tx) = rx.recv().await {
         let request = request_and_res_tx.request;
         let tx = request_and_res_tx.tx;
+        debug!("Component {} received request {:?}", type_name::<Component>(), request);
 
-        let res = component.handle_request(request).await;
+        let response = component.handle_request(request).await;
+        debug!("Component {} is sending response {:?}", type_name::<Component>(), response);
 
-        tx.send(res).await.expect("Response connection should be open.");
+        // TODO(Tsabary): revert `try_send` to `send` once the client is guaranteed to be alive,
+        // i.e., tx.send(response).await.expect("Response connection should be open.");
+        // Tries sending the response to the client. If the client has disconnected then this
+        // becomes a null operation.
+        let _ = tx.try_send(response);
     }
+
+    info!("Stopping server for component {}", type_name::<Component>());
+}
+
+pub trait ComponentReplacer<Component> {
+    fn replace(&mut self, component: Component) -> Result<(), ReplaceComponentError>;
 }

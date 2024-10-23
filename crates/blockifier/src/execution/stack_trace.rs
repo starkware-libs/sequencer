@@ -1,13 +1,18 @@
+use std::fmt::{Display, Formatter};
+
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::errors::cairo_run_errors::CairoRunError;
 use cairo_vm::vm::errors::hint_errors::HintError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use itertools::Itertools;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
+use starknet_api::execution_utils::format_panic_data;
+use starknet_types_core::felt::Felt;
 
-use super::deprecated_syscalls::hint_processor::DeprecatedSyscallExecutionError;
-use super::syscalls::hint_processor::SyscallExecutionError;
+use crate::execution::call_info::{CallInfo, Retdata};
+use crate::execution::deprecated_syscalls::hint_processor::DeprecatedSyscallExecutionError;
 use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
+use crate::execution::syscalls::hint_processor::{SyscallExecutionError, ENTRYPOINT_FAILED_ERROR};
 use crate::transaction::errors::TransactionExecutionError;
 
 #[cfg(test)]
@@ -17,7 +22,8 @@ pub mod test;
 pub const TRACE_LENGTH_CAP: usize = 15000;
 pub const TRACE_EXTRA_CHARS_SLACK: usize = 100;
 
-enum PreambleType {
+#[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum PreambleType {
     CallContract,
     LibraryCall,
     Constructor,
@@ -33,12 +39,13 @@ impl PreambleType {
     }
 }
 
+#[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct EntryPointErrorFrame {
-    depth: usize,
-    preamble_type: PreambleType,
-    storage_address: ContractAddress,
-    class_hash: ClassHash,
-    selector: Option<EntryPointSelector>,
+    pub depth: usize,
+    pub preamble_type: PreambleType,
+    pub storage_address: ContractAddress,
+    pub class_hash: ClassHash,
+    pub selector: Option<EntryPointSelector>,
 }
 
 impl EntryPointErrorFrame {
@@ -64,10 +71,11 @@ impl From<&EntryPointErrorFrame> for String {
     }
 }
 
+#[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct VmExceptionFrame {
-    pc: Relocatable,
-    error_attr_value: Option<String>,
-    traceback: Option<String>,
+    pub pc: Relocatable,
+    pub error_attr_value: Option<String>,
+    pub traceback: Option<String>,
 }
 
 impl From<&VmExceptionFrame> for String {
@@ -86,6 +94,7 @@ impl From<&VmExceptionFrame> for String {
     }
 }
 
+#[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Frame {
     EntryPoint(EntryPointErrorFrame),
     Vm(VmExceptionFrame),
@@ -120,9 +129,10 @@ impl From<String> for Frame {
     }
 }
 
+#[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Default)]
 pub struct ErrorStack {
-    stack: Vec<Frame>,
+    pub stack: Vec<Frame>,
 }
 
 impl From<ErrorStack> for String {
@@ -146,9 +156,115 @@ impl ErrorStack {
         self.stack.push(frame);
     }
 }
+#[derive(Debug)]
+pub struct Cairo1RevertFrame {
+    pub contract_address: ContractAddress,
+    pub class_hash: Option<ClassHash>,
+    pub selector: EntryPointSelector,
+}
+
+impl From<&&CallInfo> for Cairo1RevertFrame {
+    fn from(callinfo: &&CallInfo) -> Self {
+        Self {
+            contract_address: callinfo.call.storage_address,
+            class_hash: callinfo.call.class_hash,
+            selector: callinfo.call.entry_point_selector,
+        }
+    }
+}
+
+impl Display for Cairo1RevertFrame {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Error in contract (contract address: {:#064x}, class hash: {}, selector: {:#064x}):",
+            self.contract_address.0.key(),
+            match self.class_hash {
+                Some(class_hash) => format!("{:#064x}", class_hash.0),
+                None => "_".to_string(),
+            },
+            self.selector.0,
+        )
+    }
+}
+
+#[derive(Debug)]
+pub struct Cairo1RevertStack {
+    pub stack: Vec<Cairo1RevertFrame>,
+    pub last_retdata: Retdata,
+}
+
+impl Display for Cairo1RevertStack {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            self.stack
+                .iter()
+                .map(|frame| frame.to_string())
+                .chain([format_panic_data(&self.last_retdata.0)])
+                .join("\n")
+        )
+    }
+}
+
+pub fn extract_trailing_cairo1_revert_trace(root_call: &CallInfo) -> Cairo1RevertStack {
+    let fallback_value =
+        Cairo1RevertStack { stack: vec![], last_retdata: root_call.execution.retdata.clone() };
+    let entrypoint_failed_felt = Felt::from_hex(ENTRYPOINT_FAILED_ERROR)
+        .unwrap_or_else(|_| panic!("{ENTRYPOINT_FAILED_ERROR} does not fit in a felt."));
+
+    // Compute the failing call chain.
+    let mut error_calls: Vec<&CallInfo> = vec![];
+    let mut call = root_call;
+    // It is possible that a failing contract managed to call another (non-failing) contract
+    // before hitting an error; stop iteration if the current call was successful.
+    while call.execution.failed {
+        error_calls.push(call);
+        // If the last felt in the retdata is not the failure felt, stop iteration.
+        // Even if the next inner call is also in failed state, assume a scenario where the current
+        // call panicked after ignoring the error result of the inner call.
+        let retdata = &call.execution.retdata.0;
+        if retdata.last() != Some(&entrypoint_failed_felt) {
+            break;
+        }
+        // Select the next inner failure, if it exists and is unique.
+        // Consider the following scenario:
+        // ```
+        // let A = call_contract(...)
+        // let B = call_contract(...)
+        // X.unwrap_syscall(...)
+        // ```
+        // where X is either A or B. If both A and B are calls to different contracts, which fail
+        // for different reasons but return the same failure reasons, we cannot distinguish between
+        // them - i.e. we cannot distinguish between the case X=A or X=B.
+        // To avoid returning misleading data, we revert to the fallback value in such cases.
+        // If the source of failure can be identified in the inner calls, iterate.
+        let expected_inner_retdata = &retdata[..(retdata.len() - 1)];
+        let mut potential_inner_failures_iter = call.inner_calls.iter().filter(|inner_call| {
+            inner_call.execution.failed
+                && &inner_call.execution.retdata.0[..] == expected_inner_retdata
+        });
+        call = match potential_inner_failures_iter.next() {
+            Some(unique_inner_failure) if potential_inner_failures_iter.next().is_none() => {
+                unique_inner_failure
+            }
+            // Inner failure is either not unique, or does not exist (malformed retdata).
+            _ => return fallback_value,
+        };
+    }
+
+    // Add one line per call, and append the failure reason.
+    // If error_calls is empty, that means the root call is non-failing; return the fallback value.
+    let Some(last_call) = error_calls.last() else { return fallback_value };
+    Cairo1RevertStack {
+        stack: error_calls.iter().map(Cairo1RevertFrame::from).collect(),
+        last_retdata: last_call.execution.retdata.clone(),
+    }
+}
 
 /// Extracts the error trace from a `TransactionExecutionError`. This is a top level function.
-pub fn gen_transaction_execution_error_trace(error: &TransactionExecutionError) -> ErrorStack {
+pub fn gen_tx_execution_error_trace(error: &TransactionExecutionError) -> ErrorStack {
     match error {
         TransactionExecutionError::ExecutionError {
             error,

@@ -14,6 +14,7 @@ fn test_get_visited_segments() {
         program: Default::default(),
         entry_points_by_type: Default::default(),
         hints: Default::default(),
+        compiler_version: Default::default(),
         bytecode_segment_lengths: NestedIntList::Node(vec![
             NestedIntList::Leaf(151),
             NestedIntList::Leaf(104),

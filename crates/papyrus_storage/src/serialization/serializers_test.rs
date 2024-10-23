@@ -6,12 +6,13 @@ use std::path::Path;
 
 use cairo_lang_casm::hints::CoreHintBase;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
-use papyrus_test_utils::{get_rng, read_json_file, GetTestInstance};
+use papyrus_test_utils::{get_rng, GetTestInstance};
 use pretty_assertions::assert_eq;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ContractAddress;
 use starknet_api::hash::StarkHash;
 use starknet_api::state::StorageKey;
+use starknet_api::test_utils::read_json_file;
 use starknet_api::transaction::TransactionOffsetInBlock;
 
 use crate::db::serialization::StorageSerde;

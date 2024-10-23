@@ -3,16 +3,15 @@ use std::env;
 use jsonrpsee::core::client::ClientT;
 use jsonrpsee::http_client::{HttpClient, HttpClientBuilder};
 use jsonrpsee::rpc_params;
-use papyrus_common::transaction_hash::get_transaction_hash;
-use papyrus_common::TransactionOptions;
 use papyrus_rpc::{
-    AddInvokeOkResultRPC0_6,
-    InvokeTransactionRPC0_6,
-    InvokeTransactionV1RPC0_6,
-    TransactionVersion1RPC0_6,
+    AddInvokeOkResultRPC0_8,
+    InvokeTransactionRPC0_8,
+    InvokeTransactionV1RPC0_8,
+    TransactionVersion1RPC0_8,
 };
 use starknet_api::core::{ChainId, ContractAddress, EntryPointSelector, Nonce, PatriciaKey};
-use starknet_api::transaction::{Calldata, Fee, Transaction, TransactionSignature};
+use starknet_api::transaction::{Fee, Transaction, TransactionOptions, TransactionSignature};
+use starknet_api::transaction_hash::get_transaction_hash;
 use starknet_api::{calldata, contract_address, felt, patricia_key};
 use starknet_client::writer::objects::transaction::InvokeTransaction as SNClientInvokeTransaction;
 use starknet_core::crypto::ecdsa_sign;
@@ -59,7 +58,7 @@ async fn test_gw_integration_testnet() {
     let node_url = env::var("INTEGRATION_TESTNET_NODE_URL")
         .expect("Node url must be given in INTEGRATION_TESTNET_NODE_URL environment variable.");
     let client =
-        HttpClientBuilder::default().build(format!("https://{}:443/rpc/v0_6", node_url)).unwrap();
+        HttpClientBuilder::default().build(format!("https://{}:443/rpc/v0_8", node_url)).unwrap();
     let sender_address = contract_address!(USER_A_ADDRESS);
     // Sender balance sufficient balance should be maintained outside of this test.
     let sender_balance = get_eth_balance(&client, sender_address).await;
@@ -77,12 +76,12 @@ async fn test_gw_integration_testnet() {
     let receiver_address = contract_address!(USER_B_ADDRESS);
 
     // Create an invoke transaction for Eth transfer with a signature placeholder.
-    let mut invoke_tx = InvokeTransactionV1RPC0_6 {
+    let mut invoke_tx = InvokeTransactionV1RPC0_8 {
         max_fee: Fee(MAX_FEE),
         signature: TransactionSignature::default(),
         nonce,
         sender_address,
-        version: TransactionVersion1RPC0_6::default(),
+        version: TransactionVersion1RPC0_8::default(),
         calldata: calldata![
             felt!(1_u8), // OpenZeppelin call array len (number of calls in this tx).
             // Call Array (4 elements per array struct element).
@@ -103,7 +102,7 @@ async fn test_gw_integration_testnet() {
     // Update the signature.
     let hash = get_transaction_hash(
         &Transaction::Invoke(
-            InvokeTransactionRPC0_6::Version1(invoke_tx.clone()).try_into().unwrap(),
+            InvokeTransactionRPC0_8::Version1(invoke_tx.clone()).try_into().unwrap(),
         ),
         &ChainId::Sepolia,
         &TransactionOptions::default(),
@@ -123,7 +122,7 @@ async fn test_gw_integration_testnet() {
     ]);
 
     let invoke_res = client
-        .request::<AddInvokeOkResultRPC0_6, _>(
+        .request::<AddInvokeOkResultRPC0_8, _>(
             "starknet_addInvokeTransaction",
             rpc_params!(SNClientInvokeTransaction::from(invoke_tx)),
         )

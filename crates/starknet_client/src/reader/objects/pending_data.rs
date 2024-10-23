@@ -159,6 +159,13 @@ impl PendingBlockOrDeprecated {
             PendingBlockOrDeprecated::Current(block) => block.l1_data_gas_price,
         }
     }
+    pub fn l2_gas_price(&self) -> GasPricePerToken {
+        match self {
+            // In older versions, L2 gas price was 0.
+            PendingBlockOrDeprecated::Deprecated(_) => GasPricePerToken::default(),
+            PendingBlockOrDeprecated::Current(block) => block.l2_gas_price,
+        }
+    }
     pub fn l1_da_mode(&self) -> L1DataAvailabilityMode {
         match self {
             // In older versions, all blocks were using calldata.
@@ -196,6 +203,8 @@ pub struct PendingBlock {
     pub status: BlockStatus,
     pub l1_gas_price: GasPricePerToken,
     pub l1_data_gas_price: GasPricePerToken,
+    #[serde(default)]
+    pub l2_gas_price: GasPricePerToken,
     pub transactions: Vec<Transaction>,
     pub timestamp: BlockTimestamp,
     pub sequencer_address: SequencerContractAddress,
