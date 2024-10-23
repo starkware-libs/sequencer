@@ -12,8 +12,6 @@ RUN echo "%${USERNAME}        ALL=(ALL)       NOPASSWD: ALL" >> /etc/sudoers.d/d
 
 USER ${USERNAME}
 
-WORKDIR /app
-
 ENV RUSTUP_HOME=/var/tmp/rust
 ENV CARGO_HOME=${RUSTUP_HOME}
 ENV PATH=$PATH:${RUSTUP_HOME}/bin
