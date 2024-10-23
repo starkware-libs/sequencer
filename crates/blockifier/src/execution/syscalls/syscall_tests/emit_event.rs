@@ -1,5 +1,4 @@
 use itertools::concat;
-use pretty_assertions::assert_eq;
 use starknet_api::felt;
 use starknet_api::transaction::fields::Calldata;
 use starknet_api::transaction::{EventContent, EventData, EventKey};
@@ -25,6 +24,10 @@ const DATA: [Felt; 3] = [
 ];
 const N_EMITTED_EVENTS: [Felt; 1] = [Felt::from_hex_unchecked("0x1")];
 
+#[cfg_attr(
+  feature = "cairo_native",
+  test_case(FeatureContract::TestContract(CairoVersion::Native), 58930; "Native")
+)]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 47330; "VM")]
 fn positive_flow(test_contract: FeatureContract, expected_gas: u64) {
     // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion
@@ -45,13 +48,19 @@ fn positive_flow(test_contract: FeatureContract, expected_gas: u64) {
     );
 }
 
+#[cfg_attr(
+  feature = "cairo_native",
+  test_case(FeatureContract::TestContract(CairoVersion::Native); "Native")
+)]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1); "VM")]
 fn data_length_exceeds_limit(test_contract: FeatureContract) {
     let versioned_constants = VersionedConstants::create_for_testing();
 
     let max_event_data_length = versioned_constants.tx_event_limits.max_data_length;
     let data_too_long = vec![felt!(2_u16); max_event_data_length + 1];
+
     let error = emit_events(test_contract, &N_EMITTED_EVENTS, &KEYS, &data_too_long).unwrap_err();
+
     let expected_error = EmitEventError::ExceedsMaxDataLength {
         data_length: max_event_data_length + 1,
         max_data_length: max_event_data_length,
@@ -59,13 +68,19 @@ fn data_length_exceeds_limit(test_contract: FeatureContract) {
     assert!(error.to_string().contains(&expected_error.to_string()));
 }
 
+#[cfg_attr(
+   feature = "cairo_native",
+   test_case(FeatureContract::TestContract(CairoVersion::Native); "Native")
+ )]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1); "VM")]
 fn keys_length_exceeds_limit(test_contract: FeatureContract) {
     let versioned_constants = VersionedConstants::create_for_testing();
 
     let max_event_keys_length = versioned_constants.tx_event_limits.max_keys_length;
     let keys_too_long = vec![felt!(1_u16); max_event_keys_length + 1];
+
     let error = emit_events(test_contract, &N_EMITTED_EVENTS, &keys_too_long, &DATA).unwrap_err();
+
     let expected_error = EmitEventError::ExceedsMaxKeysLength {
         keys_length: max_event_keys_length + 1,
         max_keys_length: max_event_keys_length,
@@ -74,6 +89,8 @@ fn keys_length_exceeds_limit(test_contract: FeatureContract) {
     assert!(error.to_string().contains(&expected_error.to_string()));
 }
 
+#[cfg(feature = "cairo_native")]
+#[test_case(FeatureContract::TestContract(CairoVersion::Native); "Native")]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1); "VM")]
 fn event_number_exceeds_limit(test_contract: FeatureContract) {
     let versioned_constants = VersionedConstants::create_for_testing();
@@ -83,6 +100,7 @@ fn event_number_exceeds_limit(test_contract: FeatureContract) {
         u16::try_from(max_n_emitted_events + 1).expect("Failed to convert usize to u16.")
     )];
     let error = emit_events(test_contract, &n_emitted_events_too_big, &KEYS, &DATA).unwrap_err();
+
     let expected_error = EmitEventError::ExceedsMaxNumberOfEmittedEvents {
         n_emitted_events: max_n_emitted_events + 1,
         max_n_emitted_events,
