@@ -96,6 +96,7 @@ cairo-lang-sierra = "=2.8.2"
 cairo-lang-sierra-to-casm = "2.8.2"
 cairo-lang-starknet-classes = "2.8.2"
 cairo-lang-utils = "2.8.2"
+# Important: when updated, make sure to update the cairo-native submodule as well.
 cairo-native = "0.2.0-alpha.2"
 cairo-vm = "=1.0.1"
 camelpaste = "0.1.0"
