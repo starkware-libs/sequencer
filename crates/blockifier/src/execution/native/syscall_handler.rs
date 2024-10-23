@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::hash::RandomState;
+use std::sync::Arc;
 
 use cairo_native::starknet::{
     ExecutionInfo,
@@ -12,11 +13,14 @@ use cairo_native::starknet::{
 };
 use cairo_native::starknet_stub::encode_str_as_felts;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use starknet_api::contract_class::EntryPointType;
+use starknet_api::core::{ClassHash, EntryPointSelector};
 use starknet_api::state::StorageKey;
+use starknet_api::transaction::fields::Calldata;
 use starknet_types_core::felt::Felt;
 
 use crate::execution::call_info::{CallInfo, OrderedEvent, OrderedL2ToL1Message, Retdata};
-use crate::execution::entry_point::{CallEntryPoint, EntryPointExecutionContext};
+use crate::execution::entry_point::{CallEntryPoint, CallType, EntryPointExecutionContext};
 use crate::execution::syscalls::hint_processor::{
     SyscallCounter,
     SyscallExecutionError,
@@ -65,13 +69,11 @@ impl<'state> NativeSyscallHandler<'state> {
         }
     }
 
-    #[allow(dead_code)]
     fn increment_syscall_count_by(&mut self, selector: &SyscallSelector, n: usize) {
         let syscall_count = self.syscall_counter.entry(*selector).or_default();
         *syscall_count += n
     }
 
-    #[allow(dead_code)]
     fn execute_inner_call(
         &mut self,
         entry_point: CallEntryPoint,
@@ -178,12 +180,36 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
 
     fn library_call(
         &mut self,
-        _class_hash: Felt,
-        _function_selector: Felt,
-        _calldata: &[Felt],
-        _remaining_gas: &mut u128,
+        class_hash: Felt,
+        function_selector: Felt,
+        calldata: &[Felt],
+        remaining_gas: &mut u128,
     ) -> SyscallResult<Vec<Felt>> {
-        todo!("Implement library_call syscall.");
+        self.pre_execute_syscall(
+            remaining_gas,
+            SyscallSelector::LibraryCall,
+            self.context.gas_costs().library_call_gas_cost,
+        )?;
+
+        let class_hash = ClassHash(class_hash);
+
+        let wrapper_calldata = Calldata(Arc::new(calldata.to_vec()));
+
+        let entry_point = CallEntryPoint {
+            class_hash: Some(class_hash),
+            code_address: None,
+            entry_point_type: EntryPointType::External,
+            entry_point_selector: EntryPointSelector(function_selector),
+            calldata: wrapper_calldata,
+            // The call context remains the same in a library call.
+            storage_address: self.call.storage_address,
+            caller_address: self.call.caller_address,
+            call_type: CallType::Delegate,
+            initial_gas: u64::try_from(*remaining_gas)
+                .expect("Failed to convert gas (u128 -> u64)"),
+        };
+
+        Ok(self.execute_inner_call(entry_point, remaining_gas)?.0)
     }
 
     fn call_contract(
