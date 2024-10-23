@@ -197,6 +197,14 @@ impl DeclareTransaction {
 
         compiled_class_hash == supplied_compiled_class_hash
     }
+
+    implement_inner_tx_getter_calls!(
+        (class_hash, ClassHash),
+        (nonce, Nonce),
+        (sender_address, ContractAddress),
+        (signature, TransactionSignature),
+        (version, TransactionVersion)
+    );
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
