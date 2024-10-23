@@ -28,6 +28,7 @@ use crate::test_utils::{
     BALANCE,
 };
 
+// TODO: Add test for native once reverts are supported.
 #[test]
 fn test_call_contract_that_panics() {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1);
@@ -67,6 +68,15 @@ fn test_call_contract_that_panics() {
     );
 }
 
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(
+      FeatureContract::TestContract(CairoVersion::Native),
+      FeatureContract::TestContract(CairoVersion::Native),
+      189010;
+      "Call Contract between two contracts using Native"
+    )
+)]
 #[test_case(
     FeatureContract::TestContract(CairoVersion::Cairo1),
     FeatureContract::TestContract(CairoVersion::Cairo1),
@@ -106,7 +116,30 @@ fn test_call_contract(
     );
 }
 
-/// Cairo0 / Old Cairo1 / Cairo1 calls to Cairo0 / Old Cairo1/ Cairo1.
+/// Cairo0 / Old Cairo1 / Cairo1 / Native calls to Cairo0 / Old Cairo1 / Cairo1 / Native.
+#[cfg(feature = "cairo_native")]
+#[rstest]
+fn test_tracked_resources(
+    #[values(
+        CompilerBasedVersion::CairoVersion(CairoVersion::Cairo0),
+        CompilerBasedVersion::OldCairo1,
+        CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1),
+        CompilerBasedVersion::CairoVersion(CairoVersion::Native)
+    )]
+    outer_version: CompilerBasedVersion,
+    #[values(
+        CompilerBasedVersion::CairoVersion(CairoVersion::Cairo0),
+        CompilerBasedVersion::OldCairo1,
+        CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1),
+        CompilerBasedVersion::CairoVersion(CairoVersion::Native)
+    )]
+    inner_version: CompilerBasedVersion,
+) {
+    test_tracked_resources_fn(outer_version, inner_version);
+}
+
+/// Cairo0 / Old Cairo1 / Cairo1 calls to Cairo0 / Old Cairo1 / Cairo1.
+#[cfg(not(feature = "cairo_native"))]
 #[rstest]
 fn test_tracked_resources(
     #[values(
@@ -120,6 +153,13 @@ fn test_tracked_resources(
         CompilerBasedVersion::OldCairo1,
         CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1)
     )]
+    inner_version: CompilerBasedVersion,
+) {
+    test_tracked_resources_fn(outer_version, inner_version);
+}
+
+fn test_tracked_resources_fn(
+    outer_version: CompilerBasedVersion,
     inner_version: CompilerBasedVersion,
 ) {
     let outer_contract = outer_version.get_test_contract();
@@ -139,39 +179,42 @@ fn test_tracked_resources(
     let expected_outer_resource = outer_version.own_tracked_resource();
     assert_eq!(execution.tracked_resource, expected_outer_resource);
 
+    // If the outer call uses CairoSteps, then use it for inner.
+    // See execute_entry_point_call_wrapper in crates/blockifier/src/execution/execution_utils.rs
     let expected_inner_resource = if expected_outer_resource == inner_version.own_tracked_resource()
     {
         expected_outer_resource
     } else {
         TrackedResource::CairoSteps
     };
+
     assert_eq!(execution.inner_calls.first().unwrap().tracked_resource, expected_inner_resource);
 }
 
-/// Sierra-Gas contract calls:
-/// 1) Cairo-Steps contract that calls Sierra-Gas (nested) contract.
-/// 2) Sierra-Gas contract.
-#[rstest]
+#[test_case(CompilerBasedVersion::CairoVersion(CairoVersion::Cairo0), CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1); "Cairo0_and_Cairo1")]
+#[test_case(CompilerBasedVersion::OldCairo1, CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1); "OldCairo1_and_Cairo1")]
+#[cfg_attr(
+  feature = "cairo_native",
+  test_case(CompilerBasedVersion::CairoVersion(CairoVersion::Cairo0), CompilerBasedVersion::CairoVersion(CairoVersion::Native); "Cairo0_and_Native")
+)]
+#[cfg_attr(
+  feature = "cairo_native",
+  test_case(CompilerBasedVersion::OldCairo1, CompilerBasedVersion::CairoVersion(CairoVersion::Native); "Cairo1_and_Native")
+)]
 fn test_tracked_resources_nested(
-    #[values(
-        CompilerBasedVersion::CairoVersion(CairoVersion::Cairo0),
-        CompilerBasedVersion::OldCairo1
-    )]
     cairo_steps_contract_version: CompilerBasedVersion,
+    sierra_gas_contract_version: CompilerBasedVersion,
 ) {
     let cairo_steps_contract = cairo_steps_contract_version.get_test_contract();
-    let sierra_gas_contract = FeatureContract::TestContract(CairoVersion::Cairo1);
+    let sierra_gas_contract = sierra_gas_contract_version.get_test_contract();
     let chain_info = &ChainInfo::create_for_testing();
     let mut state =
         test_state(chain_info, BALANCE, &[(sierra_gas_contract, 1), (cairo_steps_contract, 1)]);
 
-    let first_calldata = build_recurse_calldata(&[
-        cairo_steps_contract_version,
-        CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1),
-    ]);
+    let first_calldata =
+        build_recurse_calldata(&[cairo_steps_contract_version, sierra_gas_contract_version]);
 
-    let second_calldata =
-        build_recurse_calldata(&[CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1)]);
+    let second_calldata = build_recurse_calldata(&[sierra_gas_contract_version]);
 
     let concated_calldata_felts = [first_calldata.0, second_calldata.0]
         .into_iter()
