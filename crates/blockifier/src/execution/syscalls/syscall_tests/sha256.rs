@@ -10,6 +10,7 @@ use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, BALANCE};
 
+#[test_case(FeatureContract::TestContract(CairoVersion::Native), 891625; "Native")]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 881625; "VM")]
 fn test_sha256(test_contract: FeatureContract, gas_consumed: u64) {
     let chain_info = &ChainInfo::create_for_testing();
@@ -22,7 +23,7 @@ fn test_sha256(test_contract: FeatureContract, gas_consumed: u64) {
         ..trivial_external_entry_point_new(test_contract)
     };
 
-    assert_eq!(
+    pretty_assertions::assert_eq!(
         entry_point_call.execute_directly(&mut state).unwrap().execution,
         CallExecution { gas_consumed, ..CallExecution::from_retdata(retdata![]) }
     );
