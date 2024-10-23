@@ -162,7 +162,16 @@ impl DeclareTransaction {
                     })?
                 }
             }
-            ContractClass::V1(_) | ContractClass::V1Native(_) => {
+            ContractClass::V1(_) => {
+                if declare_version <= TransactionVersion::ONE {
+                    Err(TransactionExecutionError::ContractClassVersionMismatch {
+                        declare_version,
+                        cairo_version: 1,
+                    })?
+                }
+            }
+            #[cfg(feature = "cairo_native")]
+            ContractClass::V1Native(_) => {
                 if declare_version <= TransactionVersion::ONE {
                     Err(TransactionExecutionError::ContractClassVersionMismatch {
                         declare_version,

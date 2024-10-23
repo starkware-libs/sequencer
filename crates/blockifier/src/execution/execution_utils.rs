@@ -39,6 +39,7 @@ use crate::execution::entry_point::{
     EntryPointExecutionResult,
 };
 use crate::execution::errors::PostExecutionError;
+#[cfg(feature = "cairo_native")]
 use crate::execution::native::entry_point_execution as native_entry_point_execution;
 use crate::execution::stack_trace::extract_trailing_cairo1_revert_trace;
 use crate::execution::{deprecated_entry_point_execution, entry_point_execution};
@@ -139,6 +140,7 @@ pub fn execute_entry_point_call(
             resources,
             context,
         ),
+        #[cfg(feature = "cairo_native")]
         ContractClass::V1Native(contract_class) => {
             native_entry_point_execution::execute_entry_point_call(
                 call,
