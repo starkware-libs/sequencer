@@ -1,4 +1,7 @@
-exclude = ["crates/native_blockifier/.cargo/config.toml"]
+exclude = [
+  "crates/blockifier/cairo_native/**/*.toml",
+  "crates/native_blockifier/.cargo/config.toml",
+]
 
 [formatting]
 column_width = 100
