@@ -82,6 +82,9 @@ macro_rules! tx {
     () => {
         tx!(tx_nonce: 0)
     };
+    (tx_hash: $tx_hash:expr, sender_address: $sender_address:expr, max_l2_gas_price: $max_l2_gas_price:expr) => {
+        tx!(tip: 0, tx_hash: $tx_hash, sender_address: $sender_address, tx_nonce: 0, max_l2_gas_price: $max_l2_gas_price)
+    };
 }
 
 /// Creates an input for `add_tx` with the given field subset (the rest receive default values).
