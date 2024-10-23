@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+#[cfg(feature = "cairo_native")]
 use cairo_native::error::Error as NativeError;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::errors::math_errors::MathError;
@@ -87,6 +88,7 @@ pub enum EntryPointExecutionError {
     InternalError(String),
     #[error("Invalid input: {input_descriptor}; {info}")]
     InvalidExecutionInput { input_descriptor: String, info: String },
+    #[cfg(feature = "cairo_native")]
     #[error(transparent)]
     NativeUnexpectedError(#[from] NativeError),
     #[error(transparent)]

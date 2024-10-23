@@ -51,3 +51,6 @@ jobs:
       # transaction_serde is not activated by any workspace crate; test the build.
       - run: cargo build -p blockifier --features transaction_serde
       - run: cargo test -p blockifier --features transaction_serde
+        # native-blckifier is not activated by any workspace crate; test the build.
+      - run: cargo build -p blockifier --features cairo_native
+      - run: cargo test -p blockifier --features cairo_native
