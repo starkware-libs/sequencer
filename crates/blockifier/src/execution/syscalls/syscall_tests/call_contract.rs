@@ -67,6 +67,15 @@ fn test_call_contract_that_panics() {
     );
 }
 
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(
+      FeatureContract::TestContract(CairoVersion::Native),
+      FeatureContract::TestContract(CairoVersion::Native),
+      191870;
+      "Call Contract between two contracts using Native"
+    )
+)]
 #[test_case(
     FeatureContract::TestContract(CairoVersion::Cairo1),
     FeatureContract::TestContract(CairoVersion::Cairo1),
@@ -106,7 +115,30 @@ fn test_call_contract(
     );
 }
 
-/// Cairo0 / Old Cairo1 / Cairo1 calls to Cairo0 / Old Cairo1/ Cairo1.
+/// Cairo0 / Old Cairo1 / Cairo1 / Native calls to Cairo0 / Old Cairo1 / Cairo1 / Native.
+#[cfg(feature = "cairo_native")]
+#[rstest]
+fn test_tracked_resources(
+    #[values(
+        CompilerBasedVersion::CairoVersion(CairoVersion::Cairo0),
+        CompilerBasedVersion::OldCairo1,
+        CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1),
+        CompilerBasedVersion::CairoVersion(CairoVersion::Native)
+    )]
+    outer_version: CompilerBasedVersion,
+    #[values(
+        CompilerBasedVersion::CairoVersion(CairoVersion::Cairo0),
+        CompilerBasedVersion::OldCairo1,
+        CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1),
+        CompilerBasedVersion::CairoVersion(CairoVersion::Native)
+    )]
+    inner_version: CompilerBasedVersion,
+) {
+    test_tracked_resources_fn(outer_version, inner_version);
+}
+
+/// Cairo0 / Old Cairo1 / Cairo1 calls to Cairo0 / Old Cairo1 / Cairo1.
+#[cfg(not(feature = "cairo_native"))]
 #[rstest]
 fn test_tracked_resources(
     #[values(
@@ -120,6 +152,13 @@ fn test_tracked_resources(
         CompilerBasedVersion::OldCairo1,
         CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1)
     )]
+    inner_version: CompilerBasedVersion,
+) {
+    test_tracked_resources_fn(outer_version, inner_version);
+}
+
+fn test_tracked_resources_fn(
+    outer_version: CompilerBasedVersion,
     inner_version: CompilerBasedVersion,
 ) {
     let outer_contract = outer_version.get_test_contract();
@@ -139,12 +178,26 @@ fn test_tracked_resources(
     let expected_outer_resource = outer_version.own_tracked_resource();
     assert_eq!(execution.tracked_resource, expected_outer_resource);
 
-    let expected_inner_resource = if expected_outer_resource == inner_version.own_tracked_resource()
-    {
-        expected_outer_resource
-    } else {
-        TrackedResource::CairoSteps
-    };
+    // For native, this logic will be modified below.
+    let expected_inner_resource =
+        // If outer and inner are the same, we expect the tracked resource to be the same.
+        if expected_outer_resource == inner_version.own_tracked_resource() {
+            expected_outer_resource
+        } else {
+            // If outer and inner are not the same, and inner is not Native, we expect CairoSteps.
+            TrackedResource::CairoSteps
+        };
+
+    #[cfg(feature = "cairo_native")]
+    // If inner is Native, we expect inner to use SierraGas.
+    // This overrides previous logic.
+    let expected_inner_resource =
+        if inner_version == CompilerBasedVersion::CairoVersion(CairoVersion::Native) {
+            TrackedResource::SierraGas
+        } else {
+            expected_inner_resource
+        };
+
     assert_eq!(execution.inner_calls.first().unwrap().tracked_resource, expected_inner_resource);
 }
 
