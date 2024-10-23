@@ -14,6 +14,9 @@ use starknet_api::{calldata, felt, invoke_tx_args};
 use crate::abi::abi_utils::selector_from_name;
 use crate::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use crate::context::{BlockContext, ChainInfo};
+use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
+use crate::execution::stack_trace::{extract_trailing_cairo1_revert_trace, TRACE_LENGTH_CAP};
+use crate::execution::syscalls::hint_processor::ENTRYPOINT_FAILED_ERROR;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::{fund_account, test_state};
 use crate::test_utils::{create_calldata, CairoVersion, BALANCE};
@@ -817,4 +820,34 @@ Error in contract (contract address: {expected_address:#064x}, class hash: {:#06
     let error =
         invoke_deploy_tx.execute(state, &block_context, true, true).unwrap().revert_error.unwrap();
     assert_eq!(error.to_string(), expected_error);
+}
+
+#[rstest]
+// Assume each frame is over 100 chars (contract address + selector are already 128 chars).
+#[case::too_many_frames(TRACE_LENGTH_CAP / 100, 1)]
+// Each (large) felt should require at least 30 chars.
+#[case::too_much_retdata(1, TRACE_LENGTH_CAP / 30)]
+#[case::both_too_much(TRACE_LENGTH_CAP / 200, TRACE_LENGTH_CAP / 60)]
+fn test_cairo1_revert_error_truncation(#[case] n_frames: usize, #[case] n_retdata: usize) {
+    let mut retdata = Retdata(vec![felt!("0xbeefbeefbeefbeefbeefbeefbeefbeef"); n_retdata]);
+    let mut next_call_info = CallInfo {
+        execution: CallExecution { retdata: retdata.clone(), failed: true, ..Default::default() },
+        ..Default::default()
+    };
+    for _ in 1..n_frames {
+        retdata.0.push(felt!(ENTRYPOINT_FAILED_ERROR));
+        next_call_info = CallInfo {
+            inner_calls: vec![next_call_info],
+            execution: CallExecution {
+                retdata: retdata.clone(),
+                failed: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+    }
+    assert!(
+        format!("{}", extract_trailing_cairo1_revert_trace(&next_call_info)).len()
+            <= TRACE_LENGTH_CAP
+    );
 }
