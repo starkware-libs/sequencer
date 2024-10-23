@@ -10,6 +10,7 @@ use crate::context::ChainInfo;
 use crate::execution::call_info::{CallExecution, CallInfo, OrderedEvent};
 use crate::execution::entry_point::CallEntryPoint;
 use crate::execution::errors::EntryPointExecutionError;
+use crate::execution::native::utils::decode_felts_as_str;
 use crate::execution::syscalls::hint_processor::EmitEventError;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
@@ -24,11 +25,11 @@ const DATA: [Felt; 3] = [
 ];
 const N_EMITTED_EVENTS: [Felt; 1] = [Felt::from_hex_unchecked("0x1")];
 
+#[test_case(FeatureContract::TestContract(CairoVersion::Native), 58930; "Native")]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 48930; "VM")]
 fn positive_flow(test_contract: FeatureContract, expected_gas: u64) {
-    // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion
-    // works.
-    let call_info = emit_events(test_contract, &N_EMITTED_EVENTS, &KEYS, &DATA).unwrap();
+    let call_info = emit_events(test_contract, &N_EMITTED_EVENTS, &KEYS, &DATA)
+        .expect("emit_events failed with valued parameters");
     let event = EventContent {
         keys: KEYS.into_iter().map(EventKey).collect(),
         data: EventData(DATA.to_vec()),
@@ -44,35 +45,58 @@ fn positive_flow(test_contract: FeatureContract, expected_gas: u64) {
     );
 }
 
+#[test_case(FeatureContract::TestContract(CairoVersion::Native); "Native")]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1); "VM")]
 fn data_length_exceeds_limit(test_contract: FeatureContract) {
     let versioned_constants = VersionedConstants::create_for_testing();
 
     let max_event_data_length = versioned_constants.tx_event_limits.max_data_length;
     let data_too_long = vec![felt!(2_u16); max_event_data_length + 1];
-    let error = emit_events(test_contract, &N_EMITTED_EVENTS, &KEYS, &data_too_long).unwrap_err();
+
+    let call_result = emit_events(test_contract, &N_EMITTED_EVENTS, &KEYS, &data_too_long);
+    let error_message =
+        if matches!(test_contract, FeatureContract::TestContract(CairoVersion::Native)) {
+            let call_info = call_result
+                .expect("Expected CallResult with failed execution error message in the retdata.");
+            decode_felts_as_str(&call_info.execution.retdata.0)
+        } else {
+            let error = call_result.unwrap_err();
+            error.to_string()
+        };
     let expected_error = EmitEventError::ExceedsMaxDataLength {
         data_length: max_event_data_length + 1,
         max_data_length: max_event_data_length,
     };
-    assert!(error.to_string().contains(&expected_error.to_string()));
+    assert!(error_message.contains(&expected_error.to_string()));
 }
 
+#[test_case(FeatureContract::TestContract(CairoVersion::Native); "Native")]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1); "VM")]
 fn keys_length_exceeds_limit(test_contract: FeatureContract) {
     let versioned_constants = VersionedConstants::create_for_testing();
 
     let max_event_keys_length = versioned_constants.tx_event_limits.max_keys_length;
     let keys_too_long = vec![felt!(1_u16); max_event_keys_length + 1];
-    let error = emit_events(test_contract, &N_EMITTED_EVENTS, &keys_too_long, &DATA).unwrap_err();
+
+    let call_result = emit_events(test_contract, &N_EMITTED_EVENTS, &keys_too_long, &DATA);
+    let error_message =
+        if matches!(test_contract, FeatureContract::TestContract(CairoVersion::Native)) {
+            let call_info = call_result
+                .expect("Expected CallResult with failed execution error message in the retdata.");
+            decode_felts_as_str(&call_info.execution.retdata.0)
+        } else {
+            let error = call_result.unwrap_err();
+            error.to_string()
+        };
     let expected_error = EmitEventError::ExceedsMaxKeysLength {
         keys_length: max_event_keys_length + 1,
         max_keys_length: max_event_keys_length,
     };
 
-    assert!(error.to_string().contains(&expected_error.to_string()));
+    assert!(error_message.contains(&expected_error.to_string()));
 }
 
+#[test_case(FeatureContract::TestContract(CairoVersion::Native); "Native")]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1); "VM")]
 fn event_number_exceeds_limit(test_contract: FeatureContract) {
     let versioned_constants = VersionedConstants::create_for_testing();
@@ -81,12 +105,22 @@ fn event_number_exceeds_limit(test_contract: FeatureContract) {
     let n_emitted_events_too_big = vec![felt!(
         u16::try_from(max_n_emitted_events + 1).expect("Failed to convert usize to u16.")
     )];
-    let error = emit_events(test_contract, &n_emitted_events_too_big, &KEYS, &DATA).unwrap_err();
+    let call_result = emit_events(test_contract, &n_emitted_events_too_big, &KEYS, &DATA);
+
+    let error_message =
+        if matches!(test_contract, FeatureContract::TestContract(CairoVersion::Native)) {
+            let call_info = call_result
+                .expect("Expected CallResult with failed execution error message in the retdata.");
+            decode_felts_as_str(&call_info.execution.retdata.0)
+        } else {
+            let error = call_result.unwrap_err();
+            error.to_string()
+        };
     let expected_error = EmitEventError::ExceedsMaxNumberOfEmittedEvents {
         n_emitted_events: max_n_emitted_events + 1,
         max_n_emitted_events,
     };
-    assert!(error.to_string().contains(&expected_error.to_string()));
+    assert!(error_message.contains(&expected_error.to_string()));
 }
 
 fn emit_events(
