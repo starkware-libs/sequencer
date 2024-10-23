@@ -29,6 +29,7 @@ use crate::execution::execution_utils::execute_deployment;
 use crate::state::cached_state::TransactionalState;
 use crate::state::errors::StateError;
 use crate::state::state_api::{State, UpdatableState};
+use crate::transaction::account_transaction::is_cairo1;
 use crate::transaction::constants;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::{
@@ -152,23 +153,20 @@ impl DeclareTransaction {
     ) -> TransactionExecutionResult<Self> {
         let declare_version = declare_tx.version();
         // Verify contract class version.
-        match &class_info.contract_class() {
-            // TODO: Make TransactionVersion an enum and use match here.
-            ContractClass::V0(_) => {
-                if declare_version > TransactionVersion::ONE {
-                    Err(TransactionExecutionError::ContractClassVersionMismatch {
-                        declare_version,
-                        cairo_version: 0,
-                    })?
-                }
+        if matches!(class_info.contract_class(), ContractClass::V0(_)) {
+            if declare_version > TransactionVersion::ONE {
+                Err(TransactionExecutionError::ContractClassVersionMismatch {
+                    declare_version,
+                    cairo_version: 0,
+                })?
             }
-            ContractClass::V1(_) | ContractClass::V1Native(_) => {
-                if declare_version <= TransactionVersion::ONE {
-                    Err(TransactionExecutionError::ContractClassVersionMismatch {
-                        declare_version,
-                        cairo_version: 1,
-                    })?
-                }
+        } else {
+            assert!(is_cairo1(&class_info.contract_class()));
+            if declare_version <= TransactionVersion::ONE {
+                Err(TransactionExecutionError::ContractClassVersionMismatch {
+                    declare_version,
+                    cairo_version: 1,
+                })?
             }
         }
         Ok(Self { tx: declare_tx, tx_hash, class_info, only_query })

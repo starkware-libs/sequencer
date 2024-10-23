@@ -48,6 +48,7 @@ use crate::execution::execution_utils::{
     ReadOnlySegment,
 };
 use crate::execution::syscalls::hint_processor::{INVALID_INPUT_LENGTH_ERROR, OUT_OF_GAS_ERROR};
+use crate::transaction::account_transaction::is_cairo1;
 use crate::versioned_constants::{EventLimits, VersionedConstants};
 
 pub mod hint_processor;
@@ -518,17 +519,12 @@ pub fn replace_class(
     let class_hash = request.class_hash;
     let class = syscall_handler.state.get_compiled_contract_class(class_hash)?;
 
-    match class {
-        ContractClass::V0(_) => {
-            Err(SyscallExecutionError::ForbiddenClassReplacement { class_hash })
-        }
-        ContractClass::V1(_) | ContractClass::V1Native(_) => {
-            syscall_handler
-                .state
-                .set_class_hash_at(syscall_handler.storage_address(), class_hash)?;
-            Ok(ReplaceClassResponse {})
-        }
+    if matches!(class, ContractClass::V0(_)) {
+        return Err(SyscallExecutionError::ForbiddenClassReplacement { class_hash });
     }
+    assert!(is_cairo1(&class));
+    syscall_handler.state.set_class_hash_at(syscall_handler.storage_address(), class_hash)?;
+    Ok(ReplaceClassResponse {})
 }
 
 // SendMessageToL1 syscall.
