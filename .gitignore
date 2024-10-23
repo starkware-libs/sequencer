@@ -39,4 +39,4 @@ deployments/papyrus/helm/config/*
 !deployments/papyrus/helm/config/example.json
 
 # Generated file used for running contracts compiled with Cairo Native
-libcairo_native_runtime.so
+crates/blockifier/libcairo_native_runtime.a
