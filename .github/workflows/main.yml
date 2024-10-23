@@ -31,6 +31,8 @@ jobs:
       # Environment setup.
       - uses: actions/checkout@v4
         with:
+          # required to clone native as a git submodule
+          submodules: recursive
           # Fetch the entire history. Required to checkout the merge target commit, so the diff can
           # be computed.
           fetch-depth: 0
