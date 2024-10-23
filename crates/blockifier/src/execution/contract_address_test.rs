@@ -5,7 +5,7 @@ use starknet_api::{calldata, felt};
 
 use crate::abi::abi_utils::selector_from_name;
 use crate::context::ChainInfo;
-use crate::execution::call_info::{CallExecution, Retdata};
+use crate::execution::call_info::CallExecution;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::retdata;
 use crate::state::cached_state::CachedState;
