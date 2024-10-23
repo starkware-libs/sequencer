@@ -522,7 +522,14 @@ pub fn replace_class(
         ContractClass::V0(_) => {
             Err(SyscallExecutionError::ForbiddenClassReplacement { class_hash })
         }
-        ContractClass::V1(_) | ContractClass::V1Native(_) => {
+        ContractClass::V1(_) => {
+            syscall_handler
+                .state
+                .set_class_hash_at(syscall_handler.storage_address(), class_hash)?;
+            Ok(ReplaceClassResponse {})
+        }
+        #[cfg(feature = "cairo_native")]
+        ContractClass::V1Native(_) => {
             syscall_handler
                 .state
                 .set_class_hash_at(syscall_handler.storage_address(), class_hash)?;
