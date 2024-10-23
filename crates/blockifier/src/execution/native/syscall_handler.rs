@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::hash::RandomState;
+use std::sync::Arc;
 
 use cairo_native::starknet::{
     BlockInfo,
@@ -13,8 +14,10 @@ use cairo_native::starknet::{
     U256,
 };
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
-use starknet_api::core::EthAddress;
+use starknet_api::contract_class::EntryPointType;
+use starknet_api::core::{ClassHash, EntryPointSelector, EthAddress};
 use starknet_api::state::StorageKey;
+use starknet_api::transaction::fields::Calldata;
 use starknet_api::transaction::L2ToL1Payload;
 use starknet_types_core::felt::Felt;
 
@@ -26,7 +29,7 @@ use crate::execution::call_info::{
     Retdata,
 };
 use crate::execution::common_hints::ExecutionMode;
-use crate::execution::entry_point::{CallEntryPoint, EntryPointExecutionContext};
+use crate::execution::entry_point::{CallEntryPoint, CallType, EntryPointExecutionContext};
 use crate::execution::errors::EntryPointExecutionError;
 use crate::execution::syscalls::hint_processor::{
     SyscallExecutionError,
@@ -76,7 +79,6 @@ impl<'state> NativeSyscallHandler<'state> {
         }
     }
 
-    #[allow(dead_code)]
     fn execute_inner_call(
         &mut self,
         entry_point: CallEntryPoint,
@@ -259,12 +261,32 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
 
     fn library_call(
         &mut self,
-        _class_hash: Felt,
-        _function_selector: Felt,
-        _calldata: &[Felt],
-        _remaining_gas: &mut u128,
+        class_hash: Felt,
+        function_selector: Felt,
+        calldata: &[Felt],
+        remaining_gas: &mut u128,
     ) -> SyscallResult<Vec<Felt>> {
-        todo!("Implement library_call syscall.");
+        self.pre_execute_syscall(remaining_gas, self.context.gas_costs().library_call_gas_cost)?;
+
+        let class_hash = ClassHash(class_hash);
+
+        let wrapper_calldata = Calldata(Arc::new(calldata.to_vec()));
+
+        let entry_point = CallEntryPoint {
+            class_hash: Some(class_hash),
+            code_address: None,
+            entry_point_type: EntryPointType::External,
+            entry_point_selector: EntryPointSelector(function_selector),
+            calldata: wrapper_calldata,
+            // The call context remains the same in a library call.
+            storage_address: self.call.storage_address,
+            caller_address: self.call.caller_address,
+            call_type: CallType::Delegate,
+            initial_gas: u64::try_from(*remaining_gas)
+                .expect("Failed to convert gas (u128 -> u64)"),
+        };
+
+        Ok(self.execute_inner_call(entry_point, remaining_gas)?.0)
     }
 
     fn call_contract(
