@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::hash::RandomState;
+use std::sync::Arc;
 
 use cairo_native::starknet::{
     ExecutionInfo,
@@ -11,8 +12,10 @@ use cairo_native::starknet::{
     U256,
 };
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress};
 use starknet_api::core::EthAddress;
 use starknet_api::state::StorageKey;
+use starknet_api::transaction::fields::{Calldata, ContractAddressSalt};
 use starknet_api::transaction::L2ToL1Payload;
 use starknet_types_core::felt::Felt;
 
@@ -23,7 +26,12 @@ use crate::execution::call_info::{
     OrderedL2ToL1Message,
     Retdata,
 };
-use crate::execution::entry_point::{CallEntryPoint, EntryPointExecutionContext};
+use crate::execution::entry_point::{
+    CallEntryPoint,
+    ConstructorContext,
+    EntryPointExecutionContext,
+};
+use crate::execution::execution_utils::execute_deployment;
 use crate::execution::errors::EntryPointExecutionError;
 use crate::execution::syscalls::hint_processor::{
     SyscallExecutionError,
@@ -185,15 +193,70 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
 
     fn deploy(
         &mut self,
-        _class_hash: Felt,
-        _contract_address_salt: Felt,
-        _calldata: &[Felt],
-        _deploy_from_zero: bool,
-        _remaining_gas: &mut u128,
+        class_hash: Felt,
+        contract_address_salt: Felt,
+        calldata: &[Felt],
+        deploy_from_zero: bool,
+        remaining_gas: &mut u128,
     ) -> SyscallResult<(Felt, Vec<Felt>)> {
-        todo!("Implement deploy syscall.");
-    }
+        self.pre_execute_syscall(remaining_gas, self.context.gas_costs().deploy_gas_cost)?;
 
+        let deployer_address = self.call.storage_address;
+        let deployer_address_for_calculation =
+            if deploy_from_zero { ContractAddress::default() } else { deployer_address };
+
+        let class_hash = ClassHash(class_hash);
+        let calldata = Calldata(Arc::new(calldata.to_vec()));
+
+        let deployed_contract_address = calculate_contract_address(
+            ContractAddressSalt(contract_address_salt),
+            class_hash,
+            &calldata,
+            deployer_address_for_calculation,
+        )
+        .map_err(|err| self.handle_error(remaining_gas, err.into()))?;
+
+        let ctor_context = ConstructorContext {
+            class_hash,
+            code_address: Some(deployed_contract_address),
+            storage_address: deployed_contract_address,
+            caller_address: deployer_address,
+        };
+
+        let mut remaining_gas_u64 =
+            u64::try_from(*remaining_gas).expect("Failed to convert gas to u64.");
+
+        let call_info = execute_deployment(
+            self.state,
+            self.resources,
+            self.context,
+            ctor_context,
+            calldata,
+            // Warning: converting of reference would create a new reference to different data,
+            // example:
+            //     let mut a: u128 = 1;
+            //     let a_ref: &mut u128 = &mut a;
+            //
+            //     let mut b: u64 = u64::try_from(*a_ref).unwrap();
+            //
+            //     assert_eq!(b, 1);
+            //
+            //     b += 1;
+            //
+            //     assert_eq!(b, 2);
+            //     assert_eq!(a, 1);
+            &mut remaining_gas_u64,
+        )
+        .map_err(|err| self.handle_error(remaining_gas, err.into()))?;
+
+        *remaining_gas = u128::from(remaining_gas_u64);
+
+        let constructor_retdata = call_info.execution.retdata.0[..].to_vec();
+
+        self.inner_calls.push(call_info);
+
+        Ok((Felt::from(deployed_contract_address), constructor_retdata))
+    }
     fn replace_class(&mut self, _class_hash: Felt, _remaining_gas: &mut u128) -> SyscallResult<()> {
         todo!("Implement replace_class syscall.");
     }
