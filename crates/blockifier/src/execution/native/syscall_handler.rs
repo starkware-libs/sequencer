@@ -12,14 +12,18 @@ use cairo_native::starknet::{
 };
 use cairo_native::starknet_stub::encode_str_as_felts;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use starknet_api::core::ContractAddress;
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
+use crate::abi::constants;
 use crate::execution::call_info::{CallInfo, OrderedEvent, OrderedL2ToL1Message, Retdata};
+use crate::execution::common_hints::ExecutionMode;
 use crate::execution::entry_point::{CallEntryPoint, EntryPointExecutionContext};
 use crate::execution::syscalls::hint_processor::{
     SyscallCounter,
     SyscallExecutionError,
+    BLOCK_NUMBER_OUT_OF_RANGE_ERROR,
     OUT_OF_GAS_ERROR,
 };
 use crate::execution::syscalls::SyscallSelector;
@@ -58,8 +62,8 @@ impl<'state> NativeSyscallHandler<'state> {
             context,
             events: Vec::new(),
             l2_to_l1_messages: Vec::new(),
-            inner_calls: Vec::new(),
             syscall_counter: SyscallCounter::new(),
+            inner_calls: Vec::new(),
             read_values: Vec::new(),
             accessed_keys: HashSet::new(),
         }
@@ -144,10 +148,52 @@ impl<'state> NativeSyscallHandler<'state> {
 impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
     fn get_block_hash(
         &mut self,
-        _block_number: u64,
-        _remaining_gas: &mut u128,
+        block_number: u64,
+        remaining_gas: &mut u128,
     ) -> SyscallResult<Felt> {
-        todo!("Implement get_block_hash syscall.");
+        self.pre_execute_syscall(
+            remaining_gas,
+            SyscallSelector::GetBlockHash,
+            self.context.gas_costs().get_block_hash_gas_cost,
+        )?;
+
+        if self.context.execution_mode == ExecutionMode::Validate {
+            let err = SyscallExecutionError::InvalidSyscallInExecutionMode {
+                syscall_name: "get_block_hash".to_string(),
+                execution_mode: ExecutionMode::Validate,
+            };
+
+            return Err(self.handle_error(remaining_gas, err));
+        }
+
+        let current_block_number =
+            self.context.tx_context.block_context.block_info().block_number.0;
+
+        if current_block_number < constants::STORED_BLOCK_HASH_BUFFER
+            || block_number > current_block_number - constants::STORED_BLOCK_HASH_BUFFER
+        {
+            // `panic` is unreachable in this case. This is covered by tests so we can safely
+            // expect.
+            let out_of_range_felt = Felt::from_hex(BLOCK_NUMBER_OUT_OF_RANGE_ERROR)
+                .expect("Converting BLOCK_NUMBER_OUT_OF_RANGE_ERROR to Felt should not fail.");
+
+            // This error is wrapped into a `SyscallExecutionError::SyscallError` in the VM
+            // implementation, but here it would be more convenient to return it directly, since
+            // wrapping it like VM does will result in a double encoding to felts, which adds extra
+            // layer of complication
+            return Err(vec![out_of_range_felt]);
+        }
+
+        let key = StorageKey::try_from(Felt::from(block_number))
+            .expect("Failed to get storage key for block: {block_number}.");
+        let block_hash_contract_address =
+            ContractAddress::try_from(Felt::from(constants::BLOCK_HASH_CONTRACT_ADDRESS))
+                .map_err(|e| self.handle_error(remaining_gas, e.into()))?;
+
+        match self.state.get_storage_at(block_hash_contract_address, key) {
+            Ok(value) => Ok(value),
+            Err(e) => Err(self.handle_error(remaining_gas, e.into())),
+        }
     }
 
     fn get_execution_info(&mut self, _remaining_gas: &mut u128) -> SyscallResult<ExecutionInfo> {
