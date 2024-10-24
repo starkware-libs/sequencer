@@ -12,10 +12,18 @@ use cairo_native::starknet::{
 };
 use cairo_native::starknet_stub::encode_str_as_felts;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use starknet_api::core::EthAddress;
 use starknet_api::state::StorageKey;
+use starknet_api::transaction::L2ToL1Payload;
 use starknet_types_core::felt::Felt;
 
-use crate::execution::call_info::{CallInfo, OrderedEvent, OrderedL2ToL1Message, Retdata};
+use crate::execution::call_info::{
+    CallInfo,
+    MessageToL1,
+    OrderedEvent,
+    OrderedL2ToL1Message,
+    Retdata,
+};
 use crate::execution::entry_point::{CallEntryPoint, EntryPointExecutionContext};
 use crate::execution::syscalls::hint_processor::{
     SyscallCounter,
@@ -266,11 +274,27 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
 
     fn send_message_to_l1(
         &mut self,
-        _to_address: Felt,
-        _payload: &[Felt],
-        _remaining_gas: &mut u128,
+        to_address: Felt,
+        payload: &[Felt],
+        remaining_gas: &mut u128,
     ) -> SyscallResult<()> {
-        todo!("Implement send_message_to_l1 syscall.");
+        self.pre_execute_syscall(
+            remaining_gas,
+            SyscallSelector::SendMessageToL1,
+            self.context.gas_costs().send_message_to_l1_gas_cost,
+        )?;
+
+        let order = self.context.n_sent_messages_to_l1;
+        let to_address = EthAddress::try_from(to_address)
+            .map_err(|e| self.handle_error(remaining_gas, e.into()))?;
+        self.l2_to_l1_messages.push(OrderedL2ToL1Message {
+            order,
+            message: MessageToL1 { to_address, payload: L2ToL1Payload(payload.to_vec()) },
+        });
+
+        self.context.n_sent_messages_to_l1 += 1;
+
+        Ok(())
     }
 
     fn keccak(&mut self, _input: &[u64], _remaining_gas: &mut u128) -> SyscallResult<U256> {
