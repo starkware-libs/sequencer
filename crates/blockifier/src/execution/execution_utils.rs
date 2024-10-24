@@ -86,6 +86,9 @@ pub fn execute_entry_point_call_wrapper(
     let current_tracked_resource =
         context.tracked_resource_stack.pop().expect("Unexpected empty tracked resource.");
 
+    println!("enable_reverts: {:?}", context.versioned_constants().enable_reverts);
+    println!("res: {:?}", res);
+
     match res {
         Ok(call_info) => {
             if call_info.execution.failed && !context.versioned_constants().enable_reverts {
