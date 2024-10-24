@@ -170,8 +170,9 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
     ) -> SyscallResult<(Felt, Vec<Felt>)> {
         self.substract_syscall_gas_cost(remaining_gas, self.context.gas_costs().deploy_gas_cost)?;
 
-        let deployer_address =
-            if deploy_from_zero { ContractAddress::default() } else { self.contract_address };
+        let deployer_address = self.contract_address;
+        let deployer_address_for_calculation =
+            if deploy_from_zero { ContractAddress::default() } else { deployer_address };
 
         let class_hash = ClassHash(class_hash);
         let wrapper_calldata = Calldata(Arc::new(calldata.to_vec()));
@@ -180,7 +181,7 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
             ContractAddressSalt(contract_address_salt),
             class_hash,
             &wrapper_calldata,
-            deployer_address,
+            deployer_address_for_calculation,
         )
         .map_err(|err| encode_str_as_felts(&err.to_string()))?;
 
