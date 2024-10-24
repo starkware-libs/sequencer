@@ -88,7 +88,7 @@ fn no_constructor_nonempty_calldata(deployer_contract: FeatureContract) {
          constructor."
     ));
 }
-#[test_case(FeatureContract::TestContract(CairoVersion::Native),226750, 5210;"Native")]
+#[test_case(FeatureContract::TestContract(CairoVersion::Native),236750, 5210;"Native")]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1),216750, 5210;"VM")]
 fn with_constructor(
     deployer_contract: FeatureContract,
