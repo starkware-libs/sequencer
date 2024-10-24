@@ -124,7 +124,7 @@ pub fn cairo1_compile(
         base_compile_args.insert(0, format!("+nightly-{nightly_version}"));
     }
 
-    let sierra_output = starknet_compile(path, git_tag_override, cargo_nightly_arg);
+    let sierra_output = sierra_compile(path, git_tag_override, cargo_nightly_arg);
 
     let mut temp_file = NamedTempFile::new().unwrap();
     temp_file.write_all(&sierra_output).unwrap();
@@ -139,7 +139,7 @@ pub fn cairo1_compile(
     casm_output.stdout
 }
 
-pub fn starknet_compile(
+pub fn sierra_compile(
     path: String,
     git_tag_override: Option<String>,
     cargo_nightly_arg: Option<String>,

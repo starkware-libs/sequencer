@@ -11,6 +11,7 @@ use crate::execution::entry_point::{
 };
 use crate::execution::errors::{EntryPointExecutionError, PostExecutionError};
 use crate::execution::native::syscall_handler::NativeSyscallHandler;
+use crate::execution::native::utils::decode_felts_as_str;
 use crate::state::state_api::State;
 
 pub fn execute_entry_point_call(
@@ -31,14 +32,23 @@ pub fn execute_entry_point_call(
         context,
     );
 
-    let execution_result = contract_class.executor.invoke_contract_dynamic(
+    let call_result = match contract_class.executor.invoke_contract_dynamic(
         &function_id,
         &call.calldata.0,
         Some(call.initial_gas.into()),
         &mut syscall_handler,
-    );
+    ) {
+        Ok(res) if res.failure_flag => Err(EntryPointExecutionError::NativeExecutionError {
+            info: if !res.return_values.is_empty() {
+                decode_felts_as_str(&res.return_values)
+            } else {
+                String::from("Unknown error")
+            },
+        }),
+        Err(runner_err) => Err(EntryPointExecutionError::NativeUnexpectedError(runner_err)),
+        Ok(res) => Ok(res),
+    }?;
 
-    let call_result = execution_result.map_err(EntryPointExecutionError::NativeUnexpectedError)?;
     create_call_info(call, call_result, syscall_handler)
 }
 

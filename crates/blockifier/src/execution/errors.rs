@@ -88,6 +88,8 @@ pub enum EntryPointExecutionError {
     InvalidExecutionInput { input_descriptor: String, info: String },
     #[error(transparent)]
     NativeUnexpectedError(#[from] NativeError),
+    #[error("Native execution error: {info}")]
+    NativeExecutionError { info: String },
     #[error(transparent)]
     PostExecutionError(#[from] PostExecutionError),
     #[error(transparent)]
