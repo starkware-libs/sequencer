@@ -1,4 +1,5 @@
 use cairo_native::execution_result::ContractExecutionResult;
+use cairo_native::starknet_stub::decode_felts_as_str;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use num_traits::ToPrimitive;
 
@@ -26,14 +27,22 @@ pub fn execute_entry_point_call(
     let mut syscall_handler: NativeSyscallHandler<'_> =
         NativeSyscallHandler::new(call, state, resources, context);
 
-    let execution_result = contract_class.executor.invoke_contract_dynamic(
+    let call_result = match contract_class.executor.invoke_contract_dynamic(
         &function_id,
         &syscall_handler.call.calldata.0.clone(),
         Some(syscall_handler.call.initial_gas.into()),
         &mut syscall_handler,
-    );
+    ) {
+        Ok(res) if res.failure_flag => Err(EntryPointExecutionError::NativeExecutionError {
+            info: match res.return_values.is_empty() {
+                false => decode_felts_as_str(&res.return_values),
+                true => String::from("Unknown error"),
+            },
+        }),
+        Err(runner_err) => Err(EntryPointExecutionError::NativeUnexpectedError(runner_err)),
+        Ok(res) => Ok(res),
+    }?;
 
-    let call_result = execution_result.map_err(EntryPointExecutionError::NativeUnexpectedError)?;
     create_callinfo(call_result, syscall_handler)
 }
 
