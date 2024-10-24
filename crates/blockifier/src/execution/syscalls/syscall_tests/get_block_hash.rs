@@ -40,6 +40,10 @@ fn initialize_state(test_contract: FeatureContract) -> (CachedState<DictStateRea
     (state, block_number, block_hash)
 }
 
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(FeatureContract::TestContract(CairoVersion::Native), 15220; "Native")
+)]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 5220; "VM")]
 fn positive_flow(test_contract: FeatureContract, expected_gas: u64) {
     let (mut state, block_number, block_hash) = initialize_state(test_contract);
@@ -60,6 +64,10 @@ fn positive_flow(test_contract: FeatureContract, expected_gas: u64) {
     );
 }
 
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(FeatureContract::TestContract(CairoVersion::Native); "Native")
+)]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1); "VM")]
 fn negative_flow_execution_mode_validate(test_contract: FeatureContract) {
     let (mut state, block_number, _) = initialize_state(test_contract);
@@ -72,13 +80,30 @@ fn negative_flow_execution_mode_validate(test_contract: FeatureContract) {
     };
 
     let error = entry_point_call.execute_directly_in_validate_mode(&mut state).unwrap_err();
-
+    #[cfg(feature = "cairo_native")]
+    if matches!(test_contract, FeatureContract::TestContract(CairoVersion::Native)) {
+        assert_eq!(
+            error.to_string(),
+            "Native execution error: Unauthorized syscall get_block_hash in execution mode \
+             Validate."
+        );
+    } else {
+        check_entry_point_execution_error_for_custom_hint!(
+            &error,
+            "Unauthorized syscall get_block_hash in execution mode Validate.",
+        );
+    }
+    #[cfg(not(feature = "cairo_native"))]
     check_entry_point_execution_error_for_custom_hint!(
         &error,
         "Unauthorized syscall get_block_hash in execution mode Validate.",
     );
 }
 
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(FeatureContract::TestContract(CairoVersion::Native); "Native")
+)]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1); "VM")]
 fn negative_flow_block_number_out_of_range(test_contract: FeatureContract) {
     let (mut state, _, _) = initialize_state(test_contract);
@@ -92,10 +117,27 @@ fn negative_flow_block_number_out_of_range(test_contract: FeatureContract) {
         ..trivial_external_entry_point_new(test_contract)
     };
 
-    let call_info = entry_point_call.execute_directly(&mut state).unwrap();
-    assert!(call_info.execution.failed);
-    assert_eq!(
-        format_panic_data(&call_info.execution.retdata.0),
-        "0x426c6f636b206e756d626572206f7574206f662072616e6765 ('Block number out of range')"
+    let call_result = entry_point_call.execute_directly(&mut state);
+    #[cfg(feature = "cairo_native")]
+    let (actual_error_msg, expected_error_msg) =
+        if matches!(test_contract, FeatureContract::TestContract(CairoVersion::Native)) {
+            (
+                call_result.unwrap_err().to_string(),
+                "Native execution error: Block number out of range",
+            )
+        } else {
+            (
+                format_panic_data(&call_result.unwrap().execution.retdata.0),
+                "0x426c6f636b206e756d626572206f7574206f662072616e6765 ('Block number out of \
+                 range')",
+            )
+        };
+
+    #[cfg(not(feature = "cairo_native"))]
+    let (actual_error_msg, expected_error_msg) = (
+        format_panic_data(&call_result.unwrap().execution.retdata.0),
+        "0x426c6f636b206e756d626572206f7574206f662072616e6765 ('Block number out of range')",
     );
+
+    assert_eq!(actual_error_msg, expected_error_msg);
 }
