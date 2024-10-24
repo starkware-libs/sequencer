@@ -89,6 +89,9 @@ pub enum EntryPointExecutionError {
     #[error("Invalid input: {input_descriptor}; {info}")]
     InvalidExecutionInput { input_descriptor: String, info: String },
     #[cfg(feature = "cairo_native")]
+    #[error("Native execution error: {info}")]
+    NativeExecutionError { info: String },
+    #[cfg(feature = "cairo_native")]
     #[error(transparent)]
     NativeUnexpectedError(#[from] NativeError),
     #[error(transparent)]
