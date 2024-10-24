@@ -10,4 +10,4 @@ function install_rustfmt() {
 
 rustup toolchain list | grep -q ${TOOLCHAIN} || install_rustfmt
 
-cargo +${TOOLCHAIN} fmt --all -- "$@"
+cargo +${TOOLCHAIN} fmt $@

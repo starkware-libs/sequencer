@@ -27,6 +27,9 @@ jobs:
     steps:
       # Environment setup.
       - uses: actions/checkout@v4
+        with:
+          # Fetch the entire history.
+          fetch-depth: 0
       - uses: baptiste0928/cargo-install@v3
         with:
           crate: taplo-cli
@@ -46,13 +49,18 @@ jobs:
       # Install rust components.
       - uses: ./.github/actions/bootstrap
 
+      - name: Setup Python venv
+        run: |
+          python3 -m venv ci
+          ci/bin/pip install -r scripts/requirements.txt
+
       # Run tests.
       - name: "Run rustfmt"
-        run: scripts/rust_fmt.sh --check
+        run: ci/bin/python scripts/run_tests.py --command RUSTFMT --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
       - name: "Run clippy"
-        run: scripts/clippy.sh
+        run: ci/bin/python scripts/run_tests.py --command CLIPPY --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
       - name: "Run cargo doc"
-        run: cargo doc --workspace -r --document-private-items --no-deps
+        run: ci/bin/python scripts/run_tests.py --command DOC --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
       - name: "Run taplo"
         run: scripts/taplo.sh
       - name: Run Machete (detect unused dependencies)
@@ -88,7 +96,7 @@ jobs:
         run: |
           python3 -m venv ci
           ci/bin/pip install -r scripts/requirements.txt
-          ci/bin/python scripts/run_tests.py --changes_only --include_dependencies --commit_id ${{ github.event.pull_request.base.sha }}
+          ci/bin/python scripts/run_tests.py --command TEST --changes_only --include_dependencies --commit_id ${{ github.event.pull_request.base.sha }}
         env:
           SEED: 0
 
@@ -98,7 +106,7 @@ jobs:
         run: |
           python3 -m venv ci
           ci/bin/pip install -r scripts/requirements.txt
-          ci/bin/python scripts/run_tests.py
+          ci/bin/python scripts/run_tests.py --command TEST
         env:
           SEED: 0
 
@@ -131,7 +139,7 @@ jobs:
         run: |
           python3 -m venv ci
           ci/bin/pip install -r scripts/requirements.txt
-          ci/bin/python scripts/run_tests.py --codecov --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
+          ci/bin/python scripts/run_tests.py --command CODECOV --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
           if [ -f codecov.json ]; then
             echo "codecov_output=true" >> $GITHUB_OUTPUT
           else
@@ -146,7 +154,7 @@ jobs:
         run: |
           python3 -m venv ci
           ci/bin/pip install -r scripts/requirements.txt
-          ci/bin/python scripts/run_tests.py --codecov
+          ci/bin/python scripts/run_tests.py --command CODECOV
           echo "codecov_output=true" >> $GITHUB_OUTPUT
         env:
           SEED: 0
