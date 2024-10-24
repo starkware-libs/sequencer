@@ -27,6 +27,7 @@ pub struct NativeSyscallHandler<'state> {
     pub resources: &'state mut ExecutionResources,
     pub context: &'state mut EntryPointExecutionContext,
     pub call: CallEntryPoint,
+    pub syscall_counter: SyscallCounter,
 
     // Execution results.
     pub events: Vec<OrderedEvent>,
