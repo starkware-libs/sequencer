@@ -13,6 +13,7 @@ use papyrus_consensus::config::ConsensusConfig;
 use papyrus_storage::StorageConfig;
 use reqwest::{Client, Response};
 use starknet_api::block::BlockNumber;
+use starknet_api::core::ChainId;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_batcher::block_builder::BlockBuilderConfig;
@@ -29,10 +30,12 @@ use starknet_http_server::config::HttpServerConfig;
 use starknet_mempool_node::config::SequencerNodeConfig;
 use tokio::net::TcpListener;
 
+// TODO(Tsabary): As the number of required parameters grow, bundle them in a struct and modify the
+// return type.
 pub async fn create_config(
     rpc_server_addr: SocketAddr,
     batcher_storage_config: StorageConfig,
-) -> SequencerNodeConfig {
+) -> (SequencerNodeConfig, ChainId) {
     let chain_id = batcher_storage_config.db_config.chain_id.clone();
     let mut chain_info = ChainInfo::create_for_testing();
     chain_info.chain_id = chain_id.clone();
@@ -43,15 +46,17 @@ pub async fn create_config(
     let consensus_manager_config = ConsensusManagerConfig {
         consensus_config: ConsensusConfig { start_height: BlockNumber(1), ..Default::default() },
     };
-    SequencerNodeConfig {
+    (
+        SequencerNodeConfig {
+            batcher_config,
+            consensus_manager_config,
+            gateway_config,
+            http_server_config,
+            rpc_state_reader_config,
+            ..SequencerNodeConfig::default()
+        },
         chain_id,
-        batcher_config,
-        consensus_manager_config,
-        gateway_config,
-        http_server_config,
-        rpc_state_reader_config,
-        ..SequencerNodeConfig::default()
-    }
+    )
 }
 
 pub fn test_rpc_state_reader_config(rpc_server_addr: SocketAddr) -> RpcStateReaderConfig {
