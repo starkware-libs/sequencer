@@ -168,7 +168,11 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
         deploy_from_zero: bool,
         remaining_gas: &mut u128,
     ) -> SyscallResult<(Felt, Vec<Felt>)> {
-        self.substract_syscall_gas_cost(remaining_gas, self.context.gas_costs().deploy_gas_cost)?;
+        self.substract_syscall_gas_cost(
+            remaining_gas,
+            SyscallSelector::Deploy,
+            self.context.gas_costs().deploy_gas_cost,
+        )?;
 
         let deployer_address = self.contract_address;
         let deployer_address_for_calculation =
