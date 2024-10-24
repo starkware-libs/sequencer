@@ -63,6 +63,7 @@ fn no_constructor(deployer_contract: FeatureContract, expected_gas: u64) {
 }
 
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1);"VM")]
+#[test_case(FeatureContract::TestContract(CairoVersion::Native);"Native")]
 fn no_constructor_nonempty_calldata(deployer_contract: FeatureContract) {
     let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1);
     let class_hash = empty_contract.get_class_hash();
@@ -87,7 +88,7 @@ fn no_constructor_nonempty_calldata(deployer_contract: FeatureContract) {
          constructor."
     ));
 }
-
+#[test_case(FeatureContract::TestContract(CairoVersion::Native),226750, 5210;"Native")]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1),216750, 5210;"VM")]
 fn with_constructor(
     deployer_contract: FeatureContract,
@@ -151,6 +152,7 @@ fn with_constructor(
 }
 
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1);"VM")]
+#[test_case(FeatureContract::TestContract(CairoVersion::Native);"Native")]
 fn to_unavailable_address(deployer_contract: FeatureContract) {
     let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1);
     let mut state = test_state(
