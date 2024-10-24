@@ -1,7 +1,6 @@
 use cairo_native::execution_result::ContractExecutionResult;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use num_traits::ToPrimitive;
-use starknet_api::execution_resources::GasAmount;
 
 use crate::execution::call_info::{CallExecution, CallInfo, ChargedResources, Retdata};
 use crate::execution::contract_class::TrackedResource;
@@ -71,12 +70,7 @@ fn create_callinfo(
             failed: call_result.failure_flag,
             gas_consumed,
         },
-        // todo(rodrigo): execution resources rely heavily on how the VM work, therefore
-        // the dummy values
-        charged_resources: ChargedResources {
-            vm_resources: ExecutionResources::default(),
-            gas_for_fee: GasAmount(gas_consumed),
-        },
+        charged_resources: ChargedResources::default(),
         inner_calls: syscall_handler.inner_calls,
         storage_read_values: syscall_handler.read_values,
         accessed_storage_keys: syscall_handler.accessed_keys,
