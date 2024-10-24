@@ -10,7 +10,6 @@ use papyrus_config::dumping::{
     SerializeConfig,
 };
 use papyrus_config::loading::load_and_process_config;
-use papyrus_config::validators::validate_ascii;
 use papyrus_config::{ConfigError, ParamPath, SerializationType, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ChainId;
@@ -48,11 +47,8 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
 
 // TODO(yair): Make the GW and batcher execution config point to the same values.
 /// The configurations of the various components of the node.
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq, Validate)]
 pub struct SequencerNodeConfig {
-    /// The [chain id](https://docs.rs/starknet_api/latest/starknet_api/core/struct.ChainId.html) of the Starknet network.
-    #[validate(custom = "validate_ascii")]
-    pub chain_id: ChainId,
     #[validate]
     pub components: ComponentConfig,
     #[validate]
@@ -89,24 +85,7 @@ impl SerializeConfig for SequencerNodeConfig {
                 "monitoring_endpoint_config",
             ),
         ];
-
         sub_configs.into_iter().flatten().collect()
-    }
-}
-
-impl Default for SequencerNodeConfig {
-    fn default() -> Self {
-        Self {
-            chain_id: DEFAULT_CHAIN_ID,
-            components: Default::default(),
-            batcher_config: Default::default(),
-            consensus_manager_config: Default::default(),
-            gateway_config: Default::default(),
-            http_server_config: Default::default(),
-            rpc_state_reader_config: Default::default(),
-            compiler_config: Default::default(),
-            monitoring_endpoint_config: Default::default(),
-        }
     }
 }
 

@@ -56,7 +56,8 @@ impl IntegrationTestSetup {
         .await;
 
         // Derive the configuration for the mempool node.
-        let config = create_config(rpc_server_addr, storage_for_test.batcher_storage_config).await;
+        let (config, _) =
+            create_config(rpc_server_addr, storage_for_test.batcher_storage_config).await;
 
         let (clients, servers) = create_node_modules(&config);
 

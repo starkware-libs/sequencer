@@ -2,6 +2,7 @@ use std::fs::File;
 use std::io::Write;
 
 use serde_json::{json, Value};
+use starknet_api::core::ChainId;
 use starknet_mempool_node::config::SequencerNodeConfig;
 use tokio::io::Result;
 use tracing::info;
@@ -42,15 +43,30 @@ macro_rules! config_fields_to_json {
 /// cargo run --bin starknet_mempool_node -- --config_file NODE_CONFIG_CHANGES_FILE_PATH
 /// Transaction generator:
 /// cargo run --bin run_test_tx_generator -- --config_file TX_GEN_CONFIG_CHANGES_FILE_PATH
-pub fn dump_config_file_changes(config: SequencerNodeConfig) -> anyhow::Result<()> {
+pub fn dump_config_file_changes(
+    config: SequencerNodeConfig,
+    chain_id: ChainId,
+) -> anyhow::Result<()> {
     // Dump config changes file for the sequencer node.
     let json_data = config_fields_to_json!(
-        config.chain_id,
+        chain_id,
         config.rpc_state_reader_config.json_rpc_version,
         config.rpc_state_reader_config.url,
         config.batcher_config.storage.db_config.path_prefix,
         config.http_server_config.ip,
         config.http_server_config.port,
+        config
+            .batcher_config
+            .block_builder_config
+            .chain_info
+            .fee_token_addresses
+            .eth_fee_token_address,
+        config
+            .batcher_config
+            .block_builder_config
+            .chain_info
+            .fee_token_addresses
+            .strk_fee_token_address,
         config.gateway_config.chain_info.fee_token_addresses.eth_fee_token_address,
         config.gateway_config.chain_info.fee_token_addresses.strk_fee_token_address,
         config.consensus_manager_config.consensus_config.start_height,
@@ -58,8 +74,11 @@ pub fn dump_config_file_changes(config: SequencerNodeConfig) -> anyhow::Result<(
     dump_json_data(json_data, NODE_CONFIG_CHANGES_FILE_PATH)?;
 
     //  Dump config changes file for the transaction generator.
-    let json_data =
-        config_fields_to_json!(config.http_server_config.ip, config.http_server_config.port,);
+    let json_data = config_fields_to_json!(
+        config.http_server_config.ip,
+        config.http_server_config.port,
+        chain_id,
+    );
     dump_json_data(json_data, TX_GEN_CONFIG_CHANGES_FILE_PATH)?;
 
     Ok(())
