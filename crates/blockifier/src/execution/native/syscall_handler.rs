@@ -11,10 +11,12 @@ use cairo_native::starknet::{
     U256,
 };
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use starknet_api::core::ClassHash;
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
 use crate::execution::call_info::{CallInfo, OrderedEvent, OrderedL2ToL1Message, Retdata};
+use crate::execution::contract_class::RunnableContractClass;
 use crate::execution::entry_point::{CallEntryPoint, EntryPointExecutionContext};
 use crate::execution::syscalls::hint_processor::{SyscallExecutionError, OUT_OF_GAS_ERROR};
 use crate::state::state_api::State;
@@ -167,8 +169,28 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
         todo!("Implement deploy syscall.");
     }
 
-    fn replace_class(&mut self, _class_hash: Felt, _remaining_gas: &mut u128) -> SyscallResult<()> {
-        todo!("Implement replace_class syscall.");
+    fn replace_class(&mut self, class_hash: Felt, remaining_gas: &mut u128) -> SyscallResult<()> {
+        self.pre_execute_syscall(remaining_gas, self.context.gas_costs().replace_class_gas_cost)?;
+
+        let class_hash = ClassHash(class_hash);
+        let contract_class = self
+            .state
+            .get_compiled_contract_class(class_hash)
+            .map_err(|e| self.handle_error(remaining_gas, e.into()))?;
+
+        match contract_class {
+            RunnableContractClass::V0(_) => Err(self.handle_error(
+                remaining_gas,
+                SyscallExecutionError::ForbiddenClassReplacement { class_hash },
+            )),
+            RunnableContractClass::V1(_) | RunnableContractClass::V1Native(_) => {
+                self.state
+                    .set_class_hash_at(self.call.storage_address, class_hash)
+                    .map_err(|e| self.handle_error(remaining_gas, e.into()))?;
+
+                Ok(())
+            }
+        }
     }
 
     fn library_call(
