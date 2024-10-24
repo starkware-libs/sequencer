@@ -67,6 +67,12 @@ fn create_callinfo(
     *syscall_handler.resources +=
         &versioned_constants.get_additional_os_syscall_resources(&syscall_handler.syscall_counter);
 
+    // todo(rodrigo): execution resources for native execution are still wip until future
+    // development on both Cairo lang and the Native compiler
+    let versioned_constants = syscall_handler.context.versioned_constants();
+    *syscall_handler.resources +=
+        &versioned_constants.get_additional_os_syscall_resources(&syscall_handler.syscall_counter);
+
     Ok(CallInfo {
         call: syscall_handler.call,
         execution: CallExecution {

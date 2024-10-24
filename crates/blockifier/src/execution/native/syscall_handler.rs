@@ -50,6 +50,10 @@ impl<'state> NativeSyscallHandler<'state> {
         NativeSyscallHandler {
             state,
             call,
+            caller_address,
+            contract_address,
+            entry_point_selector: entry_point_selector.0,
+            syscall_counter: SyscallCounter::new(),
             resources,
             context,
             events: Vec::new(),
