@@ -12,6 +12,7 @@ use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, BALANCE};
 
+#[test_case(FeatureContract::TestContract(CairoVersion::Native), 32160; "Native")]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 22160; "VM")]
 fn test_send_message_to_l1(test_contract: FeatureContract, expected_gas: u64) {
     let chain_info = &ChainInfo::create_for_testing();
