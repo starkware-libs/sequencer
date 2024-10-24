@@ -13,7 +13,7 @@ use papyrus_consensus::config::ConsensusConfig;
 use papyrus_storage::StorageConfig;
 use reqwest::{Client, Response};
 use starknet_api::block::BlockNumber;
-use starknet_api::core::{ContractAddress, PatriciaKey};
+use starknet_api::core::{ChainId, ContractAddress, PatriciaKey};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{contract_address, patricia_key};
@@ -32,6 +32,8 @@ use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::{ComponentExecutionConfig, SequencerNodeConfig};
 use tokio::net::TcpListener;
 
+// TODO(Tsabary): As the number of required parameters grow, bundle them in a struct and modify the
+// return type.
 pub async fn create_config(
     rpc_server_addr: SocketAddr,
     batcher_storage_config: StorageConfig,
@@ -52,8 +54,8 @@ pub async fn create_config(
     let consensus_manager_config = ConsensusManagerConfig {
         consensus_config: ConsensusConfig { start_height: BlockNumber(1), ..Default::default() },
     };
+
     SequencerNodeConfig {
-        chain_id,
         components,
         batcher_config,
         consensus_manager_config,
@@ -62,6 +64,33 @@ pub async fn create_config(
         rpc_state_reader_config,
         ..SequencerNodeConfig::default()
     }
+}
+
+pub async fn create_integration_test_config(
+    rpc_server_addr: SocketAddr,
+    batcher_storage_config: StorageConfig,
+) -> (SequencerNodeConfig, ChainId) {
+    let chain_id = batcher_storage_config.db_config.chain_id.clone();
+    let mut chain_info = ChainInfo::create_for_testing();
+    chain_info.chain_id = chain_id.clone();
+    let batcher_config = create_batcher_config(batcher_storage_config, chain_info.clone());
+    let gateway_config = create_gateway_config(chain_info).await;
+    let http_server_config = create_http_server_config().await;
+    let rpc_state_reader_config = test_rpc_state_reader_config(rpc_server_addr);
+    let consensus_manager_config = ConsensusManagerConfig {
+        consensus_config: ConsensusConfig { start_height: BlockNumber(1), ..Default::default() },
+    };
+    (
+        SequencerNodeConfig {
+            batcher_config,
+            consensus_manager_config,
+            gateway_config,
+            http_server_config,
+            rpc_state_reader_config,
+            ..SequencerNodeConfig::default()
+        },
+        chain_id,
+    )
 }
 
 pub fn test_rpc_state_reader_config(rpc_server_addr: SocketAddr) -> RpcStateReaderConfig {
