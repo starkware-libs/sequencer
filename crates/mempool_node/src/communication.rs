@@ -10,6 +10,11 @@ use starknet_gateway_types::communication::{
     LocalGatewayClient,
     SharedGatewayClient,
 };
+use starknet_mempool_p2p_types::communication::{
+    LocalMempoolP2pPropagatorClient,
+    MempoolP2pPropagatorRequestAndResponseSender,
+    SharedMempoolP2pPropagatorClient,
+};
 use starknet_mempool_types::communication::{
     LocalMempoolClient,
     MempoolRequestAndResponseSender,
@@ -24,6 +29,7 @@ pub struct SequencerNodeCommunication {
     batcher_channel: ComponentCommunication<BatcherRequestAndResponseSender>,
     mempool_channel: ComponentCommunication<MempoolRequestAndResponseSender>,
     gateway_channel: ComponentCommunication<GatewayRequestAndResponseSender>,
+    propagator_channel: ComponentCommunication<MempoolP2pPropagatorRequestAndResponseSender>,
 }
 
 impl SequencerNodeCommunication {
@@ -50,6 +56,14 @@ impl SequencerNodeCommunication {
     pub fn take_gateway_rx(&mut self) -> Receiver<GatewayRequestAndResponseSender> {
         self.gateway_channel.take_rx()
     }
+
+    pub fn take_propagator_tx(&mut self) -> Sender<MempoolP2pPropagatorRequestAndResponseSender> {
+        self.propagator_channel.take_tx()
+    }
+
+    pub fn take_propagator_rx(&mut self) -> Receiver<MempoolP2pPropagatorRequestAndResponseSender> {
+        self.propagator_channel.take_rx()
+    }
 }
 
 pub fn create_node_channels() -> SequencerNodeCommunication {
@@ -63,10 +77,17 @@ pub fn create_node_channels() -> SequencerNodeCommunication {
     let (tx_gateway, rx_gateway) =
         channel::<GatewayRequestAndResponseSender>(DEFAULT_INVOCATIONS_QUEUE_SIZE);
 
+    let (tx_mempool_propagator, rx_mempool_propagator) =
+        channel::<MempoolP2pPropagatorRequestAndResponseSender>(DEFAULT_INVOCATIONS_QUEUE_SIZE);
+
     SequencerNodeCommunication {
         mempool_channel: ComponentCommunication::new(Some(tx_mempool), Some(rx_mempool)),
         batcher_channel: ComponentCommunication::new(Some(tx_batcher), Some(rx_batcher)),
         gateway_channel: ComponentCommunication::new(Some(tx_gateway), Some(rx_gateway)),
+        propagator_channel: ComponentCommunication::new(
+            Some(tx_mempool_propagator),
+            Some(rx_mempool_propagator),
+        ),
     }
 }
 
@@ -75,6 +96,7 @@ pub struct SequencerNodeClients {
     mempool_client: Option<SharedMempoolClient>,
     gateway_client: Option<SharedGatewayClient>,
     // TODO (Lev): Change to Option<Box<dyn MemPoolClient>>.
+    propagator_client: Option<SharedMempoolP2pPropagatorClient>,
 }
 
 impl SequencerNodeClients {
@@ -88,6 +110,10 @@ impl SequencerNodeClients {
 
     pub fn get_gateway_client(&self) -> Option<SharedGatewayClient> {
         self.gateway_client.clone()
+    }
+
+    pub fn get_propagator_client(&self) -> Option<SharedMempoolP2pPropagatorClient> {
+        self.propagator_client.clone()
     }
 }
 
@@ -107,5 +133,12 @@ pub fn create_node_clients(
         true => Some(Arc::new(LocalGatewayClient::new(channels.take_gateway_tx()))),
         false => None,
     };
-    SequencerNodeClients { batcher_client, mempool_client, gateway_client }
+    let propagator_client: Option<SharedMempoolP2pPropagatorClient> =
+        match config.components.mempool_p2p.execute {
+            true => {
+                Some(Arc::new(LocalMempoolP2pPropagatorClient::new(channels.take_propagator_tx())))
+            }
+            false => None,
+        };
+    SequencerNodeClients { batcher_client, mempool_client, gateway_client, propagator_client }
 }

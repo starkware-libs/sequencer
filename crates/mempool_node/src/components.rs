@@ -1,11 +1,11 @@
-use std::sync::Arc;
-
 use starknet_batcher::batcher::{create_batcher, Batcher};
 use starknet_consensus_manager::consensus_manager::ConsensusManager;
 use starknet_gateway::gateway::{create_gateway, Gateway};
 use starknet_http_server::http_server::{create_http_server, HttpServer};
 use starknet_mempool::communication::{create_mempool, MempoolCommunicationWrapper};
-use starknet_mempool_p2p::sender::EmptyMempoolP2pPropagatorClient;
+use starknet_mempool_p2p::create_p2p_propagator_and_runner;
+use starknet_mempool_p2p::receiver::MempoolP2pRunner;
+use starknet_mempool_p2p::sender::MempoolP2pPropagator;
 use starknet_monitoring_endpoint::monitoring_endpoint::{
     create_monitoring_endpoint,
     MonitoringEndpoint,
@@ -22,6 +22,8 @@ pub struct SequencerNodeComponents {
     pub http_server: Option<HttpServer>,
     pub mempool: Option<MempoolCommunicationWrapper>,
     pub monitoring_endpoint: Option<MonitoringEndpoint>,
+    pub mempool_propagator: Option<MempoolP2pPropagator>,
+    pub mempool_runner: Option<MempoolP2pRunner>,
 }
 
 pub fn create_node_components(
@@ -67,10 +69,22 @@ pub fn create_node_components(
         None
     };
 
+    let (mempool_propagator, mempool_runner) = if config.components.mempool_p2p.execute {
+        let gateway_client =
+            clients.get_gateway_client().expect("Gateway Client should be available");
+
+        create_p2p_propagator_and_runner(
+            config.mempool_p2p_config.clone(),
+            gateway_client,
+            config.consensus_manager_config.consensus_config.network_topic.clone(),
+        )
+    } else {
+        (None, None)
+    };
+
     let mempool = if config.components.mempool.execute {
-        // TODO(Lukach): obtain the mempool_p2p_propagator_client from 'clients', pass it as an
-        // argument to create_mempool.
-        let mempool_p2p_propagator_client = Arc::new(EmptyMempoolP2pPropagatorClient);
+        let mempool_p2p_propagator_client =
+            clients.get_propagator_client().expect("Propagator Client should be available");
         let mempool = create_mempool(mempool_p2p_propagator_client);
         Some(mempool)
     } else {
@@ -90,5 +104,7 @@ pub fn create_node_components(
         http_server,
         mempool,
         monitoring_endpoint,
+        mempool_propagator,
+        mempool_runner,
     }
 }

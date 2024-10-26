@@ -27,6 +27,7 @@ struct LocalServers {
     pub(crate) batcher: Option<Box<LocalBatcherServer>>,
     pub(crate) gateway: Option<Box<LocalGatewayServer>>,
     pub(crate) mempool: Option<Box<LocalMempoolServer>>,
+    // propagator server
 }
 
 // Component servers that wrap a component without a server.
@@ -34,6 +35,7 @@ struct WrapperServers {
     pub(crate) consensus_manager: Option<Box<ConsensusManagerServer>>,
     pub(crate) http_server: Option<Box<HttpServer>>,
     pub(crate) monitoring_endpoint: Option<Box<MonitoringEndpointServer>>,
+    // runner server
 }
 
 pub struct SequencerNodeServers {
@@ -92,6 +94,15 @@ pub fn create_node_servers(
     } else {
         None
     };
+
+    // let propagator_server = if config.components.mempool_p2p.execute {
+    //     Some(Box::new(create_mempool_p2p_propagator_server(
+    //         components.mempool_propagator.expect("Mempool Propagator is not initialized."),
+    //         communication.take_propagator_rx(),
+    //     )))
+    // } else {
+    //     None
+    // };
 
     let local_servers =
         LocalServers { batcher: batcher_server, gateway: gateway_server, mempool: mempool_server };
