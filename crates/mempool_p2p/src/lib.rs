@@ -19,6 +19,8 @@ use crate::sender::MempoolP2pPropagator;
 pub struct MempoolP2pConfig {
     #[validate]
     pub network_config: NetworkConfig,
+    node_version: Option<String>,
+    buffer_size: usize,
 }
 
 impl SerializeConfig for MempoolP2pConfig {
@@ -30,14 +32,13 @@ impl SerializeConfig for MempoolP2pConfig {
 pub fn create_p2p_propagator_and_runner(
     mempool_p2p_config: MempoolP2pConfig,
     gateway_client: SharedGatewayClient,
-    version: Option<String>,
-    buffer_size: usize,
-    topic: Topic,
-) -> (MempoolP2pPropagator, MempoolP2pRunner) {
-    let mut network_manager = NetworkManager::new(mempool_p2p_config.network_config, version);
+    topic: String,
+) -> (Option<MempoolP2pPropagator>, Option<MempoolP2pRunner>) {
+    let mut network_manager =
+        NetworkManager::new(mempool_p2p_config.network_config, mempool_p2p_config.node_version);
     let BroadcastTopicChannels { broadcasted_messages_receiver, broadcast_topic_client } =
         network_manager
-            .register_broadcast_topic(topic, buffer_size)
+            .register_broadcast_topic(Topic::new(topic), mempool_p2p_config.buffer_size)
             .expect("Failed to register broadcast topic");
     let mempool_p2p_propagator = MempoolP2pPropagator::new(broadcast_topic_client.clone());
     let mempool_p2p_runner = MempoolP2pRunner::new(
@@ -46,5 +47,5 @@ pub fn create_p2p_propagator_and_runner(
         broadcast_topic_client,
         gateway_client,
     );
-    (mempool_p2p_propagator, mempool_p2p_runner)
+    (Some(mempool_p2p_propagator), Some(mempool_p2p_runner))
 }
