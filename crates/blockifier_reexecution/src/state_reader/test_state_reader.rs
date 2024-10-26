@@ -9,7 +9,7 @@ use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader, StateResult};
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use blockifier::versioned_constants::VersionedConstants;
-use serde_json::{json, to_value};
+use serde_json::{json, to_value, Value};
 use starknet_api::block::{BlockNumber, StarknetVersion};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
@@ -128,13 +128,15 @@ impl TestStateReader {
     }
 
     pub fn get_tx_by_hash(&self, tx_hash: &str) -> ReexecutionResult<Transaction> {
+        Ok(deserialize_transaction_json_to_starknet_api_tx(self.get_raw_tx_by_hash(tx_hash)?)?)
+    }
+
+    pub(crate) fn get_raw_tx_by_hash(&self, tx_hash: &str) -> ReexecutionResult<Value> {
         let method = "starknet_getTransactionByHash";
         let params = json!({
             "transaction_hash": tx_hash,
         });
-        Ok(deserialize_transaction_json_to_starknet_api_tx(
-            self.0.send_rpc_request(method, params)?,
-        )?)
+        Ok(self.0.send_rpc_request(method, params)?)
     }
 
     pub fn get_contract_class(&self, class_hash: &ClassHash) -> StateResult<StarknetContractClass> {

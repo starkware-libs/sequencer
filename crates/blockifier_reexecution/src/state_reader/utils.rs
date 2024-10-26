@@ -59,3 +59,8 @@ pub(crate) fn disjoint_hashmap_union<K: std::hash::Hash + std::cmp::Eq, V>(
     assert_eq!(union_map.len(), expected_len, "Intersection of hashmaps is not empty.");
     union_map
 }
+
+#[allow(dead_code)]
+pub(crate) fn serialize_from_raw(raw_object: &serde_json::Value) -> ReexecutionResult<String> {
+    Ok(serde_json::to_string_pretty(&raw_object).expect("Could not serialize json"))
+}
