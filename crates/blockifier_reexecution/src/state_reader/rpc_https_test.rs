@@ -2,6 +2,7 @@ use assert_matches::assert_matches;
 use blockifier::blockifier::block::BlockInfo;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
+use serde_json::Value;
 use starknet_api::block::{BlockNumber, StarknetVersion};
 use starknet_api::class_hash;
 use starknet_api::core::ClassHash;
@@ -11,6 +12,7 @@ use starknet_core::types::ContractClass::{Legacy, Sierra};
 
 use crate::state_reader::compile::legacy_to_contract_class_v0;
 use crate::state_reader::test_state_reader::{ConsecutiveTestStateReaders, TestStateReader};
+use crate::state_reader::utils::serialize_from_raw;
 
 const EXAMPLE_INVOKE_TX_HASH: &str =
     "0xa7c7db686c7f756ceb7ca85a759caef879d425d156da83d6a836f86851983";
@@ -19,6 +21,11 @@ const EXAMPLE_BLOCK_NUMBER: u64 = 700000;
 
 const EXAMPLE_CONTACT_CLASS_HASH: &str =
     "0x3131fa018d520a037686ce3efddeab8f28895662f019ca3ca18a626650f7d1e";
+
+#[fixture]
+pub fn tx_hash() -> String {
+    EXAMPLE_INVOKE_TX_HASH.to_string()
+}
 
 #[fixture]
 pub fn test_block_number() -> BlockNumber {
@@ -103,4 +110,14 @@ pub fn test_get_tx_by_hash(test_state_reader: TestStateReader) {
 #[rstest]
 pub fn test_get_statediff_rpc(test_state_reader: TestStateReader) {
     assert!(test_state_reader.get_state_diff().is_ok());
+}
+
+#[rstest]
+pub fn test_serialize_tx(test_state_reader: TestStateReader, tx_hash: String) {
+    let expected_tx = read_json_file("raw_rpc_json_objects/transactions.json")["invoke_v3"].clone();
+    let actual_tx: Value = serde_json::from_str(
+        &serialize_from_raw(&test_state_reader.get_raw_tx_by_hash(&tx_hash).unwrap()).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(actual_tx, expected_tx);
 }
