@@ -391,7 +391,7 @@ fn test_state_changes_merge(
         .find(|(contract_address, _)| contract_address == &contract_address!(CONTRACT_ADDRESS))
         .unwrap();
     // A new address, not included in state_changes1, to write to.
-    let new_contract_address = ContractAddress(patricia_key!("0x111"));
+    let new_contract_address = contract_address!("0x111");
 
     // Overwrite existing and new storage values.
     transactional_state.set_storage_at(contract_address, storage_key, felt!("0x1234")).unwrap();

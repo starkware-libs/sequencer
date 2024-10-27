@@ -74,7 +74,7 @@ use starknet_api::transaction::{
     TransactionOffsetInBlock,
     TransactionVersion,
 };
-use starknet_api::{calldata, class_hash, contract_address, felt, patricia_key};
+use starknet_api::{calldata, class_hash, contract_address, felt, nonce, patricia_key};
 use starknet_client::reader::objects::pending_data::{
     PendingBlock,
     PendingBlockOrDeprecated,
@@ -240,7 +240,7 @@ async fn execution_call() {
             "starknet_V0_8_call",
             (
                 CallRequest {
-                    contract_address: ContractAddress(patricia_key!("0x1234")),
+                    contract_address: contract_address!("0x1234"),
                     entry_point_selector: selector_from_name("aaa"),
                     calldata: calldata![key, value],
                 },
@@ -258,7 +258,7 @@ async fn execution_call() {
             "starknet_V0_8_call",
             (
                 CallRequest {
-                    contract_address: ContractAddress(patricia_key!("0x1234")),
+                    contract_address: contract_address!("0x1234"),
                     entry_point_selector: selector_from_name("aaa"),
                     calldata: calldata![key, value],
                 },
@@ -394,7 +394,7 @@ async fn call_estimate_fee() {
 
     prepare_storage_for_execution(storage_writer);
 
-    let account_address = ContractAddress(patricia_key!("0x444"));
+    let account_address = contract_address!("0x444");
 
     let invoke = BroadcastedTransaction::Invoke(InvokeTransaction::Version1(InvokeTransactionV1 {
         max_fee: Fee(1000000 * GAS_PRICE.price_in_wei.0),
@@ -520,7 +520,7 @@ async fn pending_call_estimate_fee() {
     );
     write_empty_block(storage_writer);
 
-    let account_address = ContractAddress(patricia_key!("0x444"));
+    let account_address = contract_address!("0x444");
 
     let invoke = BroadcastedTransaction::Invoke(InvokeTransaction::Version1(InvokeTransactionV1 {
         max_fee: Fee(1000000 * GAS_PRICE.price_in_wei.0),
@@ -778,7 +778,7 @@ async fn trace_block_transactions_regular_and_pending() {
             felt!(1_u8),                           // Calldata length.
             felt!(2_u8)                            // Calldata: num.
         ],
-        nonce: Some(Nonce(felt!(0_u128))),
+        nonce: Some(nonce!(0_u128)),
         version: TransactionVersion::ONE,
         ..Default::default()
     });
@@ -792,7 +792,7 @@ async fn trace_block_transactions_regular_and_pending() {
             felt!(1_u8),                           // Calldata length.
             felt!(2_u8)                            // Calldata: num.
         ],
-        nonce: Some(Nonce(felt!(1_u128))),
+        nonce: Some(nonce!(1_u128)),
         version: TransactionVersion::ONE,
         ..Default::default()
     });
@@ -835,7 +835,7 @@ async fn trace_block_transactions_regular_and_pending() {
         .append_state_diff(
             BlockNumber(3),
             StarknetApiStateDiff {
-                nonces: indexmap!(*ACCOUNT_ADDRESS => Nonce(felt!(2_u128))),
+                nonces: indexmap!(*ACCOUNT_ADDRESS => nonce!(2_u128)),
                 ..Default::default()
             },
         )
@@ -907,7 +907,7 @@ async fn trace_block_transactions_regular_and_pending() {
         state_update: PendingStateUpdate {
             old_root: Default::default(),
             state_diff: ClientStateDiff {
-                nonces: indexmap!(*ACCOUNT_ADDRESS => Nonce(felt!(2_u128))),
+                nonces: indexmap!(*ACCOUNT_ADDRESS => nonce!(2_u128)),
                 ..Default::default()
             },
         },
@@ -955,14 +955,14 @@ async fn trace_block_transactions_and_trace_transaction_execution_context() {
         max_fee: *MAX_FEE,
         sender_address: *ACCOUNT_ADDRESS,
         calldata: calldata![],
-        nonce: Nonce(felt!(0_u128)),
+        nonce: nonce!(0_u128),
         ..Default::default()
     };
     let mut invoke_tx2 = starknet_api::transaction::InvokeTransactionV1 {
         max_fee: *MAX_FEE,
         sender_address: *ACCOUNT_ADDRESS,
         calldata: calldata![],
-        nonce: Nonce(felt!(1_u128)),
+        nonce: nonce!(1_u128),
         ..Default::default()
     };
 
@@ -1042,7 +1042,7 @@ async fn trace_block_transactions_and_trace_transaction_execution_context() {
         .append_state_diff(
             BlockNumber(3),
             StarknetApiStateDiff {
-                nonces: indexmap!(*ACCOUNT_ADDRESS => Nonce(felt!(2_u128))),
+                nonces: indexmap!(*ACCOUNT_ADDRESS => nonce!(2_u128)),
                 ..Default::default()
             },
         )
@@ -1094,7 +1094,7 @@ async fn pending_trace_block_transactions_and_trace_transaction_execution_contex
         max_fee: Some(*MAX_FEE),
         sender_address: *ACCOUNT_ADDRESS,
         calldata: calldata![],
-        nonce: Some(Nonce(felt!(0_u128))),
+        nonce: Some(nonce!(0_u128)),
         version: TransactionVersion::ONE,
         ..Default::default()
     };
@@ -1102,7 +1102,7 @@ async fn pending_trace_block_transactions_and_trace_transaction_execution_contex
         max_fee: Some(*MAX_FEE),
         sender_address: *ACCOUNT_ADDRESS,
         calldata: calldata![],
-        nonce: Some(Nonce(felt!(1_u128))),
+        nonce: Some(nonce!(1_u128)),
         version: TransactionVersion::ONE,
         ..Default::default()
     };
@@ -1159,7 +1159,7 @@ async fn pending_trace_block_transactions_and_trace_transaction_execution_contex
         state_update: PendingStateUpdate {
             old_root: Default::default(),
             state_diff: ClientStateDiff {
-                nonces: indexmap!(*ACCOUNT_ADDRESS => Nonce(felt!(2_u128))),
+                nonces: indexmap!(*ACCOUNT_ADDRESS => nonce!(2_u128)),
                 ..Default::default()
             },
         },
