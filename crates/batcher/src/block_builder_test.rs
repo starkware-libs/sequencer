@@ -5,6 +5,7 @@ use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use indexmap::IndexMap;
 use mockall::predicate::eq;
+use mockall::Sequence;
 use rstest::rstest;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::felt;
@@ -56,6 +57,37 @@ fn one_chunk_test_expectations(
         set_close_block_expectations(&mut mock_transaction_executor, block_size);
 
     let mock_mempool_client = mock_mempool_client(1, vec![input_txs.to_vec()]);
+
+    (mock_transaction_executor, mock_mempool_client, expected_block_artifacts)
+}
+
+fn two_chunks_test_expectations(
+    input_txs: &[Transaction],
+) -> (MockTransactionExecutorTrait, MockMempoolClient, BlockExecutionArtifacts) {
+    let first_chunk = input_txs[..TX_CHUNK_SIZE].to_vec();
+    let second_chunk = input_txs[TX_CHUNK_SIZE..].to_vec();
+    let block_size = input_txs.len();
+
+    let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
+    let mut set_expectation = |tx_chunk: Vec<Transaction>, seq: &mut Sequence| {
+        mock_transaction_executor
+            .expect_add_txs_to_block()
+            .times(1)
+            .in_sequence(seq)
+            .withf(move |blockifier_input| compare_tx_hashes(&tx_chunk, blockifier_input))
+            .returning(move |_| {
+                vec![execution_info(); TX_CHUNK_SIZE].into_iter().map(Ok).collect()
+            });
+    };
+
+    let mut seq = Sequence::new();
+    set_expectation(first_chunk.clone(), &mut seq);
+    set_expectation(second_chunk.clone(), &mut seq);
+
+    let expected_block_artifacts =
+        set_close_block_expectations(&mut mock_transaction_executor, block_size);
+
+    let mock_mempool_client = mock_mempool_client(2, vec![first_chunk, second_chunk]);
 
     (mock_transaction_executor, mock_mempool_client, expected_block_artifacts)
 }
@@ -141,10 +173,11 @@ async fn run_build_block(
     block_builder.build_block(deadline, Arc::new(mempool_client), output_sender).await.unwrap()
 }
 
-// TODO: Add test cases for multiple chunks, block full, empty block, failed transaction,
+// TODO: Add test cases for block full, empty block, failed transaction,
 // timeout reached.
 #[rstest]
 #[case::one_chunk_block(3, test_txs(0..3), one_chunk_test_expectations(&input_txs))]
+#[case::two_chunks_block(6, test_txs(0..6), two_chunks_test_expectations(&input_txs))]
 #[tokio::test]
 async fn test_build_block(
     #[case] expected_block_size: usize,
