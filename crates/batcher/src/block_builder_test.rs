@@ -6,12 +6,14 @@ use blockifier::bouncer::BouncerWeights;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use indexmap::IndexMap;
+use mockall::predicate::eq;
 use rstest::{fixture, rstest};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::felt;
 use starknet_api::transaction::TransactionHash;
-use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
-use tokio_stream::wrappers::ReceiverStream;
+use starknet_mempool_types::communication::MockMempoolClient;
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
+ use std::sync::Arc;
 
 use crate::block_builder::{BlockBuilder, BlockBuilderTrait, BlockExecutionArtifacts};
 use crate::test_utils::test_txs;
@@ -19,13 +21,6 @@ use crate::transaction_executor::MockTransactionExecutorTrait;
 
 const TEST_DEADLINE_SECS: u64 = 1;
 const TEST_CHANNEL_SIZE: usize = 50;
-
-#[fixture]
-fn input_channel() -> (mpsc::Sender<Transaction>, ReceiverStream<Transaction>) {
-    let (input_sender, input_receiver) = mpsc::channel::<Transaction>(TEST_CHANNEL_SIZE);
-    let input_tx_stream = ReceiverStream::new(input_receiver);
-    (input_sender, input_tx_stream)
-}
 
 #[fixture]
 fn output_channel() -> (UnboundedSender<Transaction>, UnboundedReceiver<Transaction>) {
@@ -46,17 +41,15 @@ async fn test_build_block(
     #[case] expected_block_len: usize,
     #[case] enable_execution_delay: bool,
     #[case] block_full_tx_index: Option<usize>,
-    input_channel: (mpsc::Sender<Transaction>, ReceiverStream<Transaction>),
     output_channel: (UnboundedSender<Transaction>, UnboundedReceiver<Transaction>),
 ) {
-    let (input_sender, input_receiver) = input_channel;
     let (output_sender, mut output_stream_receiver) = output_channel;
 
     // Create the input transactions.
     let input_txs = test_txs(0..input_txs_len);
 
-    // Create the mock transaction executor and the expected block artifacts.
-    let (mock_transaction_executor, expected_block_artifacts) =
+    // Create the mock transaction executor, mock mempool client and the expected block artifacts.
+    let (mock_transaction_executor, mock_mempool_client, expected_block_artifacts) =
         set_transaction_executor_expectations(
             &input_txs,
             expected_block_len,
@@ -66,22 +59,14 @@ async fn test_build_block(
         );
 
     // Build the block.
-    let mut block_builder =
+    let block_builder =
         BlockBuilder::new(Box::new(mock_transaction_executor), execution_chunk_size);
     let deadline =
         tokio::time::Instant::now() + tokio::time::Duration::from_secs(TEST_DEADLINE_SECS);
-
-    // Run the block builder and transaction streaming in parallel.
-    let handle = tokio::spawn(async move {
-        block_builder.build_block(deadline, input_receiver, output_sender).await.unwrap()
-    });
-
-    // Stream the transactions.
-    for tx in input_txs.iter() {
-        input_sender.send(tx.clone()).await.unwrap();
-    }
-
-    let result_block_artifacts = handle.await.unwrap();
+    let result_block_artifacts = block_builder
+        .build_block(deadline, Arc::new(mock_mempool_client), output_sender)
+        .await
+        .unwrap();
 
     // Check the transactions in the output channel.
     let mut output_txs = vec![];
@@ -102,19 +87,61 @@ fn set_transaction_executor_expectations(
     chunk_size: usize,
     enable_execution_delay: bool,
     block_full_tx_index: Option<usize>,
-) -> (MockTransactionExecutorTrait, BlockExecutionArtifacts) {
-    let mut input_chunks: Vec<Vec<Transaction>> =
+) -> (MockTransactionExecutorTrait, MockMempoolClient, BlockExecutionArtifacts) {
+    let input_chunks: Vec<Vec<Transaction>> =
         input_txs.chunks(chunk_size).map(|chunk| chunk.to_vec()).collect();
-    let output_block_artifacts =
-        block_builder_expected_output(num_txs_to_execute, block_full_tx_index);
-    let expected_block_artifacts = output_block_artifacts.clone();
-
-    let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
-
     let number_of_chunks = match enable_execution_delay {
         true => 1,
         false => input_txs.len().div_ceil(chunk_size),
     };
+
+    let mock_mempool_client =
+        mock_mempool_client(number_of_chunks, chunk_size, input_chunks.clone());
+
+    let output_block_artifacts =
+        block_builder_expected_output(num_txs_to_execute, block_full_tx_index);
+    let expected_block_artifacts = output_block_artifacts.clone();
+
+    let mock_transaction_executor = mock_transaction_executor(
+        input_txs,
+        number_of_chunks,
+        chunk_size,
+        block_full_tx_index,
+        enable_execution_delay,
+        input_chunks,
+        output_block_artifacts,
+    );
+
+    (mock_transaction_executor, mock_mempool_client, expected_block_artifacts)
+}
+
+fn mock_mempool_client(
+    number_of_chunks: usize,
+    chunk_size: usize,
+    mut input_chunks_copy: Vec<Vec<Transaction>>,
+) -> MockMempoolClient {
+    let mut mock_mempool_client = MockMempoolClient::new();
+    mock_mempool_client
+        .expect_get_txs()
+        .times(number_of_chunks)
+        .with(eq(chunk_size))
+        .returning(move |_n_txs| Ok(input_chunks_copy.remove(0)));
+    // The number of times the mempool will be called until timeout is unpredicted.
+    mock_mempool_client.expect_get_txs().with(eq(chunk_size)).returning(|_n_txs| Ok(Vec::new()));
+    mock_mempool_client
+}
+
+fn mock_transaction_executor(
+    input_txs: &[Transaction],
+    number_of_chunks: usize,
+    chunk_size: usize,
+    block_full_tx_index: Option<usize>,
+    enable_execution_delay: bool,
+    mut input_chunks: Vec<Vec<Transaction>>,
+    output_block_artifacts: BlockExecutionArtifacts,
+) -> MockTransactionExecutorTrait {
+    let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
+
     let mut chunk_count = 0;
     let output_size = input_txs.len();
     mock_transaction_executor.expect_add_txs_to_block().times(number_of_chunks).returning(
@@ -138,7 +165,7 @@ fn set_transaction_executor_expectations(
             output_block_artifacts.bouncer_weights,
         ))
     });
-    (mock_transaction_executor, expected_block_artifacts)
+    mock_transaction_executor
 }
 
 fn generate_executor_output(
