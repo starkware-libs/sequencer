@@ -50,6 +50,7 @@ use crate::{
     SerializationType,
     SerializedContent,
     SerializedParam,
+    FIELD_SEPARATOR,
     IS_NONE_MARK,
 };
 
@@ -127,9 +128,9 @@ pub fn append_sub_config_name(
     sub_config_name: &str,
 ) -> BTreeMap<ParamPath, SerializedParam> {
     BTreeMap::from_iter(
-        sub_config_dump
-            .into_iter()
-            .map(|(field_name, val)| (format!("{sub_config_name}.{field_name}"), val)),
+        sub_config_dump.into_iter().map(|(field_name, val)| {
+            (format!("{sub_config_name}{FIELD_SEPARATOR}{field_name}"), val)
+        }),
     )
 }
 
@@ -236,7 +237,7 @@ pub fn ser_optional_param<T: Serialize>(
 /// Serializes is_none flag for a param.
 pub fn ser_is_param_none(name: &str, is_none: bool) -> (String, SerializedParam) {
     common_ser_param(
-        format!("{name}.{IS_NONE_MARK}").as_str(),
+        format!("{name}{FIELD_SEPARATOR}{IS_NONE_MARK}").as_str(),
         SerializedContent::DefaultValue(json!(is_none)),
         "Flag for an optional field.",
         ParamPrivacy::TemporaryValue,

@@ -54,6 +54,7 @@ use validator::ValidationError;
 use validators::ParsedValidationErrors;
 
 pub(crate) const IS_NONE_MARK: &str = "#is_none";
+pub(crate) const FIELD_SEPARATOR: &str = ".";
 
 /// A nested path of a configuration parameter.
 pub type ParamPath = String;
