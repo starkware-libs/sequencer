@@ -70,10 +70,10 @@ impl Mempool {
             self.mempool_state.insert(tx_ref.address, tx_ref.nonce);
         }
 
-        tracing::info!(
-            "Returned {} out of {n_txs} transactions, ready for sequencing.",
-            eligible_tx_references.len()
-        );
+        // tracing::info!(
+        //     "Returned {} out of {n_txs} transactions, ready for sequencing.",
+        //     eligible_tx_references.len()
+        // );
 
         Ok(eligible_tx_references
             .iter()
