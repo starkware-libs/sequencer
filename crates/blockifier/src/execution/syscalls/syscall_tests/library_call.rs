@@ -5,8 +5,7 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use pretty_assertions::assert_eq;
 use starknet_api::core::PatriciaKey;
 use starknet_api::execution_utils::format_panic_data;
-use starknet_api::state::StorageKey;
-use starknet_api::{calldata, felt, patricia_key};
+use starknet_api::{calldata, felt, storage_key};
 use test_case::test_case;
 
 use crate::abi::abi_utils::selector_from_name;
@@ -163,7 +162,7 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
         resources: storage_entry_point_resources.clone(),
         tracked_resource,
         storage_read_values: vec![felt!(value + 1)],
-        accessed_storage_keys: HashSet::from([StorageKey(patricia_key!(key + 1))]),
+        accessed_storage_keys: HashSet::from([storage_key!(key + 1)]),
         ..Default::default()
     };
 
@@ -196,7 +195,7 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
         },
         resources: storage_entry_point_resources,
         storage_read_values: vec![felt!(value)],
-        accessed_storage_keys: HashSet::from([StorageKey(patricia_key!(key))]),
+        accessed_storage_keys: HashSet::from([storage_key!(key)]),
         tracked_resource,
         ..Default::default()
     };
