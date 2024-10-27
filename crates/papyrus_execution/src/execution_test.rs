@@ -18,12 +18,11 @@ use starknet_api::core::{
     CompiledClassHash,
     ContractAddress,
     EntryPointSelector,
-    Nonce,
     PatriciaKey,
 };
 use starknet_api::state::{StateNumber, ThinStateDiff};
 use starknet_api::transaction::{Calldata, Fee};
-use starknet_api::{calldata, class_hash, contract_address, felt, patricia_key};
+use starknet_api::{calldata, class_hash, contract_address, felt, nonce, patricia_key};
 use starknet_types_core::felt::Felt;
 
 use crate::execution_utils::selector_from_name;
@@ -561,7 +560,7 @@ fn simulate_invoke_from_new_account() {
             *NEW_ACCOUNT_ADDRESS,
             *DEPRECATED_CONTRACT_ADDRESS,
             // the deploy account make the next nonce be 1.
-            Some(Nonce(felt!(1_u128))),
+            Some(nonce!(1_u128)),
             false,
         )
         // TODO(yair): Find out how to deploy another contract to test calling a new contract.
@@ -600,9 +599,8 @@ fn simulate_invoke_from_new_account_validate_and_charge() {
     prepare_storage(storage_writer);
 
     // Taken from the trace of the deploy account transaction.
-    let new_account_address = ContractAddress(patricia_key!(
-        "0x0153ade9ef510502c4f3b879c049dcc3ad5866706cae665f0d9df9b01e794fdb"
-    ));
+    let new_account_address =
+        contract_address!("0x0153ade9ef510502c4f3b879c049dcc3ad5866706cae665f0d9df9b01e794fdb");
     let txs = TxsScenarioBuilder::default()
         // Invoke contract from a newly deployed account.
         .deploy_account()
@@ -610,7 +608,7 @@ fn simulate_invoke_from_new_account_validate_and_charge() {
             new_account_address,
             *DEPRECATED_CONTRACT_ADDRESS,
             // the deploy account make the next nonce be 1.
-            Some(Nonce(felt!(1_u128))),
+            Some(nonce!(1_u128)),
             false,
         )
         // TODO(yair): Find out how to deploy another contract to test calling a new contract.
@@ -681,7 +679,7 @@ fn induced_state_diff() {
     account_balance -= simulation_results[0].fee_estimation.overall_fee.0;
     sequencer_balance += simulation_results[0].fee_estimation.overall_fee.0;
     let expected_invoke_deprecated = ThinStateDiff {
-        nonces: indexmap! {*ACCOUNT_ADDRESS => Nonce(felt!(1_u128))},
+        nonces: indexmap! {*ACCOUNT_ADDRESS => nonce!(1_u128)},
         deployed_contracts: indexmap! {},
         storage_diffs: indexmap! {
             *TEST_ERC20_CONTRACT_ADDRESS => indexmap!{
@@ -698,7 +696,7 @@ fn induced_state_diff() {
     account_balance -= simulation_results[1].fee_estimation.overall_fee.0;
     sequencer_balance += simulation_results[1].fee_estimation.overall_fee.0;
     let expected_declare_class = ThinStateDiff {
-        nonces: indexmap! {*ACCOUNT_ADDRESS => Nonce(felt!(2_u128))},
+        nonces: indexmap! {*ACCOUNT_ADDRESS => nonce!(2_u128)},
         declared_classes: indexmap! {class_hash!(next_declared_class_hash) => CompiledClassHash::default()},
         storage_diffs: indexmap! {
             *TEST_ERC20_CONTRACT_ADDRESS => indexmap!{
@@ -716,7 +714,7 @@ fn induced_state_diff() {
     account_balance -= simulation_results[2].fee_estimation.overall_fee.0;
     sequencer_balance += simulation_results[2].fee_estimation.overall_fee.0;
     let expected_declare_deprecated_class = ThinStateDiff {
-        nonces: indexmap! {*ACCOUNT_ADDRESS => Nonce(felt!(3_u128))},
+        nonces: indexmap! {*ACCOUNT_ADDRESS => nonce!(3_u128)},
         deprecated_declared_classes: vec![class_hash!(next_declared_class_hash)],
         storage_diffs: indexmap! {
             *TEST_ERC20_CONTRACT_ADDRESS => indexmap!{
@@ -737,7 +735,7 @@ fn induced_state_diff() {
 
     sequencer_balance += simulation_results[3].fee_estimation.overall_fee.0;
     let expected_deploy_account = ThinStateDiff {
-        nonces: indexmap! {*NEW_ACCOUNT_ADDRESS => Nonce(felt!(1_u128))},
+        nonces: indexmap! {*NEW_ACCOUNT_ADDRESS => nonce!(1_u128)},
         deprecated_declared_classes: vec![],
         storage_diffs: indexmap! {
             *TEST_ERC20_CONTRACT_ADDRESS => indexmap!{
