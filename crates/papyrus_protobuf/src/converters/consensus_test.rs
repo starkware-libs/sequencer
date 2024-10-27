@@ -147,11 +147,8 @@ fn convert_proposal_part_to_vec_u8_and_back() {
 
     let mut proposal_part = ProposalPart::get_test_instance(&mut rng);
 
-    match proposal_part {
-        ProposalPart::Transactions(ref mut transaction_batch) => {
-            add_gas_values_to_transaction(&mut transaction_batch.transactions);
-        }
-        _ => {}
+    if let ProposalPart::Transactions(ref mut transaction_batch) = proposal_part {
+        add_gas_values_to_transaction(&mut transaction_batch.transactions);
     }
 
     let bytes_data: Vec<u8> = proposal_part.clone().into();
