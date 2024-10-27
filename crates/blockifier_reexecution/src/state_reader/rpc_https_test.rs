@@ -105,7 +105,7 @@ pub fn test_get_statediff_rpc(test_state_reader: TestStateReader) {
     assert!(test_state_reader.get_state_diff().is_ok());
 }
 
-// TODO(Aner): replace this test with a CLI command that receives the node URL as input.
+// TODO(Aner): remove test, already replaced by cli command.
 #[rstest]
 pub fn test_full_blockifier_via_rpc(
     test_state_readers_last_and_current_block: ConsecutiveTestStateReaders,
