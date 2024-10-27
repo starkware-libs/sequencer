@@ -18,7 +18,8 @@ function install_essential_deps_linux() {
             ripgrep \
             software-properties-common \
             zstd \
-            wget
+            wget \
+            lld
   '
 }
 
@@ -37,8 +38,7 @@ function setup_llvm_deps() {
             libmlir-19-dev \
             libpolly-19-dev \
             libzstd-dev \
-            mlir-19-tools \
-            lld
+            mlir-19-tools
         '
         ;;
     *)
