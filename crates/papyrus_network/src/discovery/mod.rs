@@ -35,6 +35,7 @@ use tokio_retry::strategy::ExponentialBackoff;
 
 use crate::mixed_behaviour;
 use crate::mixed_behaviour::BridgedBehaviour;
+use crate::utils::deserialize_millis_to_duration;
 
 pub struct Behaviour {
     config: DiscoveryConfig,
@@ -188,6 +189,7 @@ impl NetworkBehaviour for Behaviour {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct DiscoveryConfig {
     pub bootstrap_dial_retry_config: RetryConfig,
+    #[serde(deserialize_with = "deserialize_millis_to_duration")]
     pub heartbeat_interval: Duration,
 }
 
@@ -202,17 +204,16 @@ impl Default for DiscoveryConfig {
 
 impl SerializeConfig for DiscoveryConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dump = BTreeMap::new();
+        let mut dump = BTreeMap::from([ser_param(
+            "heartbeat_interval",
+            &self.heartbeat_interval.as_millis(),
+            "The interval between each discovery (Kademlia) query in milliseconds.",
+            ParamPrivacyInput::Public,
+        )]);
         dump.append(&mut append_sub_config_name(
             self.bootstrap_dial_retry_config.dump(),
             "bootstrap_dial_retry_config",
         ));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "heartbeat_interval",
-            &self.heartbeat_interval,
-            "The interval between each Kademlia (discovery) query.",
-            ParamPrivacyInput::Public,
-        )]));
         dump
     }
 }

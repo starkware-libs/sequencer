@@ -223,14 +223,9 @@ expression: dumped_default_config
     "privacy": "Public"
   },
   "network.discovery_config.heartbeat_interval": {
-    "description": "The interval between each Kademlia (discovery) query.",
+    "description": "The interval between each discovery (Kademlia) query in milliseconds.",
     "value": {
-      "nanos": {
-        "$serde_json::private::Number": "100000000"
-      },
-      "secs": {
-        "$serde_json::private::Number": "0"
-      }
+      "$serde_json::private::Number": "100"
     },
     "privacy": "Public"
   },
