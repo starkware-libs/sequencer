@@ -17,18 +17,35 @@ pub struct BlockifierReexecutionCliArgs {
     command: Command,
 }
 
+#[derive(Args, Debug)]
+struct SharedArgs {
+    /// Node url.
+    /// Default: https://free-rpc.nethermind.io/mainnet-juno/. Won't work for big tests.
+    #[clap(long, short = 'n', default_value = "https://free-rpc.nethermind.io/mainnet-juno/")]
+    node_url: String,
+
+    /// Block number.
+    #[clap(long, short = 'b')]
+    block_number: u64,
+}
+
 #[derive(Debug, Subcommand)]
 enum Command {
     /// Runs the RPC test.
     RpcTest {
-        /// Node url.
-        /// Default: https://free-rpc.nethermind.io/mainnet-juno/. Won't work for big tests.
-        #[clap(long, short = 'n', default_value = "https://free-rpc.nethermind.io/mainnet-juno/")]
-        node_url: String,
+        #[clap(flatten)]
+        url_and_block_number: SharedArgs,
+    },
 
-        /// Block number.
-        #[clap(long, short = 'b')]
-        block_number: u64,
+    /// Writes the RPC queries to json files.
+    WriteRpcRepliesToJson {
+        #[clap(flatten)]
+        url_and_block_number: SharedArgs,
+
+        /// Directory path to json files.
+        /// Default: "./crates/blockifier_reexecution/resources/block_{block_number}".
+        #[clap(long, default_value = None)]
+        directory_path: Option<String>,
     },
 }
 
@@ -40,8 +57,8 @@ fn main() {
     let args = BlockifierReexecutionCliArgs::parse();
 
     match args.command {
-        Command::RpcTest { node_url, block_number } => {
-            println!("Running RPC test for block number {block_number} using node url {node_url}.");
+        Command::RpcTest { url_and_block_number: SharedArgs { node_url, block_number } } => {
+            println!("Running RPC test for block number {block_number} using node url {node_url}.",);
 
             let config = RpcStateReaderConfig {
                 url: node_url,
@@ -70,5 +87,6 @@ fn main() {
 
             println!("RPC test passed successfully.");
         }
+        Command::WriteRpcRepliesToJson { .. } => todo!(),
     }
 }
