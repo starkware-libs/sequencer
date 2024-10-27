@@ -45,7 +45,7 @@ type CentralResult<T> = Result<T, CentralError>;
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct CentralSourceConfig {
     pub concurrent_requests: usize,
-    pub url: String,
+    pub starknet_url: String,
     #[serde(deserialize_with = "deserialize_optional_map")]
     pub http_headers: Option<HashMap<String, String>>,
     pub max_state_updates_to_download: usize,
@@ -60,7 +60,7 @@ impl Default for CentralSourceConfig {
     fn default() -> Self {
         CentralSourceConfig {
             concurrent_requests: 10,
-            url: String::from("https://alpha-mainnet.starknet.io/"),
+            starknet_url: String::from("https://alpha-mainnet.starknet.io/"),
             http_headers: None,
             max_state_updates_to_download: 20,
             max_state_updates_to_store_in_memory: 20,
@@ -86,8 +86,8 @@ impl SerializeConfig for CentralSourceConfig {
                 ParamPrivacyInput::Public,
             ),
             ser_param(
-                "url",
-                &self.url,
+                "starknet_url",
+                &self.starknet_url,
                 "Starknet feeder-gateway URL. It should match chain_id.",
                 ParamPrivacyInput::Public,
             ),
@@ -445,7 +445,7 @@ impl CentralSource {
         storage_reader: StorageReader,
     ) -> Result<CentralSource, ClientCreationError> {
         let starknet_client = StarknetFeederGatewayClient::new(
-            &config.url,
+            &config.starknet_url,
             config.http_headers,
             node_version,
             config.retry_config,
