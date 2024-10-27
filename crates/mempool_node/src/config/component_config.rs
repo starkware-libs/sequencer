@@ -23,6 +23,8 @@ pub struct ComponentConfig {
     pub mempool: ComponentExecutionConfig,
     #[validate]
     pub monitoring_endpoint: ComponentExecutionConfig,
+    #[validate]
+    pub mempool_p2p: ComponentExecutionConfig,
 }
 
 impl Default for ComponentConfig {
@@ -34,6 +36,7 @@ impl Default for ComponentConfig {
             http_server: ComponentExecutionConfig::http_server_default_config(),
             mempool: ComponentExecutionConfig::mempool_default_config(),
             monitoring_endpoint: ComponentExecutionConfig::monitoring_endpoint_default_config(),
+            mempool_p2p: ComponentExecutionConfig::mempool_p2p_default_config(),
         }
     }
 }
