@@ -174,7 +174,6 @@ pub fn create_batcher(config: BatcherConfig, mempool_client: SharedMempoolClient
     let storage_reader = Arc::new(storage_reader);
     let storage_writer = Box::new(storage_writer);
     let proposal_manager = Box::new(ProposalManager::new(
-        config.proposal_manager.clone(),
         mempool_client.clone(),
         block_builder_factory,
         storage_reader.clone(),
@@ -259,7 +258,6 @@ impl From<GetProposalResultError> for BatcherError {
     fn from(err: GetProposalResultError) -> Self {
         match err {
             GetProposalResultError::BlockBuilderError(..) => BatcherError::InternalError,
-            GetProposalResultError::MempoolError(..) => BatcherError::InternalError,
             GetProposalResultError::ProposalDoesNotExist { proposal_id } => {
                 BatcherError::ExecutedProposalNotFound { proposal_id }
             }

@@ -144,16 +144,6 @@
     "privacy": "Public",
     "value": 100
   },
-  "batcher_config.proposal_manager.block_builder_next_txs_buffer_size": {
-    "description": "Maximum transactions to fill in the stream buffer for the block builder before blocking further filling of the stream.",
-    "privacy": "Public",
-    "value": 100
-  },
-  "batcher_config.proposal_manager.max_txs_per_mempool_request": {
-    "description": "Maximum transactions to get from the mempool in a single get_txs request.",
-    "privacy": "Public",
-    "value": 10
-  },
   "batcher_config.storage.db_config.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
     "pointer_target": "chain_id",

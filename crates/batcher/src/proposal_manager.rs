@@ -1,12 +1,9 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use async_trait::async_trait;
 use blockifier::blockifier::block::BlockNumberHashPair;
 use indexmap::IndexMap;
-use papyrus_config::dumping::{ser_param, SerializeConfig};
-use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::core::{ContractAddress, Nonce};
@@ -14,53 +11,13 @@ use starknet_api::executable_transaction::Transaction;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 use starknet_batcher_types::batcher_types::{ProposalCommitment, ProposalId};
-use starknet_mempool_types::communication::{MempoolClientError, SharedMempoolClient};
+use starknet_mempool_types::communication::SharedMempoolClient;
 use thiserror::Error;
-use tokio::select;
 use tokio::sync::Mutex;
-use tokio_stream::wrappers::ReceiverStream;
-use tracing::{debug, error, info, instrument, trace, Instrument};
+use tracing::{debug, error, info, instrument, Instrument};
 
 use crate::batcher::BatcherStorageReaderTrait;
-use crate::block_builder::{
-    BlockBuilderError,
-    BlockBuilderFactoryTrait,
-    BlockBuilderTrait,
-    BlockExecutionArtifacts,
-};
-
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct ProposalManagerConfig {
-    pub block_builder_next_txs_buffer_size: usize,
-    pub max_txs_per_mempool_request: usize,
-}
-
-impl Default for ProposalManagerConfig {
-    fn default() -> Self {
-        // TODO: Get correct default values.
-        Self { block_builder_next_txs_buffer_size: 100, max_txs_per_mempool_request: 10 }
-    }
-}
-
-impl SerializeConfig for ProposalManagerConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "block_builder_next_txs_buffer_size",
-                &self.block_builder_next_txs_buffer_size,
-                "Maximum transactions to fill in the stream buffer for the block builder before \
-                 blocking further filling of the stream.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_txs_per_mempool_request",
-                &self.max_txs_per_mempool_request,
-                "Maximum transactions to get from the mempool in a single get_txs request.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
-    }
-}
+use crate::block_builder::{BlockBuilderError, BlockBuilderFactoryTrait, BlockExecutionArtifacts};
 
 #[derive(Debug, Error)]
 pub enum StartHeightError {
@@ -102,8 +59,6 @@ pub enum BuildProposalError {
 pub enum GetProposalResultError {
     #[error(transparent)]
     BlockBuilderError(Arc<BlockBuilderError>),
-    #[error(transparent)]
-    MempoolError(#[from] MempoolClientError),
     #[error("Proposal with id {proposal_id} does not exist.")]
     ProposalDoesNotExist { proposal_id: ProposalId },
 }
@@ -139,7 +94,6 @@ pub trait ProposalManagerTrait: Send + Sync {
 ///
 /// Triggered by the consensus.
 pub(crate) struct ProposalManager {
-    config: ProposalManagerConfig,
     mempool_client: SharedMempoolClient,
     storage_reader: Arc<dyn BatcherStorageReaderTrait>,
     active_height: Option<BlockNumber>,
@@ -212,18 +166,22 @@ impl ProposalManagerTrait for ProposalManager {
         let block_builder =
             self.block_builder_factory.create_block_builder(height, retrospective_block_hash)?;
 
+        let mempool_client = self.mempool_client.clone();
+        let active_proposal = self.active_proposal.clone();
+        let executed_proposals = self.executed_proposals.clone();
+
         self.active_proposal_handle = Some(tokio::spawn(
-            BuildProposalTask {
-                mempool_client: self.mempool_client.clone(),
-                tx_sender,
-                block_builder_next_txs_buffer_size: self.config.block_builder_next_txs_buffer_size,
-                max_txs_per_mempool_request: self.config.max_txs_per_mempool_request,
-                block_builder,
-                active_proposal: self.active_proposal.clone(),
-                deadline,
-                executed_proposals: self.executed_proposals.clone(),
+            async move {
+                let result = block_builder
+                    .build_block(deadline, mempool_client, tx_sender.clone())
+                    .await
+                    .map(ProposalOutput::from)
+                    .map_err(|e| GetProposalResultError::BlockBuilderError(Arc::new(e)));
+
+                let proposal_id =
+                    active_proposal.lock().await.take().expect("Active proposal should exist.");
+                executed_proposals.lock().await.insert(proposal_id, result);
             }
-            .run()
             .in_current_span(),
         ));
 
@@ -258,13 +216,11 @@ impl ProposalManagerTrait for ProposalManager {
 
 impl ProposalManager {
     pub fn new(
-        config: ProposalManagerConfig,
         mempool_client: SharedMempoolClient,
         block_builder_factory: Arc<dyn BlockBuilderFactoryTrait + Send + Sync>,
         storage_reader: Arc<dyn BatcherStorageReaderTrait>,
     ) -> Self {
         Self {
-            config,
             mempool_client,
             storage_reader,
             active_proposal: Arc::new(Mutex::new(None)),
@@ -311,100 +267,6 @@ impl ProposalManager {
         }
     }
 }
-
-struct BuildProposalTask {
-    mempool_client: SharedMempoolClient,
-    tx_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
-    max_txs_per_mempool_request: usize,
-    block_builder_next_txs_buffer_size: usize,
-    block_builder: Box<dyn BlockBuilderTrait + Send>,
-    active_proposal: Arc<Mutex<Option<ProposalId>>>,
-    deadline: tokio::time::Instant,
-    executed_proposals: Arc<Mutex<HashMap<ProposalId, ProposalResult<ProposalOutput>>>>,
-}
-
-impl BuildProposalTask {
-    async fn run(mut self) {
-        // We convert the receiver to a stream and pass it to the block builder while using the
-        // sender to feed the stream.
-        let (mempool_tx_sender, mempool_tx_receiver) =
-            tokio::sync::mpsc::channel::<Transaction>(self.block_builder_next_txs_buffer_size);
-        let mempool_tx_stream = ReceiverStream::new(mempool_tx_receiver);
-        let building_future = self.block_builder.build_block(
-            self.deadline,
-            mempool_tx_stream,
-            self.tx_sender.clone(),
-        );
-
-        let feed_mempool_txs_future = Self::feed_mempool_txs(
-            &self.mempool_client,
-            self.max_txs_per_mempool_request,
-            &mempool_tx_sender,
-        );
-
-        // Wait for one of the following:
-        // * block builder finished
-        // * the feeding of transactions errored
-        // The other tasks will be cancelled.
-        let result = select! {
-            // This will send txs from the mempool to the stream we provided to the block builder.
-            feeding_error = feed_mempool_txs_future => {
-                error!("Failed to feed more mempool txs: {}.", feeding_error);
-                // TODO: Notify the mempool about remaining txs.
-                // TODO: Abort the block builder.
-                Err(feeding_error)
-            },
-            builder_done = building_future => {
-                info!("Block builder finished.");
-                builder_done.map(ProposalOutput::from).map_err(|e| GetProposalResultError::BlockBuilderError(Arc::new(e)))
-            }
-        };
-        self.mark_active_proposal_as_done(result).await;
-    }
-
-    // TODO: Move this to the batcher.
-    /// Feeds transactions from the mempool to the mempool_tx_sender channel.
-    /// Returns only on error or when the task is cancelled.
-    async fn feed_mempool_txs(
-        mempool_client: &SharedMempoolClient,
-        max_txs_per_mempool_request: usize,
-        mempool_tx_sender: &tokio::sync::mpsc::Sender<Transaction>,
-    ) -> GetProposalResultError {
-        loop {
-            // TODO: Get L1 transactions.
-            let mempool_txs = match mempool_client.get_txs(max_txs_per_mempool_request).await {
-                Ok(txs) if txs.is_empty() => {
-                    // TODO: Consider sleeping for a while.
-                    tokio::task::yield_now().await;
-                    continue;
-                }
-                Ok(txs) => txs,
-                Err(e) => {
-                    error!("MempoolError: {}", e);
-                    return e.into();
-                }
-            };
-            trace!(
-                "Feeding {} transactions from the mempool to the block builder.",
-                mempool_txs.len()
-            );
-            for tx in mempool_txs {
-                mempool_tx_sender
-                    .send(tx)
-                    .await
-                    .expect("Channel should remain open during feeding mempool transactions.");
-            }
-        }
-    }
-
-    async fn mark_active_proposal_as_done(self, result: ProposalResult<ProposalOutput>) {
-        let proposal_id =
-            self.active_proposal.lock().await.take().expect("Active proposal should exist.");
-        self.executed_proposals.lock().await.insert(proposal_id, result);
-    }
-}
-
-pub type InputTxStream = ReceiverStream<Transaction>;
 
 impl From<BlockExecutionArtifacts> for ProposalOutput {
     fn from(artifacts: BlockExecutionArtifacts) -> Self {
