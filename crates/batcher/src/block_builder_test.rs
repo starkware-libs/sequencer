@@ -1,8 +1,16 @@
+use blockifier::bouncer::BouncerWeights;
+use blockifier::transaction::objects::TransactionExecutionInfo;
+use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
+use indexmap::IndexMap;
+use rstest::rstest;
 use starknet_api::executable_transaction::Transaction;
+use starknet_api::felt;
+use starknet_api::transaction::TransactionHash;
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
 use tokio_stream::wrappers::ReceiverStream;
 
 use crate::block_builder::{BlockBuilder, BlockBuilderTrait, BlockExecutionArtifacts};
+use crate::test_utils::test_txs;
 use crate::transaction_executor::MockTransactionExecutorTrait;
 
 const TEST_DEADLINE_SECS: u64 = 1;
@@ -19,17 +27,30 @@ fn output_channel() -> (UnboundedSender<Transaction>, UnboundedReceiver<Transact
     tokio::sync::mpsc::unbounded_channel()
 }
 
-// TODO: enable the test  and remove all '#[allow(dead_code)]' once it is fully implemented.
-// TODO: Add test cases for one_chunk, multiple chunks, block full, empty block, failed transaction,
+fn block_execution_artifacts(
+    execution_infos: IndexMap<TransactionHash, TransactionExecutionInfo>,
+) -> BlockExecutionArtifacts {
+    BlockExecutionArtifacts {
+        execution_infos,
+        commitment_state_diff: Default::default(),
+        visited_segments_mapping: Default::default(),
+        bouncer_weights: BouncerWeights { gas: 100, ..BouncerWeights::empty() },
+    }
+}
+
+fn execution_info() -> TransactionExecutionInfo {
+    TransactionExecutionInfo { revert_error: Some("Test string".to_string()), ..Default::default() }
+}
+
+// TODO: Add test cases for multiple chunks, block full, empty block, failed transaction,
 // timeout reached.
-// #[rstest]
-// #[case::one_chunk_block(3, test_txs(0..3), test_expectations_one_chunk(&input_txs))]
-// #[tokio::test]
-#[allow(dead_code)]
+#[rstest]
+#[case::one_chunk_block(3, test_txs(0..3), test_expectations_one_chunk(&input_txs))]
+#[tokio::test]
 async fn test_build_block(
-    expected_block_size: usize,
-    input_txs: Vec<Transaction>,
-    test_expectations: (MockTransactionExecutorTrait, BlockExecutionArtifacts),
+    #[case] expected_block_size: usize,
+    #[case] input_txs: Vec<Transaction>,
+    #[case] test_expectations: (MockTransactionExecutorTrait, BlockExecutionArtifacts),
 ) {
     let (mock_transaction_executor, expected_block_artifacts) = test_expectations;
 
@@ -53,11 +74,58 @@ async fn test_build_block(
     .await;
 }
 
-#[allow(dead_code)]
 fn test_expectations_one_chunk(
-    _input_txs: &[Transaction],
+    input_txs: &[Transaction],
 ) -> (MockTransactionExecutorTrait, BlockExecutionArtifacts) {
-    todo!();
+    let block_size = input_txs.len();
+    let input_txs_cloned = input_txs.to_vec();
+    let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
+
+    mock_transaction_executor
+        .expect_add_txs_to_block()
+        .times(1)
+        .withf(move |blockifier_input| {
+            compare_tx_hashes(input_txs_cloned.clone(), blockifier_input)
+        })
+        .returning(move |_| vec![execution_info(); block_size].into_iter().map(Ok).collect());
+
+    let expected_block_artifacts = block_builder_expected_output(block_size);
+    set_close_block_expectations(&mut mock_transaction_executor, &expected_block_artifacts);
+
+    (mock_transaction_executor, expected_block_artifacts)
+}
+
+// Fill the executor outputs with some non-default values to make sure the block_builder uses
+// them.
+fn block_builder_expected_output(execution_info_len: usize) -> BlockExecutionArtifacts {
+    let mut execution_infos_mapping = IndexMap::new();
+    (0..execution_info_len).for_each(|i| {
+        let tx_hash = TransactionHash(felt!(u8::try_from(i).unwrap()));
+        execution_infos_mapping.insert(tx_hash, execution_info());
+    });
+
+    block_execution_artifacts(execution_infos_mapping)
+}
+
+fn set_close_block_expectations(
+    mock_transaction_executor: &mut MockTransactionExecutorTrait,
+    output_block_artifacts: &BlockExecutionArtifacts,
+) {
+    let output_block_artifacts = output_block_artifacts.clone();
+    mock_transaction_executor.expect_close_block().return_once(move || {
+        Ok((
+            output_block_artifacts.commitment_state_diff,
+            output_block_artifacts.visited_segments_mapping,
+            output_block_artifacts.bouncer_weights,
+        ))
+    });
+}
+
+fn compare_tx_hashes(input: Vec<Transaction>, blockifier_input: &[BlockifierTransaction]) -> bool {
+    let expected_tx_hashes: Vec<TransactionHash> = input.iter().map(|tx| tx.tx_hash()).collect();
+    let input_tx_hashes: Vec<TransactionHash> =
+        blockifier_input.iter().map(BlockifierTransaction::tx_hash).collect();
+    expected_tx_hashes == input_tx_hashes
 }
 
 async fn verify_build_block_output(
