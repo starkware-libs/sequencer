@@ -72,11 +72,7 @@ impl From<PyVersionedConstantsOverrides> for VersionedConstantsOverrides {
             max_recursion_depth,
             invoke_tx_max_n_steps,
         } = py_versioned_constants_overrides;
-        Self {
-            validate_max_n_steps: Some(validate_max_n_steps),
-            max_recursion_depth: Some(max_recursion_depth),
-            invoke_tx_max_n_steps: Some(invoke_tx_max_n_steps),
-        }
+        Self { validate_max_n_steps, max_recursion_depth, invoke_tx_max_n_steps }
     }
 }
 
