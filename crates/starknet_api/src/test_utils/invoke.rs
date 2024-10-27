@@ -74,24 +74,24 @@ macro_rules! invoke_tx_args {
 }
 
 pub fn invoke_tx(invoke_args: InvokeTxArgs) -> InvokeTransaction {
-    // TODO: Make TransactionVersion an enum and use match here.
-    if invoke_args.version == TransactionVersion::ZERO {
+    match invoke_args.version {
+        TransactionVersion::Zero(_) =>
         // TODO(Arni): Implement V0. See blockifier test utils for reference. There is an issue with
         // the computation of the entry_point_selector.
-        panic!(
-            "This test util does not supported creation of transaction version: {:?}.",
-            invoke_args.version
-        );
-    } else if invoke_args.version == TransactionVersion::ONE {
-        InvokeTransaction::V1(InvokeTransactionV1 {
+        {
+            panic!(
+                "This test util does not supported creation of transaction version: {:?}.",
+                invoke_args.version
+            )
+        }
+        TransactionVersion::One(_) => InvokeTransaction::V1(InvokeTransactionV1 {
             max_fee: invoke_args.max_fee,
             sender_address: invoke_args.sender_address,
             nonce: invoke_args.nonce,
             calldata: invoke_args.calldata,
             signature: invoke_args.signature,
-        })
-    } else if invoke_args.version == TransactionVersion::THREE {
-        InvokeTransaction::V3(InvokeTransactionV3 {
+        }),
+        TransactionVersion::Three(_) => InvokeTransaction::V3(InvokeTransactionV3 {
             resource_bounds: invoke_args.resource_bounds,
             calldata: invoke_args.calldata,
             sender_address: invoke_args.sender_address,
@@ -102,9 +102,10 @@ pub fn invoke_tx(invoke_args: InvokeTxArgs) -> InvokeTransaction {
             fee_data_availability_mode: invoke_args.fee_data_availability_mode,
             paymaster_data: invoke_args.paymaster_data,
             account_deployment_data: invoke_args.account_deployment_data,
-        })
-    } else {
-        panic!("Unsupported transaction version: {:?}.", invoke_args.version)
+        }),
+        TransactionVersion::Two(_) => {
+            panic!("Unsupported transaction version: {:?}.", invoke_args.version)
+        }
     }
 }
 

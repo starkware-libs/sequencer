@@ -25,6 +25,7 @@ pub mod type_utils;
 use std::num::ParseIntError;
 
 use serde_utils::InnerDeserializationError;
+use starknet_types_core::felt::Felt;
 
 /// The error type returned by StarknetApi.
 // Note: if you need `Eq` see InnerDeserializationError's docstring.
@@ -47,6 +48,8 @@ pub enum StarknetApiError {
     InvalidResourceMappingInitializer(String),
     #[error("Invalid Starknet version: {0:?}")]
     InvalidStarknetVersion(Vec<u8>),
+    #[error("Invalid transaction version: {0}.")]
+    InvalidTransactionVersion(Felt),
     #[error("NonzeroGasPrice cannot be zero.")]
     ZeroGasPrice,
 }

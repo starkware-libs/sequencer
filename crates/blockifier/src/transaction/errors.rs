@@ -5,7 +5,7 @@ use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::{Fee, Resource, TransactionVersion};
 use starknet_api::StarknetApiError;
-use starknet_types_core::felt::FromStrError;
+use starknet_types_core::felt::{Felt, FromStrError};
 use thiserror::Error;
 
 use crate::bouncer::BouncerWeights;
@@ -78,8 +78,9 @@ pub enum TransactionFeeError {
 #[derive(Debug, Error)]
 pub enum TransactionExecutionError {
     #[error(
-        "Declare transaction version {} must have a contract class of Cairo \
-         version {cairo_version:?}.", **declare_version
+        "Declare transaction version {} must have a contract class of Cairo version \
+         {cairo_version:?}.",
+        Felt::from(declare_version)
     )]
     ContractClassVersionMismatch { declare_version: TransactionVersion, cairo_version: u64 },
     #[error(
@@ -109,7 +110,7 @@ pub enum TransactionExecutionError {
     InvalidValidateReturnData { actual: Retdata },
     #[error(
         "Transaction version {:?} is not supported. Supported versions: \
-         {:?}.", **version, allowed_versions.iter().map(|v| **v).collect::<Vec<_>>()
+         {:?}.", Felt::from(version), allowed_versions.iter().map(Felt::from).collect::<Vec<_>>()
     )]
     InvalidVersion { version: TransactionVersion, allowed_versions: Vec<TransactionVersion> },
     #[error(transparent)]

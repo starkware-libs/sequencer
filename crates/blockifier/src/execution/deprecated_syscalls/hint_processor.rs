@@ -387,7 +387,7 @@ impl<'a> DeprecatedSyscallHintProcessor<'a> {
         let TransactionContext { block_context, tx_info } = self.context.tx_context.as_ref();
         let tx_signature_length = tx_info.signature().0.len();
         let tx_info: Vec<MaybeRelocatable> = vec![
-            tx_info.signed_version().0.into(),
+            Felt::from(tx_info.signed_version()).into(),
             (*tx_info.sender_address().0.key()).into(),
             max_fee_for_execution_info(tx_info).into(),
             tx_signature_length.into(),

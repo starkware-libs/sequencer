@@ -70,7 +70,7 @@ impl TransactionInfo {
     }
 
     pub fn is_v0(&self) -> bool {
-        self.version() == TransactionVersion::ZERO
+        matches!(self.version(), TransactionVersion::Zero(_))
     }
 
     pub fn signed_version(&self) -> TransactionVersion {

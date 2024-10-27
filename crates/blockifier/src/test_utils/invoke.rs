@@ -8,8 +8,7 @@ use crate::transaction::transactions::InvokeTransaction;
 pub fn invoke_tx(invoke_args: InvokeTxArgs) -> InvokeTransaction {
     let tx_hash = invoke_args.tx_hash;
     let only_query = invoke_args.only_query;
-    // TODO: Make TransactionVersion an enum and use match here.
-    let invoke_tx = if invoke_args.version == TransactionVersion::ZERO {
+    let invoke_tx = if matches!(invoke_args.version, TransactionVersion::Zero(_)) {
         starknet_api::transaction::InvokeTransaction::V0(InvokeTransactionV0 {
             max_fee: invoke_args.max_fee,
             calldata: invoke_args.calldata,

@@ -525,7 +525,7 @@ impl Default for DeclareTxArgs {
 }
 
 pub fn rpc_invoke_tx(invoke_args: InvokeTxArgs) -> RpcTransaction {
-    if invoke_args.version != TransactionVersion::THREE {
+    if !matches!(invoke_args.version, TransactionVersion::Three(_)) {
         panic!("Unsupported transaction version: {:?}.", invoke_args.version);
     }
 
@@ -550,7 +550,7 @@ pub fn rpc_invoke_tx(invoke_args: InvokeTxArgs) -> RpcTransaction {
 }
 
 pub fn rpc_deploy_account_tx(deploy_tx_args: DeployAccountTxArgs) -> RpcTransaction {
-    if deploy_tx_args.version != TransactionVersion::THREE {
+    if !matches!(deploy_tx_args.version, TransactionVersion::Three(_)) {
         panic!("Unsupported transaction version: {:?}.", deploy_tx_args.version);
     }
 
@@ -573,7 +573,7 @@ pub fn rpc_deploy_account_tx(deploy_tx_args: DeployAccountTxArgs) -> RpcTransact
 }
 
 pub fn rpc_declare_tx(declare_tx_args: DeclareTxArgs) -> RpcTransaction {
-    if declare_tx_args.version != TransactionVersion::THREE {
+    if !matches!(declare_tx_args.version, TransactionVersion::Three(_)) {
         panic!("Unsupported transaction version: {:?}.", declare_tx_args.version);
     }
 

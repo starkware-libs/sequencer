@@ -76,18 +76,16 @@ pub fn deploy_account_tx(
     deploy_tx_args: DeployAccountTxArgs,
     nonce: Nonce,
 ) -> DeployAccountTransaction {
-    // TODO: Make TransactionVersion an enum and use match here.
-    if deploy_tx_args.version == TransactionVersion::ONE {
-        DeployAccountTransaction::V1(DeployAccountTransactionV1 {
+    match deploy_tx_args.version {
+        TransactionVersion::One(_) => DeployAccountTransaction::V1(DeployAccountTransactionV1 {
             max_fee: deploy_tx_args.max_fee,
             signature: deploy_tx_args.signature,
             nonce,
             class_hash: deploy_tx_args.class_hash,
             contract_address_salt: deploy_tx_args.contract_address_salt,
             constructor_calldata: deploy_tx_args.constructor_calldata,
-        })
-    } else if deploy_tx_args.version == TransactionVersion::THREE {
-        DeployAccountTransaction::V3(DeployAccountTransactionV3 {
+        }),
+        TransactionVersion::Three(_) => DeployAccountTransaction::V3(DeployAccountTransactionV3 {
             signature: deploy_tx_args.signature,
             resource_bounds: deploy_tx_args.resource_bounds,
             tip: deploy_tx_args.tip,
@@ -98,9 +96,10 @@ pub fn deploy_account_tx(
             class_hash: deploy_tx_args.class_hash,
             contract_address_salt: deploy_tx_args.contract_address_salt,
             constructor_calldata: deploy_tx_args.constructor_calldata,
-        })
-    } else {
-        panic!("Unsupported transaction version: {:?}.", deploy_tx_args.version)
+        }),
+        TransactionVersion::Zero(_) | TransactionVersion::Two(_) => {
+            panic!("Unsupported transaction version: {:?}.", deploy_tx_args.version)
+        }
     }
 }
 

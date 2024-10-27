@@ -4,7 +4,6 @@ use starknet_api::core::ContractAddress;
 use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::{Fee, TransactionVersion};
 use starknet_api::{calldata, felt, invoke_tx_args};
-use starknet_types_core::felt::Felt;
 
 use crate::abi::abi_utils::selector_from_name;
 use crate::blockifier::config::{ConcurrencyConfig, TransactionExecutorConfig};
@@ -23,7 +22,7 @@ const N_ACCOUNTS: u16 = 10000;
 const N_TXS: usize = 1000;
 const RANDOMIZATION_SEED: u64 = 0;
 const CAIRO_VERSION: CairoVersion = CairoVersion::Cairo0;
-const TRANSACTION_VERSION: TransactionVersion = TransactionVersion(Felt::THREE);
+const TRANSACTION_VERSION: TransactionVersion = TransactionVersion::THREE;
 const RECIPIENT_GENERATOR_TYPE: RecipientGeneratorType = RecipientGeneratorType::RoundRobin;
 
 pub struct TransfersGeneratorConfig {
@@ -162,12 +161,16 @@ impl TransfersGenerator {
         let nonce = self.nonce_manager.next(sender_address);
 
         let entry_point_selector = selector_from_name(TRANSFER_ENTRY_POINT_NAME);
-        let contract_address = if self.config.tx_version == TransactionVersion::ONE {
-            *self.chain_info.fee_token_addresses.eth_fee_token_address.0.key()
-        } else if self.config.tx_version == TransactionVersion::THREE {
-            *self.chain_info.fee_token_addresses.strk_fee_token_address.0.key()
-        } else {
-            panic!("Unsupported transaction version: {:?}", self.config.tx_version)
+        let contract_address = match self.config.tx_version {
+            TransactionVersion::One(_) => {
+                *self.chain_info.fee_token_addresses.eth_fee_token_address.0.key()
+            }
+            TransactionVersion::Three(_) => {
+                *self.chain_info.fee_token_addresses.strk_fee_token_address.0.key()
+            }
+            TransactionVersion::Zero(_) | TransactionVersion::Two(_) => {
+                panic!("Unsupported transaction version: {:?}", self.config.tx_version)
+            }
         };
 
         let execute_calldata = calldata![

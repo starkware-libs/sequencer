@@ -136,8 +136,8 @@ fn test_get_execution_info(
 
     if only_query {
         let simulate_version_base = Pow::pow(Felt252::from(2_u8), QUERY_VERSION_BASE_BIT);
-        let query_version = simulate_version_base + version.0;
-        version = TransactionVersion(query_version);
+        let query_version = simulate_version_base + Felt::from(version);
+        version = TransactionVersion::try_from(query_version).unwrap();
     }
 
     let tx_hash = TransactionHash(felt!(1991_u16));
@@ -150,7 +150,7 @@ fn test_get_execution_info(
 
     let expected_resource_bounds: Vec<Felt> = match (test_contract, version) {
         (FeatureContract::LegacyTestContract, _) => vec![],
-        (_, version) if version == TransactionVersion::ONE => vec![
+        (_, TransactionVersion::One(_)) => vec![
             felt!(0_u16), // Length of resource bounds array.
         ],
         (_, _) => vec![
@@ -166,9 +166,9 @@ fn test_get_execution_info(
 
     let expected_tx_info: Vec<Felt>;
     let tx_info: TransactionInfo;
-    if version == TransactionVersion::ONE {
+    if matches!(version, TransactionVersion::One(_)) {
         expected_tx_info = vec![
-            version.0,                                       /* Transaction
+            Felt::from(version),                             /* Transaction
                                                               * version. */
             *sender_address.0.key(), // Account address.
             felt!(max_fee.0),        // Max fee.
@@ -191,7 +191,7 @@ fn test_get_execution_info(
         });
     } else {
         expected_tx_info = vec![
-            version.0,                                       /* Transaction
+            Felt::from(version),                             /* Transaction
                                                               * version. */
             *sender_address.0.key(), // Account address.
             Felt::ZERO,              // Max fee.

@@ -17,7 +17,6 @@ derive_more.workspace = true
 hex.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
 itertools.workspace = true
-num-bigint.workspace = true
 pretty_assertions.workspace = true
 primitive-types = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["derive", "rc"] }

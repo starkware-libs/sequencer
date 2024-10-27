@@ -75,34 +75,30 @@ macro_rules! declare_tx_args {
 }
 
 pub fn declare_tx(declare_tx_args: DeclareTxArgs) -> DeclareTransaction {
-    // TODO: Make TransactionVersion an enum and use match here.
-    if declare_tx_args.version == TransactionVersion::ZERO {
-        DeclareTransaction::V0(DeclareTransactionV0V1 {
+    match declare_tx_args.version {
+        TransactionVersion::Zero(_) => DeclareTransaction::V0(DeclareTransactionV0V1 {
             max_fee: declare_tx_args.max_fee,
             signature: declare_tx_args.signature,
             sender_address: declare_tx_args.sender_address,
             nonce: declare_tx_args.nonce,
             class_hash: declare_tx_args.class_hash,
-        })
-    } else if declare_tx_args.version == TransactionVersion::ONE {
-        DeclareTransaction::V1(DeclareTransactionV0V1 {
+        }),
+        TransactionVersion::One(_) => DeclareTransaction::V1(DeclareTransactionV0V1 {
             max_fee: declare_tx_args.max_fee,
             signature: declare_tx_args.signature,
             sender_address: declare_tx_args.sender_address,
             nonce: declare_tx_args.nonce,
             class_hash: declare_tx_args.class_hash,
-        })
-    } else if declare_tx_args.version == TransactionVersion::TWO {
-        DeclareTransaction::V2(DeclareTransactionV2 {
+        }),
+        TransactionVersion::Two(_) => DeclareTransaction::V2(DeclareTransactionV2 {
             max_fee: declare_tx_args.max_fee,
             signature: declare_tx_args.signature,
             sender_address: declare_tx_args.sender_address,
             nonce: declare_tx_args.nonce,
             class_hash: declare_tx_args.class_hash,
             compiled_class_hash: declare_tx_args.compiled_class_hash,
-        })
-    } else if declare_tx_args.version == TransactionVersion::THREE {
-        DeclareTransaction::V3(DeclareTransactionV3 {
+        }),
+        TransactionVersion::Three(_) => DeclareTransaction::V3(DeclareTransactionV3 {
             signature: declare_tx_args.signature,
             sender_address: declare_tx_args.sender_address,
             resource_bounds: declare_tx_args.resource_bounds,
@@ -114,9 +110,7 @@ pub fn declare_tx(declare_tx_args: DeclareTxArgs) -> DeclareTransaction {
             nonce: declare_tx_args.nonce,
             class_hash: declare_tx_args.class_hash,
             compiled_class_hash: declare_tx_args.compiled_class_hash,
-        })
-    } else {
-        panic!("Unsupported transaction version: {:?}.", declare_tx_args.version)
+        }),
     }
 }
 

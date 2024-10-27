@@ -71,14 +71,10 @@ impl Default for CairoVersion {
 impl CairoVersion {
     // A declare transaction of the given version, can be used to declare contracts of the returned
     // cairo version.
-    // TODO: Make TransactionVersion an enum and use match here.
     pub fn from_declare_tx_version(tx_version: TransactionVersion) -> Self {
-        if tx_version == TransactionVersion::ZERO || tx_version == TransactionVersion::ONE {
-            CairoVersion::Cairo0
-        } else if tx_version == TransactionVersion::TWO || tx_version == TransactionVersion::THREE {
-            CairoVersion::Cairo1
-        } else {
-            panic!("Transaction version {:?} is not supported.", tx_version)
+        match tx_version {
+            TransactionVersion::Zero(_) | TransactionVersion::One(_) => Self::Cairo0,
+            TransactionVersion::Two(_) | TransactionVersion::Three(_) => Self::Cairo1,
         }
     }
 

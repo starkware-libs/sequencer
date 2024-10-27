@@ -139,7 +139,7 @@ impl CallEntryPoint {
             None => storage_class_hash, // If not given, take the storage contract class hash.
         };
         // Hack to prevent version 0 attack on argent accounts.
-        if tx_context.tx_info.version() == TransactionVersion::ZERO
+        if matches!(tx_context.tx_info.version(), TransactionVersion::Zero(_))
             && class_hash
                 == ClassHash(
                     Felt::from_hex(FAULTY_CLASS_HASH).expect("A class hash must be a felt."),

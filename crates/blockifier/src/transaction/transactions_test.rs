@@ -1131,9 +1131,11 @@ fn test_insufficient_resource_bounds(
         .unwrap();
     // Max fee too low (lower than minimal estimated fee).
     let invalid_max_fee = Fee(minimal_fee.0 - 1);
-    let invalid_v1_tx = account_invoke_tx(
-        invoke_tx_args! { max_fee: invalid_max_fee, version: TransactionVersion::ONE,  ..valid_invoke_tx_args.clone() },
-    );
+    let invalid_v1_tx = account_invoke_tx(invoke_tx_args! {
+        max_fee: invalid_max_fee,
+        version: TransactionVersion::ONE,
+        ..valid_invoke_tx_args.clone()
+    });
     let execution_error = invalid_v1_tx.execute(state, block_context, true, true).unwrap_err();
 
     // Test error.
@@ -1308,7 +1310,7 @@ fn declare_validate_callinfo(
     user_initial_gas: Option<GasAmount>,
 ) -> Option<CallInfo> {
     // V0 transactions do not run validate.
-    if version == TransactionVersion::ZERO {
+    if matches!(version, TransactionVersion::Zero(_)) {
         None
     } else {
         expected_validate_call_info(
@@ -1327,27 +1329,22 @@ fn declare_validate_callinfo(
 /// Returns the expected used L1 gas and blob gas (according to use_kzg_da flag) due to execution of
 /// a declare transaction.
 fn declare_expected_state_changes_count(version: TransactionVersion) -> StateChangesCount {
-    // TODO: Make TransactionVersion an enum and use match here.
-    if version == TransactionVersion::ZERO {
-        StateChangesCount {
+    match version {
+        TransactionVersion::Zero(_) => StateChangesCount {
             n_storage_updates: 1, // Sender balance.
             ..StateChangesCount::default()
-        }
-    } else if version == TransactionVersion::ONE {
-        StateChangesCount {
+        },
+        TransactionVersion::One(_) => StateChangesCount {
             n_storage_updates: 1,    // Sender balance.
             n_modified_contracts: 1, // Nonce.
             ..StateChangesCount::default()
-        }
-    } else if version == TransactionVersion::TWO || version == TransactionVersion::THREE {
-        StateChangesCount {
+        },
+        TransactionVersion::Two(_) | TransactionVersion::Three(_) => StateChangesCount {
             n_storage_updates: 1,             // Sender balance.
             n_modified_contracts: 1,          // Nonce.
             n_compiled_class_hash_updates: 1, // Also set compiled class hash.
             ..StateChangesCount::default()
-        }
-    } else {
-        panic!("Unsupported version {version:?}.")
+        },
     }
 }
 
@@ -1478,7 +1475,8 @@ fn test_declare_tx(
     assert_eq!(actual_execution_info, expected_execution_info);
 
     // Test nonce update. V0 transactions do not update nonce.
-    let expected_nonce = nonce!(if tx_version == TransactionVersion::ZERO { 0_u8 } else { 1_u8 });
+    let expected_nonce =
+        nonce!(if matches!(tx_version, TransactionVersion::Zero(_)) { 0_u8 } else { 1_u8 });
     let nonce_from_state = state.get_nonce_at(sender_address).unwrap();
     assert_eq!(nonce_from_state, expected_nonce);
 

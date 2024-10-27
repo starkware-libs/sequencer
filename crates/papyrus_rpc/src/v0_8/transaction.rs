@@ -1032,15 +1032,15 @@ impl From<(starknet_api::transaction::TransactionOutput, TransactionVersion, Opt
         ),
     ) -> Self {
         let (tx_output, tx_version, maybe_msg_hash) = tx_output_msg_hash;
-        // TODO: consider supporting match instead.
-        let actual_fee = if tx_version == TransactionVersion::ZERO
-            || tx_version == TransactionVersion::ONE
-            || tx_version == TransactionVersion::TWO
-        {
-            FeePayment { amount: tx_output.actual_fee(), unit: PriceUnit::Wei }
-        } else {
-            // TransactionVersion::THREE
-            FeePayment { amount: tx_output.actual_fee(), unit: PriceUnit::Fri }
+        let actual_fee = match tx_version {
+            TransactionVersion::Zero(_)
+            | TransactionVersion::One(_)
+            | TransactionVersion::Two(_) => {
+                FeePayment { amount: tx_output.actual_fee(), unit: PriceUnit::Wei }
+            }
+            TransactionVersion::Three(_) => {
+                FeePayment { amount: tx_output.actual_fee(), unit: PriceUnit::Fri }
+            }
         };
 
         match tx_output {

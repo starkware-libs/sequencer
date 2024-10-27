@@ -205,24 +205,13 @@ pub struct IntermediateDeclareTransaction {
 impl TryFrom<IntermediateDeclareTransaction> for starknet_api::transaction::DeclareTransaction {
     type Error = ReaderClientError;
 
-    // TODO: Consider using match instead.
     fn try_from(declare_tx: IntermediateDeclareTransaction) -> Result<Self, ReaderClientError> {
-        if declare_tx.version == TransactionVersion::ZERO {
-            return Ok(Self::V0(declare_tx.try_into()?));
+        match declare_tx.version {
+            TransactionVersion::Zero(_) => Ok(Self::V0(declare_tx.try_into()?)),
+            TransactionVersion::One(_) => Ok(Self::V1(declare_tx.try_into()?)),
+            TransactionVersion::Two(_) => Ok(Self::V2(declare_tx.try_into()?)),
+            TransactionVersion::Three(_) => Ok(Self::V3(declare_tx.try_into()?)),
         }
-        if declare_tx.version == TransactionVersion::ONE {
-            return Ok(Self::V1(declare_tx.try_into()?));
-        }
-        if declare_tx.version == TransactionVersion::TWO {
-            return Ok(Self::V2(declare_tx.try_into()?));
-        }
-        if declare_tx.version == TransactionVersion::THREE {
-            return Ok(Self::V3(declare_tx.try_into()?));
-        }
-        Err(ReaderClientError::BadTransaction {
-            tx_hash: declare_tx.transaction_hash,
-            msg: format!("Declare version {:?} is not supported.", declare_tx.version),
-        })
     }
 }
 
@@ -380,16 +369,19 @@ impl TryFrom<IntermediateDeployAccountTransaction>
     fn try_from(
         deploy_account_tx: IntermediateDeployAccountTransaction,
     ) -> Result<Self, ReaderClientError> {
-        if deploy_account_tx.version == TransactionVersion::ONE {
-            return Ok(Self::V1(deploy_account_tx.try_into()?));
+        match deploy_account_tx.version {
+            TransactionVersion::One(_) => Ok(Self::V1(deploy_account_tx.try_into()?)),
+            TransactionVersion::Three(_) => Ok(Self::V3(deploy_account_tx.try_into()?)),
+            TransactionVersion::Zero(_) | TransactionVersion::Two(_) => {
+                Err(ReaderClientError::BadTransaction {
+                    tx_hash: deploy_account_tx.transaction_hash,
+                    msg: format!(
+                        "DeployAccount version {:?} is not supported.",
+                        deploy_account_tx.version
+                    ),
+                })
+            }
         }
-        if deploy_account_tx.version == TransactionVersion::THREE {
-            return Ok(Self::V3(deploy_account_tx.try_into()?));
-        }
-        Err(ReaderClientError::BadTransaction {
-            tx_hash: deploy_account_tx.transaction_hash,
-            msg: format!("DeployAccount version {:?} is not supported.", deploy_account_tx.version),
-        })
     }
 }
 
@@ -503,19 +495,15 @@ impl TryFrom<IntermediateInvokeTransaction> for starknet_api::transaction::Invok
     type Error = ReaderClientError;
 
     fn try_from(invoke_tx: IntermediateInvokeTransaction) -> Result<Self, ReaderClientError> {
-        if invoke_tx.version == TransactionVersion::ZERO {
-            return Ok(Self::V0(invoke_tx.try_into()?));
+        match invoke_tx.version {
+            TransactionVersion::Zero(_) => Ok(Self::V0(invoke_tx.try_into()?)),
+            TransactionVersion::One(_) => Ok(Self::V1(invoke_tx.try_into()?)),
+            TransactionVersion::Three(_) => Ok(Self::V3(invoke_tx.try_into()?)),
+            TransactionVersion::Two(_) => Err(ReaderClientError::BadTransaction {
+                tx_hash: invoke_tx.transaction_hash,
+                msg: format!("Invoke version {:?} is not supported.", invoke_tx.version),
+            }),
         }
-        if invoke_tx.version == TransactionVersion::ONE {
-            return Ok(Self::V1(invoke_tx.try_into()?));
-        }
-        if invoke_tx.version == TransactionVersion::THREE {
-            return Ok(Self::V3(invoke_tx.try_into()?));
-        }
-        Err(ReaderClientError::BadTransaction {
-            tx_hash: invoke_tx.transaction_hash,
-            msg: format!("Invoke version {:?} is not supported.", invoke_tx.version),
-        })
     }
 }
 

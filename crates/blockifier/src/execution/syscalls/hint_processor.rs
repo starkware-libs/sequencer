@@ -620,7 +620,7 @@ impl<'a> SyscallHintProcessor<'a> {
             &self.allocate_data_segment(vm, &tx_info.signature().0)?;
 
         let mut tx_data: Vec<MaybeRelocatable> = vec![
-            tx_info.signed_version().0.into(),
+            Felt::from(tx_info.signed_version()).into(),
             tx_info.sender_address().0.key().into(),
             max_fee_for_execution_info(tx_info).into(),
             tx_signature_start_ptr.into(),

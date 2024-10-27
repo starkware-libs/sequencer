@@ -1203,7 +1203,7 @@ impl From<DeclareTransactionV3> for protobuf::transaction::DeclareV3 {
 impl TryFrom<protobuf::transaction::Deploy> for DeployTransaction {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::transaction::Deploy) -> Result<Self, Self::Error> {
-        let version = TransactionVersion(Felt::from(value.version));
+        let version = TransactionVersion::try_from(Felt::from(value.version))?;
 
         let class_hash = ClassHash(
             value
@@ -1235,7 +1235,7 @@ impl TryFrom<protobuf::transaction::Deploy> for DeployTransaction {
 impl From<DeployTransaction> for protobuf::transaction::Deploy {
     fn from(value: DeployTransaction) -> Self {
         Self {
-            version: try_from_starkfelt_to_u32(value.version.0).unwrap_or_default(),
+            version: try_from_starkfelt_to_u32(value.version.into()).unwrap_or_default(),
             class_hash: Some(value.class_hash.0.into()),
             address_salt: Some(value.contract_address_salt.0.into()),
             calldata: value
@@ -1251,7 +1251,7 @@ impl From<DeployTransaction> for protobuf::transaction::Deploy {
 impl TryFrom<protobuf::transaction::L1HandlerV0> for L1HandlerTransaction {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::transaction::L1HandlerV0) -> Result<Self, Self::Error> {
-        let version = TransactionVersion(Felt::ZERO);
+        let version = TransactionVersion::ZERO;
 
         let nonce = Nonce(
             value

@@ -434,7 +434,12 @@ auto_storage_serde! {
         L1Handler(L1HandlerTransactionOutput) = 4,
     }
     pub struct TransactionSignature(pub Vec<Felt>);
-    pub struct TransactionVersion(pub Felt);
+    pub enum TransactionVersion {
+        Zero(bool) = 0,
+        One(bool) = 1,
+        Two(bool) = 2,
+        Three(bool) = 3,
+    }
     pub enum ValidResourceBounds {
         L1Gas(ResourceBounds) = 0,
         AllResources(AllResourceBounds) = 1,

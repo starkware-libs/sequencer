@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use num_bigint::BigUint;
+use serde::de::Error;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use starknet_types_core::felt::Felt;
 use strum_macros::EnumIter;
@@ -208,13 +208,17 @@ impl TransactionHasher for DeclareTransactionV0V1 {
         chain_id: &ChainId,
         transaction_version: &TransactionVersion,
     ) -> Result<TransactionHash, StarknetApiError> {
-        if *transaction_version == TransactionVersion::ZERO {
-            return get_declare_transaction_v0_hash(self, chain_id, transaction_version);
+        match transaction_version {
+            TransactionVersion::Zero(_) => {
+                get_declare_transaction_v0_hash(self, chain_id, transaction_version)
+            }
+            TransactionVersion::One(_) => {
+                get_declare_transaction_v1_hash(self, chain_id, transaction_version)
+            }
+            TransactionVersion::Two(_) | TransactionVersion::Three(_) => {
+                panic!("Illegal transaction version.")
+            }
         }
-        if *transaction_version == TransactionVersion::ONE {
-            return get_declare_transaction_v1_hash(self, chain_id, transaction_version);
-        }
-        panic!("Illegal transaction version.");
     }
 }
 
@@ -830,34 +834,116 @@ pub struct ContractAddressSalt(pub StarkHash);
 pub struct TransactionSignature(pub Vec<Felt>);
 
 /// A transaction version.
-#[derive(
-    Debug,
-    Copy,
-    Clone,
-    Default,
-    Eq,
-    PartialEq,
-    Hash,
-    Deserialize,
-    Serialize,
-    PartialOrd,
-    Ord,
-    derive_more::Deref,
-)]
-pub struct TransactionVersion(pub Felt);
+/// The boolean value indicates whether the transaction is a query only transaction.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub enum TransactionVersion {
+    Zero(bool),
+    One(bool),
+    Two(bool),
+    Three(bool),
+}
 
 impl TransactionVersion {
-    /// [TransactionVersion] constant that's equal to 0.
-    pub const ZERO: Self = { Self(Felt::ZERO) };
+    pub const ZERO: Self = Self::Zero(false);
+    pub const ONE: Self = Self::One(false);
+    pub const TWO: Self = Self::Two(false);
+    pub const THREE: Self = Self::Three(false);
+    pub const ZERO_QUERY: Self = Self::Zero(true);
+    pub const ONE_QUERY: Self = Self::One(true);
+    pub const TWO_QUERY: Self = Self::Two(true);
+    pub const THREE_QUERY: Self = Self::Three(true);
 
-    /// [TransactionVersion] constant that's equal to 1.
-    pub const ONE: Self = { Self(Felt::ONE) };
+    pub fn is_query(&self) -> bool {
+        match self {
+            Self::Zero(query) | Self::One(query) | Self::Two(query) | Self::Three(query) => *query,
+        }
+    }
 
-    /// [TransactionVersion] constant that's equal to 2.
-    pub const TWO: Self = { Self(Felt::TWO) };
+    fn query_felt() -> Felt {
+        Felt::TWO.pow(QUERY_VERSION_BASE_BIT)
+    }
 
-    /// [TransactionVersion] constant that's equal to 3.
-    pub const THREE: Self = { Self(Felt::THREE) };
+    pub fn no_query(&self) -> Self {
+        match self {
+            Self::Zero(_) => Self::ZERO,
+            Self::One(_) => Self::ONE,
+            Self::Two(_) => Self::TWO,
+            Self::Three(_) => Self::THREE,
+        }
+    }
+}
+
+impl Default for TransactionVersion {
+    fn default() -> Self {
+        Self::ZERO
+    }
+}
+
+impl Serialize for TransactionVersion {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        Serialize::serialize(&Felt::from(self), serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for TransactionVersion {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        Self::try_from(<Felt as Deserialize>::deserialize(deserializer)?).map_err(D::Error::custom)
+    }
+}
+
+/// Ignore the query bit when ordering versions.
+impl Ord for TransactionVersion {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        Felt::from(self.no_query()).cmp(&Felt::from(other.no_query()))
+    }
+}
+
+impl PartialOrd for TransactionVersion {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl From<&TransactionVersion> for Felt {
+    fn from(version: &TransactionVersion) -> Self {
+        let base = match version {
+            TransactionVersion::Zero(_) => Felt::ZERO,
+            TransactionVersion::One(_) => Felt::ONE,
+            TransactionVersion::Two(_) => Felt::TWO,
+            TransactionVersion::Three(_) => Felt::THREE,
+        };
+        base + if version.is_query() { TransactionVersion::query_felt() } else { Felt::ZERO }
+    }
+}
+
+impl From<TransactionVersion> for Felt {
+    fn from(version: TransactionVersion) -> Self {
+        Self::from(&version)
+    }
+}
+
+impl TryFrom<Felt> for TransactionVersion {
+    type Error = StarknetApiError;
+
+    fn try_from(mut value: Felt) -> Result<Self, Self::Error> {
+        let query = if value >= Self::query_felt() {
+            value -= Self::query_felt();
+            true
+        } else {
+            false
+        };
+        if value == Felt::ZERO {
+            Ok(Self::Zero(query))
+        } else if value == Felt::ONE {
+            Ok(Self::One(query))
+        } else if value == Felt::TWO {
+            Ok(Self::Two(query))
+        } else if value == Felt::THREE {
+            Ok(Self::Three(query))
+        } else {
+            Err(StarknetApiError::InvalidTransactionVersion(value))
+        }
+    }
 }
 
 // TODO: TransactionVersion and SignedTransactionVersion should probably be separate types.
@@ -873,17 +959,15 @@ pub fn signed_tx_version(
     tx_version: &TransactionVersion,
     transaction_options: &TransactionOptions,
 ) -> TransactionVersion {
-    // If only_query is true, set the 128-th bit.
-    let query_only_bit = Felt::TWO.pow(QUERY_VERSION_BASE_BIT);
-    assert_eq!(
-        tx_version.0.to_biguint() & query_only_bit.to_biguint(),
-        BigUint::from(0_u8),
+    assert!(
+        !tx_version.is_query(),
         "Requested signed tx version with version that already has query bit set: {tx_version:?}."
     );
-    if transaction_options.only_query {
-        TransactionVersion(tx_version.0 + query_only_bit)
-    } else {
-        *tx_version
+    match tx_version {
+        TransactionVersion::Zero(_) => TransactionVersion::Zero(transaction_options.only_query),
+        TransactionVersion::One(_) => TransactionVersion::One(transaction_options.only_query),
+        TransactionVersion::Two(_) => TransactionVersion::Two(transaction_options.only_query),
+        TransactionVersion::Three(_) => TransactionVersion::Three(transaction_options.only_query),
     }
 }
 

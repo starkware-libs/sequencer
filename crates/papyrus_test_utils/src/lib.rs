@@ -867,7 +867,6 @@ auto_impl_get_test_instance! {
         L1Handler(L1HandlerTransactionOutput) = 4,
     }
     pub struct TransactionSignature(pub Vec<Felt>);
-    pub struct TransactionVersion(pub Felt);
     pub struct TypedParameter {
         pub name: String,
         pub r#type: String,
@@ -1092,6 +1091,10 @@ default_impl_get_test_instance!(ContractAddress);
 default_impl_get_test_instance!(StarkHash);
 default_impl_get_test_instance!(StorageKey);
 default_impl_get_test_instance!(BigUint);
+// TransactionVersion should be deterministic (zero) for backwards-compatibility with existing
+// tests. Previously this type was just a wrapper for `starknet_types_core::felt::Felt`, which is
+// implemented above with `default_impl_get_test_instance`.
+default_impl_get_test_instance!(TransactionVersion);
 
 impl GetTestInstance for StructAbiEntry {
     fn get_test_instance(rng: &mut ChaCha8Rng) -> Self {

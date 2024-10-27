@@ -261,7 +261,7 @@ fn get_common_deploy_transaction_hash(
         .chain(&DEPLOY)
         .chain_if_fn(|| {
             if !is_deprecated {
-                Some(transaction_version.0)
+                Some(transaction_version.into())
             } else {
                 None
             }
@@ -311,7 +311,7 @@ fn get_common_invoke_transaction_v0_hash(
     Ok(TransactionHash(
         HashChain::new()
             .chain(&INVOKE)
-            .chain_if_fn(|| if !is_deprecated { Some(transaction_version.0) } else { None })
+            .chain_if_fn(|| if !is_deprecated { Some(transaction_version.into()) } else { None })
             .chain(transaction.contract_address.0.key())
             .chain(&transaction.entry_point_selector.0)
             .chain(&HashChain::new().chain_iter(transaction.calldata.0.iter()).get_pedersen_hash())
@@ -329,7 +329,7 @@ pub(crate) fn get_invoke_transaction_v1_hash(
     Ok(TransactionHash(
         HashChain::new()
         .chain(&INVOKE)
-        .chain(&transaction_version.0)
+        .chain(&transaction_version.into())
         .chain(transaction.sender_address.0.key())
         .chain(&Felt::ZERO) // No entry point selector in invoke transaction.
         .chain(&HashChain::new().chain_iter(transaction.calldata.0.iter()).get_pedersen_hash())
@@ -362,7 +362,7 @@ pub(crate) fn get_invoke_transaction_v3_hash(
     Ok(TransactionHash(
         HashChain::new()
             .chain(&INVOKE)
-            .chain(&transaction_version.0)
+            .chain(&transaction_version.into())
             .chain(transaction.sender_address.0.key())
             .chain(&tip_resource_bounds_hash)
             .chain(&paymaster_data_hash)
@@ -433,7 +433,7 @@ fn get_common_l1_handler_transaction_hash(
         })
         .chain_if_fn(|| {
             if version > L1HandlerVersions::V0Deprecated {
-                Some(transaction_version.0)
+                Some(transaction_version.into())
             } else {
                 None
             }
@@ -469,7 +469,7 @@ pub(crate) fn get_declare_transaction_v0_hash(
     Ok(TransactionHash(
         HashChain::new()
         .chain(&DECLARE)
-        .chain(&transaction_version.0)
+        .chain(&transaction_version.into())
         .chain(transaction.sender_address.0.key())
         .chain(&Felt::ZERO) // No entry point selector in declare transaction.
         .chain(&HashChain::new().get_pedersen_hash())
@@ -488,7 +488,7 @@ pub(crate) fn get_declare_transaction_v1_hash(
     Ok(TransactionHash(
         HashChain::new()
         .chain(&DECLARE)
-        .chain(&transaction_version.0)
+        .chain(&transaction_version.into())
         .chain(transaction.sender_address.0.key())
         .chain(&Felt::ZERO) // No entry point selector in declare transaction.
         .chain(&HashChain::new().chain(&transaction.class_hash.0).get_pedersen_hash())
@@ -507,7 +507,7 @@ pub(crate) fn get_declare_transaction_v2_hash(
     Ok(TransactionHash(
         HashChain::new()
         .chain(&DECLARE)
-        .chain(&transaction_version.0)
+        .chain(&transaction_version.into())
         .chain(transaction.sender_address.0.key())
         .chain(&Felt::ZERO) // No entry point selector in declare transaction.
         .chain(&HashChain::new().chain(&transaction.class_hash.0).get_pedersen_hash())
@@ -539,7 +539,7 @@ pub(crate) fn get_declare_transaction_v3_hash(
     Ok(TransactionHash(
         HashChain::new()
             .chain(&DECLARE)
-            .chain(&transaction_version.0)
+            .chain(&transaction_version.into())
             .chain(transaction.sender_address.0.key())
             .chain(&tip_resource_bounds_hash)
             .chain(&paymaster_data_hash)
@@ -574,7 +574,7 @@ pub(crate) fn get_deploy_account_transaction_v1_hash(
     Ok(TransactionHash(
         HashChain::new()
         .chain(&DEPLOY_ACCOUNT)
-        .chain(&transaction_version.0)
+        .chain(&transaction_version.into())
         .chain(contract_address.0.key())
         .chain(&Felt::ZERO) // No entry point selector in deploy account transaction.
         .chain(&calldata_hash)
@@ -610,7 +610,7 @@ pub(crate) fn get_deploy_account_transaction_v3_hash(
     Ok(TransactionHash(
         HashChain::new()
             .chain(&DEPLOY_ACCOUNT)
-            .chain(&transaction_version.0)
+            .chain(&transaction_version.into())
             .chain(contract_address.0.key())
             .chain(&tip_resource_bounds_hash)
             .chain(&paymaster_data_hash)

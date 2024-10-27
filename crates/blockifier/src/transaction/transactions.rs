@@ -152,26 +152,23 @@ impl DeclareTransaction {
     ) -> TransactionExecutionResult<Self> {
         let declare_version = declare_tx.version();
         // Verify contract class version.
-        match &class_info.contract_class() {
-            // TODO: Make TransactionVersion an enum and use match here.
-            ContractClass::V0(_) => {
-                if declare_version > TransactionVersion::ONE {
-                    Err(TransactionExecutionError::ContractClassVersionMismatch {
-                        declare_version,
-                        cairo_version: 0,
-                    })?
-                }
+        match (&class_info.contract_class(), declare_version) {
+            (ContractClass::V0(_), TransactionVersion::Two(_))
+            | (ContractClass::V0(_), TransactionVersion::Three(_)) => {
+                Err(TransactionExecutionError::ContractClassVersionMismatch {
+                    declare_version,
+                    cairo_version: 0,
+                })
             }
-            ContractClass::V1(_) | ContractClass::V1Native(_) => {
-                if declare_version <= TransactionVersion::ONE {
-                    Err(TransactionExecutionError::ContractClassVersionMismatch {
-                        declare_version,
-                        cairo_version: 1,
-                    })?
-                }
+            (ContractClass::V1(_), TransactionVersion::Zero(_))
+            | (ContractClass::V1(_), TransactionVersion::One(_)) => {
+                Err(TransactionExecutionError::ContractClassVersionMismatch {
+                    declare_version,
+                    cairo_version: 1,
+                })
             }
+            _ => Ok(Self { tx: declare_tx, tx_hash, class_info, only_query }),
         }
-        Ok(Self { tx: declare_tx, tx_hash, class_info, only_query })
     }
 
     pub fn new(
