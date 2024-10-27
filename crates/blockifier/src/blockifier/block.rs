@@ -54,8 +54,8 @@ impl GasPrices {
         if GasPrice::from(eth_l2_gas_price) != expected_eth_l2_gas_price {
             // TODO!(Aner): change to panic! Requires fixing several tests.
             warn!(
-                "eth_l2_gas_price does not match expected! eth_l2_gas_price:{eth_l2_gas_price}, \
-                 expected:{expected_eth_l2_gas_price}."
+                "eth_l2_gas_price {eth_l2_gas_price} does not match expected eth_l2_gas_price \
+                 {expected_eth_l2_gas_price}."
             )
         }
         let expected_strk_l2_gas_price = VersionedConstants::latest_constants()
@@ -63,8 +63,8 @@ impl GasPrices {
         if GasPrice::from(strk_l2_gas_price) != expected_strk_l2_gas_price {
             // TODO!(Aner): change to panic! Requires fixing test_discounted_gas_overdraft
             warn!(
-                "strk_l2_gas_price does not match expected! \
-                 strk_l2_gas_price:{strk_l2_gas_price}, expected:{expected_strk_l2_gas_price}."
+                "strk_l2_gas_price {strk_l2_gas_price} does not match expected strk_l2_gas_price \
+                 {expected_strk_l2_gas_price}."
             )
         }
 
