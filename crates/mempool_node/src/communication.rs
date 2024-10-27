@@ -10,7 +10,11 @@ use starknet_gateway_types::communication::{
     LocalGatewayClient,
     SharedGatewayClient,
 };
-use starknet_mempool_p2p_types::communication::MempoolP2pPropagatorRequestAndResponseSender;
+use starknet_mempool_p2p_types::communication::{
+    LocalMempoolP2pPropagatorClient,
+    MempoolP2pPropagatorRequestAndResponseSender,
+    SharedMempoolP2pPropagatorClient,
+};
 use starknet_mempool_types::communication::{
     LocalMempoolClient,
     MempoolRequestAndResponseSender,
@@ -91,6 +95,7 @@ pub struct SequencerNodeClients {
     mempool_client: Option<SharedMempoolClient>,
     gateway_client: Option<SharedGatewayClient>,
     // TODO (Lev): Change to Option<Box<dyn MemPoolClient>>.
+    propagator_client: Option<SharedMempoolP2pPropagatorClient>,
 }
 
 impl SequencerNodeClients {
@@ -104,6 +109,10 @@ impl SequencerNodeClients {
 
     pub fn get_gateway_client(&self) -> Option<SharedGatewayClient> {
         self.gateway_client.clone()
+    }
+
+    pub fn get_propagator_client(&self) -> Option<SharedMempoolP2pPropagatorClient> {
+        self.propagator_client.clone()
     }
 }
 
@@ -123,5 +132,13 @@ pub fn create_node_clients(
         true => Some(Arc::new(LocalGatewayClient::new(channels.take_gateway_tx()))),
         false => None,
     };
-    SequencerNodeClients { batcher_client, mempool_client, gateway_client }
+
+    let propagator_client: Option<SharedMempoolP2pPropagatorClient> =
+        match config.components.mempool.execute {
+            true => {
+                Some(Arc::new(LocalMempoolP2pPropagatorClient::new(channels.take_propagator_tx())))
+            }
+            false => None,
+        };
+    SequencerNodeClients { batcher_client, mempool_client, gateway_client, propagator_client }
 }
