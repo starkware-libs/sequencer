@@ -21,6 +21,7 @@ use papyrus_consensus::types::{
 };
 use papyrus_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
 use papyrus_protobuf::consensus::{
+    HeightAndRound,
     ProposalFin,
     ProposalInit,
     ProposalPart,
@@ -116,7 +117,7 @@ pub struct SequencerConsensusContext {
     // Stores proposals for future rounds until the round is reached.
     queued_proposals:
         BTreeMap<Round, (ValidationParams, oneshot::Sender<(ProposalContentId, ProposalFin)>)>,
-    outbound_proposal_sender: mpsc::Sender<(u64, mpsc::Receiver<ProposalPart>)>,
+    outbound_proposal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
     // Used to broadcast votes to other consensus nodes.
     vote_broadcast_client: BroadcastTopicClient<Vote>,
     // Used to convert Transaction to ExecutableTransaction.
@@ -127,7 +128,7 @@ pub struct SequencerConsensusContext {
 impl SequencerConsensusContext {
     pub fn new(
         batcher: Arc<dyn BatcherClient>,
-        outbound_proposal_sender: mpsc::Sender<(u64, mpsc::Receiver<ProposalPart>)>,
+        outbound_proposal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
         vote_broadcast_client: BroadcastTopicClient<Vote>,
         num_validators: u64,
         chain_id: ChainId,
@@ -175,7 +176,7 @@ impl ConsensusContext for SequencerConsensusContext {
         self.proposal_id += 1;
         assert!(timeout > BUILD_PROPOSAL_MARGIN);
         let (proposal_sender, proposal_receiver) = mpsc::channel(CHANNEL_SIZE);
-        let stream_id = proposal_init.height.0;
+        let stream_id = HeightAndRound(proposal_init.height.0, proposal_init.round);
         self.outbound_proposal_sender
             .send((stream_id, proposal_receiver))
             .await

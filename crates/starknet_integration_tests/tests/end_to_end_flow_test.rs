@@ -5,6 +5,7 @@ use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerato
 use papyrus_consensus::types::ValidatorId;
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{
+    HeightAndRound,
     ProposalFin,
     ProposalInit,
     ProposalPart,
@@ -108,7 +109,9 @@ async fn wait_for_sequencer_node(sequencer: &FlowSequencerSetup) {
 }
 
 async fn listen_to_broadcasted_messages(
-    consensus_proposals_channels: &mut BroadcastTopicChannels<StreamMessage<ProposalPart>>,
+    consensus_proposals_channels: &mut BroadcastTopicChannels<
+        StreamMessage<ProposalPart, HeightAndRound>,
+    >,
     expected_batched_tx_hashes: &[TransactionHash],
     expected_height: BlockNumber,
     expected_content_id: Felt,

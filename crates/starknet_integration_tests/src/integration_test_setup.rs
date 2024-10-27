@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use blockifier::context::ChainInfo;
 use mempool_test_utils::starknet_api_test_utils::{Contract, MultiAccountTransactionGenerator};
 use papyrus_network::network_manager::BroadcastTopicChannels;
-use papyrus_protobuf::consensus::{ProposalPart, StreamMessage};
+use papyrus_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage};
 use papyrus_storage::{StorageConfig, StorageReader};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
@@ -36,7 +36,8 @@ pub struct IntegrationTestSetup {
     // TODO: To validate test results instead of reading storage - delete this and use monitoring
     // or use this.
     // Channels for consensus proposals, used for validating test results.
-    pub consensus_proposals_channels: BroadcastTopicChannels<StreamMessage<ProposalPart>>,
+    pub consensus_proposals_channels:
+        BroadcastTopicChannels<StreamMessage<ProposalPart, HeightAndRound>>,
 }
 
 impl IntegrationTestSetup {
