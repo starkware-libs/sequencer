@@ -937,7 +937,7 @@ pub struct EventContent {
     pub data: EventData,
 }
 
-/// An event key.
+/// An event key...
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct EventKey(pub Felt);
 
