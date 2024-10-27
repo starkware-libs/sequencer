@@ -10410,6 +10410,7 @@ dependencies = [
  "starknet_http_server",
  "starknet_mempool",
  "starknet_mempool_p2p",
+ "starknet_mempool_p2p_types",
  "starknet_mempool_types",
  "starknet_monitoring_endpoint",
  "starknet_sequencer_infra",
