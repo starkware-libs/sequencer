@@ -1,9 +1,11 @@
 use std::sync::Arc;
 
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use serde_json::Value;
 use starknet_api::block::{BlockHash, BlockNumber, BlockTimestamp, NonzeroGasPrice};
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, Nonce, PatriciaKey};
+use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::hash::StarkHash;
 use starknet_api::transaction::{Fee, TransactionHash, TransactionVersion};
 use starknet_api::{calldata, contract_address, patricia_key};
@@ -17,7 +19,6 @@ use crate::bouncer::{BouncerConfig, BouncerWeights, BuiltinCount};
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::common_hints::ExecutionMode;
-use crate::execution::contract_class::{ContractClassV0, ContractClassV1};
 use crate::execution::entry_point::{
     CallEntryPoint,
     EntryPointExecutionContext,
@@ -224,17 +225,21 @@ impl CallExecution {
 
 // Contract loaders.
 
-impl ContractClassV0 {
-    pub fn from_file(contract_path: &str) -> Self {
+pub trait LoadFile {
+    fn from_file(file_path: &str) -> Self;
+}
+
+impl LoadFile for DeprecatedContractClass {
+    fn from_file(contract_path: &str) -> Self {
         let raw_contract_class = get_raw_contract_class(contract_path);
-        Self::try_from_json_string(&raw_contract_class).unwrap()
+        serde_json::from_str(&raw_contract_class).unwrap()
     }
 }
 
-impl ContractClassV1 {
-    pub fn from_file(contract_path: &str) -> Self {
+impl LoadFile for CasmContractClass {
+    fn from_file(contract_path: &str) -> Self {
         let raw_contract_class = get_raw_contract_class(contract_path);
-        Self::try_from_json_string(&raw_contract_class).unwrap()
+        serde_json::from_str(&raw_contract_class).unwrap()
     }
 }
 

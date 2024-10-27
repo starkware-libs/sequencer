@@ -15,6 +15,7 @@ use cairo_lang_utils::bigint::BigUintAsHex;
 #[allow(unused_imports)]
 use cairo_native::executor::AotNativeExecutor;
 use cairo_vm::serde::deserialize_program::{
+    deserialize_array_of_bigint_hex,
     ApTracking,
     FlowTrackingData,
     HintParams,
@@ -527,7 +528,7 @@ fn convert_entry_points_v1(external: &[CasmContractEntryPoint]) -> Vec<EntryPoin
 #[derive(Clone, Debug)]
 // TODO(Ayelet,10/02/2024): Change to bytes.
 pub struct ClassInfo {
-    contract_class: ContractClass,
+    contract_class: RawContractClass,
     sierra_program_length: usize,
     abi_length: usize,
 }
@@ -542,16 +543,23 @@ impl TryFrom<starknet_api::contract_class::ClassInfo> for ClassInfo {
             abi_length,
         } = class_info;
 
-        Ok(Self { contract_class: contract_class.try_into()?, sierra_program_length, abi_length })
+        Ok(Self { contract_class: contract_class.clone(), sierra_program_length, abi_length })
     }
 }
 
 impl ClassInfo {
     pub fn bytecode_length(&self) -> usize {
-        self.contract_class.bytecode_length()
+        match &self.contract_class {
+            RawContractClass::V0(contract_address) => {
+                let data = deserialize_array_of_bigint_hex(&contract_address.program.data)
+                    .expect("Failed deserializing the program data.");
+                data.len()
+            }
+            RawContractClass::V1(contract_address) => contract_address.bytecode.len(),
+        }
     }
 
-    pub fn contract_class(&self) -> ContractClass {
+    pub fn contract_class(&self) -> RawContractClass {
         self.contract_class.clone()
     }
 
@@ -571,13 +579,13 @@ impl ClassInfo {
     }
 
     pub fn new(
-        contract_class: &ContractClass,
+        contract_class: &RawContractClass,
         sierra_program_length: usize,
         abi_length: usize,
     ) -> ContractClassResult<Self> {
         let (contract_class_version, condition) = match contract_class {
-            ContractClass::V0(_) => (0, sierra_program_length == 0),
-            ContractClass::V1(_) | ContractClass::V1Native(_) => (1, sierra_program_length > 0),
+            RawContractClass::V0(_) => (0, sierra_program_length == 0),
+            RawContractClass::V1(_) => (1, sierra_program_length > 0),
         };
 
         if condition {

@@ -462,7 +462,7 @@ fn test_invoke_tx(
     let actual_execution_info = account_tx.execute(state, block_context, true, true).unwrap();
 
     let tracked_resource = account_contract
-        .get_class()
+        .get_runnable_class()
         .tracked_resource(&versioned_constants.min_compiler_version_for_sierra_gas);
 
     // Build expected validate call info.
@@ -1415,7 +1415,7 @@ fn test_declare_tx(
         account.get_class_hash(),
         sender_address,
         account
-            .get_class()
+            .get_runnable_class()
             .tracked_resource(&versioned_constants.min_compiler_version_for_sierra_gas),
         if tx_version >= TransactionVersion::THREE {
             user_initial_gas_from_bounds(default_l1_resource_bounds)
@@ -1495,7 +1495,7 @@ fn test_declare_tx(
 
     // Verify class declaration.
     let contract_class_from_state = state.get_compiled_contract_class(class_hash).unwrap();
-    assert_eq!(contract_class_from_state, class_info.contract_class());
+    assert_eq!(contract_class_from_state, class_info.contract_class().try_into().unwrap());
 
     // Checks that redeclaring the same contract fails.
     let account_tx2 = declare_tx(
@@ -1573,7 +1573,7 @@ fn test_deploy_account_tx(
         deployed_account_address,
         cairo_version,
         account
-            .get_class()
+            .get_runnable_class()
             .tracked_resource(&versioned_constants.min_compiler_version_for_sierra_gas),
         user_initial_gas_from_bounds(default_l1_resource_bounds),
     );
@@ -2098,7 +2098,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
         },
         accessed_storage_keys: HashSet::from_iter(vec![accessed_storage_key]),
         tracked_resource: test_contract
-            .get_class()
+            .get_runnable_class()
             .tracked_resource(&versioned_constants.min_compiler_version_for_sierra_gas),
         ..Default::default()
     };

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
-use starknet_api::contract_class::EntryPointType;
+use starknet_api::contract_class::{ContractClass, EntryPointType};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::transaction::{
     AccountDeploymentData,
@@ -18,7 +18,7 @@ use starknet_api::transaction::{
 use crate::abi::abi_utils::selector_from_name;
 use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::CallInfo;
-use crate::execution::contract_class::{ClassInfo, ContractClass};
+use crate::execution::contract_class::ClassInfo;
 use crate::execution::entry_point::{
     CallEntryPoint,
     CallType,
@@ -162,7 +162,7 @@ impl DeclareTransaction {
                     })?
                 }
             }
-            ContractClass::V1(_) | ContractClass::V1Native(_) => {
+            ContractClass::V1(_) => {
                 if declare_version <= TransactionVersion::ONE {
                     Err(TransactionExecutionError::ContractClassVersionMismatch {
                         declare_version,
@@ -234,7 +234,7 @@ impl DeclareTransaction {
         match state.get_compiled_contract_class(class_hash) {
             Err(StateError::UndeclaredClassHash(_)) => {
                 // Class is undeclared; declare it.
-                state.set_contract_class(class_hash, self.contract_class())?;
+                state.set_contract_class(class_hash, self.contract_class().try_into()?)?;
                 if let Some(compiled_class_hash) = compiled_class_hash {
                     state.set_compiled_class_hash(class_hash, compiled_class_hash)?;
                 }
@@ -268,7 +268,7 @@ impl<S: State> Executable<S> for DeclareTransaction {
                     // We allow redeclaration of the class for backward compatibility.
                     // In the past, we allowed redeclaration of Cairo 0 contracts since there was
                     // no class commitment (so no need to check if the class is already declared).
-                    state.set_contract_class(class_hash, self.contract_class())?;
+                    state.set_contract_class(class_hash, self.contract_class().try_into()?)?;
                 }
             }
             starknet_api::transaction::DeclareTransaction::V2(DeclareTransactionV2 {

@@ -47,7 +47,6 @@ use crate::abi::abi_utils::{
 };
 use crate::check_tx_execution_error_for_invalid_scenario;
 use crate::context::{BlockContext, TransactionContext};
-use crate::execution::contract_class::{ContractClass, ContractClassV1};
 use crate::execution::entry_point::EntryPointExecutionContext;
 use crate::execution::syscalls::SyscallSelector;
 use crate::fee::fee_utils::{get_fee_by_gas_vector, get_sequencer_balance_keys};
@@ -667,7 +666,9 @@ fn test_fail_declare(block_context: BlockContext, max_fee: Fee) {
     let TestInitData { mut state, account_address, mut nonce_manager, .. } =
         create_test_init_data(chain_info, CairoVersion::Cairo0);
     let class_hash = class_hash!(0xdeadeadeaf72_u128);
-    let contract_class = ContractClass::V1(ContractClassV1::empty_for_testing());
+    let faulty_account_feature_contract = FeatureContract::FaultyAccount(CairoVersion::Cairo1);
+
+    let contract_class = faulty_account_feature_contract.get_runnable_class();
     let next_nonce = nonce_manager.next(account_address);
 
     // Cannot fail executing a declare tx unless it's V2 or above, and already declared.
@@ -679,7 +680,7 @@ fn test_fail_declare(block_context: BlockContext, max_fee: Fee) {
     };
     state.set_contract_class(class_hash, contract_class.clone()).unwrap();
     state.set_compiled_class_hash(class_hash, declare_tx.compiled_class_hash).unwrap();
-    let class_info = calculate_class_info_for_testing(contract_class);
+    let class_info = calculate_class_info_for_testing(faulty_account_feature_contract.get_class());
     let declare_account_tx = AccountTransaction::Declare(
         DeclareTransaction::new(
             starknet_api::transaction::DeclareTransaction::V2(DeclareTransactionV2 {

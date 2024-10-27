@@ -1,17 +1,13 @@
 use std::collections::BTreeMap;
 
-use blockifier::execution::contract_class::{
-    ClassInfo,
-    ContractClass,
-    ContractClassV0,
-    ContractClassV1,
-};
+use blockifier::execution::contract_class::ClassInfo;
 use blockifier::transaction::account_transaction::AccountTransaction;
 use blockifier::transaction::transaction_execution::Transaction;
 use blockifier::transaction::transaction_types::TransactionType;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use starknet_api::block::GasPrice;
+use starknet_api::contract_class::ContractClass;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::{
     DeprecatedResourceBoundsMapping,
@@ -173,11 +169,11 @@ impl PyClassInfo {
         let contract_class: ContractClass = match tx {
             starknet_api::transaction::DeclareTransaction::V0(_)
             | starknet_api::transaction::DeclareTransaction::V1(_) => {
-                ContractClassV0::try_from_json_string(&py_class_info.raw_contract_class)?.into()
+                ContractClass::V0(serde_json::from_str(&py_class_info.raw_contract_class)?)
             }
             starknet_api::transaction::DeclareTransaction::V2(_)
             | starknet_api::transaction::DeclareTransaction::V3(_) => {
-                ContractClassV1::try_from_json_string(&py_class_info.raw_contract_class)?.into()
+                ContractClass::V1(serde_json::from_str(&py_class_info.raw_contract_class)?)
             }
         };
         let class_info = ClassInfo::new(
