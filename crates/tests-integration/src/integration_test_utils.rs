@@ -16,7 +16,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::core::{ContractAddress, PatriciaKey};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
-use starknet_api::{contract_address, felt, patricia_key};
+use starknet_api::{contract_address, patricia_key};
 use starknet_batcher::block_builder::BlockBuilderConfig;
 use starknet_batcher::config::BatcherConfig;
 use starknet_consensus_manager::config::ConsensusManagerConfig;
