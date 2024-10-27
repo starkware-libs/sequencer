@@ -3,7 +3,7 @@ use std::fmt::Debug;
 
 use async_trait::async_trait;
 use tokio::sync::mpsc::Receiver;
-use tracing::{debug, info};
+use tracing::info;
 
 use crate::component_definitions::{ComponentRequestAndResponseSender, ComponentRequestHandler};
 use crate::errors::{ComponentServerError, ReplaceComponentError};
@@ -27,10 +27,10 @@ pub async fn request_response_loop<Request, Response, Component>(
     while let Some(request_and_res_tx) = rx.recv().await {
         let request = request_and_res_tx.request;
         let tx = request_and_res_tx.tx;
-        debug!("Component {} received request {:?}", type_name::<Component>(), request);
+        // debug!("Component {} received request {:?}", type_name::<Component>(), request);
 
         let response = component.handle_request(request).await;
-        debug!("Component {} is sending response {:?}", type_name::<Component>(), response);
+        // debug!("Component {} is sending response {:?}", type_name::<Component>(), response);
 
         // TODO(Tsabary): revert `try_send` to `send` once the client is guaranteed to be alive,
         // i.e., tx.send(response).await.expect("Response connection should be open.");

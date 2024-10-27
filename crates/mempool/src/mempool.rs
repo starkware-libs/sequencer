@@ -11,6 +11,7 @@ use starknet_mempool_types::mempool_types::{
     CommitBlockArgs,
     MempoolResult,
 };
+use tracing::trace;
 
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::TransactionQueue;
@@ -70,10 +71,10 @@ impl Mempool {
             self.mempool_state.insert(tx_ref.address, tx_ref.nonce);
         }
 
-        tracing::info!(
-            "Returned {} out of {n_txs} transactions, ready for sequencing.",
-            eligible_tx_references.len()
-        );
+        // tracing::info!(
+        //     "Returned {} out of {n_txs} transactions, ready for sequencing.",
+        //     eligible_tx_references.len()
+        // );
 
         Ok(eligible_tx_references
             .iter()
@@ -103,6 +104,7 @@ impl Mempool {
         self.validate_incoming_nonce(tx.nonce(), account_state)?;
 
         self.handle_fee_escalation(&tx)?;
+        trace!("Transaction {:?} inserted into mempool.", tx.tx_hash());
         self.tx_pool.insert(tx)?;
 
         // Align to account nonce, only if it is at least the one stored.

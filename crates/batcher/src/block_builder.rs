@@ -169,6 +169,7 @@ impl BlockBuilderTrait for BlockBuilder {
             };
             let mut executor_input_chunk = vec![];
             for tx in &next_tx_chunk {
+                trace!("Adding transaction {:?} to the block.", tx.tx_hash());
                 executor_input_chunk
                     .push(BlockifierTransaction::Account(AccountTransaction::try_from(tx)?));
             }

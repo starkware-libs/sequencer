@@ -54,6 +54,8 @@ pub fn dump_config_file_changes(config: SequencerNodeConfig) -> anyhow::Result<(
         config.gateway_config.chain_info.fee_token_addresses.eth_fee_token_address,
         config.gateway_config.chain_info.fee_token_addresses.strk_fee_token_address,
         config.consensus_manager_config.consensus_config.start_height,
+        config.batcher_config.block_builder_config.chain_info.fee_token_addresses.eth_fee_token_address,
+        config.batcher_config.block_builder_config.chain_info.fee_token_addresses.strk_fee_token_address,
     );
     dump_json_data(json_data, NODE_CONFIG_CHANGES_FILE_PATH)?;
 
