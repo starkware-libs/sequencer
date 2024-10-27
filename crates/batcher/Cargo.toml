@@ -23,7 +23,6 @@ starknet_mempool_types.workspace = true
 starknet_sequencer_infra.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
-tokio-stream.workspace = true
 tracing.workspace = true
 validator.workspace = true
 

@@ -10162,7 +10162,6 @@ dependencies = [
  "starknet_sequencer_infra",
  "thiserror",
  "tokio",
- "tokio-stream",
  "tracing",
  "validator",
 ]
