@@ -26,18 +26,9 @@ use crate::version::VERSION_FULL;
 pub const DEFAULT_CONFIG_PATH: &str = "config/mempool/default_config.json";
 
 // Configuration parameters that share the same value across multiple components.
-type ConfigPointers = Vec<((ParamPath, SerializedParam), Vec<ParamPath>)>;
 pub const DEFAULT_CHAIN_ID: ChainId = ChainId::Mainnet;
-pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
-    vec![(
-        ser_pointer_target_param("chain_id", &DEFAULT_CHAIN_ID, "The chain to follow."),
-        vec![
-            "batcher_config.block_builder_config.chain_info.chain_id".to_owned(),
-            "batcher_config.storage.db_config.chain_id".to_owned(),
-            "gateway_config.chain_info.chain_id".to_owned(),
-            "mempool_p2p_config.network_config.chain_id".to_owned(),
-        ],
-    )]
+pub static CONFIG_POINTERS: LazyLock<Vec<(ParamPath, SerializedParam)>> = LazyLock::new(|| {
+    vec![ser_pointer_target_param("chain_id", &DEFAULT_CHAIN_ID, "The chain to follow.")]
 });
 
 // TODO(yair): Make the GW and batcher execution config point to the same values.
