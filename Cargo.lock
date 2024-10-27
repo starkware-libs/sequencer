@@ -10354,7 +10354,6 @@ dependencies = [
  "starknet_gateway_types",
  "starknet_http_server",
  "starknet_mempool_node",
- "starknet_mempool_types",
  "starknet_sequencer_infra",
  "starknet_task_executor",
  "strum 0.25.0",

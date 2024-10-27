@@ -13,8 +13,10 @@ use papyrus_consensus::config::ConsensusConfig;
 use papyrus_storage::StorageConfig;
 use reqwest::{Client, Response};
 use starknet_api::block::BlockNumber;
+use starknet_api::core::{ContractAddress, PatriciaKey};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
+use starknet_api::{contract_address, felt, patricia_key};
 use starknet_batcher::block_builder::BlockBuilderConfig;
 use starknet_batcher::config::BatcherConfig;
 use starknet_consensus_manager::config::ConsensusManagerConfig;
@@ -26,13 +28,20 @@ use starknet_gateway::config::{
 };
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_http_server::config::HttpServerConfig;
-use starknet_mempool_node::config::SequencerNodeConfig;
+use starknet_mempool_node::config::component_config::ComponentConfig;
+use starknet_mempool_node::config::{ComponentExecutionConfig, SequencerNodeConfig};
 use tokio::net::TcpListener;
 
 pub async fn create_config(
     rpc_server_addr: SocketAddr,
     batcher_storage_config: StorageConfig,
 ) -> SequencerNodeConfig {
+    // TODO(Arni/ Matan): Enable the consensus in the end to end test.
+    let components = ComponentConfig {
+        consensus_manager: ComponentExecutionConfig { execute: false, ..Default::default() },
+        ..Default::default()
+    };
+
     let chain_id = batcher_storage_config.db_config.chain_id.clone();
     let mut chain_info = ChainInfo::create_for_testing();
     chain_info.chain_id = chain_id.clone();
@@ -45,6 +54,7 @@ pub async fn create_config(
     };
     SequencerNodeConfig {
         chain_id,
+        components,
         batcher_config,
         consensus_manager_config,
         gateway_config,
@@ -194,9 +204,16 @@ fn create_batcher_config(
     batcher_storage_config: StorageConfig,
     chain_info: ChainInfo,
 ) -> BatcherConfig {
+    // TODO(Arni): Create BlockBuilderConfig create for testing method and use here.
+    const SEQUENCER_ADDRESS_FOR_TESTING: u128 = 1991;
+
     BatcherConfig {
         storage: batcher_storage_config,
-        block_builder_config: BlockBuilderConfig { chain_info, ..Default::default() },
+        block_builder_config: BlockBuilderConfig {
+            chain_info,
+            sequencer_address: contract_address!(SEQUENCER_ADDRESS_FOR_TESTING),
+            ..Default::default()
+        },
         ..Default::default()
     }
 }
