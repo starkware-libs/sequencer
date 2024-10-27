@@ -17,6 +17,7 @@ clap = { workspace = true, features = ["cargo", "derive"] }
 flate2.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
 papyrus_execution.workspace = true
+pretty_assertions.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 starknet-core.workspace = true
@@ -27,7 +28,6 @@ thiserror.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true
-pretty_assertions.workspace = true
 rstest.workspace = true
 
 [lints]
