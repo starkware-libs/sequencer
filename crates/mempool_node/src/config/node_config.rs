@@ -33,22 +33,12 @@ use crate::version::VERSION_FULL;
 pub const DEFAULT_CONFIG_PATH: &str = "config/mempool/default_config.json";
 
 // Configuration parameters that share the same value across multiple components.
-type ConfigPointers = Vec<((ParamPath, SerializedParam), Vec<ParamPath>)>;
 pub const DEFAULT_CHAIN_ID: ChainId = ChainId::Mainnet;
-// TODO(Tsabary/AlonH): Discuss testing of required parameters.
-pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
-    vec![(
-        ser_pointer_target_required_param(
-            "chain_id",
-            SerializationType::String,
-            "The chain to follow.",
-        ),
-        vec![
-            "batcher_config.block_builder_config.chain_info.chain_id".to_owned(),
-            "batcher_config.storage.db_config.chain_id".to_owned(),
-            "gateway_config.chain_info.chain_id".to_owned(),
-            "mempool_p2p_config.network_config.chain_id".to_owned(),
-        ],
+pub static CONFIG_POINTERS: LazyLock<Vec<(ParamPath, SerializedParam)>> = LazyLock::new(|| {
+    vec![ser_pointer_target_required_param(
+        "chain_id",
+        SerializationType::String,
+        "The chain to follow.",
     )]
 });
 
@@ -58,16 +48,14 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
 // Creates a vector of strings with the command name and required parameters that can be used as
 // arguments to load a config.
 #[cfg(any(feature = "testing", test))]
-pub fn create_test_config_load_args(
-    pointers: &Vec<((ParamPath, SerializedParam), Vec<ParamPath>)>,
-) -> Vec<String> {
+pub fn create_test_config_load_args(pointers: &Vec<(ParamPath, SerializedParam)>) -> Vec<String> {
     let mut dummy_values = Vec::new();
 
     // Command name.
     dummy_values.push(node_command().to_string());
 
     // Iterate over required config parameters and add them as args with suitable arbitrary values.
-    for ((target_param, serialized_pointer), _) in pointers {
+    for (target_param, serialized_pointer) in pointers {
         // Param name.
         let required_param_name_as_arg = format!("--{}", target_param);
         dummy_values.push(required_param_name_as_arg);

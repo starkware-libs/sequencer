@@ -252,35 +252,49 @@ fn test_nested_config_presentation() {
 
 #[test]
 fn test_pointers_flow() {
+    const TARGET_PARAM_NAME: &str = "a";
+    const TARGET_PARAM_DESCRIPTION: &str = "This is common a.";
+    const POINTING_PARAM_DESCRIPTION: &str = "This is a.";
+    const PUBLIC_POINTING_PARAM_NAME: &str = "public_a.a";
+    const PRIVATE_POINTING_PARAM_NAME: &str = "private_a.a";
+
     let config_map = BTreeMap::from([
-        ser_param("a1", &json!(5), "This is a.", ParamPrivacyInput::Public),
-        ser_param("a2", &json!(5), "This is a.", ParamPrivacyInput::Private),
+        ser_param(
+            PUBLIC_POINTING_PARAM_NAME,
+            &json!(5),
+            POINTING_PARAM_DESCRIPTION,
+            ParamPrivacyInput::Public,
+        ),
+        ser_param(
+            PRIVATE_POINTING_PARAM_NAME,
+            &json!(5),
+            POINTING_PARAM_DESCRIPTION,
+            ParamPrivacyInput::Private,
+        ),
     ]);
-    let pointers = vec![(
-        ser_pointer_target_param("common_a", &json!(10), "This is common a"),
-        vec!["a1".to_owned(), "a2".to_owned()],
-    )];
+    let pointers =
+        vec![ser_pointer_target_param(TARGET_PARAM_NAME, &json!(10), TARGET_PARAM_DESCRIPTION)];
     let stored_map = combine_config_map_and_pointers(config_map, &pointers).unwrap();
     assert_eq!(
-        stored_map["a1"],
+        stored_map[PUBLIC_POINTING_PARAM_NAME],
         json!(SerializedParam {
-            description: "This is a.".to_owned(),
-            content: SerializedContent::PointerTarget("common_a".to_owned()),
+            description: POINTING_PARAM_DESCRIPTION.to_owned(),
+            content: SerializedContent::PointerTarget(TARGET_PARAM_NAME.to_owned()),
             privacy: ParamPrivacy::Public,
         })
     );
     assert_eq!(
-        stored_map["a2"],
+        stored_map[PRIVATE_POINTING_PARAM_NAME],
         json!(SerializedParam {
-            description: "This is a.".to_owned(),
-            content: SerializedContent::PointerTarget("common_a".to_owned()),
+            description: POINTING_PARAM_DESCRIPTION.to_owned(),
+            content: SerializedContent::PointerTarget(TARGET_PARAM_NAME.to_owned()),
             privacy: ParamPrivacy::Private,
         })
     );
     assert_eq!(
-        stored_map["common_a"],
+        stored_map[TARGET_PARAM_NAME],
         json!(SerializedParam {
-            description: "This is common a".to_owned(),
+            description: TARGET_PARAM_DESCRIPTION.to_owned(),
             content: SerializedContent::DefaultValue(json!(10)),
             privacy: ParamPrivacy::TemporaryValue,
         })
@@ -290,34 +304,43 @@ fn test_pointers_flow() {
     let (loaded_config_map, loaded_pointers_map) = split_pointers_map(loaded);
     let (mut config_map, _) = split_values_and_types(loaded_config_map);
     update_config_map_by_pointers(&mut config_map, &loaded_pointers_map).unwrap();
-    assert_eq!(config_map["a1"], json!(10));
-    assert_eq!(config_map["a1"], config_map["a2"]);
+    assert_eq!(config_map[PUBLIC_POINTING_PARAM_NAME], json!(10));
+    assert_eq!(config_map[PUBLIC_POINTING_PARAM_NAME], config_map[PRIVATE_POINTING_PARAM_NAME]);
 }
 
 #[test]
 fn test_required_pointers_flow() {
     // Set up the config map and pointers.
-    const REQUIRED_PARAM_NAME: &str = "common_required_b";
+    const REQUIRED_PARAM_NAME: &str = "b";
     const REQUIRED_PARAM_DESCRIPTION: &str = "This is common required b.";
     const POINTING_PARAM_DESCRIPTION: &str = "This is b.";
+    const PUBLIC_POINTING_PARAM_NAME: &str = "public_b.b";
+    const PRIVATE_POINTING_PARAM_NAME: &str = "private_b.b";
 
     let config_map = BTreeMap::from([
-        ser_param("b1", &json!(6), POINTING_PARAM_DESCRIPTION, ParamPrivacyInput::Public),
-        ser_param("b2", &json!(6), POINTING_PARAM_DESCRIPTION, ParamPrivacyInput::Private),
-    ]);
-    let pointers = vec![(
-        ser_pointer_target_required_param(
-            REQUIRED_PARAM_NAME,
-            SerializationType::PositiveInteger,
-            REQUIRED_PARAM_DESCRIPTION,
+        ser_param(
+            PUBLIC_POINTING_PARAM_NAME,
+            &json!(6),
+            POINTING_PARAM_DESCRIPTION,
+            ParamPrivacyInput::Public,
         ),
-        vec!["b1".to_owned(), "b2".to_owned()],
+        ser_param(
+            PRIVATE_POINTING_PARAM_NAME,
+            &json!(6),
+            POINTING_PARAM_DESCRIPTION,
+            ParamPrivacyInput::Private,
+        ),
+    ]);
+    let pointers = vec![ser_pointer_target_required_param(
+        REQUIRED_PARAM_NAME,
+        SerializationType::PositiveInteger,
+        REQUIRED_PARAM_DESCRIPTION,
     )];
     let stored_map = combine_config_map_and_pointers(config_map, &pointers).unwrap();
 
     // Assert the pointing parameters are correctly set.
     assert_eq!(
-        stored_map["b1"],
+        stored_map[PUBLIC_POINTING_PARAM_NAME],
         json!(SerializedParam {
             description: POINTING_PARAM_DESCRIPTION.to_owned(),
             content: SerializedContent::PointerTarget(REQUIRED_PARAM_NAME.to_owned()),
@@ -325,7 +348,7 @@ fn test_required_pointers_flow() {
         })
     );
     assert_eq!(
-        stored_map["b2"],
+        stored_map[PRIVATE_POINTING_PARAM_NAME],
         json!(SerializedParam {
             description: POINTING_PARAM_DESCRIPTION.to_owned(),
             content: SerializedContent::PointerTarget(REQUIRED_PARAM_NAME.to_owned()),
