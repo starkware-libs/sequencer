@@ -198,7 +198,7 @@ impl ConsensusContext for SequencerConsensusContext {
         precommits: Vec<Vote>,
     ) -> Result<(), ConsensusError> {
         let height = precommits[0].height;
-        info!("Finished consensus for height: {height}. Agreed on block: {:}", block);
+        info!("Finished consensus for height: {height}. Agreed on block: {:#064x}", block.0);
 
         // TODO(matan): Broadcast the decision to the network.
 
