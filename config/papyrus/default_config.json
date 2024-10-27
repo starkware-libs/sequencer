@@ -54,7 +54,7 @@
     "privacy": "Public",
     "value": 30000
   },
-  "central.url": {
+  "central.starknet_url": {
     "description": "Starknet feeder-gateway URL. It should match chain_id.",
     "pointer_target": "starknet_url",
     "privacy": "Public"
