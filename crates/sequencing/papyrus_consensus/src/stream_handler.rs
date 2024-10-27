@@ -1,5 +1,7 @@
 //! Stream handler, see StreamManager struct.
-use std::collections::hash_map::Entry;
+use std::cmp::Ordering;
+use std::collections::btree_map::Entry as BTreeEntry;
+use std::collections::hash_map::Entry as HashMapEntry;
 use std::collections::{BTreeMap, HashMap};
 
 use futures::channel::mpsc;
@@ -175,8 +177,8 @@ impl<T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversi
         let message_id = message.message_id;
 
         let data = match self.inbound_stream_data.entry(key.clone()) {
-            Entry::Occupied(entry) => entry.into_mut(),
-            Entry::Vacant(e) => {
+            HashMapEntry::Occupied(entry) => entry.into_mut(),
+            HashMapEntry::Vacant(e) => {
                 // If we received a message for a stream that we have not seen before,
                 // we need to create a new receiver for it.
                 let (sender, receiver) = mpsc::channel(CHANNEL_BUFFER_LENGTH);
@@ -222,38 +224,45 @@ impl<T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversi
         }
 
         // This means we can just send the message without buffering it.
-        if message_id == data.next_message_id {
-            Self::inbound_send(data, message);
-            Self::process_buffer(data);
+        match message_id.cmp(&data.next_message_id) {
+            Ordering::Equal => {
+                Self::inbound_send(data, message);
+                Self::process_buffer(data);
 
-            if data.message_buffer.is_empty() && data.fin_message_id.is_some() {
-                data.sender.close_channel();
-                self.inbound_stream_data.remove(&key);
+                if data.message_buffer.is_empty() && data.fin_message_id.is_some() {
+                    data.sender.close_channel();
+                    self.inbound_stream_data.remove(&key);
+                }
             }
-        } else if message_id > data.next_message_id {
-            Self::store(data, key, message);
-        } else {
-            // TODO(guyn): replace warnings with more graceful error handling
-            warn!(
-                "Received message with id that is smaller than the next message expected! key: \
-                 {:?}, message_id: {}, next_message_id: {}",
-                key, message_id, data.next_message_id
-            );
-            return;
+            Ordering::Greater => {
+                Self::store(data, key, message);
+            }
+            Ordering::Less => {
+                // TODO(guyn): replace warnings with more graceful error handling
+                warn!(
+                    "Received message with id that is smaller than the next message expected! \
+                     key: {:?}, message_id: {}, next_message_id: {}",
+                    key, message_id, data.next_message_id
+                );
+                return;
+            }
         }
     }
 
     fn store(data: &mut StreamData<T>, key: StreamKey, message: StreamMessage<T>) {
         let message_id = message.message_id;
 
-        if data.message_buffer.contains_key(&message_id) {
-            // TODO(guyn): replace warnings with more graceful error handling
-            warn!(
-                "Two messages with the same message_id in buffer! key: {:?}, message_id: {}",
-                key, message_id
-            );
-        } else {
-            data.message_buffer.insert(message_id, message);
+        match data.message_buffer.entry(message_id) {
+            BTreeEntry::Vacant(e) => {
+                e.insert(message);
+            }
+            BTreeEntry::Occupied(_) => {
+                // TODO(guyn): replace warnings with more graceful error handling
+                warn!(
+                    "Two messages with the same message_id in buffer! key: {:?}, message_id: {}",
+                    key, message_id
+                );
+            }
         }
     }
 
