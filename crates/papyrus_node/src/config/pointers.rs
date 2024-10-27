@@ -59,7 +59,7 @@ lazy_static! {
             &"https://alpha-mainnet.starknet.io/".to_string(),
             "The URL of a centralized Starknet gateway.",
         ),
-        vec!["rpc.starknet_url".to_owned(), "central.url".to_owned(), "monitoring_gateway.starknet_url".to_owned()],
+        vec!["rpc.starknet_url".to_owned(), "central.starknet_url".to_owned(), "monitoring_gateway.starknet_url".to_owned()],
     ),
     (
         ser_pointer_target_param(

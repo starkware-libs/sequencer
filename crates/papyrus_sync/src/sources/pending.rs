@@ -58,7 +58,7 @@ impl PendingSource {
         node_version: &'static str,
     ) -> Result<PendingSource, ClientCreationError> {
         let starknet_client = StarknetFeederGatewayClient::new(
-            &config.url,
+            &config.starknet_url,
             config.http_headers,
             node_version,
             config.retry_config,
