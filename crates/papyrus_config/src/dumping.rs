@@ -287,6 +287,7 @@ pub fn ser_pointer_target_required_param(
     )
 }
 
+// TODO(Tsabary): Remove Vec<ParamPath> from the "pointers" function arg.
 // Takes a config map and a vector of {target param, serialized pointer, and vector of params that
 // will point to it}.
 // Adds to the map the target params.
@@ -295,24 +296,25 @@ pub(crate) fn combine_config_map_and_pointers(
     mut config_map: BTreeMap<ParamPath, SerializedParam>,
     pointers: &Vec<((ParamPath, SerializedParam), Vec<ParamPath>)>,
 ) -> Result<Value, ConfigError> {
-    for ((target_param, serialized_pointer), pointing_params_vec) in pointers {
+    // Update config with target params.
+    for ((target_param, serialized_pointer), _) in pointers {
+        // Insert target param.
         config_map.insert(target_param.clone(), serialized_pointer.clone());
 
-        for pointing_param in pointing_params_vec {
-            let pointing_serialized_param =
-                config_map.get(pointing_param).ok_or(ConfigError::PointerSourceNotFound {
-                    pointing_param: pointing_param.to_owned(),
-                })?;
-            config_map.insert(
-                pointing_param.to_owned(),
-                SerializedParam {
-                    description: pointing_serialized_param.description.clone(),
+        // Update config entries that match the target param as pointers.
+        config_map.iter_mut().for_each(|(param_path, serialized_param)| {
+            // Check if the param is the target param.
+            if param_path.ends_with(format!("{FIELD_SEPARATOR}{target_param}").as_str()) {
+                // Point to the target param.
+                *serialized_param = SerializedParam {
+                    description: serialized_param.description.clone(),
                     content: SerializedContent::PointerTarget(target_param.to_owned()),
-                    privacy: pointing_serialized_param.privacy.clone(),
-                },
-            );
-        }
+                    privacy: serialized_param.privacy.clone(),
+                };
+            }
+        });
     }
+
     Ok(json!(config_map))
 }
 
