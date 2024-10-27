@@ -1,3 +1,7 @@
+#[cfg(test)]
+#[path = "class_test.rs"]
+mod class_test;
+
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 
