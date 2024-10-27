@@ -11,6 +11,7 @@ use papyrus_network::network_manager::test_utils::{
 };
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{
+    HeightAndRound,
     ProposalFin,
     ProposalInit,
     ProposalPart,
@@ -128,8 +129,9 @@ fn test_setup()
         .unwrap();
 
     let network_channels = mock_register_broadcast_topic().unwrap();
-    let network_proposal_channels: TestSubscriberChannels<StreamMessage<ProposalPart>> =
-        mock_register_broadcast_topic().unwrap();
+    let network_proposal_channels: TestSubscriberChannels<
+        StreamMessage<ProposalPart, HeightAndRound>,
+    > = mock_register_broadcast_topic().unwrap();
     let BroadcastTopicChannels {
         broadcasted_messages_receiver: inbound_network_receiver,
         broadcast_topic_client: outbound_network_sender,
