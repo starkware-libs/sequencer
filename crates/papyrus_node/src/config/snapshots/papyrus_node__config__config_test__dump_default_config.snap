@@ -75,7 +75,7 @@ expression: dumped_default_config
     },
     "privacy": "Public"
   },
-  "central.url": {
+  "central.starknet_url": {
     "description": "Starknet feeder-gateway URL. It should match chain_id.",
     "value": "https://alpha-mainnet.starknet.io/",
     "privacy": "Public"
