@@ -30,14 +30,12 @@ use starknet_api::block::{BlockNumber, BlockTimestamp, NonzeroGasPrice};
 use starknet_api::core::ContractAddress;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::transaction::TransactionHash;
+use starknet_mempool_types::communication::{MempoolClientError, SharedMempoolClient};
 use thiserror::Error;
 use tokio::sync::Mutex;
-use tokio::{pin, time};
-use tokio_stream::StreamExt;
-use tracing::{debug, info, trace};
+use tracing::{debug, error, info, trace};
 
 use crate::papyrus_state::PapyrusReader;
-use crate::proposal_manager::InputTxStream;
 use crate::transaction_executor::TransactionExecutorTrait;
 
 #[derive(Debug, Error)]
@@ -48,8 +46,8 @@ pub enum BlockBuilderError {
     BlockifierStateError(#[from] StateError),
     #[error(transparent)]
     ExecutorError(#[from] BlockifierTransactionExecutorError),
-    #[error("The input stream was terminated unexpectedly.")]
-    InputStreamTerminated,
+    #[error(transparent)]
+    MempoolError(#[from] MempoolClientError),
     #[error(transparent)]
     TransactionExecutionError(#[from] BlockifierTransactionExecutionError),
     #[error(transparent)]
@@ -74,9 +72,9 @@ pub struct BlockExecutionArtifacts {
 #[async_trait]
 pub trait BlockBuilderTrait: Send {
     async fn build_block(
-        &mut self,
+        &self,
         deadline: tokio::time::Instant,
-        tx_stream: InputTxStream,
+        mempool_client: SharedMempoolClient,
         output_content_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
     ) -> BlockBuilderResult<BlockExecutionArtifacts>;
 }
@@ -142,31 +140,23 @@ impl SerializeConfig for BlockBuilderConfig {
 #[async_trait]
 impl BlockBuilderTrait for BlockBuilder {
     async fn build_block(
-        &mut self,
+        &self,
         deadline: tokio::time::Instant,
-        input_tx_stream: InputTxStream,
+        mempool_client: SharedMempoolClient,
         output_content_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
     ) -> BlockBuilderResult<BlockExecutionArtifacts> {
-        // TODO(9/10/2024): Refactor so there isn't a race condition.
-        let chunk_wait_duration = (deadline - tokio::time::Instant::now()) / 2;
-        let chunk_stream = input_tx_stream.chunks_timeout(self.tx_chunk_size, chunk_wait_duration);
-        pin!(chunk_stream);
         let mut should_close_block = false;
         let mut execution_infos = IndexMap::new();
         // TODO(yael 6/10/2024): delete the timeout condition once the executor has a timeout
         while !should_close_block && tokio::time::Instant::now() < deadline {
-            let time_to_deadline = deadline - tokio::time::Instant::now();
-            let next_tx_chunk = match time::timeout(time_to_deadline, chunk_stream.next()).await {
-                Err(_) => {
-                    debug!("No further transactions to execute, timeout was reached.");
-                    break;
-                }
-                Ok(Some(tx_chunk)) => {
-                    debug!("Got a chunk of {} transactions.", tx_chunk.len());
-                    tx_chunk
-                }
-                Ok(None) => return Err(BlockBuilderError::InputStreamTerminated),
-            };
+            // TODO: Get also L1 transactions.
+            let next_tx_chunk = mempool_client.get_txs(self.tx_chunk_size).await?;
+            if next_tx_chunk.is_empty() {
+                // TODO: Consider what is the best sleep duration.
+                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                continue;
+            }
+
             let mut executor_input_chunk = vec![];
             for tx in &next_tx_chunk {
                 executor_input_chunk
