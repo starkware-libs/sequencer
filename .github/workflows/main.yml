@@ -1,161 +1,163 @@
 name: Main-CI-Flow
 
 on:
-  push:
-    branches:
-      - main
-      - main-v[0-9].**
-    tags:
-      - v[0-9].**
+    push:
+        branches:
+            - main
+            - main-v[0-9].**
+        tags:
+            - v[0-9].**
 
-  pull_request:
-    types:
-      - opened
-      - reopened
-      - synchronize
-      - auto_merge_enabled
-      - edited
+    pull_request:
+        types:
+            - opened
+            - reopened
+            - synchronize
+            - auto_merge_enabled
+            - edited
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.job }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+    group: ${{ github.workflow }}-${{ github.ref }}-${{ github.job }}
+    cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  code_style:
-    runs-on: starkware-ubuntu-20-04-medium
-    steps:
-      # Environment setup.
-      - uses: actions/checkout@v4
-      - uses: baptiste0928/cargo-install@v3
-        with:
-          crate: taplo-cli
-          version: '0.9.0'
-          locked: true
+    code_style:
+        runs-on: starkware-ubuntu-20-04-medium
+        steps:
+            # Environment setup.
+            - uses: actions/checkout@v4
 
-      # Setup pypy and link to the location expected by .cargo/config.toml.
-      - uses: actions/setup-python@v5
-        id: setup-pypy
-        with:
-          python-version: "pypy3.9"
-      - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
-      - env:
-          LD_LIBRARY_PATH: ${{ steps.setup-pypy.outputs.pythonLocation }}/bin
-        run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
+            # Setup pypy and link to the location expected by .cargo/config.toml.
+            - uses: actions/setup-python@v5
+              id: setup-pypy
+              with:
+                  python-version: "pypy3.9"
+            - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
+            - env:
+                  LD_LIBRARY_PATH: ${{ steps.setup-pypy.outputs.pythonLocation }}/bin
+              run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
 
-      # Install rust components.
-      - uses: ./.github/actions/bootstrap
+            - name: Install rust.
+              uses: moonrepo/setup-rust@v1
+              with:
+                  bins: taplo-cli@0.9.0
+                  cache-base: main(-v[0-9].*)?
+                  components: clippy
 
-      # Run tests.
-      - name: "Run rustfmt"
-        run: scripts/rust_fmt.sh --check
-      - name: "Run clippy"
-        run: scripts/clippy.sh
-      - name: "Run cargo doc"
-        run: cargo doc --workspace -r --document-private-items --no-deps
-      - name: "Run taplo"
-        run: scripts/taplo.sh
-      - name: Run Machete (detect unused dependencies)
-        uses: bnjbvr/cargo-machete@main
+            - name: Install cairo native.
+              uses: ./.github/actions/setup_native_deps
 
-  run-workspace-tests:
-    runs-on: starkware-ubuntu-latest-medium
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/bootstrap
-      - run: cargo test -p workspace_tests
+            # Run tests.
+            - name: "Run rustfmt"
+              run: scripts/rust_fmt.sh --check
+            - name: "Run clippy"
+              run: scripts/clippy.sh
+            - name: "Run cargo doc"
+              run: cargo doc --workspace -r --document-private-items --no-deps
+            - name: "Run taplo"
+              run: scripts/taplo.sh
+            - name: Run Machete (detect unused dependencies)
+              uses: bnjbvr/cargo-machete@main
 
-  run-tests:
-    runs-on: starkware-ubuntu-latest-large
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          # Fetch the entire history.
-          fetch-depth: 0
-      - uses: ./.github/actions/bootstrap
+    run-workspace-tests:
+        runs-on: starkware-ubuntu-latest-medium
+        steps:
+            - uses: actions/checkout@v4
+            - uses: ./.github/actions/bootstrap
+            - run: cargo test -p workspace_tests
 
-      # Setup pypy and link to the location expected by .cargo/config.toml.
-      - uses: actions/setup-python@v5
-        id: setup-pypy
-        with:
-          python-version: "pypy3.9"
-      - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
-      - env:
-          LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
-        run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
-      - name: "Run tests pull request"
-        if: github.event_name == 'pull_request'
-        run: |
-          python3 -m venv ci
-          ci/bin/pip install -r scripts/requirements.txt
-          ci/bin/python scripts/run_tests.py --changes_only --include_dependencies --commit_id ${{ github.event.pull_request.base.sha }}
-        env:
-          SEED: 0
+    run-tests:
+        runs-on: starkware-ubuntu-latest-large
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  # Fetch the entire history.
+                  fetch-depth: 0
+            - uses: ./.github/actions/bootstrap
 
-      - name: "Run tests on push"
-        if: github.event_name == 'push'
-        # TODO: Better support for running tests on push.
-        run: |
-          python3 -m venv ci
-          ci/bin/pip install -r scripts/requirements.txt
-          ci/bin/python scripts/run_tests.py
-        env:
-          SEED: 0
+            # Setup pypy and link to the location expected by .cargo/config.toml.
+            - uses: actions/setup-python@v5
+              id: setup-pypy
+              with:
+                  python-version: "pypy3.9"
+            - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
+            - env:
+                  LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
+              run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
+            - name: "Run tests pull request"
+              if: github.event_name == 'pull_request'
+              run: |
+                  python3 -m venv ci
+                  ci/bin/pip install -r scripts/requirements.txt
+                  ci/bin/python scripts/run_tests.py --changes_only --include_dependencies --commit_id ${{ github.event.pull_request.base.sha }}
+              env:
+                  SEED: 0
 
-  codecov:
-    runs-on: starkware-ubuntu-latest-large
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          # Fetch the entire history.
-          fetch-depth: 0
-      - uses: ./.github/actions/bootstrap
+            - name: "Run tests on push"
+              if: github.event_name == 'push'
+              # TODO: Better support for running tests on push.
+              run: |
+                  python3 -m venv ci
+                  ci/bin/pip install -r scripts/requirements.txt
+                  ci/bin/python scripts/run_tests.py
+              env:
+                  SEED: 0
 
-      - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
-      - run: npm install -g ganache@7.4.3
+    codecov:
+        runs-on: starkware-ubuntu-latest-large
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  # Fetch the entire history.
+                  fetch-depth: 0
+            - uses: ./.github/actions/bootstrap
 
-      # Setup pypy and link to the location expected by .cargo/config.toml.
-      - uses: actions/setup-python@v5
-        id: setup-pypy
-        with:
-          python-version: "pypy3.9"
-      - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
-      - env:
-          LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
-        run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
+            - name: Install cargo-llvm-cov
+              uses: taiki-e/install-action@cargo-llvm-cov
+            - run: npm install -g ganache@7.4.3
 
-      - name: "Run codecov on pull request"
-        id: run_codecov_pr
-        if: github.event_name == 'pull_request'
-        run: |
-          python3 -m venv ci
-          ci/bin/pip install -r scripts/requirements.txt
-          ci/bin/python scripts/run_tests.py --codecov --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
-          if [ -f codecov.json ]; then
-            echo "codecov_output=true" >> $GITHUB_OUTPUT
-          else
-            echo "codecov_output=false" >> $GITHUB_OUTPUT
-          fi
-        env:
-          SEED: 0
+            # Setup pypy and link to the location expected by .cargo/config.toml.
+            - uses: actions/setup-python@v5
+              id: setup-pypy
+              with:
+                  python-version: "pypy3.9"
+            - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
+            - env:
+                  LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
+              run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
 
-      - name: "Run codecov on push"
-        if: github.event_name == 'push'
-        # TODO: Better support for running tests on push.
-        run: |
-          python3 -m venv ci
-          ci/bin/pip install -r scripts/requirements.txt
-          ci/bin/python scripts/run_tests.py --codecov
-          echo "codecov_output=true" >> $GITHUB_OUTPUT
-        env:
-          SEED: 0
+            - name: "Run codecov on pull request"
+              id: run_codecov_pr
+              if: github.event_name == 'pull_request'
+              run: |
+                  python3 -m venv ci
+                  ci/bin/pip install -r scripts/requirements.txt
+                  ci/bin/python scripts/run_tests.py --codecov --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
+                  if [ -f codecov.json ]; then
+                    echo "codecov_output=true" >> $GITHUB_OUTPUT
+                  else
+                    echo "codecov_output=false" >> $GITHUB_OUTPUT
+                  fi
+              env:
+                  SEED: 0
 
-      - name: Codecov
-        if: steps.run_codecov_pr.outputs.codecov_output == 'true'
-        uses: codecov/codecov-action@v3
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          verbose: true
-          fail_ci_if_error: true
-          version: "v0.1.15"
+            - name: "Run codecov on push"
+              if: github.event_name == 'push'
+              # TODO: Better support for running tests on push.
+              run: |
+                  python3 -m venv ci
+                  ci/bin/pip install -r scripts/requirements.txt
+                  ci/bin/python scripts/run_tests.py --codecov
+                  echo "codecov_output=true" >> $GITHUB_OUTPUT
+              env:
+                  SEED: 0
+
+            - name: Codecov
+              if: steps.run_codecov_pr.outputs.codecov_output == 'true'
+              uses: codecov/codecov-action@v3
+              with:
+                  token: ${{ secrets.CODECOV_TOKEN }}
+                  verbose: true
+                  fail_ci_if_error: true
+                  version: "v0.1.15"
