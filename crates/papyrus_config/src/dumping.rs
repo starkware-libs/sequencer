@@ -50,6 +50,7 @@ use crate::{
     SerializationType,
     SerializedContent,
     SerializedParam,
+    FIELD_SEPARATOR,
     IS_NONE_MARK,
 };
 
@@ -98,7 +99,7 @@ pub trait SerializeConfig {
     /// Note, in the case of a None sub configs, its elements will not be included in the file.
     fn dump_to_file(
         &self,
-        config_pointers: &Vec<((ParamPath, SerializedParam), Vec<ParamPath>)>,
+        config_pointers: &Vec<(ParamPath, SerializedParam)>,
         file_path: &str,
     ) -> Result<(), ConfigError> {
         let combined_map = combine_config_map_and_pointers(self.dump(), config_pointers)?;
@@ -127,9 +128,9 @@ pub fn append_sub_config_name(
     sub_config_name: &str,
 ) -> BTreeMap<ParamPath, SerializedParam> {
     BTreeMap::from_iter(
-        sub_config_dump
-            .into_iter()
-            .map(|(field_name, val)| (format!("{sub_config_name}.{field_name}"), val)),
+        sub_config_dump.into_iter().map(|(field_name, val)| {
+            (format!("{sub_config_name}{FIELD_SEPARATOR}{field_name}"), val)
+        }),
     )
 }
 
@@ -236,7 +237,7 @@ pub fn ser_optional_param<T: Serialize>(
 /// Serializes is_none flag for a param.
 pub fn ser_is_param_none(name: &str, is_none: bool) -> (String, SerializedParam) {
     common_ser_param(
-        format!("{name}.{IS_NONE_MARK}").as_str(),
+        format!("{name}{FIELD_SEPARATOR}{IS_NONE_MARK}").as_str(),
         SerializedContent::DefaultValue(json!(is_none)),
         "Flag for an optional field.",
         ParamPrivacy::TemporaryValue,
@@ -292,26 +293,27 @@ pub fn ser_pointer_target_required_param(
 // Replaces the value of the pointers to contain only the name of the target they point to.
 pub(crate) fn combine_config_map_and_pointers(
     mut config_map: BTreeMap<ParamPath, SerializedParam>,
-    pointers: &Vec<((ParamPath, SerializedParam), Vec<ParamPath>)>,
+    pointers: &Vec<(ParamPath, SerializedParam)>,
 ) -> Result<Value, ConfigError> {
-    for ((target_param, serialized_pointer), pointing_params_vec) in pointers {
+    // Update config with target params.
+    for (target_param, serialized_pointer) in pointers {
+        // Insert target param.
         config_map.insert(target_param.clone(), serialized_pointer.clone());
 
-        for pointing_param in pointing_params_vec {
-            let pointing_serialized_param =
-                config_map.get(pointing_param).ok_or(ConfigError::PointerSourceNotFound {
-                    pointing_param: pointing_param.to_owned(),
-                })?;
-            config_map.insert(
-                pointing_param.to_owned(),
-                SerializedParam {
-                    description: pointing_serialized_param.description.clone(),
+        // Update config entries that match the target param as pointers.
+        config_map.iter_mut().for_each(|(param_path, serialized_param)| {
+            // Check if the param is the target param.
+            if param_path.ends_with(format!("{FIELD_SEPARATOR}{target_param}").as_str()) {
+                // Point to the target param.
+                *serialized_param = SerializedParam {
+                    description: serialized_param.description.clone(),
                     content: SerializedContent::PointerTarget(target_param.to_owned()),
-                    privacy: pointing_serialized_param.privacy.clone(),
-                },
-            );
-        }
+                    privacy: serialized_param.privacy.clone(),
+                };
+            }
+        });
     }
+
     Ok(json!(config_map))
 }
 
