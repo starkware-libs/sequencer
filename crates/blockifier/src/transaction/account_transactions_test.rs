@@ -47,6 +47,7 @@ use crate::abi::abi_utils::{
 };
 use crate::check_tx_execution_error_for_invalid_scenario;
 use crate::context::{BlockContext, TransactionContext};
+use crate::execution::call_info::CallInfo;
 use crate::execution::contract_class::{ContractClass, ContractClassV1};
 use crate::execution::entry_point::EntryPointExecutionContext;
 use crate::execution::syscalls::SyscallSelector;
@@ -57,13 +58,16 @@ use crate::state::state_api::{State, StateReader};
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::declare::declare_tx;
 use crate::test_utils::initial_test_state::{fund_account, test_state};
+use crate::test_utils::syscall::build_recurse_calldata;
 use crate::test_utils::{
     create_calldata,
     create_trivial_calldata,
     get_syscall_resources,
     get_tx_resources,
     CairoVersion,
+    CompilerBasedVersion,
     BALANCE,
+    DEFAULT_L2_GAS_MAX_AMOUNT,
     DEFAULT_STRK_L2_GAS_PRICE,
     MAX_FEE,
 };
@@ -1513,6 +1517,101 @@ fn test_concurrent_fee_transfer_when_sender_is_sequencer(
         [(sequencer_balance_key_low, sender_balance), (sequencer_balance_key_high, Fee(0))]
     {
         assert_eq!(state.get_storage_at(fee_token_address, seq_key).unwrap(), felt!(seq_value.0));
+    }
+}
+
+/// Check initial gas is as expected according to the contract cairo+compiler version, and call
+/// history.
+#[rstest]
+#[case(&[
+    CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1),
+    CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1),
+    CompilerBasedVersion::CairoVersion(CairoVersion::Cairo0),
+    CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1)
+])]
+// TODO(Tzahi, 1/12/2024): Add a case with OldCairo1 instead of Cairo0.
+fn test_initial_gas(
+    #[case] versions: &[CompilerBasedVersion],
+    default_all_resource_bounds: ValidResourceBounds,
+) {
+    let block_context = BlockContext::create_for_account_testing();
+    let account_version = CairoVersion::Cairo1;
+    let account = FeatureContract::AccountWithoutValidations(account_version);
+    let account_address = account.get_instance_address(0_u16);
+    let used_test_contracts: HashSet<FeatureContract> =
+        HashSet::from_iter(versions.iter().map(|x| x.get_test_contract()));
+    let mut contracts: Vec<FeatureContract> = used_test_contracts.into_iter().collect();
+    contracts.push(account);
+    let sender_balance = BALANCE;
+    let chain_info = &block_context.chain_info;
+    let state = &mut test_state(
+        chain_info,
+        sender_balance,
+        &contracts.into_iter().map(|contract| (contract, 1u16)).collect::<Vec<_>>(),
+    );
+    let account_tx = account_invoke_tx(invoke_tx_args! {
+        sender_address: account_address,
+        calldata: build_recurse_calldata(versions),
+        resource_bounds:  default_all_resource_bounds,
+        version: TransactionVersion::THREE
+    });
+
+    let transaction_ex_info = account_tx.execute(state, &block_context, true, true).unwrap();
+
+    let validate_call_info = &transaction_ex_info.validate_call_info.unwrap();
+    let validate_initial_gas = validate_call_info.call.initial_gas;
+    assert_eq!(validate_initial_gas, DEFAULT_L2_GAS_MAX_AMOUNT.0);
+    let validate_gas_consumed = validate_call_info.execution.gas_consumed;
+    assert!(validate_gas_consumed > 0, "New Cairo1 contract should consume gas.");
+
+    let default_call_info = CallInfo::default();
+    let mut prev_initial_gas = validate_initial_gas;
+    let mut execute_call_info = &transaction_ex_info.execute_call_info.unwrap();
+    let mut curr_initial_gas;
+    let mut started_vm_mode = false;
+    // The __validate__ call of a the account contract.
+    let mut prev_version = &CompilerBasedVersion::CairoVersion(account_version);
+    // Insert the __execute__ call in the beginning of versions (same version as the __validate__).
+    for version in [*prev_version].iter().chain(versions) {
+        curr_initial_gas = execute_call_info.call.initial_gas;
+
+        match (prev_version, version, started_vm_mode) {
+            (CompilerBasedVersion::CairoVersion(CairoVersion::Cairo0), _, _) => {
+                assert_eq!(started_vm_mode, true);
+                assert_eq!(curr_initial_gas, prev_initial_gas);
+            }
+            (
+                _,
+                CompilerBasedVersion::CairoVersion(CairoVersion::Cairo0)
+                | CompilerBasedVersion::OldCairo1,
+                false,
+            ) => {
+                // First time we are in VM mode.
+                assert_eq!(prev_version, &CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1));
+                assert_eq!(
+                    curr_initial_gas,
+                    block_context.versioned_constants.default_initial_gas_cost()
+                );
+                started_vm_mode = true;
+            }
+            _ => {
+                // prev_version is a non Cairo0 contract, thus it consumes gas from the initial
+                // gas.
+                assert!(curr_initial_gas < prev_initial_gas);
+                if version == &CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1) {
+                    assert!(execute_call_info.execution.gas_consumed > 0);
+                } else {
+                    assert!(execute_call_info.execution.gas_consumed == 0);
+                }
+            }
+        };
+
+        // If inner_calls is empty, this SHOULD be the last call and thus last loop iteration.
+        // Assigning the default call info, will cause an error if the loop continues.
+        assert!(execute_call_info.inner_calls.len() <= 1);
+        execute_call_info = execute_call_info.inner_calls.first().unwrap_or(&default_call_info);
+        prev_initial_gas = curr_initial_gas;
+        prev_version = version;
     }
 }
 
