@@ -1,12 +1,15 @@
 //! Stream handler, see StreamManager struct.
-use std::cmp::Ordering;
-use std::collections::btree_map::Entry as BTreeEntry;
-use std::collections::hash_map::Entry as HashMapEntry;
+use std::collections::hash_map::Entry;
 use std::collections::{BTreeMap, HashMap};
 
 use futures::channel::mpsc;
 use futures::StreamExt;
-use papyrus_network::network_manager::BroadcastTopicServer;
+use papyrus_network::network_manager::{
+    BroadcastTopicClient,
+    BroadcastTopicClientTrait,
+    BroadcastTopicServer,
+};
+use papyrus_network::utils::StreamHashMap;
 use papyrus_network_types::network_types::{BroadcastedMessageMetadata, OpaquePeerId};
 use papyrus_protobuf::consensus::{StreamMessage, StreamMessageBody};
 use papyrus_protobuf::converters::ProtobufConversionError;
@@ -17,8 +20,10 @@ use tracing::{instrument, warn};
 mod stream_handler_test;
 
 type PeerId = OpaquePeerId;
+type StreamId = u64;
 type MessageId = u64;
-type StreamKey = (PeerId, u64);
+
+type StreamKey = (PeerId, StreamId);
 
 const CHANNEL_BUFFER_LENGTH: usize = 100;
 
@@ -58,21 +63,34 @@ pub struct StreamHandler<
     // A map from stream_id to a struct that contains all the information about the stream.
     // This includes both the message buffer and some metadata (like the latest message_id).
     inbound_stream_data: HashMap<StreamKey, StreamData<T>>,
-    // TODO(guyn): perhaps make input_stream_data and output_stream_data?
+
+    // A receiver of receivers, one for each stream_id.
+    outbound_channel_receiver: mpsc::Receiver<(StreamId, mpsc::Receiver<T>)>,
+    // A network sender that allows sending StreamMessages to peers.
+    outbound_sender: BroadcastTopicClient<StreamMessage<T>>,
+    // For each stream that goes out to broadcast, there is a receiver.
+    outbound_stream_receivers: StreamHashMap<StreamId, mpsc::Receiver<T>>,
+    outbound_stream_number: HashMap<StreamId, MessageId>,
 }
 
-impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>>
+impl<T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>>
     StreamHandler<T>
 {
     /// Create a new StreamHandler.
     pub fn new(
         inbound_channel_sender: mpsc::Sender<mpsc::Receiver<T>>,
         inbound_receiver: BroadcastTopicServer<StreamMessage<T>>,
+        outbound_channel_receiver: mpsc::Receiver<(StreamId, mpsc::Receiver<T>)>,
+        outbound_sender: BroadcastTopicClient<StreamMessage<T>>,
     ) -> Self {
-        StreamHandler {
+        Self {
             inbound_channel_sender,
             inbound_receiver,
             inbound_stream_data: HashMap::new(),
+            outbound_channel_receiver,
+            outbound_sender,
+            outbound_stream_receivers: StreamHashMap::new(HashMap::new()),
+            outbound_stream_number: HashMap::new(),
         }
     }
 
@@ -80,8 +98,24 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
     /// Guarantees that messages are sent in order.
     pub async fn run(&mut self) {
         loop {
-            // TODO(guyn): this select is here to allow us to add the outbound flow.
+            // Go over the outbound_channel_receiver to see if there is a new receiver,
+            // and go over all existing outbound_receivers to see if there are any messages to
+            // send. Finally, check if there is an input message from the network.
             tokio::select!(
+                Some((stream_id, receiver)) = self.outbound_channel_receiver.next() => {
+                    self.outbound_stream_receivers.insert(stream_id, receiver);
+                }
+                output = self.outbound_stream_receivers.next() => {
+                    match output {
+                        Some((key, Some(message))) => {
+                            self.broadcast(key, message).await;
+                        }
+                        Some((key, None)) => {
+                            self.broadcast_fin(key).await;
+                        }
+                        None => {}  // This should generally never happen
+                    }
+                }
                 Some(message) = self.inbound_receiver.next() => {
                     self.handle_message(message);
                 }
@@ -96,6 +130,30 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
             sender.try_send(content).expect("Send should succeed");
             data.next_message_id += 1;
         }
+    }
+
+    // Send the message to the network.
+    async fn broadcast(&mut self, key: StreamId, message: T) {
+        let message = StreamMessage {
+            message: StreamMessageBody::Content(message),
+            stream_id: key,
+            message_id: *self.outbound_stream_number.get(&key).unwrap_or(&0),
+        };
+        // TODO(guyn): reconsider the "expect" here.
+        self.outbound_sender.broadcast_message(message).await.expect("Send should succeed");
+        self.outbound_stream_number
+            .insert(key, self.outbound_stream_number.get(&key).unwrap_or(&0) + 1);
+    }
+
+    // Send a fin message to the network.
+    async fn broadcast_fin(&mut self, key: StreamId) {
+        let message = StreamMessage {
+            message: StreamMessageBody::Fin,
+            stream_id: key,
+            message_id: *self.outbound_stream_number.get(&key).unwrap_or(&0),
+        };
+        self.outbound_sender.broadcast_message(message).await.expect("Send should succeed");
+        self.outbound_stream_number.remove(&key);
     }
 
     #[instrument(skip_all, level = "warn")]
@@ -117,8 +175,8 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
         let message_id = message.message_id;
 
         let data = match self.inbound_stream_data.entry(key.clone()) {
-            HashMapEntry::Occupied(entry) => entry.into_mut(),
-            HashMapEntry::Vacant(e) => {
+            Entry::Occupied(entry) => entry.into_mut(),
+            Entry::Vacant(e) => {
                 // If we received a message for a stream that we have not seen before,
                 // we need to create a new receiver for it.
                 let (sender, receiver) = mpsc::channel(CHANNEL_BUFFER_LENGTH);
@@ -154,8 +212,8 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
         if message_id > data.fin_message_id.unwrap_or(u64::MAX) {
             // TODO(guyn): replace warnings with more graceful error handling
             warn!(
-                "Received message with id that is bigger than the id of the fin message! key: \
-                 {:?}, message_id: {}, fin_message_id: {}",
+                "Received message with id that is bigger than the id of the fin message! 
+                key: {:?}, message_id: {}, fin_message_id: {}",
                 key,
                 message_id,
                 data.fin_message_id.unwrap_or(u64::MAX)
@@ -164,46 +222,38 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
         }
 
         // This means we can just send the message without buffering it.
-        match message_id.cmp(&data.next_message_id) {
-            Ordering::Equal => {
-                Self::inbound_send(data, message);
+        if message_id == data.next_message_id {
+            Self::inbound_send(data, message);
+            Self::process_buffer(data);
 
-                Self::process_buffer(data);
-
-                if data.message_buffer.is_empty() && data.fin_message_id.is_some() {
-                    data.sender.close_channel();
-                    self.inbound_stream_data.remove(&key);
-                }
+            if data.message_buffer.is_empty() && data.fin_message_id.is_some() {
+                data.sender.close_channel();
+                self.inbound_stream_data.remove(&key);
             }
-            Ordering::Greater => {
-                Self::store(data, key, message);
-            }
-            Ordering::Less => {
-                // TODO(guyn): replace warnings with more graceful error handling
-                warn!(
-                    "Received message with id that is smaller than the next message expected! \
-                     key: {:?}, message_id: {}, next_message_id: {}",
-                    key, message_id, data.next_message_id
-                );
-                return;
-            }
+        } else if message_id > data.next_message_id {
+            Self::store(data, key, message);
+        } else {
+            // TODO(guyn): replace warnings with more graceful error handling
+            warn!(
+                "Received message with id that is smaller than the next message expected! key: \
+                 {:?}, message_id: {}, next_message_id: {}",
+                key, message_id, data.next_message_id
+            );
+            return;
         }
     }
 
     fn store(data: &mut StreamData<T>, key: StreamKey, message: StreamMessage<T>) {
         let message_id = message.message_id;
 
-        match data.message_buffer.entry(message_id) {
-            BTreeEntry::Vacant(e) => {
-                e.insert(message);
-            }
-            BTreeEntry::Occupied(_) => {
-                // TODO(guyn): replace warnings with more graceful error handling
-                warn!(
-                    "Two messages with the same message_id in buffer! key: {:?}, message_id: {}",
-                    key, message_id
-                );
-            }
+        if data.message_buffer.contains_key(&message_id) {
+            // TODO(guyn): replace warnings with more graceful error handling
+            warn!(
+                "Two messages with the same message_id in buffer! key: {:?}, message_id: {}",
+                key, message_id
+            );
+        } else {
+            data.message_buffer.insert(message_id, message);
         }
     }
 
