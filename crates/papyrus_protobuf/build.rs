@@ -40,12 +40,15 @@ fn main() -> io::Result<()> {
     // If Protoc is installed use it, if not compile using prebuilt protoc.
     println!("Building");
     if get_valid_preinstalled_protoc_version().is_none() {
-        println!("Protoc is not installed. Downloading it before building");
+        println!(
+            "Protoc is not installed locally. Adding a prebuilt protoc binary via gh actions \
+             before building."
+        );
         let (protoc_bin, _) = protoc_prebuilt::init("27.0").expect(
-        "Please run `gh auth login` to enable protoc compilation.\n
+        "Build failed due to Github's rate limit. Please run `gh auth login` to lift the rate limit and allow protoc compilation to proceed. \
         If this issue persists please download Protoc following the instructions at https://github.com/starkware-libs/sequencer/blob/main/docs/papyrus/README.adoc#prerequisites",
         );
-        println!("Finished downloading Protoc. Now building");
+        println!("Prebuilt protoc added to the project.");
         env::set_var("PROTOC", protoc_bin);
     }
     prost_build::compile_protos(
