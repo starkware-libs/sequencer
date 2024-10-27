@@ -7653,6 +7653,7 @@ dependencies = [
  "papyrus_protobuf",
  "papyrus_storage",
  "papyrus_test_utils",
+ "prost",
  "serde",
  "starknet-types-core",
  "starknet_api",
@@ -7906,6 +7907,7 @@ dependencies = [
 name = "papyrus_protobuf"
 version = "0.0.0"
 dependencies = [
+ "bytes",
  "indexmap 2.7.0",
  "lazy_static",
  "papyrus_common",

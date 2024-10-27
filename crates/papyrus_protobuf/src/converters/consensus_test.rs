@@ -20,6 +20,7 @@ use crate::consensus::{
     TransactionBatch,
     Vote,
 };
+use crate::converters::test_instances::TestStreamId;
 
 // If all the fields of `AllResources` are 0 upon serialization,
 // then the deserialized value will be interpreted as the `L1Gas` variant.
@@ -50,7 +51,7 @@ fn convert_stream_message_to_vec_u8_and_back() {
     let mut rng = get_rng();
 
     // Test that we can convert a StreamMessage with a ProposalPart message to bytes and back.
-    let mut stream_message: StreamMessage<ProposalPart> =
+    let mut stream_message: StreamMessage<ProposalPart, TestStreamId> =
         StreamMessage::get_test_instance(&mut rng);
 
     if let StreamMessageBody::Content(ProposalPart::Transactions(proposal)) =
@@ -128,7 +129,7 @@ fn convert_proposal_part_to_vec_u8_and_back() {
 #[test]
 fn stream_message_display() {
     let mut rng = get_rng();
-    let stream_id = 42;
+    let stream_id = TestStreamId(42);
     let message_id = 127;
     let proposal = ProposalPart::get_test_instance(&mut rng);
     let proposal_bytes: Vec<u8> = proposal.clone().into();
