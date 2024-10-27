@@ -17,18 +17,35 @@ pub struct BlockifierReexecutionCliArgs {
     command: Command,
 }
 
+#[derive(Args, Debug)]
+struct SharedArgs {
+    /// Node url.
+    /// Default: https://free-rpc.nethermind.io/mainnet-juno/. Won't work for big tests.
+    #[clap(long, short = 'n', default_value = "https://free-rpc.nethermind.io/mainnet-juno/")]
+    node_url: String,
+
+    /// Block number.
+    #[clap(long, short = 'b')]
+    block_number: u64,
+}
+
 #[derive(Debug, Subcommand)]
 enum Command {
     /// Runs the RPC test.
     RpcTest {
-        /// Node url.
-        /// Default: https://free-rpc.nethermind.io/mainnet-juno/. Won't work for big tests.
-        #[clap(long, short = 'n', default_value = "https://free-rpc.nethermind.io/mainnet-juno/")]
-        node_url: String,
+        #[clap(flatten)]
+        url_and_block_number: SharedArgs,
+    },
 
-        /// Block number.
-        #[clap(long, short = 'b')]
-        block_number: u64,
+    /// Writes the RPC queries to json files.
+    WriteRpcRepliesToJson {
+        #[clap(flatten)]
+        url_and_block_number: SharedArgs,
+
+        /// Directory path to json files.
+        /// Default: "./crates/blockifier_reexecution/resources/block_{block_number}".
+        #[clap(long, default_value = None)]
+        directory_path: Option<String>,
     },
 }
 
@@ -40,16 +57,21 @@ fn main() {
     let args = BlockifierReexecutionCliArgs::parse();
 
     match args.command {
-        Command::RpcTest { node_url, block_number } => {
-            println!("Running RPC test for block number {block_number} using node url {node_url}.");
+        Command::RpcTest { url_and_block_number } => {
+            println!(
+                "Running RPC test for block number {} using node url {}.",
+                url_and_block_number.block_number, url_and_block_number.node_url
+            );
 
             let config = RpcStateReaderConfig {
-                url: node_url,
+                url: url_and_block_number.node_url,
                 json_rpc_version: JSON_RPC_VERSION.to_string(),
             };
 
-            let test_state_readers_last_and_current_block =
-                ConsecutiveTestStateReaders::new(BlockNumber(block_number - 1), Some(config));
+            let test_state_readers_last_and_current_block = ConsecutiveTestStateReaders::new(
+                BlockNumber(url_and_block_number.block_number - 1),
+                Some(config),
+            );
 
             let all_txs_in_next_block =
                 test_state_readers_last_and_current_block.get_next_block_txs().unwrap();
@@ -70,5 +92,6 @@ fn main() {
 
             println!("RPC test passed successfully.");
         }
+        Command::WriteRpcRepliesToJson { .. } => todo!(),
     }
 }
