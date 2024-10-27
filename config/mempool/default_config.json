@@ -582,7 +582,7 @@
   "consensus_manager_config.consensus_config.validator_id": {
     "description": "The validator id of the node.",
     "privacy": "Public",
-    "value": "0x0"
+    "value": "0x17"
   },
   "gateway_config.chain_info.chain_id": {
     "description": "The chain ID of the StarkNet chain.",
