@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 use blockifier::context::ChainInfo;
 use mempool_test_utils::starknet_api_test_utils::{Contract, MultiAccountTransactionGenerator};
 use papyrus_network::network_manager::BroadcastTopicChannels;
-use papyrus_protobuf::consensus::{ProposalPart, StreamMessage};
+use papyrus_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_consensus_manager::config::ConsensusManagerConfig;
@@ -38,7 +38,8 @@ pub struct FlowTestSetup {
     pub sequencer_1: FlowSequencerSetup,
 
     // Channels for consensus proposals, used for asserting the right transactions are proposed.
-    pub consensus_proposals_channels: BroadcastTopicChannels<StreamMessage<ProposalPart>>,
+    pub consensus_proposals_channels:
+        BroadcastTopicChannels<StreamMessage<ProposalPart, HeightAndRound>>,
 }
 
 impl FlowTestSetup {
