@@ -99,7 +99,7 @@ fn test_block_weights_has_room() {
         storage_key!(0_u128),
     )]),
     state_changes_keys: StateChangesKeys::create_for_testing(HashSet::from([
-        ContractAddress::from(0_u128),
+        contract_address!(0_u128),
     ])),
     bouncer_config: BouncerConfig::empty(),
     accumulated_weights: BouncerWeights {
@@ -126,8 +126,8 @@ fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
     let execution_summary_to_update = ExecutionSummary {
         executed_class_hashes: HashSet::from([class_hash!(1_u128), class_hash!(2_u128)]),
         visited_storage_entries: HashSet::from([
-            (ContractAddress::from(1_u128), storage_key!(1_u128)),
-            (ContractAddress::from(2_u128), storage_key!(2_u128)),
+            (contract_address!(1_u128), storage_key!(1_u128)),
+            (contract_address!(2_u128), storage_key!(2_u128)),
         ]),
         ..Default::default()
     };
@@ -153,7 +153,7 @@ fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
     };
 
     let state_changes_keys_to_update =
-        StateChangesKeys::create_for_testing(HashSet::from([ContractAddress::from(1_u128)]));
+        StateChangesKeys::create_for_testing(HashSet::from([contract_address!(1_u128)]));
 
     let mut updated_bouncer = initial_bouncer.clone();
     updated_bouncer.update(

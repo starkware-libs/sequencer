@@ -13,7 +13,7 @@ use starknet_api::transaction::{
     TransactionVersion,
     ValidResourceBounds,
 };
-use starknet_api::{felt, invoke_tx_args, patricia_key};
+use starknet_api::{contract_address, felt, invoke_tx_args, patricia_key};
 use starknet_types_core::felt::Felt;
 
 use crate::context::{BlockContext, ChainInfo};
@@ -101,7 +101,7 @@ fn test_revert_on_overdraft(
     // An address to be used as recipient of a transfer.
     let recipient_int = 7_u8;
     let recipient = felt!(recipient_int);
-    let recipient_address = ContractAddress(patricia_key!(recipient_int));
+    let recipient_address = contract_address!(recipient_int);
     // Amount expected to be transferred successfully.
     let final_received_amount = felt!(80_u8);
 

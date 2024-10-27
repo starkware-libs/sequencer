@@ -50,6 +50,7 @@ use starknet_api::block::{
     GasPricePerToken,
     StarknetVersion,
 };
+use starknet_api::class_hash;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{
     ClassHash,
@@ -86,7 +87,6 @@ use starknet_api::deprecated_contract_class::{
     TypedParameter,
 };
 use starknet_api::execution_resources::{Builtin, ExecutionResources, GasAmount, GasVector};
-use starknet_api::felt;
 use starknet_api::hash::{PoseidonHash, StarkHash};
 use starknet_api::rpc_transaction::{
     ContractClass as RpcContractClass,
@@ -407,7 +407,7 @@ pub fn get_test_state_diff() -> StateDiff {
     // TODO(anatg): fix StateDiff::get_test_instance so the declared_classes will have different
     // hashes than the deprecated_contract_classes.
     let (_, data) = res.declared_classes.pop().unwrap();
-    res.declared_classes.insert(ClassHash(felt!("0x001")), data);
+    res.declared_classes.insert(class_hash!("0x001"), data);
     // TODO(yair): Find a way to create replaced classes in a test instance of StateDiff.
     res.replaced_classes.clear();
     res
