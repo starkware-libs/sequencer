@@ -30,6 +30,23 @@ enum Command {
         #[clap(long, short = 'b')]
         block_number: u64,
     },
+
+    /// Writes the RPC queries to json files.
+    WriteRpcRepliesToJson {
+        /// Node url.
+        /// Default: https://free-rpc.nethermind.io/mainnet-juno/. Won't work for big tests.
+        #[clap(long, short = 'n', default_value = "https://free-rpc.nethermind.io/mainnet-juno/")]
+        node_url: String,
+
+        /// Block number.
+        #[clap(long, short = 'b')]
+        block_number: u64,
+
+        /// Directory path to transactions json file.
+        /// Default: "./crates/blockifier_reexecution/resources/block_{block_number}".
+        #[clap(long, default_value = None)]
+        directory_path: Option<String>,
+    },
 }
 
 #[derive(Debug, Args)]
@@ -70,5 +87,6 @@ fn main() {
 
             println!("RPC test passed successfully.");
         }
+        Command::WriteRpcRepliesToJson { .. } => todo!(),
     }
 }
