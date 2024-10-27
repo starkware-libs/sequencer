@@ -272,10 +272,8 @@ fn test_pointers_flow() {
             ParamPrivacyInput::Private,
         ),
     ]);
-    let pointers = vec![(
-        ser_pointer_target_param(TARGET_PARAM_NAME, &json!(10), TARGET_PARAM_DESCRIPTION),
-        vec![PUBLIC_POINTING_PARAM_NAME.to_owned(), PRIVATE_POINTING_PARAM_NAME.to_owned()],
-    )];
+    let pointers =
+        vec![ser_pointer_target_param(TARGET_PARAM_NAME, &json!(10), TARGET_PARAM_DESCRIPTION)];
     let stored_map = combine_config_map_and_pointers(config_map, &pointers).unwrap();
     assert_eq!(
         stored_map[PUBLIC_POINTING_PARAM_NAME],
@@ -333,13 +331,10 @@ fn test_required_pointers_flow() {
             ParamPrivacyInput::Private,
         ),
     ]);
-    let pointers = vec![(
-        ser_pointer_target_required_param(
-            REQUIRED_PARAM_NAME,
-            SerializationType::PositiveInteger,
-            REQUIRED_PARAM_DESCRIPTION,
-        ),
-        vec![PUBLIC_POINTING_PARAM_NAME.to_owned(), PRIVATE_POINTING_PARAM_NAME.to_owned()],
+    let pointers = vec![ser_pointer_target_required_param(
+        REQUIRED_PARAM_NAME,
+        SerializationType::PositiveInteger,
+        REQUIRED_PARAM_DESCRIPTION,
     )];
     let stored_map = combine_config_map_and_pointers(config_map, &pointers).unwrap();
 

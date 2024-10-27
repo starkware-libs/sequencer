@@ -99,7 +99,7 @@ pub trait SerializeConfig {
     /// Note, in the case of a None sub configs, its elements will not be included in the file.
     fn dump_to_file(
         &self,
-        config_pointers: &Vec<((ParamPath, SerializedParam), Vec<ParamPath>)>,
+        config_pointers: &Vec<(ParamPath, SerializedParam)>,
         file_path: &str,
     ) -> Result<(), ConfigError> {
         let combined_map = combine_config_map_and_pointers(self.dump(), config_pointers)?;
@@ -278,23 +278,22 @@ pub fn ser_pointer_target_required_param(
     )
 }
 
-// TODO(Tsabary): Remove Vec<ParamPath> from the "pointers" function arg.
 // Takes a config map and a vector of {target param, serialized pointer, and vector of params that
 // will point to it}.
 // Adds to the map the target params.
 // Replaces the value of the pointers to contain only the name of the target they point to.
 pub(crate) fn combine_config_map_and_pointers(
     mut config_map: BTreeMap<ParamPath, SerializedParam>,
-    pointers: &Vec<((ParamPath, SerializedParam), Vec<ParamPath>)>,
+    pointers: &Vec<(ParamPath, SerializedParam)>,
 ) -> Result<Value, ConfigError> {
     // Update config with target params.
-    for ((target_param, serialized_pointer), _) in pointers {
+    for (target_param, serialized_pointer) in pointers {
         config_map.insert(target_param.clone(), serialized_pointer.clone());
     }
 
     // Update config entries that match the target params as pointers.
     config_map.iter_mut().for_each(|(param_path, serialized_param)| {
-        for ((target_param, _), _) in pointers {
+        for (target_param, _) in pointers {
             // Check if the param is the target param.
             if param_path.ends_with(format!("{FIELD_SEPARATOR}{target_param}").as_str()) {
                 // Point to the target param.
