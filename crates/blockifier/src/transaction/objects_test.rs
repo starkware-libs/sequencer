@@ -2,7 +2,7 @@ use rstest::rstest;
 use starknet_api::core::{ClassHash, ContractAddress, EthAddress, PatriciaKey};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::L2ToL1Payload;
-use starknet_api::{class_hash, patricia_key};
+use starknet_api::{class_hash, contract_address, patricia_key};
 use starknet_types_core::felt::Felt;
 
 use crate::execution::call_info::{
@@ -38,8 +38,8 @@ impl TestExecutionSummary {
             num_of_events,
             num_of_messages,
             class_hash,
-            storage_address: ContractAddress(patricia_key!(storage_address)),
-            storage_key: StorageKey(patricia_key!(storage_key)),
+            storage_address: contract_address!(storage_address),
+            storage_key: starknet_api::storage_key!(storage_key),
         }
     }
 

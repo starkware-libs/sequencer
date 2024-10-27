@@ -15,7 +15,7 @@ use starknet_api::executable_transaction::Transaction;
 use starknet_api::hash::PoseidonHash;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
-use starknet_api::{felt, nonce, patricia_key};
+use starknet_api::{contract_address, felt, nonce, patricia_key};
 use starknet_batcher_types::batcher_types::{
     BuildProposalInput,
     DecisionReachedInput,
@@ -304,5 +304,5 @@ fn test_tx_hashes(range: std::ops::Range<u128>) -> HashSet<TransactionHash> {
 }
 
 fn test_contract_nonces(range: std::ops::Range<u128>) -> HashMap<ContractAddress, Nonce> {
-    HashMap::from_iter(range.map(|i| (ContractAddress(patricia_key!(i)), nonce!(i))))
+    HashMap::from_iter(range.map(|i| (contract_address!(i), nonce!(i))))
 }

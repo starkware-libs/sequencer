@@ -1,8 +1,8 @@
 use papyrus_test_utils::{auto_impl_get_test_instance, get_rng, GetTestInstance};
 use serde::Serialize;
 use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey};
-use starknet_api::felt;
 use starknet_api::transaction::TransactionHash;
+use starknet_api::{class_hash, felt};
 use starknet_client::writer::objects::response::{
     DeclareResponse,
     DeployAccountResponse,
@@ -66,7 +66,7 @@ fn add_invoke_ok_result_from_response() {
 #[test]
 fn add_declare_ok_result_from_response() {
     let transaction_hash = TransactionHash(felt!("0x12345"));
-    let class_hash = ClassHash(felt!("0xabcde"));
+    let class_hash = class_hash!("0xabcde");
     let ok_result = AddDeclareOkResult::from(DeclareResponse {
         code: SuccessfulStarknetErrorCode::default(),
         transaction_hash,

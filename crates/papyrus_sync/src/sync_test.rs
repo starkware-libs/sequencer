@@ -16,8 +16,8 @@ use starknet_api::block::{BlockHash, BlockHeader, BlockHeaderWithoutHash, BlockN
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce, PatriciaKey};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::hash::StarkHash;
-use starknet_api::state::{ContractClass, StateDiff, StorageKey};
-use starknet_api::{felt, patricia_key};
+use starknet_api::state::{ContractClass, StateDiff};
+use starknet_api::{felt, patricia_key, storage_key};
 use starknet_client::reader::objects::pending_data::{
     AcceptedOnL2ExtraData,
     DeprecatedPendingBlock,
@@ -54,8 +54,8 @@ fn state_sorted() {
 
     let dep_contract_0 = (ContractAddress(patricia_key0), ClassHash(hash0));
     let dep_contract_1 = (ContractAddress(patricia_key1), ClassHash(hash1));
-    let storage_key_0 = StorageKey(patricia_key!("0x0"));
-    let storage_key_1 = StorageKey(patricia_key!("0x1"));
+    let storage_key_0 = storage_key!("0x0");
+    let storage_key_1 = storage_key!("0x1");
     let declare_class_0 =
         (ClassHash(hash0), (CompiledClassHash::default(), ContractClass::default()));
     let declare_class_1 =

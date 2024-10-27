@@ -69,7 +69,7 @@ use starknet_api::deprecated_contract_class::{
     FunctionStateMutability,
 };
 use starknet_api::hash::StarkHash;
-use starknet_api::state::{ContractClass as StarknetApiContractClass, StateDiff, StorageKey};
+use starknet_api::state::{ContractClass as StarknetApiContractClass, StateDiff};
 use starknet_api::transaction::{
     Event as StarknetApiEvent,
     EventContent,
@@ -81,7 +81,7 @@ use starknet_api::transaction::{
     TransactionOffsetInBlock,
     TransactionOutput as StarknetApiTransactionOutput,
 };
-use starknet_api::{felt, patricia_key};
+use starknet_api::{contract_address, felt, patricia_key, storage_key};
 use starknet_client::reader::objects::pending_data::{
     DeprecatedPendingBlock,
     PendingBlockOrDeprecated,
@@ -1159,7 +1159,7 @@ async fn get_class() {
             Box::new(BlockId::HashOrNumber(BlockHashOrNumber::Number(
                 header.block_header_without_hash.block_number,
             ))),
-            Box::new(ClassHash(felt!("0x7"))),
+            Box::new(starknet_api::class_hash!("0x7")),
         ],
         &VERSION,
         SpecFile::StarknetApiOpenrpc,
@@ -1220,7 +1220,7 @@ async fn get_class() {
             Box::new(BlockId::HashOrNumber(BlockHashOrNumber::Hash(BlockHash(felt!(
                 "0x642b629ad8ce233b55798c83bb629a59bf0a0092f67da28d6d66776680d5484"
             ))))),
-            Box::new(ClassHash(felt!("0x7"))),
+            Box::new(starknet_api::class_hash!("0x7")),
         ],
         &VERSION,
         SpecFile::StarknetApiOpenrpc,
@@ -1509,7 +1509,7 @@ async fn get_class_at() {
         starknet_api::state::ThinStateDiff::from_state_diff(get_test_state_diff());
     // Add a deployed contract with Cairo 1 class.
     let new_class_hash = diff.declared_classes.get_index(0).unwrap().0;
-    diff.deployed_contracts.insert(ContractAddress(patricia_key!("0x2")), *new_class_hash);
+    diff.deployed_contracts.insert(contract_address!("0x2"), *new_class_hash);
     storage_writer
         .begin_rw_txn()
         .unwrap()
@@ -1647,7 +1647,7 @@ async fn get_class_at() {
             Box::new(BlockId::HashOrNumber(BlockHashOrNumber::Number(
                 header.block_header_without_hash.block_number,
             ))),
-            Box::new(ContractAddress(patricia_key!("0x12"))),
+            Box::new(contract_address!("0x12")),
         ],
         &VERSION,
         SpecFile::StarknetApiOpenrpc,
@@ -1825,7 +1825,7 @@ async fn get_class_hash_at() {
             Box::new(BlockId::HashOrNumber(BlockHashOrNumber::Number(
                 header.block_header_without_hash.block_number,
             ))),
-            Box::new(ContractAddress(patricia_key!("0x12"))),
+            Box::new(contract_address!("0x12")),
         ],
         &VERSION,
         SpecFile::StarknetApiOpenrpc,
@@ -1923,7 +1923,7 @@ async fn get_nonce() {
     assert_eq!(res, new_nonce);
 
     // Ask for nonce in pending block where the contract is deployed in the pending block.
-    let new_pending_contract_address = ContractAddress(patricia_key!("0x1234"));
+    let new_pending_contract_address = contract_address!("0x1234");
     pending_data
         .write()
         .await
@@ -1969,7 +1969,7 @@ async fn get_nonce() {
             Box::new(BlockId::HashOrNumber(BlockHashOrNumber::Number(
                 header.block_header_without_hash.block_number,
             ))),
-            Box::new(ContractAddress(patricia_key!("0x31"))),
+            Box::new(contract_address!("0x31")),
         ],
         &VERSION,
         SpecFile::StarknetApiOpenrpc,
@@ -2121,8 +2121,8 @@ async fn get_storage_at() {
     // Ask for storage in pending block where the contract is deployed in the pending block, and the
     // pending block is not up to date.
     // Expected outcome: Failure due to contract not found.
-    let key = StorageKey(patricia_key!("0x1001"));
-    let contract_address = ContractAddress(patricia_key!("0x1234"));
+    let key = storage_key!("0x1001");
+    let contract_address = contract_address!("0x1234");
     pending_data
         .write()
         .await
@@ -2161,7 +2161,7 @@ async fn get_storage_at() {
         &module,
         method_name,
         vec![
-            Box::new(ContractAddress(patricia_key!("0x12"))),
+            Box::new(contract_address!("0x12")),
             Box::new(key),
             Box::new(BlockId::HashOrNumber(BlockHashOrNumber::Hash(header.block_hash))),
         ],
@@ -2998,7 +2998,7 @@ async fn get_events_chunk_across_block_and_pending_block() {
 
 #[tokio::test]
 async fn get_events_address_filter() {
-    let address = ContractAddress(patricia_key!("0x22"));
+    let address = contract_address!("0x22");
     let blocks_metadata = vec![BlockMetadata(vec![vec![
         DEFAULT_EVENT_METADATA,
         EventMetadata { address: Some(address), keys: None },
@@ -3025,7 +3025,7 @@ async fn get_events_address_filter() {
 
 #[tokio::test]
 async fn get_events_pending_address_filter() {
-    let address = ContractAddress(patricia_key!("0x22"));
+    let address = contract_address!("0x22");
     // As a special edge case, the function get_events doesn't return events if there are no
     // accepted blocks, even if there is a pending block. Therefore, we need to have a block in the
     // storage.
@@ -3422,13 +3422,13 @@ async fn serialize_returns_valid_json() {
     // In the test instance both declared_classes and deprecated_declared_classes have an entry
     // with class hash 0x0, which is illegal.
     state_diff.deprecated_declared_classes = IndexMap::from([(
-        ClassHash(felt!("0x2")),
+        starknet_api::class_hash!("0x2"),
         starknet_api::deprecated_contract_class::ContractClass::get_test_instance(&mut rng),
     )]);
     // For checking the schema also for deprecated contract classes.
     state_diff
         .deployed_contracts
-        .insert(ContractAddress(patricia_key!("0x2")), ClassHash(felt!("0x2")));
+        .insert(contract_address!("0x2"), starknet_api::class_hash!("0x2"));
     // TODO(yair): handle replaced classes.
     state_diff.replaced_classes.clear();
 
@@ -3625,7 +3625,10 @@ async fn get_deprecated_class_state_mutability() {
     };
 
     let state_diff = starknet_api::state::ThinStateDiff {
-        deprecated_declared_classes: vec![ClassHash(felt!("0x0")), ClassHash(felt!("0x1"))],
+        deprecated_declared_classes: vec![
+            starknet_api::class_hash!("0x0"),
+            starknet_api::class_hash!("0x1"),
+        ],
         ..Default::default()
     };
 
@@ -3644,8 +3647,8 @@ async fn get_deprecated_class_state_mutability() {
             header.block_header_without_hash.block_number,
             &[],
             &[
-                (ClassHash(felt!("0x0")), &class_without_state_mutability),
-                (ClassHash(felt!("0x1")), &class_with_state_mutability),
+                (starknet_api::class_hash!("0x0"), &class_without_state_mutability),
+                (starknet_api::class_hash!("0x1"), &class_with_state_mutability),
             ],
         )
         .unwrap()
@@ -3658,7 +3661,7 @@ async fn get_deprecated_class_state_mutability() {
             "starknet_V0_8_getClass",
             (
                 BlockId::HashOrNumber(BlockHashOrNumber::Hash(header.block_hash)),
-                ClassHash(felt!("0x0")),
+                starknet_api::class_hash!("0x0"),
             ),
         )
         .await
@@ -3673,7 +3676,7 @@ async fn get_deprecated_class_state_mutability() {
             "starknet_V0_8_getClass",
             (
                 BlockId::HashOrNumber(BlockHashOrNumber::Hash(header.block_hash)),
-                ClassHash(felt!("0x1")),
+                starknet_api::class_hash!("0x1"),
             ),
         )
         .await

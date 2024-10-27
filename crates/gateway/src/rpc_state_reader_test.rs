@@ -5,8 +5,8 @@ use papyrus_rpc::CompiledContractClass;
 use serde::Serialize;
 use serde_json::json;
 use starknet_api::block::BlockNumber;
-use starknet_api::core::{ClassHash, ContractAddress, Nonce, PatriciaKey};
-use starknet_api::{class_hash, contract_address, felt, patricia_key};
+use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey};
+use starknet_api::{class_hash, contract_address, felt, nonce, patricia_key};
 
 use crate::config::RpcStateReaderConfig;
 use crate::rpc_objects::{
@@ -131,7 +131,7 @@ async fn test_get_nonce_at() {
     let mut server = run_rpc_server().await;
     let config = RpcStateReaderConfig { url: server.url(), ..Default::default() };
 
-    let expected_result = Nonce(felt!("0x999"));
+    let expected_result = nonce!(0x999);
 
     let mock = mock_rpc_interaction(
         &mut server,

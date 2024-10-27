@@ -43,7 +43,7 @@ use starknet_api::transaction::{
     InvokeTransactionV1,
     TransactionHash,
 };
-use starknet_api::{calldata, class_hash, contract_address, felt, patricia_key};
+use starknet_api::{calldata, class_hash, contract_address, felt, nonce, patricia_key};
 use starknet_types_core::felt::Felt;
 
 use crate::execution_utils::selector_from_name;
@@ -322,7 +322,7 @@ impl TxsScenarioBuilder {
         let tx = ExecutableTransactionInput::DeployAccount(
             DeployAccountTransaction::V1(DeployAccountTransactionV1 {
                 max_fee: *MAX_FEE,
-                nonce: Nonce(felt!(0_u128)),
+                nonce: nonce!(0_u128),
                 class_hash: *ACCOUNT_CLASS_HASH,
                 ..Default::default()
             }),
@@ -337,13 +337,13 @@ impl TxsScenarioBuilder {
     fn next_nonce(&mut self, sender_address: ContractAddress) -> Nonce {
         match self.sender_to_nonce.get_mut(&sender_address) {
             Some(current) => {
-                let res = Nonce(felt!(*current));
+                let res = nonce!(*current);
                 *current += 1;
                 res
             }
             None => {
                 self.sender_to_nonce.insert(sender_address, 1);
-                Nonce(felt!(0_u128))
+                nonce!(0_u128)
             }
         }
     }
