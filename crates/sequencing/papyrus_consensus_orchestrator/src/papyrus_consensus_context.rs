@@ -248,7 +248,7 @@ impl ConsensusContext for PapyrusConsensusContext {
         precommits: Vec<Vote>,
     ) -> Result<(), ConsensusError> {
         let height = precommits[0].height;
-        info!("Finished consensus for height: {height}. Agreed on block: {:}", block);
+        info!("Finished consensus for height: {height}. Agreed on block: {:#064x}", block.0);
         if let Some(sender) = &mut self.sync_broadcast_sender {
             sender.broadcast_message(precommits[0].clone()).await?;
         }
