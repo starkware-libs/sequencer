@@ -2,6 +2,7 @@ use blockifier::bouncer::BouncerWeights;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use indexmap::IndexMap;
+use mockall::Sequence;
 use rstest::rstest;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::felt;
@@ -46,6 +47,7 @@ fn execution_info() -> TransactionExecutionInfo {
 // timeout reached.
 #[rstest]
 #[case::one_chunk_block(3, test_txs(0..3), test_expectations_one_chunk(&input_txs))]
+#[case::two_chunks_block(6, test_txs(0..6), test_expectations_two_chunks(&input_txs))]
 #[tokio::test]
 async fn test_build_block(
     #[case] expected_block_size: usize,
@@ -87,6 +89,34 @@ fn test_expectations_one_chunk(
         .withf(move |blockifier_input| {
             compare_tx_hashes(input_txs_cloned.clone(), blockifier_input)
         })
+        .returning(move |_| vec![execution_info(); block_size].into_iter().map(Ok).collect());
+
+    let expected_block_artifacts = block_builder_expected_output(block_size);
+    set_close_block_expectations(&mut mock_transaction_executor, &expected_block_artifacts);
+
+    (mock_transaction_executor, expected_block_artifacts)
+}
+
+fn test_expectations_two_chunks(
+    input_txs: &[Transaction],
+) -> (MockTransactionExecutorTrait, BlockExecutionArtifacts) {
+    let first_chunk = input_txs[..TEST_CHUNK_SIZE].to_vec();
+    let second_chunk = input_txs[TEST_CHUNK_SIZE..].to_vec();
+    let block_size = input_txs.len();
+
+    let mut seq = Sequence::new();
+    let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
+    mock_transaction_executor
+        .expect_add_txs_to_block()
+        .times(1)
+        .in_sequence(&mut seq)
+        .withf(move |blockifier_input| compare_tx_hashes(first_chunk.clone(), blockifier_input))
+        .returning(move |_| vec![execution_info(); block_size].into_iter().map(Ok).collect());
+    mock_transaction_executor
+        .expect_add_txs_to_block()
+        .times(1)
+        .in_sequence(&mut seq)
+        .withf(move |blockifier_input| compare_tx_hashes(second_chunk.clone(), blockifier_input))
         .returning(move |_| vec![execution_info(); block_size].into_iter().map(Ok).collect());
 
     let expected_block_artifacts = block_builder_expected_output(block_size);
