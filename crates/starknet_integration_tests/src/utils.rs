@@ -22,7 +22,7 @@ use papyrus_network::network_manager::test_utils::{
     create_network_configs_connected_to_broadcast_channels,
 };
 use papyrus_network::network_manager::BroadcastTopicChannels;
-use papyrus_protobuf::consensus::{ProposalPart, StreamMessage};
+use papyrus_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage};
 use papyrus_storage::StorageConfig;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ChainId;
@@ -121,7 +121,10 @@ pub async fn create_node_config(
 pub fn create_consensus_manager_configs_and_channels(
     n_managers: usize,
     ports: Vec<u16>,
-) -> (Vec<ConsensusManagerConfig>, BroadcastTopicChannels<StreamMessage<ProposalPart>>) {
+) -> (
+    Vec<ConsensusManagerConfig>,
+    BroadcastTopicChannels<StreamMessage<ProposalPart, HeightAndRound>>,
+) {
     let (network_configs, broadcast_channels) =
         create_network_configs_connected_to_broadcast_channels(
             papyrus_network::gossipsub_impl::Topic::new(
