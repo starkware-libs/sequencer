@@ -14,7 +14,7 @@ use futures::channel::mpsc::{Receiver, SendError, Sender};
 use futures::channel::oneshot;
 use futures::future::{ready, BoxFuture, Ready};
 use futures::sink::With;
-use futures::stream::{self, FuturesUnordered, Map, Stream};
+use futures::stream::{FuturesUnordered, Map, Stream};
 use futures::{pin_mut, FutureExt, Sink, SinkExt, StreamExt};
 use libp2p::gossipsub::{SubscriptionError, TopicHash};
 use libp2p::swarm::SwarmEvent;
@@ -74,10 +74,10 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                 Some(event) = self.swarm.next() => self.handle_swarm_event(event),
                 Some(res) = self.sqmr_inbound_response_receivers.next() => self.handle_response_for_inbound_query(res),
                 Some((protocol, client_payload)) = self.sqmr_outbound_payload_receivers.next() => {
-                    self.handle_local_sqmr_payload(protocol, client_payload)
+                    self.handle_local_sqmr_payload(protocol, client_payload.expect("An SQMR client channel should not be terminated."))
                 }
                 Some((topic_hash, message)) = self.messages_to_broadcast_receivers.next() => {
-                    self.broadcast_message(message, topic_hash);
+                    self.broadcast_message(message.expect("A broadcast channel should not be terminated."), topic_hash);
                 }
                 Some(Some(peer_id)) = self.reported_peer_receivers.next() => self.swarm.report_peer_as_malicious(peer_id),
                 Some(peer_id) = self.reported_peers_receiver.next() => self.swarm.report_peer_as_malicious(peer_id),
@@ -404,7 +404,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             inbound_session_id,
             // Adding a None at the end of the stream so that we will receive a message
             // letting us know the stream has ended.
-            Box::new(responses_receiver.map(Some).chain(stream::once(ready(None)))),
+            Box::new(responses_receiver),
         );
 
         // TODO(shahak): Close the inbound session if the buffer is full.
@@ -658,7 +658,7 @@ type GenericSender<T> = Box<dyn Sink<T, Error = SendError> + Unpin + Send>;
 pub type GenericReceiver<T> = Box<dyn Stream<Item = T> + Unpin + Send>;
 
 type ResponsesSender = GenericSender<Bytes>;
-type ResponsesReceiver = GenericReceiver<Option<Bytes>>;
+type ResponsesReceiver = GenericReceiver<Bytes>;
 
 type ClientResponsesReceiver<Response> =
     GenericReceiver<Result<Response, <Response as TryFrom<Bytes>>::Error>>;
