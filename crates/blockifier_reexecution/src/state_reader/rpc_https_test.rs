@@ -20,6 +20,10 @@ const EXAMPLE_BLOCK_NUMBER: u64 = 700000;
 const EXAMPLE_CONTACT_CLASS_HASH: &str =
     "0x3131fa018d520a037686ce3efddeab8f28895662f019ca3ca18a626650f7d1e";
 
+const EXAMPLE_DEPLOY_ACCOUNT_BLOCK_NUMBER: u64 = 837408;
+const EXAMPLE_DEPLOY_ACCOUNT_TX_HASH: &str =
+    "0x02a2e13cd94f911ea18c20a81e853314e37de58d49d13aa3a92370accd4338e8";
+
 #[fixture]
 pub fn test_block_number() -> BlockNumber {
     BlockNumber(EXAMPLE_BLOCK_NUMBER)
@@ -95,9 +99,18 @@ pub fn test_get_tx_hashes(test_state_reader: TestStateReader, test_block_number:
 }
 
 #[rstest]
-pub fn test_get_tx_by_hash(test_state_reader: TestStateReader) {
+pub fn test_get_invoke_tx_by_hash(test_state_reader: TestStateReader) {
     let actual_tx = test_state_reader.get_tx_by_hash(EXAMPLE_INVOKE_TX_HASH).unwrap();
     assert_matches!(actual_tx, Transaction::Invoke(..));
+}
+
+#[rstest]
+pub fn test_get_deploy_account_tx_by_hash() {
+    // Create StateReader with block number that contain the deploy account tx.
+    let state_reader =
+        TestStateReader::new_for_testing(BlockNumber(EXAMPLE_DEPLOY_ACCOUNT_BLOCK_NUMBER));
+    let actual_tx = state_reader.get_tx_by_hash(EXAMPLE_DEPLOY_ACCOUNT_TX_HASH).unwrap();
+    assert_matches!(actual_tx, Transaction::DeployAccount(..));
 }
 
 #[rstest]
