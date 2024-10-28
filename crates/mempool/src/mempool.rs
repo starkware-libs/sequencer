@@ -21,7 +21,7 @@ pub mod mempool_test;
 
 type AccountToNonce = HashMap<ContractAddress, Nonce>;
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Mempool {
     _config: MempoolConfig,
     // TODO: add docstring explaining visibility and coupling of the fields.
@@ -39,10 +39,6 @@ pub struct Mempool {
 }
 
 impl Mempool {
-    pub fn empty() -> Self {
-        Mempool::default()
-    }
-
     /// Returns an iterator of the current eligible transactions for sequencing, ordered by their
     /// priority.
     pub fn iter(&self) -> impl Iterator<Item = &TransactionReference> {
@@ -291,6 +287,19 @@ impl Mempool {
         };
 
         incoming_value >= escalation_qualified_value
+    }
+}
+
+impl Default for Mempool {
+    fn default() -> Self {
+        Mempool {
+            _config: MempoolConfig::default(),
+            tx_pool: TransactionPool::default(),
+            tx_queue: TransactionQueue::default(),
+            mempool_state: HashMap::new(),
+            account_nonces: HashMap::new(),
+            fee_escalation_percentage: 10,
+        }
     }
 }
 

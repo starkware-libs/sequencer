@@ -29,7 +29,7 @@ pub fn create_mempool_server(
 pub fn create_mempool(
     mempool_p2p_propagator_client: SharedMempoolP2pPropagatorClient,
 ) -> MempoolCommunicationWrapper {
-    MempoolCommunicationWrapper::new(Mempool::empty(), mempool_p2p_propagator_client)
+    MempoolCommunicationWrapper::new(Mempool::default(), mempool_p2p_propagator_client)
 }
 
 /// Wraps the mempool to enable inbound async communication from other components.

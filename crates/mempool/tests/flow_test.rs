@@ -15,7 +15,7 @@ use starknet_mempool_types::errors::MempoolError;
 
 #[fixture]
 fn mempool() -> Mempool {
-    Mempool::empty()
+    Mempool::default()
 }
 
 // Tests.

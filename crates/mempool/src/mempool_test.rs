@@ -176,7 +176,7 @@ fn add_txs_and_verify_no_replacement(
 
 #[fixture]
 fn mempool() -> Mempool {
-    Mempool::empty()
+    Mempool::default()
 }
 
 // Tests.
