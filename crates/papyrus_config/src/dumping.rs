@@ -102,9 +102,18 @@ pub trait SerializeConfig {
         file_path: &str,
     ) -> Result<(), ConfigError> {
         let combined_map = combine_config_map_and_pointers(self.dump(), config_pointers)?;
+
+        // Create file writer.
         let file = File::create(file_path)?;
         let mut writer = BufWriter::new(file);
+
+        // Add config as JSON content to writer.
         serde_json::to_writer_pretty(&mut writer, &combined_map)?;
+
+        // Add an extra newline after the JSON content.
+        writer.write_all(b"\n")?;
+
+        // Write to file.
         writer.flush()?;
         Ok(())
     }
