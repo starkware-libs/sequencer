@@ -328,7 +328,7 @@ impl FeatureContract {
                 cairo1_compile(self.get_source_path(), tag_override, cargo_nightly_arg)
             }
             #[cfg(feature = "cairo_native")]
-            CairoVersion::Native => sierra_compile(self.get_source_path(), None, None),
+            CairoVersion::Native => starknet_compile(self.get_source_path(), None, None),
         }
     }
 
