@@ -214,7 +214,7 @@
     "privacy": "Public",
     "value": 81920
   },
-  "components.batcher.execution_mode.local_execution.enable_remote_connection": {
+  "components.batcher.execution_mode.LocalExecution.enable_remote_connection": {
     "description": "Specifies whether the component, when running locally, allows remote connections.",
     "privacy": "Public",
     "value": false
@@ -264,7 +264,7 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
-  "components.consensus_manager.execution_mode.local_execution.enable_remote_connection": {
+  "components.consensus_manager.execution_mode.LocalExecution.enable_remote_connection": {
     "description": "Specifies whether the component, when running locally, allows remote connections.",
     "privacy": "Public",
     "value": false
@@ -314,7 +314,7 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
-  "components.gateway.execution_mode.local_execution.enable_remote_connection": {
+  "components.gateway.execution_mode.LocalExecution.enable_remote_connection": {
     "description": "Specifies whether the component, when running locally, allows remote connections.",
     "privacy": "Public",
     "value": false
@@ -364,7 +364,7 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
-  "components.http_server.execution_mode.local_execution.enable_remote_connection": {
+  "components.http_server.execution_mode.LocalExecution.enable_remote_connection": {
     "description": "Specifies whether the component, when running locally, allows remote connections.",
     "privacy": "Public",
     "value": true
@@ -414,7 +414,7 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
-  "components.mempool.execution_mode.local_execution.enable_remote_connection": {
+  "components.mempool.execution_mode.LocalExecution.enable_remote_connection": {
     "description": "Specifies whether the component, when running locally, allows remote connections.",
     "privacy": "Public",
     "value": false
@@ -464,7 +464,7 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
-  "components.monitoring_endpoint.execution_mode.local_execution.enable_remote_connection": {
+  "components.monitoring_endpoint.execution_mode.LocalExecution.enable_remote_connection": {
     "description": "Specifies whether the component, when running locally, allows remote connections.",
     "privacy": "Public",
     "value": true
@@ -648,6 +648,11 @@
     "description": "The http server port.",
     "privacy": "Public",
     "value": 8080
+  },
+  "mempool_p2p_config.network_buffer_size": {
+    "description": "Network buffer size.",
+    "privacy": "Public",
+    "value": 0
   },
   "mempool_p2p_config.network_config.advertised_multiaddr": {
     "description": "The external address other peers see this node. If this is set, the node will not try to find out which addresses it has and will write this address as external instead",

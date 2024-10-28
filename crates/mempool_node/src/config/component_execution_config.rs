@@ -32,7 +32,7 @@ impl ComponentExecutionMode {
             )]),
             ComponentExecutionMode::LocalExecution { enable_remote_connection } => {
                 BTreeMap::from_iter([ser_param(
-                    "local_execution.enable_remote_connection",
+                    "LocalExecution.enable_remote_connection",
                     enable_remote_connection,
                     "Specifies whether the component, when running locally, allows remote \
                      connections.",
