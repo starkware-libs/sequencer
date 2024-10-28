@@ -10391,17 +10391,20 @@ version = "0.0.0"
 dependencies = [
  "async-trait",
  "futures",
+ "papyrus_config",
  "papyrus_network",
  "papyrus_network_types",
  "papyrus_protobuf",
  "papyrus_test_utils",
  "rand_chacha 0.3.1",
+ "serde",
  "starknet_api",
  "starknet_gateway_types",
  "starknet_mempool_p2p_types",
  "starknet_sequencer_infra",
  "tokio",
  "tracing",
+ "validator",
 ]
 
 [[package]]
