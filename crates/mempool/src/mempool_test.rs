@@ -1,7 +1,7 @@
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::executable_transaction::Transaction;
-use starknet_api::{contract_address, invoke_tx_args, nonce};
+use starknet_api::{contract_address, nonce};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::AddTransactionArgs;
 

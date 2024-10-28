@@ -21,6 +21,7 @@ macro_rules! tx {
         max_l2_gas_price: $max_l2_gas_price:expr
     ) => {{
             use starknet_api::block::GasPrice;
+            use starknet_api::{contract_address, invoke_tx_args};
             use starknet_api::executable_transaction::Transaction;
             use starknet_api::hash::StarkHash;
             use starknet_api::test_utils::invoke::executable_invoke_tx;
