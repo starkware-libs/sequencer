@@ -71,10 +71,19 @@ fn get_test_ethereum_node() -> (TestEthereumNodeHandle, EthereumContractAddress)
     ((ganache, ganache_db), SN_CONTRACT_ADDR.to_string().parse().unwrap())
 }
 
-#[test_with::executable(ganache)]
+// TODO: move to global test_utils crate and use everywhere instead of relying on the
+// confusing `#[ignore]` api to mark slow tests.
+fn in_ci() -> bool {
+    std::env::var("CI").is_ok()
+}
+
 #[tokio::test]
 // Note: the test requires ganache-cli installed, otherwise it is ignored.
 async fn latest_proved_block_ethereum() {
+    if !in_ci() {
+        return;
+    }
+
     let (node_handle, starknet_contract_address) = get_test_ethereum_node();
     let config = EthereumBaseLayerConfig {
         node_url: node_handle.0.endpoint().parse().unwrap(),

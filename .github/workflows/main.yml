@@ -92,6 +92,7 @@ jobs:
       - env:
           LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
         run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
+      - run: npm install -g ganache@7.4.3
       - name: "Run tests pull request"
         if: github.event_name == 'pull_request'
         run: |
@@ -109,6 +110,7 @@ jobs:
           ci/bin/pip install -r scripts/requirements.txt
           ci/bin/python scripts/run_tests.py --command test
         env:
+          CI: 1
           SEED: 0
 
   codecov:
@@ -158,6 +160,7 @@ jobs:
           ci/bin/python scripts/run_tests.py --command codecov
           echo "codecov_output=true" >> $GITHUB_OUTPUT
         env:
+          CI: 1
           SEED: 0
 
       - name: Codecov
