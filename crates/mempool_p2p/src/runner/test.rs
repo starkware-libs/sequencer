@@ -22,7 +22,7 @@ use starknet_gateway_types::gateway_types::GatewayInput;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use tokio::time::sleep;
 
-use crate::receiver::MempoolP2pRunner;
+use super::MempoolP2pRunner;
 
 // TODO(eitan): Make it an automock
 #[derive(Clone)]

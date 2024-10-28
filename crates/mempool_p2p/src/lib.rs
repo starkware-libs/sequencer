@@ -1,14 +1,14 @@
 pub mod config;
-pub mod receiver;
-pub mod sender;
+pub mod propagator;
+pub mod runner;
 
 use papyrus_network::gossipsub_impl::Topic;
 use papyrus_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use starknet_gateway_types::communication::SharedGatewayClient;
 
 use crate::config::MempoolP2pConfig;
-use crate::receiver::MempoolP2pRunner;
-use crate::sender::MempoolP2pPropagator;
+use crate::propagator::MempoolP2pPropagator;
+use crate::runner::MempoolP2pRunner;
 
 const MEMPOOL_TOPIC: &str = "starknet_mempool_transaction_propagation/0.1.0";
 

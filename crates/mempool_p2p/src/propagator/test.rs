@@ -13,7 +13,7 @@ use starknet_mempool_p2p_types::communication::MempoolP2pPropagatorRequest;
 use starknet_sequencer_infra::component_definitions::ComponentRequestHandler;
 use tokio::time::timeout;
 
-use crate::sender::MempoolP2pPropagator;
+use super::MempoolP2pPropagator;
 
 const TIMEOUT: std::time::Duration = std::time::Duration::from_secs(1);
 
