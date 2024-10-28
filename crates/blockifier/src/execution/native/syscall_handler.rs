@@ -17,7 +17,11 @@ use starknet_types_core::felt::Felt;
 use crate::execution::call_info::{CallInfo, OrderedEvent, OrderedL2ToL1Message, Retdata};
 use crate::execution::entry_point::{CallEntryPoint, EntryPointExecutionContext};
 use crate::execution::native::utils::encode_str_as_felts;
-use crate::execution::syscalls::hint_processor::{SyscallCounter, OUT_OF_GAS_ERROR, INVALID_INPUT_LENGTH_ERROR};
+use crate::execution::syscalls::hint_processor::{
+    SyscallCounter,
+    INVALID_INPUT_LENGTH_ERROR,
+    OUT_OF_GAS_ERROR,
+};
 use crate::execution::syscalls::SyscallSelector;
 use crate::state::state_api::State;
 
@@ -220,7 +224,11 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
     }
 
     fn keccak(&mut self, input: &[u64], remaining_gas: &mut u128) -> SyscallResult<U256> {
-        self.substract_syscall_gas_cost(remaining_gas, SyscallSelector::Keccak, self.context.gas_costs().keccak_gas_cost)?;
+        self.substract_syscall_gas_cost(
+            remaining_gas,
+            SyscallSelector::Keccak,
+            self.context.gas_costs().keccak_gas_cost,
+        )?;
 
         const KECCAK_FULL_RATE_IN_WORDS: usize = 17;
 
