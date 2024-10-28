@@ -1,5 +1,6 @@
 ---
 source: crates/papyrus_node/src/config/config_test.rs
+assertion_line: 101
 expression: dumped_default_config
 ---
 {
@@ -211,14 +212,9 @@ expression: dumped_default_config
     "privacy": "Public"
   },
   "network.discovery_config.bootstrap_dial_retry_config.max_delay": {
-    "description": "The maximum delay for the exponential backoff strategy.",
+    "description": "The maximum delay in seconds for the exponential backoff strategy.",
     "value": {
-      "nanos": {
-        "$serde_json::private::Number": "0"
-      },
-      "secs": {
-        "$serde_json::private::Number": "5"
-      }
+      "$serde_json::private::Number": "5"
     },
     "privacy": "Public"
   },
@@ -239,24 +235,14 @@ expression: dumped_default_config
   "network.peer_manager_config.malicious_timeout": {
     "description": "The duration a peer is blacklisted after being marked as malicious.",
     "value": {
-      "nanos": {
-        "$serde_json::private::Number": "0"
-      },
-      "secs": {
-        "$serde_json::private::Number": "31536000"
-      }
+      "$serde_json::private::Number": "31536000"
     },
     "privacy": "Public"
   },
   "network.peer_manager_config.unstable_timeout": {
     "description": "The duration a peer blacklisted after being reported as unstable.",
     "value": {
-      "nanos": {
-        "$serde_json::private::Number": "0"
-      },
-      "secs": {
-        "$serde_json::private::Number": "1"
-      }
+      "$serde_json::private::Number": "1"
     },
     "privacy": "Public"
   },
