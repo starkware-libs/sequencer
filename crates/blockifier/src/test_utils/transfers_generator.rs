@@ -179,14 +179,13 @@ impl TransfersGenerator {
             felt!(0_u8)                 // Calldata: msb amount.
         ];
 
-        let tx = invoke_tx(invoke_tx_args! {
+        invoke_tx(invoke_tx_args! {
             max_fee: self.config.max_fee,
             sender_address,
             calldata: execute_calldata,
             version: self.config.tx_version,
             nonce,
-        });
-        AccountTransaction::Invoke(tx)
+        })
     }
 }
 

@@ -182,7 +182,7 @@ fn test_fee_enforcement(
 ) {
     let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0);
     let state = &mut test_state(&block_context.chain_info, BALANCE, &[(account, 1)]);
-    let deploy_account_tx = deploy_account_tx(
+    let account_tx = deploy_account_tx(
         deploy_account_tx_args! {
             class_hash: account.get_class_hash(),
             max_fee: Fee(if zero_bounds { 0 } else { MAX_FEE.0 }),
@@ -205,7 +205,6 @@ fn test_fee_enforcement(
         &mut NonceManager::default(),
     );
 
-    let account_tx = AccountTransaction::DeployAccount(deploy_account_tx);
     let enforce_fee = account_tx.create_tx_info().enforce_fee();
     assert_ne!(zero_bounds, enforce_fee);
     let result = account_tx.execute(state, &block_context, enforce_fee, true);
