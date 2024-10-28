@@ -1,3 +1,4 @@
+use blockifier::blockifier::transaction_executor::TransactionExecutorError;
 use blockifier::bouncer::BouncerWeights;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
@@ -54,7 +55,7 @@ fn one_chunk_test_expectations(
     let expected_block_artifacts =
         set_close_block_expectations(&mut mock_transaction_executor, block_size);
 
-    let mock_tx_provider = mock_tx_provider(1, vec![input_txs.to_vec()]);
+    let mock_tx_provider = mock_tx_provider_limitless_calls(1, vec![input_txs.to_vec()]);
 
     (mock_transaction_executor, mock_tx_provider, expected_block_artifacts)
 }
@@ -85,7 +86,7 @@ fn two_chunks_test_expectations(
     let expected_block_artifacts =
         set_close_block_expectations(&mut mock_transaction_executor, block_size);
 
-    let mock_tx_provider = mock_tx_provider(2, vec![first_chunk, second_chunk]);
+    let mock_tx_provider = mock_tx_provider_limitless_calls(2, vec![first_chunk, second_chunk]);
 
     (mock_transaction_executor, mock_tx_provider, expected_block_artifacts)
 }
@@ -97,7 +98,27 @@ fn empty_block_test_expectations()
 
     let expected_block_artifacts = set_close_block_expectations(&mut mock_transaction_executor, 0);
 
-    let mock_tx_provider = mock_tx_provider(1, vec![vec![]]);
+    let mock_tx_provider = mock_tx_provider_limitless_calls(1, vec![vec![]]);
+
+    (mock_transaction_executor, mock_tx_provider, expected_block_artifacts)
+}
+
+fn block_full_test_expectations(
+    input_txs: &[Transaction],
+    block_size: usize,
+) -> (MockTransactionExecutorTrait, MockTransactionProvider, BlockExecutionArtifacts) {
+    let input_txs_cloned = input_txs.to_vec();
+    let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
+
+    mock_transaction_executor
+        .expect_add_txs_to_block()
+        .withf(move |blockifier_input| compare_tx_hashes(&input_txs_cloned, blockifier_input))
+        .return_once(move |_| vec![Ok(execution_info()), Err(TransactionExecutorError::BlockFull)]);
+
+    let expected_block_artifacts =
+        set_close_block_expectations(&mut mock_transaction_executor, block_size);
+
+    let mock_tx_provider = mock_tx_provider_limited_calls(1, vec![input_txs.to_vec()]);
 
     (mock_transaction_executor, mock_tx_provider, expected_block_artifacts)
 }
@@ -127,9 +148,9 @@ fn set_close_block_expectations(
     output_block_artifacts_copy
 }
 
-/// Create a mock tx_provider that will return the input chunks for number of chunks queries.
+/// Create a mock tx provider that will return the input chunks for number of chunks queries.
 /// This function assumes constant chunk size of TX_CHUNK_SIZE.
-fn mock_tx_provider(
+fn mock_tx_provider_limited_calls(
     n_calls: usize,
     mut input_chunks: Vec<Vec<Transaction>>,
 ) -> MockTransactionProvider {
@@ -139,9 +160,24 @@ fn mock_tx_provider(
         .times(n_calls)
         .with(eq(TX_CHUNK_SIZE))
         .returning(move |_n_txs| Ok(input_chunks.remove(0)));
-    // The number of times the tx provider will be called until timeout is unpredicted.
-    mock_tx_provider.expect_get_txs().with(eq(TX_CHUNK_SIZE)).returning(|_n_txs| Ok(Vec::new()));
     mock_tx_provider
+}
+
+/// Create a mock tx provider client that will return the input chunks and then empty chunks.
+/// This function assumes constant chunk size of TX_CHUNK_SIZE.
+fn mock_tx_provider_limitless_calls(
+    n_calls: usize,
+    input_chunks: Vec<Vec<Transaction>>,
+) -> MockTransactionProvider {
+    let mut mock_tx_provider = mock_tx_provider_limited_calls(n_calls, input_chunks);
+
+    // The number of times the mempool will be called until timeout is unpredicted.
+    add_limitless_empty_calls(&mut mock_tx_provider);
+    mock_tx_provider
+}
+
+fn add_limitless_empty_calls(mock_tx_provider: &mut MockTransactionProvider) {
+    mock_tx_provider.expect_get_txs().with(eq(TX_CHUNK_SIZE)).returning(|_n_txs| Ok(Vec::new()));
 }
 
 fn compare_tx_hashes(input: &[Transaction], blockifier_input: &[BlockifierTransaction]) -> bool {
@@ -183,12 +219,12 @@ async fn run_build_block(
     block_builder.build_block(deadline, Box::new(tx_provider), output_sender).await.unwrap()
 }
 
-// TODO: Add test cases for block full, failed transaction,
-// timeout reached.
+// TODO: Add test cases for failed transaction, timeout reached.
 #[rstest]
 #[case::one_chunk_block(3, test_txs(0..3), one_chunk_test_expectations(&input_txs))]
 #[case::two_chunks_block(6, test_txs(0..6), two_chunks_test_expectations(&input_txs))]
 #[case::empty_block(0, vec![], empty_block_test_expectations())]
+#[case::block_full(1, test_txs(0..3), block_full_test_expectations(&input_txs, expected_block_size))]
 #[tokio::test]
 async fn test_build_block(
     #[case] expected_block_size: usize,
