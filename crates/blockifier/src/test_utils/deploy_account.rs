@@ -22,7 +22,10 @@ pub fn deploy_account_tx(
         deploy_tx_args,
         nonce_manager.next(contract_address),
     );
+    // TODO(AvivG): use starknet_api::test_utils::deploy_account::executable_deploy_account_tx to
+    // create executable_deploy_account_tx instead of code above.
     let executable_deploy_account_tx =
         DeployAccountTransaction::new(deploy_account_tx, tx_hash, contract_address);
-    AccountTransaction::DeployAccount(executable_deploy_account_tx)
+
+    executable_deploy_account_tx.into()
 }
