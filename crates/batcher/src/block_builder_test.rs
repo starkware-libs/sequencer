@@ -92,6 +92,18 @@ fn two_chunks_test_expectations(
     (mock_transaction_executor, mock_mempool_client, expected_block_artifacts)
 }
 
+fn empty_block_test_expectations()
+-> (MockTransactionExecutorTrait, MockMempoolClient, BlockExecutionArtifacts) {
+    let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
+    mock_transaction_executor.expect_add_txs_to_block().times(0);
+
+    let expected_block_artifacts = set_close_block_expectations(&mut mock_transaction_executor, 0);
+
+    let mock_mempool_client = mock_mempool_client(1, vec![vec![]]);
+
+    (mock_transaction_executor, mock_mempool_client, expected_block_artifacts)
+}
+
 // Fill the executor outputs with some non-default values to make sure the block_builder uses
 // them.
 fn block_builder_expected_output(execution_info_len: usize) -> BlockExecutionArtifacts {
@@ -173,11 +185,12 @@ async fn run_build_block(
     block_builder.build_block(deadline, Arc::new(mempool_client), output_sender).await.unwrap()
 }
 
-// TODO: Add test cases for block full, empty block, failed transaction,
+// TODO: Add test cases for block full, failed transaction,
 // timeout reached.
 #[rstest]
 #[case::one_chunk_block(3, test_txs(0..3), one_chunk_test_expectations(&input_txs))]
 #[case::two_chunks_block(6, test_txs(0..6), two_chunks_test_expectations(&input_txs))]
+#[case::empty_block(0, vec![], empty_block_test_expectations())]
 #[tokio::test]
 async fn test_build_block(
     #[case] expected_block_size: usize,
