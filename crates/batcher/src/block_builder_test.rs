@@ -42,12 +42,13 @@ fn execution_info() -> TransactionExecutionInfo {
     TransactionExecutionInfo { revert_error: Some("Test string".to_string()), ..Default::default() }
 }
 
-// TODO: Add test cases for failed transaction, timeout reached.
+// TODO: Add test case for failed transaction.
 #[rstest]
 #[case::one_chunk_block(3, test_txs(0..3), one_chunk_test_expectations(&input_txs))]
 #[case::two_chunks_block(6, test_txs(0..6), two_chunks_test_expectations(&input_txs))]
 #[case::empty_block(0, vec![], empty_block_test_expectations())]
 #[case::block_full(1, test_txs(0..3), block_full_test_expectations(&input_txs, expected_block_size))]
+#[case::deadline_reached_after_first_chunk(3, test_txs(0..6), test_expectations_with_delay(&input_txs))]
 #[tokio::test]
 async fn test_build_block(
     #[case] expected_block_size: usize,
@@ -159,6 +160,29 @@ fn block_full_test_expectations(
         set_close_block_expectations(&mut mock_transaction_executor, block_size);
 
     let mock_mempool_client = mock_mempool_limited_calls(1, vec![input_txs.to_vec()]);
+
+    (mock_transaction_executor, mock_mempool_client, expected_block_artifacts)
+}
+
+fn test_expectations_with_delay(
+    input_txs: &[Transaction],
+) -> (MockTransactionExecutorTrait, MockMempoolClient, BlockExecutionArtifacts) {
+    let first_chunk = input_txs[0..TX_CHUNK_SIZE].to_vec();
+    let first_chunk_copy = first_chunk.clone();
+    let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
+
+    mock_transaction_executor
+        .expect_add_txs_to_block()
+        .withf(move |blockifier_input| compare_tx_hashes(first_chunk.clone(), blockifier_input))
+        .return_once(move |_| {
+            std::thread::sleep(std::time::Duration::from_secs(BLOCK_GENERATION_DEADLINE_SECS));
+            vec![execution_info(); TX_CHUNK_SIZE].into_iter().map(Ok).collect()
+        });
+
+    let expected_block_artifacts =
+        set_close_block_expectations(&mut mock_transaction_executor, TX_CHUNK_SIZE);
+
+    let mock_mempool_client = mock_mempool_limited_calls(1, vec![first_chunk_copy]);
 
     (mock_transaction_executor, mock_mempool_client, expected_block_artifacts)
 }
