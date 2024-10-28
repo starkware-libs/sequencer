@@ -212,7 +212,7 @@ pub trait HasRelatedFeeType {
     fn is_l1_handler(&self) -> bool;
 
     fn fee_type(&self) -> FeeType {
-        if self.is_l1_handler() || self.version() < TransactionVersion::THREE {
+        if self.is_l1_handler() || self.version().base_lt(&TransactionVersion::THREE) {
             FeeType::Eth
         } else {
             FeeType::Strk

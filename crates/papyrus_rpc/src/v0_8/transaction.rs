@@ -95,7 +95,7 @@ pub enum TransactionVersion3 {
     Version3OnlyQuery,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize)]
 #[serde(untagged)]
 pub enum Transactions {
     Hashes(Vec<TransactionHash>),
@@ -533,20 +533,20 @@ impl TryFrom<starknet_api::transaction::InvokeTransaction> for InvokeTransaction
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize)]
 pub struct TransactionWithHash {
     pub transaction_hash: TransactionHash,
     #[serde(flatten)]
     pub transaction: Transaction,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize)]
 pub struct TransactionWithReceipt {
     pub receipt: TransactionReceiptInBlock,
     pub transaction: Transaction,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum Transaction {
     #[serde(rename = "DECLARE")]

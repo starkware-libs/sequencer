@@ -1417,7 +1417,7 @@ fn test_declare_tx(
         account
             .get_class()
             .tracked_resource(&versioned_constants.min_compiler_version_for_sierra_gas),
-        if tx_version >= TransactionVersion::THREE {
+        if tx_version.base_ge(&TransactionVersion::THREE) {
             user_initial_gas_from_bounds(default_l1_resource_bounds)
         } else {
             None

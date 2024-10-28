@@ -135,7 +135,7 @@ impl Transaction {
     }
 }
 
-#[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
+#[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct L1HandlerTransaction {
     pub transaction_hash: TransactionHash,
