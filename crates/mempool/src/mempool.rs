@@ -54,7 +54,7 @@ impl Mempool {
         let mut eligible_tx_references: Vec<TransactionReference> = Vec::with_capacity(n_txs);
         let mut n_remaining_txs = n_txs;
 
-        while n_remaining_txs > 0 && !self.tx_queue.has_ready_txs() {
+        while n_remaining_txs > 0 && self.tx_queue.has_ready_txs() {
             let chunk = self.tx_queue.pop_ready_chunk(n_remaining_txs);
             self.enqueue_next_eligible_txs(&chunk)?;
             n_remaining_txs -= chunk.len();
