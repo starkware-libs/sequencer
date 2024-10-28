@@ -101,13 +101,11 @@ pub(crate) struct ProposalManager {
     /// At any given time, there can be only one proposal being actively executed (either proposed
     /// or validated).
     active_proposal: Arc<Mutex<Option<ProposalId>>>,
-    active_proposal_handle: Option<ActiveTaskHandle>,
     // Use a factory object, to be able to mock BlockBuilder in tests.
     block_builder_factory: Arc<dyn BlockBuilderFactoryTrait + Send + Sync>,
     executed_proposals: Arc<Mutex<HashMap<ProposalId, ProposalResult<ProposalOutput>>>>,
 }
 
-type ActiveTaskHandle = tokio::task::JoinHandle<()>;
 pub type ProposalResult<T> = Result<T, GetProposalResultError>;
 
 pub struct ProposalOutput {
@@ -170,7 +168,7 @@ impl ProposalManagerTrait for ProposalManager {
         let active_proposal = self.active_proposal.clone();
         let executed_proposals = self.executed_proposals.clone();
 
-        self.active_proposal_handle = Some(tokio::spawn(
+        tokio::spawn(
             async move {
                 let result = block_builder
                     .build_block(deadline, mempool_client, tx_sender.clone())
@@ -183,7 +181,7 @@ impl ProposalManagerTrait for ProposalManager {
                 executed_proposals.lock().await.insert(proposal_id, result);
             }
             .in_current_span(),
-        ));
+        );
 
         Ok(())
     }
@@ -225,7 +223,6 @@ impl ProposalManager {
             storage_reader,
             active_proposal: Arc::new(Mutex::new(None)),
             block_builder_factory,
-            active_proposal_handle: None,
             active_height: None,
             executed_proposals: Arc::new(Mutex::new(HashMap::new())),
         }
@@ -262,9 +259,7 @@ impl ProposalManager {
     // TODO: Consider making the tests a nested module to allow them to access private members.
     #[cfg(test)]
     pub async fn await_active_proposal(&mut self) {
-        if let Some(handle) = self.active_proposal_handle.take() {
-            handle.await.unwrap();
-        }
+        while self.active_proposal.lock().await.as_ref().is_some() {}
     }
 }
 
