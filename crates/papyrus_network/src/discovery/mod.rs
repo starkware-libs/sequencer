@@ -5,6 +5,7 @@ mod flow_test;
 pub mod identify_impl;
 pub mod kad_impl;
 
+use std::collections::BTreeMap;
 use std::task::{ready, Context, Poll, Waker};
 use std::time::Duration;
 
@@ -27,6 +28,10 @@ use libp2p::swarm::{
     ToSwarm,
 };
 use libp2p::{Multiaddr, PeerId};
+use papyrus_config::converters::deserialize_milliseconds_to_duration;
+use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
+use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use serde::{Deserialize, Serialize};
 use tokio_retry::strategy::ExponentialBackoff;
 
 use crate::mixed_behaviour;
@@ -181,9 +186,10 @@ impl NetworkBehaviour for Behaviour {
     }
 }
 
-// TODO(alon): add to NetworkConfig
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct DiscoveryConfig {
     pub bootstrap_dial_retry_config: RetryConfig,
+    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
     pub heartbeat_interval: Duration,
 }
 
@@ -196,7 +202,23 @@ impl Default for DiscoveryConfig {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+impl SerializeConfig for DiscoveryConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        let mut dump = BTreeMap::from([ser_param(
+            "heartbeat_interval",
+            &self.heartbeat_interval.as_millis(),
+            "The interval between each discovery (Kademlia) query in milliseconds.",
+            ParamPrivacyInput::Public,
+        )]);
+        dump.append(&mut append_sub_config_name(
+            self.bootstrap_dial_retry_config.dump(),
+            "bootstrap_dial_retry_config",
+        ));
+        dump
+    }
+}
+
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct RetryConfig {
     pub base_delay_millis: u64,
     pub max_delay: Duration,
@@ -206,6 +228,31 @@ pub struct RetryConfig {
 impl Default for RetryConfig {
     fn default() -> Self {
         Self { base_delay_millis: 2, max_delay: Duration::from_secs(5), factor: 5 }
+    }
+}
+
+impl SerializeConfig for RetryConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from([
+            ser_param(
+                "base_delay_millis",
+                &self.base_delay_millis,
+                "The base delay in milliseconds for the exponential backoff strategy.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_delay",
+                &self.max_delay,
+                "The maximum delay for the exponential backoff strategy.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "factor",
+                &self.factor,
+                "The factor for the exponential backoff strategy.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
     }
 }
 

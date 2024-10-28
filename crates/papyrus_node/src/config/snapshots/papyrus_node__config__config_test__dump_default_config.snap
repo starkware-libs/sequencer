@@ -196,10 +196,67 @@ expression: dumped_default_config
     "value": "SN_MAIN",
     "privacy": "Public"
   },
+  "network.discovery_config.bootstrap_dial_retry_config.base_delay_millis": {
+    "description": "The base delay in milliseconds for the exponential backoff strategy.",
+    "value": {
+      "$serde_json::private::Number": "2"
+    },
+    "privacy": "Public"
+  },
+  "network.discovery_config.bootstrap_dial_retry_config.factor": {
+    "description": "The factor for the exponential backoff strategy.",
+    "value": {
+      "$serde_json::private::Number": "5"
+    },
+    "privacy": "Public"
+  },
+  "network.discovery_config.bootstrap_dial_retry_config.max_delay": {
+    "description": "The maximum delay for the exponential backoff strategy.",
+    "value": {
+      "nanos": {
+        "$serde_json::private::Number": "0"
+      },
+      "secs": {
+        "$serde_json::private::Number": "5"
+      }
+    },
+    "privacy": "Public"
+  },
+  "network.discovery_config.heartbeat_interval": {
+    "description": "The interval between each discovery (Kademlia) query in milliseconds.",
+    "value": {
+      "$serde_json::private::Number": "100"
+    },
+    "privacy": "Public"
+  },
   "network.idle_connection_timeout": {
     "description": "Amount of time in seconds that a connection with no active sessions will stay alive.",
     "value": {
       "$serde_json::private::Number": "120"
+    },
+    "privacy": "Public"
+  },
+  "network.peer_manager_config.malicious_timeout": {
+    "description": "The duration a peer is blacklisted after being marked as malicious.",
+    "value": {
+      "nanos": {
+        "$serde_json::private::Number": "0"
+      },
+      "secs": {
+        "$serde_json::private::Number": "31536000"
+      }
+    },
+    "privacy": "Public"
+  },
+  "network.peer_manager_config.unstable_timeout": {
+    "description": "The duration a peer blacklisted after being reported as unstable.",
+    "value": {
+      "nanos": {
+        "$serde_json::private::Number": "0"
+      },
+      "secs": {
+        "$serde_json::private::Number": "1"
+      }
     },
     "privacy": "Public"
   },

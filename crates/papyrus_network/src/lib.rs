@@ -18,15 +18,22 @@ mod utils;
 use std::collections::BTreeMap;
 use std::time::Duration;
 
+use discovery::DiscoveryConfig;
 use libp2p::Multiaddr;
 use papyrus_config::converters::{
     deserialize_optional_vec_u8,
     deserialize_seconds_to_duration,
     serialize_optional_vec_u8,
 };
-use papyrus_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
+use papyrus_config::dumping::{
+    append_sub_config_name,
+    ser_optional_param,
+    ser_param,
+    SerializeConfig,
+};
 use papyrus_config::validators::validate_vec_u256;
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use peer_manager::PeerManagerConfig;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ChainId;
 use validator::Validate;
@@ -46,6 +53,8 @@ pub struct NetworkConfig {
     pub(crate) secret_key: Option<Vec<u8>>,
     pub advertised_multiaddr: Option<Multiaddr>,
     pub chain_id: ChainId,
+    pub discovery_config: DiscoveryConfig,
+    pub peer_manager_config: PeerManagerConfig,
 }
 
 impl SerializeConfig for NetworkConfig {
@@ -106,6 +115,9 @@ impl SerializeConfig for NetworkConfig {
              instead",
             ParamPrivacyInput::Public,
         ));
+        config.extend(append_sub_config_name(self.discovery_config.dump(), "discovery_config"));
+        config
+            .extend(append_sub_config_name(self.peer_manager_config.dump(), "peer_manager_config"));
         config
     }
 }
@@ -121,6 +133,8 @@ impl Default for NetworkConfig {
             secret_key: None,
             advertised_multiaddr: None,
             chain_id: ChainId::Mainnet,
+            discovery_config: DiscoveryConfig::default(),
+            peer_manager_config: PeerManagerConfig::default(),
         }
     }
 }
