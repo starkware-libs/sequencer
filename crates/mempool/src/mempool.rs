@@ -96,15 +96,15 @@ impl Mempool {
     )]
     pub fn add_tx(&mut self, args: AddTransactionArgs) -> MempoolResult<()> {
         let AddTransactionArgs { tx, account_state } = args;
-        self.validate_incoming_nonce(tx.nonce(), account_state)?;
+        self.validate_incoming_tx_nonce(tx.contract_address(), tx.nonce())?;
 
         self.handle_fee_escalation(&tx)?;
         self.tx_pool.insert(tx)?;
 
         // Align to account nonce, only if it is at least the one stored.
-        let AccountState { address, nonce } = account_state;
+        let AccountState { address, nonce: incoming_account_nonce } = account_state;
         match self.account_nonces.get(&address) {
-            Some(stored_account_nonce) if &nonce < stored_account_nonce => {}
+            Some(stored_account_nonce) if &incoming_account_nonce < stored_account_nonce => {}
             _ => {
                 self.align_to_account_state(account_state);
             }
@@ -165,32 +165,23 @@ impl Mempool {
         self.tx_queue._update_gas_price_threshold(threshold);
     }
 
-    fn validate_incoming_nonce(
+    fn validate_incoming_tx_nonce(
         &self,
+        address: ContractAddress,
         tx_nonce: Nonce,
-        account_state: AccountState,
     ) -> MempoolResult<()> {
-        let AccountState { address, nonce: account_nonce } = account_state;
         let duplicate_nonce_error = MempoolError::DuplicateNonce { address, nonce: tx_nonce };
-
-        // Stateless checks.
-
-        // Check the input: transaction nonce against given account state.
-        if account_nonce > tx_nonce {
-            return Err(duplicate_nonce_error);
-        }
-
-        // Stateful checks.
 
         // Check nonce against mempool state.
         if let Some(mempool_state_nonce) = self.mempool_state.get(&address) {
-            if mempool_state_nonce >= &tx_nonce {
+            if &tx_nonce <= mempool_state_nonce {
                 return Err(duplicate_nonce_error);
             }
         }
 
         // Check nonce against the queue.
-        if self.tx_queue.get_nonce(address).is_some_and(|queued_nonce| queued_nonce >= tx_nonce) {
+        // TODO(Elin): change to < for fee escalation (and add test).
+        if self.tx_queue.get_nonce(address).is_some_and(|queued_nonce| tx_nonce <= queued_nonce) {
             return Err(duplicate_nonce_error);
         }
 
