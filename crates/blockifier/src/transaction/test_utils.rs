@@ -139,8 +139,7 @@ pub fn deploy_and_fund_account(
 ) -> (AccountTransaction, ContractAddress) {
     // Deploy an account contract.
     let deploy_account_tx = deploy_account_tx(deploy_tx_args, nonce_manager);
-    let account_address = deploy_account_tx.contract_address();
-    let account_tx = AccountTransaction::DeployAccount(deploy_account_tx);
+    let account_address = deploy_account_tx.sender_address();
 
     // Update the balance of the about-to-be deployed account contract in the erc20 contract, so it
     // can pay for the transaction execution.
@@ -153,7 +152,7 @@ pub fn deploy_and_fund_account(
             .unwrap();
     }
 
-    (account_tx, account_address)
+    (deploy_account_tx, account_address)
 }
 
 /// Initializes a state and returns a `TestInitData` instance.
@@ -282,7 +281,7 @@ pub fn create_account_tx_for_validate_test(
                 true => constants::FELT_TRUE,
                 false => constants::FELT_FALSE,
             })];
-            let deploy_account_tx = deploy_account_tx(
+            deploy_account_tx(
                 deploy_account_tx_args! {
                     max_fee,
                     resource_bounds,
@@ -293,12 +292,11 @@ pub fn create_account_tx_for_validate_test(
                     constructor_calldata,
                 },
                 nonce_manager,
-            );
-            AccountTransaction::DeployAccount(deploy_account_tx)
+            )
         }
         TransactionType::InvokeFunction => {
             let execute_calldata = create_calldata(sender_address, "foo", &[]);
-            let invoke_tx = invoke_tx(invoke_tx_args! {
+            invoke_tx(invoke_tx_args! {
                 max_fee,
                 resource_bounds,
                 signature,
@@ -306,15 +304,14 @@ pub fn create_account_tx_for_validate_test(
                 calldata: execute_calldata,
                 version: tx_version,
                 nonce: nonce_manager.next(sender_address),
-            });
-            AccountTransaction::Invoke(invoke_tx)
+            })
         }
         _ => panic!("{tx_type:?} is not an account transaction."),
     }
 }
 
 pub fn account_invoke_tx(invoke_args: InvokeTxArgs) -> AccountTransaction {
-    AccountTransaction::Invoke(invoke_tx(invoke_args))
+    invoke_tx(invoke_args)
 }
 
 pub fn run_invoke_tx(
