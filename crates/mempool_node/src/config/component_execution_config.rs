@@ -21,27 +21,27 @@ pub enum ComponentExecutionMode {
     LocalExecution { enable_remote_connection: bool },
 }
 
-impl ComponentExecutionMode {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        match self {
-            ComponentExecutionMode::Disabled => BTreeMap::from_iter([ser_param(
-                "skip_component",
-                &"Disabled",
-                "The component is skipped.",
-                ParamPrivacyInput::Public,
-            )]),
-            ComponentExecutionMode::LocalExecution { enable_remote_connection } => {
-                BTreeMap::from_iter([ser_param(
-                    "local_execution.enable_remote_connection",
-                    enable_remote_connection,
-                    "Specifies whether the component, when running locally, allows remote \
-                     connections.",
-                    ParamPrivacyInput::Public,
-                )])
-            }
-        }
-    }
-}
+// impl ComponentExecutionMode {
+//     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+//         match self {
+//             ComponentExecutionMode::Disabled => BTreeMap::from_iter([ser_param(
+//                 "skip_component",
+//                 &"Disabled",
+//                 "The component is skipped.",
+//                 ParamPrivacyInput::Public,
+//             )]),
+//             ComponentExecutionMode::LocalExecution { enable_remote_connection } => {
+//                 BTreeMap::from_iter([ser_param(
+//                     "local_execution.enable_remote_connection",
+//                     enable_remote_connection,
+//                     "Specifies whether the component, when running locally, allows remote \
+//                      connections.",
+//                     ParamPrivacyInput::Public,
+//                 )])
+//             }
+//         }
+//     }
+// }
 // TODO(Lev/Tsabary): When papyrus_config will support it, change to include communication config in
 // the enum.
 
@@ -58,7 +58,12 @@ pub struct ComponentExecutionConfig {
 impl SerializeConfig for ComponentExecutionConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         vec![
-            append_sub_config_name(self.execution_mode.dump(), "execution_mode"),
+            BTreeMap::from_iter([ser_param(
+                "execution_mode",
+                &self.execution_mode,
+                "Component execution mode.",
+                ParamPrivacyInput::Public,
+            )]),
             ser_optional_sub_config(&self.local_config, "local_config"),
             ser_optional_sub_config(&self.remote_client_config, "remote_client_config"),
             ser_optional_sub_config(&self.remote_server_config, "remote_server_config"),

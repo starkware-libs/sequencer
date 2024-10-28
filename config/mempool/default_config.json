@@ -214,10 +214,14 @@
     "privacy": "Public",
     "value": 81920
   },
-  "components.batcher.execution_mode.local_execution.enable_remote_connection": {
-    "description": "Specifies whether the component, when running locally, allows remote connections.",
+  "components.batcher.execution_mode": {
+    "description": "Component execution mode.",
     "privacy": "Public",
-    "value": false
+    "value": {
+      "LocalExecution": {
+        "enable_remote_connection": false
+      }
+    }
   },
   "components.batcher.local_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -264,10 +268,14 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
-  "components.consensus_manager.execution_mode.local_execution.enable_remote_connection": {
-    "description": "Specifies whether the component, when running locally, allows remote connections.",
+  "components.consensus_manager.execution_mode": {
+    "description": "Component execution mode.",
     "privacy": "Public",
-    "value": false
+    "value": {
+      "LocalExecution": {
+        "enable_remote_connection": false
+      }
+    }
   },
   "components.consensus_manager.local_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -314,10 +322,14 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
-  "components.gateway.execution_mode.local_execution.enable_remote_connection": {
-    "description": "Specifies whether the component, when running locally, allows remote connections.",
+  "components.gateway.execution_mode": {
+    "description": "Component execution mode.",
     "privacy": "Public",
-    "value": false
+    "value": {
+      "LocalExecution": {
+        "enable_remote_connection": false
+      }
+    }
   },
   "components.gateway.local_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -364,10 +376,14 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
-  "components.http_server.execution_mode.local_execution.enable_remote_connection": {
-    "description": "Specifies whether the component, when running locally, allows remote connections.",
+  "components.http_server.execution_mode": {
+    "description": "Component execution mode.",
     "privacy": "Public",
-    "value": true
+    "value": {
+      "LocalExecution": {
+        "enable_remote_connection": true
+      }
+    }
   },
   "components.http_server.local_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -414,10 +430,14 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
-  "components.mempool.execution_mode.local_execution.enable_remote_connection": {
-    "description": "Specifies whether the component, when running locally, allows remote connections.",
+  "components.mempool.execution_mode": {
+    "description": "Component execution mode.",
     "privacy": "Public",
-    "value": false
+    "value": {
+      "LocalExecution": {
+        "enable_remote_connection": false
+      }
+    }
   },
   "components.mempool.local_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -464,10 +484,14 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
-  "components.monitoring_endpoint.execution_mode.local_execution.enable_remote_connection": {
-    "description": "Specifies whether the component, when running locally, allows remote connections.",
+  "components.monitoring_endpoint.execution_mode": {
+    "description": "Component execution mode.",
     "privacy": "Public",
-    "value": true
+    "value": {
+      "LocalExecution": {
+        "enable_remote_connection": true
+      }
+    }
   },
   "components.monitoring_endpoint.local_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -648,6 +672,11 @@
     "description": "The http server port.",
     "privacy": "Public",
     "value": 8080
+  },
+  "mempool_p2p_config.network_buffer_size": {
+    "description": "Network buffer size.",
+    "privacy": "Public",
+    "value": 0
   },
   "mempool_p2p_config.network_config.advertised_multiaddr": {
     "description": "The external address other peers see this node. If this is set, the node will not try to find out which addresses it has and will write this address as external instead",
