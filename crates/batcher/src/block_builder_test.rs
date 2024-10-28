@@ -41,11 +41,12 @@ fn execution_info() -> TransactionExecutionInfo {
     TransactionExecutionInfo { revert_error: Some("Test string".to_string()), ..Default::default() }
 }
 
-// TODO: Add test cases for block full, empty block, failed transaction,
+// TODO: Add test cases for block full, failed transaction,
 // timeout reached.
 #[rstest]
 #[case::one_chunk_block(3, test_txs(0..3), one_chunk_test_expectations(&input_txs))]
 #[case::two_chunks_block(6, test_txs(0..6), two_chunks_test_expectations(&input_txs))]
+#[case::empty_block(0, vec![], empty_block_test_expectations())]
 #[tokio::test]
 async fn test_build_block(
     #[case] expected_block_size: usize,
@@ -123,6 +124,18 @@ fn two_chunks_test_expectations(
         set_close_block_expectations(&mut mock_transaction_executor, block_size);
 
     let mock_mempool_client = mock_mempool_client(2, vec![first_chunk, second_chunk]);
+
+    (mock_transaction_executor, mock_mempool_client, expected_block_artifacts)
+}
+
+fn empty_block_test_expectations()
+-> (MockTransactionExecutorTrait, MockMempoolClient, BlockExecutionArtifacts) {
+    let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
+    mock_transaction_executor.expect_add_txs_to_block().times(0);
+
+    let expected_block_artifacts = set_close_block_expectations(&mut mock_transaction_executor, 0);
+
+    let mock_mempool_client = mock_mempool_client(1, vec![vec![]]);
 
     (mock_transaction_executor, mock_mempool_client, expected_block_artifacts)
 }
