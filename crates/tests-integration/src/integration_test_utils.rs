@@ -29,7 +29,11 @@ use starknet_gateway::config::{
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_http_server::config::HttpServerConfig;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
-use starknet_sequencer_node::config::{ComponentExecutionConfig, SequencerNodeConfig};
+use starknet_sequencer_node::config::{
+    ComponentExecutionConfig,
+    ComponentExecutionMode,
+    SequencerNodeConfig,
+};
 use tokio::net::TcpListener;
 
 pub async fn create_config(
@@ -38,7 +42,10 @@ pub async fn create_config(
 ) -> SequencerNodeConfig {
     // TODO(Arni/ Matan): Enable the consensus in the end to end test.
     let components = ComponentConfig {
-        consensus_manager: ComponentExecutionConfig { execute: false, ..Default::default() },
+        consensus_manager: ComponentExecutionConfig {
+            execution_mode: ComponentExecutionMode::Disabled,
+            ..Default::default()
+        },
         ..Default::default()
     };
 
