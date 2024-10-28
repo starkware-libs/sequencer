@@ -26,11 +26,9 @@ use crate::state_reader::compile::{legacy_to_contract_class_v0, sierra_to_contac
 use crate::state_reader::errors::ReexecutionError;
 use crate::state_reader::serde_utils::{
     deserialize_transaction_json_to_starknet_api_tx,
-    hashmap_from_raw,
-    nested_hashmap_from_raw,
+    get_state_diff_from_raw,
 };
 use crate::state_reader::utils::{
-    disjoint_hashmap_union,
     from_api_txs_to_blockifier_txs,
     get_chain_info,
     get_rpc_state_reader_config,
@@ -187,50 +185,14 @@ impl TestStateReader {
         ))
     }
 
-    pub fn get_state_diff(&self) -> ReexecutionResult<CommitmentStateDiff> {
+    pub fn get_raw_state_diff(&self) -> ReexecutionResult<Value> {
         let get_block_params = GetBlockWithTxHashesParams { block_id: self.0.block_id };
-        let raw_statediff =
-            &self.0.send_rpc_request("starknet_getStateUpdate", get_block_params)?["state_diff"];
-        let deployed_contracts = hashmap_from_raw::<ContractAddress, ClassHash>(
-            raw_statediff,
-            "deployed_contracts",
-            "address",
-            "class_hash",
-        )?;
-        let storage_diffs = nested_hashmap_from_raw::<ContractAddress, StorageKey, Felt>(
-            raw_statediff,
-            "storage_diffs",
-            "address",
-            "storage_entries",
-            "key",
-            "value",
-        )?;
-        let declared_classes = hashmap_from_raw::<ClassHash, CompiledClassHash>(
-            raw_statediff,
-            "declared_classes",
-            "class_hash",
-            "compiled_class_hash",
-        )?;
-        let nonces = hashmap_from_raw::<ContractAddress, Nonce>(
-            raw_statediff,
-            "nonces",
-            "contract_address",
-            "nonce",
-        )?;
-        let replaced_classes = hashmap_from_raw::<ContractAddress, ClassHash>(
-            raw_statediff,
-            "replaced_classes",
-            "class_hash",
-            "contract_address",
-        )?;
-        // We expect the deployed_contracts and replaced_classes to have disjoint addresses.
-        let address_to_class_hash = disjoint_hashmap_union(deployed_contracts, replaced_classes);
-        Ok(CommitmentStateDiff {
-            address_to_class_hash,
-            address_to_nonce: nonces,
-            storage_updates: storage_diffs,
-            class_hash_to_compiled_class_hash: declared_classes,
-        })
+        Ok(self.0.send_rpc_request("starknet_getStateUpdate", get_block_params)?["state_diff"]
+            .clone())
+    }
+
+    pub fn get_state_diff(&self) -> ReexecutionResult<CommitmentStateDiff> {
+        get_state_diff_from_raw(&self.get_raw_state_diff()?)
     }
 }
 

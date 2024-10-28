@@ -1,14 +1,19 @@
+use blockifier::state::cached_state::CommitmentStateDiff;
 use indexmap::IndexMap;
 use serde::Deserialize;
 use serde_json::Value;
+use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
+use starknet_api::state::StorageKey;
 use starknet_api::transaction::{
     DeclareTransaction,
     DeployAccountTransaction,
     InvokeTransaction,
     Transaction,
 };
+use starknet_types_core::felt::Felt;
 
 use crate::state_reader::test_state_reader::ReexecutionResult;
+use crate::state_reader::utils::disjoint_hashmap_union;
 
 pub fn deserialize_transaction_json_to_starknet_api_tx(
     mut raw_transaction: Value,
@@ -150,4 +155,47 @@ pub(crate) fn vec_to_nested_hashmap<
             )
         })
         .collect()
+}
+
+pub fn get_state_diff_from_raw(raw_statediff: &Value) -> ReexecutionResult<CommitmentStateDiff> {
+    let deployed_contracts = hashmap_from_raw::<ContractAddress, ClassHash>(
+        raw_statediff,
+        "deployed_contracts",
+        "address",
+        "class_hash",
+    )?;
+    let storage_diffs = nested_hashmap_from_raw::<ContractAddress, StorageKey, Felt>(
+        raw_statediff,
+        "storage_diffs",
+        "address",
+        "storage_entries",
+        "key",
+        "value",
+    )?;
+    let declared_classes = hashmap_from_raw::<ClassHash, CompiledClassHash>(
+        raw_statediff,
+        "declared_classes",
+        "class_hash",
+        "compiled_class_hash",
+    )?;
+    let nonces = hashmap_from_raw::<ContractAddress, Nonce>(
+        raw_statediff,
+        "nonces",
+        "contract_address",
+        "nonce",
+    )?;
+    let replaced_classes = hashmap_from_raw::<ContractAddress, ClassHash>(
+        raw_statediff,
+        "replaced_classes",
+        "class_hash",
+        "contract_address",
+    )?;
+    // We expect the deployed_contracts and replaced_classes to have disjoint addresses.
+    let address_to_class_hash = disjoint_hashmap_union(deployed_contracts, replaced_classes);
+    Ok(CommitmentStateDiff {
+        address_to_class_hash,
+        address_to_nonce: nonces,
+        storage_updates: storage_diffs,
+        class_hash_to_compiled_class_hash: declared_classes,
+    })
 }

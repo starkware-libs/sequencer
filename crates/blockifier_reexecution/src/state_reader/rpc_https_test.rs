@@ -11,7 +11,10 @@ use starknet_api::transaction::Transaction;
 use starknet_core::types::ContractClass::{Legacy, Sierra};
 
 use crate::state_reader::compile::legacy_to_contract_class_v0;
-use crate::state_reader::serde_utils::deserialize_transaction_json_to_starknet_api_tx;
+use crate::state_reader::serde_utils::{
+    deserialize_transaction_json_to_starknet_api_tx,
+    get_state_diff_from_raw,
+};
 use crate::state_reader::test_state_reader::{ConsecutiveTestStateReaders, TestStateReader};
 use crate::state_reader::utils::serialize_from_raw;
 
@@ -137,4 +140,21 @@ pub fn test_serialize_block_tx_hashes(test_state_reader: TestStateReader) {
     )
     .unwrap();
     assert_eq!(actual_tx_hashes, expected_tx_hashes);
+}
+
+#[rstest]
+pub fn test_serialize_state_diff(test_state_reader: TestStateReader) {
+    let expected_state_diff = get_state_diff_from_raw(
+        &read_json_file("block_700000/state_diff_block_700000.json")["state_diff"],
+    )
+    .unwrap();
+    let actual_state_diff = get_state_diff_from_raw(
+        &serde_json::from_str(
+            &serialize_from_raw(&test_state_reader.get_raw_state_diff().unwrap()).unwrap(),
+        )
+        .unwrap(),
+    )
+    .unwrap();
+
+    assert_eq!(actual_state_diff, expected_state_diff);
 }
