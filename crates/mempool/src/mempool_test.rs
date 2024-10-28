@@ -701,7 +701,7 @@ fn test_fee_escalation_valid_replacement() {
 #[rstest]
 fn test_fee_escalation_invalid_replacement() {
     // Setup.
-    let existing_tx = tx!(tx_hash: 1, tip: 100, max_l2_gas_price: 100);
+    let existing_tx = tx!(tip: 100, tx_hash: 1, max_l2_gas_price: 100);
     let mempool = MempoolContentBuilder::new()
         .with_pool([existing_tx.clone()])
         .with_fee_escalation_percentage(10)
