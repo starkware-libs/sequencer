@@ -32,19 +32,47 @@ pub const DEFAULT_CONFIG_PATH: &str = "config/mempool/default_config.json";
 type ConfigPointers = Vec<((ParamPath, SerializedParam), Vec<ParamPath>)>;
 pub const DEFAULT_CHAIN_ID: ChainId = ChainId::Mainnet;
 pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
-    vec![(
-        ser_pointer_target_required_param(
-            "chain_id",
-            SerializationType::String,
-            "The chain to follow.",
+    vec![
+        (
+            ser_pointer_target_required_param(
+                "chain_id",
+                SerializationType::String,
+                "The chain to follow.",
+            ),
+            vec![
+                "batcher_config.block_builder_config.chain_info.chain_id".to_owned(),
+                "batcher_config.storage.db_config.chain_id".to_owned(),
+                "gateway_config.chain_info.chain_id".to_owned(),
+                "mempool_p2p_config.network_config.chain_id".to_owned(),
+            ],
         ),
-        vec![
-            "batcher_config.block_builder_config.chain_info.chain_id".to_owned(),
-            "batcher_config.storage.db_config.chain_id".to_owned(),
-            "gateway_config.chain_info.chain_id".to_owned(),
-            "mempool_p2p_config.network_config.chain_id".to_owned(),
-        ],
-    )]
+        (
+            ser_pointer_target_required_param(
+                "eth_fee_token_address",
+                SerializationType::String,
+                "ETH fee token contract address.",
+            ),
+            vec![
+                "gateway_config.chain_info.fee_token_addresses.eth_fee_token_address".to_owned(),
+                "batcher_config.block_builder_config.chain_info.fee_token_addresses.\
+                 eth_fee_token_address"
+                    .to_owned(),
+            ],
+        ),
+        (
+            ser_pointer_target_required_param(
+                "strk_fee_token_address",
+                SerializationType::String,
+                "STRK fee token contract address.",
+            ),
+            vec![
+                "gateway_config.chain_info.fee_token_addresses.strk_fee_token_address".to_owned(),
+                "batcher_config.block_builder_config.chain_info.fee_token_addresses.\
+                 strk_fee_token_address"
+                    .to_owned(),
+            ],
+        ),
+    ]
 });
 
 // TODO(yair): Make the GW and batcher execution config point to the same values.
