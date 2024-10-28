@@ -4,7 +4,12 @@ use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
 use starknet_api::test_utils::read_json_file;
-use starknet_api::transaction::{InvokeTransaction, Transaction};
+use starknet_api::transaction::{
+    DeclareTransaction,
+    DeployAccountTransaction,
+    InvokeTransaction,
+    Transaction,
+};
 use starknet_core::types::ContractClass;
 use starknet_gateway::rpc_objects::BlockHeader;
 
@@ -64,4 +69,53 @@ fn deserialize_invoke_txs() {
     .expect("Failed to deserialize invoke v3 tx");
 
     assert_matches!(invoke_tx_v3, Transaction::Invoke(InvokeTransaction::V3(..)));
+}
+
+#[rstest]
+fn deserialize_deploy_account_txs(
+    #[values("deploy_account_v1", "deploy_account_v3")] deploy_account_version: &str,
+) {
+    let deploy_account_tx_v1 = deserialize_transaction_json_to_starknet_api_tx(
+        read_json_file("raw_rpc_json_objects/transactions.json")[deploy_account_version].clone(),
+    )
+    .unwrap_or_else(|_| panic!("Failed to deserialize {deploy_account_version} tx"));
+
+    match deploy_account_version {
+        "deploy_account_v1" => {
+            assert_matches!(
+                deploy_account_tx_v1,
+                Transaction::DeployAccount(DeployAccountTransaction::V1(..))
+            )
+        }
+        "deploy_account_v3" => {
+            assert_matches!(
+                deploy_account_tx_v1,
+                Transaction::DeployAccount(DeployAccountTransaction::V3(..))
+            )
+        }
+        _ => panic!("Unknown scenario '{deploy_account_version}'"),
+    }
+}
+
+#[rstest]
+fn deserialize_declare_txs(
+    #[values("declare_v1", "declare_v2", "declare_v3")] declare_version: &str,
+) {
+    let declare_tx = deserialize_transaction_json_to_starknet_api_tx(
+        read_json_file("raw_rpc_json_objects/transactions.json")[declare_version].clone(),
+    )
+    .unwrap_or_else(|_| panic!("Failed to deserialize {declare_version} tx"));
+
+    match declare_version {
+        "declare_v1" => {
+            assert_matches!(declare_tx, Transaction::Declare(DeclareTransaction::V1(..)))
+        }
+        "declare_v2" => {
+            assert_matches!(declare_tx, Transaction::Declare(DeclareTransaction::V2(..)))
+        }
+        "declare_v3" => {
+            assert_matches!(declare_tx, Transaction::Declare(DeclareTransaction::V3(..)))
+        }
+        _ => panic!("Unknown scenario '{declare_version}'"),
+    }
 }
