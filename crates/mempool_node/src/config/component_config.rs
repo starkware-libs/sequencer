@@ -3,12 +3,13 @@ use std::collections::BTreeMap;
 use papyrus_config::dumping::{append_sub_config_name, SerializeConfig};
 use papyrus_config::{ParamPath, SerializedParam};
 use serde::{Deserialize, Serialize};
-use validator::Validate;
+use validator::{Validate, ValidationError};
 
 use crate::config::ComponentExecutionConfig;
 
 /// The components configuration.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
+#[validate(schema(function = "validate_components_config"))]
 pub struct ComponentConfig {
     #[validate]
     pub batcher: ComponentExecutionConfig,
@@ -51,4 +52,23 @@ impl SerializeConfig for ComponentConfig {
 
         sub_configs.into_iter().flatten().collect()
     }
+}
+
+pub fn validate_components_config(components: &ComponentConfig) -> Result<(), ValidationError> {
+    // TODO(Tsabary/Lev): We need to come up with a better mechanism for this validation, simply
+    // listing all components and expecting one to remember adding a new component to this list does
+    // not suffice.
+    if components.gateway.execute
+        || components.mempool.execute
+        || components.batcher.execute
+        || components.http_server.execute
+        || components.consensus_manager.execute
+        || components.monitoring_endpoint.execute
+    {
+        return Ok(());
+    }
+
+    let mut error = ValidationError::new("Invalid components configuration.");
+    error.message = Some("At least one component should be allowed to execute.".into());
+    Err(error)
 }

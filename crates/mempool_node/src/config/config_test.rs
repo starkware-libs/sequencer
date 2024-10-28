@@ -24,11 +24,10 @@ use crate::config::{
 
 /// Test the validation of the struct ComponentExecutionConfig.
 /// Validates that execution mode of the component and the local/remote config are at sync.
-/// TODO(Nadin): Fix the test after separating local_config into distinct configurations.
 #[rstest]
-#[case::local(ComponentExecutionMode::LocalExecution {enable_remote_connection: false}, None, None)]
-#[case::remote(ComponentExecutionMode::LocalExecution {enable_remote_connection: true}, Some(RemoteClientConfig::default()), None)]
-#[case::remote(ComponentExecutionMode::LocalExecution {enable_remote_connection: true}, None, Some(RemoteServerConfig::default()))]
+#[case::local(ComponentExecutionMode::Local, None, None)]
+#[case::remote(ComponentExecutionMode::Remote, Some(RemoteClientConfig::default()), None)]
+#[case::remote(ComponentExecutionMode::Remote, None, Some(RemoteServerConfig::default()))]
 fn test_valid_component_execution_config(
     #[case] execution_mode: ComponentExecutionMode,
     #[case] remote_client_config: Option<RemoteClientConfig>,
@@ -36,20 +35,18 @@ fn test_valid_component_execution_config(
 ) {
     // Initialize a valid config and check that the validator returns Ok.
 
-    let local_execution_mode =
-        ComponentExecutionMode::LocalExecution { enable_remote_connection: false };
-    let local_config = if execution_mode == local_execution_mode {
+    let local_config = if execution_mode == ComponentExecutionMode::Local {
         Some(LocalComponentCommunicationConfig::default())
     } else {
         None
     };
 
-    // TODO(Nadin): split local config to local_client and local_server config.
     let component_exe_config = ComponentExecutionConfig {
         execution_mode,
         local_config,
         remote_client_config,
         remote_server_config,
+        ..ComponentExecutionConfig::default()
     };
     assert_eq!(component_exe_config.validate(), Ok(()));
 }

@@ -214,10 +214,15 @@
     "privacy": "Public",
     "value": 81920
   },
-  "components.batcher.execution_mode.local_execution.enable_remote_connection": {
-    "description": "Specifies whether the component, when running locally, allows remote connections.",
+  "components.batcher.execute": {
+    "description": "The component execution flag.",
     "privacy": "Public",
-    "value": false
+    "value": true
+  },
+  "components.batcher.execution_mode": {
+    "description": "The component execution mode.",
+    "privacy": "Public",
+    "value": "Local"
   },
   "components.batcher.local_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -264,10 +269,15 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
-  "components.consensus_manager.execution_mode.local_execution.enable_remote_connection": {
-    "description": "Specifies whether the component, when running locally, allows remote connections.",
+  "components.consensus_manager.execute": {
+    "description": "The component execution flag.",
     "privacy": "Public",
-    "value": false
+    "value": true
+  },
+  "components.consensus_manager.execution_mode": {
+    "description": "The component execution mode.",
+    "privacy": "Public",
+    "value": "Local"
   },
   "components.consensus_manager.local_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -314,10 +324,15 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
-  "components.gateway.execution_mode.local_execution.enable_remote_connection": {
-    "description": "Specifies whether the component, when running locally, allows remote connections.",
+  "components.gateway.execute": {
+    "description": "The component execution flag.",
     "privacy": "Public",
-    "value": false
+    "value": true
+  },
+  "components.gateway.execution_mode": {
+    "description": "The component execution mode.",
+    "privacy": "Public",
+    "value": "Local"
   },
   "components.gateway.local_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -364,10 +379,15 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
-  "components.http_server.execution_mode.local_execution.enable_remote_connection": {
-    "description": "Specifies whether the component, when running locally, allows remote connections.",
+  "components.http_server.execute": {
+    "description": "The component execution flag.",
     "privacy": "Public",
     "value": true
+  },
+  "components.http_server.execution_mode": {
+    "description": "The component execution mode.",
+    "privacy": "Public",
+    "value": "Remote"
   },
   "components.http_server.local_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -414,10 +434,15 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
-  "components.mempool.execution_mode.local_execution.enable_remote_connection": {
-    "description": "Specifies whether the component, when running locally, allows remote connections.",
+  "components.mempool.execute": {
+    "description": "The component execution flag.",
     "privacy": "Public",
-    "value": false
+    "value": true
+  },
+  "components.mempool.execution_mode": {
+    "description": "The component execution mode.",
+    "privacy": "Public",
+    "value": "Local"
   },
   "components.mempool.local_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -464,10 +489,15 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
-  "components.monitoring_endpoint.execution_mode.local_execution.enable_remote_connection": {
-    "description": "Specifies whether the component, when running locally, allows remote connections.",
+  "components.monitoring_endpoint.execute": {
+    "description": "The component execution flag.",
     "privacy": "Public",
     "value": true
+  },
+  "components.monitoring_endpoint.execution_mode": {
+    "description": "The component execution mode.",
+    "privacy": "Public",
+    "value": "Remote"
   },
   "components.monitoring_endpoint.local_config.#is_none": {
     "description": "Flag for an optional field.",
