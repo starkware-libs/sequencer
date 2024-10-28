@@ -153,8 +153,8 @@ async fn peer_assignment_no_peers() {
 
 #[tokio::test]
 async fn peer_assignment_no_unblocked_peers() {
-    const BLOCKED_UNTIL: Duration = Duration::from_secs(5);
-    const TIMEOUT: Duration = Duration::from_secs(1);
+    const BLOCKED_UNTIL: u64 = 5;
+    const TIMEOUT: u64 = 1;
     // Create a new peer manager
     let config = PeerManagerConfig { malicious_timeout: TIMEOUT, unstable_timeout: TIMEOUT };
     let mut peer_manager: PeerManager = PeerManager::new(config.clone());
@@ -172,7 +172,7 @@ async fn peer_assignment_no_unblocked_peers() {
     peer_manager.report_peer(peer_id, ReputationModifier::Unstable).unwrap();
 
     // Consume the peer blacklisted event
-    let event = tokio::time::timeout(TIMEOUT, peer_manager.next()).await.unwrap().unwrap();
+    let event = tokio::time::timeout(Duration::from_secs(TIMEOUT), peer_manager.next()).await.unwrap().unwrap();
     assert_matches!(
         event,
         ToSwarm::GenerateEvent(ToOtherBehaviourEvent::PeerBlacklisted { peer_id: event_peer_id })
@@ -185,11 +185,11 @@ async fn peer_assignment_no_unblocked_peers() {
 
     // Simulate that BLOCKED_UNTIL has passed.
     tokio::time::pause();
-    tokio::time::advance(BLOCKED_UNTIL).await;
+    tokio::time::advance(Duration::from_secs(BLOCKED_UNTIL)).await;
     tokio::time::resume();
 
     // After BLOCKED_UNTIL has passed, the peer manager can assign the session.
-    let event = tokio::time::timeout(TIMEOUT, peer_manager.next()).await.unwrap().unwrap();
+    let event = tokio::time::timeout(Duration::from_secs(TIMEOUT), peer_manager.next()).await.unwrap().unwrap();
     assert_matches!(
         event,
         ToSwarm::GenerateEvent(ToOtherBehaviourEvent::SessionAssigned {

@@ -221,13 +221,13 @@ impl SerializeConfig for DiscoveryConfig {
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct RetryConfig {
     pub base_delay_millis: u64,
-    pub max_delay: Duration,
+    pub max_delay: u64,
     pub factor: u64,
 }
 
 impl Default for RetryConfig {
     fn default() -> Self {
-        Self { base_delay_millis: 2, max_delay: Duration::from_secs(5), factor: 5 }
+        Self { base_delay_millis: 2, max_delay: 5, factor: 5 }
     }
 }
 
@@ -243,7 +243,7 @@ impl SerializeConfig for RetryConfig {
             ser_param(
                 "max_delay",
                 &self.max_delay,
-                "The maximum delay for the exponential backoff strategy.",
+                "The maximum delay in seconds for the exponential backoff strategy.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -259,7 +259,7 @@ impl SerializeConfig for RetryConfig {
 impl RetryConfig {
     fn strategy(&self) -> ExponentialBackoff {
         ExponentialBackoff::from_millis(self.base_delay_millis)
-            .max_delay(self.max_delay)
+            .max_delay(Duration::from_secs(self.max_delay))
             .factor(self.factor)
     }
 }
