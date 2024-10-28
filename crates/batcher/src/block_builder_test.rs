@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use blockifier::blockifier::transaction_executor::TransactionExecutorError;
 use blockifier::bouncer::BouncerWeights;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
@@ -56,7 +57,7 @@ fn one_chunk_test_expectations(
     let expected_block_artifacts =
         set_close_block_expectations(&mut mock_transaction_executor, block_size);
 
-    let mock_mempool_client = mock_mempool_client(1, vec![input_txs.to_vec()]);
+    let mock_mempool_client = mock_mempool_limitless_calls(1, vec![input_txs.to_vec()]);
 
     (mock_transaction_executor, mock_mempool_client, expected_block_artifacts)
 }
@@ -87,7 +88,7 @@ fn two_chunks_test_expectations(
     let expected_block_artifacts =
         set_close_block_expectations(&mut mock_transaction_executor, block_size);
 
-    let mock_mempool_client = mock_mempool_client(2, vec![first_chunk, second_chunk]);
+    let mock_mempool_client = mock_mempool_limitless_calls(2, vec![first_chunk, second_chunk]);
 
     (mock_transaction_executor, mock_mempool_client, expected_block_artifacts)
 }
@@ -99,7 +100,27 @@ fn empty_block_test_expectations()
 
     let expected_block_artifacts = set_close_block_expectations(&mut mock_transaction_executor, 0);
 
-    let mock_mempool_client = mock_mempool_client(1, vec![vec![]]);
+    let mock_mempool_client = mock_mempool_limitless_calls(1, vec![vec![]]);
+
+    (mock_transaction_executor, mock_mempool_client, expected_block_artifacts)
+}
+
+fn block_full_test_expectations(
+    input_txs: &[Transaction],
+    block_size: usize,
+) -> (MockTransactionExecutorTrait, MockMempoolClient, BlockExecutionArtifacts) {
+    let input_txs_cloned = input_txs.to_vec();
+    let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
+
+    mock_transaction_executor
+        .expect_add_txs_to_block()
+        .withf(move |blockifier_input| compare_tx_hashes(&input_txs_cloned, blockifier_input))
+        .return_once(move |_| vec![Ok(execution_info()), Err(TransactionExecutorError::BlockFull)]);
+
+    let expected_block_artifacts =
+        set_close_block_expectations(&mut mock_transaction_executor, block_size);
+
+    let mock_mempool_client = mock_mempool_limited_calls(1, vec![input_txs.to_vec()]);
 
     (mock_transaction_executor, mock_mempool_client, expected_block_artifacts)
 }
@@ -131,7 +152,7 @@ fn set_close_block_expectations(
 
 /// Create a mock mempool client that will return the input chunks for number of chunks queries.
 /// This function assumes constant chunk size of TX_CHUNK_SIZE.
-fn mock_mempool_client(
+fn mock_mempool_limited_calls(
     number_of_chunks: usize,
     mut input_chunks: Vec<Vec<Transaction>>,
 ) -> MockMempoolClient {
@@ -141,9 +162,24 @@ fn mock_mempool_client(
         .times(number_of_chunks)
         .with(eq(TX_CHUNK_SIZE))
         .returning(move |_n_txs| Ok(input_chunks.remove(0)));
-    // The number of times the mempool will be called until timeout is unpredicted.
-    mock_mempool_client.expect_get_txs().with(eq(TX_CHUNK_SIZE)).returning(|_n_txs| Ok(Vec::new()));
     mock_mempool_client
+}
+
+/// Create a mock mempool client that will return the input chunks and then empty chunks.
+/// This function assumes constant chunk size of TX_CHUNK_SIZE.
+fn mock_mempool_limitless_calls(
+    number_of_chunks: usize,
+    input_chunks: Vec<Vec<Transaction>>,
+) -> MockMempoolClient {
+    let mut mock_mempool_client = mock_mempool_limited_calls(number_of_chunks, input_chunks);
+
+    // The number of times the mempool will be called until timeout is unpredicted.
+    add_limitless_empty_calls(&mut mock_mempool_client);
+    mock_mempool_client
+}
+
+fn add_limitless_empty_calls(mock_mempool_client: &mut MockMempoolClient) {
+    mock_mempool_client.expect_get_txs().with(eq(TX_CHUNK_SIZE)).returning(|_n_txs| Ok(Vec::new()));
 }
 
 fn compare_tx_hashes(input: &[Transaction], blockifier_input: &[BlockifierTransaction]) -> bool {
@@ -185,12 +221,12 @@ async fn run_build_block(
     block_builder.build_block(deadline, Arc::new(mempool_client), output_sender).await.unwrap()
 }
 
-// TODO: Add test cases for block full, failed transaction,
-// timeout reached.
+// TODO: Add test cases for failed transaction, timeout reached.
 #[rstest]
 #[case::one_chunk_block(3, test_txs(0..3), one_chunk_test_expectations(&input_txs))]
 #[case::two_chunks_block(6, test_txs(0..6), two_chunks_test_expectations(&input_txs))]
 #[case::empty_block(0, vec![], empty_block_test_expectations())]
+#[case::block_full(1, test_txs(0..3), block_full_test_expectations(&input_txs, expected_block_size))]
 #[tokio::test]
 async fn test_build_block(
     #[case] expected_block_size: usize,
