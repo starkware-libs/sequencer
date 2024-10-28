@@ -20,7 +20,13 @@ use papyrus_consensus::types::{
     Round,
     ValidatorId,
 };
-use papyrus_protobuf::consensus::{ConsensusMessage, Vote};
+use papyrus_protobuf::consensus::{
+    ConsensusMessage,
+    ProposalFin,
+    ProposalPart,
+    TransactionBatch,
+    Vote,
+};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::executable_transaction::Transaction;
 use starknet_batcher_types::batcher_types::{
@@ -130,8 +136,8 @@ impl ConsensusContext for SequencerConsensusContext {
         &mut self,
         height: BlockNumber,
         timeout: Duration,
-        content: mpsc::Receiver<Self::ProposalChunk>,
-    ) -> oneshot::Receiver<ProposalContentId> {
+        content_receiver: mpsc::Receiver<ProposalPart>,
+    ) -> oneshot::Receiver<(ProposalContentId, ProposalContentId)> {
         debug!("Validating proposal for height: {height} with timeout: {timeout:?}");
         let (fin_sender, fin_receiver) = oneshot::channel();
         let batcher = Arc::clone(&self.batcher);
@@ -152,7 +158,7 @@ impl ConsensusContext for SequencerConsensusContext {
                     proposal_id,
                     batcher,
                     valid_proposals,
-                    content,
+                    content_receiver,
                     fin_sender,
                 );
                 if let Err(e) = tokio::time::timeout(timeout, validate_fut).await {
@@ -302,36 +308,52 @@ async fn stream_validate_proposal(
     proposal_id: ProposalId,
     batcher: Arc<dyn BatcherClient>,
     valid_proposals: Arc<Mutex<HeightToIdToContent>>,
-    mut content_receiver: mpsc::Receiver<Vec<Transaction>>,
-    fin_sender: oneshot::Sender<ProposalContentId>,
+    mut content_receiver: mpsc::Receiver<ProposalPart>,
+    fin_sender: oneshot::Sender<(ProposalContentId, ProposalContentId)>,
 ) {
     let mut content = Vec::new();
-    while let Some(txs) = content_receiver.next().await {
-        content.extend_from_slice(&txs[..]);
-        let input =
-            SendProposalContentInput { proposal_id, content: SendProposalContent::Txs(txs) };
-        let response = batcher.send_proposal_content(input).await.unwrap_or_else(|e| {
-            panic!("Failed to send proposal content to batcher: {proposal_id:?}. {e:?}")
-        });
-        match response.response {
-            ProposalStatus::Processing => {}
-            ProposalStatus::Finished(fin) => {
-                panic!("Batcher returned Fin before all content was sent: {proposal_id:?} {fin:?}");
+    let mut network_block_id = BlockHash::default();
+    let mut batcher_block_id = BlockHash::default();
+    while let Some(prop_part) = content_receiver.next().await {
+        match prop_part {
+            ProposalPart::Transactions(TransactionBatch { transactions: txs }) => {
+                content.extend_from_slice(&txs[..]);
+                let input = SendProposalContentInput {
+                    proposal_id,
+                    content: SendProposalContent::Txs(txs),
+                };
+                let response = batcher.send_proposal_content(input).await.unwrap_or_else(|e| {
+                    panic!("Failed to send proposal content to batcher: {proposal_id:?}. {e:?}")
+                });
+                match response.response {
+                    ProposalStatus::Processing => {}
+                    ProposalStatus::Finished(fin) => {
+                        panic!(
+                            "Batcher returned Fin before all content was sent: {proposal_id:?} \
+                             {fin:?}"
+                        );
+                    }
+                    ProposalStatus::InvalidProposal => {
+                        warn!("Proposal was invalid: {:?}", proposal_id);
+                        return;
+                    }
+                }
             }
-            ProposalStatus::InvalidProposal => {
-                warn!("Proposal was invalid: {:?}", proposal_id);
-                return;
+            ProposalPart::Fin(ProposalFin { proposal_content_id: id }) => {
+                network_block_id = id; // Output this along with the ID from batcher, to compare them. 
+                break;
+            }
+            _ => {
+                panic!("Invalid proposal part: {:?}", prop_part);
             }
         }
     }
-    // TODO: In the future we will receive a Fin from the network instead of the channel closing.
-    // We will just send the network Fin out along with what the batcher calculates.
     let input = SendProposalContentInput { proposal_id, content: SendProposalContent::Finish };
     let response = batcher
         .send_proposal_content(input)
         .await
         .unwrap_or_else(|e| panic!("Failed to send Fin to batcher: {proposal_id:?}. {e:?}"));
-    let id = match response.response {
+    let response_id = match response.response {
         ProposalStatus::Finished(id) => id,
         ProposalStatus::Processing => {
             panic!("Batcher failed to return Fin after all content was sent: {:?}", proposal_id);
@@ -341,20 +363,23 @@ async fn stream_validate_proposal(
             return;
         }
     };
-    let proposal_content_id = BlockHash(id.state_diff_commitment.0.0);
+    batcher_block_id = BlockHash(response_id.state_diff_commitment.0.0);
+
     info!(
-        "Finished validating proposal {:?}: content_id = {:?}, num_txs = {:?}, height = {:?}",
+        "Finished validating proposal {:?}: network_block_id: {:?}, batcher_block_id = {:?}, \
+         num_txs = {:?}, height = {:?}",
         proposal_id,
-        proposal_content_id,
+        network_block_id,
+        batcher_block_id,
         content.len(),
         height
     );
     // Update valid_proposals before sending fin to avoid a race condition
     // with `get_proposal` being called before `valid_proposals` is updated.
     let mut valid_proposals = valid_proposals.lock().unwrap();
-    valid_proposals.entry(height).or_default().insert(proposal_content_id, (content, proposal_id));
-    if fin_sender.send(proposal_content_id).is_err() {
+    valid_proposals.entry(height).or_default().insert(batcher_block_id, (content, proposal_id));
+    if fin_sender.send((batcher_block_id, network_block_id)).is_err() {
         // Consensus may exit early (e.g. sync).
-        warn!("Failed to send proposal content id");
+        warn!("Failed to send proposal content ids");
     }
 }

@@ -11,14 +11,15 @@ use futures::channel::{mpsc, oneshot};
 use futures::stream::FuturesUnordered;
 use futures::{Stream, StreamExt};
 use papyrus_common::metrics::{PAPYRUS_CONSENSUS_HEIGHT, PAPYRUS_CONSENSUS_SYNC_COUNT};
-use papyrus_network::network_manager::BroadcastTopicClientTrait;
-use papyrus_protobuf::consensus::{ConsensusMessage, ProposalWrapper};
+use papyrus_network::network_manager::{BroadcastTopicClientTrait, BroadcastTopicServer};
+use papyrus_protobuf::consensus::{ConsensusMessage, ProposalPart, ProposalWrapper, StreamMessage};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::ContractAddress;
 use tracing::{debug, info, instrument};
 
 use crate::config::TimeoutsConfig;
 use crate::single_height_consensus::{ShcReturn, ShcTask, SingleHeightConsensus};
+use crate::stream_handler::StreamHandler;
 use crate::types::{
     BroadcastConsensusMessageChannel,
     ConsensusContext,
@@ -37,6 +38,7 @@ pub async fn run_consensus<ContextT, SyncReceiverT>(
     consensus_delay: Duration,
     timeouts: TimeoutsConfig,
     mut broadcast_channels: BroadcastConsensusMessageChannel,
+    proposal_broadcast_channels: BroadcastTopicServer<StreamMessage<ProposalPart>>,
     mut sync_receiver: SyncReceiverT,
 ) -> Result<(), ConsensusError>
 where
@@ -44,7 +46,7 @@ where
     SyncReceiverT: Stream<Item = BlockNumber> + Unpin,
     ProposalWrapper: Into<(
         (BlockNumber, u32, ContractAddress, Option<u32>),
-        mpsc::Receiver<ContextT::ProposalChunk>,
+        mpsc::Receiver<ContextT::ProposalPart>,
         oneshot::Receiver<BlockHash>,
     )>,
 {
@@ -60,10 +62,22 @@ where
     tokio::time::sleep(consensus_delay).await;
     let mut current_height = start_height;
     let mut manager = MultiHeightManager::new(validator_id, timeouts);
+    let (proposal_sender, mut proposal_receiver) = mpsc::channel(10);
+    let mut stream_handler =
+        StreamHandler::<ProposalPart>::new(proposal_sender, proposal_broadcast_channels);
+    tokio::spawn(async move {
+        stream_handler.run().await;
+    });
+
     loop {
         metrics::gauge!(PAPYRUS_CONSENSUS_HEIGHT, current_height.0 as f64);
 
-        let run_height = manager.run_height(&mut context, current_height, &mut broadcast_channels);
+        let run_height = manager.run_height(
+            &mut context,
+            current_height,
+            &mut broadcast_channels,
+            &mut proposal_receiver,
+        );
 
         // `run_height` is not cancel safe. Our implementation doesn't enable us to start and stop
         // it. We also cannot restart the height; when we dropped the future we dropped the state it
@@ -108,12 +122,13 @@ impl MultiHeightManager {
         context: &mut ContextT,
         height: BlockNumber,
         broadcast_channels: &mut BroadcastConsensusMessageChannel,
+        proposal_receiver: &mut mpsc::Receiver<mpsc::Receiver<ProposalPart>>,
     ) -> Result<Decision, ConsensusError>
     where
         ContextT: ConsensusContext,
         ProposalWrapper: Into<(
             (BlockNumber, u32, ContractAddress, Option<u32>),
-            mpsc::Receiver<ContextT::ProposalChunk>,
+            mpsc::Receiver<ContextT::ProposalPart>,
             oneshot::Receiver<BlockHash>,
         )>,
     {
@@ -142,6 +157,20 @@ impl MultiHeightManager {
                 message = next_message(&mut current_height_messages, broadcast_channels) => {
                     self.handle_message(context, height, &mut shc, message?).await?
                 },
+                Some(mut content_receiver) = proposal_receiver.next() => {
+                    let Some(first_part) = content_receiver.next().await else {
+                        return Err(ConsensusError::InternalNetworkError("Proposal receiver closed".to_string()));
+                    };
+                    let proposal_init = match first_part {
+                        ProposalPart::Init(init) => init,
+                        _ => {
+                            return Err(ConsensusError::InternalNetworkError(
+                                "Expected first part of proposal to be Init variant".to_string(),
+                            ));
+                        }
+                    };
+                    self.handle_proposal(context, height, &mut shc, proposal_init.into(), content_receiver).await?
+                },
                 Some(shc_task) = shc_tasks.next() => {
                     shc.handle_event(context, shc_task.event).await?
                 },
@@ -158,6 +187,29 @@ impl MultiHeightManager {
         }
     }
 
+    // Handle a new proposal receiver from the network.
+    async fn handle_proposal<ContextT>(
+        &mut self,
+        context: &mut ContextT,
+        height: BlockNumber,
+        shc: &mut SingleHeightConsensus,
+        proposal_init: (BlockNumber, u32, ContractAddress, Option<u32>),
+        content_receiver: mpsc::Receiver<ProposalPart>,
+    ) -> Result<ShcReturn, ConsensusError>
+    where
+        ContextT: ConsensusContext,
+    {
+        // TODO(guyn): what is the right thing to do if proposal's height doesn't match?
+        if proposal_init.0 != height {
+            debug!("Received a proposal for a different height. {:?}", proposal_init);
+            // if message.height() > height.0 {
+            //     self.cached_messages.entry(message.height()).or_default().push(message);
+            // }
+            return Ok(ShcReturn::Tasks(Vec::new()));
+        }
+        shc.handle_proposal(context, proposal_init.into(), content_receiver).await
+    }
+
     // Handle a single consensus message.
     async fn handle_message<ContextT>(
         &mut self,
@@ -170,7 +222,7 @@ impl MultiHeightManager {
         ContextT: ConsensusContext,
         ProposalWrapper: Into<(
             (BlockNumber, u32, ContractAddress, Option<u32>),
-            mpsc::Receiver<ContextT::ProposalChunk>,
+            mpsc::Receiver<ContextT::ProposalPart>,
             oneshot::Receiver<BlockHash>,
         )>,
     {
@@ -186,14 +238,16 @@ impl MultiHeightManager {
             return Ok(ShcReturn::Tasks(Vec::new()));
         }
         match message {
-            ConsensusMessage::Proposal(proposal) => {
-                // Special case due to fake streaming.
-                let (proposal_init, content_receiver, fin_receiver) =
-                    ProposalWrapper(proposal).into();
-                let res = shc
-                    .handle_proposal(context, proposal_init.into(), content_receiver, fin_receiver)
-                    .await?;
-                Ok(res)
+            ConsensusMessage::Proposal(_proposal) => {
+                // Special case due to fake streaming. TODO(guyn): We can eliminate this option and
+                // leave handle_message. let (proposal_init, content_receiver,
+                // fin_receiver) =    ProposalWrapper(proposal).into();
+                // let res = shc
+                //    .handle_proposal(context, proposal_init.into(), content_receiver,
+                // fin_receiver)    .await?;
+                Err(ConsensusError::InternalNetworkError(
+                    "Proposal variance of ConsensusMessage no longer supported".to_string(),
+                ))
             }
             _ => {
                 let res = shc.handle_message(context, message).await?;

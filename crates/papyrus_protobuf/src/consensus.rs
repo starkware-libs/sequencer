@@ -73,6 +73,14 @@ pub struct ProposalInit {
     pub proposer: ContractAddress,
 }
 
+// TODO(guyn): after uniting this struct with that in sequencing/papyrus_consensus/src/types.rs,
+// we'll be able to remove this and the needless conversions back and forth to a tuple.
+impl From<ProposalInit> for (BlockNumber, u32, ContractAddress, Option<u32>) {
+    fn from(val: ProposalInit) -> Self {
+        return (BlockNumber(val.height), val.round, val.proposer, val.valid_round);
+    }
+}
+
 /// There is one or more batches of transactions in a proposed block.
 #[derive(Debug, Clone, PartialEq)]
 pub struct TransactionBatch {
