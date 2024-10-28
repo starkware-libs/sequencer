@@ -118,13 +118,14 @@ impl TestStateReader {
 
     /// Get all transaction hashes in the current block.
     pub fn get_tx_hashes(&self) -> ReexecutionResult<Vec<String>> {
+        Ok(serde_json::from_value(self.get_raw_tx_hashes()?)?)
+    }
+
+    pub(crate) fn get_raw_tx_hashes(&self) -> ReexecutionResult<Value> {
         let get_block_params = GetBlockWithTxHashesParams { block_id: self.0.block_id };
-        let raw_tx_hashes = serde_json::from_value(
-            self.0.send_rpc_request("starknet_getBlockWithTxHashes", &get_block_params)?
-                ["transactions"]
-                .clone(),
-        )?;
-        Ok(serde_json::from_value(raw_tx_hashes)?)
+        Ok(self.0.send_rpc_request("starknet_getBlockWithTxHashes", &get_block_params)?
+            ["transactions"]
+            .clone())
     }
 
     pub fn get_tx_by_hash(&self, tx_hash: &str) -> ReexecutionResult<Transaction> {
