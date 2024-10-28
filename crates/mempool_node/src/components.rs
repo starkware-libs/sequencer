@@ -5,7 +5,7 @@ use starknet_consensus_manager::consensus_manager::ConsensusManager;
 use starknet_gateway::gateway::{create_gateway, Gateway};
 use starknet_http_server::http_server::{create_http_server, HttpServer};
 use starknet_mempool::communication::{create_mempool, MempoolCommunicationWrapper};
-use starknet_mempool_p2p::sender::EmptyMempoolP2pPropagatorClient;
+use starknet_mempool_p2p::propagator::EmptyMempoolP2pPropagatorClient;
 use starknet_monitoring_endpoint::monitoring_endpoint::{
     create_monitoring_endpoint,
     MonitoringEndpoint,
