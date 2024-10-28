@@ -690,12 +690,9 @@
     "value": 5
   },
   "mempool_p2p_config.network_config.discovery_config.bootstrap_dial_retry_config.max_delay": {
-    "description": "The maximum delay for the exponential backoff strategy.",
+    "description": "The maximum delay in seconds for the exponential backoff strategy.",
     "privacy": "Public",
-    "value": {
-      "nanos": 0,
-      "secs": 5
-    }
+    "value": 5
   },
   "mempool_p2p_config.network_config.discovery_config.heartbeat_interval": {
     "description": "The interval between each discovery (Kademlia) query in milliseconds.",
