@@ -149,15 +149,9 @@ pub fn create_integration_test_tx_generator() -> MultiAccountTransactionGenerato
     tx_generator
 }
 
-/// Creates and runs a scenario for the sequencer integration test. Returns a list of transaction
-/// hashes, in the order they are expected to be in the mempool.
-pub async fn run_integration_test_scenario<'a, Fut>(
+pub fn create_txs_for_integration_test_scenario(
     mut tx_generator: MultiAccountTransactionGenerator,
-    send_rpc_tx_fn: &'a dyn Fn(RpcTransaction) -> Fut,
-) -> Vec<TransactionHash>
-where
-    Fut: Future<Output = TransactionHash> + 'a,
-{
+) -> Vec<RpcTransaction> {
     const ACCOUNT_ID_0: AccountId = 0;
     const ACCOUNT_ID_1: AccountId = 1;
 
@@ -173,7 +167,61 @@ where
     let account0_invoke_nonce2 =
         tx_generator.account_with_id(ACCOUNT_ID_0).generate_invoke_with_tip(3);
 
-    let rpc_txs = vec![account1_invoke_nonce1, account0_invoke_nonce1, account0_invoke_nonce2];
+    vec![account1_invoke_nonce1, account0_invoke_nonce1, account0_invoke_nonce2]
+}
+
+pub fn create_txs_for_many_txs_test_scenario(
+    mut tx_generator: MultiAccountTransactionGenerator,
+    n_txs: usize,
+) -> Vec<RpcTransaction> {
+    const ACCOUNT_ID_0: AccountId = 0;
+
+    (0..n_txs)
+        .map(|_| tx_generator.account_with_id(ACCOUNT_ID_0).generate_invoke_with_tip(1))
+        .collect()
+}
+
+/// Creates and runs the integration test scenario for the sequencer integration test. Returns a
+/// list of transaction hashes, in the order they are expected to be in the mempool.
+pub async fn run_integration_test_scenario<'a, Fut>(
+    tx_generator: MultiAccountTransactionGenerator,
+    send_rpc_tx_fn: &'a dyn Fn(RpcTransaction) -> Fut,
+) -> Vec<TransactionHash>
+where
+    Fut: Future<Output = TransactionHash> + 'a,
+{
+    run_test_scenario(tx_generator, &create_txs_for_integration_test_scenario, send_rpc_tx_fn).await
+}
+
+/// Creates and runs the many txs test scenario for the sequencer integration test. Returns
+/// a list of transaction hashes, in the order they are expected to be in the mempool.
+pub async fn run_many_txs_test_scenario<'a, Fut>(
+    tx_generator: MultiAccountTransactionGenerator,
+    send_rpc_tx_fn: &'a dyn Fn(RpcTransaction) -> Fut,
+) -> Vec<TransactionHash>
+where
+    Fut: Future<Output = TransactionHash> + 'a,
+{
+    let n_txs = 50;
+    let rpc_tx_generator = |tx_generator: MultiAccountTransactionGenerator| {
+        create_txs_for_many_txs_test_scenario(tx_generator, n_txs)
+    };
+
+    run_test_scenario(tx_generator, &rpc_tx_generator, send_rpc_tx_fn).await
+}
+
+/// Creates and runs a scenario for the sequencer integration test. Returns a list of transaction
+/// hashes, in the order they are expected to be in the mempool.
+pub async fn run_test_scenario<'a, Fut>(
+    tx_generator: MultiAccountTransactionGenerator,
+    rpc_tx_generator: &dyn Fn(MultiAccountTransactionGenerator) -> Vec<RpcTransaction>,
+    send_rpc_tx_fn: &'a dyn Fn(RpcTransaction) -> Fut,
+) -> Vec<TransactionHash>
+where
+    Fut: Future<Output = TransactionHash> + 'a,
+{
+    // Generate the rpc transactions.
+    let rpc_txs = rpc_tx_generator(tx_generator);
 
     // Send RPC transactions.
     let mut tx_hashes = vec![];
