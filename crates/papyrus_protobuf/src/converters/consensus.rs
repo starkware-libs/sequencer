@@ -304,6 +304,7 @@ impl From<ProposalPart> for protobuf::ProposalPart {
 
 auto_impl_into_and_try_from_vec_u8!(ProposalPart, protobuf::ProposalPart);
 
+// TODO(guyn): remove this once we are happy with how proposals are sent separate from votes.
 impl TryFrom<protobuf::ConsensusMessage> for ConsensusMessage {
     type Error = ProtobufConversionError;
 

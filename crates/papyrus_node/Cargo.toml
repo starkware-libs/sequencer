@@ -39,6 +39,7 @@ papyrus_consensus_orchestrator.workspace = true
 papyrus_monitoring_gateway.workspace = true
 papyrus_network.workspace = true
 papyrus_p2p_sync.workspace = true
+papyrus_protobuf.workspace = true
 papyrus_rpc = { workspace = true, optional = true }
 papyrus_storage.workspace = true
 papyrus_sync.workspace = true
