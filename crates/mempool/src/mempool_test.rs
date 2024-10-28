@@ -707,9 +707,9 @@ fn test_fee_escalation_invalid_replacement() {
         .with_fee_escalation_percentage(10)
         .build_into_mempool();
 
-    let input_not_enough_tip = add_tx_input!(tx_hash: 3, tip: 109, max_l2_gas_price: 110);
-    let input_not_enough_gas_price = add_tx_input!(tx_hash: 4, tip: 110, max_l2_gas_price: 109);
-    let input_not_enough_both = add_tx_input!(tx_hash: 5, tip: 109, max_l2_gas_price: 109);
+    let input_not_enough_tip = add_tx_input!(tip: 109, tx_hash: 3, max_l2_gas_price: 110);
+    let input_not_enough_gas_price = add_tx_input!(tip: 110, tx_hash: 4, max_l2_gas_price: 109);
+    let input_not_enough_both = add_tx_input!(tip: 109, tx_hash: 5, max_l2_gas_price: 109);
 
     // Test and assert.
     let invalid_replacement_inputs =
