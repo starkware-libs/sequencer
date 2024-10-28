@@ -674,10 +674,49 @@
     "pointer_target": "chain_id",
     "privacy": "Public"
   },
+  "mempool_p2p_config.network_config.discovery_config.bootstrap_dial_retry_config.base_delay_millis": {
+    "description": "The base delay in milliseconds for the exponential backoff strategy.",
+    "privacy": "Public",
+    "value": 2
+  },
+  "mempool_p2p_config.network_config.discovery_config.bootstrap_dial_retry_config.factor": {
+    "description": "The factor for the exponential backoff strategy.",
+    "privacy": "Public",
+    "value": 5
+  },
+  "mempool_p2p_config.network_config.discovery_config.bootstrap_dial_retry_config.max_delay": {
+    "description": "The maximum delay for the exponential backoff strategy.",
+    "privacy": "Public",
+    "value": {
+      "nanos": 0,
+      "secs": 5
+    }
+  },
+  "mempool_p2p_config.network_config.discovery_config.heartbeat_interval": {
+    "description": "The interval between each discovery (Kademlia) query in milliseconds.",
+    "privacy": "Public",
+    "value": 100
+  },
   "mempool_p2p_config.network_config.idle_connection_timeout": {
     "description": "Amount of time in seconds that a connection with no active sessions will stay alive.",
     "privacy": "Public",
     "value": 120
+  },
+  "mempool_p2p_config.network_config.peer_manager_config.malicious_timeout": {
+    "description": "The duration a peer is blacklisted after being marked as malicious.",
+    "privacy": "Public",
+    "value": {
+      "nanos": 0,
+      "secs": 31536000
+    }
+  },
+  "mempool_p2p_config.network_config.peer_manager_config.unstable_timeout": {
+    "description": "The duration a peer blacklisted after being reported as unstable.",
+    "privacy": "Public",
+    "value": {
+      "nanos": 0,
+      "secs": 1
+    }
   },
   "mempool_p2p_config.network_config.quic_port": {
     "description": "The port that the node listens on for incoming quic connections.",

@@ -28,6 +28,7 @@ use libp2p::swarm::{
     ToSwarm,
 };
 use libp2p::{Multiaddr, PeerId};
+use papyrus_config::converters::deserialize_milliseconds_to_duration;
 use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
@@ -35,7 +36,6 @@ use tokio_retry::strategy::ExponentialBackoff;
 
 use crate::mixed_behaviour;
 use crate::mixed_behaviour::BridgedBehaviour;
-use crate::utils::deserialize_millis_to_duration;
 
 pub struct Behaviour {
     config: DiscoveryConfig,
@@ -189,7 +189,7 @@ impl NetworkBehaviour for Behaviour {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct DiscoveryConfig {
     pub bootstrap_dial_retry_config: RetryConfig,
-    #[serde(deserialize_with = "deserialize_millis_to_duration")]
+    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
     pub heartbeat_interval: Duration,
 }
 

@@ -4,12 +4,10 @@ use std::collections::HashMap;
 use std::hash::Hash;
 use std::pin::Pin;
 use std::task::{Context, Poll, Waker};
-use std::time::Duration;
 
 use futures::stream::{Stream, StreamExt};
 use libp2p::core::multiaddr::Protocol;
 use libp2p::Multiaddr;
-use serde::de::{Deserialize, Deserializer};
 
 // This is an implementation of `StreamMap` from tokio_stream. The reason we're implementing it
 // ourselves is that the implementation in tokio_stream requires that the values implement the
@@ -87,13 +85,4 @@ pub fn is_localhost(address: &Multiaddr) -> bool {
         return false;
     };
     ip4_address == Ipv4Addr::LOCALHOST
-}
-
-// Function to deserialize milliseconds to Duration
-pub(crate) fn deserialize_millis_to_duration<'de, D>(deserializer: D) -> Result<Duration, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let millis = u64::deserialize(deserializer)?;
-    Ok(Duration::from_millis(millis))
 }
