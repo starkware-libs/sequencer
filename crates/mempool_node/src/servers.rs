@@ -10,6 +10,8 @@ use starknet_consensus_manager::communication::{
 use starknet_gateway::communication::{create_gateway_server, LocalGatewayServer};
 use starknet_http_server::communication::{create_http_server, HttpServer};
 use starknet_mempool::communication::{create_mempool_server, LocalMempoolServer};
+use starknet_mempool_p2p::receiver::MempoolP2pRunnerServer;
+use starknet_mempool_p2p::sender::LocalMempoolP2pPropagatorServer;
 use starknet_monitoring_endpoint::communication::{
     create_monitoring_endpoint_server,
     MonitoringEndpointServer,
@@ -27,6 +29,7 @@ struct LocalServers {
     pub(crate) batcher: Option<Box<LocalBatcherServer>>,
     pub(crate) gateway: Option<Box<LocalGatewayServer>>,
     pub(crate) mempool: Option<Box<LocalMempoolServer>>,
+    pub(crate) mempool_p2p_propagator: Option<Box<LocalMempoolP2pPropagatorServer>>,
 }
 
 // Component servers that wrap a component without a server.
@@ -34,6 +37,7 @@ struct WrapperServers {
     pub(crate) consensus_manager: Option<Box<ConsensusManagerServer>>,
     pub(crate) http_server: Option<Box<HttpServer>>,
     pub(crate) monitoring_endpoint: Option<Box<MonitoringEndpointServer>>,
+    pub(crate) mempool_p2p_runner: Option<Box<MempoolP2pRunnerServer>>,
 }
 
 pub struct SequencerNodeServers {
