@@ -47,7 +47,7 @@ pub fn execute_entry_point_call(
         );
         run_sierra_emu_executor(vm, function_id, call.clone())
     } else {
-        run_native_executor(&contract_class.executor, function_id, call, syscall_handler)
+        run_native_executor(&contract_class.executor, call.entry_point_selector.0, call, syscall_handler)
     };
     let execution_time = pre_execution_instant.elapsed().as_millis();
     tracing::info!(time = execution_time, "native contract execution finished");

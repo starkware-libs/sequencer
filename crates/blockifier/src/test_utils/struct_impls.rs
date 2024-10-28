@@ -15,37 +15,21 @@ use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionCont
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::contract_class::{ContractClassV0, ContractClassV1, NativeContractClassV1};
 use crate::execution::entry_point::{
-    CallEntryPoint,
-    EntryPointExecutionContext,
-    EntryPointExecutionResult,
+    CallEntryPoint, EntryPointExecutionContext, EntryPointExecutionResult,
 };
 use crate::fee::fee_utils::get_fee_by_gas_vector;
 use crate::state::state_api::State;
 use crate::test_utils::{
-    get_raw_contract_class,
-    CHAIN_ID_NAME,
-    CURRENT_BLOCK_NUMBER,
-    CURRENT_BLOCK_TIMESTAMP,
-    DEFAULT_ETH_L1_DATA_GAS_PRICE,
-    DEFAULT_ETH_L1_GAS_PRICE,
-    DEFAULT_STRK_L1_DATA_GAS_PRICE,
-    DEFAULT_STRK_L1_GAS_PRICE,
-    TEST_ERC20_CONTRACT_ADDRESS,
-    TEST_ERC20_CONTRACT_ADDRESS2,
+    get_raw_contract_class, CHAIN_ID_NAME, CURRENT_BLOCK_NUMBER, CURRENT_BLOCK_TIMESTAMP,
+    DEFAULT_ETH_L1_DATA_GAS_PRICE, DEFAULT_ETH_L1_GAS_PRICE, DEFAULT_STRK_L1_DATA_GAS_PRICE,
+    DEFAULT_STRK_L1_GAS_PRICE, TEST_ERC20_CONTRACT_ADDRESS, TEST_ERC20_CONTRACT_ADDRESS2,
     TEST_SEQUENCER_ADDRESS,
 };
 use crate::transaction::objects::{
-    DeprecatedTransactionInfo,
-    FeeType,
-    TransactionFeeResult,
-    TransactionInfo,
-    TransactionResources,
+    DeprecatedTransactionInfo, FeeType, TransactionFeeResult, TransactionInfo, TransactionResources,
 };
 use crate::versioned_constants::{
-    GasCosts,
-    OsConstants,
-    VersionedConstants,
-    VERSIONED_CONSTANTS_LATEST_JSON,
+    GasCosts, OsConstants, VersionedConstants, VERSIONED_CONSTANTS_LATEST_JSON,
 };
 
 impl CallEntryPoint {
@@ -249,9 +233,13 @@ impl NativeContractClassV1 {
         // Compile the Sierra Program to native code and loads it into the process'
         // memory space.
         fn compile_and_load(
-            sierra_program: &cairo_lang_sierra::program::Program,
+            contract: &cairo_lang_starknet_classes::contract_class::ContractClass,
         ) -> Result<AotContractExecutor, cairo_native::error::Error> {
-            AotContractExecutor::new(sierra_program, cairo_native::OptLevel::Default)
+            AotContractExecutor::new(
+                &contract.extract_sierra_program().unwrap(),
+                &contract.entry_points_by_type,
+                cairo_native::OptLevel::Default,
+            )
         }
 
         let sierra_contract_class: cairo_lang_starknet_classes::contract_class::ContractClass =
@@ -262,8 +250,7 @@ impl NativeContractClassV1 {
         //   1. Having access to the encoding/decoding functions
         //   2. Refactoring the code on the Cairo mono-repo
 
-        let sierra_program = sierra_contract_class.extract_sierra_program()?;
-        let executor = compile_and_load(&sierra_program)?;
+        let executor = compile_and_load(&sierra_contract_class)?;
 
         let executor = Arc::new(executor);
         Ok(Self::new(executor, sierra_contract_class)?)
