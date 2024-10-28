@@ -95,8 +95,6 @@ pub enum EntryPointExecutionError {
     #[error(transparent)]
     NativeUnexpectedError(#[from] NativeError),
     #[error(transparent)]
-    NativeUnexpectedError(#[from] NativeError),
-    #[error(transparent)]
     PostExecutionError(#[from] PostExecutionError),
     #[error(transparent)]
     PreExecutionError(#[from] PreExecutionError),
