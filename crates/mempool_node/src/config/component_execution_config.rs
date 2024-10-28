@@ -57,8 +57,10 @@ pub struct ComponentExecutionConfig {
 
 impl SerializeConfig for ComponentExecutionConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        let execution_mode_dump = self.execution_mode.dump();
+
         vec![
-            append_sub_config_name(self.execution_mode.dump(), "execution_mode"),
+            execution_mode_dump,
             ser_optional_sub_config(&self.local_config, "local_config"),
             ser_optional_sub_config(&self.remote_client_config, "remote_client_config"),
             ser_optional_sub_config(&self.remote_server_config, "remote_server_config"),

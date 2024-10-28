@@ -36,6 +36,8 @@ use starknet_sequencer_node::config::{
 };
 use tokio::net::TcpListener;
 
+use crate::integration_test_config_utils::RequiredParams;
+
 // TODO(Tsabary): As the number of required parameters grow, bundle them in a struct and modify the
 // return type.
 pub async fn create_config(
@@ -76,12 +78,13 @@ pub async fn create_config(
 pub async fn create_integration_test_config(
     rpc_server_addr: SocketAddr,
     batcher_storage_config: StorageConfig,
-) -> (SequencerNodeConfig, ChainId) {
+) -> (SequencerNodeConfig, RequiredParams) {
     let chain_id = batcher_storage_config.db_config.chain_id.clone();
     let mut chain_info = ChainInfo::create_for_testing();
     chain_info.chain_id = chain_id.clone();
+
     let batcher_config = create_batcher_config(batcher_storage_config, chain_info.clone());
-    let gateway_config = create_gateway_config(chain_info).await;
+    let gateway_config = create_gateway_config(chain_info.clone()).await;
     let http_server_config = create_http_server_config().await;
     let rpc_state_reader_config = test_rpc_state_reader_config(rpc_server_addr);
     let consensus_manager_config = ConsensusManagerConfig {
@@ -96,7 +99,11 @@ pub async fn create_integration_test_config(
             rpc_state_reader_config,
             ..SequencerNodeConfig::default()
         },
-        chain_id,
+        RequiredParams {
+            chain_id,
+            strk_fee_token_address: chain_info.clone().fee_token_addresses.strk_fee_token_address,
+            eth_fee_token_address: chain_info.fee_token_addresses.eth_fee_token_address,
+        },
     )
 }
 

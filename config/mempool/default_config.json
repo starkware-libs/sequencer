@@ -107,7 +107,7 @@
   "batcher_config.block_builder_config.sequencer_address": {
     "description": "The address of the sequencer.",
     "privacy": "Public",
-    "value": "0x17"
+    "value": "0x0"
   },
   "batcher_config.block_builder_config.tx_chunk_size": {
     "description": "The size of the transaction chunk.",
@@ -214,10 +214,15 @@
     "privacy": "Public",
     "value": 81920
   },
+<<<<<<< HEAD
   "components.batcher.execution_mode.LocalExecution.enable_remote_connection": {
     "description": "Specifies whether the component, when running locally, allows remote connections.",
+=======
+  "components.batcher.execution_mode": {
+    "description": "The component is skipped.",
+>>>>>>> c410ce3ea (wip 2)
     "privacy": "Public",
-    "value": false
+    "value": "Disabled"
   },
   "components.batcher.local_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -264,10 +269,15 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
+<<<<<<< HEAD
   "components.consensus_manager.execution_mode.LocalExecution.enable_remote_connection": {
     "description": "Specifies whether the component, when running locally, allows remote connections.",
+=======
+  "components.consensus_manager.execution_mode": {
+    "description": "The component is skipped.",
+>>>>>>> c410ce3ea (wip 2)
     "privacy": "Public",
-    "value": false
+    "value": "Disabled"
   },
   "components.consensus_manager.local_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -314,10 +324,15 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
+<<<<<<< HEAD
   "components.gateway.execution_mode.LocalExecution.enable_remote_connection": {
     "description": "Specifies whether the component, when running locally, allows remote connections.",
+=======
+  "components.gateway.execution_mode": {
+    "description": "The component is skipped.",
+>>>>>>> c410ce3ea (wip 2)
     "privacy": "Public",
-    "value": false
+    "value": "Disabled"
   },
   "components.gateway.local_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -364,10 +379,15 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
+<<<<<<< HEAD
   "components.http_server.execution_mode.LocalExecution.enable_remote_connection": {
     "description": "Specifies whether the component, when running locally, allows remote connections.",
+=======
+  "components.http_server.execution_mode": {
+    "description": "The component is skipped.",
+>>>>>>> c410ce3ea (wip 2)
     "privacy": "Public",
-    "value": true
+    "value": "Disabled"
   },
   "components.http_server.local_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -414,10 +434,15 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
+<<<<<<< HEAD
   "components.mempool.execution_mode.LocalExecution.enable_remote_connection": {
     "description": "Specifies whether the component, when running locally, allows remote connections.",
+=======
+  "components.mempool.execution_mode": {
+    "description": "The component is skipped.",
+>>>>>>> c410ce3ea (wip 2)
     "privacy": "Public",
-    "value": false
+    "value": "Disabled"
   },
   "components.mempool.local_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -464,10 +489,15 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
+<<<<<<< HEAD
   "components.monitoring_endpoint.execution_mode.LocalExecution.enable_remote_connection": {
     "description": "Specifies whether the component, when running locally, allows remote connections.",
+=======
+  "components.monitoring_endpoint.execution_mode": {
+    "description": "The component is skipped.",
+>>>>>>> c410ce3ea (wip 2)
     "privacy": "Public",
-    "value": true
+    "value": "Disabled"
   },
   "components.monitoring_endpoint.local_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -552,7 +582,7 @@
   "consensus_manager_config.consensus_config.validator_id": {
     "description": "The validator id of the node.",
     "privacy": "Public",
-    "value": "0x21"
+    "value": "0x0"
   },
   "eth_fee_token_address": {
     "description": "A required param! ETH fee token contract address.",
