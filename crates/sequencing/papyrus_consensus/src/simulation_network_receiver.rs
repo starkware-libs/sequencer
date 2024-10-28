@@ -130,14 +130,14 @@ impl Stream for NetworkReceiver {
     ) -> Poll<Option<Self::Item>> {
         loop {
             let item = self.broadcasted_messages_receiver.poll_next_unpin(cx);
-            let (msg, broadcasted_message_manager) = match item {
-                Poll::Ready(Some((Ok(msg), broadcasted_message_manager))) => {
-                    (msg, broadcasted_message_manager)
+            let (msg, broadcasted_message_metadata) = match item {
+                Poll::Ready(Some((Ok(msg), broadcasted_message_metadata))) => {
+                    (msg, broadcasted_message_metadata)
                 }
                 _ => return item,
             };
             if let Some(msg) = self.filter_msg(msg) {
-                return Poll::Ready(Some((Ok(msg), broadcasted_message_manager)));
+                return Poll::Ready(Some((Ok(msg), broadcasted_message_metadata)));
             }
         }
     }

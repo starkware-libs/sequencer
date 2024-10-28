@@ -235,7 +235,7 @@ where
         return Ok(msg);
     }
 
-    let (msg, broadcasted_message_manager) =
+    let (msg, broadcasted_message_metadata) =
         broadcasted_messages_receiver.next().await.ok_or_else(|| {
             ConsensusError::InternalNetworkError(
                 "NetworkReceiver should never be closed".to_string(),
@@ -244,12 +244,13 @@ where
     match msg {
         // TODO(matan): Return report_sender for use in later errors by SHC.
         Ok(msg) => {
-            let _ = broadcast_topic_client.continue_propagation(&broadcasted_message_manager).await;
+            let _ =
+                broadcast_topic_client.continue_propagation(&broadcasted_message_metadata).await;
             Ok(msg)
         }
         Err(e) => {
             // Failed to parse consensus message
-            let _ = broadcast_topic_client.report_peer(broadcasted_message_manager).await;
+            let _ = broadcast_topic_client.report_peer(broadcasted_message_metadata).await;
             Err(e.into())
         }
     }
