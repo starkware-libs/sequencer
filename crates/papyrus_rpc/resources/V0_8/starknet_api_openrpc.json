@@ -736,18 +736,18 @@
                     "title": "Starknet block hash and number result",
                     "type": "object",
                     "properties": {
-                        "block_hash": {
+                        "hash": {
                             "title": "Block hash",
                             "$ref": "#/components/schemas/BLOCK_HASH"
                         },
-                        "block_number": {
+                        "number": {
                             "title": "Block number",
                             "$ref": "#/components/schemas/BLOCK_NUMBER"
                         }
                     },
                     "required": [
-                        "block_hash",
-                        "block_number"
+                        "hash",
+                        "number"
                     ]
                 }
             },
