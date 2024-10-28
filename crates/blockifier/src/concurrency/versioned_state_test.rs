@@ -44,7 +44,6 @@ use crate::test_utils::deploy_account::deploy_account_tx;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{CairoVersion, BALANCE, DEFAULT_STRK_L1_GAS_PRICE};
-use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::objects::HasRelatedFeeType;
 use crate::transaction::test_utils::{default_all_resource_bounds, l1_resource_bounds};
 use crate::transaction::transactions::ExecutableTransaction;
@@ -239,8 +238,7 @@ fn test_run_parallel_txs(default_all_resource_bounds: ValidResourceBounds) {
         },
         &mut NonceManager::default(),
     );
-    let account_tx_1 = AccountTransaction::DeployAccount(deploy_account_tx_1);
-    let enforce_fee = account_tx_1.enforce_fee();
+    let enforce_fee = deploy_account_tx_1.enforce_fee();
 
     let class_hash = grindy_account.get_class_hash();
     let ctor_storage_arg = felt!(1_u8);
@@ -252,9 +250,8 @@ fn test_run_parallel_txs(default_all_resource_bounds: ValidResourceBounds) {
         constructor_calldata: constructor_calldata.clone(),
     };
     let nonce_manager = &mut NonceManager::default();
-    let deploy_account_tx_2 = deploy_account_tx(deploy_tx_args, nonce_manager);
-    let account_address = deploy_account_tx_2.contract_address();
-    let account_tx_2 = AccountTransaction::DeployAccount(deploy_account_tx_2);
+    let account_tx_2 = deploy_account_tx(deploy_tx_args, nonce_manager);
+    let account_address = account_tx_2.sender_address();
     let tx_context = block_context.to_tx_context(&account_tx_2);
     let fee_type = tx_context.tx_info.fee_type();
 
@@ -270,7 +267,8 @@ fn test_run_parallel_txs(default_all_resource_bounds: ValidResourceBounds) {
     // Execute transactions
     thread::scope(|s| {
         s.spawn(move || {
-            let result = account_tx_1.execute(&mut state_1, &block_context_1, enforce_fee, true);
+            let result =
+                deploy_account_tx_1.execute(&mut state_1, &block_context_1, enforce_fee, true);
             assert_eq!(result.is_err(), enforce_fee); // Transaction fails iff we enforced the fee charge (as the acount is not funded).
         });
         s.spawn(move || {
