@@ -87,55 +87,115 @@ macro_rules! tx {
 /// Creates an input for `add_tx` with the given field subset (the rest receive default values).
 #[macro_export]
 macro_rules! add_tx_input {
-    (tip: $tip:expr, tx_hash: $tx_hash:expr, address: $address:expr,
-        tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr, max_l2_gas_price: $max_l2_gas_price:expr) => {{
+    (
+        tip: $tip:expr,
+        tx_hash: $tx_hash:expr,
+        address: $address:expr,
+        tx_nonce: $tx_nonce:expr,
+        account_nonce: $account_nonce:expr,
+        max_l2_gas_price: $max_l2_gas_price:expr
+    ) => {{
         use starknet_api::{contract_address, nonce};
         use starknet_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
 
-        let tx = $crate::tx!(tip: $tip, tx_hash: $tx_hash, address: $address, tx_nonce: $tx_nonce, max_l2_gas_price: $max_l2_gas_price);
+        let tx = $crate::tx!(
+            tip: $tip,
+            tx_hash: $tx_hash,
+            address: $address,
+            tx_nonce: $tx_nonce,
+            max_l2_gas_price: $max_l2_gas_price
+        );
         let address = contract_address!($address);
         let account_nonce = nonce!($account_nonce);
         let account_state = AccountState { address, nonce: account_nonce };
 
         AddTransactionArgs { tx, account_state }
     }};
-    (tip: $tip:expr, tx_hash: $tx_hash:expr, address: $address:expr,
-        tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr) => {{
+    (
+        tip: $tip:expr,
+        tx_hash: $tx_hash:expr,
+        address: $address:expr,
+        tx_nonce: $tx_nonce:expr,
+        account_nonce: $account_nonce:expr
+    ) => {{
         use mempool_test_utils::starknet_api_test_utils::VALID_L2_GAS_MAX_PRICE_PER_UNIT;
-        add_tx_input!(tip: $tip, tx_hash: $tx_hash, address: $address, tx_nonce: $tx_nonce, account_nonce: $account_nonce, max_l2_gas_price: VALID_L2_GAS_MAX_PRICE_PER_UNIT)
+        add_tx_input!(
+            tip: $tip,
+            tx_hash: $tx_hash,
+            address: $address,
+            tx_nonce: $tx_nonce,
+            account_nonce: $account_nonce,
+            max_l2_gas_price: VALID_L2_GAS_MAX_PRICE_PER_UNIT
+        )
     }};
-    (tx_hash: $tx_hash:expr, address: $address:expr, tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr) => {
-        add_tx_input!(tip: 0, tx_hash: $tx_hash, address: $address, tx_nonce: $tx_nonce, account_nonce: $account_nonce)
+    (
+        tip: $tip:expr,
+        tx_hash: $tx_hash:expr,
+        address: $address:expr,
+        tx_nonce: $tx_nonce:expr,
+        max_l2_gas_price: $max_l2_gas_price:expr
+    ) => {
+        add_tx_input!(
+            tip: $tip,
+            tx_hash: $tx_hash,
+            address: $address,
+            tx_nonce: $tx_nonce,
+            account_nonce: 0,
+            max_l2_gas_price: $max_l2_gas_price
+        )
     };
     (tip: $tip:expr, tx_hash: $tx_hash:expr, address: $address:expr) => {
-        add_tx_input!(tip: $tip, tx_hash: $tx_hash, address: $address, tx_nonce: 0, account_nonce: 0)
+        add_tx_input!(
+            tip: $tip,
+            tx_hash: $tx_hash,
+            address: $address,
+            tx_nonce: 0,
+            account_nonce: 0
+        )
     };
-    (tx_hash: $tx_hash:expr, tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr) => {
-        add_tx_input!(tip: 1, tx_hash: $tx_hash, address: "0x0", tx_nonce: $tx_nonce, account_nonce: $account_nonce)
-    };
-    (tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr) => {
-        add_tx_input!(tip: 1, tx_hash: 0, address: "0x0", tx_nonce: $tx_nonce, account_nonce: $account_nonce)
-    };
-    (tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr, address: $address:expr) => {
-        add_tx_input!(tip: 1, tx_hash: 0, address: $address, tx_nonce: $tx_nonce, account_nonce: $account_nonce)
-    };
-    (tip: $tip:expr, tx_hash: $tx_hash:expr) => {
-        add_tx_input!(tip: $tip, tx_hash: $tx_hash, address: "0x0", tx_nonce: 0, account_nonce: 0)
-    };
-    (tx_hash: $tx_hash:expr, tx_nonce: $tx_nonce:expr) => {
-        add_tx_input!(tip: 0, tx_hash: $tx_hash, address: "0x0", tx_nonce: $tx_nonce, account_nonce: 0)
-    };
-    (tx_hash: $tx_hash:expr, tip: $tip:expr, max_l2_gas_price: $max_l2_gas_price:expr, tx_nonce: $tx_nonce:expr, address: $address:expr) => {
-        add_tx_input!(tip: $tip, tx_hash: $tx_hash, address: $address, tx_nonce: $tx_nonce, account_nonce: 0,  max_l2_gas_price: $max_l2_gas_price)
+    (tip: $tip:expr, tx_hash: $tx_hash:expr, max_l2_gas_price: $max_l2_gas_price:expr) => {
+        add_tx_input!(
+            tip: $tip,
+            tx_hash: $tx_hash,
+            address: "0x0",
+            tx_nonce: 0,
+            account_nonce: 0,
+            max_l2_gas_price: $max_l2_gas_price
+        )
     };
     (tip: $tip:expr, max_l2_gas_price: $max_l2_gas_price:expr) => {
-        add_tx_input!(tip: $tip, tx_hash: 0, address: "0x0", tx_nonce: 0, account_nonce: 0, max_l2_gas_price: $max_l2_gas_price)
+        add_tx_input!(
+            tip: $tip,
+            tx_hash: 0,
+            address: "0x0",
+            tx_nonce: 0,
+            max_l2_gas_price: $max_l2_gas_price
+        )
     };
-    (tip: $tip:expr, max_l2_gas_price: $max_l2_gas_price:expr, tx_nonce: $tx_nonce:expr, address: $address:expr) => {
-        add_tx_input!(tip: $tip, tx_hash: 0, address: $address, tx_nonce: $tx_nonce, account_nonce: 0, max_l2_gas_price: $max_l2_gas_price)
+    (
+        tx_hash: $tx_hash:expr,
+        address: $address:expr,
+        tx_nonce: $tx_nonce:expr,
+        account_nonce: $account_nonce:expr
+    ) => {
+        add_tx_input!(
+            tip: 0,
+            tx_hash: $tx_hash,
+            address: $address,
+            tx_nonce: $tx_nonce,
+            account_nonce: $account_nonce
+        )
     };
-    (tx_hash: $tx_hash:expr, tip: $tip:expr, max_l2_gas_price: $max_l2_gas_price:expr) => {
-        add_tx_input!(tip: $tip, tx_hash: $tx_hash, address: "0x0", tx_nonce: 0, account_nonce: 0,  max_l2_gas_price: $max_l2_gas_price)
+    (tx_hash: $tx_hash:expr, tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr) => {
+        add_tx_input!(
+            tx_hash: $tx_hash,
+            address: "0x0",
+            tx_nonce: $tx_nonce,
+            account_nonce: $account_nonce
+        )
+    };
+    (tx_hash: $tx_hash:expr, tx_nonce: $tx_nonce:expr) => {
+        add_tx_input!(tx_hash: $tx_hash, tx_nonce: $tx_nonce, account_nonce: 0)
     };
 }
 
