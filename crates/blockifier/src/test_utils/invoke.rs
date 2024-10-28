@@ -27,5 +27,5 @@ pub fn invoke_tx(invoke_args: InvokeTxArgs) -> AccountTransaction {
         true => InvokeTransaction::new_for_query(invoke_tx, tx_hash),
         false => InvokeTransaction::new(invoke_tx, tx_hash),
     };
-    AccountTransaction::Invoke(invoke_tx)
+    invoke_tx.into()
 }
