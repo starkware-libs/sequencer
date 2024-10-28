@@ -32,4 +32,3 @@ starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 tar.workspace = true
 tempfile.workspace = true
-test-with = { workspace = true, default-features = false, features = ["executable"] }
