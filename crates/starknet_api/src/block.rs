@@ -293,7 +293,9 @@ impl BlockNumber {
 /// [BlockNumber](`crate::block::BlockNumber`).
 #[derive(Copy, Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct BlockHashAndNumber {
+    #[serde(rename = "block_hash")]
     pub hash: BlockHash,
+    #[serde(rename = "block_number")]
     pub number: BlockNumber,
 }
 
