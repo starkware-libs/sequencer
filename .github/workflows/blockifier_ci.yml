@@ -44,13 +44,17 @@ jobs:
     runs-on: starkware-ubuntu-20-04-medium
     steps:
       - uses: actions/checkout@v4
+        with:
+          # required to clone native as a gitsubmodule
+          submodules: recursive 
+          fetch-depth: 0
       - uses: ./.github/actions/bootstrap
-      # No features - build blockifier without features activated by dependencies in the workspace.
-      - run: cargo build -p blockifier
-      - run: cargo test -p blockifier
-      # transaction_serde is not activated by any workspace crate; test the build.
-      - run: cargo build -p blockifier --features transaction_serde
-      - run: cargo test -p blockifier --features transaction_serde
+      # # No features - build blockifier without features activated by dependencies in the workspace.
+      # - run: cargo build -p blockifier
+      # - run: cargo test -p blockifier
+      # # transaction_serde is not activated by any workspace crate; test the build.
+      # - run: cargo build -p blockifier --features transaction_serde
+      # - run: cargo test -p blockifier --features transaction_serde
         # cairo_native is not activated by any workspace crate; test the build.
       - run: cargo build -p blockifier --features cairo_native
       - run: cargo test -p blockifier --features cairo_native

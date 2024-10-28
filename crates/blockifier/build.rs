@@ -7,6 +7,25 @@ fn compile_cairo_native_aot_runtime() {
         .join(PathBuf::from("cairo_native"));
     let runtime_target_dir = cairo_native_dir.join(PathBuf::from("target"));
 
+    println!(
+        "cairo native dir: {}; exists: {}, cairo native is a dir?: {}",
+        cairo_native_dir.to_str().unwrap(),
+        cairo_native_dir.exists(),
+        cairo_native_dir.is_dir(),
+    );
+    let cairo_native_dir_cargo = cairo_native_dir.join("Cargo.toml");
+    let cairo_native_runtime_dir = cairo_native_dir.join("runtime");
+    println!(
+        "cairo native Cargo.toml: {}; exists: {}",
+        cairo_native_dir_cargo.to_str().unwrap(),
+        cairo_native_dir_cargo.exists()
+    );
+    println!(
+        "cairo native runtime dir: {}; exists: {}",
+        cairo_native_runtime_dir.to_str().unwrap(),
+        cairo_native_runtime_dir.exists()
+    );
+
     let status = Command::new("cargo")
         .args([
             "build",
