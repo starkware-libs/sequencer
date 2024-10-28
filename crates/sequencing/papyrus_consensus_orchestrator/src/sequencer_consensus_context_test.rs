@@ -5,13 +5,14 @@ use std::vec;
 use futures::channel::mpsc;
 use futures::SinkExt;
 use lazy_static::lazy_static;
+use papyrus_consensus::stream_handler::StreamHandler;
 use papyrus_consensus::types::ConsensusContext;
 use papyrus_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
     TestSubscriberChannels,
 };
 use papyrus_network::network_manager::BroadcastTopicChannels;
-use papyrus_protobuf::consensus::ProposalInit;
+use papyrus_protobuf::consensus::{ProposalInit, ProposalPart, TransactionBatch};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::{ContractAddress, StateDiffCommitment};
 use starknet_api::executable_transaction::{AccountTransaction, Transaction};
@@ -81,10 +82,16 @@ async fn build_proposal() {
     });
     let TestSubscriberChannels { mock_network: _mock_network, subscriber_channels } =
         mock_register_broadcast_topic().expect("Failed to create mock network");
-    let BroadcastTopicChannels { broadcasted_messages_receiver: _, broadcast_topic_client } =
-        subscriber_channels;
+    let BroadcastTopicChannels {
+        broadcasted_messages_receiver: inbound_network_receiver,
+        broadcast_topic_client: outbound_network_sender,
+    } = subscriber_channels;
+
+    let (outbound_internal_sender, _inbound_internal_receiver) =
+        StreamHandler::get_channels(inbound_network_receiver, outbound_network_sender);
+
     let mut context =
-        SequencerConsensusContext::new(Arc::new(batcher), broadcast_topic_client, NUM_VALIDATORS);
+        SequencerConsensusContext::new(Arc::new(batcher), outbound_internal_sender, NUM_VALIDATORS);
     let init = ProposalInit {
         height: BlockNumber(0),
         round: 0,
@@ -134,15 +141,28 @@ async fn validate_proposal_success() {
     );
     let TestSubscriberChannels { mock_network: _, subscriber_channels } =
         mock_register_broadcast_topic().expect("Failed to create mock network");
-    let BroadcastTopicChannels { broadcasted_messages_receiver: _, broadcast_topic_client } =
-        subscriber_channels;
+    let BroadcastTopicChannels {
+        broadcasted_messages_receiver: inbound_network_receiver,
+        broadcast_topic_client: outbound_network_sender,
+    } = subscriber_channels;
+    let (outbound_internal_sender, _inbound_internal_receiver) =
+        StreamHandler::get_channels(inbound_network_receiver, outbound_network_sender);
     let mut context =
-        SequencerConsensusContext::new(Arc::new(batcher), broadcast_topic_client, NUM_VALIDATORS);
+        SequencerConsensusContext::new(Arc::new(batcher), outbound_internal_sender, NUM_VALIDATORS);
     let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
-    content_sender.send(TX_BATCH.clone()).await.unwrap();
+    let tx_hash = TX_BATCH.first().unwrap().tx_hash();
+    let txs =
+        TX_BATCH.clone().into_iter().map(starknet_api::transaction::Transaction::from).collect();
+    content_sender
+        .send(ProposalPart::Transactions(TransactionBatch {
+            transactions: txs,
+            tx_hashes: vec![tx_hash],
+        }))
+        .await
+        .unwrap();
     let fin_receiver = context.validate_proposal(BlockNumber(0), TIMEOUT, content_receiver).await;
     content_sender.close_channel();
-    assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
+    assert_eq!(fin_receiver.await.unwrap().0.0, STATE_DIFF_COMMITMENT.0.0);
 }
 
 #[tokio::test]
@@ -172,18 +192,29 @@ async fn repropose() {
     );
     let TestSubscriberChannels { mock_network: _, subscriber_channels } =
         mock_register_broadcast_topic().expect("Failed to create mock network");
-    let BroadcastTopicChannels { broadcasted_messages_receiver: _, broadcast_topic_client } =
-        subscriber_channels;
+    let BroadcastTopicChannels {
+        broadcasted_messages_receiver: inbound_network_receiver,
+        broadcast_topic_client: outbound_network_sender,
+    } = subscriber_channels;
+    let (outbound_internal_sender, _inbound_internal_receiver) =
+        StreamHandler::get_channels(inbound_network_receiver, outbound_network_sender);
     let mut context =
-        SequencerConsensusContext::new(Arc::new(batcher), broadcast_topic_client, NUM_VALIDATORS);
+        SequencerConsensusContext::new(Arc::new(batcher), outbound_internal_sender, NUM_VALIDATORS);
 
     // Receive a valid proposal.
     let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
-    let txs = vec![generate_invoke_tx(Felt::TWO)];
-    content_sender.send(txs.clone()).await.unwrap();
+    let txs = vec![generate_invoke_tx(Felt::TWO)]
+        .into_iter()
+        .map(starknet_api::transaction::Transaction::from)
+        .collect();
+    let prop_part = ProposalPart::Transactions(TransactionBatch {
+        transactions: txs,
+        tx_hashes: vec![TransactionHash(Felt::ZERO)],
+    });
+    content_sender.send(prop_part).await.unwrap();
     let fin_receiver = context.validate_proposal(BlockNumber(0), TIMEOUT, content_receiver).await;
     content_sender.close_channel();
-    assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
+    assert_eq!(fin_receiver.await.unwrap().0.0, STATE_DIFF_COMMITMENT.0.0);
 
     // Re-proposal: Just asserts this is a known valid proposal.
     context

@@ -1,4 +1,5 @@
 use futures::channel::{mpsc, oneshot};
+use futures::SinkExt;
 use lazy_static::lazy_static;
 use papyrus_protobuf::consensus::{ConsensusMessage, ProposalInit};
 use starknet_api::block::{BlockHash, BlockNumber};
@@ -10,7 +11,7 @@ use super::SingleHeightConsensus;
 use crate::config::TimeoutsConfig;
 use crate::single_height_consensus::{ShcEvent, ShcReturn, ShcTask};
 use crate::state_machine::StateMachineEvent;
-use crate::test_utils::{precommit, prevote, MockTestContext, TestBlock};
+use crate::test_utils::{precommit, prevote, MockProposalPart, MockTestContext, TestBlock};
 use crate::types::{ConsensusError, ValidatorId};
 
 lazy_static! {
@@ -59,19 +60,24 @@ fn timeout_precommit_task(round: u32) -> ShcTask {
     )
 }
 
+const CHANNEL_SIZE: usize = 1;
+
 async fn handle_proposal(
     shc: &mut SingleHeightConsensus,
     context: &mut MockTestContext,
 ) -> ShcReturn {
     // Send the proposal from the peer.
-    let (fin_sender, fin_receiver) = oneshot::channel();
-    fin_sender.send(BLOCK.id).unwrap();
+    let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
+    content_sender.send(MockProposalPart(1)).await.unwrap();
+    // content_sender.send(ProposalPart::Fin(ProposalFin{ proposal_content_id: BLOCK.id
+    // })).unwrap(); let (fin_sender, fin_receiver) = oneshot::channel();
+    // fin_sender.send(BLOCK.id).unwrap();
 
     shc.handle_proposal(
         context,
         PROPOSAL_INIT.clone(),
-        mpsc::channel(1).1, // content - ignored by SHC.
-        fin_receiver,
+        content_receiver, /* Note: we are only sending the fin, there's no actual content.
+                           * mpsc::channel(1).1, // content - ignored by SHC. */
     )
     .await
     .unwrap()
@@ -175,7 +181,7 @@ async fn validator(repeat_proposal: bool) {
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
     context.expect_validate_proposal().times(1).returning(move |_, _, _| {
         let (block_sender, block_receiver) = oneshot::channel();
-        block_sender.send(BLOCK.id).unwrap();
+        block_sender.send((BLOCK.id, BLOCK.id)).unwrap();
         block_receiver
     });
     context
@@ -253,7 +259,7 @@ async fn vote_twice(same_vote: bool) {
     context.expect_proposer().times(1).returning(move |_, _| *PROPOSER_ID);
     context.expect_validate_proposal().times(1).returning(move |_, _, _| {
         let (block_sender, block_receiver) = oneshot::channel();
-        block_sender.send(BLOCK.id).unwrap();
+        block_sender.send((BLOCK.id, BLOCK.id)).unwrap();
         block_receiver
     });
     context

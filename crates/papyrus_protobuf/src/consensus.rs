@@ -1,8 +1,6 @@
-use futures::channel::{mpsc, oneshot};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::ContractAddress;
-use starknet_api::executable_transaction::Transaction as ExecutableTransaction;
-use starknet_api::transaction::Transaction;
+use starknet_api::transaction::{Transaction, TransactionHash};
 
 use crate::converters::ProtobufConversionError;
 
@@ -34,7 +32,7 @@ pub struct Vote {
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub enum ConsensusMessage {
-    Proposal(Proposal),
+    Proposal(Proposal), // To be deprecated
     Vote(Vote),
 }
 
@@ -78,9 +76,12 @@ pub struct ProposalInit {
 pub struct TransactionBatch {
     /// The transactions in the batch.
     pub transactions: Vec<Transaction>,
+    // TODO(guyn): remove this once we know how to get hashes as part of the compilation.
+    /// The transaction's hashes.
+    pub tx_hashes: Vec<TransactionHash>,
 }
 
-/// The propsal is done when receiving this fin message, which contains the block hash.
+/// The proposal is done when receiving this fin message, which contains the block hash.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ProposalFin {
     /// The block hash of the proposed block.
@@ -97,6 +98,28 @@ pub enum ProposalPart {
     Transactions(TransactionBatch),
     /// The final part of the proposal, including the block hash.
     Fin(ProposalFin),
+}
+
+impl TryInto<ProposalInit> for ProposalPart {
+    type Error = ProtobufConversionError;
+
+    fn try_into(self: ProposalPart) -> Result<ProposalInit, Self::Error> {
+        match self {
+            ProposalPart::Init(init) => Ok(init),
+            _ => Err(ProtobufConversionError::WrongEnumVariant {
+                type_description: "ProposalPart",
+                value_as_str: format!("{:?}", self),
+                expected: "Init",
+                got: "Transactions or Fin",
+            }),
+        }
+    }
+}
+
+impl From<ProposalInit> for ProposalPart {
+    fn from(value: ProposalInit) -> Self {
+        ProposalPart::Init(value)
+    }
 }
 
 impl<T> std::fmt::Display for StreamMessage<T>
@@ -121,55 +144,5 @@ where
                 self.stream_id, self.message_id,
             )
         }
-    }
-}
-
-// TODO(Guy): Remove after implementing broadcast streams.
-#[allow(missing_docs)]
-pub struct ProposalWrapper(pub Proposal);
-
-impl From<ProposalWrapper>
-    for (ProposalInit, mpsc::Receiver<Transaction>, oneshot::Receiver<BlockHash>)
-{
-    fn from(val: ProposalWrapper) -> Self {
-        let transactions: Vec<Transaction> = val.0.transactions.into_iter().collect();
-        let proposal_init = ProposalInit {
-            height: BlockNumber(val.0.height),
-            round: val.0.round,
-            proposer: val.0.proposer,
-            valid_round: val.0.valid_round,
-        };
-        let (mut content_sender, content_receiver) = mpsc::channel(transactions.len());
-        for tx in transactions {
-            content_sender.try_send(tx).expect("Send should succeed");
-        }
-        content_sender.close_channel();
-
-        let (fin_sender, fin_receiver) = oneshot::channel();
-        fin_sender.send(val.0.block_hash).expect("Send should succeed");
-
-        (proposal_init, content_receiver, fin_receiver)
-    }
-}
-
-impl From<ProposalWrapper>
-    for (ProposalInit, mpsc::Receiver<Vec<ExecutableTransaction>>, oneshot::Receiver<BlockHash>)
-{
-    fn from(val: ProposalWrapper) -> Self {
-        let proposal_init = ProposalInit {
-            height: BlockNumber(val.0.height),
-            round: val.0.round,
-            proposer: val.0.proposer,
-            valid_round: val.0.valid_round,
-        };
-
-        let (_, content_receiver) = mpsc::channel(0);
-        // This should only be used for Milestone 1, and then removed once streaming is supported.
-        println!("Cannot build ExecutableTransaction from Transaction.");
-
-        let (fin_sender, fin_receiver) = oneshot::channel();
-        fin_sender.send(val.0.block_hash).expect("Send should succeed");
-
-        (proposal_init, content_receiver, fin_receiver)
     }
 }

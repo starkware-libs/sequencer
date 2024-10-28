@@ -2,12 +2,23 @@ use std::time::Duration;
 
 use futures::channel::{mpsc, oneshot};
 use futures::StreamExt;
+use papyrus_consensus::stream_handler::StreamHandler;
 use papyrus_consensus::types::ConsensusContext;
 use papyrus_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
     BroadcastNetworkMock,
+    TestSubscriberChannels,
 };
-use papyrus_protobuf::consensus::{ConsensusMessage, ProposalInit, Vote};
+use papyrus_network::network_manager::BroadcastTopicChannels;
+use papyrus_protobuf::consensus::{
+    ConsensusMessage,
+    ProposalFin,
+    ProposalInit,
+    ProposalPart,
+    StreamMessage,
+    TransactionBatch,
+    Vote,
+};
 use papyrus_storage::body::BodyStorageWriter;
 use papyrus_storage::header::HeaderStorageWriter;
 use papyrus_storage::test_utils::get_test_storage;
@@ -46,8 +57,14 @@ async fn validate_proposal_success() {
 
     let (mut validate_sender, validate_receiver) = mpsc::channel(TEST_CHANNEL_SIZE);
     for tx in block.body.transactions.clone() {
-        validate_sender.try_send(tx).unwrap();
+        let tx_part = ProposalPart::Transactions(TransactionBatch {
+            transactions: vec![tx],
+            tx_hashes: vec![],
+        });
+        validate_sender.try_send(tx_part).unwrap();
     }
+    let fin_part = ProposalPart::Fin(ProposalFin { proposal_content_id: block.header.block_hash });
+    validate_sender.try_send(fin_part).unwrap();
     validate_sender.close_channel();
 
     let fin = papyrus_context
@@ -56,7 +73,7 @@ async fn validate_proposal_success() {
         .await
         .unwrap();
 
-    assert_eq!(fin, block.header.block_hash);
+    assert_eq!(fin.0, block.header.block_hash);
 }
 
 #[tokio::test]
@@ -67,8 +84,14 @@ async fn validate_proposal_fail() {
     let different_block = get_test_block(4, None, None, None);
     let (mut validate_sender, validate_receiver) = mpsc::channel(5000);
     for tx in different_block.body.transactions.clone() {
-        validate_sender.try_send(tx).unwrap();
+        let tx_part = ProposalPart::Transactions(TransactionBatch {
+            transactions: vec![tx],
+            tx_hashes: vec![],
+        });
+        validate_sender.try_send(tx_part).unwrap();
     }
+    let fin_part = ProposalPart::Fin(ProposalFin { proposal_content_id: block.header.block_hash });
+    validate_sender.try_send(fin_part).unwrap();
     validate_sender.close_channel();
 
     let fin = papyrus_context
@@ -107,10 +130,21 @@ fn test_setup() -> (
         .unwrap();
 
     let network_channels = mock_register_broadcast_topic().unwrap();
+    let network_proposal_channels: TestSubscriberChannels<StreamMessage<ProposalPart>> =
+        mock_register_broadcast_topic().unwrap();
+    let BroadcastTopicChannels {
+        broadcasted_messages_receiver: inbound_network_receiver,
+        broadcast_topic_client: outbound_network_sender,
+    } = network_proposal_channels.subscriber_channels;
+    let (outbound_internal_sender, _inbound_internal_receiver) =
+        StreamHandler::get_channels(inbound_network_receiver, outbound_network_sender);
+
     let sync_channels = mock_register_broadcast_topic().unwrap();
+
     let papyrus_context = PapyrusConsensusContext::new(
         storage_reader.clone(),
         network_channels.subscriber_channels.broadcast_topic_client,
+        outbound_internal_sender,
         4,
         Some(sync_channels.subscriber_channels.broadcast_topic_client),
     );

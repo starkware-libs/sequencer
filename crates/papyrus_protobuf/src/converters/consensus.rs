@@ -6,7 +6,8 @@ use std::convert::{TryFrom, TryInto};
 use prost::Message;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::hash::StarkHash;
-use starknet_api::transaction::Transaction;
+use starknet_api::transaction::{Transaction, TransactionHash};
+use starknet_types_core::felt::Felt;
 
 use crate::consensus::{
     ConsensusMessage,
@@ -226,6 +227,8 @@ impl From<ProposalInit> for protobuf::ProposalInit {
 
 auto_impl_into_and_try_from_vec_u8!(ProposalInit, protobuf::ProposalInit);
 
+// TODO(guyn): remove tx_hashes once we know how to compile the hashes
+// when making the executable transactions.
 impl TryFrom<protobuf::TransactionBatch> for TransactionBatch {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::TransactionBatch) -> Result<Self, Self::Error> {
@@ -234,14 +237,21 @@ impl TryFrom<protobuf::TransactionBatch> for TransactionBatch {
             .into_iter()
             .map(|tx| tx.try_into())
             .collect::<Result<Vec<Transaction>, ProtobufConversionError>>()?;
-        Ok(TransactionBatch { transactions })
+        let tx_felts = value
+            .tx_hashes
+            .into_iter()
+            .map(|hash| hash.try_into())
+            .collect::<Result<Vec<Felt>, ProtobufConversionError>>()?;
+        let tx_hashes = tx_felts.into_iter().map(|f| TransactionHash(f)).collect();
+        Ok(TransactionBatch { transactions, tx_hashes })
     }
 }
 
 impl From<TransactionBatch> for protobuf::TransactionBatch {
     fn from(value: TransactionBatch) -> Self {
         let transactions = value.transactions.into_iter().map(Into::into).collect();
-        protobuf::TransactionBatch { transactions }
+        let tx_hashes = value.tx_hashes.into_iter().map(|hash| hash.0.into()).collect();
+        protobuf::TransactionBatch { transactions, tx_hashes }
     }
 }
 
@@ -304,6 +314,7 @@ impl From<ProposalPart> for protobuf::ProposalPart {
 
 auto_impl_into_and_try_from_vec_u8!(ProposalPart, protobuf::ProposalPart);
 
+// TODO(guyn): remove this once we are happy with how proposals are sent separate from votes.
 impl TryFrom<protobuf::ConsensusMessage> for ConsensusMessage {
     type Error = ProtobufConversionError;
 

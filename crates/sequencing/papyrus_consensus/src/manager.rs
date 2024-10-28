@@ -7,13 +7,13 @@ mod manager_test;
 use std::collections::BTreeMap;
 use std::time::Duration;
 
-use futures::channel::{mpsc, oneshot};
+use futures::channel::mpsc;
 use futures::stream::FuturesUnordered;
 use futures::{Stream, StreamExt};
 use papyrus_common::metrics::{PAPYRUS_CONSENSUS_HEIGHT, PAPYRUS_CONSENSUS_SYNC_COUNT};
 use papyrus_network::network_manager::BroadcastTopicClientTrait;
-use papyrus_protobuf::consensus::{ConsensusMessage, ProposalInit, ProposalWrapper};
-use starknet_api::block::{BlockHash, BlockNumber};
+use papyrus_protobuf::consensus::{ConsensusMessage, ProposalInit};
+use starknet_api::block::BlockNumber;
 use tracing::{debug, info, instrument};
 
 use crate::config::TimeoutsConfig;
@@ -37,13 +37,13 @@ pub async fn run_consensus<ContextT, SyncReceiverT>(
     consensus_delay: Duration,
     timeouts: TimeoutsConfig,
     mut broadcast_channels: BroadcastConsensusMessageChannel,
+    mut inbound_proposal_receiver: mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
     mut sync_receiver: SyncReceiverT,
 ) -> Result<(), ConsensusError>
 where
-    ContextT: ConsensusContext,
+    ContextT: ConsensusContext + 'static,
     SyncReceiverT: Stream<Item = BlockNumber> + Unpin,
-    ProposalWrapper:
-        Into<(ProposalInit, mpsc::Receiver<ContextT::ProposalChunk>, oneshot::Receiver<BlockHash>)>,
+    <ContextT as ConsensusContext>::ProposalPart: std::fmt::Debug,
 {
     info!(
         "Running consensus, start_height={}, validator_id={}, consensus_delay={}, timeouts={:?}",
@@ -57,11 +57,17 @@ where
     tokio::time::sleep(consensus_delay).await;
     let mut current_height = start_height;
     let mut manager = MultiHeightManager::new(validator_id, timeouts);
+
     #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
     loop {
         metrics::gauge!(PAPYRUS_CONSENSUS_HEIGHT, current_height.0 as f64);
 
-        let run_height = manager.run_height(&mut context, current_height, &mut broadcast_channels);
+        let run_height = manager.run_height(
+            &mut context,
+            current_height,
+            &mut broadcast_channels,
+            &mut inbound_proposal_receiver,
+        );
 
         // `run_height` is not cancel safe. Our implementation doesn't enable us to start and stop
         // it. We also cannot restart the height; when we dropped the future we dropped the state it
@@ -84,16 +90,22 @@ where
 /// Runs Tendermint repeatedly across different heights. Handles issues which are not explicitly
 /// part of the single height consensus algorithm (e.g. messages from future heights).
 #[derive(Debug, Default)]
-struct MultiHeightManager {
+struct MultiHeightManager<ContextT: ConsensusContext> {
     validator_id: ValidatorId,
     cached_messages: BTreeMap<u64, Vec<ConsensusMessage>>,
+    cached_proposals: BTreeMap<u64, (ProposalInit, mpsc::Receiver<ContextT::ProposalPart>)>,
     timeouts: TimeoutsConfig,
 }
 
-impl MultiHeightManager {
+impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
     /// Create a new consensus manager.
     pub fn new(validator_id: ValidatorId, timeouts: TimeoutsConfig) -> Self {
-        Self { validator_id, cached_messages: BTreeMap::new(), timeouts }
+        Self {
+            validator_id,
+            cached_messages: BTreeMap::new(),
+            cached_proposals: BTreeMap::new(),
+            timeouts,
+        }
     }
 
     /// Run the consensus algorithm for a single height.
@@ -101,19 +113,15 @@ impl MultiHeightManager {
     /// Assumes that `height` is monotonically increasing across calls for the sake of filtering
     /// `cached_messaged`.
     #[instrument(skip(self, context, broadcast_channels), level = "info")]
-    pub async fn run_height<ContextT>(
+    pub async fn run_height(
         &mut self,
         context: &mut ContextT,
         height: BlockNumber,
         broadcast_channels: &mut BroadcastConsensusMessageChannel,
+        proposal_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
     ) -> Result<Decision, ConsensusError>
     where
-        ContextT: ConsensusContext,
-        ProposalWrapper: Into<(
-            ProposalInit,
-            mpsc::Receiver<ContextT::ProposalChunk>,
-            oneshot::Receiver<BlockHash>,
-        )>,
+        <ContextT as ConsensusContext>::ProposalPart: std::fmt::Debug,
     {
         let validators = context.validators(height).await;
         info!("running consensus for height {height:?} with validator set {validators:?}");
@@ -135,10 +143,34 @@ impl MultiHeightManager {
         }
 
         let mut current_height_messages = self.get_current_height_messages(height);
+        // If there's already a cached proposal, handle that before looping.
+        if let Some((init, proposal)) = self.get_current_proposal(height) {
+            let shc_return =
+                self.handle_proposal(context, height, &mut shc, init, proposal).await?;
+            // Handle potential tasks like validate the proposal.
+            if let ShcReturn::Tasks(tasks) = shc_return {
+                for task in tasks {
+                    shc_events.push(task.run());
+                }
+            }
+        };
+
+        // No cached proposal, loop over incoming proposals, messages, cached messages, and events.
         loop {
             let shc_return = tokio::select! {
                 message = next_message(&mut current_height_messages, broadcast_channels) => {
                     self.handle_message(context, height, &mut shc, message?).await?
+                },
+                Some(mut content_receiver) = proposal_receiver.next() => {
+                    // Get the first message to verify the init was sent.
+                    // TODO(guyn): what happens if the channel never sends anything?
+                    let Some(first_part) = content_receiver.next().await else {
+                        return Err(ConsensusError::InternalNetworkError(
+                            "Proposal receiver closed".to_string(),
+                        ));
+                    };
+                    let proposal_init: ProposalInit = first_part.try_into()?;
+                    self.handle_proposal(context, height, &mut shc, proposal_init, content_receiver).await?
                 },
                 Some(shc_event) = shc_events.next() => {
                     shc.handle_event(context, shc_event).await?
@@ -156,22 +188,46 @@ impl MultiHeightManager {
         }
     }
 
+    // Handle a new proposal receiver from the network.
+    async fn handle_proposal(
+        &mut self,
+        context: &mut ContextT,
+        height: BlockNumber,
+        shc: &mut SingleHeightConsensus,
+        proposal_init: ProposalInit,
+        content_receiver: mpsc::Receiver<ContextT::ProposalPart>,
+    ) -> Result<ShcReturn, ConsensusError>
+    where
+        <ContextT as ConsensusContext>::ProposalPart: std::fmt::Debug,
+    {
+        // let Some(first_part) = content_receiver.next().await else {
+        //     return Err(ConsensusError::InternalNetworkError(
+        //         "Proposal receiver closed".to_string(),
+        //     ));
+        // };
+        // let proposal_init: ProposalInit = first_part.try_into()?;
+
+        // TODO(guyn): what is the right thing to do if proposal's height doesn't match?
+        if proposal_init.height != height {
+            debug!("Received a proposal for a different height. {:?}", proposal_init);
+            if proposal_init.height > height {
+                // Note: this will overwrite an existing content_receiver for this height!
+                self.cached_proposals
+                    .insert(proposal_init.height.0, (proposal_init, content_receiver));
+            }
+            return Ok(ShcReturn::Tasks(Vec::new()));
+        }
+        shc.handle_proposal(context, proposal_init.into(), content_receiver).await
+    }
+
     // Handle a single consensus message.
-    async fn handle_message<ContextT>(
+    async fn handle_message(
         &mut self,
         context: &mut ContextT,
         height: BlockNumber,
         shc: &mut SingleHeightConsensus,
         message: ConsensusMessage,
-    ) -> Result<ShcReturn, ConsensusError>
-    where
-        ContextT: ConsensusContext,
-        ProposalWrapper: Into<(
-            ProposalInit,
-            mpsc::Receiver<ContextT::ProposalChunk>,
-            oneshot::Receiver<BlockHash>,
-        )>,
-    {
+    ) -> Result<ShcReturn, ConsensusError> {
         // TODO(matan): We need to figure out an actual cacheing strategy under 2 constraints:
         // 1. Malicious - must be capped so a malicious peer can't DoS us.
         // 2. Parallel proposals - we may send/receive a proposal for (H+1, 0).
@@ -184,14 +240,16 @@ impl MultiHeightManager {
             return Ok(ShcReturn::Tasks(Vec::new()));
         }
         match message {
-            ConsensusMessage::Proposal(proposal) => {
-                // Special case due to fake streaming.
-                let (proposal_init, content_receiver, fin_receiver) =
-                    ProposalWrapper(proposal).into();
-                let res = shc
-                    .handle_proposal(context, proposal_init, content_receiver, fin_receiver)
-                    .await?;
-                Ok(res)
+            ConsensusMessage::Proposal(_proposal) => {
+                // Special case due to fake streaming. TODO(guyn): We can eliminate this option and
+                // leave handle_message. let (proposal_init, content_receiver,
+                // fin_receiver) =    ProposalWrapper(proposal).into();
+                // let res = shc
+                //    .handle_proposal(context, proposal_init.into(), content_receiver,
+                // fin_receiver)    .await?;
+                Err(ConsensusError::InternalNetworkError(
+                    "Proposal variant of ConsensusMessage no longer supported".to_string(),
+                ))
             }
             _ => {
                 let res = shc.handle_message(context, message).await?;
@@ -219,14 +277,27 @@ impl MultiHeightManager {
             }
         }
     }
+    fn get_current_proposal(
+        &mut self,
+        height: BlockNumber,
+    ) -> Option<(ProposalInit, mpsc::Receiver<ContextT::ProposalPart>)> {
+        loop {
+            let Some(entry) = self.cached_proposals.first_entry() else { return None };
+            match entry.key().cmp(&height.0) {
+                std::cmp::Ordering::Greater => return None,
+                std::cmp::Ordering::Equal => return Some(entry.remove()),
+                std::cmp::Ordering::Less => {
+                    entry.remove();
+                }
+            }
+        }
+    }
 }
 
 async fn next_message(
     cached_messages: &mut Vec<ConsensusMessage>,
     broadcast_channels: &mut BroadcastConsensusMessageChannel,
-) -> Result<ConsensusMessage, ConsensusError>
-where
-{
+) -> Result<ConsensusMessage, ConsensusError> {
     let BroadcastConsensusMessageChannel { broadcasted_messages_receiver, broadcast_topic_client } =
         broadcast_channels;
     if let Some(msg) = cached_messages.pop() {
