@@ -123,6 +123,29 @@ fn block_full_test_expectations(
     (mock_transaction_executor, mock_tx_provider, expected_block_artifacts)
 }
 
+fn test_expectations_with_delay(
+    input_txs: &[Transaction],
+) -> (MockTransactionExecutorTrait, MockTransactionProvider, BlockExecutionArtifacts) {
+    let first_chunk = input_txs[0..TX_CHUNK_SIZE].to_vec();
+    let first_chunk_copy = first_chunk.clone();
+    let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
+
+    mock_transaction_executor
+        .expect_add_txs_to_block()
+        .withf(move |blockifier_input| compare_tx_hashes(&first_chunk, blockifier_input))
+        .return_once(move |_| {
+            std::thread::sleep(std::time::Duration::from_secs(BLOCK_GENERATION_DEADLINE_SECS));
+            vec![execution_info(); TX_CHUNK_SIZE].into_iter().map(Ok).collect()
+        });
+
+    let expected_block_artifacts =
+        set_close_block_expectations(&mut mock_transaction_executor, TX_CHUNK_SIZE);
+
+    let mock_tx_provider = mock_tx_provider_limited_calls(1, vec![first_chunk_copy]);
+
+    (mock_transaction_executor, mock_tx_provider, expected_block_artifacts)
+}
+
 // Fill the executor outputs with some non-default values to make sure the block_builder uses
 // them.
 fn block_builder_expected_output(execution_info_len: usize) -> BlockExecutionArtifacts {
@@ -219,12 +242,13 @@ async fn run_build_block(
     block_builder.build_block(deadline, Box::new(tx_provider), output_sender).await.unwrap()
 }
 
-// TODO: Add test cases for failed transaction, timeout reached.
+// TODO: Add test case for failed transaction.
 #[rstest]
 #[case::one_chunk_block(3, test_txs(0..3), one_chunk_test_expectations(&input_txs))]
 #[case::two_chunks_block(6, test_txs(0..6), two_chunks_test_expectations(&input_txs))]
 #[case::empty_block(0, vec![], empty_block_test_expectations())]
 #[case::block_full(1, test_txs(0..3), block_full_test_expectations(&input_txs, expected_block_size))]
+#[case::deadline_reached_after_first_chunk(3, test_txs(0..6), test_expectations_with_delay(&input_txs))]
 #[tokio::test]
 async fn test_build_block(
     #[case] expected_block_size: usize,
