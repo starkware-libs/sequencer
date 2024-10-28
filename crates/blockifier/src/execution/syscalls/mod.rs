@@ -37,7 +37,6 @@ use self::hint_processor::{
 };
 use crate::abi::constants;
 use crate::execution::call_info::{MessageToL1, OrderedEvent, OrderedL2ToL1Message};
-use crate::execution::contract_class::ContractClass;
 use crate::execution::deprecated_syscalls::DeprecatedSyscallSelector;
 use crate::execution::entry_point::{CallEntryPoint, CallType, ConstructorContext};
 use crate::execution::execution_utils::{
@@ -48,6 +47,7 @@ use crate::execution::execution_utils::{
     ReadOnlySegment,
 };
 use crate::execution::syscalls::hint_processor::{INVALID_INPUT_LENGTH_ERROR, OUT_OF_GAS_ERROR};
+use crate::transaction::account_transaction::is_cairo1;
 use crate::versioned_constants::{EventLimits, VersionedConstants};
 
 pub mod hint_processor;
@@ -518,17 +518,11 @@ pub fn replace_class(
     let class_hash = request.class_hash;
     let class = syscall_handler.state.get_compiled_contract_class(class_hash)?;
 
-    match class {
-        ContractClass::V0(_) => {
-            Err(SyscallExecutionError::ForbiddenClassReplacement { class_hash })
-        }
-        ContractClass::V1(_) | ContractClass::V1Native(_) => {
-            syscall_handler
-                .state
-                .set_class_hash_at(syscall_handler.storage_address(), class_hash)?;
-            Ok(ReplaceClassResponse {})
-        }
+    if !is_cairo1(&class) {
+        return Err(SyscallExecutionError::ForbiddenClassReplacement { class_hash });
     }
+    syscall_handler.state.set_class_hash_at(syscall_handler.storage_address(), class_hash)?;
+    Ok(ReplaceClassResponse {})
 }
 
 // SendMessageToL1 syscall.
