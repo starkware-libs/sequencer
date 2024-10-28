@@ -121,3 +121,13 @@ pub fn test_serialize_tx(test_state_reader: TestStateReader, tx_hash: String) {
     .unwrap();
     assert_eq!(actual_tx, expected_tx);
 }
+
+#[rstest]
+pub fn test_serialize_block_tx_hashes(test_state_reader: TestStateReader) {
+    let expected_tx_hashes = read_json_file("block_700000/tx_hashes_block_700000.json");
+    let actual_tx_hashes: Value = serde_json::from_str(
+        &serialize_from_raw(&test_state_reader.get_raw_tx_hashes().unwrap()).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(actual_tx_hashes, expected_tx_hashes);
+}
