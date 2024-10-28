@@ -375,6 +375,7 @@ impl BuildProposalTask {
             let mempool_txs = match mempool_client.get_txs(max_txs_per_mempool_request).await {
                 Ok(txs) if txs.is_empty() => {
                     // TODO: Consider sleeping for a while.
+                    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
                     tokio::task::yield_now().await;
                     continue;
                 }

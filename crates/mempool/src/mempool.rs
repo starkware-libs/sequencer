@@ -55,25 +55,31 @@ impl Mempool {
     // TODO: Consider renaming to `pop_txs` to be more consistent with the standard library.
     #[tracing::instrument(skip(self), err)]
     pub fn get_txs(&mut self, n_txs: usize) -> MempoolResult<Vec<Transaction>> {
+        // tracing::trace!("mempool pool has {} txs, {self:?}", self.tx_pool.tx_pool.keys().len());
         let mut eligible_tx_references: Vec<TransactionReference> = Vec::with_capacity(n_txs);
         let mut n_remaining_txs = n_txs;
 
-        while n_remaining_txs > 0 && !self.tx_queue.has_ready_txs() {
+        while n_remaining_txs > 0 && self.tx_queue.has_ready_txs() {
             let chunk = self.tx_queue.pop_ready_chunk(n_remaining_txs);
             self.enqueue_next_eligible_txs(&chunk)?;
             n_remaining_txs -= chunk.len();
             eligible_tx_references.extend(chunk);
         }
 
+        tracing::trace!("{n_remaining_txs:?}, {eligible_tx_references:?}, {:?}", self.tx_queue);
+
         // Update the mempool state with the given transactions' nonces.
         for tx_ref in &eligible_tx_references {
-            self.mempool_state.insert(tx_ref.address, tx_ref.nonce);
+            self.mempool_state.insert(tx_ref.address, tx_ref.nonce.try_increment().unwrap());
         }
 
-        // tracing::info!(
-        //     "Returned {} out of {n_txs} transactions, ready for sequencing.",
-        //     eligible_tx_references.len()
-        // );
+        if !eligible_tx_references.is_empty() {
+            tracing::info!(
+                "Returned {} out of {n_txs} transactions, ready for sequencing.",
+                eligible_tx_references.len()
+            );
+            tracing::trace!("{eligible_tx_references:?}");
+        }
 
         Ok(eligible_tx_references
             .iter()
@@ -99,20 +105,35 @@ impl Mempool {
         err
     )]
     pub fn add_tx(&mut self, args: AddTransactionArgs) -> MempoolResult<()> {
+        tracing::trace!(
+            "Adding transaction to mempool: {:?}.",
+            TransactionReference::new(&args.tx)
+        );
         let AddTransactionArgs { tx, account_state } = args;
         self.validate_incoming_nonce(tx.nonce(), account_state)?;
 
         self.handle_fee_escalation(&tx)?;
+        let tx_reference = TransactionReference::new(&tx);
         self.tx_pool.insert(tx)?;
 
-        // Align to account nonce, only if it is at least the one stored.
-        let AccountState { address, nonce } = account_state;
-        match self.account_nonces.get(&address) {
-            Some(stored_account_nonce) if &nonce < stored_account_nonce => {}
-            _ => {
-                self.align_to_account_state(account_state);
+        let address = tx_reference.address;
+        let nonce = tx_reference.nonce;
+        let account_nonce =
+            self.mempool_state.get(&address).or_else(|| self.account_nonces.get(&address));
+
+        match account_nonce {
+            Some(&mempool_state_nonce) => {
+                if mempool_state_nonce == nonce {
+                    self.tx_queue.insert(tx_reference);
+                }
+            }
+            None => {
+                assert_eq!(tx_reference.nonce, Nonce(1.into()));
+                assert_eq!(self.account_nonces.insert(address, nonce), None);
             }
         }
+
+        tracing::trace!("Finished add_tx {:?}.", self.tx_queue);
 
         Ok(())
     }
@@ -135,6 +156,9 @@ impl Mempool {
         // Rewind nonces of addresses that were not included in block.
         let known_addresses_not_included_in_block =
             self.mempool_state.keys().filter(|&key| !nonces.contains_key(key));
+        tracing::debug!(
+            "Addresses not included in block: {known_addresses_not_included_in_block:?}"
+        );
         for address in known_addresses_not_included_in_block {
             // Account nonce is the minimal nonce of this address: it was proposed but not included.
             let tx_reference = self
@@ -142,6 +166,14 @@ impl Mempool {
                 .account_txs_sorted_by_nonce(*address)
                 .next()
                 .expect("Address {address} should appear in transaction pool.");
+
+            if self
+                .tx_queue
+                .get_nonce(*address)
+                .is_some_and(|queued_nonce| queued_nonce != tx_reference.nonce)
+            {
+                assert!(self.tx_queue.remove(*address), "Expected to remove address from queue.");
+            }
             self.tx_queue.insert(*tx_reference);
         }
 
@@ -172,29 +204,34 @@ impl Mempool {
     fn validate_incoming_nonce(
         &self,
         tx_nonce: Nonce,
-        account_state: AccountState,
+        gw_account_state: AccountState,
     ) -> MempoolResult<()> {
-        let AccountState { address, nonce: account_nonce } = account_state;
+        let AccountState { address, nonce: account_nonce } = gw_account_state;
         let duplicate_nonce_error = MempoolError::DuplicateNonce { address, nonce: tx_nonce };
 
         // Stateless checks.
 
         // Check the input: transaction nonce against given account state.
         if account_nonce > tx_nonce {
+            // GW bug: account nonce is higher than transaction nonce.
             return Err(duplicate_nonce_error);
         }
 
         // Stateful checks.
 
         // Check nonce against mempool state.
-        if let Some(mempool_state_nonce) = self.mempool_state.get(&address) {
-            if mempool_state_nonce >= &tx_nonce {
-                return Err(duplicate_nonce_error);
+        match self.mempool_state.get(&address).or_else(|| self.account_nonces.get(&address)) {
+            Some(&mempool_state_nonce) => {
+                if tx_nonce < mempool_state_nonce {
+                    // mempool already served this tx_nonce to the batcher, reject.
+                    return Err(duplicate_nonce_error);
+                }
             }
+            None => assert_eq!(tx_nonce, Nonce(1.into())),
         }
 
         // Check nonce against the queue.
-        if self.tx_queue.get_nonce(address).is_some_and(|queued_nonce| queued_nonce >= tx_nonce) {
+        if self.tx_queue.get_nonce(address).is_some_and(|queued_nonce| tx_nonce <= queued_nonce) {
             return Err(duplicate_nonce_error);
         }
 
@@ -208,6 +245,10 @@ impl Mempool {
             if let Some(next_tx_reference) =
                 self.tx_pool.get_next_eligible_tx(current_account_state)?
             {
+                tracing::debug!(
+                    "inserting {next_tx_reference} into tx_queue, {:?}.",
+                    self.tx_queue
+                );
                 self.tx_queue.insert(*next_tx_reference);
             }
         }

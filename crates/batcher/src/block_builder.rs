@@ -162,6 +162,12 @@ impl BlockBuilderTrait for BlockBuilder {
                     break;
                 }
                 Ok(Some(tx_chunk)) => {
+                    if tx_chunk.len() == 4 {
+                        panic!(
+                            "BUGGGG: got chunk of size 4 from the mempool, even though only 3 txs \
+                             exist in the system. {tx_chunk:?}"
+                        );
+                    }
                     debug!("Got a chunk of {} transactions.", tx_chunk.len());
                     tx_chunk
                 }
