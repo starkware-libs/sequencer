@@ -137,7 +137,7 @@ impl SequencerNodeConfig {
 }
 
 /// The command line interface of this node.
-fn node_command() -> Command {
+pub(crate) fn node_command() -> Command {
     Command::new("Sequencer")
         .version(VERSION_FULL)
         .about("A Starknet sequencer node written in Rust.")

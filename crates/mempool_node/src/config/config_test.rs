@@ -1,4 +1,4 @@
-use std::env;
+use std::env::{self};
 use std::fs::File;
 
 use assert_json_diff::assert_json_eq;
@@ -6,6 +6,7 @@ use assert_matches::assert_matches;
 use colored::Colorize;
 use mempool_test_utils::get_absolute_path;
 use papyrus_config::dumping::SerializeConfig;
+use papyrus_config::validators::config_validate;
 use rstest::rstest;
 use starknet_sequencer_infra::component_definitions::{
     LocalComponentCommunicationConfig,
@@ -15,6 +16,7 @@ use starknet_sequencer_infra::component_definitions::{
 use validator::Validate;
 
 use crate::config::{
+    node_command,
     ComponentExecutionConfig,
     ComponentExecutionMode,
     SequencerNodeConfig,
@@ -58,7 +60,7 @@ fn test_valid_component_execution_config(
 /// date. To update the default config file, run:
 /// cargo run --bin sequencer_dump_config -q
 #[test]
-fn default_config_file_is_up_to_date() {
+fn test_default_config_file_is_up_to_date() {
     env::set_current_dir(get_absolute_path("")).expect("Couldn't set working dir.");
     let from_default_config_file: serde_json::Value =
         serde_json::from_reader(File::open(DEFAULT_CONFIG_PATH).unwrap()).unwrap();
@@ -86,4 +88,14 @@ fn default_config_file_is_up_to_date() {
         "Diffs shown below (default config file <<>> dump of SequencerNodeConfig::default())."
     );
     assert_json_eq!(from_default_config_file, from_code)
+}
+
+/// Tests parsing a node config without additional args.
+#[test]
+fn test_config_parsing() {
+    let config = SequencerNodeConfig::load_and_process(vec![node_command().to_string()]);
+    let config = config.expect("Parsing function failed.");
+
+    let result = config_validate(&config);
+    assert_matches!(result, Ok(_), "Expected Ok but got {:?}", result);
 }
