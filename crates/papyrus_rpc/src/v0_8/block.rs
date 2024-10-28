@@ -80,7 +80,7 @@ pub struct ResourcePrice {
     pub price_in_fri: GasPrice,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize)]
 pub struct Block {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<BlockStatus>,

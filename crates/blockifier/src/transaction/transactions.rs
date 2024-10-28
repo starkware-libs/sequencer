@@ -154,13 +154,13 @@ impl DeclareTransaction {
         let declare_version = declare_tx.version();
         // Verify contract class version.
         if !is_cairo1(&class_info.contract_class()) {
-            if declare_version > TransactionVersion::ONE {
+            if declare_version.base_gt(&TransactionVersion::ONE) {
                 Err(TransactionExecutionError::ContractClassVersionMismatch {
                     declare_version,
                     cairo_version: 0,
                 })?
             }
-        } else if declare_version <= TransactionVersion::ONE {
+        } else if declare_version.base_le(&TransactionVersion::ONE) {
             Err(TransactionExecutionError::ContractClassVersionMismatch {
                 declare_version,
                 cairo_version: 1,

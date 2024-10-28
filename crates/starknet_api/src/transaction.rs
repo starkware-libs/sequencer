@@ -59,7 +59,7 @@ pub struct FullTransaction {
 }
 
 /// A transaction.
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize)]
 pub enum Transaction {
     /// A declare transaction.
     Declare(DeclareTransaction),
@@ -456,7 +456,7 @@ impl TransactionHasher for DeployAccountTransaction {
 }
 
 /// A deploy transaction.
-#[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
+#[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize)]
 pub struct DeployTransaction {
     pub version: TransactionVersion,
     pub class_hash: ClassHash,
@@ -618,7 +618,7 @@ impl TransactionHasher for InvokeTransaction {
 }
 
 /// An L1 handler transaction.
-#[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
+#[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize)]
 pub struct L1HandlerTransaction {
     pub version: TransactionVersion,
     pub nonce: Nonce,
@@ -831,18 +831,7 @@ pub struct TransactionSignature(pub Vec<Felt>);
 
 /// A transaction version.
 #[derive(
-    Debug,
-    Copy,
-    Clone,
-    Default,
-    Eq,
-    PartialEq,
-    Hash,
-    Deserialize,
-    Serialize,
-    PartialOrd,
-    Ord,
-    derive_more::Deref,
+    Debug, Copy, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, derive_more::Deref,
 )]
 pub struct TransactionVersion(pub Felt);
 
@@ -858,6 +847,28 @@ impl TransactionVersion {
 
     /// [TransactionVersion] constant that's equal to 3.
     pub const THREE: Self = { Self(Felt::THREE) };
+
+    fn without_query_bit(&self) -> Self {
+        let mut self_biguint = self.0.to_biguint();
+        self_biguint.set_bit(QUERY_VERSION_BASE_BIT.into(), false);
+        Self(self_biguint.into())
+    }
+
+    pub fn base_le(&self, other: &Self) -> bool {
+        self.without_query_bit().0 <= other.without_query_bit().0
+    }
+
+    pub fn base_lt(&self, other: &Self) -> bool {
+        self.without_query_bit().0 < other.without_query_bit().0
+    }
+
+    pub fn base_ge(&self, other: &Self) -> bool {
+        !self.base_lt(other)
+    }
+
+    pub fn base_gt(&self, other: &Self) -> bool {
+        !self.base_le(other)
+    }
 }
 
 // TODO: TransactionVersion and SignedTransactionVersion should probably be separate types.
