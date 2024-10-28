@@ -1,12 +1,9 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use async_trait::async_trait;
 use blockifier::blockifier::block::BlockNumberHashPair;
 use indexmap::IndexMap;
-use papyrus_config::dumping::{ser_param, SerializeConfig};
-use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::core::{ContractAddress, Nonce};
@@ -21,40 +18,6 @@ use tracing::{debug, error, info, instrument, Instrument};
 
 use crate::batcher::BatcherStorageReaderTrait;
 use crate::block_builder::{BlockBuilderError, BlockBuilderFactoryTrait, BlockExecutionArtifacts};
-
-// TODO(Yael 27/10/24): remove ProposalManagerConfig from here and from batcher config
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct ProposalManagerConfig {
-    pub block_builder_next_txs_buffer_size: usize,
-    pub max_txs_per_mempool_request: usize,
-}
-
-impl Default for ProposalManagerConfig {
-    fn default() -> Self {
-        // TODO: Get correct default values.
-        Self { block_builder_next_txs_buffer_size: 100, max_txs_per_mempool_request: 10 }
-    }
-}
-
-impl SerializeConfig for ProposalManagerConfig {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "block_builder_next_txs_buffer_size",
-                &self.block_builder_next_txs_buffer_size,
-                "Maximum transactions to fill in the stream buffer for the block builder before \
-                 blocking further filling of the stream.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_txs_per_mempool_request",
-                &self.max_txs_per_mempool_request,
-                "Maximum transactions to get from the mempool in a single get_txs request.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
-    }
-}
 
 #[derive(Debug, Error)]
 pub enum StartHeightError {
