@@ -211,7 +211,7 @@ impl AccountTransaction {
 
     // Calldata for validation contains transaction fields that cannot be obtained by calling
     // `et_tx_info()`.
-    fn validate_entrypoint_calldata(&self) -> Calldata {
+    pub fn validate_entrypoint_calldata(&self) -> Calldata {
         match self {
             Self::Declare(tx) => calldata![tx.class_hash().0],
             Self::DeployAccount(tx) => Calldata(

@@ -438,17 +438,17 @@ fn test_invoke_tx(
     let state = &mut test_state(chain_info, BALANCE, &[(account_contract, 1), (test_contract, 1)]);
     let test_contract_address = test_contract.get_instance_address(0);
     let account_contract_address = account_contract.get_instance_address(0);
-    let invoke_tx = invoke_tx(invoke_tx_args! {
+    let calldata = create_trivial_calldata(test_contract_address);
+    let account_tx = invoke_tx(invoke_tx_args! {
         sender_address: account_contract_address,
-        calldata: create_trivial_calldata(test_contract_address),
+        calldata: Calldata(Arc::clone(&calldata.0)),
         resource_bounds,
     });
 
     // Extract invoke transaction fields for testing, as it is consumed when creating an account
     // transaction.
-    let calldata = Calldata(Arc::clone(&invoke_tx.calldata().0));
-    let calldata_length = invoke_tx.calldata().0.len();
-    let signature_length = invoke_tx.signature().0.len();
+    let calldata_length = account_tx.calldata_length();
+    let signature_length = account_tx.signature_length();
     let state_changes_for_fee = StateChangesCount {
         n_storage_updates: 1,
         n_modified_contracts: 1,
@@ -462,9 +462,8 @@ fn test_invoke_tx(
         None,
         ExecutionSummary::default(),
     );
-    let sender_address = invoke_tx.sender_address();
+    let sender_address = account_tx.sender_address();
 
-    let account_tx = AccountTransaction::Invoke(invoke_tx);
     let tx_context = block_context.to_tx_context(&account_tx);
 
     let actual_execution_info = account_tx.execute(state, block_context, true, true).unwrap();
@@ -948,13 +947,13 @@ fn test_max_fee_exceeds_balance(
     )};
 
     // Deploy.
-    let invalid_tx = AccountTransaction::DeployAccount(deploy_account_tx(
+    let invalid_tx = deploy_account_tx(
         deploy_account_tx_args! {
             resource_bounds,
             class_hash: test_contract.get_class_hash()
         },
         &mut NonceManager::default(),
-    ));
+    );
     assert_resource_bounds_exceed_balance_failure(state, block_context, invalid_tx);
 
     // V1 Invoke.
@@ -1673,7 +1672,7 @@ fn test_deploy_account_tx(
     let account = FeatureContract::AccountWithoutValidations(cairo_version);
     let account_class_hash = account.get_class_hash();
     let state = &mut test_state(chain_info, BALANCE, &[(account, 1)]);
-    let deploy_account = deploy_account_tx(
+    let account_tx = deploy_account_tx(
         deploy_account_tx_args! {
             resource_bounds: default_all_resource_bounds,
             class_hash: account_class_hash
@@ -1683,10 +1682,8 @@ fn test_deploy_account_tx(
 
     // Extract deploy account transaction fields for testing, as it is consumed when creating an
     // account transaction.
-    let class_hash = deploy_account.class_hash();
-    let deployed_account_address = deploy_account.contract_address();
-    let constructor_calldata = deploy_account.constructor_calldata();
-    let salt = deploy_account.contract_address_salt();
+    let class_hash = account_tx.class_hash().unwrap();
+    let deployed_account_address = account_tx.sender_address();
     let user_initial_gas = user_initial_gas_from_bounds(default_all_resource_bounds);
 
     // Update the balance of the about to be deployed account contract in the erc20 contract, so it
@@ -1702,20 +1699,18 @@ fn test_deploy_account_tx(
             .unwrap();
     }
 
-    let account_tx = AccountTransaction::DeployAccount(deploy_account);
     let fee_type = &account_tx.fee_type();
     let tx_context = &block_context.to_tx_context(&account_tx);
     let actual_execution_info = account_tx.execute(state, block_context, true, true).unwrap();
 
     // Build expected validate call info.
-    let validate_calldata =
-        [vec![class_hash.0, salt.0], (*constructor_calldata.0).clone()].concat();
+    let validate_calldata = account_tx.validate_entrypoint_calldata();
     let expected_gas_consumed = 0;
     let expected_validate_call_info = expected_validate_call_info(
         account_class_hash,
         constants::VALIDATE_DEPLOY_ENTRY_POINT_NAME,
         expected_gas_consumed,
-        Calldata(validate_calldata.into()),
+        validate_calldata,
         deployed_account_address,
         cairo_version,
         account
@@ -1820,14 +1815,13 @@ fn test_deploy_account_tx(
 
     // Negative flow.
     // Deploy to an existing address.
-    let deploy_account = deploy_account_tx(
+    let account_tx = deploy_account_tx(
         deploy_account_tx_args! {
             resource_bounds: default_all_resource_bounds,
             class_hash: account_class_hash
         },
         &mut nonce_manager,
     );
-    let account_tx = AccountTransaction::DeployAccount(deploy_account);
     let error = account_tx.execute(state, block_context, true, true).unwrap_err();
     assert_matches!(
         error,
@@ -1852,25 +1846,24 @@ fn test_fail_deploy_account_undeclared_class_hash(
     let state = &mut test_state(chain_info, BALANCE, &[]);
     let mut nonce_manager = NonceManager::default();
     let undeclared_hash = class_hash!("0xdeadbeef");
-    let deploy_account = deploy_account_tx(
+    let account_tx = deploy_account_tx(
         deploy_account_tx_args! {
             resource_bounds: default_all_resource_bounds,  class_hash: undeclared_hash
         },
         &mut nonce_manager,
     );
-    let tx_context = block_context.to_tx_context(&deploy_account);
+    let tx_context = block_context.to_tx_context(&account_tx);
     let fee_type = tx_context.tx_info.fee_type();
 
     // Fund account, so as not to fail pre-validation.
     state
         .set_storage_at(
             chain_info.fee_token_address(&fee_type),
-            get_fee_token_var_address(deploy_account.contract_address()),
+            get_fee_token_var_address(account_tx.sender_address()),
             felt!(BALANCE.0),
         )
         .unwrap();
 
-    let account_tx = AccountTransaction::DeployAccount(deploy_account);
     let error = account_tx.execute(state, block_context, true, true).unwrap_err();
     assert_matches!(
         error,
@@ -2198,13 +2191,12 @@ fn test_only_query_flag(
         .concat()
         .into(),
     );
-    let invoke_tx = crate::test_utils::invoke::invoke_tx(invoke_tx_args! {
+    let account_tx = crate::test_utils::invoke::invoke_tx(invoke_tx_args! {
         calldata: execute_calldata,
         resource_bounds: default_all_resource_bounds,
         sender_address,
         only_query,
     });
-    let account_tx = AccountTransaction::Invoke(invoke_tx);
 
     let tx_execution_info = account_tx.execute(state, block_context, true, true).unwrap();
     assert_eq!(tx_execution_info.revert_error, None);
