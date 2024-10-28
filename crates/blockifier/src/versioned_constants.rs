@@ -8,7 +8,7 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use indexmap::{IndexMap, IndexSet};
 use num_rational::Ratio;
 use num_traits::Inv;
-use papyrus_config::dumping::{ser_param, SerializeConfig};
+use papyrus_config::dumping::{ser_optional_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use paste::paste;
 use semver::Version;
@@ -299,28 +299,23 @@ impl VersionedConstants {
         Self { vm_resource_fee_cost, archival_data_gas_costs, ..latest }
     }
 
-    pub fn latest_constants_with_overrides(
-        validate_max_n_steps: u32,
-        max_recursion_depth: usize,
-    ) -> Self {
-        Self { validate_max_n_steps, max_recursion_depth, ..Self::latest_constants().clone() }
-    }
-
     /// Returns the latest versioned constants after applying the given overrides.
     pub fn get_versioned_constants(
         versioned_constants_overrides: VersionedConstantsOverrides,
     ) -> Self {
-        let VersionedConstantsOverrides {
-            validate_max_n_steps,
-            max_recursion_depth,
-            invoke_tx_max_n_steps,
-        } = versioned_constants_overrides;
-        Self {
-            validate_max_n_steps,
-            max_recursion_depth,
-            invoke_tx_max_n_steps,
-            ..Self::latest_constants().clone()
+        let mut constants = Self::latest_constants().clone();
+
+        if let Some(validate_max_n_steps) = versioned_constants_overrides.validate_max_n_steps {
+            constants.validate_max_n_steps = validate_max_n_steps;
         }
+        if let Some(max_recursion_depth) = versioned_constants_overrides.max_recursion_depth {
+            constants.max_recursion_depth = max_recursion_depth;
+        }
+        if let Some(invoke_tx_max_n_steps) = versioned_constants_overrides.invoke_tx_max_n_steps {
+            constants.invoke_tx_max_n_steps = invoke_tx_max_n_steps;
+        }
+
+        constants
     }
 
     pub fn get_archival_data_gas_costs(
@@ -824,45 +819,37 @@ pub struct ResourcesByVersion {
     pub deprecated_resources: ResourcesParams,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub struct VersionedConstantsOverrides {
-    pub validate_max_n_steps: u32,
-    pub max_recursion_depth: usize,
-    pub invoke_tx_max_n_steps: u32,
-}
-
-impl Default for VersionedConstantsOverrides {
-    // TODO: update the default values once the actual values are known.
-    fn default() -> Self {
-        Self {
-            validate_max_n_steps: 1000000,
-            max_recursion_depth: 50,
-            invoke_tx_max_n_steps: 10000000,
-        }
-    }
+    pub validate_max_n_steps: Option<u32>,
+    pub max_recursion_depth: Option<usize>,
+    pub invoke_tx_max_n_steps: Option<u32>,
 }
 
 impl SerializeConfig for VersionedConstantsOverrides {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "validate_max_n_steps",
-                &self.validate_max_n_steps,
-                "Maximum number of steps the validation function is allowed to run.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_recursion_depth",
-                &self.max_recursion_depth,
-                "Maximum recursion depth for nested calls during blockifier validation.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "invoke_tx_max_n_steps",
-                &self.invoke_tx_max_n_steps,
-                "Maximum number of steps the invoke function is allowed to run.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
+        let mut config = ser_optional_param(
+            &self.validate_max_n_steps,
+            0,
+            "validate_max_n_steps",
+            "Maximum number of steps the validation function is allowed to run.",
+            ParamPrivacyInput::Public,
+        );
+        config.extend(ser_optional_param(
+            &self.max_recursion_depth,
+            0,
+            "max_recursion_depth",
+            "Maximum recursion depth for nested calls during blockifier validation.",
+            ParamPrivacyInput::Public,
+        ));
+        config.extend(ser_optional_param(
+            &self.invoke_tx_max_n_steps,
+            0,
+            "invoke_tx_max_n_steps",
+            "Maximum number of steps the invoke function is allowed to run.",
+            ParamPrivacyInput::Public,
+        ));
+
+        config
     }
 }
