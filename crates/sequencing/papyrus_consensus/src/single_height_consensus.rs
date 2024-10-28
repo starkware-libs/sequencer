@@ -6,8 +6,8 @@ use std::collections::hash_map::Entry;
 use std::collections::{HashMap, VecDeque};
 use std::time::Duration;
 
-use futures::channel::{mpsc, oneshot};
-use papyrus_protobuf::consensus::{ConsensusMessage, Vote, VoteType};
+use futures::channel::mpsc;
+use papyrus_protobuf::consensus::{ConsensusMessage, ProposalPart, Vote, VoteType};
 use starknet_api::block::BlockNumber;
 use tracing::{debug, info, instrument, trace, warn};
 
@@ -97,8 +97,8 @@ impl SingleHeightConsensus {
         &mut self,
         context: &mut ContextT,
         init: ProposalInit,
-        p2p_messages_receiver: mpsc::Receiver<ContextT::ProposalChunk>,
-        fin_receiver: oneshot::Receiver<ProposalContentId>,
+        p2p_messages_receiver: mpsc::Receiver<ProposalPart>,
+        // fin_receiver: oneshot::Receiver<ProposalContentId>,
     ) -> Result<ShcReturn, ConsensusError> {
         debug!(
             "Received proposal: height={}, round={}, proposer={:?}",
@@ -123,8 +123,9 @@ impl SingleHeightConsensus {
             .validate_proposal(self.height, self.timeouts.proposal_timeout, p2p_messages_receiver)
             .await;
 
-        let block = match block_receiver.await {
-            Ok(block) => block,
+        // TODO(guyn): I think we should rename "block" and "fin" to be more descriptive!
+        let (block, fin) = match block_receiver.await {
+            Ok((block, fin)) => (block, fin),
             // ProposalFin never received from peer.
             Err(_) => {
                 proposal_entry.insert(None);
@@ -132,14 +133,14 @@ impl SingleHeightConsensus {
             }
         };
 
-        let fin = match fin_receiver.await {
-            Ok(fin) => fin,
-            // ProposalFin never received from peer.
-            Err(_) => {
-                proposal_entry.insert(None);
-                return self.process_inbound_proposal(context, &init, None).await;
-            }
-        };
+        // let fin = match fin_receiver.await {
+        //     Ok(fin) => fin,
+        //     // ProposalFin never received from peer.
+        //     Err(_) => {
+        //         proposal_entry.insert(None);
+        //         return self.process_inbound_proposal(context, &init, None).await;
+        //     }
+        // };
         // TODO(matan): Switch to signature validation.
         if block != fin {
             proposal_entry.insert(None);

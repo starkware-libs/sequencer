@@ -9,7 +9,7 @@ use papyrus_network::network_manager::{
     GenericReceiver,
 };
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
-use papyrus_protobuf::consensus::{ConsensusMessage, Vote};
+use papyrus_protobuf::consensus::{ConsensusMessage, ProposalPart, Vote};
 use papyrus_protobuf::converters::ProtobufConversionError;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::ContractAddress;
@@ -63,14 +63,15 @@ pub trait ConsensusContext {
     /// - `content`: A receiver for the stream of the block's content.
     ///
     /// Returns:
-    /// - A receiver for the block id. If a valid block cannot be built the Sender will be dropped
-    ///   by ConsensusContext.
+    /// - A receiver for a tuple with two block ids, one calculated by the context, one sent from
+    ///   the network. If a valid block cannot be built the Sender will be dropped by
+    ///   ConsensusContext.
     async fn validate_proposal(
         &mut self,
         height: BlockNumber,
         timeout: Duration,
-        content: mpsc::Receiver<Self::ProposalChunk>,
-    ) -> oneshot::Receiver<ProposalContentId>;
+        content: mpsc::Receiver<ProposalPart>,
+    ) -> oneshot::Receiver<(ProposalContentId, ProposalContentId)>;
 
     /// This function is called by consensus to retrieve the content of a previously built or
     /// validated proposal. It broadcasts the proposal to the network.
@@ -118,6 +119,7 @@ impl Debug for Decision {
     }
 }
 
+// TODO(guyn): The same struct is defined in papyrus_protobus/src/consensus.rs...
 #[derive(PartialEq, Debug, Default, Clone)]
 pub struct ProposalInit {
     pub height: BlockNumber,
