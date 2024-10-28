@@ -1,11 +1,10 @@
 use std::collections::HashMap;
 
+use papyrus_common::compression_utils::compress_and_encode;
 use papyrus_storage::db::serialization::StorageSerdeError;
 use serde::{Deserialize, Serialize};
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::deprecated_contract_class::{ContractClassAbiEntry, EntryPointV0};
-
-use crate::compression_utils::compress_and_encode;
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct ContractClass {
