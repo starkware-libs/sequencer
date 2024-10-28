@@ -25,12 +25,12 @@ fn tx_generator() -> MultiAccountTransactionGenerator {
 
 #[rstest]
 #[tokio::test]
-async fn test_end_to_end(tx_generator: MultiAccountTransactionGenerator) {
+async fn test_end_to_end(mut tx_generator: MultiAccountTransactionGenerator) {
     // Setup.
     let mock_running_system = IntegrationTestSetup::new_from_tx_generator(&tx_generator).await;
 
     // Create and send transactions.
-    let expected_batched_tx_hashes = run_integration_test_scenario(tx_generator, &|tx| {
+    let expected_batched_tx_hashes = run_integration_test_scenario(&mut tx_generator, &|tx| {
         mock_running_system.assert_add_tx_success(tx)
     })
     .await;

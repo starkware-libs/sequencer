@@ -7,6 +7,7 @@ use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::CairoVersion;
 use mempool_test_utils::starknet_api_test_utils::{
     rpc_tx_to_json,
+    AccountId,
     MultiAccountTransactionGenerator,
 };
 use papyrus_consensus::config::ConsensusConfig;
@@ -144,16 +145,22 @@ pub fn create_integration_test_tx_generator() -> MultiAccountTransactionGenerato
 /// Creates and runs a scenario for the sequencer integration test. Returns a list of transaction
 /// hashes, in the order they are expected to be in the mempool.
 pub async fn run_integration_test_scenario<'a, Fut>(
-    mut tx_generator: MultiAccountTransactionGenerator,
+    tx_generator: &mut MultiAccountTransactionGenerator,
     send_rpc_tx_fn: &'a dyn Fn(RpcTransaction) -> Fut,
 ) -> Vec<TransactionHash>
 where
     Fut: Future<Output = TransactionHash> + 'a,
 {
+    const ACCOUNT_ID_0: AccountId = 0;
+    const ACCOUNT_ID_1: AccountId = 1;
+
     // Create RPC transactions.
-    let account0_invoke_nonce1 = tx_generator.account_with_id(0).generate_invoke_with_tip(1);
-    let account0_invoke_nonce2 = tx_generator.account_with_id(0).generate_invoke_with_tip(2);
-    let account1_invoke_nonce1 = tx_generator.account_with_id(1).generate_invoke_with_tip(3);
+    let account0_invoke_nonce1 =
+        tx_generator.account_with_id(ACCOUNT_ID_0).generate_invoke_with_tip(1);
+    let account0_invoke_nonce2 =
+        tx_generator.account_with_id(ACCOUNT_ID_0).generate_invoke_with_tip(2);
+    let account1_invoke_nonce1 =
+        tx_generator.account_with_id(ACCOUNT_ID_1).generate_invoke_with_tip(3);
 
     // Send RPC transactions.
     let account0_invoke_nonce1_tx_hash = send_rpc_tx(account0_invoke_nonce1, send_rpc_tx_fn).await;
@@ -169,6 +176,26 @@ where
         account0_invoke_nonce1_tx_hash,
         account0_invoke_nonce2_tx_hash,
     ]
+}
+
+pub async fn run_overflow_test_scenario<'a, Fut>(
+    tx_generator: &mut MultiAccountTransactionGenerator,
+    send_rpc_tx_fn: &'a dyn Fn(RpcTransaction) -> Fut,
+    number_of_txs: usize,
+) -> Vec<TransactionHash>
+where
+    Fut: Future<Output = TransactionHash> + 'a,
+{
+    let mut tx_hashes = vec![];
+    // TODO(Arni): Use a different account then the accounts used to test other scenarios.
+    const ACCOUNT_ID_0: AccountId = 0;
+
+    for _ in 0..number_of_txs {
+        let rpc_invoke_tx = tx_generator.account_with_id(ACCOUNT_ID_0).generate_invoke_with_tip(1);
+        tx_hashes.push(send_rpc_tx(rpc_invoke_tx, send_rpc_tx_fn).await);
+    }
+
+    tx_hashes
 }
 
 /// Sends an RPC transaction using the supplied sending function, and returns its hash.
