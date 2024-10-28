@@ -21,6 +21,7 @@ macro_rules! tx {
         max_l2_gas_price: $max_l2_gas_price:expr
     ) => {{
             use starknet_api::block::GasPrice;
+            use starknet_api::{contract_address, invoke_tx_args};
             use starknet_api::executable_transaction::Transaction;
             use starknet_api::hash::StarkHash;
             use starknet_api::test_utils::invoke::executable_invoke_tx;
@@ -40,13 +41,17 @@ macro_rules! tx {
                 ..Default::default()
             });
 
-            Transaction::Invoke(executable_invoke_tx(invoke_tx_args!{
-                sender_address: contract_address!($address),
-                tx_hash: TransactionHash(StarkHash::from($tx_hash)),
-                tip: Tip($tip),
-                nonce: nonce!($tx_nonce),
-                resource_bounds,
-            }))
+            Transaction::Invoke(
+                executable_invoke_tx(
+                    invoke_tx_args!{
+                        sender_address: contract_address!($address),
+                        tx_hash: TransactionHash(StarkHash::from($tx_hash)),
+                        tip: Tip($tip),
+                        nonce: nonce!($tx_nonce),
+                        resource_bounds,
+                    }
+                )
+            )
     }};
     (tip: $tip:expr, tx_hash: $tx_hash:expr, address: $address:expr, tx_nonce: $tx_nonce:expr) => {{
         use mempool_test_utils::starknet_api_test_utils::VALID_L2_GAS_MAX_PRICE_PER_UNIT;
@@ -93,7 +98,7 @@ macro_rules! add_tx_input {
         max_l2_gas_price: $max_l2_gas_price:expr
     ) => {{
         use starknet_api::{contract_address, nonce};
-        use starknet_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
+        use starknet_mempool_types::mempool_types::AccountState;
 
         let tx = $crate::tx!(
             tip: $tip,
@@ -106,7 +111,7 @@ macro_rules! add_tx_input {
         let account_nonce = nonce!($account_nonce);
         let account_state = AccountState { address, nonce: account_nonce };
 
-        AddTransactionArgs { tx, account_state }
+        starknet_mempool_types::mempool_types::AddTransactionArgs { tx, account_state }
     }};
     (
         tip: $tip:expr,
