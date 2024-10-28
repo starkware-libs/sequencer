@@ -20,6 +20,8 @@ pub fn invoke_tx(invoke_args: InvokeTxArgs) -> AccountTransaction {
             entry_point_selector: selector_from_name(EXECUTE_ENTRY_POINT_NAME),
         })
     } else {
+        // TODO(AvivG): Have test util 'invoke_tx' support creation of TransactionVersion::ZERO
+        // invoke transactions.
         starknet_api::test_utils::invoke::invoke_tx(invoke_args)
     };
 
@@ -27,5 +29,5 @@ pub fn invoke_tx(invoke_args: InvokeTxArgs) -> AccountTransaction {
         true => InvokeTransaction::new_for_query(invoke_tx, tx_hash),
         false => InvokeTransaction::new(invoke_tx, tx_hash),
     };
-    AccountTransaction::Invoke(invoke_tx)
+    invoke_tx.into()
 }
