@@ -1,7 +1,7 @@
 // Calldata.
 pub const GAS_PER_MEMORY_ZERO_BYTE: usize = 4;
 pub const GAS_PER_MEMORY_BYTE: usize = 16;
-pub const WORD_WIDTH: usize = 32;
+pub const WORD_WIDTH: usize = 32; //TODO(AvivG): use starknet_api::core::WORD_WIDTH instead.aig add -p
 pub const GAS_PER_MEMORY_WORD: usize = GAS_PER_MEMORY_BYTE * WORD_WIDTH;
 
 // Blob Data.

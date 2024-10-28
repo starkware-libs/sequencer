@@ -463,3 +463,6 @@ pub struct SequencerPublicKey(pub PublicKey);
     Debug, Default, Clone, Copy, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord,
 )]
 pub struct SequencerContractAddress(pub ContractAddress);
+
+// Ethereum constant.
+pub const WORD_WIDTH: usize = 32;
