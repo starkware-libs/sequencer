@@ -4,7 +4,7 @@ use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::{BlockNumber, StarknetVersion};
 use starknet_api::class_hash;
-use starknet_api::core::{ClassHash, ContractAddress};
+use starknet_api::core::ClassHash;
 use starknet_api::test_utils::read_json_file;
 use starknet_api::transaction::Transaction;
 use starknet_core::types::ContractClass::{Legacy, Sierra};
@@ -103,27 +103,4 @@ pub fn test_get_tx_by_hash(test_state_reader: TestStateReader) {
 #[rstest]
 pub fn test_get_statediff_rpc(test_state_reader: TestStateReader) {
     assert!(test_state_reader.get_state_diff().is_ok());
-}
-
-// TODO(Aner): replace this test with a CLI command that receives the node URL as input.
-#[rstest]
-pub fn test_full_blockifier_via_rpc(
-    test_state_readers_last_and_current_block: ConsecutiveTestStateReaders,
-) {
-    let all_txs_in_next_block =
-        test_state_readers_last_and_current_block.get_next_block_txs().unwrap();
-
-    let mut expected_state_diff =
-        test_state_readers_last_and_current_block.get_next_block_state_diff().unwrap();
-
-    let mut transaction_executor =
-        test_state_readers_last_and_current_block.get_transaction_executor(None).unwrap();
-
-    transaction_executor.execute_txs(&all_txs_in_next_block);
-    // Finalize block and read actual statediff.
-    let (actual_state_diff, _, _) =
-        transaction_executor.finalize().expect("Couldn't finalize block");
-    // TODO(Aner): compute the correct block hash at storage slot 0x1 instead of removing it.
-    expected_state_diff.storage_updates.shift_remove(&ContractAddress(1_u128.into()));
-    assert_eq!(expected_state_diff, actual_state_diff);
 }
