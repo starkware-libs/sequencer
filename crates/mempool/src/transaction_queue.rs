@@ -81,7 +81,7 @@ impl TransactionQueue {
     }
 
     pub fn has_ready_txs(&self) -> bool {
-        self.priority_queue.is_empty()
+        !self.priority_queue.is_empty()
     }
 
     pub fn _update_gas_price_threshold(&mut self, threshold: GasPrice) {
