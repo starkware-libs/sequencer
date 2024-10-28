@@ -7,7 +7,7 @@ use papyrus_config::ConfigError;
 use starknet_http_server::config::HttpServerConfig;
 use starknet_integration_tests::integration_test_utils::{
     create_integration_test_tx_generator,
-    run_integration_test_scenario,
+    run_transaction_generator_test_scenario,
     HttpTestClient,
 };
 use starknet_sequencer_infra::trace_util::configure_tracing;
@@ -35,11 +35,11 @@ async fn main() -> anyhow::Result<()> {
     let HttpServerConfig { ip, port } = config.http_server_config;
     let http_test_client = HttpTestClient::new(SocketAddr::from((ip, port)));
 
-    let tx_hashes = run_integration_test_scenario(tx_generator, &|rpc_tx| {
-        http_test_client.assert_add_tx_success(rpc_tx)
-    })
-    .await;
+    let send_rpc_tx_fn = &|rpc_tx| http_test_client.assert_add_tx_success(rpc_tx);
 
-    tx_hashes.iter().for_each(|tx_hash| info!("Add tx result: {:?}", tx_hash));
+    let n_txs = 50;
+    info!("Adding {n_txs} txs.");
+    run_transaction_generator_test_scenario(tx_generator, n_txs, send_rpc_tx_fn).await;
+
     Ok(())
 }
