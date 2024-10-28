@@ -77,7 +77,7 @@ mod flavors_test;
 mod post_execution_test;
 
 /// Represents a paid Starknet transaction.
-#[derive(Clone, Debug, derive_more::From)]
+#[derive(Clone, Debug)]
 pub enum AccountTransaction {
     Declare(DeclareTransaction),
     DeployAccount(DeployAccountTransaction),
@@ -139,6 +139,24 @@ impl TryFrom<starknet_api::executable_transaction::Transaction> for AccountTrans
                 Ok(Self::Invoke(InvokeTransaction { tx: invoke_tx, only_query: false }))
             }
         }
+    }
+}
+
+impl From<DeclareTransaction> for AccountTransaction {
+    fn from(tx: DeclareTransaction) -> Self {
+        Self::Declare(tx)
+    }
+}
+
+impl From<DeployAccountTransaction> for AccountTransaction {
+    fn from(tx: DeployAccountTransaction) -> Self {
+        Self::DeployAccount(tx)
+    }
+}
+
+impl From<InvokeTransaction> for AccountTransaction {
+    fn from(tx: InvokeTransaction) -> Self {
+        Self::Invoke(tx)
     }
 }
 
