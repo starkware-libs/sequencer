@@ -11,16 +11,14 @@ pub struct WrapperServer<Component> {
     component: Component,
 }
 
-impl<Component: Send + Sync> WrapperServer<Component> {
+impl<Component: Send> WrapperServer<Component> {
     pub fn new(component: Component) -> Self {
         Self { component }
     }
 }
 
 #[async_trait]
-impl<Component: ComponentStarter + Send + Sync> ComponentServerStarter
-    for WrapperServer<Component>
-{
+impl<Component: ComponentStarter + Send> ComponentServerStarter for WrapperServer<Component> {
     async fn start(&mut self) -> Result<(), ComponentServerError> {
         info!("Starting WrapperServer for {}.", type_name::<Component>());
         let res = self.component.start().await.map_err(ComponentServerError::ComponentError);
@@ -29,9 +27,7 @@ impl<Component: ComponentStarter + Send + Sync> ComponentServerStarter
     }
 }
 
-pub fn create_empty_server<Component: Send + Sync>(
-    component: Component,
-) -> WrapperServer<Component> {
+pub fn create_empty_server<Component: Send>(component: Component) -> WrapperServer<Component> {
     WrapperServer::new(component)
 }
 
