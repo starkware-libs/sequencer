@@ -52,8 +52,8 @@ pub struct PeerManager {
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct PeerManagerConfig {
-    malicious_timeout: u64,
-    unstable_timeout: u64,
+    malicious_timeout: Duration,
+    unstable_timeout: Duration,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -70,8 +70,8 @@ impl Default for PeerManagerConfig {
     fn default() -> Self {
         Self {
             // 1 year.
-            malicious_timeout: 3600 * 24 * 365,
-            unstable_timeout: 1,
+            malicious_timeout: Duration::from_secs(3600 * 24 * 365),
+            unstable_timeout: Duration::from_secs(1),
         }
     }
 }
@@ -216,12 +216,12 @@ impl PeerManager {
                 ReputationModifier::Misconduct { misconduct_score } => {
                     peer.report(misconduct_score);
                     if peer.is_malicious() {
-                        peer.blacklist_peer(Duration::from_secs(self.config.malicious_timeout));
+                        peer.blacklist_peer(self.config.malicious_timeout);
                         peer.reset_misconduct_score();
                     }
                 }
                 ReputationModifier::Unstable => {
-                    peer.blacklist_peer(Duration::from_secs(self.config.unstable_timeout));
+                    peer.blacklist_peer(self.config.unstable_timeout);
                 }
             }
             Ok(())
