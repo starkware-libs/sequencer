@@ -3,7 +3,7 @@ use std::process::{Command, Stdio};
 
 const NODE_BINARY_NAME: &str = "target/debug/starknet_sequencer_node";
 
-pub fn run_node(args: Vec<&str>) {
+pub async fn run_node(args: Vec<&str>) {
     // Get the current working directory for the project
     let project_path = env::current_dir().expect("Failed to get current directory");
 

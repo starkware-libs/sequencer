@@ -10,7 +10,7 @@ use tracing::info;
 // TODO(Tsabary): Move here all config-related functions from "integration_test_utils.rs".
 // TODO(Tsabary): Wrap dumped config files in a temp dir.
 
-const NODE_CONFIG_CHANGES_FILE_PATH: &str = "node_integration_test_config_changes.json";
+pub const NODE_CONFIG_CHANGES_FILE_PATH: &str = "node_integration_test_config_changes.json";
 const TX_GEN_CONFIG_CHANGES_FILE_PATH: &str = "tx_gen_integration_test_config_changes.json";
 
 /// A utility macro that takes a list of config fields and returns a json dictionary with "field
