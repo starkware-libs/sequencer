@@ -107,6 +107,19 @@ fn test_add_same_nonce_tx_after_previous_not_included_in_block(mut mempool: Memp
 }
 
 #[rstest]
+fn test_add_tx_considers_already_given_nonce(mut mempool: Mempool) {
+    // Setup.
+    let input_nonce_0 = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 0, account_nonce: 0);
+    let input_nonce_1 = add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 1, account_nonce: 0);
+
+    // Test.
+    add_tx(&mut mempool, &input_nonce_0);
+    get_txs_and_assert_expected(&mut mempool, 1, &[input_nonce_0.tx]);
+    add_tx(&mut mempool, &input_nonce_1);
+    get_txs_and_assert_expected(&mut mempool, 1, &[input_nonce_1.tx]);
+}
+
+#[rstest]
 fn test_commit_block_includes_proposed_txs_subset(mut mempool: Mempool) {
     // Setup.
     let tx_address_0_nonce_3 =
@@ -161,7 +174,7 @@ fn test_commit_block_includes_proposed_txs_subset(mut mempool: Mempool) {
 }
 
 #[rstest]
-fn test_flow_commit_block_fills_nonce_gap(mut mempool: Mempool) {
+fn test_commit_block_fills_nonce_gap(mut mempool: Mempool) {
     // Setup.
     let tx_nonce_3_account_nonce_3 =
         add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 3, account_nonce: 3);

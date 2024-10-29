@@ -103,8 +103,10 @@ impl Mempool {
 
         // Align to account nonce, only if it is at least the one stored.
         let AccountState { address, nonce: incoming_account_nonce } = account_state;
-        match self.account_nonces.get(&address) {
-            Some(stored_account_nonce) if &incoming_account_nonce < stored_account_nonce => {}
+        // TODO(Elin): abstract mempool nonces.
+        // TODO(Elin): do not call align here; transactions should only be deleted when committing.
+        match self.mempool_state.get(&address).or_else(|| self.account_nonces.get(&address)) {
+            Some(&stored_account_nonce) if incoming_account_nonce < stored_account_nonce => {}
             _ => {
                 self.align_to_account_state(account_state);
             }
