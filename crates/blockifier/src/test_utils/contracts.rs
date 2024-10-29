@@ -286,7 +286,7 @@ impl FeatureContract {
                     CairoVersion::Cairo0 => "0",
                     CairoVersion::Cairo1 => "1",
                     #[cfg(feature = "cairo_native")]
-                    CairoVersion::Native => "_native",
+                    CairoVersion::Native => "1",
                 },
                 self.get_non_erc20_base_name()
             )
@@ -309,7 +309,9 @@ impl FeatureContract {
                 "feature_contracts/cairo{}/compiled{}/{}{}.json",
                 match cairo_version {
                     CairoVersion::Cairo0 => "0",
-                    CairoVersion::Cairo1 | CairoVersion::Native => "1",
+                    CairoVersion::Cairo1 => "1",
+                    #[cfg(feature = "cairo_native")]
+                    CairoVersion::Native => "1",
                 },
                 match self.cairo_version() {
                     CairoVersion::Cairo0 => "",
@@ -422,9 +424,14 @@ impl FeatureContract {
             } else {
                 let supported_versions = contract.supported_versions();
 
+                #[cfg(feature = "cairo_native")]
+                let range = 0..3isize;
+                #[cfg(not(feature = "cairo_native"))]
+                let range = 0..2isize;
+
                 // if we have multiple supported versions, return the contract for each supported
                 // version.
-                (0..3isize)
+                range
                     .filter(|i| supported_versions & (1u32 << i) != 0)
                     .map(move |i| {
                         let mut contract = contract;

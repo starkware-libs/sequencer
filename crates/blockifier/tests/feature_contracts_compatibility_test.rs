@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 use std::fs;
 
-use assert_matches::assert_matches;
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::CairoVersion;
 use pretty_assertions::assert_eq;
@@ -13,7 +12,6 @@ const CAIRO1_FEATURE_CONTRACTS_DIR: &str = "feature_contracts/cairo1";
 const CAIRO_NATIVE_FEATURE_CONTRACTS_DIR: &str = "feature_contracts/cairo1";
 const COMPILED_CONTRACTS_SUBDIR_CAIRO0: &str = "compiled";
 const COMPILED_CONTRACTS_SUBDIR_CASM: &str = "compiled_casm";
-#[cfg(feature = "cairo_native")]
 const COMPILED_CONTRACTS_SUBDIR_SIERRA: &str = "compiled_sierra";
 
 const FIX_COMMAND: &str = "FIX_FEATURE_TEST=1 cargo test -p blockifier --test \
@@ -103,15 +101,18 @@ fn verify_and_get_files(cairo_version: CairoVersion) -> Vec<(String, String, Str
         // Verify `TEST_CONTRACTS` file and directory structure.
         if !path.is_file() {
             if let Some(dir_name) = path.file_name() {
-                assert_matches!(
-                    dir_name.to_str().unwrap(),
-                    COMPILED_CONTRACTS_SUBDIR_CAIRO0
-                        | COMPILED_CONTRACTS_SUBDIR_CASM
-                        | COMPILED_CONTRACTS_SUBDIR_SIERRA,
-                    "Found directory '{}' in `{directory}`, which should contain only the \
-                     `{COMPILED_CONTRACTS_SUBDIR_CAIRO0}` / `{COMPILED_CONTRACTS_SUBDIR_CASM}` / \
-                     `{COMPILED_CONTRACTS_SUBDIR_SIERRA}` directory.",
-                    dir_name.to_string_lossy()
+                const ALLOWED_SUBDIRS: &[&str] = &[
+                    COMPILED_CONTRACTS_SUBDIR_CAIRO0,
+                    COMPILED_CONTRACTS_SUBDIR_CASM,
+                    COMPILED_CONTRACTS_SUBDIR_SIERRA,
+                ];
+
+                assert!(
+                    ALLOWED_SUBDIRS.contains(&dir_name.to_str().unwrap()),
+                    "Found directory '{}' in `{directory}`, which should contain only the {} \
+                     directories.",
+                    dir_name.to_string_lossy(),
+                    ALLOWED_SUBDIRS.join(" / ")
                 );
                 continue;
             }
@@ -132,6 +133,7 @@ fn verify_and_get_files(cairo_version: CairoVersion) -> Vec<(String, String, Str
         let compiled_contracts_subdir = match cairo_version {
             CairoVersion::Cairo0 => COMPILED_CONTRACTS_SUBDIR_CAIRO0,
             CairoVersion::Cairo1 => COMPILED_CONTRACTS_SUBDIR_CASM,
+            #[cfg(feature = "cairo_native")]
             CairoVersion::Native => COMPILED_CONTRACTS_SUBDIR_SIERRA,
         };
 
@@ -151,11 +153,17 @@ fn verify_feature_contracts_match_enum() {
     let mut compiled_paths_from_enum: Vec<String> = FeatureContract::all_feature_contracts()
         .map(|contract| contract.get_compiled_path())
         .collect();
-
+    #[cfg(feature = "cairo_native")]
     let mut compiled_paths_on_filesystem: Vec<String> = verify_and_get_files(CairoVersion::Cairo0)
         .into_iter()
         .chain(verify_and_get_files(CairoVersion::Cairo1))
         .chain(verify_and_get_files(CairoVersion::Native))
+        .map(|(_, _, compiled_path)| compiled_path)
+        .collect();
+    #[cfg(not(feature = "cairo_native"))]
+    let mut compiled_paths_on_filesystem: Vec<String> = verify_and_get_files(CairoVersion::Cairo0)
+        .into_iter()
+        .chain(verify_and_get_files(CairoVersion::Cairo1))
         .map(|(_, _, compiled_path)| compiled_path)
         .collect();
 
@@ -164,22 +172,22 @@ fn verify_feature_contracts_match_enum() {
     assert_eq!(compiled_paths_from_enum, compiled_paths_on_filesystem);
 }
 
+#[cfg(feature = "cairo_native")]
 #[rstest]
 #[ignore]
 fn verify_feature_contracts(
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)]
+    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1, CairoVersion::Native)]
     cairo_version: CairoVersion,
 ) {
     let fix_features = std::env::var("FIX_FEATURE_TEST").is_ok();
     verify_feature_contracts_compatibility(fix_features, cairo_version)
 }
 
-#[cfg(feature = "cairo_native")]
+#[cfg(not(feature = "cairo_native"))]
 #[rstest]
 #[ignore]
 fn verify_feature_contracts(
-    #[values(CairoVersion::Native)]
-    cairo_version: CairoVersion,
+    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
 ) {
     let fix_features = std::env::var("FIX_FEATURE_TEST").is_ok();
     verify_feature_contracts_compatibility(fix_features, cairo_version)

@@ -77,6 +77,7 @@ impl From<isize> for CairoVersion {
         match value {
             0 => Self::Cairo0,
             1 => Self::Cairo1,
+            #[cfg(feature = "cairo_native")]
             2 => Self::Native,
             _ => panic!("Invalid value for CairoVersion: {}", value),
         }
@@ -131,7 +132,6 @@ impl CompilerBasedVersion {
             Self::CairoVersion(CairoVersion::Cairo1) => TrackedResource::SierraGas,
             #[cfg(feature = "cairo_native")]
             Self::CairoVersion(CairoVersion::Native) => TrackedResource::SierraGas,
-            Self::Native => todo!("who should be your other?"),
         }
     }
 }
@@ -339,7 +339,7 @@ macro_rules! check_tx_execution_error_for_invalid_scenario {
                     $validate_constructor,
                 );
             }
-            CairoVersion::Cairo1  | CairoVersion::Native => {
+            CairoVersion::Cairo1 => {
                 if let $crate::transaction::errors::TransactionExecutionError::ValidateTransactionError {
                     error, ..
                 } = $error {
@@ -351,7 +351,7 @@ macro_rules! check_tx_execution_error_for_invalid_scenario {
                 }
             }
             #[cfg(feature = "cairo_native")]
-            CairoVersion::Native   => {
+            CairoVersion::Native => {
                 if let $crate::transaction::errors::TransactionExecutionError::ValidateTransactionError {
                     error, ..
                 } = $error {

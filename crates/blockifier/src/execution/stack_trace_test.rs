@@ -368,9 +368,6 @@ Error in contract (contract address: {contract_address_felt:#064x}, class hash: 
         CairoVersion::Native => {
             todo!("Cairo Native is not yet supported here")
         }
-        CairoVersion::Native => {
-            todo!("Cairo Native is not yet supported here")
-        }
     };
 
     assert_eq!(tx_execution_error.to_string(), expected_trace);
@@ -530,9 +527,6 @@ Error in contract (contract address: {address_felt:#064x}, class hash: {test_con
         CairoVersion::Native => {
             todo!("Cairo Native not yet supported here.")
         }
-        CairoVersion::Native => {
-            todo!("Cairo Native not yet supported here.")
-        }
     };
 
     assert_eq!(tx_execution_error.to_string(), expected_trace);
@@ -635,7 +629,6 @@ Error in contract (contract address: {contract_address:#064x}, class hash: {:#06
         ),
         #[cfg(feature = "cairo_native")]
         CairoVersion::Native => todo!("Cairo Native is not yet supported here."),
-        CairoVersion::Native => todo!("Cairo Native is not yet supported here."),
     };
 
     // Clean pc locations from the trace.
@@ -711,11 +704,8 @@ Error in contract (contract address: {expected_address:#064x}, class hash: {:#06
             #[cfg(feature = "cairo_native")]
             CairoVersion::Native => {
                 todo!("Cairo Native not yet supported here.")
-        }
-        CairoVersion::Native => {
-            todo!("Cairo Native not yet supported here.")
-        }
-    };
+            }
+        };
 
     // Compare expected and actual error.
     let error = deploy_account_tx.execute(state, &block_context, true, true).unwrap_err();
@@ -853,9 +843,6 @@ Error in contract (contract address: {expected_address:#064x}, class hash: {:#06
             )
         }
         #[cfg(feature = "cairo_native")]
-        CairoVersion::Native => {
-            todo!("Cairo Native not yet supported here.")
-        }
         CairoVersion::Native => {
             todo!("Cairo Native not yet supported here.")
         }
