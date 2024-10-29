@@ -63,7 +63,7 @@ impl Mempool {
             self.mempool_state.insert(tx_ref.address, tx_ref.nonce);
         }
 
-        tracing::info!(
+        tracing::debug!(
             "Returned {} out of {n_txs} transactions, ready for sequencing.",
             eligible_tx_references.len()
         );
