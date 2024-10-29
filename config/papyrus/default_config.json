@@ -185,12 +185,9 @@
     "value": 5
   },
   "network.discovery_config.bootstrap_dial_retry_config.max_delay": {
-    "description": "The maximum delay for the exponential backoff strategy.",
+    "description": "The maximum delay in seconds for the exponential backoff strategy.",
     "privacy": "Public",
-    "value": {
-      "nanos": 0,
-      "secs": 5
-    }
+    "value": 5
   },
   "network.discovery_config.heartbeat_interval": {
     "description": "The interval between each discovery (Kademlia) query in milliseconds.",
@@ -203,20 +200,14 @@
     "value": 120
   },
   "network.peer_manager_config.malicious_timeout": {
-    "description": "The duration a peer is blacklisted after being marked as malicious.",
+    "description": "The duration in seconds a peer is blacklisted after being marked as malicious.",
     "privacy": "Public",
-    "value": {
-      "nanos": 0,
-      "secs": 31536000
-    }
+    "value": 31536000
   },
   "network.peer_manager_config.unstable_timeout": {
-    "description": "The duration a peer blacklisted after being reported as unstable.",
+    "description": "The duration in seconds a peer blacklisted after being reported as unstable.",
     "privacy": "Public",
-    "value": {
-      "nanos": 0,
-      "secs": 1
-    }
+    "value": 1
   },
   "network.quic_port": {
     "description": "The port that the node listens on for incoming quic connections.",

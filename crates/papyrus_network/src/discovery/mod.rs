@@ -28,7 +28,10 @@ use libp2p::swarm::{
     ToSwarm,
 };
 use libp2p::{Multiaddr, PeerId};
-use papyrus_config::converters::deserialize_milliseconds_to_duration;
+use papyrus_config::converters::{
+    deserialize_milliseconds_to_duration,
+    deserialize_seconds_to_duration,
+};
 use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
@@ -221,6 +224,7 @@ impl SerializeConfig for DiscoveryConfig {
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct RetryConfig {
     pub base_delay_millis: u64,
+    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
     pub max_delay: Duration,
     pub factor: u64,
 }
@@ -242,8 +246,8 @@ impl SerializeConfig for RetryConfig {
             ),
             ser_param(
                 "max_delay",
-                &self.max_delay,
-                "The maximum delay for the exponential backoff strategy.",
+                &self.max_delay.as_secs(),
+                "The maximum delay in seconds for the exponential backoff strategy.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
