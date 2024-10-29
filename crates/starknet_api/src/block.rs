@@ -370,7 +370,7 @@ impl GasPrice {
 
 /// Utility struct representing a non-zero gas price. Useful when a gas amount must be computed by
 /// taking a fee amount and dividing by the gas price.
-#[derive(Copy, Clone, Debug, derive_more::Display)]
+#[derive(Copy, Clone, Debug, Deserialize, Serialize, derive_more::Display)]
 pub struct NonzeroGasPrice(GasPrice);
 
 impl NonzeroGasPrice {
@@ -433,7 +433,7 @@ macro_rules! impl_try_from_uint_for_nonzero_gas_price {
 
 impl_try_from_uint_for_nonzero_gas_price!(u8, u16, u32, u64, u128);
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct GasPriceVector {
     pub l1_gas_price: NonzeroGasPrice,
     pub l1_data_gas_price: NonzeroGasPrice,
