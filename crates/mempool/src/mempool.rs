@@ -66,7 +66,9 @@ impl Mempool {
             eligible_tx_references.extend(chunk);
         }
 
-        tracing::trace!("{n_remaining_txs:?}, {eligible_tx_references:?}, {:?}", self.tx_queue);
+        if !eligible_tx_references.is_empty() {
+            tracing::trace!("{n_remaining_txs:?}, {eligible_tx_references:?}, {:?}", self.tx_queue);
+        }
 
         // Update the mempool state with the given transactions' nonces.
         for tx_ref in &eligible_tx_references {
