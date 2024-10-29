@@ -40,6 +40,7 @@ const EXAMPLE_DECLARE_V1_TX_HASH: &str =
 const EXAMPLE_DECLARE_V2_BLOCK_NUMBER: u64 = 822636;
 const EXAMPLE_DECLARE_V2_TX_HASH: &str =
     "0x0409d159fbcab271ffc1693b08d9198f4bbff7e344e1624dadc2d9a67a960226";
+// class_hash = 0x3d311ba322e1f900d669586b191a2a82c50f6cb850563a8e1c01c7bac9be7b0
 
 const EXAMPLE_DECLARE_V3_BLOCK_NUMBER: u64 = 825013;
 const EXAMPLE_DECLARE_V3_TX_HASH: &str =
@@ -179,4 +180,15 @@ pub fn test_get_declare_tx_by_hash(
 #[rstest]
 pub fn test_get_statediff_rpc(test_state_reader: TestStateReader) {
     assert!(test_state_reader.get_state_diff().is_ok());
+}
+
+#[rstest]
+#[case(EXAMPLE_DECLARE_V1_BLOCK_NUMBER)]
+#[case(EXAMPLE_DECLARE_V2_BLOCK_NUMBER)]
+#[case(EXAMPLE_DECLARE_V3_BLOCK_NUMBER)]
+pub fn test_get_all_blockifier_tx_in_block(#[case] block_number: u64) {
+    let state_reader = TestStateReader::new_for_testing(BlockNumber(block_number));
+    state_reader
+        .from_api_txs_to_blockifier_txs(state_reader.get_all_txs_in_block().unwrap())
+        .unwrap();
 }
