@@ -42,7 +42,8 @@ impl Default for ComponentConfig {
 
 impl SerializeConfig for ComponentConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let sub_configs = vec![
+        #[allow(unused_mut)]
+        let mut sub_configs = vec![
             append_sub_config_name(self.batcher.dump(), "batcher"),
             append_sub_config_name(self.consensus_manager.dump(), "consensus_manager"),
             append_sub_config_name(self.gateway.dump(), "gateway"),

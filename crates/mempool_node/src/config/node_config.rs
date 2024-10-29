@@ -4,14 +4,10 @@ use std::path::Path;
 use std::sync::LazyLock;
 
 use clap::Command;
-use papyrus_config::dumping::{
-    append_sub_config_name,
-    ser_pointer_target_required_param,
-    SerializeConfig,
-};
+use papyrus_config::dumping::{append_sub_config_name, ser_pointer_target_param, SerializeConfig};
 use papyrus_config::loading::load_and_process_config;
 use papyrus_config::validators::validate_ascii;
-use papyrus_config::{ConfigError, ParamPath, SerializationType, SerializedParam};
+use papyrus_config::{ConfigError, ParamPath, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ChainId;
 use starknet_batcher::config::BatcherConfig;
@@ -32,14 +28,9 @@ pub const DEFAULT_CONFIG_PATH: &str = "config/mempool/default_config.json";
 // Configuration parameters that share the same value across multiple components.
 type ConfigPointers = Vec<((ParamPath, SerializedParam), Vec<ParamPath>)>;
 pub const DEFAULT_CHAIN_ID: ChainId = ChainId::Mainnet;
-// TODO(Tsabary/AlonH): Discuss testing of required parameters.
 pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
     vec![(
-        ser_pointer_target_required_param(
-            "chain_id",
-            SerializationType::String,
-            "The chain to follow.",
-        ),
+        ser_pointer_target_param("chain_id", &DEFAULT_CHAIN_ID, "The chain to follow."),
         vec![
             "batcher_config.block_builder_config.chain_info.chain_id".to_owned(),
             "batcher_config.storage.db_config.chain_id".to_owned(),
@@ -78,7 +69,8 @@ pub struct SequencerNodeConfig {
 
 impl SerializeConfig for SequencerNodeConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let sub_configs = vec![
+        #[allow(unused_mut)]
+        let mut sub_configs = vec![
             append_sub_config_name(self.components.dump(), "components"),
             append_sub_config_name(self.batcher_config.dump(), "batcher_config"),
             append_sub_config_name(
