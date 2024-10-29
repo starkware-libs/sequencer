@@ -11,6 +11,8 @@ pub enum MempoolError {
     DuplicateTransaction { tx_hash: TransactionHash },
     #[error("{0}")]
     NonceTooLarge(Nonce),
+    #[error("Nonce: {nonce} for account address {address} has already been processed.")]
+    NonceTooOld { address: ContractAddress, nonce: Nonce },
     #[error("Transaction with hash: {tx_hash} could not be sent using p2p client.")]
     P2pPropagatorClientError { tx_hash: TransactionHash },
     #[error("Transaction with hash: {tx_hash} not found")]
