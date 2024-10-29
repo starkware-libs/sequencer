@@ -3,19 +3,19 @@ use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::TransactionExecutor;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::BlockContext;
-use blockifier::execution::contract_class::ContractClass as BlockifierContractClass;
+use blockifier::execution::contract_class::{ClassInfo, ContractClass as BlockifierContractClass};
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff};
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader, StateResult};
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use blockifier::versioned_constants::VersionedConstants;
+use papyrus_execution::DEPRECATED_CONTRACT_SIERRA_SIZE;
 use serde_json::{json, to_value};
 use starknet_api::block::{BlockNumber, StarknetVersion};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_core::types::ContractClass as StarknetContractClass;
-use starknet_core::types::ContractClass::{Legacy, Sierra};
 use starknet_gateway::config::RpcStateReaderConfig;
 use starknet_gateway::errors::serde_err_to_state_err;
 use starknet_gateway::rpc_objects::{BlockHeader, GetBlockWithTxHashesParams, ResourcePrice};
@@ -31,7 +31,6 @@ use crate::state_reader::serde_utils::{
 };
 use crate::state_reader::utils::{
     disjoint_hashmap_union,
-    from_api_txs_to_blockifier_txs,
     get_chain_info,
     get_rpc_state_reader_config,
 };
@@ -64,8 +63,8 @@ impl StateReader for TestStateReader {
         class_hash: ClassHash,
     ) -> StateResult<BlockifierContractClass> {
         match self.get_contract_class(&class_hash)? {
-            Sierra(sierra) => sierra_to_contact_class_v1(sierra),
-            Legacy(legacy) => legacy_to_contract_class_v0(legacy),
+            StarknetContractClass::Sierra(sierra) => sierra_to_contact_class_v1(sierra),
+            StarknetContractClass::Legacy(legacy) => legacy_to_contract_class_v0(legacy),
         }
     }
 
@@ -229,6 +228,56 @@ impl TestStateReader {
             class_hash_to_compiled_class_hash: declared_classes,
         })
     }
+
+    pub fn get_class_info(&self, class_hash: ClassHash) -> ReexecutionResult<ClassInfo> {
+        match self.get_contract_class(&class_hash)? {
+            StarknetContractClass::Sierra(sierra) => {
+                let abi_length = sierra.abi.len();
+                let sierra_length = sierra.sierra_program.len();
+                Ok(ClassInfo::new(&sierra_to_contact_class_v1(sierra)?, sierra_length, abi_length)?)
+            }
+            StarknetContractClass::Legacy(legacy) => {
+                let abi_length =
+                    legacy.abi.clone().expect("legendary contract should have abi").len();
+                Ok(ClassInfo::new(
+                    &legacy_to_contract_class_v0(legacy)?,
+                    DEPRECATED_CONTRACT_SIERRA_SIZE,
+                    abi_length,
+                )?)
+            }
+        }
+    }
+
+    // TODO(Aner): extend/refactor to accomodate all types of transactions.
+    pub(crate) fn from_api_txs_to_blockifier_txs(
+        self: &TestStateReader,
+        txs_and_hashes: Vec<(Transaction, TransactionHash)>,
+    ) -> ReexecutionResult<Vec<BlockifierTransaction>> {
+        txs_and_hashes
+            .into_iter()
+            .map(|(tx, tx_hash)| match tx {
+                Transaction::Invoke(_) | Transaction::DeployAccount(_) => {
+                    BlockifierTransaction::from_api(tx, tx_hash, None, None, None, false)
+                        .map_err(ReexecutionError::from)
+                }
+                Transaction::Declare(ref declare_tx) => {
+                    let class_info = self
+                        .get_class_info(declare_tx.class_hash())
+                        .map_err(ReexecutionError::from)?;
+                    BlockifierTransaction::from_api(
+                        tx,
+                        tx_hash,
+                        Some(class_info),
+                        None,
+                        None,
+                        false,
+                    )
+                    .map_err(ReexecutionError::from)
+                }
+                _ => unimplemented!("unimplemented transaction type: {:?}", tx),
+            })
+            .collect::<Result<Vec<_>, _>>()
+    }
 }
 
 /// Trait of the functions \ queries required for reexecution.
@@ -276,7 +325,8 @@ impl ConsecutiveStateReaders<TestStateReader> for ConsecutiveTestStateReaders {
     }
 
     fn get_next_block_txs(&self) -> ReexecutionResult<Vec<BlockifierTransaction>> {
-        from_api_txs_to_blockifier_txs(self.next_block_state_reader.get_all_txs_in_block()?)
+        self.next_block_state_reader
+            .from_api_txs_to_blockifier_txs(self.next_block_state_reader.get_all_txs_in_block()?)
     }
 
     fn get_next_block_state_diff(&self) -> ReexecutionResult<CommitmentStateDiff> {
