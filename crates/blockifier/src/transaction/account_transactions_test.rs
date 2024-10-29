@@ -4,7 +4,7 @@ use std::sync::Arc;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ResourceTracker;
 use num_traits::Inv;
-use pretty_assertions::assert_eq;
+use pretty_assertions::{assert_eq, assert_ne};
 use rstest::rstest;
 use starknet_api::block::GasPrice;
 use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress, PatriciaKey};
@@ -56,6 +56,7 @@ use crate::state::cached_state::{StateChangesCount, TransactionalState};
 use crate::state::state_api::{State, StateReader};
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::declare::declare_tx;
+use crate::test_utils::deploy_account::deploy_account_tx;
 use crate::test_utils::initial_test_state::{fund_account, test_state};
 use crate::test_utils::{
     create_calldata,
@@ -64,6 +65,11 @@ use crate::test_utils::{
     get_tx_resources,
     CairoVersion,
     BALANCE,
+    DEFAULT_L1_DATA_GAS_MAX_AMOUNT,
+    DEFAULT_L1_GAS_AMOUNT,
+    DEFAULT_L2_GAS_MAX_AMOUNT,
+    DEFAULT_STRK_L1_DATA_GAS_PRICE,
+    DEFAULT_STRK_L1_GAS_PRICE,
     DEFAULT_STRK_L2_GAS_PRICE,
     MAX_FEE,
 };
@@ -160,6 +166,71 @@ fn test_rc96_holes(block_context: BlockContext, default_l1_resource_bounds: Vali
             [&BuiltinName::range_check96],
         24
     );
+}
+
+#[rstest]
+#[case::deprecated_tx(TransactionVersion::ONE, GasVectorComputationMode::NoL2Gas)]
+#[case::l1_bounds(TransactionVersion::THREE, GasVectorComputationMode::NoL2Gas)]
+#[case::all_bounds(TransactionVersion::THREE, GasVectorComputationMode::All)]
+fn test_fee_enforcement(
+    block_context: BlockContext,
+    #[case] version: TransactionVersion,
+    #[case] gas_bounds_mode: GasVectorComputationMode,
+    #[values(true, false)] zero_bounds: bool,
+) {
+    let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0);
+    let state = &mut test_state(&block_context.chain_info, BALANCE, &[(account, 1)]);
+    let deploy_account_tx = deploy_account_tx(
+        deploy_account_tx_args! {
+            class_hash: account.get_class_hash(),
+            max_fee: Fee(if zero_bounds { 0 } else { MAX_FEE.0 }),
+            resource_bounds: match gas_bounds_mode {
+                GasVectorComputationMode::NoL2Gas => l1_resource_bounds(
+                    (if zero_bounds { 0 } else { DEFAULT_L1_GAS_AMOUNT.0 }).into(),
+                    DEFAULT_STRK_L1_GAS_PRICE.into()
+                ),
+                GasVectorComputationMode::All => create_all_resource_bounds(
+                    (if zero_bounds { 0 } else { DEFAULT_L1_GAS_AMOUNT.0 }).into(),
+                    DEFAULT_STRK_L1_GAS_PRICE.into(),
+                    (if zero_bounds { 0 } else { DEFAULT_L2_GAS_MAX_AMOUNT.0 }).into(),
+                    DEFAULT_STRK_L2_GAS_PRICE.into(),
+                    (if zero_bounds { 0 } else { DEFAULT_L1_DATA_GAS_MAX_AMOUNT.0 }).into(),
+                    DEFAULT_STRK_L1_DATA_GAS_PRICE.into(),
+                ),
+            },
+            version,
+        },
+        &mut NonceManager::default(),
+    );
+
+    let account_tx = AccountTransaction::DeployAccount(deploy_account_tx);
+    let enforce_fee = account_tx.create_tx_info().enforce_fee();
+    assert_ne!(zero_bounds, enforce_fee);
+    let result = account_tx.execute(state, &block_context, enforce_fee, true);
+    // Execution should fail if the fee is enforced because the account doesn't have sufficient
+    // balance.
+    assert_eq!(result.is_err(), enforce_fee);
+}
+
+#[rstest]
+fn test_all_bounds_combinations_enforce_fee(
+    #[values(0, 1)] l1_gas_bound: u64,
+    #[values(0, 1)] l1_data_gas_bound: u64,
+    #[values(0, 1)] l2_gas_bound: u64,
+) {
+    let expected_enforce_fee = l1_gas_bound + l1_data_gas_bound + l2_gas_bound > 0;
+    let account_tx = account_invoke_tx(invoke_tx_args! {
+        version: TransactionVersion::THREE,
+        resource_bounds: create_all_resource_bounds(
+            l1_gas_bound.into(),
+            DEFAULT_STRK_L1_GAS_PRICE.into(),
+            l2_gas_bound.into(),
+            DEFAULT_STRK_L2_GAS_PRICE.into(),
+            l1_data_gas_bound.into(),
+            DEFAULT_STRK_L1_DATA_GAS_PRICE.into(),
+        ),
+    });
+    assert_eq!(account_tx.create_tx_info().enforce_fee(), expected_enforce_fee);
 }
 
 #[rstest]
