@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+#[cfg(feature = "cairo_native")]
 use cairo_native::executor::AotNativeExecutor;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use serde_json::Value;
@@ -18,12 +19,14 @@ use crate::bouncer::{BouncerConfig, BouncerWeights, BuiltinCount};
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::common_hints::ExecutionMode;
-use crate::execution::contract_class::{ContractClassV0, ContractClassV1, NativeContractClassV1};
+use crate::execution::contract_class::{ContractClassV0, ContractClassV1};
 use crate::execution::entry_point::{
     CallEntryPoint,
     EntryPointExecutionContext,
     EntryPointExecutionResult,
 };
+#[cfg(feature = "cairo_native")]
+use crate::execution::native::contract_class::NativeContractClassV1;
 use crate::state::state_api::State;
 use crate::test_utils::{
     get_raw_contract_class,
@@ -264,6 +267,7 @@ impl BouncerWeights {
     }
 }
 
+#[cfg(feature = "cairo_native")]
 impl NativeContractClassV1 {
     /// Convenience function to construct a NativeContractClassV1 from a raw contract class.
     /// If control over the compilation is desired use [Self::new] instead.
