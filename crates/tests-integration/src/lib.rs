@@ -1,4 +1,5 @@
 pub mod integration_test_config_utils;
 pub mod integration_test_setup;
 pub mod integration_test_utils;
+pub mod node_runner;
 pub mod state_reader;
