@@ -12,12 +12,7 @@ use cairo_native::starknet::{
     U256,
 };
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
-use starknet_api::core::{
-    calculate_contract_address,
-    ClassHash,
-    ContractAddress,
-    EntryPointSelector,
-};
+use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{Calldata, ContractAddressSalt};
 use starknet_types_core::felt::Felt;
@@ -46,8 +41,6 @@ pub struct NativeSyscallHandler<'state> {
     pub events: Vec<OrderedEvent>,
     pub l2_to_l1_messages: Vec<OrderedL2ToL1Message>,
     pub inner_calls: Vec<CallInfo>,
-
-    pub syscall_counter: SyscallCounter,
 
     // Additional information gathered during execution.
     pub read_values: Vec<Felt>,
@@ -174,7 +167,7 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
             self.context.gas_costs().deploy_gas_cost,
         )?;
 
-        let deployer_address = self.contract_address;
+        let deployer_address = self.call.storage_address;
         let deployer_address_for_calculation =
             if deploy_from_zero { ContractAddress::default() } else { deployer_address };
 
