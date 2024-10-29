@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+#[cfg(feature = "cairo_native")]
 use cairo_native::executor::AotNativeExecutor;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use serde_json::Value;
@@ -15,16 +16,17 @@ use crate::bouncer::{BouncerConfig, BouncerWeights, BuiltinCount};
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::common_hints::ExecutionMode;
-use crate::execution::contract_class::{ContractClassV0, ContractClassV1, NativeContractClassV1};
+use crate::execution::contract_class::{ContractClassV0, ContractClassV1};
 use crate::execution::entry_point::{
     CallEntryPoint, EntryPointExecutionContext, EntryPointExecutionResult,
 };
+#[cfg(feature = "cairo_native")]
+use crate::execution::native::contract_class::NativeContractClassV1;
 use crate::state::state_api::State;
 use crate::test_utils::{
     get_raw_contract_class, CURRENT_BLOCK_NUMBER, CURRENT_BLOCK_TIMESTAMP,
     DEFAULT_ETH_L1_DATA_GAS_PRICE, DEFAULT_ETH_L1_GAS_PRICE, DEFAULT_STRK_L1_DATA_GAS_PRICE,
-    DEFAULT_STRK_L1_GAS_PRICE, TEST_ERC20_CONTRACT_ADDRESS, TEST_ERC20_CONTRACT_ADDRESS2,
-    TEST_SEQUENCER_ADDRESS,
+    DEFAULT_STRK_L1_GAS_PRICE,
 };
 use crate::transaction::objects::{
     CurrentTransactionInfo,
@@ -233,6 +235,7 @@ impl BouncerWeights {
     }
 }
 
+#[cfg(feature = "cairo_native")]
 impl NativeContractClassV1 {
     /// Convenience function to construct a NativeContractClassV1 from a raw contract class.
     /// If control over the compilation is desired use [Self::new] instead.
@@ -258,7 +261,10 @@ impl NativeContractClassV1 {
         let sierra_program = sierra_contract_class.extract_sierra_program()?;
         let executor = compile_and_load(&sierra_program)?;
 
-        Ok(Self::new(executor, sierra_contract_class))
+        let casm_contract_class = cairo_lang_starknet_classes::casm_contract_class::CasmContractClass::from_contract_class(sierra_contract_class.clone(), false, usize::MAX)?;
+        let casm = ContractClassV1::try_from(casm_contract_class)?;
+
+        Ok(Self::new(executor, sierra_contract_class, casm))
     }
 
     pub fn from_file(contract_path: &str) -> Self {
