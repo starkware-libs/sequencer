@@ -204,10 +204,10 @@
     "privacy": "Public",
     "value": 81920
   },
-  "components.batcher.execution_mode.LocalExecution.enable_remote_connection": {
-    "description": "Specifies whether the component, when running locally, allows remote connections.",
+  "components.batcher.execution_mode.Disabled": {
+    "description": "The component is disabled.",
     "privacy": "Public",
-    "value": false
+    "value": "Disabled"
   },
   "components.batcher.local_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -254,10 +254,10 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
-  "components.consensus_manager.execution_mode.LocalExecution.enable_remote_connection": {
-    "description": "Specifies whether the component, when running locally, allows remote connections.",
+  "components.consensus_manager.execution_mode.Disabled": {
+    "description": "The component is disabled.",
     "privacy": "Public",
-    "value": false
+    "value": "Disabled"
   },
   "components.consensus_manager.local_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -304,10 +304,10 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
-  "components.gateway.execution_mode.LocalExecution.enable_remote_connection": {
-    "description": "Specifies whether the component, when running locally, allows remote connections.",
+  "components.gateway.execution_mode.Disabled": {
+    "description": "The component is disabled.",
     "privacy": "Public",
-    "value": false
+    "value": "Disabled"
   },
   "components.gateway.local_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -354,10 +354,10 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
-  "components.http_server.execution_mode.LocalExecution.enable_remote_connection": {
-    "description": "Specifies whether the component, when running locally, allows remote connections.",
+  "components.http_server.execution_mode.Disabled": {
+    "description": "The component is disabled.",
     "privacy": "Public",
-    "value": true
+    "value": "Disabled"
   },
   "components.http_server.local_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -404,10 +404,10 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
-  "components.mempool.execution_mode.LocalExecution.enable_remote_connection": {
-    "description": "Specifies whether the component, when running locally, allows remote connections.",
+  "components.mempool.execution_mode.Disabled": {
+    "description": "The component is disabled.",
     "privacy": "Public",
-    "value": false
+    "value": "Disabled"
   },
   "components.mempool.local_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -454,10 +454,10 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
-  "components.mempool_p2p.execution_mode.LocalExecution.enable_remote_connection": {
-    "description": "Specifies whether the component, when running locally, allows remote connections.",
+  "components.mempool_p2p.execution_mode.Disabled": {
+    "description": "The component is disabled.",
     "privacy": "Public",
-    "value": false
+    "value": "Disabled"
   },
   "components.mempool_p2p.local_config.#is_none": {
     "description": "Flag for an optional field.",

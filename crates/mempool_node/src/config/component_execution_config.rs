@@ -72,9 +72,7 @@ impl SerializeConfig for ComponentExecutionConfig {
 impl Default for ComponentExecutionConfig {
     fn default() -> Self {
         Self {
-            execution_mode: ComponentExecutionMode::LocalExecution {
-                enable_remote_connection: false,
-            },
+            execution_mode: ComponentExecutionMode::Disabled,
             local_config: Some(LocalComponentCommunicationConfig::default()),
             remote_client_config: None,
             remote_server_config: None,
@@ -86,9 +84,7 @@ impl Default for ComponentExecutionConfig {
 impl ComponentExecutionConfig {
     pub fn gateway_default_config() -> Self {
         Self {
-            execution_mode: ComponentExecutionMode::LocalExecution {
-                enable_remote_connection: false,
-            },
+            execution_mode: ComponentExecutionMode::Disabled,
             local_config: Some(LocalComponentCommunicationConfig::default()),
             remote_client_config: None,
             remote_server_config: None,
@@ -100,9 +96,7 @@ impl ComponentExecutionConfig {
     // a workaround I've set the local one, but this should be addressed.
     pub fn http_server_default_config() -> Self {
         Self {
-            execution_mode: ComponentExecutionMode::LocalExecution {
-                enable_remote_connection: true,
-            },
+            execution_mode: ComponentExecutionMode::Disabled,
             local_config: None,
             remote_client_config: Some(RemoteClientConfig::default()),
             remote_server_config: None,
@@ -125,9 +119,7 @@ impl ComponentExecutionConfig {
 
     pub fn mempool_default_config() -> Self {
         Self {
-            execution_mode: ComponentExecutionMode::LocalExecution {
-                enable_remote_connection: false,
-            },
+            execution_mode: ComponentExecutionMode::Disabled,
             local_config: Some(LocalComponentCommunicationConfig::default()),
             remote_client_config: None,
             remote_server_config: None,
@@ -136,9 +128,7 @@ impl ComponentExecutionConfig {
 
     pub fn batcher_default_config() -> Self {
         Self {
-            execution_mode: ComponentExecutionMode::LocalExecution {
-                enable_remote_connection: false,
-            },
+            execution_mode: ComponentExecutionMode::Disabled,
             local_config: Some(LocalComponentCommunicationConfig::default()),
             remote_client_config: None,
             remote_server_config: None,
@@ -147,9 +137,7 @@ impl ComponentExecutionConfig {
 
     pub fn consensus_manager_default_config() -> Self {
         Self {
-            execution_mode: ComponentExecutionMode::LocalExecution {
-                enable_remote_connection: false,
-            },
+            execution_mode: ComponentExecutionMode::Disabled,
             local_config: Some(LocalComponentCommunicationConfig::default()),
             remote_client_config: None,
             remote_server_config: None,
@@ -158,9 +146,7 @@ impl ComponentExecutionConfig {
 
     pub fn mempool_p2p_default_config() -> Self {
         Self {
-            execution_mode: ComponentExecutionMode::LocalExecution {
-                enable_remote_connection: false,
-            },
+            execution_mode: ComponentExecutionMode::Disabled,
             local_config: Some(LocalComponentCommunicationConfig::default()),
             remote_client_config: None,
             remote_server_config: None,
