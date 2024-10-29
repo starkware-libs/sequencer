@@ -14,16 +14,19 @@ use cairo_native::starknet::{
     SyscallResult,
     U256,
 };
-use cairo_native::starknet_stub::u256_to_biguint;
+use cairo_native::starknet_stub::{big4int_to_u256, encode_str_as_felts, u256_to_biguint};
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
 use crate::execution::call_info::{CallInfo, OrderedEvent, OrderedL2ToL1Message, Retdata};
 use crate::execution::entry_point::{CallEntryPoint, EntryPointExecutionContext};
-use crate::execution::native::utils::encode_str_as_felts;
 use crate::execution::secp;
-use crate::execution::syscalls::hint_processor::{SyscallCounter, OUT_OF_GAS_ERROR};
+use crate::execution::syscalls::hint_processor::{
+    SyscallCounter,
+    SyscallExecutionError,
+    OUT_OF_GAS_ERROR,
+};
 use crate::execution::syscalls::SyscallSelector;
 use crate::state::state_api::State;
 
@@ -275,55 +278,142 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
 
     fn secp256r1_new(
         &mut self,
-        _x: U256,
-        _y: U256,
-        _remaining_gas: &mut u128,
+        x: U256,
+        y: U256,
+        remaining_gas: &mut u128,
     ) -> SyscallResult<Option<Secp256r1Point>> {
-        todo!("Implement secp256r1_new syscall.");
+        self.substract_syscall_gas_cost(
+            remaining_gas,
+            SyscallSelector::Secp256r1New,
+            self.context.gas_costs().secp256r1_new_gas_cost,
+        )?;
+
+        Secp256Point::new(x, y).map(|op| op.map(|p| p.into()))
     }
 
     fn secp256r1_add(
         &mut self,
-        _p0: Secp256r1Point,
-        _p1: Secp256r1Point,
-        _remaining_gas: &mut u128,
+        p0: Secp256r1Point,
+        p1: Secp256r1Point,
+        remaining_gas: &mut u128,
     ) -> SyscallResult<Secp256r1Point> {
-        todo!("Implement secp256r1_add syscall.");
+        self.substract_syscall_gas_cost(
+            remaining_gas,
+            SyscallSelector::Secp256r1Add,
+            self.context.gas_costs().secp256r1_new_gas_cost,
+        )?;
+        Ok(Secp256Point::add(p0.into(), p1.into()).into())
     }
 
     fn secp256r1_mul(
         &mut self,
-        _p: Secp256r1Point,
-        _m: U256,
-        _remaining_gas: &mut u128,
+        p: Secp256r1Point,
+        m: U256,
+        remaining_gas: &mut u128,
     ) -> SyscallResult<Secp256r1Point> {
-        todo!("Implement secp256r1_mul syscall.");
+        self.substract_syscall_gas_cost(
+            remaining_gas,
+            SyscallSelector::Secp256r1Mul,
+            self.context.gas_costs().secp256r1_new_gas_cost,
+        )?;
+
+        Ok(Secp256Point::mul(p.into(), m).into())
     }
 
     fn secp256r1_get_point_from_x(
         &mut self,
-        _x: U256,
-        _y_parity: bool,
-        _remaining_gas: &mut u128,
+        x: U256,
+        y_parity: bool,
+        remaining_gas: &mut u128,
     ) -> SyscallResult<Option<Secp256r1Point>> {
-        todo!("Implement secp256r1_get_point_from_x syscall.");
+        self.substract_syscall_gas_cost(
+            remaining_gas,
+            SyscallSelector::Secp256r1GetPointFromX,
+            self.context.gas_costs().secp256r1_new_gas_cost,
+        )?;
+
+        Secp256Point::get_point_from_x(x, y_parity).map(|op| op.map(|p| p.into()))
     }
 
     fn secp256r1_get_xy(
         &mut self,
-        _p: Secp256r1Point,
-        _remaining_gas: &mut u128,
+        p: Secp256r1Point,
+        remaining_gas: &mut u128,
     ) -> SyscallResult<(U256, U256)> {
-        todo!("Implement secp256r1_get_xy syscall.");
+        self.substract_syscall_gas_cost(
+            remaining_gas,
+            SyscallSelector::Secp256r1GetXy,
+            self.context.gas_costs().secp256r1_get_xy_gas_cost,
+        )?;
+
+        Ok((p.x, p.y))
     }
 
     fn sha256_process_block(
         &mut self,
-        _prev_state: &mut [u32; 8],
-        _current_block: &[u32; 16],
-        _remaining_gas: &mut u128,
+        prev_state: &mut [u32; 8],
+        current_block: &[u32; 16],
+        remaining_gas: &mut u128,
     ) -> SyscallResult<()> {
-        todo!("Implement sha256_process_block syscall.");
+        const SHA256_STATE_SIZE: usize = 8;
+        self.substract_syscall_gas_cost(
+            remaining_gas,
+            SyscallSelector::Sha256ProcessBlock,
+            self.context.gas_costs().sha256_process_block_gas_cost,
+        )?;
+
+        let data_as_bytes = sha2::digest::generic_array::GenericArray::from_exact_iter(
+            current_block.iter().flat_map(|x| x.to_be_bytes()),
+        )
+        .expect(
+            "u32.to_be_bytes() returns 4 bytes, and data.len() == 16. So data contains 64 bytes.",
+        );
+        let mut state: [u32; SHA256_STATE_SIZE] = *prev_state;
+        sha2::compress256(&mut state, &[data_as_bytes]);
+
+        prev_state.copy_from_slice(&state);
+
+        Ok(())
+    }
+}
+
+impl From<Secp256Point<ark_secp256k1::Config>> for Secp256k1Point {
+    fn from(Secp256Point(Affine { x, y, infinity }): Secp256Point<ark_secp256k1::Config>) -> Self {
+        Secp256k1Point {
+            x: big4int_to_u256(x.into()),
+            y: big4int_to_u256(y.into()),
+            is_infinity: infinity,
+        }
+    }
+}
+
+impl From<Secp256Point<ark_secp256r1::Config>> for Secp256r1Point {
+    fn from(Secp256Point(Affine { x, y, infinity }): Secp256Point<ark_secp256r1::Config>) -> Self {
+        Secp256r1Point {
+            x: big4int_to_u256(x.into()),
+            y: big4int_to_u256(y.into()),
+            is_infinity: infinity,
+        }
+    }
+}
+
+impl From<Secp256k1Point> for Secp256Point<ark_secp256k1::Config> {
+    fn from(p: Secp256k1Point) -> Self {
+        Secp256Point(Affine {
+            x: u256_to_biguint(p.x).into(),
+            y: u256_to_biguint(p.y).into(),
+            infinity: p.is_infinity,
+        })
+    }
+}
+
+impl From<Secp256r1Point> for Secp256Point<ark_secp256r1::Config> {
+    fn from(p: Secp256r1Point) -> Self {
+        Secp256Point(Affine {
+            x: u256_to_biguint(p.x).into(),
+            y: u256_to_biguint(p.y).into(),
+            infinity: p.is_infinity,
+        })
     }
 }
 
@@ -345,6 +435,7 @@ where
         match secp::new_affine(x, y) {
             Ok(None) => Ok(None),
             Ok(Some(affine)) => Ok(Some(Secp256Point(affine))),
+            Err(SyscallExecutionError::SyscallError { error_data: error }) => Err(error),
             Err(error) => Err(encode_str_as_felts(&error.to_string())),
         }
     }
