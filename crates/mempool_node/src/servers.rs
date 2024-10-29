@@ -10,6 +10,11 @@ use starknet_consensus_manager::communication::{
 use starknet_gateway::communication::{create_gateway_server, LocalGatewayServer};
 use starknet_http_server::communication::{create_http_server, HttpServer};
 use starknet_mempool::communication::{create_mempool_server, LocalMempoolServer};
+use starknet_mempool_p2p::propagator::{
+    create_mempool_p2p_propagator_server,
+    LocalMempoolP2pPropagatorServer,
+};
+use starknet_mempool_p2p::runner::MempoolP2pRunnerServer;
 use starknet_monitoring_endpoint::communication::{
     create_monitoring_endpoint_server,
     MonitoringEndpointServer,
@@ -27,6 +32,7 @@ struct LocalServers {
     pub(crate) batcher: Option<Box<LocalBatcherServer>>,
     pub(crate) gateway: Option<Box<LocalGatewayServer>>,
     pub(crate) mempool: Option<Box<LocalMempoolServer>>,
+    pub(crate) mempool_p2p_propagator: Option<Box<LocalMempoolP2pPropagatorServer>>,
 }
 
 // Component servers that wrap a component without a server.
@@ -34,6 +40,7 @@ struct WrapperServers {
     pub(crate) consensus_manager: Option<Box<ConsensusManagerServer>>,
     pub(crate) http_server: Option<Box<HttpServer>>,
     pub(crate) monitoring_endpoint: Option<Box<MonitoringEndpointServer>>,
+    pub(crate) mempool_p2p_runner: Option<Box<MempoolP2pRunnerServer>>,
 }
 
 pub struct SequencerNodeServers {
@@ -96,13 +103,39 @@ pub fn create_node_servers(
         ComponentExecutionMode::Disabled => None,
     };
 
-    let local_servers =
-        LocalServers { batcher: batcher_server, gateway: gateway_server, mempool: mempool_server };
+    let mempool_p2p_propagator_server = match config.components.mempool_p2p.execution_mode {
+        ComponentExecutionMode::LocalExecution { enable_remote_connection: _ } => {
+            Some(Box::new(create_mempool_p2p_propagator_server(
+                components
+                    .mempool_p2p_propagator
+                    .expect("Mempool P2P Propagator is not initialized."),
+                communication.take_mempool_p2p_propagator_rx(),
+            )))
+        }
+        ComponentExecutionMode::Disabled => None,
+    };
+
+    let mempool_p2p_runner_server = match config.components.mempool_p2p.execution_mode {
+        ComponentExecutionMode::LocalExecution { enable_remote_connection: _ } => {
+            Some(Box::new(MempoolP2pRunnerServer::new(
+                components.mempool_p2p_runner.expect("Mempool P2P Runner is not initialized."),
+            )))
+        }
+        ComponentExecutionMode::Disabled => None,
+    };
+
+    let local_servers = LocalServers {
+        batcher: batcher_server,
+        gateway: gateway_server,
+        mempool: mempool_server,
+        mempool_p2p_propagator: mempool_p2p_propagator_server,
+    };
 
     let wrapper_servers = WrapperServers {
         consensus_manager: consensus_manager_server,
         http_server,
         monitoring_endpoint: monitoring_endpoint_server,
+        mempool_p2p_runner: mempool_p2p_runner_server,
     };
 
     SequencerNodeServers { local_servers, wrapper_servers }
@@ -127,6 +160,13 @@ pub async fn run_component_servers(servers: SequencerNodeServers) -> anyhow::Res
     // Sequencer Monitoring server.
     let monitoring_endpoint_future = get_server_future(servers.wrapper_servers.monitoring_endpoint);
 
+    // MempoolP2pPropagator server.
+    let mempool_p2p_propagator_future =
+        get_server_future(servers.local_servers.mempool_p2p_propagator);
+
+    // MempoolP2pRunner server.
+    let mempool_p2p_runner_future = get_server_future(servers.wrapper_servers.mempool_p2p_runner);
+
     // Start servers.
     let batcher_handle = tokio::spawn(batcher_future);
     let consensus_manager_handle = tokio::spawn(consensus_manager_future);
@@ -134,6 +174,8 @@ pub async fn run_component_servers(servers: SequencerNodeServers) -> anyhow::Res
     let http_server_handle = tokio::spawn(http_server_future);
     let mempool_handle = tokio::spawn(mempool_future);
     let monitoring_endpoint_handle = tokio::spawn(monitoring_endpoint_future);
+    let mempool_p2p_propagator_handle = tokio::spawn(mempool_p2p_propagator_future);
+    let mempool_p2p_runner_handle = tokio::spawn(mempool_p2p_runner_future);
 
     let result = tokio::select! {
         res = batcher_handle => {
@@ -158,6 +200,14 @@ pub async fn run_component_servers(servers: SequencerNodeServers) -> anyhow::Res
         }
         res = monitoring_endpoint_handle => {
             error!("Monitoring Endpoint Server stopped.");
+            res?
+        }
+        res = mempool_p2p_propagator_handle => {
+            error!("Mempool P2P Propagator Server stopped.");
+            res?
+        }
+        res = mempool_p2p_runner_handle => {
+            error!("Mempool P2P Runner Server stopped.");
             res?
         }
     };

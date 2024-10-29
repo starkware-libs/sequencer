@@ -13,6 +13,7 @@ use papyrus_protobuf::mempool::RpcTransactionWrapper;
 use starknet_gateway_types::communication::SharedGatewayClient;
 use starknet_gateway_types::gateway_types::GatewayInput;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
+use starknet_sequencer_infra::component_server::WrapperServer;
 use starknet_sequencer_infra::errors::ComponentError;
 use tracing::warn;
 
@@ -82,4 +83,12 @@ impl ComponentStarter for MempoolP2pRunner {
             }
         }
     }
+}
+
+pub type MempoolP2pRunnerServer = WrapperServer<MempoolP2pRunner>;
+
+pub fn create_mempool_p2p_runner_server(
+    mempool_p2p_runner: MempoolP2pRunner,
+) -> MempoolP2pRunnerServer {
+    WrapperServer::new(mempool_p2p_runner)
 }

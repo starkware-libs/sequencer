@@ -21,6 +21,8 @@ pub struct ComponentConfig {
     #[validate]
     pub mempool: ComponentExecutionConfig,
     #[validate]
+    pub mempool_p2p: ComponentExecutionConfig,
+    #[validate]
     pub monitoring_endpoint: ComponentExecutionConfig,
 }
 
@@ -32,6 +34,7 @@ impl Default for ComponentConfig {
             gateway: ComponentExecutionConfig::gateway_default_config(),
             http_server: ComponentExecutionConfig::http_server_default_config(),
             mempool: ComponentExecutionConfig::mempool_default_config(),
+            mempool_p2p: ComponentExecutionConfig::mempool_p2p_default_config(),
             monitoring_endpoint: ComponentExecutionConfig::monitoring_endpoint_default_config(),
         }
     }
@@ -46,6 +49,7 @@ impl SerializeConfig for ComponentConfig {
             append_sub_config_name(self.gateway.dump(), "gateway"),
             append_sub_config_name(self.http_server.dump(), "http_server"),
             append_sub_config_name(self.mempool.dump(), "mempool"),
+            append_sub_config_name(self.mempool_p2p.dump(), "mempool_p2p"),
             append_sub_config_name(self.monitoring_endpoint.dump(), "monitoring_endpoint"),
         ];
 

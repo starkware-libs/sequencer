@@ -1,11 +1,11 @@
-use std::sync::Arc;
-
 use starknet_batcher::batcher::{create_batcher, Batcher};
 use starknet_consensus_manager::consensus_manager::ConsensusManager;
 use starknet_gateway::gateway::{create_gateway, Gateway};
 use starknet_http_server::http_server::{create_http_server, HttpServer};
 use starknet_mempool::communication::{create_mempool, MempoolCommunicationWrapper};
-use starknet_mempool_p2p::propagator::EmptyMempoolP2pPropagatorClient;
+use starknet_mempool_p2p::create_p2p_propagator_and_runner;
+use starknet_mempool_p2p::propagator::MempoolP2pPropagator;
+use starknet_mempool_p2p::runner::MempoolP2pRunner;
 use starknet_monitoring_endpoint::monitoring_endpoint::{
     create_monitoring_endpoint,
     MonitoringEndpoint,
@@ -22,6 +22,8 @@ pub struct SequencerNodeComponents {
     pub http_server: Option<HttpServer>,
     pub mempool: Option<MempoolCommunicationWrapper>,
     pub monitoring_endpoint: Option<MonitoringEndpoint>,
+    pub mempool_p2p_propagator: Option<MempoolP2pPropagator>,
+    pub mempool_p2p_runner: Option<MempoolP2pRunner>,
 }
 
 pub fn create_node_components(
@@ -68,11 +70,25 @@ pub fn create_node_components(
         ComponentExecutionMode::Disabled => None,
     };
 
+    let (mempool_p2p_propagator, mempool_p2p_runner) =
+        match config.components.mempool_p2p.execution_mode {
+            ComponentExecutionMode::LocalExecution { enable_remote_connection: _ } => {
+                let gateway_client =
+                    clients.get_gateway_client().expect("Gateway Client should be available");
+                let (mempool_p2p_propagator, mempool_p2p_runner) = create_p2p_propagator_and_runner(
+                    config.mempool_p2p_config.clone(),
+                    gateway_client,
+                );
+                (Some(mempool_p2p_propagator), Some(mempool_p2p_runner))
+            }
+            ComponentExecutionMode::Disabled => (None, None),
+        };
+
     let mempool = match config.components.mempool.execution_mode {
         ComponentExecutionMode::LocalExecution { enable_remote_connection: _ } => {
-            // TODO(Lukach): obtain the mempool_p2p_propagator_client from 'clients', pass it as an
-            // argument to create_mempool.
-            let mempool_p2p_propagator_client = Arc::new(EmptyMempoolP2pPropagatorClient);
+            let mempool_p2p_propagator_client = clients
+                .get_mempool_p2p_propagator_client()
+                .expect("Propagator Client should be available");
             let mempool = create_mempool(mempool_p2p_propagator_client);
             Some(mempool)
         }
@@ -94,5 +110,7 @@ pub fn create_node_components(
         http_server,
         mempool,
         monitoring_endpoint,
+        mempool_p2p_propagator,
+        mempool_p2p_runner,
     }
 }
