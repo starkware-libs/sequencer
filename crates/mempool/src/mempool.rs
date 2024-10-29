@@ -123,15 +123,16 @@ impl Mempool {
         let account_nonce =
             self.mempool_state.get(&address).or_else(|| self.account_nonces.get(&address));
 
+        // Add to queue.
         match account_nonce {
-            Some(&mempool_state_nonce) => {
-                if mempool_state_nonce == nonce {
-                    self.tx_queue.insert(tx_reference);
-                }
+            Some(&mempool_state_nonce) if mempool_state_nonce == nonce => {
+                self.tx_queue.insert(tx_reference);
             }
+            Some(_) => (), // Nonce is valid but too high for queue.
             None => {
                 assert_eq!(tx_reference.nonce, Nonce(1.into()));
                 assert_eq!(self.account_nonces.insert(address, nonce), None);
+                self.tx_queue.insert(tx_reference);
             }
         }
 
