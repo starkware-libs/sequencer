@@ -19,6 +19,20 @@ use crate::transaction_queue::TransactionQueue;
 #[path = "mempool_test.rs"]
 pub mod mempool_test;
 
+#[derive(Debug)]
+pub struct MempoolConfig {
+    enable_fee_escalation: bool,
+    // TODO: consider adding validations; should be bounded?
+    // Percentage increase for tip and max gas price to enable transaction replacement.
+    fee_escalation_percentage: u8, // E.g., 10 for a 10% increase.
+}
+
+impl Default for MempoolConfig {
+    fn default() -> Self {
+        MempoolConfig { enable_fee_escalation: true, fee_escalation_percentage: 10 }
+    }
+}
+
 type AccountToNonce = HashMap<ContractAddress, Nonce>;
 
 #[derive(Debug, Default)]
@@ -279,19 +293,6 @@ impl Mempool {
         };
 
         incoming_value >= escalation_qualified_value
-    }
-}
-
-#[derive(Debug)]
-pub struct MempoolConfig {
-    enable_fee_escalation: bool,
-    // Percentage increase for tip and max gas price to enable transaction replacement.
-    fee_escalation_percentage: u8, // E.g., 10 for a 10% increase.
-}
-
-impl Default for MempoolConfig {
-    fn default() -> Self {
-        MempoolConfig { enable_fee_escalation: true, fee_escalation_percentage: 10 }
     }
 }
 
