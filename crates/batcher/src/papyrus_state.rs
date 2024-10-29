@@ -1,5 +1,3 @@
-// TODO(yael 22/9/2024): This module is copied from native_blockifier, need to how to share it
-// between the crates.
 use blockifier::execution::contract_class::{ContractClass, ContractClassV0, ContractClassV1};
 use blockifier::state::errors::StateError;
 use blockifier::state::global_cache::GlobalContractCache;
@@ -12,6 +10,10 @@ use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::{StateNumber, StorageKey};
 use starknet_types_core::felt::Felt;
+
+#[cfg(test)]
+#[path = "papyrus_state_test.rs"]
+mod test;
 
 type RawPapyrusReader<'env> = papyrus_storage::StorageTxn<'env, RO>;
 pub struct PapyrusReader {

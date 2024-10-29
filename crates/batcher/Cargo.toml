@@ -33,5 +33,6 @@ chrono = { workspace = true }
 futures.workspace = true
 mempool_test_utils.workspace = true
 mockall.workspace = true
+papyrus_storage = { workspace = true, features = ["testing"] }
 rstest.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }

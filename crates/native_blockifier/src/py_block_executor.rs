@@ -20,6 +20,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, ContractAddress};
 use starknet_api::execution_resources::GasVector;
 use starknet_api::transaction::Fee;
+use starknet_batcher::papyrus_state::PapyrusReader;
 use starknet_types_core::felt::Felt;
 
 use crate::errors::{NativeBlockifierError, NativeBlockifierResult};
@@ -27,7 +28,6 @@ use crate::py_objects::{PyBouncerConfig, PyConcurrencyConfig, PyVersionedConstan
 use crate::py_state_diff::{PyBlockInfo, PyStateDiff};
 use crate::py_transaction::{py_tx, PyClassInfo, PY_TX_PARSING_ERR};
 use crate::py_utils::{int_to_chain_id, into_block_number_hash_pair, PyFelt};
-use crate::state_readers::papyrus_state::PapyrusReader;
 use crate::storage::{PapyrusStorage, Storage, StorageConfig};
 
 pub(crate) type RawTransactionExecutionResult = Vec<u8>;
