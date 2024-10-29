@@ -6,6 +6,7 @@ use futures::FutureExt;
 use libp2p::swarm::dial_opts::DialOpts;
 use libp2p::swarm::ToSwarm;
 use libp2p::PeerId;
+use papyrus_config::converters::deserialize_seconds_to_duration;
 use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use peer::Peer;
@@ -52,7 +53,9 @@ pub struct PeerManager {
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct PeerManagerConfig {
+    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
     malicious_timeout: Duration,
+    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
     unstable_timeout: Duration,
 }
 
@@ -81,14 +84,14 @@ impl SerializeConfig for PeerManagerConfig {
         BTreeMap::from([
             ser_param(
                 "malicious_timeout",
-                &self.malicious_timeout,
-                "The duration a peer is blacklisted after being marked as malicious.",
+                &self.malicious_timeout.as_secs(),
+                "The duration in seconds a peer is blacklisted after being marked as malicious.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
                 "unstable_timeout",
-                &self.unstable_timeout,
-                "The duration a peer blacklisted after being reported as unstable.",
+                &self.unstable_timeout.as_secs(),
+                "The duration in seconds a peer blacklisted after being reported as unstable.",
                 ParamPrivacyInput::Public,
             ),
         ])
