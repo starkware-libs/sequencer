@@ -107,8 +107,7 @@ impl TransactionPool {
         current_account_state: AccountState,
     ) -> MempoolResult<Option<&TransactionReference>> {
         let AccountState { address, nonce } = current_account_state;
-        // TOOD(Ayelet): Change to StarknetApiError.
-        let next_nonce = nonce.try_increment().map_err(|_| MempoolError::FeltOutOfRange)?;
+        let next_nonce = nonce.try_increment().map_err(|_| MempoolError::NonceTooLarge(nonce))?;
         Ok(self.get_by_address_and_nonce(address, next_nonce))
     }
 

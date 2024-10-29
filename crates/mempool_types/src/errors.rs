@@ -11,9 +11,8 @@ pub enum MempoolError {
     DuplicateTransaction { tx_hash: TransactionHash },
     #[error("Transaction with hash: {tx_hash} not found")]
     TransactionNotFound { tx_hash: TransactionHash },
-    // TODO(Mohammad): Consider using `StarknetApiError` once it implements `PartialEq`.
-    #[error("Out of range.")]
-    FeltOutOfRange,
+    #[error("{0}")]
+    NonceTooLarge(Nonce),
     #[error("Transaction with hash: {tx_hash} could not be sent using p2p client.")]
     P2pPropagatorClientError { tx_hash: TransactionHash },
 }
