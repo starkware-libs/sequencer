@@ -7,6 +7,7 @@ use colored::Colorize;
 use mempool_test_utils::get_absolute_path;
 use papyrus_config::dumping::SerializeConfig;
 use papyrus_config::validators::config_validate;
+use papyrus_config::{ParamPath, SerializationType, SerializedContent, SerializedParam};
 use rstest::rstest;
 use starknet_sequencer_infra::component_definitions::{
     LocalComponentCommunicationConfig,
@@ -93,13 +94,44 @@ fn test_default_config_file_is_up_to_date() {
 /// Tests parsing a node config without additional args.
 #[test]
 fn test_config_parsing() {
-    let config_file_name = get_absolute_path(DEFAULT_CONFIG_PATH);
-    let config = SequencerNodeConfig::load_and_process_file(
-        vec![node_command().to_string()],
-        config_file_name.to_str().unwrap(),
-    );
+    let dummy_values = create_config_load_args(&CONFIG_POINTERS);
+    let config = SequencerNodeConfig::load_and_process(dummy_values);
     let config = config.expect("Parsing function failed.");
 
     let result = config_validate(&config);
     assert_matches!(result, Ok(_), "Expected Ok but got {:?}", result);
+}
+
+// Creates a vector of strings with the command name and required parameters that can be used as
+// arguments to load a config.
+fn create_config_load_args(
+    pointers: &Vec<((ParamPath, SerializedParam), Vec<ParamPath>)>,
+) -> Vec<String> {
+    let mut dummy_values = Vec::new();
+
+    // Command name.
+    dummy_values.push(node_command().to_string());
+
+    // Iterate over required config parameters and add them as args with suitable arbitrary values.
+    for ((target_param, serialized_pointer), _) in pointers {
+        // Param name.
+        let required_param_name_as_arg = format!("--{}", target_param);
+        dummy_values.push(required_param_name_as_arg);
+
+        // Param value.
+        let serialization_type = match &serialized_pointer.content {
+            SerializedContent::ParamType(serialization_type) => serialization_type,
+            _ => panic!("Required parameters have to be of type ParamType."),
+        };
+        let arbitrary_value = match serialization_type {
+            SerializationType::Boolean => "false",
+            SerializationType::Float => "15.2",
+            SerializationType::NegativeInteger => "-30",
+            SerializationType::PositiveInteger => "17",
+            SerializationType::String => "ArbitraryString",
+        }
+        .to_string();
+        dummy_values.push(arbitrary_value);
+    }
+    dummy_values
 }
