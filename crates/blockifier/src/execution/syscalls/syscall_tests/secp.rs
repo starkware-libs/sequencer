@@ -27,6 +27,10 @@ fn test_secp256k1(test_contract: FeatureContract, expected_gas: u64) {
     );
 }
 
+#[cfg_attr(
+  feature = "cairo_native",
+  test_case(FeatureContract::TestContract(CairoVersion::Native), 27573600; "Native")
+)]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 27563600; "VM")]
 fn test_secp256r1(test_contract: FeatureContract, expected_gas: u64) {
     let chain_info = &ChainInfo::create_for_testing();
