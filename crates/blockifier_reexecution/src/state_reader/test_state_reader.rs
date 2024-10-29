@@ -15,7 +15,6 @@ use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_core::types::ContractClass as StarknetContractClass;
-use starknet_core::types::ContractClass::{Legacy, Sierra};
 use starknet_gateway::config::RpcStateReaderConfig;
 use starknet_gateway::errors::serde_err_to_state_err;
 use starknet_gateway::rpc_objects::{BlockHeader, GetBlockWithTxHashesParams, ResourcePrice};
@@ -24,6 +23,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::state_reader::compile::{legacy_to_contract_class_v0, sierra_to_contact_class_v1};
 use crate::state_reader::errors::ReexecutionError;
+use crate::state_reader::reexecution_state_reader::ReexecutionStateReader;
 use crate::state_reader::serde_utils::{
     deserialize_transaction_json_to_starknet_api_tx,
     hashmap_from_raw,
@@ -31,7 +31,6 @@ use crate::state_reader::serde_utils::{
 };
 use crate::state_reader::utils::{
     disjoint_hashmap_union,
-    from_api_txs_to_blockifier_txs,
     get_chain_info,
     get_rpc_state_reader_config,
 };
@@ -64,8 +63,8 @@ impl StateReader for TestStateReader {
         class_hash: ClassHash,
     ) -> StateResult<BlockifierContractClass> {
         match self.get_contract_class(&class_hash)? {
-            Sierra(sierra) => sierra_to_contact_class_v1(sierra),
-            Legacy(legacy) => legacy_to_contract_class_v0(legacy),
+            StarknetContractClass::Sierra(sierra) => sierra_to_contact_class_v1(sierra),
+            StarknetContractClass::Legacy(legacy) => legacy_to_contract_class_v0(legacy),
         }
     }
 
@@ -231,6 +230,22 @@ impl TestStateReader {
     }
 }
 
+impl ReexecutionStateReader for TestStateReader {
+    fn get_contract_class(
+        &self,
+        class_hash: ClassHash,
+    ) -> ReexecutionResult<StarknetContractClass> {
+        let params = json!({
+            "block_id": self.0.block_id,
+            "class_hash": class_hash.0.to_string(),
+        });
+        let contract_class: StarknetContractClass =
+            serde_json::from_value(self.0.send_rpc_request("starknet_getClass", params.clone())?)
+                .map_err(serde_err_to_state_err)?;
+        Ok(contract_class)
+    }
+}
+
 /// Trait of the functions \ queries required for reexecution.
 pub trait ConsecutiveStateReaders<S: StateReader> {
     fn get_transaction_executor(
@@ -276,7 +291,8 @@ impl ConsecutiveStateReaders<TestStateReader> for ConsecutiveTestStateReaders {
     }
 
     fn get_next_block_txs(&self) -> ReexecutionResult<Vec<BlockifierTransaction>> {
-        from_api_txs_to_blockifier_txs(self.next_block_state_reader.get_all_txs_in_block()?)
+        self.next_block_state_reader
+            .api_txs_to_blockifier_txs(self.next_block_state_reader.get_all_txs_in_block()?)
     }
 
     fn get_next_block_state_diff(&self) -> ReexecutionResult<CommitmentStateDiff> {
