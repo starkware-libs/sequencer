@@ -48,7 +48,7 @@ fn test_add_tx_fills_nonce_gap(mut mempool: Mempool) {
 }
 
 #[rstest]
-fn test_add_tx_after_get_txs_fails_on_duplicate_nonce(mut mempool: Mempool) {
+fn test_add_tx_rejection_for_txs_passed_to_batcher(mut mempool: Mempool) {
     // Setup.
     let input_tx = add_tx_input!(tx_hash: 0, tx_nonce: 0);
 
@@ -60,7 +60,7 @@ fn test_add_tx_after_get_txs_fails_on_duplicate_nonce(mut mempool: Mempool) {
     add_tx_expect_error(
         &mut mempool,
         &input_tx_duplicate_nonce,
-        MempoolError::DuplicateNonce { address: contract_address!("0x0"), nonce: nonce!(0) },
+        MempoolError::NonceTooOld { address: contract_address!("0x0"), nonce: nonce!(0) },
     );
 }
 

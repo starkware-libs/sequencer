@@ -14,6 +14,7 @@ use starknet_mempool_types::mempool_types::{
 
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::TransactionQueue;
+use crate::utils::try_increment_nonce;
 
 #[cfg(test)]
 #[path = "mempool_test.rs"]
@@ -60,7 +61,8 @@ impl Mempool {
 
         // Update the mempool state with the given transactions' nonces.
         for tx_ref in &eligible_tx_references {
-            self.mempool_state.insert(tx_ref.address, tx_ref.nonce);
+            let next_nonce = try_increment_nonce(tx_ref.nonce)?;
+            self.mempool_state.insert(tx_ref.address, next_nonce);
         }
 
         tracing::info!(
@@ -119,8 +121,7 @@ impl Mempool {
 
         // Align mempool data to committed nonces.
         for (&address, &nonce) in &nonces {
-            let next_nonce =
-                nonce.try_increment().map_err(|_| MempoolError::NonceTooLarge(nonce))?;
+            let next_nonce = try_increment_nonce(nonce)?;
             let account_state = AccountState { address, nonce: next_nonce };
             self.align_to_account_state(account_state);
         }
@@ -168,19 +169,19 @@ impl Mempool {
         address: ContractAddress,
         tx_nonce: Nonce,
     ) -> MempoolResult<()> {
-        let duplicate_nonce_error = MempoolError::DuplicateNonce { address, nonce: tx_nonce };
-
         // Check nonce against mempool state.
-        if let Some(mempool_state_nonce) = self.mempool_state.get(&address) {
-            if &tx_nonce <= mempool_state_nonce {
-                return Err(duplicate_nonce_error);
-            }
+        if self
+            .mempool_state
+            .get(&address)
+            .is_some_and(|&mempool_state_nonce| tx_nonce < mempool_state_nonce)
+        {
+            return Err(MempoolError::NonceTooOld { address, nonce: tx_nonce });
         }
 
         // Check nonce against the queue.
         // TODO(Elin): change to < for fee escalation (and add test).
         if self.tx_queue.get_nonce(address).is_some_and(|queued_nonce| tx_nonce <= queued_nonce) {
-            return Err(duplicate_nonce_error);
+            return Err(MempoolError::DuplicateNonce { address, nonce: tx_nonce });
         }
 
         Ok(())
