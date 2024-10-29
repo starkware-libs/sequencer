@@ -7,6 +7,7 @@ use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{AccountState, MempoolResult};
 
 use crate::mempool::TransactionReference;
+use crate::utils::try_increment_nonce;
 
 type HashToTransaction = HashMap<TransactionHash, Transaction>;
 
@@ -107,7 +108,7 @@ impl TransactionPool {
         current_account_state: AccountState,
     ) -> MempoolResult<Option<&TransactionReference>> {
         let AccountState { address, nonce } = current_account_state;
-        let next_nonce = nonce.try_increment().map_err(|_| MempoolError::NonceTooLarge(nonce))?;
+        let next_nonce = try_increment_nonce(nonce)?;
         Ok(self.get_by_address_and_nonce(address, next_nonce))
     }
 
