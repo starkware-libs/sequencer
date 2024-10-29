@@ -44,7 +44,7 @@ pub fn execute_entry_point_call(
         Ok(res) => Ok(res),
     }?;
 
-    create_call_info(call, call_result, syscall_handler)
+    create_callinfo(call_result, syscall_handler)
 }
 
 fn create_callinfo(
