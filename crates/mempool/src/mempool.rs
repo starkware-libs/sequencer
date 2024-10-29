@@ -119,7 +119,8 @@ impl Mempool {
 
         // Align mempool data to committed nonces.
         for (&address, &nonce) in &nonces {
-            let next_nonce = nonce.try_increment().map_err(|_| MempoolError::FeltOutOfRange)?;
+            let next_nonce =
+                nonce.try_increment().map_err(|_| MempoolError::NonceTooLarge(nonce))?;
             let account_state = AccountState { address, nonce: next_nonce };
             self.align_to_account_state(account_state);
         }
