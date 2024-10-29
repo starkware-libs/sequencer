@@ -4,10 +4,16 @@ use std::path::Path;
 use std::sync::LazyLock;
 
 use clap::Command;
-use papyrus_config::dumping::{append_sub_config_name, ser_pointer_target_param, SerializeConfig};
+use papyrus_config::dumping::{
+    append_sub_config_name,
+    ser_pointer_target_required_param,
+    SerializeConfig,
+};
 use papyrus_config::loading::load_and_process_config;
 use papyrus_config::validators::validate_ascii;
-use papyrus_config::{ConfigError, ParamPath, SerializedParam};
+#[cfg(any(feature = "testing", test))]
+use papyrus_config::SerializedContent;
+use papyrus_config::{ConfigError, ParamPath, SerializationType, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ChainId;
 use starknet_batcher::config::BatcherConfig;
@@ -20,6 +26,7 @@ use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 use validator::Validate;
 
 use crate::config::ComponentConfig;
+use crate::utils::get_absolute_path;
 use crate::version::VERSION_FULL;
 
 // The path of the default configuration file, provided as part of the crate.
@@ -28,9 +35,14 @@ pub const DEFAULT_CONFIG_PATH: &str = "config/mempool/default_config.json";
 // Configuration parameters that share the same value across multiple components.
 type ConfigPointers = Vec<((ParamPath, SerializedParam), Vec<ParamPath>)>;
 pub const DEFAULT_CHAIN_ID: ChainId = ChainId::Mainnet;
+// TODO(Tsabary/AlonH): Discuss testing of required parameters.
 pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
     vec![(
-        ser_pointer_target_param("chain_id", &DEFAULT_CHAIN_ID, "The chain to follow."),
+        ser_pointer_target_required_param(
+            "chain_id",
+            SerializationType::String,
+            "The chain to follow.",
+        ),
         vec![
             "batcher_config.block_builder_config.chain_info.chain_id".to_owned(),
             "batcher_config.storage.db_config.chain_id".to_owned(),
@@ -39,6 +51,44 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
         ],
     )]
 });
+
+// TODO(Tsabary): Bundle required config values in a struct, detailing whether they are pointer
+// targets or not. Then, derive their values in the config (struct and pointers).
+// Also, add functionality to derive them for testing.
+// Creates a vector of strings with the command name and required parameters that can be used as
+// arguments to load a config.
+#[cfg(any(feature = "testing", test))]
+pub fn create_test_config_load_args(
+    pointers: &Vec<((ParamPath, SerializedParam), Vec<ParamPath>)>,
+) -> Vec<String> {
+    let mut dummy_values = Vec::new();
+
+    // Command name.
+    dummy_values.push(node_command().to_string());
+
+    // Iterate over required config parameters and add them as args with suitable arbitrary values.
+    for ((target_param, serialized_pointer), _) in pointers {
+        // Param name.
+        let required_param_name_as_arg = format!("--{}", target_param);
+        dummy_values.push(required_param_name_as_arg);
+
+        // Param value.
+        let serialization_type = match &serialized_pointer.content {
+            SerializedContent::ParamType(serialization_type) => serialization_type,
+            _ => panic!("Required parameters have to be of type ParamType."),
+        };
+        let arbitrary_value = match serialization_type {
+            SerializationType::Boolean => "false",
+            SerializationType::Float => "15.2",
+            SerializationType::NegativeInteger => "-30",
+            SerializationType::PositiveInteger => "17",
+            SerializationType::String => "ArbitraryString",
+        }
+        .to_string();
+        dummy_values.push(arbitrary_value);
+    }
+    dummy_values
+}
 
 // TODO(yair): Make the GW and batcher execution config point to the same values.
 /// The configurations of the various components of the node.
@@ -69,8 +119,7 @@ pub struct SequencerNodeConfig {
 
 impl SerializeConfig for SequencerNodeConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        #[allow(unused_mut)]
-        let mut sub_configs = vec![
+        let sub_configs = vec![
             append_sub_config_name(self.components.dump(), "components"),
             append_sub_config_name(self.batcher_config.dump(), "batcher_config"),
             append_sub_config_name(
@@ -117,11 +166,11 @@ impl SequencerNodeConfig {
         config_file_name: Option<&str>,
     ) -> Result<Self, ConfigError> {
         let config_file_name = match config_file_name {
-            Some(file_name) => file_name,
-            None => DEFAULT_CONFIG_PATH,
+            Some(file_name) => Path::new(file_name),
+            None => &get_absolute_path(DEFAULT_CONFIG_PATH),
         };
 
-        let default_config_file = File::open(Path::new(config_file_name))?;
+        let default_config_file = File::open(config_file_name)?;
         load_and_process_config(default_config_file, node_command(), args)
     }
 
