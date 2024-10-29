@@ -67,16 +67,16 @@ pub enum ServerError {
     RequestDeserializationFailure(String),
 }
 
-// TODO(Nadin): Refactor this into two separate structs: LocalClientConfig (empty struct for the
-// client) and LocalServerConfig (which holds the current channel_buffer_size field).
-
 // The communication configuration of the local component.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
-pub struct LocalComponentCommunicationConfig {
+pub struct LocalClientConfig {}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
+pub struct LocalServerConfig {
     pub channel_buffer_size: usize,
 }
 
-impl SerializeConfig for LocalComponentCommunicationConfig {
+impl SerializeConfig for LocalServerConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from_iter([ser_param(
             "channel_buffer_size",
@@ -87,7 +87,7 @@ impl SerializeConfig for LocalComponentCommunicationConfig {
     }
 }
 
-impl Default for LocalComponentCommunicationConfig {
+impl Default for LocalServerConfig {
     fn default() -> Self {
         Self { channel_buffer_size: DEFAULT_CHANNEL_BUFFER_SIZE }
     }

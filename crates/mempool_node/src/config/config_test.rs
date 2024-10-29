@@ -9,7 +9,7 @@ use papyrus_config::dumping::SerializeConfig;
 use papyrus_config::validators::config_validate;
 use rstest::rstest;
 use starknet_sequencer_infra::component_definitions::{
-    LocalComponentCommunicationConfig,
+    LocalServerConfig,
     RemoteClientConfig,
     RemoteServerConfig,
 };
@@ -24,32 +24,32 @@ use crate::config::{
     DEFAULT_CONFIG_PATH,
 };
 
+const LOCAL_EXECUTION_MODE: ComponentExecutionMode =
+    ComponentExecutionMode::LocalExecution { enable_remote_connection: false };
+const ENABLE_REMOTE_CONNECTION_MODE: ComponentExecutionMode =
+    ComponentExecutionMode::LocalExecution { enable_remote_connection: true };
+
 /// Test the validation of the struct ComponentExecutionConfig.
 /// Validates that execution mode of the component and the local/remote config are at sync.
-/// TODO(Nadin): Fix the test after separating local_config into distinct configurations.
 #[rstest]
-#[case::local(ComponentExecutionMode::LocalExecution {enable_remote_connection: false}, None, None)]
-#[case::remote(ComponentExecutionMode::LocalExecution {enable_remote_connection: true}, Some(RemoteClientConfig::default()), None)]
-#[case::remote(ComponentExecutionMode::LocalExecution {enable_remote_connection: true}, None, Some(RemoteServerConfig::default()))]
+#[case::local(ComponentExecutionMode::Disabled, None, None, None)]
+#[case::local(LOCAL_EXECUTION_MODE, Some(LocalServerConfig::default()), None, None)]
+#[case::remote(
+    ENABLE_REMOTE_CONNECTION_MODE,
+    Some(LocalServerConfig::default()),
+    None,
+    Some(RemoteServerConfig::default())
+)]
 fn test_valid_component_execution_config(
     #[case] execution_mode: ComponentExecutionMode,
+    #[case] local_server_config: Option<LocalServerConfig>,
     #[case] remote_client_config: Option<RemoteClientConfig>,
     #[case] remote_server_config: Option<RemoteServerConfig>,
 ) {
-    // Initialize a valid config and check that the validator returns Ok.
-
-    let local_execution_mode =
-        ComponentExecutionMode::LocalExecution { enable_remote_connection: false };
-    let local_config = if execution_mode == local_execution_mode {
-        Some(LocalComponentCommunicationConfig::default())
-    } else {
-        None
-    };
-
-    // TODO(Nadin): split local config to local_client and local_server config.
     let component_exe_config = ComponentExecutionConfig {
         execution_mode,
-        local_config,
+        local_client_config: None,
+        local_server_config,
         remote_client_config,
         remote_server_config,
     };

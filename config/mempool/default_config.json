@@ -209,12 +209,12 @@
     "privacy": "Public",
     "value": false
   },
-  "components.batcher.local_config.#is_none": {
+  "components.batcher.local_server_config.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": false
   },
-  "components.batcher.local_config.channel_buffer_size": {
+  "components.batcher.local_server_config.channel_buffer_size": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 32
@@ -259,12 +259,12 @@
     "privacy": "Public",
     "value": false
   },
-  "components.consensus_manager.local_config.#is_none": {
+  "components.consensus_manager.local_server_config.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": false
   },
-  "components.consensus_manager.local_config.channel_buffer_size": {
+  "components.consensus_manager.local_server_config.channel_buffer_size": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 32
@@ -309,12 +309,12 @@
     "privacy": "Public",
     "value": false
   },
-  "components.gateway.local_config.#is_none": {
+  "components.gateway.local_server_config.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": false
   },
-  "components.gateway.local_config.channel_buffer_size": {
+  "components.gateway.local_server_config.channel_buffer_size": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 32
@@ -359,12 +359,12 @@
     "privacy": "Public",
     "value": true
   },
-  "components.http_server.local_config.#is_none": {
+  "components.http_server.local_server_config.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": true
   },
-  "components.http_server.local_config.channel_buffer_size": {
+  "components.http_server.local_server_config.channel_buffer_size": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 32
@@ -409,12 +409,12 @@
     "privacy": "Public",
     "value": false
   },
-  "components.mempool.local_config.#is_none": {
+  "components.mempool.local_server_config.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": false
   },
-  "components.mempool.local_config.channel_buffer_size": {
+  "components.mempool.local_server_config.channel_buffer_size": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 32
@@ -459,12 +459,12 @@
     "privacy": "Public",
     "value": false
   },
-  "components.mempool_p2p.local_config.#is_none": {
+  "components.mempool_p2p.local_server_config.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": false
   },
-  "components.mempool_p2p.local_config.channel_buffer_size": {
+  "components.mempool_p2p.local_server_config.channel_buffer_size": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 32
@@ -509,12 +509,12 @@
     "privacy": "Public",
     "value": true
   },
-  "components.monitoring_endpoint.local_config.#is_none": {
+  "components.monitoring_endpoint.local_server_config.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": true
   },
-  "components.monitoring_endpoint.local_config.channel_buffer_size": {
+  "components.monitoring_endpoint.local_server_config.channel_buffer_size": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 32

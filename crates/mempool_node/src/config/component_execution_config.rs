@@ -9,7 +9,8 @@ use papyrus_config::dumping::{
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_sequencer_infra::component_definitions::{
-    LocalComponentCommunicationConfig,
+    LocalClientConfig,
+    LocalServerConfig,
     RemoteClientConfig,
     RemoteServerConfig,
 };
@@ -50,7 +51,8 @@ impl ComponentExecutionMode {
 #[validate(schema(function = "validate_single_component_config"))]
 pub struct ComponentExecutionConfig {
     pub execution_mode: ComponentExecutionMode,
-    pub local_config: Option<LocalComponentCommunicationConfig>,
+    pub local_client_config: Option<LocalClientConfig>,
+    pub local_server_config: Option<LocalServerConfig>,
     pub remote_client_config: Option<RemoteClientConfig>,
     pub remote_server_config: Option<RemoteServerConfig>,
 }
@@ -59,7 +61,7 @@ impl SerializeConfig for ComponentExecutionConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         vec![
             append_sub_config_name(self.execution_mode.dump(), "execution_mode"),
-            ser_optional_sub_config(&self.local_config, "local_config"),
+            ser_optional_sub_config(&self.local_server_config, "local_server_config"),
             ser_optional_sub_config(&self.remote_client_config, "remote_client_config"),
             ser_optional_sub_config(&self.remote_server_config, "remote_server_config"),
         ]
@@ -75,7 +77,8 @@ impl Default for ComponentExecutionConfig {
             execution_mode: ComponentExecutionMode::LocalExecution {
                 enable_remote_connection: false,
             },
-            local_config: Some(LocalComponentCommunicationConfig::default()),
+            local_server_config: Some(LocalServerConfig::default()),
+            local_client_config: None,
             remote_client_config: None,
             remote_server_config: None,
         }
@@ -89,7 +92,8 @@ impl ComponentExecutionConfig {
             execution_mode: ComponentExecutionMode::LocalExecution {
                 enable_remote_connection: false,
             },
-            local_config: Some(LocalComponentCommunicationConfig::default()),
+            local_server_config: Some(LocalServerConfig::default()),
+            local_client_config: None,
             remote_client_config: None,
             remote_server_config: None,
         }
@@ -103,7 +107,8 @@ impl ComponentExecutionConfig {
             execution_mode: ComponentExecutionMode::LocalExecution {
                 enable_remote_connection: true,
             },
-            local_config: None,
+            local_server_config: None,
+            local_client_config: None,
             remote_client_config: Some(RemoteClientConfig::default()),
             remote_server_config: None,
         }
@@ -117,7 +122,8 @@ impl ComponentExecutionConfig {
             execution_mode: ComponentExecutionMode::LocalExecution {
                 enable_remote_connection: true,
             },
-            local_config: None,
+            local_server_config: None,
+            local_client_config: None,
             remote_client_config: Some(RemoteClientConfig::default()),
             remote_server_config: None,
         }
@@ -128,7 +134,8 @@ impl ComponentExecutionConfig {
             execution_mode: ComponentExecutionMode::LocalExecution {
                 enable_remote_connection: false,
             },
-            local_config: Some(LocalComponentCommunicationConfig::default()),
+            local_server_config: Some(LocalServerConfig::default()),
+            local_client_config: None,
             remote_client_config: None,
             remote_server_config: None,
         }
@@ -139,7 +146,8 @@ impl ComponentExecutionConfig {
             execution_mode: ComponentExecutionMode::LocalExecution {
                 enable_remote_connection: false,
             },
-            local_config: Some(LocalComponentCommunicationConfig::default()),
+            local_server_config: Some(LocalServerConfig::default()),
+            local_client_config: None,
             remote_client_config: None,
             remote_server_config: None,
         }
@@ -150,7 +158,8 @@ impl ComponentExecutionConfig {
             execution_mode: ComponentExecutionMode::LocalExecution {
                 enable_remote_connection: false,
             },
-            local_config: Some(LocalComponentCommunicationConfig::default()),
+            local_server_config: Some(LocalServerConfig::default()),
+            local_client_config: None,
             remote_client_config: None,
             remote_server_config: None,
         }
@@ -161,7 +170,8 @@ impl ComponentExecutionConfig {
             execution_mode: ComponentExecutionMode::LocalExecution {
                 enable_remote_connection: false,
             },
-            local_config: Some(LocalComponentCommunicationConfig::default()),
+            local_server_config: Some(LocalServerConfig::default()),
+            local_client_config: None,
             remote_client_config: None,
             remote_server_config: None,
         }
@@ -175,28 +185,42 @@ pub fn validate_single_component_config(
         ComponentExecutionMode::LocalExecution { enable_remote_connection: false };
     let enable_remote_execution_mode =
         ComponentExecutionMode::LocalExecution { enable_remote_connection: true };
+    let disabled = ComponentExecutionMode::Disabled;
 
-    // TODO(Nadin): Separate local_config into client_local_config and server_local_config, and
-    // adjust the conditions to validate the component configuration accurately.
     let error_message = match (
         component_config.execution_mode.clone(),
-        component_config.local_config.is_some(),
+        component_config.local_server_config.is_some(),
         component_config.remote_server_config.is_some(),
         component_config.remote_client_config.is_some(),
     ) {
-        (mode, true, true, _) | (mode, true, _, true) if mode == local_execution_mode => {
-            "Local config and Remote config are mutually exclusive in Local mode execution; both \
-             can't be active."
+        (mode, _, true, true) if mode == enable_remote_execution_mode => {
+            "Remote server and remote client are mutually exclusive; both cannot be active \
+             simultaneously."
         }
-        (mode, false, _, _) if mode == local_execution_mode => {
-            "Local communication config is missing."
+        (mode, true, _, true) if mode == enable_remote_execution_mode => {
+            "Local server and remote client are mutually exclusive; both cannot be active \
+             simultaneously."
         }
         (mode, _, false, false) if mode == enable_remote_execution_mode => {
             "Remote communication config is missing."
         }
-        (mode, _, true, true) if mode == enable_remote_execution_mode => {
-            "Remote client and Remote server are mutually exclusive in Remote mode execution; both \
-             can't be active."
+        (mode, false, _, _) if mode == local_execution_mode => "Local server config is missing.",
+        (mode, true, true, _) if mode == local_execution_mode => {
+            "Cannot provide remote server configuration in local execution mode with remote \
+             connection disabled."
+        }
+        (mode, true, _, true) if mode == local_execution_mode => {
+            "Cannot provide remote client configuration in local execution mode with remote \
+             connection disabled."
+        }
+        (mode, true, _, _) if mode == disabled => {
+            "Configuration cannot be provided in disabled execution mode."
+        }
+        (mode, _, true, _) if mode == disabled => {
+            "Configuration cannot be provided in disabled execution mode."
+        }
+        (mode, _, _, true) if mode == disabled => {
+            "Configuration cannot be provided in disabled execution mode."
         }
         _ => return Ok(()),
     };
