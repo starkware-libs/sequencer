@@ -400,7 +400,8 @@ pub type AbiSize = usize;
 /// The size of the sierra program.
 pub type SierraSize = usize;
 
-const DEPRECATED_CONTRACT_SIERRA_SIZE: SierraSize = 0;
+/// The size of the sierra program for deprecated contracts.
+pub const DEPRECATED_CONTRACT_SIERRA_SIZE: SierraSize = 0;
 
 /// The transaction input to be executed.
 // TODO(yair): This should use broadcasted transactions instead of regular transactions, but the
