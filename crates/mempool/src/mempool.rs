@@ -303,6 +303,28 @@ impl Default for Mempool {
     }
 }
 
+#[derive(Debug, Default)]
+struct MempoolNonces {
+    // Represents the state of the mempool during block creation.
+    optimistic: AccountToNonce,
+    // The most recent account nonces received, for all account in the pool.
+    actual: AccountToNonce,
+}
+
+impl MempoolNonces {
+    fn insert(&mut self, address: ContractAddress, nonce: Nonce) {
+        unimplemented!()
+    }
+
+    fn remove(&mut self, address: ContractAddress) {
+        unimplemented!()
+    }
+
+    fn get(&self, address: ContractAddress) -> Option<&Nonce> {
+        self.optimistic.get(&address).or_else(|| self.actual.get(&address))
+    }
+}
+
 // TODO(Ayelet): Add custom Default implementation for MempoolConfig when fields are added.
 #[derive(Debug, Default)]
 pub struct MempoolConfig {}
