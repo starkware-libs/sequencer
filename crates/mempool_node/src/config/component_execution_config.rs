@@ -155,6 +155,17 @@ impl ComponentExecutionConfig {
             remote_server_config: None,
         }
     }
+
+    pub fn mempool_p2p_default_config() -> Self {
+        Self {
+            execution_mode: ComponentExecutionMode::LocalExecution {
+                enable_remote_connection: false,
+            },
+            local_config: Some(LocalComponentCommunicationConfig::default()),
+            remote_client_config: None,
+            remote_server_config: None,
+        }
+    }
 }
 
 pub fn validate_single_component_config(
