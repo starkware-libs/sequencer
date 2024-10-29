@@ -231,6 +231,17 @@ impl TestStateReader {
     }
 }
 
+pub trait ConsecutiveStateReaders<S: StateReader> {
+    fn get_transaction_executor(
+        self,
+        transaction_executor_config: Option<TransactionExecutorConfig>,
+    ) -> ReexecutionResult<TransactionExecutor<S>>;
+
+    fn get_next_block_txs(&self) -> ReexecutionResult<Vec<BlockifierTransaction>>;
+
+    fn get_next_block_state_diff(&self) -> ReexecutionResult<CommitmentStateDiff>;
+}
+
 pub struct ConsecutiveTestStateReaders {
     pub last_block_state_reader: TestStateReader,
     pub next_block_state_reader: TestStateReader,
@@ -250,8 +261,10 @@ impl ConsecutiveTestStateReaders {
             ),
         }
     }
+}
 
-    pub fn get_transaction_executor(
+impl ConsecutiveStateReaders<TestStateReader> for ConsecutiveTestStateReaders {
+    fn get_transaction_executor(
         self,
         transaction_executor_config: Option<TransactionExecutorConfig>,
     ) -> ReexecutionResult<TransactionExecutor<TestStateReader>> {
@@ -261,11 +274,11 @@ impl ConsecutiveTestStateReaders {
         )
     }
 
-    pub fn get_next_block_txs(&self) -> ReexecutionResult<Vec<BlockifierTransaction>> {
+    fn get_next_block_txs(&self) -> ReexecutionResult<Vec<BlockifierTransaction>> {
         from_api_txs_to_blockifier_txs(self.next_block_state_reader.get_all_txs_in_block()?)
     }
 
-    pub fn get_next_block_state_diff(&self) -> ReexecutionResult<CommitmentStateDiff> {
+    fn get_next_block_state_diff(&self) -> ReexecutionResult<CommitmentStateDiff> {
         self.next_block_state_reader.get_state_diff()
     }
 }
