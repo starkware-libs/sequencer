@@ -22,6 +22,39 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  code_style_no_compile:
+    runs-on: starkware-ubuntu-20-04-medium
+    steps:
+      # Environment setup.
+      - uses: actions/checkout@v4
+      - uses: baptiste0928/cargo-install@v3
+        with:
+          crate: taplo-cli
+          version: '0.9.0'
+          locked: true
+      - uses: actions/setup-python@v5
+        id: setup-pypy
+        with:
+          python-version: "pypy3.9"
+      - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
+      - env:
+          LD_LIBRARY_PATH: ${{ steps.setup-pypy.outputs.pythonLocation }}/bin
+        run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
+      - name: Setup Python venv
+        run: |
+          python3 -m venv ci
+          ci/bin/pip install -r scripts/requirements.txt
+      # Install rust components.
+      - uses: ./.github/actions/bootstrap
+
+      # Run checks
+      - name: "Run rustfmt"
+        run: ci/bin/python scripts/run_tests.py --command rustfmt --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
+      - name: "Run taplo"
+        run: scripts/taplo.sh
+      - name: Run Machete (detect unused dependencies)
+        uses: bnjbvr/cargo-machete@main
+
   code_style:
     runs-on: starkware-ubuntu-20-04-medium
     steps:
@@ -33,11 +66,6 @@ jobs:
           # Fetch the entire history. Required to checkout the merge target commit, so the diff can
           # be computed.
           fetch-depth: 0
-      - uses: baptiste0928/cargo-install@v3
-        with:
-          crate: taplo-cli
-          version: '0.9.0'
-          locked: true
 
       # Setup pypy and link to the location expected by .cargo/config.toml.
       - uses: actions/setup-python@v5
@@ -58,16 +86,12 @@ jobs:
           ci/bin/pip install -r scripts/requirements.txt
 
       # Run tests.
-      - name: "Run rustfmt"
-        run: ci/bin/python scripts/run_tests.py --command rustfmt --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
+
       - name: "Run clippy"
         run: ci/bin/python scripts/run_tests.py --command clippy --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
       - name: "Run cargo doc"
         run: ci/bin/python scripts/run_tests.py --command doc --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
-      - name: "Run taplo"
-        run: scripts/taplo.sh
-      - name: Run Machete (detect unused dependencies)
-        uses: bnjbvr/cargo-machete@main
+
 
   run-workspace-tests:
     runs-on: starkware-ubuntu-latest-medium
