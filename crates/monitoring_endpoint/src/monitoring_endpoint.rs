@@ -10,6 +10,10 @@ use tracing::{info, instrument};
 
 use crate::config::MonitoringEndpointConfig;
 
+#[cfg(test)]
+#[path = "monitoring_endpoit_test.rs"]
+mod monitoring_endpoint_test;
+
 const MONITORING_PREFIX: &str = "monitoring";
 
 pub struct MonitoringEndpoint {
@@ -29,7 +33,7 @@ impl MonitoringEndpoint {
             version = %self.version,
         ),
         level = "debug")]
-    pub async fn run(&self) -> std::result::Result<(), hyper::Error> {
+    pub async fn run(&self) -> Result<(), hyper::Error> {
         let MonitoringEndpointConfig { ip, port } = self.config;
         let endpoint_addr = SocketAddr::new(ip, port);
 

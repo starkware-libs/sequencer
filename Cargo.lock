@@ -10414,6 +10414,8 @@ dependencies = [
  "pretty_assertions",
  "serde",
  "starknet_sequencer_infra",
+ "tokio",
+ "tower 0.4.13",
  "tracing",
  "validator",
 ]
