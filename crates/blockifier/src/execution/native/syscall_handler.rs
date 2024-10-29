@@ -14,7 +14,7 @@ use cairo_native::starknet::{
     SyscallResult,
     U256,
 };
-use cairo_native::starknet_stub::{encode_str_as_felts, u256_to_biguint};
+use cairo_native::starknet_stub::{big4int_to_u256, encode_str_as_felts, u256_to_biguint};
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
@@ -300,46 +300,61 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
 
     fn secp256r1_new(
         &mut self,
-        _x: U256,
-        _y: U256,
-        _remaining_gas: &mut u128,
+        x: U256,
+        y: U256,
+        remaining_gas: &mut u128,
     ) -> SyscallResult<Option<Secp256r1Point>> {
-        todo!("Implement secp256r1_new syscall.");
+        self.pre_execute_syscall(remaining_gas, self.context.gas_costs().secp256r1_new_gas_cost)?;
+
+        Secp256Point::new(x, y).map(|op| op.map(|p| p.into()))
     }
 
     fn secp256r1_add(
         &mut self,
-        _p0: Secp256r1Point,
-        _p1: Secp256r1Point,
-        _remaining_gas: &mut u128,
+        p0: Secp256r1Point,
+        p1: Secp256r1Point,
+        remaining_gas: &mut u128,
     ) -> SyscallResult<Secp256r1Point> {
-        todo!("Implement secp256r1_add syscall.");
+        self.pre_execute_syscall(remaining_gas, self.context.gas_costs().secp256r1_add_gas_cost)?;
+        Ok(Secp256Point::add(p0.into(), p1.into()).into())
     }
 
     fn secp256r1_mul(
         &mut self,
-        _p: Secp256r1Point,
-        _m: U256,
-        _remaining_gas: &mut u128,
+        p: Secp256r1Point,
+        m: U256,
+        remaining_gas: &mut u128,
     ) -> SyscallResult<Secp256r1Point> {
-        todo!("Implement secp256r1_mul syscall.");
+        self.pre_execute_syscall(remaining_gas, self.context.gas_costs().secp256r1_mul_gas_cost)?;
+
+        Ok(Secp256Point::mul(p.into(), m).into())
     }
 
     fn secp256r1_get_point_from_x(
         &mut self,
-        _x: U256,
-        _y_parity: bool,
-        _remaining_gas: &mut u128,
+        x: U256,
+        y_parity: bool,
+        remaining_gas: &mut u128,
     ) -> SyscallResult<Option<Secp256r1Point>> {
-        todo!("Implement secp256r1_get_point_from_x syscall.");
+        self.pre_execute_syscall(
+            remaining_gas,
+            self.context.gas_costs().secp256r1_get_point_from_x_gas_cost,
+        )?;
+
+        Secp256Point::get_point_from_x(x, y_parity).map(|op| op.map(|p| p.into()))
     }
 
     fn secp256r1_get_xy(
         &mut self,
-        _p: Secp256r1Point,
-        _remaining_gas: &mut u128,
+        p: Secp256r1Point,
+        remaining_gas: &mut u128,
     ) -> SyscallResult<(U256, U256)> {
-        todo!("Implement secp256r1_get_xy syscall.");
+        self.pre_execute_syscall(
+            remaining_gas,
+            self.context.gas_costs().secp256r1_get_xy_gas_cost,
+        )?;
+
+        Ok((p.x, p.y))
     }
 
     fn sha256_process_block(
@@ -366,6 +381,46 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
     }
 }
 
+impl From<Secp256Point<ark_secp256k1::Config>> for Secp256k1Point {
+    fn from(Secp256Point(Affine { x, y, infinity }): Secp256Point<ark_secp256k1::Config>) -> Self {
+        Secp256k1Point {
+            x: big4int_to_u256(x.into()),
+            y: big4int_to_u256(y.into()),
+            is_infinity: infinity,
+        }
+    }
+}
+
+impl From<Secp256Point<ark_secp256r1::Config>> for Secp256r1Point {
+    fn from(Secp256Point(Affine { x, y, infinity }): Secp256Point<ark_secp256r1::Config>) -> Self {
+        Secp256r1Point {
+            x: big4int_to_u256(x.into()),
+            y: big4int_to_u256(y.into()),
+            is_infinity: infinity,
+        }
+    }
+}
+
+impl From<Secp256k1Point> for Secp256Point<ark_secp256k1::Config> {
+    fn from(p: Secp256k1Point) -> Self {
+        Secp256Point(Affine {
+            x: u256_to_biguint(p.x).into(),
+            y: u256_to_biguint(p.y).into(),
+            infinity: p.is_infinity,
+        })
+    }
+}
+
+impl From<Secp256r1Point> for Secp256Point<ark_secp256r1::Config> {
+    fn from(p: Secp256r1Point) -> Self {
+        Secp256Point(Affine {
+            x: u256_to_biguint(p.x).into(),
+            y: u256_to_biguint(p.y).into(),
+            infinity: p.is_infinity,
+        })
+    }
+}
+
 // todo(xrvdg) remove dead_code annotation after adding syscalls
 #[allow(dead_code)]
 impl<Curve: SWCurveConfig> Secp256Point<Curve>
@@ -384,6 +439,7 @@ where
         match secp::new_affine(x, y) {
             Ok(None) => Ok(None),
             Ok(Some(affine)) => Ok(Some(Secp256Point(affine))),
+            Err(SyscallExecutionError::SyscallError { error_data: error }) => Err(error),
             Err(error) => Err(encode_str_as_felts(&error.to_string())),
         }
     }
