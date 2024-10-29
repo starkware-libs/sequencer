@@ -25,9 +25,9 @@ impl ComponentExecutionMode {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         match self {
             ComponentExecutionMode::Disabled => BTreeMap::from_iter([ser_param(
-                "skip_component",
+                "Disabled",
                 &"Disabled",
-                "The component is skipped.",
+                "The component is disabled.",
                 ParamPrivacyInput::Public,
             )]),
             ComponentExecutionMode::LocalExecution { enable_remote_connection } => {
