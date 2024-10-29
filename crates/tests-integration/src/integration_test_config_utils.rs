@@ -3,7 +3,7 @@ use std::io::Write;
 
 use anyhow::Result;
 use serde_json::{json, Value};
-use starknet_api::core::ChainId;
+use starknet_api::core::{ChainId, ContractAddress};
 use starknet_sequencer_node::config::SequencerNodeConfig;
 use tracing::info;
 
@@ -43,29 +43,20 @@ macro_rules! config_fields_to_json {
 /// cargo run --bin starknet_sequencer_node -- --config_file NODE_CONFIG_CHANGES_FILE_PATH
 /// Transaction generator:
 /// cargo run --bin run_test_tx_generator -- --config_file TX_GEN_CONFIG_CHANGES_FILE_PATH
-pub fn dump_config_file_changes(config: SequencerNodeConfig, chain_id: ChainId) -> Result<()> {
+pub fn dump_config_file_changes(
+    config: SequencerNodeConfig,
+    required_params: RequiredParams,
+) -> Result<()> {
     // Dump config changes file for the sequencer node.
     let json_data = config_fields_to_json!(
-        chain_id,
+        required_params.chain_id,
+        required_params.strk_fee_token_address,
+        required_params.eth_fee_token_address,
         config.rpc_state_reader_config.json_rpc_version,
         config.rpc_state_reader_config.url,
         config.batcher_config.storage.db_config.path_prefix,
         config.http_server_config.ip,
         config.http_server_config.port,
-        config
-            .batcher_config
-            .block_builder_config
-            .chain_info
-            .fee_token_addresses
-            .eth_fee_token_address,
-        config
-            .batcher_config
-            .block_builder_config
-            .chain_info
-            .fee_token_addresses
-            .strk_fee_token_address,
-        config.gateway_config.chain_info.fee_token_addresses.eth_fee_token_address,
-        config.gateway_config.chain_info.fee_token_addresses.strk_fee_token_address,
         config.consensus_manager_config.consensus_config.start_height,
     );
     dump_json_data(json_data, NODE_CONFIG_CHANGES_FILE_PATH)?;
@@ -74,11 +65,17 @@ pub fn dump_config_file_changes(config: SequencerNodeConfig, chain_id: ChainId) 
     let json_data = config_fields_to_json!(
         config.http_server_config.ip,
         config.http_server_config.port,
-        chain_id,
+        required_params.chain_id,
     );
     dump_json_data(json_data, TX_GEN_CONFIG_CHANGES_FILE_PATH)?;
 
     Ok(())
+}
+
+pub struct RequiredParams {
+    pub chain_id: ChainId,
+    pub strk_fee_token_address: ContractAddress,
+    pub eth_fee_token_address: ContractAddress,
 }
 
 /// Dumps the input JSON data to a file at the specified path.
@@ -96,5 +93,8 @@ fn dump_json_data(json_data: Value, path: &str) -> Result<()> {
 
 /// Strips the "config." prefix from the input string.
 fn strip_config_prefix(input: &str) -> &str {
-    input.strip_prefix("config.").unwrap_or(input)
+    input
+        .strip_prefix("config.")
+        .or_else(|| input.strip_prefix("required_params."))
+        .unwrap_or(input)
 }
