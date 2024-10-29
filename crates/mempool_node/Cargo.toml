@@ -33,6 +33,7 @@ starknet_mempool_types.workspace = true
 starknet_monitoring_endpoint.workspace = true
 starknet_sequencer_infra.workspace = true
 starknet_sierra_compile.workspace = true
+thiserror.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 validator.workspace = true

@@ -1,7 +1,7 @@
 use pretty_assertions::assert_eq;
 
 #[test]
-fn version() {
+fn test_version() {
     let expected_version =
         format!("{}.{}.{}", super::VERSION_MAJOR, super::VERSION_MINOR, super::VERSION_PATCH);
     assert_eq!(super::VERSION, expected_version);
