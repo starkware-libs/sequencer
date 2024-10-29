@@ -10492,6 +10492,7 @@ dependencies = [
  "starknet_monitoring_endpoint",
  "starknet_sequencer_infra",
  "starknet_sierra_compile",
+ "thiserror",
  "tokio",
  "tracing",
  "validator",
