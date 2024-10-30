@@ -6,16 +6,14 @@ use cairo_lang_starknet_classes::contract_class::{
     ContractClass as SierraContractClass,
     ContractEntryPoint as SierraContractEntryPoint,
 };
-use cairo_lang_utils::bigint::BigUintAsHex;
 #[allow(unused_imports)]
 use cairo_native::executor::AotNativeExecutor;
 use starknet_api::core::EntryPointSelector;
 
-use crate::execution::contract_class::{EntryPointsByType, HasSelector};
+use crate::execution::contract_class::{ContractClassV1, EntryPointsByType, HasSelector};
 use crate::execution::entry_point::CallEntryPoint;
 use crate::execution::errors::PreExecutionError;
 use crate::execution::native::utils::contract_entrypoint_to_entrypoint_selector;
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NativeContractClassV1(pub Arc<NativeContractClassV1Inner>);
 impl Deref for NativeContractClassV1 {
@@ -38,8 +36,9 @@ impl NativeContractClassV1 {
     pub fn new(
         executor: AotNativeExecutor,
         sierra_contract_class: SierraContractClass,
+        casm: ContractClassV1,
     ) -> NativeContractClassV1 {
-        let contract = NativeContractClassV1Inner::new(executor, sierra_contract_class);
+        let contract = NativeContractClassV1Inner::new(executor, sierra_contract_class, casm);
 
         Self(Arc::new(contract))
     }
@@ -54,16 +53,19 @@ impl NativeContractClassV1 {
 pub struct NativeContractClassV1Inner {
     pub executor: AotNativeExecutor,
     entry_points_by_type: EntryPointsByType<NativeEntryPoint>,
-    // Storing the raw sierra program and entry points to be able to compare the contract class.
-    sierra_program: Vec<BigUintAsHex>,
+    casm: ContractClassV1,
 }
 
 impl NativeContractClassV1Inner {
-    fn new(executor: AotNativeExecutor, sierra_contract_class: SierraContractClass) -> Self {
+    fn new(
+        executor: AotNativeExecutor,
+        sierra_contract_class: SierraContractClass,
+        casm: ContractClassV1,
+    ) -> Self {
         NativeContractClassV1Inner {
             executor,
             entry_points_by_type: EntryPointsByType::from(&sierra_contract_class),
-            sierra_program: sierra_contract_class.sierra_program,
+            casm,
         }
     }
 }
@@ -72,8 +74,7 @@ impl NativeContractClassV1Inner {
 // be the same therefore we exclude it from the comparison.
 impl PartialEq for NativeContractClassV1Inner {
     fn eq(&self, other: &Self) -> bool {
-        self.entry_points_by_type == other.entry_points_by_type
-            && self.sierra_program == other.sierra_program
+        self.entry_points_by_type == other.entry_points_by_type && self.casm == other.casm
     }
 }
 
