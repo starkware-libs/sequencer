@@ -11,7 +11,7 @@ use papyrus_protobuf::sync::{BlockHashOrNumber, DataOrFin, Direction, Query};
 use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::{StorageError, StorageReader, StorageWriter};
 use starknet_api::block::BlockNumber;
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 use super::{P2PSyncClientError, STEP};
 
@@ -46,7 +46,7 @@ where
         client_response_manager: &'a mut ClientResponsesManager<DataOrFin<InputFromNetwork>>,
         block_number: BlockNumber,
         storage_reader: &'a StorageReader,
-    ) -> BoxFuture<'a, Result<Option<Self::Output>, P2PSyncClientError>>;
+    ) -> BoxFuture<'a, Result<Option<Self::Output>, ParseDataError>>;
 
     fn get_start_block_number(storage_reader: &StorageReader) -> Result<BlockNumber, StorageError>;
 
@@ -102,9 +102,9 @@ where
                 while current_block_number.0 < end_block_number {
                     match Self::parse_data_for_block(
                         &mut client_response_manager, current_block_number, &storage_reader
-                    ).await? {
-                        Some(output) => yield Ok(Box::<dyn BlockData>::from(Box::new(output))),
-                        None => {
+                    ).await {
+                        Ok(Some(output)) => yield Ok(Box::<dyn BlockData>::from(Box::new(output))),
+                        Ok(None) => {
                             debug!(
                                 "Query for {:?} returned with partial data. Waiting {:?} before \
                                  sending another query.",
@@ -113,7 +113,19 @@ where
                             );
                             tokio::time::sleep(wait_period_for_new_data).await;
                             continue 'send_query_and_parse_responses;
-                        }
+                        },
+                        Err(ParseDataError::BadPeer(err)) => {
+                            warn!(
+                                "Query for {:?} returned with bad peer error: {:?}. retrying query.",
+                                Self::TYPE_DESCRIPTION, err
+                            );
+                            client_response_manager.report_peer();
+                            continue 'send_query_and_parse_responses;
+                        },
+                        Err(ParseDataError::Fatal(err)) => {
+                            yield Err(err);
+                            return;
+                        },
                     }
                     info!("Added {:?} for block {}.", Self::TYPE_DESCRIPTION, current_block_number);
                     current_block_number = current_block_number.unchecked_next();
@@ -138,5 +150,34 @@ where
             }
         }
         .boxed()
+    }
+}
+
+#[derive(thiserror::Error, Debug)]
+pub(crate) enum BadPeerError {}
+
+#[derive(thiserror::Error, Debug)]
+pub(crate) enum ParseDataError {
+    #[error(transparent)]
+    Fatal(#[from] P2PSyncClientError),
+    #[error(transparent)]
+    BadPeer(#[from] BadPeerError),
+}
+
+impl From<StorageError> for ParseDataError {
+    fn from(err: StorageError) -> Self {
+        ParseDataError::Fatal(P2PSyncClientError::StorageError(err))
+    }
+}
+
+impl From<tokio::time::error::Elapsed> for ParseDataError {
+    fn from(err: tokio::time::error::Elapsed) -> Self {
+        ParseDataError::Fatal(P2PSyncClientError::NetworkTimeout(err))
+    }
+}
+
+impl From<ProtobufConversionError> for ParseDataError {
+    fn from(err: ProtobufConversionError) -> Self {
+        ParseDataError::Fatal(P2PSyncClientError::ProtobufConversionError(err))
     }
 }

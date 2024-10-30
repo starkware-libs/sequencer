@@ -10,7 +10,7 @@ use papyrus_storage::{StorageError, StorageReader, StorageWriter};
 use starknet_api::block::BlockNumber;
 use tracing::debug;
 
-use super::stream_builder::{BlockData, BlockNumberLimit, DataStreamBuilder};
+use super::stream_builder::{BlockData, BlockNumberLimit, DataStreamBuilder, ParseDataError};
 use super::{P2PSyncClientError, ALLOWED_SIGNATURES_LENGTH, NETWORK_DATA_TIMEOUT};
 
 impl BlockData for SignedBlockHeader {
@@ -68,7 +68,7 @@ impl DataStreamBuilder<SignedBlockHeader> for HeaderStreamBuilder {
         >,
         block_number: BlockNumber,
         _storage_reader: &'a StorageReader,
-    ) -> BoxFuture<'a, Result<Option<Self::Output>, P2PSyncClientError>> {
+    ) -> BoxFuture<'a, Result<Option<Self::Output>, ParseDataError>> {
         async move {
             let maybe_signed_header =
                 tokio::time::timeout(NETWORK_DATA_TIMEOUT, signed_headers_response_manager.next())
@@ -84,18 +84,18 @@ impl DataStreamBuilder<SignedBlockHeader> for HeaderStreamBuilder {
             if block_number
                 != signed_block_header.block_header.block_header_without_hash.block_number
             {
-                return Err(P2PSyncClientError::HeadersUnordered {
+                return Err(ParseDataError::Fatal(P2PSyncClientError::HeadersUnordered {
                     expected_block_number: block_number,
                     actual_block_number: signed_block_header
                         .block_header
                         .block_header_without_hash
                         .block_number,
-                });
+                }));
             }
             if signed_block_header.signatures.len() != ALLOWED_SIGNATURES_LENGTH {
-                return Err(P2PSyncClientError::WrongSignaturesLength {
+                return Err(ParseDataError::Fatal(P2PSyncClientError::WrongSignaturesLength {
                     signatures: signed_block_header.signatures,
-                });
+                }));
             }
             Ok(Some(signed_block_header))
         }

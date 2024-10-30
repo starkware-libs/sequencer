@@ -13,7 +13,12 @@ use papyrus_storage::{StorageError, StorageReader, StorageWriter};
 use starknet_api::block::BlockNumber;
 use starknet_api::state::ThinStateDiff;
 
-use crate::client::stream_builder::{BlockData, BlockNumberLimit, DataStreamBuilder};
+use crate::client::stream_builder::{
+    BlockData,
+    BlockNumberLimit,
+    DataStreamBuilder,
+    ParseDataError,
+};
 use crate::client::{P2PSyncClientError, NETWORK_DATA_TIMEOUT};
 
 impl BlockData for (ThinStateDiff, BlockNumber) {
@@ -43,7 +48,7 @@ impl DataStreamBuilder<StateDiffChunk> for StateDiffStreamBuilder {
         >,
         block_number: BlockNumber,
         storage_reader: &'a StorageReader,
-    ) -> BoxFuture<'a, Result<Option<Self::Output>, P2PSyncClientError>> {
+    ) -> BoxFuture<'a, Result<Option<Self::Output>, ParseDataError>> {
         async move {
             let mut result = ThinStateDiff::default();
             let mut prev_result_len = 0;
@@ -71,15 +76,17 @@ impl DataStreamBuilder<StateDiffChunk> for StateDiffStreamBuilder {
                     if current_state_diff_len == 0 {
                         return Ok(None);
                     } else {
-                        return Err(P2PSyncClientError::WrongStateDiffLength {
-                            expected_length: target_state_diff_len,
-                            possible_lengths: vec![current_state_diff_len],
-                        });
+                        return Err(ParseDataError::Fatal(
+                            P2PSyncClientError::WrongStateDiffLength {
+                                expected_length: target_state_diff_len,
+                                possible_lengths: vec![current_state_diff_len],
+                            },
+                        ));
                     }
                 };
                 prev_result_len = current_state_diff_len;
                 if state_diff_chunk.is_empty() {
-                    return Err(P2PSyncClientError::EmptyStateDiffPart);
+                    return Err(ParseDataError::Fatal(P2PSyncClientError::EmptyStateDiffPart));
                 }
                 // It's cheaper to calculate the length of `state_diff_part` than the length of
                 // `result`.
@@ -88,10 +95,10 @@ impl DataStreamBuilder<StateDiffChunk> for StateDiffStreamBuilder {
             }
 
             if current_state_diff_len != target_state_diff_len {
-                return Err(P2PSyncClientError::WrongStateDiffLength {
+                return Err(ParseDataError::Fatal(P2PSyncClientError::WrongStateDiffLength {
                     expected_length: target_state_diff_len,
                     possible_lengths: vec![prev_result_len, current_state_diff_len],
-                });
+                }));
             }
 
             validate_deprecated_declared_classes_non_conflicting(&result)?;
