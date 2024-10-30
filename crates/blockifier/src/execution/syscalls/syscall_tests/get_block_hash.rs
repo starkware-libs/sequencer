@@ -40,7 +40,10 @@ fn initialize_state(test_contract: FeatureContract) -> (CachedState<DictStateRea
     (state, block_number, block_hash)
 }
 
-#[test_case(FeatureContract::TestContract(CairoVersion::Native), 15220; "Native")]
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(FeatureContract::TestContract(CairoVersion::Native), 15220; "Native")
+)]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 5220; "VM")]
 fn positive_flow(test_contract: FeatureContract, expected_gas: u64) {
     let (mut state, block_number, block_hash) = initialize_state(test_contract);
@@ -61,7 +64,10 @@ fn positive_flow(test_contract: FeatureContract, expected_gas: u64) {
     );
 }
 
-#[test_case(FeatureContract::TestContract(CairoVersion::Native); "Native")]
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(FeatureContract::TestContract(CairoVersion::Native); "Native")
+)]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1); "VM")]
 fn negative_flow_execution_mode_validate(test_contract: FeatureContract) {
     let (mut state, block_number, _) = initialize_state(test_contract);
@@ -88,7 +94,10 @@ fn negative_flow_execution_mode_validate(test_contract: FeatureContract) {
     }
 }
 
-#[test_case(FeatureContract::TestContract(CairoVersion::Native); "Native")]
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(FeatureContract::TestContract(CairoVersion::Native); "Native")
+)]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1); "VM")]
 fn negative_flow_block_number_out_of_range(test_contract: FeatureContract) {
     let (mut state, _, _) = initialize_state(test_contract);
