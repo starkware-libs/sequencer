@@ -1,8 +1,12 @@
+use std::collections::HashMap;
+
 use assert_matches::assert_matches;
 use blockifier::blockifier::block::BlockInfo;
+use blockifier::state::cached_state::StateMaps;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
+use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey};
 use starknet_api::test_utils::read_json_file;
 use starknet_api::transaction::{
     DeclareTransaction,
@@ -10,9 +14,19 @@ use starknet_api::transaction::{
     InvokeTransaction,
     Transaction,
 };
+use starknet_api::{
+    class_hash,
+    compiled_class_hash,
+    contract_address,
+    felt,
+    nonce,
+    patricia_key,
+    storage_key,
+};
 use starknet_core::types::ContractClass;
 use starknet_gateway::rpc_objects::BlockHeader;
 
+use super::utils::ReexecutionStateMaps;
 use crate::state_reader::compile::legacy_to_contract_class_v0;
 use crate::state_reader::serde_utils::deserialize_transaction_json_to_starknet_api_tx;
 
@@ -118,4 +132,28 @@ fn deserialize_declare_txs(
         }
         _ => panic!("Unknown scenario '{declare_version}'"),
     }
+}
+
+#[rstest]
+fn serialize_state_maps() {
+    let nonces = HashMap::from([(contract_address!(1_u8), nonce!(1_u8))]);
+    let class_hashes = HashMap::from([(contract_address!(1_u8), class_hash!(27_u8))]);
+    let compiled_class_hashes = HashMap::from([(class_hash!(27_u8), compiled_class_hash!(27_u8))]);
+    let declared_contracts = HashMap::from([(class_hash!(27_u8), true)]);
+    let storage = HashMap::from([
+        ((contract_address!(1_u8), storage_key!(27_u8)), felt!(1_u8)),
+        ((contract_address!(30_u8), storage_key!(27_u8)), felt!(2_u8)),
+        ((contract_address!(30_u8), storage_key!(28_u8)), felt!(3_u8)),
+    ]);
+
+    let state_maps = ReexecutionStateMaps::from(StateMaps {
+        nonces,
+        class_hashes,
+        storage,
+        compiled_class_hashes,
+        declared_contracts,
+    });
+
+    // Check that the created statemaps can be serialized.
+    serde_json::to_string_pretty(&state_maps).expect("Failed to serialize state maps");
 }
