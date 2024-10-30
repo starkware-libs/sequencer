@@ -24,5 +24,6 @@ pub fn deploy_account_tx(
     );
     let executable_deploy_account_tx =
         DeployAccountTransaction::new(deploy_account_tx, tx_hash, contract_address);
+
     AccountTransaction::DeployAccount(executable_deploy_account_tx)
 }
