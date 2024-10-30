@@ -168,66 +168,6 @@ pub fn starknet_compile(
     sierra_output.stdout
 }
 
-pub fn sierra_compile(
-    path: String,
-    git_tag_override: Option<String>,
-    cargo_nightly_arg: Option<String>,
-) -> Vec<u8> {
-    prepare_cairo1_compiler_deps(git_tag_override);
-
-    let cairo1_compiler_path = local_cairo1_compiler_repo_path();
-
-    // Command args common to both compilation phases.
-    let mut base_compile_args = vec![
-        "run".into(),
-        format!("--manifest-path={}/Cargo.toml", cairo1_compiler_path.to_string_lossy()),
-        "--bin".into(),
-    ];
-    // Add additional cargo arg if provided. Should be first arg (base command is `cargo`).
-    if let Some(nightly_version) = cargo_nightly_arg {
-        base_compile_args.insert(0, format!("+nightly-{nightly_version}"));
-    }
-
-    // Cairo -> Sierra.
-    let mut starknet_compile_commmand = Command::new("cargo");
-    starknet_compile_commmand.args(base_compile_args.clone());
-    starknet_compile_commmand.args(["starknet-compile", "--", "--single-file", &path]);
-    let sierra_output = run_and_verify_output(&mut starknet_compile_commmand);
-
-    sierra_output.stdout
-}
-
-/// Verifies that the required dependencies are available before compiling; panics if unavailable.
-fn verify_cairo0_compiler_deps() {
-    // Python compiler. Verify correct version.
-    let cairo_lang_version_output =
-        Command::new("sh").arg("-c").arg("pip freeze | grep cairo-lang").output().unwrap().stdout;
-    let cairo_lang_version_untrimmed = String::from_utf8(cairo_lang_version_output).unwrap();
-    let cairo_lang_version = cairo_lang_version_untrimmed.trim();
-    let requirements_contents = fs::read_to_string(CAIRO0_PIP_REQUIREMENTS_FILE).unwrap();
-    let expected_cairo_lang_version = requirements_contents
-        .lines()
-        .nth(1) // Skip docstring.
-        .expect(
-            "Expecting requirements file to contain a docstring in the first line, and \
-            then the required cairo-lang version in the second line."
-        ).trim();
-
-    assert_eq!(
-        cairo_lang_version,
-        expected_cairo_lang_version,
-        "cairo-lang version {expected_cairo_lang_version} not found ({}). Please run:\npip3.9 \
-         install -r {}/{}\nthen rerun the test.",
-        if cairo_lang_version.is_empty() {
-            String::from("no installed cairo-lang found")
-        } else {
-            format!("installed version: {cairo_lang_version}")
-        },
-        env::var("CARGO_MANIFEST_DIR").unwrap(),
-        CAIRO0_PIP_REQUIREMENTS_FILE
-    );
-}
-
 fn prepare_cairo1_compiler_deps(git_tag_override: Option<String>) {
     let cairo_repo_path = local_cairo1_compiler_repo_path();
     let tag = git_tag_override.unwrap_or(cairo1_compiler_tag());
