@@ -173,16 +173,15 @@ where
     let account0_invoke_nonce2 =
         tx_generator.account_with_id(ACCOUNT_ID_0).generate_invoke_with_tip(3);
 
-    // Send RPC transactions.
-    let account1_invoke_nonce1_tx_hash = send_rpc_tx(account1_invoke_nonce1, send_rpc_tx_fn).await;
-    let account0_invoke_nonce1_tx_hash = send_rpc_tx(account0_invoke_nonce1, send_rpc_tx_fn).await;
-    let account0_invoke_nonce2_tx_hash = send_rpc_tx(account0_invoke_nonce2, send_rpc_tx_fn).await;
+    let rpc_txs = vec![account1_invoke_nonce1, account0_invoke_nonce1, account0_invoke_nonce2];
 
-    vec![
-        account1_invoke_nonce1_tx_hash,
-        account0_invoke_nonce1_tx_hash,
-        account0_invoke_nonce2_tx_hash,
-    ]
+    // Send RPC transactions.
+    let mut tx_hashes = vec![];
+    for rpc_tx in rpc_txs {
+        tx_hashes.push(send_rpc_tx(rpc_tx, send_rpc_tx_fn).await);
+    }
+
+    tx_hashes
 }
 
 /// Sends an RPC transaction using the supplied sending function, and returns its hash.
