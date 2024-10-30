@@ -110,7 +110,7 @@ async fn build_and_await_block_proposal(
         .await
         .unwrap();
 
-    proposal_manager.await_active_proposal().await;
+    assert!(proposal_manager.await_active_proposal().await);
 }
 
 #[rstest]
@@ -241,4 +241,38 @@ async fn test_take_proposal_result_no_active_proposal(mut mock_dependencies: Moc
         proposal_manager.take_proposal_result(ProposalId(0)).await,
         Err(GetProposalResultError::ProposalDoesNotExist { .. })
     );
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_abort_and_restart_height(mut mock_dependencies: MockDependencies) {
+    mock_dependencies.expect_build_block(1);
+    mock_dependencies.expect_long_build_block(1);
+
+    // Start a new height and create a proposal.
+    let (output_tx_sender, _rec) = output_streaming();
+    let mut proposal_manager = init_proposal_manager(mock_dependencies);
+    proposal_manager.start_height(INITIAL_HEIGHT).await.unwrap();
+    build_and_await_block_proposal(&mut proposal_manager, ProposalId(0)).await;
+
+    // Start a new proposal, which will remain active.
+    assert!(
+        proposal_manager
+            .build_block_proposal(ProposalId(1), None, proposal_deadline(), output_tx_sender)
+            .await
+            .is_ok()
+    );
+
+    // Restart the same height. This should abort and delete all existing proposals.
+    assert!(proposal_manager.start_height(INITIAL_HEIGHT).await.is_ok());
+
+    // Make sure executed proposals are deleted.
+    assert_matches!(
+        proposal_manager.take_proposal_result(ProposalId(0)).await,
+        Err(GetProposalResultError::ProposalDoesNotExist { .. })
+    );
+
+    // Make sure there is no active proposal.
+    // TODO: uncommomment once the abort is implemented. This line will panic now.
+    // assert!(!proposal_manager.await_active_proposal().await);
 }
