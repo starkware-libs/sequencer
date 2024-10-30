@@ -2,9 +2,8 @@ use blockifier_reexecution::state_reader::test_state_reader::{
     ConsecutiveStateReaders,
     ConsecutiveTestStateReaders,
 };
-use blockifier_reexecution::state_reader::utils::JSON_RPC_VERSION;
+use blockifier_reexecution::state_reader::utils::{assert_eq_state_diff, JSON_RPC_VERSION};
 use clap::{Args, Parser, Subcommand};
-use pretty_assertions::assert_eq;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ContractAddress;
 use starknet_gateway::config::RpcStateReaderConfig;
@@ -89,8 +88,10 @@ fn main() {
                 transaction_executor.finalize().expect("Couldn't finalize block");
             // TODO(Aner): compute correct block hash at storage slot 0x1 instead of removing it.
             expected_state_diff.storage_updates.shift_remove(&ContractAddress(1_u128.into()));
-            assert_eq!(expected_state_diff, actual_state_diff);
 
+            // Compare the expected and actual state differences
+            // by avoiding discrepancies caused by insertion order
+            assert_eq_state_diff(expected_state_diff, actual_state_diff);
             println!("RPC test passed successfully.");
         }
         Command::WriteRpcRepliesToJson { .. } => todo!(),
