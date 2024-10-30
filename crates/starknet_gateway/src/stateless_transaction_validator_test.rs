@@ -2,13 +2,13 @@ use std::sync::LazyLock;
 use std::vec;
 
 use assert_matches::assert_matches;
-use mempool_test_utils::declare_tx_args;
 use mempool_test_utils::starknet_api_test_utils::rpc_declare_tx;
 use rstest::rstest;
 use starknet_api::core::{EntryPointSelector, L2_ADDRESS_UPPER_BOUND};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::rpc_transaction::{ContractClass, EntryPointByType};
 use starknet_api::state::EntryPoint;
+use starknet_api::test_utils::declare::TEST_SENDER_ADDRESS;
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
@@ -17,7 +17,7 @@ use starknet_api::transaction::fields::{
     ResourceBounds,
     TransactionSignature,
 };
-use starknet_api::{calldata, contract_address, felt, StarknetApiError};
+use starknet_api::{calldata, contract_address, declare_tx_args, felt, StarknetApiError};
 use starknet_types_core::felt::Felt;
 
 use crate::compiler_version::{VersionId, VersionIdError};
@@ -361,7 +361,10 @@ fn test_declare_sierra_version_failure(
         StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone() };
 
     let contract_class = ContractClass { sierra_program, ..Default::default() };
-    let tx = rpc_declare_tx(declare_tx_args!(contract_class));
+    let tx = rpc_declare_tx(
+        declare_tx_args!(sender_address: TEST_SENDER_ADDRESS.into()),
+        contract_class,
+    );
 
     assert_eq!(tx_validator.validate(&tx).unwrap_err(), expected_error);
 }
@@ -381,7 +384,10 @@ fn test_declare_sierra_version_sucsses(#[case] sierra_program: Vec<Felt>) {
         StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone() };
 
     let contract_class = ContractClass { sierra_program, ..Default::default() };
-    let tx = rpc_declare_tx(declare_tx_args!(contract_class));
+    let tx = rpc_declare_tx(
+        declare_tx_args!(sender_address: TEST_SENDER_ADDRESS.into()),
+        contract_class,
+    );
 
     assert_matches!(tx_validator.validate(&tx), Ok(()));
 }
@@ -400,7 +406,10 @@ fn test_declare_contract_class_size_too_long() {
         ..Default::default()
     };
     let contract_class_length = serde_json::to_string(&contract_class).unwrap().len();
-    let tx = rpc_declare_tx(declare_tx_args!(contract_class));
+    let tx = rpc_declare_tx(
+        declare_tx_args!(sender_address: TEST_SENDER_ADDRESS.into()),
+        contract_class,
+    );
 
     assert_matches!(
         tx_validator.validate(&tx).unwrap_err(),
@@ -468,7 +477,10 @@ fn test_declare_entry_points_not_sorted_by_selector(
         },
         ..Default::default()
     };
-    let tx = rpc_declare_tx(declare_tx_args!(contract_class));
+    let tx = rpc_declare_tx(
+        declare_tx_args!(sender_address: TEST_SENDER_ADDRESS.into()),
+        contract_class,
+    );
 
     assert_eq!(tx_validator.validate(&tx), expected);
 
@@ -481,7 +493,10 @@ fn test_declare_entry_points_not_sorted_by_selector(
         },
         ..Default::default()
     };
-    let tx = rpc_declare_tx(declare_tx_args!(contract_class));
+    let tx = rpc_declare_tx(
+        declare_tx_args!(sender_address: TEST_SENDER_ADDRESS.into()),
+        contract_class,
+    );
 
     assert_eq!(tx_validator.validate(&tx), expected);
 
@@ -494,7 +509,10 @@ fn test_declare_entry_points_not_sorted_by_selector(
         },
         ..Default::default()
     };
-    let tx = rpc_declare_tx(declare_tx_args!(contract_class));
+    let tx = rpc_declare_tx(
+        declare_tx_args!(sender_address: TEST_SENDER_ADDRESS.into()),
+        contract_class,
+    );
 
     assert_eq!(tx_validator.validate(&tx), expected);
 }

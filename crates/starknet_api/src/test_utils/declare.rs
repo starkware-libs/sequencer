@@ -19,6 +19,8 @@ use crate::transaction::{
     TransactionVersion,
 };
 
+pub const TEST_SENDER_ADDRESS: u128 = 0x1000;
+
 #[derive(Clone)]
 pub struct DeclareTxArgs {
     pub max_fee: Fee,
