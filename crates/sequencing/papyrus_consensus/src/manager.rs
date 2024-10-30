@@ -18,7 +18,7 @@ use starknet_api::core::ContractAddress;
 use tracing::{debug, info, instrument};
 
 use crate::config::TimeoutsConfig;
-use crate::single_height_consensus::{ShcReturn, ShcTask, SingleHeightConsensus};
+use crate::single_height_consensus::{ShcReturn, SingleHeightConsensus};
 use crate::types::{
     BroadcastConsensusMessageChannel,
     ConsensusContext,
@@ -125,13 +125,13 @@ impl MultiHeightManager {
             validators,
             self.timeouts.clone(),
         );
-        let mut shc_tasks = FuturesUnordered::new();
+        let mut shc_events = FuturesUnordered::new();
 
         match shc.start(context).await? {
             ShcReturn::Decision(decision) => return Ok(decision),
             ShcReturn::Tasks(tasks) => {
                 for task in tasks {
-                    shc_tasks.push(create_task_handler(task));
+                    shc_events.push(task.run());
                 }
             }
         }
@@ -142,8 +142,8 @@ impl MultiHeightManager {
                 message = next_message(&mut current_height_messages, broadcast_channels) => {
                     self.handle_message(context, height, &mut shc, message?).await?
                 },
-                Some(shc_task) = shc_tasks.next() => {
-                    shc.handle_event(context, shc_task.event).await?
+                Some(shc_event) = shc_events.next() => {
+                    shc.handle_event(context, shc_event).await?
                 },
             };
 
@@ -151,7 +151,7 @@ impl MultiHeightManager {
                 ShcReturn::Decision(decision) => return Ok(decision),
                 ShcReturn::Tasks(tasks) => {
                     for task in tasks {
-                        shc_tasks.push(create_task_handler(task));
+                        shc_events.push(task.run());
                     }
                 }
             }
@@ -277,9 +277,4 @@ where
             }
         }
     }
-}
-
-async fn create_task_handler(task: ShcTask) -> ShcTask {
-    tokio::time::sleep(task.duration).await;
-    task
 }
