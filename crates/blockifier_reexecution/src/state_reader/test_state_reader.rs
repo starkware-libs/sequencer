@@ -66,7 +66,15 @@ impl StateReader for TestStateReader {
         contract_address: ContractAddress,
         key: StorageKey,
     ) -> StateResult<Felt> {
-        self.rpc_state_reader.get_storage_at(contract_address, key)
+        match self.rpc_state_reader.get_storage_at(contract_address, key) {
+            Ok(value) => Ok(value),
+            // If the contract address is not found, The blockifier expect to get the default value
+            // of felt.
+            Err(e) if e.to_string().contains("Contract address not found for request") => {
+                Ok(Felt::default())
+            }
+            Err(e) => panic!("Unexpected error in get_storage_at: {:?}", e),
+        }
     }
 
     fn get_class_hash_at(&self, contract_address: ContractAddress) -> StateResult<ClassHash> {
