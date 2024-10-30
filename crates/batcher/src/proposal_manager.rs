@@ -109,6 +109,7 @@ pub(crate) struct ProposalManager {
 type ActiveTaskHandle = tokio::task::JoinHandle<()>;
 pub type ProposalResult<T> = Result<T, GetProposalResultError>;
 
+#[derive(Debug, PartialEq)]
 pub struct ProposalOutput {
     pub state_diff: ThinStateDiff,
     pub commitment: ProposalCommitment,
