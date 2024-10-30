@@ -20,6 +20,7 @@ use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 use validator::Validate;
 
 use crate::config::ComponentConfig;
+use crate::utils::get_absolute_path;
 use crate::version::VERSION_FULL;
 
 // The path of the default configuration file, provided as part of the crate.
@@ -69,8 +70,7 @@ pub struct SequencerNodeConfig {
 
 impl SerializeConfig for SequencerNodeConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        #[allow(unused_mut)]
-        let mut sub_configs = vec![
+        let sub_configs = vec![
             append_sub_config_name(self.components.dump(), "components"),
             append_sub_config_name(self.batcher_config.dump(), "batcher_config"),
             append_sub_config_name(
@@ -117,11 +117,11 @@ impl SequencerNodeConfig {
         config_file_name: Option<&str>,
     ) -> Result<Self, ConfigError> {
         let config_file_name = match config_file_name {
-            Some(file_name) => file_name,
-            None => DEFAULT_CONFIG_PATH,
+            Some(file_name) => Path::new(file_name),
+            None => &get_absolute_path(DEFAULT_CONFIG_PATH),
         };
 
-        let default_config_file = File::open(Path::new(config_file_name))?;
+        let default_config_file = File::open(config_file_name)?;
         load_and_process_config(default_config_file, node_command(), args)
     }
 
