@@ -1,0 +1,79 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: sequencer-system-mempool-service
+  namespace: test-namespace
+spec:
+  ports:
+    - port: 80
+      targetPort: 8080
+  selector:
+    app: sequencer-system-mempool
+  type: LoadBalancer
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sequencer-system-mempool-config
+  namespace: test-namespace
+data:
+  config: '{"chain_id": "SN_SEPOLIA", "starknet_url": "https://alpha-sepolia.starknet.io/", "base_layer.starknet_contract_address": "0xe2bb56ee936fd6433dc0f6e7e3b8365c906aa057"}'
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sequencer-system-mempool-deployment
+  namespace: test-namespace
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: sequencer-system-mempool
+  template:
+    metadata:
+      labels:
+        app: sequencer-system-mempool
+    spec:
+      containers:
+        - image: paulbouwer/hello-kubernetes:1.7
+          name: web
+          ports:
+            - containerPort: 8080
+      volumes:
+        - configMap:
+            name: sequencer-system-mempool-config
+          name: sequencer-system-mempool-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sequencer-system-batcher-service
+  namespace: test-namespace
+spec:
+  ports:
+    - port: 80
+      targetPort: 2368
+  selector:
+    app: sequencer-system-batcher
+  type: LoadBalancer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sequencer-system-batcher-deployment
+  namespace: test-namespace
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sequencer-system-batcher
+  template:
+    metadata:
+      labels:
+        app: sequencer-system-batcher
+    spec:
+      containers:
+        - image: ghost
+          name: web
+          ports:
+            - containerPort: 2368

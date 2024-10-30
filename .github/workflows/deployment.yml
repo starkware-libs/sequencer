@@ -1,0 +1,36 @@
+name: Sequencer Deployment Test
+on:
+  push:
+    branches:
+      - main
+      - main-v[0-9].**
+    tags:
+      - v[0-9].**
+    # TODO(Dori, 1/9/2024): Decide when exactly native-blockifier artifacts will be built. Until
+    #   then, keep the 'paths' key empty and build on every push to a release branch / tag.
+
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - auto_merge_enabled
+      - edited
+    paths:
+    - 'deployments/sequencer/*'
+
+
+jobs:
+  deployment:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          # Install deps.
+          npm install -g cdk8s-cli
+          python3 -m pip install pipenv
+
+          # Synthesize the CDK8s Sequencer app.
+          cd deployments/sequencer
+          cdk8s synth
+          diff -au references/sequencer-system.k8s.yaml dist/sequencer-system.k8s.yaml
