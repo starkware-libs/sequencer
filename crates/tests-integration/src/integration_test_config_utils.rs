@@ -58,8 +58,11 @@ pub fn dump_config_file_changes(config: SequencerNodeConfig) -> anyhow::Result<(
     dump_json_data(json_data, NODE_CONFIG_CHANGES_FILE_PATH)?;
 
     //  Dump config changes file for the transaction generator.
-    let json_data =
-        config_fields_to_json!(config.http_server_config.ip, config.http_server_config.port,);
+    let json_data = config_fields_to_json!(
+        config.chain_id,
+        config.http_server_config.ip,
+        config.http_server_config.port,
+    );
     dump_json_data(json_data, TX_GEN_CONFIG_CHANGES_FILE_PATH)?;
 
     Ok(())
