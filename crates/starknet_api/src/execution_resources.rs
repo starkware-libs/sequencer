@@ -9,7 +9,7 @@ use crate::transaction::{Fee, Resource};
 
 #[cfg_attr(
     any(test, feature = "testing"),
-    derive(derive_more::Add, derive_more::Sum, derive_more::AddAssign)
+    derive(derive_more::Add, derive_more::Sum, derive_more::AddAssign, derive_more::Div)
 )]
 #[derive(
     derive_more::Display,
