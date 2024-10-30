@@ -7,7 +7,6 @@ use blockifier::test_utils::CairoVersion;
 use blockifier::transaction::errors::{TransactionFeeError, TransactionPreValidationError};
 use mempool_test_utils::starknet_api_test_utils::{
     executable_invoke_tx as create_executable_invoke_tx,
-    TEST_SENDER_ADDRESS,
     VALID_L1_GAS_MAX_AMOUNT,
     VALID_L1_GAS_MAX_PRICE_PER_UNIT,
 };
@@ -19,6 +18,7 @@ use starknet_api::block::GasPrice;
 use starknet_api::core::Nonce;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::execution_resources::GasAmount;
+use starknet_api::test_utils::declare::TEST_SENDER_ADDRESS;
 use starknet_api::test_utils::deploy_account::executable_deploy_account_tx;
 use starknet_api::test_utils::invoke::executable_invoke_tx;
 use starknet_api::test_utils::NonceManager;
