@@ -9,12 +9,16 @@ on:
       - '.github/workflows/papyrus_docker-publish.yml'
       - 'crates/papyrus**/**'
       - 'scripts/dependencies.sh'
+      - 'deployments/images/base/Dockerfile'
+      - 'deployments/images/papyrus/Dockerfile'
 
   pull_request:
     paths:
       - '.github/workflows/papyrus_docker-publish.yml'
       - 'crates/papyrus**/**'
       - 'scripts/dependencies.sh'
+      - 'deployments/images/base/Dockerfile'
+      - 'deployments/images/papyrus/Dockerfile'
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 concurrency:
@@ -72,6 +76,7 @@ jobs:
         uses: docker/build-push-action@v3.2.0
         with:
           context: .
+          file: deployments/images/papyrus/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
