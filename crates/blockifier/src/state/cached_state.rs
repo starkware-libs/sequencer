@@ -1,7 +1,8 @@
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use indexmap::IndexMap;
+use serde::{Serialize, Serializer};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
@@ -545,12 +546,51 @@ type StorageDiff = IndexMap<ContractAddress, IndexMap<StorageKey, Felt>>;
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct CommitmentStateDiff {
     // Contract instance attributes (per address).
+    #[serde(serialize_with = "serialize_sorted")]
     pub address_to_class_hash: IndexMap<ContractAddress, ClassHash>,
+    #[serde(serialize_with = "serialize_sorted")]
     pub address_to_nonce: IndexMap<ContractAddress, Nonce>,
+    #[serde(serialize_with = "serialize_nested_sorted")]
     pub storage_updates: IndexMap<ContractAddress, IndexMap<StorageKey, Felt>>,
 
     // Global attributes.
+    #[serde(serialize_with = "serialize_sorted")]
     pub class_hash_to_compiled_class_hash: IndexMap<ClassHash, CompiledClassHash>,
+}
+
+// Define custom serializer to sort by keys.
+fn serialize_sorted<S, K, V>(map: &IndexMap<K, V>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+    K: Ord + Serialize,
+    V: Serialize,
+{
+    // Convert the IndexMap to BTreeMap, which automatically sorts keys.
+    let sorted_map: BTreeMap<_, _> = map.iter().collect();
+    sorted_map.serialize(serializer)
+}
+
+// Custom serializer for nested `IndexMap` with different key types.
+fn serialize_nested_sorted<S, OuterK, InnerK, V>(
+    map: &IndexMap<OuterK, IndexMap<InnerK, V>>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+    OuterK: Ord + Serialize,
+    InnerK: Ord + Serialize,
+    V: Serialize,
+{
+    // Sort each inner `IndexMap` and store in a `BTreeMap` for serialization.
+    let sorted_map: BTreeMap<_, BTreeMap<_, _>> = map
+        .iter()
+        .map(|(outer_key, inner_map)| {
+            let sorted_inner_map: BTreeMap<_, _> = inner_map.iter().collect();
+            (outer_key, sorted_inner_map)
+        })
+        .collect();
+
+    sorted_map.serialize(serializer)
 }
 
 impl From<StateMaps> for CommitmentStateDiff {
