@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::fs::File;
 use std::path::Path;
 use std::sync::LazyLock;
+use std::vec::Vec;
 
 use clap::Command;
 use papyrus_config::dumping::{
@@ -34,12 +35,30 @@ pub const DEFAULT_CONFIG_PATH: &str = "config/mempool/default_config.json";
 
 // Configuration parameters that share the same value across multiple components.
 pub const DEFAULT_CHAIN_ID: ChainId = ChainId::Mainnet;
+
+// Required target parameters.
+pub static REQUIRED_PARAM_CONFIG_POINTERS: LazyLock<Vec<(ParamPath, SerializedParam)>> =
+    LazyLock::new(|| {
+        vec![ser_pointer_target_required_param(
+            "chain_id",
+            SerializationType::String,
+            "The chain to follow.",
+        )]
+    });
+
+// TODO(Tsabary): Create a struct detailing all the required parameters and their types. Add a macro
+// that verifies the correctness of the required parameters compared to
+// REQUIRED_PARAM_CONFIG_POINTERS.
+
+// Optional target parameters, i.e., target parameters with default values.
+pub static DEFAULT_PARAM_CONFIG_POINTERS: LazyLock<Vec<(ParamPath, SerializedParam)>> =
+    LazyLock::new(Vec::new);
+
+// All target parameters.
 pub static CONFIG_POINTERS: LazyLock<Vec<(ParamPath, SerializedParam)>> = LazyLock::new(|| {
-    vec![ser_pointer_target_required_param(
-        "chain_id",
-        SerializationType::String,
-        "The chain to follow.",
-    )]
+    let mut combined = REQUIRED_PARAM_CONFIG_POINTERS.clone();
+    combined.extend(DEFAULT_PARAM_CONFIG_POINTERS.iter().cloned());
+    combined
 });
 
 // TODO(Tsabary): Bundle required config values in a struct, detailing whether they are pointer
