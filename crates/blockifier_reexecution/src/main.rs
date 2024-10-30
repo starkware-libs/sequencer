@@ -1,14 +1,13 @@
+use assert_json_diff::assert_json_eq;
 use blockifier_reexecution::state_reader::test_state_reader::{
     ConsecutiveStateReaders,
     ConsecutiveTestStateReaders,
 };
 use blockifier_reexecution::state_reader::utils::JSON_RPC_VERSION;
 use clap::{Args, Parser, Subcommand};
-use pretty_assertions::assert_eq;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ContractAddress;
 use starknet_gateway::config::RpcStateReaderConfig;
-
 /// BlockifierReexecution CLI.
 #[derive(Debug, Parser)]
 #[clap(name = "blockifier-reexecution-cli", version)]
@@ -89,9 +88,17 @@ fn main() {
                 transaction_executor.finalize().expect("Couldn't finalize block");
             // TODO(Aner): compute correct block hash at storage slot 0x1 instead of removing it.
             expected_state_diff.storage_updates.shift_remove(&ContractAddress(1_u128.into()));
-            assert_eq!(expected_state_diff, actual_state_diff);
 
-            println!("RPC test passed successfully.");
+            if expected_state_diff != actual_state_diff {
+                let expected_json = serde_json::to_value(&expected_state_diff)
+                    .expect("Failed to serialize expected_state_diff");
+                let actual_json = serde_json::to_value(&actual_state_diff)
+                    .expect("Failed to serialize actual_state_diff");
+                eprintln!("Test failed! Differences in state_diff");
+                assert_json_eq!(expected_json, actual_json);
+            } else {
+                println!("RPC test passed successfully.");
+            }
         }
         Command::WriteRpcRepliesToJson { .. } => todo!(),
     }
