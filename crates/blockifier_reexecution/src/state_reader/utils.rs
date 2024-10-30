@@ -12,6 +12,7 @@ use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_gateway::config::RpcStateReaderConfig;
 use starknet_types_core::felt::Felt;
 
+use super::errors::ReexecutionError;
 use crate::state_reader::test_state_reader::ReexecutionResult;
 
 pub const RPC_NODE_URL: &str = "https://free-rpc.nethermind.io/mainnet-juno/";
@@ -65,7 +66,7 @@ pub(crate) fn disjoint_hashmap_union<K: std::hash::Hash + std::cmp::Eq, V>(
     union_map
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct ReexecutionStateMaps {
     nonces: HashMap<ContractAddress, Nonce>,
     class_hashes: HashMap<ContractAddress, ClassHash>,
@@ -99,5 +100,22 @@ impl From<StateMaps> for ReexecutionStateMaps {
     }
 }
 
-// TODO(Aner): implement TryFrom<ReexecutionStateMaps> for StateMaps (or TryInto<StateMaps> for
-// ReexecutionStateMaps if not possible)
+impl TryFrom<ReexecutionStateMaps> for StateMaps {
+    type Error = ReexecutionError;
+
+    fn try_from(value: ReexecutionStateMaps) -> Result<Self, Self::Error> {
+        let mut storage: HashMap<(ContractAddress, StorageKey), Felt> = HashMap::new();
+        for (address, inner_map) in value.storage {
+            for (key, v) in inner_map {
+                storage.insert((address, key), v);
+            }
+        }
+        Ok(StateMaps {
+            nonces: value.nonces,
+            class_hashes: value.class_hashes,
+            storage,
+            compiled_class_hashes: value.compiled_class_hashes,
+            declared_contracts: value.declared_contracts,
+        })
+    }
+}
