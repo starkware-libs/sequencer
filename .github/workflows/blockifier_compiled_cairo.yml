@@ -8,6 +8,7 @@ on:
       - synchronize
     paths:
       - '.github/workflows/blockifier_compiled_cairo.yml'
+      - 'crates/Cargo.toml'
       - 'crates/blockifier/feature_contracts/**'
       - 'crates/blockifier/src/test_utils/cairo_compile.rs'
       - 'crates/blockifier/tests/feature_contracts_compatibility_test.rs'
