@@ -2,10 +2,10 @@ use std::sync::LazyLock;
 use std::vec;
 
 use assert_matches::assert_matches;
-use mempool_test_utils::declare_tx_args;
 use mempool_test_utils::starknet_api_test_utils::{
     rpc_declare_tx,
     rpc_tx_for_testing,
+    test_valid_resource_bounds,
     zero_resource_bounds_mapping,
     TransactionType,
     NON_EMPTY_RESOURCE_BOUNDS,
@@ -21,7 +21,7 @@ use starknet_api::transaction::{
     ResourceBounds,
     TransactionSignature,
 };
-use starknet_api::{calldata, felt};
+use starknet_api::{calldata, declare_tx_args, felt};
 use starknet_types_core::felt::Felt;
 
 use crate::compiler_version::{VersionId, VersionIdError};
@@ -293,7 +293,8 @@ fn test_declare_sierra_version_failure(
         StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone() };
 
     let contract_class = ContractClass { sierra_program, ..Default::default() };
-    let tx = rpc_declare_tx(declare_tx_args!(contract_class));
+    let resource_bounds = test_valid_resource_bounds();
+    let tx = rpc_declare_tx(declare_tx_args!(resource_bounds), contract_class);
 
     assert_eq!(tx_validator.validate(&tx).unwrap_err(), expected_error);
 }
@@ -313,7 +314,8 @@ fn test_declare_sierra_version_sucsses(#[case] sierra_program: Vec<Felt>) {
         StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone() };
 
     let contract_class = ContractClass { sierra_program, ..Default::default() };
-    let tx = rpc_declare_tx(declare_tx_args!(contract_class));
+    let resource_bounds = test_valid_resource_bounds();
+    let tx = rpc_declare_tx(declare_tx_args!(resource_bounds), contract_class);
 
     assert_matches!(tx_validator.validate(&tx), Ok(()));
 }
@@ -332,7 +334,8 @@ fn test_declare_contract_class_size_too_long() {
         ..Default::default()
     };
     let contract_class_length = serde_json::to_string(&contract_class).unwrap().len();
-    let tx = rpc_declare_tx(declare_tx_args!(contract_class));
+    let resource_bounds = test_valid_resource_bounds();
+    let tx = rpc_declare_tx(declare_tx_args!(resource_bounds), contract_class);
 
     assert_matches!(
         tx_validator.validate(&tx).unwrap_err(),
@@ -400,7 +403,8 @@ fn test_declare_entry_points_not_sorted_by_selector(
         },
         ..Default::default()
     };
-    let tx = rpc_declare_tx(declare_tx_args!(contract_class));
+    let resource_bounds = test_valid_resource_bounds();
+    let tx = rpc_declare_tx(declare_tx_args!(resource_bounds), contract_class);
 
     assert_eq!(tx_validator.validate(&tx), expected);
 
@@ -413,7 +417,8 @@ fn test_declare_entry_points_not_sorted_by_selector(
         },
         ..Default::default()
     };
-    let tx = rpc_declare_tx(declare_tx_args!(contract_class));
+    let resource_bounds = test_valid_resource_bounds();
+    let tx = rpc_declare_tx(declare_tx_args!(resource_bounds), contract_class);
 
     assert_eq!(tx_validator.validate(&tx), expected);
 
@@ -426,7 +431,8 @@ fn test_declare_entry_points_not_sorted_by_selector(
         },
         ..Default::default()
     };
-    let tx = rpc_declare_tx(declare_tx_args!(contract_class));
+    let resource_bounds = test_valid_resource_bounds();
+    let tx = rpc_declare_tx(declare_tx_args!(resource_bounds), contract_class);
 
     assert_eq!(tx_validator.validate(&tx), expected);
 }
