@@ -7242,6 +7242,7 @@ version = "0.0.0"
 dependencies = [
  "async-trait",
  "clap",
+ "enum-as-inner",
  "fs2",
  "futures",
  "lazy_static",
