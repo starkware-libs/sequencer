@@ -156,7 +156,8 @@ async fn peer_assignment_no_unblocked_peers() {
     const BLOCKED_UNTIL: Duration = Duration::from_secs(5);
     const TIMEOUT: Duration = Duration::from_secs(1);
     // Create a new peer manager
-    let config = PeerManagerConfig { malicious_timeout: TIMEOUT, unstable_timeout: TIMEOUT };
+    let config =
+        PeerManagerConfig { malicious_timeout_seconds: TIMEOUT, unstable_timeout_millis: TIMEOUT };
     let mut peer_manager: PeerManager = PeerManager::new(config.clone());
 
     // Create a session
