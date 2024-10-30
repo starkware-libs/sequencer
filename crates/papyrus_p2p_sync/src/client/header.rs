@@ -10,7 +10,13 @@ use papyrus_storage::{StorageError, StorageReader, StorageWriter};
 use starknet_api::block::BlockNumber;
 use tracing::debug;
 
-use super::stream_builder::{BlockData, BlockNumberLimit, DataStreamBuilder, ParseDataError};
+use super::stream_builder::{
+    BadPeerError,
+    BlockData,
+    BlockNumberLimit,
+    DataStreamBuilder,
+    ParseDataError,
+};
 use super::{P2PSyncClientError, ALLOWED_SIGNATURES_LENGTH, NETWORK_DATA_TIMEOUT};
 
 impl BlockData for SignedBlockHeader {
@@ -84,7 +90,7 @@ impl DataStreamBuilder<SignedBlockHeader> for HeaderStreamBuilder {
             if block_number
                 != signed_block_header.block_header.block_header_without_hash.block_number
             {
-                return Err(ParseDataError::Fatal(P2PSyncClientError::HeadersUnordered {
+                return Err(ParseDataError::BadPeer(BadPeerError::HeadersUnordered {
                     expected_block_number: block_number,
                     actual_block_number: signed_block_header
                         .block_header
@@ -93,7 +99,7 @@ impl DataStreamBuilder<SignedBlockHeader> for HeaderStreamBuilder {
                 }));
             }
             if signed_block_header.signatures.len() != ALLOWED_SIGNATURES_LENGTH {
-                return Err(ParseDataError::Fatal(P2PSyncClientError::WrongSignaturesLength {
+                return Err(ParseDataError::BadPeer(BadPeerError::WrongSignaturesLength {
                     signatures: signed_block_header.signatures,
                 }));
             }
