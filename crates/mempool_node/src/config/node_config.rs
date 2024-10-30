@@ -33,9 +33,14 @@ pub const DEFAULT_CONFIG_PATH: &str = "config/mempool/default_config.json";
 // Configuration parameters that share the same value across multiple components.
 type ConfigPointers = Vec<((ParamPath, SerializedParam), Vec<ParamPath>)>;
 pub const DEFAULT_CHAIN_ID: ChainId = ChainId::Mainnet;
+// TODO(Tsabary/AlonH): Discuss testing of required parameters.
 pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
     vec![(
-        ser_pointer_target_param("chain_id", &DEFAULT_CHAIN_ID, "The chain to follow."),
+        ser_pointer_target_required_param(
+            "chain_id",
+            SerializationType::String,
+            "The chain to follow.",
+        ),
         vec![
             "batcher_config.block_builder_config.chain_info.chain_id".to_owned(),
             "batcher_config.storage.db_config.chain_id".to_owned(),
