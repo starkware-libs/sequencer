@@ -142,13 +142,23 @@ pub fn execute_entry_point_call(
         ),
         #[cfg(feature = "cairo_native")]
         ContractClass::V1Native(contract_class) => {
-            native_entry_point_execution::execute_entry_point_call(
-                call,
-                contract_class,
-                state,
-                resources,
-                context,
-            )
+            if context.tracked_resource_stack.last() == Some(&TrackedResource::CairoSteps) {
+                entry_point_execution::execute_entry_point_call(
+                    call,
+                    contract_class.casm(),
+                    state,
+                    resources,
+                    context,
+                )
+            } else {
+                native_entry_point_execution::execute_entry_point_call(
+                    call,
+                    contract_class,
+                    state,
+                    resources,
+                    context,
+                )
+            }
         }
     }
 }

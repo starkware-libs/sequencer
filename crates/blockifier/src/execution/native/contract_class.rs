@@ -47,6 +47,10 @@ impl NativeContractClassV1 {
     pub fn get_entry_point(&self, call: &CallEntryPoint) -> Result<FunctionId, PreExecutionError> {
         self.entry_points_by_type.get_entry_point(call).map(|ep| ep.function_id)
     }
+
+    pub fn casm(&self) -> ContractClassV1 {
+        self.casm.clone()
+    }
 }
 
 #[derive(Debug)]
