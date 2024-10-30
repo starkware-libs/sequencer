@@ -1,9 +1,10 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use blockifier::context::{ChainInfo, FeeTokenAddresses};
-use blockifier::state::cached_state::StateMaps;
+use blockifier::state::cached_state::{CommitmentStateDiff, StateMaps};
 use indexmap::IndexMap;
 use papyrus_execution::{ETH_FEE_CONTRACT_ADDRESS, STRK_FEE_CONTRACT_ADDRESS};
+use pretty_assertions::assert_eq;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
@@ -127,4 +128,53 @@ macro_rules! retry_request {
             e.error
         })
     }};
+}
+
+/// A struct for comparing `CommitmentStateDiff` instances, disregarding insertion order.
+/// This struct converts `IndexMap` fields to `BTreeMap`, providing a consistent ordering of keys.
+/// This allows `assert_eq` to produce clearer, ordered diffs when comparing instances, especially
+/// useful in testing.
+#[derive(Debug, PartialEq)]
+pub struct ComparableStateDiff {
+    address_to_class_hash: BTreeMap<ContractAddress, ClassHash>,
+    address_to_nonce: BTreeMap<ContractAddress, Nonce>,
+    storage_updates: BTreeMap<ContractAddress, BTreeMap<StorageKey, Felt>>,
+    class_hash_to_compiled_class_hash: BTreeMap<ClassHash, CompiledClassHash>,
+}
+
+impl From<CommitmentStateDiff> for ComparableStateDiff {
+    fn from(state_diff: CommitmentStateDiff) -> Self {
+        // Use helper function to convert IndexMap to HashMap for simplicity
+        fn to_btree_map<K: std::cmp::Ord, V>(index_map: IndexMap<K, V>) -> BTreeMap<K, V> {
+            index_map.into_iter().collect()
+        }
+
+        ComparableStateDiff {
+            address_to_class_hash: to_btree_map(state_diff.address_to_class_hash),
+            address_to_nonce: to_btree_map(state_diff.address_to_nonce),
+            storage_updates: state_diff
+                .storage_updates
+                .into_iter()
+                .map(|(address, storage)| (address, to_btree_map(storage)))
+                .collect(),
+            class_hash_to_compiled_class_hash: to_btree_map(
+                state_diff.class_hash_to_compiled_class_hash,
+            ),
+        }
+    }
+}
+
+/// Asserts equality between two `CommitmentStateDiff` structs, ignoring insertion order.
+#[macro_export]
+macro_rules! assert_eq_state_diff {
+    ($expected_state_diff:expr, $actual_state_diff:expr $(,)?) => {
+        use blockifier_reexecution::state_reader::utils::ComparableStateDiff;
+        use pretty_assertions::assert_eq;
+
+        assert_eq!(
+            ComparableStateDiff::from($expected_state_diff),
+            ComparableStateDiff::from($actual_state_diff),
+            "Expected and actual state diffs do not match."
+        );
+    };
 }
