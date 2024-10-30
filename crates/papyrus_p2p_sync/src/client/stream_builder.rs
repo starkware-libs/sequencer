@@ -10,7 +10,7 @@ use papyrus_protobuf::converters::ProtobufConversionError;
 use papyrus_protobuf::sync::{BlockHashOrNumber, DataOrFin, Direction, Query};
 use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::{StorageError, StorageReader, StorageWriter};
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockNumber, BlockSignature};
 use tracing::{debug, info, warn};
 
 use super::{P2PSyncClientError, STEP};
@@ -154,7 +154,22 @@ where
 }
 
 #[derive(thiserror::Error, Debug)]
-pub(crate) enum BadPeerError {}
+pub(crate) enum BadPeerError {
+    #[error(
+        "Blocks returned unordered from the network. Expected header with \
+         {expected_block_number}, got {actual_block_number}."
+    )]
+    HeadersUnordered { expected_block_number: BlockNumber, actual_block_number: BlockNumber },
+    #[error(
+        "Expected to receive {expected} transactions for {block_number} from the network. Got \
+         {actual} instead."
+    )]
+    NotEnoughTransactions { expected: usize, actual: usize, block_number: u64 },
+    #[error("Expected to receive one signature from the network. got {signatures:?} instead.")]
+    WrongSignaturesLength { signatures: Vec<BlockSignature> },
+    #[error(transparent)]
+    ProtobufConversionError(#[from] ProtobufConversionError),
+}
 
 #[derive(thiserror::Error, Debug)]
 pub(crate) enum ParseDataError {
@@ -178,6 +193,6 @@ impl From<tokio::time::error::Elapsed> for ParseDataError {
 
 impl From<ProtobufConversionError> for ParseDataError {
     fn from(err: ProtobufConversionError) -> Self {
-        ParseDataError::Fatal(P2PSyncClientError::ProtobufConversionError(err))
+        ParseDataError::BadPeer(BadPeerError::ProtobufConversionError(err))
     }
 }
