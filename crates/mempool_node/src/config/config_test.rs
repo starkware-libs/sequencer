@@ -22,6 +22,7 @@ use crate::config::{
     SequencerNodeConfig,
     CONFIG_POINTERS,
     DEFAULT_CONFIG_PATH,
+    REQUIRED_PARAM_CONFIG_POINTERS,
 };
 
 /// Test the validation of the struct ComponentExecutionConfig.
@@ -93,7 +94,7 @@ fn test_default_config_file_is_up_to_date() {
 /// Tests parsing a node config without additional args.
 #[test]
 fn test_config_parsing() {
-    let args = create_test_config_load_args(&CONFIG_POINTERS);
+    let args = create_test_config_load_args(&REQUIRED_PARAM_CONFIG_POINTERS);
     let config = SequencerNodeConfig::load_and_process(args);
     let config = config.expect("Parsing function failed.");
 
