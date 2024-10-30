@@ -89,8 +89,15 @@ fn main() {
                 transaction_executor.finalize().expect("Couldn't finalize block");
             // TODO(Aner): compute correct block hash at storage slot 0x1 instead of removing it.
             expected_state_diff.storage_updates.shift_remove(&ContractAddress(1_u128.into()));
-            assert_eq!(expected_state_diff, actual_state_diff);
 
+            // Serialize the state difference as sorted JSON.
+            // This allows us to compare the expected and actual state differences
+            // by avoiding discrepancies caused by key order
+            let expected_json = serde_json::to_value(&expected_state_diff)
+                .expect("Failed to serialize expected_state_diff");
+            let actual_json = serde_json::to_value(&actual_state_diff)
+                .expect("Failed to serialize actual_state_diff");
+            assert_eq!(expected_json, actual_json);
             println!("RPC test passed successfully.");
         }
         Command::WriteRpcRepliesToJson { .. } => todo!(),
