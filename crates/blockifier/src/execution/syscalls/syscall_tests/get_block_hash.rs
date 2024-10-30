@@ -1,5 +1,6 @@
 use pretty_assertions::assert_eq;
 use starknet_api::core::ContractAddress;
+#[cfg(feature = "cairo_native")]
 use starknet_api::execution_utils::format_panic_data;
 use starknet_api::state::StorageKey;
 use starknet_api::{calldata, felt};
@@ -8,9 +9,12 @@ use test_case::test_case;
 
 use crate::abi::abi_utils::selector_from_name;
 use crate::abi::constants;
+#[cfg(feature = "cairo_native")]
+use crate::check_entry_point_execution_error_for_custom_hint;
 use crate::context::ChainInfo;
 use crate::execution::call_info::CallExecution;
 use crate::execution::entry_point::CallEntryPoint;
+use crate::retdata;
 use crate::state::cached_state::CachedState;
 use crate::state::state_api::State;
 use crate::test_utils::contracts::FeatureContract;
@@ -22,7 +26,6 @@ use crate::test_utils::{
     BALANCE,
     CURRENT_BLOCK_NUMBER,
 };
-use crate::{check_entry_point_execution_error_for_custom_hint, retdata};
 
 fn initialize_state(test_contract: FeatureContract) -> (CachedState<DictStateReader>, Felt, Felt) {
     let chain_info = &ChainInfo::create_for_testing();
@@ -80,6 +83,7 @@ fn negative_flow_execution_mode_validate(test_contract: FeatureContract) {
     };
 
     let error = entry_point_call.execute_directly_in_validate_mode(&mut state).unwrap_err();
+    #[cfg(feature = "cairo_native")]
     if matches!(test_contract, FeatureContract::TestContract(CairoVersion::Native)) {
         assert_eq!(
             error.to_string(),
@@ -92,6 +96,11 @@ fn negative_flow_execution_mode_validate(test_contract: FeatureContract) {
             "Unauthorized syscall get_block_hash in execution mode Validate.",
         );
     }
+    #[cfg(not(feature = "cairo_native"))]
+    assert_eq!(
+        error.to_string(),
+        "Unauthorized syscall get_block_hash in execution mode Validate."
+    );
 }
 
 #[cfg_attr(
@@ -112,6 +121,7 @@ fn negative_flow_block_number_out_of_range(test_contract: FeatureContract) {
     };
 
     let call_result = entry_point_call.execute_directly(&mut state);
+    #[cfg(feature = "cairo_native")]
     let error_message =
         if matches!(test_contract, FeatureContract::TestContract(CairoVersion::Native)) {
             call_result.unwrap_err().to_string()
@@ -120,5 +130,8 @@ fn negative_flow_block_number_out_of_range(test_contract: FeatureContract) {
             assert!(call_info.execution.failed);
             format_panic_data(&call_info.execution.retdata.0)
         };
+    #[cfg(not(feature = "cairo_native"))]
+    let error_message = call_result.unwrap_err().to_string();
+
     assert!(error_message.contains("Block number out of range"));
 }
