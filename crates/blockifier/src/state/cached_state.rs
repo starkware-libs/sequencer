@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 
 use indexmap::IndexMap;
+use serde::Serialize;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
@@ -542,14 +543,18 @@ type StorageDiff = IndexMap<ContractAddress, IndexMap<StorageKey, Felt>>;
 /// Holds uncommitted changes induced on Starknet contracts.
 #[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(any(feature = "testing", test), derive(Clone))]
-#[derive(Debug, Default, Eq, PartialEq)]
+#[derive(Debug, Default, Eq, PartialEq, Serialize)]
 pub struct CommitmentStateDiff {
     // Contract instance attributes (per address).
+    #[serde(with = "indexmap::map::serde_seq")]
     pub address_to_class_hash: IndexMap<ContractAddress, ClassHash>,
+    #[serde(with = "indexmap::map::serde_seq")]
     pub address_to_nonce: IndexMap<ContractAddress, Nonce>,
+    #[serde(with = "indexmap::map::serde_seq")]
     pub storage_updates: IndexMap<ContractAddress, IndexMap<StorageKey, Felt>>,
 
     // Global attributes.
+    #[serde(with = "indexmap::map::serde_seq")]
     pub class_hash_to_compiled_class_hash: IndexMap<ClassHash, CompiledClassHash>,
 }
 

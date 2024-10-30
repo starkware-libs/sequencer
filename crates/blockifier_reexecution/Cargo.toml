@@ -9,6 +9,7 @@ license.workspace = true
 blockifier_regression_https_testing = []
 
 [dependencies]
+assert-json-diff.workspace = true
 blockifier.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-lang-utils.workspace = true
@@ -24,6 +25,7 @@ starknet-core.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 starknet_gateway.workspace = true
+tempfile.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]

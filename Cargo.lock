@@ -1533,6 +1533,7 @@ dependencies = [
 name = "blockifier_reexecution"
 version = "0.0.0"
 dependencies = [
+ "assert-json-diff",
  "assert_matches",
  "blockifier",
  "cairo-lang-starknet-classes",
@@ -1550,6 +1551,7 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "starknet_gateway",
+ "tempfile",
  "thiserror",
 ]
 
