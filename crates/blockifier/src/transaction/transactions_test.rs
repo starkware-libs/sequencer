@@ -1523,6 +1523,39 @@ fn test_declare_tx(
 }
 
 #[rstest]
+fn test_declare_tx_v0(default_l1_resource_bounds: ValidResourceBounds) {
+    let tx_version = TransactionVersion::ZERO;
+    let block_context = &BlockContext::create_for_account_testing();
+    let empty_contract = FeatureContract::Empty(CairoVersion::Cairo0);
+    let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
+    let chain_info = &block_context.chain_info;
+    let state = &mut test_state(chain_info, BALANCE, &[(account, 1)]);
+    let class_hash = empty_contract.get_class_hash();
+    let compiled_class_hash = empty_contract.get_compiled_class_hash();
+    let class_info = calculate_class_info_for_testing(empty_contract.get_class());
+    let sender_address = account.get_instance_address(0);
+    let mut nonce_manager = NonceManager::default();
+
+    let account_tx = declare_tx(
+        declare_tx_args! {
+            max_fee: Fee(0),
+            sender_address,
+            version: tx_version,
+            resource_bounds: default_l1_resource_bounds,
+            class_hash,
+            compiled_class_hash,
+            nonce: nonce_manager.next(sender_address),
+        },
+        class_info.clone(),
+    );
+
+    let actual_execution_info = account_tx.execute(state, block_context, false, true).unwrap(); // fee not charged for declare v0.
+
+    assert_eq!(actual_execution_info.fee_transfer_call_info, None, "not none");
+    assert_eq!(actual_execution_info.receipt.fee, Fee(0));
+}
+
+#[rstest]
 fn test_deploy_account_tx(
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
     #[values(false, true)] use_kzg_da: bool,
