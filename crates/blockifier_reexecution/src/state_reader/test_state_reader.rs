@@ -330,3 +330,129 @@ impl ConsecutiveStateReaders<TestStateReader> for ConsecutiveTestStateReaders {
         self.next_block_state_reader.get_state_diff()
     }
 }
+
+pub struct OfflineStateReader {
+    pub state_maps: StateMaps,
+    pub contract_class_mapping: StarknetContractClassMapping,
+}
+
+impl StateReader for OfflineStateReader {
+    fn get_storage_at(
+        &self,
+        contract_address: ContractAddress,
+        key: StorageKey,
+    ) -> StateResult<Felt> {
+        Ok(*self.state_maps.storage.get(&(contract_address, key)).ok_or(
+            StateError::StateReadError(format!(
+                "Missing Storage Value at contract_address: {}, key:{:?}",
+                contract_address, key
+            )),
+        )?)
+    }
+
+    fn get_nonce_at(&self, contract_address: ContractAddress) -> StateResult<Nonce> {
+        Ok(*self.state_maps.nonces.get(&contract_address).ok_or(StateError::StateReadError(
+            format!("Missing nonce at contract_address: {contract_address}"),
+        ))?)
+    }
+
+    fn get_class_hash_at(&self, contract_address: ContractAddress) -> StateResult<ClassHash> {
+        Ok(*self.state_maps.class_hashes.get(&contract_address).ok_or(
+            StateError::StateReadError(format!(
+                "Missing class hash at contract_address: {contract_address}"
+            )),
+        )?)
+    }
+
+    fn get_compiled_contract_class(
+        &self,
+        class_hash: ClassHash,
+    ) -> StateResult<RunnableContractClass> {
+        match self.get_contract_class(&class_hash)? {
+            StarknetContractClass::Sierra(sierra) => sierra_to_contact_class_v1(sierra),
+            StarknetContractClass::Legacy(legacy) => legacy_to_contract_class_v0(legacy),
+        }
+    }
+
+    fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
+        Ok(*self.state_maps.compiled_class_hashes.get(&class_hash).ok_or(
+            StateError::StateReadError(format!(
+                "Missing compiled class hash at class hash: {class_hash}"
+            )),
+        )?)
+    }
+}
+
+impl OfflineStateReader {
+    pub fn get_transaction_executor(
+        self,
+        block_context_next_block: BlockContext,
+        transaction_executor_config: Option<TransactionExecutorConfig>,
+    ) -> ReexecutionResult<TransactionExecutor<OfflineStateReader>> {
+        Ok(TransactionExecutor::<OfflineStateReader>::new(
+            CachedState::new(self),
+            block_context_next_block,
+            transaction_executor_config.unwrap_or_default(),
+        ))
+    }
+}
+
+impl ReexecutionStateReader for OfflineStateReader {
+    fn get_contract_class(&self, class_hash: &ClassHash) -> StateResult<StarknetContractClass> {
+        Ok(self
+            .contract_class_mapping
+            .get(class_hash)
+            .ok_or(StateError::StateReadError(format!(
+                "Missing contract class at class hash: {class_hash}"
+            )))?
+            .clone())
+    }
+}
+
+pub struct OfflineConsecutiveStateReaders {
+    pub offline_state_reader_prev_block: OfflineStateReader,
+    pub block_context_next_block: BlockContext,
+    pub transactions_next_block: Vec<BlockifierTransaction>,
+    pub state_diff_next_block: CommitmentStateDiff,
+}
+
+impl OfflineConsecutiveStateReaders {
+    // TODO(Aner): create directly from json.
+    pub fn new(
+        OfflineReexecutionData {
+            state_maps,
+            contract_class_mapping,
+            block_context_next_block,
+            transactions_next_block,
+            state_diff_next_block,
+        }: OfflineReexecutionData,
+    ) -> Self {
+        OfflineConsecutiveStateReaders {
+            offline_state_reader_prev_block: OfflineStateReader {
+                state_maps,
+                contract_class_mapping,
+            },
+            block_context_next_block,
+            transactions_next_block,
+            state_diff_next_block,
+        }
+    }
+}
+
+impl ConsecutiveStateReaders<OfflineStateReader> for OfflineConsecutiveStateReaders {
+    fn get_transaction_executor(
+        self,
+        transaction_executor_config: Option<TransactionExecutorConfig>,
+    ) -> ReexecutionResult<TransactionExecutor<OfflineStateReader>> {
+        self.offline_state_reader_prev_block
+            .get_transaction_executor(self.block_context_next_block, transaction_executor_config)
+    }
+
+    fn get_next_block_txs(&self) -> ReexecutionResult<Vec<BlockifierTransaction>> {
+        Ok(self.transactions_next_block.clone())
+    }
+
+    fn get_next_block_state_diff(&self) -> ReexecutionResult<CommitmentStateDiff> {
+        Ok(self.state_diff_next_block.clone())
+    }
+}
