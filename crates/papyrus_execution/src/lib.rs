@@ -55,7 +55,7 @@ use papyrus_storage::{StorageError, StorageReader};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockNumber, NonzeroGasPrice, StarknetVersion};
 use starknet_api::contract_class::EntryPointType;
-use starknet_api::core::{ChainId, ClassHash, ContractAddress, EntryPointSelector, PatriciaKey};
+use starknet_api::core::{ChainId, ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{StateNumber, ThinStateDiff};
@@ -75,7 +75,8 @@ use starknet_api::transaction::{
     TransactionVersion,
 };
 use starknet_api::transaction_hash::get_transaction_hash;
-use starknet_api::{contract_address, patricia_key, StarknetApiError};
+use starknet_api::StarknetApiError;
+use starknet_types_core::felt::Felt;
 use state_reader::ExecutionStateReader;
 use tracing::trace;
 
@@ -85,15 +86,33 @@ const STARKNET_VERSION_O_13_0: &str = "0.13.0";
 const STARKNET_VERSION_O_13_1: &str = "0.13.1";
 const STARKNET_VERSION_O_13_2: &str = "0.13.2";
 /// The address of the STRK fee contract on Starknet.
-pub const STRK_FEE_CONTRACT_ADDRESS: &str =
+const STRK_FEE_CONTRACT_ADDRESS: &str =
     "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d";
 /// The address of the ETH fee contract on Starknet.
-pub const ETH_FEE_CONTRACT_ADDRESS: &str =
+const ETH_FEE_CONTRACT_ADDRESS: &str =
     "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7";
 const DEFAULT_INITIAL_GAS_COST: u64 = 10000000000;
 
 /// Result type for execution functions.
 pub type ExecutionResult<T> = Result<T, ExecutionError>;
+
+/// The address of the STRK fee contract on Starknet.
+pub fn strk_fee_contract_address() -> ContractAddress {
+    ContractAddress::try_from(
+        Felt::from_hex(STRK_FEE_CONTRACT_ADDRESS)
+            .expect("Error converting strk fee contract address from hex"),
+    )
+    .expect("Error converting strk fee contract address from felt")
+}
+
+/// The address of the ETH fee contract on Starknet.
+pub fn eth_fee_contract_address() -> ContractAddress {
+    ContractAddress::try_from(
+        Felt::from_hex(ETH_FEE_CONTRACT_ADDRESS)
+            .expect("Error converting eth fee contract address from hex"),
+    )
+    .expect("Error converting eth fee contract address from felt")
+}
 
 #[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq)]
 /// Parameters that are needed for execution.
@@ -109,8 +128,8 @@ pub struct ExecutionConfig {
 impl Default for ExecutionConfig {
     fn default() -> Self {
         ExecutionConfig {
-            strk_fee_contract_address: contract_address!(STRK_FEE_CONTRACT_ADDRESS),
-            eth_fee_contract_address: contract_address!(ETH_FEE_CONTRACT_ADDRESS),
+            strk_fee_contract_address: strk_fee_contract_address(),
+            eth_fee_contract_address: eth_fee_contract_address(),
             default_initial_gas_cost: DEFAULT_INITIAL_GAS_COST,
         }
     }
