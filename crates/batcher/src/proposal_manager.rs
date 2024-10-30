@@ -10,7 +10,7 @@ use starknet_api::executable_transaction::Transaction;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 use starknet_batcher_types::batcher_types::{ProposalCommitment, ProposalId};
-use starknet_mempool_types::communication::SharedMempoolClient;
+use starknet_mempool_types::communication::{MempoolClientError, SharedMempoolClient};
 use thiserror::Error;
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, instrument, Instrument};
@@ -60,6 +60,12 @@ pub enum GetProposalResultError {
     BlockBuilderError(Arc<BlockBuilderError>),
     #[error("Proposal with id {proposal_id} does not exist.")]
     ProposalDoesNotExist { proposal_id: ProposalId },
+}
+
+#[derive(Clone, Debug, Error)]
+pub enum GetTransactionError {
+    #[error(transparent)]
+    MempoolError(#[from] MempoolClientError),
 }
 
 #[async_trait]
@@ -165,14 +171,14 @@ impl ProposalManagerTrait for ProposalManager {
         let block_builder =
             self.block_builder_factory.create_block_builder(height, retrospective_block_hash)?;
 
-        let mempool_client = self.mempool_client.clone();
+        let tx_getter = BuildTransactionGetter { mempool_client: self.mempool_client.clone() };
         let active_proposal = self.active_proposal.clone();
         let executed_proposals = self.executed_proposals.clone();
 
         self.active_proposal_handle = Some(tokio::spawn(
             async move {
                 let result = block_builder
-                    .build_block(deadline, mempool_client, tx_sender.clone())
+                    .build_block(deadline, Box::new(tx_getter), tx_sender.clone())
                     .await
                     .map(ProposalOutput::from)
                     .map_err(|e| GetProposalResultError::BlockBuilderError(Arc::new(e)));
@@ -294,5 +300,21 @@ impl From<BlockExecutionArtifacts> for ProposalOutput {
         let tx_hashes = HashSet::from_iter(artifacts.execution_infos.keys().copied());
 
         Self { state_diff, commitment, tx_hashes, nonces }
+    }
+}
+
+#[async_trait]
+pub trait TransactionGetter: Send + Sync {
+    async fn get_txs(&self, n_txs: usize) -> Result<Vec<Transaction>, GetTransactionError>;
+}
+
+pub struct BuildTransactionGetter {
+    pub mempool_client: SharedMempoolClient,
+}
+
+#[async_trait]
+impl TransactionGetter for BuildTransactionGetter {
+    async fn get_txs(&self, n_txs: usize) -> Result<Vec<Transaction>, GetTransactionError> {
+        Ok(self.mempool_client.get_txs(n_txs).await?)
     }
 }

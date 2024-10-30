@@ -30,12 +30,12 @@ use starknet_api::block::{BlockHashAndNumber, BlockNumber, BlockTimestamp, Nonze
 use starknet_api::core::ContractAddress;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::transaction::TransactionHash;
-use starknet_mempool_types::communication::{MempoolClientError, SharedMempoolClient};
 use thiserror::Error;
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, trace};
 
 use crate::papyrus_state::PapyrusReader;
+use crate::proposal_manager::{GetTransactionError, TransactionGetter};
 use crate::transaction_executor::TransactionExecutorTrait;
 
 #[derive(Debug, Error)]
@@ -47,7 +47,7 @@ pub enum BlockBuilderError {
     #[error(transparent)]
     ExecutorError(#[from] BlockifierTransactionExecutorError),
     #[error(transparent)]
-    MempoolError(#[from] MempoolClientError),
+    GetTransactionError(#[from] GetTransactionError),
     #[error(transparent)]
     TransactionExecutionError(#[from] BlockifierTransactionExecutionError),
     #[error(transparent)]
@@ -74,7 +74,7 @@ pub trait BlockBuilderTrait: Send {
     async fn build_block(
         &self,
         deadline: tokio::time::Instant,
-        mempool_client: SharedMempoolClient,
+        tx_getter: Box<dyn TransactionGetter>,
         output_content_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
     ) -> BlockBuilderResult<BlockExecutionArtifacts>;
 }
@@ -142,7 +142,7 @@ impl BlockBuilderTrait for BlockBuilder {
     async fn build_block(
         &self,
         deadline: tokio::time::Instant,
-        mempool_client: SharedMempoolClient,
+        tx_getter: Box<dyn TransactionGetter>,
         output_content_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
     ) -> BlockBuilderResult<BlockExecutionArtifacts> {
         let mut should_close_block = false;
@@ -150,7 +150,7 @@ impl BlockBuilderTrait for BlockBuilder {
         // TODO(yael 6/10/2024): delete the timeout condition once the executor has a timeout
         while !should_close_block && tokio::time::Instant::now() < deadline {
             // TODO: Get also L1 transactions.
-            let next_tx_chunk = mempool_client.get_txs(self.tx_chunk_size).await?;
+            let next_tx_chunk = tx_getter.get_txs(self.tx_chunk_size).await?;
             if next_tx_chunk.is_empty() {
                 // TODO: Consider what is the best sleep duration.
                 tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
