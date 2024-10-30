@@ -171,6 +171,7 @@ where
     // higher tip of the latter. account1_invoke_nonce1 precedes account0_invoke_nonce1 as it
     // offers a higher tip, regardless of the nonce. Hence the expected tx order, regardless of
     // tx hashes, is: account1_invoke_nonce1, account0_invoke_nonce1, and account0_invoke_nonce2.
+    // whatever.
     vec![
         account1_invoke_nonce1_tx_hash,
         account0_invoke_nonce1_tx_hash,
