@@ -17,6 +17,7 @@ use tracing::{debug, error, info, instrument, Instrument};
 
 use crate::batcher::BatcherStorageReaderTrait;
 use crate::block_builder::{BlockBuilderError, BlockBuilderFactoryTrait, BlockExecutionArtifacts};
+use crate::transaction_provider::ProposeTransactionProvider;
 
 #[derive(Debug, Error)]
 pub enum StartHeightError {
@@ -165,14 +166,15 @@ impl ProposalManagerTrait for ProposalManager {
         let block_builder =
             self.block_builder_factory.create_block_builder(height, retrospective_block_hash)?;
 
-        let mempool_client = self.mempool_client.clone();
+        let tx_provider =
+            ProposeTransactionProvider { mempool_client: self.mempool_client.clone() };
         let active_proposal = self.active_proposal.clone();
         let executed_proposals = self.executed_proposals.clone();
 
         self.active_proposal_handle = Some(tokio::spawn(
             async move {
                 let result = block_builder
-                    .build_block(deadline, mempool_client, tx_sender.clone())
+                    .build_block(deadline, Box::new(tx_provider), tx_sender.clone())
                     .await
                     .map(ProposalOutput::from)
                     .map_err(|e| GetProposalResultError::BlockBuilderError(Arc::new(e)));
