@@ -1,10 +1,9 @@
 use blockifier::context::{ChainInfo, FeeTokenAddresses};
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use indexmap::IndexMap;
-use papyrus_execution::{ETH_FEE_CONTRACT_ADDRESS, STRK_FEE_CONTRACT_ADDRESS};
-use starknet_api::core::{ChainId, ContractAddress, PatriciaKey};
+use papyrus_execution::{eth_fee_contract_address, strk_fee_contract_address};
+use starknet_api::core::ChainId;
 use starknet_api::transaction::{Transaction, TransactionHash};
-use starknet_api::{contract_address, patricia_key};
 use starknet_gateway::config::RpcStateReaderConfig;
 
 use crate::state_reader::test_state_reader::ReexecutionResult;
@@ -15,8 +14,8 @@ pub const JSON_RPC_VERSION: &str = "2.0";
 /// Returns the fee token addresses of mainnet.
 pub fn get_fee_token_addresses() -> FeeTokenAddresses {
     FeeTokenAddresses {
-        strk_fee_token_address: contract_address!(STRK_FEE_CONTRACT_ADDRESS),
-        eth_fee_token_address: contract_address!(ETH_FEE_CONTRACT_ADDRESS),
+        strk_fee_token_address: strk_fee_contract_address(),
+        eth_fee_token_address: eth_fee_contract_address(),
     }
 }
 
