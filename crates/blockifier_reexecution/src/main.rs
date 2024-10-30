@@ -1,4 +1,7 @@
-use blockifier_reexecution::state_reader::test_state_reader::ConsecutiveTestStateReaders;
+use blockifier_reexecution::state_reader::test_state_reader::{
+    ConsecutiveStateReaders,
+    ConsecutiveTestStateReaders,
+};
 use blockifier_reexecution::state_reader::utils::JSON_RPC_VERSION;
 use clap::{Args, Parser, Subcommand};
 use pretty_assertions::assert_eq;
