@@ -6,6 +6,8 @@ use std::collections::hash_map::Entry;
 use std::collections::{HashMap, VecDeque};
 use std::time::Duration;
 
+#[cfg(test)]
+use enum_as_inner::EnumAsInner;
 use futures::channel::{mpsc, oneshot};
 use papyrus_protobuf::consensus::{ConsensusMessage, Vote, VoteType};
 use starknet_api::block::BlockNumber;
@@ -24,15 +26,102 @@ use crate::types::{
 };
 
 #[derive(Debug, PartialEq)]
-pub struct ShcTask {
-    pub duration: Duration,
-    pub event: StateMachineEvent,
-}
-
-#[derive(Debug, PartialEq)]
+#[cfg_attr(test, derive(EnumAsInner))]
 pub enum ShcReturn {
     Tasks(Vec<ShcTask>),
     Decision(Decision),
+}
+
+#[derive(Debug, Clone)]
+pub enum ShcEvent {
+    TimeoutPropose(StateMachineEvent),
+    TimeoutPrevote(StateMachineEvent),
+    TimeoutPrecommit(StateMachineEvent),
+    Prevote(StateMachineEvent),
+    Precommit(StateMachineEvent),
+    BuildProposal(StateMachineEvent),
+    // ProposalContentId should be signature validation.
+    ValidateProposal(StateMachineEvent, Option<ProposalContentId>),
+}
+
+#[derive(Debug)]
+#[cfg_attr(test, derive(EnumAsInner))]
+pub enum ShcTask {
+    TimeoutPropose(Duration, StateMachineEvent),
+    TimeoutPrevote(Duration, StateMachineEvent),
+    TimeoutPrecommit(Duration, StateMachineEvent),
+    Prevote(Duration, StateMachineEvent),
+    Precommit(Duration, StateMachineEvent),
+    BuildProposal(Round, oneshot::Receiver<ProposalContentId>),
+    ValidateProposal(
+        ProposalInit,
+        oneshot::Receiver<ProposalContentId>,
+        oneshot::Receiver<ProposalContentId>,
+    ),
+}
+
+impl PartialEq for ShcTask {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (ShcTask::TimeoutPropose(d1, e1), ShcTask::TimeoutPropose(d2, e2))
+            | (ShcTask::TimeoutPrevote(d1, e1), ShcTask::TimeoutPrevote(d2, e2))
+            | (ShcTask::TimeoutPrecommit(d1, e1), ShcTask::TimeoutPrecommit(d2, e2))
+            | (ShcTask::Prevote(d1, e1), ShcTask::Prevote(d2, e2))
+            | (ShcTask::Precommit(d1, e1), ShcTask::Precommit(d2, e2)) => d1 == d2 && e1 == e2,
+            (ShcTask::BuildProposal(r1, _), ShcTask::BuildProposal(r2, _)) => r1 == r2,
+            (ShcTask::ValidateProposal(pi1, _, _), ShcTask::ValidateProposal(pi2, _, _)) => {
+                pi1 == pi2
+            }
+            _ => false,
+        }
+    }
+}
+
+impl ShcTask {
+    pub async fn run(self) -> ShcEvent {
+        match self {
+            ShcTask::TimeoutPropose(duration, event) => {
+                tokio::time::sleep(duration).await;
+                ShcEvent::TimeoutPropose(event)
+            }
+            ShcTask::TimeoutPrevote(duration, event) => {
+                tokio::time::sleep(duration).await;
+                ShcEvent::TimeoutPrevote(event)
+            }
+            ShcTask::TimeoutPrecommit(duration, event) => {
+                tokio::time::sleep(duration).await;
+                ShcEvent::TimeoutPrecommit(event)
+            }
+            ShcTask::Prevote(duration, event) => {
+                tokio::time::sleep(duration).await;
+                ShcEvent::Prevote(event)
+            }
+            ShcTask::Precommit(duration, event) => {
+                tokio::time::sleep(duration).await;
+                ShcEvent::Precommit(event)
+            }
+            ShcTask::BuildProposal(round, receiver) => {
+                let proposal_id = receiver.await.expect("Block building failed.");
+                ShcEvent::BuildProposal(StateMachineEvent::GetProposal(Some(proposal_id), round))
+            }
+            ShcTask::ValidateProposal(init, block_receiver, fin_receiver) => {
+                let proposal_id = match block_receiver.await {
+                    Ok(proposal_id) => Some(proposal_id),
+                    // Proposal never received from peer.
+                    Err(_) => None,
+                };
+                let fin = match fin_receiver.await {
+                    Ok(fin) => Some(fin),
+                    // ProposalFin never received from peer.
+                    Err(_) => None,
+                };
+                ShcEvent::ValidateProposal(
+                    StateMachineEvent::Proposal(proposal_id, init.round, init.valid_round),
+                    fin,
+                )
+            }
+        }
+    }
 }
 
 /// Struct which represents a single height of consensus. Each height is expected to be begun with a
@@ -114,7 +203,7 @@ impl SingleHeightConsensus {
                 format!("invalid proposer: expected {:?}, got {:?}", proposer_id, init.proposer);
             return Err(ConsensusError::InvalidProposal(proposer_id, self.height, msg));
         }
-        let Entry::Vacant(proposal_entry) = self.proposals.entry(init.round) else {
+        let Entry::Vacant(_) = self.proposals.entry(init.round) else {
             warn!("Round {} already has a proposal, ignoring", init.round);
             return Ok(ShcReturn::Tasks(Vec::new()));
         };
@@ -122,40 +211,14 @@ impl SingleHeightConsensus {
         let block_receiver = context
             .validate_proposal(self.height, self.timeouts.proposal_timeout, p2p_messages_receiver)
             .await;
-
-        let block = match block_receiver.await {
-            Ok(block) => block,
-            // ProposalFin never received from peer.
-            Err(_) => {
-                proposal_entry.insert(None);
-                return self.process_inbound_proposal(context, &init, None).await;
-            }
-        };
-
-        let fin = match fin_receiver.await {
-            Ok(fin) => fin,
-            // ProposalFin never received from peer.
-            Err(_) => {
-                proposal_entry.insert(None);
-                return self.process_inbound_proposal(context, &init, None).await;
-            }
-        };
-        // TODO(matan): Switch to signature validation.
-        if block != fin {
-            proposal_entry.insert(None);
-            return self.process_inbound_proposal(context, &init, None).await;
-        }
-        proposal_entry.insert(Some(block));
-        self.process_inbound_proposal(context, &init, Some(block)).await
+        Ok(ShcReturn::Tasks(vec![ShcTask::ValidateProposal(init, block_receiver, fin_receiver)]))
     }
 
     async fn process_inbound_proposal<ContextT: ConsensusContext>(
         &mut self,
         context: &mut ContextT,
-        init: &ProposalInit,
-        proposal_id: Option<ProposalContentId>,
+        sm_proposal: StateMachineEvent,
     ) -> Result<ShcReturn, ConsensusError> {
-        let sm_proposal = StateMachineEvent::Proposal(proposal_id, init.round, init.valid_round);
         let leader_fn = |round: Round| -> ValidatorId { context.proposer(self.height, round) };
         let sm_events = self.state_machine.handle_event(sm_proposal, &leader_fn);
         self.handle_state_machine_events(context, sm_events).await
@@ -180,19 +243,19 @@ impl SingleHeightConsensus {
     pub async fn handle_event<ContextT: ConsensusContext>(
         &mut self,
         context: &mut ContextT,
-        event: StateMachineEvent,
+        event: ShcEvent,
     ) -> Result<ShcReturn, ConsensusError> {
-        debug!("Received Event: {:?}", event);
+        debug!("Received ShcEvent: {:?}", event);
         match event {
-            StateMachineEvent::TimeoutPropose(_)
-            | StateMachineEvent::TimeoutPrevote(_)
-            | StateMachineEvent::TimeoutPrecommit(_) => {
+            ShcEvent::TimeoutPropose(event)
+            | ShcEvent::TimeoutPrevote(event)
+            | ShcEvent::TimeoutPrecommit(event) => {
                 let leader_fn =
                     |round: Round| -> ValidatorId { context.proposer(self.height, round) };
                 let sm_events = self.state_machine.handle_event(event, &leader_fn);
                 self.handle_state_machine_events(context, sm_events).await
             }
-            StateMachineEvent::Prevote(proposal_id, round) => {
+            ShcEvent::Prevote(StateMachineEvent::Prevote(proposal_id, round)) => {
                 let Some(last_vote) = &self.last_prevote else {
                     return Err(ConsensusError::InvalidEvent("No prevote to send".to_string()));
                 };
@@ -200,12 +263,12 @@ impl SingleHeightConsensus {
                     return Ok(ShcReturn::Tasks(Vec::new()));
                 }
                 context.broadcast(ConsensusMessage::Vote(last_vote.clone())).await?;
-                Ok(ShcReturn::Tasks(vec![ShcTask {
-                    duration: self.timeouts.prevote_timeout,
-                    event: StateMachineEvent::Prevote(proposal_id, round),
-                }]))
+                Ok(ShcReturn::Tasks(vec![ShcTask::Prevote(
+                    self.timeouts.prevote_timeout,
+                    StateMachineEvent::Prevote(proposal_id, round),
+                )]))
             }
-            StateMachineEvent::Precommit(proposal_id, round) => {
+            ShcEvent::Precommit(StateMachineEvent::Precommit(proposal_id, round)) => {
                 let Some(last_vote) = &self.last_precommit else {
                     return Err(ConsensusError::InvalidEvent("No precommit to send".to_string()));
                 };
@@ -213,10 +276,45 @@ impl SingleHeightConsensus {
                     return Ok(ShcReturn::Tasks(Vec::new()));
                 }
                 context.broadcast(ConsensusMessage::Vote(last_vote.clone())).await?;
-                Ok(ShcReturn::Tasks(vec![ShcTask {
-                    duration: self.timeouts.precommit_timeout,
-                    event: StateMachineEvent::Precommit(proposal_id, round),
-                }]))
+                Ok(ShcReturn::Tasks(vec![ShcTask::Precommit(
+                    self.timeouts.precommit_timeout,
+                    StateMachineEvent::Precommit(proposal_id, round),
+                )]))
+            }
+            ShcEvent::ValidateProposal(
+                StateMachineEvent::Proposal(proposal_id, round, valid_round),
+                fin,
+            ) => {
+                // TODO(matan): Switch to signature validation.
+                let Entry::Vacant(proposal_entry) = self.proposals.entry(round) else {
+                    warn!("Round {} already has a proposal, ignoring", round);
+                    return Ok(ShcReturn::Tasks(Vec::new()));
+                };
+                if proposal_id != fin {
+                    proposal_entry.insert(None);
+                    return self
+                        .process_inbound_proposal(
+                            context,
+                            StateMachineEvent::Proposal(None, round, valid_round),
+                        )
+                        .await;
+                }
+                proposal_entry.insert(proposal_id);
+                self.process_inbound_proposal(
+                    context,
+                    StateMachineEvent::Proposal(proposal_id, round, valid_round),
+                )
+                .await
+            }
+            ShcEvent::BuildProposal(StateMachineEvent::GetProposal(proposal_id, round)) => {
+                let old = self.proposals.insert(round, proposal_id);
+                assert!(old.is_none(), "There should be no entry for this round.");
+                let leader_fn =
+                    |round: Round| -> ValidatorId { context.proposer(self.height, round) };
+                let sm_events = self
+                    .state_machine
+                    .handle_event(StateMachineEvent::GetProposal(proposal_id, round), &leader_fn);
+                self.handle_state_machine_events(context, sm_events).await
             }
             _ => unimplemented!("Unexpected event: {:?}", event),
         }
@@ -277,10 +375,8 @@ impl SingleHeightConsensus {
             trace!("Handling event: {:?}", event);
             match event {
                 StateMachineEvent::GetProposal(proposal_id, round) => {
-                    events.append(
-                        &mut self
-                            .handle_state_machine_get_proposal(context, proposal_id, round)
-                            .await,
+                    ret_val.extend(
+                        self.handle_state_machine_get_proposal(context, proposal_id, round).await,
                     );
                 }
                 StateMachineEvent::Proposal(proposal_id, round, valid_round) => {
@@ -313,13 +409,13 @@ impl SingleHeightConsensus {
                     );
                 }
                 StateMachineEvent::TimeoutPropose(_) => {
-                    ret_val.push(ShcTask { duration: self.timeouts.proposal_timeout, event });
+                    ret_val.push(ShcTask::TimeoutPropose(self.timeouts.proposal_timeout, event));
                 }
                 StateMachineEvent::TimeoutPrevote(_) => {
-                    ret_val.push(ShcTask { duration: self.timeouts.prevote_timeout, event });
+                    ret_val.push(ShcTask::TimeoutPrevote(self.timeouts.prevote_timeout, event));
                 }
                 StateMachineEvent::TimeoutPrecommit(_) => {
-                    ret_val.push(ShcTask { duration: self.timeouts.precommit_timeout, event });
+                    ret_val.push(ShcTask::TimeoutPrecommit(self.timeouts.precommit_timeout, event));
                 }
             }
         }
@@ -332,7 +428,7 @@ impl SingleHeightConsensus {
         context: &mut ContextT,
         proposal_id: Option<ProposalContentId>,
         round: Round,
-    ) -> VecDeque<StateMachineEvent> {
+    ) -> Vec<ShcTask> {
         assert!(
             proposal_id.is_none(),
             "ProposalContentId must be None since the state machine is requesting a \
@@ -345,12 +441,9 @@ impl SingleHeightConsensus {
         let init =
             ProposalInit { height: self.height, round, proposer: self.id, valid_round: None };
         let fin_receiver = context.build_proposal(init, self.timeouts.proposal_timeout).await;
-        let block = fin_receiver.await.expect("Block building failed.");
-        let old = self.proposals.insert(round, Some(block));
-        assert!(old.is_none(), "There should be no entry for this round.");
-        let leader_fn = |round: Round| -> ValidatorId { context.proposer(self.height, round) };
-        self.state_machine
-            .handle_event(StateMachineEvent::GetProposal(Some(block), round), &leader_fn)
+        // The context initiates block building, while the manager waits non-blockingly
+        // for the block to be completed, then SHC will handle the block.
+        vec![ShcTask::BuildProposal(round, fin_receiver)]
     }
 
     #[instrument(skip(self, context), level = "debug")]
@@ -391,18 +484,22 @@ impl SingleHeightConsensus {
         round: Round,
         vote_type: VoteType,
     ) -> Result<Vec<ShcTask>, ConsensusError> {
-        let (votes, last_vote, duration, event) = match vote_type {
+        let (votes, last_vote, task) = match vote_type {
             VoteType::Prevote => (
                 &mut self.prevotes,
                 &mut self.last_prevote,
-                self.timeouts.prevote_timeout,
-                StateMachineEvent::Prevote(proposal_id, round),
+                ShcTask::Prevote(
+                    self.timeouts.prevote_timeout,
+                    StateMachineEvent::Prevote(proposal_id, round),
+                ),
             ),
             VoteType::Precommit => (
                 &mut self.precommits,
                 &mut self.last_precommit,
-                self.timeouts.precommit_timeout,
-                StateMachineEvent::Precommit(proposal_id, round),
+                ShcTask::Precommit(
+                    self.timeouts.precommit_timeout,
+                    StateMachineEvent::Precommit(proposal_id, round),
+                ),
             ),
         };
         let vote = Vote {
@@ -421,7 +518,7 @@ impl SingleHeightConsensus {
             return Ok(Vec::new());
         }
         *last_vote = Some(vote);
-        Ok(vec![ShcTask { duration, event }])
+        Ok(vec![task])
     }
 
     #[instrument(skip_all)]

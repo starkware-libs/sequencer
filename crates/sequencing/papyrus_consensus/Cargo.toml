@@ -28,6 +28,7 @@ tokio.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
+enum-as-inner = "0.6.1"
 mockall.workspace = true
 papyrus_network = { workspace = true, features = ["testing"] }
 papyrus_network_types = { workspace = true, features = ["testing"] }
