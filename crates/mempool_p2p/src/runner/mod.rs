@@ -53,7 +53,7 @@ impl ComponentStarter for MempoolP2pRunner {
                     panic!("Network stopped unexpectedly");
                 }
                 // TODO(eitan): Extract the logic into a handle_broadcasted_message method
-                Some((message_result, broadcasted_message_manager)) = self.broadcasted_topic_server.next() => {
+                Some((message_result, broadcasted_message_metadata)) = self.broadcasted_topic_server.next() => {
                     match message_result {
                         Ok(message) => {
                             // TODO(eitan): Add message metadata.
@@ -66,7 +66,7 @@ impl ComponentStarter for MempoolP2pRunner {
                                 Err(e) => {
                                     warn!(
                                         "Failed to forward transaction from MempoolP2pRunner to gateway: {:?}", e);
-                                    if let Err(e) = self.broadcast_topic_client.report_peer(broadcasted_message_manager).await {
+                                    if let Err(e) = self.broadcast_topic_client.report_peer(broadcasted_message_metadata).await {
                                         warn!("Failed to report peer: {:?}", e);
                                     }
                                 }
@@ -74,7 +74,7 @@ impl ComponentStarter for MempoolP2pRunner {
                         }
                         Err(e) => {
                             warn!("Received a faulty transaction from network: {:?}. Attempting to report the sending peer", e);
-                            if let Err(e) = self.broadcast_topic_client.report_peer(broadcasted_message_manager).await {
+                            if let Err(e) = self.broadcast_topic_client.report_peer(broadcasted_message_metadata).await {
                                 warn!("Failed to report peer: {:?}", e);
                             }
                         }
