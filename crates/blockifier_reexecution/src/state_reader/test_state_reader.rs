@@ -1,10 +1,12 @@
+use std::collections::HashMap;
+
 use blockifier::blockifier::block::BlockInfo;
 use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::TransactionExecutor;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::BlockContext;
 use blockifier::execution::contract_class::ContractClass as BlockifierContractClass;
-use blockifier::state::cached_state::{CachedState, CommitmentStateDiff};
+use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps};
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader, StateResult};
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
@@ -281,5 +283,125 @@ impl ConsecutiveStateReaders<TestStateReader> for ConsecutiveTestStateReaders {
 
     fn get_next_block_state_diff(&self) -> ReexecutionResult<CommitmentStateDiff> {
         self.next_block_state_reader.get_state_diff()
+    }
+}
+
+pub type StarknetContractClassMapping = HashMap<ClassHash, StarknetContractClass>;
+
+pub struct DummyStateReader(StateMaps, StarknetContractClassMapping);
+
+impl StateReader for DummyStateReader {
+    fn get_storage_at(
+        &self,
+        contract_address: ContractAddress,
+        key: StorageKey,
+    ) -> StateResult<Felt> {
+        match self.0.storage.get(&(contract_address, key)) {
+            Some(val) => Ok(*val),
+            None => Err(StateError::StateReadError("Missing Value.".to_string())),
+        }
+    }
+
+    fn get_nonce_at(&self, contract_address: ContractAddress) -> StateResult<Nonce> {
+        match self.0.nonces.get(&contract_address) {
+            Some(val) => Ok(*val),
+            None => Err(StateError::StateReadError("Missing Value.".to_string())),
+        }
+    }
+
+    fn get_class_hash_at(&self, contract_address: ContractAddress) -> StateResult<ClassHash> {
+        match self.0.class_hashes.get(&contract_address) {
+            Some(val) => Ok(*val),
+            None => Err(StateError::StateReadError("Missing Value.".to_string())),
+        }
+    }
+
+    fn get_compiled_contract_class(
+        &self,
+        class_hash: ClassHash,
+    ) -> StateResult<BlockifierContractClass> {
+        match self.get_contract_class(&class_hash)? {
+            Sierra(sierra) => sierra_to_contact_class_v1(sierra),
+            Legacy(legacy) => legacy_to_contract_class_v0(legacy),
+        }
+    }
+
+    fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
+        match self.0.compiled_class_hashes.get(&class_hash) {
+            Some(val) => Ok(*val),
+            None => Err(StateError::StateReadError("Missing Value.".to_string())),
+        }
+    }
+}
+
+impl DummyStateReader {
+    pub fn new(
+        state_maps: StateMaps,
+        contract_class_mapping: StarknetContractClassMapping,
+    ) -> Self {
+        DummyStateReader(state_maps, contract_class_mapping)
+    }
+
+    pub fn get_transaction_executor(
+        self,
+        block_context_next_block: BlockContext,
+        transaction_executor_config: Option<TransactionExecutorConfig>,
+    ) -> ReexecutionResult<TransactionExecutor<DummyStateReader>> {
+        Ok(TransactionExecutor::<DummyStateReader>::new(
+            CachedState::new(self),
+            block_context_next_block,
+            transaction_executor_config.unwrap_or_default(),
+        ))
+    }
+
+    pub fn get_contract_class(&self, class_hash: &ClassHash) -> StateResult<StarknetContractClass> {
+        match self.1.get(class_hash) {
+            Some(contract_class) => Ok(contract_class.clone()),
+            None => Err(StateError::StateReadError("Missing Value.".to_string())),
+        }
+    }
+}
+
+pub struct OfflineConsecutiveStateReaders {
+    pub dummy_state_reader: DummyStateReader,
+    pub block_context_next_block: BlockContext,
+    pub transactions_next_block: Vec<BlockifierTransaction>,
+    pub state_diff_next_block: CommitmentStateDiff,
+}
+
+impl OfflineConsecutiveStateReaders {
+    // TODO(Aner): create directly from json.
+    pub fn new(
+        // TODO(Aner): Create a struct containing the following parameters.
+        state_maps: StateMaps,
+        contract_class_mapping: StarknetContractClassMapping,
+        block_context_next_block: BlockContext,
+        transactions_next_block: Vec<BlockifierTransaction>,
+        state_diff_next_block: CommitmentStateDiff,
+    ) -> Self {
+        OfflineConsecutiveStateReaders {
+            dummy_state_reader: DummyStateReader::new(state_maps, contract_class_mapping),
+            block_context_next_block,
+            transactions_next_block,
+            state_diff_next_block,
+        }
+    }
+}
+
+impl ConsecutiveStateReaders<DummyStateReader> for OfflineConsecutiveStateReaders {
+    fn get_transaction_executor(
+        self,
+        transaction_executor_config: Option<TransactionExecutorConfig>,
+    ) -> ReexecutionResult<TransactionExecutor<DummyStateReader>> {
+        self.dummy_state_reader
+            .get_transaction_executor(self.block_context_next_block, transaction_executor_config)
+    }
+
+    fn get_next_block_txs(&self) -> ReexecutionResult<Vec<BlockifierTransaction>> {
+        Ok(self.transactions_next_block.clone())
+    }
+
+    fn get_next_block_state_diff(&self) -> ReexecutionResult<CommitmentStateDiff> {
+        Ok(self.state_diff_next_block.clone())
     }
 }
