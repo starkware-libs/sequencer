@@ -11,6 +11,7 @@ use cairo_native::starknet::{
     U256,
 };
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use starknet_api::core::EthAddress;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::L2ToL1Payload;
 use starknet_types_core::felt::Felt;
@@ -219,9 +220,9 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
 
     fn send_message_to_l1(
         &mut self,
-        _to_address: Felt,
-        _payload: &[Felt],
-        _remaining_gas: &mut u128,
+        to_address: Felt,
+        payload: &[Felt],
+        remaining_gas: &mut u128,
     ) -> SyscallResult<()> {
         self.substract_syscall_gas_cost(
             remaining_gas,
