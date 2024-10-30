@@ -19,6 +19,7 @@ use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use crate::block_builder::{BlockBuilder, BlockBuilderTrait, BlockExecutionArtifacts};
 use crate::test_utils::test_txs;
 use crate::transaction_executor::MockTransactionExecutorTrait;
+use crate::transaction_provider::ProposeTransactionProvider;
 
 const TEST_DEADLINE_SECS: u64 = 1;
 const TEST_CHANNEL_SIZE: usize = 50;
@@ -50,7 +51,7 @@ async fn test_build_block(
     let input_txs = test_txs(0..input_txs_len);
 
     // Create the mock transaction executor, mock mempool client and the expected block artifacts.
-    let (mock_transaction_executor, mock_mempool_client, expected_block_artifacts) =
+    let (mock_transaction_executor, tx_getter, expected_block_artifacts) =
         set_transaction_executor_expectations(
             &input_txs,
             expected_block_len,
@@ -64,10 +65,8 @@ async fn test_build_block(
         BlockBuilder::new(Box::new(mock_transaction_executor), execution_chunk_size);
     let deadline =
         tokio::time::Instant::now() + tokio::time::Duration::from_secs(TEST_DEADLINE_SECS);
-    let result_block_artifacts = block_builder
-        .build_block(deadline, Arc::new(mock_mempool_client), output_sender)
-        .await
-        .unwrap();
+    let result_block_artifacts =
+        block_builder.build_block(deadline, Box::new(tx_getter), output_sender).await.unwrap();
 
     // Check the transactions in the output channel.
     let mut output_txs = vec![];
@@ -88,7 +87,7 @@ fn set_transaction_executor_expectations(
     chunk_size: usize,
     enable_execution_delay: bool,
     block_full_tx_index: Option<usize>,
-) -> (MockTransactionExecutorTrait, MockMempoolClient, BlockExecutionArtifacts) {
+) -> (MockTransactionExecutorTrait, ProposeTransactionProvider, BlockExecutionArtifacts) {
     let input_chunks: Vec<Vec<Transaction>> =
         input_txs.chunks(chunk_size).map(|chunk| chunk.to_vec()).collect();
     let number_of_chunks = match enable_execution_delay {
@@ -113,7 +112,9 @@ fn set_transaction_executor_expectations(
         output_block_artifacts,
     );
 
-    (mock_transaction_executor, mock_mempool_client, expected_block_artifacts)
+    let tx_getter = ProposeTransactionProvider { mempool_client: Arc::new(mock_mempool_client) };
+
+    (mock_transaction_executor, tx_getter, expected_block_artifacts)
 }
 
 fn mock_mempool_client(
