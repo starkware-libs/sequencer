@@ -12,7 +12,6 @@ use pretty_assertions::assert_ne;
 use serde_json::to_string_pretty;
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
-use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::{
@@ -21,25 +20,23 @@ use starknet_api::rpc_transaction::{
     RpcDeployAccountTransactionV3,
     RpcTransaction,
 };
+use starknet_api::test_utils::declare::DeclareTxArgs;
 use starknet_api::test_utils::deploy_account::DeployAccountTxArgs;
 use starknet_api::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::fields::{
-    AccountDeploymentData,
     AllResourceBounds,
     ContractAddressSalt,
-    PaymasterData,
     ResourceBounds,
     Tip,
     TransactionSignature,
     ValidResourceBounds,
 };
 use starknet_api::transaction::TransactionVersion;
-use starknet_api::{deploy_account_tx_args, felt, invoke_tx_args, nonce};
+use starknet_api::{declare_tx_args, deploy_account_tx_args, felt, invoke_tx_args, nonce};
 use starknet_types_core::felt::Felt;
 
 use crate::{
-    declare_tx_args,
     get_absolute_path,
     COMPILED_CLASS_HASH_OF_CONTRACT_CLASS,
     CONTRACT_CLASS_FILE,
@@ -52,11 +49,10 @@ pub const VALID_L2_GAS_MAX_AMOUNT: u64 = 500000;
 pub const VALID_L2_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000;
 pub const VALID_L1_DATA_GAS_MAX_AMOUNT: u64 = 203484;
 pub const VALID_L1_DATA_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000;
-// TODO: Move to Gateway's test_utils when DeclareTxArgs is moved to Starknet API.
-pub const TEST_SENDER_ADDRESS: u128 = 0x1000;
 
 // Utils.
 
+// TODO(Noam): Merge this into test_valid_resource_bounds
 pub fn test_resource_bounds_mapping() -> AllResourceBounds {
     AllResourceBounds {
         l1_gas: ResourceBounds {
@@ -97,14 +93,16 @@ pub fn declare_tx() -> RpcTransaction {
     let mut nonce_manager = NonceManager::default();
     let nonce = nonce_manager.next(account_address);
 
-    rpc_declare_tx(declare_tx_args!(
-        signature: TransactionSignature(vec![Felt::ZERO]),
-        sender_address: account_address,
-        resource_bounds: test_resource_bounds_mapping(),
-        nonce,
-        class_hash: compiled_class_hash,
+    rpc_declare_tx(
+        declare_tx_args!(
+            signature: TransactionSignature(vec![Felt::ZERO]),
+            sender_address: account_address,
+            resource_bounds: test_valid_resource_bounds(),
+            nonce,
+            compiled_class_hash: compiled_class_hash
+        ),
         contract_class,
-    ))
+    )
 }
 
 /// Convenience method for generating a single invoke transaction with trivial fields.
@@ -372,64 +370,13 @@ impl Contract {
     }
 }
 
-#[macro_export]
-macro_rules! declare_tx_args {
-    ($($field:ident $(: $value:expr)?),* $(,)?) => {
-        $crate::starknet_api_test_utils::DeclareTxArgs {
-            $($field $(: $value)?,)*
-            ..Default::default()
-        }
-    };
-    ($($field:ident $(: $value:expr)?),* , ..$defaults:expr) => {
-        $crate::starknet_api_test_utils::DeclareTxArgs {
-            $($field $(: $value)?,)*
-            ..$defaults
-        }
-    };
-}
-
-#[derive(Clone)]
-pub struct DeclareTxArgs {
-    pub signature: TransactionSignature,
-    pub sender_address: ContractAddress,
-    pub version: TransactionVersion,
-    pub resource_bounds: AllResourceBounds,
-    pub tip: Tip,
-    pub nonce_data_availability_mode: DataAvailabilityMode,
-    pub fee_data_availability_mode: DataAvailabilityMode,
-    pub paymaster_data: PaymasterData,
-    pub account_deployment_data: AccountDeploymentData,
-    pub nonce: Nonce,
-    pub class_hash: CompiledClassHash,
-    pub contract_class: ContractClass,
-}
-
-impl Default for DeclareTxArgs {
-    fn default() -> Self {
-        Self {
-            signature: TransactionSignature::default(),
-            sender_address: TEST_SENDER_ADDRESS.into(),
-            version: TransactionVersion::THREE,
-            resource_bounds: AllResourceBounds::default(),
-            tip: Tip::default(),
-            nonce_data_availability_mode: DataAvailabilityMode::L1,
-            fee_data_availability_mode: DataAvailabilityMode::L1,
-            paymaster_data: PaymasterData::default(),
-            account_deployment_data: AccountDeploymentData::default(),
-            nonce: Nonce::default(),
-            class_hash: CompiledClassHash::default(),
-            contract_class: ContractClass::default(),
-        }
-    }
-}
-
 pub fn rpc_deploy_account_tx(deploy_tx_args: DeployAccountTxArgs) -> RpcTransaction {
     if deploy_tx_args.version != TransactionVersion::THREE {
         panic!("Unsupported transaction version: {:?}.", deploy_tx_args.version);
     }
 
     let ValidResourceBounds::AllResources(resource_bounds) = deploy_tx_args.resource_bounds else {
-        panic!("Unspported resource bounds type: {:?}.", deploy_tx_args.resource_bounds)
+        panic!("Unsupported resource bounds type: {:?}.", deploy_tx_args.resource_bounds)
     };
 
     starknet_api::rpc_transaction::RpcTransaction::DeployAccount(
@@ -450,24 +397,31 @@ pub fn rpc_deploy_account_tx(deploy_tx_args: DeployAccountTxArgs) -> RpcTransact
     )
 }
 
-pub fn rpc_declare_tx(declare_tx_args: DeclareTxArgs) -> RpcTransaction {
+pub fn rpc_declare_tx(
+    declare_tx_args: DeclareTxArgs,
+    contract_class: ContractClass,
+) -> RpcTransaction {
     if declare_tx_args.version != TransactionVersion::THREE {
         panic!("Unsupported transaction version: {:?}.", declare_tx_args.version);
     }
 
+    let ValidResourceBounds::AllResources(resource_bounds) = declare_tx_args.resource_bounds else {
+        panic!("Unspported resource bounds type: {:?}.", declare_tx_args.resource_bounds)
+    };
+
     starknet_api::rpc_transaction::RpcTransaction::Declare(
         starknet_api::rpc_transaction::RpcDeclareTransaction::V3(RpcDeclareTransactionV3 {
-            contract_class: declare_tx_args.contract_class,
+            contract_class,
             signature: declare_tx_args.signature,
             sender_address: declare_tx_args.sender_address,
-            resource_bounds: declare_tx_args.resource_bounds,
+            resource_bounds,
             tip: declare_tx_args.tip,
             nonce_data_availability_mode: declare_tx_args.nonce_data_availability_mode,
             fee_data_availability_mode: declare_tx_args.fee_data_availability_mode,
             paymaster_data: declare_tx_args.paymaster_data,
             account_deployment_data: declare_tx_args.account_deployment_data,
             nonce: declare_tx_args.nonce,
-            compiled_class_hash: declare_tx_args.class_hash,
+            compiled_class_hash: declare_tx_args.compiled_class_hash,
         }),
     )
 }
