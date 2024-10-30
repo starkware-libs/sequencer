@@ -146,14 +146,17 @@ fn serialize_state_maps() {
         ((contract_address!(30_u8), storage_key!(28_u8)), felt!(3_u8)),
     ]);
 
-    let state_maps = ReexecutionStateMaps::from(StateMaps {
-        nonces,
-        class_hashes,
-        storage,
-        compiled_class_hashes,
-        declared_contracts,
-    });
+    let original_state_maps =
+        StateMaps { nonces, class_hashes, storage, compiled_class_hashes, declared_contracts };
+
+    let serializable_state_maps = ReexecutionStateMaps::from(original_state_maps.clone());
 
     // Check that the created statemaps can be serialized.
-    serde_json::to_string_pretty(&state_maps).expect("Failed to serialize state maps");
+    let json = serde_json::to_string_pretty(&serializable_state_maps)
+        .expect("Failed to serialize state maps");
+
+    let deserialized_state_maps: ReexecutionStateMaps =
+        serde_json::from_str(&json).expect("Failed to deserialize state maps");
+
+    assert_eq!(original_state_maps, deserialized_state_maps.try_into().unwrap());
 }
