@@ -7,6 +7,7 @@ use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::CairoVersion;
 use mempool_test_utils::starknet_api_test_utils::{
     rpc_tx_to_json,
+    AccountId,
     MultiAccountTransactionGenerator,
 };
 use papyrus_consensus::config::ConsensusConfig;
@@ -157,25 +158,36 @@ pub async fn run_integration_test_scenario<'a, Fut>(
 where
     Fut: Future<Output = TransactionHash> + 'a,
 {
+    const ACCOUNT_ID_0: AccountId = 0;
+    const ACCOUNT_ID_1: AccountId = 1;
+
     // Create RPC transactions.
-    let account0_invoke_nonce1 = tx_generator.account_with_id(0).generate_invoke_with_tip(1);
-    let account0_invoke_nonce2 = tx_generator.account_with_id(0).generate_invoke_with_tip(2);
-    let account1_invoke_nonce1 = tx_generator.account_with_id(1).generate_invoke_with_tip(3);
+    let account0_invoke_nonce1 =
+        tx_generator.account_with_id(ACCOUNT_ID_0).generate_invoke_with_tip(2);
+    let account0_invoke_nonce2 =
+        tx_generator.account_with_id(ACCOUNT_ID_0).generate_invoke_with_tip(3);
+    let account1_invoke_nonce1 =
+        tx_generator.account_with_id(ACCOUNT_ID_1).generate_invoke_with_tip(4);
 
     // Send RPC transactions.
     let account0_invoke_nonce1_tx_hash = send_rpc_tx(account0_invoke_nonce1, send_rpc_tx_fn).await;
-    let account1_invoke_nonce1_tx_hash = send_rpc_tx(account1_invoke_nonce1, send_rpc_tx_fn).await;
     let account0_invoke_nonce2_tx_hash = send_rpc_tx(account0_invoke_nonce2, send_rpc_tx_fn).await;
+    let account1_invoke_nonce1_tx_hash = send_rpc_tx(account1_invoke_nonce1, send_rpc_tx_fn).await;
 
+    // Send RPC transactions.
+    let tx_hashes = [
+        account0_invoke_nonce1_tx_hash,
+        account0_invoke_nonce2_tx_hash,
+        account1_invoke_nonce1_tx_hash,
+    ];
+
+    // Return the transaction hashes by the order they should be given by the mempool:
     // account1_invoke_nonce1 precedes account0_invoke_nonce1 as its nonce is lower, despite the
     // higher tip of the latter. account1_invoke_nonce1 precedes account0_invoke_nonce1 as it
     // offers a higher tip, regardless of the nonce. Hence the expected tx order, regardless of
-    // tx hashes, is: account1_invoke_nonce1, account0_invoke_nonce1, and account0_invoke_nonce2.
-    vec![
-        account1_invoke_nonce1_tx_hash,
-        account0_invoke_nonce1_tx_hash,
-        account0_invoke_nonce2_tx_hash,
-    ]
+    // tx hashes, is: account1_invoke_nonce1, account0_invoke_nonce1, and
+    // account0_invoke_nonce2.
+    vec![tx_hashes[2], tx_hashes[0], tx_hashes[1]]
 }
 
 /// Sends an RPC transaction using the supplied sending function, and returns its hash.
