@@ -1,10 +1,16 @@
+use std::collections::HashMap;
+
 use blockifier::context::{ChainInfo, FeeTokenAddresses};
+use blockifier::state::cached_state::StateMaps;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use indexmap::IndexMap;
 use papyrus_execution::{eth_fee_contract_address, strk_fee_contract_address};
-use starknet_api::core::ChainId;
+use serde::{Deserialize, Serialize};
+use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
+use starknet_api::state::StorageKey;
 use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_gateway::config::RpcStateReaderConfig;
+use starknet_types_core::felt::Felt;
 
 use crate::state_reader::test_state_reader::ReexecutionResult;
 
@@ -58,3 +64,40 @@ pub(crate) fn disjoint_hashmap_union<K: std::hash::Hash + std::cmp::Eq, V>(
     assert_eq!(union_map.len(), expected_len, "Intersection of hashmaps is not empty.");
     union_map
 }
+
+#[derive(Serialize, Deserialize)]
+pub(crate) struct ReexecutionStateMaps {
+    nonces: HashMap<ContractAddress, Nonce>,
+    class_hashes: HashMap<ContractAddress, ClassHash>,
+    storage: HashMap<ContractAddress, HashMap<StorageKey, Felt>>,
+    compiled_class_hashes: HashMap<ClassHash, CompiledClassHash>,
+    declared_contracts: HashMap<ClassHash, bool>,
+}
+
+impl From<StateMaps> for ReexecutionStateMaps {
+    fn from(value: StateMaps) -> Self {
+        let mut storage: HashMap<ContractAddress, HashMap<StorageKey, Felt>> = HashMap::new();
+        for ((address, key), v) in value.storage {
+            match storage.get_mut(&address) {
+                Some(entry) => {
+                    entry.insert(key, v);
+                }
+                None => {
+                    let mut entry = HashMap::new();
+                    entry.insert(key, v);
+                    storage.insert(address, entry);
+                }
+            }
+        }
+        ReexecutionStateMaps {
+            nonces: value.nonces,
+            class_hashes: value.class_hashes,
+            storage,
+            compiled_class_hashes: value.compiled_class_hashes,
+            declared_contracts: value.declared_contracts,
+        }
+    }
+}
+
+// TODO(Aner): implement TryFrom<ReexecutionStateMaps> for StateMaps (or TryInto<StateMaps> for
+// ReexecutionStateMaps if not possible)
