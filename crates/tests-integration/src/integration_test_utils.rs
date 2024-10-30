@@ -161,6 +161,25 @@ where
     ]
 }
 
+pub async fn run_overflow_test_scenario<'a, Fut>(
+    tx_generator: &mut MultiAccountTransactionGenerator,
+    send_rpc_tx_fn: &'a dyn Fn(RpcTransaction) -> Fut,
+    number_of_txs: usize,
+) -> Vec<TransactionHash>
+where
+    Fut: Future<Output = TransactionHash> + 'a,
+{
+    let mut tx_hashes = vec![];
+
+    for _ in 0..number_of_txs {
+        let rpc_invoke_tx = tx_generator.account_with_id(0).generate_invoke_with_tip(1);
+        tx_hashes.push(send_rpc_tx(rpc_invoke_tx, send_rpc_tx_fn).await);
+    }
+
+    tx_hashes
+}
+
+
 /// Sends an RPC transaction using the supplied sending function, and returns its hash.
 fn send_rpc_tx<'a, Fut>(
     rpc_tx: RpcTransaction,

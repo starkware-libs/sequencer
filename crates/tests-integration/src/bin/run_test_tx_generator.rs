@@ -6,9 +6,7 @@ use papyrus_config::validators::config_validate;
 use papyrus_config::ConfigError;
 use starknet_http_server::config::HttpServerConfig;
 use starknet_integration_tests::integration_test_utils::{
-    create_integration_test_tx_generator,
-    run_integration_test_scenario,
-    HttpTestClient,
+    create_integration_test_tx_generator, run_overflow_test_scenario, HttpTestClient
 };
 use starknet_mempool_node::config::SequencerNodeConfig;
 use starknet_sequencer_infra::trace_util::configure_tracing;
@@ -19,7 +17,7 @@ async fn main() -> anyhow::Result<()> {
     configure_tracing();
     info!("Running integration test transaction generation for the sequencer node.");
 
-    let tx_generator = create_integration_test_tx_generator();
+    let mut tx_generator = create_integration_test_tx_generator();
 
     let config = SequencerNodeConfig::load_and_process(args().collect());
     if let Err(ConfigError::CommandInput(clap_err)) = config {
@@ -35,10 +33,12 @@ async fn main() -> anyhow::Result<()> {
     let HttpServerConfig { ip, port } = config.http_server_config;
     let http_test_client = HttpTestClient::new(SocketAddr::from((ip, port)));
 
-    let tx_hashes = run_integration_test_scenario(tx_generator, &|rpc_tx| {
-        http_test_client.assert_add_tx_success(rpc_tx)
-    })
-    .await;
+    let send_rpc_tx_fn = &|rpc_tx| http_test_client.assert_add_tx_success(rpc_tx);
+
+    let n_txs = 50;
+    info!("Adding {n_txs} txs.");
+    let tx_hashes = run_overflow_test_scenario(&mut tx_generator, send_rpc_tx_fn, n_txs).await;
+
 
     tx_hashes.iter().for_each(|tx_hash| info!("Add tx result: {:?}", tx_hash));
     Ok(())
