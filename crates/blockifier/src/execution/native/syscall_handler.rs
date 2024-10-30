@@ -11,6 +11,7 @@ use cairo_native::starknet::{
     U256,
 };
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use starknet_api::core::ContractAddress;
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
@@ -57,16 +58,12 @@ impl<'state> NativeSyscallHandler<'state> {
         NativeSyscallHandler {
             state,
             call,
-            caller_address,
-            contract_address,
-            entry_point_selector: entry_point_selector.0,
             syscall_counter: SyscallCounter::new(),
             resources,
             context,
             events: Vec::new(),
             l2_to_l1_messages: Vec::new(),
             inner_calls: Vec::new(),
-            syscall_counter: SyscallCounter::new(),
             read_values: Vec::new(),
             accessed_keys: HashSet::new(),
         }
