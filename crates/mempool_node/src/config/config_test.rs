@@ -16,7 +16,7 @@ use starknet_sequencer_infra::component_definitions::{
 use validator::Validate;
 
 use crate::config::{
-    node_command,
+    create_test_config_load_args,
     ComponentExecutionConfig,
     ComponentExecutionMode,
     SequencerNodeConfig,
@@ -93,11 +93,8 @@ fn test_default_config_file_is_up_to_date() {
 /// Tests parsing a node config without additional args.
 #[test]
 fn test_config_parsing() {
-    let config_file_name = get_absolute_path(DEFAULT_CONFIG_PATH);
-    let config = SequencerNodeConfig::load_and_process_file(
-        vec![node_command().to_string()],
-        config_file_name.to_str().unwrap(),
-    );
+    let args = create_test_config_load_args(&CONFIG_POINTERS);
+    let config = SequencerNodeConfig::load_and_process(args);
     let config = config.expect("Parsing function failed.");
 
     let result = config_validate(&config);
