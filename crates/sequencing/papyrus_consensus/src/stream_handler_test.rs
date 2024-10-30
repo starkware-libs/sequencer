@@ -13,15 +13,18 @@ use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_protobuf::consensus::{ConsensusMessage, Proposal, StreamMessage, StreamMessageBody};
 use papyrus_test_utils::{get_rng, GetTestInstance};
 
-use super::StreamHandler;
+use super::{MessageId, StreamHandler, StreamId};
+
+const TIMEOUT: Duration = Duration::from_millis(100);
+const CHANNEL_SIZE: usize = 100;
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
     fn make_test_message(
-        stream_id: u64,
-        message_id: u64,
+        stream_id: StreamId,
+        message_id: MessageId,
         fin: bool,
     ) -> StreamMessage<ConsensusMessage> {
         let content = match fin {
@@ -45,12 +48,13 @@ mod tests {
         sender.send((msg, metadata.clone())).await.unwrap();
     }
 
+    #[allow(clippy::type_complexity)]
     fn setup_test() -> (
         StreamHandler<ConsensusMessage>,
         MockBroadcastedMessagesSender<StreamMessage<ConsensusMessage>>,
         mpsc::Receiver<mpsc::Receiver<ConsensusMessage>>,
         BroadcastedMessageMetadata,
-        mpsc::Sender<(u64, mpsc::Receiver<ConsensusMessage>)>,
+        mpsc::Sender<(StreamId, mpsc::Receiver<ConsensusMessage>)>,
         futures::stream::Map<
             mpsc::Receiver<Vec<u8>>,
             fn(Vec<u8>) -> StreamMessage<ConsensusMessage>,
@@ -71,7 +75,7 @@ mod tests {
         // The receiver goes into StreamHandler, sender is used by the test (as mock Consensus).
         // Note that each new channel comes in a tuple with (stream_id, receiver).
         let (outbound_channel_sender, outbound_channel_receiver) =
-            mpsc::channel::<(u64, mpsc::Receiver<ConsensusMessage>)>(100);
+            mpsc::channel::<(StreamId, mpsc::Receiver<ConsensusMessage>)>(CHANNEL_SIZE);
 
         // The network_sender_to_inbound is the sender of the mock network, that is used by the
         // test to send messages into the StreamHandler (from the mock network).
@@ -89,9 +93,10 @@ mod tests {
         // each stream. The inbound_channel_receiver is given to the "mock consensus" that
         // gets new channels and inbounds to them.
         let (inbound_channel_sender, inbound_channel_receiver) =
-            mpsc::channel::<mpsc::Receiver<ConsensusMessage>>(100);
+            mpsc::channel::<mpsc::Receiver<ConsensusMessage>>(CHANNEL_SIZE);
 
         // TODO(guyn): We should also give the broadcast_topic_client to the StreamHandler
+        // This will allow reporting to the network things like bad peers.
         let handler = StreamHandler::new(
             inbound_channel_sender,
             inbound_receiver,
@@ -112,7 +117,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn stream_handler_inbound_in_order() {
+    async fn inbound_in_order() {
         let (mut stream_handler, mut network_sender, mut inbound_channel_receiver, metadata, _, _) =
             setup_test();
 
@@ -123,7 +128,7 @@ mod tests {
         }
 
         let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.run()).await;
+            let _ = tokio::time::timeout(TIMEOUT, stream_handler.run()).await;
         });
 
         join_handle.await.expect("Task should succeed");
@@ -138,7 +143,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn stream_handler_inbound_in_reverse() {
+    async fn inbound_in_reverse() {
         let (
             mut stream_handler,
             mut network_sender,
@@ -154,8 +159,10 @@ mod tests {
             let message = make_test_message(stream_id, 5 - i, i == 0);
             send(&mut network_sender, &inbound_metadata, message).await;
         }
+
+        // Run the loop for a short duration to process the message.
         let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.run()).await;
+            let _ = tokio::time::timeout(TIMEOUT, stream_handler.run()).await;
             stream_handler
         });
         let mut stream_handler = join_handle.await.expect("Task should succeed");
@@ -180,8 +187,10 @@ mod tests {
 
         // Now send the last message:
         send(&mut network_sender, &inbound_metadata, make_test_message(stream_id, 0, false)).await;
+
+        // Run the loop for a short duration to process the message.
         let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.run()).await;
+            let _ = tokio::time::timeout(TIMEOUT, stream_handler.run()).await;
             stream_handler
         });
 
@@ -197,7 +206,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn stream_handler_inbound_multiple_streams() {
+    async fn inbound_multiple_streams() {
         let (
             mut stream_handler,
             mut network_sender,
@@ -226,13 +235,15 @@ mod tests {
             let message = make_test_message(stream_id3, i, false);
             send(&mut network_sender, &inbound_metadata, message).await;
         }
+
         for i in 1..5 {
             let message = make_test_message(stream_id3, i, false);
             send(&mut network_sender, &inbound_metadata, message).await;
         }
 
+        // Run the loop for a short duration to process the message.
         let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.run()).await;
+            let _ = tokio::time::timeout(TIMEOUT, stream_handler.run()).await;
             stream_handler
         });
         let mut stream_handler = join_handle.await.expect("Task should succeed");
@@ -296,8 +307,10 @@ mod tests {
 
         // Send the last message on stream_id1:
         send(&mut network_sender, &inbound_metadata, make_test_message(stream_id1, 0, false)).await;
+
+        // Run the loop for a short duration to process the message.
         let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.run()).await;
+            let _ = tokio::time::timeout(TIMEOUT, stream_handler.run()).await;
             stream_handler
         });
 
@@ -320,8 +333,10 @@ mod tests {
 
         // Send the last message on stream_id2:
         send(&mut network_sender, &inbound_metadata, make_test_message(stream_id2, 0, false)).await;
+
+        // Run the loop for a short duration to process the message.
         let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.run()).await;
+            let _ = tokio::time::timeout(TIMEOUT, stream_handler.run()).await;
             stream_handler
         });
 
@@ -346,8 +361,9 @@ mod tests {
         // Send the last message on stream_id3:
         send(&mut network_sender, &inbound_metadata, make_test_message(stream_id3, 0, false)).await;
 
+        // Run the loop for a short duration to process the message.
         let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.run()).await;
+            let _ = tokio::time::timeout(TIMEOUT, stream_handler.run()).await;
             stream_handler
         });
 
@@ -373,8 +389,12 @@ mod tests {
         );
     }
 
+    // This test does two things:
+    // 1. Opens two outbound channels and checks that messages get correctly sent on both.
+    // 2. Closes the first channel and checks that Fin is sent and that the relevant structures
+    //    inside the stream handler are cleaned up.
     #[tokio::test]
-    async fn stream_handler_broadcast() {
+    async fn outbound_multiple_streams() {
         let (
             mut stream_handler,
             _,
@@ -384,21 +404,22 @@ mod tests {
             mut broadcasted_messages_receiver,
         ) = setup_test();
 
-        let stream_id1 = 42_u64;
-        let stream_id2 = 127_u64;
-
-        let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.run()).await;
-            stream_handler
-        });
+        let stream_id1: StreamId = 42;
+        let stream_id2: StreamId = 127;
 
         // Start a new stream by sending the (stream_id, receiver).
-        let (mut sender1, receiver1) = mpsc::channel(100);
+        let (mut sender1, receiver1) = mpsc::channel(CHANNEL_SIZE);
         broadcast_channel_sender.send((stream_id1, receiver1)).await.unwrap();
 
         // Send a message on the stream.
         let message1 = ConsensusMessage::Proposal(Proposal::default());
         sender1.send(message1.clone()).await.unwrap();
+
+        // Run the loop for a short duration to process the message.
+        let join_handle = tokio::spawn(async move {
+            let _ = tokio::time::timeout(TIMEOUT, stream_handler.run()).await;
+            stream_handler
+        });
 
         // Wait for an incoming message.
         let broadcasted_message = broadcasted_messages_receiver.next().await.unwrap();
@@ -418,13 +439,14 @@ mod tests {
         assert_eq!(stream_handler.outbound_stream_number[&stream_id1], 1);
 
         // Send another message on the same stream.
-        let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.run()).await;
-            stream_handler
-        });
-
         let message2 = ConsensusMessage::Proposal(Proposal::default());
         sender1.send(message2.clone()).await.unwrap();
+
+        // Run the loop for a short duration to process the message.
+        let join_handle = tokio::spawn(async move {
+            let _ = tokio::time::timeout(TIMEOUT, stream_handler.run()).await;
+            stream_handler
+        });
 
         // Wait for an incoming message.
         let broadcasted_message = broadcasted_messages_receiver.next().await.unwrap();
@@ -438,17 +460,18 @@ mod tests {
         assert_eq!(stream_handler.outbound_stream_number[&stream_id1], 2);
 
         // Start a new stream by sending the (stream_id, receiver).
-        let (mut sender2, receiver2) = mpsc::channel(100);
+        let (mut sender2, receiver2) = mpsc::channel(CHANNEL_SIZE);
         broadcast_channel_sender.send((stream_id2, receiver2)).await.unwrap();
-
-        let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.run()).await;
-            stream_handler
-        });
 
         // Send a message on the stream.
         let message3 = ConsensusMessage::Proposal(Proposal::default());
         sender2.send(message3.clone()).await.unwrap();
+
+        // Run the loop for a short duration to process the message.
+        let join_handle = tokio::spawn(async move {
+            let _ = tokio::time::timeout(TIMEOUT, stream_handler.run()).await;
+            stream_handler
+        });
 
         // Wait for an incoming message.
         let broadcasted_message = broadcasted_messages_receiver.next().await.unwrap();
@@ -467,20 +490,19 @@ mod tests {
         assert_eq!(stream_handler.outbound_stream_number[&stream_id2], 1);
 
         // Close the first channel.
+        sender1.close_channel();
 
+        // Run the loop for a short duration to process that the channel was closed.
         let join_handle = tokio::spawn(async move {
-            let _ = tokio::time::timeout(Duration::from_millis(100), stream_handler.run()).await;
+            let _ = tokio::time::timeout(TIMEOUT, stream_handler.run()).await;
             stream_handler
         });
-
-        sender1.close_channel();
 
         // Check that we got a fin message.
         let broadcasted_message = broadcasted_messages_receiver.next().await.unwrap();
         assert_eq!(broadcasted_message.message, StreamMessageBody::Fin);
 
         let stream_handler = join_handle.await.expect("Task should succeed");
-        println!("{:?}", stream_handler.outbound_stream_receivers.keys().collect::<Vec<&u64>>());
 
         // Check that the information about this stream is gone.
         assert_eq!(

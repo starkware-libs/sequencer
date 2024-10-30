@@ -24,17 +24,18 @@ mod stream_handler_test;
 type PeerId = OpaquePeerId;
 type StreamId = u64;
 type MessageId = u64;
-
 type StreamKey = (PeerId, StreamId);
 
 const CHANNEL_BUFFER_LENGTH: usize = 100;
 
 #[derive(Debug, Clone)]
 struct StreamData<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> {
+    // The ID of the next message that is expected to be received.
     next_message_id: MessageId,
     // The message_id of the message that is marked as "fin" (the last message),
     // if None, it means we have not yet gotten to it.
     fin_message_id: Option<MessageId>,
+    // The largest message_id that was received so far.
     max_message_id_received: MessageId,
     // The sender that corresponds to the receiver that was sent out for this stream.
     sender: mpsc::Sender<T>,
@@ -54,24 +55,30 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
     }
 }
 
-/// A StreamHandler is responsible for buffering and sending messages in order.
+/// A StreamHandler is responsible for buffering inbound messages and reporting them
+/// to the application in the correct order. It also sends outbound messages to the network,
+/// wrapped in StreamMessage structs so they can keep track of their order in-stream.
 pub struct StreamHandler<
     T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>,
 > {
-    // An end of a channel used to send out receivers, one for each stream.
+    // For each stream ID from the network, send the application a Receiver
+    // that will receive the messages in order. This allows sending such Receivers.
     inbound_channel_sender: mpsc::Sender<mpsc::Receiver<T>>,
-    // An end of a channel used to receive messages.
+    // This receives messages from the network.
     inbound_receiver: BroadcastTopicServer<StreamMessage<T>>,
-    // A map from stream_id to a struct that contains all the information about the stream.
-    // This includes both the message buffer and some metadata (like the latest message_id).
+    // A map from (peer_id, stream_id) to a struct that contains all the information
+    // about the stream. This includes both the message buffer and some metadata
+    // (like the latest message_id).
     inbound_stream_data: HashMap<StreamKey, StreamData<T>>,
-
-    // A receiver of receivers, one for each stream_id.
+    // Whenever application wants to start a new stream, it must send out a
+    // (stream_id, Receiver) pair. Each receiver gets messages that should
+    // be sent out to the network.
     outbound_channel_receiver: mpsc::Receiver<(StreamId, mpsc::Receiver<T>)>,
+    // A map where the abovementioned Receivers are stored.
+    outbound_stream_receivers: StreamHashMap<StreamId, mpsc::Receiver<T>>,
     // A network sender that allows sending StreamMessages to peers.
     outbound_sender: BroadcastTopicClient<StreamMessage<T>>,
-    // For each stream that goes out to broadcast, there is a receiver.
-    outbound_stream_receivers: StreamHashMap<StreamId, mpsc::Receiver<T>>,
+    // For each stream, keep track of the message_id of the last message sent.
     outbound_stream_number: HashMap<StreamId, MessageId>,
 }
 
@@ -96,13 +103,16 @@ impl<T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversi
         }
     }
 
-    /// Listen for messages on the receiver channel, buffering them if necessary.
-    /// Guarantees that messages are sent in order.
+    /// Listen for messages coming from the network and from the application.
+    /// - Outbound messages are wrapped as StreamMessage and sent to the network directly.
+    /// - Inbound messages are stripped of StreamMessage and buffered until they can be sent in the
+    ///   correct order to the application.
+    #[instrument(skip_all, level = "warn")]
     pub async fn run(&mut self) {
         loop {
-            // Go over the outbound_channel_receiver to see if there is a new receiver,
-            // and go over all existing outbound_receivers to see if there are any messages to
-            // send. Finally, check if there is an input message from the network.
+            // 1. Go over the outbound_channel_receiver to see if there is a new receiver.
+            // 2. Go over all existing outbound_receivers to see if there are any messages.
+            // 3. Check if there is an inbound message from the network.
             tokio::select!(
                 Some((stream_id, receiver)) = self.outbound_channel_receiver.next() => {
                     self.outbound_stream_receivers.insert(stream_id, receiver);
@@ -115,7 +125,7 @@ impl<T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversi
                         Some((key, None)) => {
                             self.broadcast_fin(key).await;
                         }
-                        None => {}  // This should generally never happen
+                        None => {warn!("StreamHashMap should not be closed! Usually only the individual channels are closed. ")}
                     }
                 }
                 Some(message) = self.inbound_receiver.next() => {
@@ -135,29 +145,30 @@ impl<T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversi
     }
 
     // Send the message to the network.
-    async fn broadcast(&mut self, key: StreamId, message: T) {
+    async fn broadcast(&mut self, stream_id: StreamId, message: T) {
         let message = StreamMessage {
             message: StreamMessageBody::Content(message),
-            stream_id: key,
-            message_id: *self.outbound_stream_number.get(&key).unwrap_or(&0),
+            stream_id,
+            message_id: *self.outbound_stream_number.get(&stream_id).unwrap_or(&0),
         };
         // TODO(guyn): reconsider the "expect" here.
         self.outbound_sender.broadcast_message(message).await.expect("Send should succeed");
         self.outbound_stream_number
-            .insert(key, self.outbound_stream_number.get(&key).unwrap_or(&0) + 1);
+            .insert(stream_id, self.outbound_stream_number.get(&stream_id).unwrap_or(&0) + 1);
     }
 
     // Send a fin message to the network.
-    async fn broadcast_fin(&mut self, key: StreamId) {
+    async fn broadcast_fin(&mut self, stream_id: StreamId) {
         let message = StreamMessage {
             message: StreamMessageBody::Fin,
-            stream_id: key,
-            message_id: *self.outbound_stream_number.get(&key).unwrap_or(&0),
+            stream_id,
+            message_id: *self.outbound_stream_number.get(&stream_id).unwrap_or(&0),
         };
         self.outbound_sender.broadcast_message(message).await.expect("Send should succeed");
-        self.outbound_stream_number.remove(&key);
+        self.outbound_stream_number.remove(&stream_id);
     }
 
+    // Handle a message that was received from the network.
     #[instrument(skip_all, level = "warn")]
     fn handle_message(
         &mut self,
@@ -194,7 +205,7 @@ impl<T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversi
             data.max_message_id_received = message_id;
         }
 
-        // Check for Fin type message
+        // Check for Fin type message.
         match message.message {
             StreamMessageBody::Content(_) => {}
             StreamMessageBody::Fin => {
@@ -214,8 +225,8 @@ impl<T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversi
         if message_id > data.fin_message_id.unwrap_or(u64::MAX) {
             // TODO(guyn): replace warnings with more graceful error handling
             warn!(
-                "Received message with id that is bigger than the id of the fin message! 
-                key: {:?}, message_id: {}, fin_message_id: {}",
+                "Received message with id that is bigger than the id of the fin message! key: \
+                 {:?}, message_id: {}, fin_message_id: {}",
                 key,
                 message_id,
                 data.fin_message_id.unwrap_or(u64::MAX)
@@ -249,6 +260,7 @@ impl<T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversi
         }
     }
 
+    // Store an inbound message in the buffer.
     fn store(data: &mut StreamData<T>, key: StreamKey, message: StreamMessage<T>) {
         let message_id = message.message_id;
 
