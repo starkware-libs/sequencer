@@ -197,7 +197,7 @@ pub fn generate_deploy_account_with_salt(
 
 // TODO: when moving this to Starknet API crate, move this const into a module alongside
 // MultiAcconutTransactionGenerator.
-type AccountId = usize;
+pub type AccountId = usize;
 
 type SharedNonceManager = Rc<RefCell<NonceManager>>;
 
