@@ -14,6 +14,7 @@ use starknet_api::transaction::{
 use starknet_core::types::ContractClass::{Legacy, Sierra};
 
 use crate::state_reader::compile::legacy_to_contract_class_v0;
+use crate::state_reader::reexecution_state_reader::ReexecutionStateReader;
 use crate::state_reader::test_state_reader::{ConsecutiveTestStateReaders, TestStateReader};
 
 const EXAMPLE_INVOKE_TX_HASH: &str =
@@ -178,4 +179,13 @@ pub fn test_get_declare_tx_by_hash(
 #[rstest]
 pub fn test_get_statediff_rpc(test_state_reader: TestStateReader) {
     assert!(test_state_reader.get_state_diff().is_ok());
+}
+
+#[rstest]
+#[case(EXAMPLE_DECLARE_V1_BLOCK_NUMBER)]
+#[case(EXAMPLE_DECLARE_V2_BLOCK_NUMBER)]
+#[case(EXAMPLE_DECLARE_V3_BLOCK_NUMBER)]
+pub fn test_get_all_blockifier_tx_in_block(#[case] block_number: u64) {
+    let state_reader = TestStateReader::new_for_testing(BlockNumber(block_number));
+    state_reader.api_txs_to_blockifier_txs(state_reader.get_all_txs_in_block().unwrap()).unwrap();
 }
