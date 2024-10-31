@@ -69,7 +69,7 @@ fn main() {
             };
 
             let test_state_readers_last_and_current_block =
-                ConsecutiveTestStateReaders::new(BlockNumber(block_number - 1), Some(config));
+                ConsecutiveTestStateReaders::new(BlockNumber(block_number - 1), Some(config), None);
 
             let all_txs_in_next_block =
                 test_state_readers_last_and_current_block.get_next_block_txs().unwrap();
