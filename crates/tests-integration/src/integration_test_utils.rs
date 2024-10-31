@@ -71,7 +71,11 @@ pub async fn create_config(
             rpc_state_reader_config,
             ..SequencerNodeConfig::default()
         },
-        RequiredParams { chain_id },
+        RequiredParams {
+            chain_id,
+            eth_fee_token_address: chain_info.fee_token_addresses.eth_fee_token_address,
+            strk_fee_token_address: chain_info.fee_token_addresses.strk_fee_token_address,
+        },
     )
 }
 
