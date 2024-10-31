@@ -7,7 +7,7 @@ use blockifier::blockifier::transaction_executor::TransactionExecutor;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::BlockContext;
 use blockifier::execution::contract_class::ContractClass as BlockifierContractClass;
-use blockifier::state::cached_state::{CachedState, CommitmentStateDiff};
+use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps};
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader, StateResult};
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
@@ -41,6 +41,14 @@ use crate::state_reader::utils::{
 pub type ReexecutionResult<T> = Result<T, ReexecutionError>;
 
 pub type StarknetContractClassMapping = HashMap<ClassHash, StarknetContractClass>;
+
+pub struct OfflineReexecutionData {
+    state_maps: StateMaps,
+    contract_class_mapping: StarknetContractClassMapping,
+    block_context_next_block: BlockContext,
+    transactions_next_block: Vec<BlockifierTransaction>,
+    state_diff_next_block: CommitmentStateDiff,
+}
 
 pub struct TestStateReader {
     rpc_state_reader: RpcStateReader,
