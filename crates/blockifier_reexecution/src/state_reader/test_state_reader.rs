@@ -38,6 +38,16 @@ use crate::state_reader::utils::{
 
 pub type ReexecutionResult<T> = Result<T, ReexecutionError>;
 
+pub type StarknetContractClassMapping = HashMap<ClassHash, StarknetContractClass>;
+
+pub struct OfflineReexecutionData {
+    state_maps: StateMaps,
+    contract_class_mapping: StarknetContractClassMapping,
+    block_context_next_block: BlockContext,
+    transactions_next_block: Vec<BlockifierTransaction>,
+    state_diff_next_block: CommitmentStateDiff,
+}
+
 pub struct TestStateReader(RpcStateReader);
 
 impl StateReader for TestStateReader {
