@@ -7,7 +7,7 @@ use blockifier::blockifier::transaction_executor::TransactionExecutor;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::BlockContext;
 use blockifier::execution::contract_class::ContractClass as BlockifierContractClass;
-use blockifier::state::cached_state::{CachedState, CommitmentStateDiff};
+use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps};
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader, StateResult};
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
@@ -41,6 +41,14 @@ use crate::state_reader::utils::{
 pub type ReexecutionResult<T> = Result<T, ReexecutionError>;
 
 pub type StarknetContractClassMapping = HashMap<ClassHash, StarknetContractClass>;
+
+pub struct OfflineReexecutionData {
+    state_maps: StateMaps,
+    contract_class_mapping: StarknetContractClassMapping,
+    block_context_next_block: BlockContext,
+    transactions_next_block: Vec<BlockifierTransaction>,
+    state_diff_next_block: CommitmentStateDiff,
+}
 
 pub struct TestStateReader {
     rpc_state_reader: RpcStateReader,
@@ -267,12 +275,13 @@ impl ReexecutionStateReader for TestStateReader {
         class_hash: ClassHash,
     ) -> ReexecutionResult<StarknetContractClass> {
         let params = json!({
-            "block_id": self.0.block_id,
+            "block_id": self.rpc_state_reader.block_id,
             "class_hash": class_hash.0.to_string(),
         });
-        let contract_class: StarknetContractClass =
-            serde_json::from_value(self.0.send_rpc_request("starknet_getClass", params.clone())?)
-                .map_err(serde_err_to_state_err)?;
+        let contract_class: StarknetContractClass = serde_json::from_value(
+            self.rpc_state_reader.send_rpc_request("starknet_getClass", params.clone())?,
+        )
+        .map_err(serde_err_to_state_err)?;
         Ok(contract_class)
     }
 }
