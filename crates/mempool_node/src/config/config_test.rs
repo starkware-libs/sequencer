@@ -15,9 +15,8 @@ use starknet_sequencer_infra::component_definitions::{
 };
 use validator::Validate;
 
-use crate::config::test_utils::RequiredParams;
+use crate::config::test_utils::{create_test_config_load_args, RequiredParams};
 use crate::config::{
-    create_test_config_load_args,
     ComponentExecutionConfig,
     ComponentExecutionMode,
     SequencerNodeConfig,
