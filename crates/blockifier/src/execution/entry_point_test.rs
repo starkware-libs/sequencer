@@ -525,8 +525,12 @@ fn test_cairo1_entry_point_segment_arena() {
     };
 
     assert_eq!(
-        entry_point_call.execute_directly(&mut state).unwrap().resources.builtin_instance_counter
-            [&BuiltinName::segment_arena],
+        entry_point_call
+            .execute_directly(&mut state)
+            .unwrap()
+            .charged_resources
+            .vm_resources
+            .builtin_instance_counter[&BuiltinName::segment_arena],
         // Note: the number of segment_arena instances should not depend on the compiler or VM
         // version. Do not manually fix this then when upgrading them - it might be a bug.
         2

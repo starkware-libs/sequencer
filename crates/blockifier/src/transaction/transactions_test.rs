@@ -56,6 +56,7 @@ use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionCont
 use crate::execution::call_info::{
     CallExecution,
     CallInfo,
+    ChargedResources,
     ExecutionSummary,
     MessageToL1,
     OrderedEvent,
@@ -230,7 +231,7 @@ fn expected_validate_call_info(
             initial_gas,
         },
         // The account contract we use for testing has trivial `validate` functions.
-        resources,
+        charged_resources: ChargedResources::from_execution_resources(resources),
         execution: CallExecution { retdata, gas_consumed, ..Default::default() },
         tracked_resource,
         ..Default::default()
@@ -298,7 +299,9 @@ fn expected_fee_transfer_call_info(
             events: vec![expected_fee_transfer_event],
             ..Default::default()
         },
-        resources: Prices::FeeTransfer(account_address, *fee_type).into(),
+        charged_resources: ChargedResources::from_execution_resources(
+            Prices::FeeTransfer(account_address, *fee_type).into(),
+        ),
         // We read sender and recipient balance - Uint256(BALANCE, 0) then Uint256(0, 0).
         storage_read_values: vec![felt!(BALANCE.0), felt!(0_u8), felt!(0_u8), felt!(0_u8)],
         accessed_storage_keys: HashSet::from_iter(vec![
@@ -321,7 +324,7 @@ fn get_expected_cairo_resources(
         versioned_constants.get_additional_os_tx_resources(tx_type, starknet_resources, false);
     for call_info in call_infos {
         if let Some(call_info) = &call_info {
-            expected_cairo_resources += &call_info.resources
+            expected_cairo_resources += &call_info.charged_resources.vm_resources
         };
     }
 
@@ -505,11 +508,15 @@ fn test_invoke_tx(
             gas_consumed: expected_arguments.execute_gas_consumed,
             ..Default::default()
         },
-        resources: expected_arguments.resources,
+        charged_resources: ChargedResources::from_execution_resources(expected_arguments.resources),
         inner_calls: vec![CallInfo {
             call: expected_return_result_call,
             execution: CallExecution::from_retdata(expected_return_result_retdata),
-            resources: ExecutionResources { n_steps: 23, n_memory_holes: 0, ..Default::default() },
+            charged_resources: ChargedResources::from_execution_resources(ExecutionResources {
+                n_steps: 23,
+                n_memory_holes: 0,
+                ..Default::default()
+            }),
             ..Default::default()
         }],
         tracked_resource,
@@ -2091,11 +2098,11 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
             gas_consumed: 6820,
             ..Default::default()
         },
-        resources: ExecutionResources {
+        charged_resources: ChargedResources::from_execution_resources(ExecutionResources {
             n_steps: 158,
             n_memory_holes: 0,
             builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 6)]),
-        },
+        }),
         accessed_storage_keys: HashSet::from_iter(vec![accessed_storage_key]),
         tracked_resource: test_contract
             .get_class()
