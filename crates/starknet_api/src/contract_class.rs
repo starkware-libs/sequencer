@@ -22,7 +22,7 @@ pub enum EntryPointType {
 }
 
 /// Represents a raw Starknet contract class.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, derive_more::From)]
 pub enum ContractClass {
     V0(DeprecatedContractClass),
     V1(CasmContractClass),

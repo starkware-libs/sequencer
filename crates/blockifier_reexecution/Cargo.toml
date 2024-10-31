@@ -12,7 +12,6 @@ blockifier_regression_https_testing = []
 blockifier.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-lang-utils.workspace = true
-cairo-vm.workspace = true
 clap = { workspace = true, features = ["cargo", "derive"] }
 flate2.workspace = true
 indexmap = { workspace = true, features = ["serde"] }

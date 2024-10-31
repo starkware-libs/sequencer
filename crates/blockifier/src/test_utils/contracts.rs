@@ -1,4 +1,5 @@
-use starknet_api::contract_class::EntryPointType;
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use starknet_api::contract_class::{ContractClass, EntryPointType};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::deprecated_contract_class::{
     ContractClass as DeprecatedContractClass,
@@ -11,9 +12,10 @@ use strum_macros::EnumIter;
 
 use crate::abi::abi_utils::selector_from_name;
 use crate::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
-use crate::execution::contract_class::{ContractClassV0, ContractClassV1, RunnableContractClass};
+use crate::execution::contract_class::RunnableContractClass;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::test_utils::cairo_compile::{cairo0_compile, cairo1_compile};
+use crate::test_utils::struct_impls::LoadContractFromFile;
 use crate::test_utils::{get_raw_contract_class, CairoVersion};
 
 // This file contains featured contracts, used for tests. Use the function 'test_state' in
@@ -148,11 +150,19 @@ impl FeatureContract {
         contract_address!(self.get_integer_base() + instance_id_as_u32 + ADDRESS_BIT)
     }
 
-    pub fn get_runnable_class(&self) -> RunnableContractClass {
+    pub fn get_class(&self) -> ContractClass {
         match self.cairo_version() {
-            CairoVersion::Cairo0 => ContractClassV0::from_file(&self.get_compiled_path()).into(),
-            CairoVersion::Cairo1 => ContractClassV1::from_file(&self.get_compiled_path()).into(),
+            CairoVersion::Cairo0 => {
+                ContractClass::V0(DeprecatedContractClass::from_file(&self.get_compiled_path()))
+            }
+            CairoVersion::Cairo1 => {
+                ContractClass::V1(CasmContractClass::from_file(&self.get_compiled_path()))
+            }
         }
+    }
+
+    pub fn get_runnable_class(&self) -> RunnableContractClass {
+        self.get_class().try_into().unwrap()
     }
 
     // TODO(Arni, 1/1/2025): Remove this function, and use the get_class function instead.
