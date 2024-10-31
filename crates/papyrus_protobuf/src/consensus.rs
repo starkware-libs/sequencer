@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use futures::channel::{mpsc, oneshot};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::ContractAddress;
@@ -54,9 +56,12 @@ pub enum StreamMessageBody<T> {
 }
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
-pub struct StreamMessage<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> {
+pub struct StreamMessage<
+    T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>,
+    StreamId: Into<Vec<u8>> + Clone,
+> {
     pub message: StreamMessageBody<T>,
-    pub stream_id: u64,
+    pub stream_id: StreamId,
     pub message_id: u64,
 }
 
@@ -99,7 +104,7 @@ pub enum ProposalPart {
     Fin(ProposalFin),
 }
 
-impl<T> std::fmt::Display for StreamMessage<T>
+impl<T, StreamId: Into<Vec<u8>> + Clone + Display> std::fmt::Display for StreamMessage<T, StreamId>
 where
     T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>,
 {
