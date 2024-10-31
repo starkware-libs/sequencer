@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use blockifier::abi::constants;
-use blockifier::transaction::transactions::L1HandlerTransaction;
 use pyo3::prelude::*;
 use starknet_api::core::{ContractAddress, EntryPointSelector, Nonce};
+use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::{Calldata, Fee, TransactionHash};
 
 use crate::errors::{NativeBlockifierInputError, NativeBlockifierResult};

@@ -20,6 +20,7 @@ use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::declare::declare_tx;
 use crate::test_utils::deploy_account::deploy_account_tx;
 use crate::test_utils::initial_test_state::test_state;
+use crate::test_utils::l1_handler::l1handler_tx;
 use crate::test_utils::{
     create_calldata,
     maybe_dummy_block_hash_and_number,
@@ -38,7 +39,6 @@ use crate::transaction::test_utils::{
     TestInitData,
 };
 use crate::transaction::transaction_execution::Transaction;
-use crate::transaction::transactions::L1HandlerTransaction;
 fn tx_executor_test_body<S: StateReader>(
     state: CachedState<S>,
     block_context: BlockContext,
@@ -230,7 +230,7 @@ fn test_l1_handler(block_context: BlockContext) {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1);
     let state = test_state(&block_context.chain_info, BALANCE, &[(test_contract, 1)]);
 
-    let tx = Transaction::L1Handler(L1HandlerTransaction::create_for_testing(
+    let tx = Transaction::L1Handler(l1handler_tx(
         Fee(1908000000000000),
         test_contract.get_instance_address(0),
     ));

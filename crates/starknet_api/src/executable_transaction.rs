@@ -14,6 +14,7 @@ use crate::transaction::{
     AllResourceBounds,
     Calldata,
     ContractAddressSalt,
+    Fee,
     PaymasterData,
     Tip,
     TransactionHash,
@@ -290,5 +291,19 @@ impl InvokeTransaction {
     ) -> Result<Self, StarknetApiError> {
         let invoke_tx: crate::transaction::InvokeTransaction = rpc_tx.into();
         Self::create(invoke_tx, chain_id)
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct L1HandlerTransaction {
+    pub tx: crate::transaction::L1HandlerTransaction,
+    pub tx_hash: TransactionHash,
+    pub paid_fee_on_l1: Fee,
+}
+
+impl L1HandlerTransaction {
+    pub fn payload_size(&self) -> usize {
+        // The calldata includes the "from" field, which is not a part of the payload.
+        self.tx.calldata.0.len() - 1
     }
 }

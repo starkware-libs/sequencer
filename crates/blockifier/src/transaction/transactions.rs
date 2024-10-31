@@ -3,6 +3,7 @@ use std::sync::Arc;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
+use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::{
     AccountDeploymentData,
     Calldata,
@@ -554,20 +555,6 @@ impl TransactionInfoCreator for InvokeTransaction {
                 })
             }
         }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct L1HandlerTransaction {
-    pub tx: starknet_api::transaction::L1HandlerTransaction,
-    pub tx_hash: TransactionHash,
-    pub paid_fee_on_l1: Fee,
-}
-
-impl L1HandlerTransaction {
-    pub fn payload_size(&self) -> usize {
-        // The calldata includes the "from" field, which is not a part of the payload.
-        self.tx.calldata.0.len() - 1
     }
 }
 
