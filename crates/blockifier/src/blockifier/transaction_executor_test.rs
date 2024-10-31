@@ -1,6 +1,7 @@
 use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
+use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::{Fee, TransactionVersion};
 use starknet_api::{declare_tx_args, deploy_account_tx_args, felt, invoke_tx_args, nonce};
@@ -24,6 +25,7 @@ use crate::test_utils::{
     create_calldata,
     maybe_dummy_block_hash_and_number,
     CairoVersion,
+    CreateForTesting,
     BALANCE,
     DEFAULT_STRK_L1_GAS_PRICE,
 };
@@ -38,7 +40,6 @@ use crate::transaction::test_utils::{
     TestInitData,
 };
 use crate::transaction::transaction_execution::Transaction;
-use crate::transaction::transactions::L1HandlerTransaction;
 fn tx_executor_test_body<S: StateReader>(
     state: CachedState<S>,
     block_context: BlockContext,

@@ -4,6 +4,7 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use serde_json::Value;
 use starknet_api::block::{BlockNumber, BlockTimestamp, NonzeroGasPrice};
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, Nonce, PatriciaKey};
+use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::{Fee, TransactionHash, TransactionVersion};
 use starknet_api::{calldata, contract_address, patricia_key};
 use starknet_types_core::felt::Felt;
@@ -35,7 +36,6 @@ use crate::test_utils::{
     TEST_SEQUENCER_ADDRESS,
 };
 use crate::transaction::objects::{DeprecatedTransactionInfo, TransactionInfo};
-use crate::transaction::transactions::L1HandlerTransaction;
 use crate::versioned_constants::{
     GasCosts,
     OsConstants,
@@ -224,8 +224,12 @@ impl ContractClassV1 {
     }
 }
 
-impl L1HandlerTransaction {
-    pub fn create_for_testing(l1_fee: Fee, contract_address: ContractAddress) -> Self {
+pub trait CreateForTesting {
+    fn create_for_testing(l1_fee: Fee, contract_address: ContractAddress) -> Self;
+}
+
+impl CreateForTesting for L1HandlerTransaction {
+    fn create_for_testing(l1_fee: Fee, contract_address: ContractAddress) -> Self {
         let calldata = calldata![
             Felt::from(0x123), // from_address.
             Felt::from(0x876), // key.
