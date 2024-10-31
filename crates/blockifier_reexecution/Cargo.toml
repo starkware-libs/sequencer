@@ -17,6 +17,7 @@ flate2.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
 papyrus_execution.workspace = true
 pretty_assertions.workspace = true
+retry.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 starknet-core.workspace = true
