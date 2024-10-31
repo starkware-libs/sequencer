@@ -1,9 +1,11 @@
 use std::sync::Arc;
 
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use serde_json::Value;
 use starknet_api::block::{BlockNumber, BlockTimestamp, NonzeroGasPrice};
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, Nonce};
+use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::transaction::{Fee, TransactionHash, TransactionVersion};
 use starknet_api::{calldata, contract_address};
 use starknet_types_core::felt::Felt;
@@ -209,6 +211,17 @@ impl CallExecution {
 }
 
 // Contract loaders.
+
+// TODO(Noa): Consider using PathBuf.
+pub trait LoadContractFromFile: serde::de::DeserializeOwned {
+    fn from_file(contract_path: &str) -> Self {
+        let raw_contract_class = get_raw_contract_class(contract_path);
+        serde_json::from_str(&raw_contract_class).unwrap()
+    }
+}
+
+impl LoadContractFromFile for CasmContractClass {}
+impl LoadContractFromFile for DeprecatedContractClass {}
 
 impl ContractClassV0 {
     pub fn from_file(contract_path: &str) -> Self {
