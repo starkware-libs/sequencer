@@ -46,10 +46,6 @@ pub static REQUIRED_PARAM_CONFIG_POINTERS: LazyLock<Vec<(ParamPath, SerializedPa
         )]
     });
 
-// TODO(Tsabary): Create a struct detailing all the required parameters and their types. Add a macro
-// that verifies the correctness of the required parameters compared to
-// REQUIRED_PARAM_CONFIG_POINTERS.
-
 // Optional target parameters, i.e., target parameters with default values.
 pub static DEFAULT_PARAM_CONFIG_POINTERS: LazyLock<Vec<(ParamPath, SerializedParam)>> =
     LazyLock::new(Vec::new);

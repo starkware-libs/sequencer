@@ -15,6 +15,7 @@ use starknet_sequencer_infra::component_definitions::{
 };
 use validator::Validate;
 
+use crate::config::test_utils::RequiredParams;
 use crate::config::{
     create_test_config_load_args,
     ComponentExecutionConfig,
@@ -99,4 +100,13 @@ fn test_config_parsing() {
 
     let result = config_validate(&config);
     assert_matches!(result, Ok(_), "Expected Ok but got {:?}", result);
+}
+
+/// Tests compatibility of the required parameter settings: pointer targets and test util struct.
+#[test]
+fn test_required_params_setting() {
+    let required_pointers =
+        REQUIRED_PARAM_CONFIG_POINTERS.iter().map(|(x, _)| x.to_owned()).collect::<Vec<_>>();
+    let required_params = RequiredParams::field_names();
+    assert_eq!(required_pointers, required_params);
 }
