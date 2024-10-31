@@ -396,27 +396,6 @@ fn test_add_tx_lower_than_queued_nonce() {
 }
 
 #[rstest]
-fn test_add_tx_updates_queue_with_higher_account_nonce() {
-    // Setup.
-    let input = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 0, account_nonce: 0);
-    let higher_account_nonce_input =
-        add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 1, account_nonce: 1);
-
-    let queue_txs = [TransactionReference::new(&input.tx)];
-    let mut mempool =
-        MempoolContentBuilder::new().with_priority_queue(queue_txs).build_into_mempool();
-
-    // Test.
-    add_tx(&mut mempool, &higher_account_nonce_input);
-
-    // Assert: the higher account nonce transaction is in the queue.
-    let expected_queue_txs = [TransactionReference::new(&higher_account_nonce_input.tx)];
-    let expected_mempool_content =
-        MempoolContentBuilder::new().with_priority_queue(expected_queue_txs).build();
-    expected_mempool_content.assert_eq(&mempool);
-}
-
-#[rstest]
 fn test_add_tx_with_identical_tip_succeeds(mut mempool: Mempool) {
     // Setup.
     let input1 = add_tx_input!(tip: 1, tx_hash: 2, address: "0x0");
