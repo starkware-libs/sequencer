@@ -17,6 +17,7 @@ pub struct TransactionQueueContent {
 }
 
 impl TransactionQueueContent {
+    #[track_caller]
     pub fn assert_eq(&self, tx_queue: &TransactionQueue) {
         if let Some(priority_queue) = &self.priority_queue {
             assert_eq!(&tx_queue.priority_queue, priority_queue);
