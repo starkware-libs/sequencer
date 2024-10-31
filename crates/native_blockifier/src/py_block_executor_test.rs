@@ -7,7 +7,6 @@ use cached::Cached;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use pretty_assertions::assert_eq;
 use starknet_api::class_hash;
-use starknet_api::core::ClassHash;
 use starknet_types_core::felt::Felt;
 
 use crate::py_block_executor::{PyBlockExecutor, PyOsConfig};

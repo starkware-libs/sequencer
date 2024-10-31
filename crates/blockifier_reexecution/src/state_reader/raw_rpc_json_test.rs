@@ -6,7 +6,6 @@ use blockifier::state::cached_state::StateMaps;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
-use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey};
 use starknet_api::test_utils::read_json_file;
 use starknet_api::transaction::{
     DeclareTransaction,
@@ -14,15 +13,7 @@ use starknet_api::transaction::{
     InvokeTransaction,
     Transaction,
 };
-use starknet_api::{
-    class_hash,
-    compiled_class_hash,
-    contract_address,
-    felt,
-    nonce,
-    patricia_key,
-    storage_key,
-};
+use starknet_api::{class_hash, compiled_class_hash, contract_address, felt, nonce, storage_key};
 use starknet_core::types::ContractClass;
 use starknet_gateway::rpc_objects::BlockHeader;
 

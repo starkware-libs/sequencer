@@ -4,11 +4,11 @@ use indexmap::{indexmap, IndexMap};
 use papyrus_test_utils::get_test_state_diff;
 use pretty_assertions::assert_eq;
 use starknet_api::block::BlockNumber;
-use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce, PatriciaKey};
+use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::hash::StarkHash;
 use starknet_api::state::{ContractClass, StateNumber, ThinStateDiff};
-use starknet_api::{class_hash, contract_address, felt, patricia_key, storage_key};
+use starknet_api::{class_hash, contract_address, felt, storage_key};
 use starknet_types_core::felt::Felt;
 
 use crate::class::{ClassStorageReader, ClassStorageWriter};

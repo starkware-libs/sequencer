@@ -4,7 +4,6 @@ use blockifier::execution::contract_class::ContractClassV0;
 use blockifier::state::cached_state::CachedState;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use starknet_api::class_hash;
-use starknet_api::core::ClassHash;
 
 pub const TOKEN_FOR_TESTING_CLASS_HASH: &str = "0x30";
 // This package is run within the StarkWare repository build directory.

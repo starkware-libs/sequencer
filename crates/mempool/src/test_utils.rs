@@ -1,10 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
 use pretty_assertions::assert_eq;
-use starknet_api::core::{ContractAddress, PatriciaKey};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::transaction::TransactionHash;
-use starknet_api::{contract_address, felt, nonce, patricia_key};
+use starknet_api::{contract_address, felt, nonce};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{AddTransactionArgs, CommitBlockArgs};
 
@@ -22,7 +21,6 @@ macro_rules! tx {
         max_l2_gas_price: $max_l2_gas_price:expr
     ) => {{
             use starknet_api::block::GasPrice;
-            use starknet_api::core::{ContractAddress, PatriciaKey};
             use starknet_api::executable_transaction::Transaction;
             use starknet_api::hash::StarkHash;
             use starknet_api::invoke_tx_args;
