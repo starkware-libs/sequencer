@@ -21,6 +21,7 @@ use starknet_gateway::rpc_objects::{BlockHeader, GetBlockWithTxHashesParams, Res
 use starknet_gateway::rpc_state_reader::RpcStateReader;
 use starknet_types_core::felt::Felt;
 
+use crate::retry_request;
 use crate::state_reader::compile::{legacy_to_contract_class_v0, sierra_to_contact_class_v1};
 use crate::state_reader::errors::ReexecutionError;
 use crate::state_reader::reexecution_state_reader::ReexecutionStateReader;
@@ -35,13 +36,42 @@ use crate::state_reader::utils::{
     get_rpc_state_reader_config,
 };
 
+pub const DEFAULT_RETRY_COUNT: usize = 3;
+pub const DEFAULT_RETRY_WAIT_TIME: u64 = 1000;
+
 pub type ReexecutionResult<T> = Result<T, ReexecutionError>;
 
-pub struct TestStateReader(RpcStateReader);
+pub struct RetryConfig {
+    pub(crate) n_retries: usize,
+    pub(crate) retry_interval_milliseconds: u64,
+}
+
+impl Default for RetryConfig {
+    fn default() -> Self {
+        Self {
+            n_retries: DEFAULT_RETRY_COUNT,
+            retry_interval_milliseconds: DEFAULT_RETRY_WAIT_TIME,
+        }
+    }
+}
+
+pub struct TestStateReader {
+    pub(crate) rpc_reader: RpcStateReader,
+    pub(crate) retry_config: RetryConfig,
+}
+
+impl Default for TestStateReader {
+    fn default() -> Self {
+        Self {
+            rpc_reader: RpcStateReader::from_latest(&get_rpc_state_reader_config()),
+            retry_config: RetryConfig::default(),
+        }
+    }
+}
 
 impl StateReader for TestStateReader {
     fn get_nonce_at(&self, contract_address: ContractAddress) -> StateResult<Nonce> {
-        self.0.get_nonce_at(contract_address)
+        retry_request!(self.retry_config, || self.rpc_reader.get_nonce_at(contract_address))
     }
 
     fn get_storage_at(
@@ -49,19 +79,18 @@ impl StateReader for TestStateReader {
         contract_address: ContractAddress,
         key: StorageKey,
     ) -> StateResult<Felt> {
-        match self.0.get_storage_at(contract_address, key) {
-            Ok(value) => Ok(value),
-            // If the contract address is not found, The blockifier expect to get the default value
-            // of felt.
-            Err(e) if e.to_string().contains("Contract address not found for request") => {
-                Ok(Felt::default())
-            }
-            Err(e) => panic!("Unexpected error in get_storage_at: {:?}", e),
-        }
+        retry_request!(self.retry_config, || self.rpc_reader.get_storage_at(contract_address, key))
+            .or_else(|e| {
+                if e.to_string().contains("Contract address not found for request") {
+                    Ok(Felt::default())
+                } else {
+                    Err(e)
+                }
+            })
     }
 
     fn get_class_hash_at(&self, contract_address: ContractAddress) -> StateResult<ClassHash> {
-        self.0.get_class_hash_at(contract_address)
+        retry_request!(self.retry_config, || self.rpc_reader.get_class_hash_at(contract_address))
     }
 
     /// Returns the contract class of the given class hash.
@@ -70,33 +99,40 @@ impl StateReader for TestStateReader {
         &self,
         class_hash: ClassHash,
     ) -> StateResult<BlockifierContractClass> {
-        match self.get_contract_class(&class_hash)? {
+        let conract_class =
+            retry_request!(self.retry_config, || self.get_contract_class(&class_hash))?;
+
+        match conract_class {
             StarknetContractClass::Sierra(sierra) => sierra_to_contact_class_v1(sierra),
             StarknetContractClass::Legacy(legacy) => legacy_to_contract_class_v0(legacy),
         }
     }
 
     fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
-        self.0.get_compiled_class_hash(class_hash)
+        self.rpc_reader.get_compiled_class_hash(class_hash)
     }
 }
 
 impl TestStateReader {
-    pub fn new(config: &RpcStateReaderConfig, block_number: BlockNumber) -> Self {
-        Self(RpcStateReader::from_number(config, block_number))
+    pub fn new(
+        config: &RpcStateReaderConfig,
+        block_number: BlockNumber,
+        retry_config: RetryConfig,
+    ) -> Self {
+        Self { rpc_reader: RpcStateReader::from_number(config, block_number), retry_config }
     }
 
     pub fn new_for_testing(block_number: BlockNumber) -> Self {
-        TestStateReader::new(&get_rpc_state_reader_config(), block_number)
+        TestStateReader::new(&get_rpc_state_reader_config(), block_number, RetryConfig::default())
     }
 
     /// Get the block info of the current block.
     /// If l2_gas_price is not present in the block header, it will be set to 1.
     pub fn get_block_info(&self) -> ReexecutionResult<BlockInfo> {
-        let get_block_params = GetBlockWithTxHashesParams { block_id: self.0.block_id };
+        let get_block_params = GetBlockWithTxHashesParams { block_id: self.rpc_reader.block_id };
 
         let mut json =
-            self.0.send_rpc_request("starknet_getBlockWithTxHashes", get_block_params)?;
+            self.rpc_reader.send_rpc_request("starknet_getBlockWithTxHashes", get_block_params)?;
 
         let block_header_map = json.as_object_mut().ok_or(StateError::StateReadError(
             "starknet_getBlockWithTxHashes should return JSON value of type Object".to_string(),
@@ -114,9 +150,9 @@ impl TestStateReader {
     }
 
     pub fn get_starknet_version(&self) -> ReexecutionResult<StarknetVersion> {
-        let get_block_params = GetBlockWithTxHashesParams { block_id: self.0.block_id };
+        let get_block_params = GetBlockWithTxHashesParams { block_id: self.rpc_reader.block_id };
         let raw_version: String = serde_json::from_value(
-            self.0.send_rpc_request("starknet_getBlockWithTxHashes", get_block_params)?
+            self.rpc_reader.send_rpc_request("starknet_getBlockWithTxHashes", get_block_params)?
                 ["starknet_version"]
                 .clone(),
         )?;
@@ -125,9 +161,9 @@ impl TestStateReader {
 
     /// Get all transaction hashes in the current block.
     pub fn get_tx_hashes(&self) -> ReexecutionResult<Vec<String>> {
-        let get_block_params = GetBlockWithTxHashesParams { block_id: self.0.block_id };
+        let get_block_params = GetBlockWithTxHashesParams { block_id: self.rpc_reader.block_id };
         let raw_tx_hashes = serde_json::from_value(
-            self.0.send_rpc_request("starknet_getBlockWithTxHashes", &get_block_params)?
+            self.rpc_reader.send_rpc_request("starknet_getBlockWithTxHashes", &get_block_params)?
                 ["transactions"]
                 .clone(),
         )?;
@@ -140,18 +176,19 @@ impl TestStateReader {
             "transaction_hash": tx_hash,
         });
         Ok(deserialize_transaction_json_to_starknet_api_tx(
-            self.0.send_rpc_request(method, params)?,
+            self.rpc_reader.send_rpc_request(method, params)?,
         )?)
     }
 
     pub fn get_contract_class(&self, class_hash: &ClassHash) -> StateResult<StarknetContractClass> {
         let params = json!({
-            "block_id": self.0.block_id,
+            "block_id": self.rpc_reader.block_id,
             "class_hash": class_hash.0.to_string(),
         });
-        let contract_class: StarknetContractClass =
-            serde_json::from_value(self.0.send_rpc_request("starknet_getClass", params.clone())?)
-                .map_err(serde_err_to_state_err)?;
+        let contract_class: StarknetContractClass = serde_json::from_value(
+            self.rpc_reader.send_rpc_request("starknet_getClass", params.clone())?,
+        )
+        .map_err(serde_err_to_state_err)?;
         Ok(contract_class)
     }
 
@@ -192,9 +229,10 @@ impl TestStateReader {
     }
 
     pub fn get_state_diff(&self) -> ReexecutionResult<CommitmentStateDiff> {
-        let get_block_params = GetBlockWithTxHashesParams { block_id: self.0.block_id };
-        let raw_statediff =
-            &self.0.send_rpc_request("starknet_getStateUpdate", get_block_params)?["state_diff"];
+        let get_block_params = GetBlockWithTxHashesParams { block_id: self.rpc_reader.block_id };
+        let raw_statediff = &self
+            .rpc_reader
+            .send_rpc_request("starknet_getStateUpdate", get_block_params)?["state_diff"];
         let deployed_contracts = hashmap_from_raw::<ContractAddress, ClassHash>(
             raw_statediff,
             "deployed_contracts",
@@ -244,12 +282,13 @@ impl ReexecutionStateReader for TestStateReader {
         class_hash: ClassHash,
     ) -> ReexecutionResult<StarknetContractClass> {
         let params = json!({
-            "block_id": self.0.block_id,
+            "block_id": self.rpc_reader.block_id,
             "class_hash": class_hash.0.to_string(),
         });
-        let contract_class: StarknetContractClass =
-            serde_json::from_value(self.0.send_rpc_request("starknet_getClass", params.clone())?)
-                .map_err(serde_err_to_state_err)?;
+        let contract_class: StarknetContractClass = serde_json::from_value(
+            self.rpc_reader.send_rpc_request("starknet_getClass", params.clone())?,
+        )
+        .map_err(serde_err_to_state_err)?;
         Ok(contract_class)
     }
 }
@@ -278,10 +317,15 @@ impl ConsecutiveTestStateReaders {
     ) -> Self {
         let config = config.unwrap_or(get_rpc_state_reader_config());
         ConsecutiveTestStateReaders {
-            last_block_state_reader: TestStateReader::new(&config, last_constructed_block_number),
+            last_block_state_reader: TestStateReader::new(
+                &config,
+                last_constructed_block_number,
+                RetryConfig::default(),
+            ),
             next_block_state_reader: TestStateReader::new(
                 &config,
                 last_constructed_block_number.next().expect("Overflow in block number"),
+                RetryConfig::default(),
             ),
         }
     }
