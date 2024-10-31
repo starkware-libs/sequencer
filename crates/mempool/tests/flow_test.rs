@@ -190,3 +190,30 @@ fn test_flow_commit_block_fills_nonce_gap(mut mempool: Mempool) {
 
     get_txs_and_assert_expected(&mut mempool, 2, &[tx_nonce_5_account_nonce_3.tx]);
 }
+
+#[rstest]
+fn test_flow_commit_block_rewinds_queued_nonce(mut mempool: Mempool) {
+    // Setup.
+    let tx_nonce_2 = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 2, account_nonce: 2);
+    let tx_nonce_3 = add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 3, account_nonce: 2);
+    let tx_nonce_4 = add_tx_input!(tx_hash: 3, address: "0x0", tx_nonce: 4, account_nonce: 2);
+
+    for input in [&tx_nonce_2, &tx_nonce_3, &tx_nonce_4] {
+        add_tx(&mut mempool, input);
+    }
+
+    get_txs_and_assert_expected(
+        &mut mempool,
+        3,
+        &[tx_nonce_2.tx, tx_nonce_3.tx.clone(), tx_nonce_4.tx.clone()],
+    );
+
+    // Test.
+    let nonces = [("0x0", 2)];
+    let tx_hashes = [1];
+    // Nonce 2 was accepted, but 3 and 4 were not, so are rewound.
+    commit_block(&mut mempool, nonces, tx_hashes);
+
+    // Nonces 3 and 4 were re-enqueued correctly.
+    get_txs_and_assert_expected(&mut mempool, 2, &[tx_nonce_3.tx, tx_nonce_4.tx]);
+}
