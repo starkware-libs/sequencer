@@ -39,3 +39,18 @@ pub(crate) fn disjoint_hashmap_union<K: std::hash::Hash + std::cmp::Eq, V>(
     assert_eq!(union_map.len(), expected_len, "Intersection of hashmaps is not empty.");
     union_map
 }
+
+#[macro_export]
+macro_rules! retry_request {
+    ($retry_count:expr, $delay:expr, $closure:expr) => {{
+        retry::retry(retry::delay::Fixed::from_millis($delay).take($retry_count), || {
+            match $closure() {
+                Ok(value) => Ok(value),
+                // If the error is a connection error, we want to retry.
+                Err(e) if e.to_string().contains("connection error") => Err(e),
+                Err(e) => return Err(e),
+            }
+        })
+        .map_err(|e| e.error)
+    }};
+}
