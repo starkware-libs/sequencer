@@ -4,9 +4,10 @@ use rstest::rstest;
 use starknet_types_core::felt::Felt;
 
 use crate::block::GasPrice;
-use crate::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce, PatriciaKey};
+use crate::core::{CompiledClassHash, ContractAddress, PatriciaKey};
 use crate::execution_resources::GasAmount;
 use crate::rpc_transaction::{
+    ClassHash,
     ContractClass,
     DataAvailabilityMode,
     RpcDeclareTransaction,
@@ -27,7 +28,7 @@ use crate::transaction::{
     Tip,
     TransactionSignature,
 };
-use crate::{contract_address, felt, patricia_key};
+use crate::{class_hash, contract_address, felt, nonce, patricia_key};
 
 fn create_resource_bounds_for_testing() -> AllResourceBounds {
     AllResourceBounds {
@@ -43,7 +44,7 @@ fn create_declare_v3() -> RpcDeclareTransaction {
         resource_bounds: create_resource_bounds_for_testing(),
         tip: Tip(1),
         signature: TransactionSignature(vec![Felt::ONE, Felt::TWO]),
-        nonce: Nonce(Felt::ONE),
+        nonce: nonce!(1),
         compiled_class_hash: CompiledClassHash(Felt::TWO),
         sender_address: contract_address!("0x3"),
         nonce_data_availability_mode: DataAvailabilityMode::L1,
@@ -58,9 +59,9 @@ fn create_deploy_account_v3() -> RpcDeployAccountTransaction {
         resource_bounds: create_resource_bounds_for_testing(),
         tip: Tip::default(),
         contract_address_salt: ContractAddressSalt(felt!("0x23")),
-        class_hash: ClassHash(Felt::TWO),
+        class_hash: class_hash!("0x2"),
         constructor_calldata: Calldata(Arc::new(vec![Felt::ZERO])),
-        nonce: Nonce(felt!("0x60")),
+        nonce: nonce!(60),
         signature: TransactionSignature(vec![Felt::TWO]),
         nonce_data_availability_mode: DataAvailabilityMode::L2,
         fee_data_availability_mode: DataAvailabilityMode::L1,
@@ -74,7 +75,7 @@ fn create_invoke_v3() -> RpcInvokeTransaction {
         tip: Tip(50),
         calldata: Calldata(Arc::new(vec![felt!("0x2000"), felt!("0x1000")])),
         sender_address: contract_address!("0x53"),
-        nonce: Nonce(felt!("0x32")),
+        nonce: nonce!(32),
         signature: TransactionSignature::default(),
         nonce_data_availability_mode: DataAvailabilityMode::L1,
         fee_data_availability_mode: DataAvailabilityMode::L1,

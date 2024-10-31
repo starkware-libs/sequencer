@@ -4,9 +4,8 @@ use pretty_assertions::assert_eq;
 use starknet_api::block::BlockHash;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce, PatriciaKey};
 use starknet_api::hash::StarkHash;
-use starknet_api::state::StorageKey;
 use starknet_api::transaction::{TransactionHash, TransactionOffsetInBlock};
-use starknet_api::{felt, patricia_key};
+use starknet_api::{class_hash, contract_address, felt, patricia_key, storage_key};
 
 use super::{Block, GlobalRoot, TransactionReceiptsError};
 use crate::reader::objects::block::BlockPostV0_13_1;
@@ -53,50 +52,50 @@ fn load_block_state_update_succeeds() {
         )),
         state_diff: StateDiff {
             storage_diffs: IndexMap::from([(
-                ContractAddress(patricia_key!(
+                contract_address!(
                     "0x13386f165f065115c1da38d755be261023c32f0134a03a8e66b6bb1e0016014"
-                )),
+                ),
                 vec![
                     StorageEntry {
-                        key: StorageKey(patricia_key!(
+                        key: storage_key!(
                             "0x3b3a699bb6ef37ff4b9c4e14319c7d8e9c9bdd10ff402d1ebde18c62ae58381"
-                        )),
+                        ),
                         value: felt!("0x61454dd6e5c83621e41b74c"),
                     },
                     StorageEntry {
-                        key: StorageKey(patricia_key!(
+                        key: storage_key!(
                             "0x1557182e4359a1f0c6301278e8f5b35a776ab58d39892581e357578fb287836"
-                        )),
+                        ),
                         value: felt!("0x79dd8085e3e5a96ea43e7d"),
                     },
                 ],
             )]),
             deployed_contracts: vec![DeployedContract {
-                address: ContractAddress(patricia_key!(
+                address: contract_address!(
                     "0x3e10411edafd29dfe6d427d03e35cb261b7a5efeee61bf73909ada048c029b9"
-                )),
-                class_hash: ClassHash(felt!(
+                ),
+                class_hash: class_hash!(
                     "0x071c3c99f5cf76fc19945d4b8b7d34c7c5528f22730d56192b50c6bbfd338a64"
-                )),
+                ),
             }],
             declared_classes: vec![DeclaredClassHashEntry {
-                class_hash: ClassHash(felt!("0x10")),
+                class_hash: class_hash!("0x10"),
                 compiled_class_hash: CompiledClassHash(felt!("0x1000")),
             }],
-            old_declared_contracts: vec![ClassHash(felt!("0x100"))],
+            old_declared_contracts: vec![class_hash!("0x100")],
             nonces: IndexMap::from([(
-                ContractAddress(patricia_key!(
+                contract_address!(
                     "0x51c62af8919b31499b36bd1f1f702c8ef5a6309554427186c7bd456b862c115"
-                )),
+                ),
                 Nonce(felt!("0x12")),
             )]),
             replaced_classes: vec![ReplacedClass {
-                address: ContractAddress(patricia_key!(
+                address: contract_address!(
                     "0x56b0efe9d91fcda0f341af928404056c5220ee0ccc66be15d20611a172dbd52"
-                )),
-                class_hash: ClassHash(felt!(
+                ),
+                class_hash: class_hash!(
                     "0x2248aff260e5837317641ff4f861495dd71e78b9dae98a31113e569b336bd26"
-                )),
+                ),
             }],
         },
     };

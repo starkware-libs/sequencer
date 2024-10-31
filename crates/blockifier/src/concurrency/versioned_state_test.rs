@@ -4,13 +4,7 @@ use std::thread;
 
 use assert_matches::assert_matches;
 use rstest::{fixture, rstest};
-use starknet_api::core::{
-    calculate_contract_address,
-    ClassHash,
-    ContractAddress,
-    Nonce,
-    PatriciaKey,
-};
+use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress, PatriciaKey};
 use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::{ContractAddressSalt, ValidResourceBounds};
 use starknet_api::{
@@ -562,7 +556,7 @@ fn test_delete_writes_completeness(
 ) {
     let feature_contract = FeatureContract::TestContract(CairoVersion::Cairo1);
     let state_maps_writes = StateMaps {
-        nonces: HashMap::from([(contract_address!("0x1"), Nonce(felt!(1_u8)))]),
+        nonces: HashMap::from([(contract_address!("0x1"), nonce!(1_u8))]),
         class_hashes: HashMap::from([(
             contract_address!("0x1"),
             feature_contract.get_class_hash(),
@@ -620,7 +614,7 @@ fn test_versioned_proxy_state_flow(
     safe_versioned_state: ThreadSafeVersionedState<CachedState<DictStateReader>>,
 ) {
     let contract_address = contract_address!("0x1");
-    let class_hash = ClassHash(felt!(27_u8));
+    let class_hash = class_hash!(27_u8);
 
     let mut versioned_proxy_states: Vec<VersionedStateProxy<CachedState<DictStateReader>>> =
         (0..4).map(|i| safe_versioned_state.pin_version(i)).collect();
@@ -631,8 +625,8 @@ fn test_versioned_proxy_state_flow(
     }
 
     // Clients class hash values.
-    let class_hash_1 = ClassHash(felt!(76_u8));
-    let class_hash_3 = ClassHash(felt!(234_u8));
+    let class_hash_1 = class_hash!(76_u8);
+    let class_hash_3 = class_hash!(234_u8);
 
     transactional_states[1].set_class_hash_at(contract_address, class_hash_1).unwrap();
     transactional_states[3].set_class_hash_at(contract_address, class_hash_3).unwrap();

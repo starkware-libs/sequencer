@@ -25,8 +25,8 @@ use starknet_api::core::{
 use starknet_api::crypto::utils::PublicKey;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::hash::StarkHash;
-use starknet_api::state::{ContractClass as sn_api_ContractClass, StorageKey, ThinStateDiff};
-use starknet_api::{felt, patricia_key};
+use starknet_api::state::{ContractClass as sn_api_ContractClass, ThinStateDiff};
+use starknet_api::{class_hash, contract_address, felt, patricia_key, storage_key};
 use starknet_client::reader::objects::block::BlockPostV0_13_1;
 use starknet_client::reader::{
     Block,
@@ -285,19 +285,19 @@ async fn stream_state_updates() {
     const START_BLOCK_NUMBER: u64 = 5;
     const END_BLOCK_NUMBER: u64 = 7;
 
-    let class_hash1 = ClassHash(felt!("0x123"));
-    let class_hash2 = ClassHash(felt!("0x456"));
-    let class_hash3 = ClassHash(felt!("0x789"));
-    let class_hash4 = ClassHash(felt!("0x101112"));
-    let contract_address1 = ContractAddress(patricia_key!("0xabc"));
-    let contract_address2 = ContractAddress(patricia_key!("0xdef"));
-    let contract_address3 = ContractAddress(patricia_key!("0x0abc"));
+    let class_hash1 = class_hash!("0x123");
+    let class_hash2 = class_hash!("0x456");
+    let class_hash3 = class_hash!("0x789");
+    let class_hash4 = class_hash!("0x101112");
+    let contract_address1 = contract_address!("0xabc");
+    let contract_address2 = contract_address!("0xdef");
+    let contract_address3 = contract_address!("0x0abc");
     let nonce1 = Nonce(felt!("0x123456789abcdef"));
     let root1 = GlobalRoot(felt!("0x111"));
     let root2 = GlobalRoot(felt!("0x222"));
     let block_hash1 = BlockHash(felt!("0x333"));
     let block_hash2 = BlockHash(felt!("0x444"));
-    let key = StorageKey(patricia_key!("0x555"));
+    let key = storage_key!("0x555");
     let value = felt!("0x666");
 
     // TODO(shahak): Fill these contract classes with non-empty data.
@@ -307,8 +307,8 @@ async fn stream_state_updates() {
 
     let contract_class1 = ContractClass::default();
     let contract_class2 = ContractClass::default();
-    let new_class_hash1 = ClassHash(felt!("0x111"));
-    let new_class_hash2 = ClassHash(felt!("0x222"));
+    let new_class_hash1 = class_hash!("0x111");
+    let new_class_hash2 = class_hash!("0x222");
     let compiled_class_hash1 = CompiledClassHash(felt!("0x00111"));
     let compiled_class_hash2 = CompiledClassHash(felt!("0x00222"));
     let class_hash_entry1 = DeclaredClassHashEntry {
@@ -468,8 +468,8 @@ async fn stream_compiled_classes() {
                 deployed_contracts: indexmap! {},
                 storage_diffs: indexmap! {},
                 declared_classes: indexmap! {
-                    ClassHash(felt!("0x0")) => CompiledClassHash(felt!("0x0")),
-                    ClassHash(felt!("0x1")) => CompiledClassHash(felt!("0x1")),
+                    class_hash!("0x0") => CompiledClassHash(felt!("0x0")),
+                    class_hash!("0x1") => CompiledClassHash(felt!("0x1")),
                 },
                 deprecated_declared_classes: vec![],
                 nonces: indexmap! {},
@@ -483,8 +483,8 @@ async fn stream_compiled_classes() {
                 deployed_contracts: indexmap! {},
                 storage_diffs: indexmap! {},
                 declared_classes: indexmap! {
-                    ClassHash(felt!("0x2")) => CompiledClassHash(felt!("0x2")),
-                    ClassHash(felt!("0x3")) => CompiledClassHash(felt!("0x3")),
+                    class_hash!("0x2") => CompiledClassHash(felt!("0x2")),
+                    class_hash!("0x3") => CompiledClassHash(felt!("0x3")),
                 },
                 deprecated_declared_classes: vec![],
                 nonces: indexmap! {},
@@ -495,8 +495,8 @@ async fn stream_compiled_classes() {
         .append_classes(
             BlockNumber(0),
             &[
-                (ClassHash(felt!("0x0")), &sn_api_ContractClass::default()),
-                (ClassHash(felt!("0x1")), &sn_api_ContractClass::default()),
+                (class_hash!("0x0"), &sn_api_ContractClass::default()),
+                (class_hash!("0x1"), &sn_api_ContractClass::default()),
             ],
             &[],
         )
@@ -504,8 +504,8 @@ async fn stream_compiled_classes() {
         .append_classes(
             BlockNumber(1),
             &[
-                (ClassHash(felt!("0x2")), &sn_api_ContractClass::default()),
-                (ClassHash(felt!("0x3")), &sn_api_ContractClass::default()),
+                (class_hash!("0x2"), &sn_api_ContractClass::default()),
+                (class_hash!("0x3"), &sn_api_ContractClass::default()),
             ],
             &[],
         )
