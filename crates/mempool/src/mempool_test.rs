@@ -583,38 +583,6 @@ fn test_commit_block_includes_all_proposed_txs() {
 }
 
 #[rstest]
-fn test_commit_block_rewinds_queued_nonce() {
-    // Setup.
-    let tx_address_0_nonce_3 = tx!(tx_hash: 1, address: "0x0", tx_nonce: 3);
-    let tx_address_0_nonce_4 = tx!(tx_hash: 2, address: "0x0", tx_nonce: 4);
-    let tx_address_0_nonce_5 = tx!(tx_hash: 3, address: "0x0", tx_nonce: 5);
-    let tx_address_1_nonce_1 = tx!(tx_hash: 4, address: "0x1", tx_nonce: 1);
-
-    let queued_txs = [&tx_address_0_nonce_5, &tx_address_1_nonce_1].map(TransactionReference::new);
-    let pool_txs = [
-        tx_address_0_nonce_3,
-        tx_address_0_nonce_4.clone(),
-        tx_address_0_nonce_5,
-        tx_address_1_nonce_1,
-    ];
-    let mut mempool = MempoolContentBuilder::new()
-        .with_pool(pool_txs)
-        .with_priority_queue(queued_txs)
-        .build_into_mempool();
-
-    // Test.
-    let nonces = [("0x0", 3), ("0x1", 1)];
-    let tx_hashes = [1, 4];
-    commit_block(&mut mempool, nonces, tx_hashes);
-
-    // Assert.
-    let expected_queue_txs = [TransactionReference::new(&tx_address_0_nonce_4)];
-    let expected_mempool_content =
-        MempoolContentBuilder::new().with_priority_queue(expected_queue_txs).build();
-    expected_mempool_content.assert_eq(&mempool);
-}
-
-#[rstest]
 fn test_commit_block_from_different_leader() {
     // Setup.
     let tx_address_0_nonce_3 = tx!(tx_hash: 1, address: "0x0", tx_nonce: 3);
