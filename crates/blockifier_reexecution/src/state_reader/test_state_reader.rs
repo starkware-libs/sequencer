@@ -267,12 +267,13 @@ impl ReexecutionStateReader for TestStateReader {
         class_hash: ClassHash,
     ) -> ReexecutionResult<StarknetContractClass> {
         let params = json!({
-            "block_id": self.0.block_id,
+            "block_id": self.rpc_state_reader.block_id,
             "class_hash": class_hash.0.to_string(),
         });
-        let contract_class: StarknetContractClass =
-            serde_json::from_value(self.0.send_rpc_request("starknet_getClass", params.clone())?)
-                .map_err(serde_err_to_state_err)?;
+        let contract_class: StarknetContractClass = serde_json::from_value(
+            self.rpc_state_reader.send_rpc_request("starknet_getClass", params.clone())?,
+        )
+        .map_err(serde_err_to_state_err)?;
         Ok(contract_class)
     }
 }
