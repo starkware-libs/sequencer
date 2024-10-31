@@ -169,17 +169,13 @@ where
     let account1_invoke_nonce1 =
         tx_generator.account_with_id(ACCOUNT_ID_1).generate_invoke_with_tip(4);
 
-    // Send RPC transactions.
-    let account0_invoke_nonce1_tx_hash = send_rpc_tx(account0_invoke_nonce1, send_rpc_tx_fn).await;
-    let account0_invoke_nonce2_tx_hash = send_rpc_tx(account0_invoke_nonce2, send_rpc_tx_fn).await;
-    let account1_invoke_nonce1_tx_hash = send_rpc_tx(account1_invoke_nonce1, send_rpc_tx_fn).await;
+    let rpc_txs = vec![account0_invoke_nonce1, account0_invoke_nonce2, account1_invoke_nonce1];
 
-    // Transaction hashes ordered in send order.
-    let tx_hashes = [
-        account0_invoke_nonce1_tx_hash,
-        account0_invoke_nonce2_tx_hash,
-        account1_invoke_nonce1_tx_hash,
-    ];
+    // Send RPC transactions.
+    let mut tx_hashes = vec![];
+    for rpc_tx in rpc_txs {
+        tx_hashes.push(send_rpc_tx(rpc_tx, send_rpc_tx_fn).await);
+    }
 
     // Return the transaction hashes in the order they should be given by the mempool:
     // Transactions from the same account are ordered by nonce; otherwise, higher tips are given
