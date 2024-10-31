@@ -72,8 +72,12 @@ impl StateReader for TestStateReader {
         class_hash: ClassHash,
     ) -> StateResult<RunnableContractClass> {
         match self.get_contract_class(&class_hash)? {
-            StarknetContractClass::Sierra(sierra) => sierra_to_contact_class_v1(sierra),
-            StarknetContractClass::Legacy(legacy) => legacy_to_contract_class_v0(legacy),
+            StarknetContractClass::Sierra(sierra) => {
+                Ok(sierra_to_contact_class_v1(sierra).unwrap().try_into().unwrap())
+            }
+            StarknetContractClass::Legacy(legacy) => {
+                Ok(legacy_to_contract_class_v0(legacy).unwrap().try_into().unwrap())
+            }
         }
     }
 
