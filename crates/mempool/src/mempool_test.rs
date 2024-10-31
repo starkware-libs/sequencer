@@ -28,6 +28,7 @@ struct MempoolContent {
 }
 
 impl MempoolContent {
+    #[track_caller]
     fn assert_eq(&self, mempool: &Mempool) {
         if let Some(tx_pool) = &self.tx_pool {
             assert_eq!(&mempool.tx_pool, tx_pool);
