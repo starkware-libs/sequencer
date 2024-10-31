@@ -89,6 +89,7 @@ use crate::test_utils::deploy_account::deploy_account_tx;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::invoke::invoke_tx;
+use crate::test_utils::l1_handler::l1handler_tx;
 use crate::test_utils::prices::Prices;
 use crate::test_utils::{
     create_calldata,
@@ -145,7 +146,7 @@ use crate::transaction::test_utils::{
     VALID,
 };
 use crate::transaction::transaction_types::TransactionType;
-use crate::transaction::transactions::{ExecutableTransaction, L1HandlerTransaction};
+use crate::transaction::transactions::ExecutableTransaction;
 use crate::versioned_constants::VersionedConstants;
 use crate::{
     check_tx_execution_error_for_custom_hint,
@@ -2204,7 +2205,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     let block_context = &BlockContext::create_for_account_testing_with_kzg(use_kzg_da);
     let contract_address = test_contract.get_instance_address(0);
     let versioned_constants = &block_context.versioned_constants;
-    let tx = L1HandlerTransaction::create_for_testing(Fee(1), contract_address);
+    let tx = l1handler_tx(Fee(1), contract_address);
     let calldata = tx.tx.calldata.clone();
     let key = calldata.0[1];
     let value = calldata.0[2];
@@ -2338,7 +2339,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     // TODO(Meshi, 15/6/2024): change the l1_handler_set_value cairo function to
     // always uptade the storage instad.
     state.set_storage_at(contract_address, StorageKey::try_from(key).unwrap(), Felt::ZERO).unwrap();
-    let tx_no_fee = L1HandlerTransaction::create_for_testing(Fee(0), contract_address);
+    let tx_no_fee = l1handler_tx(Fee(0), contract_address);
     let error = tx_no_fee.execute(state, block_context, false, true).unwrap_err(); // Do not charge fee as L1Handler's resource bounds (/max fee) is 0.
     // Today, we check that the paid_fee is positive, no matter what was the actual fee.
     let expected_actual_fee =
