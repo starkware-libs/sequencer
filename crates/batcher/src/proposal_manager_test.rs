@@ -17,25 +17,15 @@ use crate::block_builder::{
 };
 use crate::proposal_manager::{
     BuildProposalError,
+    GetProposalResultError,
     ProposalManager,
     ProposalManagerTrait,
+    ProposalOutput,
     StartHeightError,
 };
 
 const INITIAL_HEIGHT: BlockNumber = BlockNumber(3);
 const BLOCK_GENERATION_TIMEOUT: tokio::time::Duration = tokio::time::Duration::from_secs(1);
-
-// TODO: Figure out how to pass expectations to the mock.
-#[fixture]
-fn block_builder_factory() -> MockBlockBuilderFactoryTrait {
-    MockBlockBuilderFactoryTrait::new()
-}
-
-// TODO: Figure out how to pass expectations to the mock.
-#[fixture]
-fn mempool_client() -> MockMempoolClient {
-    MockMempoolClient::new()
-}
 
 #[fixture]
 fn output_streaming() -> (
@@ -46,24 +36,81 @@ fn output_streaming() -> (
     (output_content_sender, output_content_receiver)
 }
 
-#[fixture]
-fn storage_reader() -> MockBatcherStorageReaderTrait {
-    let mut storage = MockBatcherStorageReaderTrait::new();
-    storage.expect_height().returning(|| Ok(INITIAL_HEIGHT));
-    storage
+struct MockDependencies {
+    block_builder_factory: MockBlockBuilderFactoryTrait,
+    mempool_client: MockMempoolClient,
+    storage_reader: MockBatcherStorageReaderTrait,
+}
+
+impl MockDependencies {
+    fn expect_build_block(&mut self, times: usize) {
+        let simulate_build_block = || -> BlockBuilderResult<Box<dyn BlockBuilderTrait>> {
+            let mut mock_block_builder = MockBlockBuilderTrait::new();
+            mock_block_builder
+                .expect_build_block()
+                .return_once(move |_, _, _| Ok(BlockExecutionArtifacts::create_for_testing()));
+            Ok(Box::new(mock_block_builder))
+        };
+
+        self.block_builder_factory
+            .expect_create_block_builder()
+            .times(times)
+            .returning(move |_, _| simulate_build_block());
+    }
+
+    // This function simulates a long build block operation. This is required for a test that
+    // tries to run other operations while a block is being built.
+    fn expect_long_build_block(&mut self, times: usize) {
+        let simulate_long_build_block = || -> BlockBuilderResult<Box<dyn BlockBuilderTrait>> {
+            let mut mock_block_builder = MockBlockBuilderTrait::new();
+            mock_block_builder.expect_build_block().return_once(move |_, _, _| {
+                std::thread::sleep(BLOCK_GENERATION_TIMEOUT * 10);
+                Ok(BlockExecutionArtifacts::create_for_testing())
+            });
+            Ok(Box::new(mock_block_builder))
+        };
+
+        self.block_builder_factory
+            .expect_create_block_builder()
+            .times(times)
+            .returning(move |_, _| simulate_long_build_block());
+    }
 }
 
 #[fixture]
-fn proposal_manager(
-    mempool_client: MockMempoolClient,
-    block_builder_factory: MockBlockBuilderFactoryTrait,
-    storage_reader: MockBatcherStorageReaderTrait,
-) -> ProposalManager {
+fn mock_dependencies() -> MockDependencies {
+    let mut storage_reader = MockBatcherStorageReaderTrait::new();
+    storage_reader.expect_height().returning(|| Ok(INITIAL_HEIGHT));
+    MockDependencies {
+        block_builder_factory: MockBlockBuilderFactoryTrait::new(),
+        mempool_client: MockMempoolClient::new(),
+        storage_reader,
+    }
+}
+
+fn init_proposal_manager(mock_dependencies: MockDependencies) -> ProposalManager {
     ProposalManager::new(
-        Arc::new(mempool_client),
-        Arc::new(block_builder_factory),
-        Arc::new(storage_reader),
+        Arc::new(mock_dependencies.mempool_client),
+        Arc::new(mock_dependencies.block_builder_factory),
+        Arc::new(mock_dependencies.storage_reader),
     )
+}
+
+fn proposal_deadline() -> tokio::time::Instant {
+    tokio::time::Instant::now() + BLOCK_GENERATION_TIMEOUT
+}
+
+async fn build_and_await_block_proposal(
+    proposal_manager: &mut ProposalManager,
+    proposal_id: ProposalId,
+) {
+    let (output_sender, _receiver) = output_streaming();
+    proposal_manager
+        .build_block_proposal(proposal_id, None, proposal_deadline(), output_sender)
+        .await
+        .unwrap();
+
+    proposal_manager.await_active_proposal().await;
 }
 
 #[rstest]
@@ -87,10 +134,11 @@ fn proposal_manager(
 ))]
 #[tokio::test]
 async fn start_height(
-    mut proposal_manager: ProposalManager,
+    mock_dependencies: MockDependencies,
     #[case] height: BlockNumber,
     #[case] expected_result: Result<(), StartHeightError>,
 ) {
+    let mut proposal_manager = init_proposal_manager(mock_dependencies);
     let result = proposal_manager.start_height(height).await;
     // Unfortunatelly ProposalManagerError doesn't implement PartialEq.
     assert_eq!(format!("{:?}", result), format!("{:?}", expected_result));
@@ -99,12 +147,13 @@ async fn start_height(
 #[rstest]
 #[tokio::test]
 async fn proposal_generation_fails_without_start_height(
-    mut proposal_manager: ProposalManager,
+    mock_dependencies: MockDependencies,
     output_streaming: (
         tokio::sync::mpsc::UnboundedSender<Transaction>,
         tokio::sync::mpsc::UnboundedReceiver<Transaction>,
     ),
 ) {
+    let mut proposal_manager = init_proposal_manager(mock_dependencies);
     let err = proposal_manager
         .build_block_proposal(ProposalId(0), None, proposal_deadline(), output_streaming.0)
         .await;
@@ -113,73 +162,28 @@ async fn proposal_generation_fails_without_start_height(
 
 #[rstest]
 #[tokio::test]
-async fn proposal_generation_success(
-    mut block_builder_factory: MockBlockBuilderFactoryTrait,
-    mempool_client: MockMempoolClient,
-    storage_reader: MockBatcherStorageReaderTrait,
-    output_streaming: (
-        tokio::sync::mpsc::UnboundedSender<Transaction>,
-        tokio::sync::mpsc::UnboundedReceiver<Transaction>,
-    ),
-) {
-    block_builder_factory
-        .expect_create_block_builder()
-        .once()
-        .returning(move |_, _| simulate_build_block());
+async fn proposal_generation_success(mut mock_dependencies: MockDependencies) {
+    mock_dependencies.expect_build_block(1);
 
-    let mut proposal_manager = ProposalManager::new(
-        Arc::new(mempool_client),
-        Arc::new(block_builder_factory),
-        Arc::new(storage_reader),
-    );
+    let mut proposal_manager = init_proposal_manager(mock_dependencies);
 
     proposal_manager.start_height(INITIAL_HEIGHT).await.unwrap();
-
-    proposal_manager
-        .build_block_proposal(ProposalId(0), None, proposal_deadline(), output_streaming.0)
-        .await
-        .unwrap();
-
-    proposal_manager.await_active_proposal().await;
+    build_and_await_block_proposal(&mut proposal_manager, ProposalId(0)).await;
 }
 
 #[rstest]
 #[tokio::test]
-async fn consecutive_proposal_generations_success(
-    mut block_builder_factory: MockBlockBuilderFactoryTrait,
-    mempool_client: MockMempoolClient,
-    storage_reader: MockBatcherStorageReaderTrait,
-) {
-    block_builder_factory
-        .expect_create_block_builder()
-        .times(2)
-        .returning(move |_, _| simulate_build_block());
+async fn consecutive_proposal_generations_success(mut mock_dependencies: MockDependencies) {
+    mock_dependencies.expect_build_block(2);
 
-    let mut proposal_manager = ProposalManager::new(
-        Arc::new(mempool_client),
-        Arc::new(block_builder_factory),
-        Arc::new(storage_reader),
-    );
+    let mut proposal_manager = init_proposal_manager(mock_dependencies);
 
     proposal_manager.start_height(INITIAL_HEIGHT).await.unwrap();
 
-    let (output_sender_0, _rec_0) = output_streaming();
-    proposal_manager
-        .build_block_proposal(ProposalId(0), None, proposal_deadline(), output_sender_0)
-        .await
-        .unwrap();
-
-    // Make sure the first proposal generated successfully.
-    proposal_manager.await_active_proposal().await;
-
-    let (output_sender_1, _rec_1) = output_streaming();
-    proposal_manager
-        .build_block_proposal(ProposalId(1), None, proposal_deadline(), output_sender_1)
-        .await
-        .unwrap();
-
-    // Make sure the proposal generated successfully.
-    proposal_manager.await_active_proposal().await;
+    // Generate two consecutive proposals (awaiting on them to make sure they finished
+    // successfully).
+    build_and_await_block_proposal(&mut proposal_manager, ProposalId(0)).await;
+    build_and_await_block_proposal(&mut proposal_manager, ProposalId(1)).await;
 }
 
 // This test checks that trying to generate a proposal while another one is being generated will
@@ -187,22 +191,11 @@ async fn consecutive_proposal_generations_success(
 // that time it will send another build proposal request.
 #[rstest]
 #[tokio::test]
-async fn multiple_proposals_generation_fail(
-    mut block_builder_factory: MockBlockBuilderFactoryTrait,
-    mempool_client: MockMempoolClient,
-    storage_reader: MockBatcherStorageReaderTrait,
-) {
+async fn multiple_proposals_generation_fail(mut mock_dependencies: MockDependencies) {
     // Generate a block builder with a very long build block operation.
-    block_builder_factory
-        .expect_create_block_builder()
-        .once()
-        .returning(|_, _| simulate_build_block_with_delay());
+    mock_dependencies.expect_long_build_block(1);
 
-    let mut proposal_manager = ProposalManager::new(
-        Arc::new(mempool_client),
-        Arc::new(block_builder_factory),
-        Arc::new(storage_reader),
-    );
+    let mut proposal_manager = init_proposal_manager(mock_dependencies);
 
     proposal_manager.start_height(INITIAL_HEIGHT).await.unwrap();
 
@@ -229,70 +222,23 @@ async fn multiple_proposals_generation_fail(
 
 #[rstest]
 #[tokio::test]
-async fn test_take_proposal_result_no_active_proposal(
-    mut block_builder_factory: MockBlockBuilderFactoryTrait,
-    mempool_client: MockMempoolClient,
-    storage_reader: MockBatcherStorageReaderTrait,
-) {
-    let (output_sender_0, _rec_0) = output_streaming();
-    let (output_sender_1, _rec_1) = output_streaming();
-    block_builder_factory
-        .expect_create_block_builder()
-        .once()
-        .returning(move |_, _| simulate_build_block());
+async fn test_take_proposal_result_no_active_proposal(mut mock_dependencies: MockDependencies) {
+    mock_dependencies.expect_build_block(1);
 
-    block_builder_factory
-        .expect_create_block_builder()
-        .once()
-        .returning(move |_, _| simulate_build_block());
-
-    let mut proposal_manager = ProposalManager::new(
-        Arc::new(mempool_client),
-        Arc::new(block_builder_factory),
-        Arc::new(storage_reader),
-    );
+    let mut proposal_manager = init_proposal_manager(mock_dependencies);
 
     proposal_manager.start_height(INITIAL_HEIGHT).await.unwrap();
 
-    proposal_manager
-        .build_block_proposal(ProposalId(0), None, proposal_deadline(), output_sender_0)
-        .await
-        .unwrap();
+    build_and_await_block_proposal(&mut proposal_manager, ProposalId(0)).await;
 
-    // Make sure the first proposal generated successfully.
-    proposal_manager.await_active_proposal().await;
-
-    proposal_manager
-        .build_block_proposal(ProposalId(1), None, proposal_deadline(), output_sender_1)
-        .await
-        .unwrap();
-
-    // Make sure the proposal generated successfully.
-    proposal_manager.await_active_proposal().await;
-
-    proposal_manager.take_proposal_result(ProposalId(0)).await.unwrap();
-    proposal_manager.take_proposal_result(ProposalId(1)).await.unwrap();
-}
-
-fn proposal_deadline() -> tokio::time::Instant {
-    tokio::time::Instant::now() + BLOCK_GENERATION_TIMEOUT
-}
-
-// This function simulates a long build block operation. This is required for a test that tries
-// to run other operations while a block is being built.
-fn simulate_build_block_with_delay() -> BlockBuilderResult<Box<dyn BlockBuilderTrait>> {
-    let mut mock_block_builder = MockBlockBuilderTrait::new();
-    mock_block_builder.expect_build_block().return_once(move |_, _, _| {
-        std::thread::sleep(BLOCK_GENERATION_TIMEOUT * 10);
-        Ok(BlockExecutionArtifacts::create_for_testing())
-    });
-    Ok(Box::new(mock_block_builder))
-}
-
-fn simulate_build_block() -> BlockBuilderResult<Box<dyn BlockBuilderTrait>> {
-    let mut mock_block_builder = MockBlockBuilderTrait::new();
-    mock_block_builder
-        .expect_build_block()
-        .return_once(move |_, _, _| Ok(BlockExecutionArtifacts::create_for_testing()));
-    Ok(Box::new(mock_block_builder))
+    let expected_proposal_output =
+        ProposalOutput::from(BlockExecutionArtifacts::create_for_testing());
+    assert_eq!(
+        proposal_manager.take_proposal_result(ProposalId(0)).await.unwrap(),
+        expected_proposal_output
+    );
+    assert_matches!(
+        proposal_manager.take_proposal_result(ProposalId(0)).await,
+        Err(GetProposalResultError::ProposalDoesNotExist { .. })
+    );
 }
