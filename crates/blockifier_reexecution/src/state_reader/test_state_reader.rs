@@ -10,6 +10,8 @@ use blockifier::state::state_api::{StateReader, StateResult};
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use blockifier::versioned_constants::VersionedConstants;
 use papyrus_execution::DEPRECATED_CONTRACT_SIERRA_SIZE;
+use retry::delay::Fixed;
+use retry::retry;
 use serde_json::{json, to_value};
 use starknet_api::block::{BlockNumber, StarknetVersion};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
@@ -41,7 +43,15 @@ pub struct TestStateReader(RpcStateReader);
 
 impl StateReader for TestStateReader {
     fn get_nonce_at(&self, contract_address: ContractAddress) -> StateResult<Nonce> {
-        self.0.get_nonce_at(contract_address)
+        retry(Fixed::from_millis(100).take(3), || {
+            match self.0.get_nonce_at(contract_address) {
+                Ok(value) => Ok(value),
+                // If the error is a connection error, we want to retry.
+                Err(e) if e.to_string().contains("connection error") => Err(e),
+                Err(e) => panic!("Unexpected error in get_nonce_at: {:?}", e),
+            }
+        })
+        .map_err(|e| e.error)
     }
 
     fn get_storage_at(
@@ -49,16 +59,30 @@ impl StateReader for TestStateReader {
         contract_address: ContractAddress,
         key: StorageKey,
     ) -> StateResult<Felt> {
-        match self.0.get_storage_at(contract_address, key) {
-            Ok(value) => Ok(value),
-            // If the contract address is not found, The blockifier expect to get the default value of felt.
-            Err(e) if e.to_string().contains("Contract address not found for request") => Ok(Felt::default()),
-            Err(e) => panic!("Unexpected error in get_storage_at: {:?}", e),
-        }
+        retry(Fixed::from_millis(100).take(3), || {
+            match self.0.get_storage_at(contract_address, key) {
+                Ok(value) => Ok(value),
+                Err(e) if e.to_string().contains("Contract address not found for request") => {
+                    Ok(Felt::default())
+                }
+                // If the error is a connection error, we want to retry.
+                Err(e) if e.to_string().contains("connection error") => Err(e),
+                Err(e) => panic!("Unexpected error in get_storage_at: {:?}", e),
+            }
+        })
+        .map_err(|e| e.error)
     }
 
     fn get_class_hash_at(&self, contract_address: ContractAddress) -> StateResult<ClassHash> {
-        self.0.get_class_hash_at(contract_address)
+        retry(Fixed::from_millis(100).take(3), || {
+            match self.0.get_class_hash_at(contract_address) {
+                Ok(value) => Ok(value),
+                // If the error is a connection error, we want to retry.
+                Err(e) if e.to_string().contains("connection error") => Err(e),
+                Err(e) => panic!("Unexpected error in get_class_hash_at: {:?}", e),
+            }
+        })
+        .map_err(|e| e.error)
     }
 
     /// Returns the contract class of the given class hash.
