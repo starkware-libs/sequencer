@@ -6,7 +6,7 @@ repository.workspace = true
 license.workspace = true
 
 [features]
-testing = []
+testing = ["papyrus_proc_macros"]
 
 [lints]
 workspace = true
@@ -17,6 +17,7 @@ clap.workspace = true
 const_format.workspace = true
 futures.workspace = true
 papyrus_config.workspace = true
+papyrus_proc_macros = { workspace = true, optional = true }
 rstest.workspace = true
 serde.workspace = true
 starknet_api.workspace = true
@@ -37,6 +38,7 @@ tokio.workspace = true
 tracing.workspace = true
 validator.workspace = true
 
+
 [dev-dependencies]
 assert-json-diff.workspace = true
 assert_matches.workspace = true
@@ -44,3 +46,5 @@ colored.workspace = true
 mempool_test_utils.workspace = true
 pretty_assertions.workspace = true
 serde_json.workspace = true
+# Enable self with "testing" feature in tests.
+starknet_sequencer_node = { workspace = true, features = ["testing"] }
