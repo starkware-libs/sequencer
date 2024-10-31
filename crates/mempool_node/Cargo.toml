@@ -6,7 +6,7 @@ repository.workspace = true
 license.workspace = true
 
 [features]
-testing = []
+testing = ["thiserror"]
 
 [lints]
 workspace = true
@@ -33,6 +33,7 @@ starknet_mempool_types.workspace = true
 starknet_monitoring_endpoint.workspace = true
 starknet_sequencer_infra.workspace = true
 starknet_sierra_compile.workspace = true
+thiserror = { workspace = true, optional = true }
 tokio.workspace = true
 tracing.workspace = true
 validator.workspace = true
@@ -44,3 +45,5 @@ colored.workspace = true
 mempool_test_utils.workspace = true
 pretty_assertions.workspace = true
 serde_json.workspace = true
+# Enable self with "testing" feature in tests.
+starknet_sequencer_node = { workspace = true, features = ["testing"] }
