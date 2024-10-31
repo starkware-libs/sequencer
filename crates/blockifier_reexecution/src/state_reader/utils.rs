@@ -101,3 +101,25 @@ impl TryFrom<ReexecutionStateMaps> for StateMaps {
         })
     }
 }
+
+#[macro_export]
+macro_rules! retry_request {
+    ($retry_config:expr, $closure:expr) => {{
+        retry::retry(
+            retry::delay::Fixed::from_millis($retry_config.retry_interval_milliseconds)
+                .take($retry_config.n_retries),
+            || {
+                match $closure() {
+                    Ok(value) => retry::OperationResult::Ok(value),
+                    // If the error is a connection error, we want to retry.
+                    Err(e) if e.to_string().contains("connection error") => {
+                        retry::OperationResult::Retry(e)
+                    }
+                    // For all other errors, do not retry and return immediately.
+                    Err(e) => retry::OperationResult::Err(e),
+                }
+            },
+        )
+        .map_err(|e| e.error)
+    }};
+}
