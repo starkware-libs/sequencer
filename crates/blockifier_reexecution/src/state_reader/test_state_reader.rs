@@ -26,6 +26,7 @@ use starknet_gateway::rpc_objects::{BlockHeader, GetBlockWithTxHashesParams, Res
 use starknet_gateway::rpc_state_reader::RpcStateReader;
 use starknet_types_core::felt::Felt;
 
+use crate::retry_request;
 use crate::state_reader::compile::{legacy_to_contract_class_v0, sierra_to_contact_class_v1};
 use crate::state_reader::errors::ReexecutionError;
 use crate::state_reader::reexecution_state_reader::ReexecutionStateReader;
@@ -40,6 +41,11 @@ use crate::state_reader::utils::{
     get_rpc_state_reader_config,
     ReexecutionStateMaps,
 };
+
+pub const DEFAULT_RETRY_COUNT: usize = 3;
+pub const DEFAULT_RETRY_WAIT_TIME: u64 = 1000;
+pub const DEFAULT_EXPECTED_ERROR_STRING: &str = "Connection error";
+pub const DEFAULT_RETRY_FAILURE_MESSAGE: &str = "Failed to connect to the RPC node.";
 
 pub type ReexecutionResult<T> = Result<T, ReexecutionError>;
 
@@ -103,15 +109,44 @@ impl From<SerializableOfflineReexecutionData> for OfflineReexecutionData {
     }
 }
 
+pub struct RetryConfig {
+    pub(crate) n_retries: usize,
+    pub(crate) retry_interval_milliseconds: u64,
+    pub(crate) expected_error_string: &'static str,
+    pub(crate) retry_failure_message: &'static str,
+}
+
+impl Default for RetryConfig {
+    fn default() -> Self {
+        Self {
+            n_retries: DEFAULT_RETRY_COUNT,
+            retry_interval_milliseconds: DEFAULT_RETRY_WAIT_TIME,
+            expected_error_string: DEFAULT_EXPECTED_ERROR_STRING,
+            retry_failure_message: DEFAULT_RETRY_FAILURE_MESSAGE,
+        }
+    }
+}
+
 pub struct TestStateReader {
-    rpc_state_reader: RpcStateReader,
+    pub(crate) rpc_state_reader: RpcStateReader,
+    pub(crate) retry_config: RetryConfig,
     #[allow(dead_code)]
     contract_class_mapping_dumper: Arc<Mutex<Option<StarknetContractClassMapping>>>,
 }
 
+impl Default for TestStateReader {
+    fn default() -> Self {
+        Self {
+            rpc_state_reader: RpcStateReader::from_latest(&get_rpc_state_reader_config()),
+            retry_config: RetryConfig::default(),
+            contract_class_mapping_dumper: Arc::new(Mutex::new(None)),
+        }
+    }
+}
+
 impl StateReader for TestStateReader {
     fn get_nonce_at(&self, contract_address: ContractAddress) -> StateResult<Nonce> {
-        self.rpc_state_reader.get_nonce_at(contract_address)
+        retry_request!(self.retry_config, || self.rpc_state_reader.get_nonce_at(contract_address))
     }
 
     fn get_storage_at(
@@ -119,11 +154,15 @@ impl StateReader for TestStateReader {
         contract_address: ContractAddress,
         key: StorageKey,
     ) -> StateResult<Felt> {
-        self.rpc_state_reader.get_storage_at(contract_address, key)
+        retry_request!(self.retry_config, || self
+            .rpc_state_reader
+            .get_storage_at(contract_address, key))
     }
 
     fn get_class_hash_at(&self, contract_address: ContractAddress) -> StateResult<ClassHash> {
-        self.rpc_state_reader.get_class_hash_at(contract_address)
+        retry_request!(self.retry_config, || self
+            .rpc_state_reader
+            .get_class_hash_at(contract_address))
     }
 
     /// Returns the contract class of the given class hash.
@@ -132,7 +171,10 @@ impl StateReader for TestStateReader {
         &self,
         class_hash: ClassHash,
     ) -> StateResult<RunnableContractClass> {
-        match self.get_contract_class(&class_hash)? {
+        let contract_class =
+            retry_request!(self.retry_config, || self.get_contract_class(&class_hash))?;
+
+        match contract_class {
             StarknetContractClass::Sierra(sierra) => {
                 Ok(sierra_to_contact_class_v1(sierra).unwrap().try_into().unwrap())
             }
@@ -156,6 +198,7 @@ impl TestStateReader {
         Self {
             rpc_state_reader: RpcStateReader::from_number(config, block_number),
             contract_class_mapping_dumper,
+            retry_config: RetryConfig::default(),
         }
     }
 
