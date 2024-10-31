@@ -9,7 +9,7 @@ use test_case::test_case;
 
 use crate::abi::abi_utils::selector_from_name;
 use crate::context::ChainInfo;
-use crate::execution::call_info::{CallExecution, CallInfo};
+use crate::execution::call_info::{CallExecution, CallInfo, ChargedResources};
 use crate::execution::entry_point::{CallEntryPoint, CallType};
 use crate::execution::syscalls::syscall_tests::constants::{
     REQUIRED_GAS_LIBRARY_CALL_TEST,
@@ -158,7 +158,9 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
             gas_consumed: REQUIRED_GAS_STORAGE_READ_WRITE_TEST,
             ..CallExecution::default()
         },
-        resources: storage_entry_point_resources.clone(),
+        charged_resources: ChargedResources::from_execution_resources(
+            storage_entry_point_resources.clone(),
+        ),
         tracked_resource,
         storage_read_values: vec![felt!(value + 1)],
         accessed_storage_keys: HashSet::from([storage_key!(key + 1)]),
@@ -179,7 +181,7 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
             gas_consumed: REQUIRED_GAS_LIBRARY_CALL_TEST,
             ..CallExecution::default()
         },
-        resources: library_call_resources,
+        charged_resources: ChargedResources::from_execution_resources(library_call_resources),
         inner_calls: vec![nested_storage_call_info],
         tracked_resource,
         ..Default::default()
@@ -192,7 +194,9 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
             gas_consumed: REQUIRED_GAS_STORAGE_READ_WRITE_TEST,
             ..CallExecution::default()
         },
-        resources: storage_entry_point_resources,
+        charged_resources: ChargedResources::from_execution_resources(
+            storage_entry_point_resources,
+        ),
         storage_read_values: vec![felt!(value)],
         accessed_storage_keys: HashSet::from([storage_key!(key)]),
         tracked_resource,
@@ -212,7 +216,7 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
             gas_consumed: expected_gas,
             ..CallExecution::default()
         },
-        resources: main_call_resources,
+        charged_resources: ChargedResources::from_execution_resources(main_call_resources),
         inner_calls: vec![library_call_info, storage_call_info],
         tracked_resource,
         ..Default::default()
