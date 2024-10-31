@@ -36,11 +36,23 @@ pub const DEFAULT_CHAIN_ID: ChainId = ChainId::Mainnet;
 // Required target parameters.
 pub static REQUIRED_PARAM_CONFIG_POINTERS: LazyLock<Vec<(ParamPath, SerializedParam)>> =
     LazyLock::new(|| {
-        vec![ser_pointer_target_required_param(
-            "chain_id",
-            SerializationType::String,
-            "The chain to follow.",
-        )]
+        vec![
+            ser_pointer_target_required_param(
+                "chain_id",
+                SerializationType::String,
+                "The chain to follow.",
+            ),
+            ser_pointer_target_required_param(
+                "eth_fee_token_address",
+                SerializationType::String,
+                "Address of the ETH fee token.",
+            ),
+            ser_pointer_target_required_param(
+                "strk_fee_token_address",
+                SerializationType::String,
+                "Address of the STRK fee token.",
+            ),
+        ]
     });
 
 // Optional target parameters, i.e., target parameters with default values.

@@ -1,7 +1,7 @@
 use std::vec::Vec; // Used by #[gen_field_names_fn].
 
 use papyrus_proc_macros::gen_field_names_fn;
-use starknet_api::core::ChainId;
+use starknet_api::core::{ChainId, ContractAddress};
 
 use crate::config::node_command;
 
@@ -9,11 +9,17 @@ use crate::config::node_command;
 #[gen_field_names_fn]
 pub struct RequiredParams {
     pub chain_id: ChainId,
+    pub eth_fee_token_address: ContractAddress,
+    pub strk_fee_token_address: ContractAddress,
 }
 
 impl RequiredParams {
     pub fn create_for_testing() -> Self {
-        Self { chain_id: ChainId::create_for_testing() }
+        Self {
+            chain_id: ChainId::create_for_testing(),
+            eth_fee_token_address: ContractAddress::from(2_u128),
+            strk_fee_token_address: ContractAddress::from(3_u128),
+        }
     }
 
     pub fn cli_args(&self) -> Vec<String> {
