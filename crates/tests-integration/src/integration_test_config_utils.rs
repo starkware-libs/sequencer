@@ -50,13 +50,13 @@ pub fn dump_config_file_changes(
     // Dump config changes file for the sequencer node.
     let json_data = config_fields_to_json!(
         required_params.chain_id,
+        required_params.eth_fee_token_address,
+        required_params.strk_fee_token_address,
         config.rpc_state_reader_config.json_rpc_version,
         config.rpc_state_reader_config.url,
         config.batcher_config.storage.db_config.path_prefix,
         config.http_server_config.ip,
         config.http_server_config.port,
-        config.gateway_config.chain_info.fee_token_addresses.eth_fee_token_address,
-        config.gateway_config.chain_info.fee_token_addresses.strk_fee_token_address,
         config.consensus_manager_config.consensus_config.start_height,
     );
     dump_json_data(json_data, NODE_CONFIG_CHANGES_FILE_PATH)?;
