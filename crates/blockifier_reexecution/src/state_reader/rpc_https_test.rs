@@ -72,7 +72,7 @@ pub fn last_constructed_block() -> BlockNumber {
 pub fn test_state_readers_last_and_current_block(
     last_constructed_block: BlockNumber,
 ) -> ConsecutiveTestStateReaders {
-    ConsecutiveTestStateReaders::new(last_constructed_block, None)
+    ConsecutiveTestStateReaders::new(last_constructed_block, None, false)
 }
 
 #[rstest]
