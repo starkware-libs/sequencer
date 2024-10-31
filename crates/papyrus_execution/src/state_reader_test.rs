@@ -2,9 +2,9 @@ use std::cell::Cell;
 
 use assert_matches::assert_matches;
 use blockifier::execution::contract_class::{
-    ContractClass as BlockifierContractClass,
     ContractClassV0,
     ContractClassV1,
+    RunnableContractClass as BlockifierContractClass,
 };
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::StateReader;

@@ -2,9 +2,9 @@ use std::collections::BTreeMap;
 
 use blockifier::execution::contract_class::{
     ClassInfo,
-    ContractClass,
     ContractClassV0,
     ContractClassV1,
+    RunnableContractClass,
 };
 use blockifier::transaction::account_transaction::AccountTransaction;
 use blockifier::transaction::transaction_execution::Transaction;
@@ -170,7 +170,7 @@ impl PyClassInfo {
         py_class_info: PyClassInfo,
         tx: &starknet_api::transaction::DeclareTransaction,
     ) -> NativeBlockifierResult<ClassInfo> {
-        let contract_class: ContractClass = match tx {
+        let contract_class: RunnableContractClass = match tx {
             starknet_api::transaction::DeclareTransaction::V0(_)
             | starknet_api::transaction::DeclareTransaction::V1(_) => {
                 ContractClassV0::try_from_json_string(&py_class_info.raw_contract_class)?.into()

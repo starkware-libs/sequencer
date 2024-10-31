@@ -1,4 +1,8 @@
-use blockifier::execution::contract_class::{ContractClass, ContractClassV0, ContractClassV1};
+use blockifier::execution::contract_class::{
+    ContractClassV0,
+    ContractClassV1,
+    RunnableContractClass,
+};
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader, StateResult};
 use pyo3::{FromPyObject, PyAny, PyErr, PyObject, PyResult, Python};
@@ -64,8 +68,11 @@ impl StateReader for PyStateReader {
         .map_err(|err| StateError::StateReadError(err.to_string()))
     }
 
-    fn get_compiled_contract_class(&self, class_hash: ClassHash) -> StateResult<ContractClass> {
-        Python::with_gil(|py| -> Result<ContractClass, PyErr> {
+    fn get_compiled_contract_class(
+        &self,
+        class_hash: ClassHash,
+    ) -> StateResult<RunnableContractClass> {
+        Python::with_gil(|py| -> Result<RunnableContractClass, PyErr> {
             let args = (PyFelt::from(class_hash),);
             let py_raw_compiled_class: PyRawCompiledClass = self
                 .state_reader_proxy
@@ -73,7 +80,7 @@ impl StateReader for PyStateReader {
                 .call_method1("get_raw_compiled_class", args)?
                 .extract()?;
 
-            Ok(ContractClass::try_from(py_raw_compiled_class)?)
+            Ok(RunnableContractClass::try_from(py_raw_compiled_class)?)
         })
         .map_err(|err| {
             if Python::with_gil(|py| err.is_instance_of::<UndeclaredClassHashError>(py)) {
@@ -103,7 +110,7 @@ pub struct PyRawCompiledClass {
     pub version: usize,
 }
 
-impl TryFrom<PyRawCompiledClass> for ContractClass {
+impl TryFrom<PyRawCompiledClass> for RunnableContractClass {
     type Error = NativeBlockifierError;
 
     fn try_from(raw_compiled_class: PyRawCompiledClass) -> NativeBlockifierResult<Self> {

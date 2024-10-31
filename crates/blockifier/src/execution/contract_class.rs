@@ -21,7 +21,7 @@ use itertools::Itertools;
 use semver::Version;
 use serde::de::Error as DeserializationError;
 use serde::{Deserialize, Deserializer, Serialize};
-use starknet_api::contract_class::{ContractClass as RawContractClass, EntryPointType};
+use starknet_api::contract_class::{ContractClass, EntryPointType};
 use starknet_api::core::EntryPointSelector;
 use starknet_api::deprecated_contract_class::{
     ContractClass as DeprecatedContractClass,
@@ -62,23 +62,23 @@ pub enum TrackedResource {
 
 /// Represents a runnable Starknet contract class (meaning, the program is runnable by the VM).
 #[derive(Clone, Debug, Eq, PartialEq, derive_more::From)]
-pub enum ContractClass {
+pub enum RunnableContractClass {
     V0(ContractClassV0),
     V1(ContractClassV1),
     #[cfg(feature = "cairo_native")]
     V1Native(NativeContractClassV1),
 }
 
-impl TryFrom<RawContractClass> for ContractClass {
+impl TryFrom<ContractClass> for RunnableContractClass {
     type Error = ProgramError;
 
-    fn try_from(raw_contract_class: RawContractClass) -> Result<Self, Self::Error> {
-        let contract_class: ContractClass = match raw_contract_class {
-            RawContractClass::V0(raw_contract_class) => {
-                ContractClass::V0(raw_contract_class.try_into()?)
+    fn try_from(raw_contract_class: ContractClass) -> Result<Self, Self::Error> {
+        let contract_class: RunnableContractClass = match raw_contract_class {
+            ContractClass::V0(raw_contract_class) => {
+                RunnableContractClass::V0(raw_contract_class.try_into()?)
             }
-            RawContractClass::V1(raw_contract_class) => {
-                ContractClass::V1(raw_contract_class.try_into()?)
+            ContractClass::V1(raw_contract_class) => {
+                RunnableContractClass::V1(raw_contract_class.try_into()?)
             }
         };
 
@@ -86,22 +86,22 @@ impl TryFrom<RawContractClass> for ContractClass {
     }
 }
 
-impl ContractClass {
+impl RunnableContractClass {
     pub fn constructor_selector(&self) -> Option<EntryPointSelector> {
         match self {
-            ContractClass::V0(class) => class.constructor_selector(),
-            ContractClass::V1(class) => class.constructor_selector(),
+            RunnableContractClass::V0(class) => class.constructor_selector(),
+            RunnableContractClass::V1(class) => class.constructor_selector(),
             #[cfg(feature = "cairo_native")]
-            ContractClass::V1Native(class) => class.constructor_selector(),
+            RunnableContractClass::V1Native(class) => class.constructor_selector(),
         }
     }
 
     pub fn estimate_casm_hash_computation_resources(&self) -> ExecutionResources {
         match self {
-            ContractClass::V0(class) => class.estimate_casm_hash_computation_resources(),
-            ContractClass::V1(class) => class.estimate_casm_hash_computation_resources(),
+            RunnableContractClass::V0(class) => class.estimate_casm_hash_computation_resources(),
+            RunnableContractClass::V1(class) => class.estimate_casm_hash_computation_resources(),
             #[cfg(feature = "cairo_native")]
-            ContractClass::V1Native(_) => {
+            RunnableContractClass::V1Native(_) => {
                 todo!("Use casm to estimate casm hash computation resources")
             }
         }
@@ -112,12 +112,12 @@ impl ContractClass {
         visited_pcs: &HashSet<usize>,
     ) -> Result<Vec<usize>, TransactionExecutionError> {
         match self {
-            ContractClass::V0(_) => {
+            RunnableContractClass::V0(_) => {
                 panic!("get_visited_segments is not supported for v0 contracts.")
             }
-            ContractClass::V1(class) => class.get_visited_segments(visited_pcs),
+            RunnableContractClass::V1(class) => class.get_visited_segments(visited_pcs),
             #[cfg(feature = "cairo_native")]
-            ContractClass::V1Native(_) => {
+            RunnableContractClass::V1Native(_) => {
                 panic!("get_visited_segments is not supported for native contracts.")
             }
         }
@@ -125,10 +125,10 @@ impl ContractClass {
 
     pub fn bytecode_length(&self) -> usize {
         match self {
-            ContractClass::V0(class) => class.bytecode_length(),
-            ContractClass::V1(class) => class.bytecode_length(),
+            RunnableContractClass::V0(class) => class.bytecode_length(),
+            RunnableContractClass::V1(class) => class.bytecode_length(),
             #[cfg(feature = "cairo_native")]
-            ContractClass::V1Native(_) => {
+            RunnableContractClass::V1Native(_) => {
                 todo!("implement bytecode_length for native contracts.")
             }
         }
@@ -137,12 +137,12 @@ impl ContractClass {
     /// Returns whether this contract should run using Cairo steps or Sierra gas.
     pub fn tracked_resource(&self, min_sierra_version: &CompilerVersion) -> TrackedResource {
         match self {
-            ContractClass::V0(_) => TrackedResource::CairoSteps,
-            ContractClass::V1(contract_class) => {
+            RunnableContractClass::V0(_) => TrackedResource::CairoSteps,
+            RunnableContractClass::V1(contract_class) => {
                 contract_class.tracked_resource(min_sierra_version)
             }
             #[cfg(feature = "cairo_native")]
-            ContractClass::V1Native(_) => TrackedResource::SierraGas,
+            RunnableContractClass::V1Native(_) => TrackedResource::SierraGas,
         }
     }
 }
@@ -530,7 +530,7 @@ fn convert_entry_points_v1(external: &[CasmContractEntryPoint]) -> Vec<EntryPoin
 #[derive(Clone, Debug)]
 // TODO(Ayelet,10/02/2024): Change to bytes.
 pub struct ClassInfo {
-    contract_class: ContractClass,
+    contract_class: RunnableContractClass,
     sierra_program_length: usize,
     abi_length: usize,
 }
@@ -554,7 +554,7 @@ impl ClassInfo {
         self.contract_class.bytecode_length()
     }
 
-    pub fn contract_class(&self) -> ContractClass {
+    pub fn contract_class(&self) -> RunnableContractClass {
         self.contract_class.clone()
     }
 
@@ -574,15 +574,15 @@ impl ClassInfo {
     }
 
     pub fn new(
-        contract_class: &ContractClass,
+        contract_class: &RunnableContractClass,
         sierra_program_length: usize,
         abi_length: usize,
     ) -> ContractClassResult<Self> {
         let (contract_class_version, condition) = match contract_class {
-            ContractClass::V0(_) => (0, sierra_program_length == 0),
-            ContractClass::V1(_) => (1, sierra_program_length > 0),
+            RunnableContractClass::V0(_) => (0, sierra_program_length == 0),
+            RunnableContractClass::V1(_) => (1, sierra_program_length > 0),
             #[cfg(feature = "cairo_native")]
-            ContractClass::V1Native(_) => (1, sierra_program_length > 0),
+            RunnableContractClass::V1Native(_) => (1, sierra_program_length > 0),
         };
 
         if condition {

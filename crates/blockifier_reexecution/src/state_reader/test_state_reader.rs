@@ -6,7 +6,7 @@ use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::TransactionExecutor;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::BlockContext;
-use blockifier::execution::contract_class::ContractClass as BlockifierContractClass;
+use blockifier::execution::contract_class::RunnableContractClass as BlockifierContractClass;
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff};
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader, StateResult};

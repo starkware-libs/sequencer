@@ -27,7 +27,10 @@ use blockifier::blockifier::block::{pre_process_block, BlockInfo, GasPrices};
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use blockifier::execution::call_info::CallExecution;
-use blockifier::execution::contract_class::{ClassInfo, ContractClass as BlockifierContractClass};
+use blockifier::execution::contract_class::{
+    ClassInfo,
+    RunnableContractClass as BlockifierContractClass,
+};
 use blockifier::execution::entry_point::{
     CallEntryPoint,
     CallType as BlockifierCallType,

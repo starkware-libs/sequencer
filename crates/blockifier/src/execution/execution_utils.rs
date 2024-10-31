@@ -30,7 +30,7 @@ use super::errors::{
 };
 use super::syscalls::hint_processor::ENTRYPOINT_NOT_FOUND_ERROR;
 use crate::execution::call_info::{CallInfo, Retdata};
-use crate::execution::contract_class::{ContractClass, TrackedResource};
+use crate::execution::contract_class::{RunnableContractClass, TrackedResource};
 use crate::execution::entry_point::{
     execute_constructor_entry_point,
     CallEntryPoint,
@@ -54,7 +54,7 @@ pub const SEGMENT_ARENA_BUILTIN_SIZE: usize = 3;
 /// A wrapper for execute_entry_point_call that performs pre and post-processing.
 pub fn execute_entry_point_call_wrapper(
     mut call: CallEntryPoint,
-    contract_class: ContractClass,
+    contract_class: RunnableContractClass,
     state: &mut dyn State,
     resources: &mut ExecutionResources,
     context: &mut EntryPointExecutionContext,
@@ -118,13 +118,13 @@ pub fn execute_entry_point_call_wrapper(
 /// Executes a specific call to a contract entry point and returns its output.
 pub fn execute_entry_point_call(
     call: CallEntryPoint,
-    contract_class: ContractClass,
+    contract_class: RunnableContractClass,
     state: &mut dyn State,
     resources: &mut ExecutionResources,
     context: &mut EntryPointExecutionContext,
 ) -> EntryPointExecutionResult<CallInfo> {
     match contract_class {
-        ContractClass::V0(contract_class) => {
+        RunnableContractClass::V0(contract_class) => {
             deprecated_entry_point_execution::execute_entry_point_call(
                 call,
                 contract_class,
@@ -133,15 +133,17 @@ pub fn execute_entry_point_call(
                 context,
             )
         }
-        ContractClass::V1(contract_class) => entry_point_execution::execute_entry_point_call(
-            call,
-            contract_class,
-            state,
-            resources,
-            context,
-        ),
+        RunnableContractClass::V1(contract_class) => {
+            entry_point_execution::execute_entry_point_call(
+                call,
+                contract_class,
+                state,
+                resources,
+                context,
+            )
+        }
         #[cfg(feature = "cairo_native")]
-        ContractClass::V1Native(contract_class) => {
+        RunnableContractClass::V1Native(contract_class) => {
             if context.tracked_resource_stack.last() == Some(&TrackedResource::CairoSteps) {
                 // We cannot run native with cairo steps as the tracked resources (it's a vm
                 // resouorce).

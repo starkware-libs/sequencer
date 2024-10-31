@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use blockifier::blockifier::transaction_executor::BLOCK_STATE_ACCESS_ERR;
-use blockifier::execution::contract_class::{ContractClass, ContractClassV1};
+use blockifier::execution::contract_class::{ContractClassV1, RunnableContractClass};
 use blockifier::state::state_api::StateReader;
 use cached::Cached;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
@@ -19,7 +19,8 @@ use crate::test_utils::MockStorage;
 fn global_contract_cache_update() {
     // Initialize executor and set a contract class on the state.
     let casm = CasmContractClass { compiler_version: "0.1.0".to_string(), ..Default::default() };
-    let contract_class = ContractClass::V1(ContractClassV1::try_from(casm.clone()).unwrap());
+    let contract_class =
+        RunnableContractClass::V1(ContractClassV1::try_from(casm.clone()).unwrap());
     let class_hash = class_hash!("0x1");
 
     let temp_storage_path = tempfile::tempdir().unwrap().into_path();

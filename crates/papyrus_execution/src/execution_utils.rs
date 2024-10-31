@@ -5,9 +5,9 @@ use std::path::PathBuf;
 // Expose the tool for creating entry point selectors from function names.
 pub use blockifier::abi::abi_utils::selector_from_name;
 use blockifier::execution::contract_class::{
-    ContractClass as BlockifierContractClass,
     ContractClassV0,
     ContractClassV1,
+    RunnableContractClass as BlockifierContractClass,
 };
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, MutRefState};
 use blockifier::state::state_api::StateReader;
