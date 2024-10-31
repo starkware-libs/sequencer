@@ -297,10 +297,10 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
 
     fn sha256_process_block(
         &mut self,
-        _prev_state: &[u32; 8],
+        _prev_state: &mut [u32; 8],
         _current_block: &[u32; 16],
         _remaining_gas: &mut u128,
-    ) -> SyscallResult<[u32; 8]> {
+    ) -> SyscallResult<()> {
         todo!("Implement sha256_process_block syscall.");
     }
 }
