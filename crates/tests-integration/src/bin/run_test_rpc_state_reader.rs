@@ -24,11 +24,12 @@ async fn main() -> anyhow::Result<()> {
             .await;
 
     // Derive the configuration for the sequencer node.
-    let config = create_config(rpc_server_addr, storage_for_test.batcher_storage_config).await;
+    let (config, required_params) =
+        create_config(rpc_server_addr, storage_for_test.batcher_storage_config).await;
 
     // Note: the batcher storage file handle is passed as a reference to maintain its ownership in
     // this scope, such that the handle is not dropped and the storage is maintained.
-    dump_config_file_changes(config)?;
+    dump_config_file_changes(config, required_params)?;
 
     // Keep the program running so the rpc state reader server, its storage, and the batcher
     // storage, are all maintained.
