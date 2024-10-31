@@ -51,8 +51,10 @@ pub async fn create_config(
     };
 
     let chain_id = batcher_storage_config.db_config.chain_id.clone();
+    // TODO(Tsabary): create chain_info in setup, and pass relevant values throughout.
     let mut chain_info = ChainInfo::create_for_testing();
     chain_info.chain_id = chain_id.clone();
+    let fee_token_addresses = chain_info.fee_token_addresses.clone();
     let batcher_config = create_batcher_config(batcher_storage_config, chain_info.clone());
     let gateway_config = create_gateway_config(chain_info).await;
     let http_server_config = create_http_server_config().await;
@@ -70,7 +72,11 @@ pub async fn create_config(
             rpc_state_reader_config,
             ..SequencerNodeConfig::default()
         },
-        RequiredParams { chain_id },
+        RequiredParams {
+            chain_id,
+            eth_fee_token_address: fee_token_addresses.eth_fee_token_address,
+            strk_fee_token_address: fee_token_addresses.strk_fee_token_address,
+        },
     )
 }
 
