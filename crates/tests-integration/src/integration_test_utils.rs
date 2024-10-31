@@ -186,7 +186,7 @@ where
 {
     let mut tx_hashes = vec![];
     for rpc_tx in rpc_txs {
-        tx_hashes.push(send_rpc_tx(rpc_tx, send_rpc_tx_fn).await);
+        tx_hashes.push(send_rpc_tx_fn(rpc_tx).await);
     }
     tx_hashes
 }
@@ -227,17 +227,6 @@ pub async fn run_transaction_generator_test_scenario<'a, Fut>(
     let rpc_txs = create_txs_for_tx_generator_test_scenario(tx_generator, n_txs);
 
     send_rpc_txs(rpc_txs, send_rpc_tx_fn).await;
-}
-
-/// Sends an RPC transaction using the supplied sending function, and returns its hash.
-fn send_rpc_tx<'a, Fut>(
-    rpc_tx: RpcTransaction,
-    send_rpc_tx_fn: &'a dyn Fn(RpcTransaction) -> Fut,
-) -> Fut
-where
-    Fut: Future<Output = TransactionHash> + 'a,
-{
-    send_rpc_tx_fn(rpc_tx)
 }
 
 async fn create_gateway_config(chain_info: ChainInfo) -> GatewayConfig {
