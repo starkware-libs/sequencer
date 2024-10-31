@@ -261,12 +261,15 @@ impl ProposalManager {
     }
 
     // A helper function for testing purposes (to be able to await the active proposal).
+    // Returns true if there was an active porposal, and false otherwise.
     // TODO: Consider making the tests a nested module to allow them to access private members.
     #[cfg(test)]
-    pub async fn await_active_proposal(&mut self) {
+    pub async fn await_active_proposal(&mut self) -> bool {
         if let Some(handle) = self.active_proposal_handle.take() {
             handle.await.unwrap();
+            return true;
         }
+        false
     }
 }
 
