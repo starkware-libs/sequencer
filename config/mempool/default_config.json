@@ -81,13 +81,13 @@
   },
   "batcher_config.block_builder_config.chain_info.fee_token_addresses.eth_fee_token_address": {
     "description": "Address of the ETH fee token.",
-    "privacy": "Public",
-    "value": "0x0"
+    "pointer_target": "eth_fee_token_address",
+    "privacy": "Public"
   },
   "batcher_config.block_builder_config.chain_info.fee_token_addresses.strk_fee_token_address": {
     "description": "Address of the STRK fee token.",
-    "privacy": "Public",
-    "value": "0x0"
+    "pointer_target": "strk_fee_token_address",
+    "privacy": "Public"
   },
   "batcher_config.block_builder_config.execute_config.concurrency_config.chunk_size": {
     "description": "The size of the transaction chunk executed in parallel.",
@@ -594,6 +594,11 @@
     "privacy": "Public",
     "value": "0x0"
   },
+  "eth_fee_token_address": {
+    "description": "A required param! Address of the ETH fee token.",
+    "param_type": "String",
+    "privacy": "TemporaryValue"
+  },
   "gateway_config.chain_info.chain_id": {
     "description": "The chain ID of the StarkNet chain.",
     "pointer_target": "chain_id",
@@ -601,13 +606,13 @@
   },
   "gateway_config.chain_info.fee_token_addresses.eth_fee_token_address": {
     "description": "Address of the ETH fee token.",
-    "privacy": "Public",
-    "value": "0x0"
+    "pointer_target": "eth_fee_token_address",
+    "privacy": "Public"
   },
   "gateway_config.chain_info.fee_token_addresses.strk_fee_token_address": {
     "description": "Address of the STRK fee token.",
-    "privacy": "Public",
-    "value": "0x0"
+    "pointer_target": "strk_fee_token_address",
+    "privacy": "Public"
   },
   "gateway_config.stateful_tx_validator_config.max_nonce_for_validation_skip": {
     "description": "Maximum nonce for which the validation is skipped.",
@@ -793,5 +798,10 @@
     "description": "The url of the rpc server.",
     "privacy": "Public",
     "value": ""
+  },
+  "strk_fee_token_address": {
+    "description": "A required param! Address of the STRK fee token.",
+    "param_type": "String",
+    "privacy": "TemporaryValue"
   }
 }
