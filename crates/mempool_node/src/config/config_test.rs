@@ -93,7 +93,8 @@ fn test_default_config_file_is_up_to_date() {
 /// Tests parsing a node config without additional args.
 #[test]
 fn test_config_parsing() {
-    let args = create_test_config_load_args(&REQUIRED_PARAM_CONFIG_POINTERS);
+    let required_params = RequiredParams::create_for_testing();
+    let args = create_test_config_load_args(required_params);
     let config = SequencerNodeConfig::load_and_process(args);
     let config = config.expect("Parsing function failed.");
 
