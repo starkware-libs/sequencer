@@ -29,6 +29,7 @@ use starknet_gateway::config::{
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_http_server::config::HttpServerConfig;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
+use starknet_sequencer_node::config::test_utils::RequiredParams;
 use starknet_sequencer_node::config::{
     ComponentExecutionConfig,
     ComponentExecutionMode,
@@ -39,7 +40,7 @@ use tokio::net::TcpListener;
 pub async fn create_config(
     rpc_server_addr: SocketAddr,
     batcher_storage_config: StorageConfig,
-) -> SequencerNodeConfig {
+) -> (SequencerNodeConfig, RequiredParams) {
     // TODO(Arni/ Matan): Enable the consensus in the end to end test.
     let components = ComponentConfig {
         consensus_manager: ComponentExecutionConfig {
@@ -60,16 +61,18 @@ pub async fn create_config(
     let consensus_manager_config = ConsensusManagerConfig {
         consensus_config: ConsensusConfig { start_height: BlockNumber(1), ..Default::default() },
     };
-    SequencerNodeConfig {
-        chain_id,
-        components,
-        batcher_config,
-        consensus_manager_config,
-        gateway_config,
-        http_server_config,
-        rpc_state_reader_config,
-        ..SequencerNodeConfig::default()
-    }
+    (
+        SequencerNodeConfig {
+            components,
+            batcher_config,
+            consensus_manager_config,
+            gateway_config,
+            http_server_config,
+            rpc_state_reader_config,
+            ..SequencerNodeConfig::default()
+        },
+        RequiredParams { chain_id },
+    )
 }
 
 pub fn test_rpc_state_reader_config(rpc_server_addr: SocketAddr) -> RpcStateReaderConfig {
