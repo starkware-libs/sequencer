@@ -27,10 +27,7 @@ use blockifier::blockifier::block::{pre_process_block, BlockInfo, GasPrices};
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use blockifier::execution::call_info::CallExecution;
-use blockifier::execution::contract_class::{
-    ClassInfo,
-    RunnableContractClass as BlockifierContractClass,
-};
+use blockifier::execution::contract_class::ClassInfo;
 use blockifier::execution::entry_point::{
     CallEntryPoint,
     CallType as BlockifierCallType,
@@ -795,19 +792,15 @@ fn to_blockifier_tx(
             abi_length,
             only_query,
         ) => {
-            let class_v0 = BlockifierContractClass::V0(deprecated_class.try_into().map_err(
-                |e: cairo_vm::types::errors::program_errors::ProgramError| {
-                    ExecutionError::TransactionExecutionError {
-                        transaction_index,
-                        execution_error: e.to_string(),
-                    }
-                },
-            )?);
-            let class_info = ClassInfo::new(&class_v0, DEPRECATED_CONTRACT_SIERRA_SIZE, abi_length)
-                .map_err(|err| ExecutionError::BadDeclareTransaction {
-                    tx: DeclareTransaction::V0(declare_tx.clone()),
-                    err,
-                })?;
+            let class_info = ClassInfo::new(
+                &deprecated_class.into(),
+                DEPRECATED_CONTRACT_SIERRA_SIZE,
+                abi_length,
+            )
+            .map_err(|err| ExecutionError::BadDeclareTransaction {
+                tx: DeclareTransaction::V0(declare_tx.clone()),
+                err,
+            })?;
             BlockifierTransaction::from_api(
                 Transaction::Declare(DeclareTransaction::V0(declare_tx)),
                 tx_hash,
@@ -824,14 +817,15 @@ fn to_blockifier_tx(
             abi_length,
             only_query,
         ) => {
-            let class_v0 = BlockifierContractClass::V0(
-                deprecated_class.try_into().map_err(BlockifierError::new)?,
-            );
-            let class_info = ClassInfo::new(&class_v0, DEPRECATED_CONTRACT_SIERRA_SIZE, abi_length)
-                .map_err(|err| ExecutionError::BadDeclareTransaction {
-                    tx: DeclareTransaction::V1(declare_tx.clone()),
-                    err,
-                })?;
+            let class_info = ClassInfo::new(
+                &deprecated_class.into(),
+                DEPRECATED_CONTRACT_SIERRA_SIZE,
+                abi_length,
+            )
+            .map_err(|err| ExecutionError::BadDeclareTransaction {
+                tx: DeclareTransaction::V1(declare_tx.clone()),
+                err,
+            })?;
             BlockifierTransaction::from_api(
                 Transaction::Declare(DeclareTransaction::V1(declare_tx)),
                 tx_hash,
@@ -849,16 +843,13 @@ fn to_blockifier_tx(
             abi_length,
             only_query,
         ) => {
-            let class_v1 = BlockifierContractClass::V1(
-                compiled_class.try_into().map_err(BlockifierError::new)?,
-            );
             let class_info =
-                ClassInfo::new(&class_v1, sierra_program_length, abi_length).map_err(|err| {
-                    ExecutionError::BadDeclareTransaction {
+                ClassInfo::new(&compiled_class.into(), sierra_program_length, abi_length).map_err(
+                    |err| ExecutionError::BadDeclareTransaction {
                         tx: DeclareTransaction::V2(declare_tx.clone()),
                         err,
-                    }
-                })?;
+                    },
+                )?;
             BlockifierTransaction::from_api(
                 Transaction::Declare(DeclareTransaction::V2(declare_tx)),
                 tx_hash,
@@ -876,16 +867,13 @@ fn to_blockifier_tx(
             abi_length,
             only_query,
         ) => {
-            let class_v1 = BlockifierContractClass::V1(
-                compiled_class.try_into().map_err(BlockifierError::new)?,
-            );
             let class_info =
-                ClassInfo::new(&class_v1, sierra_program_length, abi_length).map_err(|err| {
-                    ExecutionError::BadDeclareTransaction {
+                ClassInfo::new(&compiled_class.into(), sierra_program_length, abi_length).map_err(
+                    |err| ExecutionError::BadDeclareTransaction {
                         tx: DeclareTransaction::V3(declare_tx.clone()),
                         err,
-                    }
-                })?;
+                    },
+                )?;
             BlockifierTransaction::from_api(
                 Transaction::Declare(DeclareTransaction::V3(declare_tx)),
                 tx_hash,

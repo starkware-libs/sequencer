@@ -291,18 +291,6 @@ impl ContractClassV1 {
 
         Ok(contract_class)
     }
-
-    /// Returns an empty contract class for testing purposes.
-    #[cfg(any(feature = "testing", test))]
-    pub fn empty_for_testing() -> Self {
-        Self(Arc::new(ContractClassV1Inner {
-            program: Default::default(),
-            entry_points_by_type: Default::default(),
-            hints: Default::default(),
-            compiler_version: Default::default(),
-            bytecode_segment_lengths: NestedIntList::Leaf(0),
-        }))
-    }
 }
 
 /// Returns the estimated VM resources required for computing Casm hash (for Cairo 1 contracts).
@@ -530,7 +518,7 @@ fn convert_entry_points_v1(external: &[CasmContractEntryPoint]) -> Vec<EntryPoin
 #[derive(Clone, Debug)]
 // TODO(Ayelet,10/02/2024): Change to bytes.
 pub struct ClassInfo {
-    contract_class: RunnableContractClass,
+    contract_class: ContractClass,
     sierra_program_length: usize,
     abi_length: usize,
 }
@@ -545,16 +533,24 @@ impl TryFrom<starknet_api::contract_class::ClassInfo> for ClassInfo {
             abi_length,
         } = class_info;
 
-        Ok(Self { contract_class: contract_class.try_into()?, sierra_program_length, abi_length })
+        Ok(Self { contract_class: contract_class.clone(), sierra_program_length, abi_length })
     }
 }
 
 impl ClassInfo {
     pub fn bytecode_length(&self) -> usize {
-        self.contract_class.bytecode_length()
+        match &self.contract_class {
+            ContractClass::V0(contract_class) => contract_class
+                .program
+                .data
+                .as_array()
+                .map(|arr| arr.len())
+                .expect("The program data must be an array."),
+            ContractClass::V1(contract_class) => contract_class.bytecode.len(),
+        }
     }
 
-    pub fn contract_class(&self) -> RunnableContractClass {
+    pub fn contract_class(&self) -> ContractClass {
         self.contract_class.clone()
     }
 
@@ -574,15 +570,13 @@ impl ClassInfo {
     }
 
     pub fn new(
-        contract_class: &RunnableContractClass,
+        contract_class: &ContractClass,
         sierra_program_length: usize,
         abi_length: usize,
     ) -> ContractClassResult<Self> {
         let (contract_class_version, condition) = match contract_class {
-            RunnableContractClass::V0(_) => (0, sierra_program_length == 0),
-            RunnableContractClass::V1(_) => (1, sierra_program_length > 0),
-            #[cfg(feature = "cairo_native")]
-            RunnableContractClass::V1Native(_) => (1, sierra_program_length > 0),
+            ContractClass::V0(_) => (0, sierra_program_length == 0),
+            ContractClass::V1(_) => (1, sierra_program_length > 0),
         };
 
         if condition {
