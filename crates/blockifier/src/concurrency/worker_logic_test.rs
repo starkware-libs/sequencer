@@ -552,7 +552,7 @@ fn test_deploy_before_declare(
     let account_address_1 = account_contract.get_instance_address(1);
     let test_contract = FeatureContract::TestContract(cairo_version);
     let test_class_hash = test_contract.get_class_hash();
-    let test_class_info = calculate_class_info_for_testing(test_contract.get_runnable_class());
+    let test_class_info = calculate_class_info_for_testing(test_contract.get_class());
     let test_compiled_class_hash = test_contract.get_compiled_class_hash();
     let declare_tx = declare_tx(
         declare_tx_args! {

@@ -69,7 +69,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(
 
     // Declare.
     for cairo_version in [CairoVersion::Cairo0, CairoVersion::Cairo1] {
-        let empty_contract = FeatureContract::Empty(cairo_version).get_runnable_class();
+        let empty_contract = FeatureContract::Empty(cairo_version).get_class();
         let class_info = calculate_class_info_for_testing(empty_contract);
         let declare_tx_starknet_resources = StarknetResources::new(
             0,
