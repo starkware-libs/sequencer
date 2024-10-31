@@ -68,8 +68,11 @@ fn main() {
                 json_rpc_version: JSON_RPC_VERSION.to_string(),
             };
 
-            let test_state_readers_last_and_current_block =
-                ConsecutiveTestStateReaders::new(BlockNumber(block_number - 1), Some(config));
+            let test_state_readers_last_and_current_block = ConsecutiveTestStateReaders::new(
+                BlockNumber(block_number - 1),
+                Some(config),
+                false,
+            );
 
             let all_txs_in_next_block =
                 test_state_readers_last_and_current_block.get_next_block_txs().unwrap();
