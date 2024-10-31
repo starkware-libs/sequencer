@@ -11,7 +11,7 @@ use strum_macros::EnumIter;
 
 use crate::abi::abi_utils::selector_from_name;
 use crate::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
-use crate::execution::contract_class::{ContractClass, ContractClassV0, ContractClassV1};
+use crate::execution::contract_class::{ContractClassV0, ContractClassV1, RunnableContractClass};
 use crate::execution::entry_point::CallEntryPoint;
 use crate::test_utils::cairo_compile::{cairo0_compile, cairo1_compile};
 use crate::test_utils::{get_raw_contract_class, CairoVersion};
@@ -148,7 +148,7 @@ impl FeatureContract {
         contract_address!(self.get_integer_base() + instance_id_as_u32 + ADDRESS_BIT)
     }
 
-    pub fn get_class(&self) -> ContractClass {
+    pub fn get_runnable_class(&self) -> RunnableContractClass {
         match self.cairo_version() {
             CairoVersion::Cairo0 => ContractClassV0::from_file(&self.get_compiled_path()).into(),
             CairoVersion::Cairo1 => ContractClassV1::from_file(&self.get_compiled_path()).into(),
@@ -310,8 +310,8 @@ impl FeatureContract {
         entry_point_selector: EntryPointSelector,
         entry_point_type: EntryPointType,
     ) -> EntryPointOffset {
-        match self.get_class() {
-            ContractClass::V0(class) => {
+        match self.get_runnable_class() {
+            RunnableContractClass::V0(class) => {
                 class
                     .entry_points_by_type
                     .get(&entry_point_type)
@@ -321,7 +321,7 @@ impl FeatureContract {
                     .unwrap()
                     .offset
             }
-            ContractClass::V1(class) => {
+            RunnableContractClass::V1(class) => {
                 class
                     .entry_points_by_type
                     .get_entry_point(&CallEntryPoint {
@@ -333,7 +333,7 @@ impl FeatureContract {
                     .offset
             }
             #[cfg(feature = "cairo_native")]
-            ContractClass::V1Native(_) => {
+            RunnableContractClass::V1Native(_) => {
                 panic!("Not implemented for cairo native contracts")
             }
         }

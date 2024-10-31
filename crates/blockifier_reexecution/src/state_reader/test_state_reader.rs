@@ -6,7 +6,7 @@ use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::TransactionExecutor;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::BlockContext;
-use blockifier::execution::contract_class::ContractClass as BlockifierContractClass;
+use blockifier::execution::contract_class::RunnableContractClass;
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff};
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader, StateResult};
@@ -70,7 +70,7 @@ impl StateReader for TestStateReader {
     fn get_compiled_contract_class(
         &self,
         class_hash: ClassHash,
-    ) -> StateResult<BlockifierContractClass> {
+    ) -> StateResult<RunnableContractClass> {
         match self.get_contract_class(&class_hash)? {
             StarknetContractClass::Sierra(sierra) => sierra_to_contact_class_v1(sierra),
             StarknetContractClass::Legacy(legacy) => legacy_to_contract_class_v0(legacy),

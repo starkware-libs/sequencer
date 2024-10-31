@@ -1,6 +1,10 @@
 // TODO(yael 22/9/2024): This module is copied from native_blockifier, need to how to share it
 // between the crates.
-use blockifier::execution::contract_class::{ContractClass, ContractClassV0, ContractClassV1};
+use blockifier::execution::contract_class::{
+    ContractClassV0,
+    ContractClassV1,
+    RunnableContractClass,
+};
 use blockifier::state::errors::StateError;
 use blockifier::state::global_cache::GlobalContractCache;
 use blockifier::state::state_api::{StateReader, StateResult};
@@ -40,7 +44,7 @@ impl PapyrusReader {
     fn get_compiled_contract_class_inner(
         &self,
         class_hash: ClassHash,
-    ) -> StateResult<ContractClass> {
+    ) -> StateResult<RunnableContractClass> {
         let state_number = StateNumber(self.latest_block);
         let class_declaration_block_number = self
             .reader()?
@@ -60,7 +64,7 @@ impl PapyrusReader {
                      inconsistent.",
                 );
 
-            return Ok(ContractClass::V1(ContractClassV1::try_from(casm_contract_class)?));
+            return Ok(RunnableContractClass::V1(ContractClassV1::try_from(casm_contract_class)?));
         }
 
         let v0_contract_class = self
@@ -118,7 +122,10 @@ impl StateReader for PapyrusReader {
         }
     }
 
-    fn get_compiled_contract_class(&self, class_hash: ClassHash) -> StateResult<ContractClass> {
+    fn get_compiled_contract_class(
+        &self,
+        class_hash: ClassHash,
+    ) -> StateResult<RunnableContractClass> {
         // Assumption: the global cache is cleared upon reverted blocks.
         let contract_class = self.global_class_hash_to_class.get(&class_hash);
 

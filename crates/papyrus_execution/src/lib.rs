@@ -27,7 +27,7 @@ use blockifier::blockifier::block::{pre_process_block, BlockInfo, GasPrices};
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use blockifier::execution::call_info::CallExecution;
-use blockifier::execution::contract_class::{ClassInfo, ContractClass as BlockifierContractClass};
+use blockifier::execution::contract_class::{ClassInfo, RunnableContractClass};
 use blockifier::execution::entry_point::{
     CallEntryPoint,
     CallType as BlockifierCallType,
@@ -790,7 +790,7 @@ fn to_blockifier_tx(
             abi_length,
             only_query,
         ) => {
-            let class_v0 = BlockifierContractClass::V0(deprecated_class.try_into().map_err(
+            let class_v0 = RunnableContractClass::V0(deprecated_class.try_into().map_err(
                 |e: cairo_vm::types::errors::program_errors::ProgramError| {
                     ExecutionError::TransactionExecutionError {
                         transaction_index,
@@ -819,7 +819,7 @@ fn to_blockifier_tx(
             abi_length,
             only_query,
         ) => {
-            let class_v0 = BlockifierContractClass::V0(
+            let class_v0 = RunnableContractClass::V0(
                 deprecated_class.try_into().map_err(BlockifierError::new)?,
             );
             let class_info = ClassInfo::new(&class_v0, DEPRECATED_CONTRACT_SIERRA_SIZE, abi_length)
@@ -844,9 +844,8 @@ fn to_blockifier_tx(
             abi_length,
             only_query,
         ) => {
-            let class_v1 = BlockifierContractClass::V1(
-                compiled_class.try_into().map_err(BlockifierError::new)?,
-            );
+            let class_v1 =
+                RunnableContractClass::V1(compiled_class.try_into().map_err(BlockifierError::new)?);
             let class_info =
                 ClassInfo::new(&class_v1, sierra_program_length, abi_length).map_err(|err| {
                     ExecutionError::BadDeclareTransaction {
@@ -871,9 +870,8 @@ fn to_blockifier_tx(
             abi_length,
             only_query,
         ) => {
-            let class_v1 = BlockifierContractClass::V1(
-                compiled_class.try_into().map_err(BlockifierError::new)?,
-            );
+            let class_v1 =
+                RunnableContractClass::V1(compiled_class.try_into().map_err(BlockifierError::new)?);
             let class_info =
                 ClassInfo::new(&class_v1, sierra_program_length, abi_length).map_err(|err| {
                     ExecutionError::BadDeclareTransaction {
