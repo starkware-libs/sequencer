@@ -25,6 +25,7 @@ macro_rules! tx {
             use starknet_api::core::{ContractAddress, PatriciaKey};
             use starknet_api::executable_transaction::Transaction;
             use starknet_api::hash::StarkHash;
+            use starknet_api::invoke_tx_args;
             use starknet_api::test_utils::invoke::executable_invoke_tx;
             use starknet_api::transaction::{
                 AllResourceBounds,
