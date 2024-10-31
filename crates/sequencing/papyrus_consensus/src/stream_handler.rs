@@ -1,4 +1,5 @@
 //! Stream handler, see StreamManager struct.
+
 use std::cmp::Ordering;
 use std::collections::btree_map::Entry as BTreeEntry;
 use std::collections::hash_map::Entry as HashMapEntry;
@@ -30,14 +31,10 @@ const CHANNEL_BUFFER_LENGTH: usize = 100;
 
 #[derive(Debug, Clone)]
 struct StreamData<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> {
-    // The ID of the next message that is expected to be received.
     next_message_id: MessageId,
-    // The message_id of the message that is marked as "fin" (the last message),
-    // if None, it means we have not yet gotten to it.
+    // Last message ID. If None, it means we have not yet gotten to it.
     fin_message_id: Option<MessageId>,
-    // The largest message_id that was received so far.
     max_message_id_received: MessageId,
-    // The sender that corresponds to the receiver that was sent out for this stream.
     sender: mpsc::Sender<T>,
     // A buffer for messages that were received out of order.
     message_buffer: BTreeMap<MessageId, StreamMessage<T>>,
@@ -55,9 +52,9 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
     }
 }
 
-/// A StreamHandler is responsible for buffering inbound messages and reporting them
-/// to the application in the correct order. It also sends outbound messages to the network,
-/// wrapped in StreamMessage structs so they can keep track of their order in-stream.
+/// A StreamHandler is responsible for:
+/// - Buffering inbound messages and reporting them to the application in order.
+/// - Sending outbound messages to the network, wrapped in StreamMessage.
 pub struct StreamHandler<
     T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>,
 > {
@@ -68,7 +65,7 @@ pub struct StreamHandler<
     inbound_receiver: BroadcastTopicServer<StreamMessage<T>>,
     // A map from (peer_id, stream_id) to a struct that contains all the information
     // about the stream. This includes both the message buffer and some metadata
-    // (like the latest message_id).
+    // (like the latest message ID).
     inbound_stream_data: HashMap<StreamKey, StreamData<T>>,
     // Whenever application wants to start a new stream, it must send out a
     // (stream_id, Receiver) pair. Each receiver gets messages that should
@@ -107,16 +104,15 @@ impl<T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversi
     /// - Outbound messages are wrapped as StreamMessage and sent to the network directly.
     /// - Inbound messages are stripped of StreamMessage and buffered until they can be sent in the
     ///   correct order to the application.
-    #[instrument(skip_all, level = "warn")]
+    #[instrument(skip_all)]
     pub async fn run(&mut self) {
         loop {
-            // 1. Go over the outbound_channel_receiver to see if there is a new receiver.
-            // 2. Go over all existing outbound_receivers to see if there are any messages.
-            // 3. Check if there is an inbound message from the network.
             tokio::select!(
+                // Go over the channel receiver to see if there is a new channel.
                 Some((stream_id, receiver)) = self.outbound_channel_receiver.next() => {
                     self.outbound_stream_receivers.insert(stream_id, receiver);
                 }
+                // Go over all existing outbound receivers to see if there are any messages.
                 output = self.outbound_stream_receivers.next() => {
                     match output {
                         Some((key, Some(message))) => {
@@ -125,9 +121,15 @@ impl<T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversi
                         Some((key, None)) => {
                             self.broadcast_fin(key).await;
                         }
-                        None => {warn!("StreamHashMap should not be closed! Usually only the individual channels are closed. ")}
+                        None => {
+                            warn!(
+                                "StreamHashMap should not be closed! \
+                                 Usually only the individual channels are closed. "
+                            )
+                        }
                     }
                 }
+                // Check if there is an inbound message from the network.
                 Some(message) = self.inbound_receiver.next() => {
                     self.handle_message(message);
                 }
