@@ -90,6 +90,7 @@ use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::invoke::invoke_tx;
 use crate::test_utils::prices::Prices;
+use crate::test_utils::struct_impls::CreateForTesting;
 use crate::test_utils::{
     create_calldata,
     create_trivial_calldata,

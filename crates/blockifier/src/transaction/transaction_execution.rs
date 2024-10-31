@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::core::{calculate_contract_address, ContractAddress, Nonce};
+use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::{Fee, Transaction as StarknetApiTransaction, TransactionHash};
 
 use crate::bouncer::verify_tx_weights_within_max_capacity;
@@ -27,7 +28,6 @@ use crate::transaction::transactions::{
     ExecutableTransaction,
     ExecutionFlags,
     InvokeTransaction,
-    L1HandlerTransaction,
 };
 
 // TODO: Move into transaction.rs, makes more sense to be defined there.
