@@ -26,6 +26,7 @@ use crate::blockifier::block::BlockInfo;
 use crate::execution::call_info::{CallInfo, ExecutionSummary};
 use crate::fee::fee_utils::get_fee_by_gas_vector;
 use crate::fee::receipt::TransactionReceipt;
+use crate::fee::resources::TransactionFeeResult;
 use crate::transaction::errors::{TransactionExecutionError, TransactionPreValidationError};
 
 #[cfg(test)]
@@ -83,6 +84,13 @@ impl TransactionInfo {
                 context.resource_bounds.max_possible_fee() > Fee(0)
             }
             TransactionInfo::Deprecated(context) => context.max_fee != Fee(0),
+        }
+    }
+
+    pub fn max_fee(&self) -> TransactionFeeResult<Fee> {
+        match self {
+            Self::Current(_context) => Ok(Fee(0)),
+            Self::Deprecated(context) => Ok(context.max_fee),
         }
     }
 }

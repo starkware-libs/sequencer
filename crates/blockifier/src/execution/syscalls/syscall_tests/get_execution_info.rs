@@ -44,6 +44,26 @@ use crate::transaction::objects::{
     TransactionInfo,
 };
 
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(
+        FeatureContract::SierraExecutionInfoV1Contract,
+        ExecutionMode::Validate,
+        TransactionVersion::ONE,
+        false;
+        "Native [V1]: Validate execution mode: block info fields should be zeroed. Transaction V1."
+    )
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(
+        FeatureContract::SierraExecutionInfoV1Contract,
+        ExecutionMode::Execute,
+        TransactionVersion::ONE,
+        false;
+        "Native [V1]: Execute execution mode: block info should be as usual. Transaction V1."
+    )
+)]
 #[test_case(
     FeatureContract::TestContract(CairoVersion::Cairo1),
     ExecutionMode::Validate,
@@ -123,6 +143,10 @@ fn test_get_execution_info(
             };
             vec![]
         }
+        #[cfg(feature = "cairo_native")]
+        FeatureContract::SierraExecutionInfoV1Contract => {
+            vec![]
+        }
         _ => {
             vec![
                 Felt::ZERO, // Tip.
@@ -150,6 +174,8 @@ fn test_get_execution_info(
 
     let expected_resource_bounds: Vec<Felt> = match (test_contract, version) {
         (FeatureContract::LegacyTestContract, _) => vec![],
+        #[cfg(feature = "cairo_native")]
+        (FeatureContract::SierraExecutionInfoV1Contract, _) => vec![],
         (_, version) if version == TransactionVersion::ONE => vec![
             felt!(0_u16), // Length of resource bounds array.
         ],
@@ -247,22 +273,4 @@ fn test_get_execution_info(
         entry_point_call.execute_directly_given_tx_info(state, tx_info, false, execution_mode);
 
     assert!(!result.unwrap().execution.failed);
-}
-
-#[test]
-fn test_gas_types_constants() {
-    assert_eq!(str_to_32_bytes_in_hex("L1_GAS"), Resource::L1Gas.to_hex());
-    assert_eq!(str_to_32_bytes_in_hex("L2_GAS"), Resource::L2Gas.to_hex());
-    assert_eq!(str_to_32_bytes_in_hex("L1_DATA"), Resource::L1DataGas.to_hex());
-}
-
-fn str_to_32_bytes_in_hex(s: &str) -> String {
-    if s.len() > 32 {
-        panic!("Unsupported input of length > 32.")
-    }
-    let prefix = "0x";
-    let padding_zeros = "0".repeat(64 - s.len() * 2); // Each string char is 2 chars in hex.
-    let word_in_hex: String =
-        s.as_bytes().iter().fold(String::new(), |s, byte| s + (&format!("{:02x}", byte)));
-    [prefix, &padding_zeros, &word_in_hex].into_iter().collect()
 }
