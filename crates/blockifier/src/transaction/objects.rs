@@ -97,6 +97,13 @@ impl TransactionInfo {
             TransactionInfo::Deprecated(_) => GasVectorComputationMode::NoL2Gas,
         }
     }
+
+    pub fn max_fee(&self) -> Fee {
+        match self {
+            Self::Current(_) => Fee(0),
+            Self::Deprecated(context) => context.max_fee,
+        }
+    }
 }
 
 impl HasRelatedFeeType for TransactionInfo {
