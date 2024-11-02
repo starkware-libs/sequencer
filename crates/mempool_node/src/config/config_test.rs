@@ -26,9 +26,9 @@ use crate::config::{
 };
 
 const LOCAL_EXECUTION_MODE: ComponentExecutionMode =
-    ComponentExecutionMode::LocalExecution { enable_remote_connection: false };
+    ComponentExecutionMode::LocalExecutionWithRemoteDisabled;
 const ENABLE_REMOTE_CONNECTION_MODE: ComponentExecutionMode =
-    ComponentExecutionMode::LocalExecution { enable_remote_connection: true };
+    ComponentExecutionMode::LocalExecutionWithRemoteEnabled;
 
 /// Test the validation of the struct ComponentExecutionConfig.
 /// Validates that execution mode of the component and the local/remote config are at sync.
