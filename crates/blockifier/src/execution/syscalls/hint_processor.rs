@@ -34,7 +34,6 @@ use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointEx
 use crate::execution::execution_utils::{
     felt_from_ptr,
     felt_range_from_ptr,
-    max_fee_for_execution_info,
     write_maybe_relocatable,
     ReadOnlySegment,
     ReadOnlySegments,
@@ -638,7 +637,7 @@ impl<'a> SyscallHintProcessor<'a> {
         let mut tx_data: Vec<MaybeRelocatable> = vec![
             tx_info.signed_version().0.into(),
             tx_info.sender_address().0.key().into(),
-            max_fee_for_execution_info(tx_info).into(),
+            Felt::from(tx_info.max_fee_for_execution_info_syscall().0).into(),
             tx_signature_start_ptr.into(),
             tx_signature_end_ptr.into(),
             (tx_info).transaction_hash().0.into(),
