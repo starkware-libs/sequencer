@@ -2,12 +2,14 @@ use std::collections::HashSet;
 use std::hash::RandomState;
 
 use cairo_native::starknet::{
+    BlockInfo,
     ExecutionInfo,
     ExecutionInfoV2,
     Secp256k1Point,
     Secp256r1Point,
     StarknetSyscallHandler,
     SyscallResult,
+    TxInfo,
     U256,
 };
 use cairo_native::starknet_stub::encode_str_as_felts;
@@ -24,6 +26,7 @@ use crate::execution::call_info::{
     OrderedL2ToL1Message,
     Retdata,
 };
+use crate::execution::common_hints::ExecutionMode;
 use crate::execution::entry_point::{CallEntryPoint, EntryPointExecutionContext};
 use crate::execution::syscalls::hint_processor::{SyscallExecutionError, OUT_OF_GAS_ERROR};
 use crate::state::state_api::State;
@@ -127,6 +130,51 @@ impl<'state> NativeSyscallHandler<'state> {
 
         Ok(())
     }
+
+    fn get_tx_info_v1(&self) -> TxInfo {
+        let tx_info = &self.context.tx_context.tx_info;
+        TxInfo {
+            version: tx_info.version().0,
+            account_contract_address: Felt::from(tx_info.sender_address()),
+            max_fee: tx_info.max_fee_for_execution_info_syscall().0,
+            signature: tx_info.signature().0,
+            transaction_hash: tx_info.transaction_hash().0,
+            chain_id: Felt::from_hex(
+                &self.context.tx_context.block_context.chain_info.chain_id.as_hex(),
+            )
+            .expect("Failed to convert the chain_id to hex."),
+            nonce: tx_info.nonce().0,
+        }
+    }
+
+    fn get_block_info(&self) -> BlockInfo {
+        let block_info = &self.context.tx_context.block_context.block_info;
+        if self.context.execution_mode == ExecutionMode::Validate {
+            let versioned_constants = self.context.versioned_constants();
+            let block_number = block_info.block_number.0;
+            let block_timestamp = block_info.block_timestamp.0;
+            // Round down to the nearest multiple of validate_block_number_rounding.
+            let validate_block_number_rounding =
+                versioned_constants.get_validate_block_number_rounding();
+            let rounded_block_number =
+                (block_number / validate_block_number_rounding) * validate_block_number_rounding;
+            // Round down to the nearest multiple of validate_timestamp_rounding.
+            let validate_timestamp_rounding = versioned_constants.get_validate_timestamp_rounding();
+            let rounded_timestamp =
+                (block_timestamp / validate_timestamp_rounding) * validate_timestamp_rounding;
+            BlockInfo {
+                block_number: rounded_block_number,
+                block_timestamp: rounded_timestamp,
+                sequencer_address: Felt::ZERO,
+            }
+        } else {
+            BlockInfo {
+                block_number: block_info.block_number.0,
+                block_timestamp: block_info.block_timestamp.0,
+                sequencer_address: Felt::from(block_info.sequencer_address),
+            }
+        }
+    }
 }
 
 impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
@@ -138,8 +186,19 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
         todo!("Implement get_block_hash syscall.");
     }
 
-    fn get_execution_info(&mut self, _remaining_gas: &mut u128) -> SyscallResult<ExecutionInfo> {
-        todo!("Implement get_execution_info syscall.");
+    fn get_execution_info(&mut self, remaining_gas: &mut u128) -> SyscallResult<ExecutionInfo> {
+        self.pre_execute_syscall(
+            remaining_gas,
+            self.context.gas_costs().get_execution_info_gas_cost,
+        )?;
+
+        Ok(ExecutionInfo {
+            block_info: self.get_block_info(),
+            tx_info: self.get_tx_info_v1(),
+            caller_address: Felt::from(self.call.caller_address),
+            contract_address: Felt::from(self.call.storage_address),
+            entry_point_selector: self.call.entry_point_selector.0,
+        })
     }
 
     fn get_execution_info_v2(
