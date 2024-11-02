@@ -45,6 +45,7 @@ pub async fn create_config(
     let components = ComponentConfig {
         consensus_manager: ComponentExecutionConfig {
             execution_mode: ComponentExecutionMode::Disabled,
+            local_server_config: None,
             ..Default::default()
         },
         ..Default::default()

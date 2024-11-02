@@ -127,21 +127,24 @@ pub fn create_node_clients(
 ) -> SequencerNodeClients {
     let batcher_client: Option<SharedBatcherClient> = match config.components.batcher.execution_mode
     {
-        ComponentExecutionMode::LocalExecution { enable_remote_connection: _ } => {
+        ComponentExecutionMode::LocalExecutionWithRemoteDisabled
+        | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
             Some(Arc::new(LocalBatcherClient::new(channels.take_batcher_tx())))
         }
         ComponentExecutionMode::Disabled => None,
     };
     let mempool_client: Option<SharedMempoolClient> = match config.components.mempool.execution_mode
     {
-        ComponentExecutionMode::LocalExecution { enable_remote_connection: _ } => {
+        ComponentExecutionMode::LocalExecutionWithRemoteDisabled
+        | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
             Some(Arc::new(LocalMempoolClient::new(channels.take_mempool_tx())))
         }
         ComponentExecutionMode::Disabled => None,
     };
     let gateway_client: Option<SharedGatewayClient> = match config.components.gateway.execution_mode
     {
-        ComponentExecutionMode::LocalExecution { enable_remote_connection: _ } => {
+        ComponentExecutionMode::LocalExecutionWithRemoteDisabled
+        | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
             Some(Arc::new(LocalGatewayClient::new(channels.take_gateway_tx())))
         }
         ComponentExecutionMode::Disabled => None,
@@ -149,11 +152,10 @@ pub fn create_node_clients(
 
     let mempool_p2p_propagator_client: Option<SharedMempoolP2pPropagatorClient> =
         match config.components.mempool.execution_mode {
-            ComponentExecutionMode::LocalExecution { enable_remote_connection: _ } => {
-                Some(Arc::new(LocalMempoolP2pPropagatorClient::new(
-                    channels.take_mempool_p2p_propagator_tx(),
-                )))
-            }
+            ComponentExecutionMode::LocalExecutionWithRemoteDisabled
+            | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => Some(Arc::new(
+                LocalMempoolP2pPropagatorClient::new(channels.take_mempool_p2p_propagator_tx()),
+            )),
             ComponentExecutionMode::Disabled => None,
         };
     SequencerNodeClients {

@@ -1,11 +1,6 @@
 use std::collections::BTreeMap;
 
-use papyrus_config::dumping::{
-    append_sub_config_name,
-    ser_optional_sub_config,
-    ser_param,
-    SerializeConfig,
-};
+use papyrus_config::dumping::{ser_optional_sub_config, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_sequencer_infra::component_definitions::{
@@ -18,30 +13,10 @@ use validator::{Validate, ValidationError};
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum ComponentExecutionMode {
     Disabled,
-    LocalExecution { enable_remote_connection: bool },
+    LocalExecutionWithRemoteEnabled,
+    LocalExecutionWithRemoteDisabled,
 }
 
-impl ComponentExecutionMode {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        match self {
-            ComponentExecutionMode::Disabled => BTreeMap::from_iter([ser_param(
-                "Disabled",
-                &"Disabled",
-                "The component is disabled.",
-                ParamPrivacyInput::Public,
-            )]),
-            ComponentExecutionMode::LocalExecution { enable_remote_connection } => {
-                BTreeMap::from_iter([ser_param(
-                    "LocalExecution.enable_remote_connection",
-                    enable_remote_connection,
-                    "Specifies whether the component, when running locally, allows remote \
-                     connections.",
-                    ParamPrivacyInput::Public,
-                )])
-            }
-        }
-    }
-}
 // TODO(Lev/Tsabary): When papyrus_config will support it, change to include communication config in
 // the enum.
 
@@ -57,8 +32,14 @@ pub struct ComponentExecutionConfig {
 
 impl SerializeConfig for ComponentExecutionConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        let members = BTreeMap::from_iter([ser_param(
+            "execution_mode",
+            &self.execution_mode,
+            "The component execution mode.",
+            ParamPrivacyInput::Public,
+        )]);
         vec![
-            append_sub_config_name(self.execution_mode.dump(), "execution_mode"),
+            members,
             ser_optional_sub_config(&self.local_server_config, "local_server_config"),
             ser_optional_sub_config(&self.remote_client_config, "remote_client_config"),
             ser_optional_sub_config(&self.remote_server_config, "remote_server_config"),
@@ -72,9 +53,7 @@ impl SerializeConfig for ComponentExecutionConfig {
 impl Default for ComponentExecutionConfig {
     fn default() -> Self {
         Self {
-            execution_mode: ComponentExecutionMode::LocalExecution {
-                enable_remote_connection: false,
-            },
+            execution_mode: ComponentExecutionMode::LocalExecutionWithRemoteDisabled,
             local_server_config: Some(LocalServerConfig::default()),
             remote_client_config: None,
             remote_server_config: None,
@@ -86,9 +65,7 @@ impl Default for ComponentExecutionConfig {
 impl ComponentExecutionConfig {
     pub fn gateway_default_config() -> Self {
         Self {
-            execution_mode: ComponentExecutionMode::LocalExecution {
-                enable_remote_connection: false,
-            },
+            execution_mode: ComponentExecutionMode::LocalExecutionWithRemoteDisabled,
             local_server_config: Some(LocalServerConfig::default()),
             remote_client_config: None,
             remote_server_config: None,
@@ -100,9 +77,7 @@ impl ComponentExecutionConfig {
     // a workaround I've set the local one, but this should be addressed.
     pub fn http_server_default_config() -> Self {
         Self {
-            execution_mode: ComponentExecutionMode::LocalExecution {
-                enable_remote_connection: true,
-            },
+            execution_mode: ComponentExecutionMode::LocalExecutionWithRemoteEnabled,
             local_server_config: Some(LocalServerConfig::default()),
             remote_client_config: None,
             remote_server_config: Some(RemoteServerConfig::default()),
@@ -114,9 +89,7 @@ impl ComponentExecutionConfig {
     // one of them is set. As a workaround I've set the local one, but this should be addressed.
     pub fn monitoring_endpoint_default_config() -> Self {
         Self {
-            execution_mode: ComponentExecutionMode::LocalExecution {
-                enable_remote_connection: true,
-            },
+            execution_mode: ComponentExecutionMode::LocalExecutionWithRemoteEnabled,
             local_server_config: Some(LocalServerConfig::default()),
             remote_client_config: None,
             remote_server_config: Some(RemoteServerConfig::default()),
@@ -125,9 +98,7 @@ impl ComponentExecutionConfig {
 
     pub fn mempool_default_config() -> Self {
         Self {
-            execution_mode: ComponentExecutionMode::LocalExecution {
-                enable_remote_connection: false,
-            },
+            execution_mode: ComponentExecutionMode::LocalExecutionWithRemoteDisabled,
             local_server_config: Some(LocalServerConfig::default()),
             remote_client_config: None,
             remote_server_config: None,
@@ -136,9 +107,7 @@ impl ComponentExecutionConfig {
 
     pub fn batcher_default_config() -> Self {
         Self {
-            execution_mode: ComponentExecutionMode::LocalExecution {
-                enable_remote_connection: false,
-            },
+            execution_mode: ComponentExecutionMode::LocalExecutionWithRemoteDisabled,
             local_server_config: Some(LocalServerConfig::default()),
             remote_client_config: None,
             remote_server_config: None,
@@ -147,9 +116,7 @@ impl ComponentExecutionConfig {
 
     pub fn consensus_manager_default_config() -> Self {
         Self {
-            execution_mode: ComponentExecutionMode::LocalExecution {
-                enable_remote_connection: false,
-            },
+            execution_mode: ComponentExecutionMode::LocalExecutionWithRemoteDisabled,
             local_server_config: Some(LocalServerConfig::default()),
             remote_client_config: None,
             remote_server_config: None,
@@ -158,9 +125,7 @@ impl ComponentExecutionConfig {
 
     pub fn mempool_p2p_default_config() -> Self {
         Self {
-            execution_mode: ComponentExecutionMode::LocalExecution {
-                enable_remote_connection: false,
-            },
+            execution_mode: ComponentExecutionMode::LocalExecutionWithRemoteDisabled,
             local_server_config: Some(LocalServerConfig::default()),
             remote_client_config: None,
             remote_server_config: None,
@@ -178,18 +143,8 @@ pub fn validate_single_component_config(
         component_config.remote_server_config.is_some(),
     ) {
         (ComponentExecutionMode::Disabled, false, false, false) => Ok(()),
-        (
-            ComponentExecutionMode::LocalExecution { enable_remote_connection: true },
-            true,
-            false,
-            true,
-        ) => Ok(()),
-        (
-            ComponentExecutionMode::LocalExecution { enable_remote_connection: false },
-            true,
-            false,
-            false,
-        ) => Ok(()),
+        (ComponentExecutionMode::LocalExecutionWithRemoteEnabled, true, false, true) => Ok(()),
+        (ComponentExecutionMode::LocalExecutionWithRemoteDisabled, true, false, false) => Ok(()),
         _ => {
             let mut error = ValidationError::new("Invalid component execution configuration.");
             error.message = Some("Ensure settings align with the chosen execution mode.".into());
