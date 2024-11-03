@@ -4,7 +4,7 @@ use std::process::exit;
 use papyrus_config::validators::config_validate;
 use papyrus_config::ConfigError;
 use starknet_sequencer_infra::trace_util::configure_tracing;
-use starknet_sequencer_node::config::SequencerNodeConfig;
+use starknet_sequencer_node::config::{ComponentExecutionMode, SequencerNodeConfig};
 use starknet_sequencer_node::servers::run_component_servers;
 use starknet_sequencer_node::utils::create_node_modules;
 use tracing::{error, info};
@@ -19,7 +19,9 @@ async fn main() -> anyhow::Result<()> {
     }
     info!("Finished loading configuration.");
 
-    let config = config?;
+    let mut config = config?;
+    config.components.batcher.execution_mode = ComponentExecutionMode::Disabled;
+    config.components.consensus_manager.execution_mode = ComponentExecutionMode::Disabled;
     if let Err(error) = config_validate(&config) {
         error!("{}", error);
         exit(1);
