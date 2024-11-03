@@ -137,7 +137,8 @@ impl Batcher {
     pub async fn decision_reached(&mut self, input: DecisionReachedInput) -> BatcherResult<()> {
         let proposal_id = input.proposal_id;
         let proposal_output = self.proposal_manager.take_proposal_result(proposal_id).await?;
-        let ProposalOutput { state_diff, nonces, tx_hashes, .. } = proposal_output;
+        let ProposalOutput { state_diff, nonces: address_to_nonce, tx_hashes, .. } =
+            proposal_output;
         // TODO: Keep the height from start_height or get it from the input.
         let height = self.storage_reader.height().map_err(|err| {
             error!("Failed to get height from storage: {}", err);
@@ -153,7 +154,7 @@ impl Batcher {
             BatcherError::InternalError
         })?;
         if let Err(mempool_err) =
-            self.mempool_client.commit_block(CommitBlockArgs { nonces, tx_hashes }).await
+            self.mempool_client.commit_block(CommitBlockArgs { address_to_nonce, tx_hashes }).await
         {
             error!("Failed to commit block to mempool: {}", mempool_err);
             // TODO: Should we rollback the state diff and return an error?

@@ -132,11 +132,11 @@ impl Mempool {
     /// updates account balances).
     #[tracing::instrument(skip(self, args), err)]
     pub fn commit_block(&mut self, args: CommitBlockArgs) -> MempoolResult<()> {
-        let CommitBlockArgs { nonces, tx_hashes } = args;
+        let CommitBlockArgs { address_to_nonce, tx_hashes } = args;
         tracing::debug!("Committing block with {} transactions to mempool.", tx_hashes.len());
 
         // Align mempool data to committed nonces.
-        for (&address, &nonce) in &nonces {
+        for (&address, &nonce) in &address_to_nonce {
             let next_nonce = try_increment_nonce(nonce)?;
             let account_state = AccountState { address, nonce: next_nonce };
             self.align_to_account_state(account_state);
@@ -145,7 +145,7 @@ impl Mempool {
 
         // Rewind nonces of addresses that were not included in block.
         let known_addresses_not_included_in_block =
-            self.mempool_state.keys().filter(|&key| !nonces.contains_key(key));
+            self.mempool_state.keys().filter(|&key| !address_to_nonce.contains_key(key));
         for address in known_addresses_not_included_in_block {
             // Account nonce is the minimal nonce of this address: it was proposed but not included.
             let tx_reference = self

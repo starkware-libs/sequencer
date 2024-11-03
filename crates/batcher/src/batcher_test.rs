@@ -174,7 +174,7 @@ async fn decision_reached(
     );
     mempool_client
         .expect_commit_block()
-        .with(eq(CommitBlockArgs { nonces, tx_hashes }))
+        .with(eq(CommitBlockArgs { address_to_nonce, tx_hashes }))
         .returning(|_| Ok(()));
 
     storage_writer
