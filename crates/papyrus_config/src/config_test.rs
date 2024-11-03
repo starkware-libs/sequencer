@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::env;
 use std::fs::File;
 use std::path::PathBuf;
@@ -257,24 +257,41 @@ fn test_pointers_flow() {
     const POINTING_PARAM_DESCRIPTION: &str = "This is a.";
     const PUBLIC_POINTING_PARAM_NAME: &str = "public_a.a";
     const PRIVATE_POINTING_PARAM_NAME: &str = "private_a.a";
+    const WHITELISTED_POINTING_PARAM_NAME: &str = "non_pointing.a";
+    const VALUE: usize = 5;
 
     let config_map = BTreeMap::from([
         ser_param(
             PUBLIC_POINTING_PARAM_NAME,
-            &json!(5),
+            &json!(VALUE),
             POINTING_PARAM_DESCRIPTION,
             ParamPrivacyInput::Public,
         ),
         ser_param(
             PRIVATE_POINTING_PARAM_NAME,
-            &json!(5),
+            &json!(VALUE),
+            POINTING_PARAM_DESCRIPTION,
+            ParamPrivacyInput::Private,
+        ),
+        ser_param(
+            WHITELISTED_POINTING_PARAM_NAME,
+            &json!(VALUE),
             POINTING_PARAM_DESCRIPTION,
             ParamPrivacyInput::Private,
         ),
     ]);
-    let pointers =
-        vec![ser_pointer_target_param(TARGET_PARAM_NAME, &json!(10), TARGET_PARAM_DESCRIPTION)];
-    let stored_map = combine_config_map_and_pointers(config_map, &pointers).unwrap();
+    let pointers = vec![(
+        ser_pointer_target_param(TARGET_PARAM_NAME, &json!(10), TARGET_PARAM_DESCRIPTION),
+        HashSet::from([
+            PUBLIC_POINTING_PARAM_NAME.to_string(),
+            PRIVATE_POINTING_PARAM_NAME.to_string(),
+        ]),
+    )];
+    let non_pointer_params = HashSet::from([WHITELISTED_POINTING_PARAM_NAME.to_string()]);
+    let stored_map =
+        combine_config_map_and_pointers(config_map, &pointers, &non_pointer_params).unwrap();
+
+    // Assert the pointing parameters are correctly set.
     assert_eq!(
         stored_map[PUBLIC_POINTING_PARAM_NAME],
         json!(SerializedParam {
@@ -291,6 +308,18 @@ fn test_pointers_flow() {
             privacy: ParamPrivacy::Private,
         })
     );
+
+    // Assert the whitelisted parameter is correctly set.
+    assert_eq!(
+        stored_map[WHITELISTED_POINTING_PARAM_NAME],
+        json!(SerializedParam {
+            description: POINTING_PARAM_DESCRIPTION.to_owned(),
+            content: SerializedContent::DefaultValue(json!(VALUE)),
+            privacy: ParamPrivacy::Private,
+        })
+    );
+
+    // Assert the pointed parameter is correctly set as a required parameter.
     assert_eq!(
         stored_map[TARGET_PARAM_NAME],
         json!(SerializedParam {
@@ -316,27 +345,43 @@ fn test_required_pointers_flow() {
     const POINTING_PARAM_DESCRIPTION: &str = "This is b.";
     const PUBLIC_POINTING_PARAM_NAME: &str = "public_b.b";
     const PRIVATE_POINTING_PARAM_NAME: &str = "private_b.b";
+    const WHITELISTED_POINTING_PARAM_NAME: &str = "non_pointing.b";
+    const VALUE: usize = 6;
 
     let config_map = BTreeMap::from([
         ser_param(
             PUBLIC_POINTING_PARAM_NAME,
-            &json!(6),
+            &json!(VALUE),
             POINTING_PARAM_DESCRIPTION,
             ParamPrivacyInput::Public,
         ),
         ser_param(
             PRIVATE_POINTING_PARAM_NAME,
-            &json!(6),
+            &json!(VALUE),
+            POINTING_PARAM_DESCRIPTION,
+            ParamPrivacyInput::Private,
+        ),
+        ser_param(
+            WHITELISTED_POINTING_PARAM_NAME,
+            &json!(VALUE),
             POINTING_PARAM_DESCRIPTION,
             ParamPrivacyInput::Private,
         ),
     ]);
-    let pointers = vec![ser_pointer_target_required_param(
-        REQUIRED_PARAM_NAME,
-        SerializationType::PositiveInteger,
-        REQUIRED_PARAM_DESCRIPTION,
+    let pointers = vec![(
+        ser_pointer_target_required_param(
+            REQUIRED_PARAM_NAME,
+            SerializationType::PositiveInteger,
+            REQUIRED_PARAM_DESCRIPTION,
+        ),
+        HashSet::from([
+            PUBLIC_POINTING_PARAM_NAME.to_string(),
+            PRIVATE_POINTING_PARAM_NAME.to_string(),
+        ]),
     )];
-    let stored_map = combine_config_map_and_pointers(config_map, &pointers).unwrap();
+    let non_pointer_params = HashSet::from([WHITELISTED_POINTING_PARAM_NAME.to_string()]);
+    let stored_map =
+        combine_config_map_and_pointers(config_map, &pointers, &non_pointer_params).unwrap();
 
     // Assert the pointing parameters are correctly set.
     assert_eq!(
@@ -356,6 +401,16 @@ fn test_required_pointers_flow() {
         })
     );
 
+    // Assert the whitelisted parameter is correctly set.
+    assert_eq!(
+        stored_map[WHITELISTED_POINTING_PARAM_NAME],
+        json!(SerializedParam {
+            description: POINTING_PARAM_DESCRIPTION.to_owned(),
+            content: SerializedContent::DefaultValue(json!(VALUE)),
+            privacy: ParamPrivacy::Private,
+        })
+    );
+
     // Assert the pointed parameter is correctly set as a required parameter.
     assert_eq!(
         stored_map[REQUIRED_PARAM_NAME],
@@ -365,6 +420,35 @@ fn test_required_pointers_flow() {
             privacy: ParamPrivacy::TemporaryValue,
         })
     );
+}
+
+#[test]
+#[should_panic(
+    expected = "The target param should_be_pointing.c should point to c, or to be whitelisted."
+)]
+fn test_missing_pointer_flow() {
+    const TARGET_PARAM_NAME: &str = "c";
+    const TARGET_PARAM_DESCRIPTION: &str = "This is common c.";
+    const PARAM_DESCRIPTION: &str = "This is c.";
+    const NON_POINTING_PARAM_NAME: &str = "should_be_pointing.c";
+
+    // Define a non-pointing parameter and a target pointer such that the parameter name matches the
+    // target.
+    let config_map = BTreeMap::from([ser_param(
+        NON_POINTING_PARAM_NAME,
+        &json!(7),
+        PARAM_DESCRIPTION,
+        ParamPrivacyInput::Private,
+    )]);
+    let pointers = vec![(
+        ser_pointer_target_param(TARGET_PARAM_NAME, &json!(10), TARGET_PARAM_DESCRIPTION),
+        HashSet::new(),
+    )];
+    // Do not whitelist the non-pointing parameter.
+    let non_pointer_params = HashSet::new();
+
+    // Attempt to combine the config map and pointers. This should panic.
+    combine_config_map_and_pointers(config_map, &pointers, &non_pointer_params).unwrap();
 }
 
 #[test]
@@ -416,7 +500,7 @@ fn load_custom_config(args: Vec<&str>) -> CustomConfig {
     let dir = TempDir::new().unwrap();
     let file_path = dir.path().join("config.json");
     CustomConfig { param_path: "default value".to_owned(), seed: 5 }
-        .dump_to_file(&vec![], file_path.to_str().unwrap())
+        .dump_to_file(&vec![], &HashSet::new(), file_path.to_str().unwrap())
         .unwrap();
 
     load_and_process_config::<CustomConfig>(
@@ -506,7 +590,7 @@ fn load_required_param_path(args: Vec<&str>) -> String {
     let dir = TempDir::new().unwrap();
     let file_path = dir.path().join("config.json");
     RequiredConfig { param_path: "default value".to_owned(), num: 3 }
-        .dump_to_file(&vec![], file_path.to_str().unwrap())
+        .dump_to_file(&vec![], &HashSet::new(), file_path.to_str().unwrap())
         .unwrap();
 
     let loaded_config = load_and_process_config::<CustomConfig>(
@@ -600,7 +684,7 @@ fn deeply_nested_optionals() {
     let dir = TempDir::new().unwrap();
     let file_path = dir.path().join("config2.json");
     Level0 { level0_value: 1, level1: None }
-        .dump_to_file(&vec![], file_path.to_str().unwrap())
+        .dump_to_file(&vec![], &HashSet::new(), file_path.to_str().unwrap())
         .unwrap();
 
     let l0 = load_and_process_config::<Level0>(
