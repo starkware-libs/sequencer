@@ -14,7 +14,6 @@ use crate::bouncer::{BouncerConfig, BouncerWeights, BuiltinCount};
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::common_hints::ExecutionMode;
-use crate::execution::contract_class::{ContractClassV0, ContractClassV1};
 use crate::execution::entry_point::{
     CallEntryPoint,
     EntryPointExecutionContext,
@@ -222,20 +221,6 @@ pub trait LoadContractFromFile: serde::de::DeserializeOwned {
 
 impl LoadContractFromFile for CasmContractClass {}
 impl LoadContractFromFile for DeprecatedContractClass {}
-
-impl ContractClassV0 {
-    pub fn from_file(contract_path: &str) -> Self {
-        let raw_contract_class = get_raw_contract_class(contract_path);
-        Self::try_from_json_string(&raw_contract_class).unwrap()
-    }
-}
-
-impl ContractClassV1 {
-    pub fn from_file(contract_path: &str) -> Self {
-        let raw_contract_class = get_raw_contract_class(contract_path);
-        Self::try_from_json_string(&raw_contract_class).unwrap()
-    }
-}
 
 impl BouncerWeights {
     pub fn create_for_testing(builtin_count: BuiltinCount) -> Self {
