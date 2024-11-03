@@ -305,7 +305,7 @@ impl PyBlockExecutor {
         previous_block_id: Option<PyFelt>,
         py_block_info: PyBlockInfo,
         py_state_diff: PyStateDiff,
-        declared_class_hash_to_class: HashMap<PyFelt, (PyFelt, String)>,
+        declared_class_hash_to_class: HashMap<PyFelt, (String, (PyFelt, String))>,
         deprecated_declared_class_hash_to_class: HashMap<PyFelt, String>,
     ) -> NativeBlockifierResult<()> {
         self.storage.append_block(
