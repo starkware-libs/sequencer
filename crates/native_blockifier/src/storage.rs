@@ -116,7 +116,7 @@ impl Storage for PapyrusStorage {
         previous_block_id: Option<PyFelt>,
         py_block_info: PyBlockInfo,
         py_state_diff: PyStateDiff,
-        declared_class_hash_to_class: HashMap<PyFelt, (PyFelt, String)>,
+        declared_class_hash_to_class: HashMap<PyFelt, (String, (PyFelt, String))>,
         deprecated_declared_class_hash_to_class: HashMap<PyFelt, String>,
     ) -> NativeBlockifierResult<()> {
         log::debug!(
@@ -167,7 +167,8 @@ impl Storage for PapyrusStorage {
 
         let mut declared_classes = IndexMap::<ClassHash, (CompiledClassHash, ContractClass)>::new();
         let mut undeclared_casm_contracts = Vec::<(ClassHash, CasmContractClass)>::new();
-        for (class_hash, (compiled_class_hash, raw_class)) in declared_class_hash_to_class {
+        for (class_hash, (sierra, (compiled_class_hash, raw_class))) in declared_class_hash_to_class
+        {
             let class_hash = ClassHash(class_hash.0);
             let class_undeclared = self
                 .reader()
@@ -177,12 +178,13 @@ impl Storage for PapyrusStorage {
                 .is_none();
 
             if class_undeclared {
+                let sierra_contract_class: ContractClass = serde_json::from_str(&sierra)?;
                 declared_classes.insert(
                     class_hash,
-                    (CompiledClassHash(compiled_class_hash.0), ContractClass::default()),
+                    (CompiledClassHash(compiled_class_hash.0), sierra_contract_class) //aviv: to not default
                 );
-                let contract_class: CasmContractClass = serde_json::from_str(&raw_class)?;
-                undeclared_casm_contracts.push((class_hash, contract_class));
+                let casm_contract_class: CasmContractClass = serde_json::from_str(&raw_class)?;
+                undeclared_casm_contracts.push((class_hash, casm_contract_class));
             }
         }
 
@@ -295,7 +297,7 @@ pub trait Storage {
         previous_block_id: Option<PyFelt>,
         py_block_info: PyBlockInfo,
         py_state_diff: PyStateDiff,
-        declared_class_hash_to_class: HashMap<PyFelt, (PyFelt, String)>,
+        declared_class_hash_to_class: HashMap<PyFelt, (String, (PyFelt, String))>,
         deprecated_declared_class_hash_to_class: HashMap<PyFelt, String>,
     ) -> NativeBlockifierResult<()>;
 

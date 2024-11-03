@@ -7,6 +7,7 @@ use cached::Cached;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use pretty_assertions::assert_eq;
 use starknet_api::class_hash;
+use starknet_api::state::ContractClass;
 use starknet_types_core::felt::Felt;
 
 use crate::py_block_executor::{PyBlockExecutor, PyOsConfig};
@@ -19,6 +20,7 @@ use crate::test_utils::MockStorage;
 fn global_contract_cache_update() {
     // Initialize executor and set a contract class on the state.
     let casm = CasmContractClass { compiler_version: "0.1.0".to_string(), ..Default::default() };
+    let sierra = ContractClass::default();
     let contract_class =
         RunnableContractClass::V1(ContractClassV1::try_from(casm.clone()).unwrap());
     let class_hash = class_hash!("0x1");
@@ -38,7 +40,10 @@ fn global_contract_cache_update() {
             PyStateDiff::default(),
             HashMap::from([(
                 class_hash.into(),
-                (PyFelt::from(1_u8), serde_json::to_string(&casm).unwrap()),
+                (
+                    serde_json::to_string(&sierra).unwrap(),
+                    (PyFelt::from(1_u8), serde_json::to_string(&casm).unwrap()),
+                ),
             )]),
             HashMap::default(),
         )
