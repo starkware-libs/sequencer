@@ -1,4 +1,5 @@
 use blockifier::execution::contract_class::ClassInfo;
+use blockifier::state::state_api::StateResult;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use papyrus_execution::DEPRECATED_CONTRACT_SIERRA_SIZE;
 use starknet_api::core::ClassHash;
@@ -10,11 +11,10 @@ use crate::state_reader::errors::ReexecutionError;
 use crate::state_reader::test_state_reader::ReexecutionResult;
 
 pub(crate) trait ReexecutionStateReader {
-    fn get_contract_class(&self, class_hash: ClassHash)
-    -> ReexecutionResult<StarknetContractClass>;
+    fn get_contract_class(&self, class_hash: &ClassHash) -> StateResult<StarknetContractClass>;
 
     fn get_class_info(&self, class_hash: ClassHash) -> ReexecutionResult<ClassInfo> {
-        match self.get_contract_class(class_hash)? {
+        match self.get_contract_class(&class_hash)? {
             StarknetContractClass::Sierra(sierra) => {
                 let abi_length = sierra.abi.len();
                 let sierra_length = sierra.sierra_program.len();

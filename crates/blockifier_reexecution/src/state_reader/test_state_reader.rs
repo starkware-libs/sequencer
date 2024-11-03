@@ -158,24 +158,6 @@ impl TestStateReader {
         )?)
     }
 
-    pub fn get_contract_class(&self, class_hash: &ClassHash) -> StateResult<StarknetContractClass> {
-        let params = json!({
-            "block_id": self.rpc_state_reader.block_id,
-            "class_hash": class_hash.0.to_string(),
-        });
-        let contract_class: StarknetContractClass = serde_json::from_value(
-            self.rpc_state_reader.send_rpc_request("starknet_getClass", params.clone())?,
-        )
-        .map_err(serde_err_to_state_err)?;
-        // Create a binding to avoid value being dropped.
-        let mut dumper_binding = self.contract_class_mapping_dumper.lock().unwrap();
-        // If dumper exists, insert the contract class to the mapping.
-        if let Some(contract_class_mapping_dumper) = dumper_binding.as_mut() {
-            contract_class_mapping_dumper.insert(*class_hash, contract_class.clone());
-        }
-        Ok(contract_class)
-    }
-
     pub fn get_all_txs_in_block(&self) -> ReexecutionResult<Vec<(Transaction, TransactionHash)>> {
         // TODO(Aviv): Use batch request to get all txs in a block.
         self.get_tx_hashes()?
@@ -262,10 +244,7 @@ impl TestStateReader {
 }
 
 impl ReexecutionStateReader for TestStateReader {
-    fn get_contract_class(
-        &self,
-        class_hash: ClassHash,
-    ) -> ReexecutionResult<StarknetContractClass> {
+    fn get_contract_class(&self, class_hash: &ClassHash) -> StateResult<StarknetContractClass> {
         let params = json!({
             "block_id": self.rpc_state_reader.block_id,
             "class_hash": class_hash.0.to_string(),
@@ -274,6 +253,12 @@ impl ReexecutionStateReader for TestStateReader {
             self.rpc_state_reader.send_rpc_request("starknet_getClass", params.clone())?,
         )
         .map_err(serde_err_to_state_err)?;
+        // Create a binding to avoid value being dropped.
+        let mut dumper_binding = self.contract_class_mapping_dumper.lock().unwrap();
+        // If dumper exists, insert the contract class to the mapping.
+        if let Some(contract_class_mapping_dumper) = dumper_binding.as_mut() {
+            contract_class_mapping_dumper.insert(*class_hash, contract_class.clone());
+        }
         Ok(contract_class)
     }
 }
