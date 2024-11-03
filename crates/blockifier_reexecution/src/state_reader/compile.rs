@@ -6,7 +6,11 @@ use std::collections::HashMap;
 use std::io::{self, Read};
 use std::sync::Arc;
 
-use blockifier::execution::contract_class::{ContractClass, ContractClassV0, ContractClassV0Inner};
+use blockifier::execution::contract_class::{
+    ContractClassV0,
+    ContractClassV0Inner,
+    RunnableContractClass,
+};
 use blockifier::state::state_api::StateResult;
 use cairo_lang_starknet_classes::contract_class::ContractEntryPoints;
 use cairo_lang_utils::bigint::BigUintAsHex;
@@ -71,7 +75,9 @@ pub fn decode_reader(bytes: Vec<u8>) -> io::Result<String> {
 }
 
 /// Compile a FlattenedSierraClass to a ContractClass V1 (casm) using cairo_lang_starknet_classes.
-pub fn sierra_to_contact_class_v1(sierra: FlattenedSierraClass) -> StateResult<ContractClass> {
+pub fn sierra_to_contact_class_v1(
+    sierra: FlattenedSierraClass,
+) -> StateResult<RunnableContractClass> {
     let middle_sierra: MiddleSierraContractClass = {
         let v = serde_json::to_value(sierra).map_err(serde_err_to_state_err);
         serde_json::from_value(v?).map_err(serde_err_to_state_err)?
@@ -91,16 +97,16 @@ pub fn sierra_to_contact_class_v1(sierra: FlattenedSierraClass) -> StateResult<C
             usize::MAX,
         )
         .unwrap();
-    Ok(ContractClass::V1(casm.try_into().unwrap()))
+    Ok(RunnableContractClass::V1(casm.try_into().unwrap()))
 }
 
 /// Compile a CompressedLegacyContractClass to a ContractClass V0 using cairo_lang_starknet_classes.
 pub fn legacy_to_contract_class_v0(
     legacy: CompressedLegacyContractClass,
-) -> StateResult<ContractClass> {
+) -> StateResult<RunnableContractClass> {
     let as_str = decode_reader(legacy.program).unwrap();
     let program = Program::from_bytes(as_str.as_bytes(), None).unwrap();
     let entry_points_by_type = map_entry_points_by_type_legacy(legacy.entry_points_by_type);
     let inner = Arc::new(ContractClassV0Inner { program, entry_points_by_type });
-    Ok(ContractClass::V0(ContractClassV0(inner)))
+    Ok(RunnableContractClass::V0(ContractClassV0(inner)))
 }

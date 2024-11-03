@@ -18,7 +18,7 @@ use starknet_api::transaction::{
 use crate::abi::abi_utils::selector_from_name;
 use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::CallInfo;
-use crate::execution::contract_class::{ClassInfo, ContractClass};
+use crate::execution::contract_class::{ClassInfo, RunnableContractClass};
 use crate::execution::entry_point::{
     CallEntryPoint,
     CallType,
@@ -212,7 +212,7 @@ impl DeclareTransaction {
         self.tx_hash
     }
 
-    pub fn contract_class(&self) -> ContractClass {
+    pub fn contract_class(&self) -> RunnableContractClass {
         self.class_info.contract_class()
     }
 

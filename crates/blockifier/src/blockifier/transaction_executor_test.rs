@@ -127,7 +127,7 @@ fn test_declare(
             version: tx_version,
             resource_bounds: l1_resource_bounds(0_u8.into(), DEFAULT_STRK_L1_GAS_PRICE.into()),
         },
-        calculate_class_info_for_testing(declared_contract.get_class()),
+        calculate_class_info_for_testing(declared_contract.get_runnable_class()),
     )
     .into();
     tx_executor_test_body(state, block_context, tx, expected_bouncer_weights);

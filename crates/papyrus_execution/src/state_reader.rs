@@ -5,9 +5,9 @@ mod state_reader_test;
 use std::cell::Cell;
 
 use blockifier::execution::contract_class::{
-    ContractClass as BlockifierContractClass,
     ContractClassV0,
     ContractClassV1,
+    RunnableContractClass,
 };
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
@@ -78,13 +78,13 @@ impl BlockifierStateReader for ExecutionStateReader {
     fn get_compiled_contract_class(
         &self,
         class_hash: ClassHash,
-    ) -> StateResult<BlockifierContractClass> {
+    ) -> StateResult<RunnableContractClass> {
         if let Some(pending_casm) = self
             .maybe_pending_data
             .as_ref()
             .and_then(|pending_data| pending_data.classes.get_compiled_class(class_hash))
         {
-            return Ok(BlockifierContractClass::V1(
+            return Ok(RunnableContractClass::V1(
                 ContractClassV1::try_from(pending_casm).map_err(StateError::ProgramError)?,
             ));
         }
@@ -93,7 +93,7 @@ impl BlockifierStateReader for ExecutionStateReader {
             .as_ref()
             .and_then(|pending_data| pending_data.classes.get_class(class_hash))
         {
-            return Ok(BlockifierContractClass::V0(
+            return Ok(RunnableContractClass::V0(
                 ContractClassV0::try_from(pending_deprecated_class)
                     .map_err(StateError::ProgramError)?,
             ));
