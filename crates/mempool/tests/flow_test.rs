@@ -148,15 +148,15 @@ fn test_commit_block_includes_proposed_txs_subset(mut mempool: Mempool) {
         &[tx_address_1_nonce_1.tx.clone(), tx_address_0_nonce_3.tx],
     );
 
-    // Not included in block: address "0x2" nonce 2, address "0x1" nonce 1.
-    let nonces = [("0x0", 3), ("0x1", 0)];
+    // Not included in block: address "0x2" nonce 2, address "0x1" nonce 2.
+    let nonces = [("0x0", 3), ("0x1", 1)];
     let tx_hashes = [1, 4];
     commit_block(&mut mempool, nonces, tx_hashes);
 
     get_txs_and_assert_expected(
         &mut mempool,
         2,
-        &[tx_address_2_nonce_2.tx, tx_address_1_nonce_1.tx],
+        &[tx_address_2_nonce_2.tx, tx_address_1_nonce_2.tx],
     );
 }
 
@@ -189,4 +189,32 @@ fn test_flow_commit_block_fills_nonce_gap(mut mempool: Mempool) {
     );
 
     get_txs_and_assert_expected(&mut mempool, 2, &[tx_nonce_5_account_nonce_3.tx]);
+}
+
+#[rstest]
+fn test_flow_commit_block_from_different_leader(mut mempool: Mempool) {
+    // Setup.
+
+    // TODO: set the mempool to `validate` mode once supported.
+
+    let tx_nonce_2 = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 2, account_nonce: 2);
+    let tx_nonce_3 = add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 3, account_nonce: 2);
+    let tx_nonce_4 = add_tx_input!(tx_hash: 3, address: "0x0", tx_nonce: 4, account_nonce: 2);
+
+    for input in [&tx_nonce_2, &tx_nonce_3, &tx_nonce_4] {
+        add_tx(&mut mempool, input);
+    }
+
+    // Test.
+    let nonces = [("0x0", 3)];
+    let tx_hashes = [
+        1,  // Known hash accepted for nonce 2.
+        99, // Unknown hash accepted for nonce 3.
+    ];
+    commit_block(&mut mempool, nonces, tx_hashes);
+
+    // Assert: two stale txs were removed, one was added to a block by a different leader and
+    // the other "lost" to a different tx with the same nonce that was added by the different
+    // leader.
+    get_txs_and_assert_expected(&mut mempool, 1, &[tx_nonce_4.tx]);
 }
