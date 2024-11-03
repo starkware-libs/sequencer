@@ -118,6 +118,19 @@ impl CurrentTransactionInfo {
             ValidResourceBounds::AllResources(AllResourceBounds { l1_gas, .. }) => l1_gas,
         }
     }
+
+    #[cfg(any(test, feature = "testing"))]
+    pub fn create_for_testing() -> Self {
+        Self {
+            common_fields: CommonAccountFields::default(),
+            resource_bounds: ValidResourceBounds::create_for_testing(),
+            tip: Tip::default(),
+            nonce_data_availability_mode: DataAvailabilityMode::L2,
+            fee_data_availability_mode: DataAvailabilityMode::L2,
+            paymaster_data: PaymasterData::default(),
+            account_deployment_data: AccountDeploymentData::default(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
