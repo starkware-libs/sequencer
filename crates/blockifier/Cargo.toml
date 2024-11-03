@@ -12,6 +12,7 @@ workspace = true
 [features]
 cairo_native = ["dep:cairo-native"]
 jemalloc = ["dep:tikv-jemallocator"]
+reexecution = []
 testing = ["rand", "rstest", "starknet_api/testing"]
 transaction_serde = []
 

@@ -187,5 +187,7 @@ pub fn test_get_statediff_rpc(test_state_reader: TestStateReader) {
 #[case(EXAMPLE_DECLARE_V3_BLOCK_NUMBER)]
 pub fn test_get_all_blockifier_tx_in_block(#[case] block_number: u64) {
     let state_reader = TestStateReader::new_for_testing(BlockNumber(block_number));
-    state_reader.api_txs_to_blockifier_txs(state_reader.get_all_txs_in_block().unwrap()).unwrap();
+    state_reader
+        .api_txs_to_blockifier_txs_next_block(state_reader.get_all_txs_in_block().unwrap())
+        .unwrap();
 }
