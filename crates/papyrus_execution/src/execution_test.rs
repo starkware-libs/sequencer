@@ -8,6 +8,7 @@ use blockifier::execution::call_info::Retdata;
 use blockifier::execution::errors::ConstructorEntryPointExecutionError;
 use blockifier::execution::stack_trace::gen_tx_execution_error_trace;
 use blockifier::transaction::errors::TransactionExecutionError as BlockifierTransactionExecutionError;
+use blockifier::versioned_constants::VersionedConstants;
 use indexmap::indexmap;
 use papyrus_storage::test_utils::get_test_storage;
 use pretty_assertions::assert_eq;
@@ -48,7 +49,6 @@ use crate::testing_instances::get_test_execution_config;
 use crate::{
     estimate_fee,
     execute_call,
-    get_versioned_constants,
     ExecutableTransactionInput,
     ExecutionError,
     FeeEstimationResult,
@@ -844,10 +844,10 @@ fn test_get_versioned_constants() {
     let starknet_version_13_0 = StarknetVersion::try_from("0.13.0".to_string()).unwrap();
     let starknet_version_13_1 = StarknetVersion::try_from("0.13.1".to_string()).unwrap();
     let starknet_version_13_2 = StarknetVersion::try_from("0.13.2".to_string()).unwrap();
-    let versioned_constants = get_versioned_constants(Some(&starknet_version_13_0)).unwrap();
+    let versioned_constants = VersionedConstants::get(&starknet_version_13_0).unwrap();
     assert_eq!(versioned_constants.invoke_tx_max_n_steps, 3_000_000);
-    let versioned_constants = get_versioned_constants(Some(&starknet_version_13_1)).unwrap();
+    let versioned_constants = VersionedConstants::get(&starknet_version_13_1).unwrap();
     assert_eq!(versioned_constants.invoke_tx_max_n_steps, 4_000_000);
-    let versioned_constants = get_versioned_constants(Some(&starknet_version_13_2)).unwrap();
+    let versioned_constants = VersionedConstants::get(&starknet_version_13_2).unwrap();
     assert_eq!(versioned_constants.invoke_tx_max_n_steps, 10_000_000);
 }

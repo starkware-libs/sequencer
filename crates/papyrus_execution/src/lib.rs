@@ -82,9 +82,6 @@ use tracing::trace;
 
 use crate::objects::{tx_execution_output_to_fee_estimation, FeeEstimation, PendingData};
 
-const STARKNET_VERSION_O_13_0: &str = "0.13.0";
-const STARKNET_VERSION_O_13_1: &str = "0.13.1";
-const STARKNET_VERSION_O_13_2: &str = "0.13.2";
 /// The address of the STRK fee contract on Starknet.
 const STRK_FEE_CONTRACT_ADDRESS: &str =
     "0x04718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d";
@@ -396,10 +393,11 @@ fn create_block_context(
             eth_fee_token_address: execution_config.eth_fee_contract_address,
         },
     };
-    let starknet_version: Option<StarknetVersion> =
-        storage_reader.begin_ro_txn()?.get_starknet_version(block_number)?;
-    let versioned_constants: &VersionedConstants =
-        get_versioned_constants(starknet_version.as_ref())?;
+    let starknet_version = storage_reader
+        .begin_ro_txn()?
+        .get_starknet_version(block_number)?
+        .unwrap_or(StarknetVersion::LATEST);
+    let versioned_constants = VersionedConstants::get(&starknet_version)?;
 
     let block_context = BlockContext::new(
         block_info,
@@ -905,32 +903,6 @@ fn to_blockifier_tx(
             .map_err(|err| ExecutionError::from((transaction_index, err)))
         }
     }
-}
-
-// TODO(dan): add 0_13_1_1 support
-// TODO(Dan, Yair): consider box large elements (because of BadDeclareTransaction) or use ID
-// instead.
-#[allow(clippy::result_large_err)]
-fn get_versioned_constants(
-    starknet_version: Option<&StarknetVersion>,
-) -> ExecutionResult<&'static VersionedConstants> {
-    let versioned_constants = match starknet_version {
-        Some(starknet_version) => {
-            let version = starknet_version.to_string();
-            let starknet_api_starknet_version = if version == STARKNET_VERSION_O_13_0 {
-                StarknetVersion::V0_13_0
-            } else if version == STARKNET_VERSION_O_13_1 {
-                StarknetVersion::V0_13_1
-            } else if version == STARKNET_VERSION_O_13_2 {
-                StarknetVersion::V0_13_2
-            } else {
-                StarknetVersion::V0_13_3
-            };
-            VersionedConstants::get(&starknet_api_starknet_version)?
-        }
-        None => VersionedConstants::latest_constants(),
-    };
-    Ok(versioned_constants)
 }
 
 /// Simulates a series of transactions and returns the transaction traces and the fee estimations.
