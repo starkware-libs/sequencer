@@ -155,8 +155,8 @@ async fn decision_reached(
     let expected_proposal_commitment = ProposalCommitment::default();
     let tx_hashes = test_tx_hashes(0..5);
     let tx_hashes_clone = tx_hashes.clone();
-    let nonces = test_contract_nonces(0..3);
-    let nonces_clone = nonces.clone();
+    let address_to_nonce = test_contract_nonces(0..3);
+    let nonces_clone = address_to_nonce.clone();
 
     let mut proposal_manager = MockProposalManagerTraitWrapper::new();
     proposal_manager.expect_wrap_take_proposal_result().with(eq(PROPOSAL_ID)).return_once(
@@ -174,7 +174,7 @@ async fn decision_reached(
     );
     mempool_client
         .expect_commit_block()
-        .with(eq(CommitBlockArgs { nonces, tx_hashes }))
+        .with(eq(CommitBlockArgs { address_to_nonce, tx_hashes }))
         .returning(|_| Ok(()));
 
     storage_writer

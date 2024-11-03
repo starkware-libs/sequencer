@@ -132,7 +132,7 @@ impl Mempool {
     /// updates account balances).
     #[tracing::instrument(skip(self, args), err)]
     pub fn commit_block(&mut self, args: CommitBlockArgs) -> MempoolResult<()> {
-        let CommitBlockArgs { nonces: address_to_nonce, tx_hashes } = args;
+        let CommitBlockArgs { address_to_nonce, tx_hashes } = args;
         tracing::debug!("Committing block with {} transactions to mempool.", tx_hashes.len());
 
         // Align mempool data to committed nonces.
