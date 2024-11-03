@@ -13,7 +13,7 @@ mod peer_manager;
 mod sqmr;
 #[cfg(test)]
 mod test_utils;
-mod utils;
+pub mod utils;
 
 use std::collections::BTreeMap;
 use std::time::Duration;
