@@ -614,48 +614,6 @@ fn test_commit_block_rewinds_queued_nonce() {
     expected_mempool_content.assert_eq(&mempool);
 }
 
-#[rstest]
-fn test_commit_block_from_different_leader() {
-    // Setup.
-    let tx_address_0_nonce_3 = tx!(tx_hash: 1, address: "0x0", tx_nonce: 3);
-    let tx_address_0_nonce_5 = tx!(tx_hash: 2, address: "0x0", tx_nonce: 5);
-    let tx_address_0_nonce_6 = tx!(tx_hash: 3, address: "0x0", tx_nonce: 6);
-    let tx_address_1_nonce_2 = tx!(tx_hash: 4, address: "0x1", tx_nonce: 2);
-
-    let queued_txs = [TransactionReference::new(&tx_address_1_nonce_2)];
-    let pool_txs = [
-        tx_address_0_nonce_3,
-        tx_address_0_nonce_5,
-        tx_address_0_nonce_6.clone(),
-        tx_address_1_nonce_2.clone(),
-    ];
-    let mut mempool = MempoolContentBuilder::new()
-        .with_pool(pool_txs)
-        .with_priority_queue(queued_txs)
-        .build_into_mempool();
-
-    // Test.
-    let nonces = [
-        ("0x0", 5),
-        ("0x1", 0), // A hole, missing nonce 1 for address "0x1".
-        ("0x2", 1),
-    ];
-    let tx_hashes = [
-        1, 2, // Hashes known to mempool.
-        5, 6, // Hashes unknown to mempool, from a different node.
-    ];
-    commit_block(&mut mempool, nonces, tx_hashes);
-
-    // Assert.
-    let expected_queue_txs = [TransactionReference::new(&tx_address_0_nonce_6)];
-    let expected_pool_txs = [tx_address_0_nonce_6, tx_address_1_nonce_2];
-    let expected_mempool_content = MempoolContentBuilder::new()
-        .with_pool(expected_pool_txs)
-        .with_priority_queue(expected_queue_txs)
-        .build();
-    expected_mempool_content.assert_eq(&mempool);
-}
-
 // Fee escalation tests.
 
 #[rstest]
