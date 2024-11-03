@@ -36,7 +36,7 @@ use tracing::{debug, error, info, trace};
 
 use crate::papyrus_state::PapyrusReader;
 use crate::transaction_executor::TransactionExecutorTrait;
-use crate::transaction_provider::{TransactionProvider, TransactionProviderError};
+use crate::transaction_provider::{TransactionProvider, TransactionProviderError, TxStream};
 
 #[derive(Debug, Error)]
 pub enum BlockBuilderError {
@@ -142,14 +142,18 @@ impl BlockBuilderTrait for BlockBuilder {
     async fn build_block(
         &self,
         deadline: tokio::time::Instant,
-        tx_provider: Box<dyn TransactionProvider>,
+        mut tx_provider: Box<dyn TransactionProvider>,
         output_content_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
     ) -> BlockBuilderResult<BlockExecutionArtifacts> {
         let mut block_is_full = false;
         let mut execution_infos = IndexMap::new();
         // TODO(yael 6/10/2024): delete the timeout condition once the executor has a timeout
         while !block_is_full && tokio::time::Instant::now() < deadline {
-            let next_tx_chunk = tx_provider.get_txs(self.tx_chunk_size).await?;
+            let tx_stram = tx_provider.get_txs(self.tx_chunk_size).await?;
+            let next_tx_chunk = match tx_stram {
+                TxStream::Txs(txs) => txs,
+                TxStream::TxStreamDone => break,
+            };
             debug!("Got {} transactions from the transaction provider.", next_tx_chunk.len());
             if next_tx_chunk.is_empty() {
                 // TODO: Consider what is the best sleep duration.
