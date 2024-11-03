@@ -202,7 +202,7 @@ impl Default for FaultyAccountTxCreatorArgs {
             contract_address_salt: ContractAddressSalt::default(),
             validate_constructor: false,
             max_fee: Fee::default(),
-            resource_bounds: ValidResourceBounds::create_for_testing(),
+            resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),
             declared_contract: None,
         }
     }
