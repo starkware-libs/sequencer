@@ -10,7 +10,7 @@ use super::compile::{legacy_to_contract_class_v0, sierra_to_contact_class_v1};
 use crate::state_reader::errors::ReexecutionError;
 use crate::state_reader::test_state_reader::ReexecutionResult;
 
-pub(crate) trait ReexecutionStateReader {
+pub trait ReexecutionStateReader {
     fn get_contract_class(&self, class_hash: &ClassHash) -> StateResult<StarknetContractClass>;
 
     fn get_class_info(&self, class_hash: ClassHash) -> ReexecutionResult<ClassInfo> {
