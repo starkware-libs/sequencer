@@ -110,7 +110,7 @@ impl CompilerBasedVersion {
     }
 
     /// Returns the context-free tracked resource of this contract (does not take caller contract
-    /// into account).
+    /// and the transaction info into account).
     pub fn own_tracked_resource(&self) -> TrackedResource {
         match self {
             Self::CairoVersion(CairoVersion::Cairo0) | Self::OldCairo1 => {

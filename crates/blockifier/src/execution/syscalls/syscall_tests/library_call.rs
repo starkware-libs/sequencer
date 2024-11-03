@@ -4,6 +4,7 @@ use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use pretty_assertions::assert_eq;
 use starknet_api::execution_utils::format_panic_data;
+use starknet_api::transaction::GasVectorComputationMode;
 use starknet_api::{calldata, felt, storage_key};
 use test_case::test_case;
 
@@ -149,6 +150,7 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
     // The default VersionedConstants is used in the execute_directly call bellow.
     let tracked_resource = test_contract.get_runnable_class().tracked_resource(
         &VersionedConstants::create_for_testing().min_compiler_version_for_sierra_gas,
+        GasVectorComputationMode::NoL2Gas,
     );
 
     let nested_storage_call_info = CallInfo {
