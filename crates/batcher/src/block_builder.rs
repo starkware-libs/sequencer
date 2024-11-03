@@ -14,10 +14,8 @@ use blockifier::context::{BlockContext, ChainInfo};
 use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::state::errors::StateError;
 use blockifier::state::global_cache::GlobalContractCache;
-use blockifier::transaction::account_transaction::AccountTransaction;
 use blockifier::transaction::errors::TransactionExecutionError as BlockifierTransactionExecutionError;
 use blockifier::transaction::objects::TransactionExecutionInfo;
-use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use blockifier::versioned_constants::{VersionedConstants, VersionedConstantsOverrides};
 use indexmap::IndexMap;
 #[cfg(test)]
@@ -35,8 +33,12 @@ use tokio::sync::Mutex;
 use tracing::{debug, error, info, trace};
 
 use crate::papyrus_state::PapyrusReader;
-use crate::transaction_executor::TransactionExecutorTrait;
-use crate::transaction_provider::{TransactionProvider, TransactionProviderError};
+use crate::transaction_dispatcher::{
+    TransactionDispatcher,
+    TransactionDispatcherError,
+    TransactionEvent,
+};
+use crate::transaction_executor::{into_executor_tx_chunk, TransactionExecutorTrait};
 
 #[derive(Debug, Error)]
 pub enum BlockBuilderError {
@@ -47,7 +49,7 @@ pub enum BlockBuilderError {
     #[error(transparent)]
     ExecutorError(#[from] BlockifierTransactionExecutorError),
     #[error(transparent)]
-    GetTransactionError(#[from] TransactionProviderError),
+    GetTransactionError(#[from] TransactionDispatcherError),
     #[error(transparent)]
     TransactionExecutionError(#[from] BlockifierTransactionExecutionError),
     #[error(transparent)]
@@ -66,7 +68,7 @@ pub struct BlockExecutionArtifacts {
 }
 
 /// The BlockBuilderTrait is responsible for building a new block from transactions provided by the
-/// tx_provider. The block building will stop at time deadline.
+/// tx_dispatcher. The block building will stop at time deadline.
 /// The transactions that were added to the block will be streamed to the output_content_sender.
 #[cfg_attr(test, automock)]
 #[async_trait]
@@ -74,7 +76,7 @@ pub trait BlockBuilderTrait: Send {
     async fn build_block(
         &self,
         deadline: tokio::time::Instant,
-        tx_provider: Box<dyn TransactionProvider>,
+        tx_dispatcher: Box<dyn TransactionDispatcher>,
         output_content_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
     ) -> BlockBuilderResult<BlockExecutionArtifacts>;
 }
@@ -142,30 +144,27 @@ impl BlockBuilderTrait for BlockBuilder {
     async fn build_block(
         &self,
         deadline: tokio::time::Instant,
-        tx_provider: Box<dyn TransactionProvider>,
+        mut tx_dispatcher: Box<dyn TransactionDispatcher>,
         output_content_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
     ) -> BlockBuilderResult<BlockExecutionArtifacts> {
         let mut should_close_block = false;
         let mut execution_infos = IndexMap::new();
         // TODO(yael 6/10/2024): delete the timeout condition once the executor has a timeout
         while !should_close_block && tokio::time::Instant::now() < deadline {
-            let next_tx_chunk = tx_provider.get_txs(self.tx_chunk_size).await?;
-            debug!("Got {} transactions from the transaction provider.", next_tx_chunk.len());
-            if next_tx_chunk.is_empty() {
+            let tx_events_chunk = tx_dispatcher.get_txs(self.tx_chunk_size).await?;
+            debug!("Got {} transactions from the transaction provider.", tx_events_chunk.len());
+            if tx_events_chunk.is_empty() {
                 // TODO: Consider what is the best sleep duration.
                 tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
                 continue;
             }
 
-            let mut executor_input_chunk = vec![];
-            for tx in &next_tx_chunk {
-                executor_input_chunk
-                    .push(BlockifierTransaction::Account(AccountTransaction::try_from(tx)?));
-            }
+            let executor_input_chunk = into_executor_tx_chunk(&tx_events_chunk)?;
             let results = self.executor.lock().await.add_txs_to_block(&executor_input_chunk);
             trace!("Transaction execution results: {:?}", results);
+
             should_close_block = collect_execution_results_and_stream_txs(
-                next_tx_chunk,
+                tx_events_chunk,
                 results,
                 &mut execution_infos,
                 &output_content_sender,
@@ -185,12 +184,19 @@ impl BlockBuilderTrait for BlockBuilder {
 
 /// Returns true if the block is full and should be closed, false otherwise.
 async fn collect_execution_results_and_stream_txs(
-    tx_chunk: Vec<Transaction>,
+    tx_chunk: Vec<TransactionEvent>,
     results: Vec<TransactionExecutorResult<TransactionExecutionInfo>>,
     execution_infos: &mut IndexMap<TransactionHash, TransactionExecutionInfo>,
     output_content_sender: &tokio::sync::mpsc::UnboundedSender<Transaction>,
 ) -> BlockBuilderResult<bool> {
-    for (input_tx, result) in tx_chunk.into_iter().zip(results.into_iter()) {
+    let should_close_block = matches!(tx_chunk.last(), Some(TransactionEvent::Finish));
+    for (tx_event, result) in tx_chunk.into_iter().zip(results.into_iter()) {
+        let input_tx = match tx_event {
+            TransactionEvent::Finish => {
+                panic!("Finish event should not be processed by the executor.")
+            }
+            TransactionEvent::Transaction(tx) => tx,
+        };
         match result {
             Ok(tx_execution_info) => {
                 execution_infos.insert(input_tx.tx_hash(), tx_execution_info);
@@ -207,7 +213,7 @@ async fn collect_execution_results_and_stream_txs(
             }
         }
     }
-    Ok(false)
+    Ok(should_close_block)
 }
 
 /// The BlockBuilderFactoryTrait is responsible for creating a new block builder.
