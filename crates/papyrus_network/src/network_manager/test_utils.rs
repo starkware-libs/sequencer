@@ -158,7 +158,7 @@ where
 
     let [channels_port, config_port] = find_n_free_ports::<2>();
 
-    let channels_secret_key = [1u8; 64];
+    let channels_secret_key = [1u8; 32];
     let channels_public_key = Keypair::ed25519_from_bytes(channels_secret_key).unwrap().public();
 
     let channels_config = NetworkConfig {
