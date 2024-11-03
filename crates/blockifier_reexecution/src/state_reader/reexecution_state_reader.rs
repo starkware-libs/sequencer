@@ -3,7 +3,7 @@ use blockifier::state::state_api::StateResult;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use papyrus_execution::DEPRECATED_CONTRACT_SIERRA_SIZE;
 use starknet_api::core::ClassHash;
-use starknet_api::transaction::{Transaction, TransactionHash};
+use starknet_api::transaction::{Fee, Transaction, TransactionHash};
 use starknet_core::types::ContractClass as StarknetContractClass;
 
 use super::compile::{legacy_to_contract_class_v0, sierra_to_contact_class_v1};
@@ -58,7 +58,20 @@ pub(crate) trait ReexecutionStateReader {
                     )
                     .map_err(ReexecutionError::from)
                 }
-                Transaction::L1Handler(_) => todo!("Implement L1Handler transaction converter"),
+                Transaction::L1Handler(_) =>
+                // TODO(Aviv): check if we should always use max fee.
+                {
+                    BlockifierTransaction::from_api(
+                        tx,
+                        tx_hash,
+                        None,
+                        Some(Fee(u128::MAX)),
+                        None,
+                        false,
+                    )
+                    .map_err(ReexecutionError::from)
+                }
+
                 Transaction::Deploy(_) => {
                     panic!("Reexecution not supported for Deploy transactions.")
                 }
