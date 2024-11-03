@@ -66,12 +66,12 @@ pub struct OfflineReexecutionData {
 
 #[derive(Serialize, Deserialize)]
 pub struct SerializableOfflineReexecutionData {
-    state_maps: ReexecutionStateMaps,
-    contract_class_mapping: StarknetContractClassMapping,
-    block_info_next_block: BlockInfo,
-    starknet_version: StarknetVersion,
-    transactions_next_block: Vec<(Transaction, TransactionHash)>,
-    state_diff_next_block: CommitmentStateDiff,
+    pub state_maps: ReexecutionStateMaps,
+    pub block_info_next_block: BlockInfo,
+    pub starknet_version: StarknetVersion,
+    pub transactions_next_block: Vec<(Transaction, TransactionHash)>,
+    pub state_diff_next_block: CommitmentStateDiff,
+    pub contract_class_mapping: StarknetContractClassMapping,
 }
 
 impl SerializableOfflineReexecutionData {
@@ -99,7 +99,7 @@ impl From<SerializableOfflineReexecutionData> for OfflineReexecutionData {
             contract_class_mapping: value.contract_class_mapping,
         };
         let transactions_next_block = offline_state_reader_prev_block
-            .api_txs_to_blockifier_txs(value.transactions_next_block)
+            .api_txs_to_blockifier_txs_next_block(value.transactions_next_block)
             .expect("Failed to convert starknet-api transactions to blockifier transactions.");
         Self {
             offline_state_reader_prev_block,
@@ -361,6 +361,10 @@ impl TestStateReader {
             class_hash_to_compiled_class_hash: declared_classes,
         })
     }
+
+    pub fn get_contract_class_mapping_dumper(&self) -> Option<StarknetContractClassMapping> {
+        self.contract_class_mapping_dumper.lock().unwrap().clone()
+    }
 }
 
 impl ReexecutionStateReader for TestStateReader {
@@ -449,8 +453,9 @@ impl ConsecutiveStateReaders<TestStateReader> for ConsecutiveTestStateReaders {
     }
 
     fn get_next_block_txs(&self) -> ReexecutionResult<Vec<BlockifierTransaction>> {
-        self.next_block_state_reader
-            .api_txs_to_blockifier_txs(self.next_block_state_reader.get_all_txs_in_block()?)
+        self.next_block_state_reader.api_txs_to_blockifier_txs_next_block(
+            self.next_block_state_reader.get_all_txs_in_block()?,
+        )
     }
 
     fn get_next_block_state_diff(&self) -> ReexecutionResult<CommitmentStateDiff> {
