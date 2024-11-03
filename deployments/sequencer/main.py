@@ -37,8 +37,18 @@ class SequencerSystem(Chart):
             image="paulbouwer/hello-kubernetes:1.7",
             replicas=2,
             config=system_structure.config.get(),
+            probe_path=""
         )
         self.batcher = Service(self, "batcher", image="ghost", container_port=2368)
+        self.sequencer_node = Service(
+            self, 
+            "sequencer", 
+            image="", 
+            container_port=8082, 
+            startup_probe_path="/monitoring/nodeVersion", 
+            readiness_probe_path="/monitoring/ready", 
+            liveness_probe_path="/monitoring/alive"
+        )
 
 
 app = App()
