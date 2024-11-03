@@ -553,7 +553,7 @@ fn test_commit_block_includes_all_proposed_txs() {
     let tx_address_1_nonce_3 = tx!(tx_hash: 5, address: "0x1", tx_nonce: 3);
     let tx_address_2_nonce_1 = tx!(tx_hash: 6, address: "0x2", tx_nonce: 1);
 
-    let queue_txs = [&tx_address_0_nonce_4, &tx_address_1_nonce_3, &tx_address_2_nonce_1]
+    let queue_txs = [&tx_address_2_nonce_1, &tx_address_1_nonce_3, &tx_address_0_nonce_4]
         .map(TransactionReference::new);
     let pool_txs = [
         tx_address_0_nonce_3,
