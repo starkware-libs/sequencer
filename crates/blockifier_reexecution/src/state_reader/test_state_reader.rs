@@ -19,7 +19,7 @@ use starknet_api::state::StorageKey;
 use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_core::types::ContractClass as StarknetContractClass;
 use starknet_gateway::config::RpcStateReaderConfig;
-use starknet_gateway::errors::serde_err_to_state_err;
+use starknet_gateway::errors::{serde_err_to_state_err, RPCStateReaderError};
 use starknet_gateway::rpc_objects::{BlockHeader, GetBlockWithTxHashesParams, ResourcePrice};
 use starknet_gateway::rpc_state_reader::RpcStateReader;
 use starknet_types_core::felt::Felt;
@@ -125,7 +125,6 @@ impl StateReader for TestStateReader {
         &self,
         class_hash: ClassHash,
     ) -> StateResult<RunnableContractClass> {
-
         let contract_class =
             retry_request!(self.retry_config, || self.get_contract_class(&class_hash))?;
 
@@ -312,10 +311,16 @@ impl ReexecutionStateReader for TestStateReader {
             "block_id": self.rpc_state_reader.block_id,
             "class_hash": class_hash.0.to_string(),
         });
-        let contract_class: StarknetContractClass = serde_json::from_value(
-            self.rpc_state_reader.send_rpc_request("starknet_getClass", params.clone())?,
-        )
-        .map_err(serde_err_to_state_err)?;
+        let raw_contract_class =
+            match self.rpc_state_reader.send_rpc_request("starknet_getClass", params.clone()) {
+                Err(RPCStateReaderError::ClassHashNotFound(_)) => {
+                    return Err(StateError::UndeclaredClassHash(*class_hash));
+                }
+                other_result => other_result,
+            }?;
+
+        let contract_class: StarknetContractClass =
+            serde_json::from_value(raw_contract_class).map_err(serde_err_to_state_err)?;
         // Create a binding to avoid value being dropped.
         let mut dumper_binding = self.contract_class_mapping_dumper.lock().unwrap();
         // If dumper exists, insert the contract class to the mapping.
