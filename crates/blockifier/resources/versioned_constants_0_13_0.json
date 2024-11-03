@@ -534,6 +534,7 @@
             "n_memory_holes": 0
         }
     },
+    "compress_data_availability": false,
     "validate_max_n_steps": 1000000,
     "min_compiler_version_for_sierra_gas": "2.8.0",
     "vm_resource_fee_cost": {

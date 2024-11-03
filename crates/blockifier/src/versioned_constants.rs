@@ -163,6 +163,9 @@ pub struct VersionedConstants {
     pub archival_data_gas_costs: ArchivalDataGasCosts,
     pub max_recursion_depth: usize,
     pub validate_max_n_steps: u32,
+    // Indicates whether data availability on-chain data is compressed.
+    // Needed for backwards compatibility.
+    pub compress_data_availability: bool,
     pub min_compiler_version_for_sierra_gas: CompilerVersion,
     // BACKWARD COMPATIBILITY: If true, the segment_arena builtin instance counter will be
     // multiplied by 3. This offsets a bug in the old vm where the counter counted the number of
