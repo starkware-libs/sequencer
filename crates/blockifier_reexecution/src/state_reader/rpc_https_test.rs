@@ -45,6 +45,10 @@ const EXAMPLE_DECLARE_V3_BLOCK_NUMBER: u64 = 825013;
 const EXAMPLE_DECLARE_V3_TX_HASH: &str =
     "0x03ab43c0913f95b901b49ed1aa6009b31ebe0ad7ba62da49fc6de7f3854b496f";
 
+const EXAMPLE_L1_HANDLER_BLOCK_NUMBER: u64 = 868429;
+const EXAMPLE_L1_HANDLER_TX_HASH: &str =
+    "0x02315145ae0290b7d49ea3f509b1084b5fcd70d0fea8bed04b83aa8af33e4d7e";
+
 #[fixture]
 pub fn test_block_number() -> BlockNumber {
     BlockNumber(EXAMPLE_BLOCK_NUMBER)
@@ -174,6 +178,15 @@ pub fn test_get_declare_tx_by_hash(
     } else {
         panic!("Invalid expected version")
     }
+}
+
+#[test]
+pub fn test_get_l1_handler_tx_by_hash() {
+    // Create StateReader with block number that contain the l1 handler tx.
+    let state_reader =
+        TestStateReader::new_for_testing(BlockNumber(EXAMPLE_L1_HANDLER_BLOCK_NUMBER));
+    let actual_tx = state_reader.get_tx_by_hash(EXAMPLE_L1_HANDLER_TX_HASH).unwrap();
+    assert_matches!(actual_tx, Transaction::L1Handler(..))
 }
 
 #[rstest]
