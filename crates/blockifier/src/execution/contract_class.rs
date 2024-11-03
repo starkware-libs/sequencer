@@ -29,6 +29,7 @@ use starknet_api::deprecated_contract_class::{
     EntryPointV0,
     Program as DeprecatedProgram,
 };
+use starknet_api::transaction::ValidResourceBounds;
 use starknet_types_core::felt::Felt;
 
 use crate::abi::constants::{self};
@@ -39,6 +40,7 @@ use crate::execution::execution_utils::{poseidon_hash_many_cost, sn_api_to_cairo
 use crate::execution::native::contract_class::NativeContractClassV1;
 use crate::fee::eth_gas_constants;
 use crate::transaction::errors::TransactionExecutionError;
+use crate::transaction::objects::TransactionInfo;
 use crate::versioned_constants::CompilerVersion;
 
 #[cfg(test)]
@@ -131,12 +133,22 @@ impl RunnableContractClass {
     }
 
     /// Returns whether this contract should run using Cairo steps or Sierra gas.
-    pub fn tracked_resource(&self, min_sierra_version: &CompilerVersion) -> TrackedResource {
-        match self {
-            Self::V0(_) => TrackedResource::CairoSteps,
-            Self::V1(contract_class) => contract_class.tracked_resource(min_sierra_version),
-            #[cfg(feature = "cairo_native")]
-            Self::V1Native(_) => TrackedResource::SierraGas,
+    pub fn tracked_resource(
+        &self,
+        min_sierra_version: &CompilerVersion,
+        is_all_resources_bound: bool,
+    ) -> TrackedResource {
+        if is_all_resources_bound {
+            match self {
+                RunnableContractClass::V0(_) => TrackedResource::CairoSteps,
+                RunnableContractClass::V1(contract_class) => {
+                    contract_class.tracked_resource(min_sierra_version)
+                }
+                #[cfg(feature = "cairo_native")]
+                RunnableContractClass::V1Native(_) => TrackedResource::SierraGas,
+            }
+        } else {
+            TrackedResource::CairoSteps
         }
     }
 }

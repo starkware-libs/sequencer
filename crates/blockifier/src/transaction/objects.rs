@@ -85,6 +85,16 @@ impl TransactionInfo {
             TransactionInfo::Deprecated(context) => context.max_fee != Fee(0),
         }
     }
+
+    pub fn is_all_resources_bound(&self) -> bool {
+        match self {
+            TransactionInfo::Current(info) => match info.resource_bounds {
+                ValidResourceBounds::L1Gas(_) => false,
+                ValidResourceBounds::AllResources(_) => true,
+            },
+            TransactionInfo::Deprecated(_) => false,
+        }
+    }
 }
 
 impl HasRelatedFeeType for TransactionInfo {
