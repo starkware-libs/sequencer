@@ -16,7 +16,10 @@ use starknet_batcher_types::batcher_types::{
     GetProposalContentInput,
     GetProposalContentResponse,
     ProposalId,
+    SendProposalContentInput,
+    SendProposalContentResponse,
     StartHeightInput,
+    ValidateProposalInput,
 };
 use starknet_batcher_types::errors::BatcherError;
 use starknet_mempool_types::communication::SharedMempoolClient;
@@ -97,6 +100,22 @@ impl Batcher {
         let tx_stream = tx_receiver;
         self.proposals.insert(proposal_id, Proposal { tx_stream });
         Ok(())
+    }
+
+    #[instrument(skip(self), err)]
+    pub async fn validate_proposal(
+        &mut self,
+        validate_proposal_input: ValidateProposalInput,
+    ) -> BatcherResult<()> {
+        todo!();
+    }
+
+    #[instrument(skip(self), err)]
+    pub async fn send_proposal_content(
+        &mut self,
+        send_proposal_content_input: SendProposalContentInput,
+    ) -> BatcherResult<SendProposalContentResponse> {
+        todo!();
     }
 
     #[instrument(skip(self), err)]
