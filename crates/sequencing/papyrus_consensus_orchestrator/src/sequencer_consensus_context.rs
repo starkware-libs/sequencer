@@ -140,8 +140,12 @@ impl ConsensusContext for SequencerConsensusContext {
 
         let chrono_timeout =
             chrono::Duration::from_std(timeout).expect("Can't convert timeout to chrono::Duration");
-        let input =
-            ValidateProposalInput { proposal_id, deadline: chrono::Utc::now() + chrono_timeout };
+        let input = ValidateProposalInput {
+            proposal_id,
+            deadline: chrono::Utc::now() + chrono_timeout,
+            //TODO(yael 3/11/2024): Add the real value of the retrospective block hash.
+            retrospective_block_hash: None,
+        };
         self.maybe_start_height(height).await;
         batcher.validate_proposal(input).await.expect("Failed to initiate proposal validation");
         tokio::spawn(
