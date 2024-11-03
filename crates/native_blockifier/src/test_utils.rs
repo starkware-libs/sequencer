@@ -31,11 +31,8 @@ impl Storage for MockStorage {
         _previous_block_id: Option<crate::py_utils::PyFelt>,
         _py_block_info: crate::py_state_diff::PyBlockInfo,
         _py_state_diff: crate::py_state_diff::PyStateDiff,
-        _declared_class_hash_to_class: HashMap<
-            crate::py_utils::PyFelt,
-            (crate::py_utils::PyFelt, String),
-        >,
-        _deprecated_declared_class_hash_to_class: HashMap<crate::py_utils::PyFelt, String>,
+        _declared_class_hash_to_class: crate::storage::RawDeclaredClassMapping,
+        _deprecated_declared_class_hash_to_class: crate::storage::RawDeprecatedDeclaredClassMapping,
     ) -> NativeBlockifierResult<()> {
         todo!()
     }
