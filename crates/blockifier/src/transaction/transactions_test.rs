@@ -977,8 +977,7 @@ fn test_max_fee_exceeds_balance(
             assert_resource_bounds_exceed_balance_failure(state, block_context, invalid_tx);
             // Declare.
             let contract_to_declare = FeatureContract::Empty(CairoVersion::Cairo1);
-            let class_info =
-                calculate_class_info_for_testing(contract_to_declare.get_runnable_class());
+            let class_info = calculate_class_info_for_testing(contract_to_declare.get_class());
             let invalid_tx = declare_tx(
                 declare_tx_args! {
                     class_hash: contract_to_declare.get_class_hash(),
@@ -1476,7 +1475,7 @@ fn test_declare_tx(
     let state = &mut test_state(chain_info, BALANCE, &[(account, 1)]);
     let class_hash = empty_contract.get_class_hash();
     let compiled_class_hash = empty_contract.get_compiled_class_hash();
-    let class_info = calculate_class_info_for_testing(empty_contract.get_runnable_class());
+    let class_info = calculate_class_info_for_testing(empty_contract.get_class());
     let sender_address = account.get_instance_address(0);
     let mut nonce_manager = NonceManager::default();
     let state_changes_for_fee = declare_expected_state_changes_count(tx_version);
@@ -1605,7 +1604,7 @@ fn test_declare_tx(
 
     // Verify class declaration.
     let contract_class_from_state = state.get_compiled_contract_class(class_hash).unwrap();
-    assert_eq!(contract_class_from_state, class_info.contract_class());
+    assert_eq!(contract_class_from_state, class_info.contract_class().try_into().unwrap());
 
     // Checks that redeclaring the same contract fails.
     let account_tx2 = declare_tx(
@@ -1638,7 +1637,7 @@ fn test_declare_tx_v0(default_l1_resource_bounds: ValidResourceBounds) {
     let state = &mut test_state(chain_info, BALANCE, &[(account, 1)]);
     let class_hash = empty_contract.get_class_hash();
     let compiled_class_hash = empty_contract.get_compiled_class_hash();
-    let class_info = calculate_class_info_for_testing(empty_contract.get_runnable_class());
+    let class_info = calculate_class_info_for_testing(empty_contract.get_class());
     let sender_address = account.get_instance_address(0);
     let mut nonce_manager = NonceManager::default();
 

@@ -26,6 +26,12 @@ pub struct ContractClass {
     pub entry_points_by_type: HashMap<EntryPointType, Vec<EntryPointV0>>,
 }
 
+impl ContractClass {
+    pub fn bytecode_length(&self) -> usize {
+        self.program.data.as_array().expect("The program data must be an array.").len()
+    }
+}
+
 /// A [ContractClass](`crate::deprecated_contract_class::ContractClass`) abi entry.
 // Using untagged so the serialization will be sorted by the keys (the default behavior of Serde for
 // untagged enums). We care about the order of the fields in the serialization because it affects
