@@ -3,7 +3,7 @@ use blockifier::state::state_api::StateResult;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use papyrus_execution::DEPRECATED_CONTRACT_SIERRA_SIZE;
 use starknet_api::core::ClassHash;
-use starknet_api::transaction::{Transaction, TransactionHash};
+use starknet_api::transaction::{Fee, Transaction, TransactionHash};
 use starknet_core::types::ContractClass as StarknetContractClass;
 
 use super::compile::{legacy_to_contract_class_v0, sierra_to_contact_class_v1};
@@ -41,28 +41,38 @@ pub(crate) trait ReexecutionStateReader {
             .into_iter()
             .map(|(tx, tx_hash)| match tx {
                 Transaction::Invoke(_) | Transaction::DeployAccount(_) => {
-                    BlockifierTransaction::from_api(tx, tx_hash, None, None, None, false)
-                        .map_err(ReexecutionError::from)
+                    Ok(BlockifierTransaction::from_api(tx, tx_hash, None, None, None, false)?)
                 }
                 Transaction::Declare(ref declare_tx) => {
                     let class_info = self
                         .get_class_info(declare_tx.class_hash())
                         .map_err(ReexecutionError::from)?;
-                    BlockifierTransaction::from_api(
+                    Ok(BlockifierTransaction::from_api(
                         tx,
                         tx_hash,
                         Some(class_info),
                         None,
                         None,
                         false,
-                    )
-                    .map_err(ReexecutionError::from)
+                    )?)
                 }
-                Transaction::L1Handler(_) => todo!("Implement L1Handler transaction converter"),
+                Transaction::L1Handler(_) =>
+                // TODO(Aviv): check if we should always use max fee.
+                {
+                    Ok(BlockifierTransaction::from_api(
+                        tx,
+                        tx_hash,
+                        None,
+                        Some(Fee(u128::MAX)),
+                        None,
+                        false,
+                    )?)
+                }
+
                 Transaction::Deploy(_) => {
                     panic!("Reexecution not supported for Deploy transactions.")
                 }
             })
-            .collect::<Result<Vec<_>, _>>()
+            .collect()
     }
 }
