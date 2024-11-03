@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use starknet_batcher_types::communication::{
     BatcherRequestAndResponseSender,
-    LocalBatcherClient,
     SharedBatcherClient,
 };
 use starknet_gateway_types::communication::{
@@ -16,10 +15,12 @@ use starknet_mempool_p2p_types::communication::{
     SharedMempoolP2pPropagatorClient,
 };
 use starknet_mempool_types::communication::{
-    LocalMempoolClient,
+    MempoolClient,
     MempoolRequestAndResponseSender,
     SharedMempoolClient,
 };
+use starknet_sequencer_infra::component_client::LocalComponentClient;
+use starknet_sequencer_infra::{component_client::NewClient, component_definitions::ComponentRequestAndResponseSender};
 use starknet_sequencer_infra::component_definitions::ComponentCommunication;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 
@@ -121,43 +122,44 @@ impl SequencerNodeClients {
     }
 }
 
+fn create_component_client<Request, Response>(
+    execution_mode: &ComponentExecutionMode,
+    sender: Sender<ComponentRequestAndResponseSender<Request, Response>>,
+) -> Option<Arc<LocalComponentClient<Request, Response>>>
+where
+    Request: Send + Sync,
+    Response: Send + Sync,
+{
+    match execution_mode {
+        ComponentExecutionMode::LocalExecutionWithRemoteDisabled
+        | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
+            Some(Arc::new(LocalComponentClient::new(sender)))
+        }
+        ComponentExecutionMode::Disabled => None,
+    }
+}
+
 pub fn create_node_clients(
     config: &SequencerNodeConfig,
     channels: &mut SequencerNodeCommunication,
 ) -> SequencerNodeClients {
-    let batcher_client: Option<SharedBatcherClient> = match config.components.batcher.execution_mode
-    {
-        ComponentExecutionMode::LocalExecutionWithRemoteDisabled
-        | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            Some(Arc::new(LocalBatcherClient::new(channels.take_batcher_tx())))
-        }
-        ComponentExecutionMode::Disabled => None,
-    };
-    let mempool_client: Option<SharedMempoolClient> = match config.components.mempool.execution_mode
-    {
-        ComponentExecutionMode::LocalExecutionWithRemoteDisabled
-        | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            Some(Arc::new(LocalMempoolClient::new(channels.take_mempool_tx())))
-        }
-        ComponentExecutionMode::Disabled => None,
-    };
-    let gateway_client: Option<SharedGatewayClient> = match config.components.gateway.execution_mode
-    {
-        ComponentExecutionMode::LocalExecutionWithRemoteDisabled
-        | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            Some(Arc::new(LocalGatewayClient::new(channels.take_gateway_tx())))
-        }
-        ComponentExecutionMode::Disabled => None,
-    };
-
-    let mempool_p2p_propagator_client: Option<SharedMempoolP2pPropagatorClient> =
-        match config.components.mempool.execution_mode {
-            ComponentExecutionMode::LocalExecutionWithRemoteDisabled
-            | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => Some(Arc::new(
-                LocalMempoolP2pPropagatorClient::new(channels.take_mempool_p2p_propagator_tx()),
-            )),
-            ComponentExecutionMode::Disabled => None,
-        };
+    let batcher_client: Option<Arc<SharedBatcherClient>> = create_component_client(
+        &config.components.batcher.execution_mode,
+        channels.take_batcher_tx(),
+    );
+    let mempool_client: Option<Arc<dyn MempoolClient>> = create_component_client(
+        &config.components.mempool.execution_mode,
+        channels.take_mempool_tx(),
+    );
+    let gateway_client: Option<Arc<LocalGatewayClient>> = create_component_client(
+        &config.components.gateway.execution_mode,
+        channels.take_gateway_tx(),
+    );
+    let mempool_p2p_propagator_client: Option<Arc<LocalMempoolP2pPropagatorClient>> =
+        create_component_client(
+            &config.components.mempool_p2p.execution_mode,
+            channels.take_mempool_p2p_propagator_tx(),
+        );
     SequencerNodeClients {
         batcher_client,
         mempool_client,
