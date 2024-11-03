@@ -1,5 +1,5 @@
 {
   "chain_id": "CHAIN_ID_SUBDIR",
   "http_server_config.ip": "127.0.0.1",
-  "http_server_config.port": 32881
+  "http_server_config.port": 38025
 }

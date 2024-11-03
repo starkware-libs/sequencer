@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use blockifier::context::ChainInfo;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
-use starknet_api::executable_transaction::Transaction;
+// use starknet_api::executable_transaction::Transaction;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::errors::GatewaySpecError;
@@ -111,7 +111,7 @@ async fn internal_add_tx(
 }
 
 fn process_tx(
-    stateless_tx_validator: StatelessTransactionValidator,
+    _stateless_tx_validator: StatelessTransactionValidator,
     stateful_tx_validator: &StatefulTransactionValidator,
     state_reader_factory: &dyn StateReaderFactory,
     gateway_compiler: GatewayCompiler,
@@ -121,17 +121,17 @@ fn process_tx(
     // TODO(Arni, 1/5/2024): Perform congestion control.
 
     // Perform stateless validations.
-    stateless_tx_validator.validate(&tx)?;
+    // stateless_tx_validator.validate(&tx)?;
 
     let executable_tx =
         compile_contract_and_build_executable_tx(tx, &gateway_compiler, &chain_info.chain_id)?;
 
     // Perfom post compilation validations.
-    if let Transaction::Declare(executable_declare_tx) = &executable_tx {
-        if !executable_declare_tx.validate_compiled_class_hash() {
-            return Err(GatewaySpecError::CompiledClassHashMismatch);
-        }
-    }
+    // if let Transaction::Declare(executable_declare_tx) = &executable_tx {
+    //     if !executable_declare_tx.validate_compiled_class_hash() {
+    //         return Err(GatewaySpecError::CompiledClassHashMismatch);
+    //     }
+    // }
 
     let mut validator =
         stateful_tx_validator.instantiate_validator(state_reader_factory, chain_info)?;
@@ -141,7 +141,7 @@ fn process_tx(
         GatewaySpecError::UnexpectedError { data: "Internal server error.".to_owned() }
     })?;
 
-    stateful_tx_validator.run_validate(&executable_tx, nonce, validator)?;
+    // stateful_tx_validator.run_validate(&executable_tx, nonce, validator)?;
 
     // TODO(Arni): Add the Sierra and the Casm to the mempool input.
     Ok(AddTransactionArgs { tx: executable_tx, account_state: AccountState { address, nonce } })

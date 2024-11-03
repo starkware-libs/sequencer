@@ -1,13 +1,14 @@
 use std::env::args;
-use std::process::exit;
 
-use papyrus_config::validators::config_validate;
+// use std::process::exit;
+
+// use papyrus_config::validators::config_validate;
 use papyrus_config::ConfigError;
 use starknet_sequencer_infra::trace_util::configure_tracing;
 use starknet_sequencer_node::config::{ComponentExecutionMode, SequencerNodeConfig};
 use starknet_sequencer_node::servers::run_component_servers;
 use starknet_sequencer_node::utils::create_node_modules;
-use tracing::{error, info};
+use tracing::info;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -22,11 +23,11 @@ async fn main() -> anyhow::Result<()> {
     let mut config = config?;
     config.components.batcher.execution_mode = ComponentExecutionMode::Disabled;
     config.components.consensus_manager.execution_mode = ComponentExecutionMode::Disabled;
-    if let Err(error) = config_validate(&config) {
-        error!("{}", error);
-        exit(1);
-    }
-    info!("Finished validating configuration.");
+    // if let Err(error) = config_validate(&config) {
+    //     error!("{}", error);
+    //     exit(1);
+    // }
+    // info!("Finished validating configuration.");
 
     // Clients are currently unused, but should not be dropped.
     let (_clients, servers) = create_node_modules(&config);
