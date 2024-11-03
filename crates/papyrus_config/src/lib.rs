@@ -7,7 +7,7 @@
 //! # Example
 //!
 //! ```
-//! use std::collections::BTreeMap;
+//! use std::collections::{BTreeMap, HashSet};
 //! use std::fs::File;
 //! use std::path::Path;
 //!
@@ -36,7 +36,7 @@
 //!
 //! let dir = TempDir::new().unwrap();
 //! let file_path = dir.path().join("config.json");
-//! ConfigExample { key: 42 }.dump_to_file(&vec![], file_path.to_str().unwrap());
+//! ConfigExample { key: 42 }.dump_to_file(&vec![], &HashSet::new(), file_path.to_str().unwrap());
 //! let file = File::open(file_path).unwrap();
 //! let loaded_config = load_and_process_config::<ConfigExample>(
 //!     file,

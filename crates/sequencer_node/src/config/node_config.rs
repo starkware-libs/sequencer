@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::fs::File;
 use std::path::Path;
 use std::sync::LazyLock;
@@ -8,12 +8,12 @@ use clap::Command;
 use papyrus_config::dumping::{
     append_sub_config_name,
     ser_pointer_target_required_param,
+    ConfigPointers,
     SerializeConfig,
 };
 use papyrus_config::loading::load_and_process_config;
 use papyrus_config::{ConfigError, ParamPath, SerializationType, SerializedParam};
 use serde::{Deserialize, Serialize};
-use starknet_api::core::ChainId;
 use starknet_batcher::config::BatcherConfig;
 use starknet_consensus_manager::config::ConsensusManagerConfig;
 use starknet_gateway::config::{GatewayConfig, RpcStateReaderConfig};
@@ -31,40 +31,65 @@ use crate::version::VERSION_FULL;
 pub const DEFAULT_CONFIG_PATH: &str = "config/mempool/default_config.json";
 
 // Configuration parameters that share the same value across multiple components.
-pub const DEFAULT_CHAIN_ID: ChainId = ChainId::Mainnet;
 
 // Required target parameters.
-pub static REQUIRED_PARAM_CONFIG_POINTERS: LazyLock<Vec<(ParamPath, SerializedParam)>> =
-    LazyLock::new(|| {
-        vec![
+pub static REQUIRED_PARAM_CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
+    vec![
+        (
             ser_pointer_target_required_param(
                 "chain_id",
                 SerializationType::String,
                 "The chain to follow.",
             ),
+            HashSet::from([
+                "batcher_config.block_builder_config.chain_info.chain_id".to_owned(),
+                "batcher_config.storage.db_config.chain_id".to_owned(),
+                "gateway_config.chain_info.chain_id".to_owned(),
+                "mempool_p2p_config.network_config.chain_id".to_owned(),
+            ]),
+        ),
+        (
             ser_pointer_target_required_param(
                 "eth_fee_token_address",
                 SerializationType::String,
                 "Address of the ETH fee token.",
             ),
+            HashSet::from([
+                "batcher_config.block_builder_config.chain_info.fee_token_addresses.\
+                 eth_fee_token_address"
+                    .to_owned(),
+                "gateway_config.chain_info.fee_token_addresses.eth_fee_token_address".to_owned(),
+            ]),
+        ),
+        (
             ser_pointer_target_required_param(
                 "strk_fee_token_address",
                 SerializationType::String,
                 "Address of the STRK fee token.",
             ),
-        ]
-    });
+            HashSet::from([
+                "batcher_config.block_builder_config.chain_info.fee_token_addresses.\
+                 strk_fee_token_address"
+                    .to_owned(),
+                "gateway_config.chain_info.fee_token_addresses.strk_fee_token_address".to_owned(),
+            ]),
+        ),
+    ]
+});
 
 // Optional target parameters, i.e., target parameters with default values.
-pub static DEFAULT_PARAM_CONFIG_POINTERS: LazyLock<Vec<(ParamPath, SerializedParam)>> =
-    LazyLock::new(Vec::new);
+pub static DEFAULT_PARAM_CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(Vec::new);
 
 // All target parameters.
-pub static CONFIG_POINTERS: LazyLock<Vec<(ParamPath, SerializedParam)>> = LazyLock::new(|| {
+pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
     let mut combined = REQUIRED_PARAM_CONFIG_POINTERS.clone();
     combined.extend(DEFAULT_PARAM_CONFIG_POINTERS.clone());
     combined
 });
+
+// Parameters that should 1) not be pointers, and 2) have a name matching a pointer target param.
+pub static CONFIG_NON_POINTERS_WHITELIST: LazyLock<HashSet<ParamPath>> =
+    LazyLock::new(HashSet::<ParamPath>::new);
 
 // TODO(yair): Make the GW and batcher execution config point to the same values.
 /// The configurations of the various components of the node.
