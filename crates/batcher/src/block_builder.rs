@@ -145,10 +145,10 @@ impl BlockBuilderTrait for BlockBuilder {
         tx_provider: Box<dyn TransactionProvider>,
         output_content_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
     ) -> BlockBuilderResult<BlockExecutionArtifacts> {
-        let mut should_close_block = false;
+        let mut block_is_full = false;
         let mut execution_infos = IndexMap::new();
         // TODO(yael 6/10/2024): delete the timeout condition once the executor has a timeout
-        while !should_close_block && tokio::time::Instant::now() < deadline {
+        while !block_is_full && tokio::time::Instant::now() < deadline {
             let next_tx_chunk = tx_provider.get_txs(self.tx_chunk_size).await?;
             debug!("Got {} transactions from the transaction provider.", next_tx_chunk.len());
             if next_tx_chunk.is_empty() {
@@ -164,7 +164,7 @@ impl BlockBuilderTrait for BlockBuilder {
             }
             let results = self.executor.lock().await.add_txs_to_block(&executor_input_chunk);
             trace!("Transaction execution results: {:?}", results);
-            should_close_block = collect_execution_results_and_stream_txs(
+            block_is_full = collect_execution_results_and_stream_txs(
                 next_tx_chunk,
                 results,
                 &mut execution_infos,
