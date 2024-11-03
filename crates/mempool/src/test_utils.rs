@@ -222,7 +222,7 @@ pub fn commit_block(
     );
     let tx_hashes =
         HashSet::from_iter(tx_hashes.into_iter().map(|tx_hash| TransactionHash(felt!(tx_hash))));
-    let args = CommitBlockArgs { nonces, tx_hashes };
+    let args = CommitBlockArgs { address_to_nonce: nonces, tx_hashes };
 
     assert_eq!(mempool.commit_block(args), Ok(()));
 }
