@@ -125,6 +125,16 @@ fn deserialize_declare_txs(
     }
 }
 
+#[test]
+fn deserialize_l1_handler_tx() {
+    let l1_handler_tx = deserialize_transaction_json_to_starknet_api_tx(
+        read_json_file("raw_rpc_json_objects/transactions.json")["l1_handler"].clone(),
+    )
+    .expect("Failed to deserialize l1 handler tx");
+
+    assert_matches!(l1_handler_tx, Transaction::L1Handler(..));
+}
+
 #[rstest]
 fn serialize_state_maps() {
     let nonces = HashMap::from([(contract_address!(1_u8), nonce!(1_u8))]);
