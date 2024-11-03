@@ -1,7 +1,9 @@
 use blockifier_reexecution::assert_eq_state_diff;
+use blockifier_reexecution::state_reader::reexecution_state_reader::ReexecutionStateReader;
 use blockifier_reexecution::state_reader::test_state_reader::{
     ConsecutiveStateReaders,
     ConsecutiveTestStateReaders,
+    SerializableOfflineReexecutionData,
 };
 use blockifier_reexecution::state_reader::utils::JSON_RPC_VERSION;
 use clap::{Args, Parser, Subcommand};
@@ -95,6 +97,67 @@ fn main() {
             assert_eq_state_diff!(expected_state_diff, actual_state_diff);
             println!("RPC test passed successfully.");
         }
-        Command::WriteRpcRepliesToJson { .. } => todo!(),
+
+        Command::WriteRpcRepliesToJson {
+            url_and_block_number: SharedArgs { node_url, block_number },
+            directory_path,
+        } => {
+            let directory_path = directory_path.unwrap_or(format!(
+                "./crates/blockifier_reexecution/resources/block_{block_number}/"
+            ));
+
+            // TODO(Aner): refactor to reduce code duplication.
+            let config = RpcStateReaderConfig {
+                url: node_url,
+                json_rpc_version: JSON_RPC_VERSION.to_string(),
+            };
+
+            let ConsecutiveTestStateReaders { last_block_state_reader, next_block_state_reader } =
+                ConsecutiveTestStateReaders::new(BlockNumber(block_number - 1), Some(config), true);
+
+            let block_info_next_block = next_block_state_reader.get_block_info().unwrap();
+
+            let starknet_version = next_block_state_reader.get_starknet_version().unwrap();
+
+            let state_diff_next_block = next_block_state_reader.get_state_diff().unwrap();
+
+            let transactions_next_block = next_block_state_reader.get_all_txs_in_block().unwrap();
+
+            let blockifier_transactions_next_block = &last_block_state_reader
+                .api_txs_to_blockifier_txs_next_block(transactions_next_block.clone())
+                .unwrap();
+
+            let mut transaction_executor = last_block_state_reader
+                .get_transaction_executor(
+                    next_block_state_reader.get_block_context().unwrap(),
+                    None,
+                )
+                .unwrap();
+
+            transaction_executor.execute_txs(blockifier_transactions_next_block);
+
+            let block_state = transaction_executor.block_state.unwrap();
+            let initial_reads = block_state.get_initial_reads().unwrap();
+
+            let contract_class_mapping =
+                block_state.state.get_contract_class_mapping_dumper().unwrap();
+
+            let serializable_offline_reexecution_data = SerializableOfflineReexecutionData {
+                state_maps: initial_reads.into(),
+                block_info_next_block,
+                starknet_version,
+                transactions_next_block,
+                contract_class_mapping,
+                state_diff_next_block,
+            };
+
+            serializable_offline_reexecution_data
+                .write_to_file(&directory_path, "reexecution_data.json")
+                .unwrap();
+
+            println!(
+                "RPC replies required for reexecuting block {block_number} written to json file."
+            );
+        }
     }
 }

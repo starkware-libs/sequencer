@@ -50,7 +50,7 @@ pub(crate) fn disjoint_hashmap_union<K: std::hash::Hash + std::cmp::Eq, V>(
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct ReexecutionStateMaps {
+pub struct ReexecutionStateMaps {
     nonces: HashMap<ContractAddress, Nonce>,
     class_hashes: HashMap<ContractAddress, ClassHash>,
     storage: HashMap<ContractAddress, HashMap<StorageKey, Felt>>,
