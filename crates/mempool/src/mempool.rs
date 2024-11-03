@@ -109,18 +109,20 @@ impl Mempool {
     )]
     pub fn add_tx(&mut self, args: AddTransactionArgs) -> MempoolResult<()> {
         let AddTransactionArgs { tx, account_state } = args;
-        self.validate_incoming_tx_nonce(tx.contract_address(), tx.nonce())?;
+        let tx_ref = TransactionReference::new(&tx);
+        self.validate_incoming_tx_nonce(tx_ref.address, tx_ref.nonce)?;
 
         self.handle_fee_escalation(&tx)?;
         self.tx_pool.insert(tx)?;
 
         // Align to account nonce, only if it is at least the one stored.
         let AccountState { address, nonce: incoming_account_nonce } = account_state;
-        match self.account_nonces.get(&address) {
-            Some(stored_account_nonce) if &incoming_account_nonce < stored_account_nonce => {}
-            _ => {
-                self.align_to_account_state(account_state);
-            }
+        // TODO(Elin): abstract mempool nonces.
+        let mempool_account_nonce = self.mempool_state.get(&address).unwrap_or_else(|| {
+            self.account_nonces.entry(address).or_insert(incoming_account_nonce)
+        });
+        if tx_ref.nonce == *mempool_account_nonce {
+            self.tx_queue.insert(tx_ref);
         }
 
         Ok(())
