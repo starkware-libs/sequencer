@@ -59,6 +59,7 @@ pub enum GetProposalContent {
 pub struct ValidateProposalInput {
     pub proposal_id: ProposalId,
     pub deadline: chrono::DateTime<Utc>,
+    pub retrospective_block_hash: Option<BlockHashAndNumber>,
 }
 
 impl BuildProposalInput {

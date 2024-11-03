@@ -35,7 +35,12 @@ impl ComponentRequestHandler<BatcherRequest, BatcherResponse> for Batcher {
             BatcherRequest::DecisionReached(input) => {
                 BatcherResponse::DecisionReached(self.decision_reached(input).await)
             }
-            _ => unimplemented!(),
+            BatcherRequest::ValidateProposal(input) => {
+                BatcherResponse::ValidateProposal(self.validate_proposal(input).await)
+            }
+            BatcherRequest::SendProposalContent(input) => {
+                BatcherResponse::SendProposalContent(self.send_proposal_content(input).await)
+            }
         }
     }
 }
