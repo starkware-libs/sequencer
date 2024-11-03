@@ -4,6 +4,7 @@ use std::io::{BufWriter, Write};
 use std::mem::discriminant;
 use std::ops::IndexMut;
 use std::path::{Path, PathBuf};
+use std::sync::LazyLock;
 use std::time::Duration;
 use std::{env, fs, io};
 
@@ -41,13 +42,12 @@ use validator::Validate;
 
 use crate::version::VERSION_FULL;
 
-// TODO(Tsabary): There's a formatter issue with the `lazy_static` macro. Fix it.
-lazy_static! {
-    /// Returns vector of (pointer target name, pointer target serialized param, vec<pointer param path>)
-    /// to be applied on the dumped node config.
-    /// The config updates will be performed on the shared pointer targets, and finally, the values
-    /// will be propagated to the pointer params.
-    pub static ref CONFIG_POINTERS: ConfigPointers = vec![
+/// Returns vector of (pointer target name, pointer target serialized param, vec<pointer param
+/// path>) to be applied on the dumped node config.
+/// The config updates will be performed on the shared pointer targets, and finally, the values
+/// will be propagated to the pointer params.
+pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
+    vec![
         (
             ser_pointer_target_param(
                 "chain_id",
@@ -83,9 +83,10 @@ lazy_static! {
                 "monitoring_gateway.collect_metrics".to_owned(),
             ])
         ),
-    ];
+    ]
+});
 
-    /// Parameters that should 1) not be pointers, and 2) have a name matching a pointer target
-    /// param. Used in verification.
-    pub static ref CONFIG_NON_POINTERS_WHITELIST: HashSet<ParamPath> = HashSet::<ParamPath>::new();
-}
+/// Parameters that should 1) not be pointers, and 2) have a name matching a pointer target
+/// param. Used in verification.
+pub static CONFIG_NON_POINTERS_WHITELIST: LazyLock<HashSet<ParamPath>> =
+    LazyLock::new(HashSet::<ParamPath>::new);
