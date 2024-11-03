@@ -15,7 +15,6 @@ members = [
   "crates/http_server",
   "crates/l1-provider",
   "crates/mempool",
-  "crates/mempool_infra",
   "crates/mempool_p2p",
   "crates/mempool_p2p_types",
   "crates/mempool_test_utils",
@@ -38,6 +37,7 @@ members = [
   "crates/papyrus_storage",
   "crates/papyrus_sync",
   "crates/papyrus_test_utils",
+  "crates/sequencer_infra",
   "crates/sequencer_node",
   "crates/sequencing/papyrus_consensus",
   "crates/sequencing/papyrus_consensus_orchestrator",
@@ -217,7 +217,7 @@ starknet_mempool_p2p_types = { path = "crates/mempool_p2p_types", version = "0.0
 starknet_mempool_types = { path = "crates/mempool_types", version = "0.0.0" }
 starknet_monitoring_endpoint = { path = "crates/monitoring_endpoint", version = "0.0.0" }
 starknet_patricia = { path = "crates/starknet_patricia", version = "0.0.0" }
-starknet_sequencer_infra = { path = "crates/mempool_infra", version = "0.0.0" }
+starknet_sequencer_infra = { path = "crates/sequencer_infra", version = "0.0.0" }
 starknet_sequencer_node = { path = "crates/sequencer_node", version = "0.0.0" }
 starknet_sierra_compile = { path = "crates/starknet_sierra_compile", version = "0.0.0" }
 starknet_task_executor = { path = "crates/task_executor", version = "0.0.0" }
