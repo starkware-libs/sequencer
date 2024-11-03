@@ -5,6 +5,7 @@ use crate::core::{calculate_contract_address, ChainId, ClassHash, ContractAddres
 use crate::data_availability::DataAvailabilityMode;
 use crate::rpc_transaction::{
     RpcDeployAccountTransaction,
+    RpcDeployAccountTransactionV3,
     RpcInvokeTransaction,
     RpcInvokeTransactionV3,
     RpcTransaction,
@@ -15,6 +16,7 @@ use crate::transaction::{
     Calldata,
     ContractAddressSalt,
     PaymasterData,
+    ResourceBounds,
     Tip,
     TransactionHash,
     TransactionHasher,
@@ -140,26 +142,49 @@ impl Transaction {
     }
 }
 
-// TODO: replace with proper implementation.
-impl From<Transaction> for RpcTransaction {
-    fn from(tx: Transaction) -> Self {
-        Self::Invoke(RpcInvokeTransaction::V3(RpcInvokeTransactionV3 {
-            sender_address: tx.contract_address(),
-            tip: tx.tip().unwrap_or_default(),
-            nonce: Nonce::default(),
+// TODO: add a converter for Declare transactions as well.
+
+impl From<InvokeTransaction> for RpcInvokeTransactionV3 {
+    fn from(tx: InvokeTransaction) -> Self {
+        Self {
+            sender_address: tx.sender_address(),
+            tip: tx.tip(),
+            nonce: tx.nonce(),
             resource_bounds: match tx.resource_bounds() {
-                Some(ValidResourceBounds::AllResources(all_resource_bounds)) => {
-                    *all_resource_bounds
+                ValidResourceBounds::AllResources(all_resource_bounds) => all_resource_bounds,
+                ValidResourceBounds::L1Gas(l1_gas) => {
+                    AllResourceBounds { l1_gas, ..Default::default() }
                 }
-                _ => AllResourceBounds::default(),
             },
-            signature: TransactionSignature::default(),
-            calldata: Calldata::default(),
-            nonce_data_availability_mode: DataAvailabilityMode::L1,
-            fee_data_availability_mode: DataAvailabilityMode::L1,
-            paymaster_data: PaymasterData::default(),
-            account_deployment_data: AccountDeploymentData::default(),
-        }))
+            signature: tx.signature(),
+            calldata: tx.calldata(),
+            nonce_data_availability_mode: tx.nonce_data_availability_mode(),
+            fee_data_availability_mode: tx.fee_data_availability_mode(),
+            paymaster_data: tx.paymaster_data(),
+            account_deployment_data: tx.account_deployment_data(),
+        }
+    }
+}
+
+impl From<DeployAccountTransaction> for RpcDeployAccountTransactionV3 {
+    fn from(tx: DeployAccountTransaction) -> Self {
+        Self {
+            class_hash: tx.class_hash(),
+            constructor_calldata: tx.constructor_calldata(),
+            contract_address_salt: tx.contract_address_salt(),
+            nonce: tx.nonce(),
+            signature: tx.signature(),
+            resource_bounds: match tx.resource_bounds() {
+                ValidResourceBounds::AllResources(all_resource_bounds) => all_resource_bounds,
+                ValidResourceBounds::L1Gas(l1_gas) => {
+                    AllResourceBounds { l1_gas, ..Default::default() }
+                }
+            },
+            tip: tx.tip(),
+            nonce_data_availability_mode: tx.nonce_data_availability_mode(),
+            fee_data_availability_mode: tx.fee_data_availability_mode(),
+            paymaster_data: tx.paymaster_data(),
+        }
     }
 }
 
