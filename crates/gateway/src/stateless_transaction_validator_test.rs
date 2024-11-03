@@ -12,7 +12,7 @@ use mempool_test_utils::starknet_api_test_utils::{
     NON_EMPTY_RESOURCE_BOUNDS,
 };
 use rstest::rstest;
-use starknet_api::core::EntryPointSelector;
+use starknet_api::core::{ContractAddress, EntryPointSelector};
 use starknet_api::rpc_transaction::{ContractClass, EntryPointByType};
 use starknet_api::state::EntryPoint;
 use starknet_api::transaction::{
@@ -21,7 +21,7 @@ use starknet_api::transaction::{
     ResourceBounds,
     TransactionSignature,
 };
-use starknet_api::{calldata, felt};
+use starknet_api::{calldata, contract_address, felt, StarknetApiError};
 use starknet_types_core::felt::Felt;
 
 use crate::compiler_version::{VersionId, VersionIdError};
@@ -116,6 +116,22 @@ static DEFAULT_RPC_TRANSACTION_ARGS: LazyLock<RpcTransactionArgs> =
     }
 )]
 #[case::valid_tx(DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone(), DEFAULT_RPC_TRANSACTION_ARGS.clone())]
+#[case::contract_address_2(
+    DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone(),
+    RpcTransactionArgs {
+        sender_address: contract_address!(2_u32),
+        ..DEFAULT_RPC_TRANSACTION_ARGS.clone()
+    }
+)]
+#[case::contract_address_domain_size_minus_257(
+    DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone(),
+    RpcTransactionArgs {
+        sender_address: contract_address!(
+            "7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFF"
+        ),
+        ..DEFAULT_RPC_TRANSACTION_ARGS.clone()
+    }
+)]
 fn test_positive_flow(
     #[case] config: StatelessTransactionValidatorConfig,
     #[case] mut rpc_tx_args: RpcTransactionArgs,
@@ -295,6 +311,7 @@ fn test_declare_sierra_version_failure(
         StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone() };
 
     let contract_class = ContractClass { sierra_program, ..Default::default() };
+    // TODO(Arni): Simplify the calls for rpc_declare_tx.
     let tx = rpc_declare_tx(declare_tx_args!(contract_class));
 
     assert_eq!(tx_validator.validate(&tx).unwrap_err(), expected_error);
@@ -431,4 +448,29 @@ fn test_declare_entry_points_not_sorted_by_selector(
     let tx = rpc_declare_tx(declare_tx_args!(contract_class));
 
     assert_eq!(tx_validator.validate(&tx), expected);
+}
+
+#[rstest]
+#[case::contract_address_0(contract_address!(0_u32))]
+#[case::contract_address_1(contract_address!(1_u32))]
+#[case::contract_address_upper_bound(
+    contract_address!("7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00")
+)]
+fn test_invalid_contract_address(
+    #[case] sender_address: ContractAddress,
+    #[values(TransactionType::Declare, TransactionType::Invoke)] tx_type: TransactionType,
+) {
+    let tx = rpc_tx_for_testing(RpcTransactionArgs {
+        tx_type,
+        sender_address,
+        ..DEFAULT_RPC_TRANSACTION_ARGS.clone()
+    });
+
+    let tx_validator =
+        StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone() };
+
+    assert_matches!(
+        tx_validator.validate(&tx).unwrap_err(),
+        StatelessTransactionValidatorError::StarknetApiError(StarknetApiError::OutOfRange { .. })
+    )
 }

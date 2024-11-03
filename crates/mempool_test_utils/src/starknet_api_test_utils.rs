@@ -67,6 +67,7 @@ pub enum TransactionType {
 #[derive(Clone)]
 pub struct RpcTransactionArgs {
     pub tx_type: TransactionType,
+    pub sender_address: ContractAddress,
     pub resource_bounds: AllResourceBounds,
     pub calldata: Calldata,
     pub signature: TransactionSignature,
@@ -76,6 +77,7 @@ impl Default for RpcTransactionArgs {
     fn default() -> Self {
         Self {
             tx_type: TransactionType::Invoke,
+            sender_address: TEST_SENDER_ADDRESS.into(),
             resource_bounds: Default::default(),
             calldata: Default::default(),
             signature: Default::default(),
@@ -84,7 +86,8 @@ impl Default for RpcTransactionArgs {
 }
 
 pub fn rpc_tx_for_testing(rpc_tx_args: RpcTransactionArgs) -> RpcTransaction {
-    let RpcTransactionArgs { tx_type, resource_bounds, calldata, signature } = rpc_tx_args;
+    let RpcTransactionArgs { tx_type, sender_address, resource_bounds, calldata, signature } =
+        rpc_tx_args;
     match tx_type {
         TransactionType::Declare => {
             // Minimal contract class.
@@ -103,9 +106,9 @@ pub fn rpc_tx_for_testing(rpc_tx_args: RpcTransactionArgs) -> RpcTransaction {
             };
             rpc_declare_tx(declare_tx_args!(
                 signature,
-                sender_address: TEST_SENDER_ADDRESS.into(),
+                sender_address,
                 resource_bounds,
-                contract_class,
+                contract_class
             ))
         }
         TransactionType::DeployAccount => rpc_deploy_account_tx(deploy_account_tx_args!(
@@ -115,7 +118,7 @@ pub fn rpc_tx_for_testing(rpc_tx_args: RpcTransactionArgs) -> RpcTransaction {
         )),
         TransactionType::Invoke => rpc_invoke_tx(invoke_tx_args!(
             signature,
-            sender_address: TEST_SENDER_ADDRESS.into(),
+            sender_address,
             calldata,
             resource_bounds: ValidResourceBounds::AllResources(resource_bounds),
         )),
