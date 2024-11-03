@@ -7,6 +7,7 @@ use starknet_api::block::{BlockNumber, BlockTimestamp, NonzeroGasPrice};
 use starknet_api::contract_address;
 use starknet_api::core::{ChainId, ClassHash};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
+use starknet_api::test_utils::invoke::InvokeTxArgs;
 
 use super::update_json_value;
 use crate::blockifier::block::{BlockInfo, GasPrices};
@@ -33,7 +34,12 @@ use crate::test_utils::{
     TEST_ERC20_CONTRACT_ADDRESS2,
     TEST_SEQUENCER_ADDRESS,
 };
-use crate::transaction::objects::{DeprecatedTransactionInfo, TransactionInfo};
+use crate::transaction::objects::{
+    DeprecatedTransactionInfo,
+    TransactionInfo,
+    TransactionInfoCreator,
+};
+use crate::transaction::test_utils::account_invoke_tx;
 use crate::versioned_constants::{
     GasCosts,
     OsConstants,
@@ -45,11 +51,14 @@ impl CallEntryPoint {
     /// Executes the call directly, without account context. Limits the number of steps by resource
     /// bounds.
     pub fn execute_directly(self, state: &mut dyn State) -> EntryPointExecutionResult<CallInfo> {
-        let limit_steps_by_resources = false; // Do not limit steps by resources as we use default reasources.
+        // Do not limit steps by resources as we use default resources.
+        let limit_steps_by_resources = false;
+        let default_invoke_tx = account_invoke_tx(InvokeTxArgs::default());
+        let tx_info = default_invoke_tx.create_tx_info();
+        assert!(matches!(tx_info, TransactionInfo::Current(_)));
         self.execute_directly_given_tx_info(
             state,
-            // TODO(Yoni, 1/12/2024): change the default to V3.
-            TransactionInfo::Deprecated(DeprecatedTransactionInfo::default()),
+            tx_info,
             limit_steps_by_resources,
             ExecutionMode::Execute,
         )
