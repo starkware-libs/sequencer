@@ -102,8 +102,7 @@ impl MempoolContentBuilder {
     }
 
     fn with_fee_escalation_percentage(mut self, fee_escalation_percentage: u8) -> Self {
-        self.config.enable_fee_escalation = true;
-        self.config.fee_escalation_percentage = fee_escalation_percentage;
+        self.config = MempoolConfig { enable_fee_escalation: true, fee_escalation_percentage };
         self
     }
 
