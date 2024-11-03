@@ -86,7 +86,7 @@ fn test_add_same_nonce_tx_after_previous_not_included_in_block(mut mempool: Memp
         &[tx_nonce_3_account_nonce_3.tx, tx_nonce_4_account_nonce_3.tx.clone()],
     );
 
-    let nonces = [("0x0", 3)]; // Transaction with nonce 4 is not included in the block.
+    let nonces = [("0x0", 4)]; // Transaction with nonce 3 was included, 4 was not.
     let tx_hashes = [1];
     commit_block(&mut mempool, nonces, tx_hashes);
 
@@ -126,28 +126,33 @@ fn test_add_tx_handles_nonces_correctly(mut mempool: Mempool) {
 #[rstest]
 fn test_commit_block_includes_proposed_txs_subset(mut mempool: Mempool) {
     // Setup.
+    let tx_address_0_nonce_1 =
+        add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 1, account_nonce: 1);
     let tx_address_0_nonce_3 =
-        add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 3, account_nonce: 3);
-    let tx_address_0_nonce_5 =
-        add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 5, account_nonce: 3);
-    let tx_address_0_nonce_6 =
-        add_tx_input!(tx_hash: 3, address: "0x0", tx_nonce: 6, account_nonce: 3);
-    let tx_address_1_nonce_0 =
-        add_tx_input!(tx_hash: 4, address: "0x1", tx_nonce: 0, account_nonce: 0);
-    let tx_address_1_nonce_1 =
-        add_tx_input!(tx_hash: 5, address: "0x1", tx_nonce: 1, account_nonce: 0);
+        add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 3, account_nonce: 1);
+    let tx_address_0_nonce_4 =
+        add_tx_input!(tx_hash: 3, address: "0x0", tx_nonce: 4, account_nonce: 1);
+
     let tx_address_1_nonce_2 =
-        add_tx_input!(tx_hash: 6, address: "0x1", tx_nonce: 2, account_nonce: 0);
+        add_tx_input!(tx_hash: 4, address: "0x1", tx_nonce: 2, account_nonce: 2);
+    let tx_address_1_nonce_3 =
+        add_tx_input!(tx_hash: 5, address: "0x1", tx_nonce: 3, account_nonce: 2);
+    let tx_address_1_nonce_4 =
+        add_tx_input!(tx_hash: 6, address: "0x1", tx_nonce: 4, account_nonce: 2);
+
+    let tx_address_2_nonce_1 =
+        add_tx_input!(tx_hash: 7, address: "0x2", tx_nonce: 1, account_nonce: 1);
     let tx_address_2_nonce_2 =
-        add_tx_input!(tx_hash: 7, address: "0x2", tx_nonce: 2, account_nonce: 2);
+        add_tx_input!(tx_hash: 8, address: "0x2", tx_nonce: 2, account_nonce: 1);
 
     for input in [
-        &tx_address_0_nonce_5,
-        &tx_address_0_nonce_6,
         &tx_address_0_nonce_3,
+        &tx_address_0_nonce_4,
+        &tx_address_0_nonce_1,
+        &tx_address_1_nonce_4,
+        &tx_address_1_nonce_3,
         &tx_address_1_nonce_2,
-        &tx_address_1_nonce_1,
-        &tx_address_1_nonce_0,
+        &tx_address_2_nonce_1,
         &tx_address_2_nonce_2,
     ] {
         add_tx(&mut mempool, input);
@@ -157,23 +162,28 @@ fn test_commit_block_includes_proposed_txs_subset(mut mempool: Mempool) {
     get_txs_and_assert_expected(
         &mut mempool,
         2,
-        &[tx_address_2_nonce_2.tx.clone(), tx_address_1_nonce_0.tx],
+        &[tx_address_2_nonce_1.tx.clone(), tx_address_1_nonce_2.tx],
     );
     get_txs_and_assert_expected(
         &mut mempool,
-        2,
-        &[tx_address_1_nonce_1.tx.clone(), tx_address_0_nonce_3.tx],
+        4,
+        &[
+            tx_address_2_nonce_2.tx,
+            tx_address_1_nonce_3.tx.clone(),
+            tx_address_0_nonce_1.tx,
+            tx_address_1_nonce_4.tx.clone(),
+        ],
     );
 
-    // Not included in block: address "0x2" nonce 2, address "0x1" nonce 2.
-    let nonces = [("0x0", 3), ("0x1", 1)];
+    // Address 0x0 stays as proposed, address 0x1 rewinds nonce 4, address 0x2 rewinds completely.
+    let nonces = [("0x0", 2), ("0x1", 4)];
     let tx_hashes = [1, 4];
     commit_block(&mut mempool, nonces, tx_hashes);
 
     get_txs_and_assert_expected(
         &mut mempool,
         2,
-        &[tx_address_2_nonce_2.tx, tx_address_1_nonce_2.tx],
+        &[tx_address_2_nonce_1.tx, tx_address_1_nonce_4.tx],
     );
 }
 
@@ -192,7 +202,7 @@ fn test_commit_block_fills_nonce_gap(mut mempool: Mempool) {
 
     get_txs_and_assert_expected(&mut mempool, 2, &[tx_nonce_3_account_nonce_3.tx]);
 
-    let nonces = [("0x0", 4)];
+    let nonces = [("0x0", 5)];
     let tx_hashes = [1, 3];
     commit_block(&mut mempool, nonces, tx_hashes);
 
@@ -226,7 +236,7 @@ fn test_flow_commit_block_rewinds_queued_nonce(mut mempool: Mempool) {
     );
 
     // Test.
-    let nonces = [("0x0", 2)];
+    let nonces = [("0x0", 3)];
     let tx_hashes = [1];
     // Nonce 2 was accepted, but 3 and 4 were not, so are rewound.
     commit_block(&mut mempool, nonces, tx_hashes);
@@ -249,7 +259,7 @@ fn test_flow_commit_block_from_different_leader(mut mempool: Mempool) {
     }
 
     // Test.
-    let nonces = [("0x0", 3), ("0x1", 2)];
+    let nonces = [("0x0", 4), ("0x1", 2)];
     let tx_hashes = [
         1,  // Address 0: known hash accepted for nonce 2.
         99, // Address 0: unknown hash accepted for nonce 3.

@@ -498,7 +498,7 @@ fn test_commit_block_includes_all_proposed_txs() {
         .build_into_mempool();
 
     // Test.
-    let nonces = [("0x0", 3), ("0x1", 2)];
+    let nonces = [("0x0", 4), ("0x1", 3)];
     let tx_hashes = [1, 4];
     commit_block(&mut mempool, nonces, tx_hashes);
 
