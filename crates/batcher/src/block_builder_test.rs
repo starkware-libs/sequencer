@@ -13,7 +13,7 @@ use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 use crate::block_builder::{BlockBuilder, BlockBuilderTrait, BlockExecutionArtifacts};
 use crate::test_utils::test_txs;
-use crate::transaction_dispatcher::MockTransactionDispatcher;
+use crate::transaction_dispatcher::{MockTransactionDispatcher, TransactionEvent};
 use crate::transaction_executor::MockTransactionExecutorTrait;
 
 const BLOCK_GENERATION_DEADLINE_SECS: u64 = 1;
@@ -144,6 +144,26 @@ fn test_expectations_with_delay(
     (mock_transaction_executor, mock_tx_dispatcher, expected_block_artifacts)
 }
 
+fn finish_event_test_expectations(
+    input_txs: &[Transaction],
+) -> (MockTransactionExecutorTrait, MockTransactionDispatcher, BlockExecutionArtifacts) {
+    let block_size = input_txs.len();
+    let input_txs_cloned = input_txs.to_vec();
+    let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
+
+    mock_transaction_executor
+        .expect_add_txs_to_block()
+        .withf(move |blockifier_input| compare_tx_hashes(&input_txs_cloned, blockifier_input))
+        .return_once(move |_| (0..block_size).map(|_| Ok(execution_info())).collect());
+
+    let expected_block_artifacts =
+        set_close_block_expectations(&mut mock_transaction_executor, block_size);
+
+    let mock_tx_dispatcher = mock_tx_dispatcher_finish_event(input_txs.to_vec());
+
+    (mock_transaction_executor, mock_tx_dispatcher, expected_block_artifacts)
+}
+
 // Fill the executor outputs with some non-default values to make sure the block_builder uses
 // them.
 fn block_builder_expected_output(execution_info_len: usize) -> BlockExecutionArtifacts {
@@ -176,11 +196,21 @@ fn mock_tx_dispatcher_limited_calls(
     mut input_chunks: Vec<Vec<Transaction>>,
 ) -> MockTransactionDispatcher {
     let mut mock_tx_dispatcher = MockTransactionDispatcher::new();
+    mock_tx_dispatcher.expect_get_txs().times(n_calls).with(eq(TX_CHUNK_SIZE)).returning(
+        move |_n_txs| {
+            Ok(input_chunks.remove(0).into_iter().map(TransactionEvent::Transaction).collect())
+        },
+    );
     mock_tx_dispatcher
-        .expect_get_txs()
-        .times(n_calls)
-        .with(eq(TX_CHUNK_SIZE))
-        .returning(move |_n_txs| Ok(input_chunks.remove(0)));
+}
+
+fn mock_tx_dispatcher_finish_event(input_chunk: Vec<Transaction>) -> MockTransactionDispatcher {
+    let mut tx_events: Vec<TransactionEvent> =
+        input_chunk.into_iter().map(TransactionEvent::Transaction).collect();
+    tx_events.push(TransactionEvent::Finish);
+
+    let mut mock_tx_dispatcher = MockTransactionDispatcher::new();
+    mock_tx_dispatcher.expect_get_txs().return_once(move |_n_txs| Ok(tx_events));
     mock_tx_dispatcher
 }
 
@@ -247,6 +277,7 @@ async fn run_build_block(
 #[case::empty_block(0, vec![], empty_block_test_expectations())]
 #[case::block_full(1, test_txs(0..3), block_full_test_expectations(&input_txs, expected_block_size))]
 #[case::deadline_reached_after_first_chunk(3, test_txs(0..6), test_expectations_with_delay(&input_txs))]
+#[case::finish_event(2, test_txs(0..2), finish_event_test_expectations(&input_txs))]
 #[tokio::test]
 async fn test_build_block(
     #[case] expected_block_size: usize,
