@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 
-from constructs import Construct
-from cdk8s import App, Chart
+from constructs import Construct # type: ignore
+from cdk8s import App, Chart # type: ignore
 from typing import Dict, Any
 from services.service import Service
 import dataclasses
 
 from config.sequencer import Config, SequencerDevConfig
+
+from services.objects import Probe, HealthCheck
 
 
 @dataclasses.dataclass
@@ -15,10 +17,31 @@ class SystemStructure:
     replicas: str = "2"
     size: str = "small"
     config: Config = SequencerDevConfig()
+    startup_probe: Probe = Probe(
+        port="http",
+        path="/",
+        period_seconds=5,
+        failure_threshold=5,
+        timeout_seconds=10
+    ),
+    readiness_probe: Probe = Probe(
+        port="http",
+        path="/",
+        period_seconds=5,
+        failure_threshold=5,
+        timeout_seconds=10
+    ),
+    liveness_probe: Probe = Probe(
+        port="http",
+        path="/",
+        period_seconds=5,
+        failure_threshold=5,
+        timeout_seconds=10
+    )
+
 
     def __post_init__(self):
         self.config.validate()
-
 
 class SequencerSystem(Chart):
     def __init__(
@@ -37,17 +60,27 @@ class SequencerSystem(Chart):
             image="paulbouwer/hello-kubernetes:1.7",
             replicas=2,
             config=system_structure.config.get(),
-            probe_path=""
+            health_check=HealthCheck(
+                startup_probe=system_structure.startup_probe,
+                readiness_probe=system_structure.readiness_probe,
+                liveness_probe=system_structure.liveness_probe
+            )
         )
-        self.batcher = Service(self, "batcher", image="ghost", container_port=2368)
+        self.batcher = Service(self, "batcher", image="ghost", container_port=2368, health_check=HealthCheck(
+                startup_probe=system_structure.startup_probe,
+                readiness_probe=system_structure.readiness_probe,
+                liveness_probe=system_structure.liveness_probe
+            ))
         self.sequencer_node = Service(
             self, 
-            "sequencer", 
+            "sequencer-node", 
             image="", 
-            container_port=8082, 
-            startup_probe_path="/monitoring/nodeVersion", 
-            readiness_probe_path="/monitoring/ready", 
-            liveness_probe_path="/monitoring/alive"
+            container_port=8082,
+            health_check=HealthCheck(
+                startup_probe=system_structure.startup_probe,
+                readiness_probe=system_structure.readiness_probe,
+                liveness_probe=system_structure.liveness_probe
+            )
         )
 
 

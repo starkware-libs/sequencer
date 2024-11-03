@@ -1,10 +1,14 @@
 import json
+import dataclasses
+
 
 from typing import Optional, Dict, Union
 from constructs import Construct
 from cdk8s import Names
 
 from imports import k8s
+
+from services.objects import HealthCheck
 
 class Service(Construct):
     def __init__(
@@ -17,10 +21,7 @@ class Service(Construct):
         port: Optional[int] = 80,
         container_port: int = 8082,
         config: Optional[Dict[str, str]] = None,
-        startup_probe_path: Optional[str] = "/",
-        readiness_probe_path: Optional[str] = "/",
-        liveness_probe_path: Optional[str] = "/"
-        
+        health_check: HealthCheck,
     ):
         super().__init__(scope, id)
 
@@ -64,18 +65,9 @@ class Service(Construct):
                                 ports=[
                                     k8s.ContainerPort(container_port=container_port)
                                 ],
-                                startup_probe=k8s.Probe(
-                                    http_get=k8s.HttpGetAction(port=k8s.IntOrString.from_string('http'), path=startup_probe_path),
-                                    period_seconds=10, failure_threshold=12, timeout_seconds=5
-                                ),
-                                readiness_probe=k8s.Probe(
-                                    http_get=k8s.HttpGetAction(port=k8s.IntOrString.from_string('http'), path=readiness_probe_path),
-                                    period_seconds=10, failure_threshold=3, timeout_seconds=5
-                                ),
-                                liveness_probe=k8s.Probe(
-                                    http_get=k8s.HttpGetAction(port=k8s.IntOrString.from_string('http'), path=liveness_probe_path),
-                                    period_seconds=5, failure_threshold=5, timeout_seconds=5
-                                )
+                                startup_probe=health_check.startup_probe,
+                                readiness_probe=health_check.readiness_probe,
+                                liveness_probe=health_check.liveness_probe
                             )
                         ],
                         volumes=(
