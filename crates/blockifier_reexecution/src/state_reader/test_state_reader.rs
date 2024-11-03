@@ -71,6 +71,13 @@ impl SerializableOfflineReexecutionData {
             .unwrap_or_else(|_| panic!("Failed to write to file {full_file_path}."));
         Ok(())
     }
+
+    pub fn read_from_file(full_file_path: &str) -> ReexecutionResult<Self> {
+        let file_content = fs::read_to_string(full_file_path).unwrap_or_else(|_| {
+            panic!("Failed to read reexecution data from file {full_file_path}.")
+        });
+        Ok(serde_json::from_str(&file_content)?)
+    }
 }
 
 impl From<SerializableOfflineReexecutionData> for OfflineReexecutionData {
@@ -471,7 +478,12 @@ pub struct OfflineConsecutiveStateReaders {
 }
 
 impl OfflineConsecutiveStateReaders {
-    // TODO(Aner): create directly from json.
+    pub fn new_from_file(full_file_path: &str) -> ReexecutionResult<Self> {
+        let serializable_offline_reexecution_data =
+            SerializableOfflineReexecutionData::read_from_file(full_file_path)?;
+        Ok(Self::new(serializable_offline_reexecution_data.into()))
+    }
+
     pub fn new(
         OfflineReexecutionData {
             offline_state_reader_prev_block,
