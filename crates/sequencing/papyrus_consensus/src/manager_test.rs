@@ -1,5 +1,5 @@
 use std::time::Duration;
-use std::vec;
+use std::{future, vec};
 
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
@@ -165,6 +165,7 @@ async fn run_consensus_sync() {
     let (mut sync_sender, mut sync_receiver) = mpsc::unbounded();
     let consensus_handle = tokio::spawn(async move {
         run_consensus(
+            tokio::spawn(future::pending()),
             context,
             BlockNumber(1),
             *VALIDATOR_ID,
@@ -224,6 +225,7 @@ async fn run_consensus_sync_cancellation_safety() {
 
     let consensus_handle = tokio::spawn(async move {
         run_consensus(
+            tokio::spawn(future::pending()),
             context,
             BlockNumber(1),
             *VALIDATOR_ID,

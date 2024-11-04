@@ -2,7 +2,7 @@
 #[path = "run_test.rs"]
 mod run_test;
 
-use std::future::pending;
+use std::future;
 use std::process::exit;
 use std::sync::Arc;
 use std::time::Duration;
@@ -152,7 +152,7 @@ async fn spawn_rpc_server(
     _pending_classes: Arc<RwLock<PendingClasses>>,
     _storage_reader: StorageReader,
 ) -> anyhow::Result<JoinHandle<anyhow::Result<()>>> {
-    Ok(tokio::spawn(pending()))
+    Ok(tokio::spawn(future::pending()))
 }
 
 fn spawn_monitoring_server(
@@ -178,7 +178,7 @@ fn spawn_consensus(
 ) -> anyhow::Result<JoinHandle<anyhow::Result<()>>> {
     let (Some(config), Some(network_manager)) = (config, network_manager) else {
         info!("Consensus is disabled.");
-        return Ok(tokio::spawn(pending()));
+        return Ok(tokio::spawn(future::pending()));
     };
     let config = config.clone();
     debug!("Consensus configuration: {config:?}");
@@ -193,6 +193,7 @@ fn spawn_consensus(
     );
     Ok(tokio::spawn(async move {
         Ok(papyrus_consensus::run_consensus(
+            tokio::spawn(future::pending()),
             context,
             config.start_height,
             config.validator_id,
@@ -248,7 +249,7 @@ async fn spawn_sync_client(
         (Some(_), Some(_)) => {
             panic!("One of --sync.#is_none or --p2p_sync.#is_none must be turned on");
         }
-        (None, None) => tokio::spawn(pending()),
+        (None, None) => tokio::spawn(future::pending()),
         (Some(sync_config), None) => {
             let configs = (sync_config, config.central.clone(), config.base_layer.clone());
             let storage = (storage_reader.clone(), storage_writer);
@@ -294,7 +295,7 @@ fn spawn_p2p_sync_server(
 ) -> JoinHandle<anyhow::Result<()>> {
     let Some(network_manager) = network_manager else {
         info!("P2P Sync is disabled.");
-        return tokio::spawn(pending());
+        return tokio::spawn(future::pending());
     };
 
     let header_server_receiver = network_manager
@@ -404,7 +405,7 @@ async fn run_threads(
     } else {
         match resources.maybe_network_manager {
             Some(manager) => tokio::spawn(async move { Ok(manager.run().await?) }),
-            None => tokio::spawn(pending()),
+            None => tokio::spawn(future::pending()),
         }
     };
     tokio::select! {
@@ -460,7 +461,7 @@ fn spawn_storage_metrics_collector(
     interval: Duration,
 ) -> JoinHandle<anyhow::Result<()>> {
     if !collect_metrics {
-        return tokio::spawn(pending());
+        return tokio::spawn(future::pending());
     }
 
     tokio::spawn(
