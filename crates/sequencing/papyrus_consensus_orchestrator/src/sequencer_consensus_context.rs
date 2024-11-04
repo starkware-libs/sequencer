@@ -16,14 +16,13 @@ use papyrus_consensus::types::{
     ConsensusContext,
     ConsensusError,
     ProposalContentId,
-    ProposalInit,
     Round,
     ValidatorId,
 };
 use papyrus_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
 use papyrus_protobuf::consensus::{
     ConsensusMessage,
-    ProposalInit as ProtobufProposalInit,
+    ProposalInit,
     ProposalPart,
     TransactionBatch,
     Vote,
@@ -125,15 +124,9 @@ impl ConsensusContext for SequencerConsensusContext {
             .build_proposal(build_proposal_input)
             .await
             .expect("Failed to initiate proposal build");
-        let protobuf_consensus_init = ProtobufProposalInit {
-            height: proposal_init.height.0,
-            round: proposal_init.round,
-            proposer: proposal_init.proposer,
-            valid_round: proposal_init.valid_round,
-        };
-        debug!("Broadcasting proposal init: {protobuf_consensus_init:?}");
+        debug!("Broadcasting proposal init: {proposal_init:?}");
         self.network_broadcast_client
-            .broadcast_message(ProposalPart::Init(protobuf_consensus_init))
+            .broadcast_message(ProposalPart::Init(proposal_init.clone()))
             .await
             .expect("Failed to broadcast proposal init");
         let broadcast_client = self.network_broadcast_client.clone();

@@ -5,12 +5,13 @@ use std::vec;
 use futures::channel::mpsc;
 use futures::SinkExt;
 use lazy_static::lazy_static;
-use papyrus_consensus::types::{ConsensusContext, ProposalInit};
+use papyrus_consensus::types::ConsensusContext;
 use papyrus_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
     TestSubscriberChannels,
 };
 use papyrus_network::network_manager::BroadcastTopicChannels;
+use papyrus_protobuf::consensus::ProposalInit;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::{ContractAddress, StateDiffCommitment};
 use starknet_api::executable_transaction::{AccountTransaction, Transaction};

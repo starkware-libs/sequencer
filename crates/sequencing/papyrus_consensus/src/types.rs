@@ -9,7 +9,7 @@ use papyrus_network::network_manager::{
     GenericReceiver,
 };
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
-use papyrus_protobuf::consensus::{ConsensusMessage, Vote};
+use papyrus_protobuf::consensus::{ConsensusMessage, ProposalInit, Vote};
 use papyrus_protobuf::converters::ProtobufConversionError;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::ContractAddress;
@@ -115,21 +115,6 @@ impl Debug for Decision {
             .field("block", &self.block)
             .field("precommits", &self.precommits)
             .finish()
-    }
-}
-
-#[derive(PartialEq, Debug, Default, Clone)]
-pub struct ProposalInit {
-    pub height: BlockNumber,
-    pub round: Round,
-    pub proposer: ValidatorId,
-    pub valid_round: Option<Round>,
-}
-
-// TODO(Guy): Remove after implementing broadcast streams.
-impl From<(BlockNumber, u32, ContractAddress, Option<u32>)> for ProposalInit {
-    fn from(val: (BlockNumber, u32, ContractAddress, Option<u32>)) -> Self {
-        ProposalInit { height: val.0, round: val.1, proposer: val.2, valid_round: val.3 }
     }
 }
 

@@ -12,9 +12,8 @@ use futures::stream::FuturesUnordered;
 use futures::{Stream, StreamExt};
 use papyrus_common::metrics::{PAPYRUS_CONSENSUS_HEIGHT, PAPYRUS_CONSENSUS_SYNC_COUNT};
 use papyrus_network::network_manager::BroadcastTopicClientTrait;
-use papyrus_protobuf::consensus::{ConsensusMessage, ProposalWrapper};
+use papyrus_protobuf::consensus::{ConsensusMessage, ProposalInit, ProposalWrapper};
 use starknet_api::block::{BlockHash, BlockNumber};
-use starknet_api::core::ContractAddress;
 use tracing::{debug, info, instrument};
 
 use crate::config::TimeoutsConfig;
@@ -43,11 +42,8 @@ pub async fn run_consensus<ContextT, SyncReceiverT>(
 where
     ContextT: ConsensusContext,
     SyncReceiverT: Stream<Item = BlockNumber> + Unpin,
-    ProposalWrapper: Into<(
-        (BlockNumber, u32, ContractAddress, Option<u32>),
-        mpsc::Receiver<ContextT::ProposalChunk>,
-        oneshot::Receiver<BlockHash>,
-    )>,
+    ProposalWrapper:
+        Into<(ProposalInit, mpsc::Receiver<ContextT::ProposalChunk>, oneshot::Receiver<BlockHash>)>,
 {
     info!(
         "Running consensus, start_height={}, validator_id={}, consensus_delay={}, timeouts={:?}",
@@ -113,7 +109,7 @@ impl MultiHeightManager {
     where
         ContextT: ConsensusContext,
         ProposalWrapper: Into<(
-            (BlockNumber, u32, ContractAddress, Option<u32>),
+            ProposalInit,
             mpsc::Receiver<ContextT::ProposalChunk>,
             oneshot::Receiver<BlockHash>,
         )>,
@@ -170,7 +166,7 @@ impl MultiHeightManager {
     where
         ContextT: ConsensusContext,
         ProposalWrapper: Into<(
-            (BlockNumber, u32, ContractAddress, Option<u32>),
+            ProposalInit,
             mpsc::Receiver<ContextT::ProposalChunk>,
             oneshot::Receiver<BlockHash>,
         )>,
@@ -192,7 +188,7 @@ impl MultiHeightManager {
                 let (proposal_init, content_receiver, fin_receiver) =
                     ProposalWrapper(proposal).into();
                 let res = shc
-                    .handle_proposal(context, proposal_init.into(), content_receiver, fin_receiver)
+                    .handle_proposal(context, proposal_init, content_receiver, fin_receiver)
                     .await?;
                 Ok(res)
             }
