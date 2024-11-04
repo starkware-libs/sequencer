@@ -4,6 +4,8 @@
 //! Expects to receive 2 groupings of arguments:
 //! 1. TestConfig - these are prefixed with `--test.` in the command.
 //! 2. NodeConfig - any argument lacking the above prefix is assumed to be in NodeConfig.
+use std::future;
+
 use clap::Parser;
 use futures::stream::StreamExt;
 use papyrus_consensus::config::ConsensusConfig;
@@ -86,6 +88,7 @@ fn build_consensus(
 
     Ok(Some(tokio::spawn(async move {
         Ok(papyrus_consensus::run_consensus(
+            tokio::spawn(future::pending()),
             context,
             consensus_config.start_height,
             consensus_config.validator_id,
