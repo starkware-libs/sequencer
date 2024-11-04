@@ -167,6 +167,17 @@ pub(crate) enum BadPeerError {
     NotEnoughTransactions { expected: usize, actual: usize, block_number: u64 },
     #[error("Expected to receive one signature from the network. got {signatures:?} instead.")]
     WrongSignaturesLength { signatures: Vec<BlockSignature> },
+    #[error(
+        "The header says that the block's state diff should be of length {expected_length}. Can \
+         only divide the state diff parts into the following lengths: {possible_lengths:?}."
+    )]
+    WrongStateDiffLength { expected_length: usize, possible_lengths: Vec<usize> },
+    #[error("Two state diff parts for the same state diff are conflicting.")]
+    ConflictingStateDiffParts,
+    #[error(
+        "Received an empty state diff part from the network (this is a potential DDoS vector)."
+    )]
+    EmptyStateDiffPart,
     #[error(transparent)]
     ProtobufConversionError(#[from] ProtobufConversionError),
 }
