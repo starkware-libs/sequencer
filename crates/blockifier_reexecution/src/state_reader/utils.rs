@@ -6,8 +6,10 @@ use indexmap::IndexMap;
 use papyrus_execution::{ETH_FEE_CONTRACT_ADDRESS, STRK_FEE_CONTRACT_ADDRESS};
 use pretty_assertions::assert_eq;
 use serde::{Deserialize, Serialize};
+use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
+use starknet_api::test_utils::read_json_file;
 use starknet_gateway::config::RpcStateReaderConfig;
 use starknet_types_core::felt::Felt;
 
@@ -177,4 +179,15 @@ macro_rules! assert_eq_state_diff {
             "Expected and actual state diffs do not match."
         );
     };
+}
+
+/// Returns the block numbers for re-execution.
+/// There is block number for each Starknet Version (starting v0.13)
+/// And some additional block with specific transactions.
+#[allow(dead_code)]
+pub(crate) fn get_block_numbers_for_reexecution() -> Vec<BlockNumber> {
+    let block_numbers_examples: HashMap<String, u64> =
+        serde_json::from_value(read_json_file("block_numbers_for_reexecution.json"))
+            .expect("Failed to deserialize block header");
+    block_numbers_examples.values().map(|block_number| BlockNumber(*block_number)).collect()
 }
