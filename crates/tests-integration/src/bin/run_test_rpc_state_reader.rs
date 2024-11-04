@@ -8,6 +8,7 @@ use starknet_integration_tests::integration_test_utils::{
 };
 use starknet_integration_tests::state_reader::{spawn_test_rpc_state_reader, StorageTestSetup};
 use starknet_sequencer_infra::trace_util::configure_tracing;
+use tempfile::tempdir;
 use tracing::info;
 
 #[tokio::main]
@@ -29,7 +30,8 @@ async fn main() -> anyhow::Result<()> {
 
     // Note: the batcher storage file handle is passed as a reference to maintain its ownership in
     // this scope, such that the handle is not dropped and the storage is maintained.
-    dump_config_file_changes(config, required_params);
+    let temp_dir = tempdir().unwrap();
+    dump_config_file_changes(&config, required_params, &temp_dir);
 
     // Keep the program running so the rpc state reader server, its storage, and the batcher
     // storage, are all maintained.
