@@ -59,6 +59,7 @@ use starknet_api::core::{
     GlobalRoot,
     Nonce,
     SequencerContractAddress,
+    BLOCK_HASH_TABLE_ADDRESS,
 };
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::deprecated_contract_class::{
@@ -170,7 +171,7 @@ use super::super::write_api_result::{
     AddDeployAccountOkResult,
     AddInvokeOkResult,
 };
-use super::api_impl::{JsonRpcServerImpl, BLOCK_HASH_TABLE_ADDRESS};
+use super::api_impl::JsonRpcServerImpl;
 use super::{ContinuationToken, EventFilter, GatewayContractClass};
 use crate::api::{BlockHashOrNumber, BlockId, Tag};
 use crate::syncing_state::SyncStatus;
@@ -2144,7 +2145,7 @@ async fn get_storage_at() {
         .call::<_, Felt>(
             "starknet_V0_8_getStorageAt",
             (
-                *BLOCK_HASH_TABLE_ADDRESS,
+                BLOCK_HASH_TABLE_ADDRESS,
                 key,
                 BlockId::HashOrNumber(BlockHashOrNumber::Number(
                     header.block_header_without_hash.block_number,
