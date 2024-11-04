@@ -19,7 +19,7 @@ class Service(Construct):
         port: Optional[int] = 80,
         container_port: int = 8082,
         config: Optional[Dict[str, str]] = None,
-        health_check: HealthCheck,
+        health_check: Optional[HealthCheck] = None,
     ):
         super().__init__(scope, id)
 
@@ -63,9 +63,9 @@ class Service(Construct):
                                 ports=[
                                     k8s.ContainerPort(container_port=container_port)
                                 ],
-                                startup_probe=health_check.startup_probe,
-                                readiness_probe=health_check.readiness_probe,
-                                liveness_probe=health_check.liveness_probe
+                                startup_probe=health_check.startup_probe if health_check else None,
+                                readiness_probe=health_check.readiness_probe if health_check else None,
+                                liveness_probe=health_check.liveness_probe if health_check else None
                             )
                         ],
                         volumes=(

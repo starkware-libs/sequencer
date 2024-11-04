@@ -1,16 +1,16 @@
 import dataclasses
 
-from typing import Union
+from typing import Union, Optional
 from imports import k8s
 
 
 @dataclasses.dataclass
 class Probe:
-    port: Union[str, int] = "http"
-    path: str = "/"
+    port: Union[str, int]
+    path: str
     period_seconds: int
     failure_threshold: int
-    timeout_seconds: int = 5
+    timeout_seconds: int
 
 @dataclasses.dataclass
 class HealthCheck:
@@ -19,7 +19,7 @@ class HealthCheck:
     liveness_probe: Probe
 
     def __post_init__(self):
-        self.configure_probes()
+        self.get()
 
     def _create_port(self, port: Union[str, int]):
         return k8s.IntOrString.from_string(port) if isinstance(port, str) else k8s.IntOrString.from_number(port)
@@ -35,7 +35,7 @@ class HealthCheck:
             timeout_seconds=probe.timeout_seconds
         )
 
-    def configure_probes(self):
+    def get(self):
         self.startup_probe = self._create_k8s_probe(self.startup_probe)
         self.readiness_probe = self._create_k8s_probe(self.readiness_probe)
         self.liveness_probe = self._create_k8s_probe(self.liveness_probe)
