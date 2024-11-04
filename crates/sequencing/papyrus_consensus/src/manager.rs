@@ -11,10 +11,11 @@ use futures::channel::{mpsc, oneshot};
 use futures::stream::FuturesUnordered;
 use futures::{Stream, StreamExt};
 use papyrus_common::metrics::{PAPYRUS_CONSENSUS_HEIGHT, PAPYRUS_CONSENSUS_SYNC_COUNT};
-use papyrus_network::network_manager::BroadcastTopicClientTrait;
+use papyrus_network::network_manager::{BroadcastTopicClientTrait, NetworkError};
 use papyrus_protobuf::consensus::{ConsensusMessage, ProposalWrapper};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::ContractAddress;
+use tokio::task::JoinHandle;
 use tracing::{debug, info, instrument};
 
 use crate::config::TimeoutsConfig;
@@ -30,7 +31,9 @@ use crate::types::{
 // TODO(dvir): add test for this.
 #[instrument(skip_all, level = "info")]
 #[allow(missing_docs)]
+#[allow(clippy::too_many_arguments)]
 pub async fn run_consensus<ContextT, SyncReceiverT>(
+    mut network_handle: JoinHandle<Result<(), NetworkError>>,
     mut context: ContextT,
     start_height: BlockNumber,
     validator_id: ValidatorId,
@@ -70,6 +73,10 @@ where
         // built and risk equivocating. Therefore, we must only enter the other select branches if
         // we are certain to leave this height.
         tokio::select! {
+            _ = &mut  network_handle => {
+                panic!("Network handle finished unexpectedly");
+            },
+
             decision = run_height => {
                 let decision = decision?;
                 context.decision_reached(decision.block, decision.precommits).await?;

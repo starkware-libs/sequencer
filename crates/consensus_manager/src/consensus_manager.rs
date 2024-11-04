@@ -8,15 +8,20 @@ use futures::SinkExt;
 use libp2p::PeerId;
 use papyrus_consensus::types::{BroadcastConsensusMessageChannel, ConsensusError};
 use papyrus_consensus_orchestrator::sequencer_consensus_context::SequencerConsensusContext;
-use papyrus_network::network_manager::BroadcastTopicClient;
+use papyrus_network::gossipsub_impl::Topic;
+use papyrus_network::network_manager::{BroadcastTopicClient, NetworkManager};
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
-use papyrus_protobuf::consensus::ConsensusMessage;
+use papyrus_protobuf::consensus::{ConsensusMessage, ProposalPart};
 use starknet_batcher_types::communication::SharedBatcherClient;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_sequencer_infra::errors::ComponentError;
 use tracing::{error, info};
 
 use crate::config::ConsensusManagerConfig;
+
+// TODO(Dan, Guy): move to config.
+pub const BROADCAST_BUFFER_SIZE: usize = 100;
+pub const NETWORK_TOPIC: &str = "consensus_proposals";
 
 #[derive(Clone)]
 pub struct ConsensusManager {
@@ -30,12 +35,23 @@ impl ConsensusManager {
     }
 
     pub async fn run(&self) -> Result<(), ConsensusError> {
+        let mut network_manager =
+            NetworkManager::new(self.config.consensus_config.network_config.clone(), None);
+        let proposals_broadcast_channels = network_manager
+            .register_broadcast_topic::<ProposalPart>(
+                Topic::new(NETWORK_TOPIC),
+                BROADCAST_BUFFER_SIZE,
+            )
+            .expect("Failed to register broadcast topic");
         let context = SequencerConsensusContext::new(
             Arc::clone(&self.batcher_client),
+            proposals_broadcast_channels.broadcast_topic_client.clone(),
             self.config.consensus_config.num_validators,
         );
+        let network_handle = tokio::task::spawn(network_manager.run());
 
         papyrus_consensus::run_consensus(
+            network_handle,
             context,
             self.config.consensus_config.start_height,
             self.config.consensus_config.validator_id,
