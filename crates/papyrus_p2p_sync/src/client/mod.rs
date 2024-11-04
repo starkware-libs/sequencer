@@ -122,20 +122,6 @@ impl Default for P2PSyncClientConfig {
 #[derive(thiserror::Error, Debug)]
 pub enum P2PSyncClientError {
     // TODO(shahak): Remove this and report to network on invalid data once that's possible.
-    #[error(
-        "The header says that the block's state diff should be of length {expected_length}. Can \
-         only divide the state diff parts into the following lengths: {possible_lengths:?}."
-    )]
-    WrongStateDiffLength { expected_length: usize, possible_lengths: Vec<usize> },
-    // TODO(shahak): Remove this and report to network on invalid data once that's possible.
-    #[error("Two state diff parts for the same state diff are conflicting.")]
-    ConflictingStateDiffParts,
-    // TODO(shahak): Remove this and report to network on invalid data once that's possible.
-    #[error(
-        "Received an empty state diff part from the network (this is a potential DDoS vector)."
-    )]
-    EmptyStateDiffPart,
-    // TODO(shahak): Remove this and report to network on invalid data once that's possible.
     #[error("Network returned more responses than expected for a query.")]
     TooManyResponses,
     #[error(
