@@ -77,10 +77,13 @@ impl ConsensusContext for SequencerConsensusContext {
 
     async fn build_proposal(
         &mut self,
-        init: ProposalInit,
+        proposal_init: ProposalInit,
         timeout: Duration,
     ) -> oneshot::Receiver<ProposalContentId> {
-        debug!("Building proposal for height: {} with timeout: {:?}", init.height, timeout);
+        debug!(
+            "Building proposal for height: {} with timeout: {:?}",
+            proposal_init.height, timeout
+        );
         let (fin_sender, fin_receiver) = oneshot::channel();
 
         let batcher = Arc::clone(&self.batcher);
@@ -100,10 +103,11 @@ impl ConsensusContext for SequencerConsensusContext {
                 hash: BlockHash::default(),
             }),
         };
-        self.maybe_start_height(init.height).await;
+        self.maybe_start_height(proposal_init.height).await;
         // TODO: Should we be returning an error?
         // I think this implies defining an error type in this crate and moving the trait definition
         // here also.
+        debug!("Initiating proposal build: {build_proposal_input:?}");
         batcher
             .build_proposal(build_proposal_input)
             .await
@@ -111,7 +115,7 @@ impl ConsensusContext for SequencerConsensusContext {
         tokio::spawn(
             async move {
                 stream_build_proposal(
-                    init.height,
+                    proposal_init.height,
                     proposal_id,
                     batcher,
                     valid_proposals,
