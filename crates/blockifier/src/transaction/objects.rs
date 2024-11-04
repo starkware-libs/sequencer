@@ -10,6 +10,7 @@ use starknet_api::transaction::{
     AccountDeploymentData,
     AllResourceBounds,
     Fee,
+    GasVectorComputationMode,
     PaymasterData,
     ResourceBounds,
     Tip,
@@ -83,6 +84,15 @@ impl TransactionInfo {
                 context.resource_bounds.max_possible_fee() > Fee(0)
             }
             TransactionInfo::Deprecated(context) => context.max_fee != Fee(0),
+        }
+    }
+
+    pub fn gas_mode(&self) -> GasVectorComputationMode {
+        match self {
+            TransactionInfo::Current(info) => {
+                info.resource_bounds.get_gas_vector_computation_mode()
+            }
+            TransactionInfo::Deprecated(_) => GasVectorComputationMode::NoL2Gas,
         }
     }
 }
