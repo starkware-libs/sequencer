@@ -34,6 +34,7 @@ members = [
   "crates/papyrus_proc_macros",
   "crates/papyrus_protobuf",
   "crates/papyrus_rpc",
+  "crates/papyrus_state_reader",
   "crates/papyrus_storage",
   "crates/papyrus_sync",
   "crates/papyrus_test_utils",
@@ -166,6 +167,7 @@ papyrus_p2p_sync = { path = "crates/papyrus_p2p_sync", version = "0.0.0" }
 papyrus_proc_macros = { path = "crates/papyrus_proc_macros", version = "0.0.0" }
 papyrus_protobuf = { path = "crates/papyrus_protobuf", version = "0.0.0" }
 papyrus_rpc = { path = "crates/papyrus_rpc", version = "0.0.0" }
+papyrus_state_reader = { path = "crates/papyrus_state_reader", version = "0.0.0" }
 papyrus_storage = { path = "crates/papyrus_storage", version = "0.0.0" }
 papyrus_sync = { path = "crates/papyrus_sync", version = "0.0.0" }
 papyrus_test_utils = { path = "crates/papyrus_test_utils", version = "0.0.0" }

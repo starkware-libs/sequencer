@@ -28,6 +28,7 @@ use papyrus_config::dumping::{
     SerializeConfig,
 };
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use papyrus_state_reader::papyrus_state::PapyrusReader;
 use papyrus_storage::StorageReader;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHashAndNumber, BlockNumber, BlockTimestamp, NonzeroGasPrice};
@@ -38,7 +39,6 @@ use thiserror::Error;
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, trace};
 
-use crate::papyrus_state::PapyrusReader;
 use crate::transaction_executor::TransactionExecutorTrait;
 use crate::transaction_provider::{NextTxs, TransactionProvider, TransactionProviderError};
 

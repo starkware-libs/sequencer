@@ -6642,6 +6642,7 @@ dependencies = [
  "indexmap 2.6.0",
  "log",
  "num-bigint 0.4.6",
+ "papyrus_state_reader",
  "papyrus_storage",
  "pretty_assertions",
  "pyo3",
@@ -7555,6 +7556,17 @@ dependencies = [
  "tower 0.4.13",
  "tracing",
  "validator",
+]
+
+[[package]]
+name = "papyrus_state_reader"
+version = "0.0.0"
+dependencies = [
+ "blockifier",
+ "indexmap 2.6.0",
+ "papyrus_storage",
+ "starknet-types-core",
+ "starknet_api",
 ]
 
 [[package]]
@@ -10093,6 +10105,7 @@ dependencies = [
  "mempool_test_utils",
  "mockall",
  "papyrus_config",
+ "papyrus_state_reader",
  "papyrus_storage",
  "rstest",
  "serde",

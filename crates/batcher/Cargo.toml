@@ -14,9 +14,9 @@ blockifier.workspace = true
 chrono.workspace = true
 indexmap.workspace = true
 papyrus_config.workspace = true
+papyrus_state_reader.workspace = true
 papyrus_storage.workspace = true
 serde.workspace = true
-starknet-types-core.workspace = true
 starknet_api.workspace = true
 starknet_batcher_types.workspace = true
 starknet_mempool_types.workspace = true
@@ -33,4 +33,5 @@ futures.workspace = true
 mempool_test_utils.workspace = true
 mockall.workspace = true
 rstest.workspace = true
+starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
