@@ -33,6 +33,10 @@ use crate::execution::syscalls::hint_processor::SyscallHintProcessor;
 use crate::state::state_api::State;
 use crate::versioned_constants::GasCosts;
 
+#[cfg(test)]
+#[path = "entry_point_execution_test.rs"]
+mod test;
+
 // TODO(spapini): Try to refactor this file into a StarknetRunner struct.
 
 pub struct VmExecutionContext<'a> {
@@ -363,6 +367,36 @@ fn maybe_fill_holes(
     Ok(())
 }
 
+/// Calculates the gas for fee consumed in the current call.
+#[allow(dead_code)]
+fn to_gas_for_fee(
+    tracked_resource: &TrackedResource,
+    gas_consumed: u64,
+    inner_calls: &[CallInfo],
+) -> GasAmount {
+    // For CairoSteps the gas_for_fee is 0.
+    // For SierraGas it is the gas_consumed of the call minus the gas_consumed of CairoSteps (VM)
+    // mode inner calls.
+    // E.g., for the following call topology (marked as TrackedResource(gas_consumed, gas_for_fee)):
+    //       Gas(8,2) -> Gas(3,1) -> VM(2,0) -> VM(1,0)
+    //          \
+    //           --> VM(4,0)
+    // The fee_for_gas for the first call is 8-2-4 = 2. As the gas_consumed of derived VM mode calls
+    // is 2 (upper branch) + 4 (lower branch).
+    // For every branch, the first child embeds its branch "VM mode calls gas_consumed" in the
+    // difference between its gas_consumed and gas_for_fee.
+    GasAmount(match tracked_resource {
+        TrackedResource::CairoSteps => 0,
+        TrackedResource::SierraGas => gas_consumed
+            .checked_sub(
+                inner_calls
+                    .iter()
+                    .map(|call| call.execution.gas_consumed - call.charged_resources.gas_for_fee.0)
+                    .sum::<u64>(),
+            )
+            .expect("gas_for_fee unexpectedly underflowed."),
+    })
+}
 pub fn finalize_execution(
     mut runner: CairoRunner,
     mut syscall_handler: SyscallHintProcessor<'_>,
