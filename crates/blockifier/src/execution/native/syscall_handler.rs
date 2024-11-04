@@ -1,6 +1,10 @@
 use std::collections::HashSet;
+use std::convert::From;
+use std::fmt;
 use std::hash::RandomState;
 
+use ark_ec::short_weierstrass::{Affine, Projective, SWCurveConfig};
+use ark_ff::{PrimeField, Zero};
 use cairo_native::starknet::{
     ExecutionInfo,
     ExecutionInfoV2,
@@ -10,6 +14,7 @@ use cairo_native::starknet::{
     SyscallResult,
     U256,
 };
+use cairo_native::starknet_stub::u256_to_biguint;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
@@ -17,7 +22,11 @@ use starknet_types_core::felt::Felt;
 use crate::execution::call_info::{CallInfo, OrderedEvent, OrderedL2ToL1Message, Retdata};
 use crate::execution::entry_point::{CallEntryPoint, EntryPointExecutionContext};
 use crate::execution::native::utils::encode_str_as_felts;
-use crate::execution::syscalls::hint_processor::{SyscallCounter, OUT_OF_GAS_ERROR};
+use crate::execution::syscalls::hint_processor::{
+    SyscallCounter,
+    SyscallExecutionError,
+    OUT_OF_GAS_ERROR,
+};
 use crate::execution::syscalls::SyscallSelector;
 use crate::state::state_api::State;
 
@@ -318,5 +327,124 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
         _remaining_gas: &mut u128,
     ) -> SyscallResult<()> {
         todo!("Implement sha256_process_block syscall.");
+    }
+}
+
+// todo(xrvdg) remove dead_code annotation after adding syscalls
+#[allow(dead_code)]
+impl<Curve: SWCurveConfig> Secp256Point<Curve>
+where
+    Curve::BaseField: PrimeField, // constraint for get_point_by_id
+{
+    /// Given a (x,y) pair it will
+    /// - return the point at infinity for (0,0)
+    /// - Err if either x or y is outside of the modulus
+    /// - Ok(None) if (x,y) are within the modules but not on the curve
+    /// - Ok(Some(Point)) if (x,y) are on the curve
+    fn new(x: U256, y: U256) -> Result<Option<Self>, Vec<Felt>> {
+        let x = u256_to_biguint(x);
+        let y = u256_to_biguint(y);
+        let modulos = Curve::BaseField::MODULUS.into();
+
+        if x >= modulos || y >= modulos {
+            let error =
+                Felt::from_hex(crate::execution::syscalls::hint_processor::INVALID_ARGUMENT)
+                    .map_err(|err| {
+                        encode_str_as_felts(&SyscallExecutionError::from(err).to_string())
+                    })?;
+
+            return Err(vec![error]);
+        }
+
+        Ok(maybe_affine(x.into(), y.into()))
+    }
+
+    fn add(p0: Self, p1: Self) -> Self {
+        let result: Projective<Curve> = p0.0 + p1.0;
+        Secp256Point(result.into())
+    }
+
+    fn mul(p: Self, m: U256) -> Self {
+        let result = p.0 * Curve::ScalarField::from(u256_to_biguint(m));
+        Secp256Point(result.into())
+    }
+
+    fn get_point_from_x(x: U256, y_parity: bool) -> Result<Option<Self>, Vec<Felt>> {
+        let modulos = Curve::BaseField::MODULUS.into();
+        let x = u256_to_biguint(x);
+
+        if x >= modulos {
+            let error =
+                Felt::from_hex(crate::execution::syscalls::hint_processor::INVALID_ARGUMENT)
+                    .map_err(|err| {
+                        encode_str_as_felts(&SyscallExecutionError::from(err).to_string())
+                    })?;
+
+            return Err(vec![error]);
+        }
+
+        let x = x.into();
+        let maybe_ec_point = Affine::<Curve>::get_ys_from_x_unchecked(x)
+            .map(|(smaller, greater)| {
+                // Return the correct y coordinate based on the parity.
+                if ark_ff::BigInteger::is_odd(&smaller.into_bigint()) == y_parity {
+                    smaller
+                } else {
+                    greater
+                }
+            })
+            .map(|y| Affine::<Curve>::new_unchecked(x, y))
+            .filter(|p| p.is_in_correct_subgroup_assuming_on_curve());
+
+        Ok(maybe_ec_point.map(Secp256Point))
+    }
+}
+
+/// Variation on [`Affine<Curve>::new`] that doesn't panic and maps (x,y) = (0,0) -> infinity
+fn maybe_affine<Curve: SWCurveConfig>(
+    x: Curve::BaseField,
+    y: Curve::BaseField,
+) -> Option<Secp256Point<Curve>> {
+    let ec_point = if x.is_zero() && y.is_zero() {
+        Affine::<Curve>::identity()
+    } else {
+        Affine::<Curve>::new_unchecked(x, y)
+    };
+
+    if ec_point.is_on_curve() && ec_point.is_in_correct_subgroup_assuming_on_curve() {
+        Some(Secp256Point(ec_point))
+    } else {
+        None
+    }
+}
+
+/// Data structure to tie together k1 and r1 points to it's corresponding
+/// `Affine<Curve>`
+#[derive(PartialEq, Clone, Copy)]
+struct Secp256Point<Curve: SWCurveConfig>(Affine<Curve>);
+
+impl<Curve: SWCurveConfig> fmt::Debug for Secp256Point<Curve> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("Secp256Point").field(&self.0).finish()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use cairo_native::starknet::U256;
+
+    use super::Secp256Point;
+
+    #[test]
+    fn infinity_test() {
+        let p1 =
+            Secp256Point::<ark_secp256k1::Config>::get_point_from_x(U256 { lo: 1, hi: 0 }, false)
+                .unwrap()
+                .unwrap();
+
+        let p2 = Secp256Point::mul(p1, U256 { lo: 0, hi: 0 });
+        assert!(p2.0.infinity);
+
+        assert_eq!(p1, Secp256Point::add(p1, p2));
     }
 }
