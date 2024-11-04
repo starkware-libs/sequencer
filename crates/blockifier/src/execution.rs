@@ -9,6 +9,8 @@ pub mod entry_point_execution;
 pub mod errors;
 pub mod execution_utils;
 pub mod hint_code;
+pub mod secp;
+
 #[cfg(feature = "cairo_native")]
 pub mod native;
 pub mod stack_trace;
