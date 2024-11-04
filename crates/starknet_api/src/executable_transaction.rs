@@ -51,6 +51,16 @@ pub enum Transaction {
 }
 
 impl Transaction {
+    pub fn tx(self) -> crate::transaction::Transaction {
+        match self {
+            Transaction::Declare(tx_data) => crate::transaction::Transaction::Declare(tx_data.tx),
+            Transaction::DeployAccount(tx_data) => {
+                crate::transaction::Transaction::DeployAccount(tx_data.tx)
+            }
+            Transaction::Invoke(tx_data) => crate::transaction::Transaction::Invoke(tx_data.tx),
+        }
+    }
+
     pub fn contract_address(&self) -> ContractAddress {
         match self {
             Transaction::Declare(tx_data) => tx_data.tx.sender_address(),

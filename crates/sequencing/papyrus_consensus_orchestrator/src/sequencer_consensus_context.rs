@@ -20,7 +20,14 @@ use papyrus_consensus::types::{
     Round,
     ValidatorId,
 };
-use papyrus_protobuf::consensus::{ConsensusMessage, Vote};
+use papyrus_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
+use papyrus_protobuf::consensus::{
+    ConsensusMessage,
+    ProposalInit as ProtobufProposalInit,
+    ProposalPart,
+    TransactionBatch,
+    Vote,
+};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::executable_transaction::Transaction;
 use starknet_batcher_types::batcher_types::{
@@ -36,7 +43,7 @@ use starknet_batcher_types::batcher_types::{
     ValidateProposalInput,
 };
 use starknet_batcher_types::communication::BatcherClient;
-use tracing::{debug, debug_span, error, info, warn, Instrument};
+use tracing::{debug, debug_span, error, info, trace, warn, Instrument};
 
 // {height: {proposal_id: (content, [proposal_ids])}}
 // Note that multiple proposals IDs can be associated with the same content, but we only need to
@@ -56,12 +63,18 @@ pub struct SequencerConsensusContext {
     // restarting.
     proposal_id: u64,
     current_height: Option<BlockNumber>,
+    network_broadcast_client: BroadcastTopicClient<ProposalPart>,
 }
 
 impl SequencerConsensusContext {
-    pub fn new(batcher: Arc<dyn BatcherClient>, num_validators: u64) -> Self {
+    pub fn new(
+        batcher: Arc<dyn BatcherClient>,
+        network_broadcast_client: BroadcastTopicClient<ProposalPart>,
+        num_validators: u64,
+    ) -> Self {
         Self {
             batcher,
+            network_broadcast_client,
             validators: (0..num_validators).map(ValidatorId::from).collect(),
             valid_proposals: Arc::new(Mutex::new(HeightToIdToContent::new())),
             proposal_id: 0,
@@ -112,6 +125,18 @@ impl ConsensusContext for SequencerConsensusContext {
             .build_proposal(build_proposal_input)
             .await
             .expect("Failed to initiate proposal build");
+        let protobuf_consensus_init = ProtobufProposalInit {
+            height: proposal_init.height.0,
+            round: proposal_init.round,
+            proposer: proposal_init.proposer,
+            valid_round: proposal_init.valid_round,
+        };
+        debug!("Broadcasting proposal init: {protobuf_consensus_init:?}");
+        self.network_broadcast_client
+            .broadcast_message(ProposalPart::Init(protobuf_consensus_init))
+            .await
+            .expect("Failed to broadcast proposal init");
+        let broadcast_client = self.network_broadcast_client.clone();
         tokio::spawn(
             async move {
                 stream_build_proposal(
@@ -119,6 +144,7 @@ impl ConsensusContext for SequencerConsensusContext {
                     proposal_id,
                     batcher,
                     valid_proposals,
+                    broadcast_client,
                     fin_sender,
                 )
                 .await;
@@ -255,6 +281,7 @@ async fn stream_build_proposal(
     proposal_id: ProposalId,
     batcher: Arc<dyn BatcherClient>,
     valid_proposals: Arc<Mutex<HeightToIdToContent>>,
+    mut broadcast_client: BroadcastTopicClient<ProposalPart>,
     fin_sender: oneshot::Sender<ProposalContentId>,
 ) {
     let mut content = Vec::new();
@@ -273,6 +300,20 @@ async fn stream_build_proposal(
                 // TODO: Broadcast the transactions to the network.
                 // TODO(matan): Convert to protobuf and make sure this isn't too large for a single
                 // proto message (could this be a With adapter added to the channel in `new`?).
+                let mut transaction_hashes = Vec::with_capacity(txs.len());
+                let mut transactions = Vec::with_capacity(txs.len());
+                txs.into_iter().for_each(|tx| {
+                    transaction_hashes.push(tx.tx_hash());
+                    transactions.push(tx.tx());
+                });
+                debug!("Broadcasting proposal content: {transaction_hashes:?}");
+                trace!("Broadcasting proposal content: {transactions:?}");
+                broadcast_client
+                    .broadcast_message(ProposalPart::Transactions(TransactionBatch {
+                        transactions,
+                    }))
+                    .await
+                    .expect("Failed to broadcast proposal content");
             }
             GetProposalContent::Finished(id) => {
                 let proposal_content_id = BlockHash(id.state_diff_commitment.0.0);
