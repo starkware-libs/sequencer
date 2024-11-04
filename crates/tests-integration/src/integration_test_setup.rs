@@ -1,6 +1,8 @@
 use std::net::SocketAddr;
 
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
+use papyrus_network::network_manager::BroadcastTopicChannels;
+use papyrus_protobuf::consensus::ProposalPart;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_batcher_types::communication::SharedBatcherClient;
@@ -32,6 +34,9 @@ pub struct IntegrationTestSetup {
 
     // Handle of the sequencer node.
     pub sequencer_node_handle: JoinHandle<Result<(), anyhow::Error>>,
+
+    // Channels for consensus proposals, used for asserting the right transactions are proposed.
+    pub consensus_proposals_channels: BroadcastTopicChannels<ProposalPart>,
 }
 
 impl IntegrationTestSetup {
@@ -53,7 +58,7 @@ impl IntegrationTestSetup {
         .await;
 
         // Derive the configuration for the mempool node.
-        let (config, _required_params) =
+        let (config, _required_params, consensus_proposals_channels) =
             create_config(rpc_server_addr, storage_for_test.batcher_storage_config).await;
 
         let (clients, servers) = create_node_modules(&config);
@@ -77,6 +82,7 @@ impl IntegrationTestSetup {
             batcher_client: clients.get_batcher_client().unwrap(),
             rpc_storage_file_handle: storage_for_test.rpc_storage_handle,
             sequencer_node_handle,
+            consensus_proposals_channels,
         }
     }
 
