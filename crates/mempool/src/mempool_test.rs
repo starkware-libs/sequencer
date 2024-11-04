@@ -289,9 +289,9 @@ fn test_get_txs_with_nonce_gap() {
 fn test_add_tx(mut mempool: Mempool) {
     // Setup.
     let mut add_tx_inputs = [
-        add_tx_input!(tip: 50, tx_hash: 1, address: "0x0", tx_nonce: 0, account_nonce: 0),
-        add_tx_input!(tip: 100, tx_hash: 2, address: "0x1", tx_nonce: 1, account_nonce: 1),
-        add_tx_input!(tip: 80, tx_hash: 3, address: "0x2", tx_nonce: 2, account_nonce: 2),
+        add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 0, account_nonce: 0, tip: 50),
+        add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 1, account_nonce: 1, tip: 100),
+        add_tx_input!(tx_hash: 3, address: "0x2", tx_nonce: 2, account_nonce: 2, tip: 80),
     ];
 
     // Test.
@@ -397,10 +397,10 @@ fn test_add_tx_lower_than_queued_nonce() {
 #[rstest]
 fn test_add_tx_with_identical_tip_succeeds(mut mempool: Mempool) {
     // Setup.
-    let input1 = add_tx_input!(tip: 1, tx_hash: 2, address: "0x0");
+    let input1 = add_tx_input!(tx_hash: 2, address: "0x0", tip: 1);
     // Create a transaction with identical tip, it should be allowed through since the priority
     // queue tie-breaks identical tips by other tx-unique identifiers (for example tx hash).
-    let input2 = add_tx_input!(tip: 1, tx_hash: 1, address: "0x1");
+    let input2 = add_tx_input!(tx_hash: 1, address: "0x1", tip: 1);
 
     // Test.
     for input in [&input1, &input2] {
@@ -423,10 +423,10 @@ fn test_add_tx_with_identical_tip_succeeds(mut mempool: Mempool) {
 #[rstest]
 fn test_add_tx_tip_priority_over_tx_hash(mut mempool: Mempool) {
     // Setup.
-    let input_big_tip_small_hash = add_tx_input!(tip: 2, tx_hash: 1, address: "0x0");
+    let input_big_tip_small_hash = add_tx_input!(tx_hash: 1, address: "0x0", tip: 2);
     // Create a transaction with identical tip, it should be allowed through since the priority
     // queue tie-breaks identical tips by other tx-unique identifiers (for example tx hash).
-    let input_small_tip_big_hash = add_tx_input!(tip: 1, tx_hash: 2, address: "0x1");
+    let input_small_tip_big_hash = add_tx_input!(tx_hash: 2, address: "0x1", tip: 1);
 
     // Test.
     for input in [&input_big_tip_small_hash, &input_small_tip_big_hash] {
@@ -543,9 +543,9 @@ fn test_fee_escalation_invalid_replacement() {
         .with_fee_escalation_percentage(10)
         .build_into_mempool();
 
-    let input_not_enough_tip = add_tx_input!(tip: 109, tx_hash: 3, max_l2_gas_price: 110);
-    let input_not_enough_gas_price = add_tx_input!(tip: 110, tx_hash: 4, max_l2_gas_price: 109);
-    let input_not_enough_both = add_tx_input!(tip: 109, tx_hash: 5, max_l2_gas_price: 109);
+    let input_not_enough_tip = add_tx_input!(tx_hash: 3, tip: 109, max_l2_gas_price: 110);
+    let input_not_enough_gas_price = add_tx_input!(tx_hash: 4, tip: 110, max_l2_gas_price: 109);
+    let input_not_enough_both = add_tx_input!(tx_hash: 5, tip: 109, max_l2_gas_price: 109);
 
     // Test and assert.
     let invalid_replacement_inputs =
