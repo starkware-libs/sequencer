@@ -36,6 +36,8 @@ pub struct BuildProposalInput {
     pub deadline: chrono::DateTime<Utc>,
     pub retrospective_block_hash: Option<BlockHashAndNumber>,
     // TODO: Should we get the gas price here?
+    // proposer address
+    // kzg
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -56,6 +58,7 @@ pub enum GetProposalContent {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+// Same as propose?
 pub struct ValidateProposalInput {
     pub proposal_id: ProposalId,
     pub deadline: chrono::DateTime<Utc>,

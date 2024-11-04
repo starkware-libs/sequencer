@@ -1,5 +1,6 @@
 use std::future::Future;
 use std::net::SocketAddr;
+use std::time::Duration;
 
 use axum::body::Body;
 use blockifier::context::ChainInfo;
@@ -11,6 +12,9 @@ use mempool_test_utils::starknet_api_test_utils::{
     MultiAccountTransactionGenerator,
 };
 use papyrus_consensus::config::ConsensusConfig;
+use papyrus_network::network_manager::test_utils::create_network_config_connected_to_broadcast_channels;
+use papyrus_network::network_manager::BroadcastTopicChannels;
+use papyrus_protobuf::consensus::ProposalPart;
 use papyrus_storage::StorageConfig;
 use reqwest::{Client, Response};
 use starknet_api::block::BlockNumber;
@@ -28,29 +32,14 @@ use starknet_gateway::config::{
 };
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_http_server::config::HttpServerConfig;
-use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::test_utils::RequiredParams;
-use starknet_sequencer_node::config::{
-    ComponentExecutionConfig,
-    ComponentExecutionMode,
-    SequencerNodeConfig,
-};
+use starknet_sequencer_node::config::SequencerNodeConfig;
 use tokio::net::TcpListener;
 
 pub async fn create_config(
     rpc_server_addr: SocketAddr,
     batcher_storage_config: StorageConfig,
-) -> (SequencerNodeConfig, RequiredParams) {
-    // TODO(Arni/ Matan): Enable the consensus in the end to end test.
-    let components = ComponentConfig {
-        consensus_manager: ComponentExecutionConfig {
-            execution_mode: ComponentExecutionMode::Disabled,
-            local_server_config: None,
-            ..Default::default()
-        },
-        ..Default::default()
-    };
-
+) -> (SequencerNodeConfig, RequiredParams, BroadcastTopicChannels<ProposalPart>) {
     let chain_id = batcher_storage_config.db_config.chain_id.clone();
     // TODO(Tsabary): create chain_info in setup, and pass relevant values throughout.
     let mut chain_info = ChainInfo::create_for_testing();
@@ -60,12 +49,10 @@ pub async fn create_config(
     let gateway_config = create_gateway_config(chain_info).await;
     let http_server_config = create_http_server_config().await;
     let rpc_state_reader_config = test_rpc_state_reader_config(rpc_server_addr);
-    let consensus_manager_config = ConsensusManagerConfig {
-        consensus_config: ConsensusConfig { start_height: BlockNumber(1), ..Default::default() },
-    };
+    let (consensus_manager_config, consensus_proposals_channels) =
+        create_consensus_manager_config();
     (
         SequencerNodeConfig {
-            components,
             batcher_config,
             consensus_manager_config,
             gateway_config,
@@ -78,7 +65,27 @@ pub async fn create_config(
             eth_fee_token_address: fee_token_addresses.eth_fee_token_address,
             strk_fee_token_address: fee_token_addresses.strk_fee_token_address,
         },
+        consensus_proposals_channels,
     )
+}
+
+fn create_consensus_manager_config()
+-> (ConsensusManagerConfig, BroadcastTopicChannels<ProposalPart>) {
+    let (network_config, broadcast_channels) =
+        create_network_config_connected_to_broadcast_channels(
+            papyrus_network::gossipsub_impl::Topic::new(
+                starknet_consensus_manager::consensus_manager::NETWORK_TOPIC,
+            ),
+        );
+    let consensus_manager_config = ConsensusManagerConfig {
+        consensus_config: ConsensusConfig {
+            start_height: BlockNumber(1),
+            consensus_delay: Duration::from_secs(3),
+            network_config,
+            ..Default::default()
+        },
+    };
+    (consensus_manager_config, broadcast_channels)
 }
 
 pub fn test_rpc_state_reader_config(rpc_server_addr: SocketAddr) -> RpcStateReaderConfig {

@@ -1,17 +1,11 @@
+use futures::StreamExt;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
+use papyrus_network::network_manager::BroadcastTopicChannels;
+use papyrus_protobuf::consensus::ProposalPart;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
-use starknet_api::block::BlockNumber;
+use starknet_api::core::ChainId;
 use starknet_api::transaction::TransactionHash;
-use starknet_batcher_types::batcher_types::{
-    BuildProposalInput,
-    DecisionReachedInput,
-    GetProposalContent,
-    GetProposalContentInput,
-    ProposalId,
-    StartHeightInput,
-};
-use starknet_batcher_types::communication::SharedBatcherClient;
 use starknet_integration_tests::integration_test_setup::IntegrationTestSetup;
 use starknet_integration_tests::integration_test_utils::{
     create_integration_test_tx_generator,
@@ -25,7 +19,9 @@ fn tx_generator() -> MultiAccountTransactionGenerator {
 
 #[rstest]
 #[tokio::test]
-async fn test_end_to_end(tx_generator: MultiAccountTransactionGenerator) {
+async fn end_to_end(tx_generator: MultiAccountTransactionGenerator) {
+    const LISTEN_TO_BROADCAST_MESSAGES_TIMEOUT: std::time::Duration =
+        std::time::Duration::from_secs(5);
     // Setup.
     let mock_running_system = IntegrationTestSetup::new_from_tx_generator(&tx_generator).await;
 
@@ -34,60 +30,44 @@ async fn test_end_to_end(tx_generator: MultiAccountTransactionGenerator) {
         mock_running_system.assert_add_tx_success(tx)
     })
     .await;
-
-    // Test.
-    run_consensus_for_end_to_end_test(
-        &mock_running_system.batcher_client,
-        &expected_batched_tx_hashes,
-    )
-    .await;
+    let join_handle = tokio::spawn(async move {
+        tokio::time::timeout(
+            LISTEN_TO_BROADCAST_MESSAGES_TIMEOUT,
+            listen_to_broadcasted_messages(
+                mock_running_system.consensus_proposals_channels,
+                &expected_batched_tx_hashes,
+            ),
+        )
+        .await
+        .expect("listen to broadcasted messages should finish in time");
+    });
+    join_handle.await.expect("Task should succeed");
 }
 
-/// This function should mirror
-/// [`run_consensus`](papyrus_consensus::manager::run_consensus). It makes requests
-/// from the batcher client and asserts the expected responses were received.
-pub async fn run_consensus_for_end_to_end_test(
-    batcher_client: &SharedBatcherClient,
+async fn listen_to_broadcasted_messages(
+    consensus_proposals_channels: BroadcastTopicChannels<ProposalPart>,
     expected_batched_tx_hashes: &[TransactionHash],
 ) {
-    // Start height.
-    // TODO(Arni): Get the current height and retrospective_block_hash from the rpc storage or use
-    // consensus directly.
-    let current_height = BlockNumber(1);
-    batcher_client.start_height(StartHeightInput { height: current_height }).await.unwrap();
-
-    // Build proposal.
-    let proposal_id = ProposalId(0);
-    let retrospective_block_hash = None;
-    let build_proposal_duaration = chrono::TimeDelta::new(1, 0).unwrap();
-    batcher_client
-        .build_proposal(BuildProposalInput {
-            proposal_id,
-            deadline: chrono::Utc::now() + build_proposal_duaration,
-            retrospective_block_hash,
-        })
-        .await
-        .unwrap();
-
-    // Get proposal content.
-    let mut executed_tx_hashes: Vec<TransactionHash> = vec![];
-    let _proposal_commitment = loop {
-        let response = batcher_client
-            .get_proposal_content(GetProposalContentInput { proposal_id })
+    // TODO(Dan, Guy): retrieve chian ID (from the config?).
+    const CHAIN_ID_NAME: &str = "CHAIN_ID_SUBDIR";
+    let chain_id = ChainId::Other(CHAIN_ID_NAME.to_string());
+    let mut broadcasted_messages_receiver =
+        consensus_proposals_channels.broadcasted_messages_receiver;
+    let mut received_tx_hashes = vec![];
+    while received_tx_hashes.len() < expected_batched_tx_hashes.len() {
+        let (message, _broadcasted_message_metadata) = broadcasted_messages_receiver
+            .next()
             .await
-            .unwrap();
-        match response.content {
-            GetProposalContent::Txs(batched_txs) => {
-                executed_tx_hashes.append(&mut batched_txs.iter().map(|tx| tx.tx_hash()).collect());
-            }
-            GetProposalContent::Finished(proposal_commitment) => {
-                break proposal_commitment;
-            }
+            .unwrap_or_else(|| panic!("Expected to receive a message from the broadcast topic"));
+        if let ProposalPart::Transactions(transactions) = message.unwrap() {
+            received_tx_hashes.append(
+                &mut transactions
+                    .transactions
+                    .iter()
+                    .map(|tx| tx.calculate_transaction_hash(&chain_id).unwrap())
+                    .collect(),
+            );
         }
-    };
-
-    // Decision reached.
-    batcher_client.decision_reached(DecisionReachedInput { proposal_id }).await.unwrap();
-
-    assert_eq!(expected_batched_tx_hashes, executed_tx_hashes);
+    }
+    assert_eq!(received_tx_hashes, expected_batched_tx_hashes);
 }
