@@ -1,6 +1,5 @@
 use std::time::Duration;
 
-use assert_matches::assert_matches;
 use futures::{FutureExt, StreamExt};
 use indexmap::indexmap;
 use papyrus_protobuf::sync::{
@@ -33,7 +32,7 @@ use super::test_utils::{
     STATE_DIFF_QUERY_LENGTH,
     WAIT_PERIOD_FOR_NEW_DATA,
 };
-use super::{P2PSyncClientError, StateDiffQuery};
+use super::StateDiffQuery;
 
 const TIMEOUT_FOR_TEST: Duration = Duration::from_secs(5);
 
@@ -193,14 +192,15 @@ async fn state_diff_basic_flow() {
     }
 }
 
+// TODO(noamsp): Consider verifying that ParseDataError::BadPeerError(EmptyStateDiffPart) was
+// returned from parse_data_for_block. We currently dont have a way to check this.
 #[tokio::test]
 async fn state_diff_empty_state_diff() {
-    validate_state_diff_fails(1, vec![Some(StateDiffChunk::default())], |error| {
-        assert_matches!(error, P2PSyncClientError::EmptyStateDiffPart)
-    })
-    .await;
+    validate_state_diff_fails(1, vec![Some(StateDiffChunk::default())]).await;
 }
 
+// TODO(noamsp): Consider verifying that ParseDataError::BadPeerError(WrongStateDiffLength) was
+// returned from parse_data_for_block. We currently dont have a way to check this.
 #[tokio::test]
 async fn state_diff_stopped_in_middle() {
     validate_state_diff_fails(
@@ -209,29 +209,31 @@ async fn state_diff_stopped_in_middle() {
             Some(StateDiffChunk::DeprecatedDeclaredClass(DeprecatedDeclaredClass::default())),
             None,
         ],
-        |error| assert_matches!(error, P2PSyncClientError::WrongStateDiffLength { expected_length, possible_lengths } if expected_length == 2 && possible_lengths == vec![1]),
     )
     .await;
 }
 
+// TODO(noamsp): Consider verifying that ParseDataError::BadPeerError(WrongStateDiffLength) was
+// returned from parse_data_for_block. We currently dont have a way to check this.
 #[tokio::test]
 async fn state_diff_not_split_correctly() {
     validate_state_diff_fails(
         2,
         vec![
             Some(StateDiffChunk::DeprecatedDeclaredClass(DeprecatedDeclaredClass::default())),
-            Some(StateDiffChunk::ContractDiff(ContractDiff{
+            Some(StateDiffChunk::ContractDiff(ContractDiff {
                 contract_address: ContractAddress::default(),
                 class_hash: Some(ClassHash::default()),
                 nonce: Some(Nonce::default()),
                 ..Default::default()
-            }),)
+            })),
         ],
-        |error| assert_matches!(error, P2PSyncClientError::WrongStateDiffLength { expected_length, possible_lengths } if expected_length == 2 && possible_lengths == vec![1, 3]),
     )
     .await;
 }
 
+// TODO(noamsp): Consider verifying that ParseDataError::BadPeerError(ConflictingStateDiffParts)
+// was returned from parse_data_for_block. We currently dont have a way to check this.
 #[tokio::test]
 async fn state_diff_conflicting() {
     validate_state_diff_fails(
@@ -248,7 +250,6 @@ async fn state_diff_conflicting() {
                 ..Default::default()
             })),
         ],
-        |error| assert_matches!(error, P2PSyncClientError::ConflictingStateDiffParts),
     )
     .await;
     validate_state_diff_fails(
@@ -265,7 +266,6 @@ async fn state_diff_conflicting() {
                 ..Default::default()
             })),
         ],
-        |error| assert_matches!(error, P2PSyncClientError::ConflictingStateDiffParts),
     )
     .await;
     validate_state_diff_fails(
@@ -280,7 +280,6 @@ async fn state_diff_conflicting() {
                 compiled_class_hash: CompiledClassHash::default(),
             })),
         ],
-        |error| assert_matches!(error, P2PSyncClientError::ConflictingStateDiffParts),
     )
     .await;
     validate_state_diff_fails(
@@ -293,7 +292,6 @@ async fn state_diff_conflicting() {
                 class_hash: ClassHash::default(),
             })),
         ],
-        |error| assert_matches!(error, P2PSyncClientError::ConflictingStateDiffParts),
     )
     .await;
     validate_state_diff_fails(
@@ -310,7 +308,6 @@ async fn state_diff_conflicting() {
                 ..Default::default()
             })),
         ],
-        |error| assert_matches!(error, P2PSyncClientError::ConflictingStateDiffParts),
     )
     .await;
 }
@@ -318,7 +315,6 @@ async fn state_diff_conflicting() {
 async fn validate_state_diff_fails(
     state_diff_length_in_header: usize,
     state_diff_chunks: Vec<Option<StateDiffChunk>>,
-    error_validator: impl Fn(P2PSyncClientError),
 ) {
     let TestArgs {
         p2p_sync,
@@ -386,14 +382,15 @@ async fn validate_state_diff_fails(
                 .await
                 .unwrap();
         }
-        tokio::time::sleep(TIMEOUT_FOR_TEST).await;
-        panic!("P2P sync did not receive error");
+
+        // Asserts that a peer was reported due to a non-fatal error.
+        mock_state_diff_responses_manager.assert_reported(TIMEOUT_FOR_TEST).await;
     };
 
     tokio::select! {
         sync_result = p2p_sync.run() => {
-            let sync_err = sync_result.unwrap_err();
-            error_validator(sync_err);
+            sync_result.unwrap();
+            panic!("P2P sync aborted with no failure.");
         }
         _ = parse_queries_future => {}
     }
