@@ -17,7 +17,7 @@ use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::GasPrice;
 use starknet_api::core::Nonce;
-use starknet_api::executable_transaction::Transaction;
+use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::deploy_account::executable_deploy_account_tx;
 use starknet_api::test_utils::invoke::executable_invoke_tx;
@@ -61,7 +61,7 @@ fn stateful_validator() -> StatefulTransactionValidator {
     Err(STATEFUL_VALIDATOR_FEE_ERROR)
 )]
 fn test_stateful_tx_validator(
-    #[case] executable_tx: Transaction,
+    #[case] executable_tx: AccountTransaction,
     #[case] expected_result: BlockifierStatefulValidatorResult<()>,
     stateful_validator: StatefulTransactionValidator,
 ) {
@@ -108,23 +108,23 @@ fn test_instantiate_validator(stateful_validator: StatefulTransactionValidator) 
 
 #[rstest]
 #[case::should_skip_validation(
-    Transaction::Invoke(executable_invoke_tx(invoke_tx_args!(nonce: nonce!(1)))),
+    AccountTransaction::Invoke(executable_invoke_tx(invoke_tx_args!(nonce: nonce!(1)))),
     nonce!(0),
     true
 )]
 #[case::should_not_skip_validation_nonce_over_max_nonce_for_skip(
-    Transaction::Invoke(executable_invoke_tx(invoke_tx_args!(nonce: nonce!(0)))),
+    AccountTransaction::Invoke(executable_invoke_tx(invoke_tx_args!(nonce: nonce!(0)))),
     nonce!(0),
     false
 )]
 #[case::should_not_skip_validation_non_invoke(
-    Transaction::DeployAccount(
+    AccountTransaction::DeployAccount(
         executable_deploy_account_tx(deploy_account_tx_args!(), nonce!(0))
     ),
     nonce!(0),
     false)]
 #[case::should_not_skip_validation_account_nonce_1(
-    Transaction::Invoke(executable_invoke_tx(
+    AccountTransaction::Invoke(executable_invoke_tx(
         invoke_tx_args!(
             nonce: nonce!(1),
             sender_address: TEST_SENDER_ADDRESS.into()
@@ -134,7 +134,7 @@ fn test_instantiate_validator(stateful_validator: StatefulTransactionValidator) 
     false
 )]
 fn test_skip_stateful_validation(
-    #[case] executable_tx: Transaction,
+    #[case] executable_tx: AccountTransaction,
     #[case] sender_nonce: Nonce,
     #[case] should_skip_validate: bool,
     stateful_validator: StatefulTransactionValidator,

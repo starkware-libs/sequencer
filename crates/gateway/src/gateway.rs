@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use blockifier::context::ChainInfo;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
-use starknet_api::executable_transaction::Transaction;
+use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::errors::GatewaySpecError;
@@ -127,7 +127,7 @@ fn process_tx(
         compile_contract_and_build_executable_tx(tx, &gateway_compiler, &chain_info.chain_id)?;
 
     // Perfom post compilation validations.
-    if let Transaction::Declare(executable_declare_tx) = &executable_tx {
+    if let AccountTransaction::Declare(executable_declare_tx) = &executable_tx {
         if !executable_declare_tx.validate_compiled_class_hash() {
             return Err(GatewaySpecError::CompiledClassHashMismatch);
         }
