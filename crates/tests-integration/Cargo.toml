@@ -14,12 +14,13 @@ assert_matches.workspace = true
 axum.workspace = true
 blockifier.workspace = true
 cairo-lang-starknet-classes.workspace = true
-chrono.workspace = true
 indexmap.workspace = true
 mempool_test_utils.workspace = true
 papyrus_common.workspace = true
 papyrus_config.workspace = true
 papyrus_consensus.workspace = true
+papyrus_network = { workspace = true, features = ["testing"] }
+papyrus_protobuf.workspace = true
 papyrus_rpc.workspace = true
 papyrus_storage = { workspace = true, features = ["testing"] }
 reqwest.workspace = true
@@ -42,6 +43,7 @@ tokio.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
+futures.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
 starknet_sequencer_infra.workspace = true
