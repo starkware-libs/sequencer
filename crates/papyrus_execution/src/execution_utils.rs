@@ -5,9 +5,9 @@ use std::path::PathBuf;
 // Expose the tool for creating entry point selectors from function names.
 pub use blockifier::abi::abi_utils::selector_from_name;
 use blockifier::execution::contract_class::{
-    ContractClass as BlockifierContractClass,
     ContractClassV0,
     ContractClassV1,
+    RunnableContractClass,
 };
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, MutRefState};
 use blockifier::state::state_api::StateReader;
@@ -59,14 +59,14 @@ pub(crate) fn get_contract_class(
     txn: &StorageTxn<'_, RO>,
     class_hash: &ClassHash,
     state_number: StateNumber,
-) -> Result<Option<BlockifierContractClass>, ExecutionUtilsError> {
+) -> Result<Option<RunnableContractClass>, ExecutionUtilsError> {
     match txn.get_state_reader()?.get_class_definition_block_number(class_hash)? {
         Some(block_number) if state_number.is_before(block_number) => return Ok(None),
         Some(_block_number) => {
             let Some(casm) = txn.get_casm(class_hash)? else {
                 return Err(ExecutionUtilsError::CasmTableNotSynced);
             };
-            return Ok(Some(BlockifierContractClass::V1(
+            return Ok(Some(RunnableContractClass::V1(
                 ContractClassV1::try_from(casm).map_err(ExecutionUtilsError::ProgramError)?,
             )));
         }
@@ -78,7 +78,7 @@ pub(crate) fn get_contract_class(
     else {
         return Ok(None);
     };
-    Ok(Some(BlockifierContractClass::V0(
+    Ok(Some(RunnableContractClass::V0(
         ContractClassV0::try_from(deprecated_class).map_err(ExecutionUtilsError::ProgramError)?,
     )))
 }

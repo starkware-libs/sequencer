@@ -287,10 +287,10 @@ pub fn ser_pointer_target_required_param(
     )
 }
 
-// Takes a config map and a vector of {target param, serialized pointer, and vector of params that
-// will point to it}.
-// Adds to the map the target params.
-// Replaces the value of the pointers to contain only the name of the target they point to.
+/// Takes a config map and a vector of target parameters with their serialized representations.
+/// Adds each target param to the config map.
+/// Updates entries in the map to point to these targets, replacing values of entries that match
+/// the target parameter paths to contain only the name of the target they point to.
 pub(crate) fn combine_config_map_and_pointers(
     mut config_map: BTreeMap<ParamPath, SerializedParam>,
     pointers: &Vec<(ParamPath, SerializedParam)>,

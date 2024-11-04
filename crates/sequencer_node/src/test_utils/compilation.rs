@@ -25,6 +25,7 @@ fn compile_node() -> io::Result<ExitStatus> {
     let compilation_result = Command::new("cargo")
         .arg("build")
         .current_dir(&project_path)
+        .arg("--quiet")
         .stderr(Stdio::inherit())
         .stdout(Stdio::inherit())
         .status();

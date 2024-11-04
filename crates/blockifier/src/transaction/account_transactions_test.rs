@@ -47,7 +47,6 @@ use crate::abi::abi_utils::{
 use crate::check_tx_execution_error_for_invalid_scenario;
 use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::CallInfo;
-use crate::execution::contract_class::{ContractClass, ContractClassV1};
 use crate::execution::entry_point::EntryPointExecutionContext;
 use crate::execution::syscalls::SyscallSelector;
 use crate::fee::fee_utils::{get_fee_by_gas_vector, get_sequencer_balance_keys};
@@ -748,7 +747,7 @@ fn test_fail_declare(block_context: BlockContext, max_fee: Fee) {
     let TestInitData { mut state, account_address, mut nonce_manager, .. } =
         create_test_init_data(chain_info, CairoVersion::Cairo0);
     let class_hash = class_hash!(0xdeadeadeaf72_u128);
-    let contract_class = ContractClass::V1(ContractClassV1::empty_for_testing());
+    let contract_class = FeatureContract::Empty(CairoVersion::Cairo1).get_class();
     let next_nonce = nonce_manager.next(account_address);
 
     // Cannot fail executing a declare tx unless it's V2 or above, and already declared.
@@ -758,7 +757,7 @@ fn test_fail_declare(block_context: BlockContext, max_fee: Fee) {
         sender_address: account_address,
         ..Default::default()
     };
-    state.set_contract_class(class_hash, contract_class.clone()).unwrap();
+    state.set_contract_class(class_hash, contract_class.clone().try_into().unwrap()).unwrap();
     state.set_compiled_class_hash(class_hash, declare_tx.compiled_class_hash).unwrap();
     let class_info = calculate_class_info_for_testing(contract_class);
     let declare_account_tx = AccountTransaction::Declare(
@@ -1257,7 +1256,7 @@ fn test_insufficient_max_fee_reverts(
 
 #[rstest]
 fn test_deploy_account_constructor_storage_write(
-    default_l1_resource_bounds: ValidResourceBounds,
+    default_all_resource_bounds: ValidResourceBounds,
     block_context: BlockContext,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
 ) {
@@ -1275,7 +1274,7 @@ fn test_deploy_account_constructor_storage_write(
         chain_info,
         deploy_account_tx_args! {
             class_hash,
-            resource_bounds: default_l1_resource_bounds,
+            resource_bounds: default_all_resource_bounds,
             constructor_calldata: constructor_calldata.clone(),
         },
     );
@@ -1301,7 +1300,7 @@ fn test_deploy_account_constructor_storage_write(
 fn test_count_actual_storage_changes(
     max_fee: Fee,
     block_context: BlockContext,
-    default_l1_resource_bounds: ValidResourceBounds,
+    default_all_resource_bounds: ValidResourceBounds,
     #[case] version: TransactionVersion,
     #[case] fee_type: FeeType,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
@@ -1344,7 +1343,7 @@ fn test_count_actual_storage_changes(
     let mut state = TransactionalState::create_transactional(&mut state);
     let invoke_args = invoke_tx_args! {
         max_fee,
-        resource_bounds: default_l1_resource_bounds,
+        resource_bounds: default_all_resource_bounds,
         version,
         sender_address: account_address,
         calldata: write_1_calldata,
@@ -1482,7 +1481,7 @@ fn test_count_actual_storage_changes(
 #[case::tx_version_3(TransactionVersion::THREE)]
 fn test_concurrency_execute_fee_transfer(
     max_fee: Fee,
-    default_l1_resource_bounds: ValidResourceBounds,
+    default_all_resource_bounds: ValidResourceBounds,
     #[case] version: TransactionVersion,
 ) {
     // TODO(Meshi, 01/06/2024): make the test so it will include changes in
@@ -1501,7 +1500,7 @@ fn test_concurrency_execute_fee_transfer(
     sender_address: account.get_instance_address(0),
     max_fee,
     calldata: create_trivial_calldata(test_contract.get_instance_address(0)),
-    resource_bounds: default_l1_resource_bounds,
+    resource_bounds: default_all_resource_bounds,
     version
     });
     let fee_type = &account_tx.fee_type();
@@ -1548,7 +1547,7 @@ fn test_concurrency_execute_fee_transfer(
         sender_address: account.get_instance_address(0),
         calldata: transfer_calldata,
         max_fee,
-        resource_bounds: default_l1_resource_bounds,
+        resource_bounds: default_all_resource_bounds,
     });
 
     let execution_result =
@@ -1582,7 +1581,7 @@ fn test_concurrency_execute_fee_transfer(
 #[case::tx_version_3(TransactionVersion::THREE)]
 fn test_concurrent_fee_transfer_when_sender_is_sequencer(
     max_fee: Fee,
-    default_l1_resource_bounds: ValidResourceBounds,
+    default_all_resource_bounds: ValidResourceBounds,
     #[case] version: TransactionVersion,
 ) {
     let mut block_context = BlockContext::create_for_account_testing();
@@ -1599,7 +1598,7 @@ fn test_concurrent_fee_transfer_when_sender_is_sequencer(
         max_fee,
         sender_address: account_address,
         calldata: create_trivial_calldata(test_contract.get_instance_address(0)),
-        resource_bounds: default_l1_resource_bounds,
+        resource_bounds: default_all_resource_bounds,
         version
     });
     let fee_type = &account_tx.fee_type();
@@ -1717,7 +1716,7 @@ fn test_initial_gas(
 #[rstest]
 fn test_revert_in_execute(
     block_context: BlockContext,
-    default_l1_resource_bounds: ValidResourceBounds,
+    default_all_resource_bounds: ValidResourceBounds,
 ) {
     let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
     let chain_info = &block_context.chain_info;
@@ -1735,7 +1734,7 @@ fn test_revert_in_execute(
     // Skip validate phase, as we want to test the revert in the execute phase.
     let validate = false;
     let tx_execution_info = account_invoke_tx(invoke_tx_args! {
-        resource_bounds: default_l1_resource_bounds,
+        resource_bounds: default_all_resource_bounds,
         ..tx_args
     })
     .execute(state, &block_context, true, validate)
@@ -1748,7 +1747,7 @@ fn test_revert_in_execute(
 #[rstest]
 fn test_call_contract_that_panics(
     mut block_context: BlockContext,
-    default_l1_resource_bounds: ValidResourceBounds,
+    default_all_resource_bounds: ValidResourceBounds,
     #[values(true, false)] enable_reverts: bool,
     #[values("test_revert_helper", "bad_selector")] inner_selector: &str,
 ) {
@@ -1785,7 +1784,7 @@ fn test_call_contract_that_panics(
         state,
         &block_context,
         invoke_tx_args! {
-            resource_bounds: default_l1_resource_bounds,
+            resource_bounds: default_all_resource_bounds,
             ..tx_args
         },
     )

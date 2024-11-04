@@ -6,7 +6,7 @@ repository.workspace = true
 license.workspace = true
 
 [features]
-testing = ["thiserror"]
+testing = ["papyrus_proc_macros", "thiserror"]
 
 [lints]
 workspace = true
@@ -17,6 +17,7 @@ clap.workspace = true
 const_format.workspace = true
 futures.workspace = true
 papyrus_config.workspace = true
+papyrus_proc_macros = { workspace = true, optional = true }
 rstest.workspace = true
 serde.workspace = true
 starknet_api.workspace = true

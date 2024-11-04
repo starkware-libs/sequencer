@@ -16,20 +16,20 @@ use crate::transaction::objects::FeeType;
 use crate::transaction::test_utils::{
     account_invoke_tx,
     block_context,
-    default_l1_resource_bounds,
+    default_all_resource_bounds,
 };
 
 #[rstest]
 pub fn test_fill_sequencer_balance_reads(
     block_context: BlockContext,
-    default_l1_resource_bounds: ValidResourceBounds,
+    default_all_resource_bounds: ValidResourceBounds,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] erc20_version: CairoVersion,
 ) {
     let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
     let account_tx = account_invoke_tx(invoke_tx_args! {
         sender_address: account.get_instance_address(0),
         calldata: create_trivial_calldata(account.get_instance_address(0)),
-        resource_bounds: default_l1_resource_bounds,
+        resource_bounds: default_all_resource_bounds,
     });
     let chain_info = &block_context.chain_info;
     let state = &mut test_state_inner(chain_info, BALANCE, &[(account, 1)], erc20_version);

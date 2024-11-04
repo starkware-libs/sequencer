@@ -7,7 +7,7 @@ use starknet_types_core::felt::Felt;
 use super::cached_state::{ContractClassMapping, StateMaps};
 use crate::abi::abi_utils::get_fee_token_var_address;
 use crate::abi::sierra_types::next_storage_key;
-use crate::execution::contract_class::ContractClass;
+use crate::execution::contract_class::RunnableContractClass;
 use crate::state::errors::StateError;
 
 pub type StateResult<T> = Result<T, StateError>;
@@ -41,7 +41,10 @@ pub trait StateReader {
     fn get_class_hash_at(&self, contract_address: ContractAddress) -> StateResult<ClassHash>;
 
     /// Returns the contract class of the given class hash.
-    fn get_compiled_contract_class(&self, class_hash: ClassHash) -> StateResult<ContractClass>;
+    fn get_compiled_contract_class(
+        &self,
+        class_hash: ClassHash,
+    ) -> StateResult<RunnableContractClass>;
 
     /// Returns the compiled class hash of the given class hash.
     fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash>;
@@ -94,7 +97,7 @@ pub trait State: StateReader {
     fn set_contract_class(
         &mut self,
         class_hash: ClassHash,
-        contract_class: ContractClass,
+        contract_class: RunnableContractClass,
     ) -> StateResult<()>;
 
     /// Sets the given compiled class hash under the given class hash.

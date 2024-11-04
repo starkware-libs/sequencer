@@ -4,7 +4,6 @@
 //! uses the `run_consensus` binary which is able to simulate network issues for consensus messages.
 use std::collections::HashSet;
 use std::fs::{self, File};
-use std::net::TcpListener;
 use std::os::unix::process::CommandExt;
 use std::process::Command;
 use std::str::FromStr;
@@ -14,6 +13,7 @@ use clap::Parser;
 use fs2::FileExt;
 use lazy_static::lazy_static;
 use nix::unistd::Pid;
+use papyrus_common::tcp::find_free_port;
 use tokio::process::Command as TokioCommand;
 
 lazy_static! {
@@ -186,14 +186,6 @@ impl Drop for LockDir {
 fn parse_duration(s: &str) -> Result<Duration, std::num::ParseIntError> {
     let secs = u64::from_str(s)?;
     Ok(Duration::from_secs(secs))
-}
-
-fn find_free_port() -> u16 {
-    // The socket is automatically closed when the function exits.
-    // The port may still be available when accessed, but this is not guaranteed.
-    // TODO(Asmaa): find a reliable way to ensure the port stays free.
-    let listener = TcpListener::bind("0.0.0.0:0").expect("Failed to bind");
-    listener.local_addr().expect("Failed to get local address").port()
 }
 
 // Returns if the simulation should exit.

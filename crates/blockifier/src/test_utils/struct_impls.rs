@@ -1,15 +1,14 @@
 use std::sync::Arc;
 
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use serde_json::Value;
 use starknet_api::block::{BlockNumber, BlockTimestamp, NonzeroGasPrice};
-use starknet_api::core::{ChainId, ClassHash, ContractAddress, Nonce};
-use starknet_api::transaction::{Fee, TransactionHash, TransactionVersion};
-use starknet_api::{calldata, contract_address};
-use starknet_types_core::felt::Felt;
+use starknet_api::contract_address;
+use starknet_api::core::{ChainId, ClassHash};
+use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 
 use super::update_json_value;
-use crate::abi::abi_utils::selector_from_name;
 use crate::blockifier::block::{BlockInfo, GasPrices};
 use crate::bouncer::{BouncerConfig, BouncerWeights, BuiltinCount};
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
@@ -35,7 +34,6 @@ use crate::test_utils::{
     TEST_SEQUENCER_ADDRESS,
 };
 use crate::transaction::objects::{DeprecatedTransactionInfo, TransactionInfo};
-use crate::transaction::transactions::L1HandlerTransaction;
 use crate::versioned_constants::{
     GasCosts,
     OsConstants,
@@ -210,6 +208,17 @@ impl CallExecution {
 
 // Contract loaders.
 
+// TODO(Noa): Consider using PathBuf.
+pub trait LoadContractFromFile: serde::de::DeserializeOwned {
+    fn from_file(contract_path: &str) -> Self {
+        let raw_contract_class = get_raw_contract_class(contract_path);
+        serde_json::from_str(&raw_contract_class).unwrap()
+    }
+}
+
+impl LoadContractFromFile for CasmContractClass {}
+impl LoadContractFromFile for DeprecatedContractClass {}
+
 impl ContractClassV0 {
     pub fn from_file(contract_path: &str) -> Self {
         let raw_contract_class = get_raw_contract_class(contract_path);
@@ -221,25 +230,6 @@ impl ContractClassV1 {
     pub fn from_file(contract_path: &str) -> Self {
         let raw_contract_class = get_raw_contract_class(contract_path);
         Self::try_from_json_string(&raw_contract_class).unwrap()
-    }
-}
-
-impl L1HandlerTransaction {
-    pub fn create_for_testing(l1_fee: Fee, contract_address: ContractAddress) -> Self {
-        let calldata = calldata![
-            Felt::from(0x123), // from_address.
-            Felt::from(0x876), // key.
-            Felt::from(0x44)   // value.
-        ];
-        let tx = starknet_api::transaction::L1HandlerTransaction {
-            version: TransactionVersion::ZERO,
-            nonce: Nonce::default(),
-            contract_address,
-            entry_point_selector: selector_from_name("l1_handler_set_value"),
-            calldata,
-        };
-        let tx_hash = TransactionHash::default();
-        Self { tx, tx_hash, paid_fee_on_l1: l1_fee }
     }
 }
 

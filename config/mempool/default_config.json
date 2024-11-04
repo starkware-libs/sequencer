@@ -81,13 +81,13 @@
   },
   "batcher_config.block_builder_config.chain_info.fee_token_addresses.eth_fee_token_address": {
     "description": "Address of the ETH fee token.",
-    "privacy": "Public",
-    "value": "0x0"
+    "pointer_target": "eth_fee_token_address",
+    "privacy": "Public"
   },
   "batcher_config.block_builder_config.chain_info.fee_token_addresses.strk_fee_token_address": {
     "description": "Address of the STRK fee token.",
-    "privacy": "Public",
-    "value": "0x0"
+    "pointer_target": "strk_fee_token_address",
+    "privacy": "Public"
   },
   "batcher_config.block_builder_config.execute_config.concurrency_config.chunk_size": {
     "description": "The size of the transaction chunk executed in parallel.",
@@ -204,10 +204,10 @@
     "privacy": "Public",
     "value": 81920
   },
-  "components.batcher.execution_mode.LocalExecution.enable_remote_connection": {
-    "description": "Specifies whether the component, when running locally, allows remote connections.",
+  "components.batcher.execution_mode": {
+    "description": "The component execution mode.",
     "privacy": "Public",
-    "value": false
+    "value": "LocalExecutionWithRemoteDisabled"
   },
   "components.batcher.local_server_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -254,10 +254,10 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
-  "components.consensus_manager.execution_mode.LocalExecution.enable_remote_connection": {
-    "description": "Specifies whether the component, when running locally, allows remote connections.",
+  "components.consensus_manager.execution_mode": {
+    "description": "The component execution mode.",
     "privacy": "Public",
-    "value": false
+    "value": "LocalExecutionWithRemoteDisabled"
   },
   "components.consensus_manager.local_server_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -304,10 +304,10 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
-  "components.gateway.execution_mode.LocalExecution.enable_remote_connection": {
-    "description": "Specifies whether the component, when running locally, allows remote connections.",
+  "components.gateway.execution_mode": {
+    "description": "The component execution mode.",
     "privacy": "Public",
-    "value": false
+    "value": "LocalExecutionWithRemoteDisabled"
   },
   "components.gateway.local_server_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -354,10 +354,10 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
-  "components.http_server.execution_mode.LocalExecution.enable_remote_connection": {
-    "description": "Specifies whether the component, when running locally, allows remote connections.",
+  "components.http_server.execution_mode": {
+    "description": "The component execution mode.",
     "privacy": "Public",
-    "value": true
+    "value": "LocalExecutionWithRemoteEnabled"
   },
   "components.http_server.local_server_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -404,10 +404,10 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
-  "components.mempool.execution_mode.LocalExecution.enable_remote_connection": {
-    "description": "Specifies whether the component, when running locally, allows remote connections.",
+  "components.mempool.execution_mode": {
+    "description": "The component execution mode.",
     "privacy": "Public",
-    "value": false
+    "value": "LocalExecutionWithRemoteDisabled"
   },
   "components.mempool.local_server_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -454,10 +454,10 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
-  "components.mempool_p2p.execution_mode.LocalExecution.enable_remote_connection": {
-    "description": "Specifies whether the component, when running locally, allows remote connections.",
+  "components.mempool_p2p.execution_mode": {
+    "description": "The component execution mode.",
     "privacy": "Public",
-    "value": false
+    "value": "LocalExecutionWithRemoteDisabled"
   },
   "components.mempool_p2p.local_server_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -504,10 +504,10 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
-  "components.monitoring_endpoint.execution_mode.LocalExecution.enable_remote_connection": {
-    "description": "Specifies whether the component, when running locally, allows remote connections.",
+  "components.monitoring_endpoint.execution_mode": {
+    "description": "The component execution mode.",
     "privacy": "Public",
-    "value": true
+    "value": "LocalExecutionWithRemoteEnabled"
   },
   "components.monitoring_endpoint.local_server_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -594,6 +594,11 @@
     "privacy": "Public",
     "value": "0x0"
   },
+  "eth_fee_token_address": {
+    "description": "A required param! Address of the ETH fee token.",
+    "param_type": "String",
+    "privacy": "TemporaryValue"
+  },
   "gateway_config.chain_info.chain_id": {
     "description": "The chain ID of the StarkNet chain.",
     "pointer_target": "chain_id",
@@ -601,13 +606,13 @@
   },
   "gateway_config.chain_info.fee_token_addresses.eth_fee_token_address": {
     "description": "Address of the ETH fee token.",
-    "privacy": "Public",
-    "value": "0x0"
+    "pointer_target": "eth_fee_token_address",
+    "privacy": "Public"
   },
   "gateway_config.chain_info.fee_token_addresses.strk_fee_token_address": {
     "description": "Address of the STRK fee token.",
-    "privacy": "Public",
-    "value": "0x0"
+    "pointer_target": "strk_fee_token_address",
+    "privacy": "Public"
   },
   "gateway_config.stateful_tx_validator_config.max_nonce_for_validation_skip": {
     "description": "Maximum nonce for which the validation is skipped.",
@@ -793,5 +798,10 @@
     "description": "The url of the rpc server.",
     "privacy": "Public",
     "value": ""
+  },
+  "strk_fee_token_address": {
+    "description": "A required param! Address of the STRK fee token.",
+    "param_type": "String",
+    "privacy": "TemporaryValue"
   }
 }

@@ -11,9 +11,6 @@ use papyrus_config::dumping::{
     SerializeConfig,
 };
 use papyrus_config::loading::load_and_process_config;
-use papyrus_config::validators::validate_ascii;
-#[cfg(any(feature = "testing", test))]
-use papyrus_config::SerializedContent;
 use papyrus_config::{ConfigError, ParamPath, SerializationType, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ChainId;
@@ -39,16 +36,24 @@ pub const DEFAULT_CHAIN_ID: ChainId = ChainId::Mainnet;
 // Required target parameters.
 pub static REQUIRED_PARAM_CONFIG_POINTERS: LazyLock<Vec<(ParamPath, SerializedParam)>> =
     LazyLock::new(|| {
-        vec![ser_pointer_target_required_param(
-            "chain_id",
-            SerializationType::String,
-            "The chain to follow.",
-        )]
+        vec![
+            ser_pointer_target_required_param(
+                "chain_id",
+                SerializationType::String,
+                "The chain to follow.",
+            ),
+            ser_pointer_target_required_param(
+                "eth_fee_token_address",
+                SerializationType::String,
+                "Address of the ETH fee token.",
+            ),
+            ser_pointer_target_required_param(
+                "strk_fee_token_address",
+                SerializationType::String,
+                "Address of the STRK fee token.",
+            ),
+        ]
     });
-
-// TODO(Tsabary): Create a struct detailing all the required parameters and their types. Add a macro
-// that verifies the correctness of the required parameters compared to
-// REQUIRED_PARAM_CONFIG_POINTERS.
 
 // Optional target parameters, i.e., target parameters with default values.
 pub static DEFAULT_PARAM_CONFIG_POINTERS: LazyLock<Vec<(ParamPath, SerializedParam)>> =
@@ -61,49 +66,10 @@ pub static CONFIG_POINTERS: LazyLock<Vec<(ParamPath, SerializedParam)>> = LazyLo
     combined
 });
 
-// TODO(Tsabary): Bundle required config values in a struct, detailing whether they are pointer
-// targets or not. Then, derive their values in the config (struct and pointers).
-// Also, add functionality to derive them for testing.
-// Creates a vector of strings with the command name and required parameters that can be used as
-// arguments to load a config.
-#[cfg(any(feature = "testing", test))]
-pub fn create_test_config_load_args(pointers: &Vec<(ParamPath, SerializedParam)>) -> Vec<String> {
-    let mut dummy_values = Vec::new();
-
-    // Command name.
-    dummy_values.push(node_command().to_string());
-
-    // Iterate over required config parameters and add them as args with suitable arbitrary values.
-    for (target_param, serialized_pointer) in pointers {
-        // Param name.
-        let required_param_name_as_arg = format!("--{}", target_param);
-        dummy_values.push(required_param_name_as_arg);
-
-        // Param value.
-        let serialization_type = match &serialized_pointer.content {
-            SerializedContent::ParamType(serialization_type) => serialization_type,
-            _ => panic!("Required parameters have to be of type ParamType."),
-        };
-        let arbitrary_value = match serialization_type {
-            SerializationType::Boolean => "false",
-            SerializationType::Float => "15.2",
-            SerializationType::NegativeInteger => "-30",
-            SerializationType::PositiveInteger => "17",
-            SerializationType::String => "ArbitraryString",
-        }
-        .to_string();
-        dummy_values.push(arbitrary_value);
-    }
-    dummy_values
-}
-
 // TODO(yair): Make the GW and batcher execution config point to the same values.
 /// The configurations of the various components of the node.
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
+#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq, Validate)]
 pub struct SequencerNodeConfig {
-    /// The [chain id](https://docs.rs/starknet_api/latest/starknet_api/core/struct.ChainId.html) of the Starknet network.
-    #[validate(custom = "validate_ascii")]
-    pub chain_id: ChainId,
     #[validate]
     pub components: ComponentConfig,
     #[validate]
@@ -145,23 +111,6 @@ impl SerializeConfig for SequencerNodeConfig {
         ];
 
         sub_configs.into_iter().flatten().collect()
-    }
-}
-
-impl Default for SequencerNodeConfig {
-    fn default() -> Self {
-        Self {
-            chain_id: DEFAULT_CHAIN_ID,
-            components: Default::default(),
-            batcher_config: Default::default(),
-            consensus_manager_config: Default::default(),
-            gateway_config: Default::default(),
-            http_server_config: Default::default(),
-            rpc_state_reader_config: Default::default(),
-            compiler_config: Default::default(),
-            mempool_p2p_config: Default::default(),
-            monitoring_endpoint_config: Default::default(),
-        }
     }
 }
 
