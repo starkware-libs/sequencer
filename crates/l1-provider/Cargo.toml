@@ -1,5 +1,5 @@
 [package]
-name = "l1-provider"
+name = "starknet_l1_provider"
 version.workspace = true
 edition.workspace = true
 repository.workspace = true
