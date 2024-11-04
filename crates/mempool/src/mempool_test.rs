@@ -87,11 +87,11 @@ impl MempoolContentBuilder {
         self
     }
 
-    fn _with_pending_queue<Q>(mut self, queue_txs: Q) -> Self
+    fn with_pending_queue<Q>(mut self, queue_txs: Q) -> Self
     where
         Q: IntoIterator<Item = TransactionReference>,
     {
-        self.tx_queue_content_builder = self.tx_queue_content_builder._with_pending(queue_txs);
+        self.tx_queue_content_builder = self.tx_queue_content_builder.with_pending(queue_txs);
         self
     }
 
@@ -216,6 +216,20 @@ fn test_get_txs_returns_by_priority_order(#[case] n_requested_txs: usize) {
     let mempool_content =
         MempoolContentBuilder::new().with_priority_queue(remaining_tx_references).build();
     mempool_content.assert_eq(&mempool);
+}
+
+#[rstest]
+fn test_get_txs_does_not_return_pending_txs() {
+    // Setup.
+    let tx = tx!();
+
+    let mut mempool = MempoolContentBuilder::new()
+        .with_pending_queue([TransactionReference::new(&tx)])
+        .with_pool([tx])
+        .build_into_mempool();
+
+    // Test and assert.
+    get_txs_and_assert_expected(&mut mempool, 1, &[]);
 }
 
 #[rstest]
