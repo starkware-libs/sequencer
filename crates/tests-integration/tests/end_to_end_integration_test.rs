@@ -76,7 +76,7 @@ async fn test_end_to_end_integration(tx_generator: MultiAccountTransactionGenera
             .await;
 
     // Derive the configuration for the sequencer node.
-    let (config, required_params) =
+    let (config, required_params, _) =
         create_config(rpc_server_addr, storage_for_test.batcher_storage_config).await;
 
     // Note: the batcher storage file handle is passed as a reference to maintain its ownership in
