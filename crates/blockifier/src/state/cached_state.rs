@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 
 use indexmap::IndexMap;
-use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
+use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce, PatriciaKey};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
@@ -716,6 +716,13 @@ impl StateChanges {
             storage_keys: self.0.storage.into_keys().collect(),
             compiled_class_hash_keys: self.0.compiled_class_hashes.into_keys().collect(),
         }
+    }
+
+    pub fn get_modified_contracts_and_storage_keys(&self) -> HashSet<PatriciaKey> {
+        let mut modified_keys: HashSet<PatriciaKey> =
+            self.0.storage.keys().map(|storage_key| storage_key.1.0).collect();
+        modified_keys.extend(self.get_modified_contracts().into_iter().map(|contract| contract.0));
+        modified_keys
     }
 }
 
