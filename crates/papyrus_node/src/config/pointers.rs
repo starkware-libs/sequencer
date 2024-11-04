@@ -18,6 +18,7 @@ use papyrus_config::dumping::{
     append_sub_config_name,
     ser_optional_sub_config,
     ser_pointer_target_param,
+    set_pointing_param_paths,
     ConfigPointers,
     SerializeConfig,
 };
@@ -54,10 +55,10 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                 &ChainId::Mainnet,
                 "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
             ),
-            HashSet::from([
-                "storage.db_config.chain_id".to_owned(),
-                "rpc.chain_id".to_owned(),
-                "network.chain_id".to_owned(),
+            set_pointing_param_paths(&[
+                "storage.db_config.chain_id",
+                "rpc.chain_id",
+                "network.chain_id",
             ])
         ),
         (
@@ -66,10 +67,10 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                 &"https://alpha-mainnet.starknet.io/".to_string(),
                 "The URL of a centralized Starknet gateway.",
             ),
-            HashSet::from([
-                "rpc.starknet_url".to_owned(),
-                "central.starknet_url".to_owned(),
-                "monitoring_gateway.starknet_url".to_owned(),
+            set_pointing_param_paths(&[
+                "rpc.starknet_url",
+                "central.starknet_url",
+                "monitoring_gateway.starknet_url",
             ])
         ),
         (
@@ -78,9 +79,9 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                 &false,
                 "If true, collect metrics for the node.",
             ),
-            HashSet::from([
-                "rpc.collect_metrics".to_owned(),
-                "monitoring_gateway.collect_metrics".to_owned(),
+            set_pointing_param_paths(&[
+                "rpc.collect_metrics",
+                "monitoring_gateway.collect_metrics",
             ])
         ),
     ]
