@@ -112,6 +112,7 @@ define_versioned_constants! {
     (V0_13_2, "../resources/versioned_constants_0_13_2.json"),
     (V0_13_2_1, "../resources/versioned_constants_0_13_2_1.json"),
     (V0_13_3, "../resources/versioned_constants_0_13_3.json"),
+    (V0_13_4, "../resources/versioned_constants_0_13_4.json"),
 }
 
 pub type ResourceCost = Ratio<u64>;

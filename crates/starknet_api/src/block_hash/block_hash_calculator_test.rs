@@ -44,7 +44,7 @@ macro_rules! test_hash_changes {
         {
             let header = BlockHeaderWithoutHash {
                 l1_da_mode: L1DataAvailabilityMode::Blob,
-                starknet_version: BlockHashVersion::VO_13_3.into(),
+                starknet_version: BlockHashVersion::VO_13_4.into(),
                 $($header_field: $header_value),*
             };
             let commitments = BlockHeaderCommitments {
@@ -73,7 +73,7 @@ macro_rules! test_hash_changes {
 
 #[rstest]
 fn test_block_hash_regression(
-    #[values(BlockHashVersion::VO_13_2, BlockHashVersion::VO_13_3)]
+    #[values(BlockHashVersion::VO_13_3, BlockHashVersion::VO_13_4)]
     block_hash_version: BlockHashVersion,
 ) {
     let block_header = BlockHeaderWithoutHash {
@@ -106,11 +106,11 @@ fn test_block_hash_regression(
     );
 
     let expected_hash = match block_hash_version {
-        BlockHashVersion::VO_13_2 => {
-            felt!("0xe248d6ce583f8fa48d1d401d4beb9ceced3733e38d8eacb0d8d3669a7d901c")
-        }
         BlockHashVersion::VO_13_3 => {
-            felt!("0x566c0aaa2bb5fbd7957224108f089100d58f1d8767dd2b53698e27efbf2a28b")
+            felt!("0x5d329f522b3d784eda109f92b5d1c7981298fb39bf4b41d6795fe459950fcf4")
+        }
+        BlockHashVersion::VO_13_4 => {
+            felt!("0x3d6174623c812f5dc03fa3faa07c42c06fd90ad425629ee5f39e149df65c3ca")
         }
     };
 
@@ -121,14 +121,14 @@ fn test_block_hash_regression(
 }
 
 #[test]
-fn l2_gas_price_pre_v0_13_3() {
+fn l2_gas_price_pre_v0_13_4() {
     let block_header = {
         |l2_gas_price: u8| BlockHeaderWithoutHash {
             l2_gas_price: GasPricePerToken {
                 price_in_fri: l2_gas_price.into(),
                 price_in_wei: l2_gas_price.into(),
             },
-            starknet_version: BlockHashVersion::VO_13_2.into(),
+            starknet_version: BlockHashVersion::VO_13_3.into(),
             ..Default::default()
         }
     };

@@ -47,15 +47,15 @@ static STARKNET_GAS_PRICES0: LazyLock<Felt> = LazyLock::new(|| {
 #[allow(non_camel_case_types)]
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd)]
 pub enum BlockHashVersion {
-    VO_13_2,
     VO_13_3,
+    VO_13_4,
 }
 
 impl From<BlockHashVersion> for StarknetVersion {
     fn from(value: BlockHashVersion) -> Self {
         match value {
-            BlockHashVersion::VO_13_2 => StarknetVersion::V0_13_2,
             BlockHashVersion::VO_13_3 => StarknetVersion::V0_13_3,
+            BlockHashVersion::VO_13_4 => StarknetVersion::V0_13_4,
         }
     }
 }
@@ -64,12 +64,12 @@ impl TryFrom<StarknetVersion> for BlockHashVersion {
     type Error = StarknetApiError;
 
     fn try_from(value: StarknetVersion) -> StarknetApiResult<Self> {
-        if value < Self::VO_13_2.into() {
+        if value < Self::VO_13_3.into() {
             Err(StarknetApiError::BlockHashVersion { version: value.to_string() })
-        } else if value < Self::VO_13_3.into() {
-            Ok(Self::VO_13_2)
-        } else {
+        } else if value < Self::VO_13_4.into() {
             Ok(Self::VO_13_3)
+        } else {
+            Ok(Self::VO_13_4)
         }
     }
 }
@@ -80,8 +80,8 @@ type BlockHashConstant = Felt;
 impl From<BlockHashVersion> for BlockHashConstant {
     fn from(block_hash_version: BlockHashVersion) -> Self {
         match block_hash_version {
-            BlockHashVersion::VO_13_2 => *STARKNET_BLOCK_HASH0,
-            BlockHashVersion::VO_13_3 => *STARKNET_BLOCK_HASH1,
+            BlockHashVersion::VO_13_3 => *STARKNET_BLOCK_HASH0,
+            BlockHashVersion::VO_13_4 => *STARKNET_BLOCK_HASH1,
         }
     }
 }
@@ -164,7 +164,7 @@ pub fn calculate_block_commitments(
         .iter()
         .map(|tx_leaf| {
             let mut tx_leaf_element = TransactionLeafElement::from(tx_leaf);
-            if starknet_version < &BlockHashVersion::VO_13_3.into()
+            if starknet_version < &BlockHashVersion::VO_13_4.into()
                 && tx_leaf.transaction_signature.0.is_empty()
             {
                 tx_leaf_element.transaction_signature.0.push(Felt::ZERO);
@@ -248,7 +248,7 @@ fn gas_prices_to_hash(
     l2_gas_price: &GasPricePerToken,
     block_hash_version: &BlockHashVersion,
 ) -> Vec<Felt> {
-    if block_hash_version >= &BlockHashVersion::VO_13_3 {
+    if block_hash_version >= &BlockHashVersion::VO_13_4 {
         vec![
             HashChain::new()
                 .chain(&STARKNET_GAS_PRICES0)
