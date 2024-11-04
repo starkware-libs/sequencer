@@ -96,6 +96,106 @@ expression: dumped_default_config
     },
     "privacy": "Public"
   },
+  "consensus.network_config.advertised_multiaddr": {
+    "description": "The external address other peers see this node. If this is set, the node will not try to find out which addresses it has and will write this address as external instead",
+    "value": "",
+    "privacy": "Public"
+  },
+  "consensus.network_config.advertised_multiaddr.#is_none": {
+    "description": "Flag for an optional field.",
+    "value": true,
+    "privacy": "TemporaryValue"
+  },
+  "consensus.network_config.bootstrap_peer_multiaddr": {
+    "description": "The multiaddress of the peer node. It should include the peer's id. For more info: https://docs.libp2p.io/concepts/fundamentals/peers/",
+    "value": "",
+    "privacy": "Public"
+  },
+  "consensus.network_config.bootstrap_peer_multiaddr.#is_none": {
+    "description": "Flag for an optional field.",
+    "value": true,
+    "privacy": "TemporaryValue"
+  },
+  "consensus.network_config.chain_id": {
+    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "value": "SN_MAIN",
+    "privacy": "Public"
+  },
+  "consensus.network_config.discovery_config.bootstrap_dial_retry_config.base_delay_millis": {
+    "description": "The base delay in milliseconds for the exponential backoff strategy.",
+    "value": {
+      "$serde_json::private::Number": "2"
+    },
+    "privacy": "Public"
+  },
+  "consensus.network_config.discovery_config.bootstrap_dial_retry_config.factor": {
+    "description": "The factor for the exponential backoff strategy.",
+    "value": {
+      "$serde_json::private::Number": "5"
+    },
+    "privacy": "Public"
+  },
+  "consensus.network_config.discovery_config.bootstrap_dial_retry_config.max_delay": {
+    "description": "The maximum delay in seconds for the exponential backoff strategy.",
+    "value": {
+      "$serde_json::private::Number": "5"
+    },
+    "privacy": "Public"
+  },
+  "consensus.network_config.discovery_config.heartbeat_interval": {
+    "description": "The interval between each discovery (Kademlia) query in milliseconds.",
+    "value": {
+      "$serde_json::private::Number": "100"
+    },
+    "privacy": "Public"
+  },
+  "consensus.network_config.idle_connection_timeout": {
+    "description": "Amount of time in seconds that a connection with no active sessions will stay alive.",
+    "value": {
+      "$serde_json::private::Number": "120"
+    },
+    "privacy": "Public"
+  },
+  "consensus.network_config.peer_manager_config.malicious_timeout": {
+    "description": "The duration a peer is blacklisted after being marked as malicious.",
+    "value": {
+      "$serde_json::private::Number": "31536000"
+    },
+    "privacy": "Public"
+  },
+  "consensus.network_config.peer_manager_config.unstable_timeout": {
+    "description": "The duration a peer blacklisted after being reported as unstable.",
+    "value": {
+      "$serde_json::private::Number": "1"
+    },
+    "privacy": "Public"
+  },
+  "consensus.network_config.quic_port": {
+    "description": "The port that the node listens on for incoming quic connections.",
+    "value": {
+      "$serde_json::private::Number": "10101"
+    },
+    "privacy": "Public"
+  },
+  "consensus.network_config.secret_key": {
+    "description": "The secret key used for building the peer id. If it's an empty string a random one will be used.",
+    "value": "",
+    "privacy": "Private"
+  },
+  "consensus.network_config.session_timeout": {
+    "description": "Maximal time in seconds that each session can take before failing on timeout.",
+    "value": {
+      "$serde_json::private::Number": "120"
+    },
+    "privacy": "Public"
+  },
+  "consensus.network_config.tcp_port": {
+    "description": "The port that the node listens on for incoming tcp connections.",
+    "value": {
+      "$serde_json::private::Number": "10100"
+    },
+    "privacy": "Public"
+  },
   "consensus.network_topic": {
     "description": "The network topic of the consensus.",
     "value": "consensus",
