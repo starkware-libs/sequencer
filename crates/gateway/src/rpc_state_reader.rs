@@ -110,9 +110,15 @@ impl BlockifierStateReader for RpcStateReader {
         let get_storage_at_params =
             GetStorageAtParams { block_id: self.block_id, contract_address, key };
 
-        let result = self.send_rpc_request("starknet_getStorageAt", get_storage_at_params)?;
-        let value: Felt = serde_json::from_value(result).map_err(serde_err_to_state_err)?;
-        Ok(value)
+        let result = self.send_rpc_request("starknet_getStorageAt", get_storage_at_params);
+        match result {
+            Ok(value) => {
+                let value: Felt = serde_json::from_value(value).map_err(serde_err_to_state_err)?;
+                Ok(value)
+            }
+            Err(RPCStateReaderError::ContractAddressNotFound(_)) => Ok(Felt::default()),
+            Err(e) => Err(e)?,
+        }
     }
 
     fn get_nonce_at(&self, contract_address: ContractAddress) -> StateResult<Nonce> {
