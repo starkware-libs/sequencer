@@ -12,6 +12,7 @@ use blockifier::transaction::objects::{ExecutionResourcesTraits, TransactionExec
 use blockifier::transaction::transaction_execution::Transaction;
 use blockifier::utils::usize_from_u64;
 use blockifier::versioned_constants::VersionedConstants;
+use papyrus_state_reader::papyrus_state::PapyrusReader;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyList};
 use pyo3::{FromPyObject, PyAny, Python};
@@ -27,7 +28,6 @@ use crate::py_objects::{PyBouncerConfig, PyConcurrencyConfig, PyVersionedConstan
 use crate::py_state_diff::{PyBlockInfo, PyStateDiff};
 use crate::py_transaction::{py_tx, PyClassInfo, PY_TX_PARSING_ERR};
 use crate::py_utils::{int_to_chain_id, into_block_number_hash_pair, PyFelt};
-use crate::state_readers::papyrus_state::PapyrusReader;
 use crate::storage::{PapyrusStorage, Storage, StorageConfig};
 
 pub(crate) type RawTransactionExecutionResult = Vec<u8>;

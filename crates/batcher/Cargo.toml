@@ -14,6 +14,7 @@ blockifier.workspace = true
 chrono.workspace = true
 indexmap.workspace = true
 papyrus_config.workspace = true
+papyrus_state_reader.workspace = true
 papyrus_storage.workspace = true
 serde.workspace = true
 starknet-types-core.workspace = true
