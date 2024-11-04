@@ -344,19 +344,12 @@ where
     fn new(x: U256, y: U256) -> Result<Option<Self>, Vec<Felt>> {
         let x = u256_to_biguint(x);
         let y = u256_to_biguint(y);
-        let modulos = Curve::BaseField::MODULUS.into();
 
-        if x >= modulos || y >= modulos {
-            let error =
-                Felt::from_hex(crate::execution::syscalls::hint_processor::INVALID_ARGUMENT)
-                    .map_err(|err| {
-                        encode_str_as_felts(&SyscallExecutionError::from(err).to_string())
-                    })?;
-
-            return Err(vec![error]);
+        match new_affine(x, y) {
+            Ok(None) => Ok(None),
+            Ok(Some(affine)) => Ok(Some(Secp256Point(affine))),
+            Err(error) => Err(encode_str_as_felts(&error.to_string())),
         }
-
-        Ok(maybe_affine(x.into(), y.into()))
     }
 
     fn add(p0: Self, p1: Self) -> Self {
@@ -400,11 +393,45 @@ where
     }
 }
 
+fn new_affine<Curve: SWCurveConfig>(
+    x: num_bigint::BigUint,
+    y: num_bigint::BigUint,
+) -> Result<Option<Affine<Curve>>, SyscallExecutionError>
+where
+    Curve::BaseField: PrimeField, // constraint for get_point_by_id
+{
+    let _ = modulus_bound_check::<Curve>(&x, &y)?;
+
+    Ok(maybe_affine(x.into(), y.into()))
+}
+
+fn modulus_bound_check<Curve: SWCurveConfig>(
+    x: &num_bigint::BigUint,
+    y: &num_bigint::BigUint,
+) -> Result<(), SyscallExecutionError>
+where
+    Curve::BaseField: PrimeField, // constraint for get_point_by_id
+{
+    let modulos = Curve::BaseField::MODULUS.into();
+
+    if *x >= modulos || *y >= modulos {
+        let error =
+            match Felt::from_hex(crate::execution::syscalls::hint_processor::INVALID_ARGUMENT) {
+                Ok(err) => SyscallExecutionError::SyscallError { error_data: vec![err] },
+                Err(err) => SyscallExecutionError::from(err),
+            };
+
+        return Err(error);
+    }
+
+    Ok(())
+}
+
 /// Variation on [`Affine<Curve>::new`] that doesn't panic and maps (x,y) = (0,0) -> infinity
 fn maybe_affine<Curve: SWCurveConfig>(
     x: Curve::BaseField,
     y: Curve::BaseField,
-) -> Option<Secp256Point<Curve>> {
+) -> Option<Affine<Curve>> {
     let ec_point = if x.is_zero() && y.is_zero() {
         Affine::<Curve>::identity()
     } else {
@@ -412,7 +439,7 @@ fn maybe_affine<Curve: SWCurveConfig>(
     };
 
     if ec_point.is_on_curve() && ec_point.is_in_correct_subgroup_assuming_on_curve() {
-        Some(Secp256Point(ec_point))
+        Some(ec_point)
     } else {
         None
     }
