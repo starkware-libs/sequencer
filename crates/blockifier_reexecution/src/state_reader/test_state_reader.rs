@@ -53,13 +53,23 @@ pub struct OfflineReexecutionData {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct SerializableOfflineReexecutionData {
-    pub state_maps: ReexecutionStateMaps,
+pub struct SerializableDataNextBlock {
     pub block_info_next_block: BlockInfo,
     pub starknet_version: StarknetVersion,
     pub transactions_next_block: Vec<(Transaction, TransactionHash)>,
     pub state_diff_next_block: CommitmentStateDiff,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct SerializableDataPrevBlock {
+    pub state_maps: ReexecutionStateMaps,
     pub contract_class_mapping: StarknetContractClassMapping,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct SerializableOfflineReexecutionData {
+    pub serializable_data_prev_block: SerializableDataPrevBlock,
+    pub serializable_data_next_block: SerializableDataNextBlock,
 }
 
 impl SerializableOfflineReexecutionData {
@@ -82,30 +92,41 @@ impl SerializableOfflineReexecutionData {
 
 impl From<SerializableOfflineReexecutionData> for OfflineReexecutionData {
     fn from(value: SerializableOfflineReexecutionData) -> Self {
+        let SerializableOfflineReexecutionData {
+            serializable_data_prev_block:
+                SerializableDataPrevBlock { state_maps, contract_class_mapping },
+            serializable_data_next_block:
+                SerializableDataNextBlock {
+                    block_info_next_block,
+                    starknet_version,
+                    transactions_next_block,
+                    state_diff_next_block,
+                },
+        } = value;
+
         let offline_state_reader_prev_block = OfflineStateReader {
-            state_maps: value.state_maps.try_into().expect("Failed to deserialize state maps."),
-            contract_class_mapping: value.contract_class_mapping,
+            state_maps: state_maps.try_into().expect("Failed to deserialize state maps."),
+            contract_class_mapping,
         };
         let transactions_next_block = offline_state_reader_prev_block
-            .api_txs_to_blockifier_txs_next_block(value.transactions_next_block)
+            .api_txs_to_blockifier_txs_next_block(transactions_next_block)
             .expect("Failed to convert starknet-api transactions to blockifier transactions.");
         Self {
             offline_state_reader_prev_block,
             block_context_next_block: BlockContext::new(
-                value.block_info_next_block,
+                block_info_next_block,
                 get_chain_info(),
-                VersionedConstants::get(&value.starknet_version).unwrap().clone(),
+                VersionedConstants::get(&starknet_version).unwrap().clone(),
                 BouncerConfig::max(),
             ),
             transactions_next_block,
-            state_diff_next_block: value.state_diff_next_block,
+            state_diff_next_block,
         }
     }
 }
 
 pub struct TestStateReader {
     rpc_state_reader: RpcStateReader,
-    #[allow(dead_code)]
     contract_class_mapping_dumper: Arc<Mutex<Option<StarknetContractClassMapping>>>,
 }
 
@@ -368,6 +389,15 @@ impl ConsecutiveTestStateReaders {
                 false,
             ),
         }
+    }
+
+    pub fn get_serializable_data_next_block(&self) -> ReexecutionResult<SerializableDataNextBlock> {
+        Ok(SerializableDataNextBlock {
+            block_info_next_block: self.next_block_state_reader.get_block_info()?,
+            starknet_version: self.next_block_state_reader.get_starknet_version()?,
+            transactions_next_block: self.next_block_state_reader.get_all_txs_in_block()?,
+            state_diff_next_block: self.next_block_state_reader.get_state_diff()?,
+        })
     }
 }
 
