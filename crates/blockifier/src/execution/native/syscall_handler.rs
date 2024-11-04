@@ -1,17 +1,15 @@
 use std::collections::HashSet;
+use std::convert::From;
+use std::fmt;
 use std::hash::RandomState;
 
+use ark_ec::short_weierstrass::{Affine, Projective, SWCurveConfig};
+use ark_ff::PrimeField;
 use cairo_native::starknet::{
-    BlockInfo,
-    ExecutionInfo,
-    ExecutionInfoV2,
-    Secp256k1Point,
-    Secp256r1Point,
-    StarknetSyscallHandler,
-    SyscallResult,
-    TxInfo,
-    U256,
+    BlockInfo, ExecutionInfo, ExecutionInfoV2, Secp256k1Point, Secp256r1Point,
+    StarknetSyscallHandler, SyscallResult, TxInfo, U256,
 };
+use cairo_native::starknet_stub::u256_to_biguint;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::core::EthAddress;
 use starknet_api::state::StorageKey;
@@ -19,19 +17,15 @@ use starknet_api::transaction::L2ToL1Payload;
 use starknet_types_core::felt::Felt;
 
 use crate::execution::call_info::{
-    CallInfo,
-    MessageToL1,
-    OrderedEvent,
-    OrderedL2ToL1Message,
-    Retdata,
+    CallInfo, MessageToL1, OrderedEvent, OrderedL2ToL1Message, Retdata,
 };
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::entry_point::{CallEntryPoint, EntryPointExecutionContext};
 use crate::execution::errors::EntryPointExecutionError;
+use crate::execution::native::utils::encode_str_as_felts;
+use crate::execution::secp;
 use crate::execution::syscalls::hint_processor::{
-    SyscallExecutionError,
-    INVALID_INPUT_LENGTH_ERROR,
-    OUT_OF_GAS_ERROR,
+    SyscallExecutionError, INVALID_INPUT_LENGTH_ERROR, OUT_OF_GAS_ERROR,
 };
 use crate::state::state_api::State;
 
@@ -121,10 +115,8 @@ impl<'state> NativeSyscallHandler<'state> {
 
         if *remaining_gas < required_gas {
             // Out of gas failure.
-            return Err(vec![
-                Felt::from_hex(OUT_OF_GAS_ERROR)
-                    .expect("Failed to parse OUT_OF_GAS_ERROR hex string"),
-            ]);
+            return Err(vec![Felt::from_hex(OUT_OF_GAS_ERROR)
+                .expect("Failed to parse OUT_OF_GAS_ERROR hex string")]);
         }
 
         *remaining_gas -= required_gas;
@@ -517,5 +509,79 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
         sha2::compress256(prev_state, &[data_as_bytes]);
 
         Ok(())
+    }
+}
+
+// todo(xrvdg) remove dead_code annotation after adding syscalls
+#[allow(dead_code)]
+impl<Curve: SWCurveConfig> Secp256Point<Curve>
+where
+    Curve::BaseField: PrimeField, // constraint for get_point_by_id
+{
+    /// Given an (x, y) pair, this function:
+    /// - Returns the point at infinity for (0, 0).
+    /// - Returns `Err` if either `x` or `y` is outside the modulus.
+    /// - Returns `Ok(None)` if (x, y) are within the modulus but not on the curve.
+    /// - Ok(Some(Point)) if (x,y) are on the curve.
+    fn new(x: U256, y: U256) -> Result<Option<Self>, Vec<Felt>> {
+        let x = u256_to_biguint(x);
+        let y = u256_to_biguint(y);
+
+        match secp::new_affine(x, y) {
+            Ok(None) => Ok(None),
+            Ok(Some(affine)) => Ok(Some(Secp256Point(affine))),
+            Err(error) => Err(encode_str_as_felts(&error.to_string())),
+        }
+    }
+
+    fn add(p0: Self, p1: Self) -> Self {
+        let result: Projective<Curve> = p0.0 + p1.0;
+        Secp256Point(result.into())
+    }
+
+    fn mul(p: Self, m: U256) -> Self {
+        let result = p.0 * Curve::ScalarField::from(u256_to_biguint(m));
+        Secp256Point(result.into())
+    }
+
+    fn get_point_from_x(x: U256, y_parity: bool) -> Result<Option<Self>, Vec<Felt>> {
+        let x = u256_to_biguint(x);
+
+        match secp::get_point_from_x(x, y_parity) {
+            Ok(None) => Ok(None),
+            Ok(Some(point)) => Ok(Some(Secp256Point(point))),
+            Err(error) => Err(encode_str_as_felts(&error.to_string())),
+        }
+    }
+}
+
+/// Data structure to tie together k1 and r1 points to it's corresponding
+/// `Affine<Curve>`
+#[derive(PartialEq, Clone, Copy)]
+struct Secp256Point<Curve: SWCurveConfig>(Affine<Curve>);
+
+impl<Curve: SWCurveConfig> fmt::Debug for Secp256Point<Curve> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("Secp256Point").field(&self.0).finish()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use cairo_native::starknet::U256;
+
+    use crate::execution::native::syscall_handler::Secp256Point;
+
+    #[test]
+    fn infinity_test() {
+        let p1 =
+            Secp256Point::<ark_secp256k1::Config>::get_point_from_x(U256 { lo: 1, hi: 0 }, false)
+                .unwrap()
+                .unwrap();
+
+        let p2 = Secp256Point::mul(p1, U256 { lo: 0, hi: 0 });
+        assert!(p2.0.infinity);
+
+        assert_eq!(p1, Secp256Point::add(p1, p2));
     }
 }
