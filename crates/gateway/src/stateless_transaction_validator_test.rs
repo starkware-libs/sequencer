@@ -6,7 +6,6 @@ use mempool_test_utils::declare_tx_args;
 use mempool_test_utils::starknet_api_test_utils::{
     rpc_declare_tx,
     rpc_tx_for_testing,
-    zero_resource_bounds_mapping,
     TransactionType,
     NON_EMPTY_RESOURCE_BOUNDS,
 };
@@ -54,7 +53,7 @@ static DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: LazyLock<StatelessTransactionValida
         validate_non_zero_l2_gas_fee: false,
         ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
     },
-    zero_resource_bounds_mapping(),
+    AllResourceBounds::default(),
     calldata![],
     TransactionSignature::default()
 )]
@@ -100,19 +99,22 @@ static DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: LazyLock<StatelessTransactionValida
 )]
 #[case::non_empty_valid_calldata(
     DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone(),
-    zero_resource_bounds_mapping(),
+    AllResourceBounds::default()
+    ,
     calldata![Felt::ONE],
     TransactionSignature::default()
 )]
 #[case::non_empty_valid_signature(
     DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone(),
-    zero_resource_bounds_mapping(),
+    AllResourceBounds::default()
+    ,
     calldata![],
     TransactionSignature(vec![Felt::ONE])
 )]
 #[case::valid_tx(
     DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone(),
-    zero_resource_bounds_mapping(),
+    AllResourceBounds::default()
+    ,
     calldata![],
     TransactionSignature::default()
 )]
@@ -137,7 +139,8 @@ fn test_positive_flow(
         validate_non_zero_l2_gas_fee: false,
         ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
     },
-    zero_resource_bounds_mapping(),
+    AllResourceBounds::default()
+    ,
     StatelessTransactionValidatorError::ZeroResourceBounds{
         resource: Resource::L1Gas, resource_bounds: ResourceBounds::default()
     }
@@ -178,7 +181,7 @@ fn test_calldata_too_long(
         StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone() };
     let tx = rpc_tx_for_testing(
         tx_type,
-        zero_resource_bounds_mapping(),
+        AllResourceBounds::default(),
         calldata![Felt::ONE, Felt::TWO],
         TransactionSignature::default(),
     );
@@ -201,7 +204,7 @@ fn test_signature_too_long(
         StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone() };
     let tx = rpc_tx_for_testing(
         tx_type,
-        zero_resource_bounds_mapping(),
+        AllResourceBounds::default(),
         calldata![],
         TransactionSignature(vec![Felt::ONE, Felt::TWO]),
     );

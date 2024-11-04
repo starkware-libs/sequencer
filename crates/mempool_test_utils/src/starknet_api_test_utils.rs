@@ -103,10 +103,6 @@ pub fn rpc_tx_for_testing(
 pub const NON_EMPTY_RESOURCE_BOUNDS: ResourceBounds =
     ResourceBounds { max_amount: GasAmount(1), max_price_per_unit: GasPrice(1) };
 
-pub fn zero_resource_bounds_mapping() -> AllResourceBounds {
-    AllResourceBounds::default()
-}
-
 pub fn test_resource_bounds_mapping() -> AllResourceBounds {
     AllResourceBounds {
         l1_gas: ResourceBounds {
@@ -458,7 +454,7 @@ impl Default for DeclareTxArgs {
             signature: TransactionSignature::default(),
             sender_address: ContractAddress::default(),
             version: TransactionVersion::THREE,
-            resource_bounds: zero_resource_bounds_mapping(),
+            resource_bounds: AllResourceBounds::default(),
             tip: Tip::default(),
             nonce_data_availability_mode: DataAvailabilityMode::L1,
             fee_data_availability_mode: DataAvailabilityMode::L1,
