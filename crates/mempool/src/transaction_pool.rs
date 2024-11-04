@@ -1,7 +1,7 @@
 use std::collections::{hash_map, BTreeMap, HashMap};
 
 use starknet_api::core::{ContractAddress, Nonce};
-use starknet_api::executable_transaction::Transaction;
+use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{AccountState, MempoolResult};
@@ -9,7 +9,7 @@ use starknet_mempool_types::mempool_types::{AccountState, MempoolResult};
 use crate::mempool::TransactionReference;
 use crate::utils::try_increment_nonce;
 
-type HashToTransaction = HashMap<TransactionHash, Transaction>;
+type HashToTransaction = HashMap<TransactionHash, AccountTransaction>;
 
 /// Contains all transactions currently held in the mempool.
 /// Invariant: both data structures are consistent regarding the existence of transactions:
@@ -26,7 +26,7 @@ pub struct TransactionPool {
 }
 
 impl TransactionPool {
-    pub fn insert(&mut self, tx: Transaction) -> MempoolResult<()> {
+    pub fn insert(&mut self, tx: AccountTransaction) -> MempoolResult<()> {
         let tx_reference = TransactionReference::new(&tx);
         let tx_hash = tx_reference.tx_hash;
 
@@ -51,7 +51,7 @@ impl TransactionPool {
         Ok(())
     }
 
-    pub fn remove(&mut self, tx_hash: TransactionHash) -> MempoolResult<Transaction> {
+    pub fn remove(&mut self, tx_hash: TransactionHash) -> MempoolResult<AccountTransaction> {
         // Remove from pool.
         let tx =
             self.tx_pool.remove(&tx_hash).ok_or(MempoolError::TransactionNotFound { tx_hash })?;
@@ -91,7 +91,7 @@ impl TransactionPool {
         self.txs_by_account.account_txs_sorted_by_nonce(address)
     }
 
-    pub fn get_by_tx_hash(&self, tx_hash: TransactionHash) -> MempoolResult<&Transaction> {
+    pub fn get_by_tx_hash(&self, tx_hash: TransactionHash) -> MempoolResult<&AccountTransaction> {
         self.tx_pool.get(&tx_hash).ok_or(MempoolError::TransactionNotFound { tx_hash })
     }
 

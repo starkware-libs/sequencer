@@ -8,7 +8,7 @@ use mockall::predicate::eq;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_test_utils::{get_rng, GetTestInstance};
 use starknet_api::core::{ChainId, CompiledClassHash, ContractAddress};
-use starknet_api::executable_transaction::{InvokeTransaction, Transaction};
+use starknet_api::executable_transaction::{AccountTransaction, InvokeTransaction};
 use starknet_api::rpc_transaction::{RpcDeclareTransaction, RpcTransaction};
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_mempool_types::communication::{AddTransactionArgsWrapper, MockMempoolClient};
@@ -61,7 +61,7 @@ async fn test_add_tx() {
     let (rpc_tx, address) = create_tx();
     let rpc_invoke_tx =
         assert_matches!(rpc_tx.clone(), RpcTransaction::Invoke(rpc_invoke_tx) => rpc_invoke_tx);
-    let executable_tx = Transaction::Invoke(
+    let executable_tx = AccountTransaction::Invoke(
         InvokeTransaction::from_rpc_tx(rpc_invoke_tx, &ChainId::create_for_testing()).unwrap(),
     );
 

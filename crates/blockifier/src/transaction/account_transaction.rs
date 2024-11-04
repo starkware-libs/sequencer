@@ -96,46 +96,46 @@ macro_rules! implement_account_tx_inner_getters {
     };
 }
 
-impl TryFrom<&starknet_api::executable_transaction::Transaction> for AccountTransaction {
+impl TryFrom<&starknet_api::executable_transaction::AccountTransaction> for AccountTransaction {
     type Error = TransactionExecutionError;
 
     fn try_from(
-        value: &starknet_api::executable_transaction::Transaction,
+        value: &starknet_api::executable_transaction::AccountTransaction,
     ) -> Result<Self, Self::Error> {
         match value {
-            starknet_api::executable_transaction::Transaction::Declare(declare_tx) => {
+            starknet_api::executable_transaction::AccountTransaction::Declare(declare_tx) => {
                 Ok(Self::Declare(declare_tx.clone().try_into()?))
             }
-            starknet_api::executable_transaction::Transaction::DeployAccount(deploy_account_tx) => {
-                Ok(Self::DeployAccount(DeployAccountTransaction {
-                    tx: deploy_account_tx.clone(),
-                    only_query: false,
-                }))
-            }
-            starknet_api::executable_transaction::Transaction::Invoke(invoke_tx) => {
+            starknet_api::executable_transaction::AccountTransaction::DeployAccount(
+                deploy_account_tx,
+            ) => Ok(Self::DeployAccount(DeployAccountTransaction {
+                tx: deploy_account_tx.clone(),
+                only_query: false,
+            })),
+            starknet_api::executable_transaction::AccountTransaction::Invoke(invoke_tx) => {
                 Ok(Self::Invoke(InvokeTransaction { tx: invoke_tx.clone(), only_query: false }))
             }
         }
     }
 }
 
-impl TryFrom<starknet_api::executable_transaction::Transaction> for AccountTransaction {
+impl TryFrom<starknet_api::executable_transaction::AccountTransaction> for AccountTransaction {
     type Error = TransactionExecutionError;
 
     fn try_from(
-        executable_transaction: starknet_api::executable_transaction::Transaction,
+        executable_transaction: starknet_api::executable_transaction::AccountTransaction,
     ) -> Result<Self, Self::Error> {
         match executable_transaction {
-            starknet_api::executable_transaction::Transaction::Declare(declare_tx) => {
+            starknet_api::executable_transaction::AccountTransaction::Declare(declare_tx) => {
                 Ok(Self::Declare(declare_tx.try_into()?))
             }
-            starknet_api::executable_transaction::Transaction::DeployAccount(deploy_account_tx) => {
-                Ok(Self::DeployAccount(DeployAccountTransaction {
-                    tx: deploy_account_tx,
-                    only_query: false,
-                }))
-            }
-            starknet_api::executable_transaction::Transaction::Invoke(invoke_tx) => {
+            starknet_api::executable_transaction::AccountTransaction::DeployAccount(
+                deploy_account_tx,
+            ) => Ok(Self::DeployAccount(DeployAccountTransaction {
+                tx: deploy_account_tx,
+                only_query: false,
+            })),
+            starknet_api::executable_transaction::AccountTransaction::Invoke(invoke_tx) => {
                 Ok(Self::Invoke(InvokeTransaction { tx: invoke_tx, only_query: false }))
             }
         }
