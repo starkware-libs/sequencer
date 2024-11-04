@@ -275,7 +275,7 @@ impl MultiAccountTransactionGenerator {
 }
 
 /// Manages transaction generation for a single account.
-/// Supports faulty transaction generation via [AccountTransactionGenerator::generate_raw].
+/// Supports faulty transaction generation via [AccountTransactionGenerator::generate_raw_invoke].
 ///
 /// This struct provides methods to generate both default and fully customized transactions,
 /// with room for future extensions.

@@ -5,6 +5,9 @@ edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
 
+[lints]
+workspace = true
+
 [dependencies]
 alloy-contract.workspace = true
 alloy-dyn-abi.workspace = true
