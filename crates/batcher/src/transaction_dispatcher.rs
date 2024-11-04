@@ -6,24 +6,24 @@ use starknet_mempool_types::communication::{MempoolClientError, SharedMempoolCli
 use thiserror::Error;
 
 #[derive(Clone, Debug, Error)]
-pub enum TransactionProviderError {
+pub enum TransactionDispatcherError {
     #[error(transparent)]
     MempoolError(#[from] MempoolClientError),
 }
 
 #[cfg_attr(test, automock)]
 #[async_trait]
-pub trait TransactionProvider: Send + Sync {
-    async fn get_txs(&self, n_txs: usize) -> Result<Vec<Transaction>, TransactionProviderError>;
+pub trait TransactionDispatcher: Send + Sync {
+    async fn get_txs(&self, n_txs: usize) -> Result<Vec<Transaction>, TransactionDispatcherError>;
 }
 
-pub struct ProposeTransactionProvider {
+pub struct ProposeTransactionDispatcher {
     pub mempool_client: SharedMempoolClient,
 }
 
 #[async_trait]
-impl TransactionProvider for ProposeTransactionProvider {
-    async fn get_txs(&self, n_txs: usize) -> Result<Vec<Transaction>, TransactionProviderError> {
+impl TransactionDispatcher for ProposeTransactionDispatcher {
+    async fn get_txs(&self, n_txs: usize) -> Result<Vec<Transaction>, TransactionDispatcherError> {
         // TODO: Get also L1 transactions.
         Ok(self.mempool_client.get_txs(n_txs).await?)
     }

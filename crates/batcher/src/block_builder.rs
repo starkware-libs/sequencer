@@ -35,8 +35,8 @@ use tokio::sync::Mutex;
 use tracing::{debug, error, info, trace};
 
 use crate::papyrus_state::PapyrusReader;
+use crate::transaction_dispatcher::{TransactionDispatcher, TransactionDispatcherError};
 use crate::transaction_executor::TransactionExecutorTrait;
-use crate::transaction_provider::{TransactionProvider, TransactionProviderError};
 
 #[derive(Debug, Error)]
 pub enum BlockBuilderError {
@@ -47,7 +47,7 @@ pub enum BlockBuilderError {
     #[error(transparent)]
     ExecutorError(#[from] BlockifierTransactionExecutorError),
     #[error(transparent)]
-    GetTransactionError(#[from] TransactionProviderError),
+    GetTransactionError(#[from] TransactionDispatcherError),
     #[error(transparent)]
     TransactionExecutionError(#[from] BlockifierTransactionExecutionError),
     #[error(transparent)]
@@ -66,7 +66,7 @@ pub struct BlockExecutionArtifacts {
 }
 
 /// The BlockBuilderTrait is responsible for building a new block from transactions provided by the
-/// tx_provider. The block building will stop at time deadline.
+/// tx_dispatcher. The block building will stop at time deadline.
 /// The transactions that were added to the block will be streamed to the output_content_sender.
 #[cfg_attr(test, automock)]
 #[async_trait]
@@ -74,7 +74,7 @@ pub trait BlockBuilderTrait: Send {
     async fn build_block(
         &self,
         deadline: tokio::time::Instant,
-        tx_provider: Box<dyn TransactionProvider>,
+        tx_dispatcher: Box<dyn TransactionDispatcher>,
         output_content_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
     ) -> BlockBuilderResult<BlockExecutionArtifacts>;
 }
@@ -142,15 +142,15 @@ impl BlockBuilderTrait for BlockBuilder {
     async fn build_block(
         &self,
         deadline: tokio::time::Instant,
-        tx_provider: Box<dyn TransactionProvider>,
+        tx_dispatcher: Box<dyn TransactionDispatcher>,
         output_content_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
     ) -> BlockBuilderResult<BlockExecutionArtifacts> {
         let mut block_is_full = false;
         let mut execution_infos = IndexMap::new();
         // TODO(yael 6/10/2024): delete the timeout condition once the executor has a timeout
         while !block_is_full && tokio::time::Instant::now() < deadline {
-            let next_tx_chunk = tx_provider.get_txs(self.tx_chunk_size).await?;
-            debug!("Got {} transactions from the transaction provider.", next_tx_chunk.len());
+            let next_tx_chunk = tx_dispatcher.get_txs(self.tx_chunk_size).await?;
+            debug!("Got {} transactions from the transaction dispatcher.", next_tx_chunk.len());
             if next_tx_chunk.is_empty() {
                 // TODO: Consider what is the best sleep duration.
                 tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;

@@ -13,5 +13,5 @@ mod proposal_manager;
 mod proposal_manager_test;
 #[cfg(test)]
 mod test_utils;
+mod transaction_dispatcher;
 mod transaction_executor;
-mod transaction_provider;
