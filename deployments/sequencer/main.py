@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 
+import dataclasses
+
 from constructs import Construct # type: ignore
 from cdk8s import App, Chart # type: ignore
 from typing import Dict, Any
+
 from services.service import Service
-import dataclasses
-
 from config.sequencer import Config, SequencerDevConfig
-
 from services.objects import Probe, HealthCheck
 
 
@@ -17,28 +17,7 @@ class SystemStructure:
     replicas: str = "2"
     size: str = "small"
     config: Config = SequencerDevConfig()
-    startup_probe: Probe = Probe(
-        port="http",
-        path="/",
-        period_seconds=5,
-        failure_threshold=5,
-        timeout_seconds=10
-    ),
-    readiness_probe: Probe = Probe(
-        port="http",
-        path="/",
-        period_seconds=5,
-        failure_threshold=5,
-        timeout_seconds=10
-    ),
-    liveness_probe: Probe = Probe(
-        port="http",
-        path="/",
-        period_seconds=5,
-        failure_threshold=5,
-        timeout_seconds=10
-    )
-
+    health_check = True
 
     def __post_init__(self):
         self.config.validate()
@@ -61,25 +40,31 @@ class SequencerSystem(Chart):
             replicas=2,
             config=system_structure.config.get(),
             health_check=HealthCheck(
-                startup_probe=system_structure.startup_probe,
-                readiness_probe=system_structure.readiness_probe,
-                liveness_probe=system_structure.liveness_probe
+                startup_probe=Probe(port="http", path="/", period_seconds=5, failure_threshold=10, timeout_seconds=5),
+                readiness_probe=Probe(port="http", path="/", period_seconds=5, failure_threshold=10, timeout_seconds=5),
+                liveness_probe=Probe(port="http", path="/", period_seconds=5, failure_threshold=10, timeout_seconds=5)
             )
         )
-        self.batcher = Service(self, "batcher", image="ghost", container_port=2368, health_check=HealthCheck(
-                startup_probe=system_structure.startup_probe,
-                readiness_probe=system_structure.readiness_probe,
-                liveness_probe=system_structure.liveness_probe
-            ))
+        self.batcher = Service(
+            self, 
+            "batcher", 
+            image="ghost", 
+            container_port=2368, 
+            health_check=HealthCheck(
+                startup_probe=Probe(port="http", path="/", period_seconds=5, failure_threshold=10, timeout_seconds=5),
+                readiness_probe=Probe(port="http", path="/", period_seconds=5, failure_threshold=10, timeout_seconds=5),
+                liveness_probe=Probe(port="http", path="/", period_seconds=5, failure_threshold=10, timeout_seconds=5)
+            )
+        )
         self.sequencer_node = Service(
             self, 
             "sequencer-node", 
             image="", 
             container_port=8082,
             health_check=HealthCheck(
-                startup_probe=system_structure.startup_probe,
-                readiness_probe=system_structure.readiness_probe,
-                liveness_probe=system_structure.liveness_probe
+                startup_probe=Probe(port="http", path="/", period_seconds=5, failure_threshold=10, timeout_seconds=5),
+                readiness_probe=Probe(port="http", path="/", period_seconds=5, failure_threshold=10, timeout_seconds=5),
+                liveness_probe=Probe(port="http", path="/", period_seconds=5, failure_threshold=10, timeout_seconds=5)
             )
         )
 
