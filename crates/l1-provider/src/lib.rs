@@ -1,6 +1,7 @@
 pub mod errors;
 
-use starknet_api::transaction::{L1HandlerTransaction, TransactionHash};
+use starknet_api::executable_transaction::L1HandlerTransaction;
+use starknet_api::transaction::TransactionHash;
 
 use crate::errors::L1ProviderError;
 
