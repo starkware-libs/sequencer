@@ -45,7 +45,7 @@ impl IntegrationTestSetup {
         .await;
 
         // Derive the configuration for the sequencer node.
-        let (config, required_params) =
+        let (config, required_params, _) =
             create_config(rpc_server_addr, storage_for_test.batcher_storage_config).await;
 
         let node_config_dir_handle = tempdir().unwrap();
