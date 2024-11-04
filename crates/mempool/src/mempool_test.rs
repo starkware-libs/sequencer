@@ -87,11 +87,11 @@ impl MempoolContentBuilder {
         self
     }
 
-    fn _with_pending_queue<Q>(mut self, queue_txs: Q) -> Self
+    fn with_pending_queue<Q>(mut self, queue_txs: Q) -> Self
     where
         Q: IntoIterator<Item = TransactionReference>,
     {
-        self.tx_queue_content_builder = self.tx_queue_content_builder._with_pending(queue_txs);
+        self.tx_queue_content_builder = self.tx_queue_content_builder.with_pending(queue_txs);
         self
     }
 
@@ -216,6 +216,28 @@ fn test_get_txs_returns_by_priority_order(#[case] n_requested_txs: usize) {
     let mempool_content =
         MempoolContentBuilder::new().with_priority_queue(remaining_tx_references).build();
     mempool_content.assert_eq(&mempool);
+}
+
+#[rstest]
+fn test_get_txs_returns_above_gas_threshold() {
+    // Setup.
+    let tx_address_0 = tx!(tx_hash: 1, address: "0x0");
+    let tx_address_1 = tx!(tx_hash: 2, address: "0x1");
+
+    let priority_queue_txs = [&tx_address_0].map(TransactionReference::new);
+    let pending_queue_txs = [&tx_address_1].map(TransactionReference::new);
+    let pool_txs = [tx_address_1, tx_address_0.clone()];
+    let mut mempool = MempoolContentBuilder::new()
+        .with_pool(pool_txs)
+        .with_priority_queue(priority_queue_txs)
+        .with_pending_queue(pending_queue_txs)
+        .build_into_mempool();
+
+    // Test and assert: only priority transactions are returned.
+    get_txs_and_assert_expected(&mut mempool, 2, &[tx_address_0]);
+    let expected_mempool_content =
+        MempoolContentBuilder::new().with_pending_queue(pending_queue_txs).build();
+    expected_mempool_content.assert_eq(&mempool);
 }
 
 #[rstest]
