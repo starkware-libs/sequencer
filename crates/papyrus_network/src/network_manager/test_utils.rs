@@ -1,25 +1,33 @@
+use core::net::Ipv4Addr;
+
 use futures::channel::mpsc::{Receiver, SendError, Sender};
 use futures::channel::oneshot;
 use futures::future::{ready, Ready};
 use futures::sink::With;
 use futures::stream::Map;
 use futures::{FutureExt, SinkExt, StreamExt};
+use libp2p::core::multiaddr::Protocol;
 use libp2p::gossipsub::SubscriptionError;
-use libp2p::PeerId;
+use libp2p::identity::Keypair;
+use libp2p::{Multiaddr, PeerId};
+use papyrus_common::tcp::find_n_free_ports;
 
 use super::{
     BroadcastTopicClient,
     BroadcastedMessageMetadata,
     GenericReceiver,
+    NetworkManager,
     ReportReceiver,
     ServerQueryManager,
     ServerResponsesSender,
     SqmrClientPayload,
     SqmrClientSender,
     SqmrServerReceiver,
+    Topic,
 };
 use crate::network_manager::{BroadcastReceivedMessagesConverterFn, BroadcastTopicChannels};
 use crate::sqmr::Bytes;
+use crate::NetworkConfig;
 
 pub fn mock_register_sqmr_protocol_client<Query, Response>(
     buffer_size: usize,
@@ -137,6 +145,45 @@ where
     };
 
     Ok(TestSubscriberChannels { subscriber_channels, mock_network })
+}
+
+pub fn create_network_config_connected_to_broadcast_channels<T>(
+    topic: Topic,
+) -> (NetworkConfig, BroadcastTopicChannels<T>)
+where
+    T: TryFrom<Bytes> + 'static,
+    Bytes: From<T>,
+{
+    const BUFFER_SIZE: usize = 1000;
+
+    let [channels_port, config_port] = find_n_free_ports::<2>();
+
+    let channels_secret_key = [1u8; 64];
+    let channels_public_key = Keypair::ed25519_from_bytes(channels_secret_key).unwrap().public();
+
+    let channels_config = NetworkConfig {
+        tcp_port: channels_port,
+        secret_key: Some(channels_secret_key.to_vec()),
+        ..Default::default()
+    };
+    let result_config = NetworkConfig {
+        tcp_port: config_port,
+        bootstrap_peer_multiaddr: Some(
+            Multiaddr::empty()
+                .with(Protocol::Ip4(Ipv4Addr::LOCALHOST))
+                .with(Protocol::Tcp(channels_port))
+                .with(Protocol::P2p(PeerId::from_public_key(&channels_public_key))),
+        ),
+        ..Default::default()
+    };
+
+    let mut channels_network_manager = NetworkManager::new(channels_config, None);
+    let broadcast_channels =
+        channels_network_manager.register_broadcast_topic(topic, BUFFER_SIZE).unwrap();
+
+    tokio::task::spawn(channels_network_manager.run());
+
+    (result_config, broadcast_channels)
 }
 
 pub struct MockClientResponsesManager<Query: TryFrom<Bytes>, Response: TryFrom<Bytes>> {

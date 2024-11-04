@@ -102,8 +102,7 @@ impl MempoolContentBuilder {
     }
 
     fn with_fee_escalation_percentage(mut self, fee_escalation_percentage: u8) -> Self {
-        self.config.enable_fee_escalation = true;
-        self.config.fee_escalation_percentage = fee_escalation_percentage;
+        self.config = MempoolConfig { enable_fee_escalation: true, fee_escalation_percentage };
         self
     }
 
@@ -316,7 +315,7 @@ fn test_add_tx(mut mempool: Mempool) {
 }
 
 #[rstest]
-fn test_add_tx_multi_nonce_success(mut mempool: Mempool) {
+fn test_add_tx_correctly_places_txs_in_queue_and_pool(mut mempool: Mempool) {
     // Setup.
     let input_address_0_nonce_0 =
         add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 0, account_nonce: 0);
@@ -422,34 +421,6 @@ fn test_add_tx_with_identical_tip_succeeds(mut mempool: Mempool) {
 }
 
 #[rstest]
-fn test_add_tx_delete_tx_with_lower_nonce_than_account_nonce() {
-    // Setup.
-    let tx_nonce_0_account_nonce_0 =
-        add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 0, account_nonce: 0);
-    let tx_nonce_1_account_nonce_1 =
-        add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 1, account_nonce: 1);
-
-    let queue_txs = [TransactionReference::new(&tx_nonce_0_account_nonce_0.tx)];
-    let pool_txs = [tx_nonce_0_account_nonce_0.tx];
-    let mut mempool = MempoolContentBuilder::new()
-        .with_pool(pool_txs)
-        .with_priority_queue(queue_txs)
-        .build_into_mempool();
-
-    // Test.
-    add_tx(&mut mempool, &tx_nonce_1_account_nonce_1);
-
-    // Assert the transaction with the lower nonce is removed.
-    let expected_queue_txs = [TransactionReference::new(&tx_nonce_1_account_nonce_1.tx)];
-    let expected_pool_txs = [tx_nonce_1_account_nonce_1.tx];
-    let expected_mempool_content = MempoolContentBuilder::new()
-        .with_pool(expected_pool_txs)
-        .with_priority_queue(expected_queue_txs)
-        .build();
-    expected_mempool_content.assert_eq(&mempool);
-}
-
-#[rstest]
 fn test_add_tx_tip_priority_over_tx_hash(mut mempool: Mempool) {
     // Setup.
     let input_big_tip_small_hash = add_tx_input!(tip: 2, tx_hash: 1, address: "0x0");
@@ -467,49 +438,6 @@ fn test_add_tx_tip_priority_over_tx_hash(mut mempool: Mempool) {
         [&input_big_tip_small_hash.tx, &input_small_tip_big_hash.tx].map(TransactionReference::new);
     let expected_mempool_content =
         MempoolContentBuilder::new().with_priority_queue(expected_queue_txs).build();
-    expected_mempool_content.assert_eq(&mempool);
-}
-
-#[rstest]
-fn test_add_tx_account_state_fills_nonce_gap(mut mempool: Mempool) {
-    // Setup.
-    let tx_input_nonce_1 = add_tx_input!(tx_hash: 1, tx_nonce: 1, account_nonce: 0);
-    // Input that increments the account state.
-    let tx_input_nonce_2 = add_tx_input!(tx_hash: 2, tx_nonce: 2, account_nonce: 1);
-
-    // Test and assert.
-
-    // First, with gap.
-    add_tx(&mut mempool, &tx_input_nonce_1);
-    let expected_mempool_content = MempoolContentBuilder::new().with_priority_queue([]).build();
-    expected_mempool_content.assert_eq(&mempool);
-
-    // Then, fill it.
-    add_tx(&mut mempool, &tx_input_nonce_2);
-    let expected_mempool_content = MempoolContentBuilder::new()
-        .with_priority_queue([TransactionReference::new(&tx_input_nonce_1.tx)])
-        .build();
-    expected_mempool_content.assert_eq(&mempool);
-}
-
-#[rstest]
-fn test_add_tx_sequential_nonces(mut mempool: Mempool) {
-    // Setup.
-    let input_nonce_0 = add_tx_input!(tx_hash: 0, tx_nonce: 0, account_nonce: 0);
-    let input_nonce_1 = add_tx_input!(tx_hash: 1, tx_nonce: 1, account_nonce: 0);
-
-    // Test.
-    for input in [&input_nonce_0, &input_nonce_1] {
-        add_tx(&mut mempool, input);
-    }
-
-    // Assert: only eligible transaction appears in the queue.
-    let expected_queue_txs = [TransactionReference::new(&input_nonce_0.tx)];
-    let expected_pool_txs = [input_nonce_0.tx, input_nonce_1.tx];
-    let expected_mempool_content = MempoolContentBuilder::new()
-        .with_pool(expected_pool_txs)
-        .with_priority_queue(expected_queue_txs)
-        .build();
     expected_mempool_content.assert_eq(&mempool);
 }
 
@@ -553,7 +481,7 @@ fn test_commit_block_includes_all_proposed_txs() {
     let tx_address_1_nonce_3 = tx!(tx_hash: 5, address: "0x1", tx_nonce: 3);
     let tx_address_2_nonce_1 = tx!(tx_hash: 6, address: "0x2", tx_nonce: 1);
 
-    let queue_txs = [&tx_address_0_nonce_4, &tx_address_1_nonce_3, &tx_address_2_nonce_1]
+    let queue_txs = [&tx_address_2_nonce_1, &tx_address_1_nonce_3, &tx_address_0_nonce_4]
         .map(TransactionReference::new);
     let pool_txs = [
         tx_address_0_nonce_3,
@@ -569,7 +497,7 @@ fn test_commit_block_includes_all_proposed_txs() {
         .build_into_mempool();
 
     // Test.
-    let nonces = [("0x0", 3), ("0x1", 2)];
+    let nonces = [("0x0", 4), ("0x1", 3)];
     let tx_hashes = [1, 4];
     commit_block(&mut mempool, nonces, tx_hashes);
 
@@ -578,80 +506,6 @@ fn test_commit_block_includes_all_proposed_txs() {
         [tx_address_0_nonce_4, tx_address_0_nonce_5, tx_address_1_nonce_3, tx_address_2_nonce_1];
     let expected_mempool_content =
         MempoolContentBuilder::new().with_pool(pool_txs).with_priority_queue(queue_txs).build();
-    expected_mempool_content.assert_eq(&mempool);
-}
-
-#[rstest]
-fn test_commit_block_rewinds_queued_nonce() {
-    // Setup.
-    let tx_address_0_nonce_3 = tx!(tx_hash: 1, address: "0x0", tx_nonce: 3);
-    let tx_address_0_nonce_4 = tx!(tx_hash: 2, address: "0x0", tx_nonce: 4);
-    let tx_address_0_nonce_5 = tx!(tx_hash: 3, address: "0x0", tx_nonce: 5);
-    let tx_address_1_nonce_1 = tx!(tx_hash: 4, address: "0x1", tx_nonce: 1);
-
-    let queued_txs = [&tx_address_0_nonce_5, &tx_address_1_nonce_1].map(TransactionReference::new);
-    let pool_txs = [
-        tx_address_0_nonce_3,
-        tx_address_0_nonce_4.clone(),
-        tx_address_0_nonce_5,
-        tx_address_1_nonce_1,
-    ];
-    let mut mempool = MempoolContentBuilder::new()
-        .with_pool(pool_txs)
-        .with_priority_queue(queued_txs)
-        .build_into_mempool();
-
-    // Test.
-    let nonces = [("0x0", 3), ("0x1", 1)];
-    let tx_hashes = [1, 4];
-    commit_block(&mut mempool, nonces, tx_hashes);
-
-    // Assert.
-    let expected_queue_txs = [TransactionReference::new(&tx_address_0_nonce_4)];
-    let expected_mempool_content =
-        MempoolContentBuilder::new().with_priority_queue(expected_queue_txs).build();
-    expected_mempool_content.assert_eq(&mempool);
-}
-
-#[rstest]
-fn test_commit_block_from_different_leader() {
-    // Setup.
-    let tx_address_0_nonce_3 = tx!(tx_hash: 1, address: "0x0", tx_nonce: 3);
-    let tx_address_0_nonce_5 = tx!(tx_hash: 2, address: "0x0", tx_nonce: 5);
-    let tx_address_0_nonce_6 = tx!(tx_hash: 3, address: "0x0", tx_nonce: 6);
-    let tx_address_1_nonce_2 = tx!(tx_hash: 4, address: "0x1", tx_nonce: 2);
-
-    let queued_txs = [TransactionReference::new(&tx_address_1_nonce_2)];
-    let pool_txs = [
-        tx_address_0_nonce_3,
-        tx_address_0_nonce_5,
-        tx_address_0_nonce_6.clone(),
-        tx_address_1_nonce_2.clone(),
-    ];
-    let mut mempool = MempoolContentBuilder::new()
-        .with_pool(pool_txs)
-        .with_priority_queue(queued_txs)
-        .build_into_mempool();
-
-    // Test.
-    let nonces = [
-        ("0x0", 5),
-        ("0x1", 0), // A hole, missing nonce 1 for address "0x1".
-        ("0x2", 1),
-    ];
-    let tx_hashes = [
-        1, 2, // Hashes known to mempool.
-        5, 6, // Hashes unknown to mempool, from a different node.
-    ];
-    commit_block(&mut mempool, nonces, tx_hashes);
-
-    // Assert.
-    let expected_queue_txs = [TransactionReference::new(&tx_address_0_nonce_6)];
-    let expected_pool_txs = [tx_address_0_nonce_6, tx_address_1_nonce_2];
-    let expected_mempool_content = MempoolContentBuilder::new()
-        .with_pool(expected_pool_txs)
-        .with_priority_queue(expected_queue_txs)
-        .build();
     expected_mempool_content.assert_eq(&mempool);
 }
 

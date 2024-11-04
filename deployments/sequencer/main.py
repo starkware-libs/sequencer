@@ -22,6 +22,7 @@ class SystemStructure:
     def __post_init__(self):
         self.config.validate()
 
+
 class SequencerSystem(Chart):
     def __init__(
         self,

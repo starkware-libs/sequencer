@@ -15,8 +15,8 @@ use starknet_sequencer_infra::component_definitions::{
 };
 use validator::Validate;
 
+use crate::config::test_utils::{create_test_config_load_args, RequiredParams};
 use crate::config::{
-    create_test_config_load_args,
     ComponentExecutionConfig,
     ComponentExecutionMode,
     SequencerNodeConfig,
@@ -26,9 +26,9 @@ use crate::config::{
 };
 
 const LOCAL_EXECUTION_MODE: ComponentExecutionMode =
-    ComponentExecutionMode::LocalExecution { enable_remote_connection: false };
+    ComponentExecutionMode::LocalExecutionWithRemoteDisabled;
 const ENABLE_REMOTE_CONNECTION_MODE: ComponentExecutionMode =
-    ComponentExecutionMode::LocalExecution { enable_remote_connection: true };
+    ComponentExecutionMode::LocalExecutionWithRemoteEnabled;
 
 /// Test the validation of the struct ComponentExecutionConfig.
 /// Validates that execution mode of the component and the local/remote config are at sync.
@@ -93,10 +93,20 @@ fn test_default_config_file_is_up_to_date() {
 /// Tests parsing a node config without additional args.
 #[test]
 fn test_config_parsing() {
-    let args = create_test_config_load_args(&REQUIRED_PARAM_CONFIG_POINTERS);
+    let required_params = RequiredParams::create_for_testing();
+    let args = create_test_config_load_args(required_params);
     let config = SequencerNodeConfig::load_and_process(args);
     let config = config.expect("Parsing function failed.");
 
     let result = config_validate(&config);
     assert_matches!(result, Ok(_), "Expected Ok but got {:?}", result);
+}
+
+/// Tests compatibility of the required parameter settings: pointer targets and test util struct.
+#[test]
+fn test_required_params_setting() {
+    let required_pointers =
+        REQUIRED_PARAM_CONFIG_POINTERS.iter().map(|(x, _)| x.to_owned()).collect::<Vec<_>>();
+    let required_params = RequiredParams::field_names();
+    assert_eq!(required_pointers, required_params);
 }

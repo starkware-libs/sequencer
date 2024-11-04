@@ -147,7 +147,7 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
     };
 
     // The default VersionedConstants is used in the execute_directly call bellow.
-    let tracked_resource = test_contract.get_class().tracked_resource(
+    let tracked_resource = test_contract.get_runnable_class().tracked_resource(
         &VersionedConstants::create_for_testing().min_compiler_version_for_sierra_gas,
     );
 

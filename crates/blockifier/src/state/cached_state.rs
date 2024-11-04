@@ -8,7 +8,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::abi::abi_utils::get_fee_token_var_address;
 use crate::context::TransactionContext;
-use crate::execution::contract_class::ContractClass;
+use crate::execution::contract_class::RunnableContractClass;
 use crate::state::errors::StateError;
 use crate::state::state_api::{State, StateReader, StateResult, UpdatableState};
 use crate::transaction::objects::TransactionExecutionInfo;
@@ -18,7 +18,7 @@ use crate::utils::{strict_subtract_mappings, subtract_mappings};
 #[path = "cached_state_test.rs"]
 mod test;
 
-pub type ContractClassMapping = HashMap<ClassHash, ContractClass>;
+pub type ContractClassMapping = HashMap<ClassHash, RunnableContractClass>;
 
 /// Caches read and write requests.
 ///
@@ -174,7 +174,10 @@ impl<S: StateReader> StateReader for CachedState<S> {
         Ok(*class_hash)
     }
 
-    fn get_compiled_contract_class(&self, class_hash: ClassHash) -> StateResult<ContractClass> {
+    fn get_compiled_contract_class(
+        &self,
+        class_hash: ClassHash,
+    ) -> StateResult<RunnableContractClass> {
         let mut cache = self.cache.borrow_mut();
         let class_hash_to_class = &mut *self.class_hash_to_class.borrow_mut();
 
@@ -257,7 +260,7 @@ impl<S: StateReader> State for CachedState<S> {
     fn set_contract_class(
         &mut self,
         class_hash: ClassHash,
-        contract_class: ContractClass,
+        contract_class: RunnableContractClass,
     ) -> StateResult<()> {
         self.class_hash_to_class.get_mut().insert(class_hash, contract_class);
         let mut cache = self.cache.borrow_mut();
@@ -493,7 +496,10 @@ impl<'a, S: StateReader + ?Sized> StateReader for MutRefState<'a, S> {
         self.0.get_class_hash_at(contract_address)
     }
 
-    fn get_compiled_contract_class(&self, class_hash: ClassHash) -> StateResult<ContractClass> {
+    fn get_compiled_contract_class(
+        &self,
+        class_hash: ClassHash,
+    ) -> StateResult<RunnableContractClass> {
         self.0.get_compiled_contract_class(class_hash)
     }
 

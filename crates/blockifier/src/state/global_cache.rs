@@ -3,10 +3,10 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use cached::{Cached, SizedCache};
 use starknet_api::core::ClassHash;
 
-use crate::execution::contract_class::ContractClass;
+use crate::execution::contract_class::RunnableContractClass;
 
 // Note: `ContractClassLRUCache` key-value types must align with `ContractClassMapping`.
-type ContractClassLRUCache = SizedCache<ClassHash, ContractClass>;
+type ContractClassLRUCache = SizedCache<ClassHash, RunnableContractClass>;
 pub type LockedContractClassCache<'a> = MutexGuard<'a, ContractClassLRUCache>;
 #[derive(Debug, Clone)]
 // Thread-safe LRU cache for contract classes, optimized for inter-language sharing when
@@ -23,11 +23,11 @@ impl GlobalContractCache {
         self.0.lock().expect("Global contract cache is poisoned.")
     }
 
-    pub fn get(&self, class_hash: &ClassHash) -> Option<ContractClass> {
+    pub fn get(&self, class_hash: &ClassHash) -> Option<RunnableContractClass> {
         self.lock().cache_get(class_hash).cloned()
     }
 
-    pub fn set(&self, class_hash: ClassHash, contract_class: ContractClass) {
+    pub fn set(&self, class_hash: ClassHash, contract_class: RunnableContractClass) {
         self.lock().cache_set(class_hash, contract_class);
     }
 

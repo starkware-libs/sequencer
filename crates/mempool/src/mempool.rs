@@ -109,18 +109,20 @@ impl Mempool {
     )]
     pub fn add_tx(&mut self, args: AddTransactionArgs) -> MempoolResult<()> {
         let AddTransactionArgs { tx, account_state } = args;
-        self.validate_incoming_tx_nonce(tx.contract_address(), tx.nonce())?;
+        let tx_ref = TransactionReference::new(&tx);
+        self.validate_incoming_tx_nonce(tx_ref.address, tx_ref.nonce)?;
 
         self.handle_fee_escalation(&tx)?;
         self.tx_pool.insert(tx)?;
 
         // Align to account nonce, only if it is at least the one stored.
         let AccountState { address, nonce: incoming_account_nonce } = account_state;
-        match self.account_nonces.get(&address) {
-            Some(stored_account_nonce) if &incoming_account_nonce < stored_account_nonce => {}
-            _ => {
-                self.align_to_account_state(account_state);
-            }
+        // TODO(Elin): abstract mempool nonces.
+        let mempool_account_nonce = self.mempool_state.get(&address).unwrap_or_else(|| {
+            self.account_nonces.entry(address).or_insert(incoming_account_nonce)
+        });
+        if tx_ref.nonce == *mempool_account_nonce {
+            self.tx_queue.insert(tx_ref);
         }
 
         Ok(())
@@ -130,12 +132,24 @@ impl Mempool {
     /// updates account balances).
     #[tracing::instrument(skip(self, args), err)]
     pub fn commit_block(&mut self, args: CommitBlockArgs) -> MempoolResult<()> {
-        let CommitBlockArgs { nonces, tx_hashes } = args;
+        let CommitBlockArgs { nonces: address_to_nonce, tx_hashes } = args;
         tracing::debug!("Committing block with {} transactions to mempool.", tx_hashes.len());
 
         // Align mempool data to committed nonces.
-        for (&address, &nonce) in &nonces {
-            let next_nonce = try_increment_nonce(nonce)?;
+        for (&address, &next_nonce) in &address_to_nonce {
+            // FIXME: Remove after first POC.
+            // If commit_block wants to decrease the stored account nonce this can mean one of two
+            // things:
+            // 1. this is a reorg, which should be handled by a dedicated TBD mechanism and not
+            //    inside commit_block
+            // 2. the stored nonce originated from add_tx, so should be treated as tentative due
+            // to possible races with the gateway; these types of nonces should be tagged somehow
+            // so that commit_block can override them. Regardless, in the first POC this cannot
+            // happen because the GW nonces are always 1.
+            if let Some(&stored_nonce) = self.account_nonces.get(&address) {
+                assert!(stored_nonce <= next_nonce, "NOT SUPPORTED YET {address:?} {next_nonce:?}.")
+            }
+
             let account_state = AccountState { address, nonce: next_nonce };
             self.align_to_account_state(account_state);
         }
@@ -143,7 +157,7 @@ impl Mempool {
 
         // Rewind nonces of addresses that were not included in block.
         let known_addresses_not_included_in_block =
-            self.mempool_state.keys().filter(|&key| !nonces.contains_key(key));
+            self.mempool_state.keys().filter(|&key| !address_to_nonce.contains_key(key));
         for address in known_addresses_not_included_in_block {
             // Account nonce is the minimal nonce of this address: it was proposed but not included.
             let tx_reference = self

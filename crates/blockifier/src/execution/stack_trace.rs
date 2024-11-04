@@ -96,6 +96,7 @@ impl From<&VmExceptionFrame> for String {
 }
 
 #[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(derive_more::From)]
 pub enum Frame {
     EntryPoint(EntryPointErrorFrame),
     Vm(VmExceptionFrame),
@@ -109,24 +110,6 @@ impl From<&Frame> for String {
             Frame::Vm(vm_exception_frame) => vm_exception_frame.into(),
             Frame::StringFrame(error) => error.clone(),
         }
-    }
-}
-
-impl From<EntryPointErrorFrame> for Frame {
-    fn from(value: EntryPointErrorFrame) -> Self {
-        Frame::EntryPoint(value)
-    }
-}
-
-impl From<VmExceptionFrame> for Frame {
-    fn from(value: VmExceptionFrame) -> Self {
-        Frame::Vm(value)
-    }
-}
-
-impl From<String> for Frame {
-    fn from(value: String) -> Self {
-        Frame::StringFrame(value)
     }
 }
 
