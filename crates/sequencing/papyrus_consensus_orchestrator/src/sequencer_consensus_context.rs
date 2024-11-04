@@ -23,6 +23,7 @@ use papyrus_consensus::types::{
 use papyrus_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
 use papyrus_protobuf::consensus::{
     ConsensusMessage,
+    ProposalFin,
     ProposalInit as ProtobufProposalInit,
     ProposalPart,
     TransactionBatch,
@@ -325,6 +326,11 @@ async fn stream_build_proposal(
                     content.len(),
                     height
                 );
+                debug!("Broadcasting proposal fin: {proposal_content_id:?}");
+                broadcast_client
+                    .broadcast_message(ProposalPart::Fin(ProposalFin { proposal_content_id }))
+                    .await
+                    .expect("Failed to broadcast proposal fin");
                 // Update valid_proposals before sending fin to avoid a race condition
                 // with `repropose` being called before `valid_proposals` is updated.
                 let mut valid_proposals = valid_proposals.lock().expect("Lock was poisoned");
