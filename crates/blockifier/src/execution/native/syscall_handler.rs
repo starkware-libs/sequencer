@@ -10,6 +10,7 @@ use cairo_native::starknet::{
     StarknetSyscallHandler,
     SyscallResult,
     TxInfo,
+    TxV2Info,
     U256,
 };
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
@@ -19,10 +20,15 @@ use starknet_types_core::felt::Felt;
 use crate::execution::call_info::{CallInfo, OrderedEvent, OrderedL2ToL1Message, Retdata};
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::entry_point::{CallEntryPoint, EntryPointExecutionContext};
-use crate::execution::native::utils::encode_str_as_felts;
+use crate::execution::native::utils::{
+    calculate_resource_bounds,
+    default_tx_v2_info,
+    encode_str_as_felts,
+};
 use crate::execution::syscalls::hint_processor::{SyscallCounter, OUT_OF_GAS_ERROR};
 use crate::execution::syscalls::SyscallSelector;
 use crate::state::state_api::State;
+use crate::transaction::objects::TransactionInfo;
 
 pub struct NativeSyscallHandler<'state> {
     // Input for execution.
@@ -173,6 +179,36 @@ impl<'state> NativeSyscallHandler<'state> {
             }
         }
     }
+
+    fn get_tx_info_v2(&self) -> SyscallResult<TxV2Info> {
+        let tx_info = &self.context.tx_context.tx_info;
+        let native_tx_info = TxV2Info {
+            version: tx_info.version().0,
+            account_contract_address: Felt::from(tx_info.sender_address()),
+            max_fee: tx_info.max_fee().unwrap_or_default().0,
+            signature: tx_info.signature().0,
+            transaction_hash: tx_info.transaction_hash().0,
+            chain_id: Felt::from_hex(
+                &self.context.tx_context.block_context.chain_info.chain_id.as_hex(),
+            )
+            .expect("Failed to convert the chain_id to hex."),
+            nonce: tx_info.nonce().0,
+            ..default_tx_v2_info()
+        };
+
+        match tx_info {
+            TransactionInfo::Deprecated(_) => Ok(native_tx_info),
+            TransactionInfo::Current(context) => Ok(TxV2Info {
+                resource_bounds: calculate_resource_bounds(context)?,
+                tip: context.tip.0.into(),
+                paymaster_data: context.paymaster_data.0.clone(),
+                nonce_data_availability_mode: context.nonce_data_availability_mode.into(),
+                fee_data_availability_mode: context.fee_data_availability_mode.into(),
+                account_deployment_data: context.account_deployment_data.0.clone(),
+                ..native_tx_info
+            }),
+        }
+    }
 }
 
 impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
@@ -202,9 +238,21 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
 
     fn get_execution_info_v2(
         &mut self,
-        _remaining_gas: &mut u128,
+        remaining_gas: &mut u128,
     ) -> SyscallResult<ExecutionInfoV2> {
-        todo!("Implement get_execution_info_v2 syscall.");
+        self.substract_syscall_gas_cost(
+            remaining_gas,
+            SyscallSelector::GetExecutionInfo,
+            self.context.gas_costs().get_execution_info_gas_cost,
+        )?;
+
+        Ok(ExecutionInfoV2 {
+            block_info: self.get_block_info(),
+            tx_info: self.get_tx_info_v2()?,
+            caller_address: Felt::from(self.call.caller_address),
+            contract_address: Felt::from(self.call.storage_address),
+            entry_point_selector: self.call.entry_point_selector.0,
+        })
     }
 
     fn deploy(
