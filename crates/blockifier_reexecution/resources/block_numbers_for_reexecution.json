@@ -1,0 +1,9 @@
+{
+    "0.13.0": 600001,
+    "0.13.1": 620978,
+    "0.13.1.1": 649367,
+    "0.13.2": 685878,
+    "0.13.2.1": 700000,
+    "example_invoke_with_replace_class_syscall": 780008,
+    "example_invoke_with_deploy_syscall": 870136
+}
