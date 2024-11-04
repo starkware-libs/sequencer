@@ -1,19 +1,15 @@
-use ark_ec::short_weierstrass;
-use ark_ec::short_weierstrass::SWCurveConfig;
-use ark_ff::{BigInteger, PrimeField};
+use ark_ec::short_weierstrass::{self, SWCurveConfig};
+use ark_ff::PrimeField;
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use num_bigint::BigUint;
-use num_traits::{ToPrimitive, Zero};
+use num_traits::ToPrimitive;
 use starknet_types_core::felt::Felt;
 
 use crate::abi::sierra_types::{SierraType, SierraU256};
 use crate::execution::execution_utils::{felt_from_ptr, write_maybe_relocatable, write_u256};
-use crate::execution::syscalls::hint_processor::{
-    felt_to_bool,
-    SyscallHintProcessor,
-    INVALID_ARGUMENT,
-};
+use crate::execution::secp::new_affine;
+use crate::execution::syscalls::hint_processor::{felt_to_bool, SyscallHintProcessor};
 use crate::execution::syscalls::{
     SyscallExecutionError,
     SyscallRequest,
@@ -50,26 +46,9 @@ where
         &mut self,
         request: SecpGetPointFromXRequest,
     ) -> SyscallResult<SecpGetPointFromXResponse> {
-        let modulos = Curve::BaseField::MODULUS.into();
+        let affine = crate::execution::secp::get_point_from_x(request.x, request.y_parity);
 
-        if request.x >= modulos {
-            return Err(SyscallExecutionError::SyscallError {
-                error_data: vec![
-                    Felt::from_hex(INVALID_ARGUMENT).map_err(SyscallExecutionError::from)?,
-                ],
-            });
-        }
-
-        let x = request.x.into();
-        let maybe_ec_point = short_weierstrass::Affine::<Curve>::get_ys_from_x_unchecked(x)
-            .map(|(smaller, greater)| {
-                // Return the correct y coordinate based on the parity.
-                if smaller.into_bigint().is_odd() == request.y_parity { smaller } else { greater }
-            })
-            .map(|y| short_weierstrass::Affine::<Curve>::new_unchecked(x, y))
-            .filter(|p| p.is_in_correct_subgroup_assuming_on_curve());
-
-        Ok(SecpGetPointFromXResponse {
+        affine.map(|maybe_ec_point| SecpGetPointFromXResponse {
             optional_ec_point_id: maybe_ec_point.map(|ec_point| self.allocate_point(ec_point)),
         })
     }
@@ -81,27 +60,10 @@ where
     }
 
     pub fn secp_new(&mut self, request: SecpNewRequest) -> SyscallResult<SecpNewResponse> {
-        let modulos = Curve::BaseField::MODULUS.into();
-        let (x, y) = (request.x, request.y);
-        if x >= modulos || y >= modulos {
-            return Err(SyscallExecutionError::SyscallError {
-                error_data: vec![
-                    Felt::from_hex(INVALID_ARGUMENT).map_err(SyscallExecutionError::from)?,
-                ],
-            });
-        }
-        let ec_point = if x.is_zero() && y.is_zero() {
-            short_weierstrass::Affine::<Curve>::identity()
-        } else {
-            short_weierstrass::Affine::<Curve>::new_unchecked(x.into(), y.into())
-        };
-        let optional_ec_point_id =
-            if ec_point.is_on_curve() && ec_point.is_in_correct_subgroup_assuming_on_curve() {
-                Some(self.allocate_point(ec_point))
-            } else {
-                None
-            };
-        Ok(SecpNewResponse { optional_ec_point_id })
+        let affine = new_affine::<Curve>(request.x, request.y);
+        affine.map(|maybe_ec_point| SecpNewResponse {
+            optional_ec_point_id: maybe_ec_point.map(|point| self.allocate_point(point)),
+        })
     }
 
     fn allocate_point(&mut self, ec_point: short_weierstrass::Affine<Curve>) -> usize {
