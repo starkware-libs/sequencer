@@ -337,8 +337,8 @@ impl TestStateReader {
         let replaced_classes = hashmap_from_raw::<ContractAddress, ClassHash>(
             raw_statediff,
             "replaced_classes",
-            "class_hash",
             "contract_address",
+            "class_hash",
         )?;
         // We expect the deployed_contracts and replaced_classes to have disjoint addresses.
         let address_to_class_hash = disjoint_hashmap_union(deployed_contracts, replaced_classes);
