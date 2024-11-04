@@ -41,9 +41,6 @@ macro_rules! implement_getter_calls {
 };
 }
 
-// TODO: Remove after introducing new transaction type.
-pub type Transaction = AccountTransaction;
-
 /// Represents a paid Starknet transaction.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum AccountTransaction {
@@ -295,7 +292,7 @@ impl InvokeTransaction {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct L1HandlerTransaction {
     pub tx: crate::transaction::L1HandlerTransaction,
     pub tx_hash: TransactionHash,
@@ -306,5 +303,20 @@ impl L1HandlerTransaction {
     pub fn payload_size(&self) -> usize {
         // The calldata includes the "from" field, which is not a part of the payload.
         self.tx.calldata.0.len() - 1
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub enum Transaction {
+    Account(AccountTransaction),
+    L1Handler(L1HandlerTransaction),
+}
+
+impl Transaction {
+    pub fn tx_hash(&self) -> TransactionHash {
+        match self {
+            Transaction::Account(tx) => tx.tx_hash(),
+            Transaction::L1Handler(tx) => tx.tx_hash,
+        }
     }
 }
