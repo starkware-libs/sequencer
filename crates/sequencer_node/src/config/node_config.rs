@@ -8,6 +8,7 @@ use clap::Command;
 use papyrus_config::dumping::{
     append_sub_config_name,
     ser_pointer_target_required_param,
+    set_pointing_param_paths,
     ConfigPointers,
     SerializeConfig,
 };
@@ -41,11 +42,11 @@ pub static REQUIRED_PARAM_CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::
                 SerializationType::String,
                 "The chain to follow.",
             ),
-            HashSet::from([
-                "batcher_config.block_builder_config.chain_info.chain_id".to_owned(),
-                "batcher_config.storage.db_config.chain_id".to_owned(),
-                "gateway_config.chain_info.chain_id".to_owned(),
-                "mempool_p2p_config.network_config.chain_id".to_owned(),
+            set_pointing_param_paths(&[
+                "batcher_config.block_builder_config.chain_info.chain_id",
+                "batcher_config.storage.db_config.chain_id",
+                "gateway_config.chain_info.chain_id",
+                "mempool_p2p_config.network_config.chain_id",
             ]),
         ),
         (
@@ -54,11 +55,10 @@ pub static REQUIRED_PARAM_CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::
                 SerializationType::String,
                 "Address of the ETH fee token.",
             ),
-            HashSet::from([
+            set_pointing_param_paths(&[
                 "batcher_config.block_builder_config.chain_info.fee_token_addresses.\
-                 eth_fee_token_address"
-                    .to_owned(),
-                "gateway_config.chain_info.fee_token_addresses.eth_fee_token_address".to_owned(),
+                 eth_fee_token_address",
+                "gateway_config.chain_info.fee_token_addresses.eth_fee_token_address",
             ]),
         ),
         (
@@ -67,11 +67,10 @@ pub static REQUIRED_PARAM_CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::
                 SerializationType::String,
                 "Address of the STRK fee token.",
             ),
-            HashSet::from([
+            set_pointing_param_paths(&[
                 "batcher_config.block_builder_config.chain_info.fee_token_addresses.\
-                 strk_fee_token_address"
-                    .to_owned(),
-                "gateway_config.chain_info.fee_token_addresses.strk_fee_token_address".to_owned(),
+                 strk_fee_token_address",
+                "gateway_config.chain_info.fee_token_addresses.strk_fee_token_address",
             ]),
         ),
     ]
