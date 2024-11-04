@@ -44,3 +44,6 @@ papyrus_test_utils.workspace = true
 [package.metadata.cargo-machete]
 # The `rand` crate is used in the `testing` feature, which is optional.
 ignored = ["rand"]
+
+[lints]
+workspace = true
