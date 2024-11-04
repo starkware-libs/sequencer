@@ -30,6 +30,7 @@ use crate::types::{
 // TODO(dvir): add test for this.
 #[instrument(skip_all, level = "info")]
 #[allow(missing_docs)]
+#[allow(clippy::too_many_arguments)]
 pub async fn run_consensus<ContextT, SyncReceiverT>(
     mut context: ContextT,
     start_height: BlockNumber,

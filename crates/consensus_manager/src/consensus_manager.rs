@@ -8,7 +8,7 @@ use futures::SinkExt;
 use libp2p::PeerId;
 use papyrus_consensus::types::{BroadcastConsensusMessageChannel, ConsensusError};
 use papyrus_consensus_orchestrator::sequencer_consensus_context::SequencerConsensusContext;
-use papyrus_network::network_manager::BroadcastTopicClient;
+use papyrus_network::network_manager::{BroadcastTopicClient, NetworkManager};
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_protobuf::consensus::ConsensusMessage;
 use starknet_batcher_types::communication::SharedBatcherClient;
@@ -17,6 +17,10 @@ use starknet_sequencer_infra::errors::ComponentError;
 use tracing::{error, info};
 
 use crate::config::ConsensusManagerConfig;
+
+// TODO(Dan, Guy): move to config.
+pub const BROADCAST_BUFFER_SIZE: usize = 100;
+pub const NETWORK_TOPIC: &str = "consensus_proposals";
 
 #[derive(Clone)]
 pub struct ConsensusManager {
@@ -30,12 +34,15 @@ impl ConsensusManager {
     }
 
     pub async fn run(&self) -> Result<(), ConsensusError> {
+        let network_manager =
+            NetworkManager::new(self.config.consensus_config.network_config.clone(), None);
         let context = SequencerConsensusContext::new(
             Arc::clone(&self.batcher_client),
             self.config.consensus_config.num_validators,
         );
 
-        papyrus_consensus::run_consensus(
+        let mut network_handle = tokio::task::spawn(network_manager.run());
+        let consensus_task = papyrus_consensus::run_consensus(
             context,
             self.config.consensus_config.start_height,
             self.config.consensus_config.validator_id,
@@ -43,8 +50,17 @@ impl ConsensusManager {
             self.config.consensus_config.timeouts.clone(),
             create_fake_network_channels(),
             futures::stream::pending(),
-        )
-        .await
+        );
+
+        tokio::select! {
+            consensus_result = consensus_task => {
+                match consensus_result {
+                    Ok(_) => panic!("Consensus task finished unexpectedly"),
+                    Err(e) => Err(e),
+                }
+            },
+            _ = &mut network_handle => panic!("Consensus Network handle finished unexpectedly"),
+        }
     }
 }
 

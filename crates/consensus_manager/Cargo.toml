@@ -21,5 +21,6 @@ papyrus_protobuf.workspace = true
 serde.workspace = true
 starknet_batcher_types.workspace = true
 starknet_sequencer_infra.workspace = true
+tokio.workspace = true
 tracing.workspace = true
 validator.workspace = true
