@@ -331,6 +331,19 @@ pub(crate) fn combine_config_map_and_pointers(
     Ok(json!(config_map))
 }
 
+/// Creates a set of pointing params, ensuring no duplications.
+pub fn set_pointing_param_paths(param_path_list: &[&str]) -> HashSet<ParamPath> {
+    let mut param_paths = HashSet::new();
+    for &param_path in param_path_list {
+        assert!(
+            param_paths.insert(param_path.to_string()),
+            "Duplicate parameter path found: {}",
+            param_path
+        );
+    }
+    param_paths
+}
+
 pub(crate) fn required_param_description(description: &str) -> String {
     format!("A required param! {}", description)
 }
