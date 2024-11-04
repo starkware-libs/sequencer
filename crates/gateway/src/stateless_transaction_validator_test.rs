@@ -5,7 +5,6 @@ use assert_matches::assert_matches;
 use mempool_test_utils::starknet_api_test_utils::{
     rpc_declare_tx,
     rpc_tx_for_testing,
-    zero_resource_bounds_mapping,
     RpcTransactionArgs,
     TransactionType,
     NON_EMPTY_RESOURCE_BOUNDS,
@@ -125,7 +124,8 @@ fn test_positive_flow(
         validate_non_zero_l2_gas_fee: false,
         ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
     },
-    zero_resource_bounds_mapping(),
+    AllResourceBounds::default()
+    ,
     StatelessTransactionValidatorError::ZeroResourceBounds{
         resource: Resource::L1Gas, resource_bounds: ResourceBounds::default()
     }
