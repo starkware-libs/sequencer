@@ -1,6 +1,5 @@
-use std::future::pending;
-
-use anyhow::Ok;
+use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
+use rstest::{fixture, rstest};
 use starknet_integration_tests::integration_test_config_utils::dump_config_file_changes;
 use starknet_integration_tests::integration_test_utils::{
     create_config,
@@ -11,13 +10,19 @@ use starknet_sequencer_infra::trace_util::configure_tracing;
 use tempfile::tempdir;
 use tracing::info;
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
+#[fixture]
+fn tx_generator() -> MultiAccountTransactionGenerator {
+    create_integration_test_tx_generator()
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_end_to_end_integration(tx_generator: MultiAccountTransactionGenerator) {
     configure_tracing();
     info!("Running integration test setup for the sequencer node.");
 
     // Creating the storage for the test.
-    let storage_for_test = StorageTestSetup::new(create_integration_test_tx_generator().accounts());
+    let storage_for_test = StorageTestSetup::new(tx_generator.accounts());
 
     // Spawn a papyrus rpc server for a papyrus storage reader.
     let rpc_server_addr =
@@ -31,12 +36,9 @@ async fn main() -> anyhow::Result<()> {
     // Note: the batcher storage file handle is passed as a reference to maintain its ownership in
     // this scope, such that the handle is not dropped and the storage is maintained.
     let temp_dir = tempdir().unwrap();
-    dump_config_file_changes(&config, required_params, &temp_dir);
+    let (_node_config_path, _) = dump_config_file_changes(&config, required_params, &temp_dir);
 
-    // Keep the program running so the rpc state reader server, its storage, and the batcher
-    // storage, are all maintained.
-    let () = pending().await;
-    Ok(())
-
-    // TODO(Tsabary): Find a way to stop the program once the test is done.
+    // TODO(Tsabary): Run the node using the config path.
+    // TODO(Tsabary): Run tx generator.
+    // TODO(Tsabary): Spawn state reader and check state is as expected.
 }
