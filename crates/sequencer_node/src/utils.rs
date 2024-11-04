@@ -1,5 +1,5 @@
 use std::env;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use crate::communication::{create_node_channels, create_node_clients, SequencerNodeClients};
 use crate::components::create_node_components;
@@ -20,5 +20,8 @@ pub fn create_node_modules(
 // TODO(Tsabary): consolidate with other get_absolute_path functions.
 /// Returns the absolute path from the project root.
 pub fn get_absolute_path(relative_path: &str) -> PathBuf {
-    Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap()).join("../..").join(relative_path)
+    let base_dir = env::var("CARGO_MANIFEST_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| env::current_dir().expect("Failed to get current directory"));
+    base_dir.join(relative_path)
 }
