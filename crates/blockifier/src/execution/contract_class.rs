@@ -29,6 +29,7 @@ use starknet_api::deprecated_contract_class::{
     EntryPointV0,
     Program as DeprecatedProgram,
 };
+use starknet_api::transaction::GasVectorComputationMode;
 use starknet_types_core::felt::Felt;
 
 use crate::abi::constants::{self};
@@ -131,12 +132,19 @@ impl RunnableContractClass {
     }
 
     /// Returns whether this contract should run using Cairo steps or Sierra gas.
-    pub fn tracked_resource(&self, min_sierra_version: &CompilerVersion) -> TrackedResource {
-        match self {
-            Self::V0(_) => TrackedResource::CairoSteps,
-            Self::V1(contract_class) => contract_class.tracked_resource(min_sierra_version),
-            #[cfg(feature = "cairo_native")]
-            Self::V1Native(_) => TrackedResource::SierraGas,
+    pub fn tracked_resource(
+        &self,
+        min_sierra_version: &CompilerVersion,
+        gas_mode: GasVectorComputationMode,
+    ) -> TrackedResource {
+        match gas_mode {
+            GasVectorComputationMode::All => match self {
+                Self::V0(_) => TrackedResource::CairoSteps,
+                Self::V1(contract_class) => contract_class.tracked_resource(min_sierra_version),
+                #[cfg(feature = "cairo_native")]
+                Self::V1Native(_) => TrackedResource::SierraGas,
+            },
+            GasVectorComputationMode::NoL2Gas => TrackedResource::CairoSteps,
         }
     }
 }

@@ -60,8 +60,10 @@ pub fn execute_entry_point_call_wrapper(
     context: &mut EntryPointExecutionContext,
     remaining_gas: &mut u64,
 ) -> EntryPointExecutionResult<CallInfo> {
-    let contract_tracked_resource = contract_class
-        .tracked_resource(&context.versioned_constants().min_compiler_version_for_sierra_gas);
+    let contract_tracked_resource = contract_class.tracked_resource(
+        &context.versioned_constants().min_compiler_version_for_sierra_gas,
+        context.tx_context.tx_info.gas_mode(),
+    );
     // Note: no return statements (explicit or implicit) should be added between the push and the
     // pop commands.
 
