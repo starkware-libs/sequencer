@@ -41,20 +41,23 @@ macro_rules! implement_getter_calls {
 };
 }
 
+// TODO: Remove after introducing new transaction type.
+pub type Transaction = AccountTransaction;
+
 /// Represents a paid Starknet transaction.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub enum Transaction {
+pub enum AccountTransaction {
     Declare(DeclareTransaction),
     DeployAccount(DeployAccountTransaction),
     Invoke(InvokeTransaction),
 }
 
-impl Transaction {
+impl AccountTransaction {
     pub fn contract_address(&self) -> ContractAddress {
         match self {
-            Transaction::Declare(tx_data) => tx_data.tx.sender_address(),
-            Transaction::DeployAccount(tx_data) => tx_data.contract_address,
-            Transaction::Invoke(tx_data) => tx_data.tx.sender_address(),
+            AccountTransaction::Declare(tx_data) => tx_data.tx.sender_address(),
+            AccountTransaction::DeployAccount(tx_data) => tx_data.contract_address,
+            AccountTransaction::Invoke(tx_data) => tx_data.tx.sender_address(),
         }
     }
 
@@ -64,32 +67,32 @@ impl Transaction {
 
     pub fn nonce(&self) -> Nonce {
         match self {
-            Transaction::Declare(tx_data) => tx_data.tx.nonce(),
-            Transaction::DeployAccount(tx_data) => tx_data.tx.nonce(),
-            Transaction::Invoke(tx_data) => tx_data.tx.nonce(),
+            AccountTransaction::Declare(tx_data) => tx_data.tx.nonce(),
+            AccountTransaction::DeployAccount(tx_data) => tx_data.tx.nonce(),
+            AccountTransaction::Invoke(tx_data) => tx_data.tx.nonce(),
         }
     }
 
     pub fn tx_hash(&self) -> TransactionHash {
         match self {
-            Transaction::Declare(tx_data) => tx_data.tx_hash,
-            Transaction::DeployAccount(tx_data) => tx_data.tx_hash,
-            Transaction::Invoke(tx_data) => tx_data.tx_hash,
+            AccountTransaction::Declare(tx_data) => tx_data.tx_hash,
+            AccountTransaction::DeployAccount(tx_data) => tx_data.tx_hash,
+            AccountTransaction::Invoke(tx_data) => tx_data.tx_hash,
         }
     }
 
     // TODO(Mohammad): add a getter macro.
     pub fn tip(&self) -> Option<Tip> {
         match self {
-            Transaction::Declare(declare_tx) => match &declare_tx.tx {
+            AccountTransaction::Declare(declare_tx) => match &declare_tx.tx {
                 crate::transaction::DeclareTransaction::V3(tx_v3) => Some(tx_v3.tip),
                 _ => None,
             },
-            Transaction::DeployAccount(deploy_account_tx) => match &deploy_account_tx.tx {
+            AccountTransaction::DeployAccount(deploy_account_tx) => match &deploy_account_tx.tx {
                 crate::transaction::DeployAccountTransaction::V3(tx_v3) => Some(tx_v3.tip),
                 _ => None,
             },
-            Transaction::Invoke(invoke_tx) => match &invoke_tx.tx {
+            AccountTransaction::Invoke(invoke_tx) => match &invoke_tx.tx {
                 crate::transaction::InvokeTransaction::V3(tx_v3) => Some(tx_v3.tip),
                 _ => None,
             },
@@ -98,17 +101,17 @@ impl Transaction {
 
     pub fn resource_bounds(&self) -> Option<&ValidResourceBounds> {
         match self {
-            Transaction::Declare(declare_tx) => match &declare_tx.tx {
+            AccountTransaction::Declare(declare_tx) => match &declare_tx.tx {
                 crate::transaction::DeclareTransaction::V3(tx_v3) => Some(&tx_v3.resource_bounds),
                 _ => None,
             },
-            Transaction::DeployAccount(deploy_account_tx) => match &deploy_account_tx.tx {
+            AccountTransaction::DeployAccount(deploy_account_tx) => match &deploy_account_tx.tx {
                 crate::transaction::DeployAccountTransaction::V3(tx_v3) => {
                     Some(&tx_v3.resource_bounds)
                 }
                 _ => None,
             },
-            Transaction::Invoke(invoke_tx) => match &invoke_tx.tx {
+            AccountTransaction::Invoke(invoke_tx) => match &invoke_tx.tx {
                 crate::transaction::InvokeTransaction::V3(tx_v3) => Some(&tx_v3.resource_bounds),
                 _ => None,
             },
