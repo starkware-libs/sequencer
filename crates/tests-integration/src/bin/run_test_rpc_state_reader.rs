@@ -29,7 +29,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Note: the batcher storage file handle is passed as a reference to maintain its ownership in
     // this scope, such that the handle is not dropped and the storage is maintained.
-    dump_config_file_changes(config, required_params)?;
+    dump_config_file_changes(config, required_params);
 
     // Keep the program running so the rpc state reader server, its storage, and the batcher
     // storage, are all maintained.
