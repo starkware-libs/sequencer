@@ -8,7 +8,7 @@ use futures::SinkExt;
 use libp2p::PeerId;
 use papyrus_consensus::types::{BroadcastConsensusMessageChannel, ConsensusError};
 use papyrus_consensus_orchestrator::sequencer_consensus_context::SequencerConsensusContext;
-use papyrus_network::network_manager::BroadcastTopicClient;
+use papyrus_network::network_manager::{BroadcastTopicClient, NetworkManager};
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_protobuf::consensus::ConsensusMessage;
 use starknet_batcher_types::communication::SharedBatcherClient;
@@ -17,6 +17,10 @@ use starknet_sequencer_infra::errors::ComponentError;
 use tracing::{error, info};
 
 use crate::config::ConsensusManagerConfig;
+
+// TODO(Dan, Guy): move to config.
+pub const BROADCAST_BUFFER_SIZE: usize = 100;
+pub const NETWORK_TOPIC: &str = "consensus_proposals";
 
 #[derive(Clone)]
 pub struct ConsensusManager {
@@ -30,12 +34,16 @@ impl ConsensusManager {
     }
 
     pub async fn run(&self) -> Result<(), ConsensusError> {
+        let network_manager =
+            NetworkManager::new(self.config.consensus_config.network_config.clone(), None);
         let context = SequencerConsensusContext::new(
             Arc::clone(&self.batcher_client),
             self.config.consensus_config.num_validators,
         );
+        let network_handle = tokio::task::spawn(network_manager.run());
 
         papyrus_consensus::run_consensus(
+            network_handle,
             context,
             self.config.consensus_config.start_height,
             self.config.consensus_config.validator_id,
