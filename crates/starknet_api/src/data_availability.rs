@@ -64,6 +64,15 @@ impl From<DataAvailabilityMode> for Felt {
     }
 }
 
+impl From<DataAvailabilityMode> for u32 {
+    fn from(data_availability_mode: DataAvailabilityMode) -> u32 {
+        match data_availability_mode {
+            DataAvailabilityMode::L1 => 0,
+            DataAvailabilityMode::L2 => 1,
+        }
+    }
+}
+
 #[derive(
     Clone, Default, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize,
 )]

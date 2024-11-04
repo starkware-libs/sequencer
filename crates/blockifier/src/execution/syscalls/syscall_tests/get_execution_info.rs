@@ -64,6 +64,46 @@ use crate::transaction::objects::{
         "Native [V1]: Execute execution mode: block info should be as usual. Transaction V1."
     )
 )]
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(
+        FeatureContract::TestContract(CairoVersion::Native),
+        ExecutionMode::Validate,
+        TransactionVersion::ONE,
+        false;
+        "Native: Validate execution mode: block info fields should be zeroed. Transaction V1."
+    )
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(
+        FeatureContract::TestContract(CairoVersion::Native),
+        ExecutionMode::Execute,
+        TransactionVersion::ONE,
+        false;
+        "Native: Execute execution mode: block info should be as usual. Transaction V1."
+    )
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(
+        FeatureContract::TestContract(CairoVersion::Native),
+        ExecutionMode::Validate,
+        TransactionVersion::THREE,
+        false;
+        "Native: Validate execution mode: block info fields should be zeroed. Transaction V3."
+    )
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(
+        FeatureContract::TestContract(CairoVersion::Native),
+        ExecutionMode::Execute,
+        TransactionVersion::THREE,
+        false;
+        "Native: Execute execution mode: block info should be as usual. Transaction V3."
+    )
+)]
 #[test_case(
     FeatureContract::TestContract(CairoVersion::Cairo1),
     ExecutionMode::Validate,
