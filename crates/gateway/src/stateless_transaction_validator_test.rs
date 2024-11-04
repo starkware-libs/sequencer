@@ -7,6 +7,7 @@ use mempool_test_utils::starknet_api_test_utils::{
     rpc_declare_tx,
     rpc_tx_for_testing,
     zero_resource_bounds_mapping,
+    RpcTransactionArgs,
     TransactionType,
     NON_EMPTY_RESOURCE_BOUNDS,
 };
@@ -16,7 +17,6 @@ use starknet_api::rpc_transaction::{ContractClass, EntryPointByType};
 use starknet_api::state::EntryPoint;
 use starknet_api::transaction::{
     AllResourceBounds,
-    Calldata,
     Resource,
     ResourceBounds,
     TransactionSignature,
@@ -46,86 +46,86 @@ static DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: LazyLock<StatelessTransactionValida
         min_sierra_version: *MIN_SIERRA_VERSION,
         max_sierra_version: *MAX_SIERRA_VERSION,
     });
+static DEFAULT_RPC_TRANSACTION_ARGS: LazyLock<RpcTransactionArgs> =
+    LazyLock::new(|| RpcTransactionArgs {
+        resource_bounds: zero_resource_bounds_mapping(),
+        ..RpcTransactionArgs::default()
+    });
 
 #[rstest]
 #[case::ignore_resource_bounds(
-    StatelessTransactionValidatorConfig{
+    StatelessTransactionValidatorConfig {
         validate_non_zero_l1_gas_fee: false,
         validate_non_zero_l2_gas_fee: false,
         ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
     },
-    zero_resource_bounds_mapping(),
-    calldata![],
-    TransactionSignature::default()
+    DEFAULT_RPC_TRANSACTION_ARGS.clone()
 )]
 #[case::valid_l1_gas(
-    StatelessTransactionValidatorConfig{
+    StatelessTransactionValidatorConfig {
         validate_non_zero_l1_gas_fee: true,
         validate_non_zero_l2_gas_fee: false,
         ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
     },
-    AllResourceBounds {
-        l1_gas: NON_EMPTY_RESOURCE_BOUNDS,
-        ..Default::default()
-    },
-    calldata![],
-    TransactionSignature::default()
+    RpcTransactionArgs {
+        resource_bounds: AllResourceBounds {
+            l1_gas: NON_EMPTY_RESOURCE_BOUNDS,
+            ..Default::default()
+        },
+        ..DEFAULT_RPC_TRANSACTION_ARGS.clone()
+    }
 )]
 #[case::valid_l2_gas(
-    StatelessTransactionValidatorConfig{
+    StatelessTransactionValidatorConfig {
         validate_non_zero_l1_gas_fee: false,
         validate_non_zero_l2_gas_fee: true,
         ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
     },
-    AllResourceBounds {
-        l2_gas: NON_EMPTY_RESOURCE_BOUNDS,
-        ..Default::default()
-    },
-    calldata![],
-    TransactionSignature::default()
+    RpcTransactionArgs {
+        resource_bounds: AllResourceBounds {
+            l2_gas: NON_EMPTY_RESOURCE_BOUNDS,
+            ..Default::default()
+        },
+        ..DEFAULT_RPC_TRANSACTION_ARGS.clone()
+    }
 )]
 #[case::valid_l1_and_l2_gas(
-    StatelessTransactionValidatorConfig{
+    StatelessTransactionValidatorConfig {
         validate_non_zero_l1_gas_fee: true,
         validate_non_zero_l2_gas_fee: true,
         ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
     },
-    AllResourceBounds {
-        l1_gas: NON_EMPTY_RESOURCE_BOUNDS,
-        l2_gas: NON_EMPTY_RESOURCE_BOUNDS,
-        ..Default::default()
-    },
-    calldata![],
-    TransactionSignature::default()
+    RpcTransactionArgs {
+        resource_bounds: AllResourceBounds {
+            l1_gas: NON_EMPTY_RESOURCE_BOUNDS,
+            l2_gas: NON_EMPTY_RESOURCE_BOUNDS,
+            ..Default::default()
+        },
+        ..DEFAULT_RPC_TRANSACTION_ARGS.clone()
+    }
 )]
 #[case::non_empty_valid_calldata(
     DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone(),
-    zero_resource_bounds_mapping(),
-    calldata![Felt::ONE],
-    TransactionSignature::default()
+    RpcTransactionArgs { calldata: calldata![Felt::ONE], ..DEFAULT_RPC_TRANSACTION_ARGS.clone()}
 )]
 #[case::non_empty_valid_signature(
     DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone(),
-    zero_resource_bounds_mapping(),
-    calldata![],
-    TransactionSignature(vec![Felt::ONE])
+    RpcTransactionArgs {
+        signature: TransactionSignature(vec![Felt::ONE]),
+        ..DEFAULT_RPC_TRANSACTION_ARGS.clone()
+    }
 )]
-#[case::valid_tx(
-    DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone(),
-    zero_resource_bounds_mapping(),
-    calldata![],
-    TransactionSignature::default()
-)]
+#[case::valid_tx(DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone(), DEFAULT_RPC_TRANSACTION_ARGS.clone())]
 fn test_positive_flow(
     #[case] config: StatelessTransactionValidatorConfig,
-    #[case] resource_bounds: AllResourceBounds,
-    #[case] tx_calldata: Calldata,
-    #[case] signature: TransactionSignature,
+    #[case] mut rpc_tx_args: RpcTransactionArgs,
     #[values(TransactionType::Declare, TransactionType::DeployAccount, TransactionType::Invoke)]
     tx_type: TransactionType,
 ) {
     let tx_validator = StatelessTransactionValidator { config };
-    let tx = rpc_tx_for_testing(tx_type, resource_bounds, tx_calldata, signature);
+    rpc_tx_args.tx_type = tx_type;
+
+    let tx = rpc_tx_for_testing(rpc_tx_args);
 
     assert_matches!(tx_validator.validate(&tx), Ok(()));
 }
@@ -164,8 +164,12 @@ fn test_invalid_resource_bounds(
     tx_type: TransactionType,
 ) {
     let tx_validator = StatelessTransactionValidator { config };
-    let tx =
-        rpc_tx_for_testing(tx_type, resource_bounds, calldata![], TransactionSignature::default());
+
+    let tx = rpc_tx_for_testing(RpcTransactionArgs {
+        tx_type,
+        resource_bounds,
+        ..DEFAULT_RPC_TRANSACTION_ARGS.clone()
+    });
 
     assert_eq!(tx_validator.validate(&tx).unwrap_err(), expected_error);
 }
@@ -176,12 +180,11 @@ fn test_calldata_too_long(
 ) {
     let tx_validator =
         StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone() };
-    let tx = rpc_tx_for_testing(
+    let tx = rpc_tx_for_testing(RpcTransactionArgs {
         tx_type,
-        zero_resource_bounds_mapping(),
-        calldata![Felt::ONE, Felt::TWO],
-        TransactionSignature::default(),
-    );
+        calldata: calldata![Felt::ONE, Felt::TWO],
+        ..DEFAULT_RPC_TRANSACTION_ARGS.clone()
+    });
 
     assert_eq!(
         tx_validator.validate(&tx).unwrap_err(),
@@ -199,12 +202,11 @@ fn test_signature_too_long(
 ) {
     let tx_validator =
         StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone() };
-    let tx = rpc_tx_for_testing(
+    let tx = rpc_tx_for_testing(RpcTransactionArgs {
         tx_type,
-        zero_resource_bounds_mapping(),
-        calldata![],
-        TransactionSignature(vec![Felt::ONE, Felt::TWO]),
-    );
+        signature: TransactionSignature(vec![Felt::ONE, Felt::TWO]),
+        ..DEFAULT_RPC_TRANSACTION_ARGS.clone()
+    });
 
     assert_eq!(
         tx_validator.validate(&tx).unwrap_err(),

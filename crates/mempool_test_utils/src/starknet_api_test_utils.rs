@@ -57,18 +57,34 @@ pub const VALID_L1_DATA_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000;
 pub const TEST_SENDER_ADDRESS: u128 = 0x1000;
 
 // Utils.
+#[derive(Clone)]
 pub enum TransactionType {
     Declare,
     DeployAccount,
     Invoke,
 }
 
-pub fn rpc_tx_for_testing(
-    tx_type: TransactionType,
-    resource_bounds: AllResourceBounds,
-    calldata: Calldata,
-    signature: TransactionSignature,
-) -> RpcTransaction {
+#[derive(Clone)]
+pub struct RpcTransactionArgs {
+    pub tx_type: TransactionType,
+    pub resource_bounds: AllResourceBounds,
+    pub calldata: Calldata,
+    pub signature: TransactionSignature,
+}
+
+impl Default for RpcTransactionArgs {
+    fn default() -> Self {
+        Self {
+            tx_type: TransactionType::Invoke,
+            resource_bounds: Default::default(),
+            calldata: Default::default(),
+            signature: Default::default(),
+        }
+    }
+}
+
+pub fn rpc_tx_for_testing(rpc_tx_args: RpcTransactionArgs) -> RpcTransaction {
+    let RpcTransactionArgs { tx_type, resource_bounds, calldata, signature } = rpc_tx_args;
     match tx_type {
         TransactionType::Declare => {
             // Minimal contract class.
