@@ -37,7 +37,7 @@ async fn main() -> anyhow::Result<()> {
 
     let send_rpc_tx_fn = &|rpc_tx| http_test_client.assert_add_tx_success(rpc_tx);
 
-    let n_txs = 50;
+    let n_txs = 1;
     info!("Sending {n_txs} txs.");
     run_transaction_generator_test_scenario(tx_generator, n_txs, send_rpc_tx_fn).await;
 

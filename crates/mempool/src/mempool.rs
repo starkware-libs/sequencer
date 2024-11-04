@@ -109,6 +109,7 @@ impl Mempool {
     )]
     pub fn add_tx(&mut self, args: AddTransactionArgs) -> MempoolResult<()> {
         let AddTransactionArgs { tx, account_state } = args;
+        println!("Adding transaction to mempool: {tx:?}.");
         let tx_ref = TransactionReference::new(&tx);
         self.validate_incoming_tx_nonce(tx_ref.address, tx_ref.nonce)?;
 

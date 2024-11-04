@@ -1,5 +1,7 @@
 {
   "chain_id": "CHAIN_ID_SUBDIR",
   "http_server_config.ip": "127.0.0.1",
-  "http_server_config.port": 38025
+  "http_server_config.port": 38265,
+  "eth_fee_token_address": "0x1001",
+  "strk_fee_token_address": "0x1002"
 }
