@@ -1,11 +1,11 @@
 {
-  "batcher_config.storage.db_config.path_prefix": "/tmp/.tmpWJlNHQ",
+  "batcher_config.storage.db_config.path_prefix": "/tmp/.tmpMhnxYN",
   "chain_id": "CHAIN_ID_SUBDIR",
   "consensus_manager_config.consensus_config.start_height": 1,
   "eth_fee_token_address": "0x1001",
   "http_server_config.ip": "127.0.0.1",
-  "http_server_config.port": 38265,
+  "http_server_config.port": 44583,
   "rpc_state_reader_config.json_rpc_version": "2.0",
-  "rpc_state_reader_config.url": "http://127.0.0.1:40155/rpc/V0_8",
+  "rpc_state_reader_config.url": "http://127.0.0.1:45269/rpc/V0_8",
   "strk_fee_token_address": "0x1002"
 }

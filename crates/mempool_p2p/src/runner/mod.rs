@@ -60,7 +60,7 @@ impl ComponentStarter for MempoolP2pRunner {
                             // TODO(eitan): make this call non blocking by adding this future to a
                             // FuturesUnordered that will be polled in the select.
                             match self.gateway_client.add_tx(
-                                GatewayInput { rpc_tx: message.0, message_metadata: None }
+                                GatewayInput { rpc_tx: message.0, message_metadata: Some(broadcasted_message_metadata.clone()) }
                             ).await {
                                 Ok(_tx_hash) => {}
                                 Err(e) => {
