@@ -16,11 +16,10 @@ use papyrus_consensus::types::{
     ConsensusContext,
     ConsensusError,
     ProposalContentId,
-    ProposalInit,
     Round,
     ValidatorId,
 };
-use papyrus_protobuf::consensus::{ConsensusMessage, Vote};
+use papyrus_protobuf::consensus::{ConsensusMessage, ProposalInit, Vote};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::executable_transaction::Transaction;
 use starknet_batcher_types::batcher_types::{

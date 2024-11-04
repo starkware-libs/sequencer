@@ -19,12 +19,11 @@ use papyrus_consensus::types::{
     ConsensusContext,
     ConsensusError,
     ProposalContentId,
-    ProposalInit,
     Round,
     ValidatorId,
 };
 use papyrus_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
-use papyrus_protobuf::consensus::{ConsensusMessage, Proposal, Vote};
+use papyrus_protobuf::consensus::{ConsensusMessage, Proposal, ProposalInit, Vote};
 use papyrus_storage::body::BodyStorageReader;
 use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::{StorageError, StorageReader};

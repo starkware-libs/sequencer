@@ -7,7 +7,7 @@ use std::collections::{HashMap, VecDeque};
 use std::time::Duration;
 
 use futures::channel::{mpsc, oneshot};
-use papyrus_protobuf::consensus::{ConsensusMessage, Vote, VoteType};
+use papyrus_protobuf::consensus::{ConsensusMessage, ProposalInit, Vote, VoteType};
 use starknet_api::block::BlockNumber;
 use tracing::{debug, info, instrument, trace, warn};
 
@@ -18,7 +18,6 @@ use crate::types::{
     ConsensusError,
     Decision,
     ProposalContentId,
-    ProposalInit,
     Round,
     ValidatorId,
 };

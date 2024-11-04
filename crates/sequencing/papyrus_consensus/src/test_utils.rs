@@ -3,18 +3,11 @@ use std::time::Duration;
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use mockall::mock;
-use papyrus_protobuf::consensus::{ConsensusMessage, Proposal, Vote, VoteType};
+use papyrus_protobuf::consensus::{ConsensusMessage, Proposal, ProposalInit, Vote, VoteType};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_types_core::felt::Felt;
 
-use crate::types::{
-    ConsensusContext,
-    ConsensusError,
-    ProposalContentId,
-    ProposalInit,
-    Round,
-    ValidatorId,
-};
+use crate::types::{ConsensusContext, ConsensusError, ProposalContentId, Round, ValidatorId};
 
 /// Define a consensus block which can be used to enable auto mocking Context.
 #[derive(Debug, PartialEq, Clone)]
