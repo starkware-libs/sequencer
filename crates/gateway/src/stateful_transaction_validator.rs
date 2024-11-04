@@ -13,7 +13,7 @@ use mockall::automock;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::{
     InvokeTransaction as ExecutableInvokeTransaction,
-    Transaction as ExecutableTransaction,
+    AccountTransaction as ExecutableTransaction,
 };
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_types_core::felt::Felt;

@@ -3,7 +3,7 @@ use starknet_api::executable_transaction::{
     DeclareTransaction as ExecutableDeclareTransaction,
     DeployAccountTransaction as ExecutableDeployAccountTransaction,
     InvokeTransaction as ExecutableInvokeTransaction,
-    Transaction as ExecutableTransaction,
+    AccountTransaction as ExecutableTransaction,
 };
 use starknet_api::rpc_transaction::{RpcDeclareTransaction, RpcTransaction};
 use starknet_gateway_types::errors::GatewaySpecError;

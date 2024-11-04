@@ -8,7 +8,7 @@ use lazy_static::lazy_static;
 use papyrus_consensus::types::{ConsensusContext, ProposalInit};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::{ContractAddress, StateDiffCommitment};
-use starknet_api::executable_transaction::Transaction;
+use starknet_api::executable_transaction::{Transaction, AccountTransaction};
 use starknet_api::hash::PoseidonHash;
 use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
 use starknet_api::transaction::TransactionHash;
@@ -40,10 +40,10 @@ lazy_static! {
 }
 
 fn generate_invoke_tx(tx_hash: Felt) -> Transaction {
-    Transaction::Invoke(executable_invoke_tx(InvokeTxArgs {
+    Transaction::Account(AccountTransaction::Invoke(executable_invoke_tx(InvokeTxArgs {
         tx_hash: TransactionHash(tx_hash),
         ..Default::default()
-    }))
+    })))
 }
 
 #[tokio::test]

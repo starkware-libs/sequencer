@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
-use starknet_api::executable_transaction::Transaction;
+use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::transaction::{Tip, TransactionHash};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{
@@ -62,7 +62,7 @@ impl Mempool {
     /// created.
     // TODO: Consider renaming to `pop_txs` to be more consistent with the standard library.
     #[tracing::instrument(skip(self), err)]
-    pub fn get_txs(&mut self, n_txs: usize) -> MempoolResult<Vec<Transaction>> {
+    pub fn get_txs(&mut self, n_txs: usize) -> MempoolResult<Vec<AccountTransaction>> {
         let mut eligible_tx_references: Vec<TransactionReference> = Vec::with_capacity(n_txs);
         let mut n_remaining_txs = n_txs;
 
@@ -239,7 +239,7 @@ impl Mempool {
     }
 
     #[tracing::instrument(level = "debug", skip(self, incoming_tx), err)]
-    fn handle_fee_escalation(&mut self, incoming_tx: &Transaction) -> MempoolResult<()> {
+    fn handle_fee_escalation(&mut self, incoming_tx: &AccountTransaction) -> MempoolResult<()> {
         if !self.config.enable_fee_escalation {
             return Ok(());
         }
@@ -301,11 +301,11 @@ impl Mempool {
 }
 
 // TODO(Elin): move to a shared location with other next-gen node crates.
-fn tip(tx: &Transaction) -> Tip {
+fn tip(tx: &AccountTransaction) -> Tip {
     tx.tip().expect("Expected a valid tip value.")
 }
 
-fn max_l2_gas_price(tx: &Transaction) -> GasPrice {
+fn max_l2_gas_price(tx: &AccountTransaction) -> GasPrice {
     tx.resource_bounds()
         .expect("Expected a valid resource bounds value.")
         .get_l2_bounds()
@@ -326,7 +326,7 @@ pub struct TransactionReference {
 }
 
 impl TransactionReference {
-    pub fn new(tx: &Transaction) -> Self {
+    pub fn new(tx: &AccountTransaction) -> Self {
         TransactionReference {
             address: tx.contract_address(),
             nonce: tx.nonce(),

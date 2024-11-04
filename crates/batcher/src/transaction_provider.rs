@@ -25,6 +25,12 @@ pub struct ProposeTransactionProvider {
 impl TransactionProvider for ProposeTransactionProvider {
     async fn get_txs(&self, n_txs: usize) -> Result<Vec<Transaction>, TransactionProviderError> {
         // TODO: Get also L1 transactions.
-        Ok(self.mempool_client.get_txs(n_txs).await?)
+        Ok(self
+            .mempool_client
+            .get_txs(n_txs)
+            .await?
+            .into_iter()
+            .map(Transaction::Account)
+            .collect())
     }
 }

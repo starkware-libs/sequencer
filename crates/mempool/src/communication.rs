@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
-use starknet_api::executable_transaction::Transaction;
+use starknet_api::executable_transaction::AccountTransaction;
 use starknet_mempool_p2p_types::communication::SharedMempoolP2pPropagatorClient;
 use starknet_mempool_types::communication::{
     AddTransactionArgsWrapper,
@@ -49,7 +49,7 @@ impl MempoolCommunicationWrapper {
     async fn send_tx_to_p2p(
         &self,
         message_metadata: Option<BroadcastedMessageMetadata>,
-        tx: Transaction,
+        tx: AccountTransaction,
     ) -> MempoolResult<()> {
         match message_metadata {
             Some(message_metadata) => self
@@ -69,7 +69,7 @@ impl MempoolCommunicationWrapper {
         // TODO: Verify that only transactions that were added to the mempool are sent.
         // TODO: handle declare correctly and remove this match.
         match args_wrapper.args.tx {
-            Transaction::Declare(_) => Ok(()),
+            AccountTransaction::Declare(_) => Ok(()),
             _ => self.send_tx_to_p2p(args_wrapper.p2p_message_metadata, args_wrapper.args.tx).await,
         }
     }
@@ -78,7 +78,7 @@ impl MempoolCommunicationWrapper {
         self.mempool.commit_block(args)
     }
 
-    fn get_txs(&mut self, n_txs: usize) -> MempoolResult<Vec<Transaction>> {
+    fn get_txs(&mut self, n_txs: usize) -> MempoolResult<Vec<AccountTransaction>> {
         self.mempool.get_txs(n_txs)
     }
 }
