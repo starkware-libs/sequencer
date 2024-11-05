@@ -291,7 +291,7 @@ impl<T: ProposalManagerTraitWrapper> ProposalManagerTrait for T {
     }
 
     async fn get_executed_proposal_commitment(
-        &self,
+        &mut self,
         proposal_id: ProposalId,
     ) -> ProposalResult<ProposalCommitment> {
         self.wrap_executed_proposal_commitment(proposal_id).await

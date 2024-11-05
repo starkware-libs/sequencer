@@ -16,6 +16,8 @@ use starknet_batcher_types::batcher_types::{
     GetProposalContentInput,
     GetProposalContentResponse,
     ProposalId,
+    ProposalStatus,
+    SendProposalContent,
     SendProposalContentInput,
     SendProposalContentResponse,
     StartHeightInput,
@@ -38,8 +40,12 @@ use crate::proposal_manager::{
     StartHeightError,
 };
 
-struct Proposal {
-    tx_stream: OutputStream,
+struct BuildProposalContext {
+    output_tx_stream: OutputStream,
+}
+
+struct ValidateProposalContext {
+    tx_provider_sender: ValidateTxProviderSender,
 }
 
 pub struct Batcher {
@@ -48,7 +54,8 @@ pub struct Batcher {
     pub storage_writer: Box<dyn BatcherStorageWriterTrait>,
     pub mempool_client: SharedMempoolClient,
     proposal_manager: Box<dyn ProposalManagerTrait>,
-    proposals: HashMap<ProposalId, Proposal>,
+    build_proposals: HashMap<ProposalId, BuildProposalContext>,
+    validate_proposals: HashMap<ProposalId, ValidateProposalContext>,
 }
 
 impl Batcher {
@@ -65,12 +72,14 @@ impl Batcher {
             storage_writer,
             mempool_client,
             proposal_manager,
-            proposals: HashMap::new(),
+            build_proposals: HashMap::new(),
+            validate_proposals: HashMap::new(),
         }
     }
 
     pub async fn start_height(&mut self, input: StartHeightInput) -> BatcherResult<()> {
-        self.proposals.clear();
+        self.build_proposals.clear();
+        self.validate_proposals.clear();
         self.proposal_manager.start_height(input.height).await.map_err(BatcherError::from)
     }
 
@@ -97,8 +106,8 @@ impl Batcher {
             .await
             .map_err(BatcherError::from)?;
 
-        let tx_stream = tx_receiver;
-        self.proposals.insert(proposal_id, Proposal { tx_stream });
+        let output_tx_stream = tx_receiver;
+        self.build_proposals.insert(proposal_id, BuildProposalContext { output_tx_stream });
         Ok(())
     }
 
@@ -110,12 +119,72 @@ impl Batcher {
         todo!();
     }
 
+    // This function assumes that there is no parallel request handling, otherwise the content could
+    // be processed out of order.
     #[instrument(skip(self), err)]
     pub async fn send_proposal_content(
         &mut self,
         send_proposal_content_input: SendProposalContentInput,
     ) -> BatcherResult<SendProposalContentResponse> {
-        todo!();
+        let proposal_id = send_proposal_content_input.proposal_id;
+
+        match send_proposal_content_input.content {
+            SendProposalContent::Txs(txs) => self.send_txs_and_get_status(proposal_id, txs).await,
+            SendProposalContent::Finish => {
+                self.close_tx_channel_and_get_commitement(proposal_id).await
+            }
+            SendProposalContent::Abort => {
+                unimplemented!("Abort not implemented yet.");
+            }
+        }
+    }
+
+    async fn send_txs_and_get_status(
+        &mut self,
+        proposal_id: ProposalId,
+        txs: Vec<Transaction>,
+    ) -> BatcherResult<SendProposalContentResponse> {
+        match self.proposal_manager.take_proposal_result(proposal_id).await {
+            // Block builder is still processing, no errors received.
+            Err(GetProposalResultError::ProposalDoesNotExist { proposal_id: _ }) => {
+                // TODO: validate L1 transactions
+                let tx_provider_sender = &self
+                    .validate_proposals
+                    .get(&proposal_id)
+                    .ok_or(BatcherError::ProposalNotFound { proposal_id })?
+                    .tx_provider_sender;
+                for tx in txs {
+                    tx_provider_sender.send(tx).await.map_err(|err| {
+                        error!("Failed to send transaction to the tx provider: {}", err);
+                        BatcherError::InternalError
+                    })?;
+                }
+                Ok(SendProposalContentResponse { response: ProposalStatus::Processing })
+            }
+            // Proposal Got an Error while processing transactions or the block was closed
+            // before the input transactions ended.
+            Err(GetProposalResultError::BlockBuilderError(_)) | Ok(_) => {
+                Ok(SendProposalContentResponse { response: ProposalStatus::InvalidProposal })
+            }
+        }
+    }
+
+    async fn close_tx_channel_and_get_commitement(
+        &mut self,
+        proposal_id: ProposalId,
+    ) -> BatcherResult<SendProposalContentResponse> {
+        debug!("Send proposal content done for {}", proposal_id);
+
+        let tx_provider_sender = self
+            .validate_proposals
+            .remove(&proposal_id)
+            .ok_or(BatcherError::ProposalNotFound { proposal_id })?
+            .tx_provider_sender;
+        drop(tx_provider_sender);
+
+        let proposal_commitment =
+            self.proposal_manager.get_executed_proposal_commitment(proposal_id).await?; // TODO check which errors are returning here.
+        Ok(SendProposalContentResponse { response: ProposalStatus::Finished(proposal_commitment) })
     }
 
     #[instrument(skip(self), err)]
@@ -126,10 +195,10 @@ impl Batcher {
         let proposal_id = get_proposal_content_input.proposal_id;
 
         let tx_stream = &mut self
-            .proposals
+            .build_proposals
             .get_mut(&proposal_id)
             .ok_or(BatcherError::ProposalNotFound { proposal_id })?
-            .tx_stream;
+            .output_tx_stream;
 
         // Blocking until we have some txs to stream or the proposal is done.
         let mut txs = Vec::new();
@@ -144,7 +213,7 @@ impl Batcher {
         // Finished streaming all the transactions.
         // TODO: Consider removing the proposal from the proposal manager and keep it in the batcher
         // for decision reached.
-        self.proposals.remove(&proposal_id);
+        self.build_proposals.remove(&proposal_id);
         let proposal_commitment =
             self.proposal_manager.get_executed_proposal_commitment(proposal_id).await?;
         Ok(GetProposalContentResponse {
@@ -215,6 +284,8 @@ impl BatcherStorageReaderTrait for papyrus_storage::StorageReader {
 
 // TODO: Make this work with streams.
 type OutputStream = tokio::sync::mpsc::UnboundedReceiver<Transaction>;
+type ValidateTxProviderSender = tokio::sync::mpsc::Sender<Transaction>;
+
 #[cfg_attr(test, automock)]
 pub trait BatcherStorageWriterTrait: Send + Sync {
     fn commit_proposal(

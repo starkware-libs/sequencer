@@ -81,7 +81,7 @@ pub trait ProposalManagerTrait: Send + Sync {
     ) -> ProposalResult<ProposalOutput>;
 
     async fn get_executed_proposal_commitment(
-        &self,
+        &mut self,
         proposal_id: ProposalId,
     ) -> ProposalResult<ProposalCommitment>;
 }
@@ -202,9 +202,10 @@ impl ProposalManagerTrait for ProposalManager {
     }
 
     async fn get_executed_proposal_commitment(
-        &self,
+        &mut self,
         proposal_id: ProposalId,
     ) -> ProposalResult<ProposalCommitment> {
+        self.wait_for_active_proposal_completion().await;
         let g = self.executed_proposals.lock().await;
         let output = g
             .get(&proposal_id)
@@ -260,9 +261,22 @@ impl ProposalManager {
         Ok(())
     }
 
+    // This function assumes there are not requests processed in parallel by the batcher, otherwise
+    // there is a race conditon between creating the active_proposal_handle and awaiting on it.
+    pub async fn wait_for_active_proposal_completion(&mut self) {
+        if self.active_proposal.lock().await.is_some() {
+            let _ = self
+                .active_proposal_handle
+                .take()
+                .expect("Active proposal handle should exist.")
+                .await;
+        }
+    }
+
     // A helper function for testing purposes (to be able to await the active proposal).
     // Returns true if there was an active porposal, and false otherwise.
     // TODO: Consider making the tests a nested module to allow them to access private members.
+    // TODO(yael 5/1/2024): use wait_for_proposal_completion instead of this function.
     #[cfg(test)]
     pub async fn await_active_proposal(&mut self) -> bool {
         if let Some(handle) = self.active_proposal_handle.take() {
