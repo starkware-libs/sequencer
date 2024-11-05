@@ -250,7 +250,7 @@ impl Nonce {
     }
 }
 
-/// The selector of an [EntryPoint](`crate::deprecated_contract_class::EntryPoint`).
+/// The selector of an [EntryPoint](`crate::state::EntryPoint`).
 #[derive(
     Debug, Copy, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord,
 )]
