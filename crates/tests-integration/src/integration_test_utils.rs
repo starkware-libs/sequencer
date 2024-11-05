@@ -238,7 +238,7 @@ pub async fn run_transaction_generator_test_scenario<'a, Fut>(
     send_rpc_txs(rpc_txs, send_rpc_tx_fn).await;
 }
 
-async fn create_gateway_config(chain_info: ChainInfo) -> GatewayConfig {
+pub async fn create_gateway_config(chain_info: ChainInfo) -> GatewayConfig {
     let stateless_tx_validator_config = StatelessTransactionValidatorConfig {
         validate_non_zero_l1_gas_fee: true,
         max_calldata_length: 10,
@@ -250,13 +250,13 @@ async fn create_gateway_config(chain_info: ChainInfo) -> GatewayConfig {
     GatewayConfig { stateless_tx_validator_config, stateful_tx_validator_config, chain_info }
 }
 
-async fn create_http_server_config() -> HttpServerConfig {
+pub async fn create_http_server_config() -> HttpServerConfig {
     // TODO(Tsabary): use ser_generated_param.
     let socket = get_available_socket().await;
     HttpServerConfig { ip: socket.ip(), port: socket.port() }
 }
 
-fn create_batcher_config(
+pub fn create_batcher_config(
     batcher_storage_config: StorageConfig,
     chain_info: ChainInfo,
 ) -> BatcherConfig {
