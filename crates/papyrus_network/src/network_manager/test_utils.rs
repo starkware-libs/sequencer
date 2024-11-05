@@ -1,11 +1,12 @@
 use core::net::Ipv4Addr;
+use std::time::Duration;
 
 use futures::channel::mpsc::{Receiver, SendError, Sender};
 use futures::channel::oneshot;
 use futures::future::{ready, Ready};
 use futures::sink::With;
 use futures::stream::Map;
-use futures::{FutureExt, SinkExt, StreamExt};
+use futures::{SinkExt, StreamExt};
 use libp2p::core::multiaddr::Protocol;
 use libp2p::gossipsub::SubscriptionError;
 use libp2p::identity::Keypair;
@@ -197,8 +198,8 @@ impl<Query: TryFrom<Bytes>, Response: TryFrom<Bytes>> MockClientResponsesManager
         &self.query
     }
 
-    pub async fn assert_reported(self) {
-        self.report_receiver.now_or_never().unwrap().unwrap();
+    pub async fn assert_reported(self, timeout: Duration) {
+        tokio::time::timeout(timeout, self.report_receiver).await.unwrap().unwrap();
     }
 
     pub async fn send_response(&mut self, response: Response) -> Result<(), SendError> {
