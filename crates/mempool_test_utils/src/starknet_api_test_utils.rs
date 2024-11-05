@@ -85,17 +85,23 @@ pub fn rpc_tx_for_testing(
                 ],
                 ..Default::default()
             };
-            rpc_declare_tx(declare_tx_args!(resource_bounds, signature, contract_class))
+            rpc_declare_tx(declare_tx_args!(
+                signature,
+                sender_address: TEST_SENDER_ADDRESS.into(),
+                resource_bounds,
+                contract_class,
+            ))
         }
         TransactionType::DeployAccount => rpc_deploy_account_tx(deploy_account_tx_args!(
+            signature,
             resource_bounds: ValidResourceBounds::AllResources(resource_bounds),
             constructor_calldata: calldata,
-            signature
         )),
         TransactionType::Invoke => rpc_invoke_tx(invoke_tx_args!(
             signature,
+            sender_address: TEST_SENDER_ADDRESS.into(),
+            calldata,
             resource_bounds: ValidResourceBounds::AllResources(resource_bounds),
-            calldata
         )),
     }
 }
@@ -456,7 +462,7 @@ impl Default for DeclareTxArgs {
     fn default() -> Self {
         Self {
             signature: TransactionSignature::default(),
-            sender_address: ContractAddress::default(),
+            sender_address: TEST_SENDER_ADDRESS.into(),
             version: TransactionVersion::THREE,
             resource_bounds: zero_resource_bounds_mapping(),
             tip: Tip::default(),

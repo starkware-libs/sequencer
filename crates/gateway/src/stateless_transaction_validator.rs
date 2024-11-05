@@ -30,6 +30,7 @@ impl StatelessTransactionValidator {
         // TODO(Arni, 1/5/2024): Add a mechanism that validate the sender address is not blocked.
         // TODO(Arni, 1/5/2024): Validate transaction version.
 
+        Self::validate_contract_address(tx)?;
         self.validate_resource_bounds(tx)?;
         self.validate_tx_size(tx)?;
 
@@ -53,6 +54,16 @@ impl StatelessTransactionValidator {
         }
 
         Ok(())
+    }
+
+    fn validate_contract_address(tx: &RpcTransaction) -> StatelessTransactionValidatorResult<()> {
+        let sender_address = match tx {
+            RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => tx.sender_address,
+            RpcTransaction::DeployAccount(_) => return Ok(()),
+            RpcTransaction::Invoke(RpcInvokeTransaction::V3(tx)) => tx.sender_address,
+        };
+
+        Ok(sender_address.validate()?)
     }
 
     fn validate_tx_size(&self, tx: &RpcTransaction) -> StatelessTransactionValidatorResult<()> {
