@@ -319,8 +319,18 @@
     "privacy": "Public",
     "value": 100000
   },
+  "p2p_sync.num_block_classes_per_query": {
+    "description": "The maximum amount of block's classes to ask from peers in each iteration.",
+    "privacy": "Public",
+    "value": 100
+  },
   "p2p_sync.num_block_state_diffs_per_query": {
     "description": "The maximum amount of block's state diffs to ask from peers in each iteration.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "p2p_sync.num_block_transactions_per_query": {
+    "description": "The maximum amount of blocks to ask their transactions from peers in each iteration.",
     "privacy": "Public",
     "value": 100
   },
@@ -328,11 +338,6 @@
     "description": "The maximum amount of headers to ask from peers in each iteration.",
     "privacy": "Public",
     "value": 10000
-  },
-  "p2p_sync.num_transactions_per_query": {
-    "description": "The maximum amount of blocks to ask their transactions from peers in each iteration.",
-    "privacy": "Public",
-    "value": 100
   },
   "p2p_sync.stop_sync_at_block_number": {
     "description": "Stops the sync at given block number and closes the node cleanly. Used to run profiling on the node.",
