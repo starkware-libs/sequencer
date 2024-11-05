@@ -62,9 +62,10 @@ impl Node {
 
     async fn stop(&mut self) {
         let process = self.process.as_mut().expect("Process not found");
-        let pid = process.id().unwrap();
+        let pid = i32::try_from(process.id().unwrap())
+            .expect("Max PIDs on unix are way smaller than i32::MAX");
         // Send SIGINT to the entire process group to terminate the process and its subprocesses
-        nix::sys::signal::killpg(Pid::from_raw(pid as i32), nix::sys::signal::Signal::SIGINT)
+        nix::sys::signal::killpg(Pid::from_raw(pid), nix::sys::signal::Signal::SIGINT)
             .expect("Failed to kill process group");
     }
 
@@ -296,7 +297,9 @@ async fn build_node(data_dir: &str, logs_dir: &str, i: usize, papyrus_args: &Pap
         ("invalid_probability", papyrus_args.invalid_probability),
         // Convert optional parameters to f64 for consistency in the vector,
         // types were validated during parsing.
+        #[allow(clippy::as_conversions)] // FIXME: truncation possible.
         ("cache_size", papyrus_args.cache_size.map(|v| v as f64)),
+        #[allow(clippy::as_conversions)] // FIXME: truncation possible.
         ("random_seed", papyrus_args.random_seed.map(|v| v as f64)),
     ];
     for (key, value) in conditional_test_params {
