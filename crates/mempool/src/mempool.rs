@@ -157,14 +157,15 @@ impl Mempool {
 
         // Rewind nonces of addresses that were not included in block.
         let known_addresses_not_included_in_block =
-            self.mempool_state.keys().filter(|&key| !address_to_nonce.contains_key(key));
+            self.mempool_state.keys().filter(|&key| !address_to_nonce.contains_key(key)).copied();
         for address in known_addresses_not_included_in_block {
             // Account nonce is the minimal nonce of this address: it was proposed but not included.
             let tx_reference = self
                 .tx_pool
-                .account_txs_sorted_by_nonce(*address)
+                .account_txs_sorted_by_nonce(address)
                 .next()
                 .expect("Address {address} should appear in transaction pool.");
+            self.tx_queue.remove(address);
             self.tx_queue.insert(*tx_reference);
         }
 
