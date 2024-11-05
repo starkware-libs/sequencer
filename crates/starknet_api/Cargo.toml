@@ -7,12 +7,14 @@ license-file.workspace = true
 description = "Starknet Rust types related to computation and execution."
 
 [features]
+cairo_native = ["dep:cairo-native"]
 testing = []
 
 [dependencies]
 bitvec.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-lang-runner.workspace = true
+cairo-native = { workspace = true, optional = true }
 derive_more.workspace = true
 hex.workspace = true
 indexmap = { workspace = true, features = ["serde"] }

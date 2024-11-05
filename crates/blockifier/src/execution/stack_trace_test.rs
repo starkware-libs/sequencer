@@ -246,7 +246,7 @@ Error in contract (contract address: {test_contract_address_2_felt:#064x}, class
         CairoVersion::Cairo0 => expected_trace_cairo0,
         CairoVersion::Cairo1 => expected_trace_cairo1,
         #[cfg(feature = "cairo_native")]
-        CairoVersion::Native => panic!("Cairo Native contracts are not supported"),
+        CairoVersion::Native => panic!("Cairo Native is not yet supported"),
     };
 
     assert_eq!(tx_execution_error.to_string(), expected_trace);

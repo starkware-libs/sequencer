@@ -6,7 +6,6 @@ use cairo_lang_starknet_classes::contract_class::{
     ContractClass as SierraContractClass,
     ContractEntryPoint as SierraContractEntryPoint,
 };
-#[allow(unused_imports)]
 use cairo_native::executor::AotNativeExecutor;
 use starknet_api::core::EntryPointSelector;
 
