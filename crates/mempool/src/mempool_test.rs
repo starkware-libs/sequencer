@@ -12,7 +12,6 @@ use crate::transaction_queue::transaction_queue_test_utils::{
     TransactionQueueContent,
     TransactionQueueContentBuilder,
 };
-use crate::transaction_queue::TransactionQueue;
 use crate::{add_tx_input, tx};
 
 // Utils.
@@ -126,16 +125,6 @@ impl FromIterator<Transaction> for TransactionPool {
             pool.insert(tx).unwrap();
         }
         pool
-    }
-}
-
-impl FromIterator<TransactionReference> for TransactionQueue {
-    fn from_iter<T: IntoIterator<Item = TransactionReference>>(txs: T) -> Self {
-        let mut queue = Self::default();
-        for tx in txs {
-            queue.insert(tx);
-        }
-        queue
     }
 }
 
