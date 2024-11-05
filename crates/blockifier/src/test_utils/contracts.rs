@@ -2,7 +2,8 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use starknet_api::contract_class::{ContractClass, EntryPointType};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::deprecated_contract_class::{
-    ContractClass as DeprecatedContractClass, EntryPointOffset,
+    ContractClass as DeprecatedContractClass,
+    EntryPointOffset,
 };
 use starknet_api::{class_hash, contract_address, felt};
 use starknet_types_core::felt::Felt;
@@ -12,8 +13,6 @@ use strum_macros::EnumIter;
 use crate::abi::abi_utils::selector_from_name;
 use crate::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use crate::execution::contract_class::RunnableContractClass;
-use crate::execution::contract_class::{ContractClass, ContractClassV0, ContractClassV1};
-use crate::execution::contract_class::{ContractClass, ContractClassV0, ContractClassV1};
 use crate::execution::entry_point::CallEntryPoint;
 #[cfg(feature = "cairo_native")]
 use crate::execution::native::contract_class::NativeContractClassV1;
@@ -159,20 +158,26 @@ impl FeatureContract {
 
     pub fn get_class(&self) -> ContractClass {
         match self.cairo_version() {
-            CairoVersion::Cairo0 => ContractClass::V0(
-                DeprecatedContractClass::from_file(&self.get_compiled_path()).into(),
-            ),
+            CairoVersion::Cairo0 => {
+                ContractClass::V0(DeprecatedContractClass::from_file(&self.get_compiled_path()))
+            }
             CairoVersion::Cairo1 => {
-                ContractClass::V1(CasmContractClass::from_file(&self.get_compiled_path()).into())
+                ContractClass::V1(CasmContractClass::from_file(&self.get_compiled_path()))
             }
             #[cfg(feature = "cairo_native")]
-            CairoVersion::Native => {
-                NativeContractClassV1::from_file(&self.get_compiled_path()).into()
-            }
+            CairoVersion::Native => ContractClass::V1Native,
         }
     }
 
     pub fn get_runnable_class(&self) -> RunnableContractClass {
+        // todo(rodrigo): patch because the ContractClass -> RunnableContractClass for Native
+        // contracts is not fully implemented
+        #[cfg(feature = "cairo_native")]
+        if CairoVersion::Native == self.cairo_version() {
+            let native_contract_class = NativeContractClassV1::from_file(&self.get_compiled_path());
+            return RunnableContractClass::V1Native(native_contract_class);
+        }
+
         self.get_class().try_into().unwrap()
     }
 
@@ -258,7 +263,7 @@ impl FeatureContract {
                 CairoVersion::Cairo0 => ERC20_CAIRO0_CONTRACT_SOURCE_PATH,
                 CairoVersion::Cairo1 => ERC20_CAIRO1_CONTRACT_SOURCE_PATH,
                 #[cfg(feature = "cairo_native")]
-                CairoVersion::Native => todo!("ERC20 cannot be tested with Native"),
+                CairoVersion::Native => todo!("ERC20 contract is not supported by Native yet"),
             }
             .into()
         } else {

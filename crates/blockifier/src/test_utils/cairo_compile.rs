@@ -139,6 +139,8 @@ pub fn cairo1_compile(
     casm_output.stdout
 }
 
+/// Compile Cairo1 Contract into their Sierra version using the compiler version set in the
+/// Cargo.toml
 pub fn starknet_compile(
     path: String,
     git_tag_override: Option<String>,

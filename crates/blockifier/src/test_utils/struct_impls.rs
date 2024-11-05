@@ -2,6 +2,8 @@ use std::sync::Arc;
 
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 #[cfg(feature = "cairo_native")]
+use cairo_lang_starknet_classes::contract_class::ContractClass as SierraContractClass;
+#[cfg(feature = "cairo_native")]
 use cairo_native::executor::AotNativeExecutor;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use serde_json::Value;
@@ -10,7 +12,12 @@ use starknet_api::contract_address;
 use starknet_api::core::{ChainId, ClassHash};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 
-use super::update_json_value;
+use super::{
+    update_json_value,
+    TEST_ERC20_CONTRACT_ADDRESS,
+    TEST_ERC20_CONTRACT_ADDRESS2,
+    TEST_SEQUENCER_ADDRESS,
+};
 use crate::blockifier::block::{BlockInfo, GasPrices};
 use crate::bouncer::{BouncerConfig, BouncerWeights, BuiltinCount};
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
@@ -18,14 +25,20 @@ use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::contract_class::{ContractClassV0, ContractClassV1};
 use crate::execution::entry_point::{
-    CallEntryPoint, EntryPointExecutionContext, EntryPointExecutionResult,
+    CallEntryPoint,
+    EntryPointExecutionContext,
+    EntryPointExecutionResult,
 };
 #[cfg(feature = "cairo_native")]
 use crate::execution::native::contract_class::NativeContractClassV1;
 use crate::state::state_api::State;
 use crate::test_utils::{
-    get_raw_contract_class, CURRENT_BLOCK_NUMBER, CURRENT_BLOCK_TIMESTAMP,
-    DEFAULT_ETH_L1_DATA_GAS_PRICE, DEFAULT_ETH_L1_GAS_PRICE, DEFAULT_STRK_L1_DATA_GAS_PRICE,
+    get_raw_contract_class,
+    CURRENT_BLOCK_NUMBER,
+    CURRENT_BLOCK_TIMESTAMP,
+    DEFAULT_ETH_L1_DATA_GAS_PRICE,
+    DEFAULT_ETH_L1_GAS_PRICE,
+    DEFAULT_STRK_L1_DATA_GAS_PRICE,
     DEFAULT_STRK_L1_GAS_PRICE,
 };
 use crate::transaction::objects::{
@@ -34,7 +47,10 @@ use crate::transaction::objects::{
     TransactionInfo,
 };
 use crate::versioned_constants::{
-    GasCosts, OsConstants, VersionedConstants, VERSIONED_CONSTANTS_LATEST_JSON,
+    GasCosts,
+    OsConstants,
+    VersionedConstants,
+    VERSIONED_CONSTANTS_LATEST_JSON,
 };
 
 impl CallEntryPoint {
@@ -214,6 +230,8 @@ pub trait LoadContractFromFile: serde::de::DeserializeOwned {
 
 impl LoadContractFromFile for CasmContractClass {}
 impl LoadContractFromFile for DeprecatedContractClass {}
+#[cfg(feature = "cairo_native")]
+impl LoadContractFromFile for SierraContractClass {}
 
 impl ContractClassV0 {
     pub fn from_file(contract_path: &str) -> Self {
@@ -239,36 +257,39 @@ impl BouncerWeights {
 impl NativeContractClassV1 {
     /// Convenience function to construct a NativeContractClassV1 from a raw contract class.
     /// If control over the compilation is desired use [Self::new] instead.
-    pub fn try_from_json_string(
-        raw_contract_class: &str,
-    ) -> Result<Self, Box<dyn std::error::Error>> {
-        // Compile the Sierra Program to native code and loads it into the process'
-        // memory space.
-        fn compile_and_load(
-            sierra_program: &cairo_lang_sierra::program::Program,
-        ) -> Result<AotNativeExecutor, cairo_native::error::Error> {
-            let native_context = cairo_native::context::NativeContext::new();
-            let native_program = native_context.compile(sierra_program, false)?;
-            Ok(AotNativeExecutor::from_native_module(
-                native_program,
-                cairo_native::OptLevel::Default,
-            ))
-        }
+    pub fn try_from_json_string(raw_sierra_contract_class: &str) -> Self {
+        let sierra_contract_class: SierraContractClass =
+            serde_json::from_str(raw_sierra_contract_class).unwrap();
 
-        let sierra_contract_class: cairo_lang_starknet_classes::contract_class::ContractClass =
-            serde_json::from_str(raw_contract_class)?;
+        let sierra_program = sierra_contract_class
+            .extract_sierra_program()
+            .expect("Cannot extract sierra program from sierra contract class");
 
-        let sierra_program = sierra_contract_class.extract_sierra_program()?;
-        let executor = compile_and_load(&sierra_program)?;
+        // Create a Cairo Native MLIR context. This structure handles MLIR initialization and
+        // compiles Sierra programs into an MLIR module
+        let native_context = cairo_native::context::NativeContext::new();
+        // Compile the sierra program into a MLIR module
+        let native_program = native_context
+            .compile(&sierra_program, false)
+            .expect("Cannot compile sierra program into native program");
+        let executor =
+            AotNativeExecutor::from_native_module(native_program, cairo_native::OptLevel::Default);
 
-        let casm_contract_class = cairo_lang_starknet_classes::casm_contract_class::CasmContractClass::from_contract_class(sierra_contract_class.clone(), false, usize::MAX)?;
-        let casm = ContractClassV1::try_from(casm_contract_class)?;
+        // Compile the sierra contract class into casm
+        let casm_contract_class = CasmContractClass::from_contract_class(
+            sierra_contract_class.clone(),
+            false,
+            usize::MAX,
+        )
+        .expect("Cannot compile sierra contract class into casm contract class");
+        let casm = ContractClassV1::try_from(casm_contract_class)
+            .expect("Cannot get ContractClassV1 from CasmContractClass");
 
-        Ok(Self::new(executor, sierra_contract_class, casm))
+        NativeContractClassV1::new(executor, sierra_contract_class, casm)
     }
 
     pub fn from_file(contract_path: &str) -> Self {
         let raw_contract_class = get_raw_contract_class(contract_path);
-        Self::try_from_json_string(&raw_contract_class).unwrap()
+        Self::try_from_json_string(&raw_contract_class)
     }
 }

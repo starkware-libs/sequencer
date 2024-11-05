@@ -22,7 +22,11 @@ use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::hash::StarkHash;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{
-    Calldata, ContractAddressSalt, Fee, GasVectorComputationMode, TransactionVersion,
+    Calldata,
+    ContractAddressSalt,
+    Fee,
+    GasVectorComputationMode,
+    TransactionVersion,
 };
 use starknet_api::{contract_address, felt};
 use starknet_types_core::felt::Felt;
@@ -90,7 +94,7 @@ impl CairoVersion {
             Self::Cairo0 => Self::Cairo1,
             Self::Cairo1 => Self::Cairo0,
             #[cfg(feature = "cairo_native")]
-            Self::Native => todo!("who should be your other?"),
+            Self::Native => panic!("There is no other version for native"),
         }
     }
 }
@@ -321,8 +325,6 @@ macro_rules! check_tx_execution_error_for_custom_hint {
 #[macro_export]
 macro_rules! check_tx_execution_error_for_invalid_scenario {
     ($cairo_version:expr, $error:expr, $validate_constructor:expr $(,)?) => {
-        use $crate::transaction::errors::TransactionExecutionError;
-
         match $cairo_version {
             CairoVersion::Cairo0 => {
                 $crate::check_tx_execution_error_inner!(
