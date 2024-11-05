@@ -182,6 +182,7 @@ impl DeclareTransaction {
         class_info: ClassInfo,
         chain_id: &ChainId,
     ) -> Result<Self, StarknetApiError> {
+        validate_class_version_matches_tx_version(declare_tx.version(), &class_info.contract_class)?;
         let tx_hash = declare_tx.calculate_transaction_hash(chain_id, &declare_tx.version())?;
         Ok(Self { tx: declare_tx, tx_hash, class_info })
     }
@@ -208,6 +209,36 @@ impl DeclareTransaction {
     }
 }
 
+/// Declare transactions of version 0 and 1 are used to declare Cairo 0 contracts.
+/// Declare transactions of versions 2 and 3 are used to declare Cairo 1 contracts.
+fn validate_class_version_matches_tx_version(
+    declare_version: TransactionVersion,
+    class: &ContractClass,
+) -> Result<(), StarknetApiError> {
+    match class {
+        ContractClass::V0(_) => {
+            if !(declare_version == TransactionVersion::ZERO
+                || (declare_version == TransactionVersion::ONE))
+            {
+                Err(StarknetApiError::ContractClassVersionMismatch {
+                    declare_version,
+                    cairo_version: 0,
+                })?
+            }
+        }
+        ContractClass::V1(_) => {
+            if !(declare_version == TransactionVersion::TWO
+                || declare_version == TransactionVersion::THREE)
+            {
+                Err(StarknetApiError::ContractClassVersionMismatch {
+                    declare_version,
+                    cairo_version: 1,
+                })?
+            }
+        }
+    }
+    Ok(())
+}
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct DeployAccountTransaction {
     pub tx: crate::transaction::DeployAccountTransaction,
