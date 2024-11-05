@@ -193,9 +193,9 @@ fn mempool() -> Mempool {
 fn test_get_txs_returns_by_priority_order(#[case] n_requested_txs: usize) {
     // Setup.
     let mut txs = [
-        tx!(tip: 20, tx_hash: 1, address: "0x0"),
-        tx!(tip: 30, tx_hash: 2, address: "0x1"),
-        tx!(tip: 10, tx_hash: 3, address: "0x2"),
+        tx!(tx_hash: 1, address: "0x0", tip: 20),
+        tx!(tx_hash: 2, address: "0x1", tip: 30),
+        tx!(tx_hash: 3, address: "0x2", tip: 10),
     ];
 
     let mut mempool = MempoolContentBuilder::new()
@@ -240,9 +240,9 @@ fn test_get_txs_does_not_remove_returned_txs_from_pool() {
 #[rstest]
 fn test_get_txs_replenishes_queue_only_between_chunks() {
     // Setup.
-    let tx_address_0_nonce_0 = tx!(tip: 20, tx_hash: 1, address: "0x0", tx_nonce: 0);
-    let tx_address_0_nonce_1 = tx!(tip: 20, tx_hash: 2, address: "0x0", tx_nonce: 1);
-    let tx_address_1_nonce_0 = tx!(tip: 10, tx_hash: 3, address: "0x1", tx_nonce: 0);
+    let tx_address_0_nonce_0 = tx!(tx_hash: 1, address: "0x0", tx_nonce: 0, tip: 20);
+    let tx_address_0_nonce_1 = tx!(tx_hash: 2, address: "0x0", tx_nonce: 1, tip: 20);
+    let tx_address_1_nonce_0 = tx!(tx_hash: 3, address: "0x1", tx_nonce: 0, tip: 10);
 
     let queue_txs = [&tx_address_0_nonce_0, &tx_address_1_nonce_0].map(TransactionReference::new);
     let pool_txs =
@@ -537,7 +537,7 @@ fn test_fee_escalation_valid_replacement() {
 #[rstest]
 fn test_fee_escalation_invalid_replacement() {
     // Setup.
-    let existing_tx = tx!(tip: 100, tx_hash: 1, max_l2_gas_price: 100);
+    let existing_tx = tx!(tx_hash: 1, tip: 100, max_l2_gas_price: 100);
     let mempool = MempoolContentBuilder::new()
         .with_pool([existing_tx.clone()])
         .with_fee_escalation_percentage(10)
