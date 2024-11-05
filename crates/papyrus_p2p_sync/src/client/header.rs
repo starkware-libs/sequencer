@@ -14,6 +14,8 @@ use super::stream_builder::{BlockData, BlockNumberLimit, DataStreamBuilder};
 use super::{P2PSyncClientError, ALLOWED_SIGNATURES_LENGTH, NETWORK_DATA_TIMEOUT};
 
 impl BlockData for SignedBlockHeader {
+
+    #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
     fn write_to_storage(
         self: Box<Self>,
         storage_writer: &mut StorageWriter,
