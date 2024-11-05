@@ -30,6 +30,7 @@ use super::{P2PSyncClient, P2PSyncClientChannels, P2PSyncClientConfig};
 pub const BUFFER_SIZE: usize = 1000;
 pub const HEADER_QUERY_LENGTH: u64 = 5;
 pub const STATE_DIFF_QUERY_LENGTH: u64 = 3;
+pub const CLASS_DIFF_QUERY_LENGTH: u64 = 3;
 pub const TRANSACTION_QUERY_LENGTH: u64 = 3;
 pub const SLEEP_DURATION_TO_LET_SYNC_ADVANCE: Duration = Duration::from_millis(10);
 pub const WAIT_PERIOD_FOR_NEW_DATA: Duration = Duration::from_secs(1);
@@ -41,6 +42,7 @@ lazy_static! {
         num_headers_per_query: HEADER_QUERY_LENGTH,
         num_block_state_diffs_per_query: STATE_DIFF_QUERY_LENGTH,
         num_transactions_per_query: TRANSACTION_QUERY_LENGTH,
+        num_classes_per_query: CLASS_DIFF_QUERY_LENGTH,
         wait_period_for_new_data: WAIT_PERIOD_FOR_NEW_DATA,
         buffer_size: BUFFER_SIZE,
         stop_sync_at_block_number: None,

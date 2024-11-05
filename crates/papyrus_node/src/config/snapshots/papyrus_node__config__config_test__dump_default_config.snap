@@ -390,6 +390,13 @@ expression: dumped_default_config
     },
     "privacy": "Public"
   },
+  "p2p_sync.num_classes_per_query": {
+    "description": "The maximum amount of block's classes to ask from peers in each iteration.",
+    "value": {
+      "$serde_json::private::Number": "100"
+    },
+    "privacy": "Public"
+  },
   "p2p_sync.num_headers_per_query": {
     "description": "The maximum amount of headers to ask from peers in each iteration.",
     "value": {

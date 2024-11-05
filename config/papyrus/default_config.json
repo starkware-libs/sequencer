@@ -324,6 +324,11 @@
     "privacy": "Public",
     "value": 100
   },
+  "p2p_sync.num_classes_per_query": {
+    "description": "The maximum amount of block's classes to ask from peers in each iteration.",
+    "privacy": "Public",
+    "value": 100
+  },
   "p2p_sync.num_headers_per_query": {
     "description": "The maximum amount of headers to ask from peers in each iteration.",
     "privacy": "Public",

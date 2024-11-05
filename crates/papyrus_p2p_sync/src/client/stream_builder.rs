@@ -9,8 +9,10 @@ use papyrus_network::network_manager::{ClientResponsesManager, SqmrClientSender}
 use papyrus_protobuf::converters::ProtobufConversionError;
 use papyrus_protobuf::sync::{BlockHashOrNumber, DataOrFin, Direction, Query};
 use papyrus_storage::header::HeaderStorageReader;
+use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::{StorageError, StorageReader, StorageWriter};
 use starknet_api::block::{BlockNumber, BlockSignature};
+use starknet_api::core::ClassHash;
 use tracing::{debug, info, warn};
 
 use super::{P2PSyncClientError, STEP};
@@ -28,7 +30,7 @@ pub(crate) trait BlockData: Send {
 pub(crate) enum BlockNumberLimit {
     Unlimited,
     HeaderMarker,
-    // TODO(shahak): Add variant for state diff marker once we support classes sync.
+    StateDiffMarker,
 }
 
 pub(crate) trait DataStreamBuilder<InputFromNetwork>
@@ -66,19 +68,25 @@ where
             'send_query_and_parse_responses: loop {
                 let limit = match Self::BLOCK_NUMBER_LIMIT {
                     BlockNumberLimit::Unlimited => num_blocks_per_query,
-                    BlockNumberLimit::HeaderMarker => {
-                        let last_block_number = storage_reader.begin_ro_txn()?.get_header_marker()?;
-                        let limit = min(
-                            last_block_number.0 - current_block_number.0,
-                            num_blocks_per_query,
-                        );
+                    BlockNumberLimit::HeaderMarker | BlockNumberLimit::StateDiffMarker => {
+                        let last_block_number = if let BlockNumberLimit::HeaderMarker = Self::BLOCK_NUMBER_LIMIT {
+                            storage_reader.begin_ro_txn()?.get_header_marker()?
+                        } else {
+                            storage_reader.begin_ro_txn()?.get_state_marker()?
+                        };
+                        let limit = min(last_block_number.0 - current_block_number.0, num_blocks_per_query);
                         if limit == 0 {
-                            debug!("{:?} sync is waiting for a new header", Self::TYPE_DESCRIPTION);
+                            let description = if let BlockNumberLimit::HeaderMarker = Self::BLOCK_NUMBER_LIMIT {
+                                "header"
+                            } else {
+                                "state diff"
+                            };
+                            debug!("{:?} sync is waiting for a new {}", Self::TYPE_DESCRIPTION, description);
                             tokio::time::sleep(wait_period_for_new_data).await;
                             continue;
                         }
                         limit
-                    }
+                    },
                 };
                 let end_block_number = current_block_number.0 + limit;
                 debug!(
@@ -180,6 +188,15 @@ pub(crate) enum BadPeerError {
     EmptyStateDiffPart,
     #[error(transparent)]
     ProtobufConversionError(#[from] ProtobufConversionError),
+    #[error(
+        "Expected to receive {expected} classes for {block_number} from the network. Got {actual} \
+         classes instead"
+    )]
+    NotEnoughClasses { expected: usize, actual: usize, block_number: u64 },
+    #[error("The class with hash {class_hash} was not found in the state diff.")]
+    ClassNotInStateDiff { class_hash: ClassHash },
+    #[error("Two classes with the same hash are conflicting.")]
+    DuplicateClass { class_hash: ClassHash },
 }
 
 #[derive(thiserror::Error, Debug)]
