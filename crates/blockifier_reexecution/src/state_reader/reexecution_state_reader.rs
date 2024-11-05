@@ -2,6 +2,7 @@ use blockifier::execution::contract_class::ClassInfo;
 use blockifier::state::state_api::StateResult;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use papyrus_execution::DEPRECATED_CONTRACT_SIERRA_SIZE;
+use starknet_api::block::{BlockHashAndNumber, BlockNumber};
 use starknet_api::core::ClassHash;
 use starknet_api::transaction::{Fee, Transaction, TransactionHash};
 use starknet_core::types::ContractClass as StarknetContractClass;
@@ -71,4 +72,9 @@ pub(crate) trait ReexecutionStateReader {
             })
             .collect()
     }
+
+    fn get_old_block_hash_and_number(
+        &self,
+        old_block_number: BlockNumber,
+    ) -> ReexecutionResult<BlockHashAndNumber>;
 }
