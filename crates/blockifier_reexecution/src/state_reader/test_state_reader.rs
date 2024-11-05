@@ -88,16 +88,16 @@ pub struct SerializableOfflineReexecutionData {
 impl SerializableOfflineReexecutionData {
     pub fn write_to_file(&self, file_path: &str, file_name: &str) -> ReexecutionResult<()> {
         fs::create_dir_all(file_path)
-            .unwrap_or_else(|_| panic!("Failed to create directory {file_path}."));
+            .unwrap_or_else(|err| panic!("Failed to create directory {file_path}. Error: {err}"));
         let full_file_path = file_path.to_owned() + "/" + file_name;
         fs::write(full_file_path.clone(), serde_json::to_string_pretty(&self)?)
-            .unwrap_or_else(|_| panic!("Failed to write to file {full_file_path}."));
+            .unwrap_or_else(|err| panic!("Failed to write to file {full_file_path}. Error: {err}"));
         Ok(())
     }
 
     pub fn read_from_file(full_file_path: &str) -> ReexecutionResult<Self> {
-        let file_content = fs::read_to_string(full_file_path).unwrap_or_else(|_| {
-            panic!("Failed to read reexecution data from file {full_file_path}.")
+        let file_content = fs::read_to_string(full_file_path).unwrap_or_else(|err| {
+            panic!("Failed to read reexecution data from file {full_file_path}. Error: {err}")
         });
         Ok(serde_json::from_str(&file_content)?)
     }
