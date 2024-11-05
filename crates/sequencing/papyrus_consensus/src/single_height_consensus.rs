@@ -60,6 +60,7 @@ impl SingleHeightConsensus {
         timeouts: TimeoutsConfig,
     ) -> Self {
         // TODO(matan): Use actual weights, not just `len`.
+        #[allow(clippy::as_conversions)] // FIXME: truncation possible.
         let state_machine = StateMachine::new(id, validators.len() as u32);
         Self {
             height,
@@ -445,7 +446,11 @@ impl SingleHeightConsensus {
             })
             .collect();
         // TODO(matan): Check actual weights.
-        assert!(supporting_precommits.len() >= self.state_machine.quorum_size() as usize);
+        assert!(
+            supporting_precommits.len()
+                >= usize::try_from(self.state_machine.quorum_size())
+                    .expect("u32 should fit in usize")
+        );
         Ok(ShcReturn::Decision(Decision { precommits: supporting_precommits, block }))
     }
 }
