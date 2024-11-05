@@ -60,6 +60,7 @@ where
     tokio::time::sleep(consensus_delay).await;
     let mut current_height = start_height;
     let mut manager = MultiHeightManager::new(validator_id, timeouts);
+    #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
     loop {
         metrics::gauge!(PAPYRUS_CONSENSUS_HEIGHT, current_height.0 as f64);
 
