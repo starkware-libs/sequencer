@@ -210,11 +210,11 @@ fn expected_validate_call_info(
     };
     let n_steps = match (entry_point_selector_name, cairo_version) {
         (constants::VALIDATE_DEPLOY_ENTRY_POINT_NAME, CairoVersion::Cairo0) => 13_usize,
-        (constants::VALIDATE_DEPLOY_ENTRY_POINT_NAME, CairoVersion::Cairo1) => 40_usize,
+        (constants::VALIDATE_DEPLOY_ENTRY_POINT_NAME, CairoVersion::Cairo1) => 32_usize,
         (constants::VALIDATE_DECLARE_ENTRY_POINT_NAME, CairoVersion::Cairo0) => 12_usize,
-        (constants::VALIDATE_DECLARE_ENTRY_POINT_NAME, CairoVersion::Cairo1) => 32_usize,
+        (constants::VALIDATE_DECLARE_ENTRY_POINT_NAME, CairoVersion::Cairo1) => 28_usize,
         (constants::VALIDATE_ENTRY_POINT_NAME, CairoVersion::Cairo0) => 21_usize,
-        (constants::VALIDATE_ENTRY_POINT_NAME, CairoVersion::Cairo1) => 112_usize,
+        (constants::VALIDATE_ENTRY_POINT_NAME, CairoVersion::Cairo1) => 100_usize,
         (selector, _) => panic!("Selector {selector} is not a known validate selector."),
     };
     let resources = ExecutionResources {
@@ -415,13 +415,13 @@ fn add_kzg_da_resources_to_resources_mapping(
 #[case::with_cairo1_account(
     ExpectedResultTestInvokeTx{
         resources: &get_syscall_resources(SyscallSelector::CallContract) + &ExecutionResources {
-            n_steps: 219,
+            n_steps: 207,
             n_memory_holes: 0,
             builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 8)]),
         },
         validate_gas_consumed: 4740, // The gas consumption results from parsing the input
             // arguments.
-        execute_gas_consumed: 163280,
+        execute_gas_consumed: 162080,
         inner_call_initial_gas: versioned_constants_for_account_testing().default_initial_gas_cost(),
     },
     CairoVersion::Cairo1)]
@@ -2249,11 +2249,11 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
         },
         execution: CallExecution {
             retdata: Retdata(vec![value]),
-            gas_consumed: 6820,
+            gas_consumed: 6120,
             ..Default::default()
         },
         charged_resources: ChargedResources::from_execution_resources(ExecutionResources {
-            n_steps: 158,
+            n_steps: 151,
             n_memory_holes: 0,
             builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 6)]),
         }),
@@ -2269,11 +2269,11 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     // (currently matches only starknet resources).
     let expected_gas = match use_kzg_da {
         true => GasVector {
-            l1_gas: 17995_u32.into(),
+            l1_gas: 17988_u32.into(),
             l1_data_gas: 128_u32.into(),
             l2_gas: 0_u32.into(),
         },
-        false => GasVector::from_l1_gas(19138_u32.into()),
+        false => GasVector::from_l1_gas(19131_u32.into()),
     };
 
     let expected_da_gas = match use_kzg_da {
@@ -2297,7 +2297,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
                     + 6,
             ),
         ]),
-        n_steps: get_tx_resources(TransactionType::L1Handler).n_steps + 171,
+        n_steps: get_tx_resources(TransactionType::L1Handler).n_steps + 164,
         n_memory_holes: 0,
     };
 
