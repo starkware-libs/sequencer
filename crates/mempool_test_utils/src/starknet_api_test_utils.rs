@@ -57,18 +57,52 @@ pub const VALID_L1_DATA_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000;
 pub const TEST_SENDER_ADDRESS: u128 = 0x1000;
 
 // Utils.
+#[derive(Clone)]
 pub enum TransactionType {
     Declare,
     DeployAccount,
     Invoke,
 }
 
+#[derive(Clone)]
+pub struct RpcTransactionArgs {
+    pub resource_bounds: AllResourceBounds,
+    pub calldata: Calldata,
+    pub signature: TransactionSignature,
+}
+
+impl Default for RpcTransactionArgs {
+    fn default() -> Self {
+        Self {
+            resource_bounds: zero_resource_bounds_mapping(),
+            calldata: Default::default(),
+            signature: Default::default(),
+        }
+    }
+}
+
+/// Utility macro for creating `RpcTransactionArgs` to reduce boilerplate.
+#[macro_export]
+macro_rules! rpc_tx_args {
+    ($($field:ident $(: $value:expr)?),* $(,)?) => {
+        $crate::starknet_api_test_utils::RpcTransactionArgs {
+            $($field $(: $value)?,)*
+            ..Default::default()
+        }
+    };
+    ($($field:ident $(: $value:expr)?),* , ..$defaults:expr) => {
+        $crate::starknet_api_test_utils::RpcTransactionArgs {
+            $($field $(: $value)?,)*
+            ..$defaults
+        }
+    };
+}
+
 pub fn rpc_tx_for_testing(
     tx_type: TransactionType,
-    resource_bounds: AllResourceBounds,
-    calldata: Calldata,
-    signature: TransactionSignature,
+    rpc_tx_args: RpcTransactionArgs,
 ) -> RpcTransaction {
+    let RpcTransactionArgs { resource_bounds, calldata, signature } = rpc_tx_args;
     match tx_type {
         TransactionType::Declare => {
             // Minimal contract class.
