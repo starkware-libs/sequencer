@@ -383,8 +383,22 @@ expression: dumped_default_config
     },
     "privacy": "Public"
   },
+  "p2p_sync.num_block_classes_per_query": {
+    "description": "The maximum amount of block's classes to ask from peers in each iteration.",
+    "value": {
+      "$serde_json::private::Number": "100"
+    },
+    "privacy": "Public"
+  },
   "p2p_sync.num_block_state_diffs_per_query": {
     "description": "The maximum amount of block's state diffs to ask from peers in each iteration.",
+    "value": {
+      "$serde_json::private::Number": "100"
+    },
+    "privacy": "Public"
+  },
+  "p2p_sync.num_block_transactions_per_query": {
+    "description": "The maximum amount of blocks to ask their transactions from peers in each iteration.",
     "value": {
       "$serde_json::private::Number": "100"
     },
@@ -394,13 +408,6 @@ expression: dumped_default_config
     "description": "The maximum amount of headers to ask from peers in each iteration.",
     "value": {
       "$serde_json::private::Number": "10000"
-    },
-    "privacy": "Public"
-  },
-  "p2p_sync.num_transactions_per_query": {
-    "description": "The maximum amount of blocks to ask their transactions from peers in each iteration.",
-    "value": {
-      "$serde_json::private::Number": "100"
     },
     "privacy": "Public"
   },

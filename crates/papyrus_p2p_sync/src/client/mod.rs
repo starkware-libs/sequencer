@@ -1,3 +1,4 @@
+mod class;
 mod header;
 #[cfg(test)]
 mod header_test;
@@ -12,6 +13,7 @@ mod transaction;
 use std::collections::BTreeMap;
 use std::time::Duration;
 
+use class::ClassStreamBuilder;
 use futures::channel::mpsc::SendError;
 use futures::Stream;
 use header::HeaderStreamBuilder;
@@ -48,7 +50,8 @@ const NETWORK_DATA_TIMEOUT: Duration = Duration::from_secs(300);
 pub struct P2PSyncClientConfig {
     pub num_headers_per_query: u64,
     pub num_block_state_diffs_per_query: u64,
-    pub num_transactions_per_query: u64,
+    pub num_block_transactions_per_query: u64,
+    pub num_block_classes_per_query: u64,
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
     pub wait_period_for_new_data: Duration,
     pub buffer_size: usize,
@@ -71,10 +74,16 @@ impl SerializeConfig for P2PSyncClientConfig {
                 ParamPrivacyInput::Public,
             ),
             ser_param(
-                "num_transactions_per_query",
-                &self.num_transactions_per_query,
+                "num_block_transactions_per_query",
+                &self.num_block_transactions_per_query,
                 "The maximum amount of blocks to ask their transactions from peers in each \
                  iteration.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "num_block_classes_per_query",
+                &self.num_block_classes_per_query,
+                "The maximum amount of block's classes to ask from peers in each iteration.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -110,7 +119,8 @@ impl Default for P2PSyncClientConfig {
             // State diffs are split into multiple messages, so big queries can lead to a lot of
             // messages in the network buffers.
             num_block_state_diffs_per_query: 100,
-            num_transactions_per_query: 100,
+            num_block_transactions_per_query: 100,
+            num_block_classes_per_query: 100,
             wait_period_for_new_data: Duration::from_secs(5),
             // TODO(eitan): split this by protocol
             buffer_size: 100000,
@@ -187,11 +197,19 @@ impl P2PSyncClientChannels {
             self.transaction_sender,
             storage_reader.clone(),
             config.wait_period_for_new_data,
-            config.num_transactions_per_query,
+            config.num_block_transactions_per_query,
             config.stop_sync_at_block_number,
         );
 
-        header_stream.merge(state_diff_stream).merge(transaction_stream)
+        let class_stream = ClassStreamBuilder::create_stream(
+            self.class_sender,
+            storage_reader.clone(),
+            config.wait_period_for_new_data,
+            config.num_block_classes_per_query,
+            config.stop_sync_at_block_number,
+        );
+
+        header_stream.merge(state_diff_stream).merge(transaction_stream).merge(class_stream)
     }
 }
 
