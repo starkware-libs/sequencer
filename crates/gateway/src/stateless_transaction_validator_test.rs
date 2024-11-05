@@ -3,13 +3,7 @@ use std::vec;
 
 use assert_matches::assert_matches;
 use mempool_test_utils::declare_tx_args;
-use mempool_test_utils::starknet_api_test_utils::{
-    rpc_declare_tx,
-    rpc_tx_for_testing,
-    RpcTransactionArgs,
-    TransactionType,
-    NON_EMPTY_RESOURCE_BOUNDS,
-};
+use mempool_test_utils::starknet_api_test_utils::rpc_declare_tx;
 use rstest::rstest;
 use starknet_api::core::{ContractAddress, EntryPointSelector};
 use starknet_api::rpc_transaction::{ContractClass, EntryPointByType};
@@ -30,7 +24,13 @@ use crate::stateless_transaction_validator::{
     StatelessTransactionValidator,
     StatelessTransactionValidatorError,
 };
-use crate::test_utils::create_sierra_program;
+use crate::test_utils::{
+    create_sierra_program,
+    rpc_tx_for_testing,
+    RpcTransactionArgs,
+    TransactionType,
+    NON_EMPTY_RESOURCE_BOUNDS,
+};
 
 static MIN_SIERRA_VERSION: LazyLock<VersionId> = LazyLock::new(|| VersionId::new(1, 1, 0));
 static MAX_SIERRA_VERSION: LazyLock<VersionId> = LazyLock::new(|| VersionId::new(1, 5, usize::MAX));
