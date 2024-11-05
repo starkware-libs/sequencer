@@ -166,7 +166,7 @@ impl FeatureContract {
             CairoVersion::Cairo1 => ContractClassV1::from_file(&self.get_compiled_path()).into(),
             #[cfg(feature = "cairo_native")]
             CairoVersion::Native => {
-                NativeContractClassV1::from_file(&self.get_compiled_path()).into()
+                NativeContractClassV1::compile_or_get_cached(&self.get_compiled_path()).into()
             }
         }
     }

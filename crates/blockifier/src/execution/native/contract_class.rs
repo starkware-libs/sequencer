@@ -14,6 +14,7 @@ use crate::execution::contract_class::{ContractClassV1, EntryPointsByType, HasSe
 use crate::execution::entry_point::CallEntryPoint;
 use crate::execution::errors::PreExecutionError;
 use crate::execution::native::utils::contract_entrypoint_to_entrypoint_selector;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NativeContractClassV1(pub Arc<NativeContractClassV1Inner>);
 impl Deref for NativeContractClassV1 {

@@ -1,8 +1,14 @@
+#[cfg(feature = "cairo_native")]
+use std::collections::HashMap;
 use std::sync::Arc;
+#[cfg(feature = "cairo_native")]
+use std::sync::RwLock;
 
 #[cfg(feature = "cairo_native")]
 use cairo_native::executor::AotNativeExecutor;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+#[cfg(feature = "cairo_native")]
+use lazy_static::lazy_static;
 use serde_json::Value;
 use starknet_api::block::{BlockNumber, BlockTimestamp, NonzeroGasPrice};
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, Nonce, PatriciaKey};
@@ -254,6 +260,12 @@ impl BouncerWeights {
 }
 
 #[cfg(feature = "cairo_native")]
+lazy_static! {
+    /// A cache for compiled native contract classes.
+    static ref CACHED: RwLock<HashMap<String, NativeContractClassV1>> = RwLock::new(HashMap::new());
+}
+
+#[cfg(feature = "cairo_native")]
 impl NativeContractClassV1 {
     /// Convenience function to construct a NativeContractClassV1 from a raw contract class.
     /// If control over the compilation is desired use [Self::new] instead.
@@ -288,5 +300,22 @@ impl NativeContractClassV1 {
     pub fn from_file(contract_path: &str) -> Self {
         let raw_contract_class = get_raw_contract_class(contract_path);
         Self::try_from_json_string(&raw_contract_class).unwrap()
+    }
+
+    /// Compile a contract from a file or get it from the cache.
+    pub fn compile_or_get_cached(path: &str) -> NativeContractClassV1 {
+        {
+            let cache = CACHED.read().unwrap();
+            if let Some(cached_class) = cache.get(path) {
+                return cached_class.clone();
+            }
+        }
+
+        let class = NativeContractClassV1::from_file(path);
+
+        let mut cache = CACHED.write().unwrap();
+        cache.insert(path.to_string(), class.clone());
+
+        class
     }
 }
