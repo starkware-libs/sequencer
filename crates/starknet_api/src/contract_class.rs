@@ -45,6 +45,7 @@ impl ContractClass {
 /// All relevant information about a declared contract class, including the compiled contract class
 /// and other parameters derived from the original declare transaction required for billing.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+// TODO(Ayelet,10/02/2024): Change to bytes.
 pub struct ClassInfo {
     // TODO(Noa): Consider using Arc.
     pub contract_class: ContractClass,
