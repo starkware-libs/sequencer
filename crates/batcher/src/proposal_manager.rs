@@ -61,6 +61,13 @@ pub enum GetProposalResultError {
     ProposalDoesNotExist { proposal_id: ProposalId },
 }
 
+pub enum ProposalStatus {
+    Processing,
+    Finished,
+    Failed,
+    NotFound,
+}
+
 #[async_trait]
 pub trait ProposalManagerTrait: Send + Sync {
     async fn start_height(&mut self, height: BlockNumber) -> Result<(), StartHeightError>;
@@ -78,8 +85,10 @@ pub trait ProposalManagerTrait: Send + Sync {
         proposal_id: ProposalId,
     ) -> ProposalResult<ProposalOutput>;
 
-    async fn get_executed_proposal_commitment(
-        &self,
+    async fn get_proposal_status(&self, proposal_id: ProposalId) -> ProposalStatus;
+
+    async fn await_proposal_commitment(
+        &mut self,
         proposal_id: ProposalId,
     ) -> ProposalResult<ProposalCommitment>;
 }
@@ -204,10 +213,26 @@ impl ProposalManagerTrait for ProposalManager {
             .ok_or(GetProposalResultError::ProposalDoesNotExist { proposal_id })?
     }
 
-    async fn get_executed_proposal_commitment(
-        &self,
+    // Returns None if the proposal does not exist, otherwise, returns the status of the proposal.
+    async fn get_proposal_status(&self, proposal_id: ProposalId) -> ProposalStatus {
+        match self.executed_proposals.lock().await.get(&proposal_id) {
+            Some(Ok(_)) => ProposalStatus::Finished,
+            Some(Err(_)) => ProposalStatus::Failed,
+            None => {
+                if self.active_proposal.lock().await.as_ref() == Some(&proposal_id) {
+                    ProposalStatus::Processing
+                } else {
+                    ProposalStatus::NotFound
+                }
+            }
+        }
+    }
+
+    async fn await_proposal_commitment(
+        &mut self,
         proposal_id: ProposalId,
     ) -> ProposalResult<ProposalCommitment> {
+        self.await_proposal_completion(proposal_id).await;
         let proposals = self.executed_proposals.lock().await;
         let output = proposals
             .get(&proposal_id)
@@ -270,9 +295,22 @@ impl ProposalManager {
         Ok(())
     }
 
+    // This function assumes there are not requests processed in parallel by the batcher, otherwise
+    // there is a race conditon between creating the active_proposal_handle and awaiting on it.
+    pub async fn await_proposal_completion(&mut self, proposal_id: ProposalId) {
+        if self.active_proposal.lock().await.as_ref() == Some(&proposal_id) {
+            let _ = self
+                .active_proposal_handle
+                .take()
+                .expect("Active proposal handle should exist.")
+                .await;
+        }
+    }
+
     // A helper function for testing purposes (to be able to await the active proposal).
     // Returns true if there was an active porposal, and false otherwise.
     // TODO: Consider making the tests a nested module to allow them to access private members.
+    // TODO(yael 5/1/2024): use wait_for_proposal_completion instead of this function.
     #[cfg(test)]
     pub async fn await_active_proposal(&mut self) -> bool {
         if let Some(handle) = self.active_proposal_handle.take() {
