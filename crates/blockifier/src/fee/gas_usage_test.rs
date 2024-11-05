@@ -5,7 +5,7 @@ use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::StarknetVersion;
 use starknet_api::execution_resources::{GasAmount, GasVector};
-use starknet_api::invoke_tx_args;
+use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::transaction::fields::GasVectorComputationMode;
 use starknet_api::transaction::{EventContent, EventData, EventKey};
 use starknet_types_core::felt::Felt;
@@ -279,8 +279,8 @@ fn test_get_message_segment_length(
 
 #[rstest]
 fn test_discounted_gas_from_gas_vector_computation() {
-    let tx_context =
-        BlockContext::create_for_testing().to_tx_context(&account_invoke_tx(invoke_tx_args! {}));
+    let tx_context = BlockContext::create_for_testing()
+        .to_tx_context(&account_invoke_tx(InvokeTxArgs::default()));
     let gas_usage =
         GasVector { l1_gas: 100_u8.into(), l1_data_gas: 2_u8.into(), ..Default::default() };
     let actual_result = gas_usage.to_discounted_l1_gas(tx_context.get_gas_prices());

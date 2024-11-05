@@ -5,7 +5,7 @@ use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::{ContractClass, RpcTransaction};
 use starknet_api::test_utils::declare::{rpc_declare_tx, TEST_SENDER_ADDRESS};
-use starknet_api::test_utils::invoke::rpc_invoke_tx;
+use starknet_api::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
@@ -15,7 +15,7 @@ use starknet_api::transaction::fields::{
     TransactionSignature,
     ValidResourceBounds,
 };
-use starknet_api::{declare_tx_args, deploy_account_tx_args, felt, invoke_tx_args};
+use starknet_api::{declare_tx_args, deploy_account_tx_args, felt};
 use starknet_types_core::felt::Felt;
 
 use crate::compiler_version::VersionId;
@@ -123,7 +123,7 @@ pub fn rpc_tx_for_testing(
             nonce_data_availability_mode,
             fee_data_availability_mode,
         )),
-        TransactionType::Invoke => rpc_invoke_tx(invoke_tx_args!(
+        TransactionType::Invoke => rpc_invoke_tx(InvokeTxArgs {
             signature,
             sender_address,
             calldata,
@@ -132,6 +132,7 @@ pub fn rpc_tx_for_testing(
             paymaster_data,
             nonce_data_availability_mode,
             fee_data_availability_mode,
-        )),
+            ..Default::default()
+        }),
     }
 }

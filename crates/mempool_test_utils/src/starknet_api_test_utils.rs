@@ -28,7 +28,7 @@ use starknet_api::transaction::fields::{
     ValidResourceBounds,
 };
 use starknet_api::transaction::TransactionVersion;
-use starknet_api::{declare_tx_args, deploy_account_tx_args, felt, invoke_tx_args, nonce};
+use starknet_api::{declare_tx_args, deploy_account_tx_args, felt, nonce};
 use starknet_types_core::felt::Felt;
 
 use crate::{COMPILED_CLASS_HASH_OF_CONTRACT_CLASS, CONTRACT_CLASS_FILE, TEST_FILES_FOLDER};
@@ -104,12 +104,13 @@ pub fn invoke_tx(cairo_version: CairoVersion) -> RpcTransaction {
     let sender_address = account_contract.get_instance_address(0);
     let mut nonce_manager = NonceManager::default();
 
-    rpc_invoke_tx(invoke_tx_args!(
+    rpc_invoke_tx(InvokeTxArgs {
         resource_bounds: test_valid_resource_bounds(),
-        nonce : nonce_manager.next(sender_address),
+        nonce: nonce_manager.next(sender_address),
         sender_address,
-        calldata: create_trivial_calldata(test_contract.get_instance_address(0))
-    ))
+        calldata: create_trivial_calldata(test_contract.get_instance_address(0)),
+        ..Default::default()
+    })
 }
 
 pub fn executable_invoke_tx(cairo_version: CairoVersion) -> AccountTransaction {
@@ -235,13 +236,14 @@ impl AccountTransactionGenerator {
             "Cannot invoke on behalf of an undeployed account: the first transaction of every \
              account must be a deploy account transaction."
         );
-        let invoke_args = invoke_tx_args!(
+        let invoke_args = InvokeTxArgs {
             nonce,
-            tip : Tip(tip),
+            tip: Tip(tip),
             sender_address: self.sender_address(),
             resource_bounds: test_valid_resource_bounds(),
             calldata: create_trivial_calldata(self.sender_address()),
-        );
+            ..Default::default()
+        };
         rpc_invoke_tx(invoke_args)
     }
 
@@ -254,12 +256,13 @@ impl AccountTransactionGenerator {
              account must be a deploy account transaction."
         );
 
-        let invoke_args = invoke_tx_args!(
+        let invoke_args = InvokeTxArgs {
             sender_address: self.sender_address(),
             resource_bounds: test_valid_resource_bounds(),
             nonce,
             calldata: create_trivial_calldata(self.sender_address()),
-        );
+            ..Default::default()
+        };
 
         AccountTransaction::Invoke(starknet_api::test_utils::invoke::executable_invoke_tx(
             invoke_args,

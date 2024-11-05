@@ -23,8 +23,7 @@ macro_rules! tx {
             use starknet_api::block::GasPrice;
             use starknet_api::executable_transaction::AccountTransaction;
             use starknet_api::hash::StarkHash;
-            use starknet_api::invoke_tx_args;
-            use starknet_api::test_utils::invoke::executable_invoke_tx;
+            use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
             use starknet_api::transaction::fields::{
                 AllResourceBounds,
                 ResourceBounds,
@@ -41,12 +40,13 @@ macro_rules! tx {
                 ..Default::default()
             });
 
-            AccountTransaction::Invoke(executable_invoke_tx(invoke_tx_args!{
+            AccountTransaction::Invoke(executable_invoke_tx(InvokeTxArgs{
                 tx_hash: TransactionHash(StarkHash::from($tx_hash)),
                 sender_address: contract_address!($address),
                 nonce: nonce!($tx_nonce),
                 tip: Tip($tip),
                 resource_bounds,
+                ..Default::default()
             }))
     }};
     (tx_hash: $tx_hash:expr, address: $address:expr, tx_nonce: $tx_nonce:expr, tip: $tip:expr) => {{

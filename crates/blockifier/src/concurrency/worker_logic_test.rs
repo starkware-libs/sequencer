@@ -4,11 +4,12 @@ use std::sync::Mutex;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::constants::DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::{ContractAddressSalt, Fee, ValidResourceBounds};
 use starknet_api::transaction::TransactionVersion;
-use starknet_api::{contract_address, declare_tx_args, felt, invoke_tx_args, nonce, storage_key};
+use starknet_api::{contract_address, declare_tx_args, felt, nonce, storage_key};
 use starknet_types_core::felt::Felt;
 
 use super::WorkerExecutor;
@@ -48,11 +49,12 @@ fn trivial_calldata_invoke_tx(
     test_contract_address: ContractAddress,
     nonce: Nonce,
 ) -> AccountTransaction {
-    account_invoke_tx(invoke_tx_args! {
+    account_invoke_tx(InvokeTxArgs {
         sender_address: account_address,
         calldata: create_trivial_calldata(test_contract_address),
         resource_bounds: default_all_resource_bounds(),
         nonce,
+        ..Default::default()
     })
 }
 
@@ -268,41 +270,42 @@ fn test_worker_execute(default_all_resource_bounds: ValidResourceBounds) {
     let storage_value = felt!(93_u8);
     let storage_key = storage_key!(1993_u16);
 
-    let tx_success = account_invoke_tx(invoke_tx_args! {
+    let tx_success = account_invoke_tx(InvokeTxArgs {
         sender_address: account_address,
         calldata: create_calldata(
             test_contract_address,
             "test_storage_read_write",
-            &[*storage_key.0.key(),storage_value ], // Calldata:  address, value.
+            &[*storage_key.0.key(), storage_value], // Calldata:  address, value.
         ),
         resource_bounds: default_all_resource_bounds,
-        nonce: nonce_manager.next(account_address)
+        nonce: nonce_manager.next(account_address),
+        ..Default::default()
     });
 
     // Create a transaction with invalid nonce.
     nonce_manager.rollback(account_address);
-    let tx_failure = account_invoke_tx(invoke_tx_args! {
+    let tx_failure = account_invoke_tx(InvokeTxArgs {
         sender_address: account_address,
         calldata: create_calldata(
             test_contract_address,
             "test_storage_read_write",
-            &[*storage_key.0.key(),storage_value ], // Calldata:  address, value.
+            &[*storage_key.0.key(), storage_value], // Calldata:  address, value.
         ),
         resource_bounds: default_all_resource_bounds,
-        nonce: nonce_manager.next(account_address)
-
+        nonce: nonce_manager.next(account_address),
+        ..Default::default()
     });
 
-    let tx_revert = account_invoke_tx(invoke_tx_args! {
+    let tx_revert = account_invoke_tx(InvokeTxArgs {
         sender_address: account_address,
         calldata: create_calldata(
             test_contract_address,
             "write_and_revert",
-            &[felt!(1991_u16),storage_value ], // Calldata:  address, value.
+            &[felt!(1991_u16), storage_value], // Calldata:  address, value.
         ),
         resource_bounds: default_all_resource_bounds,
-        nonce: nonce_manager.next(account_address)
-
+        nonce: nonce_manager.next(account_address),
+        ..Default::default()
     });
 
     let txs = [tx_success, tx_failure, tx_revert]
@@ -444,27 +447,28 @@ fn test_worker_validate(default_all_resource_bounds: ValidResourceBounds) {
     let storage_key = storage_key!(1993_u16);
 
     // Both transactions change the same storage key.
-    let account_tx0 = account_invoke_tx(invoke_tx_args! {
+    let account_tx0 = account_invoke_tx(InvokeTxArgs {
         sender_address: account_address,
         calldata: create_calldata(
             test_contract_address,
             "test_storage_read_write",
-            &[*storage_key.0.key(),storage_value0 ], // Calldata:  address, value.
+            &[*storage_key.0.key(), storage_value0], // Calldata:  address, value.
         ),
         resource_bounds: default_all_resource_bounds,
-        nonce: nonce_manager.next(account_address)
+        nonce: nonce_manager.next(account_address),
+        ..Default::default()
     });
 
-    let account_tx1 = account_invoke_tx(invoke_tx_args! {
+    let account_tx1 = account_invoke_tx(InvokeTxArgs {
         sender_address: account_address,
         calldata: create_calldata(
             test_contract_address,
             "test_storage_read_write",
-            &[*storage_key.0.key(),storage_value1 ], // Calldata:  address, value.
+            &[*storage_key.0.key(), storage_value1], // Calldata:  address, value.
         ),
         resource_bounds: default_all_resource_bounds,
-        nonce: nonce_manager.next(account_address)
-
+        nonce: nonce_manager.next(account_address),
+        ..Default::default()
     });
 
     let txs = [account_tx0, account_tx1]
@@ -563,21 +567,22 @@ fn test_deploy_before_declare(
     );
 
     // Deploy test contract.
-    let invoke_tx = account_invoke_tx(invoke_tx_args! {
+    let invoke_tx = account_invoke_tx(InvokeTxArgs {
         sender_address: account_address_1,
         calldata: create_calldata(
             account_address_0,
             DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME,
             &[
-                test_class_hash.0,                  // Class hash.
-                ContractAddressSalt::default().0,   // Salt.
-                felt!(2_u8),                  // Constructor calldata length.
-                felt!(1_u8),                  // Constructor calldata arg1.
-                felt!(1_u8),                  // Constructor calldata arg2.
-            ]
+                test_class_hash.0,                // Class hash.
+                ContractAddressSalt::default().0, // Salt.
+                felt!(2_u8),                      // Constructor calldata length.
+                felt!(1_u8),                      // Constructor calldata arg1.
+                felt!(1_u8),                      // Constructor calldata arg2.
+            ],
         ),
         resource_bounds: default_all_resource_bounds,
-        nonce: nonce!(0_u8)
+        nonce: nonce!(0_u8),
+        ..Default::default()
     });
 
     let txs =
@@ -646,11 +651,12 @@ fn test_worker_commit_phase(default_all_resource_bounds: ValidResourceBounds) {
 
     let txs = (0..3)
         .map(|_| {
-            Transaction::Account(account_invoke_tx(invoke_tx_args! {
+            Transaction::Account(account_invoke_tx(InvokeTxArgs {
                 sender_address,
                 calldata: calldata.clone(),
                 resource_bounds: default_all_resource_bounds,
-                nonce: nonce_manager.next(sender_address)
+                nonce: nonce_manager.next(sender_address),
+                ..Default::default()
             }))
         })
         .collect::<Vec<Transaction>>();
