@@ -50,7 +50,7 @@ pub struct NetworkConfig {
     pub bootstrap_peer_multiaddr: Option<Multiaddr>,
     #[validate(custom = "validate_vec_u256")]
     #[serde(deserialize_with = "deserialize_optional_vec_u8")]
-    pub(crate) secret_key: Option<Vec<u8>>,
+    pub secret_key: Option<Vec<u8>>,
     pub advertised_multiaddr: Option<Multiaddr>,
     pub chain_id: ChainId,
     pub discovery_config: DiscoveryConfig,
