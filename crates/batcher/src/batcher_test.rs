@@ -37,6 +37,7 @@ use crate::proposal_manager::{
     ProposalManagerTrait,
     ProposalOutput,
     ProposalResult,
+    ProposalStatus,
     StartHeightError,
 };
 use crate::test_utils::test_txs;
@@ -255,6 +256,8 @@ trait ProposalManagerTraitWrapper: Send + Sync {
         proposal_id: ProposalId,
     ) -> BoxFuture<'_, ProposalResult<ProposalOutput>>;
 
+    fn wrap_get_proposal_status(&self, proposal_id: ProposalId) -> BoxFuture<'_, ProposalStatus>;
+
     fn wrap_executed_proposal_commitment(
         &self,
         proposal_id: ProposalId,
@@ -290,8 +293,12 @@ impl<T: ProposalManagerTraitWrapper> ProposalManagerTrait for T {
         self.wrap_take_proposal_result(proposal_id).await
     }
 
+    async fn get_proposal_status(&self, proposal_id: ProposalId) -> ProposalStatus {
+        self.wrap_get_proposal_status(proposal_id).await
+    }
+
     async fn get_executed_proposal_commitment(
-        &self,
+        &mut self,
         proposal_id: ProposalId,
     ) -> ProposalResult<ProposalCommitment> {
         self.wrap_executed_proposal_commitment(proposal_id).await
