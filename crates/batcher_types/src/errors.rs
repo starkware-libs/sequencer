@@ -28,6 +28,11 @@ pub enum BatcherError {
     ServerBusy { active_proposal_id: ProposalId, new_proposal_id: ProposalId },
     #[error("Proposal with ID {proposal_id} already exists.")]
     ProposalAlreadyExists { proposal_id: ProposalId },
+    #[error(
+        "Proposal with ID {proposal_id} is already done processing and cannot get more \
+         transactions."
+    )]
+    ProposalAlreadyFinished { proposal_id: ProposalId },
     #[error("Proposal failed.")]
     ProposalFailed,
     #[error("Proposal with ID {proposal_id} not found.")]
