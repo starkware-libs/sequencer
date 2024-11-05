@@ -103,7 +103,7 @@ impl Times {
         results.push(Entry {
             name: "get_class_hash_at".to_string(),
             unit: "Microseconds".to_string(),
-            value: get_class_hash_at_median as usize,
+            value: get_class_hash_at_median,
         });
 
         let get_nonce_at_median = if self.get_nonce_at.is_empty() {
@@ -114,7 +114,7 @@ impl Times {
         results.push(Entry {
             name: "get_nonce_at".to_string(),
             unit: "Microseconds".to_string(),
-            value: get_nonce_at_median as usize,
+            value: get_nonce_at_median,
         });
 
         let get_storage_at_median = if self.get_storage_at.is_empty() {
@@ -126,7 +126,7 @@ impl Times {
         results.push(Entry {
             name: "get_storage_at".to_string(),
             unit: "Microseconds".to_string(),
-            value: get_storage_at_median as usize,
+            value: get_storage_at_median,
         });
 
         results
@@ -155,7 +155,7 @@ impl Times {
 struct Entry {
     name: String,
     unit: String,
-    value: usize,
+    value: u128,
 }
 
 struct CliParams {
