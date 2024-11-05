@@ -86,11 +86,11 @@ macro_rules! tx {
 #[macro_export]
 macro_rules! add_tx_input {
     (
-        tip: $tip:expr,
         tx_hash: $tx_hash:expr,
         address: $address:expr,
         tx_nonce: $tx_nonce:expr,
         account_nonce: $account_nonce:expr,
+        tip: $tip:expr,
         max_l2_gas_price: $max_l2_gas_price:expr
     ) => {{
         use starknet_api::{contract_address, nonce};
@@ -110,64 +110,45 @@ macro_rules! add_tx_input {
         AddTransactionArgs { tx, account_state }
     }};
     (
-        tip: $tip:expr,
         tx_hash: $tx_hash:expr,
         address: $address:expr,
         tx_nonce: $tx_nonce:expr,
-        account_nonce: $account_nonce:expr
+        account_nonce: $account_nonce:expr,
+        tip: $tip:expr
     ) => {{
         use mempool_test_utils::starknet_api_test_utils::VALID_L2_GAS_MAX_PRICE_PER_UNIT;
         add_tx_input!(
-            tip: $tip,
             tx_hash: $tx_hash,
             address: $address,
             tx_nonce: $tx_nonce,
             account_nonce: $account_nonce,
+            tip: $tip,
             max_l2_gas_price: VALID_L2_GAS_MAX_PRICE_PER_UNIT
         )
     }};
     (
-        tip: $tip:expr,
         tx_hash: $tx_hash:expr,
         address: $address:expr,
         tx_nonce: $tx_nonce:expr,
+        tip: $tip:expr,
         max_l2_gas_price: $max_l2_gas_price:expr
     ) => {
         add_tx_input!(
-            tip: $tip,
             tx_hash: $tx_hash,
             address: $address,
             tx_nonce: $tx_nonce,
             account_nonce: 0,
+            tip: $tip,
             max_l2_gas_price: $max_l2_gas_price
         )
     };
-    (tip: $tip:expr, tx_hash: $tx_hash:expr, address: $address:expr) => {
+    (tx_hash: $tx_hash:expr, address: $address:expr, tip: $tip:expr) => {
         add_tx_input!(
-            tip: $tip,
             tx_hash: $tx_hash,
             address: $address,
             tx_nonce: 0,
-            account_nonce: 0
-        )
-    };
-    (tip: $tip:expr, tx_hash: $tx_hash:expr, max_l2_gas_price: $max_l2_gas_price:expr) => {
-        add_tx_input!(
-            tip: $tip,
-            tx_hash: $tx_hash,
-            address: "0x0",
-            tx_nonce: 0,
             account_nonce: 0,
-            max_l2_gas_price: $max_l2_gas_price
-        )
-    };
-    (tip: $tip:expr, max_l2_gas_price: $max_l2_gas_price:expr) => {
-        add_tx_input!(
-            tip: $tip,
-            tx_hash: 0,
-            address: "0x0",
-            tx_nonce: 0,
-            max_l2_gas_price: $max_l2_gas_price
+            tip: $tip
         )
     };
     (
@@ -177,11 +158,11 @@ macro_rules! add_tx_input {
         account_nonce: $account_nonce:expr
     ) => {
         add_tx_input!(
-            tip: 0,
             tx_hash: $tx_hash,
             address: $address,
             tx_nonce: $tx_nonce,
-            account_nonce: $account_nonce
+            account_nonce: $account_nonce,
+            tip: 0
         )
     };
     (tx_hash: $tx_hash:expr, tx_nonce: $tx_nonce:expr, account_nonce: $account_nonce:expr) => {
@@ -194,6 +175,25 @@ macro_rules! add_tx_input {
     };
     (tx_hash: $tx_hash:expr, tx_nonce: $tx_nonce:expr) => {
         add_tx_input!(tx_hash: $tx_hash, tx_nonce: $tx_nonce, account_nonce: 0)
+    };
+    (tx_hash: $tx_hash:expr, tip: $tip:expr, max_l2_gas_price: $max_l2_gas_price:expr) => {
+        add_tx_input!(
+            tx_hash: $tx_hash,
+            address: "0x0",
+            tx_nonce: 0,
+            account_nonce: 0,
+            tip: $tip,
+            max_l2_gas_price: $max_l2_gas_price
+        )
+    };
+    (tip: $tip:expr, max_l2_gas_price: $max_l2_gas_price:expr) => {
+        add_tx_input!(
+            tx_hash: 0,
+            address: "0x0",
+            tx_nonce: 0,
+            tip: $tip,
+            max_l2_gas_price: $max_l2_gas_price
+        )
     };
 }
 
