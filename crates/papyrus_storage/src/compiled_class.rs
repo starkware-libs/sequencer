@@ -24,12 +24,21 @@
 //! # };
 //! # let storage_config = StorageConfig{db_config, ..Default::default()};
 //! let (reader, mut writer) = open_storage(storage_config)?;
+//! let compiled_class = CasmContractClass {
+//!     prime: Default::default(),
+//!     compiler_version: Default::default(),
+//!     bytecode: Default::default(),
+//!     bytecode_segment_lengths: Default::default(),
+//!     hints: Default::default(),
+//!     pythonic_hints: Default::default(),
+//!     entry_points_by_type: Default::default(),
+//! };
 //! writer
 //!     .begin_rw_txn()?                                                    // Start a RW transaction.
-//!     .append_casm(&ClassHash::default(), &CasmContractClass::default())? // Append a compiled class.
+//!     .append_casm(&ClassHash::default(), &compiled_class.clone())?               // Append a compiled class.
 //!     .commit()?;                                                         // Commit the transaction.
 //! let casm = reader.begin_ro_txn()?.get_casm(&ClassHash::default())?;
-//! assert_eq!(casm, Some(CasmContractClass::default()));
+//! assert_eq!(casm, Some(compiled_class));
 //! # Ok::<(), papyrus_storage::StorageError>(())
 //! ```
 
