@@ -31,12 +31,12 @@ use crate::mixed_behaviour::BridgedBehaviour;
 use crate::test_utils::next_on_mutex_stream;
 
 const TIMEOUT: Duration = Duration::from_secs(1);
-const BOOTSTRAP_DIAL_SLEEP: Duration = Duration::from_secs(1);
+const BOOTSTRAP_DIAL_SLEEP_MILLIS: u64 = 1000; // 1 second
 
 const CONFIG: DiscoveryConfig = DiscoveryConfig {
     bootstrap_dial_retry_config: RetryConfig {
-        base_delay_millis: BOOTSTRAP_DIAL_SLEEP.as_millis() as u64,
-        max_delay: BOOTSTRAP_DIAL_SLEEP.as_secs(),
+        base_delay_millis: BOOTSTRAP_DIAL_SLEEP_MILLIS,
+        max_delay: Duration::from_millis(BOOTSTRAP_DIAL_SLEEP_MILLIS).as_secs(),
         factor: 1,
     },
     heartbeat_interval: Duration::ZERO,
@@ -116,8 +116,11 @@ async fn discovery_redials_on_dial_failure() {
         connection_id: ConnectionId::new_unchecked(0),
     }));
 
-    let event =
-        check_event_happens_after_given_duration(&mut behaviour, BOOTSTRAP_DIAL_SLEEP).await;
+    let event = check_event_happens_after_given_duration(
+        &mut behaviour,
+        Duration::from_millis(BOOTSTRAP_DIAL_SLEEP_MILLIS),
+    )
+    .await;
     assert_matches!(
         event,
         ToSwarm::Dial{opts} if opts.get_peer_id() == Some(bootstrap_peer_id)

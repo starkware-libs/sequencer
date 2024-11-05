@@ -253,6 +253,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     }
 
     fn handle_swarm_event(&mut self, event: SwarmEvent<mixed_behaviour::Event>) {
+        #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
         match event {
             SwarmEvent::ConnectionEstablished { peer_id, .. } => {
                 debug!("Connected to peer id: {peer_id:?}");
@@ -375,6 +376,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         }
     }
 
+    #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
     fn handle_sqmr_event_new_inbound_session(
         &mut self,
         peer_id: PeerId,
@@ -537,6 +539,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     ) {
         let SqmrClientPayload { query, report_receiver, responses_sender } = client_payload;
         match self.swarm.send_query(query, PeerId::random(), protocol.clone()) {
+            #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
             Ok(outbound_session_id) => {
                 debug!(
                     "Network received new query. waiting for peer assignment. \
@@ -565,6 +568,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     }
 
     fn report_session_removed_to_metrics(&mut self, session_id: SessionId) {
+        #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
         match session_id {
             SessionId::InboundSessionId(_) => {
                 self.num_active_inbound_sessions -= 1;
