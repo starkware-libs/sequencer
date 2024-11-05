@@ -17,6 +17,7 @@ use starknet_api::{class_hash, compiled_class_hash, contract_address, felt, nonc
 use starknet_core::types::ContractClass;
 use starknet_gateway::rpc_objects::BlockHeader;
 
+use super::utils::reexecute_block_for_testing;
 use crate::state_reader::compile::legacy_to_contract_class_v0;
 use crate::state_reader::serde_utils::deserialize_transaction_json_to_starknet_api_tx;
 use crate::state_reader::utils::ReexecutionStateMaps;
@@ -151,4 +152,19 @@ fn serialize_state_maps() {
 
     assert_eq!(serializable_state_maps, deserialized_state_maps);
     assert_eq!(original_state_maps, deserialized_state_maps.try_into().unwrap());
+}
+
+#[rstest]
+// TODO(Aner): Add block for each starknet version and for declare, deploy, replace_class, etc.
+#[case(600001)] // 0.13.0
+#[case(620978)] // 0.13.1
+#[case(649367)] // 0.13.1.1
+#[case(685878)] // 0.13.2
+#[case(700000)] // 0.13.2.1
+#[case(750000)] // 0.13.2.1
+#[case(870136)] // Contains invoke with deploy syscall.
+#[case(780008)] // Contains invoke with replace class syscall.
+#[ignore = "Requires downloading JSON files prior to running; Long test, run with --release flag."]
+fn test_block_reexecution(#[case] block_number: u64) {
+    reexecute_block_for_testing(block_number);
 }
