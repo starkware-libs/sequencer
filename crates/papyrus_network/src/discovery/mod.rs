@@ -28,7 +28,10 @@ use libp2p::swarm::{
     ToSwarm,
 };
 use libp2p::{Multiaddr, PeerId};
-use papyrus_config::converters::deserialize_milliseconds_to_duration;
+use papyrus_config::converters::{
+    deserialize_milliseconds_to_duration,
+    deserialize_seconds_to_duration,
+};
 use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
@@ -221,13 +224,14 @@ impl SerializeConfig for DiscoveryConfig {
 #[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct RetryConfig {
     pub base_delay_millis: u64,
-    pub max_delay: u64,
+    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
+    pub max_delay_seconds: Duration,
     pub factor: u64,
 }
 
 impl Default for RetryConfig {
     fn default() -> Self {
-        Self { base_delay_millis: 2, max_delay: 5, factor: 5 }
+        Self { base_delay_millis: 2, max_delay_seconds: Duration::from_secs(5), factor: 5 }
     }
 }
 
@@ -241,8 +245,8 @@ impl SerializeConfig for RetryConfig {
                 ParamPrivacyInput::Public,
             ),
             ser_param(
-                "max_delay",
-                &self.max_delay,
+                "max_delay_seconds",
+                &self.max_delay_seconds.as_secs(),
                 "The maximum delay in seconds for the exponential backoff strategy.",
                 ParamPrivacyInput::Public,
             ),
@@ -259,7 +263,7 @@ impl SerializeConfig for RetryConfig {
 impl RetryConfig {
     fn strategy(&self) -> ExponentialBackoff {
         ExponentialBackoff::from_millis(self.base_delay_millis)
-            .max_delay(Duration::from_secs(self.max_delay))
+            .max_delay(self.max_delay_seconds)
             .factor(self.factor)
     }
 }
