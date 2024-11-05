@@ -238,9 +238,6 @@ impl BatcherStorageWriterTrait for papyrus_storage::StorageWriter {
 impl From<StartHeightError> for BatcherError {
     fn from(err: StartHeightError) -> Self {
         match err {
-            StartHeightError::AlreadyWorkingOnHeight { active_height, new_height } => {
-                BatcherError::AlreadyWorkingOnHeight { active_height, new_height }
-            }
             StartHeightError::HeightAlreadyPassed { storage_height, requested_height } => {
                 BatcherError::HeightAlreadyPassed { storage_height, requested_height }
             }
