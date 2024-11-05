@@ -363,34 +363,39 @@ where
     }
 
     fn get_point_from_x(x: U256, y_parity: bool) -> Result<Option<Self>, Vec<Felt>> {
-        let modulos = Curve::BaseField::MODULUS.into();
         let x = u256_to_biguint(x);
 
-        if x >= modulos {
-            let error =
-                Felt::from_hex(crate::execution::syscalls::hint_processor::INVALID_ARGUMENT)
-                    .map_err(|err| {
-                        encode_str_as_felts(&SyscallExecutionError::from(err).to_string())
-                    })?;
-
-            return Err(vec![error]);
+        match get_point_from_x(x, y_parity) {
+            Ok(None) => Ok(None),
+            Ok(Some(point)) => Ok(Some(Secp256Point(point))),
+            Err(error) => Err(encode_str_as_felts(&error.to_string())),
         }
-
-        let x = x.into();
-        let maybe_ec_point = Affine::<Curve>::get_ys_from_x_unchecked(x)
-            .map(|(smaller, greater)| {
-                // Return the correct y coordinate based on the parity.
-                if ark_ff::BigInteger::is_odd(&smaller.into_bigint()) == y_parity {
-                    smaller
-                } else {
-                    greater
-                }
-            })
-            .map(|y| Affine::<Curve>::new_unchecked(x, y))
-            .filter(|p| p.is_in_correct_subgroup_assuming_on_curve());
-
-        Ok(maybe_ec_point.map(Secp256Point))
     }
+}
+
+fn get_point_from_x<Curve: SWCurveConfig>(
+    x: num_bigint::BigUint,
+    y_parity: bool,
+) -> Result<Option<Affine<Curve>>, SyscallExecutionError>
+where
+    Curve::BaseField: PrimeField, // constraint for get_point_by_id
+{
+    let _ = modulus_bound_check::<Curve>(&[&x])?;
+
+    let x = x.into();
+    let maybe_ec_point = Affine::<Curve>::get_ys_from_x_unchecked(x)
+        .map(|(smaller, greater)| {
+            // Return the correct y coordinate based on the parity.
+            if ark_ff::BigInteger::is_odd(&smaller.into_bigint()) == y_parity {
+                smaller
+            } else {
+                greater
+            }
+        })
+        .map(|y| Affine::<Curve>::new_unchecked(x, y))
+        .filter(|p| p.is_in_correct_subgroup_assuming_on_curve());
+
+    Ok(maybe_ec_point)
 }
 
 pub fn new_affine<Curve: SWCurveConfig>(
@@ -400,21 +405,20 @@ pub fn new_affine<Curve: SWCurveConfig>(
 where
     Curve::BaseField: PrimeField, // constraint for get_point_by_id
 {
-    let _ = modulus_bound_check::<Curve>(&x, &y)?;
+    let _ = modulus_bound_check::<Curve>(&[&x, &y])?;
 
     Ok(maybe_affine(x.into(), y.into()))
 }
 
 fn modulus_bound_check<Curve: SWCurveConfig>(
-    x: &num_bigint::BigUint,
-    y: &num_bigint::BigUint,
+    bounds: &[&num_bigint::BigUint],
 ) -> Result<(), SyscallExecutionError>
 where
     Curve::BaseField: PrimeField, // constraint for get_point_by_id
 {
     let modulos = Curve::BaseField::MODULUS.into();
 
-    if *x >= modulos || *y >= modulos {
+    if bounds.iter().any(|p| **p >= modulos) {
         let error =
             match Felt::from_hex(crate::execution::syscalls::hint_processor::INVALID_ARGUMENT) {
                 Ok(err) => SyscallExecutionError::SyscallError { error_data: vec![err] },

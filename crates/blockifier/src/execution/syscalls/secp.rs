@@ -4,7 +4,7 @@ use ark_ff::{BigInteger, PrimeField};
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use num_bigint::BigUint;
-use num_traits::{ToPrimitive, Zero};
+use num_traits::ToPrimitive;
 use starknet_types_core::felt::Felt;
 
 use crate::abi::sierra_types::{SierraType, SierraU256};
