@@ -159,10 +159,10 @@ impl Default for RetryConfig {
 }
 
 pub struct TestStateReader {
-    rpc_state_reader: RpcStateReader,
+    pub(crate) rpc_state_reader: RpcStateReader,
     pub(crate) retry_config: RetryConfig,
     #[allow(dead_code)]
-    contract_class_mapping_dumper: Arc<Mutex<Option<StarknetContractClassMapping>>>,
+    pub(crate) contract_class_mapping_dumper: Arc<Mutex<Option<StarknetContractClassMapping>>>,
 }
 
 impl Default for TestStateReader {
