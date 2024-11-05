@@ -26,6 +26,8 @@ use std::num::ParseIntError;
 
 use serde_utils::InnerDeserializationError;
 
+use crate::transaction::TransactionVersion;
+
 /// The error type returned by StarknetApi.
 // Note: if you need `Eq` see InnerDeserializationError's docstring.
 #[derive(thiserror::Error, Clone, Debug, PartialEq)]
@@ -57,6 +59,11 @@ pub enum StarknetApiError {
         contract_class_version: u8,
         sierra_program_length: usize,
     },
+    #[error(
+        "Declare transaction version {} must have a contract class of Cairo \
+         version {cairo_version:?}.", **declare_version
+    )]
+    ContractClassVersionMismatch { declare_version: TransactionVersion, cairo_version: u64 },
 }
 
 pub type StarknetApiResult<T> = Result<T, StarknetApiError>;
