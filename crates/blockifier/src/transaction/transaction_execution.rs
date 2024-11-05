@@ -66,28 +66,24 @@ impl Transaction {
         deployed_contract_address: Option<ContractAddress>,
         only_query: bool,
     ) -> TransactionExecutionResult<Self> {
-        match tx {
+        let executable_tx = match tx {
             StarknetApiTransaction::L1Handler(l1_handler) => {
-                Ok(Self::L1Handler(L1HandlerTransaction {
+                return Ok(Self::L1Handler(L1HandlerTransaction {
                     tx: l1_handler,
                     tx_hash,
                     paid_fee_on_l1: paid_fee_on_l1
                         .expect("L1Handler should be created with the fee paid on L1"),
-                }))
+                }));
             }
             StarknetApiTransaction::Declare(declare) => {
                 let non_optional_class_info =
                     class_info.expect("Declare should be created with a ClassInfo.");
-                let executable_declare = ApiExecutableTransaction::Declare(DeclareTransaction {
+
+                ApiExecutableTransaction::Declare(DeclareTransaction {
                     tx: declare,
                     tx_hash,
                     class_info: non_optional_class_info,
-                });
-                let declare_tx = match only_query {
-                    true => AccountTransaction::new_for_query(executable_declare),
-                    false => AccountTransaction::new(executable_declare),
-                };
-                Ok(declare_tx.into())
+                })
             }
             StarknetApiTransaction::DeployAccount(deploy_account) => {
                 let contract_address = match deployed_contract_address {
@@ -99,29 +95,25 @@ impl Transaction {
                         ContractAddress::default(),
                     )?,
                 };
-                let executable_deploy_account =
-                    ApiExecutableTransaction::DeployAccount(DeployAccountTransaction {
-                        tx: deploy_account,
-                        tx_hash,
-                        contract_address,
-                    });
-                let deploy_account_tx = match only_query {
-                    true => AccountTransaction::new_for_query(executable_deploy_account),
-                    false => AccountTransaction::new(executable_deploy_account),
-                };
-                Ok(deploy_account_tx.into())
+
+                ApiExecutableTransaction::DeployAccount(DeployAccountTransaction {
+                    tx: deploy_account,
+                    tx_hash,
+                    contract_address,
+                })
             }
             StarknetApiTransaction::Invoke(invoke) => {
-                let executable_invoke =
-                    ApiExecutableTransaction::Invoke(InvokeTransaction { tx: invoke, tx_hash });
-                let invoke_tx = match only_query {
-                    true => AccountTransaction::new_for_query(executable_invoke),
-                    false => AccountTransaction::new(executable_invoke),
-                };
-                Ok(invoke_tx.into())
+                ApiExecutableTransaction::Invoke(InvokeTransaction { tx: invoke, tx_hash })
             }
             _ => unimplemented!(),
-        }
+        };
+
+        let account_tx = match only_query {
+            true => AccountTransaction::new_for_query(executable_tx),
+            false => AccountTransaction::new(executable_tx),
+        };
+
+        Ok(account_tx.into())
     }
 }
 
