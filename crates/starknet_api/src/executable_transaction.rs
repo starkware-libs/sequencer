@@ -182,6 +182,10 @@ impl DeclareTransaction {
         class_info: ClassInfo,
         chain_id: &ChainId,
     ) -> Result<Self, StarknetApiError> {
+        validate_class_version_matches_tx_version(
+            declare_tx.version(),
+            &class_info.contract_class,
+        )?;
         let tx_hash = declare_tx.calculate_transaction_hash(chain_id, &declare_tx.version())?;
         Ok(Self { tx: declare_tx, tx_hash, class_info })
     }
@@ -205,6 +209,27 @@ impl DeclareTransaction {
 
     pub fn contract_class(&self) -> ContractClass {
         self.class_info.contract_class.clone()
+    }
+}
+
+/// Validates that the Declare transaction version is compatible with the Cairo contract version.
+/// Versions 0 and 1 declare Cairo 0 contracts, while versions >=2 declare Cairo 1 contracts.
+fn validate_class_version_matches_tx_version(
+    declare_version: TransactionVersion,
+    class: &ContractClass,
+) -> Result<(), StarknetApiError> {
+    let (expected_cairo_version, is_valid_version) = match class {
+        ContractClass::V0(_) => (0, declare_version <= TransactionVersion::ONE),
+        ContractClass::V1(_) => (1, declare_version > TransactionVersion::ONE),
+    };
+
+    if is_valid_version {
+        Ok(())
+    } else {
+        Err(StarknetApiError::ContractClassVersionMismatch {
+            declare_version,
+            cairo_version: expected_cairo_version,
+        })
     }
 }
 
