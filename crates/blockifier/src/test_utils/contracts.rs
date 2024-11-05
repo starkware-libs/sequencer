@@ -188,7 +188,8 @@ impl FeatureContract {
     pub fn get_runnable_class(&self) -> RunnableContractClass {
         #[cfg(feature = "cairo_native")]
         if CairoVersion::Native == self.cairo_version() {
-            let native_contract_class = NativeContractClassV1::from_file(&self.get_compiled_path());
+            let native_contract_class =
+                NativeContractClassV1::compile_or_get_cached(&self.get_compiled_path()).into();
             return RunnableContractClass::V1Native(native_contract_class);
         }
 
