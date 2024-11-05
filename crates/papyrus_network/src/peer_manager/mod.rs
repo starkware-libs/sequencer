@@ -77,7 +77,7 @@ impl Default for PeerManagerConfig {
         Self {
             // 1 year.
             malicious_timeout_seconds: Duration::from_secs(3600 * 24 * 365),
-            unstable_timeout_millis: Duration::from_secs(1),
+            unstable_timeout_millis: Duration::from_millis(1000),
         }
     }
 }

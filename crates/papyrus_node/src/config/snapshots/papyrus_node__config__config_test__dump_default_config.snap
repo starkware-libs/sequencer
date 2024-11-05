@@ -210,7 +210,7 @@ expression: dumped_default_config
     },
     "privacy": "Public"
   },
-  "network.discovery_config.bootstrap_dial_retry_config.max_delay": {
+  "network.discovery_config.bootstrap_dial_retry_config.max_delay_seconds": {
     "description": "The maximum delay in seconds for the exponential backoff strategy.",
     "value": {
       "$serde_json::private::Number": "5"

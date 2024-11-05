@@ -225,13 +225,13 @@ impl SerializeConfig for DiscoveryConfig {
 pub struct RetryConfig {
     pub base_delay_millis: u64,
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
-    pub max_delay: Duration,
+    pub max_delay_seconds: Duration,
     pub factor: u64,
 }
 
 impl Default for RetryConfig {
     fn default() -> Self {
-        Self { base_delay_millis: 2, max_delay: Duration::from_secs(5), factor: 5 }
+        Self { base_delay_millis: 2, max_delay_seconds: Duration::from_secs(5), factor: 5 }
     }
 }
 
@@ -245,8 +245,8 @@ impl SerializeConfig for RetryConfig {
                 ParamPrivacyInput::Public,
             ),
             ser_param(
-                "max_delay",
-                &self.max_delay.as_secs(),
+                "max_delay_seconds",
+                &self.max_delay_seconds.as_secs(),
                 "The maximum delay in seconds for the exponential backoff strategy.",
                 ParamPrivacyInput::Public,
             ),
@@ -263,7 +263,7 @@ impl SerializeConfig for RetryConfig {
 impl RetryConfig {
     fn strategy(&self) -> ExponentialBackoff {
         ExponentialBackoff::from_millis(self.base_delay_millis)
-            .max_delay(self.max_delay)
+            .max_delay(self.max_delay_seconds)
             .factor(self.factor)
     }
 }
