@@ -114,7 +114,7 @@ impl From<Vote> for protobuf::Vote {
         };
 
         protobuf::Vote {
-            vote_type: vote_type as i32,
+            vote_type: i32::from(vote_type),
             height: value.height,
             round: value.round,
             block_hash: value.block_hash.map(|hash| hash.0.into()),
