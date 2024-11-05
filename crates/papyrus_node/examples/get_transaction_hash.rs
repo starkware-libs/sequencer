@@ -22,7 +22,7 @@ struct CliParams {
     iteration_increments: u64,
     file_path: String,
     deprecated: bool,
-    concurrent_requests: u64,
+    concurrent_requests: usize,
 }
 
 /// The start_block and end_block arguments are mandatory and define the block range to dump,
@@ -79,7 +79,7 @@ fn get_cli_params() -> CliParams {
     let concurrent_requests = matches
         .get_one::<String>("concurrent_requests")
         .expect("Failed parsing concurrent_requests")
-        .parse::<u64>()
+        .parse::<usize>()
         .expect("Failed parsing concurrent_requests");
     let deprecated = matches
         .get_one::<String>("deprecated")
@@ -156,7 +156,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .lock()
                 .expect("Couldn't lock transaction types")
                 .is_empty()
-            && handles.len() < concurrent_requests as usize
+            && handles.len() < concurrent_requests
         {
             let client_ref = client.clone();
             let node_url_ref = node_url.clone();
