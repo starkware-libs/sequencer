@@ -150,8 +150,9 @@ impl<V: ValueSerde> MMapFile<V> {
     fn grow(&mut self) {
         self.flush();
         let new_size = self.size + self.config.growth_step;
+        let new_size_u64 = u64::try_from(new_size).expect("usize should fit in u64");
         debug!("Growing file to size: {}", new_size);
-        self.file.set_len(new_size as u64).expect("Failed to set the file size");
+        self.file.set_len(new_size_u64).expect("Failed to set the file size");
         self.size = new_size;
     }
 

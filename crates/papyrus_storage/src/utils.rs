@@ -93,6 +93,7 @@ fn dump_declared_classes_table_by_block_range_internal(
 // TODO(dvir): relocate all the storage metrics in one module and export them (also in other
 // crates).
 /// Updates storage metrics about the state of the storage.
+#[allow(clippy::as_conversions)]
 pub fn update_storage_metrics(reader: &StorageReader) -> StorageResult<()> {
     debug!("updating storage metrics");
     gauge!("storage_free_pages_number", reader.db_reader.get_free_pages()? as f64);
