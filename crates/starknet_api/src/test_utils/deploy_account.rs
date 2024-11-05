@@ -41,7 +41,7 @@ impl Default for DeployAccountTxArgs {
             signature: TransactionSignature::default(),
             deployer_address: ContractAddress::default(),
             version: TransactionVersion::THREE,
-            resource_bounds: ValidResourceBounds::create_for_testing(),
+            resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),
             tip: Tip::default(),
             nonce_data_availability_mode: DataAvailabilityMode::L1,
             fee_data_availability_mode: DataAvailabilityMode::L1,
