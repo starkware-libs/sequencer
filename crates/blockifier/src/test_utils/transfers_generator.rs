@@ -1,9 +1,10 @@
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use starknet_api::core::ContractAddress;
+use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::{Fee, TransactionVersion};
-use starknet_api::{calldata, felt, invoke_tx_args};
+use starknet_api::{calldata, felt};
 use starknet_types_core::felt::Felt;
 
 use crate::abi::abi_utils::selector_from_name;
@@ -179,12 +180,13 @@ impl TransfersGenerator {
             felt!(0_u8)                 // Calldata: msb amount.
         ];
 
-        let tx = invoke_tx(invoke_tx_args! {
+        let tx = invoke_tx(InvokeTxArgs {
             max_fee: self.config.max_fee,
             sender_address,
             calldata: execute_calldata,
             version: self.config.tx_version,
             nonce,
+            ..Default::default()
         });
         AccountTransaction::Invoke(tx)
     }

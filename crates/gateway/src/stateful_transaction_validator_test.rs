@@ -20,9 +20,9 @@ use starknet_api::core::Nonce;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::deploy_account::executable_deploy_account_tx;
-use starknet_api::test_utils::invoke::executable_invoke_tx;
+use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
 use starknet_api::transaction::Resource;
-use starknet_api::{deploy_account_tx_args, invoke_tx_args, nonce};
+use starknet_api::{deploy_account_tx_args, nonce};
 use starknet_gateway_types::errors::GatewaySpecError;
 
 use crate::config::StatefulTransactionValidatorConfig;
@@ -108,12 +108,12 @@ fn test_instantiate_validator(stateful_validator: StatefulTransactionValidator) 
 
 #[rstest]
 #[case::should_skip_validation(
-    Transaction::Invoke(executable_invoke_tx(invoke_tx_args!(nonce: nonce!(1)))),
+    Transaction::Invoke(executable_invoke_tx(InvokeTxArgs{nonce: nonce!(1), ..Default::default()})),
     nonce!(0),
     true
 )]
 #[case::should_not_skip_validation_nonce_over_max_nonce_for_skip(
-    Transaction::Invoke(executable_invoke_tx(invoke_tx_args!(nonce: nonce!(0)))),
+    Transaction::Invoke(executable_invoke_tx(InvokeTxArgs{nonce: nonce!(0), ..Default::default()})),
     nonce!(0),
     false
 )]
@@ -125,10 +125,11 @@ fn test_instantiate_validator(stateful_validator: StatefulTransactionValidator) 
     false)]
 #[case::should_not_skip_validation_account_nonce_1(
     Transaction::Invoke(executable_invoke_tx(
-        invoke_tx_args!(
+        InvokeTxArgs{
             nonce: nonce!(1),
-            sender_address: TEST_SENDER_ADDRESS.into()
-        )
+            sender_address: TEST_SENDER_ADDRESS.into(),
+            ..Default::default()
+        }
     )),
     nonce!(1),
     false

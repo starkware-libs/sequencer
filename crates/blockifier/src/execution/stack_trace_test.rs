@@ -9,6 +9,7 @@ use starknet_api::core::{
     EntryPointSelector,
     Nonce,
 };
+use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::transaction::{
     ContractAddressSalt,
     Fee,
@@ -16,7 +17,7 @@ use starknet_api::transaction::{
     TransactionVersion,
     ValidResourceBounds,
 };
-use starknet_api::{calldata, felt, invoke_tx_args};
+use starknet_api::{calldata, felt};
 use starknet_types_core::felt::Felt;
 
 use crate::abi::abi_utils::selector_from_name;
@@ -87,10 +88,11 @@ fn test_stack_trace_with_inner_error_msg(block_context: BlockContext) {
     let tx_execution_error = run_invoke_tx(
         &mut state,
         &block_context,
-        invoke_tx_args! {
+        InvokeTxArgs {
             sender_address: account_address,
             calldata,
             version: TransactionVersion::ZERO,
+            ..Default::default()
         },
     )
     .unwrap_err();
@@ -176,10 +178,11 @@ fn test_stack_trace(
     let tx_execution_error = run_invoke_tx(
         &mut state,
         &block_context,
-        invoke_tx_args! {
+        InvokeTxArgs {
             sender_address: account_address,
             calldata,
             version: TransactionVersion::ZERO,
+            ..Default::default()
         },
     )
     .unwrap_err();
@@ -300,10 +303,11 @@ fn test_trace_callchain_ends_with_regular_call(
     let tx_execution_error = run_invoke_tx(
         &mut state,
         &block_context,
-        invoke_tx_args! {
+        InvokeTxArgs {
             sender_address: account_address,
             calldata,
             version: TransactionVersion::ZERO,
+            ..Default::default()
         },
     )
     .unwrap_err();
@@ -437,10 +441,11 @@ fn test_trace_call_chain_with_syscalls(
     let tx_execution_error = run_invoke_tx(
         &mut state,
         &block_context,
-        invoke_tx_args! {
+        InvokeTxArgs {
             sender_address: account_address,
             calldata,
             version: TransactionVersion::ZERO,
+            ..Default::default()
         },
     )
     .unwrap_err();
@@ -729,7 +734,7 @@ fn test_contract_ctor_frame_stack_trace(
     )
     .unwrap();
     // Invoke the deploy_contract function on the dummy account to deploy the faulty contract.
-    let invoke_deploy_tx = account_invoke_tx(invoke_tx_args! {
+    let invoke_deploy_tx = account_invoke_tx(InvokeTxArgs {
         sender_address: account_address,
         signature,
         calldata: create_calldata(
@@ -740,10 +745,11 @@ fn test_contract_ctor_frame_stack_trace(
                 salt,
                 felt!(1_u8), // Calldata: ctor args length.
                 validate_constructor,
-            ]
+            ],
         ),
         resource_bounds: default_all_resource_bounds,
         nonce: Nonce(felt!(0_u8)),
+        ..Default::default()
     });
 
     // Construct expected output.

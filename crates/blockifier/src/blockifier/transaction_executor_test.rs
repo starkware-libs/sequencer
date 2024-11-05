@@ -1,9 +1,10 @@
 use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
+use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::{Fee, TransactionVersion};
-use starknet_api::{declare_tx_args, deploy_account_tx_args, felt, invoke_tx_args, nonce};
+use starknet_api::{declare_tx_args, deploy_account_tx_args, felt, nonce};
 use starknet_types_core::felt::Felt;
 
 use crate::blockifier::config::TransactionExecutorConfig;
@@ -216,10 +217,11 @@ fn test_invoke(
 
     let calldata =
         create_calldata(test_contract.get_instance_address(0), entry_point_name, &entry_point_args);
-    let tx = account_invoke_tx(invoke_tx_args! {
+    let tx = account_invoke_tx(InvokeTxArgs {
         sender_address: account_contract.get_instance_address(0),
         calldata,
         version,
+        ..Default::default()
     })
     .into();
     tx_executor_test_body(state, block_context, tx, expected_bouncer_weights);

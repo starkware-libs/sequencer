@@ -3,7 +3,7 @@ use cairo_vm::types::builtin_name::BuiltinName;
 use rstest::rstest;
 use starknet_api::block::{GasPrice, NonzeroGasPrice};
 use starknet_api::execution_resources::{GasAmount, GasVector};
-use starknet_api::invoke_tx_args;
+use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::transaction::{
     AllResourceBounds,
     Fee,
@@ -196,9 +196,10 @@ fn test_discounted_gas_overdraft(
 
     let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0);
     let mut state = test_state(&block_context.chain_info, BALANCE, &[(account, 1)]);
-    let tx = account_invoke_tx(invoke_tx_args! {
+    let tx = account_invoke_tx(InvokeTxArgs {
         sender_address: account.get_instance_address(0),
         resource_bounds: l1_resource_bounds(gas_bound, (gas_price.get().0 * 10).into()),
+        ..Default::default()
     });
 
     let tx_receipt = TransactionReceipt {
@@ -271,9 +272,10 @@ fn test_post_execution_gas_overdraft_all_resource_bounds(
 
     let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0);
     let mut state = test_state(&block_context.chain_info, BALANCE, &[(account, 1)]);
-    let tx = account_invoke_tx(invoke_tx_args! {
+    let tx = account_invoke_tx(InvokeTxArgs {
         sender_address: account.get_instance_address(0),
         resource_bounds: all_resource_bounds,
+        ..Default::default()
     });
 
     let tx_receipt = TransactionReceipt {
@@ -384,7 +386,7 @@ fn test_initial_sierra_gas(
             ..Default::default()
         }),
     };
-    let account_tx = account_invoke_tx(invoke_tx_args!(resource_bounds));
+    let account_tx = account_invoke_tx(InvokeTxArgs { resource_bounds, ..Default::default() });
     let actual = block_context.to_tx_context(&account_tx).initial_sierra_gas();
     assert_eq!(actual, expected)
 }

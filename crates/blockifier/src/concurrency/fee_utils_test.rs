@@ -1,7 +1,8 @@
 use num_bigint::BigUint;
 use rstest::rstest;
+use starknet_api::felt;
+use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::transaction::{Fee, ValidResourceBounds};
-use starknet_api::{felt, invoke_tx_args};
 use starknet_types_core::felt::Felt;
 
 use crate::concurrency::fee_utils::{add_fee_to_sequencer_balance, fill_sequencer_balance_reads};
@@ -26,10 +27,11 @@ pub fn test_fill_sequencer_balance_reads(
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] erc20_version: CairoVersion,
 ) {
     let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
-    let account_tx = account_invoke_tx(invoke_tx_args! {
+    let account_tx = account_invoke_tx(InvokeTxArgs {
         sender_address: account.get_instance_address(0),
         calldata: create_trivial_calldata(account.get_instance_address(0)),
         resource_bounds: default_all_resource_bounds,
+        ..Default::default()
     });
     let chain_info = &block_context.chain_info;
     let state = &mut test_state_inner(chain_info, BALANCE, &[(account, 1)], erc20_version);

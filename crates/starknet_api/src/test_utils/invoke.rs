@@ -56,23 +56,6 @@ impl Default for InvokeTxArgs {
     }
 }
 
-/// Utility macro for creating `InvokeTxArgs` to reduce boilerplate.
-#[macro_export]
-macro_rules! invoke_tx_args {
-    ($($field:ident $(: $value:expr)?),* $(,)?) => {
-        $crate::test_utils::invoke::InvokeTxArgs {
-            $($field $(: $value)?,)*
-            ..Default::default()
-        }
-    };
-    ($($field:ident $(: $value:expr)?),* , ..$defaults:expr) => {
-        $crate::test_utils::invoke::InvokeTxArgs {
-            $($field $(: $value)?,)*
-            ..$defaults
-        }
-    };
-}
-
 pub fn invoke_tx(invoke_args: InvokeTxArgs) -> InvokeTransaction {
     // TODO: Make TransactionVersion an enum and use match here.
     if invoke_args.version == TransactionVersion::ZERO {
