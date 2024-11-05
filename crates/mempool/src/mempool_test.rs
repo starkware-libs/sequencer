@@ -5,7 +5,7 @@ use starknet_api::{contract_address, nonce};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::AddTransactionArgs;
 
-use crate::mempool::{tip, Mempool, MempoolConfig, TransactionReference};
+use crate::mempool::{Mempool, MempoolConfig, TransactionReference};
 use crate::test_utils::{add_tx, add_tx_expect_error, commit_block, get_txs_and_assert_expected};
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::transaction_queue_test_utils::{
@@ -181,30 +181,30 @@ fn mempool() -> Mempool {
 #[case::test_get_less_than_all_eligible_txs(2)]
 fn test_get_txs_returns_by_priority_order(#[case] n_requested_txs: usize) {
     // Setup.
-    let mut txs = [
-        tx!(tx_hash: 1, address: "0x0", tip: 20),
-        tx!(tx_hash: 2, address: "0x1", tip: 30),
-        tx!(tx_hash: 3, address: "0x2", tip: 10),
-    ];
+    let tx_tip_20 = tx!(tx_hash: 1, address: "0x0", tip: 20);
+    let tx_tip_30 = tx!(tx_hash: 2, address: "0x1", tip: 30);
+    let tx_tip_10 = tx!(tx_hash: 3, address: "0x2", tip: 10);
 
+    let queue_txs = [&tx_tip_20, &tx_tip_30, &tx_tip_10].map(TransactionReference::new);
+    let pool_txs = [&tx_tip_20, &tx_tip_30, &tx_tip_10].map(|tx| tx.clone());
     let mut mempool = MempoolContentBuilder::new()
-        .with_pool(txs.iter().cloned())
-        .with_priority_queue(txs.iter().map(TransactionReference::new))
+        .with_pool(pool_txs)
+        .with_priority_queue(queue_txs)
         .build_into_mempool();
 
     // Test.
     let fetched_txs = mempool.get_txs(n_requested_txs).unwrap();
 
     // Check that the returned transactions are the ones with the highest priority.
-    txs.sort_by_key(|tx| std::cmp::Reverse(tip(tx)));
-    let (expected_fetched_txs, remaining_txs) = txs.split_at(fetched_txs.len());
+    let sorted_txs = [tx_tip_30, tx_tip_20, tx_tip_10];
+    let (expected_fetched_txs, remaining_txs) = sorted_txs.split_at(fetched_txs.len());
     assert_eq!(fetched_txs, expected_fetched_txs);
 
     // Assert: non-returned transactions are still in the mempool.
     let remaining_tx_references = remaining_txs.iter().map(TransactionReference::new);
-    let mempool_content =
+    let expected_mempool_content =
         MempoolContentBuilder::new().with_priority_queue(remaining_tx_references).build();
-    mempool_content.assert_eq(&mempool);
+    expected_mempool_content.assert_eq(&mempool);
 }
 
 #[rstest]
@@ -291,25 +291,24 @@ fn test_get_txs_with_nonce_gap() {
 #[rstest]
 fn test_add_tx(mut mempool: Mempool) {
     // Setup.
-    let mut add_tx_inputs = [
-        add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 0, account_nonce: 0, tip: 50),
-        add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 1, account_nonce: 1, tip: 100),
-        add_tx_input!(tx_hash: 3, address: "0x2", tx_nonce: 2, account_nonce: 2, tip: 80),
-    ];
+    let input_tip_50_hash_1 =
+        add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 0, account_nonce: 0, tip: 50);
+    let input_tip_100_hash_2 =
+        add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 1, account_nonce: 1, tip: 100);
+    let input_tip_80_hash_3 =
+        add_tx_input!(tx_hash: 3, address: "0x2", tx_nonce: 2, account_nonce: 2, tip: 80);
 
     // Test.
-    for input in &add_tx_inputs {
+    for input in [&input_tip_50_hash_1, &input_tip_100_hash_2, &input_tip_80_hash_3] {
         add_tx(&mut mempool, input);
     }
 
-    // TODO(Ayelet): Consider share this code.
-    // Sort in an ascending priority order.
-    add_tx_inputs.sort_by_key(|input| std::cmp::Reverse(tip(&input.tx)));
-
     // Assert: transactions are ordered by priority.
-    let expected_queue_txs: Vec<TransactionReference> =
-        add_tx_inputs.iter().map(|input| TransactionReference::new(&input.tx)).collect();
-    let expected_pool_txs = add_tx_inputs.into_iter().map(|input| input.tx);
+    let expected_queue_txs =
+        [&input_tip_100_hash_2.tx, &input_tip_80_hash_3.tx, &input_tip_50_hash_1.tx]
+            .map(TransactionReference::new);
+    let expected_pool_txs =
+        [input_tip_50_hash_1.tx, input_tip_100_hash_2.tx, input_tip_80_hash_3.tx];
     let expected_mempool_content = MempoolContentBuilder::new()
         .with_pool(expected_pool_txs)
         .with_priority_queue(expected_queue_txs)
