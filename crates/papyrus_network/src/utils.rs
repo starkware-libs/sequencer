@@ -92,11 +92,10 @@ pub fn is_localhost(address: &Multiaddr) -> bool {
 }
 
 mod test {
+    #[cfg(test)]
     use std::collections::{HashMap, VecDeque};
-
-    use futures::{stream::StreamExt, FutureExt};
-
-    use super::*;
+    // use futures::{stream::StreamExt, FutureExt};
+    use super::StreamHashMap;
 
     #[tokio::test]
     async fn test_stream_hash_map_basic_usage() {
