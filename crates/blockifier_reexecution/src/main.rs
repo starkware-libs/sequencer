@@ -49,7 +49,7 @@ enum Command {
         // Directory path to json files. Default:
         // "./crates/blockifier_reexecution/resources/block_{block_number}".
         #[clap(long, short = 'd', default_value = None)]
-        directory_path: Option<String>,
+        full_file_path: Option<String>,
     },
 
     // Reexecutes the block from JSON files.
@@ -61,7 +61,7 @@ enum Command {
         // Directory path to json files. Default:
         // "./crates/blockifier_reexecution/resources/block_{block_number}".
         #[clap(long, short = 'd', default_value = None)]
-        directory_path: Option<String>,
+        full_file_path: Option<String>,
     },
 }
 
@@ -92,9 +92,10 @@ fn main() {
             println!("RPC test passed successfully.");
         }
 
-        Command::WriteRpcRepliesToJson { node_url, block_number, directory_path } => {
-            let directory_path = directory_path.unwrap_or(format!(
-                "./crates/blockifier_reexecution/resources/block_{block_number}/"
+        Command::WriteRpcRepliesToJson { node_url, block_number, full_file_path } => {
+            let full_file_path = full_file_path.unwrap_or(format!(
+                "./crates/blockifier_reexecution/resources/block_{block_number}/reexecution_data.\
+                 json"
             ));
 
             // TODO(Aner): refactor to reduce code duplication.
@@ -127,7 +128,7 @@ fn main() {
                 serializable_data_next_block,
                 old_block_hash,
             }
-            .write_to_file(&directory_path, "reexecution_data.json")
+            .write_to_file(&full_file_path)
             .unwrap();
 
             println!(
@@ -135,10 +136,11 @@ fn main() {
             );
         }
 
-        Command::ReexecuteBlock { block_number, directory_path } => {
-            let full_file_path = directory_path.unwrap_or(format!(
-                "./crates/blockifier_reexecution/resources/block_{block_number}"
-            )) + "/reexecution_data.json";
+        Command::ReexecuteBlock { block_number, full_file_path } => {
+            let full_file_path = full_file_path.unwrap_or(format!(
+                "./crates/blockifier_reexecution/resources/block_{block_number}/reexecution_data.\
+                 json"
+            ));
 
             reexecute_and_verify_correctness(
                 OfflineConsecutiveStateReaders::new_from_file(&full_file_path).unwrap(),

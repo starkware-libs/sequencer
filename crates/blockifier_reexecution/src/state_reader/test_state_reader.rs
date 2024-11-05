@@ -86,11 +86,11 @@ pub struct SerializableOfflineReexecutionData {
 }
 
 impl SerializableOfflineReexecutionData {
-    pub fn write_to_file(&self, file_path: &str, file_name: &str) -> ReexecutionResult<()> {
+    pub fn write_to_file(&self, full_file_path: &str) -> ReexecutionResult<()> {
+        let file_path = full_file_path.rsplit_once('/').expect("Invalid file path.").0;
         fs::create_dir_all(file_path)
             .unwrap_or_else(|err| panic!("Failed to create directory {file_path}. Error: {err}"));
-        let full_file_path = file_path.to_owned() + "/" + file_name;
-        fs::write(full_file_path.clone(), serde_json::to_string_pretty(&self)?)
+        fs::write(full_file_path, serde_json::to_string_pretty(&self)?)
             .unwrap_or_else(|err| panic!("Failed to write to file {full_file_path}. Error: {err}"));
         Ok(())
     }
