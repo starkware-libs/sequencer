@@ -34,6 +34,7 @@ derive_more.workspace = true
 indexmap.workspace = true
 itertools.workspace = true
 keccak.workspace = true
+lazy_static.workspace = true
 log.workspace = true
 num-bigint.workspace = true
 num-integer.workspace = true
