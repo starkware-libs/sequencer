@@ -10,8 +10,8 @@ async-stream.workspace = true
 async-trait.workspace = true
 cairo-lang-starknet-classes.workspace = true
 chrono.workspace = true
-futures.workspace = true
 futures-util.workspace = true
+futures.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
 itertools.workspace = true
 lru.workspace = true
@@ -41,7 +41,5 @@ starknet_api = { workspace = true, features = ["testing"] }
 starknet_client = { workspace = true, features = ["testing"] }
 tokio-stream.workspace = true
 
-[lints.rust]
-# See [here](https://github.com/taiki-e/cargo-llvm-cov/issues/370) for a discussion on why this is
-# needed (from rust 1.80).
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }
+[lints]
+workspace = true
