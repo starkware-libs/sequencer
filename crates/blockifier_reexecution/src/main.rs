@@ -6,7 +6,6 @@ use blockifier_reexecution::state_reader::test_state_reader::{
 use blockifier_reexecution::state_reader::utils::JSON_RPC_VERSION;
 use clap::{Args, Parser, Subcommand};
 use starknet_api::block::BlockNumber;
-use starknet_api::core::ContractAddress;
 use starknet_gateway::config::RpcStateReaderConfig;
 
 /// BlockifierReexecution CLI.
@@ -77,7 +76,7 @@ fn main() {
             let all_txs_in_next_block =
                 test_state_readers_last_and_current_block.get_next_block_txs().unwrap();
 
-            let mut expected_state_diff =
+            let expected_state_diff =
                 test_state_readers_last_and_current_block.get_next_block_state_diff().unwrap();
 
             let mut transaction_executor =
@@ -87,8 +86,6 @@ fn main() {
             // Finalize block and read actual statediff.
             let (actual_state_diff, _, _) =
                 transaction_executor.finalize().expect("Couldn't finalize block");
-            // TODO(Aner): compute correct block hash at storage slot 0x1 instead of removing it.
-            expected_state_diff.storage_updates.shift_remove(&ContractAddress(1_u128.into()));
 
             // Compare the expected and actual state differences
             // by avoiding discrepancies caused by insertion order
