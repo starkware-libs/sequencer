@@ -1,6 +1,5 @@
-use ark_ec::short_weierstrass;
-use ark_ec::short_weierstrass::SWCurveConfig;
-use ark_ff::{BigInteger, PrimeField};
+use ark_ec::short_weierstrass::{self, SWCurveConfig};
+use ark_ff::PrimeField;
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use num_bigint::BigUint;
@@ -9,12 +8,8 @@ use starknet_types_core::felt::Felt;
 
 use crate::abi::sierra_types::{SierraType, SierraU256};
 use crate::execution::execution_utils::{felt_from_ptr, write_maybe_relocatable, write_u256};
-use crate::execution::native::syscall_handler::{get_point_from_x, new_affine};
-use crate::execution::syscalls::hint_processor::{
-    felt_to_bool,
-    SyscallHintProcessor,
-    INVALID_ARGUMENT,
-};
+use crate::execution::secp::new_affine;
+use crate::execution::syscalls::hint_processor::{felt_to_bool, SyscallHintProcessor};
 use crate::execution::syscalls::{
     SyscallExecutionError,
     SyscallRequest,
@@ -51,7 +46,7 @@ where
         &mut self,
         request: SecpGetPointFromXRequest,
     ) -> SyscallResult<SecpGetPointFromXResponse> {
-        let affine = get_point_from_x(request.x, request.y_parity);
+        let affine = crate::execution::secp::get_point_from_x(request.x, request.y_parity);
 
         affine.map(|maybe_ec_point| SecpGetPointFromXResponse {
             optional_ec_point_id: maybe_ec_point.map(|ec_point| self.allocate_point(ec_point)),
