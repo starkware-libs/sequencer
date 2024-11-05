@@ -37,3 +37,6 @@ protoc-prebuilt.workspace = true
 [package.metadata.cargo-machete]
 # The `rand` and `rand_chacha` crates are used in the `testing` feature, which is optional.
 ignored = ["rand", "rand_chacha"]
+
+[lints]
+workspace = true
