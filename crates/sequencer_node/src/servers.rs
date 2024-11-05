@@ -2,24 +2,22 @@ use std::future::pending;
 use std::pin::Pin;
 
 use futures::{Future, FutureExt};
-use starknet_batcher::communication::{create_local_batcher_server, LocalBatcherServer};
-use starknet_consensus_manager::communication::{
-    create_consensus_manager_server,
-    ConsensusManagerServer,
-};
-use starknet_gateway::communication::{create_gateway_server, LocalGatewayServer};
-use starknet_http_server::communication::{create_http_server, HttpServer};
-use starknet_mempool::communication::{create_mempool_server, LocalMempoolServer};
+use starknet_batcher::communication::LocalBatcherServer;
+use starknet_consensus_manager::communication::ConsensusManagerServer;
+use starknet_gateway::communication::LocalGatewayServer;
+use starknet_http_server::communication::HttpServer;
+use starknet_mempool::communication::LocalMempoolServer;
 use starknet_mempool_p2p::propagator::{
     create_mempool_p2p_propagator_server,
     LocalMempoolP2pPropagatorServer,
 };
 use starknet_mempool_p2p::runner::MempoolP2pRunnerServer;
-use starknet_monitoring_endpoint::communication::{
-    create_monitoring_endpoint_server,
-    MonitoringEndpointServer,
+use starknet_monitoring_endpoint::communication::MonitoringEndpointServer;
+use starknet_sequencer_infra::component_server::{
+    ComponentServerStarter,
+    LocalComponentServer,
+    WrapperServer,
 };
-use starknet_sequencer_infra::component_server::ComponentServerStarter;
 use starknet_sequencer_infra::errors::ComponentServerError;
 use tracing::error;
 
@@ -56,7 +54,7 @@ pub fn create_node_servers(
     let batcher_server = match config.components.batcher.execution_mode {
         ComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            Some(Box::new(create_local_batcher_server(
+            Some(Box::new(LocalComponentServer::new(
                 components.batcher.expect("Batcher is not initialized."),
                 communication.take_batcher_rx(),
             )))
@@ -66,7 +64,7 @@ pub fn create_node_servers(
     let consensus_manager_server = match config.components.consensus_manager.execution_mode {
         ComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            Some(Box::new(create_consensus_manager_server(
+            Some(Box::new(WrapperServer::new(
                 components.consensus_manager.expect("Consensus Manager is not initialized."),
             )))
         }
@@ -75,7 +73,7 @@ pub fn create_node_servers(
     let gateway_server = match config.components.gateway.execution_mode {
         ComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            Some(Box::new(create_gateway_server(
+            Some(Box::new(LocalComponentServer::new(
                 components.gateway.expect("Gateway is not initialized."),
                 communication.take_gateway_rx(),
             )))
@@ -85,14 +83,14 @@ pub fn create_node_servers(
     let http_server = match config.components.http_server.execution_mode {
         ComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => Some(Box::new(
-            create_http_server(components.http_server.expect("Http Server is not initialized.")),
+            WrapperServer::new(components.http_server.expect("Http Server is not initialized.")),
         )),
         ComponentExecutionMode::Disabled => None,
     };
     let monitoring_endpoint_server = match config.components.monitoring_endpoint.execution_mode {
         ComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            Some(Box::new(create_monitoring_endpoint_server(
+            Some(Box::new(WrapperServer::new(
                 components.monitoring_endpoint.expect("Monitoring Endpoint is not initialized."),
             )))
         }
@@ -101,7 +99,7 @@ pub fn create_node_servers(
     let mempool_server = match config.components.mempool.execution_mode {
         ComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            Some(Box::new(create_mempool_server(
+            Some(Box::new(LocalComponentServer::new(
                 components.mempool.expect("Mempool is not initialized."),
                 communication.take_mempool_rx(),
             )))
