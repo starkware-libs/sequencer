@@ -27,7 +27,7 @@ fn test_dump_declared_classes() {
     let mut state_diffs = vec![];
     let ((reader, mut writer), _temp_dir) = get_test_storage();
     for i in 0..5 {
-        let i_felt = Felt::from(i as u128);
+        let i_felt = Felt::from(u128::try_from(i).expect("usize should fit in u128"));
         declared_classes.push((
             ClassHash(i_felt),
             ContractClass {
@@ -46,7 +46,7 @@ fn test_dump_declared_classes() {
             nonces: indexmap!(),
             replaced_classes: indexmap!(),
         });
-        let block_number = BlockNumber(i as u64);
+        let block_number = BlockNumber(u64::try_from(i).expect("usize should fit in u64"));
         let txn = writer.begin_rw_txn().unwrap();
         txn.append_state_diff(block_number, state_diffs[i].clone())
             .unwrap()
