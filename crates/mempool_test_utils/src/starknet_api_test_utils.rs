@@ -28,7 +28,6 @@ use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
-    Calldata,
     ContractAddressSalt,
     PaymasterData,
     ResourceBounds,
@@ -54,108 +53,10 @@ pub const VALID_L2_GAS_MAX_AMOUNT: u64 = 500000;
 pub const VALID_L2_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000;
 pub const VALID_L1_DATA_GAS_MAX_AMOUNT: u64 = 203484;
 pub const VALID_L1_DATA_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000;
+// TODO: Move to Gateway's test_utils when DeclareTxArgs is moved to Starknet API.
 pub const TEST_SENDER_ADDRESS: u128 = 0x1000;
 
 // Utils.
-#[derive(Clone)]
-pub enum TransactionType {
-    Declare,
-    DeployAccount,
-    Invoke,
-}
-
-/// Transaction arguments used for the function [rpc_tx_for_testing].
-#[derive(Clone)]
-pub struct RpcTransactionArgs {
-    pub sender_address: ContractAddress,
-    pub resource_bounds: AllResourceBounds,
-    pub calldata: Calldata,
-    pub signature: TransactionSignature,
-    pub account_deployment_data: AccountDeploymentData,
-    pub paymaster_data: PaymasterData,
-    pub nonce_data_availability_mode: DataAvailabilityMode,
-    pub fee_data_availability_mode: DataAvailabilityMode,
-}
-
-impl Default for RpcTransactionArgs {
-    fn default() -> Self {
-        Self {
-            sender_address: TEST_SENDER_ADDRESS.into(),
-            resource_bounds: AllResourceBounds::default(),
-            calldata: Default::default(),
-            signature: Default::default(),
-            account_deployment_data: Default::default(),
-            paymaster_data: Default::default(),
-            nonce_data_availability_mode: DataAvailabilityMode::L1,
-            fee_data_availability_mode: DataAvailabilityMode::L1,
-        }
-    }
-}
-
-pub fn rpc_tx_for_testing(
-    tx_type: TransactionType,
-    rpc_tx_args: RpcTransactionArgs,
-) -> RpcTransaction {
-    let RpcTransactionArgs {
-        sender_address,
-        resource_bounds,
-        calldata,
-        signature,
-        account_deployment_data,
-        paymaster_data,
-        nonce_data_availability_mode,
-        fee_data_availability_mode,
-    } = rpc_tx_args;
-    match tx_type {
-        TransactionType::Declare => {
-            // Minimal contract class.
-            let contract_class = ContractClass {
-                sierra_program: vec![
-                    // Sierra Version ID.
-                    felt!(1_u32),
-                    felt!(3_u32),
-                    felt!(0_u32),
-                    // Compiler version ID.
-                    felt!(1_u32),
-                    felt!(3_u32),
-                    felt!(0_u32),
-                ],
-                ..Default::default()
-            };
-            rpc_declare_tx(declare_tx_args!(
-                signature,
-                sender_address,
-                resource_bounds,
-                contract_class,
-                account_deployment_data,
-                paymaster_data,
-                nonce_data_availability_mode,
-                fee_data_availability_mode,
-            ))
-        }
-        TransactionType::DeployAccount => rpc_deploy_account_tx(deploy_account_tx_args!(
-            signature,
-            resource_bounds: ValidResourceBounds::AllResources(resource_bounds),
-            constructor_calldata: calldata,
-            paymaster_data,
-            nonce_data_availability_mode,
-            fee_data_availability_mode,
-        )),
-        TransactionType::Invoke => rpc_invoke_tx(invoke_tx_args!(
-            signature,
-            sender_address,
-            calldata,
-            resource_bounds: ValidResourceBounds::AllResources(resource_bounds),
-            account_deployment_data,
-            paymaster_data,
-            nonce_data_availability_mode,
-            fee_data_availability_mode,
-        )),
-    }
-}
-
-pub const NON_EMPTY_RESOURCE_BOUNDS: ResourceBounds =
-    ResourceBounds { max_amount: GasAmount(1), max_price_per_unit: GasPrice(1) };
 
 pub fn test_resource_bounds_mapping() -> AllResourceBounds {
     AllResourceBounds {
