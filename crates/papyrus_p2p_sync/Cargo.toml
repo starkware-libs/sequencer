@@ -42,3 +42,6 @@ tokio = { workspace = true, features = ["test-util"] }
 # The `metrics` crate is used by `latency_histogram` proc macro, which is used in this crate.
 [package.metadata.cargo-machete]
 ignored = ["metrics"]
+
+[lints]
+workspace = true
