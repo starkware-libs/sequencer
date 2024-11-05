@@ -42,8 +42,8 @@ use validator::Validate;
 
 use crate::version::VERSION_FULL;
 
-/// Returns vector of (pointer target name, pointer target serialized param, vec<pointer param
-/// path>) to be applied on the dumped node config.
+/// Returns vector of `(pointer target name, pointer target serialized param, vec<pointer param
+/// path>)` to be applied on the dumped node config.
 /// The config updates will be performed on the shared pointer targets, and finally, the values
 /// will be propagated to the pointer params.
 pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
