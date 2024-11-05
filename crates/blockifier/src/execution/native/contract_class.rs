@@ -2,12 +2,14 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use cairo_lang_sierra::ids::FunctionId;
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_lang_starknet_classes::contract_class::{
     ContractClass as SierraContractClass,
     ContractEntryPoint as SierraContractEntryPoint,
 };
 #[allow(unused_imports)]
 use cairo_native::executor::AotNativeExecutor;
+use cairo_vm::types::errors::program_errors::ProgramError;
 use starknet_api::core::EntryPointSelector;
 
 use crate::execution::contract_class::{ContractClassV1, EntryPointsByType, HasSelector};
@@ -50,6 +52,36 @@ impl NativeContractClassV1 {
 
     pub fn casm(&self) -> ContractClassV1 {
         self.casm.clone()
+    }
+}
+
+impl TryFrom<SierraContractClass> for NativeContractClassV1 {
+    type Error = ProgramError;
+
+    fn try_from(sierra_contract_class: SierraContractClass) -> Result<Self, Self::Error> {
+        let sierra_program = sierra_contract_class
+            .extract_sierra_program()
+            .expect("Cannot extract sierra program from sierra contract class");
+
+        // Compile the sierra program to native code and loads it into the process'
+        // memory space.
+        let native_context = cairo_native::context::NativeContext::new();
+        let native_program = native_context
+            .compile(&sierra_program, false)
+            .expect("Cannot compile sierra program into native program");
+        let executor =
+            AotNativeExecutor::from_native_module(native_program, cairo_native::OptLevel::Default);
+
+        // Compile the sierra contract class into casm
+        let casm_contract_class = CasmContractClass::from_contract_class(
+            sierra_contract_class.clone(),
+            false,
+            usize::MAX,
+        )
+        .expect("Cannot compile sierra contract class into casm contract class");
+        let casm = ContractClassV1::try_from(casm_contract_class)?;
+
+        Ok(Self::new(executor, sierra_contract_class, casm))
     }
 }
 

@@ -1,8 +1,11 @@
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+#[cfg(feature = "cairo_native")]
+use cairo_lang_starknet_classes::contract_class::ContractClass as SierraContractClass;
 use starknet_api::contract_class::{ContractClass, EntryPointType};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::deprecated_contract_class::{
-    ContractClass as DeprecatedContractClass, EntryPointOffset,
+    ContractClass as DeprecatedContractClass,
+    EntryPointOffset,
 };
 use starknet_api::{class_hash, contract_address, felt};
 use starknet_types_core::felt::Felt;
@@ -12,11 +15,7 @@ use strum_macros::EnumIter;
 use crate::abi::abi_utils::selector_from_name;
 use crate::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use crate::execution::contract_class::RunnableContractClass;
-use crate::execution::contract_class::{ContractClass, ContractClassV0, ContractClassV1};
-use crate::execution::contract_class::{ContractClass, ContractClassV0, ContractClassV1};
 use crate::execution::entry_point::CallEntryPoint;
-#[cfg(feature = "cairo_native")]
-use crate::execution::native::contract_class::NativeContractClassV1;
 #[cfg(feature = "cairo_native")]
 use crate::test_utils::cairo_compile::starknet_compile;
 use crate::test_utils::cairo_compile::{cairo0_compile, cairo1_compile};
@@ -159,15 +158,15 @@ impl FeatureContract {
 
     pub fn get_class(&self) -> ContractClass {
         match self.cairo_version() {
-            CairoVersion::Cairo0 => ContractClass::V0(
-                DeprecatedContractClass::from_file(&self.get_compiled_path()).into(),
-            ),
+            CairoVersion::Cairo0 => {
+                ContractClass::V0(DeprecatedContractClass::from_file(&self.get_compiled_path()))
+            }
             CairoVersion::Cairo1 => {
-                ContractClass::V1(CasmContractClass::from_file(&self.get_compiled_path()).into())
+                ContractClass::V1(CasmContractClass::from_file(&self.get_compiled_path()))
             }
             #[cfg(feature = "cairo_native")]
             CairoVersion::Native => {
-                NativeContractClassV1::from_file(&self.get_compiled_path()).into()
+                ContractClass::V1Native(SierraContractClass::from_file(&self.get_compiled_path()))
             }
         }
     }

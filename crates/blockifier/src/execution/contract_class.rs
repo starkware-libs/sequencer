@@ -1,3 +1,4 @@
+use core::panic;
 use std::collections::{HashMap, HashSet};
 use std::ops::{Deref, Index};
 use std::sync::Arc;
@@ -77,6 +78,10 @@ impl TryFrom<ContractClass> for RunnableContractClass {
         let contract_class: Self = match raw_contract_class {
             ContractClass::V0(raw_contract_class) => Self::V0(raw_contract_class.try_into()?),
             ContractClass::V1(raw_contract_class) => Self::V1(raw_contract_class.try_into()?),
+            #[cfg(feature = "cairo_native")]
+            ContractClass::V1Native(raw_contract_class) => {
+                Self::V1Native(raw_contract_class.try_into()?)
+            }
         };
 
         Ok(contract_class)
@@ -544,6 +549,8 @@ impl ClassInfo {
         match &self.contract_class {
             ContractClass::V0(contract_class) => contract_class.bytecode_length(),
             ContractClass::V1(contract_class) => contract_class.bytecode.len(),
+            #[cfg(feature = "cairo_native")]
+            ContractClass::V1Native(_) => panic!("Native contract have no bytecode length info"),
         }
     }
 
@@ -574,6 +581,8 @@ impl ClassInfo {
         let (contract_class_version, condition) = match contract_class {
             ContractClass::V0(_) => (0, sierra_program_length == 0),
             ContractClass::V1(_) => (1, sierra_program_length > 0),
+            #[cfg(feature = "cairo_native")]
+            ContractClass::V1Native(_) => (1, sierra_program_length > 0),
         };
 
         if condition {
