@@ -284,7 +284,7 @@ fn get_rand_test_body_with_events(
         while is_v3_transaction(&transaction) {
             transaction = Transaction::get_test_instance(rng);
         }
-        transaction_hashes.push(TransactionHash(StarkHash::from(i as u128)));
+        transaction_hashes.push(TransactionHash(StarkHash::from(u128::try_from(i).unwrap())));
         let transaction_output = get_test_transaction_output(&transaction);
         transactions.push(transaction);
         transaction_outputs.push(transaction_output);
