@@ -199,8 +199,8 @@ impl<'state> NativeSyscallHandler<'state> {
                 resource_bounds: calculate_resource_bounds(context)?,
                 tip: context.tip.0.into(),
                 paymaster_data: context.paymaster_data.0.clone(),
-                nonce_data_availability_mode: context.nonce_data_availability_mode as u32,
-                fee_data_availability_mode: context.fee_data_availability_mode as u32,
+                nonce_data_availability_mode: context.nonce_data_availability_mode.into(),
+                fee_data_availability_mode: context.fee_data_availability_mode.into(),
                 account_deployment_data: context.account_deployment_data.0.clone(),
                 ..native_tx_info
             }),
