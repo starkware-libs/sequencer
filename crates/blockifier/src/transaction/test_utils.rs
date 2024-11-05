@@ -16,10 +16,6 @@ use starknet_api::transaction::fields::{
     ValidResourceBounds,
 };
 use starknet_api::transaction::{
-    InvokeTransactionV0,
-    InvokeTransactionV1,
-    InvokeTransactionV3,
-    TransactionHash,
     TransactionVersion,
 };
 use starknet_api::{calldata, declare_tx_args, deploy_account_tx_args, felt, invoke_tx_args};
@@ -52,7 +48,7 @@ use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::constants;
 use crate::transaction::objects::{FeeType, TransactionExecutionInfo, TransactionExecutionResult};
 use crate::transaction::transaction_types::TransactionType;
-use crate::transaction::transactions::{ExecutableTransaction, InvokeTransaction};
+use crate::transaction::transactions::ExecutableTransaction;
 
 // Corresponding constants to the ones in faulty_account.
 pub const VALID: u64 = 0;
@@ -63,25 +59,6 @@ pub const GET_EXECUTION_INFO: u64 = 4;
 pub const GET_BLOCK_NUMBER: u64 = 5;
 pub const GET_BLOCK_TIMESTAMP: u64 = 6;
 pub const GET_SEQUENCER_ADDRESS: u64 = 7;
-
-macro_rules! impl_from_versioned_tx {
-    ($(($specified_tx_type:ty, $enum_variant:ident)),*) => {
-        $(impl From<$specified_tx_type> for InvokeTransaction {
-            fn from(tx: $specified_tx_type) -> Self {
-                Self::new(
-                    starknet_api::transaction::InvokeTransaction::$enum_variant(tx),
-                    TransactionHash::default(),
-                )
-            }
-        })*
-    };
-}
-
-impl_from_versioned_tx!(
-    (InvokeTransactionV0, V0),
-    (InvokeTransactionV1, V1),
-    (InvokeTransactionV3, V3)
-);
 
 /// Test fixtures.
 
