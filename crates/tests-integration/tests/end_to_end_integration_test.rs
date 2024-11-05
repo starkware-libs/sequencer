@@ -1,13 +1,17 @@
 use std::env;
+use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use rstest::{fixture, rstest};
+use starknet_http_server::config::HttpServerConfig;
 use starknet_integration_tests::integration_test_config_utils::dump_config_file_changes;
 use starknet_integration_tests::integration_test_utils::{
     create_config,
     create_integration_test_tx_generator,
+    run_transaction_generator_test_scenario,
+    HttpTestClient,
 };
 use starknet_integration_tests::state_reader::{spawn_test_rpc_state_reader, StorageTestSetup};
 use starknet_sequencer_infra::trace_util::configure_tracing;
@@ -76,6 +80,17 @@ async fn test_end_to_end_integration(tx_generator: MultiAccountTransactionGenera
     });
 
     // TODO(Tsabary): wait for the node to be up.
+
+    info!("Running integration test simulator.");
+
+    let HttpServerConfig { ip, port } = config.http_server_config;
+    let http_test_client = HttpTestClient::new(SocketAddr::from((ip, port)));
+
+    let send_rpc_tx_fn = &|rpc_tx| http_test_client.assert_add_tx_success(rpc_tx);
+
+    let n_txs = 50;
+    info!("Sending {n_txs} txs.");
+    run_transaction_generator_test_scenario(tx_generator, n_txs, send_rpc_tx_fn).await;
 
     // TODO(Tsabary): Run tx generator.
     // TODO(Tsabary): Spawn state reader and check state is as expected.
