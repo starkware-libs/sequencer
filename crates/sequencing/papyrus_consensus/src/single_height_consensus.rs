@@ -168,7 +168,9 @@ impl SingleHeightConsensus {
         timeouts: TimeoutsConfig,
     ) -> Self {
         // TODO(matan): Use actual weights, not just `len`.
-        let state_machine = StateMachine::new(id, validators.len() as u32);
+        let n_validators =
+            u32::try_from(validators.len()).expect("Should have way less than u32::MAX validators");
+        let state_machine = StateMachine::new(id, n_validators);
         Self {
             height,
             validators,
@@ -566,7 +568,11 @@ impl SingleHeightConsensus {
             })
             .collect();
         // TODO(matan): Check actual weights.
-        assert!(supporting_precommits.len() >= self.state_machine.quorum_size() as usize);
+        assert!(
+            supporting_precommits.len()
+                >= usize::try_from(self.state_machine.quorum_size())
+                    .expect("u32 should fit in usize")
+        );
         Ok(ShcReturn::Decision(Decision { precommits: supporting_precommits, block }))
     }
 }
