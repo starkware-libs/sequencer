@@ -393,7 +393,7 @@ where
     }
 }
 
-fn new_affine<Curve: SWCurveConfig>(
+pub fn new_affine<Curve: SWCurveConfig>(
     x: num_bigint::BigUint,
     y: num_bigint::BigUint,
 ) -> Result<Option<Affine<Curve>>, SyscallExecutionError>
