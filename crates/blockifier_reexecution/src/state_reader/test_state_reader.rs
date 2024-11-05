@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::sync::{Arc, Mutex};
 
+use blockifier::abi::constants;
 use blockifier::blockifier::block::BlockInfo;
 use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::TransactionExecutor;
@@ -15,14 +16,19 @@ use blockifier::transaction::transaction_execution::Transaction as BlockifierTra
 use blockifier::versioned_constants::VersionedConstants;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, to_value};
-use starknet_api::block::{BlockNumber, StarknetVersion};
+use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber, StarknetVersion};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_core::types::ContractClass as StarknetContractClass;
 use starknet_gateway::config::RpcStateReaderConfig;
 use starknet_gateway::errors::{serde_err_to_state_err, RPCStateReaderError};
-use starknet_gateway::rpc_objects::{BlockHeader, GetBlockWithTxHashesParams, ResourcePrice};
+use starknet_gateway::rpc_objects::{
+    BlockHeader,
+    BlockId,
+    GetBlockWithTxHashesParams,
+    ResourcePrice,
+};
 use starknet_gateway::rpc_state_reader::RpcStateReader;
 use starknet_types_core::felt::Felt;
 
@@ -295,11 +301,17 @@ impl TestStateReader {
         block_context_next_block: BlockContext,
         transaction_executor_config: Option<TransactionExecutorConfig>,
     ) -> ReexecutionResult<TransactionExecutor<TestStateReader>> {
-        Ok(TransactionExecutor::<TestStateReader>::new(
-            CachedState::new(self),
+        let old_block_number = BlockNumber(
+            block_context_next_block.block_info().block_number.0
+                - constants::STORED_BLOCK_HASH_BUFFER,
+        );
+        let old_block_hash = self.get_old_block_hash(old_block_number)?;
+        Ok(TransactionExecutor::<TestStateReader>::pre_process_and_create(
+            self,
             block_context_next_block,
+            Some(BlockHashAndNumber { number: old_block_number, hash: old_block_hash }),
             transaction_executor_config.unwrap_or_default(),
-        ))
+        )?)
     }
 
     pub fn get_state_diff(&self) -> ReexecutionResult<CommitmentStateDiff> {
@@ -374,6 +386,15 @@ impl ReexecutionStateReader for TestStateReader {
             contract_class_mapping_dumper.insert(*class_hash, contract_class.clone());
         }
         Ok(contract_class)
+    }
+
+    fn get_old_block_hash(&self, old_block_number: BlockNumber) -> ReexecutionResult<BlockHash> {
+        let block_id = BlockId::Number(old_block_number);
+        let params = GetBlockWithTxHashesParams { block_id };
+        let response =
+            self.rpc_state_reader.send_rpc_request("starknet_getBlockWithTxHashes", params)?;
+        let block_hash_raw: String = serde_json::from_value(response["block_hash"].clone())?;
+        Ok(BlockHash(Felt::from_hex(&block_hash_raw).unwrap()))
     }
 }
 
@@ -502,6 +523,10 @@ impl ReexecutionStateReader for OfflineStateReader {
                 "Missing contract class at class hash: {class_hash}"
             )))?
             .clone())
+    }
+
+    fn get_old_block_hash(&self, _old_block_number: BlockNumber) -> ReexecutionResult<BlockHash> {
+        todo!()
     }
 }
 
