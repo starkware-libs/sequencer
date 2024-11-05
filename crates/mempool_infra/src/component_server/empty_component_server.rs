@@ -27,10 +27,6 @@ impl<Component: ComponentStarter + Send> ComponentServerStarter for WrapperServe
     }
 }
 
-pub fn create_empty_server<Component: Send>(component: Component) -> WrapperServer<Component> {
-    WrapperServer::new(component)
-}
-
 impl<Component> ComponentReplacer<Component> for WrapperServer<Component> {
     fn replace(&mut self, component: Component) -> Result<(), ReplaceComponentError> {
         self.component = component;

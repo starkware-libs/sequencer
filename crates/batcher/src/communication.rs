@@ -1,23 +1,11 @@
 use async_trait::async_trait;
-use starknet_batcher_types::communication::{
-    BatcherRequest,
-    BatcherRequestAndResponseSender,
-    BatcherResponse,
-};
+use starknet_batcher_types::communication::{BatcherRequest, BatcherResponse};
 use starknet_sequencer_infra::component_definitions::ComponentRequestHandler;
 use starknet_sequencer_infra::component_server::LocalComponentServer;
-use tokio::sync::mpsc::Receiver;
 
 use crate::batcher::Batcher;
 
 pub type LocalBatcherServer = LocalComponentServer<Batcher, BatcherRequest, BatcherResponse>;
-
-pub fn create_local_batcher_server(
-    batcher: Batcher,
-    rx_batcher: Receiver<BatcherRequestAndResponseSender>,
-) -> LocalBatcherServer {
-    LocalComponentServer::new(batcher, rx_batcher)
-}
 
 #[async_trait]
 impl ComponentRequestHandler<BatcherRequest, BatcherResponse> for Batcher {
