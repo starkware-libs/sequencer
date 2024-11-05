@@ -50,6 +50,10 @@ impl<K: Unpin + Clone + Eq + Hash, V: Stream + Unpin> StreamHashMap<K, V> {
 impl<K: Unpin + Clone + Eq + Hash, V: Stream + Unpin> Stream for StreamHashMap<K, V> {
     type Item = (K, Option<<V as Stream>::Item>);
 
+    /// Polls the streams in the map. If a stream is ready, returns the key and the value. If a
+    /// stream is finished, remove it from the map and return the key with None. If there is no
+    /// ready steam (either because there are no streams or because non of the streams are ready),
+    /// return Poll::Pending.
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let unpinned_self = Pin::into_inner(self);
         let mut finished_stream_key: Option<K> = None;
@@ -85,4 +89,66 @@ pub fn is_localhost(address: &Multiaddr) -> bool {
         return false;
     };
     ip4_address == Ipv4Addr::LOCALHOST
+}
+
+mod test {
+    use std::collections::{HashMap, VecDeque};
+
+    use futures::{stream::StreamExt, FutureExt};
+
+    use super::*;
+
+    #[tokio::test]
+    async fn test_stream_hash_map_basic_usage() {
+        // init a new stream hash map with two streams.
+        let mut stream_hash_map = StreamHashMap::new(HashMap::new());
+        stream_hash_map.insert("key1", futures::stream::iter(vec![1, 2, 3]));
+        stream_hash_map.insert("key2", futures::stream::iter(vec![4, 5, 6]));
+
+        let mut expected_values = HashMap::from([
+            ("key1", VecDeque::from([1, 2, 3])),
+            ("key2", VecDeque::from([4, 5, 6])),
+        ]);
+
+        // Because the streams are ready, now_or_never will return None when both streams are empty.
+        // Using await would have resulted in an eternal loop because poll_next always matches the pattern
+        while let Some(Some((key, maybe_value))) = stream_hash_map.next().now_or_never() {
+            match maybe_value {
+                Some(value) => {
+                    println!("Received value {} from {}.", value, key);
+                    let expected_value = expected_values.get_mut(key).unwrap();
+                    assert_eq!(value, expected_value.pop_front().unwrap());
+                }
+                None => {
+                    println!("key {} is an empty stream. Dropping the key.", key);
+                    assert!(expected_values.get(key).unwrap().is_empty());
+                    expected_values.remove(key);
+                }
+            }
+        }
+        // After polling the entire map, assert that all of the expected values have been polled
+        assert!(expected_values.is_empty());
+
+        // insert a new stream to the map and assert the map continues functioning properly.
+        stream_hash_map.insert("key3", futures::stream::iter(vec![1,4,7]));
+        expected_values.insert("key3", VecDeque::from([1,4,7]));
+
+        while let Some(Some((key, maybe_value))) = stream_hash_map.next().now_or_never() {
+            match maybe_value {
+                Some(value) => {
+                    println!("Received value {} from {}.", value, key);
+                    let expected_value = expected_values.get_mut(key).unwrap();
+                    assert_eq!(value, expected_value.pop_front().unwrap());
+                }
+                None => {
+                    println!("key {} is an empty stream. Dropping the key.", key);
+                    assert!(expected_values.get(key).unwrap().is_empty());
+                    expected_values.remove(key);
+                }
+            }
+        }
+
+        // After polling the entire map, assert that all of the expected values have been polled
+        assert!(expected_values.is_empty());
+    }
 }
