@@ -5,6 +5,7 @@ use std::ops::Add;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use serde::Serialize;
 use starknet_api::core::{ClassHash, EthAddress};
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{EventContent, L2ToL1Payload};
 use starknet_types_core::felt::Felt;
@@ -95,6 +96,22 @@ impl Sum for ExecutionSummary {
     }
 }
 
+/// L2 resources counted for fee charge.
+/// When all execution will be using gas (no VM mode), this should be removed, and the gas_consumed
+/// field should be used for fee collection.
+#[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
+#[derive(Clone, Debug, Default, Serialize, Eq, PartialEq)]
+pub struct ChargedResources {
+    pub vm_resources: ExecutionResources, // Counted in CairoSteps mode calls.
+    pub gas_for_fee: GasAmount,           // Counted in SierraGas mode calls.
+}
+
+impl ChargedResources {
+    pub fn from_execution_resources(resources: ExecutionResources) -> Self {
+        Self { vm_resources: resources, ..Default::default() }
+    }
+}
+
 /// Represents the full effects of executing an entry point, including the inner calls it invoked.
 #[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
@@ -102,9 +119,9 @@ impl Sum for ExecutionSummary {
 pub struct CallInfo {
     pub call: CallEntryPoint,
     pub execution: CallExecution,
-    pub resources: ExecutionResources,
     pub inner_calls: Vec<CallInfo>,
     pub tracked_resource: TrackedResource,
+    pub charged_resources: ChargedResources,
 
     // Additional information gathered during execution.
     pub storage_read_values: Vec<Felt>,
