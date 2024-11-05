@@ -34,3 +34,6 @@ papyrus_network_types = { workspace = true, features = ["testing"] }
 papyrus_storage = { workspace = true, features = ["testing"] }
 papyrus_test_utils.workspace = true
 test-case.workspace = true
+
+[lints]
+workspace = true
