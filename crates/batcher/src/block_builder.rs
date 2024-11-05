@@ -26,7 +26,13 @@ use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_storage::StorageReader;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockHashAndNumber, BlockNumber, BlockTimestamp, NonzeroGasPrice};
+use starknet_api::block::{
+    BlockHashAndNumber,
+    BlockNumber,
+    BlockTimestamp,
+    NonzeroGasPrice,
+    StarknetVersion,
+};
 use starknet_api::core::ContractAddress;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::transaction::TransactionHash;
@@ -256,6 +262,7 @@ impl BlockBuilderFactory {
                 GasPrices::new(tmp_val, tmp_val, tmp_val, tmp_val, tmp_val, tmp_val)
             },
             use_kzg_da: block_builder_config.use_kzg_da,
+            starknet_version: StarknetVersion::LATEST,
         };
         let block_context = BlockContext::new(
             next_block_info,

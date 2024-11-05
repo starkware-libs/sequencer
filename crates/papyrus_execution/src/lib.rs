@@ -371,6 +371,10 @@ fn create_block_context(
         }
     };
 
+    let starknet_version = storage_reader
+        .begin_ro_txn()?
+        .get_starknet_version(block_number)?
+        .unwrap_or(StarknetVersion::LATEST);
     let block_info = BlockInfo {
         block_timestamp,
         sequencer_address: sequencer_address.0,
@@ -385,6 +389,7 @@ fn create_block_context(
             NonzeroGasPrice::new(l2_gas_price.price_in_wei).unwrap_or(NonzeroGasPrice::MIN),
             NonzeroGasPrice::new(l2_gas_price.price_in_fri).unwrap_or(NonzeroGasPrice::MIN),
         ),
+        starknet_version,
     };
     let chain_info = ChainInfo {
         chain_id,
@@ -393,10 +398,6 @@ fn create_block_context(
             eth_fee_token_address: execution_config.eth_fee_contract_address,
         },
     };
-    let starknet_version = storage_reader
-        .begin_ro_txn()?
-        .get_starknet_version(block_number)?
-        .unwrap_or(StarknetVersion::LATEST);
     let versioned_constants = VersionedConstants::get(&starknet_version)?;
 
     let block_context = BlockContext::new(

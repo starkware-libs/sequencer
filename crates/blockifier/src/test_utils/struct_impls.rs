@@ -3,7 +3,7 @@ use std::sync::Arc;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use serde_json::Value;
-use starknet_api::block::{BlockNumber, BlockTimestamp, NonzeroGasPrice};
+use starknet_api::block::{BlockNumber, BlockTimestamp, NonzeroGasPrice, StarknetVersion};
 use starknet_api::contract_address;
 use starknet_api::core::{ChainId, ClassHash};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
@@ -153,6 +153,7 @@ impl BlockInfo {
                 .unwrap(),
             ),
             use_kzg_da: false,
+            starknet_version: StarknetVersion::LATEST,
         }
     }
 

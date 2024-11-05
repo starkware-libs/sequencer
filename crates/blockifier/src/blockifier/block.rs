@@ -6,6 +6,7 @@ use starknet_api::block::{
     GasPrice,
     GasPriceVector,
     NonzeroGasPrice,
+    StarknetVersion,
 };
 use starknet_api::core::ContractAddress;
 use starknet_api::state::StorageKey;
@@ -30,6 +31,7 @@ pub struct BlockInfo {
     pub sequencer_address: ContractAddress,
     pub gas_prices: GasPrices,
     pub use_kzg_da: bool,
+    pub starknet_version: StarknetVersion,
 }
 
 #[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
