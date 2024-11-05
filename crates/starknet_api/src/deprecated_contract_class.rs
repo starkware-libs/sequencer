@@ -195,7 +195,7 @@ pub struct TypedParameter {
     pub r#type: String,
 }
 
-/// The offset of an [EntryPoint](`crate::deprecated_contract_class::EntryPoint`).
+/// The offset of an [EntryPoint](`crate::deprecated_contract_class::DeprecatedEntryPoint`).
 #[derive(
     Debug, Copy, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord,
 )]
@@ -212,10 +212,10 @@ impl TryFrom<String> for EntryPointOffset {
 
 pub fn number_or_string<'de, D: Deserializer<'de>>(deserializer: D) -> Result<usize, D::Error> {
     let usize_value = match Value::deserialize(deserializer)? {
-        Value::Number(number) => {
-            number.as_u64().ok_or(DeserializationError::custom("Cannot cast number to usize."))?
-                as usize
-        }
+        Value::Number(number) => number
+            .as_u64()
+            .and_then(|num_u64| usize::try_from(num_u64).ok())
+            .ok_or(DeserializationError::custom("Cannot cast number to usize."))?,
         Value::String(s) => hex_string_try_into_usize(&s).map_err(DeserializationError::custom)?,
         _ => return Err(DeserializationError::custom("Cannot cast value into usize.")),
     };
