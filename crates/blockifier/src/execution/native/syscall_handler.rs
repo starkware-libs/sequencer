@@ -373,7 +373,7 @@ where
     }
 }
 
-fn get_point_from_x<Curve: SWCurveConfig>(
+pub fn get_point_from_x<Curve: SWCurveConfig>(
     x: num_bigint::BigUint,
     y_parity: bool,
 ) -> Result<Option<Affine<Curve>>, SyscallExecutionError>

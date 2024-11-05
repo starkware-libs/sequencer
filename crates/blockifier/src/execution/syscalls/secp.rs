@@ -9,7 +9,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::abi::sierra_types::{SierraType, SierraU256};
 use crate::execution::execution_utils::{felt_from_ptr, write_maybe_relocatable, write_u256};
-use crate::execution::native::syscall_handler::new_affine;
+use crate::execution::native::syscall_handler::{get_point_from_x, new_affine};
 use crate::execution::syscalls::hint_processor::{
     felt_to_bool,
     SyscallHintProcessor,
@@ -51,26 +51,9 @@ where
         &mut self,
         request: SecpGetPointFromXRequest,
     ) -> SyscallResult<SecpGetPointFromXResponse> {
-        let modulos = Curve::BaseField::MODULUS.into();
+        let affine = get_point_from_x(request.x, request.y_parity);
 
-        if request.x >= modulos {
-            return Err(SyscallExecutionError::SyscallError {
-                error_data: vec![
-                    Felt::from_hex(INVALID_ARGUMENT).map_err(SyscallExecutionError::from)?,
-                ],
-            });
-        }
-
-        let x = request.x.into();
-        let maybe_ec_point = short_weierstrass::Affine::<Curve>::get_ys_from_x_unchecked(x)
-            .map(|(smaller, greater)| {
-                // Return the correct y coordinate based on the parity.
-                if smaller.into_bigint().is_odd() == request.y_parity { smaller } else { greater }
-            })
-            .map(|y| short_weierstrass::Affine::<Curve>::new_unchecked(x, y))
-            .filter(|p| p.is_in_correct_subgroup_assuming_on_curve());
-
-        Ok(SecpGetPointFromXResponse {
+        affine.map(|maybe_ec_point| SecpGetPointFromXResponse {
             optional_ec_point_id: maybe_ec_point.map(|ec_point| self.allocate_point(ec_point)),
         })
     }
@@ -83,8 +66,8 @@ where
 
     pub fn secp_new(&mut self, request: SecpNewRequest) -> SyscallResult<SecpNewResponse> {
         let affine = new_affine::<Curve>(request.x, request.y);
-        affine.map(|op| SecpNewResponse {
-            optional_ec_point_id: op.map(|point| self.allocate_point(point)),
+        affine.map(|maybe_ec_point| SecpNewResponse {
+            optional_ec_point_id: maybe_ec_point.map(|point| self.allocate_point(point)),
         })
     }
 
