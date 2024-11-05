@@ -299,6 +299,7 @@ impl VersionedConstants {
         Self { vm_resource_fee_cost, archival_data_gas_costs, ..latest }
     }
 
+    // TODO(Arni): Share code with latest_with_overrides.
     pub fn latest_constants_with_overrides(
         validate_max_n_steps: u32,
         max_recursion_depth: usize,
@@ -306,7 +307,7 @@ impl VersionedConstants {
         Self { validate_max_n_steps, max_recursion_depth, ..Self::latest_constants().clone() }
     }
 
-    /// Returns the latest versioned constants after applying the given overrides.
+    /// Returns the latest versioned constants, applying the given overrides.
     pub fn get_versioned_constants(
         versioned_constants_overrides: VersionedConstantsOverrides,
     ) -> Self {
@@ -320,6 +321,16 @@ impl VersionedConstants {
             max_recursion_depth,
             invoke_tx_max_n_steps,
             ..Self::latest_constants().clone()
+        }
+    }
+
+    /// Returns the latest versioned constants, applying the given overrides if provided.
+    pub fn latest_with_overrides(
+        versioned_constants_overrides: Option<VersionedConstantsOverrides>,
+    ) -> Self {
+        match versioned_constants_overrides {
+            Some(overrides) => Self::get_versioned_constants(overrides),
+            None => Self::latest_constants().clone(),
         }
     }
 
