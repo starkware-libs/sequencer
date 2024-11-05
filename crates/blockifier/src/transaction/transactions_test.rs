@@ -2304,13 +2304,13 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
 
     let mut expected_execution_resources = ExecutionResources {
         builtin_instance_counter: HashMap::from([
-            (BuiltinName::pedersen, 11 + payload_size),
             (
                 BuiltinName::range_check,
                 get_tx_resources(TransactionType::L1Handler).builtin_instance_counter
                     [&BuiltinName::range_check]
                     + 6,
             ),
+            (BuiltinName::pedersen, 11 + payload_size),
         ]),
         n_steps: get_tx_resources(TransactionType::L1Handler).n_steps + 164,
         n_memory_holes: 0,
