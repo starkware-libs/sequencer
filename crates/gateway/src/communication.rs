@@ -1,25 +1,13 @@
 use async_trait::async_trait;
-use starknet_gateway_types::communication::{
-    GatewayRequest,
-    GatewayRequestAndResponseSender,
-    GatewayResponse,
-};
+use starknet_gateway_types::communication::{GatewayRequest, GatewayResponse};
 use starknet_gateway_types::errors::GatewayError;
 use starknet_sequencer_infra::component_definitions::ComponentRequestHandler;
 use starknet_sequencer_infra::component_server::LocalComponentServer;
-use tokio::sync::mpsc::Receiver;
 use tracing::instrument;
 
 use crate::gateway::Gateway;
 
 pub type LocalGatewayServer = LocalComponentServer<Gateway, GatewayRequest, GatewayResponse>;
-
-pub fn create_gateway_server(
-    gateway: Gateway,
-    rx_gateway: Receiver<GatewayRequestAndResponseSender>,
-) -> LocalGatewayServer {
-    LocalComponentServer::new(gateway, rx_gateway)
-}
 
 #[async_trait]
 impl ComponentRequestHandler<GatewayRequest, GatewayResponse> for Gateway {
