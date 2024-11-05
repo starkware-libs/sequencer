@@ -182,6 +182,7 @@ impl DeclareTransaction {
         class_info: ClassInfo,
         chain_id: &ChainId,
     ) -> Result<Self, StarknetApiError> {
+        class_info.validate_class_version_matches_tx_version(declare_tx.version())?;
         let tx_hash = declare_tx.calculate_transaction_hash(chain_id, &declare_tx.version())?;
         Ok(Self { tx: declare_tx, tx_hash, class_info })
     }

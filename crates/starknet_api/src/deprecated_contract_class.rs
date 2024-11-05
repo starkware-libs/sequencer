@@ -11,6 +11,7 @@ use crate::contract_class::EntryPointType;
 use crate::core::EntryPointSelector;
 use crate::hash::StarkHash;
 use crate::serde_utils::deserialize_optional_contract_class_abi_entry_vector;
+use crate::transaction::TransactionVersion;
 use crate::StarknetApiError;
 
 /// A deprecated contract class.
@@ -29,6 +30,21 @@ pub struct ContractClass {
 impl ContractClass {
     pub fn bytecode_length(&self) -> usize {
         self.program.data.as_array().expect("The program data must be an array.").len()
+    }
+
+    pub fn validate_class_version_matches_tx_version(
+        &self,
+        declare_version: TransactionVersion,
+    ) -> Result<(), StarknetApiError> {
+        if !(declare_version == TransactionVersion::ZERO
+            || declare_version == TransactionVersion::ONE)
+        {
+            Err(StarknetApiError::ContractClassVersionMismatch {
+                declare_version,
+                cairo_version: 0,
+            })?
+        }
+        Ok(())
     }
 }
 

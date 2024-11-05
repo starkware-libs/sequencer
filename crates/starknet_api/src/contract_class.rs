@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::core::{CompiledClassHash, WORD_WIDTH};
 use crate::deprecated_contract_class::ContractClass as DeprecatedContractClass;
+use crate::transaction::TransactionVersion;
 use crate::StarknetApiError;
 
 #[derive(
@@ -37,6 +38,29 @@ impl ContractClass {
                 CompiledClassHash(casm_contract_class.compiled_class_hash())
             }
         }
+    }
+
+    pub fn validate_class_version_matches_tx_version(
+        &self,
+        declare_version: TransactionVersion,
+    ) -> Result<(), StarknetApiError> {
+        match self {
+            ContractClass::V0(class) => {
+                class.validate_class_version_matches_tx_version(declare_version)?;
+            }
+            // TODO(AvivG): Add validation for V1 when 'impl CasmContractClass' is available.
+            ContractClass::V1(_) => {
+                if !(declare_version == TransactionVersion::TWO
+                    || declare_version == TransactionVersion::THREE)
+                {
+                    Err(StarknetApiError::ContractClassVersionMismatch {
+                        declare_version,
+                        cairo_version: 1,
+                    })?
+                }
+            }
+        }
+        Ok(())
     }
 }
 /// All relevant information about a declared contract class, including the compiled contract class
@@ -95,5 +119,14 @@ impl ClassInfo {
                 sierra_program_length,
             })
         }
+    }
+
+    pub fn validate_class_version_matches_tx_version(
+        &self,
+        declare_version: TransactionVersion,
+    ) -> Result<(), StarknetApiError> {
+        let class = &self.contract_class.clone();
+        class.validate_class_version_matches_tx_version(declare_version)?;
+        Ok(())
     }
 }
