@@ -1,31 +1,23 @@
 use std::net::IpAddr;
 
-use axum::body::Body;
-use axum::http::{Request, StatusCode};
+use axum::http::StatusCode;
 use axum::response::Response;
 use axum::Router;
 use http_body::combinators::UnsyncBoxBody;
 use pretty_assertions::assert_eq;
 use tower::ServiceExt;
 
-use super::{
-    create_monitoring_endpoint,
-    MonitoringEndpoint,
-    MonitoringEndpointConfig,
-    MONITORING_PREFIX,
-};
+use super::MonitoringEndpointConfig;
+use crate::monitoring_endpoint::{create_monitoring_endpoint, MonitoringEndpoint};
+use crate::test_utils::build_request;
 
+// TODO(Tsabary): Clear feature dependencies and dev dependencies.
+
+// TODO(Lev): Change method strings to constants.
 const TEST_VERSION: &str = "1.2.3-dev";
 
 fn setup_monitoring_endpoint() -> MonitoringEndpoint {
     create_monitoring_endpoint(MonitoringEndpointConfig::default(), TEST_VERSION)
-}
-
-fn build_request(ip: &IpAddr, port: u16, method: &str) -> Request<Body> {
-    Request::builder()
-        .uri(format!("http://{ip}:{port}/{MONITORING_PREFIX}/{method}").as_str())
-        .body(Body::empty())
-        .unwrap()
 }
 
 async fn request_app(
@@ -34,8 +26,6 @@ async fn request_app(
 ) -> Response<UnsyncBoxBody<axum::body::Bytes, axum::Error>> {
     app.oneshot(build_request(&IpAddr::from([0, 0, 0, 0]), 0, method)).await.unwrap()
 }
-
-// TODO(Lev): Change method strings to constants.
 
 #[tokio::test]
 async fn test_node_version() {
