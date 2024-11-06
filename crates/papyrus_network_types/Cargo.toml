@@ -13,3 +13,6 @@ libp2p = { workspace = true, features = ["serde"] }
 papyrus_test_utils = { workspace = true, optional = true }
 rand_chacha = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
+
+[lints]
+workspace = true

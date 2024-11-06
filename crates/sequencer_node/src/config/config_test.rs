@@ -20,6 +20,7 @@ use crate::config::{
     ComponentExecutionConfig,
     ComponentExecutionMode,
     SequencerNodeConfig,
+    CONFIG_NON_POINTERS_WHITELIST,
     CONFIG_POINTERS,
     DEFAULT_CONFIG_PATH,
     REQUIRED_PARAM_CONFIG_POINTERS,
@@ -71,7 +72,13 @@ fn test_default_config_file_is_up_to_date() {
     // Create a temporary file and dump the default config to it.
     let mut tmp_file_path = env::temp_dir();
     tmp_file_path.push("cfg.json");
-    default_config.dump_to_file(&CONFIG_POINTERS, tmp_file_path.to_str().unwrap()).unwrap();
+    default_config
+        .dump_to_file(
+            &CONFIG_POINTERS,
+            &CONFIG_NON_POINTERS_WHITELIST,
+            tmp_file_path.to_str().unwrap(),
+        )
+        .unwrap();
 
     // Read the dumped config from the file.
     let from_code: serde_json::Value =
@@ -106,7 +113,7 @@ fn test_config_parsing() {
 #[test]
 fn test_required_params_setting() {
     let required_pointers =
-        REQUIRED_PARAM_CONFIG_POINTERS.iter().map(|(x, _)| x.to_owned()).collect::<Vec<_>>();
+        REQUIRED_PARAM_CONFIG_POINTERS.iter().map(|((x, _), _)| x.to_owned()).collect::<Vec<_>>();
     let required_params = RequiredParams::field_names();
     assert_eq!(required_pointers, required_params);
 }

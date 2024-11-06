@@ -25,3 +25,6 @@ assert_matches.workspace = true
 papyrus_test_utils.workspace = true
 pretty_assertions.workspace = true
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
+
+[lints]
+workspace = true

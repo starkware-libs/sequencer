@@ -57,18 +57,54 @@ pub const VALID_L1_DATA_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000;
 pub const TEST_SENDER_ADDRESS: u128 = 0x1000;
 
 // Utils.
+#[derive(Clone)]
 pub enum TransactionType {
     Declare,
     DeployAccount,
     Invoke,
 }
 
+#[derive(Clone)]
+pub struct RpcTransactionArgs {
+    pub sender_address: ContractAddress,
+    pub resource_bounds: AllResourceBounds,
+    pub calldata: Calldata,
+    pub signature: TransactionSignature,
+}
+
+impl Default for RpcTransactionArgs {
+    fn default() -> Self {
+        Self {
+            sender_address: TEST_SENDER_ADDRESS.into(),
+            resource_bounds: AllResourceBounds::default(),
+            calldata: Default::default(),
+            signature: Default::default(),
+        }
+    }
+}
+
+/// Utility macro for creating `RpcTransactionArgs` to reduce boilerplate.
+#[macro_export]
+macro_rules! rpc_tx_args {
+    ($($field:ident $(: $value:expr)?),* $(,)?) => {
+        $crate::starknet_api_test_utils::RpcTransactionArgs {
+            $($field $(: $value)?,)*
+            ..Default::default()
+        }
+    };
+    ($($field:ident $(: $value:expr)?),* , ..$defaults:expr) => {
+        $crate::starknet_api_test_utils::RpcTransactionArgs {
+            $($field $(: $value)?,)*
+            ..$defaults
+        }
+    };
+}
+
 pub fn rpc_tx_for_testing(
     tx_type: TransactionType,
-    resource_bounds: AllResourceBounds,
-    calldata: Calldata,
-    signature: TransactionSignature,
+    rpc_tx_args: RpcTransactionArgs,
 ) -> RpcTransaction {
+    let RpcTransactionArgs { sender_address, resource_bounds, calldata, signature } = rpc_tx_args;
     match tx_type {
         TransactionType::Declare => {
             // Minimal contract class.
@@ -85,27 +121,29 @@ pub fn rpc_tx_for_testing(
                 ],
                 ..Default::default()
             };
-            rpc_declare_tx(declare_tx_args!(resource_bounds, signature, contract_class))
+            rpc_declare_tx(declare_tx_args!(
+                signature,
+                sender_address,
+                resource_bounds,
+                contract_class,
+            ))
         }
         TransactionType::DeployAccount => rpc_deploy_account_tx(deploy_account_tx_args!(
+            signature,
             resource_bounds: ValidResourceBounds::AllResources(resource_bounds),
             constructor_calldata: calldata,
-            signature
         )),
         TransactionType::Invoke => rpc_invoke_tx(invoke_tx_args!(
             signature,
+            sender_address,
+            calldata,
             resource_bounds: ValidResourceBounds::AllResources(resource_bounds),
-            calldata
         )),
     }
 }
 
 pub const NON_EMPTY_RESOURCE_BOUNDS: ResourceBounds =
     ResourceBounds { max_amount: GasAmount(1), max_price_per_unit: GasPrice(1) };
-
-pub fn zero_resource_bounds_mapping() -> AllResourceBounds {
-    AllResourceBounds::default()
-}
 
 pub fn test_resource_bounds_mapping() -> AllResourceBounds {
     AllResourceBounds {
@@ -275,7 +313,7 @@ impl MultiAccountTransactionGenerator {
 }
 
 /// Manages transaction generation for a single account.
-/// Supports faulty transaction generation via [AccountTransactionGenerator::generate_raw].
+/// Supports faulty transaction generation via [AccountTransactionGenerator::generate_raw_invoke].
 ///
 /// This struct provides methods to generate both default and fully customized transactions,
 /// with room for future extensions.
@@ -456,9 +494,9 @@ impl Default for DeclareTxArgs {
     fn default() -> Self {
         Self {
             signature: TransactionSignature::default(),
-            sender_address: ContractAddress::default(),
+            sender_address: TEST_SENDER_ADDRESS.into(),
             version: TransactionVersion::THREE,
-            resource_bounds: zero_resource_bounds_mapping(),
+            resource_bounds: AllResourceBounds::default(),
             tip: Tip::default(),
             nonce_data_availability_mode: DataAvailabilityMode::L1,
             fee_data_availability_mode: DataAvailabilityMode::L1,

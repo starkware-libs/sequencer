@@ -360,7 +360,7 @@ impl EntryPointExecutionContext {
     }
 
     /// From the total amount of steps available for execution, deduct the steps consumed during
-    /// validation and the overhead steps required for fee transfer.
+    /// validation and the overhead steps required, among the rest, for fee transfer.
     /// Returns the remaining steps (after the subtraction).
     pub fn subtract_validation_and_overhead_steps(
         &mut self,
@@ -370,7 +370,7 @@ impl EntryPointExecutionContext {
     ) -> usize {
         let validate_steps = validate_call_info
             .as_ref()
-            .map(|call_info| call_info.resources.n_steps)
+            .map(|call_info| call_info.charged_resources.vm_resources.n_steps)
             .unwrap_or_default();
 
         let overhead_steps =

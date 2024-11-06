@@ -12,7 +12,6 @@ use crate::transaction_queue::transaction_queue_test_utils::{
     TransactionQueueContent,
     TransactionQueueContentBuilder,
 };
-use crate::transaction_queue::TransactionQueue;
 use crate::{add_tx_input, tx};
 
 // Utils.
@@ -87,11 +86,11 @@ impl MempoolContentBuilder {
         self
     }
 
-    fn _with_pending_queue<Q>(mut self, queue_txs: Q) -> Self
+    fn with_pending_queue<Q>(mut self, queue_txs: Q) -> Self
     where
         Q: IntoIterator<Item = TransactionReference>,
     {
-        self.tx_queue_content_builder = self.tx_queue_content_builder._with_pending(queue_txs);
+        self.tx_queue_content_builder = self.tx_queue_content_builder.with_pending(queue_txs);
         self
     }
 
@@ -126,16 +125,6 @@ impl FromIterator<Transaction> for TransactionPool {
             pool.insert(tx).unwrap();
         }
         pool
-    }
-}
-
-impl FromIterator<TransactionReference> for TransactionQueue {
-    fn from_iter<T: IntoIterator<Item = TransactionReference>>(txs: T) -> Self {
-        let mut queue = Self::default();
-        for tx in txs {
-            queue.insert(tx);
-        }
-        queue
     }
 }
 
@@ -193,9 +182,9 @@ fn mempool() -> Mempool {
 fn test_get_txs_returns_by_priority_order(#[case] n_requested_txs: usize) {
     // Setup.
     let mut txs = [
-        tx!(tip: 20, tx_hash: 1, address: "0x0"),
-        tx!(tip: 30, tx_hash: 2, address: "0x1"),
-        tx!(tip: 10, tx_hash: 3, address: "0x2"),
+        tx!(tx_hash: 1, address: "0x0", tip: 20),
+        tx!(tx_hash: 2, address: "0x1", tip: 30),
+        tx!(tx_hash: 3, address: "0x2", tip: 10),
     ];
 
     let mut mempool = MempoolContentBuilder::new()
@@ -216,6 +205,20 @@ fn test_get_txs_returns_by_priority_order(#[case] n_requested_txs: usize) {
     let mempool_content =
         MempoolContentBuilder::new().with_priority_queue(remaining_tx_references).build();
     mempool_content.assert_eq(&mempool);
+}
+
+#[rstest]
+fn test_get_txs_does_not_return_pending_txs() {
+    // Setup.
+    let tx = tx!();
+
+    let mut mempool = MempoolContentBuilder::new()
+        .with_pending_queue([TransactionReference::new(&tx)])
+        .with_pool([tx])
+        .build_into_mempool();
+
+    // Test and assert.
+    get_txs_and_assert_expected(&mut mempool, 1, &[]);
 }
 
 #[rstest]
@@ -240,9 +243,9 @@ fn test_get_txs_does_not_remove_returned_txs_from_pool() {
 #[rstest]
 fn test_get_txs_replenishes_queue_only_between_chunks() {
     // Setup.
-    let tx_address_0_nonce_0 = tx!(tip: 20, tx_hash: 1, address: "0x0", tx_nonce: 0);
-    let tx_address_0_nonce_1 = tx!(tip: 20, tx_hash: 2, address: "0x0", tx_nonce: 1);
-    let tx_address_1_nonce_0 = tx!(tip: 10, tx_hash: 3, address: "0x1", tx_nonce: 0);
+    let tx_address_0_nonce_0 = tx!(tx_hash: 1, address: "0x0", tx_nonce: 0, tip: 20);
+    let tx_address_0_nonce_1 = tx!(tx_hash: 2, address: "0x0", tx_nonce: 1, tip: 20);
+    let tx_address_1_nonce_0 = tx!(tx_hash: 3, address: "0x1", tx_nonce: 0, tip: 10);
 
     let queue_txs = [&tx_address_0_nonce_0, &tx_address_1_nonce_0].map(TransactionReference::new);
     let pool_txs =
@@ -289,9 +292,9 @@ fn test_get_txs_with_nonce_gap() {
 fn test_add_tx(mut mempool: Mempool) {
     // Setup.
     let mut add_tx_inputs = [
-        add_tx_input!(tip: 50, tx_hash: 1, address: "0x0", tx_nonce: 0, account_nonce: 0),
-        add_tx_input!(tip: 100, tx_hash: 2, address: "0x1", tx_nonce: 1, account_nonce: 1),
-        add_tx_input!(tip: 80, tx_hash: 3, address: "0x2", tx_nonce: 2, account_nonce: 2),
+        add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 0, account_nonce: 0, tip: 50),
+        add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 1, account_nonce: 1, tip: 100),
+        add_tx_input!(tx_hash: 3, address: "0x2", tx_nonce: 2, account_nonce: 2, tip: 80),
     ];
 
     // Test.
@@ -397,10 +400,10 @@ fn test_add_tx_lower_than_queued_nonce() {
 #[rstest]
 fn test_add_tx_with_identical_tip_succeeds(mut mempool: Mempool) {
     // Setup.
-    let input1 = add_tx_input!(tip: 1, tx_hash: 2, address: "0x0");
+    let input1 = add_tx_input!(tx_hash: 2, address: "0x0", tip: 1);
     // Create a transaction with identical tip, it should be allowed through since the priority
     // queue tie-breaks identical tips by other tx-unique identifiers (for example tx hash).
-    let input2 = add_tx_input!(tip: 1, tx_hash: 1, address: "0x1");
+    let input2 = add_tx_input!(tx_hash: 1, address: "0x1", tip: 1);
 
     // Test.
     for input in [&input1, &input2] {
@@ -423,10 +426,10 @@ fn test_add_tx_with_identical_tip_succeeds(mut mempool: Mempool) {
 #[rstest]
 fn test_add_tx_tip_priority_over_tx_hash(mut mempool: Mempool) {
     // Setup.
-    let input_big_tip_small_hash = add_tx_input!(tip: 2, tx_hash: 1, address: "0x0");
+    let input_big_tip_small_hash = add_tx_input!(tx_hash: 1, address: "0x0", tip: 2);
     // Create a transaction with identical tip, it should be allowed through since the priority
     // queue tie-breaks identical tips by other tx-unique identifiers (for example tx hash).
-    let input_small_tip_big_hash = add_tx_input!(tip: 1, tx_hash: 2, address: "0x1");
+    let input_small_tip_big_hash = add_tx_input!(tx_hash: 2, address: "0x1", tip: 1);
 
     // Test.
     for input in [&input_big_tip_small_hash, &input_small_tip_big_hash] {
@@ -537,15 +540,15 @@ fn test_fee_escalation_valid_replacement() {
 #[rstest]
 fn test_fee_escalation_invalid_replacement() {
     // Setup.
-    let existing_tx = tx!(tip: 100, tx_hash: 1, max_l2_gas_price: 100);
+    let existing_tx = tx!(tx_hash: 1, tip: 100, max_l2_gas_price: 100);
     let mempool = MempoolContentBuilder::new()
         .with_pool([existing_tx.clone()])
         .with_fee_escalation_percentage(10)
         .build_into_mempool();
 
-    let input_not_enough_tip = add_tx_input!(tip: 109, tx_hash: 3, max_l2_gas_price: 110);
-    let input_not_enough_gas_price = add_tx_input!(tip: 110, tx_hash: 4, max_l2_gas_price: 109);
-    let input_not_enough_both = add_tx_input!(tip: 109, tx_hash: 5, max_l2_gas_price: 109);
+    let input_not_enough_tip = add_tx_input!(tx_hash: 3, tip: 109, max_l2_gas_price: 110);
+    let input_not_enough_gas_price = add_tx_input!(tx_hash: 4, tip: 110, max_l2_gas_price: 109);
+    let input_not_enough_both = add_tx_input!(tx_hash: 5, tip: 109, max_l2_gas_price: 109);
 
     // Test and assert.
     let invalid_replacement_inputs =

@@ -90,6 +90,7 @@ impl ChainId {
 // The block hash table is stored in address 0x1,
 // this is a special address that is not used for contracts.
 pub const BLOCK_HASH_TABLE_ADDRESS: ContractAddress = ContractAddress(PatriciaKey(StarkHash::ONE));
+
 #[derive(
     Debug,
     Default,
@@ -106,6 +107,21 @@ pub const BLOCK_HASH_TABLE_ADDRESS: ContractAddress = ContractAddress(PatriciaKe
     derive_more::Deref,
 )]
 pub struct ContractAddress(pub PatriciaKey);
+
+impl ContractAddress {
+    /// Validates the contract address is in the valid range for external access.
+    /// The lower bound is above the special saved addresses and the upper bound is congruent with
+    /// the storage var address upper bound.
+    pub fn validate(&self) -> Result<(), StarknetApiError> {
+        let value = self.0.0;
+        let l2_address_upper_bound = Felt::from(*L2_ADDRESS_UPPER_BOUND);
+        if (value > BLOCK_HASH_TABLE_ADDRESS.0.0) && (value < l2_address_upper_bound) {
+            return Ok(());
+        }
+
+        Err(StarknetApiError::OutOfRange { string: format!("[0x2, {})", l2_address_upper_bound) })
+    }
+}
 
 impl From<ContractAddress> for Felt {
     fn from(contract_address: ContractAddress) -> Felt {

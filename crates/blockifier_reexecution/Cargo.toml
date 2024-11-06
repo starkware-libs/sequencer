@@ -9,7 +9,7 @@ license.workspace = true
 blockifier_regression_https_testing = []
 
 [dependencies]
-blockifier.workspace = true
+blockifier = { workspace = true, features = ["transaction_serde"] }
 cairo-lang-starknet-classes.workspace = true
 cairo-lang-utils.workspace = true
 clap = { workspace = true, features = ["cargo", "derive"] }
@@ -17,6 +17,7 @@ flate2.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
 papyrus_execution.workspace = true
 pretty_assertions.workspace = true
+retry.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 starknet-core.workspace = true

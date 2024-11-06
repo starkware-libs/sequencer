@@ -1,11 +1,12 @@
 use core::net::Ipv4Addr;
+use std::time::Duration;
 
 use futures::channel::mpsc::{Receiver, SendError, Sender};
 use futures::channel::oneshot;
 use futures::future::{ready, Ready};
 use futures::sink::With;
 use futures::stream::Map;
-use futures::{FutureExt, SinkExt, StreamExt};
+use futures::{SinkExt, StreamExt};
 use libp2p::core::multiaddr::Protocol;
 use libp2p::gossipsub::SubscriptionError;
 use libp2p::identity::Keypair;
@@ -158,7 +159,7 @@ where
 
     let [channels_port, config_port] = find_n_free_ports::<2>();
 
-    let channels_secret_key = [1u8; 64];
+    let channels_secret_key = [1u8; 32];
     let channels_public_key = Keypair::ed25519_from_bytes(channels_secret_key).unwrap().public();
 
     let channels_config = NetworkConfig {
@@ -197,8 +198,8 @@ impl<Query: TryFrom<Bytes>, Response: TryFrom<Bytes>> MockClientResponsesManager
         &self.query
     }
 
-    pub async fn assert_reported(self) {
-        self.report_receiver.now_or_never().unwrap().unwrap();
+    pub async fn assert_reported(self, timeout: Duration) {
+        tokio::time::timeout(timeout, self.report_receiver).await.unwrap().unwrap();
     }
 
     pub async fn send_response(&mut self, response: Response) -> Result<(), SendError> {

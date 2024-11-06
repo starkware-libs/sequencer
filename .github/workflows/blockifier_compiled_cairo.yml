@@ -7,6 +7,7 @@ on:
       - reopened
       - synchronize
     paths:
+      - 'Cargo.toml'
       - '.github/workflows/blockifier_compiled_cairo.yml'
       - 'crates/blockifier/feature_contracts/**'
       - 'crates/blockifier/src/test_utils/cairo_compile.rs'

@@ -37,7 +37,7 @@ impl Formatter for PythonJsonFormatter {
         let mut buf = [0u16; 2];
         for ch in fragment.chars() {
             if ch.is_ascii() {
-                writer.write_all(&[ch as u8])?;
+                writer.write_all(&[u8::try_from(ch).expect("ASCII fits in u8")])?;
             } else {
                 let slice = ch.encode_utf16(&mut buf);
                 for num in slice {

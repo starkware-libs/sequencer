@@ -36,7 +36,7 @@ const BOOTSTRAP_DIAL_SLEEP: Duration = Duration::from_secs(1);
 const CONFIG: DiscoveryConfig = DiscoveryConfig {
     bootstrap_dial_retry_config: RetryConfig {
         base_delay_millis: BOOTSTRAP_DIAL_SLEEP.as_millis() as u64,
-        max_delay: BOOTSTRAP_DIAL_SLEEP.as_secs(),
+        max_delay_seconds: BOOTSTRAP_DIAL_SLEEP,
         factor: 1,
     },
     heartbeat_interval: Duration::ZERO,

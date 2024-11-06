@@ -1,6 +1,11 @@
 use async_trait::async_trait;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use starknet_api::executable_transaction::Transaction;
+use starknet_api::rpc_transaction::{
+    RpcDeployAccountTransaction,
+    RpcInvokeTransaction,
+    RpcTransaction,
+};
 use starknet_mempool_p2p_types::communication::SharedMempoolP2pPropagatorClient;
 use starknet_mempool_types::communication::{
     AddTransactionArgsWrapper,
@@ -58,7 +63,24 @@ impl MempoolCommunicationWrapper {
                 .await
                 .map_err(|_| MempoolError::P2pPropagatorClientError { tx_hash: tx.tx_hash() }),
             None => {
-                self.mempool_p2p_propagator_client.add_transaction(tx.into()).await.unwrap();
+                let tx_hash = tx.tx_hash();
+                match tx {
+                    Transaction::Invoke(invoke_tx) => self
+                        .mempool_p2p_propagator_client
+                        .add_transaction(RpcTransaction::Invoke(RpcInvokeTransaction::V3(
+                            invoke_tx.into(),
+                        )))
+                        .await
+                        .map_err(|_| MempoolError::P2pPropagatorClientError { tx_hash })?,
+                    Transaction::DeployAccount(deploy_account_tx) => self
+                        .mempool_p2p_propagator_client
+                        .add_transaction(RpcTransaction::DeployAccount(
+                            RpcDeployAccountTransaction::V3(deploy_account_tx.into()),
+                        ))
+                        .await
+                        .map_err(|_| MempoolError::P2pPropagatorClientError { tx_hash })?,
+                    Transaction::Declare(_) => {}
+                }
                 Ok(())
             }
         }
