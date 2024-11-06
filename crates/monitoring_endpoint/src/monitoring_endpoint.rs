@@ -11,7 +11,7 @@ use tracing::{info, instrument};
 use crate::config::MonitoringEndpointConfig;
 
 #[cfg(test)]
-#[path = "monitoring_endpoit_test.rs"]
+#[path = "monitoring_endpoint_test.rs"]
 mod monitoring_endpoint_test;
 
 const MONITORING_PREFIX: &str = "monitoring";
