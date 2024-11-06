@@ -1,4 +1,3 @@
-use blockifier::execution::errors::ContractClassError;
 use blockifier::state::errors::StateError;
 use blockifier::transaction::errors::TransactionExecutionError;
 use blockifier::versioned_constants::VersionedConstantsError;
@@ -22,6 +21,4 @@ pub enum ReexecutionError {
     TransactionExecutionError(#[from] TransactionExecutionError),
     #[error(transparent)]
     VersionedConstants(#[from] VersionedConstantsError),
-    #[error(transparent)]
-    ContractClassError(#[from] ContractClassError),
 }
