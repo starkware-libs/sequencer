@@ -80,7 +80,7 @@ fn verify_and_get_files(cairo_version: CairoVersion) -> Vec<(String, String, Str
         CairoVersion::Native => ".sierra.json",
     };
 
-    // Collect base filenames from the FeatureContract enum for the given Cairo version
+    // Collect base filenames from the FeatureContract enum for the given Cairo version.
     let contract_base_filenames: HashSet<String> = FeatureContract::all_feature_contracts()
         .filter(|contract| contract.cairo_version() == cairo_version)
         .map(|contract| {
@@ -120,12 +120,12 @@ fn verify_and_get_files(cairo_version: CairoVersion) -> Vec<(String, String, Str
 
         let file_name = path.file_stem().unwrap().to_string_lossy().into_owned();
 
-        // Skip files not in the enum
+        // Skip files not in the enum.
         if !contract_base_filenames.contains(&file_name) {
             continue;
         }
 
-        // Verify the file extension
+        // Verify the file extension.
         if path.extension().unwrap() != "cairo" {
             panic!("Found a non-Cairo file '{}' in `{}`", path.display(), directory);
         }

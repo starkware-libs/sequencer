@@ -423,7 +423,7 @@ impl FeatureContract {
         // EnumIter iterates over all variants with Default::default() as the cairo
         // version.
         Self::iter().flat_map(|contract| {
-            // if we have only one supported version, return the contract as is.
+            // If only one supported version exists, add the contract to the array as is.
             if contract.supported_versions().is_power_of_two() {
                 vec![contract].into_iter()
             } else {
@@ -434,8 +434,8 @@ impl FeatureContract {
                 #[cfg(not(feature = "cairo_native"))]
                 let range = 0..2isize;
 
-                // if we have multiple supported versions, return the contract for each supported
-                // version.
+                // If multiple supported versions exist, add each supported version of the
+                // contract to the array.
                 range
                     .filter(|i| supported_versions & (1u32 << i) != 0)
                     .map(move |i| {

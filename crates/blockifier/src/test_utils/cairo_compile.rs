@@ -199,7 +199,7 @@ fn verify_cairo0_compiler_deps() {
     );
 }
 
-// Lock to prevent concurrent git operations that creat git index.lock file.
+// Lock to prevent concurrent git operations that create a git index.lock file.
 // If removed some tests will fail i.e. feature contract tests with following error:
 // """
 // Another git process seems to be running in this repository, e.g.
