@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use starknet_api::contract_class::ClassInfo;
 use starknet_api::core::{calculate_contract_address, ContractAddress, Nonce};
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::{Fee, Transaction as StarknetApiTransaction, TransactionHash};
@@ -8,7 +9,6 @@ use starknet_api::transaction::{Fee, Transaction as StarknetApiTransaction, Tran
 use crate::bouncer::verify_tx_weights_within_max_capacity;
 use crate::context::BlockContext;
 use crate::execution::call_info::CallInfo;
-use crate::execution::contract_class::ClassInfo;
 use crate::execution::entry_point::EntryPointExecutionContext;
 use crate::fee::receipt::TransactionReceipt;
 use crate::state::cached_state::TransactionalState;
