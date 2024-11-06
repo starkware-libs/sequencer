@@ -124,6 +124,14 @@ mod TestContract {
     }
 
     #[external(v0)]
+    fn test_get_class_hash_at(
+        self: @ContractState, address: ContractAddress, expected_class_hash: ClassHash
+    ) {
+        let class_hash = syscalls::get_class_hash_at_syscall(address).unwrap_syscall();
+        assert(class_hash == expected_class_hash, 'WRONG_CLASS_HASH');
+    }
+
+    #[external(v0)]
     fn test_get_block_hash(self: @ContractState, block_number: u64) -> felt252 {
         syscalls::get_block_hash_syscall(block_number).unwrap_syscall()
     }

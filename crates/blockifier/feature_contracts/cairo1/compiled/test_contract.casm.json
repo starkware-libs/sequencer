@@ -88,9 +88,9 @@
     "0x1",
     "0x208b7fff7fff7ffe",
     "0x1104800180018000",
-    "0x4a5b",
+    "0x4b63",
     "0x482480017fff8000",
-    "0x4a5a",
+    "0x4b62",
     "0x480080007fff8000",
     "0xa0680017fff8000",
     "0x9",
@@ -263,9 +263,9 @@
     "0x1",
     "0x208b7fff7fff7ffe",
     "0x1104800180018000",
-    "0x49ac",
+    "0x4ab4",
     "0x482480017fff8000",
-    "0x49ab",
+    "0x4ab3",
     "0x480080007fff8000",
     "0xa0680017fff8000",
     "0x9",
@@ -511,7 +511,7 @@
     "0x48127ffa7fff8000",
     "0x480080007ff88000",
     "0x1104800180018000",
-    "0x1936",
+    "0x1a3e",
     "0x20680017fff7ffa",
     "0x5a",
     "0x20680017fff7ffd",
@@ -536,9 +536,9 @@
     "0x1",
     "0x208b7fff7fff7ffe",
     "0x1104800180018000",
-    "0x489b",
+    "0x49a3",
     "0x482480017fff8000",
-    "0x489a",
+    "0x49a2",
     "0x480080007fff8000",
     "0xa0680017fff8000",
     "0x9",
@@ -776,7 +776,7 @@
     "0x48127ffa7fff8000",
     "0x480080007ff88000",
     "0x1104800180018000",
-    "0x182d",
+    "0x1935",
     "0x20680017fff7ffa",
     "0x14f",
     "0x20680017fff7ffd",
@@ -869,7 +869,7 @@
     "0x48127ffa7fff8000",
     "0x480080007ff88000",
     "0x1104800180018000",
-    "0x17d0",
+    "0x18d8",
     "0x20680017fff7ffa",
     "0xb3",
     "0x20680017fff7ffd",
@@ -894,9 +894,9 @@
     "0x1",
     "0x208b7fff7fff7ffe",
     "0x1104800180018000",
-    "0x4735",
+    "0x483d",
     "0x482480017fff8000",
-    "0x4734",
+    "0x483c",
     "0x480080007fff8000",
     "0xa0680017fff8000",
     "0x9",
@@ -950,7 +950,7 @@
     "0x400380127ffb8001",
     "0x400380137ffb8002",
     "0x1104800180018000",
-    "0x17db",
+    "0x18e3",
     "0x20680017fff7ffd",
     "0x32",
     "0x48127ffb7fff8000",
@@ -960,7 +960,7 @@
     "0x480a80017fff8000",
     "0x480a80027fff8000",
     "0x1104800180018000",
-    "0x17d1",
+    "0x18d9",
     "0x20680017fff7ffd",
     "0x21",
     "0x40780017fff7fff",
@@ -975,7 +975,7 @@
     "0x482480017ff98000",
     "0x1",
     "0x1104800180018000",
-    "0x17f5",
+    "0x18fd",
     "0x20680017fff7ffd",
     "0xa",
     "0x48127ffb7fff8000",
@@ -1263,9 +1263,9 @@
     "0x1",
     "0x208b7fff7fff7ffe",
     "0x1104800180018000",
-    "0x45c4",
+    "0x46cc",
     "0x482480017fff8000",
-    "0x45c3",
+    "0x46cb",
     "0x480080007fff8000",
     "0xa0680017fff8000",
     "0x9",
@@ -1285,7 +1285,7 @@
     "0x480a7ffb7fff8000",
     "0x48127fef7fff8000",
     "0x1104800180018000",
-    "0x16f2",
+    "0x17fa",
     "0x20680017fff7ffd",
     "0xc",
     "0x40780017fff7fff",
@@ -1448,7 +1448,7 @@
     "0x48127ffa7fff8000",
     "0x480080007ff88000",
     "0x1104800180018000",
-    "0x158d",
+    "0x1695",
     "0x20680017fff7ffa",
     "0x9e",
     "0x20680017fff7ffd",
@@ -1486,7 +1486,7 @@
     "0x48127ffa7fff8000",
     "0x480080007ff88000",
     "0x1104800180018000",
-    "0x1567",
+    "0x166f",
     "0x20680017fff7ffa",
     "0x5c",
     "0x20680017fff7ffd",
@@ -1511,9 +1511,9 @@
     "0x1",
     "0x208b7fff7fff7ffe",
     "0x1104800180018000",
-    "0x44cc",
+    "0x45d4",
     "0x482480017fff8000",
-    "0x44cb",
+    "0x45d3",
     "0x480080007fff8000",
     "0xa0680017fff8000",
     "0x9",
@@ -1539,7 +1539,7 @@
     "0x480a80007fff8000",
     "0x480a80017fff8000",
     "0x1104800180018000",
-    "0x1669",
+    "0x1771",
     "0x20680017fff7ffd",
     "0xc",
     "0x40780017fff7fff",
@@ -1645,6 +1645,270 @@
     "0x400080007ffe7fff",
     "0x48127ffd7fff8000",
     "0x48127fee7fff8000",
+    "0x480a7ffb7fff8000",
+    "0x480680017fff8000",
+    "0x1",
+    "0x48127ffa7fff8000",
+    "0x482480017ff98000",
+    "0x1",
+    "0x208b7fff7fff7ffe",
+    "0x40780017fff7fff",
+    "0x1",
+    "0x480680017fff8000",
+    "0x4f7574206f6620676173",
+    "0x400080007ffe7fff",
+    "0x482680017ff98000",
+    "0x1",
+    "0x480a7ffa7fff8000",
+    "0x480a7ffb7fff8000",
+    "0x480680017fff8000",
+    "0x1",
+    "0x48127ffa7fff8000",
+    "0x482480017ff98000",
+    "0x1",
+    "0x208b7fff7fff7ffe",
+    "0xa0680017fff8000",
+    "0x7",
+    "0x482680017ffa8000",
+    "0x100000000000000000000000000000000",
+    "0x400280007ff97fff",
+    "0x10780017fff7fff",
+    "0xf4",
+    "0x4825800180007ffa",
+    "0x0",
+    "0x400280007ff97fff",
+    "0x482680017ff98000",
+    "0x1",
+    "0x48297ffc80007ffd",
+    "0x20680017fff7fff",
+    "0x4",
+    "0x10780017fff7fff",
+    "0xa",
+    "0x482680017ffc8000",
+    "0x1",
+    "0x480a7ffd7fff8000",
+    "0x480680017fff8000",
+    "0x0",
+    "0x480280007ffc8000",
+    "0x10780017fff7fff",
+    "0x8",
+    "0x480a7ffc7fff8000",
+    "0x480a7ffd7fff8000",
+    "0x480680017fff8000",
+    "0x1",
+    "0x480680017fff8000",
+    "0x0",
+    "0x20680017fff7ffe",
+    "0xc9",
+    "0xa0680017fff8004",
+    "0xe",
+    "0x4824800180047ffe",
+    "0x800000000000000000000000000000000000000000000000000000000000000",
+    "0x484480017ffe8000",
+    "0x110000000000000000",
+    "0x48307ffe7fff8002",
+    "0x480080007ff67ffc",
+    "0x480080017ff57ffc",
+    "0x402480017ffb7ffd",
+    "0xffffffffffffffeeffffffffffffffff",
+    "0x400080027ff47ffd",
+    "0x10780017fff7fff",
+    "0xb7",
+    "0x484480017fff8001",
+    "0x8000000000000000000000000000000",
+    "0x48307fff80007ffd",
+    "0x480080007ff77ffd",
+    "0x480080017ff67ffd",
+    "0x402480017ffc7ffe",
+    "0xf8000000000000000000000000000000",
+    "0x400080027ff57ffe",
+    "0x482480017ff58000",
+    "0x3",
+    "0x48307ff680007ff7",
+    "0x20680017fff7fff",
+    "0x4",
+    "0x10780017fff7fff",
+    "0xa",
+    "0x482480017ff58000",
+    "0x1",
+    "0x48127ff57fff8000",
+    "0x480680017fff8000",
+    "0x0",
+    "0x480080007ff28000",
+    "0x10780017fff7fff",
+    "0x8",
+    "0x48127ff57fff8000",
+    "0x48127ff57fff8000",
+    "0x480680017fff8000",
+    "0x1",
+    "0x480680017fff8000",
+    "0x0",
+    "0x20680017fff7ffe",
+    "0x87",
+    "0xa0680017fff8004",
+    "0xe",
+    "0x4824800180047ffe",
+    "0x800000000000000000000000000000000000000000000000000000000000000",
+    "0x484480017ffe8000",
+    "0x110000000000000000",
+    "0x48307ffe7fff8002",
+    "0x480080007ff67ffc",
+    "0x480080017ff57ffc",
+    "0x402480017ffb7ffd",
+    "0xffffffffffffffeeffffffffffffffff",
+    "0x400080027ff47ffd",
+    "0x10780017fff7fff",
+    "0x75",
+    "0x484480017fff8001",
+    "0x8000000000000000000000000000000",
+    "0x48307fff80007ffd",
+    "0x480080007ff77ffd",
+    "0x480080017ff67ffd",
+    "0x402480017ffc7ffe",
+    "0xf8000000000000000000000000000000",
+    "0x400080027ff57ffe",
+    "0x482480017ff58000",
+    "0x3",
+    "0x48307ff680007ff7",
+    "0x20680017fff7fff",
+    "0x4",
+    "0x10780017fff7fff",
+    "0x10",
+    "0x40780017fff7fff",
+    "0x1",
+    "0x480680017fff8000",
+    "0x496e70757420746f6f206c6f6e6720666f7220617267756d656e7473",
+    "0x400080007ffe7fff",
+    "0x48127ffc7fff8000",
+    "0x48127fe47fff8000",
+    "0x480a7ffb7fff8000",
+    "0x480680017fff8000",
+    "0x1",
+    "0x48127ffa7fff8000",
+    "0x482480017ff98000",
+    "0x1",
+    "0x208b7fff7fff7ffe",
+    "0x1104800180018000",
+    "0x44be",
+    "0x482480017fff8000",
+    "0x44bd",
+    "0x480080007fff8000",
+    "0xa0680017fff8000",
+    "0x9",
+    "0x4824800180007fe2",
+    "0x1e50",
+    "0x482480017fff8000",
+    "0x100000000000000000000000000000000",
+    "0x400080007ff77fff",
+    "0x10780017fff7fff",
+    "0x3b",
+    "0x4824800180007fe2",
+    "0x1e50",
+    "0x400080007ff87fff",
+    "0x482480017ff88000",
+    "0x1",
+    "0x480680017fff8000",
+    "0x476574436c617373486173684174",
+    "0x400280007ffb7fff",
+    "0x400280017ffb7ffd",
+    "0x400280027ffb7fe5",
+    "0x480280047ffb8000",
+    "0x20680017fff7fff",
+    "0x1f",
+    "0x480280057ffb8000",
+    "0x48307fee80007fff",
+    "0x480280037ffb8000",
+    "0x482680017ffb8000",
+    "0x6",
+    "0x20680017fff7ffd",
+    "0xc",
+    "0x40780017fff7fff",
+    "0x1",
+    "0x48127ff87fff8000",
+    "0x48127ffc7fff8000",
+    "0x48127ffc7fff8000",
+    "0x480680017fff8000",
+    "0x0",
+    "0x48127ffb7fff8000",
+    "0x48127ffa7fff8000",
+    "0x208b7fff7fff7ffe",
+    "0x40780017fff7fff",
+    "0x1",
+    "0x480680017fff8000",
+    "0x57524f4e475f434c4153535f48415348",
+    "0x400080007ffe7fff",
+    "0x48127ffc7fff8000",
+    "0x48127ffc7fff8000",
+    "0x48127ffc7fff8000",
+    "0x482480017ffb8000",
+    "0x1",
+    "0x10780017fff7fff",
+    "0x9",
+    "0x40780017fff7fff",
+    "0x6",
+    "0x480280037ffb8000",
+    "0x482680017ffb8000",
+    "0x7",
+    "0x480280057ffb8000",
+    "0x480280067ffb8000",
+    "0x48127ff37fff8000",
+    "0x48127ffb7fff8000",
+    "0x48127ffb7fff8000",
+    "0x480680017fff8000",
+    "0x1",
+    "0x48127ffa7fff8000",
+    "0x48127ffa7fff8000",
+    "0x208b7fff7fff7ffe",
+    "0x40780017fff7fff",
+    "0x1",
+    "0x480680017fff8000",
+    "0x4f7574206f6620676173",
+    "0x400080007ffe7fff",
+    "0x482480017ff58000",
+    "0x1",
+    "0x48127fdd7fff8000",
+    "0x480a7ffb7fff8000",
+    "0x480680017fff8000",
+    "0x1",
+    "0x48127ffa7fff8000",
+    "0x482480017ff98000",
+    "0x1",
+    "0x208b7fff7fff7ffe",
+    "0x482480017ff48000",
+    "0x3",
+    "0x10780017fff7fff",
+    "0x5",
+    "0x40780017fff7fff",
+    "0x6",
+    "0x48127ff47fff8000",
+    "0x40780017fff7fff",
+    "0x1",
+    "0x480680017fff8000",
+    "0x4661696c656420746f20646573657269616c697a6520706172616d202332",
+    "0x400080007ffe7fff",
+    "0x48127ffd7fff8000",
+    "0x48127fe47fff8000",
+    "0x480a7ffb7fff8000",
+    "0x480680017fff8000",
+    "0x1",
+    "0x48127ffa7fff8000",
+    "0x482480017ff98000",
+    "0x1",
+    "0x208b7fff7fff7ffe",
+    "0x482480017ff48000",
+    "0x3",
+    "0x10780017fff7fff",
+    "0x5",
+    "0x40780017fff7fff",
+    "0x6",
+    "0x48127ff47fff8000",
+    "0x40780017fff7fff",
+    "0x1",
+    "0x480680017fff8000",
+    "0x4661696c656420746f20646573657269616c697a6520706172616d202331",
+    "0x400080007ffe7fff",
+    "0x48127ffd7fff8000",
+    "0x48127fef7fff8000",
     "0x480a7ffb7fff8000",
     "0x480680017fff8000",
     "0x1",
@@ -19130,6 +19394,7 @@
     510,
     171,
     310,
+    264,
     178,
     253,
     265,
@@ -20743,7 +21008,317 @@
       ]
     ],
     [
-      1699,
+      1698,
+      [
+        {
+          "TestLessThan": {
+            "lhs": {
+              "Deref": {
+                "register": "AP",
+                "offset": -1
+              }
+            },
+            "rhs": {
+              "Immediate": "0x800000000000000000000000000000000000000000000000000000000000000"
+            },
+            "dst": {
+              "register": "AP",
+              "offset": 4
+            }
+          }
+        }
+      ]
+    ],
+    [
+      1702,
+      [
+        {
+          "LinearSplit": {
+            "value": {
+              "Deref": {
+                "register": "AP",
+                "offset": 3
+              }
+            },
+            "scalar": {
+              "Immediate": "0x110000000000000000"
+            },
+            "max_x": {
+              "Immediate": "0xffffffffffffffffffffffffffffffff"
+            },
+            "x": {
+              "register": "AP",
+              "offset": -2
+            },
+            "y": {
+              "register": "AP",
+              "offset": -1
+            }
+          }
+        }
+      ]
+    ],
+    [
+      1712,
+      [
+        {
+          "LinearSplit": {
+            "value": {
+              "Deref": {
+                "register": "AP",
+                "offset": -2
+              }
+            },
+            "scalar": {
+              "Immediate": "0x8000000000000000000000000000000"
+            },
+            "max_x": {
+              "Immediate": "0xffffffffffffffffffffffffffffffff"
+            },
+            "x": {
+              "register": "AP",
+              "offset": -1
+            },
+            "y": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      1743,
+      [
+        {
+          "TestLessThan": {
+            "lhs": {
+              "Deref": {
+                "register": "AP",
+                "offset": -1
+              }
+            },
+            "rhs": {
+              "Immediate": "0x800000000000000000000000000000000000000000000000000000000000000"
+            },
+            "dst": {
+              "register": "AP",
+              "offset": 4
+            }
+          }
+        }
+      ]
+    ],
+    [
+      1747,
+      [
+        {
+          "LinearSplit": {
+            "value": {
+              "Deref": {
+                "register": "AP",
+                "offset": 3
+              }
+            },
+            "scalar": {
+              "Immediate": "0x110000000000000000"
+            },
+            "max_x": {
+              "Immediate": "0xffffffffffffffffffffffffffffffff"
+            },
+            "x": {
+              "register": "AP",
+              "offset": -2
+            },
+            "y": {
+              "register": "AP",
+              "offset": -1
+            }
+          }
+        }
+      ]
+    ],
+    [
+      1757,
+      [
+        {
+          "LinearSplit": {
+            "value": {
+              "Deref": {
+                "register": "AP",
+                "offset": -2
+              }
+            },
+            "scalar": {
+              "Immediate": "0x8000000000000000000000000000000"
+            },
+            "max_x": {
+              "Immediate": "0xffffffffffffffffffffffffffffffff"
+            },
+            "x": {
+              "register": "AP",
+              "offset": -1
+            },
+            "y": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      1772,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      1791,
+      [
+        {
+          "TestLessThanOrEqual": {
+            "lhs": {
+              "Immediate": "0x1e50"
+            },
+            "rhs": {
+              "Deref": {
+                "register": "AP",
+                "offset": -29
+              }
+            },
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      1810,
+      [
+        {
+          "SystemCall": {
+            "system": {
+              "Deref": {
+                "register": "FP",
+                "offset": -5
+              }
+            }
+          }
+        }
+      ]
+    ],
+    [
+      1820,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      1830,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      1857,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      1879,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      1900,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      1914,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      1929,
+      [
+        {
+          "TestLessThanOrEqual": {
+            "lhs": {
+              "Immediate": "0x0"
+            },
+            "rhs": {
+              "Deref": {
+                "register": "FP",
+                "offset": -6
+              }
+            },
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      1963,
       [
         {
           "TestLessThan": {
@@ -20771,7 +21346,7 @@
       ]
     ],
     [
-      1703,
+      1967,
       [
         {
           "LinearSplit": {
@@ -20800,7 +21375,7 @@
       ]
     ],
     [
-      1728,
+      1992,
       [
         {
           "AllocSegment": {
@@ -20813,7 +21388,7 @@
       ]
     ],
     [
-      1747,
+      2011,
       [
         {
           "TestLessThanOrEqual": {
@@ -20835,7 +21410,7 @@
       ]
     ],
     [
-      1766,
+      2030,
       [
         {
           "SystemCall": {
@@ -20850,7 +21425,7 @@
       ]
     ],
     [
-      1769,
+      2033,
       [
         {
           "AllocSegment": {
@@ -20863,7 +21438,7 @@
       ]
     ],
     [
-      1792,
+      2056,
       [
         {
           "AllocSegment": {
@@ -20876,7 +21451,7 @@
       ]
     ],
     [
-      1814,
+      2078,
       [
         {
           "AllocSegment": {
@@ -20889,7 +21464,7 @@
       ]
     ],
     [
-      1828,
+      2092,
       [
         {
           "AllocSegment": {
@@ -20902,7 +21477,7 @@
       ]
     ],
     [
-      1845,
+      2109,
       [
         {
           "TestLessThanOrEqual": {
@@ -20924,7 +21499,7 @@
       ]
     ],
     [
-      1908,
+      2172,
       [
         {
           "AllocSegment": {
@@ -20937,7 +21512,7 @@
       ]
     ],
     [
-      1927,
+      2191,
       [
         {
           "TestLessThanOrEqual": {
@@ -20959,7 +21534,7 @@
       ]
     ],
     [
-      1970,
+      2234,
       [
         {
           "AllocSegment": {
@@ -20972,7 +21547,7 @@
       ]
     ],
     [
-      1988,
+      2252,
       [
         {
           "AllocSegment": {
@@ -20985,7 +21560,7 @@
       ]
     ],
     [
-      2003,
+      2267,
       [
         {
           "AllocSegment": {
@@ -20998,7 +21573,7 @@
       ]
     ],
     [
-      2017,
+      2281,
       [
         {
           "AllocSegment": {
@@ -21011,7 +21586,7 @@
       ]
     ],
     [
-      2031,
+      2295,
       [
         {
           "AllocSegment": {
@@ -21024,7 +21599,7 @@
       ]
     ],
     [
-      2045,
+      2309,
       [
         {
           "AllocSegment": {
@@ -21037,7 +21612,7 @@
       ]
     ],
     [
-      2067,
+      2331,
       [
         {
           "AllocSegment": {
@@ -21050,7 +21625,7 @@
       ]
     ],
     [
-      2081,
+      2345,
       [
         {
           "AllocSegment": {
@@ -21063,7 +21638,7 @@
       ]
     ],
     [
-      2098,
+      2362,
       [
         {
           "TestLessThanOrEqual": {
@@ -21085,7 +21660,7 @@
       ]
     ],
     [
-      2132,
+      2396,
       [
         {
           "TestLessThan": {
@@ -21107,7 +21682,7 @@
       ]
     ],
     [
-      2136,
+      2400,
       [
         {
           "LinearSplit": {
@@ -21136,7 +21711,7 @@
       ]
     ],
     [
-      2146,
+      2410,
       [
         {
           "LinearSplit": {
@@ -21165,7 +21740,7 @@
       ]
     ],
     [
-      2186,
+      2450,
       [
         {
           "AllocSegment": {
@@ -21178,7 +21753,7 @@
       ]
     ],
     [
-      2206,
+      2470,
       [
         {
           "AllocSegment": {
@@ -21191,7 +21766,7 @@
       ]
     ],
     [
-      2225,
+      2489,
       [
         {
           "TestLessThanOrEqual": {
@@ -21213,7 +21788,7 @@
       ]
     ],
     [
-      2247,
+      2511,
       [
         {
           "SystemCall": {
@@ -21228,7 +21803,7 @@
       ]
     ],
     [
-      2268,
+      2532,
       [
         {
           "AllocSegment": {
@@ -21241,7 +21816,7 @@
       ]
     ],
     [
-      2297,
+      2561,
       [
         {
           "AllocSegment": {
@@ -21254,7 +21829,7 @@
       ]
     ],
     [
-      2311,
+      2575,
       [
         {
           "AllocSegment": {
@@ -21267,7 +21842,7 @@
       ]
     ],
     [
-      2332,
+      2596,
       [
         {
           "AllocSegment": {
@@ -21280,7 +21855,7 @@
       ]
     ],
     [
-      2346,
+      2610,
       [
         {
           "AllocSegment": {
@@ -21293,7 +21868,7 @@
       ]
     ],
     [
-      2361,
+      2625,
       [
         {
           "TestLessThanOrEqual": {
@@ -21315,7 +21890,7 @@
       ]
     ],
     [
-      2394,
+      2658,
       [
         {
           "TestLessThan": {
@@ -21337,7 +21912,7 @@
       ]
     ],
     [
-      2398,
+      2662,
       [
         {
           "LinearSplit": {
@@ -21366,7 +21941,7 @@
       ]
     ],
     [
-      2408,
+      2672,
       [
         {
           "LinearSplit": {
@@ -21395,7 +21970,7 @@
       ]
     ],
     [
-      2459,
+      2723,
       [
         {
           "AllocSegment": {
@@ -21408,7 +21983,7 @@
       ]
     ],
     [
-      2478,
+      2742,
       [
         {
           "TestLessThanOrEqual": {
@@ -21430,7 +22005,7 @@
       ]
     ],
     [
-      2507,
+      2771,
       [
         {
           "AllocSegment": {
@@ -21443,7 +22018,7 @@
       ]
     ],
     [
-      2522,
+      2786,
       [
         {
           "AllocSegment": {
@@ -21456,7 +22031,7 @@
       ]
     ],
     [
-      2536,
+      2800,
       [
         {
           "AllocSegment": {
@@ -21469,7 +22044,7 @@
       ]
     ],
     [
-      2550,
+      2814,
       [
         {
           "AllocSegment": {
@@ -21482,7 +22057,7 @@
       ]
     ],
     [
-      2564,
+      2828,
       [
         {
           "AllocSegment": {
@@ -21495,7 +22070,7 @@
       ]
     ],
     [
-      2585,
+      2849,
       [
         {
           "AllocSegment": {
@@ -21508,7 +22083,7 @@
       ]
     ],
     [
-      2599,
+      2863,
       [
         {
           "AllocSegment": {
@@ -21521,7 +22096,7 @@
       ]
     ],
     [
-      2614,
+      2878,
       [
         {
           "TestLessThanOrEqual": {
@@ -21543,7 +22118,7 @@
       ]
     ],
     [
-      2647,
+      2911,
       [
         {
           "TestLessThan": {
@@ -21565,7 +22140,7 @@
       ]
     ],
     [
-      2651,
+      2915,
       [
         {
           "LinearSplit": {
@@ -21594,7 +22169,7 @@
       ]
     ],
     [
-      2661,
+      2925,
       [
         {
           "LinearSplit": {
@@ -21623,7 +22198,7 @@
       ]
     ],
     [
-      2676,
+      2940,
       [
         {
           "AllocSegment": {
@@ -21636,7 +22211,7 @@
       ]
     ],
     [
-      2695,
+      2959,
       [
         {
           "TestLessThanOrEqual": {
@@ -21658,7 +22233,7 @@
       ]
     ],
     [
-      2714,
+      2978,
       [
         {
           "SystemCall": {
@@ -21673,7 +22248,7 @@
       ]
     ],
     [
-      2717,
+      2981,
       [
         {
           "AllocSegment": {
@@ -21686,7 +22261,7 @@
       ]
     ],
     [
-      2737,
+      3001,
       [
         {
           "AllocSegment": {
@@ -21699,7 +22274,7 @@
       ]
     ],
     [
-      2759,
+      3023,
       [
         {
           "AllocSegment": {
@@ -21712,7 +22287,7 @@
       ]
     ],
     [
-      2773,
+      3037,
       [
         {
           "AllocSegment": {
@@ -21725,7 +22300,7 @@
       ]
     ],
     [
-      2790,
+      3054,
       [
         {
           "TestLessThanOrEqual": {
@@ -21747,7 +22322,7 @@
       ]
     ],
     [
-      2832,
+      3096,
       [
         {
           "AllocSegment": {
@@ -21760,7 +22335,7 @@
       ]
     ],
     [
-      2852,
+      3116,
       [
         {
           "AllocSegment": {
@@ -21773,7 +22348,7 @@
       ]
     ],
     [
-      2871,
+      3135,
       [
         {
           "TestLessThanOrEqual": {
@@ -21795,7 +22370,7 @@
       ]
     ],
     [
-      2892,
+      3156,
       [
         {
           "SystemCall": {
@@ -21810,7 +22385,7 @@
       ]
     ],
     [
-      2895,
+      3159,
       [
         {
           "AllocSegment": {
@@ -21823,7 +22398,7 @@
       ]
     ],
     [
-      2915,
+      3179,
       [
         {
           "AllocSegment": {
@@ -21836,7 +22411,7 @@
       ]
     ],
     [
-      2944,
+      3208,
       [
         {
           "AllocSegment": {
@@ -21849,7 +22424,7 @@
       ]
     ],
     [
-      2958,
+      3222,
       [
         {
           "AllocSegment": {
@@ -21862,7 +22437,7 @@
       ]
     ],
     [
-      2972,
+      3236,
       [
         {
           "AllocSegment": {
@@ -21875,7 +22450,7 @@
       ]
     ],
     [
-      2987,
+      3251,
       [
         {
           "TestLessThanOrEqual": {
@@ -21897,7 +22472,7 @@
       ]
     ],
     [
-      3004,
+      3268,
       [
         {
           "AllocSegment": {
@@ -21910,7 +22485,7 @@
       ]
     ],
     [
-      3024,
+      3288,
       [
         {
           "TestLessThanOrEqual": {
@@ -21932,7 +22507,7 @@
       ]
     ],
     [
-      3036,
+      3300,
       [
         {
           "AllocFelt252Dict": {
@@ -21947,7 +22522,7 @@
       ]
     ],
     [
-      3055,
+      3319,
       [
         {
           "AllocSegment": {
@@ -21960,7 +22535,7 @@
       ]
     ],
     [
-      3066,
+      3330,
       [
         {
           "AllocSegment": {
@@ -21973,7 +22548,7 @@
       ]
     ],
     [
-      3082,
+      3346,
       [
         {
           "AllocSegment": {
@@ -21986,7 +22561,7 @@
       ]
     ],
     [
-      3100,
+      3364,
       [
         {
           "TestLessThanOrEqual": {
@@ -22008,7 +22583,7 @@
       ]
     ],
     [
-      3134,
+      3398,
       [
         {
           "TestLessThan": {
@@ -22030,7 +22605,7 @@
       ]
     ],
     [
-      3138,
+      3402,
       [
         {
           "LinearSplit": {
@@ -22059,7 +22634,7 @@
       ]
     ],
     [
-      3148,
+      3412,
       [
         {
           "LinearSplit": {
@@ -22088,231 +22663,7 @@
       ]
     ],
     [
-      3188,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      3225,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      3244,
-      [
-        {
-          "TestLessThanOrEqual": {
-            "lhs": {
-              "Immediate": "0x28b4"
-            },
-            "rhs": {
-              "Deref": {
-                "register": "AP",
-                "offset": -17
-              }
-            },
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      3270,
-      [
-        {
-          "SystemCall": {
-            "system": {
-              "Deref": {
-                "register": "FP",
-                "offset": -5
-              }
-            }
-          }
-        }
-      ]
-    ],
-    [
-      3273,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      3293,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      3308,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      3336,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      3350,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      3371,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      3385,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      3400,
-      [
-        {
-          "TestLessThanOrEqual": {
-            "lhs": {
-              "Immediate": "0x0"
-            },
-            "rhs": {
-              "Deref": {
-                "register": "FP",
-                "offset": -6
-              }
-            },
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      3417,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      3436,
-      [
-        {
-          "TestLessThanOrEqual": {
-            "lhs": {
-              "Immediate": "0x7602"
-            },
-            "rhs": {
-              "Deref": {
-                "register": "AP",
-                "offset": -7
-              }
-            },
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      3456,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      3474,
+      3452,
       [
         {
           "AllocSegment": {
@@ -22338,7 +22689,135 @@
       ]
     ],
     [
-      3504,
+      3508,
+      [
+        {
+          "TestLessThanOrEqual": {
+            "lhs": {
+              "Immediate": "0x28b4"
+            },
+            "rhs": {
+              "Deref": {
+                "register": "AP",
+                "offset": -17
+              }
+            },
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      3534,
+      [
+        {
+          "SystemCall": {
+            "system": {
+              "Deref": {
+                "register": "FP",
+                "offset": -5
+              }
+            }
+          }
+        }
+      ]
+    ],
+    [
+      3537,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      3557,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      3572,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      3600,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      3614,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      3635,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      3649,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      3664,
       [
         {
           "TestLessThanOrEqual": {
@@ -22360,7 +22839,7 @@
       ]
     ],
     [
-      3521,
+      3681,
       [
         {
           "AllocSegment": {
@@ -22373,7 +22852,103 @@
       ]
     ],
     [
-      3540,
+      3700,
+      [
+        {
+          "TestLessThanOrEqual": {
+            "lhs": {
+              "Immediate": "0x7602"
+            },
+            "rhs": {
+              "Deref": {
+                "register": "AP",
+                "offset": -7
+              }
+            },
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      3720,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      3738,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      3753,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      3768,
+      [
+        {
+          "TestLessThanOrEqual": {
+            "lhs": {
+              "Immediate": "0x0"
+            },
+            "rhs": {
+              "Deref": {
+                "register": "FP",
+                "offset": -6
+              }
+            },
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      3785,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      3804,
       [
         {
           "TestLessThanOrEqual": {
@@ -22395,7 +22970,7 @@
       ]
     ],
     [
-      3560,
+      3824,
       [
         {
           "AllocSegment": {
@@ -22408,7 +22983,7 @@
       ]
     ],
     [
-      3578,
+      3842,
       [
         {
           "AllocSegment": {
@@ -22421,7 +22996,7 @@
       ]
     ],
     [
-      3593,
+      3857,
       [
         {
           "AllocSegment": {
@@ -22434,7 +23009,7 @@
       ]
     ],
     [
-      3608,
+      3872,
       [
         {
           "TestLessThanOrEqual": {
@@ -22456,7 +23031,7 @@
       ]
     ],
     [
-      3625,
+      3889,
       [
         {
           "AllocSegment": {
@@ -22469,7 +23044,7 @@
       ]
     ],
     [
-      3650,
+      3914,
       [
         {
           "TestLessThanOrEqual": {
@@ -22494,238 +23069,7 @@
       ]
     ],
     [
-      3669,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      3689,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      3705,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      3721,
-      [
-        {
-          "TestLessThanOrEqual": {
-            "lhs": {
-              "Immediate": "0x0"
-            },
-            "rhs": {
-              "Deref": {
-                "register": "FP",
-                "offset": -6
-              }
-            },
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      3738,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      3757,
-      [
-        {
-          "TestLessThanOrEqual": {
-            "lhs": {
-              "Immediate": "0x36998"
-            },
-            "rhs": {
-              "Deref": {
-                "register": "AP",
-                "offset": -7
-              }
-            },
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      3777,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      3795,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      3810,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      3825,
-      [
-        {
-          "TestLessThanOrEqual": {
-            "lhs": {
-              "Immediate": "0x0"
-            },
-            "rhs": {
-              "Deref": {
-                "register": "FP",
-                "offset": -6
-              }
-            },
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      3860,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      3879,
-      [
-        {
-          "TestLessThanOrEqual": {
-            "lhs": {
-              "Immediate": "0x0"
-            },
-            "rhs": {
-              "Deref": {
-                "register": "AP",
-                "offset": -15
-              }
-            },
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      3896,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      3910,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      3924,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      3939,
+      3933,
       [
         {
           "AllocSegment": {
@@ -22751,7 +23095,7 @@
       ]
     ],
     [
-      3967,
+      3969,
       [
         {
           "AllocSegment": {
@@ -22764,7 +23108,7 @@
       ]
     ],
     [
-      3982,
+      3985,
       [
         {
           "TestLessThanOrEqual": {
@@ -22786,7 +23130,7 @@
       ]
     ],
     [
-      4015,
+      4002,
       [
         {
           "AllocSegment": {
@@ -22799,134 +23143,12 @@
       ]
     ],
     [
-      4035,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      4054,
+      4021,
       [
         {
           "TestLessThanOrEqual": {
             "lhs": {
-              "Immediate": "0x0"
-            },
-            "rhs": {
-              "Deref": {
-                "register": "AP",
-                "offset": -12
-              }
-            },
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      4076,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      4096,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      4125,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      4139,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      4154,
-      [
-        {
-          "TestLessThanOrEqual": {
-            "lhs": {
-              "Immediate": "0x0"
-            },
-            "rhs": {
-              "Deref": {
-                "register": "FP",
-                "offset": -6
-              }
-            },
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      4171,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      4190,
-      [
-        {
-          "TestLessThanOrEqual": {
-            "lhs": {
-              "Immediate": "0x0"
+              "Immediate": "0x36998"
             },
             "rhs": {
               "Deref": {
@@ -22943,7 +23165,142 @@
       ]
     ],
     [
-      4202,
+      4041,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      4059,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      4074,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      4089,
+      [
+        {
+          "TestLessThanOrEqual": {
+            "lhs": {
+              "Immediate": "0x0"
+            },
+            "rhs": {
+              "Deref": {
+                "register": "FP",
+                "offset": -6
+              }
+            },
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      4124,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      4143,
+      [
+        {
+          "TestLessThanOrEqual": {
+            "lhs": {
+              "Immediate": "0x0"
+            },
+            "rhs": {
+              "Deref": {
+                "register": "AP",
+                "offset": -15
+              }
+            },
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      4160,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      4174,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      4188,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      4203,
       [
         {
           "AllocSegment": {
@@ -22969,7 +23326,7 @@
       ]
     ],
     [
-      4232,
+      4231,
       [
         {
           "AllocSegment": {
@@ -22982,7 +23339,7 @@
       ]
     ],
     [
-      4247,
+      4246,
       [
         {
           "TestLessThanOrEqual": {
@@ -23004,7 +23361,7 @@
       ]
     ],
     [
-      4273,
+      4279,
       [
         {
           "AllocSegment": {
@@ -23017,7 +23374,225 @@
       ]
     ],
     [
-      4292,
+      4299,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      4318,
+      [
+        {
+          "TestLessThanOrEqual": {
+            "lhs": {
+              "Immediate": "0x0"
+            },
+            "rhs": {
+              "Deref": {
+                "register": "AP",
+                "offset": -12
+              }
+            },
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      4340,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      4360,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      4389,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      4403,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      4418,
+      [
+        {
+          "TestLessThanOrEqual": {
+            "lhs": {
+              "Immediate": "0x0"
+            },
+            "rhs": {
+              "Deref": {
+                "register": "FP",
+                "offset": -6
+              }
+            },
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      4435,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      4454,
+      [
+        {
+          "TestLessThanOrEqual": {
+            "lhs": {
+              "Immediate": "0x0"
+            },
+            "rhs": {
+              "Deref": {
+                "register": "AP",
+                "offset": -7
+              }
+            },
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      4466,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      4481,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      4496,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      4511,
+      [
+        {
+          "TestLessThanOrEqual": {
+            "lhs": {
+              "Immediate": "0x0"
+            },
+            "rhs": {
+              "Deref": {
+                "register": "FP",
+                "offset": -6
+              }
+            },
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      4537,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      4556,
       [
         {
           "TestLessThanOrEqual": {
@@ -23039,7 +23614,7 @@
       ]
     ],
     [
-      4312,
+      4576,
       [
         {
           "AllocSegment": {
@@ -23052,7 +23627,7 @@
       ]
     ],
     [
-      4330,
+      4594,
       [
         {
           "AllocSegment": {
@@ -23065,7 +23640,7 @@
       ]
     ],
     [
-      4345,
+      4609,
       [
         {
           "AllocSegment": {
@@ -23078,7 +23653,7 @@
       ]
     ],
     [
-      4359,
+      4623,
       [
         {
           "AllocSegment": {
@@ -23091,7 +23666,7 @@
       ]
     ],
     [
-      4374,
+      4638,
       [
         {
           "TestLessThanOrEqual": {
@@ -23113,7 +23688,7 @@
       ]
     ],
     [
-      4400,
+      4664,
       [
         {
           "AllocSegment": {
@@ -23126,7 +23701,7 @@
       ]
     ],
     [
-      4419,
+      4683,
       [
         {
           "TestLessThanOrEqual": {
@@ -23148,7 +23723,7 @@
       ]
     ],
     [
-      4439,
+      4703,
       [
         {
           "AllocSegment": {
@@ -23161,7 +23736,7 @@
       ]
     ],
     [
-      4457,
+      4721,
       [
         {
           "AllocSegment": {
@@ -23174,7 +23749,7 @@
       ]
     ],
     [
-      4472,
+      4736,
       [
         {
           "AllocSegment": {
@@ -23187,7 +23762,7 @@
       ]
     ],
     [
-      4486,
+      4750,
       [
         {
           "AllocSegment": {
@@ -23200,7 +23775,7 @@
       ]
     ],
     [
-      4501,
+      4765,
       [
         {
           "TestLessThanOrEqual": {
@@ -23222,7 +23797,7 @@
       ]
     ],
     [
-      4534,
+      4798,
       [
         {
           "TestLessThan": {
@@ -23244,7 +23819,7 @@
       ]
     ],
     [
-      4538,
+      4802,
       [
         {
           "LinearSplit": {
@@ -23273,7 +23848,7 @@
       ]
     ],
     [
-      4548,
+      4812,
       [
         {
           "LinearSplit": {
@@ -23302,7 +23877,7 @@
       ]
     ],
     [
-      4581,
+      4845,
       [
         {
           "AllocSegment": {
@@ -23315,7 +23890,7 @@
       ]
     ],
     [
-      4600,
+      4864,
       [
         {
           "TestLessThanOrEqual": {
@@ -23337,7 +23912,7 @@
       ]
     ],
     [
-      4622,
+      4886,
       [
         {
           "AllocSegment": {
@@ -23350,7 +23925,7 @@
       ]
     ],
     [
-      4640,
+      4904,
       [
         {
           "SystemCall": {
@@ -23365,7 +23940,7 @@
       ]
     ],
     [
-      4646,
+      4910,
       [
         {
           "AllocSegment": {
@@ -23378,7 +23953,7 @@
       ]
     ],
     [
-      4665,
+      4929,
       [
         {
           "AllocSegment": {
@@ -23391,7 +23966,7 @@
       ]
     ],
     [
-      4680,
+      4944,
       [
         {
           "AllocSegment": {
@@ -23404,7 +23979,7 @@
       ]
     ],
     [
-      4694,
+      4958,
       [
         {
           "AllocSegment": {
@@ -23417,7 +23992,7 @@
       ]
     ],
     [
-      4715,
+      4979,
       [
         {
           "AllocSegment": {
@@ -23430,7 +24005,7 @@
       ]
     ],
     [
-      4729,
+      4993,
       [
         {
           "AllocSegment": {
@@ -23443,7 +24018,7 @@
       ]
     ],
     [
-      4744,
+      5008,
       [
         {
           "TestLessThanOrEqual": {
@@ -23465,7 +24040,7 @@
       ]
     ],
     [
-      4788,
+      5052,
       [
         {
           "AllocSegment": {
@@ -23478,7 +24053,7 @@
       ]
     ],
     [
-      4813,
+      5077,
       [
         {
           "TestLessThanOrEqual": {
@@ -23503,7 +24078,7 @@
       ]
     ],
     [
-      4835,
+      5099,
       [
         {
           "AllocSegment": {
@@ -23516,7 +24091,7 @@
       ]
     ],
     [
-      4855,
+      5119,
       [
         {
           "AllocSegment": {
@@ -23529,7 +24104,7 @@
       ]
     ],
     [
-      4871,
+      5135,
       [
         {
           "AllocSegment": {
@@ -23542,7 +24117,7 @@
       ]
     ],
     [
-      4886,
+      5150,
       [
         {
           "AllocSegment": {
@@ -23555,7 +24130,7 @@
       ]
     ],
     [
-      4901,
+      5165,
       [
         {
           "AllocSegment": {
@@ -23568,7 +24143,7 @@
       ]
     ],
     [
-      4916,
+      5180,
       [
         {
           "AllocSegment": {
@@ -23581,7 +24156,7 @@
       ]
     ],
     [
-      4932,
+      5196,
       [
         {
           "TestLessThanOrEqual": {
@@ -23603,7 +24178,7 @@
       ]
     ],
     [
-      4975,
+      5239,
       [
         {
           "TestLessThan": {
@@ -23625,7 +24200,7 @@
       ]
     ],
     [
-      4977,
+      5241,
       [
         {
           "DivMod": {
@@ -23651,7 +24226,7 @@
       ]
     ],
     [
-      5022,
+      5286,
       [
         {
           "TestLessThan": {
@@ -23673,7 +24248,7 @@
       ]
     ],
     [
-      5024,
+      5288,
       [
         {
           "DivMod": {
@@ -23699,7 +24274,7 @@
       ]
     ],
     [
-      5052,
+      5316,
       [
         {
           "AllocSegment": {
@@ -23712,7 +24287,7 @@
       ]
     ],
     [
-      5082,
+      5346,
       [
         {
           "TestLessThanOrEqual": {
@@ -23737,7 +24312,7 @@
       ]
     ],
     [
-      5105,
+      5369,
       [
         {
           "AllocSegment": {
@@ -23750,7 +24325,7 @@
       ]
     ],
     [
-      5127,
+      5391,
       [
         {
           "AllocSegment": {
@@ -23763,7 +24338,7 @@
       ]
     ],
     [
-      5167,
+      5431,
       [
         {
           "AllocSegment": {
@@ -23776,7 +24351,7 @@
       ]
     ],
     [
-      5183,
+      5447,
       [
         {
           "AllocSegment": {
@@ -23789,7 +24364,7 @@
       ]
     ],
     [
-      5200,
+      5464,
       [
         {
           "TestLessThanOrEqual": {
@@ -23811,7 +24386,7 @@
       ]
     ],
     [
-      5233,
+      5497,
       [
         {
           "TestLessThan": {
@@ -23833,7 +24408,7 @@
       ]
     ],
     [
-      5237,
+      5501,
       [
         {
           "LinearSplit": {
@@ -23862,7 +24437,7 @@
       ]
     ],
     [
-      5247,
+      5511,
       [
         {
           "LinearSplit": {
@@ -23891,7 +24466,7 @@
       ]
     ],
     [
-      5288,
+      5552,
       [
         {
           "TestLessThan": {
@@ -23913,7 +24488,7 @@
       ]
     ],
     [
-      5290,
+      5554,
       [
         {
           "DivMod": {
@@ -23939,7 +24514,7 @@
       ]
     ],
     [
-      5335,
+      5599,
       [
         {
           "TestLessThan": {
@@ -23961,7 +24536,7 @@
       ]
     ],
     [
-      5337,
+      5601,
       [
         {
           "DivMod": {
@@ -23987,7 +24562,7 @@
       ]
     ],
     [
-      5365,
+      5629,
       [
         {
           "AllocSegment": {
@@ -24000,7 +24575,7 @@
       ]
     ],
     [
-      5384,
+      5648,
       [
         {
           "TestLessThanOrEqual": {
@@ -24022,7 +24597,7 @@
       ]
     ],
     [
-      5396,
+      5660,
       [
         {
           "AllocSegment": {
@@ -24035,7 +24610,7 @@
       ]
     ],
     [
-      5419,
+      5683,
       [
         {
           "SystemCall": {
@@ -24050,7 +24625,7 @@
       ]
     ],
     [
-      5422,
+      5686,
       [
         {
           "AllocSegment": {
@@ -24063,7 +24638,7 @@
       ]
     ],
     [
-      5442,
+      5706,
       [
         {
           "AllocSegment": {
@@ -24076,7 +24651,7 @@
       ]
     ],
     [
-      5480,
+      5744,
       [
         {
           "AllocSegment": {
@@ -24089,7 +24664,7 @@
       ]
     ],
     [
-      5501,
+      5765,
       [
         {
           "AllocSegment": {
@@ -24102,7 +24677,7 @@
       ]
     ],
     [
-      5515,
+      5779,
       [
         {
           "AllocSegment": {
@@ -24115,7 +24690,7 @@
       ]
     ],
     [
-      5530,
+      5794,
       [
         {
           "TestLessThanOrEqual": {
@@ -24137,7 +24712,7 @@
       ]
     ],
     [
-      5547,
+      5811,
       [
         {
           "AllocSegment": {
@@ -24150,7 +24725,7 @@
       ]
     ],
     [
-      5570,
+      5834,
       [
         {
           "TestLessThanOrEqual": {
@@ -24175,7 +24750,7 @@
       ]
     ],
     [
-      5589,
+      5853,
       [
         {
           "AllocSegment": {
@@ -24188,7 +24763,7 @@
       ]
     ],
     [
-      5609,
+      5873,
       [
         {
           "AllocSegment": {
@@ -24201,7 +24776,7 @@
       ]
     ],
     [
-      5625,
+      5889,
       [
         {
           "AllocSegment": {
@@ -24214,7 +24789,7 @@
       ]
     ],
     [
-      5641,
+      5905,
       [
         {
           "TestLessThanOrEqual": {
@@ -24236,7 +24811,7 @@
       ]
     ],
     [
-      5667,
+      5931,
       [
         {
           "AllocSegment": {
@@ -24249,7 +24824,7 @@
       ]
     ],
     [
-      5692,
+      5956,
       [
         {
           "TestLessThanOrEqual": {
@@ -24274,7 +24849,7 @@
       ]
     ],
     [
-      5712,
+      5976,
       [
         {
           "AllocSegment": {
@@ -24287,7 +24862,7 @@
       ]
     ],
     [
-      5732,
+      5996,
       [
         {
           "AllocSegment": {
@@ -24300,7 +24875,7 @@
       ]
     ],
     [
-      5748,
+      6012,
       [
         {
           "AllocSegment": {
@@ -24313,7 +24888,7 @@
       ]
     ],
     [
-      5763,
+      6027,
       [
         {
           "AllocSegment": {
@@ -24326,7 +24901,7 @@
       ]
     ],
     [
-      5779,
+      6043,
       [
         {
           "TestLessThanOrEqual": {
@@ -24348,7 +24923,7 @@
       ]
     ],
     [
-      5805,
+      6069,
       [
         {
           "AllocSegment": {
@@ -24361,7 +24936,7 @@
       ]
     ],
     [
-      5824,
+      6088,
       [
         {
           "TestLessThanOrEqual": {
@@ -24383,7 +24958,7 @@
       ]
     ],
     [
-      5836,
+      6100,
       [
         {
           "AllocSegment": {
@@ -24396,7 +24971,7 @@
       ]
     ],
     [
-      5856,
+      6120,
       [
         {
           "SystemCall": {
@@ -24411,7 +24986,7 @@
       ]
     ],
     [
-      5859,
+      6123,
       [
         {
           "AllocSegment": {
@@ -24424,215 +24999,7 @@
       ]
     ],
     [
-      5879,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      5894,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      5908,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      5923,
-      [
-        {
-          "TestLessThanOrEqual": {
-            "lhs": {
-              "Immediate": "0x0"
-            },
-            "rhs": {
-              "Deref": {
-                "register": "FP",
-                "offset": -6
-              }
-            },
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      5940,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      5971,
-      [
-        {
-          "TestLessThanOrEqual": {
-            "lhs": {
-              "Deref": {
-                "register": "AP",
-                "offset": -1
-              }
-            },
-            "rhs": {
-              "Deref": {
-                "register": "AP",
-                "offset": -13
-              }
-            },
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      5991,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      6015,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      6033,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      6051,
-      [
-        {
-          "TestLessThanOrEqual": {
-            "lhs": {
-              "Immediate": "0x0"
-            },
-            "rhs": {
-              "Deref": {
-                "register": "FP",
-                "offset": -6
-              }
-            },
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      6068,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      6088,
-      [
-        {
-          "TestLessThanOrEqual": {
-            "lhs": {
-              "Immediate": "0x0"
-            },
-            "rhs": {
-              "Deref": {
-                "register": "AP",
-                "offset": -7
-              }
-            },
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      6112,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      6142,
+      6143,
       [
         {
           "AllocSegment": {
@@ -24658,7 +25025,20 @@
       ]
     ],
     [
-      6176,
+      6172,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      6187,
       [
         {
           "TestLessThanOrEqual": {
@@ -24680,7 +25060,202 @@
       ]
     ],
     [
-      6210,
+      6204,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      6235,
+      [
+        {
+          "TestLessThanOrEqual": {
+            "lhs": {
+              "Deref": {
+                "register": "AP",
+                "offset": -1
+              }
+            },
+            "rhs": {
+              "Deref": {
+                "register": "AP",
+                "offset": -13
+              }
+            },
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      6255,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      6279,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      6297,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      6315,
+      [
+        {
+          "TestLessThanOrEqual": {
+            "lhs": {
+              "Immediate": "0x0"
+            },
+            "rhs": {
+              "Deref": {
+                "register": "FP",
+                "offset": -6
+              }
+            },
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      6332,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      6352,
+      [
+        {
+          "TestLessThanOrEqual": {
+            "lhs": {
+              "Immediate": "0x0"
+            },
+            "rhs": {
+              "Deref": {
+                "register": "AP",
+                "offset": -7
+              }
+            },
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      6376,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      6406,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      6422,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      6440,
+      [
+        {
+          "TestLessThanOrEqual": {
+            "lhs": {
+              "Immediate": "0x0"
+            },
+            "rhs": {
+              "Deref": {
+                "register": "FP",
+                "offset": -6
+              }
+            },
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      6474,
       [
         {
           "TestLessThan": {
@@ -24702,7 +25277,7 @@
       ]
     ],
     [
-      6214,
+      6478,
       [
         {
           "LinearSplit": {
@@ -24731,7 +25306,7 @@
       ]
     ],
     [
-      6224,
+      6488,
       [
         {
           "LinearSplit": {
@@ -24760,7 +25335,7 @@
       ]
     ],
     [
-      6264,
+      6528,
       [
         {
           "AllocSegment": {
@@ -24773,7 +25348,7 @@
       ]
     ],
     [
-      6284,
+      6548,
       [
         {
           "AllocSegment": {
@@ -24786,7 +25361,7 @@
       ]
     ],
     [
-      6303,
+      6567,
       [
         {
           "TestLessThanOrEqual": {
@@ -24808,7 +25383,7 @@
       ]
     ],
     [
-      6327,
+      6591,
       [
         {
           "AllocSegment": {
@@ -24821,7 +25396,7 @@
       ]
     ],
     [
-      6345,
+      6609,
       [
         {
           "AllocSegment": {
@@ -24834,7 +25409,7 @@
       ]
     ],
     [
-      6374,
+      6638,
       [
         {
           "AllocSegment": {
@@ -24847,7 +25422,7 @@
       ]
     ],
     [
-      6388,
+      6652,
       [
         {
           "AllocSegment": {
@@ -24860,7 +25435,7 @@
       ]
     ],
     [
-      6409,
+      6673,
       [
         {
           "AllocSegment": {
@@ -24873,7 +25448,7 @@
       ]
     ],
     [
-      6423,
+      6687,
       [
         {
           "AllocSegment": {
@@ -24886,7 +25461,7 @@
       ]
     ],
     [
-      6438,
+      6702,
       [
         {
           "TestLessThanOrEqual": {
@@ -24908,7 +25483,7 @@
       ]
     ],
     [
-      6472,
+      6736,
       [
         {
           "AllocSegment": {
@@ -24921,7 +25496,7 @@
       ]
     ],
     [
-      6491,
+      6755,
       [
         {
           "TestLessThanOrEqual": {
@@ -24943,7 +25518,7 @@
       ]
     ],
     [
-      6503,
+      6767,
       [
         {
           "AllocSegment": {
@@ -24956,7 +25531,7 @@
       ]
     ],
     [
-      6516,
+      6780,
       [
         {
           "AllocSegment": {
@@ -24969,7 +25544,7 @@
       ]
     ],
     [
-      6531,
+      6795,
       [
         {
           "AllocSegment": {
@@ -24982,7 +25557,7 @@
       ]
     ],
     [
-      6545,
+      6809,
       [
         {
           "AllocSegment": {
@@ -24995,7 +25570,7 @@
       ]
     ],
     [
-      6559,
+      6823,
       [
         {
           "AllocSegment": {
@@ -25008,7 +25583,7 @@
       ]
     ],
     [
-      6574,
+      6838,
       [
         {
           "TestLessThanOrEqual": {
@@ -25030,7 +25605,7 @@
       ]
     ],
     [
-      6615,
+      6879,
       [
         {
           "TestLessThan": {
@@ -25052,7 +25627,7 @@
       ]
     ],
     [
-      6619,
+      6883,
       [
         {
           "LinearSplit": {
@@ -25081,7 +25656,7 @@
       ]
     ],
     [
-      6629,
+      6893,
       [
         {
           "LinearSplit": {
@@ -25110,7 +25685,7 @@
       ]
     ],
     [
-      6653,
+      6917,
       [
         {
           "AllocSegment": {
@@ -25123,7 +25698,7 @@
       ]
     ],
     [
-      6672,
+      6936,
       [
         {
           "TestLessThanOrEqual": {
@@ -25145,7 +25720,7 @@
       ]
     ],
     [
-      6695,
+      6959,
       [
         {
           "SystemCall": {
@@ -25154,221 +25729,6 @@
                 "register": "FP",
                 "offset": -5
               }
-            }
-          }
-        }
-      ]
-    ],
-    [
-      6698,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      6720,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      6735,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      6756,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      6770,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      6784,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      6799,
-      [
-        {
-          "TestLessThanOrEqual": {
-            "lhs": {
-              "Immediate": "0x0"
-            },
-            "rhs": {
-              "Deref": {
-                "register": "FP",
-                "offset": -6
-              }
-            },
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      6834,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      6853,
-      [
-        {
-          "TestLessThanOrEqual": {
-            "lhs": {
-              "Immediate": "0x11bc"
-            },
-            "rhs": {
-              "Deref": {
-                "register": "AP",
-                "offset": -15
-              }
-            },
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      6879,
-      [
-        {
-          "SystemCall": {
-            "system": {
-              "Deref": {
-                "register": "FP",
-                "offset": -5
-              }
-            }
-          }
-        }
-      ]
-    ],
-    [
-      6882,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      6904,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      6919,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      6933,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      6947,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
             }
           }
         }
@@ -25378,16 +25738,46 @@
       6962,
       [
         {
-          "TestLessThanOrEqual": {
-            "lhs": {
-              "Immediate": "0x942"
-            },
-            "rhs": {
-              "Deref": {
-                "register": "FP",
-                "offset": -8
-              }
-            },
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      6984,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      6999,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      7020,
+      [
+        {
+          "AllocSegment": {
             "dst": {
               "register": "AP",
               "offset": 0
@@ -25410,7 +25800,192 @@
       ]
     ],
     [
-      7054,
+      7048,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      7063,
+      [
+        {
+          "TestLessThanOrEqual": {
+            "lhs": {
+              "Immediate": "0x0"
+            },
+            "rhs": {
+              "Deref": {
+                "register": "FP",
+                "offset": -6
+              }
+            },
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      7098,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      7117,
+      [
+        {
+          "TestLessThanOrEqual": {
+            "lhs": {
+              "Immediate": "0x11bc"
+            },
+            "rhs": {
+              "Deref": {
+                "register": "AP",
+                "offset": -15
+              }
+            },
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      7143,
+      [
+        {
+          "SystemCall": {
+            "system": {
+              "Deref": {
+                "register": "FP",
+                "offset": -5
+              }
+            }
+          }
+        }
+      ]
+    ],
+    [
+      7146,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      7168,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      7183,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      7197,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      7211,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      7226,
+      [
+        {
+          "TestLessThanOrEqual": {
+            "lhs": {
+              "Immediate": "0x942"
+            },
+            "rhs": {
+              "Deref": {
+                "register": "FP",
+                "offset": -8
+              }
+            },
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      7298,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      7318,
       [
         {
           "TestLessThanOrEqual": {
@@ -25432,7 +26007,7 @@
       ]
     ],
     [
-      7091,
+      7355,
       [
         {
           "AllocSegment": {
@@ -25445,7 +26020,7 @@
       ]
     ],
     [
-      7105,
+      7369,
       [
         {
           "TestLessThanOrEqual": {
@@ -25467,7 +26042,7 @@
       ]
     ],
     [
-      7142,
+      7406,
       [
         {
           "AllocSegment": {
@@ -25480,7 +26055,7 @@
       ]
     ],
     [
-      7156,
+      7420,
       [
         {
           "AllocSegment": {
@@ -25493,7 +26068,7 @@
       ]
     ],
     [
-      7172,
+      7436,
       [
         {
           "SystemCall": {
@@ -25508,7 +26083,7 @@
       ]
     ],
     [
-      7181,
+      7445,
       [
         {
           "SystemCall": {
@@ -25529,7 +26104,7 @@
       ]
     ],
     [
-      7194,
+      7458,
       [
         {
           "SystemCall": {
@@ -25550,7 +26125,7 @@
       ]
     ],
     [
-      7211,
+      7475,
       [
         {
           "SystemCall": {
@@ -25571,7 +26146,7 @@
       ]
     ],
     [
-      7214,
+      7478,
       [
         {
           "AllocSegment": {
@@ -25584,7 +26159,7 @@
       ]
     ],
     [
-      7273,
+      7537,
       [
         {
           "TestLessThanOrEqual": {
@@ -25606,7 +26181,7 @@
       ]
     ],
     [
-      7298,
+      7562,
       [
         {
           "SystemCall": {
@@ -25621,7 +26196,7 @@
       ]
     ],
     [
-      7306,
+      7570,
       [
         {
           "TestLessThan": {
@@ -25652,7 +26227,7 @@
       ]
     ],
     [
-      7331,
+      7595,
       [
         {
           "AllocSegment": {
@@ -25665,306 +26240,10 @@
       ]
     ],
     [
-      7364,
+      7628,
       [
         {
           "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      7401,
-      [
-        {
-          "TestLessThan": {
-            "lhs": {
-              "BinOp": {
-                "op": "Add",
-                "a": {
-                  "register": "AP",
-                  "offset": -1
-                },
-                "b": {
-                  "Immediate": "0x0"
-                }
-              }
-            },
-            "rhs": {
-              "Immediate": "0x10000000000000000"
-            },
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      7405,
-      [
-        {
-          "LinearSplit": {
-            "value": {
-              "Deref": {
-                "register": "AP",
-                "offset": -1
-              }
-            },
-            "scalar": {
-              "Immediate": "0x8000000000000110000000000000000"
-            },
-            "max_x": {
-              "Immediate": "0xfffffffffffffffffffffffffffffffe"
-            },
-            "x": {
-              "register": "AP",
-              "offset": 0
-            },
-            "y": {
-              "register": "AP",
-              "offset": 1
-            }
-          }
-        }
-      ]
-    ],
-    [
-      7447,
-      [
-        {
-          "TestLessThan": {
-            "lhs": {
-              "BinOp": {
-                "op": "Add",
-                "a": {
-                  "register": "AP",
-                  "offset": -1
-                },
-                "b": {
-                  "Immediate": "0x0"
-                }
-              }
-            },
-            "rhs": {
-              "Immediate": "0x10000000000000000"
-            },
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      7451,
-      [
-        {
-          "LinearSplit": {
-            "value": {
-              "Deref": {
-                "register": "AP",
-                "offset": -1
-              }
-            },
-            "scalar": {
-              "Immediate": "0x8000000000000110000000000000000"
-            },
-            "max_x": {
-              "Immediate": "0xfffffffffffffffffffffffffffffffe"
-            },
-            "x": {
-              "register": "AP",
-              "offset": 0
-            },
-            "y": {
-              "register": "AP",
-              "offset": 1
-            }
-          }
-        }
-      ]
-    ],
-    [
-      7492,
-      [
-        {
-          "TestLessThan": {
-            "lhs": {
-              "Deref": {
-                "register": "AP",
-                "offset": -1
-              }
-            },
-            "rhs": {
-              "Immediate": "0x800000000000000000000000000000000000000000000000000000000000000"
-            },
-            "dst": {
-              "register": "AP",
-              "offset": 4
-            }
-          }
-        }
-      ]
-    ],
-    [
-      7496,
-      [
-        {
-          "LinearSplit": {
-            "value": {
-              "Deref": {
-                "register": "AP",
-                "offset": 3
-              }
-            },
-            "scalar": {
-              "Immediate": "0x110000000000000000"
-            },
-            "max_x": {
-              "Immediate": "0xffffffffffffffffffffffffffffffff"
-            },
-            "x": {
-              "register": "AP",
-              "offset": -2
-            },
-            "y": {
-              "register": "AP",
-              "offset": -1
-            }
-          }
-        }
-      ]
-    ],
-    [
-      7506,
-      [
-        {
-          "LinearSplit": {
-            "value": {
-              "Deref": {
-                "register": "AP",
-                "offset": -2
-              }
-            },
-            "scalar": {
-              "Immediate": "0x8000000000000000000000000000000"
-            },
-            "max_x": {
-              "Immediate": "0xffffffffffffffffffffffffffffffff"
-            },
-            "x": {
-              "register": "AP",
-              "offset": -1
-            },
-            "y": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      7617,
-      [
-        {
-          "TestLessThan": {
-            "lhs": {
-              "Deref": {
-                "register": "FP",
-                "offset": 2
-              }
-            },
-            "rhs": {
-              "Immediate": "0x800000000000000000000000000000000000000000000000000000000000000"
-            },
-            "dst": {
-              "register": "AP",
-              "offset": 4
-            }
-          }
-        }
-      ]
-    ],
-    [
-      7621,
-      [
-        {
-          "LinearSplit": {
-            "value": {
-              "Deref": {
-                "register": "AP",
-                "offset": 3
-              }
-            },
-            "scalar": {
-              "Immediate": "0x110000000000000000"
-            },
-            "max_x": {
-              "Immediate": "0xffffffffffffffffffffffffffffffff"
-            },
-            "x": {
-              "register": "AP",
-              "offset": -2
-            },
-            "y": {
-              "register": "AP",
-              "offset": -1
-            }
-          }
-        }
-      ]
-    ],
-    [
-      7631,
-      [
-        {
-          "LinearSplit": {
-            "value": {
-              "Deref": {
-                "register": "FP",
-                "offset": 2
-              }
-            },
-            "scalar": {
-              "Immediate": "0x8000000000000000000000000000000"
-            },
-            "max_x": {
-              "Immediate": "0xffffffffffffffffffffffffffffffff"
-            },
-            "x": {
-              "register": "AP",
-              "offset": -1
-            },
-            "y": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      7663,
-      [
-        {
-          "TestLessThan": {
-            "lhs": {
-              "Deref": {
-                "register": "FP",
-                "offset": 0
-              }
-            },
-            "rhs": {
-              "Immediate": "0x100000000000000000000000000000000"
-            },
             "dst": {
               "register": "AP",
               "offset": 0
@@ -25977,6 +26256,302 @@
       7665,
       [
         {
+          "TestLessThan": {
+            "lhs": {
+              "BinOp": {
+                "op": "Add",
+                "a": {
+                  "register": "AP",
+                  "offset": -1
+                },
+                "b": {
+                  "Immediate": "0x0"
+                }
+              }
+            },
+            "rhs": {
+              "Immediate": "0x10000000000000000"
+            },
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      7669,
+      [
+        {
+          "LinearSplit": {
+            "value": {
+              "Deref": {
+                "register": "AP",
+                "offset": -1
+              }
+            },
+            "scalar": {
+              "Immediate": "0x8000000000000110000000000000000"
+            },
+            "max_x": {
+              "Immediate": "0xfffffffffffffffffffffffffffffffe"
+            },
+            "x": {
+              "register": "AP",
+              "offset": 0
+            },
+            "y": {
+              "register": "AP",
+              "offset": 1
+            }
+          }
+        }
+      ]
+    ],
+    [
+      7711,
+      [
+        {
+          "TestLessThan": {
+            "lhs": {
+              "BinOp": {
+                "op": "Add",
+                "a": {
+                  "register": "AP",
+                  "offset": -1
+                },
+                "b": {
+                  "Immediate": "0x0"
+                }
+              }
+            },
+            "rhs": {
+              "Immediate": "0x10000000000000000"
+            },
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      7715,
+      [
+        {
+          "LinearSplit": {
+            "value": {
+              "Deref": {
+                "register": "AP",
+                "offset": -1
+              }
+            },
+            "scalar": {
+              "Immediate": "0x8000000000000110000000000000000"
+            },
+            "max_x": {
+              "Immediate": "0xfffffffffffffffffffffffffffffffe"
+            },
+            "x": {
+              "register": "AP",
+              "offset": 0
+            },
+            "y": {
+              "register": "AP",
+              "offset": 1
+            }
+          }
+        }
+      ]
+    ],
+    [
+      7756,
+      [
+        {
+          "TestLessThan": {
+            "lhs": {
+              "Deref": {
+                "register": "AP",
+                "offset": -1
+              }
+            },
+            "rhs": {
+              "Immediate": "0x800000000000000000000000000000000000000000000000000000000000000"
+            },
+            "dst": {
+              "register": "AP",
+              "offset": 4
+            }
+          }
+        }
+      ]
+    ],
+    [
+      7760,
+      [
+        {
+          "LinearSplit": {
+            "value": {
+              "Deref": {
+                "register": "AP",
+                "offset": 3
+              }
+            },
+            "scalar": {
+              "Immediate": "0x110000000000000000"
+            },
+            "max_x": {
+              "Immediate": "0xffffffffffffffffffffffffffffffff"
+            },
+            "x": {
+              "register": "AP",
+              "offset": -2
+            },
+            "y": {
+              "register": "AP",
+              "offset": -1
+            }
+          }
+        }
+      ]
+    ],
+    [
+      7770,
+      [
+        {
+          "LinearSplit": {
+            "value": {
+              "Deref": {
+                "register": "AP",
+                "offset": -2
+              }
+            },
+            "scalar": {
+              "Immediate": "0x8000000000000000000000000000000"
+            },
+            "max_x": {
+              "Immediate": "0xffffffffffffffffffffffffffffffff"
+            },
+            "x": {
+              "register": "AP",
+              "offset": -1
+            },
+            "y": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      7881,
+      [
+        {
+          "TestLessThan": {
+            "lhs": {
+              "Deref": {
+                "register": "FP",
+                "offset": 2
+              }
+            },
+            "rhs": {
+              "Immediate": "0x800000000000000000000000000000000000000000000000000000000000000"
+            },
+            "dst": {
+              "register": "AP",
+              "offset": 4
+            }
+          }
+        }
+      ]
+    ],
+    [
+      7885,
+      [
+        {
+          "LinearSplit": {
+            "value": {
+              "Deref": {
+                "register": "AP",
+                "offset": 3
+              }
+            },
+            "scalar": {
+              "Immediate": "0x110000000000000000"
+            },
+            "max_x": {
+              "Immediate": "0xffffffffffffffffffffffffffffffff"
+            },
+            "x": {
+              "register": "AP",
+              "offset": -2
+            },
+            "y": {
+              "register": "AP",
+              "offset": -1
+            }
+          }
+        }
+      ]
+    ],
+    [
+      7895,
+      [
+        {
+          "LinearSplit": {
+            "value": {
+              "Deref": {
+                "register": "FP",
+                "offset": 2
+              }
+            },
+            "scalar": {
+              "Immediate": "0x8000000000000000000000000000000"
+            },
+            "max_x": {
+              "Immediate": "0xffffffffffffffffffffffffffffffff"
+            },
+            "x": {
+              "register": "AP",
+              "offset": -1
+            },
+            "y": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      7927,
+      [
+        {
+          "TestLessThan": {
+            "lhs": {
+              "Deref": {
+                "register": "FP",
+                "offset": 0
+              }
+            },
+            "rhs": {
+              "Immediate": "0x100000000000000000000000000000000"
+            },
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      7929,
+      [
+        {
           "DivMod": {
             "lhs": {
               "Deref": {
@@ -26000,7 +26575,7 @@
       ]
     ],
     [
-      7746,
+      8010,
       [
         {
           "AllocSegment": {
@@ -26013,7 +26588,7 @@
       ]
     ],
     [
-      7801,
+      8065,
       [
         {
           "TestLessThan": {
@@ -26035,7 +26610,7 @@
       ]
     ],
     [
-      7803,
+      8067,
       [
         {
           "DivMod": {
@@ -26061,7 +26636,7 @@
       ]
     ],
     [
-      7856,
+      8120,
       [
         {
           "TestLessThan": {
@@ -26089,7 +26664,7 @@
       ]
     ],
     [
-      7860,
+      8124,
       [
         {
           "LinearSplit": {
@@ -26118,7 +26693,7 @@
       ]
     ],
     [
-      7902,
+      8166,
       [
         {
           "TestLessThan": {
@@ -26146,7 +26721,7 @@
       ]
     ],
     [
-      7906,
+      8170,
       [
         {
           "LinearSplit": {
@@ -26175,7 +26750,7 @@
       ]
     ],
     [
-      8737,
+      9001,
       [
         {
           "SystemCall": {
@@ -26190,7 +26765,7 @@
       ]
     ],
     [
-      8970,
+      9234,
       [
         {
           "AllocSegment": {
@@ -26203,7 +26778,7 @@
       ]
     ],
     [
-      8984,
+      9248,
       [
         {
           "AllocSegment": {
@@ -26216,7 +26791,7 @@
       ]
     ],
     [
-      8998,
+      9262,
       [
         {
           "AllocSegment": {
@@ -26229,7 +26804,7 @@
       ]
     ],
     [
-      9062,
+      9326,
       [
         {
           "AllocSegment": {
@@ -26242,7 +26817,7 @@
       ]
     ],
     [
-      9076,
+      9340,
       [
         {
           "AllocSegment": {
@@ -26255,7 +26830,7 @@
       ]
     ],
     [
-      9099,
+      9363,
       [
         {
           "AllocSegment": {
@@ -26268,7 +26843,7 @@
       ]
     ],
     [
-      9123,
+      9387,
       [
         {
           "SystemCall": {
@@ -26283,7 +26858,7 @@
       ]
     ],
     [
-      9126,
+      9390,
       [
         {
           "AllocSegment": {
@@ -26296,7 +26871,7 @@
       ]
     ],
     [
-      9142,
+      9406,
       [
         {
           "SystemCall": {
@@ -26317,7 +26892,7 @@
       ]
     ],
     [
-      9179,
+      9443,
       [
         {
           "GetSegmentArenaIndex": {
@@ -26336,7 +26911,7 @@
       ]
     ],
     [
-      9220,
+      9484,
       [
         {
           "AllocSegment": {
@@ -26349,7 +26924,7 @@
       ]
     ],
     [
-      9228,
+      9492,
       [
         {
           "InitSquashData": {
@@ -26384,7 +26959,7 @@
       ]
     ],
     [
-      9247,
+      9511,
       [
         {
           "GetCurrentAccessIndex": {
@@ -26399,7 +26974,7 @@
       ]
     ],
     [
-      9260,
+      9524,
       [
         {
           "ShouldSkipSquashLoop": {
@@ -26412,7 +26987,7 @@
       ]
     ],
     [
-      9262,
+      9526,
       [
         {
           "GetCurrentAccessDelta": {
@@ -26425,7 +27000,7 @@
       ]
     ],
     [
-      9273,
+      9537,
       [
         {
           "ShouldContinueSquashLoop": {
@@ -26438,7 +27013,7 @@
       ]
     ],
     [
-      9287,
+      9551,
       [
         {
           "GetNextDictKey": {
@@ -26451,7 +27026,7 @@
       ]
     ],
     [
-      9306,
+      9570,
       [
         {
           "AssertLeFindSmallArcs": {
@@ -26484,7 +27059,7 @@
       ]
     ],
     [
-      9318,
+      9582,
       [
         {
           "AssertLeIsFirstArcExcluded": {
@@ -26497,7 +27072,7 @@
       ]
     ],
     [
-      9330,
+      9594,
       [
         {
           "AssertLeIsSecondArcExcluded": {
@@ -26510,7 +27085,7 @@
       ]
     ],
     [
-      9361,
+      9625,
       [
         {
           "AllocSegment": {
@@ -26523,7 +27098,7 @@
       ]
     ],
     [
-      9369,
+      9633,
       [
         {
           "AllocSegment": {
@@ -26536,7 +27111,7 @@
       ]
     ],
     [
-      9400,
+      9664,
       [
         {
           "SystemCall": {
@@ -26551,7 +27126,7 @@
       ]
     ],
     [
-      9414,
+      9678,
       [
         {
           "AllocSegment": {
@@ -26564,7 +27139,7 @@
       ]
     ],
     [
-      9434,
+      9698,
       [
         {
           "AllocSegment": {
@@ -26577,7 +27152,7 @@
       ]
     ],
     [
-      9448,
+      9712,
       [
         {
           "AllocSegment": {
@@ -26590,7 +27165,7 @@
       ]
     ],
     [
-      9462,
+      9726,
       [
         {
           "SystemCall": {
@@ -26605,7 +27180,7 @@
       ]
     ],
     [
-      9465,
+      9729,
       [
         {
           "AllocSegment": {
@@ -26618,7 +27193,7 @@
       ]
     ],
     [
-      9488,
+      9752,
       [
         {
           "TestLessThan": {
@@ -26643,7 +27218,7 @@
       ]
     ],
     [
-      9516,
+      9780,
       [
         {
           "AllocSegment": {
@@ -26656,7 +27231,7 @@
       ]
     ],
     [
-      9530,
+      9794,
       [
         {
           "AllocSegment": {
@@ -26669,7 +27244,7 @@
       ]
     ],
     [
-      9573,
+      9837,
       [
         {
           "AllocSegment": {
@@ -26682,7 +27257,7 @@
       ]
     ],
     [
-      9612,
+      9876,
       [
         {
           "AllocSegment": {
@@ -26695,7 +27270,7 @@
       ]
     ],
     [
-      9672,
+      9936,
       [
         {
           "SystemCall": {
@@ -26710,7 +27285,7 @@
       ]
     ],
     [
-      9682,
+      9946,
       [
         {
           "AllocSegment": {
@@ -26723,7 +27298,7 @@
       ]
     ],
     [
-      9713,
+      9977,
       [
         {
           "SystemCall": {
@@ -26738,127 +27313,7 @@
       ]
     ],
     [
-      9716,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      9740,
-      [
-        {
-          "TestLessThan": {
-            "lhs": {
-              "Deref": {
-                "register": "AP",
-                "offset": -4
-              }
-            },
-            "rhs": {
-              "Deref": {
-                "register": "AP",
-                "offset": -1
-              }
-            },
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      9774,
-      [
-        {
-          "SystemCall": {
-            "system": {
-              "Deref": {
-                "register": "AP",
-                "offset": -14
-              }
-            }
-          }
-        }
-      ]
-    ],
-    [
-      9789,
-      [
-        {
-          "SystemCall": {
-            "system": {
-              "Deref": {
-                "register": "AP",
-                "offset": -2
-              }
-            }
-          }
-        }
-      ]
-    ],
-    [
-      9835,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      9891,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      9922,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      9947,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      9962,
+      9980,
       [
         {
           "AllocSegment": {
@@ -26874,11 +27329,36 @@
       10004,
       [
         {
+          "TestLessThan": {
+            "lhs": {
+              "Deref": {
+                "register": "AP",
+                "offset": -4
+              }
+            },
+            "rhs": {
+              "Deref": {
+                "register": "AP",
+                "offset": -1
+              }
+            },
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      10038,
+      [
+        {
           "SystemCall": {
             "system": {
               "Deref": {
-                "register": "FP",
-                "offset": -3
+                "register": "AP",
+                "offset": -14
               }
             }
           }
@@ -26886,7 +27366,22 @@
       ]
     ],
     [
-      10016,
+      10053,
+      [
+        {
+          "SystemCall": {
+            "system": {
+              "Deref": {
+                "register": "AP",
+                "offset": -2
+              }
+            }
+          }
+        }
+      ]
+    ],
+    [
+      10099,
       [
         {
           "AllocSegment": {
@@ -26899,7 +27394,87 @@
       ]
     ],
     [
-      10046,
+      10155,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      10186,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      10211,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      10226,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      10268,
+      [
+        {
+          "SystemCall": {
+            "system": {
+              "Deref": {
+                "register": "FP",
+                "offset": -3
+              }
+            }
+          }
+        }
+      ]
+    ],
+    [
+      10280,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      10310,
       [
         {
           "SystemCall": {
@@ -26914,7 +27489,7 @@
       ]
     ],
     [
-      10051,
+      10315,
       [
         {
           "AllocSegment": {
@@ -26927,7 +27502,7 @@
       ]
     ],
     [
-      10074,
+      10338,
       [
         {
           "TestLessThan": {
@@ -26952,7 +27527,7 @@
       ]
     ],
     [
-      10108,
+      10372,
       [
         {
           "SystemCall": {
@@ -26967,7 +27542,7 @@
       ]
     ],
     [
-      10123,
+      10387,
       [
         {
           "SystemCall": {
@@ -26982,7 +27557,7 @@
       ]
     ],
     [
-      10171,
+      10435,
       [
         {
           "AllocSegment": {
@@ -26995,7 +27570,7 @@
       ]
     ],
     [
-      10201,
+      10465,
       [
         {
           "SystemCall": {
@@ -27010,7 +27585,7 @@
       ]
     ],
     [
-      10251,
+      10515,
       [
         {
           "AllocSegment": {
@@ -27023,7 +27598,7 @@
       ]
     ],
     [
-      10289,
+      10553,
       [
         {
           "AllocSegment": {
@@ -27036,7 +27611,7 @@
       ]
     ],
     [
-      10316,
+      10580,
       [
         {
           "AllocSegment": {
@@ -27049,7 +27624,7 @@
       ]
     ],
     [
-      10332,
+      10596,
       [
         {
           "AllocSegment": {
@@ -27062,7 +27637,7 @@
       ]
     ],
     [
-      10358,
+      10622,
       [
         {
           "TestLessThanOrEqual": {
@@ -27084,7 +27659,7 @@
       ]
     ],
     [
-      10372,
+      10636,
       [
         {
           "TestLessThan": {
@@ -27106,7 +27681,7 @@
       ]
     ],
     [
-      10411,
+      10675,
       [
         {
           "TestLessThan": {
@@ -27128,7 +27703,7 @@
       ]
     ],
     [
-      10415,
+      10679,
       [
         {
           "LinearSplit": {
@@ -27157,7 +27732,7 @@
       ]
     ],
     [
-      10425,
+      10689,
       [
         {
           "LinearSplit": {
@@ -27186,7 +27761,7 @@
       ]
     ],
     [
-      10443,
+      10707,
       [
         {
           "SystemCall": {
@@ -27201,7 +27776,7 @@
       ]
     ],
     [
-      10461,
+      10725,
       [
         {
           "AllocSegment": {
@@ -27214,7 +27789,7 @@
       ]
     ],
     [
-      10480,
+      10744,
       [
         {
           "TestLessThan": {
@@ -27236,7 +27811,7 @@
       ]
     ],
     [
-      10484,
+      10748,
       [
         {
           "LinearSplit": {
@@ -27265,7 +27840,7 @@
       ]
     ],
     [
-      10494,
+      10758,
       [
         {
           "LinearSplit": {
@@ -27294,7 +27869,7 @@
       ]
     ],
     [
-      10512,
+      10776,
       [
         {
           "SystemCall": {
@@ -27309,7 +27884,7 @@
       ]
     ],
     [
-      10530,
+      10794,
       [
         {
           "AllocSegment": {
@@ -27322,7 +27897,7 @@
       ]
     ],
     [
-      10561,
+      10825,
       [
         {
           "AllocSegment": {
@@ -27335,7 +27910,7 @@
       ]
     ],
     [
-      10585,
+      10849,
       [
         {
           "AllocSegment": {
@@ -27348,7 +27923,7 @@
       ]
     ],
     [
-      10599,
+      10863,
       [
         {
           "AllocSegment": {
@@ -27361,7 +27936,7 @@
       ]
     ],
     [
-      10613,
+      10877,
       [
         {
           "AllocSegment": {
@@ -27374,7 +27949,7 @@
       ]
     ],
     [
-      10627,
+      10891,
       [
         {
           "AllocSegment": {
@@ -27387,7 +27962,7 @@
       ]
     ],
     [
-      10642,
+      10906,
       [
         {
           "AllocSegment": {
@@ -27400,7 +27975,7 @@
       ]
     ],
     [
-      10657,
+      10921,
       [
         {
           "TestLessThanOrEqual": {
@@ -27422,7 +27997,7 @@
       ]
     ],
     [
-      10671,
+      10935,
       [
         {
           "AllocSegment": {
@@ -27435,7 +28010,7 @@
       ]
     ],
     [
-      10691,
+      10955,
       [
         {
           "AllocSegment": {
@@ -27448,7 +28023,7 @@
       ]
     ],
     [
-      10705,
+      10969,
       [
         {
           "TestLessThanOrEqual": {
@@ -27470,7 +28045,7 @@
       ]
     ],
     [
-      10735,
+      10999,
       [
         {
           "AllocSegment": {
@@ -27483,7 +28058,7 @@
       ]
     ],
     [
-      10754,
+      11018,
       [
         {
           "TestLessThan": {
@@ -27505,7 +28080,7 @@
       ]
     ],
     [
-      10758,
+      11022,
       [
         {
           "LinearSplit": {
@@ -27534,7 +28109,7 @@
       ]
     ],
     [
-      10769,
+      11033,
       [
         {
           "LinearSplit": {
@@ -27563,7 +28138,7 @@
       ]
     ],
     [
-      10795,
+      11059,
       [
         {
           "SystemCall": {
@@ -27578,7 +28153,7 @@
       ]
     ],
     [
-      10810,
+      11074,
       [
         {
           "SystemCall": {
@@ -27599,7 +28174,7 @@
       ]
     ],
     [
-      10818,
+      11082,
       [
         {
           "TestLessThan": {
@@ -27621,7 +28196,7 @@
       ]
     ],
     [
-      10822,
+      11086,
       [
         {
           "LinearSplit": {
@@ -27650,7 +28225,7 @@
       ]
     ],
     [
-      10833,
+      11097,
       [
         {
           "LinearSplit": {
@@ -27679,7 +28254,7 @@
       ]
     ],
     [
-      10863,
+      11127,
       [
         {
           "SystemCall": {
@@ -27700,7 +28275,7 @@
       ]
     ],
     [
-      10879,
+      11143,
       [
         {
           "SystemCall": {
@@ -27721,7 +28296,7 @@
       ]
     ],
     [
-      10949,
+      11213,
       [
         {
           "TestLessThan": {
@@ -27743,7 +28318,7 @@
       ]
     ],
     [
-      10953,
+      11217,
       [
         {
           "LinearSplit": {
@@ -27772,7 +28347,7 @@
       ]
     ],
     [
-      10964,
+      11228,
       [
         {
           "LinearSplit": {
@@ -27801,7 +28376,7 @@
       ]
     ],
     [
-      10990,
+      11254,
       [
         {
           "SystemCall": {
@@ -27816,7 +28391,7 @@
       ]
     ],
     [
-      11005,
+      11269,
       [
         {
           "SystemCall": {
@@ -27837,7 +28412,7 @@
       ]
     ],
     [
-      11012,
+      11276,
       [
         {
           "TestLessThan": {
@@ -27859,7 +28434,7 @@
       ]
     ],
     [
-      11014,
+      11278,
       [
         {
           "DivMod": {
@@ -27885,7 +28460,7 @@
       ]
     ],
     [
-      11035,
+      11299,
       [
         {
           "TestLessThan": {
@@ -27907,7 +28482,7 @@
       ]
     ],
     [
-      11037,
+      11301,
       [
         {
           "DivMod": {
@@ -27933,7 +28508,7 @@
       ]
     ],
     [
-      11067,
+      11331,
       [
         {
           "TestLessThan": {
@@ -27955,7 +28530,7 @@
       ]
     ],
     [
-      11071,
+      11335,
       [
         {
           "LinearSplit": {
@@ -27984,7 +28559,7 @@
       ]
     ],
     [
-      11082,
+      11346,
       [
         {
           "LinearSplit": {
@@ -28013,7 +28588,7 @@
       ]
     ],
     [
-      11113,
+      11377,
       [
         {
           "SystemCall": {
@@ -28028,7 +28603,7 @@
       ]
     ],
     [
-      11128,
+      11392,
       [
         {
           "SystemCall": {
@@ -28049,7 +28624,7 @@
       ]
     ],
     [
-      11172,
+      11436,
       [
         {
           "AllocSegment": {
@@ -28062,7 +28637,7 @@
       ]
     ],
     [
-      11191,
+      11455,
       [
         {
           "AllocSegment": {
@@ -28075,7 +28650,7 @@
       ]
     ],
     [
-      11273,
+      11537,
       [
         {
           "RandomEcPoint": {
@@ -28103,7 +28678,7 @@
       ]
     ],
     [
-      11337,
+      11601,
       [
         {
           "RandomEcPoint": {
@@ -28131,7 +28706,7 @@
       ]
     ],
     [
-      11407,
+      11671,
       [
         {
           "AllocSegment": {
@@ -28144,7 +28719,7 @@
       ]
     ],
     [
-      11433,
+      11697,
       [
         {
           "SystemCall": {
@@ -28159,7 +28734,7 @@
       ]
     ],
     [
-      11450,
+      11714,
       [
         {
           "SystemCall": {
@@ -28180,336 +28755,7 @@
       ]
     ],
     [
-      11492,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      11509,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      11528,
-      [
-        {
-          "SystemCall": {
-            "system": {
-              "Deref": {
-                "register": "FP",
-                "offset": -4
-              }
-            }
-          }
-        }
-      ]
-    ],
-    [
-      11538,
-      [
-        {
-          "TestLessThan": {
-            "lhs": {
-              "Deref": {
-                "register": "AP",
-                "offset": -1
-              }
-            },
-            "rhs": {
-              "Immediate": "0x7ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00"
-            },
-            "dst": {
-              "register": "AP",
-              "offset": 5
-            }
-          }
-        }
-      ]
-    ],
-    [
-      11542,
-      [
-        {
-          "LinearSplit": {
-            "value": {
-              "Deref": {
-                "register": "AP",
-                "offset": 4
-              }
-            },
-            "scalar": {
-              "Immediate": "0x110000000000000000"
-            },
-            "max_x": {
-              "Immediate": "0xffffffffffffffffffffffffffffffff"
-            },
-            "x": {
-              "register": "AP",
-              "offset": -2
-            },
-            "y": {
-              "register": "AP",
-              "offset": -1
-            }
-          }
-        }
-      ]
-    ],
-    [
-      11553,
-      [
-        {
-          "LinearSplit": {
-            "value": {
-              "Deref": {
-                "register": "AP",
-                "offset": 4
-              }
-            },
-            "scalar": {
-              "Immediate": "0x8000000000000000000000000000000"
-            },
-            "max_x": {
-              "Immediate": "0xfffffffffffffffffffffffffffffffe"
-            },
-            "x": {
-              "register": "AP",
-              "offset": -2
-            },
-            "y": {
-              "register": "AP",
-              "offset": -1
-            }
-          }
-        }
-      ]
-    ],
-    [
-      11597,
-      [
-        {
-          "SystemCall": {
-            "system": {
-              "BinOp": {
-                "op": "Add",
-                "a": {
-                  "register": "FP",
-                  "offset": -4
-                },
-                "b": {
-                  "Immediate": "0x5"
-                }
-              }
-            }
-          }
-        }
-      ]
-    ],
-    [
-      11612,
-      [
-        {
-          "SystemCall": {
-            "system": {
-              "BinOp": {
-                "op": "Add",
-                "a": {
-                  "register": "FP",
-                  "offset": -4
-                },
-                "b": {
-                  "Immediate": "0xc"
-                }
-              }
-            }
-          }
-        }
-      ]
-    ],
-    [
-      11622,
-      [
-        {
-          "TestLessThan": {
-            "lhs": {
-              "Deref": {
-                "register": "AP",
-                "offset": -5
-              }
-            },
-            "rhs": {
-              "Deref": {
-                "register": "AP",
-                "offset": -1
-              }
-            },
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      11637,
-      [
-        {
-          "TestLessThan": {
-            "lhs": {
-              "Deref": {
-                "register": "AP",
-                "offset": -3
-              }
-            },
-            "rhs": {
-              "Deref": {
-                "register": "AP",
-                "offset": -1
-              }
-            },
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      11653,
-      [
-        {
-          "TestLessThan": {
-            "lhs": {
-              "Deref": {
-                "register": "AP",
-                "offset": -1
-              }
-            },
-            "rhs": {
-              "Immediate": "0x7ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00"
-            },
-            "dst": {
-              "register": "AP",
-              "offset": 5
-            }
-          }
-        }
-      ]
-    ],
-    [
-      11657,
-      [
-        {
-          "LinearSplit": {
-            "value": {
-              "Deref": {
-                "register": "AP",
-                "offset": 4
-              }
-            },
-            "scalar": {
-              "Immediate": "0x110000000000000000"
-            },
-            "max_x": {
-              "Immediate": "0xffffffffffffffffffffffffffffffff"
-            },
-            "x": {
-              "register": "AP",
-              "offset": -2
-            },
-            "y": {
-              "register": "AP",
-              "offset": -1
-            }
-          }
-        }
-      ]
-    ],
-    [
-      11668,
-      [
-        {
-          "LinearSplit": {
-            "value": {
-              "Deref": {
-                "register": "AP",
-                "offset": 4
-              }
-            },
-            "scalar": {
-              "Immediate": "0x8000000000000000000000000000000"
-            },
-            "max_x": {
-              "Immediate": "0xfffffffffffffffffffffffffffffffe"
-            },
-            "x": {
-              "register": "AP",
-              "offset": -2
-            },
-            "y": {
-              "register": "AP",
-              "offset": -1
-            }
-          }
-        }
-      ]
-    ],
-    [
-      11697,
-      [
-        {
-          "SystemCall": {
-            "system": {
-              "Deref": {
-                "register": "AP",
-                "offset": -29
-              }
-            }
-          }
-        }
-      ]
-    ],
-    [
-      11713,
-      [
-        {
-          "SystemCall": {
-            "system": {
-              "BinOp": {
-                "op": "Add",
-                "a": {
-                  "register": "AP",
-                  "offset": -35
-                },
-                "b": {
-                  "Immediate": "0x7"
-                }
-              }
-            }
-          }
-        }
-      ]
-    ],
-    [
-      11755,
+      11756,
       [
         {
           "AllocSegment": {
@@ -28535,7 +28781,310 @@
       ]
     ],
     [
-      11875,
+      11792,
+      [
+        {
+          "SystemCall": {
+            "system": {
+              "Deref": {
+                "register": "FP",
+                "offset": -4
+              }
+            }
+          }
+        }
+      ]
+    ],
+    [
+      11802,
+      [
+        {
+          "TestLessThan": {
+            "lhs": {
+              "Deref": {
+                "register": "AP",
+                "offset": -1
+              }
+            },
+            "rhs": {
+              "Immediate": "0x7ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00"
+            },
+            "dst": {
+              "register": "AP",
+              "offset": 5
+            }
+          }
+        }
+      ]
+    ],
+    [
+      11806,
+      [
+        {
+          "LinearSplit": {
+            "value": {
+              "Deref": {
+                "register": "AP",
+                "offset": 4
+              }
+            },
+            "scalar": {
+              "Immediate": "0x110000000000000000"
+            },
+            "max_x": {
+              "Immediate": "0xffffffffffffffffffffffffffffffff"
+            },
+            "x": {
+              "register": "AP",
+              "offset": -2
+            },
+            "y": {
+              "register": "AP",
+              "offset": -1
+            }
+          }
+        }
+      ]
+    ],
+    [
+      11817,
+      [
+        {
+          "LinearSplit": {
+            "value": {
+              "Deref": {
+                "register": "AP",
+                "offset": 4
+              }
+            },
+            "scalar": {
+              "Immediate": "0x8000000000000000000000000000000"
+            },
+            "max_x": {
+              "Immediate": "0xfffffffffffffffffffffffffffffffe"
+            },
+            "x": {
+              "register": "AP",
+              "offset": -2
+            },
+            "y": {
+              "register": "AP",
+              "offset": -1
+            }
+          }
+        }
+      ]
+    ],
+    [
+      11861,
+      [
+        {
+          "SystemCall": {
+            "system": {
+              "BinOp": {
+                "op": "Add",
+                "a": {
+                  "register": "FP",
+                  "offset": -4
+                },
+                "b": {
+                  "Immediate": "0x5"
+                }
+              }
+            }
+          }
+        }
+      ]
+    ],
+    [
+      11876,
+      [
+        {
+          "SystemCall": {
+            "system": {
+              "BinOp": {
+                "op": "Add",
+                "a": {
+                  "register": "FP",
+                  "offset": -4
+                },
+                "b": {
+                  "Immediate": "0xc"
+                }
+              }
+            }
+          }
+        }
+      ]
+    ],
+    [
+      11886,
+      [
+        {
+          "TestLessThan": {
+            "lhs": {
+              "Deref": {
+                "register": "AP",
+                "offset": -5
+              }
+            },
+            "rhs": {
+              "Deref": {
+                "register": "AP",
+                "offset": -1
+              }
+            },
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      11901,
+      [
+        {
+          "TestLessThan": {
+            "lhs": {
+              "Deref": {
+                "register": "AP",
+                "offset": -3
+              }
+            },
+            "rhs": {
+              "Deref": {
+                "register": "AP",
+                "offset": -1
+              }
+            },
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      11917,
+      [
+        {
+          "TestLessThan": {
+            "lhs": {
+              "Deref": {
+                "register": "AP",
+                "offset": -1
+              }
+            },
+            "rhs": {
+              "Immediate": "0x7ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00"
+            },
+            "dst": {
+              "register": "AP",
+              "offset": 5
+            }
+          }
+        }
+      ]
+    ],
+    [
+      11921,
+      [
+        {
+          "LinearSplit": {
+            "value": {
+              "Deref": {
+                "register": "AP",
+                "offset": 4
+              }
+            },
+            "scalar": {
+              "Immediate": "0x110000000000000000"
+            },
+            "max_x": {
+              "Immediate": "0xffffffffffffffffffffffffffffffff"
+            },
+            "x": {
+              "register": "AP",
+              "offset": -2
+            },
+            "y": {
+              "register": "AP",
+              "offset": -1
+            }
+          }
+        }
+      ]
+    ],
+    [
+      11932,
+      [
+        {
+          "LinearSplit": {
+            "value": {
+              "Deref": {
+                "register": "AP",
+                "offset": 4
+              }
+            },
+            "scalar": {
+              "Immediate": "0x8000000000000000000000000000000"
+            },
+            "max_x": {
+              "Immediate": "0xfffffffffffffffffffffffffffffffe"
+            },
+            "x": {
+              "register": "AP",
+              "offset": -2
+            },
+            "y": {
+              "register": "AP",
+              "offset": -1
+            }
+          }
+        }
+      ]
+    ],
+    [
+      11961,
+      [
+        {
+          "SystemCall": {
+            "system": {
+              "Deref": {
+                "register": "AP",
+                "offset": -29
+              }
+            }
+          }
+        }
+      ]
+    ],
+    [
+      11977,
+      [
+        {
+          "SystemCall": {
+            "system": {
+              "BinOp": {
+                "op": "Add",
+                "a": {
+                  "register": "AP",
+                  "offset": -35
+                },
+                "b": {
+                  "Immediate": "0x7"
+                }
+              }
+            }
+          }
+        }
+      ]
+    ],
+    [
+      12019,
       [
         {
           "AllocSegment": {
@@ -28548,7 +29097,33 @@
       ]
     ],
     [
-      11941,
+      12037,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      12139,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      12205,
       [
         {
           "EvalCircuit": {
@@ -28581,7 +29156,7 @@
       ]
     ],
     [
-      11998,
+      12262,
       [
         {
           "AllocSegment": {
@@ -28594,7 +29169,7 @@
       ]
     ],
     [
-      12054,
+      12318,
       [
         {
           "AllocSegment": {
@@ -28607,7 +29182,7 @@
       ]
     ],
     [
-      12147,
+      12411,
       [
         {
           "AllocSegment": {
@@ -28620,7 +29195,7 @@
       ]
     ],
     [
-      12168,
+      12432,
       [
         {
           "AllocSegment": {
@@ -28633,7 +29208,7 @@
       ]
     ],
     [
-      12239,
+      12503,
       [
         {
           "AllocSegment": {
@@ -28646,7 +29221,7 @@
       ]
     ],
     [
-      12255,
+      12519,
       [
         {
           "AllocSegment": {
@@ -28659,7 +29234,7 @@
       ]
     ],
     [
-      12312,
+      12576,
       [
         {
           "SystemCall": {
@@ -28674,7 +29249,7 @@
       ]
     ],
     [
-      12317,
+      12581,
       [
         {
           "AllocSegment": {
@@ -28687,7 +29262,7 @@
       ]
     ],
     [
-      12381,
+      12645,
       [
         {
           "AllocSegment": {
@@ -28700,7 +29275,7 @@
       ]
     ],
     [
-      12409,
+      12673,
       [
         {
           "SystemCall": {
@@ -28715,7 +29290,7 @@
       ]
     ],
     [
-      12430,
+      12694,
       [
         {
           "AllocSegment": {
@@ -28728,7 +29303,7 @@
       ]
     ],
     [
-      12457,
+      12721,
       [
         {
           "AllocSegment": {
@@ -28741,7 +29316,7 @@
       ]
     ],
     [
-      12473,
+      12737,
       [
         {
           "AllocSegment": {
@@ -28754,7 +29329,7 @@
       ]
     ],
     [
-      12489,
+      12753,
       [
         {
           "AllocSegment": {
@@ -28767,7 +29342,7 @@
       ]
     ],
     [
-      12505,
+      12769,
       [
         {
           "AllocSegment": {
@@ -28780,7 +29355,7 @@
       ]
     ],
     [
-      12541,
+      12805,
       [
         {
           "TestLessThan": {
@@ -28808,7 +29383,7 @@
       ]
     ],
     [
-      12545,
+      12809,
       [
         {
           "LinearSplit": {
@@ -28837,7 +29412,7 @@
       ]
     ],
     [
-      12567,
+      12831,
       [
         {
           "TestLessThanOrEqual": {
@@ -28862,7 +29437,7 @@
       ]
     ],
     [
-      12581,
+      12845,
       [
         {
           "TestLessThan": {
@@ -28884,7 +29459,7 @@
       ]
     ],
     [
-      12591,
+      12855,
       [
         {
           "TestLessThanOrEqual": {
@@ -28909,7 +29484,7 @@
       ]
     ],
     [
-      12614,
+      12878,
       [
         {
           "AllocSegment": {
@@ -28922,7 +29497,7 @@
       ]
     ],
     [
-      12635,
+      12899,
       [
         {
           "AllocSegment": {
@@ -28935,7 +29510,7 @@
       ]
     ],
     [
-      12656,
+      12920,
       [
         {
           "AllocSegment": {
@@ -28948,7 +29523,7 @@
       ]
     ],
     [
-      12704,
+      12968,
       [
         {
           "TestLessThanOrEqual": {
@@ -28970,7 +29545,7 @@
       ]
     ],
     [
-      12764,
+      13028,
       [
         {
           "AllocSegment": {
@@ -28983,7 +29558,7 @@
       ]
     ],
     [
-      12784,
+      13048,
       [
         {
           "TestLessThanOrEqual": {
@@ -29005,7 +29580,7 @@
       ]
     ],
     [
-      12850,
+      13114,
       [
         {
           "AllocSegment": {
@@ -29018,7 +29593,7 @@
       ]
     ],
     [
-      12880,
+      13144,
       [
         {
           "AllocSegment": {
@@ -29031,7 +29606,7 @@
       ]
     ],
     [
-      12900,
+      13164,
       [
         {
           "TestLessThanOrEqual": {
@@ -29053,7 +29628,7 @@
       ]
     ],
     [
-      12988,
+      13252,
       [
         {
           "AllocSegment": {
@@ -29066,7 +29641,7 @@
       ]
     ],
     [
-      13018,
+      13282,
       [
         {
           "AllocSegment": {
@@ -29079,7 +29654,7 @@
       ]
     ],
     [
-      13038,
+      13302,
       [
         {
           "TestLessThanOrEqual": {
@@ -29101,7 +29676,7 @@
       ]
     ],
     [
-      13109,
+      13373,
       [
         {
           "AllocSegment": {
@@ -29114,7 +29689,7 @@
       ]
     ],
     [
-      13130,
+      13394,
       [
         {
           "DivMod": {
@@ -29143,7 +29718,7 @@
       ]
     ],
     [
-      13191,
+      13455,
       [
         {
           "AllocSegment": {
@@ -29156,7 +29731,7 @@
       ]
     ],
     [
-      13244,
+      13508,
       [
         {
           "AllocSegment": {
@@ -29169,7 +29744,7 @@
       ]
     ],
     [
-      13257,
+      13521,
       [
         {
           "DivMod": {
@@ -29198,7 +29773,7 @@
       ]
     ],
     [
-      13265,
+      13529,
       [
         {
           "TestLessThan": {
@@ -29229,7 +29804,7 @@
       ]
     ],
     [
-      13293,
+      13557,
       [
         {
           "TestLessThan": {
@@ -29251,7 +29826,7 @@
       ]
     ],
     [
-      13310,
+      13574,
       [
         {
           "AllocSegment": {
@@ -29264,7 +29839,7 @@
       ]
     ],
     [
-      13326,
+      13590,
       [
         {
           "TestLessThan": {
@@ -29295,7 +29870,7 @@
       ]
     ],
     [
-      13348,
+      13612,
       [
         {
           "AllocSegment": {
@@ -29308,7 +29883,7 @@
       ]
     ],
     [
-      13362,
+      13626,
       [
         {
           "AllocSegment": {
@@ -29321,7 +29896,7 @@
       ]
     ],
     [
-      13426,
+      13690,
       [
         {
           "DivMod": {
@@ -29350,7 +29925,7 @@
       ]
     ],
     [
-      13435,
+      13699,
       [
         {
           "TestLessThan": {
@@ -29372,7 +29947,7 @@
       ]
     ],
     [
-      13445,
+      13709,
       [
         {
           "TestLessThan": {
@@ -29403,7 +29978,7 @@
       ]
     ],
     [
-      13466,
+      13730,
       [
         {
           "TestLessThan": {
@@ -29434,7 +30009,7 @@
       ]
     ],
     [
-      13480,
+      13744,
       [
         {
           "DivMod": {
@@ -29463,7 +30038,7 @@
       ]
     ],
     [
-      13497,
+      13761,
       [
         {
           "TestLessThan": {
@@ -29485,7 +30060,7 @@
       ]
     ],
     [
-      13509,
+      13773,
       [
         {
           "TestLessThan": {
@@ -29507,7 +30082,7 @@
       ]
     ],
     [
-      13519,
+      13783,
       [
         {
           "TestLessThan": {
@@ -29538,7 +30113,7 @@
       ]
     ],
     [
-      13542,
+      13806,
       [
         {
           "AllocSegment": {
@@ -29551,7 +30126,7 @@
       ]
     ],
     [
-      13557,
+      13821,
       [
         {
           "AllocSegment": {
@@ -29564,7 +30139,7 @@
       ]
     ],
     [
-      13572,
+      13836,
       [
         {
           "AllocSegment": {
@@ -29577,7 +30152,7 @@
       ]
     ],
     [
-      13587,
+      13851,
       [
         {
           "AllocSegment": {
@@ -29590,7 +30165,7 @@
       ]
     ],
     [
-      13602,
+      13866,
       [
         {
           "AllocSegment": {
@@ -29603,7 +30178,7 @@
       ]
     ],
     [
-      13617,
+      13881,
       [
         {
           "AllocSegment": {
@@ -29616,7 +30191,7 @@
       ]
     ],
     [
-      13630,
+      13894,
       [
         {
           "TestLessThanOrEqual": {
@@ -29638,7 +30213,7 @@
       ]
     ],
     [
-      13640,
+      13904,
       [
         {
           "TestLessThanOrEqualAddress": {
@@ -29669,7 +30244,7 @@
       ]
     ],
     [
-      13677,
+      13941,
       [
         {
           "SystemCall": {
@@ -29684,7 +30259,7 @@
       ]
     ],
     [
-      13710,
+      13974,
       [
         {
           "AllocSegment": {
@@ -29697,7 +30272,7 @@
       ]
     ],
     [
-      13739,
+      14003,
       [
         {
           "TestLessThan": {
@@ -29719,7 +30294,7 @@
       ]
     ],
     [
-      13761,
+      14025,
       [
         {
           "TestLessThan": {
@@ -29741,7 +30316,7 @@
       ]
     ],
     [
-      13799,
+      14063,
       [
         {
           "TestLessThan": {
@@ -29763,7 +30338,7 @@
       ]
     ],
     [
-      13821,
+      14085,
       [
         {
           "TestLessThan": {
@@ -29785,7 +30360,7 @@
       ]
     ],
     [
-      13905,
+      14169,
       [
         {
           "AllocSegment": {
@@ -29798,7 +30373,7 @@
       ]
     ],
     [
-      13943,
+      14207,
       [
         {
           "TestLessThan": {
@@ -29820,7 +30395,7 @@
       ]
     ],
     [
-      13967,
+      14231,
       [
         {
           "TestLessThan": {
@@ -29842,7 +30417,7 @@
       ]
     ],
     [
-      14005,
+      14269,
       [
         {
           "TestLessThan": {
@@ -29864,7 +30439,7 @@
       ]
     ],
     [
-      14031,
+      14295,
       [
         {
           "TestLessThan": {
@@ -29886,7 +30461,7 @@
       ]
     ],
     [
-      14068,
+      14332,
       [
         {
           "U256InvModN": {
@@ -29943,7 +30518,7 @@
       ]
     ],
     [
-      14086,
+      14350,
       [
         {
           "WideMul128": {
@@ -30140,7 +30715,7 @@
       ]
     ],
     [
-      14139,
+      14403,
       [
         {
           "WideMul128": {
@@ -30193,7 +30768,7 @@
       ]
     ],
     [
-      14143,
+      14407,
       [
         {
           "TestLessThan": {
@@ -30215,7 +30790,7 @@
       ]
     ],
     [
-      14157,
+      14421,
       [
         {
           "TestLessThan": {
@@ -30237,7 +30812,7 @@
       ]
     ],
     [
-      14170,
+      14434,
       [
         {
           "DivMod": {
@@ -30263,7 +30838,7 @@
       ]
     ],
     [
-      14180,
+      14444,
       [
         {
           "DivMod": {
@@ -30289,7 +30864,7 @@
       ]
     ],
     [
-      14191,
+      14455,
       [
         {
           "DivMod": {
@@ -30315,7 +30890,7 @@
       ]
     ],
     [
-      14200,
+      14464,
       [
         {
           "DivMod": {
@@ -30341,7 +30916,7 @@
       ]
     ],
     [
-      14210,
+      14474,
       [
         {
           "DivMod": {
@@ -30367,7 +30942,7 @@
       ]
     ],
     [
-      14221,
+      14485,
       [
         {
           "DivMod": {
@@ -30393,7 +30968,7 @@
       ]
     ],
     [
-      14230,
+      14494,
       [
         {
           "DivMod": {
@@ -30419,7 +30994,7 @@
       ]
     ],
     [
-      14240,
+      14504,
       [
         {
           "DivMod": {
@@ -30445,7 +31020,7 @@
       ]
     ],
     [
-      14251,
+      14515,
       [
         {
           "DivMod": {
@@ -30471,7 +31046,7 @@
       ]
     ],
     [
-      14260,
+      14524,
       [
         {
           "DivMod": {
@@ -30497,7 +31072,7 @@
       ]
     ],
     [
-      14270,
+      14534,
       [
         {
           "DivMod": {
@@ -30523,7 +31098,7 @@
       ]
     ],
     [
-      14281,
+      14545,
       [
         {
           "DivMod": {
@@ -30549,7 +31124,7 @@
       ]
     ],
     [
-      14290,
+      14554,
       [
         {
           "DivMod": {
@@ -30575,7 +31150,7 @@
       ]
     ],
     [
-      14300,
+      14564,
       [
         {
           "DivMod": {
@@ -30601,7 +31176,7 @@
       ]
     ],
     [
-      14311,
+      14575,
       [
         {
           "DivMod": {
@@ -30627,7 +31202,7 @@
       ]
     ],
     [
-      14320,
+      14584,
       [
         {
           "DivMod": {
@@ -30653,7 +31228,7 @@
       ]
     ],
     [
-      14330,
+      14594,
       [
         {
           "DivMod": {
@@ -30679,7 +31254,7 @@
       ]
     ],
     [
-      14341,
+      14605,
       [
         {
           "DivMod": {
@@ -30705,7 +31280,7 @@
       ]
     ],
     [
-      14350,
+      14614,
       [
         {
           "DivMod": {
@@ -30731,7 +31306,7 @@
       ]
     ],
     [
-      14360,
+      14624,
       [
         {
           "DivMod": {
@@ -30757,7 +31332,7 @@
       ]
     ],
     [
-      14371,
+      14635,
       [
         {
           "DivMod": {
@@ -30783,7 +31358,7 @@
       ]
     ],
     [
-      14380,
+      14644,
       [
         {
           "DivMod": {
@@ -30809,7 +31384,7 @@
       ]
     ],
     [
-      14390,
+      14654,
       [
         {
           "DivMod": {
@@ -30835,7 +31410,7 @@
       ]
     ],
     [
-      14401,
+      14665,
       [
         {
           "DivMod": {
@@ -30861,7 +31436,7 @@
       ]
     ],
     [
-      14422,
+      14686,
       [
         {
           "Uint512DivModByUint256": {
@@ -30930,7 +31505,7 @@
       ]
     ],
     [
-      14440,
+      14704,
       [
         {
           "WideMul128": {
@@ -31055,7 +31630,7 @@
       ]
     ],
     [
-      14469,
+      14733,
       [
         {
           "TestLessThan": {
@@ -31080,7 +31655,7 @@
       ]
     ],
     [
-      14481,
+      14745,
       [
         {
           "TestLessThan": {
@@ -31105,7 +31680,7 @@
       ]
     ],
     [
-      14496,
+      14760,
       [
         {
           "DivMod": {
@@ -31131,7 +31706,7 @@
       ]
     ],
     [
-      14506,
+      14770,
       [
         {
           "DivMod": {
@@ -31157,7 +31732,7 @@
       ]
     ],
     [
-      14517,
+      14781,
       [
         {
           "DivMod": {
@@ -31183,7 +31758,7 @@
       ]
     ],
     [
-      14526,
+      14790,
       [
         {
           "DivMod": {
@@ -31209,7 +31784,7 @@
       ]
     ],
     [
-      14536,
+      14800,
       [
         {
           "DivMod": {
@@ -31235,7 +31810,7 @@
       ]
     ],
     [
-      14547,
+      14811,
       [
         {
           "DivMod": {
@@ -31261,7 +31836,7 @@
       ]
     ],
     [
-      14556,
+      14820,
       [
         {
           "DivMod": {
@@ -31287,7 +31862,7 @@
       ]
     ],
     [
-      14566,
+      14830,
       [
         {
           "DivMod": {
@@ -31313,7 +31888,7 @@
       ]
     ],
     [
-      14577,
+      14841,
       [
         {
           "DivMod": {
@@ -31339,7 +31914,7 @@
       ]
     ],
     [
-      14586,
+      14850,
       [
         {
           "DivMod": {
@@ -31365,7 +31940,7 @@
       ]
     ],
     [
-      14596,
+      14860,
       [
         {
           "DivMod": {
@@ -31391,7 +31966,7 @@
       ]
     ],
     [
-      14607,
+      14871,
       [
         {
           "DivMod": {
@@ -31417,7 +31992,7 @@
       ]
     ],
     [
-      14616,
+      14880,
       [
         {
           "DivMod": {
@@ -31443,7 +32018,7 @@
       ]
     ],
     [
-      14626,
+      14890,
       [
         {
           "DivMod": {
@@ -31469,7 +32044,7 @@
       ]
     ],
     [
-      14637,
+      14901,
       [
         {
           "DivMod": {
@@ -31495,7 +32070,7 @@
       ]
     ],
     [
-      14658,
+      14922,
       [
         {
           "Uint512DivModByUint256": {
@@ -31564,7 +32139,7 @@
       ]
     ],
     [
-      14676,
+      14940,
       [
         {
           "WideMul128": {
@@ -31689,7 +32264,7 @@
       ]
     ],
     [
-      14705,
+      14969,
       [
         {
           "TestLessThan": {
@@ -31714,7 +32289,7 @@
       ]
     ],
     [
-      14717,
+      14981,
       [
         {
           "TestLessThan": {
@@ -31739,7 +32314,7 @@
       ]
     ],
     [
-      14732,
+      14996,
       [
         {
           "DivMod": {
@@ -31765,7 +32340,7 @@
       ]
     ],
     [
-      14742,
+      15006,
       [
         {
           "DivMod": {
@@ -31791,7 +32366,7 @@
       ]
     ],
     [
-      14753,
+      15017,
       [
         {
           "DivMod": {
@@ -31817,7 +32392,7 @@
       ]
     ],
     [
-      14762,
+      15026,
       [
         {
           "DivMod": {
@@ -31843,7 +32418,7 @@
       ]
     ],
     [
-      14772,
+      15036,
       [
         {
           "DivMod": {
@@ -31869,7 +32444,7 @@
       ]
     ],
     [
-      14783,
+      15047,
       [
         {
           "DivMod": {
@@ -31895,7 +32470,7 @@
       ]
     ],
     [
-      14792,
+      15056,
       [
         {
           "DivMod": {
@@ -31921,7 +32496,7 @@
       ]
     ],
     [
-      14802,
+      15066,
       [
         {
           "DivMod": {
@@ -31947,7 +32522,7 @@
       ]
     ],
     [
-      14813,
+      15077,
       [
         {
           "DivMod": {
@@ -31973,7 +32548,7 @@
       ]
     ],
     [
-      14822,
+      15086,
       [
         {
           "DivMod": {
@@ -31999,7 +32574,7 @@
       ]
     ],
     [
-      14832,
+      15096,
       [
         {
           "DivMod": {
@@ -32025,7 +32600,7 @@
       ]
     ],
     [
-      14843,
+      15107,
       [
         {
           "DivMod": {
@@ -32051,7 +32626,7 @@
       ]
     ],
     [
-      14852,
+      15116,
       [
         {
           "DivMod": {
@@ -32077,7 +32652,7 @@
       ]
     ],
     [
-      14862,
+      15126,
       [
         {
           "DivMod": {
@@ -32103,7 +32678,7 @@
       ]
     ],
     [
-      14873,
+      15137,
       [
         {
           "DivMod": {
@@ -32129,7 +32704,7 @@
       ]
     ],
     [
-      14900,
+      15164,
       [
         {
           "SystemCall": {
@@ -32144,7 +32719,7 @@
       ]
     ],
     [
-      14917,
+      15181,
       [
         {
           "SystemCall": {
@@ -32159,7 +32734,7 @@
       ]
     ],
     [
-      14929,
+      15193,
       [
         {
           "SystemCall": {
@@ -32180,7 +32755,7 @@
       ]
     ],
     [
-      14940,
+      15204,
       [
         {
           "SystemCall": {
@@ -32201,7 +32776,7 @@
       ]
     ],
     [
-      14950,
+      15214,
       [
         {
           "SystemCall": {
@@ -32222,7 +32797,7 @@
       ]
     ],
     [
-      15035,
+      15299,
       [
         {
           "AllocSegment": {
@@ -32235,7 +32810,7 @@
       ]
     ],
     [
-      15064,
+      15328,
       [
         {
           "DivMod": {
@@ -32261,7 +32836,7 @@
       ]
     ],
     [
-      15074,
+      15338,
       [
         {
           "DivMod": {
@@ -32287,7 +32862,7 @@
       ]
     ],
     [
-      15085,
+      15349,
       [
         {
           "DivMod": {
@@ -32313,7 +32888,7 @@
       ]
     ],
     [
-      15094,
+      15358,
       [
         {
           "DivMod": {
@@ -32339,7 +32914,7 @@
       ]
     ],
     [
-      15104,
+      15368,
       [
         {
           "DivMod": {
@@ -32365,7 +32940,7 @@
       ]
     ],
     [
-      15115,
+      15379,
       [
         {
           "DivMod": {
@@ -32391,7 +32966,7 @@
       ]
     ],
     [
-      15124,
+      15388,
       [
         {
           "AllocSegment": {
@@ -32404,7 +32979,7 @@
       ]
     ],
     [
-      15194,
+      15458,
       [
         {
           "TestLessThan": {
@@ -32435,7 +33010,7 @@
       ]
     ],
     [
-      15209,
+      15473,
       [
         {
           "TestLessThan": {
@@ -32457,7 +33032,7 @@
       ]
     ],
     [
-      15228,
+      15492,
       [
         {
           "TestLessThan": {
@@ -32479,7 +33054,7 @@
       ]
     ],
     [
-      15247,
+      15511,
       [
         {
           "TestLessThan": {
@@ -32495,338 +33070,6 @@
             "dst": {
               "register": "AP",
               "offset": -1
-            }
-          }
-        }
-      ]
-    ],
-    [
-      15257,
-      [
-        {
-          "TestLessThan": {
-            "lhs": {
-              "Deref": {
-                "register": "FP",
-                "offset": -4
-              }
-            },
-            "rhs": {
-              "Immediate": "0x100000000000000000000000000000000"
-            },
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      15259,
-      [
-        {
-          "DivMod": {
-            "lhs": {
-              "Deref": {
-                "register": "FP",
-                "offset": -4
-              }
-            },
-            "rhs": {
-              "Immediate": "0x100000000000000000000000000000000"
-            },
-            "quotient": {
-              "register": "AP",
-              "offset": 3
-            },
-            "remainder": {
-              "register": "AP",
-              "offset": 4
-            }
-          }
-        }
-      ]
-    ],
-    [
-      15296,
-      [
-        {
-          "TestLessThan": {
-            "lhs": {
-              "Deref": {
-                "register": "AP",
-                "offset": 0
-              }
-            },
-            "rhs": {
-              "Immediate": "0x100000000"
-            },
-            "dst": {
-              "register": "AP",
-              "offset": -1
-            }
-          }
-        }
-      ]
-    ],
-    [
-      15315,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      15326,
-      [
-        {
-          "DivMod": {
-            "lhs": {
-              "Deref": {
-                "register": "AP",
-                "offset": -18
-              }
-            },
-            "rhs": {
-              "Deref": {
-                "register": "AP",
-                "offset": -1
-              }
-            },
-            "quotient": {
-              "register": "AP",
-              "offset": 5
-            },
-            "remainder": {
-              "register": "AP",
-              "offset": 6
-            }
-          }
-        }
-      ]
-    ],
-    [
-      15332,
-      [
-        {
-          "TestLessThan": {
-            "lhs": {
-              "Deref": {
-                "register": "AP",
-                "offset": 0
-              }
-            },
-            "rhs": {
-              "Immediate": "0x10000000000000000"
-            },
-            "dst": {
-              "register": "AP",
-              "offset": -3
-            }
-          }
-        }
-      ]
-    ],
-    [
-      15346,
-      [
-        {
-          "TestLessThan": {
-            "lhs": {
-              "Deref": {
-                "register": "AP",
-                "offset": 0
-              }
-            },
-            "rhs": {
-              "Immediate": "0x100000000"
-            },
-            "dst": {
-              "register": "AP",
-              "offset": -1
-            }
-          }
-        }
-      ]
-    ],
-    [
-      15360,
-      [
-        {
-          "TestLessThan": {
-            "lhs": {
-              "Deref": {
-                "register": "AP",
-                "offset": 0
-              }
-            },
-            "rhs": {
-              "Immediate": "0x100000000"
-            },
-            "dst": {
-              "register": "AP",
-              "offset": -1
-            }
-          }
-        }
-      ]
-    ],
-    [
-      15371,
-      [
-        {
-          "TestLessThan": {
-            "lhs": {
-              "Deref": {
-                "register": "AP",
-                "offset": 0
-              }
-            },
-            "rhs": {
-              "Immediate": "0x100000000"
-            },
-            "dst": {
-              "register": "AP",
-              "offset": -1
-            }
-          }
-        }
-      ]
-    ],
-    [
-      15400,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      15425,
-      [
-        {
-          "TestLessThan": {
-            "lhs": {
-              "Deref": {
-                "register": "AP",
-                "offset": -1
-              }
-            },
-            "rhs": {
-              "Immediate": "0x100000000000000000000000000000000000000000000000000000000000000"
-            },
-            "dst": {
-              "register": "AP",
-              "offset": 4
-            }
-          }
-        }
-      ]
-    ],
-    [
-      15429,
-      [
-        {
-          "LinearSplit": {
-            "value": {
-              "Deref": {
-                "register": "AP",
-                "offset": 3
-              }
-            },
-            "scalar": {
-              "Immediate": "0x7000000000000110000000000000000"
-            },
-            "max_x": {
-              "Immediate": "0xffffffffffffffffffffffffffffffff"
-            },
-            "x": {
-              "register": "AP",
-              "offset": -2
-            },
-            "y": {
-              "register": "AP",
-              "offset": -1
-            }
-          }
-        }
-      ]
-    ],
-    [
-      15439,
-      [
-        {
-          "LinearSplit": {
-            "value": {
-              "Deref": {
-                "register": "AP",
-                "offset": -2
-              }
-            },
-            "scalar": {
-              "Immediate": "0x1000000000000000000000000000000"
-            },
-            "max_x": {
-              "Immediate": "0xffffffffffffffffffffffffffffffff"
-            },
-            "x": {
-              "register": "AP",
-              "offset": -1
-            },
-            "y": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      15459,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      15480,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
-            }
-          }
-        }
-      ]
-    ],
-    [
-      15501,
-      [
-        {
-          "AllocSegment": {
-            "dst": {
-              "register": "AP",
-              "offset": 0
             }
           }
         }
@@ -32881,7 +33124,29 @@
       ]
     ],
     [
-      15567,
+      15560,
+      [
+        {
+          "TestLessThan": {
+            "lhs": {
+              "Deref": {
+                "register": "AP",
+                "offset": 0
+              }
+            },
+            "rhs": {
+              "Immediate": "0x100000000"
+            },
+            "dst": {
+              "register": "AP",
+              "offset": -1
+            }
+          }
+        }
+      ]
+    ],
+    [
+      15579,
       [
         {
           "AllocSegment": {
@@ -32894,7 +33159,317 @@
       ]
     ],
     [
-      15578,
+      15590,
+      [
+        {
+          "DivMod": {
+            "lhs": {
+              "Deref": {
+                "register": "AP",
+                "offset": -18
+              }
+            },
+            "rhs": {
+              "Deref": {
+                "register": "AP",
+                "offset": -1
+              }
+            },
+            "quotient": {
+              "register": "AP",
+              "offset": 5
+            },
+            "remainder": {
+              "register": "AP",
+              "offset": 6
+            }
+          }
+        }
+      ]
+    ],
+    [
+      15596,
+      [
+        {
+          "TestLessThan": {
+            "lhs": {
+              "Deref": {
+                "register": "AP",
+                "offset": 0
+              }
+            },
+            "rhs": {
+              "Immediate": "0x10000000000000000"
+            },
+            "dst": {
+              "register": "AP",
+              "offset": -3
+            }
+          }
+        }
+      ]
+    ],
+    [
+      15610,
+      [
+        {
+          "TestLessThan": {
+            "lhs": {
+              "Deref": {
+                "register": "AP",
+                "offset": 0
+              }
+            },
+            "rhs": {
+              "Immediate": "0x100000000"
+            },
+            "dst": {
+              "register": "AP",
+              "offset": -1
+            }
+          }
+        }
+      ]
+    ],
+    [
+      15624,
+      [
+        {
+          "TestLessThan": {
+            "lhs": {
+              "Deref": {
+                "register": "AP",
+                "offset": 0
+              }
+            },
+            "rhs": {
+              "Immediate": "0x100000000"
+            },
+            "dst": {
+              "register": "AP",
+              "offset": -1
+            }
+          }
+        }
+      ]
+    ],
+    [
+      15635,
+      [
+        {
+          "TestLessThan": {
+            "lhs": {
+              "Deref": {
+                "register": "AP",
+                "offset": 0
+              }
+            },
+            "rhs": {
+              "Immediate": "0x100000000"
+            },
+            "dst": {
+              "register": "AP",
+              "offset": -1
+            }
+          }
+        }
+      ]
+    ],
+    [
+      15664,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      15689,
+      [
+        {
+          "TestLessThan": {
+            "lhs": {
+              "Deref": {
+                "register": "AP",
+                "offset": -1
+              }
+            },
+            "rhs": {
+              "Immediate": "0x100000000000000000000000000000000000000000000000000000000000000"
+            },
+            "dst": {
+              "register": "AP",
+              "offset": 4
+            }
+          }
+        }
+      ]
+    ],
+    [
+      15693,
+      [
+        {
+          "LinearSplit": {
+            "value": {
+              "Deref": {
+                "register": "AP",
+                "offset": 3
+              }
+            },
+            "scalar": {
+              "Immediate": "0x7000000000000110000000000000000"
+            },
+            "max_x": {
+              "Immediate": "0xffffffffffffffffffffffffffffffff"
+            },
+            "x": {
+              "register": "AP",
+              "offset": -2
+            },
+            "y": {
+              "register": "AP",
+              "offset": -1
+            }
+          }
+        }
+      ]
+    ],
+    [
+      15703,
+      [
+        {
+          "LinearSplit": {
+            "value": {
+              "Deref": {
+                "register": "AP",
+                "offset": -2
+              }
+            },
+            "scalar": {
+              "Immediate": "0x1000000000000000000000000000000"
+            },
+            "max_x": {
+              "Immediate": "0xffffffffffffffffffffffffffffffff"
+            },
+            "x": {
+              "register": "AP",
+              "offset": -1
+            },
+            "y": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      15723,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      15744,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      15765,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      15785,
+      [
+        {
+          "TestLessThan": {
+            "lhs": {
+              "Deref": {
+                "register": "FP",
+                "offset": -4
+              }
+            },
+            "rhs": {
+              "Immediate": "0x100000000000000000000000000000000"
+            },
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      15787,
+      [
+        {
+          "DivMod": {
+            "lhs": {
+              "Deref": {
+                "register": "FP",
+                "offset": -4
+              }
+            },
+            "rhs": {
+              "Immediate": "0x100000000000000000000000000000000"
+            },
+            "quotient": {
+              "register": "AP",
+              "offset": 3
+            },
+            "remainder": {
+              "register": "AP",
+              "offset": 4
+            }
+          }
+        }
+      ]
+    ],
+    [
+      15831,
+      [
+        {
+          "AllocSegment": {
+            "dst": {
+              "register": "AP",
+              "offset": 0
+            }
+          }
+        }
+      ]
+    ],
+    [
+      15842,
       [
         {
           "DivMod": {
@@ -32923,7 +33498,7 @@
       ]
     ],
     [
-      15584,
+      15848,
       [
         {
           "TestLessThan": {
@@ -32945,7 +33520,7 @@
       ]
     ],
     [
-      15598,
+      15862,
       [
         {
           "TestLessThan": {
@@ -32967,7 +33542,7 @@
       ]
     ],
     [
-      15616,
+      15880,
       [
         {
           "TestLessThan": {
@@ -32989,7 +33564,7 @@
       ]
     ],
     [
-      15629,
+      15893,
       [
         {
           "TestLessThan": {
@@ -33011,7 +33586,7 @@
       ]
     ],
     [
-      15640,
+      15904,
       [
         {
           "TestLessThan": {
@@ -33033,7 +33608,7 @@
       ]
     ],
     [
-      15669,
+      15933,
       [
         {
           "AllocSegment": {
@@ -33046,7 +33621,7 @@
       ]
     ],
     [
-      15694,
+      15958,
       [
         {
           "TestLessThan": {
@@ -33068,7 +33643,7 @@
       ]
     ],
     [
-      15698,
+      15962,
       [
         {
           "LinearSplit": {
@@ -33097,7 +33672,7 @@
       ]
     ],
     [
-      15708,
+      15972,
       [
         {
           "LinearSplit": {
@@ -33126,7 +33701,7 @@
       ]
     ],
     [
-      15728,
+      15992,
       [
         {
           "AllocSegment": {
@@ -33139,7 +33714,7 @@
       ]
     ],
     [
-      15749,
+      16013,
       [
         {
           "AllocSegment": {
@@ -33152,7 +33727,7 @@
       ]
     ],
     [
-      15770,
+      16034,
       [
         {
           "AllocSegment": {
@@ -33165,7 +33740,7 @@
       ]
     ],
     [
-      15799,
+      16063,
       [
         {
           "TestLessThan": {
@@ -33187,7 +33762,7 @@
       ]
     ],
     [
-      15801,
+      16065,
       [
         {
           "DivMod": {
@@ -33213,7 +33788,7 @@
       ]
     ],
     [
-      15838,
+      16102,
       [
         {
           "TestLessThan": {
@@ -33235,7 +33810,7 @@
       ]
     ],
     [
-      15849,
+      16113,
       [
         {
           "TestLessThan": {
@@ -33257,7 +33832,7 @@
       ]
     ],
     [
-      15860,
+      16124,
       [
         {
           "TestLessThan": {
@@ -33279,7 +33854,7 @@
       ]
     ],
     [
-      15889,
+      16153,
       [
         {
           "AllocSegment": {
@@ -33292,7 +33867,7 @@
       ]
     ],
     [
-      15914,
+      16178,
       [
         {
           "TestLessThan": {
@@ -33314,7 +33889,7 @@
       ]
     ],
     [
-      15918,
+      16182,
       [
         {
           "LinearSplit": {
@@ -33343,7 +33918,7 @@
       ]
     ],
     [
-      15928,
+      16192,
       [
         {
           "LinearSplit": {
@@ -33372,7 +33947,7 @@
       ]
     ],
     [
-      15954,
+      16218,
       [
         {
           "AllocSegment": {
@@ -33385,7 +33960,7 @@
       ]
     ],
     [
-      15975,
+      16239,
       [
         {
           "AllocSegment": {
@@ -33398,7 +33973,7 @@
       ]
     ],
     [
-      15997,
+      16261,
       [
         {
           "AllocSegment": {
@@ -33411,7 +33986,7 @@
       ]
     ],
     [
-      16019,
+      16283,
       [
         {
           "TestLessThan": {
@@ -33433,7 +34008,7 @@
       ]
     ],
     [
-      16030,
+      16294,
       [
         {
           "TestLessThan": {
@@ -33455,7 +34030,7 @@
       ]
     ],
     [
-      16059,
+      16323,
       [
         {
           "AllocSegment": {
@@ -33468,7 +34043,7 @@
       ]
     ],
     [
-      16084,
+      16348,
       [
         {
           "TestLessThan": {
@@ -33490,7 +34065,7 @@
       ]
     ],
     [
-      16088,
+      16352,
       [
         {
           "LinearSplit": {
@@ -33519,7 +34094,7 @@
       ]
     ],
     [
-      16098,
+      16362,
       [
         {
           "LinearSplit": {
@@ -33548,7 +34123,7 @@
       ]
     ],
     [
-      16121,
+      16385,
       [
         {
           "AllocSegment": {
@@ -33561,7 +34136,7 @@
       ]
     ],
     [
-      16172,
+      16436,
       [
         {
           "TestLessThan": {
@@ -33583,7 +34158,7 @@
       ]
     ],
     [
-      16183,
+      16447,
       [
         {
           "TestLessThan": {
@@ -33605,7 +34180,7 @@
       ]
     ],
     [
-      16212,
+      16476,
       [
         {
           "AllocSegment": {
@@ -33618,7 +34193,7 @@
       ]
     ],
     [
-      16235,
+      16499,
       [
         {
           "TestLessThan": {
@@ -33649,7 +34224,7 @@
       ]
     ],
     [
-      16259,
+      16523,
       [
         {
           "AllocSegment": {
@@ -33662,7 +34237,7 @@
       ]
     ],
     [
-      16293,
+      16557,
       [
         {
           "AllocSegment": {
@@ -33675,7 +34250,7 @@
       ]
     ],
     [
-      16310,
+      16574,
       [
         {
           "TestLessThanOrEqual": {
@@ -33697,7 +34272,7 @@
       ]
     ],
     [
-      16347,
+      16611,
       [
         {
           "AllocSegment": {
@@ -33710,7 +34285,7 @@
       ]
     ],
     [
-      16392,
+      16656,
       [
         {
           "TestLessThan": {
@@ -33738,7 +34313,7 @@
       ]
     ],
     [
-      16396,
+      16660,
       [
         {
           "LinearSplit": {
@@ -33767,7 +34342,7 @@
       ]
     ],
     [
-      16438,
+      16702,
       [
         {
           "TestLessThan": {
@@ -33789,7 +34364,7 @@
       ]
     ],
     [
-      16440,
+      16704,
       [
         {
           "DivMod": {
@@ -33815,7 +34390,7 @@
       ]
     ],
     [
-      16527,
+      16791,
       [
         {
           "DivMod": {
@@ -33844,7 +34419,7 @@
       ]
     ],
     [
-      16533,
+      16797,
       [
         {
           "TestLessThan": {
@@ -33866,7 +34441,7 @@
       ]
     ],
     [
-      16544,
+      16808,
       [
         {
           "TestLessThan": {
@@ -33888,7 +34463,7 @@
       ]
     ],
     [
-      16554,
+      16818,
       [
         {
           "TestLessThan": {
@@ -33910,7 +34485,7 @@
       ]
     ],
     [
-      16568,
+      16832,
       [
         {
           "DivMod": {
@@ -33939,7 +34514,7 @@
       ]
     ],
     [
-      16574,
+      16838,
       [
         {
           "TestLessThan": {
@@ -33961,7 +34536,7 @@
       ]
     ],
     [
-      16588,
+      16852,
       [
         {
           "TestLessThan": {
@@ -33983,7 +34558,7 @@
       ]
     ],
     [
-      16598,
+      16862,
       [
         {
           "TestLessThan": {
@@ -34005,7 +34580,7 @@
       ]
     ],
     [
-      16620,
+      16884,
       [
         {
           "AllocSegment": {
@@ -34018,7 +34593,7 @@
       ]
     ],
     [
-      16634,
+      16898,
       [
         {
           "AllocSegment": {
@@ -34031,7 +34606,7 @@
       ]
     ],
     [
-      16652,
+      16916,
       [
         {
           "AllocSegment": {
@@ -34044,7 +34619,7 @@
       ]
     ],
     [
-      16666,
+      16930,
       [
         {
           "AllocSegment": {
@@ -34057,7 +34632,7 @@
       ]
     ],
     [
-      16682,
+      16946,
       [
         {
           "TestLessThanOrEqual": {
@@ -34079,7 +34654,7 @@
       ]
     ],
     [
-      16709,
+      16973,
       [
         {
           "TestLessThan": {
@@ -34101,7 +34676,7 @@
       ]
     ],
     [
-      16726,
+      16990,
       [
         {
           "AllocSegment": {
@@ -34114,7 +34689,7 @@
       ]
     ],
     [
-      16751,
+      17015,
       [
         {
           "AllocSegment": {
@@ -34127,7 +34702,7 @@
       ]
     ],
     [
-      17011,
+      17275,
       [
         {
           "SystemCall": {
@@ -34142,7 +34717,7 @@
       ]
     ],
     [
-      17037,
+      17301,
       [
         {
           "SystemCall": {
@@ -34157,7 +34732,7 @@
       ]
     ],
     [
-      17051,
+      17315,
       [
         {
           "U256InvModN": {
@@ -34214,7 +34789,7 @@
       ]
     ],
     [
-      17069,
+      17333,
       [
         {
           "WideMul128": {
@@ -34411,7 +34986,7 @@
       ]
     ],
     [
-      17122,
+      17386,
       [
         {
           "WideMul128": {
@@ -34464,7 +35039,7 @@
       ]
     ],
     [
-      17126,
+      17390,
       [
         {
           "TestLessThan": {
@@ -34486,7 +35061,7 @@
       ]
     ],
     [
-      17140,
+      17404,
       [
         {
           "TestLessThan": {
@@ -34508,7 +35083,7 @@
       ]
     ],
     [
-      17153,
+      17417,
       [
         {
           "DivMod": {
@@ -34534,7 +35109,7 @@
       ]
     ],
     [
-      17163,
+      17427,
       [
         {
           "DivMod": {
@@ -34560,7 +35135,7 @@
       ]
     ],
     [
-      17174,
+      17438,
       [
         {
           "DivMod": {
@@ -34586,7 +35161,7 @@
       ]
     ],
     [
-      17183,
+      17447,
       [
         {
           "DivMod": {
@@ -34612,7 +35187,7 @@
       ]
     ],
     [
-      17193,
+      17457,
       [
         {
           "DivMod": {
@@ -34638,7 +35213,7 @@
       ]
     ],
     [
-      17204,
+      17468,
       [
         {
           "DivMod": {
@@ -34664,7 +35239,7 @@
       ]
     ],
     [
-      17213,
+      17477,
       [
         {
           "DivMod": {
@@ -34690,7 +35265,7 @@
       ]
     ],
     [
-      17223,
+      17487,
       [
         {
           "DivMod": {
@@ -34716,7 +35291,7 @@
       ]
     ],
     [
-      17234,
+      17498,
       [
         {
           "DivMod": {
@@ -34742,7 +35317,7 @@
       ]
     ],
     [
-      17243,
+      17507,
       [
         {
           "DivMod": {
@@ -34768,7 +35343,7 @@
       ]
     ],
     [
-      17253,
+      17517,
       [
         {
           "DivMod": {
@@ -34794,7 +35369,7 @@
       ]
     ],
     [
-      17264,
+      17528,
       [
         {
           "DivMod": {
@@ -34820,7 +35395,7 @@
       ]
     ],
     [
-      17273,
+      17537,
       [
         {
           "DivMod": {
@@ -34846,7 +35421,7 @@
       ]
     ],
     [
-      17283,
+      17547,
       [
         {
           "DivMod": {
@@ -34872,7 +35447,7 @@
       ]
     ],
     [
-      17294,
+      17558,
       [
         {
           "DivMod": {
@@ -34898,7 +35473,7 @@
       ]
     ],
     [
-      17303,
+      17567,
       [
         {
           "DivMod": {
@@ -34924,7 +35499,7 @@
       ]
     ],
     [
-      17313,
+      17577,
       [
         {
           "DivMod": {
@@ -34950,7 +35525,7 @@
       ]
     ],
     [
-      17324,
+      17588,
       [
         {
           "DivMod": {
@@ -34976,7 +35551,7 @@
       ]
     ],
     [
-      17333,
+      17597,
       [
         {
           "DivMod": {
@@ -35002,7 +35577,7 @@
       ]
     ],
     [
-      17343,
+      17607,
       [
         {
           "DivMod": {
@@ -35028,7 +35603,7 @@
       ]
     ],
     [
-      17354,
+      17618,
       [
         {
           "DivMod": {
@@ -35054,7 +35629,7 @@
       ]
     ],
     [
-      17363,
+      17627,
       [
         {
           "DivMod": {
@@ -35080,7 +35655,7 @@
       ]
     ],
     [
-      17373,
+      17637,
       [
         {
           "DivMod": {
@@ -35106,7 +35681,7 @@
       ]
     ],
     [
-      17384,
+      17648,
       [
         {
           "DivMod": {
@@ -35132,7 +35707,7 @@
       ]
     ],
     [
-      17405,
+      17669,
       [
         {
           "Uint512DivModByUint256": {
@@ -35201,7 +35776,7 @@
       ]
     ],
     [
-      17423,
+      17687,
       [
         {
           "WideMul128": {
@@ -35326,7 +35901,7 @@
       ]
     ],
     [
-      17452,
+      17716,
       [
         {
           "TestLessThan": {
@@ -35351,7 +35926,7 @@
       ]
     ],
     [
-      17464,
+      17728,
       [
         {
           "TestLessThan": {
@@ -35376,7 +35951,7 @@
       ]
     ],
     [
-      17479,
+      17743,
       [
         {
           "DivMod": {
@@ -35402,7 +35977,7 @@
       ]
     ],
     [
-      17489,
+      17753,
       [
         {
           "DivMod": {
@@ -35428,7 +36003,7 @@
       ]
     ],
     [
-      17500,
+      17764,
       [
         {
           "DivMod": {
@@ -35454,7 +36029,7 @@
       ]
     ],
     [
-      17509,
+      17773,
       [
         {
           "DivMod": {
@@ -35480,7 +36055,7 @@
       ]
     ],
     [
-      17519,
+      17783,
       [
         {
           "DivMod": {
@@ -35506,7 +36081,7 @@
       ]
     ],
     [
-      17530,
+      17794,
       [
         {
           "DivMod": {
@@ -35532,7 +36107,7 @@
       ]
     ],
     [
-      17539,
+      17803,
       [
         {
           "DivMod": {
@@ -35558,7 +36133,7 @@
       ]
     ],
     [
-      17549,
+      17813,
       [
         {
           "DivMod": {
@@ -35584,7 +36159,7 @@
       ]
     ],
     [
-      17560,
+      17824,
       [
         {
           "DivMod": {
@@ -35610,7 +36185,7 @@
       ]
     ],
     [
-      17569,
+      17833,
       [
         {
           "DivMod": {
@@ -35636,7 +36211,7 @@
       ]
     ],
     [
-      17579,
+      17843,
       [
         {
           "DivMod": {
@@ -35662,7 +36237,7 @@
       ]
     ],
     [
-      17590,
+      17854,
       [
         {
           "DivMod": {
@@ -35688,7 +36263,7 @@
       ]
     ],
     [
-      17599,
+      17863,
       [
         {
           "DivMod": {
@@ -35714,7 +36289,7 @@
       ]
     ],
     [
-      17609,
+      17873,
       [
         {
           "DivMod": {
@@ -35740,7 +36315,7 @@
       ]
     ],
     [
-      17620,
+      17884,
       [
         {
           "DivMod": {
@@ -35766,7 +36341,7 @@
       ]
     ],
     [
-      17632,
+      17896,
       [
         {
           "TestLessThan": {
@@ -35788,7 +36363,7 @@
       ]
     ],
     [
-      17657,
+      17921,
       [
         {
           "TestLessThan": {
@@ -35810,7 +36385,7 @@
       ]
     ],
     [
-      17676,
+      17940,
       [
         {
           "TestLessThan": {
@@ -35832,7 +36407,7 @@
       ]
     ],
     [
-      17701,
+      17965,
       [
         {
           "Uint512DivModByUint256": {
@@ -35901,7 +36476,7 @@
       ]
     ],
     [
-      17719,
+      17983,
       [
         {
           "WideMul128": {
@@ -36026,7 +36601,7 @@
       ]
     ],
     [
-      17748,
+      18012,
       [
         {
           "TestLessThan": {
@@ -36051,7 +36626,7 @@
       ]
     ],
     [
-      17760,
+      18024,
       [
         {
           "TestLessThan": {
@@ -36076,7 +36651,7 @@
       ]
     ],
     [
-      17775,
+      18039,
       [
         {
           "DivMod": {
@@ -36102,7 +36677,7 @@
       ]
     ],
     [
-      17785,
+      18049,
       [
         {
           "DivMod": {
@@ -36128,7 +36703,7 @@
       ]
     ],
     [
-      17796,
+      18060,
       [
         {
           "DivMod": {
@@ -36154,7 +36729,7 @@
       ]
     ],
     [
-      17805,
+      18069,
       [
         {
           "DivMod": {
@@ -36180,7 +36755,7 @@
       ]
     ],
     [
-      17815,
+      18079,
       [
         {
           "DivMod": {
@@ -36206,7 +36781,7 @@
       ]
     ],
     [
-      17826,
+      18090,
       [
         {
           "DivMod": {
@@ -36232,7 +36807,7 @@
       ]
     ],
     [
-      17835,
+      18099,
       [
         {
           "DivMod": {
@@ -36258,7 +36833,7 @@
       ]
     ],
     [
-      17845,
+      18109,
       [
         {
           "DivMod": {
@@ -36284,7 +36859,7 @@
       ]
     ],
     [
-      17856,
+      18120,
       [
         {
           "DivMod": {
@@ -36310,7 +36885,7 @@
       ]
     ],
     [
-      17865,
+      18129,
       [
         {
           "DivMod": {
@@ -36336,7 +36911,7 @@
       ]
     ],
     [
-      17875,
+      18139,
       [
         {
           "DivMod": {
@@ -36362,7 +36937,7 @@
       ]
     ],
     [
-      17886,
+      18150,
       [
         {
           "DivMod": {
@@ -36388,7 +36963,7 @@
       ]
     ],
     [
-      17895,
+      18159,
       [
         {
           "DivMod": {
@@ -36414,7 +36989,7 @@
       ]
     ],
     [
-      17905,
+      18169,
       [
         {
           "DivMod": {
@@ -36440,7 +37015,7 @@
       ]
     ],
     [
-      17916,
+      18180,
       [
         {
           "DivMod": {
@@ -36466,7 +37041,7 @@
       ]
     ],
     [
-      17936,
+      18200,
       [
         {
           "SystemCall": {
@@ -36481,7 +37056,7 @@
       ]
     ],
     [
-      17948,
+      18212,
       [
         {
           "SystemCall": {
@@ -36502,7 +37077,7 @@
       ]
     ],
     [
-      17959,
+      18223,
       [
         {
           "SystemCall": {
@@ -36523,7 +37098,7 @@
       ]
     ],
     [
-      18012,
+      18276,
       [
         {
           "AllocSegment": {
@@ -36536,7 +37111,7 @@
       ]
     ],
     [
-      18028,
+      18292,
       [
         {
           "DivMod": {
@@ -36562,7 +37137,7 @@
       ]
     ],
     [
-      18038,
+      18302,
       [
         {
           "DivMod": {
@@ -36588,7 +37163,7 @@
       ]
     ],
     [
-      18049,
+      18313,
       [
         {
           "DivMod": {
@@ -36614,7 +37189,7 @@
       ]
     ],
     [
-      18058,
+      18322,
       [
         {
           "DivMod": {
@@ -36640,7 +37215,7 @@
       ]
     ],
     [
-      18068,
+      18332,
       [
         {
           "DivMod": {
@@ -36666,7 +37241,7 @@
       ]
     ],
     [
-      18079,
+      18343,
       [
         {
           "DivMod": {
@@ -36692,7 +37267,7 @@
       ]
     ],
     [
-      18088,
+      18352,
       [
         {
           "AllocSegment": {
@@ -36705,7 +37280,7 @@
       ]
     ],
     [
-      18105,
+      18369,
       [
         {
           "AllocSegment": {
@@ -36718,7 +37293,7 @@
       ]
     ],
     [
-      18162,
+      18426,
       [
         {
           "SystemCall": {
@@ -36733,7 +37308,7 @@
       ]
     ],
     [
-      18169,
+      18433,
       [
         {
           "AllocConstantSize": {
@@ -36749,7 +37324,7 @@
       ]
     ],
     [
-      18173,
+      18437,
       [
         {
           "AllocSegment": {
@@ -36762,7 +37337,7 @@
       ]
     ],
     [
-      18208,
+      18472,
       [
         {
           "SystemCall": {
@@ -36777,7 +37352,7 @@
       ]
     ],
     [
-      18281,
+      18545,
       [
         {
           "DivMod": {
@@ -36806,7 +37381,7 @@
       ]
     ],
     [
-      18287,
+      18551,
       [
         {
           "TestLessThan": {
@@ -36828,7 +37403,7 @@
       ]
     ],
     [
-      18354,
+      18618,
       [
         {
           "WideMul128": {
@@ -36857,7 +37432,7 @@
       ]
     ],
     [
-      18356,
+      18620,
       [
         {
           "DivMod": {
@@ -36883,7 +37458,7 @@
       ]
     ],
     [
-      18366,
+      18630,
       [
         {
           "DivMod": {
@@ -36909,7 +37484,7 @@
       ]
     ],
     [
-      18377,
+      18641,
       [
         {
           "DivMod": {
@@ -36935,7 +37510,7 @@
       ]
     ],
     [
-      18386,
+      18650,
       [
         {
           "WideMul128": {
@@ -36964,7 +37539,7 @@
       ]
     ],
     [
-      18388,
+      18652,
       [
         {
           "DivMod": {
@@ -36990,7 +37565,7 @@
       ]
     ],
     [
-      18398,
+      18662,
       [
         {
           "DivMod": {
@@ -37016,7 +37591,7 @@
       ]
     ],
     [
-      18409,
+      18673,
       [
         {
           "DivMod": {
@@ -37042,7 +37617,7 @@
       ]
     ],
     [
-      18419,
+      18683,
       [
         {
           "TestLessThan": {
@@ -37064,7 +37639,7 @@
       ]
     ],
     [
-      18441,
+      18705,
       [
         {
           "WideMul128": {
@@ -37093,7 +37668,7 @@
       ]
     ],
     [
-      18443,
+      18707,
       [
         {
           "DivMod": {
@@ -37119,7 +37694,7 @@
       ]
     ],
     [
-      18453,
+      18717,
       [
         {
           "DivMod": {
@@ -37145,7 +37720,7 @@
       ]
     ],
     [
-      18464,
+      18728,
       [
         {
           "DivMod": {
@@ -37171,7 +37746,7 @@
       ]
     ],
     [
-      18474,
+      18738,
       [
         {
           "TestLessThan": {
@@ -37193,7 +37768,7 @@
       ]
     ],
     [
-      18497,
+      18761,
       [
         {
           "TestLessThan": {
@@ -37215,7 +37790,7 @@
       ]
     ],
     [
-      18519,
+      18783,
       [
         {
           "WideMul128": {
@@ -37244,7 +37819,7 @@
       ]
     ],
     [
-      18521,
+      18785,
       [
         {
           "DivMod": {
@@ -37270,7 +37845,7 @@
       ]
     ],
     [
-      18531,
+      18795,
       [
         {
           "DivMod": {
@@ -37296,7 +37871,7 @@
       ]
     ],
     [
-      18542,
+      18806,
       [
         {
           "DivMod": {
@@ -37322,7 +37897,7 @@
       ]
     ],
     [
-      18552,
+      18816,
       [
         {
           "TestLessThan": {
@@ -37344,7 +37919,7 @@
       ]
     ],
     [
-      18576,
+      18840,
       [
         {
           "TestLessThan": {
@@ -37366,7 +37941,7 @@
       ]
     ],
     [
-      18601,
+      18865,
       [
         {
           "TestLessThan": {
@@ -37388,7 +37963,7 @@
       ]
     ],
     [
-      18625,
+      18889,
       [
         {
           "TestLessThan": {
@@ -37410,7 +37985,7 @@
       ]
     ],
     [
-      18743,
+      19007,
       [
         {
           "AllocSegment": {
@@ -37423,7 +37998,7 @@
       ]
     ],
     [
-      18766,
+      19030,
       [
         {
           "TestLessThanOrEqual": {
@@ -37448,7 +38023,7 @@
       ]
     ],
     [
-      18841,
+      19105,
       [
         {
           "AllocSegment": {
@@ -37461,7 +38036,7 @@
       ]
     ],
     [
-      18896,
+      19160,
       [
         {
           "DivMod": {
@@ -37490,7 +38065,7 @@
       ]
     ],
     [
-      18902,
+      19166,
       [
         {
           "TestLessThan": {
@@ -37512,7 +38087,7 @@
       ]
     ],
     [
-      18915,
+      19179,
       [
         {
           "TestLessThan": {
@@ -37534,7 +38109,7 @@
       ]
     ],
     [
-      18925,
+      19189,
       [
         {
           "TestLessThan": {
@@ -37556,7 +38131,7 @@
       ]
     ],
     [
-      18973,
+      19237,
       [
         {
           "DivMod": {
@@ -37585,7 +38160,7 @@
       ]
     ],
     [
-      18979,
+      19243,
       [
         {
           "TestLessThan": {
@@ -37607,7 +38182,7 @@
       ]
     ],
     [
-      18995,
+      19259,
       [
         {
           "TestLessThan": {
@@ -37629,7 +38204,7 @@
       ]
     ],
     [
-      19005,
+      19269,
       [
         {
           "TestLessThan": {
@@ -37651,7 +38226,7 @@
       ]
     ],
     [
-      19028,
+      19292,
       [
         {
           "AllocSegment": {
@@ -37664,7 +38239,7 @@
       ]
     ],
     [
-      19042,
+      19306,
       [
         {
           "AllocSegment": {
@@ -37677,7 +38252,7 @@
       ]
     ],
     [
-      19061,
+      19325,
       [
         {
           "AllocSegment": {
@@ -37690,7 +38265,7 @@
       ]
     ],
     [
-      19075,
+      19339,
       [
         {
           "AllocSegment": {
@@ -37707,14 +38282,14 @@
     "EXTERNAL": [
       {
         "selector": "0x1143aa89c8e3ebf8ed14df2a3606c1cd2dd513fac8040b0f8ab441f5c52fe4",
-        "offset": 4374,
+        "offset": 4638,
         "builtins": [
           "range_check"
         ]
       },
       {
         "selector": "0x3541591104188daef4379e06e92ecce09094a3b381da2e654eb041d00566d8",
-        "offset": 6051,
+        "offset": 6315,
         "builtins": [
           "range_check",
           "range_check96"
@@ -37722,35 +38297,35 @@
       },
       {
         "selector": "0x3c118a68e16e12e97ed25cb4901c12f4d3162818669cc44c391d8049924c14",
-        "offset": 1843,
+        "offset": 2107,
         "builtins": [
           "range_check"
         ]
       },
       {
         "selector": "0x5562b3e932b4d139366854d5a2e578382e6a3b6572ac9943d55e7efbe43d00",
-        "offset": 3825,
+        "offset": 4089,
         "builtins": [
           "range_check"
         ]
       },
       {
         "selector": "0x600c98a299d72ef1e09a2e1503206fbc76081233172c65f7e2438ef0069d8d",
-        "offset": 4501,
+        "offset": 4765,
         "builtins": [
           "range_check"
         ]
       },
       {
         "selector": "0x62c83572d28cb834a3de3c1e94977a4191469a4a8c26d1d7bc55305e640ed5",
-        "offset": 3982,
+        "offset": 4246,
         "builtins": [
           "range_check"
         ]
       },
       {
         "selector": "0x679c22735055a10db4f275395763a3752a1e3a3043c192299ab6b574fba8d6",
-        "offset": 5530,
+        "offset": 5794,
         "builtins": [
           "range_check",
           "ec_op"
@@ -37758,7 +38333,7 @@
       },
       {
         "selector": "0x7772be8b80a8a33dc6c1f9a6ab820c02e537c73e859de67f288c70f92571bb",
-        "offset": 4932,
+        "offset": 5196,
         "builtins": [
           "pedersen",
           "range_check",
@@ -37774,21 +38349,21 @@
       },
       {
         "selector": "0xe7510edcf6e9f1b70f7bd1f488767b50f0363422f3c563160ab77adf62467b",
-        "offset": 2614,
+        "offset": 2878,
         "builtins": [
           "range_check"
         ]
       },
       {
         "selector": "0xf818e4530ec36b83dfe702489b4df537308c3b798b0cc120e32c2056d68b7d",
-        "offset": 3400,
+        "offset": 3664,
         "builtins": [
           "range_check"
         ]
       },
       {
         "selector": "0x10d2fede95e3ec06a875a67219425c27c5bd734d57f1b221d729a2337b6b556",
-        "offset": 2987,
+        "offset": 3251,
         "builtins": [
           "range_check",
           "segment_arena"
@@ -37796,7 +38371,7 @@
       },
       {
         "selector": "0x12ead94ae9d3f9d2bdb6b847cf255f1f398193a1f88884a0ae8e18f24a037b6",
-        "offset": 5779,
+        "offset": 6043,
         "builtins": [
           "range_check"
         ]
@@ -37810,14 +38385,21 @@
       },
       {
         "selector": "0x169f135eddda5ab51886052d777a57f2ea9c162d713691b5e04a6d4ed71d47f",
-        "offset": 3098,
+        "offset": 3362,
+        "builtins": [
+          "range_check"
+        ]
+      },
+      {
+        "selector": "0x1995689b6aedab51ad67bc2ae0b0ee3fe1ffc433f96179953e6a6b7210b9e13",
+        "offset": 1665,
         "builtins": [
           "range_check"
         ]
       },
       {
         "selector": "0x1ae1a515cf2d214b29bdf63a79ee2d490efd4dd1acc99d383a8e549c3cecb5d",
-        "offset": 5641,
+        "offset": 5905,
         "builtins": [
           "pedersen",
           "range_check"
@@ -37832,7 +38414,7 @@
       },
       {
         "selector": "0x23039bef544cff56442d9f61ae9b13cf9e36fcce009102c5b678aac93f37b36",
-        "offset": 1665,
+        "offset": 1929,
         "builtins": [
           "range_check"
         ]
@@ -37853,28 +38435,28 @@
       },
       {
         "selector": "0x2d7cf5d5a324a320f9f37804b1615a533fde487400b41af80f13f7ac5581325",
-        "offset": 2788,
+        "offset": 3052,
         "builtins": [
           "range_check"
         ]
       },
       {
         "selector": "0x30f842021fbf02caf80d09a113997c1e00a32870eee0c6136bed27acb348bea",
-        "offset": 5200,
+        "offset": 5464,
         "builtins": [
           "range_check"
         ]
       },
       {
         "selector": "0x31401f504973a5e8e1bb41e9c592519e3aa0b8cf6bbfb9c91b532aab8db54b0",
-        "offset": 6174,
+        "offset": 6438,
         "builtins": [
           "range_check"
         ]
       },
       {
         "selector": "0x317eb442b72a9fae758d4fb26830ed0d9f31c8e7da4dbff4e8c59ea6a158e7f",
-        "offset": 4744,
+        "offset": 5008,
         "builtins": [
           "pedersen",
           "range_check"
@@ -37882,28 +38464,28 @@
       },
       {
         "selector": "0x32564d7e0fe091d49b4c20f4632191e4ed6986bf993849879abfef9465def25",
-        "offset": 4154,
+        "offset": 4418,
         "builtins": [
           "range_check"
         ]
       },
       {
         "selector": "0x3604cea1cdb094a73a31144f14a3e5861613c008e1e879939ebc4827d10cd50",
-        "offset": 2096,
+        "offset": 2360,
         "builtins": [
           "range_check"
         ]
       },
       {
         "selector": "0x382be990ca34815134e64a9ac28f41a907c62e5ad10547f97174362ab94dc89",
-        "offset": 3504,
+        "offset": 3768,
         "builtins": [
           "range_check"
         ]
       },
       {
         "selector": "0x38be5d5f7bf135b52888ba3e440a457d11107aca3f6542e574b016bf3f074d8",
-        "offset": 3608,
+        "offset": 3872,
         "builtins": [
           "range_check",
           "bitwise"
@@ -37911,7 +38493,7 @@
       },
       {
         "selector": "0x3a6a8bae4c51d5959683ae246347ffdd96aa5b2bfa68cc8c3a6a7c2ed0be331",
-        "offset": 2361,
+        "offset": 2625,
         "builtins": [
           "range_check"
         ]
@@ -37925,7 +38507,7 @@
       },
       {
         "selector": "0x3d3da80997f8be5d16e9ae7ee6a4b5f7191d60765a1a6c219ab74269c85cf97",
-        "offset": 5923,
+        "offset": 6187,
         "builtins": [
           "range_check",
           "range_check96",
@@ -37935,14 +38517,14 @@
       },
       {
         "selector": "0x3d95049b565ec2d4197a55108ef03996381d31c84acf392a0a42b28163d69d1",
-        "offset": 3721,
+        "offset": 3985,
         "builtins": [
           "range_check"
         ]
       },
       {
         "selector": "0x3eb640b15f75fcc06d43182cdb94ed38c8e71755d5fb57c16dd673b466db1d4",
-        "offset": 4247,
+        "offset": 4511,
         "builtins": [
           "range_check"
         ]
@@ -37951,14 +38533,14 @@
     "L1_HANDLER": [
       {
         "selector": "0x205500a208d0d49d79197fea83cc3f5fde99ac2e1909ae0a5d9f394c0c52ed0",
-        "offset": 6574,
+        "offset": 6838,
         "builtins": [
           "range_check"
         ]
       },
       {
         "selector": "0x39edbbb129ad752107a94d40c3873cae369a46fd2fc578d075679aa67e85d12",
-        "offset": 6438,
+        "offset": 6702,
         "builtins": [
           "range_check"
         ]
@@ -37967,7 +38549,7 @@
     "CONSTRUCTOR": [
       {
         "selector": "0x28ffe4ff0f226a9107253e17a904099aa4f63a02a5621de0576e5aa71bc5194",
-        "offset": 6799,
+        "offset": 7063,
         "builtins": [
           "range_check"
         ]
