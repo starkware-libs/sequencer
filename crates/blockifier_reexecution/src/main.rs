@@ -1,3 +1,4 @@
+use blockifier::abi::constants;
 use blockifier_reexecution::assert_eq_state_diff;
 use blockifier_reexecution::state_reader::reexecution_state_reader::ReexecutionStateReader;
 use blockifier_reexecution::state_reader::test_state_reader::{
@@ -114,6 +115,13 @@ fn main() {
 
             let block_info_next_block = next_block_state_reader.get_block_info().unwrap();
 
+            let old_block_number = BlockNumber(
+                block_info_next_block.block_number.0 - constants::STORED_BLOCK_HASH_BUFFER,
+            );
+
+            let old_block_hash =
+                last_block_state_reader.get_old_block_hash(old_block_number).unwrap();
+
             let starknet_version = next_block_state_reader.get_starknet_version().unwrap();
 
             let state_diff_next_block = next_block_state_reader.get_state_diff().unwrap();
@@ -146,6 +154,7 @@ fn main() {
                 transactions_next_block,
                 contract_class_mapping,
                 state_diff_next_block,
+                old_block_hash,
             };
 
             serializable_offline_reexecution_data
