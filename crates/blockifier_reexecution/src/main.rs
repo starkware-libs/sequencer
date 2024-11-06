@@ -24,41 +24,45 @@ pub struct BlockifierReexecutionCliArgs {
     command: Command,
 }
 
-#[derive(Args, Debug)]
-struct SharedArgs {
-    /// Node url.
-    /// Default: https://free-rpc.nethermind.io/mainnet-juno/. Won't work for big tests.
-    #[clap(long, short = 'n', default_value = "https://free-rpc.nethermind.io/mainnet-juno/")]
-    node_url: String,
-
-    /// Block number.
-    #[clap(long, short = 'b')]
-    block_number: u64,
-
-    // Directory path to json files. Default:
-    // "./crates/blockifier_reexecution/resources/block_{block_number}".
-    #[clap(long, short = 'd', default_value = None)]
-    directory_path: Option<String>,
-}
-
 #[derive(Debug, Subcommand)]
 enum Command {
     /// Runs the RPC test.
     RpcTest {
-        #[clap(flatten)]
-        shared_args: SharedArgs,
+        /// Node url.
+        #[clap(long, short = 'n')]
+        node_url: String,
+
+        /// Block number.
+        #[clap(long, short = 'b')]
+        block_number: u64,
     },
 
     /// Writes the RPC queries to json files.
     WriteRpcRepliesToJson {
-        #[clap(flatten)]
-        shared_args: SharedArgs,
+        /// Node url.
+        #[clap(long, short = 'n')]
+        node_url: String,
+
+        /// Block number.
+        #[clap(long, short = 'b')]
+        block_number: u64,
+
+        // Directory path to json files. Default:
+        // "./crates/blockifier_reexecution/resources/block_{block_number}".
+        #[clap(long, short = 'd', default_value = None)]
+        directory_path: Option<String>,
     },
 
     // Reexecutes the block from JSON files.
     ReexecuteBlock {
-        #[clap(flatten)]
-        shared_args: SharedArgs,
+        /// Block number.
+        #[clap(long, short = 'b')]
+        block_number: u64,
+
+        // Directory path to json files. Default:
+        // "./crates/blockifier_reexecution/resources/block_{block_number}".
+        #[clap(long, short = 'd', default_value = None)]
+        directory_path: Option<String>,
     },
 }
 
@@ -90,7 +94,7 @@ fn main() {
     let args = BlockifierReexecutionCliArgs::parse();
 
     match args.command {
-        Command::RpcTest { shared_args: SharedArgs { node_url, block_number, .. } } => {
+        Command::RpcTest { node_url, block_number } => {
             println!("Running RPC test for block number {block_number} using node url {node_url}.",);
 
             let config = RpcStateReaderConfig {
@@ -109,9 +113,7 @@ fn main() {
             println!("RPC test passed successfully.");
         }
 
-        Command::WriteRpcRepliesToJson {
-            shared_args: SharedArgs { node_url, block_number, directory_path },
-        } => {
+        Command::WriteRpcRepliesToJson { node_url, block_number, directory_path } => {
             let directory_path = directory_path.unwrap_or(format!(
                 "./crates/blockifier_reexecution/resources/block_{block_number}/"
             ));
@@ -154,9 +156,7 @@ fn main() {
             );
         }
 
-        Command::ReexecuteBlock {
-            shared_args: SharedArgs { block_number, directory_path, .. },
-        } => {
+        Command::ReexecuteBlock { block_number, directory_path } => {
             let full_file_path = directory_path.unwrap_or(format!(
                 "./crates/blockifier_reexecution/resources/block_{block_number}"
             )) + "/reexecution_data.json";
