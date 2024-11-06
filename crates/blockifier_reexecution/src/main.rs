@@ -140,13 +140,13 @@ fn main() {
                     .state
                     .get_contract_class_mapping_dumper()
                     .unwrap(),
-                old_block_hash,
             };
 
             // Write the reexecution data to a json file.
             SerializableOfflineReexecutionData {
                 serializable_data_prev_block,
                 serializable_data_next_block,
+                old_block_hash,
             }
             .write_to_file(&directory_path, "reexecution_data.json")
             .unwrap();

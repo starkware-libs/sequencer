@@ -76,13 +76,13 @@ pub struct SerializableDataNextBlock {
 pub struct SerializableDataPrevBlock {
     pub state_maps: ReexecutionStateMaps,
     pub contract_class_mapping: StarknetContractClassMapping,
-    pub old_block_hash: BlockHash,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct SerializableOfflineReexecutionData {
     pub serializable_data_prev_block: SerializableDataPrevBlock,
     pub serializable_data_next_block: SerializableDataNextBlock,
+    pub old_block_hash: BlockHash,
 }
 
 impl SerializableOfflineReexecutionData {
@@ -107,7 +107,7 @@ impl From<SerializableOfflineReexecutionData> for OfflineReexecutionData {
     fn from(value: SerializableOfflineReexecutionData) -> Self {
         let SerializableOfflineReexecutionData {
             serializable_data_prev_block:
-                SerializableDataPrevBlock { state_maps, contract_class_mapping, old_block_hash },
+                SerializableDataPrevBlock { state_maps, contract_class_mapping },
             serializable_data_next_block:
                 SerializableDataNextBlock {
                     block_info_next_block,
@@ -115,6 +115,7 @@ impl From<SerializableOfflineReexecutionData> for OfflineReexecutionData {
                     transactions_next_block,
                     state_diff_next_block,
                 },
+            old_block_hash,
         } = value;
 
         let offline_state_reader_prev_block = OfflineStateReader {
