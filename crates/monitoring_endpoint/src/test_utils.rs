@@ -7,7 +7,7 @@ use hyper::client::HttpConnector;
 use hyper::Client;
 use tracing::info;
 
-use crate::monitoring_endpoint::MONITORING_PREFIX;
+use crate::monitoring_endpoint::{ALIVE, MONITORING_PREFIX};
 
 // TODO(Tsabary): Clean feature dependencies and dev dependencies.
 
@@ -28,7 +28,7 @@ impl IsAliveClient {
         info!("Querying the node for aliveness.");
 
         self.client
-            .request(build_request(&self.socket.ip(), self.socket.port(), "alive"))
+            .request(build_request(&self.socket.ip(), self.socket.port(), ALIVE))
             .await
             .map_or(false, |response| response.status().is_success())
     }

@@ -16,6 +16,9 @@ use crate::config::MonitoringEndpointConfig;
 mod monitoring_endpoint_test;
 
 pub(crate) const MONITORING_PREFIX: &str = "monitoring";
+pub(crate) const ALIVE: &str = "alive";
+pub(crate) const READY: &str = "ready";
+pub(crate) const VERSION: &str = "nodeVersion";
 
 pub struct MonitoringEndpoint {
     config: MonitoringEndpointConfig,
@@ -49,15 +52,15 @@ impl MonitoringEndpoint {
 
         Router::new()
             .route(
-                format!("/{MONITORING_PREFIX}/alive").as_str(),
+                format!("/{MONITORING_PREFIX}/{ALIVE}").as_str(),
                 get(move || async { StatusCode::OK.to_string() }),
             )
             .route(
-                format!("/{MONITORING_PREFIX}/ready").as_str(),
+                format!("/{MONITORING_PREFIX}/{READY}").as_str(),
                 get(move || async { StatusCode::OK.to_string() }),
             )
             .route(
-                format!("/{MONITORING_PREFIX}/nodeVersion").as_str(),
+                format!("/{MONITORING_PREFIX}/{VERSION}").as_str(),
                 get(move || async { version }),
             )
     }
