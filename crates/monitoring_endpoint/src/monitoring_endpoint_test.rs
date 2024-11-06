@@ -17,7 +17,7 @@ use super::{
 
 const TEST_VERSION: &str = "1.2.3-dev";
 
-fn setup_monitoring_endpont() -> MonitoringEndpoint {
+fn setup_monitoring_endpoint() -> MonitoringEndpoint {
     create_monitoring_endpoint(MonitoringEndpointConfig::default(), TEST_VERSION)
 }
 
@@ -39,7 +39,7 @@ async fn request_app(
 
 #[tokio::test]
 async fn test_node_version() {
-    let response = request_app(setup_monitoring_endpont().app(), "nodeVersion").await;
+    let response = request_app(setup_monitoring_endpoint().app(), "nodeVersion").await;
     assert_eq!(response.status(), StatusCode::OK);
 
     let body = hyper::body::to_bytes(response.into_body()).await.unwrap();
@@ -48,19 +48,19 @@ async fn test_node_version() {
 
 #[tokio::test]
 async fn test_alive() {
-    let response = request_app(setup_monitoring_endpont().app(), "alive").await;
+    let response = request_app(setup_monitoring_endpoint().app(), "alive").await;
     assert_eq!(response.status(), StatusCode::OK);
 }
 
 #[tokio::test]
 async fn test_ready() {
-    let response = request_app(setup_monitoring_endpont().app(), "ready").await;
+    let response = request_app(setup_monitoring_endpoint().app(), "ready").await;
     assert_eq!(response.status(), StatusCode::OK);
 }
 
 #[tokio::test]
 async fn test_endpoint_as_server() {
-    tokio::spawn(async move { setup_monitoring_endpont().run().await });
+    tokio::spawn(async move { setup_monitoring_endpoint().run().await });
     tokio::task::yield_now().await;
 
     let MonitoringEndpointConfig { ip, port } = MonitoringEndpointConfig::default();
