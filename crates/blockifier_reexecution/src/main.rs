@@ -190,7 +190,7 @@ fn main() {
             let reexecution_state_readers =
                 OfflineConsecutiveStateReaders::new(serializable_offline_reexecution_data.into());
 
-            let mut expected_state_diff =
+            let expected_state_diff =
                 reexecution_state_readers.get_next_block_state_diff().unwrap();
 
             let all_txs_in_next_block = reexecution_state_readers.get_next_block_txs().unwrap();
@@ -203,8 +203,6 @@ fn main() {
             let (actual_state_diff, _, _) =
                 transaction_executor.finalize().expect("Couldn't finalize block");
 
-            // TODO(Aner): compute correct block hash at storage slot 0x1 instead of removing it.
-            expected_state_diff.storage_updates.shift_remove(&ContractAddress(1_u128.into()));
             assert_eq!(expected_state_diff, actual_state_diff);
 
             println!("Reexecution test for block {block_number} passed successfully.");
