@@ -33,7 +33,11 @@ use crate::test_utils::{
     TEST_ERC20_CONTRACT_ADDRESS2,
     TEST_SEQUENCER_ADDRESS,
 };
-use crate::transaction::objects::{DeprecatedTransactionInfo, TransactionInfo};
+use crate::transaction::objects::{
+    CurrentTransactionInfo,
+    DeprecatedTransactionInfo,
+    TransactionInfo,
+};
 use crate::versioned_constants::{
     GasCosts,
     OsConstants,
@@ -45,11 +49,11 @@ impl CallEntryPoint {
     /// Executes the call directly, without account context. Limits the number of steps by resource
     /// bounds.
     pub fn execute_directly(self, state: &mut dyn State) -> EntryPointExecutionResult<CallInfo> {
-        let limit_steps_by_resources = false; // Do not limit steps by resources as we use default reasources.
+        // Do not limit steps by resources as we use default resources.
+        let limit_steps_by_resources = false;
         self.execute_directly_given_tx_info(
             state,
-            // TODO(Yoni, 1/12/2024): change the default to V3.
-            TransactionInfo::Deprecated(DeprecatedTransactionInfo::default()),
+            TransactionInfo::Current(CurrentTransactionInfo::create_for_testing()),
             limit_steps_by_resources,
             ExecutionMode::Execute,
         )
