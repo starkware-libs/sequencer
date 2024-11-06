@@ -3,7 +3,8 @@ use std::net::SocketAddr;
 
 use axum::http::StatusCode;
 use axum::routing::get;
-use axum::{async_trait, Router};
+use axum::{async_trait, Router, Server};
+use hyper::Error;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_sequencer_infra::errors::ComponentError;
 use tracing::{info, instrument};
@@ -33,14 +34,14 @@ impl MonitoringEndpoint {
             version = %self.version,
         ),
         level = "debug")]
-    pub async fn run(&self) -> Result<(), hyper::Error> {
+    pub async fn run(&self) -> Result<(), Error> {
         let MonitoringEndpointConfig { ip, port } = self.config;
         let endpoint_addr = SocketAddr::new(ip, port);
 
         let app = self.app();
         info!("MonitoringEndpoint running using socket: {}", endpoint_addr);
 
-        axum::Server::bind(&endpoint_addr).serve(app.into_make_service()).await
+        Server::bind(&endpoint_addr).serve(app.into_make_service()).await
     }
 
     fn app(&self) -> Router {

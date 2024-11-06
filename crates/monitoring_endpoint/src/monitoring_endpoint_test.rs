@@ -1,10 +1,15 @@
 use std::net::IpAddr;
 
+use axum::body::Bytes;
 use axum::http::StatusCode;
 use axum::response::Response;
-use axum::Router;
+use axum::{Error, Router};
 use http_body::combinators::UnsyncBoxBody;
+use hyper::body::to_bytes;
+use hyper::Client;
 use pretty_assertions::assert_eq;
+use tokio::spawn;
+use tokio::task::yield_now;
 use tower::ServiceExt;
 
 use super::MonitoringEndpointConfig;
@@ -20,10 +25,7 @@ fn setup_monitoring_endpoint() -> MonitoringEndpoint {
     create_monitoring_endpoint(MonitoringEndpointConfig::default(), TEST_VERSION)
 }
 
-async fn request_app(
-    app: Router,
-    method: &str,
-) -> Response<UnsyncBoxBody<axum::body::Bytes, axum::Error>> {
+async fn request_app(app: Router, method: &str) -> Response<UnsyncBoxBody<Bytes, Error>> {
     app.oneshot(build_request(&IpAddr::from([0, 0, 0, 0]), 0, method)).await.unwrap()
 }
 
@@ -32,7 +34,7 @@ async fn test_node_version() {
     let response = request_app(setup_monitoring_endpoint().app(), "nodeVersion").await;
     assert_eq!(response.status(), StatusCode::OK);
 
-    let body = hyper::body::to_bytes(response.into_body()).await.unwrap();
+    let body = to_bytes(response.into_body()).await.unwrap();
     assert_eq!(&body[..], TEST_VERSION.as_bytes());
 }
 
@@ -50,16 +52,16 @@ async fn test_ready() {
 
 #[tokio::test]
 async fn test_endpoint_as_server() {
-    tokio::spawn(async move { setup_monitoring_endpoint().run().await });
-    tokio::task::yield_now().await;
+    spawn(async move { setup_monitoring_endpoint().run().await });
+    yield_now().await;
 
     let MonitoringEndpointConfig { ip, port } = MonitoringEndpointConfig::default();
 
-    let client = hyper::Client::new();
+    let client = Client::new();
 
     let response = client.request(build_request(&ip, port, "nodeVersion")).await.unwrap();
     assert_eq!(response.status(), StatusCode::OK);
 
-    let body = hyper::body::to_bytes(response.into_body()).await.unwrap();
+    let body = to_bytes(response.into_body()).await.unwrap();
     assert_eq!(&body[..], TEST_VERSION.as_bytes());
 }
