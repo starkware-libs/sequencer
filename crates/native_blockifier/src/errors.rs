@@ -1,7 +1,6 @@
 use blockifier::blockifier::stateful_validator::StatefulValidatorError;
 use blockifier::blockifier::transaction_executor::TransactionExecutorError;
 use blockifier::bouncer::BuiltinCount;
-use blockifier::execution::errors::ContractClassError;
 use blockifier::state::errors::StateError;
 use blockifier::transaction::errors::{
     ParseError,
@@ -67,7 +66,8 @@ macro_rules! native_blockifier_errors {
 }
 
 native_blockifier_errors!(
-    (ContractClassError, ContractClassError, PyContractClassError),
+    // TODO(AvivG): Have python compatible with removal of '(ContractClassError,
+    // ContractClassError, PyContractClassError)'
     (NativeBlockifierInputError, NativeBlockifierInputError, PyNativeBlockifierInputError),
     (ProgramError, ProgramError, PyProgramError),
     (Pyo3Error, PyErr, PyPyo3Error),

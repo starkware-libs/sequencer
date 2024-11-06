@@ -1,13 +1,12 @@
 use std::collections::BTreeMap;
 
-use blockifier::execution::contract_class::ClassInfo;
 use blockifier::transaction::account_transaction::AccountTransaction;
 use blockifier::transaction::transaction_execution::Transaction;
 use blockifier::transaction::transaction_types::TransactionType;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use starknet_api::block::GasPrice;
-use starknet_api::contract_class::ContractClass;
+use starknet_api::contract_class::{ClassInfo, ContractClass};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::{
     DeprecatedResourceBoundsMapping,
