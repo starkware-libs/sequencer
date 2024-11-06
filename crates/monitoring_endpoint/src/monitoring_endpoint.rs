@@ -14,7 +14,7 @@ use crate::config::MonitoringEndpointConfig;
 #[path = "monitoring_endpoint_test.rs"]
 mod monitoring_endpoint_test;
 
-const MONITORING_PREFIX: &str = "monitoring";
+pub(crate) const MONITORING_PREFIX: &str = "monitoring";
 
 pub struct MonitoringEndpoint {
     config: MonitoringEndpointConfig,
