@@ -24,7 +24,7 @@ class SequencerDevConfig(Config):
         super().__init__(
             schema=json.loads(open(os.path.join(CONFIG_DIR, 'default_config.json'), 'r').read()),
             config=json.loads(open(os.path.join(CONFIG_DIR, 'presets', 'sepolia_testnet.json'), 'r').read())
-            )
+        )
 
     def validate(self):
         jsonschema.validate(self.config, schema=self.schema)

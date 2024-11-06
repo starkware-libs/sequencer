@@ -1,12 +1,11 @@
 import json
-import dataclasses
 
-from typing import Optional, Dict, Union
+from typing import Optional, Dict
 from constructs import Construct
 from cdk8s import Names
 from imports import k8s
 
-from services.objects import HealthCheck
+from services.objects import HealthCheck, ServiceType
 
 
 class Service(Construct):
@@ -17,8 +16,9 @@ class Service(Construct):
         *,
         image: str,
         replicas: int = 1,
+        service_type: Optional[ServiceType] = None,
         port: Optional[int] = 80,
-        container_port: int = 8082,
+        container_port: int = 8080,
         config: Optional[Dict[str, str]] = None,
         health_check: Optional[HealthCheck] = None,
     ):
@@ -30,7 +30,7 @@ class Service(Construct):
                 self,
                 "service",
                 spec=k8s.ServiceSpec(
-                    type="LoadBalancer",
+                    type=service_type.value if service_type is not None else None,
                     ports=[
                         k8s.ServicePort(
                             port=port,
@@ -64,9 +64,9 @@ class Service(Construct):
                                 ports=[
                                     k8s.ContainerPort(container_port=container_port)
                                 ],
-                                startup_probe=health_check.startup_probe if health_check else None,
-                                readiness_probe=health_check.readiness_probe if health_check else None,
-                                liveness_probe=health_check.liveness_probe if health_check else None
+                                startup_probe=health_check.startup_probe if health_check is not None else None,
+                                readiness_probe=health_check.readiness_probe if health_check is not None else None,
+                                liveness_probe=health_check.liveness_probe if health_check is not None else None
                             )
                         ],
                         volumes=(

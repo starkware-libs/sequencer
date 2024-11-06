@@ -9,7 +9,6 @@ spec:
       targetPort: 8080
   selector:
     app: sequencer-system-mempool
-  type: LoadBalancer
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -36,9 +35,30 @@ spec:
     spec:
       containers:
         - image: paulbouwer/hello-kubernetes:1.7
+          livenessProbe:
+            failureThreshold: 10
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 5
           name: web
           ports:
             - containerPort: 8080
+          readinessProbe:
+            failureThreshold: 10
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 5
+          startupProbe:
+            failureThreshold: 10
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 5
       volumes:
         - configMap:
             name: sequencer-system-mempool-config
@@ -55,7 +75,6 @@ spec:
       targetPort: 2368
   selector:
     app: sequencer-system-batcher
-  type: LoadBalancer
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -74,6 +93,94 @@ spec:
     spec:
       containers:
         - image: ghost
+          livenessProbe:
+            failureThreshold: 10
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 5
           name: web
           ports:
             - containerPort: 2368
+          readinessProbe:
+            failureThreshold: 10
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 5
+          startupProbe:
+            failureThreshold: 10
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sequencer-system-sequencer-node-service
+  namespace: test-namespace
+spec:
+  ports:
+    - port: 80
+      targetPort: 8082
+  selector:
+    app: sequencer-system-sequencer-node
+  type: ClusterIP
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sequencer-system-sequencer-node-config
+  namespace: test-namespace
+data:
+  config: '{"chain_id": "SN_SEPOLIA", "starknet_url": "https://alpha-sepolia.starknet.io/", "base_layer.starknet_contract_address": "0xe2bb56ee936fd6433dc0f6e7e3b8365c906aa057"}'
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sequencer-system-sequencer-node-deployment
+  namespace: test-namespace
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sequencer-system-sequencer-node
+  template:
+    metadata:
+      labels:
+        app: sequencer-system-sequencer-node
+    spec:
+      containers:
+        - image: ""
+          livenessProbe:
+            failureThreshold: 5
+            httpGet:
+              path: /monitoring/alive
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+          name: web
+          ports:
+            - containerPort: 8082
+          readinessProbe:
+            failureThreshold: 5
+            httpGet:
+              path: /monitoring/ready
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+          startupProbe:
+            failureThreshold: 10
+            httpGet:
+              path: /monitoring/NodeVersion
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+      volumes:
+        - configMap:
+            name: sequencer-system-sequencer-node-config
+          name: sequencer-system-sequencer-node-config

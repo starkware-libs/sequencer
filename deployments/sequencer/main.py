@@ -4,11 +4,11 @@ import dataclasses
 
 from constructs import Construct # type: ignore
 from cdk8s import App, Chart # type: ignore
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from services.service import Service
 from config.sequencer import Config, SequencerDevConfig
-from services.objects import Probe, HealthCheck
+from services.objects import HealthCheck, ServiceType, Probe
 from services import defaults
 
 
@@ -18,7 +18,7 @@ class SystemStructure:
     replicas: str = "2"
     size: str = "small"
     config: Config = SequencerDevConfig()
-    health_check = True
+    health_check: Optional[HealthCheck] = None
 
     def __post_init__(self):
         self.config.validate()
@@ -53,8 +53,16 @@ class SequencerSystem(Chart):
         self.sequencer_node = Service(
             self, 
             "sequencer-node", 
-            image="", 
-            container_port=8082
+            image="",
+            container_port=8082,
+            replicas=1,
+            config=system_structure.config.get(),
+            service_type=ServiceType.CLUSTER_IP,
+            health_check=HealthCheck(
+                startup_probe=Probe(port="http", path="/monitoring/NodeVersion", period_seconds=10, failure_threshold=10, timeout_seconds=5),
+                readiness_probe=Probe(port="http", path="/monitoring/ready", period_seconds=10, failure_threshold=5, timeout_seconds=5),
+                liveness_probe=Probe(port="http", path="/monitoring/alive", period_seconds=10, failure_threshold=5, timeout_seconds=5)
+            )
         )
 
 
