@@ -5,7 +5,7 @@ use crate::monitoring_endpoint::MonitoringEndpoint;
 pub type MonitoringEndpointServer = WrapperServer<MonitoringEndpoint>;
 
 pub fn create_monitoring_endpoint_server(
-    monitoring_endpont: MonitoringEndpoint,
+    monitoring_endpoint: MonitoringEndpoint,
 ) -> MonitoringEndpointServer {
-    create_empty_server(monitoring_endpont)
+    create_empty_server(monitoring_endpoint)
 }
