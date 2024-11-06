@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::fmt::{Display, Formatter, Result};
 use std::net::IpAddr;
 
 use papyrus_config::dumping::{ser_param, SerializeConfig};
@@ -37,9 +38,9 @@ impl SerializeConfig for MonitoringEndpointConfig {
     }
 }
 
-impl std::fmt::Display for MonitoringEndpointConfig {
+impl Display for MonitoringEndpointConfig {
     #[cfg_attr(coverage_nightly, coverage_attribute)]
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         write!(f, "{self:?}")
     }
 }

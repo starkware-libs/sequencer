@@ -4,6 +4,7 @@ use std::time::Duration;
 use axum::body::Body;
 use axum::http::Request;
 use hyper::client::HttpConnector;
+use hyper::Client;
 use tracing::info;
 
 use crate::monitoring_endpoint::MONITORING_PREFIX;
@@ -13,12 +14,12 @@ use crate::monitoring_endpoint::MONITORING_PREFIX;
 /// Client for querying 'alive' status of an http server.
 pub struct IsAliveClient {
     socket: SocketAddr,
-    client: hyper::Client<HttpConnector>,
+    client: Client<HttpConnector>,
 }
 
 impl IsAliveClient {
     pub fn new(socket: SocketAddr) -> Self {
-        let client = hyper::Client::new();
+        let client = Client::new();
         Self { socket, client }
     }
 
