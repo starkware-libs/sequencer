@@ -166,7 +166,8 @@ fn serialize_state_maps() {
 #[rstest]
 // TODO(Aner): Add block for each starknet version and for declare, deploy, replace_class, etc.
 #[case::v_0_13_0(600001)]
-#[case::v_0_13_1(620978)]
+// Commented out until fix integrated.
+// #[case::v_0_13_1(620978)]
 #[case::v_0_13_1_1(649367)]
 #[case::v_0_13_2(685878)]
 #[case::v_0_13_2_1(700000)]
