@@ -293,18 +293,6 @@ impl ContractClassV1 {
 
         Ok(contract_class)
     }
-
-    /// Returns an empty contract class for testing purposes.
-    #[cfg(any(feature = "testing", test))]
-    pub fn empty_for_testing() -> Self {
-        Self(Arc::new(ContractClassV1Inner {
-            program: Default::default(),
-            entry_points_by_type: Default::default(),
-            hints: Default::default(),
-            compiler_version: Default::default(),
-            bytecode_segment_lengths: NestedIntList::Leaf(0),
-        }))
-    }
 }
 
 /// Returns the estimated VM resources required for computing Casm hash (for Cairo 1 contracts).
