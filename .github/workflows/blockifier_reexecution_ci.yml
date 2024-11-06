@@ -1,0 +1,47 @@
+name: Blockifier-Reexecution-CI
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - auto_merge_enabled
+      - edited
+    paths:
+      # Other than code-related changes, all changes related to the blockifier should trigger the build.
+      - '.github/workflows/blockifier_ci.yml'
+      - '.github/workflows/blockifier_reexecution_ci.yml'
+      - '.github/workflows/upload_artifacts_workflow.yml'
+      - 'build_native_in_docker.sh'
+      - 'Cargo.lock'
+      - 'Cargo.toml'
+      - 'crates/blockifier/**'
+      - 'crates/blockifier_reexecution/**'
+      - 'crates/native_blockifier/**'
+      - 'scripts/build_native_blockifier.sh'
+      - 'scripts/dependencies.sh'
+      - 'scripts/install_build_tools.sh'
+      - 'scripts/sequencer-ci.Dockerfile'
+
+# On PR events, cancel existing CI runs on this same PR for this workflow.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.job }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  blockifier_reexecution:
+    runs-on: starkware-ubuntu-latest-medium
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/bootstrap
+      # Download the blockifier re-execution test data.
+      - id: auth
+        uses: "google-github-actions/auth@v2"
+        with:
+          credentials_json: ${{ secrets.SA_REEXECUTION_ARTIFACTS_READ_ACCESS_KEY }}
+      - uses: 'google-github-actions/setup-gcloud@v2'
+      - run: echo "REEXECUTION_INPUT_FILES_PREFIX=$(cat ./crates/blockifier_reexecution/resources/offline_reexecution_files_prefix)" >> $GITHUB_ENV
+      - run: gcloud storage cp -r gs://reexecution_artifacts/$REEXECUTION_INPUT_FILES_PREFIX/resources/* ./crates/blockifier_reexecution/resources/
+      # Run blockifier re-execution tests.
+      - run: cargo test --release -p blockifier_reexecution -- --include-ignored
