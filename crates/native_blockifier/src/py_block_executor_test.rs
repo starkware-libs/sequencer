@@ -18,7 +18,15 @@ use crate::test_utils::MockStorage;
 #[test]
 fn global_contract_cache_update() {
     // Initialize executor and set a contract class on the state.
-    let casm = CasmContractClass { compiler_version: "0.1.0".to_string(), ..Default::default() };
+    let casm = CasmContractClass {
+        compiler_version: "0.1.0".to_string(),
+        prime: Default::default(),
+        bytecode: Default::default(),
+        bytecode_segment_lengths: Default::default(),
+        hints: Default::default(),
+        pythonic_hints: Default::default(),
+        entry_points_by_type: Default::default(),
+    };
     let contract_class =
         RunnableContractClass::V1(ContractClassV1::try_from(casm.clone()).unwrap());
     let class_hash = class_hash!("0x1");
