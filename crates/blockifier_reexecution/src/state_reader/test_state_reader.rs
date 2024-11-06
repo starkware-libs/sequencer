@@ -66,13 +66,13 @@ pub struct OfflineReexecutionData {
 
 #[derive(Serialize, Deserialize)]
 pub struct SerializableOfflineReexecutionData {
-    state_maps: ReexecutionStateMaps,
-    contract_class_mapping: StarknetContractClassMapping,
-    block_info_next_block: BlockInfo,
-    starknet_version: StarknetVersion,
-    transactions_next_block: Vec<(Transaction, TransactionHash)>,
-    state_diff_next_block: CommitmentStateDiff,
-    old_block_hash: BlockHash,
+    pub state_maps: ReexecutionStateMaps,
+    pub block_info_next_block: BlockInfo,
+    pub starknet_version: StarknetVersion,
+    pub transactions_next_block: Vec<(Transaction, TransactionHash)>,
+    pub state_diff_next_block: CommitmentStateDiff,
+    pub contract_class_mapping: StarknetContractClassMapping,
+    pub old_block_hash: BlockHash,
 }
 
 impl SerializableOfflineReexecutionData {
