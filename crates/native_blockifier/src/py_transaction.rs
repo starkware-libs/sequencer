@@ -1,13 +1,13 @@
 use std::collections::BTreeMap;
 
-use blockifier::execution::contract_class::ClassInfo;
 use blockifier::transaction::account_transaction::AccountTransaction;
 use blockifier::transaction::transaction_execution::Transaction;
 use blockifier::transaction::transaction_types::TransactionType;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use starknet_api::block::GasPrice;
-use starknet_api::contract_class::ContractClass;
+use starknet_api::contract_class::{ClassInfo, ContractClass};
+use starknet_api::executable_transaction::AccountTransaction as ExecutableTransaction;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::{
     DeprecatedResourceBoundsMapping,
@@ -138,13 +138,18 @@ pub fn py_tx(
         TransactionType::Declare => {
             let non_optional_py_class_info: PyClassInfo = optional_py_class_info
                 .expect("A class info must be passed in a Declare transaction.");
-            AccountTransaction::Declare(py_declare(tx, non_optional_py_class_info)?).into()
+            AccountTransaction::new(ExecutableTransaction::Declare(py_declare(
+                tx,
+                non_optional_py_class_info,
+            )?))
+            .into()
         }
         TransactionType::DeployAccount => {
-            AccountTransaction::DeployAccount(py_deploy_account(tx)?).into()
+            AccountTransaction::new(ExecutableTransaction::DeployAccount(py_deploy_account(tx)?))
+                .into()
         }
         TransactionType::InvokeFunction => {
-            AccountTransaction::Invoke(py_invoke_function(tx)?).into()
+            AccountTransaction::new(ExecutableTransaction::Invoke(py_invoke_function(tx)?)).into()
         }
         TransactionType::L1Handler => py_l1_handler(tx)?.into(),
     })

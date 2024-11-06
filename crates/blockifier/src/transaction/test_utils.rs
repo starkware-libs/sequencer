@@ -1,6 +1,6 @@
 use rstest::fixture;
 use starknet_api::block::GasPrice;
-use starknet_api::contract_class::ContractClass;
+use starknet_api::contract_class::{ClassInfo, ContractClass};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::deploy_account::DeployAccountTxArgs;
@@ -15,20 +15,13 @@ use starknet_api::transaction::fields::{
     TransactionSignature,
     ValidResourceBounds,
 };
-use starknet_api::transaction::{
-    InvokeTransactionV0,
-    InvokeTransactionV1,
-    InvokeTransactionV3,
-    TransactionHash,
-    TransactionVersion,
-};
+use starknet_api::transaction::TransactionVersion;
 use starknet_api::{calldata, declare_tx_args, deploy_account_tx_args, felt, invoke_tx_args};
 use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 
 use crate::abi::abi_utils::get_fee_token_var_address;
 use crate::context::{BlockContext, ChainInfo};
-use crate::execution::contract_class::ClassInfo;
 use crate::state::cached_state::CachedState;
 use crate::state::state_api::State;
 use crate::test_utils::contracts::FeatureContract;
@@ -53,7 +46,7 @@ use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::constants;
 use crate::transaction::objects::{FeeType, TransactionExecutionInfo, TransactionExecutionResult};
 use crate::transaction::transaction_types::TransactionType;
-use crate::transaction::transactions::{ExecutableTransaction, InvokeTransaction};
+use crate::transaction::transactions::ExecutableTransaction;
 
 // Corresponding constants to the ones in faulty_account.
 pub const VALID: u64 = 0;
@@ -64,25 +57,6 @@ pub const GET_EXECUTION_INFO: u64 = 4;
 pub const GET_BLOCK_NUMBER: u64 = 5;
 pub const GET_BLOCK_TIMESTAMP: u64 = 6;
 pub const GET_SEQUENCER_ADDRESS: u64 = 7;
-
-macro_rules! impl_from_versioned_tx {
-    ($(($specified_tx_type:ty, $enum_variant:ident)),*) => {
-        $(impl From<$specified_tx_type> for InvokeTransaction {
-            fn from(tx: $specified_tx_type) -> Self {
-                Self::new(
-                    starknet_api::transaction::InvokeTransaction::$enum_variant(tx),
-                    TransactionHash::default(),
-                )
-            }
-        })*
-    };
-}
-
-impl_from_versioned_tx!(
-    (InvokeTransactionV0, V0),
-    (InvokeTransactionV1, V1),
-    (InvokeTransactionV3, V3)
-);
 
 /// Test fixtures.
 
