@@ -1,7 +1,5 @@
-name: Blockifier-CI
+name: Blockifier-Reexecution-CI
 
-# TODO(Dori, 15/8/2024): Split this job, so the feature-less build doesn't run on every push to main
-# branches.
 on:
   push:
     branches:
@@ -20,8 +18,9 @@ on:
       - auto_merge_enabled
       - edited
     paths:
-      # Other than code-related changes, all changes related to the native-blockifier build-and-push
-      # process should trigger the build (e.g., changes to the Dockerfile, build scripts, etc.).
+      # Other than code-related changes, all changes related to the blockifier should trigger the build.
+      - 'crates/blockifier_reexecution/**'
+      - '.github/workflows/blockifier_reexecution_ci.yml'
       - '.github/workflows/blockifier_ci.yml'
       - '.github/workflows/upload_artifacts_workflow.yml'
       - 'build_native_in_docker.sh'
@@ -40,18 +39,19 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  feature-combo-builds:
-    runs-on: starkware-ubuntu-20-04-medium
+  blockifier_reexecution:
+    runs-on: starkware-ubuntu-latest-medium
+    if: ${{ github.event_name == 'pull_request' }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          # required to clone native as a gitsubmodule
-          submodules: recursive
-          fetch-depth: 0
       - uses: ./.github/actions/bootstrap
-      # No features - build blockifier without features activated by dependencies in the workspace.
-      - run: cargo build -p blockifier
-      - run: cargo test -p blockifier
-      # cairo_native is not activated by any workspace crate; test the build.
-      - run: cargo build -p blockifier --features cairo_native
-      - run: cargo test -p blockifier --features cairo_native
+      # Download the blockifier re-execution test data.
+      - id: auth
+        uses: "google-github-actions/auth@v2"
+        with:
+          credentials_json: ${{ secrets.SA_REEXECUTION_ARTIFACTS_READ_ACCESS_KEY }}
+      - uses: 'google-github-actions/setup-gcloud@v2'
+      - run: echo "REEXECUTION_INPUT_FILES_PREFIX=$(cat ./crates/blockifier_reexecution/resources/offline_reexecution_files_prefix)" >> $GITHUB_ENV
+      - run: gcloud storage cp -r gs://reexecution_artifacts/$REEXECUTION_INPUT_FILES_PREFIX/resources/* ./crates/blockifier_reexecution/resources/
+      # Run blockifier re-execution tests.
+      - run: cargo test --release -p blockifier_reexecution -- --ignored
