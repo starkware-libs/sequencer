@@ -429,7 +429,7 @@ fn add_kzg_da_resources_to_resources_mapping(
 fn test_invoke_tx(
     #[values(default_l1_resource_bounds(), default_all_resource_bounds())]
     resource_bounds: ValidResourceBounds,
-    #[case] expected_arguments: ExpectedResultTestInvokeTx,
+    #[case] mut expected_arguments: ExpectedResultTestInvokeTx,
     #[case] account_cairo_version: CairoVersion,
     #[values(false, true)] use_kzg_da: bool,
 ) {
@@ -472,9 +472,15 @@ fn test_invoke_tx(
 
     let actual_execution_info = account_tx.execute(state, block_context, true, true).unwrap();
 
-    let tracked_resource = account_contract
-        .get_runnable_class()
-        .tracked_resource(&versioned_constants.min_compiler_version_for_sierra_gas);
+    let tracked_resource = account_contract.get_runnable_class().tracked_resource(
+        &versioned_constants.min_compiler_version_for_sierra_gas,
+        tx_context.tx_info.gas_mode(),
+    );
+    if tracked_resource == TrackedResource::CairoSteps {
+        // In CairoSteps mode, the initial gas is set to the default once before the validate call.
+        expected_arguments.inner_call_initial_gas -=
+            expected_arguments.validate_gas_consumed + expected_arguments.execute_gas_consumed
+    }
 
     // Build expected validate call info.
     let expected_account_class_hash = account_contract.get_class_hash();
@@ -1525,9 +1531,10 @@ fn test_declare_tx(
         class_hash,
         account.get_class_hash(),
         sender_address,
-        account
-            .get_runnable_class()
-            .tracked_resource(&versioned_constants.min_compiler_version_for_sierra_gas),
+        account.get_runnable_class().tracked_resource(
+            &versioned_constants.min_compiler_version_for_sierra_gas,
+            tx_context.tx_info.gas_mode(),
+        ),
         if tx_version >= TransactionVersion::THREE {
             user_initial_gas_from_bounds(default_all_resource_bounds)
         } else {
@@ -1725,9 +1732,10 @@ fn test_deploy_account_tx(
         Calldata(validate_calldata.into()),
         deployed_account_address,
         cairo_version,
-        account
-            .get_runnable_class()
-            .tracked_resource(&versioned_constants.min_compiler_version_for_sierra_gas),
+        account.get_runnable_class().tracked_resource(
+            &versioned_constants.min_compiler_version_for_sierra_gas,
+            tx_context.tx_info.gas_mode(),
+        ),
         user_initial_gas,
     );
 
@@ -2258,9 +2266,10 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
             builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 6)]),
         }),
         accessed_storage_keys: HashSet::from_iter(vec![accessed_storage_key]),
-        tracked_resource: test_contract
-            .get_runnable_class()
-            .tracked_resource(&versioned_constants.min_compiler_version_for_sierra_gas),
+        tracked_resource: test_contract.get_runnable_class().tracked_resource(
+            &versioned_constants.min_compiler_version_for_sierra_gas,
+            GasVectorComputationMode::NoL2Gas,
+        ),
         ..Default::default()
     };
 
