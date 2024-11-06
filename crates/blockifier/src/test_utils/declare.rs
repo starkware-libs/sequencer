@@ -1,6 +1,6 @@
+use starknet_api::contract_class::ClassInfo;
 use starknet_api::test_utils::declare::DeclareTxArgs;
 
-use crate::execution::contract_class::ClassInfo;
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::transactions::DeclareTransaction;
 
