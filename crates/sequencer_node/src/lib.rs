@@ -1,3 +1,4 @@
+pub mod clients;
 pub mod communication;
 pub mod components;
 pub mod config;

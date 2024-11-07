@@ -1,7 +1,8 @@
 use std::env;
 use std::path::PathBuf;
 
-use crate::communication::{create_node_channels, create_node_clients, SequencerNodeClients};
+use crate::clients::{create_node_clients, SequencerNodeClients};
+use crate::communication::create_node_channels;
 use crate::components::create_node_components;
 use crate::config::SequencerNodeConfig;
 use crate::servers::{create_node_servers, SequencerNodeServers};
