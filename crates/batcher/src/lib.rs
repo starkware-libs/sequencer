@@ -15,3 +15,5 @@ mod proposal_manager_test;
 mod test_utils;
 mod transaction_executor;
 mod transaction_provider;
+#[cfg(test)]
+mod transaction_provider_test;
