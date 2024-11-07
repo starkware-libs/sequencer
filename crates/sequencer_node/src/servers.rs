@@ -43,54 +43,78 @@ pub struct SequencerNodeServers {
     wrapper_servers: WrapperServers,
 }
 
+/// A macro for creating a component server, determined by the component's execution mode. Returns a
+/// local server if the component is run locally, otherwise None.
+///
+/// # Arguments
+///
+/// * $execution_mode - A reference to the component's execution mode, i.e., type
+///   &ComponentExecutionMode.
+/// * $component - The component that will be taken to initialize the server if the execution mode
+///   is enabled(LocalExecutionWithRemoteDisabled / LocalExecutionWithRemoteEnabled).
+/// * $Receiver - receiver side for the server.
+///
+/// # Returns
+///
+/// An Option<Box<LocalComponentServer<ComponentType, RequestType, ResponseType>>> containing the
+/// server if the execution mode is enabled(LocalExecutionWithRemoteDisabled /
+/// LocalExecutionWithRemoteEnabled), or None if the execution mode is Disabled.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// let batcher_server = create_local_server!(
+///     &config.components.batcher.execution_mode,
+///     components.batcher,
+///     communication.take_batcher_rx()
+/// );
+/// match batcher_server {
+///     Some(server) => println!("Server created: {:?}", server),
+///     None => println!("Server not created because the execution mode is disabled."),
+/// }
+/// ```
+macro_rules! create_local_server {
+    ($execution_mode:expr, $component:expr, $receiver:expr) => {
+        match *$execution_mode {
+            ComponentExecutionMode::LocalExecutionWithRemoteDisabled
+            | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
+                Some(Box::new(LocalComponentServer::new(
+                    $component
+                        .take()
+                        .expect(concat!(stringify!($component), " is not initialized.")),
+                    $receiver,
+                )))
+            }
+            ComponentExecutionMode::Disabled => None,
+        }
+    };
+}
+
 fn create_local_servers(
     config: &SequencerNodeConfig,
     communication: &mut SequencerNodeCommunication,
     components: &mut SequencerNodeComponents,
 ) -> LocalServers {
-    let batcher_server = match config.components.batcher.execution_mode {
-        ComponentExecutionMode::LocalExecutionWithRemoteDisabled
-        | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            Some(Box::new(LocalComponentServer::new(
-                components.batcher.take().expect("Batcher is not initialized."),
-                communication.take_batcher_rx(),
-            )))
-        }
-        ComponentExecutionMode::Disabled => None,
-    };
-    let gateway_server = match config.components.gateway.execution_mode {
-        ComponentExecutionMode::LocalExecutionWithRemoteDisabled
-        | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            Some(Box::new(LocalComponentServer::new(
-                components.gateway.take().expect("Gateway is not initialized."),
-                communication.take_gateway_rx(),
-            )))
-        }
-        ComponentExecutionMode::Disabled => None,
-    };
-    let mempool_server = match config.components.mempool.execution_mode {
-        ComponentExecutionMode::LocalExecutionWithRemoteDisabled
-        | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            Some(Box::new(LocalComponentServer::new(
-                components.mempool.take().expect("Mempool is not initialized."),
-                communication.take_mempool_rx(),
-            )))
-        }
-        ComponentExecutionMode::Disabled => None,
-    };
-    let mempool_p2p_propagator_server = match config.components.mempool_p2p.execution_mode {
-        ComponentExecutionMode::LocalExecutionWithRemoteDisabled
-        | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            Some(Box::new(LocalComponentServer::new(
-                components
-                    .mempool_p2p_propagator
-                    .take()
-                    .expect("Mempool P2P Propagator is not initialized."),
-                communication.take_mempool_p2p_propagator_rx(),
-            )))
-        }
-        ComponentExecutionMode::Disabled => None,
-    };
+    let batcher_server = create_local_server!(
+        &config.components.batcher.execution_mode,
+        components.batcher,
+        communication.take_batcher_rx()
+    );
+    let gateway_server = create_local_server!(
+        &config.components.gateway.execution_mode,
+        components.gateway,
+        communication.take_gateway_rx()
+    );
+    let mempool_server = create_local_server!(
+        &config.components.mempool.execution_mode,
+        components.mempool,
+        communication.take_mempool_rx()
+    );
+    let mempool_p2p_propagator_server = create_local_server!(
+        &config.components.mempool_p2p.execution_mode,
+        components.mempool_p2p_propagator,
+        communication.take_mempool_p2p_propagator_rx()
+    );
     LocalServers {
         batcher: batcher_server,
         gateway: gateway_server,
