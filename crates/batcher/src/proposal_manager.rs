@@ -10,14 +10,13 @@ use starknet_api::executable_transaction::Transaction;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 use starknet_batcher_types::batcher_types::{ProposalCommitment, ProposalId};
-use starknet_mempool_types::communication::SharedMempoolClient;
 use thiserror::Error;
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, instrument, Instrument};
 
 use crate::batcher::BatcherStorageReaderTrait;
 use crate::block_builder::{BlockBuilderError, BlockBuilderFactoryTrait, BlockExecutionArtifacts};
-use crate::transaction_provider::{ProposeTransactionProvider, SharedL1ProviderClient};
+use crate::transaction_provider::ProposeTransactionProvider;
 
 #[derive(Debug, Error)]
 pub enum StartHeightError {
@@ -78,6 +77,7 @@ pub trait ProposalManagerTrait: Send + Sync {
         retrospective_block_hash: Option<BlockHashAndNumber>,
         deadline: tokio::time::Instant,
         tx_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
+        tx_provider: ProposeTransactionProvider,
     ) -> Result<(), BuildProposalError>;
 
     async fn take_proposal_result(
@@ -101,8 +101,6 @@ pub trait ProposalManagerTrait: Send + Sync {
 ///
 /// Triggered by the consensus.
 pub(crate) struct ProposalManager {
-    l1_provider_client: SharedL1ProviderClient,
-    mempool_client: SharedMempoolClient,
     storage_reader: Arc<dyn BatcherStorageReaderTrait>,
     active_height: Option<BlockNumber>,
     /// The block proposal that is currently being proposed, if any.
@@ -158,13 +156,14 @@ impl ProposalManagerTrait for ProposalManager {
     /// Starts a new block proposal generation task for the given proposal_id and height with
     /// transactions from the mempool.
     /// Requires tx_sender for sending the generated transactions to the caller.
-    #[instrument(skip(self, tx_sender), err, fields(self.active_height))]
+    #[instrument(skip(self, tx_sender, tx_provider), err, fields(self.active_height))]
     async fn build_block_proposal(
         &mut self,
         proposal_id: ProposalId,
         retrospective_block_hash: Option<BlockHashAndNumber>,
         deadline: tokio::time::Instant,
         tx_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
+        tx_provider: ProposeTransactionProvider,
     ) -> Result<(), BuildProposalError> {
         self.set_active_proposal(proposal_id).await?;
 
@@ -172,10 +171,6 @@ impl ProposalManagerTrait for ProposalManager {
 
         let height = self.active_height.expect("No active height.");
 
-        let tx_provider = ProposeTransactionProvider {
-            mempool_client: self.mempool_client.clone(),
-            l1_provider_client: self.l1_provider_client.clone(),
-        };
         let mut block_builder = self.block_builder_factory.create_block_builder(
             height,
             retrospective_block_hash,
@@ -256,14 +251,10 @@ impl ProposalManagerTrait for ProposalManager {
 
 impl ProposalManager {
     pub fn new(
-        l1_provider_client: SharedL1ProviderClient,
-        mempool_client: SharedMempoolClient,
         block_builder_factory: Arc<dyn BlockBuilderFactoryTrait + Send + Sync>,
         storage_reader: Arc<dyn BatcherStorageReaderTrait>,
     ) -> Self {
         Self {
-            l1_provider_client,
-            mempool_client,
             storage_reader,
             active_proposal: Arc::new(Mutex::new(None)),
             block_builder_factory,
