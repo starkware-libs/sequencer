@@ -4,6 +4,7 @@
 //! Expects to receive 2 groupings of arguments:
 //! 1. TestConfig - these are prefixed with `--test.` in the command.
 //! 2. NodeConfig - any argument lacking the above prefix is assumed to be in NodeConfig.
+
 use clap::Parser;
 use futures::stream::StreamExt;
 use papyrus_consensus::config::ConsensusConfig;
