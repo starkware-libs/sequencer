@@ -56,6 +56,8 @@ pub enum BlockBuilderError {
     TransactionExecutionError(#[from] BlockifierTransactionExecutionError),
     #[error(transparent)]
     StreamTransactionsError(#[from] tokio::sync::mpsc::error::SendError<Transaction>),
+    #[error("Build block with fail_on_err mode, failed on error {}.", _0)]
+    FailOnError(BlockifierTransactionExecutorError),
 }
 
 pub type BlockBuilderResult<T> = Result<T, BlockBuilderError>;
@@ -79,7 +81,8 @@ pub trait BlockBuilderTrait: Send {
         &self,
         deadline: tokio::time::Instant,
         tx_provider: Box<dyn TransactionProvider>,
-        output_content_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
+        output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<Transaction>>,
+        fail_on_err: bool,
     ) -> BlockBuilderResult<BlockExecutionArtifacts>;
 }
 
@@ -101,7 +104,8 @@ impl BlockBuilderTrait for BlockBuilder {
         &self,
         deadline: tokio::time::Instant,
         mut tx_provider: Box<dyn TransactionProvider>,
-        output_content_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
+        output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<Transaction>>,
+        fail_on_err: bool,
     ) -> BlockBuilderResult<BlockExecutionArtifacts> {
         let mut block_is_full = false;
         let mut execution_infos = IndexMap::new();
@@ -131,6 +135,7 @@ impl BlockBuilderTrait for BlockBuilder {
                 results,
                 &mut execution_infos,
                 &output_content_sender,
+                fail_on_err,
             )
             .await?;
         }
@@ -150,22 +155,28 @@ async fn collect_execution_results_and_stream_txs(
     tx_chunk: Vec<Transaction>,
     results: Vec<TransactionExecutorResult<TransactionExecutionInfo>>,
     execution_infos: &mut IndexMap<TransactionHash, TransactionExecutionInfo>,
-    output_content_sender: &tokio::sync::mpsc::UnboundedSender<Transaction>,
+    output_content_sender: &Option<tokio::sync::mpsc::UnboundedSender<Transaction>>,
+    fail_on_err: bool,
 ) -> BlockBuilderResult<bool> {
     for (input_tx, result) in tx_chunk.into_iter().zip(results.into_iter()) {
         match result {
             Ok(tx_execution_info) => {
                 execution_infos.insert(input_tx.tx_hash(), tx_execution_info);
-                output_content_sender.send(input_tx)?;
+                if let Some(output_content_sender) = output_content_sender {
+                    output_content_sender.send(input_tx)?;
+                }
             }
             // TODO(yael 18/9/2024): add timeout error handling here once this
             // feature is added.
-            Err(BlockifierTransactionExecutorError::BlockFull) => {
+            Err(BlockifierTransactionExecutorError::BlockFull) if !fail_on_err => {
                 info!("Block is full");
                 return Ok(true);
             }
             Err(err) => {
-                debug!("Transaction {:?} failed with error: {}.", input_tx, err)
+                debug!("Transaction {:?} failed with error: {}.", input_tx, err);
+                if fail_on_err {
+                    return Err(BlockBuilderError::FailOnError(err));
+                }
             }
         }
     }

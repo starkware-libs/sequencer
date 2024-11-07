@@ -181,7 +181,7 @@ impl ProposalManagerTrait for ProposalManager {
         self.active_proposal_handle = Some(tokio::spawn(
             async move {
                 let result = block_builder
-                    .build_block(deadline, Box::new(tx_provider), tx_sender.clone())
+                    .build_block(deadline, Box::new(tx_provider), Some(tx_sender.clone()), false)
                     .await
                     .map(ProposalOutput::from)
                     .map_err(|e| GetProposalResultError::BlockBuilderError(Arc::new(e)));
