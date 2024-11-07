@@ -53,7 +53,11 @@ impl From<starknet_api::core::ContractAddress> for protobuf::Address {
 
 impl From<u128> for protobuf::Uint128 {
     fn from(value: u128) -> Self {
-        Self { high: (value >> 64) as u64, low: value as u64 }
+        Self {
+            high: u64::try_from(value >> 64).expect("64-bit shift of u128 is a u64."),
+            low: u64::try_from(value & u128::from(u64::MAX))
+                .expect("Bottom 64 bits of u128 are a u64."),
+        }
     }
 }
 
