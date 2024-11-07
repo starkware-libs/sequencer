@@ -40,6 +40,7 @@ use crate::proposal_manager::{
     ProposalStatus,
     StartHeightError,
 };
+use crate::transaction_provider::DummyL1ProviderClient;
 
 type OutputStreamReceiver = tokio::sync::mpsc::UnboundedReceiver<Transaction>;
 type InputStreamSender = tokio::sync::mpsc::Sender<Transaction>;
@@ -247,6 +248,7 @@ impl Batcher {
 }
 
 pub fn create_batcher(config: BatcherConfig, mempool_client: SharedMempoolClient) -> Batcher {
+    let l1_provider_client = Arc::new(DummyL1ProviderClient);
     let (storage_reader, storage_writer) = papyrus_storage::open_storage(config.storage.clone())
         .expect("Failed to open batcher's storage");
 
@@ -258,6 +260,7 @@ pub fn create_batcher(config: BatcherConfig, mempool_client: SharedMempoolClient
     let storage_reader = Arc::new(storage_reader);
     let storage_writer = Box::new(storage_writer);
     let proposal_manager = Box::new(ProposalManager::new(
+        l1_provider_client,
         mempool_client.clone(),
         block_builder_factory,
         storage_reader.clone(),
