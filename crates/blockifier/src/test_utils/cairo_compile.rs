@@ -123,7 +123,12 @@ pub fn cairo1_compile(
     // Sierra -> CASM.
     let mut sierra_compile_command = Command::new("cargo");
     sierra_compile_command.args(base_compile_args);
-    sierra_compile_command.args(["starknet-sierra-compile", temp_path_str.to_str().unwrap()]);
+    sierra_compile_command.args([
+        "starknet-sierra-compile",
+        temp_path_str.to_str().unwrap(),
+        "--allowed-libfuncs-list-name",
+        "all",
+    ]);
     let casm_output = run_and_verify_output(&mut sierra_compile_command);
 
     casm_output.stdout
@@ -155,7 +160,14 @@ pub fn starknet_compile(
     // Cairo -> Sierra.
     let mut starknet_compile_commmand = Command::new("cargo");
     starknet_compile_commmand.args(base_compile_args.clone());
-    starknet_compile_commmand.args(["starknet-compile", "--", "--single-file", &path]);
+    starknet_compile_commmand.args([
+        "starknet-compile",
+        "--",
+        "--single-file",
+        &path,
+        "--allowed-libfuncs-list-name",
+        "all",
+    ]);
     let sierra_output = run_and_verify_output(&mut starknet_compile_commmand);
 
     sierra_output.stdout
