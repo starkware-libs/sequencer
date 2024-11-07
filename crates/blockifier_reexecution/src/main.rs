@@ -4,6 +4,7 @@ use blockifier_reexecution::state_reader::reexecution_state_reader::ReexecutionS
 use blockifier_reexecution::state_reader::test_state_reader::{
     ConsecutiveStateReaders,
     ConsecutiveTestStateReaders,
+    OfflineConsecutiveStateReaders,
     SerializableOfflineReexecutionData,
 };
 use blockifier_reexecution::state_reader::utils::JSON_RPC_VERSION;
@@ -46,6 +47,18 @@ enum Command {
     WriteRpcRepliesToJson {
         #[clap(flatten)]
         url_and_block_number: SharedArgs,
+
+        /// Directory path to json files.
+        /// Default: "./crates/blockifier_reexecution/resources/block_{block_number}".
+        #[clap(long, default_value = None)]
+        directory_path: Option<String>,
+    },
+
+    // Reexecutes the block from JSON files.
+    ReexecuteBlock {
+        /// Block number.
+        #[clap(long, short = 'b')]
+        block_number: u64,
 
         /// Directory path to json files.
         /// Default: "./crates/blockifier_reexecution/resources/block_{block_number}".
@@ -164,6 +177,35 @@ fn main() {
             println!(
                 "RPC replies required for reexecuting block {block_number} written to json file."
             );
+        }
+
+        Command::ReexecuteBlock { block_number, directory_path } => {
+            let full_file_path = directory_path.unwrap_or(format!(
+                "./crates/blockifier_reexecution/resources/block_{block_number}"
+            )) + "/reexecution_data.json";
+
+            let serializable_offline_reexecution_data =
+                SerializableOfflineReexecutionData::read_from_file(&full_file_path).unwrap();
+
+            let reexecution_state_readers =
+                OfflineConsecutiveStateReaders::new(serializable_offline_reexecution_data.into());
+
+            let expected_state_diff =
+                reexecution_state_readers.get_next_block_state_diff().unwrap();
+
+            let all_txs_in_next_block = reexecution_state_readers.get_next_block_txs().unwrap();
+
+            let mut transaction_executor =
+                reexecution_state_readers.get_transaction_executor(None).unwrap();
+
+            transaction_executor.execute_txs(&all_txs_in_next_block);
+            // Finalize block and read actual statediff.
+            let (actual_state_diff, _, _) =
+                transaction_executor.finalize().expect("Couldn't finalize block");
+
+            assert_eq!(expected_state_diff, actual_state_diff);
+
+            println!("Reexecution test for block {block_number} passed successfully.");
         }
     }
 }

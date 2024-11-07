@@ -9,7 +9,7 @@ use blockifier::blockifier::transaction_executor::TransactionExecutor;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::BlockContext;
 use blockifier::execution::contract_class::RunnableContractClass;
-use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps};
+use blockifier::state::cached_state::{CommitmentStateDiff, StateMaps};
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader, StateResult};
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
@@ -544,11 +544,17 @@ impl OfflineStateReader {
         block_context_next_block: BlockContext,
         transaction_executor_config: Option<TransactionExecutorConfig>,
     ) -> ReexecutionResult<TransactionExecutor<OfflineStateReader>> {
-        Ok(TransactionExecutor::<OfflineStateReader>::new(
-            CachedState::new(self),
+        let old_block_number = BlockNumber(
+            block_context_next_block.block_info().block_number.0
+                - constants::STORED_BLOCK_HASH_BUFFER,
+        );
+        let hash = self.old_block_hash;
+        Ok(TransactionExecutor::<OfflineStateReader>::pre_process_and_create(
+            self,
             block_context_next_block,
+            Some(BlockHashAndNumber { number: old_block_number, hash }),
             transaction_executor_config.unwrap_or_default(),
-        ))
+        )?)
     }
 }
 
