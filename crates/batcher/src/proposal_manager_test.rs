@@ -23,6 +23,7 @@ use crate::proposal_manager::{
     ProposalOutput,
     StartHeightError,
 };
+use crate::transaction_provider::MockL1ProviderClient;
 
 const INITIAL_HEIGHT: BlockNumber = BlockNumber(3);
 const BLOCK_GENERATION_TIMEOUT: tokio::time::Duration = tokio::time::Duration::from_secs(1);
@@ -38,6 +39,7 @@ fn output_streaming() -> (
 
 struct MockDependencies {
     block_builder_factory: MockBlockBuilderFactoryTrait,
+    l1_provider_client: MockL1ProviderClient,
     mempool_client: MockMempoolClient,
     storage_reader: MockBatcherStorageReaderTrait,
 }
@@ -82,6 +84,7 @@ fn mock_dependencies() -> MockDependencies {
     let mut storage_reader = MockBatcherStorageReaderTrait::new();
     storage_reader.expect_height().returning(|| Ok(INITIAL_HEIGHT));
     MockDependencies {
+        l1_provider_client: MockL1ProviderClient::new(),
         block_builder_factory: MockBlockBuilderFactoryTrait::new(),
         mempool_client: MockMempoolClient::new(),
         storage_reader,
@@ -90,6 +93,7 @@ fn mock_dependencies() -> MockDependencies {
 
 fn init_proposal_manager(mock_dependencies: MockDependencies) -> ProposalManager {
     ProposalManager::new(
+        Arc::new(mock_dependencies.l1_provider_client),
         Arc::new(mock_dependencies.mempool_client),
         Arc::new(mock_dependencies.block_builder_factory),
         Arc::new(mock_dependencies.storage_reader),
