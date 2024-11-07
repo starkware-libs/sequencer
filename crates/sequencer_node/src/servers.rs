@@ -7,10 +7,7 @@ use starknet_consensus_manager::communication::ConsensusManagerServer;
 use starknet_gateway::communication::LocalGatewayServer;
 use starknet_http_server::communication::HttpServer;
 use starknet_mempool::communication::LocalMempoolServer;
-use starknet_mempool_p2p::propagator::{
-    create_mempool_p2p_propagator_server,
-    LocalMempoolP2pPropagatorServer,
-};
+use starknet_mempool_p2p::propagator::LocalMempoolP2pPropagatorServer;
 use starknet_mempool_p2p::runner::MempoolP2pRunnerServer;
 use starknet_monitoring_endpoint::communication::MonitoringEndpointServer;
 use starknet_sequencer_infra::component_server::{
@@ -84,7 +81,7 @@ fn create_local_servers(
     let mempool_p2p_propagator_server = match config.components.mempool_p2p.execution_mode {
         ComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            Some(Box::new(create_mempool_p2p_propagator_server(
+            Some(Box::new(LocalComponentServer::new(
                 components
                     .mempool_p2p_propagator
                     .take()

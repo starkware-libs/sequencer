@@ -10,13 +10,11 @@ use starknet_mempool_p2p_types::communication::{
     MempoolP2pPropagatorClient,
     MempoolP2pPropagatorClientResult,
     MempoolP2pPropagatorRequest,
-    MempoolP2pPropagatorRequestAndResponseSender,
     MempoolP2pPropagatorResponse,
 };
 use starknet_mempool_p2p_types::errors::MempoolP2pPropagatorError;
 use starknet_sequencer_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
 use starknet_sequencer_infra::component_server::LocalComponentServer;
-use tokio::sync::mpsc::Receiver;
 
 pub struct MempoolP2pPropagator {
     broadcast_topic_client: BroadcastTopicClient<RpcTransactionWrapper>,
@@ -83,10 +81,3 @@ pub type LocalMempoolP2pPropagatorServer = LocalComponentServer<
 >;
 
 impl ComponentStarter for MempoolP2pPropagator {}
-
-pub fn create_mempool_p2p_propagator_server(
-    mempool_p2p_propagator: MempoolP2pPropagator,
-    rx_mempool_p2p_propagator: Receiver<MempoolP2pPropagatorRequestAndResponseSender>,
-) -> LocalMempoolP2pPropagatorServer {
-    LocalComponentServer::new(mempool_p2p_propagator, rx_mempool_p2p_propagator)
-}
