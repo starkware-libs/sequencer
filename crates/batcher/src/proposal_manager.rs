@@ -17,7 +17,7 @@ use tracing::{debug, error, info, instrument, Instrument};
 
 use crate::batcher::BatcherStorageReaderTrait;
 use crate::block_builder::{BlockBuilderError, BlockBuilderFactoryTrait, BlockExecutionArtifacts};
-use crate::transaction_provider::ProposeTransactionProvider;
+use crate::transaction_provider::{ProposeTransactionProvider, SharedL1ProviderClient};
 
 #[derive(Debug, Error)]
 pub enum StartHeightError {
@@ -94,6 +94,7 @@ pub trait ProposalManagerTrait: Send + Sync {
 ///
 /// Triggered by the consensus.
 pub(crate) struct ProposalManager {
+    l1_provider_client: SharedL1ProviderClient,
     mempool_client: SharedMempoolClient,
     storage_reader: Arc<dyn BatcherStorageReaderTrait>,
     active_height: Option<BlockNumber>,
@@ -167,8 +168,10 @@ impl ProposalManagerTrait for ProposalManager {
         let block_builder =
             self.block_builder_factory.create_block_builder(height, retrospective_block_hash)?;
 
-        let tx_provider =
-            ProposeTransactionProvider { mempool_client: self.mempool_client.clone() };
+        let tx_provider = ProposeTransactionProvider {
+            mempool_client: self.mempool_client.clone(),
+            l1_provider_client: self.l1_provider_client.clone(),
+        };
         let active_proposal = self.active_proposal.clone();
         let executed_proposals = self.executed_proposals.clone();
 
@@ -218,11 +221,13 @@ impl ProposalManagerTrait for ProposalManager {
 
 impl ProposalManager {
     pub fn new(
+        l1_provider_client: SharedL1ProviderClient,
         mempool_client: SharedMempoolClient,
         block_builder_factory: Arc<dyn BlockBuilderFactoryTrait + Send + Sync>,
         storage_reader: Arc<dyn BatcherStorageReaderTrait>,
     ) -> Self {
         Self {
+            l1_provider_client,
             mempool_client,
             storage_reader,
             active_proposal: Arc::new(Mutex::new(None)),
