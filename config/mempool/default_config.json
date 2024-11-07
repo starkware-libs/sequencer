@@ -199,6 +199,11 @@
     "privacy": "Public",
     "value": "StateOnly"
   },
+  "batcher_config.transaction_provider_config.max_l1_handler_txs_per_block": {
+    "description": "The maximum number of L1 handler transactions to include in a block.",
+    "privacy": "Public",
+    "value": 100
+  },
   "chain_id": {
     "description": "A required param! The chain to follow.",
     "param_type": "String",

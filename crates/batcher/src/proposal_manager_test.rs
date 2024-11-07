@@ -92,10 +92,11 @@ fn mock_dependencies() -> MockDependencies {
 }
 
 fn propose_tx_provider(mock_dependencies: &MockDependencies) -> ProposeTransactionProvider {
-    ProposeTransactionProvider {
-        mempool_client: mock_dependencies.mempool_client.clone(),
-        l1_provider_client: mock_dependencies.l1_provider_client.clone(),
-    }
+    ProposeTransactionProvider::new(
+        Default::default(),
+        mock_dependencies.mempool_client.clone(),
+        mock_dependencies.l1_provider_client.clone(),
+    )
 }
 
 fn init_proposal_manager(mock_dependencies: MockDependencies) -> ProposalManager {

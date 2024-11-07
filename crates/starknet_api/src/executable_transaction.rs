@@ -292,7 +292,7 @@ impl InvokeTransaction {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct L1HandlerTransaction {
     pub tx: crate::transaction::L1HandlerTransaction,
     pub tx_hash: TransactionHash,
