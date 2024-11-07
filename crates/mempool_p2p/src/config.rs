@@ -6,13 +6,24 @@ use papyrus_network::NetworkConfig;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
-#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq, Validate)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
 pub struct MempoolP2pConfig {
     #[validate]
     pub network_config: NetworkConfig,
     // TODO: Enter this inside NetworkConfig
     pub executable_version: Option<String>,
     pub network_buffer_size: usize,
+}
+
+impl Default for MempoolP2pConfig {
+    fn default() -> Self {
+        Self {
+            network_config: NetworkConfig::default(),
+            // TODO: Consider filling this once the sequencer node has a name.
+            executable_version: None,
+            network_buffer_size: 10000,
+        }
+    }
 }
 
 impl SerializeConfig for MempoolP2pConfig {
