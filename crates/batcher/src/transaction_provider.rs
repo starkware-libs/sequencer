@@ -1,9 +1,12 @@
+use std::sync::Arc;
+
 use async_trait::async_trait;
 #[cfg(test)]
 use mockall::automock;
-use starknet_api::executable_transaction::Transaction;
+use starknet_api::executable_transaction::{L1HandlerTransaction, Transaction};
 use starknet_mempool_types::communication::{MempoolClientError, SharedMempoolClient};
 use thiserror::Error;
+use tracing::warn;
 
 #[derive(Clone, Debug, Error)]
 pub enum TransactionProviderError {
@@ -25,6 +28,9 @@ pub trait TransactionProvider: Send + Sync {
 
 pub struct ProposeTransactionProvider {
     pub mempool_client: SharedMempoolClient,
+    // TODO: remove allow(dead_code) when L1 transactions are added.
+    #[allow(dead_code)]
+    pub l1_provider_client: SharedL1ProviderClient,
 }
 
 #[async_trait]
@@ -57,5 +63,25 @@ impl TransactionProvider for ValidateTransactionProvider {
             return Ok(NextTxs::End);
         }
         Ok(NextTxs::Txs(buffer))
+    }
+}
+
+// TODO: Remove L1Provider code when the communication module of l1-provider is added.
+#[cfg_attr(test, automock)]
+#[async_trait]
+pub trait L1ProviderClient: Send + Sync {
+    #[allow(dead_code)]
+    fn get_txs(&self, n_txs: usize) -> Vec<L1HandlerTransaction>;
+}
+
+pub type SharedL1ProviderClient = Arc<dyn L1ProviderClient>;
+
+pub struct DummyL1ProviderClient;
+
+#[async_trait]
+impl L1ProviderClient for DummyL1ProviderClient {
+    fn get_txs(&self, _n_txs: usize) -> Vec<L1HandlerTransaction> {
+        warn!("Dummy L1 provider client is used, no L1 transactions are provided.");
+        vec![]
     }
 }
