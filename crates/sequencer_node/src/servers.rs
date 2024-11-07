@@ -90,6 +90,53 @@ macro_rules! create_local_server {
     };
 }
 
+/// A macro for creating a WrapperServer, determined by the component's execution mode. Returns a
+/// wrapper server if the component is run locally, otherwise None.
+///
+/// # Arguments
+///
+/// * $execution_mode - A reference to the component's execution mode, i.e., type
+///   &ComponentExecutionMode.
+/// * $component - The component that will be taken to initialize the server if the execution mode
+///   is enabled(LocalExecutionWithRemoteDisabled / LocalExecutionWithRemoteEnabled).
+///
+/// # Returns
+///
+/// An `Option<Box<WrapperServer<ComponentType>>>` containing the server if the execution mode is
+/// enabled(LocalExecutionWithRemoteDisabled / LocalExecutionWithRemoteEnabled), or `None` if the
+/// execution mode is `Disabled`.
+///
+/// # Example
+///
+/// ```rust, ignore
+/// // Assuming ComponentExecutionMode and components are defined, and WrapperServer
+/// // has a new method that accepts a component.
+/// let consensus_manager_server = create_wrapper_server!(
+///     &config.components.consensus_manager.execution_mode,
+///     components.consensus_manager
+/// );
+///
+/// match consensus_manager_server {
+///     Some(server) => println!("Server created: {:?}", server),
+///     None => println!("Server not created because the execution mode is disabled."),
+/// }
+/// ```
+macro_rules! create_wrapper_server {
+    ($execution_mode:expr, $component:expr) => {
+        match *$execution_mode {
+            ComponentExecutionMode::LocalExecutionWithRemoteDisabled
+            | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
+                Some(Box::new(WrapperServer::new(
+                    $component
+                        .take()
+                        .expect(concat!(stringify!($component), " is not initialized.")),
+                )))
+            }
+            ComponentExecutionMode::Disabled => None,
+        }
+    };
+}
+
 fn create_local_servers(
     config: &SequencerNodeConfig,
     communication: &mut SequencerNodeCommunication,
@@ -127,36 +174,19 @@ fn create_wrapper_servers(
     config: &SequencerNodeConfig,
     components: &mut SequencerNodeComponents,
 ) -> WrapperServers {
-    let consensus_manager_server = match config.components.consensus_manager.execution_mode {
-        ComponentExecutionMode::LocalExecutionWithRemoteDisabled
-        | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            Some(Box::new(WrapperServer::new(
-                components.consensus_manager.take().expect("Consensus Manager is not initialized."),
-            )))
-        }
-        ComponentExecutionMode::Disabled => None,
-    };
-    let http_server = match config.components.http_server.execution_mode {
-        ComponentExecutionMode::LocalExecutionWithRemoteDisabled
-        | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            Some(Box::new(WrapperServer::new(
-                components.http_server.take().expect("Http Server is not initialized."),
-            )))
-        }
-        ComponentExecutionMode::Disabled => None,
-    };
-    let monitoring_endpoint_server = match config.components.monitoring_endpoint.execution_mode {
-        ComponentExecutionMode::LocalExecutionWithRemoteDisabled
-        | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            Some(Box::new(WrapperServer::new(
-                components
-                    .monitoring_endpoint
-                    .take()
-                    .expect("Monitoring Endpoint is not initialized."),
-            )))
-        }
-        ComponentExecutionMode::Disabled => None,
-    };
+    let consensus_manager_server = create_wrapper_server!(
+        &config.components.consensus_manager.execution_mode,
+        components.consensus_manager
+    );
+    let http_server = create_wrapper_server!(
+        &config.components.http_server.execution_mode,
+        components.http_server
+    );
+
+    let monitoring_endpoint_server = create_wrapper_server!(
+        &config.components.monitoring_endpoint.execution_mode,
+        components.monitoring_endpoint
+    );
 
     let mempool_p2p_runner_server = match config.components.mempool_p2p.execution_mode {
         ComponentExecutionMode::LocalExecutionWithRemoteDisabled
