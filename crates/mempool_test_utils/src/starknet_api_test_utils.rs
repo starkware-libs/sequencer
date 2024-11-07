@@ -13,7 +13,7 @@ use serde_json::to_string_pretty;
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
-use starknet_api::executable_transaction::Transaction;
+use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::{
     ContractClass,
@@ -212,7 +212,7 @@ pub fn invoke_tx(cairo_version: CairoVersion) -> RpcTransaction {
     ))
 }
 
-pub fn executable_invoke_tx(cairo_version: CairoVersion) -> Transaction {
+pub fn executable_invoke_tx(cairo_version: CairoVersion) -> AccountTransaction {
     let default_account = FeatureContract::AccountWithoutValidations(cairo_version);
 
     let mut tx_generator = MultiAccountTransactionGenerator::new();
@@ -345,7 +345,7 @@ impl AccountTransactionGenerator {
         rpc_invoke_tx(invoke_args)
     }
 
-    pub fn generate_executable_invoke(&mut self) -> Transaction {
+    pub fn generate_executable_invoke(&mut self) -> AccountTransaction {
         let nonce = self.next_nonce();
         assert_ne!(
             nonce,
@@ -361,7 +361,9 @@ impl AccountTransactionGenerator {
             calldata: create_trivial_calldata(self.sender_address()),
         );
 
-        Transaction::Invoke(starknet_api::test_utils::invoke::executable_invoke_tx(invoke_args))
+        AccountTransaction::Invoke(starknet_api::test_utils::invoke::executable_invoke_tx(
+            invoke_args,
+        ))
     }
 
     /// Generates an `RpcTransaction` with fully custom parameters.
