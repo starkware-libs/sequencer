@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use validator::Validate;
 
 use crate::block_builder::BlockBuilderConfig;
+use crate::transaction_provider::TransactionProviderConfig;
 
 /// The batcher related configuration.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
@@ -14,6 +15,7 @@ pub struct BatcherConfig {
     pub outstream_content_buffer_size: usize,
     pub block_builder_config: BlockBuilderConfig,
     pub global_contract_cache_size: usize,
+    pub transaction_provider_config: TransactionProviderConfig,
 }
 
 impl SerializeConfig for BatcherConfig {
@@ -38,6 +40,10 @@ impl SerializeConfig for BatcherConfig {
             self.block_builder_config.dump(),
             "block_builder_config",
         ));
+        dump.append(&mut append_sub_config_name(
+            self.transaction_provider_config.dump(),
+            "transaction_provider_config",
+        ));
         dump
     }
 }
@@ -59,6 +65,7 @@ impl Default for BatcherConfig {
             outstream_content_buffer_size: 100,
             block_builder_config: BlockBuilderConfig::default(),
             global_contract_cache_size: 400,
+            transaction_provider_config: TransactionProviderConfig::default(),
         }
     }
 }
