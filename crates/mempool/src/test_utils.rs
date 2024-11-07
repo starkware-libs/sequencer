@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use pretty_assertions::assert_eq;
-use starknet_api::executable_transaction::Transaction;
+use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{contract_address, felt, nonce};
 use starknet_mempool_types::errors::MempoolError;
@@ -21,7 +21,7 @@ macro_rules! tx {
         max_l2_gas_price: $max_l2_gas_price:expr
     ) => {{
             use starknet_api::block::GasPrice;
-            use starknet_api::executable_transaction::Transaction;
+            use starknet_api::executable_transaction::AccountTransaction;
             use starknet_api::hash::StarkHash;
             use starknet_api::invoke_tx_args;
             use starknet_api::test_utils::invoke::executable_invoke_tx;
@@ -41,7 +41,7 @@ macro_rules! tx {
                 ..Default::default()
             });
 
-            Transaction::Invoke(executable_invoke_tx(invoke_tx_args!{
+            AccountTransaction::Invoke(executable_invoke_tx(invoke_tx_args!{
                 tx_hash: TransactionHash(StarkHash::from($tx_hash)),
                 sender_address: contract_address!($address),
                 nonce: nonce!($tx_nonce),
@@ -231,7 +231,7 @@ pub fn commit_block(
 pub fn get_txs_and_assert_expected(
     mempool: &mut Mempool,
     n_txs: usize,
-    expected_txs: &[Transaction],
+    expected_txs: &[AccountTransaction],
 ) {
     let txs = mempool.get_txs(n_txs).unwrap();
     assert_eq!(txs, expected_txs);

@@ -37,6 +37,22 @@ pub enum Transaction {
     L1Handler(L1HandlerTransaction),
 }
 
+impl TryFrom<starknet_api::executable_transaction::Transaction> for Transaction {
+    type Error = super::errors::TransactionExecutionError;
+    fn try_from(
+        value: starknet_api::executable_transaction::Transaction,
+    ) -> Result<Self, Self::Error> {
+        match value {
+            starknet_api::executable_transaction::Transaction::Account(tx) => {
+                Ok(Transaction::Account(tx.try_into()?))
+            }
+            starknet_api::executable_transaction::Transaction::L1Handler(tx) => {
+                Ok(Transaction::L1Handler(tx))
+            }
+        }
+    }
+}
+
 impl Transaction {
     pub fn nonce(&self) -> Nonce {
         match self {

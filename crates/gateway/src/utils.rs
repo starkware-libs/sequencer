@@ -1,9 +1,9 @@
 use starknet_api::core::ChainId;
 use starknet_api::executable_transaction::{
+    AccountTransaction as ExecutableTransaction,
     DeclareTransaction as ExecutableDeclareTransaction,
     DeployAccountTransaction as ExecutableDeployAccountTransaction,
     InvokeTransaction as ExecutableInvokeTransaction,
-    Transaction as ExecutableTransaction,
 };
 use starknet_api::rpc_transaction::{RpcDeclareTransaction, RpcTransaction};
 use starknet_gateway_types::errors::GatewaySpecError;
