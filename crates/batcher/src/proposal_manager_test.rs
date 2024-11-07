@@ -27,6 +27,7 @@ use crate::transaction_provider::{MockL1ProviderClient, ProposeTransactionProvid
 
 const INITIAL_HEIGHT: BlockNumber = BlockNumber(3);
 const BLOCK_GENERATION_TIMEOUT: tokio::time::Duration = tokio::time::Duration::from_secs(1);
+const MAX_L1_HANDLER_TXS_PER_BLOCK_PROPOSAL: usize = 3;
 
 #[fixture]
 fn output_streaming() -> (
@@ -92,10 +93,11 @@ fn mock_dependencies() -> MockDependencies {
 }
 
 fn propose_tx_provider(mock_dependencies: &MockDependencies) -> ProposeTransactionProvider {
-    ProposeTransactionProvider {
-        mempool_client: mock_dependencies.mempool_client.clone(),
-        l1_provider_client: mock_dependencies.l1_provider_client.clone(),
-    }
+    ProposeTransactionProvider::new(
+        mock_dependencies.mempool_client.clone(),
+        mock_dependencies.l1_provider_client.clone(),
+        MAX_L1_HANDLER_TXS_PER_BLOCK_PROPOSAL,
+    )
 }
 
 fn init_proposal_manager(mock_dependencies: MockDependencies) -> ProposalManager {
