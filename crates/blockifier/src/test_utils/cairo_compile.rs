@@ -111,20 +111,10 @@ pub fn cairo1_compile(
     git_tag_override: Option<String>,
     cargo_nightly_arg: Option<String>,
 ) -> Vec<u8> {
-    let cairo1_compiler_path = local_cairo1_compiler_repo_path();
+    let mut base_compile_args = vec![];
 
-    // Command args common to both compilation phases.
-    let mut base_compile_args = vec![
-        "run".into(),
-        format!("--manifest-path={}/Cargo.toml", cairo1_compiler_path.to_string_lossy()),
-        "--bin".into(),
-    ];
-    // Add additional cargo arg if provided. Should be first arg (base command is `cargo`).
-    if let Some(ref nightly_version) = cargo_nightly_arg {
-        base_compile_args.insert(0, format!("+nightly-{nightly_version}"));
-    }
-
-    let sierra_output = starknet_compile(path, git_tag_override, cargo_nightly_arg);
+    let sierra_output =
+        starknet_compile(path, git_tag_override, cargo_nightly_arg, &mut base_compile_args);
 
     let mut temp_file = NamedTempFile::new().unwrap();
     temp_file.write_all(&sierra_output).unwrap();
@@ -145,17 +135,18 @@ pub fn starknet_compile(
     path: String,
     git_tag_override: Option<String>,
     cargo_nightly_arg: Option<String>,
+    base_compile_args: &mut Vec<String>,
 ) -> Vec<u8> {
     prepare_cairo1_compiler_deps(git_tag_override);
 
     let cairo1_compiler_path = local_cairo1_compiler_repo_path();
 
     // Command args common to both compilation phases.
-    let mut base_compile_args = vec![
+    base_compile_args.extend(vec![
         "run".into(),
         format!("--manifest-path={}/Cargo.toml", cairo1_compiler_path.to_string_lossy()),
         "--bin".into(),
-    ];
+    ]);
     // Add additional cargo arg if provided. Should be first arg (base command is `cargo`).
     if let Some(nightly_version) = cargo_nightly_arg {
         base_compile_args.insert(0, format!("+nightly-{nightly_version}"));

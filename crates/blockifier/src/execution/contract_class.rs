@@ -77,13 +77,6 @@ impl TryFrom<ContractClass> for RunnableContractClass {
         let contract_class: Self = match raw_contract_class {
             ContractClass::V0(raw_contract_class) => Self::V0(raw_contract_class.try_into()?),
             ContractClass::V1(raw_contract_class) => Self::V1(raw_contract_class.try_into()?),
-            #[cfg(feature = "cairo_native")]
-            ContractClass::V1Native => {
-                panic!(
-                    "Native conversion from contract class to runnable contract class is not \
-                     implemented yet"
-                )
-            }
         };
 
         Ok(contract_class)
@@ -551,8 +544,6 @@ impl ClassInfo {
         match &self.contract_class {
             ContractClass::V0(contract_class) => contract_class.bytecode_length(),
             ContractClass::V1(contract_class) => contract_class.bytecode.len(),
-            #[cfg(feature = "cairo_native")]
-            ContractClass::V1Native => panic!("Native contract have no bytecode length info"),
         }
     }
 
@@ -583,8 +574,6 @@ impl ClassInfo {
         let (contract_class_version, condition) = match contract_class {
             ContractClass::V0(_) => (0, sierra_program_length == 0),
             ContractClass::V1(_) => (1, sierra_program_length > 0),
-            #[cfg(feature = "cairo_native")]
-            ContractClass::V1Native => (1, sierra_program_length > 0),
         };
 
         if condition {

@@ -10,7 +10,7 @@ description = "The transaction-executing component in the Starknet sequencer."
 workspace = true
 
 [features]
-cairo_native = ["dep:cairo-native", "starknet_api/cairo_native"]
+cairo_native = ["dep:cairo-native"]
 jemalloc = ["dep:tikv-jemallocator"]
 testing = ["rand", "rstest", "starknet_api/testing"]
 transaction_serde = []

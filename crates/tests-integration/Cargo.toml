@@ -8,9 +8,6 @@ license.workspace = true
 [lints]
 workspace = true
 
-[features]
-cairo_native = ["blockifier/cairo_native"]
-
 [dependencies]
 anyhow.workspace = true
 assert_matches.workspace = true
