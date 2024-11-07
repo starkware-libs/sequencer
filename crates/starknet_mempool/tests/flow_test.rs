@@ -1,4 +1,5 @@
 use rstest::{fixture, rstest};
+use starknet_api::block::GasPrice;
 use starknet_api::{contract_address, nonce};
 use starknet_mempool::add_tx_input;
 use starknet_mempool::mempool::Mempool;
@@ -263,7 +264,7 @@ fn test_commit_block_rewinds_queued_nonce(mut mempool: Mempool) {
 }
 
 #[rstest]
-fn test_flow_commit_block_from_different_leader(mut mempool: Mempool) {
+fn test_commit_block_from_different_leader(mut mempool: Mempool) {
     // Setup.
     // TODO: set the mempool to `validate` mode once supported.
 
@@ -288,4 +289,27 @@ fn test_flow_commit_block_from_different_leader(mut mempool: Mempool) {
     // and the other "lost" to a different transaction with the same nonce that was added by the
     // different leader.
     get_txs_and_assert_expected(&mut mempool, 1, &[tx_nonce_4.tx]);
+}
+
+#[rstest]
+fn test_update_gas_price_threshold(mut mempool: Mempool) {
+    // Setup.
+    let input_gas_price_20 =
+        add_tx_input!(tx_hash: 1, address: "0x0", tip: 100, max_l2_gas_price: 20);
+    let input_gas_price_30 =
+        add_tx_input!(tx_hash: 2, address: "0x1", tip: 50, max_l2_gas_price: 30);
+
+    // Test: only txs with gas price above the threshold are returned.
+    mempool.update_gas_price_threshold(GasPrice(30));
+    for input in [&input_gas_price_20, &input_gas_price_30] {
+        add_tx(&mut mempool, input);
+    }
+    get_txs_and_assert_expected(&mut mempool, 2, &[input_gas_price_30.tx]);
+
+    let nonces = [("0x1", 1)];
+    let tx_hashes = [2];
+    commit_block(&mut mempool, nonces, tx_hashes);
+
+    mempool.update_gas_price_threshold(GasPrice(10));
+    get_txs_and_assert_expected(&mut mempool, 2, &[input_gas_price_20.tx]);
 }
