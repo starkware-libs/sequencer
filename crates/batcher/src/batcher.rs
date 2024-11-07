@@ -87,11 +87,12 @@ impl Batcher {
             )?);
 
         let (tx_sender, tx_receiver) = tokio::sync::mpsc::unbounded_channel();
-        let tx_provider = ProposeTransactionProvider {
-            mempool_client: self.mempool_client.clone(),
+        let tx_provider = ProposeTransactionProvider::new(
+            self.mempool_client.clone(),
             // TODO: use a real L1 provider client.
-            l1_provider_client: Arc::new(DummyL1ProviderClient),
-        };
+            Arc::new(DummyL1ProviderClient),
+            self.config.max_l1_handler_txs_per_block_proposal,
+        );
 
         self.proposal_manager
             .build_block_proposal(
