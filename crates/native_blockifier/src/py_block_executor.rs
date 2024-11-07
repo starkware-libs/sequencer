@@ -33,6 +33,9 @@ use crate::storage::{PapyrusStorage, Storage, StorageConfig};
 pub(crate) type RawTransactionExecutionResult = Vec<u8>;
 pub(crate) type PyVisitedSegmentsMapping = Vec<(PyFelt, Vec<usize>)>;
 
+
+use std::thread::{self, JoinHandle};
+use std::sync::{Arc, Mutex};
 #[cfg(test)]
 #[path = "py_block_executor_test.rs"]
 mod py_block_executor_test;
@@ -114,6 +117,10 @@ impl ThinTransactionExecutionInfo {
     }
 }
 
+
+#[pyclass]
+
+
 #[pyclass]
 pub struct PyBlockExecutor {
     pub bouncer_config: BouncerConfig,
@@ -124,6 +131,7 @@ pub struct PyBlockExecutor {
     /// `Send` trait is required for `pyclass` compatibility as Python objects must be threadsafe.
     pub storage: Box<dyn Storage + Send>,
     pub global_contract_cache: GlobalContractCache,
+    thread_handle: Option<Arc<Mutex<Option<JoinHandle<()>>>>>,
 }
 
 #[pymethods]
@@ -144,6 +152,13 @@ impl PyBlockExecutor {
         let versioned_constants =
             VersionedConstants::get_versioned_constants(py_versioned_constants_overrides.into());
         log::debug!("Initialized Block Executor.");
+           // Spawn a thread and store its handle
+           let thread_handle = Arc::new(Mutex::new(Some(thread::spawn(|| {
+            loop {
+                // Thread work here...
+                thread::sleep(std::time::Duration::from_secs(1));
+            }
+        }))));
 
         Self {
             bouncer_config: bouncer_config.try_into().expect("Failed to parse bouncer config."),
@@ -155,6 +170,7 @@ impl PyBlockExecutor {
             tx_executor: None,
             storage: Box::new(storage),
             global_contract_cache: GlobalContractCache::new(global_contract_cache_size),
+            thread_handle: Some(thread_handle),
         }
     }
 
@@ -244,6 +260,12 @@ impl PyBlockExecutor {
                 Err(error) => (false, serialize_failure_reason(error)),
             })
             .collect();
+
+        self.thread_handle.lock().unwrap();
+        handle.as_ref().map(|h| h.is_running()).unwrap();
+
+
+
 
         // Convert to Py types and allocate it on Python's heap, to be visible for Python's
         // garbage collector.
@@ -391,6 +413,7 @@ impl PyBlockExecutor {
             versioned_constants,
             tx_executor: None,
             global_contract_cache: GlobalContractCache::new(GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST),
+            thread_handle: None,
         }
     }
 }
@@ -421,6 +444,7 @@ impl PyBlockExecutor {
             versioned_constants: VersionedConstants::latest_constants().clone(),
             tx_executor: None,
             global_contract_cache: GlobalContractCache::new(GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST),
+            thread_handle: None,
         }
     }
 
