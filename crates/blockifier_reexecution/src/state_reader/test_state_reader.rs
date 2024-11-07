@@ -72,6 +72,7 @@ pub struct SerializableOfflineReexecutionData {
     starknet_version: StarknetVersion,
     transactions_next_block: Vec<(Transaction, TransactionHash)>,
     state_diff_next_block: CommitmentStateDiff,
+    old_block_hash: BlockHash,
 }
 
 impl SerializableOfflineReexecutionData {
@@ -97,6 +98,7 @@ impl From<SerializableOfflineReexecutionData> for OfflineReexecutionData {
         let offline_state_reader_prev_block = OfflineStateReader {
             state_maps: value.state_maps.try_into().expect("Failed to deserialize state maps."),
             contract_class_mapping: value.contract_class_mapping,
+            old_block_hash: value.old_block_hash,
         };
         let transactions_next_block = offline_state_reader_prev_block
             .api_txs_to_blockifier_txs(value.transactions_next_block)
@@ -461,6 +463,7 @@ impl ConsecutiveStateReaders<TestStateReader> for ConsecutiveTestStateReaders {
 pub struct OfflineStateReader {
     pub state_maps: StateMaps,
     pub contract_class_mapping: StarknetContractClassMapping,
+    pub old_block_hash: BlockHash,
 }
 
 impl StateReader for OfflineStateReader {
@@ -526,7 +529,7 @@ impl ReexecutionStateReader for OfflineStateReader {
     }
 
     fn get_old_block_hash(&self, _old_block_number: BlockNumber) -> ReexecutionResult<BlockHash> {
-        todo!()
+        Ok(self.old_block_hash)
     }
 }
 
