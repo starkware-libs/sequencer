@@ -67,7 +67,9 @@ impl ConsensusManager {
                     Err(e) => Err(e),
                 }
             },
-            _ = &mut network_handle => panic!("Consensus Network handle finished unexpectedly"),
+            network_result = &mut network_handle => {
+                panic!("Consensus' network task finished unexpectedly: {:?}", network_result);
+            }
         }
     }
 }
