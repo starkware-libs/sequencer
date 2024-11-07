@@ -71,7 +71,7 @@ impl TransactionProvider for ValidateTransactionProvider {
 #[async_trait]
 pub trait L1ProviderClient: Send + Sync {
     #[allow(dead_code)]
-    fn get_txs(&self, n_txs: usize) -> Vec<L1HandlerTransaction>;
+    fn get_txs(&mut self, n_txs: usize) -> Vec<L1HandlerTransaction>;
 }
 
 pub type SharedL1ProviderClient = Arc<dyn L1ProviderClient>;
@@ -80,7 +80,7 @@ pub struct DummyL1ProviderClient;
 
 #[async_trait]
 impl L1ProviderClient for DummyL1ProviderClient {
-    fn get_txs(&self, _n_txs: usize) -> Vec<L1HandlerTransaction> {
+    fn get_txs(&mut self, _n_txs: usize) -> Vec<L1HandlerTransaction> {
         warn!("Dummy L1 provider client is used, no L1 transactions are provided.");
         vec![]
     }
