@@ -1,12 +1,18 @@
+use std::cmp::min;
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use async_trait::async_trait;
 #[cfg(test)]
 use mockall::automock;
+use papyrus_config::dumping::{ser_param, SerializeConfig};
+use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use serde::{Deserialize, Serialize};
 use starknet_api::executable_transaction::{L1HandlerTransaction, Transaction};
 use starknet_mempool_types::communication::{MempoolClientError, SharedMempoolClient};
 use thiserror::Error;
 use tracing::warn;
+use validator::Validate;
 
 #[derive(Clone, Debug, Error)]
 pub enum TransactionProviderError {
@@ -26,25 +32,95 @@ pub trait TransactionProvider: Send + Sync {
     async fn get_txs(&mut self, n_txs: usize) -> Result<NextTxs, TransactionProviderError>;
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
+pub struct TransactionProviderConfig {
+    pub max_l1_handler_txs_per_block: usize,
+}
+
+impl Default for TransactionProviderConfig {
+    fn default() -> Self {
+        Self { max_l1_handler_txs_per_block: 100 }
+    }
+}
+
+impl SerializeConfig for TransactionProviderConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from([ser_param(
+            "max_l1_handler_txs_per_block",
+            &self.max_l1_handler_txs_per_block,
+            "The maximum number of L1 handler transactions to include in a block.",
+            ParamPrivacyInput::Public,
+        )])
+    }
+}
+
 pub struct ProposeTransactionProvider {
+    pub config: TransactionProviderConfig,
     pub mempool_client: SharedMempoolClient,
-    // TODO: remove allow(dead_code) when L1 transactions are added.
-    #[allow(dead_code)]
     pub l1_provider_client: SharedL1ProviderClient,
+    phase: TxProviderPhase,
+}
+
+enum TxProviderPhase {
+    L1 { n_txs_so_far: usize },
+    Mempool,
+}
+
+impl ProposeTransactionProvider {
+    pub fn new(
+        config: TransactionProviderConfig,
+        mempool_client: SharedMempoolClient,
+        l1_provider_client: SharedL1ProviderClient,
+    ) -> Self {
+        Self {
+            config,
+            mempool_client,
+            l1_provider_client,
+            phase: TxProviderPhase::L1 { n_txs_so_far: 0 },
+        }
+    }
+
+    fn get_l1_handler_txs(&mut self, n_txs: usize) -> Vec<Transaction> {
+        let TxProviderPhase::L1 { mut n_txs_so_far } = self.phase else {
+            return vec![];
+        };
+        let n_l1_txs_to_get = min(self.config.max_l1_handler_txs_per_block - n_txs_so_far, n_txs);
+        if n_l1_txs_to_get == 0 {
+            self.phase = TxProviderPhase::Mempool;
+            return vec![];
+        }
+        let txs: Vec<_> = self
+            .l1_provider_client
+            .get_txs(n_l1_txs_to_get)
+            .into_iter()
+            .map(Transaction::L1Handler)
+            .collect();
+        n_txs_so_far += txs.len();
+        if txs.len() < n_l1_txs_to_get || n_txs_so_far == self.config.max_l1_handler_txs_per_block {
+            self.phase = TxProviderPhase::Mempool;
+        } else {
+            self.phase = TxProviderPhase::L1 { n_txs_so_far };
+        }
+        txs
+    }
 }
 
 #[async_trait]
 impl TransactionProvider for ProposeTransactionProvider {
     async fn get_txs(&mut self, n_txs: usize) -> Result<NextTxs, TransactionProviderError> {
-        // TODO: Get also L1 transactions.
-        Ok(NextTxs::Txs(
-            self.mempool_client
-                .get_txs(n_txs)
-                .await?
-                .into_iter()
-                .map(Transaction::Account)
-                .collect(),
-        ))
+        let mut next_txs = self.get_l1_handler_txs(n_txs);
+        if next_txs.len() == n_txs {
+            return Ok(NextTxs::Txs(next_txs));
+        }
+        let mempool_txs: Vec<_> = self
+            .mempool_client
+            .get_txs(n_txs - next_txs.len())
+            .await?
+            .into_iter()
+            .map(Transaction::Account)
+            .collect();
+        next_txs.extend(mempool_txs);
+        Ok(NextTxs::Txs(next_txs))
     }
 }
 
@@ -70,7 +146,6 @@ impl TransactionProvider for ValidateTransactionProvider {
 #[cfg_attr(test, automock)]
 #[async_trait]
 pub trait L1ProviderClient: Send + Sync {
-    #[allow(dead_code)]
     fn get_txs(&self, n_txs: usize) -> Vec<L1HandlerTransaction>;
 }
 
