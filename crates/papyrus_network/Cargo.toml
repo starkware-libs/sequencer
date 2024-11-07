@@ -53,3 +53,6 @@ pretty_assertions.workspace = true
 tokio = { workspace = true, features = ["full", "sync", "test-util"] }
 tokio-stream.workspace = true
 void.workspace = true
+
+[lints]
+workspace = true
