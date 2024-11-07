@@ -11,7 +11,7 @@ pub struct WrapperServer<Component> {
     component: Component,
 }
 
-impl<Component: Send> WrapperServer<Component> {
+impl<Component> WrapperServer<Component> {
     pub fn new(component: Component) -> Self {
         Self { component }
     }
