@@ -35,11 +35,11 @@ async fn main() -> anyhow::Result<()> {
     let HttpServerConfig { ip, port } = config.http_server_config;
     let http_test_client = HttpTestClient::new(SocketAddr::from((ip, port)));
 
-    let send_rpc_tx_fn = &|rpc_tx| http_test_client.assert_add_tx_success(rpc_tx);
+    let mut send_rpc_tx_fn = &|rpc_tx| http_test_client.assert_add_tx_success(rpc_tx);
 
     let n_txs = 50;
     info!("Sending {n_txs} txs.");
-    run_transaction_generator_test_scenario(tx_generator, n_txs, send_rpc_tx_fn).await;
+    run_transaction_generator_test_scenario(tx_generator, n_txs, &mut send_rpc_tx_fn).await;
 
     Ok(())
 }

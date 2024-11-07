@@ -188,7 +188,7 @@ fn create_txs_for_tx_generator_test_scenario(
 
 async fn send_rpc_txs<'a, Fut>(
     rpc_txs: Vec<RpcTransaction>,
-    send_rpc_tx_fn: &'a dyn Fn(RpcTransaction) -> Fut,
+    send_rpc_tx_fn: &'a mut dyn FnMut(RpcTransaction) -> Fut,
 ) -> Vec<TransactionHash>
 where
     Fut: Future<Output = TransactionHash> + 'a,
@@ -204,7 +204,7 @@ where
 /// list of transaction hashes, in the order they are expected to be in the mempool.
 pub async fn run_integration_test_scenario<'a, Fut>(
     tx_generator: MultiAccountTransactionGenerator,
-    send_rpc_tx_fn: &'a dyn Fn(RpcTransaction) -> Fut,
+    send_rpc_tx_fn: &'a mut dyn FnMut(RpcTransaction) -> Fut,
 ) -> Vec<TransactionHash>
 where
     Fut: Future<Output = TransactionHash> + 'a,
@@ -229,7 +229,7 @@ where
 pub async fn run_transaction_generator_test_scenario<'a, Fut>(
     tx_generator: MultiAccountTransactionGenerator,
     n_txs: usize,
-    send_rpc_tx_fn: &'a dyn Fn(RpcTransaction) -> Fut,
+    send_rpc_tx_fn: &'a mut dyn FnMut(RpcTransaction) -> Fut,
 ) where
     Fut: Future<Output = TransactionHash> + 'a,
 {
