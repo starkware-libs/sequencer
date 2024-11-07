@@ -11,7 +11,7 @@ use starknet_monitoring_endpoint::monitoring_endpoint::{
     MonitoringEndpoint,
 };
 
-use crate::communication::SequencerNodeClients;
+use crate::clients::SequencerNodeClients;
 use crate::config::{ComponentExecutionMode, SequencerNodeConfig};
 use crate::version::VERSION_FULL;
 
