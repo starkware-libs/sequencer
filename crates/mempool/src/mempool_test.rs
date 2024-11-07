@@ -179,7 +179,7 @@ fn mempool() -> Mempool {
 #[case::test_get_exactly_all_eligible_txs(3)]
 #[case::test_get_more_than_all_eligible_txs(5)]
 #[case::test_get_less_than_all_eligible_txs(2)]
-fn test_get_txs_returns_by_priority_order(#[case] n_requested_txs: usize) {
+fn test_get_txs_returns_by_priority(#[case] n_requested_txs: usize) {
     // Setup.
     let mut txs = [
         tx!(tx_hash: 1, address: "0x0", tip: 20),
@@ -205,6 +205,21 @@ fn test_get_txs_returns_by_priority_order(#[case] n_requested_txs: usize) {
     let mempool_content =
         MempoolContentBuilder::new().with_priority_queue(remaining_tx_references).build();
     mempool_content.assert_eq(&mempool);
+}
+
+#[rstest]
+fn test_get_txs_returns_by_secondary_priority() {
+    // Setup.
+    let tx_tip_10_hash_9 = tx!(tx_hash: 9, address: "0x2", tip: 10);
+    let tx_tip_10_hash_15 = tx!(tx_hash: 15, address: "0x0", tip: 10);
+
+    let mut mempool = MempoolContentBuilder::new()
+        .with_pool([&tx_tip_10_hash_9, &tx_tip_10_hash_15].map(|tx| tx.clone()))
+        .with_priority_queue([&tx_tip_10_hash_9, &tx_tip_10_hash_15].map(TransactionReference::new))
+        .build_into_mempool();
+
+    // Test and assert.
+    get_txs_and_assert_expected(&mut mempool, 2, &[tx_tip_10_hash_15, tx_tip_10_hash_9]);
 }
 
 #[rstest]
