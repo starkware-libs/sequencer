@@ -33,6 +33,8 @@ use crate::storage::{PapyrusStorage, Storage, StorageConfig};
 pub(crate) type RawTransactionExecutionResult = Vec<u8>;
 pub(crate) type PyVisitedSegmentsMapping = Vec<(PyFelt, Vec<usize>)>;
 
+use std::sync::{Arc, Mutex};
+use std::thread::{self, JoinHandle};
 #[cfg(test)]
 #[path = "py_block_executor_test.rs"]
 mod py_block_executor_test;
@@ -113,7 +115,11 @@ impl ThinTransactionExecutionInfo {
         ResourcesMapping(resources)
     }
 }
-
+#[derive(Clone)]
+pub struct MyStruct {
+    pub a: i32,
+    b: i32,
+}
 #[pyclass]
 pub struct PyBlockExecutor {
     pub bouncer_config: BouncerConfig,
@@ -124,8 +130,22 @@ pub struct PyBlockExecutor {
     /// `Send` trait is required for `pyclass` compatibility as Python objects must be threadsafe.
     pub storage: Box<dyn Storage + Send>,
     pub global_contract_cache: GlobalContractCache,
+    thread_handle: Arc<Mutex<Option<JoinHandle<()>>>>,
+    shared_struct: Arc<Mutex<Option<MyStruct>>>,
 }
 
+fn thread_logic(shared_struct: Arc<Mutex<Option<MyStruct>>>) {
+    let mut shared_struct = shared_struct.lock().unwrap();
+    *shared_struct = Some(MyStruct { a: 1, b: 2 });
+    loop {
+        let my_struct = shared_struct.as_ref().unwrap();
+        println!("MyStruct is accessible: a = {}, b = {}", my_struct.a, my_struct.b);
+        thread::sleep(std::time::Duration::from_secs(1));
+        if my_struct.a >= 2 && my_struct.a <= 5 {
+            println!("Mystuct.a: {} is between 2 and 5", my_struct.a);
+        }
+    }
+}
 #[pymethods]
 impl PyBlockExecutor {
     #[new]
@@ -145,6 +165,12 @@ impl PyBlockExecutor {
             VersionedConstants::get_versioned_constants(py_versioned_constants_overrides.into());
         log::debug!("Initialized Block Executor.");
 
+        let shared_struct = Arc::new(Mutex::new(None));
+        let shared_struct_clone = Arc::clone(&shared_struct);
+        let thread_handle = Arc::new(Mutex::new(Some(thread::spawn(move || {
+            thread_logic(shared_struct_clone);
+        }))));
+
         Self {
             bouncer_config: bouncer_config.try_into().expect("Failed to parse bouncer config."),
             tx_executor_config: TransactionExecutorConfig {
@@ -155,6 +181,8 @@ impl PyBlockExecutor {
             tx_executor: None,
             storage: Box::new(storage),
             global_contract_cache: GlobalContractCache::new(global_contract_cache_size),
+            thread_handle,
+            shared_struct,
         }
     }
 
@@ -244,6 +272,28 @@ impl PyBlockExecutor {
                 Err(error) => (false, serialize_failure_reason(error)),
             })
             .collect();
+
+        let is_thread_alive = {
+            let handle = self.thread_handle.lock().unwrap();
+            if let Some(handle) = handle.as_ref() {
+                handle.thread().unpark();
+                true
+            } else {
+                false
+            }
+        };
+
+        if is_thread_alive {
+            println!("Thread is still alive");
+        } else {
+            println!("Thread is not alive");
+        }
+
+        let mut shared_struct = self.shared_struct.lock().unwrap();
+        if let Some(ref mut my_struct) = *shared_struct {
+            my_struct.a += 1;
+        }
+        std::mem::drop(shared_struct);
 
         // Convert to Py types and allocate it on Python's heap, to be visible for Python's
         // garbage collector.
@@ -376,6 +426,11 @@ impl PyBlockExecutor {
         // contracts.
         let mut versioned_constants = VersionedConstants::latest_constants().clone();
         versioned_constants.disable_cairo0_redeclaration = false;
+        let shared_struct = Arc::new(Mutex::new(None));
+        let shared_struct_clone = Arc::clone(&shared_struct);
+        let thread_handle = Arc::new(Mutex::new(Some(thread::spawn(move || {
+            thread_logic(shared_struct_clone);
+        }))));
         Self {
             bouncer_config: BouncerConfig {
                 block_max_capacity: BouncerWeights {
@@ -386,11 +441,14 @@ impl PyBlockExecutor {
             tx_executor_config: TransactionExecutorConfig {
                 concurrency_config: concurrency_config.into(),
             },
+
             storage: Box::new(PapyrusStorage::new_for_testing(path, &os_config.chain_id)),
             chain_info: os_config.into_chain_info(),
             versioned_constants,
             tx_executor: None,
             global_contract_cache: GlobalContractCache::new(GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST),
+            thread_handle,
+            shared_struct,
         }
     }
 }
@@ -413,6 +471,11 @@ impl PyBlockExecutor {
     #[cfg(any(feature = "testing", test))]
     pub fn create_for_testing_with_storage(storage: impl Storage + Send + 'static) -> Self {
         use blockifier::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
+        let shared_struct = Arc::new(Mutex::new(None));
+        let shared_struct_clone = Arc::clone(&shared_struct);
+        let thread_handle = Arc::new(Mutex::new(Some(thread::spawn(move || {
+            thread_logic(shared_struct_clone);
+        }))));
         Self {
             bouncer_config: BouncerConfig::max(),
             tx_executor_config: TransactionExecutorConfig::create_for_testing(true),
@@ -421,6 +484,8 @@ impl PyBlockExecutor {
             versioned_constants: VersionedConstants::latest_constants().clone(),
             tx_executor: None,
             global_contract_cache: GlobalContractCache::new(GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST),
+            thread_handle,
+            shared_struct,
         }
     }
 
