@@ -1,7 +1,8 @@
 use std::collections::{BTreeMap, HashMap};
 
 use blockifier::context::{ChainInfo, FeeTokenAddresses};
-use blockifier::state::cached_state::{CommitmentStateDiff, StateMaps};
+use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps};
+use blockifier::state::state_api::StateReader;
 use indexmap::IndexMap;
 use papyrus_execution::{ETH_FEE_CONTRACT_ADDRESS, STRK_FEE_CONTRACT_ADDRESS};
 use pretty_assertions::assert_eq;
@@ -13,7 +14,12 @@ use starknet_api::test_utils::read_json_file;
 use starknet_gateway::config::RpcStateReaderConfig;
 use starknet_types_core::felt::Felt;
 
+use crate::assert_eq_state_diff;
 use crate::state_reader::errors::ReexecutionError;
+use crate::state_reader::test_state_reader::{
+    ConsecutiveStateReaders,
+    OfflineConsecutiveStateReaders,
+};
 
 pub const RPC_NODE_URL: &str = "https://free-rpc.nethermind.io/mainnet-juno/";
 pub const JSON_RPC_VERSION: &str = "2.0";
@@ -52,7 +58,7 @@ pub(crate) fn disjoint_hashmap_union<K: std::hash::Hash + std::cmp::Eq, V>(
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct ReexecutionStateMaps {
+pub struct ReexecutionStateMaps {
     nonces: HashMap<ContractAddress, Nonce>,
     class_hashes: HashMap<ContractAddress, ClassHash>,
     storage: HashMap<ContractAddress, HashMap<StorageKey, Felt>>,
@@ -166,17 +172,47 @@ impl From<CommitmentStateDiff> for ComparableStateDiff {
     }
 }
 
+pub fn reexecute_and_verify_correctness<
+    S: StateReader + Send + Sync,
+    T: ConsecutiveStateReaders<S>,
+>(
+    consecutive_state_readers: T,
+) -> Option<CachedState<S>> {
+    let expected_state_diff = consecutive_state_readers.get_next_block_state_diff().unwrap();
+
+    let all_txs_in_next_block = consecutive_state_readers.get_next_block_txs().unwrap();
+
+    let mut transaction_executor =
+        consecutive_state_readers.get_transaction_executor(None).unwrap();
+
+    transaction_executor.execute_txs(&all_txs_in_next_block);
+    // Finalize block and read actual statediff.
+    let (actual_state_diff, _, _) =
+        transaction_executor.finalize().expect("Couldn't finalize block");
+
+    assert_eq_state_diff!(expected_state_diff, actual_state_diff);
+
+    transaction_executor.block_state
+}
+
+pub fn reexecute_block_for_testing(block_number: u64) {
+    // In tests we are already in the blockifier_reexecution directory.
+    let full_file_path = format!("./resources/block_{block_number}/reexecution_data.json");
+
+    reexecute_and_verify_correctness(
+        OfflineConsecutiveStateReaders::new_from_file(&full_file_path).unwrap(),
+    );
+
+    println!("Reexecution test for block {block_number} passed successfully.");
+}
+
 /// Asserts equality between two `CommitmentStateDiff` structs, ignoring insertion order.
 #[macro_export]
 macro_rules! assert_eq_state_diff {
     ($expected_state_diff:expr, $actual_state_diff:expr $(,)?) => {
         pretty_assertions::assert_eq!(
-            blockifier_reexecution::state_reader::utils::ComparableStateDiff::from(
-                $expected_state_diff,
-            ),
-            blockifier_reexecution::state_reader::utils::ComparableStateDiff::from(
-                $actual_state_diff,
-            ),
+            $crate::state_reader::utils::ComparableStateDiff::from($expected_state_diff,),
+            $crate::state_reader::utils::ComparableStateDiff::from($actual_state_diff,),
             "Expected and actual state diffs do not match.",
         );
     };
