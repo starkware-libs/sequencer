@@ -10,14 +10,13 @@ use starknet_api::executable_transaction::Transaction;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 use starknet_batcher_types::batcher_types::{ProposalCommitment, ProposalId};
-use starknet_mempool_types::communication::SharedMempoolClient;
 use thiserror::Error;
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, instrument, Instrument};
 
 use crate::batcher::BatcherStorageReaderTrait;
 use crate::block_builder::{BlockBuilderError, BlockBuilderFactoryTrait, BlockExecutionArtifacts};
-use crate::transaction_provider::{ProposeTransactionProvider, SharedL1ProviderClient};
+use crate::transaction_provider::ProposeTransactionProvider;
 
 #[derive(Debug, Error)]
 pub enum StartHeightError {
@@ -73,6 +72,7 @@ pub trait ProposalManagerTrait: Send + Sync {
         retrospective_block_hash: Option<BlockHashAndNumber>,
         deadline: tokio::time::Instant,
         tx_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
+        tx_provider: ProposeTransactionProvider,
     ) -> Result<(), BuildProposalError>;
 
     async fn take_proposal_result(
@@ -94,8 +94,6 @@ pub trait ProposalManagerTrait: Send + Sync {
 ///
 /// Triggered by the consensus.
 pub(crate) struct ProposalManager {
-    l1_provider_client: SharedL1ProviderClient,
-    mempool_client: SharedMempoolClient,
     storage_reader: Arc<dyn BatcherStorageReaderTrait>,
     active_height: Option<BlockNumber>,
     /// The block proposal that is currently being proposed, if any.
@@ -151,13 +149,14 @@ impl ProposalManagerTrait for ProposalManager {
     /// Starts a new block proposal generation task for the given proposal_id and height with
     /// transactions from the mempool.
     /// Requires tx_sender for sending the generated transactions to the caller.
-    #[instrument(skip(self, tx_sender), err, fields(self.active_height))]
+    #[instrument(skip(self, tx_sender, tx_provider), err, fields(self.active_height))]
     async fn build_block_proposal(
         &mut self,
         proposal_id: ProposalId,
         retrospective_block_hash: Option<BlockHashAndNumber>,
         deadline: tokio::time::Instant,
         tx_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
+        tx_provider: ProposeTransactionProvider,
     ) -> Result<(), BuildProposalError> {
         let height = self.active_height.ok_or(BuildProposalError::NoActiveHeight)?;
         if self.executed_proposals.lock().await.contains_key(&proposal_id) {
@@ -165,20 +164,19 @@ impl ProposalManagerTrait for ProposalManager {
         }
         info!("Starting generation of a new proposal with id {}.", proposal_id);
         self.set_active_proposal(proposal_id).await?;
-        let block_builder =
-            self.block_builder_factory.create_block_builder(height, retrospective_block_hash)?;
+        let mut block_builder = self.block_builder_factory.create_block_builder(
+            height,
+            retrospective_block_hash,
+            Box::new(tx_provider),
+        )?;
 
-        let tx_provider = ProposeTransactionProvider {
-            mempool_client: self.mempool_client.clone(),
-            l1_provider_client: self.l1_provider_client.clone(),
-        };
         let active_proposal = self.active_proposal.clone();
         let executed_proposals = self.executed_proposals.clone();
 
         self.active_proposal_handle = Some(tokio::spawn(
             async move {
                 let result = block_builder
-                    .build_block(deadline, Box::new(tx_provider), tx_sender.clone())
+                    .build_block(deadline, tx_sender.clone())
                     .await
                     .map(ProposalOutput::from)
                     .map_err(|e| GetProposalResultError::BlockBuilderError(Arc::new(e)));
@@ -221,14 +219,10 @@ impl ProposalManagerTrait for ProposalManager {
 
 impl ProposalManager {
     pub fn new(
-        l1_provider_client: SharedL1ProviderClient,
-        mempool_client: SharedMempoolClient,
         block_builder_factory: Arc<dyn BlockBuilderFactoryTrait + Send + Sync>,
         storage_reader: Arc<dyn BatcherStorageReaderTrait>,
     ) -> Self {
         Self {
-            l1_provider_client,
-            mempool_client,
             storage_reader,
             active_proposal: Arc::new(Mutex::new(None)),
             block_builder_factory,

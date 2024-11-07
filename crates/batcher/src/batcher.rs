@@ -37,7 +37,7 @@ use crate::proposal_manager::{
     ProposalOutput,
     StartHeightError,
 };
-use crate::transaction_provider::DummyL1ProviderClient;
+use crate::transaction_provider::{DummyL1ProviderClient, ProposeTransactionProvider};
 
 struct Proposal {
     tx_stream: OutputStream,
@@ -87,6 +87,11 @@ impl Batcher {
             )?);
 
         let (tx_sender, tx_receiver) = tokio::sync::mpsc::unbounded_channel();
+        let tx_provider = ProposeTransactionProvider {
+            mempool_client: self.mempool_client.clone(),
+            // TODO: use a real L1 provider client.
+            l1_provider_client: Arc::new(DummyL1ProviderClient),
+        };
 
         self.proposal_manager
             .build_block_proposal(
@@ -94,6 +99,7 @@ impl Batcher {
                 build_proposal_input.retrospective_block_hash,
                 deadline,
                 tx_sender,
+                tx_provider,
             )
             .await
             .map_err(BatcherError::from)?;
@@ -184,7 +190,6 @@ impl Batcher {
 }
 
 pub fn create_batcher(config: BatcherConfig, mempool_client: SharedMempoolClient) -> Batcher {
-    let l1_provider_client = Arc::new(DummyL1ProviderClient);
     let (storage_reader, storage_writer) = papyrus_storage::open_storage(config.storage.clone())
         .expect("Failed to open batcher's storage");
 
@@ -195,12 +200,8 @@ pub fn create_batcher(config: BatcherConfig, mempool_client: SharedMempoolClient
     });
     let storage_reader = Arc::new(storage_reader);
     let storage_writer = Box::new(storage_writer);
-    let proposal_manager = Box::new(ProposalManager::new(
-        l1_provider_client,
-        mempool_client.clone(),
-        block_builder_factory,
-        storage_reader.clone(),
-    ));
+    let proposal_manager =
+        Box::new(ProposalManager::new(block_builder_factory, storage_reader.clone()));
     Batcher::new(config, storage_reader, storage_writer, mempool_client, proposal_manager)
 }
 
