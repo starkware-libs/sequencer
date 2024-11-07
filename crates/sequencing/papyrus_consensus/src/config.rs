@@ -84,10 +84,11 @@ impl SerializeConfig for ConsensusConfig {
 
 impl Default for ConsensusConfig {
     fn default() -> Self {
-        let mut network_config = NetworkConfig::default();
-        // TODO(Dan/Shahak): consider something nicer, maybe a builder?
-        network_config.tcp_port = CONSENSUS_TCP_PORT;
-        network_config.quic_port = CONSENSUS_QUIC_PORT;
+        let network_config = NetworkConfig {
+            tcp_port: CONSENSUS_TCP_PORT,
+            quic_port: CONSENSUS_QUIC_PORT,
+            ..Default::default()
+        };
         Self {
             validator_id: ValidatorId::default(),
             network_topic: "consensus".to_string(),
