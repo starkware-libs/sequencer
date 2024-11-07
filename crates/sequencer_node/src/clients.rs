@@ -37,43 +37,76 @@ impl SequencerNodeClients {
     }
 }
 
+/// A macro for creating a component client, determined by the component's execution mode. Returns a
+/// local client if the component is run locally, otherwise None.
+///
+/// # Arguments
+///
+/// * $execution_mode - A reference to the component's execution mode, i.e., type
+///   &ComponentExecutionMode.
+/// * $channel_expr - Sender side for the client.
+/// * $client_type - The client type to create, e.g., LocalBatcherClient. The client type should
+///   have a function $client_type::new(tx : $channel_expr).
+///
+/// # Returns
+///
+/// An `Option<Arc<dyn ClientType>>` containing the client if the execution mode is enabled
+/// (LocalExecutionWithRemoteDisabled / LocalExecutionWithRemoteEnabled), or None if the execution
+/// mode is Disabled.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// // Assuming ComponentExecutionMode and channels are defined, and LocalBatcherClient
+/// // has a new method that accepts a channel.
+/// let batcher_client: Option<SharedBatcherClient> = create_client!(
+///     &config.components.batcher.execution_mode,
+///     LocalBatcherClient,
+///     channels.take_batcher_tx()
+/// );
+///
+/// match batcher_client {
+///     Some(client) => println!("Client created: {:?}", client),
+///     None => println!("Client not created because the execution mode is disabled."),
+/// }
+/// ```
+macro_rules! create_client {
+    ($execution_mode:expr, $client_type:ty, $channel_expr:expr) => {
+        match *$execution_mode {
+            ComponentExecutionMode::LocalExecutionWithRemoteDisabled
+            | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
+                Some(Arc::new(<$client_type>::new($channel_expr)))
+            }
+            ComponentExecutionMode::Disabled => None,
+        }
+    };
+}
+
 pub fn create_node_clients(
     config: &SequencerNodeConfig,
     channels: &mut SequencerNodeCommunication,
 ) -> SequencerNodeClients {
-    let batcher_client: Option<SharedBatcherClient> = match config.components.batcher.execution_mode
-    {
-        ComponentExecutionMode::LocalExecutionWithRemoteDisabled
-        | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            Some(Arc::new(LocalBatcherClient::new(channels.take_batcher_tx())))
-        }
-        ComponentExecutionMode::Disabled => None,
-    };
-    let mempool_client: Option<SharedMempoolClient> = match config.components.mempool.execution_mode
-    {
-        ComponentExecutionMode::LocalExecutionWithRemoteDisabled
-        | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            Some(Arc::new(LocalMempoolClient::new(channels.take_mempool_tx())))
-        }
-        ComponentExecutionMode::Disabled => None,
-    };
-    let gateway_client: Option<SharedGatewayClient> = match config.components.gateway.execution_mode
-    {
-        ComponentExecutionMode::LocalExecutionWithRemoteDisabled
-        | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            Some(Arc::new(LocalGatewayClient::new(channels.take_gateway_tx())))
-        }
-        ComponentExecutionMode::Disabled => None,
-    };
+    let batcher_client: Option<SharedBatcherClient> = create_client!(
+        &config.components.batcher.execution_mode,
+        LocalBatcherClient,
+        channels.take_batcher_tx()
+    );
+    let mempool_client: Option<SharedMempoolClient> = create_client!(
+        &config.components.mempool.execution_mode,
+        LocalMempoolClient,
+        channels.take_mempool_tx()
+    );
+    let gateway_client: Option<SharedGatewayClient> = create_client!(
+        &config.components.gateway.execution_mode,
+        LocalGatewayClient,
+        channels.take_gateway_tx()
+    );
 
-    let mempool_p2p_propagator_client: Option<SharedMempoolP2pPropagatorClient> =
-        match config.components.mempool.execution_mode {
-            ComponentExecutionMode::LocalExecutionWithRemoteDisabled
-            | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => Some(Arc::new(
-                LocalMempoolP2pPropagatorClient::new(channels.take_mempool_p2p_propagator_tx()),
-            )),
-            ComponentExecutionMode::Disabled => None,
-        };
+    let mempool_p2p_propagator_client: Option<SharedMempoolP2pPropagatorClient> = create_client!(
+        &config.components.mempool_p2p.execution_mode,
+        LocalMempoolP2pPropagatorClient,
+        channels.take_mempool_p2p_propagator_tx()
+    );
     SequencerNodeClients {
         batcher_client,
         mempool_client,
