@@ -7,7 +7,6 @@ license-file.workspace = true
 description = "Starknet Rust types related to computation and execution."
 
 [features]
-cairo_native = []
 testing = []
 
 [dependencies]

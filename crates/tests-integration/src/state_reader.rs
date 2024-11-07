@@ -170,15 +170,11 @@ fn prepare_compiled_contract_classes(
                     serde_json::from_str(&contract.raw_class()).unwrap(),
                 ));
             }
-            CairoVersion::Cairo1 => {
+            _ => {
                 cairo1_contract_classes.push((
                     contract.class_hash(),
                     serde_json::from_str(&contract.raw_class()).unwrap(),
                 ));
-            }
-            #[cfg(feature = "cairo_native")]
-            CairoVersion::Native => {
-                todo!("native integration doesn't support this yet")
             }
         }
     }
@@ -314,10 +310,6 @@ impl<'a> ThinStateDiffBuilder<'a> {
                 }
                 CairoVersion::Cairo1 => {
                     self.declared_classes.insert(contract.class_hash(), Default::default());
-                }
-                #[cfg(feature = "cairo_native")]
-                CairoVersion::Native => {
-                    todo!("native integration doesn't support this yet")
                 }
             }
         }

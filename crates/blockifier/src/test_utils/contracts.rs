@@ -165,13 +165,13 @@ impl FeatureContract {
                 ContractClass::V1(CasmContractClass::from_file(&self.get_compiled_path()))
             }
             #[cfg(feature = "cairo_native")]
-            CairoVersion::Native => ContractClass::V1Native,
+            CairoVersion::Native => {
+                panic!("Native contracts are not supported by this function.")
+            }
         }
     }
 
     pub fn get_runnable_class(&self) -> RunnableContractClass {
-        // todo(rodrigo): patch because the ContractClass -> RunnableContractClass for Native
-        // contracts is not fully implemented
         #[cfg(feature = "cairo_native")]
         if CairoVersion::Native == self.cairo_version() {
             let native_contract_class = NativeContractClassV1::from_file(&self.get_compiled_path());
@@ -340,7 +340,12 @@ impl FeatureContract {
             #[cfg(feature = "cairo_native")]
             CairoVersion::Native => {
                 let (tag_override, cargo_nightly_arg) = self.fixed_tag_and_rust_toolchain();
-                starknet_compile(self.get_source_path(), tag_override, cargo_nightly_arg)
+                starknet_compile(
+                    self.get_source_path(),
+                    tag_override,
+                    cargo_nightly_arg,
+                    &mut vec![],
+                )
             }
         }
     }
