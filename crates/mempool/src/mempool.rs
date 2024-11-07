@@ -190,8 +190,8 @@ impl Mempool {
     }
 
     // TODO(Mohammad): Rename this method once consensus API is added.
-    fn _update_gas_price_threshold(&mut self, threshold: GasPrice) {
-        self.tx_queue._update_gas_price_threshold(threshold);
+    pub fn update_gas_price_threshold(&mut self, threshold: GasPrice) {
+        self.tx_queue.update_gas_price_threshold(threshold);
     }
 
     fn validate_incoming_tx_nonce(
