@@ -6,7 +6,7 @@ resolver = "2"
 members = [
   "crates/batcher",
   "crates/batcher_types",
-  "crates/bin/cairo-native-compile",
+  # "crates/bin/cairo-native-compile",
   "crates/blockifier",
   "crates/blockifier_reexecution",
   "crates/committer_cli",
