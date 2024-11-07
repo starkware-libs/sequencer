@@ -18,6 +18,7 @@ use crate::client::{P2PSyncClientError, NETWORK_DATA_TIMEOUT};
 
 impl BlockData for (ThinStateDiff, BlockNumber) {
     #[latency_histogram("p2p_sync_state_diff_write_to_storage_latency_seconds", true)]
+    #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
     fn write_to_storage(
         self: Box<Self>,
         storage_writer: &mut StorageWriter,
