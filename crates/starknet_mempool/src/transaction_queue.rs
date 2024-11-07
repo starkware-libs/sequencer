@@ -85,17 +85,17 @@ impl TransactionQueue {
         !self.priority_queue.is_empty()
     }
 
-    pub fn _update_gas_price_threshold(&mut self, threshold: GasPrice) {
+    pub fn update_gas_price_threshold(&mut self, threshold: GasPrice) {
         match threshold.cmp(&self.gas_price_threshold) {
-            Ordering::Less => self._promote_txs_to_priority(threshold),
-            Ordering::Greater => self._demote_txs_to_pending(threshold),
+            Ordering::Less => self.promote_txs_to_priority(threshold),
+            Ordering::Greater => self.demote_txs_to_pending(threshold),
             Ordering::Equal => {}
         }
 
         self.gas_price_threshold = threshold;
     }
 
-    fn _promote_txs_to_priority(&mut self, threshold: GasPrice) {
+    fn promote_txs_to_priority(&mut self, threshold: GasPrice) {
         let tmp_split_tx = PendingTransaction(TransactionReference {
             max_l2_gas_price: threshold,
             address: ContractAddress::default(),
@@ -114,7 +114,7 @@ impl TransactionQueue {
         self.priority_queue.extend(txs_over_threshold.map(|tx| PriorityTransaction::from(tx.0)));
     }
 
-    fn _demote_txs_to_pending(&mut self, threshold: GasPrice) {
+    fn demote_txs_to_pending(&mut self, threshold: GasPrice) {
         let mut txs_to_remove = Vec::new();
 
         // Remove all transactions from the priority queue that are below the threshold.
