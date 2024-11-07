@@ -71,9 +71,8 @@ pub struct BlockExecutionArtifacts {
 #[async_trait]
 pub trait BlockBuilderTrait: Send {
     async fn build_block(
-        &self,
+        &mut self,
         deadline: tokio::time::Instant,
-        tx_provider: Box<dyn TransactionProvider>,
         output_content_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
     ) -> BlockBuilderResult<BlockExecutionArtifacts>;
 }
@@ -82,11 +81,16 @@ pub struct BlockBuilder {
     // TODO(Yael 14/10/2024): make the executor thread safe and delete this mutex.
     executor: Mutex<Box<dyn TransactionExecutorTrait>>,
     tx_chunk_size: usize,
+    tx_provider: Box<dyn TransactionProvider>,
 }
 
 impl BlockBuilder {
-    pub fn new(executor: Box<dyn TransactionExecutorTrait>, tx_chunk_size: usize) -> Self {
-        Self { executor: Mutex::new(executor), tx_chunk_size }
+    pub fn new(
+        executor: Box<dyn TransactionExecutorTrait>,
+        tx_chunk_size: usize,
+        tx_provider: Box<dyn TransactionProvider>,
+    ) -> Self {
+        Self { executor: Mutex::new(executor), tx_chunk_size, tx_provider }
     }
 }
 
@@ -139,16 +143,15 @@ impl SerializeConfig for BlockBuilderConfig {
 #[async_trait]
 impl BlockBuilderTrait for BlockBuilder {
     async fn build_block(
-        &self,
+        &mut self,
         deadline: tokio::time::Instant,
-        mut tx_provider: Box<dyn TransactionProvider>,
         output_content_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
     ) -> BlockBuilderResult<BlockExecutionArtifacts> {
         let mut block_is_full = false;
         let mut execution_infos = IndexMap::new();
         // TODO(yael 6/10/2024): delete the timeout condition once the executor has a timeout
         while !block_is_full && tokio::time::Instant::now() < deadline {
-            let next_txs = tx_provider.get_txs(self.tx_chunk_size).await?;
+            let next_txs = self.tx_provider.get_txs(self.tx_chunk_size).await?;
             let next_tx_chunk = match next_txs {
                 NextTxs::Txs(txs) => txs,
                 NextTxs::End => break,
@@ -220,6 +223,7 @@ pub trait BlockBuilderFactoryTrait {
         &self,
         height: BlockNumber,
         retrospective_block_hash: Option<BlockHashAndNumber>,
+        tx_provider: Box<dyn TransactionProvider>,
     ) -> BlockBuilderResult<Box<dyn BlockBuilderTrait>>;
 }
 
@@ -297,9 +301,14 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
         &self,
         height: BlockNumber,
         retrospective_block_hash: Option<BlockHashAndNumber>,
+        tx_provider: Box<dyn TransactionProvider>,
     ) -> BlockBuilderResult<Box<dyn BlockBuilderTrait>> {
         let executor =
             self.preprocess_and_create_transaction_executor(height, retrospective_block_hash)?;
-        Ok(Box::new(BlockBuilder::new(Box::new(executor), self.block_builder_config.tx_chunk_size)))
+        Ok(Box::new(BlockBuilder::new(
+            Box::new(executor),
+            self.block_builder_config.tx_chunk_size,
+            tx_provider,
+        )))
     }
 }

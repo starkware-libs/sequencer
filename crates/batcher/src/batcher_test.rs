@@ -40,6 +40,7 @@ use crate::proposal_manager::{
     StartHeightError,
 };
 use crate::test_utils::test_txs;
+use crate::transaction_provider::ProposeTransactionProvider;
 
 const INITIAL_HEIGHT: BlockNumber = BlockNumber(3);
 const STREAMING_CHUNK_SIZE: usize = 3;
@@ -85,7 +86,7 @@ async fn get_stream_content(
     let mut proposal_manager = MockProposalManagerTraitWrapper::new();
     proposal_manager.expect_wrap_start_height().return_once(|_| async { Ok(()) }.boxed());
     proposal_manager.expect_wrap_build_block_proposal().return_once(
-        move |_proposal_id, _block_hash, _deadline, tx_sender| {
+        move |_proposal_id, _block_hash, _deadline, tx_sender, _tx_provider| {
             simulate_build_block_proposal(tx_sender, txs_to_stream).boxed()
         },
     );
@@ -248,6 +249,7 @@ trait ProposalManagerTraitWrapper: Send + Sync {
         retrospective_block_hash: Option<BlockHashAndNumber>,
         deadline: tokio::time::Instant,
         output_content_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
+        tx_provider: ProposeTransactionProvider,
     ) -> BoxFuture<'_, Result<(), BuildProposalError>>;
 
     fn wrap_take_proposal_result(
@@ -273,12 +275,14 @@ impl<T: ProposalManagerTraitWrapper> ProposalManagerTrait for T {
         retrospective_block_hash: Option<BlockHashAndNumber>,
         deadline: tokio::time::Instant,
         output_content_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
+        tx_provider: ProposeTransactionProvider,
     ) -> Result<(), BuildProposalError> {
         self.wrap_build_block_proposal(
             proposal_id,
             retrospective_block_hash,
             deadline,
             output_content_sender,
+            tx_provider,
         )
         .await
     }
