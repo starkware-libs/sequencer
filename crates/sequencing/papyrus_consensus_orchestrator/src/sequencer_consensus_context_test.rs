@@ -6,6 +6,11 @@ use futures::channel::mpsc;
 use futures::SinkExt;
 use lazy_static::lazy_static;
 use papyrus_consensus::types::{ConsensusContext, ProposalInit};
+use papyrus_network::network_manager::test_utils::{
+    mock_register_broadcast_topic,
+    TestSubscriberChannels,
+};
+use papyrus_network::network_manager::BroadcastTopicChannels;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::{ContractAddress, StateDiffCommitment};
 use starknet_api::executable_transaction::{AccountTransaction, Transaction};
@@ -73,7 +78,12 @@ async fn build_proposal() {
             }),
         })
     });
-    let mut context = SequencerConsensusContext::new(Arc::new(batcher), NUM_VALIDATORS);
+    let TestSubscriberChannels { mock_network: _mock_network, subscriber_channels } =
+        mock_register_broadcast_topic().expect("Failed to create mock network");
+    let BroadcastTopicChannels { broadcasted_messages_receiver: _, broadcast_topic_client } =
+        subscriber_channels;
+    let mut context =
+        SequencerConsensusContext::new(Arc::new(batcher), broadcast_topic_client, NUM_VALIDATORS);
     let init = ProposalInit {
         height: BlockNumber(0),
         round: 0,
@@ -121,7 +131,12 @@ async fn validate_proposal_success() {
             })
         },
     );
-    let mut context = SequencerConsensusContext::new(Arc::new(batcher), NUM_VALIDATORS);
+    let TestSubscriberChannels { mock_network: _, subscriber_channels } =
+        mock_register_broadcast_topic().expect("Failed to create mock network");
+    let BroadcastTopicChannels { broadcasted_messages_receiver: _, broadcast_topic_client } =
+        subscriber_channels;
+    let mut context =
+        SequencerConsensusContext::new(Arc::new(batcher), broadcast_topic_client, NUM_VALIDATORS);
     let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
     content_sender.send(TX_BATCH.clone()).await.unwrap();
     let fin_receiver = context.validate_proposal(BlockNumber(0), TIMEOUT, content_receiver).await;
@@ -154,8 +169,12 @@ async fn repropose() {
             })
         },
     );
-
-    let mut context = SequencerConsensusContext::new(Arc::new(batcher), NUM_VALIDATORS);
+    let TestSubscriberChannels { mock_network: _, subscriber_channels } =
+        mock_register_broadcast_topic().expect("Failed to create mock network");
+    let BroadcastTopicChannels { broadcasted_messages_receiver: _, broadcast_topic_client } =
+        subscriber_channels;
+    let mut context =
+        SequencerConsensusContext::new(Arc::new(batcher), broadcast_topic_client, NUM_VALIDATORS);
 
     // Receive a valid proposal.
     let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
