@@ -559,6 +559,86 @@
     "privacy": "Public",
     "value": 5
   },
+  "consensus_manager_config.consensus_config.network_config.advertised_multiaddr": {
+    "description": "The external address other peers see this node. If this is set, the node will not try to find out which addresses it has and will write this address as external instead",
+    "privacy": "Public",
+    "value": ""
+  },
+  "consensus_manager_config.consensus_config.network_config.advertised_multiaddr.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "consensus_manager_config.consensus_config.network_config.bootstrap_peer_multiaddr": {
+    "description": "The multiaddress of the peer node. It should include the peer's id. For more info: https://docs.libp2p.io/concepts/fundamentals/peers/",
+    "privacy": "Public",
+    "value": ""
+  },
+  "consensus_manager_config.consensus_config.network_config.bootstrap_peer_multiaddr.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "consensus_manager_config.consensus_config.network_config.chain_id": {
+    "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
+    "pointer_target": "chain_id",
+    "privacy": "Public"
+  },
+  "consensus_manager_config.consensus_config.network_config.discovery_config.bootstrap_dial_retry_config.base_delay_millis": {
+    "description": "The base delay in milliseconds for the exponential backoff strategy.",
+    "privacy": "Public",
+    "value": 2
+  },
+  "consensus_manager_config.consensus_config.network_config.discovery_config.bootstrap_dial_retry_config.factor": {
+    "description": "The factor for the exponential backoff strategy.",
+    "privacy": "Public",
+    "value": 5
+  },
+  "consensus_manager_config.consensus_config.network_config.discovery_config.bootstrap_dial_retry_config.max_delay_seconds": {
+    "description": "The maximum delay in seconds for the exponential backoff strategy.",
+    "privacy": "Public",
+    "value": 5
+  },
+  "consensus_manager_config.consensus_config.network_config.discovery_config.heartbeat_interval": {
+    "description": "The interval between each discovery (Kademlia) query in milliseconds.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "consensus_manager_config.consensus_config.network_config.idle_connection_timeout": {
+    "description": "Amount of time in seconds that a connection with no active sessions will stay alive.",
+    "privacy": "Public",
+    "value": 120
+  },
+  "consensus_manager_config.consensus_config.network_config.peer_manager_config.malicious_timeout_seconds": {
+    "description": "The duration in seconds a peer is blacklisted after being marked as malicious.",
+    "privacy": "Public",
+    "value": 31536000
+  },
+  "consensus_manager_config.consensus_config.network_config.peer_manager_config.unstable_timeout_millis": {
+    "description": "The duration in milliseconds a peer blacklisted after being reported as unstable.",
+    "privacy": "Public",
+    "value": 1000
+  },
+  "consensus_manager_config.consensus_config.network_config.quic_port": {
+    "description": "The port that the node listens on for incoming quic connections.",
+    "privacy": "Public",
+    "value": 10101
+  },
+  "consensus_manager_config.consensus_config.network_config.secret_key": {
+    "description": "The secret key used for building the peer id. If it's an empty string a random one will be used.",
+    "privacy": "Private",
+    "value": ""
+  },
+  "consensus_manager_config.consensus_config.network_config.session_timeout": {
+    "description": "Maximal time in seconds that each session can take before failing on timeout.",
+    "privacy": "Public",
+    "value": 120
+  },
+  "consensus_manager_config.consensus_config.network_config.tcp_port": {
+    "description": "The port that the node listens on for incoming tcp connections.",
+    "privacy": "Public",
+    "value": 10100
+  },
   "consensus_manager_config.consensus_config.network_topic": {
     "description": "The network topic of the consensus.",
     "privacy": "Public",

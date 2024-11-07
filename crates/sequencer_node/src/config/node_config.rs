@@ -45,6 +45,7 @@ pub static REQUIRED_PARAM_CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::
             set_pointing_param_paths(&[
                 "batcher_config.block_builder_config.chain_info.chain_id",
                 "batcher_config.storage.db_config.chain_id",
+                "consensus_manager_config.consensus_config.network_config.chain_id",
                 "gateway_config.chain_info.chain_id",
                 "mempool_p2p_config.network_config.chain_id",
             ]),

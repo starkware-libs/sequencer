@@ -11,10 +11,14 @@ use papyrus_config::converters::{
 };
 use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use papyrus_network::NetworkConfig;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 
 use super::types::ValidatorId;
+
+const CONSENSUS_TCP_PORT: u16 = 10100;
+const CONSENSUS_QUIC_PORT: u16 = 10101;
 
 /// Configuration for consensus.
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
@@ -33,6 +37,9 @@ pub struct ConsensusConfig {
     pub consensus_delay: Duration,
     /// Timeouts configuration for consensus.
     pub timeouts: TimeoutsConfig,
+    // TODO(Dan/Matan): validate configs (#[validate]).
+    /// The network configuration for the consensus.
+    pub network_config: NetworkConfig,
 }
 
 impl SerializeConfig for ConsensusConfig {
@@ -70,12 +77,17 @@ impl SerializeConfig for ConsensusConfig {
             ),
         ]);
         config.extend(append_sub_config_name(self.timeouts.dump(), "timeouts"));
+        config.extend(append_sub_config_name(self.network_config.dump(), "network_config"));
         config
     }
 }
 
 impl Default for ConsensusConfig {
     fn default() -> Self {
+        let mut network_config = NetworkConfig::default();
+        // TODO(Dan/Shahak): consider something nicer, maybe a builder?
+        network_config.tcp_port = CONSENSUS_TCP_PORT;
+        network_config.quic_port = CONSENSUS_QUIC_PORT;
         Self {
             validator_id: ValidatorId::default(),
             network_topic: "consensus".to_string(),
@@ -83,6 +95,7 @@ impl Default for ConsensusConfig {
             num_validators: 1,
             consensus_delay: Duration::from_secs(5),
             timeouts: TimeoutsConfig::default(),
+            network_config,
         }
     }
 }
