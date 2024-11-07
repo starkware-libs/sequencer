@@ -1,4 +1,8 @@
-use blockifier::blockifier::transaction_executor::TransactionExecutorError;
+use assert_matches::assert_matches;
+use blockifier::blockifier::transaction_executor::{
+    TransactionExecutorError,
+    TransactionExecutorError as BlockifierTransactionExecutorError,
+};
 use blockifier::bouncer::BouncerWeights;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
@@ -11,7 +15,13 @@ use starknet_api::felt;
 use starknet_api::transaction::TransactionHash;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
-use crate::block_builder::{BlockBuilder, BlockBuilderTrait, BlockExecutionArtifacts};
+use crate::block_builder::{
+    BlockBuilder,
+    BlockBuilderError,
+    BlockBuilderResult,
+    BlockBuilderTrait,
+    BlockExecutionArtifacts,
+};
 use crate::test_utils::test_txs;
 use crate::transaction_executor::MockTransactionExecutorTrait;
 use crate::transaction_provider::{MockTransactionProvider, NextTxs};
@@ -44,6 +54,18 @@ fn one_chunk_test_expectations(
     input_txs: &[Transaction],
 ) -> (MockTransactionExecutorTrait, MockTransactionProvider, BlockExecutionArtifacts) {
     let block_size = input_txs.len();
+    let (mock_transaction_executor, expected_block_artifacts) =
+        one_chunk_mock_executor(input_txs, block_size);
+
+    let mock_tx_provider = mock_tx_provider_limitless_calls(1, vec![input_txs.to_vec()]);
+
+    (mock_transaction_executor, mock_tx_provider, expected_block_artifacts)
+}
+
+fn one_chunk_mock_executor(
+    input_txs: &[Transaction],
+    block_size: usize,
+) -> (MockTransactionExecutorTrait, BlockExecutionArtifacts) {
     let input_txs_cloned = input_txs.to_vec();
     let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
 
@@ -54,10 +76,7 @@ fn one_chunk_test_expectations(
 
     let expected_block_artifacts =
         set_close_block_expectations(&mut mock_transaction_executor, block_size);
-
-    let mock_tx_provider = mock_tx_provider_limitless_calls(1, vec![input_txs.to_vec()]);
-
-    (mock_transaction_executor, mock_tx_provider, expected_block_artifacts)
+    (mock_transaction_executor, expected_block_artifacts)
 }
 
 fn two_chunks_test_expectations(
@@ -271,13 +290,14 @@ async fn verify_build_block_output(
 async fn run_build_block(
     mock_transaction_executor: MockTransactionExecutorTrait,
     tx_provider: MockTransactionProvider,
-    output_sender: UnboundedSender<Transaction>,
-) -> BlockExecutionArtifacts {
+    output_sender: Option<UnboundedSender<Transaction>>,
+    fail_on_err: bool,
+) -> BlockBuilderResult<BlockExecutionArtifacts> {
     let block_builder = BlockBuilder::new(Box::new(mock_transaction_executor), TX_CHUNK_SIZE);
     let deadline = tokio::time::Instant::now()
         + tokio::time::Duration::from_secs(BLOCK_GENERATION_DEADLINE_SECS);
 
-    block_builder.build_block(deadline, Box::new(tx_provider), output_sender).await.unwrap()
+    block_builder.build_block(deadline, Box::new(tx_provider), output_sender, fail_on_err).await
 }
 
 // TODO: Add test case for failed transaction.
@@ -303,7 +323,9 @@ async fn test_build_block(
     let (output_tx_sender, output_tx_receiver) = output_channel();
 
     let result_block_artifacts =
-        run_build_block(mock_transaction_executor, mock_tx_provider, output_tx_sender).await;
+        run_build_block(mock_transaction_executor, mock_tx_provider, Some(output_tx_sender), false)
+            .await
+            .unwrap();
 
     verify_build_block_output(
         input_txs,
@@ -313,4 +335,33 @@ async fn test_build_block(
         output_tx_receiver,
     )
     .await;
+}
+
+#[tokio::test]
+async fn test_validate_block() {
+    let input_txs = test_txs(0..3);
+    let (mock_transaction_executor, expected_block_artifacts) =
+        one_chunk_mock_executor(&input_txs, input_txs.len());
+    let mock_tx_provider = mock_tx_provider_stream_done(input_txs);
+
+    let result_block_artifacts =
+        run_build_block(mock_transaction_executor, mock_tx_provider, None, true).await.unwrap();
+
+    assert_eq!(result_block_artifacts, expected_block_artifacts);
+}
+
+#[tokio::test]
+async fn test_validate_block_with_error() {
+    let input_txs = test_txs(0..3);
+    let expected_block_size = 1;
+    let (mock_transaction_executor, mock_tx_provider, _) =
+        block_full_test_expectations(&input_txs, expected_block_size);
+
+    let result =
+        run_build_block(mock_transaction_executor, mock_tx_provider, None, true).await.unwrap_err();
+
+    assert_matches!(
+        result,
+        BlockBuilderError::FailOnError(BlockifierTransactionExecutorError::BlockFull)
+    );
 }
