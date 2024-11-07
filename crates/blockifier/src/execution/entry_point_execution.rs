@@ -33,6 +33,10 @@ use crate::execution::syscalls::hint_processor::SyscallHintProcessor;
 use crate::state::state_api::State;
 use crate::versioned_constants::GasCosts;
 
+#[cfg(test)]
+#[path = "entry_point_execution_test.rs"]
+mod test;
+
 // TODO(spapini): Try to refactor this file into a StarknetRunner struct.
 
 pub struct VmExecutionContext<'a> {
@@ -363,6 +367,32 @@ fn maybe_fill_holes(
     Ok(())
 }
 
+/// Calculates the total gas for fee in the current call + subtree.
+#[allow(dead_code)]
+fn to_gas_for_fee(
+    tracked_resource: &TrackedResource,
+    gas_consumed: u64,
+    inner_calls: &[CallInfo],
+) -> GasAmount {
+    // The Sierra gas consumed in this specific call is `gas_consumed`
+    // (= total gas of self + subtree), minus the sum of all inner calls Sierra gas consumed.
+    // To compute the total Sierra gas to charge (of self + subtree), if the tracked resource is
+    // Sierra gas, we add this amount to the total gas to charge for in the subtree:
+    // gas_for_fee = gas_consumed - subtree_gas_consumed + subtree_gas_to_fee.
+    GasAmount(match tracked_resource {
+        // If the tracked resource is CairoSteps, then all tracked resources of all calls in
+        // the subtree are also CairoSteps. Thus, the total gas to charge in this subtree is zero.
+        TrackedResource::CairoSteps => 0,
+        TrackedResource::SierraGas => gas_consumed
+            .checked_sub(
+                inner_calls
+                    .iter()
+                    .map(|call| call.execution.gas_consumed - call.charged_resources.gas_for_fee.0)
+                    .sum::<u64>(),
+            )
+            .expect("gas_for_fee unexpectedly underflowed."),
+    })
+}
 pub fn finalize_execution(
     mut runner: CairoRunner,
     mut syscall_handler: SyscallHintProcessor<'_>,
