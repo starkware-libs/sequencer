@@ -94,7 +94,8 @@ starknet_version_enum! {
     (V0_13_2, 0, 13, 2),
     (V0_13_2_1, 0, 13, 2, 1),
     (V0_13_3, 0, 13, 3),
-    V0_13_3
+    (V0_13_4, 0, 13, 4),
+    V0_13_4
 }
 
 impl Default for StarknetVersion {
@@ -293,7 +294,9 @@ impl BlockNumber {
 /// [BlockNumber](`crate::block::BlockNumber`).
 #[derive(Copy, Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct BlockHashAndNumber {
+    #[serde(rename = "block_hash")]
     pub hash: BlockHash,
+    #[serde(rename = "block_number")]
     pub number: BlockNumber,
 }
 

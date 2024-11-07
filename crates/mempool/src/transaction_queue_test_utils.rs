@@ -79,7 +79,7 @@ impl TransactionQueueContentBuilder {
         self
     }
 
-    pub fn _with_pending<P>(mut self, pending_txs: P) -> Self
+    pub fn with_pending<P>(mut self, pending_txs: P) -> Self
     where
         P: IntoIterator<Item = TransactionReference>,
     {

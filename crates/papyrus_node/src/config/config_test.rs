@@ -23,7 +23,7 @@ use tempfile::NamedTempFile;
 use validator::Validate;
 
 #[cfg(feature = "rpc")]
-use crate::config::pointers::CONFIG_POINTERS;
+use crate::config::pointers::{CONFIG_NON_POINTERS_WHITELIST, CONFIG_POINTERS};
 use crate::config::{node_command, NodeConfig, DEFAULT_CONFIG_PATH};
 
 // Returns the required and generated params in config/papyrus/default_config.json with the default
@@ -137,7 +137,13 @@ fn default_config_file_is_up_to_date() {
     // Create a temporary file and dump the default config to it.
     let mut tmp_file_path = env::temp_dir();
     tmp_file_path.push("cfg.json");
-    NodeConfig::default().dump_to_file(&CONFIG_POINTERS, tmp_file_path.to_str().unwrap()).unwrap();
+    NodeConfig::default()
+        .dump_to_file(
+            &CONFIG_POINTERS,
+            &CONFIG_NON_POINTERS_WHITELIST,
+            tmp_file_path.to_str().unwrap(),
+        )
+        .unwrap();
 
     // Read the dumped config from the file.
     let from_code: serde_json::Value =

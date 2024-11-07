@@ -6,6 +6,10 @@ use futures::FutureExt;
 use libp2p::swarm::dial_opts::DialOpts;
 use libp2p::swarm::ToSwarm;
 use libp2p::PeerId;
+use papyrus_config::converters::{
+    deserialize_milliseconds_to_duration,
+    deserialize_seconds_to_duration,
+};
 use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use peer::Peer;
@@ -52,8 +56,10 @@ pub struct PeerManager {
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct PeerManagerConfig {
-    malicious_timeout: u64,
-    unstable_timeout: u64,
+    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
+    malicious_timeout_seconds: Duration,
+    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
+    unstable_timeout_millis: Duration,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -70,8 +76,8 @@ impl Default for PeerManagerConfig {
     fn default() -> Self {
         Self {
             // 1 year.
-            malicious_timeout: 3600 * 24 * 365,
-            unstable_timeout: 1,
+            malicious_timeout_seconds: Duration::from_secs(3600 * 24 * 365),
+            unstable_timeout_millis: Duration::from_millis(1000),
         }
     }
 }
@@ -80,15 +86,15 @@ impl SerializeConfig for PeerManagerConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from([
             ser_param(
-                "malicious_timeout",
-                &self.malicious_timeout,
-                "The duration a peer is blacklisted after being marked as malicious.",
+                "malicious_timeout_seconds",
+                &self.malicious_timeout_seconds.as_secs(),
+                "The duration in seconds a peer is blacklisted after being marked as malicious.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
-                "unstable_timeout",
-                &self.unstable_timeout,
-                "The duration a peer blacklisted after being reported as unstable.",
+                "unstable_timeout_millis",
+                &self.unstable_timeout_millis.as_millis(),
+                "The duration in milliseconds a peer blacklisted after being reported as unstable.",
                 ParamPrivacyInput::Public,
             ),
         ])
@@ -216,12 +222,12 @@ impl PeerManager {
                 ReputationModifier::Misconduct { misconduct_score } => {
                     peer.report(misconduct_score);
                     if peer.is_malicious() {
-                        peer.blacklist_peer(Duration::from_secs(self.config.malicious_timeout));
+                        peer.blacklist_peer(self.config.malicious_timeout_seconds);
                         peer.reset_misconduct_score();
                     }
                 }
                 ReputationModifier::Unstable => {
-                    peer.blacklist_peer(Duration::from_secs(self.config.unstable_timeout));
+                    peer.blacklist_peer(self.config.unstable_timeout_millis);
                 }
             }
             Ok(())

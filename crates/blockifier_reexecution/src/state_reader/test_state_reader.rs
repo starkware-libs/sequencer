@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fs;
 use std::sync::{Arc, Mutex};
 
 use blockifier::blockifier::block::BlockInfo;
@@ -12,6 +13,7 @@ use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader, StateResult};
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use blockifier::versioned_constants::VersionedConstants;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, to_value};
 use starknet_api::block::{BlockNumber, StarknetVersion};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
@@ -24,6 +26,7 @@ use starknet_gateway::rpc_objects::{BlockHeader, GetBlockWithTxHashesParams, Res
 use starknet_gateway::rpc_state_reader::RpcStateReader;
 use starknet_types_core::felt::Felt;
 
+use crate::retry_request;
 use crate::state_reader::compile::{legacy_to_contract_class_v0, sierra_to_contact_class_v1};
 use crate::state_reader::errors::ReexecutionError;
 use crate::state_reader::reexecution_state_reader::ReexecutionStateReader;
@@ -36,29 +39,114 @@ use crate::state_reader::utils::{
     disjoint_hashmap_union,
     get_chain_info,
     get_rpc_state_reader_config,
+    ReexecutionStateMaps,
 };
+
+pub const DEFAULT_RETRY_COUNT: usize = 3;
+pub const DEFAULT_RETRY_WAIT_TIME: u64 = 1000;
+pub const DEFAULT_EXPECTED_ERROR_STRING: &str = "Connection error";
+pub const DEFAULT_RETRY_FAILURE_MESSAGE: &str = "Failed to connect to the RPC node.";
 
 pub type ReexecutionResult<T> = Result<T, ReexecutionError>;
 
 pub type StarknetContractClassMapping = HashMap<ClassHash, StarknetContractClass>;
 
 pub struct OfflineReexecutionData {
-    state_maps: StateMaps,
-    contract_class_mapping: StarknetContractClassMapping,
+    offline_state_reader_prev_block: OfflineStateReader,
     block_context_next_block: BlockContext,
     transactions_next_block: Vec<BlockifierTransaction>,
     state_diff_next_block: CommitmentStateDiff,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct SerializableOfflineReexecutionData {
+    state_maps: ReexecutionStateMaps,
+    contract_class_mapping: StarknetContractClassMapping,
+    block_info_next_block: BlockInfo,
+    starknet_version: StarknetVersion,
+    transactions_next_block: Vec<(Transaction, TransactionHash)>,
+    state_diff_next_block: CommitmentStateDiff,
+}
+
+impl SerializableOfflineReexecutionData {
+    pub fn write_to_file(&self, file_path: &str, file_name: &str) -> ReexecutionResult<()> {
+        fs::create_dir_all(file_path)
+            .unwrap_or_else(|_| panic!("Failed to create directory {file_path}."));
+        let full_file_path = file_path.to_owned() + "/" + file_name;
+        fs::write(full_file_path.clone(), serde_json::to_string_pretty(&self)?)
+            .unwrap_or_else(|_| panic!("Failed to write to file {full_file_path}."));
+        Ok(())
+    }
+
+    pub fn read_from_file(full_file_path: &str) -> ReexecutionResult<Self> {
+        let file_content = fs::read_to_string(full_file_path).unwrap_or_else(|_| {
+            panic!("Failed to read reexecution data from file {full_file_path}.")
+        });
+        Ok(serde_json::from_str(&file_content)?)
+    }
+}
+
+impl From<SerializableOfflineReexecutionData> for OfflineReexecutionData {
+    fn from(value: SerializableOfflineReexecutionData) -> Self {
+        let offline_state_reader_prev_block = OfflineStateReader {
+            state_maps: value.state_maps.try_into().expect("Failed to deserialize state maps."),
+            contract_class_mapping: value.contract_class_mapping,
+        };
+        let transactions_next_block = offline_state_reader_prev_block
+            .api_txs_to_blockifier_txs(value.transactions_next_block)
+            .expect("Failed to convert starknet-api transactions to blockifier transactions.");
+        Self {
+            offline_state_reader_prev_block,
+            block_context_next_block: BlockContext::new(
+                value.block_info_next_block,
+                get_chain_info(),
+                VersionedConstants::get(&value.starknet_version).unwrap().clone(),
+                BouncerConfig::max(),
+            ),
+            transactions_next_block,
+            state_diff_next_block: value.state_diff_next_block,
+        }
+    }
+}
+
+pub struct RetryConfig {
+    pub(crate) n_retries: usize,
+    pub(crate) retry_interval_milliseconds: u64,
+    pub(crate) expected_error_string: &'static str,
+    pub(crate) retry_failure_message: &'static str,
+}
+
+impl Default for RetryConfig {
+    fn default() -> Self {
+        Self {
+            n_retries: DEFAULT_RETRY_COUNT,
+            retry_interval_milliseconds: DEFAULT_RETRY_WAIT_TIME,
+            expected_error_string: DEFAULT_EXPECTED_ERROR_STRING,
+            retry_failure_message: DEFAULT_RETRY_FAILURE_MESSAGE,
+        }
+    }
+}
+
 pub struct TestStateReader {
-    rpc_state_reader: RpcStateReader,
+    pub(crate) rpc_state_reader: RpcStateReader,
+    pub(crate) retry_config: RetryConfig,
     #[allow(dead_code)]
     contract_class_mapping_dumper: Arc<Mutex<Option<StarknetContractClassMapping>>>,
 }
 
+impl Default for TestStateReader {
+    fn default() -> Self {
+        Self {
+            rpc_state_reader: RpcStateReader::from_latest(&get_rpc_state_reader_config()),
+            retry_config: RetryConfig::default(),
+            contract_class_mapping_dumper: Arc::new(Mutex::new(None)),
+        }
+    }
+}
+
 impl StateReader for TestStateReader {
     fn get_nonce_at(&self, contract_address: ContractAddress) -> StateResult<Nonce> {
-        self.rpc_state_reader.get_nonce_at(contract_address)
+        retry_request!(self.retry_config, || self.rpc_state_reader.get_nonce_at(contract_address))
     }
 
     fn get_storage_at(
@@ -66,11 +154,15 @@ impl StateReader for TestStateReader {
         contract_address: ContractAddress,
         key: StorageKey,
     ) -> StateResult<Felt> {
-        self.rpc_state_reader.get_storage_at(contract_address, key)
+        retry_request!(self.retry_config, || self
+            .rpc_state_reader
+            .get_storage_at(contract_address, key))
     }
 
     fn get_class_hash_at(&self, contract_address: ContractAddress) -> StateResult<ClassHash> {
-        self.rpc_state_reader.get_class_hash_at(contract_address)
+        retry_request!(self.retry_config, || self
+            .rpc_state_reader
+            .get_class_hash_at(contract_address))
     }
 
     /// Returns the contract class of the given class hash.
@@ -79,7 +171,10 @@ impl StateReader for TestStateReader {
         &self,
         class_hash: ClassHash,
     ) -> StateResult<RunnableContractClass> {
-        match self.get_contract_class(&class_hash)? {
+        let contract_class =
+            retry_request!(self.retry_config, || self.get_contract_class(&class_hash))?;
+
+        match contract_class {
             StarknetContractClass::Sierra(sierra) => {
                 Ok(sierra_to_contact_class_v1(sierra).unwrap().try_into().unwrap())
             }
@@ -103,6 +198,7 @@ impl TestStateReader {
         Self {
             rpc_state_reader: RpcStateReader::from_number(config, block_number),
             contract_class_mapping_dumper,
+            retry_config: RetryConfig::default(),
         }
     }
 
@@ -299,7 +395,7 @@ impl ConsecutiveTestStateReaders {
         dump_mode: bool,
     ) -> Self {
         let config = config.unwrap_or(get_rpc_state_reader_config());
-        ConsecutiveTestStateReaders {
+        Self {
             last_block_state_reader: TestStateReader::new(
                 &config,
                 last_constructed_block_number,
@@ -391,6 +487,18 @@ impl StateReader for OfflineStateReader {
     }
 }
 
+impl ReexecutionStateReader for OfflineStateReader {
+    fn get_contract_class(&self, class_hash: &ClassHash) -> StateResult<StarknetContractClass> {
+        Ok(self
+            .contract_class_mapping
+            .get(class_hash)
+            .ok_or(StateError::StateReadError(format!(
+                "Missing contract class at class hash: {class_hash}"
+            )))?
+            .clone())
+    }
+}
+
 impl OfflineStateReader {
     pub fn get_transaction_executor(
         self,
@@ -405,18 +513,6 @@ impl OfflineStateReader {
     }
 }
 
-impl ReexecutionStateReader for OfflineStateReader {
-    fn get_contract_class(&self, class_hash: &ClassHash) -> StateResult<StarknetContractClass> {
-        Ok(self
-            .contract_class_mapping
-            .get(class_hash)
-            .ok_or(StateError::StateReadError(format!(
-                "Missing contract class at class hash: {class_hash}"
-            )))?
-            .clone())
-    }
-}
-
 pub struct OfflineConsecutiveStateReaders {
     pub offline_state_reader_prev_block: OfflineStateReader,
     pub block_context_next_block: BlockContext,
@@ -425,21 +521,22 @@ pub struct OfflineConsecutiveStateReaders {
 }
 
 impl OfflineConsecutiveStateReaders {
-    // TODO(Aner): create directly from json.
+    pub fn new_from_file(full_file_path: &str) -> ReexecutionResult<Self> {
+        let serializable_offline_reexecution_data =
+            SerializableOfflineReexecutionData::read_from_file(full_file_path)?;
+        Ok(Self::new(serializable_offline_reexecution_data.into()))
+    }
+
     pub fn new(
         OfflineReexecutionData {
-            state_maps,
-            contract_class_mapping,
+            offline_state_reader_prev_block,
             block_context_next_block,
             transactions_next_block,
             state_diff_next_block,
         }: OfflineReexecutionData,
     ) -> Self {
-        OfflineConsecutiveStateReaders {
-            offline_state_reader_prev_block: OfflineStateReader {
-                state_maps,
-                contract_class_mapping,
-            },
+        Self {
+            offline_state_reader_prev_block,
             block_context_next_block,
             transactions_next_block,
             state_diff_next_block,

@@ -1,6 +1,5 @@
 ---
 source: crates/papyrus_node/src/config/config_test.rs
-assertion_line: 101
 expression: dumped_default_config
 ---
 {
@@ -211,7 +210,7 @@ expression: dumped_default_config
     },
     "privacy": "Public"
   },
-  "network.discovery_config.bootstrap_dial_retry_config.max_delay": {
+  "network.discovery_config.bootstrap_dial_retry_config.max_delay_seconds": {
     "description": "The maximum delay in seconds for the exponential backoff strategy.",
     "value": {
       "$serde_json::private::Number": "5"
@@ -232,17 +231,17 @@ expression: dumped_default_config
     },
     "privacy": "Public"
   },
-  "network.peer_manager_config.malicious_timeout": {
-    "description": "The duration a peer is blacklisted after being marked as malicious.",
+  "network.peer_manager_config.malicious_timeout_seconds": {
+    "description": "The duration in seconds a peer is blacklisted after being marked as malicious.",
     "value": {
       "$serde_json::private::Number": "31536000"
     },
     "privacy": "Public"
   },
-  "network.peer_manager_config.unstable_timeout": {
-    "description": "The duration a peer blacklisted after being reported as unstable.",
+  "network.peer_manager_config.unstable_timeout_millis": {
+    "description": "The duration in milliseconds a peer blacklisted after being reported as unstable.",
     "value": {
-      "$serde_json::private::Number": "1"
+      "$serde_json::private::Number": "1000"
     },
     "privacy": "Public"
   },

@@ -3,6 +3,7 @@ use blockifier::state::errors::StateError;
 use serde_json::{Error as SerdeError, Value};
 use starknet_api::block::GasPrice;
 use starknet_api::transaction::{Resource, ResourceBounds};
+use starknet_api::StarknetApiError;
 use starknet_gateway_types::errors::GatewaySpecError;
 use thiserror::Error;
 
@@ -35,6 +36,8 @@ pub enum StatelessTransactionValidatorError {
         (allowed length: {max_signature_length})."
     )]
     SignatureTooLong { signature_length: usize, max_signature_length: usize },
+    #[error(transparent)]
+    StarknetApiError(#[from] StarknetApiError),
     #[error(
         "Sierra versions older than {min_version} or newer than {max_version} are not supported. \
          The Sierra version of the declared contract is {version}."
@@ -57,6 +60,7 @@ impl From<StatelessTransactionValidatorError> for GatewaySpecError {
             | StatelessTransactionValidatorError::EntryPointsNotUniquelySorted
             | StatelessTransactionValidatorError::InvalidSierraVersion(..)
             | StatelessTransactionValidatorError::SignatureTooLong { .. }
+            | StatelessTransactionValidatorError::StarknetApiError(..)
             | StatelessTransactionValidatorError::ZeroResourceBounds { .. } => {
                 GatewaySpecError::ValidationFailure { data: e.to_string() }
             }

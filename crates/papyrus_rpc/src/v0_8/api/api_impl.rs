@@ -4,7 +4,6 @@ use async_trait::async_trait;
 use jsonrpsee::core::RpcResult;
 use jsonrpsee::types::ErrorObjectOwned;
 use jsonrpsee::RpcModule;
-use lazy_static::lazy_static;
 use papyrus_common::pending_classes::{PendingClasses, PendingClassesTrait};
 use papyrus_execution::objects::{FeeEstimation, PendingData as ExecutionPendingData};
 use papyrus_execution::{
@@ -22,7 +21,14 @@ use papyrus_storage::db::{TransactionKind, RO};
 use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::{StorageError, StorageReader, StorageTxn};
 use starknet_api::block::{BlockHash, BlockHeaderWithoutHash, BlockNumber, BlockStatus};
-use starknet_api::core::{ChainId, ClassHash, ContractAddress, GlobalRoot, Nonce};
+use starknet_api::core::{
+    ChainId,
+    ClassHash,
+    ContractAddress,
+    GlobalRoot,
+    Nonce,
+    BLOCK_HASH_TABLE_ADDRESS,
+};
 use starknet_api::execution_utils::format_panic_data;
 use starknet_api::hash::StarkHash;
 use starknet_api::state::{StateNumber, StorageKey};
@@ -142,11 +148,6 @@ use crate::{
 };
 
 const DONT_IGNORE_L1_DA_MODE: bool = false;
-
-// TODO(yael): implement address 0x1 as a const function in starknet_api.
-lazy_static! {
-    pub static ref BLOCK_HASH_TABLE_ADDRESS: ContractAddress = ContractAddress::from(1_u8);
-}
 
 /// Rpc server.
 pub struct JsonRpcServerImpl {
@@ -354,7 +355,7 @@ impl JsonRpcServer for JsonRpcServerImpl {
         // we'll return an error instead.
         // Contract address 0x1 is a special address, it stores the block
         // hashes. Contracts are not deployed to this address.
-        if res == Felt::default() && contract_address != *BLOCK_HASH_TABLE_ADDRESS {
+        if res == Felt::default() && contract_address != BLOCK_HASH_TABLE_ADDRESS {
             // check if the contract exists
             txn.get_state_reader()
                 .map_err(internal_server_error)?

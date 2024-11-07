@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use blockifier::context::{ChainInfo, FeeTokenAddresses};
 use blockifier::state::cached_state::StateMaps;
 use indexmap::IndexMap;
-use papyrus_execution::{eth_fee_contract_address, strk_fee_contract_address};
+use papyrus_execution::{ETH_FEE_CONTRACT_ADDRESS, STRK_FEE_CONTRACT_ADDRESS};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
@@ -18,8 +18,8 @@ pub const JSON_RPC_VERSION: &str = "2.0";
 /// Returns the fee token addresses of mainnet.
 pub fn get_fee_token_addresses() -> FeeTokenAddresses {
     FeeTokenAddresses {
-        strk_fee_token_address: strk_fee_contract_address(),
-        eth_fee_token_address: eth_fee_contract_address(),
+        strk_fee_token_address: *STRK_FEE_CONTRACT_ADDRESS,
+        eth_fee_token_address: *ETH_FEE_CONTRACT_ADDRESS,
     }
 }
 
@@ -100,4 +100,31 @@ impl TryFrom<ReexecutionStateMaps> for StateMaps {
             declared_contracts: value.declared_contracts,
         })
     }
+}
+
+#[macro_export]
+macro_rules! retry_request {
+    ($retry_config:expr, $closure:expr) => {{
+        retry::retry(
+            retry::delay::Fixed::from_millis($retry_config.retry_interval_milliseconds)
+                .take($retry_config.n_retries),
+            || {
+                match $closure() {
+                    Ok(value) => retry::OperationResult::Ok(value),
+                    // If the error contains the expected_error_string , we want to retry.
+                    Err(e) if e.to_string().contains($retry_config.expected_error_string) => {
+                        retry::OperationResult::Retry(e)
+                    }
+                    // For all other errors, do not retry and return immediately.
+                    Err(e) => retry::OperationResult::Err(e),
+                }
+            },
+        )
+        .map_err(|e| {
+            if e.error.to_string().contains($retry_config.expected_error_string) {
+                panic!("{}: {:?}", $retry_config.retry_failure_message, e.error);
+            }
+            e.error
+        })
+    }};
 }

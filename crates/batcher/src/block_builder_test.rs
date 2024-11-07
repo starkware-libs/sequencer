@@ -14,7 +14,7 @@ use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use crate::block_builder::{BlockBuilder, BlockBuilderTrait, BlockExecutionArtifacts};
 use crate::test_utils::test_txs;
 use crate::transaction_executor::MockTransactionExecutorTrait;
-use crate::transaction_provider::MockTransactionProvider;
+use crate::transaction_provider::{MockTransactionProvider, NextTxs};
 
 const BLOCK_GENERATION_DEADLINE_SECS: u64 = 1;
 const TX_CHANNEL_SIZE: usize = 50;
@@ -144,6 +144,26 @@ fn test_expectations_with_delay(
     (mock_transaction_executor, mock_tx_provider, expected_block_artifacts)
 }
 
+fn stream_done_test_expectations(
+    input_txs: &[Transaction],
+) -> (MockTransactionExecutorTrait, MockTransactionProvider, BlockExecutionArtifacts) {
+    let block_size = input_txs.len();
+    let input_txs_cloned = input_txs.to_vec();
+    let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
+
+    mock_transaction_executor
+        .expect_add_txs_to_block()
+        .withf(move |blockifier_input| compare_tx_hashes(&input_txs_cloned, blockifier_input))
+        .return_once(move |_| (0..block_size).map(|_| Ok(execution_info())).collect());
+
+    let expected_block_artifacts =
+        set_close_block_expectations(&mut mock_transaction_executor, block_size);
+
+    let mock_tx_provider = mock_tx_provider_stream_done(input_txs.to_vec());
+
+    (mock_transaction_executor, mock_tx_provider, expected_block_artifacts)
+}
+
 // Fill the executor outputs with some non-default values to make sure the block_builder uses
 // them.
 fn block_builder_expected_output(execution_info_len: usize) -> BlockExecutionArtifacts {
@@ -180,7 +200,24 @@ fn mock_tx_provider_limited_calls(
         .expect_get_txs()
         .times(n_calls)
         .with(eq(TX_CHUNK_SIZE))
-        .returning(move |_n_txs| Ok(input_chunks.remove(0)));
+        .returning(move |_n_txs| Ok(NextTxs::Txs(input_chunks.remove(0))));
+    mock_tx_provider
+}
+
+fn mock_tx_provider_stream_done(input_chunk: Vec<Transaction>) -> MockTransactionProvider {
+    let mut mock_tx_provider = MockTransactionProvider::new();
+    let mut seq = Sequence::new();
+    mock_tx_provider
+        .expect_get_txs()
+        .times(1)
+        .in_sequence(&mut seq)
+        .with(eq(TX_CHUNK_SIZE))
+        .returning(move |_n_txs| Ok(NextTxs::Txs(input_chunk.clone())));
+    mock_tx_provider
+        .expect_get_txs()
+        .times(1)
+        .in_sequence(&mut seq)
+        .returning(|_n_txs| Ok(NextTxs::End));
     mock_tx_provider
 }
 
@@ -198,7 +235,10 @@ fn mock_tx_provider_limitless_calls(
 }
 
 fn add_limitless_empty_calls(mock_tx_provider: &mut MockTransactionProvider) {
-    mock_tx_provider.expect_get_txs().with(eq(TX_CHUNK_SIZE)).returning(|_n_txs| Ok(Vec::new()));
+    mock_tx_provider
+        .expect_get_txs()
+        .with(eq(TX_CHUNK_SIZE))
+        .returning(|_n_txs| Ok(NextTxs::Txs(Vec::new())));
 }
 
 fn compare_tx_hashes(input: &[Transaction], blockifier_input: &[BlockifierTransaction]) -> bool {
@@ -247,6 +287,7 @@ async fn run_build_block(
 #[case::empty_block(0, vec![], empty_block_test_expectations())]
 #[case::block_full(1, test_txs(0..3), block_full_test_expectations(&input_txs, expected_block_size))]
 #[case::deadline_reached_after_first_chunk(3, test_txs(0..6), test_expectations_with_delay(&input_txs))]
+#[case::stream_done(2, test_txs(0..2), stream_done_test_expectations(&input_txs))]
 #[tokio::test]
 async fn test_build_block(
     #[case] expected_block_size: usize,

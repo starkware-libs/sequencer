@@ -1542,6 +1542,7 @@ dependencies = [
  "indexmap 2.6.0",
  "papyrus_execution",
  "pretty_assertions",
+ "retry",
  "rstest",
  "serde",
  "serde_json",
@@ -8935,6 +8936,15 @@ checksum = "52e44394d2086d010551b14b53b1f24e31647570cd1deb0379e2c21b329aba00"
 dependencies = [
  "hostname",
  "quick-error",
+]
+
+[[package]]
+name = "retry"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9166d72162de3575f950507683fac47e30f6f2c3836b71b7fbc61aa517c9c5f4"
+dependencies = [
+ "rand 0.8.5",
 ]
 
 [[package]]

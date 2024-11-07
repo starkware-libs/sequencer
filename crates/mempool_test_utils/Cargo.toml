@@ -5,7 +5,8 @@ edition.workspace = true
 repository.workspace = true
 license.workspace = true
 
-[features]
+[lints]
+workspace = true
 
 [dependencies]
 assert_matches.workspace = true

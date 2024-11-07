@@ -10,6 +10,7 @@ use blockifier::execution::call_info::{
 };
 use blockifier::execution::entry_point::CallType as BlockifierCallType;
 use blockifier::transaction::objects::{FeeType, TransactionExecutionInfo};
+use blockifier::utils::u64_from_usize;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources as VmExecutionResources;
 use indexmap::IndexMap;
@@ -348,7 +349,7 @@ impl TryFrom<(CallInfo, GasVector)> for FunctionInvocation {
                 })
                 .collect(),
             execution_resources: vm_resources_to_execution_resources(
-                call_info.resources,
+                call_info.charged_resources.vm_resources,
                 gas_vector,
             )?,
         })
@@ -368,7 +369,7 @@ fn vm_resources_to_execution_resources(
         if count == 0 {
             continue;
         }
-        let count: u64 = count as u64;
+        let count = u64_from_usize(count);
         match builtin_name {
             BuiltinName::output => continue,
             BuiltinName::pedersen => builtin_instance_counter.insert(Builtin::Pedersen, count),
@@ -391,9 +392,9 @@ fn vm_resources_to_execution_resources(
         };
     }
     Ok(ExecutionResources {
-        steps: vm_resources.n_steps as u64,
+        steps: u64_from_usize(vm_resources.n_steps),
         builtin_instance_counter,
-        memory_holes: vm_resources.n_memory_holes as u64,
+        memory_holes: u64_from_usize(vm_resources.n_memory_holes),
         da_gas_consumed: StarknetApiGasVector { l1_gas, l2_gas, l1_data_gas },
         gas_consumed: StarknetApiGasVector::default(),
     })

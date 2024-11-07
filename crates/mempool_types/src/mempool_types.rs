@@ -29,7 +29,7 @@ pub struct AddTransactionArgs {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct CommitBlockArgs {
-    pub nonces: HashMap<ContractAddress, Nonce>,
+    pub address_to_nonce: HashMap<ContractAddress, Nonce>,
     pub tx_hashes: HashSet<TransactionHash>,
 }
 
