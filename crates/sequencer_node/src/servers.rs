@@ -7,18 +7,20 @@ use starknet_consensus_manager::communication::ConsensusManagerServer;
 use starknet_gateway::communication::LocalGatewayServer;
 use starknet_http_server::communication::HttpServer;
 use starknet_mempool::communication::LocalMempoolServer;
-use starknet_mempool_p2p::propagator::{
-    create_mempool_p2p_propagator_server,
-    LocalMempoolP2pPropagatorServer,
-};
+use starknet_mempool_p2p::propagator::LocalMempoolP2pPropagatorServer;
 use starknet_mempool_p2p::runner::MempoolP2pRunnerServer;
 use starknet_monitoring_endpoint::communication::MonitoringEndpointServer;
+use starknet_sequencer_infra::component_definitions::{
+    ComponentRequestAndResponseSender,
+    ComponentRequestHandler,
+};
 use starknet_sequencer_infra::component_server::{
     ComponentServerStarter,
     LocalComponentServer,
     WrapperServer,
 };
 use starknet_sequencer_infra::errors::ComponentServerError;
+use tokio::sync::mpsc::Receiver;
 use tracing::error;
 
 use crate::communication::SequencerNodeCommunication;
@@ -46,54 +48,66 @@ pub struct SequencerNodeServers {
     wrapper_servers: WrapperServers,
 }
 
+fn create_local_server<Component, Request, Response>(
+    execution_mode: &ComponentExecutionMode,
+    component: Component,
+    receiver: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
+) -> Option<Box<LocalComponentServer<Component, Request, Response>>>
+where
+    Component: ComponentRequestHandler<Request, Response> + Send,
+    Request: Send + Sync,
+    Response: Send + Sync,
+{
+    match execution_mode {
+        ComponentExecutionMode::LocalExecutionWithRemoteDisabled
+        | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
+            Some(Box::new(LocalComponentServer::new(component, receiver)))
+        }
+        ComponentExecutionMode::Disabled => None,
+    }
+}
+
+fn create_wrapper_server<Component>(
+    execution_mode: &ComponentExecutionMode,
+    component: Component,
+) -> Option<Box<WrapperServer<Component>>> {
+    match execution_mode {
+        ComponentExecutionMode::LocalExecutionWithRemoteDisabled
+        | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
+            Some(Box::new(WrapperServer::new(component)))
+        }
+        ComponentExecutionMode::Disabled => None,
+    }
+}
+
 fn create_local_servers(
     config: &SequencerNodeConfig,
     communication: &mut SequencerNodeCommunication,
     components: &mut SequencerNodeComponents,
 ) -> LocalServers {
-    let batcher_server = match config.components.batcher.execution_mode {
-        ComponentExecutionMode::LocalExecutionWithRemoteDisabled
-        | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            Some(Box::new(LocalComponentServer::new(
-                components.batcher.take().expect("Batcher is not initialized."),
-                communication.take_batcher_rx(),
-            )))
-        }
-        ComponentExecutionMode::Disabled => None,
-    };
-    let gateway_server = match config.components.gateway.execution_mode {
-        ComponentExecutionMode::LocalExecutionWithRemoteDisabled
-        | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            Some(Box::new(LocalComponentServer::new(
-                components.gateway.take().expect("Gateway is not initialized."),
-                communication.take_gateway_rx(),
-            )))
-        }
-        ComponentExecutionMode::Disabled => None,
-    };
-    let mempool_server = match config.components.mempool.execution_mode {
-        ComponentExecutionMode::LocalExecutionWithRemoteDisabled
-        | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            Some(Box::new(LocalComponentServer::new(
-                components.mempool.take().expect("Mempool is not initialized."),
-                communication.take_mempool_rx(),
-            )))
-        }
-        ComponentExecutionMode::Disabled => None,
-    };
-    let mempool_p2p_propagator_server = match config.components.mempool_p2p.execution_mode {
-        ComponentExecutionMode::LocalExecutionWithRemoteDisabled
-        | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            Some(Box::new(create_mempool_p2p_propagator_server(
-                components
-                    .mempool_p2p_propagator
-                    .take()
-                    .expect("Mempool P2P Propagator is not initialized."),
-                communication.take_mempool_p2p_propagator_rx(),
-            )))
-        }
-        ComponentExecutionMode::Disabled => None,
-    };
+    let batcher_server = create_local_server(
+        &config.components.batcher.execution_mode,
+        components.batcher.take().expect("Batcher is not initialized."),
+        communication.take_batcher_rx(),
+    );
+    let gateway_server = create_local_server(
+        &config.components.gateway.execution_mode,
+        components.gateway.take().expect("Gateway is not initialized."),
+        communication.take_gateway_rx(),
+    );
+    let mempool_server = create_local_server(
+        &config.components.mempool.execution_mode,
+        components.mempool.take().expect("Mempool is not initialized."),
+        communication.take_mempool_rx(),
+    );
+    let mempool_p2p_propagator_server = create_local_server(
+        &config.components.mempool_p2p.execution_mode,
+        components
+            .mempool_p2p_propagator
+            .take()
+            .expect("Mempool P2P Propagator is not initialized."),
+        communication.take_mempool_p2p_propagator_rx(),
+    );
     LocalServers {
         batcher: batcher_server,
         gateway: gateway_server,
@@ -106,49 +120,23 @@ fn create_wrapper_servers(
     config: &SequencerNodeConfig,
     components: &mut SequencerNodeComponents,
 ) -> WrapperServers {
-    let consensus_manager_server = match config.components.consensus_manager.execution_mode {
-        ComponentExecutionMode::LocalExecutionWithRemoteDisabled
-        | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            Some(Box::new(WrapperServer::new(
-                components.consensus_manager.take().expect("Consensus Manager is not initialized."),
-            )))
-        }
-        ComponentExecutionMode::Disabled => None,
-    };
-    let http_server = match config.components.http_server.execution_mode {
-        ComponentExecutionMode::LocalExecutionWithRemoteDisabled
-        | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            Some(Box::new(WrapperServer::new(
-                components.http_server.take().expect("Http Server is not initialized."),
-            )))
-        }
-        ComponentExecutionMode::Disabled => None,
-    };
-    let monitoring_endpoint_server = match config.components.monitoring_endpoint.execution_mode {
-        ComponentExecutionMode::LocalExecutionWithRemoteDisabled
-        | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            Some(Box::new(WrapperServer::new(
-                components
-                    .monitoring_endpoint
-                    .take()
-                    .expect("Monitoring Endpoint is not initialized."),
-            )))
-        }
-        ComponentExecutionMode::Disabled => None,
-    };
+    let consensus_manager_server = create_wrapper_server(
+        &config.components.consensus_manager.execution_mode,
+        components.consensus_manager.take().expect("Consensus Manager is not initialized."),
+    );
+    let http_server = create_wrapper_server(
+        &config.components.http_server.execution_mode,
+        components.http_server.take().expect("Http Server is not initialized."),
+    );
+    let monitoring_endpoint_server = create_wrapper_server(
+        &config.components.monitoring_endpoint.execution_mode,
+        components.monitoring_endpoint.take().expect("Monitoring Endpoint is not initialized."),
+    );
 
-    let mempool_p2p_runner_server = match config.components.mempool_p2p.execution_mode {
-        ComponentExecutionMode::LocalExecutionWithRemoteDisabled
-        | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            Some(Box::new(MempoolP2pRunnerServer::new(
-                components
-                    .mempool_p2p_runner
-                    .take()
-                    .expect("Mempool P2P Runner is not initialized."),
-            )))
-        }
-        ComponentExecutionMode::Disabled => None,
-    };
+    let mempool_p2p_runner_server = create_wrapper_server(
+        &config.components.mempool_p2p.execution_mode,
+        components.mempool_p2p_runner.take().expect("Mempool P2P Runner is not initialized."),
+    );
     WrapperServers {
         consensus_manager: consensus_manager_server,
         http_server,
