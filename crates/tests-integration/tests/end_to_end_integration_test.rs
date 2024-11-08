@@ -5,10 +5,13 @@ use std::process::Stdio;
 
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use rstest::{fixture, rstest};
+use starknet_http_server::config::HttpServerConfig;
 use starknet_integration_tests::integration_test_config_utils::dump_config_file_changes;
 use starknet_integration_tests::integration_test_utils::{
     create_config,
     create_integration_test_tx_generator,
+    run_transaction_generator_test_scenario,
+    HttpTestClient,
 };
 use starknet_integration_tests::state_reader::{spawn_test_rpc_state_reader, StorageTestSetup};
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
@@ -83,9 +86,27 @@ async fn test_end_to_end_integration(tx_generator: MultiAccountTransactionGenera
     let (node_config_path, _) = dump_config_file_changes(&config, required_params, &temp_dir);
 
     info!("Running sequencer node.");
-    let _node_run_handle = spawn_run_node(node_config_path).await;
+    let node_run_handle = spawn_run_node(node_config_path).await;
 
+    // Wait for the node to start.
     let MonitoringEndpointConfig { ip, port } = config.monitoring_endpoint_config;
     let is_alive_test_client = IsAliveClient::new(SocketAddr::from((ip, port)));
     is_alive_test_client.await_alive().await;
+
+    info!("Running integration test simulator.");
+    let HttpServerConfig { ip, port } = config.http_server_config;
+    let http_test_client = HttpTestClient::new(SocketAddr::from((ip, port)));
+
+    let send_rpc_tx_fn = &|rpc_tx| http_test_client.assert_add_tx_success(rpc_tx);
+    let n_txs = 50;
+    info!("Sending {n_txs} txs.");
+    run_transaction_generator_test_scenario(tx_generator, n_txs, send_rpc_tx_fn).await;
+
+    info!("Shutting down.");
+    node_run_handle.abort();
+    let res = node_run_handle.await;
+    assert!(
+        res.expect_err("Node should have been stopped.").is_cancelled(),
+        "Node should have been stopped."
+    );
 }
