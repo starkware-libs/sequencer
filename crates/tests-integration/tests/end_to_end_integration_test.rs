@@ -1,4 +1,5 @@
 use std::env;
+use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::process::Stdio;
 
@@ -10,6 +11,8 @@ use starknet_integration_tests::integration_test_utils::{
     create_integration_test_tx_generator,
 };
 use starknet_integration_tests::state_reader::{spawn_test_rpc_state_reader, StorageTestSetup};
+use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
+use starknet_monitoring_endpoint::test_utils::IsAliveClient;
 use starknet_sequencer_infra::trace_util::configure_tracing;
 use tempfile::tempdir;
 use tokio::process::{Child, Command};
@@ -81,4 +84,8 @@ async fn test_end_to_end_integration(tx_generator: MultiAccountTransactionGenera
 
     info!("Running sequencer node.");
     let _node_run_handle = spawn_run_node(node_config_path).await;
+
+    let MonitoringEndpointConfig { ip, port } = config.monitoring_endpoint_config;
+    let is_alive_test_client = IsAliveClient::new(SocketAddr::from((ip, port)));
+    is_alive_test_client.await_alive().await;
 }
