@@ -1515,7 +1515,7 @@ fn get_calldata_for_test_execution_info(
             expected_transaction_version,
             expected_caller_address,
             expected_max_fee,
-            felt!(expected_signature.len() as u64),
+            felt!(u64::try_from(expected_signature.len()).unwrap()),
         ],
         expected_signature,
         vec![
@@ -1540,7 +1540,11 @@ fn get_calldata_for_test_execution_info(
 
     Calldata(Arc::new(
         [
-            vec![*CONTRACT_ADDRESS.0.key(), entry_point_selector.0, felt!(calldata.len() as u64)],
+            vec![
+                *CONTRACT_ADDRESS.0.key(),
+                entry_point_selector.0,
+                felt!(u64::try_from(calldata.len()).unwrap()),
+            ],
             calldata,
         ]
         .iter()

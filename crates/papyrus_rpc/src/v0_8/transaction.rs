@@ -1236,7 +1236,8 @@ fn l1_handler_message_hash(
     let to_address = Token::Bytes(contract_address.0.key().to_bytes_be().to_vec());
     let nonce = Token::Bytes(nonce.to_bytes_be().to_vec());
     let selector = Token::Bytes(entry_point_selector.0.to_bytes_be().to_vec());
-    let payload_length_as_felt = Felt::from(payload.len() as u64);
+    let payload_length_as_felt =
+        Felt::from(u64::try_from(payload.len()).expect("usize should fit in u64"));
     let payload_length = Token::Bytes(payload_length_as_felt.to_bytes_be().to_vec());
 
     let mut payload: Vec<_> =
