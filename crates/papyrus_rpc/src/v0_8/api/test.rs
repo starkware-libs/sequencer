@@ -2811,7 +2811,7 @@ async fn test_get_events(
     let mut parent_hash = BlockHash(felt!(GENESIS_HASH));
     let mut rw_txn = storage_writer.begin_rw_txn().unwrap();
     for (i, block_metadata) in block_metadatas.iter().enumerate() {
-        let block_number = BlockNumber(i as u64);
+        let block_number = BlockNumber(u64::try_from(i).expect("usize should fit in u64"));
         let block = block_metadata.generate_block(&mut rng, parent_hash, block_number);
 
         parent_hash = block.header.block_hash;
@@ -2863,7 +2863,10 @@ async fn test_get_events(
                 event_index_to_event.insert(
                     EventIndex(
                         TransactionIndex(
-                            BlockNumber(block_metadatas.len() as u64),
+                            BlockNumber(
+                                u64::try_from(block_metadatas.len())
+                                    .expect("usize should fit in u64"),
+                            ),
                             TransactionOffsetInBlock(i_transaction),
                         ),
                         EventIndexInTransactionOutput(i_event),
@@ -3336,7 +3339,7 @@ async fn get_events_page_size_too_big() {
 async fn get_events_too_many_keys() {
     let (module, _) = get_test_rpc_server_and_storage_writer::<JsonRpcServerImpl>();
     let keys = (0..get_test_rpc_config().max_events_keys + 1)
-        .map(|i| HashSet::from([EventKey(Felt::from(i as u128))]))
+        .map(|i| HashSet::from([EventKey(Felt::from(u128::try_from(i).unwrap()))]))
         .collect();
 
     // Create the filter.
