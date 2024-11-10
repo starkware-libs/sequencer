@@ -26,6 +26,7 @@ use crate::proposal_manager::{
 
 const INITIAL_HEIGHT: BlockNumber = BlockNumber(3);
 const BLOCK_GENERATION_TIMEOUT: tokio::time::Duration = tokio::time::Duration::from_secs(1);
+const INPUT_CHANNEL_SIZE: usize = 30;
 
 #[fixture]
 fn output_streaming() -> (
@@ -34,6 +35,14 @@ fn output_streaming() -> (
 ) {
     let (output_content_sender, output_content_receiver) = tokio::sync::mpsc::unbounded_channel();
     (output_content_sender, output_content_receiver)
+}
+
+#[fixture]
+fn input_streaming()
+-> (tokio::sync::mpsc::Sender<Transaction>, tokio::sync::mpsc::Receiver<Transaction>) {
+    let (input_content_sender, input_content_receiver) =
+        tokio::sync::mpsc::channel::<Transaction>(INPUT_CHANNEL_SIZE);
+    (input_content_sender, input_content_receiver)
 }
 
 struct MockDependencies {
@@ -100,13 +109,26 @@ fn proposal_deadline() -> tokio::time::Instant {
     tokio::time::Instant::now() + BLOCK_GENERATION_TIMEOUT
 }
 
-async fn build_and_await_block_proposal(
+async fn build_proposal_and_await_completion(
     proposal_manager: &mut ProposalManager,
     proposal_id: ProposalId,
 ) {
     let (output_sender, _receiver) = output_streaming();
     proposal_manager
         .build_block_proposal(proposal_id, None, proposal_deadline(), output_sender)
+        .await
+        .unwrap();
+
+    assert!(proposal_manager.await_active_proposal().await);
+}
+
+async fn validate_proposal_and_await_completion(
+    proposal_manager: &mut ProposalManager,
+    proposal_id: ProposalId,
+) {
+    let (_sender, input_receiver) = input_streaming();
+    proposal_manager
+        .validate_block_proposal(proposal_id, None, proposal_deadline(), input_receiver)
         .await
         .unwrap();
 
@@ -162,28 +184,59 @@ async fn proposal_generation_fails_without_start_height(
 
 #[rstest]
 #[tokio::test]
-async fn proposal_generation_success(mut mock_dependencies: MockDependencies) {
+async fn proposal_validation_fails_without_start_height(
+    mock_dependencies: MockDependencies,
+    input_streaming: (
+        tokio::sync::mpsc::Sender<Transaction>,
+        tokio::sync::mpsc::Receiver<Transaction>,
+    ),
+) {
+    let mut proposal_manager = init_proposal_manager(mock_dependencies);
+    let err = proposal_manager
+        .validate_block_proposal(ProposalId(0), None, proposal_deadline(), input_streaming.1)
+        .await;
+    assert_matches!(err, Err(BuildProposalError::NoActiveHeight));
+}
+
+#[rstest]
+#[tokio::test]
+async fn build_proposal_success(mut mock_dependencies: MockDependencies) {
     mock_dependencies.expect_build_block(1);
 
     let mut proposal_manager = init_proposal_manager(mock_dependencies);
 
     proposal_manager.start_height(INITIAL_HEIGHT).await.unwrap();
-    build_and_await_block_proposal(&mut proposal_manager, ProposalId(0)).await;
+    build_proposal_and_await_completion(&mut proposal_manager, ProposalId(0)).await;
 }
 
 #[rstest]
 #[tokio::test]
-async fn consecutive_proposal_generations_success(mut mock_dependencies: MockDependencies) {
-    mock_dependencies.expect_build_block(2);
+async fn validate_proposal_success(mut mock_dependencies: MockDependencies) {
+    mock_dependencies.expect_build_block(1);
+
+    let mut proposal_manager = init_proposal_manager(mock_dependencies);
+
+    proposal_manager.start_height(INITIAL_HEIGHT).await.unwrap();
+    validate_proposal_and_await_completion(&mut proposal_manager, ProposalId(0)).await;
+}
+
+#[rstest]
+#[tokio::test]
+async fn consecutive_proposal_generations_and_validations_success(
+    mut mock_dependencies: MockDependencies,
+) {
+    mock_dependencies.expect_build_block(4);
 
     let mut proposal_manager = init_proposal_manager(mock_dependencies);
 
     proposal_manager.start_height(INITIAL_HEIGHT).await.unwrap();
 
-    // Generate two consecutive proposals (awaiting on them to make sure they finished
-    // successfully).
-    build_and_await_block_proposal(&mut proposal_manager, ProposalId(0)).await;
-    build_and_await_block_proposal(&mut proposal_manager, ProposalId(1)).await;
+    // Build and validate multiple proposal consecutively (awaiting on them to
+    // make sure they finished successfully).
+    build_proposal_and_await_completion(&mut proposal_manager, ProposalId(0)).await;
+    build_proposal_and_await_completion(&mut proposal_manager, ProposalId(1)).await;
+    validate_proposal_and_await_completion(&mut proposal_manager, ProposalId(2)).await;
+    validate_proposal_and_await_completion(&mut proposal_manager, ProposalId(3)).await;
 }
 
 // This test checks that trying to generate a proposal while another one is being generated will
@@ -229,7 +282,7 @@ async fn test_take_proposal_result_no_active_proposal(mut mock_dependencies: Moc
 
     proposal_manager.start_height(INITIAL_HEIGHT).await.unwrap();
 
-    build_and_await_block_proposal(&mut proposal_manager, ProposalId(0)).await;
+    build_proposal_and_await_completion(&mut proposal_manager, ProposalId(0)).await;
 
     let expected_proposal_output =
         ProposalOutput::from(BlockExecutionArtifacts::create_for_testing());
@@ -253,7 +306,7 @@ async fn test_abort_and_restart_height(mut mock_dependencies: MockDependencies) 
     let (output_tx_sender, _receiver) = output_streaming();
     let mut proposal_manager = init_proposal_manager(mock_dependencies);
     proposal_manager.start_height(INITIAL_HEIGHT).await.unwrap();
-    build_and_await_block_proposal(&mut proposal_manager, ProposalId(0)).await;
+    build_proposal_and_await_completion(&mut proposal_manager, ProposalId(0)).await;
 
     // Start a new proposal, which will remain active.
     assert!(
