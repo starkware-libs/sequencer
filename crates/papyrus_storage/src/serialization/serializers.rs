@@ -594,6 +594,7 @@ macro_rules! auto_storage_serde {
     ($(pub)? enum $name:ident { $($variant:ident $( ($ty:ty) )? = $num:expr ,)* } $($rest:tt)*) => {
         impl StorageSerde for $name {
             fn serialize_into(&self, res: &mut impl std::io::Write) -> Result<(), StorageSerdeError> {
+                #[allow(clippy::as_conversions)]
                 match self {
                     $(
                         variant!( value, $variant $( ($ty) )?) => {
@@ -765,7 +766,7 @@ impl StorageSerde for u8 {
 // TODO(dan): get rid of usize.
 impl StorageSerde for usize {
     fn serialize_into(&self, res: &mut impl std::io::Write) -> Result<(), StorageSerdeError> {
-        (*self as u64).serialize_into(res)
+        (u64::try_from(*self).expect("usize should fit in u64")).serialize_into(res)
     }
 
     fn deserialize_from(bytes: &mut impl std::io::Read) -> Option<Self> {
@@ -930,7 +931,7 @@ impl StorageSerde for BlockNumber {
     }
 
     fn deserialize_from(bytes: &mut impl std::io::Read) -> Option<Self> {
-        Some(BlockNumber(u32::deserialize_from(bytes)? as u64))
+        Some(BlockNumber(u32::deserialize_from(bytes)?.into()))
     }
 }
 
