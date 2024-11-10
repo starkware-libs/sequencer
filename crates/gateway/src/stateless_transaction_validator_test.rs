@@ -2,6 +2,7 @@ use std::sync::LazyLock;
 use std::vec;
 
 use assert_matches::assert_matches;
+use mempool_test_utils::declare_tx_args;
 use mempool_test_utils::starknet_api_test_utils::{
     rpc_declare_tx,
     rpc_tx_for_testing,
@@ -9,7 +10,6 @@ use mempool_test_utils::starknet_api_test_utils::{
     TransactionType,
     NON_EMPTY_RESOURCE_BOUNDS,
 };
-use mempool_test_utils::{declare_tx_args, rpc_tx_args};
 use rstest::rstest;
 use starknet_api::core::{ContractAddress, EntryPointSelector};
 use starknet_api::rpc_transaction::{ContractClass, EntryPointByType};
@@ -53,7 +53,7 @@ static DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: LazyLock<StatelessTransactionValida
         validate_non_zero_l2_gas_fee: false,
         ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
     },
-    rpc_tx_args!()
+    RpcTransactionArgs::default()
 )]
 #[case::valid_l1_gas(
     StatelessTransactionValidatorConfig {
@@ -61,12 +61,13 @@ static DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: LazyLock<StatelessTransactionValida
         validate_non_zero_l2_gas_fee: false,
         ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
     },
-    rpc_tx_args!(
+    RpcTransactionArgs{
         resource_bounds: AllResourceBounds {
             l1_gas: NON_EMPTY_RESOURCE_BOUNDS,
             ..Default::default()
-        }
-    )
+        },
+        ..Default::default()
+    }
 )]
 #[case::valid_l2_gas(
     StatelessTransactionValidatorConfig {
@@ -74,12 +75,13 @@ static DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: LazyLock<StatelessTransactionValida
         validate_non_zero_l2_gas_fee: true,
         ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
     },
-    rpc_tx_args!(
+    RpcTransactionArgs {
         resource_bounds: AllResourceBounds {
             l2_gas: NON_EMPTY_RESOURCE_BOUNDS,
             ..Default::default()
-        }
-    )
+        },
+        ..Default::default()
+    }
 )]
 #[case::valid_l1_and_l2_gas(
     StatelessTransactionValidatorConfig {
@@ -87,21 +89,22 @@ static DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: LazyLock<StatelessTransactionValida
         validate_non_zero_l2_gas_fee: true,
         ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
     },
-    rpc_tx_args!(
+    RpcTransactionArgs {
         resource_bounds: AllResourceBounds {
             l1_gas: NON_EMPTY_RESOURCE_BOUNDS,
             l2_gas: NON_EMPTY_RESOURCE_BOUNDS,
             ..Default::default()
-        }
-    )
+        },
+        ..Default::default()
+    }
 )]
 #[case::non_empty_valid_calldata(
     DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone(),
-    rpc_tx_args!( calldata: calldata![Felt::ONE])
+    RpcTransactionArgs { calldata: calldata![Felt::ONE], ..Default::default()}
 )]
 #[case::non_empty_valid_signature(
     DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone(),
-    rpc_tx_args!( signature: TransactionSignature(vec![Felt::ONE]))
+    RpcTransactionArgs { signature: TransactionSignature(vec![Felt::ONE]), ..Default::default()}
 )]
 #[case::valid_tx(DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone(), RpcTransactionArgs::default())]
 fn test_positive_flow(
@@ -153,7 +156,8 @@ fn test_invalid_resource_bounds(
 ) {
     let tx_validator = StatelessTransactionValidator { config };
 
-    let tx = rpc_tx_for_testing(tx_type, rpc_tx_args!(resource_bounds));
+    let tx =
+        rpc_tx_for_testing(tx_type, RpcTransactionArgs { resource_bounds, ..Default::default() });
 
     assert_eq!(tx_validator.validate(&tx).unwrap_err(), expected_error);
 }
@@ -164,7 +168,10 @@ fn test_calldata_too_long(
 ) {
     let tx_validator =
         StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone() };
-    let tx = rpc_tx_for_testing(tx_type, rpc_tx_args!(calldata: calldata![Felt::ONE, Felt::TWO]));
+    let tx = rpc_tx_for_testing(
+        tx_type,
+        RpcTransactionArgs { calldata: calldata![Felt::ONE, Felt::TWO], ..Default::default() },
+    );
 
     assert_eq!(
         tx_validator.validate(&tx).unwrap_err(),
@@ -184,7 +191,10 @@ fn test_signature_too_long(
         StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone() };
     let tx = rpc_tx_for_testing(
         tx_type,
-        rpc_tx_args!(signature: TransactionSignature(vec![Felt::ONE, Felt::TWO])),
+        RpcTransactionArgs {
+            signature: TransactionSignature(vec![Felt::ONE, Felt::TWO]),
+            ..Default::default()
+        },
     );
 
     assert_eq!(
@@ -421,7 +431,8 @@ fn test_invalid_contract_address(
     #[case] sender_address: ContractAddress,
     #[values(TransactionType::Declare, TransactionType::Invoke)] tx_type: TransactionType,
 ) {
-    let tx = rpc_tx_for_testing(tx_type, rpc_tx_args!(sender_address));
+    let tx =
+        rpc_tx_for_testing(tx_type, RpcTransactionArgs { sender_address, ..Default::default() });
 
     let tx_validator =
         StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone() };
