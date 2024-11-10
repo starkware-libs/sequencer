@@ -127,12 +127,12 @@ pub struct BroadcastConsensusMessageChannel {
 }
 
 impl From<BroadcastTopicChannels<ConsensusMessage>> for BroadcastConsensusMessageChannel {
-    fn from(broadcast_topic_client: BroadcastTopicChannels<ConsensusMessage>) -> Self {
+    fn from(broadcast_topic_channels: BroadcastTopicChannels<ConsensusMessage>) -> Self {
         BroadcastConsensusMessageChannel {
             broadcasted_messages_receiver: Box::new(
-                broadcast_topic_client.broadcasted_messages_receiver,
+                broadcast_topic_channels.broadcasted_messages_receiver,
             ),
-            broadcast_topic_client: broadcast_topic_client.broadcast_topic_client,
+            broadcast_topic_client: broadcast_topic_channels.broadcast_topic_client,
         }
     }
 }
