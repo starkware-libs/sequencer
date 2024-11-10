@@ -65,6 +65,8 @@ pub const ERC20_CONTRACT_PATH: &str = "./ERC20/ERC20_Cairo0/ERC20_without_some_s
 pub enum CairoVersion {
     Cairo0,
     Cairo1,
+    #[cfg(feature = "cairo_native")]
+    Native,
 }
 
 impl Default for CairoVersion {
@@ -91,6 +93,8 @@ impl CairoVersion {
         match self {
             Self::Cairo0 => Self::Cairo1,
             Self::Cairo1 => Self::Cairo0,
+            #[cfg(feature = "cairo_native")]
+            Self::Native => panic!("There is no other version for native"),
         }
     }
 }
@@ -117,6 +121,8 @@ impl CompilerBasedVersion {
                 TrackedResource::CairoSteps
             }
             Self::CairoVersion(CairoVersion::Cairo1) => TrackedResource::SierraGas,
+            #[cfg(feature = "cairo_native")]
+            Self::CairoVersion(CairoVersion::Native) => TrackedResource::SierraGas,
         }
     }
 }
@@ -319,8 +325,6 @@ macro_rules! check_tx_execution_error_for_custom_hint {
 #[macro_export]
 macro_rules! check_tx_execution_error_for_invalid_scenario {
     ($cairo_version:expr, $error:expr, $validate_constructor:expr $(,)?) => {
-        use $crate::transaction::errors::TransactionExecutionError;
-
         match $cairo_version {
             CairoVersion::Cairo0 => {
                 $crate::check_tx_execution_error_inner!(
@@ -329,8 +333,22 @@ macro_rules! check_tx_execution_error_for_invalid_scenario {
                     $validate_constructor,
                 );
             }
-            CairoVersion::Cairo1 => {
-                if let TransactionExecutionError::ValidateTransactionError { error, .. } = $error {
+            CairoVersion::Cairo1  => {
+                if let $crate::transaction::errors::TransactionExecutionError::ValidateTransactionError {
+                    error, ..
+                } = $error {
+                    assert_eq!(
+                        error.to_string(),
+                        "Execution failed. Failure reason: 0x496e76616c6964207363656e6172696f \
+                         ('Invalid scenario')."
+                    )
+                }
+            }
+            #[cfg(feature = "cairo_native")]
+            CairoVersion::Native   => {
+                if let $crate::transaction::errors::TransactionExecutionError::ValidateTransactionError {
+                    error, ..
+                } = $error {
                     assert_eq!(
                         error.to_string(),
                         "Execution failed. Failure reason: 0x496e76616c6964207363656e6172696f \
