@@ -205,8 +205,8 @@ impl ProposalManagerTrait for ProposalManager {
         &self,
         proposal_id: ProposalId,
     ) -> ProposalResult<ProposalCommitment> {
-        let g = self.executed_proposals.lock().await;
-        let output = g
+        let proposals = self.executed_proposals.lock().await;
+        let output = proposals
             .get(&proposal_id)
             .ok_or(GetProposalResultError::ProposalDoesNotExist { proposal_id })?;
         match output {
