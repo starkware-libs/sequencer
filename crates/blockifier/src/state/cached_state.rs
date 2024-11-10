@@ -684,9 +684,16 @@ impl StateChangesKeys {
 pub struct AllocatedKeys(HashSet<StorageEntry>);
 
 impl AllocatedKeys {
+    /// Extend the set of allocated keys with the allocated_keys of the given state changes.
+    /// Remove storage keys that are set back to zero.
     pub fn update(&mut self, state_change: &StateChanges) {
         self.0.extend(&state_change.allocated_keys.0);
-        // TODO: Remove keys that are set back to zero.
+        // Remove keys that are set back to zero.
+        state_change.state_maps.storage.iter().for_each(|(k, v)| {
+            if v == &Felt::ZERO {
+                self.0.remove(k);
+            }
+        });
     }
 
     pub fn len(&self) -> usize {
@@ -699,12 +706,22 @@ impl AllocatedKeys {
 
     /// Collect entries that turn zero -> nonzero.
     pub fn from_storage_diff(
-        _updated_storage: &HashMap<StorageEntry, Felt>,
-        _base_storage: &HashMap<StorageEntry, Felt>,
+        updated_storage: &HashMap<StorageEntry, Felt>,
+        base_storage: &HashMap<StorageEntry, Felt>,
     ) -> Self {
         Self(
-            HashSet::new(),
-            // TODO: Calculate the difference between the updated_storage and the base_storage.
+            updated_storage
+                .iter()
+                .filter_map(|(k, v)| {
+                    let base_value = base_storage.get(k);
+                    if *v != Felt::ZERO && (base_value.is_none() || base_value == Some(&Felt::ZERO))
+                    {
+                        Some(*k)
+                    } else {
+                        None
+                    }
+                })
+                .collect(),
         )
     }
 }
