@@ -9,7 +9,7 @@ from typing import Dict, Any, Optional
 from services.service import Service
 from config.sequencer import Config, SequencerDevConfig
 from services.objects import (
-    HealthCheck, ServiceType, Probe, PersistentVolumeClaim
+    HealthCheck, ServiceType, Probe, PersistentVolumeClaim, PortMappings
 )
 from services import defaults
 
@@ -19,8 +19,7 @@ class SystemStructure:
     topology: str = "mesh"
     replicas: str = "2"
     size: str = "small"
-    config: Config = SequencerDevConfig()
-    health_check: Optional[HealthCheck] = None
+    config: Optional[Config] = None
 
     def __post_init__(self):
         self.config.validate()
@@ -40,15 +39,15 @@ class SequencerNode(Chart):
         self.service = Service(
             self,
             "sequencer-node",
-            image="",
+            image="us.gcr.io/starkware-dev/sequencer-node:0.0.3",
             port_mappings=[
-                {"port": 80, "container_port": 8080},
-                {"port": 8081, "container_port": 8081},
-                {"port": 8082, "container_port": 8082}
+                PortMappings(name="http", port=80, container_port=8080),
+                PortMappings(name="rpc", port=8081, container_port=8081),
+                PortMappings(name="monitoring", port=8082, container_port=8082)
             ],
             service_type=ServiceType.CLUSTER_IP,
             replicas=1,
-            config=config.get(),
+            config=config,
             health_check=HealthCheck(
                 startup_probe=Probe(port=8082, path="/monitoring/NodeVersion", period_seconds=10, failure_threshold=10, timeout_seconds=5),
                 readiness_probe=Probe(port=8082, path="/monitoring/ready", period_seconds=10, failure_threshold=5, timeout_seconds=5),
@@ -81,46 +80,32 @@ class SequencerSystem(Chart):
             "mempool",
             image="paulbouwer/hello-kubernetes:1.7",
             replicas=2,
-            config=system_structure.config.get(),
+            config=system_structure.config,
             health_check=defaults.health_check
         )
         self.batcher = Service(
             self, 
             "batcher", 
-            image="ghost", 
-            container_port=2368, 
+            image="ghost",
+            port_mappings=[{"port": 80, "container_port": 2368}],
             health_check=defaults.health_check
-        )
-        self.sequencer_node = Service(
-            self, 
-            "sequencer-node", 
-            image="",
-            container_port=8082,
-            replicas=1,
-            config=system_structure.config.get(),
-            service_type=ServiceType.CLUSTER_IP,
-            health_check=HealthCheck(
-                startup_probe=Probe(port="http", path="/monitoring/NodeVersion", period_seconds=10, failure_threshold=10, timeout_seconds=5),
-                readiness_probe=Probe(port="http", path="/monitoring/ready", period_seconds=10, failure_threshold=5, timeout_seconds=5),
-                liveness_probe=Probe(port="http", path="/monitoring/alive", period_seconds=10, failure_threshold=5, timeout_seconds=5)
-            )
         )
 
 
 app = App(
-    yaml_output_type=YamlOutputType.FILE_PER_RESOURCE
+    yaml_output_type=YamlOutputType.FOLDER_PER_CHART_FILE_PER_RESOURCE
 )
 sequencer_node = SequencerNode(
     scope=app,
     name="sequencer-node",
     namespace="sequencer",
-    config=SequencerDevConfig()
+    config=SequencerDevConfig(mount_path="/app/config")
 )
-# a = SequencerSystem(
-#     scope=app,
-#     name="sequencer-system",
-#     namespace="test-namespace",
-#     system_structure=SystemStructure(),
-# )
+a = SequencerSystem(
+    scope=app,
+    name="sequencer-system",
+    namespace="test-namespace",
+    system_structure=SystemStructure(config=SequencerDevConfig(mount_path="/app/config")),
+)
 
 app.synth()

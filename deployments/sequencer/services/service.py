@@ -1,11 +1,11 @@
 import json
 
-from typing import Optional, Dict
+from typing import Optional, List
 from constructs import Construct
 from cdk8s import Names
 from imports import k8s
 
-from services.objects import HealthCheck, ServiceType, PersistentVolumeClaim
+from services.objects import *
 
 
 class Service(Construct):
@@ -17,8 +17,8 @@ class Service(Construct):
         image: str,
         replicas: int = 1,
         service_type: Optional[ServiceType] = None,
-        port_mappings: Optional[list[Dict[str, int]]] = None,
-        config: Optional[Dict[str, str]] = None,
+        port_mappings: Optional[List[PortMappings]] = None,
+        config: Optional[Config] = None,
         health_check: Optional[HealthCheck] = None,
         pvc: Optional[PersistentVolumeClaim] = None
     ):
@@ -34,7 +34,8 @@ class Service(Construct):
                     type=service_type.value if service_type is not None else None,
                     ports=[
                         k8s.ServicePort(
-                            port=port_map["port"],
+                            name=port_map.get("name"),
+                            port=port_map.get("port"),
                             target_port=k8s.IntOrString.from_number(port_map.get("container_port")),
                         ) for port_map in port_mappings
                     ],
@@ -46,7 +47,7 @@ class Service(Construct):
             k8s.KubeConfigMap(
                 self,
                 "config",
-                data=dict(config=json.dumps(config)),
+                data=dict(config=json.dumps(config.get())),
             )
 
         k8s.KubeDeployment(
@@ -60,7 +61,7 @@ class Service(Construct):
                     spec=k8s.PodSpec(
                         containers=[
                             k8s.Container(
-                                name="web",
+                                name="sequencer",
                                 image=image,
                                 ports=[k8s.ContainerPort(container_port=port_map.get("container_port")) for port_map in port_mappings or []],
                                 startup_probe=k8s.Probe(
@@ -103,7 +104,7 @@ class Service(Construct):
                                     mount for mount in [
                                         k8s.VolumeMount(
                                             name=f"{self.node.id}-config",
-                                            mount_path="/",
+                                            mount_path=config.mount_path,
                                             read_only=True
                                         ) if config is not None else None,
 

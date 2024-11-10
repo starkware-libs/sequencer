@@ -1,12 +1,12 @@
 import dataclasses
 
-from typing import Optional, Union
+from typing import Optional, Dict, Any, TypedDict
 from enum import Enum
 
 
 @dataclasses.dataclass
 class Probe:
-    port: Union[int, str]
+    port: int | str
     path: str
     period_seconds: int
     failure_threshold: int
@@ -33,11 +33,29 @@ class ServiceType(Enum):
 
 @dataclasses.dataclass
 class PersistentVolumeClaim:
-    storage_class_name: str = None
-    access_modes: list[str] = None
-    volume_mode: str = None
-    storage: str = None
+    storage_class_name: str | None = None
+    access_modes: list[str] | None = None
+    volume_mode: str | None = None
+    storage: str | None = None
     read_only: bool = True
-    mount_path: str = None
+    mount_path: str | None = None
 
 
+@dataclasses.dataclass
+class Config():
+    schema: Dict[Any, Any]
+    config: Dict[Any, Any]
+    mount_path: str
+
+    def get(self):
+        return self.config
+
+    def validate(self):
+        pass
+
+
+@dataclasses.dataclass
+class PortMappings(TypedDict):
+    name: str
+    port: int
+    container_port: int
