@@ -23,7 +23,7 @@ use crate::block_builder::{
     BlockExecutionArtifacts,
     BlockMetadata,
 };
-use crate::transaction_provider::ProposeTransactionProvider;
+use crate::transaction_provider::{ProposeTransactionProvider, ValidateTransactionProvider};
 
 #[derive(Debug, Error)]
 pub enum StartHeightError {
@@ -85,6 +85,16 @@ pub trait ProposalManagerTrait: Send + Sync {
         deadline: tokio::time::Instant,
         tx_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
         tx_provider: ProposeTransactionProvider,
+    ) -> Result<(), GenerateProposalError>;
+
+    // TODO: delete allow dead code once the batcher uses this code.
+    #[allow(dead_code)]
+    async fn validate_block_proposal(
+        &mut self,
+        proposal_id: ProposalId,
+        retrospective_block_hash: Option<BlockHashAndNumber>,
+        deadline: tokio::time::Instant,
+        tx_provider: ValidateTransactionProvider,
     ) -> Result<(), GenerateProposalError>;
 
     async fn take_proposal_result(
@@ -185,6 +195,37 @@ impl ProposalManagerTrait for ProposalManager {
             BlockBuilderExecutionParams { deadline, fail_on_err: false },
             Box::new(tx_provider),
             Some(tx_sender.clone()),
+            abort_signal_receiver,
+        )?;
+
+        self.spawn_build_block_task(proposal_id, block_builder).await;
+
+        Ok(())
+    }
+
+    /// Starts validation of a block proposal for the given proposal_id and height with
+    /// transactions from tx_receiver channel.
+    #[instrument(skip(self, tx_provider), err, fields(self.active_height))]
+    async fn validate_block_proposal(
+        &mut self,
+        proposal_id: ProposalId,
+        retrospective_block_hash: Option<BlockHashAndNumber>,
+        deadline: tokio::time::Instant,
+        tx_provider: ValidateTransactionProvider,
+    ) -> Result<(), GenerateProposalError> {
+        self.set_active_proposal(proposal_id).await?;
+
+        info!("Starting validation of proposal with id {}.", proposal_id);
+
+        // Create the block builder, and a channel to allow aborting the block building task.
+        let (_abort_signal_sender, abort_signal_receiver) = tokio::sync::oneshot::channel();
+        let height = self.active_height.expect("No active height.");
+
+        let block_builder = self.block_builder_factory.create_block_builder(
+            BlockMetadata { height, retrospective_block_hash },
+            BlockBuilderExecutionParams { deadline, fail_on_err: true },
+            Box::new(tx_provider),
+            None,
             abort_signal_receiver,
         )?;
 
