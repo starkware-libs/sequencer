@@ -25,11 +25,12 @@ class BaseCommand(Enum):
 
     def cmd(self, crates: Set[str]) -> List[str]:
         package_args = []
+        operands = ["--", "-Dwarning"]  # "--" must be the first element.
         for package in crates:
             package_args.extend(["--package", package])
 
         if self == BaseCommand.TEST:
-            return ["cargo", "test"] + package_args
+            return ["cargo", "test"] + package_args + operands
         elif self == BaseCommand.CODECOV:
             return [
                 "cargo",
@@ -40,14 +41,19 @@ class BaseCommand(Enum):
                 "codecov.json",
             ] + package_args
         elif self == BaseCommand.RUSTFMT:
+            operands += ["--check"]
             fmt_args = package_args if len(package_args) > 0 else ["--all"]
-            return ["scripts/rust_fmt.sh"] + fmt_args + ["--", "--check"]
+            return ["scripts/rust_fmt.sh"] + fmt_args + operands
         elif self == BaseCommand.CLIPPY:
             clippy_args = package_args if len(package_args) > 0 else ["--workspace"]
-            return ["scripts/clippy.sh"] + clippy_args
+            return ["cargo", "clippy"] + clippy_args + operands
         elif self == BaseCommand.DOC:
             doc_args = package_args if len(package_args) > 0 else ["--workspace"]
-            return ["cargo", "doc", "-r", "--document-private-items", "--no-deps"] + doc_args
+            return (
+                ["cargo", "doc", "-r", "--document-private-items", "--no-deps"]
+                + doc_args
+                + operands
+            )
 
         raise NotImplementedError(f"Command {self} not implemented.")
 
