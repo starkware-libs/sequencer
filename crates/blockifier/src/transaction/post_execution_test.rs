@@ -283,7 +283,7 @@ fn test_revert_on_resource_overuse(
     // We need this kind of invocation, to be able to test the specific scenario: the resource
     // bounds must be enough to allow completion of the transaction, and yet must still fail
     // post-execution bounds check.
-    let execution_info_measure = run_invoke_tx(
+    let mut execution_info_measure = run_invoke_tx(
         &mut state,
         &block_context,
         invoke_tx_args! {
@@ -331,6 +331,17 @@ fn test_revert_on_resource_overuse(
     .unwrap();
     assert_eq!(execution_info_tight.revert_error, None);
     assert_eq!(execution_info_tight.receipt.fee, actual_fee);
+    // The only difference between the two executions should be the number of allocated keys, as the
+    // second execution writes to the same keys as the first.
+    let n_allocated_keys = &mut execution_info_measure
+        .receipt
+        .resources
+        .starknet_resources
+        .state
+        .state_changes_for_fee
+        .n_allocated_keys;
+    assert_eq!(n_allocated_keys, &usize::from(n_writes));
+    *n_allocated_keys = 0;
     assert_eq!(execution_info_tight.receipt.resources, execution_info_measure.receipt.resources);
 
     // Re-run the same function with max bounds slightly below the actual usage, and verify it's
