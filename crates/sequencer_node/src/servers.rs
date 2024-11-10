@@ -188,18 +188,10 @@ fn create_wrapper_servers(
         components.monitoring_endpoint
     );
 
-    let mempool_p2p_runner_server = match config.components.mempool_p2p.execution_mode {
-        ComponentExecutionMode::LocalExecutionWithRemoteDisabled
-        | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            Some(Box::new(MempoolP2pRunnerServer::new(
-                components
-                    .mempool_p2p_runner
-                    .take()
-                    .expect("Mempool P2P Runner is not initialized."),
-            )))
-        }
-        ComponentExecutionMode::Disabled => None,
-    };
+    let mempool_p2p_runner_server = create_wrapper_server!(
+        &config.components.mempool_p2p.execution_mode,
+        components.mempool_p2p_runner
+    );
     WrapperServers {
         consensus_manager: consensus_manager_server,
         http_server,
