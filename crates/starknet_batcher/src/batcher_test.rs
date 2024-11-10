@@ -41,7 +41,7 @@ use crate::proposal_manager::{
     StartHeightError,
 };
 use crate::test_utils::test_txs;
-use crate::transaction_provider::ProposeTransactionProvider;
+use crate::transaction_provider::{ProposeTransactionProvider, ValidateTransactionProvider};
 
 const INITIAL_HEIGHT: BlockNumber = BlockNumber(3);
 const STREAMING_CHUNK_SIZE: usize = 3;
@@ -254,6 +254,14 @@ trait ProposalManagerTraitWrapper: Send + Sync {
         tx_provider: ProposeTransactionProvider,
     ) -> BoxFuture<'_, Result<(), GenerateProposalError>>;
 
+    fn wrap_validate_block_proposal(
+        &mut self,
+        proposal_id: ProposalId,
+        retrospective_block_hash: Option<BlockHashAndNumber>,
+        deadline: tokio::time::Instant,
+        tx_provider: ValidateTransactionProvider,
+    ) -> BoxFuture<'_, Result<(), GenerateProposalError>>;
+
     fn wrap_take_proposal_result(
         &mut self,
         proposal_id: ProposalId,
@@ -286,6 +294,22 @@ impl<T: ProposalManagerTraitWrapper> ProposalManagerTrait for T {
             retrospective_block_hash,
             deadline,
             output_content_sender,
+            tx_provider,
+        )
+        .await
+    }
+
+    async fn validate_block_proposal(
+        &mut self,
+        proposal_id: ProposalId,
+        retrospective_block_hash: Option<BlockHashAndNumber>,
+        deadline: tokio::time::Instant,
+        tx_provider: ValidateTransactionProvider,
+    ) -> Result<(), GenerateProposalError> {
+        self.wrap_validate_block_proposal(
+            proposal_id,
+            retrospective_block_hash,
+            deadline,
             tx_provider,
         )
         .await
