@@ -34,7 +34,7 @@ impl Default for MempoolConfig {
     }
 }
 
-type AccountToNonce = HashMap<ContractAddress, Nonce>;
+type AddressToNonce = HashMap<ContractAddress, Nonce>;
 
 #[derive(Debug, Default)]
 pub struct Mempool {
@@ -45,9 +45,9 @@ pub struct Mempool {
     // Transactions eligible for sequencing.
     tx_queue: TransactionQueue,
     // Represents the state of the mempool during block creation.
-    mempool_state: AccountToNonce,
+    mempool_state: AddressToNonce,
     // The most recent account nonces received, for all account in the pool.
-    account_nonces: AccountToNonce,
+    account_nonces: AddressToNonce,
 }
 
 impl Mempool {
