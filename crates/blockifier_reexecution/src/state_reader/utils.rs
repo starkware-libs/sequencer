@@ -199,7 +199,7 @@ pub fn reexecute_and_verify_correctness<
     let all_txs_in_next_block = consecutive_state_readers.get_next_block_txs().unwrap();
 
     let mut transaction_executor =
-        consecutive_state_readers.get_transaction_executor(None).unwrap();
+        consecutive_state_readers.pre_process_and_create_executor(None).unwrap();
 
     transaction_executor.execute_txs(&all_txs_in_next_block);
     // Finalize block and read actual statediff.
