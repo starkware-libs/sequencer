@@ -64,6 +64,7 @@ pub enum TransactionType {
     Invoke,
 }
 
+/// Transaction arguments used for the function [rpc_tx_for_testing].
 #[derive(Clone)]
 pub struct RpcTransactionArgs {
     pub sender_address: ContractAddress,
@@ -81,23 +82,6 @@ impl Default for RpcTransactionArgs {
             signature: Default::default(),
         }
     }
-}
-
-/// Utility macro for creating `RpcTransactionArgs` to reduce boilerplate.
-#[macro_export]
-macro_rules! rpc_tx_args {
-    ($($field:ident $(: $value:expr)?),* $(,)?) => {
-        $crate::starknet_api_test_utils::RpcTransactionArgs {
-            $($field $(: $value)?,)*
-            ..Default::default()
-        }
-    };
-    ($($field:ident $(: $value:expr)?),* , ..$defaults:expr) => {
-        $crate::starknet_api_test_utils::RpcTransactionArgs {
-            $($field $(: $value)?,)*
-            ..$defaults
-        }
-    };
 }
 
 pub fn rpc_tx_for_testing(
