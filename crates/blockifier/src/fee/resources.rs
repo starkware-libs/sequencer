@@ -142,6 +142,7 @@ impl StarknetResources {
 #[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct StateResources {
+    /// The state changes takes into account the allocated aliases.
     state_changes_for_fee: StateChangesCount,
     pub n_allocated_aliases: usize,
 }
@@ -153,11 +154,10 @@ impl StateResources {
         fee_token_address: ContractAddress,
         n_allocated_aliases: usize,
     ) -> Self {
-        Self {
-            state_changes_for_fee: state_changes
-                .count_for_fee_charge(sender_address, fee_token_address),
-            n_allocated_aliases,
-        }
+        let mut state_changes_for_fee =
+            state_changes.count_for_fee_charge(sender_address, fee_token_address);
+        state_changes_for_fee.n_storage_updates += n_allocated_aliases;
+        Self { state_changes_for_fee, n_allocated_aliases }
     }
 
     #[cfg(any(test, feature = "testing"))]
