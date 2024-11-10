@@ -43,7 +43,7 @@ use crate::fee::fee_utils::{
 use crate::fee::gas_usage::estimate_minimal_gas_vector;
 use crate::fee::receipt::TransactionReceipt;
 use crate::retdata;
-use crate::state::cached_state::{CachedState, StateChanges, TransactionalState};
+use crate::state::cached_state::{StateChanges, TransactionalState};
 use crate::state::state_api::{State, StateReader, StateResult, UpdatableState};
 use crate::transaction::constants;
 use crate::transaction::errors::{
@@ -599,7 +599,7 @@ impl AccountTransaction {
 
         let state_changes = state.get_actual_state_changes()?;
         let n_allocated_leaves_for_fee =
-            self.n_charged_aliases(tx_context.clone(), state, &state_changes)?;
+            self.n_charged_aliases(tx_context.clone(), &state.state, &state_changes)?;
         let tx_receipt = TransactionReceipt::from_account_tx(
             self,
             &tx_context,
@@ -683,7 +683,7 @@ impl AccountTransaction {
                 let execution_state_changes = execution_state.get_actual_state_changes()?;
                 let n_allocated_leaves_for_fee = self.n_charged_aliases(
                     tx_context.clone(),
-                    &execution_state,
+                    &execution_state.state,
                     &execution_state_changes,
                 )?;
                 // When execution succeeded, calculate the actual required fee before committing the
@@ -788,7 +788,7 @@ impl AccountTransaction {
     fn n_charged_aliases<S: StateReader>(
         &self,
         tx_context: Arc<TransactionContext>,
-        state: &CachedState<S>,
+        base_state: &S,
         state_changes: &StateChanges,
     ) -> StateResult<usize> {
         if tx_context.as_ref().block_context.versioned_constants.enable_stateful_compression {
@@ -798,7 +798,7 @@ impl AccountTransaction {
                 // Charge for introducing a new contract address.
                 ExecutableAccountTransaction::DeployAccount(_) => 1,
                 ExecutableAccountTransaction::Invoke(_) => {
-                    n_charged_invoke_aliases(state, state_changes)?
+                    n_charged_invoke_aliases(base_state, state_changes)?
                 }
             })
         } else {
