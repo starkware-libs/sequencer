@@ -1498,7 +1498,7 @@ fn test_declare_tx(
     let sender_address = account.get_instance_address(0);
     let mut nonce_manager = NonceManager::default();
     let state_changes_for_fee = declare_expected_state_changes_count(tx_version);
-    let starknet_resources = StarknetResources::new(
+    let mut starknet_resources = StarknetResources::new(
         0,
         0,
         class_info.code_size(),
@@ -1506,6 +1506,7 @@ fn test_declare_tx(
         None,
         ExecutionSummary::default(),
     );
+    starknet_resources.state.n_allocated_aliases = 1; // Declare tx.
     let account_tx = declare_tx(
         declare_tx_args! {
             max_fee: MAX_FEE,

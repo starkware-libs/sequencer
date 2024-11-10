@@ -33,6 +33,7 @@ struct TransactionReceiptParameters<'a> {
     execution_resources: &'a ExecutionResources,
     tx_type: TransactionType,
     reverted_steps: usize,
+    n_allocated_aliases: usize,
 }
 
 // TODO(Gilad): Use everywhere instead of passing the `actual_{fee,resources}` tuple, which often
@@ -61,13 +62,19 @@ impl TransactionReceipt {
             execution_resources,
             tx_type,
             reverted_steps,
+            n_allocated_aliases,
         } = tx_receipt_params;
 
         let starknet_resources = StarknetResources::new(
             calldata_length,
             signature_length,
             code_size,
-            StateResources::new(state_changes, sender_address, tx_context.fee_token_address()),
+            StateResources::new(
+                state_changes,
+                sender_address,
+                tx_context.fee_token_address(),
+                n_allocated_aliases,
+            ),
             l1_handler_payload_size,
             execution_summary_without_fee_transfer,
         );
@@ -128,6 +135,7 @@ impl TransactionReceipt {
             execution_resources,
             tx_type: TransactionType::L1Handler,
             reverted_steps: 0,
+            n_allocated_aliases: 0,
         })
     }
 
@@ -139,6 +147,7 @@ impl TransactionReceipt {
         execution_resources: &'a ExecutionResources,
         execution_summary_without_fee_transfer: ExecutionSummary,
         reverted_steps: usize,
+        n_allocated_aliases: usize,
     ) -> Self {
         Self::from_params(TransactionReceiptParameters {
             tx_context,
@@ -152,6 +161,7 @@ impl TransactionReceipt {
             execution_resources,
             tx_type: account_tx.tx_type(),
             reverted_steps,
+            n_allocated_aliases,
         })
     }
 }

@@ -143,6 +143,7 @@ impl StarknetResources {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct StateResources {
     state_changes_for_fee: StateChangesCount,
+    pub n_allocated_aliases: usize,
 }
 
 impl StateResources {
@@ -150,16 +151,18 @@ impl StateResources {
         state_changes: &StateChanges,
         sender_address: Option<ContractAddress>,
         fee_token_address: ContractAddress,
+        n_allocated_aliases: usize,
     ) -> Self {
         Self {
             state_changes_for_fee: state_changes
                 .count_for_fee_charge(sender_address, fee_token_address),
+            n_allocated_aliases,
         }
     }
 
     #[cfg(any(test, feature = "testing"))]
     pub fn new_for_testing(state_changes_for_fee: StateChangesCount) -> Self {
-        Self { state_changes_for_fee }
+        Self { state_changes_for_fee, n_allocated_aliases: 0 }
     }
 
     /// Returns the gas cost of the transaction's state changes.
