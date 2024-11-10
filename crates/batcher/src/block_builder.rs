@@ -77,41 +77,47 @@ pub struct BlockExecutionArtifacts {
 #[cfg_attr(test, automock)]
 #[async_trait]
 pub trait BlockBuilderTrait: Send {
-    async fn build_block(
-        &self,
-        deadline: tokio::time::Instant,
-        tx_provider: Box<dyn TransactionProvider>,
-        output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<Transaction>>,
-        fail_on_err: bool,
-    ) -> BlockBuilderResult<BlockExecutionArtifacts>;
+    async fn build_block(&mut self) -> BlockBuilderResult<BlockExecutionArtifacts>;
 }
 
 pub struct BlockBuilder {
     // TODO(Yael 14/10/2024): make the executor thread safe and delete this mutex.
     executor: Mutex<Box<dyn TransactionExecutorTrait>>,
     tx_chunk_size: usize,
+    deadline: tokio::time::Instant,
+    tx_provider: Box<dyn TransactionProvider>,
+    output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<Transaction>>,
+    fail_on_err: bool,
 }
 
 impl BlockBuilder {
-    pub fn new(executor: Box<dyn TransactionExecutorTrait>, tx_chunk_size: usize) -> Self {
-        Self { executor: Mutex::new(executor), tx_chunk_size }
+    pub fn new(
+        executor: Box<dyn TransactionExecutorTrait>,
+        tx_chunk_size: usize,
+        deadline: tokio::time::Instant,
+        tx_provider: Box<dyn TransactionProvider>,
+        output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<Transaction>>,
+        fail_on_err: bool,
+    ) -> Self {
+        Self {
+            executor: Mutex::new(executor),
+            tx_chunk_size,
+            deadline,
+            tx_provider,
+            output_content_sender,
+            fail_on_err,
+        }
     }
 }
 
 #[async_trait]
 impl BlockBuilderTrait for BlockBuilder {
-    async fn build_block(
-        &self,
-        deadline: tokio::time::Instant,
-        mut tx_provider: Box<dyn TransactionProvider>,
-        output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<Transaction>>,
-        fail_on_err: bool,
-    ) -> BlockBuilderResult<BlockExecutionArtifacts> {
+    async fn build_block(&mut self) -> BlockBuilderResult<BlockExecutionArtifacts> {
         let mut block_is_full = false;
         let mut execution_infos = IndexMap::new();
         // TODO(yael 6/10/2024): delete the timeout condition once the executor has a timeout
-        while !block_is_full && tokio::time::Instant::now() < deadline {
-            let next_txs = tx_provider.get_txs(self.tx_chunk_size).await?;
+        while !block_is_full && tokio::time::Instant::now() < self.deadline {
+            let next_txs = self.tx_provider.get_txs(self.tx_chunk_size).await?;
             let next_tx_chunk = match next_txs {
                 NextTxs::Txs(txs) => txs,
                 NextTxs::End => break,
@@ -134,8 +140,8 @@ impl BlockBuilderTrait for BlockBuilder {
                 next_tx_chunk,
                 results,
                 &mut execution_infos,
-                &output_content_sender,
-                fail_on_err,
+                &self.output_content_sender,
+                self.fail_on_err,
             )
             .await?;
         }
@@ -190,6 +196,10 @@ pub trait BlockBuilderFactoryTrait {
         &self,
         height: BlockNumber,
         retrospective_block_hash: Option<BlockHashAndNumber>,
+        deadline: tokio::time::Instant,
+        tx_provider: Box<dyn TransactionProvider>,
+        output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<Transaction>>,
+        fail_on_err: bool,
     ) -> BlockBuilderResult<Box<dyn BlockBuilderTrait>>;
 }
 
@@ -313,9 +323,20 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
         &self,
         height: BlockNumber,
         retrospective_block_hash: Option<BlockHashAndNumber>,
+        deadline: tokio::time::Instant,
+        tx_provider: Box<dyn TransactionProvider>,
+        output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<Transaction>>,
+        fail_on_err: bool,
     ) -> BlockBuilderResult<Box<dyn BlockBuilderTrait>> {
         let executor =
             self.preprocess_and_create_transaction_executor(height, retrospective_block_hash)?;
-        Ok(Box::new(BlockBuilder::new(Box::new(executor), self.block_builder_config.tx_chunk_size)))
+        Ok(Box::new(BlockBuilder::new(
+            Box::new(executor),
+            self.block_builder_config.tx_chunk_size,
+            deadline,
+            tx_provider,
+            output_content_sender,
+            fail_on_err,
+        )))
     }
 }

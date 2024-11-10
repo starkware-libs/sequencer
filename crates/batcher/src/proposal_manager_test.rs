@@ -48,14 +48,14 @@ impl MockDependencies {
             let mut mock_block_builder = MockBlockBuilderTrait::new();
             mock_block_builder
                 .expect_build_block()
-                .return_once(move |_, _, _, _| Ok(BlockExecutionArtifacts::create_for_testing()));
+                .return_once(move || Ok(BlockExecutionArtifacts::create_for_testing()));
             Ok(Box::new(mock_block_builder))
         };
 
         self.block_builder_factory
             .expect_create_block_builder()
             .times(times)
-            .returning(move |_, _| simulate_build_block());
+            .returning(move |_, _, _, _, _, _| simulate_build_block());
     }
 
     // This function simulates a long build block operation. This is required for a test that
@@ -63,7 +63,7 @@ impl MockDependencies {
     fn expect_long_build_block(&mut self, times: usize) {
         let simulate_long_build_block = || -> BlockBuilderResult<Box<dyn BlockBuilderTrait>> {
             let mut mock_block_builder = MockBlockBuilderTrait::new();
-            mock_block_builder.expect_build_block().return_once(move |_, _, _, _| {
+            mock_block_builder.expect_build_block().return_once(move || {
                 std::thread::sleep(BLOCK_GENERATION_TIMEOUT * 10);
                 Ok(BlockExecutionArtifacts::create_for_testing())
             });
@@ -73,7 +73,7 @@ impl MockDependencies {
         self.block_builder_factory
             .expect_create_block_builder()
             .times(times)
-            .returning(move |_, _| simulate_long_build_block());
+            .returning(move |_, _, _, _, _, _| simulate_long_build_block());
     }
 }
 
