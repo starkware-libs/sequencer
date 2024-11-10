@@ -1,11 +1,11 @@
 use blockifier_reexecution::state_reader::test_state_reader::{
     ConsecutiveTestStateReaders,
     OfflineConsecutiveStateReaders,
-    SerializableDataPrevBlock,
-    SerializableOfflineReexecutionData,
 };
 use blockifier_reexecution::state_reader::utils::{
+    get_block_numbers_for_reexecution,
     reexecute_and_verify_correctness,
+    write_block_reexecution_data_to_file,
     JSON_RPC_VERSION,
 };
 use clap::{Args, Parser, Subcommand};
@@ -46,11 +46,29 @@ enum Command {
         #[clap(long, short = 'b')]
         block_number: u64,
 
-        // Directory path to json files. Default:
-        // "./crates/blockifier_reexecution/resources/block_{block_number}".
+        // Directory path to json file. Default:
+        // "./crates/blockifier_reexecution/resources/block_{block_number}/reexecution_data.json".
         // TODO(Aner): add possibility to retrieve files from gc bucket.
         #[clap(long, short = 'd', default_value = None)]
         full_file_path: Option<String>,
+    },
+
+    /// Writes the RPC queries of all (selected) blocks to json files.
+    WriteAll {
+        /// Node url.
+        #[clap(long, short = 'n')]
+        node_url: String,
+
+        /// Block numbers. If not specified, blocks are retrieved from
+        /// get_block_numbers_for_reexecution().
+        #[clap(long, short = 'b', num_args = 0..)]
+        block_numbers: Vec<u64>,
+
+        // Directory path to json files directory. Default:
+        // "./crates/blockifier_reexecution/resources".
+        // TODO(Aner): add possibility to retrieve files from gc bucket.
+        #[clap(long, short = 'd', default_value = None)]
+        directory_path: Option<String>,
     },
 
     // Reexecutes the block from JSON files.
@@ -60,7 +78,7 @@ enum Command {
         block_number: u64,
 
         // Directory path to json files. Default:
-        // "./crates/blockifier_reexecution/resources/block_{block_number}".
+        // "./crates/blockifier_reexecution/resources/block_{block_number}/reexecution_data.json".
         // TODO(Aner): add possibility to retrieve files from gc bucket.
         #[clap(long, short = 'd', default_value = None)]
         full_file_path: Option<String>,
@@ -71,6 +89,7 @@ enum Command {
 struct GlobalOptions {}
 
 /// Main entry point of the blockifier reexecution CLI.
+/// TODO(Aner): Add concurrency to the reexecution tests (using tokio).
 fn main() {
     let args = BlockifierReexecutionCliArgs::parse();
 
@@ -100,42 +119,35 @@ fn main() {
                  json"
             ));
 
-            // TODO(Aner): refactor to reduce code duplication.
-            let config = RpcStateReaderConfig {
-                url: node_url,
-                json_rpc_version: JSON_RPC_VERSION.to_string(),
-            };
-
-            let consecutive_state_readers =
-                ConsecutiveTestStateReaders::new(BlockNumber(block_number - 1), Some(config), true);
-
-            let serializable_data_next_block =
-                consecutive_state_readers.get_serializable_data_next_block().unwrap();
-
-            let old_block_hash = consecutive_state_readers.get_old_block_hash().unwrap();
-
-            // Run the reexecution test and get the state maps and contract class mapping.
-            let block_state = reexecute_and_verify_correctness(consecutive_state_readers).unwrap();
-            let serializable_data_prev_block = SerializableDataPrevBlock {
-                state_maps: block_state.get_initial_reads().unwrap().into(),
-                contract_class_mapping: block_state
-                    .state
-                    .get_contract_class_mapping_dumper()
-                    .unwrap(),
-            };
-
-            // Write the reexecution data to a json file.
-            SerializableOfflineReexecutionData {
-                serializable_data_prev_block,
-                serializable_data_next_block,
-                old_block_hash,
-            }
-            .write_to_file(&full_file_path)
-            .unwrap();
-
-            println!(
-                "RPC replies required for reexecuting block {block_number} written to json file."
+            write_block_reexecution_data_to_file(
+                BlockNumber(block_number),
+                &full_file_path,
+                node_url,
             );
+        }
+
+        Command::WriteAll { node_url, block_numbers, directory_path } => {
+            let directory_path =
+                directory_path.unwrap_or("./crates/blockifier_reexecution/resources".to_string());
+
+            let block_numbers = match block_numbers.len() {
+                0 => get_block_numbers_for_reexecution(),
+                _ => block_numbers.into_iter().map(BlockNumber).collect(),
+            };
+
+            println!("Computing reexecution data for blocks {block_numbers:?}.");
+
+            // TODO(Aner): Execute in parallel.
+            for block_number in block_numbers {
+                let full_file_path =
+                    format!("{directory_path}/block_{block_number}/reexecution_data.json");
+
+                write_block_reexecution_data_to_file(
+                    block_number,
+                    &full_file_path,
+                    node_url.clone(),
+                );
+            }
         }
 
         Command::ReexecuteBlock { block_number, full_file_path } => {
