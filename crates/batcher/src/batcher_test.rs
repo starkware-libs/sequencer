@@ -251,6 +251,14 @@ trait ProposalManagerTraitWrapper: Send + Sync {
         output_content_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
     ) -> BoxFuture<'_, Result<(), GenerateProposalError>>;
 
+    fn wrap_validate_block_proposal(
+        &mut self,
+        proposal_id: ProposalId,
+        retrospective_block_hash: Option<BlockHashAndNumber>,
+        deadline: tokio::time::Instant,
+        tx_receiver: tokio::sync::mpsc::Receiver<Transaction>,
+    ) -> BoxFuture<'_, Result<(), GenerateProposalError>>;
+
     fn wrap_take_proposal_result(
         &mut self,
         proposal_id: ProposalId,
@@ -282,6 +290,22 @@ impl<T: ProposalManagerTraitWrapper> ProposalManagerTrait for T {
             retrospective_block_hash,
             deadline,
             output_content_sender,
+        )
+        .await
+    }
+
+    async fn validate_block_proposal(
+        &mut self,
+        proposal_id: ProposalId,
+        retrospective_block_hash: Option<BlockHashAndNumber>,
+        deadline: tokio::time::Instant,
+        tx_receiver: tokio::sync::mpsc::Receiver<Transaction>,
+    ) -> Result<(), GenerateProposalError> {
+        self.wrap_validate_block_proposal(
+            proposal_id,
+            retrospective_block_hash,
+            deadline,
+            tx_receiver,
         )
         .await
     }

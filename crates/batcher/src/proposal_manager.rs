@@ -22,7 +22,7 @@ use crate::block_builder::{
     BlockBuilderTrait,
     BlockExecutionArtifacts,
 };
-use crate::transaction_provider::ProposeTransactionProvider;
+use crate::transaction_provider::{ProposeTransactionProvider, ValidateTransactionProvider};
 
 #[derive(Debug, Error)]
 pub enum StartHeightError {
@@ -83,6 +83,16 @@ pub trait ProposalManagerTrait: Send + Sync {
         retrospective_block_hash: Option<BlockHashAndNumber>,
         deadline: tokio::time::Instant,
         tx_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
+    ) -> Result<(), GenerateProposalError>;
+
+    // TODO: delete allow dead code once the batcher uses this code.
+    #[allow(dead_code)]
+    async fn validate_block_proposal(
+        &mut self,
+        proposal_id: ProposalId,
+        retrospective_block_hash: Option<BlockHashAndNumber>,
+        deadline: tokio::time::Instant,
+        tx_receiver: tokio::sync::mpsc::Receiver<Transaction>,
     ) -> Result<(), GenerateProposalError>;
 
     async fn take_proposal_result(
@@ -185,6 +195,37 @@ impl ProposalManagerTrait for ProposalManager {
             Box::new(tx_provider),
             Some(tx_sender.clone()),
             false,
+        )?;
+
+        self.spawn_build_block_task(proposal_id, block_builder).await?;
+
+        Ok(())
+    }
+
+    /// Starts validation of a block proposal for the given proposal_id and height with
+    /// transactions from tx_receiver channel.
+    #[instrument(skip(self), err, fields(self.active_height))]
+    async fn validate_block_proposal(
+        &mut self,
+        proposal_id: ProposalId,
+        retrospective_block_hash: Option<BlockHashAndNumber>,
+        deadline: tokio::time::Instant,
+        tx_receiver: tokio::sync::mpsc::Receiver<Transaction>,
+    ) -> Result<(), GenerateProposalError> {
+        self.set_active_proposal(proposal_id).await?;
+
+        info!("Starting validation of proposal with id {}.", proposal_id);
+
+        let height = self.active_height.expect("No active height.");
+
+        let tx_provider = ValidateTransactionProvider { tx_receiver };
+        let block_builder = self.block_builder_factory.create_block_builder(
+            height,
+            retrospective_block_hash,
+            deadline,
+            Box::new(tx_provider),
+            None,
+            true,
         )?;
 
         self.spawn_build_block_task(proposal_id, block_builder).await?;
