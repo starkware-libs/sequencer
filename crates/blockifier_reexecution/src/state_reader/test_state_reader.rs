@@ -50,7 +50,7 @@ use crate::state_reader::utils::{
 
 pub const DEFAULT_RETRY_COUNT: usize = 3;
 pub const DEFAULT_RETRY_WAIT_TIME: u64 = 1000;
-pub const DEFAULT_EXPECTED_ERROR_STRING: &str = "Connection error";
+pub const DEFAULT_EXPECTED_ERROR_STRINGS: [&str; 3] = ["Connection error", "RPCError", "429"];
 pub const DEFAULT_RETRY_FAILURE_MESSAGE: &str = "Failed to connect to the RPC node.";
 
 pub type ReexecutionResult<T> = Result<T, ReexecutionError>;
@@ -143,7 +143,7 @@ impl From<SerializableOfflineReexecutionData> for OfflineReexecutionData {
 pub struct RetryConfig {
     pub(crate) n_retries: usize,
     pub(crate) retry_interval_milliseconds: u64,
-    pub(crate) expected_error_string: &'static str,
+    pub(crate) expected_error_strings: Vec<&'static str>,
     pub(crate) retry_failure_message: &'static str,
 }
 
@@ -152,7 +152,7 @@ impl Default for RetryConfig {
         Self {
             n_retries: DEFAULT_RETRY_COUNT,
             retry_interval_milliseconds: DEFAULT_RETRY_WAIT_TIME,
-            expected_error_string: DEFAULT_EXPECTED_ERROR_STRING,
+            expected_error_strings: DEFAULT_EXPECTED_ERROR_STRINGS.to_vec(),
             retry_failure_message: DEFAULT_RETRY_FAILURE_MESSAGE,
         }
     }
