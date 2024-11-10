@@ -1396,7 +1396,9 @@ fn test_count_actual_storage_changes(
             n_modified_contracts: 2,
             ..Default::default()
         },
-        n_allocated_keys: 0,
+        // Storage writing and sequencer fee update. The account balance storage change is not
+        // allocated in this transaction.
+        n_allocated_keys: 2,
     };
 
     assert_eq!(expected_modified_contracts, state_changes_1.state_maps.get_modified_contracts());
@@ -1485,7 +1487,8 @@ fn test_count_actual_storage_changes(
             n_modified_contracts: 1,
             ..Default::default()
         },
-        n_allocated_keys: 0,
+        // A storage allocation for the recipient.
+        n_allocated_keys: 1,
     };
 
     assert_eq!(
