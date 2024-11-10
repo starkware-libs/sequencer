@@ -839,8 +839,8 @@ Error in contract (contract address: {expected_address:#064x}, class hash: {:#06
                  {:#064x}):
 0x496e76616c6964207363656e6172696f ('Invalid scenario').
 ",
-                execute_offset + 205,
-                deploy_offset + 194,
+                execute_offset + 165,
+                deploy_offset + 154,
                 faulty_class_hash.0,
                 ctor_selector.0
             )

@@ -38,7 +38,7 @@ fn test_library_call(test_contract: FeatureContract, expected_gas: u64) {
         test_contract.get_class_hash().0, // Class hash.
         inner_entry_point_selector.0,     // Function selector.
         felt!(2_u8),                      // Calldata length.
-        felt!(1234_u16),                  // Calldata: address.
+        felt!(1219_u16),                  // Calldata: address.
         felt!(91_u8)                      // Calldata: value.
     ];
 
@@ -86,7 +86,7 @@ fn test_library_call_assert_fails(test_contract: FeatureContract) {
     );
 }
 
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 478110; "VM")]
+#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 475110; "VM")]
 fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
     let chain_info = &ChainInfo::create_for_testing();
     let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1)]);
@@ -117,7 +117,7 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
         class_hash: Some(test_class_hash),
         code_address: None,
         call_type: CallType::Delegate,
-        initial_gas: 9999597720,
+        initial_gas: 9999600120,
         ..trivial_external_entry_point_new(test_contract)
     };
     let library_entry_point = CallEntryPoint {
@@ -132,17 +132,17 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
         class_hash: Some(test_class_hash),
         code_address: None,
         call_type: CallType::Delegate,
-        initial_gas: 9999749900,
+        initial_gas: 9999751100,
         ..trivial_external_entry_point_new(test_contract)
     };
     let storage_entry_point = CallEntryPoint {
         calldata: calldata![felt!(key), felt!(value)],
-        initial_gas: 9999445780,
+        initial_gas: 9999448480,
         ..nested_storage_entry_point
     };
 
     let storage_entry_point_resources = ExecutionResources {
-        n_steps: 247,
+        n_steps: 244,
         n_memory_holes: 0,
         builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 7)]),
     };
@@ -171,7 +171,7 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
 
     let library_call_resources = &get_syscall_resources(SyscallSelector::LibraryCall)
         + &ExecutionResources {
-            n_steps: 392,
+            n_steps: 377,
             n_memory_holes: 0,
             builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 15)]),
         };
@@ -207,7 +207,7 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
 
     let main_call_resources = &(&get_syscall_resources(SyscallSelector::LibraryCall) * 3)
         + &ExecutionResources {
-            n_steps: 757,
+            n_steps: 727,
             n_memory_holes: 2,
             builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 27)]),
         };

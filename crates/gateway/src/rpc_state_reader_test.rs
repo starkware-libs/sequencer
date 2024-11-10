@@ -157,8 +157,15 @@ async fn test_get_compiled_contract_class() {
     let mut server = run_rpc_server().await;
     let config = RpcStateReaderConfig { url: server.url(), ..Default::default() };
 
-    let expected_result =
-        CasmContractClass { compiler_version: "0.0.0".to_string(), ..Default::default() };
+    let expected_result = CasmContractClass {
+        compiler_version: "0.0.0".to_string(),
+        prime: Default::default(),
+        bytecode: Default::default(),
+        bytecode_segment_lengths: Default::default(),
+        hints: Default::default(),
+        pythonic_hints: Default::default(),
+        entry_points_by_type: Default::default(),
+    };
 
     let mock = mock_rpc_interaction(
         &mut server,
