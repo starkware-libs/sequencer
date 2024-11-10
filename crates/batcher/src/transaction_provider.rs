@@ -6,6 +6,7 @@ use async_trait::async_trait;
 #[cfg(test)]
 use mockall::automock;
 use starknet_api::executable_transaction::{L1HandlerTransaction, Transaction};
+use starknet_api::transaction::TransactionHash;
 use starknet_mempool_types::communication::{MempoolClientError, SharedMempoolClient};
 use thiserror::Error;
 use tracing::warn;
@@ -14,6 +15,8 @@ use tracing::warn;
 pub enum TransactionProviderError {
     #[error(transparent)]
     MempoolError(#[from] MempoolClientError),
+    #[error("L1Handler transaction validation failed for tx with hash {0}.")]
+    L1HandlerTransactionValidationFailed(TransactionHash),
 }
 
 #[derive(Debug, PartialEq)]
@@ -108,6 +111,7 @@ impl TransactionProvider for ProposeTransactionProvider {
 
 pub struct ValidateTransactionProvider {
     pub tx_receiver: tokio::sync::mpsc::Receiver<Transaction>,
+    pub l1_provider_client: SharedL1ProviderClient,
 }
 
 #[async_trait]
@@ -120,6 +124,15 @@ impl TransactionProvider for ValidateTransactionProvider {
         if buffer.is_empty() {
             return Ok(NextTxs::End);
         }
+        for tx in &buffer {
+            if let Transaction::L1Handler(tx) = tx {
+                if !self.l1_provider_client.validate(tx) {
+                    return Err(TransactionProviderError::L1HandlerTransactionValidationFailed(
+                        tx.tx_hash,
+                    ));
+                }
+            }
+        }
         Ok(NextTxs::Txs(buffer))
     }
 }
@@ -129,6 +142,7 @@ impl TransactionProvider for ValidateTransactionProvider {
 #[async_trait]
 pub trait L1ProviderClient: Send + Sync {
     fn get_txs(&self, n_txs: usize) -> Vec<L1HandlerTransaction>;
+    fn validate(&self, tx: &L1HandlerTransaction) -> bool;
 }
 
 pub type SharedL1ProviderClient = Arc<dyn L1ProviderClient>;
@@ -140,5 +154,10 @@ impl L1ProviderClient for DummyL1ProviderClient {
     fn get_txs(&self, _n_txs: usize) -> Vec<L1HandlerTransaction> {
         warn!("Dummy L1 provider client is used, no L1 transactions are provided.");
         vec![]
+    }
+
+    fn validate(&self, _tx: &L1HandlerTransaction) -> bool {
+        warn!("Dummy L1 provider client is used, tx is not really validated.");
+        true
     }
 }
