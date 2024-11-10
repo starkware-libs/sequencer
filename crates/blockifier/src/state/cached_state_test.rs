@@ -335,15 +335,16 @@ fn test_from_state_changes_for_fee_charge(
     let state_changes =
         create_state_changes_for_test(&mut state, sender_address, fee_token_address);
     let state_changes_count = state_changes.count_for_fee_charge(sender_address, fee_token_address);
+    let n_expected_storage_updates = 1 + usize::from(sender_address.is_some());
     let expected_state_changes_count = StateChangesCountForFee {
         // 1 for storage update + 1 for sender balance update if sender is defined.
         state_changes_count: StateChangesCount {
-            n_storage_updates: 1 + usize::from(sender_address.is_some()),
+            n_storage_updates: n_expected_storage_updates,
             n_class_hash_updates: 1,
             n_compiled_class_hash_updates: 1,
             n_modified_contracts: 2,
         },
-        n_allocated_keys: 0,
+        n_allocated_keys: n_expected_storage_updates,
     };
     assert_eq!(state_changes_count, expected_state_changes_count);
 }
@@ -413,6 +414,41 @@ fn test_state_changes_merge(
         StateChanges::merge(vec![state_changes3, state_changes1, state_changes2]),
         state_changes_final
     );
+}
+
+/// Test that `allocated_keys` collects zero -> nonzero updates.
+#[rstest]
+#[case(false, vec![felt!("0x0")], false)]
+#[case(true, vec![felt!("0x7")], true)]
+#[case(false, vec![felt!("0x7")], false)]
+#[case(true, vec![felt!("0x7"), felt!("0x0")], false)]
+#[case(false, vec![felt!("0x0"), felt!("0x8")], true)]
+#[case(false, vec![felt!("0x0"), felt!("0x8"), felt!("0x0")], false)]
+fn test_allocated_keys_update(
+    #[case] is_base_empty: bool,
+    #[case] storage_updates: Vec<Felt>,
+    #[case] charged: bool,
+) {
+    let contract_address = contract_address!(CONTRACT_ADDRESS);
+    let storage_key = StorageKey::from(0x10_u16);
+    // Set initial state
+    let mut state: CachedState<DictStateReader> = CachedState::default();
+    if !is_base_empty {
+        state.set_storage_at(contract_address, storage_key, felt!("0x1")).unwrap();
+    }
+    let mut state_changes = vec![];
+
+    for value in storage_updates {
+        // In the end of the previous loop, state has moved into the transactional state.
+        let mut transactional_state = TransactionalState::create_transactional(&mut state);
+        // Update state and collect the state changes.
+        transactional_state.set_storage_at(contract_address, storage_key, value).unwrap();
+        state_changes.push(transactional_state.get_actual_state_changes().unwrap());
+        transactional_state.commit();
+    }
+
+    let merged_changes = StateChanges::merge(state_changes);
+    assert_ne!(merged_changes.allocated_keys.is_empty(), charged);
 }
 
 #[test]
