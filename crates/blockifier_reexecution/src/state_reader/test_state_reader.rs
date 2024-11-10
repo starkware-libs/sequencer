@@ -49,7 +49,7 @@ use crate::state_reader::utils::{
 };
 
 pub const DEFAULT_RETRY_COUNT: usize = 3;
-pub const DEFAULT_RETRY_WAIT_TIME: u64 = 1000;
+pub const DEFAULT_RETRY_WAIT_TIME: u64 = 10000;
 pub const DEFAULT_EXPECTED_ERROR_STRINGS: [&str; 3] =
     ["Connection error", "RPCError", "429 Too Many Requests"];
 pub const DEFAULT_RETRY_FAILURE_MESSAGE: &str = "Failed to connect to the RPC node.";
@@ -139,6 +139,13 @@ impl From<SerializableOfflineReexecutionData> for OfflineReexecutionData {
             state_diff_next_block,
         }
     }
+}
+
+// TODO(Aviv): Consider moving to the gateway state reader.
+/// Params for the RPC request "starknet_getTransactionByHash".
+#[derive(Serialize)]
+pub struct GetTransactionByHashParams {
+    pub transaction_hash: String,
 }
 
 pub struct RetryConfig {
@@ -241,12 +248,12 @@ impl TestStateReader {
     /// Get the block info of the current block.
     /// If l2_gas_price is not present in the block header, it will be set to 1.
     pub fn get_block_info(&self) -> ReexecutionResult<BlockInfo> {
-        let get_block_params =
-            GetBlockWithTxHashesParams { block_id: self.rpc_state_reader.block_id };
-
-        let mut json = self
-            .rpc_state_reader
-            .send_rpc_request("starknet_getBlockWithTxHashes", get_block_params)?;
+        let mut json = retry_request!(self.retry_config, || {
+            self.rpc_state_reader.send_rpc_request(
+                "starknet_getBlockWithTxHashes",
+                GetBlockWithTxHashesParams { block_id: self.rpc_state_reader.block_id },
+            )
+        })?;
 
         let block_header_map = json.as_object_mut().ok_or(StateError::StateReadError(
             "starknet_getBlockWithTxHashes should return JSON value of type Object".to_string(),
@@ -264,12 +271,13 @@ impl TestStateReader {
     }
 
     pub fn get_starknet_version(&self) -> ReexecutionResult<StarknetVersion> {
-        let get_block_params =
-            GetBlockWithTxHashesParams { block_id: self.rpc_state_reader.block_id };
         let raw_version: String = serde_json::from_value(
-            self.rpc_state_reader
-                .send_rpc_request("starknet_getBlockWithTxHashes", get_block_params)?
-                ["starknet_version"]
+            retry_request!(self.retry_config, || {
+                self.rpc_state_reader.send_rpc_request(
+                    "starknet_getBlockWithTxHashes",
+                    GetBlockWithTxHashesParams { block_id: self.rpc_state_reader.block_id },
+                )
+            })?["starknet_version"]
                 .clone(),
         )?;
         Ok(StarknetVersion::try_from(raw_version.as_str())?)
@@ -277,25 +285,28 @@ impl TestStateReader {
 
     /// Get all transaction hashes in the current block.
     pub fn get_tx_hashes(&self) -> ReexecutionResult<Vec<String>> {
-        let get_block_params =
-            GetBlockWithTxHashesParams { block_id: self.rpc_state_reader.block_id };
         let raw_tx_hashes = serde_json::from_value(
-            self.rpc_state_reader
-                .send_rpc_request("starknet_getBlockWithTxHashes", &get_block_params)?
-                ["transactions"]
+            retry_request!(self.retry_config, || {
+                self.rpc_state_reader.send_rpc_request(
+                    "starknet_getBlockWithTxHashes",
+                    &GetBlockWithTxHashesParams { block_id: self.rpc_state_reader.block_id },
+                )
+            })?["transactions"]
                 .clone(),
         )?;
         Ok(serde_json::from_value(raw_tx_hashes)?)
     }
 
     pub fn get_tx_by_hash(&self, tx_hash: &str) -> ReexecutionResult<Transaction> {
-        let method = "starknet_getTransactionByHash";
-        let params = json!({
-            "transaction_hash": tx_hash,
-        });
-        Ok(deserialize_transaction_json_to_starknet_api_tx(
-            self.rpc_state_reader.send_rpc_request(method, params)?,
-        )?)
+        Ok(deserialize_transaction_json_to_starknet_api_tx(retry_request!(
+            self.retry_config,
+            || {
+                self.rpc_state_reader.send_rpc_request(
+                    "starknet_getTransactionByHash",
+                    GetTransactionByHashParams { transaction_hash: tx_hash.to_string() },
+                )
+            }
+        )?)?)
     }
 
     pub fn get_all_txs_in_block(&self) -> ReexecutionResult<Vec<(Transaction, TransactionHash)>> {
@@ -341,11 +352,12 @@ impl TestStateReader {
     }
 
     pub fn get_state_diff(&self) -> ReexecutionResult<CommitmentStateDiff> {
-        let get_block_params =
-            GetBlockWithTxHashesParams { block_id: self.rpc_state_reader.block_id };
-        let raw_statediff = &self
-            .rpc_state_reader
-            .send_rpc_request("starknet_getStateUpdate", get_block_params)?["state_diff"];
+        let raw_statediff =
+            &retry_request!(self.retry_config, || self.rpc_state_reader.send_rpc_request(
+                "starknet_getStateUpdate",
+                GetBlockWithTxHashesParams { block_id: self.rpc_state_reader.block_id }
+            ))?["state_diff"];
+
         let deployed_contracts = hashmap_from_raw::<ContractAddress, ClassHash>(
             raw_statediff,
             "deployed_contracts",
