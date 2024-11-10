@@ -5,7 +5,7 @@ pub mod consensus;
 mod event;
 mod header;
 mod receipt;
-mod rpc_transaction;
+pub mod rpc_transaction;
 mod state_diff;
 #[cfg(test)]
 mod test_instances;
