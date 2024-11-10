@@ -173,18 +173,24 @@ impl ProposalManagerTrait for ProposalManager {
         }
         info!("Starting generation of a new proposal with id {}.", proposal_id);
         self.set_active_proposal(proposal_id).await?;
-        let block_builder =
-            self.block_builder_factory.create_block_builder(height, retrospective_block_hash)?;
-
         let tx_provider =
             ProposeTransactionProvider { mempool_client: self.mempool_client.clone() };
+        let mut block_builder = self.block_builder_factory.create_block_builder(
+            height,
+            retrospective_block_hash,
+            deadline,
+            Box::new(tx_provider),
+            Some(tx_sender.clone()),
+            false,
+        )?;
+
         let active_proposal = self.active_proposal.clone();
         let executed_proposals = self.executed_proposals.clone();
 
         self.active_proposal_handle = Some(tokio::spawn(
             async move {
                 let result = block_builder
-                    .build_block(deadline, Box::new(tx_provider), Some(tx_sender.clone()), false)
+                    .build_block()
                     .await
                     .map(ProposalOutput::from)
                     .map_err(|e| GetProposalResultError::BlockBuilderError(Arc::new(e)));
