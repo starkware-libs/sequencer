@@ -17,7 +17,7 @@ use tokio::task::JoinHandle;
 use crate::integration_test_utils::{create_config, HttpTestClient};
 use crate::state_reader::{spawn_test_rpc_state_reader, StorageTestSetup};
 
-pub struct IntegrationTestSetup {
+pub struct FlowTestSetup {
     pub task_executor: TokioExecutor,
 
     // Client for adding transactions to the sequencer node.
@@ -34,7 +34,7 @@ pub struct IntegrationTestSetup {
     pub sequencer_node_handle: JoinHandle<Result<(), anyhow::Error>>,
 }
 
-impl IntegrationTestSetup {
+impl FlowTestSetup {
     pub async fn new_from_tx_generator(tx_generator: &MultiAccountTransactionGenerator) -> Self {
         let handle = Handle::current();
         let task_executor = TokioExecutor::new(handle);

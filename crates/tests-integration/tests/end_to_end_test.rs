@@ -12,7 +12,7 @@ use starknet_batcher_types::batcher_types::{
     StartHeightInput,
 };
 use starknet_batcher_types::communication::SharedBatcherClient;
-use starknet_integration_tests::integration_test_setup::IntegrationTestSetup;
+use starknet_integration_tests::flow_test_setup::FlowTestSetup;
 use starknet_integration_tests::integration_test_utils::{
     create_integration_test_tx_generator,
     run_integration_test_scenario,
@@ -27,7 +27,7 @@ fn tx_generator() -> MultiAccountTransactionGenerator {
 #[tokio::test]
 async fn test_end_to_end(tx_generator: MultiAccountTransactionGenerator) {
     // Setup.
-    let mock_running_system = IntegrationTestSetup::new_from_tx_generator(&tx_generator).await;
+    let mock_running_system = FlowTestSetup::new_from_tx_generator(&tx_generator).await;
 
     // Create and send transactions.
     let expected_batched_tx_hashes = run_integration_test_scenario(tx_generator, &|tx| {
