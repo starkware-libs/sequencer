@@ -49,7 +49,7 @@ use crate::state_reader::utils::{
 };
 
 pub const DEFAULT_RETRY_COUNT: usize = 3;
-pub const DEFAULT_RETRY_WAIT_TIME: u64 = 1000;
+pub const DEFAULT_RETRY_WAIT_TIME: u64 = 10000;
 pub const DEFAULT_EXPECTED_ERROR_STRINGS: [&str; 3] =
     ["Connection error", "RPCError", "429 Too Many Requests"];
 pub const DEFAULT_RETRY_FAILURE_MESSAGE: &str = "Failed to connect to the RPC node.";
