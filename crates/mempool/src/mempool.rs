@@ -360,3 +360,5 @@ impl std::fmt::Display for TransactionReference {
         )
     }
 }
+
+pub struct dont_merge_me;
