@@ -2,7 +2,7 @@ mod swarm_trait;
 
 #[cfg(test)]
 mod test;
-#[cfg(any(test, feature = "testing"))]
+// #[cfg(any(test, feature = "testing"))]
 pub mod test_utils;
 
 use std::collections::HashMap;
