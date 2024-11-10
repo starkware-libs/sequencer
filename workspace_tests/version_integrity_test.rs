@@ -30,7 +30,7 @@ fn test_version_alignment() {
 #[test]
 fn validate_no_path_dependencies() {
     let mut all_path_deps_in_crate_tomls: Vec<String> = Vec::new();
-    for crate_cargo_toml in ROOT_TOML.member_cargo_tomls().iter() {
+    for crate_cargo_toml in ROOT_TOML.member_cargo_tomls().values() {
         let crate_paths: Vec<String> = crate_cargo_toml.path_dependencies().collect();
         all_path_deps_in_crate_tomls.extend(crate_paths);
     }
