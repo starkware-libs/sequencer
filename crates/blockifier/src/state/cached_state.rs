@@ -47,7 +47,7 @@ impl<S: StateReader> CachedState<S> {
 
     /// Returns the state diff resulting from the performed writes, with respect to the parent
     /// state.
-    pub fn to_state_diff(&mut self) -> StateResult<StateMaps> {
+    pub fn to_state_diff(&mut self) -> StateResult<StateChanges> {
         self.update_initial_values_of_write_only_access()?;
         Ok(self.cache.borrow().to_state_diff())
     }
@@ -55,7 +55,7 @@ impl<S: StateReader> CachedState<S> {
     // TODO(Yoni, 1/8/2024): remove this function.
     /// Returns the state changes made on this state.
     pub fn get_actual_state_changes(&mut self) -> StateResult<StateChanges> {
-        Ok(self.to_state_diff()?.into())
+        self.to_state_diff()
     }
 
     pub fn update_cache(
@@ -360,6 +360,28 @@ impl StateMaps {
             ),
         }
     }
+
+    pub fn get_modified_contracts(&self) -> HashSet<ContractAddress> {
+        // Storage updates.
+        let mut modified_contracts: HashSet<ContractAddress> =
+            self.storage.keys().map(|address_key_pair| address_key_pair.0).collect();
+        // Nonce updates.
+        modified_contracts.extend(self.nonces.keys());
+        // Class hash updates (deployed contracts + replace_class syscall).
+        modified_contracts.extend(self.class_hashes.keys());
+
+        modified_contracts
+    }
+
+    pub fn into_keys(self) -> StateChangesKeys {
+        StateChangesKeys {
+            modified_contracts: self.get_modified_contracts(),
+            nonce_keys: self.nonces.into_keys().collect(),
+            class_hash_keys: self.class_hashes.into_keys().collect(),
+            storage_keys: self.storage.into_keys().collect(),
+            compiled_class_hash_keys: self.compiled_class_hashes.into_keys().collect(),
+        }
+    }
 }
 /// Caches read and write requests.
 /// The tracked changes are needed for block state commitment.
@@ -377,8 +399,11 @@ pub struct StateCache {
 impl StateCache {
     /// Returns the state diff resulting from the performed writes, with respect to the initial
     /// reads. Assumes (and enforces) all initial reads are cached.
-    pub fn to_state_diff(&self) -> StateMaps {
-        self.writes.diff(&self.initial_reads)
+    pub fn to_state_diff(&self) -> StateChanges {
+        let state_maps = self.writes.diff(&self.initial_reads);
+        let allocated_keys =
+            AllocatedKeys::from_storage_diff(&self.writes.storage, &self.initial_reads.storage);
+        StateChanges { state_maps, allocated_keys }
     }
 
     fn declare_contract(&mut self, class_hash: ClassHash) {
@@ -654,10 +679,39 @@ impl StateChangesKeys {
     }
 }
 
+#[cfg_attr(any(feature = "testing", test), derive(Clone))]
+#[derive(Debug, Default, Eq, PartialEq)]
+pub struct AllocatedKeys(HashSet<StorageEntry>);
+
+impl AllocatedKeys {
+    pub fn extend(&mut self, state_change: &StateChanges) {
+        self.0.extend(&state_change.allocated_keys.0);
+        // TODO: Remove keys that are set back to zero.
+    }
+
+    pub fn count(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Collect entries that turn zero -> nonzero.
+    pub fn from_storage_diff(
+        _updated_storage: &HashMap<StorageEntry, Felt>,
+        _base_storage: &HashMap<StorageEntry, Felt>,
+    ) -> Self {
+        Self(
+            HashSet::new()
+            // TODO: Calculate the difference between the updated_storage and the base_storage.
+        )
+    }
+}
+
 /// Holds the state changes.
 #[cfg_attr(any(feature = "testing", test), derive(Clone))]
 #[derive(Debug, Default, Eq, PartialEq)]
-pub struct StateChanges(pub StateMaps);
+pub struct StateChanges {
+    pub state_maps: StateMaps,
+    pub allocated_keys: AllocatedKeys,
+}
 
 impl StateChanges {
     /// Merges the given state changes into a single one. Note that the order of the state changes
@@ -665,40 +719,29 @@ impl StateChanges {
     pub fn merge(state_changes: Vec<Self>) -> Self {
         let mut merged_state_changes = Self::default();
         for state_change in state_changes {
-            merged_state_changes.0.extend(&state_change.0);
+            merged_state_changes.state_maps.extend(&state_change.state_maps);
+            merged_state_changes.allocated_keys.extend(&state_change);
         }
-
         merged_state_changes
-    }
-
-    pub fn get_modified_contracts(&self) -> HashSet<ContractAddress> {
-        // Storage updates.
-        let mut modified_contracts: HashSet<ContractAddress> =
-            self.0.storage.keys().map(|address_key_pair| address_key_pair.0).collect();
-        // Nonce updates.
-        modified_contracts.extend(self.0.nonces.keys());
-        // Class hash updates (deployed contracts + replace_class syscall).
-        modified_contracts.extend(self.0.class_hashes.keys());
-
-        modified_contracts
     }
 
     pub fn count_for_fee_charge(
         &self,
         sender_address: Option<ContractAddress>,
         fee_token_address: ContractAddress,
-    ) -> StateChangesCount {
-        let mut modified_contracts = self.get_modified_contracts();
+        enable_stateful_compression: bool,
+    ) -> StateChangesCountForFee {
+        let mut modified_contracts = self.state_maps.get_modified_contracts();
 
         // For account transactions, we need to compute the transaction fee before we can execute
         // the fee transfer, and the fee should cover the state changes that happen in the
         // fee transfer. The fee transfer is going to update the balance of the sequencer
         // and the balance of the sender contract, but we don't charge the sender for the
         // sequencer balance change as it is amortized across the block.
-        let mut n_storage_updates = self.0.storage.len();
+        let mut n_storage_updates = self.state_maps.storage.len();
         if let Some(sender_address) = sender_address {
             let sender_balance_key = get_fee_token_var_address(sender_address);
-            if !self.0.storage.contains_key(&(fee_token_address, sender_balance_key)) {
+            if !self.state_maps.storage.contains_key(&(fee_token_address, sender_balance_key)) {
                 n_storage_updates += 1;
             }
         }
@@ -707,28 +750,19 @@ impl StateChanges {
         // block.
         modified_contracts.remove(&fee_token_address);
 
-        StateChangesCount {
-            n_storage_updates,
-            n_class_hash_updates: self.0.class_hashes.len(),
-            n_compiled_class_hash_updates: self.0.compiled_class_hashes.len(),
-            n_modified_contracts: modified_contracts.len(),
+        StateChangesCountForFee {
+            state_changes_count: StateChangesCount {
+                n_storage_updates,
+                n_class_hash_updates: self.state_maps.class_hashes.len(),
+                n_compiled_class_hash_updates: self.state_maps.compiled_class_hashes.len(),
+                n_modified_contracts: modified_contracts.len(),
+            },
+            n_allocated_keys: if enable_stateful_compression {
+                self.allocated_keys.count()
+            } else {
+                0
+            },
         }
-    }
-
-    pub fn into_keys(self) -> StateChangesKeys {
-        StateChangesKeys {
-            modified_contracts: self.get_modified_contracts(),
-            nonce_keys: self.0.nonces.into_keys().collect(),
-            class_hash_keys: self.0.class_hashes.into_keys().collect(),
-            storage_keys: self.0.storage.into_keys().collect(),
-            compiled_class_hash_keys: self.0.compiled_class_hashes.into_keys().collect(),
-        }
-    }
-}
-
-impl From<StateMaps> for StateChanges {
-    fn from(state_maps: StateMaps) -> Self {
-        Self(state_maps)
     }
 }
 
@@ -740,4 +774,12 @@ pub struct StateChangesCount {
     pub n_class_hash_updates: usize,
     pub n_compiled_class_hash_updates: usize,
     pub n_modified_contracts: usize,
+}
+
+/// Holds the number of state changes for fee.
+#[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct StateChangesCountForFee {
+    pub state_changes_count: StateChangesCount,
+    pub n_allocated_keys: usize,
 }

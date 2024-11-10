@@ -109,7 +109,7 @@ impl<S: StateReader> TransactionExecutor<S> {
         match tx_execution_result {
             Ok(tx_execution_info) => {
                 let tx_state_changes_keys =
-                    transactional_state.get_actual_state_changes()?.into_keys();
+                    transactional_state.get_actual_state_changes()?.state_maps.into_keys();
                 self.bouncer.try_update(
                     &transactional_state,
                     &tx_state_changes_keys,
@@ -168,7 +168,12 @@ impl<S: StateReader> TransactionExecutor<S> {
 
         log::debug!("Final block weights: {:?}.", self.bouncer.get_accumulated_weights());
         Ok((
-            self.block_state.as_mut().expect(BLOCK_STATE_ACCESS_ERR).to_state_diff()?.into(),
+            self.block_state
+                .as_mut()
+                .expect(BLOCK_STATE_ACCESS_ERR)
+                .to_state_diff()?
+                .state_maps
+                .into(),
             visited_segments,
             *self.bouncer.get_accumulated_weights(),
         ))

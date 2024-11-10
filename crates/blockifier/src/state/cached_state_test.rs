@@ -286,7 +286,7 @@ fn cached_state_state_diff_conversion() {
         address_to_nonce: IndexMap::from_iter([(contract_address2, nonce!(1_u64))]),
     };
 
-    assert_eq!(expected_state_diff, state.to_state_diff().unwrap().into());
+    assert_eq!(expected_state_diff, state.to_state_diff().unwrap().state_maps.into());
 }
 
 fn create_state_changes_for_test<S: StateReader>(
@@ -323,25 +323,32 @@ fn create_state_changes_for_test<S: StateReader>(
         let sender_balance_key = get_fee_token_var_address(sender_address);
         state.set_storage_at(fee_token_address, sender_balance_key, felt!("0x1999")).unwrap();
     }
-
     state.get_actual_state_changes().unwrap()
 }
 
 #[rstest]
 fn test_from_state_changes_for_fee_charge(
     #[values(Some(contract_address!("0x102")), None)] sender_address: Option<ContractAddress>,
+    #[values(true, false)] enable_stateful_compression: bool,
 ) {
     let mut state: CachedState<DictStateReader> = CachedState::default();
     let fee_token_address = contract_address!("0x17");
     let state_changes =
         create_state_changes_for_test(&mut state, sender_address, fee_token_address);
-    let state_changes_count = state_changes.count_for_fee_charge(sender_address, fee_token_address);
-    let expected_state_changes_count = StateChangesCount {
+    let state_changes_count = state_changes.count_for_fee_charge(
+        sender_address,
+        fee_token_address,
+        enable_stateful_compression,
+    );
+    let expected_state_changes_count = StateChangesCountForFee {
         // 1 for storage update + 1 for sender balance update if sender is defined.
-        n_storage_updates: 1 + usize::from(sender_address.is_some()),
-        n_class_hash_updates: 1,
-        n_compiled_class_hash_updates: 1,
-        n_modified_contracts: 2,
+        state_changes_count: StateChangesCount {
+            n_storage_updates: 1 + usize::from(sender_address.is_some()),
+            n_class_hash_updates: 1,
+            n_compiled_class_hash_updates: 1,
+            n_modified_contracts: 2,
+        },
+        n_allocated_keys: 0,
     };
     assert_eq!(state_changes_count, expected_state_changes_count);
 }
@@ -378,7 +385,7 @@ fn test_state_changes_merge(
     );
 
     // Get the storage updates addresses and keys from the state_changes1, to overwrite.
-    let mut storage_updates_keys = state_changes1.0.storage.keys();
+    let mut storage_updates_keys = state_changes1.state_maps.storage.keys();
     let &(contract_address, storage_key) = storage_updates_keys
         .find(|(contract_address, _)| contract_address == &contract_address!(CONTRACT_ADDRESS))
         .unwrap();
@@ -407,6 +414,7 @@ fn test_state_changes_merge(
         ]),
         state_changes_final
     );
+
     assert_ne!(
         StateChanges::merge(vec![state_changes3, state_changes1, state_changes2]),
         state_changes_final
@@ -435,7 +443,7 @@ fn test_contract_cache_is_used() {
 #[test]
 fn test_cache_get_write_keys() {
     // Trivial case.
-    assert_eq!(StateChanges::default().into_keys(), StateChangesKeys::default());
+    assert_eq!(StateMaps::default().into_keys(), StateChangesKeys::default());
 
     // Interesting case.
     let some_felt = felt!("0x1");
@@ -448,7 +456,7 @@ fn test_cache_get_write_keys() {
 
     let class_hash0 = class_hash!("0x300");
 
-    let state_changes = StateChanges(StateMaps {
+    let state_maps = StateMaps {
         nonces: HashMap::from([(contract_address0, Nonce(some_felt))]),
         class_hashes: HashMap::from([
             (contract_address1, some_class_hash),
@@ -461,7 +469,7 @@ fn test_cache_get_write_keys() {
         ]),
         compiled_class_hashes: HashMap::from([(class_hash0, compiled_class_hash!(0x3_u16))]),
         declared_contracts: HashMap::default(),
-    });
+    };
 
     let expected_keys = StateChangesKeys {
         nonce_keys: HashSet::from([contract_address0]),
@@ -480,7 +488,7 @@ fn test_cache_get_write_keys() {
         ]),
     };
 
-    assert_eq!(state_changes.into_keys(), expected_keys);
+    assert_eq!(state_maps.into_keys(), expected_keys);
 }
 
 #[test]
