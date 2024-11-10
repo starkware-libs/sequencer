@@ -114,19 +114,29 @@ impl TryFrom<ReexecutionStateMaps> for StateMaps {
 #[macro_export]
 macro_rules! retry_request {
     ($retry_config:expr, $closure:expr) => {{
+        let mut attempt_number = 0;
         retry::retry(
             retry::delay::Fixed::from_millis($retry_config.retry_interval_milliseconds)
                 .take($retry_config.n_retries),
             || {
+                attempt_number += 1;
                 match $closure() {
                     Ok(value) => retry::OperationResult::Ok(value),
-                    // If the error contains the expected_error_string , we want to retry.
+                    // If the error contains any of the expected error strings, we want to retry.
                     Err(e)
                         if $retry_config
                             .expected_error_strings
                             .iter()
                             .any(|s| e.to_string().contains(s)) =>
                     {
+                        println!(
+                            "Attempt {}: Retrying request due to error: {:?}",
+                            attempt_number, e
+                        );
+                        println!(
+                            "Retry delay in milliseconds: {}",
+                            $retry_config.retry_interval_milliseconds
+                        );
                         retry::OperationResult::Retry(e)
                     }
                     // For all other errors, do not retry and return immediately.
