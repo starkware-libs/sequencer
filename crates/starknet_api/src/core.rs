@@ -347,7 +347,7 @@ pub struct StateDiffCommitment(pub PoseidonHash);
     derive_more:: Deref,
 )]
 #[display(fmt = "{}", "_0.to_fixed_hex_string()")]
-pub struct PatriciaKey(StarkHash);
+pub struct PatriciaKey(pub StarkHash);
 
 // 2**251
 pub const PATRICIA_KEY_UPPER_BOUND: &str =
