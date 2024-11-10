@@ -11,7 +11,7 @@ use libp2p::swarm::{
     ToSwarm,
 };
 use libp2p::{Multiaddr, PeerId};
-use tracing::{debug, error};
+use tracing::{debug, error, warn};
 
 use super::peer::PeerTrait;
 use super::{PeerManager, PeerManagerError};
@@ -104,7 +104,7 @@ impl NetworkBehaviour for PeerManager {
                 }
                 let res = self.report_peer(peer_id, super::ReputationModifier::Unstable);
                 if res.is_err() {
-                    error!("Dial failure of an unknown peer. peer id: {}", peer_id)
+                    warn!("Dial failure of an unknown peer. peer id: {}", peer_id)
                 }
                 // Re-assign a peer to the session so that a SessionAssgined Event will be emitted.
                 // TODO: test this case
