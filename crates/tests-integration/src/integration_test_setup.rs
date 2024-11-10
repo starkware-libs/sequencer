@@ -48,12 +48,12 @@ impl IntegrationTestSetup {
         let (config, required_params) =
             create_config(rpc_server_addr, storage_for_test.batcher_storage_config).await;
 
-        // Note: the batcher storage file handle is passed as a reference to maintain its ownership
-        // in this scope, such that the handle is not dropped and the storage is maintained.
         let node_config_dir_handle = tempdir().unwrap();
-        // TODO(Tsabary): pass path instead of temp dir.
-        let (node_config_path, _) =
-            dump_config_file_changes(&config, required_params, &node_config_dir_handle);
+        let node_config_path = dump_config_file_changes(
+            &config,
+            required_params,
+            node_config_dir_handle.path().to_path_buf(),
+        );
 
         // Wait for the node to start.
         let MonitoringEndpointConfig { ip, port } = config.monitoring_endpoint_config;
