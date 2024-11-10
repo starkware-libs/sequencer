@@ -525,17 +525,13 @@ pub struct ClassInfo {
     abi_length: usize,
 }
 
-impl TryFrom<starknet_api::contract_class::ClassInfo> for ClassInfo {
-    type Error = ProgramError;
-
-    fn try_from(class_info: starknet_api::contract_class::ClassInfo) -> Result<Self, Self::Error> {
-        let starknet_api::contract_class::ClassInfo {
-            contract_class,
-            sierra_program_length,
-            abi_length,
-        } = class_info;
-
-        Ok(Self { contract_class: contract_class.clone(), sierra_program_length, abi_length })
+impl From<starknet_api::contract_class::ClassInfo> for ClassInfo {
+    fn from(class_info: starknet_api::contract_class::ClassInfo) -> Self {
+        Self {
+            contract_class: class_info.contract_class,
+            sierra_program_length: class_info.sierra_program_length,
+            abi_length: class_info.abi_length,
+        }
     }
 }
 

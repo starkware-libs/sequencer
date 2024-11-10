@@ -193,7 +193,7 @@ impl DeclareTransaction {
     ) -> Result<Self, TransactionExecutionError> {
         let starknet_api::executable_transaction::DeclareTransaction { tx, tx_hash, class_info } =
             declare_tx;
-        let class_info = class_info.try_into()?;
+        let class_info = class_info.into();
 
         Self::create(tx, tx_hash, class_info, only_query)
     }
