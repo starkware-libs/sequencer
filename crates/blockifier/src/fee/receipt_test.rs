@@ -110,6 +110,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(
         n_class_hash_updates: 1,
         n_compiled_class_hash_updates: 0,
         n_modified_contracts: 1,
+        n_allocated_leaves_for_fee: 0,
     };
 
     // Manual calculation.
@@ -224,6 +225,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(
         n_class_hash_updates: 0,
         n_compiled_class_hash_updates: 0,
         n_modified_contracts: 1,
+        n_allocated_leaves_for_fee: 0,
     };
     let l2_to_l1_starknet_resources = StarknetResources::new(
         0,
@@ -271,6 +273,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(
         n_class_hash_updates: 0,
         n_compiled_class_hash_updates: 0,
         n_modified_contracts,
+        n_allocated_leaves_for_fee: 0,
     };
     let storage_writes_starknet_resources = StarknetResources::new(
         0,
@@ -300,6 +303,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(
         n_compiled_class_hash_updates: 0,
         n_modified_contracts: storage_writes_state_changes_count.n_modified_contracts
             + l2_to_l1_state_changes_count.n_modified_contracts,
+        n_allocated_leaves_for_fee: 0,
     };
     let combined_cases_starknet_resources = StarknetResources::new(
         l1_handler_payload_size,
@@ -375,6 +379,7 @@ fn test_calculate_tx_gas_usage(
         n_class_hash_updates: 0,
         n_modified_contracts,
         n_compiled_class_hash_updates: 0,
+        n_allocated_leaves_for_fee: 0,
     };
     let starknet_resources = StarknetResources::new(
         calldata_length,
@@ -429,6 +434,7 @@ fn test_calculate_tx_gas_usage(
         n_class_hash_updates: 0,
         n_modified_contracts,
         n_compiled_class_hash_updates: 0,
+        n_allocated_leaves_for_fee: 0,
     };
     let execution_call_info =
         &tx_execution_info.execute_call_info.expect("Execution call info should exist.");

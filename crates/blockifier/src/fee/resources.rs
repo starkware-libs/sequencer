@@ -150,10 +150,14 @@ impl StateResources {
         state_changes: &StateChanges,
         sender_address: Option<ContractAddress>,
         fee_token_address: ContractAddress,
+        n_allocated_leaves_for_fee: usize,
     ) -> Self {
         Self {
-            state_changes_for_fee: state_changes
-                .count_for_fee_charge(sender_address, fee_token_address),
+            state_changes_for_fee: state_changes.count_for_fee_charge(
+                sender_address,
+                fee_token_address,
+                n_allocated_leaves_for_fee,
+            ),
         }
     }
 

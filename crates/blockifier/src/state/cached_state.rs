@@ -645,6 +645,7 @@ impl StateChangesKeys {
             n_class_hash_updates: self.class_hash_keys.len(),
             n_compiled_class_hash_updates: self.compiled_class_hash_keys.len(),
             n_modified_contracts: self.modified_contracts.len(),
+            n_allocated_leaves_for_fee: 0,
         }
     }
 
@@ -687,6 +688,7 @@ impl StateChanges {
         &self,
         sender_address: Option<ContractAddress>,
         fee_token_address: ContractAddress,
+        n_allocated_leaves_for_fee: usize,
     ) -> StateChangesCount {
         let mut modified_contracts = self.get_modified_contracts();
 
@@ -712,6 +714,7 @@ impl StateChanges {
             n_class_hash_updates: self.0.class_hashes.len(),
             n_compiled_class_hash_updates: self.0.compiled_class_hashes.len(),
             n_modified_contracts: modified_contracts.len(),
+            n_allocated_leaves_for_fee,
         }
     }
 
@@ -740,4 +743,5 @@ pub struct StateChangesCount {
     pub n_class_hash_updates: usize,
     pub n_compiled_class_hash_updates: usize,
     pub n_modified_contracts: usize,
+    pub n_allocated_leaves_for_fee: usize,
 }

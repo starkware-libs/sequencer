@@ -136,6 +136,7 @@ impl<S: StateReader> StatefulValidator<S> {
             &execution_resources,
             CallInfo::summarize_many(validate_call_info.iter()),
             0,
+            0,
         );
 
         Ok((validate_call_info, tx_receipt))

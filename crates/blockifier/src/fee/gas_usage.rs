@@ -31,6 +31,8 @@ pub fn get_onchain_data_segment_length(state_changes_count: &StateChangesCount) 
         state_changes_count.n_class_hash_updates * constants::CLASS_UPDATE_SIZE;
     // For each modified storage cell: key, new value.
     onchain_data_segment_length += state_changes_count.n_storage_updates * 2;
+    // For each modified alias storage cell: key, new value.
+    onchain_data_segment_length += state_changes_count.n_allocated_leaves_for_fee * 2;
     // For each compiled class updated (through declare): class_hash, compiled_class_hash
     onchain_data_segment_length += state_changes_count.n_compiled_class_hash_updates * 2;
 
@@ -170,12 +172,14 @@ pub fn estimate_minimal_gas_vector(
             n_class_hash_updates: 0,
             n_compiled_class_hash_updates: 0,
             n_modified_contracts: 1,
+            n_allocated_leaves_for_fee: 0,
         },
         Transaction::Invoke(_) => StateChangesCount {
             n_storage_updates: 1,
             n_class_hash_updates: 0,
             n_compiled_class_hash_updates: 0,
             n_modified_contracts: 1,
+            n_allocated_leaves_for_fee: 0,
         },
         // DeployAccount also updates the address -> class hash mapping.
         Transaction::DeployAccount(_) => StateChangesCount {
@@ -183,6 +187,7 @@ pub fn estimate_minimal_gas_vector(
             n_class_hash_updates: 1,
             n_compiled_class_hash_updates: 0,
             n_modified_contracts: 1,
+            n_allocated_leaves_for_fee: 0,
         },
     };
 

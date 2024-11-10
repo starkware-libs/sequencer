@@ -8,6 +8,7 @@ use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::executable_transaction::{
     AccountTransaction as Transaction,
+    AccountTransaction as ExecutableAccountTransaction,
     DeclareTransaction,
     DeployAccountTransaction,
     InvokeTransaction,
@@ -28,6 +29,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::abi::abi_utils::selector_from_name;
 use crate::context::{BlockContext, TransactionContext};
+use crate::execution::alias_keys::n_charged_invoke_aliases;
 use crate::execution::call_info::CallInfo;
 use crate::execution::contract_class::RunnableContractClass;
 use crate::execution::entry_point::{CallEntryPoint, CallType, EntryPointExecutionContext};
@@ -41,8 +43,8 @@ use crate::fee::fee_utils::{
 use crate::fee::gas_usage::estimate_minimal_gas_vector;
 use crate::fee::receipt::TransactionReceipt;
 use crate::retdata;
-use crate::state::cached_state::{StateChanges, TransactionalState};
-use crate::state::state_api::{State, StateReader, UpdatableState};
+use crate::state::cached_state::{CachedState, StateChanges, TransactionalState};
+use crate::state::state_api::{State, StateReader, StateResult, UpdatableState};
 use crate::transaction::constants;
 use crate::transaction::errors::{
     TransactionExecutionError,
@@ -595,13 +597,17 @@ impl AccountTransaction {
                 self.run_execute(state, &mut resources, &mut execution_context, remaining_gas)?;
         }
 
+        let state_changes = state.get_actual_state_changes()?;
+        let n_allocated_leaves_for_fee =
+            self.n_charged_aliases(tx_context.clone(), state, &state_changes)?;
         let tx_receipt = TransactionReceipt::from_account_tx(
             self,
             &tx_context,
-            &state.get_actual_state_changes()?,
+            &state_changes,
             &resources,
             CallInfo::summarize_many(validate_call_info.iter().chain(execute_call_info.iter())),
             0,
+            n_allocated_leaves_for_fee,
         );
 
         let post_execution_report =
@@ -669,24 +675,29 @@ impl AccountTransaction {
             &resources,
             CallInfo::summarize_many(validate_call_info.iter()),
             execution_steps_consumed,
+            0,
         );
 
         match execution_result {
             Ok(execute_call_info) => {
+                let execution_state_changes = execution_state.get_actual_state_changes()?;
+                let n_allocated_leaves_for_fee = self.n_charged_aliases(
+                    tx_context.clone(),
+                    &execution_state,
+                    &execution_state_changes,
+                )?;
                 // When execution succeeded, calculate the actual required fee before committing the
                 // transactional state. If max_fee is insufficient, revert the `run_execute` part.
                 let tx_receipt = TransactionReceipt::from_account_tx(
                     self,
                     &tx_context,
-                    &StateChanges::merge(vec![
-                        validate_state_changes,
-                        execution_state.get_actual_state_changes()?,
-                    ]),
+                    &StateChanges::merge(vec![validate_state_changes, execution_state_changes]),
                     &execution_resources,
                     CallInfo::summarize_many(
                         validate_call_info.iter().chain(execute_call_info.iter()),
                     ),
                     0,
+                    n_allocated_leaves_for_fee,
                 );
                 // Post-execution checks.
                 let post_execution_report = PostExecutionReport::new(
@@ -772,6 +783,27 @@ impl AccountTransaction {
         }
 
         self.run_revertible(state, tx_context, remaining_gas, validate, charge_fee)
+    }
+
+    fn n_charged_aliases<S: StateReader>(
+        &self,
+        tx_context: Arc<TransactionContext>,
+        state: &CachedState<S>,
+        state_changes: &StateChanges,
+    ) -> StateResult<usize> {
+        if tx_context.as_ref().block_context.versioned_constants.enable_stateful_compression {
+            Ok(match self.tx {
+                // Charge for introducing a new class hash.
+                ExecutableAccountTransaction::Declare(_) => 1,
+                // Charge for introducing a new contract address.
+                ExecutableAccountTransaction::DeployAccount(_) => 1,
+                ExecutableAccountTransaction::Invoke(_) => {
+                    n_charged_invoke_aliases(state, state_changes)?
+                }
+            })
+        } else {
+            Ok(0)
+        }
     }
 }
 

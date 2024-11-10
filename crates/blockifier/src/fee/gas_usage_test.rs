@@ -75,6 +75,7 @@ fn starknet_resources() -> StarknetResources {
         n_class_hash_updates: 11,
         n_compiled_class_hash_updates: 13,
         n_modified_contracts: 17,
+        n_allocated_leaves_for_fee: 0,
     });
     StarknetResources::new(2_usize, 3_usize, 4_usize, state_resources, 6.into(), execution_summary)
 }
@@ -166,6 +167,7 @@ fn test_get_event_gas_cost(
     n_class_hash_updates:0,
     n_compiled_class_hash_updates:0,
     n_modified_contracts:0,
+    n_allocated_leaves_for_fee: 0,
 })
 ]
 #[case::deploy_account(StateChangesCount {
@@ -173,6 +175,7 @@ fn test_get_event_gas_cost(
     n_class_hash_updates:1,
     n_compiled_class_hash_updates:0,
     n_modified_contracts:1,
+    n_allocated_leaves_for_fee: 1,
 })
 ]
 #[case::declare(StateChangesCount {
@@ -180,6 +183,7 @@ fn test_get_event_gas_cost(
     n_class_hash_updates:0,
     n_compiled_class_hash_updates:1,
     n_modified_contracts:0,
+    n_allocated_leaves_for_fee: 1,
 })
 ]
 #[case::general_scenario(StateChangesCount {
@@ -187,11 +191,13 @@ fn test_get_event_gas_cost(
     n_class_hash_updates:11,
     n_compiled_class_hash_updates:13,
     n_modified_contracts:17,
+    n_allocated_leaves_for_fee: 19,
 })
 ]
 fn test_get_da_gas_cost_basic(#[case] state_changes_count: StateChangesCount) {
     // Manual calculation.
     let on_chain_data_segment_length = state_changes_count.n_storage_updates * 2
+        + state_changes_count.n_allocated_leaves_for_fee * 2
         + state_changes_count.n_class_hash_updates
         + state_changes_count.n_compiled_class_hash_updates * 2
         + state_changes_count.n_modified_contracts * 2;

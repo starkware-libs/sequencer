@@ -1451,17 +1451,23 @@ fn declare_validate_callinfo(
 
 /// Returns the expected used L1 gas and blob gas (according to use_kzg_da flag) due to execution of
 /// a declare transaction.
-fn declare_expected_state_changes_count(version: TransactionVersion) -> StateChangesCount {
+fn declare_expected_state_changes_count(
+    version: TransactionVersion,
+    enable_stateful_compression: bool,
+) -> StateChangesCount {
     // TODO: Make TransactionVersion an enum and use match here.
+    let n_allocated_leaves_for_fee = if enable_stateful_compression { 1 } else { 0 };
     if version == TransactionVersion::ZERO {
         StateChangesCount {
             n_storage_updates: 1, // Sender balance.
+            n_allocated_leaves_for_fee,
             ..StateChangesCount::default()
         }
     } else if version == TransactionVersion::ONE {
         StateChangesCount {
             n_storage_updates: 1,    // Sender balance.
             n_modified_contracts: 1, // Nonce.
+            n_allocated_leaves_for_fee,
             ..StateChangesCount::default()
         }
     } else if version == TransactionVersion::TWO || version == TransactionVersion::THREE {
@@ -1469,6 +1475,7 @@ fn declare_expected_state_changes_count(version: TransactionVersion) -> StateCha
             n_storage_updates: 1,             // Sender balance.
             n_modified_contracts: 1,          // Nonce.
             n_compiled_class_hash_updates: 1, // Also set compiled class hash.
+            n_allocated_leaves_for_fee,
             ..StateChangesCount::default()
         }
     } else {
@@ -1487,8 +1494,10 @@ fn test_declare_tx(
     #[case] tx_version: TransactionVersion,
     #[case] empty_contract_version: CairoVersion,
     #[values(false, true)] use_kzg_da: bool,
+    #[values(false, true)] enable_stateful_compression: bool,
 ) {
-    let block_context = &BlockContext::create_for_account_testing_with_kzg(use_kzg_da);
+    let block_context = &mut BlockContext::create_for_account_testing_with_kzg(use_kzg_da);
+    block_context.versioned_constants.enable_stateful_compression = enable_stateful_compression;
     let versioned_constants = &block_context.versioned_constants;
     let empty_contract = FeatureContract::Empty(empty_contract_version);
     let account = FeatureContract::AccountWithoutValidations(account_cairo_version);
@@ -1499,7 +1508,8 @@ fn test_declare_tx(
     let class_info = calculate_class_info_for_testing(empty_contract.get_class());
     let sender_address = account.get_instance_address(0);
     let mut nonce_manager = NonceManager::default();
-    let state_changes_for_fee = declare_expected_state_changes_count(tx_version);
+    let state_changes_for_fee =
+        declare_expected_state_changes_count(tx_version, enable_stateful_compression);
     let starknet_resources = StarknetResources::new(
         0,
         0,
@@ -1686,9 +1696,11 @@ fn test_declare_tx_v0(default_l1_resource_bounds: ValidResourceBounds) {
 fn test_deploy_account_tx(
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
     #[values(false, true)] use_kzg_da: bool,
+    #[values(false, true)] enable_stateful_compression: bool,
     default_all_resource_bounds: ValidResourceBounds,
 ) {
-    let block_context = &BlockContext::create_for_account_testing_with_kzg(use_kzg_da);
+    let block_context = &mut BlockContext::create_for_account_testing_with_kzg(use_kzg_da);
+    block_context.versioned_constants.enable_stateful_compression = enable_stateful_compression;
     let versioned_constants = &block_context.versioned_constants;
     let chain_info = &block_context.chain_info;
     let mut nonce_manager = NonceManager::default();
@@ -1782,7 +1794,7 @@ fn test_deploy_account_tx(
     let starknet_resources = actual_execution_info.receipt.resources.starknet_resources.clone();
 
     let state_changes_count = StateChangesCount {
-        n_storage_updates: 1,
+        n_storage_updates: if enable_stateful_compression { 2 } else { 1 },
         n_modified_contracts: 1,
         n_class_hash_updates: 1,
         ..StateChangesCount::default()

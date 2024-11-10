@@ -335,13 +335,19 @@ fn test_from_state_changes_for_fee_charge(
     let fee_token_address = contract_address!("0x17");
     let state_changes =
         create_state_changes_for_test(&mut state, sender_address, fee_token_address);
-    let state_changes_count = state_changes.count_for_fee_charge(sender_address, fee_token_address);
+    let n_allocated_leaves_for_fee = 5;
+    let state_changes_count = state_changes.count_for_fee_charge(
+        sender_address,
+        fee_token_address,
+        n_allocated_leaves_for_fee,
+    );
     let expected_state_changes_count = StateChangesCount {
         // 1 for storage update + 1 for sender balance update if sender is defined.
         n_storage_updates: 1 + usize::from(sender_address.is_some()),
         n_class_hash_updates: 1,
         n_compiled_class_hash_updates: 1,
         n_modified_contracts: 2,
+        n_allocated_leaves_for_fee,
     };
     assert_eq!(state_changes_count, expected_state_changes_count);
 }
@@ -516,7 +522,8 @@ fn test_state_changes_keys() {
             n_storage_updates: 2,
             n_class_hash_updates: 1,
             n_compiled_class_hash_updates: 2,
-            n_modified_contracts: 2
+            n_modified_contracts: 2,
+            n_allocated_leaves_for_fee: 0,
         }
     );
 
