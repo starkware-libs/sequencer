@@ -71,8 +71,6 @@ fn create_callinfo(
             failed: call_result.failure_flag,
             gas_consumed,
         },
-        // todo(rodrigo): execution resources rely heavily on how the VM work, therefore
-        // the dummy values
         charged_resources: ChargedResources {
             vm_resources: ExecutionResources::default(),
             gas_for_fee: GasAmount(gas_consumed),
