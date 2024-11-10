@@ -134,6 +134,7 @@ impl TransactionProvider for ProposeTransactionProvider {
 
 pub struct ValidateTransactionProvider {
     pub tx_receiver: tokio::sync::mpsc::Receiver<Transaction>,
+    pub l1_provider_client: SharedL1ProviderClient,
 }
 
 #[async_trait]
@@ -146,6 +147,10 @@ impl TransactionProvider for ValidateTransactionProvider {
         if buffer.is_empty() {
             return Ok(NextTxs::End);
         }
+        buffer.iter().all(|tx| match tx {
+            Transaction::L1Handler(tx) => self.l1_provider_client.validate(tx),
+            Transaction::Account(_) => true,
+        });
         Ok(NextTxs::Txs(buffer))
     }
 }
@@ -155,6 +160,7 @@ impl TransactionProvider for ValidateTransactionProvider {
 #[async_trait]
 pub trait L1ProviderClient: Send + Sync {
     fn get_txs(&self, n_txs: usize) -> Vec<L1HandlerTransaction>;
+    fn validate(&self, tx: &L1HandlerTransaction) -> bool;
 }
 
 pub type SharedL1ProviderClient = Arc<dyn L1ProviderClient>;
@@ -166,5 +172,10 @@ impl L1ProviderClient for DummyL1ProviderClient {
     fn get_txs(&self, _n_txs: usize) -> Vec<L1HandlerTransaction> {
         warn!("Dummy L1 provider client is used, no L1 transactions are provided.");
         vec![]
+    }
+
+    fn validate(&self, _tx: &L1HandlerTransaction) -> bool {
+        warn!("Dummy L1 provider client is used, tx is not really validated.");
+        true
     }
 }

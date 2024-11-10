@@ -13,10 +13,12 @@ use crate::transaction_provider::{
     ProposeTransactionProvider,
     TransactionProvider,
     TransactionProviderConfig,
+    ValidateTransactionProvider,
 };
 
 const MAX_L1_HANDLER_TXS_PER_BLOCK: usize = 15;
 const MAX_TXS_PER_FETCH: usize = 10;
+const VALIDATE_BUFFER_SIZE: usize = 30;
 
 struct MockDependencies {
     mempool_client: MockMempoolClient,
@@ -40,6 +42,13 @@ impl MockDependencies {
         });
     }
 
+    fn expect_validate_l1handler(&mut self, tx: L1HandlerTransaction, result: bool) {
+        self.l1_provider_client
+            .expect_validate()
+            .withf(move |tx_arg| tx_arg == &tx)
+            .returning(move |_| result);
+    }
+
     fn propose_tx_provider(self) -> ProposeTransactionProvider {
         ProposeTransactionProvider::new(
             TransactionProviderConfig {
@@ -49,6 +58,16 @@ impl MockDependencies {
             Arc::new(self.l1_provider_client),
         )
     }
+
+    fn validate_tx_provider(
+        self,
+        tx_receiver: tokio::sync::mpsc::Receiver<Transaction>,
+    ) -> ValidateTransactionProvider {
+        ValidateTransactionProvider {
+            tx_receiver,
+            l1_provider_client: Arc::new(self.l1_provider_client),
+        }
+    }
 }
 
 #[fixture]
@@ -57,6 +76,12 @@ fn mock_dependencies() -> MockDependencies {
         mempool_client: MockMempoolClient::new(),
         l1_provider_client: MockL1ProviderClient::new(),
     }
+}
+
+#[fixture]
+fn tx_channel() -> (tokio::sync::mpsc::Sender<Transaction>, tokio::sync::mpsc::Receiver<Transaction>)
+{
+    tokio::sync::mpsc::channel(VALIDATE_BUFFER_SIZE)
 }
 
 #[rstest]
@@ -122,4 +147,29 @@ async fn no_more_l1_handler(mut mock_dependencies: MockDependencies) {
     let txs = tx_provider.get_txs(MAX_TXS_PER_FETCH).await.unwrap();
     let data = assert_matches!(txs, NextTxs::Txs(txs) if txs.len() == MAX_TXS_PER_FETCH => txs);
     assert!(data.iter().all(|tx| matches!(tx, Transaction::Account(_))));
+}
+
+#[rstest]
+#[tokio::test]
+async fn validate_flow(
+    mut mock_dependencies: MockDependencies,
+    tx_channel: (tokio::sync::mpsc::Sender<Transaction>, tokio::sync::mpsc::Receiver<Transaction>),
+) {
+    mock_dependencies.expect_validate_l1handler(L1HandlerTransaction::default(), true);
+    let (tx_sender, tx_receiver) = tx_channel;
+    let mut validate_tx_provider = mock_dependencies.validate_tx_provider(tx_receiver);
+
+    tx_sender.send(Transaction::L1Handler(L1HandlerTransaction::default())).await.unwrap();
+    tx_sender
+        .send(Transaction::Account(AccountTransaction::Invoke(executable_invoke_tx(
+            InvokeTxArgs::default(),
+        ))))
+        .await
+        .unwrap();
+
+    let txs = validate_tx_provider.get_txs(MAX_TXS_PER_FETCH).await.unwrap();
+    let data = assert_matches!(txs, NextTxs::Txs(txs) => txs);
+    assert_eq!(data.len(), 2);
+    assert!(matches!(data[0], Transaction::L1Handler(_)));
+    assert!(matches!(data[1], Transaction::Account(_)));
 }
