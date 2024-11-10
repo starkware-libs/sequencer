@@ -25,7 +25,7 @@ class BaseCommand(Enum):
 
     def cmd(self, crates: Set[str]) -> List[str]:
         package_args = []
-        operands = ["--", "-Dwarnings"]  # "--" must be the first element.
+        operands = ["--", "-D", "warnings"]  # "--" must be the first element.
         for package in crates:
             package_args.extend(["--package", package])
 
