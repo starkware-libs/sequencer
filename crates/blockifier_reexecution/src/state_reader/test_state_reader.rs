@@ -430,7 +430,7 @@ impl ReexecutionStateReader for TestStateReader {
 
 /// Trait of the functions \ queries required for reexecution.
 pub trait ConsecutiveStateReaders<S: StateReader> {
-    fn get_transaction_executor(
+    fn pre_process_and_create_executor(
         self,
         transaction_executor_config: Option<TransactionExecutorConfig>,
     ) -> ReexecutionResult<TransactionExecutor<S>>;
@@ -484,7 +484,7 @@ impl ConsecutiveTestStateReaders {
 }
 
 impl ConsecutiveStateReaders<TestStateReader> for ConsecutiveTestStateReaders {
-    fn get_transaction_executor(
+    fn pre_process_and_create_executor(
         self,
         transaction_executor_config: Option<TransactionExecutorConfig>,
     ) -> ReexecutionResult<TransactionExecutor<TestStateReader>> {
@@ -630,7 +630,7 @@ impl OfflineConsecutiveStateReaders {
 }
 
 impl ConsecutiveStateReaders<OfflineStateReader> for OfflineConsecutiveStateReaders {
-    fn get_transaction_executor(
+    fn pre_process_and_create_executor(
         self,
         transaction_executor_config: Option<TransactionExecutorConfig>,
     ) -> ReexecutionResult<TransactionExecutor<OfflineStateReader>> {
