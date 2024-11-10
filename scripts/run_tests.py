@@ -44,7 +44,10 @@ class BaseCommand(Enum):
             return ["scripts/rust_fmt.sh"] + fmt_args + ["--", "--check"]
         elif self == BaseCommand.CLIPPY:
             clippy_args = package_args if len(package_args) > 0 else ["--workspace"]
-            return ["scripts/clippy.sh"] + clippy_args
+            # Don't remove, or warnings will merge.
+            # TODO: add this to package args instead of here, it is a rustc flag, not a clippy flag.
+            clippy_args += ["--", "-Dwarnings"]
+            return ["cargo", "clippy"] + clippy_args
         elif self == BaseCommand.DOC:
             doc_args = package_args if len(package_args) > 0 else ["--workspace"]
             return ["cargo", "doc", "-r", "--document-private-items", "--no-deps"] + doc_args

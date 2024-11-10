@@ -251,13 +251,12 @@ void = "1.0.2"
 zstd = "0.13.1"
 
 [workspace.lints.rust]
-future-incompatible = "deny"
-nonstandard-style = "deny"
-rust-2018-idioms = "deny"
+future-incompatible = "warn"
+nonstandard-style = "warn"
+rust-2018-idioms = "warn"
 # See [here](https://github.com/taiki-e/cargo-llvm-cov/issues/370) for a discussion on why this is
 # needed (from rust 1.80).
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }
-warnings = "deny"
 
 [workspace.lints.clippy]
-as_conversions = "deny"
+as_conversions = "warn"
