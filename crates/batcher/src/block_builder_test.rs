@@ -293,11 +293,18 @@ async fn run_build_block(
     output_sender: Option<UnboundedSender<Transaction>>,
     fail_on_err: bool,
 ) -> BlockBuilderResult<BlockExecutionArtifacts> {
-    let block_builder = BlockBuilder::new(Box::new(mock_transaction_executor), TX_CHUNK_SIZE);
     let deadline = tokio::time::Instant::now()
         + tokio::time::Duration::from_secs(BLOCK_GENERATION_DEADLINE_SECS);
+    let mut block_builder = BlockBuilder::new(
+        Box::new(mock_transaction_executor),
+        TX_CHUNK_SIZE,
+        deadline,
+        Box::new(tx_provider),
+        output_sender,
+        fail_on_err,
+    );
 
-    block_builder.build_block(deadline, Box::new(tx_provider), output_sender, fail_on_err).await
+    block_builder.build_block().await
 }
 
 // TODO: Add test case for failed transaction.
