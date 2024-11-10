@@ -6,14 +6,14 @@ use std::process::Stdio;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use rstest::{fixture, rstest};
 use starknet_http_server::config::HttpServerConfig;
-use starknet_integration_tests::integration_test_config_utils::dump_config_file_changes;
-use starknet_integration_tests::integration_test_utils::{
+use starknet_integration_tests::config_utils::dump_config_file_changes;
+use starknet_integration_tests::state_reader::{spawn_test_rpc_state_reader, StorageTestSetup};
+use starknet_integration_tests::utils::{
     create_config,
     create_integration_test_tx_generator,
     run_transaction_generator_test_scenario,
     HttpTestClient,
 };
-use starknet_integration_tests::state_reader::{spawn_test_rpc_state_reader, StorageTestSetup};
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_monitoring_endpoint::test_utils::IsAliveClient;
 use starknet_sequencer_infra::trace_util::configure_tracing;
