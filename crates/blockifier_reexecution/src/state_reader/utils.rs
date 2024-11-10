@@ -121,7 +121,12 @@ macro_rules! retry_request {
                 match $closure() {
                     Ok(value) => retry::OperationResult::Ok(value),
                     // If the error contains the expected_error_string , we want to retry.
-                    Err(e) if e.to_string().contains($retry_config.expected_error_string) => {
+                    Err(e)
+                        if $retry_config
+                            .expected_error_strings
+                            .iter()
+                            .any(|s| e.to_string().contains(s)) =>
+                    {
                         retry::OperationResult::Retry(e)
                     }
                     // For all other errors, do not retry and return immediately.
@@ -130,7 +135,8 @@ macro_rules! retry_request {
             },
         )
         .map_err(|e| {
-            if e.error.to_string().contains($retry_config.expected_error_string) {
+            if $retry_config.expected_error_strings.iter().any(|s| e.error.to_string().contains(s))
+            {
                 panic!("{}: {:?}", $retry_config.retry_failure_message, e.error);
             }
             e.error
