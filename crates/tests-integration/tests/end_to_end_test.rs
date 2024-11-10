@@ -13,7 +13,7 @@ use starknet_batcher_types::batcher_types::{
 };
 use starknet_batcher_types::communication::SharedBatcherClient;
 use starknet_integration_tests::flow_test_setup::FlowTestSetup;
-use starknet_integration_tests::integration_test_utils::{
+use starknet_integration_tests::utils::{
     create_integration_test_tx_generator,
     run_integration_test_scenario,
 };

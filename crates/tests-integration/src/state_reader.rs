@@ -46,7 +46,7 @@ use strum::IntoEnumIterator;
 use tempfile::TempDir;
 use tokio::sync::RwLock;
 
-use crate::integration_test_utils::get_available_socket;
+use crate::utils::get_available_socket;
 
 type ContractClassesMap =
     (Vec<(ClassHash, DeprecatedContractClass)>, Vec<(ClassHash, CasmContractClass)>);

@@ -14,8 +14,8 @@ use tempfile::TempDir;
 use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 
-use crate::integration_test_utils::{create_config, HttpTestClient};
 use crate::state_reader::{spawn_test_rpc_state_reader, StorageTestSetup};
+use crate::utils::{create_config, HttpTestClient};
 
 pub struct FlowTestSetup {
     pub task_executor: TokioExecutor,
