@@ -142,7 +142,9 @@ impl StarknetResources {
 #[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct StateResources {
+    /// The state changes takes into account n_allocated_leaves.
     state_changes_for_fee: StateChangesCount,
+    pub n_allocated_leaves: usize,
 }
 
 impl StateResources {
@@ -150,16 +152,17 @@ impl StateResources {
         state_changes: &StateChanges,
         sender_address: Option<ContractAddress>,
         fee_token_address: ContractAddress,
+        n_allocated_leaves: usize,
     ) -> Self {
-        Self {
-            state_changes_for_fee: state_changes
-                .count_for_fee_charge(sender_address, fee_token_address),
-        }
+        let mut state_changes_for_fee =
+            state_changes.count_for_fee_charge(sender_address, fee_token_address);
+        state_changes_for_fee.n_storage_updates += n_allocated_leaves;
+        Self { state_changes_for_fee, n_allocated_leaves }
     }
 
     #[cfg(any(test, feature = "testing"))]
     pub fn new_for_testing(state_changes_for_fee: StateChangesCount) -> Self {
-        Self { state_changes_for_fee }
+        Self { state_changes_for_fee, n_allocated_leaves: 0 }
     }
 
     /// Returns the gas cost of the transaction's state changes.
