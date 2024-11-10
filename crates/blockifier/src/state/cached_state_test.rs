@@ -340,15 +340,16 @@ fn test_from_state_changes_for_fee_charge(
         fee_token_address,
         enable_stateful_compression,
     );
+    let n_expected_storage_update = 1 + usize::from(sender_address.is_some());
     let expected_state_changes_count = StateChangesCountForFee {
         // 1 for storage update + 1 for sender balance update if sender is defined.
         state_changes_count: StateChangesCount {
-            n_storage_updates: 1 + usize::from(sender_address.is_some()),
+            n_storage_updates: n_expected_storage_update,
             n_class_hash_updates: 1,
             n_compiled_class_hash_updates: 1,
             n_modified_contracts: 2,
         },
-        n_allocated_keys: 0,
+        n_allocated_keys: if enable_stateful_compression { n_expected_storage_update } else { 0 },
     };
     assert_eq!(state_changes_count, expected_state_changes_count);
 }
