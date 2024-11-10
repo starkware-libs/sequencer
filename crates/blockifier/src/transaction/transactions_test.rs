@@ -198,6 +198,8 @@ fn expected_validate_call_info(
     let retdata = match cairo_version {
         CairoVersion::Cairo0 => Retdata::default(),
         CairoVersion::Cairo1 => retdata!(felt!(constants::VALIDATE_RETDATA)),
+        #[cfg(feature = "cairo_native")]
+        CairoVersion::Native => retdata!(felt!(constants::VALIDATE_RETDATA)),
     };
     // Extra range check in regular (invoke) validate call, due to passing the calldata as an array.
     let n_range_checks = match cairo_version {
@@ -205,6 +207,10 @@ fn expected_validate_call_info(
             usize::from(entry_point_selector_name == constants::VALIDATE_ENTRY_POINT_NAME)
         }
         CairoVersion::Cairo1 => {
+            if entry_point_selector_name == constants::VALIDATE_ENTRY_POINT_NAME { 7 } else { 2 }
+        }
+        #[cfg(feature = "cairo_native")]
+        CairoVersion::Native => {
             if entry_point_selector_name == constants::VALIDATE_ENTRY_POINT_NAME { 7 } else { 2 }
         }
     };

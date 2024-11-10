@@ -170,7 +170,9 @@ fn prepare_compiled_contract_classes(
                     serde_json::from_str(&contract.raw_class()).unwrap(),
                 ));
             }
-            CairoVersion::Cairo1 => {
+            // todo(rdr): including both Cairo1 and Native versions for now. Temporal solution to
+            // avoid compilation errors when using the "cairo_native" feature
+            _ => {
                 cairo1_contract_classes.push((
                     contract.class_hash(),
                     serde_json::from_str(&contract.raw_class()).unwrap(),
@@ -308,7 +310,9 @@ impl<'a> ThinStateDiffBuilder<'a> {
                 CairoVersion::Cairo0 => {
                     self.deprecated_declared_classes.push(contract.class_hash())
                 }
-                CairoVersion::Cairo1 => {
+                // todo(rdr): including both Cairo1 and Native versions for now. Temporal solution
+                // to avoid compilation errors when using the "cairo_native" feature
+                _ => {
                     self.declared_classes.insert(contract.class_hash(), Default::default());
                 }
             }
