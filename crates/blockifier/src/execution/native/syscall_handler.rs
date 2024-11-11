@@ -631,46 +631,66 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
 
     fn secp256k1_new(
         &mut self,
-        _x: U256,
-        _y: U256,
-        _remaining_gas: &mut u128,
+        x: U256,
+        y: U256,
+        remaining_gas: &mut u128,
     ) -> SyscallResult<Option<Secp256k1Point>> {
-        todo!("Implement secp256k1_new syscall.");
+        self.pre_execute_syscall(remaining_gas, self.context.gas_costs().secp256k1_new_gas_cost)?;
+
+        Secp256Point::new(x, y)
+            .map(|op| op.map(|p| p.into()))
+            .map_err(|e| self.handle_error(remaining_gas, e))
     }
 
     fn secp256k1_add(
         &mut self,
-        _p0: Secp256k1Point,
-        _p1: Secp256k1Point,
-        _remaining_gas: &mut u128,
+        p0: Secp256k1Point,
+        p1: Secp256k1Point,
+        remaining_gas: &mut u128,
     ) -> SyscallResult<Secp256k1Point> {
-        todo!("Implement secp256k1_add syscall.");
+        self.pre_execute_syscall(remaining_gas, self.context.gas_costs().secp256k1_add_gas_cost)?;
+
+        Ok(Secp256Point::add(p0.into(), p1.into()).into())
     }
 
     fn secp256k1_mul(
         &mut self,
-        _p: Secp256k1Point,
-        _m: U256,
-        _remaining_gas: &mut u128,
+        p: Secp256k1Point,
+        m: U256,
+        remaining_gas: &mut u128,
     ) -> SyscallResult<Secp256k1Point> {
-        todo!("Implement secp256k1_mul syscall.");
+        self.pre_execute_syscall(remaining_gas, self.context.gas_costs().secp256k1_mul_gas_cost)?;
+
+        Ok(Secp256Point::mul(p.into(), m).into())
     }
 
     fn secp256k1_get_point_from_x(
         &mut self,
-        _x: U256,
-        _y_parity: bool,
-        _remaining_gas: &mut u128,
+        x: U256,
+        y_parity: bool,
+        remaining_gas: &mut u128,
     ) -> SyscallResult<Option<Secp256k1Point>> {
-        todo!("Implement secp256k1_get_point_from_x syscall.");
+        self.pre_execute_syscall(
+            remaining_gas,
+            self.context.gas_costs().secp256k1_get_point_from_x_gas_cost,
+        )?;
+
+        Secp256Point::get_point_from_x(x, y_parity)
+            .map(|op| op.map(|p| p.into()))
+            .map_err(|e| self.handle_error(remaining_gas, e))
     }
 
     fn secp256k1_get_xy(
         &mut self,
-        _p: Secp256k1Point,
-        _remaining_gas: &mut u128,
+        p: Secp256k1Point,
+        remaining_gas: &mut u128,
     ) -> SyscallResult<(U256, U256)> {
-        todo!("Implement secp256k1_get_xy syscall.");
+        self.pre_execute_syscall(
+            remaining_gas,
+            self.context.gas_costs().secp256k1_get_xy_gas_cost,
+        )?;
+
+        Ok((p.x, p.y))
     }
 
     fn secp256r1_new(
