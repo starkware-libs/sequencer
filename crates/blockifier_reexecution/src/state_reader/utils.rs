@@ -19,7 +19,10 @@ use crate::assert_eq_state_diff;
 use crate::state_reader::errors::ReexecutionError;
 use crate::state_reader::test_state_reader::{
     ConsecutiveStateReaders,
+    ConsecutiveTestStateReaders,
     OfflineConsecutiveStateReaders,
+    SerializableDataPrevBlock,
+    SerializableOfflineReexecutionData,
 };
 
 pub const RPC_NODE_URL: &str = "https://free-rpc.nethermind.io/mainnet-juno/";
@@ -228,6 +231,44 @@ pub fn reexecute_block_for_testing(block_number: u64) {
     println!("Reexecution test for block {block_number} passed successfully.");
 }
 
+pub fn write_block_reexecution_data_to_file(
+    block_number: BlockNumber,
+    full_file_path: &str,
+    node_url: String,
+) {
+    let config =
+        RpcStateReaderConfig { url: node_url, json_rpc_version: JSON_RPC_VERSION.to_string() };
+
+    let consecutive_state_readers = ConsecutiveTestStateReaders::new(
+        block_number.prev().expect("Should not run with block 0"),
+        Some(config),
+        true,
+    );
+
+    let serializable_data_next_block =
+        consecutive_state_readers.get_serializable_data_next_block().unwrap();
+
+    let old_block_hash = consecutive_state_readers.get_old_block_hash().unwrap();
+
+    // Run the reexecution test and get the state maps and contract class mapping.
+    let block_state = reexecute_and_verify_correctness(consecutive_state_readers).unwrap();
+    let serializable_data_prev_block = SerializableDataPrevBlock {
+        state_maps: block_state.get_initial_reads().unwrap().into(),
+        contract_class_mapping: block_state.state.get_contract_class_mapping_dumper().unwrap(),
+    };
+
+    // Write the reexecution data to a json file.
+    SerializableOfflineReexecutionData {
+        serializable_data_prev_block,
+        serializable_data_next_block,
+        old_block_hash,
+    }
+    .write_to_file(full_file_path)
+    .unwrap();
+
+    println!("RPC replies required for reexecuting block {block_number} written to json file.");
+}
+
 /// Asserts equality between two `CommitmentStateDiff` structs, ignoring insertion order.
 #[macro_export]
 macro_rules! assert_eq_state_diff {
@@ -243,10 +284,9 @@ macro_rules! assert_eq_state_diff {
 /// Returns the block numbers for re-execution.
 /// There is block number for each Starknet Version (starting v0.13)
 /// And some additional block with specific transactions.
-#[allow(dead_code)]
-pub(crate) fn get_block_numbers_for_reexecution() -> Vec<BlockNumber> {
+pub fn get_block_numbers_for_reexecution() -> Vec<BlockNumber> {
     let block_numbers_examples: HashMap<String, u64> =
         serde_json::from_value(read_json_file("block_numbers_for_reexecution.json"))
             .expect("Failed to deserialize block header");
-    block_numbers_examples.values().map(|block_number| BlockNumber(*block_number)).collect()
+    block_numbers_examples.values().cloned().map(BlockNumber).collect()
 }
