@@ -43,6 +43,8 @@ pub enum StatelessTransactionValidatorError {
          The Sierra version of the declared contract is {version}."
     )]
     UnsupportedSierraVersion { version: VersionId, min_version: VersionId, max_version: VersionId },
+    #[error("The field {field_name} should be empty.")]
+    NonEmptyField { field_name: String },
     #[error("Expected a positive amount of {resource:?}. Got {resource_bounds:?}.")]
     ZeroResourceBounds { resource: Resource, resource_bounds: ResourceBounds },
 }
@@ -59,6 +61,7 @@ impl From<StatelessTransactionValidatorError> for GatewaySpecError {
             StatelessTransactionValidatorError::CalldataTooLong { .. }
             | StatelessTransactionValidatorError::EntryPointsNotUniquelySorted
             | StatelessTransactionValidatorError::InvalidSierraVersion(..)
+            | StatelessTransactionValidatorError::NonEmptyField { .. }
             | StatelessTransactionValidatorError::SignatureTooLong { .. }
             | StatelessTransactionValidatorError::StarknetApiError(..)
             | StatelessTransactionValidatorError::ZeroResourceBounds { .. } => {

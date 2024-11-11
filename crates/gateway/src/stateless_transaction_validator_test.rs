@@ -15,7 +15,9 @@ use starknet_api::core::{ContractAddress, EntryPointSelector};
 use starknet_api::rpc_transaction::{ContractClass, EntryPointByType};
 use starknet_api::state::EntryPoint;
 use starknet_api::transaction::fields::{
+    AccountDeploymentData,
     AllResourceBounds,
+    PaymasterData,
     Resource,
     ResourceBounds,
     TransactionSignature,
@@ -441,4 +443,48 @@ fn test_invalid_contract_address(
         tx_validator.validate(&tx).unwrap_err(),
         StatelessTransactionValidatorError::StarknetApiError(StarknetApiError::OutOfRange { .. })
     )
+}
+
+#[rstest]
+fn test_non_empty_account_deployment_data(
+    #[values(TransactionType::Declare, TransactionType::Invoke)] tx_type: TransactionType,
+) {
+    let tx_validator =
+        StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone() };
+    let tx = rpc_tx_for_testing(
+        tx_type,
+        RpcTransactionArgs {
+            account_deployment_data: AccountDeploymentData(vec![felt!(1_u128)]),
+            ..Default::default()
+        },
+    );
+
+    assert_eq!(
+        tx_validator.validate(&tx).unwrap_err(),
+        StatelessTransactionValidatorError::NonEmptyField {
+            field_name: "account_deployment_data".to_string()
+        }
+    );
+}
+
+#[rstest]
+fn test_non_empty_paymaster_data(
+    #[values(TransactionType::Declare, TransactionType::Invoke)] tx_type: TransactionType,
+) {
+    let tx_validator =
+        StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone() };
+    let tx = rpc_tx_for_testing(
+        tx_type,
+        RpcTransactionArgs {
+            paymaster_data: PaymasterData(vec![felt!(1_u128)]),
+            ..Default::default()
+        },
+    );
+
+    assert_eq!(
+        tx_validator.validate(&tx).unwrap_err(),
+        StatelessTransactionValidatorError::NonEmptyField {
+            field_name: "paymaster_data".to_string()
+        }
+    );
 }
