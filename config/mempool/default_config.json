@@ -782,7 +782,7 @@
   "mempool_p2p_config.network_buffer_size": {
     "description": "Network buffer size.",
     "privacy": "Public",
-    "value": 0
+    "value": 10000
   },
   "mempool_p2p_config.network_config.advertised_multiaddr": {
     "description": "The external address other peers see this node. If this is set, the node will not try to find out which addresses it has and will write this address as external instead",
