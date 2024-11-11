@@ -27,7 +27,7 @@ pub fn execute_entry_point_call(
     let mut syscall_handler: NativeSyscallHandler<'_> =
         NativeSyscallHandler::new(call, state, resources, context);
 
-    let execution_result = contract_class.executor.invoke_contract_dynamic(
+    let execution_result = contract_class.executor.run(
         &function_id,
         &syscall_handler.call.calldata.0.clone(),
         Some(syscall_handler.call.initial_gas.into()),
