@@ -22,7 +22,11 @@ use starknet_types_core::felt::Felt;
 use crate::execution::call_info::{CallInfo, OrderedEvent, OrderedL2ToL1Message, Retdata};
 use crate::execution::entry_point::{CallEntryPoint, EntryPointExecutionContext};
 use crate::execution::secp;
-use crate::execution::syscalls::hint_processor::{SyscallExecutionError, OUT_OF_GAS_ERROR};
+use crate::execution::syscalls::hint_processor::{
+    SyscallExecutionError,
+    INVALID_INPUT_LENGTH_ERROR,
+    OUT_OF_GAS_ERROR,
+};
 use crate::state::state_api::State;
 
 pub struct NativeSyscallHandler<'state> {
@@ -250,52 +254,103 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
         todo!("Implement send_message_to_l1 syscall.");
     }
 
-    fn keccak(&mut self, _input: &[u64], _remaining_gas: &mut u128) -> SyscallResult<U256> {
-        todo!("Implement keccak syscall.");
+    fn keccak(&mut self, input: &[u64], remaining_gas: &mut u128) -> SyscallResult<U256> {
+        self.pre_execute_syscall(remaining_gas, self.context.gas_costs().keccak_gas_cost)?;
+
+        const KECCAK_FULL_RATE_IN_WORDS: usize = 17;
+
+        let input_length = input.len();
+        let (n_rounds, remainder) = num_integer::div_rem(input_length, KECCAK_FULL_RATE_IN_WORDS);
+
+        if remainder != 0 {
+            // In VM this error is wrapped into `SyscallExecutionError::SyscallError`
+            return Err(vec![Felt::from_hex(INVALID_INPUT_LENGTH_ERROR).unwrap()]);
+        }
+
+        // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion
+        // works.
+        let n_rounds_as_u128 = u128::try_from(n_rounds).expect("Failed to convert usize to u128.");
+        let gas_cost =
+            n_rounds_as_u128 * u128::from(self.context.gas_costs().keccak_round_cost_gas_cost);
+
+        if gas_cost > *remaining_gas {
+            // In VM this error is wrapped into `SyscallExecutionError::SyscallError`
+            return Err(vec![Felt::from_hex(OUT_OF_GAS_ERROR).unwrap()]);
+        }
+        *remaining_gas -= gas_cost;
+
+        let mut state = [0u64; 25];
+        for chunk in input.chunks(KECCAK_FULL_RATE_IN_WORDS) {
+            for (i, val) in chunk.iter().enumerate() {
+                state[i] ^= val;
+            }
+            keccak::f1600(&mut state)
+        }
+
+        Ok(U256 {
+            hi: u128::from(state[2]) | (u128::from(state[3]) << 64),
+            lo: u128::from(state[0]) | (u128::from(state[1]) << 64),
+        })
     }
 
     fn secp256k1_new(
         &mut self,
-        _x: U256,
-        _y: U256,
-        _remaining_gas: &mut u128,
+        x: U256,
+        y: U256,
+        remaining_gas: &mut u128,
     ) -> SyscallResult<Option<Secp256k1Point>> {
-        todo!("Implement secp256k1_new syscall.");
+        self.pre_execute_syscall(remaining_gas, self.context.gas_costs().secp256k1_new_gas_cost)?;
+
+        Secp256Point::<ark_secp256k1::Config>::new(x, y).map(|op| op.map(|p| p.into()))
     }
 
     fn secp256k1_add(
         &mut self,
-        _p0: Secp256k1Point,
-        _p1: Secp256k1Point,
-        _remaining_gas: &mut u128,
+        p0: Secp256k1Point,
+        p1: Secp256k1Point,
+        remaining_gas: &mut u128,
     ) -> SyscallResult<Secp256k1Point> {
-        todo!("Implement secp256k1_add syscall.");
+        self.pre_execute_syscall(remaining_gas, self.context.gas_costs().secp256k1_add_gas_cost)?;
+
+        Ok(Secp256Point::add(p0.into(), p1.into()).into())
     }
 
     fn secp256k1_mul(
         &mut self,
-        _p: Secp256k1Point,
-        _m: U256,
-        _remaining_gas: &mut u128,
+        p: Secp256k1Point,
+        m: U256,
+        remaining_gas: &mut u128,
     ) -> SyscallResult<Secp256k1Point> {
-        todo!("Implement secp256k1_mul syscall.");
+        self.pre_execute_syscall(remaining_gas, self.context.gas_costs().secp256k1_mul_gas_cost)?;
+
+        Ok(Secp256Point::mul(p.into(), m).into())
     }
 
     fn secp256k1_get_point_from_x(
         &mut self,
-        _x: U256,
-        _y_parity: bool,
-        _remaining_gas: &mut u128,
+        x: U256,
+        y_parity: bool,
+        remaining_gas: &mut u128,
     ) -> SyscallResult<Option<Secp256k1Point>> {
-        todo!("Implement secp256k1_get_point_from_x syscall.");
+        self.pre_execute_syscall(
+            remaining_gas,
+            self.context.gas_costs().secp256k1_get_point_from_x_gas_cost,
+        )?;
+
+        Secp256Point::get_point_from_x(x, y_parity).map(|op| op.map(|p| p.into()))
     }
 
     fn secp256k1_get_xy(
         &mut self,
-        _p: Secp256k1Point,
-        _remaining_gas: &mut u128,
+        p: Secp256k1Point,
+        remaining_gas: &mut u128,
     ) -> SyscallResult<(U256, U256)> {
-        todo!("Implement secp256k1_get_xy syscall.");
+        self.pre_execute_syscall(
+            remaining_gas,
+            self.context.gas_costs().secp256k1_get_xy_gas_cost,
+        )?;
+
+        Ok((p.x, p.y))
     }
 
     fn secp256r1_new(
