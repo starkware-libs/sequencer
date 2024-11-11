@@ -156,12 +156,11 @@ impl ProposalManagerTrait for ProposalManager {
         deadline: tokio::time::Instant,
         tx_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
     ) -> Result<(), BuildProposalError> {
-        let height = self.active_height.ok_or(BuildProposalError::NoActiveHeight)?;
-        if self.executed_proposals.lock().await.contains_key(&proposal_id) {
-            return Err(BuildProposalError::ProposalAlreadyExists { proposal_id });
-        }
-        info!("Starting generation of a new proposal with id {}.", proposal_id);
         self.set_active_proposal(proposal_id).await?;
+
+        info!("Starting generation of a new proposal with id {}.", proposal_id);
+
+        let height = self.active_height.expect("No active height.");
         let block_builder =
             self.block_builder_factory.create_block_builder(height, retrospective_block_hash)?;
 
@@ -178,9 +177,15 @@ impl ProposalManagerTrait for ProposalManager {
                     .map(ProposalOutput::from)
                     .map_err(|e| GetProposalResultError::BlockBuilderError(Arc::new(e)));
 
-                let proposal_id =
-                    active_proposal.lock().await.take().expect("Active proposal should exist.");
                 executed_proposals.lock().await.insert(proposal_id, result);
+
+                // The proposal is done, clear the active proposal.
+                let mut active_proposal = active_proposal.lock().await;
+                if let Some(current_active_proposal_id) = *active_proposal {
+                    if current_active_proposal_id == proposal_id {
+                        active_proposal.take();
+                    }
+                }
             }
             .in_current_span(),
         ));
@@ -239,22 +244,29 @@ impl ProposalManager {
         self.active_height = None;
     }
 
-    // Checks if there is already a proposal being generated, and if not, sets the given proposal_id
-    // as the one being generated.
+    // Sets a new active proposal task.
+    // Fails if either there is no active height, there is another proposal being generated, or a
+    // proposal with the same ID already exists.
     async fn set_active_proposal(
         &mut self,
-        active_proposal: ProposalId,
+        proposal_id: ProposalId,
     ) -> Result<(), BuildProposalError> {
-        let mut current_active_proposal = self.active_proposal.lock().await;
-        if let Some(current_generating_proposal_id) = *current_active_proposal {
+        self.active_height.ok_or(BuildProposalError::NoActiveHeight)?;
+
+        if self.executed_proposals.lock().await.contains_key(&proposal_id) {
+            return Err(BuildProposalError::ProposalAlreadyExists { proposal_id });
+        }
+
+        let mut active_proposal = self.active_proposal.lock().await;
+        if let Some(current_generating_proposal_id) = *active_proposal {
             return Err(BuildProposalError::AlreadyGeneratingProposal {
                 current_generating_proposal_id,
-                new_proposal_id: active_proposal,
+                new_proposal_id: proposal_id,
             });
         }
 
-        *current_active_proposal = Some(active_proposal);
-        debug!("Set proposal {} as the one being generated.", active_proposal);
+        debug!("Set proposal {} as the one being generated.", proposal_id);
+        *active_proposal = Some(proposal_id);
         Ok(())
     }
 
