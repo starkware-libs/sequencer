@@ -10,7 +10,6 @@ use cairo_native::starknet::{
     SyscallResult,
     U256,
 };
-use cairo_native::starknet_stub::encode_str_as_felts;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
@@ -42,6 +41,9 @@ pub struct NativeSyscallHandler<'state> {
     // Additional information gathered during execution.
     pub read_values: Vec<Felt>,
     pub accessed_keys: HashSet<StorageKey, RandomState>,
+
+    // It is set if an unrecoverable error happens during syscall execution
+    pub unrecoverable_error: Option<SyscallExecutionError>,
 }
 
 impl<'state> NativeSyscallHandler<'state> {
@@ -62,6 +64,7 @@ impl<'state> NativeSyscallHandler<'state> {
             syscall_counter: SyscallCounter::new(),
             read_values: Vec::new(),
             accessed_keys: HashSet::new(),
+            unrecoverable_error: None,
         }
     }
 
@@ -98,18 +101,6 @@ impl<'state> NativeSyscallHandler<'state> {
         Ok(retdata)
     }
 
-    fn handle_error(
-        &mut self,
-        _remaining_gas: &mut u128,
-        error: SyscallExecutionError,
-    ) -> Vec<Felt> {
-        match error {
-            SyscallExecutionError::SyscallError { error_data } => error_data,
-            // unrecoverable errors are yet to be implemented
-            _ => encode_str_as_felts(&error.to_string()),
-        }
-    }
-
     /// Handles all gas-related logics and additional metadata such as `SyscallCounter`. In native,
     /// we need to explicitly call this method at the beginning of each syscall.
     fn pre_execute_syscall(
@@ -118,11 +109,16 @@ impl<'state> NativeSyscallHandler<'state> {
         syscall_selector: SyscallSelector,
         syscall_gas_cost: u64,
     ) -> SyscallResult<()> {
+        if self.unrecoverable_error.is_some() {
+            // An unrecoverable error was found in a previous syscall, we return immediatly to
+            // accelerate the end of the execution. The returned data is not important
+            return Err(vec![]);
+        }
+
         // Syscall count for Keccak is done differently
         if syscall_selector != SyscallSelector::Keccak {
             self.increment_syscall_count_by(&syscall_selector, 1);
         }
-
         // Refund `SYSCALL_BASE_GAS_COST` as it was pre-charged.
         let required_gas =
             u128::from(syscall_gas_cost - self.context.gas_costs().syscall_base_gas_cost);
@@ -138,6 +134,25 @@ impl<'state> NativeSyscallHandler<'state> {
         *remaining_gas -= required_gas;
 
         Ok(())
+    }
+
+    fn handle_error(
+        &mut self,
+        remaining_gas: &mut u128,
+        error: SyscallExecutionError,
+    ) -> Vec<Felt> {
+        match error {
+            SyscallExecutionError::SyscallError { error_data } => error_data,
+            _ => {
+                assert!(
+                    self.unrecoverable_error.is_none(),
+                    "Trying to set an unrecoverable error twice in Native Syscall Handler"
+                );
+                self.unrecoverable_error = Some(error);
+                *remaining_gas = 0;
+                vec![]
+            }
+        }
     }
 }
 
