@@ -792,3 +792,34 @@ pub fn sha_256_process_block(
 
     Ok(Sha256ProcessBlockResponse { state_ptr: response })
 }
+
+// GetClassHashAt syscall.
+
+pub(crate) type GetClassHashAtRequest = ContractAddress;
+pub(crate) type GetClassHashAtResponse = ClassHash;
+
+impl SyscallRequest for GetClassHashAtRequest {
+    fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallResult<GetClassHashAtRequest> {
+        let address = ContractAddress::try_from(felt_from_ptr(vm, ptr)?)?;
+        Ok(address)
+    }
+}
+
+impl SyscallResponse for GetClassHashAtResponse {
+    fn write(self, vm: &mut VirtualMachine, ptr: &mut Relocatable) -> WriteResponseResult {
+        write_felt(vm, ptr, *self)?;
+        Ok(())
+    }
+}
+
+pub(crate) fn get_class_hash_at(
+    request: GetClassHashAtRequest,
+    _vm: &mut VirtualMachine,
+    syscall_handler: &mut SyscallHintProcessor<'_>,
+    _remaining_gas: &mut u64,
+) -> SyscallResult<GetClassHashAtResponse> {
+    syscall_handler.accessed_contract_addresses.insert(request);
+    let class_hash = syscall_handler.state.get_class_hash_at(request)?;
+    syscall_handler.read_class_hash_values.push(class_hash);
+    Ok(class_hash)
+}

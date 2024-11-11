@@ -285,6 +285,8 @@ pub fn finalize_execution(
         ),
         storage_read_values: syscall_handler.read_values,
         accessed_storage_keys: syscall_handler.accessed_keys,
+        accessed_contract_addresses: syscall_handler.accessed_contract_addresses,
+        read_class_hash_values: syscall_handler.read_class_hash_values,
     })
 }
 

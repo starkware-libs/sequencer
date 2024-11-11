@@ -184,6 +184,9 @@ pub struct DeprecatedSyscallHintProcessor<'a> {
     pub read_values: Vec<Felt>,
     pub accessed_keys: HashSet<StorageKey>,
 
+    pub read_class_hash_values: Vec<ClassHash>,
+    pub accessed_contract_addresses: HashSet<ContractAddress>,
+
     // Additional fields.
     // Invariant: must only contain allowed hints.
     builtin_hint_processor: BuiltinHintProcessor,
@@ -215,6 +218,8 @@ impl<'a> DeprecatedSyscallHintProcessor<'a> {
             syscall_ptr: initial_syscall_ptr,
             read_values: vec![],
             accessed_keys: HashSet::new(),
+            read_class_hash_values: vec![],
+            accessed_contract_addresses: HashSet::new(),
             builtin_hint_processor: extended_builtin_hint_processor(),
             tx_signature_start_ptr: None,
             tx_info_start_ptr: None,
