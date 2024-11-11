@@ -5,7 +5,11 @@ use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_proc_macros::handle_response_variants;
 use serde::{Deserialize, Serialize};
 use starknet_api::rpc_transaction::RpcTransaction;
-use starknet_sequencer_infra::component_client::{ClientError, LocalComponentClient};
+use starknet_sequencer_infra::component_client::{
+    ClientError,
+    LocalComponentClient,
+    RemoteComponentClient,
+};
 use starknet_sequencer_infra::component_definitions::ComponentRequestAndResponseSender;
 use thiserror::Error;
 
@@ -32,6 +36,8 @@ pub trait MempoolP2pPropagatorClient: Send + Sync {
 // TODO: Implement remote MempoolP2pPropagatorClient.
 pub type LocalMempoolP2pPropagatorClient =
     LocalComponentClient<MempoolP2pPropagatorRequest, MempoolP2pPropagatorResponse>;
+pub type RemoteMempoolP2pPropagatorClient =
+    RemoteComponentClient<MempoolP2pPropagatorRequest, MempoolP2pPropagatorResponse>;
 pub type SharedMempoolP2pPropagatorClient = Arc<dyn MempoolP2pPropagatorClient>;
 pub type MempoolP2pPropagatorClientResult<T> = Result<T, MempoolP2pPropagatorClientError>;
 pub type MempoolP2pPropagatorRequestAndResponseSender =
