@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, HashMap};
 
+use assert_matches::assert_matches;
 use blockifier::context::{ChainInfo, FeeTokenAddresses};
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps};
 use blockifier::state::state_api::StateReader;
@@ -185,7 +186,12 @@ pub fn reexecute_and_verify_correctness<
     let mut transaction_executor =
         consecutive_state_readers.get_transaction_executor(None).unwrap();
 
-    transaction_executor.execute_txs(&all_txs_in_next_block);
+    let execution_results = transaction_executor.execute_txs(&all_txs_in_next_block);
+    // Verify all transactions executed successfully.
+    for res in execution_results.iter() {
+        assert_matches!(res, Ok(_));
+    }
+
     // Finalize block and read actual statediff.
     let (actual_state_diff, _, _) =
         transaction_executor.finalize().expect("Couldn't finalize block");
