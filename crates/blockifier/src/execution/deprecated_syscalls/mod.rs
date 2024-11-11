@@ -86,6 +86,7 @@ pub enum DeprecatedSyscallSelector {
     SendMessageToL1,
     StorageRead,
     StorageWrite,
+    GetClassHashAt,
 }
 
 impl TryFrom<Felt> for DeprecatedSyscallSelector {
@@ -128,6 +129,7 @@ impl TryFrom<Felt> for DeprecatedSyscallSelector {
             b"SendMessageToL1" => Ok(Self::SendMessageToL1),
             b"StorageRead" => Ok(Self::StorageRead),
             b"StorageWrite" => Ok(Self::StorageWrite),
+            b"GetClassHashAt" => Ok(Self::GetClassHashAt),
             _ => {
                 Err(DeprecatedSyscallExecutionError::InvalidDeprecatedSyscallSelector(raw_selector))
             }
