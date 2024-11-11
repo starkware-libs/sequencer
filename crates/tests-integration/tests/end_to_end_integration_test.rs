@@ -97,7 +97,7 @@ async fn test_end_to_end_integration(tx_generator: MultiAccountTransactionGenera
     let HttpServerConfig { ip, port } = config.http_server_config;
     let http_test_client = HttpTestClient::new(SocketAddr::from((ip, port)));
 
-    let send_rpc_tx_fn = &|rpc_tx| http_test_client.assert_add_tx_success(rpc_tx);
+    let send_rpc_tx_fn = &mut |rpc_tx| http_test_client.assert_add_tx_success(rpc_tx);
     let n_txs = 50;
     info!("Sending {n_txs} txs.");
     run_transaction_generator_test_scenario(tx_generator, n_txs, send_rpc_tx_fn).await;
