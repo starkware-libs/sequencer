@@ -9,7 +9,7 @@ use tracing::info;
 
 use crate::monitoring_endpoint::{ALIVE, MONITORING_PREFIX};
 
-// TODO(Tsabary): Clean feature dependencies and dev dependencies.
+// TODO(Tsabary): try avoid having to use http-body crate from the dependencies.
 
 /// Client for querying 'alive' status of an http server.
 pub struct IsAliveClient {
@@ -33,6 +33,8 @@ impl IsAliveClient {
             .map_or(false, |response| response.status().is_success())
     }
 
+    // TODO(Tsabary/Lev): add sleep time as a parameter, and max retries. Consider using
+    // 'starknet_client::RetryConfig'.
     /// Blocks until 'alive'.
     pub async fn await_alive(&self) {
         let mut counter = 0;
