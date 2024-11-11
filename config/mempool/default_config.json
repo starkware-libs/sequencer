@@ -121,18 +121,18 @@
   },
   "batcher_config.block_builder_config.versioned_constants_overrides.invoke_tx_max_n_steps": {
     "description": "Maximum number of steps the invoke function is allowed to run.",
-    "privacy": "Public",
-    "value": 10000000
+    "pointer_target": "versioned_constants_overrides.invoke_tx_max_n_steps",
+    "privacy": "Public"
   },
   "batcher_config.block_builder_config.versioned_constants_overrides.max_recursion_depth": {
     "description": "Maximum recursion depth for nested calls during blockifier validation.",
-    "privacy": "Public",
-    "value": 50
+    "pointer_target": "versioned_constants_overrides.max_recursion_depth",
+    "privacy": "Public"
   },
   "batcher_config.block_builder_config.versioned_constants_overrides.validate_max_n_steps": {
     "description": "Maximum number of steps the validation function is allowed to run.",
-    "privacy": "Public",
-    "value": 1000000
+    "pointer_target": "versioned_constants_overrides.validate_max_n_steps",
+    "privacy": "Public"
   },
   "batcher_config.global_contract_cache_size": {
     "description": "Cache size for the global_class_hash_to_class. Initialized with this size on creation.",
@@ -701,18 +701,18 @@
   },
   "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.invoke_tx_max_n_steps": {
     "description": "Maximum number of steps the invoke function is allowed to run.",
-    "privacy": "Public",
-    "value": 10000000
+    "pointer_target": "versioned_constants_overrides.invoke_tx_max_n_steps",
+    "privacy": "Public"
   },
   "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.max_recursion_depth": {
     "description": "Maximum recursion depth for nested calls during blockifier validation.",
-    "privacy": "Public",
-    "value": 50
+    "pointer_target": "versioned_constants_overrides.max_recursion_depth",
+    "privacy": "Public"
   },
   "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.validate_max_n_steps": {
     "description": "Maximum number of steps the validation function is allowed to run.",
-    "privacy": "Public",
-    "value": 1000000
+    "pointer_target": "versioned_constants_overrides.validate_max_n_steps",
+    "privacy": "Public"
   },
   "gateway_config.stateless_tx_validator_config.max_calldata_length": {
     "description": "Limitation of calldata length.",
@@ -888,5 +888,20 @@
     "description": "A required param! Address of the STRK fee token.",
     "param_type": "String",
     "privacy": "TemporaryValue"
+  },
+  "versioned_constants_overrides.invoke_tx_max_n_steps": {
+    "description": "Maximum number of steps the invoke function is allowed to run.",
+    "privacy": "TemporaryValue",
+    "value": 10000000
+  },
+  "versioned_constants_overrides.max_recursion_depth": {
+    "description": "Maximum recursion depth for nested calls during blockifier validation.",
+    "privacy": "TemporaryValue",
+    "value": 50
+  },
+  "versioned_constants_overrides.validate_max_n_steps": {
+    "description": "Maximum number of steps the validation function is allowed to run.",
+    "privacy": "TemporaryValue",
+    "value": 1000000
   }
 }

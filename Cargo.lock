@@ -10449,6 +10449,7 @@ dependencies = [
  "anyhow",
  "assert-json-diff",
  "assert_matches",
+ "blockifier",
  "clap",
  "colored",
  "const_format",
