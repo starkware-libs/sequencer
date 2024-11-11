@@ -1,12 +1,25 @@
 use std::sync::Arc;
 
-use starknet_batcher_types::communication::{LocalBatcherClient, SharedBatcherClient};
-use starknet_gateway_types::communication::{LocalGatewayClient, SharedGatewayClient};
+use starknet_batcher_types::communication::{
+    LocalBatcherClient,
+    RemoteBatcherClient,
+    SharedBatcherClient,
+};
+use starknet_gateway_types::communication::{
+    LocalGatewayClient,
+    RemoteGatewayClient,
+    SharedGatewayClient,
+};
 use starknet_mempool_p2p_types::communication::{
     LocalMempoolP2pPropagatorClient,
+    RemoteMempoolP2pPropagatorClient,
     SharedMempoolP2pPropagatorClient,
 };
-use starknet_mempool_types::communication::{LocalMempoolClient, SharedMempoolClient};
+use starknet_mempool_types::communication::{
+    LocalMempoolClient,
+    RemoteMempoolClient,
+    SharedMempoolClient,
+};
 
 use crate::communication::SequencerNodeCommunication;
 use crate::config::{ComponentExecutionMode, SequencerNodeConfig};
@@ -71,13 +84,23 @@ impl SequencerNodeClients {
 /// }
 /// ```
 macro_rules! create_client {
-    ($execution_mode:expr, $client_type:ty, $channel_expr:expr) => {
+    (
+        $execution_mode:expr,
+        $local_client_type:ty,
+        $remote_client_type:ty,
+        $channel_expr:expr,
+        $remote_client_config:expr
+    ) => {
         match *$execution_mode {
             ComponentExecutionMode::LocalExecutionWithRemoteDisabled
             | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-                Some(Arc::new(<$client_type>::new($channel_expr)))
+                Some(Arc::new(<$local_client_type>::new($channel_expr)))
             }
-            ComponentExecutionMode::Disabled | ComponentExecutionMode::Remote => None,
+            ComponentExecutionMode::Remote => match $remote_client_config {
+                Some(ref config) => Some(Arc::new(<$remote_client_type>::new(config.clone()))),
+                None => None,
+            },
+            ComponentExecutionMode::Disabled => None,
         }
     };
 }
@@ -89,23 +112,31 @@ pub fn create_node_clients(
     let batcher_client: Option<SharedBatcherClient> = create_client!(
         &config.components.batcher.execution_mode,
         LocalBatcherClient,
-        channels.take_batcher_tx()
+        RemoteBatcherClient,
+        channels.take_batcher_tx(),
+        config.components.batcher.remote_client_config
     );
     let mempool_client: Option<SharedMempoolClient> = create_client!(
         &config.components.mempool.execution_mode,
         LocalMempoolClient,
-        channels.take_mempool_tx()
+        RemoteMempoolClient,
+        channels.take_mempool_tx(),
+        config.components.mempool.remote_client_config
     );
     let gateway_client: Option<SharedGatewayClient> = create_client!(
         &config.components.gateway.execution_mode,
         LocalGatewayClient,
-        channels.take_gateway_tx()
+        RemoteGatewayClient,
+        channels.take_gateway_tx(),
+        config.components.gateway.remote_client_config
     );
 
     let mempool_p2p_propagator_client: Option<SharedMempoolP2pPropagatorClient> = create_client!(
         &config.components.mempool_p2p.execution_mode,
         LocalMempoolP2pPropagatorClient,
-        channels.take_mempool_p2p_propagator_tx()
+        RemoteMempoolP2pPropagatorClient,
+        channels.take_mempool_p2p_propagator_tx(),
+        config.components.mempool_p2p.remote_client_config
     );
     SequencerNodeClients {
         batcher_client,
