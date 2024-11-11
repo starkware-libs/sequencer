@@ -32,12 +32,12 @@ pub trait GatewayClient: Send + Sync {
     async fn add_tx(&self, gateway_input: GatewayInput) -> GatewayClientResult<TransactionHash>;
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum GatewayRequest {
     AddTransaction(GatewayInput),
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum GatewayResponse {
     AddTransaction(GatewayResult<TransactionHash>),
 }
