@@ -8,10 +8,6 @@ use crate::batcher_types::ProposalId;
 #[derive(Clone, Debug, Error, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BatcherError {
     #[error(
-        "Already working on height {active_height}, can't start working on height {new_height}."
-    )]
-    AlreadyWorkingOnHeight { active_height: BlockNumber, new_height: BlockNumber },
-    #[error(
         "Decision reached for proposal with ID {proposal_id} that does not exist (might still \
          being executed)."
     )]

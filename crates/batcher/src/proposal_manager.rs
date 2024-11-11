@@ -21,8 +21,6 @@ use crate::transaction_provider::ProposeTransactionProvider;
 
 #[derive(Debug, Error)]
 pub enum StartHeightError {
-    #[error("Can't start new height {new_height} while working on height {active_height}.")]
-    AlreadyWorkingOnHeight { active_height: BlockNumber, new_height: BlockNumber },
     #[error(
         "Requested height {requested_height} is lower than the current storage height \
          {storage_height}."
