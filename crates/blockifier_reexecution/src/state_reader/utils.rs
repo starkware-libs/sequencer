@@ -185,7 +185,9 @@ pub fn reexecute_and_verify_correctness<
     let mut transaction_executor =
         consecutive_state_readers.get_transaction_executor(None).unwrap();
 
-    transaction_executor.execute_txs(&all_txs_in_next_block);
+    let execution_results = transaction_executor.execute_txs(&all_txs_in_next_block);
+
+    assert!(execution_results.iter().all(|res| { res.is_ok() }), "All transactions should succeed");
     // Finalize block and read actual statediff.
     let (actual_state_diff, _, _) =
         transaction_executor.finalize().expect("Couldn't finalize block");
