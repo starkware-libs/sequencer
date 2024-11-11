@@ -10252,6 +10252,7 @@ dependencies = [
  "enum-assoc",
  "mockall",
  "papyrus_network_types",
+ "papyrus_proc_macros",
  "papyrus_rpc",
  "serde",
  "serde_json",

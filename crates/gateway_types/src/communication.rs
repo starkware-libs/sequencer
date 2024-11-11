@@ -3,6 +3,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use mockall::predicate::*;
 use mockall::*;
+use papyrus_proc_macros::handle_response_variants;
 use serde::{Deserialize, Serialize};
 use starknet_api::transaction::TransactionHash;
 use starknet_sequencer_infra::component_client::{
@@ -62,5 +63,15 @@ impl GatewayClient for LocalGatewayClient {
                 Err(GatewayClientError::GatewayError(response))
             }
         }
+    }
+}
+
+#[async_trait]
+impl GatewayClient for RemoteGatewayClient {
+    #[instrument(skip(self))]
+    async fn add_tx(&self, gateway_input: GatewayInput) -> GatewayClientResult<TransactionHash> {
+        let request = GatewayRequest::AddTransaction(gateway_input);
+        let response = self.send(request).await?;
+        handle_response_variants!(GatewayResponse, AddTransaction, GatewayClientError, GatewayError)
     }
 }
