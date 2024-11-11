@@ -10310,6 +10310,7 @@ dependencies = [
  "starknet_gateway",
  "starknet_gateway_types",
  "starknet_http_server",
+ "starknet_mempool_p2p",
  "starknet_monitoring_endpoint",
  "starknet_sequencer_infra",
  "starknet_sequencer_node",
