@@ -81,12 +81,12 @@ impl<'state> NativeSyscallHandler<'state> {
             u64::try_from(*remaining_gas).expect("Failed to convert gas to u64.");
         let call_info = entry_point
             .execute(self.state, self.resources, self.context, &mut remaining_gas_u64)
-            .map_err(|e| encode_str_as_felts(&e.to_string()))?;
+            .map_err(|e| self.handle_error(remaining_gas, e.into()))?;
         let retdata = call_info.execution.retdata.clone();
 
         if call_info.execution.failed {
-            // In VM it's wrapped into `SyscallExecutionError::SyscallError`.
-            return Err(retdata.0.clone());
+            let error = SyscallExecutionError::SyscallError { error_data: retdata.0 };
+            return Err(self.handle_error(remaining_gas, error));
         }
 
         // TODO(Noa, 1/11/2024): remove this once the gas type is u64.
@@ -96,6 +96,18 @@ impl<'state> NativeSyscallHandler<'state> {
         self.inner_calls.push(call_info);
 
         Ok(retdata)
+    }
+
+    fn handle_error(
+        &mut self,
+        _remaining_gas: &mut u128,
+        error: SyscallExecutionError,
+    ) -> Vec<Felt> {
+        match error {
+            SyscallExecutionError::SyscallError { error_data } => error_data,
+            // unrecoverable errors are yet to be implemented
+            _ => encode_str_as_felts(&error.to_string()),
+        }
     }
 
     /// Handles all gas-related logics and additional metadata such as `SyscallCounter`. In native,
@@ -198,14 +210,15 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
 
         if address_domain != 0 {
             let address_domain = Felt::from(address_domain);
-            let err = SyscallExecutionError::InvalidAddressDomain { address_domain };
-            return Err(encode_str_as_felts(&err.to_string()));
+            let error = SyscallExecutionError::InvalidAddressDomain { address_domain };
+            return Err(self.handle_error(remaining_gas, error));
         }
 
-        let key = StorageKey::try_from(address).map_err(|e| encode_str_as_felts(&e.to_string()))?;
+        let key = StorageKey::try_from(address)
+            .map_err(|e| self.handle_error(remaining_gas, e.into()))?;
 
         let read_result = self.state.get_storage_at(self.call.storage_address, key);
-        let value = read_result.map_err(|e| encode_str_as_felts(&e.to_string()))?;
+        let value = read_result.map_err(|e| self.handle_error(remaining_gas, e.into()))?;
 
         self.accessed_keys.insert(key);
         self.read_values.push(value);
@@ -228,15 +241,16 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
 
         if address_domain != 0 {
             let address_domain = Felt::from(address_domain);
-            let err = SyscallExecutionError::InvalidAddressDomain { address_domain };
-            return Err(encode_str_as_felts(&err.to_string()));
+            let error = SyscallExecutionError::InvalidAddressDomain { address_domain };
+            return Err(self.handle_error(remaining_gas, error));
         }
 
-        let key = StorageKey::try_from(address).map_err(|e| encode_str_as_felts(&e.to_string()))?;
+        let key = StorageKey::try_from(address)
+            .map_err(|e| self.handle_error(remaining_gas, e.into()))?;
         self.accessed_keys.insert(key);
 
         let write_result = self.state.set_storage_at(self.call.storage_address, key, value);
-        write_result.map_err(|e| encode_str_as_felts(&e.to_string()))?;
+        write_result.map_err(|e| self.handle_error(remaining_gas, e.into()))?;
 
         Ok(())
     }
