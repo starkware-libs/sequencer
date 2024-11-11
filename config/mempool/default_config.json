@@ -119,11 +119,6 @@
     "privacy": "Public",
     "value": true
   },
-  "batcher_config.block_builder_config.versioned_constants_overrides.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
   "batcher_config.block_builder_config.versioned_constants_overrides.invoke_tx_max_n_steps": {
     "description": "Maximum number of steps the invoke function is allowed to run.",
     "privacy": "Public",
@@ -704,13 +699,18 @@
     "privacy": "Public",
     "value": "0x1"
   },
-  "gateway_config.stateful_tx_validator_config.max_recursion_depth": {
+  "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.invoke_tx_max_n_steps": {
+    "description": "Maximum number of steps the invoke function is allowed to run.",
+    "privacy": "Public",
+    "value": 10000000
+  },
+  "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.max_recursion_depth": {
     "description": "Maximum recursion depth for nested calls during blockifier validation.",
     "privacy": "Public",
     "value": 50
   },
-  "gateway_config.stateful_tx_validator_config.validate_max_n_steps": {
-    "description": "Maximum number of steps the validation function is allowed to take.",
+  "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.validate_max_n_steps": {
+    "description": "Maximum number of steps the validation function is allowed to run.",
     "privacy": "Public",
     "value": 1000000
   },

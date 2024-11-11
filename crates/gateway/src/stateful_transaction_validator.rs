@@ -95,9 +95,8 @@ impl StatefulTransactionValidator {
         let latest_block_info = get_latest_block_info(state_reader_factory)?;
         let state_reader = state_reader_factory.get_state_reader(latest_block_info.block_number);
         let state = CachedState::new(state_reader);
-        let versioned_constants = VersionedConstants::latest_constants_with_overrides(
-            self.config.validate_max_n_steps,
-            self.config.max_recursion_depth,
+        let versioned_constants = VersionedConstants::get_versioned_constants(
+            self.config.versioned_constants_overrides.clone(),
         );
         let mut block_info = latest_block_info;
         block_info.block_number = block_info.block_number.unchecked_next();
