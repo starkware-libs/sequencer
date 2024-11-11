@@ -53,6 +53,8 @@ members = [
   "workspace_tests",
 ]
 
+exclude = ["crates/bin/cairo-native-compile"]
+
 [workspace.package]
 version = "0.0.0"
 edition = "2021"
