@@ -847,12 +847,12 @@ pub struct VersionedConstantsOverrides {
 }
 
 impl Default for VersionedConstantsOverrides {
-    // TODO: update the default values once the actual values are known.
     fn default() -> Self {
+        let latest_versioned_constants = VersionedConstants::latest_constants();
         Self {
-            validate_max_n_steps: 1000000,
-            max_recursion_depth: 50,
-            invoke_tx_max_n_steps: 10000000,
+            validate_max_n_steps: latest_versioned_constants.validate_max_n_steps,
+            max_recursion_depth: latest_versioned_constants.max_recursion_depth,
+            invoke_tx_max_n_steps: latest_versioned_constants.invoke_tx_max_n_steps,
         }
     }
 }
