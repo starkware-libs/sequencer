@@ -565,6 +565,7 @@ pub struct GasCosts {
     pub replace_class_gas_cost: u64,
     pub storage_read_gas_cost: u64,
     pub storage_write_gas_cost: u64,
+    pub get_class_hash_at_gas_cost: u64,
     pub emit_event_gas_cost: u64,
     pub send_message_to_l1_gas_cost: u64,
     pub secp256k1_add_gas_cost: u64,
