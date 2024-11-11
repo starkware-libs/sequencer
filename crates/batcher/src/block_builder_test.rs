@@ -1,3 +1,4 @@
+use assert_matches::assert_matches;
 use blockifier::blockifier::transaction_executor::TransactionExecutorError;
 use blockifier::bouncer::BouncerWeights;
 use blockifier::transaction::objects::TransactionExecutionInfo;
@@ -11,12 +12,19 @@ use starknet_api::felt;
 use starknet_api::transaction::TransactionHash;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
-use crate::block_builder::{BlockBuilder, BlockBuilderTrait, BlockExecutionArtifacts};
+use crate::block_builder::{
+    BlockBuilder,
+    BlockBuilderError,
+    BlockBuilderResult,
+    BlockBuilderTrait,
+    BlockExecutionArtifacts,
+};
 use crate::test_utils::test_txs;
 use crate::transaction_executor::MockTransactionExecutorTrait;
 use crate::transaction_provider::{MockTransactionProvider, NextTxs};
 
 const BLOCK_GENERATION_DEADLINE_SECS: u64 = 1;
+const BLOCK_GENERATION_LONG_DEADLINE_SECS: u64 = 5;
 const TX_CHANNEL_SIZE: usize = 50;
 const TX_CHUNK_SIZE: usize = 3;
 
@@ -272,12 +280,14 @@ async fn run_build_block(
     mock_transaction_executor: MockTransactionExecutorTrait,
     tx_provider: MockTransactionProvider,
     output_sender: UnboundedSender<Transaction>,
-) -> BlockExecutionArtifacts {
-    let block_builder = BlockBuilder::new(Box::new(mock_transaction_executor), TX_CHUNK_SIZE);
-    let deadline = tokio::time::Instant::now()
-        + tokio::time::Duration::from_secs(BLOCK_GENERATION_DEADLINE_SECS);
+    abort_receiver: tokio::sync::oneshot::Receiver<()>,
+    deadline_secs: u64,
+) -> BlockBuilderResult<BlockExecutionArtifacts> {
+    let mut block_builder =
+        BlockBuilder::new(Box::new(mock_transaction_executor), TX_CHUNK_SIZE, abort_receiver);
+    let deadline = tokio::time::Instant::now() + tokio::time::Duration::from_secs(deadline_secs);
 
-    block_builder.build_block(deadline, Box::new(tx_provider), output_sender).await.unwrap()
+    block_builder.build_block(deadline, Box::new(tx_provider), output_sender).await
 }
 
 // TODO: Add test case for failed transaction.
@@ -301,9 +311,17 @@ async fn test_build_block(
     let (mock_transaction_executor, mock_tx_provider, expected_block_artifacts) = test_expectations;
 
     let (output_tx_sender, output_tx_receiver) = output_channel();
+    let (_abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
 
-    let result_block_artifacts =
-        run_build_block(mock_transaction_executor, mock_tx_provider, output_tx_sender).await;
+    let result_block_artifacts = run_build_block(
+        mock_transaction_executor,
+        mock_tx_provider,
+        output_tx_sender,
+        abort_receiver,
+        BLOCK_GENERATION_DEADLINE_SECS,
+    )
+    .await
+    .unwrap();
 
     verify_build_block_output(
         input_txs,
@@ -313,4 +331,38 @@ async fn test_build_block(
         output_tx_receiver,
     )
     .await;
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_build_block_abort() {
+    let mock_tx_provider = mock_tx_provider_limitless_calls(1, vec![test_txs(0..3)]);
+
+    // Expect one transaction chunk to be added to the block, and then abort.
+    let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
+    mock_transaction_executor
+        .expect_add_txs_to_block()
+        .return_once(|_| (0..3).map(|_| Ok(execution_info())).collect());
+    mock_transaction_executor.expect_close_block().times(0);
+
+    let (output_tx_sender, mut output_tx_receiver) = output_channel();
+    let (abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
+
+    // Send the abort signal after the first tx is added to the block.
+    tokio::spawn(async move {
+        output_tx_receiver.recv().await.unwrap();
+        abort_sender.send(()).unwrap();
+    });
+
+    assert_matches!(
+        run_build_block(
+            mock_transaction_executor,
+            mock_tx_provider,
+            output_tx_sender,
+            abort_receiver,
+            BLOCK_GENERATION_LONG_DEADLINE_SECS,
+        )
+        .await,
+        Err(BlockBuilderError::Aborted)
+    );
 }
