@@ -67,11 +67,20 @@ use starknet_api::deprecated_contract_class::{
 use starknet_api::execution_resources::{Builtin, ExecutionResources, GasAmount, GasVector};
 use starknet_api::hash::{PoseidonHash, StarkHash};
 use starknet_api::state::{ContractClass, EntryPoint, FunctionIndex, StorageKey, ThinStateDiff};
-use starknet_api::transaction::{
+use starknet_api::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
     Calldata,
     ContractAddressSalt,
+    Fee,
+    PaymasterData,
+    Resource,
+    ResourceBounds,
+    Tip,
+    TransactionSignature,
+    ValidResourceBounds,
+};
+use starknet_api::transaction::{
     DeclareTransaction,
     DeclareTransactionOutput,
     DeclareTransactionV0V1,
@@ -88,7 +97,6 @@ use starknet_api::transaction::{
     EventData,
     EventIndexInTransactionOutput,
     EventKey,
-    Fee,
     InvokeTransaction,
     InvokeTransactionOutput,
     InvokeTransactionV0,
@@ -100,19 +108,13 @@ use starknet_api::transaction::{
     L2ToL1Payload,
     MessageToL1,
     MessageToL2,
-    PaymasterData,
-    Resource,
-    ResourceBounds,
     RevertedTransactionExecutionStatus,
-    Tip,
     Transaction,
     TransactionExecutionStatus,
     TransactionHash,
     TransactionOffsetInBlock,
     TransactionOutput,
-    TransactionSignature,
     TransactionVersion,
-    ValidResourceBounds,
 };
 use starknet_types_core::felt::Felt;
 use tracing::warn;

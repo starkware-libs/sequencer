@@ -22,7 +22,8 @@ use starknet_api::deprecated_contract_class::{
     TypedParameter,
 };
 use starknet_api::state::{EntryPoint, FunctionIndex};
-use starknet_api::transaction::{Fee, TransactionHash, TransactionSignature, TransactionVersion};
+use starknet_api::transaction::fields::{Fee, TransactionSignature};
+use starknet_api::transaction::{TransactionHash, TransactionVersion};
 use starknet_api::{class_hash, contract_address, felt, nonce};
 
 use super::objects::state::StateUpdate;

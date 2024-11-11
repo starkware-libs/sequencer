@@ -6,17 +6,19 @@ use blockifier::transaction::transactions::InvokeTransaction;
 use pyo3::prelude::*;
 use starknet_api::core::{ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
-use starknet_api::transaction::{
+use starknet_api::transaction::fields::{
     AccountDeploymentData,
     Calldata,
     Fee,
+    PaymasterData,
+    Tip,
+    TransactionSignature,
+};
+use starknet_api::transaction::{
     InvokeTransactionV0,
     InvokeTransactionV1,
     InvokeTransactionV3,
-    PaymasterData,
-    Tip,
     TransactionHash,
-    TransactionSignature,
 };
 use starknet_types_core::felt::Felt;
 

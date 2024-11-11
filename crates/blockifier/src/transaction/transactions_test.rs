@@ -15,21 +15,23 @@ use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::state::StorageKey;
 use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::test_utils::NonceManager;
-use starknet_api::transaction::Resource::{L1DataGas, L1Gas, L2Gas};
-use starknet_api::transaction::{
+use starknet_api::transaction::fields::Resource::{L1DataGas, L1Gas, L2Gas};
+use starknet_api::transaction::fields::{
     AllResourceBounds,
     Calldata,
-    EventContent,
-    EventData,
-    EventKey,
     Fee,
     GasVectorComputationMode,
-    L2ToL1Payload,
     Resource,
     ResourceBounds,
     TransactionSignature,
-    TransactionVersion,
     ValidResourceBounds,
+};
+use starknet_api::transaction::{
+    EventContent,
+    EventData,
+    EventKey,
+    L2ToL1Payload,
+    TransactionVersion,
     QUERY_VERSION_BASE_BIT,
 };
 use starknet_api::{

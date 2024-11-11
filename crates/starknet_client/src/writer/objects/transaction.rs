@@ -27,7 +27,7 @@ use starknet_api::deprecated_contract_class::{
     EntryPointV0 as DeprecatedEntryPoint,
 };
 use starknet_api::state::EntryPoint;
-use starknet_api::transaction::{
+use starknet_api::transaction::fields::{
     AccountDeploymentData,
     Calldata,
     ContractAddressSalt,
@@ -36,8 +36,8 @@ use starknet_api::transaction::{
     PaymasterData,
     Tip,
     TransactionSignature,
-    TransactionVersion,
 };
+use starknet_api::transaction::TransactionVersion;
 
 // Each transaction type has a field called `type`. This field needs to be of a type that
 // serializes to/deserializes from a constant string.

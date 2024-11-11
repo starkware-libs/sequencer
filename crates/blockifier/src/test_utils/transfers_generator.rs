@@ -2,7 +2,8 @@ use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use starknet_api::core::ContractAddress;
 use starknet_api::test_utils::NonceManager;
-use starknet_api::transaction::{Fee, TransactionVersion};
+use starknet_api::transaction::fields::Fee;
+use starknet_api::transaction::TransactionVersion;
 use starknet_api::{calldata, felt, invoke_tx_args};
 use starknet_types_core::felt::Felt;
 
