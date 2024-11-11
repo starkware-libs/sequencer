@@ -4,7 +4,7 @@ use std::ops::Add;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use serde::Serialize;
-use starknet_api::core::{ClassHash, EthAddress};
+use starknet_api::core::{ClassHash, ContractAddress, EthAddress};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{EventContent, L2ToL1Payload};
@@ -126,6 +126,8 @@ pub struct CallInfo {
     // Additional information gathered during execution.
     pub storage_read_values: Vec<Felt>,
     pub accessed_storage_keys: HashSet<StorageKey>,
+    pub read_class_hash_values: Vec<ClassHash>,
+    pub accessed_contract_addresses: HashSet<ContractAddress>,
 }
 
 impl CallInfo {
