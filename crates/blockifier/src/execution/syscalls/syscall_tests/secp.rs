@@ -9,6 +9,10 @@ use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, BALANCE};
 
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(FeatureContract::TestContract(CairoVersion::Native); "Native")
+)]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1); "VM")]
 fn test_secp256k1(test_contract: FeatureContract) {
     let chain_info = &ChainInfo::create_for_testing();
