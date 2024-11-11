@@ -176,6 +176,8 @@ impl ProposalManagerTrait for ProposalManager {
 
         info!("Starting generation of a new proposal with id {}.", proposal_id);
 
+        // Create the block builder, and a channel to allow aborting the block building task.
+        let (_abort_signal_sender, abort_signal_receiver) = tokio::sync::oneshot::channel();
         let height = self.active_height.expect("No active height.");
 
         let block_builder = self.block_builder_factory.create_block_builder(
@@ -183,6 +185,7 @@ impl ProposalManagerTrait for ProposalManager {
             BlockBuilderExecutionParams { deadline, fail_on_err: false },
             Box::new(tx_provider),
             Some(tx_sender.clone()),
+            abort_signal_receiver,
         )?;
 
         self.spawn_build_block_task(proposal_id, block_builder).await;

@@ -53,6 +53,8 @@ pub enum BlockBuilderError {
     StreamTransactionsError(#[from] tokio::sync::mpsc::error::SendError<Transaction>),
     #[error("Build block with fail_on_err mode, failed on error {}.", _0)]
     FailOnError(BlockifierTransactionExecutorError),
+    #[error("The block builder was aborted.")]
+    Aborted,
 }
 
 pub type BlockBuilderResult<T> = Result<T, BlockBuilderError>;
@@ -80,6 +82,7 @@ pub struct BlockBuilder {
     executor: Mutex<Box<dyn TransactionExecutorTrait>>,
     tx_provider: Box<dyn TransactionProvider>,
     output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<Transaction>>,
+    abort_signal_receiver: tokio::sync::oneshot::Receiver<()>,
 
     // Parameters to configure the block builder behavior.
     tx_chunk_size: usize,
@@ -92,6 +95,7 @@ impl BlockBuilder {
         executor: Box<dyn TransactionExecutorTrait>,
         tx_provider: Box<dyn TransactionProvider>,
         output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<Transaction>>,
+        abort_signal_receiver: tokio::sync::oneshot::Receiver<()>,
         tx_chunk_size: usize,
         deadline: tokio::time::Instant,
         fail_on_err: bool,
@@ -100,6 +104,7 @@ impl BlockBuilder {
             executor: Mutex::new(executor),
             tx_provider,
             output_content_sender,
+            abort_signal_receiver,
             tx_chunk_size,
             deadline,
             fail_on_err,
@@ -114,6 +119,10 @@ impl BlockBuilderTrait for BlockBuilder {
         let mut execution_infos = IndexMap::new();
         // TODO(yael 6/10/2024): delete the timeout condition once the executor has a timeout
         while !block_is_full && tokio::time::Instant::now() < self.deadline {
+            if self.abort_signal_receiver.try_recv().is_ok() {
+                info!("Received abort signal. Aborting block builder.");
+                return Err(BlockBuilderError::Aborted);
+            }
             let next_txs = self.tx_provider.get_txs(self.tx_chunk_size).await?;
             let next_tx_chunk = match next_txs {
                 NextTxs::Txs(txs) => txs,
@@ -205,6 +214,7 @@ pub trait BlockBuilderFactoryTrait {
         execution_params: BlockBuilderExecutionParams,
         tx_provider: Box<dyn TransactionProvider>,
         output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<Transaction>>,
+        abort_signal_receiver: tokio::sync::oneshot::Receiver<()>,
     ) -> BlockBuilderResult<Box<dyn BlockBuilderTrait>>;
 }
 
@@ -330,6 +340,7 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
         execution_params: BlockBuilderExecutionParams,
         tx_provider: Box<dyn TransactionProvider>,
         output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<Transaction>>,
+        abort_signal_receiver: tokio::sync::oneshot::Receiver<()>,
     ) -> BlockBuilderResult<Box<dyn BlockBuilderTrait>> {
         let executor = self.preprocess_and_create_transaction_executor(
             block_metadata.height,
@@ -339,6 +350,7 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
             Box::new(executor),
             tx_provider,
             output_content_sender,
+            abort_signal_receiver,
             self.block_builder_config.tx_chunk_size,
             execution_params.deadline,
             execution_params.fail_on_err,
