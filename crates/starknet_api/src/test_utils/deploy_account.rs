@@ -1,3 +1,4 @@
+use super::NonceManager;
 use crate::core::{calculate_contract_address, ClassHash, ContractAddress, Nonce};
 use crate::data_availability::DataAvailabilityMode;
 use crate::executable_transaction::DeployAccountTransaction as ExecutableDeployAccountTransaction;
@@ -106,7 +107,7 @@ pub fn deploy_account_tx(
 
 pub fn executable_deploy_account_tx(
     deploy_tx_args: DeployAccountTxArgs,
-    nonce: Nonce,
+    nonce_manager: &mut NonceManager,
 ) -> ExecutableDeployAccountTransaction {
     let tx_hash = deploy_tx_args.tx_hash;
     let contract_address = calculate_contract_address(
@@ -116,6 +117,7 @@ pub fn executable_deploy_account_tx(
         deploy_tx_args.deployer_address,
     )
     .unwrap();
+    let nonce = nonce_manager.next(contract_address);
     let tx = deploy_account_tx(deploy_tx_args, nonce);
 
     ExecutableDeployAccountTransaction { tx, tx_hash, contract_address }
