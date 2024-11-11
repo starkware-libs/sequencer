@@ -133,7 +133,7 @@ impl SerializedContent {
                 _ => None,
             },
             SerializedContent::PointerTarget(_) => None,
-            SerializedContent::ParamType(ser_type) => Some(ser_type.clone()),
+            SerializedContent::ParamType(ser_type) => Some(*ser_type),
         }
     }
 }
@@ -158,7 +158,7 @@ impl SerializedParam {
 }
 
 /// A serialized type of a configuration parameter.
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, strum_macros::Display)]
+#[derive(Clone, Copy, Serialize, Deserialize, Debug, PartialEq, strum_macros::Display)]
 #[allow(missing_docs)]
 pub enum SerializationType {
     Boolean,
