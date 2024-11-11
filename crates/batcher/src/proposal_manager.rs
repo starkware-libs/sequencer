@@ -162,9 +162,14 @@ impl ProposalManagerTrait for ProposalManager {
 
         info!("Starting generation of a new proposal with id {}.", proposal_id);
 
+        // Create the block builder, and a channel to allow aborting the block building task.
+        let (_abort_signal_sender, abort_signal_receiver) = tokio::sync::oneshot::channel();
         let height = self.active_height.expect("No active height.");
-        let block_builder =
-            self.block_builder_factory.create_block_builder(height, retrospective_block_hash)?;
+        let mut block_builder = self.block_builder_factory.create_block_builder(
+            height,
+            retrospective_block_hash,
+            abort_signal_receiver,
+        )?;
 
         let tx_provider =
             ProposeTransactionProvider { mempool_client: self.mempool_client.clone() };
