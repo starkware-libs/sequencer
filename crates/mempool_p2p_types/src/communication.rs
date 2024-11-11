@@ -43,13 +43,13 @@ pub type MempoolP2pPropagatorClientResult<T> = Result<T, MempoolP2pPropagatorCli
 pub type MempoolP2pPropagatorRequestAndResponseSender =
     ComponentRequestAndResponseSender<MempoolP2pPropagatorRequest, MempoolP2pPropagatorResponse>;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum MempoolP2pPropagatorRequest {
     AddTransaction(RpcTransaction),
     ContinuePropagation(BroadcastedMessageMetadata),
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum MempoolP2pPropagatorResponse {
     AddTransaction(MempoolP2pPropagatorResult<()>),
     ContinuePropagation(MempoolP2pPropagatorResult<()>),
