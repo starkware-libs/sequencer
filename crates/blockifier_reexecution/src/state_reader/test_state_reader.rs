@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::sync::{Arc, Mutex};
 
+use assert_matches::assert_matches;
 use blockifier::abi::constants;
 use blockifier::blockifier::block::BlockInfo;
 use blockifier::blockifier::config::TransactionExecutorConfig;
@@ -71,6 +72,7 @@ pub struct SerializableDataNextBlock {
     pub starknet_version: StarknetVersion,
     pub transactions_next_block: Vec<(Transaction, TransactionHash)>,
     pub state_diff_next_block: CommitmentStateDiff,
+    pub declared_classes: StarknetContractClassMapping,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -115,6 +117,7 @@ impl From<SerializableOfflineReexecutionData> for OfflineReexecutionData {
                     starknet_version,
                     transactions_next_block,
                     state_diff_next_block,
+                    declared_classes,
                 },
             old_block_hash,
         } = value;
@@ -124,9 +127,13 @@ impl From<SerializableOfflineReexecutionData> for OfflineReexecutionData {
             contract_class_mapping,
             old_block_hash,
         };
-        let transactions_next_block = offline_state_reader_prev_block
-            .api_txs_to_blockifier_txs_next_block(transactions_next_block)
-            .expect("Failed to convert starknet-api transactions to blockifier transactions.");
+
+        // Use the declared classes from the next block to allow retrieving the class info.
+        let transactions_next_block =
+            OfflineStateReader { contract_class_mapping: declared_classes, ..Default::default() }
+                .api_txs_to_blockifier_txs_next_block(transactions_next_block)
+                .expect("Failed to convert starknet-api transactions to blockifier transactions.");
+
         Self {
             offline_state_reader_prev_block,
             block_context_next_block: BlockContext::new(
@@ -473,17 +480,21 @@ impl ConsecutiveTestStateReaders {
             next_block_state_reader: TestStateReader::new(
                 &config,
                 last_constructed_block_number.next().expect("Overflow in block number"),
-                false,
+                dump_mode,
             ),
         }
     }
 
     pub fn get_serializable_data_next_block(&self) -> ReexecutionResult<SerializableDataNextBlock> {
+        let (transactions_next_block, declared_classes) =
+            self.get_next_block_starknet_api_txs_and_declared_classes()?;
+        assert_matches!(self.get_next_block_txs(), Ok(_));
         Ok(SerializableDataNextBlock {
             block_info_next_block: self.next_block_state_reader.get_block_info()?,
             starknet_version: self.next_block_state_reader.get_starknet_version()?,
-            transactions_next_block: self.next_block_state_reader.get_all_txs_in_block()?,
+            transactions_next_block,
             state_diff_next_block: self.next_block_state_reader.get_state_diff()?,
+            declared_classes,
         })
     }
 
@@ -491,6 +502,21 @@ impl ConsecutiveTestStateReaders {
         self.last_block_state_reader.get_old_block_hash(BlockNumber(
             self.next_block_state_reader.get_block_context()?.block_info().block_number.0
                 - constants::STORED_BLOCK_HASH_BUFFER,
+        ))
+    }
+
+    fn get_next_block_starknet_api_txs_and_declared_classes(
+        &self,
+    ) -> ReexecutionResult<(Vec<(Transaction, TransactionHash)>, StarknetContractClassMapping)>
+    {
+        let transactions_next_block = self.next_block_state_reader.get_all_txs_in_block()?;
+        self.next_block_state_reader
+            .api_txs_to_blockifier_txs_next_block(transactions_next_block.clone())?;
+        Ok((
+            transactions_next_block,
+            self.next_block_state_reader.get_contract_class_mapping_dumper().ok_or(
+                StateError::StateReadError("Contract class mapping dumper is None.".to_string()),
+            )?,
         ))
     }
 }
@@ -517,6 +543,7 @@ impl ConsecutiveStateReaders<TestStateReader> for ConsecutiveTestStateReaders {
     }
 }
 
+#[derive(Default)]
 pub struct OfflineStateReader {
     pub state_maps: StateMaps,
     pub contract_class_mapping: StarknetContractClassMapping,
@@ -566,11 +593,11 @@ impl StateReader for OfflineStateReader {
     }
 
     fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
-        Ok(*self.state_maps.compiled_class_hashes.get(&class_hash).ok_or(
-            StateError::StateReadError(format!(
-                "Missing compiled class hash at class hash: {class_hash}"
-            )),
-        )?)
+        Ok(*self
+            .state_maps
+            .compiled_class_hashes
+            .get(&class_hash)
+            .ok_or(StateError::UndeclaredClassHash(class_hash))?)
     }
 }
 
@@ -579,9 +606,7 @@ impl ReexecutionStateReader for OfflineStateReader {
         Ok(self
             .contract_class_mapping
             .get(class_hash)
-            .ok_or(StateError::StateReadError(format!(
-                "Missing contract class at class hash: {class_hash}"
-            )))?
+            .ok_or(StateError::UndeclaredClassHash(*class_hash))?
             .clone())
     }
 

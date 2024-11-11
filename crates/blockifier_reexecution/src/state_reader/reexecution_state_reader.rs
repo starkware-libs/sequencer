@@ -34,7 +34,7 @@ pub trait ReexecutionStateReader {
         }
     }
 
-    // TODO(Aner): extend/refactor to accomodate all types of transactions.
+    // TODO(Aner): extract this function out of the state reader.
     fn api_txs_to_blockifier_txs_next_block(
         &self,
         txs_and_hashes: Vec<(Transaction, TransactionHash)>,
