@@ -10,7 +10,7 @@ use crate::config::MempoolP2pConfig;
 use crate::propagator::MempoolP2pPropagator;
 use crate::runner::MempoolP2pRunner;
 
-const MEMPOOL_TOPIC: &str = "starknet_mempool_transaction_propagation/0.1.0";
+pub const MEMPOOL_TOPIC: &str = "starknet_mempool_transaction_propagation/0.1.0";
 
 pub fn create_p2p_propagator_and_runner(
     mempool_p2p_config: MempoolP2pConfig,
