@@ -22,8 +22,6 @@ use crate::monitoring_endpoint::{
 };
 use crate::test_utils::build_request;
 
-// TODO(Tsabary): Clear feature dependencies and dev dependencies.
-
 const TEST_VERSION: &str = "1.2.3-dev";
 
 fn setup_monitoring_endpoint() -> MonitoringEndpoint {

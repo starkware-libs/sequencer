@@ -17,12 +17,12 @@ workspace = true
 [dependencies]
 axum.workspace = true
 http-body = { workspace = true, optional = true }
-hyper = { workspace = true, features = ["full"] }
+hyper = { workspace = true }
 papyrus_config.workspace = true
 serde.workspace = true
 starknet_sequencer_infra.workspace = true
 tokio = { workspace = true, optional = true }
-tower = { workspace = true, optional = true, features = ["util"] }
+tower = { workspace = true, optional = true }
 tracing.workspace = true
 validator.workspace = true
 
@@ -30,4 +30,4 @@ validator.workspace = true
 http-body.workspace = true
 pretty_assertions.workspace = true
 tokio.workspace = true
-tower = { workspace = true, features = ["util"] }
+tower.workspace = true
