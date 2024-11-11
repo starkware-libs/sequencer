@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use cairo_native::execution_result::ContractExecutionResult;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use num_traits::ToPrimitive;
@@ -78,6 +80,8 @@ fn create_callinfo(
         inner_calls: syscall_handler.inner_calls,
         storage_read_values: syscall_handler.read_values,
         accessed_storage_keys: syscall_handler.accessed_keys,
+        accessed_contract_addresses: HashSet::new(),
+        read_class_hash_values: Vec::new(),
         tracked_resource: TrackedResource::SierraGas,
     })
 }

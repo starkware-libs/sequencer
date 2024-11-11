@@ -52,6 +52,7 @@ use crate::execution::syscalls::{
     deploy,
     emit_event,
     get_block_hash,
+    get_class_hash_at,
     get_execution_info,
     keccak,
     library_call,
@@ -229,6 +230,9 @@ pub struct SyscallHintProcessor<'a> {
     pub read_values: Vec<Felt>,
     pub accessed_keys: HashSet<StorageKey>,
 
+    pub read_class_hash_values: Vec<ClassHash>,
+    pub accessed_contract_addresses: HashSet<ContractAddress>,
+
     // The original storage value of the executed contract.
     // Should be moved back `context.revert_info` before executing an inner call.
     pub original_values: HashMap<StorageKey, Felt>,
@@ -277,6 +281,8 @@ impl<'a> SyscallHintProcessor<'a> {
             syscall_ptr: initial_syscall_ptr,
             read_values: vec![],
             accessed_keys: HashSet::new(),
+            read_class_hash_values: vec![],
+            accessed_contract_addresses: HashSet::new(),
             original_values,
             hints,
             execution_info_ptr: None,
@@ -431,6 +437,11 @@ impl<'a> SyscallHintProcessor<'a> {
                 vm,
                 storage_write,
                 self.context.gas_costs().storage_write_gas_cost,
+            ),
+            SyscallSelector::GetClassHashAt => self.execute_syscall(
+                vm,
+                get_class_hash_at,
+                self.context.gas_costs().get_class_hash_at_gas_cost,
             ),
             _ => Err(HintError::UnknownHint(
                 format!("Unsupported syscall selector {selector:?}.").into(),
