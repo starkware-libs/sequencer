@@ -282,15 +282,23 @@ impl From<state::ContractClass> for protobuf::Cairo1Class {
                 .collect(),
         });
 
-        let contract_class_version = format!(
-            "sierra-v{}.{}.{} cairo-v{}.{}.{}",
-            value.sierra_program[0],
-            value.sierra_program[1],
-            value.sierra_program[2],
-            value.sierra_program[3],
-            value.sierra_program[4],
-            value.sierra_program[5]
-        );
+        // This length check and default option is needed for ContractClass test instances that
+        // don't properly set the sierra_program field.
+        // It is assumed that the first 6 elements of the sierra_program vector compose the contract
+        // class version.
+        let contract_class_version = if value.sierra_program.len() >= 6 {
+            format!(
+                "sierra-v{}.{}.{} cairo-v{}.{}.{}",
+                value.sierra_program[0],
+                value.sierra_program[1],
+                value.sierra_program[2],
+                value.sierra_program[3],
+                value.sierra_program[4],
+                value.sierra_program[5]
+            )
+        } else {
+            "".to_string()
+        };
 
         protobuf::Cairo1Class { abi, program, entry_points, contract_class_version }
     }
