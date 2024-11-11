@@ -7,6 +7,7 @@ use std::vec::Vec;
 use clap::Command;
 use papyrus_config::dumping::{
     append_sub_config_name,
+    generate_struct_pointer,
     ser_pointer_target_required_param,
     set_pointing_param_paths,
     ConfigPointers,
@@ -17,6 +18,7 @@ use papyrus_config::loading::load_and_process_config;
 use papyrus_config::{ConfigError, ParamPath, SerializationType, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_batcher::config::BatcherConfig;
+use starknet_batcher::VersionedConstantsOverrides;
 use starknet_consensus_manager::config::ConsensusManagerConfig;
 use starknet_gateway::config::{GatewayConfig, RpcStateReaderConfig};
 use starknet_http_server::config::HttpServerConfig;
@@ -34,7 +36,7 @@ pub const DEFAULT_CONFIG_PATH: &str = "config/sequencer/default_config.json";
 
 // Configuration parameters that share the same value across multiple components.
 pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
-    vec![
+    let mut pointers = vec![
         (
             ser_pointer_target_required_param(
                 "chain_id",
@@ -73,7 +75,17 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                 "gateway_config.chain_info.fee_token_addresses.strk_fee_token_address",
             ]),
         ),
-    ]
+    ];
+    let mut common_execution_config = generate_struct_pointer(
+        "versioned_constants_overrides".to_owned(),
+        &VersionedConstantsOverrides::default(),
+        set_pointing_param_paths(&[
+            "batcher_config.block_builder_config.versioned_constants_overrides",
+            "gateway_config.stateful_tx_validator_config.versioned_constants_overrides",
+        ]),
+    );
+    pointers.append(&mut common_execution_config);
+    pointers
 });
 
 // Parameters that should 1) not be pointers, and 2) have a name matching a pointer target param.
