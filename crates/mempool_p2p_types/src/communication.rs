@@ -93,3 +93,37 @@ impl MempoolP2pPropagatorClient for LocalMempoolP2pPropagatorClient {
         )
     }
 }
+
+#[async_trait]
+impl MempoolP2pPropagatorClient for RemoteMempoolP2pPropagatorClient {
+    async fn add_transaction(
+        &self,
+        transaction: RpcTransaction,
+    ) -> MempoolP2pPropagatorClientResult<()> {
+        let request = MempoolP2pPropagatorRequest::AddTransaction(transaction);
+        let response = self.send(request).await?;
+        handle_response_variants!(
+            MempoolP2pPropagatorResponse,
+            AddTransaction,
+            MempoolP2pPropagatorClientError,
+            MempoolP2pPropagatorError
+        )
+    }
+
+    async fn continue_propagation(
+        &self,
+        propagation_metadata: BroadcastedMessageMetadata,
+    ) -> MempoolP2pPropagatorClientResult<()> {
+        let request = MempoolP2pPropagatorRequest::ContinuePropagation(propagation_metadata);
+        let response = match self.send(request).await {
+            Ok(resp) => resp,
+            Err(client_error) => return Err(MempoolP2pPropagatorClientError::from(client_error)),
+        };
+        handle_response_variants!(
+            MempoolP2pPropagatorResponse,
+            ContinuePropagation,
+            MempoolP2pPropagatorClientError,
+            MempoolP2pPropagatorError
+        )
+    }
+}
