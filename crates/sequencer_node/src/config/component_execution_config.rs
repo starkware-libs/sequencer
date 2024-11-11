@@ -13,6 +13,7 @@ use validator::{Validate, ValidationError};
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum ComponentExecutionMode {
     Disabled,
+    Remote,
     LocalExecutionWithRemoteEnabled,
     LocalExecutionWithRemoteDisabled,
 }
@@ -143,6 +144,7 @@ pub fn validate_single_component_config(
         component_config.remote_server_config.is_some(),
     ) {
         (ComponentExecutionMode::Disabled, false, false, false) => Ok(()),
+        (ComponentExecutionMode::Remote, false, true, false) => Ok(()),
         (ComponentExecutionMode::LocalExecutionWithRemoteEnabled, true, false, true) => Ok(()),
         (ComponentExecutionMode::LocalExecutionWithRemoteDisabled, true, false, false) => Ok(()),
         _ => {

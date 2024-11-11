@@ -35,6 +35,7 @@ const ENABLE_REMOTE_CONNECTION_MODE: ComponentExecutionMode =
 /// Validates that execution mode of the component and the local/remote config are at sync.
 #[rstest]
 #[case::local(ComponentExecutionMode::Disabled, None, None, None)]
+#[case::local(ComponentExecutionMode::Remote, None, Some(RemoteClientConfig::default()), None)]
 #[case::local(LOCAL_EXECUTION_MODE, Some(LocalServerConfig::default()), None, None)]
 #[case::remote(
     ENABLE_REMOTE_CONNECTION_MODE,

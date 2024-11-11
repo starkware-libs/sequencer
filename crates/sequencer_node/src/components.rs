@@ -37,7 +37,7 @@ pub fn create_node_components(
                 clients.get_mempool_client().expect("Mempool Client should be available");
             Some(create_batcher(config.batcher_config.clone(), mempool_client))
         }
-        ComponentExecutionMode::Disabled => None,
+        ComponentExecutionMode::Disabled | ComponentExecutionMode::Remote => None,
     };
     let consensus_manager = match config.components.consensus_manager.execution_mode {
         ComponentExecutionMode::LocalExecutionWithRemoteDisabled
@@ -46,7 +46,7 @@ pub fn create_node_components(
                 clients.get_batcher_client().expect("Batcher Client should be available");
             Some(ConsensusManager::new(config.consensus_manager_config.clone(), batcher_client))
         }
-        ComponentExecutionMode::Disabled => None,
+        ComponentExecutionMode::Disabled | ComponentExecutionMode::Remote => None,
     };
     let gateway = match config.components.gateway.execution_mode {
         ComponentExecutionMode::LocalExecutionWithRemoteDisabled
@@ -61,7 +61,7 @@ pub fn create_node_components(
                 mempool_client,
             ))
         }
-        ComponentExecutionMode::Disabled => None,
+        ComponentExecutionMode::Disabled | ComponentExecutionMode::Remote => None,
     };
     let http_server = match config.components.http_server.execution_mode {
         ComponentExecutionMode::LocalExecutionWithRemoteDisabled
@@ -71,7 +71,7 @@ pub fn create_node_components(
 
             Some(create_http_server(config.http_server_config.clone(), gateway_client))
         }
-        ComponentExecutionMode::Disabled => None,
+        ComponentExecutionMode::Disabled | ComponentExecutionMode::Remote => None,
     };
 
     let (mempool_p2p_propagator, mempool_p2p_runner) =
@@ -86,7 +86,7 @@ pub fn create_node_components(
                 );
                 (Some(mempool_p2p_propagator), Some(mempool_p2p_runner))
             }
-            ComponentExecutionMode::Disabled => (None, None),
+            ComponentExecutionMode::Disabled | ComponentExecutionMode::Remote => (None, None),
         };
 
     let mempool = match config.components.mempool.execution_mode {
@@ -98,7 +98,7 @@ pub fn create_node_components(
             let mempool = create_mempool(mempool_p2p_propagator_client);
             Some(mempool)
         }
-        ComponentExecutionMode::Disabled => None,
+        ComponentExecutionMode::Disabled | ComponentExecutionMode::Remote => None,
     };
 
     let monitoring_endpoint = match config.components.monitoring_endpoint.execution_mode {
@@ -106,7 +106,7 @@ pub fn create_node_components(
             create_monitoring_endpoint(config.monitoring_endpoint_config.clone(), VERSION_FULL),
         ),
         ComponentExecutionMode::LocalExecutionWithRemoteDisabled => None,
-        ComponentExecutionMode::Disabled => None,
+        ComponentExecutionMode::Disabled | ComponentExecutionMode::Remote => None,
     };
 
     SequencerNodeComponents {
