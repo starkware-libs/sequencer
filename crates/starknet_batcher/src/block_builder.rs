@@ -53,6 +53,8 @@ pub enum BlockBuilderError {
     StreamTransactionsError(#[from] tokio::sync::mpsc::error::SendError<Transaction>),
     #[error("Build block with fail_on_err mode, failed on error {}.", _0)]
     FailOnError(BlockifierTransactionExecutorError),
+    #[error("The block builder was aborted.")]
+    Aborted,
 }
 
 pub type BlockBuilderResult<T> = Result<T, BlockBuilderError>;
@@ -85,6 +87,7 @@ pub struct BlockBuilder {
     tx_chunk_size: usize,
     deadline: tokio::time::Instant,
     fail_on_err: bool,
+    abort_signal_receiver: tokio::sync::oneshot::Receiver<()>,
 }
 
 impl BlockBuilder {
@@ -95,6 +98,7 @@ impl BlockBuilder {
         tx_chunk_size: usize,
         deadline: tokio::time::Instant,
         fail_on_err: bool,
+        abort_signal_receiver: tokio::sync::oneshot::Receiver<()>,
     ) -> Self {
         Self {
             executor: Mutex::new(executor),
@@ -103,6 +107,7 @@ impl BlockBuilder {
             tx_chunk_size,
             deadline,
             fail_on_err,
+            abort_signal_receiver,
         }
     }
 }
@@ -114,6 +119,10 @@ impl BlockBuilderTrait for BlockBuilder {
         let mut execution_infos = IndexMap::new();
         // TODO(yael 6/10/2024): delete the timeout condition once the executor has a timeout
         while !block_is_full && tokio::time::Instant::now() < self.deadline {
+            if self.abort_signal_receiver.try_recv().is_ok() {
+                info!("Received abort signal. Aborting block builder.");
+                return Err(BlockBuilderError::Aborted);
+            }
             let next_txs = self.tx_provider.get_txs(self.tx_chunk_size).await?;
             let next_tx_chunk = match next_txs {
                 NextTxs::Txs(txs) => txs,
@@ -205,6 +214,7 @@ pub trait BlockBuilderFactoryTrait {
         execution_params: BlockBuilderExecutionParams,
         tx_provider: Box<dyn TransactionProvider>,
         output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<Transaction>>,
+        abort_signal_receiver: tokio::sync::oneshot::Receiver<()>,
     ) -> BlockBuilderResult<Box<dyn BlockBuilderTrait>>;
 }
 
@@ -330,6 +340,7 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
         execution_params: BlockBuilderExecutionParams,
         tx_provider: Box<dyn TransactionProvider>,
         output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<Transaction>>,
+        abort_signal_receiver: tokio::sync::oneshot::Receiver<()>,
     ) -> BlockBuilderResult<Box<dyn BlockBuilderTrait>> {
         let executor = self.preprocess_and_create_transaction_executor(
             block_metatdata.height,
@@ -342,6 +353,7 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
             self.block_builder_config.tx_chunk_size,
             execution_params.deadline,
             execution_params.fail_on_err,
+            abort_signal_receiver,
         )))
     }
 }
