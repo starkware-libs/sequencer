@@ -76,13 +76,9 @@ async fn test_end_to_end_integration(tx_generator: MultiAccountTransactionGenera
 
     info!("Running integration test simulator.");
 
-<<<<<<< HEAD
     let send_rpc_tx_fn =
         &mut |rpc_tx| integration_test_setup.add_tx_http_client.assert_add_tx_success(rpc_tx);
 
-=======
-    let send_rpc_tx_fn = &mut |rpc_tx| http_test_client.assert_add_tx_success(rpc_tx);
->>>>>>> d24924dfe (chore: changing closure Fn requirements on integration test utils)
     let n_txs = 50;
     info!("Sending {n_txs} txs.");
     run_transaction_generator_test_scenario(tx_generator, n_txs, send_rpc_tx_fn).await;
