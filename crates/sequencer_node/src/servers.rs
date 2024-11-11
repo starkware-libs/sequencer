@@ -85,7 +85,7 @@ macro_rules! create_local_server {
                     $receiver,
                 )))
             }
-            ComponentExecutionMode::Disabled => None,
+            ComponentExecutionMode::Disabled | ComponentExecutionMode::Remote => None,
         }
     };
 }
@@ -132,7 +132,7 @@ macro_rules! create_wrapper_server {
                         .expect(concat!(stringify!($component), " is not initialized.")),
                 )))
             }
-            ComponentExecutionMode::Disabled => None,
+            ComponentExecutionMode::Disabled | ComponentExecutionMode::Remote => None,
         }
     };
 }

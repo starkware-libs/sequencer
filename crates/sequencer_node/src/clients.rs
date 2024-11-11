@@ -77,7 +77,7 @@ macro_rules! create_client {
             | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
                 Some(Arc::new(<$client_type>::new($channel_expr)))
             }
-            ComponentExecutionMode::Disabled => None,
+            ComponentExecutionMode::Disabled | ComponentExecutionMode::Remote => None,
         }
     };
 }
