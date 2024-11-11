@@ -19,11 +19,10 @@ use starknet_api::rpc_transaction::{
     ContractClass,
     RpcDeclareTransactionV3,
     RpcDeployAccountTransactionV3,
-    RpcInvokeTransactionV3,
     RpcTransaction,
 };
 use starknet_api::test_utils::deploy_account::DeployAccountTxArgs;
-use starknet_api::test_utils::invoke::InvokeTxArgs;
+use starknet_api::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
@@ -509,31 +508,6 @@ impl Default for DeclareTxArgs {
             contract_class: ContractClass::default(),
         }
     }
-}
-
-pub fn rpc_invoke_tx(invoke_args: InvokeTxArgs) -> RpcTransaction {
-    if invoke_args.version != TransactionVersion::THREE {
-        panic!("Unsupported transaction version: {:?}.", invoke_args.version);
-    }
-
-    let ValidResourceBounds::AllResources(resource_bounds) = invoke_args.resource_bounds else {
-        panic!("Unspported resource bounds type: {:?}.", invoke_args.resource_bounds)
-    };
-
-    starknet_api::rpc_transaction::RpcTransaction::Invoke(
-        starknet_api::rpc_transaction::RpcInvokeTransaction::V3(RpcInvokeTransactionV3 {
-            resource_bounds,
-            tip: invoke_args.tip,
-            calldata: invoke_args.calldata,
-            sender_address: invoke_args.sender_address,
-            nonce: invoke_args.nonce,
-            signature: invoke_args.signature,
-            nonce_data_availability_mode: invoke_args.nonce_data_availability_mode,
-            fee_data_availability_mode: invoke_args.fee_data_availability_mode,
-            paymaster_data: invoke_args.paymaster_data,
-            account_deployment_data: invoke_args.account_deployment_data,
-        }),
-    )
 }
 
 pub fn rpc_deploy_account_tx(deploy_tx_args: DeployAccountTxArgs) -> RpcTransaction {
