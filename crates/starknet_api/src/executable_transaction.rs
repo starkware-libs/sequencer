@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::contract_class::ClassInfo;
+use crate::contract_class::{ClassInfo, ContractClass};
 use crate::core::{calculate_contract_address, ChainId, ClassHash, ContractAddress, Nonce};
 use crate::data_availability::DataAvailabilityMode;
 use crate::rpc_transaction::{
@@ -171,6 +171,14 @@ pub struct DeclareTransaction {
 }
 
 impl DeclareTransaction {
+    implement_inner_tx_getter_calls!(
+        (class_hash, ClassHash),
+        (nonce, Nonce),
+        (sender_address, ContractAddress),
+        (signature, TransactionSignature),
+        (version, TransactionVersion)
+    );
+
     pub fn create(
         declare_tx: crate::transaction::DeclareTransaction,
         class_info: ClassInfo,
@@ -195,6 +203,10 @@ impl DeclareTransaction {
         let compiled_class_hash = contract_class.compiled_class_hash();
 
         compiled_class_hash == supplied_compiled_class_hash
+    }
+
+    pub fn contract_class(&self) -> ContractClass {
+        self.class_info.contract_class.clone()
     }
 }
 

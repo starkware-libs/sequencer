@@ -256,3 +256,7 @@ pub enum FeeType {
 pub trait TransactionInfoCreator {
     fn create_tx_info(&self) -> TransactionInfo;
 }
+
+pub trait TransactionInfoCreatorInner {
+    fn create_tx_info(&self, only_query: bool) -> TransactionInfo;
+}
