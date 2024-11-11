@@ -4,8 +4,10 @@ use std::path::Path;
 use std::sync::LazyLock;
 use std::vec::Vec;
 
+use blockifier::versioned_constants::VersionedConstantsOverrides;
 use clap::Command;
 use papyrus_config::dumping::{
+    append_struct_pointer,
     append_sub_config_name,
     ser_pointer_target_required_param,
     set_pointing_param_paths,
@@ -79,7 +81,19 @@ pub static REQUIRED_PARAM_CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::
 });
 
 // Optional target parameters, i.e., target parameters with default values.
-pub static DEFAULT_PARAM_CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(Vec::new);
+pub static DEFAULT_PARAM_CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
+    let mut pointers = ConfigPointers::new();
+    append_struct_pointer(
+        &mut pointers,
+        "versioned_constants_overrides".to_owned(),
+        &VersionedConstantsOverrides::default(),
+        set_pointing_param_paths(&[
+            "batcher_config.block_builder_config.versioned_constants_overrides",
+            "gateway_config.stateful_tx_validator_config.versioned_constants_overrides",
+        ]),
+    );
+    pointers
+});
 
 // All target parameters.
 pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
