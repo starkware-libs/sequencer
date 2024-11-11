@@ -71,8 +71,6 @@ where
         Self { tx }
     }
 
-    // TODO(Tsabary, 1/5/2024): Consider implementation for messages without expected responses.
-
     pub async fn send(&self, request: Request) -> Response {
         let (res_tx, mut res_rx) = channel::<Response>(1);
         let request_and_res_tx = ComponentRequestAndResponseSender { request, tx: res_tx };
