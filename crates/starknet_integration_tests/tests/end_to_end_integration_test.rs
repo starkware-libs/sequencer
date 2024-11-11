@@ -145,6 +145,7 @@ async fn test_end_to_end_integration(mut tx_generator: MultiAccountTransactionGe
         &mut |rpc_tx| integration_test_setup.add_tx_http_client.assert_add_tx_success(rpc_tx);
 
     const ACCOUNT_ID_0: AccountId = 0;
+    // let send_rpc_tx_fn = &mut |rpc_tx| http_test_client.assert_add_tx_success(rpc_tx);
     let n_txs = 50;
     let sender_address = tx_generator.account_with_id(ACCOUNT_ID_0).sender_address();
     info!("Sending {n_txs} txs.");
