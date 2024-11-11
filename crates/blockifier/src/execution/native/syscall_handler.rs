@@ -10,14 +10,18 @@ use cairo_native::starknet::{
     SyscallResult,
     U256,
 };
+use cairo_native::starknet_stub::encode_str_as_felts;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
 use crate::execution::call_info::{CallInfo, OrderedEvent, OrderedL2ToL1Message, Retdata};
 use crate::execution::entry_point::{CallEntryPoint, EntryPointExecutionContext};
-use crate::execution::native::utils::encode_str_as_felts;
-use crate::execution::syscalls::hint_processor::{SyscallCounter, OUT_OF_GAS_ERROR};
+use crate::execution::syscalls::hint_processor::{
+    SyscallCounter,
+    SyscallExecutionError,
+    OUT_OF_GAS_ERROR,
+};
 use crate::execution::syscalls::SyscallSelector;
 use crate::state::state_api::State;
 
@@ -77,12 +81,12 @@ impl<'state> NativeSyscallHandler<'state> {
             u64::try_from(*remaining_gas).expect("Failed to convert gas to u64.");
         let call_info = entry_point
             .execute(self.state, self.resources, self.context, &mut remaining_gas_u64)
-            .map_err(|e| encode_str_as_felts(&e.to_string()))?;
+            .map_err(|e| self.handle_error(remaining_gas, e.into()))?;
         let retdata = call_info.execution.retdata.clone();
 
         if call_info.execution.failed {
-            // In VM it's wrapped into `SyscallExecutionError::SyscallError`.
-            return Err(retdata.0.clone());
+            let error = SyscallExecutionError::SyscallError { error_data: retdata.0 };
+            return Err(self.handle_error(remaining_gas, error));
         }
 
         // TODO(Noa, 1/11/2024): remove this once the gas type is u64.
@@ -94,9 +98,20 @@ impl<'state> NativeSyscallHandler<'state> {
         Ok(retdata)
     }
 
+    fn handle_error(
+        &mut self,
+        _remaining_gas: &mut u128,
+        error: SyscallExecutionError,
+    ) -> Vec<Felt> {
+        match error {
+            SyscallExecutionError::SyscallError { error_data } => error_data,
+            // unrecoverable errors are yet to be implemented
+            _ => encode_str_as_felts(&error.to_string()),
+        }
+    }
+
     /// Handles all gas-related logics and additional metadata such as `SyscallCounter`. In native,
     /// we need to explicitly call this method at the beginning of each syscall.
-    #[allow(dead_code)]
     fn pre_execute_syscall(
         &mut self,
         remaining_gas: &mut u128,
@@ -183,21 +198,61 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
 
     fn storage_read(
         &mut self,
-        _address_domain: u32,
-        _address: Felt,
-        _remaining_gas: &mut u128,
+        address_domain: u32,
+        address: Felt,
+        remaining_gas: &mut u128,
     ) -> SyscallResult<Felt> {
-        todo!("Implement storage_read syscall.");
+        self.pre_execute_syscall(
+            remaining_gas,
+            SyscallSelector::StorageRead,
+            self.context.gas_costs().storage_read_gas_cost,
+        )?;
+
+        if address_domain != 0 {
+            let address_domain = Felt::from(address_domain);
+            let error = SyscallExecutionError::InvalidAddressDomain { address_domain };
+            return Err(self.handle_error(remaining_gas, error));
+        }
+
+        let key = StorageKey::try_from(address)
+            .map_err(|e| self.handle_error(remaining_gas, e.into()))?;
+
+        let read_result = self.state.get_storage_at(self.call.storage_address, key);
+        let value = read_result.map_err(|e| self.handle_error(remaining_gas, e.into()))?;
+
+        self.accessed_keys.insert(key);
+        self.read_values.push(value);
+
+        Ok(value)
     }
 
     fn storage_write(
         &mut self,
-        _address_domain: u32,
-        _address: Felt,
-        _value: Felt,
-        _remaining_gas: &mut u128,
+        address_domain: u32,
+        address: Felt,
+        value: Felt,
+        remaining_gas: &mut u128,
     ) -> SyscallResult<()> {
-        todo!("Implement storage_write syscall.");
+        self.pre_execute_syscall(
+            remaining_gas,
+            SyscallSelector::StorageWrite,
+            self.context.gas_costs().storage_write_gas_cost,
+        )?;
+
+        if address_domain != 0 {
+            let address_domain = Felt::from(address_domain);
+            let error = SyscallExecutionError::InvalidAddressDomain { address_domain };
+            return Err(self.handle_error(remaining_gas, error));
+        }
+
+        let key = StorageKey::try_from(address)
+            .map_err(|e| self.handle_error(remaining_gas, e.into()))?;
+        self.accessed_keys.insert(key);
+
+        let write_result = self.state.set_storage_at(self.call.storage_address, key, value);
+        write_result.map_err(|e| self.handle_error(remaining_gas, e.into()))?;
+
+        Ok(())
     }
 
     fn emit_event(
