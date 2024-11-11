@@ -757,17 +757,16 @@ fn test_fail_declare(block_context: BlockContext, max_fee: Fee) {
     state.set_contract_class(class_hash, contract_class.clone().try_into().unwrap()).unwrap();
     state.set_compiled_class_hash(class_hash, declare_tx.compiled_class_hash).unwrap();
     let class_info = calculate_class_info_for_testing(contract_class);
-    let declare_account_tx = AccountTransaction::Declare(
-        DeclareTransaction::new(
-            starknet_api::transaction::DeclareTransaction::V2(DeclareTransactionV2 {
-                nonce: next_nonce,
-                ..declare_tx
-            }),
-            TransactionHash::default(),
-            class_info,
-        )
-        .unwrap(),
-    );
+    let declare_account_tx: AccountTransaction = DeclareTransaction::new(
+        starknet_api::transaction::DeclareTransaction::V2(DeclareTransactionV2 {
+            nonce: next_nonce,
+            ..declare_tx
+        }),
+        TransactionHash::default(),
+        class_info,
+    )
+    .unwrap()
+    .into();
 
     // Fail execution, assert nonce and balance are unchanged.
     let tx_info = declare_account_tx.create_tx_info();

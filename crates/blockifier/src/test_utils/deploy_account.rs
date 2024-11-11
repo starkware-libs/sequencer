@@ -16,5 +16,6 @@ pub fn deploy_account_tx(
     // TODO(AvivG): use the "new" method.
     let executable_deploy_account_tx =
         DeployAccountTransaction { tx: deploy_account_tx, only_query: false };
-    AccountTransaction::DeployAccount(executable_deploy_account_tx)
+
+    executable_deploy_account_tx.into()
 }
