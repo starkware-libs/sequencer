@@ -10,7 +10,6 @@ use cairo_native::starknet::{
     SyscallResult,
     U256,
 };
-use cairo_native::starknet_stub::encode_str_as_felts;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
@@ -42,6 +41,9 @@ pub struct NativeSyscallHandler<'state> {
     // Additional information gathered during execution.
     pub read_values: Vec<Felt>,
     pub accessed_keys: HashSet<StorageKey, RandomState>,
+
+    // It is set if an unrecoverable error happens during syscall execution
+    pub unrecoverable_error: Option<SyscallExecutionError>,
 }
 
 impl<'state> NativeSyscallHandler<'state> {
@@ -62,6 +64,7 @@ impl<'state> NativeSyscallHandler<'state> {
             syscall_counter: SyscallCounter::new(),
             read_values: Vec::new(),
             accessed_keys: HashSet::new(),
+            unrecoverable_error: None,
         }
     }
 
@@ -98,18 +101,6 @@ impl<'state> NativeSyscallHandler<'state> {
         Ok(retdata)
     }
 
-    fn handle_error(
-        &mut self,
-        _remaining_gas: &mut u128,
-        error: SyscallExecutionError,
-    ) -> Vec<Felt> {
-        match error {
-            SyscallExecutionError::SyscallError { error_data } => error_data,
-            // unrecoverable errors are yet to be implemented
-            _ => encode_str_as_felts(&error.to_string()),
-        }
-    }
-
     /// Handles all gas-related logics and additional metadata such as `SyscallCounter`. In native,
     /// we need to explicitly call this method at the beginning of each syscall.
     fn pre_execute_syscall(
@@ -138,6 +129,21 @@ impl<'state> NativeSyscallHandler<'state> {
         *remaining_gas -= required_gas;
 
         Ok(())
+    }
+
+    fn handle_error(
+        &mut self,
+        remaining_gas: &mut u128,
+        error: SyscallExecutionError,
+    ) -> Vec<Felt> {
+        match error {
+            SyscallExecutionError::SyscallError { error_data } => error_data,
+            _ => {
+                self.unrecoverable_error = Some(error);
+                *remaining_gas = 0;
+                vec![]
+            }
+        }
     }
 }
 
