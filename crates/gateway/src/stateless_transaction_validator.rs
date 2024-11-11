@@ -31,6 +31,8 @@ impl StatelessTransactionValidator {
         // TODO(Arni, 1/5/2024): Validate transaction version.
 
         Self::validate_contract_address(tx)?;
+        Self::validate_empty_account_deployment_data(tx)?;
+        Self::validate_empty_paymaster_data(tx)?;
         self.validate_resource_bounds(tx)?;
         self.validate_tx_size(tx)?;
 
@@ -64,6 +66,48 @@ impl StatelessTransactionValidator {
         };
 
         Ok(sender_address.validate()?)
+    }
+
+    /// The Starknet OS enforces that the deployer data is empty. We add this validation here at the
+    /// gateway to prevent transaction revert.
+    fn validate_empty_account_deployment_data(
+        tx: &RpcTransaction,
+    ) -> StatelessTransactionValidatorResult<()> {
+        let account_deployment_data = match tx {
+            RpcTransaction::DeployAccount(_) => return Ok(()),
+            RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => &tx.account_deployment_data,
+            RpcTransaction::Invoke(RpcInvokeTransaction::V3(tx)) => &tx.account_deployment_data,
+        };
+
+        if account_deployment_data.is_empty() {
+            Ok(())
+        } else {
+            Err(StatelessTransactionValidatorError::NonEmptyField {
+                field_name: "account_deployment_data".to_string(),
+            })
+        }
+    }
+
+    /// The Starknet OS enforces that the paymaster data is empty. We add this validation here at
+    /// the gateway to prevent transaction revert.
+    fn validate_empty_paymaster_data(
+        tx: &RpcTransaction,
+    ) -> StatelessTransactionValidatorResult<()> {
+        let paymaster_data = match tx {
+            RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(tx)) => {
+                &tx.paymaster_data
+            }
+            RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => &tx.paymaster_data,
+            RpcTransaction::Invoke(RpcInvokeTransaction::V3(tx)) => &tx.paymaster_data,
+        };
+
+        if paymaster_data.is_empty() {
+            Ok(())
+        } else {
+            Err(StatelessTransactionValidatorError::NonEmptyField {
+                field_name: "paymaster_data".to_string(),
+            })
+        }
     }
 
     fn validate_tx_size(&self, tx: &RpcTransaction) -> StatelessTransactionValidatorResult<()> {

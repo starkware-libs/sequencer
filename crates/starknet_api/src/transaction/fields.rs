@@ -448,7 +448,19 @@ impl TryFrom<DeprecatedResourceBoundsMapping> for ValidResourceBounds {
 #[derive(Clone, Debug, Default, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct PaymasterData(pub Vec<Felt>);
 
+impl PaymasterData {
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
+
 /// If nonempty, will contain the required data for deploying and initializing an account contract:
 /// its class hash, address salt and constructor calldata.
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct AccountDeploymentData(pub Vec<Felt>);
+
+impl AccountDeploymentData {
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}

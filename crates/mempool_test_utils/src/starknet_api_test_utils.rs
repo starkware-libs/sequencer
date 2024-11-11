@@ -71,6 +71,8 @@ pub struct RpcTransactionArgs {
     pub resource_bounds: AllResourceBounds,
     pub calldata: Calldata,
     pub signature: TransactionSignature,
+    pub account_deployment_data: AccountDeploymentData,
+    pub paymaster_data: PaymasterData,
 }
 
 impl Default for RpcTransactionArgs {
@@ -80,6 +82,8 @@ impl Default for RpcTransactionArgs {
             resource_bounds: AllResourceBounds::default(),
             calldata: Default::default(),
             signature: Default::default(),
+            account_deployment_data: Default::default(),
+            paymaster_data: Default::default(),
         }
     }
 }
@@ -88,7 +92,14 @@ pub fn rpc_tx_for_testing(
     tx_type: TransactionType,
     rpc_tx_args: RpcTransactionArgs,
 ) -> RpcTransaction {
-    let RpcTransactionArgs { sender_address, resource_bounds, calldata, signature } = rpc_tx_args;
+    let RpcTransactionArgs {
+        sender_address,
+        resource_bounds,
+        calldata,
+        signature,
+        account_deployment_data,
+        paymaster_data,
+    } = rpc_tx_args;
     match tx_type {
         TransactionType::Declare => {
             // Minimal contract class.
@@ -110,18 +121,23 @@ pub fn rpc_tx_for_testing(
                 sender_address,
                 resource_bounds,
                 contract_class,
+                account_deployment_data,
+                paymaster_data,
             ))
         }
         TransactionType::DeployAccount => rpc_deploy_account_tx(deploy_account_tx_args!(
             signature,
             resource_bounds: ValidResourceBounds::AllResources(resource_bounds),
             constructor_calldata: calldata,
+            paymaster_data,
         )),
         TransactionType::Invoke => rpc_invoke_tx(invoke_tx_args!(
             signature,
             sender_address,
             calldata,
             resource_bounds: ValidResourceBounds::AllResources(resource_bounds),
+            account_deployment_data,
+            paymaster_data,
         )),
     }
 }
