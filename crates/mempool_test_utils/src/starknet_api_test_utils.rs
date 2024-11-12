@@ -74,6 +74,7 @@ pub struct RpcTransactionArgs {
     pub account_deployment_data: AccountDeploymentData,
     pub paymaster_data: PaymasterData,
     pub nonce_data_availability_mode: DataAvailabilityMode,
+    pub fee_data_availability_mode: DataAvailabilityMode,
 }
 
 impl Default for RpcTransactionArgs {
@@ -86,6 +87,7 @@ impl Default for RpcTransactionArgs {
             account_deployment_data: Default::default(),
             paymaster_data: Default::default(),
             nonce_data_availability_mode: DataAvailabilityMode::L1,
+            fee_data_availability_mode: DataAvailabilityMode::L1,
         }
     }
 }
@@ -102,6 +104,7 @@ pub fn rpc_tx_for_testing(
         account_deployment_data,
         paymaster_data,
         nonce_data_availability_mode,
+        fee_data_availability_mode,
     } = rpc_tx_args;
     match tx_type {
         TransactionType::Declare => {
@@ -127,6 +130,7 @@ pub fn rpc_tx_for_testing(
                 account_deployment_data,
                 paymaster_data,
                 nonce_data_availability_mode,
+                fee_data_availability_mode,
             ))
         }
         TransactionType::DeployAccount => rpc_deploy_account_tx(deploy_account_tx_args!(
@@ -135,6 +139,7 @@ pub fn rpc_tx_for_testing(
             constructor_calldata: calldata,
             paymaster_data,
             nonce_data_availability_mode,
+            fee_data_availability_mode,
         )),
         TransactionType::Invoke => rpc_invoke_tx(invoke_tx_args!(
             signature,
@@ -144,6 +149,7 @@ pub fn rpc_tx_for_testing(
             account_deployment_data,
             paymaster_data,
             nonce_data_availability_mode,
+            fee_data_availability_mode,
         )),
     }
 }

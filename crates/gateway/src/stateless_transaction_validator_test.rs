@@ -230,6 +230,26 @@ fn test_invalid_nonce_data_availability_mode(
 }
 
 #[rstest]
+fn test_invalid_fee_data_availability_mode(
+    #[values(TransactionType::Declare, TransactionType::DeployAccount, TransactionType::Invoke)]
+    tx_type: TransactionType,
+) {
+    let tx_validator =
+        StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone() };
+    let tx = rpc_tx_for_testing(
+        tx_type,
+        RpcTransactionArgs {
+            fee_data_availability_mode: DataAvailabilityMode::L2,
+            ..Default::default()
+        },
+    );
+    assert_eq!(
+        tx_validator.validate(&tx).unwrap_err(),
+        StatelessTransactionValidatorError::FeeDataAvailabilityMode
+    )
+}
+
+#[rstest]
 #[case::sierra_program_length_zero(
     vec![],
     StatelessTransactionValidatorError::InvalidSierraVersion (
