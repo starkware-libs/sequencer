@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use assert_matches::assert_matches;
 use async_trait::async_trait;
+use blockifier::blockifier::transaction_executor::TransactionExecutorError;
 use chrono::Utc;
 use futures::future::BoxFuture;
 use futures::FutureExt;
@@ -36,6 +37,7 @@ use starknet_mempool_types::communication::MockMempoolClient;
 use starknet_mempool_types::mempool_types::CommitBlockArgs;
 
 use crate::batcher::{Batcher, MockBatcherStorageReaderTrait, MockBatcherStorageWriterTrait};
+use crate::block_builder::BlockBuilderError;
 use crate::config::BatcherConfig;
 use crate::proposal_manager::{
     GenerateProposalError,
@@ -143,7 +145,6 @@ fn mock_proposal_manager_validate_flow() -> MockProposalManagerTraitWrapper {
     proposal_manager
 }
 
-// TODO: add negative tests
 #[rstest]
 #[tokio::test]
 async fn validate_proposal_full_flow() {
@@ -180,6 +181,108 @@ async fn validate_proposal_full_flow() {
         send_finish_result,
         SendProposalContentResponse { response: ProposalStatus::Finished(proposal_commitment()) }
     );
+}
+
+#[rstest]
+#[tokio::test]
+async fn send_content_after_proposal_already_finished() {
+    let mut proposal_manager = MockProposalManagerTraitWrapper::new();
+    proposal_manager
+        .expect_wrap_get_proposal_status()
+        .with(eq(PROPOSAL_ID))
+        .times(1)
+        .returning(|_| async move { InternalProposalStatus::Finished }.boxed());
+
+    let mut batcher = batcher(proposal_manager);
+
+    // Send transactions after the proposal has finished.
+    let send_proposal_input_txs = SendProposalContentInput {
+        proposal_id: PROPOSAL_ID,
+        content: SendProposalContent::Txs(test_txs(0..1)),
+    };
+    let result = batcher.send_proposal_content(send_proposal_input_txs).await;
+    assert_eq!(result, Err(BatcherError::ProposalAlreadyFinished { proposal_id: PROPOSAL_ID }));
+}
+
+#[rstest]
+#[tokio::test]
+async fn send_content_to_unknown_proposal() {
+    let mut proposal_manager = MockProposalManagerTraitWrapper::new();
+    proposal_manager
+        .expect_wrap_get_proposal_status()
+        .times(1)
+        .with(eq(PROPOSAL_ID))
+        .return_once(move |_| async move { InternalProposalStatus::NotFound }.boxed());
+
+    let mut batcher = batcher(proposal_manager);
+
+    // Send transactions to an unknown proposal.
+    let send_proposal_input_txs = SendProposalContentInput {
+        proposal_id: PROPOSAL_ID,
+        content: SendProposalContent::Txs(test_txs(0..1)),
+    };
+    let result = batcher.send_proposal_content(send_proposal_input_txs).await;
+    assert_eq!(result, Err(BatcherError::ProposalNotFound { proposal_id: PROPOSAL_ID }));
+
+    // Send finish to an unknown proposal.
+    let send_proposal_input_txs =
+        SendProposalContentInput { proposal_id: PROPOSAL_ID, content: SendProposalContent::Finish };
+    let result = batcher.send_proposal_content(send_proposal_input_txs).await;
+    assert_eq!(result, Err(BatcherError::ProposalNotFound { proposal_id: PROPOSAL_ID }));
+}
+
+#[rstest]
+#[tokio::test]
+async fn send_txs_to_an_invalid_proposal() {
+    let mut proposal_manager = MockProposalManagerTraitWrapper::new();
+    proposal_manager
+        .expect_wrap_get_proposal_status()
+        .times(1)
+        .with(eq(PROPOSAL_ID))
+        .return_once(move |_| async move { InternalProposalStatus::Failed }.boxed());
+
+    let mut batcher = batcher(proposal_manager);
+
+    let send_proposal_input_txs = SendProposalContentInput {
+        proposal_id: PROPOSAL_ID,
+        content: SendProposalContent::Txs(test_txs(0..1)),
+    };
+    let result = batcher.send_proposal_content(send_proposal_input_txs).await.unwrap();
+    assert_eq!(result, SendProposalContentResponse { response: ProposalStatus::InvalidProposal });
+}
+
+#[rstest]
+#[tokio::test]
+async fn send_finish_to_an_invalid_proposal() {
+    let proposal_error = GetProposalResultError::BlockBuilderError(Arc::new(
+        BlockBuilderError::FailOnError(TransactionExecutorError::BlockFull),
+    ));
+
+    let mut proposal_manager = MockProposalManagerTraitWrapper::new();
+    proposal_manager
+        .expect_wrap_validate_block_proposal()
+        .times(1)
+        .with(eq(PROPOSAL_ID), eq(None), always(), always())
+        .return_once(|_, _, _, _| { async move { Ok(()) } }.boxed());
+    proposal_manager
+        .expect_wrap_await_proposal_commitment()
+        .times(1)
+        .with(eq(PROPOSAL_ID))
+        .return_once(move |_| { async move { Err(proposal_error) } }.boxed());
+
+    let mut batcher = batcher(proposal_manager);
+
+    let validate_proposal_input = ValidateProposalInput {
+        proposal_id: PROPOSAL_ID,
+        deadline: deadline(),
+        retrospective_block_hash: None,
+    };
+    batcher.validate_proposal(validate_proposal_input).await.unwrap();
+
+    let send_proposal_input_txs =
+        SendProposalContentInput { proposal_id: PROPOSAL_ID, content: SendProposalContent::Finish };
+    let result = batcher.send_proposal_content(send_proposal_input_txs).await.unwrap();
+    assert_eq!(result, SendProposalContentResponse { response: ProposalStatus::InvalidProposal });
 }
 
 #[rstest]
