@@ -135,10 +135,11 @@ pub struct PyBlockExecutor {
 #[pymethods]
 impl PyBlockExecutor {
     #[new]
-    #[pyo3(signature = (bouncer_config, concurrency_config, os_config, global_contract_cache_size, target_storage_config, py_versioned_constants_overrides))]
+    #[pyo3(signature = (bouncer_config, concurrency_config, run_native, os_config, global_contract_cache_size, target_storage_config, py_versioned_constants_overrides))]
     pub fn create(
         bouncer_config: PyBouncerConfig,
         concurrency_config: PyConcurrencyConfig,
+        run_native: bool,
         os_config: PyOsConfig,
         global_contract_cache_size: usize,
         target_storage_config: StorageConfig,
@@ -155,6 +156,7 @@ impl PyBlockExecutor {
             bouncer_config: bouncer_config.try_into().expect("Failed to parse bouncer config."),
             tx_executor_config: TransactionExecutorConfig {
                 concurrency_config: concurrency_config.into(),
+                run_native,
             },
             chain_info: os_config.into_chain_info(),
             versioned_constants,
@@ -368,10 +370,11 @@ impl PyBlockExecutor {
     }
 
     #[cfg(any(feature = "testing", test))]
-    #[pyo3(signature = (concurrency_config, os_config, path, max_state_diff_size))]
+    #[pyo3(signature = (concurrency_config, run_native, os_config, path, max_state_diff_size))]
     #[staticmethod]
     fn create_for_testing(
         concurrency_config: PyConcurrencyConfig,
+        run_native: bool,
         os_config: PyOsConfig,
         path: std::path::PathBuf,
         max_state_diff_size: usize,
@@ -391,6 +394,7 @@ impl PyBlockExecutor {
             },
             tx_executor_config: TransactionExecutorConfig {
                 concurrency_config: concurrency_config.into(),
+                run_native,
             },
             storage: Box::new(PapyrusStorage::new_for_testing(path, &os_config.chain_id)),
             chain_info: os_config.into_chain_info(),
@@ -433,11 +437,18 @@ impl PyBlockExecutor {
     #[cfg(test)]
     pub(crate) fn native_create_for_testing(
         concurrency_config: PyConcurrencyConfig,
+        run_native: bool,
         os_config: PyOsConfig,
         path: std::path::PathBuf,
         max_state_diff_size: usize,
     ) -> Self {
-        Self::create_for_testing(concurrency_config, os_config, path, max_state_diff_size)
+        Self::create_for_testing(
+            concurrency_config,
+            run_native,
+            os_config,
+            path,
+            max_state_diff_size,
+        )
     }
 }
 
