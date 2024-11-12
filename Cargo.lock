@@ -10048,6 +10048,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "starknet-native-compile"
+version = "0.2.0-alpha.4"
+dependencies = [
+ "cairo-lang-sierra",
+ "cairo-lang-starknet-classes",
+ "cairo-native",
+ "clap",
+ "serde_json",
+]
+
+[[package]]
 name = "starknet-types-core"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10488,11 +10499,13 @@ dependencies = [
  "cairo-lang-sierra",
  "cairo-lang-starknet-classes",
  "cairo-lang-utils",
+ "cairo-native",
  "mempool_test_utils",
  "papyrus_config",
  "rstest",
  "serde",
  "serde_json",
+ "starknet-native-compile",
  "starknet-types-core",
  "starknet_api",
  "tempfile",
