@@ -20,6 +20,7 @@ use papyrus_config::dumping::{
     ser_pointer_target_param,
     set_pointing_param_paths,
     ConfigPointers,
+    Pointers,
     SerializeConfig,
 };
 use papyrus_config::loading::load_and_process_config;
@@ -90,5 +91,5 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
 
 /// Parameters that should 1) not be pointers, and 2) have a name matching a pointer target
 /// param. Used in verification.
-pub static CONFIG_NON_POINTERS_WHITELIST: LazyLock<HashSet<ParamPath>> =
+pub static CONFIG_NON_POINTERS_WHITELIST: LazyLock<Pointers> =
     LazyLock::new(HashSet::<ParamPath>::new);

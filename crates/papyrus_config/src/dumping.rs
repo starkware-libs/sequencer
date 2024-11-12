@@ -54,9 +54,14 @@ use crate::{
     IS_NONE_MARK,
 };
 
-// TODO(Tsabary): introduce sub-types, and replace throughout.
+/// Type alias for a pointer parameter and its serialized representation.
+type PointerTarget = (ParamPath, SerializedParam);
+
+/// Type alias for a set of pointing parameters.
+pub type Pointers = HashSet<ParamPath>;
+
 /// Detailing pointers in the config map.
-pub type ConfigPointers = Vec<((ParamPath, SerializedParam), HashSet<ParamPath>)>;
+pub type ConfigPointers = Vec<(PointerTarget, Pointers)>;
 
 /// Serialization for configs.
 pub trait SerializeConfig {
@@ -105,7 +110,7 @@ pub trait SerializeConfig {
     fn dump_to_file(
         &self,
         config_pointers: &ConfigPointers,
-        non_pointer_params: &HashSet<ParamPath>,
+        non_pointer_params: &Pointers,
         file_path: &str,
     ) -> Result<(), ConfigError> {
         let combined_map =
@@ -302,7 +307,7 @@ pub fn ser_pointer_target_required_param(
 pub(crate) fn combine_config_map_and_pointers(
     mut config_map: BTreeMap<ParamPath, SerializedParam>,
     pointers: &ConfigPointers,
-    non_pointer_params: &HashSet<ParamPath>,
+    non_pointer_params: &Pointers,
 ) -> Result<Value, ConfigError> {
     // Update config with target params.
     for ((target_param, serialized_pointer), pointing_params_vec) in pointers {
@@ -332,7 +337,7 @@ pub(crate) fn combine_config_map_and_pointers(
 }
 
 /// Creates a set of pointing params, ensuring no duplications.
-pub fn set_pointing_param_paths(param_path_list: &[&str]) -> HashSet<ParamPath> {
+pub fn set_pointing_param_paths(param_path_list: &[&str]) -> Pointers {
     let mut param_paths = HashSet::new();
     for &param_path in param_path_list {
         assert!(
@@ -352,7 +357,7 @@ pub(crate) fn required_param_description(description: &str) -> String {
 fn verify_pointing_params_by_name(
     config_map: &BTreeMap<ParamPath, SerializedParam>,
     pointers: &ConfigPointers,
-    non_pointer_params: &HashSet<ParamPath>,
+    non_pointer_params: &Pointers,
 ) {
     // Iterate over the config, check that all parameters whose name matches a pointer target either
     // point at it or are in the whitelist.
