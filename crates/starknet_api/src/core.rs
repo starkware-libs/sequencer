@@ -17,7 +17,7 @@ use crate::transaction::fields::{Calldata, ContractAddressSalt};
 use crate::{impl_from_through_intermediate, StarknetApiError};
 
 // Ethereum constant.
-/// One Felt fits into 32 bytes.
+/// Word size in Ethereum.
 pub const WORD_WIDTH: usize = 32;
 
 /// Felt.
