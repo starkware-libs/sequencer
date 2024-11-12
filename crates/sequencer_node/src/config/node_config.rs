@@ -30,7 +30,7 @@ use crate::utils::get_absolute_path;
 use crate::version::VERSION_FULL;
 
 // The path of the default configuration file, provided as part of the crate.
-pub const DEFAULT_CONFIG_PATH: &str = "config/mempool/default_config.json";
+pub const DEFAULT_CONFIG_PATH: &str = "config/sequencer/default_config.json";
 
 // Configuration parameters that share the same value across multiple components.
 
