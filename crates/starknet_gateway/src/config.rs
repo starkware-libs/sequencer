@@ -42,6 +42,7 @@ pub struct StatelessTransactionValidatorConfig {
     // If true, validates that the resource bounds are not zero.
     pub validate_non_zero_l1_gas_fee: bool,
     pub validate_non_zero_l2_gas_fee: bool,
+    pub validate_non_zero_l1_data_gas_fee: bool,
     pub max_calldata_length: usize,
     pub max_signature_length: usize,
 
@@ -56,6 +57,7 @@ impl Default for StatelessTransactionValidatorConfig {
         StatelessTransactionValidatorConfig {
             validate_non_zero_l1_gas_fee: true,
             validate_non_zero_l2_gas_fee: false,
+            validate_non_zero_l1_data_gas_fee: false,
             max_calldata_length: 4000,
             max_signature_length: 4000,
             max_contract_class_object_size: 4089446,
@@ -78,6 +80,13 @@ impl SerializeConfig for StatelessTransactionValidatorConfig {
                 "validate_non_zero_l2_gas_fee",
                 &self.validate_non_zero_l2_gas_fee,
                 "If true, validates that a transaction has non-zero L2 resource bounds.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "validate_non_zero_l1_data_gas_fee",
+                &self.validate_non_zero_l1_data_gas_fee,
+                "If true, validates that a transaction has non-zero L1 Data (Blob) resource \
+                 bounds.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
