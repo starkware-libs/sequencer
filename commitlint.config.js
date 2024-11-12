@@ -59,7 +59,7 @@ const Configuration = {
             'storage',
             'sync',
             'test_utils',
-            'tests-integration',
+            'tests_integration',
             'transaction',
             'types',
         ]],

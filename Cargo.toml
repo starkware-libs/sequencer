@@ -48,7 +48,7 @@ members = [
   "crates/starknet_patricia",
   "crates/starknet_sierra_compile",
   "crates/task_executor",
-  "crates/tests-integration",
+  "crates/tests_integration",
   "workspace_tests",
 ]
 
