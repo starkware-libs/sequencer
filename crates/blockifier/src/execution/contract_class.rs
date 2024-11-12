@@ -38,7 +38,6 @@ use crate::execution::errors::{ContractClassError, PreExecutionError};
 use crate::execution::execution_utils::{poseidon_hash_many_cost, sn_api_to_cairo_vm_program};
 #[cfg(feature = "cairo_native")]
 use crate::execution::native::contract_class::NativeContractClassV1;
-use crate::fee::eth_gas_constants;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::versioned_constants::CompilerVersion;
 
@@ -562,7 +561,7 @@ impl ClassInfo {
     pub fn code_size(&self) -> usize {
         (self.bytecode_length() + self.sierra_program_length())
             // We assume each felt is a word.
-            * eth_gas_constants::WORD_WIDTH
+            * starknet_api::core::WORD_WIDTH
             + self.abi_length()
     }
 
