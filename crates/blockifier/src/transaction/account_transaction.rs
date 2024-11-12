@@ -94,19 +94,6 @@ macro_rules! implement_tx_getter_calls {
         $(pub fn $field(&self) -> $field_type {
             self.tx.$field()
         })*
-};
-}
-
-macro_rules! implement_account_tx_inner_getters {
-    ($(($field:ident, $field_type:ty)),*) => {
-        $(pub fn $field(&self) -> $field_type {
-            match &self.tx {
-                // TODO(AvivG): Consider moving some of the logic to the Transaction enum.
-                Transaction::Declare(tx) => tx.tx.$field().clone(),
-                Transaction::DeployAccount(tx) => tx.tx.$field().clone(),
-                Transaction::Invoke(tx) => tx.tx.$field().clone(),
-            }
-        })*
     };
 }
 
@@ -136,12 +123,7 @@ impl From<InvokeTransaction> for AccountTransaction {
 
 impl HasRelatedFeeType for AccountTransaction {
     fn version(&self) -> TransactionVersion {
-        // TODO(AvivG): Consider moving some of the logic to the Transaction enum.
-        match &self.tx {
-            Transaction::Declare(tx) => tx.tx.version(),
-            Transaction::DeployAccount(tx) => tx.tx.version(),
-            Transaction::Invoke(tx) => tx.tx.version(),
-        }
+        self.tx.version()
     }
 
     fn is_l1_handler(&self) -> bool {
@@ -154,10 +136,7 @@ impl AccountTransaction {
         (resource_bounds, ValidResourceBounds),
         (tip, Tip),
         (sender_address, ContractAddress),
-        (tx_hash, TransactionHash)
-    );
-
-    implement_account_tx_inner_getters!(
+        (tx_hash, TransactionHash),
         (signature, TransactionSignature),
         (nonce, Nonce),
         (nonce_data_availability_mode, DataAvailabilityMode),
