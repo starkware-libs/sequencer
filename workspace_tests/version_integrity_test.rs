@@ -29,11 +29,9 @@ fn test_version_alignment() {
 
 #[test]
 fn validate_no_path_dependencies() {
-    let mut all_path_deps_in_crate_tomls: Vec<String> = Vec::new();
-    for crate_cargo_toml in ROOT_TOML.member_cargo_tomls().iter() {
-        let crate_paths: Vec<String> = crate_cargo_toml.path_dependencies().collect();
-        all_path_deps_in_crate_tomls.extend(crate_paths);
-    }
+    let all_path_deps_in_crate_tomls: Vec<String> =
+        ROOT_TOML.member_cargo_tomls().values().flat_map(|toml| toml.path_dependencies()).collect();
+
     assert!(
         all_path_deps_in_crate_tomls.is_empty(),
         "The following crates have path dependency {all_path_deps_in_crate_tomls:?}."

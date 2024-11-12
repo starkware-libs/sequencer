@@ -13,3 +13,6 @@ toml.workspace = true
 [[test]]
 name = "workspace_tests"
 path = "main.rs"
+
+[lints]
+workspace = true

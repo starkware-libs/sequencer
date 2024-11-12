@@ -5,6 +5,12 @@ use std::sync::LazyLock;
 
 use serde::{Deserialize, Serialize};
 
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[serde(untagged)]
+pub(crate) enum LintValue {
+    Bool(bool),
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub(crate) enum DependencyValue {
@@ -34,6 +40,7 @@ pub(crate) struct CrateCargoToml {
     dependencies: Option<HashMap<String, DependencyValue>>,
     #[serde(rename = "dev-dependencies")]
     dev_dependencies: Option<HashMap<String, DependencyValue>>,
+    pub(crate) lints: Option<HashMap<String, LintValue>>,
 }
 
 #[derive(Debug)]
@@ -73,19 +80,18 @@ impl CargoToml {
         })
     }
 
-    pub(crate) fn member_cargo_tomls(&self) -> Vec<CrateCargoToml> {
-        let manifest_dir = env!("CARGO_MANIFEST_DIR");
-        let crates_dir = format!("{}/../", manifest_dir);
+    pub(crate) fn member_cargo_tomls(&self) -> HashMap<String, CrateCargoToml> {
+        let crates_dir = Path::new(concat!(env!("CARGO_MANIFEST_DIR"), "/../"));
         self.members()
             .iter()
             .map(|member| {
-                let cargo_toml_path = Path::new(&crates_dir).join(member).join("Cargo.toml");
+                let cargo_toml_path = crates_dir.join(member).join("Cargo.toml");
 
                 let cargo_toml_content = fs::read_to_string(&cargo_toml_path)
                     .unwrap_or_else(|_| panic!("Failed to read {:?}", cargo_toml_path));
 
                 let cargo_toml: CrateCargoToml = toml::from_str(&cargo_toml_content).unwrap();
-                cargo_toml
+                (member.clone(), cargo_toml)
             })
             .collect()
     }
