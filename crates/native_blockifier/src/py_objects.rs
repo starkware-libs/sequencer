@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 
 use blockifier::abi::constants;
-use blockifier::blockifier::config::ConcurrencyConfig;
+use blockifier::blockifier::config::{ConcurrencyConfig, ContractClassManagerConfig};
 use blockifier::bouncer::{BouncerConfig, BouncerWeights, BuiltinCount, HashMapWrapper};
+use blockifier::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
 use blockifier::versioned_constants::VersionedConstantsOverrides;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
@@ -145,6 +146,33 @@ impl From<PyConcurrencyConfig> for ConcurrencyConfig {
             enabled: py_concurrency_config.enabled,
             n_workers: py_concurrency_config.n_workers,
             chunk_size: py_concurrency_config.chunk_size,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, FromPyObject)]
+pub struct PyContractClassManagerConfig {
+    pub run_cairo_native: bool,
+    pub wait_on_native_compilation: bool,
+    pub contract_cache_size: usize,
+}
+
+impl Default for PyContractClassManagerConfig {
+    fn default() -> Self {
+        Self {
+            run_cairo_native: false,
+            wait_on_native_compilation: false,
+            contract_cache_size: GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST,
+        }
+    }
+}
+
+impl From<PyContractClassManagerConfig> for ContractClassManagerConfig {
+    fn from(py_contract_class_manager_config: PyContractClassManagerConfig) -> Self {
+        ContractClassManagerConfig {
+            run_cairo_native: py_contract_class_manager_config.run_cairo_native,
+            wait_on_native_compilation: py_contract_class_manager_config.wait_on_native_compilation,
+            contract_cache_size: py_contract_class_manager_config.contract_cache_size,
         }
     }
 }

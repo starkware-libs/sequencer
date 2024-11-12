@@ -25,7 +25,7 @@ pub enum CachedCairoNative {
     CompilationFailed,
 }
 
-pub const GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST: usize = 100;
+pub const GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST: usize = 400;
 
 impl<T: Clone> GlobalContractCache<T> {
     /// Locks the cache for atomic access. Although conceptually shared, writing to this cache is
