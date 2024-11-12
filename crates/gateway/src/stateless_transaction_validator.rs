@@ -1,4 +1,5 @@
 use starknet_api::block::GasPrice;
+use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::{
     RpcDeclareTransaction,
@@ -35,6 +36,8 @@ impl StatelessTransactionValidator {
         Self::validate_empty_paymaster_data(tx)?;
         self.validate_resource_bounds(tx)?;
         self.validate_tx_size(tx)?;
+        self.validate_nonce_data_availability_mode(tx)?;
+        self.validate_fee_data_availability_mode(tx)?;
 
         if let RpcTransaction::Declare(declare_tx) = tx {
             self.validate_declare_tx(declare_tx)?;
@@ -68,8 +71,8 @@ impl StatelessTransactionValidator {
         Ok(sender_address.validate()?)
     }
 
-    /// The Starknet OS enforces that the deployer data is empty. We add this validation here at the
-    /// gateway to prevent transactions from reverting.
+    /// The Starknet OS enforces that the deployer data is empty. We add this validation here in the
+    /// gateway to prevent transactions from failing the OS.
     fn validate_empty_account_deployment_data(
         tx: &RpcTransaction,
     ) -> StatelessTransactionValidatorResult<()> {
@@ -88,8 +91,8 @@ impl StatelessTransactionValidator {
         }
     }
 
-    /// The Starknet OS enforces that the paymaster data is empty. We add this validation here at
-    /// the gateway to prevent transactions from reverting.
+    /// The Starknet OS enforces that the paymaster data is empty. We add this validation here in
+    /// the gateway to prevent transactions from failing the OS.
     fn validate_empty_paymaster_data(
         tx: &RpcTransaction,
     ) -> StatelessTransactionValidatorResult<()> {
@@ -156,6 +159,40 @@ impl StatelessTransactionValidator {
                 max_signature_length: self.config.max_signature_length,
             });
         }
+
+        Ok(())
+    }
+
+    /// The Starknet OS enforces that the nonce data availability mode is L1. We add this validation
+    /// here in the gateway to prevent transactions from failing the OS.
+    fn validate_nonce_data_availability_mode(
+        &self,
+        tx: &RpcTransaction,
+    ) -> StatelessTransactionValidatorResult<()> {
+        let expected_da_mode = DataAvailabilityMode::L1;
+        let da_mode = *tx.nonce_data_availability_mode();
+        if da_mode != expected_da_mode {
+            return Err(StatelessTransactionValidatorError::InvalidDataAvailabilityMode {
+                field_name: "nonce".to_string(),
+            });
+        };
+
+        Ok(())
+    }
+
+    /// The Starknet OS enforces that the fee data availability mode is L1. We add this validation
+    /// here in the gateway to prevent transactions from failing the OS.
+    fn validate_fee_data_availability_mode(
+        &self,
+        tx: &RpcTransaction,
+    ) -> StatelessTransactionValidatorResult<()> {
+        let expected_fee_mode = DataAvailabilityMode::L1;
+        let fee_mode = *tx.fee_data_availability_mode();
+        if fee_mode != expected_fee_mode {
+            return Err(StatelessTransactionValidatorError::InvalidDataAvailabilityMode {
+                field_name: "fee".to_string(),
+            });
+        };
 
         Ok(())
     }
