@@ -1,6 +1,7 @@
 use std::env;
 use std::path::PathBuf;
 use std::process::Stdio;
+use std::time::Duration;
 
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use rstest::{fixture, rstest};
@@ -67,7 +68,11 @@ async fn test_end_to_end_integration(tx_generator: MultiAccountTransactionGenera
     let node_run_handle = spawn_run_node(integration_test_setup.node_config_path).await;
 
     // Wait for the node to start.
-    integration_test_setup.is_alive_test_client.await_alive().await;
+    match integration_test_setup.is_alive_test_client.await_alive(Duration::from_secs(5), 30).await
+    {
+        Ok(_) => {}
+        Err(_) => panic!("Node is not alive."),
+    }
 
     info!("Running integration test simulator.");
 
