@@ -136,8 +136,10 @@ fn add_tx_and_verify_replacement(
     add_tx(&mut mempool, &valid_replacement_input);
 
     // Verify transaction was replaced.
-    let expected_mempool_content =
-        MempoolContentBuilder::new().with_pool([valid_replacement_input.tx]).build();
+    let expected_mempool_content = MempoolContentBuilder::new()
+        .with_pool([valid_replacement_input.tx.clone()])
+        .with_priority_queue([TransactionReference::new(&valid_replacement_input.tx)])
+        .build();
     expected_mempool_content.assert_eq(&mempool);
 }
 
@@ -159,7 +161,10 @@ fn add_txs_and_verify_no_replacement(
     }
 
     // Verify transaction was not replaced.
-    let expected_mempool_content = MempoolContentBuilder::new().with_pool([existing_tx]).build();
+    let expected_mempool_content = MempoolContentBuilder::new()
+        .with_pool([existing_tx.clone()])
+        .with_priority_queue([TransactionReference::new(&existing_tx)])
+        .build();
     expected_mempool_content.assert_eq(&mempool);
 }
 
@@ -525,6 +530,7 @@ fn test_fee_escalation_valid_replacement() {
         // Setup.
         let tx = tx!(tip: 90, max_l2_gas_price: 90);
         let mempool = MempoolContentBuilder::new()
+            .with_priority_queue([TransactionReference::new(&tx)])
             .with_pool([tx])
             .with_fee_escalation_percentage(10)
             .build_into_mempool();
@@ -543,6 +549,7 @@ fn test_fee_escalation_invalid_replacement() {
     let existing_tx = tx!(tx_hash: 1, tip: 100, max_l2_gas_price: 100);
     let mempool = MempoolContentBuilder::new()
         .with_pool([existing_tx.clone()])
+        .with_priority_queue([TransactionReference::new(&existing_tx)])
         .with_fee_escalation_percentage(10)
         .build_into_mempool();
 
