@@ -2,6 +2,7 @@
 mod test;
 
 use async_trait::async_trait;
+use futures::stream::FuturesUnordered;
 use futures::{pin_mut, FutureExt, StreamExt, TryFutureExt};
 use papyrus_network::network_manager::{
     BroadcastTopicClient,
@@ -45,6 +46,7 @@ impl ComponentStarter for MempoolP2pRunner {
             .run()
             .map_err(|_| ComponentError::InternalComponentError);
         pin_mut!(network_future);
+        let mut gateway_results = FuturesUnordered::new();
         loop {
             tokio::select! {
                 // tokio::select! takes ownership of the futures, so we need to wrap with poll_fn
@@ -52,24 +54,24 @@ impl ComponentStarter for MempoolP2pRunner {
                     result?;
                     panic!("Network stopped unexpectedly");
                 }
-                // TODO(eitan): Extract the logic into a handle_broadcasted_message method
+                Some(result) = gateway_results.next() => {
+                    match result {
+                        (Ok(_), _) => {}
+                        (Err(e), broadcasted_message_metadata) => {
+                            warn!(
+                                "Failed to forward transaction from MempoolP2pRunner to gateway: {:?}", e);
+                                if let Err(e) = self.broadcast_topic_client.report_peer(broadcasted_message_metadata).await {
+                                    warn!("Failed to report peer: {:?}", e);
+                                }
+                        }
+                    }
+                }
                 Some((message_result, broadcasted_message_metadata)) = self.broadcasted_topic_server.next() => {
                     match message_result {
                         Ok(message) => {
-                            // TODO(eitan): make this call non blocking by adding this future to a
-                            // FuturesUnordered that will be polled in the select.
-                            match self.gateway_client.add_tx(
-                                GatewayInput { rpc_tx: message.0, message_metadata: Some(broadcasted_message_metadata.clone()) }
-                            ).await {
-                                Ok(_tx_hash) => {}
-                                Err(e) => {
-                                    warn!(
-                                        "Failed to forward transaction from MempoolP2pRunner to gateway: {:?}", e);
-                                    if let Err(e) = self.broadcast_topic_client.report_peer(broadcasted_message_metadata).await {
-                                        warn!("Failed to report peer: {:?}", e);
-                                    }
-                                }
-                            }
+                            let gateway_result = self.gateway_client.add_tx(
+                                GatewayInput { rpc_tx: message.0, message_metadata: Some(broadcasted_message_metadata.clone()) });
+                            gateway_results.push(gateway_result.map( move |gateway_add_tx| (gateway_add_tx, broadcasted_message_metadata.clone()) ));
                         }
                         Err(e) => {
                             warn!("Received a faulty transaction from network: {:?}. Attempting to report the sending peer", e);
