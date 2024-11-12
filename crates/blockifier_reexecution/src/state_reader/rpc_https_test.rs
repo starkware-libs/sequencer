@@ -36,8 +36,12 @@ use crate::state_reader::reexecution_state_reader::ReexecutionStateReader;
 use crate::state_reader::test_state_reader::{ConsecutiveTestStateReaders, TestStateReader};
 use crate::state_reader::utils::guess_chain_id_from_node_url;
 
-const EXAMPLE_INVOKE_TX_HASH: &str =
+const EXAMPLE_INVOKE_TX_HASH_MAINNET: &str =
     "0xa7c7db686c7f756ceb7ca85a759caef879d425d156da83d6a836f86851983";
+const EXAMPLE_INVOKE_TX_HASH_TESTNET: &str =
+    "0x008dcac0b86876435eb88fad26f45b8251009db008061ff15154de3f504a7e7c";
+const EXAMPLE_INVOKE_TX_HASH_INTEGRATION: &str =
+    "0x4b1433f4c92710b6bb3a2b9304ec5169141227a1c25ddd2611938fc52964ba5";
 
 const EXAMPLE_CONTACT_CLASS_HASH: &str =
     "0x3131fa018d520a037686ce3efddeab8f28895662f019ca3ca18a626650f7d1e";
@@ -95,6 +99,16 @@ pub fn test_url() -> String {
 #[fixture]
 pub fn test_chain_id(test_url: String) -> ChainId {
     guess_chain_id_from_node_url(test_url.as_str()).unwrap()
+}
+
+#[fixture]
+pub fn example_invoke_tx_hash(test_chain_id: ChainId) -> &'static str {
+    match test_chain_id {
+        ChainId::Mainnet => EXAMPLE_INVOKE_TX_HASH_MAINNET,
+        ChainId::Sepolia => EXAMPLE_INVOKE_TX_HASH_TESTNET,
+        ChainId::IntegrationSepolia => EXAMPLE_INVOKE_TX_HASH_INTEGRATION,
+        ChainId::Other(other) => panic!("Unknown chain id: {other}"),
+    }
 }
 
 #[fixture]
@@ -173,8 +187,11 @@ pub fn test_get_tx_hashes(test_state_reader: TestStateReader) {
 }
 
 #[rstest]
-pub fn test_get_invoke_tx_by_hash(test_state_reader: TestStateReader) {
-    let actual_tx = test_state_reader.get_tx_by_hash(EXAMPLE_INVOKE_TX_HASH).unwrap();
+pub fn test_get_invoke_tx_by_hash(
+    test_state_reader: TestStateReader,
+    example_invoke_tx_hash: &str,
+) {
+    let actual_tx = test_state_reader.get_tx_by_hash(example_invoke_tx_hash).unwrap();
     assert_matches!(actual_tx, Transaction::Invoke(..));
 }
 
