@@ -37,7 +37,7 @@ use crate::StarknetApiError;
 
 /// Transactions that are ready to be broadcasted to the network through RPC and are not included in
 /// a block.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
 #[serde(tag = "type")]
 #[serde(deny_unknown_fields)]
 pub enum RpcTransaction {
@@ -108,7 +108,7 @@ impl From<RpcTransaction> for Transaction {
 /// either a contract class or a class hash).
 ///
 /// [`Starknet specs`]: https://github.com/starkware-libs/starknet-specs/blob/master/api/starknet_api_openrpc.json
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
 #[serde(tag = "version")]
 pub enum RpcDeclareTransaction {
     #[serde(rename = "0x3")]
@@ -167,7 +167,7 @@ impl From<RpcInvokeTransaction> for InvokeTransaction {
 
 /// A declare transaction of a Cairo-v1 contract class that can be added to Starknet through the
 /// RPC.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
 pub struct RpcDeclareTransactionV3 {
     // TODO: Check with Shahak why we need to keep the DeclareType.
     // pub r#type: DeclareType,
@@ -268,7 +268,7 @@ impl From<RpcInvokeTransactionV3> for InvokeTransactionV3 {
 }
 
 // The contract class in SN_API state doesn't have `contract_class_version`, not following the spec.
-#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, Hash)]
 pub struct ContractClass {
     pub sierra_program: Vec<Felt>,
     pub contract_class_version: String,
@@ -276,7 +276,7 @@ pub struct ContractClass {
     pub abi: String,
 }
 
-#[derive(Debug, Clone, Default, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Eq, PartialEq, Deserialize, Serialize, Hash)]
 pub struct EntryPointByType {
     #[serde(rename = "CONSTRUCTOR")]
     pub constructor: Vec<EntryPoint>,
