@@ -37,7 +37,7 @@ const Configuration = {
             'helm',
             'infra',
             'JSON-RPC',
-            'l1-provider',
+            'l1_provider',
             'load_test',
             'mempool',
             'mempool_p2p',
