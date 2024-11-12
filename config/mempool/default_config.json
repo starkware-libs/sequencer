@@ -139,6 +139,11 @@
     "privacy": "Public",
     "value": 400
   },
+  "batcher_config.max_l1_handler_txs_per_block_proposal": {
+    "description": "The maximum number of L1 handler transactions to include in a block proposal.",
+    "privacy": "Public",
+    "value": 3
+  },
   "batcher_config.outstream_content_buffer_size": {
     "description": "Maximum items to add to the outstream buffer before blocking further filling of the stream.",
     "privacy": "Public",

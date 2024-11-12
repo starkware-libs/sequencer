@@ -14,6 +14,7 @@ pub struct BatcherConfig {
     pub outstream_content_buffer_size: usize,
     pub block_builder_config: BlockBuilderConfig,
     pub global_contract_cache_size: usize,
+    pub max_l1_handler_txs_per_block_proposal: usize,
 }
 
 impl SerializeConfig for BatcherConfig {
@@ -26,13 +27,21 @@ impl SerializeConfig for BatcherConfig {
              stream.",
             ParamPrivacyInput::Public,
         )]);
-        dump.append(&mut BTreeMap::from([ser_param(
-            "global_contract_cache_size",
-            &self.global_contract_cache_size,
-            "Cache size for the global_class_hash_to_class. Initialized with this size on \
-             creation.",
-            ParamPrivacyInput::Public,
-        )]));
+        dump.append(&mut BTreeMap::from([
+            ser_param(
+                "global_contract_cache_size",
+                &self.global_contract_cache_size,
+                "Cache size for the global_class_hash_to_class. Initialized with this size on \
+                 creation.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_l1_handler_txs_per_block_proposal",
+                &self.max_l1_handler_txs_per_block_proposal,
+                "The maximum number of L1 handler transactions to include in a block proposal.",
+                ParamPrivacyInput::Public,
+            ),
+        ]));
         dump.append(&mut append_sub_config_name(self.storage.dump(), "storage"));
         dump.append(&mut append_sub_config_name(
             self.block_builder_config.dump(),
@@ -59,6 +68,7 @@ impl Default for BatcherConfig {
             outstream_content_buffer_size: 100,
             block_builder_config: BlockBuilderConfig::default(),
             global_contract_cache_size: 400,
+            max_l1_handler_txs_per_block_proposal: 3,
         }
     }
 }
