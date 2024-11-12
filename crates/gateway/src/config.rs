@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use blockifier::context::ChainInfo;
+use blockifier::versioned_constants::VersionedConstantsOverrides;
 use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
@@ -139,41 +140,30 @@ impl SerializeConfig for RpcStateReaderConfig {
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct StatefulTransactionValidatorConfig {
     pub max_nonce_for_validation_skip: Nonce,
-    pub validate_max_n_steps: u32,
-    pub max_recursion_depth: usize,
+    pub versioned_constants_overrides: VersionedConstantsOverrides,
 }
 
 impl Default for StatefulTransactionValidatorConfig {
     fn default() -> Self {
         StatefulTransactionValidatorConfig {
             max_nonce_for_validation_skip: Nonce(Felt::ONE),
-            validate_max_n_steps: 1_000_000,
-            max_recursion_depth: 50,
+            versioned_constants_overrides: VersionedConstantsOverrides::default(),
         }
     }
 }
 
 impl SerializeConfig for StatefulTransactionValidatorConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([
-            ser_param(
-                "max_nonce_for_validation_skip",
-                &self.max_nonce_for_validation_skip,
-                "Maximum nonce for which the validation is skipped.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "validate_max_n_steps",
-                &self.validate_max_n_steps,
-                "Maximum number of steps the validation function is allowed to take.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "max_recursion_depth",
-                &self.max_recursion_depth,
-                "Maximum recursion depth for nested calls during blockifier validation.",
-                ParamPrivacyInput::Public,
-            ),
-        ])
+        let mut dump = BTreeMap::from_iter([ser_param(
+            "max_nonce_for_validation_skip",
+            &self.max_nonce_for_validation_skip,
+            "Maximum nonce for which the validation is skipped.",
+            ParamPrivacyInput::Public,
+        )]);
+        dump.append(&mut append_sub_config_name(
+            self.versioned_constants_overrides.dump(),
+            "versioned_constants_overrides",
+        ));
+        dump
     }
 }

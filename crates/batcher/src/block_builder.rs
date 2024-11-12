@@ -21,12 +21,7 @@ use blockifier::versioned_constants::{VersionedConstants, VersionedConstantsOver
 use indexmap::IndexMap;
 #[cfg(test)]
 use mockall::automock;
-use papyrus_config::dumping::{
-    append_sub_config_name,
-    ser_optional_sub_config,
-    ser_param,
-    SerializeConfig,
-};
+use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_state_reader::papyrus_state::PapyrusReader;
 use papyrus_storage::StorageReader;
@@ -212,7 +207,7 @@ pub struct BlockBuilderConfig {
     pub sequencer_address: ContractAddress,
     pub use_kzg_da: bool,
     pub tx_chunk_size: usize,
-    pub versioned_constants_overrides: Option<VersionedConstantsOverrides>,
+    pub versioned_constants_overrides: VersionedConstantsOverrides,
 }
 
 impl Default for BlockBuilderConfig {
@@ -225,7 +220,7 @@ impl Default for BlockBuilderConfig {
             sequencer_address: ContractAddress::default(),
             use_kzg_da: true,
             tx_chunk_size: 100,
-            versioned_constants_overrides: None,
+            versioned_constants_overrides: VersionedConstantsOverrides::default(),
         }
     }
 }
@@ -253,8 +248,8 @@ impl SerializeConfig for BlockBuilderConfig {
             "The size of the transaction chunk.",
             ParamPrivacyInput::Public,
         )]));
-        dump.append(&mut ser_optional_sub_config(
-            &self.versioned_constants_overrides,
+        dump.append(&mut append_sub_config_name(
+            self.versioned_constants_overrides.dump(),
             "versioned_constants_overrides",
         ));
         dump
@@ -285,7 +280,7 @@ impl BlockBuilderFactory {
             },
             use_kzg_da: block_builder_config.use_kzg_da,
         };
-        let versioned_constants = VersionedConstants::latest_with_overrides(
+        let versioned_constants = VersionedConstants::get_versioned_constants(
             block_builder_config.versioned_constants_overrides,
         );
         let block_context = BlockContext::new(
