@@ -5,6 +5,9 @@ name = "starknet_sierra_compile"
 repository.workspace = true
 version.workspace = true
 
+[features]
+cairo_native = ["dep:cairo-native"]
+
 [lints]
 workspace = true
 
@@ -12,9 +15,11 @@ workspace = true
 cairo-lang-sierra.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-lang-utils.workspace = true
+cairo-native = { workspace = true, optional = true }
 papyrus_config.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+starknet-native-compile = { path = "../bin/starknet-native-compile/", optional = true }
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 tempfile.workspace = true
