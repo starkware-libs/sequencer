@@ -26,6 +26,7 @@ pub trait TransactionProvider: Send + Sync {
     async fn get_txs(&mut self, n_txs: usize) -> Result<NextTxs, TransactionProviderError>;
 }
 
+#[cfg_attr(test, derive(Clone))]
 pub struct ProposeTransactionProvider {
     pub mempool_client: SharedMempoolClient,
     // TODO: remove allow(dead_code) when L1 transactions are added.
