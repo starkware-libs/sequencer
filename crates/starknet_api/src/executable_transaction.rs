@@ -60,7 +60,16 @@ pub enum AccountTransaction {
 }
 
 impl AccountTransaction {
-    implement_account_tx_inner_getters!((resource_bounds, ValidResourceBounds), (tip, Tip));
+    implement_account_tx_inner_getters!(
+        (resource_bounds, ValidResourceBounds),
+        (tip, Tip),
+        (signature, TransactionSignature),
+        (nonce, Nonce),
+        (nonce_data_availability_mode, DataAvailabilityMode),
+        (fee_data_availability_mode, DataAvailabilityMode),
+        (paymaster_data, PaymasterData),
+        (version, TransactionVersion)
+    );
 
     pub fn contract_address(&self) -> ContractAddress {
         match self {
@@ -72,14 +81,6 @@ impl AccountTransaction {
 
     pub fn sender_address(&self) -> ContractAddress {
         self.contract_address()
-    }
-
-    pub fn nonce(&self) -> Nonce {
-        match self {
-            AccountTransaction::Declare(tx_data) => tx_data.tx.nonce(),
-            AccountTransaction::DeployAccount(tx_data) => tx_data.tx.nonce(),
-            AccountTransaction::Invoke(tx_data) => tx_data.tx.nonce(),
-        }
     }
 
     pub fn tx_hash(&self) -> TransactionHash {
