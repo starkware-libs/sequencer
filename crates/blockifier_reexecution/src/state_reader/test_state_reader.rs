@@ -85,6 +85,7 @@ pub struct SerializableDataPrevBlock {
 pub struct SerializableOfflineReexecutionData {
     pub serializable_data_prev_block: SerializableDataPrevBlock,
     pub serializable_data_next_block: SerializableDataNextBlock,
+    pub chain_id: ChainId,
     pub old_block_hash: BlockHash,
 }
 
@@ -119,6 +120,7 @@ impl From<SerializableOfflineReexecutionData> for OfflineReexecutionData {
                     state_diff_next_block,
                     declared_classes,
                 },
+            chain_id,
             old_block_hash,
         } = value;
 
@@ -138,7 +140,7 @@ impl From<SerializableOfflineReexecutionData> for OfflineReexecutionData {
             offline_state_reader_prev_block,
             block_context_next_block: BlockContext::new(
                 block_info_next_block,
-                get_chain_info(&ChainId::Mainnet),
+                get_chain_info(&chain_id),
                 VersionedConstants::get(&starknet_version).unwrap().clone(),
                 BouncerConfig::max(),
             ),

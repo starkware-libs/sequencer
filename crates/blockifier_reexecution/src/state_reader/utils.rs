@@ -252,7 +252,7 @@ pub fn write_block_reexecution_data_to_file(
     let consecutive_state_readers = ConsecutiveTestStateReaders::new(
         block_number.prev().expect("Should not run with block 0"),
         Some(config),
-        chain_id,
+        chain_id.clone(),
         true,
     );
 
@@ -272,6 +272,7 @@ pub fn write_block_reexecution_data_to_file(
     SerializableOfflineReexecutionData {
         serializable_data_prev_block,
         serializable_data_next_block,
+        chain_id,
         old_block_hash,
     }
     .write_to_file(full_file_path)
