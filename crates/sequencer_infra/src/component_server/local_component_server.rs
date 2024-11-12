@@ -221,11 +221,9 @@ async fn request_response_loop<Request, Response, Component>(
         let response = component.handle_request(request).await;
         debug!("Component {} is sending response {:?}", type_name::<Component>(), response);
 
-        // TODO(Tsabary): revert `try_send` to `send` once the client is guaranteed to be alive,
-        // i.e., tx.send(response).await.expect("Response connection should be open.");
-        // Tries sending the response to the client. If the client has disconnected then this
-        // becomes a null operation.
-        let _ = tx.try_send(response);
+        // Send the response to the client. This might result in a panic if the client has closed
+        // the response channel, which is considered a bug.
+        tx.send(response).await.expect("Response connection should be open.");
     }
 
     info!("Stopping server for component {}", type_name::<Component>());
