@@ -15,6 +15,7 @@ async fn main() -> anyhow::Result<()> {
 
     let config = SequencerNodeConfig::load_and_process(args().collect());
     if let Err(ConfigError::CommandInput(clap_err)) = config {
+        error!("Failed loading configuration: {}", clap_err);
         clap_err.exit();
     }
     info!("Finished loading configuration.");
