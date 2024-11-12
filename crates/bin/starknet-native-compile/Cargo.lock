@@ -2947,7 +2947,7 @@ dependencies = [
 
 [[package]]
 name = "starknet-native-compile"
-version = "0.0.0"
+version = "0.2.0-alpha.4"
 dependencies = [
  "cairo-lang-sierra",
  "cairo-lang-starknet-classes",

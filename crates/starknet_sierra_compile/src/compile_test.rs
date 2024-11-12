@@ -11,6 +11,8 @@ use crate::config::SierraToCasmCompilationConfig;
 use crate::errors::CompilationUtilError;
 use crate::test_utils::contract_class_from_file;
 use crate::SierraToCasmCompiler;
+#[cfg(feature = "cairo_native")]
+use crate::SierraToNativeCompiler;
 
 const SIERRA_TO_CASM_COMPILATION_CONFIG: SierraToCasmCompilationConfig =
     SierraToCasmCompilationConfig { max_bytecode_size: 81920 };
@@ -18,14 +20,14 @@ const SIERRA_TO_CASM_COMPILATION_CONFIG: SierraToCasmCompilationConfig =
 fn cairo_lang_compiler() -> CairoLangSierraToCasmCompiler {
     CairoLangSierraToCasmCompiler { config: SIERRA_TO_CASM_COMPILATION_CONFIG }
 }
-fn commnad_line_compiler() -> CommandLineCompiler {
+fn command_line_compiler() -> CommandLineCompiler {
     CommandLineCompiler::new(SIERRA_TO_CASM_COMPILATION_CONFIG)
 }
 
 // TODO: use the other compiler as well.
 #[rstest]
 #[case::cairo_lang_compiler(cairo_lang_compiler())]
-#[case::command_line_compiler(commnad_line_compiler())]
+#[case::command_line_compiler(command_line_compiler())]
 fn test_compile_sierra_to_casm(#[case] compiler: impl SierraToCasmCompiler) {
     env::set_current_dir(get_absolute_path(TEST_FILES_FOLDER)).expect("Failed to set current dir.");
     let sierra_path = Path::new(FAULTY_ACCOUNT_CLASS_FILE);
@@ -41,7 +43,7 @@ fn test_compile_sierra_to_casm(#[case] compiler: impl SierraToCasmCompiler) {
 // TODO(Arni, 1/5/2024): Add a test for panic result test.
 #[rstest]
 #[case::cairo_lang_compiler(cairo_lang_compiler())]
-#[case::command_line_compiler(commnad_line_compiler())]
+#[case::command_line_compiler(command_line_compiler())]
 fn test_negative_flow_compile_sierra_to_casm(#[case] compiler: impl SierraToCasmCompiler) {
     env::set_current_dir(get_absolute_path(TEST_FILES_FOLDER)).expect("Failed to set current dir.");
     let sierra_path = Path::new(FAULTY_ACCOUNT_CLASS_FILE);
@@ -51,5 +53,32 @@ fn test_negative_flow_compile_sierra_to_casm(#[case] compiler: impl SierraToCasm
     contract_class.sierra_program = contract_class.sierra_program[..100].to_vec();
 
     let result = compiler.compile(contract_class);
+    assert_matches!(result, Err(CompilationUtilError::CompilationError(..)));
+}
+
+#[cfg(feature = "cairo_native")]
+#[test]
+fn test_compile_sierra_to_native() {
+    let compiler = command_line_compiler();
+    env::set_current_dir(get_absolute_path(TEST_FILES_FOLDER)).expect("Failed to set current dir.");
+    let sierra_path = Path::new(FAULTY_ACCOUNT_CLASS_FILE);
+    // TODO(Avi, 1/1/2025): Check size/memory/time limits.
+
+    let contract_class = contract_class_from_file(sierra_path);
+    let _native_contract_executor = compiler.compile_to_native(contract_class).unwrap();
+}
+
+#[cfg(feature = "cairo_native")]
+#[test]
+fn test_negative_flow_compile_sierra_to_native() {
+    let compiler = command_line_compiler();
+    env::set_current_dir(get_absolute_path(TEST_FILES_FOLDER)).expect("Failed to set current dir.");
+    let sierra_path = Path::new(FAULTY_ACCOUNT_CLASS_FILE);
+
+    let mut contract_class = contract_class_from_file(sierra_path);
+    // Truncate the sierra program to trigger an error.
+    contract_class.sierra_program = contract_class.sierra_program[..100].to_vec();
+
+    let result = compiler.compile_to_native(contract_class);
     assert_matches!(result, Err(CompilationUtilError::CompilationError(..)));
 }
