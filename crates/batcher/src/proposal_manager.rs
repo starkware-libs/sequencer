@@ -16,7 +16,12 @@ use tokio::sync::Mutex;
 use tracing::{debug, error, info, instrument, Instrument};
 
 use crate::batcher::BatcherStorageReaderTrait;
-use crate::block_builder::{BlockBuilderError, BlockBuilderFactoryTrait, BlockBuilderTrait, BlockExecutionArtifacts};
+use crate::block_builder::{
+    BlockBuilderError,
+    BlockBuilderFactoryTrait,
+    BlockBuilderTrait,
+    BlockExecutionArtifacts,
+};
 use crate::transaction_provider::ProposeTransactionProvider;
 
 #[derive(Debug, Error)]
@@ -36,7 +41,7 @@ pub enum StartHeightError {
 }
 
 #[derive(Debug, Error)]
-pub enum BuildProposalError {
+pub enum GenerateProposalError {
     #[error(
         "Received proposal generation request with id {new_proposal_id} while already generating \
          proposal with id {current_generating_proposal_id}."
@@ -78,7 +83,7 @@ pub trait ProposalManagerTrait: Send + Sync {
         retrospective_block_hash: Option<BlockHashAndNumber>,
         deadline: tokio::time::Instant,
         tx_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
-    ) -> Result<(), BuildProposalError>;
+    ) -> Result<(), GenerateProposalError>;
 
     async fn take_proposal_result(
         &mut self,
@@ -164,7 +169,7 @@ impl ProposalManagerTrait for ProposalManager {
         retrospective_block_hash: Option<BlockHashAndNumber>,
         deadline: tokio::time::Instant,
         tx_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
-    ) -> Result<(), BuildProposalError> {
+    ) -> Result<(), GenerateProposalError> {
         self.set_active_proposal(proposal_id).await?;
 
         info!("Starting generation of a new proposal with id {}.", proposal_id);
@@ -250,7 +255,7 @@ impl ProposalManager {
         &mut self,
         proposal_id: ProposalId,
         mut block_builder: Box<dyn BlockBuilderTrait>,
-    ) -> Result<(), BuildProposalError> {
+    ) -> Result<(), GenerateProposalError> {
         let active_proposal = self.active_proposal.clone();
         let executed_proposals = self.executed_proposals.clone();
 
@@ -291,16 +296,16 @@ impl ProposalManager {
     async fn set_active_proposal(
         &mut self,
         proposal_id: ProposalId,
-    ) -> Result<(), BuildProposalError> {
-        self.active_height.ok_or(BuildProposalError::NoActiveHeight)?;
+    ) -> Result<(), GenerateProposalError> {
+        self.active_height.ok_or(GenerateProposalError::NoActiveHeight)?;
 
         if self.executed_proposals.lock().await.contains_key(&proposal_id) {
-            return Err(BuildProposalError::ProposalAlreadyExists { proposal_id });
+            return Err(GenerateProposalError::ProposalAlreadyExists { proposal_id });
         }
 
         let mut active_proposal = self.active_proposal.lock().await;
         if let Some(current_generating_proposal_id) = *active_proposal {
-            return Err(BuildProposalError::AlreadyGeneratingProposal {
+            return Err(GenerateProposalError::AlreadyGeneratingProposal {
                 current_generating_proposal_id,
                 new_proposal_id: proposal_id,
             });

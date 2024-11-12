@@ -16,7 +16,7 @@ use crate::block_builder::{
     MockBlockBuilderTrait,
 };
 use crate::proposal_manager::{
-    BuildProposalError,
+    GenerateProposalError,
     GetProposalResultError,
     ProposalManager,
     ProposalManagerTrait,
@@ -157,7 +157,7 @@ async fn proposal_generation_fails_without_start_height(
     let err = proposal_manager
         .build_block_proposal(ProposalId(0), None, proposal_deadline(), output_streaming.0)
         .await;
-    assert_matches!(err, Err(BuildProposalError::NoActiveHeight));
+    assert_matches!(err, Err(GenerateProposalError::NoActiveHeight));
 }
 
 #[rstest]
@@ -213,7 +213,7 @@ async fn multiple_proposals_generation_fail(mut mock_dependencies: MockDependenc
         .await;
     assert_matches!(
         another_generate_request,
-        Err(BuildProposalError::AlreadyGeneratingProposal {
+        Err(GenerateProposalError::AlreadyGeneratingProposal {
             current_generating_proposal_id,
             new_proposal_id
         }) if current_generating_proposal_id == ProposalId(0) && new_proposal_id == ProposalId(1)

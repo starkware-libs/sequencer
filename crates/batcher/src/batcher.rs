@@ -32,7 +32,7 @@ use tracing::{debug, error, info, instrument, trace};
 use crate::block_builder::BlockBuilderFactory;
 use crate::config::BatcherConfig;
 use crate::proposal_manager::{
-    BuildProposalError,
+    GenerateProposalError,
     GetProposalResultError,
     ProposalManager,
     ProposalManagerTrait,
@@ -314,19 +314,19 @@ impl From<StartHeightError> for BatcherError {
     }
 }
 
-impl From<BuildProposalError> for BatcherError {
-    fn from(err: BuildProposalError) -> Self {
+impl From<GenerateProposalError> for BatcherError {
+    fn from(err: GenerateProposalError) -> Self {
         match err {
-            BuildProposalError::AlreadyGeneratingProposal {
+            GenerateProposalError::AlreadyGeneratingProposal {
                 current_generating_proposal_id,
                 new_proposal_id,
             } => BatcherError::ServerBusy {
                 active_proposal_id: current_generating_proposal_id,
                 new_proposal_id,
             },
-            BuildProposalError::BlockBuilderError(..) => BatcherError::InternalError,
-            BuildProposalError::NoActiveHeight => BatcherError::NoActiveHeight,
-            BuildProposalError::ProposalAlreadyExists { proposal_id } => {
+            GenerateProposalError::BlockBuilderError(..) => BatcherError::InternalError,
+            GenerateProposalError::NoActiveHeight => BatcherError::NoActiveHeight,
+            GenerateProposalError::ProposalAlreadyExists { proposal_id } => {
                 BatcherError::ProposalAlreadyExists { proposal_id }
             }
         }
