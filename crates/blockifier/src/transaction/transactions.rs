@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
-use starknet_api::contract_class::{ContractClass, EntryPointType};
+use starknet_api::contract_class::{ClassInfo, ContractClass, EntryPointType};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::executable_transaction::{
     DeclareTransaction as ExecutableDeclareTx,
@@ -26,7 +26,6 @@ use starknet_api::transaction::{
 use crate::abi::abi_utils::selector_from_name;
 use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::CallInfo;
-use crate::execution::contract_class::ClassInfo;
 use crate::execution::entry_point::{
     CallEntryPoint,
     CallType,
@@ -201,7 +200,6 @@ impl DeclareTransaction {
     ) -> Result<Self, TransactionExecutionError> {
         let starknet_api::executable_transaction::DeclareTransaction { tx, tx_hash, class_info } =
             declare_tx;
-        let class_info = class_info.try_into()?;
 
         Self::create(tx, tx_hash, class_info, only_query)
     }
