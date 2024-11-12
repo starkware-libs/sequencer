@@ -219,9 +219,14 @@ impl Mempool {
         }
 
         // Check nonce against the queue.
-        // TODO(Elin): change to < for fee escalation (and add test).
-        if self.tx_queue.get_nonce(address).is_some_and(|queued_nonce| tx_nonce <= queued_nonce) {
-            return Err(MempoolError::DuplicateNonce { address, nonce: tx_nonce });
+        if let Some(queued_nonce) = self.tx_queue.get_nonce(address) {
+            if tx_nonce < queued_nonce {
+                return Err(MempoolError::NonceTooOld { address, nonce: tx_nonce });
+            }
+
+            if !self.config.enable_fee_escalation && tx_nonce == queued_nonce {
+                return Err(MempoolError::DuplicateNonce { address, nonce: tx_nonce });
+            }
         }
 
         Ok(())
