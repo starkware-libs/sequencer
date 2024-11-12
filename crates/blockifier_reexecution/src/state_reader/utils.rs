@@ -242,7 +242,7 @@ pub fn reexecute_block_for_testing(block_number: u64) {
 
 pub fn write_block_reexecution_data_to_file(
     block_number: BlockNumber,
-    full_file_path: &str,
+    full_file_path: String,
     node_url: String,
 ) {
     let config =
@@ -272,7 +272,7 @@ pub fn write_block_reexecution_data_to_file(
         serializable_data_next_block,
         old_block_hash,
     }
-    .write_to_file(full_file_path)
+    .write_to_file(&full_file_path)
     .unwrap();
 
     println!("RPC replies required for reexecuting block {block_number} written to json file.");
