@@ -10,6 +10,7 @@ use blockifier_reexecution::state_reader::utils::{
 };
 use clap::{Args, Parser, Subcommand};
 use starknet_api::block::BlockNumber;
+use starknet_api::core::ChainId;
 use starknet_gateway::config::RpcStateReaderConfig;
 
 /// BlockifierReexecution CLI.
@@ -86,6 +87,7 @@ fn main() {
             reexecute_and_verify_correctness(ConsecutiveTestStateReaders::new(
                 BlockNumber(block_number - 1),
                 Some(config),
+                ChainId::Mainnet,
                 false,
             ));
 
@@ -106,8 +108,12 @@ fn main() {
                 json_rpc_version: JSON_RPC_VERSION.to_string(),
             };
 
-            let consecutive_state_readers =
-                ConsecutiveTestStateReaders::new(BlockNumber(block_number - 1), Some(config), true);
+            let consecutive_state_readers = ConsecutiveTestStateReaders::new(
+                BlockNumber(block_number - 1),
+                Some(config),
+                ChainId::Mainnet,
+                true,
+            );
 
             let serializable_data_next_block =
                 consecutive_state_readers.get_serializable_data_next_block().unwrap();
