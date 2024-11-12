@@ -12,7 +12,7 @@ use starknet_api::state::ContractClass;
 use starknet_types_core::felt::Felt;
 
 use crate::py_block_executor::{PyBlockExecutor, PyOsConfig};
-use crate::py_objects::PyConcurrencyConfig;
+use crate::py_objects::{PyConcurrencyConfig, PyContractClassManagerConfig};
 use crate::py_state_diff::{PyBlockInfo, PyStateDiff};
 use crate::py_utils::PyFelt;
 use crate::test_utils::MockStorage;
@@ -39,6 +39,7 @@ fn global_contract_cache_update() {
     let temp_storage_path = tempfile::tempdir().unwrap().into_path();
     let mut block_executor = PyBlockExecutor::create_for_testing(
         PyConcurrencyConfig::default(),
+        PyContractClassManagerConfig::default(),
         PyOsConfig::default(),
         temp_storage_path,
         4000,
@@ -119,6 +120,7 @@ fn global_contract_cache_update_large_contract() {
     let temp_storage_path = tempfile::tempdir().unwrap().into_path();
     let mut block_executor = PyBlockExecutor::native_create_for_testing(
         Default::default(),
+        PyContractClassManagerConfig::default(),
         Default::default(),
         temp_storage_path,
         4000,
