@@ -26,7 +26,6 @@ fn compile_node() -> io::Result<ExitStatus> {
         .arg("build")
         .current_dir(&project_path)
         .arg("--quiet")
-        .arg("--release")
         .stderr(Stdio::inherit())
         .stdout(Stdio::inherit())
         .status();
