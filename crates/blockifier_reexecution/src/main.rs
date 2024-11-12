@@ -10,6 +10,7 @@ use blockifier_reexecution::state_reader::utils::{
 };
 use clap::{Args, Parser, Subcommand};
 use starknet_api::block::BlockNumber;
+use starknet_api::core::ChainId;
 use starknet_gateway::config::RpcStateReaderConfig;
 
 /// BlockifierReexecution CLI.
@@ -130,6 +131,7 @@ async fn main() {
                 reexecute_and_verify_correctness(ConsecutiveTestStateReaders::new(
                     BlockNumber(block_number - 1),
                     Some(config),
+                    ChainId::Mainnet,
                     false,
                 ))
             })
@@ -155,6 +157,7 @@ async fn main() {
                     BlockNumber(block_number),
                     full_file_path,
                     node_url,
+                    ChainId::Mainnet,
                 );
             })
             .await
@@ -179,7 +182,12 @@ async fn main() {
                 // TODO(Aner): make only the RPC calls blocking, not the whole function.
                 tokio::task::spawn_blocking(move || {
                     println!("Computing reexecution data for block {block_number}.");
-                    write_block_reexecution_data_to_file(block_number, full_file_path, node_url)
+                    write_block_reexecution_data_to_file(
+                        block_number,
+                        full_file_path,
+                        node_url,
+                        ChainId::Mainnet,
+                    )
                 })
                 .await
                 .unwrap();
