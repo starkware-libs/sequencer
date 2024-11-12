@@ -17,12 +17,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::execution::call_info::{CallInfo, OrderedEvent, OrderedL2ToL1Message, Retdata};
 use crate::execution::entry_point::{CallEntryPoint, EntryPointExecutionContext};
-use crate::execution::syscalls::hint_processor::{
-    SyscallCounter,
-    SyscallExecutionError,
-    OUT_OF_GAS_ERROR,
-};
-use crate::execution::syscalls::SyscallSelector;
+use crate::execution::syscalls::hint_processor::{SyscallExecutionError, OUT_OF_GAS_ERROR};
 use crate::state::state_api::State;
 
 pub struct NativeSyscallHandler<'state> {
@@ -36,8 +31,6 @@ pub struct NativeSyscallHandler<'state> {
     pub events: Vec<OrderedEvent>,
     pub l2_to_l1_messages: Vec<OrderedL2ToL1Message>,
     pub inner_calls: Vec<CallInfo>,
-
-    pub syscall_counter: SyscallCounter,
 
     // Additional information gathered during execution.
     pub read_values: Vec<Felt>,
@@ -59,16 +52,9 @@ impl<'state> NativeSyscallHandler<'state> {
             events: Vec::new(),
             l2_to_l1_messages: Vec::new(),
             inner_calls: Vec::new(),
-            syscall_counter: SyscallCounter::new(),
             read_values: Vec::new(),
             accessed_keys: HashSet::new(),
         }
-    }
-
-    #[allow(dead_code)]
-    fn increment_syscall_count_by(&mut self, selector: &SyscallSelector, n: usize) {
-        let syscall_count = self.syscall_counter.entry(*selector).or_default();
-        *syscall_count += n
     }
 
     #[allow(dead_code)]
@@ -110,19 +96,13 @@ impl<'state> NativeSyscallHandler<'state> {
         }
     }
 
-    /// Handles all gas-related logics and additional metadata such as `SyscallCounter`. In native,
+    /// Handles all gas-related logics. In native,
     /// we need to explicitly call this method at the beginning of each syscall.
     fn pre_execute_syscall(
         &mut self,
         remaining_gas: &mut u128,
-        syscall_selector: SyscallSelector,
         syscall_gas_cost: u64,
     ) -> SyscallResult<()> {
-        // Syscall count for Keccak is done differently
-        if syscall_selector != SyscallSelector::Keccak {
-            self.increment_syscall_count_by(&syscall_selector, 1);
-        }
-
         // Refund `SYSCALL_BASE_GAS_COST` as it was pre-charged.
         let required_gas =
             u128::from(syscall_gas_cost - self.context.gas_costs().syscall_base_gas_cost);
@@ -202,11 +182,7 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
         address: Felt,
         remaining_gas: &mut u128,
     ) -> SyscallResult<Felt> {
-        self.pre_execute_syscall(
-            remaining_gas,
-            SyscallSelector::StorageRead,
-            self.context.gas_costs().storage_read_gas_cost,
-        )?;
+        self.pre_execute_syscall(remaining_gas, self.context.gas_costs().storage_read_gas_cost)?;
 
         if address_domain != 0 {
             let address_domain = Felt::from(address_domain);
@@ -233,11 +209,7 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
         value: Felt,
         remaining_gas: &mut u128,
     ) -> SyscallResult<()> {
-        self.pre_execute_syscall(
-            remaining_gas,
-            SyscallSelector::StorageWrite,
-            self.context.gas_costs().storage_write_gas_cost,
-        )?;
+        self.pre_execute_syscall(remaining_gas, self.context.gas_costs().storage_write_gas_cost)?;
 
         if address_domain != 0 {
             let address_domain = Felt::from(address_domain);
@@ -373,7 +345,6 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
     ) -> SyscallResult<()> {
         self.pre_execute_syscall(
             remaining_gas,
-            SyscallSelector::Sha256ProcessBlock,
             self.context.gas_costs().sha256_process_block_gas_cost,
         )?;
 
