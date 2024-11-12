@@ -66,7 +66,7 @@ impl TransactionProvider for ValidateTransactionProvider {
     }
 }
 
-// TODO: Remove L1Provider code when the communication module of l1-provider is added.
+// TODO: Remove L1Provider code when the communication module of l1_provider is added.
 #[cfg_attr(test, automock)]
 #[async_trait]
 pub trait L1ProviderClient: Send + Sync {
