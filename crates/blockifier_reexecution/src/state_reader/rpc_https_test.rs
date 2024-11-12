@@ -34,6 +34,7 @@ use super::utils::RPC_NODE_URL;
 use crate::state_reader::compile::legacy_to_contract_class_v0;
 use crate::state_reader::reexecution_state_reader::ReexecutionStateReader;
 use crate::state_reader::test_state_reader::{ConsecutiveTestStateReaders, TestStateReader};
+use crate::state_reader::utils::guess_chain_id_from_node_url;
 
 const EXAMPLE_INVOKE_TX_HASH: &str =
     "0xa7c7db686c7f756ceb7ca85a759caef879d425d156da83d6a836f86851983";
@@ -87,14 +88,24 @@ pub fn get_test_rpc_config() -> RpcStateReaderConfig {
 }
 
 #[fixture]
-pub fn test_state_reader() -> TestStateReader {
+pub fn test_url() -> String {
+    get_test_url()
+}
+
+#[fixture]
+pub fn test_chain_id(test_url: String) -> ChainId {
+    guess_chain_id_from_node_url(test_url.as_str()).unwrap()
+}
+
+#[fixture]
+pub fn test_state_reader(test_chain_id: ChainId) -> TestStateReader {
     TestStateReader {
         rpc_state_reader: RpcStateReader {
             config: get_test_rpc_config(),
             block_id: get_test_block_id(),
         },
         retry_config: RetryConfig::default(),
-        chain_id: ChainId::Mainnet,
+        chain_id: test_chain_id,
         contract_class_mapping_dumper: Arc::new(Mutex::new(None)),
     }
 }
@@ -112,8 +123,9 @@ pub fn last_constructed_block(test_block_number: BlockNumber) -> BlockNumber {
 #[fixture]
 pub fn test_state_readers_last_and_current_block(
     last_constructed_block: BlockNumber,
+    test_chain_id: ChainId,
 ) -> ConsecutiveTestStateReaders {
-    ConsecutiveTestStateReaders::new(last_constructed_block, None, ChainId::Mainnet, false)
+    ConsecutiveTestStateReaders::new(last_constructed_block, None, test_chain_id, false)
 }
 
 /// Test that the block info can be retrieved from the RPC server.
@@ -232,7 +244,7 @@ pub fn test_get_statediff_rpc(test_state_reader: TestStateReader) {
 }
 
 #[rstest]
-#[case(test_block_number(test_state_reader()).0)]
+#[case(test_block_number(test_state_reader(test_chain_id(test_url()))).0)]
 #[case(EXAMPLE_DECLARE_V1_BLOCK_NUMBER)]
 #[case(EXAMPLE_DECLARE_V2_BLOCK_NUMBER)]
 #[case(EXAMPLE_DECLARE_V3_BLOCK_NUMBER)]

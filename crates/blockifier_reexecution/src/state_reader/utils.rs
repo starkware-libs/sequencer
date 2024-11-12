@@ -19,10 +19,23 @@ use crate::state_reader::errors::ReexecutionError;
 use crate::state_reader::test_state_reader::{
     ConsecutiveStateReaders,
     OfflineConsecutiveStateReaders,
+    ReexecutionResult,
 };
 
 pub const RPC_NODE_URL: &str = "https://free-rpc.nethermind.io/mainnet-juno/";
 pub const JSON_RPC_VERSION: &str = "2.0";
+
+pub fn guess_chain_id_from_node_url(node_url: &str) -> ReexecutionResult<ChainId> {
+    if node_url.contains("mainnet") {
+        Ok(ChainId::Mainnet)
+    } else if node_url.contains("sepolia") && !node_url.contains("integration") {
+        Ok(ChainId::Sepolia)
+    } else if node_url.contains("integration") {
+        Ok(ChainId::IntegrationSepolia)
+    } else {
+        Err(ReexecutionError::AmbiguousChainIdFromUrl(node_url.to_string()))
+    }
+}
 
 /// Returns the fee token addresses of mainnet.
 pub fn get_fee_token_addresses(chain_id: &ChainId) -> FeeTokenAddresses {

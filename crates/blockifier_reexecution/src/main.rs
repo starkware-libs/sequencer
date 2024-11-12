@@ -5,12 +5,12 @@ use blockifier_reexecution::state_reader::test_state_reader::{
     SerializableOfflineReexecutionData,
 };
 use blockifier_reexecution::state_reader::utils::{
+    guess_chain_id_from_node_url,
     reexecute_and_verify_correctness,
     JSON_RPC_VERSION,
 };
 use clap::{Args, Parser, Subcommand};
 use starknet_api::block::BlockNumber;
-use starknet_api::core::ChainId;
 use starknet_gateway::config::RpcStateReaderConfig;
 
 /// BlockifierReexecution CLI.
@@ -80,14 +80,14 @@ fn main() {
             println!("Running RPC test for block number {block_number} using node url {node_url}.",);
 
             let config = RpcStateReaderConfig {
-                url: node_url,
+                url: node_url.clone(),
                 json_rpc_version: JSON_RPC_VERSION.to_string(),
             };
 
             reexecute_and_verify_correctness(ConsecutiveTestStateReaders::new(
                 BlockNumber(block_number - 1),
                 Some(config),
-                ChainId::Mainnet,
+                guess_chain_id_from_node_url(node_url.as_str()).unwrap(),
                 false,
             ));
 
@@ -101,6 +101,7 @@ fn main() {
                 "./crates/blockifier_reexecution/resources/block_{block_number}/reexecution_data.\
                  json"
             ));
+            let chain_id = guess_chain_id_from_node_url(node_url.as_str()).unwrap();
 
             // TODO(Aner): refactor to reduce code duplication.
             let config = RpcStateReaderConfig {
@@ -111,7 +112,7 @@ fn main() {
             let consecutive_state_readers = ConsecutiveTestStateReaders::new(
                 BlockNumber(block_number - 1),
                 Some(config),
-                ChainId::Mainnet,
+                chain_id.clone(),
                 true,
             );
 
@@ -134,7 +135,7 @@ fn main() {
             SerializableOfflineReexecutionData {
                 serializable_data_prev_block,
                 serializable_data_next_block,
-                chain_id: ChainId::Mainnet,
+                chain_id,
                 old_block_hash,
             }
             .write_to_file(&full_file_path)
