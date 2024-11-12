@@ -61,8 +61,8 @@ enum Command {
 
         /// Block numbers. If not specified, blocks are retrieved from
         /// get_block_numbers_for_reexecution().
-        #[clap(long, short = 'b', num_args = 0..)]
-        block_numbers: Vec<u64>,
+        #[clap(long, short = 'b', num_args = 1.., default_value = None)]
+        block_numbers: Option<Vec<u64>>,
 
         // Directory path to json files directory. Default:
         // "./crates/blockifier_reexecution/resources".
@@ -83,6 +83,20 @@ enum Command {
         #[clap(long, short = 'd', default_value = None)]
         full_file_path: Option<String>,
     },
+
+    // Reexecute all (selected) blocks
+    ReexecuteAll {
+        /// Block numbers. If not specified, blocks are retrieved from
+        /// get_block_numbers_for_reexecution().
+        #[clap(long, short = 'b', num_args = 1.., default_value = None)]
+        block_numbers: Option<Vec<u64>>,
+
+        // Directory path to json files directory. Default:
+        // "./crates/blockifier_reexecution/resources".
+        // TODO(Aner): add possibility to retrieve files from gc bucket.
+        #[clap(long, short = 'd', default_value = None)]
+        directory_path: Option<String>,
+    },
 }
 
 #[derive(Debug, Args)]
@@ -90,7 +104,8 @@ struct GlobalOptions {}
 
 /// Main entry point of the blockifier reexecution CLI.
 /// TODO(Aner): Add concurrency to the reexecution tests (using tokio).
-fn main() {
+#[tokio::main]
+async fn main() {
     let args = BlockifierReexecutionCliArgs::parse();
 
     match args.command {
@@ -102,11 +117,18 @@ fn main() {
                 json_rpc_version: JSON_RPC_VERSION.to_string(),
             };
 
-            reexecute_and_verify_correctness(ConsecutiveTestStateReaders::new(
-                BlockNumber(block_number - 1),
-                Some(config),
-                false,
-            ));
+            // RPC calls are "synchronous IO" (see, e.g., https://stackoverflow.com/questions/74547541/when-should-you-use-tokios-spawn-blocking)
+            // for details), so should be executed in a blocking thread.
+            // TODO(Aner): make only the RPC calls blocking, not the whole function.
+            tokio::task::spawn_blocking(move || {
+                reexecute_and_verify_correctness(ConsecutiveTestStateReaders::new(
+                    BlockNumber(block_number - 1),
+                    Some(config),
+                    false,
+                ))
+            })
+            .await
+            .unwrap();
 
             // Compare the expected and actual state differences
             // by avoiding discrepancies caused by insertion order
@@ -119,34 +141,44 @@ fn main() {
                  json"
             ));
 
-            write_block_reexecution_data_to_file(
-                BlockNumber(block_number),
-                &full_file_path,
-                node_url,
-            );
+            // RPC calls are "synchronous IO" (see, e.g., https://stackoverflow.com/questions/74547541/when-should-you-use-tokios-spawn-blocking
+            // for details), so should be executed in a blocking thread.
+            // TODO(Aner): make only the RPC calls blocking, not the whole function.
+            tokio::task::spawn_blocking(move || {
+                write_block_reexecution_data_to_file(
+                    BlockNumber(block_number),
+                    full_file_path,
+                    node_url,
+                );
+            })
+            .await
+            .unwrap();
         }
 
         Command::WriteAll { node_url, block_numbers, directory_path } => {
             let directory_path =
                 directory_path.unwrap_or("./crates/blockifier_reexecution/resources".to_string());
 
-            let block_numbers = match block_numbers.len() {
-                0 => get_block_numbers_for_reexecution(),
-                _ => block_numbers.into_iter().map(BlockNumber).collect(),
-            };
-
+            let block_numbers = block_numbers
+                .map(|block_numbers| block_numbers.into_iter().map(BlockNumber).collect())
+                .unwrap_or(get_block_numbers_for_reexecution());
             println!("Computing reexecution data for blocks {block_numbers:?}.");
 
-            // TODO(Aner): Execute in parallel.
+            // TODO(Aner): Execute in parallel. Requires making the function async, and only the RPC
+            // calls blocking.
             for block_number in block_numbers {
+                let node_url = node_url.clone();
                 let full_file_path =
                     format!("{directory_path}/block_{block_number}/reexecution_data.json");
-
-                write_block_reexecution_data_to_file(
-                    block_number,
-                    &full_file_path,
-                    node_url.clone(),
-                );
+                // RPC calls are "synchronous IO" (see, e.g., https://stackoverflow.com/questions/74547541/when-should-you-use-tokios-spawn-blocking
+                // for details), so should be executed in a blocking thread.
+                // TODO(Aner): make only the RPC calls blocking, not the whole function.
+                tokio::task::spawn_blocking(move || {
+                    println!("Computing reexecution data for block {block_number}.");
+                    write_block_reexecution_data_to_file(block_number, full_file_path, node_url)
+                })
+                .await
+                .unwrap();
             }
         }
 
@@ -161,6 +193,31 @@ fn main() {
             );
 
             println!("Reexecution test for block {block_number} passed successfully.");
+        }
+
+        Command::ReexecuteAll { block_numbers, directory_path } => {
+            let directory_path =
+                directory_path.unwrap_or("./crates/blockifier_reexecution/resources".to_string());
+
+            let block_numbers = block_numbers
+                .map(|block_numbers| block_numbers.into_iter().map(BlockNumber).collect())
+                .unwrap_or(get_block_numbers_for_reexecution());
+            println!("Reexecuting blocks {block_numbers:?}.");
+
+            let mut threads = vec![];
+            for block in block_numbers {
+                let full_file_path =
+                    format!("{directory_path}/block_{block}/reexecution_data.json");
+                threads.push(tokio::task::spawn(async move {
+                    reexecute_and_verify_correctness(
+                        OfflineConsecutiveStateReaders::new_from_file(&full_file_path).unwrap(),
+                    );
+                    println!("Reexecution test for block {block} passed successfully.");
+                }));
+            }
+            for thread in threads {
+                thread.await.unwrap();
+            }
         }
     }
 }
