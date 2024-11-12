@@ -17,7 +17,7 @@ use blockifier::versioned_constants::VersionedConstants;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, to_value};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber, StarknetVersion};
-use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
+use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_core::types::ContractClass as StarknetContractClass;
@@ -131,7 +131,7 @@ impl From<SerializableOfflineReexecutionData> for OfflineReexecutionData {
             offline_state_reader_prev_block,
             block_context_next_block: BlockContext::new(
                 block_info_next_block,
-                get_chain_info(),
+                get_chain_info(&ChainId::Mainnet),
                 VersionedConstants::get(&starknet_version).unwrap().clone(),
                 BouncerConfig::max(),
             ),
@@ -327,7 +327,7 @@ impl TestStateReader {
     pub fn get_block_context(&self) -> ReexecutionResult<BlockContext> {
         Ok(BlockContext::new(
             self.get_block_info()?,
-            get_chain_info(),
+            get_chain_info(&ChainId::Mainnet),
             self.get_versioned_constants()?.clone(),
             BouncerConfig::max(),
         ))
