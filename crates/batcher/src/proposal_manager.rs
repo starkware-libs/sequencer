@@ -15,7 +15,12 @@ use tokio::sync::Mutex;
 use tracing::{debug, error, info, instrument, Instrument};
 
 use crate::batcher::BatcherStorageReaderTrait;
-use crate::block_builder::{BlockBuilderError, BlockBuilderFactoryTrait, BlockExecutionArtifacts};
+use crate::block_builder::{
+    BlockBuilderError,
+    BlockBuilderFactoryTrait,
+    BlockBuilderTrait,
+    BlockExecutionArtifacts,
+};
 use crate::transaction_provider::ProposeTransactionProvider;
 
 #[derive(Debug, Error)]
@@ -171,7 +176,7 @@ impl ProposalManagerTrait for ProposalManager {
 
         let height = self.active_height.expect("No active height.");
 
-        let mut block_builder = self.block_builder_factory.create_block_builder(
+        let block_builder = self.block_builder_factory.create_block_builder(
             height,
             retrospective_block_hash,
             deadline,
@@ -180,29 +185,7 @@ impl ProposalManagerTrait for ProposalManager {
             false,
         )?;
 
-        let active_proposal = self.active_proposal.clone();
-        let executed_proposals = self.executed_proposals.clone();
-
-        self.active_proposal_handle = Some(tokio::spawn(
-            async move {
-                let result = block_builder
-                    .build_block()
-                    .await
-                    .map(ProposalOutput::from)
-                    .map_err(|e| GetProposalResultError::BlockBuilderError(Arc::new(e)));
-
-                executed_proposals.lock().await.insert(proposal_id, result);
-
-                // The proposal is done, clear the active proposal.
-                let mut active_proposal = active_proposal.lock().await;
-                if let Some(current_active_proposal_id) = *active_proposal {
-                    if current_active_proposal_id == proposal_id {
-                        active_proposal.take();
-                    }
-                }
-            }
-            .in_current_span(),
-        ));
+        self.spawn_build_block_task(proposal_id, block_builder).await;
 
         Ok(())
     }
@@ -262,6 +245,36 @@ impl ProposalManager {
             active_height: None,
             executed_proposals: Arc::new(Mutex::new(HashMap::new())),
         }
+    }
+
+    async fn spawn_build_block_task(
+        &mut self,
+        proposal_id: ProposalId,
+        mut block_builder: Box<dyn BlockBuilderTrait>,
+    ) {
+        let active_proposal = self.active_proposal.clone();
+        let executed_proposals = self.executed_proposals.clone();
+
+        self.active_proposal_handle = Some(tokio::spawn(
+            async move {
+                let result = block_builder
+                    .build_block()
+                    .await
+                    .map(ProposalOutput::from)
+                    .map_err(|e| GetProposalResultError::BlockBuilderError(Arc::new(e)));
+
+                executed_proposals.lock().await.insert(proposal_id, result);
+
+                // The proposal is done, clear the active proposal.
+                let mut active_proposal = active_proposal.lock().await;
+                if let Some(current_active_proposal_id) = *active_proposal {
+                    if current_active_proposal_id == proposal_id {
+                        active_proposal.take();
+                    }
+                }
+            }
+            .in_current_span(),
+        ));
     }
 
     async fn reset_active_height(&mut self) {
