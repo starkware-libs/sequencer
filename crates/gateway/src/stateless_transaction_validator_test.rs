@@ -186,49 +186,37 @@ fn test_calldata_too_long(
 }
 
 #[rstest]
-fn test_signature_too_long(
-    #[values(TransactionType::Declare, TransactionType::DeployAccount, TransactionType::Invoke)]
-    tx_type: TransactionType,
-) {
-    let tx_validator =
-        StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone() };
-    let tx = rpc_tx_for_testing(
-        tx_type,
-        RpcTransactionArgs {
-            signature: TransactionSignature(vec![Felt::ONE, Felt::TWO]),
-            ..Default::default()
-        },
-    );
-
-    assert_eq!(
-        tx_validator.validate(&tx).unwrap_err(),
-        StatelessTransactionValidatorError::SignatureTooLong {
-            signature_length: 2,
-            max_signature_length: 1
-        }
-    );
-}
-
-#[rstest]
-#[case::nonce(
+#[case::signature_too_long(
+    RpcTransactionArgs {
+        signature: TransactionSignature(vec![Felt::ONE, Felt::TWO]),
+        ..Default::default()
+    },
+    StatelessTransactionValidatorError::SignatureTooLong {
+        signature_length: 2,
+        max_signature_length: 1
+    }
+)]
+#[case::nonce_data_availability_mode(
     RpcTransactionArgs {
         nonce_data_availability_mode: DataAvailabilityMode::L2,
         ..Default::default()
     },
-    "nonce".to_string()
-)
-]
-#[case::fee(
+    StatelessTransactionValidatorError::InvalidDataAvailabilityMode {
+        field_name: "nonce".to_string()
+    }
+)]
+#[case::fee_data_availability_mode(
     RpcTransactionArgs {
         fee_data_availability_mode: DataAvailabilityMode::L2,
         ..Default::default()
     },
-    "fee".to_string()
-)
-]
-fn test_invalid_data_availability_mode(
+    StatelessTransactionValidatorError::InvalidDataAvailabilityMode {
+        field_name: "fee".to_string()
+    }
+)]
+fn test_invalid_tx(
     #[case] rpc_tx_args: RpcTransactionArgs,
-    #[case] field_name: String,
+    #[case] expected_error: StatelessTransactionValidatorError,
     #[values(TransactionType::Declare, TransactionType::DeployAccount, TransactionType::Invoke)]
     tx_type: TransactionType,
 ) {
@@ -236,10 +224,7 @@ fn test_invalid_data_availability_mode(
         StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone() };
     let tx = rpc_tx_for_testing(tx_type, rpc_tx_args);
 
-    assert_eq!(
-        tx_validator.validate(&tx).unwrap_err(),
-        StatelessTransactionValidatorError::InvalidDataAvailabilityMode { field_name }
-    )
+    assert_eq!(tx_validator.validate(&tx).unwrap_err(), expected_error);
 }
 
 #[rstest]
