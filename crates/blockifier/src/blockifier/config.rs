@@ -4,20 +4,41 @@ use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct TransactionExecutorConfig {
     pub concurrency_config: ConcurrencyConfig,
+    pub run_native: bool,
 }
 impl TransactionExecutorConfig {
     #[cfg(any(test, feature = "testing"))]
     pub fn create_for_testing(concurrency_enabled: bool) -> Self {
-        Self { concurrency_config: ConcurrencyConfig::create_for_testing(concurrency_enabled) }
+        Self {
+            concurrency_config: ConcurrencyConfig::create_for_testing(concurrency_enabled),
+            run_native: true, // TODO(AvivG): Default value should be different?
+        }
+    }
+}
+
+impl Default for TransactionExecutorConfig {
+    fn default() -> Self {
+        TransactionExecutorConfig {
+            concurrency_config: ConcurrencyConfig::default(),
+            run_native: false,
+        }
     }
 }
 
 impl SerializeConfig for TransactionExecutorConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        append_sub_config_name(self.concurrency_config.dump(), "concurrency_config")
+        let mut dump = append_sub_config_name(self.concurrency_config.dump(), "concurrency_config");
+        dump.append(&mut BTreeMap::from([ser_param(
+            "run_native",
+            &self.run_native,
+            "Enables Cairo native execution.",
+            ParamPrivacyInput::Public,
+        )]));
+
+        dump
     }
 }
 
