@@ -176,6 +176,7 @@ impl Default for RetryConfig {
 pub struct TestStateReader {
     pub(crate) rpc_state_reader: RpcStateReader,
     pub(crate) retry_config: RetryConfig,
+    pub(crate) chain_id: ChainId,
     #[allow(dead_code)]
     pub(crate) contract_class_mapping_dumper: Arc<Mutex<Option<StarknetContractClassMapping>>>,
 }
@@ -185,6 +186,7 @@ impl Default for TestStateReader {
         Self {
             rpc_state_reader: RpcStateReader::from_latest(&get_rpc_state_reader_config()),
             retry_config: RetryConfig::default(),
+            chain_id: ChainId::Mainnet,
             contract_class_mapping_dumper: Arc::new(Mutex::new(None)),
         }
     }
@@ -236,20 +238,26 @@ impl StateReader for TestStateReader {
 }
 
 impl TestStateReader {
-    pub fn new(config: &RpcStateReaderConfig, block_number: BlockNumber, dump_mode: bool) -> Self {
+    pub fn new(
+        config: &RpcStateReaderConfig,
+        chain_id: ChainId,
+        block_number: BlockNumber,
+        dump_mode: bool,
+    ) -> Self {
         let contract_class_mapping_dumper = Arc::new(Mutex::new(match dump_mode {
             true => Some(HashMap::new()),
             false => None,
         }));
         Self {
             rpc_state_reader: RpcStateReader::from_number(config, block_number),
-            contract_class_mapping_dumper,
             retry_config: RetryConfig::default(),
+            chain_id,
+            contract_class_mapping_dumper,
         }
     }
 
     pub fn new_for_testing(block_number: BlockNumber) -> Self {
-        TestStateReader::new(&get_rpc_state_reader_config(), block_number, false)
+        TestStateReader::new(&get_rpc_state_reader_config(), ChainId::Mainnet, block_number, false)
     }
 
     /// Get the block info of the current block.
@@ -334,7 +342,7 @@ impl TestStateReader {
     pub fn get_block_context(&self) -> ReexecutionResult<BlockContext> {
         Ok(BlockContext::new(
             self.get_block_info()?,
-            get_chain_info(&ChainId::Mainnet),
+            get_chain_info(&self.chain_id),
             self.get_versioned_constants()?.clone(),
             BouncerConfig::max(),
         ))
@@ -468,17 +476,20 @@ impl ConsecutiveTestStateReaders {
     pub fn new(
         last_constructed_block_number: BlockNumber,
         config: Option<RpcStateReaderConfig>,
+        chain_id: ChainId,
         dump_mode: bool,
     ) -> Self {
         let config = config.unwrap_or(get_rpc_state_reader_config());
         Self {
             last_block_state_reader: TestStateReader::new(
                 &config,
+                chain_id.clone(),
                 last_constructed_block_number,
                 dump_mode,
             ),
             next_block_state_reader: TestStateReader::new(
                 &config,
+                chain_id,
                 last_constructed_block_number.next().expect("Overflow in block number"),
                 dump_mode,
             ),
