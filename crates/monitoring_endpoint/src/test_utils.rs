@@ -35,14 +35,28 @@ impl IsAliveClient {
 
     // TODO(Tsabary/Lev): add sleep time as a parameter, and max retries. Consider using
     // 'starknet_client::RetryConfig'.
-    /// Blocks until 'alive'.
-    pub async fn await_alive(&self) {
+    /// Blocks until 'alive', up to a maximum number of query attempts. Returns 'Ok(())' if the
+    /// target is alive, otherwise 'Err(())'.
+    pub async fn await_alive(
+        &self,
+        retry_interval: Duration,
+        max_attempts: usize,
+    ) -> Result<(), ()> {
         let mut counter = 0;
-        while !(self.query_alive().await) {
-            info!("Waiting for node to be alive: {}.", counter);
-            tokio::time::sleep(Duration::from_secs(1)).await;
-            counter += 1;
+        while counter < max_attempts {
+            match self.query_alive().await {
+                true => {
+                    info!("Node is alive.");
+                    return Ok(());
+                }
+                false => {
+                    info!("Waiting for node to be alive: {}.", counter);
+                    tokio::time::sleep(retry_interval).await;
+                    counter += 1;
+                }
+            }
         }
+        Err(())
     }
 }
 
