@@ -202,11 +202,17 @@ impl Batcher {
             .ok_or(BatcherError::ProposalNotFound { proposal_id })?;
         drop(tx_provider_sender);
 
-        let proposal_commitment =
-            self.proposal_manager.await_proposal_commitment(proposal_id).await?;
-        Ok(SendProposalContentResponse {
-            response: ResponseProposalStatus::Finished(proposal_commitment),
-        })
+        let response = match self.proposal_manager.await_proposal_commitment(proposal_id).await {
+            Ok(proposal_commitment) => ResponseProposalStatus::Finished(proposal_commitment),
+            Err(GetProposalResultError::BlockBuilderError(_)) => {
+                ResponseProposalStatus::InvalidProposal
+            }
+            Err(GetProposalResultError::ProposalDoesNotExist { proposal_id }) => {
+                panic!("Proposal {} should exist in the proposal manager.", proposal_id)
+            }
+        };
+
+        Ok(SendProposalContentResponse { response })
     }
 
     #[instrument(skip(self), err)]
