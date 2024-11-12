@@ -9,6 +9,8 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 #[allow(clippy::enum_variant_names)]
 pub enum ReexecutionError {
+    #[error("Cannot discern chain ID from URL: {0}")]
+    AmbiguousChainIdFromUrl(String),
     #[error(transparent)]
     Rpc(#[from] RPCStateReaderError),
     #[error(transparent)]
