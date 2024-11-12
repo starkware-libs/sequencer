@@ -134,6 +134,7 @@ fn main() {
             SerializableOfflineReexecutionData {
                 serializable_data_prev_block,
                 serializable_data_next_block,
+                chain_id: ChainId::Mainnet,
                 old_block_hash,
             }
             .write_to_file(&full_file_path)
