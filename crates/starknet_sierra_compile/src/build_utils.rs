@@ -1,6 +1,8 @@
 use std::path::{Path, PathBuf};
 
-const BINARY_NAME: &str = "starknet-sierra-compile";
+pub(crate) const CAIRO_LANG_BINARY_NAME: &str = "starknet-sierra-compile";
+#[cfg(feature = "cairo_native")]
+pub(crate) const CAIRO_NATIVE_BINARY_NAME: &str = "starknet-native-compile";
 
 fn out_dir() -> PathBuf {
     Path::new(&std::env::var("OUT_DIR").expect("Failed to get the OUT_DIR environment variable"))
@@ -23,6 +25,11 @@ fn shared_folder_dir() -> PathBuf {
     target_dir().join("shared_executables")
 }
 
-pub fn binary_path() -> PathBuf {
-    shared_folder_dir().join(BINARY_NAME)
+pub fn binary_path(binary_name: &str) -> PathBuf {
+    shared_folder_dir().join(binary_name)
+}
+
+#[cfg(feature = "cairo_native")]
+pub fn output_file_path() -> String {
+    out_dir().join("output.so").to_str().unwrap().into()
 }
