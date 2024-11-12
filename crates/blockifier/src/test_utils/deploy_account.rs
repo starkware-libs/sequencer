@@ -1,4 +1,3 @@
-use starknet_api::executable_transaction::AccountTransaction as Transaction;
 use starknet_api::test_utils::deploy_account::DeployAccountTxArgs;
 use starknet_api::test_utils::NonceManager;
 
@@ -12,7 +11,6 @@ pub fn deploy_account_tx(
         deploy_tx_args,
         nonce_manager,
     );
-    let executable_tx = Transaction::DeployAccount(deploy_account_tx);
 
-    executable_tx.into()
+    deploy_account_tx.into()
 }
