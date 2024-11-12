@@ -17,6 +17,7 @@ use blockifier::blockifier::block::BlockInfo;
 use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
 use starknet_api::class_hash;
+use starknet_api::core::ChainId;
 use starknet_api::transaction::{
     DeclareTransaction,
     DeployAccountTransaction,
@@ -93,6 +94,7 @@ pub fn test_state_reader() -> TestStateReader {
             block_id: get_test_block_id(),
         },
         retry_config: RetryConfig::default(),
+        chain_id: ChainId::Mainnet,
         contract_class_mapping_dumper: Arc::new(Mutex::new(None)),
     }
 }
@@ -111,7 +113,7 @@ pub fn last_constructed_block(test_block_number: BlockNumber) -> BlockNumber {
 pub fn test_state_readers_last_and_current_block(
     last_constructed_block: BlockNumber,
 ) -> ConsecutiveTestStateReaders {
-    ConsecutiveTestStateReaders::new(last_constructed_block, None, false)
+    ConsecutiveTestStateReaders::new(last_constructed_block, None, ChainId::Mainnet, false)
 }
 
 /// Test that the block info can be retrieved from the RPC server.
