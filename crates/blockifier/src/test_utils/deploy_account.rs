@@ -1,8 +1,8 @@
+use starknet_api::executable_transaction::AccountTransaction as Transaction;
 use starknet_api::test_utils::deploy_account::DeployAccountTxArgs;
 use starknet_api::test_utils::NonceManager;
 
 use crate::transaction::account_transaction::AccountTransaction;
-use crate::transaction::transactions::DeployAccountTransaction;
 
 pub fn deploy_account_tx(
     deploy_tx_args: DeployAccountTxArgs,
@@ -12,10 +12,7 @@ pub fn deploy_account_tx(
         deploy_tx_args,
         nonce_manager,
     );
+    let executable_tx = Transaction::DeployAccount(deploy_account_tx);
 
-    // TODO(AvivG): use the "new" method.
-    let executable_deploy_account_tx =
-        DeployAccountTransaction { tx: deploy_account_tx, only_query: false };
-
-    executable_deploy_account_tx.into()
+    executable_tx.into()
 }
