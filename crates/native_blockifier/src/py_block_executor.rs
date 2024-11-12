@@ -28,7 +28,13 @@ use crate::py_objects::{PyBouncerConfig, PyConcurrencyConfig, PyVersionedConstan
 use crate::py_state_diff::{PyBlockInfo, PyStateDiff};
 use crate::py_transaction::{py_tx, PyClassInfo, PY_TX_PARSING_ERR};
 use crate::py_utils::{int_to_chain_id, into_block_number_hash_pair, PyFelt};
-use crate::storage::{PapyrusStorage, Storage, StorageConfig};
+use crate::storage::{
+    PapyrusStorage,
+    RawDeclaredClassMapping,
+    RawDeprecatedDeclaredClassMapping,
+    Storage,
+    StorageConfig,
+};
 
 pub(crate) type RawTransactionExecutionResult = Vec<u8>;
 pub(crate) type PyVisitedSegmentsMapping = Vec<(PyFelt, Vec<usize>)>;
@@ -305,8 +311,8 @@ impl PyBlockExecutor {
         previous_block_id: Option<PyFelt>,
         py_block_info: PyBlockInfo,
         py_state_diff: PyStateDiff,
-        declared_class_hash_to_class: HashMap<PyFelt, (PyFelt, String)>,
-        deprecated_declared_class_hash_to_class: HashMap<PyFelt, String>,
+        declared_class_hash_to_class: RawDeclaredClassMapping,
+        deprecated_declared_class_hash_to_class: RawDeprecatedDeclaredClassMapping,
     ) -> NativeBlockifierResult<()> {
         self.storage.append_block(
             block_id,
