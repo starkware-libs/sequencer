@@ -28,6 +28,7 @@ pub trait TransactionProvider: Send + Sync {
     async fn get_txs(&mut self, n_txs: usize) -> Result<NextTxs, TransactionProviderError>;
 }
 
+#[cfg_attr(test, derive(Clone))]
 pub struct ProposeTransactionProvider {
     pub mempool_client: SharedMempoolClient,
     pub l1_provider_client: SharedL1ProviderClient,
@@ -37,6 +38,7 @@ pub struct ProposeTransactionProvider {
 }
 
 // Keeps track of whether we need to fetch L1 handler transactions or mempool transactions.
+#[cfg_attr(test, derive(Clone))]
 #[derive(Debug, PartialEq)]
 enum TxProviderPhase {
     L1,
