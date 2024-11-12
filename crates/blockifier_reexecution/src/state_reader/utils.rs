@@ -239,6 +239,7 @@ pub fn write_block_reexecution_data_to_file(
     block_number: BlockNumber,
     full_file_path: &str,
     node_url: String,
+    chain_id: ChainId,
 ) {
     let config =
         RpcStateReaderConfig { url: node_url, json_rpc_version: JSON_RPC_VERSION.to_string() };
@@ -246,6 +247,7 @@ pub fn write_block_reexecution_data_to_file(
     let consecutive_state_readers = ConsecutiveTestStateReaders::new(
         block_number.prev().expect("Should not run with block 0"),
         Some(config),
+        chain_id,
         true,
     );
 
