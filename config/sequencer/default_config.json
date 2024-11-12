@@ -104,6 +104,11 @@
     "privacy": "Public",
     "value": 0
   },
+  "batcher_config.block_builder_config.execute_config.run_native": {
+    "description": "Flag to enable or disable the use of native execution.",
+    "privacy": "Public",
+    "value": true
+  },
   "batcher_config.block_builder_config.sequencer_address": {
     "description": "The address of the sequencer.",
     "privacy": "Public",
