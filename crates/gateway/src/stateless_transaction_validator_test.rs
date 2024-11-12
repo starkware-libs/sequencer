@@ -12,6 +12,7 @@ use mempool_test_utils::starknet_api_test_utils::{
 };
 use rstest::rstest;
 use starknet_api::core::{ContractAddress, EntryPointSelector};
+use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::rpc_transaction::{ContractClass, EntryPointByType};
 use starknet_api::state::EntryPoint;
 use starknet_api::transaction::fields::{
@@ -206,6 +207,39 @@ fn test_signature_too_long(
             max_signature_length: 1
         }
     );
+}
+
+#[rstest]
+#[case::nonce(
+    RpcTransactionArgs {
+        nonce_data_availability_mode: DataAvailabilityMode::L2,
+        ..Default::default()
+    },
+    "nonce".to_string()
+)
+]
+#[case::fee(
+    RpcTransactionArgs {
+        fee_data_availability_mode: DataAvailabilityMode::L2,
+        ..Default::default()
+    },
+    "fee".to_string()
+)
+]
+fn test_invalid_data_availability_mode(
+    #[case] rpc_tx_args: RpcTransactionArgs,
+    #[case] field_name: String,
+    #[values(TransactionType::Declare, TransactionType::DeployAccount, TransactionType::Invoke)]
+    tx_type: TransactionType,
+) {
+    let tx_validator =
+        StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone() };
+    let tx = rpc_tx_for_testing(tx_type, rpc_tx_args);
+
+    assert_eq!(
+        tx_validator.validate(&tx).unwrap_err(),
+        StatelessTransactionValidatorError::InvalidDataAvailabilityMode { field_name }
+    )
 }
 
 #[rstest]

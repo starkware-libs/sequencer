@@ -29,6 +29,8 @@ pub enum StatelessTransactionValidatorError {
     },
     #[error("Entry points must be unique and sorted.")]
     EntryPointsNotUniquelySorted,
+    #[error("Invalid {field_name} data availability mode.")]
+    InvalidDataAvailabilityMode { field_name: String },
     #[error(transparent)]
     InvalidSierraVersion(#[from] VersionIdError),
     #[error(
@@ -60,6 +62,7 @@ impl From<StatelessTransactionValidatorError> for GatewaySpecError {
             }
             StatelessTransactionValidatorError::CalldataTooLong { .. }
             | StatelessTransactionValidatorError::EntryPointsNotUniquelySorted
+            | StatelessTransactionValidatorError::InvalidDataAvailabilityMode { .. }
             | StatelessTransactionValidatorError::InvalidSierraVersion(..)
             | StatelessTransactionValidatorError::NonEmptyField { .. }
             | StatelessTransactionValidatorError::SignatureTooLong { .. }
