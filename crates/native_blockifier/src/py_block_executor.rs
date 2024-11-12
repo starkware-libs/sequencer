@@ -120,6 +120,12 @@ impl ThinTransactionExecutionInfo {
     }
 }
 
+pub struct MeshiAviConfig {
+    pub run_cairo_native: bool,
+    pub block_compilation: bool,
+    pub global_contract_cache_size: usize,
+}
+
 #[pyclass]
 pub struct PyBlockExecutor {
     pub bouncer_config: BouncerConfig,
@@ -130,15 +136,18 @@ pub struct PyBlockExecutor {
     /// `Send` trait is required for `pyclass` compatibility as Python objects must be threadsafe.
     pub storage: Box<dyn Storage + Send>,
     pub global_contract_cache: GlobalContractCache,
+    pub meshi_avi_config: MeshiAviConfig,
 }
 
 #[pymethods]
 impl PyBlockExecutor {
     #[new]
-    #[pyo3(signature = (bouncer_config, concurrency_config, os_config, global_contract_cache_size, target_storage_config, py_versioned_constants_overrides))]
+    #[pyo3(signature = (bouncer_config, concurrency_config, run_cairo_native, block_compilation, os_config, global_contract_cache_size, target_storage_config, py_versioned_constants_overrides))]
     pub fn create(
         bouncer_config: PyBouncerConfig,
         concurrency_config: PyConcurrencyConfig,
+        run_cairo_native: bool,
+        block_compilation: bool,
         os_config: PyOsConfig,
         global_contract_cache_size: usize,
         target_storage_config: StorageConfig,
@@ -161,6 +170,11 @@ impl PyBlockExecutor {
             tx_executor: None,
             storage: Box::new(storage),
             global_contract_cache: GlobalContractCache::new(global_contract_cache_size),
+            meshi_avi_config: MeshiAviConfig {
+                run_cairo_native,
+                block_compilation: false,
+                global_contract_cache_size,
+            },
         }
     }
 
@@ -368,10 +382,12 @@ impl PyBlockExecutor {
     }
 
     #[cfg(any(feature = "testing", test))]
-    #[pyo3(signature = (concurrency_config, os_config, path, max_state_diff_size))]
+    #[pyo3(signature = (concurrency_config, run_cairo_native, block_compilation, os_config, path, max_state_diff_size))]
     #[staticmethod]
     fn create_for_testing(
         concurrency_config: PyConcurrencyConfig,
+        run_cairo_native: bool,
+        block_compilation: bool,
         os_config: PyOsConfig,
         path: std::path::PathBuf,
         max_state_diff_size: usize,
@@ -397,6 +413,11 @@ impl PyBlockExecutor {
             versioned_constants,
             tx_executor: None,
             global_contract_cache: GlobalContractCache::new(GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST),
+            meshi_avi_config: MeshiAviConfig {
+                run_cairo_native,
+                block_compilation,
+                global_contract_cache_size: GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST,
+            },
         }
     }
 }
@@ -427,17 +448,31 @@ impl PyBlockExecutor {
             versioned_constants: VersionedConstants::latest_constants().clone(),
             tx_executor: None,
             global_contract_cache: GlobalContractCache::new(GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST),
+            meshi_avi_config: MeshiAviConfig {
+                run_cairo_native: false,
+                block_compilation: false,
+                global_contract_cache_size: GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST,
+            },
         }
     }
 
     #[cfg(test)]
     pub(crate) fn native_create_for_testing(
         concurrency_config: PyConcurrencyConfig,
+        run_cairo_native: bool,
+        block_compilation: bool,
         os_config: PyOsConfig,
         path: std::path::PathBuf,
         max_state_diff_size: usize,
     ) -> Self {
-        Self::create_for_testing(concurrency_config, os_config, path, max_state_diff_size)
+        Self::create_for_testing(
+            concurrency_config,
+            run_cairo_native,
+            block_compilation,
+            os_config,
+            path,
+            max_state_diff_size,
+        )
     }
 }
 

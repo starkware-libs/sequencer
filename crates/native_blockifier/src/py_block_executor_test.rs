@@ -39,6 +39,8 @@ fn global_contract_cache_update() {
     let temp_storage_path = tempfile::tempdir().unwrap().into_path();
     let mut block_executor = PyBlockExecutor::create_for_testing(
         PyConcurrencyConfig::default(),
+        false,
+        false,
         PyOsConfig::default(),
         temp_storage_path,
         4000,
@@ -119,6 +121,8 @@ fn global_contract_cache_update_large_contract() {
     let temp_storage_path = tempfile::tempdir().unwrap().into_path();
     let mut block_executor = PyBlockExecutor::native_create_for_testing(
         Default::default(),
+        false,
+        false,
         Default::default(),
         temp_storage_path,
         4000,

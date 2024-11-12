@@ -4,20 +4,30 @@ use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct TransactionExecutorConfig {
     pub concurrency_config: ConcurrencyConfig,
 }
 impl TransactionExecutorConfig {
     #[cfg(any(test, feature = "testing"))]
     pub fn create_for_testing(concurrency_enabled: bool) -> Self {
-        Self { concurrency_config: ConcurrencyConfig::create_for_testing(concurrency_enabled) }
+        Self {
+            concurrency_config: ConcurrencyConfig::create_for_testing(concurrency_enabled),
+        }
+    }
+}
+
+impl Default for TransactionExecutorConfig {
+    fn default() -> Self {
+        TransactionExecutorConfig {
+            concurrency_config: ConcurrencyConfig::default(),
+        }
     }
 }
 
 impl SerializeConfig for TransactionExecutorConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        append_sub_config_name(self.concurrency_config.dump(), "concurrency_config")
+        Self { concurrency_config: ConcurrencyConfig::create_for_testing(concurrency_enabled) }
     }
 }
 
