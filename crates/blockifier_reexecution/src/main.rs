@@ -4,13 +4,13 @@ use blockifier_reexecution::state_reader::test_state_reader::{
 };
 use blockifier_reexecution::state_reader::utils::{
     get_block_numbers_for_reexecution,
+    guess_chain_id_from_node_url,
     reexecute_and_verify_correctness,
     write_block_reexecution_data_to_file,
     JSON_RPC_VERSION,
 };
 use clap::{Args, Parser, Subcommand};
 use starknet_api::block::BlockNumber;
-use starknet_api::core::ChainId;
 use starknet_gateway::config::RpcStateReaderConfig;
 
 /// BlockifierReexecution CLI.
@@ -99,14 +99,14 @@ fn main() {
             println!("Running RPC test for block number {block_number} using node url {node_url}.",);
 
             let config = RpcStateReaderConfig {
-                url: node_url,
+                url: node_url.clone(),
                 json_rpc_version: JSON_RPC_VERSION.to_string(),
             };
 
             reexecute_and_verify_correctness(ConsecutiveTestStateReaders::new(
                 BlockNumber(block_number - 1),
                 Some(config),
-                ChainId::Mainnet,
+                guess_chain_id_from_node_url(node_url.as_str()).unwrap(),
                 false,
             ));
 
@@ -124,8 +124,8 @@ fn main() {
             write_block_reexecution_data_to_file(
                 BlockNumber(block_number),
                 &full_file_path,
-                node_url,
-                ChainId::Mainnet,
+                node_url.clone(),
+                guess_chain_id_from_node_url(node_url.as_str()).unwrap(),
             );
         }
 
@@ -149,7 +149,7 @@ fn main() {
                     block_number,
                     &full_file_path,
                     node_url.clone(),
-                    ChainId::Mainnet,
+                    guess_chain_id_from_node_url(node_url.as_str()).unwrap(),
                 );
             }
         }
