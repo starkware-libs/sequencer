@@ -32,7 +32,7 @@ use starknet_mempool_types::mempool_types::CommitBlockArgs;
 use crate::batcher::{Batcher, MockBatcherStorageReaderTrait, MockBatcherStorageWriterTrait};
 use crate::config::BatcherConfig;
 use crate::proposal_manager::{
-    BuildProposalError,
+    GenerateProposalError,
     GetProposalResultError,
     ProposalManagerTrait,
     ProposalOutput,
@@ -227,7 +227,7 @@ async fn decision_reached_no_executed_proposal(
 async fn simulate_build_block_proposal(
     tx_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
     txs: Vec<Transaction>,
-) -> Result<(), BuildProposalError> {
+) -> Result<(), GenerateProposalError> {
     tokio::spawn(async move {
         for tx in txs {
             tx_sender.send(tx).unwrap();
@@ -251,7 +251,7 @@ trait ProposalManagerTraitWrapper: Send + Sync {
         deadline: tokio::time::Instant,
         output_content_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
         tx_provider: ProposeTransactionProvider,
-    ) -> BoxFuture<'_, Result<(), BuildProposalError>>;
+    ) -> BoxFuture<'_, Result<(), GenerateProposalError>>;
 
     fn wrap_take_proposal_result(
         &mut self,
@@ -279,7 +279,7 @@ impl<T: ProposalManagerTraitWrapper> ProposalManagerTrait for T {
         deadline: tokio::time::Instant,
         output_content_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
         tx_provider: ProposeTransactionProvider,
-    ) -> Result<(), BuildProposalError> {
+    ) -> Result<(), GenerateProposalError> {
         self.wrap_build_block_proposal(
             proposal_id,
             retrospective_block_hash,
