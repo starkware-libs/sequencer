@@ -42,6 +42,7 @@ static DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: LazyLock<StatelessTransactionValida
     LazyLock::new(|| StatelessTransactionValidatorConfig {
         validate_non_zero_l1_gas_fee: false,
         validate_non_zero_l2_gas_fee: false,
+        validate_non_zero_l1_data_gas_fee: false,
         max_calldata_length: 1,
         max_signature_length: 1,
         max_contract_class_object_size: 100000,
@@ -101,6 +102,19 @@ static DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: LazyLock<StatelessTransactionValida
         ..Default::default()
     }
 )]
+#[case::valid_l1_data_gas(
+    StatelessTransactionValidatorConfig {
+        validate_non_zero_l1_data_gas_fee: true,
+        ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
+    },
+    RpcTransactionArgs {
+        resource_bounds: AllResourceBounds {
+            l1_data_gas: NON_EMPTY_RESOURCE_BOUNDS,
+            ..Default::default()
+        },
+        ..Default::default()
+    }
+)]
 #[case::non_empty_valid_calldata(
     DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone(),
     RpcTransactionArgs { calldata: calldata![Felt::ONE], ..Default::default()}
@@ -148,6 +162,16 @@ fn test_positive_flow(
     },
     StatelessTransactionValidatorError::ZeroResourceBounds{
         resource: Resource::L2Gas, resource_bounds: ResourceBounds::default()
+    }
+)]
+#[case::zero_l1_data_gas_resource_bounds(
+    StatelessTransactionValidatorConfig{
+        validate_non_zero_l1_data_gas_fee: true,
+        ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
+    },
+    AllResourceBounds::default(),
+    StatelessTransactionValidatorError::ZeroResourceBounds{
+        resource: Resource::L1DataGas, resource_bounds: ResourceBounds::default()
     }
 )]
 fn test_invalid_resource_bounds(
