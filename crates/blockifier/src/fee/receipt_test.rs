@@ -86,7 +86,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(
         let code_gas_cost = (gas_per_code_byte
             * u64_from_usize(
                 (class_info.bytecode_length() + class_info.sierra_program_length())
-                    * eth_gas_constants::WORD_WIDTH
+                    * starknet_api::core::WORD_WIDTH
                     + class_info.abi_length(),
             ))
         .to_integer()
