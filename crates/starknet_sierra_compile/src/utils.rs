@@ -1,14 +1,12 @@
 use std::clone::Clone;
 
 use cairo_lang_starknet_classes::contract_class::{
-    ContractClass as CairoLangContractClass,
-    ContractEntryPoint as CairoLangContractEntryPoint,
+    ContractClass as CairoLangContractClass, ContractEntryPoint as CairoLangContractEntryPoint,
     ContractEntryPoints as CairoLangContractEntryPoints,
 };
 use cairo_lang_utils::bigint::BigUintAsHex;
 use starknet_api::rpc_transaction::{
-    ContractClass as RpcContractClass,
-    EntryPointByType as StarknetApiEntryPointByType,
+    ContractClass as RpcContractClass, EntryPointByType as StarknetApiEntryPointByType,
 };
 use starknet_api::state::EntryPoint as StarknetApiEntryPoint;
 use starknet_types_core::felt::Felt;
