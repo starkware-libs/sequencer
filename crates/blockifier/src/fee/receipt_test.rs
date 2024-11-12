@@ -1,4 +1,5 @@
 use rstest::{fixture, rstest};
+use starknet_api::core::WORD_WIDTH;
 use starknet_api::execution_resources::GasVector;
 use starknet_api::transaction::fields::GasVectorComputationMode;
 use starknet_api::transaction::L2ToL1Payload;
@@ -85,8 +86,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(
             .gas_per_code_byte;
         let code_gas_cost = (gas_per_code_byte
             * u64_from_usize(
-                (class_info.bytecode_length() + class_info.sierra_program_length())
-                    * eth_gas_constants::WORD_WIDTH
+                (class_info.bytecode_length() + class_info.sierra_program_length()) * WORD_WIDTH
                     + class_info.abi_length(),
             ))
         .to_integer()
