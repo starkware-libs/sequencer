@@ -1,17 +1,18 @@
 use std::clone::Clone;
+use std::io::Write;
 
+use crate::errors::CompilationUtilError;
 use cairo_lang_starknet_classes::contract_class::{
-    ContractClass as CairoLangContractClass,
-    ContractEntryPoint as CairoLangContractEntryPoint,
+    ContractClass as CairoLangContractClass, ContractEntryPoint as CairoLangContractEntryPoint,
     ContractEntryPoints as CairoLangContractEntryPoints,
 };
 use cairo_lang_utils::bigint::BigUintAsHex;
 use starknet_api::rpc_transaction::{
-    ContractClass as RpcContractClass,
-    EntryPointByType as StarknetApiEntryPointByType,
+    ContractClass as RpcContractClass, EntryPointByType as StarknetApiEntryPointByType,
 };
 use starknet_api::state::EntryPoint as StarknetApiEntryPoint;
 use starknet_types_core::felt::Felt;
+use tempfile::NamedTempFile;
 
 /// Retruns a [`CairoLangContractClass`] struct ready for Sierra to Casm compilation. Note the `abi`
 /// field is None as it is not relevant for the compilation.
@@ -64,4 +65,25 @@ pub fn sierra_program_as_felts_to_big_uint_as_hex(sierra_program: &[Felt]) -> Ve
 
 fn felt_to_big_uint_as_hex(felt: &Felt) -> BigUintAsHex {
     BigUintAsHex { value: felt.to_biguint() }
+}
+
+pub(crate) fn save_contract_class_to_temp_file(
+    contract_class: CairoLangContractClass,
+) -> Result<NamedTempFile, CompilationUtilError> {
+    let serialized_contract_class = serde_json::to_string(&contract_class)?;
+
+    let mut temp_file = NamedTempFile::new()?;
+    temp_file.write_all(serialized_contract_class.as_bytes())?;
+    Ok(temp_file)
+}
+
+pub(crate) fn process_compile_command_output(
+    compile_output: std::process::Output,
+) -> Result<Vec<u8>, CompilationUtilError> {
+    if !compile_output.status.success() {
+        let stderr_output = String::from_utf8(compile_output.stderr)
+            .unwrap_or("Failed to get stderr output".into());
+        return Err(CompilationUtilError::CompilationError(stderr_output));
+    };
+    Ok(compile_output.stdout)
 }
