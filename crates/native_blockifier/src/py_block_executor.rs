@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use blockifier::abi::constants as abi_constants;
-use blockifier::blockifier::config::TransactionExecutorConfig;
+use blockifier::blockifier::config::{CairoNativeConfig, TransactionExecutorConfig};
 use blockifier::blockifier::transaction_executor::{TransactionExecutor, TransactionExecutorError};
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
@@ -24,7 +24,12 @@ use starknet_api::transaction::fields::Fee;
 use starknet_types_core::felt::Felt;
 
 use crate::errors::{NativeBlockifierError, NativeBlockifierResult};
-use crate::py_objects::{PyBouncerConfig, PyConcurrencyConfig, PyVersionedConstantsOverrides};
+use crate::py_objects::{
+    PyBouncerConfig,
+    PyCairoNativeConfig,
+    PyConcurrencyConfig,
+    PyVersionedConstantsOverrides,
+};
 use crate::py_state_diff::{PyBlockInfo, PyStateDiff};
 use crate::py_transaction::{py_tx, PyClassInfo, PY_TX_PARSING_ERR};
 use crate::py_utils::{int_to_chain_id, into_block_number_hash_pair, PyFelt};
@@ -129,18 +134,19 @@ pub struct PyBlockExecutor {
     pub tx_executor: Option<TransactionExecutor<PapyrusReader>>,
     /// `Send` trait is required for `pyclass` compatibility as Python objects must be threadsafe.
     pub storage: Box<dyn Storage + Send>,
+    pub cairo_native_config: CairoNativeConfig,
     pub global_contract_cache: GlobalContractCache,
 }
 
 #[pymethods]
 impl PyBlockExecutor {
     #[new]
-    #[pyo3(signature = (bouncer_config, concurrency_config, os_config, global_contract_cache_size, target_storage_config, py_versioned_constants_overrides))]
+    #[pyo3(signature = (bouncer_config, concurrency_config, cairo_native_config, os_config, target_storage_config, py_versioned_constants_overrides))]
     pub fn create(
         bouncer_config: PyBouncerConfig,
         concurrency_config: PyConcurrencyConfig,
+        cairo_native_config: PyCairoNativeConfig,
         os_config: PyOsConfig,
-        global_contract_cache_size: usize,
         target_storage_config: StorageConfig,
         py_versioned_constants_overrides: PyVersionedConstantsOverrides,
     ) -> Self {
@@ -160,7 +166,10 @@ impl PyBlockExecutor {
             versioned_constants,
             tx_executor: None,
             storage: Box::new(storage),
-            global_contract_cache: GlobalContractCache::new(global_contract_cache_size),
+            cairo_native_config: cairo_native_config.into(),
+            global_contract_cache: GlobalContractCache::new(
+                cairo_native_config.global_contract_cache_size,
+            ),
         }
     }
 
@@ -368,16 +377,16 @@ impl PyBlockExecutor {
     }
 
     #[cfg(any(feature = "testing", test))]
-    #[pyo3(signature = (concurrency_config, os_config, path, max_state_diff_size))]
+    #[pyo3(signature = (concurrency_config, cairo_native_config, os_config, path, max_state_diff_size))]
     #[staticmethod]
     fn create_for_testing(
         concurrency_config: PyConcurrencyConfig,
+        cairo_native_config: PyCairoNativeConfig,
         os_config: PyOsConfig,
         path: std::path::PathBuf,
         max_state_diff_size: usize,
     ) -> Self {
         use blockifier::bouncer::BouncerWeights;
-        use blockifier::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
         // TODO(Meshi, 01/01/2025): Remove this once we fix all python tests that re-declare cairo0
         // contracts.
         let mut versioned_constants = VersionedConstants::latest_constants().clone();
@@ -396,7 +405,10 @@ impl PyBlockExecutor {
             chain_info: os_config.into_chain_info(),
             versioned_constants,
             tx_executor: None,
-            global_contract_cache: GlobalContractCache::new(GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST),
+            cairo_native_config: cairo_native_config.into(),
+            global_contract_cache: GlobalContractCache::new(
+                cairo_native_config.global_contract_cache_size,
+            ),
         }
     }
 }
@@ -426,6 +438,11 @@ impl PyBlockExecutor {
             chain_info: ChainInfo::default(),
             versioned_constants: VersionedConstants::latest_constants().clone(),
             tx_executor: None,
+            cairo_native_config: CairoNativeConfig {
+                run_cairo_native: false,
+                block_compilation: false,
+                global_contract_cache_size: GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST,
+            },
             global_contract_cache: GlobalContractCache::new(GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST),
         }
     }
@@ -433,11 +450,18 @@ impl PyBlockExecutor {
     #[cfg(test)]
     pub(crate) fn native_create_for_testing(
         concurrency_config: PyConcurrencyConfig,
+        cairo_native_config: PyCairoNativeConfig,
         os_config: PyOsConfig,
         path: std::path::PathBuf,
         max_state_diff_size: usize,
     ) -> Self {
-        Self::create_for_testing(concurrency_config, os_config, path, max_state_diff_size)
+        Self::create_for_testing(
+            concurrency_config,
+            cairo_native_config,
+            os_config,
+            path,
+            max_state_diff_size,
+        )
     }
 }
 

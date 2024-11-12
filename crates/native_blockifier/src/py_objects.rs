@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 
 use blockifier::abi::constants;
-use blockifier::blockifier::config::ConcurrencyConfig;
+use blockifier::blockifier::config::{CairoNativeConfig, ConcurrencyConfig};
 use blockifier::bouncer::{BouncerConfig, BouncerWeights, BuiltinCount, HashMapWrapper};
+use blockifier::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
 use blockifier::versioned_constants::VersionedConstantsOverrides;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
@@ -145,6 +146,33 @@ impl From<PyConcurrencyConfig> for ConcurrencyConfig {
             enabled: py_concurrency_config.enabled,
             n_workers: py_concurrency_config.n_workers,
             chunk_size: py_concurrency_config.chunk_size,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, FromPyObject)]
+pub struct PyCairoNativeConfig {
+    pub run_cairo_native: bool,
+    pub block_compilation: bool,
+    pub global_contract_cache_size: usize,
+}
+
+impl PyCairoNativeConfig {
+    pub fn default() -> Self {
+        Self {
+            run_cairo_native: false,
+            block_compilation: false,
+            global_contract_cache_size: GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST,
+        }
+    }
+}
+
+impl From<PyCairoNativeConfig> for CairoNativeConfig {
+    fn from(py_cairo_native_config: PyCairoNativeConfig) -> Self {
+        CairoNativeConfig {
+            run_cairo_native: py_cairo_native_config.run_cairo_native,
+            block_compilation: py_cairo_native_config.block_compilation,
+            global_contract_cache_size: py_cairo_native_config.global_contract_cache_size,
         }
     }
 }

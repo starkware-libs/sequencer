@@ -14,7 +14,7 @@ pub type LockedContractClassCache<'a> = MutexGuard<'a, ContractClassLRUCache>;
 // TODO(Yoni, 1/1/2025): consider defining CachedStateReader.
 pub struct GlobalContractCache(pub Arc<Mutex<ContractClassLRUCache>>);
 
-pub const GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST: usize = 100;
+pub const GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST: usize = 400; //TODO(AvivG): should be 400 to match w py?
 
 impl GlobalContractCache {
     /// Locks the cache for atomic access. Although conceptually shared, writing to this cache is
