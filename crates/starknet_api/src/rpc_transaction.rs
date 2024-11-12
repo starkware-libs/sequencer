@@ -72,7 +72,8 @@ impl RpcTransaction {
         (nonce, Nonce),
         (resource_bounds, AllResourceBounds),
         (signature, TransactionSignature),
-        (tip, Tip)
+        (tip, Tip),
+        (nonce_data_availability_mode, DataAvailabilityMode)
     );
 
     pub fn calculate_sender_address(&self) -> Result<ContractAddress, StarknetApiError> {
