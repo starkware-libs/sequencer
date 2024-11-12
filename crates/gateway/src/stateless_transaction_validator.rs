@@ -37,6 +37,7 @@ impl StatelessTransactionValidator {
         self.validate_resource_bounds(tx)?;
         self.validate_tx_size(tx)?;
         self.validate_nonce_data_availabilty_mode(tx)?;
+        self.validate_fee_data_availabilty_mode(tx)?;
 
         if let RpcTransaction::Declare(declare_tx) = tx {
             self.validate_declare_tx(declare_tx)?;
@@ -172,6 +173,21 @@ impl StatelessTransactionValidator {
         let da_mode = *tx.nonce_data_availability_mode();
         if da_mode != expected_da_mode {
             return Err(StatelessTransactionValidatorError::NonceDataAvailabilityMode);
+        };
+
+        Ok(())
+    }
+
+    /// The Starknet OS enforces that the fee data availability mode is L1. We add this validation
+    /// here at the gateway to prevent transactions from reverting.
+    fn validate_fee_data_availabilty_mode(
+        &self,
+        tx: &RpcTransaction,
+    ) -> StatelessTransactionValidatorResult<()> {
+        let expected_fee_mode = DataAvailabilityMode::L1;
+        let fee_mode = *tx.fee_data_availability_mode();
+        if fee_mode != expected_fee_mode {
+            return Err(StatelessTransactionValidatorError::FeeDataAvailabilityMode);
         };
 
         Ok(())
