@@ -30,7 +30,7 @@ use starknet_mempool_types::mempool_types::CommitBlockArgs;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use tracing::{debug, error, info, instrument, trace};
 
-use crate::block_builder::BlockBuilderFactory;
+use crate::block_builder::{BlockBuilderError, BlockBuilderFactory};
 use crate::config::BatcherConfig;
 use crate::proposal_manager::{
     GenerateProposalError,
@@ -103,7 +103,7 @@ impl Batcher {
 
         self.proposal_manager
             .build_block_proposal(
-                build_proposal_input.proposal_id,
+                proposal_id,
                 build_proposal_input.retrospective_block_hash,
                 deadline,
                 output_tx_sender,
@@ -133,7 +133,7 @@ impl Batcher {
 
         self.proposal_manager
             .validate_block_proposal(
-                validate_proposal_input.proposal_id,
+                proposal_id,
                 validate_proposal_input.retrospective_block_hash,
                 deadline,
                 tx_provider,
@@ -201,15 +201,28 @@ impl Batcher {
     ) -> BatcherResult<SendProposalContentResponse> {
         debug!("Send proposal content done for {}", proposal_id);
 
-        let tx_provider_sender = self
-            .validate_proposals
+        self.close_input_transaction_stream(proposal_id)?;
+
+        let response = match self.proposal_manager.await_proposal_commitment(proposal_id).await {
+            Ok(proposal_commitment) => ProposalStatus::Finished(proposal_commitment),
+            Err(GetProposalResultError::BlockBuilderError(err)) => match err.as_ref() {
+                BlockBuilderError::FailOnError(_) => ProposalStatus::InvalidProposal,
+                _ => return Err(BatcherError::InternalError),
+            },
+            Err(GetProposalResultError::ProposalDoesNotExist { proposal_id: _ })
+            | Err(GetProposalResultError::Aborted) => {
+                panic!("Proposal {} should exist in the proposal manager.", proposal_id)
+            }
+        };
+
+        Ok(SendProposalContentResponse { response })
+    }
+
+    fn close_input_transaction_stream(&mut self, proposal_id: ProposalId) -> BatcherResult<()> {
+        self.validate_proposals
             .remove(&proposal_id)
             .ok_or(BatcherError::ProposalNotFound { proposal_id })?;
-        drop(tx_provider_sender);
-
-        let proposal_commitment =
-            self.proposal_manager.await_proposal_commitment(proposal_id).await?;
-        Ok(SendProposalContentResponse { response: ProposalStatus::Finished(proposal_commitment) })
+        Ok(())
     }
 
     #[instrument(skip(self), err)]
