@@ -367,10 +367,25 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
 
     fn sha256_process_block(
         &mut self,
-        _prev_state: &mut [u32; 8],
-        _current_block: &[u32; 16],
-        _remaining_gas: &mut u128,
+        prev_state: &mut [u32; 8],
+        current_block: &[u32; 16],
+        remaining_gas: &mut u128,
     ) -> SyscallResult<()> {
-        todo!("Implement sha256_process_block syscall.");
+        self.pre_execute_syscall(
+            remaining_gas,
+            SyscallSelector::Sha256ProcessBlock,
+            self.context.gas_costs().sha256_process_block_gas_cost,
+        )?;
+
+        let data_as_bytes = sha2::digest::generic_array::GenericArray::from_exact_iter(
+            current_block.iter().flat_map(|x| x.to_be_bytes()),
+        )
+        .expect(
+            "u32.to_be_bytes() returns 4 bytes, and data.len() == 16. So data contains 64 bytes.",
+        );
+
+        sha2::compress256(prev_state, &[data_as_bytes]);
+
+        Ok(())
     }
 }
