@@ -136,8 +136,10 @@ fn add_tx_and_verify_replacement(
     add_tx(&mut mempool, &valid_replacement_input);
 
     // Verify transaction was replaced.
-    let expected_mempool_content =
-        MempoolContentBuilder::new().with_pool([valid_replacement_input.tx]).build();
+    let expected_mempool_content = MempoolContentBuilder::new()
+        .with_priority_queue([TransactionReference::new(&valid_replacement_input.tx)])
+        .with_pool([valid_replacement_input.tx.clone()])
+        .build();
     expected_mempool_content.assert_eq(&mempool);
 }
 
@@ -159,7 +161,10 @@ fn add_txs_and_verify_no_replacement(
     }
 
     // Verify transaction was not replaced.
-    let expected_mempool_content = MempoolContentBuilder::new().with_pool([existing_tx]).build();
+    let expected_mempool_content = MempoolContentBuilder::new()
+        .with_priority_queue([TransactionReference::new(&existing_tx)])
+        .with_pool([existing_tx])
+        .build();
     expected_mempool_content.assert_eq(&mempool);
 }
 
@@ -365,24 +370,25 @@ fn test_add_tx_failure_on_duplicate_tx_hash(mut mempool: Mempool) {
 }
 
 #[rstest]
-fn test_add_tx_lower_than_queued_nonce(mut mempool: Mempool) {
+#[case::too_old(
+    add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 0, account_nonce: 0),
+    MempoolError::NonceTooOld { address: contract_address!("0x0"), nonce: nonce!(0) }
+)]
+#[case::duplicate(
+    add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 1, account_nonce: 0),
+    MempoolError::DuplicateNonce { address: contract_address!("0x0"), nonce: nonce!(1) }
+)]
+fn test_add_tx_lower_than_queued_nonce(
+    mut mempool: Mempool,
+    #[case] second_input: AddTransactionArgs,
+    #[case] expected_error: MempoolError,
+) {
     // Setup.
     let input = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 1, account_nonce: 1);
     add_tx(&mut mempool, &input);
 
-    // Test and assert: original transaction remains.
-    for tx_nonce in [0, 1] {
-        let invalid_input =
-            add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: tx_nonce, account_nonce: 0);
-        add_tx_expect_error(
-            &mut mempool,
-            &invalid_input,
-            MempoolError::DuplicateNonce {
-                address: contract_address!("0x0"),
-                nonce: nonce!(tx_nonce),
-            },
-        );
-    }
+    // Test and assert.
+    add_tx_expect_error(&mut mempool, &second_input, expected_error);
 }
 
 #[rstest]
@@ -513,6 +519,7 @@ fn test_fee_escalation_valid_replacement() {
         // Setup.
         let tx = tx!(tip: 90, max_l2_gas_price: 90);
         let mempool = MempoolContentBuilder::new()
+            .with_priority_queue([TransactionReference::new(&tx)])
             .with_pool([tx])
             .with_fee_escalation_percentage(10)
             .build_into_mempool();
@@ -531,6 +538,7 @@ fn test_fee_escalation_invalid_replacement() {
     let existing_tx = tx!(tx_hash: 1, tip: 100, max_l2_gas_price: 100);
     let mempool = MempoolContentBuilder::new()
         .with_pool([existing_tx.clone()])
+        .with_priority_queue([TransactionReference::new(&existing_tx)])
         .with_fee_escalation_percentage(10)
         .build_into_mempool();
 
@@ -591,6 +599,7 @@ fn test_fee_escalation_invalid_replacement_overflow_gracefully_handled() {
     for (tip, max_l2_gas_price) in initial_values {
         let existing_tx = tx!(tip: tip, max_l2_gas_price: max_l2_gas_price);
         let mempool = MempoolContentBuilder::new()
+            .with_priority_queue([TransactionReference::new(&existing_tx)])
             .with_pool([existing_tx.clone()])
             .with_fee_escalation_percentage(10)
             .build_into_mempool();
@@ -605,6 +614,7 @@ fn test_fee_escalation_invalid_replacement_overflow_gracefully_handled() {
     // Setup.
     let existing_tx = tx!(tip: u64::MAX >> 1, max_l2_gas_price: u128::MAX >> 1);
     let mempool = MempoolContentBuilder::new()
+        .with_priority_queue([TransactionReference::new(&existing_tx)])
         .with_pool([existing_tx.clone()])
         .with_fee_escalation_percentage(200)
         .build_into_mempool();
