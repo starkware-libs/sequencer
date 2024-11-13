@@ -362,12 +362,17 @@ fn test_gas_computation_regression_test(
     let mut vm_resources = get_vm_resource_usage();
     vm_resources.n_memory_holes = 2;
     let n_reverted_steps = 15;
-    let computation_resources = ComputationResources { vm_resources, n_reverted_steps };
+    let (sierra_gas, reverted_sierra_gas) = match gas_vector_computation_mode {
+        GasVectorComputationMode::NoL2Gas => (GasAmount(0), GasAmount(0)),
+        GasVectorComputationMode::All => (GasAmount(13), GasAmount(7)),
+    };
+    let computation_resources =
+        ComputationResources { vm_resources, n_reverted_steps, sierra_gas, reverted_sierra_gas };
     let actual_computation_resources_gas_vector =
         computation_resources.to_gas_vector(&versioned_constants, &gas_vector_computation_mode);
     let expected_computation_resources_gas_vector = match gas_vector_computation_mode {
         GasVectorComputationMode::NoL2Gas => GasVector::from_l1_gas(GasAmount(31)),
-        GasVectorComputationMode::All => GasVector::from_l2_gas(GasAmount(1033334)),
+        GasVectorComputationMode::All => GasVector::from_l2_gas(GasAmount(1033354)),
     };
     assert_eq!(
         actual_computation_resources_gas_vector, expected_computation_resources_gas_vector,
@@ -393,12 +398,12 @@ fn test_gas_computation_regression_test(
             true => GasVector {
                 l1_gas: GasAmount(21543),
                 l1_data_gas: GasAmount(2720),
-                l2_gas: GasAmount(1120374),
+                l2_gas: GasAmount(1120394),
             },
             false => GasVector {
                 l1_gas: GasAmount(62834),
                 l1_data_gas: GasAmount(0),
-                l2_gas: GasAmount(1120374),
+                l2_gas: GasAmount(1120394),
             },
         },
     };

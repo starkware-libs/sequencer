@@ -15,7 +15,7 @@ use starknet_api::transaction::{Transaction as StarknetApiTransaction, Transacti
 
 use crate::bouncer::verify_tx_weights_within_max_capacity;
 use crate::context::BlockContext;
-use crate::execution::call_info::CallInfo;
+use crate::execution::call_info::{gas_for_fee_from_call_infos, CallInfo, ChargedResources};
 use crate::execution::entry_point::EntryPointExecutionContext;
 use crate::fee::receipt::TransactionReceipt;
 use crate::state::cached_state::TransactionalState;
@@ -153,7 +153,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
         let execute_call_info =
             self.run_execute(state, &mut execution_resources, &mut context, &mut remaining_gas)?;
         let l1_handler_payload_size = self.payload_size();
-
+        let gas_for_fee = gas_for_fee_from_call_infos(&None, &execute_call_info);
         let TransactionReceipt {
             fee: actual_fee,
             da_gas,
@@ -163,8 +163,8 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
             &tx_context,
             l1_handler_payload_size,
             CallInfo::summarize_many(execute_call_info.iter()),
+            &ChargedResources { vm_resources: execution_resources, gas_for_fee },
             &state.get_actual_state_changes()?,
-            &execution_resources,
         );
 
         let paid_fee = self.paid_fee_on_l1;
