@@ -13,14 +13,15 @@ mod precision_test;
 pub mod scenarios;
 pub mod transactions;
 
+use std::fs;
 use std::sync::LazyLock;
-use std::{env, fs};
 
 use goose::goose::{GooseUser, TransactionError};
 use once_cell::sync::OnceCell;
 use rand::Rng;
 use serde::Deserialize;
 use serde_json::{json, Value as jsonVal};
+use starknet_api::test_utils::path_in_resources;
 
 type PostResult = Result<jsonVal, Box<TransactionError>>;
 
@@ -69,11 +70,6 @@ pub fn get_random_block_number() -> u64 {
     let last_block = get_last_block_number();
     let mut rng = rand::thread_rng();
     rng.gen_range(0..=last_block)
-}
-
-// Returns the path to the file_name inside the resources folder in payprus_loadtest module.
-pub fn path_in_resources(file_name: &str) -> String {
-    env::var("CARGO_MANIFEST_DIR").unwrap() + "/resources/" + file_name
 }
 
 // TODO(dvir): update those number with real statics after the node will be in production.
