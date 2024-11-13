@@ -3,6 +3,7 @@ use std::sync::Arc;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::AccountTransaction as ApiTransaction;
+use starknet_api::execution_resources::GasAmount;
 use thiserror::Error;
 
 use crate::blockifier::config::TransactionExecutorConfig;
@@ -124,6 +125,11 @@ impl<S: StateReader> StatefulValidator<S> {
             limit_steps_by_resources,
         )?;
 
+        let gas_for_fee = match &validate_call_info {
+            Some(call_info) => call_info.charged_resources.gas_for_fee,
+            None => GasAmount(0),
+        };
+
         let tx_receipt = TransactionReceipt::from_account_tx(
             tx,
             &tx_context,
@@ -134,6 +140,7 @@ impl<S: StateReader> StatefulValidator<S> {
                 .expect(BLOCK_STATE_ACCESS_ERR)
                 .get_actual_state_changes()?,
             &execution_resources,
+            gas_for_fee,
             CallInfo::summarize_many(validate_call_info.iter()),
             0,
         );

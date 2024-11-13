@@ -10,6 +10,7 @@ use starknet_api::executable_transaction::{
     InvokeTransaction,
     L1HandlerTransaction,
 };
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::{Transaction as StarknetApiTransaction, TransactionHash};
 
@@ -153,7 +154,10 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
         let execute_call_info =
             self.run_execute(state, &mut execution_resources, &mut context, &mut remaining_gas)?;
         let l1_handler_payload_size = self.payload_size();
-
+        let l2_gas = match &execute_call_info {
+            Some(call_info) => call_info.charged_resources.gas_for_fee,
+            None => GasAmount(0),
+        };
         let TransactionReceipt {
             fee: actual_fee,
             da_gas,
@@ -163,6 +167,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
             &tx_context,
             l1_handler_payload_size,
             CallInfo::summarize_many(execute_call_info.iter()),
+            l2_gas,
             &state.get_actual_state_changes()?,
             &execution_resources,
         );

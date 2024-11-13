@@ -1,6 +1,6 @@
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::core::ContractAddress;
-use starknet_api::execution_resources::GasVector;
+use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::transaction::fields::Fee;
 
 use crate::context::TransactionContext;
@@ -31,6 +31,7 @@ struct TransactionReceiptParameters<'a> {
     l1_handler_payload_size: Option<usize>,
     execution_summary_without_fee_transfer: ExecutionSummary,
     execution_resources: &'a ExecutionResources,
+    l2_gas: GasAmount,
     tx_type: TransactionType,
     reverted_steps: usize,
 }
@@ -59,6 +60,7 @@ impl TransactionReceipt {
             l1_handler_payload_size,
             execution_summary_without_fee_transfer,
             execution_resources,
+            l2_gas,
             tx_type,
             reverted_steps,
         } = tx_receipt_params;
@@ -72,6 +74,8 @@ impl TransactionReceipt {
             execution_summary_without_fee_transfer,
         );
 
+        // Transaction overhead ('additional') resources are computed in VM resources no matter what
+        // the tracked resources of the transaction are.
         let cairo_resources = (execution_resources
             + &tx_context.block_context.versioned_constants.get_additional_os_tx_resources(
                 tx_type,
@@ -85,6 +89,8 @@ impl TransactionReceipt {
             computation: ComputationResources {
                 vm_resources: cairo_resources,
                 n_reverted_steps: reverted_steps,
+                l2_gas,
+                reverted_l2_gas: GasAmount(0), // TODO(tzahi): compute value.
             },
         };
 
@@ -113,6 +119,7 @@ impl TransactionReceipt {
         tx_context: &'a TransactionContext,
         l1_handler_payload_size: usize,
         execution_summary_without_fee_transfer: ExecutionSummary,
+        l2_gas: GasAmount,
         state_changes: &'a StateChanges,
         execution_resources: &'a ExecutionResources,
     ) -> Self {
@@ -126,6 +133,7 @@ impl TransactionReceipt {
             l1_handler_payload_size: Some(l1_handler_payload_size),
             execution_summary_without_fee_transfer,
             execution_resources,
+            l2_gas,
             tx_type: TransactionType::L1Handler,
             reverted_steps: 0,
         })
@@ -137,6 +145,7 @@ impl TransactionReceipt {
         tx_context: &'a TransactionContext,
         state_changes: &'a StateChanges,
         execution_resources: &'a ExecutionResources,
+        l2_gas: GasAmount,
         execution_summary_without_fee_transfer: ExecutionSummary,
         reverted_steps: usize,
     ) -> Self {
@@ -150,6 +159,7 @@ impl TransactionReceipt {
             l1_handler_payload_size: None,
             execution_summary_without_fee_transfer,
             execution_resources,
+            l2_gas,
             tx_type: account_tx.tx_type(),
             reverted_steps,
         })

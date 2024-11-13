@@ -12,6 +12,7 @@ use starknet_api::executable_transaction::{
     DeployAccountTransaction,
     InvokeTransaction,
 };
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::Resource::{L1DataGas, L1Gas, L2Gas};
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
@@ -595,11 +596,20 @@ impl AccountTransaction {
                 self.run_execute(state, &mut resources, &mut execution_context, remaining_gas)?;
         }
 
+        let gas_for_fee = match &validate_call_info {
+            Some(call_info) => call_info.charged_resources.gas_for_fee,
+            None => GasAmount(0),
+        } + match &execute_call_info {
+            Some(call_info) => call_info.charged_resources.gas_for_fee,
+            None => GasAmount(0),
+        };
+
         let tx_receipt = TransactionReceipt::from_account_tx(
             self,
             &tx_context,
             &state.get_actual_state_changes()?,
             &resources,
+            gas_for_fee,
             CallInfo::summarize_many(validate_call_info.iter().chain(execute_call_info.iter())),
             0,
         );
@@ -658,15 +668,21 @@ impl AccountTransaction {
             &mut execution_context,
             remaining_gas,
         );
+        let validate_gas_for_fee = match &validate_call_info {
+            Some(call_info) => call_info.charged_resources.gas_for_fee,
+            None => GasAmount(0),
+        };
 
         // Pre-compute cost in case of revert.
+        // TODO(tzahi): add reverted_l2_gas to the receipt.
         let execution_steps_consumed =
             n_allotted_execution_steps - execution_context.n_remaining_steps();
-        let revert_cost = TransactionReceipt::from_account_tx(
+        let revert_receipt = TransactionReceipt::from_account_tx(
             self,
             &tx_context,
             &validate_state_changes,
             &resources,
+            validate_gas_for_fee,
             CallInfo::summarize_many(validate_call_info.iter()),
             execution_steps_consumed,
         );
@@ -683,6 +699,11 @@ impl AccountTransaction {
                         execution_state.get_actual_state_changes()?,
                     ]),
                     &execution_resources,
+                    validate_gas_for_fee
+                        + match &execute_call_info {
+                            Some(call_info) => call_info.charged_resources.gas_for_fee,
+                            None => GasAmount(0),
+                        },
                     CallInfo::summarize_many(
                         validate_call_info.iter().chain(execute_call_info.iter()),
                     ),
@@ -707,7 +728,7 @@ impl AccountTransaction {
                             post_execution_error.to_string(),
                             TransactionReceipt {
                                 fee: post_execution_report.recommended_fee(),
-                                ..revert_cost
+                                ..revert_receipt
                             },
                         ))
                     }
@@ -726,13 +747,13 @@ impl AccountTransaction {
                 // Error during execution. Revert, even if the error is sequencer-related.
                 execution_state.abort();
                 let post_execution_report =
-                    PostExecutionReport::new(state, &tx_context, &revert_cost, charge_fee)?;
+                    PostExecutionReport::new(state, &tx_context, &revert_receipt, charge_fee)?;
                 Ok(ValidateExecuteCallInfo::new_reverted(
                     validate_call_info,
                     execution_error.to_string(),
                     TransactionReceipt {
                         fee: post_execution_report.recommended_fee(),
-                        ..revert_cost
+                        ..revert_receipt
                     },
                 ))
             }

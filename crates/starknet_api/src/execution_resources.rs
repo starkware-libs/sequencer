@@ -9,9 +9,10 @@ use crate::transaction::fields::{Fee, Resource};
 
 #[cfg_attr(
     any(test, feature = "testing"),
-    derive(derive_more::Add, derive_more::Sum, derive_more::AddAssign, derive_more::Div)
+    derive(derive_more::Sum, derive_more::AddAssign, derive_more::Div)
 )]
 #[derive(
+    derive_more::Add,
     derive_more::Display,
     Clone,
     Copy,
@@ -68,11 +69,8 @@ impl GasAmount {
     }
 }
 
-#[cfg_attr(
-    any(test, feature = "testing"),
-    derive(derive_more::Add, derive_more::Sum, derive_more::AddAssign)
-)]
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
+#[cfg_attr(any(test, feature = "testing"), derive(derive_more::Sum, derive_more::AddAssign))]
+#[derive(derive_more::Add, Clone, Copy, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct GasVector {
     pub l1_gas: GasAmount,
     pub l1_data_gas: GasAmount,

@@ -57,7 +57,8 @@ impl TransactionResources {
 pub struct ComputationResources {
     pub vm_resources: ExecutionResources,
     pub n_reverted_steps: usize,
-    // TODO(Tzahi): add sierra_gas here.
+    pub l2_gas: GasAmount,
+    pub reverted_l2_gas: GasAmount,
 }
 
 impl ComputationResources {
@@ -71,7 +72,7 @@ impl ComputationResources {
             &self.vm_resources,
             self.n_reverted_steps,
             computation_mode,
-        )
+        ) + GasVector::from_l2_gas(self.l2_gas + self.reverted_l2_gas)
     }
 
     #[cfg(test)]
