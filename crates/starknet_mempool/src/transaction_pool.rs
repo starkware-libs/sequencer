@@ -99,14 +99,14 @@ impl TransactionPool {
         &self,
         address: ContractAddress,
         nonce: Nonce,
-    ) -> Option<&TransactionReference> {
+    ) -> Option<TransactionReference> {
         self.txs_by_account.get(address, nonce)
     }
 
     pub fn get_next_eligible_tx(
         &self,
         current_account_state: AccountState,
-    ) -> MempoolResult<Option<&TransactionReference>> {
+    ) -> MempoolResult<Option<TransactionReference>> {
         let AccountState { address, nonce } = current_account_state;
         let next_nonce = try_increment_nonce(nonce)?;
         Ok(self.get_by_address_and_nonce(address, next_nonce))
@@ -139,8 +139,8 @@ impl AccountTransactionIndex {
         removed_tx
     }
 
-    fn get(&self, address: ContractAddress, nonce: Nonce) -> Option<&TransactionReference> {
-        self.0.get(&address)?.get(&nonce)
+    fn get(&self, address: ContractAddress, nonce: Nonce) -> Option<TransactionReference> {
+        self.0.get(&address)?.get(&nonce).copied()
     }
 
     fn account_txs_sorted_by_nonce(

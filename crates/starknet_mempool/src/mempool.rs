@@ -227,7 +227,7 @@ impl Mempool {
             if let Some(next_tx_reference) =
                 self.tx_pool.get_next_eligible_tx(current_account_state)?
             {
-                self.tx_queue.insert(*next_tx_reference);
+                self.tx_queue.insert(next_tx_reference);
             }
         }
 
@@ -250,7 +250,7 @@ impl Mempool {
         // Maybe close nonce gap.
         if self.tx_queue.get_nonce(address).is_none() {
             if let Some(tx_reference) = self.tx_pool.get_by_address_and_nonce(address, nonce) {
-                self.tx_queue.insert(*tx_reference);
+                self.tx_queue.insert(tx_reference);
             }
         }
     }
@@ -268,10 +268,10 @@ impl Mempool {
             return Ok(());
         };
 
-        if !self.should_replace_tx(existing_tx_ref, &incoming_tx_ref) {
+        if !self.should_replace_tx(&existing_tx_ref, &incoming_tx_ref) {
             tracing::debug!(
                 "{existing_tx_ref} was not replaced by {incoming_tx_ref} due to insufficient
-            fee escalation."
+                fee escalation."
             );
             // TODO(Elin): consider adding a more specific error type / message.
             return Err(MempoolError::DuplicateNonce { address, nonce });
