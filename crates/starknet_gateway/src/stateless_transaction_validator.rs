@@ -57,6 +57,9 @@ impl StatelessTransactionValidator {
         if self.config.validate_non_zero_l2_gas_fee {
             validate_resource_is_non_zero(resource_bounds_mapping, Resource::L2Gas)?;
         }
+        if self.config.validate_non_zero_l1_data_gas_fee {
+            validate_resource_is_non_zero(resource_bounds_mapping, Resource::L1DataGas)?;
+        }
 
         Ok(())
     }

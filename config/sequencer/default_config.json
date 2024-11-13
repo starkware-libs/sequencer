@@ -764,6 +764,11 @@
     "privacy": "Public",
     "value": 0
   },
+  "gateway_config.stateless_tx_validator_config.validate_non_zero_l1_data_gas_fee": {
+    "description": "If true, validates that a transaction has non-zero L1 Data (Blob) resource bounds.",
+    "privacy": "Public",
+    "value": false
+  },
   "gateway_config.stateless_tx_validator_config.validate_non_zero_l1_gas_fee": {
     "description": "If true, validates that a transaction has non-zero L1 resource bounds.",
     "privacy": "Public",
