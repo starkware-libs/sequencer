@@ -8,9 +8,9 @@ use assert_matches::assert_matches;
 use clap::Command;
 use itertools::chain;
 use lazy_static::lazy_static;
-use papyrus_test_utils::get_absolute_path;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use starknet_api::test_utils::get_absolute_path;
 use tempfile::TempDir;
 use validator::Validate;
 
