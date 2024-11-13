@@ -1,4 +1,6 @@
 use std::collections::{BTreeMap, HashMap};
+use std::env;
+use std::sync::LazyLock;
 
 use assert_matches::assert_matches;
 use blockifier::context::{ChainInfo, FeeTokenAddresses};
@@ -25,7 +27,10 @@ use crate::state_reader::test_state_reader::{
     SerializableOfflineReexecutionData,
 };
 
-pub const RPC_NODE_URL: &str = "https://free-rpc.nethermind.io/mainnet-juno/";
+pub static RPC_NODE_URL: LazyLock<String> = LazyLock::new(|| {
+    env::var("TEST_URL")
+        .unwrap_or_else(|_| "https://free-rpc.nethermind.io/mainnet-juno/".to_string())
+});
 pub const JSON_RPC_VERSION: &str = "2.0";
 
 /// Returns the fee token addresses of mainnet.
@@ -43,7 +48,7 @@ pub fn get_fee_token_addresses(chain_id: &ChainId) -> FeeTokenAddresses {
 /// Returns the RPC state reader configuration with the constants RPC_NODE_URL and JSON_RPC_VERSION.
 pub fn get_rpc_state_reader_config() -> RpcStateReaderConfig {
     RpcStateReaderConfig {
-        url: RPC_NODE_URL.to_string(),
+        url: RPC_NODE_URL.clone(),
         json_rpc_version: JSON_RPC_VERSION.to_string(),
     }
 }
