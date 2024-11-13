@@ -2,7 +2,6 @@ use mempool_test_utils::declare_tx_args;
 use mempool_test_utils::starknet_api_test_utils::{
     rpc_declare_tx,
     rpc_deploy_account_tx,
-    rpc_invoke_tx,
     TEST_SENDER_ADDRESS,
 };
 use starknet_api::block::GasPrice;
@@ -10,6 +9,7 @@ use starknet_api::core::ContractAddress;
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::{ContractClass, RpcTransaction};
+use starknet_api::test_utils::invoke::rpc_invoke_tx;
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
