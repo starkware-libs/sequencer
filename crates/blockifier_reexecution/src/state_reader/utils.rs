@@ -29,10 +29,14 @@ pub const RPC_NODE_URL: &str = "https://free-rpc.nethermind.io/mainnet-juno/";
 pub const JSON_RPC_VERSION: &str = "2.0";
 
 /// Returns the fee token addresses of mainnet.
-pub fn get_fee_token_addresses() -> FeeTokenAddresses {
-    FeeTokenAddresses {
-        strk_fee_token_address: *STRK_FEE_CONTRACT_ADDRESS,
-        eth_fee_token_address: *ETH_FEE_CONTRACT_ADDRESS,
+pub fn get_fee_token_addresses(chain_id: &ChainId) -> FeeTokenAddresses {
+    match chain_id {
+        // Mainnet, testnet and integration systems have the same fee token addresses.
+        ChainId::Mainnet | ChainId::Sepolia | ChainId::IntegrationSepolia => FeeTokenAddresses {
+            strk_fee_token_address: *STRK_FEE_CONTRACT_ADDRESS,
+            eth_fee_token_address: *ETH_FEE_CONTRACT_ADDRESS,
+        },
+        unknown_chain => unimplemented!("Unknown chain ID {unknown_chain}."),
     }
 }
 
@@ -45,8 +49,8 @@ pub fn get_rpc_state_reader_config() -> RpcStateReaderConfig {
 }
 
 /// Returns the chain info of mainnet.
-pub fn get_chain_info() -> ChainInfo {
-    ChainInfo { chain_id: ChainId::Mainnet, fee_token_addresses: get_fee_token_addresses() }
+pub fn get_chain_info(chain_id: &ChainId) -> ChainInfo {
+    ChainInfo { chain_id: chain_id.clone(), fee_token_addresses: get_fee_token_addresses(chain_id) }
 }
 
 // TODO(Aner): import the following functions instead, to reduce code duplication.
