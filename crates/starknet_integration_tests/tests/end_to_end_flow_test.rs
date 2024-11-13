@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use futures::StreamExt;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use papyrus_network::network_manager::BroadcastTopicChannels;
@@ -54,7 +56,7 @@ async fn listen_to_broadcasted_messages(
     let chain_id = ChainId::Other(CHAIN_ID_NAME.to_string());
     let mut broadcasted_messages_receiver =
         consensus_proposals_channels.broadcasted_messages_receiver;
-    let mut received_tx_hashes = vec![];
+    let mut received_tx_hashes = HashSet::new();
     // TODO (Dan, Guy): retrieve / calculate the expected proposal init and fin.
     let expected_proposal_init = ProposalInit {
         height: BlockNumber(1),
@@ -88,5 +90,9 @@ async fn listen_to_broadcasted_messages(
             }
         }
     }
-    assert_eq!(received_tx_hashes, expected_batched_tx_hashes);
+    // Using HashSet to ignore the order of the transactions (broadcast can lead to reordering).
+    assert_eq!(
+        received_tx_hashes,
+        expected_batched_tx_hashes.iter().cloned().collect::<HashSet<_>>()
+    );
 }
