@@ -33,6 +33,59 @@ pub struct SequencerNodeClients {
     mempool_p2p_propagator_client: Option<SharedMempoolP2pPropagatorClient>,
 }
 
+/// A macro to retrieve a shared client (either local or remote) from a specified field in a struct,
+/// returning it wrapped in an `Arc`. This macro simplifies access to a client by checking if a
+/// `local_client` or `remote_client` exists within the specified client field and returning the
+/// first available one.
+///
+/// # Arguments
+///
+/// * `$self` - The `self` reference to the struct that contains the client field.
+/// * `$client_field` - The field name (within `self`) representing the client, which has both
+///   `local_client` and `remote_client` as options.
+///
+/// # Returns
+///
+/// An `Option<Arc<dyn Trait>>` containing the first available client (local or remote) wrapped in
+/// an `Arc`. If neither client exists, it returns `None`.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// // Assuming `SequencerNodeClients` struct has fields `batcher_client` and `mempool_client`,
+/// // each with methods `get_local_client()` and `get_remote_client()`.
+/// impl SequencerNodeClients {
+///     pub fn get_batcher_client(&self) -> Option<Arc<dyn BatcherClient>> {
+///         get_shared_client!(self, batcher_client)
+///     }
+///
+///     pub fn get_mempool_client(&self) -> Option<Arc<dyn MempoolClient>> {
+///         get_shared_client!(self, mempool_client)
+///     }
+/// }
+/// ```
+///
+/// In this example, `get_shared_client!` checks if `batcher_client` has a local or remote client
+/// available. If a local client exists, it returns `Some(Arc::new(local_client))`; otherwise,
+/// it checks for a remote client and returns `Some(Arc::new(remote_client))` if available.
+/// If neither client is available, it returns `None`.
+///
+/// This macro is useful for reducing boilerplate code when accessing clients that may be either
+/// local or remote, simplifying the logic for retrieving the first available client.
+#[macro_export]
+macro_rules! get_shared_client {
+    ($self:ident, $client_field:ident) => {{
+        if let Some(client) = &$self.$client_field {
+            if let Some(local_client) = client.get_local_client() {
+                return Some(Arc::new(local_client));
+            } else if let Some(remote_client) = client.get_remote_client() {
+                return Some(Arc::new(remote_client));
+            }
+        }
+        None
+    }};
+}
+
 impl SequencerNodeClients {
     pub fn get_batcher_client(&self) -> Option<SharedBatcherClient> {
         self.batcher_client.clone()
