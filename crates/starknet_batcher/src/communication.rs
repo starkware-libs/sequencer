@@ -1,11 +1,12 @@
 use async_trait::async_trait;
 use starknet_batcher_types::communication::{BatcherRequest, BatcherResponse};
 use starknet_sequencer_infra::component_definitions::ComponentRequestHandler;
-use starknet_sequencer_infra::component_server::LocalComponentServer;
+use starknet_sequencer_infra::component_server::{LocalComponentServer, RemoteComponentServer};
 
 use crate::batcher::Batcher;
 
 pub type LocalBatcherServer = LocalComponentServer<Batcher, BatcherRequest, BatcherResponse>;
+pub type RemoteBatcherServer = RemoteComponentServer<BatcherRequest, BatcherResponse>;
 
 #[async_trait]
 impl ComponentRequestHandler<BatcherRequest, BatcherResponse> for Batcher {
