@@ -78,28 +78,30 @@ pub trait BlockBuilderTrait: Send {
 pub struct BlockBuilder {
     // TODO(Yael 14/10/2024): make the executor thread safe and delete this mutex.
     executor: Mutex<Box<dyn TransactionExecutorTrait>>,
-    tx_chunk_size: usize,
-    deadline: tokio::time::Instant,
     tx_provider: Box<dyn TransactionProvider>,
     output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<Transaction>>,
+
+    // Parameters to configure the block builder behavior.
+    tx_chunk_size: usize,
+    deadline: tokio::time::Instant,
     fail_on_err: bool,
 }
 
 impl BlockBuilder {
     pub fn new(
         executor: Box<dyn TransactionExecutorTrait>,
-        tx_chunk_size: usize,
-        deadline: tokio::time::Instant,
         tx_provider: Box<dyn TransactionProvider>,
         output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<Transaction>>,
+        tx_chunk_size: usize,
+        deadline: tokio::time::Instant,
         fail_on_err: bool,
     ) -> Self {
         Self {
             executor: Mutex::new(executor),
-            tx_chunk_size,
-            deadline,
             tx_provider,
             output_content_sender,
+            tx_chunk_size,
+            deadline,
             fail_on_err,
         }
     }
@@ -184,17 +186,25 @@ async fn collect_execution_results_and_stream_txs(
     Ok(false)
 }
 
+pub struct BlockMetadata {
+    pub height: BlockNumber,
+    pub retrospective_block_hash: Option<BlockHashAndNumber>,
+}
+
+pub struct BlockBuilderExecutionParams {
+    pub deadline: tokio::time::Instant,
+    pub fail_on_err: bool,
+}
+
 /// The BlockBuilderFactoryTrait is responsible for creating a new block builder.
 #[cfg_attr(test, automock)]
 pub trait BlockBuilderFactoryTrait {
     fn create_block_builder(
         &self,
-        height: BlockNumber,
-        retrospective_block_hash: Option<BlockHashAndNumber>,
-        deadline: tokio::time::Instant,
+        block_metatdata: BlockMetadata,
+        execution_params: BlockBuilderExecutionParams,
         tx_provider: Box<dyn TransactionProvider>,
         output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<Transaction>>,
-        fail_on_err: bool,
     ) -> BlockBuilderResult<Box<dyn BlockBuilderTrait>>;
 }
 
@@ -316,22 +326,22 @@ impl BlockBuilderFactory {
 impl BlockBuilderFactoryTrait for BlockBuilderFactory {
     fn create_block_builder(
         &self,
-        height: BlockNumber,
-        retrospective_block_hash: Option<BlockHashAndNumber>,
-        deadline: tokio::time::Instant,
+        block_metatdata: BlockMetadata,
+        execution_params: BlockBuilderExecutionParams,
         tx_provider: Box<dyn TransactionProvider>,
         output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<Transaction>>,
-        fail_on_err: bool,
     ) -> BlockBuilderResult<Box<dyn BlockBuilderTrait>> {
-        let executor =
-            self.preprocess_and_create_transaction_executor(height, retrospective_block_hash)?;
+        let executor = self.preprocess_and_create_transaction_executor(
+            block_metatdata.height,
+            block_metatdata.retrospective_block_hash,
+        )?;
         Ok(Box::new(BlockBuilder::new(
             Box::new(executor),
-            self.block_builder_config.tx_chunk_size,
-            deadline,
             tx_provider,
             output_content_sender,
-            fail_on_err,
+            self.block_builder_config.tx_chunk_size,
+            execution_params.deadline,
+            execution_params.fail_on_err,
         )))
     }
 }
