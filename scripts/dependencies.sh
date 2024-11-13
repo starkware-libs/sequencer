@@ -52,6 +52,8 @@ function main() {
     [ "$(uname)" = "Linux" ] && install_essential_deps_linux
     setup_llvm_deps
     echo "LLVM dependencies installed successfully."
+    # Update git submodules for the cairo-native submodule used in the blockifier.
+    git submodule update --init --recursive
 }
 
 main "$@"
