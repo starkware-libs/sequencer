@@ -3,8 +3,8 @@ use std::io::Write;
 use std::path::PathBuf;
 
 use serde_json::{json, Value};
+use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::config::test_utils::RequiredParams;
-use starknet_sequencer_node::config::SequencerNodeConfig;
 use tracing::info;
 // TODO(Tsabary): Move here all config-related functions from "integration_test_utils.rs".
 

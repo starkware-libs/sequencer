@@ -1,5 +1,5 @@
 use papyrus_config::dumping::SerializeConfig;
-use starknet_sequencer_node::config::{
+use starknet_sequencer_node::config::node_config::{
     SequencerNodeConfig,
     CONFIG_NON_POINTERS_WHITELIST,
     CONFIG_POINTERS,
