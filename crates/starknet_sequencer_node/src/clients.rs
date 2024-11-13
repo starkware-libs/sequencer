@@ -1,36 +1,46 @@
 use std::sync::Arc;
 
 use starknet_batcher_types::communication::{
+    BatcherRequest,
+    BatcherResponse,
     LocalBatcherClient,
     RemoteBatcherClient,
     SharedBatcherClient,
 };
 use starknet_gateway_types::communication::{
+    GatewayRequest,
+    GatewayResponse,
     LocalGatewayClient,
     RemoteGatewayClient,
     SharedGatewayClient,
 };
 use starknet_mempool_p2p_types::communication::{
     LocalMempoolP2pPropagatorClient,
+    MempoolP2pPropagatorRequest,
+    MempoolP2pPropagatorResponse,
     RemoteMempoolP2pPropagatorClient,
     SharedMempoolP2pPropagatorClient,
 };
 use starknet_mempool_types::communication::{
     LocalMempoolClient,
+    MempoolRequest,
+    MempoolResponse,
     RemoteMempoolClient,
     SharedMempoolClient,
 };
+use starknet_sequencer_infra::component_client::Client;
 
 use crate::communication::SequencerNodeCommunication;
 use crate::config::component_execution_config::ComponentExecutionMode;
 use crate::config::node_config::SequencerNodeConfig;
 
 pub struct SequencerNodeClients {
-    batcher_client: Option<SharedBatcherClient>,
-    mempool_client: Option<SharedMempoolClient>,
-    gateway_client: Option<SharedGatewayClient>,
+    batcher_client: Option<Client<BatcherRequest, BatcherResponse>>,
+    mempool_client: Option<Client<MempoolRequest, MempoolResponse>>,
+    gateway_client: Option<Client<GatewayRequest, GatewayResponse>>,
     // TODO (Lev): Change to Option<Box<dyn MemPoolClient>>.
-    mempool_p2p_propagator_client: Option<SharedMempoolP2pPropagatorClient>,
+    mempool_p2p_propagator_client:
+        Option<Client<MempoolP2pPropagatorRequest, MempoolP2pPropagatorResponse>>,
 }
 
 /// A macro to retrieve a shared client (either local or remote) from a specified field in a struct,
@@ -84,25 +94,25 @@ macro_rules! get_shared_client {
 
 impl SequencerNodeClients {
     pub fn get_batcher_client(&self) -> Option<SharedBatcherClient> {
-        self.batcher_client.clone()
+        get_shared_client!(self, batcher_client)
     }
 
     pub fn get_mempool_client(&self) -> Option<SharedMempoolClient> {
-        self.mempool_client.clone()
+        get_shared_client!(self, mempool_client)
     }
 
     pub fn get_gateway_client(&self) -> Option<SharedGatewayClient> {
-        self.gateway_client.clone()
+        get_shared_client!(self, gateway_client)
     }
 
     pub fn get_mempool_p2p_propagator_client(&self) -> Option<SharedMempoolP2pPropagatorClient> {
-        self.mempool_p2p_propagator_client.clone()
+        get_shared_client!(self, mempool_p2p_propagator_client)
     }
 }
 
 /// A macro for creating a component client, determined by the component's execution mode. Returns a
-/// local client if the component is run locally, or a remote client if the execution mode is
-/// Remote, otherwise None.
+/// `Client` containing either a local client if the component is run locally, or a remote client if
+/// the execution mode is Remote. Returns None if the execution mode is Disabled.
 ///
 /// # Arguments
 ///
@@ -118,7 +128,7 @@ impl SequencerNodeClients {
 ///
 /// # Returns
 ///
-/// An `Option<Arc<dyn ClientType>>` containing the client if the execution mode is enabled
+/// An `Option<Client<...>>` containing either a local or remote client based on the execution mode
 /// (LocalExecutionWithRemoteDisabled / LocalExecutionWithRemoteEnabled for local clients, Remote
 /// for remote clients), or None if the execution mode is Disabled.
 ///
@@ -128,7 +138,7 @@ impl SequencerNodeClients {
 /// // Assuming ComponentExecutionMode, channels, and remote client configuration are defined, and
 /// // LocalBatcherClient and RemoteBatcherClient have new methods that accept a channel and config,
 /// // respectively.
-/// let batcher_client: Option<SharedBatcherClient> = create_client!(
+/// let batcher_client: Option<Client<BatcherRequest, BatcherResponse>> = create_client!(
 ///     &config.components.batcher.execution_mode,
 ///     LocalBatcherClient,
 ///     RemoteBatcherClient,
@@ -152,10 +162,14 @@ macro_rules! create_client {
         match *$execution_mode {
             ComponentExecutionMode::LocalExecutionWithRemoteDisabled
             | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-                Some(Arc::new(<$local_client_type>::new($channel_expr)))
+                let local_client = Some(<$local_client_type>::new($channel_expr));
+                Some(Client::new(local_client, None))
             }
             ComponentExecutionMode::Remote => match $remote_client_config {
-                Some(ref config) => Some(Arc::new(<$remote_client_type>::new(config.clone()))),
+                Some(ref config) => {
+                    let remote_client = Some(<$remote_client_type>::new(config.clone()));
+                    Some(Client::new(None, remote_client))
+                }
                 None => None,
             },
             ComponentExecutionMode::Disabled => None,
@@ -167,21 +181,21 @@ pub fn create_node_clients(
     config: &SequencerNodeConfig,
     channels: &mut SequencerNodeCommunication,
 ) -> SequencerNodeClients {
-    let batcher_client: Option<SharedBatcherClient> = create_client!(
+    let batcher_client = create_client!(
         &config.components.batcher.execution_mode,
         LocalBatcherClient,
         RemoteBatcherClient,
         channels.take_batcher_tx(),
         config.components.batcher.remote_client_config
     );
-    let mempool_client: Option<SharedMempoolClient> = create_client!(
+    let mempool_client = create_client!(
         &config.components.mempool.execution_mode,
         LocalMempoolClient,
         RemoteMempoolClient,
         channels.take_mempool_tx(),
         config.components.mempool.remote_client_config
     );
-    let gateway_client: Option<SharedGatewayClient> = create_client!(
+    let gateway_client = create_client!(
         &config.components.gateway.execution_mode,
         LocalGatewayClient,
         RemoteGatewayClient,
@@ -189,7 +203,7 @@ pub fn create_node_clients(
         config.components.gateway.remote_client_config
     );
 
-    let mempool_p2p_propagator_client: Option<SharedMempoolP2pPropagatorClient> = create_client!(
+    let mempool_p2p_propagator_client = create_client!(
         &config.components.mempool_p2p.execution_mode,
         LocalMempoolP2pPropagatorClient,
         RemoteMempoolP2pPropagatorClient,
