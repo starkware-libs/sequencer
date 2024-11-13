@@ -112,6 +112,26 @@ impl ChargedResources {
     }
 }
 
+/// Returns the total gas_for_fee used in the given validate and execute calls.
+pub fn gas_for_fee_from_call_infos(
+    validate: &Option<CallInfo>,
+    execute: &Option<CallInfo>,
+) -> GasAmount {
+    let validate_gas_amount = validate
+        .as_ref()
+        .map(|call_info| call_info.charged_resources.gas_for_fee)
+        .unwrap_or(GasAmount(0));
+    let execute_gas_amount = execute
+        .as_ref()
+        .map(|call_info| call_info.charged_resources.gas_for_fee)
+        .unwrap_or(GasAmount(0));
+    validate_gas_amount.checked_add(execute_gas_amount).unwrap_or_else(|| {
+        panic!(
+            "Gas for fee overflowed: tried to add {execute_gas_amount} to \
+             {validate_gas_amount}",
+        )
+    })
+}
 /// Represents the full effects of executing an entry point, including the inner calls it invoked.
 #[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]

@@ -1,10 +1,9 @@
-use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::core::ContractAddress;
-use starknet_api::execution_resources::GasVector;
+use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::transaction::fields::Fee;
 
 use crate::context::TransactionContext;
-use crate::execution::call_info::ExecutionSummary;
+use crate::execution::call_info::{ChargedResources, ExecutionSummary};
 use crate::fee::resources::{
     ComputationResources,
     StarknetResources,
@@ -30,7 +29,7 @@ struct TransactionReceiptParameters<'a> {
     sender_address: Option<ContractAddress>,
     l1_handler_payload_size: Option<usize>,
     execution_summary_without_fee_transfer: ExecutionSummary,
-    execution_resources: &'a ExecutionResources,
+    charged_resources: &'a ChargedResources,
     tx_type: TransactionType,
     reverted_steps: usize,
 }
@@ -58,7 +57,7 @@ impl TransactionReceipt {
             sender_address,
             l1_handler_payload_size,
             execution_summary_without_fee_transfer,
-            execution_resources,
+            charged_resources,
             tx_type,
             reverted_steps,
         } = tx_receipt_params;
@@ -72,7 +71,9 @@ impl TransactionReceipt {
             execution_summary_without_fee_transfer,
         );
 
-        let cairo_resources = (execution_resources
+        // Transaction overhead ('additional') resources are computed in VM resources no matter what
+        // the tracked resources of the transaction are.
+        let cairo_resources = (&charged_resources.vm_resources
             + &tx_context.block_context.versioned_constants.get_additional_os_tx_resources(
                 tx_type,
                 &starknet_resources,
@@ -85,6 +86,8 @@ impl TransactionReceipt {
             computation: ComputationResources {
                 vm_resources: cairo_resources,
                 n_reverted_steps: reverted_steps,
+                sierra_gas: charged_resources.gas_for_fee,
+                reverted_sierra_gas: GasAmount(0), // TODO(tzahi): compute value.
             },
         };
 
@@ -113,8 +116,8 @@ impl TransactionReceipt {
         tx_context: &'a TransactionContext,
         l1_handler_payload_size: usize,
         execution_summary_without_fee_transfer: ExecutionSummary,
+        charged_resources: &'a ChargedResources,
         state_changes: &'a StateChanges,
-        execution_resources: &'a ExecutionResources,
     ) -> Self {
         Self::from_params(TransactionReceiptParameters {
             tx_context,
@@ -125,7 +128,7 @@ impl TransactionReceipt {
             sender_address: None, // L1 handlers have no sender address.
             l1_handler_payload_size: Some(l1_handler_payload_size),
             execution_summary_without_fee_transfer,
-            execution_resources,
+            charged_resources,
             tx_type: TransactionType::L1Handler,
             reverted_steps: 0,
         })
@@ -136,7 +139,7 @@ impl TransactionReceipt {
         account_tx: &'a AccountTransaction,
         tx_context: &'a TransactionContext,
         state_changes: &'a StateChanges,
-        execution_resources: &'a ExecutionResources,
+        charged_resources: &'a ChargedResources,
         execution_summary_without_fee_transfer: ExecutionSummary,
         reverted_steps: usize,
     ) -> Self {
@@ -149,7 +152,7 @@ impl TransactionReceipt {
             sender_address: Some(tx_context.tx_info.sender_address()),
             l1_handler_payload_size: None,
             execution_summary_without_fee_transfer,
-            execution_resources,
+            charged_resources,
             tx_type: account_tx.tx_type(),
             reverted_steps,
         })

@@ -28,7 +28,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::abi::abi_utils::selector_from_name;
 use crate::context::{BlockContext, TransactionContext};
-use crate::execution::call_info::CallInfo;
+use crate::execution::call_info::{gas_for_fee_from_call_infos, CallInfo, ChargedResources};
 use crate::execution::contract_class::RunnableContractClass;
 use crate::execution::entry_point::{CallEntryPoint, CallType, EntryPointExecutionContext};
 use crate::execution::stack_trace::extract_trailing_cairo1_revert_trace;
@@ -595,11 +595,13 @@ impl AccountTransaction {
                 self.run_execute(state, &mut resources, &mut execution_context, remaining_gas)?;
         }
 
+        let gas_for_fee = gas_for_fee_from_call_infos(&validate_call_info, &execute_call_info);
+
         let tx_receipt = TransactionReceipt::from_account_tx(
             self,
             &tx_context,
             &state.get_actual_state_changes()?,
-            &resources,
+            &ChargedResources { vm_resources: resources, gas_for_fee },
             CallInfo::summarize_many(validate_call_info.iter().chain(execute_call_info.iter())),
             0,
         );
@@ -624,13 +626,13 @@ impl AccountTransaction {
         validate: bool,
         charge_fee: bool,
     ) -> TransactionExecutionResult<ValidateExecuteCallInfo> {
-        let mut resources = ExecutionResources::default();
+        let mut validate_resources = ExecutionResources::default();
         let mut execution_context =
             EntryPointExecutionContext::new_invoke(tx_context.clone(), charge_fee);
         // Run the validation, and if execution later fails, only keep the validation diff.
         let validate_call_info = self.handle_validate_tx(
             state,
-            &mut resources,
+            &mut validate_resources,
             tx_context.clone(),
             remaining_gas,
             validate,
@@ -647,9 +649,9 @@ impl AccountTransaction {
         // resource and fee calculation.
         let validate_state_changes = state.get_actual_state_changes()?;
 
-        // Create copies of state and resources for the execution.
+        // Create copies of state and validate_resources for the execution.
         // Both will be rolled back if the execution is reverted or committed upon success.
-        let mut execution_resources = resources.clone();
+        let mut execution_resources = validate_resources.clone();
         let mut execution_state = TransactionalState::create_transactional(state);
 
         let execution_result = self.run_execute(
@@ -658,15 +660,17 @@ impl AccountTransaction {
             &mut execution_context,
             remaining_gas,
         );
+        let gas_for_fee = gas_for_fee_from_call_infos(&validate_call_info, &None);
 
         // Pre-compute cost in case of revert.
+        // TODO(tzahi): add reverted_l2_gas to the receipt.
         let execution_steps_consumed =
             n_allotted_execution_steps - execution_context.n_remaining_steps();
-        let revert_cost = TransactionReceipt::from_account_tx(
+        let revert_receipt = TransactionReceipt::from_account_tx(
             self,
             &tx_context,
             &validate_state_changes,
-            &resources,
+            &ChargedResources { vm_resources: validate_resources, gas_for_fee },
             CallInfo::summarize_many(validate_call_info.iter()),
             execution_steps_consumed,
         );
@@ -682,7 +686,13 @@ impl AccountTransaction {
                         validate_state_changes,
                         execution_state.get_actual_state_changes()?,
                     ]),
-                    &execution_resources,
+                    &ChargedResources {
+                        vm_resources: execution_resources,
+                        gas_for_fee: gas_for_fee_from_call_infos(
+                            &validate_call_info,
+                            &execute_call_info,
+                        ),
+                    },
                     CallInfo::summarize_many(
                         validate_call_info.iter().chain(execute_call_info.iter()),
                     ),
@@ -707,7 +717,7 @@ impl AccountTransaction {
                             post_execution_error.to_string(),
                             TransactionReceipt {
                                 fee: post_execution_report.recommended_fee(),
-                                ..revert_cost
+                                ..revert_receipt
                             },
                         ))
                     }
@@ -726,13 +736,13 @@ impl AccountTransaction {
                 // Error during execution. Revert, even if the error is sequencer-related.
                 execution_state.abort();
                 let post_execution_report =
-                    PostExecutionReport::new(state, &tx_context, &revert_cost, charge_fee)?;
+                    PostExecutionReport::new(state, &tx_context, &revert_receipt, charge_fee)?;
                 Ok(ValidateExecuteCallInfo::new_reverted(
                     validate_call_info,
                     execution_error.to_string(),
                     TransactionReceipt {
                         fee: post_execution_report.recommended_fee(),
-                        ..revert_cost
+                        ..revert_receipt
                     },
                 ))
             }
