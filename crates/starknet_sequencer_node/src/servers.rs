@@ -44,6 +44,62 @@ pub struct SequencerNodeServers {
     wrapper_servers: WrapperServers,
 }
 
+/// A macro for creating a remote component server based on the component's execution mode.
+/// Returns a remote server if the component is configured with Remote execution mode; otherwise,
+/// returns None.
+///
+/// # Arguments
+///
+/// * `$execution_mode` - A reference to the component's execution mode, of type
+///   `&ComponentExecutionMode`.
+/// * `$client` - The client to be used for the remote server initialization if the execution mode
+///   is `Remote`.
+/// * `$config` - The configuration for the remote server.
+///
+/// # Returns
+///
+/// An `Option<Box<RemoteComponentServer<LocalClientType, RequestType, ResponseType>>>` containing
+/// the server if the execution mode is Remote, or None if the execution mode is Disabled,
+/// LocalExecutionWithRemoteEnabled or LocalExecutionWithRemoteDisabled.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// let batcher_remote_server = create_remote_server!(
+///     &config.components.batcher.execution_mode,
+///     client,
+///     config.remote_server_config
+/// );
+/// match batcher_remote_server {
+///     Some(server) => println!("Remote server created: {:?}", server),
+///     None => println!("Remote server not created because the execution mode is not remote."),
+/// }
+/// ```
+#[macro_export]
+macro_rules! create_remote_server {
+    ($execution_mode:expr, $client:expr, $config:expr) => {
+        match *$execution_mode {
+            ComponentExecutionMode::Remote => {
+                let client = $client
+                    .as_ref()
+                    .expect("Error: client must be initialized in Remote execution mode.");
+                let config = $config
+                    .as_ref()
+                    .expect("Error: config must be initialized in Remote execution mode.");
+
+                if let Some(local_client) = client.get_local_client() {
+                    Some(Box::new(RemoteComponentServer::new(local_client, config.clone())))
+                } else {
+                    None
+                }
+            }
+            ComponentExecutionMode::LocalExecutionWithRemoteDisabled
+            | ComponentExecutionMode::LocalExecutionWithRemoteEnabled
+            | ComponentExecutionMode::Disabled => None,
+        }
+    };
+}
+
 /// A macro for creating a component server, determined by the component's execution mode. Returns a
 /// local server if the component is run locally, otherwise None.
 ///
