@@ -4,22 +4,10 @@
 resolver = "2"
 
 members = [
-  "crates/batcher",
-  "crates/batcher_types",
   "crates/blockifier",
   "crates/blockifier_reexecution",
   "crates/committer_cli",
-  "crates/consensus_manager",
-  "crates/gateway",
-  "crates/gateway_types",
-  "crates/http_server",
-  "crates/l1_provider",
-  "crates/mempool",
-  "crates/mempool_p2p",
-  "crates/mempool_p2p_types",
   "crates/mempool_test_utils",
-  "crates/mempool_types",
-  "crates/monitoring_endpoint",
   "crates/native_blockifier",
   "crates/papyrus_base_layer",
   "crates/papyrus_common",
@@ -38,17 +26,29 @@ members = [
   "crates/papyrus_storage",
   "crates/papyrus_sync",
   "crates/papyrus_test_utils",
-  "crates/sequencer_infra",
-  "crates/sequencer_node",
   "crates/sequencing/papyrus_consensus",
   "crates/sequencing/papyrus_consensus_orchestrator",
   "crates/starknet_api",
+  "crates/starknet_batcher",
+  "crates/starknet_batcher_types",
   "crates/starknet_client",
   "crates/starknet_committer",
+  "crates/starknet_consensus_manager",
+  "crates/starknet_gateway",
+  "crates/starknet_gateway_types",
+  "crates/starknet_http_server",
+  "crates/starknet_integration_tests",
+  "crates/starknet_l1_provider",
+  "crates/starknet_mempool",
+  "crates/starknet_mempool_p2p",
+  "crates/starknet_mempool_p2p_types",
+  "crates/starknet_mempool_types",
+  "crates/starknet_monitoring_endpoint",
   "crates/starknet_patricia",
+  "crates/starknet_sequencer_infra",
+  "crates/starknet_sequencer_node",
   "crates/starknet_sierra_compile",
-  "crates/task_executor",
-  "crates/tests_integration",
+  "crates/starknet_task_executor",
   "workspace_tests",
 ]
 
@@ -207,25 +207,25 @@ starknet-core = "0.6.0"
 starknet-crypto = "0.7.1"
 starknet-types-core = "0.1.6"
 starknet_api = { path = "crates/starknet_api", version = "0.0.0" }
-starknet_batcher = { path = "crates/batcher", version = "0.0.0" }
-starknet_batcher_types = { path = "crates/batcher_types", version = "0.0.0" }
+starknet_batcher = { path = "crates/starknet_batcher", version = "0.0.0" }
+starknet_batcher_types = { path = "crates/starknet_batcher_types", version = "0.0.0" }
 starknet_client = { path = "crates/starknet_client", version = "0.0.0" }
 starknet_committer = { path = "crates/starknet_committer", version = "0.0.0" }
-starknet_consensus_manager = { path = "crates/consensus_manager", version = "0.0.0" }
-starknet_gateway = { path = "crates/gateway", version = "0.0.0" }
-starknet_gateway_types = { path = "crates/gateway_types", version = "0.0.0" }
-starknet_http_server = { path = "crates/http_server", version = "0.0.0" }
-starknet_l1_provider = { path = "crates/l1_provider", version = "0.0.0" }
-starknet_mempool = { path = "crates/mempool", version = "0.0.0" }
-starknet_mempool_p2p = { path = "crates/mempool_p2p", version = "0.0.0" }
-starknet_mempool_p2p_types = { path = "crates/mempool_p2p_types", version = "0.0.0" }
-starknet_mempool_types = { path = "crates/mempool_types", version = "0.0.0" }
-starknet_monitoring_endpoint = { path = "crates/monitoring_endpoint", version = "0.0.0" }
+starknet_consensus_manager = { path = "crates/starknet_consensus_manager", version = "0.0.0" }
+starknet_gateway = { path = "crates/starknet_gateway", version = "0.0.0" }
+starknet_gateway_types = { path = "crates/starknet_gateway_types", version = "0.0.0" }
+starknet_http_server = { path = "crates/starknet_http_server", version = "0.0.0" }
+starknet_l1_provider = { path = "crates/starknet_l1_provider", version = "0.0.0" }
+starknet_mempool = { path = "crates/starknet_mempool", version = "0.0.0" }
+starknet_mempool_p2p = { path = "crates/starknet_mempool_p2p", version = "0.0.0" }
+starknet_mempool_p2p_types = { path = "crates/starknet_mempool_p2p_types", version = "0.0.0" }
+starknet_mempool_types = { path = "crates/starknet_mempool_types", version = "0.0.0" }
+starknet_monitoring_endpoint = { path = "crates/starknet_monitoring_endpoint", version = "0.0.0" }
 starknet_patricia = { path = "crates/starknet_patricia", version = "0.0.0" }
-starknet_sequencer_infra = { path = "crates/sequencer_infra", version = "0.0.0" }
-starknet_sequencer_node = { path = "crates/sequencer_node", version = "0.0.0" }
+starknet_sequencer_infra = { path = "crates/starknet_sequencer_infra", version = "0.0.0" }
+starknet_sequencer_node = { path = "crates/starknet_sequencer_node", version = "0.0.0" }
 starknet_sierra_compile = { path = "crates/starknet_sierra_compile", version = "0.0.0" }
-starknet_task_executor = { path = "crates/task_executor", version = "0.0.0" }
+starknet_task_executor = { path = "crates/starknet_task_executor", version = "0.0.0" }
 static_assertions = "1.1.0"
 statistical = "1.0.0"
 strum = "0.25.0"
