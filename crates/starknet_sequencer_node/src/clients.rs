@@ -101,18 +101,36 @@ impl SequencerNodeClients {
         get_shared_client!(self, batcher_client)
     }
 
+    pub fn get_batcher_client(&self) -> Option<&Client<BatcherRequest, BatcherResponse>> {
+        self.batcher_client.as_ref()
+    }
+
     pub fn get_mempool_shared_client(&self) -> Option<SharedMempoolClient> {
         get_shared_client!(self, mempool_client)
+    }
+
+    pub fn get_mempool_client(&self) -> Option<&Client<MempoolRequest, MempoolResponse>> {
+        self.mempool_client.as_ref()
     }
 
     pub fn get_gateway_shared_client(&self) -> Option<SharedGatewayClient> {
         get_shared_client!(self, gateway_client)
     }
 
+    pub fn get_gateway_client(&self) -> Option<&Client<GatewayRequest, GatewayResponse>> {
+        self.gateway_client.as_ref()
+    }
+
     pub fn get_mempool_p2p_propagator_shared_client(
         &self,
     ) -> Option<SharedMempoolP2pPropagatorClient> {
         get_shared_client!(self, mempool_p2p_propagator_client)
+    }
+
+    pub fn get_mempool_p2p_propagator_client(
+        &self,
+    ) -> Option<&Client<MempoolP2pPropagatorRequest, MempoolP2pPropagatorResponse>> {
+        self.mempool_p2p_propagator_client.as_ref()
     }
 }
 
