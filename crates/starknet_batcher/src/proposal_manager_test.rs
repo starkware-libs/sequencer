@@ -58,7 +58,7 @@ impl MockDependencies {
         self.block_builder_factory
             .expect_create_block_builder()
             .times(times)
-            .returning(move |_, _, _, _, _, _| simulate_build_block());
+            .returning(move |_, _, _, _| simulate_build_block());
     }
 
     // This function simulates a long build block operation. This is required for a test that
@@ -76,7 +76,7 @@ impl MockDependencies {
         self.block_builder_factory
             .expect_create_block_builder()
             .times(times)
-            .returning(move |_, _, _, _, _, _| simulate_long_build_block());
+            .returning(move |_, _, _, _| simulate_long_build_block());
     }
 }
 
