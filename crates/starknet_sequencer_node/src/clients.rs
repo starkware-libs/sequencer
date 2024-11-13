@@ -28,7 +28,7 @@ use starknet_mempool_types::communication::{
     RemoteMempoolClient,
     SharedMempoolClient,
 };
-use starknet_sequencer_infra::component_client::Client;
+use starknet_sequencer_infra::component_client::{Client, LocalComponentClient};
 
 use crate::communication::SequencerNodeCommunication;
 use crate::config::component_execution_config::ComponentExecutionMode;
@@ -92,23 +92,61 @@ macro_rules! get_shared_client {
     }};
 }
 
+// TODO(Nadin): Refactor getters to remove code duplication.
 impl SequencerNodeClients {
     pub fn get_batcher_shared_client(&self) -> Option<SharedBatcherClient> {
         get_shared_client!(self, batcher_client)
+    }
+
+    pub fn get_batcher_local_client(
+        &self,
+    ) -> Option<LocalComponentClient<BatcherRequest, BatcherResponse>> {
+        match &self.batcher_client {
+            Some(client) => client.get_local_client(),
+            None => None,
+        }
     }
 
     pub fn get_mempool_shared_client(&self) -> Option<SharedMempoolClient> {
         get_shared_client!(self, mempool_client)
     }
 
+    pub fn get_mempool_local_client(
+        &self,
+    ) -> Option<LocalComponentClient<MempoolRequest, MempoolResponse>> {
+        match &self.mempool_client {
+            Some(client) => client.get_local_client(),
+            None => None,
+        }
+    }
+
     pub fn get_gateway_shared_client(&self) -> Option<SharedGatewayClient> {
         get_shared_client!(self, gateway_client)
+    }
+
+    pub fn get_gateway_local_client(
+        &self,
+    ) -> Option<LocalComponentClient<GatewayRequest, GatewayResponse>> {
+        match &self.gateway_client {
+            Some(client) => client.get_local_client(),
+            None => None,
+        }
     }
 
     pub fn get_mempool_p2p_propagator_shared_client(
         &self,
     ) -> Option<SharedMempoolP2pPropagatorClient> {
         get_shared_client!(self, mempool_p2p_propagator_client)
+    }
+
+    pub fn get_mempool_p2p_propagator_local_client(
+        &self,
+    ) -> Option<LocalComponentClient<MempoolP2pPropagatorRequest, MempoolP2pPropagatorResponse>>
+    {
+        match &self.mempool_p2p_propagator_client {
+            Some(client) => client.get_local_client(),
+            None => None,
+        }
     }
 }
 
