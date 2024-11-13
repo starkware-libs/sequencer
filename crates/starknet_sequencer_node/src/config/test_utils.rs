@@ -3,7 +3,7 @@ use std::vec::Vec; // Used by #[gen_field_names_fn].
 use papyrus_proc_macros::gen_field_names_fn;
 use starknet_api::core::{ChainId, ContractAddress};
 
-use crate::config::node_command;
+use crate::config::node_config::node_command;
 
 /// Required parameters utility struct.
 #[gen_field_names_fn]
