@@ -252,7 +252,6 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
     ) -> SyscallResult<()> {
         self.pre_execute_syscall(
             remaining_gas,
-            SyscallSelector::SendMessageToL1,
             self.context.gas_costs().send_message_to_l1_gas_cost,
         )?;
 
