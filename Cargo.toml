@@ -48,6 +48,7 @@ members = [
   "crates/starknet_sequencer_infra",
   "crates/starknet_sequencer_node",
   "crates/starknet_sierra_compile",
+  "crates/starknet_state_sync_types",
   "crates/starknet_task_executor",
   "workspace_tests",
 ]
