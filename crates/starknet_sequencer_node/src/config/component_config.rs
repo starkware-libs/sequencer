@@ -5,7 +5,7 @@ use papyrus_config::{ParamPath, SerializedParam};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
-use crate::config::ComponentExecutionConfig;
+use crate::config::component_execution_config::ComponentExecutionConfig;
 
 /// The components configuration.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]

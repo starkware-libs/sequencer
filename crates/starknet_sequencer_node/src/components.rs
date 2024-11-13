@@ -12,7 +12,8 @@ use starknet_monitoring_endpoint::monitoring_endpoint::{
 };
 
 use crate::clients::SequencerNodeClients;
-use crate::config::{ComponentExecutionMode, SequencerNodeConfig};
+use crate::config::component_execution_config::ComponentExecutionMode;
+use crate::config::SequencerNodeConfig;
 use crate::version::VERSION_FULL;
 
 pub struct SequencerNodeComponents {

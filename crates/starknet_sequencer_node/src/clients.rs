@@ -22,7 +22,8 @@ use starknet_mempool_types::communication::{
 };
 
 use crate::communication::SequencerNodeCommunication;
-use crate::config::{ComponentExecutionMode, SequencerNodeConfig};
+use crate::config::component_execution_config::ComponentExecutionMode;
+use crate::config::SequencerNodeConfig;
 
 pub struct SequencerNodeClients {
     batcher_client: Option<SharedBatcherClient>,
