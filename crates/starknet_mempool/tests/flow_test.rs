@@ -212,7 +212,7 @@ fn test_commit_block_fills_nonce_gap(mut mempool: Mempool) {
     add_tx_expect_error(
         &mut mempool,
         &tx_nonce_4_account_nonce_4,
-        MempoolError::DuplicateNonce { address: contract_address!("0x0"), nonce: nonce!(4) },
+        MempoolError::NonceTooOld { address: contract_address!("0x0"), nonce: nonce!(4) },
     );
 
     get_txs_and_assert_expected(&mut mempool, 2, &[tx_nonce_5_account_nonce_3.tx]);
