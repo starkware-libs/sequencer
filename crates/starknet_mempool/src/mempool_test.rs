@@ -48,8 +48,7 @@ impl From<MempoolContent> for Mempool {
                 .map(|content| content.complete_to_tx_queue())
                 .unwrap_or_default(),
             // TODO: Add implementation when needed.
-            mempool_state: Default::default(),
-            account_nonces: Default::default(),
+            state: Default::default(),
         }
     }
 }
