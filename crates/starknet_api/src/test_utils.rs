@@ -11,11 +11,6 @@ pub mod declare;
 pub mod deploy_account;
 pub mod invoke;
 
-#[derive(Debug, Default)]
-pub struct NonceManager {
-    next_nonce: HashMap<ContractAddress, Felt>,
-}
-
 /// Reads from the directory containing the manifest at run time, same as current working directory.
 pub fn read_json_file(path_in_resource_dir: &str) -> serde_json::Value {
     let path = Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap())
@@ -24,6 +19,11 @@ pub fn read_json_file(path_in_resource_dir: &str) -> serde_json::Value {
     let json_str = read_to_string(path.to_str().unwrap())
         .unwrap_or_else(|_| panic!("Failed to read file at path: {}", path.display()));
     serde_json::from_str(&json_str).unwrap()
+}
+
+#[derive(Debug, Default)]
+pub struct NonceManager {
+    next_nonce: HashMap<ContractAddress, Felt>,
 }
 
 impl NonceManager {
