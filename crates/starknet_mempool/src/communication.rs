@@ -15,12 +15,13 @@ use starknet_mempool_types::communication::{
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{CommitBlockArgs, MempoolResult};
 use starknet_sequencer_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
-use starknet_sequencer_infra::component_server::LocalComponentServer;
+use starknet_sequencer_infra::component_server::{LocalComponentServer, RemoteComponentServer};
 
 use crate::mempool::Mempool;
 
 pub type LocalMempoolServer =
     LocalComponentServer<MempoolCommunicationWrapper, MempoolRequest, MempoolResponse>;
+pub type RemoteMempoolServer = RemoteComponentServer<MempoolRequest, MempoolResponse>;
 
 pub fn create_mempool(
     mempool_p2p_propagator_client: SharedMempoolP2pPropagatorClient,
