@@ -6,11 +6,11 @@ use once_cell::sync::OnceCell;
 use rand::Rng;
 use reqwest::{Client, Url};
 use serde_json::Value as jsonVal;
+use starknet_api::test_utils::path_in_resources;
 
 use crate::{
     get_last_block_number,
     get_random_block_number,
-    path_in_resources,
     GET_BLOCK_TRANSACTION_COUNT_BY_HASH_WEIGHT,
     GET_BLOCK_TRANSACTION_COUNT_BY_NUMBER_WEIGHT,
     GET_BLOCK_WITH_FULL_TRANSACTIONS_BY_HASH_WEIGHT,
