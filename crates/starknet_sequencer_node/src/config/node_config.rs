@@ -25,7 +25,7 @@ use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 use validator::Validate;
 
-use crate::config::ComponentConfig;
+use crate::config::component_config::ComponentConfig;
 use crate::utils::get_absolute_path;
 use crate::version::VERSION_FULL;
 
