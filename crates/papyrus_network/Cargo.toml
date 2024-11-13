@@ -12,6 +12,8 @@ testing = []
 async-stream.workspace = true
 async-trait.workspace = true
 bytes.workspace = true
+clap.workspace = true
+csv.workspace = true
 derive_more.workspace = true
 futures.workspace = true
 lazy_static.workspace = true
@@ -53,6 +55,9 @@ pretty_assertions.workspace = true
 tokio = { workspace = true, features = ["full", "sync", "test-util"] }
 tokio-stream.workspace = true
 void.workspace = true
+
+[build-dependencies]
+
 
 [lints]
 workspace = true
