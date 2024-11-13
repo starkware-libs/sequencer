@@ -107,7 +107,7 @@ impl SerializeConfig for NetworkConfig {
             ParamPrivacyInput::Private,
         )]);
         config.extend(ser_optional_param(
-            &self.bootstrap_peer_multiaddr,
+            &self.advertised_multiaddr,
             Multiaddr::empty(),
             "advertised_multiaddr",
             "The external address other peers see this node. If this is set, the node will not \
