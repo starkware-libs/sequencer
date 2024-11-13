@@ -194,7 +194,8 @@ fn test_calldata_too_long(
     StatelessTransactionValidatorError::SignatureTooLong {
         signature_length: 2,
         max_signature_length: 1
-    }
+    },
+    vec![TransactionType::Declare, TransactionType::DeployAccount, TransactionType::Invoke],
 )]
 #[case::nonce_data_availability_mode(
     RpcTransactionArgs {
@@ -203,7 +204,8 @@ fn test_calldata_too_long(
     },
     StatelessTransactionValidatorError::InvalidDataAvailabilityMode {
         field_name: "nonce".to_string()
-    }
+    },
+    vec![TransactionType::Declare, TransactionType::DeployAccount, TransactionType::Invoke],
 )]
 #[case::fee_data_availability_mode(
     RpcTransactionArgs {
@@ -212,19 +214,21 @@ fn test_calldata_too_long(
     },
     StatelessTransactionValidatorError::InvalidDataAvailabilityMode {
         field_name: "fee".to_string()
-    }
+    },
+    vec![TransactionType::Declare, TransactionType::DeployAccount, TransactionType::Invoke],
 )]
 fn test_invalid_tx(
     #[case] rpc_tx_args: RpcTransactionArgs,
     #[case] expected_error: StatelessTransactionValidatorError,
-    #[values(TransactionType::Declare, TransactionType::DeployAccount, TransactionType::Invoke)]
-    tx_type: TransactionType,
+    #[case] tx_types: Vec<TransactionType>,
 ) {
     let tx_validator =
         StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone() };
-    let tx = rpc_tx_for_testing(tx_type, rpc_tx_args);
+    for tx_type in tx_types {
+        let tx = rpc_tx_for_testing(tx_type, rpc_tx_args.clone());
 
-    assert_eq!(tx_validator.validate(&tx).unwrap_err(), expected_error);
+        assert_eq!(tx_validator.validate(&tx).unwrap_err(), expected_error);
+    }
 }
 
 #[rstest]
