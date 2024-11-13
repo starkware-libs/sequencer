@@ -39,7 +39,8 @@ class SequencerNode(Chart):
         self.service = Service(
             self,
             "sequencer-node",
-            image="us.gcr.io/starkware-dev/sequencer-node:0.0.3",
+            image="us.gcr.io/starkware-dev/sequencer-node-test:0.0.1-dev.1",
+            args=["--config_file", "/app/config/sequencer/config.json"],
             port_mappings=[
                 PortMappings(name="http", port=80, container_port=8080),
                 PortMappings(name="rpc", port=8081, container_port=8081),
@@ -49,7 +50,7 @@ class SequencerNode(Chart):
             replicas=1,
             config=config,
             health_check=HealthCheck(
-                startup_probe=Probe(port=8082, path="/monitoring/NodeVersion", period_seconds=10, failure_threshold=10, timeout_seconds=5),
+                startup_probe=Probe(port=8082, path="/monitoring/nodeVersion", period_seconds=10, failure_threshold=10, timeout_seconds=5),
                 readiness_probe=Probe(port=8082, path="/monitoring/ready", period_seconds=10, failure_threshold=5, timeout_seconds=5),
                 liveness_probe=Probe(port=8082, path="/monitoring/alive", period_seconds=10, failure_threshold=5, timeout_seconds=5)
             ),
@@ -98,8 +99,8 @@ app = App(
 sequencer_node = SequencerNode(
     scope=app,
     name="sequencer-node",
-    namespace="sequencer",
-    config=SequencerDevConfig(mount_path="/app/config")
+    namespace="sequencer-node-test",
+    config=None
 )
 a = SequencerSystem(
     scope=app,

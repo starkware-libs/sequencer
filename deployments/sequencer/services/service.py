@@ -20,7 +20,8 @@ class Service(Construct):
         port_mappings: Optional[List[PortMappings]] = None,
         config: Optional[Config] = None,
         health_check: Optional[HealthCheck] = None,
-        pvc: Optional[PersistentVolumeClaim] = None
+        pvc: Optional[PersistentVolumeClaim] = None,
+        args: Optional[List[str]] = None
     ):
         super().__init__(scope, id)
 
@@ -63,6 +64,7 @@ class Service(Construct):
                             k8s.Container(
                                 name="sequencer",
                                 image=image,
+                                args=args or [],
                                 ports=[k8s.ContainerPort(container_port=port_map.get("container_port")) for port_map in port_mappings or []],
                                 startup_probe=k8s.Probe(
                                     http_get=k8s.HttpGetAction(
