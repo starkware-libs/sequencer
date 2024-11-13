@@ -15,7 +15,6 @@ mod utils;
 
 #[tokio::main]
 async fn main() {
-    TestConfig::create_config_files();
     let args = std::env::args().collect::<Vec<String>>();
     let default_path = BOOTSTRAP_CONFIG_FILE_PATH.to_string();
     let config_path = args.get(1).unwrap_or(&default_path);

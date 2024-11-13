@@ -22,7 +22,7 @@
   "network_config.bootstrap_peer_multiaddr": {
     "description": "The multiaddress of the peer node. It should include the peer's id. For more info: https://docs.libp2p.io/concepts/fundamentals/peers/",
     "privacy": "Public",
-    "value": "/ip4/127.0.0.1/tcp/10000/p2p/12D3KooWDpJ7As7BWAwRMfu1VU2WCqNjvq387JEYKDBj4kx6nXTN"
+    "value": "/ip4/10.20.20.26/tcp/10000/p2p/12D3KooWDpJ7As7BWAwRMfu1VU2WCqNjvq387JEYKDBj4kx6nXTN"
   },
   "network_config.bootstrap_peer_multiaddr.#is_none": {
     "description": "Flag for an optional field.",
@@ -92,7 +92,7 @@
   "num_messages": {
     "description": "The amount of messages to send and receive.",
     "privacy": "Public",
-    "value": 100000
+    "value": 10000
   },
   "output_path": {
     "description": "The path of the output file.",

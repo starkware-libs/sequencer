@@ -67,7 +67,7 @@ impl Default for TestConfig {
             network_config: NetworkConfig::default(),
             buffer_size: 1000,
             message_size: 1000,
-            num_messages: 100000,
+            num_messages: 10000,
             output_path: BOOTSTRAP_OUTPUT_FILE_PATH.to_string(),
         }
     }
