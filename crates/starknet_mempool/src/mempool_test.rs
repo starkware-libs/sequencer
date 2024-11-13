@@ -1,6 +1,6 @@
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
-use starknet_api::executable_transaction::AccountTransaction as Transaction;
+use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::{contract_address, nonce};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::AddTransactionArgs;
@@ -72,7 +72,7 @@ impl MempoolContentBuilder {
 
     fn with_pool<P>(mut self, pool_txs: P) -> Self
     where
-        P: IntoIterator<Item = Transaction>,
+        P: IntoIterator<Item = AccountTransaction>,
     {
         self.tx_pool = Some(pool_txs.into_iter().collect());
         self
@@ -118,8 +118,8 @@ impl MempoolContentBuilder {
     }
 }
 
-impl FromIterator<Transaction> for TransactionPool {
-    fn from_iter<T: IntoIterator<Item = Transaction>>(txs: T) -> Self {
+impl FromIterator<AccountTransaction> for TransactionPool {
+    fn from_iter<T: IntoIterator<Item = AccountTransaction>>(txs: T) -> Self {
         let mut pool = Self::default();
         for tx in txs {
             pool.insert(tx).unwrap();
@@ -144,7 +144,7 @@ fn add_tx_and_verify_replacement(
 #[track_caller]
 fn add_txs_and_verify_no_replacement(
     mut mempool: Mempool,
-    existing_tx: Transaction,
+    existing_tx: AccountTransaction,
     invalid_replacement_inputs: impl IntoIterator<Item = AddTransactionArgs>,
 ) {
     for input in invalid_replacement_inputs {
