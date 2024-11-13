@@ -1,9 +1,12 @@
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use serde::{Deserialize, Serialize};
 
-use crate::core::{CompiledClassHash, WORD_WIDTH};
+use crate::core::CompiledClassHash;
 use crate::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use crate::StarknetApiError;
+
+/// One Felt fits into 32 bytes.
+pub const FELT_WIDTH: usize = 32;
 
 #[derive(
     Debug, Default, Clone, Copy, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord,
@@ -73,7 +76,7 @@ impl ClassInfo {
     pub fn code_size(&self) -> usize {
         (self.bytecode_length() + self.sierra_program_length())
             // We assume each felt is a word.
-            * WORD_WIDTH
+            * FELT_WIDTH
             + self.abi_length()
     }
 
