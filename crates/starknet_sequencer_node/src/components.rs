@@ -35,7 +35,7 @@ pub fn create_node_components(
         ComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
             let mempool_client =
-                clients.get_mempool_client().expect("Mempool Client should be available");
+                clients.get_mempool_shared_client().expect("Mempool Client should be available");
             Some(create_batcher(config.batcher_config.clone(), mempool_client))
         }
         ComponentExecutionMode::Disabled | ComponentExecutionMode::Remote => None,
@@ -44,7 +44,7 @@ pub fn create_node_components(
         ComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
             let batcher_client =
-                clients.get_batcher_client().expect("Batcher Client should be available");
+                clients.get_batcher_shared_client().expect("Batcher Client should be available");
             Some(ConsensusManager::new(config.consensus_manager_config.clone(), batcher_client))
         }
         ComponentExecutionMode::Disabled | ComponentExecutionMode::Remote => None,
@@ -53,7 +53,7 @@ pub fn create_node_components(
         ComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
             let mempool_client =
-                clients.get_mempool_client().expect("Mempool Client should be available");
+                clients.get_mempool_shared_client().expect("Mempool Client should be available");
 
             Some(create_gateway(
                 config.gateway_config.clone(),
@@ -68,33 +68,34 @@ pub fn create_node_components(
         ComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
             let gateway_client =
-                clients.get_gateway_client().expect("Gateway Client should be available");
+                clients.get_gateway_shared_client().expect("Gateway Client should be available");
 
             Some(create_http_server(config.http_server_config.clone(), gateway_client))
         }
         ComponentExecutionMode::Disabled | ComponentExecutionMode::Remote => None,
     };
 
-    let (mempool_p2p_propagator, mempool_p2p_runner) =
-        match config.components.mempool_p2p.execution_mode {
-            ComponentExecutionMode::LocalExecutionWithRemoteDisabled
-            | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-                let gateway_client =
-                    clients.get_gateway_client().expect("Gateway Client should be available");
-                let (mempool_p2p_propagator, mempool_p2p_runner) = create_p2p_propagator_and_runner(
-                    config.mempool_p2p_config.clone(),
-                    gateway_client,
-                );
-                (Some(mempool_p2p_propagator), Some(mempool_p2p_runner))
-            }
-            ComponentExecutionMode::Disabled | ComponentExecutionMode::Remote => (None, None),
-        };
+    let (mempool_p2p_propagator, mempool_p2p_runner) = match config
+        .components
+        .mempool_p2p
+        .execution_mode
+    {
+        ComponentExecutionMode::LocalExecutionWithRemoteDisabled
+        | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
+            let gateway_client =
+                clients.get_gateway_shared_client().expect("Gateway Client should be available");
+            let (mempool_p2p_propagator, mempool_p2p_runner) =
+                create_p2p_propagator_and_runner(config.mempool_p2p_config.clone(), gateway_client);
+            (Some(mempool_p2p_propagator), Some(mempool_p2p_runner))
+        }
+        ComponentExecutionMode::Disabled | ComponentExecutionMode::Remote => (None, None),
+    };
 
     let mempool = match config.components.mempool.execution_mode {
         ComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
             let mempool_p2p_propagator_client = clients
-                .get_mempool_p2p_propagator_client()
+                .get_mempool_p2p_propagator_shared_client()
                 .expect("Propagator Client should be available");
             let mempool = create_mempool(mempool_p2p_propagator_client);
             Some(mempool)

@@ -79,7 +79,7 @@ impl FlowTestSetup {
             task_executor,
             add_tx_http_client,
             batcher_storage_file_handle: storage_for_test.batcher_storage_handle,
-            batcher_client: clients.get_batcher_client().unwrap(),
+            batcher_client: clients.get_batcher_shared_client().unwrap(),
             rpc_storage_file_handle: storage_for_test.rpc_storage_handle,
             sequencer_node_handle,
             consensus_proposals_channels,

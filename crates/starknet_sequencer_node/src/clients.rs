@@ -64,11 +64,11 @@ pub struct SequencerNodeClients {
 /// ```rust,ignore
 /// // Assuming `SequencerNodeClients` struct has fields `batcher_client` and `mempool_client.
 /// impl SequencerNodeClients {
-///     pub fn get_batcher_client(&self) -> Option<Arc<dyn BatcherClient>> {
+///     pub fn get_batcher_shared_client(&self) -> Option<Arc<dyn BatcherClient>> {
 ///         get_shared_client!(self, batcher_client)
 ///     }
 ///
-///     pub fn get_mempool_client(&self) -> Option<Arc<dyn MempoolClient>> {
+///     pub fn get_mempool_shared_client(&self) -> Option<Arc<dyn MempoolClient>> {
 ///         get_shared_client!(self, mempool_client)
 ///     }
 /// }
@@ -93,19 +93,21 @@ macro_rules! get_shared_client {
 }
 
 impl SequencerNodeClients {
-    pub fn get_batcher_client(&self) -> Option<SharedBatcherClient> {
+    pub fn get_batcher_shared_client(&self) -> Option<SharedBatcherClient> {
         get_shared_client!(self, batcher_client)
     }
 
-    pub fn get_mempool_client(&self) -> Option<SharedMempoolClient> {
+    pub fn get_mempool_shared_client(&self) -> Option<SharedMempoolClient> {
         get_shared_client!(self, mempool_client)
     }
 
-    pub fn get_gateway_client(&self) -> Option<SharedGatewayClient> {
+    pub fn get_gateway_shared_client(&self) -> Option<SharedGatewayClient> {
         get_shared_client!(self, gateway_client)
     }
 
-    pub fn get_mempool_p2p_propagator_client(&self) -> Option<SharedMempoolP2pPropagatorClient> {
+    pub fn get_mempool_p2p_propagator_shared_client(
+        &self,
+    ) -> Option<SharedMempoolP2pPropagatorClient> {
         get_shared_client!(self, mempool_p2p_propagator_client)
     }
 }
