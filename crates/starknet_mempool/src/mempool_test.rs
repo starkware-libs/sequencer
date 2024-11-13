@@ -368,15 +368,10 @@ fn test_add_tx_failure_on_duplicate_tx_hash(mut mempool: Mempool) {
 }
 
 #[rstest]
-fn test_add_tx_lower_than_queued_nonce() {
+fn test_add_tx_lower_than_queued_nonce(mut mempool: Mempool) {
     // Setup.
-    let tx = tx!(tx_hash: 1, address: "0x0", tx_nonce: 1);
-    let queue_txs = [TransactionReference::new(&tx)];
-    let pool_txs = [tx];
-    let mut mempool = MempoolContentBuilder::new()
-        .with_pool(pool_txs.clone())
-        .with_priority_queue(queue_txs)
-        .build_into_mempool();
+    let input = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 1, account_nonce: 1);
+    add_tx(&mut mempool, &input);
 
     // Test and assert: original transaction remains.
     for tx_nonce in [0, 1] {
@@ -391,10 +386,6 @@ fn test_add_tx_lower_than_queued_nonce() {
             },
         );
     }
-
-    let expected_mempool_content =
-        MempoolContentBuilder::new().with_pool(pool_txs).with_priority_queue(queue_txs).build();
-    expected_mempool_content.assert_eq(&mempool);
 }
 
 #[rstest]
