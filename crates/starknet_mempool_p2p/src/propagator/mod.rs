@@ -14,7 +14,7 @@ use starknet_mempool_p2p_types::communication::{
 };
 use starknet_mempool_p2p_types::errors::MempoolP2pPropagatorError;
 use starknet_sequencer_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
-use starknet_sequencer_infra::component_server::LocalComponentServer;
+use starknet_sequencer_infra::component_server::{LocalComponentServer, RemoteComponentServer};
 
 pub struct MempoolP2pPropagator {
     broadcast_topic_client: BroadcastTopicClient<RpcTransactionWrapper>,
@@ -79,5 +79,7 @@ pub type LocalMempoolP2pPropagatorServer = LocalComponentServer<
     MempoolP2pPropagatorRequest,
     MempoolP2pPropagatorResponse,
 >;
+pub type RemoteMempoolP2pPropagatorServer =
+    RemoteComponentServer<MempoolP2pPropagatorRequest, MempoolP2pPropagatorResponse>;
 
 impl ComponentStarter for MempoolP2pPropagator {}
