@@ -48,8 +48,7 @@ impl From<MempoolContent> for Mempool {
                 .map(|content| content.complete_to_tx_queue())
                 .unwrap_or_default(),
             // TODO: Add implementation when needed.
-            mempool_state: Default::default(),
-            account_nonces: Default::default(),
+            state: Default::default(),
         }
     }
 }
@@ -167,7 +166,7 @@ fn add_txs_and_verify_no_replacement(
 
 #[fixture]
 fn mempool() -> Mempool {
-    Mempool::default()
+    MempoolContentBuilder::new().build_into_mempool()
 }
 
 // Tests.
@@ -377,7 +376,7 @@ fn test_add_tx_lower_than_queued_nonce(mut mempool: Mempool) {
         add_tx_expect_error(
             &mut mempool,
             &invalid_input,
-            MempoolError::DuplicateNonce {
+            MempoolError::NonceTooOld {
                 address: contract_address!("0x0"),
                 nonce: nonce!(tx_nonce),
             },
