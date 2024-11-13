@@ -10383,6 +10383,7 @@ dependencies = [
  "starknet_sequencer_infra",
  "tokio",
  "tracing",
+ "tracing-test",
 ]
 
 [[package]]

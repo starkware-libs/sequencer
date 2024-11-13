@@ -30,6 +30,8 @@ starknet_api = { workspace = true, features = ["testing"] }
 tokio.workspace = true
 # Enable test utils feature for integration tests.
 starknet_mempool = { workspace = true, features = ["testing"] }
+tracing-test.workspace = true
+
 
 [features]
 testing = ["mempool_test_utils", "pretty_assertions", "starknet-types-core"]

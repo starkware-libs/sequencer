@@ -5,6 +5,7 @@ use starknet_api::executable_transaction::Transaction;
 use starknet_api::{contract_address, invoke_tx_args, nonce, patricia_key};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::AddTransactionArgs;
+use tracing_test::traced_test;
 
 use crate::mempool::{tip, Mempool, TransactionReference};
 use crate::test_utils::{add_tx, add_tx_expect_error, commit_block, get_txs_and_assert_expected};
@@ -676,6 +677,7 @@ fn test_commit_block_from_different_leader() {
 // Fee escalation tests.
 
 #[rstest]
+#[traced_test]
 fn test_fee_escalation_valid_replacement() {
     let increased_values = [
         99,  // Exactly increase percentage.

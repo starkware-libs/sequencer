@@ -6,6 +6,7 @@ const DEFAULT_LEVEL: LevelFilter = LevelFilter::INFO;
 
 pub fn configure_tracing() {
     let fmt_layer = fmt::layer().compact().with_target(false);
+    // .with_span_events(fmt::format::FmtSpan::ENTER | fmt::format::FmtSpan::EXIT);
     let level_filter_layer =
         EnvFilter::builder().with_default_directive(DEFAULT_LEVEL.into()).from_env_lossy();
 
