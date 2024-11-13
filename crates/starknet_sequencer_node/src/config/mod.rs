@@ -8,5 +8,4 @@ pub mod node_config;
 pub mod test_utils;
 
 // TODO(Tsabary): Remove these, and replace with direct imports.
-pub use component_execution_config::*;
 pub use node_config::*;

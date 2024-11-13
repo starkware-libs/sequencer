@@ -15,10 +15,9 @@ use starknet_sequencer_infra::component_definitions::{
 };
 use validator::Validate;
 
+use crate::config::component_execution_config::{ComponentExecutionConfig, ComponentExecutionMode};
 use crate::config::test_utils::{create_test_config_load_args, RequiredParams};
 use crate::config::{
-    ComponentExecutionConfig,
-    ComponentExecutionMode,
     SequencerNodeConfig,
     CONFIG_NON_POINTERS_WHITELIST,
     CONFIG_POINTERS,
