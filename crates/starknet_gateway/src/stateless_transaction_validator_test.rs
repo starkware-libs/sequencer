@@ -11,7 +11,7 @@ use mempool_test_utils::starknet_api_test_utils::{
     NON_EMPTY_RESOURCE_BOUNDS,
 };
 use rstest::rstest;
-use starknet_api::core::{ContractAddress, EntryPointSelector};
+use starknet_api::core::{EntryPointSelector, L2_ADDRESS_UPPER_BOUND};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::rpc_transaction::{ContractClass, EntryPointByType};
 use starknet_api::state::EntryPoint;
@@ -166,26 +166,14 @@ fn test_invalid_resource_bounds(
 }
 
 #[rstest]
-fn test_calldata_too_long(
-    #[values(TransactionType::DeployAccount, TransactionType::Invoke)] tx_type: TransactionType,
-) {
-    let tx_validator =
-        StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone() };
-    let tx = rpc_tx_for_testing(
-        tx_type,
-        RpcTransactionArgs { calldata: calldata![Felt::ONE, Felt::TWO], ..Default::default() },
-    );
-
-    assert_eq!(
-        tx_validator.validate(&tx).unwrap_err(),
-        StatelessTransactionValidatorError::CalldataTooLong {
-            calldata_length: 2,
-            max_calldata_length: 1
-        }
-    );
-}
-
-#[rstest]
+#[case::calldata_too_long(
+    RpcTransactionArgs { calldata: calldata![Felt::ONE, Felt::TWO], ..Default::default() },
+    StatelessTransactionValidatorError::CalldataTooLong {
+        calldata_length: 2,
+        max_calldata_length: 1
+    },
+    vec![TransactionType::DeployAccount, TransactionType::Invoke],
+)]
 #[case::signature_too_long(
     RpcTransactionArgs {
         signature: TransactionSignature(vec![Felt::ONE, Felt::TWO]),
@@ -216,6 +204,46 @@ fn test_calldata_too_long(
         field_name: "fee".to_string()
     },
     vec![TransactionType::Declare, TransactionType::DeployAccount, TransactionType::Invoke],
+)]
+#[case::non_empty_account_deployment_data(
+    RpcTransactionArgs {
+        account_deployment_data: AccountDeploymentData(vec![felt!(1_u128)]),
+        ..Default::default()
+    },
+    StatelessTransactionValidatorError::NonEmptyField {
+        field_name: "account_deployment_data".to_string()
+    },
+    vec![TransactionType::Declare, TransactionType::Invoke],
+)]
+#[case::non_empty_paymaster_data(
+    RpcTransactionArgs {
+        paymaster_data: PaymasterData(vec![felt!(1_u128)]),
+        ..Default::default()
+    },
+    StatelessTransactionValidatorError::NonEmptyField {
+        field_name: "paymaster_data".to_string()
+    },
+    vec![TransactionType::Declare, TransactionType::Invoke],
+)]
+#[case::contract_address_1(
+    RpcTransactionArgs {
+        sender_address: contract_address!(1_u32),
+        ..Default::default()
+    },
+    StatelessTransactionValidatorError::StarknetApiError(StarknetApiError::OutOfRange {
+        string: format!("[0x2, {})", Felt::from(*L2_ADDRESS_UPPER_BOUND))
+    }),
+    vec![TransactionType::Declare, TransactionType::Invoke],
+)]
+#[case::contract_address_upper_bound(
+    RpcTransactionArgs {
+        sender_address: contract_address!("7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00"),
+        ..Default::default()
+    },
+    StatelessTransactionValidatorError::StarknetApiError(StarknetApiError::OutOfRange {
+        string: format!("[0x2, {})", Felt::from(*L2_ADDRESS_UPPER_BOUND))
+    }),
+    vec![TransactionType::Declare, TransactionType::Invoke],
 )]
 fn test_invalid_tx(
     #[case] rpc_tx_args: RpcTransactionArgs,
@@ -445,69 +473,4 @@ fn test_declare_entry_points_not_sorted_by_selector(
     let tx = rpc_declare_tx(declare_tx_args!(contract_class));
 
     assert_eq!(tx_validator.validate(&tx), expected);
-}
-
-#[rstest]
-#[case::contract_address_1(contract_address!(1_u32))]
-#[case::contract_address_upper_bound(
-    contract_address!("7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00")
-)]
-fn test_invalid_contract_address(
-    #[case] sender_address: ContractAddress,
-    #[values(TransactionType::Declare, TransactionType::Invoke)] tx_type: TransactionType,
-) {
-    let tx =
-        rpc_tx_for_testing(tx_type, RpcTransactionArgs { sender_address, ..Default::default() });
-
-    let tx_validator =
-        StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone() };
-
-    assert_matches!(
-        tx_validator.validate(&tx).unwrap_err(),
-        StatelessTransactionValidatorError::StarknetApiError(StarknetApiError::OutOfRange { .. })
-    )
-}
-
-#[rstest]
-fn test_non_empty_account_deployment_data(
-    #[values(TransactionType::Declare, TransactionType::Invoke)] tx_type: TransactionType,
-) {
-    let tx_validator =
-        StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone() };
-    let tx = rpc_tx_for_testing(
-        tx_type,
-        RpcTransactionArgs {
-            account_deployment_data: AccountDeploymentData(vec![felt!(1_u128)]),
-            ..Default::default()
-        },
-    );
-
-    assert_eq!(
-        tx_validator.validate(&tx).unwrap_err(),
-        StatelessTransactionValidatorError::NonEmptyField {
-            field_name: "account_deployment_data".to_string()
-        }
-    );
-}
-
-#[rstest]
-fn test_non_empty_paymaster_data(
-    #[values(TransactionType::Declare, TransactionType::Invoke)] tx_type: TransactionType,
-) {
-    let tx_validator =
-        StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone() };
-    let tx = rpc_tx_for_testing(
-        tx_type,
-        RpcTransactionArgs {
-            paymaster_data: PaymasterData(vec![felt!(1_u128)]),
-            ..Default::default()
-        },
-    );
-
-    assert_eq!(
-        tx_validator.validate(&tx).unwrap_err(),
-        StatelessTransactionValidatorError::NonEmptyField {
-            field_name: "paymaster_data".to_string()
-        }
-    );
 }
