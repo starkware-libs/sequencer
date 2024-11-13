@@ -11,7 +11,8 @@ use papyrus_network::network_manager::{
     NetworkManager,
 };
 use papyrus_protobuf::mempool::RpcTransactionWrapper;
-use starknet_gateway_types::communication::SharedGatewayClient;
+use starknet_gateway_types::communication::{GatewayClientError, SharedGatewayClient};
+use starknet_gateway_types::errors::GatewayError;
 use starknet_gateway_types::gateway_types::GatewayInput;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_sequencer_infra::component_server::WrapperServer;
@@ -46,7 +47,7 @@ impl ComponentStarter for MempoolP2pRunner {
             .run()
             .map_err(|_| ComponentError::InternalComponentError);
         pin_mut!(network_future);
-        let mut gateway_results = FuturesUnordered::new();
+        let mut gateway_futures = FuturesUnordered::new();
         loop {
             tokio::select! {
                 // tokio::select! takes ownership of the futures, so we need to wrap with poll_fn
@@ -54,24 +55,26 @@ impl ComponentStarter for MempoolP2pRunner {
                     result?;
                     panic!("Network stopped unexpectedly");
                 }
-                Some(result) = gateway_results.next() => {
+                Some(result) = gateway_futures.next() => {
                     match result {
-                        (Ok(_), _) => {}
-                        (Err(e), broadcasted_message_metadata) => {
-                            warn!(
-                                "Failed to forward transaction from MempoolP2pRunner to gateway: {:?}", e);
-                                if let Err(e) = self.broadcast_topic_client.report_peer(broadcasted_message_metadata).await {
+                        Ok(_) => {}
+                        Err(gateway_client_error) => {
+                            if let GatewayClientError::GatewayError(
+                                GatewayError::GatewaySpecError{p2p_message_metadata: Some(p2p_message_metadata), ..}
+                            ) = gateway_client_error {
+                                if let Err(e) = self.broadcast_topic_client.report_peer(p2p_message_metadata.clone()).await {
                                     warn!("Failed to report peer: {:?}", e);
                                 }
+                            }
                         }
                     }
                 }
                 Some((message_result, broadcasted_message_metadata)) = self.broadcasted_topic_server.next() => {
                     match message_result {
                         Ok(message) => {
-                            let gateway_result = self.gateway_client.add_tx(
-                                GatewayInput { rpc_tx: message.0, message_metadata: Some(broadcasted_message_metadata.clone()) });
-                            gateway_results.push(gateway_result.map( move |gateway_add_tx| (gateway_add_tx, broadcasted_message_metadata.clone()) ));
+                            gateway_futures.push(self.gateway_client.add_tx(
+                                GatewayInput { rpc_tx: message.0, message_metadata: Some(broadcasted_message_metadata.clone()) }
+                            ));
                         }
                         Err(e) => {
                             warn!("Received a faulty transaction from network: {:?}. Attempting to report the sending peer", e);
