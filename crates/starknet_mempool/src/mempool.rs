@@ -139,8 +139,30 @@ impl Mempool {
         // Align mempool data to committed nonces.
         for (&address, &next_nonce) in &address_to_nonce {
             self.validate_committed_nonce(address, next_nonce);
-            let account_state = AccountState { address, nonce: next_nonce };
-            self.align_to_account_state(account_state);
+
+            // Maybe remove out-of-date transactions.
+            if self
+                .tx_queue
+                .get_nonce(address)
+                .is_some_and(|queued_nonce| queued_nonce != next_nonce)
+            {
+                assert!(self.tx_queue.remove(address), "Expected to remove address from queue.");
+            }
+
+            // Remove from pool.
+            self.tx_pool.remove_up_to_nonce(address, next_nonce);
+            // TODO(clean_account_nonces): remove address from nonce table after a block cycle /
+            // TTL.
+            self.account_nonces.insert(address, next_nonce);
+
+            // Maybe close nonce gap.
+            if self.tx_queue.get_nonce(address).is_none() {
+                if let Some(tx_reference) =
+                    self.tx_pool.get_by_address_and_nonce(address, next_nonce)
+                {
+                    self.tx_queue.insert(tx_reference);
+                }
+            }
         }
         tracing::debug!("Aligned mempool to committed nonces.");
 
@@ -232,27 +254,6 @@ impl Mempool {
         }
 
         Ok(())
-    }
-
-    fn align_to_account_state(&mut self, account_state: AccountState) {
-        let AccountState { address, nonce } = account_state;
-        // Maybe remove out-of-date transactions.
-        // Note: != is equivalent to > in `add_tx`, as lower nonces are rejected in validation.
-        if self.tx_queue.get_nonce(address).is_some_and(|queued_nonce| queued_nonce != nonce) {
-            assert!(self.tx_queue.remove(address), "Expected to remove address from queue.");
-        }
-
-        // Remove from pool.
-        self.tx_pool.remove_up_to_nonce(address, nonce);
-        // TODO(clean_account_nonces): remove address from nonce table after a block cycle / TTL.
-        self.account_nonces.insert(address, nonce);
-
-        // Maybe close nonce gap.
-        if self.tx_queue.get_nonce(address).is_none() {
-            if let Some(tx_reference) = self.tx_pool.get_by_address_and_nonce(address, nonce) {
-                self.tx_queue.insert(tx_reference);
-            }
-        }
     }
 
     #[tracing::instrument(level = "debug", skip(self, incoming_tx), err)]
