@@ -85,9 +85,3 @@ impl ComponentStarter for MempoolP2pRunner {
 }
 
 pub type MempoolP2pRunnerServer = WrapperServer<MempoolP2pRunner>;
-
-pub fn create_mempool_p2p_runner_server(
-    mempool_p2p_runner: MempoolP2pRunner,
-) -> MempoolP2pRunnerServer {
-    WrapperServer::new(mempool_p2p_runner)
-}
