@@ -10518,6 +10518,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "starknet_state_sync_types"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "serde",
+ "starknet_api",
+ "starknet_sequencer_infra",
+ "thiserror",
+]
+
+[[package]]
 name = "starknet_task_executor"
 version = "0.0.0"
 dependencies = [
