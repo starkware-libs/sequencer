@@ -75,32 +75,36 @@ pub trait BlockBuilderTrait: Send {
     async fn build_block(&mut self) -> BlockBuilderResult<BlockExecutionArtifacts>;
 }
 
+pub struct BlockBuilderExecutionParams {
+    pub deadline: tokio::time::Instant,
+    pub fail_on_err: bool,
+}
+
 pub struct BlockBuilder {
     // TODO(Yael 14/10/2024): make the executor thread safe and delete this mutex.
     executor: Mutex<Box<dyn TransactionExecutorTrait>>,
-    tx_chunk_size: usize,
-    deadline: tokio::time::Instant,
     tx_provider: Box<dyn TransactionProvider>,
     output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<Transaction>>,
-    fail_on_err: bool,
+
+    // Parameters to configure the block builder behavior.
+    tx_chunk_size: usize,
+    execution_params: BlockBuilderExecutionParams,
 }
 
 impl BlockBuilder {
     pub fn new(
         executor: Box<dyn TransactionExecutorTrait>,
-        tx_chunk_size: usize,
-        deadline: tokio::time::Instant,
         tx_provider: Box<dyn TransactionProvider>,
         output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<Transaction>>,
-        fail_on_err: bool,
+        tx_chunk_size: usize,
+        execution_params: BlockBuilderExecutionParams,
     ) -> Self {
         Self {
             executor: Mutex::new(executor),
-            tx_chunk_size,
-            deadline,
             tx_provider,
             output_content_sender,
-            fail_on_err,
+            tx_chunk_size,
+            execution_params,
         }
     }
 }
@@ -111,7 +115,7 @@ impl BlockBuilderTrait for BlockBuilder {
         let mut block_is_full = false;
         let mut execution_infos = IndexMap::new();
         // TODO(yael 6/10/2024): delete the timeout condition once the executor has a timeout
-        while !block_is_full && tokio::time::Instant::now() < self.deadline {
+        while !block_is_full && tokio::time::Instant::now() < self.execution_params.deadline {
             let next_txs = self.tx_provider.get_txs(self.tx_chunk_size).await?;
             let next_tx_chunk = match next_txs {
                 NextTxs::Txs(txs) => txs,
@@ -136,7 +140,7 @@ impl BlockBuilderTrait for BlockBuilder {
                 results,
                 &mut execution_infos,
                 &self.output_content_sender,
-                self.fail_on_err,
+                self.execution_params.fail_on_err,
             )
             .await?;
         }
@@ -184,17 +188,20 @@ async fn collect_execution_results_and_stream_txs(
     Ok(false)
 }
 
+pub struct BlockMetadata {
+    pub height: BlockNumber,
+    pub retrospective_block_hash: Option<BlockHashAndNumber>,
+}
+
 /// The BlockBuilderFactoryTrait is responsible for creating a new block builder.
 #[cfg_attr(test, automock)]
 pub trait BlockBuilderFactoryTrait {
     fn create_block_builder(
         &self,
-        height: BlockNumber,
-        retrospective_block_hash: Option<BlockHashAndNumber>,
-        deadline: tokio::time::Instant,
+        block_metadata: BlockMetadata,
+        execution_params: BlockBuilderExecutionParams,
         tx_provider: Box<dyn TransactionProvider>,
         output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<Transaction>>,
-        fail_on_err: bool,
     ) -> BlockBuilderResult<Box<dyn BlockBuilderTrait>>;
 }
 
@@ -265,12 +272,11 @@ pub struct BlockBuilderFactory {
 impl BlockBuilderFactory {
     fn preprocess_and_create_transaction_executor(
         &self,
-        height: BlockNumber,
-        retrospective_block_hash: Option<BlockHashAndNumber>,
+        block_metadata: &BlockMetadata,
     ) -> BlockBuilderResult<TransactionExecutor<PapyrusReader>> {
         let block_builder_config = self.block_builder_config.clone();
         let next_block_info = BlockInfo {
-            block_number: height,
+            block_number: block_metadata.height,
             block_timestamp: BlockTimestamp(chrono::Utc::now().timestamp().try_into()?),
             sequencer_address: block_builder_config.sequencer_address,
             // TODO (yael 7/10/2024): add logic to compute gas prices
@@ -296,7 +302,7 @@ impl BlockBuilderFactory {
         // cache.
         let state_reader = PapyrusReader::new(
             self.storage_reader.clone(),
-            height,
+            block_metadata.height,
             // TODO(Yael 18/9/2024): dont forget to flush the cached_state cache into the global
             // cache on decision_reached.
             self.global_class_hash_to_class.clone(),
@@ -305,7 +311,7 @@ impl BlockBuilderFactory {
         let executor = TransactionExecutor::pre_process_and_create(
             state_reader,
             block_context,
-            retrospective_block_hash,
+            block_metadata.retrospective_block_hash,
             block_builder_config.execute_config,
         )?;
 
@@ -316,22 +322,18 @@ impl BlockBuilderFactory {
 impl BlockBuilderFactoryTrait for BlockBuilderFactory {
     fn create_block_builder(
         &self,
-        height: BlockNumber,
-        retrospective_block_hash: Option<BlockHashAndNumber>,
-        deadline: tokio::time::Instant,
+        block_metadata: BlockMetadata,
+        execution_params: BlockBuilderExecutionParams,
         tx_provider: Box<dyn TransactionProvider>,
         output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<Transaction>>,
-        fail_on_err: bool,
     ) -> BlockBuilderResult<Box<dyn BlockBuilderTrait>> {
-        let executor =
-            self.preprocess_and_create_transaction_executor(height, retrospective_block_hash)?;
+        let executor = self.preprocess_and_create_transaction_executor(&block_metadata)?;
         Ok(Box::new(BlockBuilder::new(
             Box::new(executor),
-            self.block_builder_config.tx_chunk_size,
-            deadline,
             tx_provider,
             output_content_sender,
-            fail_on_err,
+            self.block_builder_config.tx_chunk_size,
+            execution_params,
         )))
     }
 }

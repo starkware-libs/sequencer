@@ -18,6 +18,7 @@ use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use crate::block_builder::{
     BlockBuilder,
     BlockBuilderError,
+    BlockBuilderExecutionParams,
     BlockBuilderResult,
     BlockBuilderTrait,
     BlockExecutionArtifacts,
@@ -297,11 +298,10 @@ async fn run_build_block(
         + tokio::time::Duration::from_secs(BLOCK_GENERATION_DEADLINE_SECS);
     let mut block_builder = BlockBuilder::new(
         Box::new(mock_transaction_executor),
-        TX_CHUNK_SIZE,
-        deadline,
         Box::new(tx_provider),
         output_sender,
-        fail_on_err,
+        TX_CHUNK_SIZE,
+        BlockBuilderExecutionParams { deadline, fail_on_err },
     );
 
     block_builder.build_block().await

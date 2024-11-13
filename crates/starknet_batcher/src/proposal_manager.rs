@@ -17,9 +17,11 @@ use tracing::{debug, error, info, instrument, Instrument};
 use crate::batcher::BatcherStorageReaderTrait;
 use crate::block_builder::{
     BlockBuilderError,
+    BlockBuilderExecutionParams,
     BlockBuilderFactoryTrait,
     BlockBuilderTrait,
     BlockExecutionArtifacts,
+    BlockMetadata,
 };
 use crate::transaction_provider::ProposeTransactionProvider;
 
@@ -177,12 +179,10 @@ impl ProposalManagerTrait for ProposalManager {
         let height = self.active_height.expect("No active height.");
 
         let block_builder = self.block_builder_factory.create_block_builder(
-            height,
-            retrospective_block_hash,
-            deadline,
+            BlockMetadata { height, retrospective_block_hash },
+            BlockBuilderExecutionParams { deadline, fail_on_err: false },
             Box::new(tx_provider),
             Some(tx_sender.clone()),
-            false,
         )?;
 
         self.spawn_build_block_task(proposal_id, block_builder).await;
