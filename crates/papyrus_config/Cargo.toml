@@ -23,6 +23,7 @@ assert_matches.workspace = true
 itertools.workspace = true
 lazy_static.workspace = true
 papyrus_test_utils.workspace = true
+starknet_api.workspace = true
 tempfile.workspace = true
 
 [lints]

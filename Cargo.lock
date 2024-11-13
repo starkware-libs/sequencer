@@ -7223,6 +7223,7 @@ dependencies = [
  "papyrus_test_utils",
  "serde",
  "serde_json",
+ "starknet_api",
  "strum_macros 0.25.3",
  "tempfile",
  "thiserror",

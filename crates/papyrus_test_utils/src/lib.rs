@@ -9,7 +9,6 @@ use std::hash::Hash;
 use std::net::SocketAddr;
 use std::num::NonZeroU64;
 use std::ops::{Deref, Index};
-use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use cairo_lang_casm::hints::{CoreHint, CoreHintBase, Hint};
@@ -181,11 +180,6 @@ pub async fn send_request(
         .await
         .unwrap();
     serde_json::from_str(&res_str).unwrap()
-}
-
-/// Returns the absolute path from the project root.
-pub fn get_absolute_path(relative_path: &str) -> PathBuf {
-    Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap()).join("../..").join(relative_path)
 }
 
 pub fn validate_load_and_dump<T: Serialize + for<'a> Deserialize<'a>>(path_in_resource_dir: &str) {

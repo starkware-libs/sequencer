@@ -2,8 +2,9 @@ use std::env;
 use std::path::Path;
 
 use assert_matches::assert_matches;
-use mempool_test_utils::{get_absolute_path, FAULTY_ACCOUNT_CLASS_FILE, TEST_FILES_FOLDER};
+use mempool_test_utils::{FAULTY_ACCOUNT_CLASS_FILE, TEST_FILES_FOLDER};
 use rstest::rstest;
+use starknet_api::test_utils::get_absolute_path;
 
 use crate::cairo_lang_compiler::CairoLangSierraToCasmCompiler;
 use crate::command_line_compiler::CommandLineCompiler;

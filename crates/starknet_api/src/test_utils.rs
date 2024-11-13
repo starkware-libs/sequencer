@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::env;
 use std::fs::read_to_string;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use starknet_types_core::felt::Felt;
 
@@ -11,8 +11,13 @@ pub mod declare;
 pub mod deploy_account;
 pub mod invoke;
 
+/// Returns the absolute path from the project root.
+pub fn get_absolute_path<P: AsRef<Path>>(relative_path: P) -> PathBuf {
+    Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap()).join("../..").join(relative_path)
+}
+
 /// Reads from the directory containing the manifest at run time, same as current working directory.
-pub fn read_json_file(path_in_resource_dir: &str) -> serde_json::Value {
+pub fn read_json_file<P: AsRef<Path>>(path_in_resource_dir: P) -> serde_json::Value {
     let path = Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap())
         .join("resources")
         .join(path_in_resource_dir);

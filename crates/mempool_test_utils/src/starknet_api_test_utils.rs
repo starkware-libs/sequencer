@@ -23,7 +23,7 @@ use starknet_api::rpc_transaction::{
 };
 use starknet_api::test_utils::deploy_account::DeployAccountTxArgs;
 use starknet_api::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
-use starknet_api::test_utils::NonceManager;
+use starknet_api::test_utils::{get_absolute_path, NonceManager};
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
@@ -40,7 +40,6 @@ use starknet_types_core::felt::Felt;
 
 use crate::{
     declare_tx_args,
-    get_absolute_path,
     COMPILED_CLASS_HASH_OF_CONTRACT_CLASS,
     CONTRACT_CLASS_FILE,
     TEST_FILES_FOLDER,

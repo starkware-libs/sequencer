@@ -4,10 +4,10 @@ use std::fs::File;
 use assert_json_diff::assert_json_eq;
 use assert_matches::assert_matches;
 use colored::Colorize;
-use mempool_test_utils::get_absolute_path;
 use papyrus_config::dumping::SerializeConfig;
 use papyrus_config::validators::config_validate;
 use rstest::rstest;
+use starknet_api::test_utils::get_absolute_path;
 use starknet_sequencer_infra::component_definitions::{
     LocalServerConfig,
     RemoteClientConfig,
