@@ -36,7 +36,14 @@ pub(crate) struct CargoToml {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub(crate) struct CrateCargoTomlPackage {
+    version: HashMap<String, bool>, // Expect `version.workspace = true`.
+    pub(crate) name: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub(crate) struct CrateCargoToml {
+    pub(crate) package: CrateCargoTomlPackage,
     dependencies: Option<HashMap<String, DependencyValue>>,
     #[serde(rename = "dev-dependencies")]
     dev_dependencies: Option<HashMap<String, DependencyValue>>,

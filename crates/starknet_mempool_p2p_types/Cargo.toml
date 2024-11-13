@@ -1,6 +1,6 @@
 [package]
 name = "starknet_mempool_p2p_types"
-version = "0.0.0"
+version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
