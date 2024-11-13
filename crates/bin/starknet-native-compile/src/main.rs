@@ -13,23 +13,19 @@ mod utils;
 struct Args {
     /// The path of the Sierra file to compile.
     path: PathBuf,
-    /// The output file name (default: output.so).
-    output: Option<String>,
+    /// The output file path.
+    output: PathBuf,
 }
-
-const DEFAULT_OUTPUT_FILE: &str = "./output.so";
 
 fn main() {
     // TODO(Avi, 01/12/2024): Find a way to restrict time, memory and file size during compilation.
     let args = Args::parse();
     let path = args.path;
-    let output = args.output.unwrap_or_else(|| DEFAULT_OUTPUT_FILE.to_string());
+    let output = args.output;
 
-    println!("Loading Sierra program from file: {:?}", &path);
     let sierra_program = load_sierra_program_from_file(&path);
 
-    println!("Compiling Sierra program into file {:?}", &output);
-    let start = std::time::Instant::now();
+    // TODO(Avi, 01/12/2024): Test different optimization levels for best performance.
     let mut contract_executor = AotContractExecutor::new(&sierra_program, OptLevel::default())
         .unwrap_or_else(|err| {
             eprintln!("Error compiling Sierra program: {}", err);
@@ -39,5 +35,4 @@ fn main() {
         eprintln!("Error saving compiled program: {}", err);
         process::exit(1);
     });
-    println!("Compilation successful. Elapsed: {:?}", start.elapsed());
 }
