@@ -10294,6 +10294,7 @@ dependencies = [
  "mempool_test_utils",
  "papyrus_common",
  "papyrus_consensus",
+ "papyrus_execution",
  "papyrus_network",
  "papyrus_protobuf",
  "papyrus_rpc",
