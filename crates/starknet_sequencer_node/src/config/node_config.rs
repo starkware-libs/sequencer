@@ -5,6 +5,7 @@ use std::sync::LazyLock;
 use std::vec::Vec;
 
 use clap::Command;
+use infra_utils::path::get_absolute_path;
 use papyrus_config::dumping::{
     append_sub_config_name,
     generate_struct_pointer,
@@ -28,7 +29,6 @@ use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 use validator::Validate;
 
 use crate::config::component_config::ComponentConfig;
-use crate::utils::get_absolute_path;
 use crate::version::VERSION_FULL;
 
 // The path of the default configuration file, provided as part of the crate.
