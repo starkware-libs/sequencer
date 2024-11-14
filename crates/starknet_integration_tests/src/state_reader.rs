@@ -55,6 +55,7 @@ pub struct StorageTestSetup {
     pub chain_id: ChainId,
     pub rpc_storage_reader: StorageReader,
     pub rpc_storage_handle: TempDir,
+    pub batcher_storage_reader: StorageReader,
     pub batcher_storage_config: StorageConfig,
     pub batcher_storage_handle: TempDir,
 }
@@ -64,13 +65,17 @@ impl StorageTestSetup {
         let ((rpc_storage_reader, mut rpc_storage_writer), rpc_storage_file_handle) =
             get_test_storage();
         create_test_state(&mut rpc_storage_writer, test_defined_accounts.clone());
-        let ((_, mut batcher_storage_writer), batcher_storage_config, batcher_storage_file_handle) =
-            get_test_storage_with_config_by_scope(papyrus_storage::StorageScope::StateOnly);
+        let (
+            (batcher_storage_reader, mut batcher_storage_writer),
+            batcher_storage_config,
+            batcher_storage_file_handle,
+        ) = get_test_storage_with_config_by_scope(papyrus_storage::StorageScope::FullArchive);
         create_test_state(&mut batcher_storage_writer, test_defined_accounts);
         Self {
             chain_id: batcher_storage_config.db_config.chain_id.clone(),
             rpc_storage_reader,
             rpc_storage_handle: rpc_storage_file_handle,
+            batcher_storage_reader,
             batcher_storage_config,
             batcher_storage_handle: batcher_storage_file_handle,
         }

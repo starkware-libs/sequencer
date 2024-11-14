@@ -2,6 +2,7 @@ use std::net::SocketAddr;
 use std::path::PathBuf;
 
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
+use papyrus_storage::StorageReader;
 use starknet_http_server::config::HttpServerConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_monitoring_endpoint::test_utils::IsAliveClient;
@@ -14,13 +15,12 @@ use crate::utils::{create_config, HttpTestClient};
 pub struct IntegrationTestSetup {
     // Client for adding transactions to the sequencer node.
     pub add_tx_http_client: HttpTestClient,
-
     // Client for checking liveness of the sequencer node.
     pub is_alive_test_client: IsAliveClient,
-
     // Path to the node configuration file.
     pub node_config_path: PathBuf,
-
+    // Storage reader for the batcher.
+    pub batcher_storage_reader: StorageReader,
     // Handlers for the storage and config files, maintained so the files are not deleted. Since
     // these are only maintained to avoid dropping the handlers, private visibility suffices, and
     // as such, the '#[allow(dead_code)]' attributes are used to suppress the warning.
@@ -66,6 +66,7 @@ impl IntegrationTestSetup {
             add_tx_http_client,
             is_alive_test_client,
             batcher_storage_handle: storage_for_test.batcher_storage_handle,
+            batcher_storage_reader: storage_for_test.batcher_storage_reader,
             rpc_storage_handle: storage_for_test.rpc_storage_handle,
             node_config_dir_handle,
             node_config_path,
