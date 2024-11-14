@@ -321,6 +321,21 @@ pub fn create_node_servers(
     SequencerNodeServers { local_servers, wrapper_servers }
 }
 
+pub fn get_selected_server_future(
+    execution_mode: &ComponentExecutionMode,
+    local_server: Option<Box<impl ComponentServerStarter + Send + 'static>>,
+    remote_server: Option<Box<impl ComponentServerStarter + Send + 'static>>,
+) -> Pin<Box<dyn Future<Output = Result<(), ComponentServerError>> + Send>> {
+    match execution_mode {
+        ComponentExecutionMode::Remote => get_server_future(remote_server),
+        ComponentExecutionMode::LocalExecutionWithRemoteDisabled
+        | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
+            get_server_future(local_server)
+        }
+        ComponentExecutionMode::Disabled => pending().boxed(),
+    }
+}
+
 pub async fn run_component_servers(servers: SequencerNodeServers) -> anyhow::Result<()> {
     // Batcher server.
     let batcher_future = get_server_future(servers.local_servers.batcher);
