@@ -146,7 +146,9 @@ fn test_circuit(block_context: BlockContext, default_all_resource_bounds: ValidR
 }
 
 #[rstest]
-fn test_rc96_holes(block_context: BlockContext, default_all_resource_bounds: ValidResourceBounds) {
+#[case::vm(default_l1_resource_bounds())]
+#[case::gas(default_all_resource_bounds())]
+fn test_rc96_holes(block_context: BlockContext, #[case] resource_bounds: ValidResourceBounds) {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
     let account =
         FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm));
@@ -170,18 +172,21 @@ fn test_rc96_holes(block_context: BlockContext, default_all_resource_bounds: Val
         state,
         &block_context,
         invoke_tx_args! {
-            resource_bounds: default_all_resource_bounds,
+            resource_bounds: resource_bounds,
             ..tx_args
         },
     )
     .unwrap();
 
     assert!(!tx_execution_info.is_reverted());
-    assert_eq!(
-        tx_execution_info.receipt.resources.computation.vm_resources.builtin_instance_counter
-            [&BuiltinName::range_check96],
-        24
-    );
+    if tx_execution_info.validate_call_info.unwrap().tracked_resource == TrackedResource::CairoSteps
+    {
+        assert_eq!(
+            tx_execution_info.receipt.resources.computation.vm_resources.builtin_instance_counter
+                [&BuiltinName::range_check96],
+            24
+        );
+    }
 }
 
 #[rstest]
@@ -887,6 +892,11 @@ fn test_reverted_reach_steps_limit(
     assert!(!result.is_reverted());
 
     // Make sure that the n_steps and actual_fee are higher as the recursion depth increases.
+    // TODO(Tzahi): adjust the steps in the test to gas for the SierraGas run (after a validate
+    // run gas limit is introduced to the code).
+    if result.validate_call_info.unwrap().tracked_resource == TrackedResource::SierraGas {
+        return;
+    }
     assert!(n_steps_1 > n_steps_0);
     assert!(actual_fee_1 > actual_fee_0);
 

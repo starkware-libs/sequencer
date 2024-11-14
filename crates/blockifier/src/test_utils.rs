@@ -10,6 +10,7 @@ pub mod transfers_generator;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
+use std::slice::Iter;
 
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
@@ -29,6 +30,8 @@ use starknet_api::transaction::fields::{
 use starknet_api::transaction::TransactionVersion;
 use starknet_api::{contract_address, felt};
 use starknet_types_core::felt::Felt;
+use strum::EnumCount;
+use strum_macros::EnumCount as EnumCountMacro;
 
 use crate::abi::constants;
 use crate::execution::call_info::ExecutionSummary;
@@ -106,7 +109,7 @@ impl CairoVersion {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, EnumCountMacro, PartialEq, Eq, Debug)]
 pub enum CompilerBasedVersion {
     CairoVersion(CairoVersion),
     OldCairo1,
@@ -129,6 +132,17 @@ impl CompilerBasedVersion {
             }
             Self::CairoVersion(CairoVersion::Cairo1(_)) => TrackedResource::SierraGas,
         }
+    }
+
+    /// Returns an iterator over all of the enum variants.
+    pub fn iter() -> Iter<'static, Self> {
+        assert_eq!(Self::COUNT, 2);
+        static VERSIONS: [CompilerBasedVersion; 3] = [
+            CompilerBasedVersion::CairoVersion(CairoVersion::Cairo0),
+            CompilerBasedVersion::OldCairo1,
+            CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1(RunnableCairo1::Casm)),
+        ];
+        VERSIONS.iter()
     }
 }
 
