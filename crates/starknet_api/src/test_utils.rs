@@ -10,6 +10,7 @@ use crate::core::{ContractAddress, Nonce};
 pub mod declare;
 pub mod deploy_account;
 pub mod invoke;
+pub mod l1_handler;
 
 #[derive(Debug, Default)]
 pub struct NonceManager {
