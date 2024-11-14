@@ -1,5 +1,7 @@
 pub mod errors;
 
+use std::fmt;
+
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
 
@@ -7,8 +9,13 @@ use crate::errors::L1ProviderError;
 
 type L1ProviderResult<T> = Result<T, L1ProviderError>;
 
+#[cfg(test)]
+#[path = "l1_provider_tests.rs"]
+pub mod l1_provider_tests;
+
 // TODO: optimistic proposer support, will add later to keep things simple, but the design here
 // is compatible with it.
+#[derive(Debug, Default)]
 pub struct L1Provider {
     unconsumed_l1_not_in_l2_block_txs: PendingMessagesFromL1,
     state: ProviderState,
@@ -53,8 +60,9 @@ impl L1Provider {
         todo!("Sets internal state as validate, returns error if state is Pending.")
     }
 
-    pub fn proposal_start(&mut self) {
-        todo!("Similar to validation_start.")
+    pub fn proposal_start(&mut self) -> L1ProviderResult<()> {
+        self.state = self.state.transition_to_propose()?;
+        Ok(())
     }
 
     /// Simple recovery from L1 and L2 reorgs by reseting the service, which rewinds L1 and L2
@@ -81,6 +89,7 @@ impl L1Provider {
     }
 }
 
+#[derive(Debug, Default)]
 struct PendingMessagesFromL1;
 
 impl PendingMessagesFromL1 {
@@ -90,7 +99,7 @@ impl PendingMessagesFromL1 {
 }
 
 /// Current state of the provider, where pending means: idle, between proposal/validation cycles.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, Copy)]
 pub enum ProviderState {
     #[default]
     Pending,
@@ -99,8 +108,14 @@ pub enum ProviderState {
 }
 
 impl ProviderState {
-    fn _transition_to_propose(self) -> L1ProviderResult<Self> {
-        todo!()
+    fn transition_to_propose(self) -> L1ProviderResult<Self> {
+        match self {
+            ProviderState::Pending => Ok(ProviderState::Propose),
+            _ => Err(L1ProviderError::UnexpectedProviderState {
+                from: self,
+                to: ProviderState::Propose,
+            }),
+        }
     }
 
     fn _transition_to_validate(self) -> L1ProviderResult<Self> {
@@ -110,6 +125,21 @@ impl ProviderState {
     fn _transition_to_pending(self) -> L1ProviderResult<Self> {
         todo!()
     }
+
+    pub fn as_str(&self) -> &str {
+        match self {
+            ProviderState::Pending => "Pending",
+            ProviderState::Propose => "Propose",
+            ProviderState::Validate => "Validate",
+        }
+    }
 }
 
+impl fmt::Display for ProviderState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+#[derive(Debug)]
 pub struct L1ProviderConfig;
