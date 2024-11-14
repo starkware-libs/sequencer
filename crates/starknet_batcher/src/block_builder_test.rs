@@ -73,6 +73,7 @@ fn one_chunk_mock_executor(
 
     mock_transaction_executor
         .expect_add_txs_to_block()
+        .times(1)
         .withf(move |blockifier_input| compare_tx_hashes(&input_txs_cloned, blockifier_input))
         .return_once(move |_| (0..block_size).map(|_| Ok(execution_info())).collect());
 
@@ -131,6 +132,7 @@ fn block_full_test_expectations(
 
     mock_transaction_executor
         .expect_add_txs_to_block()
+        .times(1)
         .withf(move |blockifier_input| compare_tx_hashes(&input_txs_cloned, blockifier_input))
         .return_once(move |_| vec![Ok(execution_info()), Err(TransactionExecutorError::BlockFull)]);
 
@@ -151,6 +153,7 @@ fn test_expectations_with_delay(
 
     mock_transaction_executor
         .expect_add_txs_to_block()
+        .times(1)
         .withf(move |blockifier_input| compare_tx_hashes(&first_chunk, blockifier_input))
         .return_once(move |_| {
             std::thread::sleep(std::time::Duration::from_secs(BLOCK_GENERATION_DEADLINE_SECS));
@@ -174,6 +177,7 @@ fn stream_done_test_expectations(
 
     mock_transaction_executor
         .expect_add_txs_to_block()
+        .times(1)
         .withf(move |blockifier_input| compare_tx_hashes(&input_txs_cloned, blockifier_input))
         .return_once(move |_| (0..block_size).map(|_| Ok(execution_info())).collect());
 
@@ -200,7 +204,7 @@ fn set_close_block_expectations(
 ) -> BlockExecutionArtifacts {
     let output_block_artifacts = block_builder_expected_output(block_size);
     let output_block_artifacts_copy = output_block_artifacts.clone();
-    mock_transaction_executor.expect_close_block().return_once(move || {
+    mock_transaction_executor.expect_close_block().times(1).return_once(move || {
         Ok((
             output_block_artifacts.commitment_state_diff,
             output_block_artifacts.visited_segments_mapping,
@@ -379,9 +383,17 @@ async fn test_validate_block() {
 #[tokio::test]
 async fn test_validate_block_with_error() {
     let input_txs = test_txs(0..3);
-    let expected_block_size = 1;
-    let (mock_transaction_executor, mock_tx_provider, _) =
-        block_full_test_expectations(&input_txs, expected_block_size);
+    let input_txs_clone = input_txs.clone();
+
+    let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
+    mock_transaction_executor
+        .expect_add_txs_to_block()
+        .times(1)
+        .withf(move |blockifier_input| compare_tx_hashes(&input_txs_clone, blockifier_input))
+        .return_once(move |_| vec![Ok(execution_info()), Err(TransactionExecutorError::BlockFull)]);
+    mock_transaction_executor.expect_close_block().times(0);
+
+    let mock_tx_provider = mock_tx_provider_limited_calls(1, vec![input_txs.to_vec()]);
 
     let (_abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
     let result = run_build_block(

@@ -48,6 +48,7 @@ impl MockDependencies {
             let mut mock_block_builder = MockBlockBuilderTrait::new();
             mock_block_builder
                 .expect_build_block()
+                .times(1)
                 .return_once(move || Ok(BlockExecutionArtifacts::create_for_testing()));
             Ok(Box::new(mock_block_builder))
         };
@@ -63,7 +64,7 @@ impl MockDependencies {
     fn expect_long_build_block(&mut self, times: usize) {
         let simulate_long_build_block = || -> BlockBuilderResult<Box<dyn BlockBuilderTrait>> {
             let mut mock_block_builder = MockBlockBuilderTrait::new();
-            mock_block_builder.expect_build_block().return_once(move || {
+            mock_block_builder.expect_build_block().times(1).return_once(move || {
                 std::thread::sleep(BLOCK_GENERATION_TIMEOUT * 10);
                 Ok(BlockExecutionArtifacts::create_for_testing())
             });
