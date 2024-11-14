@@ -1,3 +1,4 @@
+use assert_matches::assert_matches;
 use blockifier::abi::abi_utils::selector_from_name;
 use blockifier::execution::call_info::CallExecution;
 use blockifier::execution::entry_point::CallEntryPoint;
@@ -11,6 +12,7 @@ use indexmap::IndexMap;
 use papyrus_storage::class::ClassStorageWriter;
 use papyrus_storage::state::StateStorageWriter;
 use starknet_api::block::BlockNumber;
+use starknet_api::contract_class::ContractClass;
 use starknet_api::state::{StateDiff, StorageKey};
 use starknet_api::{calldata, felt};
 
@@ -22,7 +24,10 @@ fn test_entry_point_with_papyrus_state() -> papyrus_storage::StorageResult<()> {
 
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
     let test_class_hash = test_contract.get_class_hash();
-    let test_class = test_contract.get_deprecated_contract_class();
+    let test_class = assert_matches!(
+        test_contract.get_class(), ContractClass::V0(contract_class) => contract_class
+    );
+
     // Initialize Storage: add test contract and class.
     let deployed_contracts =
         IndexMap::from([(test_contract.get_instance_address(0), test_class_hash)]);

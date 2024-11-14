@@ -181,21 +181,6 @@ impl FeatureContract {
         self.get_class().try_into().unwrap()
     }
 
-    // TODO(Arni, 1/1/2025): Remove this function, and use the get_class function instead.
-    pub fn get_deprecated_contract_class(&self) -> DeprecatedContractClass {
-        let mut raw_contract_class: serde_json::Value =
-            serde_json::from_str(&self.get_raw_class()).unwrap();
-
-        // ABI is not required for execution.
-        raw_contract_class
-            .as_object_mut()
-            .expect("A compiled contract must be a JSON object.")
-            .remove("abi");
-
-        serde_json::from_value(raw_contract_class)
-            .expect("DeprecatedContractClass is not supported for this contract.")
-    }
-
     pub fn get_raw_class(&self) -> String {
         get_raw_contract_class(&self.get_compiled_path())
     }
