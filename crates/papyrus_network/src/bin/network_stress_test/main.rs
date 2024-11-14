@@ -72,6 +72,7 @@ async fn main() {
                         });
                         i += 1;
                         if i == num_messages * 4 {
+                            tokio::time::sleep(std::time::Duration::from_secs(20)).await;
                             break;
                         }
                     }
