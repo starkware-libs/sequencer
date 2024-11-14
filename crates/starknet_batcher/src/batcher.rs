@@ -315,6 +315,7 @@ impl From<StartHeightError> for BatcherError {
             StartHeightError::StorageNotSynced { storage_height, requested_height } => {
                 BatcherError::StorageNotSynced { storage_height, requested_height }
             }
+            StartHeightError::HeightInProgress => BatcherError::HeightInProgress,
         }
     }
 }
