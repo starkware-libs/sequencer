@@ -87,8 +87,6 @@ pub trait ProposalManagerTrait: Send + Sync {
         tx_provider: ProposeTransactionProvider,
     ) -> Result<(), GenerateProposalError>;
 
-    // TODO: delete allow dead code once the batcher uses this code.
-    #[allow(dead_code)]
     async fn validate_block_proposal(
         &mut self,
         proposal_id: ProposalId,
