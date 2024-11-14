@@ -345,6 +345,7 @@ impl From<GetProposalResultError> for BatcherError {
             GetProposalResultError::ProposalDoesNotExist { proposal_id } => {
                 BatcherError::ExecutedProposalNotFound { proposal_id }
             }
+            GetProposalResultError::Aborted => BatcherError::ProposalAborted,
         }
     }
 }

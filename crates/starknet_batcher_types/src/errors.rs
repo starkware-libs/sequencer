@@ -35,6 +35,8 @@ pub enum BatcherError {
     ProposalAlreadyFinished { proposal_id: ProposalId },
     #[error("Proposal failed.")]
     ProposalFailed,
+    #[error("Proposal aborted.")]
+    ProposalAborted,
     #[error("Proposal with ID {proposal_id} not found.")]
     ProposalNotFound { proposal_id: ProposalId },
     #[error(

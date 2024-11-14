@@ -65,6 +65,8 @@ pub enum GetProposalResultError {
     BlockBuilderError(Arc<BlockBuilderError>),
     #[error("Proposal with id {proposal_id} does not exist.")]
     ProposalDoesNotExist { proposal_id: ProposalId },
+    #[error("Proposal was aborted")]
+    Aborted,
 }
 
 pub enum ProposalStatus {
@@ -108,6 +110,15 @@ pub trait ProposalManagerTrait: Send + Sync {
         &mut self,
         proposal_id: ProposalId,
     ) -> ProposalResult<ProposalCommitment>;
+
+    #[allow(dead_code)]
+    async fn abort_proposal(&mut self, proposal_id: ProposalId);
+}
+
+// Represents a spawned task of building new block proposal.
+struct ProposalTask {
+    abort_signal_sender: tokio::sync::oneshot::Sender<()>,
+    join_handle: tokio::task::JoinHandle<()>,
 }
 
 /// Main struct for handling block proposals.
@@ -120,17 +131,18 @@ pub trait ProposalManagerTrait: Send + Sync {
 pub(crate) struct ProposalManager {
     storage_reader: Arc<dyn BatcherStorageReaderTrait>,
     active_height: Option<BlockNumber>,
-    /// The block proposal that is currently being proposed, if any.
+
+    /// The block proposal that is currently being built, if any.
     /// At any given time, there can be only one proposal being actively executed (either proposed
     /// or validated).
     active_proposal: Arc<Mutex<Option<ProposalId>>>,
-    active_proposal_handle: Option<ActiveTaskHandle>,
+    active_proposal_task: Option<ProposalTask>,
+
     // Use a factory object, to be able to mock BlockBuilder in tests.
     block_builder_factory: Arc<dyn BlockBuilderFactoryTrait + Send + Sync>,
     executed_proposals: Arc<Mutex<HashMap<ProposalId, ProposalResult<ProposalOutput>>>>,
 }
 
-type ActiveTaskHandle = tokio::task::JoinHandle<()>;
 pub type ProposalResult<T> = Result<T, GetProposalResultError>;
 
 #[derive(Debug, PartialEq)]
@@ -187,7 +199,7 @@ impl ProposalManagerTrait for ProposalManager {
         info!("Starting generation of a new proposal with id {}.", proposal_id);
 
         // Create the block builder, and a channel to allow aborting the block building task.
-        let (_abort_signal_sender, abort_signal_receiver) = tokio::sync::oneshot::channel();
+        let (abort_signal_sender, abort_signal_receiver) = tokio::sync::oneshot::channel();
         let height = self.active_height.expect("No active height.");
 
         let block_builder = self.block_builder_factory.create_block_builder(
@@ -198,7 +210,8 @@ impl ProposalManagerTrait for ProposalManager {
             abort_signal_receiver,
         )?;
 
-        self.spawn_build_block_task(proposal_id, block_builder).await;
+        let join_handle = self.spawn_build_block_task(proposal_id, block_builder).await;
+        self.active_proposal_task = Some(ProposalTask { abort_signal_sender, join_handle });
 
         Ok(())
     }
@@ -218,7 +231,7 @@ impl ProposalManagerTrait for ProposalManager {
         info!("Starting validation of proposal with id {}.", proposal_id);
 
         // Create the block builder, and a channel to allow aborting the block building task.
-        let (_abort_signal_sender, abort_signal_receiver) = tokio::sync::oneshot::channel();
+        let (abort_signal_sender, abort_signal_receiver) = tokio::sync::oneshot::channel();
         let height = self.active_height.expect("No active height.");
 
         let block_builder = self.block_builder_factory.create_block_builder(
@@ -229,7 +242,8 @@ impl ProposalManagerTrait for ProposalManager {
             abort_signal_receiver,
         )?;
 
-        self.spawn_build_block_task(proposal_id, block_builder).await;
+        let join_handle = self.spawn_build_block_task(proposal_id, block_builder).await;
+        self.active_proposal_task = Some(ProposalTask { abort_signal_sender, join_handle });
 
         Ok(())
     }
@@ -264,7 +278,9 @@ impl ProposalManagerTrait for ProposalManager {
         &mut self,
         proposal_id: ProposalId,
     ) -> ProposalResult<ProposalCommitment> {
-        self.await_proposal_completion(proposal_id).await;
+        if self.active_proposal.lock().await.is_some_and(|id| id == proposal_id) {
+            self.await_active_proposal().await;
+        }
         let proposals = self.executed_proposals.lock().await;
         let output = proposals
             .get(&proposal_id)
@@ -272,6 +288,18 @@ impl ProposalManagerTrait for ProposalManager {
         match output {
             Ok(output) => Ok(output.commitment),
             Err(e) => Err(e.clone()),
+        }
+    }
+
+    // Aborts the proposal with the given ID, if active.
+    // Should be used in validate flow, if the consensus decides to abort the proposal.
+    async fn abort_proposal(&mut self, proposal_id: ProposalId) {
+        if self.active_proposal.lock().await.is_some_and(|id| id == proposal_id) {
+            self.abort_active_proposal().await;
+            self.executed_proposals
+                .lock()
+                .await
+                .insert(proposal_id, Err(GetProposalResultError::Aborted));
         }
     }
 }
@@ -285,7 +313,7 @@ impl ProposalManager {
             storage_reader,
             active_proposal: Arc::new(Mutex::new(None)),
             block_builder_factory,
-            active_proposal_handle: None,
+            active_proposal_task: None,
             active_height: None,
             executed_proposals: Arc::new(Mutex::new(HashMap::new())),
         }
@@ -295,11 +323,11 @@ impl ProposalManager {
         &mut self,
         proposal_id: ProposalId,
         mut block_builder: Box<dyn BlockBuilderTrait>,
-    ) {
+    ) -> tokio::task::JoinHandle<()> {
         let active_proposal = self.active_proposal.clone();
         let executed_proposals = self.executed_proposals.clone();
 
-        self.active_proposal_handle = Some(tokio::spawn(
+        tokio::spawn(
             async move {
                 let result = block_builder
                     .build_block()
@@ -307,18 +335,17 @@ impl ProposalManager {
                     .map(ProposalOutput::from)
                     .map_err(|e| GetProposalResultError::BlockBuilderError(Arc::new(e)));
 
-                executed_proposals.lock().await.insert(proposal_id, result);
-
                 // The proposal is done, clear the active proposal.
+                // Keep the proposal result only if it is the same as the active proposal.
+                // The active proposal might have changed if this proposal was aborted.
                 let mut active_proposal = active_proposal.lock().await;
-                if let Some(current_active_proposal_id) = *active_proposal {
-                    if current_active_proposal_id == proposal_id {
-                        active_proposal.take();
-                    }
+                if active_proposal.is_some_and(|id| id == proposal_id) {
+                    active_proposal.take();
+                    executed_proposals.lock().await.insert(proposal_id, result);
                 }
             }
             .in_current_span(),
-        ));
+        )
     }
 
     async fn reset_active_height(&mut self) {
@@ -355,29 +382,23 @@ impl ProposalManager {
         Ok(())
     }
 
-    // This function assumes there are not requests processed in parallel by the batcher, otherwise
-    // there is a race conditon between creating the active_proposal_handle and awaiting on it.
-    pub async fn await_proposal_completion(&mut self, proposal_id: ProposalId) {
-        if self.active_proposal.lock().await.as_ref() == Some(&proposal_id) {
-            let _ = self
-                .active_proposal_handle
-                .take()
-                .expect("Active proposal handle should exist.")
-                .await;
-        }
-    }
-
-    // A helper function for testing purposes (to be able to await the active proposal).
-    // Returns true if there was an active porposal, and false otherwise.
-    // TODO: Consider making the tests a nested module to allow them to access private members.
-    // TODO(yael 5/1/2024): use wait_for_proposal_completion instead of this function.
-    #[cfg(test)]
+    // Awaits the active proposal.
+    // Returns true if there was an active proposal, and false otherwise.
     pub async fn await_active_proposal(&mut self) -> bool {
-        if let Some(handle) = self.active_proposal_handle.take() {
-            handle.await.unwrap();
+        if let Some(proposal_task) = self.active_proposal_task.take() {
+            proposal_task.join_handle.await.ok();
             return true;
         }
         false
+    }
+
+    // Ends the current active proposal.
+    // This call is non-blocking.
+    async fn abort_active_proposal(&mut self) {
+        self.active_proposal.lock().await.take();
+        if let Some(proposal_task) = self.active_proposal_task.take() {
+            proposal_task.abort_signal_sender.send(()).ok();
+        }
     }
 }
 
