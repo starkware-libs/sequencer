@@ -85,14 +85,15 @@ async fn get_stream_content(
     };
 
     let mut proposal_manager = MockProposalManagerTraitWrapper::new();
-    proposal_manager.expect_wrap_start_height().return_once(|_| async { Ok(()) }.boxed());
-    proposal_manager.expect_wrap_build_block_proposal().return_once(
+    proposal_manager.expect_wrap_start_height().times(1).return_once(|_| async { Ok(()) }.boxed());
+    proposal_manager.expect_wrap_build_block_proposal().times(1).return_once(
         move |_proposal_id, _block_hash, _deadline, tx_sender, _tx_provider| {
             simulate_build_block_proposal(tx_sender, txs_to_stream).boxed()
         },
     );
     proposal_manager
         .expect_wrap_executed_proposal_commitment()
+        .times(1)
         .return_once(move |_| async move { Ok(expected_proposal_commitment) }.boxed());
 
     let mut batcher = Batcher::new(
@@ -161,7 +162,7 @@ async fn decision_reached(
     let nonces_clone = address_to_nonce.clone();
 
     let mut proposal_manager = MockProposalManagerTraitWrapper::new();
-    proposal_manager.expect_wrap_take_proposal_result().with(eq(PROPOSAL_ID)).return_once(
+    proposal_manager.expect_wrap_take_proposal_result().times(1).with(eq(PROPOSAL_ID)).return_once(
         move |_| {
             async move {
                 Ok(ProposalOutput {
@@ -206,7 +207,7 @@ async fn decision_reached_no_executed_proposal(
     let expected_error = BatcherError::ExecutedProposalNotFound { proposal_id: PROPOSAL_ID };
 
     let mut proposal_manager = MockProposalManagerTraitWrapper::new();
-    proposal_manager.expect_wrap_take_proposal_result().with(eq(PROPOSAL_ID)).return_once(
+    proposal_manager.expect_wrap_take_proposal_result().times(1).with(eq(PROPOSAL_ID)).return_once(
         |proposal_id| {
             async move { Err(GetProposalResultError::ProposalDoesNotExist { proposal_id }) }.boxed()
         },
