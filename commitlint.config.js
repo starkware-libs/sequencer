@@ -24,6 +24,7 @@ const Configuration = {
             'block_hash',
             'blockifier',
             'blockifier_reexecution',
+            'cairo_native',
             'ci',
             'committer',
             'common',
