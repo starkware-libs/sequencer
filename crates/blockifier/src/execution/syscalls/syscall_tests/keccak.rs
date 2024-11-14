@@ -13,7 +13,7 @@ use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, BALANCE}
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 254910; "VM")]
 #[cfg_attr(
     feature = "cairo_native",
-    test_case(FeatureContract::TestContract(CairoVersion::Native), 263740; "Native")
+    test_case(FeatureContract::TestContract(CairoVersion::Native), 264910; "Native")
 )]
 fn test_keccak(test_contract: FeatureContract, expected_gas: u64) {
     let chain_info = &ChainInfo::create_for_testing();
