@@ -106,8 +106,8 @@
   },
   "batcher_config.block_builder_config.sequencer_address": {
     "description": "The address of the sequencer.",
-    "privacy": "Public",
-    "value": "0x0"
+    "pointer_target": "sequencer_address",
+    "privacy": "Public"
   },
   "batcher_config.block_builder_config.tx_chunk_size": {
     "description": "The size of the transaction chunk.",
@@ -898,6 +898,11 @@
     "description": "The url of the rpc server.",
     "privacy": "Public",
     "value": ""
+  },
+  "sequencer_address": {
+    "description": "A required param! The sequencer address.",
+    "param_type": "String",
+    "privacy": "TemporaryValue"
   },
   "strk_fee_token_address": {
     "description": "A required param! Address of the STRK fee token.",

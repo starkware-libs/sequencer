@@ -41,10 +41,12 @@ pub(crate) fn dump_config_file_changes(
     dir: PathBuf,
 ) -> PathBuf {
     // Dump config changes file for the sequencer node.
+    // TODO(Tsabary): auto dump the entirety of RequiredParams fields.
     let json_data = config_fields_to_json!(
         required_params.chain_id,
         required_params.eth_fee_token_address,
         required_params.strk_fee_token_address,
+        required_params.sequencer_address,
         config.rpc_state_reader_config.json_rpc_version,
         config.rpc_state_reader_config.url,
         config.batcher_config.storage.db_config.path_prefix,
