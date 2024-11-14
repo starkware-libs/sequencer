@@ -13,7 +13,7 @@ pub fn create_node_modules(
     let mut channels = create_node_channels();
     let clients = create_node_clients(config, &mut channels);
     let components = create_node_components(config, &clients);
-    let servers = create_node_servers(config, &mut channels, components);
+    let servers = create_node_servers(config, &mut channels, components, &clients);
 
     (clients, servers)
 }
