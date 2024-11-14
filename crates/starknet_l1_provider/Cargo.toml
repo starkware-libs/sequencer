@@ -6,12 +6,15 @@ repository.workspace = true
 license.workspace = true
 
 [dependencies]
+indexmap.workspace = true
 papyrus_base_layer.workspace = true
 starknet_api.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true
+pretty_assertions.workspace = true
+starknet_api = { workspace = true, features = ["testing"] }
 
 [lints]
 workspace = true
