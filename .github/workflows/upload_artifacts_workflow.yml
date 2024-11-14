@@ -30,20 +30,39 @@ jobs:
           echo "PR_NUMBER=$pr_number" >> $GITHUB_ENV
           echo "WORKFLOW_LINK=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >> $GITHUB_ENV
 
-      - name: Add a comment to the PR
+      # Comment with a link to the workflow (or update existing comment on rerun).
+      # Required, as this is a triggered workflow, and does not appear on the PR status page.
+      - name: Find Comment
         if: env.PR_NUMBER != ''
-        uses: actions/github-script@v6
+        uses: starkware-libs/find-comment@v1
+        id: fc
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const workflowLink = process.env.WORKFLOW_LINK;
-            github.rest.issues.createComment({
-              issue_number: process.env.PR_NUMBER,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: `Artifacts upload triggered. [View details here](${workflowLink})`
-            })
+          token: ${{ secrets.GITHUB_TOKEN }}
+          issue-number: ${{ env.PR_NUMBER }}
+          comment-author: 'github-actions[bot]'
+          body-includes: Artifacts upload workflows
 
+      - name: Create comment
+        if: env.PR_NUMBER != '' && steps.fc.outputs.comment-id == ''
+        uses: starkware-libs/create-or-update-comment@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          issue-number: ${{ env.PR_NUMBER }}
+          body: |
+            Artifacts upload workflows:
+            * [${{ github.event.repository.updated_at }}](${{ env.WORKFLOW_LINK }})
+
+      - name: Update comment
+        if: env.PR_NUMBER != '' && steps.fc.outputs.comment-id != ''
+        uses: starkware-libs/create-or-update-comment@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          comment-id: ${{ steps.fc.outputs.comment-id }}
+          edit-mode: append
+          body: |
+            * [${{ github.event.repository.updated_at }}](${{ env.WORKFLOW_LINK }})
+
+      # Build artifact.
       - uses: ./.github/actions/bootstrap
       - name: Build native blockifier
         run: ./build_native_in_docker.sh scripts/build_native_blockifier.sh
