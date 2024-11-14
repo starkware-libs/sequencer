@@ -54,6 +54,7 @@ pub struct RemoteServers {
 
 pub struct SequencerNodeServers {
     local_servers: LocalServers,
+    remote_servers: RemoteServers,
     wrapper_servers: WrapperServers,
 }
 
@@ -313,15 +314,17 @@ pub fn create_node_servers(
     config: &SequencerNodeConfig,
     communication: &mut SequencerNodeCommunication,
     components: SequencerNodeComponents,
+    clients: &SequencerNodeClients,
 ) -> SequencerNodeServers {
     let mut components = components;
     let local_servers = create_local_servers(config, communication, &mut components);
+    let remote_servers = create_remote_servers(config, clients);
     let wrapper_servers = create_wrapper_servers(config, &mut components);
 
-    SequencerNodeServers { local_servers, wrapper_servers }
+    SequencerNodeServers { local_servers, remote_servers, wrapper_servers }
 }
 
-pub fn get_selected_server_future(
+fn get_selected_server_future(
     execution_mode: &ComponentExecutionMode,
     local_server: Option<Box<impl ComponentServerStarter + Send + 'static>>,
     remote_server: Option<Box<impl ComponentServerStarter + Send + 'static>>,
@@ -336,28 +339,46 @@ pub fn get_selected_server_future(
     }
 }
 
-pub async fn run_component_servers(servers: SequencerNodeServers) -> anyhow::Result<()> {
+pub async fn run_component_servers(
+    servers: SequencerNodeServers,
+    config: SequencerNodeConfig,
+) -> anyhow::Result<()> {
     // Batcher server.
-    let batcher_future = get_server_future(servers.local_servers.batcher);
+    let batcher_future = get_selected_server_future(
+        &config.components.batcher.execution_mode,
+        servers.local_servers.batcher,
+        servers.remote_servers.batcher,
+    );
 
     // Consensus Manager server.
     let consensus_manager_future = get_server_future(servers.wrapper_servers.consensus_manager);
 
     // Gateway server.
-    let gateway_future = get_server_future(servers.local_servers.gateway);
+    let gateway_future = get_selected_server_future(
+        &config.components.gateway.execution_mode,
+        servers.local_servers.gateway,
+        servers.remote_servers.gateway,
+    );
 
     // HttpServer server.
     let http_server_future = get_server_future(servers.wrapper_servers.http_server);
 
     // Mempool server.
-    let mempool_future = get_server_future(servers.local_servers.mempool);
+    let mempool_future = get_selected_server_future(
+        &config.components.mempool.execution_mode,
+        servers.local_servers.mempool,
+        servers.remote_servers.mempool,
+    );
 
     // Sequencer Monitoring server.
     let monitoring_endpoint_future = get_server_future(servers.wrapper_servers.monitoring_endpoint);
 
     // MempoolP2pPropagator server.
-    let mempool_p2p_propagator_future =
-        get_server_future(servers.local_servers.mempool_p2p_propagator);
+    let mempool_p2p_propagator_future = get_selected_server_future(
+        &config.components.mempool_p2p.execution_mode,
+        servers.local_servers.mempool_p2p_propagator,
+        servers.remote_servers.mempool_p2p_propagator,
+    );
 
     // MempoolP2pRunner server.
     let mempool_p2p_runner_future = get_server_future(servers.wrapper_servers.mempool_p2p_runner);

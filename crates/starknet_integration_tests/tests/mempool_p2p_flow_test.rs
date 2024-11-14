@@ -97,7 +97,7 @@ async fn test_mempool_sends_tx_to_other_peer(tx_generator: MultiAccountTransacti
     let add_tx_http_client = HttpTestClient::new(SocketAddr::from((ip, port)));
 
     // Build and run the sequencer node.
-    let sequencer_node_future = run_component_servers(servers);
+    let sequencer_node_future = run_component_servers(servers, config);
     let _sequencer_node_handle = task_executor.spawn_with_handle(sequencer_node_future);
 
     // Wait for server to spin up and for p2p to discover other peer.
