@@ -14,6 +14,7 @@ ENV ID=1000
 WORKDIR /app
 COPY --from=builder /target/release/starknet_sequencer_node /app/target/release/starknet_sequencer_node
 
+# Copy sequencer config
 COPY config/sequencer config/sequencer
 
 # Create a new user "sequencer".
