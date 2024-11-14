@@ -139,13 +139,18 @@
     "privacy": "Public",
     "value": 400
   },
+  "batcher_config.input_stream_content_buffer_size": {
+    "description": "Sets the buffer size for the input transaction channel. Adding more transactions beyond this limit will block until space is available.",
+    "privacy": "Public",
+    "value": 400
+  },
   "batcher_config.max_l1_handler_txs_per_block_proposal": {
     "description": "The maximum number of L1 handler transactions to include in a block proposal.",
     "privacy": "Public",
     "value": 3
   },
   "batcher_config.outstream_content_buffer_size": {
-    "description": "Maximum items to add to the outstream buffer before blocking further filling of the stream.",
+    "description": "The maximum number of items to include in a single get_proposal_content response.",
     "privacy": "Public",
     "value": 100
   },
