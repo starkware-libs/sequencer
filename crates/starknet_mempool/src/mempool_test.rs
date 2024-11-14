@@ -371,18 +371,19 @@ fn test_add_tx_lower_than_queued_nonce(mut mempool: Mempool) {
     add_tx(&mut mempool, &input);
 
     // Test and assert: original transaction remains.
-    for tx_nonce in [0, 1] {
-        let invalid_input =
-            add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: tx_nonce, account_nonce: 0);
-        add_tx_expect_error(
-            &mut mempool,
-            &invalid_input,
-            MempoolError::DuplicateNonce {
-                address: contract_address!("0x0"),
-                nonce: nonce!(tx_nonce),
-            },
-        );
-    }
+    let invalid_input = add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 0, account_nonce: 0);
+    add_tx_expect_error(
+        &mut mempool,
+        &invalid_input,
+        MempoolError::DuplicateNonce { address: contract_address!("0x0"), nonce: nonce!(0) },
+    );
+
+    let invalid_input = add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 1, account_nonce: 0);
+    add_tx_expect_error(
+        &mut mempool,
+        &invalid_input,
+        MempoolError::DuplicateNonce { address: contract_address!("0x0"), nonce: nonce!(1) },
+    );
 }
 
 #[rstest]
