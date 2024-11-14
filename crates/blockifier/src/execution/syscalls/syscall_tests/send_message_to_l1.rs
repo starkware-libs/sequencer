@@ -15,7 +15,7 @@ use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, BALANCE}
 
 #[cfg_attr(
     feature = "cairo_native",
-    test_case(FeatureContract::TestContract(CairoVersion::Native), 32160; "Native")
+    test_case(FeatureContract::TestContract(CairoVersion::Native), 30680; "Native")
 )]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 20960; "VM")]
 fn test_send_message_to_l1(test_contract: FeatureContract, expected_gas: u64) {
