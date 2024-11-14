@@ -48,6 +48,7 @@ const Configuration = {
             'native_blockifier',
             'network',
             'node',
+            'papyrus_state_reader',
             'protobuf',
             'release',
             'sequencer_infra',
