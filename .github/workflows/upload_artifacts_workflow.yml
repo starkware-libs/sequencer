@@ -1,9 +1,31 @@
-name: Upload-Artifacts
+name: Upload-Artifacts-V2
 
 on:
-  workflow_run:
-    workflows: [Trigger-Workflow]
-    types: [completed]
+  # workflow_run:
+  #   workflows: [Trigger-Workflow]
+  #   types: [completed]
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - auto_merge_enabled
+      - edited
+    paths:
+      # Other than code-related changes, all changes related to the native-blockifier build-and-push
+      # process should trigger the build (e.g., changes to the Dockerfile, build scripts, etc.).
+      - '.github/workflows/blockifier_ci.yml'
+      - '.github/workflows/trigger_workflow.yml'
+      - '.github/workflows/upload_artifacts_workflow.yml'
+      - 'build_native_in_docker.sh'
+      - 'Cargo.lock'
+      - 'Cargo.toml'
+      - 'crates/blockifier/**'
+      - 'crates/native_blockifier/**'
+      - 'scripts/build_native_blockifier.sh'
+      - 'scripts/dependencies.sh'
+      - 'scripts/install_build_tools.sh'
+      - 'scripts/sequencer-ci.Dockerfile'
 
 jobs:
   native-blockifier-artifacts-push:
@@ -34,7 +56,7 @@ jobs:
       # Required, as this is a triggered workflow, and does not appear on the PR status page.
       - name: Find Comment
         if: env.PR_NUMBER != ''
-        uses: starkware-libs/find-comment@v1
+        uses: starkware-libs/find-comment@213b1f93445c8ca0b8592684ef9ac98bd9558f2b
         id: fc
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -44,7 +66,7 @@ jobs:
 
       - name: Create comment
         if: env.PR_NUMBER != '' && steps.fc.outputs.comment-id == ''
-        uses: starkware-libs/create-or-update-comment@v1
+        uses: starkware-libs/create-or-update-comment@213b1f93445c8ca0b8592684ef9ac98bd9558f2b
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           issue-number: ${{ env.PR_NUMBER }}
@@ -54,7 +76,7 @@ jobs:
 
       - name: Update comment
         if: env.PR_NUMBER != '' && steps.fc.outputs.comment-id != ''
-        uses: starkware-libs/create-or-update-comment@v1
+        uses: starkware-libs/create-or-update-comment@213b1f93445c8ca0b8592684ef9ac98bd9558f2b
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           comment-id: ${{ steps.fc.outputs.comment-id }}
