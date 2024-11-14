@@ -22,6 +22,7 @@ async fn main() {
     let TestConfig { network_config, buffer_size, message_size, num_messages, output_path } =
         load_and_process_config(file, Command::new("Stress Test"), vec![]).unwrap();
     let mut network_manager = NetworkManager::new(network_config, None);
+    let peer_id = network_manager.get_local_peer_id();
     let mut network_channels = network_manager
         .register_broadcast_topic::<StressTestMessage>(
             Topic::new("stress_test_topic".to_string()),
@@ -60,6 +61,7 @@ async fn main() {
                     Ok(Some((received_message, _report_callback))) => {
                         let received_message = received_message.unwrap();
                         output_vector.push(Record {
+                            peer_id: peer_id.clone(),
                             id: received_message.id,
                             start_time: received_message.time,
                             end_time: SystemTime::now(),
@@ -69,7 +71,7 @@ async fn main() {
                                 .as_micros(),
                         });
                         i += 1;
-                        if i == num_messages {
+                        if i == num_messages * 4 {
                             tokio::time::sleep(std::time::Duration::from_secs(60)).await;
                             break;
                         }

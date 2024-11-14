@@ -109,6 +109,7 @@ impl TestConfig {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Record {
+    pub peer_id: String,
     pub id: u32,
     #[serde(serialize_with = "serialize_system_time_as_u128_millis")]
     pub start_time: SystemTime,
