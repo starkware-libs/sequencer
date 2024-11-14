@@ -34,6 +34,7 @@ const Configuration = {
             'deployment',
             'execution',
             'fee',
+            'gateway',
             'helm',
             'infra',
             'JSON-RPC',
