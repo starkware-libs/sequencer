@@ -2,12 +2,12 @@ use std::sync::LazyLock;
 use std::vec;
 
 use assert_matches::assert_matches;
-use mempool_test_utils::starknet_api_test_utils::rpc_declare_tx;
 use rstest::rstest;
 use starknet_api::core::{EntryPointSelector, L2_ADDRESS_UPPER_BOUND};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::rpc_transaction::{ContractClass, EntryPointByType};
 use starknet_api::state::EntryPoint;
+use starknet_api::test_utils::declare::rpc_declare_tx;
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
