@@ -25,7 +25,7 @@ use starknet_api::core::{
 };
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt};
-use starknet_api::transaction::L2ToL1Payload;
+use starknet_api::transaction::{EventContent, EventData, EventKey, L2ToL1Payload};
 use starknet_types_core::felt::Felt;
 
 use crate::execution::call_info::{
@@ -45,6 +45,7 @@ use crate::execution::entry_point::{
 use crate::execution::errors::EntryPointExecutionError;
 use crate::execution::execution_utils::execute_deployment;
 use crate::execution::native::utils::{calculate_resource_bounds, default_tx_v2_info};
+use crate::execution::syscalls::exceeds_event_size_limit;
 use crate::execution::syscalls::hint_processor::{
     SyscallExecutionError,
     INVALID_INPUT_LENGTH_ERROR,
@@ -492,11 +493,29 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
 
     fn emit_event(
         &mut self,
-        _keys: &[Felt],
-        _data: &[Felt],
-        _remaining_gas: &mut u128,
+        keys: &[Felt],
+        data: &[Felt],
+        remaining_gas: &mut u128,
     ) -> SyscallResult<()> {
-        todo!("Implement emit_event syscall.");
+        self.pre_execute_syscall(remaining_gas, self.context.gas_costs().emit_event_gas_cost)?;
+
+        let order = self.context.n_emitted_events;
+        let event = EventContent {
+            keys: keys.iter().copied().map(EventKey).collect(),
+            data: EventData(data.to_vec()),
+        };
+
+        exceeds_event_size_limit(
+            self.context.versioned_constants(),
+            self.context.n_emitted_events + 1,
+            &event,
+        )
+        .map_err(|e| self.handle_error(remaining_gas, e.into()))?;
+
+        self.events.push(OrderedEvent { order, event });
+        self.context.n_emitted_events += 1;
+
+        Ok(())
     }
 
     fn send_message_to_l1(
