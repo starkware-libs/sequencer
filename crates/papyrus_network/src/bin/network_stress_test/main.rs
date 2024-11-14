@@ -36,7 +36,7 @@ async fn main() {
             let mut i = 0;
             tokio::time::sleep(std::time::Duration::from_secs(5)).await;
             loop {
-                let message = StressTestMessage::new(i, vec![0; message_size - METADATA_SIZE]);
+                let message = StressTestMessage::new(i, vec![0; message_size - METADATA_SIZE], peer_id.clone());
                 network_channels.broadcast_topic_client.broadcast_message(message).await.unwrap();
                 i += 1;
                 if i == num_messages {
@@ -61,7 +61,7 @@ async fn main() {
                     Ok(Some((received_message, _report_callback))) => {
                         let received_message = received_message.unwrap();
                         output_vector.push(Record {
-                            peer_id: peer_id.clone(),
+                            peer_id: received_message.peer_id,
                             id: received_message.id,
                             start_time: received_message.time,
                             end_time: SystemTime::now(),
@@ -71,7 +71,8 @@ async fn main() {
                                 .as_micros(),
                         });
                         i += 1;
-                        if i == num_messages * 4 {
+                        if i == num_messages * 4{
+                            tokio::time::sleep(std::time::Duration::from_secs(90)).await;
                             break;
                         }
                     }
@@ -83,7 +84,6 @@ async fn main() {
             for record in output_vector {
                 wtr.serialize(record).unwrap();
             }
-            tokio::time::sleep(std::time::Duration::from_secs(120)).await;
         }
     }
 }
