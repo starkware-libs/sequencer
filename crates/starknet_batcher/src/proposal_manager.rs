@@ -39,6 +39,8 @@ pub enum StartHeightError {
          {requested_height}."
     )]
     StorageNotSynced { storage_height: BlockNumber, requested_height: BlockNumber },
+    #[error("Already working on height.")]
+    HeightInProgress,
 }
 
 #[derive(Debug, Error)]
@@ -158,7 +160,9 @@ impl ProposalManagerTrait for ProposalManager {
     /// Starts working on the given height.
     #[instrument(skip(self), err)]
     async fn start_height(&mut self, height: BlockNumber) -> Result<(), StartHeightError> {
-        self.reset_active_height().await;
+        if self.active_height == Some(height) {
+            return Err(StartHeightError::HeightInProgress);
+        }
 
         let next_height = self.storage_reader.height()?;
         if next_height < height {
@@ -177,8 +181,9 @@ impl ProposalManagerTrait for ProposalManager {
                 requested_height: height,
             });
         }
+
         info!("Starting to work on height {}.", height);
-        self.active_height = Some(height);
+        self.reset_active_height(height).await;
         Ok(())
     }
 
@@ -278,7 +283,7 @@ impl ProposalManagerTrait for ProposalManager {
         &mut self,
         proposal_id: ProposalId,
     ) -> ProposalResult<ProposalCommitment> {
-        if self.active_proposal.lock().await.is_some_and(|id| id == proposal_id) {
+        if *self.active_proposal.lock().await == Some(proposal_id) {
             self.await_active_proposal().await;
         }
         let proposals = self.executed_proposals.lock().await;
@@ -294,7 +299,7 @@ impl ProposalManagerTrait for ProposalManager {
     // Aborts the proposal with the given ID, if active.
     // Should be used in validate flow, if the consensus decides to abort the proposal.
     async fn abort_proposal(&mut self, proposal_id: ProposalId) {
-        if self.active_proposal.lock().await.is_some_and(|id| id == proposal_id) {
+        if *self.active_proposal.lock().await == Some(proposal_id) {
             self.abort_active_proposal().await;
             self.executed_proposals
                 .lock()
@@ -339,7 +344,7 @@ impl ProposalManager {
                 // Keep the proposal result only if it is the same as the active proposal.
                 // The active proposal might have changed if this proposal was aborted.
                 let mut active_proposal = active_proposal.lock().await;
-                if active_proposal.is_some_and(|id| id == proposal_id) {
+                if *active_proposal == Some(proposal_id) {
                     active_proposal.take();
                     executed_proposals.lock().await.insert(proposal_id, result);
                 }
@@ -348,12 +353,10 @@ impl ProposalManager {
         )
     }
 
-    async fn reset_active_height(&mut self) {
-        if let Some(_active_proposal) = self.active_proposal.lock().await.take() {
-            // TODO: Abort the block_builder.
-        }
+    async fn reset_active_height(&mut self, new_height: BlockNumber) {
+        self.abort_active_proposal().await;
         self.executed_proposals.lock().await.clear();
-        self.active_height = None;
+        self.active_height = Some(new_height);
     }
 
     // Sets a new active proposal task.

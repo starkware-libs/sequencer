@@ -30,6 +30,7 @@ use crate::transaction_provider::{
 };
 
 const INITIAL_HEIGHT: BlockNumber = BlockNumber(3);
+const NEXT_HEIGHT: BlockNumber = BlockNumber(4);
 const BLOCK_GENERATION_TIMEOUT: tokio::time::Duration = tokio::time::Duration::from_secs(1);
 const MAX_L1_HANDLER_TXS_PER_BLOCK_PROPOSAL: usize = 3;
 const INPUT_CHANNEL_SIZE: usize = 30;
@@ -80,6 +81,12 @@ impl MockDependencies {
             .expect_create_block_builder()
             .times(times)
             .returning(move |_, _, _, _, _| simulate_long_build_block());
+    }
+
+    fn expect_consecutive_storage_heights(&mut self) {
+        self.storage_reader.checkpoint();
+        self.storage_reader.expect_height().times(1).returning(|| Ok(INITIAL_HEIGHT));
+        self.storage_reader.expect_height().times(1).returning(|| Ok(NEXT_HEIGHT));
     }
 }
 
@@ -181,6 +188,17 @@ async fn start_height(
     let result = proposal_manager.start_height(height).await;
     // Unfortunately ProposalManagerError doesn't implement PartialEq.
     assert_eq!(format!("{:?}", result), format!("{:?}", expected_result));
+}
+
+#[rstest]
+#[tokio::test]
+async fn duplicate_start_height(mock_dependencies: MockDependencies) {
+    let mut proposal_manager = proposal_manager(mock_dependencies);
+    assert_matches!(proposal_manager.start_height(INITIAL_HEIGHT).await, Ok(()));
+    assert_matches!(
+        proposal_manager.start_height(INITIAL_HEIGHT).await,
+        Err(StartHeightError::HeightInProgress)
+    );
 }
 
 #[rstest]
@@ -364,24 +382,24 @@ async fn abort_active_proposal(
 
 #[rstest]
 #[tokio::test]
-async fn abort_and_restart_height(
+async fn abort_and_start_new_height(
     mut mock_dependencies: MockDependencies,
     propose_tx_provider: ProposeTransactionProvider,
 ) {
+    mock_dependencies.expect_consecutive_storage_heights();
+
     mock_dependencies.expect_build_block(1);
     mock_dependencies.expect_long_build_block(1);
     let mut proposal_manager = proposal_manager(mock_dependencies);
 
-    // Start a new height and create a proposal.
+    // Start the first height with 2 proposals.
     proposal_manager.start_height(INITIAL_HEIGHT).await.unwrap();
     build_proposal(&mut proposal_manager, propose_tx_provider.clone(), ProposalId(0)).await;
-
-    // Start a new proposal, which will remain active.
     build_proposal_non_blocking(&mut proposal_manager, propose_tx_provider.clone(), ProposalId(1))
         .await;
 
-    // Restart the same height. This should abort and delete all existing proposals.
-    assert!(proposal_manager.start_height(INITIAL_HEIGHT).await.is_ok());
+    // Start a new height. This should abort and delete all existing proposals.
+    assert!(proposal_manager.start_height(NEXT_HEIGHT).await.is_ok());
 
     // Make sure executed proposals are deleted.
     assert_matches!(
@@ -390,6 +408,5 @@ async fn abort_and_restart_height(
     );
 
     // Make sure there is no active proposal.
-    // TODO: uncommomment once the abort is implemented. This line will panic now.
-    // assert!(!proposal_manager.await_active_proposal().await);
+    assert!(!proposal_manager.await_active_proposal().await);
 }
