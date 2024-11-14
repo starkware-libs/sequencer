@@ -4,16 +4,24 @@ use std::process::Stdio;
 use std::time::Duration;
 
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
+use papyrus_execution::execution_utils::get_nonce_at;
+use papyrus_storage::state::StateStorageReader;
+use papyrus_storage::StorageReader;
 use rstest::{fixture, rstest};
+use starknet_api::block::BlockNumber;
+use starknet_api::core::Nonce;
+use starknet_api::state::StateNumber;
 use starknet_integration_tests::integration_test_setup::IntegrationTestSetup;
 use starknet_integration_tests::utils::{
     create_integration_test_tx_generator,
     run_transaction_generator_test_scenario,
 };
 use starknet_sequencer_infra::trace_util::configure_tracing;
+use starknet_types_core::felt::Felt;
 use tokio::process::{Child, Command};
 use tokio::task::{self, JoinHandle};
-use tracing::info;
+use tokio::time::interval;
+use tracing::{error, info};
 
 #[fixture]
 fn tx_generator() -> MultiAccountTransactionGenerator {
@@ -37,7 +45,7 @@ async fn spawn_node_child_task(node_config_path: PathBuf) -> Child {
         .arg("--config_file")
         .arg(node_config_path.to_str().unwrap())
         .stderr(Stdio::inherit())
-        .stdout(Stdio::null())
+        .stdout(Stdio::inherit())
         .kill_on_drop(true) // Required for stopping the node when the handle is dropped.
         .spawn()
         .expect("Failed to spawn the sequencer node.")
@@ -52,6 +60,48 @@ async fn spawn_run_node(node_config_path: PathBuf) -> JoinHandle<()> {
             await; // awaits the completion of the node.
         panic!("Node stopped unexpectedly.");
     })
+}
+
+/// Reads the latest block number from the storage.
+fn get_latest_block_number(storage_reader: &StorageReader) -> BlockNumber {
+    let txn = storage_reader.begin_ro_txn().unwrap();
+    txn.get_state_marker().unwrap().prev().unwrap()
+}
+
+/// Sample a storage until sufficiently many blocks have been stored. Returns an error if the after
+/// a certain number of attempts the target block number has not been reached.
+async fn await_until_storage_contains_block(
+    interval_duration: Duration,
+    target_block_number: BlockNumber,
+    max_attempts: usize,
+    storage_reader: &StorageReader,
+) -> Result<(), ()> {
+    let mut interval = interval(interval_duration);
+    let mut count = 0;
+    loop {
+        // Read the latest block number.
+        let latest_block_number = get_latest_block_number(storage_reader);
+        info!("latest_block_number {}", latest_block_number);
+
+        // Check if reached the target block number.
+        if latest_block_number >= target_block_number {
+            info!("Condition met after {} samples!", count + 1);
+            return Ok(());
+        }
+
+        // Check if reached the maximum attempts.
+        if count >= max_attempts {
+            error!(
+                "Latest block is {}, expected {}, stopping sampling.",
+                latest_block_number, target_block_number
+            );
+            return Err(());
+        }
+        count += 1;
+
+        // Wait for the next interval.
+        interval.tick().await;
+    }
 }
 
 #[rstest]
@@ -81,13 +131,54 @@ async fn test_end_to_end_integration(tx_generator: MultiAccountTransactionGenera
 
     let n_txs = 50;
     info!("Sending {n_txs} txs.");
-    run_transaction_generator_test_scenario(tx_generator, n_txs, send_rpc_tx_fn).await;
+    let (tx_hashes, sender_address) =
+        run_transaction_generator_test_scenario(tx_generator, n_txs, send_rpc_tx_fn).await;
 
-    info!("Shutting down.");
+    const EXPECTED_BLOCK_NUMBER: BlockNumber = BlockNumber(15);
+
+    match await_until_storage_contains_block(
+        Duration::from_secs(5),
+        EXPECTED_BLOCK_NUMBER,
+        15,
+        &integration_test_setup.batcher_storage_reader,
+    )
+    .await
+    {
+        Ok(_) => {}
+        Err(_) => panic!("Did not reach expected block number."),
+    }
+
+    info!("Shutting the node down.");
     node_run_handle.abort();
     let res = node_run_handle.await;
     assert!(
         res.expect_err("Node should have been stopped.").is_cancelled(),
         "Node should have been stopped."
     );
+
+    // txn.get_state_reader()?.get_nonce_at(state_number, &contract_address)
+
+    let txn = integration_test_setup.batcher_storage_reader.begin_ro_txn().unwrap();
+
+    let maybe_pending_nonces = None;
+
+    // Check that the block is valid and get the state number.
+    let block_number = EXPECTED_BLOCK_NUMBER;
+    let state_number = StateNumber::unchecked_right_after_block(block_number);
+
+    for i in 1..=15 {
+        let state_number = StateNumber::unchecked_right_after_block(BlockNumber(i));
+
+        let nonce = get_nonce_at(&txn, state_number, maybe_pending_nonces.as_ref(), sender_address)
+            .unwrap()
+            .unwrap();
+
+        info!("Block {i} nonce {nonce}.");
+    }
+
+    let nonce = get_nonce_at(&txn, state_number, maybe_pending_nonces.as_ref(), sender_address)
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(nonce, Nonce(Felt::from_hex_unchecked(format!("0x{:X}", tx_hashes.len()).as_str())));
 }

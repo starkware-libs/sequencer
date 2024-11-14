@@ -19,6 +19,7 @@ indexmap.workspace = true
 mempool_test_utils.workspace = true
 papyrus_common.workspace = true
 papyrus_consensus.workspace = true
+papyrus_execution.workspace = true
 papyrus_network = { workspace = true, features = ["testing"] }
 papyrus_protobuf.workspace = true
 papyrus_rpc.workspace = true
