@@ -49,7 +49,7 @@ async fn main() {
             let mut i = 0;
             loop {
                 let maybe_response = timeout(
-                    std::time::Duration::from_secs(120),
+                    std::time::Duration::from_secs(60),
                     network_channels.broadcasted_messages_receiver.next(),
                 ).await;
                 match maybe_response {
@@ -72,7 +72,6 @@ async fn main() {
                         });
                         i += 1;
                         if i == num_messages * 4 {
-                            tokio::time::sleep(std::time::Duration::from_secs(150)).await;
                             break;
                         }
                     }
