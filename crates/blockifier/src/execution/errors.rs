@@ -16,6 +16,8 @@ use thiserror::Error;
 
 use crate::execution::entry_point::ConstructorContext;
 use crate::execution::stack_trace::Cairo1RevertStack;
+#[cfg(feature = "cairo_native")]
+use crate::execution::syscalls::hint_processor::SyscallExecutionError;
 use crate::state::errors::StateError;
 
 // TODO(AlonH, 21/12/2022): Implement Display for all types that appear in errors.
@@ -91,6 +93,9 @@ pub enum EntryPointExecutionError {
     #[cfg(feature = "cairo_native")]
     #[error(transparent)]
     NativeUnexpectedError(#[from] NativeError),
+    #[cfg(feature = "cairo_native")]
+    #[error(transparent)]
+    NativeUnrecoverableError(#[from] Box<SyscallExecutionError>),
     #[error(transparent)]
     PostExecutionError(#[from] PostExecutionError),
     #[error(transparent)]

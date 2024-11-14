@@ -10,7 +10,6 @@ use cairo_native::starknet::{
     SyscallResult,
     U256,
 };
-use cairo_native::starknet_stub::encode_str_as_felts;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::core::EthAddress;
 use starknet_api::state::StorageKey;
@@ -25,6 +24,7 @@ use crate::execution::call_info::{
     Retdata,
 };
 use crate::execution::entry_point::{CallEntryPoint, EntryPointExecutionContext};
+use crate::execution::errors::EntryPointExecutionError;
 use crate::execution::syscalls::hint_processor::{
     SyscallExecutionError,
     INVALID_INPUT_LENGTH_ERROR,
@@ -47,6 +47,9 @@ pub struct NativeSyscallHandler<'state> {
     // Additional information gathered during execution.
     pub read_values: Vec<Felt>,
     pub accessed_keys: HashSet<StorageKey, RandomState>,
+
+    // It is set if an unrecoverable error happens during syscall execution
+    pub unrecoverable_error: Option<SyscallExecutionError>,
 }
 
 impl<'state> NativeSyscallHandler<'state> {
@@ -66,6 +69,7 @@ impl<'state> NativeSyscallHandler<'state> {
             inner_calls: Vec::new(),
             read_values: Vec::new(),
             accessed_keys: HashSet::new(),
+            unrecoverable_error: None,
         }
     }
 
@@ -96,25 +100,18 @@ impl<'state> NativeSyscallHandler<'state> {
         Ok(retdata)
     }
 
-    fn handle_error(
-        &mut self,
-        _remaining_gas: &mut u128,
-        error: SyscallExecutionError,
-    ) -> Vec<Felt> {
-        match error {
-            SyscallExecutionError::SyscallError { error_data } => error_data,
-            // unrecoverable errors are yet to be implemented
-            _ => encode_str_as_felts(&error.to_string()),
-        }
-    }
-
-    /// Handles all gas-related logics. In native,
+    /// Handles all gas-related logics and perform additional checks. In native,
     /// we need to explicitly call this method at the beginning of each syscall.
     fn pre_execute_syscall(
         &mut self,
         remaining_gas: &mut u128,
         syscall_gas_cost: u64,
     ) -> SyscallResult<()> {
+        if self.unrecoverable_error.is_some() {
+            // An unrecoverable error was found in a previous syscall, we return immediatly to
+            // accelerate the end of the execution. The returned data is not important
+            return Err(vec![]);
+        }
         // Refund `SYSCALL_BASE_GAS_COST` as it was pre-charged.
         let required_gas =
             u128::from(syscall_gas_cost - self.context.gas_costs().syscall_base_gas_cost);
@@ -130,6 +127,39 @@ impl<'state> NativeSyscallHandler<'state> {
         *remaining_gas -= required_gas;
 
         Ok(())
+    }
+
+    fn handle_error(
+        &mut self,
+        remaining_gas: &mut u128,
+        error: SyscallExecutionError,
+    ) -> Vec<Felt> {
+        // In case of more than one inner call and because each inner call has their own
+        // syscall handler, if there is an unrecoverable error at call `n` it will create a
+        // `NativeExecutionError`. When rolling back, each call from `n-1` to `1` will also
+        // store the result of a previous `NativeExecutionError` in a `NativeExecutionError`
+        // creating multiple wraps around the same error. This function is meant to prevent that.
+        fn unwrap_native_error(error: SyscallExecutionError) -> SyscallExecutionError {
+            match error {
+                SyscallExecutionError::EntryPointExecutionError(
+                    EntryPointExecutionError::NativeUnrecoverableError(e),
+                ) => *e,
+                _ => error,
+            }
+        }
+
+        match error {
+            SyscallExecutionError::SyscallError { error_data } => error_data,
+            error => {
+                assert!(
+                    self.unrecoverable_error.is_none(),
+                    "Trying to set an unrecoverable error twice in Native Syscall Handler"
+                );
+                self.unrecoverable_error = Some(unwrap_native_error(error));
+                *remaining_gas = 0;
+                vec![]
+            }
+        }
     }
 }
 

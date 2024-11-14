@@ -35,10 +35,14 @@ pub fn execute_entry_point_call(
     );
 
     let call_result = execution_result.map_err(EntryPointExecutionError::NativeUnexpectedError)?;
+
+    if let Some(error) = syscall_handler.unrecoverable_error {
+        return Err(EntryPointExecutionError::NativeUnrecoverableError(Box::new(error)));
+    }
+
     create_callinfo(call_result, syscall_handler)
 }
 
-#[allow(unreachable_code)]
 fn create_callinfo(
     call_result: ContractExecutionResult,
     syscall_handler: NativeSyscallHandler<'_>,
