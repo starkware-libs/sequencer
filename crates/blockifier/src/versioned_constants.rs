@@ -586,6 +586,53 @@ pub struct GasCosts {
     pub sha256_process_block_gas_cost: u64,
 }
 
+impl GasCosts {
+    pub fn get_builtin_gas_cost(&self, builtin: &BuiltinName) -> u64 {
+        match *builtin {
+            BuiltinName::output => 0,
+            BuiltinName::range_check => self.range_check_gas_cost,
+            BuiltinName::pedersen => self.pedersen_gas_cost,
+            BuiltinName::ecdsa => 0,
+            BuiltinName::keccak => 0,
+            BuiltinName::bitwise => self.bitwise_builtin_gas_cost,
+            BuiltinName::ec_op => self.ecop_gas_cost,
+            BuiltinName::poseidon => self.poseidon_gas_cost,
+            BuiltinName::segment_arena => 0,
+            BuiltinName::range_check96 => self.range_check_gas_cost,
+            BuiltinName::add_mod => self.add_mod_gas_cost,
+            BuiltinName::mul_mod => self.mul_mod_gas_cost,
+        }
+    }
+
+    pub fn get_syscall_gas_cost_in_os_constants(&self, selector: &SyscallSelector) -> u64 {
+        match selector {
+            SyscallSelector::CallContract => self.call_contract_gas_cost,
+            SyscallSelector::Deploy => self.deploy_gas_cost,
+            SyscallSelector::EmitEvent => self.emit_event_gas_cost,
+            SyscallSelector::GetBlockHash => self.get_block_hash_gas_cost,
+            SyscallSelector::GetExecutionInfo => self.get_execution_info_gas_cost,
+            SyscallSelector::Keccak => self.keccak_gas_cost,
+            SyscallSelector::Sha256ProcessBlock => self.sha256_process_block_gas_cost,
+            SyscallSelector::LibraryCall => self.library_call_gas_cost,
+            SyscallSelector::ReplaceClass => self.replace_class_gas_cost,
+            SyscallSelector::Secp256k1Add => self.secp256k1_add_gas_cost,
+            SyscallSelector::Secp256k1GetPointFromX => self.secp256k1_get_point_from_x_gas_cost,
+            SyscallSelector::Secp256k1GetXy => self.secp256k1_get_xy_gas_cost,
+            SyscallSelector::Secp256k1Mul => self.secp256k1_mul_gas_cost,
+            SyscallSelector::Secp256k1New => self.secp256k1_new_gas_cost,
+            SyscallSelector::Secp256r1Add => self.secp256r1_add_gas_cost,
+            SyscallSelector::Secp256r1GetPointFromX => self.secp256r1_get_point_from_x_gas_cost,
+            SyscallSelector::Secp256r1GetXy => self.secp256r1_get_xy_gas_cost,
+            SyscallSelector::Secp256r1Mul => self.secp256r1_mul_gas_cost,
+            SyscallSelector::Secp256r1New => self.secp256r1_new_gas_cost,
+            SyscallSelector::SendMessageToL1 => self.send_message_to_l1_gas_cost,
+            SyscallSelector::StorageRead => self.storage_read_gas_cost,
+            SyscallSelector::StorageWrite => self.storage_write_gas_cost,
+            _ => 0,
+        }
+    }
+}
+
 // Below, serde first deserializes the json into a regular IndexMap wrapped by the newtype
 // `OsConstantsRawJson`, then calls the `try_from` of the newtype, which handles the
 // conversion into actual values.
