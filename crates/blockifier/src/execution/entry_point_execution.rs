@@ -7,7 +7,7 @@ use cairo_vm::vm::errors::cairo_run_errors::CairoRunError;
 use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::runners::builtin_runner::BuiltinRunner;
-use cairo_vm::vm::runners::cairo_runner::{CairoArg, CairoRunner};
+use cairo_vm::vm::runners::cairo_runner::{CairoArg, CairoRunner, ExecutionResources};
 use cairo_vm::vm::security::verify_secure_runner;
 use num_traits::{ToPrimitive, Zero};
 use starknet_api::execution_resources::GasAmount;
@@ -360,9 +360,8 @@ fn maybe_fill_holes(
     Ok(())
 }
 
-/// Calculates the total gas for fee in the current call + subtree.
-#[allow(dead_code)]
-fn to_gas_for_fee(
+/// Calculates the gas for fee in the current call.
+pub fn to_gas_for_fee(
     tracked_resource: &TrackedResource,
     gas_consumed: u64,
     inner_calls: &[CallInfo],
@@ -370,22 +369,18 @@ fn to_gas_for_fee(
     // The Sierra gas consumed in this specific call is `gas_consumed`
     // (= total gas of self + subtree), minus the sum of all inner calls Sierra gas consumed.
     // To compute the total Sierra gas to charge (of self + subtree), if the tracked resource is
-    // Sierra gas, we add this amount to the total gas to charge for in the subtree:
+    // Sierra gas, we later add this amount to the total gas to charge for in the subtree:
     // gas_for_fee = gas_consumed - subtree_gas_consumed + subtree_gas_to_fee.
     GasAmount(match tracked_resource {
         // If the tracked resource is CairoSteps, then all tracked resources of all calls in
         // the subtree are also CairoSteps. Thus, the total gas to charge in this subtree is zero.
         TrackedResource::CairoSteps => 0,
         TrackedResource::SierraGas => gas_consumed
-            .checked_sub(
-                inner_calls
-                    .iter()
-                    .map(|call| call.execution.gas_consumed - call.charged_resources.gas_for_fee.0)
-                    .sum::<u64>(),
-            )
+            .checked_sub(inner_calls.iter().map(|call| call.execution.gas_consumed).sum::<u64>())
             .expect("gas_for_fee unexpectedly underflowed."),
     })
 }
+
 pub fn finalize_execution(
     mut runner: CairoRunner,
     mut syscall_handler: SyscallHintProcessor<'_>,
@@ -410,29 +405,38 @@ pub fn finalize_execution(
 
     let call_result = get_call_result(&runner, &syscall_handler)?;
 
-    // Take into account the resources of the current call, without inner calls.
-    // Has to happen after marking holes in segments as accessed.
-    let mut vm_resources_without_inner_calls = runner
-        .get_execution_resources()
-        .map_err(VirtualMachineError::RunnerError)?
-        .filter_unused_builtins();
-    let versioned_constants = syscall_handler.context.versioned_constants();
-    if versioned_constants.segment_arena_cells {
-        vm_resources_without_inner_calls
-            .builtin_instance_counter
-            .get_mut(&BuiltinName::segment_arena)
-            .map_or_else(|| {}, |val| *val *= SEGMENT_ARENA_BUILTIN_SIZE);
-    }
-    // Take into account the syscall resources of the current call.
-    vm_resources_without_inner_calls +=
-        &versioned_constants.get_additional_os_syscall_resources(&syscall_handler.syscall_counter);
+    let vm_resources_without_inner_calls = match tracked_resource {
+        TrackedResource::CairoSteps => {
+            // Take into account the resources of the current call, without inner calls.
+            // Has to happen after marking holes in segments as accessed.
+            let mut vm_resources_without_inner_calls = runner
+                .get_execution_resources()
+                .map_err(VirtualMachineError::RunnerError)?
+                .filter_unused_builtins();
+            let versioned_constants = syscall_handler.context.versioned_constants();
+            if versioned_constants.segment_arena_cells {
+                vm_resources_without_inner_calls
+                    .builtin_instance_counter
+                    .get_mut(&BuiltinName::segment_arena)
+                    .map_or_else(|| {}, |val| *val *= SEGMENT_ARENA_BUILTIN_SIZE);
+            }
+            // Take into account the syscall resources of the current call.
+            vm_resources_without_inner_calls += &versioned_constants
+                .get_additional_os_syscall_resources(&syscall_handler.syscall_counter);
+            vm_resources_without_inner_calls
+        }
+        TrackedResource::SierraGas => ExecutionResources::default(),
+    };
 
     syscall_handler.finalize();
 
     let charged_resources_without_inner_calls = ChargedResources {
         vm_resources: vm_resources_without_inner_calls,
-        // TODO(tzahi): Replace with a computed value.
-        gas_for_fee: GasAmount(0),
+        gas_for_fee: to_gas_for_fee(
+            &tracked_resource,
+            call_result.gas_consumed,
+            &syscall_handler.inner_calls,
+        ),
     };
     let charged_resources = &charged_resources_without_inner_calls
         + &CallInfo::summarize_charged_resources(syscall_handler.inner_calls.iter());
