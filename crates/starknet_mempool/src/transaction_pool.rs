@@ -41,8 +41,9 @@ impl TransactionPool {
         let unexpected_existing_tx = self.txs_by_account.insert(tx_reference);
         if unexpected_existing_tx.is_some() {
             panic!(
-                "Transaction pool consistency error: transaction with hash {tx_hash} does not \
-                 appear in main mapping, but it appears in the account mapping",
+                "Transaction pool consistency error: transaction with hash {tx_hash} does not
+                appear in main mapping, but transaction with same nonce appears in the account
+                mapping",
             )
         };
 
@@ -59,8 +60,8 @@ impl TransactionPool {
         // Remove from account mapping.
         self.txs_by_account.remove(TransactionReference::new(&tx)).unwrap_or_else(|| {
             panic!(
-                "Transaction pool consistency error: transaction with hash {tx_hash} appears in \
-                 main mapping, but does not appear in the account mapping"
+                "Transaction pool consistency error: transaction with hash {tx_hash} appears in
+                main mapping, but does not appear in the account mapping"
             )
         });
 
@@ -75,8 +76,8 @@ impl TransactionPool {
         for TransactionReference { tx_hash, .. } in removed_txs {
             self.tx_pool.remove(&tx_hash).unwrap_or_else(|| {
                 panic!(
-                    "Transaction pool consistency error: transaction with hash {tx_hash} appears \
-                     in account mapping, but does not appear in the main mapping"
+                    "Transaction pool consistency error: transaction with hash {tx_hash} appears
+                    in account mapping, but does not appear in the main mapping"
                 );
             });
 
