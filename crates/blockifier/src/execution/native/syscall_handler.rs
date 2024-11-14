@@ -283,6 +283,14 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
         })
     }
 
+    fn get_class_hash_at(
+        &mut self,
+        _contract_address: Felt,
+        _remaining_gas: &mut u128,
+    ) -> SyscallResult<Felt> {
+        todo!()
+    }
+
     fn get_execution_info_v2(
         &mut self,
         remaining_gas: &mut u128,

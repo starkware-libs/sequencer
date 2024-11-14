@@ -22,15 +22,17 @@ pub fn execute_entry_point_call(
     resources: &mut ExecutionResources,
     context: &mut EntryPointExecutionContext,
 ) -> EntryPointExecutionResult<CallInfo> {
-    let function_id = contract_class.get_entry_point(&call)?;
+    let function_selector = call.entry_point_selector.0;
 
     let mut syscall_handler: NativeSyscallHandler<'_> =
         NativeSyscallHandler::new(call, state, resources, context);
 
     let execution_result = contract_class.executor.run(
-        &function_id,
+        function_selector,
         &syscall_handler.call.calldata.0.clone(),
         Some(syscall_handler.call.initial_gas.into()),
+        // Todo(rodrigo): What should be the builtin costs?
+        None,
         &mut syscall_handler,
     );
 
