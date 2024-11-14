@@ -19,6 +19,7 @@ use papyrus_storage::StorageConfig;
 use reqwest::{Client, Response};
 use starknet_api::block::BlockNumber;
 use starknet_api::contract_address;
+use starknet_api::core::ContractAddress;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_batcher::block_builder::BlockBuilderConfig;
@@ -182,15 +183,21 @@ fn create_txs_for_integration_test(
     vec![account0_invoke_nonce1, account0_invoke_nonce2, account1_invoke_nonce1]
 }
 
+// TODO(Tsabary): Pass the contract address as a function parameter. Also rename the function to
+// better reflect its purpose. Then, rename 'run_transaction_generator_test_scenario' accordingly.
 fn create_txs_for_tx_generator_test_scenario(
     mut tx_generator: MultiAccountTransactionGenerator,
     n_txs: usize,
-) -> Vec<RpcTransaction> {
+) -> (Vec<RpcTransaction>, ContractAddress) {
     const ACCOUNT_ID_0: AccountId = 0;
+    let contract_address = tx_generator.account_with_id(ACCOUNT_ID_0).sender_address();
 
-    (0..n_txs)
-        .map(|_| tx_generator.account_with_id(ACCOUNT_ID_0).generate_invoke_with_tip(1))
-        .collect()
+    (
+        (0..n_txs)
+            .map(|_| tx_generator.account_with_id(ACCOUNT_ID_0).generate_invoke_with_tip(1))
+            .collect(),
+        contract_address,
+    )
 }
 
 async fn send_rpc_txs<'a, Fut>(
@@ -237,12 +244,14 @@ pub async fn run_transaction_generator_test_scenario<'a, Fut>(
     tx_generator: MultiAccountTransactionGenerator,
     n_txs: usize,
     send_rpc_tx_fn: &'a mut dyn FnMut(RpcTransaction) -> Fut,
-) where
+) -> (Vec<TransactionHash>, ContractAddress)
+where
     Fut: Future<Output = TransactionHash> + 'a,
 {
-    let rpc_txs = create_txs_for_tx_generator_test_scenario(tx_generator, n_txs);
-
-    send_rpc_txs(rpc_txs, send_rpc_tx_fn).await;
+    let (rpc_txs, contract_address) =
+        create_txs_for_tx_generator_test_scenario(tx_generator, n_txs);
+    let tx_hashes = send_rpc_txs(rpc_txs, send_rpc_tx_fn).await;
+    (tx_hashes, contract_address)
 }
 
 pub async fn create_gateway_config(chain_info: ChainInfo) -> GatewayConfig {
