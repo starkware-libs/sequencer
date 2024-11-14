@@ -565,6 +565,53 @@ pub struct GasCosts {
     pub sha256_process_block_gas_cost: u64,
 }
 
+impl GasCosts {
+    pub fn get_builtin_gas_cost(&self, builtin: &BuiltinName) -> Result<u64, GasCostsError> {
+        match *builtin {
+            BuiltinName::range_check => Ok(self.range_check_gas_cost),
+            BuiltinName::pedersen => Ok(self.pedersen_gas_cost),
+            BuiltinName::keccak => Ok(self.keccak_gas_cost),
+            BuiltinName::bitwise => Ok(self.bitwise_builtin_gas_cost),
+            BuiltinName::ec_op => Ok(self.ecop_gas_cost),
+            BuiltinName::poseidon => Ok(self.poseidon_gas_cost),
+            BuiltinName::range_check96 => Ok(self.range_check_gas_cost),
+            BuiltinName::add_mod => Ok(self.add_mod_gas_cost),
+            BuiltinName::mul_mod => Ok(self.mul_mod_gas_cost),
+            BuiltinName::segment_arena => Err(GasCostsError::VirtualBuiltin),
+            // The unsupported builtins in Cairo 1: output, ecdsa
+            _ => Err(GasCostsError::UnsupportedBuiltin),
+        }
+    }
+
+    pub fn get_syscall_gas_cost(&self, selector: &SyscallSelector) -> Result<u64, GasCostsError> {
+        match selector {
+            SyscallSelector::CallContract => Ok(self.call_contract_gas_cost),
+            SyscallSelector::Deploy => Ok(self.deploy_gas_cost),
+            SyscallSelector::EmitEvent => Ok(self.emit_event_gas_cost),
+            SyscallSelector::GetBlockHash => Ok(self.get_block_hash_gas_cost),
+            SyscallSelector::GetExecutionInfo => Ok(self.get_execution_info_gas_cost),
+            SyscallSelector::Keccak => Ok(self.keccak_gas_cost),
+            SyscallSelector::Sha256ProcessBlock => Ok(self.sha256_process_block_gas_cost),
+            SyscallSelector::LibraryCall => Ok(self.library_call_gas_cost),
+            SyscallSelector::ReplaceClass => Ok(self.replace_class_gas_cost),
+            SyscallSelector::Secp256k1Add => Ok(self.secp256k1_add_gas_cost),
+            SyscallSelector::Secp256k1GetPointFromX => Ok(self.secp256k1_get_point_from_x_gas_cost),
+            SyscallSelector::Secp256k1GetXy => Ok(self.secp256k1_get_xy_gas_cost),
+            SyscallSelector::Secp256k1Mul => Ok(self.secp256k1_mul_gas_cost),
+            SyscallSelector::Secp256k1New => Ok(self.secp256k1_new_gas_cost),
+            SyscallSelector::Secp256r1Add => Ok(self.secp256r1_add_gas_cost),
+            SyscallSelector::Secp256r1GetPointFromX => Ok(self.secp256r1_get_point_from_x_gas_cost),
+            SyscallSelector::Secp256r1GetXy => Ok(self.secp256r1_get_xy_gas_cost),
+            SyscallSelector::Secp256r1Mul => Ok(self.secp256r1_mul_gas_cost),
+            SyscallSelector::Secp256r1New => Ok(self.secp256r1_new_gas_cost),
+            SyscallSelector::SendMessageToL1 => Ok(self.send_message_to_l1_gas_cost),
+            SyscallSelector::StorageRead => Ok(self.storage_read_gas_cost),
+            SyscallSelector::StorageWrite => Ok(self.storage_write_gas_cost),
+            _ => Err(GasCostsError::UnvalidSyscall),
+        }
+    }
+}
+
 // Below, serde first deserializes the json into a regular IndexMap wrapped by the newtype
 // `OsConstantsRawJson`, then calls the `try_from` of the newtype, which handles the
 // conversion into actual values.
@@ -758,6 +805,16 @@ pub enum OsConstantsSerdeError {
     UnhandledValueType(Value),
     #[error("Validation failed: {0}")]
     ValidationError(String),
+}
+
+#[derive(Debug, Error)]
+pub enum GasCostsError {
+    #[error("Cairo 0 syscall that has not suported")]
+    UnvalidSyscall,
+    #[error("Unsupported builtin for Cairo 1")]
+    UnsupportedBuiltin,
+    #[error("A virtual builin- not relevant for smart contracts")]
+    VirtualBuiltin,
 }
 
 #[derive(Clone, Debug, Deserialize)]
