@@ -4,7 +4,7 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 #[cfg(feature = "cairo_native")]
 use cairo_lang_starknet_classes::contract_class::ContractClass as SierraContractClass;
 #[cfg(feature = "cairo_native")]
-use cairo_native::executor::AotNativeExecutor;
+use cairo_native::executor::AotContractExecutor;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use serde_json::Value;
 use starknet_api::block::{BlockNumber, BlockTimestamp, NonzeroGasPrice};
@@ -250,15 +250,8 @@ impl NativeContractClassV1 {
             .extract_sierra_program()
             .expect("Cannot extract sierra program from sierra contract class");
 
-        // Create a Cairo Native MLIR context. This structure handles MLIR initialization and
-        // compiles Sierra programs into an MLIR module
-        let native_context = cairo_native::context::NativeContext::new();
-        // Compile the sierra program into a MLIR module
-        let native_program = native_context
-            .compile(&sierra_program, false)
-            .expect("Cannot compile sierra program into native program");
-        let executor =
-            AotNativeExecutor::from_native_module(native_program, cairo_native::OptLevel::Default);
+        let executor = AotContractExecutor::new(&sierra_program, cairo_native::OptLevel::Default)
+            .expect("Cannot compile sierra into native");
 
         // Compile the sierra contract class into casm
         let casm_contract_class = CasmContractClass::from_contract_class(

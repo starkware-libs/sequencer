@@ -6,7 +6,7 @@ use cairo_lang_starknet_classes::contract_class::{
     ContractClass as SierraContractClass,
     ContractEntryPoint as SierraContractEntryPoint,
 };
-use cairo_native::executor::AotNativeExecutor;
+use cairo_native::executor::AotContractExecutor;
 use starknet_api::core::EntryPointSelector;
 
 use crate::execution::contract_class::{ContractClassV1, EntryPointsByType, HasSelector};
@@ -33,7 +33,7 @@ impl NativeContractClassV1 {
     /// executor must be derived from sierra_program which in turn must be derived from
     /// sierra_contract_class.
     pub fn new(
-        executor: AotNativeExecutor,
+        executor: AotContractExecutor,
         sierra_contract_class: SierraContractClass,
         casm: ContractClassV1,
     ) -> NativeContractClassV1 {
@@ -54,14 +54,14 @@ impl NativeContractClassV1 {
 
 #[derive(Debug)]
 pub struct NativeContractClassV1Inner {
-    pub executor: AotNativeExecutor,
+    pub executor: AotContractExecutor,
     entry_points_by_type: EntryPointsByType<NativeEntryPoint>,
     casm: ContractClassV1,
 }
 
 impl NativeContractClassV1Inner {
     fn new(
-        executor: AotNativeExecutor,
+        executor: AotContractExecutor,
         sierra_contract_class: SierraContractClass,
         casm: ContractClassV1,
     ) -> Self {
