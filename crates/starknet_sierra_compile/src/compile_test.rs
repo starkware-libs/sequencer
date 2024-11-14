@@ -21,6 +21,7 @@ const SIERRA_TO_CASM_COMPILATION_CONFIG: SierraToCasmCompilationConfig =
 fn command_line_compiler() -> CommandLineCompiler {
     CommandLineCompiler::new(SIERRA_TO_CASM_COMPILATION_CONFIG)
 }
+
 fn get_test_contract() -> ContractClass {
     env::set_current_dir(resolve_project_relative_path(TEST_FILES_FOLDER).unwrap())
         .expect("Failed to set current dir.");
@@ -75,4 +76,28 @@ fn test_negative_flow_compile_sierra_to_native() {
 
     let result = compiler.compile_to_native(contract_class);
     assert_matches!(result, Err(CompilationUtilError::CompilationError(..)));
+}
+
+#[rstest]
+fn test_max_bytecode_size() {
+    let contract_class = get_test_contract();
+    let expected_casm_bytecode_length = 1965;
+
+    // Positive flow.
+    let compiler = CommandLineCompiler::new(SierraToCasmCompilationConfig {
+        max_bytecode_size: expected_casm_bytecode_length,
+    });
+    let casm_contract_class = compiler
+        .compile(contract_class.clone())
+        .expect("Failed to compile contract class. Probably an issue with the max_bytecode_size.");
+    assert_eq!(casm_contract_class.bytecode.len(), expected_casm_bytecode_length);
+
+    // Negative flow.
+    let compiler = CommandLineCompiler::new(SierraToCasmCompilationConfig {
+        max_bytecode_size: expected_casm_bytecode_length - 1,
+    });
+    let result = compiler.compile(contract_class);
+    assert_matches!(result, Err(CompilationUtilError::CompilationError(string))
+        if string.contains("Code size limit exceeded.")
+    );
 }

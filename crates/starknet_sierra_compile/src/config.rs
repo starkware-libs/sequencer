@@ -22,7 +22,7 @@ impl SerializeConfig for SierraToCasmCompilationConfig {
         BTreeMap::from_iter([ser_param(
             "max_bytecode_size",
             &self.max_bytecode_size,
-            "Limitation of contract bytecode size.",
+            "Limitation of the result CASM contract bytecode size.",
             ParamPrivacyInput::Public,
         )])
     }
