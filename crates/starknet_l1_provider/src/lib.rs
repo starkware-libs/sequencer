@@ -1,5 +1,6 @@
 pub mod errors;
 
+use indexmap::{IndexMap, IndexSet};
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
 
@@ -15,7 +16,9 @@ pub mod l1_provider_tests;
 // is compatible with it.
 #[derive(Debug, Default)]
 pub struct L1Provider {
-    unconsumed_l1_not_in_l2_block_txs: PendingMessagesFromL1,
+    tx_manager: TransactionManager,
+    // TODO(Gilad): consider transitioning to a generic phantom state once the infra is stabilized
+    // and we see how well it handles consuming the L1Provider when moving between states.
     state: ProviderState,
 }
 
@@ -27,9 +30,9 @@ impl L1Provider {
         );
     }
 
-    pub fn get_txs(&mut self, n_txs: usize) -> L1ProviderResult<&[L1HandlerTransaction]> {
+    pub fn get_txs(&mut self, n_txs: usize) -> L1ProviderResult<Vec<L1HandlerTransaction>> {
         match self.state {
-            ProviderState::Propose => Ok(self.unconsumed_l1_not_in_l2_block_txs.get(n_txs)),
+            ProviderState::Propose => Ok(self.tx_manager.get_txs(n_txs)),
             ProviderState::Pending => Err(L1ProviderError::GetTransactionsInPendingState),
             ProviderState::Validate => Err(L1ProviderError::GetTransactionConsensusBug),
         }
@@ -88,11 +91,36 @@ impl L1Provider {
 }
 
 #[derive(Debug, Default)]
-struct PendingMessagesFromL1;
+struct TransactionManager {
+    txs: IndexMap<TransactionHash, L1HandlerTransaction>,
+    proposed_txs: IndexSet<TransactionHash>,
+    _on_l2_awaiting_l1_consumption: IndexSet<TransactionHash>,
+}
 
-impl PendingMessagesFromL1 {
-    fn get(&self, n_txs: usize) -> &[L1HandlerTransaction] {
-        todo!("stage and return {n_txs} txs")
+impl TransactionManager {
+    /// Retrieves up to `n_txs` transactions that have yet to be proposed or accepted on L2.
+    pub fn get_txs(&mut self, n_txs: usize) -> Vec<L1HandlerTransaction> {
+        let (tx_hashes, txs): (Vec<_>, Vec<_>) = self
+            .txs
+            .iter()
+            .skip(self.proposed_txs.len()) // txs are proposed FIFO.
+            .take(n_txs)
+            .map(|(&hash, tx)| (hash, tx.clone()))
+            .unzip();
+
+        self.proposed_txs.extend(tx_hashes);
+        txs
+    }
+
+    pub fn _add_unconsumed_l1_not_in_l2_block_tx(&mut self, _tx: L1HandlerTransaction) {
+        todo!(
+            "Check if tx is in L2, if it isn't on L2 add it to the txs buffer, otherwise print
+             debug and do nothing."
+        )
+    }
+
+    pub fn _mark_tx_included_on_l2(&mut self, _tx_hash: &TransactionHash) {
+        todo!("Adds the tx hash to l2 buffer; remove tx from the txs storage if it's there.")
     }
 }
 
