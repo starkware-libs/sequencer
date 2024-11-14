@@ -12,7 +12,7 @@ use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, BALANCE}
 
 #[cfg_attr(
     feature = "cairo_native",
-    test_case(FeatureContract::TestContract(CairoVersion::Native), 891625; "Native")
+    test_case(FeatureContract::TestContract(CairoVersion::Native), 890255; "Native")
 )]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 881425; "VM")]
 fn test_sha256(test_contract: FeatureContract, gas_consumed: u64) {
