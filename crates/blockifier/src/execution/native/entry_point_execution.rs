@@ -1,7 +1,6 @@
 use cairo_native::execution_result::ContractExecutionResult;
 use cairo_native::utils::BuiltinCosts;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
-use starknet_api::execution_resources::GasAmount;
 
 use crate::execution::call_info::{CallExecution, CallInfo, ChargedResources, Retdata};
 use crate::execution::contract_class::TrackedResource;
@@ -10,6 +9,7 @@ use crate::execution::entry_point::{
     EntryPointExecutionContext,
     EntryPointExecutionResult,
 };
+use crate::execution::entry_point_execution::to_gas_for_fee;
 use crate::execution::errors::{EntryPointExecutionError, PostExecutionError};
 use crate::execution::native::contract_class::NativeContractClassV1;
 use crate::execution::native::syscall_handler::NativeSyscallHandler;
@@ -87,8 +87,11 @@ fn create_callinfo(
 
     let charged_resources_without_inner_calls = ChargedResources {
         vm_resources: ExecutionResources::default(),
-        // TODO(tzahi): Replace with a computed value.
-        gas_for_fee: GasAmount(0),
+        gas_for_fee: to_gas_for_fee(
+            &TrackedResource::SierraGas,
+            gas_consumed,
+            &syscall_handler.inner_calls,
+        ),
     };
     let charged_resources = &charged_resources_without_inner_calls
         + &CallInfo::summarize_charged_resources(syscall_handler.inner_calls.iter());

@@ -113,6 +113,10 @@ impl ChargedResources {
     pub fn from_execution_resources(resources: ExecutionResources) -> Self {
         Self { vm_resources: resources, ..Default::default() }
     }
+
+    pub fn from_gas(gas_for_fee: GasAmount) -> Self {
+        Self { gas_for_fee, ..Default::default() }
+    }
 }
 
 impl Add<&ChargedResources> for &ChargedResources {
