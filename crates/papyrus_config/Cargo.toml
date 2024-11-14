@@ -20,6 +20,7 @@ validator = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
 assert_matches.workspace = true
+infra_utils.workspace = true
 itertools.workspace = true
 lazy_static.workspace = true
 papyrus_test_utils.workspace = true

@@ -9,6 +9,7 @@ use std::str::FromStr;
 
 use assert_json_diff::assert_json_eq;
 use colored::Colorize;
+use infra_utils::path::get_absolute_path;
 use itertools::Itertools;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use papyrus_config::dumping::SerializeConfig;
@@ -18,7 +19,6 @@ use papyrus_monitoring_gateway::MonitoringGatewayConfig;
 use pretty_assertions::assert_eq;
 use serde_json::{json, Map, Value};
 use starknet_api::core::ChainId;
-use starknet_api::test_utils::get_absolute_path;
 use tempfile::NamedTempFile;
 use validator::Validate;
 

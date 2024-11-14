@@ -8,6 +8,7 @@ use std::sync::LazyLock;
 use assert_matches::assert_matches;
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{create_trivial_calldata, CairoVersion};
+use infra_utils::path::get_absolute_path;
 use pretty_assertions::assert_ne;
 use serde_json::to_string_pretty;
 use starknet_api::block::GasPrice;
@@ -18,7 +19,7 @@ use starknet_api::rpc_transaction::{ContractClass, RpcDeployAccountTransactionV3
 use starknet_api::test_utils::declare::rpc_declare_tx;
 use starknet_api::test_utils::deploy_account::DeployAccountTxArgs;
 use starknet_api::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
-use starknet_api::test_utils::{get_absolute_path, NonceManager};
+use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::fields::{
     AllResourceBounds,
     ContractAddressSalt,
