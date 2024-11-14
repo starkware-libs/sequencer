@@ -214,8 +214,8 @@
     "param_type": "String",
     "privacy": "TemporaryValue"
   },
-  "compiler_config.max_bytecode_size": {
-    "description": "Limitation of contract bytecode size.",
+  "compiler_config.max_casm_bytecode_size": {
+    "description": "Limitation of the result CASM contract bytecode size.",
     "privacy": "Public",
     "value": 81920
   },
