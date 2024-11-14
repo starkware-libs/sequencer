@@ -45,7 +45,6 @@ use crate::execution::stack_trace::extract_trailing_cairo1_revert_trace;
 use crate::execution::{deprecated_entry_point_execution, entry_point_execution};
 use crate::state::errors::StateError;
 use crate::state::state_api::State;
-use crate::transaction::objects::TransactionInfo;
 
 pub type Args = Vec<CairoArg>;
 
@@ -359,14 +358,6 @@ pub fn write_maybe_relocatable<T: Into<MaybeRelocatable>>(
     vm.insert_value(*ptr, value)?;
     *ptr = (*ptr + 1)?;
     Ok(())
-}
-
-pub fn max_fee_for_execution_info(tx_info: &TransactionInfo) -> Felt {
-    match tx_info {
-        TransactionInfo::Current(_) => 0,
-        TransactionInfo::Deprecated(tx_info) => tx_info.max_fee.0,
-    }
-    .into()
 }
 
 /// Returns the VM resources required for running `poseidon_hash_many` in the Starknet OS.
