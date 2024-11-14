@@ -10328,6 +10328,7 @@ dependencies = [
 name = "starknet_l1_provider"
 version = "0.0.0"
 dependencies = [
+ "assert_matches",
  "papyrus_base_layer",
  "starknet_api",
  "thiserror",

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::fmt::Display;
 
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
@@ -355,7 +356,7 @@ impl TransactionReference {
     }
 }
 
-impl std::fmt::Display for TransactionReference {
+impl Display for TransactionReference {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let TransactionReference { address, nonce, tx_hash, tip, max_l2_gas_price } = self;
         write!(
