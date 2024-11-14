@@ -75,6 +75,15 @@ pub static REQUIRED_PARAM_CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::
                 "gateway_config.chain_info.fee_token_addresses.strk_fee_token_address",
             ]),
         ),
+        // TODO(tsabary): set as a regular required parameter.
+        (
+            ser_pointer_target_required_param(
+                "sequencer_address",
+                SerializationType::String,
+                "The sequencer address.",
+            ),
+            set_pointing_param_paths(&["batcher_config.block_builder_config.sequencer_address"]),
+        ),
     ]
 });
 

@@ -65,6 +65,7 @@ pub async fn create_config(
             chain_id,
             eth_fee_token_address: fee_token_addresses.eth_fee_token_address,
             strk_fee_token_address: fee_token_addresses.strk_fee_token_address,
+            sequencer_address: ContractAddress::from(1312_u128), // Arbitrary non-zero value.
         },
         consensus_proposals_channels,
     )
