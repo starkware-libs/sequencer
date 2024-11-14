@@ -98,11 +98,8 @@ fn create_callinfo(
         inner_calls: syscall_handler.inner_calls,
         storage_read_values: syscall_handler.read_values,
         accessed_storage_keys: syscall_handler.accessed_keys,
-        // TODO(Aviv): The syscall is not supported here yet.
-        // Currently, `accessed_contract_addresses` and `read_class_hash_values` are initialized
-        // as empty. Support for handling accessed storage keys via syscalls should be implemented.
-        accessed_contract_addresses: Default::default(),
-        read_class_hash_values: Default::default(),
+        accessed_contract_addresses: syscall_handler.accessed_contract_addresses,
+        read_class_hash_values: syscall_handler.read_class_hash_values,
         tracked_resource: TrackedResource::SierraGas,
     })
 }
