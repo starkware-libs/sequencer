@@ -18,14 +18,14 @@ const SIERRA_TO_CASM_COMPILATION_CONFIG: SierraToCasmCompilationConfig =
 fn cairo_lang_compiler() -> CairoLangSierraToCasmCompiler {
     CairoLangSierraToCasmCompiler { config: SIERRA_TO_CASM_COMPILATION_CONFIG }
 }
-fn commnad_line_compiler() -> CommandLineCompiler {
+fn command_line_compiler() -> CommandLineCompiler {
     CommandLineCompiler::new(SIERRA_TO_CASM_COMPILATION_CONFIG)
 }
 
 // TODO: use the other compiler as well.
 #[rstest]
 #[case::cairo_lang_compiler(cairo_lang_compiler())]
-#[case::command_line_compiler(commnad_line_compiler())]
+#[case::command_line_compiler(command_line_compiler())]
 fn test_compile_sierra_to_casm(#[case] compiler: impl SierraToCasmCompiler) {
     env::set_current_dir(get_absolute_path(TEST_FILES_FOLDER)).expect("Failed to set current dir.");
     let sierra_path = Path::new(FAULTY_ACCOUNT_CLASS_FILE);
@@ -41,7 +41,7 @@ fn test_compile_sierra_to_casm(#[case] compiler: impl SierraToCasmCompiler) {
 // TODO(Arni, 1/5/2024): Add a test for panic result test.
 #[rstest]
 #[case::cairo_lang_compiler(cairo_lang_compiler())]
-#[case::command_line_compiler(commnad_line_compiler())]
+#[case::command_line_compiler(command_line_compiler())]
 fn test_negative_flow_compile_sierra_to_casm(#[case] compiler: impl SierraToCasmCompiler) {
     env::set_current_dir(get_absolute_path(TEST_FILES_FOLDER)).expect("Failed to set current dir.");
     let sierra_path = Path::new(FAULTY_ACCOUNT_CLASS_FILE);
