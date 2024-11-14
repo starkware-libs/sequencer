@@ -130,13 +130,17 @@ macro_rules! retry_request {
                 attempt_number += 1;
                 match $closure() {
                     Ok(value) => retry::OperationResult::Ok(value),
+
                     // If the error contains any of the expected error strings, we want to retry.
+                    // TODO(Aner): switch from matching "expected" RPC errors for retrying, to
+                    // matching expected state errors for returning the error.
                     Err(e)
                         if $retry_config
                             .expected_error_strings
                             .iter()
                             .any(|s| e.to_string().contains(s)) =>
                     {
+                        // TODO(Aner): switch to log::warn! once we have a logger.
                         println!(
                             "Attempt {}: Retrying request due to error: {:?}",
                             attempt_number, e
@@ -148,7 +152,12 @@ macro_rules! retry_request {
                         retry::OperationResult::Retry(e)
                     }
                     // For all other errors, do not retry and return immediately.
-                    Err(e) => retry::OperationResult::Err(e),
+                    Err(e) => {
+                        // TODO(Aner): switch to log::info! once we have a logger. Consider
+                        // removing.
+                        println!("Other error encountered: {:?}", e);
+                        retry::OperationResult::Err(e)
+                    }
                 }
             },
         )
