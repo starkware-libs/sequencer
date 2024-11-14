@@ -54,6 +54,7 @@ pub struct RemoteServers {
 
 pub struct SequencerNodeServers {
     local_servers: LocalServers,
+    remote_servers: RemoteServers,
     wrapper_servers: WrapperServers,
 }
 
@@ -313,12 +314,14 @@ pub fn create_node_servers(
     config: &SequencerNodeConfig,
     communication: &mut SequencerNodeCommunication,
     components: SequencerNodeComponents,
+    clients: &SequencerNodeClients,
 ) -> SequencerNodeServers {
     let mut components = components;
     let local_servers = create_local_servers(config, communication, &mut components);
+    let remote_servers = create_remote_servers(config, clients);
     let wrapper_servers = create_wrapper_servers(config, &mut components);
 
-    SequencerNodeServers { local_servers, wrapper_servers }
+    SequencerNodeServers { local_servers, remote_servers, wrapper_servers }
 }
 
 pub fn get_selected_server_future(
