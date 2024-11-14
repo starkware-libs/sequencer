@@ -176,7 +176,6 @@ struct ExpectedResultTestInvokeTx {
     resources: ExecutionResources,
     validate_gas_consumed: u64,
     execute_gas_consumed: u64,
-    inner_call_initial_gas: u64,
 }
 
 fn user_initial_gas_from_bounds(bounds: ValidResourceBounds) -> Option<GasAmount> {
@@ -204,33 +203,56 @@ fn expected_validate_call_info(
         CairoVersion::Native => retdata!(*constants::VALIDATE_RETDATA),
     };
     // Extra range check in regular (invoke) validate call, due to passing the calldata as an array.
-    let n_range_checks = match cairo_version {
-        CairoVersion::Cairo0 => {
-            usize::from(entry_point_selector_name == constants::VALIDATE_ENTRY_POINT_NAME)
+    let charged_resources;
+    match tracked_resource {
+        TrackedResource::SierraGas => {
+            charged_resources = ChargedResources {
+                vm_resources: ExecutionResources::default(),
+                gas_for_fee: GasAmount(gas_consumed),
+            }
         }
-        CairoVersion::Cairo1 => {
-            if entry_point_selector_name == constants::VALIDATE_ENTRY_POINT_NAME { 7 } else { 2 }
-        }
-        #[cfg(feature = "cairo_native")]
-        CairoVersion::Native => {
-            if entry_point_selector_name == constants::VALIDATE_ENTRY_POINT_NAME { 7 } else { 2 }
+        TrackedResource::CairoSteps => {
+            let n_range_checks = match cairo_version {
+                CairoVersion::Cairo0 => {
+                    usize::from(entry_point_selector_name == constants::VALIDATE_ENTRY_POINT_NAME)
+                }
+                CairoVersion::Cairo1 => {
+                    if entry_point_selector_name == constants::VALIDATE_ENTRY_POINT_NAME {
+                        7
+                    } else {
+                        2
+                    }
+                }
+                #[cfg(feature = "cairo_native")]
+                CairoVersion::Native => {
+                    if entry_point_selector_name == constants::VALIDATE_ENTRY_POINT_NAME {
+                        7
+                    } else {
+                        2
+                    }
+                }
+            };
+            let n_steps = match (entry_point_selector_name, cairo_version) {
+                (constants::VALIDATE_DEPLOY_ENTRY_POINT_NAME, CairoVersion::Cairo0) => 13_usize,
+                (constants::VALIDATE_DEPLOY_ENTRY_POINT_NAME, CairoVersion::Cairo1) => 32_usize,
+                (constants::VALIDATE_DECLARE_ENTRY_POINT_NAME, CairoVersion::Cairo0) => 12_usize,
+                (constants::VALIDATE_DECLARE_ENTRY_POINT_NAME, CairoVersion::Cairo1) => 28_usize,
+                (constants::VALIDATE_ENTRY_POINT_NAME, CairoVersion::Cairo0) => 21_usize,
+                (constants::VALIDATE_ENTRY_POINT_NAME, CairoVersion::Cairo1) => 100_usize,
+                (selector, _) => panic!("Selector {selector} is not a known validate selector."),
+            };
+            let resources = ExecutionResources {
+                n_steps,
+                n_memory_holes: 0,
+                builtin_instance_counter: HashMap::from([(
+                    BuiltinName::range_check,
+                    n_range_checks,
+                )]),
+            }
+            .filter_unused_builtins();
+            charged_resources = ChargedResources::from_execution_resources(resources);
         }
     };
-    let n_steps = match (entry_point_selector_name, cairo_version) {
-        (constants::VALIDATE_DEPLOY_ENTRY_POINT_NAME, CairoVersion::Cairo0) => 13_usize,
-        (constants::VALIDATE_DEPLOY_ENTRY_POINT_NAME, CairoVersion::Cairo1) => 32_usize,
-        (constants::VALIDATE_DECLARE_ENTRY_POINT_NAME, CairoVersion::Cairo0) => 12_usize,
-        (constants::VALIDATE_DECLARE_ENTRY_POINT_NAME, CairoVersion::Cairo1) => 28_usize,
-        (constants::VALIDATE_ENTRY_POINT_NAME, CairoVersion::Cairo0) => 21_usize,
-        (constants::VALIDATE_ENTRY_POINT_NAME, CairoVersion::Cairo1) => 100_usize,
-        (selector, _) => panic!("Selector {selector} is not a known validate selector."),
-    };
-    let resources = ExecutionResources {
-        n_steps,
-        n_memory_holes: 0,
-        builtin_instance_counter: HashMap::from([(BuiltinName::range_check, n_range_checks)]),
-    }
-    .filter_unused_builtins();
     let initial_gas = user_initial_gas.unwrap_or(GasAmount(default_initial_gas_cost())).0;
 
     Some(CallInfo {
@@ -246,7 +268,7 @@ fn expected_validate_call_info(
             initial_gas,
         },
         // The account contract we use for testing has trivial `validate` functions.
-        charged_resources: ChargedResources::from_execution_resources(resources),
+        charged_resources,
         execution: CallExecution { retdata, gas_consumed, ..Default::default() },
         tracked_resource,
         ..Default::default()
@@ -418,7 +440,6 @@ fn add_kzg_da_resources_to_resources_mapping(
         },
         validate_gas_consumed: 0,
         execute_gas_consumed: 0,
-        inner_call_initial_gas: versioned_constants_for_account_testing().default_initial_gas_cost(),
     },
     CairoVersion::Cairo0)]
 #[case::with_cairo1_account(
@@ -431,7 +452,6 @@ fn add_kzg_da_resources_to_resources_mapping(
         validate_gas_consumed: 4740, // The gas consumption results from parsing the input
             // arguments.
         execute_gas_consumed: 162080,
-        inner_call_initial_gas: versioned_constants_for_account_testing().default_initial_gas_cost(),
     },
     CairoVersion::Cairo1)]
 // TODO(Tzahi): Add calls to cairo1 test contracts (where gas flows to and from the inner call).
@@ -484,11 +504,6 @@ fn test_invoke_tx(
         &versioned_constants.min_compiler_version_for_sierra_gas,
         tx_context.tx_info.gas_mode(),
     );
-    if tracked_resource == TrackedResource::CairoSteps {
-        // In CairoSteps mode, the initial gas is set to the default once before the validate call.
-        expected_arguments.inner_call_initial_gas -=
-            expected_arguments.validate_gas_consumed + expected_arguments.execute_gas_consumed
-    }
 
     // Build expected validate call info.
     let expected_account_class_hash = account_contract.get_class_hash();
@@ -503,6 +518,33 @@ fn test_invoke_tx(
         user_initial_gas_from_bounds(resource_bounds),
     );
 
+    let mut inner_call_initial_gas =
+        versioned_constants_for_account_testing().default_initial_gas_cost();
+    let expected_inner_call_charged_resources =
+        ChargedResources::from_execution_resources(ExecutionResources {
+            n_steps: 23,
+            n_memory_holes: 0,
+            ..Default::default()
+        });
+    let expected_validate_gas_for_fee;
+    let expected_execute_gas_for_fee;
+    match tracked_resource {
+        TrackedResource::CairoSteps => {
+            // In CairoSteps mode, the initial gas is set to the default once before the validate
+            // call.
+            inner_call_initial_gas -=
+                expected_arguments.validate_gas_consumed + expected_arguments.execute_gas_consumed;
+            expected_validate_gas_for_fee = GasAmount::default();
+            expected_execute_gas_for_fee = GasAmount::default()
+        }
+        TrackedResource::SierraGas => {
+            expected_validate_gas_for_fee = expected_arguments.validate_gas_consumed.into();
+            expected_execute_gas_for_fee = expected_arguments.execute_gas_consumed.into();
+            expected_arguments.resources =
+                expected_inner_call_charged_resources.vm_resources.clone()
+        }
+    }
+
     // Build expected execute call info.
     let expected_return_result_calldata = vec![felt!(2_u8)];
     let expected_return_result_call = CallEntryPoint {
@@ -514,7 +556,7 @@ fn test_invoke_tx(
         storage_address: test_contract_address,
         caller_address: sender_address,
         call_type: CallType::Call,
-        initial_gas: expected_arguments.inner_call_initial_gas,
+        initial_gas: inner_call_initial_gas,
     };
     let expected_validated_call = expected_validate_call_info.as_ref().unwrap().call.clone();
     let expected_execute_call = CallEntryPoint {
@@ -522,25 +564,27 @@ fn test_invoke_tx(
         initial_gas: expected_validated_call.initial_gas - expected_arguments.validate_gas_consumed,
         ..expected_validated_call
     };
+
     let expected_return_result_retdata = Retdata(expected_return_result_calldata);
+    let expected_inner_calls = vec![CallInfo {
+        call: expected_return_result_call,
+        execution: CallExecution::from_retdata(expected_return_result_retdata.clone()),
+        charged_resources: expected_inner_call_charged_resources,
+        ..Default::default()
+    }];
+
     let expected_execute_call_info = Some(CallInfo {
         call: expected_execute_call,
         execution: CallExecution {
-            retdata: Retdata(expected_return_result_retdata.0.clone()),
+            retdata: Retdata(expected_return_result_retdata.0),
             gas_consumed: expected_arguments.execute_gas_consumed,
             ..Default::default()
         },
-        charged_resources: ChargedResources::from_execution_resources(expected_arguments.resources),
-        inner_calls: vec![CallInfo {
-            call: expected_return_result_call,
-            execution: CallExecution::from_retdata(expected_return_result_retdata),
-            charged_resources: ChargedResources::from_execution_resources(ExecutionResources {
-                n_steps: 23,
-                n_memory_holes: 0,
-                ..Default::default()
-            }),
-            ..Default::default()
-        }],
+        charged_resources: ChargedResources {
+            vm_resources: expected_arguments.resources,
+            gas_for_fee: expected_execute_gas_for_fee,
+        },
+        inner_calls: expected_inner_calls,
         tracked_resource,
         ..Default::default()
     });
@@ -563,10 +607,12 @@ fn test_invoke_tx(
         &starknet_resources,
         vec![&expected_validate_call_info, &expected_execute_call_info],
     );
+
     let mut expected_actual_resources = TransactionResources {
         starknet_resources,
         computation: ComputationResources {
             vm_resources: expected_cairo_resources,
+            sierra_gas: expected_validate_gas_for_fee + expected_execute_gas_for_fee,
             ..Default::default()
         },
     };

@@ -368,7 +368,6 @@ fn maybe_fill_holes(
 }
 
 /// Calculates the total gas for fee in the current call + subtree.
-#[allow(dead_code)]
 fn to_gas_for_fee(
     tracked_resource: &TrackedResource,
     gas_consumed: u64,
@@ -393,6 +392,7 @@ fn to_gas_for_fee(
             .expect("gas_for_fee unexpectedly underflowed."),
     })
 }
+
 pub fn finalize_execution(
     mut runner: CairoRunner,
     mut syscall_handler: SyscallHintProcessor<'_>,
@@ -417,32 +417,36 @@ pub fn finalize_execution(
     syscall_handler.read_only_segments.mark_as_accessed(&mut runner)?;
 
     let call_result = get_call_result(&runner, &syscall_handler)?;
-
-    // Take into account the VM execution resources of the current call, without inner calls.
-    // Has to happen after marking holes in segments as accessed.
-    let mut vm_resources_without_inner_calls = runner
-        .get_execution_resources()
-        .map_err(VirtualMachineError::RunnerError)?
-        .filter_unused_builtins();
-    let versioned_constants = syscall_handler.context.versioned_constants();
-    if versioned_constants.segment_arena_cells {
-        vm_resources_without_inner_calls
-            .builtin_instance_counter
-            .get_mut(&BuiltinName::segment_arena)
-            .map_or_else(|| {}, |val| *val *= SEGMENT_ARENA_BUILTIN_SIZE);
+    if tracked_resource == TrackedResource::CairoSteps {
+        // Take into account the VM execution resources of the current call, without inner calls.
+        // Has to happen after marking holes in segments as accessed.
+        let mut vm_resources_without_inner_calls = runner
+            .get_execution_resources()
+            .map_err(VirtualMachineError::RunnerError)?
+            .filter_unused_builtins();
+        let versioned_constants = syscall_handler.context.versioned_constants();
+        if versioned_constants.segment_arena_cells {
+            vm_resources_without_inner_calls
+                .builtin_instance_counter
+                .get_mut(&BuiltinName::segment_arena)
+                .map_or_else(|| {}, |val| *val *= SEGMENT_ARENA_BUILTIN_SIZE);
+        }
+        *syscall_handler.resources += &vm_resources_without_inner_calls;
+        // Take into account the syscall resources of the current call.
+        *syscall_handler.resources += &versioned_constants
+            .get_additional_os_syscall_resources(&syscall_handler.syscall_counter);
     }
-    *syscall_handler.resources += &vm_resources_without_inner_calls;
-    // Take into account the syscall resources of the current call.
-    *syscall_handler.resources +=
-        &versioned_constants.get_additional_os_syscall_resources(&syscall_handler.syscall_counter);
 
     syscall_handler.finalize();
 
     let full_call_resources = &*syscall_handler.resources - &previous_resources;
     let charged_resources = ChargedResources {
         vm_resources: full_call_resources.filter_unused_builtins(),
-        // TODO(tzahi): Replace with a computed value.
-        gas_for_fee: GasAmount(0),
+        gas_for_fee: to_gas_for_fee(
+            &tracked_resource,
+            call_result.gas_consumed,
+            &syscall_handler.inner_calls,
+        ),
     };
     Ok(CallInfo {
         call: syscall_handler.call,
