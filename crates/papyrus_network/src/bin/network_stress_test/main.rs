@@ -34,7 +34,7 @@ async fn main() {
         _ = network_manager.run() => {}
         _ = async {
             let mut i = 0;
-            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+            tokio::time::sleep(std::time::Duration::from_secs(20)).await;
             loop {
                 let message = StressTestMessage::new(i, vec![0; message_size - METADATA_SIZE], peer_id.clone());
                 network_channels.broadcast_topic_client.broadcast_message(message).await.unwrap();
