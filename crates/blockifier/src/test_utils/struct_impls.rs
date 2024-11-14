@@ -250,8 +250,12 @@ impl NativeContractClassV1 {
             .extract_sierra_program()
             .expect("Cannot extract sierra program from sierra contract class");
 
-        let executor = AotContractExecutor::new(&sierra_program, cairo_native::OptLevel::Default)
-            .expect("Cannot compile sierra into native");
+        let executor = AotContractExecutor::new(
+            &sierra_program,
+            &sierra_contract_class.entry_points_by_type,
+            cairo_native::OptLevel::Default,
+        )
+        .expect("Cannot compile sierra into native");
 
         // Compile the sierra contract class into casm
         let casm_contract_class = CasmContractClass::from_contract_class(
