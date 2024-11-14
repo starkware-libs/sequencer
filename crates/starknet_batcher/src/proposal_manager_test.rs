@@ -118,7 +118,7 @@ fn proposal_deadline() -> tokio::time::Instant {
     tokio::time::Instant::now() + BLOCK_GENERATION_TIMEOUT
 }
 
-async fn build_proposal(
+async fn build_proposal_non_blocking(
     proposal_manager: &mut ProposalManager,
     tx_provider: ProposeTransactionProvider,
     proposal_id: ProposalId,
@@ -128,7 +128,14 @@ async fn build_proposal(
         .build_block_proposal(proposal_id, None, proposal_deadline(), output_sender, tx_provider)
         .await
         .unwrap();
+}
 
+async fn build_proposal(
+    proposal_manager: &mut ProposalManager,
+    tx_provider: ProposeTransactionProvider,
+    proposal_id: ProposalId,
+) {
+    build_proposal_non_blocking(proposal_manager, tx_provider, proposal_id).await;
     assert!(proposal_manager.await_active_proposal().await);
 }
 
@@ -309,7 +316,7 @@ async fn multiple_proposals_generation_fail(
 
 #[rstest]
 #[tokio::test]
-async fn test_take_proposal_result_no_active_proposal(
+async fn take_proposal_result_no_active_proposal(
     mut mock_dependencies: MockDependencies,
     propose_tx_provider: ProposeTransactionProvider,
 ) {
@@ -334,7 +341,30 @@ async fn test_take_proposal_result_no_active_proposal(
 
 #[rstest]
 #[tokio::test]
-async fn test_abort_and_restart_height(
+async fn abort_active_proposal(
+    mut mock_dependencies: MockDependencies,
+    propose_tx_provider: ProposeTransactionProvider,
+) {
+    mock_dependencies.expect_long_build_block(1);
+    let mut proposal_manager = proposal_manager(mock_dependencies);
+
+    proposal_manager.start_height(INITIAL_HEIGHT).await.unwrap();
+    build_proposal_non_blocking(&mut proposal_manager, propose_tx_provider, ProposalId(0)).await;
+
+    proposal_manager.abort_proposal(ProposalId(0)).await;
+
+    assert_matches!(
+        proposal_manager.take_proposal_result(ProposalId(0)).await,
+        Err(GetProposalResultError::Aborted)
+    );
+
+    // Make sure there is no active proposal.
+    assert!(!proposal_manager.await_active_proposal().await);
+}
+
+#[rstest]
+#[tokio::test]
+async fn abort_and_restart_height(
     mut mock_dependencies: MockDependencies,
     propose_tx_provider: ProposeTransactionProvider,
 ) {
@@ -343,24 +373,12 @@ async fn test_abort_and_restart_height(
     let mut proposal_manager = proposal_manager(mock_dependencies);
 
     // Start a new height and create a proposal.
-    let (output_tx_sender, _receiver) = output_streaming();
     proposal_manager.start_height(INITIAL_HEIGHT).await.unwrap();
-
     build_proposal(&mut proposal_manager, propose_tx_provider.clone(), ProposalId(0)).await;
 
     // Start a new proposal, which will remain active.
-    assert!(
-        proposal_manager
-            .build_block_proposal(
-                ProposalId(1),
-                None,
-                proposal_deadline(),
-                output_tx_sender,
-                propose_tx_provider,
-            )
-            .await
-            .is_ok()
-    );
+    build_proposal_non_blocking(&mut proposal_manager, propose_tx_provider.clone(), ProposalId(1))
+        .await;
 
     // Restart the same height. This should abort and delete all existing proposals.
     assert!(proposal_manager.start_height(INITIAL_HEIGHT).await.is_ok());
