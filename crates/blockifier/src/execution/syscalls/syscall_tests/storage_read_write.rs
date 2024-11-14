@@ -15,7 +15,7 @@ use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, BALANCE}
 
 #[cfg_attr(
     feature = "cairo_native",
-    test_case(FeatureContract::TestContract(CairoVersion::Native), 25920; "Native")
+    test_case(FeatureContract::TestContract(CairoVersion::Native), 26990; "Native")
 )]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), REQUIRED_GAS_STORAGE_READ_WRITE_TEST; "VM")]
 fn test_storage_read_write(test_contract: FeatureContract, expected_gas: u64) {

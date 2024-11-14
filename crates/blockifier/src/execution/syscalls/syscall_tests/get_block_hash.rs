@@ -42,7 +42,7 @@ fn initialize_state(test_contract: FeatureContract) -> (CachedState<DictStateRea
 
 #[cfg_attr(
     feature = "cairo_native",
-    test_case(FeatureContract::TestContract(CairoVersion::Native), 13850; "Native")
+    test_case(FeatureContract::TestContract(CairoVersion::Native), 15220; "Native")
 )]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 5220; "VM")]
 fn positive_flow(test_contract: FeatureContract, expected_gas: u64) {
