@@ -68,14 +68,19 @@ fn mempool_client() -> MockMempoolClient {
     MockMempoolClient::new()
 }
 
+fn batcher(proposal_manager: MockProposalManagerTraitWrapper) -> Batcher {
+    Batcher::new(
+        batcher_config(),
+        Arc::new(storage_reader()),
+        Box::new(storage_writer()),
+        Arc::new(mempool_client()),
+        Box::new(proposal_manager),
+    )
+}
+
 #[rstest]
 #[tokio::test]
-async fn get_stream_content(
-    batcher_config: BatcherConfig,
-    storage_reader: MockBatcherStorageReaderTrait,
-    storage_writer: MockBatcherStorageWriterTrait,
-    mempool_client: MockMempoolClient,
-) {
+async fn get_stream_content() {
     const PROPOSAL_ID: ProposalId = ProposalId(0);
     // Expecting 3 chunks of streamed txs.
     let expected_streamed_txs = test_txs(0..STREAMING_CHUNK_SIZE * 2 + 1);
@@ -95,13 +100,7 @@ async fn get_stream_content(
         .expect_wrap_executed_proposal_commitment()
         .return_once(move |_| async move { Ok(expected_proposal_commitment) }.boxed());
 
-    let mut batcher = Batcher::new(
-        batcher_config,
-        Arc::new(storage_reader),
-        Box::new(storage_writer),
-        Arc::new(mempool_client),
-        Box::new(proposal_manager),
-    );
+    let mut batcher = batcher(proposal_manager);
 
     batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
     batcher
@@ -196,12 +195,7 @@ async fn decision_reached(
 
 #[rstest]
 #[tokio::test]
-async fn decision_reached_no_executed_proposal(
-    batcher_config: BatcherConfig,
-    storage_reader: MockBatcherStorageReaderTrait,
-    storage_writer: MockBatcherStorageWriterTrait,
-    mempool_client: MockMempoolClient,
-) {
+async fn decision_reached_no_executed_proposal() {
     const PROPOSAL_ID: ProposalId = ProposalId(0);
     let expected_error = BatcherError::ExecutedProposalNotFound { proposal_id: PROPOSAL_ID };
 
@@ -212,13 +206,7 @@ async fn decision_reached_no_executed_proposal(
         },
     );
 
-    let mut batcher = Batcher::new(
-        batcher_config,
-        Arc::new(storage_reader),
-        Box::new(storage_writer),
-        Arc::new(mempool_client),
-        Box::new(proposal_manager),
-    );
+    let mut batcher = batcher(proposal_manager);
     let decision_reached_result =
         batcher.decision_reached(DecisionReachedInput { proposal_id: PROPOSAL_ID }).await;
     assert_eq!(decision_reached_result, Err(expected_error));
