@@ -13,6 +13,7 @@ pub mod transfers_generator;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
+use std::slice::Iter;
 
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
@@ -124,6 +125,22 @@ impl CompilerBasedVersion {
             #[cfg(feature = "cairo_native")]
             Self::CairoVersion(CairoVersion::Native) => TrackedResource::SierraGas,
         }
+    }
+
+    /// Returns an iterator over all of the enum variants.
+    pub fn iter() -> Iter<'static, Self> {
+        static VERSIONS: [CompilerBasedVersion; 3] = [
+            CompilerBasedVersion::CairoVersion(CairoVersion::Cairo0),
+            CompilerBasedVersion::OldCairo1,
+            CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1),
+        ];
+        VERSIONS.iter()
+    }
+
+    /// Return a uniform random choice of Cairo0 version or old Cairo1 version.
+    pub fn random_version_for_vm() -> CompilerBasedVersion {
+        let is_cairo0: bool = rand::random();
+        if is_cairo0 { Self::CairoVersion(CairoVersion::Cairo0) } else { Self::OldCairo1 }
     }
 }
 
