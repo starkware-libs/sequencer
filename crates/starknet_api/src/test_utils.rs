@@ -10,6 +10,7 @@ use crate::core::{ContractAddress, Nonce};
 pub mod declare;
 pub mod deploy_account;
 pub mod invoke;
+pub mod l1_handler;
 
 /// Returns the absolute path from the project root.
 pub fn get_absolute_path<P: AsRef<Path>>(relative_path: P) -> PathBuf {
