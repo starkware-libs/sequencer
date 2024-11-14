@@ -416,7 +416,7 @@ impl ReexecutionStateReader for TestStateReader {
     fn get_contract_class(&self, class_hash: &ClassHash) -> StateResult<StarknetContractClass> {
         let params = json!({
             "block_id": self.rpc_state_reader.block_id,
-            "class_hash": class_hash.0.to_string(),
+            "class_hash": class_hash.0.to_hex_string(),
         });
         let raw_contract_class =
             match self.rpc_state_reader.send_rpc_request("starknet_getClass", params.clone()) {

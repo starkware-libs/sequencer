@@ -67,7 +67,7 @@ const EXAMPLE_L1_HANDLER_TX_HASH: &str =
 /// Retrieves the test URL from the `TEST_URL` environment variable,
 /// falling back to a default URL if not provided.
 fn get_test_url() -> String {
-    env::var("TEST_URL").unwrap_or_else(|_| RPC_NODE_URL.to_string())
+    RPC_NODE_URL.clone()
 }
 
 /// Retrieves the test block_number from the `TEST_URL` environment variable,
