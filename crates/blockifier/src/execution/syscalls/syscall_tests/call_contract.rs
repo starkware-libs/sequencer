@@ -73,7 +73,7 @@ fn test_call_contract_that_panics() {
     test_case(
       FeatureContract::TestContract(CairoVersion::Native),
       FeatureContract::TestContract(CairoVersion::Native),
-      189010;
+      190370;
       "Call Contract between two contracts using Native"
     )
 )]

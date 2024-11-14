@@ -17,7 +17,7 @@ use crate::test_utils::{calldata_for_deploy_test, trivial_external_entry_point_n
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 205200;"VM")]
 #[cfg_attr(
     feature = "cairo_native",
-    test_case(FeatureContract::TestContract(CairoVersion::Native), 215310;"Native")
+    test_case(FeatureContract::TestContract(CairoVersion::Native), 215200;"Native")
 )]
 fn no_constructor(deployer_contract: FeatureContract, expected_gas: u64) {
     // TODO(Yoni): share the init code of the tests in this file.
@@ -99,7 +99,7 @@ fn no_constructor_nonempty_calldata(deployer_contract: FeatureContract) {
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1),214550, 4610;"VM")]
 #[cfg_attr(
     feature = "cairo_native",
-    test_case(FeatureContract::TestContract(CairoVersion::Native),233890, 13840;"Native")
+    test_case(FeatureContract::TestContract(CairoVersion::Native),234550, 14610;"Native")
 )]
 fn with_constructor(
     deployer_contract: FeatureContract,
