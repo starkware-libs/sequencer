@@ -95,7 +95,7 @@ pub enum EntryPointExecutionError {
     NativeUnexpectedError(#[from] NativeError),
     #[cfg(feature = "cairo_native")]
     #[error(transparent)]
-    NativeExecutionError(#[from] Box<SyscallExecutionError>),
+    NativeUnrecoverableError(#[from] Box<SyscallExecutionError>),
     #[error(transparent)]
     PostExecutionError(#[from] PostExecutionError),
     #[error(transparent)]

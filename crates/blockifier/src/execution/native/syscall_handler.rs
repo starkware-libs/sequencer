@@ -142,7 +142,7 @@ impl<'state> NativeSyscallHandler<'state> {
         fn unwrap_native_error(error: SyscallExecutionError) -> SyscallExecutionError {
             match error {
                 SyscallExecutionError::EntryPointExecutionError(
-                    EntryPointExecutionError::NativeExecutionError(e),
+                    EntryPointExecutionError::NativeUnrecoverableError(e),
                 ) => *e,
                 _ => error,
             }
