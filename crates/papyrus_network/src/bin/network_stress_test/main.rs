@@ -71,8 +71,8 @@ async fn main() {
                                 .as_micros(),
                         });
                         i += 1;
-                        if i == num_messages * 4{
-                            tokio::time::sleep(std::time::Duration::from_secs(90)).await;
+                        if i == num_messages * 4 {
+                            tokio::time::sleep(std::time::Duration::from_secs(150)).await;
                             break;
                         }
                     }
