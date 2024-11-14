@@ -11,6 +11,7 @@ use indexmap::IndexMap;
 use papyrus_storage::class::ClassStorageWriter;
 use papyrus_storage::state::StateStorageWriter;
 use starknet_api::block::BlockNumber;
+use starknet_api::contract_class::ContractClass;
 use starknet_api::state::{StateDiff, StorageKey};
 use starknet_api::{calldata, felt};
 
@@ -22,7 +23,11 @@ fn test_entry_point_with_papyrus_state() -> papyrus_storage::StorageResult<()> {
 
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
     let test_class_hash = test_contract.get_class_hash();
-    let test_class = test_contract.get_deprecated_contract_class();
+    let test_class = if let ContractClass::V0(contract_class) = test_contract.get_class() {
+        contract_class
+    } else {
+        panic!()
+    };
     // Initialize Storage: add test contract and class.
     let deployed_contracts =
         IndexMap::from([(test_contract.get_instance_address(0), test_class_hash)]);
