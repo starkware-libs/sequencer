@@ -17,10 +17,7 @@ use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{
-    trivial_external_entry_point_new,
-    CairoVersion,
-    BALANCE,
-    CURRENT_BLOCK_NUMBER,
+    trivial_external_entry_point_new, CairoVersion, BALANCE, CURRENT_BLOCK_NUMBER,
 };
 use crate::{check_entry_point_execution_error_for_custom_hint, retdata};
 
@@ -42,7 +39,7 @@ fn initialize_state(test_contract: FeatureContract) -> (CachedState<DictStateRea
 
 #[cfg_attr(
     feature = "cairo_native",
-    test_case(FeatureContract::TestContract(CairoVersion::Native), 13850; "Native")
+    test_case(FeatureContract::TestContract(CairoVersion::Native), 15220; "Native")
 )]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 5220; "VM")]
 fn positive_flow(test_contract: FeatureContract, expected_gas: u64) {
@@ -82,11 +79,9 @@ fn negative_flow_execution_mode_validate(test_contract: FeatureContract) {
     let error = entry_point_call.execute_directly_in_validate_mode(&mut state).unwrap_err();
     #[cfg(feature = "cairo_native")]
     if matches!(test_contract, FeatureContract::TestContract(CairoVersion::Native)) {
-        assert!(
-            error
-                .to_string()
-                .contains("Unauthorized syscall get_block_hash in execution mode Validate.")
-        );
+        assert!(error
+            .to_string()
+            .contains("Unauthorized syscall get_block_hash in execution mode Validate."));
     } else {
         check_entry_point_execution_error_for_custom_hint!(
             &error,

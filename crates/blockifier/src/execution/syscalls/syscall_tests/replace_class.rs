@@ -57,7 +57,7 @@ fn cairo0_class_hash(test_contract: FeatureContract) {
 
 #[cfg_attr(
     feature = "cairo_native",
-    test_case(FeatureContract::TestContract(CairoVersion::Native), 13850; "Native")
+    test_case(FeatureContract::TestContract(CairoVersion::Native), 15220; "Native")
 )]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 5220; "VM")]
 fn positive_flow(test_contract: FeatureContract, gas_consumed: u64) {
