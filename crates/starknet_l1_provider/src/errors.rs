@@ -1,6 +1,8 @@
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerError;
 use thiserror::Error;
 
+use crate::ProviderState;
+
 #[derive(Error, Debug)]
 pub enum L1ProviderError {
     #[error(transparent)]
@@ -11,8 +13,8 @@ pub enum L1ProviderError {
     GetTransactionsInPendingState,
     #[error("`get_txs` while in validate state")]
     GetTransactionConsensusBug,
-    #[error("Can not set state: {0}")]
-    UnexpectedState(String),
+    #[error("Cannot transition from {from} to {to}")]
+    UnexpectedProviderStateTransition { from: ProviderState, to: ProviderState },
     #[error("`validate_tx` called while in proposal state")]
     ValidateTransactionConsensusBug,
 }
