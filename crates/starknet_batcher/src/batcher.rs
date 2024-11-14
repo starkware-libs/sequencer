@@ -17,7 +17,7 @@ use starknet_batcher_types::batcher_types::{
     GetProposalContentInput,
     GetProposalContentResponse,
     ProposalId,
-    ProposalStatus as ResponseProposalStatus,
+    ProposalStatus,
     SendProposalContent,
     SendProposalContentInput,
     SendProposalContentResponse,
@@ -35,13 +35,17 @@ use crate::config::BatcherConfig;
 use crate::proposal_manager::{
     GenerateProposalError,
     GetProposalResultError,
+    InternalProposalStatus,
     ProposalManager,
     ProposalManagerTrait,
     ProposalOutput,
-    ProposalStatus,
     StartHeightError,
 };
-use crate::transaction_provider::{DummyL1ProviderClient, ProposeTransactionProvider};
+use crate::transaction_provider::{
+    DummyL1ProviderClient,
+    ProposeTransactionProvider,
+    ValidateTransactionProvider,
+};
 
 type OutputStreamReceiver = tokio::sync::mpsc::UnboundedReceiver<Transaction>;
 type InputStreamSender = tokio::sync::mpsc::Sender<Transaction>;
@@ -89,7 +93,7 @@ impl Batcher {
         let proposal_id = build_proposal_input.proposal_id;
         let deadline = deadline_as_instant(build_proposal_input.deadline)?;
 
-        let (tx_sender, tx_receiver) = tokio::sync::mpsc::unbounded_channel();
+        let (output_tx_sender, output_tx_receiver) = tokio::sync::mpsc::unbounded_channel();
         let tx_provider = ProposeTransactionProvider::new(
             self.mempool_client.clone(),
             // TODO: use a real L1 provider client.
@@ -102,14 +106,12 @@ impl Batcher {
                 build_proposal_input.proposal_id,
                 build_proposal_input.retrospective_block_hash,
                 deadline,
-                tx_sender,
+                output_tx_sender,
                 tx_provider,
             )
-            .await
-            .map_err(BatcherError::from)?;
+            .await?;
 
-        let output_tx_stream = tx_receiver;
-        self.build_proposals.insert(proposal_id, output_tx_stream);
+        self.build_proposals.insert(proposal_id, output_tx_receiver);
         Ok(())
     }
 
@@ -118,7 +120,28 @@ impl Batcher {
         &mut self,
         validate_proposal_input: ValidateProposalInput,
     ) -> BatcherResult<()> {
-        todo!();
+        let proposal_id = validate_proposal_input.proposal_id;
+        let deadline = deadline_as_instant(validate_proposal_input.deadline)?;
+
+        let (input_tx_sender, input_tx_receiver) =
+            tokio::sync::mpsc::channel(self.config.input_stream_content_buffer_size);
+        let tx_provider = ValidateTransactionProvider {
+            tx_receiver: input_tx_receiver,
+            // TODO: use a real L1 provider client.
+            l1_provider_client: Arc::new(DummyL1ProviderClient),
+        };
+
+        self.proposal_manager
+            .validate_block_proposal(
+                validate_proposal_input.proposal_id,
+                validate_proposal_input.retrospective_block_hash,
+                deadline,
+                tx_provider,
+            )
+            .await?;
+
+        self.validate_proposals.insert(proposal_id, input_tx_sender);
+        Ok(())
     }
 
     // This function assumes that requests are received in order, otherwise the content could
@@ -133,7 +156,7 @@ impl Batcher {
         match send_proposal_content_input.content {
             SendProposalContent::Txs(txs) => self.send_txs_and_get_status(proposal_id, txs).await,
             SendProposalContent::Finish => {
-                self.close_tx_channel_and_get_commitement(proposal_id).await
+                self.close_tx_channel_and_get_commitment(proposal_id).await
             }
             SendProposalContent::Abort => {
                 unimplemented!("Abort not implemented yet.");
@@ -147,8 +170,7 @@ impl Batcher {
         txs: Vec<Transaction>,
     ) -> BatcherResult<SendProposalContentResponse> {
         match self.proposal_manager.get_proposal_status(proposal_id).await {
-            ProposalStatus::Processing => {
-                // TODO: validate L1 transactions.
+            InternalProposalStatus::Processing => {
                 let tx_provider_sender = &self
                     .validate_proposals
                     .get(&proposal_id)
@@ -159,18 +181,20 @@ impl Batcher {
                         BatcherError::InternalError
                     })?;
                 }
-                Ok(SendProposalContentResponse { response: ResponseProposalStatus::Processing })
+                Ok(SendProposalContentResponse { response: ProposalStatus::Processing })
             }
             // Proposal Got an Error while processing transactions.
-            ProposalStatus::Failed => Ok(SendProposalContentResponse {
-                response: ResponseProposalStatus::InvalidProposal,
-            }),
-            ProposalStatus::Finished => Err(BatcherError::ProposalAlreadyFinished { proposal_id }),
-            ProposalStatus::NotFound => Err(BatcherError::ProposalNotFound { proposal_id }),
+            InternalProposalStatus::Failed => {
+                Ok(SendProposalContentResponse { response: ProposalStatus::InvalidProposal })
+            }
+            InternalProposalStatus::Finished => {
+                Err(BatcherError::ProposalAlreadyFinished { proposal_id })
+            }
+            InternalProposalStatus::NotFound => Err(BatcherError::ProposalNotFound { proposal_id }),
         }
     }
 
-    async fn close_tx_channel_and_get_commitement(
+    async fn close_tx_channel_and_get_commitment(
         &mut self,
         proposal_id: ProposalId,
     ) -> BatcherResult<SendProposalContentResponse> {
@@ -184,9 +208,7 @@ impl Batcher {
 
         let proposal_commitment =
             self.proposal_manager.await_proposal_commitment(proposal_id).await?;
-        Ok(SendProposalContentResponse {
-            response: ResponseProposalStatus::Finished(proposal_commitment),
-        })
+        Ok(SendProposalContentResponse { response: ProposalStatus::Finished(proposal_commitment) })
     }
 
     #[instrument(skip(self), err)]
