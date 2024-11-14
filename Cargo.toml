@@ -48,6 +48,7 @@ members = [
   "crates/starknet_sequencer_infra",
   "crates/starknet_sequencer_node",
   "crates/starknet_sierra_compile",
+  "crates/starknet_state_sync",
   "crates/starknet_state_sync_types",
   "crates/starknet_task_executor",
   "workspace_tests",
@@ -228,6 +229,8 @@ starknet_patricia = { path = "crates/starknet_patricia", version = "0.0.0" }
 starknet_sequencer_infra = { path = "crates/starknet_sequencer_infra", version = "0.0.0" }
 starknet_sequencer_node = { path = "crates/starknet_sequencer_node", version = "0.0.0" }
 starknet_sierra_compile = { path = "crates/starknet_sierra_compile", version = "0.0.0" }
+starknet_state_sync = { path = "crates/starknet_state_sync", version = "0.0.0" }
+starknet_state_sync_types = { path = "crates/starknet_state_sync_types", version = "0.0.0" }
 starknet_task_executor = { path = "crates/starknet_task_executor", version = "0.0.0" }
 static_assertions = "1.1.0"
 statistical = "1.0.0"
