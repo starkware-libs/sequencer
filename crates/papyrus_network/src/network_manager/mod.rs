@@ -278,7 +278,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                 self.handle_behaviour_event(event);
             }
             SwarmEvent::OutgoingConnectionError { connection_id, peer_id, error } => {
-                error!(
+                warn!(
                     "Outgoing connection error. connection id: {connection_id:?}, requested peer \
                      id: {peer_id:?}, error: {error:?}"
                 );
@@ -291,7 +291,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             } => {
                 // No need to panic here since this is a result of another peer trying to dial to us
                 // and failing. Other peers are welcome to retry.
-                error!(
+                warn!(
                     "Incoming connection error. connection id: {connection_id:?}, local addr: \
                      {local_addr:?}, send back addr: {send_back_addr:?}, error: {error:?}"
                 );
@@ -475,7 +475,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             if let Some(_report_receiver) =
                 self.sqmr_outbound_report_receivers_awaiting_assignment.remove(&outbound_session_id)
             {
-                error!(
+                warn!(
                     "Outbound session finished with no messages in it. Ignoring incoming reports \
                      for the session."
                 );
@@ -500,7 +500,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             if e.is_disconnected() {
                 panic!("Receiver was dropped. This should never happen.")
             } else if e.is_full() {
-                error!(
+                warn!(
                     "Receiver buffer is full. Dropping broadcasted message for topic with hash: \
                      {topic_hash:?}."
                 );
@@ -606,7 +606,7 @@ fn send_now<Item>(sender: &mut GenericSender<Item>, item: Item, buffer_full_mess
             error!("Received error while sending message: {:?}", error);
         }
         None => {
-            error!(buffer_full_message);
+            warn!(buffer_full_message);
         }
     }
 }
