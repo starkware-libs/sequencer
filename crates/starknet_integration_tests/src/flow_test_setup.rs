@@ -67,7 +67,7 @@ impl FlowTestSetup {
         let add_tx_http_client = HttpTestClient::new(SocketAddr::from((ip, port)));
 
         // Build and run the sequencer node.
-        let sequencer_node_future = run_component_servers(servers);
+        let sequencer_node_future = run_component_servers(servers, config);
         let sequencer_node_handle = task_executor.spawn_with_handle(sequencer_node_future);
 
         // Wait for server to spin up.
