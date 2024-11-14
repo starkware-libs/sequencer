@@ -2,12 +2,15 @@ use std::future::pending;
 use std::pin::Pin;
 
 use futures::{Future, FutureExt};
-use starknet_batcher::communication::LocalBatcherServer;
+use starknet_batcher::communication::{LocalBatcherServer, RemoteBatcherServer};
 use starknet_consensus_manager::communication::ConsensusManagerServer;
-use starknet_gateway::communication::LocalGatewayServer;
+use starknet_gateway::communication::{LocalGatewayServer, RemoteGatewayServer};
 use starknet_http_server::communication::HttpServer;
-use starknet_mempool::communication::LocalMempoolServer;
-use starknet_mempool_p2p::propagator::LocalMempoolP2pPropagatorServer;
+use starknet_mempool::communication::{LocalMempoolServer, RemoteMempoolServer};
+use starknet_mempool_p2p::propagator::{
+    LocalMempoolP2pPropagatorServer,
+    RemoteMempoolP2pPropagatorServer,
+};
 use starknet_mempool_p2p::runner::MempoolP2pRunnerServer;
 use starknet_monitoring_endpoint::communication::MonitoringEndpointServer;
 use starknet_sequencer_infra::component_server::{
@@ -37,6 +40,14 @@ struct WrapperServers {
     pub(crate) http_server: Option<Box<HttpServer>>,
     pub(crate) monitoring_endpoint: Option<Box<MonitoringEndpointServer>>,
     pub(crate) mempool_p2p_runner: Option<Box<MempoolP2pRunnerServer>>,
+}
+
+// Component servers that can run remotely.
+pub struct RemoteServers {
+    pub batcher: Option<Box<RemoteBatcherServer>>,
+    pub gateway: Option<Box<RemoteGatewayServer>>,
+    pub mempool: Option<Box<RemoteMempoolServer>>,
+    pub mempool_p2p_propagator: Option<Box<RemoteMempoolP2pPropagatorServer>>,
 }
 
 pub struct SequencerNodeServers {
