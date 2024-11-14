@@ -43,7 +43,6 @@ pub fn execute_entry_point_call(
     create_callinfo(call_result, syscall_handler)
 }
 
-#[allow(unreachable_code)]
 fn create_callinfo(
     call_result: ContractExecutionResult,
     syscall_handler: NativeSyscallHandler<'_>,
