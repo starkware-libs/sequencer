@@ -67,7 +67,7 @@ pub enum GetProposalResultError {
     ProposalDoesNotExist { proposal_id: ProposalId },
 }
 
-pub enum ProposalStatus {
+pub(crate) enum InternalProposalStatus {
     Processing,
     Finished,
     Failed,
@@ -87,8 +87,6 @@ pub trait ProposalManagerTrait: Send + Sync {
         tx_provider: ProposeTransactionProvider,
     ) -> Result<(), GenerateProposalError>;
 
-    // TODO: delete allow dead code once the batcher uses this code.
-    #[allow(dead_code)]
     async fn validate_block_proposal(
         &mut self,
         proposal_id: ProposalId,
@@ -102,7 +100,7 @@ pub trait ProposalManagerTrait: Send + Sync {
         proposal_id: ProposalId,
     ) -> ProposalResult<ProposalOutput>;
 
-    async fn get_proposal_status(&self, proposal_id: ProposalId) -> ProposalStatus;
+    async fn get_proposal_status(&self, proposal_id: ProposalId) -> InternalProposalStatus;
 
     async fn await_proposal_commitment(
         &mut self,
@@ -246,15 +244,15 @@ impl ProposalManagerTrait for ProposalManager {
     }
 
     // Returns None if the proposal does not exist, otherwise, returns the status of the proposal.
-    async fn get_proposal_status(&self, proposal_id: ProposalId) -> ProposalStatus {
+    async fn get_proposal_status(&self, proposal_id: ProposalId) -> InternalProposalStatus {
         match self.executed_proposals.lock().await.get(&proposal_id) {
-            Some(Ok(_)) => ProposalStatus::Finished,
-            Some(Err(_)) => ProposalStatus::Failed,
+            Some(Ok(_)) => InternalProposalStatus::Finished,
+            Some(Err(_)) => InternalProposalStatus::Failed,
             None => {
                 if self.active_proposal.lock().await.as_ref() == Some(&proposal_id) {
-                    ProposalStatus::Processing
+                    InternalProposalStatus::Processing
                 } else {
-                    ProposalStatus::NotFound
+                    InternalProposalStatus::NotFound
                 }
             }
         }
