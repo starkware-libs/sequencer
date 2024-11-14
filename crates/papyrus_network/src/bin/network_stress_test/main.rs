@@ -49,7 +49,7 @@ async fn main() {
             let mut i = 0;
             loop {
                 let maybe_response = timeout(
-                    std::time::Duration::from_secs(60),
+                    std::time::Duration::from_secs(120),
                     network_channels.broadcasted_messages_receiver.next(),
                 ).await;
                 match maybe_response {
@@ -72,7 +72,6 @@ async fn main() {
                         });
                         i += 1;
                         if i == num_messages * 4 {
-                            tokio::time::sleep(std::time::Duration::from_secs(60)).await;
                             break;
                         }
                     }
@@ -84,7 +83,7 @@ async fn main() {
             for record in output_vector {
                 wtr.serialize(record).unwrap();
             }
-            tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+            tokio::time::sleep(std::time::Duration::from_secs(120)).await;
         }
     }
 }
