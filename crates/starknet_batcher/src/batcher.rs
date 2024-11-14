@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use blockifier::state::global_cache::GlobalContractCache;
+use chrono::Utc;
 #[cfg(test)]
 use mockall::automock;
 use papyrus_storage::state::{StateStorageReader, StateStorageWriter};
@@ -86,10 +87,7 @@ impl Batcher {
         build_proposal_input: BuildProposalInput,
     ) -> BatcherResult<()> {
         let proposal_id = build_proposal_input.proposal_id;
-        let deadline =
-            tokio::time::Instant::from_std(build_proposal_input.deadline_as_instant().map_err(
-                |_| BatcherError::TimeToDeadlineError { deadline: build_proposal_input.deadline },
-            )?);
+        let deadline = deadline_as_instant(build_proposal_input.deadline)?;
 
         let (tx_sender, tx_receiver) = tokio::sync::mpsc::unbounded_channel();
         let tx_provider = ProposeTransactionProvider::new(
@@ -350,3 +348,10 @@ impl From<GetProposalResultError> for BatcherError {
 }
 
 impl ComponentStarter for Batcher {}
+
+pub fn deadline_as_instant(deadline: chrono::DateTime<Utc>) -> BatcherResult<tokio::time::Instant> {
+    let time_to_deadline = deadline - chrono::Utc::now();
+    let as_duration =
+        time_to_deadline.to_std().map_err(|_| BatcherError::TimeToDeadlineError { deadline })?;
+    Ok((std::time::Instant::now() + as_duration).into())
+}

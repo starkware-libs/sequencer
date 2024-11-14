@@ -65,14 +65,6 @@ pub struct ValidateProposalInput {
     pub retrospective_block_hash: Option<BlockHashAndNumber>,
 }
 
-impl BuildProposalInput {
-    pub fn deadline_as_instant(&self) -> Result<std::time::Instant, chrono::OutOfRangeError> {
-        let time_to_deadline = self.deadline - chrono::Utc::now();
-        let as_duration = time_to_deadline.to_std()?;
-        Ok(std::time::Instant::now() + as_duration)
-    }
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SendProposalContentInput {
     pub proposal_id: ProposalId,
