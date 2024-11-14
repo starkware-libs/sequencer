@@ -15,4 +15,5 @@ starknet-types-core.workspace = true
 starknet_api.workspace = true
 
 [dev-dependencies]
+assert_matches.workspace = true
 indexmap.workspace = true

@@ -7562,6 +7562,7 @@ dependencies = [
 name = "papyrus_state_reader"
 version = "0.0.0"
 dependencies = [
+ "assert_matches",
  "blockifier",
  "indexmap 2.6.0",
  "papyrus_storage",
