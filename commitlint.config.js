@@ -57,6 +57,7 @@ const Configuration = {
             'skeleton',
             'starknet_api',
             'starknet_client',
+            'starknet_gateway',
             'state',
             'storage',
             'sync',

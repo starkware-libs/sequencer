@@ -10,9 +10,11 @@ use crate::errors::RPCStateReaderError;
 
 // Starknet Spec error codes:
 // TODO(yael 30/4/2024): consider turning these into an enum.
-pub const RPC_ERROR_CONTRACT_ADDRESS_NOT_FOUND: u16 = 20;
-pub const RPC_ERROR_BLOCK_NOT_FOUND: u16 = 24;
-pub const RPC_CLASS_HASH_NOT_FOUND: u16 = 28;
+pub type RpcErrorCode = i32;
+pub const RPC_ERROR_CONTRACT_ADDRESS_NOT_FOUND: RpcErrorCode = 20;
+pub const RPC_ERROR_BLOCK_NOT_FOUND: RpcErrorCode = 24;
+pub const RPC_CLASS_HASH_NOT_FOUND: RpcErrorCode = 28;
+pub const RPC_ERROR_INVALID_PARAMS: RpcErrorCode = -32602;
 
 #[derive(Copy, Clone, Debug, Deserialize, Serialize)]
 pub enum BlockId {
@@ -120,10 +122,12 @@ pub struct RpcSuccessResponse {
 pub struct RpcErrorResponse {
     pub jsonrpc: Option<String>,
     pub error: RpcSpecError,
+    pub id: u32,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct RpcSpecError {
-    pub code: u16,
+    pub code: RpcErrorCode,
     pub message: String,
+    pub data: Option<Value>,
 }

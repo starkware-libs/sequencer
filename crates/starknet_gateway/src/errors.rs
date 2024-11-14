@@ -8,6 +8,7 @@ use starknet_gateway_types::errors::GatewaySpecError;
 use thiserror::Error;
 
 use crate::compiler_version::{VersionId, VersionIdError};
+use crate::rpc_objects::{RpcErrorCode, RpcErrorResponse};
 
 pub type GatewayResult<T> = Result<T, GatewaySpecError>;
 
@@ -88,12 +89,14 @@ pub enum RPCStateReaderError {
     ContractAddressNotFound(Value),
     #[error("Failed to parse gas price {:?}", 0)]
     GasPriceParsingFailure(GasPrice),
+    #[error("Invalid params: {0:?}")]
+    InvalidParams(RpcErrorResponse),
     #[error("RPC error: {0}")]
     RPCError(StatusCode),
     #[error(transparent)]
     ReqwestError(#[from] reqwest::Error),
     #[error("Unexpected error code: {0}")]
-    UnexpectedErrorCode(u16),
+    UnexpectedErrorCode(RpcErrorCode),
 }
 
 pub type RPCStateReaderResult<T> = Result<T, RPCStateReaderError>;

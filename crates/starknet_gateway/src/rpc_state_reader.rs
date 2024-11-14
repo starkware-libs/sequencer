@@ -29,6 +29,7 @@ use crate::rpc_objects::{
     RPC_CLASS_HASH_NOT_FOUND,
     RPC_ERROR_BLOCK_NOT_FOUND,
     RPC_ERROR_CONTRACT_ADDRESS_NOT_FOUND,
+    RPC_ERROR_INVALID_PARAMS,
 };
 use crate::state_reader::{MempoolStateReader, StateReaderFactory};
 
@@ -80,6 +81,9 @@ impl RpcStateReader {
                 }
                 RPC_CLASS_HASH_NOT_FOUND => {
                     Err(RPCStateReaderError::ClassHashNotFound(request_body))
+                }
+                RPC_ERROR_INVALID_PARAMS => {
+                    Err(RPCStateReaderError::InvalidParams(rpc_error_response))
                 }
                 _ => Err(RPCStateReaderError::UnexpectedErrorCode(rpc_error_response.error.code)),
             },
