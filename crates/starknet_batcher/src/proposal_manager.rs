@@ -39,6 +39,8 @@ pub enum StartHeightError {
          {requested_height}."
     )]
     StorageNotSynced { storage_height: BlockNumber, requested_height: BlockNumber },
+    #[error("Already working on height.")]
+    HeightInProgress,
 }
 
 #[derive(Debug, Error)]
@@ -158,7 +160,9 @@ impl ProposalManagerTrait for ProposalManager {
     /// Starts working on the given height.
     #[instrument(skip(self), err)]
     async fn start_height(&mut self, height: BlockNumber) -> Result<(), StartHeightError> {
-        self.reset_active_height().await;
+        if self.active_height.is_some_and(|active_height| active_height == height) {
+            return Err(StartHeightError::HeightInProgress);
+        }
 
         let next_height = self.storage_reader.height()?;
         if next_height < height {
@@ -177,7 +181,9 @@ impl ProposalManagerTrait for ProposalManager {
                 requested_height: height,
             });
         }
+
         info!("Starting to work on height {}.", height);
+        self.reset_active_height().await;
         self.active_height = Some(height);
         Ok(())
     }
@@ -346,9 +352,7 @@ impl ProposalManager {
     }
 
     async fn reset_active_height(&mut self) {
-        if let Some(_active_proposal) = self.active_proposal.lock().await.take() {
-            // TODO: Abort the block_builder.
-        }
+        self.abort_active_proposal().await;
         self.executed_proposals.lock().await.clear();
         self.active_height = None;
     }

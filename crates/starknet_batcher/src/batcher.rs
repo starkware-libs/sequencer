@@ -78,6 +78,8 @@ impl Batcher {
         self.build_proposals.clear();
         self.validate_proposals.clear();
         self.proposal_manager.start_height(input.height).await.map_err(BatcherError::from)
+
+        // TODO(Dafna): should we reset the mempool?
     }
 
     #[instrument(skip(self), err)]
@@ -315,6 +317,7 @@ impl From<StartHeightError> for BatcherError {
             StartHeightError::StorageNotSynced { storage_height, requested_height } => {
                 BatcherError::StorageNotSynced { storage_height, requested_height }
             }
+            StartHeightError::HeightInProgress => BatcherError::HeightInProgress,
         }
     }
 }

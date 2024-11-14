@@ -16,6 +16,8 @@ pub enum BatcherError {
         "Height {storage_height} already passed, can't start working on height {requested_height}."
     )]
     HeightAlreadyPassed { storage_height: BlockNumber, requested_height: BlockNumber },
+    #[error("Height is in progress.")]
+    HeightInProgress,
     #[error("Internal server error.")]
     InternalError,
     #[error("Attempt to start proposal with no active height.")]
