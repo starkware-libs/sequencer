@@ -273,6 +273,8 @@ trait ProposalManagerTraitWrapper: Send + Sync {
         &self,
         proposal_id: ProposalId,
     ) -> BoxFuture<'_, ProposalResult<ProposalCommitment>>;
+
+    fn wrap_abort_proposal(&mut self, proposal_id: ProposalId) -> BoxFuture<'_, ()>;
 }
 
 #[async_trait]
@@ -331,6 +333,10 @@ impl<T: ProposalManagerTraitWrapper> ProposalManagerTrait for T {
         proposal_id: ProposalId,
     ) -> ProposalResult<ProposalCommitment> {
         self.wrap_executed_proposal_commitment(proposal_id).await
+    }
+
+    async fn abort_proposal(&mut self, proposal_id: ProposalId) {
+        self.wrap_abort_proposal(proposal_id).await
     }
 }
 
