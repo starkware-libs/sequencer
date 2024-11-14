@@ -33,7 +33,6 @@ pub trait MempoolP2pPropagatorClient: Send + Sync {
     ) -> MempoolP2pPropagatorClientResult<()>;
 }
 
-// TODO: Implement remote MempoolP2pPropagatorClient.
 pub type LocalMempoolP2pPropagatorClient =
     LocalComponentClient<MempoolP2pPropagatorRequest, MempoolP2pPropagatorResponse>;
 pub type RemoteMempoolP2pPropagatorClient =
