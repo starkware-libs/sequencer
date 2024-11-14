@@ -16,11 +16,13 @@ use starknet_monitoring_endpoint::communication::MonitoringEndpointServer;
 use starknet_sequencer_infra::component_server::{
     ComponentServerStarter,
     LocalComponentServer,
+    RemoteComponentServer,
     WrapperServer,
 };
 use starknet_sequencer_infra::errors::ComponentServerError;
 use tracing::error;
 
+use crate::clients::SequencerNodeClients;
 use crate::communication::SequencerNodeCommunication;
 use crate::components::SequencerNodeComponents;
 use crate::config::component_execution_config::ComponentExecutionMode;
@@ -227,6 +229,45 @@ fn create_local_servers(
         communication.take_mempool_p2p_propagator_rx()
     );
     LocalServers {
+        batcher: batcher_server,
+        gateway: gateway_server,
+        mempool: mempool_server,
+        mempool_p2p_propagator: mempool_p2p_propagator_server,
+    }
+}
+
+pub fn create_remote_servers(
+    config: &SequencerNodeConfig,
+    clients: &SequencerNodeClients,
+) -> RemoteServers {
+    let batcher_client = clients.get_batcher_local_client();
+    let batcher_server = create_remote_server!(
+        &config.components.batcher.execution_mode,
+        batcher_client,
+        config.components.batcher.remote_server_config
+    );
+
+    let gateway_client = clients.get_gateway_local_client();
+    let gateway_server = create_remote_server!(
+        &config.components.gateway.execution_mode,
+        gateway_client,
+        config.components.gateway.remote_server_config
+    );
+
+    let mempool_client = clients.get_mempool_local_client();
+    let mempool_server = create_remote_server!(
+        &config.components.mempool.execution_mode,
+        mempool_client,
+        config.components.mempool.remote_server_config
+    );
+
+    let mempool_p2p_propagator_client = clients.get_mempool_p2p_propagator_local_client();
+    let mempool_p2p_propagator_server = create_remote_server!(
+        &config.components.mempool_p2p.execution_mode,
+        mempool_p2p_propagator_client,
+        config.components.mempool_p2p.remote_server_config
+    );
+    RemoteServers {
         batcher: batcher_server,
         gateway: gateway_server,
         mempool: mempool_server,
