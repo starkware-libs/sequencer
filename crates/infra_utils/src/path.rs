@@ -1,5 +1,13 @@
 use std::env;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::sync::LazyLock;
+
+static PATH_TO_CARGO_MANIFEST_DIR: LazyLock<Option<PathBuf>> =
+    LazyLock::new(|| env::var("CARGO_MANIFEST_DIR").ok().map(|dir| Path::new(&dir).into()));
+
+pub fn cargo_manifest_dir() -> Option<PathBuf> {
+    PATH_TO_CARGO_MANIFEST_DIR.clone()
+}
 
 // TODO(Tsabary/ Arni): consolidate with other get_absolute_path functions.
 /// Resolves a relative path from the project root directory and returns its absolute path.
@@ -14,10 +22,10 @@ pub fn resolve_project_relative_path(relative_path: &str) -> PathBuf {
 }
 
 fn path_of_project_root() -> PathBuf {
-    env::var("CARGO_MANIFEST_DIR")
+    cargo_manifest_dir()
         // Attempt to get the `CARGO_MANIFEST_DIR` environment variable and convert it to `PathBuf`.
         // Ascend two directories ("../..") to get to the project root.
-        .map(|dir| PathBuf::from(dir).join("../.."))
+        .map(|dir| dir.join("../.."))
         // If `CARGO_MANIFEST_DIR` isn't set, fall back to the current working directory
-        .unwrap_or_else(|_| env::current_dir().expect("Failed to get current directory"))
+        .unwrap_or(env::current_dir().expect("Failed to get current directory"))
 }

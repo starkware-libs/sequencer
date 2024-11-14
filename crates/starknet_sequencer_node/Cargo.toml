@@ -44,6 +44,7 @@ validator.workspace = true
 assert-json-diff.workspace = true
 assert_matches.workspace = true
 colored.workspace = true
+infra_utils.workspace = true
 mempool_test_utils.workspace = true
 pretty_assertions.workspace = true
 serde_json.workspace = true
