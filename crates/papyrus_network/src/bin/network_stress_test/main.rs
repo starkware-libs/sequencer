@@ -49,7 +49,7 @@ async fn main() {
             let mut i = 0;
             loop {
                 let maybe_response = timeout(
-                    std::time::Duration::from_secs(60),
+                    std::time::Duration::from_secs(120),
                     network_channels.broadcasted_messages_receiver.next(),
                 ).await;
                 match maybe_response {
