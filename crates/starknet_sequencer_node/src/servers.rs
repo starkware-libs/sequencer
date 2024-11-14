@@ -55,6 +55,7 @@ pub struct RemoteServers {
 
 pub struct SequencerNodeServers {
     local_servers: LocalServers,
+    remote_servers: RemoteServers,
     wrapper_servers: WrapperServers,
 }
 
@@ -309,77 +310,105 @@ pub fn create_node_servers(
     config: &SequencerNodeConfig,
     communication: &mut SequencerNodeCommunication,
     components: SequencerNodeComponents,
+    clients: &SequencerNodeClients,
 ) -> SequencerNodeServers {
     let mut components = components;
     let local_servers = create_local_servers(config, communication, &mut components);
+    let remote_servers = create_remote_servers(config, clients);
     let wrapper_servers = create_wrapper_servers(config, &mut components);
 
-    SequencerNodeServers { local_servers, wrapper_servers }
+    SequencerNodeServers { local_servers, remote_servers, wrapper_servers }
 }
 
+// TODO(Nadin): refactor this function to reduce code duplication.
 pub async fn run_component_servers(servers: SequencerNodeServers) -> anyhow::Result<()> {
-    // Batcher server.
-    let batcher_future = get_server_future(servers.local_servers.batcher);
+    // Batcher servers.
+    let local_batcher_future = get_server_future(servers.local_servers.batcher);
+    let remote_batcher_future = get_server_future(servers.remote_servers.batcher);
 
     // Consensus Manager server.
     let consensus_manager_future = get_server_future(servers.wrapper_servers.consensus_manager);
 
-    // Gateway server.
-    let gateway_future = get_server_future(servers.local_servers.gateway);
+    // Gateway servers.
+    let local_gateway_future = get_server_future(servers.local_servers.gateway);
+    let remote_gateway_future = get_server_future(servers.remote_servers.gateway);
 
     // HttpServer server.
     let http_server_future = get_server_future(servers.wrapper_servers.http_server);
 
-    // Mempool server.
-    let mempool_future = get_server_future(servers.local_servers.mempool);
+    // Mempool servers.
+    let local_mempool_future = get_server_future(servers.local_servers.mempool);
+    let remote_mempool_future = get_server_future(servers.remote_servers.mempool);
 
     // Sequencer Monitoring server.
     let monitoring_endpoint_future = get_server_future(servers.wrapper_servers.monitoring_endpoint);
 
-    // MempoolP2pPropagator server.
-    let mempool_p2p_propagator_future =
+    // MempoolP2pPropagator servers.
+    let local_mempool_p2p_propagator_future =
         get_server_future(servers.local_servers.mempool_p2p_propagator);
+    let remote_mempool_p2p_propagator_future =
+        get_server_future(servers.remote_servers.mempool_p2p_propagator);
 
     // MempoolP2pRunner server.
     let mempool_p2p_runner_future = get_server_future(servers.wrapper_servers.mempool_p2p_runner);
 
     // Start servers.
-    let batcher_handle = tokio::spawn(batcher_future);
+    let local_batcher_handle = tokio::spawn(local_batcher_future);
+    let remote_batcher_handle = tokio::spawn(remote_batcher_future);
     let consensus_manager_handle = tokio::spawn(consensus_manager_future);
-    let gateway_handle = tokio::spawn(gateway_future);
+    let local_gateway_handle = tokio::spawn(local_gateway_future);
+    let remote_gateway_handle = tokio::spawn(remote_gateway_future);
     let http_server_handle = tokio::spawn(http_server_future);
-    let mempool_handle = tokio::spawn(mempool_future);
+    let local_mempool_handle = tokio::spawn(local_mempool_future);
+    let remote_mempool_handle = tokio::spawn(remote_mempool_future);
     let monitoring_endpoint_handle = tokio::spawn(monitoring_endpoint_future);
-    let mempool_p2p_propagator_handle = tokio::spawn(mempool_p2p_propagator_future);
+    let local_mempool_p2p_propagator_handle = tokio::spawn(local_mempool_p2p_propagator_future);
+    let remote_mempool_p2p_propagator_handle = tokio::spawn(remote_mempool_p2p_propagator_future);
     let mempool_p2p_runner_handle = tokio::spawn(mempool_p2p_runner_future);
 
     let result = tokio::select! {
-        res = batcher_handle => {
-            error!("Batcher Server stopped.");
+        res = local_batcher_handle => {
+            error!("Local Batcher Server stopped.");
+            res?
+        }
+        res = remote_batcher_handle => {
+            error!("Remote Batcher Server stopped.");
             res?
         }
         res = consensus_manager_handle => {
             error!("Consensus Manager Server stopped.");
             res?
         }
-        res = gateway_handle => {
-            error!("Gateway Server stopped.");
+        res = local_gateway_handle => {
+            error!("Local Gateway Server stopped.");
+            res?
+        }
+        res = remote_gateway_handle => {
+            error!("Remote Gateway Server stopped.");
             res?
         }
         res = http_server_handle => {
             error!("Http Server stopped.");
             res?
         }
-        res = mempool_handle => {
-            error!("Mempool Server stopped.");
+        res = local_mempool_handle => {
+            error!("Local Mempool Server stopped.");
+            res?
+        }
+        res = remote_mempool_handle => {
+            error!("Remote Mempool Server stopped.");
             res?
         }
         res = monitoring_endpoint_handle => {
             error!("Monitoring Endpoint Server stopped.");
             res?
         }
-        res = mempool_p2p_propagator_handle => {
-            error!("Mempool P2P Propagator Server stopped.");
+        res = local_mempool_p2p_propagator_handle => {
+            error!("Local Mempool P2P Propagator Server stopped.");
+            res?
+        }
+        res = remote_mempool_p2p_propagator_handle => {
+            error!("Remote Mempool P2P Propagator Server stopped.");
             res?
         }
         res = mempool_p2p_runner_handle => {
