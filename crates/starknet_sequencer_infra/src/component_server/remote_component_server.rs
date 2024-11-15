@@ -136,18 +136,23 @@ where
             .map_err(|e| ClientError::ResponseDeserializationFailure(Arc::new(e)))
         {
             Ok(request) => {
-                let response = local_client
-                    .send(request)
-                    .await
-                    .expect("Local client failed to send a request or receive a response");
-                HyperResponse::builder()
-                    .status(StatusCode::OK)
-                    .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
-                    .body(Body::from(
-                        BincodeSerdeWrapper::new(response)
-                            .to_bincode()
-                            .expect("Response serialization should succeed"),
-                    ))
+                let response = local_client.send(request).await;
+                match response {
+                    Ok(response) => HyperResponse::builder()
+                        .status(StatusCode::OK)
+                        .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
+                        .body(Body::from(
+                            BincodeSerdeWrapper::new(response)
+                                .to_bincode()
+                                .expect("Response serialization should succeed"),
+                        )),
+                    Err(error) => {
+                        panic!(
+                            "Remote server failed sending with its local client. Error: {:?}",
+                            error
+                        );
+                    }
+                }
             }
             Err(error) => {
                 let server_error = ServerError::RequestDeserializationFailure(error.to_string());
