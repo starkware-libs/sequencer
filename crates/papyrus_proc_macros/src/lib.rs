@@ -243,7 +243,7 @@ pub fn handle_response_variants(input: TokenStream) -> TokenStream {
     } = parse_macro_input!(input as HandleResponseVariantsMacroInput);
 
     let expanded = quote! {
-        match response {
+        match response? {
             #response_enum::#request_response_enum_var(Ok(response)) => Ok(response),
             #response_enum::#request_response_enum_var(Err(response)) => {
                 Err(#component_client_error::#component_error(response))

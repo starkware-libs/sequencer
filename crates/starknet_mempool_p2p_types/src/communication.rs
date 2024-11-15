@@ -10,7 +10,10 @@ use starknet_sequencer_infra::component_client::{
     LocalComponentClient,
     RemoteComponentClient,
 };
-use starknet_sequencer_infra::component_definitions::ComponentRequestAndResponseSender;
+use starknet_sequencer_infra::component_definitions::{
+    ComponentClient,
+    ComponentRequestAndResponseSender,
+};
 use thiserror::Error;
 
 use crate::errors::MempoolP2pPropagatorError;
@@ -100,7 +103,7 @@ impl MempoolP2pPropagatorClient for RemoteMempoolP2pPropagatorClient {
         transaction: RpcTransaction,
     ) -> MempoolP2pPropagatorClientResult<()> {
         let request = MempoolP2pPropagatorRequest::AddTransaction(transaction);
-        let response = self.send(request).await?;
+        let response = self.send(request).await;
         handle_response_variants!(
             MempoolP2pPropagatorResponse,
             AddTransaction,
@@ -114,10 +117,7 @@ impl MempoolP2pPropagatorClient for RemoteMempoolP2pPropagatorClient {
         propagation_metadata: BroadcastedMessageMetadata,
     ) -> MempoolP2pPropagatorClientResult<()> {
         let request = MempoolP2pPropagatorRequest::ContinuePropagation(propagation_metadata);
-        let response = match self.send(request).await {
-            Ok(resp) => resp,
-            Err(client_error) => return Err(MempoolP2pPropagatorClientError::from(client_error)),
-        };
+        let response = self.send(request).await;
         handle_response_variants!(
             MempoolP2pPropagatorResponse,
             ContinuePropagation,

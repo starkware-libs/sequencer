@@ -6,12 +6,14 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use async_trait::async_trait;
 use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tracing::{error, info};
 use validator::Validate;
 
+use crate::component_client::ClientResult;
 use crate::errors::ComponentError;
 
 pub const APPLICATION_OCTET_STREAM: &str = "application/octet-stream";
@@ -23,6 +25,15 @@ const DEFAULT_IDLE_TIMEOUT: u64 = 90;
 #[async_trait]
 pub trait ComponentRequestHandler<Request, Response> {
     async fn handle_request(&mut self, request: Request) -> Response;
+}
+
+#[async_trait]
+pub trait ComponentClient<Request, Response>
+where
+    Request: Send + Sync + Serialize + DeserializeOwned,
+    Response: Send + Sync + Serialize + DeserializeOwned,
+{
+    async fn send(&self, request: Request) -> ClientResult<Response>;
 }
 
 #[async_trait]

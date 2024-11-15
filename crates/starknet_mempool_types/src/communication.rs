@@ -12,7 +12,10 @@ use starknet_sequencer_infra::component_client::{
     LocalComponentClient,
     RemoteComponentClient,
 };
-use starknet_sequencer_infra::component_definitions::ComponentRequestAndResponseSender;
+use starknet_sequencer_infra::component_definitions::{
+    ComponentClient,
+    ComponentRequestAndResponseSender,
+};
 use thiserror::Error;
 
 use crate::errors::MempoolError;
@@ -96,19 +99,19 @@ impl MempoolClient for LocalMempoolClient {
 impl MempoolClient for RemoteMempoolClient {
     async fn add_tx(&self, args: AddTransactionArgsWrapper) -> MempoolClientResult<()> {
         let request = MempoolRequest::AddTransaction(args);
-        let response = self.send(request).await?;
+        let response = self.send(request).await;
         handle_response_variants!(MempoolResponse, AddTransaction, MempoolClientError, MempoolError)
     }
 
     async fn commit_block(&self, args: CommitBlockArgs) -> MempoolClientResult<()> {
         let request = MempoolRequest::CommitBlock(args);
-        let response = self.send(request).await?;
+        let response = self.send(request).await;
         handle_response_variants!(MempoolResponse, CommitBlock, MempoolClientError, MempoolError)
     }
 
     async fn get_txs(&self, n_txs: usize) -> MempoolClientResult<Vec<AccountTransaction>> {
         let request = MempoolRequest::GetTransactions(n_txs);
-        let response = self.send(request).await?;
+        let response = self.send(request).await;
         handle_response_variants!(
             MempoolResponse,
             GetTransactions,
