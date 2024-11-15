@@ -11,7 +11,10 @@ use starknet_sequencer_infra::component_client::{
     LocalComponentClient,
     RemoteComponentClient,
 };
-use starknet_sequencer_infra::component_definitions::ComponentRequestAndResponseSender;
+use starknet_sequencer_infra::component_definitions::{
+    ComponentClient,
+    ComponentRequestAndResponseSender,
+};
 use thiserror::Error;
 
 use crate::errors::GatewayError;
@@ -56,7 +59,7 @@ impl GatewayClient for LocalGatewayClient {
     #[instrument(skip(self))]
     async fn add_tx(&self, gateway_input: GatewayInput) -> GatewayClientResult<TransactionHash> {
         let request = GatewayRequest::AddTransaction(gateway_input);
-        let response = self.send(request).await?;
+        let response = self.send(request).await;
         handle_response_variants!(GatewayResponse, AddTransaction, GatewayClientError, GatewayError)
     }
 }
@@ -66,7 +69,7 @@ impl GatewayClient for RemoteGatewayClient {
     #[instrument(skip(self))]
     async fn add_tx(&self, gateway_input: GatewayInput) -> GatewayClientResult<TransactionHash> {
         let request = GatewayRequest::AddTransaction(gateway_input);
-        let response = self.send(request).await?;
+        let response = self.send(request).await;
         handle_response_variants!(GatewayResponse, AddTransaction, GatewayClientError, GatewayError)
     }
 }

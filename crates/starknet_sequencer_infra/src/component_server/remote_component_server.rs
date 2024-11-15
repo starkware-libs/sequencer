@@ -11,7 +11,12 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 
 use crate::component_client::{ClientError, LocalComponentClient};
-use crate::component_definitions::{RemoteServerConfig, ServerError, APPLICATION_OCTET_STREAM};
+use crate::component_definitions::{
+    ComponentClient,
+    RemoteServerConfig,
+    ServerError,
+    APPLICATION_OCTET_STREAM,
+};
 use crate::component_server::ComponentServerStarter;
 use crate::errors::ComponentServerError;
 use crate::serde_utils::BincodeSerdeWrapper;
@@ -103,6 +108,7 @@ pub struct RemoteComponentServer<Request, Response>
 where
     Request: Serialize + DeserializeOwned + Send + Sync + 'static,
     Response: Serialize + DeserializeOwned + Send + Sync + 'static,
+    LocalComponentClient<Request, Response>: ComponentClient<Request, Response>,
 {
     socket: SocketAddr,
     local_client: LocalComponentClient<Request, Response>,
