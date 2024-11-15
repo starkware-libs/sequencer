@@ -71,6 +71,93 @@ pub trait BatcherClient: Send + Sync {
     async fn decision_reached(&self, input: DecisionReachedInput) -> BatcherClientResult<()>;
 }
 
+#[async_trait]
+impl<T> BatcherClient for T
+where
+    T: Send + Sync + ComponentClient<BatcherRequest, BatcherResponse>,
+{
+    /// Starts the process of building a proposal.
+    async fn build_proposal(&self, input: BuildProposalInput) -> BatcherClientResult<()> {
+        let request = BatcherRequest::BuildProposal(input);
+        let response = self.send(request).await;
+        handle_response_variants!(BatcherResponse, BuildProposal, BatcherClientError, BatcherError)
+    }
+    /// Gets the next available content from the proposal stream (only relevant when building a
+    /// proposal).
+    async fn get_proposal_content(
+        &self,
+        input: GetProposalContentInput,
+    ) -> BatcherClientResult<GetProposalContentResponse> {
+        let request = BatcherRequest::GetProposalContent(input);
+        let response = self.send(request).await;
+        handle_response_variants!(
+            BatcherResponse,
+            GetProposalContent,
+            BatcherClientError,
+            BatcherError
+        )
+    }
+
+    /// Starts the process of validating a proposal.
+    async fn validate_proposal(&self, input: ValidateProposalInput) -> BatcherClientResult<()> {
+        let request = BatcherRequest::ValidateProposal(input);
+        let response = self.send(request).await;
+        handle_response_variants!(
+            BatcherResponse,
+            ValidateProposal,
+            BatcherClientError,
+            BatcherError
+        )
+    }
+    /// Sends the content of a proposal. Only relevant when validating a proposal.
+    /// Note:
+    ///   * The batcher acks when the content is received immediately, not waiting for it to finish
+    ///     processing. The next send might receive an `InvalidProposal` response for the previous
+    ///     send.
+    ///   * If this marks the end of the content, i.e. `SendProposalContent::Finish` is received,
+    ///     the batcher will block until the proposal has finished processing before responding.
+    async fn send_proposal_content(
+        &self,
+        input: SendProposalContentInput,
+    ) -> BatcherClientResult<SendProposalContentResponse> {
+        let request = BatcherRequest::SendProposalContent(input);
+        let response = self.send(request).await;
+        handle_response_variants!(
+            BatcherResponse,
+            SendProposalContent,
+            BatcherClientError,
+            BatcherError
+        )
+    }
+    /// Starts the process of a new height.
+    /// From this point onwards, the batcher will accept requests only for proposals associated
+    /// with this height.
+    async fn start_height(&self, input: StartHeightInput) -> BatcherClientResult<()> {
+        let request = BatcherRequest::StartHeight(input);
+        let response = self.send(request).await;
+        handle_response_variants!(BatcherResponse, StartHeight, BatcherClientError, BatcherError)
+    }
+    /// Notifies the batcher that a decision has been reached.
+    /// This closes the process of the given height, and the accepted proposal is committed.
+    async fn decision_reached(&self, input: DecisionReachedInput) -> BatcherClientResult<()> {
+        let request = BatcherRequest::DecisionReached(input);
+        let response = self.send(request).await;
+        handle_response_variants!(
+            BatcherResponse,
+            DecisionReached,
+            BatcherClientError,
+            BatcherError
+        )
+    }
+}
+
+// #[async_trait]
+// impl ComponentClient<BatcherRequest, BatcherResponse> for MockBatcherClient {
+//     async fn send(&self, _request: BatcherRequest) -> ClientResult<BatcherResponse> {
+//         Err(ClientError::UnexpectedResponse("MockingJay".to_string()))
+//     }
+// }
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum BatcherRequest {
     BuildProposal(BuildProposalInput),
@@ -97,134 +184,4 @@ pub enum BatcherClientError {
     ClientError(#[from] ClientError),
     #[error(transparent)]
     BatcherError(#[from] BatcherError),
-}
-
-#[async_trait]
-impl BatcherClient for LocalBatcherClient {
-    async fn build_proposal(&self, input: BuildProposalInput) -> BatcherClientResult<()> {
-        let request = BatcherRequest::BuildProposal(input);
-        let response = self.send(request).await;
-        handle_response_variants!(BatcherResponse, BuildProposal, BatcherClientError, BatcherError)
-    }
-
-    async fn get_proposal_content(
-        &self,
-        input: GetProposalContentInput,
-    ) -> BatcherClientResult<GetProposalContentResponse> {
-        let request = BatcherRequest::GetProposalContent(input);
-        let response = self.send(request).await;
-        handle_response_variants!(
-            BatcherResponse,
-            GetProposalContent,
-            BatcherClientError,
-            BatcherError
-        )
-    }
-
-    async fn validate_proposal(&self, input: ValidateProposalInput) -> BatcherClientResult<()> {
-        let request = BatcherRequest::ValidateProposal(input);
-        let response = self.send(request).await;
-        handle_response_variants!(
-            BatcherResponse,
-            ValidateProposal,
-            BatcherClientError,
-            BatcherError
-        )
-    }
-
-    async fn send_proposal_content(
-        &self,
-        input: SendProposalContentInput,
-    ) -> BatcherClientResult<SendProposalContentResponse> {
-        let request = BatcherRequest::SendProposalContent(input);
-        let response = self.send(request).await;
-        handle_response_variants!(
-            BatcherResponse,
-            SendProposalContent,
-            BatcherClientError,
-            BatcherError
-        )
-    }
-
-    async fn start_height(&self, input: StartHeightInput) -> BatcherClientResult<()> {
-        let request = BatcherRequest::StartHeight(input);
-        let response = self.send(request).await;
-        handle_response_variants!(BatcherResponse, StartHeight, BatcherClientError, BatcherError)
-    }
-
-    async fn decision_reached(&self, input: DecisionReachedInput) -> BatcherClientResult<()> {
-        let request = BatcherRequest::DecisionReached(input);
-        let response = self.send(request).await;
-        handle_response_variants!(
-            BatcherResponse,
-            DecisionReached,
-            BatcherClientError,
-            BatcherError
-        )
-    }
-}
-
-#[async_trait]
-impl BatcherClient for RemoteBatcherClient {
-    async fn build_proposal(&self, input: BuildProposalInput) -> BatcherClientResult<()> {
-        let request = BatcherRequest::BuildProposal(input);
-        let response = self.send(request).await;
-        handle_response_variants!(BatcherResponse, BuildProposal, BatcherClientError, BatcherError)
-    }
-
-    async fn get_proposal_content(
-        &self,
-        input: GetProposalContentInput,
-    ) -> BatcherClientResult<GetProposalContentResponse> {
-        let request = BatcherRequest::GetProposalContent(input);
-        let response = self.send(request).await;
-        handle_response_variants!(
-            BatcherResponse,
-            GetProposalContent,
-            BatcherClientError,
-            BatcherError
-        )
-    }
-
-    async fn validate_proposal(&self, input: ValidateProposalInput) -> BatcherClientResult<()> {
-        let request = BatcherRequest::ValidateProposal(input);
-        let response = self.send(request).await;
-        handle_response_variants!(
-            BatcherResponse,
-            ValidateProposal,
-            BatcherClientError,
-            BatcherError
-        )
-    }
-
-    async fn send_proposal_content(
-        &self,
-        input: SendProposalContentInput,
-    ) -> BatcherClientResult<SendProposalContentResponse> {
-        let request = BatcherRequest::SendProposalContent(input);
-        let response = self.send(request).await;
-        handle_response_variants!(
-            BatcherResponse,
-            SendProposalContent,
-            BatcherClientError,
-            BatcherError
-        )
-    }
-
-    async fn start_height(&self, input: StartHeightInput) -> BatcherClientResult<()> {
-        let request = BatcherRequest::StartHeight(input);
-        let response = self.send(request).await;
-        handle_response_variants!(BatcherResponse, StartHeight, BatcherClientError, BatcherError)
-    }
-
-    async fn decision_reached(&self, input: DecisionReachedInput) -> BatcherClientResult<()> {
-        let request = BatcherRequest::DecisionReached(input);
-        let response = self.send(request).await;
-        handle_response_variants!(
-            BatcherResponse,
-            DecisionReached,
-            BatcherClientError,
-            BatcherError
-        )
-    }
 }
