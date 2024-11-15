@@ -1,10 +1,13 @@
 use std::any::type_name;
 
+use async_trait::async_trait;
+use serde::de::DeserializeOwned;
+use serde::Serialize;
 use tokio::sync::mpsc::{channel, Sender};
 use tracing::info;
 
 use crate::component_client::ClientResult;
-use crate::component_definitions::ComponentRequestAndResponseSender;
+use crate::component_definitions::{ComponentClient, ComponentRequestAndResponseSender};
 
 /// The `LocalComponentClient` struct is a generic client for sending component requests and
 /// receiving responses asynchronously.
@@ -20,16 +23,22 @@ use crate::component_definitions::ComponentRequestAndResponseSender;
 /// # Example
 /// ```rust
 /// // Example usage of the LocalComponentClient
+/// use serde::{Deserialize, Serialize};
 /// use tokio::sync::mpsc::Sender;
 ///
 /// use crate::starknet_sequencer_infra::component_client::LocalComponentClient;
-/// use crate::starknet_sequencer_infra::component_definitions::ComponentRequestAndResponseSender;
+/// use crate::starknet_sequencer_infra::component_definitions::{
+///     ComponentClient,
+///     ComponentRequestAndResponseSender,
+/// };
 ///
 /// // Define your request and response types
+/// #[derive(Deserialize, Serialize)]
 /// struct MyRequest {
 ///     pub content: String,
 /// }
 ///
+/// #[derive(Deserialize, Serialize)]
 /// struct MyResponse {
 ///     content: String,
 /// }
@@ -71,8 +80,16 @@ where
     pub fn new(tx: Sender<ComponentRequestAndResponseSender<Request, Response>>) -> Self {
         Self { tx }
     }
+}
 
-    pub async fn send(&self, request: Request) -> ClientResult<Response> {
+#[async_trait]
+impl<Request, Response> ComponentClient<Request, Response>
+    for LocalComponentClient<Request, Response>
+where
+    Request: Send + Sync + Serialize + DeserializeOwned,
+    Response: Send + Sync + Serialize + DeserializeOwned,
+{
+    async fn send(&self, request: Request) -> ClientResult<Response> {
         let (res_tx, mut res_rx) = channel::<Response>(1);
         let request_and_res_tx = ComponentRequestAndResponseSender { request, tx: res_tx };
         self.tx.send(request_and_res_tx).await.expect("Outbound connection should be open.");

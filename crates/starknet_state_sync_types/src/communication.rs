@@ -9,7 +9,10 @@ use starknet_sequencer_infra::component_client::{
     LocalComponentClient,
     RemoteComponentClient,
 };
-use starknet_sequencer_infra::component_definitions::ComponentRequestAndResponseSender;
+use starknet_sequencer_infra::component_definitions::{
+    ComponentClient,
+    ComponentRequestAndResponseSender,
+};
 use thiserror::Error;
 
 use crate::errors::StateSyncError;
@@ -73,7 +76,7 @@ impl StateSyncClient for RemoteStateSyncClient {
         block_number: BlockNumber,
     ) -> StateSyncClientResult<Option<SyncBlock>> {
         let request = StateSyncRequest::GetBlock(block_number);
-        let response = self.send(request).await?;
+        let response = self.send(request).await;
         handle_response_variants!(StateSyncResponse, GetBlock, StateSyncClientError, StateSyncError)
     }
 }
