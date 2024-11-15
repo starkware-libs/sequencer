@@ -8,9 +8,7 @@ from typing import Dict, Any, Optional
 
 from services.service import Service
 from config.sequencer import Config, SequencerDevConfig
-from services.objects import (
-    HealthCheck, ServiceType, Probe, PersistentVolumeClaim, PortMappings
-)
+from services.objects import *
 from services import defaults
 
 
@@ -42,9 +40,9 @@ class SequencerNode(Chart):
             image="us.gcr.io/starkware-dev/sequencer-node-test:0.0.1-dev.1",
             args=["--config_file", "/app/config/sequencer/config.json"],
             port_mappings=[
-                PortMappings(name="http", port=80, container_port=8080),
-                PortMappings(name="rpc", port=8081, container_port=8081),
-                PortMappings(name="monitoring", port=8082, container_port=8082)
+                PortMapping(name="http", port=80, container_port=8080),
+                PortMapping(name="rpc", port=8081, container_port=8081),
+                PortMapping(name="monitoring", port=8082, container_port=8082)
             ],
             service_type=ServiceType.CLUSTER_IP,
             replicas=1,
@@ -61,6 +59,40 @@ class SequencerNode(Chart):
                 storage="256Gi",
                 mount_path="/data",
                 read_only=False
+            ),
+            ingress=Ingress(
+                None,
+                "premium-rwo",
+                rules=[
+                    IngressRule(
+                        host="sequencer",
+                        paths=[
+                            IngressRuleHttpPath(
+                                path="/",
+                                path_type="http",
+                                backend_service_name="test",
+                                backend_service_port_name="test",
+                                backend_service_port_number=80,
+                            ),
+                            IngressRuleHttpPath(
+                                path="/rule",
+                                path_type="http",
+                                backend_service_name="test",
+                                backend_service_port_name="test",
+                                backend_service_port_number=80,
+                            ),
+                        ]
+                    )
+                ],
+                tls=[
+                    IngressTls(
+                        hosts=[
+                            "test",
+                            "test2"
+                        ],
+                        secret_name="test"
+                    )
+                ]
             )
         )
 
@@ -88,7 +120,9 @@ class SequencerSystem(Chart):
             self, 
             "batcher", 
             image="ghost",
-            port_mappings=[{"port": 80, "container_port": 2368}],
+            port_mappings=[
+                PortMapping(name="http", port=80, container_port=2368)
+            ],
             health_check=defaults.health_check
         )
 
@@ -96,12 +130,14 @@ class SequencerSystem(Chart):
 app = App(
     yaml_output_type=YamlOutputType.FOLDER_PER_CHART_FILE_PER_RESOURCE
 )
+
 sequencer_node = SequencerNode(
     scope=app,
     name="sequencer-node",
     namespace="sequencer-node-test",
     config=None
 )
+
 a = SequencerSystem(
     scope=app,
     name="sequencer-system",

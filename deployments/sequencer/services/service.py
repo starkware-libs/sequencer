@@ -2,8 +2,9 @@ import json
 
 from typing import Optional, List
 from constructs import Construct
-from cdk8s import Names
+from cdk8s import Names, ApiObjectMetadata
 from imports import k8s
+from imports.com.google import cloud as google
 
 from services.objects import *
 
@@ -17,10 +18,11 @@ class Service(Construct):
         image: str,
         replicas: int = 1,
         service_type: Optional[ServiceType] = None,
-        port_mappings: Optional[List[PortMappings]] = None,
+        port_mappings: Optional[Sequence[PortMapping]] = None,
         config: Optional[Config] = None,
         health_check: Optional[HealthCheck] = None,
         pvc: Optional[PersistentVolumeClaim] = None,
+        ingress: Optional[Ingress] = None,
         args: Optional[List[str]] = None
     ):
         super().__init__(scope, id)
@@ -35,9 +37,9 @@ class Service(Construct):
                     type=service_type.value if service_type is not None else None,
                     ports=[
                         k8s.ServicePort(
-                            name=port_map.get("name"),
-                            port=port_map.get("port"),
-                            target_port=k8s.IntOrString.from_number(port_map.get("container_port")),
+                            name=port_map.name,
+                            port=port_map.port,
+                            target_port=k8s.IntOrString.from_number(port_map.container_port),
                         ) for port_map in port_mappings
                     ],
                     selector=label
@@ -65,7 +67,7 @@ class Service(Construct):
                                 name="sequencer",
                                 image=image,
                                 args=args or [],
-                                ports=[k8s.ContainerPort(container_port=port_map.get("container_port")) for port_map in port_mappings or []],
+                                ports=[k8s.ContainerPort(container_port=port_map.container_port) for port_map in port_mappings or []],
                                 startup_probe=k8s.Probe(
                                     http_get=k8s.HttpGetAction(
                                         path=health_check.startup_probe.path,
@@ -136,6 +138,76 @@ class Service(Construct):
                 ),
             ),
         )
+
+        google.BackendConfig(
+            self,
+            "backendconfig",
+            metadata=ApiObjectMetadata(
+                name=f"{self.node.id}-backendconfig",
+                labels=label
+            ),
+            spec=google.BackendConfigSpec(
+                health_check=google.BackendConfigSpecHealthCheck(
+                    check_interval_sec=5,
+                    healthy_threshold=10,
+                    unhealthy_threshold=5,
+                    timeout_sec=5,
+                    request_path="/",
+                    type="http"
+                ),
+                iap=google.BackendConfigSpecIap(
+                    enabled=True,
+                    oauthclient_credentials=google.BackendConfigSpecIapOauthclientCredentials(
+                        secret_name=""
+                    )
+                )
+            )
+        )
+
+        if ingress is not None:
+            k8s.KubeIngress(
+                self,
+                "ingress",
+                metadata=k8s.ObjectMeta(
+                    name=f"{self.node.id}-ingress",
+                    labels=label,
+                    annotations={}
+                ),
+                spec=k8s.IngressSpec(
+                    ingress_class_name=ingress.class_name,
+                    tls=[
+                        k8s.IngressTls(
+                            hosts=tls.hosts,
+                            secret_name=tls.secret_name
+                        )
+                        for tls in ingress.tls or []
+                    ],
+                    rules=[
+                        k8s.IngressRule(
+                            host=rule.host,
+                            http=k8s.HttpIngressRuleValue(
+                                paths=[
+                                    k8s.HttpIngressPath(
+                                        path=path.path,
+                                        path_type=path.path_type,
+                                        backend=k8s.IngressBackend(
+                                            service=k8s.IngressServiceBackend(
+                                                name=path.backend_service_name,
+                                                port=k8s.ServiceBackendPort(
+                                                    name=path.backend_service_port_name,
+                                                    number=path.backend_service_port_number
+                                                )
+                                            )
+                                        )
+                                    )
+                                    for path in rule.paths or []
+                                ]
+                            )
+                        )
+                        for rule in ingress.rules or []
+                    ]
+                )
+            )
 
         if pvc is not None:
             k8s.KubePersistentVolumeClaim(

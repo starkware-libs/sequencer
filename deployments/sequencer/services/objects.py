@@ -1,6 +1,6 @@
 import dataclasses
 
-from typing import Optional, Dict, Any, TypedDict
+from typing import Optional, Dict, Any, Mapping, Sequence
 from enum import Enum
 
 
@@ -33,12 +33,12 @@ class ServiceType(Enum):
 
 @dataclasses.dataclass
 class PersistentVolumeClaim:
-    storage_class_name: str | None = None
-    access_modes: list[str] | None = None
-    volume_mode: str | None = None
-    storage: str | None = None
-    read_only: bool = True
-    mount_path: str | None = None
+    storage_class_name: str | None
+    access_modes: list[str] | None
+    volume_mode: str | None
+    storage: str | None
+    read_only: bool | None
+    mount_path: str | None
 
 
 @dataclasses.dataclass
@@ -55,7 +55,36 @@ class Config():
 
 
 @dataclasses.dataclass
-class PortMappings(TypedDict):
+class PortMapping:
     name: str
     port: int
     container_port: int
+
+
+@dataclasses.dataclass
+class IngressRuleHttpPath:
+    path: Optional[str]
+    path_type: str
+    backend_service_name: str
+    backend_service_port_number: int
+    backend_service_port_name: Optional[str]
+
+
+@dataclasses.dataclass
+class IngressRule:
+    host: str
+    paths: Sequence[IngressRuleHttpPath]
+
+
+@dataclasses.dataclass
+class IngressTls:
+    hosts: Sequence[str] | None
+    secret_name: str | None
+
+
+@dataclasses.dataclass
+class Ingress:
+    annotations: Mapping[str, str] | None
+    class_name: str | None
+    rules: Sequence[IngressRule] | None
+    tls: Sequence[IngressTls] | None
