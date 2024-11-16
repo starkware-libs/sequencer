@@ -70,33 +70,10 @@ pub enum MempoolClientError {
 }
 
 #[async_trait]
-impl MempoolClient for LocalMempoolClient {
-    async fn add_tx(&self, args: AddTransactionArgsWrapper) -> MempoolClientResult<()> {
-        let request = MempoolRequest::AddTransaction(args);
-        let response = self.send(request).await;
-        handle_response_variants!(MempoolResponse, AddTransaction, MempoolClientError, MempoolError)
-    }
-
-    async fn commit_block(&self, args: CommitBlockArgs) -> MempoolClientResult<()> {
-        let request = MempoolRequest::CommitBlock(args);
-        let response = self.send(request).await;
-        handle_response_variants!(MempoolResponse, CommitBlock, MempoolClientError, MempoolError)
-    }
-
-    async fn get_txs(&self, n_txs: usize) -> MempoolClientResult<Vec<AccountTransaction>> {
-        let request = MempoolRequest::GetTransactions(n_txs);
-        let response = self.send(request).await;
-        handle_response_variants!(
-            MempoolResponse,
-            GetTransactions,
-            MempoolClientError,
-            MempoolError
-        )
-    }
-}
-
-#[async_trait]
-impl MempoolClient for RemoteMempoolClient {
+impl<T> MempoolClient for T
+where
+    T: Send + Sync + ComponentClient<MempoolRequest, MempoolResponse>,
+{
     async fn add_tx(&self, args: AddTransactionArgsWrapper) -> MempoolClientResult<()> {
         let request = MempoolRequest::AddTransaction(args);
         let response = self.send(request).await;
