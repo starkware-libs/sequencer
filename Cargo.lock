@@ -10449,6 +10449,7 @@ dependencies = [
  "async-trait",
  "bincode 1.3.3",
  "hyper 0.14.30",
+ "mockall",
  "papyrus_config",
  "pretty_assertions",
  "rstest",
@@ -10456,7 +10457,6 @@ dependencies = [
  "starknet-types-core",
  "thiserror",
  "tokio",
- "tracing",
  "tracing-subscriber",
  "validator",
 ]
