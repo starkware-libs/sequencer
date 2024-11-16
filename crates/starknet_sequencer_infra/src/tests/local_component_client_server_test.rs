@@ -29,7 +29,7 @@ type ComponentBClient = LocalComponentClient<ComponentBRequest, ComponentBRespon
 impl ComponentAClientTrait for LocalComponentClient<ComponentARequest, ComponentAResponse> {
     async fn a_get_value(&self) -> ResultA {
         let res = self.send(ComponentARequest::AGetValue).await;
-        match res {
+        match res? {
             ComponentAResponse::AGetValue(value) => Ok(value),
         }
     }
@@ -39,7 +39,7 @@ impl ComponentAClientTrait for LocalComponentClient<ComponentARequest, Component
 impl ComponentBClientTrait for LocalComponentClient<ComponentBRequest, ComponentBResponse> {
     async fn b_get_value(&self) -> ResultB {
         let res = self.send(ComponentBRequest::BGetValue).await;
-        match res {
+        match res? {
             ComponentBResponse::BGetValue(value) => Ok(value),
             unexpected_response => {
                 Err(ClientError::UnexpectedResponse(format!("{unexpected_response:?}")))
@@ -48,7 +48,8 @@ impl ComponentBClientTrait for LocalComponentClient<ComponentBRequest, Component
     }
 
     async fn b_set_value(&self, value: ValueB) -> ClientResult<()> {
-        match self.send(ComponentBRequest::BSetValue(value)).await {
+        let res = self.send(ComponentBRequest::BSetValue(value)).await;
+        match res? {
             ComponentBResponse::BSetValue => Ok(()),
             unexpected_response => {
                 Err(ClientError::UnexpectedResponse(format!("{unexpected_response:?}")))

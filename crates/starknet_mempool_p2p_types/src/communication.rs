@@ -69,7 +69,7 @@ impl MempoolP2pPropagatorClient for LocalMempoolP2pPropagatorClient {
         transaction: RpcTransaction,
     ) -> MempoolP2pPropagatorClientResult<()> {
         let request = MempoolP2pPropagatorRequest::AddTransaction(transaction);
-        let response = self.send(request).await;
+        let response = self.send(request).await?;
         handle_response_variants!(
             MempoolP2pPropagatorResponse,
             AddTransaction,
@@ -83,7 +83,7 @@ impl MempoolP2pPropagatorClient for LocalMempoolP2pPropagatorClient {
         propagation_metadata: BroadcastedMessageMetadata,
     ) -> MempoolP2pPropagatorClientResult<()> {
         let request = MempoolP2pPropagatorRequest::ContinuePropagation(propagation_metadata);
-        let response = self.send(request).await;
+        let response = self.send(request).await?;
         handle_response_variants!(
             MempoolP2pPropagatorResponse,
             ContinuePropagation,
