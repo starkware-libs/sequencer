@@ -4,6 +4,7 @@ use std::net::IpAddr;
 use std::sync::Arc;
 use std::time::Duration;
 
+use async_trait::async_trait;
 use hyper::body::to_bytes;
 use hyper::header::CONTENT_TYPE;
 use hyper::{Body, Client, Request as HyperRequest, Response as HyperResponse, StatusCode, Uri};
@@ -11,7 +12,7 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 
 use super::definitions::{ClientError, ClientResult};
-use crate::component_definitions::{RemoteClientConfig, APPLICATION_OCTET_STREAM};
+use crate::component_definitions::{ComponentClient, RemoteClientConfig, APPLICATION_OCTET_STREAM};
 use crate::serde_utils::BincodeSerdeWrapper;
 
 /// The `RemoteComponentClient` struct is a generic client for sending component requests and
@@ -34,7 +35,10 @@ use crate::serde_utils::BincodeSerdeWrapper;
 /// use serde::{Deserialize, Serialize};
 ///
 /// use crate::starknet_sequencer_infra::component_client::RemoteComponentClient;
-/// use crate::starknet_sequencer_infra::component_definitions::RemoteClientConfig;
+/// use crate::starknet_sequencer_infra::component_definitions::{
+///     ComponentClient,
+///     RemoteClientConfig,
+/// };
 ///
 /// // Define your request and response types
 /// #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -72,7 +76,7 @@ use crate::serde_utils::BincodeSerdeWrapper;
 ///
 /// # Notes
 /// - The `RemoteComponentClient` struct is designed to work in an asynchronous environment,
-///   utilizing Tokio's async runtime and hyper framwork to send HTTP requests and receive HTTP
+///   utilizing Tokio's async runtime and hyper framework to send HTTP requests and receive HTTP
 ///   responses.
 pub struct RemoteComponentClient<Request, Response>
 where
@@ -106,22 +110,6 @@ where
         Self { uri, client, config, _req: PhantomData, _res: PhantomData }
     }
 
-    pub async fn send(&self, component_request: Request) -> ClientResult<Response> {
-        // Construct and request, and send it up to 'max_retries' times. Return if received a
-        // successful response.
-        for _ in 0..self.config.retries {
-            let http_request = self.construct_http_request(component_request.clone());
-            let res = self.try_send(http_request).await;
-            if res.is_ok() {
-                return res;
-            }
-        }
-        // Construct and send the request, return the received response regardless whether it
-        // successful or not.
-        let http_request = self.construct_http_request(component_request);
-        self.try_send(http_request).await
-    }
-
     fn construct_http_request(&self, component_request: Request) -> HyperRequest<Body> {
         HyperRequest::post(self.uri.clone())
             .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
@@ -147,6 +135,31 @@ where
                 get_response_body(http_response).await?,
             )),
         }
+    }
+}
+
+// TODO(Tsabary): remove clone trait from request and response, throughout.
+#[async_trait]
+impl<Request, Response> ComponentClient<Request, Response>
+    for RemoteComponentClient<Request, Response>
+where
+    Request: Send + Sync + Serialize + DeserializeOwned + Clone + Debug,
+    Response: Send + Sync + Serialize + DeserializeOwned + Debug,
+{
+    async fn send(&self, component_request: Request) -> ClientResult<Response> {
+        // Construct and request, and send it up to 'max_retries' times. Return if received a
+        // successful response.
+        for _ in 0..self.config.retries {
+            let http_request = self.construct_http_request(component_request.clone());
+            let res = self.try_send(http_request).await;
+            if res.is_ok() {
+                return res;
+            }
+        }
+        // Construct and send the request, return the received response regardless whether it
+        // successful or not.
+        let http_request = self.construct_http_request(component_request);
+        self.try_send(http_request).await
     }
 }
 
