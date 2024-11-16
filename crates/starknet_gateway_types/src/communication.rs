@@ -55,17 +55,10 @@ pub enum GatewayClientError {
 }
 
 #[async_trait]
-impl GatewayClient for LocalGatewayClient {
-    #[instrument(skip(self))]
-    async fn add_tx(&self, gateway_input: GatewayInput) -> GatewayClientResult<TransactionHash> {
-        let request = GatewayRequest::AddTransaction(gateway_input);
-        let response = self.send(request).await;
-        handle_response_variants!(GatewayResponse, AddTransaction, GatewayClientError, GatewayError)
-    }
-}
-
-#[async_trait]
-impl GatewayClient for RemoteGatewayClient {
+impl<T> GatewayClient for T
+where
+    T: Send + Sync + ComponentClient<GatewayRequest, GatewayResponse>,
+{
     #[instrument(skip(self))]
     async fn add_tx(&self, gateway_input: GatewayInput) -> GatewayClientResult<TransactionHash> {
         let request = GatewayRequest::AddTransaction(gateway_input);
