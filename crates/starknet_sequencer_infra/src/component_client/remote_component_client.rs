@@ -92,7 +92,7 @@ where
 
 impl<Request, Response> RemoteComponentClient<Request, Response>
 where
-    Request: Serialize + DeserializeOwned + Debug + Clone,
+    Request: Serialize + DeserializeOwned + Debug,
     Response: Serialize + DeserializeOwned + Debug,
 {
     pub fn new(config: RemoteClientConfig) -> Self {
@@ -110,14 +110,10 @@ where
         Self { uri, client, config, _req: PhantomData, _res: PhantomData }
     }
 
-    fn construct_http_request(&self, component_request: Request) -> HyperRequest<Body> {
+    fn construct_http_request(&self, serialized_request: Vec<u8>) -> HyperRequest<Body> {
         HyperRequest::post(self.uri.clone())
             .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
-            .body(Body::from(
-                BincodeSerdeWrapper::new(component_request)
-                    .to_bincode()
-                    .expect("Request serialization should succeed"),
-            ))
+            .body(Body::from(serialized_request))
             .expect("Request building should succeed")
     }
 
@@ -143,23 +139,29 @@ where
 impl<Request, Response> ComponentClient<Request, Response>
     for RemoteComponentClient<Request, Response>
 where
-    Request: Send + Sync + Serialize + DeserializeOwned + Clone + Debug,
+    Request: Send + Sync + Serialize + DeserializeOwned + Debug,
     Response: Send + Sync + Serialize + DeserializeOwned + Debug,
 {
     async fn send(&self, component_request: Request) -> ClientResult<Response> {
-        // Construct and request, and send it up to 'max_retries' times. Return if received a
-        // successful response.
-        for _ in 0..self.config.retries {
-            let http_request = self.construct_http_request(component_request.clone());
+        // Serialize the request.
+        let serialized_request = BincodeSerdeWrapper::new(component_request)
+            .to_bincode()
+            .expect("Request serialization should succeed");
+
+        // Construct the request, and send it up to 'max_retries + 1' times. Return if received a
+        // successful response, or the last response if all attempts failed.
+        let max_attempts = self.config.retries + 1;
+        for attempt in 0..max_attempts {
+            let http_request = self.construct_http_request(serialized_request.clone());
             let res = self.try_send(http_request).await;
             if res.is_ok() {
                 return res;
             }
+            if attempt == max_attempts - 1 {
+                return res;
+            }
         }
-        // Construct and send the request, return the received response regardless whether it
-        // successful or not.
-        let http_request = self.construct_http_request(component_request);
-        self.try_send(http_request).await
+        unreachable!("Guaranteed to return a response before reaching this point.");
     }
 }
 
