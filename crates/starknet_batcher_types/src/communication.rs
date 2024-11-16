@@ -100,72 +100,10 @@ pub enum BatcherClientError {
 }
 
 #[async_trait]
-impl BatcherClient for LocalBatcherClient {
-    async fn build_proposal(&self, input: BuildProposalInput) -> BatcherClientResult<()> {
-        let request = BatcherRequest::BuildProposal(input);
-        let response = self.send(request).await;
-        handle_response_variants!(BatcherResponse, BuildProposal, BatcherClientError, BatcherError)
-    }
-
-    async fn get_proposal_content(
-        &self,
-        input: GetProposalContentInput,
-    ) -> BatcherClientResult<GetProposalContentResponse> {
-        let request = BatcherRequest::GetProposalContent(input);
-        let response = self.send(request).await;
-        handle_response_variants!(
-            BatcherResponse,
-            GetProposalContent,
-            BatcherClientError,
-            BatcherError
-        )
-    }
-
-    async fn validate_proposal(&self, input: ValidateProposalInput) -> BatcherClientResult<()> {
-        let request = BatcherRequest::ValidateProposal(input);
-        let response = self.send(request).await;
-        handle_response_variants!(
-            BatcherResponse,
-            ValidateProposal,
-            BatcherClientError,
-            BatcherError
-        )
-    }
-
-    async fn send_proposal_content(
-        &self,
-        input: SendProposalContentInput,
-    ) -> BatcherClientResult<SendProposalContentResponse> {
-        let request = BatcherRequest::SendProposalContent(input);
-        let response = self.send(request).await;
-        handle_response_variants!(
-            BatcherResponse,
-            SendProposalContent,
-            BatcherClientError,
-            BatcherError
-        )
-    }
-
-    async fn start_height(&self, input: StartHeightInput) -> BatcherClientResult<()> {
-        let request = BatcherRequest::StartHeight(input);
-        let response = self.send(request).await;
-        handle_response_variants!(BatcherResponse, StartHeight, BatcherClientError, BatcherError)
-    }
-
-    async fn decision_reached(&self, input: DecisionReachedInput) -> BatcherClientResult<()> {
-        let request = BatcherRequest::DecisionReached(input);
-        let response = self.send(request).await;
-        handle_response_variants!(
-            BatcherResponse,
-            DecisionReached,
-            BatcherClientError,
-            BatcherError
-        )
-    }
-}
-
-#[async_trait]
-impl BatcherClient for RemoteBatcherClient {
+impl<T> BatcherClient for T
+where
+    T: Send + Sync + ComponentClient<BatcherRequest, BatcherResponse>,
+{
     async fn build_proposal(&self, input: BuildProposalInput) -> BatcherClientResult<()> {
         let request = BatcherRequest::BuildProposal(input);
         let response = self.send(request).await;
