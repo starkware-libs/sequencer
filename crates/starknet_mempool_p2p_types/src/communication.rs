@@ -114,10 +114,7 @@ impl MempoolP2pPropagatorClient for RemoteMempoolP2pPropagatorClient {
         propagation_metadata: BroadcastedMessageMetadata,
     ) -> MempoolP2pPropagatorClientResult<()> {
         let request = MempoolP2pPropagatorRequest::ContinuePropagation(propagation_metadata);
-        let response = match self.send(request).await {
-            Ok(resp) => resp,
-            Err(client_error) => return Err(MempoolP2pPropagatorClientError::from(client_error)),
-        };
+        let response = self.send(request).await?;
         handle_response_variants!(
             MempoolP2pPropagatorResponse,
             ContinuePropagation,
