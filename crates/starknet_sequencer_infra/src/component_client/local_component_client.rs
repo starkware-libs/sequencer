@@ -3,6 +3,7 @@ use std::any::type_name;
 use tokio::sync::mpsc::{channel, Sender};
 use tracing::info;
 
+use crate::component_client::ClientResult;
 use crate::component_definitions::ComponentRequestAndResponseSender;
 
 /// The `LocalComponentClient` struct is a generic client for sending component requests and
@@ -71,11 +72,11 @@ where
         Self { tx }
     }
 
-    pub async fn send(&self, request: Request) -> Response {
+    pub async fn send(&self, request: Request) -> ClientResult<Response> {
         let (res_tx, mut res_rx) = channel::<Response>(1);
         let request_and_res_tx = ComponentRequestAndResponseSender { request, tx: res_tx };
         self.tx.send(request_and_res_tx).await.expect("Outbound connection should be open.");
-        res_rx.recv().await.expect("Inbound connection should be open.")
+        Ok(res_rx.recv().await.expect("Inbound connection should be open."))
     }
 }
 
