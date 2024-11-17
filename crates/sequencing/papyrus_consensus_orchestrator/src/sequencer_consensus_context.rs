@@ -368,6 +368,10 @@ async fn stream_validate_proposal(
             ProposalStatus::Finished(fin) => {
                 panic!("Batcher returned Fin before all content was sent: {proposal_id:?} {fin:?}");
             }
+            ProposalStatus::Aborted => {
+                warn!("Proposal was aborted: {:?}", proposal_id);
+                return;
+            }
             ProposalStatus::InvalidProposal => {
                 warn!("Proposal was invalid: {:?}", proposal_id);
                 return;
@@ -385,6 +389,10 @@ async fn stream_validate_proposal(
         ProposalStatus::Finished(id) => id,
         ProposalStatus::Processing => {
             panic!("Batcher failed to return Fin after all content was sent: {:?}", proposal_id);
+        }
+        ProposalStatus::Aborted => {
+            warn!("Proposal was aborted: {:?}", proposal_id);
+            return;
         }
         ProposalStatus::InvalidProposal => {
             warn!("Proposal was invalid: {:?}", proposal_id);
