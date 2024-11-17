@@ -80,7 +80,7 @@ use crate::serde_utils::BincodeSerdeWrapper;
 /// #[async_trait]
 /// impl ComponentRequestHandler<MyRequest, MyResponse> for MyComponent {
 ///     async fn handle_request(&mut self, request: MyRequest) -> MyResponse {
-///         MyResponse { content: request.content.clone() + " processed" }
+///         MyResponse { content: request.content + " processed" }
 ///     }
 /// }
 ///
