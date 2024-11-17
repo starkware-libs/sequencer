@@ -75,17 +75,20 @@ pub struct SequencerConsensusContext {
     active_proposal: Option<(Arc<Notify>, JoinHandle<()>)>,
     // Stores proposals for future rounds until the round is reached.
     queued_proposals: BTreeMap<Round, (ValidationParams, oneshot::Sender<ProposalContentId>)>,
+    _outbound_proposal_sender: mpsc::Sender<(u64, mpsc::Receiver<ProposalPart>)>,
 }
 
 impl SequencerConsensusContext {
     pub fn new(
         batcher: Arc<dyn BatcherClient>,
         network_broadcast_client: BroadcastTopicClient<ProposalPart>,
+        _outbound_proposal_sender: mpsc::Sender<(u64, mpsc::Receiver<ProposalPart>)>,
         num_validators: u64,
     ) -> Self {
         Self {
             batcher,
             network_broadcast_client,
+            _outbound_proposal_sender,
             validators: (0..num_validators).map(ValidatorId::from).collect(),
             valid_proposals: Arc::new(Mutex::new(HeightToIdToContent::new())),
             proposal_id: 0,
@@ -99,8 +102,9 @@ impl SequencerConsensusContext {
 
 #[async_trait]
 impl ConsensusContext for SequencerConsensusContext {
-    // TODO: Switch to ProposalPart when Guy merges the PR.
+    // TODO(guyn): Switch to ProposalPart when done with the streaming integration.
     type ProposalChunk = Vec<Transaction>;
+    type ProposalPart = ProposalPart;
 
     async fn build_proposal(
         &mut self,
