@@ -138,7 +138,8 @@ impl Batcher {
                 self.close_tx_channel_and_get_commitement(proposal_id).await
             }
             SendProposalContent::Abort => {
-                unimplemented!("Abort not implemented yet.");
+                self.proposal_manager.abort_proposal(proposal_id).await;
+                Ok(SendProposalContentResponse { response: ResponseProposalStatus::Aborted })
             }
         }
     }
