@@ -1729,21 +1729,20 @@ fn test_deploy_account_tx(
     let actual_execution_info = deploy_account.execute(state, block_context, true, true).unwrap();
 
     // Build expected validate call info.
-    // TODO(AvivG): When the AccountTransaction refactor is complete, simplify the creation of
-    // `validate_calldata` by accessing the DeployAccountTransaction directly, without match.
-    let validate_calldata = match &deploy_account.tx {
-        ApiExecutableTransaction::DeployAccount(tx) => Calldata(
+    let validate_calldata = if let ApiExecutableTransaction::DeployAccount(tx) = &deploy_account.tx
+    {
+        Calldata(
             [
-                vec![tx.class_hash().0, tx.contract_address_salt().0],
+                vec![class_hash.clone().0, tx.contract_address_salt().0],
                 (*tx.constructor_calldata().0).clone(),
             ]
             .concat()
             .into(),
-        ),
-        ApiExecutableTransaction::Invoke(_) | ApiExecutableTransaction::Declare(_) => {
-            panic!("Expected DeployAccount transaction.")
-        }
+        )
+    } else {
+        panic!("Expected DeployAccount transaction.")
     };
+
     let expected_gas_consumed = 0;
     let expected_validate_call_info = expected_validate_call_info(
         account_class_hash,
