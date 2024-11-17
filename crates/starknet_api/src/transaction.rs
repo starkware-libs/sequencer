@@ -134,6 +134,31 @@ impl From<crate::executable_transaction::Transaction> for Transaction {
     }
 }
 
+impl From<(Transaction, TransactionHash)> for crate::executable_transaction::Transaction {
+    fn from(tup: (Transaction, TransactionHash)) -> Self {
+        let (tx, tx_hash) = tup;
+        match tx {
+            Transaction::Declare(_tx) => {
+                unimplemented!("Declare transactions are not supported yet.")
+            }
+            Transaction::Deploy(_tx) => {
+                unimplemented!("Deploy transactions are not supported yet.")
+            }
+            Transaction::DeployAccount(_tx) => {
+                unimplemented!("DeployAccount transactions are not supported yet.")
+            }
+            Transaction::Invoke(tx) => crate::executable_transaction::Transaction::Account(
+                crate::executable_transaction::AccountTransaction::Invoke(
+                    crate::executable_transaction::InvokeTransaction { tx, tx_hash },
+                ),
+            ),
+            Transaction::L1Handler(_) => {
+                unimplemented!("L1Handler transactions are not supported yet.")
+            }
+        }
+    }
+}
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Default)]
 pub struct TransactionOptions {
     /// Transaction that shouldn't be broadcasted to StarkNet. For example, users that want to
