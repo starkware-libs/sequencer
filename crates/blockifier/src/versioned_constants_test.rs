@@ -1,5 +1,6 @@
 use glob::{glob, Paths};
 use pretty_assertions::assert_eq;
+use starknet_api::test_utils::path_in_resources;
 
 use super::*;
 
@@ -8,7 +9,8 @@ use super::*;
 
 /// Returns all JSON files in the resources directory (should be all versioned constants files).
 fn all_jsons_in_dir() -> Paths {
-    glob(format!("{}/resources/*.json", env!("CARGO_MANIFEST_DIR")).as_str()).unwrap()
+    let pattern = path_in_resources("");
+    glob(format!("{}/*.json", pattern.display()).as_str()).unwrap()
 }
 
 #[test]
