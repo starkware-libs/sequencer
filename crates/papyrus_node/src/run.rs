@@ -221,7 +221,7 @@ async fn run_sync(
         PendingSource::new(central_config, VERSION_FULL).map_err(CentralError::ClientCreation)?;
     let base_layer_source = EthereumBaseLayerSource::new(base_layer_config)
         .map_err(|e| BaseLayerSourceError::BaseLayerSourceCreationError(e.to_string()))?;
-    let mut sync = StateSync::new(
+    let sync = StateSync::new(
         sync_config,
         shared_highest_block,
         pending_data,
