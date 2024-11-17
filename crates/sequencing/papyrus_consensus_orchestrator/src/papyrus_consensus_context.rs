@@ -23,7 +23,7 @@ use papyrus_consensus::types::{
     ValidatorId,
 };
 use papyrus_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
-use papyrus_protobuf::consensus::{ConsensusMessage, Proposal, ProposalInit, Vote};
+use papyrus_protobuf::consensus::{ConsensusMessage, Proposal, ProposalInit, ProposalPart, Vote};
 use papyrus_storage::body::BodyStorageReader;
 use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::{StorageError, StorageReader};
@@ -39,6 +39,7 @@ type HeightToIdToContent = BTreeMap<BlockNumber, HashMap<ProposalContentId, Vec<
 pub struct PapyrusConsensusContext {
     storage_reader: StorageReader,
     network_broadcast_client: BroadcastTopicClient<ConsensusMessage>,
+    _network_proposal_sender: mpsc::Sender<(u64, mpsc::Receiver<ProposalPart>)>,
     validators: Vec<ValidatorId>,
     sync_broadcast_sender: Option<BroadcastTopicClient<Vote>>,
     // Proposal building/validating returns immediately, leaving the actual processing to a spawned
@@ -51,12 +52,14 @@ impl PapyrusConsensusContext {
     pub fn new(
         storage_reader: StorageReader,
         network_broadcast_client: BroadcastTopicClient<ConsensusMessage>,
+        _network_proposal_sender: mpsc::Sender<(u64, mpsc::Receiver<ProposalPart>)>,
         num_validators: u64,
         sync_broadcast_sender: Option<BroadcastTopicClient<Vote>>,
     ) -> Self {
         Self {
             storage_reader,
             network_broadcast_client,
+            _network_proposal_sender,
             validators: (0..num_validators).map(ContractAddress::from).collect(),
             sync_broadcast_sender,
             valid_proposals: Arc::new(Mutex::new(BTreeMap::new())),
@@ -67,10 +70,11 @@ impl PapyrusConsensusContext {
 #[async_trait]
 impl ConsensusContext for PapyrusConsensusContext {
     type ProposalChunk = Transaction;
+    type ProposalPart = ProposalPart;
 
     async fn build_proposal(
         &mut self,
-        init: ProposalInit,
+        proposal_init: ProposalInit,
         _timeout: Duration,
     ) -> oneshot::Receiver<ProposalContentId> {
         let mut network_broadcast_sender = self.network_broadcast_client.clone();
@@ -83,39 +87,39 @@ impl ConsensusContext for PapyrusConsensusContext {
                 // TODO(dvir): consider fix this for the case of reverts. If between the check that
                 // the block in storage and to getting the transaction was a revert
                 // this flow will fail.
-                wait_for_block(&storage_reader, init.height)
+                wait_for_block(&storage_reader, proposal_init.height)
                     .await
                     .expect("Failed to wait to block");
 
                 let txn = storage_reader.begin_ro_txn().expect("Failed to begin ro txn");
                 let transactions = txn
-                    .get_block_transactions(init.height)
+                    .get_block_transactions(proposal_init.height)
                     .expect("Get transactions from storage failed")
                     .unwrap_or_else(|| {
                         panic!(
                             "Block in {} was not found in storage despite waiting for it",
-                            init.height
+                            proposal_init.height
                         )
                     });
 
                 let block_hash = txn
-                    .get_block_header(init.height)
+                    .get_block_header(proposal_init.height)
                     .expect("Get header from storage failed")
                     .unwrap_or_else(|| {
                         panic!(
                             "Block in {} was not found in storage despite waiting for it",
-                            init.height
+                            proposal_init.height
                         )
                     })
                     .block_hash;
 
                 let proposal = Proposal {
-                    height: init.height.0,
-                    round: init.round,
-                    proposer: init.proposer,
+                    height: proposal_init.height.0,
+                    round: proposal_init.round,
+                    proposer: proposal_init.proposer,
                     transactions: transactions.clone(),
                     block_hash,
-                    valid_round: init.valid_round,
+                    valid_round: proposal_init.valid_round,
                 };
                 network_broadcast_sender
                     .broadcast_message(ConsensusMessage::Proposal(proposal))
@@ -125,7 +129,10 @@ impl ConsensusContext for PapyrusConsensusContext {
                     let mut proposals = valid_proposals
                         .lock()
                         .expect("Lock on active proposals was poisoned due to a previous panic");
-                    proposals.entry(init.height).or_default().insert(block_hash, transactions);
+                    proposals
+                        .entry(proposal_init.height)
+                        .or_default()
+                        .insert(block_hash, transactions);
                 }
                 // Done after inserting the proposal into the map to avoid race conditions between
                 // insertion and calls to `repropose`.
