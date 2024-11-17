@@ -27,9 +27,7 @@ use self::hint_processor::{
     EmitEventError,
     SyscallExecutionError,
     SyscallHintProcessor,
-    BLOCK_NUMBER_OUT_OF_RANGE_ERROR,
 };
-use crate::abi::constants;
 use crate::execution::call_info::{MessageToL1, OrderedEvent, OrderedL2ToL1Message};
 use crate::execution::deprecated_syscalls::DeprecatedSyscallSelector;
 use crate::execution::entry_point::{CallEntryPoint, CallType, ConstructorContext};
@@ -41,16 +39,17 @@ use crate::execution::execution_utils::{
     ReadOnlySegment,
 };
 use crate::execution::syscalls::hint_processor::{INVALID_INPUT_LENGTH_ERROR, OUT_OF_GAS_ERROR};
+use crate::execution::syscalls::syscall_base::{get_block_hash_base, SyscallResult};
 use crate::transaction::account_transaction::is_cairo1;
 use crate::versioned_constants::{EventLimits, VersionedConstants};
 
 pub mod hint_processor;
 mod secp;
+pub mod syscall_base;
 
 #[cfg(test)]
 pub mod syscall_tests;
 
-pub type SyscallResult<T> = Result<T, SyscallExecutionError>;
 pub type WriteResponseResult = SyscallResult<()>;
 
 pub type SyscallSelector = DeprecatedSyscallSelector;
@@ -403,17 +402,8 @@ pub fn get_block_hash(
     let current_block_number =
         syscall_handler.context.tx_context.block_context.block_info.block_number.0;
 
-    if current_block_number < constants::STORED_BLOCK_HASH_BUFFER
-        || requested_block_number > current_block_number - constants::STORED_BLOCK_HASH_BUFFER
-    {
-        let out_of_range_error =
-            Felt::from_hex(BLOCK_NUMBER_OUT_OF_RANGE_ERROR).map_err(SyscallExecutionError::from)?;
-        return Err(SyscallExecutionError::SyscallError { error_data: vec![out_of_range_error] });
-    }
-
-    let key = StorageKey::try_from(Felt::from(requested_block_number))?;
-    let block_hash_contract_address =
-        ContractAddress::try_from(Felt::from(constants::BLOCK_HASH_CONTRACT_ADDRESS))?;
+    let (key, block_hash_contract_address) =
+        get_block_hash_base(current_block_number, requested_block_number)?;
     let block_hash =
         BlockHash(syscall_handler.state.get_storage_at(block_hash_contract_address, key)?);
     Ok(GetBlockHashResponse { block_hash })

@@ -28,7 +28,6 @@ use starknet_api::transaction::fields::{Calldata, ContractAddressSalt};
 use starknet_api::transaction::{EventContent, EventData, EventKey, L2ToL1Payload};
 use starknet_types_core::felt::Felt;
 
-use crate::abi::constants;
 use crate::execution::call_info::{
     CallInfo,
     MessageToL1,
@@ -50,10 +49,10 @@ use crate::execution::native::utils::{calculate_resource_bounds, default_tx_v2_i
 use crate::execution::syscalls::exceeds_event_size_limit;
 use crate::execution::syscalls::hint_processor::{
     SyscallExecutionError,
-    BLOCK_NUMBER_OUT_OF_RANGE_ERROR,
     INVALID_INPUT_LENGTH_ERROR,
     OUT_OF_GAS_ERROR,
 };
+use crate::execution::syscalls::syscall_base::get_block_hash_base;
 use crate::state::state_api::State;
 use crate::transaction::objects::TransactionInfo;
 
@@ -280,21 +279,9 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
 
         let current_block_number =
             self.context.tx_context.block_context.block_info().block_number.0;
-        if current_block_number < constants::STORED_BLOCK_HASH_BUFFER
-            || block_number > current_block_number - constants::STORED_BLOCK_HASH_BUFFER
-        {
-            // `panic` is unreachable in this case, also this is covered by tests so we can safely
-            // unwrap
-            let out_of_range_felt = Felt::from_hex(BLOCK_NUMBER_OUT_OF_RANGE_ERROR)
-                .expect("Converting BLOCK_NUMBER_OUT_OF_RANGE_ERROR to Felt should not fail.");
-            let error = SyscallExecutionError::SyscallError { error_data: vec![out_of_range_felt] };
-            return Err(self.handle_error(remaining_gas, error));
-        }
 
-        let key = StorageKey::try_from(Felt::from(block_number))
-            .map_err(|e| self.handle_error(remaining_gas, e.into()))?;
-        let block_hash_contract_address =
-            ContractAddress::try_from(Felt::from(constants::BLOCK_HASH_CONTRACT_ADDRESS))
+        let (key, block_hash_contract_address) =
+            get_block_hash_base(current_block_number, block_number)
                 .map_err(|e| self.handle_error(remaining_gas, e.into()))?;
 
         match self.state.get_storage_at(block_hash_contract_address, key) {
