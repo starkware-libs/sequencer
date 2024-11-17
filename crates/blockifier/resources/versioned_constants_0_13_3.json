@@ -39,6 +39,7 @@
     },
     "disable_cairo0_redeclaration": true,
     "enable_stateful_compression": false,
+    "charge_for_inner_events": true,
     "max_recursion_depth": 50,
     "enable_reverts": false,
     "segment_arena_cells": false,
