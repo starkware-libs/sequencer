@@ -100,9 +100,9 @@ pub enum BatcherClientError {
 }
 
 #[async_trait]
-impl<T> BatcherClient for T
+impl<ComponentClientType> BatcherClient for ComponentClientType
 where
-    T: Send + Sync + ComponentClient<BatcherRequest, BatcherResponse>,
+    ComponentClientType: Send + Sync + ComponentClient<BatcherRequest, BatcherResponse>,
 {
     async fn build_proposal(&self, input: BuildProposalInput) -> BatcherClientResult<()> {
         let request = BatcherRequest::BuildProposal(input);

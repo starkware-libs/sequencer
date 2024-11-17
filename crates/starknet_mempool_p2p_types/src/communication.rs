@@ -66,9 +66,10 @@ pub enum MempoolP2pPropagatorClientError {
 }
 
 #[async_trait]
-impl<T> MempoolP2pPropagatorClient for T
+impl<ComponentClientType> MempoolP2pPropagatorClient for ComponentClientType
 where
-    T: Send + Sync + ComponentClient<MempoolP2pPropagatorRequest, MempoolP2pPropagatorResponse>,
+    ComponentClientType:
+        Send + Sync + ComponentClient<MempoolP2pPropagatorRequest, MempoolP2pPropagatorResponse>,
 {
     async fn add_transaction(
         &self,

@@ -70,9 +70,9 @@ pub enum MempoolClientError {
 }
 
 #[async_trait]
-impl<T> MempoolClient for T
+impl<ComponentClientType> MempoolClient for ComponentClientType
 where
-    T: Send + Sync + ComponentClient<MempoolRequest, MempoolResponse>,
+    ComponentClientType: Send + Sync + ComponentClient<MempoolRequest, MempoolResponse>,
 {
     async fn add_tx(&self, args: AddTransactionArgsWrapper) -> MempoolClientResult<()> {
         let request = MempoolRequest::AddTransaction(args);
