@@ -29,7 +29,13 @@ pub trait ConsensusContext {
     /// The chunks of content returned when iterating the proposal.
     // In practice I expect this to match the type sent to the network
     // (papyrus_protobuf::ConsensusMessage), and not to be specific to just the block's content.
-    type ProposalChunk;
+    type ProposalChunk; // TODO(guyn): deprecate this (and replace by ProposalPart)
+    type ProposalPart: TryFrom<Vec<u8>, Error = ProtobufConversionError>
+        + Into<Vec<u8>>
+        + TryInto<ProposalInit, Error = ProtobufConversionError>
+        + From<ProposalInit>
+        + Clone
+        + Send;
 
     // TODO(matan): The oneshot for receiving the build block could be generalized to just be some
     // future which returns a block.
