@@ -5,13 +5,14 @@ use std::vec;
 use futures::channel::mpsc;
 use futures::SinkExt;
 use lazy_static::lazy_static;
+use papyrus_consensus::stream_handler::StreamHandler;
 use papyrus_consensus::types::ConsensusContext;
 use papyrus_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
     TestSubscriberChannels,
 };
 use papyrus_network::network_manager::BroadcastTopicChannels;
-use papyrus_protobuf::consensus::ProposalInit;
+use papyrus_protobuf::consensus::{ProposalInit, ProposalPart};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::{ContractAddress, StateDiffCommitment};
 use starknet_api::executable_transaction::{AccountTransaction, Transaction};
@@ -52,6 +53,20 @@ fn generate_invoke_tx(tx_hash: Felt) -> Transaction {
     })))
 }
 
+fn make_streaming_channels()
+-> (mpsc::Sender<(u64, mpsc::Receiver<ProposalPart>)>, mpsc::Receiver<mpsc::Receiver<ProposalPart>>)
+{
+    let TestSubscriberChannels { mock_network: _mock_network, subscriber_channels } =
+        mock_register_broadcast_topic().expect("Failed to create mock network");
+    let BroadcastTopicChannels {
+        broadcasted_messages_receiver: inbound_network_receiver,
+        broadcast_topic_client: outbound_network_sender,
+    } = subscriber_channels;
+    let (outbound_internal_sender, inbound_internal_receiver, _) =
+        StreamHandler::get_channels(inbound_network_receiver, outbound_network_sender);
+    (outbound_internal_sender, inbound_internal_receiver)
+}
+
 #[tokio::test]
 async fn build_proposal() {
     let mut batcher = MockBatcherClient::new();
@@ -79,12 +94,20 @@ async fn build_proposal() {
             }),
         })
     });
+    // TODO(guyn): remove this first set of channels once we are using only the streaming channels.
     let TestSubscriberChannels { mock_network: _mock_network, subscriber_channels } =
         mock_register_broadcast_topic().expect("Failed to create mock network");
     let BroadcastTopicChannels { broadcasted_messages_receiver: _, broadcast_topic_client } =
         subscriber_channels;
-    let mut context =
-        SequencerConsensusContext::new(Arc::new(batcher), broadcast_topic_client, NUM_VALIDATORS);
+
+    let (outbound_internal_sender, _inbound_internal_receiver) = make_streaming_channels();
+
+    let mut context = SequencerConsensusContext::new(
+        Arc::new(batcher),
+        broadcast_topic_client,
+        outbound_internal_sender,
+        NUM_VALIDATORS,
+    );
     let init = ProposalInit {
         height: BlockNumber(0),
         round: 0,
@@ -132,12 +155,20 @@ async fn validate_proposal_success() {
             })
         },
     );
+    // TODO(guyn): remove this first set of channels once we are using only the streaming channels.
     let TestSubscriberChannels { mock_network: _, subscriber_channels } =
         mock_register_broadcast_topic().expect("Failed to create mock network");
     let BroadcastTopicChannels { broadcasted_messages_receiver: _, broadcast_topic_client } =
         subscriber_channels;
-    let mut context =
-        SequencerConsensusContext::new(Arc::new(batcher), broadcast_topic_client, NUM_VALIDATORS);
+
+    let (outbound_internal_sender, _inbound_internal_receiver) = make_streaming_channels();
+
+    let mut context = SequencerConsensusContext::new(
+        Arc::new(batcher),
+        broadcast_topic_client,
+        outbound_internal_sender,
+        NUM_VALIDATORS,
+    );
     let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
     content_sender.send(TX_BATCH.clone()).await.unwrap();
     let fin_receiver = context.validate_proposal(BlockNumber(0), TIMEOUT, content_receiver).await;
@@ -170,12 +201,20 @@ async fn repropose() {
             })
         },
     );
+    // TODO(guyn): remove this first set of channels once we are using only the streaming channels.
     let TestSubscriberChannels { mock_network: _, subscriber_channels } =
         mock_register_broadcast_topic().expect("Failed to create mock network");
     let BroadcastTopicChannels { broadcasted_messages_receiver: _, broadcast_topic_client } =
         subscriber_channels;
-    let mut context =
-        SequencerConsensusContext::new(Arc::new(batcher), broadcast_topic_client, NUM_VALIDATORS);
+
+    let (outbound_internal_sender, _inbound_internal_receiver) = make_streaming_channels();
+
+    let mut context = SequencerConsensusContext::new(
+        Arc::new(batcher),
+        broadcast_topic_client,
+        outbound_internal_sender,
+        NUM_VALIDATORS,
+    );
 
     // Receive a valid proposal.
     let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);

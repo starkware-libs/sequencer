@@ -1,7 +1,6 @@
 use std::fs;
 
 use blockifier::abi::constants;
-use blockifier::blockifier::block::BlockInfo;
 use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::TransactionExecutor;
 use blockifier::bouncer::BouncerConfig;
@@ -13,7 +12,7 @@ use blockifier::state::state_api::{StateReader, StateResult};
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use blockifier::versioned_constants::VersionedConstants;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber, StarknetVersion};
+use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockInfo, BlockNumber, StarknetVersion};
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{Transaction, TransactionHash};
