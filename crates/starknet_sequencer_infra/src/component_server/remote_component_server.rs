@@ -108,6 +108,7 @@ pub struct RemoteComponentServer<Request, Response>
 where
     Request: Serialize + DeserializeOwned + Send + Sync + 'static,
     Response: Serialize + DeserializeOwned + Send + Sync + 'static,
+    LocalComponentClient<Request, Response>: ComponentClient<Request, Response>,
 {
     socket: SocketAddr,
     local_client: LocalComponentClient<Request, Response>,
