@@ -212,7 +212,7 @@ fn test_fee_enforcement(
         &mut NonceManager::default(),
     );
 
-    let enforce_fee = deploy_account_tx.create_tx_info().enforce_fee();
+    let enforce_fee = deploy_account_tx.enforce_fee();
     assert_ne!(zero_bounds, enforce_fee);
     let result = deploy_account_tx.execute(state, &block_context, enforce_fee, true);
     // Execution should fail if the fee is enforced because the account doesn't have sufficient
@@ -238,7 +238,7 @@ fn test_all_bounds_combinations_enforce_fee(
             DEFAULT_STRK_L1_DATA_GAS_PRICE.into(),
         ),
     });
-    assert_eq!(account_tx.create_tx_info().enforce_fee(), expected_enforce_fee);
+    assert_eq!(account_tx.enforce_fee(), expected_enforce_fee);
 }
 
 #[rstest]
