@@ -53,9 +53,12 @@ fn generate_invoke_tx(tx_hash: Felt) -> Transaction {
 }
 
 fn make_streaming_channels()
--> (mpsc::Sender<(u64, mpsc::Receiver<ProposalPart>)>, mpsc::Receiver<mpsc::Receiver<ProposalPart>>)
+-> (
+    mpsc::Sender<(u64, mpsc::Receiver<ProposalPart>)>, 
+    mpsc::Receiver<mpsc::Receiver<ProposalPart>>, 
+    u64,
 {
-    let TestSubscriberChannels { mock_network: _mock_network, subscriber_channels } =
+    let TestSubscriberChannels { mock_network, subscriber_channels } =
         mock_register_broadcast_topic().expect("Failed to create mock network");
     let BroadcastTopicChannels {
         broadcasted_messages_receiver: inbound_network_receiver,
@@ -63,7 +66,7 @@ fn make_streaming_channels()
     } = subscriber_channels;
     let (outbound_internal_sender, inbound_internal_receiver, _) =
         StreamHandler::get_channels(inbound_network_receiver, outbound_network_sender);
-    (outbound_internal_sender, inbound_internal_receiver)
+    (outbound_internal_sender, inbound_internal_receiver, mock_network)
 }
 
 #[tokio::test]
@@ -99,7 +102,7 @@ async fn build_proposal() {
     let BroadcastTopicChannels { broadcasted_messages_receiver: _, broadcast_topic_client } =
         subscriber_channels;
 
-    let (outbound_internal_sender, _inbound_internal_receiver) = make_streaming_channels();
+    let (outbound_internal_sender, _inbound_internal_receiver, _mock_network) = make_streaming_channels();
 
     let mut context = SequencerConsensusContext::new(
         Arc::new(batcher),
@@ -160,7 +163,7 @@ async fn validate_proposal_success() {
     let BroadcastTopicChannels { broadcasted_messages_receiver: _, broadcast_topic_client } =
         subscriber_channels;
 
-    let (outbound_internal_sender, _inbound_internal_receiver) = make_streaming_channels();
+    let (outbound_internal_sender, _inbound_internal_receiver, _mock_network, _mock_network) = make_streaming_channels();
 
     let mut context = SequencerConsensusContext::new(
         Arc::new(batcher),
@@ -210,7 +213,7 @@ async fn repropose() {
     let BroadcastTopicChannels { broadcasted_messages_receiver: _, broadcast_topic_client } =
         subscriber_channels;
 
-    let (outbound_internal_sender, _inbound_internal_receiver) = make_streaming_channels();
+    let (outbound_internal_sender, _inbound_internal_receiver, _mock_network) = make_streaming_channels();
 
     let mut context = SequencerConsensusContext::new(
         Arc::new(batcher),
@@ -280,7 +283,7 @@ async fn proposals_from_different_rounds() {
     let BroadcastTopicChannels { broadcasted_messages_receiver: _, broadcast_topic_client } =
         subscriber_channels;
 
-    let (outbound_internal_sender, _inbound_internal_receiver) = make_streaming_channels();
+    let (outbound_internal_sender, _inbound_internal_receiver, _mock_network) = make_streaming_channels();
 
     let mut context = SequencerConsensusContext::new(
         Arc::new(batcher),
@@ -363,7 +366,7 @@ async fn interrupt_active_proposal() {
     let BroadcastTopicChannels { broadcasted_messages_receiver: _, broadcast_topic_client } =
         subscriber_channels;
 
-    let (outbound_internal_sender, _inbound_internal_receiver) = make_streaming_channels();
+    let (outbound_internal_sender, _inbound_internal_receiver, _mock_network) = make_streaming_channels();
 
     let mut context = SequencerConsensusContext::new(
         Arc::new(batcher),

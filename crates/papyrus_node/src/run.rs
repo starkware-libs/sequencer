@@ -51,7 +51,10 @@ const DEFAULT_LEVEL: LevelFilter = LevelFilter::INFO;
 // different genesis hash.
 // TODO: Consider moving to a more general place.
 const GENESIS_HASH: &str = "0x0";
+<<<<<<< HEAD
 // TODO(guyn): move this to the config.
+=======
+>>>>>>> 93fd11f32 (feat: allow a streamed proposal channel on top of existing one)
 pub const NETWORK_TOPIC: &str = "consensus_proposals";
 
 // TODO(dvir): add this to config.
