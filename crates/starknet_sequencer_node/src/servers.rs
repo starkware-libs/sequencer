@@ -1,7 +1,8 @@
 use std::future::pending;
 use std::pin::Pin;
 
-use futures::{Future, FutureExt};
+use futures::stream::FuturesUnordered;
+use futures::{Future, FutureExt, StreamExt};
 use starknet_batcher::communication::{LocalBatcherServer, RemoteBatcherServer};
 use starknet_consensus_manager::communication::ConsensusManagerServer;
 use starknet_gateway::communication::{LocalGatewayServer, RemoteGatewayServer};
@@ -28,6 +29,8 @@ use crate::components::SequencerNodeComponents;
 use crate::config::component_execution_config::ComponentExecutionMode;
 use crate::config::node_config::SequencerNodeConfig;
 
+type ServerFuture = Pin<Box<dyn Future<Output = Result<(), ComponentServerError>> + Send>>;
+
 // Component servers that can run locally.
 struct LocalServers {
     pub(crate) batcher: Option<Box<LocalBatcherServer>>,
@@ -36,12 +39,71 @@ struct LocalServers {
     pub(crate) mempool_p2p_propagator: Option<Box<LocalMempoolP2pPropagatorServer>>,
 }
 
+// TODO(Nadin): Add a procedural attribute macro for get_server_futures and get_spawn_server_tasks.
+impl LocalServers {
+    pub fn get_server_futures(self) -> Vec<(&'static str, ServerFuture)> {
+        let batcher_future = get_server_future(self.batcher);
+        let gateway_future = get_server_future(self.gateway);
+        let mempool_future = get_server_future(self.mempool);
+        let mempool_p2p_propagator_future = get_server_future(self.mempool_p2p_propagator);
+
+        vec![
+            ("Batcher", batcher_future),
+            ("Gateway", gateway_future),
+            ("Mempool", mempool_future),
+            ("Mempool P2P Propagator", mempool_p2p_propagator_future),
+        ]
+    }
+
+    pub fn get_spawn_server_tasks(
+        self,
+    ) -> Vec<(String, tokio::task::JoinHandle<Result<(), ComponentServerError>>)> {
+        self.get_server_futures()
+            .into_iter()
+            .map(|(name, future)| {
+                let local_name = format!("Local {}", name);
+                let handle = tokio::spawn(future);
+                (local_name, handle)
+            })
+            .collect()
+    }
+}
+
 // Component servers that wrap a component without a server.
 struct WrapperServers {
     pub(crate) consensus_manager: Option<Box<ConsensusManagerServer>>,
     pub(crate) http_server: Option<Box<HttpServer>>,
     pub(crate) monitoring_endpoint: Option<Box<MonitoringEndpointServer>>,
     pub(crate) mempool_p2p_runner: Option<Box<MempoolP2pRunnerServer>>,
+}
+
+impl WrapperServers {
+    pub fn get_server_futures(self) -> Vec<(&'static str, ServerFuture)> {
+        let consensus_manager_future = get_server_future(self.consensus_manager);
+        let http_server_future = get_server_future(self.http_server);
+        let monitoring_endpoint_future = get_server_future(self.monitoring_endpoint);
+        let mempool_p2p_runner_future = get_server_future(self.mempool_p2p_runner);
+
+        vec![
+            ("Consensus Manager", consensus_manager_future),
+            ("Http", http_server_future),
+            ("Monitoring Endpoint", monitoring_endpoint_future),
+            ("Mempool P2P Runner", mempool_p2p_runner_future),
+        ]
+    }
+
+    pub fn get_spawn_server_tasks(
+        self,
+    ) -> Vec<(String, tokio::task::JoinHandle<Result<(), ComponentServerError>>)> {
+        self.get_server_futures()
+            .into_iter()
+            .map(|(name, future)| {
+                let wrapper_name = format!("Wrapper {}", name);
+                let handle = tokio::spawn(future);
+                (wrapper_name, handle)
+            })
+            .collect()
+    }
 }
 
 // Component servers that can run remotely.
@@ -53,6 +115,36 @@ pub struct RemoteServers {
     pub mempool_p2p_propagator: Option<Box<RemoteMempoolP2pPropagatorServer>>,
 }
 
+impl RemoteServers {
+    pub fn get_server_futures(self) -> Vec<(&'static str, ServerFuture)> {
+        let batcher_future = get_server_future(self.batcher);
+        let gateway_future = get_server_future(self.gateway);
+        let mempool_future = get_server_future(self.mempool);
+        let mempool_p2p_propagator_future = get_server_future(self.mempool_p2p_propagator);
+
+        vec![
+            ("Batcher", batcher_future),
+            ("Gateway", gateway_future),
+            ("Mempool", mempool_future),
+            ("Mempool P2P Propagator", mempool_p2p_propagator_future),
+        ]
+    }
+
+    pub fn get_spawn_server_tasks(
+        self,
+    ) -> Vec<(String, tokio::task::JoinHandle<Result<(), ComponentServerError>>)> {
+        self.get_server_futures()
+            .into_iter()
+            .map(|(name, future)| {
+                let remote_name = format!("Remote {}", name);
+                let handle = tokio::spawn(future);
+                (remote_name, handle)
+            })
+            .collect()
+    }
+}
+
+// TODO(Nadin): Add get_spawn_server_tasks function.
 pub struct SequencerNodeServers {
     local_servers: LocalServers,
     remote_servers: RemoteServers,
@@ -322,98 +414,55 @@ pub fn create_node_servers(
 
 // TODO(Nadin): refactor this function to reduce code duplication.
 pub async fn run_component_servers(servers: SequencerNodeServers) -> anyhow::Result<()> {
-    // Batcher servers.
-    let local_batcher_future = get_server_future(servers.local_servers.batcher);
-    let remote_batcher_future = get_server_future(servers.remote_servers.batcher);
+    // local server tasks.
+    // TODO(Nadin): Modify get_spawn_server_tasks to return a stream of server tasks.
+    let local_server_tasks = servers.local_servers.get_spawn_server_tasks();
 
-    // Consensus Manager server.
-    let consensus_manager_future = get_server_future(servers.wrapper_servers.consensus_manager);
+    let mut local_servers_stream: FuturesUnordered<_> = local_server_tasks
+        .into_iter()
+        .map(|(name, handle)| async move { (name, handle.await) })
+        .collect();
 
-    // Gateway servers.
-    let local_gateway_future = get_server_future(servers.local_servers.gateway);
-    let remote_gateway_future = get_server_future(servers.remote_servers.gateway);
+    // remote server tasks.
+    let remote_server_tasks = servers.remote_servers.get_spawn_server_tasks();
 
-    // HttpServer server.
-    let http_server_future = get_server_future(servers.wrapper_servers.http_server);
+    let mut remote_servers_stream: FuturesUnordered<_> = remote_server_tasks
+        .into_iter()
+        .map(|(name, handle)| async move { (name, handle.await) })
+        .collect();
 
-    // Mempool servers.
-    let local_mempool_future = get_server_future(servers.local_servers.mempool);
-    let remote_mempool_future = get_server_future(servers.remote_servers.mempool);
+    // wrapper server tasks.
+    let wrapper_server_tasks = servers.wrapper_servers.get_spawn_server_tasks();
 
-    // Sequencer Monitoring server.
-    let monitoring_endpoint_future = get_server_future(servers.wrapper_servers.monitoring_endpoint);
+    let mut wrapper_servers_stream: FuturesUnordered<_> = wrapper_server_tasks
+        .into_iter()
+        .map(|(name, handle)| async move { (name, handle.await) })
+        .collect();
 
-    // MempoolP2pPropagator servers.
-    let local_mempool_p2p_propagator_future =
-        get_server_future(servers.local_servers.mempool_p2p_propagator);
-    let remote_mempool_p2p_propagator_future =
-        get_server_future(servers.remote_servers.mempool_p2p_propagator);
-
-    // MempoolP2pRunner server.
-    let mempool_p2p_runner_future = get_server_future(servers.wrapper_servers.mempool_p2p_runner);
-
-    // Start servers.
-    let local_batcher_handle = tokio::spawn(local_batcher_future);
-    let remote_batcher_handle = tokio::spawn(remote_batcher_future);
-    let consensus_manager_handle = tokio::spawn(consensus_manager_future);
-    let local_gateway_handle = tokio::spawn(local_gateway_future);
-    let remote_gateway_handle = tokio::spawn(remote_gateway_future);
-    let http_server_handle = tokio::spawn(http_server_future);
-    let local_mempool_handle = tokio::spawn(local_mempool_future);
-    let remote_mempool_handle = tokio::spawn(remote_mempool_future);
-    let monitoring_endpoint_handle = tokio::spawn(monitoring_endpoint_future);
-    let local_mempool_p2p_propagator_handle = tokio::spawn(local_mempool_p2p_propagator_future);
-    let remote_mempool_p2p_propagator_handle = tokio::spawn(remote_mempool_p2p_propagator_future);
-    let mempool_p2p_runner_handle = tokio::spawn(mempool_p2p_runner_future);
-
-    let result = tokio::select! {
-        res = local_batcher_handle => {
-            error!("Local Batcher Server stopped.");
-            res?
-        }
-        res = remote_batcher_handle => {
-            error!("Remote Batcher Server stopped.");
-            res?
-        }
-        res = consensus_manager_handle => {
-            error!("Consensus Manager Server stopped.");
-            res?
-        }
-        res = local_gateway_handle => {
-            error!("Local Gateway Server stopped.");
-            res?
-        }
-        res = remote_gateway_handle => {
-            error!("Remote Gateway Server stopped.");
-            res?
-        }
-        res = http_server_handle => {
-            error!("Http Server stopped.");
-            res?
-        }
-        res = local_mempool_handle => {
-            error!("Local Mempool Server stopped.");
-            res?
-        }
-        res = remote_mempool_handle => {
-            error!("Remote Mempool Server stopped.");
-            res?
-        }
-        res = monitoring_endpoint_handle => {
-            error!("Monitoring Endpoint Server stopped.");
-            res?
-        }
-        res = local_mempool_p2p_propagator_handle => {
-            error!("Local Mempool P2P Propagator Server stopped.");
-            res?
-        }
-        res = remote_mempool_p2p_propagator_handle => {
-            error!("Remote Mempool P2P Propagator Server stopped.");
-            res?
-        }
-        res = mempool_p2p_runner_handle => {
-            error!("Mempool P2P Runner Server stopped.");
-            res?
+    // TODO(Nadin): Add macro for the result (continue / break).
+    let result = loop {
+        tokio::select! {
+            Some((name, res)) = local_servers_stream.next() => {
+                error!("{} Server stopped.", name);
+                match res {
+                    Ok(_) => continue,
+                    Err(e) => break Err(e),
+                }
+            }
+            Some((name, res)) = remote_servers_stream.next() => {
+                error!("{} Server stopped.", name);
+                match res {
+                    Ok(_) => continue,
+                    Err(e) => break Err(e),
+                }
+            }
+            Some((name, res)) = wrapper_servers_stream.next() => {
+                error!("{} Server stopped.", name);
+                match res {
+                    Ok(_) => continue,
+                    Err(e) => break Err(e),
+                }
+            }
         }
     };
     error!("Servers ended with unexpected Ok.");
