@@ -147,7 +147,7 @@ impl CallInfo {
         event_summary
     }
 
-    pub fn summarize(&self, _versioned_constants: &VersionedConstants) -> ExecutionSummary {
+    pub fn summarize(&self, versioned_constants: &VersionedConstants) -> ExecutionSummary {
         let mut executed_class_hashes: HashSet<ClassHash> = HashSet::new();
         let mut visited_storage_entries: HashSet<StorageEntry> = HashSet::new();
         let mut event_summary = EventSummary::default();
@@ -176,7 +176,13 @@ impl CallInfo {
             );
 
             // Events.
-            event_summary += call_info.specific_event_summary();
+            if versioned_constants.charge_for_inner_events {
+                event_summary += call_info.specific_event_summary();
+            }
+        }
+
+        if !versioned_constants.charge_for_inner_events {
+            event_summary = self.specific_event_summary();
         }
 
         ExecutionSummary {
