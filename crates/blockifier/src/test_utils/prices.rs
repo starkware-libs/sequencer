@@ -4,6 +4,7 @@ use cached::proc_macro::cached;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::core::ContractAddress;
 use starknet_api::test_utils::invoke::InvokeTxArgs;
+use starknet_api::transaction::constants;
 use starknet_api::{calldata, felt};
 
 use crate::abi::abi_utils::{get_fee_token_var_address, selector_from_name};
@@ -13,7 +14,6 @@ use crate::execution::entry_point::{CallEntryPoint, EntryPointExecutionContext};
 use crate::state::state_api::State;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::BALANCE;
-use crate::transaction::constants;
 use crate::transaction::objects::FeeType;
 use crate::transaction::test_utils::account_invoke_tx;
 

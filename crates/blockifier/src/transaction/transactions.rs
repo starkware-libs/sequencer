@@ -15,7 +15,12 @@ use starknet_api::transaction::fields::{
     Fee,
     TransactionSignature,
 };
-use starknet_api::transaction::{DeclareTransactionV2, DeclareTransactionV3, TransactionVersion};
+use starknet_api::transaction::{
+    constants,
+    DeclareTransactionV2,
+    DeclareTransactionV3,
+    TransactionVersion,
+};
 
 use crate::abi::abi_utils::selector_from_name;
 use crate::context::{BlockContext, TransactionContext};
@@ -30,7 +35,6 @@ use crate::execution::execution_utils::execute_deployment;
 use crate::state::cached_state::TransactionalState;
 use crate::state::errors::StateError;
 use crate::state::state_api::{State, UpdatableState};
-use crate::transaction::constants;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::{
     CommonAccountFields,
