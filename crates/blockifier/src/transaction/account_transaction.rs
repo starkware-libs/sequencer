@@ -150,7 +150,12 @@ impl HasRelatedFeeType for AccountTransaction {
 }
 
 impl AccountTransaction {
-    implement_tx_getter_calls!((resource_bounds, ValidResourceBounds), (tip, Tip));
+    implement_tx_getter_calls!(
+        (resource_bounds, ValidResourceBounds),
+        (tip, Tip),
+        (sender_address, ContractAddress),
+        (tx_hash, TransactionHash)
+    );
 
     implement_account_tx_inner_getters!(
         (signature, TransactionSignature),
@@ -166,10 +171,6 @@ impl AccountTransaction {
 
     pub fn new_for_query(tx: starknet_api::executable_transaction::AccountTransaction) -> Self {
         AccountTransaction { tx, only_query: true }
-    }
-
-    pub fn sender_address(&self) -> ContractAddress {
-        self.tx.sender_address()
     }
 
     pub fn class_hash(&self) -> Option<ClassHash> {
@@ -236,10 +237,6 @@ impl AccountTransaction {
 
     pub fn signature_length(&self) -> usize {
         self.signature().0.len()
-    }
-
-    pub fn tx_hash(&self) -> TransactionHash {
-        self.tx.tx_hash()
     }
 
     pub fn enforce_fee(&self) -> bool {
