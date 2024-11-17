@@ -326,14 +326,11 @@ impl Mempool {
 
 // TODO(Elin): move to a shared location with other next-gen node crates.
 fn tip(tx: &AccountTransaction) -> Tip {
-    tx.tip().expect("Expected a valid tip value.")
+    tx.tip()
 }
 
 fn max_l2_gas_price(tx: &AccountTransaction) -> GasPrice {
-    tx.resource_bounds()
-        .expect("Expected a valid resource bounds value.")
-        .get_l2_bounds()
-        .max_price_per_unit
+    tx.resource_bounds().get_l2_bounds().max_price_per_unit
 }
 
 /// Provides a lightweight representation of a transaction for mempool usage (e.g., excluding
