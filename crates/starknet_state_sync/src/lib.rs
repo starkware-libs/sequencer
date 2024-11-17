@@ -1,3 +1,4 @@
+pub mod config;
 pub mod runner;
 
 use async_trait::async_trait;
@@ -7,14 +8,15 @@ use starknet_sequencer_infra::component_definitions::ComponentRequestHandler;
 use starknet_state_sync_types::communication::{StateSyncRequest, StateSyncResponse};
 use starknet_state_sync_types::errors::StateSyncError;
 
+use crate::config::StateSyncConfig;
 use crate::runner::StateSyncRunner;
 
 // TODO(shahak): consider adding to config
 const BUFFER_SIZE: usize = 100000;
 
-pub fn create_state_sync_and_runner() -> (StateSync, StateSyncRunner) {
+pub fn create_state_sync_and_runner(config: StateSyncConfig) -> (StateSync, StateSyncRunner) {
     let (request_sender, request_receiver) = mpsc::channel(BUFFER_SIZE);
-    (StateSync { request_sender }, StateSyncRunner { request_receiver })
+    (StateSync { request_sender }, StateSyncRunner::new(config, request_receiver))
 }
 
 pub struct StateSync {
