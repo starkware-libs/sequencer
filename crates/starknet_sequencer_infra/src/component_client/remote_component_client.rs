@@ -41,7 +41,7 @@ use crate::serde_utils::BincodeSerdeWrapper;
 /// };
 ///
 /// // Define your request and response types
-/// #[derive(Serialize, Deserialize, Debug, Clone)]
+/// #[derive(Serialize, Deserialize, Debug)]
 /// struct MyRequest {
 ///     pub content: String,
 /// }
@@ -134,7 +134,6 @@ where
     }
 }
 
-// TODO(Tsabary): remove clone trait from request and response, throughout.
 #[async_trait]
 impl<Request, Response> ComponentClient<Request, Response>
     for RemoteComponentClient<Request, Response>
