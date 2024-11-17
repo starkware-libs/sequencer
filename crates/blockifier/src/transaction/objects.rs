@@ -32,6 +32,7 @@ use crate::fee::fee_checks::FeeCheckError;
 use crate::fee::fee_utils::get_fee_by_gas_vector;
 use crate::fee::receipt::TransactionReceipt;
 use crate::transaction::errors::{TransactionExecutionError, TransactionPreValidationError};
+use crate::versioned_constants::VersionedConstants;
 
 #[cfg(test)]
 #[path = "objects_test.rs"]
@@ -225,8 +226,8 @@ impl TransactionExecutionInfo {
 
     /// Returns a summary of transaction execution, including executed class hashes, visited storage
     /// entries, L2-to-L1_payload_lengths, and the number of emitted events.
-    pub fn summarize(&self) -> ExecutionSummary {
-        CallInfo::summarize_many(self.non_optional_call_infos())
+    pub fn summarize(&self, versioned_constants: &VersionedConstants) -> ExecutionSummary {
+        CallInfo::summarize_many(self.non_optional_call_infos(), versioned_constants)
     }
 }
 pub trait ExecutionResourcesTraits {

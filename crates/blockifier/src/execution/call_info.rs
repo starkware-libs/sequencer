@@ -14,6 +14,7 @@ use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::state::cached_state::StorageEntry;
 use crate::utils::u64_from_usize;
+use crate::versioned_constants::VersionedConstants;
 
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
@@ -167,7 +168,7 @@ impl CallInfo {
         event_summary
     }
 
-    pub fn summarize(&self) -> ExecutionSummary {
+    pub fn summarize(&self, _versioned_constants: &VersionedConstants) -> ExecutionSummary {
         let mut executed_class_hashes: HashSet<ClassHash> = HashSet::new();
         let mut visited_storage_entries: HashSet<StorageEntry> = HashSet::new();
         let mut event_summary = EventSummary::default();
@@ -207,8 +208,11 @@ impl CallInfo {
         }
     }
 
-    pub fn summarize_many<'a>(call_infos: impl Iterator<Item = &'a CallInfo>) -> ExecutionSummary {
-        call_infos.map(|call_info| call_info.summarize()).sum()
+    pub fn summarize_many<'a>(
+        call_infos: impl Iterator<Item = &'a CallInfo>,
+        versioned_constants: &VersionedConstants,
+    ) -> ExecutionSummary {
+        call_infos.map(|call_info| call_info.summarize(versioned_constants)).sum()
     }
 }
 
