@@ -18,8 +18,9 @@ use crate::{impl_from_through_intermediate, StarknetApiError};
 
 /// Felt.
 pub fn ascii_as_felt(ascii_str: &str) -> Result<Felt, StarknetApiError> {
-    Felt::from_hex(hex::encode(ascii_str).as_str())
-        .map_err(|_| StarknetApiError::OutOfRange { string: ascii_str.to_string() })
+    Felt::from_hex(hex::encode(ascii_str).as_str()).map_err(|_| StarknetApiError::OutOfRange {
+        string: format!("The str {}, does not fit into a single felt", ascii_str),
+    })
 }
 
 /// A chain id.

@@ -13,6 +13,10 @@ use thiserror::Error;
 use crate::state::errors::StateError;
 use crate::state::state_api::StateReader;
 
+#[cfg(test)]
+#[path = "sierra_types_test.rs"]
+mod test;
+
 pub type SierraTypeResult<T> = Result<T, SierraTypeError>;
 
 #[derive(Debug, Error)]
@@ -41,8 +45,8 @@ pub trait SierraType: Sized {
 
 // Utils.
 
-pub fn felt_to_u128(felt: &Felt) -> Result<u128, SierraTypeError> {
-    felt.to_u128().ok_or_else(|| SierraTypeError::ValueTooLargeForType { val: *felt, ty: "u128" })
+fn felt_to_u128(felt: &Felt) -> Result<u128, SierraTypeError> {
+    felt.to_u128().ok_or(SierraTypeError::ValueTooLargeForType { val: *felt, ty: "u128" })
 }
 
 // Implementations.
