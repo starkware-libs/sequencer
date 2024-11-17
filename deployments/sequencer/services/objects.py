@@ -19,9 +19,9 @@ class Probe:
 
 @dataclasses.dataclass
 class HealthCheck:
-    startup_probe: Optional[Probe] = None
-    readiness_probe: Optional[Probe] = None
-    liveness_probe: Optional[Probe] = None
+    startup_probe: Optional[Probe] | None = None
+    readiness_probe: Optional[Probe] | None = None
+    liveness_probe: Optional[Probe] | None = None
 
 
 @dataclasses.dataclass
@@ -42,7 +42,7 @@ class PersistentVolumeClaim:
 
 
 @dataclasses.dataclass
-class Config():
+class Config:
     schema: Dict[Any, Any]
     config: Dict[Any, Any]
     mount_path: str
@@ -78,8 +78,8 @@ class IngressRule:
 
 @dataclasses.dataclass
 class IngressTls:
-    hosts: Sequence[str] | None
-    secret_name: str | None
+    hosts: Sequence[str] | None = None
+    secret_name: str | None = None
 
 
 @dataclasses.dataclass
