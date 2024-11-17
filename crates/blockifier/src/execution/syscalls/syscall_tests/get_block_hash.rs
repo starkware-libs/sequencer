@@ -117,11 +117,10 @@ fn negative_flow_block_number_out_of_range(test_contract: FeatureContract) {
         ..trivial_external_entry_point_new(test_contract)
     };
 
-    let call_result = entry_point_call.execute_directly(&mut state);
-    let (actual_error_msg, expected_error_msg) = (
-        format_panic_data(&call_result.unwrap().execution.retdata.0),
-        "0x426c6f636b206e756d626572206f7574206f662072616e6765 ('Block number out of range')",
+    let call_info = entry_point_call.execute_directly(&mut state).unwrap();
+    assert!(call_info.execution.failed);
+    assert_eq!(
+        format_panic_data(&call_info.execution.retdata.0),
+        "0x426c6f636b206e756d626572206f7574206f662072616e6765 ('Block number out of range')"
     );
-
-    assert_eq!(actual_error_msg, expected_error_msg);
 }
