@@ -229,13 +229,7 @@ impl AccountTransaction {
     }
 
     pub fn signature_length(&self) -> usize {
-        let signature = match &self.tx {
-            Transaction::Declare(tx) => tx.signature(),
-            Transaction::DeployAccount(tx) => tx.signature(),
-            Transaction::Invoke(tx) => tx.signature(),
-        };
-
-        signature.0.len()
+        self.signature().0.len()
     }
 
     pub fn tx_hash(&self) -> TransactionHash {
