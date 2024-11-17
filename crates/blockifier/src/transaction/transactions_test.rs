@@ -54,7 +54,6 @@ use crate::abi::abi_utils::{
     selector_from_name,
 };
 use crate::abi::constants as abi_constants;
-use crate::abi::sierra_types::next_storage_key;
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use crate::execution::call_info::{
     CallExecution,
@@ -304,9 +303,10 @@ fn expected_fee_transfer_call_info(
 
     let sender_balance_key_low = get_fee_token_var_address(account_address);
     let sender_balance_key_high =
-        next_storage_key(&sender_balance_key_low).expect("Cannot get sender balance high key.");
+        sender_balance_key_low.next_storage_key().expect("Cannot get sender balance high key.");
     let sequencer_balance_key_low = get_fee_token_var_address(expected_sequencer_address);
-    let sequencer_balance_key_high = next_storage_key(&sequencer_balance_key_low)
+    let sequencer_balance_key_high = sequencer_balance_key_low
+        .next_storage_key()
         .expect("Cannot get sequencer balance high key.");
     Some(CallInfo {
         call: expected_fee_transfer_call,
@@ -630,7 +630,7 @@ fn verify_storage_after_invoke_advanced_operations(
     let key = get_storage_var_address("two_counters", &[index]);
     let value = state.get_storage_at(contract_address, key).unwrap();
     assert_eq!(value, expected_counters[0]);
-    let key = next_storage_key(&key).unwrap();
+    let key = key.next_storage_key().unwrap();
     let value = state.get_storage_at(contract_address, key).unwrap();
     assert_eq!(value, expected_counters[1]);
 
@@ -638,7 +638,7 @@ fn verify_storage_after_invoke_advanced_operations(
     let key = get_storage_var_address("ec_point", &[]);
     let value = state.get_storage_at(contract_address, key).unwrap();
     assert_eq!(value, expected_ec_point[0]);
-    let key = next_storage_key(&key).unwrap();
+    let key = key.next_storage_key().unwrap();
     let value = state.get_storage_at(contract_address, key).unwrap();
     assert_eq!(value, expected_ec_point[1]);
 

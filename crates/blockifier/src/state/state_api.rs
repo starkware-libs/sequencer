@@ -6,7 +6,6 @@ use starknet_types_core::felt::Felt;
 
 use super::cached_state::{ContractClassMapping, StateMaps};
 use crate::abi::abi_utils::get_fee_token_var_address;
-use crate::abi::sierra_types::next_storage_key;
 use crate::execution::contract_class::RunnableContractClass;
 use crate::state::errors::StateError;
 
@@ -60,7 +59,7 @@ pub trait StateReader {
         fee_token_address: ContractAddress,
     ) -> Result<(Felt, Felt), StateError> {
         let low_key = get_fee_token_var_address(contract_address);
-        let high_key = next_storage_key(&low_key)?;
+        let high_key = low_key.next_storage_key()?;
         let low = self.get_storage_at(fee_token_address, low_key)?;
         let high = self.get_storage_at(fee_token_address, high_key)?;
 

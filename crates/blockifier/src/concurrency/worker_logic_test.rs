@@ -11,7 +11,6 @@ use starknet_types_core::felt::Felt;
 
 use super::WorkerExecutor;
 use crate::abi::abi_utils::get_fee_token_var_address;
-use crate::abi::sierra_types::next_storage_key;
 use crate::bouncer::Bouncer;
 use crate::concurrency::fee_utils::STORAGE_READ_SEQUENCER_BALANCE_INDICES;
 use crate::concurrency::scheduler::{Task, TransactionStatus};
@@ -345,7 +344,7 @@ fn test_worker_execute(default_all_resource_bounds: ValidResourceBounds) {
     let erc20 = FeatureContract::ERC20(CairoVersion::Cairo0);
     let erc_contract_address = contract_address!(TEST_ERC20_CONTRACT_ADDRESS2);
     let account_balance_key_low = get_fee_token_var_address(account_address);
-    let account_balance_key_high = next_storage_key(&account_balance_key_low).unwrap();
+    let account_balance_key_high = account_balance_key_low.next_storage_key().unwrap();
     // Both in write and read sets, only the account balance appear, and not the sequencer balance.
     // This is because when executing transaction in concurrency mode on, we manually remove the
     // writes and reads to and from the sequencer balance (to avoid the inevitable dependency
