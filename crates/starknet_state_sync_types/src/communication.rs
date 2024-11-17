@@ -1,6 +1,15 @@
+use std::sync::Arc;
+
 use async_trait::async_trait;
+use papyrus_proc_macros::handle_response_variants;
+use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
-use starknet_sequencer_infra::component_client::ClientError;
+use starknet_sequencer_infra::component_client::{
+    ClientError,
+    LocalComponentClient,
+    RemoteComponentClient,
+};
+use starknet_sequencer_infra::component_definitions::ComponentRequestAndResponseSender;
 use thiserror::Error;
 
 use crate::errors::StateSyncError;
@@ -18,6 +27,8 @@ pub trait StateSyncClient: Send + Sync {
     // TODO: Add state reader methods for gateway.
 }
 
+pub type StateSyncResult<T> = Result<T, StateSyncError>;
+
 #[derive(Clone, Debug, Error)]
 pub enum StateSyncClientError {
     #[error(transparent)]
@@ -27,4 +38,42 @@ pub enum StateSyncClientError {
 }
 pub type StateSyncClientResult<T> = Result<T, StateSyncClientError>;
 
-// TODO: Add client types and request/response enums
+pub type LocalStateSyncClient = LocalComponentClient<StateSyncRequest, StateSyncResponse>;
+pub type RemoteStateSyncClient = RemoteComponentClient<StateSyncRequest, StateSyncResponse>;
+pub type SharedStateSyncClient = Arc<dyn StateSyncClient>;
+pub type StateSyncRequestAndResponseSender =
+    ComponentRequestAndResponseSender<StateSyncRequest, StateSyncResponse>;
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum StateSyncRequest {
+    GetBlock(BlockNumber),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum StateSyncResponse {
+    GetBlock(StateSyncResult<Option<SyncBlock>>),
+}
+
+#[async_trait]
+impl StateSyncClient for LocalStateSyncClient {
+    async fn get_block(
+        &self,
+        block_number: BlockNumber,
+    ) -> StateSyncClientResult<Option<SyncBlock>> {
+        let request = StateSyncRequest::GetBlock(block_number);
+        let response = self.send(request).await;
+        handle_response_variants!(StateSyncResponse, GetBlock, StateSyncClientError, StateSyncError)
+    }
+}
+
+#[async_trait]
+impl StateSyncClient for RemoteStateSyncClient {
+    async fn get_block(
+        &self,
+        block_number: BlockNumber,
+    ) -> StateSyncClientResult<Option<SyncBlock>> {
+        let request = StateSyncRequest::GetBlock(block_number);
+        let response = self.send(request).await?;
+        handle_response_variants!(StateSyncResponse, GetBlock, StateSyncClientError, StateSyncError)
+    }
+}
