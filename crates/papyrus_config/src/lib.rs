@@ -48,6 +48,7 @@
 //! ```
 
 use clap::parser::MatchesError;
+use dumping::REQUIRED_PARAM_DESCRIPTION_PREFIX;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use validator::ValidationError;
@@ -146,6 +147,14 @@ pub struct SerializedParam {
     #[serde(flatten)]
     pub content: SerializedContent,
     pub(crate) privacy: ParamPrivacy,
+}
+
+impl SerializedParam {
+    /// Whether the parameter is required.
+    // TODO(yair): Find a better way to identify required params - maybe add to the dump.
+    pub fn is_required(&self) -> bool {
+        self.description.starts_with(REQUIRED_PARAM_DESCRIPTION_PREFIX)
+    }
 }
 
 /// A serialized type of a configuration parameter.

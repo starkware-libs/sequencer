@@ -349,8 +349,11 @@ pub fn set_pointing_param_paths(param_path_list: &[&str]) -> Pointers {
     param_paths
 }
 
+/// Prefix for required params description.
+pub(crate) const REQUIRED_PARAM_DESCRIPTION_PREFIX: &str = "A required param!";
+
 pub(crate) fn required_param_description(description: &str) -> String {
-    format!("A required param! {}", description)
+    format!("{} {}", REQUIRED_PARAM_DESCRIPTION_PREFIX, description)
 }
 
 /// Verifies that params whose name matches a pointer target either point at it, or are whitelisted.
