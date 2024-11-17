@@ -16,6 +16,7 @@ use crate::execution::call_info::{
 };
 use crate::execution::entry_point::CallEntryPoint;
 use crate::transaction::objects::TransactionExecutionInfo;
+use crate::versioned_constants::VersionedConstants;
 
 #[derive(Debug, Default)]
 pub struct TestExecutionSummary {
@@ -129,7 +130,7 @@ fn test_events_counter_in_tx_execution_info(
     };
 
     assert_eq!(
-        tx_execution_info.summarize().event_summary.n_events,
+        tx_execution_info.summarize(&VersionedConstants::latest_constants()).event_summary.n_events,
         n_validate_events + n_execute_events + n_fee_transfer_events + n_inner_calls
     );
 }
@@ -158,7 +159,7 @@ fn test_events_counter_in_tx_execution_info_with_inner_call_info(#[case] n_execu
     };
 
     assert_eq!(
-        tx_execution_info.summarize().event_summary.n_events,
+        tx_execution_info.summarize(&VersionedConstants::latest_constants()).event_summary.n_events,
         n_execute_events
             + n_fee_transfer_events
             + n_execution_events
@@ -220,7 +221,7 @@ fn test_summarize(
     };
 
     // Call the summarize method
-    let actual_summary = tx_execution_info.summarize();
+    let actual_summary = tx_execution_info.summarize(&VersionedConstants::latest_constants());
 
     // Compare the actual result with the expected result
     assert_eq!(actual_summary.executed_class_hashes, expected_summary.executed_class_hashes);

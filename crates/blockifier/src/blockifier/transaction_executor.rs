@@ -113,7 +113,7 @@ impl<S: StateReader> TransactionExecutor<S> {
                 self.bouncer.try_update(
                     &transactional_state,
                     &tx_state_changes_keys,
-                    &tx_execution_info.summarize(),
+                    &tx_execution_info.summarize(&self.block_context.versioned_constants),
                     &tx_execution_info.receipt.resources,
                 )?;
                 transactional_state.commit();
