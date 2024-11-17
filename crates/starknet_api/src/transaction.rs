@@ -155,12 +155,10 @@ impl From<(Transaction, TransactionHash)> for crate::executable_transaction::Tra
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Default)]
 pub struct TransactionOptions {
     /// Transaction that shouldn't be broadcasted to StarkNet. For example, users that want to
-    /// test the execution result of a transaction without the risk of it being rebroadcasted (the
     /// signature will be different while the execution remain the same). Using this flag will
     /// modify the transaction version by setting the 128-th bit to 1.
     pub only_query: bool,
 }
-
 macro_rules! implement_v3_tx_getters {
     ($(($field:ident, $field_type:ty)),*) => {
         $(pub fn $field(&self) -> $field_type {
