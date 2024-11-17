@@ -3,12 +3,8 @@ mod test;
 
 use async_trait::async_trait;
 use papyrus_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
-use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_protobuf::mempool::RpcTransactionWrapper;
-use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_mempool_p2p_types::communication::{
-    MempoolP2pPropagatorClient,
-    MempoolP2pPropagatorClientResult,
     MempoolP2pPropagatorRequest,
     MempoolP2pPropagatorResponse,
 };
@@ -52,25 +48,6 @@ impl ComponentRequestHandler<MempoolP2pPropagatorRequest, MempoolP2pPropagatorRe
                 MempoolP2pPropagatorResponse::ContinuePropagation(result)
             }
         }
-    }
-}
-
-pub struct EmptyMempoolP2pPropagatorClient;
-
-#[async_trait]
-impl MempoolP2pPropagatorClient for EmptyMempoolP2pPropagatorClient {
-    async fn add_transaction(
-        &self,
-        _transaction: RpcTransaction,
-    ) -> MempoolP2pPropagatorClientResult<()> {
-        Ok(())
-    }
-
-    async fn continue_propagation(
-        &self,
-        _propagation_manager: BroadcastedMessageMetadata,
-    ) -> MempoolP2pPropagatorClientResult<()> {
-        Ok(())
     }
 }
 
