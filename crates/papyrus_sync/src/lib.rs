@@ -231,7 +231,7 @@ impl<
     TBaseLayerSource: BaseLayerSourceTrait + Sync + Send,
 > GenericStateSync<TCentralSource, TPendingSource, TBaseLayerSource>
 {
-    pub async fn run(&mut self) -> StateSyncResult {
+    pub async fn run(mut self) -> StateSyncResult {
         info!("State sync started.");
         loop {
             match self.sync_while_ok().await {
