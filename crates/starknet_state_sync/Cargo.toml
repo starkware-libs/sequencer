@@ -11,5 +11,15 @@ workspace = true
 [dependencies]
 async-trait.workspace = true
 futures.workspace = true
+papyrus_base_layer.workspace = true
+papyrus_common.workspace = true
+papyrus_config.workspace = true
+papyrus_storage.workspace = true
+papyrus_sync.workspace = true
+serde.workspace = true
+starknet_api = { workspace = true, features = ["testing"] }
+starknet_client.workspace = true
 starknet_sequencer_infra.workspace = true
 starknet_state_sync_types.workspace = true
+tokio.workspace = true
+validator.workspace = true
