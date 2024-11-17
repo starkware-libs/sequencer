@@ -10,8 +10,6 @@ use validator::Validate;
 pub struct MempoolP2pConfig {
     #[validate]
     pub network_config: NetworkConfig,
-    // TODO: Enter this inside NetworkConfig
-    pub executable_version: Option<String>,
     pub network_buffer_size: usize,
 }
 
