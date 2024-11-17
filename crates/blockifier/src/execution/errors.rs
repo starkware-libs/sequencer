@@ -15,7 +15,7 @@ use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use thiserror::Error;
 
 use crate::execution::entry_point::ConstructorContext;
-use crate::execution::stack_trace::Cairo1RevertStack;
+use crate::execution::stack_trace::Cairo1RevertSummary;
 #[cfg(feature = "cairo_native")]
 use crate::execution::syscalls::hint_processor::SyscallExecutionError;
 use crate::state::errors::StateError;
@@ -84,8 +84,8 @@ impl From<RunnerError> for PostExecutionError {
 pub enum EntryPointExecutionError {
     #[error(transparent)]
     CairoRunError(#[from] CairoRunError),
-    #[error("Execution failed. Failure reason:\n{error_trace}.")]
-    ExecutionFailed { error_trace: Cairo1RevertStack },
+    #[error("{error_trace}")]
+    ExecutionFailed { error_trace: Cairo1RevertSummary },
     #[error("Internal error: {0}")]
     InternalError(String),
     #[error("Invalid input: {input_descriptor}; {info}")]
