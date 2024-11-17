@@ -1,5 +1,4 @@
 pub mod account_transaction;
-pub mod constants;
 #[cfg(test)]
 pub mod error_format_test;
 pub mod errors;

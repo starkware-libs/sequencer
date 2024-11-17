@@ -1,7 +1,7 @@
 use rstest::{fixture, rstest};
 use starknet_api::execution_resources::GasVector;
 use starknet_api::transaction::fields::GasVectorComputationMode;
-use starknet_api::transaction::L2ToL1Payload;
+use starknet_api::transaction::{constants, L2ToL1Payload};
 use starknet_api::{invoke_tx_args, nonce};
 use starknet_types_core::felt::Felt;
 
@@ -24,7 +24,6 @@ use crate::state::cached_state::StateChangesCount;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{create_calldata, create_trivial_calldata, CairoVersion, BALANCE};
-use crate::transaction::constants;
 use crate::transaction::objects::HasRelatedFeeType;
 use crate::transaction::test_utils::{
     account_invoke_tx,

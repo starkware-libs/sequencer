@@ -2,6 +2,7 @@ use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use starknet_api::core::ContractAddress;
 use starknet_api::test_utils::NonceManager;
+use starknet_api::transaction::constants::TRANSFER_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::TransactionVersion;
 use starknet_api::{calldata, felt, invoke_tx_args};
@@ -17,7 +18,6 @@ use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::invoke::invoke_tx;
 use crate::test_utils::{CairoVersion, BALANCE, MAX_FEE};
 use crate::transaction::account_transaction::AccountTransaction;
-use crate::transaction::constants::TRANSFER_ENTRY_POINT_NAME;
 use crate::transaction::transaction_execution::Transaction;
 
 const N_ACCOUNTS: u16 = 10000;

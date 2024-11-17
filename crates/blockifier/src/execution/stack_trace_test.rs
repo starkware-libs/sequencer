@@ -10,6 +10,14 @@ use starknet_api::core::{
     Nonce,
 };
 use starknet_api::executable_transaction::AccountTransaction as Transaction;
+use starknet_api::transaction::constants::{
+    DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME,
+    EXECUTE_ENTRY_POINT_NAME,
+    FELT_TRUE,
+    VALIDATE_DECLARE_ENTRY_POINT_NAME,
+    VALIDATE_DEPLOY_ENTRY_POINT_NAME,
+    VALIDATE_ENTRY_POINT_NAME,
+};
 use starknet_api::transaction::fields::{
     ContractAddressSalt,
     Fee,
@@ -37,14 +45,6 @@ use crate::execution::syscalls::hint_processor::ENTRYPOINT_FAILED_ERROR;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::{fund_account, test_state};
 use crate::test_utils::{create_calldata, CairoVersion, BALANCE};
-use crate::transaction::constants::{
-    DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME,
-    EXECUTE_ENTRY_POINT_NAME,
-    FELT_TRUE,
-    VALIDATE_DECLARE_ENTRY_POINT_NAME,
-    VALIDATE_DEPLOY_ENTRY_POINT_NAME,
-    VALIDATE_ENTRY_POINT_NAME,
-};
 use crate::transaction::test_utils::{
     account_invoke_tx,
     block_context,

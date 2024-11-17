@@ -15,7 +15,7 @@ use starknet_api::transaction::fields::{
     TransactionSignature,
     ValidResourceBounds,
 };
-use starknet_api::transaction::TransactionVersion;
+use starknet_api::transaction::{constants, TransactionVersion};
 use starknet_api::{calldata, declare_tx_args, deploy_account_tx_args, felt, invoke_tx_args};
 use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
@@ -43,7 +43,6 @@ use crate::test_utils::{
     MAX_FEE,
 };
 use crate::transaction::account_transaction::AccountTransaction;
-use crate::transaction::constants;
 use crate::transaction::objects::{FeeType, TransactionExecutionInfo, TransactionExecutionResult};
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::ExecutableTransaction;

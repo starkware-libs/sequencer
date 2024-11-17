@@ -17,6 +17,7 @@ use starknet_api::hash::StarkHash;
 use starknet_api::state::StorageKey;
 use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::test_utils::NonceManager;
+use starknet_api::transaction::constants::TRANSFER_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::{
     AllResourceBounds,
     Calldata,
@@ -82,7 +83,6 @@ use crate::test_utils::{
     MAX_FEE,
 };
 use crate::transaction::account_transaction::AccountTransaction;
-use crate::transaction::constants::TRANSFER_ENTRY_POINT_NAME;
 use crate::transaction::objects::{FeeType, HasRelatedFeeType, TransactionInfoCreator};
 use crate::transaction::test_utils::{
     account_invoke_tx,
