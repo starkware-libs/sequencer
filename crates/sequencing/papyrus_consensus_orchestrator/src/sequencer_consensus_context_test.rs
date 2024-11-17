@@ -210,7 +210,8 @@ async fn repropose() {
     let BroadcastTopicChannels { broadcasted_messages_receiver: _, broadcast_topic_client } =
         subscriber_channels;
 
-    let (outbound_internal_sender, _inbound_internal_receiver) = make_streaming_channels();
+    let (outbound_internal_sender, _inbound_internal_receiver, _) =
+        StreamHandler::get_channels(inbound_network_receiver, outbound_network_sender);
 
     let mut context = SequencerConsensusContext::new(
         Arc::new(batcher),
