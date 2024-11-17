@@ -171,7 +171,7 @@ class Service(Construct):
                 metadata=k8s.ObjectMeta(
                     name=f"{self.node.id}-ingress",
                     labels=label,
-                    annotations={}
+                    annotations=ingress.annotations
                 ),
                 spec=k8s.IngressSpec(
                     ingress_class_name=ingress.class_name,

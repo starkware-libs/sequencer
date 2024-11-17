@@ -28,8 +28,7 @@ class SequencerNode(Chart):
         self,
         scope: Construct,
         name: str,
-        namespace: str,
-        config: Config,
+        namespace: str
     ):
         super().__init__(
             scope, name, disable_resource_name_hashes=True, namespace=namespace
@@ -38,93 +37,45 @@ class SequencerNode(Chart):
             self,
             "sequencer-node",
             image="us.gcr.io/starkware-dev/sequencer-node-test:0.0.1-dev.1",
-            args=["--config_file", "/app/config/sequencer/config.json"],
-            port_mappings=[
-                PortMapping(name="http", port=80, container_port=8080),
-                PortMapping(name="rpc", port=8081, container_port=8081),
-                PortMapping(name="monitoring", port=8082, container_port=8082)
-            ],
-            service_type=ServiceType.CLUSTER_IP,
-            replicas=1,
-            config=config,
-            health_check=HealthCheck(
-                startup_probe=Probe(port=8082, path="/monitoring/nodeVersion", period_seconds=10, failure_threshold=10, timeout_seconds=5),
-                readiness_probe=Probe(port=8082, path="/monitoring/ready", period_seconds=10, failure_threshold=5, timeout_seconds=5),
-                liveness_probe=Probe(port=8082, path="/monitoring/alive", period_seconds=10, failure_threshold=5, timeout_seconds=5)
-            ),
-            pvc=PersistentVolumeClaim(
-                access_modes=["ReadWriteOnce"],
-                storage_class_name="premium-rwo",
-                volume_mode="Filesystem",
-                storage="256Gi",
-                mount_path="/data",
-                read_only=False
-            ),
-            ingress=Ingress(
-                None,
-                "premium-rwo",
-                rules=[
-                    IngressRule(
-                        host="sequencer",
-                        paths=[
-                            IngressRuleHttpPath(
-                                path="/",
-                                path_type="http",
-                                backend_service_name="test",
-                                backend_service_port_name="test",
-                                backend_service_port_number=80,
-                            ),
-                            IngressRuleHttpPath(
-                                path="/rule",
-                                path_type="http",
-                                backend_service_name="test",
-                                backend_service_port_name="test",
-                                backend_service_port_number=80,
-                            ),
-                        ]
-                    )
-                ],
-                tls=[
-                    IngressTls(
-                        hosts=[
-                            "test",
-                            "test2"
-                        ],
-                        secret_name="test"
-                    )
-                ]
-            )
+            args=defaults.sequencer.args,
+            port_mappings=defaults.sequencer.port_mappings,
+            service_type=defaults.sequencer.service_type,
+            replicas=defaults.sequencer.replicas,
+            config=defaults.sequencer.config,
+            health_check=defaults.sequencer.health_check,
+            pvc=defaults.sequencer.pvc,
+            ingress=defaults.sequencer.ingress
         )
 
 
-class SequencerSystem(Chart):
-    def __init__(
-        self,
-        scope: Construct,
-        name: str,
-        namespace: str,
-        system_structure: Dict[str, Dict[str, Any]],
-    ):
-        super().__init__(
-            scope, name, disable_resource_name_hashes=True, namespace=namespace
-        )
-        self.mempool = Service(
-            self,
-            "mempool",
-            image="paulbouwer/hello-kubernetes:1.7",
-            replicas=2,
-            config=system_structure.config,
-            health_check=defaults.health_check
-        )
-        self.batcher = Service(
-            self, 
-            "batcher", 
-            image="ghost",
-            port_mappings=[
-                PortMapping(name="http", port=80, container_port=2368)
-            ],
-            health_check=defaults.health_check
-        )
+# class SequencerSystem(Chart):
+#     def __init__(
+#         self,
+#         scope: Construct,
+#         name: str,
+#         namespace: str,
+#         system_structure: Dict[str, Dict[str, Any]],
+#     ):
+#         super().__init__(
+#             scope, name, disable_resource_name_hashes=True, namespace=namespace
+#         )
+#         self.mempool = Service(
+#             self,
+#             "mempool",
+#             image="paulbouwer/hello-kubernetes:1.7",
+#             replicas=2,
+#             config=system_structure.config,
+#             health_check=defaults.health_check
+#         )
+#         self.batcher = Service(
+#             self, 
+#             "batcher", 
+#             image="ghost",
+#             port_mappings=[
+#                 PortMapping(name="http", port=80, container_port=2368)
+#             ],
+#             health_check=defaults.health_check
+#         )
 
 
 app = App(
@@ -134,15 +85,14 @@ app = App(
 sequencer_node = SequencerNode(
     scope=app,
     name="sequencer-node",
-    namespace="sequencer-node-test",
-    config=None
+    namespace="sequencer-node-test"
 )
 
-a = SequencerSystem(
-    scope=app,
-    name="sequencer-system",
-    namespace="test-namespace",
-    system_structure=SystemStructure(config=SequencerDevConfig(mount_path="/app/config")),
-)
+# a = SequencerSystem(
+#     scope=app,
+#     name="sequencer-system",
+#     namespace="test-namespace",
+#     system_structure=SystemStructure(config=SequencerDevConfig(mount_path="/app/config")),
+# )
 
 app.synth()
