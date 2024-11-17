@@ -134,7 +134,10 @@ impl<S: StateReader> StatefulValidator<S> {
                 .expect(BLOCK_STATE_ACCESS_ERR)
                 .get_actual_state_changes()?,
             &execution_resources,
-            CallInfo::summarize_many(validate_call_info.iter()),
+            CallInfo::summarize_many(
+                validate_call_info.iter(),
+                &tx_context.block_context.versioned_constants,
+            ),
             0,
         );
 

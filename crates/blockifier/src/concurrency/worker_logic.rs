@@ -250,7 +250,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
             let bouncer_result = self.bouncer.lock().expect("Bouncer lock failed.").try_update(
                 &tx_versioned_state,
                 &tx_state_changes_keys,
-                &tx_execution_info.summarize(),
+                &tx_execution_info.summarize(&self.block_context.versioned_constants),
                 &tx_execution_info.receipt.resources,
             );
             if let Err(error) = bouncer_result {
