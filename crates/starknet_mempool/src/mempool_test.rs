@@ -633,7 +633,7 @@ fn test_update_gas_price_threshold_increases_threshold() {
         .into();
 
     // Test.
-    mempool._update_gas_price_threshold(GasPrice(101));
+    mempool.update_gas_price_threshold(GasPrice(101));
 
     // Assert.
     let expected_mempool_content = MempoolContentBuilder::new()
@@ -659,7 +659,7 @@ fn test_update_gas_price_threshold_decreases_threshold() {
         .into();
 
     // Test.
-    mempool._update_gas_price_threshold(GasPrice(90));
+    mempool.update_gas_price_threshold(GasPrice(90));
 
     // Assert.
     let expected_mempool_content = MempoolContentBuilder::new()
