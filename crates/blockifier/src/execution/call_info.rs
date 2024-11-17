@@ -157,6 +157,16 @@ impl CallInfo {
         CallInfoIter { call_infos }
     }
 
+    fn specific_event_summary(&self) -> EventSummary {
+        let mut event_summary =
+            EventSummary { n_events: self.execution.events.len(), ..Default::default() };
+        for OrderedEvent { event, .. } in self.execution.events.iter() {
+            event_summary.total_event_data_size += u64_from_usize(event.data.0.len());
+            event_summary.total_event_keys += u64_from_usize(event.keys.len());
+        }
+        event_summary
+    }
+
     pub fn summarize(&self) -> ExecutionSummary {
         let mut executed_class_hashes: HashSet<ClassHash> = HashSet::new();
         let mut visited_storage_entries: HashSet<StorageEntry> = HashSet::new();
@@ -186,14 +196,7 @@ impl CallInfo {
             );
 
             // Events.
-            event_summary.n_events += call_info.execution.events.len();
-            for OrderedEvent { event, .. } in call_info.execution.events.iter() {
-                // TODO(barak: 18/03/2024): Once we start charging per byte
-                // change to num_bytes_keys
-                // and num_bytes_data.
-                event_summary.total_event_data_size += u64_from_usize(event.data.0.len());
-                event_summary.total_event_keys += u64_from_usize(event.keys.len());
-            }
+            event_summary += call_info.specific_event_summary();
         }
 
         ExecutionSummary {
