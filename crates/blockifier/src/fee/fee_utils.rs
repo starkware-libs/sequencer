@@ -11,7 +11,6 @@ use starknet_api::transaction::fields::{Fee, GasVectorComputationMode, Resource}
 use starknet_types_core::felt::Felt;
 
 use crate::abi::abi_utils::get_fee_token_var_address;
-use crate::abi::sierra_types::next_storage_key;
 use crate::blockifier::block::BlockInfo;
 use crate::context::{BlockContext, TransactionContext};
 use crate::fee::resources::TransactionFeeResult;
@@ -145,7 +144,7 @@ pub fn get_sequencer_balance_keys(block_context: &BlockContext) -> (StorageKey, 
 
 pub fn get_address_balance_keys(address: ContractAddress) -> (StorageKey, StorageKey) {
     let balance_key_low = get_fee_token_var_address(address);
-    let balance_key_high = next_storage_key(&balance_key_low).unwrap_or_else(|_| {
+    let balance_key_high = balance_key_low.next_storage_key().unwrap_or_else(|_| {
         panic!("Failed to get balance_key_high for address: {:?}", address.0);
     });
     (balance_key_low, balance_key_high)
