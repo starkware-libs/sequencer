@@ -1,3 +1,8 @@
+use std::sync::LazyLock;
+
+use starknet_api::core::ascii_as_felt;
+use starknet_types_core::felt::Felt;
+
 pub const EXECUTE_ENTRY_POINT_NAME: &str = "__execute__";
 pub const TRANSFER_ENTRY_POINT_NAME: &str = "transfer";
 pub const VALIDATE_ENTRY_POINT_NAME: &str = "__validate__";
@@ -12,4 +17,5 @@ pub const FELT_FALSE: u64 = 0;
 pub const FELT_TRUE: u64 = 1;
 
 // Expected return value of a `validate` entry point: `VALID`.
-pub const VALIDATE_RETDATA: &str = "0x56414c4944";
+pub static VALIDATE_RETDATA: LazyLock<Felt> =
+    LazyLock::new(|| ascii_as_felt("VALID").expect("Failed to parse ASCII"));
