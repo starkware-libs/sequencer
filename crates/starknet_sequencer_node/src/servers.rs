@@ -107,12 +107,11 @@ impl WrapperServers {
 }
 
 // Component servers that can run remotely.
-// TODO(Nadin): Remove pub from the struct and update the fields to be pub(crate).
-pub struct RemoteServers {
-    pub batcher: Option<Box<RemoteBatcherServer>>,
-    pub gateway: Option<Box<RemoteGatewayServer>>,
-    pub mempool: Option<Box<RemoteMempoolServer>>,
-    pub mempool_p2p_propagator: Option<Box<RemoteMempoolP2pPropagatorServer>>,
+struct RemoteServers {
+    pub(crate) batcher: Option<Box<RemoteBatcherServer>>,
+    pub(crate) gateway: Option<Box<RemoteGatewayServer>>,
+    pub(crate) mempool: Option<Box<RemoteMempoolServer>>,
+    pub(crate) mempool_p2p_propagator: Option<Box<RemoteMempoolP2pPropagatorServer>>,
 }
 
 impl RemoteServers {
@@ -329,7 +328,7 @@ fn create_local_servers(
     }
 }
 
-pub fn create_remote_servers(
+fn create_remote_servers(
     config: &SequencerNodeConfig,
     clients: &SequencerNodeClients,
 ) -> RemoteServers {
