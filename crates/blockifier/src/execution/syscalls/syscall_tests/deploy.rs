@@ -106,12 +106,7 @@ fn with_constructor(
     expected_gas: u64,
     expected_constructor_gas: u64,
 ) {
-    let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1);
-    let mut state = test_state(
-        &ChainInfo::create_for_testing(),
-        Fee(0),
-        &[(deployer_contract, 1), (empty_contract, 0)],
-    );
+    let mut state = test_state(&ChainInfo::create_for_testing(), Fee(0), &[(deployer_contract, 1)]);
 
     let class_hash = deployer_contract.get_class_hash();
     let constructor_calldata = vec![
@@ -168,12 +163,7 @@ fn with_constructor(
     test_case(FeatureContract::TestContract(CairoVersion::Native);"Native")
 )]
 fn to_unavailable_address(deployer_contract: FeatureContract) {
-    let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1);
-    let mut state = test_state(
-        &ChainInfo::create_for_testing(),
-        Fee(0),
-        &[(deployer_contract, 1), (empty_contract, 0)],
-    );
+    let mut state = test_state(&ChainInfo::create_for_testing(), Fee(0), &[(deployer_contract, 1)]);
 
     let class_hash = deployer_contract.get_class_hash();
     let constructor_calldata = vec![
