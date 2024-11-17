@@ -55,9 +55,9 @@ pub enum GatewayClientError {
 }
 
 #[async_trait]
-impl<T> GatewayClient for T
+impl<ComponentClientType> GatewayClient for ComponentClientType
 where
-    T: Send + Sync + ComponentClient<GatewayRequest, GatewayResponse>,
+    ComponentClientType: Send + Sync + ComponentClient<GatewayRequest, GatewayResponse>,
 {
     #[instrument(skip(self))]
     async fn add_tx(&self, gateway_input: GatewayInput) -> GatewayClientResult<TransactionHash> {
