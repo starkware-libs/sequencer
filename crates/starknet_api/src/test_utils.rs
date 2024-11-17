@@ -3,9 +3,12 @@ use std::env;
 use std::fs::read_to_string;
 use std::path::Path;
 
+use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
 
-use crate::core::{ContractAddress, Nonce};
+use crate::block::BlockNumber;
+use crate::core::{ChainId, ContractAddress, Nonce};
+use crate::transaction::{Transaction, TransactionHash};
 
 pub mod declare;
 pub mod deploy_account;
@@ -24,6 +27,21 @@ pub fn read_json_file(path_in_resource_dir: &str) -> serde_json::Value {
     let json_str = read_to_string(path.to_str().unwrap())
         .unwrap_or_else(|_| panic!("Failed to read file at path: {}", path.display()));
     serde_json::from_str(&json_str).unwrap()
+}
+
+#[derive(Deserialize, Serialize)]
+/// A struct used for reading the transaction test data (e.g., for transaction hash tests).
+pub struct TransactionTestData {
+    /// The actual transaction.
+    pub transaction: Transaction,
+    /// The expected transaction hash.
+    pub transaction_hash: TransactionHash,
+    /// An optional transaction hash to query.
+    pub only_query_transaction_hash: Option<TransactionHash>,
+    /// The chain ID.
+    pub chain_id: ChainId,
+    /// The block number.
+    pub block_number: BlockNumber,
 }
 
 impl NonceManager {
