@@ -1,8 +1,10 @@
+use crate::abi::abi_utils::selector_from_name;
 use crate::calldata;
 use crate::core::{ContractAddress, Nonce};
 use crate::data_availability::DataAvailabilityMode;
 use crate::executable_transaction::InvokeTransaction as ExecutableInvokeTransaction;
 use crate::rpc_transaction::{RpcInvokeTransaction, RpcInvokeTransactionV3, RpcTransaction};
+use crate::transaction::constants::EXECUTE_ENTRY_POINT_NAME;
 use crate::transaction::fields::{
     AccountDeploymentData,
     Calldata,
@@ -14,6 +16,7 @@ use crate::transaction::fields::{
 };
 use crate::transaction::{
     InvokeTransaction,
+    InvokeTransactionV0,
     InvokeTransactionV1,
     InvokeTransactionV3,
     TransactionHash,
@@ -79,12 +82,14 @@ macro_rules! invoke_tx_args {
 pub fn invoke_tx(invoke_args: InvokeTxArgs) -> InvokeTransaction {
     // TODO: Make TransactionVersion an enum and use match here.
     if invoke_args.version == TransactionVersion::ZERO {
-        // TODO(Arni): Implement V0. See blockifier test utils for reference. There is an issue with
-        // the computation of the entry_point_selector.
-        panic!(
-            "This test util does not supported creation of transaction version: {:?}.",
-            invoke_args.version
-        );
+        InvokeTransaction::V0(InvokeTransactionV0 {
+            max_fee: invoke_args.max_fee,
+            calldata: invoke_args.calldata,
+            contract_address: invoke_args.sender_address,
+            signature: invoke_args.signature,
+            // V0 transactions should always select the `__execute__` entry point.
+            entry_point_selector: selector_from_name(EXECUTE_ENTRY_POINT_NAME),
+        })
     } else if invoke_args.version == TransactionVersion::ONE {
         InvokeTransaction::V1(InvokeTransactionV1 {
             max_fee: invoke_args.max_fee,
