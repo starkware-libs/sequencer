@@ -168,7 +168,7 @@ impl CallInfo {
         event_summary
     }
 
-    pub fn summarize(&self, _versioned_constants: &VersionedConstants) -> ExecutionSummary {
+    pub fn summarize(&self, versioned_constants: &VersionedConstants) -> ExecutionSummary {
         let mut executed_class_hashes: HashSet<ClassHash> = HashSet::new();
         let mut visited_storage_entries: HashSet<StorageEntry> = HashSet::new();
         let mut event_summary = EventSummary::default();
@@ -196,8 +196,16 @@ impl CallInfo {
                     .map(|message| message.message.payload.0.len()),
             );
 
-            // Events.
-            event_summary += call_info.specific_event_summary();
+            // Events: all event resources in the execution tree, unless executing a 0.13.1 block.
+            if !versioned_constants.ignore_inner_event_resources {
+                event_summary += call_info.specific_event_summary();
+            }
+        }
+
+        if versioned_constants.ignore_inner_event_resources {
+            // For reexecution of 0.13.1 blocks, we ignore inner events resources - only outermost
+            // event data will be processed.
+            event_summary = self.specific_event_summary();
         }
 
         ExecutionSummary {
