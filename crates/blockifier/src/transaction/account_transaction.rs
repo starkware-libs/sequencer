@@ -91,6 +91,14 @@ pub struct AccountTransaction {
     only_query: bool,
 }
 
+macro_rules! implement_tx_getter_calls {
+    ($(($field:ident, $field_type:ty)),*) => {
+        $(pub fn $field(&self) -> $field_type {
+            self.tx.$field()
+        })*
+};
+}
+
 macro_rules! implement_account_tx_inner_getters {
     ($(($field:ident, $field_type:ty)),*) => {
         $(pub fn $field(&self) -> $field_type {
@@ -144,11 +152,11 @@ impl HasRelatedFeeType for AccountTransaction {
 }
 
 impl AccountTransaction {
+    implement_tx_getter_calls!((resource_bounds, ValidResourceBounds), (tip, Tip));
+
     implement_account_tx_inner_getters!(
         (signature, TransactionSignature),
         (nonce, Nonce),
-        (resource_bounds, ValidResourceBounds),
-        (tip, Tip),
         (nonce_data_availability_mode, DataAvailabilityMode),
         (fee_data_availability_mode, DataAvailabilityMode),
         (paymaster_data, PaymasterData)
