@@ -37,13 +37,14 @@ pub async fn run_consensus<ContextT, SyncReceiverT>(
     consensus_delay: Duration,
     timeouts: TimeoutsConfig,
     mut broadcast_channels: BroadcastConsensusMessageChannel,
+    mut inbound_proposal_receiver: mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
     mut sync_receiver: SyncReceiverT,
 ) -> Result<(), ConsensusError>
 where
     ContextT: ConsensusContext,
-    SyncReceiverT: Stream<Item = BlockNumber> + Unpin,
     ProposalWrapper:
         Into<(ProposalInit, mpsc::Receiver<ContextT::ProposalChunk>, oneshot::Receiver<BlockHash>)>,
+    SyncReceiverT: Stream<Item = BlockNumber> + Unpin,
 {
     info!(
         "Running consensus, start_height={}, validator_id={}, consensus_delay={}, timeouts={:?}",
@@ -61,7 +62,12 @@ where
     loop {
         metrics::gauge!(PAPYRUS_CONSENSUS_HEIGHT, current_height.0 as f64);
 
-        let run_height = manager.run_height(&mut context, current_height, &mut broadcast_channels);
+        let run_height = manager.run_height(
+            &mut context,
+            current_height,
+            &mut broadcast_channels,
+            &mut inbound_proposal_receiver,
+        );
 
         // `run_height` is not cancel safe. Our implementation doesn't enable us to start and stop
         // it. We also cannot restart the height; when we dropped the future we dropped the state it
@@ -106,6 +112,7 @@ impl MultiHeightManager {
         context: &mut ContextT,
         height: BlockNumber,
         broadcast_channels: &mut BroadcastConsensusMessageChannel,
+        proposal_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
     ) -> Result<Decision, ConsensusError>
     where
         ContextT: ConsensusContext,
@@ -186,6 +193,7 @@ impl MultiHeightManager {
         match message {
             ConsensusMessage::Proposal(proposal) => {
                 // Special case due to fake streaming.
+                // TODO(guyn): this will be gone once we integrate the proposal channels.
                 let (proposal_init, content_receiver, fin_receiver) =
                     ProposalWrapper(proposal).into();
                 let res = shc
@@ -224,9 +232,7 @@ impl MultiHeightManager {
 async fn next_message(
     cached_messages: &mut Vec<ConsensusMessage>,
     broadcast_channels: &mut BroadcastConsensusMessageChannel,
-) -> Result<ConsensusMessage, ConsensusError>
-where
-{
+) -> Result<ConsensusMessage, ConsensusError> {
     let BroadcastConsensusMessageChannel { broadcasted_messages_receiver, broadcast_topic_client } =
         broadcast_channels;
     if let Some(msg) = cached_messages.pop() {

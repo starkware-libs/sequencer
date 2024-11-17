@@ -13,14 +13,16 @@ use papyrus_common::pending_classes::PendingClasses;
 use papyrus_config::presentation::get_config_presentation;
 use papyrus_config::validators::config_validate;
 use papyrus_consensus::config::ConsensusConfig;
+use papyrus_consensus::stream_handler::StreamHandler;
 use papyrus_consensus_orchestrator::papyrus_consensus_context::PapyrusConsensusContext;
 use papyrus_monitoring_gateway::MonitoringServer;
 use papyrus_network::gossipsub_impl::Topic;
-use papyrus_network::network_manager::NetworkManager;
+use papyrus_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use papyrus_network::{network_manager, NetworkConfig};
 use papyrus_p2p_sync::client::{P2PSyncClient, P2PSyncClientChannels};
 use papyrus_p2p_sync::server::{P2PSyncServer, P2PSyncServerChannels};
 use papyrus_p2p_sync::{Protocol, BUFFER_SIZE};
+use papyrus_protobuf::consensus::{ProposalPart, StreamMessage};
 #[cfg(feature = "rpc")]
 use papyrus_rpc::run_server;
 use papyrus_storage::{open_storage, update_storage_metrics, StorageReader, StorageWriter};
@@ -49,6 +51,8 @@ const DEFAULT_LEVEL: LevelFilter = LevelFilter::INFO;
 // different genesis hash.
 // TODO: Consider moving to a more general place.
 const GENESIS_HASH: &str = "0x0";
+// TODO(guyn): move this to the config.
+pub const NETWORK_TOPIC: &str = "consensus_proposals";
 
 // TODO(dvir): add this to config.
 // Duration between updates to the storage metrics (those in the collect_storage_metrics function).
@@ -185,12 +189,26 @@ fn spawn_consensus(
 
     let network_channels = network_manager
         .register_broadcast_topic(Topic::new(config.network_topic.clone()), BUFFER_SIZE)?;
+    let proposal_network_channels: BroadcastTopicChannels<StreamMessage<ProposalPart>> =
+        network_manager.register_broadcast_topic(Topic::new(NETWORK_TOPIC), BUFFER_SIZE)?;
+    let BroadcastTopicChannels {
+        broadcasted_messages_receiver: inbound_network_receiver,
+        broadcast_topic_client: outbound_network_sender,
+    } = proposal_network_channels;
+
+    // TODO(Matan): receive the handle for the StreamHandler and pass it into run_consensus below.
+    let (outbound_internal_sender, inbound_internal_receiver, _) =
+        StreamHandler::get_channels(inbound_network_receiver, outbound_network_sender);
+
     let context = PapyrusConsensusContext::new(
         storage_reader.clone(),
         network_channels.broadcast_topic_client.clone(),
+        // outbound_network_sender.clone(),
+        outbound_internal_sender,
         config.num_validators,
         None,
     );
+
     Ok(tokio::spawn(async move {
         Ok(papyrus_consensus::run_consensus(
             context,
@@ -199,6 +217,7 @@ fn spawn_consensus(
             config.consensus_delay,
             config.timeouts.clone(),
             network_channels.into(),
+            inbound_internal_receiver,
             futures::stream::pending(),
         )
         .await?)
