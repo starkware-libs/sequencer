@@ -3,9 +3,12 @@ use std::fs::read_to_string;
 use std::path::{Path, PathBuf};
 
 use infra_utils::path::cargo_manifest_dir;
+use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
 
-use crate::core::{ContractAddress, Nonce};
+use crate::block::BlockNumber;
+use crate::core::{ChainId, ContractAddress, Nonce};
+use crate::transaction::{Transaction, TransactionHash};
 
 pub mod declare;
 pub mod deploy_account;
@@ -25,6 +28,19 @@ pub fn read_json_file<P: AsRef<Path>>(path_in_resource_dir: P) -> serde_json::Va
     let json_str = read_to_string(path.to_str().unwrap())
         .unwrap_or_else(|_| panic!("Failed to read file at path: {}", path.display()));
     serde_json::from_str(&json_str).unwrap()
+}
+
+#[derive(Deserialize, Serialize, Debug)]
+/// A struct used for reading the transaction test data (e.g., for transaction hash tests).
+pub struct TransactionTestData {
+    /// The actual transaction.
+    pub transaction: Transaction,
+    /// The expected transaction hash.
+    pub transaction_hash: TransactionHash,
+    /// An optional transaction hash to query.
+    pub only_query_transaction_hash: Option<TransactionHash>,
+    pub chain_id: ChainId,
+    pub block_number: BlockNumber,
 }
 
 #[derive(Debug, Default)]

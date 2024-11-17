@@ -2,7 +2,7 @@ use papyrus_test_utils::{auto_impl_get_test_instance, get_number_of_variants, Ge
 use rand::Rng;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::ContractAddress;
-use starknet_api::transaction::Transaction;
+use starknet_api::transaction::{Transaction, TransactionHash};
 
 use crate::consensus::{
     ConsensusMessage,
@@ -52,6 +52,7 @@ auto_impl_get_test_instance! {
     }
     pub struct TransactionBatch {
         pub transactions: Vec<Transaction>,
+        pub tx_hashes: Vec<TransactionHash>,
     }
     pub enum ProposalPart {
         Init(ProposalInit) = 0,

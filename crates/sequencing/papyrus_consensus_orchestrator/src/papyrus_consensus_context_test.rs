@@ -2,12 +2,21 @@ use std::time::Duration;
 
 use futures::channel::{mpsc, oneshot};
 use futures::StreamExt;
+use papyrus_consensus::stream_handler::StreamHandler;
 use papyrus_consensus::types::ConsensusContext;
 use papyrus_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
     BroadcastNetworkMock,
+    TestSubscriberChannels,
 };
-use papyrus_protobuf::consensus::{ConsensusMessage, ProposalInit, Vote};
+use papyrus_network::network_manager::BroadcastTopicChannels;
+use papyrus_protobuf::consensus::{
+    ConsensusMessage,
+    ProposalInit,
+    ProposalPart,
+    StreamMessage,
+    Vote,
+};
 use papyrus_storage::body::BodyStorageWriter;
 use papyrus_storage::header::HeaderStorageWriter;
 use papyrus_storage::test_utils::get_test_storage;
@@ -107,10 +116,21 @@ fn test_setup() -> (
         .unwrap();
 
     let network_channels = mock_register_broadcast_topic().unwrap();
+    let network_proposal_channels: TestSubscriberChannels<StreamMessage<ProposalPart>> =
+        mock_register_broadcast_topic().unwrap();
+    let BroadcastTopicChannels {
+        broadcasted_messages_receiver: inbound_network_receiver,
+        broadcast_topic_client: outbound_network_sender,
+    } = network_proposal_channels.subscriber_channels;
+    let (outbound_internal_sender, _inbound_internal_receiver) =
+        StreamHandler::get_channels(inbound_network_receiver, outbound_network_sender);
+
     let sync_channels = mock_register_broadcast_topic().unwrap();
+
     let papyrus_context = PapyrusConsensusContext::new(
         storage_reader.clone(),
         network_channels.subscriber_channels.broadcast_topic_client,
+        outbound_internal_sender,
         4,
         Some(sync_channels.subscriber_channels.broadcast_topic_client),
     );
