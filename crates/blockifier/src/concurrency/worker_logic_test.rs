@@ -598,7 +598,7 @@ fn test_deploy_before_declare(
     let execution_output = worker_executor.execution_outputs[1].lock().unwrap();
     let tx_execution_info = execution_output.as_ref().unwrap().result.as_ref().unwrap();
     assert!(tx_execution_info.is_reverted());
-    assert!(tx_execution_info.revert_error.clone().unwrap().contains("not declared."));
+    assert!(tx_execution_info.revert_error.clone().unwrap().to_string().contains("not declared."));
     drop(execution_output);
 
     // Creates 2 active tasks.

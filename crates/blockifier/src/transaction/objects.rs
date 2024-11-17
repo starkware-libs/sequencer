@@ -27,6 +27,8 @@ use strum_macros::EnumIter;
 use crate::abi::constants as abi_constants;
 use crate::blockifier::block::BlockInfo;
 use crate::execution::call_info::{CallInfo, ExecutionSummary};
+use crate::execution::stack_trace::ErrorStack;
+use crate::fee::fee_checks::FeeCheckError;
 use crate::fee::fee_utils::get_fee_by_gas_vector;
 use crate::fee::receipt::TransactionReceipt;
 use crate::transaction::errors::{TransactionExecutionError, TransactionPreValidationError};
@@ -168,6 +170,26 @@ pub struct CommonAccountFields {
     pub only_query: bool,
 }
 
+#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
+#[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, derive_more::Display, PartialEq)]
+pub enum RevertError {
+    Execution(ErrorStack),
+    PostExecution(FeeCheckError),
+}
+
+impl From<ErrorStack> for RevertError {
+    fn from(stack: ErrorStack) -> Self {
+        Self::Execution(stack)
+    }
+}
+
+impl From<FeeCheckError> for RevertError {
+    fn from(error: FeeCheckError) -> Self {
+        Self::PostExecution(error)
+    }
+}
+
 /// Contains the information gathered by the execution of a transaction.
 #[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
@@ -179,7 +201,7 @@ pub struct TransactionExecutionInfo {
     pub execute_call_info: Option<CallInfo>,
     /// Fee transfer call info; [None] for `L1Handler`.
     pub fee_transfer_call_info: Option<CallInfo>,
-    pub revert_error: Option<String>,
+    pub revert_error: Option<RevertError>,
     /// The receipt of the transaction.
     /// Including the actual fee that was charged (in units of the relevant fee token),
     /// actual gas consumption the transaction is charged for data availability,

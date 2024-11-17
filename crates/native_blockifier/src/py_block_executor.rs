@@ -74,7 +74,7 @@ impl ThinTransactionExecutionInfo {
             actual_resources: ThinTransactionExecutionInfo::receipt_to_resources_mapping(
                 &tx_execution_info.receipt,
             ),
-            revert_error: tx_execution_info.revert_error,
+            revert_error: tx_execution_info.revert_error.map(|error| error.to_string()),
             total_gas: tx_execution_info.receipt.gas,
         }
     }
