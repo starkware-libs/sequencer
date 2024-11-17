@@ -33,11 +33,12 @@ use crate::StarknetApiError;
 #[path = "transaction_hash_test.rs"]
 mod transaction_hash_test;
 
-type ResourceName = [u8; 7];
+type ResourceName = [u8];
 
 const DATA_AVAILABILITY_MODE_BITS: usize = 32;
 const L1_GAS: &ResourceName = b"\0L1_GAS";
 const L2_GAS: &ResourceName = b"\0L2_GAS";
+const L1_DATA_GAS: &ResourceName = b"\0L1_DATA";
 
 static DECLARE: LazyLock<Felt> =
     LazyLock::new(|| ascii_as_felt("declare").expect("ascii_as_felt failed for 'declare'"));
@@ -181,14 +182,22 @@ pub fn get_tip_resource_bounds_hash(
     let l1_resource_bounds = resource_bounds.get_l1_bounds();
     let l2_resource_bounds = resource_bounds.get_l2_bounds();
 
+    // L1 and L2 gas bounds always exist.
+    // Old V3 txs always have L2 gas bounds of zero, but they exist.
     let l1_resource = get_concat_resource(&l1_resource_bounds, L1_GAS)?;
     let l2_resource = get_concat_resource(&l2_resource_bounds, L2_GAS)?;
 
-    Ok(HashChain::new()
-        .chain(&tip.0.into())
-        .chain(&l1_resource)
-        .chain(&l2_resource)
-        .get_poseidon_hash())
+    // For new V3 txs, need to also hash the data gas bounds.
+    let resource_felts = match resource_bounds {
+        ValidResourceBounds::L1Gas(_) => vec![l1_resource, l2_resource],
+        ValidResourceBounds::AllResources(all_resources) => vec![
+            l1_resource,
+            l2_resource,
+            get_concat_resource(&all_resources.l1_data_gas, L1_DATA_GAS)?,
+        ],
+    };
+
+    Ok(HashChain::new().chain(&tip.0.into()).chain_iter(resource_felts.iter()).get_poseidon_hash())
 }
 
 // Receives resource_bounds and resource_name and returns:
@@ -201,8 +210,7 @@ fn get_concat_resource(
     let max_amount = resource_bounds.max_amount.0.to_be_bytes();
     let max_price = resource_bounds.max_price_per_unit.0.to_be_bytes();
     let concat_bytes =
-        [[0_u8].as_slice(), resource_name.as_slice(), max_amount.as_slice(), max_price.as_slice()]
-            .concat();
+        [[0_u8].as_slice(), resource_name, max_amount.as_slice(), max_price.as_slice()].concat();
     Ok(Felt::from_bytes_be(&concat_bytes.try_into().expect("Expect 32 bytes")))
 }
 
