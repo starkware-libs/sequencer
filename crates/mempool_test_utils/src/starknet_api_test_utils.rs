@@ -14,14 +14,9 @@ use starknet_api::block::GasPrice;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::execution_resources::GasAmount;
-use starknet_api::rpc_transaction::{
-    ContractClass,
-    RpcDeclareTransactionV3,
-    RpcDeployAccountTransactionV3,
-    RpcTransaction,
-};
+use starknet_api::rpc_transaction::{ContractClass, RpcDeclareTransactionV3, RpcTransaction};
 use starknet_api::test_utils::declare::DeclareTxArgs;
-use starknet_api::test_utils::deploy_account::DeployAccountTxArgs;
+use starknet_api::test_utils::deploy_account::rpc_deploy_account_tx;
 use starknet_api::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::{get_absolute_path, NonceManager};
 use starknet_api::transaction::fields::{
@@ -363,33 +358,6 @@ impl Contract {
             sender_address: deploy_account_tx.calculate_sender_address().unwrap(),
         }
     }
-}
-
-pub fn rpc_deploy_account_tx(deploy_tx_args: DeployAccountTxArgs) -> RpcTransaction {
-    if deploy_tx_args.version != TransactionVersion::THREE {
-        panic!("Unsupported transaction version: {:?}.", deploy_tx_args.version);
-    }
-
-    let ValidResourceBounds::AllResources(resource_bounds) = deploy_tx_args.resource_bounds else {
-        panic!("Unsupported resource bounds type: {:?}.", deploy_tx_args.resource_bounds)
-    };
-
-    starknet_api::rpc_transaction::RpcTransaction::DeployAccount(
-        starknet_api::rpc_transaction::RpcDeployAccountTransaction::V3(
-            RpcDeployAccountTransactionV3 {
-                resource_bounds,
-                tip: deploy_tx_args.tip,
-                contract_address_salt: deploy_tx_args.contract_address_salt,
-                class_hash: deploy_tx_args.class_hash,
-                constructor_calldata: deploy_tx_args.constructor_calldata,
-                nonce: deploy_tx_args.nonce,
-                signature: deploy_tx_args.signature,
-                nonce_data_availability_mode: deploy_tx_args.nonce_data_availability_mode,
-                fee_data_availability_mode: deploy_tx_args.fee_data_availability_mode,
-                paymaster_data: deploy_tx_args.paymaster_data,
-            },
-        ),
-    )
 }
 
 pub fn rpc_declare_tx(
