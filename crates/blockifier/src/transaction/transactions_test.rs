@@ -1733,7 +1733,7 @@ fn test_deploy_account_tx(
     {
         Calldata(
             [
-                vec![class_hash.clone().0, tx.contract_address_salt().0],
+                vec![class_hash.0, tx.contract_address_salt().0],
                 (*tx.constructor_calldata().0).clone(),
             ]
             .concat()
