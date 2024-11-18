@@ -1,3 +1,4 @@
+import os
 import dataclasses
 
 from typing import Sequence, Optional, List
@@ -5,8 +6,15 @@ from services.objects import *
 from config.sequencer import *
 
 
+NAME = os.getenv("NAME", "sequencer-node")
+NAMESPACE = os.getenv("NAMESPACE", "default")
+CONFIG = os.getenv("CONFIG", "")
+
 @dataclasses.dataclass
 class ServiceDefaults:
+    name: Optional[str] | None = None
+    namespace: Optional[str] | None = None
+    config: Optional[Config] | None = None
     image: Optional[str] | None = None
     replicas: Optional[int] = 1
     service_type: Optional[ServiceType] | None = None
@@ -14,14 +22,15 @@ class ServiceDefaults:
     health_check: Optional[HealthCheck] | None = None
     pvc: Optional[PersistentVolumeClaim] | None = None
     ingress: Optional[Ingress] | None = None
-    config: Optional[Config] | None = None
     args: Optional[List[str]] | None = None
 
 
 sequencer = ServiceDefaults(
+    name=NAME,
+    namespace=NAMESPACE,
     image="us.gcr.io/starkware-dev/sequencer-node-test:0.0.1-dev.2",
     replicas=1,
-    config=SequencerDevConfig(mount_path="/config/sequencer/presets/"),
+    config=SequencerDevConfig(mount_path="/config/sequencer/presets/", config_file_path=CONFIG),
     service_type=ServiceType.CLUSTER_IP,
     args=["--config_file", "/config/sequencer/presets/config"],
     port_mappings=[
@@ -45,7 +54,7 @@ sequencer = ServiceDefaults(
     ingress=Ingress(
         annotations={
             "kubernetes.io/tls-acme": "true",
-            "cert-manager.io/common-name": "sequencer.gcp-integration.sw-dev.io",
+            "cert-manager.io/common-name": f"{NAMESPACE}.gcp-integration.sw-dev.io",
             "cert-manager.io/issue-temporary-certificate": "true",
             "cert-manager.io/issuer": "letsencrypt-prod",
             "acme.cert-manager.io/http01-edit-in-place": "true"
@@ -53,7 +62,7 @@ sequencer = ServiceDefaults(
         class_name=None,
         rules=[
             IngressRule(
-                host="sequencer.gcp-integration.sw-dev.io",
+                host=f"{NAMESPACE}.gcp-integration.sw-dev.io",
                 paths=[
                     IngressRuleHttpPath(
                         path="/monitoring/",
@@ -67,12 +76,10 @@ sequencer = ServiceDefaults(
         tls=[
             IngressTls(
                 hosts=[
-                    "sequencer.gcp-integration.sw-dev.io"
+                    f"{NAMESPACE}.gcp-integration.sw-dev.io"
                 ],
                 secret_name="sequencer-tls"
             )
         ]
     )
 )
-
-

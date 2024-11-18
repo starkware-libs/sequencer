@@ -14,5 +14,7 @@
   "components.http_server.local_server_config.#is_none": true,
   "components.mempool.local_server_config.#is_none": true,
   "components.mempool_p2p.local_server_config.#is_none": true,
-  "components.http_server.remote_server_config.#is_none": true
+  "components.http_server.remote_server_config.#is_none": true,
+  "batcher_config.storage.db_config.enforce_file_exists": false,
+  "batcher_config.storage.db_config.path_prefix": "/data"
 }

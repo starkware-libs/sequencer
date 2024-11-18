@@ -8,13 +8,9 @@ from cdk8s import App, Chart, YamlOutputType # type: ignore
 from typing import Dict, Any, Optional
 
 from services.service import Service
-from config.sequencer import Config, SequencerDevConfig
+from config.sequencer import Config
 from services.objects import *
 from services import defaults
-
-
-name = os.getenv("NAME", "sequencer-node")
-namespace = os.getenv("NAMESPACE", "default")
 
 
 @dataclasses.dataclass
@@ -91,8 +87,8 @@ app = App(
 
 sequencer_node = SequencerNode(
     scope=app,
-    name=name,
-    namespace=namespace
+    name=defaults.sequencer.name,
+    namespace=defaults.sequencer.namespace
 )
 
 # a = SequencerSystem(
