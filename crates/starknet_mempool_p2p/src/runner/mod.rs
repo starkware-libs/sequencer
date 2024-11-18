@@ -3,7 +3,7 @@ mod test;
 
 use async_trait::async_trait;
 use futures::stream::FuturesUnordered;
-use futures::{pin_mut, FutureExt, StreamExt, TryFutureExt};
+use futures::{pin_mut, StreamExt, TryFutureExt};
 use papyrus_network::network_manager::{
     BroadcastTopicClient,
     BroadcastTopicClientTrait,
@@ -50,8 +50,7 @@ impl ComponentStarter for MempoolP2pRunner {
         let mut gateway_futures = FuturesUnordered::new();
         loop {
             tokio::select! {
-                // tokio::select! takes ownership of the futures, so we need to wrap with poll_fn
-                result = futures::future::poll_fn(|cx| network_future.poll_unpin(cx)) => {
+                result = &mut network_future => {
                     result?;
                     panic!("Network stopped unexpectedly");
                 }
