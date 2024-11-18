@@ -61,10 +61,22 @@ impl MempoolState {
     }
 
     fn get_or_insert(&mut self, address: ContractAddress, nonce: Nonce) -> Nonce {
-        self.get(address).unwrap_or_else(|| {
-            self.tentative.insert(address, nonce);
-            nonce
-        })
+        if let Some(staged_or_committed_nonce) =
+            self.staged.get(&address).or_else(|| self.committed.get(&address)).copied()
+        {
+            return staged_or_committed_nonce;
+        }
+
+        let tentative_nonce = self
+            .tentative
+            .entry(address)
+            .and_modify(|tentative_nonce| {
+                if nonce > *tentative_nonce {
+                    *tentative_nonce = nonce;
+                }
+            })
+            .or_insert(nonce);
+        *tentative_nonce
     }
 
     fn stage(&mut self, tx_reference: &TransactionReference) -> MempoolResult<()> {
@@ -197,8 +209,9 @@ impl Mempool {
 
         // Align to account nonce, only if it is at least the one stored.
         let AccountState { address, nonce: incoming_account_nonce } = account_state;
-        let mempool_account_nonce = self.state.get_or_insert(address, incoming_account_nonce);
-        if tx_reference.nonce == mempool_account_nonce {
+        let stored_account_nonce = self.state.get_or_insert(address, incoming_account_nonce);
+        if tx_reference.nonce == stored_account_nonce {
+            self.tx_queue.remove(address);
             self.tx_queue.insert(tx_reference);
         }
 
