@@ -10336,6 +10336,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "starknet_l1_provider_starter"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "papyrus_config",
+ "serde",
+ "starknet_l1_provider_types",
+ "starknet_sequencer_infra",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "validator",
+]
+
+[[package]]
 name = "starknet_l1_provider_types"
 version = "0.0.0"
 dependencies = [
