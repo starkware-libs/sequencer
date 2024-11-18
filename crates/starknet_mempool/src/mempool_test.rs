@@ -132,12 +132,23 @@ impl FromIterator<AccountTransaction> for TransactionPool {
 fn add_tx_and_verify_replacement(
     mut mempool: Mempool,
     valid_replacement_input: AddTransactionArgs,
+    verify_priority_queue_replacement: bool,
+    verify_pending_queue_replacement: bool,
 ) {
     add_tx(&mut mempool, &valid_replacement_input);
 
     // Verify transaction was replaced.
-    let expected_mempool_content =
-        MempoolContentBuilder::new().with_pool([valid_replacement_input.tx]).build();
+    let mut expected_mempool_content =
+        MempoolContentBuilder::new().with_pool([valid_replacement_input.tx.clone()]);
+    if verify_priority_queue_replacement {
+        expected_mempool_content = expected_mempool_content
+            .with_priority_queue([TransactionReference::new(&valid_replacement_input.tx)]);
+    }
+    if verify_pending_queue_replacement {
+        expected_mempool_content = expected_mempool_content
+            .with_pending_queue([TransactionReference::new(&valid_replacement_input.tx)]);
+    }
+    let expected_mempool_content = expected_mempool_content.build();
     expected_mempool_content.assert_eq(&mempool);
 }
 
@@ -504,7 +515,13 @@ fn test_commit_block_includes_all_proposed_txs() {
 // Fee escalation tests.
 
 #[rstest]
-fn test_fee_escalation_valid_replacement() {
+#[case::validate_only_pool_replacement(false, false)]
+#[case::validate_priority_queue_replacement(true, false)]
+#[case::validate_pending_queue_replacement(false, true)]
+fn test_fee_escalation_valid_replacement(
+    #[case] in_priority_queue: bool,
+    #[case] in_pending_queue: bool,
+) {
     let increased_values = [
         99,  // Exactly increase percentage.
         100, // More than increase percentage,
@@ -513,16 +530,28 @@ fn test_fee_escalation_valid_replacement() {
     for increased_value in increased_values {
         // Setup.
         let tx = tx!(tip: 90, max_l2_gas_price: 90);
-        let mempool = MempoolContentBuilder::new()
-            .with_pool([tx])
-            .with_fee_escalation_percentage(10)
-            .build_into_mempool();
+        let mut builder =
+            MempoolContentBuilder::new().with_pool([tx.clone()]).with_fee_escalation_percentage(10);
+        if in_priority_queue {
+            builder = builder.with_priority_queue([TransactionReference::new(&tx)]);
+        }
+        if in_pending_queue {
+            builder = builder
+                .with_pending_queue([TransactionReference::new(&tx)])
+                .with_gas_price_threshold(1000);
+        }
+        let mempool = builder.build_into_mempool();
 
         let valid_replacement_input =
             add_tx_input!(tip: increased_value, max_l2_gas_price: u128::from(increased_value));
 
         // Test and assert.
-        add_tx_and_verify_replacement(mempool, valid_replacement_input);
+        add_tx_and_verify_replacement(
+            mempool,
+            valid_replacement_input,
+            in_priority_queue,
+            in_pending_queue,
+        );
     }
 }
 
@@ -558,7 +587,7 @@ fn test_fee_escalation_valid_replacement_minimum_values() {
 
     // Test and assert: replacement with maximum values.
     let valid_replacement_input = add_tx_input!(tip: 0, max_l2_gas_price: 0);
-    add_tx_and_verify_replacement(mempool, valid_replacement_input);
+    add_tx_and_verify_replacement(mempool, valid_replacement_input, false, false);
 }
 
 #[rstest]
@@ -573,7 +602,7 @@ fn test_fee_escalation_valid_replacement_maximum_values() {
 
     // Test and assert: replacement with maximum values.
     let valid_replacement_input = add_tx_input!(tip: u64::MAX, max_l2_gas_price: u128::MAX);
-    add_tx_and_verify_replacement(mempool, valid_replacement_input);
+    add_tx_and_verify_replacement(mempool, valid_replacement_input, false, false);
 }
 
 #[rstest]
