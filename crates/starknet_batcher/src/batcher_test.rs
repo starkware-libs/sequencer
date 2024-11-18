@@ -262,7 +262,7 @@ async fn send_finish_to_an_invalid_proposal() {
         .return_once(|_, _, _, _| { async move { Ok(()) } }.boxed());
 
     let proposal_error = GetProposalResultError::BlockBuilderError(Arc::new(
-        BlockBuilderError::FailOnError(TransactionExecutorError::BlockFull),
+        BlockBuilderError::FailOnError(TransactionExecutorError::BlockFull.to_string()),
     ));
     proposal_manager
         .expect_wrap_await_proposal_commitment()

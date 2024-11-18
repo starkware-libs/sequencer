@@ -152,21 +152,27 @@ fn block_full_test_expectations(
     (mock_transaction_executor, mock_tx_provider, expected_block_artifacts)
 }
 
+fn mock_transaction_executor_with_delay(
+    input_txs: Vec<Transaction>,
+) -> MockTransactionExecutorTrait {
+    let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
+    mock_transaction_executor
+        .expect_add_txs_to_block()
+        .times(1)
+        .withf(move |blockifier_input| compare_tx_hashes(&input_txs, blockifier_input))
+        .return_once(move |_| {
+            std::thread::sleep(std::time::Duration::from_secs(BLOCK_GENERATION_DEADLINE_SECS));
+            (0..TX_CHUNK_SIZE).map(move |_| Ok(execution_info())).collect()
+        });
+    mock_transaction_executor
+}
+
 fn test_expectations_with_delay(
     input_txs: &[Transaction],
 ) -> (MockTransactionExecutorTrait, MockTransactionProvider, BlockExecutionArtifacts) {
     let first_chunk = input_txs[0..TX_CHUNK_SIZE].to_vec();
     let first_chunk_copy = first_chunk.clone();
-    let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
-
-    mock_transaction_executor
-        .expect_add_txs_to_block()
-        .times(1)
-        .withf(move |blockifier_input| compare_tx_hashes(&first_chunk, blockifier_input))
-        .return_once(move |_| {
-            std::thread::sleep(std::time::Duration::from_secs(BLOCK_GENERATION_DEADLINE_SECS));
-            (0..TX_CHUNK_SIZE).map(move |_| Ok(execution_info())).collect()
-        });
+    let mut mock_transaction_executor = mock_transaction_executor_with_delay(first_chunk);
 
     let expected_block_artifacts =
         set_close_block_expectations(&mut mock_transaction_executor, TX_CHUNK_SIZE);
@@ -416,8 +422,32 @@ async fn test_validate_block_with_error() {
     .unwrap_err();
 
     assert_matches!(
-        result,
-        BlockBuilderError::FailOnError(BlockifierTransactionExecutorError::BlockFull)
+        result, BlockBuilderError::FailOnError(err)
+        if err == BlockifierTransactionExecutorError::BlockFull.to_string()
+    );
+}
+
+#[tokio::test]
+async fn test_validate_block_deadline_reached() {
+    let input_txs = test_txs(0..3);
+    let mock_transaction_executor = mock_transaction_executor_with_delay(input_txs.clone());
+    let mock_tx_provider = mock_tx_provider_limited_calls(1, vec![input_txs]);
+
+    let (_abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
+    let result = run_build_block(
+        mock_transaction_executor,
+        mock_tx_provider,
+        None,
+        true,
+        abort_receiver,
+        BLOCK_GENERATION_DEADLINE_SECS,
+    )
+    .await
+    .unwrap_err();
+
+    assert_matches!(
+        result, BlockBuilderError::FailOnError(err)
+        if err == *"deadline reached"
     );
 }
 
