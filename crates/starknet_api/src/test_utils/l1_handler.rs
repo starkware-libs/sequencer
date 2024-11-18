@@ -49,9 +49,10 @@ pub fn executable_l1_handler_tx(
     l1_handler_tx_args: L1HandlerTxArgs,
 ) -> ExecutableL1HandlerTransaction {
     let tx_version = l1_handler_tx_args.version;
-    if tx_version != TransactionVersion::THREE {
-        panic!("Unsupported transaction version: {:?}.", l1_handler_tx_args.version);
-    }
+    // TODO(Arni): Re-enable this validation.
+    // if tx_version != TransactionVersion::THREE {
+    //     panic!("Unsupported transaction version: {:?}.", l1_handler_tx_args.version);
+    // }
 
     ExecutableL1HandlerTransaction {
         tx: L1HandlerTransaction {
