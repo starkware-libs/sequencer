@@ -14,10 +14,13 @@ use tokio::time::timeout;
 use super::test_utils::{
     create_block_hashes_and_signatures,
     setup,
+    wait_for_marker,
+    MarkerKind,
     TestArgs,
     HEADER_QUERY_LENGTH,
     SLEEP_DURATION_TO_LET_SYNC_ADVANCE,
     TIMEOUT_FOR_NEW_QUERY_AFTER_PARTIAL_RESPONSE,
+    TIMEOUT_FOR_TEST,
     WAIT_PERIOD_FOR_NEW_DATA,
 };
 
@@ -80,14 +83,20 @@ async fn signed_headers_basic_flow() {
                     .await
                     .unwrap();
 
-                tokio::time::sleep(SLEEP_DURATION_TO_LET_SYNC_ADVANCE).await;
-
                 // Check responses were written to the storage. This way we make sure that the sync
                 // writes to the storage each response it receives before all query responses were
                 // sent.
                 let block_number = BlockNumber(i.try_into().unwrap());
+                wait_for_marker(
+                    MarkerKind::Header,
+                    &storage_reader,
+                    block_number.unchecked_next(),
+                    SLEEP_DURATION_TO_LET_SYNC_ADVANCE,
+                    TIMEOUT_FOR_TEST,
+                )
+                .await;
+
                 let txn = storage_reader.begin_ro_txn().unwrap();
-                assert_eq!(block_number.unchecked_next(), txn.get_header_marker().unwrap());
                 let block_header = txn.get_block_header(block_number).unwrap().unwrap();
                 assert_eq!(block_number, block_header.block_header_without_hash.block_number);
                 assert_eq!(*block_hash, block_header.block_hash);
