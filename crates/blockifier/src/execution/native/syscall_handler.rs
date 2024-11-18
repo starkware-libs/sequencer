@@ -1,7 +1,11 @@
 use std::collections::HashSet;
+use std::convert::From;
+use std::fmt;
 use std::hash::RandomState;
 use std::sync::Arc;
 
+use ark_ec::short_weierstrass::{Affine, Projective, SWCurveConfig};
+use ark_ff::PrimeField;
 use cairo_native::starknet::{
     BlockInfo,
     ExecutionInfo,
@@ -14,6 +18,7 @@ use cairo_native::starknet::{
     TxV2Info,
     U256,
 };
+use cairo_native::starknet_stub::u256_to_biguint;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{
@@ -47,6 +52,7 @@ use crate::execution::entry_point::{
 use crate::execution::errors::EntryPointExecutionError;
 use crate::execution::execution_utils::execute_deployment;
 use crate::execution::native::utils::{calculate_resource_bounds, default_tx_v2_info};
+use crate::execution::secp;
 use crate::execution::syscalls::exceeds_event_size_limit;
 use crate::execution::syscalls::hint_processor::{
     SyscallExecutionError,
@@ -753,5 +759,87 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
         sha2::compress256(prev_state, &[data_as_bytes]);
 
         Ok(())
+    }
+}
+
+/// A wrapper around an elliptic curve point in affine coordinates (x,y) on a
+/// short Weierstrass curve, specifically for Secp256k1/r1 curves.
+///
+/// This type provides a unified interface for working with points on both
+/// secp256k1 and secp256r1 curves through the generic `Curve` parameter.
+#[derive(PartialEq, Clone, Copy)]
+struct Secp256Point<Curve: SWCurveConfig>(Affine<Curve>);
+
+// todo(xrvdg) remove dead_code annotation after adding syscalls
+#[allow(dead_code)]
+impl<Curve: SWCurveConfig> Secp256Point<Curve>
+where
+    Curve::BaseField: PrimeField, // constraint for get_point_by_id
+{
+    fn wrap_secp_result<T>(
+        result: Result<Option<T>, SyscallExecutionError>,
+    ) -> Result<Option<Secp256Point<Curve>>, SyscallExecutionError>
+    where
+        T: Into<Affine<Curve>>,
+    {
+        match result {
+            Ok(None) => Ok(None),
+            Ok(Some(point)) => Ok(Some(Secp256Point(point.into()))),
+            Err(error) => Err(error),
+        }
+    }
+
+    /// Given an (x, y) pair, this function:
+    /// - Returns the point at infinity for (0, 0).
+    /// - Returns `Err` if either `x` or `y` is outside the modulus.
+    /// - Returns `Ok(None)` if (x, y) are within the modulus but not on the curve.
+    /// - Ok(Some(Point)) if (x,y) are on the curve.
+    fn new(x: U256, y: U256) -> Result<Option<Self>, SyscallExecutionError> {
+        let x = u256_to_biguint(x);
+        let y = u256_to_biguint(y);
+
+        Self::wrap_secp_result(secp::new_affine(x, y))
+    }
+
+    fn add(p0: Self, p1: Self) -> Self {
+        let result: Projective<Curve> = p0.0 + p1.0;
+        Secp256Point(result.into())
+    }
+
+    fn mul(p: Self, m: U256) -> Self {
+        let result = p.0 * Curve::ScalarField::from(u256_to_biguint(m));
+        Secp256Point(result.into())
+    }
+
+    fn get_point_from_x(x: U256, y_parity: bool) -> Result<Option<Self>, SyscallExecutionError> {
+        let x = u256_to_biguint(x);
+
+        Self::wrap_secp_result(secp::get_point_from_x(x, y_parity))
+    }
+}
+
+impl<Curve: SWCurveConfig> fmt::Debug for Secp256Point<Curve> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("Secp256Point").field(&self.0).finish()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use cairo_native::starknet::U256;
+
+    use crate::execution::native::syscall_handler::Secp256Point;
+
+    #[test]
+    fn infinity_test() {
+        let p1 =
+            Secp256Point::<ark_secp256k1::Config>::get_point_from_x(U256 { lo: 1, hi: 0 }, false)
+                .unwrap()
+                .unwrap();
+
+        let p2 = Secp256Point::mul(p1, U256 { lo: 0, hi: 0 });
+        assert!(p2.0.infinity);
+
+        assert_eq!(p1, Secp256Point::add(p1, p2));
     }
 }
