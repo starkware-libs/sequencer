@@ -105,7 +105,7 @@ fn test_library_call_assert_fails(test_contract: FeatureContract) {
     feature = "cairo_native",
     test_case(FeatureContract::TestContract(CairoVersion::Native), 512510; "Native")
 )]
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 475110; "VM")]
+#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 295110; "VM")]
 fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
     // Todo(pwhite) 2024/10/28: Execution resources from the VM & Native are mesaured differently
     // helper function to change the expected resource values from both of executions
@@ -157,7 +157,7 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
         class_hash: Some(test_class_hash),
         code_address: None,
         call_type: CallType::Delegate,
-        initial_gas: if_native(&test_contract)(9999258160, 9998985960),
+        initial_gas: if_native(&test_contract)(9999258160, 9999105960),
         ..trivial_external_entry_point_new(test_contract)
     };
     let library_entry_point = CallEntryPoint {
@@ -172,12 +172,12 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
         class_hash: Some(test_class_hash),
         code_address: None,
         call_type: CallType::Delegate,
-        initial_gas: if_native(&test_contract)(9999418850, 9999136940),
+        initial_gas: if_native(&test_contract)(9999418850, 9999196940),
         ..trivial_external_entry_point_new(test_contract)
     };
     let storage_entry_point = CallEntryPoint {
         calldata: calldata![felt!(key), felt!(value)],
-        initial_gas: if_native(&test_contract)(9999097590, 9998834320),
+        initial_gas: if_native(&test_contract)(9999097590, 9999014320),
         ..nested_storage_entry_point
     };
 

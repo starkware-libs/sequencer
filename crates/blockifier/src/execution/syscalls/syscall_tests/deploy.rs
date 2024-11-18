@@ -14,7 +14,7 @@ use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{calldata_for_deploy_test, trivial_external_entry_point_new, CairoVersion};
 
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 205200;"VM")]
+#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 145200;"VM")]
 #[cfg_attr(
     feature = "cairo_native",
     test_case(FeatureContract::TestContract(CairoVersion::Native), 215310;"Native")
@@ -96,7 +96,7 @@ fn no_constructor_nonempty_calldata(deployer_contract: FeatureContract) {
     ));
 }
 
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1),214550, 4610;"VM")]
+#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1),154550, 4610;"VM")]
 #[cfg_attr(
     feature = "cairo_native",
     test_case(FeatureContract::TestContract(CairoVersion::Native),233890, 13840;"Native")

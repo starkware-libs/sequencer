@@ -76,28 +76,20 @@
         "syscall_base_gas_cost": {
             "step_gas_cost": 100
         },
-        "entry_point_gas_cost": {
-            "entry_point_initial_budget": 1,
-            "step_gas_cost": 500
-        },
         "fee_transfer_gas_cost": {
-            "entry_point_gas_cost": 1,
-            "step_gas_cost": 100
+            "step_gas_cost": 700
         },
         "transaction_gas_cost": {
-            "entry_point_gas_cost": 2,
             "fee_transfer_gas_cost": 1,
-            "step_gas_cost": 100
+            "step_gas_cost": 1300
         },
         "call_contract_gas_cost": {
             "syscall_base_gas_cost": 1,
-            "step_gas_cost": 10,
-            "entry_point_gas_cost": 1
+            "step_gas_cost": 610
         },
         "deploy_gas_cost": {
             "syscall_base_gas_cost": 1,
-            "step_gas_cost": 200,
-            "entry_point_gas_cost": 1
+            "step_gas_cost": 800
         },
         "get_block_hash_gas_cost": {
             "syscall_base_gas_cost": 1,
