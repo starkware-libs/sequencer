@@ -134,6 +134,31 @@ impl From<crate::executable_transaction::Transaction> for Transaction {
     }
 }
 
+impl From<(Transaction, TransactionHash)> for crate::executable_transaction::Transaction {
+    fn from(tup: (Transaction, TransactionHash)) -> Self {
+        let (tx, tx_hash) = tup;
+        match tx {
+            Transaction::Declare(_tx) => {
+                unimplemented!("Declare transactions are not supported yet.")
+            }
+            Transaction::Deploy(_tx) => {
+                unimplemented!("Deploy transactions are not supported yet.")
+            }
+            Transaction::DeployAccount(_tx) => {
+                unimplemented!("DeployAccount transactions are not supported yet.")
+            }
+            Transaction::Invoke(tx) => crate::executable_transaction::Transaction::Account(
+                crate::executable_transaction::AccountTransaction::Invoke(
+                    crate::executable_transaction::InvokeTransaction { tx, tx_hash },
+                ),
+            ),
+            Transaction::L1Handler(_) => {
+                unimplemented!("L1Handler transactions are not supported yet.")
+            }
+        }
+    }
+}
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Default)]
 pub struct TransactionOptions {
     /// Transaction that shouldn't be broadcasted to StarkNet. For example, users that want to
@@ -772,6 +797,20 @@ pub struct TransactionHash(pub StarkHash);
 impl std::fmt::Display for TransactionHash {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+// TODO(guyn): this is only used for conversion of transactions->executable transactions
+// It should be removed once we integrate a proper way to calculate executable transaction hashes
+impl From<TransactionHash> for Vec<u8> {
+    fn from(tx_hash: TransactionHash) -> Vec<u8> {
+        tx_hash.0.to_bytes_be().to_vec()
+    }
+}
+impl From<Vec<u8>> for TransactionHash {
+    fn from(bytes: Vec<u8>) -> TransactionHash {
+        let array: [u8; 32] = bytes.try_into().expect("Expected a Vec of length 32");
+        TransactionHash(StarkHash::from_bytes_be(&array))
     }
 }
 

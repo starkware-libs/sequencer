@@ -29,7 +29,12 @@ pub trait ConsensusContext {
     /// The chunks of content returned when iterating the proposal.
     // In practice I expect this to match the type sent to the network
     // (papyrus_protobuf::ConsensusMessage), and not to be specific to just the block's content.
-    type ProposalChunk;
+    type ProposalPart: TryFrom<Vec<u8>, Error = ProtobufConversionError>
+        + Into<Vec<u8>>
+        + TryInto<ProposalInit, Error = ProtobufConversionError>
+        + From<ProposalInit>
+        + Clone
+        + Send;
 
     // TODO(matan): The oneshot for receiving the build block could be generalized to just be some
     // future which returns a block.
@@ -63,14 +68,15 @@ pub trait ConsensusContext {
     /// - `content`: A receiver for the stream of the block's content.
     ///
     /// Returns:
-    /// - A receiver for the block id. If a valid block cannot be built the Sender will be dropped
-    ///   by ConsensusContext.
+    /// - A receiver for a tuple with two block ids, one calculated by the context, one sent from
+    ///   the network. If a valid block cannot be built the Sender will be dropped by
+    ///   ConsensusContext.
     async fn validate_proposal(
         &mut self,
         height: BlockNumber,
         timeout: Duration,
-        content: mpsc::Receiver<Self::ProposalChunk>,
-    ) -> oneshot::Receiver<ProposalContentId>;
+        content: mpsc::Receiver<Self::ProposalPart>,
+    ) -> oneshot::Receiver<(ProposalContentId, ProposalContentId)>;
 
     /// This function is called by consensus to retrieve the content of a previously built or
     /// validated proposal. It broadcasts the proposal to the network.
