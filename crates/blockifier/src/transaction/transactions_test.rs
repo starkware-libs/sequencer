@@ -2390,6 +2390,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     // Today, we check that the paid_fee is positive, no matter what was the actual fee.
     let expected_actual_fee =
         get_fee_by_gas_vector(&block_context.block_info, total_gas, &FeeType::Eth);
+
     assert_matches!(
         error,
         TransactionExecutionError::TransactionFeeError(
