@@ -10402,6 +10402,7 @@ dependencies = [
  "papyrus_proc_macros",
  "serde",
  "starknet_api",
+ "starknet_mempool_types",
  "starknet_sequencer_infra",
  "thiserror",
 ]
