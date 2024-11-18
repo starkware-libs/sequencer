@@ -160,7 +160,7 @@ impl Batcher {
             }
             SendProposalContent::Abort => {
                 self.proposal_manager.abort_proposal(proposal_id).await;
-                Ok(SendProposalContentResponse { response: ResponseProposalStatus::Aborted })
+                Ok(SendProposalContentResponse { response: ProposalStatus::Aborted })
             }
         }
     }
