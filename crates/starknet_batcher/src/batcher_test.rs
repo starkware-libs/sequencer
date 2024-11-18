@@ -344,6 +344,19 @@ async fn build_proposal_full_flow() {
 
 #[rstest]
 #[tokio::test]
+async fn get_content_from_unknown_proposal() {
+    let mut proposal_manager = MockProposalManagerTraitWrapper::new();
+    proposal_manager.expect_wrap_await_proposal_commitment().times(0);
+
+    let mut batcher = batcher(proposal_manager);
+
+    let get_proposal_content_input = GetProposalContentInput { proposal_id: PROPOSAL_ID };
+    let result = batcher.get_proposal_content(get_proposal_content_input).await;
+    assert_eq!(result, Err(BatcherError::ProposalNotFound { proposal_id: PROPOSAL_ID }));
+}
+
+#[rstest]
+#[tokio::test]
 async fn decision_reached(
     batcher_config: BatcherConfig,
     storage_reader: MockBatcherStorageReaderTrait,
