@@ -2,6 +2,18 @@ use std::env;
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum PathResolutionError {
+    // TODO(Arni): Handle manifest dir not exist here?
+    #[error("No file exists at '{path}'")]
+    PathDoesNotExist { path: PathBuf },
+    #[error(transparent)]
+    IoError(#[from] std::io::Error),
+}
+
+// TODO(tsabary): wrap path-related env::* invocations in the repo as utility functions
 static PATH_TO_CARGO_MANIFEST_DIR: LazyLock<Option<PathBuf>> =
     LazyLock::new(|| env::var("CARGO_MANIFEST_DIR").ok().map(|dir| Path::new(&dir).into()));
 
@@ -17,8 +29,15 @@ pub fn cargo_manifest_dir() -> Option<PathBuf> {
 ///
 /// # Returns
 /// * An absolute `PathBuf` representing the resolved path starting from the project root.
-pub fn resolve_project_relative_path(relative_path: &str) -> PathBuf {
-    path_of_project_root().join(relative_path)
+pub fn resolve_project_relative_path(relative_path: &str) -> Result<PathBuf, PathResolutionError> {
+    let base_dir = path_of_project_root();
+
+    let path = base_dir.join(relative_path);
+    if !path.try_exists()? {
+        return Err(PathResolutionError::PathDoesNotExist { path });
+    }
+
+    Ok(path)
 }
 
 fn path_of_project_root() -> PathBuf {

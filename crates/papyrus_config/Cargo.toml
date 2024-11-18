@@ -11,6 +11,7 @@ development = ["tempfile"] # Dependency of a doc-test
 
 [dependencies]
 clap = { workspace = true, features = ["env", "string"] }
+infra_utils.workspace = true
 itertools.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
