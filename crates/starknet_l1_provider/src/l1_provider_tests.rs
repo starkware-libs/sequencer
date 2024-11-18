@@ -6,9 +6,8 @@ use starknet_api::hash::StarkHash;
 use starknet_api::l1_handler_tx_args;
 use starknet_api::test_utils::l1_handler::executable_l1_handler_tx;
 use starknet_api::transaction::TransactionHash;
+use starknet_l1_provider_types::errors::L1ProviderError;
 
-use crate::errors::L1ProviderError;
-use crate::ProviderState::{Propose, Validate};
 use crate::{L1Provider, TransactionManager};
 
 macro_rules! tx {
@@ -74,11 +73,11 @@ fn proposal_start_errors() {
 
     assert_matches!(
         l1_provider.proposal_start().unwrap_err(),
-        L1ProviderError::UnexpectedProviderStateTransition { from: Propose, to: Propose }
+        L1ProviderError::UnexpectedProviderStateTransition { from: "Propose", to: "Propose" }
     );
     assert_matches!(
         l1_provider.validation_start().unwrap_err(),
-        L1ProviderError::UnexpectedProviderStateTransition { from: Propose, to: Validate }
+        L1ProviderError::UnexpectedProviderStateTransition { from: "Propose", to: "Validate" }
     );
 }
 
@@ -92,10 +91,10 @@ fn validation_start_errors() {
 
     assert_matches!(
         l1_provider.validation_start().unwrap_err(),
-        L1ProviderError::UnexpectedProviderStateTransition { from: Validate, to: Validate }
+        L1ProviderError::UnexpectedProviderStateTransition { from: "Validate", to: "Validate" }
     );
     assert_matches!(
         l1_provider.proposal_start().unwrap_err(),
-        L1ProviderError::UnexpectedProviderStateTransition { from: Validate, to: Propose }
+        L1ProviderError::UnexpectedProviderStateTransition { from: "Validate", to: "Propose" }
     );
 }

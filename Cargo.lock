@@ -10336,9 +10336,16 @@ version = "0.0.0"
 dependencies = [
  "assert_matches",
  "indexmap 2.6.0",
- "papyrus_base_layer",
  "pretty_assertions",
  "starknet_api",
+ "starknet_l1_provider_types",
+]
+
+[[package]]
+name = "starknet_l1_provider_types"
+version = "0.0.0"
+dependencies = [
+ "serde",
  "thiserror",
 ]
 
