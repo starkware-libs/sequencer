@@ -33,7 +33,6 @@ use starknet_api::transaction::fields::{Calldata, ContractAddressSalt};
 use starknet_api::transaction::{EventContent, EventData, EventKey, L2ToL1Payload};
 use starknet_types_core::felt::Felt;
 
-use crate::abi::constants;
 use crate::execution::call_info::{
     CallInfo,
     MessageToL1,
@@ -53,13 +52,12 @@ use crate::execution::errors::EntryPointExecutionError;
 use crate::execution::execution_utils::execute_deployment;
 use crate::execution::native::utils::{calculate_resource_bounds, default_tx_v2_info};
 use crate::execution::secp;
-use crate::execution::syscalls::exceeds_event_size_limit;
 use crate::execution::syscalls::hint_processor::{
     SyscallExecutionError,
-    BLOCK_NUMBER_OUT_OF_RANGE_ERROR,
     INVALID_INPUT_LENGTH_ERROR,
     OUT_OF_GAS_ERROR,
 };
+use crate::execution::syscalls::{exceeds_event_size_limit, syscall_base};
 use crate::state::state_api::State;
 use crate::transaction::objects::TransactionInfo;
 
@@ -276,34 +274,7 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
     ) -> SyscallResult<Felt> {
         self.pre_execute_syscall(remaining_gas, self.context.gas_costs().get_block_hash_gas_cost)?;
 
-        if self.context.execution_mode == ExecutionMode::Validate {
-            let err = SyscallExecutionError::InvalidSyscallInExecutionMode {
-                syscall_name: "get_block_hash".to_string(),
-                execution_mode: ExecutionMode::Validate,
-            };
-            return Err(self.handle_error(remaining_gas, err));
-        }
-
-        let current_block_number =
-            self.context.tx_context.block_context.block_info().block_number.0;
-        if current_block_number < constants::STORED_BLOCK_HASH_BUFFER
-            || block_number > current_block_number - constants::STORED_BLOCK_HASH_BUFFER
-        {
-            // `panic` is unreachable in this case, also this is covered by tests so we can safely
-            // unwrap
-            let out_of_range_felt = Felt::from_hex(BLOCK_NUMBER_OUT_OF_RANGE_ERROR)
-                .expect("Converting BLOCK_NUMBER_OUT_OF_RANGE_ERROR to Felt should not fail.");
-            let error = SyscallExecutionError::SyscallError { error_data: vec![out_of_range_felt] };
-            return Err(self.handle_error(remaining_gas, error));
-        }
-
-        let key = StorageKey::try_from(Felt::from(block_number))
-            .map_err(|e| self.handle_error(remaining_gas, e.into()))?;
-        let block_hash_contract_address =
-            ContractAddress::try_from(Felt::from(constants::BLOCK_HASH_CONTRACT_ADDRESS))
-                .map_err(|e| self.handle_error(remaining_gas, e.into()))?;
-
-        match self.state.get_storage_at(block_hash_contract_address, key) {
+        match syscall_base::get_block_hash_base(self.context, block_number, self.state) {
             Ok(value) => Ok(value),
             Err(e) => Err(self.handle_error(remaining_gas, e.into())),
         }
