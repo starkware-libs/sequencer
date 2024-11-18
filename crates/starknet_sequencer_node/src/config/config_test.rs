@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::env;
 use std::fs::File;
 
@@ -6,6 +7,7 @@ use assert_matches::assert_matches;
 use colored::Colorize;
 use papyrus_config::dumping::SerializeConfig;
 use papyrus_config::validators::config_validate;
+use papyrus_config::SerializedParam;
 use rstest::rstest;
 use starknet_api::test_utils::get_absolute_path;
 use starknet_sequencer_infra::component_definitions::{
@@ -21,7 +23,6 @@ use crate::config::node_config::{
     CONFIG_NON_POINTERS_WHITELIST,
     CONFIG_POINTERS,
     DEFAULT_CONFIG_PATH,
-    REQUIRED_PARAM_CONFIG_POINTERS,
 };
 use crate::config::test_utils::{create_test_config_load_args, RequiredParams};
 
@@ -109,11 +110,21 @@ fn test_config_parsing() {
     assert_matches!(result, Ok(_), "Expected Ok but got {:?}", result);
 }
 
-/// Tests compatibility of the required parameter settings: pointer targets and test util struct.
+/// Tests compatibility of the required parameter settings: required params (containing required
+/// pointer targets) and test util struct.
 #[test]
 fn test_required_params_setting() {
-    let required_pointers =
-        REQUIRED_PARAM_CONFIG_POINTERS.iter().map(|((x, _), _)| x.to_owned()).collect::<Vec<_>>();
-    let required_params = RequiredParams::field_names();
-    assert_eq!(required_pointers, required_params);
+    // Load the default config file.
+    let file = std::fs::File::open(get_absolute_path(DEFAULT_CONFIG_PATH)).unwrap();
+    let mut deserialized = serde_json::from_reader::<_, serde_json::Value>(file).unwrap();
+    let expected_required_params = deserialized.as_object_mut().unwrap();
+    expected_required_params.retain(|_, value| {
+        let param = serde_json::from_value::<SerializedParam>(value.clone()).unwrap();
+        param.is_required()
+    });
+    let expected_required_keys =
+        expected_required_params.keys().cloned().collect::<HashSet<String>>();
+
+    let required_params: HashSet<String> = RequiredParams::field_names().into_iter().collect();
+    assert_eq!(required_params, expected_required_keys);
 }

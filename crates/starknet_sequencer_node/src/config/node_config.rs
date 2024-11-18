@@ -33,9 +33,7 @@ use crate::version::VERSION_FULL;
 pub const DEFAULT_CONFIG_PATH: &str = "config/sequencer/default_config.json";
 
 // Configuration parameters that share the same value across multiple components.
-
-// Required target parameters.
-pub static REQUIRED_PARAM_CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
+pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
     vec![
         (
             ser_pointer_target_required_param(
@@ -76,16 +74,6 @@ pub static REQUIRED_PARAM_CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::
             ]),
         ),
     ]
-});
-
-// Optional target parameters, i.e., target parameters with default values.
-pub static DEFAULT_PARAM_CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(Vec::new);
-
-// All target parameters.
-pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
-    let mut combined = REQUIRED_PARAM_CONFIG_POINTERS.clone();
-    combined.extend(DEFAULT_PARAM_CONFIG_POINTERS.clone());
-    combined
 });
 
 // Parameters that should 1) not be pointers, and 2) have a name matching a pointer target param.
