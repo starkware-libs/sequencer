@@ -18,6 +18,7 @@ class Service(Construct):
         *,
         image: str,
         replicas: int = 1,
+        namespace: Optional[str] = None,
         service_type: Optional[ServiceType] = None,
         port_mappings: Optional[Sequence[PortMapping]] = None,
         deployment: Optional[bool] = False,
@@ -30,6 +31,7 @@ class Service(Construct):
     ):
         super().__init__(scope, id)
 
+        self.namespace = namespace
         self.image = image
         self.label = {"app": Names.to_label_value(self, include_hash=False)}
         self.deployment = deployment
@@ -42,6 +44,9 @@ class Service(Construct):
         self.pvc = pvc
         self.ingress = ingress
         self.args = args
+
+        if namespace is not None:
+            self.get_namespace()
 
         if port_mappings is not None:
             self.get_port_mappings()
@@ -59,10 +64,23 @@ class Service(Construct):
             self.get_pvc()
         
 
+    def get_namespace(self):
+        return k8s.KubeNamespace(
+            self,
+            "namespace",
+            metadata=k8s.ObjectMeta(
+                name=self.namespace
+            )
+        )
+
+
     def get_config_map(self):
         return k8s.KubeConfigMap(
             self,
-            "config",
+            "configmap",
+            metadata=k8s.ObjectMeta(
+                name=f"{self.node.id}-config"
+            ),
             data=dict(config=json.dumps(self.config.get())),
         )
         
@@ -77,10 +95,14 @@ class Service(Construct):
                 template=k8s.PodTemplateSpec(
                     metadata=k8s.ObjectMeta(labels=self.label),
                     spec=k8s.PodSpec(
+                        security_context=k8s.PodSecurityContext(
+                            fs_group=1000
+                        ),
                         containers=[
                             k8s.Container(
                                 name=f"{self.node.id}-container",
                                 image=self.image,
+                                # command=["sleep", "infinity"],
                                 args=self.args or [],
                                 ports=[k8s.ContainerPort(container_port=port_map.container_port) for port_map in self.port_mappings or []],
                                 startup_probe=k8s.Probe(
@@ -130,7 +152,7 @@ class Service(Construct):
                                         k8s.VolumeMount(
                                             name=f"{self.node.id}-data",
                                             mount_path=self.pvc.mount_path,
-                                            read_only=True
+                                            read_only=self.pvc.read_only,
                                         ) if self.pvc is not None else None
                                     ] if mount is not None
                                 ]
@@ -210,7 +232,6 @@ class Service(Construct):
                                         service=k8s.IngressServiceBackend(
                                             name=path.backend_service_name,
                                             port=k8s.ServiceBackendPort(
-                                                name=path.backend_service_port_name,
                                                 number=path.backend_service_port_number
                                             )
                                         )

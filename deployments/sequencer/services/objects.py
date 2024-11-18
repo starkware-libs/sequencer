@@ -5,6 +5,11 @@ from enum import Enum
 
 
 @dataclasses.dataclass
+class Namespace:
+    pass
+
+
+@dataclasses.dataclass
 class Probe:
     port: int | str
     path: str
@@ -65,9 +70,9 @@ class PortMapping:
 class IngressRuleHttpPath:
     path: Optional[str]
     path_type: str
-    backend_service_name: str
-    backend_service_port_number: int
-    backend_service_port_name: Optional[str]
+    backend_service_name: Optional[str] | None = None
+    backend_service_port_number: Optional[int] | None = None
+    backend_service_port_name: Optional[str] | None = None
 
 
 @dataclasses.dataclass
@@ -84,7 +89,7 @@ class IngressTls:
 
 @dataclasses.dataclass
 class Ingress:
-    annotations: Mapping[str, str] | None
-    class_name: str | None
-    rules: Sequence[IngressRule] | None
-    tls: Sequence[IngressTls] | None
+    annotations: Mapping[str, str] | None = None
+    class_name: str | None = None
+    rules: Sequence[IngressRule] | None = None
+    tls: Sequence[IngressTls] | None = None

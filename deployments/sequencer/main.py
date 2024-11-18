@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import dataclasses
+import os
 
 from constructs import Construct # type: ignore
 from cdk8s import App, Chart, YamlOutputType # type: ignore
@@ -10,6 +11,10 @@ from services.service import Service
 from config.sequencer import Config, SequencerDevConfig
 from services.objects import *
 from services import defaults
+
+
+name = os.getenv("NAME", "sequencer-node")
+namespace = os.getenv("NAMESPACE", "default")
 
 
 @dataclasses.dataclass
@@ -35,14 +40,15 @@ class SequencerNode(Chart):
         )
         self.service = Service(
             self,
-            "sequencer-node",
+            name,
+            namespace=namespace,
             deployment=True,
-            image="us.gcr.io/starkware-dev/sequencer-node-test:0.0.1-dev.1",
+            config=defaults.sequencer.config,
+            image=defaults.sequencer.image,
             args=defaults.sequencer.args,
             port_mappings=defaults.sequencer.port_mappings,
             service_type=defaults.sequencer.service_type,
             replicas=defaults.sequencer.replicas,
-            config=defaults.sequencer.config,
             health_check=defaults.sequencer.health_check,
             pvc=defaults.sequencer.pvc,
             ingress=defaults.sequencer.ingress
@@ -85,8 +91,8 @@ app = App(
 
 sequencer_node = SequencerNode(
     scope=app,
-    name="sequencer-node",
-    namespace="sequencer-node-test"
+    name=name,
+    namespace=namespace
 )
 
 # a = SequencerSystem(

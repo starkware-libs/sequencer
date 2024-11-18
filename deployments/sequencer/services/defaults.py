@@ -19,10 +19,11 @@ class ServiceDefaults:
 
 
 sequencer = ServiceDefaults(
+    image="us.gcr.io/starkware-dev/sequencer-node-test:0.0.1-dev.2",
     replicas=1,
-    config=SequencerDevConfig(mount_path="/app/config"),
+    config=SequencerDevConfig(mount_path="/config/sequencer/presets/"),
     service_type=ServiceType.CLUSTER_IP,
-    args=["--config_file", "/app/config/sequencer/config.json"],
+    args=["--config_file", "/config/sequencer/presets/config"],
     port_mappings=[
         PortMapping(name="http", port=80, container_port=8080),
         PortMapping(name="rpc", port=8081, container_port=8081),
@@ -37,7 +38,7 @@ sequencer = ServiceDefaults(
         access_modes=["ReadWriteOnce"],
         storage_class_name="premium-rwo",
         volume_mode="Filesystem",
-        storage="256Gi",
+        storage="64Gi",
         mount_path="/data",
         read_only=False
     ),
@@ -49,7 +50,7 @@ sequencer = ServiceDefaults(
             "cert-manager.io/issuer": "letsencrypt-prod",
             "acme.cert-manager.io/http01-edit-in-place": "true"
         },
-        class_name="gce",
+        class_name=None,
         rules=[
             IngressRule(
                 host="sequencer.gcp-integration.sw-dev.io",
@@ -58,7 +59,6 @@ sequencer = ServiceDefaults(
                         path="/monitoring/",
                         path_type="Prefix",
                         backend_service_name="sequencer-node-service",
-                        backend_service_port_name="monitoring",
                         backend_service_port_number=8082
                     )
                 ]
