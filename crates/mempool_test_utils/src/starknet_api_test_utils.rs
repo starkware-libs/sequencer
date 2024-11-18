@@ -14,13 +14,8 @@ use starknet_api::block::GasPrice;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::execution_resources::GasAmount;
-use starknet_api::rpc_transaction::{
-    ContractClass,
-    RpcDeclareTransactionV3,
-    RpcDeployAccountTransactionV3,
-    RpcTransaction,
-};
-use starknet_api::test_utils::declare::DeclareTxArgs;
+use starknet_api::rpc_transaction::{ContractClass, RpcDeployAccountTransactionV3, RpcTransaction};
+use starknet_api::test_utils::declare::rpc_declare_tx;
 use starknet_api::test_utils::deploy_account::DeployAccountTxArgs;
 use starknet_api::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::{get_absolute_path, NonceManager};
@@ -389,35 +384,6 @@ pub fn rpc_deploy_account_tx(deploy_tx_args: DeployAccountTxArgs) -> RpcTransact
                 paymaster_data: deploy_tx_args.paymaster_data,
             },
         ),
-    )
-}
-
-pub fn rpc_declare_tx(
-    declare_tx_args: DeclareTxArgs,
-    contract_class: ContractClass,
-) -> RpcTransaction {
-    if declare_tx_args.version != TransactionVersion::THREE {
-        panic!("Unsupported transaction version: {:?}.", declare_tx_args.version);
-    }
-
-    let ValidResourceBounds::AllResources(resource_bounds) = declare_tx_args.resource_bounds else {
-        panic!("Unsupported resource bounds type: {:?}.", declare_tx_args.resource_bounds)
-    };
-
-    starknet_api::rpc_transaction::RpcTransaction::Declare(
-        starknet_api::rpc_transaction::RpcDeclareTransaction::V3(RpcDeclareTransactionV3 {
-            contract_class,
-            signature: declare_tx_args.signature,
-            sender_address: declare_tx_args.sender_address,
-            resource_bounds,
-            tip: declare_tx_args.tip,
-            nonce_data_availability_mode: declare_tx_args.nonce_data_availability_mode,
-            fee_data_availability_mode: declare_tx_args.fee_data_availability_mode,
-            paymaster_data: declare_tx_args.paymaster_data,
-            account_deployment_data: declare_tx_args.account_deployment_data,
-            nonce: declare_tx_args.nonce,
-            compiled_class_hash: declare_tx_args.compiled_class_hash,
-        }),
     )
 }
 
