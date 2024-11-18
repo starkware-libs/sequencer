@@ -12,7 +12,7 @@ use crate::blockifier::transaction_executor::{
     BLOCK_STATE_ACCESS_ERR,
 };
 use crate::context::{BlockContext, TransactionContext};
-use crate::execution::call_info::CallInfo;
+use crate::execution::call_info::{gas_for_fee_from_call_infos, CallInfo, ChargedResources};
 use crate::fee::fee_checks::PostValidationReport;
 use crate::fee::receipt::TransactionReceipt;
 use crate::state::cached_state::CachedState;
@@ -123,6 +123,8 @@ impl<S: StateReader> StatefulValidator<S> {
             limit_steps_by_resources,
         )?;
 
+        let gas_for_fee = gas_for_fee_from_call_infos(&validate_call_info, &None);
+
         let tx_receipt = TransactionReceipt::from_account_tx(
             tx,
             &tx_context,
@@ -132,7 +134,7 @@ impl<S: StateReader> StatefulValidator<S> {
                 .as_mut()
                 .expect(BLOCK_STATE_ACCESS_ERR)
                 .get_actual_state_changes()?,
-            &execution_resources,
+            &ChargedResources { vm_resources: execution_resources, gas_for_fee },
             CallInfo::summarize_many(validate_call_info.iter()),
             0,
         );
