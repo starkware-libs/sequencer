@@ -8,10 +8,8 @@ use starknet_api::test_utils::l1_handler::executable_l1_handler_tx;
 use starknet_api::transaction::TransactionHash;
 
 use crate::errors::L1ProviderError;
-use crate::errors::L1ProviderError::UnexpectedProviderStateTransition;
 use crate::{L1Provider, ProviderState, TransactionManager};
 
-#[macro_export]
 macro_rules! tx {
     (tx_hash: $tx_hash:expr) => {{
         executable_l1_handler_tx(
@@ -72,10 +70,42 @@ fn proposal_start_errors() {
 
     // Test.
     l1_provider.proposal_start().unwrap();
+
     assert_matches!(
         l1_provider.proposal_start().unwrap_err(),
-        UnexpectedProviderStateTransition {
+        L1ProviderError::UnexpectedProviderStateTransition {
             from: ProviderState::Propose,
+            to: ProviderState::Propose
+        }
+    );
+    assert_matches!(
+        l1_provider.validation_start().unwrap_err(),
+        L1ProviderError::UnexpectedProviderStateTransition {
+            from: ProviderState::Propose,
+            to: ProviderState::Validate
+        }
+    );
+}
+
+#[test]
+fn validation_start_errors() {
+    // Setup.
+    let mut l1_provider = L1Provider::default();
+
+    // Test.
+    l1_provider.validation_start().unwrap();
+
+    assert_matches!(
+        l1_provider.validation_start().unwrap_err(),
+        L1ProviderError::UnexpectedProviderStateTransition {
+            from: ProviderState::Validate,
+            to: ProviderState::Validate
+        }
+    );
+    assert_matches!(
+        l1_provider.proposal_start().unwrap_err(),
+        L1ProviderError::UnexpectedProviderStateTransition {
+            from: ProviderState::Validate,
             to: ProviderState::Propose
         }
     );

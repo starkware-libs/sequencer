@@ -59,7 +59,8 @@ impl L1Provider {
     // TODO: pending formal consensus API, guessing the API here to keep things moving.
     // TODO: consider adding block number, it isn't strictly necessary, but will help debugging.
     pub fn validation_start(&mut self) -> L1ProviderResult<()> {
-        todo!("Sets internal state as validate, returns error if state is Pending.")
+        self.state = self.state.transition_to_validate()?;
+        Ok(())
     }
 
     pub fn proposal_start(&mut self) -> L1ProviderResult<()> {
@@ -144,8 +145,14 @@ impl ProviderState {
         }
     }
 
-    fn _transition_to_validate(self) -> L1ProviderResult<Self> {
-        todo!()
+    fn transition_to_validate(self) -> L1ProviderResult<Self> {
+        match self {
+            ProviderState::Pending => Ok(ProviderState::Validate),
+            _ => Err(L1ProviderError::UnexpectedProviderStateTransition {
+                from: self,
+                to: ProviderState::Validate,
+            }),
+        }
     }
 
     fn _transition_to_pending(self) -> L1ProviderResult<Self> {
