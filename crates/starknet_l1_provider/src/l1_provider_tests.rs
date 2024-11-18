@@ -6,10 +6,11 @@ use starknet_api::hash::StarkHash;
 use starknet_api::l1_handler_tx_args;
 use starknet_api::test_utils::l1_handler::executable_l1_handler_tx;
 use starknet_api::transaction::TransactionHash;
+use starknet_l1_provider_types::errors::L1ProviderError;
+use starknet_l1_provider_types::errors::L1ProviderError::UnexpectedProviderStateTransition;
+use starknet_l1_provider_types::l1_provider_types::ProviderState;
 
-use crate::errors::L1ProviderError;
-use crate::errors::L1ProviderError::UnexpectedProviderStateTransition;
-use crate::{L1Provider, ProviderState, TransactionManager};
+use crate::{L1Provider, TransactionManager};
 
 #[macro_export]
 macro_rules! tx {

@@ -1,12 +1,8 @@
-pub mod errors;
-
 use indexmap::{IndexMap, IndexSet};
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
-
-use crate::errors::L1ProviderError;
-
-type L1ProviderResult<T> = Result<T, L1ProviderError>;
+use starknet_l1_provider_types::errors::L1ProviderError;
+use starknet_l1_provider_types::l1_provider_types::{L1ProviderResult, ProviderState};
 
 #[cfg(test)]
 #[path = "l1_provider_tests.rs"]
@@ -51,7 +47,7 @@ impl L1Provider {
     // about to [optimistically-]propose or validate the next block.
     pub fn commit_block(&mut self, _commited_txs: &[TransactionHash]) {
         todo!(
-            "Purges txs from internal buffers, if was proposer clear staging buffer, 
+            "Purges txs from internal buffers, if was proposer clear staging buffer,
             reset state to Pending until we get proposing/validating notice from consensus."
         )
     }
@@ -121,49 +117,6 @@ impl TransactionManager {
 
     pub fn _mark_tx_included_on_l2(&mut self, _tx_hash: &TransactionHash) {
         todo!("Adds the tx hash to l2 buffer; remove tx from the txs storage if it's there.")
-    }
-}
-
-/// Current state of the provider, where pending means: idle, between proposal/validation cycles.
-#[derive(Clone, Copy, Debug, Default)]
-pub enum ProviderState {
-    #[default]
-    Pending,
-    Propose,
-    Validate,
-}
-
-impl ProviderState {
-    fn transition_to_propose(self) -> L1ProviderResult<Self> {
-        match self {
-            ProviderState::Pending => Ok(ProviderState::Propose),
-            _ => Err(L1ProviderError::UnexpectedProviderStateTransition {
-                from: self,
-                to: ProviderState::Propose,
-            }),
-        }
-    }
-
-    fn _transition_to_validate(self) -> L1ProviderResult<Self> {
-        todo!()
-    }
-
-    fn _transition_to_pending(self) -> L1ProviderResult<Self> {
-        todo!()
-    }
-
-    pub fn as_str(&self) -> &str {
-        match self {
-            ProviderState::Pending => "Pending",
-            ProviderState::Propose => "Propose",
-            ProviderState::Validate => "Validate",
-        }
-    }
-}
-
-impl std::fmt::Display for ProviderState {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.as_str())
     }
 }
 
