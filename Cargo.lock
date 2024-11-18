@@ -10339,8 +10339,13 @@ dependencies = [
 name = "starknet_l1_provider_types"
 version = "0.0.0"
 dependencies = [
+ "async-trait",
+ "mockall",
+ "papyrus_proc_macros",
  "serde",
+ "starknet_sequencer_infra",
  "thiserror",
+ "tracing",
 ]
 
 [[package]]

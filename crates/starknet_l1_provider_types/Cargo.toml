@@ -6,8 +6,13 @@ repository.workspace = true
 license.workspace = true
 
 [dependencies]
+async-trait.workspace = true
+mockall.workspace = true
+papyrus_proc_macros.workspace = true
 serde = { workspace = true, features = ["derive"] }
+starknet_sequencer_infra.workspace = true
 thiserror.workspace = true
+tracing.workspace = true
 
 [lints]
 workspace = true
