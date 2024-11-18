@@ -48,14 +48,9 @@ macro_rules! l1_handler_tx_args {
 pub fn executable_l1_handler_tx(
     l1_handler_tx_args: L1HandlerTxArgs,
 ) -> ExecutableL1HandlerTransaction {
-    let tx_version = l1_handler_tx_args.version;
-    if tx_version != TransactionVersion::THREE {
-        panic!("Unsupported transaction version: {:?}.", l1_handler_tx_args.version);
-    }
-
     ExecutableL1HandlerTransaction {
         tx: L1HandlerTransaction {
-            version: tx_version,
+            version: l1_handler_tx_args.version,
             nonce: l1_handler_tx_args.nonce,
             contract_address: l1_handler_tx_args.contract_address,
             entry_point_selector: l1_handler_tx_args.entry_point_selector,
