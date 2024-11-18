@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use std::process::Stdio;
 use std::time::Duration;
 
-use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
+use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use papyrus_execution::execution_utils::get_nonce_at;
 use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::StorageReader;
@@ -12,10 +12,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::state::StateNumber;
 use starknet_integration_tests::integration_test_setup::IntegrationTestSetup;
-use starknet_integration_tests::utils::{
-    create_integration_test_tx_generator,
-    run_transaction_generator_test_scenario,
-};
+use starknet_integration_tests::utils::{create_integration_test_tx_generator, send_account_txs};
 use starknet_sequencer_infra::trace_util::configure_tracing;
 use starknet_types_core::felt::Felt;
 use tokio::process::{Child, Command};
@@ -117,7 +114,7 @@ async fn await_block(
 
 #[rstest]
 #[tokio::test]
-async fn test_end_to_end_integration(tx_generator: MultiAccountTransactionGenerator) {
+async fn test_end_to_end_integration(mut tx_generator: MultiAccountTransactionGenerator) {
     const EXPECTED_BLOCK_NUMBER: BlockNumber = BlockNumber(15);
 
     configure_tracing();
@@ -142,10 +139,11 @@ async fn test_end_to_end_integration(tx_generator: MultiAccountTransactionGenera
     let send_rpc_tx_fn =
         &mut |rpc_tx| integration_test_setup.add_tx_http_client.assert_add_tx_success(rpc_tx);
 
+    const ACCOUNT_ID_0: AccountId = 0;
     let n_txs = 50;
+    let sender_address = tx_generator.account_with_id(ACCOUNT_ID_0).sender_address();
     info!("Sending {n_txs} txs.");
-    let (tx_hashes, sender_address) =
-        run_transaction_generator_test_scenario(tx_generator, n_txs, send_rpc_tx_fn).await;
+    let tx_hashes = send_account_txs(tx_generator, ACCOUNT_ID_0, n_txs, send_rpc_tx_fn).await;
 
     info!("Awaiting until {EXPECTED_BLOCK_NUMBER} blocks have been created.");
 
