@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use lazy_static::lazy_static;
 use papyrus_common::pending_classes::ApiContractClass;
@@ -16,9 +16,13 @@ use papyrus_protobuf::sync::{
     StateDiffQuery,
     TransactionQuery,
 };
+use papyrus_storage::body::BodyStorageReader;
+use papyrus_storage::class::ClassStorageReader;
+use papyrus_storage::header::HeaderStorageReader;
+use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::test_utils::get_test_storage;
-use papyrus_storage::StorageReader;
-use starknet_api::block::{BlockHash, BlockSignature};
+use papyrus_storage::{StorageError, StorageReader};
+use starknet_api::block::{BlockHash, BlockNumber, BlockSignature};
 use starknet_api::core::ClassHash;
 use starknet_api::crypto::utils::Signature;
 use starknet_api::hash::StarkHash;
@@ -27,6 +31,7 @@ use starknet_types_core::felt::Felt;
 
 use super::{P2PSyncClient, P2PSyncClientChannels, P2PSyncClientConfig};
 
+pub(crate) const TIMEOUT_FOR_TEST: Duration = Duration::from_secs(5);
 pub const BUFFER_SIZE: usize = 1000;
 pub const HEADER_QUERY_LENGTH: u64 = 5;
 pub const STATE_DIFF_QUERY_LENGTH: u64 = 3;
@@ -116,4 +121,51 @@ pub fn create_block_hashes_and_signatures(n_blocks: u8) -> Vec<(BlockHash, Block
             )
         })
         .collect()
+}
+
+pub(crate) enum MarkerKind {
+    #[allow(dead_code)]
+    Header,
+    #[allow(dead_code)]
+    Body,
+    State,
+    #[allow(dead_code)]
+    Class,
+}
+
+// TODO: Consider moving this to storage and to use poll wakeup instead of sleep
+pub(crate) async fn wait_for_marker(
+    marker_kind: MarkerKind,
+    storage_reader: &StorageReader,
+    expected_marker: BlockNumber,
+    sleep_duration: Duration,
+    timeout: Duration,
+) -> Result<(), StorageError> {
+    let start_time = Instant::now();
+
+    loop {
+        assert!(start_time.elapsed() < timeout, "Timeout waiting for state marker");
+
+        let txn = storage_reader.begin_ro_txn().unwrap();
+        let storage_marker = match marker_kind {
+            MarkerKind::Header => txn.get_header_marker().unwrap(),
+            MarkerKind::Body => txn.get_body_marker().unwrap(),
+            MarkerKind::State => txn.get_state_marker().unwrap(),
+            MarkerKind::Class => txn.get_class_marker().unwrap(),
+        };
+
+        match storage_marker {
+            marker if marker > expected_marker => {
+                return Err(StorageError::MarkerMismatch {
+                    expected: expected_marker,
+                    found: marker,
+                });
+            }
+            marker if marker < expected_marker => {
+                tokio::time::sleep(sleep_duration).await;
+            }
+            marker if marker == expected_marker => return Ok(()),
+            _ => unreachable!(),
+        }
+    }
 }
