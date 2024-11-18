@@ -2,11 +2,11 @@ use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 
 use indexmap::IndexMap;
+use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
-use crate::abi::abi_utils::get_fee_token_var_address;
 use crate::context::TransactionContext;
 use crate::execution::contract_class::RunnableContractClass;
 use crate::state::errors::StateError;
