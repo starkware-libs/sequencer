@@ -15,6 +15,7 @@ cairo-lang-starknet-classes.workspace = true
 cairo-lang-utils.workspace = true
 clap = { workspace = true, features = ["cargo", "derive"] }
 flate2.workspace = true
+google-cloud-storage = "0.22.1"
 indexmap = { workspace = true, features = ["serde"] }
 papyrus_execution.workspace = true
 pretty_assertions.workspace = true

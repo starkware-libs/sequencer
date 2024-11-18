@@ -1,3 +1,6 @@
+use std::fs;
+use std::path::Path;
+
 use blockifier_reexecution::state_reader::test_state_reader::{
     ConsecutiveTestStateReaders,
     OfflineConsecutiveStateReaders,
@@ -10,6 +13,8 @@ use blockifier_reexecution::state_reader::utils::{
     JSON_RPC_VERSION,
 };
 use clap::{Args, Parser, Subcommand};
+use google_cloud_storage::client::{Client, ClientConfig};
+use google_cloud_storage::http::objects::get::GetObjectRequest;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ChainId;
 use starknet_gateway::config::RpcStateReaderConfig;
@@ -104,6 +109,19 @@ enum Command {
         #[clap(long, short = 'd', default_value = None)]
         directory_path: Option<String>,
     },
+
+    // Upload all (selected) blocks to the gc bucket.
+    UploadAll {
+        /// Block numbers. If not specified, blocks are retrieved from
+        /// get_block_numbers_for_reexecution().
+        #[clap(long, short = 'b', num_args = 1.., default_value = None)]
+        block_numbers: Option<Vec<u64>>,
+
+        // Directory path to json files directory. Default:
+        // "./crates/blockifier_reexecution/resources".
+        #[clap(long, short = 'd', default_value = None)]
+        directory_path: Option<String>,
+    },
 }
 
 fn parse_block_numbers_args(block_numbers: Option<Vec<u64>>) -> Vec<BlockNumber> {
@@ -116,6 +134,7 @@ fn parse_block_numbers_args(block_numbers: Option<Vec<u64>>) -> Vec<BlockNumber>
 struct GlobalOptions {}
 
 /// Main entry point of the blockifier reexecution CLI.
+/// TODO(Aner): run by default from the root of the project.
 #[tokio::main]
 async fn main() {
     let args = BlockifierReexecutionCliArgs::parse();
@@ -202,6 +221,50 @@ async fn main() {
             for thread in threads {
                 thread.await.unwrap();
             }
+        }
+
+        Command::UploadAll { block_numbers, directory_path } => {
+            let directory_path =
+                directory_path.unwrap_or("./crates/blockifier_reexecution/resources".to_string());
+
+            let block_numbers = parse_block_numbers_args(block_numbers);
+            println!("Uploading blocks {block_numbers:?}.");
+
+            let files_prefix: String =
+                fs::read_to_string(directory_path.clone() + "/offline_reeexecution_files_prefix")
+                    .unwrap()
+                    + "/resources/";
+
+            let config = ClientConfig::default().with_auth().await.unwrap();
+            let client = Client::new(config);
+
+            // Verify all required files exist locally, and do not exist in the gc bucket.
+            for block_number in &block_numbers {
+                assert!(
+                    Path::exists(Path::new(&format!(
+                        "{directory_path}/block_{block_number}/reexecution_data.json"
+                    ))),
+                    "Block {block_number} reexecution data file does not exist."
+                );
+                assert!(
+                    client
+                        .get_object(&GetObjectRequest {
+                            bucket: "reexecution_artifacts".to_string(),
+                            object: files_prefix.clone()
+                                + &format!("block_{block_number}/reexecution_data.json"),
+                            ..Default::default()
+                        })
+                        .await
+                        // TODO: check that the error is not found error.
+                        .is_err(),
+                    "Block {block_number} reexecution data file already exists in bucket."
+                )
+            }
+
+            // Upload all files to the gc bucket.
+            // for block_number in &block_numbers {}
+
+            println!("All blocks uploaded successfully.");
         }
     }
 }
