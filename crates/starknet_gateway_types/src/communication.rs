@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use mockall::predicate::*;
-use mockall::*;
+#[cfg(any(feature = "testing", test))]
+use mockall::automock;
 use papyrus_proc_macros::handle_response_variants;
 use serde::{Deserialize, Serialize};
 use starknet_api::transaction::TransactionHash;
@@ -30,7 +30,7 @@ use tracing::{error, instrument};
 
 /// Serves as the gateway's shared interface. Requires `Send + Sync` to allow transferring
 /// and sharing resources (inputs, futures) across threads.
-#[automock]
+#[cfg_attr(any(feature = "testing", test), automock)]
 #[async_trait]
 pub trait GatewayClient: Send + Sync {
     async fn add_tx(&self, gateway_input: GatewayInput) -> GatewayClientResult<TransactionHash>;
