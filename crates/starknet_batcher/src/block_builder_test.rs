@@ -1,8 +1,5 @@
 use assert_matches::assert_matches;
-use blockifier::blockifier::transaction_executor::{
-    TransactionExecutorError,
-    TransactionExecutorError as BlockifierTransactionExecutorError,
-};
+use blockifier::blockifier::transaction_executor::TransactionExecutorError;
 use blockifier::bouncer::BouncerWeights;
 use blockifier::fee::fee_checks::FeeCheckError;
 use blockifier::transaction::objects::{RevertError, TransactionExecutionInfo};
@@ -24,6 +21,7 @@ use crate::block_builder::{
     BlockBuilderResult,
     BlockBuilderTrait,
     BlockExecutionArtifacts,
+    FailOnErrorCause,
 };
 use crate::test_utils::test_txs;
 use crate::transaction_executor::MockTransactionExecutorTrait;
@@ -131,18 +129,22 @@ fn empty_block_test_expectations()
     (mock_transaction_executor, mock_tx_provider, expected_block_artifacts)
 }
 
-fn block_full_test_expectations(
-    input_txs: &[Transaction],
-    block_size: usize,
-) -> (MockTransactionExecutorTrait, MockTransactionProvider, BlockExecutionArtifacts) {
+fn mock_transaction_executor_block_full(input_txs: &[Transaction]) -> MockTransactionExecutorTrait {
     let input_txs_cloned = input_txs.to_vec();
     let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
-
     mock_transaction_executor
         .expect_add_txs_to_block()
         .times(1)
         .withf(move |blockifier_input| compare_tx_hashes(&input_txs_cloned, blockifier_input))
         .return_once(move |_| vec![Ok(execution_info()), Err(TransactionExecutorError::BlockFull)]);
+    mock_transaction_executor
+}
+
+fn block_full_test_expectations(
+    input_txs: &[Transaction],
+    block_size: usize,
+) -> (MockTransactionExecutorTrait, MockTransactionProvider, BlockExecutionArtifacts) {
+    let mut mock_transaction_executor = mock_transaction_executor_block_full(input_txs);
 
     let expected_block_artifacts =
         set_close_block_expectations(&mut mock_transaction_executor, block_size);
@@ -152,26 +154,30 @@ fn block_full_test_expectations(
     (mock_transaction_executor, mock_tx_provider, expected_block_artifacts)
 }
 
-fn test_expectations_with_delay(
-    input_txs: &[Transaction],
-) -> (MockTransactionExecutorTrait, MockTransactionProvider, BlockExecutionArtifacts) {
-    let first_chunk = input_txs[0..TX_CHUNK_SIZE].to_vec();
-    let first_chunk_copy = first_chunk.clone();
+fn mock_transaction_executor_with_delay(input_txs: &[Transaction]) -> MockTransactionExecutorTrait {
+    let input_txs_cloned = input_txs.to_vec();
     let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
-
     mock_transaction_executor
         .expect_add_txs_to_block()
         .times(1)
-        .withf(move |blockifier_input| compare_tx_hashes(&first_chunk, blockifier_input))
+        .withf(move |blockifier_input| compare_tx_hashes(&input_txs_cloned, blockifier_input))
         .return_once(move |_| {
             std::thread::sleep(std::time::Duration::from_secs(BLOCK_GENERATION_DEADLINE_SECS));
             (0..TX_CHUNK_SIZE).map(move |_| Ok(execution_info())).collect()
         });
+    mock_transaction_executor
+}
+
+fn test_expectations_with_delay(
+    input_txs: &[Transaction],
+) -> (MockTransactionExecutorTrait, MockTransactionProvider, BlockExecutionArtifacts) {
+    let first_chunk = input_txs[0..TX_CHUNK_SIZE].to_vec();
+    let mut mock_transaction_executor = mock_transaction_executor_with_delay(&first_chunk);
 
     let expected_block_artifacts =
         set_close_block_expectations(&mut mock_transaction_executor, TX_CHUNK_SIZE);
 
-    let mock_tx_provider = mock_tx_provider_limited_calls(1, vec![first_chunk_copy]);
+    let mock_tx_provider = mock_tx_provider_limited_calls(1, vec![first_chunk]);
 
     (mock_transaction_executor, mock_tx_provider, expected_block_artifacts)
 }
@@ -388,17 +394,15 @@ async fn test_validate_block() {
     assert_eq!(result_block_artifacts, expected_block_artifacts);
 }
 
+#[rstest]
+#[case::block_full(test_txs(0..3), mock_transaction_executor_block_full(&input_txs), FailOnErrorCause::BlockFull)]
+#[case::deadline_reached(test_txs(0..3), mock_transaction_executor_with_delay(&input_txs), FailOnErrorCause::DeadlineReached)]
 #[tokio::test]
-async fn test_validate_block_with_error() {
-    let input_txs = test_txs(0..3);
-    let input_txs_clone = input_txs.clone();
-
-    let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
-    mock_transaction_executor
-        .expect_add_txs_to_block()
-        .times(1)
-        .withf(move |blockifier_input| compare_tx_hashes(&input_txs_clone, blockifier_input))
-        .return_once(move |_| vec![Ok(execution_info()), Err(TransactionExecutorError::BlockFull)]);
+async fn test_validate_block_with_error(
+    #[case] input_txs: Vec<Transaction>,
+    #[case] mut mock_transaction_executor: MockTransactionExecutorTrait,
+    #[case] expected_error: FailOnErrorCause,
+) {
     mock_transaction_executor.expect_close_block().times(0);
 
     let mock_tx_provider = mock_tx_provider_limited_calls(1, vec![input_txs.to_vec()]);
@@ -416,8 +420,8 @@ async fn test_validate_block_with_error() {
     .unwrap_err();
 
     assert_matches!(
-        result,
-        BlockBuilderError::FailOnError(BlockifierTransactionExecutorError::BlockFull)
+        result, BlockBuilderError::FailOnError(err)
+        if err.to_string() == expected_error.to_string()
     );
 }
 
