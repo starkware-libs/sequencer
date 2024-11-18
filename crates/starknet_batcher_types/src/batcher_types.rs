@@ -46,12 +46,12 @@ pub struct GetProposalContentInput {
     pub proposal_id: ProposalId,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GetProposalContentResponse {
     pub content: GetProposalContent,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum GetProposalContent {
     Txs(Vec<Transaction>),
     Finished(ProposalCommitment),
