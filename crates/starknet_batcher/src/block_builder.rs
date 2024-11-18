@@ -14,7 +14,6 @@ use blockifier::context::{BlockContext, ChainInfo};
 use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::state::errors::StateError;
 use blockifier::state::global_cache::GlobalContractCache;
-use blockifier::transaction::errors::TransactionExecutionError as BlockifierTransactionExecutionError;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use blockifier::versioned_constants::{VersionedConstants, VersionedConstantsOverrides};
@@ -48,16 +47,24 @@ pub enum BlockBuilderError {
     #[error(transparent)]
     GetTransactionError(#[from] TransactionProviderError),
     #[error(transparent)]
-    TransactionExecutionError(#[from] BlockifierTransactionExecutionError),
-    #[error(transparent)]
     StreamTransactionsError(#[from] tokio::sync::mpsc::error::SendError<Transaction>),
-    #[error("Build block with fail_on_err mode, failed on error {}.", _0)]
-    FailOnError(BlockifierTransactionExecutorError),
+    #[error(transparent)]
+    FailOnError(FailOnErrorCause),
     #[error("The block builder was aborted.")]
     Aborted,
 }
 
 pub type BlockBuilderResult<T> = Result<T, BlockBuilderError>;
+
+#[derive(Debug, Error)]
+pub enum FailOnErrorCause {
+    #[error("Block is full")]
+    BlockFull,
+    #[error("Deadline has been reached")]
+    DeadlineReached,
+    #[error("Transaction failed: {0}")]
+    TransactionFailed(BlockifierTransactionExecutorError),
+}
 
 #[cfg_attr(test, derive(Clone))]
 #[derive(Debug, PartialEq)]
@@ -120,7 +127,14 @@ impl BlockBuilderTrait for BlockBuilder {
         let mut block_is_full = false;
         let mut execution_infos = IndexMap::new();
         // TODO(yael 6/10/2024): delete the timeout condition once the executor has a timeout
-        while !block_is_full && tokio::time::Instant::now() < self.execution_params.deadline {
+        while !block_is_full {
+            if tokio::time::Instant::now() >= self.execution_params.deadline {
+                info!("Block builder deadline reached.");
+                if self.execution_params.fail_on_err {
+                    return Err(BlockBuilderError::FailOnError(FailOnErrorCause::DeadlineReached));
+                }
+                break;
+            }
             if self.abort_signal_receiver.try_recv().is_ok() {
                 info!("Received abort signal. Aborting block builder.");
                 return Err(BlockBuilderError::Aborted);
@@ -182,14 +196,19 @@ async fn collect_execution_results_and_stream_txs(
             }
             // TODO(yael 18/9/2024): add timeout error handling here once this
             // feature is added.
-            Err(BlockifierTransactionExecutorError::BlockFull) if !fail_on_err => {
+            Err(BlockifierTransactionExecutorError::BlockFull) => {
                 info!("Block is full");
+                if fail_on_err {
+                    return Err(BlockBuilderError::FailOnError(FailOnErrorCause::BlockFull));
+                }
                 return Ok(true);
             }
             Err(err) => {
                 debug!("Transaction {:?} failed with error: {}.", input_tx, err);
                 if fail_on_err {
-                    return Err(BlockBuilderError::FailOnError(err));
+                    return Err(BlockBuilderError::FailOnError(
+                        FailOnErrorCause::TransactionFailed(err),
+                    ));
                 }
             }
         }
