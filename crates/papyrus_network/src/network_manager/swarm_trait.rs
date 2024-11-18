@@ -120,7 +120,7 @@ impl SwarmTrait for Swarm<mixed_behaviour::MixedBehaviour> {
             // TODO(shahak): Consider reporting to the subscriber broadcast failures or retrying
             // upon failure.
             warn!(
-                "Error occured while broadcasting a message to the topic with hash \
+                "Error occurred while broadcasting a message to the topic with hash \
                  {topic_hash:?}: {err:?}"
             );
         }
