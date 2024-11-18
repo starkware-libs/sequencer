@@ -63,6 +63,65 @@ pub type Pointers = HashSet<ParamPath>;
 /// Detailing pointers in the config map.
 pub type ConfigPointers = Vec<(PointerTarget, Pointers)>;
 
+/// Given a set of paths that are configuration of the same struct type, makes all the paths point
+/// to the same target.
+pub fn generate_struct_pointer<T: SerializeConfig>(
+    target_prefix: ParamPath,
+    default_instance: &T,
+    pointer_prefixes: HashSet<ParamPath>,
+) -> ConfigPointers {
+    let mut res = ConfigPointers::new();
+    for (param_path, serialized_param) in default_instance.dump() {
+        let pointer_target = serialized_param_to_pointer_target(
+            target_prefix.clone(),
+            &param_path,
+            &serialized_param,
+        );
+        let pointers = pointer_prefixes
+            .iter()
+            .map(|pointer| chain_param_paths(&[pointer, &param_path]))
+            .collect();
+
+        res.push((pointer_target, pointers));
+    }
+    res
+}
+
+// Converts a serialized param to a pointer target.
+fn serialized_param_to_pointer_target(
+    target_prefix: ParamPath,
+    param_path: &ParamPath,
+    serialized_param: &SerializedParam,
+) -> PointerTarget {
+    let full_param_path = chain_param_paths(&[&target_prefix, param_path]);
+    if serialized_param.is_required() {
+        let description = serialized_param
+            .description
+            .strip_prefix(REQUIRED_PARAM_DESCRIPTION_PREFIX)
+            .unwrap_or(&serialized_param.description)
+            .trim_start();
+        ser_pointer_target_required_param(
+            &full_param_path,
+            serialized_param.content.get_serialization_type().unwrap(),
+            description,
+        )
+    } else {
+        let default_value = match &serialized_param.content {
+            SerializedContent::DefaultValue(value) => value,
+            SerializedContent::PointerTarget(_) => panic!("Pointers to pointer is not supported."),
+            // We already checked that the param is not required, so it must be a generated param.
+            SerializedContent::ParamType(_) => {
+                panic!("Generated pointer targets are not supported.")
+            }
+        };
+        ser_pointer_target_param(&full_param_path, default_value, &serialized_param.description)
+    }
+}
+
+fn chain_param_paths(param_paths: &[&str]) -> ParamPath {
+    param_paths.join(FIELD_SEPARATOR)
+}
+
 /// Serialization for configs.
 pub trait SerializeConfig {
     /// Conversion of a configuration to a mapping of flattened parameters to their descriptions and
