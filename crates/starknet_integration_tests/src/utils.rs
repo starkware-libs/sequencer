@@ -184,21 +184,14 @@ fn create_txs_for_integration_test(
     vec![account0_invoke_nonce1, account0_invoke_nonce2, account1_invoke_nonce1]
 }
 
-// TODO(Tsabary): Pass the contract address as a function parameter. Also rename the function to
-// better reflect its purpose. Then, rename 'run_transaction_generator_test_scenario' accordingly.
-fn create_txs_for_tx_generator_test_scenario(
+fn create_account_txs(
     mut tx_generator: MultiAccountTransactionGenerator,
+    account_id: AccountId,
     n_txs: usize,
-) -> (Vec<RpcTransaction>, ContractAddress) {
-    const ACCOUNT_ID_0: AccountId = 0;
-    let contract_address = tx_generator.account_with_id(ACCOUNT_ID_0).sender_address();
-
-    (
-        (0..n_txs)
-            .map(|_| tx_generator.account_with_id(ACCOUNT_ID_0).generate_invoke_with_tip(1))
-            .collect(),
-        contract_address,
-    )
+) -> Vec<RpcTransaction> {
+    (0..n_txs)
+        .map(|_| tx_generator.account_with_id(account_id).generate_invoke_with_tip(1))
+        .collect()
 }
 
 async fn send_rpc_txs<'a, Fut>(
@@ -239,20 +232,18 @@ where
     vec![tx_hashes[2], tx_hashes[0], tx_hashes[1]]
 }
 
-/// Creates and runs the many txs test scenario for the sequencer integration test. Returns
-/// a list of transaction hashes, in the order they are expected to be in the mempool.
-pub async fn run_transaction_generator_test_scenario<'a, Fut>(
+/// Returns a list of the transaction hashes, in the order they are expected to be in the mempool.
+pub async fn send_account_txs<'a, Fut>(
     tx_generator: MultiAccountTransactionGenerator,
+    account_id: AccountId,
     n_txs: usize,
     send_rpc_tx_fn: &'a mut dyn FnMut(RpcTransaction) -> Fut,
-) -> (Vec<TransactionHash>, ContractAddress)
+) -> Vec<TransactionHash>
 where
     Fut: Future<Output = TransactionHash> + 'a,
 {
-    let (rpc_txs, contract_address) =
-        create_txs_for_tx_generator_test_scenario(tx_generator, n_txs);
-    let tx_hashes = send_rpc_txs(rpc_txs, send_rpc_tx_fn).await;
-    (tx_hashes, contract_address)
+    let rpc_txs = create_account_txs(tx_generator, n_txs, account_id);
+    send_rpc_txs(rpc_txs, send_rpc_tx_fn).await
 }
 
 pub async fn create_gateway_config(chain_info: ChainInfo) -> GatewayConfig {
