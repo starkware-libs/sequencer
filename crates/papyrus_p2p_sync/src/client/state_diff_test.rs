@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use futures::{FutureExt, StreamExt};
 use indexmap::indexmap;
 use papyrus_protobuf::sync::{
@@ -26,15 +24,16 @@ use static_assertions::const_assert;
 use super::test_utils::{
     create_block_hashes_and_signatures,
     setup,
+    wait_for_marker,
+    MarkerKind,
     TestArgs,
     HEADER_QUERY_LENGTH,
     SLEEP_DURATION_TO_LET_SYNC_ADVANCE,
     STATE_DIFF_QUERY_LENGTH,
+    TIMEOUT_FOR_TEST,
     WAIT_PERIOD_FOR_NEW_DATA,
 };
 use super::StateDiffQuery;
-
-const TIMEOUT_FOR_TEST: Duration = Duration::from_secs(5);
 
 #[tokio::test]
 async fn state_diff_basic_flow() {
@@ -136,14 +135,20 @@ async fn state_diff_basic_flow() {
                     .await
                     .unwrap();
 
-                tokio::time::sleep(SLEEP_DURATION_TO_LET_SYNC_ADVANCE).await;
-
                 // Check state diff was written to the storage. This way we make sure that the sync
                 // writes to the storage each block's state diff before receiving all query
                 // responses.
-                let txn = storage_reader.begin_ro_txn().unwrap();
-                assert_eq!(block_number.unchecked_next(), txn.get_state_marker().unwrap());
+                wait_for_marker(
+                    MarkerKind::State,
+                    &storage_reader,
+                    block_number.unchecked_next(),
+                    SLEEP_DURATION_TO_LET_SYNC_ADVANCE,
+                    TIMEOUT_FOR_TEST,
+                )
+                .await
+                .unwrap();
 
+                let txn = storage_reader.begin_ro_txn().unwrap();
                 let state_diff = txn.get_state_diff(block_number).unwrap().unwrap();
                 let expected_state_diff = match state_diff_chunk {
                     StateDiffChunk::ContractDiff(contract_diff) => {
