@@ -10259,6 +10259,7 @@ dependencies = [
  "serde",
  "serde_json",
  "starknet_api",
+ "starknet_gateway_types",
  "starknet_sequencer_infra",
  "thiserror",
  "tracing",
