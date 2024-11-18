@@ -91,7 +91,7 @@ async fn test_mempool_sends_tx_to_other_peer(tx_generator: MultiAccountTransacti
         ..SequencerNodeConfig::default()
     };
 
-    let (_clients, servers) = create_node_modules(&config);
+    let servers = create_node_modules(&config);
 
     let HttpServerConfig { ip, port } = config.http_server_config;
     let add_tx_http_client = HttpTestClient::new(SocketAddr::from((ip, port)));
