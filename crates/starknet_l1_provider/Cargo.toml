@@ -9,6 +9,7 @@ license.workspace = true
 indexmap.workspace = true
 papyrus_base_layer.workspace = true
 starknet_api.workspace = true
+starknet_l1_provider_types.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]

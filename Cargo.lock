@@ -10333,7 +10333,24 @@ dependencies = [
  "papyrus_base_layer",
  "pretty_assertions",
  "starknet_api",
+ "starknet_l1_provider_types",
  "thiserror",
+]
+
+[[package]]
+name = "starknet_l1_provider_types"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "derive_more 0.99.18",
+ "mockall",
+ "papyrus_proc_macros",
+ "serde",
+ "starknet_api",
+ "starknet_sequencer_infra",
+ "thiserror",
+ "tracing",
 ]
 
 [[package]]
