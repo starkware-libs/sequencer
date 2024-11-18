@@ -92,7 +92,6 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
 pub static CONFIG_NON_POINTERS_WHITELIST: LazyLock<Pointers> =
     LazyLock::new(HashSet::<ParamPath>::new);
 
-// TODO(yair): Make the GW and batcher execution config point to the same values.
 /// The configurations of the various components of the node.
 #[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq, Validate)]
 pub struct SequencerNodeConfig {
