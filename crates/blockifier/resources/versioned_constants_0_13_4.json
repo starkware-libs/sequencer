@@ -434,7 +434,7 @@
                 "n_memory_holes": 0
             },
             "GetClassHashAt": {
-                "n_steps": 100,
+                "n_steps": 89,
                 "builtin_instance_counter": {
                     "range_check_builtin": 1
                 },
