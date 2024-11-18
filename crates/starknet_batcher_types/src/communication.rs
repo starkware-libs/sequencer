@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use mockall::predicate::*;
-use mockall::*;
+#[cfg(any(feature = "testing", test))]
+use mockall::automock;
 use papyrus_proc_macros::handle_response_variants;
 use serde::{Deserialize, Serialize};
 use starknet_sequencer_infra::component_client::{
@@ -38,7 +38,7 @@ pub type SharedBatcherClient = Arc<dyn BatcherClient>;
 
 /// Serves as the batcher's shared interface. Requires `Send + Sync` to allow transferring and
 /// sharing resources (inputs, futures) across threads.
-#[automock]
+#[cfg_attr(any(test, feature = "testing"), automock)]
 #[async_trait]
 pub trait BatcherClient: Send + Sync {
     /// Starts the process of building a proposal.

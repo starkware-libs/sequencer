@@ -5,6 +5,9 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 
+[features]
+testing = ["mockall"]
+
 [lints]
 workspace = true
 
@@ -12,9 +15,14 @@ workspace = true
 async-trait.workspace = true
 chrono = { workspace = true, features = ["serde"] }
 derive_more.workspace = true
-mockall.workspace = true
+mockall = { workspace = true, optional = true }
 papyrus_proc_macros.workspace = true
 serde = { workspace = true, features = ["derive"] }
 starknet_api.workspace = true
 starknet_sequencer_infra.workspace = true
 thiserror.workspace = true
+
+
+[dev-dependencies]
+# Enable self with "testing" feature in tests.
+starknet_batcher_types = { workspace = true, features = ["testing"] }
