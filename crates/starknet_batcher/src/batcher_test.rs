@@ -3,7 +3,6 @@ use std::sync::Arc;
 
 use assert_matches::assert_matches;
 use async_trait::async_trait;
-use blockifier::blockifier::transaction_executor::TransactionExecutorError;
 use chrono::Utc;
 use futures::future::BoxFuture;
 use futures::FutureExt;
@@ -37,7 +36,7 @@ use starknet_mempool_types::communication::MockMempoolClient;
 use starknet_mempool_types::mempool_types::CommitBlockArgs;
 
 use crate::batcher::{Batcher, MockBatcherStorageReaderTrait, MockBatcherStorageWriterTrait};
-use crate::block_builder::BlockBuilderError;
+use crate::block_builder::{BlockBuilderError, FailOnErrorCause};
 use crate::config::BatcherConfig;
 use crate::proposal_manager::{
     GenerateProposalError,
@@ -262,7 +261,7 @@ async fn send_finish_to_an_invalid_proposal() {
         .return_once(|_, _, _, _| { async move { Ok(()) } }.boxed());
 
     let proposal_error = GetProposalResultError::BlockBuilderError(Arc::new(
-        BlockBuilderError::FailOnError(TransactionExecutorError::BlockFull),
+        BlockBuilderError::FailOnError(FailOnErrorCause::BlockFull),
     ));
     proposal_manager
         .expect_wrap_await_proposal_commitment()
