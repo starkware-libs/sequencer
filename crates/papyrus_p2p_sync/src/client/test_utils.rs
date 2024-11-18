@@ -53,11 +53,13 @@ lazy_static! {
         stop_sync_at_block_number: None,
     };
 }
-type HeaderTestPayload = MockClientResponsesManager<HeaderQuery, DataOrFin<SignedBlockHeader>>;
-type StateDiffTestPayload = MockClientResponsesManager<StateDiffQuery, DataOrFin<StateDiffChunk>>;
-type TransactionTestPayload =
+pub(crate) type HeaderTestPayload =
+    MockClientResponsesManager<HeaderQuery, DataOrFin<SignedBlockHeader>>;
+pub(crate) type StateDiffTestPayload =
+    MockClientResponsesManager<StateDiffQuery, DataOrFin<StateDiffChunk>>;
+pub(crate) type TransactionTestPayload =
     MockClientResponsesManager<TransactionQuery, DataOrFin<FullTransaction>>;
-type ClassTestPayload =
+pub(crate) type ClassTestPayload =
     MockClientResponsesManager<ClassQuery, DataOrFin<(ApiContractClass, ClassHash)>>;
 
 // TODO(Eitan): Use SqmrSubscriberChannels once there is a utility function for testing
