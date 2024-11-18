@@ -1,4 +1,6 @@
 mod class;
+#[cfg(test)]
+mod class_test;
 mod header;
 #[cfg(test)]
 mod header_test;
