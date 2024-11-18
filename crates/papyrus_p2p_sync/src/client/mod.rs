@@ -9,6 +9,8 @@ mod stream_builder;
 #[cfg(test)]
 mod test_utils;
 mod transaction;
+#[cfg(test)]
+mod transaction_test;
 
 use std::collections::BTreeMap;
 use std::time::Duration;
