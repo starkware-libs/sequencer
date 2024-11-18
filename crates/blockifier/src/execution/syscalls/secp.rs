@@ -46,10 +46,9 @@ where
         &mut self,
         request: SecpGetPointFromXRequest,
     ) -> SyscallResult<SecpGetPointFromXResponse> {
-        let affine = crate::execution::secp::get_point_from_x(request.x, request.y_parity);
-
-        affine.map(|maybe_ec_point| SecpGetPointFromXResponse {
-            optional_ec_point_id: maybe_ec_point.map(|ec_point| self.allocate_point(ec_point)),
+        let affine = crate::execution::secp::get_point_from_x(request.x, request.y_parity)?;
+        Ok(SecpGetPointFromXResponse {
+            optional_ec_point_id: affine.map(|ec_point| self.allocate_point(ec_point)),
         })
     }
 
