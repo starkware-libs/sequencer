@@ -63,7 +63,8 @@ fn test_valid_component_execution_config(
 /// cargo run --bin sequencer_dump_config -q
 #[test]
 fn test_default_config_file_is_up_to_date() {
-    env::set_current_dir(resolve_project_relative_path("")).expect("Couldn't set working dir.");
+    env::set_current_dir(resolve_project_relative_path("").unwrap())
+        .expect("Couldn't set working dir.");
     let from_default_config_file: serde_json::Value =
         serde_json::from_reader(File::open(DEFAULT_CONFIG_PATH).unwrap()).unwrap();
 
@@ -115,7 +116,8 @@ fn test_config_parsing() {
 #[test]
 fn test_required_params_setting() {
     // Load the default config file.
-    let file = std::fs::File::open(resolve_project_relative_path(DEFAULT_CONFIG_PATH)).unwrap();
+    let file =
+        std::fs::File::open(resolve_project_relative_path(DEFAULT_CONFIG_PATH).unwrap()).unwrap();
     let mut deserialized = serde_json::from_reader::<_, serde_json::Value>(file).unwrap();
     let expected_required_params = deserialized.as_object_mut().unwrap();
     expected_required_params.retain(|_, value| {
