@@ -44,6 +44,7 @@ use crate::StarknetApiError;
 #[path = "transaction_test.rs"]
 mod transaction_test;
 
+pub mod constants;
 pub mod fields;
 
 // TODO(Noa, 14/11/2023): Replace QUERY_VERSION_BASE_BIT with a lazy calculation.
