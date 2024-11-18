@@ -27,8 +27,7 @@ async fn main() -> anyhow::Result<()> {
     }
     info!("Finished validating configuration.");
 
-    // Clients are currently unused, but should not be dropped.
-    let (_clients, servers) = create_node_modules(&config);
+    let servers = create_node_modules(&config);
 
     info!("Starting components!");
     run_component_servers(servers).await?;
