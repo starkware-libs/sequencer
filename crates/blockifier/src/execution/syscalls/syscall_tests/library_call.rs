@@ -31,7 +31,7 @@ use crate::versioned_constants::VersionedConstants;
 
 #[cfg_attr(
     feature = "cairo_native",
-    test_case(FeatureContract::TestContract(CairoVersion::Native), 187970; "Native")
+    test_case(FeatureContract::TestContract(CairoVersion::Native), 126610; "Native")
 )]
 #[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), REQUIRED_GAS_LIBRARY_CALL_TEST; "VM")]
 fn test_library_call(test_contract: FeatureContract, expected_gas: u64) {
@@ -103,9 +103,9 @@ fn test_library_call_assert_fails(test_contract: FeatureContract) {
 
 #[cfg_attr(
     feature = "cairo_native",
-    test_case(FeatureContract::TestContract(CairoVersion::Native), 515110; "Native")
+    test_case(FeatureContract::TestContract(CairoVersion::Native), 332510; "Native")
 )]
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 475110; "VM")]
+#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 295110; "VM")]
 fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
     // Todo(pwhite) 2024/10/28: Execution resources from the VM & Native are mesaured differently
     // helper function to change the expected resource values from both of executions
@@ -157,7 +157,7 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
         class_hash: Some(test_class_hash),
         code_address: None,
         call_type: CallType::Delegate,
-        initial_gas: if_native(&test_contract)(9999257700, 9998985960),
+        initial_gas: if_native(&test_contract)(9999378160, 9999105960),
         ..trivial_external_entry_point_new(test_contract)
     };
     let library_entry_point = CallEntryPoint {
@@ -172,12 +172,12 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
         class_hash: Some(test_class_hash),
         code_address: None,
         call_type: CallType::Delegate,
-        initial_gas: if_native(&test_contract)(9999418680, 9999136940),
+        initial_gas: if_native(&test_contract)(9999478850, 9999196940),
         ..trivial_external_entry_point_new(test_contract)
     };
     let storage_entry_point = CallEntryPoint {
         calldata: calldata![felt!(key), felt!(value)],
-        initial_gas: if_native(&test_contract)(9999096060, 9998834320),
+        initial_gas: if_native(&test_contract)(9999277590, 9999014320),
         ..nested_storage_entry_point
     };
 
@@ -223,7 +223,7 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
     let library_call_resources = if_native(&test_contract)(
         ChargedResources {
             vm_resources: ExecutionResources::default(),
-            gas_for_fee: GasAmount(187970),
+            gas_for_fee: GasAmount(126610),
         },
         ChargedResources::from_execution_resources(
             &get_syscall_resources(SyscallSelector::LibraryCall)
@@ -239,7 +239,7 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
         call: library_entry_point,
         execution: CallExecution {
             retdata: retdata![felt!(value + 1)],
-            gas_consumed: if_native(&test_contract)(187970, REQUIRED_GAS_LIBRARY_CALL_TEST),
+            gas_consumed: if_native(&test_contract)(126610, REQUIRED_GAS_LIBRARY_CALL_TEST),
             ..CallExecution::default()
         },
         charged_resources: library_call_resources,
@@ -265,7 +265,7 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
     let main_call_resources = if_native(&test_contract)(
         ChargedResources {
             vm_resources: ExecutionResources::default(),
-            gas_for_fee: GasAmount(515110),
+            gas_for_fee: GasAmount(332510),
         },
         ChargedResources::from_execution_resources(
             &(&get_syscall_resources(SyscallSelector::LibraryCall) * 3)
