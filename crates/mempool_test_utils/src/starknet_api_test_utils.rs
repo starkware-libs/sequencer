@@ -67,7 +67,8 @@ pub fn test_valid_resource_bounds() -> ValidResourceBounds {
 
 /// Get the contract class used for testing.
 pub fn contract_class() -> ContractClass {
-    env::set_current_dir(get_absolute_path(TEST_FILES_FOLDER)).expect("Couldn't set working dir.");
+    env::set_current_dir(get_absolute_path(TEST_FILES_FOLDER).unwrap())
+        .expect("Couldn't set working dir.");
     let json_file_path = Path::new(CONTRACT_CLASS_FILE);
     serde_json::from_reader(File::open(json_file_path).unwrap()).unwrap()
 }

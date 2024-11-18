@@ -26,7 +26,8 @@ fn command_line_compiler() -> CommandLineCompiler {
     CommandLineCompiler::new(SIERRA_TO_CASM_COMPILATION_CONFIG)
 }
 fn get_test_contract() -> ContractClass {
-    env::set_current_dir(get_absolute_path(TEST_FILES_FOLDER)).expect("Failed to set current dir.");
+    env::set_current_dir(get_absolute_path(TEST_FILES_FOLDER).unwrap())
+        .expect("Failed to set current dir.");
     let sierra_path = Path::new(FAULTY_ACCOUNT_CLASS_FILE);
     contract_class_from_file(sierra_path)
 }

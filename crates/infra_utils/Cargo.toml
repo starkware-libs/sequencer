@@ -8,3 +8,6 @@ description = "Infrastructure utility functions for the sequencer node."
 
 [lints]
 workspace = true
+
+[dependencies]
+thiserror.workspace = true
