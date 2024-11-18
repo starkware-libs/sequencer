@@ -118,7 +118,7 @@ fn test_add_tx_handles_nonces_correctly(mut mempool: Mempool) {
     add_tx(&mut mempool, &input_nonce_0);
     // Although the input account nonce is higher, mempool looks at its internal registry.
     add_tx(&mut mempool, &input_nonce_1);
-    get_txs_and_assert_expected(&mut mempool, 2, &[input_nonce_0.tx, input_nonce_1.tx]);
+    get_txs_and_assert_expected(&mut mempool, 2, &[input_nonce_1.tx]);
     // Although the input account nonce is lower, mempool looks at internal registry.
     add_tx(&mut mempool, &input_nonce_2);
     get_txs_and_assert_expected(&mut mempool, 1, &[input_nonce_2.tx]);

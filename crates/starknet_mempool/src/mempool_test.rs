@@ -371,14 +371,14 @@ fn test_add_tx_lower_than_queued_nonce(mut mempool: Mempool) {
     add_tx(&mut mempool, &input);
 
     // Test and assert: original transaction remains.
-    let invalid_input = add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 0, account_nonce: 0);
+    let invalid_input = add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 0, account_nonce: 1);
     add_tx_expect_error(
         &mut mempool,
         &invalid_input,
         MempoolError::NonceTooOld { address: contract_address!("0x0"), nonce: nonce!(0) },
     );
 
-    let invalid_input = add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 1, account_nonce: 0);
+    let invalid_input = add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 1, account_nonce: 1);
     add_tx_expect_error(
         &mut mempool,
         &invalid_input,
@@ -459,6 +459,25 @@ fn test_add_tx_fills_nonce_gap(mut mempool: Mempool) {
         .with_priority_queue(expected_queue_txs)
         .build();
     expected_mempool_content.assert_eq(&mempool);
+}
+
+#[rstest]
+fn test_add_tx_does_not_decrease_account_nonce(mut mempool: Mempool) {
+    // Setup.
+    let input_account_nonce_0 =
+        add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 2, account_nonce: 0);
+    let input_account_nonce_1 =
+        add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 1, account_nonce: 1);
+    let input_account_nonce_2 =
+        add_tx_input!(tx_hash: 3, address: "0x0", tx_nonce: 3, account_nonce: 2);
+
+    // Test.
+    add_tx(&mut mempool, &input_account_nonce_1);
+    add_tx(&mut mempool, &input_account_nonce_0);
+    assert_eq!(mempool.state.get(contract_address!("0x0")), Some(nonce!(1)));
+
+    add_tx(&mut mempool, &input_account_nonce_2);
+    assert_eq!(mempool.state.get(contract_address!("0x0")), Some(nonce!(2)));
 }
 
 // `commit_block` tests.
