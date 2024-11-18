@@ -1,3 +1,4 @@
+use crate::contract_address;
 use crate::contract_class::ClassInfo;
 use crate::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use crate::data_availability::DataAvailabilityMode;
@@ -18,6 +19,8 @@ use crate::transaction::{
     TransactionHash,
     TransactionVersion,
 };
+
+pub const TEST_SENDER_ADDRESS: u128 = 0x1000;
 
 #[derive(Clone)]
 pub struct DeclareTxArgs {
@@ -43,7 +46,7 @@ impl Default for DeclareTxArgs {
         Self {
             max_fee: Fee::default(),
             signature: TransactionSignature::default(),
-            sender_address: ContractAddress::default(),
+            sender_address: contract_address!(TEST_SENDER_ADDRESS),
             version: TransactionVersion::THREE,
             resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),
             tip: Tip::default(),
