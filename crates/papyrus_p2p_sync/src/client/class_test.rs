@@ -188,3 +188,131 @@ fn create_random_state_diff_chunk_with_class(
         )
     }
 }
+
+// TODO(noamsp): Consider verifying that ParseDataError::BadPeerError(NotEnoughClasses)
+// was returned from parse_data_for_block. We currently dont have a way to check this.
+#[tokio::test]
+async fn not_enough_classes() {
+    validate_class_sync_fails(
+        vec![2],
+        vec![
+            Some(StateDiffChunk::DeclaredClass(DeclaredClass::default())),
+            Some(StateDiffChunk::DeprecatedDeclaredClass(DeprecatedDeclaredClass::default())),
+        ],
+        vec![
+            Some((
+                ApiContractClass::ContractClass(SierraContractClass::get_test_instance(
+                    &mut get_rng(),
+                )),
+                ClassHash::default(),
+            )),
+            None,
+        ],
+    )
+    .await;
+}
+
+// TODO(noamsp): Consider verifying that ParseDataError::BadPeerError(ClassNotInStateDiff)
+// was returned from parse_data_for_block. We currently dont have a way to check this.
+#[tokio::test]
+async fn class_not_in_state_diff() {
+    validate_class_sync_fails(
+        vec![1],
+        vec![Some(StateDiffChunk::DeclaredClass(DeclaredClass::default()))],
+        vec![Some((
+            ApiContractClass::DeprecatedContractClass(DeprecatedContractClass::get_test_instance(
+                &mut get_rng(),
+            )),
+            ClassHash::default(),
+        ))],
+    )
+    .await;
+}
+
+// TODO(noamsp): Consider verifying that ParseDataError::BadPeerError(DuplicateClass)
+// was returned from parse_data_for_block. We currently dont have a way to check this.
+#[tokio::test]
+async fn duplicate_classes() {
+    validate_class_sync_fails(
+        vec![2],
+        vec![
+            Some(StateDiffChunk::DeclaredClass(DeclaredClass::default())),
+            Some(StateDiffChunk::DeprecatedDeclaredClass(DeprecatedDeclaredClass::default())),
+        ],
+        vec![
+            Some((
+                ApiContractClass::DeprecatedContractClass(
+                    DeprecatedContractClass::get_test_instance(&mut get_rng()),
+                ),
+                ClassHash::default(),
+            )),
+            Some((
+                ApiContractClass::DeprecatedContractClass(
+                    DeprecatedContractClass::get_test_instance(&mut get_rng()),
+                ),
+                ClassHash::default(),
+            )),
+        ],
+    )
+    .await;
+}
+
+async fn validate_class_sync_fails(
+    header_state_diff_lengths: Vec<usize>,
+    state_diffs: Vec<Option<StateDiffChunk>>,
+    classes: Vec<Option<(ApiContractClass, ClassHash)>>,
+) {
+    let TestArgs {
+        p2p_sync,
+        storage_reader,
+        mut mock_state_diff_response_manager,
+        mut mock_header_response_manager,
+        mut mock_class_response_manager,
+        // The test will fail if we drop this
+        mock_transaction_response_manager: _mock_transaction_responses_manager,
+        ..
+    } = setup();
+
+    // Create a future that will receive queries, send responses and validate the results.
+    let parse_queries_future = async move {
+        run_state_diff_sync(
+            p2p_sync.config,
+            &mut mock_header_response_manager,
+            &mut mock_state_diff_response_manager,
+            header_state_diff_lengths,
+            state_diffs,
+        )
+        .await;
+
+        // Get a class query and validate it
+        let mut mock_classes_responses_manager = mock_class_response_manager.next().await.unwrap();
+        assert_eq!(
+            *mock_classes_responses_manager.query(),
+            Ok(ClassQuery(Query {
+                start_block: BlockHashOrNumber::Number(BlockNumber(0)),
+                direction: Direction::Forward,
+                limit: 1,
+                step: 1,
+            }))
+        );
+
+        for class in classes {
+            // Check that before we've sent all parts the state diff wasn't written yet.
+            let txn = storage_reader.begin_ro_txn().unwrap();
+            assert_eq!(0, txn.get_class_marker().unwrap().0);
+
+            mock_classes_responses_manager.send_response(DataOrFin(class)).await.unwrap();
+        }
+
+        // Asserts that a peer was reported due to a non-fatal error.
+        mock_classes_responses_manager.assert_reported(TIMEOUT_FOR_TEST).await;
+    };
+
+    tokio::select! {
+        sync_result = p2p_sync.run() => {
+            sync_result.unwrap();
+            panic!("P2P sync aborted with no failure.");
+        }
+        _ = parse_queries_future => {}
+    }
+}
