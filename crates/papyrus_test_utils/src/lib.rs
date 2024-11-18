@@ -7,7 +7,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::env;
 use std::hash::Hash;
 use std::net::SocketAddr;
-use std::num::NonZeroU64;
+use std::num::{NonZeroU32, NonZeroU64};
 use std::ops::{Deref, Index};
 use std::sync::Arc;
 
@@ -1127,13 +1127,18 @@ impl GetTestInstance for Hint {
     }
 }
 
+// TODO: Match memeber types for ExecutionResources and protobuf::receipt::ExecutionResources.
 impl GetTestInstance for ExecutionResources {
     fn get_test_instance(rng: &mut ChaCha8Rng) -> Self {
         let builtin = Builtin::get_test_instance(rng);
         Self {
-            steps: NonZeroU64::get_test_instance(rng).into(),
-            builtin_instance_counter: [(builtin, NonZeroU64::get_test_instance(rng).into())].into(),
-            memory_holes: NonZeroU64::get_test_instance(rng).into(),
+            steps: NonZeroU64::from(NonZeroU32::get_test_instance(rng)).into(),
+            builtin_instance_counter: [(
+                builtin,
+                NonZeroU64::from(NonZeroU32::get_test_instance(rng)).into(),
+            )]
+            .into(),
+            memory_holes: NonZeroU64::from(NonZeroU32::get_test_instance(rng)).into(),
             da_gas_consumed: GasVector::get_test_instance(rng),
             gas_consumed: GasVector::get_test_instance(rng),
         }
@@ -1147,6 +1152,12 @@ impl GetTestInstance for GasVector {
             l2_gas: GasAmount(rng.next_u64()),
             l1_data_gas: GasAmount(rng.next_u64()),
         }
+    }
+}
+
+impl GetTestInstance for NonZeroU32 {
+    fn get_test_instance(rng: &mut ChaCha8Rng) -> Self {
+        max(1, rng.next_u32()).try_into().expect("Failed to convert a non-zero u32 to NonZeroU32")
     }
 }
 
