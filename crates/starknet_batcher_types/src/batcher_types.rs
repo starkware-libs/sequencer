@@ -89,6 +89,8 @@ pub enum ProposalStatus {
     Processing,
     // Only sent in response to `Finish`.
     Finished(ProposalCommitment),
+    // Only sent in response to `Abort`.
+    Aborted,
     // May be caused due to handling of a previous item of the new proposal.
     // In this case, the propsal is aborted and no additional content will be processed.
     InvalidProposal,

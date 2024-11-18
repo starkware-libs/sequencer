@@ -111,7 +111,6 @@ pub trait ProposalManagerTrait: Send + Sync {
         proposal_id: ProposalId,
     ) -> ProposalResult<ProposalCommitment>;
 
-    #[allow(dead_code)]
     async fn abort_proposal(&mut self, proposal_id: ProposalId);
 }
 
