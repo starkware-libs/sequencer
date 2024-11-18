@@ -227,13 +227,17 @@ fn test_invoke(
 }
 
 #[rstest]
-fn test_l1_handler(block_context: BlockContext) {
+fn test_l1_handler(
+    block_context: BlockContext,
+    #[values(TransactionVersion::ZERO, TransactionVersion::THREE)] version: TransactionVersion,
+) {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1);
     let state = test_state(&block_context.chain_info, BALANCE, &[(test_contract, 1)]);
 
     let tx = Transaction::L1Handler(l1handler_tx(
         Fee(1908000000000000),
         test_contract.get_instance_address(0),
+        version,
     ));
     let expected_bouncer_weights = BouncerWeights {
         state_diff_size: 4,

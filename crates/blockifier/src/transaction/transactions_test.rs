@@ -2242,7 +2242,10 @@ fn test_only_query_flag(
 }
 
 #[rstest]
-fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
+fn test_l1_handler(
+    #[values(false, true)] use_kzg_da: bool,
+    #[values(TransactionVersion::ZERO, TransactionVersion::THREE)] version: TransactionVersion,
+) {
     let gas_mode = GasVectorComputationMode::NoL2Gas;
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1);
     let chain_info = &ChainInfo::create_for_testing();
@@ -2250,7 +2253,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     let block_context = &BlockContext::create_for_account_testing_with_kzg(use_kzg_da);
     let contract_address = test_contract.get_instance_address(0);
     let versioned_constants = &block_context.versioned_constants;
-    let tx = l1handler_tx(Fee(1), contract_address);
+    let tx = l1handler_tx(Fee(1), contract_address, version);
     let calldata = tx.tx.calldata.clone();
     let key = calldata.0[1];
     let value = calldata.0[2];
@@ -2384,9 +2387,9 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
 
     // set the storage back to 0, so the fee will also include the storage write.
     // TODO(Meshi, 15/6/2024): change the l1_handler_set_value cairo function to
-    // always uptade the storage instad.
+    // always update the storage instead.
     state.set_storage_at(contract_address, StorageKey::try_from(key).unwrap(), Felt::ZERO).unwrap();
-    let tx_no_fee = l1handler_tx(Fee(0), contract_address);
+    let tx_no_fee = l1handler_tx(Fee(0), contract_address, version);
     let error = tx_no_fee.execute(state, block_context, false, true).unwrap_err(); // Do not charge fee as L1Handler's resource bounds (/max fee) is 0.
     // Today, we check that the paid_fee is positive, no matter what was the actual fee.
     let expected_actual_fee =
