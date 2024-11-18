@@ -280,41 +280,6 @@ impl Mempool {
         self.tx_queue.update_gas_price_threshold(threshold);
     }
 
-    fn _validate_incoming_tx_nonce(
-        &self,
-        address: ContractAddress,
-        tx_nonce: Nonce,
-    ) -> MempoolResult<()> {
-        // Check nonce against mempool state.
-        if self.state.get(address).is_some_and(|mempool_state_nonce| tx_nonce < mempool_state_nonce)
-        {
-            return Err(MempoolError::NonceTooOld { address, nonce: tx_nonce });
-        }
-
-        // Check nonce against the queue.
-        // TODO(Elin): change to < for fee escalation (and add test).
-        if self.tx_queue.get_nonce(address).is_some_and(|queued_nonce| tx_nonce <= queued_nonce) {
-            return Err(MempoolError::DuplicateNonce { address, nonce: tx_nonce });
-        }
-
-        Ok(())
-    }
-
-    fn _validate_committed_nonce(&self, address: ContractAddress, next_nonce: Nonce) {
-        // FIXME: Remove after first POC.
-        // If commit_block wants to decrease the stored account nonce this can mean one of two
-        // things:
-        // 1. this is a reorg, which should be handled by a dedicated TBD mechanism and not inside
-        //    commit_block
-        // 2. the stored nonce originated from add_tx, so should be treated as tentative due
-        // to possible races with the gateway; these types of nonces should be tagged somehow
-        // so that commit_block can override them. Regardless, in the first POC this cannot
-        // happen because the GW nonces are always 1.
-        if let Some(stored_nonce) = self.state.get(address) {
-            assert!(stored_nonce <= next_nonce, "NOT SUPPORTED YET {address:?} {next_nonce:?}.")
-        }
-    }
-
     fn enqueue_next_eligible_txs(&mut self, txs: &[TransactionReference]) -> MempoolResult<()> {
         for tx in txs {
             let current_account_state = AccountState { address: tx.address, nonce: tx.nonce };
