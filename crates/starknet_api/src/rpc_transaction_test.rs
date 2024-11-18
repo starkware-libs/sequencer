@@ -13,10 +13,9 @@ use crate::rpc_transaction::{
     RpcDeclareTransactionV3,
     RpcDeployAccountTransaction,
     RpcDeployAccountTransactionV3,
-    RpcInvokeTransaction,
-    RpcInvokeTransactionV3,
     RpcTransaction,
 };
+use crate::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
 use crate::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
@@ -26,9 +25,11 @@ use crate::transaction::fields::{
     ResourceBounds,
     Tip,
     TransactionSignature,
+    ValidResourceBounds,
 };
-use crate::{class_hash, contract_address, felt, nonce};
+use crate::{calldata, class_hash, contract_address, felt, nonce};
 
+// TODO: Delete this when starknet_api_test_util is moved to StarkNet API.
 fn create_resource_bounds_for_testing() -> AllResourceBounds {
     AllResourceBounds {
         l1_gas: ResourceBounds { max_amount: GasAmount(100), max_price_per_unit: GasPrice(12) },
@@ -68,26 +69,23 @@ fn create_deploy_account_v3() -> RpcDeployAccountTransaction {
     })
 }
 
-fn create_invoke_v3() -> RpcInvokeTransaction {
-    RpcInvokeTransaction::V3(RpcInvokeTransactionV3 {
-        resource_bounds: create_resource_bounds_for_testing(),
-        tip: Tip(50),
-        calldata: Calldata(Arc::new(vec![felt!("0x2000"), felt!("0x1000")])),
-        sender_address: contract_address!("0x53"),
-        nonce: nonce!(32),
-        signature: TransactionSignature::default(),
-        nonce_data_availability_mode: DataAvailabilityMode::L1,
-        fee_data_availability_mode: DataAvailabilityMode::L1,
+fn create_rpc_invoke_tx() -> RpcTransaction {
+    rpc_invoke_tx(InvokeTxArgs {
+        resource_bounds: ValidResourceBounds::AllResources(create_resource_bounds_for_testing()),
+        calldata: calldata![felt!("0x1"), felt!("0x2")],
+        sender_address: contract_address!("0x1"),
+        nonce: nonce!(1),
         paymaster_data: PaymasterData(vec![Felt::TWO, Felt::ZERO]),
-        account_deployment_data: AccountDeploymentData(vec![felt!("0x87")]),
+        account_deployment_data: AccountDeploymentData(vec![felt!("0x1")]),
+        ..Default::default()
     })
 }
 
-// We are testing the `RpcTransaction` serialization. Passing non-default values.
+// Test the custom serde/deserde of RPC transactions.
 #[rstest]
 #[case(RpcTransaction::Declare(create_declare_v3()))]
 #[case(RpcTransaction::DeployAccount(create_deploy_account_v3()))]
-#[case(RpcTransaction::Invoke(create_invoke_v3()))]
+#[case(create_rpc_invoke_tx())]
 fn test_rpc_transactions(#[case] tx: RpcTransaction) {
     let serialized = serde_json::to_string(&tx).unwrap();
     let deserialized: RpcTransaction = serde_json::from_str(&serialized).unwrap();
