@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use mockall::predicate::*;
-use mockall::*;
+#[cfg(any(feature = "testing", test))]
+use mockall::automock;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_proc_macros::handle_response_variants;
 use serde::{Deserialize, Serialize};
@@ -37,7 +37,7 @@ pub struct AddTransactionArgsWrapper {
 
 /// Serves as the mempool's shared interface. Requires `Send + Sync` to allow transferring and
 /// sharing resources (inputs, futures) across threads.
-#[automock]
+#[cfg_attr(any(feature = "testing", test), automock)]
 #[async_trait]
 pub trait MempoolClient: Send + Sync {
     // TODO: Add Option<BroadcastedMessageMetadata> as an argument for add_transaction
