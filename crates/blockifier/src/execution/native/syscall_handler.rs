@@ -572,38 +572,14 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
     fn keccak(&mut self, input: &[u64], remaining_gas: &mut u64) -> SyscallResult<U256> {
         self.pre_execute_syscall(remaining_gas, self.context.gas_costs().keccak_gas_cost)?;
 
-        const KECCAK_FULL_RATE_IN_WORDS: usize = 17;
-
         let input_length = input.len();
-        let (n_rounds, remainder) = num_integer::div_rem(input_length, KECCAK_FULL_RATE_IN_WORDS);
-
-        if remainder != 0 {
-            return Err(self.handle_error(
-                remaining_gas,
-                SyscallExecutionError::SyscallError {
-                    error_data: vec![Felt::from_hex(INVALID_INPUT_LENGTH_ERROR).unwrap()],
-                },
-            ));
+        match syscall_base::keccak_base(self.context, input_length, remaining_gas) {
+            Ok(_) => (),
+            Err(e) => return Err(self.handle_error(remaining_gas, e.into())),
         }
-
-        // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion
-        // works.
-        let n_rounds_as_u128 = u64::try_from(n_rounds).expect("Failed to convert usize to u128.");
-        let gas_cost =
-            n_rounds_as_u128 * u64::from(self.context.gas_costs().keccak_round_cost_gas_cost);
-
-        if gas_cost > *remaining_gas {
-            return Err(self.handle_error(
-                remaining_gas,
-                SyscallExecutionError::SyscallError {
-                    error_data: vec![Felt::from_hex(OUT_OF_GAS_ERROR).unwrap()],
-                },
-            ));
-        }
-        *remaining_gas -= gas_cost;
 
         let mut state = [0u64; 25];
-        for chunk in input.chunks(KECCAK_FULL_RATE_IN_WORDS) {
+        for chunk in input.chunks(syscall_base::KECCAK_FULL_RATE_IN_WORDS) {
             for (i, val) in chunk.iter().enumerate() {
                 state[i] ^= val;
             }
