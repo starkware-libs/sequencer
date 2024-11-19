@@ -16,7 +16,7 @@ papyrus_protobuf.workspace = true
 papyrus_storage.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
-starknet_batcher_types.workspace = true
+starknet_batcher_types = { workspace = true, features = ["testing"] }
 tokio = { workspace = true, features = ["full"] }
 tracing.workspace = true
 

@@ -95,6 +95,10 @@ impl StateMachine {
         }
     }
 
+    pub fn round(&self) -> Round {
+        self.round
+    }
+
     pub fn quorum_size(&self) -> u32 {
         self.quorum
     }
