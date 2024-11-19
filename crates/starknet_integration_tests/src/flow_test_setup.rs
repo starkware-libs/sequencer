@@ -5,7 +5,6 @@ use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::ProposalPart;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
-use starknet_batcher_types::communication::SharedBatcherClient;
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_http_server::config::HttpServerConfig;
 use starknet_sequencer_infra::trace_util::configure_tracing;
@@ -28,9 +27,6 @@ pub struct FlowTestSetup {
     // Handlers for the storage files, maintained so the files are not deleted.
     pub batcher_storage_file_handle: TempDir,
     pub rpc_storage_file_handle: TempDir,
-
-    // TODO(Arni): Remove batcher client once the consensus manager is integrated into the test.
-    pub batcher_client: SharedBatcherClient,
 
     // Handle of the sequencer node.
     pub sequencer_node_handle: JoinHandle<Result<(), anyhow::Error>>,
@@ -61,7 +57,7 @@ impl FlowTestSetup {
         let (config, _required_params, consensus_proposals_channels) =
             create_config(rpc_server_addr, storage_for_test.batcher_storage_config).await;
 
-        let (clients, servers) = create_node_modules(&config);
+        let (_clients, servers) = create_node_modules(&config);
 
         let HttpServerConfig { ip, port } = config.http_server_config;
         let add_tx_http_client = HttpTestClient::new(SocketAddr::from((ip, port)));
@@ -79,7 +75,6 @@ impl FlowTestSetup {
             task_executor,
             add_tx_http_client,
             batcher_storage_file_handle: storage_for_test.batcher_storage_handle,
-            batcher_client: clients.get_batcher_shared_client().unwrap(),
             rpc_storage_file_handle: storage_for_test.rpc_storage_handle,
             sequencer_node_handle,
             consensus_proposals_channels,
