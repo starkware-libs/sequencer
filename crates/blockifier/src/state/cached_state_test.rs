@@ -323,25 +323,32 @@ fn create_state_changes_for_test<S: StateReader>(
         let sender_balance_key = get_fee_token_var_address(sender_address);
         state.set_storage_at(fee_token_address, sender_balance_key, felt!("0x1999")).unwrap();
     }
-
     state.get_actual_state_changes().unwrap()
 }
 
 #[rstest]
 fn test_from_state_changes_for_fee_charge(
     #[values(Some(contract_address!("0x102")), None)] sender_address: Option<ContractAddress>,
+    #[values(true, false)] enable_stateful_compression: bool,
 ) {
     let mut state: CachedState<DictStateReader> = CachedState::default();
     let fee_token_address = contract_address!("0x17");
     let state_changes =
         create_state_changes_for_test(&mut state, sender_address, fee_token_address);
-    let state_changes_count = state_changes.count_for_fee_charge(sender_address, fee_token_address);
-    let expected_state_changes_count = StateChangesCount {
+    let state_changes_count = state_changes.count_for_fee_charge(
+        sender_address,
+        fee_token_address,
+        enable_stateful_compression,
+    );
+    let expected_state_changes_count = StateChangesCountForFee {
         // 1 for storage update + 1 for sender balance update if sender is defined.
-        n_storage_updates: 1 + usize::from(sender_address.is_some()),
-        n_class_hash_updates: 1,
-        n_compiled_class_hash_updates: 1,
-        n_modified_contracts: 2,
+        state_changes_count: StateChangesCount {
+            n_storage_updates: 1 + usize::from(sender_address.is_some()),
+            n_class_hash_updates: 1,
+            n_compiled_class_hash_updates: 1,
+            n_modified_contracts: 2,
+        },
+        n_allocated_keys: 0,
     };
     assert_eq!(state_changes_count, expected_state_changes_count);
 }

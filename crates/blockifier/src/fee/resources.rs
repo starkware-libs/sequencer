@@ -13,7 +13,7 @@ use crate::fee::gas_usage::{
     get_message_segment_length,
     get_onchain_data_segment_length,
 };
-use crate::state::cached_state::{StateChanges, StateChangesCount};
+use crate::state::cached_state::{StateChanges, StateChangesCount, StateChangesCountForFee};
 use crate::transaction::errors::TransactionFeeError;
 use crate::utils::u64_from_usize;
 use crate::versioned_constants::{ArchivalDataGasCosts, VersionedConstants};
@@ -157,7 +157,7 @@ impl StarknetResources {
 #[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct StateResources {
-    state_changes_for_fee: StateChangesCount,
+    pub state_changes_for_fee: StateChangesCountForFee,
 }
 
 impl StateResources {
@@ -165,26 +165,39 @@ impl StateResources {
         state_changes: &StateChanges,
         sender_address: Option<ContractAddress>,
         fee_token_address: ContractAddress,
+        enable_stateful_compression: bool,
     ) -> Self {
         Self {
-            state_changes_for_fee: state_changes
-                .count_for_fee_charge(sender_address, fee_token_address),
+            state_changes_for_fee: state_changes.count_for_fee_charge(
+                sender_address,
+                fee_token_address,
+                enable_stateful_compression,
+            ),
         }
     }
 
     #[cfg(any(test, feature = "testing"))]
-    pub fn new_for_testing(state_changes_for_fee: StateChangesCount) -> Self {
-        Self { state_changes_for_fee }
+    pub fn new_for_testing(
+        state_changes_count: StateChangesCount,
+        n_allocated_keys: usize,
+    ) -> Self {
+        Self {
+            state_changes_for_fee: StateChangesCountForFee {
+                state_changes_count,
+                n_allocated_keys,
+            },
+        }
     }
 
     /// Returns the gas cost of the transaction's state changes.
     pub fn to_gas_vector(&self, use_kzg_da: bool) -> GasVector {
         // TODO(Nimrod, 29/3/2024): delete `get_da_gas_cost` and move it's logic here.
-        get_da_gas_cost(&self.state_changes_for_fee, use_kzg_da)
+        // TODO(Yoav): Add the cost of allocating keys.
+        get_da_gas_cost(&self.state_changes_for_fee.state_changes_count, use_kzg_da)
     }
 
     pub fn get_onchain_data_segment_length(&self) -> usize {
-        get_onchain_data_segment_length(&self.state_changes_for_fee)
+        get_onchain_data_segment_length(&self.state_changes_for_fee.state_changes_count)
     }
 }
 

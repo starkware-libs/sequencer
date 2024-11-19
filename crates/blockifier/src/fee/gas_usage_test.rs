@@ -70,14 +70,17 @@ fn starknet_resources() -> StarknetResources {
         .map(|call_info| call_info.with_some_class_hash())
         .collect();
     let execution_summary =
-        CallInfo::summarize_many(call_infos.iter(), VersionedConstants::latest_constants());
-    let state_resources = StateResources::new_for_testing(StateChangesCount {
-        n_storage_updates: 7,
-        n_class_hash_updates: 11,
-        n_compiled_class_hash_updates: 13,
-        n_modified_contracts: 17,
-    });
-    StarknetResources::new(2_usize, 3_usize, 4_usize, state_resources, 6.into(), execution_summary)
+    CallInfo::summarize_many(call_infos.iter(), VersionedConstants::latest_constants());
+    let state_resources = StateResources::new_for_testing(
+        StateChangesCount {
+            n_storage_updates: 7,
+            n_class_hash_updates: 11,
+            n_compiled_class_hash_updates: 13,
+            n_modified_contracts: 17,
+        },
+        19,
+    );
+>>>>>>> b5f69e82c (feat(blockifier): add struct StateChangesCountForFee)
 }
 
 #[rstest]
