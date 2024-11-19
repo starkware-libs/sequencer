@@ -19,17 +19,17 @@ use starknet_api::hash::PoseidonHash;
 use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
 use starknet_api::transaction::TransactionHash;
 use starknet_batcher_types::batcher_types::{
-    BuildProposalInput,
     GetProposalContent,
     GetProposalContentResponse,
     ProposalCommitment,
     ProposalId,
     ProposalStatus,
+    ProposeBlockInput,
     SendProposalContent,
     SendProposalContentInput,
     SendProposalContentResponse,
     StartHeightInput,
-    ValidateProposalInput,
+    ValidateBlockInput,
 };
 use starknet_batcher_types::communication::MockBatcherClient;
 use starknet_types_core::felt::Felt;
@@ -57,7 +57,7 @@ async fn build_proposal() {
     let mut batcher = MockBatcherClient::new();
     let proposal_id = Arc::new(OnceLock::new());
     let proposal_id_clone = Arc::clone(&proposal_id);
-    batcher.expect_build_proposal().returning(move |input: BuildProposalInput| {
+    batcher.expect_propose_block().returning(move |input: ProposeBlockInput| {
         proposal_id_clone.set(input.proposal_id).unwrap();
         Ok(())
     });
@@ -101,7 +101,7 @@ async fn validate_proposal_success() {
     let mut batcher = MockBatcherClient::new();
     let proposal_id: Arc<OnceLock<ProposalId>> = Arc::new(OnceLock::new());
     let proposal_id_clone = Arc::clone(&proposal_id);
-    batcher.expect_validate_proposal().returning(move |input: ValidateProposalInput| {
+    batcher.expect_validate_block().returning(move |input: ValidateBlockInput| {
         proposal_id_clone.set(input.proposal_id).unwrap();
         Ok(())
     });
@@ -149,7 +149,7 @@ async fn validate_proposal_success() {
 async fn repropose() {
     // Receive a proposal. Then re-retrieve it.
     let mut batcher = MockBatcherClient::new();
-    batcher.expect_validate_proposal().returning(move |_| Ok(()));
+    batcher.expect_validate_block().returning(move |_| Ok(()));
     batcher.expect_start_height().return_once(|input: StartHeightInput| {
         assert_eq!(input.height, BlockNumber(0));
         Ok(())

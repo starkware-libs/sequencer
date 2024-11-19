@@ -12,8 +12,8 @@ pub type RemoteBatcherServer = RemoteComponentServer<BatcherRequest, BatcherResp
 impl ComponentRequestHandler<BatcherRequest, BatcherResponse> for Batcher {
     async fn handle_request(&mut self, request: BatcherRequest) -> BatcherResponse {
         match request {
-            BatcherRequest::BuildProposal(input) => {
-                BatcherResponse::BuildProposal(self.build_proposal(input).await)
+            BatcherRequest::ProposeBlock(input) => {
+                BatcherResponse::ProposeBlock(self.propose_block(input).await)
             }
             BatcherRequest::GetProposalContent(input) => {
                 BatcherResponse::GetProposalContent(self.get_proposal_content(input).await)
@@ -24,8 +24,8 @@ impl ComponentRequestHandler<BatcherRequest, BatcherResponse> for Batcher {
             BatcherRequest::DecisionReached(input) => {
                 BatcherResponse::DecisionReached(self.decision_reached(input).await)
             }
-            BatcherRequest::ValidateProposal(input) => {
-                BatcherResponse::ValidateProposal(self.validate_proposal(input).await)
+            BatcherRequest::ValidateBlock(input) => {
+                BatcherResponse::ValidateBlock(self.validate_block(input).await)
             }
             BatcherRequest::SendProposalContent(input) => {
                 BatcherResponse::SendProposalContent(self.send_proposal_content(input).await)

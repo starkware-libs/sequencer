@@ -18,14 +18,14 @@ use thiserror::Error;
 
 use crate::batcher_types::{
     BatcherResult,
-    BuildProposalInput,
     DecisionReachedInput,
     GetProposalContentInput,
     GetProposalContentResponse,
+    ProposeBlockInput,
     SendProposalContentInput,
     SendProposalContentResponse,
     StartHeightInput,
-    ValidateProposalInput,
+    ValidateBlockInput,
 };
 use crate::errors::BatcherError;
 
@@ -42,7 +42,7 @@ pub type SharedBatcherClient = Arc<dyn BatcherClient>;
 #[async_trait]
 pub trait BatcherClient: Send + Sync {
     /// Starts the process of building a proposal.
-    async fn build_proposal(&self, input: BuildProposalInput) -> BatcherClientResult<()>;
+    async fn propose_block(&self, input: ProposeBlockInput) -> BatcherClientResult<()>;
     /// Gets the next available content from the proposal stream (only relevant when building a
     /// proposal).
     async fn get_proposal_content(
@@ -50,7 +50,7 @@ pub trait BatcherClient: Send + Sync {
         input: GetProposalContentInput,
     ) -> BatcherClientResult<GetProposalContentResponse>;
     /// Starts the process of validating a proposal.
-    async fn validate_proposal(&self, input: ValidateProposalInput) -> BatcherClientResult<()>;
+    async fn validate_block(&self, input: ValidateBlockInput) -> BatcherClientResult<()>;
     /// Sends the content of a proposal. Only relevant when validating a proposal.
     /// Note:
     ///   * The batcher acks when the content is received immediately, not waiting for it to finish
@@ -73,9 +73,9 @@ pub trait BatcherClient: Send + Sync {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum BatcherRequest {
-    BuildProposal(BuildProposalInput),
+    ProposeBlock(ProposeBlockInput),
     GetProposalContent(GetProposalContentInput),
-    ValidateProposal(ValidateProposalInput),
+    ValidateBlock(ValidateBlockInput),
     SendProposalContent(SendProposalContentInput),
     StartHeight(StartHeightInput),
     DecisionReached(DecisionReachedInput),
@@ -83,9 +83,9 @@ pub enum BatcherRequest {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum BatcherResponse {
-    BuildProposal(BatcherResult<()>),
+    ProposeBlock(BatcherResult<()>),
     GetProposalContent(BatcherResult<GetProposalContentResponse>),
-    ValidateProposal(BatcherResult<()>),
+    ValidateBlock(BatcherResult<()>),
     SendProposalContent(BatcherResult<SendProposalContentResponse>),
     StartHeight(BatcherResult<()>),
     DecisionReached(BatcherResult<()>),
@@ -104,10 +104,10 @@ impl<ComponentClientType> BatcherClient for ComponentClientType
 where
     ComponentClientType: Send + Sync + ComponentClient<BatcherRequest, BatcherResponse>,
 {
-    async fn build_proposal(&self, input: BuildProposalInput) -> BatcherClientResult<()> {
-        let request = BatcherRequest::BuildProposal(input);
+    async fn propose_block(&self, input: ProposeBlockInput) -> BatcherClientResult<()> {
+        let request = BatcherRequest::ProposeBlock(input);
         let response = self.send(request).await;
-        handle_response_variants!(BatcherResponse, BuildProposal, BatcherClientError, BatcherError)
+        handle_response_variants!(BatcherResponse, ProposeBlock, BatcherClientError, BatcherError)
     }
 
     async fn get_proposal_content(
@@ -124,15 +124,10 @@ where
         )
     }
 
-    async fn validate_proposal(&self, input: ValidateProposalInput) -> BatcherClientResult<()> {
-        let request = BatcherRequest::ValidateProposal(input);
+    async fn validate_block(&self, input: ValidateBlockInput) -> BatcherClientResult<()> {
+        let request = BatcherRequest::ValidateBlock(input);
         let response = self.send(request).await;
-        handle_response_variants!(
-            BatcherResponse,
-            ValidateProposal,
-            BatcherClientError,
-            BatcherError
-        )
+        handle_response_variants!(BatcherResponse, ValidateBlock, BatcherClientError, BatcherError)
     }
 
     async fn send_proposal_content(

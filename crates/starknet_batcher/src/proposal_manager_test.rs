@@ -126,24 +126,24 @@ fn proposal_deadline() -> tokio::time::Instant {
     tokio::time::Instant::now() + BLOCK_GENERATION_TIMEOUT
 }
 
-async fn build_proposal_non_blocking(
+async fn propose_block_non_blocking(
     proposal_manager: &mut ProposalManager,
     tx_provider: ProposeTransactionProvider,
     proposal_id: ProposalId,
 ) {
     let (output_sender, _receiver) = output_streaming();
     proposal_manager
-        .build_block_proposal(proposal_id, None, proposal_deadline(), output_sender, tx_provider)
+        .propose_block(proposal_id, None, proposal_deadline(), output_sender, tx_provider)
         .await
         .unwrap();
 }
 
-async fn build_proposal(
+async fn propose_block(
     proposal_manager: &mut ProposalManager,
     tx_provider: ProposeTransactionProvider,
     proposal_id: ProposalId,
 ) {
-    build_proposal_non_blocking(proposal_manager, tx_provider, proposal_id).await;
+    propose_block_non_blocking(proposal_manager, tx_provider, proposal_id).await;
     assert!(proposal_manager.await_active_proposal().await);
 }
 
@@ -153,7 +153,7 @@ async fn validate_proposal(
     proposal_id: ProposalId,
 ) {
     proposal_manager
-        .validate_block_proposal(proposal_id, None, proposal_deadline(), tx_provider)
+        .validate_block(proposal_id, None, proposal_deadline(), tx_provider)
         .await
         .unwrap();
 
@@ -204,7 +204,7 @@ async fn duplicate_start_height(mock_dependencies: MockDependencies) {
 
 #[rstest]
 #[tokio::test]
-async fn build_proposal_fails_without_start_height(
+async fn propose_block_fails_without_start_height(
     mock_dependencies: MockDependencies,
     propose_tx_provider: ProposeTransactionProvider,
     output_streaming: (
@@ -214,7 +214,7 @@ async fn build_proposal_fails_without_start_height(
 ) {
     let mut proposal_manager = proposal_manager(mock_dependencies);
     let err = proposal_manager
-        .build_block_proposal(
+        .propose_block(
             ProposalId(0),
             None,
             proposal_deadline(),
@@ -233,14 +233,14 @@ async fn validate_proposal_fails_without_start_height(
 ) {
     let mut proposal_manager = proposal_manager(mock_dependencies);
     let err = proposal_manager
-        .validate_block_proposal(ProposalId(0), None, proposal_deadline(), validate_tx_provider)
+        .validate_block(ProposalId(0), None, proposal_deadline(), validate_tx_provider)
         .await;
     assert_matches!(err, Err(GenerateProposalError::NoActiveHeight));
 }
 
 #[rstest]
 #[tokio::test]
-async fn build_proposal_success(
+async fn propose_block_success(
     mut mock_dependencies: MockDependencies,
     propose_tx_provider: ProposeTransactionProvider,
 ) {
@@ -248,7 +248,7 @@ async fn build_proposal_success(
     let mut proposal_manager = proposal_manager(mock_dependencies);
 
     proposal_manager.start_height(INITIAL_HEIGHT).await.unwrap();
-    build_proposal(&mut proposal_manager, propose_tx_provider, ProposalId(0)).await;
+    propose_block(&mut proposal_manager, propose_tx_provider, ProposalId(0)).await;
     proposal_manager.take_proposal_result(ProposalId(0)).await.unwrap();
 }
 
@@ -279,9 +279,9 @@ async fn consecutive_proposal_generations_success(
 
     // Build and validate multiple proposals consecutively (awaiting on them to
     // make sure they finished successfully).
-    build_proposal(&mut proposal_manager, propose_tx_provider.clone(), ProposalId(0)).await;
+    propose_block(&mut proposal_manager, propose_tx_provider.clone(), ProposalId(0)).await;
     validate_proposal(&mut proposal_manager, validate_tx_provider(), ProposalId(1)).await;
-    build_proposal(&mut proposal_manager, propose_tx_provider, ProposalId(2)).await;
+    propose_block(&mut proposal_manager, propose_tx_provider, ProposalId(2)).await;
     validate_proposal(&mut proposal_manager, validate_tx_provider(), ProposalId(3)).await;
 }
 
@@ -303,7 +303,7 @@ async fn multiple_proposals_generation_fail(
     // Build a proposal that will take a very long time to finish.
     let (output_sender_0, _rec_0) = output_streaming();
     proposal_manager
-        .build_block_proposal(
+        .propose_block(
             ProposalId(0),
             None,
             proposal_deadline(),
@@ -316,7 +316,7 @@ async fn multiple_proposals_generation_fail(
     // Try to generate another proposal while the first one is still being generated.
     let (output_sender_1, _rec_1) = output_streaming();
     let another_generate_request = proposal_manager
-        .build_block_proposal(
+        .propose_block(
             ProposalId(1),
             None,
             proposal_deadline(),
@@ -344,7 +344,7 @@ async fn take_proposal_result_no_active_proposal(
 
     proposal_manager.start_height(INITIAL_HEIGHT).await.unwrap();
 
-    build_proposal(&mut proposal_manager, propose_tx_provider, ProposalId(0)).await;
+    propose_block(&mut proposal_manager, propose_tx_provider, ProposalId(0)).await;
 
     let expected_proposal_output =
         ProposalOutput::from(BlockExecutionArtifacts::create_for_testing());
@@ -368,7 +368,7 @@ async fn abort_active_proposal(
     let mut proposal_manager = proposal_manager(mock_dependencies);
 
     proposal_manager.start_height(INITIAL_HEIGHT).await.unwrap();
-    build_proposal_non_blocking(&mut proposal_manager, propose_tx_provider, ProposalId(0)).await;
+    propose_block_non_blocking(&mut proposal_manager, propose_tx_provider, ProposalId(0)).await;
 
     proposal_manager.abort_proposal(ProposalId(0)).await;
 
@@ -395,8 +395,8 @@ async fn abort_and_start_new_height(
 
     // Start the first height with 2 proposals.
     proposal_manager.start_height(INITIAL_HEIGHT).await.unwrap();
-    build_proposal(&mut proposal_manager, propose_tx_provider.clone(), ProposalId(0)).await;
-    build_proposal_non_blocking(&mut proposal_manager, propose_tx_provider.clone(), ProposalId(1))
+    propose_block(&mut proposal_manager, propose_tx_provider.clone(), ProposalId(0)).await;
+    propose_block_non_blocking(&mut proposal_manager, propose_tx_provider.clone(), ProposalId(1))
         .await;
 
     // Start a new height. This should abort and delete all existing proposals.
