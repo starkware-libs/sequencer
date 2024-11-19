@@ -69,7 +69,8 @@ fn starknet_resources() -> StarknetResources {
         .into_iter()
         .map(|call_info| call_info.with_some_class_hash())
         .collect();
-    let execution_summary = CallInfo::summarize_many(call_infos.iter());
+    let execution_summary =
+        CallInfo::summarize_many(call_infos.iter(), &VersionedConstants::latest_constants());
     let state_resources = StateResources::new_for_testing(StateChangesCount {
         n_storage_updates: 7,
         n_class_hash_updates: 11,
@@ -95,7 +96,7 @@ fn test_get_event_gas_cost(
             .into_iter()
             .map(|call_info| call_info.with_some_class_hash())
             .collect();
-    let execution_summary = CallInfo::summarize_many(call_infos.iter());
+    let execution_summary = CallInfo::summarize_many(call_infos.iter(), versioned_constants);
     let starknet_resources =
         StarknetResources::new(0, 0, 0, StateResources::default(), None, execution_summary);
     assert_eq!(
@@ -142,7 +143,7 @@ fn test_get_event_gas_cost(
         .into_iter()
         .map(|call_info| call_info.with_some_class_hash())
         .collect();
-    let execution_summary = CallInfo::summarize_many(call_infos.iter());
+    let execution_summary = CallInfo::summarize_many(call_infos.iter(), versioned_constants);
     // 8 keys and 11 data words overall.
     let expected_gas = (data_word_cost * (event_key_factor * 8_u64 + 11_u64)).to_integer().into();
     let expected_gas_vector = match gas_vector_computation_mode {
