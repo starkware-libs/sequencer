@@ -1,10 +1,13 @@
+use std::vec;
+
 use assert_matches::assert_matches;
 use blockifier::blockifier::transaction_executor::TransactionExecutorError;
 use blockifier::bouncer::BouncerWeights;
 use blockifier::fee::fee_checks::FeeCheckError;
+use blockifier::state::errors::StateError;
 use blockifier::transaction::objects::{RevertError, TransactionExecutionInfo};
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
-use indexmap::IndexMap;
+use indexmap::{indexmap, IndexMap};
 use mockall::predicate::eq;
 use mockall::Sequence;
 use rstest::rstest;
@@ -201,6 +204,34 @@ fn stream_done_test_expectations(
     (mock_transaction_executor, mock_tx_provider, expected_block_artifacts)
 }
 
+fn transaction_failed_test_expectations(
+    input_txs: Vec<Transaction>,
+) -> (MockTransactionExecutorTrait, MockTransactionProvider, BlockExecutionArtifacts) {
+    let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
+    let execution_error =
+        TransactionExecutorError::StateError(StateError::OutOfRangeContractAddress);
+    mock_transaction_executor.expect_add_txs_to_block().times(1).return_once(move |_| {
+        vec![Ok(execution_info()), Err(execution_error), Ok(execution_info())]
+    });
+
+    let execution_infos_mapping = indexmap![
+        TransactionHash(felt!(u8::try_from(0).unwrap()))=> execution_info(),
+        TransactionHash(felt!(u8::try_from(2).unwrap()))=> execution_info(),
+    ];
+    let expected_block_artifacts = block_execution_artifacts(execution_infos_mapping);
+    let expected_block_artifacts_copy = expected_block_artifacts.clone();
+    mock_transaction_executor.expect_close_block().times(1).return_once(move || {
+        Ok((
+            expected_block_artifacts.commitment_state_diff,
+            expected_block_artifacts.visited_segments_mapping,
+            expected_block_artifacts.bouncer_weights,
+        ))
+    });
+
+    let mock_tx_provider = mock_tx_provider_limitless_calls(1, vec![input_txs.clone()]);
+    (mock_transaction_executor, mock_tx_provider, expected_block_artifacts_copy)
+}
+
 // Fill the executor outputs with some non-default values to make sure the block_builder uses
 // them.
 fn block_builder_expected_output(execution_info_len: usize) -> BlockExecutionArtifacts {
@@ -286,7 +317,7 @@ fn compare_tx_hashes(input: &[Transaction], blockifier_input: &[BlockifierTransa
 }
 
 async fn verify_build_block_output(
-    input_txs: Vec<Transaction>,
+    expected_output_txs: Vec<Transaction>,
     expected_block_len: usize,
     expected_block_artifacts: BlockExecutionArtifacts,
     result_block_artifacts: BlockExecutionArtifacts,
@@ -297,7 +328,7 @@ async fn verify_build_block_output(
     output_stream_receiver.recv_many(&mut output_txs, TX_CHANNEL_SIZE).await;
 
     assert_eq!(output_txs.len(), expected_block_len);
-    for tx in input_txs.iter().take(expected_block_len) {
+    for tx in expected_output_txs.iter().take(expected_block_len) {
         assert!(output_txs.contains(tx));
     }
 
@@ -363,6 +394,38 @@ async fn test_build_block(
     verify_build_block_output(
         input_txs,
         expected_block_size,
+        expected_block_artifacts,
+        result_block_artifacts,
+        output_tx_receiver,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn test_transaction_failed() {
+    let input_txs = test_txs(0..3);
+    let mut expected_output_txs = input_txs.clone();
+    expected_output_txs.remove(1);
+
+    let (mock_transaction_executor, mock_tx_provider, expected_block_artifacts) =
+        transaction_failed_test_expectations(input_txs);
+
+    let (output_tx_sender, output_tx_receiver) = output_channel();
+    let (_abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
+    let result_block_artifacts = run_build_block(
+        mock_transaction_executor,
+        mock_tx_provider,
+        Some(output_tx_sender),
+        false,
+        abort_receiver,
+        BLOCK_GENERATION_DEADLINE_SECS,
+    )
+    .await
+    .unwrap();
+
+    verify_build_block_output(
+        expected_output_txs,
+        2,
         expected_block_artifacts,
         result_block_artifacts,
         output_tx_receiver,
