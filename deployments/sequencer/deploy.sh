@@ -111,9 +111,11 @@ fi
 
 # Function to deploy the namespace
 deploy_namespace() {
+  local output
+
   if [[ -n "$namespace_file" ]]; then
     log INFO "Creating namespace: $namespace..."
-    local output=$(kubectl apply -f "$namespace_file" 2>&1)
+    output=$(kubectl apply -f "$namespace_file" 2>&1)
     if [[ $? -eq 0 ]]
     then
       log INFO "$output"
@@ -122,7 +124,7 @@ deploy_namespace() {
     fi
 
     log INFO "Waiting for namespace to become active..."
-    local output=$(kubectl wait --for=jsonpath='{.status.phase}'=Active --timeout=15s namespace/"$namespace" 2>&1)
+    output=$(kubectl wait --for=jsonpath='{.status.phase}'=Active --timeout=15s namespace/"$namespace" 2>&1)
     if [[ $? -eq 0 ]]
     then
       log INFO "$output"
@@ -139,6 +141,8 @@ deploy_namespace() {
 
 # Function to deploy Kubernetes manifests
 deploy_to_k8s() {
+  local output
+
   log INFO "Deploying $name..."
   for manifest in $(find "./dist/$name" -type f -name "*.yaml" | grep -v "$namespace_file"); do
       log INFO "Deploying $manifest..."
@@ -151,12 +155,27 @@ deploy_to_k8s() {
   done
 }
 
-# Synthesize manifests using cdk8s
-log INFO "Synthesizing Kubernetes manifests..."
-cdk8s synth
-echo "------------------------------------------------------------------------------------------------"
-echo ""
-log INFO "Kubernetes manifests are ready for deployment."
+cdk8s_synth() {
+  local output
+
+  # Synthesize manifests using cdk8s
+  log INFO "Synthesizing Kubernetes manifests..."
+  output=$(cdk8s synth 2>&1)
+  if [[ $? -eq 0 ]]
+  then
+    echo "$output"
+    echo "------------------------------------------------------------------------------------------------"
+    echo ""
+    log INFO "Kubernetes manifests are ready for deployment."
+  else
+    echo "------------------------------------------------------------------------------------------------"
+    log ERROR "$output"
+    echo "------------------------------------------------------------------------------------------------"
+    exit 1
+  fi
+}
+
+cdk8s_synth
 
 # Confirm current Kubernetes context
 current_context=$(kubectl config current-context)

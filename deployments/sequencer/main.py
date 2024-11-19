@@ -13,6 +13,15 @@ from services.objects import *
 from services import defaults
 
 
+env = os.getenv("ENV", "dev")
+
+
+if env == "dev":
+    system_preset = defaults.sequencer_dev
+elif env == "prod":
+    system_preset = defaults.sequencer_prod 
+
+
 @dataclasses.dataclass
 class SystemStructure:
     topology: str = "mesh"
@@ -38,16 +47,16 @@ class SequencerNode(Chart):
             self,
             name,
             namespace=namespace,
-            deployment=True,
-            config=defaults.sequencer.config,
-            image=defaults.sequencer.image,
-            args=defaults.sequencer.args,
-            port_mappings=defaults.sequencer.port_mappings,
-            service_type=defaults.sequencer.service_type,
-            replicas=defaults.sequencer.replicas,
-            health_check=defaults.sequencer.health_check,
-            pvc=defaults.sequencer.pvc,
-            ingress=defaults.sequencer.ingress
+            deployment=system_preset.deployment,
+            config=system_preset.config,
+            image=system_preset.image,
+            args=system_preset.args,
+            port_mappings=system_preset.port_mappings,
+            service_type=system_preset.service_type,
+            replicas=system_preset.replicas,
+            health_check=system_preset.health_check,
+            pvc=system_preset.pvc,
+            ingress=system_preset.ingress
         )
 
 
@@ -87,8 +96,8 @@ app = App(
 
 sequencer_node = SequencerNode(
     scope=app,
-    name=defaults.sequencer.name,
-    namespace=defaults.sequencer.namespace
+    name=system_preset.name,
+    namespace=system_preset.namespace
 )
 
 # a = SequencerSystem(

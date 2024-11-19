@@ -11,7 +11,10 @@ RUN cargo build --release --package starknet_sequencer_node
 FROM base AS sequencer
 
 ENV ID=1000
+ENV OUT_DIR="/app/target/release/1/2/3"
+
 WORKDIR /app
+COPY --from=builder /target/release/shared_executables /app/target/release/shared_executables
 COPY --from=builder /target/release/starknet_sequencer_node /app/target/release/starknet_sequencer_node
 COPY config/ config/
 
