@@ -10529,8 +10529,18 @@ version = "0.0.0"
 dependencies = [
  "async-trait",
  "futures",
+ "papyrus_base_layer",
+ "papyrus_common",
+ "papyrus_config",
+ "papyrus_storage",
+ "papyrus_sync",
+ "serde",
+ "starknet_api",
+ "starknet_client",
  "starknet_sequencer_infra",
  "starknet_state_sync_types",
+ "tokio",
+ "validator",
 ]
 
 [[package]]
