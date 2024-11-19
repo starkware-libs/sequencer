@@ -119,7 +119,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(
         calldata_length,
         signature_length,
         0,
-        StateResources::new_for_testing(deploy_account_state_changes_count),
+        StateResources::new_for_testing(deploy_account_state_changes_count, 0),
         None,
         ExecutionSummary::default(),
     );
@@ -229,7 +229,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(
         0,
         0,
         0,
-        StateResources::new_for_testing(l2_to_l1_state_changes_count),
+        StateResources::new_for_testing(l2_to_l1_state_changes_count, 0),
         None,
         execution_summary.clone(),
     );
@@ -276,7 +276,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(
         0,
         0,
         0,
-        StateResources::new_for_testing(storage_writes_state_changes_count),
+        StateResources::new_for_testing(storage_writes_state_changes_count, 0),
         None,
         ExecutionSummary::default(),
     );
@@ -305,7 +305,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(
         l1_handler_payload_size,
         signature_length,
         0,
-        StateResources::new_for_testing(combined_state_changes_count),
+        StateResources::new_for_testing(combined_state_changes_count, 0),
         Some(l1_handler_payload_size),
         execution_summary.clone(),
     );
@@ -380,7 +380,7 @@ fn test_calculate_tx_gas_usage(
         calldata_length,
         signature_length,
         0,
-        StateResources::new_for_testing(state_changes_count),
+        StateResources::new_for_testing(state_changes_count, 0),
         None,
         ExecutionSummary::default(),
     );
@@ -437,7 +437,7 @@ fn test_calculate_tx_gas_usage(
         calldata_length,
         signature_length,
         0,
-        StateResources::new_for_testing(state_changes_count),
+        StateResources::new_for_testing(state_changes_count, 0),
         None,
         // The transfer entrypoint emits an event - pass the call info to count its resources.
         execution_summary,
