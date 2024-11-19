@@ -1537,6 +1537,7 @@ dependencies = [
  "blockifier",
  "cairo-lang-starknet-classes",
  "cairo-lang-utils",
+ "cairo-vm",
  "clap",
  "flate2",
  "indexmap 2.6.0",

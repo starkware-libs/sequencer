@@ -175,6 +175,15 @@ impl CallInfo {
             }
         }
 
+        // event_summary.n_events += self.execution.events.len();
+        // for OrderedEvent { event, .. } in self.execution.events.iter() {
+        //     // TODO(barak: 18/03/2024): Once we start charging per byte
+        //     // change to num_bytes_keys
+        //     // and num_bytes_data.
+        //     event_summary.total_event_data_size += u64_from_usize(event.data.0.len());
+        //     event_summary.total_event_keys += u64_from_usize(event.keys.len());
+        // }
+
         ExecutionSummary {
             executed_class_hashes,
             visited_storage_entries,

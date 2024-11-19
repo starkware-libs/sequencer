@@ -16,10 +16,11 @@ use blockifier::state::state_api::{StateReader, StateResult};
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use blockifier::versioned_constants::VersionedConstants;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, to_value};
+use serde_json::{json, to_value, Value};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber, StarknetVersion};
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
+use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_core::types::ContractClass as StarknetContractClass;
 use starknet_gateway::config::RpcStateReaderConfig;
@@ -51,8 +52,8 @@ use crate::state_reader::utils::{
 
 pub const DEFAULT_RETRY_COUNT: usize = 3;
 pub const DEFAULT_RETRY_WAIT_TIME: u64 = 10000;
-pub const DEFAULT_EXPECTED_ERROR_STRINGS: [&str; 3] =
-    ["Connection error", "RPCError", "429 Too Many Requests"];
+pub const DEFAULT_EXPECTED_ERROR_STRINGS: [&str; 4] =
+    ["Connection error", "RPCError", "429 Too Many Requests", "error decoding response body"];
 pub const DEFAULT_RETRY_FAILURE_MESSAGE: &str = "Failed to connect to the RPC node.";
 
 pub type ReexecutionResult<T> = Result<T, ReexecutionError>;
@@ -176,7 +177,6 @@ impl Default for RetryConfig {
 pub struct TestStateReader {
     pub(crate) rpc_state_reader: RpcStateReader,
     pub(crate) retry_config: RetryConfig,
-    #[allow(dead_code)]
     pub(crate) contract_class_mapping_dumper: Arc<Mutex<Option<StarknetContractClassMapping>>>,
 }
 
@@ -275,6 +275,65 @@ impl TestStateReader {
         }
 
         Ok(serde_json::from_value::<BlockHeader>(json)?.try_into()?)
+    }
+
+    #[allow(clippy::type_complexity)]
+    pub fn get_all_txs_receipt_summary(
+        &self,
+    ) -> ReexecutionResult<Vec<(TransactionHash, bool, Fee, u64, usize)>> {
+        let raw_txs: Value = serde_json::from_value(
+            retry_request!(self.retry_config, || {
+                self.rpc_state_reader.send_rpc_request(
+                    "starknet_getBlockWithReceipts",
+                    GetBlockWithTxHashesParams { block_id: self.rpc_state_reader.block_id },
+                )
+            })?["transactions"]
+                .clone(),
+        )?;
+        let raw_receipts: Vec<Value> =
+            raw_txs.as_array().unwrap().iter().map(|value| (value["receipt"].clone())).collect();
+        let ans = raw_receipts
+            .into_iter()
+            .map(|value| {
+                (
+                    serde_json::from_value(value["transaction_hash"].clone()).unwrap(),
+                    serde_json::from_value::<String>(value["execution_status"].clone()).unwrap()
+                        == "REVERTED",
+                    serde_json::from_value(value["actual_fee"]["amount"].clone()).unwrap(),
+                    serde_json::from_value(value["execution_resources"]["steps"].clone()).unwrap(),
+                    value["events"].clone().as_array().unwrap().len(),
+                )
+            })
+            .collect();
+        Ok(ans)
+    }
+
+    pub fn get_inner_calls(&self) -> ReexecutionResult<Vec<usize>> {
+        let mut inner_calls_vec = vec![];
+        let tx_hashes = self.get_tx_hashes()?;
+        for tx_hash in tx_hashes {
+            println!("tx_hash: {}", tx_hash);
+            let calls: Value = serde_json::from_value(
+                retry_request!(self.retry_config, || {
+                    self.rpc_state_reader.send_rpc_request(
+                        "starknet_traceTransaction",
+                        GetTransactionByHashParams { transaction_hash: tx_hash.clone() },
+                    )
+                })?["execute_invocation"]["calls"]
+                    .clone(),
+            )?;
+            let calls: Vec<Value> = match calls.as_array() {
+                Some(calls) => calls.to_vec(),
+                None => vec![],
+            };
+            let mut ans = 0;
+            for call in calls {
+                ans += call["calls"].as_array().unwrap().len();
+            }
+            println!("tx_hash: {}, inner_calls: {}", tx_hash, ans);
+            inner_calls_vec.push(ans);
+        }
+        Ok(inner_calls_vec)
     }
 
     pub fn get_starknet_version(&self) -> ReexecutionResult<StarknetVersion> {

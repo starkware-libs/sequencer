@@ -281,11 +281,13 @@ impl PostExecutionReport {
         // sender.
         let cost_within_bounds_result =
             FeeCheckReport::check_actual_cost_within_bounds(tx_context, tx_receipt);
+        println!("cost_within_bounds_result: {:?}", cost_within_bounds_result);
 
         // Next, verify the actual cost is covered by the account balance, which may have changed
         // after execution. If the above check passes, the pre-execution balance covers the actual
         // cost for sure.
         let can_pay_fee_result = FeeCheckReport::check_can_pay_fee(state, tx_context, tx_receipt);
+        println!("can_pay_fee_result: {:?}", can_pay_fee_result);
 
         for fee_check_result in [cost_within_bounds_result, can_pay_fee_result] {
             match fee_check_result {

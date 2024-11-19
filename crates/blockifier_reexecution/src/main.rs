@@ -102,11 +102,15 @@ fn main() {
                 json_rpc_version: JSON_RPC_VERSION.to_string(),
             };
 
-            reexecute_and_verify_correctness(ConsecutiveTestStateReaders::new(
-                BlockNumber(block_number - 1),
-                Some(config),
-                false,
-            ));
+            reexecute_and_verify_correctness(
+                ConsecutiveTestStateReaders::new(
+                    BlockNumber(block_number - 1),
+                    Some(config),
+                    false,
+                ),
+                vec![],
+                vec![],
+            );
 
             // Compare the expected and actual state differences
             // by avoiding discrepancies caused by insertion order
@@ -158,6 +162,8 @@ fn main() {
 
             reexecute_and_verify_correctness(
                 OfflineConsecutiveStateReaders::new_from_file(&full_file_path).unwrap(),
+                vec![],
+                vec![],
             );
 
             println!("Reexecution test for block {block_number} passed successfully.");

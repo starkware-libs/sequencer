@@ -697,6 +697,7 @@ impl AccountTransaction {
                 )?;
                 match post_execution_report.error() {
                     Some(post_execution_error) => {
+                        println!("Post-execution error: {}", post_execution_error);
                         // Post-execution check failed. Revert the execution, compute the final fee
                         // to charge and recompute resources used (to be consistent with other
                         // revert case, compute resources by adding consumed execution steps to
@@ -723,6 +724,7 @@ impl AccountTransaction {
                 }
             }
             Err(execution_error) => {
+                println!("Execution error: {}", execution_error);
                 // Error during execution. Revert, even if the error is sequencer-related.
                 execution_state.abort();
                 let post_execution_report =

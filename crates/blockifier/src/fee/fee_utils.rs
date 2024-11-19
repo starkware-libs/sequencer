@@ -112,8 +112,10 @@ pub fn verify_can_pay_committed_bounds(
         TransactionInfo::Current(context) => context.resource_bounds.max_possible_fee(),
         TransactionInfo::Deprecated(context) => context.max_fee,
     };
+    println!("committed_fee: {:?}", committed_fee);
     let (balance_low, balance_high, can_pay) =
         get_balance_and_if_covers_fee(state, tx_context, committed_fee)?;
+    println!("can_pay: {:?}", can_pay);
     if can_pay {
         Ok(())
     } else {

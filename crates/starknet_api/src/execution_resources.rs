@@ -117,6 +117,7 @@ impl GasVector {
             (self.l1_data_gas, gas_prices.l1_data_gas_price, Resource::L1DataGas),
             (self.l2_gas, gas_prices.l2_gas_price, Resource::L2Gas),
         ] {
+            println!("gas: {}, price: {}, resource: {:?}", gas, price, resource);
             let cost = gas.checked_mul(price.get()).unwrap_or_else(|| {
                 panic!(
                     "{} cost overflowed: multiplication of gas amount ({}) by price per unit ({}) \

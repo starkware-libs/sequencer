@@ -132,8 +132,17 @@ impl<S: StateReader> TransactionExecutor<S> {
     ) -> Vec<TransactionExecutorResult<TransactionExecutionInfo>> {
         let mut results = Vec::new();
         for tx in txs {
+            println!("Executing transaction: {:?}", Transaction::tx_hash(tx));
             match self.execute(tx) {
-                Ok(tx_execution_info) => results.push(Ok(tx_execution_info)),
+                Ok(tx_execution_info) => {
+                    println!(
+                        "Transaction {:?} executed. Is reverted? {:?}. Fee:{:?}",
+                        Transaction::tx_hash(tx),
+                        tx_execution_info.is_reverted(),
+                        tx_execution_info.receipt.fee
+                    );
+                    results.push(Ok(tx_execution_info))
+                }
                 Err(TransactionExecutorError::BlockFull) => break,
                 Err(error) => results.push(Err(error)),
             }

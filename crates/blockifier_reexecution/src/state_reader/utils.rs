@@ -6,6 +6,8 @@ use assert_matches::assert_matches;
 use blockifier::context::{ChainInfo, FeeTokenAddresses};
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps};
 use blockifier::state::state_api::StateReader;
+use blockifier::transaction::transaction_execution::Transaction;
+use cairo_vm::types::builtin_name::BuiltinName;
 use indexmap::IndexMap;
 use papyrus_execution::{ETH_FEE_CONTRACT_ADDRESS, STRK_FEE_CONTRACT_ADDRESS};
 use pretty_assertions::assert_eq;
@@ -14,6 +16,8 @@ use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_api::test_utils::read_json_file;
+use starknet_api::transaction::fields::Fee;
+use starknet_api::transaction::TransactionHash;
 use starknet_gateway::config::RpcStateReaderConfig;
 use starknet_types_core::felt::Felt;
 
@@ -153,7 +157,10 @@ macro_rules! retry_request {
                         retry::OperationResult::Retry(e)
                     }
                     // For all other errors, do not retry and return immediately.
-                    Err(e) => retry::OperationResult::Err(e),
+                    Err(e) => {
+                        println!("Unrecognized Error: {:?}", e);
+                        retry::OperationResult::Err(e)
+                    }
                 }
             },
         )
@@ -206,6 +213,8 @@ pub fn reexecute_and_verify_correctness<
     T: ConsecutiveStateReaders<S>,
 >(
     consecutive_state_readers: T,
+    receipt_summary_vec: Vec<(TransactionHash, bool, Fee, u64, usize)>,
+    inner_calls: Vec<usize>,
 ) -> Option<CachedState<S>> {
     let expected_state_diff = consecutive_state_readers.get_next_block_state_diff().unwrap();
 
@@ -216,9 +225,42 @@ pub fn reexecute_and_verify_correctness<
 
     let execution_results = transaction_executor.execute_txs(&all_txs_in_next_block);
     // Verify all transactions executed successfully.
-    for res in execution_results.iter() {
+    let mut receipt_vec_test = vec![];
+    for index in 0..execution_results.len() {
+        let res = execution_results.get(index).unwrap();
         assert_matches!(res, Ok(_));
+        let receipt = &res.as_ref().unwrap().receipt;
+        receipt_vec_test.push((
+            Transaction::tx_hash(all_txs_in_next_block.get(index).unwrap()),
+            res.as_ref().unwrap().is_reverted(),
+            receipt.fee,
+            receipt.resources.computation.vm_resources.n_steps
+                + receipt.resources.computation.vm_resources.n_memory_holes
+                + receipt.resources.computation.n_reverted_steps
+                + receipt
+                    .resources
+                    .computation
+                    .vm_resources
+                    .builtin_instance_counter
+                    .get(&BuiltinName::segment_arena)
+                    .unwrap_or(&0)
+                    * 10,
+            receipt.resources.starknet_resources.archival_data.event_summary.n_events + 1,
+            *inner_calls.get(index).unwrap(),
+        ));
+        println!("Resources RPC: {:?}", receipt_summary_vec.get(index).unwrap().3);
+        println!("Inner calls {:?}", inner_calls.get(index).unwrap());
+        println!("Reex Receipt: {:?}", receipt);
     }
+    #[allow(clippy::as_conversions)]
+    let receipt_vec_expected: Vec<(TransactionHash, bool, Fee, usize, usize, usize)> =
+        receipt_summary_vec
+            .into_iter()
+            .zip(inner_calls)
+            .map(|((v1, v2, v3, v4, v5), v6)| (v1, v2, v3, v4 as usize, v5, v6))
+            .collect();
+
+    assert_eq!(receipt_vec_expected, receipt_vec_test);
 
     // Finalize block and read actual statediff.
     let (actual_state_diff, _, _) =
@@ -235,6 +277,8 @@ pub fn reexecute_block_for_testing(block_number: u64) {
 
     reexecute_and_verify_correctness(
         OfflineConsecutiveStateReaders::new_from_file(&full_file_path).unwrap(),
+        vec![],
+        vec![],
     );
 
     println!("Reexecution test for block {block_number} passed successfully.");
@@ -259,8 +303,15 @@ pub fn write_block_reexecution_data_to_file(
 
     let old_block_hash = consecutive_state_readers.get_old_block_hash().unwrap();
 
+    let receipt =
+        consecutive_state_readers.next_block_state_reader.get_all_txs_receipt_summary().unwrap();
+
+    let inner_calls = consecutive_state_readers.next_block_state_reader.get_inner_calls().unwrap();
+    println!("Inner calls: {:?}", inner_calls);
+
     // Run the reexecution test and get the state maps and contract class mapping.
-    let block_state = reexecute_and_verify_correctness(consecutive_state_readers).unwrap();
+    let block_state =
+        reexecute_and_verify_correctness(consecutive_state_readers, receipt, inner_calls).unwrap();
     let serializable_data_prev_block = SerializableDataPrevBlock {
         state_maps: block_state.get_initial_reads().unwrap().into(),
         contract_class_mapping: block_state.state.get_contract_class_mapping_dumper().unwrap(),
