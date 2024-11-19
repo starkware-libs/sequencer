@@ -1,14 +1,14 @@
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use cached::{Cached, SizedCache};
-#[cfg(feature = "cairo_native")]
-use cairo_native::executor::AotContractExecutor;
 use starknet_api::core::ClassHash;
 #[cfg(feature = "cairo_native")]
 use starknet_api::state::SierraContractClass;
 
 #[cfg(feature = "cairo_native")]
 use crate::execution::contract_class::RunnableCompiledClass;
+#[cfg(feature = "cairo_native")]
+use crate::execution::native::contract_class::NativeCompiledClassV1;
 
 type ContractClassLRUCache<T> = SizedCache<ClassHash, T>;
 pub type LockedContractClassCache<'a, T> = MutexGuard<'a, ContractClassLRUCache<T>>;
@@ -21,7 +21,7 @@ pub struct GlobalContractCache<T: Clone>(pub Arc<Mutex<ContractClassLRUCache<T>>
 #[cfg(feature = "cairo_native")]
 #[derive(Debug, Clone)]
 pub enum CachedCairoNative {
-    Compiled(AotContractExecutor),
+    Compiled(NativeCompiledClassV1),
     CompilationFailed,
 }
 
@@ -52,14 +52,14 @@ impl<T: Clone> GlobalContractCache<T> {
 }
 
 #[cfg(feature = "cairo_native")]
-pub struct GlobalContractCacheManager {
+pub struct ContractClassCaches {
     pub casm_cache: GlobalContractCache<RunnableCompiledClass>,
     pub native_cache: GlobalContractCache<CachedCairoNative>,
     pub sierra_cache: GlobalContractCache<Arc<SierraContractClass>>,
 }
 
 #[cfg(feature = "cairo_native")]
-impl GlobalContractCacheManager {
+impl ContractClassCaches {
     pub fn get_casm(&self, class_hash: &ClassHash) -> Option<RunnableCompiledClass> {
         self.casm_cache.get(class_hash)
     }
