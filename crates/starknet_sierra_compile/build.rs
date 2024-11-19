@@ -6,6 +6,10 @@ fn main() {
     println!("cargo:rerun-if-changed=../../Cargo.lock");
     println!("cargo:rerun-if-changed=build.rs");
 
+    // TODO(Arni/Tsabary/Avi): apply the same check for the cairo native binary.
+    let cairo_lang_binary_path = binary_path(CAIRO_LANG_BINARY_NAME);
+    println!("cargo:rerun-if-changed={:?}", cairo_lang_binary_path);
+
     install_starknet_sierra_compile();
     #[cfg(feature = "cairo_native")]
     install_starknet_native_compile();
