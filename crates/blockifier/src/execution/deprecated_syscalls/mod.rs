@@ -347,7 +347,6 @@ pub fn deploy(
     let mut remaining_gas = syscall_handler.context.gas_costs().default_initial_gas_cost;
     let call_info = execute_deployment(
         syscall_handler.state,
-        syscall_handler.resources,
         syscall_handler.context,
         ctor_context,
         request.constructor_calldata,

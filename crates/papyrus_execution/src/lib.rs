@@ -44,7 +44,6 @@ use blockifier::transaction::transactions::ExecutableTransaction;
 use blockifier::versioned_constants::{VersionedConstants, VersionedConstantsError};
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::types::builtin_name::BuiltinName;
-use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use execution_utils::{get_trace_constructor, induced_state_diff};
 use objects::{PriceUnit, TransactionSimulationOutput};
 use papyrus_config::dumping::{ser_param, SerializeConfig};
@@ -272,12 +271,7 @@ pub fn execute_call(
     );
 
     let res = call_entry_point
-        .execute(
-            &mut cached_state,
-            &mut ExecutionResources::default(),
-            &mut context,
-            &mut remaining_gas,
-        )
+        .execute(&mut cached_state, &mut context, &mut remaining_gas)
         .map_err(|error| {
             if let Some(class_hash) = cached_state.state.missing_compiled_class.get() {
                 ExecutionError::MissingCompiledClass { class_hash }

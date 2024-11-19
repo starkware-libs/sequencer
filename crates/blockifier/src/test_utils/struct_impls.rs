@@ -9,7 +9,6 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_lang_starknet_classes::contract_class::ContractClass as SierraContractClass;
 #[cfg(feature = "cairo_native")]
 use cairo_native::executor::AotContractExecutor;
-use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use serde_json::Value;
 use starknet_api::block::{BlockNumber, BlockTimestamp, NonzeroGasPrice};
 use starknet_api::contract_address;
@@ -87,7 +86,7 @@ impl CallEntryPoint {
             limit_steps_by_resources,
         );
         let mut remaining_gas = self.initial_gas;
-        self.execute(state, &mut ExecutionResources::default(), &mut context, &mut remaining_gas)
+        self.execute(state, &mut context, &mut remaining_gas)
     }
 
     /// Executes the call directly in validate mode, without account context. Limits the number of

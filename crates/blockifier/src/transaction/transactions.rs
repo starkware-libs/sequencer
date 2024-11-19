@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress};
@@ -104,7 +103,6 @@ pub trait Executable<S: State> {
     fn run_execute(
         &self,
         state: &mut S,
-        resources: &mut ExecutionResources,
         context: &mut EntryPointExecutionContext,
         remaining_gas: &mut u64,
     ) -> TransactionExecutionResult<Option<CallInfo>>;
@@ -115,7 +113,6 @@ pub trait ValidatableTransaction {
     fn validate_tx(
         &self,
         state: &mut dyn State,
-        resources: &mut ExecutionResources,
         tx_context: Arc<TransactionContext>,
         remaining_gas: &mut u64,
         limit_steps_by_resources: bool,
@@ -136,7 +133,6 @@ impl<S: State> Executable<S> for L1HandlerTransaction {
     fn run_execute(
         &self,
         state: &mut S,
-        resources: &mut ExecutionResources,
         context: &mut EntryPointExecutionContext,
         remaining_gas: &mut u64,
     ) -> TransactionExecutionResult<Option<CallInfo>> {
@@ -156,15 +152,14 @@ impl<S: State> Executable<S> for L1HandlerTransaction {
             initial_gas: *remaining_gas,
         };
 
-        execute_call
-            .non_reverting_execute(state, resources, context, remaining_gas)
-            .map(Some)
-            .map_err(|error| TransactionExecutionError::ExecutionError {
+        execute_call.non_reverting_execute(state, context, remaining_gas).map(Some).map_err(
+            |error| TransactionExecutionError::ExecutionError {
                 error,
                 class_hash,
                 storage_address,
                 selector,
-            })
+            },
+        )
     }
 }
 
@@ -188,7 +183,6 @@ impl<S: State> Executable<S> for DeclareTransaction {
     fn run_execute(
         &self,
         state: &mut S,
-        _resources: &mut ExecutionResources,
         context: &mut EntryPointExecutionContext,
         _remaining_gas: &mut u64,
     ) -> TransactionExecutionResult<Option<CallInfo>> {
@@ -264,7 +258,6 @@ impl<S: State> Executable<S> for DeployAccountTransaction {
     fn run_execute(
         &self,
         state: &mut S,
-        resources: &mut ExecutionResources,
         context: &mut EntryPointExecutionContext,
         remaining_gas: &mut u64,
     ) -> TransactionExecutionResult<Option<CallInfo>> {
@@ -277,7 +270,6 @@ impl<S: State> Executable<S> for DeployAccountTransaction {
         };
         let call_info = execute_deployment(
             state,
-            resources,
             context,
             constructor_context,
             self.constructor_calldata(),
@@ -325,7 +317,6 @@ impl<S: State> Executable<S> for InvokeTransaction {
     fn run_execute(
         &self,
         state: &mut S,
-        resources: &mut ExecutionResources,
         context: &mut EntryPointExecutionContext,
         remaining_gas: &mut u64,
     ) -> TransactionExecutionResult<Option<CallInfo>> {
@@ -350,13 +341,14 @@ impl<S: State> Executable<S> for InvokeTransaction {
             initial_gas: *remaining_gas,
         };
 
-        let call_info = execute_call
-            .non_reverting_execute(state, resources, context, remaining_gas)
-            .map_err(|error| TransactionExecutionError::ExecutionError {
-                error,
-                class_hash,
-                storage_address,
-                selector: entry_point_selector,
+        let call_info =
+            execute_call.non_reverting_execute(state, context, remaining_gas).map_err(|error| {
+                TransactionExecutionError::ExecutionError {
+                    error,
+                    class_hash,
+                    storage_address,
+                    selector: entry_point_selector,
+                }
             })?;
         Ok(Some(call_info))
     }

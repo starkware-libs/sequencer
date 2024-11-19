@@ -11,7 +11,7 @@ use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::errors::hint_errors::HintError;
 use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
-use cairo_vm::vm::runners::cairo_runner::{ExecutionResources, ResourceTracker, RunResources};
+use cairo_vm::vm::runners::cairo_runner::{ResourceTracker, RunResources};
 use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
@@ -215,7 +215,6 @@ pub const INVALID_ARGUMENT: &str =
 pub struct SyscallHintProcessor<'a> {
     // Input for execution.
     pub state: &'a mut dyn State,
-    pub resources: &'a mut ExecutionResources,
     pub context: &'a mut EntryPointExecutionContext,
     pub call: CallEntryPoint,
 
@@ -257,7 +256,6 @@ pub struct SyscallHintProcessor<'a> {
 impl<'a> SyscallHintProcessor<'a> {
     pub fn new(
         state: &'a mut dyn State,
-        resources: &'a mut ExecutionResources,
         context: &'a mut EntryPointExecutionContext,
         initial_syscall_ptr: Relocatable,
         call: CallEntryPoint,
@@ -274,7 +272,6 @@ impl<'a> SyscallHintProcessor<'a> {
         );
         SyscallHintProcessor {
             state,
-            resources,
             context,
             call,
             inner_calls: vec![],
@@ -809,12 +806,7 @@ pub fn execute_inner_call(
 ) -> SyscallResult<ReadOnlySegment> {
     let revert_idx = syscall_handler.context.revert_infos.0.len();
 
-    let call_info = call.execute(
-        syscall_handler.state,
-        syscall_handler.resources,
-        syscall_handler.context,
-        remaining_gas,
-    )?;
+    let call_info = call.execute(syscall_handler.state, syscall_handler.context, remaining_gas)?;
 
     let mut raw_retdata = call_info.execution.retdata.0.clone();
     let failed = call_info.execution.failed;

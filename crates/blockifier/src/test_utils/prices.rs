@@ -70,7 +70,6 @@ fn fee_transfer_resources(
     fee_transfer_call
         .execute(
             state,
-            &mut ExecutionResources::default(),
             &mut EntryPointExecutionContext::new(
                 Arc::new(block_context.to_tx_context(&account_invoke_tx(InvokeTxArgs::default()))),
                 ExecutionMode::Execute,
