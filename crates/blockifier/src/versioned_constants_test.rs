@@ -167,3 +167,12 @@ fn test_all_jsons_in_enum() {
 fn test_latest_no_panic() {
     VersionedConstants::latest_constants();
 }
+
+#[test]
+fn test_correct_syscall_gas_cost_calculation() {
+    let versioned_constants = VersionedConstants::latest_constants().clone();
+
+    assert_eq!(versioned_constants.get_syscall_gas_cost(&SyscallSelector::CallContract), 87650);
+    assert_eq!(versioned_constants.get_syscall_gas_cost(&SyscallSelector::Secp256k1Mul), 8143650);
+    assert_eq!(versioned_constants.get_syscall_gas_cost(&SyscallSelector::Sha256ProcessBlock), 841095);
+}
