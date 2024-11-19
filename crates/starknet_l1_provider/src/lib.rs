@@ -42,12 +42,14 @@ impl L1Provider {
         }
     }
 
-    pub fn validate(&self, _tx: &L1HandlerTransaction) -> L1ProviderResult<bool> {
-        todo!(
-            "Check that tx is unconsumed and not present in L2. Error if in Propose state, NOP if \
-             in pending state (likely due to a crash and losing one validator for the block's \
-             duration node isn't serious)."
-        )
+    /// Returns true if and only if the given transaction is both not included in an L2 block, and
+    /// unconsumed on L1.
+    pub fn validate(&self, tx_hash: TransactionHash) -> L1ProviderResult<ValidationStatus> {
+        match self.state {
+            ProviderState::Validate => Ok(self.tx_manager.tx_status(tx_hash)),
+            ProviderState::Propose => Err(L1ProviderError::ValidateTransactionConsensusBug),
+            ProviderState::Pending => Err(L1ProviderError::ValidateInPendingState),
+        }
     }
 
     // TODO: when deciding on consensus, if possible, have commit_block also tell the node if it's
@@ -99,7 +101,7 @@ impl L1Provider {
 struct TransactionManager {
     txs: IndexMap<TransactionHash, L1HandlerTransaction>,
     proposed_txs: IndexSet<TransactionHash>,
-    _on_l2_awaiting_l1_consumption: IndexSet<TransactionHash>,
+    on_l2_awaiting_l1_consumption: IndexSet<TransactionHash>,
 }
 
 impl TransactionManager {
@@ -116,6 +118,16 @@ impl TransactionManager {
         txs
     }
 
+    pub fn tx_status(&self, tx_hash: TransactionHash) -> ValidationStatus {
+        if self.txs.contains_key(&tx_hash) {
+            ValidationStatus::Validated
+        } else if self.on_l2_awaiting_l1_consumption.contains(&tx_hash) {
+            ValidationStatus::AlreadyIncludedOnL2
+        } else {
+            ValidationStatus::ConsumedOnL1OrUnknown
+        }
+    }
+
     pub fn _add_unconsumed_l1_not_in_l2_block_tx(&mut self, _tx: L1HandlerTransaction) {
         todo!(
             "Check if tx is in L2, if it isn't on L2 add it to the txs buffer, otherwise print
@@ -126,6 +138,13 @@ impl TransactionManager {
     pub fn _mark_tx_included_on_l2(&mut self, _tx_hash: &TransactionHash) {
         todo!("Adds the tx hash to l2 buffer; remove tx from the txs storage if it's there.")
     }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ValidationStatus {
+    Validated,
+    AlreadyIncludedOnL2,
+    ConsumedOnL1OrUnknown,
 }
 
 /// Current state of the provider, where pending means: idle, between proposal/validation cycles.

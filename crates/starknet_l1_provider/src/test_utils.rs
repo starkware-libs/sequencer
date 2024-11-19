@@ -78,7 +78,7 @@ impl TransactionManagerContent {
     fn complete_to_tx_manager(self) -> TransactionManager {
         TransactionManager {
             txs: self.txs.unwrap_or_default(),
-            _on_l2_awaiting_l1_consumption: self.on_l2_awaiting_l1_consumption.unwrap_or_default(),
+            on_l2_awaiting_l1_consumption: self.on_l2_awaiting_l1_consumption.unwrap_or_default(),
             ..Default::default()
         }
     }
