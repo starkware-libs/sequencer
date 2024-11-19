@@ -15,12 +15,7 @@ use crate::concurrency::utils::lock_mutex_in_array;
 use crate::concurrency::versioned_state::ThreadSafeVersionedState;
 use crate::concurrency::TxIndex;
 use crate::context::BlockContext;
-use crate::state::cached_state::{
-    ContractClassMapping,
-    StateChanges,
-    StateMaps,
-    TransactionalState,
-};
+use crate::state::cached_state::{ContractClassMapping, StateMaps, TransactionalState};
 use crate::state::state_api::{StateReader, UpdatableState};
 use crate::transaction::objects::{
     TransactionExecutionInfo,
@@ -233,7 +228,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
         let mut execution_output = lock_mutex_in_array(&self.execution_outputs, tx_index);
         let writes = &execution_output.as_ref().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR).writes;
         // TODO(Yoni): get rid of this clone.
-        let mut tx_state_changes_keys = StateChanges { state_maps: writes.clone() }.into_keys();
+        let mut tx_state_changes_keys = writes.clone().into_keys();
         let tx_result =
             &mut execution_output.as_mut().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR).result;
 

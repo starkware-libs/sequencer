@@ -210,7 +210,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for Transaction {
         // Check if the transaction is too large to fit any block.
         // TODO(Yoni, 1/8/2024): consider caching these two.
         let tx_execution_summary = tx_execution_info.summarize();
-        let mut tx_state_changes_keys = state.get_actual_state_changes()?.into_keys();
+        let mut tx_state_changes_keys = state.get_actual_state_changes()?.state_maps.into_keys();
         tx_state_changes_keys.update_sequencer_key_in_storage(
             &block_context.to_tx_context(self),
             &tx_execution_info,
