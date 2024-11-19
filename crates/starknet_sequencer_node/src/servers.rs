@@ -94,7 +94,7 @@ pub struct SequencerNodeServers {
 macro_rules! create_remote_server {
     ($execution_mode:expr, $local_client:expr, $config:expr) => {
         match *$execution_mode {
-            ComponentExecutionMode::Remote => {
+            ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
                 let local_client = $local_client
                     .expect("Error: local client must be initialized in Remote execution mode.");
                 let config = $config
@@ -104,7 +104,7 @@ macro_rules! create_remote_server {
                 Some(Box::new(RemoteComponentServer::new(local_client, config.clone())))
             }
             ComponentExecutionMode::LocalExecutionWithRemoteDisabled
-            | ComponentExecutionMode::LocalExecutionWithRemoteEnabled
+            | ComponentExecutionMode::Remote
             | ComponentExecutionMode::Disabled => None,
         }
     };
