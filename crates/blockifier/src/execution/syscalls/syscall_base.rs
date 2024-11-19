@@ -21,11 +21,14 @@ use crate::execution::syscalls::hint_processor::{
     SyscallExecutionError,
     BLOCK_NUMBER_OUT_OF_RANGE_ERROR,
     ENTRYPOINT_FAILED_ERROR,
+    INVALID_INPUT_LENGTH_ERROR,
+    OUT_OF_GAS_ERROR,
 };
 use crate::state::state_api::State;
 use crate::transaction::account_transaction::is_cairo1;
 
 pub type SyscallResult<T> = Result<T, SyscallExecutionError>;
+pub const KECCAK_FULL_RATE_IN_WORDS: usize = 17;
 
 /// This file is for sharing common logic between Native and VM syscall implementations.
 
@@ -239,6 +242,47 @@ impl<'state> SyscallHandlerBase<'state> {
         }
 
         Ok(raw_retdata)
+    }
+
+    pub fn keccak(
+        &mut self,
+        input: &[u64],
+        remaining_gas: &mut u64,
+    ) -> SyscallResult<([u64; 4], usize)> {
+        let input_length = input.len();
+
+        let (n_rounds, remainder) = num_integer::div_rem(input_length, KECCAK_FULL_RATE_IN_WORDS);
+
+        if remainder != 0 {
+            return Err(SyscallExecutionError::SyscallError {
+                error_data: vec![
+                    Felt::from_hex(INVALID_INPUT_LENGTH_ERROR)
+                        .expect("Failed to parse INVALID_INPUT_LENGTH_ERROR hex string"),
+                ],
+            });
+        }
+        // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion
+        // works.
+        let n_rounds_as_u64 = u64::try_from(n_rounds).expect("Failed to convert usize to u64.");
+        let gas_cost = n_rounds_as_u64 * self.context.gas_costs().keccak_round_cost_gas_cost;
+
+        if gas_cost > *remaining_gas {
+            let out_of_gas_error = Felt::from_hex(OUT_OF_GAS_ERROR)
+                .expect("Failed to parse OUT_OF_GAS_ERROR hex string");
+
+            return Err(SyscallExecutionError::SyscallError { error_data: vec![out_of_gas_error] });
+        }
+        *remaining_gas -= gas_cost;
+
+        let mut state = [0u64; 25];
+        for chunk in input.chunks(KECCAK_FULL_RATE_IN_WORDS) {
+            for (i, val) in chunk.iter().enumerate() {
+                state[i] ^= val;
+            }
+            keccak::f1600(&mut state)
+        }
+
+        Ok((state[..4].try_into().expect("Slice with incorrect length"), n_rounds))
     }
 
     pub fn finalize(&mut self) {
