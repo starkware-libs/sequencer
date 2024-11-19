@@ -48,6 +48,7 @@ mock! {
         async fn validate_proposal(
             &mut self,
             height: BlockNumber,
+            round: Round,
             timeout: Duration,
             content: mpsc::Receiver<Transaction>
         ) -> oneshot::Receiver<ProposalContentId>;
@@ -69,6 +70,9 @@ mock! {
             block: ProposalContentId,
             precommits: Vec<Vote>,
         ) -> Result<(), ConsensusError>;
+
+        async fn set_height_and_round(&mut self, height: BlockNumber, round: Round);
+
     }
 }
 
@@ -95,7 +99,7 @@ async fn manager_multiple_heights_unordered() {
     // Run the manager for height 1.
     context
         .expect_validate_proposal()
-        .return_once(move |_, _, _| {
+        .return_once(move |_, _, _, _| {
             let (block_sender, block_receiver) = oneshot::channel();
             block_sender.send(BlockHash(Felt::ONE)).unwrap();
             block_receiver
@@ -103,6 +107,7 @@ async fn manager_multiple_heights_unordered() {
         .times(1);
     context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
+    context.expect_set_height_and_round().returning(move |_, _| ());
     context.expect_broadcast().returning(move |_| Ok(()));
 
     let mut manager = MultiHeightManager::new(*VALIDATOR_ID, TIMEOUTS.clone());
@@ -114,7 +119,7 @@ async fn manager_multiple_heights_unordered() {
     // Run the manager for height 2.
     context
         .expect_validate_proposal()
-        .return_once(move |_, _, _| {
+        .return_once(move |_, _, _, _| {
             let (block_sender, block_receiver) = oneshot::channel();
             block_sender.send(BlockHash(Felt::TWO)).unwrap();
             block_receiver
@@ -131,13 +136,14 @@ async fn run_consensus_sync() {
     let mut context = MockTestContext::new();
     let (decision_tx, decision_rx) = oneshot::channel();
 
-    context.expect_validate_proposal().return_once(move |_, _, _| {
+    context.expect_validate_proposal().return_once(move |_, _, _, _| {
         let (block_sender, block_receiver) = oneshot::channel();
         block_sender.send(BlockHash(Felt::TWO)).unwrap();
         block_receiver
     });
     context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
+    context.expect_set_height_and_round().returning(move |_, _| ());
     context.expect_broadcast().returning(move |_| Ok(()));
     context.expect_decision_reached().return_once(move |block, votes| {
         assert_eq!(block, BlockHash(Felt::TWO));
@@ -190,13 +196,14 @@ async fn run_consensus_sync_cancellation_safety() {
     let (proposal_handled_tx, proposal_handled_rx) = oneshot::channel();
     let (decision_tx, decision_rx) = oneshot::channel();
 
-    context.expect_validate_proposal().return_once(move |_, _, _| {
+    context.expect_validate_proposal().return_once(move |_, _, _, _| {
         let (block_sender, block_receiver) = oneshot::channel();
         block_sender.send(BlockHash(Felt::ONE)).unwrap();
         block_receiver
     });
     context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
+    context.expect_set_height_and_round().returning(move |_, _| ());
     context.expect_broadcast().with(eq(prevote(Some(Felt::ONE), 1, 0, *VALIDATOR_ID))).return_once(
         move |_| {
             proposal_handled_tx.send(()).unwrap();
@@ -260,7 +267,8 @@ async fn test_timeouts() {
     send(&mut sender, precommit(None, 1, 0, *VALIDATOR_ID_3)).await;
 
     let mut context = MockTestContext::new();
-    context.expect_validate_proposal().returning(move |_, _, _| {
+    context.expect_set_height_and_round().returning(move |_, _| ());
+    context.expect_validate_proposal().returning(move |_, _, _, _| {
         let (block_sender, block_receiver) = oneshot::channel();
         block_sender.send(BlockHash(Felt::ONE)).unwrap();
         block_receiver
