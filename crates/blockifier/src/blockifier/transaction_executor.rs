@@ -109,7 +109,7 @@ impl<S: StateReader> TransactionExecutor<S> {
         match tx_execution_result {
             Ok(tx_execution_info) => {
                 let tx_state_changes_keys =
-                    transactional_state.get_actual_state_changes()?.into_keys();
+                    transactional_state.get_actual_state_changes()?.state_maps.into_keys();
                 self.bouncer.try_update(
                     &transactional_state,
                     &tx_state_changes_keys,
