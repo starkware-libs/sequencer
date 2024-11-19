@@ -28,7 +28,6 @@ serde_json.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 starknet_batcher.workspace = true
-starknet_batcher_types.workspace = true
 starknet_client.workspace = true
 starknet_consensus_manager.workspace = true
 starknet_gateway = { workspace = true, features = ["testing"] }
