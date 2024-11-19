@@ -7,7 +7,6 @@ use starknet_api::executable_transaction::Transaction;
 use starknet_batcher_types::batcher_types::ProposalId;
 use starknet_mempool_types::communication::MockMempoolClient;
 
-use crate::batcher::MockBatcherStorageReaderTrait;
 use crate::block_builder::{
     BlockBuilderResult,
     BlockBuilderTrait,
@@ -21,7 +20,6 @@ use crate::proposal_manager::{
     ProposalManager,
     ProposalManagerTrait,
     ProposalOutput,
-    StartHeightError,
 };
 use crate::transaction_provider::{
     MockL1ProviderClient,
@@ -30,7 +28,6 @@ use crate::transaction_provider::{
 };
 
 const INITIAL_HEIGHT: BlockNumber = BlockNumber(3);
-const NEXT_HEIGHT: BlockNumber = BlockNumber(4);
 const BLOCK_GENERATION_TIMEOUT: tokio::time::Duration = tokio::time::Duration::from_secs(1);
 const MAX_L1_HANDLER_TXS_PER_BLOCK_PROPOSAL: usize = 3;
 const INPUT_CHANNEL_SIZE: usize = 30;
@@ -45,7 +42,6 @@ fn output_streaming() -> (
 
 struct MockDependencies {
     block_builder_factory: MockBlockBuilderFactoryTrait,
-    storage_reader: MockBatcherStorageReaderTrait,
 }
 
 impl MockDependencies {
@@ -82,20 +78,11 @@ impl MockDependencies {
             .times(times)
             .returning(move |_, _, _, _, _| simulate_long_build_block());
     }
-
-    fn expect_consecutive_storage_heights(&mut self) {
-        // First validate all expectations set so far, so we can add new ones.
-        self.storage_reader.checkpoint();
-        self.storage_reader.expect_height().times(1).returning(|| Ok(INITIAL_HEIGHT));
-        self.storage_reader.expect_height().times(1).returning(|| Ok(NEXT_HEIGHT));
-    }
 }
 
 #[fixture]
 fn mock_dependencies() -> MockDependencies {
-    let mut storage_reader = MockBatcherStorageReaderTrait::new();
-    storage_reader.expect_height().returning(|| Ok(INITIAL_HEIGHT));
-    MockDependencies { block_builder_factory: MockBlockBuilderFactoryTrait::new(), storage_reader }
+    MockDependencies { block_builder_factory: MockBlockBuilderFactoryTrait::new() }
 }
 
 #[fixture]
@@ -116,10 +103,7 @@ fn validate_tx_provider() -> ValidateTransactionProvider {
 }
 
 fn proposal_manager(mock_dependencies: MockDependencies) -> ProposalManager {
-    ProposalManager::new(
-        Arc::new(mock_dependencies.block_builder_factory),
-        Arc::new(mock_dependencies.storage_reader),
-    )
+    ProposalManager::new(Arc::new(mock_dependencies.block_builder_factory))
 }
 
 fn proposal_deadline() -> tokio::time::Instant {
@@ -133,7 +117,14 @@ async fn propose_block_non_blocking(
 ) {
     let (output_sender, _receiver) = output_streaming();
     proposal_manager
-        .propose_block(proposal_id, None, proposal_deadline(), output_sender, tx_provider)
+        .propose_block(
+            INITIAL_HEIGHT,
+            proposal_id,
+            None,
+            proposal_deadline(),
+            output_sender,
+            tx_provider,
+        )
         .await
         .unwrap();
 }
@@ -153,89 +144,11 @@ async fn validate_proposal(
     proposal_id: ProposalId,
 ) {
     proposal_manager
-        .validate_block(proposal_id, None, proposal_deadline(), tx_provider)
+        .validate_block(INITIAL_HEIGHT, proposal_id, None, proposal_deadline(), tx_provider)
         .await
         .unwrap();
 
     assert!(proposal_manager.await_active_proposal().await);
-}
-
-#[rstest]
-#[case::height_already_passed(
-    INITIAL_HEIGHT.prev().unwrap(),
-    Result::Err(StartHeightError::HeightAlreadyPassed {
-        storage_height: INITIAL_HEIGHT,
-        requested_height: INITIAL_HEIGHT.prev().unwrap()
-    }
-))]
-#[case::happy(
-    INITIAL_HEIGHT,
-    Result::Ok(())
-)]
-#[case::storage_not_synced(
-    INITIAL_HEIGHT.unchecked_next(),
-    Result::Err(StartHeightError::StorageNotSynced {
-        storage_height: INITIAL_HEIGHT,
-        requested_height: INITIAL_HEIGHT.unchecked_next()
-    }
-))]
-#[tokio::test]
-async fn start_height(
-    mock_dependencies: MockDependencies,
-    #[case] height: BlockNumber,
-    #[case] expected_result: Result<(), StartHeightError>,
-) {
-    let mut proposal_manager = proposal_manager(mock_dependencies);
-    let result = proposal_manager.start_height(height).await;
-    // Unfortunately ProposalManagerError doesn't implement PartialEq.
-    assert_eq!(format!("{:?}", result), format!("{:?}", expected_result));
-}
-
-#[rstest]
-#[tokio::test]
-async fn duplicate_start_height(mock_dependencies: MockDependencies) {
-    let mut proposal_manager = proposal_manager(mock_dependencies);
-    assert_matches!(proposal_manager.start_height(INITIAL_HEIGHT).await, Ok(()));
-    assert_matches!(
-        proposal_manager.start_height(INITIAL_HEIGHT).await,
-        Err(StartHeightError::HeightInProgress)
-    );
-}
-
-#[rstest]
-#[tokio::test]
-async fn propose_block_fails_without_start_height(
-    mock_dependencies: MockDependencies,
-    propose_tx_provider: ProposeTransactionProvider,
-    output_streaming: (
-        tokio::sync::mpsc::UnboundedSender<Transaction>,
-        tokio::sync::mpsc::UnboundedReceiver<Transaction>,
-    ),
-) {
-    let mut proposal_manager = proposal_manager(mock_dependencies);
-    let err = proposal_manager
-        .propose_block(
-            ProposalId(0),
-            None,
-            proposal_deadline(),
-            output_streaming.0,
-            propose_tx_provider,
-        )
-        .await;
-    assert_matches!(err, Err(GenerateProposalError::NoActiveHeight));
-}
-
-#[rstest]
-#[tokio::test]
-async fn validate_proposal_fails_without_start_height(
-    mock_dependencies: MockDependencies,
-    validate_tx_provider: ValidateTransactionProvider,
-) {
-    let mut proposal_manager = proposal_manager(mock_dependencies);
-    let err = proposal_manager
-        .validate_block(ProposalId(0), None, proposal_deadline(), validate_tx_provider)
-        .await;
-    assert_matches!(err, Err(GenerateProposalError::NoActiveHeight));
 }
 
 #[rstest]
@@ -247,7 +160,6 @@ async fn propose_block_success(
     mock_dependencies.expect_build_block(1);
     let mut proposal_manager = proposal_manager(mock_dependencies);
 
-    proposal_manager.start_height(INITIAL_HEIGHT).await.unwrap();
     propose_block(&mut proposal_manager, propose_tx_provider, ProposalId(0)).await;
     proposal_manager.take_proposal_result(ProposalId(0)).await.unwrap();
 }
@@ -261,7 +173,6 @@ async fn validate_proposal_success(
     mock_dependencies.expect_build_block(1);
     let mut proposal_manager = proposal_manager(mock_dependencies);
 
-    proposal_manager.start_height(INITIAL_HEIGHT).await.unwrap();
     validate_proposal(&mut proposal_manager, validate_tx_provider, ProposalId(0)).await;
     proposal_manager.take_proposal_result(ProposalId(0)).await.unwrap();
 }
@@ -274,8 +185,6 @@ async fn consecutive_proposal_generations_success(
 ) {
     mock_dependencies.expect_build_block(4);
     let mut proposal_manager = proposal_manager(mock_dependencies);
-
-    proposal_manager.start_height(INITIAL_HEIGHT).await.unwrap();
 
     // Build and validate multiple proposals consecutively (awaiting on them to
     // make sure they finished successfully).
@@ -298,12 +207,11 @@ async fn multiple_proposals_generation_fail(
     mock_dependencies.expect_long_build_block(1);
     let mut proposal_manager = proposal_manager(mock_dependencies);
 
-    proposal_manager.start_height(INITIAL_HEIGHT).await.unwrap();
-
     // Build a proposal that will take a very long time to finish.
     let (output_sender_0, _rec_0) = output_streaming();
     proposal_manager
         .propose_block(
+            INITIAL_HEIGHT,
             ProposalId(0),
             None,
             proposal_deadline(),
@@ -317,6 +225,7 @@ async fn multiple_proposals_generation_fail(
     let (output_sender_1, _rec_1) = output_streaming();
     let another_generate_request = proposal_manager
         .propose_block(
+            INITIAL_HEIGHT,
             ProposalId(1),
             None,
             proposal_deadline(),
@@ -342,8 +251,6 @@ async fn take_proposal_result_no_active_proposal(
     mock_dependencies.expect_build_block(1);
     let mut proposal_manager = proposal_manager(mock_dependencies);
 
-    proposal_manager.start_height(INITIAL_HEIGHT).await.unwrap();
-
     propose_block(&mut proposal_manager, propose_tx_provider, ProposalId(0)).await;
 
     let expected_proposal_output =
@@ -367,7 +274,6 @@ async fn abort_active_proposal(
     mock_dependencies.expect_long_build_block(1);
     let mut proposal_manager = proposal_manager(mock_dependencies);
 
-    proposal_manager.start_height(INITIAL_HEIGHT).await.unwrap();
     propose_block_non_blocking(&mut proposal_manager, propose_tx_provider, ProposalId(0)).await;
 
     proposal_manager.abort_proposal(ProposalId(0)).await;
@@ -383,24 +289,20 @@ async fn abort_active_proposal(
 
 #[rstest]
 #[tokio::test]
-async fn abort_and_start_new_height(
+async fn reset(
     mut mock_dependencies: MockDependencies,
     propose_tx_provider: ProposeTransactionProvider,
 ) {
-    mock_dependencies.expect_consecutive_storage_heights();
-
     mock_dependencies.expect_build_block(1);
     mock_dependencies.expect_long_build_block(1);
     let mut proposal_manager = proposal_manager(mock_dependencies);
 
-    // Start the first height with 2 proposals.
-    proposal_manager.start_height(INITIAL_HEIGHT).await.unwrap();
+    // Create 2 proposals, one will remain active.
     propose_block(&mut proposal_manager, propose_tx_provider.clone(), ProposalId(0)).await;
     propose_block_non_blocking(&mut proposal_manager, propose_tx_provider.clone(), ProposalId(1))
         .await;
 
-    // Start a new height. This should abort and delete all existing proposals.
-    assert!(proposal_manager.start_height(NEXT_HEIGHT).await.is_ok());
+    proposal_manager.reset().await;
 
     // Make sure executed proposals are deleted.
     assert_matches!(
