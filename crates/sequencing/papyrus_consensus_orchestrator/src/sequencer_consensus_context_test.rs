@@ -3,7 +3,7 @@ use std::time::Duration;
 use std::vec;
 
 use futures::channel::mpsc;
-use futures::SinkExt;
+use futures::{FutureExt, SinkExt};
 use lazy_static::lazy_static;
 use papyrus_consensus::types::ConsensusContext;
 use papyrus_network::network_manager::test_utils::{
@@ -140,7 +140,8 @@ async fn validate_proposal_success() {
         SequencerConsensusContext::new(Arc::new(batcher), broadcast_topic_client, NUM_VALIDATORS);
     let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
     content_sender.send(TX_BATCH.clone()).await.unwrap();
-    let fin_receiver = context.validate_proposal(BlockNumber(0), TIMEOUT, content_receiver).await;
+    let fin_receiver =
+        context.validate_proposal(BlockNumber(0), 0, TIMEOUT, content_receiver).await;
     content_sender.close_channel();
     assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
 }
@@ -181,7 +182,8 @@ async fn repropose() {
     let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
     let txs = vec![generate_invoke_tx(Felt::TWO)];
     content_sender.send(txs.clone()).await.unwrap();
-    let fin_receiver = context.validate_proposal(BlockNumber(0), TIMEOUT, content_receiver).await;
+    let fin_receiver =
+        context.validate_proposal(BlockNumber(0), 0, TIMEOUT, content_receiver).await;
     content_sender.close_channel();
     assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
 
@@ -192,4 +194,74 @@ async fn repropose() {
             ProposalInit { height: BlockNumber(0), ..Default::default() },
         )
         .await;
+}
+
+#[tokio::test]
+async fn proposals_from_different_rounds() {
+    let mut batcher = MockBatcherClient::new();
+    let proposal_id: Arc<OnceLock<ProposalId>> = Arc::new(OnceLock::new());
+    let proposal_id_clone = Arc::clone(&proposal_id);
+    batcher.expect_validate_block().returning(move |input: ValidateBlockInput| {
+        proposal_id_clone.set(input.proposal_id).unwrap();
+        Ok(())
+    });
+    batcher.expect_start_height().return_once(|input: StartHeightInput| {
+        assert_eq!(input.height, BlockNumber(0));
+        Ok(())
+    });
+    let proposal_id_clone = Arc::clone(&proposal_id);
+    batcher.expect_send_proposal_content().times(1).returning(
+        move |input: SendProposalContentInput| {
+            assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
+            let SendProposalContent::Txs(txs) = input.content else {
+                panic!("Expected SendProposalContent::Txs, got {:?}", input.content);
+            };
+            assert_eq!(txs, TX_BATCH.clone());
+            Ok(SendProposalContentResponse { response: ProposalStatus::Processing })
+        },
+    );
+    let proposal_id_clone = Arc::clone(&proposal_id);
+    batcher.expect_send_proposal_content().times(1).returning(
+        move |input: SendProposalContentInput| {
+            assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
+            assert!(matches!(input.content, SendProposalContent::Finish));
+            Ok(SendProposalContentResponse {
+                response: ProposalStatus::Finished(ProposalCommitment {
+                    state_diff_commitment: STATE_DIFF_COMMITMENT,
+                }),
+            })
+        },
+    );
+    let TestSubscriberChannels { mock_network: _, subscriber_channels } =
+        mock_register_broadcast_topic().expect("Failed to create mock network");
+    let BroadcastTopicChannels { broadcasted_messages_receiver: _, broadcast_topic_client } =
+        subscriber_channels;
+    let mut context =
+        SequencerConsensusContext::new(Arc::new(batcher), broadcast_topic_client, NUM_VALIDATORS);
+    context.set_height_and_round(BlockNumber(0), 1).await;
+
+    let (mut content_sender, content_receiver_0) = mpsc::channel(CHANNEL_SIZE);
+    content_sender.send(TX_BATCH.clone()).await.unwrap();
+    let fin_receiver_past_round =
+        context.validate_proposal(BlockNumber(0), 0, TIMEOUT, content_receiver_0).await;
+    content_sender.close_channel();
+
+    let (mut content_sender, content_receiver_1) = mpsc::channel(CHANNEL_SIZE);
+    content_sender.send(TX_BATCH.clone()).await.unwrap();
+    let fin_receiver_curr_round =
+        context.validate_proposal(BlockNumber(0), 1, TIMEOUT, content_receiver_1).await;
+    content_sender.close_channel();
+
+    let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
+    content_sender.send(TX_BATCH.clone()).await.unwrap();
+    let fin_receiver_future_round =
+        context.validate_proposal(BlockNumber(0), 2, TIMEOUT, content_receiver).await;
+    content_sender.close_channel();
+
+    // The proposal from the past round should be rejected.
+    assert!(fin_receiver_past_round.await.is_err());
+    // The proposal from the current round should be accepted.
+    assert_eq!(fin_receiver_curr_round.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
+    // The proposal from the future round should not be processed.
+    assert!(fin_receiver_future_round.now_or_never().is_none());
 }

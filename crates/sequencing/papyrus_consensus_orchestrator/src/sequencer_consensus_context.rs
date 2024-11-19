@@ -43,6 +43,8 @@ use starknet_batcher_types::batcher_types::{
     ValidateBlockInput,
 };
 use starknet_batcher_types::communication::BatcherClient;
+use tokio::sync::Notify;
+use tokio::task::JoinHandle;
 use tracing::{debug, debug_span, error, info, trace, warn, Instrument};
 
 // {height: {proposal_id: (content, [proposal_ids])}}
@@ -50,6 +52,7 @@ use tracing::{debug, debug_span, error, info, trace, warn, Instrument};
 // store one of them.
 type HeightToIdToContent =
     BTreeMap<BlockNumber, HashMap<ProposalContentId, (Vec<Transaction>, ProposalId)>>;
+type ValidationParams = (BlockNumber, Duration, mpsc::Receiver<Vec<Transaction>>);
 
 pub struct SequencerConsensusContext {
     batcher: Arc<dyn BatcherClient>,
@@ -63,7 +66,12 @@ pub struct SequencerConsensusContext {
     // restarting.
     proposal_id: u64,
     current_height: Option<BlockNumber>,
+    current_consensus_height: BlockNumber,
+    current_round: Round,
     network_broadcast_client: BroadcastTopicClient<ProposalPart>,
+    active_proposal: Option<(Arc<Notify>, JoinHandle<()>)>,
+    // Stores proposals for future rounds until the round is reached.
+    queued_proposals: BTreeMap<Round, (ValidationParams, oneshot::Sender<ProposalContentId>)>,
 }
 
 impl SequencerConsensusContext {
@@ -79,6 +87,10 @@ impl SequencerConsensusContext {
             valid_proposals: Arc::new(Mutex::new(HeightToIdToContent::new())),
             proposal_id: 0,
             current_height: None,
+            current_consensus_height: BlockNumber::default(),
+            current_round: 0,
+            active_proposal: None,
+            queued_proposals: BTreeMap::new(),
         }
     }
 }
@@ -93,6 +105,7 @@ impl ConsensusContext for SequencerConsensusContext {
         proposal_init: ProposalInit,
         timeout: Duration,
     ) -> oneshot::Receiver<ProposalContentId> {
+        self.set_height_and_round(proposal_init.height, proposal_init.round).await;
         debug!(
             "Building proposal for height: {} with timeout: {:?}",
             proposal_init.height, timeout
@@ -152,47 +165,23 @@ impl ConsensusContext for SequencerConsensusContext {
     async fn validate_proposal(
         &mut self,
         height: BlockNumber,
+        round: Round,
         timeout: Duration,
         content: mpsc::Receiver<Self::ProposalChunk>,
     ) -> oneshot::Receiver<ProposalContentId> {
-        debug!("Validating proposal for height: {height} with timeout: {timeout:?}");
+        assert_eq!(height, self.current_consensus_height);
         let (fin_sender, fin_receiver) = oneshot::channel();
-        let batcher = Arc::clone(&self.batcher);
-        let valid_proposals = Arc::clone(&self.valid_proposals);
-        let proposal_id = ProposalId(self.proposal_id);
-        self.proposal_id += 1;
-
-        let chrono_timeout =
-            chrono::Duration::from_std(timeout).expect("Can't convert timeout to chrono::Duration");
-        let input = ValidateBlockInput {
-            proposal_id,
-            deadline: chrono::Utc::now() + chrono_timeout,
-            // TODO(Matan 3/11/2024): Add the real value of the retrospective block hash.
-            retrospective_block_hash: Some(BlockHashAndNumber {
-                number: BlockNumber::default(),
-                hash: BlockHash::default(),
-            }),
-        };
-        self.maybe_start_height(height).await;
-        batcher.validate_block(input).await.expect("Failed to initiate proposal validation");
-        tokio::spawn(
-            async move {
-                let validate_fut = stream_validate_proposal(
-                    height,
-                    proposal_id,
-                    batcher,
-                    valid_proposals,
-                    content,
-                    fin_sender,
-                );
-                if let Err(e) = tokio::time::timeout(timeout, validate_fut).await {
-                    error!("Validation timed out. {e:?}");
-                }
+        match round.cmp(&self.current_round) {
+            std::cmp::Ordering::Less => fin_receiver,
+            std::cmp::Ordering::Greater => {
+                self.queued_proposals.insert(round, ((height, timeout, content), fin_sender));
+                fin_receiver
             }
-            .instrument(debug_span!("consensus_validate_proposal")),
-        );
-
-        fin_receiver
+            std::cmp::Ordering::Equal => {
+                self.validate_current_round_proposal(height, timeout, content, fin_sender).await;
+                fin_receiver
+            }
+        }
     }
 
     async fn repropose(&mut self, id: ProposalContentId, init: ProposalInit) {
@@ -245,6 +234,43 @@ impl ConsensusContext for SequencerConsensusContext {
 
         Ok(())
     }
+
+    async fn set_height_and_round(&mut self, height: BlockNumber, round: Round) {
+        if height > self.current_consensus_height {
+            self.current_consensus_height = height;
+            assert_eq!(round, 0);
+            self.current_round = round;
+            self.interrupt_active_proposal();
+            self.queued_proposals.clear();
+            self.active_proposal = None;
+            return;
+        }
+        assert_eq!(height, self.current_consensus_height);
+        if round == self.current_round {
+            return;
+        }
+        assert!(round > self.current_round);
+        self.interrupt_active_proposal();
+        self.current_round = round;
+        let mut to_process = None;
+        while let Some(entry) = self.queued_proposals.first_entry() {
+            match self.current_round.cmp(entry.key()) {
+                std::cmp::Ordering::Less => {
+                    entry.remove();
+                }
+                std::cmp::Ordering::Equal => {
+                    to_process = Some(entry.remove());
+                    break;
+                }
+                std::cmp::Ordering::Greater => return,
+            }
+        }
+        // Validate the proposal for the current round if exists.
+        let Some(((height, timeout, content), fin_sender)) = to_process else {
+            return;
+        };
+        self.validate_current_round_proposal(height, timeout, content, fin_sender).await;
+    }
 }
 
 impl SequencerConsensusContext {
@@ -261,6 +287,66 @@ impl SequencerConsensusContext {
             .await
             .expect("Batcher should be ready to start the next height");
         self.current_height = Some(height);
+    }
+
+    async fn validate_current_round_proposal(
+        &mut self,
+        height: BlockNumber,
+        timeout: Duration,
+        content: mpsc::Receiver<Vec<Transaction>>,
+        fin_sender: oneshot::Sender<ProposalContentId>,
+    ) {
+        debug!("Validating proposal for height: {height} with timeout: {timeout:?}");
+        let batcher = Arc::clone(&self.batcher);
+        let valid_proposals = Arc::clone(&self.valid_proposals);
+        let proposal_id = ProposalId(self.proposal_id);
+        self.proposal_id += 1;
+
+        let chrono_timeout =
+            chrono::Duration::from_std(timeout).expect("Can't convert timeout to chrono::Duration");
+        let input = ValidateBlockInput {
+            proposal_id,
+            deadline: chrono::Utc::now() + chrono_timeout,
+            // TODO(Matan 3/11/2024): Add the real value of the retrospective block hash.
+            retrospective_block_hash: Some(BlockHashAndNumber {
+                number: BlockNumber::default(),
+                hash: BlockHash::default(),
+            }),
+        };
+        self.maybe_start_height(height).await;
+        batcher.validate_block(input).await.expect("Failed to initiate proposal validation");
+
+        let notify = Arc::new(Notify::new());
+        let notify_clone = Arc::clone(&notify);
+
+        let handle = tokio::spawn(
+            async move {
+                let validate_fut = stream_validate_proposal(
+                    height,
+                    proposal_id,
+                    batcher,
+                    valid_proposals,
+                    content,
+                    fin_sender,
+                );
+                tokio::select! {
+                    _ = notify_clone.notified() => {}
+                    result = tokio::time::timeout(timeout, validate_fut) =>{
+                        if let Err(e) = result {
+                            error!("Validation timed out. {e:?}");
+                        }
+                    }
+                }
+            }
+            .instrument(debug_span!("consensus_validate_proposal")),
+        );
+        self.active_proposal = Some((notify, handle));
+    }
+
+    fn interrupt_active_proposal(&self) {
+        if let Some((notify, _)) = &self.active_proposal {
+            notify.notify_one();
+        }
     }
 }
 
