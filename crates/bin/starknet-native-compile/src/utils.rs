@@ -1,11 +1,10 @@
-use cairo_lang_starknet_classes::contract_class::ContractClass;
-
-use cairo_lang_sierra::program::Program;
-
 use std::path::PathBuf;
 use std::process;
 
-pub(crate) fn load_sierra_program_from_file(path: &PathBuf) -> Program {
+use cairo_lang_sierra::program::Program;
+use cairo_lang_starknet_classes::contract_class::ContractClass;
+
+pub(crate) fn load_sierra_program_from_file(path: &PathBuf) -> (ContractClass, Program) {
     let raw_contract_class = std::fs::read_to_string(path).unwrap_or_else(|err| {
         eprintln!("Error reading Sierra file: {}", err);
         process::exit(1);
@@ -15,8 +14,11 @@ pub(crate) fn load_sierra_program_from_file(path: &PathBuf) -> Program {
             eprintln!("Error deserializing Sierra file into contract class: {}", err);
             process::exit(1);
         });
-    contract_class.extract_sierra_program().unwrap_or_else(|err| {
-        eprintln!("Error extracting Sierra program from contract class: {}", err);
-        process::exit(1);
-    })
+    (
+        contract_class.clone(),
+        contract_class.extract_sierra_program().unwrap_or_else(|err| {
+            eprintln!("Error extracting Sierra program from contract class: {}", err);
+            process::exit(1);
+        }),
+    )
 }
