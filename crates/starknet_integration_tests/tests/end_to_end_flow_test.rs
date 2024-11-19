@@ -38,7 +38,7 @@ async fn end_to_end(tx_generator: MultiAccountTransactionGenerator) {
     tokio::time::timeout(
         LISTEN_TO_BROADCAST_MESSAGES_TIMEOUT,
         listen_to_broadcasted_messages(
-            mock_running_system.consensus_proposals_channels,
+            mock_running_system.proposer.consensus_proposals_channels,
             &expected_batched_tx_hashes,
         ),
     )

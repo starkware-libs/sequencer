@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
+use mempool_test_utils::starknet_api_test_utils::{Contract, MultiAccountTransactionGenerator};
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::ProposalPart;
 use starknet_api::rpc_transaction::RpcTransaction;
@@ -18,7 +18,7 @@ use tokio::task::JoinHandle;
 use crate::state_reader::{spawn_test_rpc_state_reader, StorageTestSetup};
 use crate::utils::{create_config, HttpTestClient};
 
-pub struct FlowTestSetup {
+pub struct FlowTestSequencerSetup {
     pub task_executor: TokioExecutor,
 
     // Client for adding transactions to the sequencer node.
@@ -35,15 +35,11 @@ pub struct FlowTestSetup {
     pub consensus_proposals_channels: BroadcastTopicChannels<ProposalPart>,
 }
 
-impl FlowTestSetup {
-    pub async fn new_from_tx_generator(tx_generator: &MultiAccountTransactionGenerator) -> Self {
+impl FlowTestSequencerSetup {
+    pub async fn new_from_accounts(accounts: Vec<Contract>) -> Self {
         let handle = Handle::current();
         let task_executor = TokioExecutor::new(handle);
 
-        // Configure and start tracing.
-        configure_tracing();
-
-        let accounts = tx_generator.accounts();
         let storage_for_test = StorageTestSetup::new(accounts);
 
         // Spawn a papyrus rpc server for a papyrus storage reader.
@@ -80,12 +76,33 @@ impl FlowTestSetup {
             consensus_proposals_channels,
         }
     }
+}
+
+pub struct FlowTestSetup {
+    pub proposer: FlowTestSequencerSetup,
+    pub validator: FlowTestSequencerSetup,
+}
+
+impl FlowTestSetup {
+    pub async fn new_from_tx_generator(tx_generator: &MultiAccountTransactionGenerator) -> Self {
+        // Configure and start tracing.
+        configure_tracing();
+
+        let accounts = tx_generator.accounts();
+
+        let (proposer, validator) = tokio::join!(
+            FlowTestSequencerSetup::new_from_accounts(accounts.clone()),
+            FlowTestSequencerSetup::new_from_accounts(accounts)
+        );
+
+        Self { proposer, validator }
+    }
 
     pub async fn assert_add_tx_success(&self, tx: RpcTransaction) -> TransactionHash {
-        self.add_tx_http_client.assert_add_tx_success(tx).await
+        self.proposer.add_tx_http_client.assert_add_tx_success(tx).await
     }
 
     pub async fn assert_add_tx_error(&self, tx: RpcTransaction) -> GatewaySpecError {
-        self.add_tx_http_client.assert_add_tx_error(tx).await
+        self.proposer.add_tx_http_client.assert_add_tx_error(tx).await
     }
 }

@@ -71,6 +71,7 @@ pub async fn create_config(
     )
 }
 
+// TODO(yair): Fix this for multiple sequencers.
 fn create_consensus_manager_config_and_channels()
 -> (ConsensusManagerConfig, BroadcastTopicChannels<ProposalPart>) {
     let (network_config, broadcast_channels) =
