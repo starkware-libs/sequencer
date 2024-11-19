@@ -233,7 +233,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
         let mut execution_output = lock_mutex_in_array(&self.execution_outputs, tx_index);
         let writes = &execution_output.as_ref().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR).writes;
         // TODO(Yoni): get rid of this clone.
-        let mut tx_state_changes_keys = StateChanges::from(writes.clone()).into_keys();
+        let mut tx_state_changes_keys = StateChanges { state_maps: writes.clone() }.into_keys();
         let tx_result =
             &mut execution_output.as_mut().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR).result;
 
