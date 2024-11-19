@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::AccountTransaction as ApiTransaction;
 use thiserror::Error;
@@ -12,7 +11,7 @@ use crate::blockifier::transaction_executor::{
     BLOCK_STATE_ACCESS_ERR,
 };
 use crate::context::{BlockContext, TransactionContext};
-use crate::execution::call_info::{gas_for_fee_from_call_infos, CallInfo, ChargedResources};
+use crate::execution::call_info::CallInfo;
 use crate::fee::fee_checks::PostValidationReport;
 use crate::fee::receipt::TransactionReceipt;
 use crate::state::cached_state::CachedState;
@@ -111,19 +110,15 @@ impl<S: StateReader> StatefulValidator<S> {
         tx: &AccountTransaction,
         mut remaining_gas: u64,
     ) -> StatefulValidatorResult<(Option<CallInfo>, TransactionReceipt)> {
-        let mut execution_resources = ExecutionResources::default();
         let tx_context = Arc::new(self.tx_executor.block_context.to_tx_context(tx));
 
         let limit_steps_by_resources = tx.enforce_fee();
         let validate_call_info = tx.validate_tx(
             self.tx_executor.block_state.as_mut().expect(BLOCK_STATE_ACCESS_ERR),
-            &mut execution_resources,
             tx_context.clone(),
             &mut remaining_gas,
             limit_steps_by_resources,
         )?;
-
-        let gas_for_fee = gas_for_fee_from_call_infos(&validate_call_info, &None);
 
         let tx_receipt = TransactionReceipt::from_account_tx(
             tx,
@@ -134,7 +129,6 @@ impl<S: StateReader> StatefulValidator<S> {
                 .as_mut()
                 .expect(BLOCK_STATE_ACCESS_ERR)
                 .get_actual_state_changes()?,
-            &ChargedResources { vm_resources: execution_resources, gas_for_fee },
             CallInfo::summarize_many(
                 validate_call_info.iter(),
                 &tx_context.block_context.versioned_constants,

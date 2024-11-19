@@ -21,13 +21,12 @@ pub fn execute_entry_point_call(
     call: CallEntryPoint,
     contract_class: NativeContractClassV1,
     state: &mut dyn State,
-    resources: &mut ExecutionResources,
     context: &mut EntryPointExecutionContext,
 ) -> EntryPointExecutionResult<CallInfo> {
     let entry_point = contract_class.get_entry_point(&call)?;
 
     let mut syscall_handler: NativeSyscallHandler<'_> =
-        NativeSyscallHandler::new(call, state, resources, context);
+        NativeSyscallHandler::new(call, state, context);
 
     let gas_costs = &syscall_handler.context.versioned_constants().os_constants.gas_costs;
     let builtin_costs = BuiltinCosts {
@@ -82,6 +81,14 @@ fn create_callinfo(
 
     let gas_consumed = syscall_handler.call.initial_gas - remaining_gas;
 
+    let charged_resources_without_inner_calls = ChargedResources {
+        vm_resources: ExecutionResources::default(),
+        // TODO(tzahi): Replace with a computed value.
+        gas_for_fee: GasAmount(0),
+    };
+    let mut charged_resources = charged_resources_without_inner_calls;
+    charged_resources += &CallInfo::summarize_charged_resources(syscall_handler.inner_calls.iter());
+
     Ok(CallInfo {
         call: syscall_handler.call,
         execution: CallExecution {
@@ -91,10 +98,7 @@ fn create_callinfo(
             failed: call_result.failure_flag,
             gas_consumed,
         },
-        charged_resources: ChargedResources {
-            vm_resources: ExecutionResources::default(),
-            gas_for_fee: GasAmount(gas_consumed),
-        },
+        charged_resources,
         inner_calls: syscall_handler.inner_calls,
         storage_read_values: syscall_handler.read_values,
         accessed_storage_keys: syscall_handler.accessed_keys,

@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 use std::iter::Sum;
-use std::ops::Add;
+use std::ops::{Add, AddAssign};
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use serde::Serialize;
@@ -73,6 +73,7 @@ pub struct EventSummary {
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ExecutionSummary {
+    pub charged_resources: ChargedResources,
     pub executed_class_hashes: HashSet<ClassHash>,
     pub visited_storage_entries: HashSet<StorageEntry>,
     pub l2_to_l1_payload_lengths: Vec<usize>,
@@ -83,6 +84,7 @@ impl Add for ExecutionSummary {
     type Output = Self;
 
     fn add(mut self, other: Self) -> Self {
+        self.charged_resources += &other.charged_resources;
         self.executed_class_hashes.extend(other.executed_class_hashes);
         self.visited_storage_entries.extend(other.visited_storage_entries);
         self.l2_to_l1_payload_lengths.extend(other.l2_to_l1_payload_lengths);
@@ -113,25 +115,12 @@ impl ChargedResources {
     }
 }
 
-/// Returns the total gas_for_fee used in the given validate and execute calls.
-pub fn gas_for_fee_from_call_infos(
-    validate: &Option<CallInfo>,
-    execute: &Option<CallInfo>,
-) -> GasAmount {
-    let validate_gas_amount = validate
-        .as_ref()
-        .map(|call_info| call_info.charged_resources.gas_for_fee)
-        .unwrap_or(GasAmount(0));
-    let execute_gas_amount = execute
-        .as_ref()
-        .map(|call_info| call_info.charged_resources.gas_for_fee)
-        .unwrap_or(GasAmount(0));
-    validate_gas_amount.checked_add(execute_gas_amount).unwrap_or_else(|| {
-        panic!(
-            "Gas for fee overflowed: tried to add {execute_gas_amount} to \
-             {validate_gas_amount}",
-        )
-    })
+impl AddAssign<&ChargedResources> for ChargedResources {
+    fn add_assign(&mut self, other: &Self) {
+        self.vm_resources += &other.vm_resources;
+        self.gas_for_fee =
+            self.gas_for_fee.checked_add(other.gas_for_fee).expect("Gas for fee overflowed.");
+    }
 }
 
 /// Represents the full effects of executing an entry point, including the inner calls it invoked.
@@ -209,6 +198,9 @@ impl CallInfo {
         }
 
         ExecutionSummary {
+            // Note: the charged resourses of a call contains the inner call resources, unlike other
+            // fields such as events and messages,
+            charged_resources: self.charged_resources.clone(),
             executed_class_hashes,
             visited_storage_entries,
             l2_to_l1_payload_lengths,
@@ -221,6 +213,17 @@ impl CallInfo {
         versioned_constants: &VersionedConstants,
     ) -> ExecutionSummary {
         call_infos.map(|call_info| call_info.summarize(versioned_constants)).sum()
+    }
+
+    pub fn summarize_charged_resources<'a>(
+        call_infos: impl Iterator<Item = &'a CallInfo>,
+    ) -> ChargedResources {
+        // Note: the charged resourses of a call contains the inner call resources, unlike other
+        // fields such as events and messages,
+        call_infos.fold(ChargedResources::default(), |mut acc, inner_call| {
+            acc += &inner_call.charged_resources;
+            acc
+        })
     }
 }
 
