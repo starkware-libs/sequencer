@@ -42,9 +42,8 @@ pub const VALID_L1_DATA_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000;
 
 // Utils.
 
-// TODO(Noam): Merge this into test_valid_resource_bounds
-pub fn test_resource_bounds_mapping() -> AllResourceBounds {
-    AllResourceBounds {
+pub fn test_valid_resource_bounds() -> ValidResourceBounds {
+    ValidResourceBounds::AllResources(AllResourceBounds {
         l1_gas: ResourceBounds {
             max_amount: GasAmount(VALID_L1_GAS_MAX_AMOUNT),
             max_price_per_unit: GasPrice(VALID_L1_GAS_MAX_PRICE_PER_UNIT),
@@ -57,11 +56,7 @@ pub fn test_resource_bounds_mapping() -> AllResourceBounds {
             max_amount: GasAmount(VALID_L1_DATA_GAS_MAX_AMOUNT),
             max_price_per_unit: GasPrice(VALID_L1_DATA_GAS_MAX_PRICE_PER_UNIT),
         },
-    }
-}
-
-pub fn test_valid_resource_bounds() -> ValidResourceBounds {
-    ValidResourceBounds::AllResources(test_resource_bounds_mapping())
+    })
 }
 
 /// Get the contract class used for testing.
