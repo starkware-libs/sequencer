@@ -39,7 +39,6 @@ use crate::proposal_manager::{
     ProposalManager,
     ProposalManagerTrait,
     ProposalOutput,
-    StartHeightError,
 };
 use crate::transaction_provider::{
     DummyL1ProviderClient,
@@ -55,6 +54,8 @@ pub struct Batcher {
     pub storage_reader: Arc<dyn BatcherStorageReaderTrait>,
     pub storage_writer: Box<dyn BatcherStorageWriterTrait>,
     pub mempool_client: SharedMempoolClient,
+
+    active_height: Option<BlockNumber>,
     proposal_manager: Box<dyn ProposalManagerTrait>,
     propose_tx_streams: HashMap<ProposalId, OutputStreamReceiver>,
     validate_tx_streams: HashMap<ProposalId, InputStreamSender>,
@@ -73,16 +74,43 @@ impl Batcher {
             storage_reader,
             storage_writer,
             mempool_client,
+            active_height: None,
             proposal_manager,
             propose_tx_streams: HashMap::new(),
             validate_tx_streams: HashMap::new(),
         }
     }
 
+    #[instrument(skip(self), err)]
     pub async fn start_height(&mut self, input: StartHeightInput) -> BatcherResult<()> {
+        if self.active_height == Some(input.height) {
+            return Err(BatcherError::HeightInProgress);
+        }
+
+        let storage_height =
+            self.storage_reader.height().map_err(|_| BatcherError::InternalError)?;
+        if storage_height < input.height {
+            return Err(BatcherError::StorageNotSynced {
+                storage_height,
+                requested_height: input.height,
+            });
+        }
+        if storage_height > input.height {
+            return Err(BatcherError::HeightAlreadyPassed {
+                storage_height,
+                requested_height: input.height,
+            });
+        }
+
+        // Clear all the proposals from the previous height.
+        self.proposal_manager.reset().await;
         self.propose_tx_streams.clear();
         self.validate_tx_streams.clear();
-        self.proposal_manager.start_height(input.height).await.map_err(BatcherError::from)
+
+        info!("Starting to work on height {}.", input.height);
+        self.active_height = Some(input.height);
+
+        Ok(())
     }
 
     #[instrument(skip(self), err)]
@@ -90,6 +118,8 @@ impl Batcher {
         &mut self,
         propose_block_input: ProposeBlockInput,
     ) -> BatcherResult<()> {
+        let active_height = self.active_height.ok_or(BatcherError::NoActiveHeight)?;
+
         let proposal_id = propose_block_input.proposal_id;
         let deadline = deadline_as_instant(propose_block_input.deadline)?;
 
@@ -103,6 +133,7 @@ impl Batcher {
 
         self.proposal_manager
             .propose_block(
+                active_height,
                 proposal_id,
                 propose_block_input.retrospective_block_hash,
                 deadline,
@@ -120,6 +151,8 @@ impl Batcher {
         &mut self,
         validate_proposal_input: ValidateBlockInput,
     ) -> BatcherResult<()> {
+        let active_height = self.active_height.ok_or(BatcherError::NoActiveHeight)?;
+
         let proposal_id = validate_proposal_input.proposal_id;
         let deadline = deadline_as_instant(validate_proposal_input.deadline)?;
 
@@ -133,6 +166,7 @@ impl Batcher {
 
         self.proposal_manager
             .validate_block(
+                active_height,
                 proposal_id,
                 validate_proposal_input.retrospective_block_hash,
                 deadline,
@@ -299,8 +333,7 @@ pub fn create_batcher(config: BatcherConfig, mempool_client: SharedMempoolClient
     });
     let storage_reader = Arc::new(storage_reader);
     let storage_writer = Box::new(storage_writer);
-    let proposal_manager =
-        Box::new(ProposalManager::new(block_builder_factory, storage_reader.clone()));
+    let proposal_manager = Box::new(ProposalManager::new(block_builder_factory));
     Batcher::new(config, storage_reader, storage_writer, mempool_client, proposal_manager)
 }
 
@@ -333,24 +366,6 @@ impl BatcherStorageWriterTrait for papyrus_storage::StorageWriter {
     ) -> papyrus_storage::StorageResult<()> {
         // TODO: write casms.
         self.begin_rw_txn()?.append_state_diff(height, state_diff)?.commit()
-    }
-}
-
-impl From<StartHeightError> for BatcherError {
-    fn from(err: StartHeightError) -> Self {
-        match err {
-            StartHeightError::HeightAlreadyPassed { storage_height, requested_height } => {
-                BatcherError::HeightAlreadyPassed { storage_height, requested_height }
-            }
-            StartHeightError::StorageError(err) => {
-                error!("{}", err);
-                BatcherError::InternalError
-            }
-            StartHeightError::StorageNotSynced { storage_height, requested_height } => {
-                BatcherError::StorageNotSynced { storage_height, requested_height }
-            }
-            StartHeightError::HeightInProgress => BatcherError::HeightInProgress,
-        }
     }
 }
 
