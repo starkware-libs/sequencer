@@ -1496,6 +1496,7 @@ dependencies = [
  "cairo-native",
  "cairo-vm",
  "criterion",
+ "crossbeam-channel",
  "derive_more 0.99.18",
  "glob",
  "indexmap 2.6.0",
@@ -1519,6 +1520,7 @@ dependencies = [
  "sha2",
  "starknet-types-core",
  "starknet_api",
+ "starknet_sierra_compile",
  "strum 0.25.0",
  "strum_macros 0.25.3",
  "tempfile",
@@ -2852,6 +2854,15 @@ checksum = "6b50826342786a51a89e2da3a28f1c32b06e387201bc2d19791f622c673706b1"
 dependencies = [
  "cast",
  "itertools 0.10.5",
+]
+
+[[package]]
+name = "crossbeam-channel"
+version = "0.5.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "33480d6946193aa8033910124896ca395333cae7e2d1113d1fef6c3272217df2"
+dependencies = [
+ "crossbeam-utils",
 ]
 
 [[package]]
