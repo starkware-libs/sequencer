@@ -76,6 +76,9 @@ pub struct NativeSyscallHandler<'state> {
     // Additional information gathered during execution.
     pub read_values: Vec<Felt>,
     pub accessed_keys: HashSet<StorageKey, RandomState>,
+    pub read_class_hash_values: Vec<ClassHash>,
+    // Accessed addresses by the `get_class_hash_at` syscall.
+    pub accessed_contract_addresses: HashSet<ContractAddress>,
 
     // It is set if an unrecoverable error happens during syscall execution
     pub unrecoverable_error: Option<SyscallExecutionError>,
@@ -98,6 +101,8 @@ impl<'state> NativeSyscallHandler<'state> {
             inner_calls: Vec::new(),
             read_values: Vec::new(),
             accessed_keys: HashSet::new(),
+            read_class_hash_values: Vec::new(),
+            accessed_contract_addresses: HashSet::new(),
             unrecoverable_error: None,
         }
     }
@@ -297,10 +302,24 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
 
     fn get_class_hash_at(
         &mut self,
-        _contract_address: Felt,
-        _remaining_gas: &mut u128,
+        contract_address: Felt,
+        remaining_gas: &mut u128,
     ) -> SyscallResult<Felt> {
-        todo!()
+        self.pre_execute_syscall(
+            remaining_gas,
+            self.context.gas_costs().get_class_hash_at_gas_cost,
+        )?;
+        let request = ContractAddress::try_from(contract_address)
+            .map_err(|err| self.handle_error(remaining_gas, err.into()))?;
+        self.accessed_contract_addresses.insert(request);
+
+        let class_hash = self
+            .state
+            .get_class_hash_at(request)
+            .map_err(|err| self.handle_error(remaining_gas, err.into()))?;
+        self.read_class_hash_values.push(class_hash);
+
+        Ok(class_hash.0)
     }
 
     fn get_execution_info_v2(
