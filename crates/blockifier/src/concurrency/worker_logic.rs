@@ -139,7 +139,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
         let execution_output_inner = match execution_result {
             Ok(_) => {
                 let tx_reads_writes = transactional_state.cache.take();
-                let writes = tx_reads_writes.to_state_diff();
+                let writes = tx_reads_writes.to_state_diff().state_maps;
                 let contract_classes = transactional_state.class_hash_to_class.take();
                 let visited_pcs = transactional_state.visited_pcs;
                 // The versioned state does not carry the visited PCs.

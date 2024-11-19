@@ -47,7 +47,7 @@ impl<S: StateReader> CachedState<S> {
 
     /// Returns the state diff resulting from the performed writes, with respect to the parent
     /// state.
-    pub fn to_state_diff(&mut self) -> StateResult<StateMaps> {
+    pub fn to_state_diff(&mut self) -> StateResult<StateChanges> {
         self.update_initial_values_of_write_only_access()?;
         Ok(self.cache.borrow().to_state_diff())
     }
@@ -55,7 +55,7 @@ impl<S: StateReader> CachedState<S> {
     // TODO(Yoni, 1/8/2024): remove this function.
     /// Returns the state changes made on this state.
     pub fn get_actual_state_changes(&mut self) -> StateResult<StateChanges> {
-        Ok(StateChanges { state_maps: self.to_state_diff()? })
+        self.to_state_diff()
     }
 
     pub fn update_cache(
@@ -399,8 +399,9 @@ pub struct StateCache {
 impl StateCache {
     /// Returns the state diff resulting from the performed writes, with respect to the initial
     /// reads. Assumes (and enforces) all initial reads are cached.
-    pub fn to_state_diff(&self) -> StateMaps {
-        self.writes.diff(&self.initial_reads)
+    pub fn to_state_diff(&self) -> StateChanges {
+        let state_maps = self.writes.diff(&self.initial_reads);
+        StateChanges { state_maps }
     }
 
     fn declare_contract(&mut self, class_hash: ClassHash) {

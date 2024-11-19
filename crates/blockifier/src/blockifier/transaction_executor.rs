@@ -168,7 +168,12 @@ impl<S: StateReader> TransactionExecutor<S> {
 
         log::debug!("Final block weights: {:?}.", self.bouncer.get_accumulated_weights());
         Ok((
-            self.block_state.as_mut().expect(BLOCK_STATE_ACCESS_ERR).to_state_diff()?.into(),
+            self.block_state
+                .as_mut()
+                .expect(BLOCK_STATE_ACCESS_ERR)
+                .to_state_diff()?
+                .state_maps
+                .into(),
             visited_segments,
             *self.bouncer.get_accumulated_weights(),
         ))
