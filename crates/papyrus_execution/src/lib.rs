@@ -272,12 +272,7 @@ pub fn execute_call(
     );
 
     let res = call_entry_point
-        .execute(
-            &mut cached_state,
-            &mut ExecutionResources::default(),
-            &mut context,
-            &mut remaining_gas,
-        )
+        .execute(&mut cached_state, &mut context, &mut remaining_gas)
         .map_err(|error| {
             if let Some(class_hash) = cached_state.state.missing_compiled_class.get() {
                 ExecutionError::MissingCompiledClass { class_hash }

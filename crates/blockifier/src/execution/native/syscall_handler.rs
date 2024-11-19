@@ -64,7 +64,6 @@ use crate::transaction::objects::TransactionInfo;
 pub struct NativeSyscallHandler<'state> {
     // Input for execution.
     pub state: &'state mut dyn State,
-    pub resources: &'state mut ExecutionResources,
     pub context: &'state mut EntryPointExecutionContext,
     pub call: CallEntryPoint,
 
@@ -88,13 +87,11 @@ impl<'state> NativeSyscallHandler<'state> {
     pub fn new(
         call: CallEntryPoint,
         state: &'state mut dyn State,
-        resources: &'state mut ExecutionResources,
         context: &'state mut EntryPointExecutionContext,
     ) -> NativeSyscallHandler<'state> {
         NativeSyscallHandler {
             state,
             call,
-            resources,
             context,
             events: Vec::new(),
             l2_to_l1_messages: Vec::new(),
@@ -115,7 +112,7 @@ impl<'state> NativeSyscallHandler<'state> {
         let mut remaining_gas_u64 =
             u64::try_from(*remaining_gas).expect("Failed to convert gas to u64.");
         let call_info = entry_point
-            .execute(self.state, self.resources, self.context, &mut remaining_gas_u64)
+            .execute(self.state, self.context, &mut remaining_gas_u64)
             .map_err(|e| self.handle_error(remaining_gas, e.into()))?;
         let retdata = call_info.execution.retdata.clone();
 
@@ -377,7 +374,6 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
 
         let call_info = execute_deployment(
             self.state,
-            self.resources,
             self.context,
             ctor_context,
             calldata,

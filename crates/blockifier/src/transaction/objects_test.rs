@@ -8,6 +8,7 @@ use starknet_types_core::felt::Felt;
 use crate::execution::call_info::{
     CallExecution,
     CallInfo,
+    ChargedResources,
     EventSummary,
     ExecutionSummary,
     MessageToL1,
@@ -191,6 +192,7 @@ fn test_summarize(
     };
 
     let expected_summary = ExecutionSummary {
+        charged_resources: ChargedResources::default(),
         executed_class_hashes: vec![
             validate_params.class_hash,
             execute_params.class_hash,

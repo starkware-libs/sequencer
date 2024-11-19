@@ -14,7 +14,7 @@ use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::errors::hint_errors::HintError;
 use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
-use cairo_vm::vm::runners::cairo_runner::{ExecutionResources, ResourceTracker, RunResources};
+use cairo_vm::vm::runners::cairo_runner::{ResourceTracker, RunResources};
 use cairo_vm::vm::vm_core::VirtualMachine;
 use num_bigint::{BigUint, TryFromBigIntError};
 use starknet_api::contract_class::EntryPointType;
@@ -163,7 +163,6 @@ impl DeprecatedSyscallExecutionError {
 pub struct DeprecatedSyscallHintProcessor<'a> {
     // Input for execution.
     pub state: &'a mut dyn State,
-    pub resources: &'a mut ExecutionResources,
     pub context: &'a mut EntryPointExecutionContext,
     pub storage_address: ContractAddress,
     pub caller_address: ContractAddress,
@@ -194,7 +193,6 @@ pub struct DeprecatedSyscallHintProcessor<'a> {
 impl<'a> DeprecatedSyscallHintProcessor<'a> {
     pub fn new(
         state: &'a mut dyn State,
-        resources: &'a mut ExecutionResources,
         context: &'a mut EntryPointExecutionContext,
         initial_syscall_ptr: Relocatable,
         storage_address: ContractAddress,
@@ -202,7 +200,6 @@ impl<'a> DeprecatedSyscallHintProcessor<'a> {
     ) -> Self {
         DeprecatedSyscallHintProcessor {
             state,
-            resources,
             context,
             storage_address,
             caller_address,
@@ -503,7 +500,6 @@ pub fn execute_inner_call(
     // Use `non_reverting_execute` since we don't support reverts here.
     let call_info = call.non_reverting_execute(
         syscall_handler.state,
-        syscall_handler.resources,
         syscall_handler.context,
         &mut remaining_gas,
     )?;

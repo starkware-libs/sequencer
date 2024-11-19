@@ -21,13 +21,12 @@ pub fn execute_entry_point_call(
     call: CallEntryPoint,
     contract_class: NativeContractClassV1,
     state: &mut dyn State,
-    resources: &mut ExecutionResources,
     context: &mut EntryPointExecutionContext,
 ) -> EntryPointExecutionResult<CallInfo> {
     let entry_point = contract_class.get_entry_point(&call)?;
 
     let mut syscall_handler: NativeSyscallHandler<'_> =
-        NativeSyscallHandler::new(call, state, resources, context);
+        NativeSyscallHandler::new(call, state, context);
 
     let gas_costs = &syscall_handler.context.versioned_constants().os_constants.gas_costs;
     let builtin_costs = BuiltinCosts {
@@ -92,6 +91,7 @@ fn create_callinfo(
             gas_consumed,
         },
         charged_resources: ChargedResources {
+            // TODO(Yoni): fix similarly to the VM - share that code.
             vm_resources: ExecutionResources::default(),
             gas_for_fee: GasAmount(gas_consumed),
         },
