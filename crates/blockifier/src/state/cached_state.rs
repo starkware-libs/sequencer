@@ -360,6 +360,28 @@ impl StateMaps {
             ),
         }
     }
+
+    pub fn get_modified_contracts(&self) -> HashSet<ContractAddress> {
+        // Storage updates.
+        let mut modified_contracts: HashSet<ContractAddress> =
+            self.storage.keys().map(|address_key_pair| address_key_pair.0).collect();
+        // Nonce updates.
+        modified_contracts.extend(self.nonces.keys());
+        // Class hash updates (deployed contracts + replace_class syscall).
+        modified_contracts.extend(self.class_hashes.keys());
+
+        modified_contracts
+    }
+
+    pub fn into_keys(self) -> StateChangesKeys {
+        StateChangesKeys {
+            modified_contracts: self.get_modified_contracts(),
+            nonce_keys: self.nonces.into_keys().collect(),
+            class_hash_keys: self.class_hashes.into_keys().collect(),
+            storage_keys: self.storage.into_keys().collect(),
+            compiled_class_hash_keys: self.compiled_class_hashes.into_keys().collect(),
+        }
+    }
 }
 /// Caches read and write requests.
 /// The tracked changes are needed for block state commitment.
@@ -673,24 +695,12 @@ impl StateChanges {
         merged_state_changes
     }
 
-    pub fn get_modified_contracts(&self) -> HashSet<ContractAddress> {
-        // Storage updates.
-        let mut modified_contracts: HashSet<ContractAddress> =
-            self.state_maps.storage.keys().map(|address_key_pair| address_key_pair.0).collect();
-        // Nonce updates.
-        modified_contracts.extend(self.state_maps.nonces.keys());
-        // Class hash updates (deployed contracts + replace_class syscall).
-        modified_contracts.extend(self.state_maps.class_hashes.keys());
-
-        modified_contracts
-    }
-
     pub fn count_for_fee_charge(
         &self,
         sender_address: Option<ContractAddress>,
         fee_token_address: ContractAddress,
     ) -> StateChangesCount {
-        let mut modified_contracts = self.get_modified_contracts();
+        let mut modified_contracts = self.state_maps.get_modified_contracts();
 
         // For account transactions, we need to compute the transaction fee before we can execute
         // the fee transfer, and the fee should cover the state changes that happen in the
@@ -714,16 +724,6 @@ impl StateChanges {
             n_class_hash_updates: self.state_maps.class_hashes.len(),
             n_compiled_class_hash_updates: self.state_maps.compiled_class_hashes.len(),
             n_modified_contracts: modified_contracts.len(),
-        }
-    }
-
-    pub fn into_keys(self) -> StateChangesKeys {
-        StateChangesKeys {
-            modified_contracts: self.get_modified_contracts(),
-            nonce_keys: self.state_maps.nonces.into_keys().collect(),
-            class_hash_keys: self.state_maps.class_hashes.into_keys().collect(),
-            storage_keys: self.state_maps.storage.into_keys().collect(),
-            compiled_class_hash_keys: self.state_maps.compiled_class_hashes.into_keys().collect(),
         }
     }
 }
