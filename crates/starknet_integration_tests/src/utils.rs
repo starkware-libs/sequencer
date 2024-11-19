@@ -19,7 +19,7 @@ use papyrus_storage::StorageConfig;
 use reqwest::{Client, Response};
 use starknet_api::block::BlockNumber;
 use starknet_api::contract_address;
-use starknet_api::core::ContractAddress;
+use starknet_api::core::{ChainId, ContractAddress};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_batcher::block_builder::BlockBuilderConfig;
@@ -37,17 +37,20 @@ use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::config::test_utils::RequiredParams;
 use tokio::net::TcpListener;
 
+pub fn create_chain_info() -> ChainInfo {
+    let mut chain_info = ChainInfo::create_for_testing();
+    chain_info.chain_id = ChainId::Other("CHAIN_ID_SUBDIR".to_owned());
+    chain_info
+}
+
 pub async fn create_config(
+    chain_info: ChainInfo,
     rpc_server_addr: SocketAddr,
     batcher_storage_config: StorageConfig,
 ) -> (SequencerNodeConfig, RequiredParams, BroadcastTopicChannels<ProposalPart>) {
-    let chain_id = batcher_storage_config.db_config.chain_id.clone();
-    // TODO(Tsabary): create chain_info in setup, and pass relevant values throughout.
-    let mut chain_info = ChainInfo::create_for_testing();
-    chain_info.chain_id = chain_id.clone();
     let fee_token_addresses = chain_info.fee_token_addresses.clone();
     let batcher_config = create_batcher_config(batcher_storage_config, chain_info.clone());
-    let gateway_config = create_gateway_config(chain_info).await;
+    let gateway_config = create_gateway_config(chain_info.clone()).await;
     let http_server_config = create_http_server_config().await;
     let rpc_state_reader_config = test_rpc_state_reader_config(rpc_server_addr);
     let (consensus_manager_config, consensus_proposals_channels) =
@@ -62,7 +65,7 @@ pub async fn create_config(
             ..SequencerNodeConfig::default()
         },
         RequiredParams {
-            chain_id,
+            chain_id: chain_info.chain_id,
             eth_fee_token_address: fee_token_addresses.eth_fee_token_address,
             strk_fee_token_address: fee_token_addresses.strk_fee_token_address,
             sequencer_address: ContractAddress::from(1312_u128), // Arbitrary non-zero value.

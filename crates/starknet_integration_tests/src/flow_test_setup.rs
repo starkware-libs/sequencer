@@ -16,7 +16,7 @@ use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 
 use crate::state_reader::{spawn_test_rpc_state_reader, StorageTestSetup};
-use crate::utils::{create_config, HttpTestClient};
+use crate::utils::{create_chain_info, create_config, HttpTestClient};
 
 pub struct FlowTestSetup {
     pub task_executor: TokioExecutor,
@@ -39,23 +39,25 @@ impl FlowTestSetup {
     pub async fn new_from_tx_generator(tx_generator: &MultiAccountTransactionGenerator) -> Self {
         let handle = Handle::current();
         let task_executor = TokioExecutor::new(handle);
+        let chain_info = create_chain_info();
 
         // Configure and start tracing.
         configure_tracing();
 
         let accounts = tx_generator.accounts();
-        let storage_for_test = StorageTestSetup::new(accounts);
+        let storage_for_test = StorageTestSetup::new(accounts, chain_info.chain_id.clone());
 
         // Spawn a papyrus rpc server for a papyrus storage reader.
         let rpc_server_addr = spawn_test_rpc_state_reader(
             storage_for_test.rpc_storage_reader,
-            storage_for_test.chain_id,
+            chain_info.chain_id.clone(),
         )
         .await;
 
         // Derive the configuration for the sequencer node.
         let (config, _required_params, consensus_proposals_channels) =
-            create_config(rpc_server_addr, storage_for_test.batcher_storage_config).await;
+            create_config(chain_info, rpc_server_addr, storage_for_test.batcher_storage_config)
+                .await;
 
         let (_clients, servers) = create_node_modules(&config);
 
