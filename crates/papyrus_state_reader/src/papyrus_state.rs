@@ -23,14 +23,14 @@ type RawPapyrusReader<'env> = papyrus_storage::StorageTxn<'env, RO>;
 pub struct PapyrusReader {
     storage_reader: StorageReader,
     latest_block: BlockNumber,
-    global_class_hash_to_class: GlobalContractCache,
+    global_class_hash_to_class: GlobalContractCache<RunnableContractClass>,
 }
 
 impl PapyrusReader {
     pub fn new(
         storage_reader: StorageReader,
         latest_block: BlockNumber,
-        global_class_hash_to_class: GlobalContractCache,
+        global_class_hash_to_class: GlobalContractCache<RunnableContractClass>,
     ) -> Self {
         Self { storage_reader, latest_block, global_class_hash_to_class }
     }

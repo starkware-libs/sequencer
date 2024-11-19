@@ -11,6 +11,7 @@ use blockifier::blockifier::transaction_executor::{
 };
 use blockifier::bouncer::{BouncerConfig, BouncerWeights};
 use blockifier::context::{BlockContext, ChainInfo};
+use blockifier::execution::contract_class::RunnableContractClass;
 use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::state::errors::StateError;
 use blockifier::state::global_cache::GlobalContractCache;
@@ -276,7 +277,7 @@ impl SerializeConfig for BlockBuilderConfig {
 pub struct BlockBuilderFactory {
     pub block_builder_config: BlockBuilderConfig,
     pub storage_reader: StorageReader,
-    pub global_class_hash_to_class: GlobalContractCache,
+    pub global_class_hash_to_class: GlobalContractCache<RunnableContractClass>,
 }
 
 impl BlockBuilderFactory {
