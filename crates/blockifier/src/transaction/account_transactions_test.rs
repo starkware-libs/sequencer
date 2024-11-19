@@ -1396,7 +1396,7 @@ fn test_count_actual_storage_changes(
     };
 
     assert_eq!(expected_modified_contracts, state_changes_1.get_modified_contracts());
-    assert_eq!(expected_storage_updates_1, state_changes_1.0.storage);
+    assert_eq!(expected_storage_updates_1, state_changes_1.state_maps.storage);
     assert_eq!(state_changes_count_1, expected_state_changes_count_1);
 
     // Second transaction: storage cell starts and ends with value 1.
@@ -1433,7 +1433,7 @@ fn test_count_actual_storage_changes(
     };
 
     assert_eq!(expected_modified_contracts_2, state_changes_2.get_modified_contracts());
-    assert_eq!(expected_storage_updates_2, state_changes_2.0.storage);
+    assert_eq!(expected_storage_updates_2, state_changes_2.state_maps.storage);
     assert_eq!(state_changes_count_2, expected_state_changes_count_2);
 
     // Transfer transaction: transfer 1 ETH to recepient.
@@ -1482,7 +1482,7 @@ fn test_count_actual_storage_changes(
         expected_modified_contracts_transfer,
         state_changes_transfer.get_modified_contracts()
     );
-    assert_eq!(expected_storage_update_transfer, state_changes_transfer.0.storage);
+    assert_eq!(expected_storage_update_transfer, state_changes_transfer.state_maps.storage);
     assert_eq!(state_changes_count_3, expected_state_changes_count_3);
 }
 
