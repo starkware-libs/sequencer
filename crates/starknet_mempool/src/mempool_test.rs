@@ -135,21 +135,27 @@ fn add_tx_and_verify_replacement(
     in_priority_queue: bool,
     in_pending_queue: bool,
 ) {
-    // Ensure that the transaction is not in both queues.
-    assert!(!(in_priority_queue && in_pending_queue));
+    assert!(
+        !(in_priority_queue && in_pending_queue),
+        "A transaction can be in at most one queue at a time, depending on its gas price and \
+         nonce."
+    );
 
     add_tx(&mut mempool, &valid_replacement_input);
 
     // Verify transaction was replaced.
     let mut builder = MempoolContentBuilder::new();
+
     if in_priority_queue {
         builder =
             builder.with_priority_queue([TransactionReference::new(&valid_replacement_input.tx)]);
     }
+
     if in_pending_queue {
         builder =
             builder.with_pending_queue([TransactionReference::new(&valid_replacement_input.tx)]);
     }
+
     let expected_mempool_content = builder.with_pool([valid_replacement_input.tx]).build();
     expected_mempool_content.assert_eq(&mempool);
 }
@@ -174,7 +180,15 @@ fn add_txs_and_verify_no_replacement(
     mut mempool: Mempool,
     existing_tx: AccountTransaction,
     invalid_replacement_inputs: impl IntoIterator<Item = AddTransactionArgs>,
+    in_priority_queue: bool,
+    in_pending_queue: bool,
 ) {
+    assert!(
+        !(in_priority_queue && in_pending_queue),
+        "A transaction can be in at most one queue at a time, depending on its gas price and \
+         nonce."
+    );
+
     for input in invalid_replacement_inputs {
         add_tx_expect_error(
             &mut mempool,
@@ -187,8 +201,35 @@ fn add_txs_and_verify_no_replacement(
     }
 
     // Verify transaction was not replaced.
-    let expected_mempool_content = MempoolContentBuilder::new().with_pool([existing_tx]).build();
+    let mut builder = MempoolContentBuilder::new();
+
+    if in_priority_queue {
+        builder = builder.with_priority_queue([TransactionReference::new(&existing_tx)]);
+    }
+
+    if in_pending_queue {
+        builder = builder.with_pending_queue([TransactionReference::new(&existing_tx)]);
+    }
+
+    let expected_mempool_content = builder.with_pool([existing_tx]).build();
     expected_mempool_content.assert_eq(&mempool);
+}
+
+#[track_caller]
+fn add_txs_and_verify_no_replacement_in_pool(
+    mempool: Mempool,
+    existing_tx: AccountTransaction,
+    invalid_replacement_inputs: impl IntoIterator<Item = AddTransactionArgs>,
+) {
+    let in_priority_queue = false;
+    let in_pending_queue = false;
+    add_txs_and_verify_no_replacement(
+        mempool,
+        existing_tx,
+        invalid_replacement_inputs,
+        in_priority_queue,
+        in_pending_queue,
+    );
 }
 
 // Fixtures.
@@ -594,13 +635,28 @@ fn test_fee_escalation_valid_replacement(
 }
 
 #[rstest]
-fn test_fee_escalation_invalid_replacement() {
+#[case::pool(false, false)]
+#[case::pool_and_priority_queue(true, false)]
+#[case::pool_and_pending_queue(false, true)]
+fn test_fee_escalation_invalid_replacement(
+    #[case] in_priority_queue: bool,
+    #[case] in_pending_queue: bool,
+) {
     // Setup.
     let existing_tx = tx!(tx_hash: 1, tip: 100, max_l2_gas_price: 100);
-    let mempool = MempoolContentBuilder::new()
-        .with_pool([existing_tx.clone()])
-        .with_fee_escalation_percentage(10)
-        .build_into_mempool();
+    let mut builder = MempoolContentBuilder::new().with_fee_escalation_percentage(10);
+
+    if in_priority_queue {
+        builder = builder.with_priority_queue([TransactionReference::new(&existing_tx)]);
+    }
+
+    if in_pending_queue {
+        builder = builder
+            .with_pending_queue([TransactionReference::new(&existing_tx)])
+            .with_gas_price_threshold(1000);
+    }
+
+    let mempool = builder.with_pool([existing_tx.clone()]).build_into_mempool();
 
     let input_not_enough_tip = add_tx_input!(tx_hash: 3, tip: 109, max_l2_gas_price: 110);
     let input_not_enough_gas_price = add_tx_input!(tx_hash: 4, tip: 110, max_l2_gas_price: 109);
@@ -609,7 +665,13 @@ fn test_fee_escalation_invalid_replacement() {
     // Test and assert.
     let invalid_replacement_inputs =
         [input_not_enough_tip, input_not_enough_gas_price, input_not_enough_both];
-    add_txs_and_verify_no_replacement(mempool, existing_tx, invalid_replacement_inputs);
+    add_txs_and_verify_no_replacement(
+        mempool,
+        existing_tx,
+        invalid_replacement_inputs,
+        in_priority_queue,
+        in_pending_queue,
+    );
 }
 
 #[rstest]
@@ -665,7 +727,11 @@ fn test_fee_escalation_invalid_replacement_overflow_gracefully_handled() {
 
         // Test and assert: overflow gracefully handled.
         let invalid_replacement_input = add_tx_input!(tip: u64::MAX, max_l2_gas_price: u128::MAX);
-        add_txs_and_verify_no_replacement(mempool, existing_tx, [invalid_replacement_input]);
+        add_txs_and_verify_no_replacement_in_pool(
+            mempool,
+            existing_tx,
+            [invalid_replacement_input],
+        );
     }
 
     // Large percentage.
@@ -679,7 +745,7 @@ fn test_fee_escalation_invalid_replacement_overflow_gracefully_handled() {
 
     // Test and assert: overflow gracefully handled.
     let invalid_replacement_input = add_tx_input!(tip: u64::MAX, max_l2_gas_price: u128::MAX);
-    add_txs_and_verify_no_replacement(mempool, existing_tx, [invalid_replacement_input]);
+    add_txs_and_verify_no_replacement_in_pool(mempool, existing_tx, [invalid_replacement_input]);
 }
 
 // `update_gas_price_threshold` tests.
