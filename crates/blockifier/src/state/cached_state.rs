@@ -700,7 +700,7 @@ impl StateChanges {
         &self,
         sender_address: Option<ContractAddress>,
         fee_token_address: ContractAddress,
-    ) -> StateChangesCount {
+    ) -> StateChangesCountForFee {
         let mut modified_contracts = self.state_maps.get_modified_contracts();
 
         // For account transactions, we need to compute the transaction fee before we can execute
@@ -720,11 +720,15 @@ impl StateChanges {
         // block.
         modified_contracts.remove(&fee_token_address);
 
-        StateChangesCount {
-            n_storage_updates,
-            n_class_hash_updates: self.state_maps.class_hashes.len(),
-            n_compiled_class_hash_updates: self.state_maps.compiled_class_hashes.len(),
-            n_modified_contracts: modified_contracts.len(),
+        StateChangesCountForFee {
+            state_changes_count: StateChangesCount {
+                n_storage_updates,
+                n_class_hash_updates: self.state_maps.class_hashes.len(),
+                n_compiled_class_hash_updates: self.state_maps.compiled_class_hashes.len(),
+                n_modified_contracts: modified_contracts.len(),
+            },
+            // TODO: Set number of allocated keys.
+            n_allocated_keys: { 0 },
         }
     }
 }
@@ -737,4 +741,12 @@ pub struct StateChangesCount {
     pub n_class_hash_updates: usize,
     pub n_compiled_class_hash_updates: usize,
     pub n_modified_contracts: usize,
+}
+
+/// Holds the number of state changes for fee.
+#[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct StateChangesCountForFee {
+    pub state_changes_count: StateChangesCount,
+    pub n_allocated_keys: usize,
 }
