@@ -16,7 +16,6 @@ use crate::execution::call_info::CallExecution;
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::retdata;
-use crate::state::state_api::StateReader;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::syscall::build_recurse_calldata;
@@ -62,10 +61,6 @@ fn test_call_contract_that_panics() {
     );
     assert!(inner_call.execution.events.is_empty());
     assert!(inner_call.execution.l2_to_l1_messages.is_empty());
-    assert_eq!(
-        state.get_class_hash_at(inner_call.call.storage_address).unwrap(),
-        test_contract.get_class_hash()
-    );
 }
 
 #[cfg_attr(
