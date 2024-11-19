@@ -64,7 +64,11 @@ impl TransactionReceipt {
             calldata_length,
             signature_length,
             code_size,
-            StateResources::new(state_changes, sender_address, tx_context.fee_token_address()),
+            StateResources::new(
+                state_changes,
+                sender_address,
+                tx_context.fee_token_address(),
+            ),
             l1_handler_payload_size,
             execution_summary_without_fee_transfer,
         );

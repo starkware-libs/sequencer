@@ -59,7 +59,7 @@ use crate::execution::entry_point::EntryPointExecutionContext;
 use crate::execution::syscalls::SyscallSelector;
 use crate::fee::fee_utils::{get_fee_by_gas_vector, get_sequencer_balance_keys};
 use crate::fee::gas_usage::estimate_minimal_gas_vector;
-use crate::state::cached_state::{StateChangesCount, TransactionalState};
+use crate::state::cached_state::{StateChangesCount, StateChangesCountForFee, TransactionalState};
 use crate::state::state_api::{State, StateReader};
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::declare::declare_tx;
@@ -1384,15 +1384,20 @@ fn test_count_actual_storage_changes(
         expected_sequencer_fee_update,
     ]);
 
-    let state_changes_count_1 =
-        state_changes_1.clone().count_for_fee_charge(Some(account_address), fee_token_address);
-    let expected_state_changes_count_1 = StateChangesCount {
-        // See expected storage updates.
-        n_storage_updates: 3,
-        // The contract address (storage update) and the account address (nonce update). Does not
-        // include the fee token address as a modified contract.
-        n_modified_contracts: 2,
-        ..Default::default()
+    let state_changes_count_1 = state_changes_1.clone().count_for_fee_charge(
+        Some(account_address),
+        fee_token_address,
+    );
+    let expected_state_changes_count_1 = StateChangesCountForFee {
+        state_changes_count: StateChangesCount {
+            // See expected storage updates.
+            n_storage_updates: 3,
+            // The contract address (storage update) and the account address (nonce update). Does
+            // not include the fee token address as a modified contract.
+            n_modified_contracts: 2,
+            ..Default::default()
+        },
+        n_allocated_keys: 0,
     };
 
     assert_eq!(expected_modified_contracts, state_changes_1.state_maps.get_modified_contracts());
@@ -1421,15 +1426,20 @@ fn test_count_actual_storage_changes(
     let expected_storage_updates_2 =
         HashMap::from([account_balance_storage_change, expected_sequencer_fee_update]);
 
-    let state_changes_count_2 =
-        state_changes_2.clone().count_for_fee_charge(Some(account_address), fee_token_address);
-    let expected_state_changes_count_2 = StateChangesCount {
-        // See expected storage updates.
-        n_storage_updates: 2,
-        // The account address (nonce update). Does not include the fee token address as a modified
-        // contract.
-        n_modified_contracts: 1,
-        ..Default::default()
+    let state_changes_count_2 = state_changes_2.clone().count_for_fee_charge(
+        Some(account_address),
+        fee_token_address,
+    );
+    let expected_state_changes_count_2 = StateChangesCountForFee {
+        state_changes_count: StateChangesCount {
+            // See expected storage updates.
+            n_storage_updates: 2,
+            // The account address (nonce update). Does not include the fee token address as a
+            // modified contract.
+            n_modified_contracts: 1,
+            ..Default::default()
+        },
+        n_allocated_keys: 0,
     };
 
     assert_eq!(expected_modified_contracts_2, state_changes_2.state_maps.get_modified_contracts());
@@ -1466,16 +1476,20 @@ fn test_count_actual_storage_changes(
         expected_sequencer_fee_update,
     ]);
 
-    let state_changes_count_3 = state_changes_transfer
-        .clone()
-        .count_for_fee_charge(Some(account_address), fee_token_address);
-    let expected_state_changes_count_3 = StateChangesCount {
-        // See expected storage updates.
-        n_storage_updates: 3,
-        // The account address (nonce update). Does not include the fee token address as a modified
-        // contract.
-        n_modified_contracts: 1,
-        ..Default::default()
+    let state_changes_count_3 = state_changes_transfer.clone().count_for_fee_charge(
+        Some(account_address),
+        fee_token_address,
+    );
+    let expected_state_changes_count_3 = StateChangesCountForFee {
+        state_changes_count: StateChangesCount {
+            // See expected storage updates.
+            n_storage_updates: 3,
+            // The account address (nonce update). Does not include the fee token address as a
+            // modified contract.
+            n_modified_contracts: 1,
+            ..Default::default()
+        },
+        n_allocated_keys: 0,
     };
 
     assert_eq!(
