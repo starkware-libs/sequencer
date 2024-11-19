@@ -241,7 +241,7 @@ impl TryFrom<protobuf::TransactionBatch> for TransactionBatch {
 impl From<TransactionBatch> for protobuf::TransactionBatch {
     fn from(value: TransactionBatch) -> Self {
         let transactions = value.transactions.into_iter().map(Into::into).collect();
-        protobuf::TransactionBatch { transactions }
+        protobuf::TransactionBatch { transactions, tx_hashes: Vec::new() }
     }
 }
 
