@@ -6,6 +6,9 @@ fn main() {
     println!("cargo:rerun-if-changed=../../Cargo.lock");
     println!("cargo:rerun-if-changed=build.rs");
 
+    let binary_path = binary_path(CAIRO_LANG_BINARY_NAME);
+    println!("cargo:rerun-if-changed={:?}", binary_path);
+
     install_starknet_sierra_compile();
     #[cfg(feature = "cairo_native")]
     install_starknet_native_compile();
