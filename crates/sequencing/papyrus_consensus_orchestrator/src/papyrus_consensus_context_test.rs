@@ -51,7 +51,7 @@ async fn validate_proposal_success() {
     validate_sender.close_channel();
 
     let fin = papyrus_context
-        .validate_proposal(block_number, Duration::MAX, validate_receiver)
+        .validate_proposal(block_number, 0, Duration::MAX, validate_receiver)
         .await
         .await
         .unwrap();
@@ -72,7 +72,7 @@ async fn validate_proposal_fail() {
     validate_sender.close_channel();
 
     let fin = papyrus_context
-        .validate_proposal(block_number, Duration::MAX, validate_receiver)
+        .validate_proposal(block_number, 0, Duration::MAX, validate_receiver)
         .await
         .await;
     assert_eq!(fin, Err(oneshot::Canceled));
