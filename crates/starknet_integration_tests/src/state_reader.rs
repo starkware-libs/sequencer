@@ -24,8 +24,8 @@ use papyrus_storage::class::ClassStorageWriter;
 use papyrus_storage::compiled_class::CasmStorageWriter;
 use papyrus_storage::header::HeaderStorageWriter;
 use papyrus_storage::state::StateStorageWriter;
-use papyrus_storage::test_utils::{get_test_storage, get_test_storage_with_config_by_scope};
-use papyrus_storage::{StorageConfig, StorageReader, StorageWriter};
+use papyrus_storage::test_utils::TestStorageBuilder;
+use papyrus_storage::{StorageConfig, StorageReader, StorageScope, StorageWriter};
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::block::{
     BlockBody,
@@ -52,7 +52,6 @@ type ContractClassesMap =
     (Vec<(ClassHash, DeprecatedContractClass)>, Vec<(ClassHash, CasmContractClass)>);
 
 pub struct StorageTestSetup {
-    pub chain_id: ChainId,
     pub rpc_storage_reader: StorageReader,
     pub rpc_storage_handle: TempDir,
     pub batcher_storage_config: StorageConfig,
@@ -60,15 +59,17 @@ pub struct StorageTestSetup {
 }
 
 impl StorageTestSetup {
-    pub fn new(test_defined_accounts: Vec<Contract>) -> Self {
-        let ((rpc_storage_reader, mut rpc_storage_writer), rpc_storage_file_handle) =
-            get_test_storage();
+    pub fn new(test_defined_accounts: Vec<Contract>, chain_id: ChainId) -> Self {
+        let ((rpc_storage_reader, mut rpc_storage_writer), _, rpc_storage_file_handle) =
+            TestStorageBuilder::default().chain_id(chain_id.clone()).build();
         create_test_state(&mut rpc_storage_writer, test_defined_accounts.clone());
         let ((_, mut batcher_storage_writer), batcher_storage_config, batcher_storage_file_handle) =
-            get_test_storage_with_config_by_scope(papyrus_storage::StorageScope::StateOnly);
+            TestStorageBuilder::default()
+                .scope(StorageScope::StateOnly)
+                .chain_id(chain_id.clone())
+                .build();
         create_test_state(&mut batcher_storage_writer, test_defined_accounts);
         Self {
-            chain_id: batcher_storage_config.db_config.chain_id.clone(),
             rpc_storage_reader,
             rpc_storage_handle: rpc_storage_file_handle,
             batcher_storage_config,
