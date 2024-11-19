@@ -140,6 +140,7 @@ impl ConsensusContext for PapyrusConsensusContext {
     async fn validate_proposal(
         &mut self,
         height: BlockNumber,
+        _round: Round,
         _timeout: Duration,
         mut content: mpsc::Receiver<Transaction>,
     ) -> oneshot::Receiver<ProposalContentId> {
@@ -258,6 +259,10 @@ impl ConsensusContext for PapyrusConsensusContext {
             .expect("Lock on active proposals was poisoned due to a previous panic");
         proposals.retain(|&h, _| h > BlockNumber(height));
         Ok(())
+    }
+
+    async fn set_height_and_round(&mut self, _height: BlockNumber, _round: Round) {
+        // No-op
     }
 }
 
