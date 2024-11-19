@@ -15,6 +15,10 @@ pub enum L1ProviderError {
     GetTransactionConsensusBug,
     #[error("Cannot transition from {from} to {to}")]
     UnexpectedProviderStateTransition { from: ProviderState, to: ProviderState },
-    #[error("`validate_tx` called while in proposal state")]
+    #[error(
+        "`validate` called while in `Pending` state, likely due to a crash; restart block proposal"
+    )]
+    ValidateInPendingState,
+    #[error("`validate` called while in `Propose`")]
     ValidateTransactionConsensusBug,
 }
