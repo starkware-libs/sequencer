@@ -26,6 +26,7 @@ use crate::execution::execution_utils::poseidon_hash_many_cost;
 use crate::execution::syscalls::SyscallSelector;
 use crate::fee::resources::StarknetResources;
 use crate::transaction::transaction_types::TransactionType;
+use crate::utils::u64_from_usize;
 
 #[cfg(test)]
 #[path = "versioned_constants_test.rs"]
@@ -329,6 +330,31 @@ impl VersionedConstants {
             GasVectorComputationMode::All => &self.archival_data_gas_costs,
             GasVectorComputationMode::NoL2Gas => &self.deprecated_l2_resource_gas_costs,
         }
+    }
+
+    /// Calculates the syscall gas cost from the OS resources.
+    pub fn get_syscall_gas_cost(&self, syscall_selector: &SyscallSelector) -> u64 {
+        let gas_costs = &self.os_constants.gas_costs;
+        let execution_resources = &self
+            .os_resources
+            .execute_syscalls
+            .get(syscall_selector)
+            .expect("Fetching the execution resources of a syscall should not fail.");
+        // The minimum total cost is `syscall_base_gas_cost`, which is pre-charged by the compiler.
+        let n_steps = u64_from_usize(execution_resources.n_steps);
+        let n_memory_holes = u64_from_usize(execution_resources.n_memory_holes);
+        let total_builtin_gas_cost: u64 = execution_resources.builtin_instance_counter.iter().map(|(builtin, amount)| {
+            let builtin_cost = gas_costs.get_builtin_gas_cost(builtin).unwrap_or_else(|err| panic!("Failed to get gas cost: {}", err));
+            builtin_cost * u64_from_usize(*amount)
+        }).sum();
+
+
+        std::cmp::max(
+            n_steps * gas_costs.step_gas_cost
+                + n_memory_holes * gas_costs.memory_hole_gas_cost
+                + total_builtin_gas_cost,
+            gas_costs.syscall_base_gas_cost,
+        )
     }
 }
 
