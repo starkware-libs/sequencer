@@ -31,7 +31,7 @@ pub struct ProposalCommitment {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct BuildProposalInput {
+pub struct ProposeBlockInput {
     pub proposal_id: ProposalId,
     pub deadline: chrono::DateTime<Utc>,
     pub retrospective_block_hash: Option<BlockHashAndNumber>,
@@ -59,7 +59,7 @@ pub enum GetProposalContent {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 // TODO(Dan): Consider unifying with BuildProposalInput as they have the same fields.
-pub struct ValidateProposalInput {
+pub struct ValidateBlockInput {
     pub proposal_id: ProposalId,
     pub deadline: chrono::DateTime<Utc>,
     pub retrospective_block_hash: Option<BlockHashAndNumber>,

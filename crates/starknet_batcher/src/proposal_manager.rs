@@ -82,7 +82,7 @@ pub(crate) enum InternalProposalStatus {
 pub trait ProposalManagerTrait: Send + Sync {
     async fn start_height(&mut self, height: BlockNumber) -> Result<(), StartHeightError>;
 
-    async fn build_block_proposal(
+    async fn propose_block(
         &mut self,
         proposal_id: ProposalId,
         retrospective_block_hash: Option<BlockHashAndNumber>,
@@ -91,7 +91,7 @@ pub trait ProposalManagerTrait: Send + Sync {
         tx_provider: ProposeTransactionProvider,
     ) -> Result<(), GenerateProposalError>;
 
-    async fn validate_block_proposal(
+    async fn validate_block(
         &mut self,
         proposal_id: ProposalId,
         retrospective_block_hash: Option<BlockHashAndNumber>,
@@ -188,7 +188,7 @@ impl ProposalManagerTrait for ProposalManager {
     /// transactions from the mempool.
     /// Requires tx_sender for sending the generated transactions to the caller.
     #[instrument(skip(self, tx_sender, tx_provider), err, fields(self.active_height))]
-    async fn build_block_proposal(
+    async fn propose_block(
         &mut self,
         proposal_id: ProposalId,
         retrospective_block_hash: Option<BlockHashAndNumber>,
@@ -221,7 +221,7 @@ impl ProposalManagerTrait for ProposalManager {
     /// Starts validation of a block proposal for the given proposal_id and height with
     /// transactions from tx_receiver channel.
     #[instrument(skip(self, tx_provider), err, fields(self.active_height))]
-    async fn validate_block_proposal(
+    async fn validate_block(
         &mut self,
         proposal_id: ProposalId,
         retrospective_block_hash: Option<BlockHashAndNumber>,
