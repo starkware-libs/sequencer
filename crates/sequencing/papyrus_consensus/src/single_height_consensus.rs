@@ -114,7 +114,6 @@ impl ShcTask {
                 ShcEvent::Precommit(event)
             }
             ShcTask::BuildProposal(round, receiver) => {
-                println!("Building proposal for round {}", round);
                 let proposal_id = receiver.await.expect("Block building failed.");
                 ShcEvent::BuildProposal(StateMachineEvent::GetProposal(Some(proposal_id), round))
             }
@@ -125,7 +124,7 @@ impl ShcTask {
             ) => {
                 let proposal_id = match id_built_from_content_receiver.await {
                     Ok(proposal_id) => Some(proposal_id),
-                    // Proposal never received from peer.
+                    // Proposal never received from peer, or proposal was interrupted.
                     Err(_) => None,
                 };
                 let fin = match fin_from_proposer_receiver.await {
@@ -133,6 +132,11 @@ impl ShcTask {
                     // ProposalFin never received from peer.
                     Err(_) => None,
                 };
+                // Avoid voting NIL due to an interrupt, as this does not indicate a failure of the
+                // Proposal itself. To prevent this, we ensure the current round's proposal is
+                // never interrupted. Allowing interruptions would require exposing interrupts
+                // to consensus, enabling it to distinguish between an interrupt and an actual
+                // failure.
                 ShcEvent::ValidateProposal(
                     StateMachineEvent::Proposal(proposal_id, init.round, init.valid_round),
                     fin,
@@ -192,7 +196,9 @@ impl SingleHeightConsensus {
         info!("Starting consensus with validators {:?}", self.validators);
         let leader_fn = |round: Round| -> ValidatorId { context.proposer(self.height, round) };
         let events = self.state_machine.start(&leader_fn);
-        self.handle_state_machine_events(context, events).await
+        let ret = self.handle_state_machine_events(context, events).await;
+        context.set_height_and_round(self.height, self.state_machine.round()).await;
+        ret
     }
 
     /// Process the proposal init and initiate block validation. See [`ShcTask::ValidateProposal`]
@@ -231,8 +237,14 @@ impl SingleHeightConsensus {
         // twice in parallel. This could be caused by a network repeat or a malicious spam attack.
         proposal_entry.insert(None);
         let block_receiver = context
-            .validate_proposal(self.height, self.timeouts.proposal_timeout, p2p_messages_receiver)
+            .validate_proposal(
+                self.height,
+                init.round,
+                self.timeouts.proposal_timeout,
+                p2p_messages_receiver,
+            )
             .await;
+        context.set_height_and_round(self.height, self.state_machine.round()).await;
         Ok(ShcReturn::Tasks(vec![ShcTask::ValidateProposal(init, block_receiver, fin_receiver)]))
     }
 
@@ -258,7 +270,11 @@ impl SingleHeightConsensus {
             ConsensusMessage::Proposal(_) => {
                 unimplemented!("Proposals should use `handle_proposal` due to fake streaming")
             }
-            ConsensusMessage::Vote(vote) => self.handle_vote(context, vote).await,
+            ConsensusMessage::Vote(vote) => {
+                let ret = self.handle_vote(context, vote).await;
+                context.set_height_and_round(self.height, self.state_machine.round()).await;
+                ret
+            }
         }
     }
 
@@ -268,7 +284,7 @@ impl SingleHeightConsensus {
         event: ShcEvent,
     ) -> Result<ShcReturn, ConsensusError> {
         debug!("Received ShcEvent: {:?}", event);
-        match event {
+        let ret = match event {
             ShcEvent::TimeoutPropose(event)
             | ShcEvent::TimeoutPrevote(event)
             | ShcEvent::TimeoutPrecommit(event) => {
@@ -342,7 +358,9 @@ impl SingleHeightConsensus {
                 self.handle_state_machine_events(context, sm_events).await
             }
             _ => unimplemented!("Unexpected event: {:?}", event),
-        }
+        };
+        context.set_height_and_round(self.height, self.state_machine.round()).await;
+        ret
     }
 
     #[instrument(skip_all)]

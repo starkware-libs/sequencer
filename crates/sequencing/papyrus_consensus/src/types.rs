@@ -59,6 +59,7 @@ pub trait ConsensusContext {
     /// Params:
     /// - `height`: The height of the block to be built. Specifically this indicates the initial
     ///   state of the block.
+    /// - `round`: The round of the block to be built.
     /// - `timeout`: The maximum time to wait for the block to be built.
     /// - `content`: A receiver for the stream of the block's content.
     ///
@@ -68,6 +69,7 @@ pub trait ConsensusContext {
     async fn validate_proposal(
         &mut self,
         height: BlockNumber,
+        round: Round,
         timeout: Duration,
         content: mpsc::Receiver<Self::ProposalChunk>,
     ) -> oneshot::Receiver<ProposalContentId>;
@@ -101,6 +103,9 @@ pub trait ConsensusContext {
         block: ProposalContentId,
         precommits: Vec<Vote>,
     ) -> Result<(), ConsensusError>;
+
+    /// Update the context with the current height and round.
+    async fn set_height_and_round(&mut self, height: BlockNumber, round: Round);
 }
 
 #[derive(PartialEq)]
