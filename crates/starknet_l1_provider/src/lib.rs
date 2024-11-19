@@ -1,5 +1,8 @@
 pub mod errors;
 
+#[cfg(test)]
+pub mod test_utils;
+
 use indexmap::{IndexMap, IndexSet};
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
