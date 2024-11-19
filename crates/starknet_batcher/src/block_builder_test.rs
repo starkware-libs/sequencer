@@ -2,9 +2,10 @@ use assert_matches::assert_matches;
 use blockifier::blockifier::transaction_executor::TransactionExecutorError;
 use blockifier::bouncer::BouncerWeights;
 use blockifier::fee::fee_checks::FeeCheckError;
+use blockifier::state::errors::StateError;
 use blockifier::transaction::objects::{RevertError, TransactionExecutionInfo};
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
-use indexmap::IndexMap;
+use indexmap::{indexmap, IndexMap};
 use mockall::predicate::eq;
 use mockall::Sequence;
 use rstest::rstest;
@@ -232,6 +233,43 @@ fn stream_done_test_expectations() -> TestExpectations {
     }
 }
 
+fn transaction_failed_test_expectations() -> TestExpectations {
+    let input_txs = test_txs(0..3);
+
+    let mut expected_txs_output = input_txs.clone();
+    expected_txs_output.remove(1);
+
+    let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
+    let execution_error =
+        TransactionExecutorError::StateError(StateError::OutOfRangeContractAddress);
+    mock_transaction_executor.expect_add_txs_to_block().times(1).return_once(move |_| {
+        vec![Ok(execution_info()), Err(execution_error), Ok(execution_info())]
+    });
+
+    let execution_infos_mapping = indexmap![
+        TransactionHash(felt!(u8::try_from(0).unwrap()))=> execution_info(),
+        TransactionHash(felt!(u8::try_from(2).unwrap()))=> execution_info(),
+    ];
+    let expected_block_artifacts = block_execution_artifacts(execution_infos_mapping);
+    let expected_block_artifacts_copy = expected_block_artifacts.clone();
+    mock_transaction_executor.expect_close_block().times(1).return_once(move || {
+        Ok((
+            expected_block_artifacts_copy.commitment_state_diff,
+            expected_block_artifacts_copy.visited_segments_mapping,
+            expected_block_artifacts_copy.bouncer_weights,
+        ))
+    });
+
+    let mock_tx_provider = mock_tx_provider_limitless_calls(1, vec![input_txs]);
+
+    TestExpectations {
+        mock_transaction_executor,
+        mock_tx_provider,
+        expected_block_artifacts,
+        expected_txs_output,
+    }
+}
+
 // Fill the executor outputs with some non-default values to make sure the block_builder uses
 // them.
 fn block_builder_expected_output(execution_info_len: usize) -> BlockExecutionArtifacts {
@@ -356,7 +394,6 @@ async fn run_build_block(
     block_builder.build_block().await
 }
 
-// TODO: Add test case for failed transaction.
 #[rstest]
 #[case::one_chunk_block(one_chunk_test_expectations())]
 #[case::two_chunks_block(two_chunks_test_expectations())]
@@ -364,6 +401,7 @@ async fn run_build_block(
 #[case::block_full(block_full_test_expectations())]
 #[case::deadline_reached_after_first_chunk(test_expectations_with_delay())]
 #[case::stream_done(stream_done_test_expectations())]
+#[case::transaction_failed(transaction_failed_test_expectations())]
 #[tokio::test]
 async fn test_build_block(#[case] test_expectations: TestExpectations) {
     let (output_tx_sender, output_tx_receiver) = output_channel();
