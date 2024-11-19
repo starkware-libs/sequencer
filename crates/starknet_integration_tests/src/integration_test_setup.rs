@@ -10,7 +10,7 @@ use tempfile::{tempdir, TempDir};
 
 use crate::config_utils::dump_config_file_changes;
 use crate::state_reader::{spawn_test_rpc_state_reader, StorageTestSetup};
-use crate::utils::{create_config, HttpTestClient};
+use crate::utils::{create_chain_info, create_config, HttpTestClient};
 
 pub struct IntegrationTestSetup {
     // Client for adding transactions to the sequencer node.
@@ -34,19 +34,22 @@ pub struct IntegrationTestSetup {
 
 impl IntegrationTestSetup {
     pub async fn new_from_tx_generator(tx_generator: &MultiAccountTransactionGenerator) -> Self {
+        let chain_info = create_chain_info();
         // Creating the storage for the test.
-        let storage_for_test = StorageTestSetup::new(tx_generator.accounts());
+        let storage_for_test =
+            StorageTestSetup::new(tx_generator.accounts(), chain_info.chain_id.clone());
 
         // Spawn a papyrus rpc server for a papyrus storage reader.
         let rpc_server_addr = spawn_test_rpc_state_reader(
             storage_for_test.rpc_storage_reader,
-            storage_for_test.chain_id,
+            chain_info.chain_id.clone(),
         )
         .await;
 
         // Derive the configuration for the sequencer node.
         let (config, required_params, _) =
-            create_config(rpc_server_addr, storage_for_test.batcher_storage_config).await;
+            create_config(chain_info, rpc_server_addr, storage_for_test.batcher_storage_config)
+                .await;
 
         let node_config_dir_handle = tempdir().unwrap();
         let node_config_path = dump_config_file_changes(

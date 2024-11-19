@@ -4,10 +4,11 @@ use futures::StreamExt;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{ProposalFin, ProposalInit, ProposalPart};
+use papyrus_storage::test_utils::CHAIN_ID_FOR_TESTS;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::{BlockHash, BlockNumber};
-use starknet_api::core::{ChainId, ContractAddress};
+use starknet_api::core::ContractAddress;
 use starknet_api::transaction::TransactionHash;
 use starknet_integration_tests::flow_test_setup::FlowTestSetup;
 use starknet_integration_tests::utils::{
@@ -50,10 +51,7 @@ async fn listen_to_broadcasted_messages(
     consensus_proposals_channels: BroadcastTopicChannels<ProposalPart>,
     expected_batched_tx_hashes: &[TransactionHash],
 ) {
-    // TODO(Dan, Guy): retrieve chain ID. Maybe by modifying IntegrationTestSetup to hold it as a
-    // member, and instantiate the value using StorageTestSetup.
-    const CHAIN_ID_NAME: &str = "CHAIN_ID_SUBDIR";
-    let chain_id = ChainId::Other(CHAIN_ID_NAME.to_string());
+    let chain_id = CHAIN_ID_FOR_TESTS.clone();
     let mut broadcasted_messages_receiver =
         consensus_proposals_channels.broadcasted_messages_receiver;
     let mut received_tx_hashes = HashSet::new();
