@@ -30,7 +30,6 @@ use crate::execution::execution_utils::{
     write_maybe_relocatable,
     ReadOnlySegment,
 };
-use crate::execution::syscalls::hint_processor::{INVALID_INPUT_LENGTH_ERROR, OUT_OF_GAS_ERROR};
 use crate::execution::syscalls::syscall_base::SyscallResult;
 use crate::versioned_constants::{EventLimits, VersionedConstants};
 
@@ -613,44 +612,22 @@ pub fn keccak(
 ) -> SyscallResult<KeccakResponse> {
     let input_length = (request.input_end - request.input_start)?;
 
-    const KECCAK_FULL_RATE_IN_WORDS: usize = 17;
-    let (n_rounds, remainder) = num_integer::div_rem(input_length, KECCAK_FULL_RATE_IN_WORDS);
+    let data = vm.get_integer_range(request.input_start, input_length)?;
+    let data_u64: &[u64] = &data
+        .iter()
+        .map(|felt| {
+            felt.to_u64().ok_or_else(|| SyscallExecutionError::InvalidSyscallInput {
+                input: **felt,
+                info: "Invalid input for the keccak syscall.".to_string(),
+            })
+        })
+        .collect::<Result<Vec<u64>, _>>()?;
 
-    if remainder != 0 {
-        return Err(SyscallExecutionError::SyscallError {
-            error_data: vec![
-                Felt::from_hex(INVALID_INPUT_LENGTH_ERROR).map_err(SyscallExecutionError::from)?,
-            ],
-        });
-    }
-
-    // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion works.
-    let n_rounds_as_u64 = u64::try_from(n_rounds).expect("Failed to convert usize to u64.");
-    let gas_cost = n_rounds_as_u64 * syscall_handler.gas_costs().keccak_round_cost_gas_cost;
-    if gas_cost > *remaining_gas {
-        let out_of_gas_error =
-            Felt::from_hex(OUT_OF_GAS_ERROR).map_err(SyscallExecutionError::from)?;
-
-        return Err(SyscallExecutionError::SyscallError { error_data: vec![out_of_gas_error] });
-    }
-    *remaining_gas -= gas_cost;
+    let (state, n_rounds) = syscall_handler.base.keccak(data_u64, remaining_gas)?;
 
     // For the keccak system call we want to count the number of rounds rather than the number of
     // syscall invocations.
     syscall_handler.increment_syscall_count_by(&SyscallSelector::Keccak, n_rounds);
-
-    let data = vm.get_integer_range(request.input_start, input_length)?;
-
-    let mut state = [0u64; 25];
-    for chunk in data.chunks(KECCAK_FULL_RATE_IN_WORDS) {
-        for (i, val) in chunk.iter().enumerate() {
-            state[i] ^= val.to_u64().ok_or_else(|| SyscallExecutionError::InvalidSyscallInput {
-                input: **val,
-                info: String::from("Invalid input for the keccak syscall."),
-            })?;
-        }
-        keccak::f1600(&mut state)
-    }
 
     Ok(KeccakResponse {
         result_low: (Felt::from(state[1]) * Felt::TWO.pow(64_u128)) + Felt::from(state[0]),
