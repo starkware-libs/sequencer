@@ -19,7 +19,6 @@ use cairo_native::starknet::{
     U256,
 };
 use cairo_native::starknet_stub::u256_to_biguint;
-use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{
     calculate_contract_address,
@@ -64,7 +63,6 @@ use crate::transaction::objects::TransactionInfo;
 pub struct NativeSyscallHandler<'state> {
     // Input for execution.
     pub state: &'state mut dyn State,
-    pub resources: &'state mut ExecutionResources,
     pub context: &'state mut EntryPointExecutionContext,
     pub call: CallEntryPoint,
 
@@ -88,13 +86,11 @@ impl<'state> NativeSyscallHandler<'state> {
     pub fn new(
         call: CallEntryPoint,
         state: &'state mut dyn State,
-        resources: &'state mut ExecutionResources,
         context: &'state mut EntryPointExecutionContext,
     ) -> NativeSyscallHandler<'state> {
         NativeSyscallHandler {
             state,
             call,
-            resources,
             context,
             events: Vec::new(),
             l2_to_l1_messages: Vec::new(),
@@ -113,7 +109,7 @@ impl<'state> NativeSyscallHandler<'state> {
         remaining_gas: &mut u64,
     ) -> SyscallResult<Retdata> {
         let call_info = entry_point
-            .execute(self.state, self.resources, self.context, remaining_gas)
+            .execute(self.state, self.context, remaining_gas)
             .map_err(|e| self.handle_error(remaining_gas, e.into()))?;
         let retdata = call_info.execution.retdata.clone();
 
@@ -358,15 +354,9 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
             caller_address: deployer_address,
         };
 
-        let call_info = execute_deployment(
-            self.state,
-            self.resources,
-            self.context,
-            ctor_context,
-            calldata,
-            remaining_gas,
-        )
-        .map_err(|err| self.handle_error(remaining_gas, err.into()))?;
+        let call_info =
+            execute_deployment(self.state, self.context, ctor_context, calldata, remaining_gas)
+                .map_err(|err| self.handle_error(remaining_gas, err.into()))?;
 
         let constructor_retdata = call_info.execution.retdata.0[..].to_vec();
 

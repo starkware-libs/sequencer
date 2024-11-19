@@ -269,7 +269,6 @@ pub fn deploy(
     };
     let call_info = execute_deployment(
         syscall_handler.state,
-        syscall_handler.resources,
         syscall_handler.context,
         ctor_context,
         request.constructor_calldata,

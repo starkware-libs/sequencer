@@ -3,7 +3,7 @@ use std::cmp::min;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use cairo_vm::vm::runners::cairo_runner::{ExecutionResources, ResourceTracker, RunResources};
+use cairo_vm::vm::runners::cairo_runner::{ResourceTracker, RunResources};
 use num_traits::{Inv, Zero};
 use serde::Serialize;
 use starknet_api::abi::abi_utils::selector_from_name;
@@ -116,7 +116,6 @@ impl CallEntryPoint {
     pub fn execute(
         mut self,
         state: &mut dyn State,
-        resources: &mut ExecutionResources,
         context: &mut EntryPointExecutionContext,
         remaining_gas: &mut u64,
     ) -> EntryPointExecutionResult<CallInfo> {
@@ -158,25 +157,17 @@ impl CallEntryPoint {
         ));
 
         // This is the last operation of this function.
-        execute_entry_point_call_wrapper(
-            self,
-            contract_class,
-            state,
-            resources,
-            context,
-            remaining_gas,
-        )
+        execute_entry_point_call_wrapper(self, contract_class, state, context, remaining_gas)
     }
 
     /// Similar to `execute`, but returns an error if the outer call is reverted.
     pub fn non_reverting_execute(
         self,
         state: &mut dyn State,
-        resources: &mut ExecutionResources,
         context: &mut EntryPointExecutionContext,
         remaining_gas: &mut u64,
     ) -> EntryPointExecutionResult<CallInfo> {
-        let execution_result = self.execute(state, resources, context, remaining_gas);
+        let execution_result = self.execute(state, context, remaining_gas);
         if let Ok(call_info) = &execution_result {
             // If the execution of the outer call failed, revert the transction.
             if call_info.execution.failed {
@@ -409,7 +400,6 @@ impl EntryPointExecutionContext {
 
 pub fn execute_constructor_entry_point(
     state: &mut dyn State,
-    resources: &mut ExecutionResources,
     context: &mut EntryPointExecutionContext,
     ctor_context: ConstructorContext,
     calldata: Calldata,
@@ -438,15 +428,9 @@ pub fn execute_constructor_entry_point(
         initial_gas: *remaining_gas,
     };
 
-    constructor_call.non_reverting_execute(state, resources, context, remaining_gas).map_err(
-        |error| {
-            ConstructorEntryPointExecutionError::new(
-                error,
-                &ctor_context,
-                Some(constructor_selector),
-            )
-        },
-    )
+    constructor_call.non_reverting_execute(state, context, remaining_gas).map_err(|error| {
+        ConstructorEntryPointExecutionError::new(error, &ctor_context, Some(constructor_selector))
+    })
 }
 
 pub fn handle_empty_constructor(

@@ -182,10 +182,7 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
     };
 
     let first_storage_entry_point_resources = if_native(&test_contract)(
-        ChargedResources {
-            vm_resources: ExecutionResources::default(),
-            gas_for_fee: GasAmount(26990),
-        },
+        ChargedResources { vm_resources: ExecutionResources::default(), gas_for_fee: GasAmount(0) },
         ChargedResources::from_execution_resources(ExecutionResources {
             n_steps: 244,
             n_memory_holes: 0,
@@ -193,10 +190,7 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
         }),
     );
     let storage_entry_point_resources = if_native(&test_contract)(
-        ChargedResources {
-            vm_resources: ExecutionResources::default(),
-            gas_for_fee: GasAmount(26990),
-        },
+        ChargedResources { vm_resources: ExecutionResources::default(), gas_for_fee: GasAmount(0) },
         first_storage_entry_point_resources.clone(),
     );
 
@@ -221,10 +215,7 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
     };
 
     let library_call_resources = if_native(&test_contract)(
-        ChargedResources {
-            vm_resources: ExecutionResources::default(),
-            gas_for_fee: GasAmount(187970),
-        },
+        ChargedResources { vm_resources: ExecutionResources::default(), gas_for_fee: GasAmount(0) },
         ChargedResources::from_execution_resources(
             &get_syscall_resources(SyscallSelector::LibraryCall)
                 + &ExecutionResources {
@@ -263,10 +254,7 @@ fn test_nested_library_call(test_contract: FeatureContract, expected_gas: u64) {
     };
 
     let main_call_resources = if_native(&test_contract)(
-        ChargedResources {
-            vm_resources: ExecutionResources::default(),
-            gas_for_fee: GasAmount(515110),
-        },
+        ChargedResources { vm_resources: ExecutionResources::default(), gas_for_fee: GasAmount(0) },
         ChargedResources::from_execution_resources(
             &(&get_syscall_resources(SyscallSelector::LibraryCall) * 3)
                 + &ExecutionResources {
