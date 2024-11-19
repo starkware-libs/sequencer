@@ -305,6 +305,7 @@ async fn stream_build_proposal(
                 broadcast_client
                     .broadcast_message(ProposalPart::Transactions(TransactionBatch {
                         transactions,
+                        tx_hashes: transaction_hashes,
                     }))
                     .await
                     .expect("Failed to broadcast proposal content");

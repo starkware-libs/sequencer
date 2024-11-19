@@ -2,7 +2,7 @@ use futures::channel::{mpsc, oneshot};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::ContractAddress;
 use starknet_api::executable_transaction::Transaction as ExecutableTransaction;
-use starknet_api::transaction::Transaction;
+use starknet_api::transaction::{Transaction, TransactionHash};
 
 use crate::converters::ProtobufConversionError;
 
@@ -78,6 +78,9 @@ pub struct ProposalInit {
 pub struct TransactionBatch {
     /// The transactions in the batch.
     pub transactions: Vec<Transaction>,
+    // TODO(guyn): remove this once we settle how to convert transactions to ExecutableTransactions
+    /// The hashes of each transaction.
+    pub tx_hashes: Vec<TransactionHash>,
 }
 
 /// The propsal is done when receiving this fin message, which contains the block hash.
