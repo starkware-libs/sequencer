@@ -624,6 +624,7 @@ mod TestContract {
         entry_point_selector: felt252,
         calldata: Array::<felt252>
     ) {
+        class_hash_before_call := syscalls::get_class_hash_at_syscall(contract_address).unwrap_syscall();
          match syscalls::call_contract_syscall(
             contract_address, entry_point_selector, calldata.span())
         {
@@ -642,7 +643,9 @@ mod TestContract {
                 }
             },
         };
+        class_hash_after_call := syscalls::get_class_hash_at_syscall(contract_address).unwrap_syscall();
         // TODO(Yoni, 1/12/2024): test replace class once get_class_hash_at syscall is supported.
         assert(self.my_storage_var.read() == 0, 'values should not change.');
+        assert(class_hash_before_call == class_hash_after_call, 'class hash should not change if the tx reverted.');
     }
 }
