@@ -1518,6 +1518,7 @@ dependencies = [
  "sha2",
  "starknet-types-core",
  "starknet_api",
+ "starknet_sierra_compile",
  "strum 0.25.0",
  "strum_macros 0.25.3",
  "tempfile",
