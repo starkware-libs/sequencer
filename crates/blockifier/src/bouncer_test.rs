@@ -248,7 +248,8 @@ fn test_bouncer_try_update(#[case] added_ecdsa: usize, #[case] scenario: &'stati
         },
         ..Default::default()
     };
-    let tx_state_changes_keys = transactional_state.get_actual_state_changes().unwrap().into_keys();
+    let tx_state_changes_keys =
+        transactional_state.get_actual_state_changes().unwrap().state_maps.into_keys();
 
     // TODO(Yoni, 1/10/2024): simplify this test and move tx-too-large cases out.
 
