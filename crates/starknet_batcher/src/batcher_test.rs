@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use assert_matches::assert_matches;
 use async_trait::async_trait;
+use blockifier::abi::constants;
 use chrono::Utc;
 use futures::future::BoxFuture;
 use futures::FutureExt;
@@ -419,6 +420,39 @@ async fn propose_block_full_flow() {
     let exhausted =
         batcher.get_proposal_content(GetProposalContentInput { proposal_id: PROPOSAL_ID }).await;
     assert_matches!(exhausted, Err(BatcherError::ProposalNotFound { .. }));
+}
+
+#[tokio::test]
+async fn propose_block_without_retrospective_block_hash() {
+    let mut proposal_manager = MockProposalManagerTraitWrapper::new();
+    proposal_manager.expect_wrap_reset().times(1).return_once(|| async {}.boxed());
+
+    let mut storage_reader = MockBatcherStorageReaderTrait::new();
+    storage_reader
+        .expect_height()
+        .returning(|| Ok(BlockNumber(constants::STORED_BLOCK_HASH_BUFFER)));
+
+    let mut batcher = Batcher::new(
+        batcher_config(),
+        Arc::new(storage_reader),
+        Box::new(storage_writer()),
+        Arc::new(mempool_client()),
+        Box::new(proposal_manager),
+    );
+
+    batcher
+        .start_height(StartHeightInput { height: BlockNumber(constants::STORED_BLOCK_HASH_BUFFER) })
+        .await
+        .unwrap();
+    let result = batcher
+        .propose_block(ProposeBlockInput {
+            proposal_id: PROPOSAL_ID,
+            retrospective_block_hash: None,
+            deadline: deadline(),
+        })
+        .await;
+
+    assert_matches!(result, Err(BatcherError::MissingRetrospectiveBlockHash));
 }
 
 #[rstest]
