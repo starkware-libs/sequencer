@@ -185,6 +185,8 @@ pub struct VersionedConstants {
 
     // Fee related.
     pub(crate) vm_resource_fee_cost: Arc<VmResourceCosts>,
+    // Cost in units of onchain data segment length
+    pub allocation_cost: u32,
 
     // Resources.
     os_resources: Arc<OsResources>,
