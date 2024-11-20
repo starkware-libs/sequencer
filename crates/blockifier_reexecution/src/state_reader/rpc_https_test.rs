@@ -69,7 +69,13 @@ const EXAMPLE_L1_HANDLER_TX_HASH: &str =
 /// Retrieves the test URL from the `TEST_URL` environment variable,
 /// falling back to a default URL if not provided.
 fn get_test_url() -> String {
-    RPC_NODE_URL.clone()
+    let url = RPC_NODE_URL.clone();
+    assert_eq!(
+        guess_chain_id_from_node_url(&url).unwrap(),
+        ChainId::Mainnet,
+        "RPC HTTP tests not supported on chains other than mainnet."
+    );
+    url
 }
 
 /// Retrieves the test block_number from the `TEST_URL` environment variable,
@@ -88,24 +94,14 @@ pub fn get_test_rpc_config() -> RpcStateReaderConfig {
 }
 
 #[fixture]
-pub fn test_url() -> String {
-    get_test_url()
-}
-
-#[fixture]
-pub fn test_chain_id(test_url: String) -> ChainId {
-    guess_chain_id_from_node_url(test_url.as_str()).unwrap()
-}
-
-#[fixture]
-pub fn test_state_reader(test_chain_id: ChainId) -> TestStateReader {
+pub fn test_state_reader() -> TestStateReader {
     TestStateReader {
         rpc_state_reader: RpcStateReader {
             config: get_test_rpc_config(),
             block_id: get_test_block_id(),
         },
         retry_config: RetryConfig::default(),
-        chain_id: test_chain_id,
+        chain_id: ChainId::Mainnet,
         contract_class_mapping_dumper: Arc::new(Mutex::new(None)),
     }
 }
@@ -123,9 +119,8 @@ pub fn last_constructed_block(test_block_number: BlockNumber) -> BlockNumber {
 #[fixture]
 pub fn test_state_readers_last_and_current_block(
     last_constructed_block: BlockNumber,
-    test_chain_id: ChainId,
 ) -> ConsecutiveTestStateReaders {
-    ConsecutiveTestStateReaders::new(last_constructed_block, None, test_chain_id, false)
+    ConsecutiveTestStateReaders::new(last_constructed_block, None, ChainId::Mainnet, false)
 }
 
 /// Test that the block info can be retrieved from the RPC server.
@@ -244,7 +239,7 @@ pub fn test_get_statediff_rpc(test_state_reader: TestStateReader) {
 }
 
 #[rstest]
-#[case(test_block_number(test_state_reader(test_chain_id(test_url()))).0)]
+#[case(test_block_number(test_state_reader()).0)]
 #[case(EXAMPLE_DECLARE_V1_BLOCK_NUMBER)]
 #[case(EXAMPLE_DECLARE_V2_BLOCK_NUMBER)]
 #[case(EXAMPLE_DECLARE_V3_BLOCK_NUMBER)]
