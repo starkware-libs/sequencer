@@ -60,6 +60,12 @@ jobs:
           python3 -m venv ci
           ci/bin/pip install -r scripts/requirements.txt
 
+      # Check Cargo.lock is up to date.
+      - name: "Check Cargo.lock"
+        run: |
+          cargo update -w --locked
+          git diff --exit-code Cargo.lock
+
       # Run code style on PR.
       - name: "Run rustfmt pull request"
         if: github.event_name == 'pull_request'
