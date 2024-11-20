@@ -22,7 +22,6 @@ tracing.workspace = true
 validator = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
-http-body.workspace = true
 metrics.workspace = true
 papyrus_storage = { workspace = true, features = ["testing"] }
 pretty_assertions.workspace = true

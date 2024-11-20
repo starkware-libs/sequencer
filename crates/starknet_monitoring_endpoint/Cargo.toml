@@ -9,14 +9,13 @@ license-file.workspace = true
 normal = ["tokio"]
 
 [features]
-testing = ["http-body", "tokio", "tower"]
+testing = ["tokio", "tower"]
 
 [lints]
 workspace = true
 
 [dependencies]
 axum.workspace = true
-http-body = { workspace = true, optional = true }
 hyper = { workspace = true }
 papyrus_config.workspace = true
 serde.workspace = true
@@ -27,7 +26,6 @@ tracing.workspace = true
 validator.workspace = true
 
 [dev-dependencies]
-http-body.workspace = true
 pretty_assertions.workspace = true
 tokio.workspace = true
 tower.workspace = true

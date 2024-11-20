@@ -5,7 +5,6 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use axum::response::Response;
 use axum::Router;
-use http_body::combinators::UnsyncBoxBody;
 use metrics::{absolute_counter, describe_counter, register_counter};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use papyrus_storage::{table_names, test_utils};
@@ -38,10 +37,7 @@ fn setup_app() -> Router {
     )
 }
 
-async fn request_app(
-    app: Router,
-    method: &str,
-) -> Response<UnsyncBoxBody<axum::body::Bytes, axum::Error>> {
+async fn request_app(app: Router, method: &str) -> Response {
     app.oneshot(
         Request::builder()
             .uri(format!("/{MONITORING_PREFIX}/{method}").as_str())
