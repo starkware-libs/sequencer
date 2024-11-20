@@ -7,6 +7,7 @@ members = [
   "crates/blockifier",
   "crates/blockifier_reexecution",
   "crates/committer_cli",
+  "crates/infra_utils",
   "crates/mempool_test_utils",
   "crates/native_blockifier",
   "crates/papyrus_base_layer",
@@ -131,6 +132,7 @@ http-body = "0.4.5"
 human_bytes = "0.4.3"
 hyper = "0.14"
 indexmap = "2.1.0"
+infra_utils = { path = "crates/infra_utils", version = "0.0.0" }
 insta = "1.29.0"
 integer-encoding = "3.0.4"
 itertools = "0.12.1"

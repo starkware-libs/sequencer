@@ -1,0 +1,10 @@
+[package]
+name = "infra_utils"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+description = "Infrastructure utility."
+
+[lints]
+workspace = true
