@@ -39,6 +39,11 @@
     },
     "disable_cairo0_redeclaration": true,
     "enable_stateful_compression": true,
+    "allocation_cost": {
+        "l1_gas": 0,
+        "l1_data_gas": 32,
+        "l2_gas": 0
+    },
     "ignore_inner_event_resources": false,
     "enable_reverts": true,
     "max_recursion_depth": 50,

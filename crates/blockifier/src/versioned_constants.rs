@@ -16,7 +16,7 @@ use serde::de::Error as DeserializationError;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::{Map, Number, Value};
 use starknet_api::block::{GasPrice, StarknetVersion};
-use starknet_api::execution_resources::GasAmount;
+use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::transaction::fields::GasVectorComputationMode;
 use strum::IntoEnumIterator;
 use thiserror::Error;
@@ -185,6 +185,8 @@ pub struct VersionedConstants {
 
     // Fee related.
     pub(crate) vm_resource_fee_cost: Arc<VmResourceCosts>,
+    // Cost of allocating a storage cell.
+    pub allocation_cost: GasVector,
 
     // Resources.
     os_resources: Arc<OsResources>,
