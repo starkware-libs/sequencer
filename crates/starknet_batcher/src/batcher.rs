@@ -1,12 +1,13 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use blockifier::abi::constants;
 use blockifier::state::global_cache::GlobalContractCache;
 use chrono::Utc;
 #[cfg(test)]
 use mockall::automock;
 use papyrus_storage::state::{StateStorageReader, StateStorageWriter};
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockHashAndNumber, BlockNumber};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::state::ThinStateDiff;
 use starknet_batcher_types::batcher_types::{
@@ -119,6 +120,7 @@ impl Batcher {
         propose_block_input: ProposeBlockInput,
     ) -> BatcherResult<()> {
         let active_height = self.active_height.ok_or(BatcherError::NoActiveHeight)?;
+        verify_block_input(active_height, propose_block_input.retrospective_block_hash)?;
 
         let proposal_id = propose_block_input.proposal_id;
         let deadline = deadline_as_instant(propose_block_input.deadline)?;
@@ -152,6 +154,7 @@ impl Batcher {
         validate_block_input: ValidateBlockInput,
     ) -> BatcherResult<()> {
         let active_height = self.active_height.ok_or(BatcherError::NoActiveHeight)?;
+        verify_block_input(active_height, validate_block_input.retrospective_block_hash)?;
 
         let proposal_id = validate_block_input.proposal_id;
         let deadline = deadline_as_instant(validate_block_input.deadline)?;
@@ -407,4 +410,16 @@ pub fn deadline_as_instant(deadline: chrono::DateTime<Utc>) -> BatcherResult<tok
     let as_duration =
         time_to_deadline.to_std().map_err(|_| BatcherError::TimeToDeadlineError { deadline })?;
     Ok((std::time::Instant::now() + as_duration).into())
+}
+
+fn verify_block_input(
+    height: BlockNumber,
+    retrospective_block_hash: Option<BlockHashAndNumber>,
+) -> BatcherResult<()> {
+    if height >= BlockNumber(constants::STORED_BLOCK_HASH_BUFFER)
+        && retrospective_block_hash.is_none()
+    {
+        return Err(BatcherError::MissingRetrospectiveBlockHash);
+    }
+    Ok(())
 }
