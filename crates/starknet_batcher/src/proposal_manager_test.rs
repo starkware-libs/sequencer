@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use assert_matches::assert_matches;
+use blockifier::abi::constants;
 use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
 use starknet_api::executable_transaction::Transaction;
@@ -410,4 +411,26 @@ async fn abort_and_start_new_height(
 
     // Make sure there is no active proposal.
     assert!(!proposal_manager.await_active_proposal().await);
+}
+
+#[rstest]
+#[tokio::test]
+async fn propose_block_without_retrospective_block_hash(
+    mut mock_dependencies: MockDependencies,
+    propose_tx_provider: ProposeTransactionProvider,
+) {
+    let height = BlockNumber(constants::STORED_BLOCK_HASH_BUFFER);
+    // The checkpoint resets the expectations set for expect_height so far.
+    mock_dependencies.storage_reader.checkpoint();
+    mock_dependencies.storage_reader.expect_height().times(1).return_once(move || Ok(height));
+
+    let mut proposal_manager = proposal_manager(mock_dependencies);
+    proposal_manager.start_height(height).await.unwrap();
+
+    let (tx_sender, _receiver) = output_streaming();
+    let result = proposal_manager
+        .propose_block(ProposalId(0), None, proposal_deadline(), tx_sender, propose_tx_provider)
+        .await;
+
+    assert_matches!(result, Err(GenerateProposalError::MissingRetrospectiveBlockHash));
 }

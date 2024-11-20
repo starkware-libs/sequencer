@@ -369,6 +369,9 @@ impl From<GenerateProposalError> for BatcherError {
             GenerateProposalError::ProposalAlreadyExists { proposal_id } => {
                 BatcherError::ProposalAlreadyExists { proposal_id }
             }
+            GenerateProposalError::MissingRetrospectiveBlockHash => {
+                BatcherError::MissingRetrospectiveBlockHash
+            }
         }
     }
 }
