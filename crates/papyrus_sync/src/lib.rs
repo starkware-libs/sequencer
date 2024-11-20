@@ -159,6 +159,7 @@ pub struct GenericStateSync<
 pub type StateSyncResult = Result<(), StateSyncError>;
 
 // TODO: Sort alphabetically.
+// TODO: Change this to CentralStateSyncError
 #[derive(thiserror::Error, Debug)]
 pub enum StateSyncError {
     #[error("Sync stopped progress.")]
