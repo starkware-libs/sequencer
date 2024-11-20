@@ -54,35 +54,36 @@ jobs:
 
       # Comment with a link to the workflow (or update existing comment on rerun).
       # Required, as this is a triggered workflow, and does not appear on the PR status page.
-      - name: Find Comment
-        if: env.PR_NUMBER != ''
-        uses: starkware-libs/find-comment@213b1f93445c8ca0b8592684ef9ac98bd9558f2b
-        id: fc
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          issue-number: ${{ env.PR_NUMBER }}
-          comment-author: 'github-actions[bot]'
-          body-includes: Artifacts upload workflows
+      # - name: Find Comment
+      #   if: env.PR_NUMBER != ''
+      #   uses: starkware-libs/find-comment@213b1f93445c8ca0b8592684ef9ac98bd9558f2b
+      #   id: fc
+      #   with:
+      #     token: ${{ secrets.GITHUB_TOKEN }}
+      #     issue-number: ${{ env.PR_NUMBER }}
+      #     comment-author: 'github-actions[bot]'
+      #     body-includes: Artifacts upload workflows
 
       - name: Create comment
-        if: env.PR_NUMBER != '' && steps.fc.outputs.comment-id == ''
+        # if: env.PR_NUMBER != '' && steps.fc.outputs.comment-id == ''
+        if: env.PR_NUMBER != ''
         uses: starkware-libs/create-or-update-comment@213b1f93445c8ca0b8592684ef9ac98bd9558f2b
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          issue-number: ${{ env.PR_NUMBER }}
+          issue-number: ${{ process.env.PR_NUMBER }}
           body: |
             Artifacts upload workflows:
             * [${{ github.event.repository.updated_at }}](${{ env.WORKFLOW_LINK }})
 
-      - name: Update comment
-        if: env.PR_NUMBER != '' && steps.fc.outputs.comment-id != ''
-        uses: starkware-libs/create-or-update-comment@213b1f93445c8ca0b8592684ef9ac98bd9558f2b
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          comment-id: ${{ steps.fc.outputs.comment-id }}
-          edit-mode: append
-          body: |
-            * [${{ github.event.repository.updated_at }}](${{ env.WORKFLOW_LINK }})
+      # - name: Update comment
+      #   if: env.PR_NUMBER != '' && steps.fc.outputs.comment-id != ''
+      #   uses: starkware-libs/create-or-update-comment@213b1f93445c8ca0b8592684ef9ac98bd9558f2b
+      #   with:
+      #     token: ${{ secrets.GITHUB_TOKEN }}
+      #     comment-id: ${{ steps.fc.outputs.comment-id }}
+      #     edit-mode: append
+      #     body: |
+      #       * [${{ github.event.repository.updated_at }}](${{ env.WORKFLOW_LINK }})
 
       # Build artifact.
       - uses: ./.github/actions/bootstrap
