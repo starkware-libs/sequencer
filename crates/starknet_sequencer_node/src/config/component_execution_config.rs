@@ -8,6 +8,7 @@ use starknet_sequencer_infra::component_definitions::{
     RemoteClientConfig,
     RemoteServerConfig,
 };
+use tracing::error;
 use validator::{Validate, ValidationError};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -147,7 +148,12 @@ pub fn validate_single_component_config(
         (ComponentExecutionMode::Remote, false, true, false) => Ok(()),
         (ComponentExecutionMode::LocalExecutionWithRemoteEnabled, true, false, true) => Ok(()),
         (ComponentExecutionMode::LocalExecutionWithRemoteDisabled, true, false, false) => Ok(()),
-        _ => {
+        (mode, local_server_config, remote_client_config, remote_server_config) => {
+            error!(
+                "Invalid component execution configuration: mode: {:?}, local_server_config: \
+                 {:?}, remote_client_config: {:?}, remote_server_config: {:?}",
+                mode, local_server_config, remote_client_config, remote_server_config
+            );
             let mut error = ValidationError::new("Invalid component execution configuration.");
             error.message = Some("Ensure settings align with the chosen execution mode.".into());
             Err(error)
