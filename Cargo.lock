@@ -10698,6 +10698,7 @@ version = "0.0.0"
 dependencies = [
  "async-trait",
  "papyrus_proc_macros",
+ "papyrus_storage",
  "serde",
  "starknet_api",
  "starknet_sequencer_infra",
