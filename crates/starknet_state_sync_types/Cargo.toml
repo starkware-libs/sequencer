@@ -11,6 +11,7 @@ workspace = true
 [dependencies]
 async-trait.workspace = true
 papyrus_proc_macros.workspace = true
+papyrus_storage.workspace = true
 serde = { workspace = true, features = ["derive"] }
 starknet_api.workspace = true
 starknet_sequencer_infra.workspace = true
