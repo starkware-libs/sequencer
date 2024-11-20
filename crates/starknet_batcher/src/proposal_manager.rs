@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use blockifier::abi::constants;
 use indexmap::IndexMap;
 use starknet_api::block::{BlockHashAndNumber, BlockNumber};
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
@@ -55,6 +56,8 @@ pub enum GenerateProposalError {
     },
     #[error(transparent)]
     BlockBuilderError(#[from] BlockBuilderError),
+    #[error("Retrospective block hash is missing.")]
+    MissingRetrospectiveBlockHash,
     #[error("No active height to work on.")]
     NoActiveHeight,
     #[error("Proposal with id {proposal_id} already exists.")]
@@ -196,7 +199,7 @@ impl ProposalManagerTrait for ProposalManager {
         tx_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
         tx_provider: ProposeTransactionProvider,
     ) -> Result<(), GenerateProposalError> {
-        self.set_active_proposal(proposal_id).await?;
+        self.set_active_proposal(proposal_id, retrospective_block_hash).await?;
 
         info!("Starting generation of a new proposal with id {}.", proposal_id);
 
@@ -228,7 +231,7 @@ impl ProposalManagerTrait for ProposalManager {
         deadline: tokio::time::Instant,
         tx_provider: ValidateTransactionProvider,
     ) -> Result<(), GenerateProposalError> {
-        self.set_active_proposal(proposal_id).await?;
+        self.set_active_proposal(proposal_id, retrospective_block_hash).await?;
 
         info!("Starting validation of proposal with id {}.", proposal_id);
 
@@ -362,8 +365,15 @@ impl ProposalManager {
     async fn set_active_proposal(
         &mut self,
         proposal_id: ProposalId,
+        retrospective_block_hash: Option<BlockHashAndNumber>,
     ) -> Result<(), GenerateProposalError> {
-        self.active_height.ok_or(GenerateProposalError::NoActiveHeight)?;
+        let height = self.active_height.ok_or(GenerateProposalError::NoActiveHeight)?;
+
+        if height >= BlockNumber(constants::STORED_BLOCK_HASH_BUFFER)
+            && retrospective_block_hash.is_none()
+        {
+            return Err(GenerateProposalError::MissingRetrospectiveBlockHash);
+        }
 
         if self.executed_proposals.lock().await.contains_key(&proposal_id) {
             return Err(GenerateProposalError::ProposalAlreadyExists { proposal_id });

@@ -20,6 +20,8 @@ pub enum BatcherError {
     HeightInProgress,
     #[error("Internal server error.")]
     InternalError,
+    #[error("Missing retrospective block hash.")]
+    MissingRetrospectiveBlockHash,
     #[error("Attempt to start proposal with no active height.")]
     NoActiveHeight,
     #[error(
