@@ -6,9 +6,11 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use futures::future::BoxFuture;
-use futures::FutureExt;
+use futures::{FutureExt, StreamExt};
 use papyrus_common::pending_classes::PendingClasses;
-use papyrus_storage::{open_storage, StorageReader};
+use papyrus_storage::body::BodyStorageReader;
+use papyrus_storage::state::StateStorageReader;
+use papyrus_storage::{open_storage, StorageError, StorageReader};
 use papyrus_sync::sources::base_layer::EthereumBaseLayerSource;
 use papyrus_sync::sources::central::CentralSource;
 use papyrus_sync::sources::pending::PendingSource;
@@ -17,13 +19,14 @@ use papyrus_sync::{
     StateSyncError as PapyrusStateSyncError,
     GENESIS_HASH,
 };
-use starknet_api::block::BlockHash;
+use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::felt;
 use starknet_client::reader::objects::pending_data::{PendingBlock, PendingBlockOrDeprecated};
 use starknet_client::reader::PendingData;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_sequencer_infra::errors::ComponentError;
 use starknet_state_sync_types::communication::{StateSyncRequest, StateSyncResponse};
+use starknet_state_sync_types::state_sync_types::SyncBlock;
 use tokio::sync::RwLock;
 
 use crate::config::StateSyncConfig;
@@ -40,8 +43,19 @@ pub struct StateSyncRunner {
 impl ComponentStarter for StateSyncRunner {
     async fn start(&mut self) -> Result<(), ComponentError> {
         // TODO(shahak): poll request_receiver.
-        tokio::select! {
-            result = &mut self.sync_future => result.map_err(|_| ComponentError::InternalComponentError)
+        loop {
+            tokio::select! {
+                result = &mut self.sync_future => result.map_err(|_| ComponentError::InternalComponentError)?,
+                Some((request, sender)) = self.request_receiver.next() => {
+                    let response = match request {
+                        StateSyncRequest::GetBlock(block_number) => {
+                            StateSyncResponse::GetBlock(Ok(self.get_block(block_number).map_err(|_| ComponentError::InternalComponentError)?))
+                        },
+                    };
+
+                    sender.send(response).map_err(|_| ComponentError::InternalComponentError)?
+                },
+            }
         }
     }
 }
@@ -89,6 +103,20 @@ impl StateSyncRunner {
 
         // TODO(shahak): add rpc.
         Self { request_receiver, storage_reader, sync_future }
+    }
+
+    fn get_block(&self, block_number: BlockNumber) -> Result<Option<SyncBlock>, StorageError> {
+        let txn = self.storage_reader.begin_ro_txn()?;
+        if let Some(block_transaction_hashes) = txn.get_block_transaction_hashes(block_number)? {
+            if let Some(thin_state_diff) = txn.get_state_diff(block_number)? {
+                return Ok(Some(SyncBlock {
+                    state_diff: thin_state_diff,
+                    transaction_hashes: block_transaction_hashes,
+                }));
+            }
+        }
+
+        Ok(None)
     }
 }
 
