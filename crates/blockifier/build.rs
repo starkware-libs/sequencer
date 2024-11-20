@@ -38,7 +38,7 @@ fn compile_cairo_native_aot_runtime() {
     const RUNTIME_LIBRARY: &str = "CAIRO_NATIVE_RUNTIME_LIBRARY";
     let runtime_expected_path = {
         let expected_path_env =
-            std::env::var(RUNTIME_LIBRARY).expect("Cairo Native rutime path variable is not set");
+            std::env::var(RUNTIME_LIBRARY).expect("Cairo Native runtime path variable is not set");
         let expected_path = PathBuf::from(&expected_path_env);
 
         if expected_path.is_absolute() {
