@@ -5,6 +5,7 @@ use std::sync::LazyLock;
 use std::vec::Vec;
 
 use clap::Command;
+use infra_utils::path::resolve_project_relative_path;
 use papyrus_config::dumping::{
     append_sub_config_name,
     generate_struct_pointer,
@@ -28,7 +29,6 @@ use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 use validator::Validate;
 
 use crate::config::component_config::ComponentConfig;
-use crate::utils::get_absolute_path;
 use crate::version::VERSION_FULL;
 
 // The path of the default configuration file, provided as part of the crate.
@@ -157,7 +157,7 @@ impl SequencerNodeConfig {
     ) -> Result<Self, ConfigError> {
         let config_file_name = match config_file_name {
             Some(file_name) => Path::new(file_name),
-            None => &get_absolute_path(DEFAULT_CONFIG_PATH),
+            None => &resolve_project_relative_path(DEFAULT_CONFIG_PATH),
         };
 
         let default_config_file = File::open(config_file_name)?;
