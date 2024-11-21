@@ -91,6 +91,9 @@ const Configuration = {
             },
         },
     },
+    settings: {
+        headerMaxLength: 72
+    },
 };
 
 module.exports = Configuration;
