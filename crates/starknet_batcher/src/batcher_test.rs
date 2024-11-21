@@ -199,6 +199,7 @@ async fn no_active_height() {
             proposal_id: ProposalId(0),
             retrospective_block_hash: None,
             deadline: chrono::Utc::now() + chrono::Duration::seconds(1),
+            use_kzg_da: false,
         })
         .await;
     assert_eq!(result, Err(BatcherError::NoActiveHeight));
@@ -208,6 +209,7 @@ async fn no_active_height() {
             proposal_id: ProposalId(0),
             retrospective_block_hash: None,
             deadline: chrono::Utc::now() + chrono::Duration::seconds(1),
+            use_kzg_da: false,
         })
         .await;
     assert_eq!(result, Err(BatcherError::NoActiveHeight));
@@ -228,6 +230,7 @@ async fn validate_block_full_flow() {
         proposal_id: PROPOSAL_ID,
         deadline: deadline(),
         retrospective_block_hash: None,
+        use_kzg_da: false,
     };
     batcher.validate_block(validate_block_input).await.unwrap();
 
@@ -346,6 +349,7 @@ async fn send_finish_to_an_invalid_proposal() {
         proposal_id: PROPOSAL_ID,
         deadline: deadline(),
         retrospective_block_hash: None,
+        use_kzg_da: false,
     };
     batcher.validate_block(validate_block_input).await.unwrap();
 
@@ -378,6 +382,7 @@ async fn propose_block_full_flow() {
             proposal_id: PROPOSAL_ID,
             retrospective_block_hash: None,
             deadline: chrono::Utc::now() + chrono::Duration::seconds(1),
+            use_kzg_da: false,
         })
         .await
         .unwrap();
