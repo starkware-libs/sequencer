@@ -140,36 +140,37 @@ fn mock_proposal_manager_validate_flow() -> MockProposalManagerTraitWrapper {
 }
 
 #[rstest]
+#[tokio::test]
+async fn start_height_success() {
+    let mut proposal_manager = MockProposalManagerTraitWrapper::new();
+    proposal_manager.expect_wrap_reset().times(1).return_once(|| async {}.boxed());
+
+    let mut batcher = batcher(proposal_manager);
+    assert_eq!(batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await, Ok(()));
+}
+
+#[rstest]
 #[case::height_already_passed(
-    INITIAL_HEIGHT.prev().unwrap(),
-    Result::Err(BatcherError::HeightAlreadyPassed {
+    StartHeightInput {height: INITIAL_HEIGHT.prev().unwrap()},
+    BatcherError::HeightAlreadyPassed {
         storage_height: INITIAL_HEIGHT,
         requested_height: INITIAL_HEIGHT.prev().unwrap()
     }
-))]
-#[case::happy(
-    INITIAL_HEIGHT,
-    Result::Ok(())
 )]
 #[case::storage_not_synced(
-    INITIAL_HEIGHT.unchecked_next(),
-    Result::Err(BatcherError::StorageNotSynced {
+    StartHeightInput {height: INITIAL_HEIGHT.unchecked_next()},
+    BatcherError::StorageNotSynced {
         storage_height: INITIAL_HEIGHT,
         requested_height: INITIAL_HEIGHT.unchecked_next()
     }
-))]
+)]
 #[tokio::test]
-async fn start_height(
-    #[case] height: BlockNumber,
-    #[case] expected_result: Result<(), BatcherError>,
-) {
+async fn start_height_fail(#[case] height: StartHeightInput, #[case] expected_error: BatcherError) {
     let mut proposal_manager = MockProposalManagerTraitWrapper::new();
-    let reset_times = if expected_result.is_ok() { 1 } else { 0 };
-    proposal_manager.expect_wrap_reset().times(reset_times).returning(|| async {}.boxed());
+    proposal_manager.expect_wrap_reset().never();
 
     let mut batcher = batcher(proposal_manager);
-    let result = batcher.start_height(StartHeightInput { height }).await;
-    assert_eq!(format!("{:?}", result), format!("{:?}", expected_result));
+    assert_eq!(batcher.start_height(height).await, Err(expected_error));
 }
 
 #[rstest]
@@ -180,21 +181,18 @@ async fn duplicate_start_height() {
 
     let mut batcher = batcher(proposal_manager);
 
-    assert_matches!(
-        batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await,
-        Ok(())
-    );
-    assert_matches!(
-        batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await,
-        Err(BatcherError::HeightInProgress)
-    );
+    let initial_height = StartHeightInput { height: INITIAL_HEIGHT };
+    assert_eq!(batcher.start_height(initial_height.clone()).await, Ok(()));
+    assert_eq!(batcher.start_height(initial_height).await, Err(BatcherError::HeightInProgress));
 }
 
 #[rstest]
 #[tokio::test]
-async fn propose_block_fails_without_start_height() {
+async fn no_active_height() {
     let proposal_manager = MockProposalManagerTraitWrapper::new();
     let mut batcher = batcher(proposal_manager);
+
+    // Calling `build_proposal` and `validate_proposal` without starting a height should fail.
 
     let result = batcher
         .propose_block(ProposeBlockInput {
@@ -203,23 +201,16 @@ async fn propose_block_fails_without_start_height() {
             deadline: chrono::Utc::now() + chrono::Duration::seconds(1),
         })
         .await;
-    assert_matches!(result, Err(BatcherError::NoActiveHeight));
-}
+    assert_eq!(result, Err(BatcherError::NoActiveHeight));
 
-#[rstest]
-#[tokio::test]
-async fn validate_proposal_fails_without_start_height() {
-    let proposal_manager = MockProposalManagerTraitWrapper::new();
-    let mut batcher = batcher(proposal_manager);
-
-    let err = batcher
+    let result = batcher
         .validate_block(ValidateBlockInput {
             proposal_id: ProposalId(0),
             retrospective_block_hash: None,
             deadline: chrono::Utc::now() + chrono::Duration::seconds(1),
         })
         .await;
-    assert_matches!(err, Err(BatcherError::NoActiveHeight));
+    assert_eq!(result, Err(BatcherError::NoActiveHeight));
 }
 
 #[rstest]
