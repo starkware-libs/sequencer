@@ -40,12 +40,10 @@ fn initialize_state(test_contract: FeatureContract) -> (CachedState<DictStateRea
     (state, block_number, block_hash)
 }
 
-#[cfg_attr(
-    feature = "cairo_native",
-    test_case(FeatureContract::TestContract(CairoVersion::Native); "Native")
-)]
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1); "VM")]
-fn positive_flow(test_contract: FeatureContract) {
+#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Native;"Native"))]
+#[test_case(CairoVersion::Cairo1;"VM")]
+fn positive_flow(cairo_version: CairoVersion) {
+    let test_contract = FeatureContract::TestContract(cairo_version);
     let (mut state, block_number, block_hash) = initialize_state(test_contract);
 
     let calldata = calldata![block_number];
@@ -61,12 +59,10 @@ fn positive_flow(test_contract: FeatureContract) {
     );
 }
 
-#[cfg_attr(
-    feature = "cairo_native",
-    test_case(FeatureContract::TestContract(CairoVersion::Native); "Native")
-)]
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1); "VM")]
-fn negative_flow_execution_mode_validate(test_contract: FeatureContract) {
+#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Native;"Native"))]
+#[test_case(CairoVersion::Cairo1;"VM")]
+fn negative_flow_execution_mode_validate(cairo_version: CairoVersion) {
+    let test_contract = FeatureContract::TestContract(cairo_version);
     let (mut state, block_number, _) = initialize_state(test_contract);
 
     let calldata = calldata![block_number];
@@ -97,12 +93,10 @@ fn negative_flow_execution_mode_validate(test_contract: FeatureContract) {
     );
 }
 
-#[cfg_attr(
-    feature = "cairo_native",
-    test_case(FeatureContract::TestContract(CairoVersion::Native); "Native")
-)]
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1); "VM")]
-fn negative_flow_block_number_out_of_range(test_contract: FeatureContract) {
+#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Native;"Native"))]
+#[test_case(CairoVersion::Cairo1;"VM")]
+fn negative_flow_block_number_out_of_range(cairo_version: CairoVersion) {
+    let test_contract = FeatureContract::TestContract(cairo_version);
     let (mut state, _, _) = initialize_state(test_contract);
 
     let requested_block_number = CURRENT_BLOCK_NUMBER - constants::STORED_BLOCK_HASH_BUFFER + 1;
