@@ -9,12 +9,11 @@ use crate::execution_resources::GasAmount;
 use crate::rpc_transaction::{
     ContractClass,
     DataAvailabilityMode,
-    RpcDeclareTransaction,
-    RpcDeclareTransactionV3,
     RpcDeployAccountTransaction,
     RpcDeployAccountTransactionV3,
     RpcTransaction,
 };
+use crate::test_utils::declare::{rpc_declare_tx, DeclareTxArgs};
 use crate::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
 use crate::transaction::fields::{
     AccountDeploymentData,
@@ -38,20 +37,22 @@ fn create_resource_bounds_for_testing() -> AllResourceBounds {
     }
 }
 
-fn create_declare_v3() -> RpcDeclareTransaction {
-    RpcDeclareTransaction::V3(RpcDeclareTransactionV3 {
-        contract_class: ContractClass::default(),
-        resource_bounds: create_resource_bounds_for_testing(),
-        tip: Tip(1),
-        signature: TransactionSignature(vec![Felt::ONE, Felt::TWO]),
-        nonce: nonce!(1),
-        compiled_class_hash: CompiledClassHash(Felt::TWO),
-        sender_address: contract_address!("0x3"),
-        nonce_data_availability_mode: DataAvailabilityMode::L1,
-        fee_data_availability_mode: DataAvailabilityMode::L2,
-        paymaster_data: PaymasterData(vec![Felt::ZERO]),
-        account_deployment_data: AccountDeploymentData(vec![Felt::THREE]),
-    })
+fn create_declare_tx() -> RpcTransaction {
+    rpc_declare_tx(
+        DeclareTxArgs {
+            resource_bounds: ValidResourceBounds::AllResources(create_resource_bounds_for_testing()),
+            tip: Tip(1),
+            signature: TransactionSignature(vec![felt!("0x1"), felt!("0x2")]),
+            sender_address: contract_address!("0x1"),
+            nonce: nonce!(1),
+            paymaster_data: PaymasterData(vec![felt!("0x1")]),
+            account_deployment_data: AccountDeploymentData(vec![felt!("0x1")]),
+            fee_data_availability_mode: DataAvailabilityMode::L2,
+            compiled_class_hash: CompiledClassHash(felt!("0x2")),
+            ..Default::default()
+        },
+        ContractClass::default(),
+    )
 }
 
 fn create_deploy_account_v3() -> RpcDeployAccountTransaction {
@@ -83,7 +84,7 @@ fn create_rpc_invoke_tx() -> RpcTransaction {
 
 // Test the custom serde/deserde of RPC transactions.
 #[rstest]
-#[case(RpcTransaction::Declare(create_declare_v3()))]
+#[case(create_declare_tx())]
 #[case(RpcTransaction::DeployAccount(create_deploy_account_v3()))]
 #[case(create_rpc_invoke_tx())]
 fn test_rpc_transactions(#[case] tx: RpcTransaction) {
