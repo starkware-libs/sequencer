@@ -1,6 +1,7 @@
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::GasPrice;
+use starknet_api::core::ContractAddress;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::{contract_address, nonce};
 use starknet_mempool_types::errors::MempoolError;
@@ -373,11 +374,11 @@ fn test_add_tx_correctly_places_txs_in_queue_and_pool(mut mempool: Mempool) {
 #[rstest]
 fn test_add_tx_failure_on_duplicate_tx_hash(mut mempool: Mempool) {
     // Setup.
-    let input = add_tx_input!(tx_hash: 1, tx_nonce: 1, account_nonce: 0);
+    let input = add_tx_input!(tx_hash: 1, tx_nonce: 2, account_nonce: 0);
     // Same hash is possible if signature is different, for example.
     // This is an artificially crafted transaction with a different nonce in order to skip
     // replacement logic.
-    let duplicate_input = add_tx_input!(tx_hash: 1, tx_nonce: 2, account_nonce: 0);
+    let duplicate_input = add_tx_input!(tx_hash: 1, tx_nonce: 3, account_nonce: 0);
 
     // Test.
     add_tx(&mut mempool, &input);
@@ -464,8 +465,8 @@ fn test_add_tx_tip_priority_over_tx_hash(mut mempool: Mempool) {
 #[rstest]
 fn test_add_tx_fills_nonce_gap(mut mempool: Mempool) {
     // Setup.
-    let input_nonce_0 = add_tx_input!(tx_hash: 1, tx_nonce: 0, account_nonce: 0);
-    let input_nonce_1 = add_tx_input!(tx_hash: 2, tx_nonce: 1, account_nonce: 0);
+    let input_nonce_0 = add_tx_input!(tx_hash: 1, tx_nonce: 1, account_nonce: 1);
+    let input_nonce_1 = add_tx_input!(tx_hash: 2, tx_nonce: 2, account_nonce: 1);
 
     // Test: add the second transaction first, which creates a hole in the sequence.
     add_tx(&mut mempool, &input_nonce_1);
@@ -506,6 +507,33 @@ fn test_add_tx_does_not_decrease_account_nonce(mut mempool: Mempool) {
 
     add_tx(&mut mempool, &input_account_nonce_2);
     assert_eq!(mempool.state.get(contract_address!("0x0")), Some(nonce!(2)));
+}
+
+#[rstest]
+#[case::empty_mempool(vec![])]
+#[case::mempool_contains_another_address(vec![tx!(tx_hash: 2, address: "0x1", tx_nonce: 2)])]
+fn test_add_tx_rejects_nonce_1_for_undeployed_account(#[case] pool_txs: Vec<AccountTransaction>) {
+    // Setup.
+    let mut mempool: Mempool = MempoolContentBuilder::new().with_pool(pool_txs).build().into();
+    let input = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 1, account_nonce: 0);
+
+    // Test and assert.
+    add_tx_expect_error(
+        &mut mempool,
+        &input,
+        MempoolError::UndeployedAccount { sender_address: ContractAddress::default() },
+    );
+}
+
+#[test]
+fn test_add_tx_accepts_nonce_1_with_deploy_account_in_pool() {
+    // Setup.
+    let tx = tx!(tx_hash: 0, address: "0x0", tx_nonce: 0);
+    let mut mempool: Mempool = MempoolContentBuilder::new().with_pool([tx]).build().into();
+    let input = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 1, account_nonce: 0);
+
+    // Test and assert.
+    add_tx(&mut mempool, &input);
 }
 
 // `commit_block` tests.
