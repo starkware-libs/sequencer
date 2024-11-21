@@ -96,7 +96,7 @@ impl StarknetResources {
         l1_handler_payload_size: Option<usize>,
         execution_summary_without_fee_transfer: ExecutionSummary,
     ) -> Self {
-        // TODO(Yoni): store the entire summary. asdf
+        // TODO(Yoni): store the entire summary. asdfasdf
         Self {
             archival_data: ArchivalDataResources {
                 event_summary: execution_summary_without_fee_transfer.event_summary,
