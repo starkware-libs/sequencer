@@ -38,7 +38,7 @@ async fn main() {
             loop {
                 let message = StressTestMessage::new(i, vec![0; message_size - METADATA_SIZE], peer_id.clone());
                 network_channels.broadcast_topic_client.broadcast_message(message).await.unwrap();
-                tokio::time::sleep(std::time::Duration::from_millis(1)).await;
+                tokio::time::sleep(std::time::Duration::from_micros(100)).await;
                 i += 1;
                 if i == num_messages {
                     println!("Finished sending messages");
