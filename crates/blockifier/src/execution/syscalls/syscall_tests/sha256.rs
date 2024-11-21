@@ -12,10 +12,10 @@ use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, BALANCE}
 
 #[cfg_attr(
     feature = "cairo_native",
-    test_case(FeatureContract::TestContract(CairoVersion::Native), 891425; "Native")
+    test_case(FeatureContract::TestContract(CairoVersion::Native); "Native")
 )]
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 881425; "VM")]
-fn test_sha256(test_contract: FeatureContract, gas_consumed: u64) {
+#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1); "VM")]
+fn test_sha256(test_contract: FeatureContract) {
     let chain_info = &ChainInfo::create_for_testing();
     let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1)]);
 
@@ -28,6 +28,6 @@ fn test_sha256(test_contract: FeatureContract, gas_consumed: u64) {
 
     pretty_assertions::assert_eq!(
         entry_point_call.execute_directly(&mut state).unwrap().execution,
-        CallExecution { gas_consumed, ..CallExecution::from_retdata(retdata![]) }
+        CallExecution { gas_consumed: 881425, ..CallExecution::from_retdata(retdata![]) }
     );
 }

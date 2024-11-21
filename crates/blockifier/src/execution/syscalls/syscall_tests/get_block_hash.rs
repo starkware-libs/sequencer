@@ -42,10 +42,10 @@ fn initialize_state(test_contract: FeatureContract) -> (CachedState<DictStateRea
 
 #[cfg_attr(
     feature = "cairo_native",
-    test_case(FeatureContract::TestContract(CairoVersion::Native), 15220; "Native")
+    test_case(FeatureContract::TestContract(CairoVersion::Native); "Native")
 )]
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 5220; "VM")]
-fn positive_flow(test_contract: FeatureContract, expected_gas: u64) {
+#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1); "VM")]
+fn positive_flow(test_contract: FeatureContract) {
     let (mut state, block_number, block_hash) = initialize_state(test_contract);
 
     let calldata = calldata![block_number];
@@ -57,10 +57,7 @@ fn positive_flow(test_contract: FeatureContract, expected_gas: u64) {
 
     assert_eq!(
         entry_point_call.clone().execute_directly(&mut state).unwrap().execution,
-        CallExecution {
-            gas_consumed: expected_gas,
-            ..CallExecution::from_retdata(retdata![block_hash])
-        }
+        CallExecution { gas_consumed: 5220, ..CallExecution::from_retdata(retdata![block_hash]) }
     );
 }
 

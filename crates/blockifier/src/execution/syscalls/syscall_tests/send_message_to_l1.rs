@@ -15,10 +15,10 @@ use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, BALANCE}
 
 #[cfg_attr(
     feature = "cairo_native",
-    test_case(FeatureContract::TestContract(CairoVersion::Native), 30960; "Native")
+    test_case(FeatureContract::TestContract(CairoVersion::Native); "Native")
 )]
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 20960; "VM")]
-fn test_send_message_to_l1(test_contract: FeatureContract, expected_gas: u64) {
+#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1); "VM")]
+fn test_send_message_to_l1(test_contract: FeatureContract) {
     let chain_info = &ChainInfo::create_for_testing();
     let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1)]);
 
@@ -49,7 +49,7 @@ fn test_send_message_to_l1(test_contract: FeatureContract, expected_gas: u64) {
         entry_point_call.execute_directly(&mut state).unwrap().execution,
         CallExecution {
             l2_to_l1_messages: vec![OrderedL2ToL1Message { order: 0, message }],
-            gas_consumed: expected_gas,
+            gas_consumed: 20960,
             ..Default::default()
         }
     );

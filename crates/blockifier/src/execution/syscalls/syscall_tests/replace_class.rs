@@ -57,10 +57,10 @@ fn cairo0_class_hash(test_contract: FeatureContract) {
 
 #[cfg_attr(
     feature = "cairo_native",
-    test_case(FeatureContract::TestContract(CairoVersion::Native), 15220; "Native")
+    test_case(FeatureContract::TestContract(CairoVersion::Native); "Native")
 )]
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 5220; "VM")]
-fn positive_flow(test_contract: FeatureContract, gas_consumed: u64) {
+#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1); "VM")]
+fn positive_flow(test_contract: FeatureContract) {
     let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1);
     let empty_contract_cairo0 = FeatureContract::Empty(CairoVersion::Cairo0);
     let mut state = test_state(
@@ -80,7 +80,7 @@ fn positive_flow(test_contract: FeatureContract, gas_consumed: u64) {
     };
     assert_eq!(
         entry_point_call.execute_directly(&mut state).unwrap().execution,
-        CallExecution { gas_consumed, ..Default::default() }
+        CallExecution { gas_consumed: 5220, ..Default::default() }
     );
     assert_eq!(state.get_class_hash_at(contract_address).unwrap(), new_class_hash);
 }

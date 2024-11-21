@@ -72,22 +72,16 @@ fn test_call_contract_that_panics() {
     feature = "cairo_native",
     test_case(
       FeatureContract::TestContract(CairoVersion::Native),
-      FeatureContract::TestContract(CairoVersion::Native),
-      190370;
+      FeatureContract::TestContract(CairoVersion::Native);
       "Call Contract between two contracts using Native"
     )
 )]
 #[test_case(
     FeatureContract::TestContract(CairoVersion::Cairo1),
-    FeatureContract::TestContract(CairoVersion::Cairo1),
-    REQUIRED_GAS_CALL_CONTRACT_TEST;
+    FeatureContract::TestContract(CairoVersion::Cairo1);
     "Call Contract between two contracts using VM"
 )]
-fn test_call_contract(
-    outer_contract: FeatureContract,
-    inner_contract: FeatureContract,
-    expected_gas: u64,
-) {
+fn test_call_contract(outer_contract: FeatureContract, inner_contract: FeatureContract) {
     let chain_info = &ChainInfo::create_for_testing();
     let mut state = test_state(chain_info, BALANCE, &[(outer_contract, 1), (inner_contract, 1)]);
 
@@ -110,7 +104,7 @@ fn test_call_contract(
         entry_point_call.execute_directly(&mut state).unwrap().execution,
         CallExecution {
             retdata: retdata![felt!(48_u8)],
-            gas_consumed: expected_gas,
+            gas_consumed: REQUIRED_GAS_CALL_CONTRACT_TEST,
             ..CallExecution::default()
         }
     );
