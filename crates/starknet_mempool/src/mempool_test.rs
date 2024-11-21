@@ -343,75 +343,24 @@ fn test_add_tx(mut mempool: Mempool) {
 }
 
 #[rstest]
-fn test_add_tx_correctly_places_txs_in_queue_and_pool(mut mempool: Mempool) {
+fn test_add_tx_tip_priority_over_tx_hash(mut mempool: Mempool) {
     // Setup.
-    let input_address_0_nonce_0 =
-        add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 0, account_nonce: 0);
-    let input_address_0_nonce_1 =
-        add_tx_input!(tx_hash: 3, address: "0x0", tx_nonce: 1, account_nonce: 0);
-    let input_address_1_nonce_0 =
-        add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 0,account_nonce: 0);
+    let input_big_tip_small_hash = add_tx_input!(tx_hash: 1, address: "0x0", tip: 2);
+    // Create a transaction with identical tip, it should be allowed through since the priority
+    // queue tie-breaks identical tips by other tx-unique identifiers (for example tx hash).
+    let input_small_tip_big_hash = add_tx_input!(tx_hash: 2, address: "0x1", tip: 1);
 
     // Test.
-    for input in [&input_address_0_nonce_0, &input_address_1_nonce_0, &input_address_0_nonce_1] {
+    for input in [&input_big_tip_small_hash, &input_small_tip_big_hash] {
         add_tx(&mut mempool, input);
     }
 
-    // Assert: only the eligible transactions appear in the queue.
+    // Assert: ensure that the transaction with the higher tip is prioritized higher.
     let expected_queue_txs =
-        [&input_address_1_nonce_0.tx, &input_address_0_nonce_0.tx].map(TransactionReference::new);
-    let expected_pool_txs =
-        [input_address_0_nonce_0.tx, input_address_1_nonce_0.tx, input_address_0_nonce_1.tx];
-    let expected_mempool_content = MempoolContentBuilder::new()
-        .with_pool(expected_pool_txs)
-        .with_priority_queue(expected_queue_txs)
-        .build();
+        [&input_big_tip_small_hash.tx, &input_small_tip_big_hash.tx].map(TransactionReference::new);
+    let expected_mempool_content =
+        MempoolContentBuilder::new().with_priority_queue(expected_queue_txs).build();
     expected_mempool_content.assert_eq(&mempool);
-}
-
-// TODO(Elin): reconsider this test in a more realistic scenario.
-#[rstest]
-fn test_add_tx_failure_on_duplicate_tx_hash(mut mempool: Mempool) {
-    // Setup.
-    let input = add_tx_input!(tx_hash: 1, tx_nonce: 1, account_nonce: 0);
-    // Same hash is possible if signature is different, for example.
-    // This is an artificially crafted transaction with a different nonce in order to skip
-    // replacement logic.
-    let duplicate_input = add_tx_input!(tx_hash: 1, tx_nonce: 2, account_nonce: 0);
-
-    // Test.
-    add_tx(&mut mempool, &input);
-    add_tx_expect_error(
-        &mut mempool,
-        &duplicate_input,
-        MempoolError::DuplicateTransaction { tx_hash: input.tx.tx_hash() },
-    );
-
-    // Assert: the original transaction remains.
-    let expected_mempool_content = MempoolContentBuilder::new().with_pool([input.tx]).build();
-    expected_mempool_content.assert_eq(&mempool);
-}
-
-#[rstest]
-fn test_add_tx_lower_than_queued_nonce(mut mempool: Mempool) {
-    // Setup.
-    let input = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 1, account_nonce: 1);
-    add_tx(&mut mempool, &input);
-
-    // Test and assert: original transaction remains.
-    let invalid_input = add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 0, account_nonce: 1);
-    add_tx_expect_error(
-        &mut mempool,
-        &invalid_input,
-        MempoolError::NonceTooOld { address: contract_address!("0x0"), nonce: nonce!(0) },
-    );
-
-    let invalid_input = add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 1, account_nonce: 1);
-    add_tx_expect_error(
-        &mut mempool,
-        &invalid_input,
-        MempoolError::DuplicateNonce { address: contract_address!("0x0"), nonce: nonce!(1) },
-    );
 }
 
 #[rstest]
@@ -441,24 +390,75 @@ fn test_add_tx_with_identical_tip_succeeds(mut mempool: Mempool) {
 }
 
 #[rstest]
-fn test_add_tx_tip_priority_over_tx_hash(mut mempool: Mempool) {
+fn test_add_tx_correctly_places_txs_in_queue_and_pool(mut mempool: Mempool) {
     // Setup.
-    let input_big_tip_small_hash = add_tx_input!(tx_hash: 1, address: "0x0", tip: 2);
-    // Create a transaction with identical tip, it should be allowed through since the priority
-    // queue tie-breaks identical tips by other tx-unique identifiers (for example tx hash).
-    let input_small_tip_big_hash = add_tx_input!(tx_hash: 2, address: "0x1", tip: 1);
+    let input_address_0_nonce_0 =
+        add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 0, account_nonce: 0);
+    let input_address_0_nonce_1 =
+        add_tx_input!(tx_hash: 3, address: "0x0", tx_nonce: 1, account_nonce: 0);
+    let input_address_1_nonce_0 =
+        add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 0,account_nonce: 0);
 
     // Test.
-    for input in [&input_big_tip_small_hash, &input_small_tip_big_hash] {
+    for input in [&input_address_0_nonce_0, &input_address_1_nonce_0, &input_address_0_nonce_1] {
         add_tx(&mut mempool, input);
     }
 
-    // Assert: ensure that the transaction with the higher tip is prioritized higher.
+    // Assert: only the eligible transactions appear in the queue.
     let expected_queue_txs =
-        [&input_big_tip_small_hash.tx, &input_small_tip_big_hash.tx].map(TransactionReference::new);
-    let expected_mempool_content =
-        MempoolContentBuilder::new().with_priority_queue(expected_queue_txs).build();
+        [&input_address_1_nonce_0.tx, &input_address_0_nonce_0.tx].map(TransactionReference::new);
+    let expected_pool_txs =
+        [input_address_0_nonce_0.tx, input_address_1_nonce_0.tx, input_address_0_nonce_1.tx];
+    let expected_mempool_content = MempoolContentBuilder::new()
+        .with_pool(expected_pool_txs)
+        .with_priority_queue(expected_queue_txs)
+        .build();
     expected_mempool_content.assert_eq(&mempool);
+}
+
+// TODO(Elin): reconsider this test in a more realistic scenario.
+#[rstest]
+fn test_add_tx_rejects_duplicate_tx_hash(mut mempool: Mempool) {
+    // Setup.
+    let input = add_tx_input!(tx_hash: 1, tx_nonce: 1, account_nonce: 0);
+    // Same hash is possible if signature is different, for example.
+    // This is an artificially crafted transaction with a different nonce in order to skip
+    // replacement logic.
+    let duplicate_input = add_tx_input!(tx_hash: 1, tx_nonce: 2, account_nonce: 0);
+
+    // Test.
+    add_tx(&mut mempool, &input);
+    add_tx_expect_error(
+        &mut mempool,
+        &duplicate_input,
+        MempoolError::DuplicateTransaction { tx_hash: input.tx.tx_hash() },
+    );
+
+    // Assert: the original transaction remains.
+    let expected_mempool_content = MempoolContentBuilder::new().with_pool([input.tx]).build();
+    expected_mempool_content.assert_eq(&mempool);
+}
+
+#[rstest]
+fn test_add_tx_rejects_txs_lower_eq_than_queued_nonce(mut mempool: Mempool) {
+    // Setup.
+    let input = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 1, account_nonce: 1);
+    add_tx(&mut mempool, &input);
+
+    // Test and assert: original transaction remains.
+    let invalid_input = add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 0, account_nonce: 1);
+    add_tx_expect_error(
+        &mut mempool,
+        &invalid_input,
+        MempoolError::NonceTooOld { address: contract_address!("0x0"), nonce: nonce!(0) },
+    );
+
+    let invalid_input = add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 1, account_nonce: 1);
+    add_tx_expect_error(
+        &mut mempool,
+        &invalid_input,
+        MempoolError::DuplicateNonce { address: contract_address!("0x0"), nonce: nonce!(1) },
+    );
 }
 
 #[rstest]
