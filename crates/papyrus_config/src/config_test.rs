@@ -52,7 +52,8 @@ use crate::{
 
 lazy_static! {
     static ref CUSTOM_CONFIG_PATH: PathBuf =
-        resolve_project_relative_path("crates/papyrus_config/resources/custom_config_example.json");
+        resolve_project_relative_path("crates/papyrus_config/resources/custom_config_example.json")
+            .unwrap();
 }
 
 #[derive(Clone, Copy, Default, Serialize, Deserialize, Debug, PartialEq, Validate)]

@@ -8,3 +8,6 @@ description = "Infrastructure utility."
 
 [lints]
 workspace = true
+
+[dependencies]
+thiserror.workspace = true

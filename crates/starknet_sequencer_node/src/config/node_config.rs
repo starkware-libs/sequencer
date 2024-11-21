@@ -157,7 +157,7 @@ impl SequencerNodeConfig {
     ) -> Result<Self, ConfigError> {
         let config_file_name = match config_file_name {
             Some(file_name) => Path::new(file_name),
-            None => &resolve_project_relative_path(DEFAULT_CONFIG_PATH),
+            None => &resolve_project_relative_path(DEFAULT_CONFIG_PATH)?,
         };
 
         let default_config_file = File::open(config_file_name)?;
