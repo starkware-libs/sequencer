@@ -148,6 +148,31 @@ where
     Ok(TestSubscriberChannels { subscriber_channels, mock_network })
 }
 
+// TODO(shahak): Change to n instead of 2.
+pub fn create_two_connected_network_configs() -> (NetworkConfig, NetworkConfig) {
+    let [port0, port1] = find_n_free_ports::<2>();
+
+    let secret_key0 = [1u8; 32];
+    let public_key0 = Keypair::ed25519_from_bytes(secret_key0).unwrap().public();
+
+    let config0 = NetworkConfig {
+        tcp_port: port0,
+        secret_key: Some(secret_key0.to_vec()),
+        ..Default::default()
+    };
+    let config1 = NetworkConfig {
+        tcp_port: port1,
+        bootstrap_peer_multiaddr: Some(
+            Multiaddr::empty()
+                .with(Protocol::Ip4(Ipv4Addr::LOCALHOST))
+                .with(Protocol::Tcp(port0))
+                .with(Protocol::P2p(PeerId::from_public_key(&public_key0))),
+        ),
+        ..Default::default()
+    };
+    (config0, config1)
+}
+
 pub fn create_network_config_connected_to_broadcast_channels<T>(
     topic: Topic,
 ) -> (NetworkConfig, BroadcastTopicChannels<T>)
@@ -157,26 +182,7 @@ where
 {
     const BUFFER_SIZE: usize = 1000;
 
-    let [channels_port, config_port] = find_n_free_ports::<2>();
-
-    let channels_secret_key = [1u8; 32];
-    let channels_public_key = Keypair::ed25519_from_bytes(channels_secret_key).unwrap().public();
-
-    let channels_config = NetworkConfig {
-        tcp_port: channels_port,
-        secret_key: Some(channels_secret_key.to_vec()),
-        ..Default::default()
-    };
-    let result_config = NetworkConfig {
-        tcp_port: config_port,
-        bootstrap_peer_multiaddr: Some(
-            Multiaddr::empty()
-                .with(Protocol::Ip4(Ipv4Addr::LOCALHOST))
-                .with(Protocol::Tcp(channels_port))
-                .with(Protocol::P2p(PeerId::from_public_key(&channels_public_key))),
-        ),
-        ..Default::default()
-    };
+    let (channels_config, result_config) = create_two_connected_network_configs();
 
     let mut channels_network_manager = NetworkManager::new(channels_config, None);
     let broadcast_channels =
