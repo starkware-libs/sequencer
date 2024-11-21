@@ -249,6 +249,10 @@ impl Nonce {
         }
         Ok(Self(self.0 - Felt::ONE))
     }
+
+    pub fn is_first_invoke_for_undeployed_account(self, account_nonce: Nonce) -> bool {
+        self == Nonce(Felt::ONE) && account_nonce == Nonce(Felt::ZERO)
+    }
 }
 
 /// The selector of an [EntryPoint](`crate::state::EntryPoint`).
