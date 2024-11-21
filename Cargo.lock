@@ -10520,6 +10520,7 @@ dependencies = [
  "cairo-lang-starknet-classes",
  "cairo-lang-utils",
  "cairo-native",
+ "infra_utils",
  "mempool_test_utils",
  "papyrus_config",
  "rstest",
