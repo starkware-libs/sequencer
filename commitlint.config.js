@@ -66,6 +66,7 @@ const Configuration = {
             'transaction',
             'types',
         ]],
+        'header-max-length': [2, 'always', 72],
     },
     /*
      * Functions that return true if commitlint should ignore the given message.
