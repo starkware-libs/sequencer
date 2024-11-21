@@ -130,6 +130,10 @@ impl MempoolState {
             assert!(committed_nonce <= next_nonce, "NOT SUPPORTED YET {address:?} {next_nonce:?}.")
         }
     }
+
+    fn contains_account(&self, address: ContractAddress) -> bool {
+        self.get(address).is_some()
+    }
 }
 
 #[derive(Debug, Default)]
@@ -202,7 +206,7 @@ impl Mempool {
     pub fn add_tx(&mut self, args: AddTransactionArgs) -> MempoolResult<()> {
         let AddTransactionArgs { tx, account_state } = args;
         let tx_reference = TransactionReference::new(&tx);
-        self.validate_incoming_tx(tx_reference)?;
+        self.validate_incoming_tx(tx_reference, account_state)?;
 
         self.handle_fee_escalation(&tx)?;
         self.tx_pool.insert(tx)?;
@@ -280,8 +284,31 @@ impl Mempool {
         Ok(())
     }
 
-    fn validate_incoming_tx(&self, tx_reference: TransactionReference) -> MempoolResult<()> {
-        self.state.validate_incoming_tx(tx_reference)
+    fn validate_incoming_tx(
+        &self,
+        tx_reference: TransactionReference,
+        account_state: AccountState,
+    ) -> MempoolResult<()> {
+        self.state.validate_incoming_tx(tx_reference)?;
+
+        // If this is the first invoke transaction for an account that was not deployed yet, it
+        // means that the gateway has skipped validations. In this case, we need to verify
+        // that a deploy_account transaction exists for this account. It is sufficient to
+        // check if the account exists in the mempool since it means that either it has a
+        // deploy_account transaction or transactions with future nonces that passed
+        // validations.
+        if tx_reference.nonce.is_first_invoke_for_undeployed_account(account_state.nonce)
+            && !self.deploy_account_tx_exists(tx_reference)
+        {
+            return Err(MempoolError::UndeployedAccount { sender_address: tx_reference.address });
+        }
+
+        Ok(())
+    }
+
+    fn deploy_account_tx_exists(&self, tx_reference: TransactionReference) -> bool {
+        self.state.contains_account(tx_reference.address)
+            || self.tx_pool.contains_account(tx_reference.address)
     }
 
     fn validate_commitment(&self, address: ContractAddress, next_nonce: Nonce) {
