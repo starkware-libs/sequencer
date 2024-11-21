@@ -3,9 +3,9 @@ use std::path::Path;
 
 use assert_matches::assert_matches;
 use cairo_lang_starknet_classes::contract_class::ContractClass;
+use infra_utils::path::resolve_project_relative_path;
 use mempool_test_utils::{FAULTY_ACCOUNT_CLASS_FILE, TEST_FILES_FOLDER};
 use rstest::rstest;
-use starknet_api::test_utils::get_absolute_path;
 
 use crate::cairo_lang_compiler::CairoLangSierraToCasmCompiler;
 use crate::command_line_compiler::CommandLineCompiler;
@@ -26,7 +26,8 @@ fn command_line_compiler() -> CommandLineCompiler {
     CommandLineCompiler::new(SIERRA_TO_CASM_COMPILATION_CONFIG)
 }
 fn get_test_contract() -> ContractClass {
-    env::set_current_dir(get_absolute_path(TEST_FILES_FOLDER)).expect("Failed to set current dir.");
+    env::set_current_dir(resolve_project_relative_path(TEST_FILES_FOLDER))
+        .expect("Failed to set current dir.");
     let sierra_path = Path::new(FAULTY_ACCOUNT_CLASS_FILE);
     contract_class_from_file(sierra_path)
 }

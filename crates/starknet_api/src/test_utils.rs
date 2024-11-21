@@ -1,9 +1,8 @@
 use std::collections::HashMap;
-use std::env;
 use std::fs::read_to_string;
 use std::path::{Path, PathBuf};
-use std::sync::LazyLock;
 
+use infra_utils::path::cargo_manifest_dir;
 use starknet_types_core::felt::Felt;
 
 use crate::core::{ContractAddress, Nonce};
@@ -13,19 +12,11 @@ pub mod deploy_account;
 pub mod invoke;
 pub mod l1_handler;
 
-static PATH_TO_CARGO_MANIFEST_DIR: LazyLock<PathBuf> =
-    LazyLock::new(|| Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap()).into());
-
-/// Returns the absolute path from the project root.
-pub fn get_absolute_path<P: AsRef<Path>>(relative_path: P) -> PathBuf {
-    PATH_TO_CARGO_MANIFEST_DIR.join("../..").join(relative_path)
-}
-
 /// Returns the path to a file in the resources directory. This assumes the current working
 /// directory has a `resources` folder. The value for file_path should be the path to the required
 /// file in the folder "resources".
 pub fn path_in_resources<P: AsRef<Path>>(file_path: P) -> PathBuf {
-    PATH_TO_CARGO_MANIFEST_DIR.join("resources").join(file_path)
+    cargo_manifest_dir().unwrap().join("resources").join(file_path)
 }
 
 /// Reads from the directory containing the manifest at run time, same as current working directory.
