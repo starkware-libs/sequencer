@@ -217,17 +217,13 @@ async fn collect_execution_results_and_stream_txs(
     Ok(false)
 }
 
-pub struct BlockMetadata {
-    pub height: BlockNumber,
-    pub retrospective_block_hash: Option<BlockHashAndNumber>,
-}
-
 /// The BlockBuilderFactoryTrait is responsible for creating a new block builder.
 #[cfg_attr(test, automock)]
 pub trait BlockBuilderFactoryTrait {
     fn create_block_builder(
         &self,
-        block_metadata: BlockMetadata,
+        height: BlockNumber,
+        retrospective_block_hash: Option<BlockHashAndNumber>,
         execution_params: BlockBuilderExecutionParams,
         tx_provider: Box<dyn TransactionProvider>,
         output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<Transaction>>,
@@ -302,11 +298,12 @@ pub struct BlockBuilderFactory {
 impl BlockBuilderFactory {
     fn preprocess_and_create_transaction_executor(
         &self,
-        block_metadata: &BlockMetadata,
+        height: BlockNumber,
+        retrospective_block_hash: Option<BlockHashAndNumber>,
     ) -> BlockBuilderResult<TransactionExecutor<PapyrusReader>> {
         let block_builder_config = self.block_builder_config.clone();
         let next_block_info = BlockInfo {
-            block_number: block_metadata.height,
+            block_number: height,
             block_timestamp: BlockTimestamp(chrono::Utc::now().timestamp().try_into()?),
             sequencer_address: block_builder_config.sequencer_address,
             // TODO (yael 7/10/2024): add logic to compute gas prices
@@ -332,7 +329,7 @@ impl BlockBuilderFactory {
         // cache.
         let state_reader = PapyrusReader::new(
             self.storage_reader.clone(),
-            block_metadata.height,
+            height,
             // TODO(Yael 18/9/2024): dont forget to flush the cached_state cache into the global
             // cache on decision_reached.
             self.global_class_hash_to_class.clone(),
@@ -341,7 +338,7 @@ impl BlockBuilderFactory {
         let executor = TransactionExecutor::pre_process_and_create(
             state_reader,
             block_context,
-            block_metadata.retrospective_block_hash,
+            retrospective_block_hash,
             block_builder_config.execute_config,
         )?;
 
@@ -352,13 +349,15 @@ impl BlockBuilderFactory {
 impl BlockBuilderFactoryTrait for BlockBuilderFactory {
     fn create_block_builder(
         &self,
-        block_metadata: BlockMetadata,
+        height: BlockNumber,
+        retrospective_block_hash: Option<BlockHashAndNumber>,
         execution_params: BlockBuilderExecutionParams,
         tx_provider: Box<dyn TransactionProvider>,
         output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<Transaction>>,
         abort_signal_receiver: tokio::sync::oneshot::Receiver<()>,
     ) -> BlockBuilderResult<Box<dyn BlockBuilderTrait>> {
-        let executor = self.preprocess_and_create_transaction_executor(&block_metadata)?;
+        let executor =
+            self.preprocess_and_create_transaction_executor(height, retrospective_block_hash)?;
         Ok(Box::new(BlockBuilder::new(
             Box::new(executor),
             tx_provider,

@@ -20,7 +20,6 @@ use crate::block_builder::{
     BlockBuilderFactoryTrait,
     BlockBuilderTrait,
     BlockExecutionArtifacts,
-    BlockMetadata,
 };
 use crate::transaction_provider::{ProposeTransactionProvider, ValidateTransactionProvider};
 
@@ -156,7 +155,8 @@ impl ProposalManagerTrait for ProposalManager {
         let (abort_signal_sender, abort_signal_receiver) = tokio::sync::oneshot::channel();
 
         let block_builder = self.block_builder_factory.create_block_builder(
-            BlockMetadata { height, retrospective_block_hash },
+            height,
+            retrospective_block_hash,
             BlockBuilderExecutionParams { deadline, fail_on_err: false },
             Box::new(tx_provider),
             Some(tx_sender.clone()),
@@ -188,7 +188,8 @@ impl ProposalManagerTrait for ProposalManager {
         let (abort_signal_sender, abort_signal_receiver) = tokio::sync::oneshot::channel();
 
         let block_builder = self.block_builder_factory.create_block_builder(
-            BlockMetadata { height, retrospective_block_hash },
+            height,
+            retrospective_block_hash,
             BlockBuilderExecutionParams { deadline, fail_on_err: true },
             Box::new(tx_provider),
             None,
