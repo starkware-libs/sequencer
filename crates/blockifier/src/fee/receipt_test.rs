@@ -432,7 +432,7 @@ fn test_calculate_tx_gas_usage(
     let execution_call_info =
         &tx_execution_info.execute_call_info.expect("Execution call info should exist.");
     let execution_summary =
-        CallInfo::summarize_many(vec![execution_call_info].into_iter(), &versioned_constants);
+        CallInfo::summarize_many(vec![execution_call_info].into_iter(), versioned_constants);
     let starknet_resources = StarknetResources::new(
         calldata_length,
         signature_length,
