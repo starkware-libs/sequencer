@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
@@ -85,6 +87,8 @@ const LEGACY_CONTRACT_RUST_TOOLCHAIN: &str = "2023-07-05";
 
 const CAIRO_STEPS_TEST_CONTRACT_COMPILER_TAG: &str = "v2.7.0";
 const CAIRO_STEPS_TEST_CONTRACT_RUST_TOOLCHAIN: &str = "2024-04-29";
+
+pub type TagToContractsMapping = HashMap<(Option<String>, Option<String>), Vec<FeatureContract>>;
 
 /// Enum representing all feature contracts.
 /// The contracts that are implemented in both Cairo versions include a version field.
@@ -317,7 +321,11 @@ impl FeatureContract {
 
     /// Compiles the feature contract and returns the compiled contract as a byte vector.
     /// Panics if the contract is ERC20, as ERC20 contract recompilation is not supported.
-    pub fn compile(&self) -> Vec<u8> {
+    pub fn compile(
+        &self,
+        tag_override: Option<String>,
+        cargo_nightly_arg: Option<String>,
+    ) -> Vec<u8> {
         if matches!(self, Self::ERC20(_)) {
             panic!("ERC20 contract recompilation not supported.");
         }
@@ -340,19 +348,15 @@ impl FeatureContract {
                 cairo0_compile(self.get_source_path(), extra_arg, false)
             }
             CairoVersion::Cairo1 => {
-                let (tag_override, cargo_nightly_arg) = self.fixed_tag_and_rust_toolchain();
                 cairo1_compile(self.get_source_path(), tag_override, cargo_nightly_arg)
             }
             #[cfg(feature = "cairo_native")]
-            CairoVersion::Native => {
-                let (tag_override, cargo_nightly_arg) = self.fixed_tag_and_rust_toolchain();
-                starknet_compile(
-                    self.get_source_path(),
-                    tag_override,
-                    cargo_nightly_arg,
-                    &mut vec![],
-                )
-            }
+            CairoVersion::Native => starknet_compile(
+                self.get_source_path(),
+                tag_override,
+                cargo_nightly_arg,
+                &mut vec![],
+            ),
         }
     }
 
@@ -407,6 +411,30 @@ impl FeatureContract {
         let selector =
             entry_point_selector.unwrap_or(selector_from_name(CONSTRUCTOR_ENTRY_POINT_NAME));
         self.get_offset(selector, EntryPointType::Constructor)
+    }
+
+    pub fn feature_contracts_by_tag() -> TagToContractsMapping {
+        // EnumIter iterates over all variants with Default::default() as the cairo
+        // version.
+        let mut tag_to_contracts_map = HashMap::new();
+        for contract in Self::iter() {
+            if matches!(contract, Self::ERC20(_)) {
+                continue;
+            }
+            let tag_and_version = contract.fixed_tag_and_rust_toolchain();
+            let contracts_to_insert = if contract.has_two_versions() {
+                let mut other_contract = contract;
+                other_contract.set_cairo_version(contract.cairo_version().other());
+                vec![contract, other_contract]
+            } else {
+                vec![contract]
+            };
+            tag_to_contracts_map
+                .entry(tag_and_version)
+                .or_insert_with(Vec::new)
+                .extend(contracts_to_insert);
+        }
+        tag_to_contracts_map
     }
 
     pub fn all_contracts() -> impl Iterator<Item = Self> {

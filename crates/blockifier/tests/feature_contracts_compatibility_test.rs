@@ -1,5 +1,6 @@
 use std::fs;
 
+use blockifier::test_utils::cairo_compile::prepare_group_tag_compiler_deps;
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::CairoVersion;
 use pretty_assertions::assert_eq;
@@ -36,25 +37,35 @@ const FIX_COMMAND: &str = "FIX_FEATURE_TEST=1 cargo test -p blockifier --test \
 // `COMPILED_CONTRACTS_SUBDIR` which equals `starknet-compile-deprecated X.cairo --no_debug_info`.
 fn verify_feature_contracts_compatibility(fix: bool, cairo_version: CairoVersion) {
     // TODO(Dori, 1/10/2024): Parallelize this test.
-    for contract in FeatureContract::all_feature_contracts()
-        .filter(|contract| contract.cairo_version() == cairo_version)
+    for ((tag_override, cargo_nightly_arg), feature_contracts) in
+        FeatureContract::feature_contracts_by_tag()
     {
-        // Compare output of cairo-file on file with existing compiled file.
-        let expected_compiled_output = contract.compile();
-        let existing_compiled_path = contract.get_compiled_path();
-
-        if fix {
-            fs::write(&existing_compiled_path, &expected_compiled_output).unwrap();
+        if cairo_version != CairoVersion::Cairo0 {
+            prepare_group_tag_compiler_deps(tag_override.clone());
         }
-        let existing_compiled_contents = fs::read_to_string(&existing_compiled_path)
-            .unwrap_or_else(|_| panic!("Cannot read {existing_compiled_path}."));
+        for contract in feature_contracts
+            .into_iter()
+            .filter(|contract| contract.cairo_version() == cairo_version)
+        {
+            // Compare output of cairo-file on file with existing compiled file.
+            let expected_compiled_output =
+                contract.compile(tag_override.clone(), cargo_nightly_arg.clone());
+            let existing_compiled_path = contract.get_compiled_path();
 
-        if String::from_utf8(expected_compiled_output).unwrap() != existing_compiled_contents {
-            panic!(
-                "{} does not compile to {existing_compiled_path}.\nRun `{FIX_COMMAND}` to fix the \
-                 existing file according to locally installed `starknet-compile-deprecated`.\n",
-                contract.get_source_path()
-            );
+            if fix {
+                fs::write(&existing_compiled_path, &expected_compiled_output).unwrap();
+            }
+            let existing_compiled_contents = fs::read_to_string(&existing_compiled_path)
+                .unwrap_or_else(|_| panic!("Cannot read {existing_compiled_path}."));
+
+            if String::from_utf8(expected_compiled_output).unwrap() != existing_compiled_contents {
+                panic!(
+                    "{} does not compile to {existing_compiled_path}.\nRun `{FIX_COMMAND}` to fix \
+                     the existing file according to locally installed \
+                     `starknet-compile-deprecated`.\n",
+                    contract.get_source_path()
+                );
+            }
         }
     }
 }

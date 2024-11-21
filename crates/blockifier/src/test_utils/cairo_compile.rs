@@ -204,10 +204,9 @@ fn verify_cairo0_compiler_deps() {
     );
 }
 
-fn prepare_cairo1_compiler_deps(git_tag_override: Option<String>) {
-    let cairo_repo_path = local_cairo1_compiler_repo_path();
+fn get_tag_and_repo_file_path(git_tag_override: Option<String>) -> (String, PathBuf) {
     let tag = git_tag_override.unwrap_or(cairo1_compiler_tag());
-
+    let cairo_repo_path = local_cairo1_compiler_repo_path();
     // Check if the path is a directory.
     assert!(
         cairo_repo_path.is_dir(),
@@ -216,6 +215,11 @@ fn prepare_cairo1_compiler_deps(git_tag_override: Option<String>) {
         cairo_repo_path.to_string_lossy(),
     );
 
+    (tag, cairo_repo_path)
+}
+
+pub fn prepare_group_tag_compiler_deps(git_tag_override: Option<String>) {
+    let (tag, cairo_repo_path) = get_tag_and_repo_file_path(git_tag_override);
     // Checkout the required version in the compiler repo.
     run_and_verify_output(Command::new("git").args([
         "-C",
@@ -223,6 +227,10 @@ fn prepare_cairo1_compiler_deps(git_tag_override: Option<String>) {
         "checkout",
         &tag,
     ]));
+}
+
+fn prepare_cairo1_compiler_deps(git_tag_override: Option<String>) {
+    let (tag, cairo_repo_path) = get_tag_and_repo_file_path(git_tag_override);
 
     // Verify that the checked out tag is as expected.
     run_and_verify_output(Command::new("git").args([
