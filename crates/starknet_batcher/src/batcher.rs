@@ -118,10 +118,10 @@ impl Batcher {
     #[instrument(skip(self), err)]
     pub async fn validate_block(
         &mut self,
-        validate_proposal_input: ValidateBlockInput,
+        validate_block_input: ValidateBlockInput,
     ) -> BatcherResult<()> {
-        let proposal_id = validate_proposal_input.proposal_id;
-        let deadline = deadline_as_instant(validate_proposal_input.deadline)?;
+        let proposal_id = validate_block_input.proposal_id;
+        let deadline = deadline_as_instant(validate_block_input.deadline)?;
 
         let (input_tx_sender, input_tx_receiver) =
             tokio::sync::mpsc::channel(self.config.input_stream_content_buffer_size);
@@ -134,7 +134,7 @@ impl Batcher {
         self.proposal_manager
             .validate_block(
                 proposal_id,
-                validate_proposal_input.retrospective_block_hash,
+                validate_block_input.retrospective_block_hash,
                 deadline,
                 tx_provider,
             )

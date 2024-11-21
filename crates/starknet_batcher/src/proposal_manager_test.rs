@@ -147,7 +147,7 @@ async fn propose_block(
     assert!(proposal_manager.await_active_proposal().await);
 }
 
-async fn validate_proposal(
+async fn validate_block(
     proposal_manager: &mut ProposalManager,
     tx_provider: ValidateTransactionProvider,
     proposal_id: ProposalId,
@@ -227,7 +227,7 @@ async fn propose_block_fails_without_start_height(
 
 #[rstest]
 #[tokio::test]
-async fn validate_proposal_fails_without_start_height(
+async fn validate_block_fails_without_start_height(
     mock_dependencies: MockDependencies,
     validate_tx_provider: ValidateTransactionProvider,
 ) {
@@ -254,7 +254,7 @@ async fn propose_block_success(
 
 #[rstest]
 #[tokio::test]
-async fn validate_proposal_success(
+async fn validate_block_success(
     mut mock_dependencies: MockDependencies,
     validate_tx_provider: ValidateTransactionProvider,
 ) {
@@ -262,7 +262,7 @@ async fn validate_proposal_success(
     let mut proposal_manager = proposal_manager(mock_dependencies);
 
     proposal_manager.start_height(INITIAL_HEIGHT).await.unwrap();
-    validate_proposal(&mut proposal_manager, validate_tx_provider, ProposalId(0)).await;
+    validate_block(&mut proposal_manager, validate_tx_provider, ProposalId(0)).await;
     proposal_manager.take_proposal_result(ProposalId(0)).await.unwrap();
 }
 
@@ -280,9 +280,9 @@ async fn consecutive_proposal_generations_success(
     // Build and validate multiple proposals consecutively (awaiting on them to
     // make sure they finished successfully).
     propose_block(&mut proposal_manager, propose_tx_provider.clone(), ProposalId(0)).await;
-    validate_proposal(&mut proposal_manager, validate_tx_provider(), ProposalId(1)).await;
+    validate_block(&mut proposal_manager, validate_tx_provider(), ProposalId(1)).await;
     propose_block(&mut proposal_manager, propose_tx_provider, ProposalId(2)).await;
-    validate_proposal(&mut proposal_manager, validate_tx_provider(), ProposalId(3)).await;
+    validate_block(&mut proposal_manager, validate_tx_provider(), ProposalId(3)).await;
 }
 
 // This test checks that trying to generate a proposal while another one is being generated will
