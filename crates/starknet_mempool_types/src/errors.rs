@@ -17,4 +17,6 @@ pub enum MempoolError {
     P2pPropagatorClientError { tx_hash: TransactionHash },
     #[error("Transaction with hash: {tx_hash} not found")]
     TransactionNotFound { tx_hash: TransactionHash },
+    #[error("Undeployed account {:?}", sender_address)]
+    UndeployedAccount { sender_address: ContractAddress },
 }

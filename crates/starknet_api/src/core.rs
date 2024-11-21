@@ -14,7 +14,7 @@ use crate::crypto::utils::PublicKey;
 use crate::hash::{PoseidonHash, StarkHash};
 use crate::serde_utils::{BytesAsHex, PrefixedBytesAsHex};
 use crate::transaction::fields::{Calldata, ContractAddressSalt};
-use crate::{impl_from_through_intermediate, StarknetApiError};
+use crate::{impl_from_through_intermediate, nonce, StarknetApiError};
 
 /// Felt.
 pub fn ascii_as_felt(ascii_str: &str) -> Result<Felt, StarknetApiError> {
@@ -248,6 +248,10 @@ impl Nonce {
             return Err(StarknetApiError::OutOfRange { string: format!("{:?}", self) });
         }
         Ok(Self(self.0 - Felt::ONE))
+    }
+
+    pub fn is_first_invoke_for_undeployed_account(self, account_nonce: Nonce) -> bool {
+        self == nonce!(1) && account_nonce == nonce!(0)
     }
 }
 
