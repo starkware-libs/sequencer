@@ -3,6 +3,7 @@ use rstest::rstest;
 use starknet_api::core::ContractAddress;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::StorageKey;
+use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::transaction::fields::{
     AllResourceBounds,
     Calldata,
@@ -13,7 +14,7 @@ use starknet_api::transaction::fields::{
     ValidResourceBounds,
 };
 use starknet_api::transaction::TransactionVersion;
-use starknet_api::{contract_address, felt, invoke_tx_args};
+use starknet_api::{contract_address, felt};
 use starknet_types_core::felt::Felt;
 
 use crate::context::{BlockContext, ChainInfo};
@@ -122,13 +123,14 @@ fn test_revert_on_overdraft(
         ],
     );
 
-    let approve_tx: AccountTransaction = account_invoke_tx(invoke_tx_args! {
+    let approve_tx: AccountTransaction = account_invoke_tx(InvokeTxArgs {
         max_fee,
         sender_address: account_address,
         calldata: approve_calldata,
         version,
         resource_bounds: default_all_resource_bounds,
         nonce: nonce_manager.next(account_address),
+        ..Default::default()
     });
     let tx_info = approve_tx.create_tx_info();
     let approval_execution_info =
@@ -140,7 +142,7 @@ fn test_revert_on_overdraft(
     let execution_info = run_invoke_tx(
         &mut state,
         &block_context,
-        invoke_tx_args! {
+        InvokeTxArgs {
             max_fee,
             sender_address: account_address,
             calldata: calldata_for_write_and_transfer(
@@ -149,11 +151,12 @@ fn test_revert_on_overdraft(
                 expected_final_value,
                 recipient,
                 final_received_amount,
-                fee_token_address
+                fee_token_address,
             ),
             version,
             resource_bounds: default_all_resource_bounds,
             nonce: nonce_manager.next(account_address),
+            ..Default::default()
         },
     )
     .unwrap();
@@ -171,7 +174,7 @@ fn test_revert_on_overdraft(
     let execution_info = run_invoke_tx(
         &mut state,
         &block_context,
-        invoke_tx_args! {
+        InvokeTxArgs {
             max_fee,
             sender_address: account_address,
             calldata: calldata_for_write_and_transfer(
@@ -180,11 +183,12 @@ fn test_revert_on_overdraft(
                 felt!(0_u8),
                 recipient,
                 balance,
-                fee_token_address
+                fee_token_address,
             ),
             version,
             resource_bounds: default_all_resource_bounds,
             nonce: nonce_manager.next(account_address),
+            ..Default::default()
         },
     )
     .unwrap();
@@ -274,7 +278,7 @@ fn test_revert_on_resource_overuse(
         init_data_by_version(&block_context.chain_info, cairo_version);
 
     let n_writes = 5_u8;
-    let base_args = invoke_tx_args! { sender_address: account_address, version };
+    let base_args = InvokeTxArgs { sender_address: account_address, version, ..Default::default() };
 
     // Utility function to generate calldata for the `write_a_lot` function.
     // Change the written value each call to keep cost high.
@@ -292,7 +296,7 @@ fn test_revert_on_resource_overuse(
     let execution_info_measure = run_invoke_tx(
         &mut state,
         &block_context,
-        invoke_tx_args! {
+        InvokeTxArgs {
             max_fee,
             resource_bounds,
             nonce: nonce_manager.next(account_address),
@@ -326,7 +330,7 @@ fn test_revert_on_resource_overuse(
     let execution_info_tight = run_invoke_tx(
         &mut state,
         &block_context,
-        invoke_tx_args! {
+        InvokeTxArgs {
             max_fee: actual_fee,
             resource_bounds: tight_resource_bounds,
             nonce: nonce_manager.next(account_address),
@@ -374,7 +378,7 @@ fn test_revert_on_resource_overuse(
     let execution_info_result = run_invoke_tx(
         &mut state,
         &block_context,
-        invoke_tx_args! {
+        InvokeTxArgs {
             max_fee: low_max_fee,
             resource_bounds: low_bounds,
             nonce: nonce_manager.next(account_address),

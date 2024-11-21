@@ -1,8 +1,9 @@
 use rstest::{fixture, rstest};
 use starknet_api::execution_resources::GasVector;
+use starknet_api::nonce;
+use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::transaction::fields::GasVectorComputationMode;
 use starknet_api::transaction::{constants, L2ToL1Payload};
-use starknet_api::{invoke_tx_args, nonce};
 use starknet_types_core::felt::Felt;
 
 use crate::context::BlockContext;
@@ -357,10 +358,11 @@ fn test_calculate_tx_gas_usage(
     let account_contract_address = account_contract.get_instance_address(0);
     let state = &mut test_state(chain_info, BALANCE, &[(account_contract, 1), (test_contract, 1)]);
 
-    let account_tx = account_invoke_tx(invoke_tx_args! {
-            sender_address: account_contract_address,
-            calldata: create_trivial_calldata(test_contract.get_instance_address(0)),
-            resource_bounds: max_resource_bounds,
+    let account_tx = account_invoke_tx(InvokeTxArgs {
+        sender_address: account_contract_address,
+        calldata: create_trivial_calldata(test_contract.get_instance_address(0)),
+        resource_bounds: max_resource_bounds,
+        ..Default::default()
     });
     let calldata_length = account_tx.calldata_length();
     let signature_length = account_tx.signature_length();
@@ -409,11 +411,12 @@ fn test_calculate_tx_gas_usage(
         ],
     );
 
-    let account_tx = account_invoke_tx(invoke_tx_args! {
+    let account_tx = account_invoke_tx(InvokeTxArgs {
         resource_bounds: max_resource_bounds,
         sender_address: account_contract_address,
         calldata: execute_calldata,
         nonce: nonce!(1_u8),
+        ..Default::default()
     });
 
     let calldata_length = account_tx.calldata_length();

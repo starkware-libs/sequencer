@@ -17,7 +17,7 @@ use starknet_api::transaction::fields::{
     ValidResourceBounds,
 };
 use starknet_api::transaction::{constants, TransactionVersion};
-use starknet_api::{calldata, declare_tx_args, deploy_account_tx_args, felt, invoke_tx_args};
+use starknet_api::{calldata, declare_tx_args, deploy_account_tx_args, felt};
 use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 
@@ -271,7 +271,7 @@ pub fn create_account_tx_for_validate_test(
         }
         TransactionType::InvokeFunction => {
             let execute_calldata = create_calldata(sender_address, "foo", &[]);
-            invoke_tx(invoke_tx_args! {
+            invoke_tx(InvokeTxArgs {
                 max_fee,
                 resource_bounds,
                 signature,
@@ -279,6 +279,7 @@ pub fn create_account_tx_for_validate_test(
                 calldata: execute_calldata,
                 version: tx_version,
                 nonce: nonce_manager.next(sender_address),
+                ..Default::default()
             })
         }
         _ => panic!("{tx_type:?} is not an account transaction."),
@@ -367,9 +368,10 @@ pub fn emit_n_events_tx(
         felt!(0_u32),                     // data length.
     ];
     let calldata = create_calldata(contract_address, "test_emit_events", &entry_point_args);
-    account_invoke_tx(invoke_tx_args! {
+    account_invoke_tx(InvokeTxArgs {
         sender_address: account_contract,
         calldata,
-        nonce
+        nonce,
+        ..Default::default()
     })
 }

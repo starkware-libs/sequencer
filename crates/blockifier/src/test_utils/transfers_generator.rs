@@ -2,11 +2,12 @@ use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::core::ContractAddress;
+use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::constants::TRANSFER_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::TransactionVersion;
-use starknet_api::{calldata, felt, invoke_tx_args};
+use starknet_api::{calldata, felt};
 use starknet_types_core::felt::Felt;
 
 use crate::blockifier::config::{ConcurrencyConfig, TransactionExecutorConfig};
@@ -180,12 +181,13 @@ impl TransfersGenerator {
             felt!(0_u8)                 // Calldata: msb amount.
         ];
 
-        invoke_tx(invoke_tx_args! {
+        invoke_tx(InvokeTxArgs {
             max_fee: self.config.max_fee,
             sender_address,
             calldata: execute_calldata,
             version: self.config.tx_version,
             nonce,
+            ..Default::default()
         })
     }
 }
