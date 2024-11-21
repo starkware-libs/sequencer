@@ -74,24 +74,8 @@ enum Command {
         block_number: u64,
     },
 
-    /// Writes the RPC queries to json files.
-    WriteRpcRepliesToJson {
-        #[clap(flatten)]
-        rpc_args: RpcArgs,
-
-        /// Block number.
-        #[clap(long, short = 'b')]
-        block_number: u64,
-
-        // Directory path to json file. Default:
-        // "./crates/blockifier_reexecution/resources/block_{block_number}/reexecution_data.json".
-        // TODO(Aner): add possibility to retrieve files from gc bucket.
-        #[clap(long, short = 'd', default_value = None)]
-        full_file_path: Option<String>,
-    },
-
     /// Writes the RPC queries of all (selected) blocks to json files.
-    WriteAll {
+    WriteToFile {
         #[clap(flatten)]
         rpc_args: RpcArgs,
 
@@ -107,21 +91,8 @@ enum Command {
         directory_path: Option<String>,
     },
 
-    // Reexecutes the block from JSON files.
-    ReexecuteBlock {
-        /// Block number.
-        #[clap(long, short = 'b')]
-        block_number: u64,
-
-        // Directory path to json files. Default:
-        // "./crates/blockifier_reexecution/resources/block_{block_number}/reexecution_data.json".
-        // TODO(Aner): add possibility to retrieve files from gc bucket.
-        #[clap(long, short = 'd', default_value = None)]
-        full_file_path: Option<String>,
-    },
-
     // Reexecute all (selected) blocks
-    ReexecuteAll {
+    Reexecute {
         /// Block numbers. If not specified, blocks are retrieved from
         /// get_block_numbers_for_reexecution().
         #[clap(long, short = 'b', num_args = 1.., default_value = None)]
@@ -145,7 +116,6 @@ fn parse_block_numbers_args(block_numbers: Option<Vec<u64>>) -> Vec<BlockNumber>
 struct GlobalOptions {}
 
 /// Main entry point of the blockifier reexecution CLI.
-/// TODO(Aner): Add concurrency to the reexecution tests (using tokio).
 #[tokio::main]
 async fn main() {
     let args = BlockifierReexecutionCliArgs::parse();
@@ -181,28 +151,7 @@ async fn main() {
             println!("RPC test passed successfully.");
         }
 
-        Command::WriteRpcRepliesToJson { block_number, full_file_path, rpc_args } => {
-            let full_file_path = full_file_path.unwrap_or(format!(
-                "./crates/blockifier_reexecution/resources/block_{block_number}/reexecution_data.\
-                 json"
-            ));
-
-            // RPC calls are "synchronous IO" (see, e.g., https://stackoverflow.com/questions/74547541/when-should-you-use-tokios-spawn-blocking
-            // for details), so should be executed in a blocking thread.
-            // TODO(Aner): make only the RPC calls blocking, not the whole function.
-            tokio::task::spawn_blocking(move || {
-                write_block_reexecution_data_to_file(
-                    BlockNumber(block_number),
-                    full_file_path,
-                    rpc_args.node_url.clone(),
-                    rpc_args.parse_chain_id(),
-                );
-            })
-            .await
-            .unwrap();
-        }
-
-        Command::WriteAll { block_numbers, directory_path, rpc_args } => {
+        Command::WriteToFile { block_numbers, directory_path, rpc_args } => {
             let directory_path =
                 directory_path.unwrap_or("./crates/blockifier_reexecution/resources".to_string());
 
@@ -232,20 +181,7 @@ async fn main() {
             }
         }
 
-        Command::ReexecuteBlock { block_number, full_file_path } => {
-            let full_file_path = full_file_path.unwrap_or(format!(
-                "./crates/blockifier_reexecution/resources/block_{block_number}/reexecution_data.\
-                 json"
-            ));
-
-            reexecute_and_verify_correctness(
-                OfflineConsecutiveStateReaders::new_from_file(&full_file_path).unwrap(),
-            );
-
-            println!("Reexecution test for block {block_number} passed successfully.");
-        }
-
-        Command::ReexecuteAll { block_numbers, directory_path } => {
+        Command::Reexecute { block_numbers, directory_path } => {
             let directory_path =
                 directory_path.unwrap_or("./crates/blockifier_reexecution/resources".to_string());
 
