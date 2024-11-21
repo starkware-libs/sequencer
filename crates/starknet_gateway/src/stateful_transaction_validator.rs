@@ -119,7 +119,7 @@ fn skip_stateful_validations(tx: &ExecutableTransaction, account_nonce: Nonce) -
             // check if the transaction nonce is 1, meaning it is post deploy_account, and the
             // account nonce is zero, meaning the account was not deployed yet. The mempool also
             // verifies that the deploy_account transaction exists.
-            tx.nonce() == Nonce(Felt::ONE) && account_nonce == Nonce(Felt::ZERO)
+            tx.nonce().is_first_invoke_for_undeployed_account(account_nonce)
         }
         ExecutableTransaction::DeployAccount(_) | ExecutableTransaction::Declare(_) => false,
     }
