@@ -1,4 +1,7 @@
+use std::collections::HashMap;
+
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use itertools::Itertools;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use starknet_api::contract_class::{ContractClass, EntryPointType};
@@ -85,6 +88,9 @@ const LEGACY_CONTRACT_RUST_TOOLCHAIN: &str = "2023-07-05";
 
 const CAIRO_STEPS_TEST_CONTRACT_COMPILER_TAG: &str = "v2.7.0";
 const CAIRO_STEPS_TEST_CONTRACT_RUST_TOOLCHAIN: &str = "2024-04-29";
+
+pub type TagAndToolchain = (Option<String>, Option<String>);
+pub type TagToContractsMapping = HashMap<TagAndToolchain, Vec<FeatureContract>>;
 
 /// Enum representing all feature contracts.
 /// The contracts that are implemented in both Cairo versions include a version field.
@@ -212,7 +218,7 @@ impl FeatureContract {
     /// Some contracts are designed to test behavior of code compiled with a
     /// specific (old) compiler tag. To run the (old) compiler, older rust
     /// version is required.
-    pub fn fixed_tag_and_rust_toolchain(&self) -> (Option<String>, Option<String>) {
+    pub fn fixed_tag_and_rust_toolchain(&self) -> TagAndToolchain {
         match self {
             Self::LegacyTestContract => (
                 Some(LEGACY_CONTRACT_COMPILER_TAG.into()),
@@ -426,5 +432,14 @@ impl FeatureContract {
     pub fn all_feature_contracts() -> impl Iterator<Item = Self> {
         // ERC20 is a special case - not in the feature_contracts directory.
         Self::all_contracts().filter(|contract| !matches!(contract, Self::ERC20(_)))
+    }
+
+    pub fn cairo1_feature_contracts_by_tag() -> TagToContractsMapping {
+        // EnumIter iterates over all variants with Default::default() as the cairo
+        // version.
+        Self::all_feature_contracts()
+            .filter(|contract| contract.cairo_version() != CairoVersion::Cairo0)
+            .map(|contract| (contract.fixed_tag_and_rust_toolchain(), contract))
+            .into_group_map()
     }
 }
