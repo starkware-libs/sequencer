@@ -70,7 +70,7 @@ fn starknet_resources() -> StarknetResources {
         .map(|call_info| call_info.with_some_class_hash())
         .collect();
     let execution_summary =
-        CallInfo::summarize_many(call_infos.iter(), &VersionedConstants::latest_constants());
+        CallInfo::summarize_many(call_infos.iter(), VersionedConstants::latest_constants());
     let state_resources = StateResources::new_for_testing(StateChangesCount {
         n_storage_updates: 7,
         n_class_hash_updates: 11,
