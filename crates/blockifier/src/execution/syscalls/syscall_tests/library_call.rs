@@ -28,12 +28,10 @@ use crate::test_utils::{
 };
 use crate::versioned_constants::VersionedConstants;
 
-#[cfg_attr(
-    feature = "cairo_native",
-    test_case(FeatureContract::TestContract(CairoVersion::Native); "Native")
-)]
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1); "VM")]
-fn test_library_call(test_contract: FeatureContract) {
+#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Native; "Native"))]
+#[test_case(CairoVersion::Cairo1; "VM")]
+fn test_library_call(cairo_version: CairoVersion) {
+    let test_contract = FeatureContract::TestContract(cairo_version);
     let chain_info = &ChainInfo::create_for_testing();
     let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1)]);
 
@@ -63,12 +61,10 @@ fn test_library_call(test_contract: FeatureContract) {
     );
 }
 
-#[cfg_attr(
-    feature = "cairo_native",
-    test_case(FeatureContract::TestContract(CairoVersion::Native); "Native")
-)]
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1); "VM")]
-fn test_library_call_assert_fails(test_contract: FeatureContract) {
+#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Native; "Native"))]
+#[test_case(CairoVersion::Cairo1; "VM")]
+fn test_library_call_assert_fails(cairo_version: CairoVersion) {
+    let test_contract = FeatureContract::TestContract(cairo_version);
     let chain_info = &ChainInfo::create_for_testing();
     let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1)]);
     let inner_entry_point_selector = selector_from_name("assert_eq");
@@ -108,33 +104,10 @@ fn test_library_call_assert_fails(test_contract: FeatureContract) {
     );
 }
 
-#[cfg_attr(
-    feature = "cairo_native",
-    test_case(FeatureContract::TestContract(CairoVersion::Native); "Native")
-)]
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1); "VM")]
-fn test_nested_library_call(test_contract: FeatureContract) {
-    // Todo(pwhite) 2024/10/28: Execution resources from the VM & Native are mesaured differently
-    // helper function to change the expected resource values from both of executions
-    // When gas is changed to be the same between VM and Native this should be removed.
-    #[cfg_attr(not(feature = "cairo_native"), allow(unused_variables))]
-    fn if_native<T>(test_contract: &FeatureContract) -> impl Fn(T, T) -> T + '_ {
-        move |native: T, non_native: T| {
-            #[cfg(feature = "cairo_native")]
-            {
-                if matches!(test_contract, FeatureContract::TestContract(CairoVersion::Native)) {
-                    native
-                } else {
-                    non_native
-                }
-            }
-            #[cfg(not(feature = "cairo_native"))]
-            {
-                non_native
-            }
-        }
-    }
-
+#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Native; "Native"))]
+#[test_case(CairoVersion::Cairo1; "VM")]
+fn test_nested_library_call(cairo_version: CairoVersion) {
+    let test_contract = FeatureContract::TestContract(cairo_version);
     let chain_info = &ChainInfo::create_for_testing();
     let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1)]);
 
@@ -188,18 +161,17 @@ fn test_nested_library_call(test_contract: FeatureContract) {
         ..nested_storage_entry_point
     };
 
-    let first_storage_entry_point_resources = if_native(&test_contract)(
-        ChargedResources { vm_resources: ExecutionResources::default(), gas_for_fee: GasAmount(0) },
-        ChargedResources::from_execution_resources(ExecutionResources {
+    let mut first_storage_entry_point_resources =
+        ChargedResources { gas_for_fee: GasAmount(0), ..Default::default() };
+    if cairo_version == CairoVersion::Cairo1 {
+        first_storage_entry_point_resources.vm_resources = ExecutionResources {
             n_steps: 244,
             n_memory_holes: 0,
             builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 7)]),
-        }),
-    );
-    let storage_entry_point_resources = if_native(&test_contract)(
-        ChargedResources { vm_resources: ExecutionResources::default(), gas_for_fee: GasAmount(0) },
-        first_storage_entry_point_resources.clone(),
-    );
+        };
+    }
+
+    let storage_entry_point_resources = first_storage_entry_point_resources.clone();
 
     // The default VersionedConstants is used in the execute_directly call bellow.
     let tracked_resource = test_contract.get_runnable_class().tracked_resource(
@@ -221,17 +193,16 @@ fn test_nested_library_call(test_contract: FeatureContract) {
         ..Default::default()
     };
 
-    let library_call_resources = if_native(&test_contract)(
-        ChargedResources { vm_resources: ExecutionResources::default(), gas_for_fee: GasAmount(0) },
-        ChargedResources::from_execution_resources(
-            &get_syscall_resources(SyscallSelector::LibraryCall)
-                + &ExecutionResources {
-                    n_steps: 377,
-                    n_memory_holes: 0,
-                    builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 15)]),
-                },
-        ),
-    );
+    let mut library_call_resources =
+        ChargedResources { gas_for_fee: GasAmount(0), ..Default::default() };
+    if cairo_version == CairoVersion::Cairo1 {
+        library_call_resources.vm_resources = &get_syscall_resources(SyscallSelector::LibraryCall)
+            + &ExecutionResources {
+                n_steps: 377,
+                n_memory_holes: 0,
+                builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 15)]),
+            }
+    }
 
     let library_call_info = CallInfo {
         call: library_entry_point,
@@ -260,17 +231,17 @@ fn test_nested_library_call(test_contract: FeatureContract) {
         ..Default::default()
     };
 
-    let main_call_resources = if_native(&test_contract)(
-        ChargedResources { vm_resources: ExecutionResources::default(), gas_for_fee: GasAmount(0) },
-        ChargedResources::from_execution_resources(
-            &(&get_syscall_resources(SyscallSelector::LibraryCall) * 3)
-                + &ExecutionResources {
-                    n_steps: 727,
-                    n_memory_holes: 2,
-                    builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 27)]),
-                },
-        ),
-    );
+    let mut main_call_resources =
+        ChargedResources { gas_for_fee: GasAmount(0), ..Default::default() };
+    if cairo_version == CairoVersion::Cairo1 {
+        main_call_resources.vm_resources = &(&get_syscall_resources(SyscallSelector::LibraryCall)
+            * 3)
+            + &ExecutionResources {
+                n_steps: 727,
+                n_memory_holes: 2,
+                builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 27)]),
+            }
+    }
 
     let expected_call_info = CallInfo {
         call: main_entry_point.clone(),

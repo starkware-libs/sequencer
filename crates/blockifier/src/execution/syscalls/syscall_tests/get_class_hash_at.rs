@@ -17,12 +17,10 @@ use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, BALANCE}
 /// 3. Execution succeeds with expected gas for valid cases.
 /// 4. Execution fails if `address` has a different `class_hash`.
 /// 5. Execution succeeds and returns `class_hash` = 0 if `address` is absent.
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1); "VM")]
-#[cfg_attr(
-    feature = "cairo_native",
-    test_case(FeatureContract::TestContract(CairoVersion::Native); "Native"))
-]
-fn test_get_class_hash_at(test_contract: FeatureContract) {
+#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Native;"Native"))]
+#[test_case(CairoVersion::Cairo1;"VM")]
+fn test_get_class_hash_at(cairo_version: CairoVersion) {
+    let test_contract = FeatureContract::TestContract(cairo_version);
     let chain_info = &ChainInfo::create_for_testing();
     let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1)]);
     let address = contract_address!("0x111");
