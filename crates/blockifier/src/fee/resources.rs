@@ -7,10 +7,8 @@ use crate::execution::call_info::{EventSummary, ExecutionSummary};
 use crate::fee::eth_gas_constants;
 use crate::fee::fee_utils::get_vm_resources_cost;
 use crate::fee::gas_usage::{
-    get_consumed_message_to_l2_emissions_cost,
-    get_da_gas_cost,
-    get_log_message_to_l1_emissions_cost,
-    get_message_segment_length,
+    get_consumed_message_to_l2_emissions_cost, get_da_gas_cost,
+    get_log_message_to_l1_emissions_cost, get_message_segment_length,
     get_onchain_data_segment_length,
 };
 use crate::state::cached_state::{StateChanges, StateChangesCount};
@@ -98,7 +96,7 @@ impl StarknetResources {
         l1_handler_payload_size: Option<usize>,
         execution_summary_without_fee_transfer: ExecutionSummary,
     ) -> Self {
-        // TODO(Yoni): store the entire summary.
+        // TODO(Yoni): store the entire summary. asdf
         Self {
             archival_data: ArchivalDataResources {
                 event_summary: execution_summary_without_fee_transfer.event_summary,
