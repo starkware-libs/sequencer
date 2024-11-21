@@ -114,8 +114,8 @@ fn mock_proposal_manager_validate_flow() -> MockProposalManagerTraitWrapper {
     proposal_manager
         .expect_wrap_validate_block()
         .times(1)
-        .with(eq(INITIAL_HEIGHT), eq(PROPOSAL_ID), eq(None), always(), always())
-        .return_once(|_, _, _, _, tx_provider| {
+        .with(eq(INITIAL_HEIGHT), eq(true), eq(PROPOSAL_ID), eq(None), always(), always())
+        .return_once(|_, _, _, _, _, tx_provider| {
             {
                 async move {
                     // Spawn a task to keep tx_provider alive until the transactions sender is
@@ -331,8 +331,8 @@ async fn send_finish_to_an_invalid_proposal() {
     proposal_manager
         .expect_wrap_validate_block()
         .times(1)
-        .with(eq(INITIAL_HEIGHT), eq(PROPOSAL_ID), eq(None), always(), always())
-        .return_once(|_, _, _, _, _| { async move { Ok(()) } }.boxed());
+        .with(eq(INITIAL_HEIGHT), eq(true), eq(PROPOSAL_ID), eq(None), always(), always())
+        .return_once(|_, _, _, _, _, _| { async move { Ok(()) } }.boxed());
 
     let proposal_error = GetProposalResultError::BlockBuilderError(Arc::new(
         BlockBuilderError::FailOnError(FailOnErrorCause::BlockFull),
@@ -370,7 +370,13 @@ async fn propose_block_full_flow() {
     let mut proposal_manager = MockProposalManagerTraitWrapper::new();
     mock_proposal_manager_common_expectations(&mut proposal_manager);
     proposal_manager.expect_wrap_propose_block().times(1).return_once(
-        move |_height, _proposal_id, _block_hash, _deadline, tx_sender, _tx_provider| {
+        move |_height,
+              _use_kzg_da,
+              _proposal_id,
+              _block_hash,
+              _deadline,
+              tx_sender,
+              _tx_provider| {
             simulate_build_block_proposal(tx_sender, txs_to_stream).boxed()
         },
     );
@@ -546,9 +552,11 @@ async fn simulate_build_block_proposal(
 // A wrapper trait to allow mocking the ProposalManagerTrait in tests.
 #[automock]
 trait ProposalManagerTraitWrapper: Send + Sync {
+    #[allow(clippy::too_many_arguments)]
     fn wrap_propose_block(
         &mut self,
         height: BlockNumber,
+        use_kzg_da: bool,
         proposal_id: ProposalId,
         retrospective_block_hash: Option<BlockHashAndNumber>,
         deadline: tokio::time::Instant,
@@ -559,6 +567,7 @@ trait ProposalManagerTraitWrapper: Send + Sync {
     fn wrap_validate_block(
         &mut self,
         height: BlockNumber,
+        use_kzg_da: bool,
         proposal_id: ProposalId,
         retrospective_block_hash: Option<BlockHashAndNumber>,
         deadline: tokio::time::Instant,
@@ -590,6 +599,7 @@ impl<T: ProposalManagerTraitWrapper> ProposalManagerTrait for T {
     async fn propose_block(
         &mut self,
         height: BlockNumber,
+        use_kzg_da: bool,
         proposal_id: ProposalId,
         retrospective_block_hash: Option<BlockHashAndNumber>,
         deadline: tokio::time::Instant,
@@ -598,6 +608,7 @@ impl<T: ProposalManagerTraitWrapper> ProposalManagerTrait for T {
     ) -> Result<(), GenerateProposalError> {
         self.wrap_propose_block(
             height,
+            use_kzg_da,
             proposal_id,
             retrospective_block_hash,
             deadline,
@@ -610,6 +621,7 @@ impl<T: ProposalManagerTraitWrapper> ProposalManagerTrait for T {
     async fn validate_block(
         &mut self,
         height: BlockNumber,
+        use_kzg_da: bool,
         proposal_id: ProposalId,
         retrospective_block_hash: Option<BlockHashAndNumber>,
         deadline: tokio::time::Instant,
@@ -617,6 +629,7 @@ impl<T: ProposalManagerTraitWrapper> ProposalManagerTrait for T {
     ) -> Result<(), GenerateProposalError> {
         self.wrap_validate_block(
             height,
+            use_kzg_da,
             proposal_id,
             retrospective_block_hash,
             deadline,

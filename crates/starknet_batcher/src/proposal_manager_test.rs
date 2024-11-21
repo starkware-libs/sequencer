@@ -119,6 +119,7 @@ async fn propose_block_non_blocking(
     proposal_manager
         .propose_block(
             INITIAL_HEIGHT,
+            true,
             proposal_id,
             None,
             proposal_deadline(),
@@ -144,7 +145,7 @@ async fn validate_block(
     proposal_id: ProposalId,
 ) {
     proposal_manager
-        .validate_block(INITIAL_HEIGHT, proposal_id, None, proposal_deadline(), tx_provider)
+        .validate_block(INITIAL_HEIGHT, true, proposal_id, None, proposal_deadline(), tx_provider)
         .await
         .unwrap();
 
@@ -212,6 +213,7 @@ async fn multiple_proposals_generation_fail(
     proposal_manager
         .propose_block(
             INITIAL_HEIGHT,
+            true,
             ProposalId(0),
             None,
             proposal_deadline(),
@@ -226,6 +228,7 @@ async fn multiple_proposals_generation_fail(
     let another_generate_request = proposal_manager
         .propose_block(
             INITIAL_HEIGHT,
+            true,
             ProposalId(1),
             None,
             proposal_deadline(),

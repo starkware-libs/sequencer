@@ -61,9 +61,11 @@ pub(crate) enum InternalProposalStatus {
 
 #[async_trait]
 pub trait ProposalManagerTrait: Send + Sync {
+    #[allow(clippy::too_many_arguments)]
     async fn propose_block(
         &mut self,
         height: BlockNumber,
+        use_kzg_da: bool,
         proposal_id: ProposalId,
         retrospective_block_hash: Option<BlockHashAndNumber>,
         deadline: tokio::time::Instant,
@@ -74,6 +76,7 @@ pub trait ProposalManagerTrait: Send + Sync {
     async fn validate_block(
         &mut self,
         height: BlockNumber,
+        use_kzg_da: bool,
         proposal_id: ProposalId,
         retrospective_block_hash: Option<BlockHashAndNumber>,
         deadline: tokio::time::Instant,
@@ -142,6 +145,7 @@ impl ProposalManagerTrait for ProposalManager {
     async fn propose_block(
         &mut self,
         height: BlockNumber,
+        use_kzg_da: bool,
         proposal_id: ProposalId,
         retrospective_block_hash: Option<BlockHashAndNumber>,
         deadline: tokio::time::Instant,
@@ -156,7 +160,7 @@ impl ProposalManagerTrait for ProposalManager {
         let (abort_signal_sender, abort_signal_receiver) = tokio::sync::oneshot::channel();
 
         let block_builder = self.block_builder_factory.create_block_builder(
-            BlockMetadata { height, retrospective_block_hash },
+            BlockMetadata { height, use_kzg_da, retrospective_block_hash },
             BlockBuilderExecutionParams { deadline, fail_on_err: false },
             Box::new(tx_provider),
             Some(tx_sender.clone()),
@@ -175,6 +179,7 @@ impl ProposalManagerTrait for ProposalManager {
     async fn validate_block(
         &mut self,
         height: BlockNumber,
+        use_kzg_da: bool,
         proposal_id: ProposalId,
         retrospective_block_hash: Option<BlockHashAndNumber>,
         deadline: tokio::time::Instant,
@@ -188,7 +193,7 @@ impl ProposalManagerTrait for ProposalManager {
         let (abort_signal_sender, abort_signal_receiver) = tokio::sync::oneshot::channel();
 
         let block_builder = self.block_builder_factory.create_block_builder(
-            BlockMetadata { height, retrospective_block_hash },
+            BlockMetadata { height, use_kzg_da, retrospective_block_hash },
             BlockBuilderExecutionParams { deadline, fail_on_err: true },
             Box::new(tx_provider),
             None,

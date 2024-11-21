@@ -219,6 +219,7 @@ async fn collect_execution_results_and_stream_txs(
 
 pub struct BlockMetadata {
     pub height: BlockNumber,
+    pub use_kzg_da: bool,
     pub retrospective_block_hash: Option<BlockHashAndNumber>,
 }
 
@@ -242,7 +243,6 @@ pub struct BlockBuilderConfig {
     pub execute_config: TransactionExecutorConfig,
     pub bouncer_config: BouncerConfig,
     pub sequencer_address: ContractAddress,
-    pub use_kzg_da: bool,
     pub tx_chunk_size: usize,
     pub versioned_constants_overrides: VersionedConstantsOverrides,
 }
@@ -255,7 +255,6 @@ impl Default for BlockBuilderConfig {
             execute_config: TransactionExecutorConfig::default(),
             bouncer_config: BouncerConfig::default(),
             sequencer_address: ContractAddress::default(),
-            use_kzg_da: true,
             tx_chunk_size: 100,
             versioned_constants_overrides: VersionedConstantsOverrides::default(),
         }
@@ -271,12 +270,6 @@ impl SerializeConfig for BlockBuilderConfig {
             "sequencer_address",
             &self.sequencer_address,
             "The address of the sequencer.",
-            ParamPrivacyInput::Public,
-        )]));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "use_kzg_da",
-            &self.use_kzg_da,
-            "Indicates whether the kzg mechanism is used for data availability.",
             ParamPrivacyInput::Public,
         )]));
         dump.append(&mut BTreeMap::from([ser_param(
@@ -314,7 +307,7 @@ impl BlockBuilderFactory {
                 let tmp_val = NonzeroGasPrice::MIN;
                 GasPrices::new(tmp_val, tmp_val, tmp_val, tmp_val, tmp_val, tmp_val)
             },
-            use_kzg_da: block_builder_config.use_kzg_da,
+            use_kzg_da: block_metadata.use_kzg_da,
         };
         let versioned_constants = VersionedConstants::get_versioned_constants(
             block_builder_config.versioned_constants_overrides,
@@ -333,7 +326,7 @@ impl BlockBuilderFactory {
         let state_reader = PapyrusReader::new(
             self.storage_reader.clone(),
             block_metadata.height,
-            // TODO(Yael 18/9/2024): dont forget to flush the cached_state cache into the global
+            // TODO(Yael 18/9/2024): do not forget to flush the cached_state cache into the global
             // cache on decision_reached.
             self.global_class_hash_to_class.clone(),
         );
