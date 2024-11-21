@@ -302,23 +302,27 @@ pub struct BlockBuilderFactory {
 }
 
 impl BlockBuilderFactory {
-    fn preprocess_and_create_transaction_executor(
-        &self,
-        height: BlockNumber,
-        retrospective_block_hash: Option<BlockHashAndNumber>,
-    ) -> BlockBuilderResult<TransactionExecutor<PapyrusReader>> {
-        let block_builder_config = self.block_builder_config.clone();
-        let next_block_info = BlockInfo {
+    fn next_block_info(&self, height: BlockNumber) -> BlockBuilderResult<BlockInfo> {
+        Ok(BlockInfo {
             block_number: height,
             block_timestamp: BlockTimestamp(chrono::Utc::now().timestamp().try_into()?),
-            sequencer_address: block_builder_config.sequencer_address,
+            sequencer_address: self.block_builder_config.sequencer_address,
             // TODO (yael 7/10/2024): add logic to compute gas prices
             gas_prices: {
                 let tmp_val = NonzeroGasPrice::MIN;
                 gas_prices(tmp_val, tmp_val, tmp_val, tmp_val, tmp_val, tmp_val)
             },
-            use_kzg_da: block_builder_config.use_kzg_da,
-        };
+            use_kzg_da: self.block_builder_config.use_kzg_da,
+        })
+    }
+
+    fn preprocess_and_create_transaction_executor(
+        &self,
+        next_block_info: BlockInfo,
+        retrospective_block_hash: Option<BlockHashAndNumber>,
+    ) -> BlockBuilderResult<TransactionExecutor<PapyrusReader>> {
+        let block_builder_config = self.block_builder_config.clone();
+        let height = next_block_info.block_number;
         let versioned_constants = VersionedConstants::get_versioned_constants(
             block_builder_config.versioned_constants_overrides,
         );
@@ -332,7 +336,7 @@ impl BlockBuilderFactory {
         let state_reader = PapyrusReader::new(
             self.storage_reader.clone(),
             height,
-            // TODO(Yael 18/9/2024): dont forget to flush the cached_state cache into the global
+            // TODO(Yael 18/9/2024): do not forget to flush the cached_state cache into the global
             // cache on decision_reached.
             self.global_class_hash_to_class.clone(),
         );
@@ -358,8 +362,12 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
         output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<Transaction>>,
         abort_signal_receiver: tokio::sync::oneshot::Receiver<()>,
     ) -> BlockBuilderResult<Box<dyn BlockBuilderTrait>> {
-        let executor =
-            self.preprocess_and_create_transaction_executor(height, retrospective_block_hash)?;
+        // TODO(Arni): Get block info as a parameter for this function.
+        let next_block_info = self.next_block_info(height)?;
+        let executor = self.preprocess_and_create_transaction_executor(
+            next_block_info,
+            retrospective_block_hash,
+        )?;
         Ok(Box::new(BlockBuilder::new(
             Box::new(executor),
             tx_provider,
