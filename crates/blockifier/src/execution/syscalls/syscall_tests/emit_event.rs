@@ -28,10 +28,10 @@ const N_EMITTED_EVENTS: [Felt; 1] = [Felt::from_hex_unchecked("0x1")];
 
 #[cfg_attr(
   feature = "cairo_native",
-  test_case(FeatureContract::TestContract(CairoVersion::Native), 57330; "Native")
+  test_case(FeatureContract::TestContract(CairoVersion::Native); "Native")
 )]
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 47330; "VM")]
-fn positive_flow(test_contract: FeatureContract, expected_gas: u64) {
+#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1); "VM")]
+fn positive_flow(test_contract: FeatureContract) {
     let call_info = emit_events(test_contract, &N_EMITTED_EVENTS, &KEYS, &DATA)
         .expect("emit_events failed with valued parameters");
     let event = EventContent {
@@ -43,7 +43,7 @@ fn positive_flow(test_contract: FeatureContract, expected_gas: u64) {
         call_info.execution,
         CallExecution {
             events: vec![OrderedEvent { order: 0, event }],
-            gas_consumed: expected_gas,
+            gas_consumed: 47330,
             ..Default::default()
         }
     );

@@ -15,10 +15,10 @@ use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, BALANCE}
 
 #[cfg_attr(
     feature = "cairo_native",
-    test_case(FeatureContract::TestContract(CairoVersion::Native), 26990; "Native")
+    test_case(FeatureContract::TestContract(CairoVersion::Native); "Native")
 )]
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), REQUIRED_GAS_STORAGE_READ_WRITE_TEST; "VM")]
-fn test_storage_read_write(test_contract: FeatureContract, expected_gas: u64) {
+#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1); "VM")]
+fn test_storage_read_write(test_contract: FeatureContract) {
     let chain_info = &ChainInfo::create_for_testing();
     let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1)]);
 
@@ -35,7 +35,7 @@ fn test_storage_read_write(test_contract: FeatureContract, expected_gas: u64) {
         entry_point_call.execute_directly(&mut state).unwrap().execution,
         CallExecution {
             retdata: retdata![value],
-            gas_consumed: expected_gas,
+            gas_consumed: REQUIRED_GAS_STORAGE_READ_WRITE_TEST,
             ..CallExecution::default()
         }
     );

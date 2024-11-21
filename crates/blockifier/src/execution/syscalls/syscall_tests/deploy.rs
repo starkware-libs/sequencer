@@ -14,12 +14,12 @@ use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{calldata_for_deploy_test, trivial_external_entry_point_new, CairoVersion};
 
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 205200;"VM")]
+#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1);"VM")]
 #[cfg_attr(
     feature = "cairo_native",
-    test_case(FeatureContract::TestContract(CairoVersion::Native), 215200;"Native")
+    test_case(FeatureContract::TestContract(CairoVersion::Native);"Native")
 )]
-fn no_constructor(deployer_contract: FeatureContract, expected_gas: u64) {
+fn no_constructor(deployer_contract: FeatureContract) {
     // TODO(Yoni): share the init code of the tests in this file.
 
     let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1);
@@ -41,11 +41,7 @@ fn no_constructor(deployer_contract: FeatureContract, expected_gas: u64) {
     let deploy_call = &entry_point_call.execute_directly(&mut state).unwrap();
     assert_eq!(
         deploy_call.execution,
-        CallExecution {
-            retdata: retdata![],
-            gas_consumed: expected_gas,
-            ..CallExecution::default()
-        }
+        CallExecution { retdata: retdata![], gas_consumed: 205200, ..CallExecution::default() }
     );
 
     let deployed_contract_address = calculate_contract_address(
@@ -96,16 +92,12 @@ fn no_constructor_nonempty_calldata(deployer_contract: FeatureContract) {
     ));
 }
 
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1),214550, 4610;"VM")]
+#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1);"VM")]
 #[cfg_attr(
     feature = "cairo_native",
-    test_case(FeatureContract::TestContract(CairoVersion::Native),234550, 14610;"Native")
+    test_case(FeatureContract::TestContract(CairoVersion::Native);"Native")
 )]
-fn with_constructor(
-    deployer_contract: FeatureContract,
-    expected_gas: u64,
-    expected_constructor_gas: u64,
-) {
+fn with_constructor(deployer_contract: FeatureContract) {
     let mut state = test_state(&ChainInfo::create_for_testing(), Fee(0), &[(deployer_contract, 1)]);
 
     let class_hash = deployer_contract.get_class_hash();
@@ -134,11 +126,7 @@ fn with_constructor(
     let deploy_call = &entry_point_call.execute_directly(&mut state).unwrap();
     assert_eq!(
         deploy_call.execution,
-        CallExecution {
-            retdata: retdata![],
-            gas_consumed: expected_gas,
-            ..CallExecution::default()
-        }
+        CallExecution { retdata: retdata![], gas_consumed: 214550, ..CallExecution::default() }
     );
 
     let constructor_call = &deploy_call.inner_calls[0];
@@ -150,7 +138,7 @@ fn with_constructor(
             // The test contract constructor returns its first argument.
             retdata: retdata![constructor_calldata[0]],
             // This reflects the gas cost of storage write syscall.
-            gas_consumed: expected_constructor_gas,
+            gas_consumed: 4610,
             ..CallExecution::default()
         }
     );
