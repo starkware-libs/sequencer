@@ -148,15 +148,8 @@ where
     Ok(TestSubscriberChannels { subscriber_channels, mock_network })
 }
 
-pub fn create_network_config_connected_to_broadcast_channels<T>(
-    topic: Topic,
-) -> (NetworkConfig, BroadcastTopicChannels<T>)
-where
-    T: TryFrom<Bytes> + 'static,
-    Bytes: From<T>,
-{
-    const BUFFER_SIZE: usize = 1000;
-
+// TODO(shahak): Change to n instead of 2.
+pub fn create_two_connected_network_configs() -> (NetworkConfig, NetworkConfig) {
     let [channels_port, config_port] = find_n_free_ports::<2>();
 
     let channels_secret_key = [1u8; 32];
@@ -177,6 +170,19 @@ where
         ),
         ..Default::default()
     };
+    (channels_config, result_config)
+}
+
+pub fn create_network_config_connected_to_broadcast_channels<T>(
+    topic: Topic,
+) -> (NetworkConfig, BroadcastTopicChannels<T>)
+where
+    T: TryFrom<Bytes> + 'static,
+    Bytes: From<T>,
+{
+    const BUFFER_SIZE: usize = 1000;
+
+    let (channels_config, result_config) = create_two_connected_network_configs();
 
     let mut channels_network_manager = NetworkManager::new(channels_config, None);
     let broadcast_channels =
