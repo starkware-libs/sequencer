@@ -35,9 +35,10 @@ pub struct ProposeBlockInput {
     pub proposal_id: ProposalId,
     pub deadline: chrono::DateTime<Utc>,
     pub retrospective_block_hash: Option<BlockHashAndNumber>,
+    /// Part of the block info. Whether the block will be built with KZG data availability.
+    pub use_kzg_da: bool,
     // TODO: Should we get the gas price here?
     // TODO: add proposer address.
-    // TODO: add whether the kzg mechanism is used for DA.
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -63,6 +64,8 @@ pub struct ValidateBlockInput {
     pub proposal_id: ProposalId,
     pub deadline: chrono::DateTime<Utc>,
     pub retrospective_block_hash: Option<BlockHashAndNumber>,
+    /// Part of the block info. Whether the block will be built with KZG data availability.
+    pub use_kzg_da: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -92,7 +95,7 @@ pub enum ProposalStatus {
     // Only sent in response to `Abort`.
     Aborted,
     // May be caused due to handling of a previous item of the new proposal.
-    // In this case, the propsal is aborted and no additional content will be processed.
+    // In this case, the proposal is aborted and no additional content will be processed.
     InvalidProposal,
 }
 
