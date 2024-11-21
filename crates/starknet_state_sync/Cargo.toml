@@ -23,3 +23,6 @@ starknet_sequencer_infra.workspace = true
 starknet_state_sync_types.workspace = true
 tokio.workspace = true
 validator.workspace = true
+
+[dev-dependencies]
+papyrus_storage = { workspace = true, features = ["testing"] }
