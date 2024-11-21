@@ -14,7 +14,9 @@ use blockifier_reexecution::state_reader::utils::{
 };
 use clap::{Args, Parser, Subcommand};
 use google_cloud_storage::client::{Client, ClientConfig};
+use google_cloud_storage::http::objects::download::Range;
 use google_cloud_storage::http::objects::get::GetObjectRequest;
+use google_cloud_storage::http::objects::upload::{Media, UploadObjectRequest, UploadType};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ChainId;
 use starknet_gateway::config::RpcStateReaderConfig;
@@ -111,7 +113,20 @@ enum Command {
     },
 
     // Upload all (selected) blocks to the gc bucket.
-    UploadAll {
+    UploadFiles {
+        /// Block numbers. If not specified, blocks are retrieved from
+        /// get_block_numbers_for_reexecution().
+        #[clap(long, short = 'b', num_args = 1.., default_value = None)]
+        block_numbers: Option<Vec<u64>>,
+
+        // Directory path to json files directory. Default:
+        // "./crates/blockifier_reexecution/resources".
+        #[clap(long, short = 'd', default_value = None)]
+        directory_path: Option<String>,
+    },
+
+    // Download all (selected) blocks from the gc bucket.
+    DownloadFiles {
         /// Block numbers. If not specified, blocks are retrieved from
         /// get_block_numbers_for_reexecution().
         #[clap(long, short = 'b', num_args = 1.., default_value = None)]
@@ -223,7 +238,9 @@ async fn main() {
             }
         }
 
-        Command::UploadAll { block_numbers, directory_path } => {
+        // Uploading the files requires authentication; please run
+        // `gcloud auth application-default login` in terminal before running this command.
+        Command::UploadFiles { block_numbers, directory_path } => {
             let directory_path =
                 directory_path.unwrap_or("./crates/blockifier_reexecution/resources".to_string());
 
@@ -231,10 +248,13 @@ async fn main() {
             println!("Uploading blocks {block_numbers:?}.");
 
             let files_prefix: String =
-                fs::read_to_string(directory_path.clone() + "/offline_reeexecution_files_prefix")
-                    .unwrap()
+                fs::read_to_string(directory_path.clone() + "/offline_reexecution_files_prefix")
+                    .expect("Failed to read files' prefix.")
+                    .trim()
+                    .to_string()
                     + "/resources/";
 
+            // Get the client with authentication.
             let config = ClientConfig::default().with_auth().await.unwrap();
             let client = Client::new(config);
 
@@ -262,9 +282,71 @@ async fn main() {
             }
 
             // Upload all files to the gc bucket.
-            // for block_number in &block_numbers {}
+            for block_number in &block_numbers {
+                client
+                    .upload_object(
+                        &UploadObjectRequest {
+                            bucket: "reexecution_artifacts".to_string(),
+                            ..Default::default()
+                        },
+                        fs::read(format!(
+                            "{directory_path}/block_{block_number}/reexecution_data.json"
+                        ))
+                        .unwrap(),
+                        &UploadType::Simple(Media::new(
+                            files_prefix.clone()
+                                + &format!("block_{block_number}/reexecution_data.json"),
+                        )),
+                    )
+                    .await
+                    .unwrap();
+            }
 
             println!("All blocks uploaded successfully.");
+        }
+
+        Command::DownloadFiles { block_numbers, directory_path } => {
+            let directory_path =
+                directory_path.unwrap_or("./crates/blockifier_reexecution/resources".to_string());
+
+            let block_numbers = parse_block_numbers_args(block_numbers);
+            println!("Downloading blocks {block_numbers:?}.");
+
+            let files_prefix: String =
+                fs::read_to_string(directory_path.clone() + "/offline_reexecution_files_prefix")
+                    .expect("Failed to read files' prefix.")
+                    .trim()
+                    .to_string()
+                    + "/resources/";
+
+            // Get the client with authentication.
+            // TODO(Aner): remove the need for authentication.
+            let config = ClientConfig::default().with_auth().await.unwrap();
+            let client = Client::new(config);
+
+            // Download all files from the gc bucket.
+            for block_number in &block_numbers {
+                let res = client
+                    .download_object(
+                        &GetObjectRequest {
+                            bucket: "reexecution_artifacts".to_string(),
+                            object: files_prefix.clone()
+                                + &format!("block_{block_number}/reexecution_data.json"),
+                            ..Default::default()
+                        },
+                        &Range::default(),
+                    )
+                    .await
+                    .unwrap();
+                fs::create_dir_all(format!("{directory_path}/block_{block_number}")).unwrap();
+                fs::write(
+                    format!("{directory_path}/block_{block_number}/reexecution_data.json"),
+                    res,
+                )
+                .unwrap();
+            }
+
+            println!("All blocks downloaded successfully.");
         }
     }
 }
