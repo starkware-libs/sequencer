@@ -4,11 +4,17 @@ use std::sync::LazyLock;
 
 use thiserror::Error;
 
+#[cfg(test)]
+#[path = "path_test.rs"]
+mod path_test;
+
 #[derive(Debug, Error)]
 pub enum PathResolutionError {
     // TODO(Arni): Handle manifest dir not exist here?
     #[error("No file exists at '{path}'")]
     PathDoesNotExist { path: PathBuf },
+    /// This error is raised when file existence can be neither confirmed nor denied. See
+    /// [`std::path::Path::try_exists`] for more information.
     #[error(transparent)]
     IoError(#[from] std::io::Error),
 }
