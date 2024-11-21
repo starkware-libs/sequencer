@@ -1,17 +1,21 @@
 use std::env;
 use std::process::Command;
 
-include!("src/build_utils.rs");
+use infra_utils::path::resolve_project_relative_path;
+
+include!("src/path_constants.rs");
 
 fn main() {
     println!("cargo:rerun-if-changed=../../Cargo.lock");
     println!("cargo:rerun-if-changed=build.rs");
 
-    let cairo_lang_binary_path = binary_path(CAIRO_LANG_BINARY_NAME);
+    let cairo_lang_binary_path =
+        resolve_project_relative_path(SHARED_EXECUTABLES_DIR).join(CAIRO_LANG_BINARY_NAME);
     println!("cargo:rerun-if-changed={:?}", cairo_lang_binary_path);
     #[cfg(feature = "cairo_native")]
     {
-        let cairo_native_binary_path = binary_path(CAIRO_NATIVE_BINARY_NAME);
+        let cairo_native_binary_path =
+            resolve_project_relative_path(SHARED_EXECUTABLES_DIR).join(CAIRO_NATIVE_BINARY_NAME);
         println!("cargo:rerun-if-changed={:?}", cairo_native_binary_path);
     }
 
@@ -42,8 +46,9 @@ fn install_starknet_sierra_compile() {
 #[cfg(feature = "cairo_native")]
 fn install_starknet_native_compile() {
     // Set the runtime library path. This is required for Cairo native compilation.
-    let runtime_library_path = project_root_path()
-        .join("crates/blockifier/cairo_native/target/release/libcairo_native_runtime.a");
+    let runtime_library_path = resolve_project_relative_path(
+        "crates/blockifier/cairo_native/target/release/libcairo_native_runtime.a",
+    );
     println!("cargo:rustc-env=CAIRO_NATIVE_RUNTIME_LIBRARY={}", runtime_library_path.display());
     println!("cargo:rerun-if-env-changed=CAIRO_NATIVE_RUNTIME_LIBRARY");
 
@@ -62,7 +67,7 @@ fn install_starknet_native_compile() {
 }
 
 fn install_compiler_binary(binary_name: &str, required_version: &str, cargo_install_args: &[&str]) {
-    let binary_path = binary_path(binary_name);
+    let binary_path = resolve_project_relative_path(SHARED_EXECUTABLES_DIR).join(binary_name);
 
     match Command::new(&binary_path).args(["--version"]).output() {
         Ok(binary_version) => {
@@ -106,7 +111,7 @@ fn install_compiler_binary(binary_name: &str, required_version: &str, cargo_inst
     }
 
     // Move the 'starknet-sierra-compile' executable to a shared location
-    std::fs::create_dir_all(shared_folder_dir())
+    std::fs::create_dir_all(resolve_project_relative_path(SHARED_EXECUTABLES_DIR))
         .expect("Failed to create shared executables folder");
     let move_command_status = Command::new("mv")
         .args([post_install_file_path.as_os_str(), binary_path.as_os_str()])

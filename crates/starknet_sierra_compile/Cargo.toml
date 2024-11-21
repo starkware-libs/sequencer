@@ -16,6 +16,7 @@ cairo-lang-sierra.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-lang-utils.workspace = true
 cairo-native = { workspace = true, optional = true }
+infra_utils.workspace = true
 papyrus_config.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -29,3 +30,6 @@ validator.workspace = true
 assert_matches.workspace = true
 mempool_test_utils.workspace = true
 rstest.workspace = true
+
+[build-dependencies]
+infra_utils.workspace = true
