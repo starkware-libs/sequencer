@@ -2,12 +2,12 @@
   "buffer_size": {
     "description": "The buffer size for the network receiver.",
     "privacy": "Public",
-    "value": 1000
+    "value": 10000
   },
   "message_size": {
     "description": "The size of the payload for the test messages.",
     "privacy": "Public",
-    "value": 1000
+    "value": 10000
   },
   "network_config.advertised_multiaddr": {
     "description": "The external address other peers see this node. If this is set, the node will not try to find out which addresses it has and will write this address as external instead",
