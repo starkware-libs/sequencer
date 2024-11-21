@@ -139,7 +139,7 @@ fn test_events_counter_in_tx_execution_info(
     };
 
     assert_eq!(
-        tx_execution_info.summarize(&VersionedConstants::latest_constants()).event_summary.n_events,
+        tx_execution_info.summarize(VersionedConstants::latest_constants()).event_summary.n_events,
         n_validate_events + n_execute_events + n_fee_transfer_events + n_inner_calls
     );
 }

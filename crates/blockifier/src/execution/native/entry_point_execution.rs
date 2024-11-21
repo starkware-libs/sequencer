@@ -43,7 +43,7 @@ pub fn execute_entry_point_call(
     let execution_result = contract_class.executor.run(
         entry_point.selector.0,
         &syscall_handler.call.calldata.0.clone(),
-        Some(syscall_handler.call.initial_gas.into()),
+        Some(syscall_handler.call.initial_gas),
         Some(builtin_costs),
         &mut syscall_handler,
     );
