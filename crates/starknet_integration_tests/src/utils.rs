@@ -33,9 +33,9 @@ use starknet_gateway::config::{
 };
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_http_server::config::HttpServerConfig;
+use starknet_sequencer_infra::test_utils::get_available_socket;
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::config::test_utils::RequiredParams;
-use tokio::net::TcpListener;
 
 pub fn create_chain_info() -> ChainInfo {
     let mut chain_info = ChainInfo::create_for_testing();
@@ -103,21 +103,6 @@ pub fn test_rpc_state_reader_config(rpc_server_addr: SocketAddr) -> RpcStateRead
         url: format!("http://{rpc_server_addr:?}/rpc/{RPC_SPEC_VERSION}"),
         json_rpc_version: JSON_RPC_VERSION.to_string(),
     }
-}
-
-/// Returns a unique IP address and port for testing purposes.
-///
-/// Tests run in parallel, so servers (like RPC or web) running on separate tests must have
-/// different ports, otherwise the server will fail with "address already in use".
-pub async fn get_available_socket() -> SocketAddr {
-    // Dynamically select port.
-    // First, set the port to 0 (dynamic port).
-    TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("Failed to bind to address")
-        // Then, resolve to the actual selected port.
-        .local_addr()
-        .expect("Failed to get local address")
 }
 
 /// A test utility client for interacting with an http server.

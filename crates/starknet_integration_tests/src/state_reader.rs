@@ -41,12 +41,11 @@ use starknet_api::state::{StorageKey, ThinStateDiff};
 use starknet_api::transaction::fields::Fee;
 use starknet_api::{contract_address, felt};
 use starknet_client::reader::PendingData;
+use starknet_sequencer_infra::test_utils::get_available_socket;
 use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 use tempfile::TempDir;
 use tokio::sync::RwLock;
-
-use crate::utils::get_available_socket;
 
 type ContractClassesMap =
     (Vec<(ClassHash, DeprecatedContractClass)>, Vec<(ClassHash, CasmContractClass)>);
