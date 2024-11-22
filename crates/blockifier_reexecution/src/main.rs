@@ -21,6 +21,12 @@ use starknet_api::block::BlockNumber;
 use starknet_api::core::ChainId;
 use starknet_gateway::config::RpcStateReaderConfig;
 
+const BUCKET: &str = "reexecution_artifacts";
+const RESOURCES_DIR: &str = "/resources";
+const FULL_RESOURCES_DIR: &str = "./crates/blockifier_reexecution/resources";
+const FILE_NAME: &str = "/reexecution_data.json";
+const OFFLINE_PREFIX_FILE: &str = "/offline_reexecution_files_prefix";
+
 /// BlockifierReexecution CLI.
 #[derive(Debug, Parser)]
 #[clap(name = "blockifier-reexecution-cli", version)]
@@ -154,6 +160,22 @@ struct GlobalOptions {}
 async fn main() {
     let args = BlockifierReexecutionCliArgs::parse();
 
+    // Lambda functions for single point of truth.
+    let block_dir = |block_number| format!("/block_{block_number}");
+    let block_data_file = |block_number| block_dir(block_number) + FILE_NAME;
+    let block_full_directory =
+        |directory_path: String, block_number| directory_path + &block_dir(block_number);
+    let block_full_file_path = |directory_path, block_number| {
+        block_full_directory(directory_path, block_number) + FILE_NAME
+    };
+    let prefix_dir = |directory_path| {
+        fs::read_to_string(directory_path + OFFLINE_PREFIX_FILE)
+            .expect("Failed to read files' prefix.")
+            .trim()
+            .to_string()
+            + RESOURCES_DIR
+    };
+
     match args.command {
         Command::RpcTest { block_number, rpc_args } => {
             println!(
@@ -186,8 +208,7 @@ async fn main() {
         }
 
         Command::WriteToFile { block_numbers, directory_path, rpc_args } => {
-            let directory_path =
-                directory_path.unwrap_or("./crates/blockifier_reexecution/resources".to_string());
+            let directory_path = directory_path.unwrap_or(FULL_RESOURCES_DIR.to_string());
 
             let block_numbers = parse_block_numbers_args(block_numbers);
             println!("Computing reexecution data for blocks {block_numbers:?}.");
@@ -195,8 +216,7 @@ async fn main() {
             // TODO(Aner): Execute in parallel. Requires making the function async, and only the RPC
             // calls blocking.
             for block_number in block_numbers {
-                let full_file_path =
-                    format!("{directory_path}/block_{block_number}/reexecution_data.json");
+                let full_file_path = block_full_file_path(directory_path.clone(), block_number);
                 let (node_url, chain_id) = (rpc_args.node_url.clone(), rpc_args.parse_chain_id());
                 // RPC calls are "synchronous IO" (see, e.g., https://stackoverflow.com/questions/74547541/when-should-you-use-tokios-spawn-blocking
                 // for details), so should be executed in a blocking thread.
@@ -216,16 +236,14 @@ async fn main() {
         }
 
         Command::Reexecute { block_numbers, directory_path } => {
-            let directory_path =
-                directory_path.unwrap_or("./crates/blockifier_reexecution/resources".to_string());
+            let directory_path = directory_path.unwrap_or(FULL_RESOURCES_DIR.to_string());
 
             let block_numbers = parse_block_numbers_args(block_numbers);
             println!("Reexecuting blocks {block_numbers:?}.");
 
             let mut threads = vec![];
             for block in block_numbers {
-                let full_file_path =
-                    format!("{directory_path}/block_{block}/reexecution_data.json");
+                let full_file_path = block_full_file_path(directory_path.clone(), block);
                 threads.push(tokio::task::spawn(async move {
                     reexecute_and_verify_correctness(
                         OfflineConsecutiveStateReaders::new_from_file(&full_file_path).unwrap(),
@@ -241,37 +259,34 @@ async fn main() {
         // Uploading the files requires authentication; please run
         // `gcloud auth application-default login` in terminal before running this command.
         Command::UploadFiles { block_numbers, directory_path } => {
-            let directory_path =
-                directory_path.unwrap_or("./crates/blockifier_reexecution/resources".to_string());
+            let directory_path = directory_path.unwrap_or(FULL_RESOURCES_DIR.to_string());
 
             let block_numbers = parse_block_numbers_args(block_numbers);
             println!("Uploading blocks {block_numbers:?}.");
 
-            let files_prefix: String =
-                fs::read_to_string(directory_path.clone() + "/offline_reexecution_files_prefix")
-                    .expect("Failed to read files' prefix.")
-                    .trim()
-                    .to_string()
-                    + "/resources/";
+            let files_prefix = prefix_dir(directory_path.clone());
 
             // Get the client with authentication.
-            let config = ClientConfig::default().with_auth().await.unwrap();
+            let config = ClientConfig::default().with_auth().await.expect(
+                "Failed to get client. Please run `gcloud auth application-default login`.",
+            );
             let client = Client::new(config);
 
             // Verify all required files exist locally, and do not exist in the gc bucket.
-            for block_number in &block_numbers {
+            for block_number in block_numbers.clone() {
                 assert!(
-                    Path::exists(Path::new(&format!(
-                        "{directory_path}/block_{block_number}/reexecution_data.json"
+                    Path::exists(Path::new(&block_full_file_path(
+                        directory_path.clone(),
+                        block_number
                     ))),
                     "Block {block_number} reexecution data file does not exist."
                 );
                 assert!(
                     client
                         .get_object(&GetObjectRequest {
-                            bucket: "reexecution_artifacts".to_string(),
+                            bucket: BUCKET.to_string(),
                             object: files_prefix.clone()
-                                + &format!("block_{block_number}/reexecution_data.json"),
+                                + &block_data_file(block_number),
                             ..Default::default()
                         })
                         .await
@@ -282,20 +297,14 @@ async fn main() {
             }
 
             // Upload all files to the gc bucket.
-            for block_number in &block_numbers {
+            for block_number in block_numbers {
                 client
                     .upload_object(
-                        &UploadObjectRequest {
-                            bucket: "reexecution_artifacts".to_string(),
-                            ..Default::default()
-                        },
-                        fs::read(format!(
-                            "{directory_path}/block_{block_number}/reexecution_data.json"
-                        ))
-                        .unwrap(),
+                        &UploadObjectRequest { bucket: BUCKET.to_string(), ..Default::default() },
+                        fs::read(block_full_file_path(directory_path.clone(), block_number))
+                            .unwrap(),
                         &UploadType::Simple(Media::new(
-                            files_prefix.clone()
-                                + &format!("block_{block_number}/reexecution_data.json"),
+                            files_prefix.clone() + &block_data_file(block_number),
                         )),
                     )
                     .await
@@ -306,47 +315,36 @@ async fn main() {
         }
 
         Command::DownloadFiles { block_numbers, directory_path } => {
-            let directory_path =
-                directory_path.unwrap_or("./crates/blockifier_reexecution/resources".to_string());
+            let directory_path = directory_path.unwrap_or(FULL_RESOURCES_DIR.to_string());
 
             let block_numbers = parse_block_numbers_args(block_numbers);
             println!("Downloading blocks {block_numbers:?}.");
 
-            let files_prefix: String =
-                fs::read_to_string(directory_path.clone() + "/offline_reexecution_files_prefix")
-                    .expect("Failed to read files' prefix.")
-                    .trim()
-                    .to_string()
-                    + "/resources/";
+            let files_prefix = prefix_dir(directory_path.clone());
 
             // Get the client with authentication.
-            // TODO(Aner): remove the need for authentication.
             let config = ClientConfig::default().with_auth().await.unwrap();
             let client = Client::new(config);
 
             // Download all files from the gc bucket.
-            for block_number in &block_numbers {
+            for block_number in block_numbers {
                 let res = client
                     .download_object(
                         &GetObjectRequest {
-                            bucket: "reexecution_artifacts".to_string(),
-                            object: files_prefix.clone()
-                                + &format!("block_{block_number}/reexecution_data.json"),
+                            bucket: BUCKET.to_string(),
+                            object: files_prefix.clone() + &block_data_file(block_number),
                             ..Default::default()
                         },
                         &Range::default(),
                     )
                     .await
                     .unwrap();
-                fs::create_dir_all(format!("{directory_path}/block_{block_number}")).unwrap();
-                fs::write(
-                    format!("{directory_path}/block_{block_number}/reexecution_data.json"),
-                    res,
-                )
-                .unwrap();
+                fs::create_dir_all(block_full_directory(directory_path.clone(), block_number))
+                    .unwrap();
+                fs::write(block_full_file_path(directory_path.clone(), block_number), res).unwrap();
             }
 
-            println!("All blocks downloaded successfully.");
+            println!("All blocks downloaded successfully to {directory_path}.");
         }
     }
 }
