@@ -2,8 +2,6 @@ use std::net::SocketAddr;
 
 use tokio::net::TcpListener;
 
-// TODO(Nadin): Merge this get_available_socket function with the one in the test_integration crate
-// and remove the duplicate there.
 /// Returns a unique IP address and port for testing purposes.
 /// Tests run in parallel, so servers (like RPC or web) running on separate tests must have
 /// different ports, otherwise the server will fail with "address already in use".
