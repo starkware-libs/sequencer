@@ -37,6 +37,7 @@ use starknet_sequencer_infra::test_utils::get_available_socket;
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::config::test_utils::RequiredParams;
 
+<<<<<<< Updated upstream
 pub fn create_chain_info() -> ChainInfo {
     let mut chain_info = ChainInfo::create_for_testing();
     // Note that the chain_id affects hashes of transactions and blocks, therefore affecting the
@@ -104,6 +105,7 @@ pub fn test_rpc_state_reader_config(rpc_server_addr: SocketAddr) -> RpcStateRead
         json_rpc_version: JSON_RPC_VERSION.to_string(),
     }
 }
+
 
 /// A test utility client for interacting with an http server.
 pub struct HttpTestClient {
@@ -234,40 +236,4 @@ where
 {
     let rpc_txs = create_account_txs(tx_generator, n_txs, account_id);
     send_rpc_txs(rpc_txs, send_rpc_tx_fn).await
-}
-
-pub async fn create_gateway_config(chain_info: ChainInfo) -> GatewayConfig {
-    let stateless_tx_validator_config = StatelessTransactionValidatorConfig {
-        validate_non_zero_l1_gas_fee: true,
-        max_calldata_length: 10,
-        max_signature_length: 2,
-        ..Default::default()
-    };
-    let stateful_tx_validator_config = StatefulTransactionValidatorConfig::default();
-
-    GatewayConfig { stateless_tx_validator_config, stateful_tx_validator_config, chain_info }
-}
-
-pub async fn create_http_server_config() -> HttpServerConfig {
-    // TODO(Tsabary): use ser_generated_param.
-    let socket = get_available_socket().await;
-    HttpServerConfig { ip: socket.ip(), port: socket.port() }
-}
-
-pub fn create_batcher_config(
-    batcher_storage_config: StorageConfig,
-    chain_info: ChainInfo,
-) -> BatcherConfig {
-    // TODO(Arni): Create BlockBuilderConfig create for testing method and use here.
-    const SEQUENCER_ADDRESS_FOR_TESTING: u128 = 1991;
-
-    BatcherConfig {
-        storage: batcher_storage_config,
-        block_builder_config: BlockBuilderConfig {
-            chain_info,
-            sequencer_address: contract_address!(SEQUENCER_ADDRESS_FOR_TESTING),
-            ..Default::default()
-        },
-        ..Default::default()
-    }
 }
