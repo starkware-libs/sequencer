@@ -189,7 +189,7 @@ impl FeatureContract {
         #[cfg(feature = "cairo_native")]
         if CairoVersion::Native == self.cairo_version() {
             let native_contract_class =
-                NativeContractClassV1::compile_or_get_cached(&self.get_compiled_path()).into();
+                NativeContractClassV1::compile_or_get_cached(&self.get_compiled_path());
             return RunnableContractClass::V1Native(native_contract_class);
         }
 

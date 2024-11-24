@@ -411,8 +411,7 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
             storage_address: self.call.storage_address,
             caller_address: self.call.caller_address,
             call_type: CallType::Delegate,
-            initial_gas: u64::try_from(*remaining_gas)
-                .expect("Failed to convert gas (u128 -> u64)"),
+            initial_gas: *remaining_gas,
         };
 
         Ok(self.execute_inner_call(entry_point, remaining_gas)?.0)
@@ -450,8 +449,7 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
             storage_address: contract_address,
             caller_address: self.call.caller_address,
             call_type: CallType::Call,
-            initial_gas: u64::try_from(*remaining_gas)
-                .expect("Failed to convert gas from u128 to u64."),
+            initial_gas: *remaining_gas,
         };
 
         Ok(self.execute_inner_call(entry_point, remaining_gas)?.0)
@@ -578,9 +576,8 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
 
         // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion
         // works.
-        let n_rounds_as_u128 = u64::try_from(n_rounds).expect("Failed to convert usize to u128.");
-        let gas_cost =
-            n_rounds_as_u128 * u64::from(self.context.gas_costs().keccak_round_cost_gas_cost);
+        let n_rounds = u64::try_from(n_rounds).expect("Failed to convert usize to u64.");
+        let gas_cost = n_rounds * self.context.gas_costs().keccak_round_cost_gas_cost;
 
         if gas_cost > *remaining_gas {
             return Err(self.handle_error(
