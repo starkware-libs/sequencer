@@ -9,7 +9,7 @@ use blockifier::execution::call_info::{
     Retdata as BlockifierRetdata,
 };
 use blockifier::execution::entry_point::CallType as BlockifierCallType;
-use blockifier::transaction::objects::{FeeType, TransactionExecutionInfo};
+use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::utils::u64_from_usize;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources as VmExecutionResources;
@@ -23,7 +23,7 @@ use papyrus_common::state::{
     StorageEntry,
 };
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockTimestamp, GasPrice, GasPricePerToken};
+use starknet_api::block::{BlockTimestamp, FeeType, GasPrice, GasPricePerToken};
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{
     ClassHash,

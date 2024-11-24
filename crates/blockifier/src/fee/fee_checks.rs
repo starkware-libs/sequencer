@@ -1,3 +1,4 @@
+use starknet_api::block::FeeType;
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::transaction::fields::Resource::{self, L1DataGas, L1Gas, L2Gas};
 use starknet_api::transaction::fields::{
@@ -14,7 +15,7 @@ use crate::fee::fee_utils::{get_balance_and_if_covers_fee, get_fee_by_gas_vector
 use crate::fee::receipt::TransactionReceipt;
 use crate::state::state_api::StateReader;
 use crate::transaction::errors::TransactionExecutionError;
-use crate::transaction::objects::{FeeType, TransactionExecutionResult, TransactionInfo};
+use crate::transaction::objects::{TransactionExecutionResult, TransactionInfo};
 
 #[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Copy, Debug, Error, PartialEq)]

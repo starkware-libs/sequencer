@@ -13,7 +13,7 @@ use starknet_api::abi::abi_utils::{
     selector_from_name,
 };
 use starknet_api::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
-use starknet_api::block::GasPriceVector;
+use starknet_api::block::{FeeType, GasPriceVector};
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, EthAddress, Nonce};
 use starknet_api::executable_transaction::AccountTransaction as ApiExecutableTransaction;
@@ -123,7 +123,6 @@ use crate::transaction::errors::{
     TransactionPreValidationError,
 };
 use crate::transaction::objects::{
-    FeeType,
     HasRelatedFeeType,
     TransactionExecutionInfo,
     TransactionInfo,

@@ -6,6 +6,7 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Poseidon, StarkHash as CoreStarkHash};
+use strum_macros::EnumIter;
 
 use crate::core::{
     EventCommitment,
@@ -442,6 +443,39 @@ pub struct GasPriceVector {
     pub l1_gas_price: NonzeroGasPrice,
     pub l1_data_gas_price: NonzeroGasPrice,
     pub l2_gas_price: NonzeroGasPrice,
+}
+
+#[derive(Clone, Copy, Hash, EnumIter, Eq, PartialEq)]
+pub enum FeeType {
+    Strk,
+    Eth,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct GasPrices {
+    pub eth_gas_prices: GasPriceVector,  // In wei.
+    pub strk_gas_prices: GasPriceVector, // In fri.
+}
+
+impl GasPrices {
+    pub fn l1_gas_price(&self, fee_type: &FeeType) -> NonzeroGasPrice {
+        self.gas_price_vector(fee_type).l1_gas_price
+    }
+
+    pub fn l1_data_gas_price(&self, fee_type: &FeeType) -> NonzeroGasPrice {
+        self.gas_price_vector(fee_type).l1_data_gas_price
+    }
+
+    pub fn l2_gas_price(&self, fee_type: &FeeType) -> NonzeroGasPrice {
+        self.gas_price_vector(fee_type).l2_gas_price
+    }
+
+    pub fn gas_price_vector(&self, fee_type: &FeeType) -> &GasPriceVector {
+        match fee_type {
+            FeeType::Strk => &self.strk_gas_prices,
+            FeeType::Eth => &self.eth_gas_prices,
+        }
+    }
 }
 
 /// The timestamp of a [Block](`crate::block::Block`).
