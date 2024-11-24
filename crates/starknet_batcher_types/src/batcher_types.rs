@@ -35,7 +35,7 @@ pub struct ProposeBlockInput {
     pub proposal_id: ProposalId,
     pub deadline: chrono::DateTime<Utc>,
     pub retrospective_block_hash: Option<BlockHashAndNumber>,
-    pub block_info: BlockInfo,
+    pub next_block_info: BlockInfo,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -61,7 +61,7 @@ pub struct ValidateBlockInput {
     pub proposal_id: ProposalId,
     pub deadline: chrono::DateTime<Utc>,
     pub retrospective_block_hash: Option<BlockHashAndNumber>,
-    pub block_info: BlockInfo,
+    pub next_block_info: BlockInfo,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

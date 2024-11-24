@@ -28,7 +28,7 @@ use papyrus_protobuf::consensus::{
     TransactionBatch,
     Vote,
 };
-use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
+use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockInfo, BlockNumber};
 use starknet_api::executable_transaction::Transaction;
 use starknet_batcher_types::batcher_types::{
     DecisionReachedInput,
@@ -116,7 +116,7 @@ impl ConsensusContext for SequencerConsensusContext {
                 hash: BlockHash::default(),
             }),
             // TODO: Fill block info.
-            block_info: Default::default(),
+            next_block_info: BlockInfo { block_number: proposal_init.height, ..Default::default() },
         };
         self.maybe_start_height(proposal_init.height).await;
         // TODO: Should we be returning an error?
@@ -175,7 +175,7 @@ impl ConsensusContext for SequencerConsensusContext {
                 hash: BlockHash::default(),
             }),
             // TODO: Fill block info.
-            block_info: Default::default(),
+            next_block_info: BlockInfo { block_number: height, ..Default::default() },
         };
         self.maybe_start_height(height).await;
         batcher.validate_block(input).await.expect("Failed to initiate proposal validation");

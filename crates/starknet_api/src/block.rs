@@ -375,7 +375,7 @@ impl GasPrice {
 
 /// Utility struct representing a non-zero gas price. Useful when a gas amount must be computed by
 /// taking a fee amount and dividing by the gas price.
-#[derive(Copy, Clone, Debug, Deserialize, Serialize, derive_more::Display)]
+#[derive(Copy, Clone, Debug, Deserialize, Eq, PartialEq, Serialize, derive_more::Display)]
 pub struct NonzeroGasPrice(GasPrice);
 
 impl NonzeroGasPrice {
@@ -438,15 +438,15 @@ macro_rules! impl_try_from_uint_for_nonzero_gas_price {
 
 impl_try_from_uint_for_nonzero_gas_price!(u8, u16, u32, u64, u128);
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+// TODO(Arni): Remove derive of Default. Gas prices should always be set.
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct GasPriceVector {
     pub l1_gas_price: NonzeroGasPrice,
     pub l1_data_gas_price: NonzeroGasPrice,
     pub l2_gas_price: NonzeroGasPrice,
 }
 
-// TODO(Arni): Remove derive of Default. Gas prices should always be set.
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct GasPrices {
     pub eth_gas_prices: GasPriceVector,  // In wei.
     pub strk_gas_prices: GasPriceVector, // In fri.
@@ -479,7 +479,7 @@ impl GasPrices {
 )]
 pub struct BlockTimestamp(pub u64);
 
-#[derive(Clone, Debug, Deserialize, Default, Serialize)]
+#[derive(Clone, Debug, Deserialize, Default, Eq, PartialEq, Serialize)]
 pub struct BlockInfo {
     pub block_number: BlockNumber,
     pub block_timestamp: BlockTimestamp,
