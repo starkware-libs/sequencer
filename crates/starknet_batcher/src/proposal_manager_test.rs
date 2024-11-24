@@ -1,8 +1,9 @@
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use assert_matches::assert_matches;
+use blockifier::test_utils::struct_impls::BlockInfoExt;
 use rstest::{fixture, rstest};
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockInfo, BlockNumber};
 use starknet_api::executable_transaction::Transaction;
 use starknet_batcher_types::batcher_types::ProposalId;
 use starknet_mempool_types::communication::MockMempoolClient;
@@ -31,6 +32,9 @@ const INITIAL_HEIGHT: BlockNumber = BlockNumber(3);
 const BLOCK_GENERATION_TIMEOUT: tokio::time::Duration = tokio::time::Duration::from_secs(1);
 const MAX_L1_HANDLER_TXS_PER_BLOCK_PROPOSAL: usize = 3;
 const INPUT_CHANNEL_SIZE: usize = 30;
+
+static BLOCK_INFO_AT_INITIAL_HEIGHT: LazyLock<BlockInfo> =
+    LazyLock::new(|| BlockInfo { block_number: INITIAL_HEIGHT, ..BlockInfo::create_for_testing() });
 
 #[fixture]
 fn output_streaming() -> (
@@ -118,7 +122,7 @@ async fn propose_block_non_blocking(
     let (output_sender, _receiver) = output_streaming();
     proposal_manager
         .propose_block(
-            INITIAL_HEIGHT,
+            BLOCK_INFO_AT_INITIAL_HEIGHT.clone(),
             proposal_id,
             None,
             proposal_deadline(),
@@ -144,7 +148,13 @@ async fn validate_block(
     proposal_id: ProposalId,
 ) {
     proposal_manager
-        .validate_block(INITIAL_HEIGHT, proposal_id, None, proposal_deadline(), tx_provider)
+        .validate_block(
+            BLOCK_INFO_AT_INITIAL_HEIGHT.clone(),
+            proposal_id,
+            None,
+            proposal_deadline(),
+            tx_provider,
+        )
         .await
         .unwrap();
 
@@ -211,7 +221,7 @@ async fn multiple_proposals_generation_fail(
     let (output_sender_0, _rec_0) = output_streaming();
     proposal_manager
         .propose_block(
-            INITIAL_HEIGHT,
+            BLOCK_INFO_AT_INITIAL_HEIGHT.clone(),
             ProposalId(0),
             None,
             proposal_deadline(),
@@ -225,7 +235,7 @@ async fn multiple_proposals_generation_fail(
     let (output_sender_1, _rec_1) = output_streaming();
     let another_generate_request = proposal_manager
         .propose_block(
-            INITIAL_HEIGHT,
+            BLOCK_INFO_AT_INITIAL_HEIGHT.clone(),
             ProposalId(1),
             None,
             proposal_deadline(),
