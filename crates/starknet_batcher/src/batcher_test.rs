@@ -1,16 +1,17 @@
 use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use assert_matches::assert_matches;
 use async_trait::async_trait;
 use blockifier::abi::constants;
+use blockifier::test_utils::struct_impls::BlockInfoExt;
 use chrono::Utc;
 use futures::future::BoxFuture;
 use futures::FutureExt;
 use mockall::automock;
 use mockall::predicate::{always, eq};
 use rstest::{fixture, rstest};
-use starknet_api::block::{BlockHashAndNumber, BlockNumber};
+use starknet_api::block::{BlockHashAndNumber, BlockInfo, BlockNumber};
 use starknet_api::core::{ContractAddress, Nonce, StateDiffCommitment};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::hash::PoseidonHash;
@@ -54,6 +55,9 @@ const INITIAL_HEIGHT: BlockNumber = BlockNumber(3);
 const STREAMING_CHUNK_SIZE: usize = 3;
 const BLOCK_GENERATION_TIMEOUT: tokio::time::Duration = tokio::time::Duration::from_secs(1);
 const PROPOSAL_ID: ProposalId = ProposalId(0);
+
+static BLOCK_INFO_AT_INITIAL_HEIGHT: LazyLock<BlockInfo> =
+    LazyLock::new(|| BlockInfo { block_number: INITIAL_HEIGHT, ..BlockInfo::create_for_testing() });
 
 fn proposal_commitment() -> ProposalCommitment {
     ProposalCommitment {
@@ -114,7 +118,13 @@ fn mock_proposal_manager_validate_flow() -> MockProposalManagerTraitWrapper {
     proposal_manager
         .expect_wrap_validate_block()
         .times(1)
-        .with(eq(INITIAL_HEIGHT), eq(PROPOSAL_ID), eq(None), always(), always())
+        .with(
+            eq(BLOCK_INFO_AT_INITIAL_HEIGHT.clone()),
+            eq(PROPOSAL_ID),
+            eq(None),
+            always(),
+            always(),
+        )
         .return_once(|_, _, _, _, tx_provider| {
             {
                 async move {
@@ -331,7 +341,13 @@ async fn send_finish_to_an_invalid_proposal() {
     proposal_manager
         .expect_wrap_validate_block()
         .times(1)
-        .with(eq(INITIAL_HEIGHT), eq(PROPOSAL_ID), eq(None), always(), always())
+        .with(
+            eq(BLOCK_INFO_AT_INITIAL_HEIGHT.clone()),
+            eq(PROPOSAL_ID),
+            eq(None),
+            always(),
+            always(),
+        )
         .return_once(|_, _, _, _, _| { async move { Ok(()) } }.boxed());
 
     let proposal_error = GetProposalResultError::BlockBuilderError(Arc::new(
@@ -548,7 +564,7 @@ async fn simulate_build_block_proposal(
 trait ProposalManagerTraitWrapper: Send + Sync {
     fn wrap_propose_block(
         &mut self,
-        height: BlockNumber,
+        block_info: BlockInfo,
         proposal_id: ProposalId,
         retrospective_block_hash: Option<BlockHashAndNumber>,
         deadline: tokio::time::Instant,
@@ -558,7 +574,7 @@ trait ProposalManagerTraitWrapper: Send + Sync {
 
     fn wrap_validate_block(
         &mut self,
-        height: BlockNumber,
+        block_info: BlockInfo,
         proposal_id: ProposalId,
         retrospective_block_hash: Option<BlockHashAndNumber>,
         deadline: tokio::time::Instant,
@@ -589,7 +605,7 @@ trait ProposalManagerTraitWrapper: Send + Sync {
 impl<T: ProposalManagerTraitWrapper> ProposalManagerTrait for T {
     async fn propose_block(
         &mut self,
-        height: BlockNumber,
+        block_info: BlockInfo,
         proposal_id: ProposalId,
         retrospective_block_hash: Option<BlockHashAndNumber>,
         deadline: tokio::time::Instant,
@@ -597,7 +613,7 @@ impl<T: ProposalManagerTraitWrapper> ProposalManagerTrait for T {
         tx_provider: ProposeTransactionProvider,
     ) -> Result<(), GenerateProposalError> {
         self.wrap_propose_block(
-            height,
+            block_info,
             proposal_id,
             retrospective_block_hash,
             deadline,
@@ -609,14 +625,14 @@ impl<T: ProposalManagerTraitWrapper> ProposalManagerTrait for T {
 
     async fn validate_block(
         &mut self,
-        height: BlockNumber,
+        block_info: BlockInfo,
         proposal_id: ProposalId,
         retrospective_block_hash: Option<BlockHashAndNumber>,
         deadline: tokio::time::Instant,
         tx_provider: ValidateTransactionProvider,
     ) -> Result<(), GenerateProposalError> {
         self.wrap_validate_block(
-            height,
+            block_info,
             proposal_id,
             retrospective_block_hash,
             deadline,

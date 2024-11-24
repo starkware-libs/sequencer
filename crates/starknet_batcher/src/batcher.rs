@@ -135,7 +135,7 @@ impl Batcher {
 
         self.proposal_manager
             .propose_block(
-                active_height,
+                propose_block_input.block_info,
                 proposal_id,
                 propose_block_input.retrospective_block_hash,
                 deadline,
@@ -169,7 +169,7 @@ impl Batcher {
 
         self.proposal_manager
             .validate_block(
-                active_height,
+                validate_block_input.block_info,
                 proposal_id,
                 validate_block_input.retrospective_block_hash,
                 deadline,
