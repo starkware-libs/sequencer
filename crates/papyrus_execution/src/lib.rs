@@ -23,7 +23,7 @@ use std::cell::Cell;
 use std::collections::BTreeMap;
 use std::sync::{Arc, LazyLock};
 
-use blockifier::blockifier::block::{pre_process_block, validated_gas_prices, BlockInfo};
+use blockifier::blockifier::block::{pre_process_block, validated_gas_prices};
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use blockifier::execution::call_info::CallExecution;
@@ -51,7 +51,13 @@ use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::{StorageError, StorageReader};
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockHashAndNumber, BlockNumber, NonzeroGasPrice, StarknetVersion};
+use starknet_api::block::{
+    BlockHashAndNumber,
+    BlockInfo,
+    BlockNumber,
+    NonzeroGasPrice,
+    StarknetVersion,
+};
 use starknet_api::contract_class::{ClassInfo, EntryPointType};
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::data_availability::L1DataAvailabilityMode;

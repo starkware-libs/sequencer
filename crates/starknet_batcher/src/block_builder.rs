@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use async_trait::async_trait;
-use blockifier::blockifier::block::{validated_gas_prices, BlockInfo};
+use blockifier::blockifier::block::validated_gas_prices;
 use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::{
     TransactionExecutor,
@@ -26,7 +26,13 @@ use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_state_reader::papyrus_state::PapyrusReader;
 use papyrus_storage::StorageReader;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockHashAndNumber, BlockNumber, BlockTimestamp, NonzeroGasPrice};
+use starknet_api::block::{
+    BlockHashAndNumber,
+    BlockInfo,
+    BlockNumber,
+    BlockTimestamp,
+    NonzeroGasPrice,
+};
 use starknet_api::core::ContractAddress;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::transaction::TransactionHash;

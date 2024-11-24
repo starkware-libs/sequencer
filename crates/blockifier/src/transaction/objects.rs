@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
-use starknet_api::block::FeeType;
+use starknet_api::block::{BlockInfo, FeeType};
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::execution_resources::GasVector;
@@ -25,7 +25,6 @@ use starknet_api::transaction::{
 };
 
 use crate::abi::constants as abi_constants;
-use crate::blockifier::block::BlockInfo;
 use crate::execution::call_info::{CallInfo, ExecutionSummary};
 use crate::execution::stack_trace::ErrorStack;
 use crate::fee::fee_checks::FeeCheckError;

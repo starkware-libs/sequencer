@@ -1,4 +1,3 @@
-use blockifier::blockifier::block::BlockInfo;
 use blockifier::blockifier::stateful_validator::{
     StatefulValidator,
     StatefulValidatorResult as BlockifierStatefulValidatorResult,
@@ -10,6 +9,7 @@ use blockifier::transaction::account_transaction::AccountTransaction;
 use blockifier::versioned_constants::VersionedConstants;
 #[cfg(test)]
 use mockall::automock;
+use starknet_api::block::BlockInfo;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::{
     AccountTransaction as ExecutableTransaction,
