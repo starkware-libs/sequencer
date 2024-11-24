@@ -120,7 +120,11 @@ impl Batcher {
         propose_block_input: ProposeBlockInput,
     ) -> BatcherResult<()> {
         let active_height = self.active_height.ok_or(BatcherError::NoActiveHeight)?;
-        verify_block_input(active_height, propose_block_input.retrospective_block_hash)?;
+        verify_block_input(
+            active_height,
+            propose_block_input.block_info.block_number,
+            propose_block_input.retrospective_block_hash,
+        )?;
 
         let proposal_id = propose_block_input.proposal_id;
         let deadline = deadline_as_instant(propose_block_input.deadline)?;
@@ -135,7 +139,7 @@ impl Batcher {
 
         self.proposal_manager
             .propose_block(
-                active_height,
+                propose_block_input.block_info,
                 proposal_id,
                 propose_block_input.retrospective_block_hash,
                 deadline,
@@ -154,7 +158,11 @@ impl Batcher {
         validate_block_input: ValidateBlockInput,
     ) -> BatcherResult<()> {
         let active_height = self.active_height.ok_or(BatcherError::NoActiveHeight)?;
-        verify_block_input(active_height, validate_block_input.retrospective_block_hash)?;
+        verify_block_input(
+            active_height,
+            validate_block_input.block_info.block_number,
+            validate_block_input.retrospective_block_hash,
+        )?;
 
         let proposal_id = validate_block_input.proposal_id;
         let deadline = deadline_as_instant(validate_block_input.deadline)?;
@@ -169,7 +177,7 @@ impl Batcher {
 
         self.proposal_manager
             .validate_block(
-                active_height,
+                validate_block_input.block_info,
                 proposal_id,
                 validate_block_input.retrospective_block_hash,
                 deadline,
@@ -414,6 +422,17 @@ pub fn deadline_as_instant(deadline: chrono::DateTime<Utc>) -> BatcherResult<tok
 
 fn verify_block_input(
     height: BlockNumber,
+    block_number: BlockNumber,
+    retrospective_block_hash: Option<BlockHashAndNumber>,
+) -> BatcherResult<()> {
+    verify_non_empty_retrospective_block_hash(height, retrospective_block_hash)?;
+    verify_block_number(height, block_number)?;
+
+    Ok(())
+}
+
+fn verify_non_empty_retrospective_block_hash(
+    height: BlockNumber,
     retrospective_block_hash: Option<BlockHashAndNumber>,
 ) -> BatcherResult<()> {
     if height >= BlockNumber(constants::STORED_BLOCK_HASH_BUFFER)
@@ -421,5 +440,14 @@ fn verify_block_input(
     {
         return Err(BatcherError::MissingRetrospectiveBlockHash);
     }
+
+    Ok(())
+}
+
+fn verify_block_number(height: BlockNumber, block_number: BlockNumber) -> BatcherResult<()> {
+    if block_number != height {
+        return Err(BatcherError::InvalidBlockNumber { active_height: height, block_number });
+    }
+
     Ok(())
 }
