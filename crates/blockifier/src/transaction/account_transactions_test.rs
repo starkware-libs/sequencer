@@ -11,7 +11,7 @@ use starknet_api::abi::abi_utils::{
     get_storage_var_address,
     selector_from_name,
 };
-use starknet_api::block::GasPrice;
+use starknet_api::block::{FeeType, GasPrice};
 use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress};
 use starknet_api::executable_transaction::{
     AccountTransaction as ApiExecutableTransaction,
@@ -84,7 +84,7 @@ use crate::test_utils::{
     MAX_FEE,
 };
 use crate::transaction::account_transaction::AccountTransaction;
-use crate::transaction::objects::{FeeType, HasRelatedFeeType, TransactionInfoCreator};
+use crate::transaction::objects::{HasRelatedFeeType, TransactionInfoCreator};
 use crate::transaction::test_utils::{
     account_invoke_tx,
     all_resource_bounds,
