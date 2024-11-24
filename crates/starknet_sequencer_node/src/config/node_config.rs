@@ -82,6 +82,7 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                 SerializationType::String,
                 "The sequencer address.",
             ),
+            // TODO(Matan): make validator id of consensus point to the sequencer address.
             set_pointing_param_paths(&["batcher_config.block_builder_config.sequencer_address"]),
         ),
     ];
