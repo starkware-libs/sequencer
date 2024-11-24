@@ -3,43 +3,50 @@ use std::path::PathBuf;
 use std::process::Stdio;
 use std::time::Duration;
 
+use infra_utils::path::resolve_project_relative_path;
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use papyrus_execution::execution_utils::get_nonce_at;
 use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::StorageReader;
-use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::state::StateNumber;
 use starknet_integration_tests::integration_test_setup::IntegrationTestSetup;
 use starknet_integration_tests::utils::{create_integration_test_tx_generator, send_account_txs};
 use starknet_sequencer_infra::trace_util::configure_tracing;
+use starknet_sequencer_node::test_utils::compilation::compile_node_result;
 use starknet_types_core::felt::Felt;
 use tokio::process::{Child, Command};
 use tokio::task::{self, JoinHandle};
 use tokio::time::interval;
 use tracing::{error, info};
 
-#[fixture]
-fn tx_generator() -> MultiAccountTransactionGenerator {
-    create_integration_test_tx_generator()
-}
 
 // TODO(Tsabary): Move to a suitable util location.
 async fn spawn_node_child_task(node_config_path: PathBuf) -> Child {
     // Get the current working directory for the project
-    let project_path = env::current_dir().expect("Failed to get current directory").join("../..");
+    // let project_path = env::current_dir().expect("Failed to get current
+    // directory").join("../..");
 
-    // TODO(Tsabary): Capture output to a log file, and present it in case of a failure.
-    // TODO(Tsabary): Change invocation from "cargo run" to separate compilation and invocation
-    // (build, and then invoke the binary).
-    Command::new("cargo")
-        .arg("run")
-        .arg("--bin")
-        .arg("starknet_sequencer_node")
-        .arg("--quiet")
+    let compile_result = compile_node_result();
+    info!("Compilation result {:?}.", compile_result);
+
+    assert!(compile_result.is_ok(), "Compilation failed.");
+    // let compilation_result = Command::new("cargo")
+    //     .arg("build")
+    //     .arg("--bin")
+    //     .arg("starknet_sequencer_node")
+    //     .arg("--quiet")
+    //     .current_dir(&project_path)
+    //     .status().await;
+
+    info!("Compiling the starknet_sequencer_node binary");
+    let project_path = resolve_project_relative_path(".").expect("Failed to resolve project path");
+    info!("project_path {:?}", project_path);
+
+    // Run `cargo build` to compile the project
+    Command::new("target/debug/starknet_sequencer_node")
         .current_dir(&project_path)
-        .arg("--")
         .arg("--config_file")
         .arg(node_config_path.to_str().unwrap())
         .stderr(Stdio::inherit())
@@ -47,6 +54,24 @@ async fn spawn_node_child_task(node_config_path: PathBuf) -> Child {
         .kill_on_drop(true) // Required for stopping the node when the handle is dropped.
         .spawn()
         .expect("Failed to spawn the sequencer node.")
+
+    // // TODO(Tsabary): Capture output to a log file, and present it in case of a failure.
+    // // TODO(Tsabary): Change invocation from "cargo run" to separate compilation and invocation
+    // // (build, and then invoke the binary).
+    // Command::new("cargo")
+    //     .arg("run")
+    //     .arg("--bin")
+    //     .arg("starknet_sequencer_node")
+    //     .arg("--quiet")
+    //     .current_dir(&project_path)
+    //     .arg("--")
+    //     .arg("--config_file")
+    //     .arg(node_config_path.to_str().unwrap())
+    //     .stderr(Stdio::inherit())
+    //     .stdout(Stdio::null())
+    //     .kill_on_drop(true) // Required for stopping the node when the handle is dropped.
+    //     .spawn()
+    //     .expect("Failed to spawn the sequencer node.")
 }
 
 async fn spawn_run_node(node_config_path: PathBuf) -> JoinHandle<()> {
@@ -117,9 +142,14 @@ async fn await_block(
     }
 }
 
-#[rstest]
-#[tokio::test]
-async fn test_end_to_end_integration(mut tx_generator: MultiAccountTransactionGenerator) {
+#[tokio::main]
+/// Main entry point of the committer CLI.
+async fn main()  {
+
+
+    let mut tx_generator :  MultiAccountTransactionGenerator = create_integration_test_tx_generator();
+
+
     const EXPECTED_BLOCK_NUMBER: BlockNumber = BlockNumber(15);
 
     configure_tracing();
@@ -128,6 +158,7 @@ async fn test_end_to_end_integration(mut tx_generator: MultiAccountTransactionGe
     // Creating the storage for the test.
 
     let integration_test_setup = IntegrationTestSetup::new_from_tx_generator(&tx_generator).await;
+    info!("Integration test setup completed.");
 
     info!("Running sequencer node.");
     let node_run_handle = spawn_run_node(integration_test_setup.node_config_path).await;
