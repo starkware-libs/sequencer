@@ -1,4 +1,5 @@
 use log::warn;
+use serde::{Deserialize, Serialize};
 use starknet_api::block::{
     BlockHashAndNumber,
     BlockNumber,
@@ -20,8 +21,7 @@ use crate::versioned_constants::VersionedConstants;
 #[path = "block_test.rs"]
 pub mod block_test;
 
-#[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct BlockInfo {
     pub block_number: BlockNumber,
     pub block_timestamp: BlockTimestamp,
@@ -32,8 +32,7 @@ pub struct BlockInfo {
     pub use_kzg_da: bool,
 }
 
-#[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct GasPrices {
     eth_gas_prices: GasPriceVector,  // In wei.
     strk_gas_prices: GasPriceVector, // In fri.
