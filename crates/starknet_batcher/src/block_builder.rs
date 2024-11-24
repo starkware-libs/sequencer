@@ -26,13 +26,7 @@ use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_state_reader::papyrus_state::PapyrusReader;
 use papyrus_storage::StorageReader;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{
-    BlockHashAndNumber,
-    BlockInfo,
-    BlockNumber,
-    BlockTimestamp,
-    NonzeroGasPrice,
-};
+use starknet_api::block::{BlockHashAndNumber, BlockInfo, BlockTimestamp, NonzeroGasPrice};
 use starknet_api::core::ContractAddress;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::transaction::TransactionHash;
@@ -224,7 +218,7 @@ async fn collect_execution_results_and_stream_txs(
 }
 
 pub struct BlockMetadata {
-    pub height: BlockNumber,
+    pub next_block_info: BlockInfo,
     pub retrospective_block_hash: Option<BlockHashAndNumber>,
 }
 
@@ -312,14 +306,18 @@ impl BlockBuilderFactory {
     ) -> BlockBuilderResult<TransactionExecutor<PapyrusReader>> {
         let block_builder_config = self.block_builder_config.clone();
         let next_block_info = BlockInfo {
-            block_number: block_metadata.height,
+            block_number: block_metadata.next_block_info.block_number,
+            // TODO: Use block_metadata.next_block_info.block_timestamp once it is initialized.
             block_timestamp: BlockTimestamp(chrono::Utc::now().timestamp().try_into()?),
+            // TODO: Use block_metadata.next_block_info.block_hash once it is initialized as the
+            // sequencer address.
             sequencer_address: block_builder_config.sequencer_address,
-            // TODO (yael 7/10/2024): add logic to compute gas prices
+            // TODO: Use block_metadata.next_block_info.gas_prices once it is initialized.
             gas_prices: {
                 let tmp_val = NonzeroGasPrice::MIN;
                 gas_prices(tmp_val, tmp_val, tmp_val, tmp_val, tmp_val, tmp_val)
             },
+            // TODO: Use block_metadata.next_block_info.use_kzg_da once it is initialized.
             use_kzg_da: block_builder_config.use_kzg_da,
         };
         let versioned_constants = VersionedConstants::get_versioned_constants(
@@ -334,7 +332,7 @@ impl BlockBuilderFactory {
 
         let state_reader = PapyrusReader::new(
             self.storage_reader.clone(),
-            block_metadata.height,
+            block_metadata.next_block_info.block_number,
             self.global_class_hash_to_class.clone(),
         );
 
