@@ -2,8 +2,8 @@ use std::fmt::Debug;
 
 use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockHashAndNumber, BlockNumber};
-use starknet_api::core::StateDiffCommitment;
+use starknet_api::block::{BlockHashAndNumber, BlockNumber, BlockTimestamp, GasPriceVector};
+use starknet_api::core::{ContractAddress, StateDiffCommitment};
 use starknet_api::executable_transaction::Transaction;
 
 use crate::errors::BatcherError;
@@ -30,14 +30,28 @@ pub struct ProposalCommitment {
     pub state_diff_commitment: StateDiffCommitment,
 }
 
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+/// This struct is a subset of `BlockInfo`, used by the blockifier. The member `block_number` is
+/// called `height` in the consensus-batcher context. It is passed to the batcher during a previous
+/// stage of the process.
+pub struct ThinBlockInfo {
+    pub block_timestamp: BlockTimestamp,
+
+    // Fee-related.
+    pub sequencer_address: ContractAddress,
+    // TODO(Arni): Align with `GasPrices` in `BlockInfo`.
+    pub eth_gas_prices: GasPriceVector,
+    pub strk_gas_prices: GasPriceVector,
+    pub use_kzg_da: bool,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ProposeBlockInput {
     pub proposal_id: ProposalId,
     pub deadline: chrono::DateTime<Utc>,
     pub retrospective_block_hash: Option<BlockHashAndNumber>,
-    // TODO: Should we get the gas price here?
-    // TODO: add proposer address.
-    // TODO: add whether the kzg mechanism is used for DA.
+    // TODO: Fill thin block info.
+    pub thin_block_info: ThinBlockInfo,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -63,6 +77,8 @@ pub struct ValidateBlockInput {
     pub proposal_id: ProposalId,
     pub deadline: chrono::DateTime<Utc>,
     pub retrospective_block_hash: Option<BlockHashAndNumber>,
+    // TODO: Fill thin block info.
+    pub thin_block_info: ThinBlockInfo,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

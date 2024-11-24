@@ -32,6 +32,7 @@ pub struct BlockInfo {
     pub use_kzg_da: bool,
 }
 
+// TODO(Arni): Consider moving this struct to Starknet API.
 #[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug)]
 pub struct GasPrices {

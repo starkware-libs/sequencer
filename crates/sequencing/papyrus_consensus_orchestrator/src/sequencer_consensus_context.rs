@@ -115,6 +115,8 @@ impl ConsensusContext for SequencerConsensusContext {
                 number: BlockNumber::default(),
                 hash: BlockHash::default(),
             }),
+            // TODO: Fill thin block info.
+            thin_block_info: Default::default(),
         };
         self.maybe_start_height(proposal_init.height).await;
         // TODO: Should we be returning an error?
@@ -172,6 +174,8 @@ impl ConsensusContext for SequencerConsensusContext {
                 number: BlockNumber::default(),
                 hash: BlockHash::default(),
             }),
+            // TODO: Fill thin block info.
+            thin_block_info: Default::default(),
         };
         self.maybe_start_height(height).await;
         batcher.validate_block(input).await.expect("Failed to initiate proposal validation");
