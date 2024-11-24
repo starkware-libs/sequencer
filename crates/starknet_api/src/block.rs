@@ -8,6 +8,7 @@ use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Poseidon, StarkHash as CoreStarkHash};
 
 use crate::core::{
+    ContractAddress,
     EventCommitment,
     GlobalRoot,
     ReceiptCommitment,
@@ -476,6 +477,17 @@ impl GasPrices {
     Debug, Default, Copy, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord,
 )]
 pub struct BlockTimestamp(pub u64);
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct BlockInfo {
+    pub block_number: BlockNumber,
+    pub block_timestamp: BlockTimestamp,
+
+    // Fee-related.
+    pub sequencer_address: ContractAddress,
+    pub gas_prices: GasPrices,
+    pub use_kzg_da: bool,
+}
 
 /// The signature of a [Block](`crate::block::Block`), signed by the sequencer. The signed message
 /// is defined as poseidon_hash(block_hash, state_diff_commitment).
