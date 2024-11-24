@@ -1,10 +1,13 @@
 use async_trait::async_trait;
 use starknet_api::block::{BlockHash, BlockNumber};
 
+pub mod ethereum_base_layer_contract;
+
+#[cfg(any(feature = "testing", test))]
+pub mod test_utils;
+
 #[cfg(test)]
 mod base_layer_test;
-
-pub mod ethereum_base_layer_contract;
 
 /// Interface for getting data from the Starknet base contract.
 #[async_trait]
