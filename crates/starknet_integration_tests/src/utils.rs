@@ -12,7 +12,7 @@ use mempool_test_utils::starknet_api_test_utils::{
     MultiAccountTransactionGenerator,
 };
 use papyrus_consensus::config::ConsensusConfig;
-use papyrus_network::network_manager::test_utils::create_network_config_connected_to_broadcast_channels;
+use papyrus_network::network_manager::test_utils::create_network_configs_connected_to_broadcast_channels;
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::ProposalPart;
 use papyrus_storage::StorageConfig;
@@ -55,8 +55,9 @@ pub async fn create_config(
     let gateway_config = create_gateway_config(chain_info.clone()).await;
     let http_server_config = create_http_server_config().await;
     let rpc_state_reader_config = test_rpc_state_reader_config(rpc_server_addr);
-    let (consensus_manager_config, consensus_proposals_channels) =
-        create_consensus_manager_config_and_channels();
+    let (mut consensus_manager_configs, consensus_proposals_channels) =
+        create_consensus_manager_configs_and_channels(1);
+    let consensus_manager_config = consensus_manager_configs.pop().unwrap();
     (
         SequencerNodeConfig {
             batcher_config,
@@ -76,23 +77,30 @@ pub async fn create_config(
     )
 }
 
-fn create_consensus_manager_config_and_channels()
--> (ConsensusManagerConfig, BroadcastTopicChannels<ProposalPart>) {
-    let (network_config, broadcast_channels) =
-        create_network_config_connected_to_broadcast_channels(
+fn create_consensus_manager_configs_and_channels(
+    n_managers: usize,
+) -> (Vec<ConsensusManagerConfig>, BroadcastTopicChannels<ProposalPart>) {
+    let (network_configs, broadcast_channels) =
+        create_network_configs_connected_to_broadcast_channels(
+            n_managers,
             papyrus_network::gossipsub_impl::Topic::new(
                 starknet_consensus_manager::consensus_manager::NETWORK_TOPIC,
             ),
         );
-    let consensus_manager_config = ConsensusManagerConfig {
-        consensus_config: ConsensusConfig {
-            start_height: BlockNumber(1),
-            consensus_delay: Duration::from_secs(1),
-            network_config,
-            ..Default::default()
-        },
-    };
-    (consensus_manager_config, broadcast_channels)
+
+    let consensus_manager_configs = network_configs
+        .into_iter()
+        .map(|network_config| ConsensusManagerConfig {
+            consensus_config: ConsensusConfig {
+                start_height: BlockNumber(1),
+                consensus_delay: Duration::from_secs(1),
+                network_config,
+                ..Default::default()
+            },
+        })
+        .collect();
+
+    (consensus_manager_configs, broadcast_channels)
 }
 
 pub fn test_rpc_state_reader_config(rpc_server_addr: SocketAddr) -> RpcStateReaderConfig {
