@@ -438,14 +438,15 @@ macro_rules! impl_try_from_uint_for_nonzero_gas_price {
 
 impl_try_from_uint_for_nonzero_gas_price!(u8, u16, u32, u64, u128);
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct GasPriceVector {
     pub l1_gas_price: NonzeroGasPrice,
     pub l1_data_gas_price: NonzeroGasPrice,
     pub l2_gas_price: NonzeroGasPrice,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+// TODO(Arni): Remove derive of Default. Gas prices should always be set.
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct GasPrices {
     pub eth_gas_prices: GasPriceVector,  // In wei.
     pub strk_gas_prices: GasPriceVector, // In fri.
@@ -478,7 +479,7 @@ impl GasPrices {
 )]
 pub struct BlockTimestamp(pub u64);
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Default, Serialize)]
 pub struct BlockInfo {
     pub block_number: BlockNumber,
     pub block_timestamp: BlockTimestamp,
