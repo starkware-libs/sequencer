@@ -1,6 +1,6 @@
-use std::env;
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
+use std::{env, fs};
 
 use thiserror::Error;
 
@@ -10,11 +10,8 @@ mod path_test;
 
 #[derive(Debug, Error)]
 pub enum PathResolutionError {
-    // TODO(Arni): Handle manifest dir not exist here?
-    #[error("No file exists at '{path}'")]
-    PathDoesNotExist { path: PathBuf },
-    /// This error is raised when file existence can be neither confirmed nor denied. See
-    /// [`std::path::Path::try_exists`] for more information.
+    /// This error is raised when the file path does not exist, or when a non-final component in a
+    /// path is not a directory. See [`std::fs::canonicalize`] for more information.
     #[error(transparent)]
     IoError(#[from] std::io::Error),
 }
@@ -23,6 +20,7 @@ pub enum PathResolutionError {
 static PATH_TO_CARGO_MANIFEST_DIR: LazyLock<Option<PathBuf>> =
     LazyLock::new(|| env::var("CARGO_MANIFEST_DIR").ok().map(|dir| Path::new(&dir).into()));
 
+// TODO(Tsabary): should not be public. Use a getter instead.
 pub fn cargo_manifest_dir() -> Option<PathBuf> {
     PATH_TO_CARGO_MANIFEST_DIR.clone()
 }
@@ -34,16 +32,13 @@ pub fn cargo_manifest_dir() -> Option<PathBuf> {
 /// * `relative_path` - A string slice representing the relative path from the project root.
 ///
 /// # Returns
-/// * An absolute `PathBuf` representing the resolved path starting from the project root.
+/// * A `PathBuf` representing the resolved path starting from the project root.
 pub fn resolve_project_relative_path(relative_path: &str) -> Result<PathBuf, PathResolutionError> {
     let base_dir = path_of_project_root();
-
     let path = base_dir.join(relative_path);
-    if !path.try_exists()? {
-        return Err(PathResolutionError::PathDoesNotExist { path });
-    }
+    let absolute_path = fs::canonicalize(path)?;
 
-    Ok(path)
+    Ok(absolute_path)
 }
 
 fn path_of_project_root() -> PathBuf {
