@@ -131,6 +131,8 @@ impl ConsensusContext for SequencerConsensusContext {
                 number: BlockNumber::default(),
                 hash: BlockHash::default(),
             }),
+            // TODO(Dan, Matan): Fill block info.
+            block_info: Default::default(),
         };
         // TODO: Should we be returning an error?
         // I think this implies defining an error type in this crate and moving the trait definition
@@ -307,6 +309,8 @@ impl SequencerConsensusContext {
                 number: BlockNumber::default(),
                 hash: BlockHash::default(),
             }),
+            // TODO(Dan, Matan): Fill block info.
+            block_info: Default::default(),
         };
         batcher.validate_block(input).await.expect("Failed to initiate proposal validation");
 
