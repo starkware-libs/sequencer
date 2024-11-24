@@ -32,7 +32,7 @@ sequencer_dev = ServiceDefaults(
     deployment=True,
     image="us.gcr.io/starkware-dev/sequencer-node-test:0.0.1-dev.3",
     replicas=1,
-    config=SequencerDevConfig(mount_path="/config/sequencer/presets/", config_file_path=CONFIG),
+    config=SequencerDevConfig(mount_path="/config/sequencer/presets/", custom_config_path=CONFIG),
     service_type=ServiceType.CLUSTER_IP,
     args=["--config_file", "/config/sequencer/presets/config"],
     port_mappings=[
@@ -93,7 +93,7 @@ sequencer_prod = ServiceDefaults(
     deployment=True,
     image="us.gcr.io/starkware-dev/sequencer-node-test:0.0.1-dev.1",
     replicas=1,
-    config=SequencerDevConfig(mount_path="/config/sequencer/presets/", config_file_path=CONFIG),
+    config=SequencerDevConfig(mount_path="/config/sequencer/presets/", custom_config_path=CONFIG),
     service_type=ServiceType.CLUSTER_IP,
     args=["--config_file", "/config/sequencer/presets/config"],
     port_mappings=[
