@@ -568,23 +568,28 @@ pub struct GasCosts {
 
 impl GasCosts {
     pub fn get_builtin_gas_cost(&self, builtin: &BuiltinName) -> Result<u64, GasCostsError> {
-        const KECCAK_BUILTIN_GAS_COST : u64 = 136189;
-        match *builtin {
-            BuiltinName::range_check => Ok(self.range_check_gas_cost),
-            BuiltinName::pedersen => Ok(self.pedersen_gas_cost),
-            BuiltinName::bitwise => Ok(self.bitwise_builtin_gas_cost),
-            BuiltinName::ec_op => Ok(self.ecop_gas_cost),
-            //TODO (Yonatan): once keccak_builtin_gas_cost is being inserted to the versioned constants, replace the constant with field's value 
-            BuiltinName::keccak => Ok(KECCAK_BUILTIN_GAS_COST), 
-            BuiltinName::poseidon => Ok(self.poseidon_gas_cost),
-            BuiltinName::range_check96 => Ok(self.range_check_gas_cost),
-            BuiltinName::add_mod => Ok(self.add_mod_gas_cost),
-            BuiltinName::mul_mod => Ok(self.mul_mod_gas_cost),
-            BuiltinName::segment_arena => Err(GasCostsError::VirtualBuiltin),
-            // The following are unsupported builtins in Cairo 1
-             BuiltinName::output | BuiltinName::ecdsa => Err(GasCostsError::UnsupportedBuiltinInCairo1 {builtin: *builtin,}),
-        }
+        const KECCAK_BUILTIN_GAS_COST: u64 = 136189;
+    
+        let gas_cost = match *builtin {
+            BuiltinName::range_check => self.range_check_gas_cost,
+            BuiltinName::pedersen => self.pedersen_gas_cost,
+            BuiltinName::bitwise => self.bitwise_builtin_gas_cost,
+            BuiltinName::ec_op => self.ecop_gas_cost,
+            //TODO (Yonatan): once keccak_builtin_gas_cost is being inserted to the versioned constants, replace the constant with field's value
+            BuiltinName::keccak => KECCAK_BUILTIN_GAS_COST, 
+            BuiltinName::poseidon => self.poseidon_gas_cost,
+            BuiltinName::range_check96 => self.range_check_gas_cost,
+            BuiltinName::add_mod => self.add_mod_gas_cost,
+            BuiltinName::mul_mod => self.mul_mod_gas_cost,
+            BuiltinName::segment_arena => return Err(GasCostsError::VirtualBuiltin),
+            BuiltinName::output | BuiltinName::ecdsa => {
+                return Err(GasCostsError::UnsupportedBuiltinInCairo1 { builtin: *builtin })
+            }
+        };
+    
+        Ok(gas_cost)
     }
+    
 
     pub fn get_syscall_gas_cost(&self, selector: &SyscallSelector) -> Result<u64, GasCostsError> {
         match selector {
@@ -611,7 +616,6 @@ impl GasCosts {
             SyscallSelector::SendMessageToL1 => Ok(self.send_message_to_l1_gas_cost),
             SyscallSelector::StorageRead => Ok(self.storage_read_gas_cost),
             SyscallSelector::StorageWrite => Ok(self.storage_write_gas_cost),
-            // The following are unsupported syscalls in Cairo 1
             SyscallSelector::DelegateCall | SyscallSelector::DelegateL1Handler | SyscallSelector::GetBlockNumber | SyscallSelector::GetBlockTimestamp | SyscallSelector::GetCallerAddress | SyscallSelector::GetContractAddress | SyscallSelector::GetTxInfo | SyscallSelector::GetSequencerAddress | SyscallSelector::GetTxSignature | SyscallSelector::LibraryCallL1Handler => Err(GasCostsError::DeprecatedSyscall{selector: *selector,}),
         }
     }
