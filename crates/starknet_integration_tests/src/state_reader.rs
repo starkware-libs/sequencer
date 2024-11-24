@@ -12,7 +12,6 @@ use blockifier::test_utils::{
     DEFAULT_STRK_L1_GAS_PRICE,
     TEST_SEQUENCER_ADDRESS,
 };
-use blockifier::transaction::objects::FeeType;
 use blockifier::versioned_constants::VersionedConstants;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::IndexMap;
@@ -33,6 +32,7 @@ use starknet_api::block::{
     BlockHeaderWithoutHash,
     BlockNumber,
     BlockTimestamp,
+    FeeType,
     GasPricePerToken,
 };
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, Nonce, SequencerContractAddress};
