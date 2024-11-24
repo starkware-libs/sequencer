@@ -23,7 +23,7 @@ use std::cell::Cell;
 use std::collections::BTreeMap;
 use std::sync::{Arc, LazyLock};
 
-use blockifier::blockifier::block::{pre_process_block, BlockInfo, GasPrices};
+use blockifier::blockifier::block::{gas_prices, pre_process_block, BlockInfo};
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use blockifier::execution::call_info::CallExecution;
@@ -369,7 +369,7 @@ fn create_block_context(
         use_kzg_da,
         block_number,
         // TODO(yair): What to do about blocks pre 0.13.1 where the data gas price were 0?
-        gas_prices: GasPrices::validated_new(
+        gas_prices: gas_prices(
             NonzeroGasPrice::new(l1_gas_price.price_in_wei).unwrap_or(NonzeroGasPrice::MIN),
             NonzeroGasPrice::new(l1_gas_price.price_in_fri).unwrap_or(NonzeroGasPrice::MIN),
             NonzeroGasPrice::new(l1_data_gas_price.price_in_wei).unwrap_or(NonzeroGasPrice::MIN),

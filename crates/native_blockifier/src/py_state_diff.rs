@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::convert::TryFrom;
 
-use blockifier::blockifier::block::{BlockInfo, GasPrices};
+use blockifier::blockifier::block::{gas_prices, BlockInfo};
 use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::test_utils::{
     DEFAULT_ETH_L1_DATA_GAS_PRICE,
@@ -182,7 +182,7 @@ impl TryFrom<PyBlockInfo> for BlockInfo {
             block_number: BlockNumber(block_info.block_number),
             block_timestamp: BlockTimestamp(block_info.block_timestamp),
             sequencer_address: ContractAddress::try_from(block_info.sequencer_address.0)?,
-            gas_prices: GasPrices::validated_new(
+            gas_prices: gas_prices(
                 NonzeroGasPrice::try_from(block_info.l1_gas_price.price_in_wei).map_err(|_| {
                     NativeBlockifierInputError::InvalidNativeBlockifierInputError(
                         InvalidNativeBlockifierInputError::InvalidL1GasPriceWei(
