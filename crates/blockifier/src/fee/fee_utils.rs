@@ -4,6 +4,7 @@ use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use num_bigint::BigUint;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
+use starknet_api::block::FeeType;
 use starknet_api::core::ContractAddress;
 use starknet_api::execution_resources::GasVector;
 use starknet_api::state::StorageKey;
@@ -16,7 +17,7 @@ use crate::context::{BlockContext, TransactionContext};
 use crate::fee::resources::TransactionFeeResult;
 use crate::state::state_api::StateReader;
 use crate::transaction::errors::TransactionFeeError;
-use crate::transaction::objects::{ExecutionResourcesTraits, FeeType, TransactionInfo};
+use crate::transaction::objects::{ExecutionResourcesTraits, TransactionInfo};
 use crate::utils::u64_from_usize;
 use crate::versioned_constants::VersionedConstants;
 
