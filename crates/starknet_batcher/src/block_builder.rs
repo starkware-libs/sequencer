@@ -26,13 +26,7 @@ use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_state_reader::papyrus_state::PapyrusReader;
 use papyrus_storage::StorageReader;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{
-    BlockHashAndNumber,
-    BlockInfo,
-    BlockNumber,
-    BlockTimestamp,
-    NonzeroGasPrice,
-};
+use starknet_api::block::{BlockHashAndNumber, BlockInfo, BlockTimestamp, NonzeroGasPrice};
 use starknet_api::core::ContractAddress;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::transaction::TransactionHash;
@@ -224,7 +218,7 @@ async fn collect_execution_results_and_stream_txs(
 }
 
 pub struct BlockMetadata {
-    pub height: BlockNumber,
+    pub block_info: BlockInfo,
     pub retrospective_block_hash: Option<BlockHashAndNumber>,
 }
 
@@ -311,11 +305,11 @@ impl BlockBuilderFactory {
         block_metadata: &BlockMetadata,
     ) -> BlockBuilderResult<TransactionExecutor<PapyrusReader>> {
         let block_builder_config = self.block_builder_config.clone();
-        let next_block_info = BlockInfo {
-            block_number: block_metadata.height,
+        // TODO: Remove the overrides of the block info once once they are initialized.
+        let block_info = BlockInfo {
+            block_number: block_metadata.block_info.block_number,
             block_timestamp: BlockTimestamp(chrono::Utc::now().timestamp().try_into()?),
             sequencer_address: block_builder_config.sequencer_address,
-            // TODO (yael 7/10/2024): add logic to compute gas prices
             gas_prices: {
                 let tmp_val = NonzeroGasPrice::MIN;
                 validated_gas_prices(tmp_val, tmp_val, tmp_val, tmp_val, tmp_val, tmp_val)
@@ -326,7 +320,7 @@ impl BlockBuilderFactory {
             block_builder_config.versioned_constants_overrides,
         );
         let block_context = BlockContext::new(
-            next_block_info,
+            block_info,
             block_builder_config.chain_info,
             versioned_constants,
             block_builder_config.bouncer_config,
@@ -334,7 +328,7 @@ impl BlockBuilderFactory {
 
         let state_reader = PapyrusReader::new(
             self.storage_reader.clone(),
-            block_metadata.height,
+            block_metadata.block_info.block_number,
             self.global_class_hash_to_class.clone(),
         );
 
