@@ -312,7 +312,7 @@ impl BlockBuilderFactory {
             // TODO (yael 7/10/2024): add logic to compute gas prices
             gas_prices: {
                 let tmp_val = NonzeroGasPrice::MIN;
-                GasPrices::new(tmp_val, tmp_val, tmp_val, tmp_val, tmp_val, tmp_val)
+                GasPrices::safe_new(tmp_val, tmp_val, tmp_val, tmp_val, tmp_val, tmp_val)
             },
             use_kzg_da: block_builder_config.use_kzg_da,
         };

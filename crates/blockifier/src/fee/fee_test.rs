@@ -178,7 +178,7 @@ fn test_discounted_gas_overdraft(
         NonzeroGasPrice::try_from(data_gas_price).unwrap(),
     );
     let mut block_context = BlockContext::create_for_account_testing();
-    block_context.block_info.gas_prices = GasPrices::new(
+    block_context.block_info.gas_prices = GasPrices::safe_new(
         DEFAULT_ETH_L1_GAS_PRICE,
         gas_price,
         DEFAULT_ETH_L1_DATA_GAS_PRICE,
@@ -313,7 +313,7 @@ fn test_get_fee_by_gas_vector_regression(
     #[case] expected_fee_strk: u128,
 ) {
     let mut block_info = BlockContext::create_for_account_testing().block_info;
-    block_info.gas_prices = GasPrices::new(
+    block_info.gas_prices = GasPrices::safe_new(
         1_u8.try_into().unwrap(),
         2_u8.try_into().unwrap(),
         3_u8.try_into().unwrap(),
@@ -347,7 +347,7 @@ fn test_get_fee_by_gas_vector_overflow(
 ) {
     let huge_gas_price = NonzeroGasPrice::try_from(2_u128 * u128::from(u64::MAX)).unwrap();
     let mut block_info = BlockContext::create_for_account_testing().block_info;
-    block_info.gas_prices = GasPrices::new(
+    block_info.gas_prices = GasPrices::safe_new(
         huge_gas_price,
         huge_gas_price,
         huge_gas_price,
