@@ -31,6 +31,14 @@ pub fn resolve_project_relative_path(relative_path: &str) -> Result<PathBuf, std
     Ok(absolute_path)
 }
 
+/// Returns the absolute path of the project root directory.
+///
+/// # Returns
+/// * A `PathBuf` representing the path of the project root.
+pub fn project_path() -> Result<PathBuf, std::io::Error> {
+    resolve_project_relative_path(".")
+}
+
 fn path_of_project_root() -> PathBuf {
     cargo_manifest_dir()
         // Attempt to get the `CARGO_MANIFEST_DIR` environment variable and convert it to `PathBuf`.
