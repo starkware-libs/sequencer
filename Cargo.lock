@@ -7185,6 +7185,7 @@ dependencies = [
  "async-trait",
  "ethers",
  "ethers-core",
+ "papyrus_base_layer",
  "papyrus_config",
  "pretty_assertions",
  "serde",
