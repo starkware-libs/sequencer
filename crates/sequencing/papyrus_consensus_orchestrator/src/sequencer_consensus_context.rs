@@ -170,7 +170,8 @@ impl ConsensusContext for SequencerConsensusContext {
                 number: BlockNumber::default(),
                 hash: BlockHash::default(),
             }),
-            // TODO(Dan, Matan): Fill block info.
+            // TODO(Dan, Matan): Fill block info. Override the sequencer address in the block info
+            // in the BlockBuilderFactory.
             block_info: BlockInfo {
                 block_number: proposal_init.height,
                 gas_prices: TEMPORARY_GAS_PRICES,
@@ -384,7 +385,8 @@ impl SequencerConsensusContext {
                 number: BlockNumber::default(),
                 hash: BlockHash::default(),
             }),
-            // TODO(Dan, Matan): Fill block info.
+            // TODO(Dan, Matan): Fill block info. Override the sequencer address in the block info
+            // in the BlockBuilderFactory.
             block_info: BlockInfo {
                 block_number: height,
                 gas_prices: TEMPORARY_GAS_PRICES,
