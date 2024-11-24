@@ -39,6 +39,8 @@ pub struct GasPrices {
     strk_gas_prices: GasPriceVector, // In fri.
 }
 
+// Tmp.
+// Tmp.
 impl GasPrices {
     pub fn new(
         eth_l1_gas_price: NonzeroGasPrice,
