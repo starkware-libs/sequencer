@@ -1,6 +1,7 @@
 use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
+use starknet_api::block::FeeType;
 use starknet_api::core::ContractAddress;
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::test_utils::invoke::InvokeTxArgs;
@@ -41,7 +42,7 @@ use crate::transaction::errors::{
     TransactionFeeError,
     TransactionPreValidationError,
 };
-use crate::transaction::objects::{FeeType, TransactionExecutionInfo, TransactionExecutionResult};
+use crate::transaction::objects::{TransactionExecutionInfo, TransactionExecutionResult};
 use crate::transaction::test_utils::{
     account_invoke_tx,
     default_l1_resource_bounds,
