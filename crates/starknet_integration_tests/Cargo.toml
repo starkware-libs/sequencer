@@ -45,6 +45,7 @@ tracing.workspace = true
 [dev-dependencies]
 futures.workspace = true
 infra_utils.workspace = true
+itertools.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
 starknet_sequencer_infra.workspace = true
