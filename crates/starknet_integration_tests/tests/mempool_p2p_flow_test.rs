@@ -4,7 +4,7 @@ use std::net::SocketAddr;
 use futures::StreamExt;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use papyrus_network::gossipsub_impl::Topic;
-use papyrus_network::network_manager::test_utils::create_network_config_connected_to_broadcast_channels;
+use papyrus_network::network_manager::test_utils::create_network_configs_connected_to_broadcast_channels;
 use papyrus_protobuf::mempool::RpcTransactionWrapper;
 use rstest::{fixture, rstest};
 use starknet_api::rpc_transaction::RpcTransaction;
@@ -76,10 +76,12 @@ async fn test_mempool_sends_tx_to_other_peer(tx_generator: MultiAccountTransacti
     let gateway_config = create_gateway_config(chain_info).await;
     let http_server_config = create_http_server_config().await;
     let rpc_state_reader_config = test_rpc_state_reader_config(rpc_server_addr);
-    let (network_config, mut broadcast_channels) =
-        create_network_config_connected_to_broadcast_channels::<RpcTransactionWrapper>(Topic::new(
-            MEMPOOL_TOPIC,
-        ));
+    let (mut network_configs, mut broadcast_channels) =
+        create_network_configs_connected_to_broadcast_channels::<RpcTransactionWrapper>(
+            1,
+            Topic::new(MEMPOOL_TOPIC),
+        );
+    let network_config = network_configs.pop().unwrap();
     let mempool_p2p_config = MempoolP2pConfig { network_config, ..Default::default() };
     let config = SequencerNodeConfig {
         components,
