@@ -1,9 +1,10 @@
 use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use assert_matches::assert_matches;
 use async_trait::async_trait;
 use blockifier::abi::constants;
+use blockifier::test_utils::struct_impls::BlockInfoExt;
 use chrono::Utc;
 use futures::future::BoxFuture;
 use futures::FutureExt;
@@ -60,6 +61,9 @@ const INITIAL_HEIGHT: BlockNumber = BlockNumber(3);
 const STREAMING_CHUNK_SIZE: usize = 3;
 const BLOCK_GENERATION_TIMEOUT: tokio::time::Duration = tokio::time::Duration::from_secs(1);
 const PROPOSAL_ID: ProposalId = ProposalId(0);
+
+static INITIAL_BLOCK_INFO: LazyLock<BlockInfo> =
+    LazyLock::new(|| BlockInfo { block_number: INITIAL_HEIGHT, ..BlockInfo::create_for_testing() });
 
 fn proposal_commitment() -> ProposalCommitment {
     ProposalCommitment {
@@ -268,7 +272,7 @@ async fn validate_block_full_flow() {
         proposal_id: PROPOSAL_ID,
         deadline: deadline(),
         retrospective_block_hash: None,
-        block_info: BlockInfo { block_number: INITIAL_HEIGHT, ..Default::default() },
+        block_info: INITIAL_BLOCK_INFO.clone(),
     };
     batcher.validate_block(validate_block_input).await.unwrap();
 
@@ -388,7 +392,7 @@ async fn send_finish_to_an_invalid_proposal() {
         proposal_id: PROPOSAL_ID,
         deadline: deadline(),
         retrospective_block_hash: None,
-        block_info: BlockInfo { block_number: INITIAL_HEIGHT, ..Default::default() },
+        block_info: INITIAL_BLOCK_INFO.clone(),
     };
     batcher.validate_block(validate_block_input).await.unwrap();
 
@@ -421,7 +425,7 @@ async fn propose_block_full_flow() {
             proposal_id: PROPOSAL_ID,
             retrospective_block_hash: None,
             deadline: chrono::Utc::now() + chrono::Duration::seconds(1),
-            block_info: BlockInfo { block_number: INITIAL_HEIGHT, ..Default::default() },
+            block_info: INITIAL_BLOCK_INFO.clone(),
         })
         .await
         .unwrap();

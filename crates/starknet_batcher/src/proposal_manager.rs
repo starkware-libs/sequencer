@@ -86,7 +86,7 @@ struct ProposalTask {
 /// Taking care of:
 /// - Proposing new blocks.
 /// - Validating incoming proposals.
-/// - Commiting accepted proposals to the storage.
+/// - Committing accepted proposals to the storage.
 ///
 /// Triggered by the consensus.
 pub(crate) struct ProposalManager {
