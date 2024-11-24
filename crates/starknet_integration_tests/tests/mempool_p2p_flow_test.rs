@@ -77,9 +77,10 @@ async fn test_mempool_sends_tx_to_other_peer(tx_generator: MultiAccountTransacti
     let http_server_config = create_http_server_config().await;
     let rpc_state_reader_config = test_rpc_state_reader_config(rpc_server_addr);
     let (network_config, mut broadcast_channels) =
-        create_network_config_connected_to_broadcast_channels::<RpcTransactionWrapper>(Topic::new(
-            MEMPOOL_TOPIC,
-        ));
+        create_network_config_connected_to_broadcast_channels::<2, RpcTransactionWrapper>(
+            Topic::new(MEMPOOL_TOPIC),
+        );
+    let mut broadcast_channels = broadcast_channels.pop().unwrap();
     let mempool_p2p_config = MempoolP2pConfig { network_config, ..Default::default() };
     let config = SequencerNodeConfig {
         components,

@@ -78,8 +78,8 @@ pub async fn create_config(
 
 fn create_consensus_manager_config_and_channels()
 -> (ConsensusManagerConfig, BroadcastTopicChannels<ProposalPart>) {
-    let (network_config, broadcast_channels) =
-        create_network_config_connected_to_broadcast_channels(
+    let (network_config, mut broadcast_channels) =
+        create_network_config_connected_to_broadcast_channels::<2, ProposalPart>(
             papyrus_network::gossipsub_impl::Topic::new(
                 starknet_consensus_manager::consensus_manager::NETWORK_TOPIC,
             ),
@@ -92,6 +92,7 @@ fn create_consensus_manager_config_and_channels()
             ..Default::default()
         },
     };
+    let broadcast_channels = broadcast_channels.pop().unwrap();
     (consensus_manager_config, broadcast_channels)
 }
 
