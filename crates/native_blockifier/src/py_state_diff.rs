@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::convert::TryFrom;
 
-use blockifier::blockifier::block::{gas_prices, BlockInfo};
+use blockifier::blockifier::block::gas_prices;
 use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::test_utils::{
     DEFAULT_ETH_L1_DATA_GAS_PRICE,
@@ -13,7 +13,7 @@ use blockifier::versioned_constants::VersionedConstants;
 use indexmap::IndexMap;
 use pyo3::prelude::*;
 use pyo3::FromPyObject;
-use starknet_api::block::{BlockNumber, BlockTimestamp, NonzeroGasPrice};
+use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp, NonzeroGasPrice};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::state::{StateDiff, StorageKey};
 
