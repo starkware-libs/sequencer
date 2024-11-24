@@ -41,7 +41,7 @@ fn tx_generator() -> MultiAccountTransactionGenerator {
 // TODO: remove code duplication with FlowTestSetup
 #[rstest]
 #[tokio::test]
-async fn test_mempool_sends_tx_to_other_peer(tx_generator: MultiAccountTransactionGenerator) {
+async fn test_mempool_sends_tx_to_other_peer(mut tx_generator: MultiAccountTransactionGenerator) {
     let handle = Handle::current();
     let task_executor = TokioExecutor::new(handle);
 
@@ -110,7 +110,7 @@ async fn test_mempool_sends_tx_to_other_peer(tx_generator: MultiAccountTransacti
     let mut expected_txs = HashSet::new();
 
     // Create and send transactions.
-    let _tx_hashes = run_integration_test_scenario(tx_generator, &mut |tx: RpcTransaction| {
+    let _tx_hashes = run_integration_test_scenario(&mut tx_generator, &mut |tx: RpcTransaction| {
         expected_txs.insert(tx.clone()); // push the sent tx to the expected_txs list
         add_tx_http_client.assert_add_tx_success(tx)
     })

@@ -16,6 +16,10 @@ use starknet_integration_tests::utils::{
     run_integration_test_scenario,
 };
 use starknet_types_core::felt::Felt;
+use tracing::debug;
+
+const INITIAL_HEIGHT: BlockNumber = BlockNumber(0);
+const LAST_HEIGHT: BlockNumber = BlockNumber(2);
 
 #[fixture]
 fn tx_generator() -> MultiAccountTransactionGenerator {
@@ -24,32 +28,52 @@ fn tx_generator() -> MultiAccountTransactionGenerator {
 
 #[rstest]
 #[tokio::test]
-async fn end_to_end(tx_generator: MultiAccountTransactionGenerator) {
+async fn end_to_end(mut tx_generator: MultiAccountTransactionGenerator) {
     const LISTEN_TO_BROADCAST_MESSAGES_TIMEOUT: std::time::Duration =
         std::time::Duration::from_secs(5);
     // Setup.
     let mut mock_running_system = FlowTestSetup::new_from_tx_generator(&tx_generator).await;
 
-    // Create and send transactions.
-    let expected_batched_tx_hashes = run_integration_test_scenario(tx_generator, &mut |tx| {
-        mock_running_system.assert_add_tx_success(tx)
-    })
-    .await;
-    // TODO(Dan, Itay): Consider adding a utility function that waits for something to happen.
-    tokio::time::timeout(
-        LISTEN_TO_BROADCAST_MESSAGES_TIMEOUT,
-        listen_to_broadcasted_messages(
-            &mut mock_running_system.consensus_proposals_channels,
-            &expected_batched_tx_hashes,
+    let next_height = INITIAL_HEIGHT.unchecked_next();
+    let heights_to_build = next_height.iter_up_to(LAST_HEIGHT.unchecked_next());
+    let expected_content_ids = [
+        Felt::from_hex_unchecked(
+            "0x4597ceedbef644865917bf723184538ef70d43954d63f5b7d8cb9d1bd4c2c32",
         ),
-    )
-    .await
-    .expect("listen to broadcasted messages should finish in time");
+        Felt::from_hex_unchecked(
+            "0x7e2c0e448bea6bbf00962017d8addd56c6146d5beb5a273b2e02f5fb862d20f",
+        ),
+    ];
+
+    // Buld multiple heights to ensure heights are committed.
+    for (height, expected_content_id) in itertools::zip_eq(heights_to_build, expected_content_ids) {
+        debug!("Starting height {}.", height);
+        // Create and send transactions.
+        let expected_batched_tx_hashes =
+            run_integration_test_scenario(&mut tx_generator, &mut |tx| {
+                mock_running_system.assert_add_tx_success(tx)
+            })
+            .await;
+        // TODO(Dan, Itay): Consider adding a utility function that waits for something to happen.
+        tokio::time::timeout(
+            LISTEN_TO_BROADCAST_MESSAGES_TIMEOUT,
+            listen_to_broadcasted_messages(
+                &mut mock_running_system.consensus_proposals_channels,
+                &expected_batched_tx_hashes,
+                height,
+                expected_content_id,
+            ),
+        )
+        .await
+        .expect("listen to broadcasted messages should finish in time");
+    }
 }
 
 async fn listen_to_broadcasted_messages(
     consensus_proposals_channels: &mut BroadcastTopicChannels<ProposalPart>,
     expected_batched_tx_hashes: &[TransactionHash],
+    expected_height: BlockNumber,
+    expected_content_id: Felt,
 ) {
     let chain_id = CHAIN_ID_FOR_TESTS.clone();
     let broadcasted_messages_receiver =
@@ -57,16 +81,12 @@ async fn listen_to_broadcasted_messages(
     let mut received_tx_hashes = HashSet::new();
     // TODO (Dan, Guy): retrieve / calculate the expected proposal init and fin.
     let expected_proposal_init = ProposalInit {
-        height: BlockNumber(1),
+        height: expected_height,
         round: 0,
         valid_round: None,
         proposer: ContractAddress::default(),
     };
-    let expected_proposal_fin = ProposalFin {
-        proposal_content_id: BlockHash(Felt::from_hex_unchecked(
-            "0x4597ceedbef644865917bf723184538ef70d43954d63f5b7d8cb9d1bd4c2c32",
-        )),
-    };
+    let expected_proposal_fin = ProposalFin { proposal_content_id: BlockHash(expected_content_id) };
     assert_eq!(
         broadcasted_messages_receiver.next().await.unwrap().0.unwrap(),
         ProposalPart::Init(expected_proposal_init)
