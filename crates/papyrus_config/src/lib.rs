@@ -49,7 +49,6 @@
 
 use clap::parser::MatchesError;
 use dumping::REQUIRED_PARAM_DESCRIPTION_PREFIX;
-use infra_utils::path::PathResolutionError;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use validator::ValidationError;
@@ -179,8 +178,6 @@ pub enum ConfigError {
     MissingParam(#[from] serde_json::Error),
     #[error(transparent)]
     CommandMatches(#[from] MatchesError),
-    #[error(transparent)]
-    GetPathError(#[from] PathResolutionError),
     #[error(transparent)]
     IOError(#[from] std::io::Error),
     // TODO(Eitan): Improve error message
