@@ -19,7 +19,7 @@ fn test_successful_gas_costs_parsing() {
         "entry_point_initial_budget": {
             "step_gas_cost": 3
         },
-        "entry_point_gas_cost": {
+        "transaction_gas_cost": {
             "entry_point_initial_budget": 4,
             "step_gas_cost": 5
         },
@@ -33,7 +33,7 @@ fn test_successful_gas_costs_parsing() {
     assert_eq!(versioned_constants.os_constants.gas_costs.entry_point_initial_budget, 2 * 3); // step_gas_cost * 3.
 
     // entry_point_initial_budget * 4 + step_gas_cost * 5.
-    assert_eq!(versioned_constants.os_constants.gas_costs.entry_point_gas_cost, 6 * 4 + 2 * 5);
+    assert_eq!(versioned_constants.os_constants.gas_costs.transaction_gas_cost, 6 * 4 + 2 * 5);
 }
 
 /// Assert versioned constants overrides are used when provided.
