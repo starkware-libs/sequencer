@@ -152,7 +152,7 @@ impl BlockInfo {
             block_number: BlockNumber(CURRENT_BLOCK_NUMBER),
             block_timestamp: BlockTimestamp(CURRENT_BLOCK_TIMESTAMP),
             sequencer_address: contract_address!(TEST_SEQUENCER_ADDRESS),
-            gas_prices: GasPrices::new(
+            gas_prices: GasPrices::validated_new(
                 DEFAULT_ETH_L1_GAS_PRICE,
                 DEFAULT_STRK_L1_GAS_PRICE,
                 DEFAULT_ETH_L1_DATA_GAS_PRICE,
