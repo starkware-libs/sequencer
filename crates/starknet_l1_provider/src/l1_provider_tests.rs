@@ -7,8 +7,8 @@ use starknet_api::transaction::TransactionHash;
 
 use crate::errors::L1ProviderError;
 use crate::test_utils::L1ProviderContentBuilder;
-use crate::L1Provider;
 use crate::ProviderState::{Propose, Validate};
+use crate::{L1Provider, ValidationStatus};
 
 macro_rules! tx {
     (tx_hash: $tx_hash:expr) => {{
@@ -18,6 +18,12 @@ macro_rules! tx {
             )
         )
     }};
+}
+
+macro_rules! tx_hash {
+    ($tx_hash:expr) => {
+        TransactionHash(StarkHash::from($tx_hash))
+    };
 }
 
 #[test]
@@ -37,6 +43,23 @@ fn get_txs_happy_flow() {
 }
 
 #[test]
+fn validate_happy_flow() {
+    // Setup.
+    let l1_provider = L1ProviderContentBuilder::new()
+        .with_txs([tx!(tx_hash: 1)])
+        .with_on_l2_awaiting_l1_consumption([tx_hash!(2)])
+        .with_state(Validate)
+        .build_into_l1_provider();
+
+    // Test.
+    assert_eq!(l1_provider.validate(tx_hash!(1)).unwrap(), ValidationStatus::Validated);
+    assert_eq!(l1_provider.validate(tx_hash!(2)).unwrap(), ValidationStatus::AlreadyIncludedOnL2);
+    assert_eq!(l1_provider.validate(tx_hash!(3)).unwrap(), ValidationStatus::ConsumedOnL1OrUnknown);
+    // Transaction wasn't deleted after the validation.
+    assert_eq!(l1_provider.validate(tx_hash!(1)).unwrap(), ValidationStatus::Validated);
+}
+
+#[test]
 fn pending_state_errors() {
     // Setup.
     let mut l1_provider =
@@ -46,6 +69,11 @@ fn pending_state_errors() {
     assert_matches!(
         l1_provider.get_txs(1).unwrap_err(),
         L1ProviderError::GetTransactionsInPendingState
+    );
+
+    assert_matches!(
+        l1_provider.validate(tx_hash!(1)).unwrap_err(),
+        L1ProviderError::ValidateInPendingState
     );
 }
 
