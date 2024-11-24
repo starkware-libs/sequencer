@@ -326,15 +326,9 @@ impl BlockBuilderFactory {
             block_builder_config.bouncer_config,
         );
 
-        // TODO(Yael: 8/9/2024) Need to reconsider which StateReader to use. the papyrus execution
-        // state reader does not implement the Sync trait since it is using cell so I used
-        // the blockifier state reader instead. Also the blockifier reader is implementing a global
-        // cache.
         let state_reader = PapyrusReader::new(
             self.storage_reader.clone(),
             block_metadata.height,
-            // TODO(Yael 18/9/2024): dont forget to flush the cached_state cache into the global
-            // cache on decision_reached.
             self.global_class_hash_to_class.clone(),
         );
 
