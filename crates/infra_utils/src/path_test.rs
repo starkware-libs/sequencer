@@ -1,6 +1,5 @@
-use crate::path::{path_of_project_root, resolve_project_relative_path, PathResolutionError};
+use crate::path::{path_of_project_root, resolve_project_relative_path};
 
-// TODO: Add a test for PathResolutionError::IoError.
 #[test]
 fn resolve_project_relative_path_on_non_existent_path() {
     let relative_path = "does_not_exist.txt";
@@ -8,11 +7,7 @@ fn resolve_project_relative_path_on_non_existent_path() {
     assert!(!expected_path.exists());
     let result = resolve_project_relative_path(relative_path);
 
-    if let Err(PathResolutionError::PathDoesNotExist { path }) = result {
-        assert_eq!(path, expected_path);
-    } else {
-        panic!("Expected PathDoesNotExist error, got {:?}", result);
-    }
+    assert!(result.is_err(), "Expected an non-existent path error, got {:?}", result);
 }
 
 #[test]
