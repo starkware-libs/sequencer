@@ -139,7 +139,7 @@ impl Batcher {
 
         self.proposal_manager
             .propose_block(
-                active_height,
+                propose_block_input.block_info,
                 proposal_id,
                 propose_block_input.retrospective_block_hash,
                 deadline,
@@ -177,7 +177,7 @@ impl Batcher {
 
         self.proposal_manager
             .validate_block(
-                active_height,
+                validate_block_input.block_info,
                 proposal_id,
                 validate_block_input.retrospective_block_hash,
                 deadline,
@@ -427,7 +427,6 @@ fn verify_block_input(
 ) -> BatcherResult<()> {
     verify_non_empty_retrospective_block_hash(height, retrospective_block_hash)?;
     verify_block_number(height, block_number)?;
-
     Ok(())
 }
 
@@ -440,7 +439,6 @@ fn verify_non_empty_retrospective_block_hash(
     {
         return Err(BatcherError::MissingRetrospectiveBlockHash);
     }
-
     Ok(())
 }
 
@@ -448,6 +446,5 @@ fn verify_block_number(height: BlockNumber, block_number: BlockNumber) -> Batche
     if block_number != height {
         return Err(BatcherError::InvalidBlockNumber { active_height: height, block_number });
     }
-
     Ok(())
 }
