@@ -568,52 +568,69 @@ pub struct GasCosts {
 
 impl GasCosts {
     pub fn get_builtin_gas_cost(&self, builtin: &BuiltinName) -> Result<u64, GasCostsError> {
-        const KECCAK_BUILTIN_GAS_COST : u64 = 136189;
-        match *builtin {
-            BuiltinName::range_check => Ok(self.range_check_gas_cost),
-            BuiltinName::pedersen => Ok(self.pedersen_gas_cost),
-            BuiltinName::bitwise => Ok(self.bitwise_builtin_gas_cost),
-            BuiltinName::ec_op => Ok(self.ecop_gas_cost),
-            //TODO (Yonatan): once keccak_builtin_gas_cost is being inserted to the versioned constants, replace the constant with field's value 
-            BuiltinName::keccak => Ok(KECCAK_BUILTIN_GAS_COST), 
-            BuiltinName::poseidon => Ok(self.poseidon_gas_cost),
-            BuiltinName::range_check96 => Ok(self.range_check_gas_cost),
-            BuiltinName::add_mod => Ok(self.add_mod_gas_cost),
-            BuiltinName::mul_mod => Ok(self.mul_mod_gas_cost),
-            BuiltinName::segment_arena => Err(GasCostsError::VirtualBuiltin),
-            // The following are unsupported builtins in Cairo 1
-             BuiltinName::output | BuiltinName::ecdsa => Err(GasCostsError::UnsupportedBuiltinInCairo1 {builtin: *builtin,}),
-        }
+        const KECCAK_BUILTIN_GAS_COST: u64 = 136189;
+
+        let gas_cost = match *builtin {
+            BuiltinName::range_check => self.range_check_gas_cost,
+            BuiltinName::pedersen => self.pedersen_gas_cost,
+            BuiltinName::bitwise => self.bitwise_builtin_gas_cost,
+            BuiltinName::ec_op => self.ecop_gas_cost,
+            // TODO (Yonatan): once keccak_builtin_gas_cost is being inserted to the versioned
+            // constants, replace the constant with field's value
+            BuiltinName::keccak => KECCAK_BUILTIN_GAS_COST,
+            BuiltinName::poseidon => self.poseidon_gas_cost,
+            BuiltinName::range_check96 => self.range_check_gas_cost,
+            BuiltinName::add_mod => self.add_mod_gas_cost,
+            BuiltinName::mul_mod => self.mul_mod_gas_cost,
+            BuiltinName::segment_arena => return Err(GasCostsError::VirtualBuiltin),
+            BuiltinName::output | BuiltinName::ecdsa => {
+                return Err(GasCostsError::UnsupportedBuiltinInCairo1 { builtin: *builtin });
+            }
+        };
+
+        Ok(gas_cost)
     }
 
     pub fn get_syscall_gas_cost(&self, selector: &SyscallSelector) -> Result<u64, GasCostsError> {
-        match selector {
-            SyscallSelector::CallContract => Ok(self.call_contract_gas_cost),
-            SyscallSelector::Deploy => Ok(self.deploy_gas_cost),
-            SyscallSelector::EmitEvent => Ok(self.emit_event_gas_cost),
-            SyscallSelector::GetBlockHash => Ok(self.get_block_hash_gas_cost),
-            SyscallSelector::GetExecutionInfo => Ok(self.get_execution_info_gas_cost),
-            SyscallSelector::GetClassHashAt => Ok(self.get_class_hash_at_gas_cost),
-            SyscallSelector::Keccak => Ok(self.keccak_gas_cost),
-            SyscallSelector::Sha256ProcessBlock => Ok(self.sha256_process_block_gas_cost),
-            SyscallSelector::LibraryCall => Ok(self.library_call_gas_cost),
-            SyscallSelector::ReplaceClass => Ok(self.replace_class_gas_cost),
-            SyscallSelector::Secp256k1Add => Ok(self.secp256k1_add_gas_cost),
-            SyscallSelector::Secp256k1GetPointFromX => Ok(self.secp256k1_get_point_from_x_gas_cost),
-            SyscallSelector::Secp256k1GetXy => Ok(self.secp256k1_get_xy_gas_cost),
-            SyscallSelector::Secp256k1Mul => Ok(self.secp256k1_mul_gas_cost),
-            SyscallSelector::Secp256k1New => Ok(self.secp256k1_new_gas_cost),
-            SyscallSelector::Secp256r1Add => Ok(self.secp256r1_add_gas_cost),
-            SyscallSelector::Secp256r1GetPointFromX => Ok(self.secp256r1_get_point_from_x_gas_cost),
-            SyscallSelector::Secp256r1GetXy => Ok(self.secp256r1_get_xy_gas_cost),
-            SyscallSelector::Secp256r1Mul => Ok(self.secp256r1_mul_gas_cost),
-            SyscallSelector::Secp256r1New => Ok(self.secp256r1_new_gas_cost),
-            SyscallSelector::SendMessageToL1 => Ok(self.send_message_to_l1_gas_cost),
-            SyscallSelector::StorageRead => Ok(self.storage_read_gas_cost),
-            SyscallSelector::StorageWrite => Ok(self.storage_write_gas_cost),
-            // The following are unsupported syscalls in Cairo 1
-            SyscallSelector::DelegateCall | SyscallSelector::DelegateL1Handler | SyscallSelector::GetBlockNumber | SyscallSelector::GetBlockTimestamp | SyscallSelector::GetCallerAddress | SyscallSelector::GetContractAddress | SyscallSelector::GetTxInfo | SyscallSelector::GetSequencerAddress | SyscallSelector::GetTxSignature | SyscallSelector::LibraryCallL1Handler => Err(GasCostsError::DeprecatedSyscall{selector: *selector,}),
-        }
+        let gas_cost = match *selector {
+            SyscallSelector::CallContract => self.call_contract_gas_cost,
+            SyscallSelector::Deploy => self.deploy_gas_cost,
+            SyscallSelector::EmitEvent => self.emit_event_gas_cost,
+            SyscallSelector::GetBlockHash => self.get_block_hash_gas_cost,
+            SyscallSelector::GetExecutionInfo => self.get_execution_info_gas_cost,
+            SyscallSelector::GetClassHashAt => self.get_class_hash_at_gas_cost,
+            SyscallSelector::Keccak => self.keccak_gas_cost,
+            SyscallSelector::Sha256ProcessBlock => self.sha256_process_block_gas_cost,
+            SyscallSelector::LibraryCall => self.library_call_gas_cost,
+            SyscallSelector::ReplaceClass => self.replace_class_gas_cost,
+            SyscallSelector::Secp256k1Add => self.secp256k1_add_gas_cost,
+            SyscallSelector::Secp256k1GetPointFromX => self.secp256k1_get_point_from_x_gas_cost,
+            SyscallSelector::Secp256k1GetXy => self.secp256k1_get_xy_gas_cost,
+            SyscallSelector::Secp256k1Mul => self.secp256k1_mul_gas_cost,
+            SyscallSelector::Secp256k1New => self.secp256k1_new_gas_cost,
+            SyscallSelector::Secp256r1Add => self.secp256r1_add_gas_cost,
+            SyscallSelector::Secp256r1GetPointFromX => self.secp256r1_get_point_from_x_gas_cost,
+            SyscallSelector::Secp256r1GetXy => self.secp256r1_get_xy_gas_cost,
+            SyscallSelector::Secp256r1Mul => self.secp256r1_mul_gas_cost,
+            SyscallSelector::Secp256r1New => self.secp256r1_new_gas_cost,
+            SyscallSelector::SendMessageToL1 => self.send_message_to_l1_gas_cost,
+            SyscallSelector::StorageRead => self.storage_read_gas_cost,
+            SyscallSelector::StorageWrite => self.storage_write_gas_cost,
+            SyscallSelector::DelegateCall
+            | SyscallSelector::DelegateL1Handler
+            | SyscallSelector::GetBlockNumber
+            | SyscallSelector::GetBlockTimestamp
+            | SyscallSelector::GetCallerAddress
+            | SyscallSelector::GetContractAddress
+            | SyscallSelector::GetTxInfo
+            | SyscallSelector::GetSequencerAddress
+            | SyscallSelector::GetTxSignature
+            | SyscallSelector::LibraryCallL1Handler => {
+                return Err(GasCostsError::DeprecatedSyscall { selector: *selector });
+            }
+        };
+
+        Ok(gas_cost)
     }
 }
 
@@ -814,11 +831,11 @@ pub enum OsConstantsSerdeError {
 
 #[derive(Debug, Error)]
 pub enum GasCostsError {
-    #[error("used syscall: {:?} is not supported in a Cairo 0 contract", selector)]
-    DeprecatedSyscall {selector: SyscallSelector},
-    #[error("used builtin: {:?} is not supported in a Cairo 1 contract", builtin)]
-    UnsupportedBuiltinInCairo1 {builtin: BuiltinName},
-    #[error("a virtual builtin cannot be used in a smart contract")]
+    #[error("used syscall: {:?} is not supported in a Cairo 0 contract.", selector)]
+    DeprecatedSyscall { selector: SyscallSelector },
+    #[error("used builtin: {:?} is not supported in a Cairo 1 contract.", builtin)]
+    UnsupportedBuiltinInCairo1 { builtin: BuiltinName },
+    #[error("a virtual builtin does not have a gas cost.")]
     VirtualBuiltin,
 }
 
