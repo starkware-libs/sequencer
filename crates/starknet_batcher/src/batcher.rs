@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use blockifier::abi::constants;
+use blockifier::blockifier::block::{BlockInfo, GasPrices};
 use blockifier::state::global_cache::GlobalContractCache;
 use chrono::Utc;
 #[cfg(test)]
@@ -23,6 +24,7 @@ use starknet_batcher_types::batcher_types::{
     SendProposalContentInput,
     SendProposalContentResponse,
     StartHeightInput,
+    ThinBlockInfo,
     ValidateBlockInput,
 };
 use starknet_batcher_types::errors::BatcherError;
@@ -132,10 +134,11 @@ impl Batcher {
             Arc::new(DummyL1ProviderClient),
             self.config.max_l1_handler_txs_per_block_proposal,
         );
+        let block_info = from_thin_block_info(propose_block_input.thin_block_info, active_height);
 
         self.proposal_manager
             .propose_block(
-                active_height,
+                block_info,
                 proposal_id,
                 propose_block_input.retrospective_block_hash,
                 deadline,
@@ -166,10 +169,11 @@ impl Batcher {
             // TODO: use a real L1 provider client.
             l1_provider_client: Arc::new(DummyL1ProviderClient),
         };
+        let block_info = from_thin_block_info(validate_block_input.thin_block_info, active_height);
 
         self.proposal_manager
             .validate_block(
-                active_height,
+                block_info,
                 proposal_id,
                 validate_block_input.retrospective_block_hash,
                 deadline,
@@ -422,4 +426,22 @@ fn verify_block_input(
         return Err(BatcherError::MissingRetrospectiveBlockHash);
     }
     Ok(())
+}
+
+// TODO: Move to a common place.
+fn from_thin_block_info(thin_block_info: ThinBlockInfo, height: BlockNumber) -> BlockInfo {
+    BlockInfo {
+        block_number: height,
+        block_timestamp: thin_block_info.block_timestamp,
+        sequencer_address: thin_block_info.sequencer_address,
+        gas_prices: GasPrices::new(
+            thin_block_info.eth_gas_prices.l1_gas_price,
+            thin_block_info.strk_gas_prices.l1_gas_price,
+            thin_block_info.eth_gas_prices.l1_data_gas_price,
+            thin_block_info.strk_gas_prices.l1_data_gas_price,
+            thin_block_info.eth_gas_prices.l2_gas_price,
+            thin_block_info.strk_gas_prices.l2_gas_price,
+        ),
+        use_kzg_da: thin_block_info.use_kzg_da,
+    }
 }

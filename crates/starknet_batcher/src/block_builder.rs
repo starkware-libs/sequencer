@@ -26,7 +26,7 @@ use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_state_reader::papyrus_state::PapyrusReader;
 use papyrus_storage::StorageReader;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockHashAndNumber, BlockNumber, BlockTimestamp, NonzeroGasPrice};
+use starknet_api::block::{BlockHashAndNumber, BlockTimestamp, NonzeroGasPrice};
 use starknet_api::core::ContractAddress;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::transaction::TransactionHash;
@@ -222,7 +222,7 @@ async fn collect_execution_results_and_stream_txs(
 pub trait BlockBuilderFactoryTrait {
     fn create_block_builder(
         &self,
-        height: BlockNumber,
+        block_info: BlockInfo,
         retrospective_block_hash: Option<BlockHashAndNumber>,
         execution_params: BlockBuilderExecutionParams,
         tx_provider: Box<dyn TransactionProvider>,
@@ -296,16 +296,23 @@ pub struct BlockBuilderFactory {
 }
 
 impl BlockBuilderFactory {
-    fn next_block_info(&self, height: BlockNumber) -> BlockBuilderResult<BlockInfo> {
+    // TODO(Arni): Remove this function once it overrides non of the parameters.
+    fn block_info_with_overrides(
+        &self,
+        next_block_info: BlockInfo,
+    ) -> BlockBuilderResult<BlockInfo> {
         Ok(BlockInfo {
-            block_number: height,
+            block_number: next_block_info.block_number,
+            // TODO: Override the timestamp.
             block_timestamp: BlockTimestamp(chrono::Utc::now().timestamp().try_into()?),
+            // TODO: Override the sequencer address with proposer address.
             sequencer_address: self.block_builder_config.sequencer_address,
-            // TODO (yael 7/10/2024): add logic to compute gas prices
+            // TODO: Override the gas prices.
             gas_prices: {
                 let tmp_val = NonzeroGasPrice::MIN;
                 GasPrices::new(tmp_val, tmp_val, tmp_val, tmp_val, tmp_val, tmp_val)
             },
+            // TODO: Override the use_kzg_da flag.
             use_kzg_da: self.block_builder_config.use_kzg_da,
         })
     }
@@ -353,7 +360,7 @@ impl BlockBuilderFactory {
 impl BlockBuilderFactoryTrait for BlockBuilderFactory {
     fn create_block_builder(
         &self,
-        height: BlockNumber,
+        next_block_info: BlockInfo,
         retrospective_block_hash: Option<BlockHashAndNumber>,
         execution_params: BlockBuilderExecutionParams,
         tx_provider: Box<dyn TransactionProvider>,
@@ -361,7 +368,7 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
         abort_signal_receiver: tokio::sync::oneshot::Receiver<()>,
     ) -> BlockBuilderResult<Box<dyn BlockBuilderTrait>> {
         // TODO(Arni): Get block info as a parameter for this function.
-        let next_block_info = self.next_block_info(height)?;
+        let next_block_info = self.block_info_with_overrides(next_block_info)?;
         let executor = self.preprocess_and_create_transaction_executor(
             next_block_info,
             retrospective_block_hash,

@@ -2,8 +2,9 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use blockifier::blockifier::block::BlockInfo;
 use indexmap::IndexMap;
-use starknet_api::block::{BlockHashAndNumber, BlockNumber};
+use starknet_api::block::BlockHashAndNumber;
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::Transaction;
@@ -62,7 +63,7 @@ pub(crate) enum InternalProposalStatus {
 pub trait ProposalManagerTrait: Send + Sync {
     async fn propose_block(
         &mut self,
-        height: BlockNumber,
+        block_info: BlockInfo,
         proposal_id: ProposalId,
         retrospective_block_hash: Option<BlockHashAndNumber>,
         deadline: tokio::time::Instant,
@@ -72,7 +73,7 @@ pub trait ProposalManagerTrait: Send + Sync {
 
     async fn validate_block(
         &mut self,
-        height: BlockNumber,
+        block_info: BlockInfo,
         proposal_id: ProposalId,
         retrospective_block_hash: Option<BlockHashAndNumber>,
         deadline: tokio::time::Instant,
@@ -140,7 +141,7 @@ impl ProposalManagerTrait for ProposalManager {
     #[instrument(skip(self, tx_sender, tx_provider), err, fields(self.active_height))]
     async fn propose_block(
         &mut self,
-        height: BlockNumber,
+        block_info: BlockInfo,
         proposal_id: ProposalId,
         retrospective_block_hash: Option<BlockHashAndNumber>,
         deadline: tokio::time::Instant,
@@ -155,7 +156,7 @@ impl ProposalManagerTrait for ProposalManager {
         let (abort_signal_sender, abort_signal_receiver) = tokio::sync::oneshot::channel();
 
         let block_builder = self.block_builder_factory.create_block_builder(
-            height,
+            block_info,
             retrospective_block_hash,
             BlockBuilderExecutionParams { deadline, fail_on_err: false },
             Box::new(tx_provider),
@@ -174,7 +175,7 @@ impl ProposalManagerTrait for ProposalManager {
     #[instrument(skip(self, tx_provider), err, fields(self.active_height))]
     async fn validate_block(
         &mut self,
-        height: BlockNumber,
+        block_info: BlockInfo,
         proposal_id: ProposalId,
         retrospective_block_hash: Option<BlockHashAndNumber>,
         deadline: tokio::time::Instant,
@@ -188,7 +189,7 @@ impl ProposalManagerTrait for ProposalManager {
         let (abort_signal_sender, abort_signal_receiver) = tokio::sync::oneshot::channel();
 
         let block_builder = self.block_builder_factory.create_block_builder(
-            height,
+            block_info,
             retrospective_block_hash,
             BlockBuilderExecutionParams { deadline, fail_on_err: true },
             Box::new(tx_provider),

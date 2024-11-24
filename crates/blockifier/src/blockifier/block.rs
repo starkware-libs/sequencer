@@ -20,8 +20,9 @@ use crate::versioned_constants::VersionedConstants;
 #[path = "block_test.rs"]
 pub mod block_test;
 
+// TODO(Arni): This struct should not implement Default.
 #[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct BlockInfo {
     pub block_number: BlockNumber,
     pub block_timestamp: BlockTimestamp,
@@ -33,8 +34,9 @@ pub struct BlockInfo {
 }
 
 // TODO(Arni): Consider moving this struct to Starknet API.
+// TODO(Arni): This struct should not implement Default.
 #[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct GasPrices {
     eth_gas_prices: GasPriceVector,  // In wei.
     strk_gas_prices: GasPriceVector, // In fri.
