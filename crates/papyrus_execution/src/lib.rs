@@ -369,7 +369,7 @@ fn create_block_context(
         use_kzg_da,
         block_number,
         // TODO(yair): What to do about blocks pre 0.13.1 where the data gas price were 0?
-        gas_prices: GasPrices::new(
+        gas_prices: GasPrices::safe_new(
             NonzeroGasPrice::new(l1_gas_price.price_in_wei).unwrap_or(NonzeroGasPrice::MIN),
             NonzeroGasPrice::new(l1_gas_price.price_in_fri).unwrap_or(NonzeroGasPrice::MIN),
             NonzeroGasPrice::new(l1_data_gas_price.price_in_wei).unwrap_or(NonzeroGasPrice::MIN),

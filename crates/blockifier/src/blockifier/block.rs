@@ -40,7 +40,7 @@ pub struct GasPrices {
 }
 
 impl GasPrices {
-    pub fn new(
+    fn new(
         eth_l1_gas_price: NonzeroGasPrice,
         strk_l1_gas_price: NonzeroGasPrice,
         eth_l1_data_gas_price: NonzeroGasPrice,
@@ -48,26 +48,6 @@ impl GasPrices {
         eth_l2_gas_price: NonzeroGasPrice,
         strk_l2_gas_price: NonzeroGasPrice,
     ) -> Self {
-        // TODO(Aner): fix backwards compatibility.
-        let expected_eth_l2_gas_price = VersionedConstants::latest_constants()
-            .convert_l1_to_l2_gas_price_round_up(eth_l1_gas_price.into());
-        if GasPrice::from(eth_l2_gas_price) != expected_eth_l2_gas_price {
-            // TODO!(Aner): change to panic! Requires fixing several tests.
-            warn!(
-                "eth_l2_gas_price {eth_l2_gas_price} does not match expected eth_l2_gas_price \
-                 {expected_eth_l2_gas_price}."
-            )
-        }
-        let expected_strk_l2_gas_price = VersionedConstants::latest_constants()
-            .convert_l1_to_l2_gas_price_round_up(strk_l1_gas_price.into());
-        if GasPrice::from(strk_l2_gas_price) != expected_strk_l2_gas_price {
-            // TODO!(Aner): change to panic! Requires fixing test_discounted_gas_overdraft
-            warn!(
-                "strk_l2_gas_price {strk_l2_gas_price} does not match expected strk_l2_gas_price \
-                 {expected_strk_l2_gas_price}."
-            )
-        }
-
         Self {
             eth_gas_prices: GasPriceVector {
                 l1_gas_price: eth_l1_gas_price,
@@ -80,6 +60,50 @@ impl GasPrices {
                 l2_gas_price: strk_l2_gas_price,
             },
         }
+    }
+
+    /// Warns if the submitted gas prices do not match the expected gas prices.
+    fn validate_l2_gas_price(&self) {
+        // TODO(Aner): fix backwards compatibility.
+        let expected_eth_l2_gas_price = VersionedConstants::latest_constants()
+            .convert_l1_to_l2_gas_price_round_up(self.eth_gas_prices.l1_gas_price.into());
+        if GasPrice::from(self.eth_gas_prices.l2_gas_price) != expected_eth_l2_gas_price {
+            // TODO!(Aner): change to panic! Requires fixing several tests.
+            warn!(
+                "eth_l2_gas_price {} does not match expected eth_l2_gas_price {}.",
+                self.eth_gas_prices.l2_gas_price, expected_eth_l2_gas_price
+            )
+        }
+        let expected_strk_l2_gas_price = VersionedConstants::latest_constants()
+            .convert_l1_to_l2_gas_price_round_up(self.strk_gas_prices.l1_gas_price.into());
+        if GasPrice::from(self.strk_gas_prices.l2_gas_price) != expected_strk_l2_gas_price {
+            // TODO!(Aner): change to panic! Requires fixing test_discounted_gas_overdraft
+            warn!(
+                "strk_l2_gas_price {} does not match expected strk_l2_gas_price {}.",
+                self.strk_gas_prices.l2_gas_price, expected_strk_l2_gas_price
+            )
+        }
+    }
+
+    pub fn safe_new(
+        eth_l1_gas_price: NonzeroGasPrice,
+        strk_l1_gas_price: NonzeroGasPrice,
+        eth_l1_data_gas_price: NonzeroGasPrice,
+        strk_l1_data_gas_price: NonzeroGasPrice,
+        eth_l2_gas_price: NonzeroGasPrice,
+        strk_l2_gas_price: NonzeroGasPrice,
+    ) -> Self {
+        let gas_prices = Self::new(
+            eth_l1_gas_price,
+            strk_l1_gas_price,
+            eth_l1_data_gas_price,
+            strk_l1_data_gas_price,
+            eth_l2_gas_price,
+            strk_l2_gas_price,
+        );
+        gas_prices.validate_l2_gas_price();
+
+        gas_prices
     }
 
     pub fn get_l1_gas_price_by_fee_type(&self, fee_type: &FeeType) -> NonzeroGasPrice {

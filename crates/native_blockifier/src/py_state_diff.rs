@@ -182,7 +182,7 @@ impl TryFrom<PyBlockInfo> for BlockInfo {
             block_number: BlockNumber(block_info.block_number),
             block_timestamp: BlockTimestamp(block_info.block_timestamp),
             sequencer_address: ContractAddress::try_from(block_info.sequencer_address.0)?,
-            gas_prices: GasPrices::new(
+            gas_prices: GasPrices::safe_new(
                 NonzeroGasPrice::try_from(block_info.l1_gas_price.price_in_wei).map_err(|_| {
                     NativeBlockifierInputError::InvalidNativeBlockifierInputError(
                         InvalidNativeBlockifierInputError::InvalidL1GasPriceWei(

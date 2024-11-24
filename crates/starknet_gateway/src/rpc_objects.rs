@@ -86,7 +86,7 @@ impl TryInto<BlockInfo> for BlockHeader {
             block_number: self.block_number,
             sequencer_address: self.sequencer_address,
             block_timestamp: self.timestamp,
-            gas_prices: GasPrices::new(
+            gas_prices: GasPrices::safe_new(
                 parse_gas_price(self.l1_gas_price.price_in_wei)?,
                 parse_gas_price(self.l1_gas_price.price_in_fri)?,
                 parse_gas_price(self.l1_data_gas_price.price_in_wei)?,
