@@ -1,0 +1,15 @@
+{
+    "0.13.0": 600001,
+    "0.13.1": 620978,
+    "0.13.1.1": 649367,
+    "0.13.2": 685878,
+    "0.13.2.1": 700000,
+    "example_invoke_with_replace_class_syscall": 780008,
+    "example_invoke_with_deploy_syscall": 870136,
+    "example_deploy_account_v1": 837408,
+    "example_deploy_account_v3": 837792,
+    "example_declare_v1": 837461,
+    "example_declare_v2": 822636,
+    "example_declare_v3": 825013,
+    "example_l1_handler": 868429
+}

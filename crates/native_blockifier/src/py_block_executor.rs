@@ -6,12 +6,14 @@ use blockifier::blockifier::transaction_executor::{TransactionExecutor, Transact
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
 use blockifier::execution::call_info::CallInfo;
+use blockifier::execution::contract_class::RunnableContractClass;
 use blockifier::fee::receipt::TransactionReceipt;
 use blockifier::state::global_cache::GlobalContractCache;
 use blockifier::transaction::objects::{ExecutionResourcesTraits, TransactionExecutionInfo};
 use blockifier::transaction::transaction_execution::Transaction;
 use blockifier::utils::usize_from_u64;
 use blockifier::versioned_constants::VersionedConstants;
+use papyrus_state_reader::papyrus_state::PapyrusReader;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyList};
 use pyo3::{FromPyObject, PyAny, Python};
@@ -19,7 +21,7 @@ use serde::Serialize;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, ContractAddress};
 use starknet_api::execution_resources::GasVector;
-use starknet_api::transaction::Fee;
+use starknet_api::transaction::fields::Fee;
 use starknet_types_core::felt::Felt;
 
 use crate::errors::{NativeBlockifierError, NativeBlockifierResult};
@@ -27,8 +29,13 @@ use crate::py_objects::{PyBouncerConfig, PyConcurrencyConfig, PyVersionedConstan
 use crate::py_state_diff::{PyBlockInfo, PyStateDiff};
 use crate::py_transaction::{py_tx, PyClassInfo, PY_TX_PARSING_ERR};
 use crate::py_utils::{int_to_chain_id, into_block_number_hash_pair, PyFelt};
-use crate::state_readers::papyrus_state::PapyrusReader;
-use crate::storage::{PapyrusStorage, Storage, StorageConfig};
+use crate::storage::{
+    PapyrusStorage,
+    RawDeclaredClassMapping,
+    RawDeprecatedDeclaredClassMapping,
+    Storage,
+    StorageConfig,
+};
 
 pub(crate) type RawTransactionExecutionResult = Vec<u8>;
 pub(crate) type PyVisitedSegmentsMapping = Vec<(PyFelt, Vec<usize>)>;
@@ -68,7 +75,7 @@ impl ThinTransactionExecutionInfo {
             actual_resources: ThinTransactionExecutionInfo::receipt_to_resources_mapping(
                 &tx_execution_info.receipt,
             ),
-            revert_error: tx_execution_info.revert_error,
+            revert_error: tx_execution_info.revert_error.map(|error| error.to_string()),
             total_gas: tx_execution_info.receipt.gas,
         }
     }
@@ -123,7 +130,7 @@ pub struct PyBlockExecutor {
     pub tx_executor: Option<TransactionExecutor<PapyrusReader>>,
     /// `Send` trait is required for `pyclass` compatibility as Python objects must be threadsafe.
     pub storage: Box<dyn Storage + Send>,
-    pub global_contract_cache: GlobalContractCache,
+    pub global_contract_cache: GlobalContractCache<RunnableContractClass>,
 }
 
 #[pymethods]
@@ -305,8 +312,8 @@ impl PyBlockExecutor {
         previous_block_id: Option<PyFelt>,
         py_block_info: PyBlockInfo,
         py_state_diff: PyStateDiff,
-        declared_class_hash_to_class: HashMap<PyFelt, (PyFelt, String)>,
-        deprecated_declared_class_hash_to_class: HashMap<PyFelt, String>,
+        declared_class_hash_to_class: RawDeclaredClassMapping,
+        deprecated_declared_class_hash_to_class: RawDeprecatedDeclaredClassMapping,
     ) -> NativeBlockifierResult<()> {
         self.storage.append_block(
             block_id,

@@ -16,6 +16,7 @@ cairo-lang-runner.workspace = true
 derive_more.workspace = true
 hex.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
+infra_utils.workspace = true
 itertools.workspace = true
 num-bigint.workspace = true
 pretty_assertions.workspace = true
@@ -35,3 +36,6 @@ rstest.workspace = true
 
 [package.metadata.cargo-machete]
 ignored = ["strum"]
+
+[lints]
+workspace = true

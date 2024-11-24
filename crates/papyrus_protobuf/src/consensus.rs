@@ -61,10 +61,10 @@ pub struct StreamMessage<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufCon
 }
 
 /// This message must be sent first when proposing a new block.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Default, Debug, Clone, PartialEq)]
 pub struct ProposalInit {
     /// The height of the consensus (block number).
-    pub height: u64,
+    pub height: BlockNumber,
     /// The current round of the consensus.
     pub round: u32,
     /// The last round that was valid.
@@ -129,16 +129,16 @@ where
 pub struct ProposalWrapper(pub Proposal);
 
 impl From<ProposalWrapper>
-    for (
-        (BlockNumber, u32, ContractAddress, Option<u32>),
-        mpsc::Receiver<Transaction>,
-        oneshot::Receiver<BlockHash>,
-    )
+    for (ProposalInit, mpsc::Receiver<Transaction>, oneshot::Receiver<BlockHash>)
 {
     fn from(val: ProposalWrapper) -> Self {
         let transactions: Vec<Transaction> = val.0.transactions.into_iter().collect();
-        let proposal_init =
-            (BlockNumber(val.0.height), val.0.round, val.0.proposer, val.0.valid_round);
+        let proposal_init = ProposalInit {
+            height: BlockNumber(val.0.height),
+            round: val.0.round,
+            proposer: val.0.proposer,
+            valid_round: val.0.valid_round,
+        };
         let (mut content_sender, content_receiver) = mpsc::channel(transactions.len());
         for tx in transactions {
             content_sender.try_send(tx).expect("Send should succeed");
@@ -153,15 +153,15 @@ impl From<ProposalWrapper>
 }
 
 impl From<ProposalWrapper>
-    for (
-        (BlockNumber, u32, ContractAddress, Option<u32>),
-        mpsc::Receiver<Vec<ExecutableTransaction>>,
-        oneshot::Receiver<BlockHash>,
-    )
+    for (ProposalInit, mpsc::Receiver<Vec<ExecutableTransaction>>, oneshot::Receiver<BlockHash>)
 {
     fn from(val: ProposalWrapper) -> Self {
-        let proposal_init =
-            (BlockNumber(val.0.height), val.0.round, val.0.proposer, val.0.valid_round);
+        let proposal_init = ProposalInit {
+            height: BlockNumber(val.0.height),
+            round: val.0.round,
+            proposer: val.0.proposer,
+            valid_round: val.0.valid_round,
+        };
 
         let (_, content_receiver) = mpsc::channel(0);
         // This should only be used for Milestone 1, and then removed once streaming is supported.

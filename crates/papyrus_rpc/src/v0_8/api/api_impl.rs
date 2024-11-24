@@ -32,10 +32,10 @@ use starknet_api::core::{
 use starknet_api::execution_utils::format_panic_data;
 use starknet_api::hash::StarkHash;
 use starknet_api::state::{StateNumber, StorageKey};
+use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::{
     EventContent,
     EventIndexInTransactionOutput,
-    Fee,
     Transaction as StarknetApiTransaction,
     TransactionHash,
     TransactionOffsetInBlock,

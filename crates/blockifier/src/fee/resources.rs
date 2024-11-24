@@ -1,7 +1,7 @@
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::core::ContractAddress;
 use starknet_api::execution_resources::{GasAmount, GasVector};
-use starknet_api::transaction::GasVectorComputationMode;
+use starknet_api::transaction::fields::GasVectorComputationMode;
 
 use crate::execution::call_info::{EventSummary, ExecutionSummary};
 use crate::fee::eth_gas_constants;
@@ -57,7 +57,8 @@ impl TransactionResources {
 pub struct ComputationResources {
     pub vm_resources: ExecutionResources,
     pub n_reverted_steps: usize,
-    // TODO(Tzahi): add sierra_gas here.
+    pub sierra_gas: GasAmount,
+    pub reverted_sierra_gas: GasAmount,
 }
 
 impl ComputationResources {
@@ -66,12 +67,26 @@ impl ComputationResources {
         versioned_constants: &VersionedConstants,
         computation_mode: &GasVectorComputationMode,
     ) -> GasVector {
-        get_vm_resources_cost(
+        let vm_cost = get_vm_resources_cost(
             versioned_constants,
             &self.vm_resources,
             self.n_reverted_steps,
             computation_mode,
-        )
+        );
+        let sierra_gas_cost = GasVector::from_l2_gas(
+            self.sierra_gas.checked_add(self.reverted_sierra_gas).unwrap_or_else(|| {
+                panic!(
+                    "Sierra gas overflowed: tried to add {} to {}",
+                    self.sierra_gas, self.reverted_sierra_gas
+                )
+            }),
+        );
+        vm_cost.checked_add(sierra_gas_cost).unwrap_or_else(|| {
+            panic!(
+                "Computation resources to gas vector overflowed: tried to add {sierra_gas_cost:?} \
+                 to {vm_cost:?}",
+            )
+        })
     }
 
     #[cfg(test)]

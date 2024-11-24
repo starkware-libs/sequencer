@@ -9,7 +9,6 @@ use std::hash::Hash;
 use std::net::SocketAddr;
 use std::num::NonZeroU64;
 use std::ops::{Deref, Index};
-use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use cairo_lang_casm::hints::{CoreHint, CoreHintBase, Hint};
@@ -108,11 +107,20 @@ use starknet_api::state::{
     ThinStateDiff,
 };
 use starknet_api::test_utils::read_json_file;
-use starknet_api::transaction::{
+use starknet_api::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
     Calldata,
     ContractAddressSalt,
+    Fee,
+    PaymasterData,
+    Resource,
+    ResourceBounds,
+    Tip,
+    TransactionSignature,
+    ValidResourceBounds,
+};
+use starknet_api::transaction::{
     DeclareTransaction,
     DeclareTransactionOutput,
     DeclareTransactionV0V1,
@@ -129,7 +137,6 @@ use starknet_api::transaction::{
     EventData,
     EventIndexInTransactionOutput,
     EventKey,
-    Fee,
     InvokeTransaction,
     InvokeTransactionOutput,
     InvokeTransactionV0,
@@ -141,19 +148,13 @@ use starknet_api::transaction::{
     L2ToL1Payload,
     MessageToL1,
     MessageToL2,
-    PaymasterData,
-    Resource,
-    ResourceBounds,
     RevertedTransactionExecutionStatus,
-    Tip,
     Transaction,
     TransactionExecutionStatus,
     TransactionHash,
     TransactionOffsetInBlock,
     TransactionOutput,
-    TransactionSignature,
     TransactionVersion,
-    ValidResourceBounds,
 };
 use starknet_types_core::felt::Felt;
 
@@ -179,11 +180,6 @@ pub async fn send_request(
         .await
         .unwrap();
     serde_json::from_str(&res_str).unwrap()
-}
-
-/// Returns the absolute path from the project root.
-pub fn get_absolute_path(relative_path: &str) -> PathBuf {
-    Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap()).join("../..").join(relative_path)
 }
 
 pub fn validate_load_and_dump<T: Serialize + for<'a> Deserialize<'a>>(path_in_resource_dir: &str) {
@@ -284,7 +280,7 @@ fn get_rand_test_body_with_events(
         while is_v3_transaction(&transaction) {
             transaction = Transaction::get_test_instance(rng);
         }
-        transaction_hashes.push(TransactionHash(StarkHash::from(i as u128)));
+        transaction_hashes.push(TransactionHash(StarkHash::from(u128::try_from(i).unwrap())));
         let transaction_output = get_test_transaction_output(&transaction);
         transactions.push(transaction);
         transaction_outputs.push(transaction_output);

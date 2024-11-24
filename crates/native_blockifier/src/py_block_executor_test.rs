@@ -7,6 +7,8 @@ use cached::Cached;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use pretty_assertions::assert_eq;
 use starknet_api::class_hash;
+use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
+use starknet_api::state::ContractClass;
 use starknet_types_core::felt::Felt;
 
 use crate::py_block_executor::{PyBlockExecutor, PyOsConfig};
@@ -15,10 +17,21 @@ use crate::py_state_diff::{PyBlockInfo, PyStateDiff};
 use crate::py_utils::PyFelt;
 use crate::test_utils::MockStorage;
 
+const LARGE_COMPILED_CONTRACT_JSON: &str = include_str!("resources/large_compiled_contract.json");
+
 #[test]
 fn global_contract_cache_update() {
     // Initialize executor and set a contract class on the state.
-    let casm = CasmContractClass { compiler_version: "0.1.0".to_string(), ..Default::default() };
+    let casm = CasmContractClass {
+        compiler_version: "0.1.0".to_string(),
+        prime: Default::default(),
+        bytecode: Default::default(),
+        bytecode_segment_lengths: Default::default(),
+        hints: Default::default(),
+        pythonic_hints: Default::default(),
+        entry_points_by_type: Default::default(),
+    };
+    let sierra = ContractClass::default();
     let contract_class =
         RunnableContractClass::V1(ContractClassV1::try_from(casm.clone()).unwrap());
     let class_hash = class_hash!("0x1");
@@ -38,7 +51,10 @@ fn global_contract_cache_update() {
             PyStateDiff::default(),
             HashMap::from([(
                 class_hash.into(),
-                (PyFelt::from(1_u8), serde_json::to_string(&casm).unwrap()),
+                (
+                    serde_json::to_string(&sierra).unwrap(),
+                    (PyFelt::from(1_u8), serde_json::to_string(&casm).unwrap()),
+                ),
             )]),
             HashMap::default(),
         )
@@ -83,4 +99,49 @@ fn get_block_id() {
         block_executor.get_block_id_at_target(1138).unwrap().unwrap(),
         expected_max_class_hash_as_py_felt
     );
+}
+
+#[test]
+/// Edge case: adding a large contract to the global contract cache.
+fn global_contract_cache_update_large_contract() {
+    let mut raw_contract_class: serde_json::Value =
+        serde_json::from_str(LARGE_COMPILED_CONTRACT_JSON).unwrap();
+
+    // ABI is not required for execution.
+    raw_contract_class
+        .as_object_mut()
+        .expect("A compiled contract must be a JSON object.")
+        .remove("abi");
+
+    let dep_casm: DeprecatedContractClass = serde_json::from_value(raw_contract_class)
+        .expect("DeprecatedContractClass is not supported for this contract.");
+
+    let temp_storage_path = tempfile::tempdir().unwrap().into_path();
+    let mut block_executor = PyBlockExecutor::native_create_for_testing(
+        Default::default(),
+        Default::default(),
+        temp_storage_path,
+        4000,
+    );
+    block_executor
+        .append_block(
+            0,
+            None,
+            Default::default(),
+            Default::default(),
+            Default::default(),
+            HashMap::from([(PyFelt::from(1_u8), serde_json::to_string(&dep_casm).unwrap())]),
+        )
+        .unwrap();
+
+    block_executor
+        .append_block(
+            1,
+            Some(PyFelt(Felt::ZERO)),
+            PyBlockInfo { block_number: 1, ..PyBlockInfo::default() },
+            Default::default(),
+            Default::default(),
+            HashMap::from([(PyFelt::from(1_u8), serde_json::to_string(&dep_casm).unwrap())]),
+        )
+        .unwrap();
 }

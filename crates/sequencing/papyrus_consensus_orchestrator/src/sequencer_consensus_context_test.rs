@@ -5,25 +5,31 @@ use std::vec;
 use futures::channel::mpsc;
 use futures::SinkExt;
 use lazy_static::lazy_static;
-use papyrus_consensus::types::{ConsensusContext, ProposalInit};
+use papyrus_consensus::types::ConsensusContext;
+use papyrus_network::network_manager::test_utils::{
+    mock_register_broadcast_topic,
+    TestSubscriberChannels,
+};
+use papyrus_network::network_manager::BroadcastTopicChannels;
+use papyrus_protobuf::consensus::ProposalInit;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::{ContractAddress, StateDiffCommitment};
-use starknet_api::executable_transaction::Transaction;
+use starknet_api::executable_transaction::{AccountTransaction, Transaction};
 use starknet_api::hash::PoseidonHash;
 use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
 use starknet_api::transaction::TransactionHash;
 use starknet_batcher_types::batcher_types::{
-    BuildProposalInput,
     GetProposalContent,
     GetProposalContentResponse,
     ProposalCommitment,
     ProposalId,
     ProposalStatus,
+    ProposeBlockInput,
     SendProposalContent,
     SendProposalContentInput,
     SendProposalContentResponse,
     StartHeightInput,
-    ValidateProposalInput,
+    ValidateBlockInput,
 };
 use starknet_batcher_types::communication::MockBatcherClient;
 use starknet_types_core::felt::Felt;
@@ -40,10 +46,10 @@ lazy_static! {
 }
 
 fn generate_invoke_tx(tx_hash: Felt) -> Transaction {
-    Transaction::Invoke(executable_invoke_tx(InvokeTxArgs {
+    Transaction::Account(AccountTransaction::Invoke(executable_invoke_tx(InvokeTxArgs {
         tx_hash: TransactionHash(tx_hash),
         ..Default::default()
-    }))
+    })))
 }
 
 #[tokio::test]
@@ -51,7 +57,7 @@ async fn build_proposal() {
     let mut batcher = MockBatcherClient::new();
     let proposal_id = Arc::new(OnceLock::new());
     let proposal_id_clone = Arc::clone(&proposal_id);
-    batcher.expect_build_proposal().returning(move |input: BuildProposalInput| {
+    batcher.expect_propose_block().returning(move |input: ProposeBlockInput| {
         proposal_id_clone.set(input.proposal_id).unwrap();
         Ok(())
     });
@@ -73,7 +79,12 @@ async fn build_proposal() {
             }),
         })
     });
-    let mut context = SequencerConsensusContext::new(Arc::new(batcher), NUM_VALIDATORS);
+    let TestSubscriberChannels { mock_network: _mock_network, subscriber_channels } =
+        mock_register_broadcast_topic().expect("Failed to create mock network");
+    let BroadcastTopicChannels { broadcasted_messages_receiver: _, broadcast_topic_client } =
+        subscriber_channels;
+    let mut context =
+        SequencerConsensusContext::new(Arc::new(batcher), broadcast_topic_client, NUM_VALIDATORS);
     let init = ProposalInit {
         height: BlockNumber(0),
         round: 0,
@@ -90,7 +101,7 @@ async fn validate_proposal_success() {
     let mut batcher = MockBatcherClient::new();
     let proposal_id: Arc<OnceLock<ProposalId>> = Arc::new(OnceLock::new());
     let proposal_id_clone = Arc::clone(&proposal_id);
-    batcher.expect_validate_proposal().returning(move |input: ValidateProposalInput| {
+    batcher.expect_validate_block().returning(move |input: ValidateBlockInput| {
         proposal_id_clone.set(input.proposal_id).unwrap();
         Ok(())
     });
@@ -121,7 +132,12 @@ async fn validate_proposal_success() {
             })
         },
     );
-    let mut context = SequencerConsensusContext::new(Arc::new(batcher), NUM_VALIDATORS);
+    let TestSubscriberChannels { mock_network: _, subscriber_channels } =
+        mock_register_broadcast_topic().expect("Failed to create mock network");
+    let BroadcastTopicChannels { broadcasted_messages_receiver: _, broadcast_topic_client } =
+        subscriber_channels;
+    let mut context =
+        SequencerConsensusContext::new(Arc::new(batcher), broadcast_topic_client, NUM_VALIDATORS);
     let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
     content_sender.send(TX_BATCH.clone()).await.unwrap();
     let fin_receiver = context.validate_proposal(BlockNumber(0), TIMEOUT, content_receiver).await;
@@ -133,7 +149,7 @@ async fn validate_proposal_success() {
 async fn repropose() {
     // Receive a proposal. Then re-retrieve it.
     let mut batcher = MockBatcherClient::new();
-    batcher.expect_validate_proposal().returning(move |_| Ok(()));
+    batcher.expect_validate_block().returning(move |_| Ok(()));
     batcher.expect_start_height().return_once(|input: StartHeightInput| {
         assert_eq!(input.height, BlockNumber(0));
         Ok(())
@@ -154,8 +170,12 @@ async fn repropose() {
             })
         },
     );
-
-    let mut context = SequencerConsensusContext::new(Arc::new(batcher), NUM_VALIDATORS);
+    let TestSubscriberChannels { mock_network: _, subscriber_channels } =
+        mock_register_broadcast_topic().expect("Failed to create mock network");
+    let BroadcastTopicChannels { broadcasted_messages_receiver: _, broadcast_topic_client } =
+        subscriber_channels;
+    let mut context =
+        SequencerConsensusContext::new(Arc::new(batcher), broadcast_topic_client, NUM_VALIDATORS);
 
     // Receive a valid proposal.
     let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);

@@ -6,7 +6,8 @@ use rstest::{fixture, rstest};
 use starknet_api::block::StarknetVersion;
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::invoke_tx_args;
-use starknet_api::transaction::{EventContent, EventData, EventKey, GasVectorComputationMode};
+use starknet_api::transaction::fields::GasVectorComputationMode;
+use starknet_api::transaction::{EventContent, EventData, EventKey};
 use starknet_types_core::felt::Felt;
 
 use crate::abi::constants;
@@ -68,7 +69,8 @@ fn starknet_resources() -> StarknetResources {
         .into_iter()
         .map(|call_info| call_info.with_some_class_hash())
         .collect();
-    let execution_summary = CallInfo::summarize_many(call_infos.iter());
+    let execution_summary =
+        CallInfo::summarize_many(call_infos.iter(), VersionedConstants::latest_constants());
     let state_resources = StateResources::new_for_testing(StateChangesCount {
         n_storage_updates: 7,
         n_class_hash_updates: 11,
@@ -94,7 +96,7 @@ fn test_get_event_gas_cost(
             .into_iter()
             .map(|call_info| call_info.with_some_class_hash())
             .collect();
-    let execution_summary = CallInfo::summarize_many(call_infos.iter());
+    let execution_summary = CallInfo::summarize_many(call_infos.iter(), versioned_constants);
     let starknet_resources =
         StarknetResources::new(0, 0, 0, StateResources::default(), None, execution_summary);
     assert_eq!(
@@ -141,7 +143,7 @@ fn test_get_event_gas_cost(
         .into_iter()
         .map(|call_info| call_info.with_some_class_hash())
         .collect();
-    let execution_summary = CallInfo::summarize_many(call_infos.iter());
+    let execution_summary = CallInfo::summarize_many(call_infos.iter(), versioned_constants);
     // 8 keys and 11 data words overall.
     let expected_gas = (data_word_cost * (event_key_factor * 8_u64 + 11_u64)).to_integer().into();
     let expected_gas_vector = match gas_vector_computation_mode {
@@ -361,12 +363,17 @@ fn test_gas_computation_regression_test(
     let mut vm_resources = get_vm_resource_usage();
     vm_resources.n_memory_holes = 2;
     let n_reverted_steps = 15;
-    let computation_resources = ComputationResources { vm_resources, n_reverted_steps };
+    let (sierra_gas, reverted_sierra_gas) = match gas_vector_computation_mode {
+        GasVectorComputationMode::NoL2Gas => (GasAmount(0), GasAmount(0)),
+        GasVectorComputationMode::All => (GasAmount(13), GasAmount(7)),
+    };
+    let computation_resources =
+        ComputationResources { vm_resources, n_reverted_steps, sierra_gas, reverted_sierra_gas };
     let actual_computation_resources_gas_vector =
         computation_resources.to_gas_vector(&versioned_constants, &gas_vector_computation_mode);
     let expected_computation_resources_gas_vector = match gas_vector_computation_mode {
         GasVectorComputationMode::NoL2Gas => GasVector::from_l1_gas(GasAmount(31)),
-        GasVectorComputationMode::All => GasVector::from_l2_gas(GasAmount(1033334)),
+        GasVectorComputationMode::All => GasVector::from_l2_gas(GasAmount(1033354)),
     };
     assert_eq!(
         actual_computation_resources_gas_vector, expected_computation_resources_gas_vector,
@@ -392,12 +399,12 @@ fn test_gas_computation_regression_test(
             true => GasVector {
                 l1_gas: GasAmount(21543),
                 l1_data_gas: GasAmount(2720),
-                l2_gas: GasAmount(1120374),
+                l2_gas: GasAmount(1120394),
             },
             false => GasVector {
                 l1_gas: GasAmount(62834),
                 l1_data_gas: GasAmount(0),
-                l2_gas: GasAmount(1120374),
+                l2_gas: GasAmount(1120394),
             },
         },
     };

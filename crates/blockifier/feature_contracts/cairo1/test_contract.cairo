@@ -124,6 +124,14 @@ mod TestContract {
     }
 
     #[external(v0)]
+    fn test_get_class_hash_at(
+        self: @ContractState, address: ContractAddress, expected_class_hash: ClassHash
+    ) {
+        let class_hash = syscalls::get_class_hash_at_syscall(address).unwrap_syscall();
+        assert(class_hash == expected_class_hash, 'WRONG_CLASS_HASH');
+    }
+
+    #[external(v0)]
     fn test_get_block_hash(self: @ContractState, block_number: u64) -> felt252 {
         syscalls::get_block_hash_syscall(block_number).unwrap_syscall()
     }
@@ -616,6 +624,7 @@ mod TestContract {
         entry_point_selector: felt252,
         calldata: Array::<felt252>
     ) {
+        let class_hash_before_call = syscalls::get_class_hash_at_syscall(contract_address).unwrap_syscall();
          match syscalls::call_contract_syscall(
             contract_address, entry_point_selector, calldata.span())
         {
@@ -634,7 +643,8 @@ mod TestContract {
                 }
             },
         };
-        // TODO(Yoni, 1/12/2024): test replace class once get_class_hash_at syscall is supported.
+        let class_hash_after_call = syscalls::get_class_hash_at_syscall(contract_address).unwrap_syscall();
         assert(self.my_storage_var.read() == 0, 'values should not change.');
+        assert(class_hash_before_call == class_hash_after_call, 'class hash should not change.');
     }
 }

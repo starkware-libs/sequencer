@@ -39,6 +39,7 @@
     },
     "disable_cairo0_redeclaration": true,
     "enable_stateful_compression": true,
+    "ignore_inner_event_resources": false,
     "enable_reverts": true,
     "max_recursion_depth": 50,
     "segment_arena_cells": false,
@@ -183,6 +184,10 @@
             "range_check_gas_cost": 1
         },
         "storage_write_gas_cost": {
+            "step_gas_cost": 100,
+            "range_check_gas_cost": 1
+        },
+        "get_class_hash_at_gas_cost": {
             "step_gas_cost": 100,
             "range_check_gas_cost": 1
         },
@@ -423,6 +428,13 @@
             },
             "StorageWrite": {
                 "n_steps": 93,
+                "builtin_instance_counter": {
+                    "range_check_builtin": 1
+                },
+                "n_memory_holes": 0
+            },
+            "GetClassHashAt": {
+                "n_steps": 89,
                 "builtin_instance_counter": {
                     "range_check_builtin": 1
                 },

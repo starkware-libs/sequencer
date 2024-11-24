@@ -22,6 +22,11 @@ use crate::PyStateDiff;
 
 const GENESIS_BLOCK_ID: u64 = u64::MAX;
 
+// Class hash to (raw_sierra, (compiled class hash, raw casm)).
+pub type RawDeclaredClassMapping = HashMap<PyFelt, (String, (PyFelt, String))>;
+// Class hash to (compiled class hash, raw casm).
+pub type RawDeprecatedDeclaredClassMapping = HashMap<PyFelt, String>;
+
 // Invariant: Only one instance of this struct should exist.
 // Reader and writer fields must be cleared before the struct goes out of scope in Python;
 // to prevent possible memory leaks (TODO: see if this is indeed necessary).
@@ -116,8 +121,8 @@ impl Storage for PapyrusStorage {
         previous_block_id: Option<PyFelt>,
         py_block_info: PyBlockInfo,
         py_state_diff: PyStateDiff,
-        declared_class_hash_to_class: HashMap<PyFelt, (PyFelt, String)>,
-        deprecated_declared_class_hash_to_class: HashMap<PyFelt, String>,
+        declared_class_hash_to_class: RawDeclaredClassMapping,
+        deprecated_declared_class_hash_to_class: RawDeprecatedDeclaredClassMapping,
     ) -> NativeBlockifierResult<()> {
         log::debug!(
             "Appending state diff with {block_id:?} for block_number: {}.",
@@ -167,7 +172,9 @@ impl Storage for PapyrusStorage {
 
         let mut declared_classes = IndexMap::<ClassHash, (CompiledClassHash, ContractClass)>::new();
         let mut undeclared_casm_contracts = Vec::<(ClassHash, CasmContractClass)>::new();
-        for (class_hash, (compiled_class_hash, raw_class)) in declared_class_hash_to_class {
+        for (class_hash, (raw_sierra, (compiled_class_hash, raw_casm))) in
+            declared_class_hash_to_class
+        {
             let class_hash = ClassHash(class_hash.0);
             let class_undeclared = self
                 .reader()
@@ -177,12 +184,13 @@ impl Storage for PapyrusStorage {
                 .is_none();
 
             if class_undeclared {
+                let sierra_contract_class: ContractClass = serde_json::from_str(&raw_sierra)?;
                 declared_classes.insert(
                     class_hash,
-                    (CompiledClassHash(compiled_class_hash.0), ContractClass::default()),
+                    (CompiledClassHash(compiled_class_hash.0), sierra_contract_class),
                 );
-                let contract_class: CasmContractClass = serde_json::from_str(&raw_class)?;
-                undeclared_casm_contracts.push((class_hash, contract_class));
+                let casm_contract_class: CasmContractClass = serde_json::from_str(&raw_casm)?;
+                undeclared_casm_contracts.push((class_hash, casm_contract_class));
             }
         }
 
@@ -295,8 +303,8 @@ pub trait Storage {
         previous_block_id: Option<PyFelt>,
         py_block_info: PyBlockInfo,
         py_state_diff: PyStateDiff,
-        declared_class_hash_to_class: HashMap<PyFelt, (PyFelt, String)>,
-        deprecated_declared_class_hash_to_class: HashMap<PyFelt, String>,
+        declared_class_hash_to_class: RawDeclaredClassMapping,
+        deprecated_declared_class_hash_to_class: RawDeprecatedDeclaredClassMapping,
     ) -> NativeBlockifierResult<()>;
 
     fn validate_aligned(&self, source_block_number: u64);

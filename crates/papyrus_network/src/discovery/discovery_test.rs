@@ -31,11 +31,12 @@ use crate::mixed_behaviour::BridgedBehaviour;
 use crate::test_utils::next_on_mutex_stream;
 
 const TIMEOUT: Duration = Duration::from_secs(1);
-const BOOTSTRAP_DIAL_SLEEP: Duration = Duration::from_secs(1);
+const BOOTSTRAP_DIAL_SLEEP_MILLIS: u64 = 1000; // 1 second
+const BOOTSTRAP_DIAL_SLEEP: Duration = Duration::from_millis(BOOTSTRAP_DIAL_SLEEP_MILLIS);
 
 const CONFIG: DiscoveryConfig = DiscoveryConfig {
     bootstrap_dial_retry_config: RetryConfig {
-        base_delay_millis: BOOTSTRAP_DIAL_SLEEP.as_millis() as u64,
+        base_delay_millis: BOOTSTRAP_DIAL_SLEEP_MILLIS,
         max_delay_seconds: BOOTSTRAP_DIAL_SLEEP,
         factor: 1,
     },

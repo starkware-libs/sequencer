@@ -9,13 +9,13 @@ use std::str::FromStr;
 
 use assert_json_diff::assert_json_eq;
 use colored::Colorize;
+use infra_utils::path::resolve_project_relative_path;
 use itertools::Itertools;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use papyrus_config::dumping::SerializeConfig;
 use papyrus_config::presentation::get_config_presentation;
 use papyrus_config::{SerializationType, SerializedContent, SerializedParam};
 use papyrus_monitoring_gateway::MonitoringGatewayConfig;
-use papyrus_test_utils::get_absolute_path;
 use pretty_assertions::assert_eq;
 use serde_json::{json, Map, Value};
 use starknet_api::core::ChainId;
@@ -73,14 +73,16 @@ fn get_args(additional_args: Vec<&str>) -> Vec<String> {
 
 #[test]
 fn load_default_config() {
-    env::set_current_dir(get_absolute_path("")).expect("Couldn't set working dir.");
+    env::set_current_dir(resolve_project_relative_path("").unwrap())
+        .expect("Couldn't set working dir.");
     NodeConfig::load_and_process(get_args(vec![])).expect("Failed to load the config.");
 }
 
 #[test]
 fn load_http_headers() {
     let args = get_args(vec!["--central.http_headers", "NAME_1:VALUE_1 NAME_2:VALUE_2"]);
-    env::set_current_dir(get_absolute_path("")).expect("Couldn't set working dir.");
+    env::set_current_dir(resolve_project_relative_path("").unwrap())
+        .expect("Couldn't set working dir.");
     let config = NodeConfig::load_and_process(args).unwrap();
     let target_http_headers = HashMap::from([
         ("NAME_1".to_string(), "VALUE_1".to_string()),
@@ -96,7 +98,8 @@ fn load_http_headers() {
 // Regression test which checks that the default config dumping hasn't changed.
 fn test_dump_default_config() {
     let mut default_config = NodeConfig::default();
-    env::set_current_dir(get_absolute_path("")).expect("Couldn't set working dir.");
+    env::set_current_dir(resolve_project_relative_path("").unwrap())
+        .expect("Couldn't set working dir.");
     let dumped_default_config = default_config.dump();
     insta::assert_json_snapshot!(dumped_default_config);
 
@@ -108,7 +111,8 @@ fn test_dump_default_config() {
 
 #[test]
 fn test_default_config_process() {
-    env::set_current_dir(get_absolute_path("")).expect("Couldn't set working dir.");
+    env::set_current_dir(resolve_project_relative_path("").unwrap())
+        .expect("Couldn't set working dir.");
     assert_eq!(NodeConfig::load_and_process(get_args(vec![])).unwrap(), NodeConfig::default());
 }
 
@@ -120,7 +124,8 @@ fn test_update_dumped_config_by_command() {
         "--storage.db_config.path_prefix",
         "/abc",
     ]);
-    env::set_current_dir(get_absolute_path("")).expect("Couldn't set working dir.");
+    env::set_current_dir(resolve_project_relative_path("").unwrap())
+        .expect("Couldn't set working dir.");
     let config = NodeConfig::load_and_process(args).unwrap();
 
     assert_eq!(config.central.retry_config.retry_max_delay_millis, 1234);
@@ -130,7 +135,8 @@ fn test_update_dumped_config_by_command() {
 #[cfg(feature = "rpc")]
 #[test]
 fn default_config_file_is_up_to_date() {
-    env::set_current_dir(get_absolute_path("")).expect("Couldn't set working dir.");
+    env::set_current_dir(resolve_project_relative_path("").unwrap())
+        .expect("Couldn't set working dir.");
     let from_default_config_file: serde_json::Value =
         serde_json::from_reader(File::open(DEFAULT_CONFIG_PATH).unwrap()).unwrap();
 

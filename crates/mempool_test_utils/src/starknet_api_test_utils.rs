@@ -8,45 +8,30 @@ use std::sync::LazyLock;
 use assert_matches::assert_matches;
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{create_trivial_calldata, CairoVersion};
+use infra_utils::path::resolve_project_relative_path;
 use pretty_assertions::assert_ne;
 use serde_json::to_string_pretty;
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
-use starknet_api::data_availability::DataAvailabilityMode;
-use starknet_api::executable_transaction::Transaction;
+use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::execution_resources::GasAmount;
-use starknet_api::rpc_transaction::{
-    ContractClass,
-    RpcDeclareTransactionV3,
-    RpcDeployAccountTransactionV3,
-    RpcInvokeTransactionV3,
-    RpcTransaction,
-};
-use starknet_api::test_utils::deploy_account::DeployAccountTxArgs;
-use starknet_api::test_utils::invoke::InvokeTxArgs;
+use starknet_api::rpc_transaction::{ContractClass, RpcTransaction};
+use starknet_api::test_utils::declare::rpc_declare_tx;
+use starknet_api::test_utils::deploy_account::rpc_deploy_account_tx;
+use starknet_api::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::NonceManager;
-use starknet_api::transaction::{
-    AccountDeploymentData,
+use starknet_api::transaction::fields::{
     AllResourceBounds,
-    Calldata,
     ContractAddressSalt,
-    PaymasterData,
     ResourceBounds,
     Tip,
     TransactionSignature,
-    TransactionVersion,
     ValidResourceBounds,
 };
-use starknet_api::{deploy_account_tx_args, felt, invoke_tx_args, nonce};
+use starknet_api::{declare_tx_args, deploy_account_tx_args, felt, invoke_tx_args, nonce};
 use starknet_types_core::felt::Felt;
 
-use crate::{
-    declare_tx_args,
-    get_absolute_path,
-    COMPILED_CLASS_HASH_OF_CONTRACT_CLASS,
-    CONTRACT_CLASS_FILE,
-    TEST_FILES_FOLDER,
-};
+use crate::{COMPILED_CLASS_HASH_OF_CONTRACT_CLASS, CONTRACT_CLASS_FILE, TEST_FILES_FOLDER};
 
 pub const VALID_L1_GAS_MAX_AMOUNT: u64 = 203484;
 pub const VALID_L1_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000;
@@ -54,97 +39,10 @@ pub const VALID_L2_GAS_MAX_AMOUNT: u64 = 500000;
 pub const VALID_L2_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000;
 pub const VALID_L1_DATA_GAS_MAX_AMOUNT: u64 = 203484;
 pub const VALID_L1_DATA_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000;
-pub const TEST_SENDER_ADDRESS: u128 = 0x1000;
 
 // Utils.
-#[derive(Clone)]
-pub enum TransactionType {
-    Declare,
-    DeployAccount,
-    Invoke,
-}
 
-#[derive(Clone)]
-pub struct RpcTransactionArgs {
-    pub sender_address: ContractAddress,
-    pub resource_bounds: AllResourceBounds,
-    pub calldata: Calldata,
-    pub signature: TransactionSignature,
-}
-
-impl Default for RpcTransactionArgs {
-    fn default() -> Self {
-        Self {
-            sender_address: TEST_SENDER_ADDRESS.into(),
-            resource_bounds: AllResourceBounds::default(),
-            calldata: Default::default(),
-            signature: Default::default(),
-        }
-    }
-}
-
-/// Utility macro for creating `RpcTransactionArgs` to reduce boilerplate.
-#[macro_export]
-macro_rules! rpc_tx_args {
-    ($($field:ident $(: $value:expr)?),* $(,)?) => {
-        $crate::starknet_api_test_utils::RpcTransactionArgs {
-            $($field $(: $value)?,)*
-            ..Default::default()
-        }
-    };
-    ($($field:ident $(: $value:expr)?),* , ..$defaults:expr) => {
-        $crate::starknet_api_test_utils::RpcTransactionArgs {
-            $($field $(: $value)?,)*
-            ..$defaults
-        }
-    };
-}
-
-pub fn rpc_tx_for_testing(
-    tx_type: TransactionType,
-    rpc_tx_args: RpcTransactionArgs,
-) -> RpcTransaction {
-    let RpcTransactionArgs { sender_address, resource_bounds, calldata, signature } = rpc_tx_args;
-    match tx_type {
-        TransactionType::Declare => {
-            // Minimal contract class.
-            let contract_class = ContractClass {
-                sierra_program: vec![
-                    // Sierra Version ID.
-                    felt!(1_u32),
-                    felt!(3_u32),
-                    felt!(0_u32),
-                    // Compiler version ID.
-                    felt!(1_u32),
-                    felt!(3_u32),
-                    felt!(0_u32),
-                ],
-                ..Default::default()
-            };
-            rpc_declare_tx(declare_tx_args!(
-                signature,
-                sender_address,
-                resource_bounds,
-                contract_class,
-            ))
-        }
-        TransactionType::DeployAccount => rpc_deploy_account_tx(deploy_account_tx_args!(
-            signature,
-            resource_bounds: ValidResourceBounds::AllResources(resource_bounds),
-            constructor_calldata: calldata,
-        )),
-        TransactionType::Invoke => rpc_invoke_tx(invoke_tx_args!(
-            signature,
-            sender_address,
-            calldata,
-            resource_bounds: ValidResourceBounds::AllResources(resource_bounds),
-        )),
-    }
-}
-
-pub const NON_EMPTY_RESOURCE_BOUNDS: ResourceBounds =
-    ResourceBounds { max_amount: GasAmount(1), max_price_per_unit: GasPrice(1) };
-
+// TODO(Noam): Merge this into test_valid_resource_bounds
 pub fn test_resource_bounds_mapping() -> AllResourceBounds {
     AllResourceBounds {
         l1_gas: ResourceBounds {
@@ -168,7 +66,8 @@ pub fn test_valid_resource_bounds() -> ValidResourceBounds {
 
 /// Get the contract class used for testing.
 pub fn contract_class() -> ContractClass {
-    env::set_current_dir(get_absolute_path(TEST_FILES_FOLDER)).expect("Couldn't set working dir.");
+    env::set_current_dir(resolve_project_relative_path(TEST_FILES_FOLDER).unwrap())
+        .expect("Couldn't set working dir.");
     let json_file_path = Path::new(CONTRACT_CLASS_FILE);
     serde_json::from_reader(File::open(json_file_path).unwrap()).unwrap()
 }
@@ -185,14 +84,16 @@ pub fn declare_tx() -> RpcTransaction {
     let mut nonce_manager = NonceManager::default();
     let nonce = nonce_manager.next(account_address);
 
-    rpc_declare_tx(declare_tx_args!(
-        signature: TransactionSignature(vec![Felt::ZERO]),
-        sender_address: account_address,
-        resource_bounds: test_resource_bounds_mapping(),
-        nonce,
-        class_hash: compiled_class_hash,
+    rpc_declare_tx(
+        declare_tx_args!(
+            signature: TransactionSignature(vec![Felt::ZERO]),
+            sender_address: account_address,
+            resource_bounds: test_valid_resource_bounds(),
+            nonce,
+            compiled_class_hash: compiled_class_hash
+        ),
         contract_class,
-    ))
+    )
 }
 
 /// Convenience method for generating a single invoke transaction with trivial fields.
@@ -212,7 +113,7 @@ pub fn invoke_tx(cairo_version: CairoVersion) -> RpcTransaction {
     ))
 }
 
-pub fn executable_invoke_tx(cairo_version: CairoVersion) -> Transaction {
+pub fn executable_invoke_tx(cairo_version: CairoVersion) -> AccountTransaction {
     let default_account = FeatureContract::AccountWithoutValidations(cairo_version);
 
     let mut tx_generator = MultiAccountTransactionGenerator::new();
@@ -345,7 +246,7 @@ impl AccountTransactionGenerator {
         rpc_invoke_tx(invoke_args)
     }
 
-    pub fn generate_executable_invoke(&mut self) -> Transaction {
+    pub fn generate_executable_invoke(&mut self) -> AccountTransaction {
         let nonce = self.next_nonce();
         assert_ne!(
             nonce,
@@ -361,7 +262,9 @@ impl AccountTransactionGenerator {
             calldata: create_trivial_calldata(self.sender_address()),
         );
 
-        Transaction::Invoke(starknet_api::test_utils::invoke::executable_invoke_tx(invoke_args))
+        AccountTransaction::Invoke(starknet_api::test_utils::invoke::executable_invoke_tx(
+            invoke_args,
+        ))
     }
 
     /// Generates an `RpcTransaction` with fully custom parameters.
@@ -456,131 +359,6 @@ impl Contract {
             sender_address: deploy_account_tx.calculate_sender_address().unwrap(),
         }
     }
-}
-
-#[macro_export]
-macro_rules! declare_tx_args {
-    ($($field:ident $(: $value:expr)?),* $(,)?) => {
-        $crate::starknet_api_test_utils::DeclareTxArgs {
-            $($field $(: $value)?,)*
-            ..Default::default()
-        }
-    };
-    ($($field:ident $(: $value:expr)?),* , ..$defaults:expr) => {
-        $crate::starknet_api_test_utils::DeclareTxArgs {
-            $($field $(: $value)?,)*
-            ..$defaults
-        }
-    };
-}
-
-#[derive(Clone)]
-pub struct DeclareTxArgs {
-    pub signature: TransactionSignature,
-    pub sender_address: ContractAddress,
-    pub version: TransactionVersion,
-    pub resource_bounds: AllResourceBounds,
-    pub tip: Tip,
-    pub nonce_data_availability_mode: DataAvailabilityMode,
-    pub fee_data_availability_mode: DataAvailabilityMode,
-    pub paymaster_data: PaymasterData,
-    pub account_deployment_data: AccountDeploymentData,
-    pub nonce: Nonce,
-    pub class_hash: CompiledClassHash,
-    pub contract_class: ContractClass,
-}
-
-impl Default for DeclareTxArgs {
-    fn default() -> Self {
-        Self {
-            signature: TransactionSignature::default(),
-            sender_address: TEST_SENDER_ADDRESS.into(),
-            version: TransactionVersion::THREE,
-            resource_bounds: AllResourceBounds::default(),
-            tip: Tip::default(),
-            nonce_data_availability_mode: DataAvailabilityMode::L1,
-            fee_data_availability_mode: DataAvailabilityMode::L1,
-            paymaster_data: PaymasterData::default(),
-            account_deployment_data: AccountDeploymentData::default(),
-            nonce: Nonce::default(),
-            class_hash: CompiledClassHash::default(),
-            contract_class: ContractClass::default(),
-        }
-    }
-}
-
-pub fn rpc_invoke_tx(invoke_args: InvokeTxArgs) -> RpcTransaction {
-    if invoke_args.version != TransactionVersion::THREE {
-        panic!("Unsupported transaction version: {:?}.", invoke_args.version);
-    }
-
-    let ValidResourceBounds::AllResources(resource_bounds) = invoke_args.resource_bounds else {
-        panic!("Unspported resource bounds type: {:?}.", invoke_args.resource_bounds)
-    };
-
-    starknet_api::rpc_transaction::RpcTransaction::Invoke(
-        starknet_api::rpc_transaction::RpcInvokeTransaction::V3(RpcInvokeTransactionV3 {
-            resource_bounds,
-            tip: invoke_args.tip,
-            calldata: invoke_args.calldata,
-            sender_address: invoke_args.sender_address,
-            nonce: invoke_args.nonce,
-            signature: invoke_args.signature,
-            nonce_data_availability_mode: invoke_args.nonce_data_availability_mode,
-            fee_data_availability_mode: invoke_args.fee_data_availability_mode,
-            paymaster_data: invoke_args.paymaster_data,
-            account_deployment_data: invoke_args.account_deployment_data,
-        }),
-    )
-}
-
-pub fn rpc_deploy_account_tx(deploy_tx_args: DeployAccountTxArgs) -> RpcTransaction {
-    if deploy_tx_args.version != TransactionVersion::THREE {
-        panic!("Unsupported transaction version: {:?}.", deploy_tx_args.version);
-    }
-
-    let ValidResourceBounds::AllResources(resource_bounds) = deploy_tx_args.resource_bounds else {
-        panic!("Unspported resource bounds type: {:?}.", deploy_tx_args.resource_bounds)
-    };
-
-    starknet_api::rpc_transaction::RpcTransaction::DeployAccount(
-        starknet_api::rpc_transaction::RpcDeployAccountTransaction::V3(
-            RpcDeployAccountTransactionV3 {
-                resource_bounds,
-                tip: deploy_tx_args.tip,
-                contract_address_salt: deploy_tx_args.contract_address_salt,
-                class_hash: deploy_tx_args.class_hash,
-                constructor_calldata: deploy_tx_args.constructor_calldata,
-                nonce: deploy_tx_args.nonce,
-                signature: deploy_tx_args.signature,
-                nonce_data_availability_mode: deploy_tx_args.nonce_data_availability_mode,
-                fee_data_availability_mode: deploy_tx_args.fee_data_availability_mode,
-                paymaster_data: deploy_tx_args.paymaster_data,
-            },
-        ),
-    )
-}
-
-pub fn rpc_declare_tx(declare_tx_args: DeclareTxArgs) -> RpcTransaction {
-    if declare_tx_args.version != TransactionVersion::THREE {
-        panic!("Unsupported transaction version: {:?}.", declare_tx_args.version);
-    }
-
-    starknet_api::rpc_transaction::RpcTransaction::Declare(
-        starknet_api::rpc_transaction::RpcDeclareTransaction::V3(RpcDeclareTransactionV3 {
-            contract_class: declare_tx_args.contract_class,
-            signature: declare_tx_args.signature,
-            sender_address: declare_tx_args.sender_address,
-            resource_bounds: declare_tx_args.resource_bounds,
-            tip: declare_tx_args.tip,
-            nonce_data_availability_mode: declare_tx_args.nonce_data_availability_mode,
-            fee_data_availability_mode: declare_tx_args.fee_data_availability_mode,
-            paymaster_data: declare_tx_args.paymaster_data,
-            account_deployment_data: declare_tx_args.account_deployment_data,
-            nonce: declare_tx_args.nonce,
-            compiled_class_hash: declare_tx_args.class_hash,
-        }),
-    )
 }
 
 pub fn rpc_tx_to_json(tx: &RpcTransaction) -> String {

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::executable_transaction::AccountTransaction as ApiTransaction;
 use thiserror::Error;
 
 use crate::blockifier::config::TransactionExecutorConfig;
@@ -19,7 +19,6 @@ use crate::state::errors::StateError;
 use crate::state::state_api::StateReader;
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::errors::{TransactionExecutionError, TransactionPreValidationError};
-use crate::transaction::objects::TransactionInfoCreator;
 use crate::transaction::transaction_execution::Transaction;
 use crate::transaction::transactions::ValidatableTransaction;
 
@@ -61,7 +60,7 @@ impl<S: StateReader> StatefulValidator<S> {
         // Deploy account transactions should be fully executed, since the constructor must run
         // before `__validate_deploy__`. The execution already includes all necessary validations,
         // so they are skipped here.
-        if let AccountTransaction::DeployAccount(_) = tx {
+        if let ApiTransaction::DeployAccount(_) = tx.tx {
             self.execute(tx)?;
             return Ok(());
         }
@@ -111,13 +110,11 @@ impl<S: StateReader> StatefulValidator<S> {
         tx: &AccountTransaction,
         mut remaining_gas: u64,
     ) -> StatefulValidatorResult<(Option<CallInfo>, TransactionReceipt)> {
-        let mut execution_resources = ExecutionResources::default();
         let tx_context = Arc::new(self.tx_executor.block_context.to_tx_context(tx));
 
-        let limit_steps_by_resources = tx.create_tx_info().enforce_fee();
+        let limit_steps_by_resources = tx.enforce_fee();
         let validate_call_info = tx.validate_tx(
             self.tx_executor.block_state.as_mut().expect(BLOCK_STATE_ACCESS_ERR),
-            &mut execution_resources,
             tx_context.clone(),
             &mut remaining_gas,
             limit_steps_by_resources,
@@ -132,8 +129,10 @@ impl<S: StateReader> StatefulValidator<S> {
                 .as_mut()
                 .expect(BLOCK_STATE_ACCESS_ERR)
                 .get_actual_state_changes()?,
-            &execution_resources,
-            CallInfo::summarize_many(validate_call_info.iter()),
+            CallInfo::summarize_many(
+                validate_call_info.iter(),
+                &tx_context.block_context.versioned_constants,
+            ),
             0,
         );
 

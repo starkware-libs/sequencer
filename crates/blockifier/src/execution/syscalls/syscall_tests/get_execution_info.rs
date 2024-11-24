@@ -1,10 +1,11 @@
 use cairo_vm::Felt252;
 use num_traits::Pow;
+use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::GasPrice;
 use starknet_api::core::ChainId;
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::execution_resources::GasAmount;
-use starknet_api::transaction::{
+use starknet_api::transaction::fields::{
     AccountDeploymentData,
     Calldata,
     Fee,
@@ -12,16 +13,13 @@ use starknet_api::transaction::{
     Resource,
     ResourceBounds,
     Tip,
-    TransactionHash,
-    TransactionVersion,
     ValidResourceBounds,
-    QUERY_VERSION_BASE_BIT,
 };
+use starknet_api::transaction::{TransactionHash, TransactionVersion, QUERY_VERSION_BASE_BIT};
 use starknet_api::{felt, nonce};
 use starknet_types_core::felt::Felt;
 use test_case::test_case;
 
-use crate::abi::abi_utils::selector_from_name;
 use crate::context::ChainInfo;
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::entry_point::CallEntryPoint;
@@ -44,6 +42,66 @@ use crate::transaction::objects::{
     TransactionInfo,
 };
 
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(
+        FeatureContract::SierraExecutionInfoV1Contract,
+        ExecutionMode::Validate,
+        TransactionVersion::ONE,
+        false;
+        "Native [V1]: Validate execution mode: block info fields should be zeroed. Transaction V1."
+    )
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(
+        FeatureContract::SierraExecutionInfoV1Contract,
+        ExecutionMode::Execute,
+        TransactionVersion::ONE,
+        false;
+        "Native [V1]: Execute execution mode: block info should be as usual. Transaction V1."
+    )
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(
+        FeatureContract::TestContract(CairoVersion::Native),
+        ExecutionMode::Validate,
+        TransactionVersion::ONE,
+        false;
+        "Native: Validate execution mode: block info fields should be zeroed. Transaction V1."
+    )
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(
+        FeatureContract::TestContract(CairoVersion::Native),
+        ExecutionMode::Execute,
+        TransactionVersion::ONE,
+        false;
+        "Native: Execute execution mode: block info should be as usual. Transaction V1."
+    )
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(
+        FeatureContract::TestContract(CairoVersion::Native),
+        ExecutionMode::Validate,
+        TransactionVersion::THREE,
+        false;
+        "Native: Validate execution mode: block info fields should be zeroed. Transaction V3."
+    )
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(
+        FeatureContract::TestContract(CairoVersion::Native),
+        ExecutionMode::Execute,
+        TransactionVersion::THREE,
+        false;
+        "Native: Execute execution mode: block info should be as usual. Transaction V3."
+    )
+)]
 #[test_case(
     FeatureContract::TestContract(CairoVersion::Cairo1),
     ExecutionMode::Validate,
@@ -123,6 +181,10 @@ fn test_get_execution_info(
             };
             vec![]
         }
+        #[cfg(feature = "cairo_native")]
+        FeatureContract::SierraExecutionInfoV1Contract => {
+            vec![]
+        }
         _ => {
             vec![
                 Felt::ZERO, // Tip.
@@ -150,6 +212,8 @@ fn test_get_execution_info(
 
     let expected_resource_bounds: Vec<Felt> = match (test_contract, version) {
         (FeatureContract::LegacyTestContract, _) => vec![],
+        #[cfg(feature = "cairo_native")]
+        (FeatureContract::SierraExecutionInfoV1Contract, _) => vec![],
         (_, version) if version == TransactionVersion::ONE => vec![
             felt!(0_u16), // Length of resource bounds array.
         ],

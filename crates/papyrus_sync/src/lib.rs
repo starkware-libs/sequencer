@@ -50,7 +50,7 @@ use crate::sources::pending::{PendingError, PendingSource, PendingSourceTrait};
 // TODO(shahak): Consider adding genesis hash to the config to support chains that have
 // different genesis hash.
 // TODO: Consider moving to a more general place.
-const GENESIS_HASH: &str = "0x0";
+pub const GENESIS_HASH: &str = "0x0";
 
 // TODO(dvir): add to config.
 // Sleep duration between polling for pending data.
@@ -231,7 +231,7 @@ impl<
     TBaseLayerSource: BaseLayerSourceTrait + Sync + Send,
 > GenericStateSync<TCentralSource, TPendingSource, TBaseLayerSource>
 {
-    pub async fn run(&mut self) -> StateSyncResult {
+    pub async fn run(mut self) -> StateSyncResult {
         info!("State sync started.");
         loop {
             match self.sync_while_ok().await {
@@ -404,6 +404,7 @@ impl<
         fields(block_hash = format_args!("{:#064x}", block.header.block_hash.0)),
         err
     )]
+    #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
     fn store_block(
         &mut self,
         block_number: BlockNumber,
@@ -445,6 +446,7 @@ impl<
 
     #[latency_histogram("sync_store_state_diff_latency_seconds", false)]
     #[instrument(skip(self, state_diff, deployed_contract_class_definitions), level = "debug", err)]
+    #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
     fn store_state_diff(
         &mut self,
         block_number: BlockNumber,
@@ -501,6 +503,7 @@ impl<
         let txn = self.writer.begin_rw_txn()?;
         // TODO: verifications - verify casm corresponds to a class on storage.
         match txn.append_casm(&class_hash, &compiled_class) {
+            #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
             Ok(txn) => {
                 txn.commit()?;
                 let compiled_class_marker =
@@ -546,6 +549,7 @@ impl<
                 l2_hash: expected_hash,
             });
         }
+        #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
         if txn.get_base_layer_block_marker()? != block_number.unchecked_next() {
             info!("Verified block {block_number} hash against base layer.");
             txn.update_base_layer_block_marker(&block_number.unchecked_next())?.commit()?;
@@ -678,6 +682,7 @@ fn stream_new_blocks<
     max_stream_size: u32,
 ) -> impl Stream<Item = Result<SyncEvent, StateSyncError>> {
     try_stream! {
+        #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
         loop {
             let header_marker = reader.begin_ro_txn()?.get_header_marker()?;
             let latest_central_block = central_source.get_latest_block().await?;
@@ -738,7 +743,7 @@ fn stream_new_state_diffs<TCentralSource: CentralSourceTrait + Sync + Send>(
                 tokio::time::sleep(block_propagation_sleep_duration).await;
                 continue;
             }
-            let up_to = min(last_block_number, BlockNumber(state_marker.0 + max_stream_size as u64));
+            let up_to = min(last_block_number, BlockNumber(state_marker.0 + u64::from(max_stream_size)));
             debug!("Downloading state diffs [{} - {}).", state_marker, up_to);
             let state_diff_stream =
                 central_source.stream_state_updates(state_marker, up_to).fuse();
@@ -835,7 +840,7 @@ fn stream_new_compiled_classes<TCentralSource: CentralSourceTrait + Sync + Send>
                 tokio::time::sleep(block_propagation_sleep_duration).await;
                 continue;
             }
-            let up_to = min(state_marker, BlockNumber(from.0 + max_stream_size as u64));
+            let up_to = min(state_marker, BlockNumber(from.0 + u64::from(max_stream_size)));
             debug!("Downloading compiled classes of blocks [{} - {}).", from, up_to);
             let compiled_classes_stream =
                 central_source.stream_compiled_classes(from, up_to).fuse();

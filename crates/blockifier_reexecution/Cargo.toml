@@ -9,7 +9,8 @@ license.workspace = true
 blockifier_regression_https_testing = []
 
 [dependencies]
-blockifier = { workspace = true, features = ["transaction_serde"] }
+assert_matches.workspace = true
+blockifier = { workspace = true, features = ["reexecution"] }
 cairo-lang-starknet-classes.workspace = true
 cairo-lang-utils.workspace = true
 clap = { workspace = true, features = ["cargo", "derive"] }
@@ -25,9 +26,9 @@ starknet-types-core.workspace = true
 starknet_api.workspace = true
 starknet_gateway.workspace = true
 thiserror.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 
 [dev-dependencies]
-assert_matches.workspace = true
 rstest.workspace = true
 
 [lints]

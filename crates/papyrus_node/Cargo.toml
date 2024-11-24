@@ -61,13 +61,12 @@ tokio-stream = { workspace = true, optional = true }
 [dev-dependencies]
 assert-json-diff.workspace = true
 colored.workspace = true
+infra_utils.workspace = true
 insta = { workspace = true, features = ["json"] }
 metrics-exporter-prometheus.workspace = true
 papyrus_test_utils.workspace = true
 pretty_assertions.workspace = true
 tempfile.workspace = true
 
-[lints.rust]
-# See [here](https://github.com/taiki-e/cargo-llvm-cov/issues/370) for a discussion on why this is
-# needed (from rust 1.80).
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }
+[lints]
+workspace = true

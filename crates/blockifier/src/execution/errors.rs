@@ -15,7 +15,9 @@ use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use thiserror::Error;
 
 use crate::execution::entry_point::ConstructorContext;
-use crate::execution::stack_trace::Cairo1RevertStack;
+use crate::execution::stack_trace::Cairo1RevertSummary;
+#[cfg(feature = "cairo_native")]
+use crate::execution::syscalls::hint_processor::SyscallExecutionError;
 use crate::state::errors::StateError;
 
 // TODO(AlonH, 21/12/2022): Implement Display for all types that appear in errors.
@@ -82,8 +84,8 @@ impl From<RunnerError> for PostExecutionError {
 pub enum EntryPointExecutionError {
     #[error(transparent)]
     CairoRunError(#[from] CairoRunError),
-    #[error("Execution failed. Failure reason:\n{error_trace}.")]
-    ExecutionFailed { error_trace: Cairo1RevertStack },
+    #[error("{error_trace}")]
+    ExecutionFailed { error_trace: Cairo1RevertSummary },
     #[error("Internal error: {0}")]
     InternalError(String),
     #[error("Invalid input: {input_descriptor}; {info}")]
@@ -91,6 +93,9 @@ pub enum EntryPointExecutionError {
     #[cfg(feature = "cairo_native")]
     #[error(transparent)]
     NativeUnexpectedError(#[from] NativeError),
+    #[cfg(feature = "cairo_native")]
+    #[error(transparent)]
+    NativeUnrecoverableError(#[from] Box<SyscallExecutionError>),
     #[error(transparent)]
     PostExecutionError(#[from] PostExecutionError),
     #[error(transparent)]
@@ -131,16 +136,4 @@ impl ConstructorEntryPointExecutionError {
             constructor_selector: selector,
         }
     }
-}
-
-#[derive(Debug, Error)]
-pub enum ContractClassError {
-    #[error(
-        "Sierra program length must be > 0 for Cairo1, and == 0 for Cairo0. Got: \
-         {sierra_program_length:?} for contract class version {contract_class_version:?}"
-    )]
-    ContractClassVersionSierraProgramLengthMismatch {
-        contract_class_version: u8,
-        sierra_program_length: usize,
-    },
 }

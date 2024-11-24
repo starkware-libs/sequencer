@@ -1,6 +1,6 @@
 use papyrus_test_utils::{auto_impl_get_test_instance, get_number_of_variants, GetTestInstance};
 use rand::Rng;
-use starknet_api::block::BlockHash;
+use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::ContractAddress;
 use starknet_api::transaction::Transaction;
 
@@ -42,7 +42,7 @@ auto_impl_get_test_instance! {
         Precommit = 1,
     }
     pub struct ProposalInit {
-        pub height: u64,
+        pub height: BlockNumber,
         pub round: u32,
         pub valid_round: Option<u32>,
         pub proposer: ContractAddress,

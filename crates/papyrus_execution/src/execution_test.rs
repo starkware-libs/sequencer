@@ -3,7 +3,6 @@
 use std::sync::Arc;
 
 use assert_matches::assert_matches;
-use blockifier::abi::abi_utils::get_storage_var_address;
 use blockifier::execution::call_info::Retdata;
 use blockifier::execution::errors::ConstructorEntryPointExecutionError;
 use blockifier::execution::stack_trace::gen_tx_execution_error_trace;
@@ -12,10 +11,11 @@ use blockifier::versioned_constants::VersionedConstants;
 use indexmap::indexmap;
 use papyrus_storage::test_utils::get_test_storage;
 use pretty_assertions::assert_eq;
+use starknet_api::abi::abi_utils::get_storage_var_address;
 use starknet_api::block::{BlockNumber, StarknetVersion};
 use starknet_api::core::{ChainId, CompiledClassHash, EntryPointSelector};
 use starknet_api::state::{StateNumber, ThinStateDiff};
-use starknet_api::transaction::{Calldata, Fee};
+use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::{calldata, class_hash, contract_address, felt, nonce};
 use starknet_types_core::felt::Felt;
 
@@ -805,11 +805,7 @@ fn blockifier_error_mapping() {
         storage_address,
         selector,
     };
-    let expected = format!(
-        "Transaction execution has failed:\n{}",
-        // TODO: consider adding ErrorStack display instead.
-        String::from(gen_tx_execution_error_trace(&blockifier_err))
-    );
+    let expected = format!("{}", gen_tx_execution_error_trace(&blockifier_err));
     let err = ExecutionError::from((0, blockifier_err));
     let ExecutionError::TransactionExecutionError { transaction_index, execution_error } = err
     else {
@@ -825,10 +821,7 @@ fn blockifier_error_mapping() {
         storage_address,
         selector,
     };
-    let expected = format!(
-        "Transaction validation has failed:\n{}",
-        String::from(gen_tx_execution_error_trace(&blockifier_err))
-    );
+    let expected = format!("{}", gen_tx_execution_error_trace(&blockifier_err));
     let err = ExecutionError::from((0, blockifier_err));
     let ExecutionError::TransactionExecutionError { transaction_index, execution_error } = err
     else {

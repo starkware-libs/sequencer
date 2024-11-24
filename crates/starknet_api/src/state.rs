@@ -201,6 +201,12 @@ impl From<u128> for StorageKey {
     }
 }
 
+impl StorageKey {
+    pub fn next_storage_key(&self) -> Result<StorageKey, StarknetApiError> {
+        Ok(StorageKey(PatriciaKey::try_from(*self.0.key() + Felt::ONE)?))
+    }
+}
+
 impl_from_through_intermediate!(u128, StorageKey, u8, u16, u32, u64);
 
 /// A contract class.

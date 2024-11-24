@@ -11,12 +11,17 @@ use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::errors::hint_errors::HintError;
 use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
-use cairo_vm::vm::runners::cairo_runner::{ExecutionResources, ResourceTracker, RunResources};
+use cairo_vm::vm::runners::cairo_runner::{ResourceTracker, RunResources};
 use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::{AllResourceBounds, Calldata, Resource, ValidResourceBounds};
+use starknet_api::transaction::fields::{
+    AllResourceBounds,
+    Calldata,
+    Resource,
+    ValidResourceBounds,
+};
 use starknet_api::StarknetApiError;
 use starknet_types_core::felt::{Felt, FromStrError};
 use thiserror::Error;
@@ -29,7 +34,6 @@ use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointEx
 use crate::execution::execution_utils::{
     felt_from_ptr,
     felt_range_from_ptr,
-    max_fee_for_execution_info,
     write_maybe_relocatable,
     ReadOnlySegment,
     ReadOnlySegments,
@@ -52,6 +56,7 @@ use crate::execution::syscalls::{
     deploy,
     emit_event,
     get_block_hash,
+    get_class_hash_at,
     get_execution_info,
     keccak,
     library_call,
@@ -210,7 +215,6 @@ pub const INVALID_ARGUMENT: &str =
 pub struct SyscallHintProcessor<'a> {
     // Input for execution.
     pub state: &'a mut dyn State,
-    pub resources: &'a mut ExecutionResources,
     pub context: &'a mut EntryPointExecutionContext,
     pub call: CallEntryPoint,
 
@@ -228,6 +232,9 @@ pub struct SyscallHintProcessor<'a> {
     // Additional information gathered during execution.
     pub read_values: Vec<Felt>,
     pub accessed_keys: HashSet<StorageKey>,
+    pub read_class_hash_values: Vec<ClassHash>,
+    // Accessed addresses by the `get_class_hash_at` syscall.
+    pub accessed_contract_addresses: HashSet<ContractAddress>,
 
     // The original storage value of the executed contract.
     // Should be moved back `context.revert_info` before executing an inner call.
@@ -249,7 +256,6 @@ pub struct SyscallHintProcessor<'a> {
 impl<'a> SyscallHintProcessor<'a> {
     pub fn new(
         state: &'a mut dyn State,
-        resources: &'a mut ExecutionResources,
         context: &'a mut EntryPointExecutionContext,
         initial_syscall_ptr: Relocatable,
         call: CallEntryPoint,
@@ -266,7 +272,6 @@ impl<'a> SyscallHintProcessor<'a> {
         );
         SyscallHintProcessor {
             state,
-            resources,
             context,
             call,
             inner_calls: vec![],
@@ -277,6 +282,8 @@ impl<'a> SyscallHintProcessor<'a> {
             syscall_ptr: initial_syscall_ptr,
             read_values: vec![],
             accessed_keys: HashSet::new(),
+            read_class_hash_values: vec![],
+            accessed_contract_addresses: HashSet::new(),
             original_values,
             hints,
             execution_info_ptr: None,
@@ -343,6 +350,11 @@ impl<'a> SyscallHintProcessor<'a> {
                 vm,
                 get_block_hash,
                 self.context.gas_costs().get_block_hash_gas_cost,
+            ),
+            SyscallSelector::GetClassHashAt => self.execute_syscall(
+                vm,
+                get_class_hash_at,
+                self.context.gas_costs().get_class_hash_at_gas_cost,
             ),
             SyscallSelector::GetExecutionInfo => self.execute_syscall(
                 vm,
@@ -622,7 +634,7 @@ impl<'a> SyscallHintProcessor<'a> {
         let mut tx_data: Vec<MaybeRelocatable> = vec![
             tx_info.signed_version().0.into(),
             tx_info.sender_address().0.key().into(),
-            max_fee_for_execution_info(tx_info).into(),
+            Felt::from(tx_info.max_fee_for_execution_info_syscall().0).into(),
             tx_signature_start_ptr.into(),
             tx_signature_end_ptr.into(),
             (tx_info).transaction_hash().0.into(),
@@ -794,12 +806,7 @@ pub fn execute_inner_call(
 ) -> SyscallResult<ReadOnlySegment> {
     let revert_idx = syscall_handler.context.revert_infos.0.len();
 
-    let call_info = call.execute(
-        syscall_handler.state,
-        syscall_handler.resources,
-        syscall_handler.context,
-        remaining_gas,
-    )?;
+    let call_info = call.execute(syscall_handler.state, syscall_handler.context, remaining_gas)?;
 
     let mut raw_retdata = call_info.execution.retdata.0.clone();
     let failed = call_info.execution.failed;

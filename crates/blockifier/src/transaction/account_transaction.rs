@@ -1,32 +1,40 @@
 use std::sync::Arc;
 
-use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::GasPriceVector;
 use starknet_api::calldata;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
-use starknet_api::transaction::Resource::{L1DataGas, L1Gas, L2Gas};
-use starknet_api::transaction::{
+use starknet_api::executable_transaction::{
+    AccountTransaction as Transaction,
+    DeclareTransaction,
+    DeployAccountTransaction,
+    InvokeTransaction,
+};
+use starknet_api::transaction::fields::Resource::{L1DataGas, L1Gas, L2Gas};
+use starknet_api::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
     Calldata,
     Fee,
     PaymasterData,
     Tip,
-    TransactionHash,
     TransactionSignature,
-    TransactionVersion,
     ValidResourceBounds,
 };
+use starknet_api::transaction::{constants, TransactionHash, TransactionVersion};
 use starknet_types_core::felt::Felt;
 
-use crate::abi::abi_utils::selector_from_name;
 use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::CallInfo;
 use crate::execution::contract_class::RunnableContractClass;
 use crate::execution::entry_point::{CallEntryPoint, CallType, EntryPointExecutionContext};
-use crate::execution::stack_trace::extract_trailing_cairo1_revert_trace;
+use crate::execution::stack_trace::{
+    extract_trailing_cairo1_revert_trace,
+    gen_tx_execution_error_trace,
+    Cairo1RevertHeader,
+};
 use crate::fee::fee_checks::{FeeCheckReportFields, PostExecutionReport};
 use crate::fee::fee_utils::{
     get_fee_by_gas_vector,
@@ -38,7 +46,6 @@ use crate::fee::receipt::TransactionReceipt;
 use crate::retdata;
 use crate::state::cached_state::{StateChanges, TransactionalState};
 use crate::state::state_api::{State, StateReader, UpdatableState};
-use crate::transaction::constants;
 use crate::transaction::errors::{
     TransactionExecutionError,
     TransactionFeeError,
@@ -47,20 +54,19 @@ use crate::transaction::errors::{
 use crate::transaction::objects::{
     DeprecatedTransactionInfo,
     HasRelatedFeeType,
+    RevertError,
     TransactionExecutionInfo,
     TransactionExecutionResult,
     TransactionInfo,
     TransactionInfoCreator,
+    TransactionInfoCreatorInner,
     TransactionPreValidationResult,
 };
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::{
-    DeclareTransaction,
-    DeployAccountTransaction,
     Executable,
     ExecutableTransaction,
     ExecutionFlags,
-    InvokeTransaction,
     ValidatableTransaction,
 };
 
@@ -78,76 +84,55 @@ mod post_execution_test;
 
 /// Represents a paid Starknet transaction.
 #[derive(Clone, Debug, derive_more::From)]
-pub enum AccountTransaction {
-    Declare(DeclareTransaction),
-    DeployAccount(DeployAccountTransaction),
-    Invoke(InvokeTransaction),
+pub struct AccountTransaction {
+    pub tx: Transaction,
+    only_query: bool,
 }
 
 macro_rules! implement_account_tx_inner_getters {
     ($(($field:ident, $field_type:ty)),*) => {
         $(pub fn $field(&self) -> $field_type {
-            match self {
-                Self::Declare(tx) => tx.tx.$field().clone(),
-                Self::DeployAccount(tx) => tx.tx.$field().clone(),
-                Self::Invoke(tx) => tx.tx.$field().clone(),
+            match &self.tx {
+                // TODO(AvivG): Consider moving some of the logic to the Transaction enum.
+                Transaction::Declare(tx) => tx.tx.$field().clone(),
+                Transaction::DeployAccount(tx) => tx.tx.$field().clone(),
+                Transaction::Invoke(tx) => tx.tx.$field().clone(),
             }
         })*
     };
 }
 
-impl TryFrom<&starknet_api::executable_transaction::Transaction> for AccountTransaction {
-    type Error = TransactionExecutionError;
-
-    fn try_from(
-        value: &starknet_api::executable_transaction::Transaction,
-    ) -> Result<Self, Self::Error> {
-        match value {
-            starknet_api::executable_transaction::Transaction::Declare(declare_tx) => {
-                Ok(Self::Declare(declare_tx.clone().try_into()?))
-            }
-            starknet_api::executable_transaction::Transaction::DeployAccount(deploy_account_tx) => {
-                Ok(Self::DeployAccount(DeployAccountTransaction {
-                    tx: deploy_account_tx.clone(),
-                    only_query: false,
-                }))
-            }
-            starknet_api::executable_transaction::Transaction::Invoke(invoke_tx) => {
-                Ok(Self::Invoke(InvokeTransaction { tx: invoke_tx.clone(), only_query: false }))
-            }
-        }
+impl From<Transaction> for AccountTransaction {
+    fn from(tx: Transaction) -> Self {
+        Self::new(tx)
     }
 }
 
-impl TryFrom<starknet_api::executable_transaction::Transaction> for AccountTransaction {
-    type Error = TransactionExecutionError;
+impl From<DeclareTransaction> for AccountTransaction {
+    fn from(tx: DeclareTransaction) -> Self {
+        Transaction::Declare(tx).into()
+    }
+}
 
-    fn try_from(
-        executable_transaction: starknet_api::executable_transaction::Transaction,
-    ) -> Result<Self, Self::Error> {
-        match executable_transaction {
-            starknet_api::executable_transaction::Transaction::Declare(declare_tx) => {
-                Ok(Self::Declare(declare_tx.try_into()?))
-            }
-            starknet_api::executable_transaction::Transaction::DeployAccount(deploy_account_tx) => {
-                Ok(Self::DeployAccount(DeployAccountTransaction {
-                    tx: deploy_account_tx,
-                    only_query: false,
-                }))
-            }
-            starknet_api::executable_transaction::Transaction::Invoke(invoke_tx) => {
-                Ok(Self::Invoke(InvokeTransaction { tx: invoke_tx, only_query: false }))
-            }
-        }
+impl From<DeployAccountTransaction> for AccountTransaction {
+    fn from(tx: DeployAccountTransaction) -> Self {
+        Transaction::DeployAccount(tx).into()
+    }
+}
+
+impl From<InvokeTransaction> for AccountTransaction {
+    fn from(tx: InvokeTransaction) -> Self {
+        Transaction::Invoke(tx).into()
     }
 }
 
 impl HasRelatedFeeType for AccountTransaction {
     fn version(&self) -> TransactionVersion {
-        match self {
-            Self::Declare(tx) => tx.tx.version(),
-            Self::DeployAccount(tx) => tx.tx.version(),
-            Self::Invoke(tx) => tx.tx.version(),
+        // TODO(AvivG): Consider moving some of the logic to the Transaction enum.
+        match &self.tx {
+            Transaction::Declare(tx) => tx.tx.version(),
+            Transaction::DeployAccount(tx) => tx.tx.version(),
+            Transaction::Invoke(tx) => tx.tx.version(),
         }
     }
 
@@ -167,44 +152,48 @@ impl AccountTransaction {
         (paymaster_data, PaymasterData)
     );
 
+    pub fn new(tx: starknet_api::executable_transaction::AccountTransaction) -> Self {
+        AccountTransaction { tx, only_query: false }
+    }
+
+    pub fn new_for_query(tx: starknet_api::executable_transaction::AccountTransaction) -> Self {
+        AccountTransaction { tx, only_query: true }
+    }
+
     pub fn sender_address(&self) -> ContractAddress {
-        match self {
-            Self::Declare(tx) => tx.tx.sender_address(),
-            Self::DeployAccount(tx) => tx.tx.contract_address(),
-            Self::Invoke(tx) => tx.tx.sender_address(),
-        }
+        self.tx.sender_address()
     }
 
     pub fn class_hash(&self) -> Option<ClassHash> {
-        match self {
-            Self::Declare(tx) => Some(tx.tx.class_hash()),
-            Self::DeployAccount(tx) => Some(tx.tx.class_hash()),
-            Self::Invoke(_) => None,
+        match &self.tx {
+            Transaction::Declare(tx) => Some(tx.tx.class_hash()),
+            Transaction::DeployAccount(tx) => Some(tx.tx.class_hash()),
+            Transaction::Invoke(_) => None,
         }
     }
 
     pub fn account_deployment_data(&self) -> Option<AccountDeploymentData> {
-        match self {
-            Self::Declare(tx) => Some(tx.tx.account_deployment_data().clone()),
-            Self::DeployAccount(_) => None,
-            Self::Invoke(tx) => Some(tx.tx.account_deployment_data().clone()),
+        match &self.tx {
+            Transaction::Declare(tx) => Some(tx.tx.account_deployment_data().clone()),
+            Transaction::DeployAccount(_) => None,
+            Transaction::Invoke(tx) => Some(tx.tx.account_deployment_data().clone()),
         }
     }
 
     // TODO(nir, 01/11/2023): Consider instantiating CommonAccountFields in AccountTransaction.
     pub fn tx_type(&self) -> TransactionType {
-        match self {
-            AccountTransaction::Declare(_) => TransactionType::Declare,
-            AccountTransaction::DeployAccount(_) => TransactionType::DeployAccount,
-            AccountTransaction::Invoke(_) => TransactionType::InvokeFunction,
+        match &self.tx {
+            Transaction::Declare(_) => TransactionType::Declare,
+            Transaction::DeployAccount(_) => TransactionType::DeployAccount,
+            Transaction::Invoke(_) => TransactionType::InvokeFunction,
         }
     }
 
     fn validate_entry_point_selector(&self) -> EntryPointSelector {
-        let validate_entry_point_name = match self {
-            Self::Declare(_) => constants::VALIDATE_DECLARE_ENTRY_POINT_NAME,
-            Self::DeployAccount(_) => constants::VALIDATE_DEPLOY_ENTRY_POINT_NAME,
-            Self::Invoke(_) => constants::VALIDATE_ENTRY_POINT_NAME,
+        let validate_entry_point_name = match &self.tx {
+            Transaction::Declare(_) => constants::VALIDATE_DECLARE_ENTRY_POINT_NAME,
+            Transaction::DeployAccount(_) => constants::VALIDATE_DEPLOY_ENTRY_POINT_NAME,
+            Transaction::Invoke(_) => constants::VALIDATE_ENTRY_POINT_NAME,
         };
         selector_from_name(validate_entry_point_name)
     }
@@ -212,9 +201,9 @@ impl AccountTransaction {
     // Calldata for validation contains transaction fields that cannot be obtained by calling
     // `et_tx_info()`.
     fn validate_entrypoint_calldata(&self) -> Calldata {
-        match self {
-            Self::Declare(tx) => calldata![tx.class_hash().0],
-            Self::DeployAccount(tx) => Calldata(
+        match &self.tx {
+            Transaction::Declare(tx) => calldata![tx.class_hash().0],
+            Transaction::DeployAccount(tx) => Calldata(
                 [
                     vec![tx.class_hash().0, tx.contract_address_salt().0],
                     (*tx.constructor_calldata().0).clone(),
@@ -223,36 +212,32 @@ impl AccountTransaction {
                 .into(),
             ),
             // Calldata for validation is the same calldata as for the execution itself.
-            Self::Invoke(tx) => tx.calldata(),
+            Transaction::Invoke(tx) => tx.calldata(),
         }
     }
 
     pub fn calldata_length(&self) -> usize {
-        let calldata = match self {
-            Self::Declare(_tx) => calldata![],
-            Self::DeployAccount(tx) => tx.constructor_calldata(),
-            Self::Invoke(tx) => tx.calldata(),
+        let calldata = match &self.tx {
+            Transaction::Declare(_tx) => return 0,
+            Transaction::DeployAccount(tx) => tx.constructor_calldata(),
+            Transaction::Invoke(tx) => tx.calldata(),
         };
 
         calldata.0.len()
     }
 
     pub fn signature_length(&self) -> usize {
-        let signature = match self {
-            Self::Declare(tx) => tx.signature(),
-            Self::DeployAccount(tx) => tx.signature(),
-            Self::Invoke(tx) => tx.signature(),
+        let signature = match &self.tx {
+            Transaction::Declare(tx) => tx.signature(),
+            Transaction::DeployAccount(tx) => tx.signature(),
+            Transaction::Invoke(tx) => tx.signature(),
         };
 
         signature.0.len()
     }
 
     pub fn tx_hash(&self) -> TransactionHash {
-        match self {
-            Self::Declare(tx) => tx.tx_hash(),
-            Self::DeployAccount(tx) => tx.tx_hash(),
-            Self::Invoke(tx) => tx.tx_hash(),
-        }
+        self.tx.tx_hash()
     }
 
     pub fn enforce_fee(&self) -> bool {
@@ -260,9 +245,9 @@ impl AccountTransaction {
     }
 
     fn verify_tx_version(&self, version: TransactionVersion) -> TransactionExecutionResult<()> {
-        let allowed_versions: Vec<TransactionVersion> = match self {
+        let allowed_versions: Vec<TransactionVersion> = match &self.tx {
             // Support `Declare` of version 0 in order to allow bootstrapping of a new system.
-            Self::Declare(_) => {
+            Transaction::Declare(_) => {
                 vec![
                     TransactionVersion::ZERO,
                     TransactionVersion::ONE,
@@ -270,10 +255,10 @@ impl AccountTransaction {
                     TransactionVersion::THREE,
                 ]
             }
-            Self::DeployAccount(_) => {
+            Transaction::DeployAccount(_) => {
                 vec![TransactionVersion::ONE, TransactionVersion::THREE]
             }
-            Self::Invoke(_) => {
+            Transaction::Invoke(_) => {
                 vec![TransactionVersion::ZERO, TransactionVersion::ONE, TransactionVersion::THREE]
             }
         };
@@ -420,14 +405,13 @@ impl AccountTransaction {
     fn handle_validate_tx(
         &self,
         state: &mut dyn State,
-        resources: &mut ExecutionResources,
         tx_context: Arc<TransactionContext>,
         remaining_gas: &mut u64,
         validate: bool,
         limit_steps_by_resources: bool,
     ) -> TransactionExecutionResult<Option<CallInfo>> {
         if validate {
-            self.validate_tx(state, resources, tx_context, remaining_gas, limit_steps_by_resources)
+            self.validate_tx(state, tx_context, remaining_gas, limit_steps_by_resources)
         } else {
             Ok(None)
         }
@@ -514,12 +498,7 @@ impl AccountTransaction {
         let mut context = EntryPointExecutionContext::new_invoke(tx_context, true);
 
         Ok(fee_transfer_call
-            .execute(
-                state,
-                &mut ExecutionResources::default(),
-                &mut context,
-                &mut remaining_gas_for_fee_transfer,
-            )
+            .execute(state, &mut context, &mut remaining_gas_for_fee_transfer)
             .map_err(TransactionFeeError::ExecuteFeeTransferError)?)
     }
 
@@ -546,7 +525,7 @@ impl AccountTransaction {
         }
 
         let fee_transfer_call_info =
-            AccountTransaction::execute_fee_transfer(&mut transfer_state, tx_context, actual_fee);
+            Self::execute_fee_transfer(&mut transfer_state, tx_context, actual_fee);
         // Commit without updating the sequencer balance.
         let storage_writes = &mut transfer_state.cache.get_mut().writes.storage;
         storage_writes.remove(&(fee_address, sequencer_balance_key_low));
@@ -558,14 +537,13 @@ impl AccountTransaction {
     fn run_execute<S: State>(
         &self,
         state: &mut S,
-        resources: &mut ExecutionResources,
         context: &mut EntryPointExecutionContext,
         remaining_gas: &mut u64,
     ) -> TransactionExecutionResult<Option<CallInfo>> {
-        match &self {
-            Self::Declare(tx) => tx.run_execute(state, resources, context, remaining_gas),
-            Self::DeployAccount(tx) => tx.run_execute(state, resources, context, remaining_gas),
-            Self::Invoke(tx) => tx.run_execute(state, resources, context, remaining_gas),
+        match &self.tx {
+            Transaction::Declare(tx) => tx.run_execute(state, context, remaining_gas),
+            Transaction::DeployAccount(tx) => tx.run_execute(state, context, remaining_gas),
+            Transaction::Invoke(tx) => tx.run_execute(state, context, remaining_gas),
         }
     }
 
@@ -577,20 +555,17 @@ impl AccountTransaction {
         validate: bool,
         charge_fee: bool,
     ) -> TransactionExecutionResult<ValidateExecuteCallInfo> {
-        let mut resources = ExecutionResources::default();
         let validate_call_info: Option<CallInfo>;
         let execute_call_info: Option<CallInfo>;
-        if matches!(self, Self::DeployAccount(_)) {
+        if matches!(&self.tx, Transaction::DeployAccount(_)) {
             // Handle `DeployAccount` transactions separately, due to different order of things.
             // Also, the execution context required form the `DeployAccount` execute phase is
             // validation context.
             let mut execution_context =
                 EntryPointExecutionContext::new_validate(tx_context.clone(), charge_fee);
-            execute_call_info =
-                self.run_execute(state, &mut resources, &mut execution_context, remaining_gas)?;
+            execute_call_info = self.run_execute(state, &mut execution_context, remaining_gas)?;
             validate_call_info = self.handle_validate_tx(
                 state,
-                &mut resources,
                 tx_context.clone(),
                 remaining_gas,
                 validate,
@@ -601,22 +576,22 @@ impl AccountTransaction {
                 EntryPointExecutionContext::new_invoke(tx_context.clone(), charge_fee);
             validate_call_info = self.handle_validate_tx(
                 state,
-                &mut resources,
                 tx_context.clone(),
                 remaining_gas,
                 validate,
                 charge_fee,
             )?;
-            execute_call_info =
-                self.run_execute(state, &mut resources, &mut execution_context, remaining_gas)?;
+            execute_call_info = self.run_execute(state, &mut execution_context, remaining_gas)?;
         }
 
         let tx_receipt = TransactionReceipt::from_account_tx(
             self,
             &tx_context,
             &state.get_actual_state_changes()?,
-            &resources,
-            CallInfo::summarize_many(validate_call_info.iter().chain(execute_call_info.iter())),
+            CallInfo::summarize_many(
+                validate_call_info.iter().chain(execute_call_info.iter()),
+                &tx_context.block_context.versioned_constants,
+            ),
             0,
         );
 
@@ -640,13 +615,11 @@ impl AccountTransaction {
         validate: bool,
         charge_fee: bool,
     ) -> TransactionExecutionResult<ValidateExecuteCallInfo> {
-        let mut resources = ExecutionResources::default();
         let mut execution_context =
             EntryPointExecutionContext::new_invoke(tx_context.clone(), charge_fee);
         // Run the validation, and if execution later fails, only keep the validation diff.
         let validate_call_info = self.handle_validate_tx(
             state,
-            &mut resources,
             tx_context.clone(),
             remaining_gas,
             validate,
@@ -663,27 +636,25 @@ impl AccountTransaction {
         // resource and fee calculation.
         let validate_state_changes = state.get_actual_state_changes()?;
 
-        // Create copies of state and resources for the execution.
+        // Create copies of state and validate_resources for the execution.
         // Both will be rolled back if the execution is reverted or committed upon success.
-        let mut execution_resources = resources.clone();
         let mut execution_state = TransactionalState::create_transactional(state);
 
-        let execution_result = self.run_execute(
-            &mut execution_state,
-            &mut execution_resources,
-            &mut execution_context,
-            remaining_gas,
-        );
+        let execution_result =
+            self.run_execute(&mut execution_state, &mut execution_context, remaining_gas);
 
         // Pre-compute cost in case of revert.
+        // TODO(tzahi): add reverted_l2_gas to the receipt.
         let execution_steps_consumed =
             n_allotted_execution_steps - execution_context.n_remaining_steps();
-        let revert_cost = TransactionReceipt::from_account_tx(
+        let revert_receipt = TransactionReceipt::from_account_tx(
             self,
             &tx_context,
             &validate_state_changes,
-            &resources,
-            CallInfo::summarize_many(validate_call_info.iter()),
+            CallInfo::summarize_many(
+                validate_call_info.iter(),
+                &tx_context.block_context.versioned_constants,
+            ),
             execution_steps_consumed,
         );
 
@@ -698,9 +669,9 @@ impl AccountTransaction {
                         validate_state_changes,
                         execution_state.get_actual_state_changes()?,
                     ]),
-                    &execution_resources,
                     CallInfo::summarize_many(
                         validate_call_info.iter().chain(execute_call_info.iter()),
+                        &tx_context.block_context.versioned_constants,
                     ),
                     0,
                 );
@@ -720,10 +691,10 @@ impl AccountTransaction {
                         execution_state.abort();
                         Ok(ValidateExecuteCallInfo::new_reverted(
                             validate_call_info,
-                            post_execution_error.to_string(),
+                            post_execution_error.into(),
                             TransactionReceipt {
                                 fee: post_execution_report.recommended_fee(),
-                                ..revert_cost
+                                ..revert_receipt
                             },
                         ))
                     }
@@ -742,13 +713,13 @@ impl AccountTransaction {
                 // Error during execution. Revert, even if the error is sequencer-related.
                 execution_state.abort();
                 let post_execution_report =
-                    PostExecutionReport::new(state, &tx_context, &revert_cost, charge_fee)?;
+                    PostExecutionReport::new(state, &tx_context, &revert_receipt, charge_fee)?;
                 Ok(ValidateExecuteCallInfo::new_reverted(
                     validate_call_info,
-                    execution_error.to_string(),
+                    gen_tx_execution_error_trace(&execution_error).into(),
                     TransactionReceipt {
                         fee: post_execution_report.recommended_fee(),
-                        ..revert_cost
+                        ..revert_receipt
                     },
                 ))
             }
@@ -758,15 +729,15 @@ impl AccountTransaction {
     /// Returns 0 on non-declare transactions; for declare transactions, returns the class code
     /// size.
     pub(crate) fn declare_code_size(&self) -> usize {
-        if let Self::Declare(tx) = self { tx.class_info.code_size() } else { 0 }
+        if let Transaction::Declare(tx) = &self.tx { tx.class_info.code_size() } else { 0 }
     }
 
     fn is_non_revertible(&self, tx_info: &TransactionInfo) -> bool {
         // Reverting a Declare or Deploy transaction is not currently supported in the OS.
-        match self {
-            Self::Declare(_) => true,
-            Self::DeployAccount(_) => true,
-            Self::Invoke(_) => {
+        match &self.tx {
+            Transaction::Declare(_) => true,
+            Transaction::DeployAccount(_) => true,
+            Transaction::Invoke(_) => {
                 // V0 transactions do not have validation; we cannot deduct fee for execution. Thus,
                 // invoke transactions of are non-revertible iff they are of version 0.
                 tx_info.is_v0()
@@ -856,10 +827,10 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
 
 impl TransactionInfoCreator for AccountTransaction {
     fn create_tx_info(&self) -> TransactionInfo {
-        match self {
-            Self::Declare(tx) => tx.create_tx_info(),
-            Self::DeployAccount(tx) => tx.create_tx_info(),
-            Self::Invoke(tx) => tx.create_tx_info(),
+        match &self.tx {
+            Transaction::Declare(tx) => tx.create_tx_info(self.only_query),
+            Transaction::DeployAccount(tx) => tx.create_tx_info(self.only_query),
+            Transaction::Invoke(tx) => tx.create_tx_info(self.only_query),
         }
     }
 }
@@ -868,7 +839,7 @@ impl TransactionInfoCreator for AccountTransaction {
 struct ValidateExecuteCallInfo {
     validate_call_info: Option<CallInfo>,
     execute_call_info: Option<CallInfo>,
-    revert_error: Option<String>,
+    revert_error: Option<RevertError>,
     final_cost: TransactionReceipt,
 }
 
@@ -883,7 +854,7 @@ impl ValidateExecuteCallInfo {
 
     pub fn new_reverted(
         validate_call_info: Option<CallInfo>,
-        revert_error: String,
+        revert_error: RevertError,
         final_cost: TransactionReceipt,
     ) -> Self {
         Self {
@@ -899,7 +870,6 @@ impl ValidatableTransaction for AccountTransaction {
     fn validate_tx(
         &self,
         state: &mut dyn State,
-        resources: &mut ExecutionResources,
         tx_context: Arc<TransactionContext>,
         remaining_gas: &mut u64,
         limit_steps_by_resources: bool,
@@ -928,7 +898,7 @@ impl ValidatableTransaction for AccountTransaction {
 
         // Note that we allow a revert here and we handle it bellow to get a better error message.
         let validate_call_info = validate_call
-            .execute(state, resources, &mut context, remaining_gas)
+            .execute(state, &mut context, remaining_gas)
             .map_err(|error| TransactionExecutionError::ValidateTransactionError {
                 error,
                 class_hash,
@@ -941,11 +911,14 @@ impl ValidatableTransaction for AccountTransaction {
         if is_cairo1(&contract_class) {
             // The account contract class is a Cairo 1.0 contract; the `validate` entry point should
             // return `VALID`.
-            let expected_retdata = retdata![Felt::from_hex(constants::VALIDATE_RETDATA)?];
+            let expected_retdata = retdata![*constants::VALIDATE_RETDATA];
 
             if validate_call_info.execution.failed {
                 return Err(TransactionExecutionError::PanicInValidate {
-                    panic_reason: extract_trailing_cairo1_revert_trace(&validate_call_info),
+                    panic_reason: extract_trailing_cairo1_revert_trace(
+                        &validate_call_info,
+                        Cairo1RevertHeader::Validation,
+                    ),
                 });
             }
 

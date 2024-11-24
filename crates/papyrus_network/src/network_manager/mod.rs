@@ -253,6 +253,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     }
 
     fn handle_swarm_event(&mut self, event: SwarmEvent<mixed_behaviour::Event>) {
+        #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
         match event {
             SwarmEvent::ConnectionEstablished { peer_id, .. } => {
                 debug!("Connected to peer id: {peer_id:?}");
@@ -277,7 +278,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                 self.handle_behaviour_event(event);
             }
             SwarmEvent::OutgoingConnectionError { connection_id, peer_id, error } => {
-                error!(
+                warn!(
                     "Outgoing connection error. connection id: {connection_id:?}, requested peer \
                      id: {peer_id:?}, error: {error:?}"
                 );
@@ -290,7 +291,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             } => {
                 // No need to panic here since this is a result of another peer trying to dial to us
                 // and failing. Other peers are welcome to retry.
-                error!(
+                warn!(
                     "Incoming connection error. connection id: {connection_id:?}, local addr: \
                      {local_addr:?}, send back addr: {send_back_addr:?}, error: {error:?}"
                 );
@@ -375,6 +376,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         }
     }
 
+    #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
     fn handle_sqmr_event_new_inbound_session(
         &mut self,
         peer_id: PeerId,
@@ -473,7 +475,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             if let Some(_report_receiver) =
                 self.sqmr_outbound_report_receivers_awaiting_assignment.remove(&outbound_session_id)
             {
-                error!(
+                warn!(
                     "Outbound session finished with no messages in it. Ignoring incoming reports \
                      for the session."
                 );
@@ -498,7 +500,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             if e.is_disconnected() {
                 panic!("Receiver was dropped. This should never happen.")
             } else if e.is_full() {
-                error!(
+                warn!(
                     "Receiver buffer is full. Dropping broadcasted message for topic with hash: \
                      {topic_hash:?}."
                 );
@@ -537,6 +539,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     ) {
         let SqmrClientPayload { query, report_receiver, responses_sender } = client_payload;
         match self.swarm.send_query(query, PeerId::random(), protocol.clone()) {
+            #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
             Ok(outbound_session_id) => {
                 debug!(
                     "Network received new query. waiting for peer assignment. \
@@ -565,6 +568,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     }
 
     fn report_session_removed_to_metrics(&mut self, session_id: SessionId) {
+        #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
         match session_id {
             SessionId::InboundSessionId(_) => {
                 self.num_active_inbound_sessions -= 1;
@@ -602,7 +606,7 @@ fn send_now<Item>(sender: &mut GenericSender<Item>, item: Item, buffer_full_mess
             error!("Received error while sending message: {:?}", error);
         }
         None => {
-            error!(buffer_full_message);
+            warn!(buffer_full_message);
         }
     }
 }

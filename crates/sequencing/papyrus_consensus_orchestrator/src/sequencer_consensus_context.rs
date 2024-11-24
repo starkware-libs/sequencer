@@ -16,27 +16,34 @@ use papyrus_consensus::types::{
     ConsensusContext,
     ConsensusError,
     ProposalContentId,
-    ProposalInit,
     Round,
     ValidatorId,
 };
-use papyrus_protobuf::consensus::{ConsensusMessage, Vote};
+use papyrus_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
+use papyrus_protobuf::consensus::{
+    ConsensusMessage,
+    ProposalFin,
+    ProposalInit,
+    ProposalPart,
+    TransactionBatch,
+    Vote,
+};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::executable_transaction::Transaction;
 use starknet_batcher_types::batcher_types::{
-    BuildProposalInput,
     DecisionReachedInput,
     GetProposalContent,
     GetProposalContentInput,
     ProposalId,
     ProposalStatus,
+    ProposeBlockInput,
     SendProposalContent,
     SendProposalContentInput,
     StartHeightInput,
-    ValidateProposalInput,
+    ValidateBlockInput,
 };
 use starknet_batcher_types::communication::BatcherClient;
-use tracing::{debug, debug_span, error, info, warn, Instrument};
+use tracing::{debug, debug_span, error, info, trace, warn, Instrument};
 
 // {height: {proposal_id: (content, [proposal_ids])}}
 // Note that multiple proposals IDs can be associated with the same content, but we only need to
@@ -56,12 +63,18 @@ pub struct SequencerConsensusContext {
     // restarting.
     proposal_id: u64,
     current_height: Option<BlockNumber>,
+    network_broadcast_client: BroadcastTopicClient<ProposalPart>,
 }
 
 impl SequencerConsensusContext {
-    pub fn new(batcher: Arc<dyn BatcherClient>, num_validators: u64) -> Self {
+    pub fn new(
+        batcher: Arc<dyn BatcherClient>,
+        network_broadcast_client: BroadcastTopicClient<ProposalPart>,
+        num_validators: u64,
+    ) -> Self {
         Self {
             batcher,
+            network_broadcast_client,
             validators: (0..num_validators).map(ValidatorId::from).collect(),
             valid_proposals: Arc::new(Mutex::new(HeightToIdToContent::new())),
             proposal_id: 0,
@@ -93,7 +106,7 @@ impl ConsensusContext for SequencerConsensusContext {
         self.proposal_id += 1;
         let timeout =
             chrono::Duration::from_std(timeout).expect("Can't convert timeout to chrono::Duration");
-        let build_proposal_input = BuildProposalInput {
+        let build_proposal_input = ProposeBlockInput {
             proposal_id,
             // TODO: Discuss with batcher team passing std Duration instead.
             deadline: chrono::Utc::now() + timeout,
@@ -109,9 +122,15 @@ impl ConsensusContext for SequencerConsensusContext {
         // here also.
         debug!("Initiating proposal build: {build_proposal_input:?}");
         batcher
-            .build_proposal(build_proposal_input)
+            .propose_block(build_proposal_input)
             .await
             .expect("Failed to initiate proposal build");
+        debug!("Broadcasting proposal init: {proposal_init:?}");
+        self.network_broadcast_client
+            .broadcast_message(ProposalPart::Init(proposal_init.clone()))
+            .await
+            .expect("Failed to broadcast proposal init");
+        let broadcast_client = self.network_broadcast_client.clone();
         tokio::spawn(
             async move {
                 stream_build_proposal(
@@ -119,6 +138,7 @@ impl ConsensusContext for SequencerConsensusContext {
                     proposal_id,
                     batcher,
                     valid_proposals,
+                    broadcast_client,
                     fin_sender,
                 )
                 .await;
@@ -144,7 +164,7 @@ impl ConsensusContext for SequencerConsensusContext {
 
         let chrono_timeout =
             chrono::Duration::from_std(timeout).expect("Can't convert timeout to chrono::Duration");
-        let input = ValidateProposalInput {
+        let input = ValidateBlockInput {
             proposal_id,
             deadline: chrono::Utc::now() + chrono_timeout,
             // TODO(Matan 3/11/2024): Add the real value of the retrospective block hash.
@@ -154,7 +174,7 @@ impl ConsensusContext for SequencerConsensusContext {
             }),
         };
         self.maybe_start_height(height).await;
-        batcher.validate_proposal(input).await.expect("Failed to initiate proposal validation");
+        batcher.validate_block(input).await.expect("Failed to initiate proposal validation");
         tokio::spawn(
             async move {
                 let validate_fut = stream_validate_proposal(
@@ -255,6 +275,7 @@ async fn stream_build_proposal(
     proposal_id: ProposalId,
     batcher: Arc<dyn BatcherClient>,
     valid_proposals: Arc<Mutex<HeightToIdToContent>>,
+    mut broadcast_client: BroadcastTopicClient<ProposalPart>,
     fin_sender: oneshot::Sender<ProposalContentId>,
 ) {
     let mut content = Vec::new();
@@ -273,6 +294,20 @@ async fn stream_build_proposal(
                 // TODO: Broadcast the transactions to the network.
                 // TODO(matan): Convert to protobuf and make sure this isn't too large for a single
                 // proto message (could this be a With adapter added to the channel in `new`?).
+                let mut transaction_hashes = Vec::with_capacity(txs.len());
+                let mut transactions = Vec::with_capacity(txs.len());
+                for tx in txs.into_iter() {
+                    transaction_hashes.push(tx.tx_hash());
+                    transactions.push(tx.into());
+                }
+                debug!("Broadcasting proposal content: {transaction_hashes:?}");
+                trace!("Broadcasting proposal content: {transactions:?}");
+                broadcast_client
+                    .broadcast_message(ProposalPart::Transactions(TransactionBatch {
+                        transactions,
+                    }))
+                    .await
+                    .expect("Failed to broadcast proposal content");
             }
             GetProposalContent::Finished(id) => {
                 let proposal_content_id = BlockHash(id.state_diff_commitment.0.0);
@@ -284,6 +319,11 @@ async fn stream_build_proposal(
                     content.len(),
                     height
                 );
+                debug!("Broadcasting proposal fin: {proposal_content_id:?}");
+                broadcast_client
+                    .broadcast_message(ProposalPart::Fin(ProposalFin { proposal_content_id }))
+                    .await
+                    .expect("Failed to broadcast proposal fin");
                 // Update valid_proposals before sending fin to avoid a race condition
                 // with `repropose` being called before `valid_proposals` is updated.
                 let mut valid_proposals = valid_proposals.lock().expect("Lock was poisoned");
@@ -328,6 +368,9 @@ async fn stream_validate_proposal(
             ProposalStatus::Finished(fin) => {
                 panic!("Batcher returned Fin before all content was sent: {proposal_id:?} {fin:?}");
             }
+            ProposalStatus::Aborted => {
+                panic!("Unexpected abort response for proposal: {:?}", proposal_id);
+            }
             ProposalStatus::InvalidProposal => {
                 warn!("Proposal was invalid: {:?}", proposal_id);
                 return;
@@ -345,6 +388,9 @@ async fn stream_validate_proposal(
         ProposalStatus::Finished(id) => id,
         ProposalStatus::Processing => {
             panic!("Batcher failed to return Fin after all content was sent: {:?}", proposal_id);
+        }
+        ProposalStatus::Aborted => {
+            panic!("Unexpected abort response for proposal: {:?}", proposal_id);
         }
         ProposalStatus::InvalidProposal => {
             warn!("Proposal was invalid: {:?}", proposal_id);

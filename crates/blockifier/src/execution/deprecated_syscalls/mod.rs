@@ -11,14 +11,8 @@ use starknet_api::core::{
     EthAddress,
 };
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::{
-    Calldata,
-    ContractAddressSalt,
-    EventContent,
-    EventData,
-    EventKey,
-    L2ToL1Payload,
-};
+use starknet_api::transaction::fields::{Calldata, ContractAddressSalt};
+use starknet_api::transaction::{EventContent, EventData, EventKey, L2ToL1Payload};
 use starknet_types_core::felt::Felt;
 use strum_macros::EnumIter;
 
@@ -63,6 +57,7 @@ pub enum DeprecatedSyscallSelector {
     GetBlockNumber,
     GetBlockTimestamp,
     GetCallerAddress,
+    GetClassHashAt,
     GetContractAddress,
     GetExecutionInfo,
     GetSequencerAddress,
@@ -105,6 +100,7 @@ impl TryFrom<Felt> for DeprecatedSyscallSelector {
             b"GetBlockNumber" => Ok(Self::GetBlockNumber),
             b"GetBlockTimestamp" => Ok(Self::GetBlockTimestamp),
             b"GetCallerAddress" => Ok(Self::GetCallerAddress),
+            b"GetClassHashAt" => Ok(Self::GetClassHashAt),
             b"GetContractAddress" => Ok(Self::GetContractAddress),
             b"GetExecutionInfo" => Ok(Self::GetExecutionInfo),
             b"GetSequencerAddress" => Ok(Self::GetSequencerAddress),
@@ -351,7 +347,6 @@ pub fn deploy(
     let mut remaining_gas = syscall_handler.context.gas_costs().default_initial_gas_cost;
     let call_info = execute_deployment(
         syscall_handler.state,
-        syscall_handler.resources,
         syscall_handler.context,
         ctor_context,
         request.constructor_calldata,

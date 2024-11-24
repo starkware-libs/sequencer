@@ -511,7 +511,17 @@ async fn stream_compiled_classes() {
         mock.expect_compiled_class_by_hash()
             .with(predicate::eq(ClassHash(felt)))
             .times(1)
-            .returning(move |_x| Ok(Some(CasmContractClass::default())));
+            .returning(move |_x| {
+                Ok(Some(CasmContractClass {
+                    prime: Default::default(),
+                    compiler_version: Default::default(),
+                    bytecode: Default::default(),
+                    bytecode_segment_lengths: Default::default(),
+                    hints: Default::default(),
+                    pythonic_hints: Default::default(),
+                    entry_points_by_type: Default::default(),
+                }))
+            });
     }
 
     let central_source = GenericCentralSource {
@@ -526,7 +536,15 @@ async fn stream_compiled_classes() {
     let stream = central_source.stream_compiled_classes(BlockNumber(0), BlockNumber(2));
     pin_mut!(stream);
 
-    let expected_compiled_class = CasmContractClass::default();
+    let expected_compiled_class = CasmContractClass {
+        prime: Default::default(),
+        compiler_version: Default::default(),
+        bytecode: Default::default(),
+        bytecode_segment_lengths: Default::default(),
+        hints: Default::default(),
+        pythonic_hints: Default::default(),
+        entry_points_by_type: Default::default(),
+    };
     for felt in felts {
         let (class_hash, compiled_class_hash, compiled_class) =
             stream.next().await.unwrap().unwrap();
@@ -589,7 +607,15 @@ async fn get_compiled_class() {
     let mut mock = MockStarknetReader::new();
 
     let class_hash = ClassHash(StarkHash::ONE);
-    let compiled_class = CasmContractClass::default();
+    let compiled_class = CasmContractClass {
+        prime: Default::default(),
+        compiler_version: Default::default(),
+        bytecode: Default::default(),
+        bytecode_segment_lengths: Default::default(),
+        hints: Default::default(),
+        pythonic_hints: Default::default(),
+        entry_points_by_type: Default::default(),
+    };
     let compiled_class_clone = compiled_class.clone();
     mock.expect_compiled_class_by_hash()
         .with(predicate::eq(class_hash))

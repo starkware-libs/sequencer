@@ -2,6 +2,7 @@
 //!
 //! [`Starknet`]: https://starknet.io/
 
+pub mod abi;
 pub mod block;
 pub mod block_hash;
 pub mod contract_class;
@@ -26,6 +27,8 @@ use std::num::ParseIntError;
 
 use serde_utils::InnerDeserializationError;
 
+use crate::transaction::TransactionVersion;
+
 /// The error type returned by StarknetApi.
 // Note: if you need `Eq` see InnerDeserializationError's docstring.
 #[derive(thiserror::Error, Clone, Debug, PartialEq)]
@@ -49,6 +52,19 @@ pub enum StarknetApiError {
     InvalidStarknetVersion(Vec<u8>),
     #[error("NonzeroGasPrice cannot be zero.")]
     ZeroGasPrice,
+    #[error(
+        "Sierra program length must be > 0 for Cairo1, and == 0 for Cairo0. Got: \
+         {sierra_program_length:?} for contract class version {contract_class_version:?}"
+    )]
+    ContractClassVersionSierraProgramLengthMismatch {
+        contract_class_version: u8,
+        sierra_program_length: usize,
+    },
+    #[error(
+        "Declare transaction version {} must have a contract class of Cairo \
+         version {cairo_version:?}.", **declare_version
+    )]
+    ContractClassVersionMismatch { declare_version: TransactionVersion, cairo_version: u64 },
 }
 
 pub type StarknetApiResult<T> = Result<T, StarknetApiError>;

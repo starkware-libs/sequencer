@@ -16,22 +16,22 @@ use std::path::PathBuf;
 
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use starknet_api::abi::abi_utils::{get_fee_token_var_address, selector_from_name};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber, GasPrice, NonzeroGasPrice};
 use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::hash::StarkHash;
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::{
+use starknet_api::transaction::fields::{
     Calldata,
     ContractAddressSalt,
     Fee,
     GasVectorComputationMode,
-    TransactionVersion,
 };
+use starknet_api::transaction::TransactionVersion;
 use starknet_api::{contract_address, felt};
 use starknet_types_core::felt::Felt;
 
-use crate::abi::abi_utils::{get_fee_token_var_address, selector_from_name};
 use crate::abi::constants;
 use crate::execution::call_info::ExecutionSummary;
 use crate::execution::contract_class::TrackedResource;
@@ -65,6 +65,8 @@ pub const ERC20_CONTRACT_PATH: &str = "./ERC20/ERC20_Cairo0/ERC20_without_some_s
 pub enum CairoVersion {
     Cairo0,
     Cairo1,
+    #[cfg(feature = "cairo_native")]
+    Native,
 }
 
 impl Default for CairoVersion {
@@ -91,6 +93,8 @@ impl CairoVersion {
         match self {
             Self::Cairo0 => Self::Cairo1,
             Self::Cairo1 => Self::Cairo0,
+            #[cfg(feature = "cairo_native")]
+            Self::Native => panic!("There is no other version for native"),
         }
     }
 }
@@ -110,13 +114,15 @@ impl CompilerBasedVersion {
     }
 
     /// Returns the context-free tracked resource of this contract (does not take caller contract
-    /// into account).
+    /// and the transaction info into account).
     pub fn own_tracked_resource(&self) -> TrackedResource {
         match self {
             Self::CairoVersion(CairoVersion::Cairo0) | Self::OldCairo1 => {
                 TrackedResource::CairoSteps
             }
             Self::CairoVersion(CairoVersion::Cairo1) => TrackedResource::SierraGas,
+            #[cfg(feature = "cairo_native")]
+            Self::CairoVersion(CairoVersion::Native) => TrackedResource::SierraGas,
         }
     }
 }
@@ -319,8 +325,6 @@ macro_rules! check_tx_execution_error_for_custom_hint {
 #[macro_export]
 macro_rules! check_tx_execution_error_for_invalid_scenario {
     ($cairo_version:expr, $error:expr, $validate_constructor:expr $(,)?) => {
-        use $crate::transaction::errors::TransactionExecutionError;
-
         match $cairo_version {
             CairoVersion::Cairo0 => {
                 $crate::check_tx_execution_error_inner!(
@@ -329,8 +333,22 @@ macro_rules! check_tx_execution_error_for_invalid_scenario {
                     $validate_constructor,
                 );
             }
-            CairoVersion::Cairo1 => {
-                if let TransactionExecutionError::ValidateTransactionError { error, .. } = $error {
+            CairoVersion::Cairo1  => {
+                if let $crate::transaction::errors::TransactionExecutionError::ValidateTransactionError {
+                    error, ..
+                } = $error {
+                    assert_eq!(
+                        error.to_string(),
+                        "Execution failed. Failure reason: 0x496e76616c6964207363656e6172696f \
+                         ('Invalid scenario')."
+                    )
+                }
+            }
+            #[cfg(feature = "cairo_native")]
+            CairoVersion::Native   => {
+                if let $crate::transaction::errors::TransactionExecutionError::ValidateTransactionError {
+                    error, ..
+                } = $error {
                     assert_eq!(
                         error.to_string(),
                         "Execution failed. Failure reason: 0x496e76616c6964207363656e6172696f \

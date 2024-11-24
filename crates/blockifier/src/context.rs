@@ -5,7 +5,11 @@ use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::GasPriceVector;
 use starknet_api::core::{ChainId, ContractAddress};
-use starknet_api::transaction::{AllResourceBounds, GasVectorComputationMode, ValidResourceBounds};
+use starknet_api::transaction::fields::{
+    AllResourceBounds,
+    GasVectorComputationMode,
+    ValidResourceBounds,
+};
 
 use crate::blockifier::block::BlockInfo;
 use crate::bouncer::BouncerConfig;
@@ -32,12 +36,7 @@ impl TransactionContext {
         self.tx_info.sender_address() == self.block_context.block_info.sequencer_address
     }
     pub fn get_gas_vector_computation_mode(&self) -> GasVectorComputationMode {
-        match &self.tx_info {
-            TransactionInfo::Current(info) => {
-                info.resource_bounds.get_gas_vector_computation_mode()
-            }
-            TransactionInfo::Deprecated(_) => GasVectorComputationMode::NoL2Gas,
-        }
+        self.tx_info.gas_mode()
     }
     pub fn get_gas_prices(&self) -> &GasPriceVector {
         self.block_context

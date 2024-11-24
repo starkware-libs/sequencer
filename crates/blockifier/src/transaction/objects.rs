@@ -5,28 +5,34 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::execution_resources::GasVector;
-use starknet_api::transaction::{
-    signed_tx_version,
+use starknet_api::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
     Fee,
+    GasVectorComputationMode,
     PaymasterData,
     ResourceBounds,
     Tip,
+    TransactionSignature,
+    ValidResourceBounds,
+};
+use starknet_api::transaction::{
+    signed_tx_version,
     TransactionHash,
     TransactionOptions,
-    TransactionSignature,
     TransactionVersion,
-    ValidResourceBounds,
 };
 use strum_macros::EnumIter;
 
 use crate::abi::constants as abi_constants;
 use crate::blockifier::block::BlockInfo;
 use crate::execution::call_info::{CallInfo, ExecutionSummary};
+use crate::execution::stack_trace::ErrorStack;
+use crate::fee::fee_checks::FeeCheckError;
 use crate::fee::fee_utils::get_fee_by_gas_vector;
 use crate::fee::receipt::TransactionReceipt;
 use crate::transaction::errors::{TransactionExecutionError, TransactionPreValidationError};
+use crate::versioned_constants::VersionedConstants;
 
 #[cfg(test)]
 #[path = "objects_test.rs"]
@@ -83,6 +89,22 @@ impl TransactionInfo {
                 context.resource_bounds.max_possible_fee() > Fee(0)
             }
             TransactionInfo::Deprecated(context) => context.max_fee != Fee(0),
+        }
+    }
+
+    pub fn gas_mode(&self) -> GasVectorComputationMode {
+        match self {
+            TransactionInfo::Current(info) => {
+                info.resource_bounds.get_gas_vector_computation_mode()
+            }
+            TransactionInfo::Deprecated(_) => GasVectorComputationMode::NoL2Gas,
+        }
+    }
+
+    pub fn max_fee_for_execution_info_syscall(&self) -> Fee {
+        match self {
+            Self::Current(_) => Fee(0),
+            Self::Deprecated(context) => context.max_fee,
         }
     }
 }
@@ -149,6 +171,26 @@ pub struct CommonAccountFields {
     pub only_query: bool,
 }
 
+#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
+#[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
+#[derive(Debug, derive_more::Display, PartialEq)]
+pub enum RevertError {
+    Execution(ErrorStack),
+    PostExecution(FeeCheckError),
+}
+
+impl From<ErrorStack> for RevertError {
+    fn from(stack: ErrorStack) -> Self {
+        Self::Execution(stack)
+    }
+}
+
+impl From<FeeCheckError> for RevertError {
+    fn from(error: FeeCheckError) -> Self {
+        Self::PostExecution(error)
+    }
+}
+
 /// Contains the information gathered by the execution of a transaction.
 #[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
@@ -160,7 +202,7 @@ pub struct TransactionExecutionInfo {
     pub execute_call_info: Option<CallInfo>,
     /// Fee transfer call info; [None] for `L1Handler`.
     pub fee_transfer_call_info: Option<CallInfo>,
-    pub revert_error: Option<String>,
+    pub revert_error: Option<RevertError>,
     /// The receipt of the transaction.
     /// Including the actual fee that was charged (in units of the relevant fee token),
     /// actual gas consumption the transaction is charged for data availability,
@@ -184,8 +226,8 @@ impl TransactionExecutionInfo {
 
     /// Returns a summary of transaction execution, including executed class hashes, visited storage
     /// entries, L2-to-L1_payload_lengths, and the number of emitted events.
-    pub fn summarize(&self) -> ExecutionSummary {
-        CallInfo::summarize_many(self.non_optional_call_infos())
+    pub fn summarize(&self, versioned_constants: &VersionedConstants) -> ExecutionSummary {
+        CallInfo::summarize_many(self.non_optional_call_infos(), versioned_constants)
     }
 }
 pub trait ExecutionResourcesTraits {
@@ -245,4 +287,8 @@ pub enum FeeType {
 
 pub trait TransactionInfoCreator {
     fn create_tx_info(&self) -> TransactionInfo;
+}
+
+pub trait TransactionInfoCreatorInner {
+    fn create_tx_info(&self, only_query: bool) -> TransactionInfo;
 }

@@ -9,7 +9,7 @@ use papyrus_network::network_manager::{
     GenericReceiver,
 };
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
-use papyrus_protobuf::consensus::{ConsensusMessage, Vote};
+use papyrus_protobuf::consensus::{ConsensusMessage, ProposalInit, Vote};
 use papyrus_protobuf::converters::ProtobufConversionError;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::ContractAddress;
@@ -118,21 +118,6 @@ impl Debug for Decision {
     }
 }
 
-#[derive(PartialEq, Debug, Default, Clone)]
-pub struct ProposalInit {
-    pub height: BlockNumber,
-    pub round: Round,
-    pub proposer: ValidatorId,
-    pub valid_round: Option<Round>,
-}
-
-// TODO(Guy): Remove after implementing broadcast streams.
-impl From<(BlockNumber, u32, ContractAddress, Option<u32>)> for ProposalInit {
-    fn from(val: (BlockNumber, u32, ContractAddress, Option<u32>)) -> Self {
-        ProposalInit { height: val.0, round: val.1, proposer: val.2, valid_round: val.3 }
-    }
-}
-
 pub struct BroadcastConsensusMessageChannel {
     pub broadcasted_messages_receiver: GenericReceiver<(
         Result<ConsensusMessage, ProtobufConversionError>,
@@ -142,12 +127,12 @@ pub struct BroadcastConsensusMessageChannel {
 }
 
 impl From<BroadcastTopicChannels<ConsensusMessage>> for BroadcastConsensusMessageChannel {
-    fn from(broadcast_topic_client: BroadcastTopicChannels<ConsensusMessage>) -> Self {
+    fn from(broadcast_topic_channels: BroadcastTopicChannels<ConsensusMessage>) -> Self {
         BroadcastConsensusMessageChannel {
             broadcasted_messages_receiver: Box::new(
-                broadcast_topic_client.broadcasted_messages_receiver,
+                broadcast_topic_channels.broadcasted_messages_receiver,
             ),
-            broadcast_topic_client: broadcast_topic_client.broadcast_topic_client,
+            broadcast_topic_client: broadcast_topic_channels.broadcast_topic_client,
         }
     }
 }

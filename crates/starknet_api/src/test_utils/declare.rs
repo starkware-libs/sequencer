@@ -1,21 +1,32 @@
+use crate::contract_address;
 use crate::contract_class::ClassInfo;
 use crate::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use crate::data_availability::DataAvailabilityMode;
 use crate::executable_transaction::DeclareTransaction as ExecutableDeclareTransaction;
-use crate::transaction::{
+use crate::rpc_transaction::{
+    ContractClass,
+    RpcDeclareTransaction,
+    RpcDeclareTransactionV3,
+    RpcTransaction,
+};
+use crate::transaction::fields::{
     AccountDeploymentData,
+    Fee,
+    PaymasterData,
+    Tip,
+    TransactionSignature,
+    ValidResourceBounds,
+};
+use crate::transaction::{
     DeclareTransaction,
     DeclareTransactionV0V1,
     DeclareTransactionV2,
     DeclareTransactionV3,
-    Fee,
-    PaymasterData,
-    Tip,
     TransactionHash,
-    TransactionSignature,
     TransactionVersion,
-    ValidResourceBounds,
 };
+
+pub const TEST_SENDER_ADDRESS: u128 = 0x1000;
 
 #[derive(Clone)]
 pub struct DeclareTxArgs {
@@ -41,7 +52,7 @@ impl Default for DeclareTxArgs {
         Self {
             max_fee: Fee::default(),
             signature: TransactionSignature::default(),
-            sender_address: ContractAddress::default(),
+            sender_address: contract_address!(TEST_SENDER_ADDRESS),
             version: TransactionVersion::THREE,
             resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),
             tip: Tip::default(),
@@ -127,4 +138,31 @@ pub fn executable_declare_tx(
     let tx_hash = declare_tx_args.tx_hash;
     let tx = declare_tx(declare_tx_args);
     ExecutableDeclareTransaction { tx, tx_hash, class_info }
+}
+
+pub fn rpc_declare_tx(
+    declare_tx_args: DeclareTxArgs,
+    contract_class: ContractClass,
+) -> RpcTransaction {
+    if declare_tx_args.version != TransactionVersion::THREE {
+        panic!("Unsupported transaction version: {:?}.", declare_tx_args.version);
+    }
+
+    let ValidResourceBounds::AllResources(resource_bounds) = declare_tx_args.resource_bounds else {
+        panic!("Unsupported resource bounds type: {:?}.", declare_tx_args.resource_bounds)
+    };
+
+    RpcTransaction::Declare(RpcDeclareTransaction::V3(RpcDeclareTransactionV3 {
+        contract_class,
+        signature: declare_tx_args.signature,
+        sender_address: declare_tx_args.sender_address,
+        resource_bounds,
+        tip: declare_tx_args.tip,
+        nonce_data_availability_mode: declare_tx_args.nonce_data_availability_mode,
+        fee_data_availability_mode: declare_tx_args.fee_data_availability_mode,
+        paymaster_data: declare_tx_args.paymaster_data,
+        account_deployment_data: declare_tx_args.account_deployment_data,
+        nonce: declare_tx_args.nonce,
+        compiled_class_hash: declare_tx_args.compiled_class_hash,
+    }))
 }

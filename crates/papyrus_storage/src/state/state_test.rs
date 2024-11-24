@@ -455,7 +455,15 @@ fn revert_state() {
     let contract2 = contract_address!("0x2");
     let class1 = class_hash!("0x11");
     let class2 = class_hash!("0x22");
-    let compiled_class2 = CasmContractClass::default();
+    let compiled_class2 = CasmContractClass {
+        prime: Default::default(),
+        compiler_version: Default::default(),
+        bytecode: Default::default(),
+        bytecode_segment_lengths: Default::default(),
+        hints: Default::default(),
+        pythonic_hints: Default::default(),
+        entry_points_by_type: Default::default(),
+    };
     let updated_storage_key = storage_key!("0x1");
     let new_data = Felt::from(1_u8);
     let updated_storage = IndexMap::from([(updated_storage_key, new_data)]);
@@ -521,8 +529,18 @@ fn revert_state() {
     let expected_deleted_deprecated_classes =
         IndexMap::from([(class1, DeprecatedContractClass::default())]);
     let expected_deleted_classes = IndexMap::from([(class2, ContractClass::default())]);
-    let expected_deleted_compiled_classes =
-        IndexMap::from([(class2, CasmContractClass::default())]);
+    let expected_deleted_compiled_classes = IndexMap::from([(
+        class2,
+        CasmContractClass {
+            prime: Default::default(),
+            compiler_version: Default::default(),
+            bytecode: Default::default(),
+            bytecode_segment_lengths: Default::default(),
+            hints: Default::default(),
+            pythonic_hints: Default::default(),
+            entry_points_by_type: Default::default(),
+        },
+    )]);
     assert_matches!(
         deleted_data,
         Some((thin_state_diff, class_definitions, deprecated_class_definitions, compiled_classes))
@@ -563,7 +581,7 @@ fn get_nonce_key_serialization() {
             deprecated_declared_classes: Vec::new(),
             nonces: IndexMap::from([(
                 contract_address,
-                Nonce(StarkHash::from(block_number as u128 + 1)),
+                Nonce(StarkHash::from(u128::from(block_number) + 1)),
             )]),
             replaced_classes: IndexMap::new(),
         };
@@ -598,7 +616,7 @@ fn get_nonce_key_serialization() {
         println!("{nonce:?}");
         let nonce = nonce.unwrap();
 
-        assert_eq!(nonce, Nonce(StarkHash::from(block_number as u128)));
+        assert_eq!(nonce, Nonce(StarkHash::from(u128::from(block_number))));
     }
 }
 

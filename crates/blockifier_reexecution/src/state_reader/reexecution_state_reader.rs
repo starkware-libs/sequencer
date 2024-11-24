@@ -1,7 +1,9 @@
-use blockifier::execution::contract_class::ClassInfo;
 use blockifier::state::state_api::StateResult;
+use blockifier::test_utils::MAX_FEE;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use papyrus_execution::DEPRECATED_CONTRACT_SIERRA_SIZE;
+use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::contract_class::ClassInfo;
 use starknet_api::core::ClassHash;
 use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_core::types::ContractClass as StarknetContractClass;
@@ -10,7 +12,7 @@ use super::compile::{legacy_to_contract_class_v0, sierra_to_contact_class_v1};
 use crate::state_reader::errors::ReexecutionError;
 use crate::state_reader::test_state_reader::ReexecutionResult;
 
-pub(crate) trait ReexecutionStateReader {
+pub trait ReexecutionStateReader {
     fn get_contract_class(&self, class_hash: &ClassHash) -> StateResult<StarknetContractClass>;
 
     fn get_class_info(&self, class_hash: ClassHash) -> ReexecutionResult<ClassInfo> {
@@ -32,8 +34,8 @@ pub(crate) trait ReexecutionStateReader {
         }
     }
 
-    // TODO(Aner): extend/refactor to accomodate all types of transactions.
-    fn api_txs_to_blockifier_txs(
+    // TODO(Aner): extract this function out of the state reader.
+    fn api_txs_to_blockifier_txs_next_block(
         &self,
         txs_and_hashes: Vec<(Transaction, TransactionHash)>,
     ) -> ReexecutionResult<Vec<BlockifierTransaction>> {
@@ -41,28 +43,36 @@ pub(crate) trait ReexecutionStateReader {
             .into_iter()
             .map(|(tx, tx_hash)| match tx {
                 Transaction::Invoke(_) | Transaction::DeployAccount(_) => {
-                    BlockifierTransaction::from_api(tx, tx_hash, None, None, None, false)
-                        .map_err(ReexecutionError::from)
+                    Ok(BlockifierTransaction::from_api(tx, tx_hash, None, None, None, false)?)
                 }
                 Transaction::Declare(ref declare_tx) => {
                     let class_info = self
                         .get_class_info(declare_tx.class_hash())
                         .map_err(ReexecutionError::from)?;
-                    BlockifierTransaction::from_api(
+                    Ok(BlockifierTransaction::from_api(
                         tx,
                         tx_hash,
                         Some(class_info),
                         None,
                         None,
                         false,
-                    )
-                    .map_err(ReexecutionError::from)
+                    )?)
                 }
-                Transaction::L1Handler(_) => todo!("Implement L1Handler transaction converter"),
+                Transaction::L1Handler(_) => Ok(BlockifierTransaction::from_api(
+                    tx,
+                    tx_hash,
+                    None,
+                    Some(MAX_FEE),
+                    None,
+                    false,
+                )?),
+
                 Transaction::Deploy(_) => {
                     panic!("Reexecution not supported for Deploy transactions.")
                 }
             })
-            .collect::<Result<Vec<_>, _>>()
+            .collect()
     }
+
+    fn get_old_block_hash(&self, old_block_number: BlockNumber) -> ReexecutionResult<BlockHash>;
 }

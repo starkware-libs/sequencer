@@ -8,7 +8,8 @@ use crate::block_hash::transaction_commitment::{
 };
 use crate::core::TransactionCommitment;
 use crate::felt;
-use crate::transaction::{TransactionHash, TransactionSignature};
+use crate::transaction::fields::TransactionSignature;
+use crate::transaction::TransactionHash;
 
 #[test]
 fn test_transaction_leaf_regression() {

@@ -14,13 +14,13 @@ use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::errors::hint_errors::HintError;
 use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
-use cairo_vm::vm::runners::cairo_runner::{ExecutionResources, ResourceTracker, RunResources};
+use cairo_vm::vm::runners::cairo_runner::{ResourceTracker, RunResources};
 use cairo_vm::vm::vm_core::VirtualMachine;
 use num_bigint::{BigUint, TryFromBigIntError};
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::Calldata;
+use starknet_api::transaction::fields::Calldata;
 use starknet_api::StarknetApiError;
 use starknet_types_core::felt::{Felt, FromStrError};
 use thiserror::Error;
@@ -64,7 +64,6 @@ use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointEx
 use crate::execution::execution_utils::{
     felt_from_ptr,
     felt_range_from_ptr,
-    max_fee_for_execution_info,
     ReadOnlySegment,
     ReadOnlySegments,
 };
@@ -164,7 +163,6 @@ impl DeprecatedSyscallExecutionError {
 pub struct DeprecatedSyscallHintProcessor<'a> {
     // Input for execution.
     pub state: &'a mut dyn State,
-    pub resources: &'a mut ExecutionResources,
     pub context: &'a mut EntryPointExecutionContext,
     pub storage_address: ContractAddress,
     pub caller_address: ContractAddress,
@@ -195,7 +193,6 @@ pub struct DeprecatedSyscallHintProcessor<'a> {
 impl<'a> DeprecatedSyscallHintProcessor<'a> {
     pub fn new(
         state: &'a mut dyn State,
-        resources: &'a mut ExecutionResources,
         context: &'a mut EntryPointExecutionContext,
         initial_syscall_ptr: Relocatable,
         storage_address: ContractAddress,
@@ -203,7 +200,6 @@ impl<'a> DeprecatedSyscallHintProcessor<'a> {
     ) -> Self {
         DeprecatedSyscallHintProcessor {
             state,
-            resources,
             context,
             storage_address,
             caller_address,
@@ -389,7 +385,7 @@ impl<'a> DeprecatedSyscallHintProcessor<'a> {
         let tx_info: Vec<MaybeRelocatable> = vec![
             tx_info.signed_version().0.into(),
             (*tx_info.sender_address().0.key()).into(),
-            max_fee_for_execution_info(tx_info).into(),
+            Felt::from(tx_info.max_fee_for_execution_info_syscall().0).into(),
             tx_signature_length.into(),
             tx_signature_start_ptr.into(),
             tx_info.transaction_hash().0.into(),
@@ -504,7 +500,6 @@ pub fn execute_inner_call(
     // Use `non_reverting_execute` since we don't support reverts here.
     let call_info = call.non_reverting_execute(
         syscall_handler.state,
-        syscall_handler.resources,
         syscall_handler.context,
         &mut remaining_gas,
     )?;

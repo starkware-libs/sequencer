@@ -3,7 +3,8 @@ use num_bigint::BigUint;
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::execution_resources::GasAmount;
-use starknet_api::transaction::{AllResourceBounds, Fee, Resource, TransactionVersion};
+use starknet_api::transaction::fields::{AllResourceBounds, Fee, Resource};
+use starknet_api::transaction::TransactionVersion;
 use starknet_api::StarknetApiError;
 use starknet_types_core::felt::FromStrError;
 use thiserror::Error;
@@ -11,7 +12,7 @@ use thiserror::Error;
 use crate::bouncer::BouncerWeights;
 use crate::execution::call_info::Retdata;
 use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
-use crate::execution::stack_trace::{gen_tx_execution_error_trace, Cairo1RevertStack};
+use crate::execution::stack_trace::{gen_tx_execution_error_trace, Cairo1RevertSummary};
 use crate::fee::fee_checks::FeeCheckError;
 use crate::state::errors::StateError;
 
@@ -69,17 +70,11 @@ pub enum TransactionExecutionError {
          version {cairo_version:?}.", **declare_version
     )]
     ContractClassVersionMismatch { declare_version: TransactionVersion, cairo_version: u64 },
-    #[error(
-        "Contract constructor execution has failed:\n{}",
-        String::from(gen_tx_execution_error_trace(self))
-    )]
+    #[error("{}", gen_tx_execution_error_trace(self))]
     ContractConstructorExecutionFailed(#[from] ConstructorEntryPointExecutionError),
     #[error("Class with hash {:#064x} is already declared.", **class_hash)]
     DeclareTransactionError { class_hash: ClassHash },
-    #[error(
-        "Transaction execution has failed:\n{}",
-        String::from(gen_tx_execution_error_trace(self))
-    )]
+    #[error("{}", gen_tx_execution_error_trace(self))]
     ExecutionError {
         error: EntryPointExecutionError,
         class_hash: ClassHash,
@@ -90,8 +85,8 @@ pub enum TransactionExecutionError {
     FeeCheckError(#[from] FeeCheckError),
     #[error(transparent)]
     FromStr(#[from] FromStrError),
-    #[error("The `validate` entry point panicked with:\n{panic_reason}.")]
-    PanicInValidate { panic_reason: Cairo1RevertStack },
+    #[error("{panic_reason}")]
+    PanicInValidate { panic_reason: Cairo1RevertSummary },
     #[error("The `validate` entry point should return `VALID`. Got {actual:?}.")]
     InvalidValidateReturnData { actual: Retdata },
     #[error(
@@ -114,10 +109,7 @@ pub enum TransactionExecutionError {
          transaction size: {}.", *max_capacity, *tx_size
     )]
     TransactionTooLarge { max_capacity: Box<BouncerWeights>, tx_size: Box<BouncerWeights> },
-    #[error(
-        "Transaction validation has failed:\n{}",
-        String::from(gen_tx_execution_error_trace(self))
-    )]
+    #[error("{}", gen_tx_execution_error_trace(self))]
     ValidateTransactionError {
         error: EntryPointExecutionError,
         class_hash: ClassHash,

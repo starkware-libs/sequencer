@@ -4,7 +4,7 @@ mod consensus_test;
 use std::convert::{TryFrom, TryInto};
 
 use prost::Message;
-use starknet_api::block::BlockHash;
+use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::hash::StarkHash;
 use starknet_api::transaction::Transaction;
 
@@ -114,7 +114,7 @@ impl From<Vote> for protobuf::Vote {
         };
 
         protobuf::Vote {
-            vote_type: vote_type as i32,
+            vote_type: i32::from(vote_type),
             height: value.height,
             round: value.round,
             block_hash: value.block_hash.map(|hash| hash.0.into()),
@@ -209,14 +209,14 @@ impl TryFrom<protobuf::ProposalInit> for ProposalInit {
             .proposer
             .ok_or(ProtobufConversionError::MissingField { field_description: "proposer" })?
             .try_into()?;
-        Ok(ProposalInit { height, round, valid_round, proposer })
+        Ok(ProposalInit { height: BlockNumber(height), round, valid_round, proposer })
     }
 }
 
 impl From<ProposalInit> for protobuf::ProposalInit {
     fn from(value: ProposalInit) -> Self {
         protobuf::ProposalInit {
-            height: value.height,
+            height: value.height.0,
             round: value.round,
             valid_round: value.valid_round,
             proposer: Some(value.proposer.into()),

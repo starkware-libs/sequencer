@@ -5,15 +5,15 @@ use starknet_api::core::ContractAddress;
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::test_utils::NonceManager;
-use starknet_api::transaction::{
+use starknet_api::transaction::fields::{
     Calldata,
     Fee,
     GasVectorComputationMode,
     Resource,
     TransactionSignature,
-    TransactionVersion,
     ValidResourceBounds,
 };
+use starknet_api::transaction::TransactionVersion;
 use starknet_api::{felt, invoke_tx_args, nonce};
 use starknet_types_core::felt::Felt;
 
@@ -632,7 +632,14 @@ fn test_simulate_validate_charge_fee_mid_execution(
     .unwrap();
     assert_eq!(tx_execution_info.is_reverted(), charge_fee);
     if charge_fee {
-        assert!(tx_execution_info.revert_error.clone().unwrap().contains("no remaining steps"));
+        assert!(
+            tx_execution_info
+                .revert_error
+                .clone()
+                .unwrap()
+                .to_string()
+                .contains("no remaining steps")
+        );
     }
     check_gas_and_fee(
         &block_context,
@@ -676,7 +683,9 @@ fn test_simulate_validate_charge_fee_mid_execution(
     })
     .execute(&mut state, &low_step_block_context, charge_fee, validate)
     .unwrap();
-    assert!(tx_execution_info.revert_error.clone().unwrap().contains("no remaining steps"));
+    assert!(
+        tx_execution_info.revert_error.clone().unwrap().to_string().contains("no remaining steps")
+    );
     // Complete resources used are reported as receipt.resources; but only the charged
     // final fee is shown in actual_fee. As a sanity check, verify that the fee derived directly
     // from the consumed resources is also equal to the expected fee.
@@ -764,11 +773,9 @@ fn test_simulate_validate_charge_fee_post_execution(
     if charge_fee {
         let expected_error_prefix =
             &format!("Insufficient max {resource}", resource = Resource::L1Gas);
-        assert!(tx_execution_info.revert_error.clone().unwrap().starts_with(if is_deprecated {
-            "Insufficient max fee"
-        } else {
-            expected_error_prefix
-        }));
+        assert!(tx_execution_info.revert_error.clone().unwrap().to_string().starts_with(
+            if is_deprecated { "Insufficient max fee" } else { expected_error_prefix }
+        ));
     }
 
     check_gas_and_fee(
@@ -830,6 +837,7 @@ fn test_simulate_validate_charge_fee_post_execution(
                 .revert_error
                 .clone()
                 .unwrap()
+                .to_string()
                 .contains("Insufficient fee token balance.")
         );
     }

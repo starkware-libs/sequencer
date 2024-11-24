@@ -1,6 +1,4 @@
-use std::env;
 use std::fs::read_to_string;
-use std::path::Path;
 use std::sync::Arc;
 
 use assert_matches::assert_matches;
@@ -65,10 +63,9 @@ use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::deprecated_contract_class::ContractClass as SN_API_DeprecatedContractClass;
 use starknet_api::hash::StarkHash;
 use starknet_api::state::{StorageKey, ThinStateDiff as StarknetApiStateDiff};
-use starknet_api::test_utils::read_json_file;
+use starknet_api::test_utils::{path_in_resources, read_json_file};
+use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::transaction::{
-    Calldata,
-    Fee,
     L1HandlerTransaction,
     TransactionHash,
     TransactionOffsetInBlock,
@@ -1345,9 +1342,7 @@ fn get_decompressed_program() {
 }
 
 fn get_test_compressed_program() -> String {
-    let path = Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap())
-        .join("resources")
-        .join("base64_compressed_program.txt");
+    let path = path_in_resources("base64_compressed_program.txt");
     read_to_string(path).expect("Couldn't read compressed program")
 }
 
@@ -1515,7 +1510,7 @@ fn get_calldata_for_test_execution_info(
             expected_transaction_version,
             expected_caller_address,
             expected_max_fee,
-            felt!(expected_signature.len() as u64),
+            felt!(u64::try_from(expected_signature.len()).unwrap()),
         ],
         expected_signature,
         vec![
@@ -1540,7 +1535,11 @@ fn get_calldata_for_test_execution_info(
 
     Calldata(Arc::new(
         [
-            vec![*CONTRACT_ADDRESS.0.key(), entry_point_selector.0, felt!(calldata.len() as u64)],
+            vec![
+                *CONTRACT_ADDRESS.0.key(),
+                entry_point_selector.0,
+                felt!(u64::try_from(calldata.len()).unwrap()),
+            ],
             calldata,
         ]
         .iter()

@@ -1,32 +1,27 @@
 use rstest::fixture;
+use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::block::GasPrice;
-use starknet_api::contract_class::ContractClass;
+use starknet_api::contract_class::{ClassInfo, ContractClass};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::deploy_account::DeployAccountTxArgs;
 use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::test_utils::NonceManager;
-use starknet_api::transaction::{
+use starknet_api::transaction::fields::{
     AllResourceBounds,
     ContractAddressSalt,
     Fee,
     GasVectorComputationMode,
-    InvokeTransactionV0,
-    InvokeTransactionV1,
-    InvokeTransactionV3,
     ResourceBounds,
-    TransactionHash,
     TransactionSignature,
-    TransactionVersion,
     ValidResourceBounds,
 };
+use starknet_api::transaction::{constants, TransactionVersion};
 use starknet_api::{calldata, declare_tx_args, deploy_account_tx_args, felt, invoke_tx_args};
 use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 
-use crate::abi::abi_utils::get_fee_token_var_address;
 use crate::context::{BlockContext, ChainInfo};
-use crate::execution::contract_class::ClassInfo;
 use crate::state::cached_state::CachedState;
 use crate::state::state_api::State;
 use crate::test_utils::contracts::FeatureContract;
@@ -48,10 +43,9 @@ use crate::test_utils::{
     MAX_FEE,
 };
 use crate::transaction::account_transaction::AccountTransaction;
-use crate::transaction::constants;
 use crate::transaction::objects::{FeeType, TransactionExecutionInfo, TransactionExecutionResult};
 use crate::transaction::transaction_types::TransactionType;
-use crate::transaction::transactions::{ExecutableTransaction, InvokeTransaction};
+use crate::transaction::transactions::ExecutableTransaction;
 
 // Corresponding constants to the ones in faulty_account.
 pub const VALID: u64 = 0;
@@ -62,25 +56,6 @@ pub const GET_EXECUTION_INFO: u64 = 4;
 pub const GET_BLOCK_NUMBER: u64 = 5;
 pub const GET_BLOCK_TIMESTAMP: u64 = 6;
 pub const GET_SEQUENCER_ADDRESS: u64 = 7;
-
-macro_rules! impl_from_versioned_tx {
-    ($(($specified_tx_type:ty, $enum_variant:ident)),*) => {
-        $(impl From<$specified_tx_type> for InvokeTransaction {
-            fn from(tx: $specified_tx_type) -> Self {
-                Self::new(
-                    starknet_api::transaction::InvokeTransaction::$enum_variant(tx),
-                    TransactionHash::default(),
-                )
-            }
-        })*
-    };
-}
-
-impl_from_versioned_tx!(
-    (InvokeTransactionV0, V0),
-    (InvokeTransactionV1, V1),
-    (InvokeTransactionV3, V3)
-);
 
 /// Test fixtures.
 
@@ -139,8 +114,7 @@ pub fn deploy_and_fund_account(
 ) -> (AccountTransaction, ContractAddress) {
     // Deploy an account contract.
     let deploy_account_tx = deploy_account_tx(deploy_tx_args, nonce_manager);
-    let account_address = deploy_account_tx.contract_address();
-    let account_tx = AccountTransaction::DeployAccount(deploy_account_tx);
+    let account_address = deploy_account_tx.sender_address();
 
     // Update the balance of the about-to-be deployed account contract in the erc20 contract, so it
     // can pay for the transaction execution.
@@ -153,7 +127,7 @@ pub fn deploy_and_fund_account(
             .unwrap();
     }
 
-    (account_tx, account_address)
+    (deploy_account_tx, account_address)
 }
 
 /// Initializes a state and returns a `TestInitData` instance.
@@ -282,7 +256,7 @@ pub fn create_account_tx_for_validate_test(
                 true => constants::FELT_TRUE,
                 false => constants::FELT_FALSE,
             })];
-            let deploy_account_tx = deploy_account_tx(
+            deploy_account_tx(
                 deploy_account_tx_args! {
                     max_fee,
                     resource_bounds,
@@ -293,12 +267,11 @@ pub fn create_account_tx_for_validate_test(
                     constructor_calldata,
                 },
                 nonce_manager,
-            );
-            AccountTransaction::DeployAccount(deploy_account_tx)
+            )
         }
         TransactionType::InvokeFunction => {
             let execute_calldata = create_calldata(sender_address, "foo", &[]);
-            let invoke_tx = invoke_tx(invoke_tx_args! {
+            invoke_tx(invoke_tx_args! {
                 max_fee,
                 resource_bounds,
                 signature,
@@ -306,15 +279,14 @@ pub fn create_account_tx_for_validate_test(
                 calldata: execute_calldata,
                 version: tx_version,
                 nonce: nonce_manager.next(sender_address),
-            });
-            AccountTransaction::Invoke(invoke_tx)
+            })
         }
         _ => panic!("{tx_type:?} is not an account transaction."),
     }
 }
 
 pub fn account_invoke_tx(invoke_args: InvokeTxArgs) -> AccountTransaction {
-    AccountTransaction::Invoke(invoke_tx(invoke_args))
+    invoke_tx(invoke_args)
 }
 
 pub fn run_invoke_tx(

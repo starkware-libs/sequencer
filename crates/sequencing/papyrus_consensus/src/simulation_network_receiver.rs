@@ -95,6 +95,7 @@ impl NetworkReceiver {
     }
 
     fn should_drop_msg(&self, msg_hash: u64) -> bool {
+        #[allow(clippy::as_conversions)]
         let prob = (msg_hash as f64) / (u64::MAX as f64);
         prob <= self.drop_probability
     }
@@ -104,6 +105,7 @@ impl NetworkReceiver {
         mut msg: ConsensusMessage,
         msg_hash: u64,
     ) -> ConsensusMessage {
+        #[allow(clippy::as_conversions)]
         if (msg_hash as f64) / (u64::MAX as f64) > self.invalid_probability {
             return msg;
         }

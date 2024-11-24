@@ -1,13 +1,14 @@
 use assert_matches::assert_matches;
 use rstest::rstest;
-use starknet_api::transaction::{TransactionVersion, ValidResourceBounds};
+use starknet_api::executable_transaction::AccountTransaction as Transaction;
+use starknet_api::transaction::fields::ValidResourceBounds;
+use starknet_api::transaction::TransactionVersion;
 
 use crate::blockifier::stateful_validator::StatefulValidator;
 use crate::context::BlockContext;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::{fund_account, test_state};
 use crate::test_utils::{CairoVersion, BALANCE};
-use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::test_utils::{
     block_context,
     create_account_tx_for_validate_test_nonce_0,
@@ -61,18 +62,18 @@ fn test_tx_validator(
     };
 
     // Positive flow.
-    let tx = create_account_tx_for_validate_test_nonce_0(FaultyAccountTxCreatorArgs {
+    let account_tx = create_account_tx_for_validate_test_nonce_0(FaultyAccountTxCreatorArgs {
         scenario: VALID,
         ..tx_args
     });
-    if let AccountTransaction::DeployAccount(deploy_tx) = &tx {
+    if let Transaction::DeployAccount(deploy_tx) = &account_tx.tx {
         fund_account(chain_info, deploy_tx.contract_address(), BALANCE, &mut state.state);
     }
 
     // Test the stateful validator.
     let mut stateful_validator = StatefulValidator::create(state, block_context);
     let skip_validate = false;
-    let result = stateful_validator.perform_validations(tx, skip_validate);
+    let result = stateful_validator.perform_validations(account_tx, skip_validate);
     assert!(result.is_ok(), "Validation failed: {:?}", result.unwrap_err());
 }
 

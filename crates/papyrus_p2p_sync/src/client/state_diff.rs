@@ -13,11 +13,18 @@ use papyrus_storage::{StorageError, StorageReader, StorageWriter};
 use starknet_api::block::BlockNumber;
 use starknet_api::state::ThinStateDiff;
 
-use crate::client::stream_builder::{BlockData, BlockNumberLimit, DataStreamBuilder};
+use super::stream_builder::BadPeerError;
+use crate::client::stream_builder::{
+    BlockData,
+    BlockNumberLimit,
+    DataStreamBuilder,
+    ParseDataError,
+};
 use crate::client::{P2PSyncClientError, NETWORK_DATA_TIMEOUT};
 
 impl BlockData for (ThinStateDiff, BlockNumber) {
     #[latency_histogram("p2p_sync_state_diff_write_to_storage_latency_seconds", true)]
+    #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
     fn write_to_storage(
         self: Box<Self>,
         storage_writer: &mut StorageWriter,
@@ -43,7 +50,7 @@ impl DataStreamBuilder<StateDiffChunk> for StateDiffStreamBuilder {
         >,
         block_number: BlockNumber,
         storage_reader: &'a StorageReader,
-    ) -> BoxFuture<'a, Result<Option<Self::Output>, P2PSyncClientError>> {
+    ) -> BoxFuture<'a, Result<Option<Self::Output>, ParseDataError>> {
         async move {
             let mut result = ThinStateDiff::default();
             let mut prev_result_len = 0;
@@ -71,15 +78,15 @@ impl DataStreamBuilder<StateDiffChunk> for StateDiffStreamBuilder {
                     if current_state_diff_len == 0 {
                         return Ok(None);
                     } else {
-                        return Err(P2PSyncClientError::WrongStateDiffLength {
+                        return Err(ParseDataError::BadPeer(BadPeerError::WrongStateDiffLength {
                             expected_length: target_state_diff_len,
                             possible_lengths: vec![current_state_diff_len],
-                        });
+                        }));
                     }
                 };
                 prev_result_len = current_state_diff_len;
                 if state_diff_chunk.is_empty() {
-                    return Err(P2PSyncClientError::EmptyStateDiffPart);
+                    return Err(ParseDataError::BadPeer(BadPeerError::EmptyStateDiffPart));
                 }
                 // It's cheaper to calculate the length of `state_diff_part` than the length of
                 // `result`.
@@ -88,10 +95,10 @@ impl DataStreamBuilder<StateDiffChunk> for StateDiffStreamBuilder {
             }
 
             if current_state_diff_len != target_state_diff_len {
-                return Err(P2PSyncClientError::WrongStateDiffLength {
+                return Err(ParseDataError::BadPeer(BadPeerError::WrongStateDiffLength {
                     expected_length: target_state_diff_len,
                     possible_lengths: vec![prev_result_len, current_state_diff_len],
-                });
+                }));
             }
 
             validate_deprecated_declared_classes_non_conflicting(&result)?;
@@ -111,7 +118,7 @@ impl DataStreamBuilder<StateDiffChunk> for StateDiffStreamBuilder {
 fn unite_state_diffs(
     state_diff: &mut ThinStateDiff,
     state_diff_chunk: StateDiffChunk,
-) -> Result<(), P2PSyncClientError> {
+) -> Result<(), BadPeerError> {
     match state_diff_chunk {
         StateDiffChunk::ContractDiff(contract_diff) => {
             if let Some(class_hash) = contract_diff.class_hash {
@@ -120,12 +127,12 @@ fn unite_state_diffs(
                     .insert(contract_diff.contract_address, class_hash)
                     .is_some()
                 {
-                    return Err(P2PSyncClientError::ConflictingStateDiffParts);
+                    return Err(BadPeerError::ConflictingStateDiffParts);
                 }
             }
             if let Some(nonce) = contract_diff.nonce {
                 if state_diff.nonces.insert(contract_diff.contract_address, nonce).is_some() {
-                    return Err(P2PSyncClientError::ConflictingStateDiffParts);
+                    return Err(BadPeerError::ConflictingStateDiffParts);
                 }
             }
             if !contract_diff.storage_diffs.is_empty() {
@@ -133,7 +140,7 @@ fn unite_state_diffs(
                     Some(storage_diffs) => {
                         for (k, v) in contract_diff.storage_diffs {
                             if storage_diffs.insert(k, v).is_some() {
-                                return Err(P2PSyncClientError::ConflictingStateDiffParts);
+                                return Err(BadPeerError::ConflictingStateDiffParts);
                             }
                         }
                     }
@@ -151,7 +158,7 @@ fn unite_state_diffs(
                 .insert(declared_class.class_hash, declared_class.compiled_class_hash)
                 .is_some()
             {
-                return Err(P2PSyncClientError::ConflictingStateDiffParts);
+                return Err(BadPeerError::ConflictingStateDiffParts);
             }
         }
         StateDiffChunk::DeprecatedDeclaredClass(deprecated_declared_class) => {
@@ -167,13 +174,13 @@ fn unite_state_diffs(
 )]
 fn validate_deprecated_declared_classes_non_conflicting(
     state_diff: &ThinStateDiff,
-) -> Result<(), P2PSyncClientError> {
+) -> Result<(), BadPeerError> {
     // TODO(shahak): Check if sorting is more efficient.
     if state_diff.deprecated_declared_classes.len()
         == state_diff.deprecated_declared_classes.iter().cloned().collect::<HashSet<_>>().len()
     {
         Ok(())
     } else {
-        Err(P2PSyncClientError::ConflictingStateDiffParts)
+        Err(BadPeerError::ConflictingStateDiffParts)
     }
 }

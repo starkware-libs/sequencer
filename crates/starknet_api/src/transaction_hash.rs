@@ -6,6 +6,7 @@ use crate::block::BlockNumber;
 use crate::core::{ascii_as_felt, calculate_contract_address, ChainId, ContractAddress};
 use crate::crypto::utils::HashChain;
 use crate::data_availability::DataAvailabilityMode;
+use crate::transaction::fields::{ResourceBounds, Tip, ValidResourceBounds};
 use crate::transaction::{
     signed_tx_version_from_tx,
     DeclareTransaction,
@@ -21,13 +22,10 @@ use crate::transaction::{
     InvokeTransactionV1,
     InvokeTransactionV3,
     L1HandlerTransaction,
-    ResourceBounds,
-    Tip,
     Transaction,
     TransactionHash,
     TransactionOptions,
     TransactionVersion,
-    ValidResourceBounds,
 };
 use crate::StarknetApiError;
 
@@ -40,6 +38,7 @@ type ResourceName = [u8; 7];
 const DATA_AVAILABILITY_MODE_BITS: usize = 32;
 const L1_GAS: &ResourceName = b"\0L1_GAS";
 const L2_GAS: &ResourceName = b"\0L2_GAS";
+const L1_DATA_GAS: &ResourceName = b"L1_DATA";
 
 static DECLARE: LazyLock<Felt> =
     LazyLock::new(|| ascii_as_felt("declare").expect("ascii_as_felt failed for 'declare'"));
@@ -183,14 +182,22 @@ pub fn get_tip_resource_bounds_hash(
     let l1_resource_bounds = resource_bounds.get_l1_bounds();
     let l2_resource_bounds = resource_bounds.get_l2_bounds();
 
-    let l1_resource = get_concat_resource(&l1_resource_bounds, L1_GAS)?;
-    let l2_resource = get_concat_resource(&l2_resource_bounds, L2_GAS)?;
+    // L1 and L2 gas bounds always exist.
+    // Old V3 txs always have L2 gas bounds of zero, but they exist.
+    let mut resource_felts = vec![
+        get_concat_resource(&l1_resource_bounds, L1_GAS)?,
+        get_concat_resource(&l2_resource_bounds, L2_GAS)?,
+    ];
 
-    Ok(HashChain::new()
-        .chain(&tip.0.into())
-        .chain(&l1_resource)
-        .chain(&l2_resource)
-        .get_poseidon_hash())
+    // For new V3 txs, need to also hash the data gas bounds.
+    resource_felts.extend(match resource_bounds {
+        ValidResourceBounds::L1Gas(_) => vec![],
+        ValidResourceBounds::AllResources(all_resources) => {
+            vec![get_concat_resource(&all_resources.l1_data_gas, L1_DATA_GAS)?]
+        }
+    });
+
+    Ok(HashChain::new().chain(&tip.0.into()).chain_iter(resource_felts.iter()).get_poseidon_hash())
 }
 
 // Receives resource_bounds and resource_name and returns:

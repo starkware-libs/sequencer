@@ -67,11 +67,20 @@ use starknet_api::deprecated_contract_class::{
 use starknet_api::execution_resources::{Builtin, ExecutionResources, GasAmount, GasVector};
 use starknet_api::hash::{PoseidonHash, StarkHash};
 use starknet_api::state::{ContractClass, EntryPoint, FunctionIndex, StorageKey, ThinStateDiff};
-use starknet_api::transaction::{
+use starknet_api::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
     Calldata,
     ContractAddressSalt,
+    Fee,
+    PaymasterData,
+    Resource,
+    ResourceBounds,
+    Tip,
+    TransactionSignature,
+    ValidResourceBounds,
+};
+use starknet_api::transaction::{
     DeclareTransaction,
     DeclareTransactionOutput,
     DeclareTransactionV0V1,
@@ -88,7 +97,6 @@ use starknet_api::transaction::{
     EventData,
     EventIndexInTransactionOutput,
     EventKey,
-    Fee,
     InvokeTransaction,
     InvokeTransactionOutput,
     InvokeTransactionV0,
@@ -100,19 +108,13 @@ use starknet_api::transaction::{
     L2ToL1Payload,
     MessageToL1,
     MessageToL2,
-    PaymasterData,
-    Resource,
-    ResourceBounds,
     RevertedTransactionExecutionStatus,
-    Tip,
     Transaction,
     TransactionExecutionStatus,
     TransactionHash,
     TransactionOffsetInBlock,
     TransactionOutput,
-    TransactionSignature,
     TransactionVersion,
-    ValidResourceBounds,
 };
 use starknet_types_core::felt::Felt;
 use tracing::warn;
@@ -594,6 +596,7 @@ macro_rules! auto_storage_serde {
     ($(pub)? enum $name:ident { $($variant:ident $( ($ty:ty) )? = $num:expr ,)* } $($rest:tt)*) => {
         impl StorageSerde for $name {
             fn serialize_into(&self, res: &mut impl std::io::Write) -> Result<(), StorageSerdeError> {
+                #[allow(clippy::as_conversions)]
                 match self {
                     $(
                         variant!( value, $variant $( ($ty) )?) => {
@@ -765,7 +768,7 @@ impl StorageSerde for u8 {
 // TODO(dan): get rid of usize.
 impl StorageSerde for usize {
     fn serialize_into(&self, res: &mut impl std::io::Write) -> Result<(), StorageSerdeError> {
-        (*self as u64).serialize_into(res)
+        (u64::try_from(*self).expect("usize should fit in u64")).serialize_into(res)
     }
 
     fn deserialize_from(bytes: &mut impl std::io::Read) -> Option<Self> {
@@ -930,7 +933,7 @@ impl StorageSerde for BlockNumber {
     }
 
     fn deserialize_from(bytes: &mut impl std::io::Read) -> Option<Self> {
-        Some(BlockNumber(u32::deserialize_from(bytes)? as u64))
+        Some(BlockNumber(u32::deserialize_from(bytes)?.into()))
     }
 }
 

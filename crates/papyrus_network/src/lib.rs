@@ -50,7 +50,7 @@ pub struct NetworkConfig {
     pub bootstrap_peer_multiaddr: Option<Multiaddr>,
     #[validate(custom = "validate_vec_u256")]
     #[serde(deserialize_with = "deserialize_optional_vec_u8")]
-    pub(crate) secret_key: Option<Vec<u8>>,
+    pub secret_key: Option<Vec<u8>>,
     pub advertised_multiaddr: Option<Multiaddr>,
     pub chain_id: ChainId,
     pub discovery_config: DiscoveryConfig,
@@ -107,7 +107,7 @@ impl SerializeConfig for NetworkConfig {
             ParamPrivacyInput::Private,
         )]);
         config.extend(ser_optional_param(
-            &self.bootstrap_peer_multiaddr,
+            &self.advertised_multiaddr,
             Multiaddr::empty(),
             "advertised_multiaddr",
             "The external address other peers see this node. If this is set, the node will not \

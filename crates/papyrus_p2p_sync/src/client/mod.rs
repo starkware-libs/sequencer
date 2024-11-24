@@ -1,3 +1,4 @@
+mod class;
 mod header;
 #[cfg(test)]
 mod header_test;
@@ -12,6 +13,7 @@ mod transaction;
 use std::collections::BTreeMap;
 use std::time::Duration;
 
+use class::ClassStreamBuilder;
 use futures::channel::mpsc::SendError;
 use futures::Stream;
 use header::HeaderStreamBuilder;
@@ -20,7 +22,6 @@ use papyrus_config::converters::deserialize_seconds_to_duration;
 use papyrus_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_network::network_manager::SqmrClientSender;
-use papyrus_protobuf::converters::ProtobufConversionError;
 use papyrus_protobuf::sync::{
     ClassQuery,
     DataOrFin,
@@ -32,7 +33,7 @@ use papyrus_protobuf::sync::{
 };
 use papyrus_storage::{StorageError, StorageReader, StorageWriter};
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockNumber, BlockSignature};
+use starknet_api::block::BlockNumber;
 use starknet_api::core::ClassHash;
 use starknet_api::transaction::FullTransaction;
 use state_diff::StateDiffStreamBuilder;
@@ -49,7 +50,8 @@ const NETWORK_DATA_TIMEOUT: Duration = Duration::from_secs(300);
 pub struct P2PSyncClientConfig {
     pub num_headers_per_query: u64,
     pub num_block_state_diffs_per_query: u64,
-    pub num_transactions_per_query: u64,
+    pub num_block_transactions_per_query: u64,
+    pub num_block_classes_per_query: u64,
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
     pub wait_period_for_new_data: Duration,
     pub buffer_size: usize,
@@ -72,10 +74,16 @@ impl SerializeConfig for P2PSyncClientConfig {
                 ParamPrivacyInput::Public,
             ),
             ser_param(
-                "num_transactions_per_query",
-                &self.num_transactions_per_query,
+                "num_block_transactions_per_query",
+                &self.num_block_transactions_per_query,
                 "The maximum amount of blocks to ask their transactions from peers in each \
                  iteration.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "num_block_classes_per_query",
+                &self.num_block_classes_per_query,
+                "The maximum amount of block's classes to ask from peers in each iteration.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -111,7 +119,8 @@ impl Default for P2PSyncClientConfig {
             // State diffs are split into multiple messages, so big queries can lead to a lot of
             // messages in the network buffers.
             num_block_state_diffs_per_query: 100,
-            num_transactions_per_query: 100,
+            num_block_transactions_per_query: 100,
+            num_block_classes_per_query: 100,
             wait_period_for_new_data: Duration::from_secs(5),
             // TODO(eitan): split this by protocol
             buffer_size: 100000,
@@ -123,42 +132,8 @@ impl Default for P2PSyncClientConfig {
 #[derive(thiserror::Error, Debug)]
 pub enum P2PSyncClientError {
     // TODO(shahak): Remove this and report to network on invalid data once that's possible.
-    // TODO(shahak): Consider removing this error and handling unordered headers without failing.
-    #[error(
-        "Blocks returned unordered from the network. Expected header with \
-         {expected_block_number}, got {actual_block_number}."
-    )]
-    HeadersUnordered { expected_block_number: BlockNumber, actual_block_number: BlockNumber },
-    #[error(
-        "Expected to receive {expected} transactions for {block_number} from the network. Got \
-         {actual} instead."
-    )]
-    // TODO(eitan): Remove this and report to network on invalid data once that's possible.
-    NotEnoughTransactions { expected: usize, actual: usize, block_number: u64 },
-    #[error("Expected to receive one signature from the network. got {signatures:?} instead.")]
-    // TODO(shahak): Remove this and report to network on invalid data once that's possible.
-    // Right now we support only one signature. In the future we will support many signatures.
-    WrongSignaturesLength { signatures: Vec<BlockSignature> },
-    // TODO(shahak): Remove this and report to network on invalid data once that's possible.
-    #[error(
-        "The header says that the block's state diff should be of length {expected_length}. Can \
-         only divide the state diff parts into the following lengths: {possible_lengths:?}."
-    )]
-    WrongStateDiffLength { expected_length: usize, possible_lengths: Vec<usize> },
-    // TODO(shahak): Remove this and report to network on invalid data once that's possible.
-    #[error("Two state diff parts for the same state diff are conflicting.")]
-    ConflictingStateDiffParts,
-    // TODO(shahak): Remove this and report to network on invalid data once that's possible.
-    #[error(
-        "Received an empty state diff part from the network (this is a potential DDoS vector)."
-    )]
-    EmptyStateDiffPart,
-    // TODO(shahak): Remove this and report to network on invalid data once that's possible.
     #[error("Network returned more responses than expected for a query.")]
     TooManyResponses,
-    // TODO(shahak): Remove this and report to network on invalid data once that's possible.
-    #[error(transparent)]
-    ProtobufConversionError(#[from] ProtobufConversionError),
     #[error(
         "Encountered an old header in the storage at {block_number:?} that's missing the field \
          {missing_field}. Re-sync the node from {block_number:?} from a node that provides this \
@@ -222,11 +197,19 @@ impl P2PSyncClientChannels {
             self.transaction_sender,
             storage_reader.clone(),
             config.wait_period_for_new_data,
-            config.num_transactions_per_query,
+            config.num_block_transactions_per_query,
             config.stop_sync_at_block_number,
         );
 
-        header_stream.merge(state_diff_stream).merge(transaction_stream)
+        let class_stream = ClassStreamBuilder::create_stream(
+            self.class_sender,
+            storage_reader.clone(),
+            config.wait_period_for_new_data,
+            config.num_block_classes_per_query,
+            config.stop_sync_at_block_number,
+        );
+
+        header_stream.merge(state_diff_stream).merge(transaction_stream).merge(class_stream)
     }
 }
 

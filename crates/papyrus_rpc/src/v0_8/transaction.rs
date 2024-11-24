@@ -27,22 +27,24 @@ use starknet_api::core::{
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::serde_utils::bytes_from_hex_str;
-use starknet_api::transaction::{
+use starknet_api::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
     Calldata,
     ContractAddressSalt,
-    DeployTransaction,
     Fee,
-    L1HandlerTransaction,
-    MessageToL1,
     PaymasterData,
     Resource,
     ResourceBounds,
     Tip,
+    TransactionSignature,
+};
+use starknet_api::transaction::{
+    DeployTransaction,
+    L1HandlerTransaction,
+    MessageToL1,
     TransactionExecutionStatus,
     TransactionHash,
-    TransactionSignature,
     TransactionVersion,
 };
 use starknet_client::writer::objects::transaction as client_transaction;
@@ -155,14 +157,18 @@ pub struct ResourceBoundsMapping {
     pub l2_gas: ResourceBounds,
 }
 
-impl From<ResourceBoundsMapping> for starknet_api::transaction::DeprecatedResourceBoundsMapping {
+impl From<ResourceBoundsMapping>
+    for starknet_api::transaction::fields::DeprecatedResourceBoundsMapping
+{
     fn from(value: ResourceBoundsMapping) -> Self {
         Self([(Resource::L1Gas, value.l1_gas), (Resource::L2Gas, value.l2_gas)].into())
     }
 }
 
-impl From<starknet_api::transaction::DeprecatedResourceBoundsMapping> for ResourceBoundsMapping {
-    fn from(value: starknet_api::transaction::DeprecatedResourceBoundsMapping) -> Self {
+impl From<starknet_api::transaction::fields::DeprecatedResourceBoundsMapping>
+    for ResourceBoundsMapping
+{
+    fn from(value: starknet_api::transaction::fields::DeprecatedResourceBoundsMapping) -> Self {
         Self {
             l1_gas: value.0.get(&Resource::L1Gas).cloned().unwrap_or_default(),
             l2_gas: value.0.get(&Resource::L2Gas).cloned().unwrap_or_default(),
@@ -170,7 +176,7 @@ impl From<starknet_api::transaction::DeprecatedResourceBoundsMapping> for Resour
     }
 }
 
-impl TryFrom<ResourceBoundsMapping> for starknet_api::transaction::ValidResourceBounds {
+impl TryFrom<ResourceBoundsMapping> for starknet_api::transaction::fields::ValidResourceBounds {
     type Error = ErrorObjectOwned;
     fn try_from(value: ResourceBoundsMapping) -> Result<Self, Self::Error> {
         if !value.l2_gas.is_zero() {
@@ -181,17 +187,15 @@ impl TryFrom<ResourceBoundsMapping> for starknet_api::transaction::ValidResource
     }
 }
 
-impl From<starknet_api::transaction::ValidResourceBounds> for ResourceBoundsMapping {
-    fn from(value: starknet_api::transaction::ValidResourceBounds) -> Self {
+impl From<starknet_api::transaction::fields::ValidResourceBounds> for ResourceBoundsMapping {
+    fn from(value: starknet_api::transaction::fields::ValidResourceBounds) -> Self {
         match value {
-            starknet_api::transaction::ValidResourceBounds::L1Gas(l1_gas) => {
+            starknet_api::transaction::fields::ValidResourceBounds::L1Gas(l1_gas) => {
                 Self { l1_gas, l2_gas: ResourceBounds::default() }
             }
-            starknet_api::transaction::ValidResourceBounds::AllResources(AllResourceBounds {
-                l1_gas,
-                l2_gas,
-                ..
-            }) => Self { l1_gas, l2_gas },
+            starknet_api::transaction::fields::ValidResourceBounds::AllResources(
+                AllResourceBounds { l1_gas, l2_gas, .. },
+            ) => Self { l1_gas, l2_gas },
         }
     }
 }
@@ -1236,7 +1240,8 @@ fn l1_handler_message_hash(
     let to_address = Token::Bytes(contract_address.0.key().to_bytes_be().to_vec());
     let nonce = Token::Bytes(nonce.to_bytes_be().to_vec());
     let selector = Token::Bytes(entry_point_selector.0.to_bytes_be().to_vec());
-    let payload_length_as_felt = Felt::from(payload.len() as u64);
+    let payload_length_as_felt =
+        Felt::from(u64::try_from(payload.len()).expect("usize should fit in u64"));
     let payload_length = Token::Bytes(payload_length_as_felt.to_bytes_be().to_vec());
 
     let mut payload: Vec<_> =

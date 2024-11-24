@@ -18,34 +18,32 @@ use cairo_vm::vm::vm_core::VirtualMachine;
 use num_bigint::BigUint;
 use starknet_api::core::ClassHash;
 use starknet_api::deprecated_contract_class::Program as DeprecatedProgram;
-use starknet_api::transaction::Calldata;
+use starknet_api::transaction::fields::Calldata;
 use starknet_types_core::felt::Felt;
 
-use super::call_info::CallExecution;
-use super::entry_point::ConstructorEntryPointExecutionResult;
-use super::errors::{
-    ConstructorEntryPointExecutionError,
-    EntryPointExecutionError,
-    PreExecutionError,
-};
-use super::syscalls::hint_processor::ENTRYPOINT_NOT_FOUND_ERROR;
-use crate::execution::call_info::{CallInfo, Retdata};
+use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::contract_class::{RunnableContractClass, TrackedResource};
 use crate::execution::entry_point::{
     execute_constructor_entry_point,
     CallEntryPoint,
     ConstructorContext,
+    ConstructorEntryPointExecutionResult,
     EntryPointExecutionContext,
     EntryPointExecutionResult,
 };
-use crate::execution::errors::PostExecutionError;
+use crate::execution::errors::{
+    ConstructorEntryPointExecutionError,
+    EntryPointExecutionError,
+    PostExecutionError,
+    PreExecutionError,
+};
 #[cfg(feature = "cairo_native")]
 use crate::execution::native::entry_point_execution as native_entry_point_execution;
-use crate::execution::stack_trace::extract_trailing_cairo1_revert_trace;
+use crate::execution::stack_trace::{extract_trailing_cairo1_revert_trace, Cairo1RevertHeader};
+use crate::execution::syscalls::hint_processor::ENTRYPOINT_NOT_FOUND_ERROR;
 use crate::execution::{deprecated_entry_point_execution, entry_point_execution};
 use crate::state::errors::StateError;
 use crate::state::state_api::State;
-use crate::transaction::objects::TransactionInfo;
 
 pub type Args = Vec<CairoArg>;
 
@@ -56,12 +54,13 @@ pub fn execute_entry_point_call_wrapper(
     mut call: CallEntryPoint,
     contract_class: RunnableContractClass,
     state: &mut dyn State,
-    resources: &mut ExecutionResources,
     context: &mut EntryPointExecutionContext,
     remaining_gas: &mut u64,
 ) -> EntryPointExecutionResult<CallInfo> {
-    let contract_tracked_resource = contract_class
-        .tracked_resource(&context.versioned_constants().min_compiler_version_for_sierra_gas);
+    let contract_tracked_resource = contract_class.tracked_resource(
+        &context.versioned_constants().min_compiler_version_for_sierra_gas,
+        context.tx_context.tx_info.gas_mode(),
+    );
     // Note: no return statements (explicit or implicit) should be added between the push and the
     // pop commands.
 
@@ -82,7 +81,7 @@ pub fn execute_entry_point_call_wrapper(
     };
 
     let orig_call = call.clone();
-    let res = execute_entry_point_call(call, contract_class, state, resources, context);
+    let res = execute_entry_point_call(call, contract_class, state, context);
     let current_tracked_resource =
         context.tracked_resource_stack.pop().expect("Unexpected empty tracked resource.");
 
@@ -91,7 +90,10 @@ pub fn execute_entry_point_call_wrapper(
             if call_info.execution.failed && !context.versioned_constants().enable_reverts {
                 // Reverts are disabled.
                 return Err(EntryPointExecutionError::ExecutionFailed {
-                    error_trace: extract_trailing_cairo1_revert_trace(&call_info),
+                    error_trace: extract_trailing_cairo1_revert_trace(
+                        &call_info,
+                        Cairo1RevertHeader::Execution,
+                    ),
                 });
             }
             update_remaining_gas(remaining_gas, &call_info);
@@ -120,7 +122,6 @@ pub fn execute_entry_point_call(
     call: CallEntryPoint,
     contract_class: RunnableContractClass,
     state: &mut dyn State,
-    resources: &mut ExecutionResources,
     context: &mut EntryPointExecutionContext,
 ) -> EntryPointExecutionResult<CallInfo> {
     match contract_class {
@@ -129,18 +130,11 @@ pub fn execute_entry_point_call(
                 call,
                 contract_class,
                 state,
-                resources,
                 context,
             )
         }
         RunnableContractClass::V1(contract_class) => {
-            entry_point_execution::execute_entry_point_call(
-                call,
-                contract_class,
-                state,
-                resources,
-                context,
-            )
+            entry_point_execution::execute_entry_point_call(call, contract_class, state, context)
         }
         #[cfg(feature = "cairo_native")]
         RunnableContractClass::V1Native(contract_class) => {
@@ -151,7 +145,6 @@ pub fn execute_entry_point_call(
                     call,
                     contract_class.casm(),
                     state,
-                    resources,
                     context,
                 )
             } else {
@@ -159,7 +152,6 @@ pub fn execute_entry_point_call(
                     call,
                     contract_class,
                     state,
-                    resources,
                     context,
                 )
             }
@@ -306,7 +298,6 @@ impl ReadOnlySegments {
 /// Returns the call info of the deployed class' constructor execution.
 pub fn execute_deployment(
     state: &mut dyn State,
-    resources: &mut ExecutionResources,
     context: &mut EntryPointExecutionContext,
     ctor_context: ConstructorContext,
     constructor_calldata: Calldata,
@@ -333,7 +324,6 @@ pub fn execute_deployment(
 
     execute_constructor_entry_point(
         state,
-        resources,
         context,
         ctor_context,
         constructor_calldata,
@@ -357,14 +347,6 @@ pub fn write_maybe_relocatable<T: Into<MaybeRelocatable>>(
     vm.insert_value(*ptr, value)?;
     *ptr = (*ptr + 1)?;
     Ok(())
-}
-
-pub fn max_fee_for_execution_info(tx_info: &TransactionInfo) -> Felt {
-    match tx_info {
-        TransactionInfo::Current(_) => 0,
-        TransactionInfo::Deprecated(tx_info) => tx_info.max_fee.0,
-    }
-    .into()
 }
 
 /// Returns the VM resources required for running `poseidon_hash_many` in the Starknet OS.

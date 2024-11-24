@@ -1,5 +1,6 @@
 use rstest::rstest;
 use starknet_api::core::{ClassHash, ContractAddress, EthAddress};
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::L2ToL1Payload;
 use starknet_api::{class_hash, contract_address, storage_key};
@@ -8,6 +9,7 @@ use starknet_types_core::felt::Felt;
 use crate::execution::call_info::{
     CallExecution,
     CallInfo,
+    ChargedResources,
     EventSummary,
     ExecutionSummary,
     MessageToL1,
@@ -16,9 +18,11 @@ use crate::execution::call_info::{
 };
 use crate::execution::entry_point::CallEntryPoint;
 use crate::transaction::objects::TransactionExecutionInfo;
+use crate::versioned_constants::VersionedConstants;
 
 #[derive(Debug, Default)]
 pub struct TestExecutionSummary {
+    pub gas_for_fee: GasAmount,
     pub num_of_events: usize,
     pub num_of_messages: usize,
     pub class_hash: ClassHash,
@@ -28,6 +32,7 @@ pub struct TestExecutionSummary {
 
 impl TestExecutionSummary {
     pub fn new(
+        gas_for_fee: u64,
         num_of_events: usize,
         num_of_messages: usize,
         class_hash: ClassHash,
@@ -35,6 +40,7 @@ impl TestExecutionSummary {
         storage_key: &str,
     ) -> Self {
         TestExecutionSummary {
+            gas_for_fee: GasAmount(gas_for_fee),
             num_of_events,
             num_of_messages,
             class_hash,
@@ -61,6 +67,10 @@ impl TestExecutionSummary {
                         },
                     })
                     .collect(),
+                ..Default::default()
+            },
+            charged_resources: ChargedResources {
+                gas_for_fee: self.gas_for_fee,
                 ..Default::default()
             },
             accessed_storage_keys: vec![self.storage_key].into_iter().collect(),
@@ -129,7 +139,7 @@ fn test_events_counter_in_tx_execution_info(
     };
 
     assert_eq!(
-        tx_execution_info.summarize().event_summary.n_events,
+        tx_execution_info.summarize(VersionedConstants::latest_constants()).event_summary.n_events,
         n_validate_events + n_execute_events + n_fee_transfer_events + n_inner_calls
     );
 }
@@ -158,7 +168,7 @@ fn test_events_counter_in_tx_execution_info_with_inner_call_info(#[case] n_execu
     };
 
     assert_eq!(
-        tx_execution_info.summarize().event_summary.n_events,
+        tx_execution_info.summarize(VersionedConstants::latest_constants()).event_summary.n_events,
         n_execute_events
             + n_fee_transfer_events
             + n_execution_events
@@ -169,9 +179,9 @@ fn test_events_counter_in_tx_execution_info_with_inner_call_info(#[case] n_execu
 
 #[rstest]
 #[case(
-    TestExecutionSummary::new(1, 2, class_hash!("0x1"), "0x1", "0x1"),
-    TestExecutionSummary::new(2, 3, class_hash!("0x2"), "0x2", "0x2"),
-    TestExecutionSummary::new(3, 4, class_hash!("0x3"), "0x3", "0x3")
+    TestExecutionSummary::new(10, 1, 2, class_hash!("0x1"), "0x1", "0x1"),
+    TestExecutionSummary::new(20, 2, 3, class_hash!("0x2"), "0x2", "0x2"),
+    TestExecutionSummary::new(30, 3, 4, class_hash!("0x3"), "0x3", "0x3")
 )]
 fn test_summarize(
     #[case] validate_params: TestExecutionSummary,
@@ -190,6 +200,12 @@ fn test_summarize(
     };
 
     let expected_summary = ExecutionSummary {
+        charged_resources: ChargedResources {
+            gas_for_fee: validate_params.gas_for_fee
+                + execute_params.gas_for_fee
+                + fee_transfer_params.gas_for_fee,
+            ..Default::default()
+        },
         executed_class_hashes: vec![
             validate_params.class_hash,
             execute_params.class_hash,
@@ -219,12 +235,9 @@ fn test_summarize(
         },
     };
 
-    // Call the summarize method
-    let actual_summary = tx_execution_info.summarize();
+    // Call the summarize method.
+    let actual_summary = tx_execution_info.summarize(VersionedConstants::latest_constants());
 
-    // Compare the actual result with the expected result
-    assert_eq!(actual_summary.executed_class_hashes, expected_summary.executed_class_hashes);
-    assert_eq!(actual_summary.visited_storage_entries, expected_summary.visited_storage_entries);
-    assert_eq!(actual_summary.event_summary, expected_summary.event_summary);
-    assert_eq!(actual_summary.l2_to_l1_payload_lengths, expected_summary.l2_to_l1_payload_lengths);
+    // Compare the actual result with the expected result.
+    assert_eq!(actual_summary, expected_summary);
 }

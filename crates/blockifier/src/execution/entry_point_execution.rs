@@ -7,7 +7,7 @@ use cairo_vm::vm::errors::cairo_run_errors::CairoRunError;
 use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::runners::builtin_runner::BuiltinRunner;
-use cairo_vm::vm::runners::cairo_runner::{CairoArg, CairoRunner, ExecutionResources};
+use cairo_vm::vm::runners::cairo_runner::{CairoArg, CairoRunner};
 use cairo_vm::vm::security::verify_secure_runner;
 use num_traits::{ToPrimitive, Zero};
 use starknet_api::execution_resources::GasAmount;
@@ -33,6 +33,10 @@ use crate::execution::syscalls::hint_processor::SyscallHintProcessor;
 use crate::state::state_api::State;
 use crate::versioned_constants::GasCosts;
 
+#[cfg(test)]
+#[path = "entry_point_execution_test.rs"]
+mod test;
+
 // TODO(spapini): Try to refactor this file into a StarknetRunner struct.
 
 pub struct VmExecutionContext<'a> {
@@ -55,7 +59,6 @@ pub fn execute_entry_point_call(
     call: CallEntryPoint,
     contract_class: ContractClassV1,
     state: &mut dyn State,
-    resources: &mut ExecutionResources,
     context: &mut EntryPointExecutionContext,
 ) -> EntryPointExecutionResult<CallInfo> {
     // Fetch the class hash from `call`.
@@ -71,7 +74,7 @@ pub fn execute_entry_point_call(
         initial_syscall_ptr,
         entry_point,
         program_extra_data_length,
-    } = initialize_execution_context(call, &contract_class, state, resources, context)?;
+    } = initialize_execution_context(call, &contract_class, state, context)?;
 
     let args = prepare_call_arguments(
         &syscall_handler.call,
@@ -81,9 +84,6 @@ pub fn execute_entry_point_call(
         &entry_point,
     )?;
     let n_total_args = args.len();
-
-    // Fix the resources, in order to calculate the usage of this run at the end.
-    let previous_resources = syscall_handler.resources.clone();
 
     // Execute.
     let bytecode_length = contract_class.bytecode_length();
@@ -102,7 +102,6 @@ pub fn execute_entry_point_call(
     Ok(finalize_execution(
         runner,
         syscall_handler,
-        previous_resources,
         n_total_args,
         program_extra_data_length,
         tracked_resource,
@@ -145,7 +144,6 @@ pub fn initialize_execution_context<'a>(
     call: CallEntryPoint,
     contract_class: &'a ContractClassV1,
     state: &'a mut dyn State,
-    resources: &'a mut ExecutionResources,
     context: &'a mut EntryPointExecutionContext,
 ) -> Result<VmExecutionContext<'a>, PreExecutionError> {
     let entry_point = contract_class.get_entry_point(&call)?;
@@ -173,7 +171,6 @@ pub fn initialize_execution_context<'a>(
     let initial_syscall_ptr = runner.vm.add_memory_segment();
     let syscall_handler = SyscallHintProcessor::new(
         state,
-        resources,
         context,
         initial_syscall_ptr,
         call,
@@ -363,10 +360,35 @@ fn maybe_fill_holes(
     Ok(())
 }
 
+/// Calculates the total gas for fee in the current call + subtree.
+#[allow(dead_code)]
+fn to_gas_for_fee(
+    tracked_resource: &TrackedResource,
+    gas_consumed: u64,
+    inner_calls: &[CallInfo],
+) -> GasAmount {
+    // The Sierra gas consumed in this specific call is `gas_consumed`
+    // (= total gas of self + subtree), minus the sum of all inner calls Sierra gas consumed.
+    // To compute the total Sierra gas to charge (of self + subtree), if the tracked resource is
+    // Sierra gas, we add this amount to the total gas to charge for in the subtree:
+    // gas_for_fee = gas_consumed - subtree_gas_consumed + subtree_gas_to_fee.
+    GasAmount(match tracked_resource {
+        // If the tracked resource is CairoSteps, then all tracked resources of all calls in
+        // the subtree are also CairoSteps. Thus, the total gas to charge in this subtree is zero.
+        TrackedResource::CairoSteps => 0,
+        TrackedResource::SierraGas => gas_consumed
+            .checked_sub(
+                inner_calls
+                    .iter()
+                    .map(|call| call.execution.gas_consumed - call.charged_resources.gas_for_fee.0)
+                    .sum::<u64>(),
+            )
+            .expect("gas_for_fee unexpectedly underflowed."),
+    })
+}
 pub fn finalize_execution(
     mut runner: CairoRunner,
     mut syscall_handler: SyscallHintProcessor<'_>,
-    previous_resources: ExecutionResources,
     n_total_args: usize,
     program_extra_data_length: usize,
     tracked_resource: TrackedResource,
@@ -388,7 +410,7 @@ pub fn finalize_execution(
 
     let call_result = get_call_result(&runner, &syscall_handler)?;
 
-    // Take into account the VM execution resources of the current call, without inner calls.
+    // Take into account the resources of the current call, without inner calls.
     // Has to happen after marking holes in segments as accessed.
     let mut vm_resources_without_inner_calls = runner
         .get_execution_resources()
@@ -401,19 +423,20 @@ pub fn finalize_execution(
             .get_mut(&BuiltinName::segment_arena)
             .map_or_else(|| {}, |val| *val *= SEGMENT_ARENA_BUILTIN_SIZE);
     }
-    *syscall_handler.resources += &vm_resources_without_inner_calls;
     // Take into account the syscall resources of the current call.
-    *syscall_handler.resources +=
+    vm_resources_without_inner_calls +=
         &versioned_constants.get_additional_os_syscall_resources(&syscall_handler.syscall_counter);
 
     syscall_handler.finalize();
 
-    let full_call_resources = &*syscall_handler.resources - &previous_resources;
-    let charged_resources = ChargedResources {
-        vm_resources: full_call_resources.filter_unused_builtins(),
+    let charged_resources_without_inner_calls = ChargedResources {
+        vm_resources: vm_resources_without_inner_calls,
         // TODO(tzahi): Replace with a computed value.
         gas_for_fee: GasAmount(0),
     };
+    let charged_resources = &charged_resources_without_inner_calls
+        + &CallInfo::summarize_charged_resources(syscall_handler.inner_calls.iter());
+
     Ok(CallInfo {
         call: syscall_handler.call,
         execution: CallExecution {
@@ -428,6 +451,8 @@ pub fn finalize_execution(
         charged_resources,
         storage_read_values: syscall_handler.read_values,
         accessed_storage_keys: syscall_handler.accessed_keys,
+        read_class_hash_values: syscall_handler.read_class_hash_values,
+        accessed_contract_addresses: syscall_handler.accessed_contract_addresses,
     })
 }
 

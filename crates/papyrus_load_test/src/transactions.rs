@@ -6,8 +6,9 @@ use std::sync::Arc;
 use goose::goose::{Transaction, TransactionFunction};
 use rand::Rng;
 use serde_json::{json, Value as jsonVal};
+use starknet_api::test_utils::path_in_resources;
 
-use crate::{create_request, jsonrpc_request, path_in_resources, post_jsonrpc_request};
+use crate::{create_request, jsonrpc_request, post_jsonrpc_request};
 
 create_get_transaction_function_with_requests_from_file! {
     get_block_with_transaction_hashes_by_number, "block_number.txt";

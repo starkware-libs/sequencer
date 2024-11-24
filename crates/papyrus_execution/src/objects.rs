@@ -40,7 +40,8 @@ use starknet_api::execution_resources::{
     GasVector as StarknetApiGasVector,
 };
 use starknet_api::state::ThinStateDiff;
-use starknet_api::transaction::{Calldata, EventContent, Fee, MessageToL1};
+use starknet_api::transaction::fields::{Calldata, Fee};
+use starknet_api::transaction::{EventContent, MessageToL1};
 use starknet_types_core::felt::Felt;
 
 use crate::{ExecutionError, ExecutionResult, TransactionExecutionOutput};
@@ -123,7 +124,7 @@ impl TryFrom<TransactionExecutionInfo> for InvokeTransactionTrace {
     fn try_from(transaction_execution_info: TransactionExecutionInfo) -> ExecutionResult<Self> {
         let execute_invocation = match transaction_execution_info.revert_error {
             Some(revert_error) => {
-                FunctionInvocationResult::Err(RevertReason::RevertReason(revert_error))
+                FunctionInvocationResult::Err(RevertReason::RevertReason(revert_error.to_string()))
             }
             None => FunctionInvocationResult::Ok(
                 (

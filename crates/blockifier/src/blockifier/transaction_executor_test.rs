@@ -2,7 +2,8 @@ use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::test_utils::NonceManager;
-use starknet_api::transaction::{Fee, TransactionVersion};
+use starknet_api::transaction::fields::Fee;
+use starknet_api::transaction::TransactionVersion;
 use starknet_api::{declare_tx_args, deploy_account_tx_args, felt, invoke_tx_args, nonce};
 use starknet_types_core::felt::Felt;
 

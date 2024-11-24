@@ -118,7 +118,7 @@ async fn run_sync(
     let mut pending_source = MockPendingSourceTrait::new();
     pending_source.expect_get_pending_data().returning(|| Ok(PendingData::default()));
 
-    let mut state_sync = GenericStateSync {
+    let state_sync = GenericStateSync {
         config,
         shared_highest_block: Arc::new(RwLock::new(None)),
         pending_data: Arc::new(RwLock::new(PendingData::default())),

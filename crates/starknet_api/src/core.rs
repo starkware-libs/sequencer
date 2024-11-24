@@ -13,13 +13,14 @@ use starknet_types_core::hash::{Pedersen, StarkHash as CoreStarkHash};
 use crate::crypto::utils::PublicKey;
 use crate::hash::{PoseidonHash, StarkHash};
 use crate::serde_utils::{BytesAsHex, PrefixedBytesAsHex};
-use crate::transaction::{Calldata, ContractAddressSalt};
+use crate::transaction::fields::{Calldata, ContractAddressSalt};
 use crate::{impl_from_through_intermediate, StarknetApiError};
 
 /// Felt.
 pub fn ascii_as_felt(ascii_str: &str) -> Result<Felt, StarknetApiError> {
-    Felt::from_hex(hex::encode(ascii_str).as_str())
-        .map_err(|_| StarknetApiError::OutOfRange { string: ascii_str.to_string() })
+    Felt::from_hex(hex::encode(ascii_str).as_str()).map_err(|_| StarknetApiError::OutOfRange {
+        string: format!("The str {}, does not fit into a single felt", ascii_str),
+    })
 }
 
 /// A chain id.
@@ -250,7 +251,7 @@ impl Nonce {
     }
 }
 
-/// The selector of an [EntryPoint](`crate::deprecated_contract_class::EntryPoint`).
+/// The selector of an [EntryPoint](`crate::state::EntryPoint`).
 #[derive(
     Debug, Copy, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord,
 )]

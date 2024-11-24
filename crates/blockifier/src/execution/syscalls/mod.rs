@@ -11,14 +11,8 @@ use starknet_api::core::{
     EthAddress,
 };
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::{
-    Calldata,
-    ContractAddressSalt,
-    EventContent,
-    EventData,
-    EventKey,
-    L2ToL1Payload,
-};
+use starknet_api::transaction::fields::{Calldata, ContractAddressSalt};
+use starknet_api::transaction::{EventContent, EventData, EventKey, L2ToL1Payload};
 use starknet_types_core::felt::Felt;
 
 use self::hint_processor::{
@@ -33,9 +27,7 @@ use self::hint_processor::{
     EmitEventError,
     SyscallExecutionError,
     SyscallHintProcessor,
-    BLOCK_NUMBER_OUT_OF_RANGE_ERROR,
 };
-use crate::abi::constants;
 use crate::execution::call_info::{MessageToL1, OrderedEvent, OrderedL2ToL1Message};
 use crate::execution::deprecated_syscalls::DeprecatedSyscallSelector;
 use crate::execution::entry_point::{CallEntryPoint, CallType, ConstructorContext};
@@ -47,16 +39,17 @@ use crate::execution::execution_utils::{
     ReadOnlySegment,
 };
 use crate::execution::syscalls::hint_processor::{INVALID_INPUT_LENGTH_ERROR, OUT_OF_GAS_ERROR};
+use crate::execution::syscalls::syscall_base::SyscallResult;
 use crate::transaction::account_transaction::is_cairo1;
 use crate::versioned_constants::{EventLimits, VersionedConstants};
 
 pub mod hint_processor;
 mod secp;
+pub mod syscall_base;
 
 #[cfg(test)]
 pub mod syscall_tests;
 
-pub type SyscallResult<T> = Result<T, SyscallExecutionError>;
 pub type WriteResponseResult = SyscallResult<()>;
 
 pub type SyscallSelector = DeprecatedSyscallSelector;
@@ -276,7 +269,6 @@ pub fn deploy(
     };
     let call_info = execute_deployment(
         syscall_handler.state,
-        syscall_handler.resources,
         syscall_handler.context,
         ctor_context,
         request.constructor_calldata,
@@ -398,30 +390,11 @@ pub fn get_block_hash(
     syscall_handler: &mut SyscallHintProcessor<'_>,
     _remaining_gas: &mut u64,
 ) -> SyscallResult<GetBlockHashResponse> {
-    if syscall_handler.is_validate_mode() {
-        return Err(SyscallExecutionError::InvalidSyscallInExecutionMode {
-            syscall_name: "get_block_hash".to_string(),
-            execution_mode: syscall_handler.execution_mode(),
-        });
-    }
-
-    let requested_block_number = request.block_number.0;
-    let current_block_number =
-        syscall_handler.context.tx_context.block_context.block_info.block_number.0;
-
-    if current_block_number < constants::STORED_BLOCK_HASH_BUFFER
-        || requested_block_number > current_block_number - constants::STORED_BLOCK_HASH_BUFFER
-    {
-        let out_of_range_error =
-            Felt::from_hex(BLOCK_NUMBER_OUT_OF_RANGE_ERROR).map_err(SyscallExecutionError::from)?;
-        return Err(SyscallExecutionError::SyscallError { error_data: vec![out_of_range_error] });
-    }
-
-    let key = StorageKey::try_from(Felt::from(requested_block_number))?;
-    let block_hash_contract_address =
-        ContractAddress::try_from(Felt::from(constants::BLOCK_HASH_CONTRACT_ADDRESS))?;
-    let block_hash =
-        BlockHash(syscall_handler.state.get_storage_at(block_hash_contract_address, key)?);
+    let block_hash = BlockHash(syscall_base::get_block_hash_base(
+        syscall_handler.context,
+        request.block_number.0,
+        syscall_handler.state,
+    )?);
     Ok(GetBlockHashResponse { block_hash })
 }
 
@@ -791,4 +764,35 @@ pub fn sha_256_process_block(
     syscall_handler.sha256_segment_end_ptr = Some(vm.load_data(segment, &data)?);
 
     Ok(Sha256ProcessBlockResponse { state_ptr: response })
+}
+
+// GetClassHashAt syscall.
+
+pub(crate) type GetClassHashAtRequest = ContractAddress;
+pub(crate) type GetClassHashAtResponse = ClassHash;
+
+impl SyscallRequest for GetClassHashAtRequest {
+    fn read(vm: &VirtualMachine, ptr: &mut Relocatable) -> SyscallResult<GetClassHashAtRequest> {
+        let address = ContractAddress::try_from(felt_from_ptr(vm, ptr)?)?;
+        Ok(address)
+    }
+}
+
+impl SyscallResponse for GetClassHashAtResponse {
+    fn write(self, vm: &mut VirtualMachine, ptr: &mut Relocatable) -> WriteResponseResult {
+        write_felt(vm, ptr, *self)?;
+        Ok(())
+    }
+}
+
+pub(crate) fn get_class_hash_at(
+    request: GetClassHashAtRequest,
+    _vm: &mut VirtualMachine,
+    syscall_handler: &mut SyscallHintProcessor<'_>,
+    _remaining_gas: &mut u64,
+) -> SyscallResult<GetClassHashAtResponse> {
+    syscall_handler.accessed_contract_addresses.insert(request);
+    let class_hash = syscall_handler.state.get_class_hash_at(request)?;
+    syscall_handler.read_class_hash_values.push(class_hash);
+    Ok(class_hash)
 }

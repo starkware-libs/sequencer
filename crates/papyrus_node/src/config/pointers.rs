@@ -20,6 +20,7 @@ use papyrus_config::dumping::{
     ser_pointer_target_param,
     set_pointing_param_paths,
     ConfigPointers,
+    Pointers,
     SerializeConfig,
 };
 use papyrus_config::loading::load_and_process_config;
@@ -43,8 +44,8 @@ use validator::Validate;
 
 use crate::version::VERSION_FULL;
 
-/// Returns vector of (pointer target name, pointer target serialized param, vec<pointer param
-/// path>) to be applied on the dumped node config.
+/// Returns vector of `(pointer target name, pointer target serialized param, vec<pointer param
+/// path>)` to be applied on the dumped node config.
 /// The config updates will be performed on the shared pointer targets, and finally, the values
 /// will be propagated to the pointer params.
 pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
@@ -56,9 +57,10 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                 "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
             ),
             set_pointing_param_paths(&[
-                "storage.db_config.chain_id",
-                "rpc.chain_id",
+                "consensus.network_config.chain_id",
                 "network.chain_id",
+                "rpc.chain_id",
+                "storage.db_config.chain_id",
             ])
         ),
         (
@@ -89,5 +91,5 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
 
 /// Parameters that should 1) not be pointers, and 2) have a name matching a pointer target
 /// param. Used in verification.
-pub static CONFIG_NON_POINTERS_WHITELIST: LazyLock<HashSet<ParamPath>> =
+pub static CONFIG_NON_POINTERS_WHITELIST: LazyLock<Pointers> =
     LazyLock::new(HashSet::<ParamPath>::new);

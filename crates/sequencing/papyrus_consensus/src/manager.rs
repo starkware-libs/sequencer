@@ -12,13 +12,12 @@ use futures::stream::FuturesUnordered;
 use futures::{Stream, StreamExt};
 use papyrus_common::metrics::{PAPYRUS_CONSENSUS_HEIGHT, PAPYRUS_CONSENSUS_SYNC_COUNT};
 use papyrus_network::network_manager::BroadcastTopicClientTrait;
-use papyrus_protobuf::consensus::{ConsensusMessage, ProposalWrapper};
+use papyrus_protobuf::consensus::{ConsensusMessage, ProposalInit, ProposalWrapper};
 use starknet_api::block::{BlockHash, BlockNumber};
-use starknet_api::core::ContractAddress;
 use tracing::{debug, info, instrument};
 
 use crate::config::TimeoutsConfig;
-use crate::single_height_consensus::{ShcReturn, ShcTask, SingleHeightConsensus};
+use crate::single_height_consensus::{ShcReturn, SingleHeightConsensus};
 use crate::types::{
     BroadcastConsensusMessageChannel,
     ConsensusContext,
@@ -30,6 +29,7 @@ use crate::types::{
 // TODO(dvir): add test for this.
 #[instrument(skip_all, level = "info")]
 #[allow(missing_docs)]
+#[allow(clippy::too_many_arguments)]
 pub async fn run_consensus<ContextT, SyncReceiverT>(
     mut context: ContextT,
     start_height: BlockNumber,
@@ -42,11 +42,8 @@ pub async fn run_consensus<ContextT, SyncReceiverT>(
 where
     ContextT: ConsensusContext,
     SyncReceiverT: Stream<Item = BlockNumber> + Unpin,
-    ProposalWrapper: Into<(
-        (BlockNumber, u32, ContractAddress, Option<u32>),
-        mpsc::Receiver<ContextT::ProposalChunk>,
-        oneshot::Receiver<BlockHash>,
-    )>,
+    ProposalWrapper:
+        Into<(ProposalInit, mpsc::Receiver<ContextT::ProposalChunk>, oneshot::Receiver<BlockHash>)>,
 {
     info!(
         "Running consensus, start_height={}, validator_id={}, consensus_delay={}, timeouts={:?}",
@@ -60,6 +57,7 @@ where
     tokio::time::sleep(consensus_delay).await;
     let mut current_height = start_height;
     let mut manager = MultiHeightManager::new(validator_id, timeouts);
+    #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
     loop {
         metrics::gauge!(PAPYRUS_CONSENSUS_HEIGHT, current_height.0 as f64);
 
@@ -112,7 +110,7 @@ impl MultiHeightManager {
     where
         ContextT: ConsensusContext,
         ProposalWrapper: Into<(
-            (BlockNumber, u32, ContractAddress, Option<u32>),
+            ProposalInit,
             mpsc::Receiver<ContextT::ProposalChunk>,
             oneshot::Receiver<BlockHash>,
         )>,
@@ -125,13 +123,13 @@ impl MultiHeightManager {
             validators,
             self.timeouts.clone(),
         );
-        let mut shc_tasks = FuturesUnordered::new();
+        let mut shc_events = FuturesUnordered::new();
 
         match shc.start(context).await? {
             ShcReturn::Decision(decision) => return Ok(decision),
             ShcReturn::Tasks(tasks) => {
                 for task in tasks {
-                    shc_tasks.push(create_task_handler(task));
+                    shc_events.push(task.run());
                 }
             }
         }
@@ -142,8 +140,8 @@ impl MultiHeightManager {
                 message = next_message(&mut current_height_messages, broadcast_channels) => {
                     self.handle_message(context, height, &mut shc, message?).await?
                 },
-                Some(shc_task) = shc_tasks.next() => {
-                    shc.handle_event(context, shc_task.event).await?
+                Some(shc_event) = shc_events.next() => {
+                    shc.handle_event(context, shc_event).await?
                 },
             };
 
@@ -151,7 +149,7 @@ impl MultiHeightManager {
                 ShcReturn::Decision(decision) => return Ok(decision),
                 ShcReturn::Tasks(tasks) => {
                     for task in tasks {
-                        shc_tasks.push(create_task_handler(task));
+                        shc_events.push(task.run());
                     }
                 }
             }
@@ -169,7 +167,7 @@ impl MultiHeightManager {
     where
         ContextT: ConsensusContext,
         ProposalWrapper: Into<(
-            (BlockNumber, u32, ContractAddress, Option<u32>),
+            ProposalInit,
             mpsc::Receiver<ContextT::ProposalChunk>,
             oneshot::Receiver<BlockHash>,
         )>,
@@ -191,7 +189,7 @@ impl MultiHeightManager {
                 let (proposal_init, content_receiver, fin_receiver) =
                     ProposalWrapper(proposal).into();
                 let res = shc
-                    .handle_proposal(context, proposal_init.into(), content_receiver, fin_receiver)
+                    .handle_proposal(context, proposal_init, content_receiver, fin_receiver)
                     .await?;
                 Ok(res)
             }
@@ -278,9 +276,4 @@ where
             }
         }
     }
-}
-
-async fn create_task_handler(task: ShcTask) -> ShcTask {
-    tokio::time::sleep(task.duration).await;
-    task
 }

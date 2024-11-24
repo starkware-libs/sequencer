@@ -1,20 +1,26 @@
+use crate::abi::abi_utils::selector_from_name;
 use crate::calldata;
 use crate::core::{ContractAddress, Nonce};
 use crate::data_availability::DataAvailabilityMode;
 use crate::executable_transaction::InvokeTransaction as ExecutableInvokeTransaction;
-use crate::transaction::{
+use crate::rpc_transaction::{RpcInvokeTransaction, RpcInvokeTransactionV3, RpcTransaction};
+use crate::transaction::constants::EXECUTE_ENTRY_POINT_NAME;
+use crate::transaction::fields::{
     AccountDeploymentData,
     Calldata,
     Fee,
-    InvokeTransaction,
-    InvokeTransactionV1,
-    InvokeTransactionV3,
     PaymasterData,
     Tip,
-    TransactionHash,
     TransactionSignature,
-    TransactionVersion,
     ValidResourceBounds,
+};
+use crate::transaction::{
+    InvokeTransaction,
+    InvokeTransactionV0,
+    InvokeTransactionV1,
+    InvokeTransactionV3,
+    TransactionHash,
+    TransactionVersion,
 };
 
 #[derive(Clone)]
@@ -76,12 +82,14 @@ macro_rules! invoke_tx_args {
 pub fn invoke_tx(invoke_args: InvokeTxArgs) -> InvokeTransaction {
     // TODO: Make TransactionVersion an enum and use match here.
     if invoke_args.version == TransactionVersion::ZERO {
-        // TODO(Arni): Implement V0. See blockifier test utils for reference. There is an issue with
-        // the computation of the entry_point_selector.
-        panic!(
-            "This test util does not supported creation of transaction version: {:?}.",
-            invoke_args.version
-        );
+        InvokeTransaction::V0(InvokeTransactionV0 {
+            max_fee: invoke_args.max_fee,
+            calldata: invoke_args.calldata,
+            contract_address: invoke_args.sender_address,
+            signature: invoke_args.signature,
+            // V0 transactions should always select the `__execute__` entry point.
+            entry_point_selector: selector_from_name(EXECUTE_ENTRY_POINT_NAME),
+        })
     } else if invoke_args.version == TransactionVersion::ONE {
         InvokeTransaction::V1(InvokeTransactionV1 {
             max_fee: invoke_args.max_fee,
@@ -113,4 +121,27 @@ pub fn executable_invoke_tx(invoke_args: InvokeTxArgs) -> ExecutableInvokeTransa
     let tx = invoke_tx(invoke_args);
 
     ExecutableInvokeTransaction { tx, tx_hash }
+}
+
+pub fn rpc_invoke_tx(invoke_args: InvokeTxArgs) -> RpcTransaction {
+    if invoke_args.version != TransactionVersion::THREE {
+        panic!("Unsupported transaction version: {:?}.", invoke_args.version);
+    }
+
+    let ValidResourceBounds::AllResources(resource_bounds) = invoke_args.resource_bounds else {
+        panic!("Unspported resource bounds type: {:?}.", invoke_args.resource_bounds)
+    };
+
+    RpcTransaction::Invoke(RpcInvokeTransaction::V3(RpcInvokeTransactionV3 {
+        resource_bounds,
+        tip: invoke_args.tip,
+        calldata: invoke_args.calldata,
+        sender_address: invoke_args.sender_address,
+        nonce: invoke_args.nonce,
+        signature: invoke_args.signature,
+        nonce_data_availability_mode: invoke_args.nonce_data_availability_mode,
+        fee_data_availability_mode: invoke_args.fee_data_availability_mode,
+        paymaster_data: invoke_args.paymaster_data,
+        account_deployment_data: invoke_args.account_deployment_data,
+    }))
 }

@@ -4,7 +4,7 @@ use assert_matches::assert_matches;
 use indexmap::indexmap;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
-use starknet_api::transaction::Fee;
+use starknet_api::transaction::fields::Fee;
 use starknet_api::{class_hash, compiled_class_hash, contract_address, felt, nonce, storage_key};
 
 use crate::context::{BlockContext, ChainInfo};
@@ -378,7 +378,7 @@ fn test_state_changes_merge(
     );
 
     // Get the storage updates addresses and keys from the state_changes1, to overwrite.
-    let mut storage_updates_keys = state_changes1.0.storage.keys();
+    let mut storage_updates_keys = state_changes1.state_maps.storage.keys();
     let &(contract_address, storage_key) = storage_updates_keys
         .find(|(contract_address, _)| contract_address == &contract_address!(CONTRACT_ADDRESS))
         .unwrap();
@@ -435,7 +435,7 @@ fn test_contract_cache_is_used() {
 #[test]
 fn test_cache_get_write_keys() {
     // Trivial case.
-    assert_eq!(StateChanges::default().into_keys(), StateChangesKeys::default());
+    assert_eq!(StateMaps::default().into_keys(), StateChangesKeys::default());
 
     // Interesting case.
     let some_felt = felt!("0x1");
@@ -448,7 +448,7 @@ fn test_cache_get_write_keys() {
 
     let class_hash0 = class_hash!("0x300");
 
-    let state_changes = StateChanges(StateMaps {
+    let state_maps = StateMaps {
         nonces: HashMap::from([(contract_address0, Nonce(some_felt))]),
         class_hashes: HashMap::from([
             (contract_address1, some_class_hash),
@@ -461,7 +461,7 @@ fn test_cache_get_write_keys() {
         ]),
         compiled_class_hashes: HashMap::from([(class_hash0, compiled_class_hash!(0x3_u16))]),
         declared_contracts: HashMap::default(),
-    });
+    };
 
     let expected_keys = StateChangesKeys {
         nonce_keys: HashSet::from([contract_address0]),
@@ -480,7 +480,7 @@ fn test_cache_get_write_keys() {
         ]),
     };
 
-    assert_eq!(state_changes.into_keys(), expected_keys);
+    assert_eq!(state_maps.into_keys(), expected_keys);
 }
 
 #[test]

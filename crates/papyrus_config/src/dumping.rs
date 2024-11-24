@@ -54,9 +54,73 @@ use crate::{
     IS_NONE_MARK,
 };
 
-// TODO(Tsabary): introduce sub-types, and replace throughout.
+/// Type alias for a pointer parameter and its serialized representation.
+type PointerTarget = (ParamPath, SerializedParam);
+
+/// Type alias for a set of pointing parameters.
+pub type Pointers = HashSet<ParamPath>;
+
 /// Detailing pointers in the config map.
-pub type ConfigPointers = Vec<((ParamPath, SerializedParam), HashSet<ParamPath>)>;
+pub type ConfigPointers = Vec<(PointerTarget, Pointers)>;
+
+/// Given a set of paths that are configuration of the same struct type, makes all the paths point
+/// to the same target.
+pub fn generate_struct_pointer<T: SerializeConfig>(
+    target_prefix: ParamPath,
+    default_instance: &T,
+    pointer_prefixes: HashSet<ParamPath>,
+) -> ConfigPointers {
+    let mut res = ConfigPointers::new();
+    for (param_path, serialized_param) in default_instance.dump() {
+        let pointer_target = serialized_param_to_pointer_target(
+            target_prefix.clone(),
+            &param_path,
+            &serialized_param,
+        );
+        let pointers = pointer_prefixes
+            .iter()
+            .map(|pointer| chain_param_paths(&[pointer, &param_path]))
+            .collect();
+
+        res.push((pointer_target, pointers));
+    }
+    res
+}
+
+// Converts a serialized param to a pointer target.
+fn serialized_param_to_pointer_target(
+    target_prefix: ParamPath,
+    param_path: &ParamPath,
+    serialized_param: &SerializedParam,
+) -> PointerTarget {
+    let full_param_path = chain_param_paths(&[&target_prefix, param_path]);
+    if serialized_param.is_required() {
+        let description = serialized_param
+            .description
+            .strip_prefix(REQUIRED_PARAM_DESCRIPTION_PREFIX)
+            .unwrap_or(&serialized_param.description)
+            .trim_start();
+        ser_pointer_target_required_param(
+            &full_param_path,
+            serialized_param.content.get_serialization_type().unwrap(),
+            description,
+        )
+    } else {
+        let default_value = match &serialized_param.content {
+            SerializedContent::DefaultValue(value) => value,
+            SerializedContent::PointerTarget(_) => panic!("Pointers to pointer is not supported."),
+            // We already checked that the param is not required, so it must be a generated param.
+            SerializedContent::ParamType(_) => {
+                panic!("Generated pointer targets are not supported.")
+            }
+        };
+        ser_pointer_target_param(&full_param_path, default_value, &serialized_param.description)
+    }
+}
+
+fn chain_param_paths(param_paths: &[&str]) -> ParamPath {
+    param_paths.join(FIELD_SEPARATOR)
+}
 
 /// Serialization for configs.
 pub trait SerializeConfig {
@@ -105,7 +169,7 @@ pub trait SerializeConfig {
     fn dump_to_file(
         &self,
         config_pointers: &ConfigPointers,
-        non_pointer_params: &HashSet<ParamPath>,
+        non_pointer_params: &Pointers,
         file_path: &str,
     ) -> Result<(), ConfigError> {
         let combined_map =
@@ -302,7 +366,7 @@ pub fn ser_pointer_target_required_param(
 pub(crate) fn combine_config_map_and_pointers(
     mut config_map: BTreeMap<ParamPath, SerializedParam>,
     pointers: &ConfigPointers,
-    non_pointer_params: &HashSet<ParamPath>,
+    non_pointer_params: &Pointers,
 ) -> Result<Value, ConfigError> {
     // Update config with target params.
     for ((target_param, serialized_pointer), pointing_params_vec) in pointers {
@@ -332,7 +396,7 @@ pub(crate) fn combine_config_map_and_pointers(
 }
 
 /// Creates a set of pointing params, ensuring no duplications.
-pub fn set_pointing_param_paths(param_path_list: &[&str]) -> HashSet<ParamPath> {
+pub fn set_pointing_param_paths(param_path_list: &[&str]) -> Pointers {
     let mut param_paths = HashSet::new();
     for &param_path in param_path_list {
         assert!(
@@ -344,15 +408,18 @@ pub fn set_pointing_param_paths(param_path_list: &[&str]) -> HashSet<ParamPath> 
     param_paths
 }
 
+/// Prefix for required params description.
+pub(crate) const REQUIRED_PARAM_DESCRIPTION_PREFIX: &str = "A required param!";
+
 pub(crate) fn required_param_description(description: &str) -> String {
-    format!("A required param! {}", description)
+    format!("{} {}", REQUIRED_PARAM_DESCRIPTION_PREFIX, description)
 }
 
 /// Verifies that params whose name matches a pointer target either point at it, or are whitelisted.
 fn verify_pointing_params_by_name(
     config_map: &BTreeMap<ParamPath, SerializedParam>,
     pointers: &ConfigPointers,
-    non_pointer_params: &HashSet<ParamPath>,
+    non_pointer_params: &Pointers,
 ) {
     // Iterate over the config, check that all parameters whose name matches a pointer target either
     // point at it or are in the whitelist.

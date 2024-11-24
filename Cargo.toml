@@ -4,23 +4,11 @@
 resolver = "2"
 
 members = [
-  "crates/batcher",
-  "crates/batcher_types",
   "crates/blockifier",
   "crates/blockifier_reexecution",
   "crates/committer_cli",
-  "crates/consensus_manager",
-  "crates/gateway",
-  "crates/gateway_types",
-  "crates/http_server",
-  "crates/l1-provider",
-  "crates/mempool",
-  "crates/mempool_infra",
-  "crates/mempool_p2p",
-  "crates/mempool_p2p_types",
+  "crates/infra_utils",
   "crates/mempool_test_utils",
-  "crates/mempool_types",
-  "crates/monitoring_endpoint",
   "crates/native_blockifier",
   "crates/papyrus_base_layer",
   "crates/papyrus_common",
@@ -35,21 +23,39 @@ members = [
   "crates/papyrus_proc_macros",
   "crates/papyrus_protobuf",
   "crates/papyrus_rpc",
+  "crates/papyrus_state_reader",
   "crates/papyrus_storage",
   "crates/papyrus_sync",
   "crates/papyrus_test_utils",
-  "crates/sequencer_node",
   "crates/sequencing/papyrus_consensus",
   "crates/sequencing/papyrus_consensus_orchestrator",
   "crates/starknet_api",
+  "crates/starknet_batcher",
+  "crates/starknet_batcher_types",
   "crates/starknet_client",
   "crates/starknet_committer",
+  "crates/starknet_consensus_manager",
+  "crates/starknet_gateway",
+  "crates/starknet_gateway_types",
+  "crates/starknet_http_server",
+  "crates/starknet_integration_tests",
+  "crates/starknet_l1_provider",
+  "crates/starknet_mempool",
+  "crates/starknet_mempool_p2p",
+  "crates/starknet_mempool_p2p_types",
+  "crates/starknet_mempool_types",
+  "crates/starknet_monitoring_endpoint",
   "crates/starknet_patricia",
+  "crates/starknet_sequencer_infra",
+  "crates/starknet_sequencer_node",
   "crates/starknet_sierra_compile",
-  "crates/task_executor",
-  "crates/tests-integration",
+  "crates/starknet_state_sync",
+  "crates/starknet_state_sync_types",
+  "crates/starknet_task_executor",
   "workspace_tests",
 ]
+
+exclude = ["crates/bin/starknet-native-compile"]
 
 [workspace.package]
 version = "0.0.0"
@@ -90,14 +96,14 @@ byteorder = "1.4.3"
 bytes = "1"
 cached = "0.44.0"
 cairo-felt = "0.9.1"
-cairo-lang-casm = "2.8.4"
-cairo-lang-runner = "2.8.4"
-cairo-lang-sierra = "=2.8.4"
-cairo-lang-sierra-to-casm = "2.8.4"
-cairo-lang-starknet-classes = "2.8.4"
-cairo-lang-utils = "2.8.4"
+cairo-lang-casm = "2.9.0-dev.0"
+cairo-lang-runner = "2.9.0-dev.0"
+cairo-lang-sierra = "=2.9.0-dev.0"
+cairo-lang-sierra-to-casm = "2.9.0-dev.0"
+cairo-lang-starknet-classes = "2.9.0-dev.0"
+cairo-lang-utils = "2.9.0-dev.0"
 # Important: when updated, make sure to update the cairo-native submodule as well.
-cairo-native = "0.2.0-alpha.4"
+cairo-native = "0.2.3"
 cairo-vm = "=1.0.1"
 camelpaste = "0.1.0"
 chrono = "0.4.26"
@@ -126,6 +132,7 @@ http-body = "0.4.5"
 human_bytes = "0.4.3"
 hyper = "0.14"
 indexmap = "2.1.0"
+infra_utils = { path = "crates/infra_utils", version = "0.0.0" }
 insta = "1.29.0"
 integer-encoding = "3.0.4"
 itertools = "0.12.1"
@@ -166,6 +173,7 @@ papyrus_p2p_sync = { path = "crates/papyrus_p2p_sync", version = "0.0.0" }
 papyrus_proc_macros = { path = "crates/papyrus_proc_macros", version = "0.0.0" }
 papyrus_protobuf = { path = "crates/papyrus_protobuf", version = "0.0.0" }
 papyrus_rpc = { path = "crates/papyrus_rpc", version = "0.0.0" }
+papyrus_state_reader = { path = "crates/papyrus_state_reader", version = "0.0.0" }
 papyrus_storage = { path = "crates/papyrus_storage", version = "0.0.0" }
 papyrus_sync = { path = "crates/papyrus_sync", version = "0.0.0" }
 papyrus_test_utils = { path = "crates/papyrus_test_utils", version = "0.0.0" }
@@ -205,24 +213,27 @@ starknet-core = "0.6.0"
 starknet-crypto = "0.7.1"
 starknet-types-core = "0.1.6"
 starknet_api = { path = "crates/starknet_api", version = "0.0.0" }
-starknet_batcher = { path = "crates/batcher", version = "0.0.0" }
-starknet_batcher_types = { path = "crates/batcher_types", version = "0.0.0" }
+starknet_batcher = { path = "crates/starknet_batcher", version = "0.0.0" }
+starknet_batcher_types = { path = "crates/starknet_batcher_types", version = "0.0.0" }
 starknet_client = { path = "crates/starknet_client", version = "0.0.0" }
 starknet_committer = { path = "crates/starknet_committer", version = "0.0.0" }
-starknet_consensus_manager = { path = "crates/consensus_manager", version = "0.0.0" }
-starknet_gateway = { path = "crates/gateway", version = "0.0.0" }
-starknet_gateway_types = { path = "crates/gateway_types", version = "0.0.0" }
-starknet_http_server = { path = "crates/http_server", version = "0.0.0" }
-starknet_mempool = { path = "crates/mempool", version = "0.0.0" }
-starknet_mempool_p2p = { path = "crates/mempool_p2p", version = "0.0.0" }
-starknet_mempool_p2p_types = { path = "crates/mempool_p2p_types", version = "0.0.0" }
-starknet_mempool_types = { path = "crates/mempool_types", version = "0.0.0" }
-starknet_monitoring_endpoint = { path = "crates/monitoring_endpoint", version = "0.0.0" }
+starknet_consensus_manager = { path = "crates/starknet_consensus_manager", version = "0.0.0" }
+starknet_gateway = { path = "crates/starknet_gateway", version = "0.0.0" }
+starknet_gateway_types = { path = "crates/starknet_gateway_types", version = "0.0.0" }
+starknet_http_server = { path = "crates/starknet_http_server", version = "0.0.0" }
+starknet_l1_provider = { path = "crates/starknet_l1_provider", version = "0.0.0" }
+starknet_mempool = { path = "crates/starknet_mempool", version = "0.0.0" }
+starknet_mempool_p2p = { path = "crates/starknet_mempool_p2p", version = "0.0.0" }
+starknet_mempool_p2p_types = { path = "crates/starknet_mempool_p2p_types", version = "0.0.0" }
+starknet_mempool_types = { path = "crates/starknet_mempool_types", version = "0.0.0" }
+starknet_monitoring_endpoint = { path = "crates/starknet_monitoring_endpoint", version = "0.0.0" }
 starknet_patricia = { path = "crates/starknet_patricia", version = "0.0.0" }
-starknet_sequencer_infra = { path = "crates/mempool_infra", version = "0.0.0" }
-starknet_sequencer_node = { path = "crates/sequencer_node", version = "0.0.0" }
+starknet_sequencer_infra = { path = "crates/starknet_sequencer_infra", version = "0.0.0" }
+starknet_sequencer_node = { path = "crates/starknet_sequencer_node", version = "0.0.0" }
 starknet_sierra_compile = { path = "crates/starknet_sierra_compile", version = "0.0.0" }
-starknet_task_executor = { path = "crates/task_executor", version = "0.0.0" }
+starknet_state_sync = { path = "crates/starknet_state_sync", version = "0.0.0" }
+starknet_state_sync_types = { path = "crates/starknet_state_sync_types", version = "0.0.0" }
+starknet_task_executor = { path = "crates/starknet_task_executor", version = "0.0.0" }
 static_assertions = "1.1.0"
 statistical = "1.0.0"
 strum = "0.25.0"
@@ -249,14 +260,17 @@ validator = "0.12"
 void = "1.0.2"
 zstd = "0.13.1"
 
+# Note: both rust and clippy lints are warning by default and denied on the CI (see run_tests.py).
+# To deny warnings in local dev env:
+# - In the terminal: add to .bashrc `export RUSTFLAGS="$RUSTFLAGS -Dwarnings"
+# - In vscode, add to settings.json "rust-analyzer.cargo.extraEnv": { "RUSTFLAGS": "-Dwarnings" }`
 [workspace.lints.rust]
-future-incompatible = "deny"
-nonstandard-style = "deny"
-rust-2018-idioms = "deny"
+future-incompatible = "warn"
+nonstandard-style = "warn"
+rust-2018-idioms = "warn"
 # See [here](https://github.com/taiki-e/cargo-llvm-cov/issues/370) for a discussion on why this is
 # needed (from rust 1.80).
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }
-warnings = "deny"
 
 [workspace.lints.clippy]
-as_conversions = "deny"
+as_conversions = "warn"

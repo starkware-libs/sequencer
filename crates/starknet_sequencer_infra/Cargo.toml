@@ -1,0 +1,31 @@
+[package]
+name = "starknet_sequencer_infra"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+
+
+[features]
+testing = []
+
+[lints]
+workspace = true
+
+[dependencies]
+async-trait.workspace = true
+bincode.workspace = true
+hyper = { workspace = true, features = ["client", "http2", "server", "tcp"] }
+papyrus_config.workspace = true
+rstest.workspace = true
+serde = { workspace = true, features = ["derive"] }
+thiserror.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+tracing.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+validator.workspace = true
+
+[dev-dependencies]
+assert_matches.workspace = true
+pretty_assertions.workspace = true
+starknet-types-core.workspace = true

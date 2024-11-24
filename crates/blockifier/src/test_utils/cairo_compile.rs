@@ -71,10 +71,10 @@ fn local_cairo1_compiler_repo_path() -> PathBuf {
     // Location of blockifier's Cargo.toml.
     let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
 
-    Path::new(&manifest_dir).join(match std::env::var(CAIRO1_REPO_RELATIVE_PATH_OVERRIDE_ENV_VAR) {
-        Ok(cairo1_repo_relative_path) => cairo1_repo_relative_path,
-        Err(_) => DEFAULT_CAIRO1_REPO_RELATIVE_PATH.into(),
-    })
+    Path::new(&manifest_dir).join(
+        env::var(CAIRO1_REPO_RELATIVE_PATH_OVERRIDE_ENV_VAR)
+            .unwrap_or_else(|_| DEFAULT_CAIRO1_REPO_RELATIVE_PATH.into()),
+    )
 }
 
 /// Runs a command. If it has succeeded, it returns the command's output; otherwise, it panics with
@@ -111,15 +111,47 @@ pub fn cairo1_compile(
     git_tag_override: Option<String>,
     cargo_nightly_arg: Option<String>,
 ) -> Vec<u8> {
+    let mut base_compile_args = vec![];
+
+    let sierra_output =
+        starknet_compile(path, git_tag_override, cargo_nightly_arg, &mut base_compile_args);
+
+    let mut temp_file = NamedTempFile::new().unwrap();
+    temp_file.write_all(&sierra_output).unwrap();
+    let temp_path_str = temp_file.into_temp_path();
+
+    // Sierra -> CASM.
+    let mut sierra_compile_command = Command::new("cargo");
+    sierra_compile_command.args(base_compile_args);
+    sierra_compile_command.args([
+        "starknet-sierra-compile",
+        temp_path_str.to_str().unwrap(),
+        "--allowed-libfuncs-list-name",
+        "all",
+    ]);
+    let casm_output = run_and_verify_output(&mut sierra_compile_command);
+
+    casm_output.stdout
+}
+
+/// Compile Cairo1 Contract into their Sierra version using the compiler version set in the
+/// Cargo.toml
+pub fn starknet_compile(
+    path: String,
+    git_tag_override: Option<String>,
+    cargo_nightly_arg: Option<String>,
+    base_compile_args: &mut Vec<String>,
+) -> Vec<u8> {
     prepare_cairo1_compiler_deps(git_tag_override);
+
     let cairo1_compiler_path = local_cairo1_compiler_repo_path();
 
     // Command args common to both compilation phases.
-    let mut base_compile_args = vec![
+    base_compile_args.extend(vec![
         "run".into(),
         format!("--manifest-path={}/Cargo.toml", cairo1_compiler_path.to_string_lossy()),
         "--bin".into(),
-    ];
+    ]);
     // Add additional cargo arg if provided. Should be first arg (base command is `cargo`).
     if let Some(nightly_version) = cargo_nightly_arg {
         base_compile_args.insert(0, format!("+nightly-{nightly_version}"));
@@ -128,20 +160,17 @@ pub fn cairo1_compile(
     // Cairo -> Sierra.
     let mut starknet_compile_commmand = Command::new("cargo");
     starknet_compile_commmand.args(base_compile_args.clone());
-    starknet_compile_commmand.args(["starknet-compile", "--", "--single-file", &path]);
+    starknet_compile_commmand.args([
+        "starknet-compile",
+        "--",
+        "--single-file",
+        &path,
+        "--allowed-libfuncs-list-name",
+        "all",
+    ]);
     let sierra_output = run_and_verify_output(&mut starknet_compile_commmand);
 
-    let mut temp_file = NamedTempFile::new().unwrap();
-    temp_file.write_all(&sierra_output.stdout).unwrap();
-    let temp_path_str = temp_file.into_temp_path();
-
-    // Sierra -> CASM.
-    let mut sierra_compile_command = Command::new("cargo");
-    sierra_compile_command.args(base_compile_args);
-    sierra_compile_command.args(["starknet-sierra-compile", temp_path_str.to_str().unwrap()]);
-    let casm_output = run_and_verify_output(&mut sierra_compile_command);
-
-    casm_output.stdout
+    sierra_output.stdout
 }
 
 /// Verifies that the required dependencies are available before compiling; panics if unavailable.
