@@ -29,6 +29,8 @@ fn tx_generator() -> MultiAccountTransactionGenerator {
 #[rstest]
 #[tokio::test]
 async fn end_to_end(mut tx_generator: MultiAccountTransactionGenerator) {
+    starknet_sequencer_infra::trace_util::configure_tracing();
+
     const LISTEN_TO_BROADCAST_MESSAGES_TIMEOUT: std::time::Duration =
         std::time::Duration::from_secs(5);
     // Setup.

@@ -7,13 +7,14 @@ use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::CairoVersion;
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use papyrus_consensus::config::ConsensusConfig;
+use papyrus_consensus::types::ValidatorId;
 use papyrus_network::network_manager::test_utils::create_network_configs_connected_to_broadcast_channels;
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::ProposalPart;
 use papyrus_storage::StorageConfig;
 use starknet_api::block::BlockNumber;
 use starknet_api::contract_address;
-use starknet_api::core::ContractAddress;
+use starknet_api::core::{ChainId, ContractAddress};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_batcher::block_builder::BlockBuilderConfig;
@@ -26,9 +27,16 @@ use starknet_gateway::config::{
     StatelessTransactionValidatorConfig,
 };
 use starknet_http_server::config::HttpServerConfig;
+use starknet_mempool_p2p::config::MempoolP2pConfig;
+use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_sequencer_infra::test_utils::get_available_socket;
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::config::test_utils::RequiredParams;
+use starknet_types_core::felt::Felt;
+
+// Currently the orchestrator expects the sequencer addresses in the form of [0..n_sequencers).
+// TODO(yair): Change this offset to be a non-zero value once the orchestrator is updated.
+pub const SEQUENCER_ADDRESS_OFFSET: usize = 0;
 
 pub fn create_chain_info() -> ChainInfo {
     let mut chain_info = ChainInfo::create_for_testing();
@@ -38,19 +46,24 @@ pub fn create_chain_info() -> ChainInfo {
     chain_info
 }
 
+// TODO(yair, Tsabary): Create config presets for tests.
 pub async fn create_config(
+    sequencer_id: usize,
     chain_info: ChainInfo,
     rpc_server_addr: SocketAddr,
     batcher_storage_config: StorageConfig,
-) -> (SequencerNodeConfig, RequiredParams, BroadcastTopicChannels<ProposalPart>) {
+    mut consensus_manager_config: ConsensusManagerConfig,
+) -> (SequencerNodeConfig, RequiredParams) {
+    set_validator_id(&mut consensus_manager_config, sequencer_id);
     let fee_token_addresses = chain_info.fee_token_addresses.clone();
     let batcher_config = create_batcher_config(batcher_storage_config, chain_info.clone());
     let gateway_config = create_gateway_config(chain_info.clone()).await;
     let http_server_config = create_http_server_config().await;
     let rpc_state_reader_config = test_rpc_state_reader_config(rpc_server_addr);
-    let (mut consensus_manager_configs, consensus_proposals_channels) =
-        create_consensus_manager_configs_and_channels(1);
-    let consensus_manager_config = consensus_manager_configs.pop().unwrap();
+    let mempool_p2p_config = create_mempool_p2p_config(sequencer_id, chain_info.chain_id.clone());
+    let monitoring_endpoint_config = create_monitoring_endpoint_config(sequencer_id);
+    let sequencer_address = create_sequencer_address(sequencer_id);
+
     (
         SequencerNodeConfig {
             batcher_config,
@@ -58,19 +71,20 @@ pub async fn create_config(
             gateway_config,
             http_server_config,
             rpc_state_reader_config,
-            ..SequencerNodeConfig::default()
+            mempool_p2p_config,
+            monitoring_endpoint_config,
+            ..Default::default()
         },
         RequiredParams {
             chain_id: chain_info.chain_id,
             eth_fee_token_address: fee_token_addresses.eth_fee_token_address,
             strk_fee_token_address: fee_token_addresses.strk_fee_token_address,
-            sequencer_address: ContractAddress::from(1312_u128), // Arbitrary non-zero value.
+            sequencer_address,
         },
-        consensus_proposals_channels,
     )
 }
 
-fn create_consensus_manager_configs_and_channels(
+pub fn create_consensus_manager_configs_and_channels(
     n_managers: usize,
 ) -> (Vec<ConsensusManagerConfig>, BroadcastTopicChannels<ProposalPart>) {
     let (network_configs, broadcast_channels) =
@@ -88,6 +102,7 @@ fn create_consensus_manager_configs_and_channels(
                 start_height: BlockNumber(1),
                 consensus_delay: Duration::from_secs(1),
                 network_config,
+                num_validators: u64::try_from(n_managers).unwrap(),
                 ..Default::default()
             },
         })
@@ -233,4 +248,32 @@ pub fn create_batcher_config(
         },
         ..Default::default()
     }
+}
+
+fn set_validator_id(consensus_manager_config: &mut ConsensusManagerConfig, sequencer_id: usize) {
+    consensus_manager_config.consensus_config.validator_id = ValidatorId::try_from(
+        Felt::from(consensus_manager_config.consensus_config.validator_id)
+            + Felt::from(sequencer_id),
+    )
+    .unwrap();
+}
+
+fn create_sequencer_address(sequencer_id: usize) -> ContractAddress {
+    ContractAddress::from(u128::try_from(SEQUENCER_ADDRESS_OFFSET + sequencer_id).unwrap())
+}
+
+fn create_mempool_p2p_config(sequencer_id: usize, chain_id: ChainId) -> MempoolP2pConfig {
+    let mut config = MempoolP2pConfig::default();
+    // When running multiple sequencers on the same machine, we need to make sure their ports are
+    // different. Use the sequencer_id to differentiate between them.
+    config.network_config.tcp_port += u16::try_from(sequencer_id).unwrap();
+    config.network_config.quic_port += u16::try_from(sequencer_id).unwrap();
+    config.network_config.chain_id = chain_id;
+    config
+}
+
+fn create_monitoring_endpoint_config(sequencer_id: usize) -> MonitoringEndpointConfig {
+    let mut config = MonitoringEndpointConfig::default();
+    config.port += u16::try_from(sequencer_id).unwrap();
+    config
 }
