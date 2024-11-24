@@ -1,4 +1,4 @@
-use blockifier::blockifier::block::{BlockInfo, GasPrices};
+use blockifier::blockifier::block::{gas_prices, BlockInfo};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use starknet_api::block::{BlockHash, BlockNumber, BlockTimestamp, GasPrice, NonzeroGasPrice};
@@ -86,7 +86,7 @@ impl TryInto<BlockInfo> for BlockHeader {
             block_number: self.block_number,
             sequencer_address: self.sequencer_address,
             block_timestamp: self.timestamp,
-            gas_prices: GasPrices::safe_new(
+            gas_prices: gas_prices(
                 parse_gas_price(self.l1_gas_price.price_in_wei)?,
                 parse_gas_price(self.l1_gas_price.price_in_fri)?,
                 parse_gas_price(self.l1_data_gas_price.price_in_wei)?,

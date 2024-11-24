@@ -21,7 +21,7 @@ use super::{
     TEST_ERC20_CONTRACT_ADDRESS2,
     TEST_SEQUENCER_ADDRESS,
 };
-use crate::blockifier::block::{BlockInfo, GasPrices};
+use crate::blockifier::block::{gas_prices, BlockInfo};
 use crate::bouncer::{BouncerConfig, BouncerWeights, BuiltinCount};
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
@@ -152,7 +152,7 @@ impl BlockInfo {
             block_number: BlockNumber(CURRENT_BLOCK_NUMBER),
             block_timestamp: BlockTimestamp(CURRENT_BLOCK_TIMESTAMP),
             sequencer_address: contract_address!(TEST_SEQUENCER_ADDRESS),
-            gas_prices: GasPrices::safe_new(
+            gas_prices: gas_prices(
                 DEFAULT_ETH_L1_GAS_PRICE,
                 DEFAULT_STRK_L1_GAS_PRICE,
                 DEFAULT_ETH_L1_DATA_GAS_PRICE,

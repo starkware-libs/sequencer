@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use async_trait::async_trait;
-use blockifier::blockifier::block::{BlockInfo, GasPrices};
+use blockifier::blockifier::block::{gas_prices, BlockInfo};
 use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::{
     TransactionExecutor,
@@ -312,7 +312,7 @@ impl BlockBuilderFactory {
             // TODO (yael 7/10/2024): add logic to compute gas prices
             gas_prices: {
                 let tmp_val = NonzeroGasPrice::MIN;
-                GasPrices::safe_new(tmp_val, tmp_val, tmp_val, tmp_val, tmp_val, tmp_val)
+                gas_prices(tmp_val, tmp_val, tmp_val, tmp_val, tmp_val, tmp_val)
             },
             use_kzg_da: block_builder_config.use_kzg_da,
         };

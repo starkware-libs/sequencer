@@ -21,7 +21,7 @@ use crate::data_availability::L1DataAvailabilityMode;
 use crate::execution_resources::GasAmount;
 use crate::hash::StarkHash;
 use crate::serde_utils::{BytesAsHex, PrefixedBytesAsHex};
-use crate::transaction::fields::Fee;
+use crate::transaction::fields::{Fee, FeeType};
 use crate::transaction::{Transaction, TransactionHash, TransactionOutput};
 use crate::StarknetApiError;
 
@@ -442,6 +442,55 @@ pub struct GasPriceVector {
     pub l1_gas_price: NonzeroGasPrice,
     pub l1_data_gas_price: NonzeroGasPrice,
     pub l2_gas_price: NonzeroGasPrice,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct GasPrices {
+    eth_gas_prices: GasPriceVector,  // In wei.
+    strk_gas_prices: GasPriceVector, // In fri.
+}
+
+impl GasPrices {
+    pub fn new(
+        eth_l1_gas_price: NonzeroGasPrice,
+        strk_l1_gas_price: NonzeroGasPrice,
+        eth_l1_data_gas_price: NonzeroGasPrice,
+        strk_l1_data_gas_price: NonzeroGasPrice,
+        eth_l2_gas_price: NonzeroGasPrice,
+        strk_l2_gas_price: NonzeroGasPrice,
+    ) -> Self {
+        Self {
+            eth_gas_prices: GasPriceVector {
+                l1_gas_price: eth_l1_gas_price,
+                l1_data_gas_price: eth_l1_data_gas_price,
+                l2_gas_price: eth_l2_gas_price,
+            },
+            strk_gas_prices: GasPriceVector {
+                l1_gas_price: strk_l1_gas_price,
+                l1_data_gas_price: strk_l1_data_gas_price,
+                l2_gas_price: strk_l2_gas_price,
+            },
+        }
+    }
+
+    pub fn get_l1_gas_price_by_fee_type(&self, fee_type: &FeeType) -> NonzeroGasPrice {
+        self.get_gas_prices_by_fee_type(fee_type).l1_gas_price
+    }
+
+    pub fn get_l1_data_gas_price_by_fee_type(&self, fee_type: &FeeType) -> NonzeroGasPrice {
+        self.get_gas_prices_by_fee_type(fee_type).l1_data_gas_price
+    }
+
+    pub fn get_l2_gas_price_by_fee_type(&self, fee_type: &FeeType) -> NonzeroGasPrice {
+        self.get_gas_prices_by_fee_type(fee_type).l2_gas_price
+    }
+
+    pub fn get_gas_prices_by_fee_type(&self, fee_type: &FeeType) -> &GasPriceVector {
+        match fee_type {
+            FeeType::Strk => &self.strk_gas_prices,
+            FeeType::Eth => &self.eth_gas_prices,
+        }
+    }
 }
 
 /// The timestamp of a [Block](`crate::block::Block`).

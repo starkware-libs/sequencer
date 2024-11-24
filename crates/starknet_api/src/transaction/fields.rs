@@ -464,3 +464,9 @@ impl AccountDeploymentData {
         self.0.is_empty()
     }
 }
+
+#[derive(Clone, Copy, Hash, EnumIter, Eq, PartialEq)]
+pub enum FeeType {
+    Strk,
+    Eth,
+}

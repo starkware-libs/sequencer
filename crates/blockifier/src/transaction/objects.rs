@@ -5,6 +5,7 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::execution_resources::GasVector;
+pub use starknet_api::transaction::fields::FeeType;
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
@@ -22,7 +23,6 @@ use starknet_api::transaction::{
     TransactionOptions,
     TransactionVersion,
 };
-use strum_macros::EnumIter;
 
 use crate::abi::constants as abi_constants;
 use crate::blockifier::block::BlockInfo;
@@ -277,12 +277,6 @@ pub trait HasRelatedFeeType {
     fn get_fee_by_gas_vector(&self, block_info: &BlockInfo, gas_vector: GasVector) -> Fee {
         get_fee_by_gas_vector(block_info, gas_vector, &self.fee_type())
     }
-}
-
-#[derive(Clone, Copy, Hash, EnumIter, Eq, PartialEq)]
-pub enum FeeType {
-    Strk,
-    Eth,
 }
 
 pub trait TransactionInfoCreator {
