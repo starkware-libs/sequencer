@@ -93,7 +93,7 @@ fn test_library_call_assert_fails(cairo_version: CairoVersion) {
                 // 'ENTRYPOINT_FAILED'.
                 felt!("0x454e545259504f494e545f4641494c4544")
             ]),
-            gas_consumed: 150980,
+            gas_consumed: 100980,
             failed: true,
             ..Default::default()
         }
@@ -133,7 +133,7 @@ fn test_nested_library_call(cairo_version: CairoVersion) {
         class_hash: Some(test_class_hash),
         code_address: None,
         call_type: CallType::Delegate,
-        initial_gas: 9998985960,
+        initial_gas: 9999085960,
         ..trivial_external_entry_point_new(test_contract)
     };
     let library_entry_point = CallEntryPoint {
@@ -148,12 +148,12 @@ fn test_nested_library_call(cairo_version: CairoVersion) {
         class_hash: Some(test_class_hash),
         code_address: None,
         call_type: CallType::Delegate,
-        initial_gas: 9999136940,
+        initial_gas: 9999186940,
         ..trivial_external_entry_point_new(test_contract)
     };
     let storage_entry_point = CallEntryPoint {
         calldata: calldata![felt!(key), felt!(value)],
-        initial_gas: 9998834320,
+        initial_gas: 9998984320,
         ..nested_storage_entry_point
     };
 
@@ -243,7 +243,7 @@ fn test_nested_library_call(cairo_version: CairoVersion) {
         call: main_entry_point.clone(),
         execution: CallExecution {
             retdata: retdata![felt!(value)],
-            gas_consumed: 475110,
+            gas_consumed: 325110,
             ..CallExecution::default()
         },
         charged_resources: main_call_resources,
