@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use chrono::prelude::*;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockHashAndNumber, BlockNumber};
+use starknet_api::block::{BlockHashAndNumber, BlockInfo, BlockNumber};
 use starknet_api::core::StateDiffCommitment;
 use starknet_api::executable_transaction::Transaction;
 
@@ -35,9 +35,8 @@ pub struct ProposeBlockInput {
     pub proposal_id: ProposalId,
     pub deadline: chrono::DateTime<Utc>,
     pub retrospective_block_hash: Option<BlockHashAndNumber>,
-    // TODO: Should we get the gas price here?
-    // TODO: add proposer address.
-    // TODO: add whether the kzg mechanism is used for DA.
+    // TODO: Fill block info.
+    pub block_info: BlockInfo,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -63,6 +62,8 @@ pub struct ValidateBlockInput {
     pub proposal_id: ProposalId,
     pub deadline: chrono::DateTime<Utc>,
     pub retrospective_block_hash: Option<BlockHashAndNumber>,
+    // TODO: Fill block info.
+    pub block_info: BlockInfo,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -92,7 +93,7 @@ pub enum ProposalStatus {
     // Only sent in response to `Abort`.
     Aborted,
     // May be caused due to handling of a previous item of the new proposal.
-    // In this case, the propsal is aborted and no additional content will be processed.
+    // In this case, the proposal is aborted and no additional content will be processed.
     InvalidProposal,
 }
 
