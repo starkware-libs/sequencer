@@ -11,11 +11,12 @@ RUN cargo build --release --package starknet_sequencer_node
 FROM base AS sequencer
 
 ENV ID=1000
-WORKDIR /app
-COPY --from=builder /target/release/starknet_sequencer_node /app/target/release/starknet_sequencer_node
+ENV OUT_DIR="/app/target/release/1/2/3"
 
-# Copy sequencer config
-COPY config/sequencer config/sequencer
+WORKDIR /app
+COPY --from=builder /target/release/shared_executables /app/target/release/shared_executables
+COPY --from=builder /target/release/starknet_sequencer_node /app/target/release/starknet_sequencer_node
+COPY config/ config/
 
 # Create a new user "sequencer".
 RUN set -ex; \
