@@ -230,7 +230,7 @@ func test_bad_call_address{syscall_ptr: felt*}() {
 func test_bad_syscall_request_arg_type{syscall_ptr: felt*}() {
     assert syscall_ptr[0] = CALL_CONTRACT_SELECTOR;
     // Contract address.
-    assert syscall_ptr[1] = 0;
+    assert syscall_ptr[1] = 25;
     // Function selector.
     assert syscall_ptr[2] = 0;
     // Calldata size.

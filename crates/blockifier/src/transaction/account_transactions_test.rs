@@ -18,7 +18,6 @@ use starknet_api::executable_transaction::{
     DeclareTransaction as ApiExecutableDeclareTransaction,
 };
 use starknet_api::execution_resources::GasAmount;
-use starknet_api::hash::StarkHash;
 use starknet_api::state::StorageKey;
 use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::test_utils::NonceManager;
@@ -338,7 +337,7 @@ fn test_invoke_tx_from_non_deployed_account(
     // Invoke a function from the newly deployed contract.
     let entry_point_selector = selector_from_name("return_result");
 
-    let non_deployed_contract_address = StarkHash::TWO;
+    let non_deployed_contract_address = Felt::from(22);
 
     let tx_result = run_invoke_tx(
         &mut state,

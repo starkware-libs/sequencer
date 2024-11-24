@@ -39,7 +39,7 @@ fn global_contract_cache_update() {
     let temp_storage_path = tempfile::tempdir().unwrap().into_path();
     let mut block_executor = PyBlockExecutor::create_for_testing(
         PyConcurrencyConfig::default(),
-        PyOsConfig::default(),
+        PyOsConfig::create_for_testing(),
         temp_storage_path,
         4000,
     );
@@ -63,7 +63,11 @@ fn global_contract_cache_update() {
     let sentinel_block_number_and_hash = None; // Information does not exist for block 0.
     block_executor
         .setup_block_execution(
-            PyBlockInfo { block_number: 1, ..PyBlockInfo::default() },
+            PyBlockInfo {
+                block_number: 1,
+                sequencer_address: PyFelt::from(19_u8),
+                ..PyBlockInfo::default()
+            },
             sentinel_block_number_and_hash,
         )
         .unwrap();
@@ -119,7 +123,7 @@ fn global_contract_cache_update_large_contract() {
     let temp_storage_path = tempfile::tempdir().unwrap().into_path();
     let mut block_executor = PyBlockExecutor::native_create_for_testing(
         Default::default(),
-        Default::default(),
+        PyOsConfig::create_for_testing(),
         temp_storage_path,
         4000,
     );

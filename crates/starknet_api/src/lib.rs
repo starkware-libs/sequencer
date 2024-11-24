@@ -25,6 +25,7 @@ pub mod type_utils;
 
 use std::num::ParseIntError;
 
+use hash::StarkHash;
 use serde_utils::InnerDeserializationError;
 
 use crate::transaction::TransactionVersion;
@@ -65,6 +66,8 @@ pub enum StarknetApiError {
          version {cairo_version:?}.", **declare_version
     )]
     ContractClassVersionMismatch { declare_version: TransactionVersion, cairo_version: u64 },
+    #[error("Invalid contract address, must be < 16, as these addresses are reserved. Got {0}")]
+    ReservedContractAddress(StarkHash),
 }
 
 pub type StarknetApiResult<T> = Result<T, StarknetApiError>;

@@ -138,6 +138,8 @@ impl From<u128> for ContractAddress {
 
 impl_from_through_intermediate!(u128, ContractAddress, u8, u16, u32, u64);
 
+/// The maximal contract address of reserved contracts.
+pub const MAX_RESERVED_CONTRACT_ADDRESS: u128 = 15;
 /// The maximal size of storage var.
 pub const MAX_STORAGE_ITEM_SIZE: u16 = 256;
 /// The prefix used in the calculation of a contract address.
@@ -152,6 +154,9 @@ pub static L2_ADDRESS_UPPER_BOUND: LazyLock<NonZeroFelt> = LazyLock::new(|| {
 impl TryFrom<StarkHash> for ContractAddress {
     type Error = StarknetApiError;
     fn try_from(hash: StarkHash) -> Result<Self, Self::Error> {
+        if hash <= MAX_RESERVED_CONTRACT_ADDRESS.into() {
+            return Err(Self::Error::ReservedContractAddress(hash));
+        }
         Ok(Self(PatriciaKey::try_from(hash)?))
     }
 }

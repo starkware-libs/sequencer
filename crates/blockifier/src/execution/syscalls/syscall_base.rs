@@ -38,7 +38,6 @@ pub fn get_block_hash_base(
     }
 
     let key = StorageKey::try_from(Felt::from(requested_block_number))?;
-    let block_hash_contract_address =
-        ContractAddress::try_from(Felt::from(constants::BLOCK_HASH_CONTRACT_ADDRESS))?;
+    let block_hash_contract_address = ContractAddress::from(constants::BLOCK_HASH_CONTRACT_ADDRESS);
     Ok(state.get_storage_at(block_hash_contract_address, key)?)
 }

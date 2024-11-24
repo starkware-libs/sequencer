@@ -7,7 +7,7 @@ use starknet_api::{calldata, felt};
 use starknet_types_core::felt::Felt;
 use test_case::test_case;
 
-use crate::abi::constants;
+use crate::abi::constants::{self, BLOCK_HASH_CONTRACT_ADDRESS};
 use crate::context::ChainInfo;
 use crate::execution::call_info::CallExecution;
 use crate::execution::entry_point::CallEntryPoint;
@@ -33,8 +33,7 @@ fn initialize_state(test_contract: FeatureContract) -> (CachedState<DictStateRea
     let block_number = felt!(upper_bound_block_number);
     let block_hash = felt!(66_u64);
     let key = StorageKey::try_from(block_number).unwrap();
-    let block_hash_contract_address =
-        ContractAddress::try_from(Felt::from(constants::BLOCK_HASH_CONTRACT_ADDRESS)).unwrap();
+    let block_hash_contract_address = ContractAddress::from(BLOCK_HASH_CONTRACT_ADDRESS);
     state.set_storage_at(block_hash_contract_address, key, block_hash).unwrap();
 
     (state, block_number, block_hash)

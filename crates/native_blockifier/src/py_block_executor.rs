@@ -454,6 +454,14 @@ impl PyOsConfig {
     pub fn into_chain_info(self) -> ChainInfo {
         ChainInfo::try_from(self).expect("Failed to convert chain info.")
     }
+
+    pub fn create_for_testing() -> Self {
+        Self {
+            chain_id: ChainId::Other("".to_string()),
+            deprecated_fee_token_address: PyFelt::from(19_u8),
+            fee_token_address: PyFelt::from(19_u8),
+        }
+    }
 }
 
 impl TryFrom<PyOsConfig> for ChainInfo {
@@ -471,16 +479,6 @@ impl TryFrom<PyOsConfig> for ChainInfo {
                 )?,
             },
         })
-    }
-}
-
-impl Default for PyOsConfig {
-    fn default() -> Self {
-        Self {
-            chain_id: ChainId::Other("".to_string()),
-            deprecated_fee_token_address: Default::default(),
-            fee_token_address: Default::default(),
-        }
     }
 }
 

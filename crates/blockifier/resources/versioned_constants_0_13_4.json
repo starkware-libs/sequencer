@@ -235,10 +235,10 @@
                 "n_memory_holes": 0
             },
             "Deploy": {
-                "n_steps": 1132,
+                "n_steps": 1158,
                 "builtin_instance_counter": {
                     "pedersen_builtin": 7,
-                    "range_check_builtin": 18
+                    "range_check_builtin": 22
                 },
                 "n_memory_holes": 0
             },
