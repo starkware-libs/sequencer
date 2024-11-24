@@ -6,20 +6,51 @@ repository.workspace = true
 license.workspace = true
 
 [features]
-testing = ["papyrus_proc_macros", "thiserror"]
+testing = [
+  "axum",
+  "blockifier",
+  "cairo-lang-starknet-classes",
+  "indexmap",
+  "mempool_test_utils",
+  "papyrus_common",
+  "papyrus_consensus",
+  "papyrus_execution",
+  "papyrus_network/testing",
+  "papyrus_proc_macros",
+  "papyrus_protobuf",
+  "papyrus_rpc",
+  "papyrus_storage/testing",
+  "reqwest",
+  "starknet_task_executor",
+  "strum",
+  "tempfile",
+  "thiserror",
+]
 
 [lints]
 workspace = true
 
 [dependencies]
 anyhow.workspace = true
+axum = { workspace = true, optional = true }
+blockifier = { workspace = true, optional = true }
+cairo-lang-starknet-classes = { workspace = true, optional = true }
 clap.workspace = true
 const_format.workspace = true
 futures.workspace = true
+indexmap = { workspace = true, optional = true }
 infra_utils.workspace = true
+mempool_test_utils = { workspace = true, optional = true }
+papyrus_common = { workspace = true, optional = true }
 papyrus_config.workspace = true
+papyrus_consensus = { workspace = true, optional = true }
+papyrus_execution = { workspace = true, optional = true }
+papyrus_network = { workspace = true, features = ["testing"] }
 papyrus_proc_macros = { workspace = true, optional = true }
-rstest.workspace = true
+papyrus_protobuf = { workspace = true, optional = true }
+papyrus_rpc = { workspace = true, optional = true }
+papyrus_storage = { workspace = true, features = ["testing"] }
+reqwest = { workspace = true, optional = true }
 serde.workspace = true
 starknet_api.workspace = true
 starknet_batcher.workspace = true
@@ -35,6 +66,9 @@ starknet_mempool_types.workspace = true
 starknet_monitoring_endpoint.workspace = true
 starknet_sequencer_infra.workspace = true
 starknet_sierra_compile.workspace = true
+starknet_task_executor = { workspace = true, optional = true }
+strum = { workspace = true, optional = true }
+tempfile = { workspace = true, optional = true }
 thiserror = { workspace = true, optional = true }
 tokio.workspace = true
 tracing.workspace = true
@@ -45,8 +79,18 @@ assert-json-diff.workspace = true
 assert_matches.workspace = true
 colored.workspace = true
 infra_utils.workspace = true
-mempool_test_utils.workspace = true
 pretty_assertions.workspace = true
+rstest.workspace = true
 serde_json.workspace = true
-# Enable self with "testing" feature in tests.
+starknet-types-core.workspace = true
+starknet_api.workspace = true
+starknet_batcher.workspace = true
+starknet_client.workspace = true
+starknet_consensus_manager.workspace = true
+starknet_gateway = { workspace = true, features = ["testing"] }
+starknet_gateway_types.workspace = true
+starknet_http_server.workspace = true
+starknet_mempool_p2p.workspace = true
+starknet_monitoring_endpoint = { workspace = true, features = ["testing"] }
+starknet_sequencer_infra = { workspace = true, features = ["testing"] }
 starknet_sequencer_node = { workspace = true, features = ["testing"] }
