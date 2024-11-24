@@ -1,11 +1,10 @@
 use std::collections::HashMap;
 
 use assert_matches::assert_matches;
-use blockifier::blockifier::block::BlockInfo;
 use blockifier::state::cached_state::StateMaps;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockInfo, BlockNumber};
 use starknet_api::test_utils::read_json_file;
 use starknet_api::transaction::{
     DeclareTransaction,
