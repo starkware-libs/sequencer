@@ -1,10 +1,8 @@
 use log::warn;
-use serde::{Deserialize, Serialize};
 pub use starknet_api::block::GasPrices;
 use starknet_api::block::{
     BlockHashAndNumber,
     BlockNumber,
-    BlockTimestamp,
     GasPrice,
     GasPriceVector,
     NonzeroGasPrice,
@@ -21,17 +19,6 @@ use crate::versioned_constants::VersionedConstants;
 #[cfg(test)]
 #[path = "block_test.rs"]
 pub mod block_test;
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct BlockInfo {
-    pub block_number: BlockNumber,
-    pub block_timestamp: BlockTimestamp,
-
-    // Fee-related.
-    pub sequencer_address: ContractAddress,
-    pub gas_prices: GasPrices,
-    pub use_kzg_da: bool,
-}
 
 /// Warns if the submitted gas prices do not match the expected gas prices.
 fn validate_l2_gas_price(gas_prices: &GasPrices) {

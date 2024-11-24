@@ -10,7 +10,7 @@ use cairo_lang_starknet_classes::contract_class::ContractClass as SierraContract
 #[cfg(feature = "cairo_native")]
 use cairo_native::executor::AotContractExecutor;
 use serde_json::Value;
-use starknet_api::block::{BlockNumber, BlockTimestamp, NonzeroGasPrice};
+use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp, NonzeroGasPrice};
 use starknet_api::contract_address;
 use starknet_api::core::{ChainId, ClassHash};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
@@ -21,7 +21,7 @@ use super::{
     TEST_ERC20_CONTRACT_ADDRESS2,
     TEST_SEQUENCER_ADDRESS,
 };
-use crate::blockifier::block::{gas_prices, BlockInfo};
+use crate::blockifier::block::gas_prices;
 use crate::bouncer::{BouncerConfig, BouncerWeights, BuiltinCount};
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
@@ -146,8 +146,13 @@ impl ChainInfo {
     }
 }
 
-impl BlockInfo {
-    pub fn create_for_testing() -> Self {
+pub trait BlockInfoExt {
+    fn create_for_testing() -> Self;
+    fn create_for_testing_with_kzg(use_kzg_da: bool) -> Self;
+}
+
+impl BlockInfoExt for BlockInfo {
+    fn create_for_testing() -> Self {
         Self {
             block_number: BlockNumber(CURRENT_BLOCK_NUMBER),
             block_timestamp: BlockTimestamp(CURRENT_BLOCK_TIMESTAMP),
@@ -172,7 +177,7 @@ impl BlockInfo {
         }
     }
 
-    pub fn create_for_testing_with_kzg(use_kzg_da: bool) -> Self {
+    fn create_for_testing_with_kzg(use_kzg_da: bool) -> Self {
         Self { use_kzg_da, ..Self::create_for_testing() }
     }
 }

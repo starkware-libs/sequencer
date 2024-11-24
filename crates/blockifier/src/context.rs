@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
-use starknet_api::block::GasPriceVector;
+use starknet_api::block::{BlockInfo, GasPriceVector};
 use starknet_api::core::{ChainId, ContractAddress};
 use starknet_api::transaction::fields::{
     AllResourceBounds,
@@ -11,7 +11,6 @@ use starknet_api::transaction::fields::{
     ValidResourceBounds,
 };
 
-use crate::blockifier::block::BlockInfo;
 use crate::bouncer::BouncerConfig;
 use crate::transaction::objects::{
     CurrentTransactionInfo,
