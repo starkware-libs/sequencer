@@ -8,6 +8,9 @@ license-file.workspace = true
 [lints]
 workspace = true
 
+[features]
+testing = ["tar", "tempfile"]
+
 [dependencies]
 alloy-contract.workspace = true
 alloy-dyn-abi.workspace = true
@@ -24,6 +27,8 @@ serde.workspace = true
 serde_json.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
+tar = { workspace = true, optional = true }
+tempfile = { workspace = true, optional = true }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full", "sync"] }
 url = { workspace = true, features = ["serde"] }
@@ -33,5 +38,3 @@ ethers-core.workspace = true
 pretty_assertions.workspace = true
 starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
-tar.workspace = true
-tempfile.workspace = true
