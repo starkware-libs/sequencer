@@ -10438,6 +10438,7 @@ dependencies = [
  "cairo-lang-starknet-classes",
  "futures",
  "indexmap 2.6.0",
+ "infra_utils",
  "mempool_test_utils",
  "papyrus_common",
  "papyrus_consensus",

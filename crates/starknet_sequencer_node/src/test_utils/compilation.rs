@@ -4,6 +4,8 @@ use std::process::{ExitStatus, Stdio};
 use infra_utils::command::create_shell_command;
 use tracing::info;
 
+pub const NODE_EXECUTABLE_PATH: &str = "target/debug/starknet_sequencer_node";
+
 #[cfg(test)]
 #[path = "compilation_test.rs"]
 mod compilation_test;
@@ -18,7 +20,10 @@ pub enum NodeCompilationError {
 
 /// Compiles the node using `cargo build` for testing purposes.
 async fn compile_node() -> io::Result<ExitStatus> {
-    info!("Compiling the starknet_sequencer_node binary");
+    info!(
+        "Compiling the starknet_sequencer_node binary, expected destination: \
+         {NODE_EXECUTABLE_PATH}"
+    );
 
     // Run `cargo build` to compile the project
     let compilation_result = create_shell_command("cargo")
