@@ -41,7 +41,7 @@ use starknet_api::block::{
     BlockSignature,
 };
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
-use starknet_api::state::ContractClass;
+use starknet_api::state::SierraContractClass;
 use starknet_api::transaction::{
     Event,
     FullTransaction,
@@ -491,7 +491,7 @@ lazy_static! {
         .into_iter()
         .flat_map(|tx_output| tx_output.into_iter().flat_map(|output| output.events().to_vec()))
         .collect();
-    static ref CLASSES_WITH_HASHES: Vec<Vec<(ClassHash, ContractClass)>> = {
+    static ref CLASSES_WITH_HASHES: Vec<Vec<(ClassHash, SierraContractClass)>> = {
         THIN_STATE_DIFFS
             .iter()
             .map(|state_diff| {
@@ -499,7 +499,7 @@ lazy_static! {
                     .declared_classes
                     .iter()
                     .map(|(class_hash, _)| {
-                        (*class_hash, ContractClass::get_test_instance(&mut get_rng()))
+                        (*class_hash, SierraContractClass::get_test_instance(&mut get_rng()))
                     })
                     .collect::<Vec<_>>();
                 class_vec

@@ -7,7 +7,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::hash::StarkHash;
-use starknet_api::state::{ContractClass, StateNumber, ThinStateDiff};
+use starknet_api::state::{SierraContractClass, StateNumber, ThinStateDiff};
 use starknet_api::{class_hash, contract_address, felt, storage_key};
 use starknet_types_core::felt::Felt;
 
@@ -26,7 +26,7 @@ fn get_class_definition_at() {
     // New classes.
     let nc0 = class_hash!("0x10");
     let nc1 = class_hash!("0x11");
-    let new_class = ContractClass::default();
+    let new_class = SierraContractClass::default();
     let compiled_class_hash = CompiledClassHash::default();
     let diff0 = ThinStateDiff {
         deprecated_declared_classes: vec![dc0, dc1],
@@ -496,7 +496,7 @@ fn revert_state() {
         .unwrap()
         .append_classes(
             BlockNumber(1),
-            &[(class2, &ContractClass::default())],
+            &[(class2, &SierraContractClass::default())],
             &[(class1, &DeprecatedContractClass::default())],
         )
         .unwrap()
@@ -528,7 +528,7 @@ fn revert_state() {
 
     let expected_deleted_deprecated_classes =
         IndexMap::from([(class1, DeprecatedContractClass::default())]);
-    let expected_deleted_classes = IndexMap::from([(class2, ContractClass::default())]);
+    let expected_deleted_classes = IndexMap::from([(class2, SierraContractClass::default())]);
     let expected_deleted_compiled_classes = IndexMap::from([(
         class2,
         CasmContractClass {
@@ -711,7 +711,7 @@ fn declare_revert_declare_scenario() {
     let deprecated_class_hash = class_hash!("0xc1a55");
     let class_hash = class_hash!("0xdec1a55");
     let deprecated_class = DeprecatedContractClass::default();
-    let class = ContractClass::default();
+    let class = SierraContractClass::default();
     let compiled_class_hash = CompiledClassHash::default();
     let diff0 = ThinStateDiff {
         deployed_contracts: IndexMap::from([(contract_address, deprecated_class_hash)]),

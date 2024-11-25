@@ -6,7 +6,7 @@ use sha3::Digest;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::ClassHash;
 use starknet_api::hash::PoseidonHash;
-use starknet_api::state::ContractClass;
+use starknet_api::state::SierraContractClass;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Poseidon, StarkHash};
 
@@ -18,7 +18,7 @@ lazy_static! {
 
 /// Calculates the hash of a contract class.
 // Based on Pathfinder code (the starknet.io doc is incorrect).
-pub fn calculate_class_hash(class: &ContractClass) -> ClassHash {
+pub fn calculate_class_hash(class: &SierraContractClass) -> ClassHash {
     let external_entry_points_hash = entry_points_hash(class, &EntryPointType::External);
     let l1_handler_entry_points_hash = entry_points_hash(class, &EntryPointType::L1Handler);
     let constructor_entry_points_hash = entry_points_hash(class, &EntryPointType::Constructor);
@@ -38,7 +38,10 @@ pub fn calculate_class_hash(class: &ContractClass) -> ClassHash {
     ClassHash(class_hash)
 }
 
-fn entry_points_hash(class: &ContractClass, entry_point_type: &EntryPointType) -> PoseidonHash {
+fn entry_points_hash(
+    class: &SierraContractClass,
+    entry_point_type: &EntryPointType,
+) -> PoseidonHash {
     PoseidonHash(Poseidon::hash_array(
         class
             .entry_points_by_type

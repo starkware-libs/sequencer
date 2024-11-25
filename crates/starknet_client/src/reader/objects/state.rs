@@ -63,7 +63,7 @@ pub struct ContractClass {
     pub abi: String,
 }
 
-impl From<ContractClass> for starknet_api::state::ContractClass {
+impl From<ContractClass> for starknet_api::state::SierraContractClass {
     fn from(class: ContractClass) -> Self {
         Self {
             sierra_program: class.sierra_program,

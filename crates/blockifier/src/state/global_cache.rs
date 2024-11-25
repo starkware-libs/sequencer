@@ -5,7 +5,7 @@ use cached::{Cached, SizedCache};
 use cairo_native::executor::AotContractExecutor;
 use starknet_api::core::ClassHash;
 #[cfg(feature = "cairo_native")]
-use starknet_api::state::ContractClass as SierraContractClass;
+use starknet_api::state::SierraContractClass;
 
 #[cfg(feature = "cairo_native")]
 use crate::execution::contract_class::RunnableContractClass;

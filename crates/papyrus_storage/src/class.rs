@@ -19,7 +19,7 @@
 //! use starknet_api::core::{ClassHash, CompiledClassHash};
 //! use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 //! use starknet_api::hash::StarkHash;
-//! use starknet_api::state::{ContractClass, ThinStateDiff};
+//! use starknet_api::state::{SierraContractClass, ThinStateDiff};
 //!
 //! # let dir_handle = tempfile::tempdir().unwrap();
 //! # let dir = dir_handle.path().to_path_buf();
@@ -33,7 +33,7 @@
 //! # };
 //! # let storage_config = StorageConfig{db_config, ..Default::default()};
 //! let class_hash = ClassHash::default();
-//! let class = ContractClass::default();
+//! let class = SierraContractClass::default();
 //! let deprecated_class_hash = ClassHash(StarkHash::ONE);
 //! let deprecated_class = DeprecatedContractClass::default();
 //! let (reader, mut writer) = open_storage(storage_config)?;
@@ -71,7 +71,7 @@ use papyrus_proc_macros::latency_histogram;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ClassHash;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
-use starknet_api::state::ContractClass;
+use starknet_api::state::SierraContractClass;
 
 use crate::db::table_types::Table;
 use crate::db::{TransactionKind, RW};
@@ -90,7 +90,7 @@ use crate::{
 /// Interface for reading data related to classes or deprecated classes.
 pub trait ClassStorageReader {
     /// Returns the Cairo 1 class with the given hash.
-    fn get_class(&self, class_hash: &ClassHash) -> StorageResult<Option<ContractClass>>;
+    fn get_class(&self, class_hash: &ClassHash) -> StorageResult<Option<SierraContractClass>>;
 
     /// Returns the Cairo 0 class with the given hash.
     fn get_deprecated_class(
@@ -119,13 +119,13 @@ where
     fn append_classes(
         self,
         block_number: BlockNumber,
-        classes: &[(ClassHash, &ContractClass)],
+        classes: &[(ClassHash, &SierraContractClass)],
         deprecated_classes: &[(ClassHash, &DeprecatedContractClass)],
     ) -> StorageResult<Self>;
 }
 
 impl<'env, Mode: TransactionKind> ClassStorageReader for StorageTxn<'env, Mode> {
-    fn get_class(&self, class_hash: &ClassHash) -> StorageResult<Option<ContractClass>> {
+    fn get_class(&self, class_hash: &ClassHash) -> StorageResult<Option<SierraContractClass>> {
         let declared_classes_table = self.open_table(&self.tables.declared_classes)?;
         let contract_class_location = declared_classes_table.get(&self.txn, class_hash)?;
         contract_class_location
@@ -159,7 +159,7 @@ impl<'env> ClassStorageWriter for StorageTxn<'env, RW> {
     fn append_classes(
         self,
         block_number: BlockNumber,
-        classes: &[(ClassHash, &ContractClass)],
+        classes: &[(ClassHash, &SierraContractClass)],
         deprecated_classes: &[(ClassHash, &DeprecatedContractClass)],
     ) -> StorageResult<Self> {
         let declared_classes_table = self.open_table(&self.tables.declared_classes)?;
@@ -201,7 +201,7 @@ impl<'env> ClassStorageWriter for StorageTxn<'env, RW> {
 }
 
 fn write_classes<'env>(
-    classes: &[(ClassHash, &ContractClass)],
+    classes: &[(ClassHash, &SierraContractClass)],
     txn: &DbTransaction<'env, RW>,
     declared_classes_table: &'env DeclaredClassesTable<'env>,
     file_handlers: &FileHandlers<RW>,

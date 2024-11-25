@@ -4,7 +4,7 @@ use std::sync::Arc;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use starknet_api::core::ClassHash;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
-use starknet_api::state::ContractClass;
+use starknet_api::state::SierraContractClass;
 
 pub trait PendingClassesTrait {
     // TODO(shahak) Return an Arc to avoid cloning the class. This requires to re-implement
@@ -33,7 +33,7 @@ pub struct PendingClasses {
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum ApiContractClass {
     DeprecatedContractClass(DeprecatedContractClass),
-    ContractClass(ContractClass),
+    ContractClass(SierraContractClass),
 }
 
 impl ApiContractClass {
@@ -44,7 +44,7 @@ impl ApiContractClass {
         }
     }
 
-    pub fn into_cairo1(self) -> Option<ContractClass> {
+    pub fn into_cairo1(self) -> Option<SierraContractClass> {
         match self {
             Self::ContractClass(class) => Some(class),
             _ => None,

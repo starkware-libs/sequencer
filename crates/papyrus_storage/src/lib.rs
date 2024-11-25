@@ -125,7 +125,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockNumber, BlockSignature, StarknetVersion};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
-use starknet_api::state::{ContractClass, StateNumber, StorageKey, ThinStateDiff};
+use starknet_api::state::{SierraContractClass, StateNumber, StorageKey, ThinStateDiff};
 use starknet_api::transaction::{Transaction, TransactionHash, TransactionOutput};
 use starknet_types_core::felt::Felt;
 use tracing::{debug, warn};
@@ -666,7 +666,7 @@ pub(crate) type MarkersTable<'env> =
 #[derive(Clone, Debug)]
 struct FileHandlers<Mode: TransactionKind> {
     thin_state_diff: FileHandler<VersionZeroWrapper<ThinStateDiff>, Mode>,
-    contract_class: FileHandler<VersionZeroWrapper<ContractClass>, Mode>,
+    contract_class: FileHandler<VersionZeroWrapper<SierraContractClass>, Mode>,
     casm: FileHandler<VersionZeroWrapper<CasmContractClass>, Mode>,
     deprecated_contract_class: FileHandler<VersionZeroWrapper<DeprecatedContractClass>, Mode>,
     transaction_output: FileHandler<VersionZeroWrapper<TransactionOutput>, Mode>,
@@ -681,7 +681,7 @@ impl FileHandlers<RW> {
     }
 
     // Appends a contract class to the corresponding file and returns its location.
-    fn append_contract_class(&self, contract_class: &ContractClass) -> LocationInFile {
+    fn append_contract_class(&self, contract_class: &SierraContractClass) -> LocationInFile {
         self.clone().contract_class.append(contract_class)
     }
 
@@ -748,7 +748,7 @@ impl<Mode: TransactionKind> FileHandlers<Mode> {
     fn get_contract_class_unchecked(
         &self,
         location: LocationInFile,
-    ) -> StorageResult<ContractClass> {
+    ) -> StorageResult<SierraContractClass> {
         self.contract_class.get(location)?.ok_or(StorageError::DBInconsistency {
             msg: format!("ContractClass at location {:?} not found.", location),
         })

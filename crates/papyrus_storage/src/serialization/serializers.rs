@@ -66,7 +66,13 @@ use starknet_api::deprecated_contract_class::{
 };
 use starknet_api::execution_resources::{Builtin, ExecutionResources, GasAmount, GasVector};
 use starknet_api::hash::{PoseidonHash, StarkHash};
-use starknet_api::state::{ContractClass, EntryPoint, FunctionIndex, StorageKey, ThinStateDiff};
+use starknet_api::state::{
+    EntryPoint,
+    FunctionIndex,
+    SierraContractClass,
+    StorageKey,
+    ThinStateDiff,
+};
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
@@ -960,7 +966,7 @@ impl StorageSerde for TransactionOffsetInBlock {
 ////////////////////////////////////////////////////////////////////////
 //  Custom serialization with compression.
 ////////////////////////////////////////////////////////////////////////
-impl StorageSerde for ContractClass {
+impl StorageSerde for SierraContractClass {
     fn serialize_into(&self, res: &mut impl std::io::Write) -> Result<(), StorageSerdeError> {
         serialize_and_compress(&self.sierra_program)?.serialize_into(res)?;
         self.entry_points_by_type.serialize_into(res)?;
@@ -981,7 +987,7 @@ impl StorageSerde for ContractClass {
     }
 }
 #[cfg(test)]
-create_storage_serde_test!(ContractClass);
+create_storage_serde_test!(SierraContractClass);
 
 impl StorageSerde for DeprecatedContractClass {
     fn serialize_into(&self, res: &mut impl std::io::Write) -> Result<(), StorageSerdeError> {

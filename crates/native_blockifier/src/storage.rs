@@ -13,7 +13,7 @@ use starknet_api::block::{BlockHash, BlockHeader, BlockHeaderWithoutHash, BlockN
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::hash::StarkHash;
-use starknet_api::state::{ContractClass, StateDiff, StateNumber, ThinStateDiff};
+use starknet_api::state::{SierraContractClass, StateDiff, StateNumber, ThinStateDiff};
 
 use crate::errors::NativeBlockifierResult;
 use crate::py_state_diff::PyBlockInfo;
@@ -170,7 +170,8 @@ impl Storage for PapyrusStorage {
             py_state_diff.address_to_class_hash.remove(&address.into());
         });
 
-        let mut declared_classes = IndexMap::<ClassHash, (CompiledClassHash, ContractClass)>::new();
+        let mut declared_classes =
+            IndexMap::<ClassHash, (CompiledClassHash, SierraContractClass)>::new();
         let mut undeclared_casm_contracts = Vec::<(ClassHash, CasmContractClass)>::new();
         for (class_hash, (raw_sierra, (compiled_class_hash, raw_casm))) in
             declared_class_hash_to_class
@@ -184,7 +185,7 @@ impl Storage for PapyrusStorage {
                 .is_none();
 
             if class_undeclared {
-                let sierra_contract_class: ContractClass = serde_json::from_str(&raw_sierra)?;
+                let sierra_contract_class: SierraContractClass = serde_json::from_str(&raw_sierra)?;
                 declared_classes.insert(
                     class_hash,
                     (CompiledClassHash(compiled_class_hash.0), sierra_contract_class),

@@ -69,7 +69,7 @@ use starknet_api::deprecated_contract_class::{
     FunctionStateMutability,
 };
 use starknet_api::hash::StarkHash;
-use starknet_api::state::{ContractClass as StarknetApiContractClass, StateDiff};
+use starknet_api::state::{SierraContractClass as StarknetApiContractClass, StateDiff};
 use starknet_api::transaction::{
     Event as StarknetApiEvent,
     EventContent,
