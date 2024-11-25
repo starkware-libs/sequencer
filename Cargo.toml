@@ -103,7 +103,7 @@ cairo-lang-sierra-to-casm = "2.9.0-dev.0"
 cairo-lang-starknet-classes = "2.9.0-dev.0"
 cairo-lang-utils = "2.9.0-dev.0"
 # Important: when updated, make sure to update the cairo-native submodule as well.
-cairo-native = "0.2.3"
+cairo-native = { git = "https://github.com/lambdaclass/cairo_native.git", rev = "16e30e2c0ce7be5964501f76949ab6f732d6f4b7" }
 cairo-vm = "=1.0.1"
 camelpaste = "0.1.0"
 chrono = "0.4.26"
