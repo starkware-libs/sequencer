@@ -1,17 +1,17 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: sequencer-dev-deployment
-  namespace: default
+  name: sequencer-node-deployment
+  namespace: test
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: sequencer-dev
+      app: sequencer-node
   template:
     metadata:
       labels:
-        app: sequencer-dev
+        app: sequencer-node
     spec:
       containers:
         - args:
@@ -25,7 +25,7 @@ spec:
               port: 8082
             periodSeconds: 10
             timeoutSeconds: 5
-          name: sequencer-dev-server
+          name: sequencer-node-server
           ports:
             - containerPort: 8080
             - containerPort: 8081
@@ -55,9 +55,9 @@ spec:
         fsGroup: 1000
       volumes:
         - configMap:
-            name: sequencer-dev-config
-          name: sequencer-dev-config
-        - name: sequencer-dev-data
+            name: sequencer-node-config
+          name: sequencer-node-config
+        - name: sequencer-node-data
           persistentVolumeClaim:
-            claimName: sequencer-dev-data
+            claimName: sequencer-node-data
             readOnly: false
