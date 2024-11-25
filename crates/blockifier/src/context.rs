@@ -39,10 +39,7 @@ impl TransactionContext {
         self.tx_info.gas_mode()
     }
     pub fn get_gas_prices(&self) -> &GasPriceVector {
-        self.block_context
-            .block_info
-            .gas_prices
-            .get_gas_prices_by_fee_type(&self.tx_info.fee_type())
+        self.block_context.block_info.gas_prices.gas_price_vector(&self.tx_info.fee_type())
     }
 
     /// Returns the initial Sierra gas of the transaction.
