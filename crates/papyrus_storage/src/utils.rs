@@ -27,6 +27,7 @@ struct DumpDeclaredClass {
     class_hash: ClassHash,
     compiled_class_hash: CompiledClassHash,
     sierra_program: Vec<Felt>,
+    contract_class_version: String,
     entry_points_by_type: HashMap<EntryPointType, Vec<EntryPoint>>,
 }
 
@@ -77,6 +78,7 @@ fn dump_declared_classes_table_by_block_range_internal(
                             class_hash: *class_hash,
                             compiled_class_hash: *compiled_class_hash,
                             sierra_program: contract_class.sierra_program.clone(),
+                            contract_class_version: contract_class.contract_class_version.clone(),
                             entry_points_by_type: contract_class.entry_points_by_type.clone(),
                         },
                     )?;
