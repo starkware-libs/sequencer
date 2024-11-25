@@ -79,7 +79,7 @@ pub fn get_fee_by_gas_vector(
     gas_vector: GasVector,
     fee_type: &FeeType,
 ) -> Fee {
-    gas_vector.cost(block_info.gas_prices.get_gas_prices_by_fee_type(fee_type))
+    gas_vector.cost(block_info.gas_prices.gas_price_vector(fee_type))
 }
 
 /// Returns the current fee balance and a boolean indicating whether the balance covers the fee.

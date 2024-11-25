@@ -293,9 +293,9 @@ impl EntryPointExecutionContext {
                 if l1_gas_per_step.is_zero() {
                     u64::MAX
                 } else {
-                    let induced_l1_gas_limit = context.max_fee.saturating_div(
-                        block_info.gas_prices.get_l1_gas_price_by_fee_type(&tx_info.fee_type()),
-                    );
+                    let induced_l1_gas_limit = context
+                        .max_fee
+                        .saturating_div(block_info.gas_prices.l1_gas_price(&tx_info.fee_type()));
                     (l1_gas_per_step.inv() * induced_l1_gas_limit.0).to_integer()
                 }
             }
