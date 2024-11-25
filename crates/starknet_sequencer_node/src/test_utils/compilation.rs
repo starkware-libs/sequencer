@@ -1,6 +1,7 @@
-use std::process::{Command, ExitStatus, Stdio};
-use std::{env, io};
+use std::io;
+use std::process::{ExitStatus, Stdio};
 
+use infra_utils::command::create_shell_command;
 use tracing::info;
 
 #[cfg(test)]
@@ -16,26 +17,26 @@ pub enum NodeCompilationError {
 }
 
 /// Compiles the node using `cargo build` for testing purposes.
-fn compile_node() -> io::Result<ExitStatus> {
-    info!("Compiling the project");
-    // Get the current working directory for the project
-    let project_path = env::current_dir().expect("Failed to get current directory");
+async fn compile_node() -> io::Result<ExitStatus> {
+    info!("Compiling the starknet_sequencer_node binary");
 
     // Run `cargo build` to compile the project
-    let compilation_result = Command::new("cargo")
+    let compilation_result = create_shell_command("cargo")
         .arg("build")
-        .current_dir(&project_path)
+        .arg("--bin")
+        .arg("starknet_sequencer_node")
         .arg("--quiet")
         .stderr(Stdio::inherit())
         .stdout(Stdio::inherit())
-        .status();
+        .status()
+        .await?;
 
     info!("Compilation result: {:?}", compilation_result);
-    compilation_result
+    Ok(compilation_result)
 }
 
-pub fn compile_node_result() -> Result<(), NodeCompilationError> {
-    match compile_node() {
+pub async fn compile_node_result() -> Result<(), NodeCompilationError> {
+    match compile_node().await {
         Ok(status) if status.success() => Ok(()),
         Ok(status) => Err(NodeCompilationError::Status(status)),
         Err(e) => Err(NodeCompilationError::IO(e)),
