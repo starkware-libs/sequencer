@@ -71,14 +71,12 @@ To run these tests locally:
 ```
 TEST_URL=<node_url> cargo test -p blockifier_reexecution --features blockifier_regression_https_testing
 ```
-
 Alternatively, to only compile (without running):
 ```
 cargo test -p blockifier_reexecution --features blockifier_regression_https_testing --no-run
 ```
 
-
-In order to run all the above tests in a single command:
+### In order to run all the above tests in a single command:
 ```
 TEST_URL=<node_url> cargo test --release -p blockifier_reexecution --features blockifier_regression_https_testing -- --include-ignored
 ```
@@ -101,9 +99,11 @@ cargo run --bin blockifier_reexecution upload-files -b <block_number_1> ... <blo
 
 - 4. Add the block numbers to the cases in the test `test_block_reexecution`
 
+To remove blocks from the reexecution tests, simply remove the corresponding block numbers from the file `block_numbers_for_reexecution.json` and remove the corresponding test cases from the test `test_block_reexecution`.
+
 ## Changing Reexecution Files' Format
-If the files format changes, all the files need to uploaded to the GC bucket. Since files cannot be overwritten in the GC bucket (for backwards compatibility), this requires uploading to a new folder, which is determined by the prefix hash in the file `offline_reexecution_files_prefix`. 
-Therefore, when changing the files format, do these 3 steps in order:
+If the files format changes, all the offline reexecution files need to be re-uploaded to the GC bucket. Since files cannot be overwritten in the GC bucket (for backwards compatibility), this requires uploading to a new folder, which is determined by the prefix hash in the file `offline_reexecution_files_prefix`. 
+Therefore, when changing the files format, do these 4 steps in order:
 
 - 1. Change the prefix hash in `offline_reexecution_files_prefix`; it is customary, though not mandatory, to use the current commit hash (however, it *must* be a unique string that has not been previously used).
 
@@ -122,5 +122,5 @@ cargo test --release -p blockifier_reexecution -- --ignored
 ```
 cargo run --bin blockifier_reexecution upload-files
 ```
-**IMPORTANT: DO NOT CHANGE THE HASH IN `offline_reexecution_files_prefix` AFTER UPLOADING THE FILES; IT IS REQUIRED IN ORDER TO PASS THE CI**
+**IMPORTANT:** Do not change the hash in `offline_reexecution_files_prefix` after uploading the files; it is required that the hash point to the files folder location in the gc bucket in order to pass the CI.
 
