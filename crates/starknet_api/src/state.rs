@@ -215,6 +215,7 @@ pub struct SierraContractClass {
     pub sierra_program: Vec<Felt>,
     pub entry_points_by_type: HashMap<EntryPointType, Vec<EntryPoint>>,
     pub abi: String,
+    pub contract_class_version: String,
 }
 
 /// An entry point of a [ContractClass](`crate::state::ContractClass`).

@@ -983,6 +983,7 @@ impl StorageSerde for SierraContractClass {
                 bytes,
             )?,
             abi: String::deserialize_from(&mut decompress_from_reader(bytes)?.as_slice())?,
+            contract_class_version: String::deserialize_from(bytes)?,
         })
     }
 }
