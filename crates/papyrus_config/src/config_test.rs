@@ -6,11 +6,11 @@ use std::time::Duration;
 
 use assert_matches::assert_matches;
 use clap::Command;
+use infra_utils::path::resolve_project_relative_path;
 use itertools::chain;
 use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use starknet_api::test_utils::get_absolute_path;
 use tempfile::TempDir;
 use validator::Validate;
 
@@ -19,6 +19,7 @@ use crate::converters::deserialize_milliseconds_to_duration;
 use crate::dumping::{
     append_sub_config_name,
     combine_config_map_and_pointers,
+    generate_struct_pointer,
     required_param_description,
     ser_generated_param,
     ser_optional_param,
@@ -27,6 +28,7 @@ use crate::dumping::{
     ser_pointer_target_param,
     ser_pointer_target_required_param,
     ser_required_param,
+    set_pointing_param_paths,
     SerializeConfig,
 };
 use crate::loading::{
@@ -50,7 +52,8 @@ use crate::{
 
 lazy_static! {
     static ref CUSTOM_CONFIG_PATH: PathBuf =
-        get_absolute_path("crates/papyrus_config/resources/custom_config_example.json");
+        resolve_project_relative_path("crates/papyrus_config/resources/custom_config_example.json")
+            .unwrap();
 }
 
 #[derive(Clone, Copy, Default, Serialize, Deserialize, Debug, PartialEq, Validate)]
@@ -469,6 +472,95 @@ fn test_replace_pointers() {
     assert_matches!(err, ConfigError::PointerTargetNotFound { .. });
 }
 
+#[test]
+fn test_struct_pointers() {
+    const TARGET_PREFIX: &str = "base";
+    let target_value =
+        RequiredConfig { param_path: "Not a default param_path.".to_owned(), num: 10 };
+    let config_map = StructPointersConfig::default().dump();
+
+    let pointers = generate_struct_pointer(
+        TARGET_PREFIX.to_owned(),
+        &target_value,
+        set_pointing_param_paths(&["a", "b"]),
+    );
+    let stored_map =
+        combine_config_map_and_pointers(config_map, &pointers, &HashSet::default()).unwrap();
+
+    // Assert the pointing parameters are correctly set.
+    assert_eq!(
+        stored_map["a.param_path"],
+        json!(SerializedParam {
+            description: required_param_description(RequiredConfig::param_path_description())
+                .to_owned(),
+            content: SerializedContent::PointerTarget(
+                format!("{TARGET_PREFIX}.param_path").to_owned()
+            ),
+            privacy: ParamPrivacy::Public,
+        })
+    );
+    assert_eq!(
+        stored_map["a.num"],
+        json!(SerializedParam {
+            description: RequiredConfig::num_description().to_owned(),
+            content: SerializedContent::PointerTarget(format!("{TARGET_PREFIX}.num").to_owned()),
+            privacy: ParamPrivacy::Public,
+        })
+    );
+    assert_eq!(
+        stored_map["b.param_path"],
+        json!(SerializedParam {
+            description: required_param_description(RequiredConfig::param_path_description())
+                .to_owned(),
+            content: SerializedContent::PointerTarget(
+                format!("{TARGET_PREFIX}.param_path").to_owned()
+            ),
+            privacy: ParamPrivacy::Public,
+        })
+    );
+    assert_eq!(
+        stored_map["b.num"],
+        json!(SerializedParam {
+            description: RequiredConfig::num_description().to_owned(),
+            content: SerializedContent::PointerTarget(format!("{TARGET_PREFIX}.num").to_owned()),
+            privacy: ParamPrivacy::Public,
+        })
+    );
+
+    // Assert the pointed parameter is correctly set.
+    assert_eq!(
+        stored_map[format!("{TARGET_PREFIX}.param_path").to_owned()],
+        json!(SerializedParam {
+            description: required_param_description(RequiredConfig::param_path_description())
+                .to_owned(),
+            content: SerializedContent::ParamType(SerializationType::String),
+            privacy: ParamPrivacy::TemporaryValue,
+        })
+    );
+    assert_eq!(
+        stored_map[format!("{TARGET_PREFIX}.num").to_owned()],
+        json!(SerializedParam {
+            description: RequiredConfig::num_description().to_owned(),
+            content: SerializedContent::DefaultValue(json!(10)),
+            privacy: ParamPrivacy::TemporaryValue,
+        })
+    );
+}
+
+#[derive(Clone, Default, Serialize, Deserialize, Debug, PartialEq)]
+struct StructPointersConfig {
+    pub a: RequiredConfig,
+    pub b: RequiredConfig,
+}
+impl SerializeConfig for StructPointersConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        let mut dump = BTreeMap::new();
+        dump.append(&mut append_sub_config_name(self.a.dump(), "a"));
+        dump.append(&mut append_sub_config_name(self.b.dump(), "b"));
+        dump
+    }
+}
+
 #[derive(Clone, Default, Serialize, Deserialize, Debug, PartialEq)]
 struct CustomConfig {
     param_path: String,
@@ -565,10 +657,19 @@ fn serialization_precision() {
     assert_eq!(input, deserialized);
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Clone, Default, Serialize, Deserialize, Debug, PartialEq)]
 struct RequiredConfig {
     param_path: String,
     num: usize,
+}
+
+impl RequiredConfig {
+    pub const fn param_path_description() -> &'static str {
+        "This is param_path."
+    }
+    pub const fn num_description() -> &'static str {
+        "This is num."
+    }
 }
 
 impl SerializeConfig for RequiredConfig {
@@ -577,10 +678,10 @@ impl SerializeConfig for RequiredConfig {
             ser_required_param(
                 "param_path",
                 SerializationType::String,
-                "This is param_path.",
+                Self::param_path_description(),
                 ParamPrivacyInput::Public,
             ),
-            ser_param("num", &self.num, "This is num.", ParamPrivacyInput::Public),
+            ser_param("num", &self.num, Self::num_description(), ParamPrivacyInput::Public),
         ])
     }
 }

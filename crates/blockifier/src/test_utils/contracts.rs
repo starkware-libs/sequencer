@@ -1,4 +1,6 @@
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use starknet_api::abi::abi_utils::selector_from_name;
+use starknet_api::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use starknet_api::contract_class::{ContractClass, EntryPointType};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::deprecated_contract_class::{
@@ -10,8 +12,6 @@ use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
-use crate::abi::abi_utils::selector_from_name;
-use crate::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use crate::execution::contract_class::RunnableContractClass;
 use crate::execution::entry_point::CallEntryPoint;
 #[cfg(feature = "cairo_native")]
@@ -188,7 +188,8 @@ impl FeatureContract {
     pub fn get_runnable_class(&self) -> RunnableContractClass {
         #[cfg(feature = "cairo_native")]
         if CairoVersion::Native == self.cairo_version() {
-            let native_contract_class = NativeContractClassV1::from_file(&self.get_compiled_path());
+            let native_contract_class =
+                NativeContractClassV1::compile_or_get_cached(&self.get_compiled_path());
             return RunnableContractClass::V1Native(native_contract_class);
         }
 

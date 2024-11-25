@@ -1,13 +1,15 @@
+use std::collections::HashSet;
 use std::env;
 use std::fs::File;
 
 use assert_json_diff::assert_json_eq;
 use assert_matches::assert_matches;
 use colored::Colorize;
+use infra_utils::path::resolve_project_relative_path;
 use papyrus_config::dumping::SerializeConfig;
 use papyrus_config::validators::config_validate;
+use papyrus_config::SerializedParam;
 use rstest::rstest;
-use starknet_api::test_utils::get_absolute_path;
 use starknet_sequencer_infra::component_definitions::{
     LocalServerConfig,
     RemoteClientConfig,
@@ -21,7 +23,6 @@ use crate::config::node_config::{
     CONFIG_NON_POINTERS_WHITELIST,
     CONFIG_POINTERS,
     DEFAULT_CONFIG_PATH,
-    REQUIRED_PARAM_CONFIG_POINTERS,
 };
 use crate::config::test_utils::{create_test_config_load_args, RequiredParams};
 
@@ -62,7 +63,8 @@ fn test_valid_component_execution_config(
 /// cargo run --bin sequencer_dump_config -q
 #[test]
 fn test_default_config_file_is_up_to_date() {
-    env::set_current_dir(get_absolute_path("")).expect("Couldn't set working dir.");
+    env::set_current_dir(resolve_project_relative_path("").unwrap())
+        .expect("Couldn't set working dir.");
     let from_default_config_file: serde_json::Value =
         serde_json::from_reader(File::open(DEFAULT_CONFIG_PATH).unwrap()).unwrap();
 
@@ -109,11 +111,22 @@ fn test_config_parsing() {
     assert_matches!(result, Ok(_), "Expected Ok but got {:?}", result);
 }
 
-/// Tests compatibility of the required parameter settings: pointer targets and test util struct.
+/// Tests compatibility of the required parameter settings: required params (containing required
+/// pointer targets) and test util struct.
 #[test]
 fn test_required_params_setting() {
-    let required_pointers =
-        REQUIRED_PARAM_CONFIG_POINTERS.iter().map(|((x, _), _)| x.to_owned()).collect::<Vec<_>>();
-    let required_params = RequiredParams::field_names();
-    assert_eq!(required_pointers, required_params);
+    // Load the default config file.
+    let file =
+        std::fs::File::open(resolve_project_relative_path(DEFAULT_CONFIG_PATH).unwrap()).unwrap();
+    let mut deserialized = serde_json::from_reader::<_, serde_json::Value>(file).unwrap();
+    let expected_required_params = deserialized.as_object_mut().unwrap();
+    expected_required_params.retain(|_, value| {
+        let param = serde_json::from_value::<SerializedParam>(value.clone()).unwrap();
+        param.is_required()
+    });
+    let expected_required_keys =
+        expected_required_params.keys().cloned().collect::<HashSet<String>>();
+
+    let required_params: HashSet<String> = RequiredParams::field_names().into_iter().collect();
+    assert_eq!(required_params, expected_required_keys);
 }

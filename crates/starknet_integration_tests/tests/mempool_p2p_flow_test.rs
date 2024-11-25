@@ -1,7 +1,6 @@
 use std::collections::HashSet;
 use std::net::SocketAddr;
 
-use blockifier::context::ChainInfo;
 use futures::StreamExt;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use papyrus_network::gossipsub_impl::Topic;
@@ -13,6 +12,7 @@ use starknet_http_server::config::HttpServerConfig;
 use starknet_integration_tests::state_reader::{spawn_test_rpc_state_reader, StorageTestSetup};
 use starknet_integration_tests::utils::{
     create_batcher_config,
+    create_chain_info,
     create_gateway_config,
     create_http_server_config,
     create_integration_test_tx_generator,
@@ -45,13 +45,16 @@ async fn test_mempool_sends_tx_to_other_peer(tx_generator: MultiAccountTransacti
     let handle = Handle::current();
     let task_executor = TokioExecutor::new(handle);
 
+    let chain_info = create_chain_info();
     let accounts = tx_generator.accounts();
-    let storage_for_test = StorageTestSetup::new(accounts);
+    let storage_for_test = StorageTestSetup::new(accounts, chain_info.chain_id.clone());
 
     // Spawn a papyrus rpc server for a papyrus storage reader.
-    let rpc_server_addr =
-        spawn_test_rpc_state_reader(storage_for_test.rpc_storage_reader, storage_for_test.chain_id)
-            .await;
+    let rpc_server_addr = spawn_test_rpc_state_reader(
+        storage_for_test.rpc_storage_reader,
+        chain_info.chain_id.clone(),
+    )
+    .await;
 
     // Derive the configuration for the mempool node.
     let components = ComponentConfig {
@@ -68,9 +71,6 @@ async fn test_mempool_sends_tx_to_other_peer(tx_generator: MultiAccountTransacti
         ..Default::default()
     };
 
-    let chain_id = storage_for_test.batcher_storage_config.db_config.chain_id.clone();
-    let mut chain_info = ChainInfo::create_for_testing();
-    chain_info.chain_id = chain_id.clone();
     let batcher_config =
         create_batcher_config(storage_for_test.batcher_storage_config, chain_info.clone());
     let gateway_config = create_gateway_config(chain_info).await;

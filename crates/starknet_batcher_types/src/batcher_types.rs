@@ -31,7 +31,7 @@ pub struct ProposalCommitment {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct BuildProposalInput {
+pub struct ProposeBlockInput {
     pub proposal_id: ProposalId,
     pub deadline: chrono::DateTime<Utc>,
     pub retrospective_block_hash: Option<BlockHashAndNumber>,
@@ -46,12 +46,12 @@ pub struct GetProposalContentInput {
     pub proposal_id: ProposalId,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GetProposalContentResponse {
     pub content: GetProposalContent,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum GetProposalContent {
     Txs(Vec<Transaction>),
     Finished(ProposalCommitment),
@@ -59,18 +59,10 @@ pub enum GetProposalContent {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 // TODO(Dan): Consider unifying with BuildProposalInput as they have the same fields.
-pub struct ValidateProposalInput {
+pub struct ValidateBlockInput {
     pub proposal_id: ProposalId,
     pub deadline: chrono::DateTime<Utc>,
     pub retrospective_block_hash: Option<BlockHashAndNumber>,
-}
-
-impl BuildProposalInput {
-    pub fn deadline_as_instant(&self) -> Result<std::time::Instant, chrono::OutOfRangeError> {
-        let time_to_deadline = self.deadline - chrono::Utc::now();
-        let as_duration = time_to_deadline.to_std()?;
-        Ok(std::time::Instant::now() + as_duration)
-    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -87,16 +79,18 @@ pub enum SendProposalContent {
     Abort,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SendProposalContentResponse {
     pub response: ProposalStatus,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum ProposalStatus {
     Processing,
     // Only sent in response to `Finish`.
     Finished(ProposalCommitment),
+    // Only sent in response to `Abort`.
+    Aborted,
     // May be caused due to handling of a previous item of the new proposal.
     // In this case, the propsal is aborted and no additional content will be processed.
     InvalidProposal,

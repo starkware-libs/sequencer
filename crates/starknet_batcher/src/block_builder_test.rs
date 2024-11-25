@@ -1,13 +1,11 @@
 use assert_matches::assert_matches;
-use blockifier::blockifier::transaction_executor::{
-    TransactionExecutorError,
-    TransactionExecutorError as BlockifierTransactionExecutorError,
-};
+use blockifier::blockifier::transaction_executor::TransactionExecutorError;
 use blockifier::bouncer::BouncerWeights;
 use blockifier::fee::fee_checks::FeeCheckError;
+use blockifier::state::errors::StateError;
 use blockifier::transaction::objects::{RevertError, TransactionExecutionInfo};
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
-use indexmap::IndexMap;
+use indexmap::{indexmap, IndexMap};
 use mockall::predicate::eq;
 use mockall::Sequence;
 use rstest::rstest;
@@ -24,6 +22,7 @@ use crate::block_builder::{
     BlockBuilderResult,
     BlockBuilderTrait,
     BlockExecutionArtifacts,
+    FailOnErrorCause,
 };
 use crate::test_utils::test_txs;
 use crate::transaction_executor::MockTransactionExecutorTrait;
@@ -33,6 +32,13 @@ const BLOCK_GENERATION_DEADLINE_SECS: u64 = 1;
 const BLOCK_GENERATION_LONG_DEADLINE_SECS: u64 = 5;
 const TX_CHANNEL_SIZE: usize = 50;
 const TX_CHUNK_SIZE: usize = 3;
+
+struct TestExpectations {
+    mock_transaction_executor: MockTransactionExecutorTrait,
+    mock_tx_provider: MockTransactionProvider,
+    expected_block_artifacts: BlockExecutionArtifacts,
+    expected_txs_output: Vec<Transaction>,
+}
 
 fn output_channel() -> (UnboundedSender<Transaction>, UnboundedReceiver<Transaction>) {
     tokio::sync::mpsc::unbounded_channel()
@@ -60,16 +66,20 @@ fn execution_info() -> TransactionExecutionInfo {
     }
 }
 
-fn one_chunk_test_expectations(
-    input_txs: &[Transaction],
-) -> (MockTransactionExecutorTrait, MockTransactionProvider, BlockExecutionArtifacts) {
+fn one_chunk_test_expectations() -> TestExpectations {
+    let input_txs = test_txs(0..3);
     let block_size = input_txs.len();
     let (mock_transaction_executor, expected_block_artifacts) =
-        one_chunk_mock_executor(input_txs, block_size);
+        one_chunk_mock_executor(&input_txs, block_size);
 
-    let mock_tx_provider = mock_tx_provider_limitless_calls(1, vec![input_txs.to_vec()]);
+    let mock_tx_provider = mock_tx_provider_limitless_calls(1, vec![input_txs.clone()]);
 
-    (mock_transaction_executor, mock_tx_provider, expected_block_artifacts)
+    TestExpectations {
+        mock_transaction_executor,
+        mock_tx_provider,
+        expected_block_artifacts,
+        expected_txs_output: input_txs,
+    }
 }
 
 fn one_chunk_mock_executor(
@@ -90,9 +100,8 @@ fn one_chunk_mock_executor(
     (mock_transaction_executor, expected_block_artifacts)
 }
 
-fn two_chunks_test_expectations(
-    input_txs: &[Transaction],
-) -> (MockTransactionExecutorTrait, MockTransactionProvider, BlockExecutionArtifacts) {
+fn two_chunks_test_expectations() -> TestExpectations {
+    let input_txs = test_txs(0..6);
     let first_chunk = input_txs[..TX_CHUNK_SIZE].to_vec();
     let second_chunk = input_txs[TX_CHUNK_SIZE..].to_vec();
     let block_size = input_txs.len();
@@ -104,7 +113,7 @@ fn two_chunks_test_expectations(
             .times(1)
             .in_sequence(seq)
             .withf(move |blockifier_input| compare_tx_hashes(&tx_chunk, blockifier_input))
-            .returning(move |_| (0..TX_CHUNK_SIZE).map(move |_| Ok(execution_info())).collect());
+            .return_once(move |_| (0..TX_CHUNK_SIZE).map(move |_| Ok(execution_info())).collect());
     };
 
     let mut seq = Sequence::new();
@@ -116,11 +125,15 @@ fn two_chunks_test_expectations(
 
     let mock_tx_provider = mock_tx_provider_limitless_calls(2, vec![first_chunk, second_chunk]);
 
-    (mock_transaction_executor, mock_tx_provider, expected_block_artifacts)
+    TestExpectations {
+        mock_transaction_executor,
+        mock_tx_provider,
+        expected_block_artifacts,
+        expected_txs_output: input_txs,
+    }
 }
 
-fn empty_block_test_expectations()
--> (MockTransactionExecutorTrait, MockTransactionProvider, BlockExecutionArtifacts) {
+fn empty_block_test_expectations() -> TestExpectations {
     let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
     mock_transaction_executor.expect_add_txs_to_block().times(0);
 
@@ -128,59 +141,77 @@ fn empty_block_test_expectations()
 
     let mock_tx_provider = mock_tx_provider_limitless_calls(1, vec![vec![]]);
 
-    (mock_transaction_executor, mock_tx_provider, expected_block_artifacts)
+    TestExpectations {
+        mock_transaction_executor,
+        mock_tx_provider,
+        expected_block_artifacts,
+        expected_txs_output: vec![],
+    }
 }
 
-fn block_full_test_expectations(
-    input_txs: &[Transaction],
-    block_size: usize,
-) -> (MockTransactionExecutorTrait, MockTransactionProvider, BlockExecutionArtifacts) {
+fn mock_transaction_executor_block_full(input_txs: &[Transaction]) -> MockTransactionExecutorTrait {
     let input_txs_cloned = input_txs.to_vec();
     let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
-
     mock_transaction_executor
         .expect_add_txs_to_block()
         .times(1)
         .withf(move |blockifier_input| compare_tx_hashes(&input_txs_cloned, blockifier_input))
         .return_once(move |_| vec![Ok(execution_info()), Err(TransactionExecutorError::BlockFull)]);
-
-    let expected_block_artifacts =
-        set_close_block_expectations(&mut mock_transaction_executor, block_size);
-
-    let mock_tx_provider = mock_tx_provider_limited_calls(1, vec![input_txs.to_vec()]);
-
-    (mock_transaction_executor, mock_tx_provider, expected_block_artifacts)
+    mock_transaction_executor
 }
 
-fn test_expectations_with_delay(
-    input_txs: &[Transaction],
-) -> (MockTransactionExecutorTrait, MockTransactionProvider, BlockExecutionArtifacts) {
-    let first_chunk = input_txs[0..TX_CHUNK_SIZE].to_vec();
-    let first_chunk_copy = first_chunk.clone();
-    let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
+fn block_full_test_expectations() -> TestExpectations {
+    let input_txs = test_txs(0..3);
+    let mut mock_transaction_executor = mock_transaction_executor_block_full(&input_txs);
 
+    let expected_block_artifacts = set_close_block_expectations(&mut mock_transaction_executor, 1);
+
+    let mock_tx_provider = mock_tx_provider_limited_calls(1, vec![input_txs.clone()]);
+
+    TestExpectations {
+        mock_transaction_executor,
+        mock_tx_provider,
+        expected_block_artifacts,
+        expected_txs_output: vec![input_txs[0].clone()],
+    }
+}
+
+fn mock_transaction_executor_with_delay(input_txs: &[Transaction]) -> MockTransactionExecutorTrait {
+    let input_txs_cloned = input_txs.to_vec();
+    let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
     mock_transaction_executor
         .expect_add_txs_to_block()
         .times(1)
-        .withf(move |blockifier_input| compare_tx_hashes(&first_chunk, blockifier_input))
+        .withf(move |blockifier_input| compare_tx_hashes(&input_txs_cloned, blockifier_input))
         .return_once(move |_| {
             std::thread::sleep(std::time::Duration::from_secs(BLOCK_GENERATION_DEADLINE_SECS));
             (0..TX_CHUNK_SIZE).map(move |_| Ok(execution_info())).collect()
         });
+    mock_transaction_executor
+}
+
+fn test_expectations_with_delay() -> TestExpectations {
+    let input_txs = test_txs(0..6);
+    let first_chunk = input_txs[0..TX_CHUNK_SIZE].to_vec();
+    let mut mock_transaction_executor = mock_transaction_executor_with_delay(&first_chunk);
 
     let expected_block_artifacts =
         set_close_block_expectations(&mut mock_transaction_executor, TX_CHUNK_SIZE);
 
-    let mock_tx_provider = mock_tx_provider_limited_calls(1, vec![first_chunk_copy]);
+    let mock_tx_provider = mock_tx_provider_limited_calls(1, vec![first_chunk.clone()]);
 
-    (mock_transaction_executor, mock_tx_provider, expected_block_artifacts)
+    TestExpectations {
+        mock_transaction_executor,
+        mock_tx_provider,
+        expected_block_artifacts,
+        expected_txs_output: first_chunk,
+    }
 }
 
-fn stream_done_test_expectations(
-    input_txs: &[Transaction],
-) -> (MockTransactionExecutorTrait, MockTransactionProvider, BlockExecutionArtifacts) {
+fn stream_done_test_expectations() -> TestExpectations {
+    let input_txs = test_txs(0..2);
     let block_size = input_txs.len();
-    let input_txs_cloned = input_txs.to_vec();
+    let input_txs_cloned = input_txs.clone();
     let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
 
     mock_transaction_executor
@@ -192,9 +223,51 @@ fn stream_done_test_expectations(
     let expected_block_artifacts =
         set_close_block_expectations(&mut mock_transaction_executor, block_size);
 
-    let mock_tx_provider = mock_tx_provider_stream_done(input_txs.to_vec());
+    let mock_tx_provider = mock_tx_provider_stream_done(input_txs.clone());
 
-    (mock_transaction_executor, mock_tx_provider, expected_block_artifacts)
+    TestExpectations {
+        mock_transaction_executor,
+        mock_tx_provider,
+        expected_block_artifacts,
+        expected_txs_output: input_txs,
+    }
+}
+
+fn transaction_failed_test_expectations() -> TestExpectations {
+    let input_txs = test_txs(0..3);
+
+    let mut expected_txs_output = input_txs.clone();
+    expected_txs_output.remove(1);
+
+    let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
+    let execution_error =
+        TransactionExecutorError::StateError(StateError::OutOfRangeContractAddress);
+    mock_transaction_executor.expect_add_txs_to_block().times(1).return_once(move |_| {
+        vec![Ok(execution_info()), Err(execution_error), Ok(execution_info())]
+    });
+
+    let execution_infos_mapping = indexmap![
+        TransactionHash(felt!(u8::try_from(0).unwrap()))=> execution_info(),
+        TransactionHash(felt!(u8::try_from(2).unwrap()))=> execution_info(),
+    ];
+    let expected_block_artifacts = block_execution_artifacts(execution_infos_mapping);
+    let expected_block_artifacts_copy = expected_block_artifacts.clone();
+    mock_transaction_executor.expect_close_block().times(1).return_once(move || {
+        Ok((
+            expected_block_artifacts_copy.commitment_state_diff,
+            expected_block_artifacts_copy.visited_segments_mapping,
+            expected_block_artifacts_copy.bouncer_weights,
+        ))
+    });
+
+    let mock_tx_provider = mock_tx_provider_limitless_calls(1, vec![input_txs]);
+
+    TestExpectations {
+        mock_transaction_executor,
+        mock_tx_provider,
+        expected_block_artifacts,
+        expected_txs_output,
+    }
 }
 
 // Fill the executor outputs with some non-default values to make sure the block_builder uses
@@ -245,12 +318,12 @@ fn mock_tx_provider_stream_done(input_chunk: Vec<Transaction>) -> MockTransactio
         .times(1)
         .in_sequence(&mut seq)
         .with(eq(TX_CHUNK_SIZE))
-        .returning(move |_n_txs| Ok(NextTxs::Txs(input_chunk.clone())));
+        .return_once(move |_n_txs| Ok(NextTxs::Txs(input_chunk)));
     mock_tx_provider
         .expect_get_txs()
         .times(1)
         .in_sequence(&mut seq)
-        .returning(|_n_txs| Ok(NextTxs::End));
+        .return_once(|_n_txs| Ok(NextTxs::End));
     mock_tx_provider
 }
 
@@ -282,8 +355,7 @@ fn compare_tx_hashes(input: &[Transaction], blockifier_input: &[BlockifierTransa
 }
 
 async fn verify_build_block_output(
-    input_txs: Vec<Transaction>,
-    expected_block_len: usize,
+    expected_output_txs: Vec<Transaction>,
     expected_block_artifacts: BlockExecutionArtifacts,
     result_block_artifacts: BlockExecutionArtifacts,
     mut output_stream_receiver: UnboundedReceiver<Transaction>,
@@ -292,8 +364,8 @@ async fn verify_build_block_output(
     let mut output_txs = vec![];
     output_stream_receiver.recv_many(&mut output_txs, TX_CHANNEL_SIZE).await;
 
-    assert_eq!(output_txs.len(), expected_block_len);
-    for tx in input_txs.iter().take(expected_block_len) {
+    assert_eq!(output_txs.len(), expected_output_txs.len());
+    for tx in expected_output_txs.iter() {
         assert!(output_txs.contains(tx));
     }
 
@@ -322,32 +394,22 @@ async fn run_build_block(
     block_builder.build_block().await
 }
 
-// TODO: Add test case for failed transaction.
 #[rstest]
-#[case::one_chunk_block(3, test_txs(0..3), one_chunk_test_expectations(&input_txs))]
-#[case::two_chunks_block(6, test_txs(0..6), two_chunks_test_expectations(&input_txs))]
-#[case::empty_block(0, vec![], empty_block_test_expectations())]
-#[case::block_full(1, test_txs(0..3), block_full_test_expectations(&input_txs, expected_block_size))]
-#[case::deadline_reached_after_first_chunk(3, test_txs(0..6), test_expectations_with_delay(&input_txs))]
-#[case::stream_done(2, test_txs(0..2), stream_done_test_expectations(&input_txs))]
+#[case::one_chunk_block(one_chunk_test_expectations())]
+#[case::two_chunks_block(two_chunks_test_expectations())]
+#[case::empty_block(empty_block_test_expectations())]
+#[case::block_full(block_full_test_expectations())]
+#[case::deadline_reached_after_first_chunk(test_expectations_with_delay())]
+#[case::stream_done(stream_done_test_expectations())]
+#[case::transaction_failed(transaction_failed_test_expectations())]
 #[tokio::test]
-async fn test_build_block(
-    #[case] expected_block_size: usize,
-    #[case] input_txs: Vec<Transaction>,
-    #[case] test_expectations: (
-        MockTransactionExecutorTrait,
-        MockTransactionProvider,
-        BlockExecutionArtifacts,
-    ),
-) {
-    let (mock_transaction_executor, mock_tx_provider, expected_block_artifacts) = test_expectations;
-
+async fn test_build_block(#[case] test_expectations: TestExpectations) {
     let (output_tx_sender, output_tx_receiver) = output_channel();
     let (_abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
 
     let result_block_artifacts = run_build_block(
-        mock_transaction_executor,
-        mock_tx_provider,
+        test_expectations.mock_transaction_executor,
+        test_expectations.mock_tx_provider,
         Some(output_tx_sender),
         false,
         abort_receiver,
@@ -357,9 +419,8 @@ async fn test_build_block(
     .unwrap();
 
     verify_build_block_output(
-        input_txs,
-        expected_block_size,
-        expected_block_artifacts,
+        test_expectations.expected_txs_output,
+        test_expectations.expected_block_artifacts,
         result_block_artifacts,
         output_tx_receiver,
     )
@@ -388,20 +449,18 @@ async fn test_validate_block() {
     assert_eq!(result_block_artifacts, expected_block_artifacts);
 }
 
+#[rstest]
+#[case::block_full(test_txs(0..3), mock_transaction_executor_block_full(&input_txs), FailOnErrorCause::BlockFull)]
+#[case::deadline_reached(test_txs(0..3), mock_transaction_executor_with_delay(&input_txs), FailOnErrorCause::DeadlineReached)]
 #[tokio::test]
-async fn test_validate_block_with_error() {
-    let input_txs = test_txs(0..3);
-    let input_txs_clone = input_txs.clone();
-
-    let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
-    mock_transaction_executor
-        .expect_add_txs_to_block()
-        .times(1)
-        .withf(move |blockifier_input| compare_tx_hashes(&input_txs_clone, blockifier_input))
-        .return_once(move |_| vec![Ok(execution_info()), Err(TransactionExecutorError::BlockFull)]);
+async fn test_validate_block_with_error(
+    #[case] input_txs: Vec<Transaction>,
+    #[case] mut mock_transaction_executor: MockTransactionExecutorTrait,
+    #[case] expected_error: FailOnErrorCause,
+) {
     mock_transaction_executor.expect_close_block().times(0);
 
-    let mock_tx_provider = mock_tx_provider_limited_calls(1, vec![input_txs.to_vec()]);
+    let mock_tx_provider = mock_tx_provider_limited_calls(1, vec![input_txs]);
 
     let (_abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
     let result = run_build_block(
@@ -416,8 +475,8 @@ async fn test_validate_block_with_error() {
     .unwrap_err();
 
     assert_matches!(
-        result,
-        BlockBuilderError::FailOnError(BlockifierTransactionExecutorError::BlockFull)
+        result, BlockBuilderError::FailOnError(err)
+        if err.to_string() == expected_error.to_string()
     );
 }
 

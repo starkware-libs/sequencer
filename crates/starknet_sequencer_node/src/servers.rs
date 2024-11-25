@@ -2,22 +2,27 @@ use std::future::pending;
 use std::pin::Pin;
 
 use futures::{Future, FutureExt};
-use starknet_batcher::communication::LocalBatcherServer;
+use starknet_batcher::communication::{LocalBatcherServer, RemoteBatcherServer};
 use starknet_consensus_manager::communication::ConsensusManagerServer;
-use starknet_gateway::communication::LocalGatewayServer;
+use starknet_gateway::communication::{LocalGatewayServer, RemoteGatewayServer};
 use starknet_http_server::communication::HttpServer;
-use starknet_mempool::communication::LocalMempoolServer;
-use starknet_mempool_p2p::propagator::LocalMempoolP2pPropagatorServer;
+use starknet_mempool::communication::{LocalMempoolServer, RemoteMempoolServer};
+use starknet_mempool_p2p::propagator::{
+    LocalMempoolP2pPropagatorServer,
+    RemoteMempoolP2pPropagatorServer,
+};
 use starknet_mempool_p2p::runner::MempoolP2pRunnerServer;
 use starknet_monitoring_endpoint::communication::MonitoringEndpointServer;
 use starknet_sequencer_infra::component_server::{
     ComponentServerStarter,
     LocalComponentServer,
+    RemoteComponentServer,
     WrapperServer,
 };
 use starknet_sequencer_infra::errors::ComponentServerError;
 use tracing::error;
 
+use crate::clients::SequencerNodeClients;
 use crate::communication::SequencerNodeCommunication;
 use crate::components::SequencerNodeComponents;
 use crate::config::component_execution_config::ComponentExecutionMode;
@@ -39,9 +44,73 @@ struct WrapperServers {
     pub(crate) mempool_p2p_runner: Option<Box<MempoolP2pRunnerServer>>,
 }
 
+// Component servers that can run remotely.
+// TODO(Nadin): Remove pub from the struct and update the fields to be pub(crate).
+pub struct RemoteServers {
+    pub batcher: Option<Box<RemoteBatcherServer>>,
+    pub gateway: Option<Box<RemoteGatewayServer>>,
+    pub mempool: Option<Box<RemoteMempoolServer>>,
+    pub mempool_p2p_propagator: Option<Box<RemoteMempoolP2pPropagatorServer>>,
+}
+
 pub struct SequencerNodeServers {
     local_servers: LocalServers,
+    remote_servers: RemoteServers,
     wrapper_servers: WrapperServers,
+}
+
+/// A macro for creating a remote component server based on the component's execution mode.
+/// Returns a remote server if the component is configured with Remote execution mode; otherwise,
+/// returns None.
+///
+/// # Arguments
+///
+/// * `$execution_mode` - A reference to the component's execution mode, of type
+///   `&ComponentExecutionMode`.
+/// * `$local_client` - The local client to be used for the remote server initialization if the
+///   execution mode is `Remote`.
+/// * `$config` - The configuration for the remote server.
+///
+/// # Returns
+///
+/// An `Option<Box<RemoteComponentServer<LocalClientType, RequestType, ResponseType>>>` containing
+/// the remote server if the execution mode is Remote, or None if the execution mode is Disabled,
+/// LocalExecutionWithRemoteEnabled or LocalExecutionWithRemoteDisabled.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// let batcher_remote_server = create_remote_server!(
+///     &config.components.batcher.execution_mode,
+///     clients.get_gateway_local_client(),
+///     config.remote_server_config
+/// );
+/// match batcher_remote_server {
+///     Some(server) => println!("Remote server created: {:?}", server),
+///     None => println!("Remote server not created because the execution mode is not remote."),
+/// }
+/// ```
+#[macro_export]
+macro_rules! create_remote_server {
+    ($execution_mode:expr, $local_client:expr, $remote_server_config:expr) => {
+        match *$execution_mode {
+            ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
+                let local_client = $local_client
+                    .expect("Local client should be set for inbound remote connections.");
+                let remote_server_config = $remote_server_config
+                    .as_ref()
+                    .expect("Remote server config should be set for inbound remote connections.");
+
+                Some(Box::new(RemoteComponentServer::new(
+                    local_client,
+                    remote_server_config.clone(),
+                )))
+            }
+            ComponentExecutionMode::LocalExecutionWithRemoteDisabled
+            | ComponentExecutionMode::Remote
+            | ComponentExecutionMode::Disabled => None,
+        }
+    };
 }
 
 /// A macro for creating a component server, determined by the component's execution mode. Returns a
@@ -171,6 +240,45 @@ fn create_local_servers(
     }
 }
 
+pub fn create_remote_servers(
+    config: &SequencerNodeConfig,
+    clients: &SequencerNodeClients,
+) -> RemoteServers {
+    let batcher_client = clients.get_batcher_local_client();
+    let batcher_server = create_remote_server!(
+        &config.components.batcher.execution_mode,
+        batcher_client,
+        config.components.batcher.remote_server_config
+    );
+
+    let gateway_client = clients.get_gateway_local_client();
+    let gateway_server = create_remote_server!(
+        &config.components.gateway.execution_mode,
+        gateway_client,
+        config.components.gateway.remote_server_config
+    );
+
+    let mempool_client = clients.get_mempool_local_client();
+    let mempool_server = create_remote_server!(
+        &config.components.mempool.execution_mode,
+        mempool_client,
+        config.components.mempool.remote_server_config
+    );
+
+    let mempool_p2p_propagator_client = clients.get_mempool_p2p_propagator_local_client();
+    let mempool_p2p_propagator_server = create_remote_server!(
+        &config.components.mempool_p2p.execution_mode,
+        mempool_p2p_propagator_client,
+        config.components.mempool_p2p.remote_server_config
+    );
+    RemoteServers {
+        batcher: batcher_server,
+        gateway: gateway_server,
+        mempool: mempool_server,
+        mempool_p2p_propagator: mempool_p2p_propagator_server,
+    }
+}
+
 fn create_wrapper_servers(
     config: &SequencerNodeConfig,
     components: &mut SequencerNodeComponents,
@@ -205,77 +313,105 @@ pub fn create_node_servers(
     config: &SequencerNodeConfig,
     communication: &mut SequencerNodeCommunication,
     components: SequencerNodeComponents,
+    clients: &SequencerNodeClients,
 ) -> SequencerNodeServers {
     let mut components = components;
     let local_servers = create_local_servers(config, communication, &mut components);
+    let remote_servers = create_remote_servers(config, clients);
     let wrapper_servers = create_wrapper_servers(config, &mut components);
 
-    SequencerNodeServers { local_servers, wrapper_servers }
+    SequencerNodeServers { local_servers, remote_servers, wrapper_servers }
 }
 
+// TODO(Nadin): refactor this function to reduce code duplication.
 pub async fn run_component_servers(servers: SequencerNodeServers) -> anyhow::Result<()> {
-    // Batcher server.
-    let batcher_future = get_server_future(servers.local_servers.batcher);
+    // Batcher servers.
+    let local_batcher_future = get_server_future(servers.local_servers.batcher);
+    let remote_batcher_future = get_server_future(servers.remote_servers.batcher);
 
     // Consensus Manager server.
     let consensus_manager_future = get_server_future(servers.wrapper_servers.consensus_manager);
 
-    // Gateway server.
-    let gateway_future = get_server_future(servers.local_servers.gateway);
+    // Gateway servers.
+    let local_gateway_future = get_server_future(servers.local_servers.gateway);
+    let remote_gateway_future = get_server_future(servers.remote_servers.gateway);
 
     // HttpServer server.
     let http_server_future = get_server_future(servers.wrapper_servers.http_server);
 
-    // Mempool server.
-    let mempool_future = get_server_future(servers.local_servers.mempool);
+    // Mempool servers.
+    let local_mempool_future = get_server_future(servers.local_servers.mempool);
+    let remote_mempool_future = get_server_future(servers.remote_servers.mempool);
 
     // Sequencer Monitoring server.
     let monitoring_endpoint_future = get_server_future(servers.wrapper_servers.monitoring_endpoint);
 
-    // MempoolP2pPropagator server.
-    let mempool_p2p_propagator_future =
+    // MempoolP2pPropagator servers.
+    let local_mempool_p2p_propagator_future =
         get_server_future(servers.local_servers.mempool_p2p_propagator);
+    let remote_mempool_p2p_propagator_future =
+        get_server_future(servers.remote_servers.mempool_p2p_propagator);
 
     // MempoolP2pRunner server.
     let mempool_p2p_runner_future = get_server_future(servers.wrapper_servers.mempool_p2p_runner);
 
     // Start servers.
-    let batcher_handle = tokio::spawn(batcher_future);
+    let local_batcher_handle = tokio::spawn(local_batcher_future);
+    let remote_batcher_handle = tokio::spawn(remote_batcher_future);
     let consensus_manager_handle = tokio::spawn(consensus_manager_future);
-    let gateway_handle = tokio::spawn(gateway_future);
+    let local_gateway_handle = tokio::spawn(local_gateway_future);
+    let remote_gateway_handle = tokio::spawn(remote_gateway_future);
     let http_server_handle = tokio::spawn(http_server_future);
-    let mempool_handle = tokio::spawn(mempool_future);
+    let local_mempool_handle = tokio::spawn(local_mempool_future);
+    let remote_mempool_handle = tokio::spawn(remote_mempool_future);
     let monitoring_endpoint_handle = tokio::spawn(monitoring_endpoint_future);
-    let mempool_p2p_propagator_handle = tokio::spawn(mempool_p2p_propagator_future);
+    let local_mempool_p2p_propagator_handle = tokio::spawn(local_mempool_p2p_propagator_future);
+    let remote_mempool_p2p_propagator_handle = tokio::spawn(remote_mempool_p2p_propagator_future);
     let mempool_p2p_runner_handle = tokio::spawn(mempool_p2p_runner_future);
 
     let result = tokio::select! {
-        res = batcher_handle => {
-            error!("Batcher Server stopped.");
+        res = local_batcher_handle => {
+            error!("Local Batcher Server stopped.");
+            res?
+        }
+        res = remote_batcher_handle => {
+            error!("Remote Batcher Server stopped.");
             res?
         }
         res = consensus_manager_handle => {
             error!("Consensus Manager Server stopped.");
             res?
         }
-        res = gateway_handle => {
-            error!("Gateway Server stopped.");
+        res = local_gateway_handle => {
+            error!("Local Gateway Server stopped.");
+            res?
+        }
+        res = remote_gateway_handle => {
+            error!("Remote Gateway Server stopped.");
             res?
         }
         res = http_server_handle => {
             error!("Http Server stopped.");
             res?
         }
-        res = mempool_handle => {
-            error!("Mempool Server stopped.");
+        res = local_mempool_handle => {
+            error!("Local Mempool Server stopped.");
+            res?
+        }
+        res = remote_mempool_handle => {
+            error!("Remote Mempool Server stopped.");
             res?
         }
         res = monitoring_endpoint_handle => {
             error!("Monitoring Endpoint Server stopped.");
             res?
         }
-        res = mempool_p2p_propagator_handle => {
-            error!("Mempool P2P Propagator Server stopped.");
+        res = local_mempool_p2p_propagator_handle => {
+            error!("Local Mempool P2P Propagator Server stopped.");
+            res?
+        }
+        res = remote_mempool_p2p_propagator_handle => {
+            error!("Remote Mempool P2P Propagator Server stopped.");
             res?
         }
         res = mempool_p2p_runner_handle => {

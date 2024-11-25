@@ -26,8 +26,6 @@ use crate::utils::compile_contract_and_build_executable_tx;
 #[path = "gateway_test.rs"]
 pub mod gateway_test;
 
-// TODO(yair): remove the usage of app_state.
-
 pub struct Gateway {
     pub config: GatewayConfig,
     pub stateless_tx_validator: Arc<StatelessTransactionValidator>,

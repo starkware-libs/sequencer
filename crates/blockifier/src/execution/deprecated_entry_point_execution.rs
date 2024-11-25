@@ -4,14 +4,15 @@ use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
-use cairo_vm::vm::runners::cairo_runner::{CairoArg, CairoRunner, ExecutionResources};
+use cairo_vm::vm::runners::cairo_runner::{CairoArg, CairoRunner};
+use starknet_api::abi::abi_utils::selector_from_name;
+use starknet_api::abi::constants::{CONSTRUCTOR_ENTRY_POINT_NAME, DEFAULT_ENTRY_POINT_SELECTOR};
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::EntryPointSelector;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::hash::StarkHash;
 
 use super::execution_utils::SEGMENT_ARENA_BUILTIN_SIZE;
-use crate::abi::abi_utils::selector_from_name;
-use crate::abi::constants::{CONSTRUCTOR_ENTRY_POINT_NAME, DEFAULT_ENTRY_POINT_SELECTOR};
 use crate::execution::call_info::{CallExecution, CallInfo, ChargedResources};
 use crate::execution::contract_class::{ContractClassV0, TrackedResource};
 use crate::execution::deprecated_syscalls::hint_processor::DeprecatedSyscallHintProcessor;
@@ -45,11 +46,10 @@ pub fn execute_entry_point_call(
     call: CallEntryPoint,
     contract_class: ContractClassV0,
     state: &mut dyn State,
-    resources: &mut ExecutionResources,
     context: &mut EntryPointExecutionContext,
 ) -> EntryPointExecutionResult<CallInfo> {
     let VmExecutionContext { mut runner, mut syscall_handler, initial_syscall_ptr, entry_point_pc } =
-        initialize_execution_context(&call, contract_class, state, resources, context)?;
+        initialize_execution_context(&call, contract_class, state, context)?;
 
     let (implicit_args, args) = prepare_call_arguments(
         &call,
@@ -59,27 +59,16 @@ pub fn execute_entry_point_call(
     )?;
     let n_total_args = args.len();
 
-    // Fix the VM resources, in order to calculate the usage of this run at the end.
-    let previous_resources = syscall_handler.resources.clone();
-
     // Execute.
     run_entry_point(&mut runner, &mut syscall_handler, entry_point_pc, args)?;
 
-    Ok(finalize_execution(
-        runner,
-        syscall_handler,
-        call,
-        previous_resources,
-        implicit_args,
-        n_total_args,
-    )?)
+    Ok(finalize_execution(runner, syscall_handler, call, implicit_args, n_total_args)?)
 }
 
 pub fn initialize_execution_context<'a>(
     call: &CallEntryPoint,
     contract_class: ContractClassV0,
     state: &'a mut dyn State,
-    resources: &'a mut ExecutionResources,
     context: &'a mut EntryPointExecutionContext,
 ) -> Result<VmExecutionContext<'a>, PreExecutionError> {
     // Verify use of cairo0 builtins only.
@@ -110,7 +99,6 @@ pub fn initialize_execution_context<'a>(
     let initial_syscall_ptr = runner.vm.add_memory_segment();
     let syscall_handler = DeprecatedSyscallHintProcessor::new(
         state,
-        resources,
         context,
         initial_syscall_ptr,
         call.storage_address,
@@ -231,7 +219,6 @@ pub fn finalize_execution(
     mut runner: CairoRunner,
     syscall_handler: DeprecatedSyscallHintProcessor<'_>,
     call: CallEntryPoint,
-    previous_resources: ExecutionResources,
     implicit_args: Vec<MaybeRelocatable>,
     n_total_args: usize,
 ) -> Result<CallInfo, PostExecutionError> {
@@ -263,12 +250,17 @@ pub fn finalize_execution(
             .get_mut(&BuiltinName::segment_arena)
             .map_or_else(|| {}, |val| *val *= SEGMENT_ARENA_BUILTIN_SIZE);
     }
-    *syscall_handler.resources += &vm_resources_without_inner_calls;
     // Take into account the syscall resources of the current call.
-    *syscall_handler.resources +=
+    vm_resources_without_inner_calls +=
         &versioned_constants.get_additional_os_syscall_resources(&syscall_handler.syscall_counter);
 
-    let full_call_resources = &*syscall_handler.resources - &previous_resources;
+    let charged_resources_without_inner_calls = ChargedResources {
+        vm_resources: vm_resources_without_inner_calls,
+        gas_for_fee: GasAmount(0),
+    };
+    let charged_resources = &charged_resources_without_inner_calls
+        + &CallInfo::summarize_charged_resources(syscall_handler.inner_calls.iter());
+
     Ok(CallInfo {
         call,
         execution: CallExecution {
@@ -280,9 +272,7 @@ pub fn finalize_execution(
         },
         inner_calls: syscall_handler.inner_calls,
         tracked_resource: TrackedResource::CairoSteps,
-        charged_resources: ChargedResources::from_execution_resources(
-            full_call_resources.filter_unused_builtins(),
-        ),
+        charged_resources,
         storage_read_values: syscall_handler.read_values,
         accessed_storage_keys: syscall_handler.accessed_keys,
         ..Default::default()

@@ -19,6 +19,7 @@ indexmap.workspace = true
 mempool_test_utils.workspace = true
 papyrus_common.workspace = true
 papyrus_consensus.workspace = true
+papyrus_execution.workspace = true
 papyrus_network = { workspace = true, features = ["testing"] }
 papyrus_protobuf.workspace = true
 papyrus_rpc.workspace = true
@@ -28,7 +29,6 @@ serde_json.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 starknet_batcher.workspace = true
-starknet_batcher_types.workspace = true
 starknet_client.workspace = true
 starknet_consensus_manager.workspace = true
 starknet_gateway = { workspace = true, features = ["testing"] }
@@ -36,7 +36,7 @@ starknet_gateway_types.workspace = true
 starknet_http_server.workspace = true
 starknet_mempool_p2p.workspace = true
 starknet_monitoring_endpoint = { workspace = true, features = ["testing"] }
-starknet_sequencer_infra.workspace = true
+starknet_sequencer_infra = { workspace = true, features = ["testing"] }
 starknet_sequencer_node = { workspace = true, features = ["testing"] }
 starknet_task_executor.workspace = true
 strum.workspace = true

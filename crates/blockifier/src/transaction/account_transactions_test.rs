@@ -6,6 +6,11 @@ use cairo_vm::vm::runners::cairo_runner::ResourceTracker;
 use num_traits::Inv;
 use pretty_assertions::{assert_eq, assert_ne};
 use rstest::rstest;
+use starknet_api::abi::abi_utils::{
+    get_fee_token_var_address,
+    get_storage_var_address,
+    selector_from_name,
+};
 use starknet_api::block::GasPrice;
 use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress};
 use starknet_api::executable_transaction::{
@@ -17,6 +22,7 @@ use starknet_api::hash::StarkHash;
 use starknet_api::state::StorageKey;
 use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::test_utils::NonceManager;
+use starknet_api::transaction::constants::TRANSFER_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::{
     AllResourceBounds,
     Calldata,
@@ -46,11 +52,6 @@ use starknet_api::{
 };
 use starknet_types_core::felt::Felt;
 
-use crate::abi::abi_utils::{
-    get_fee_token_var_address,
-    get_storage_var_address,
-    selector_from_name,
-};
 use crate::check_tx_execution_error_for_invalid_scenario;
 use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::CallInfo;
@@ -82,7 +83,6 @@ use crate::test_utils::{
     MAX_FEE,
 };
 use crate::transaction::account_transaction::AccountTransaction;
-use crate::transaction::constants::TRANSFER_ENTRY_POINT_NAME;
 use crate::transaction::objects::{FeeType, HasRelatedFeeType, TransactionInfoCreator};
 use crate::transaction::test_utils::{
     account_invoke_tx,
@@ -212,7 +212,7 @@ fn test_fee_enforcement(
         &mut NonceManager::default(),
     );
 
-    let enforce_fee = deploy_account_tx.create_tx_info().enforce_fee();
+    let enforce_fee = deploy_account_tx.enforce_fee();
     assert_ne!(zero_bounds, enforce_fee);
     let result = deploy_account_tx.execute(state, &block_context, enforce_fee, true);
     // Execution should fail if the fee is enforced because the account doesn't have sufficient
@@ -238,7 +238,7 @@ fn test_all_bounds_combinations_enforce_fee(
             DEFAULT_STRK_L1_DATA_GAS_PRICE.into(),
         ),
     });
-    assert_eq!(account_tx.create_tx_info().enforce_fee(), expected_enforce_fee);
+    assert_eq!(account_tx.enforce_fee(), expected_enforce_fee);
 }
 
 #[rstest]
@@ -1395,8 +1395,8 @@ fn test_count_actual_storage_changes(
         ..Default::default()
     };
 
-    assert_eq!(expected_modified_contracts, state_changes_1.get_modified_contracts());
-    assert_eq!(expected_storage_updates_1, state_changes_1.0.storage);
+    assert_eq!(expected_modified_contracts, state_changes_1.state_maps.get_modified_contracts());
+    assert_eq!(expected_storage_updates_1, state_changes_1.state_maps.storage);
     assert_eq!(state_changes_count_1, expected_state_changes_count_1);
 
     // Second transaction: storage cell starts and ends with value 1.
@@ -1432,8 +1432,8 @@ fn test_count_actual_storage_changes(
         ..Default::default()
     };
 
-    assert_eq!(expected_modified_contracts_2, state_changes_2.get_modified_contracts());
-    assert_eq!(expected_storage_updates_2, state_changes_2.0.storage);
+    assert_eq!(expected_modified_contracts_2, state_changes_2.state_maps.get_modified_contracts());
+    assert_eq!(expected_storage_updates_2, state_changes_2.state_maps.storage);
     assert_eq!(state_changes_count_2, expected_state_changes_count_2);
 
     // Transfer transaction: transfer 1 ETH to recepient.
@@ -1480,9 +1480,9 @@ fn test_count_actual_storage_changes(
 
     assert_eq!(
         expected_modified_contracts_transfer,
-        state_changes_transfer.get_modified_contracts()
+        state_changes_transfer.state_maps.get_modified_contracts()
     );
-    assert_eq!(expected_storage_update_transfer, state_changes_transfer.0.storage);
+    assert_eq!(expected_storage_update_transfer, state_changes_transfer.state_maps.storage);
     assert_eq!(state_changes_count_3, expected_state_changes_count_3);
 }
 

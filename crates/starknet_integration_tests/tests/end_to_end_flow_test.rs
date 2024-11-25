@@ -4,10 +4,11 @@ use futures::StreamExt;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{ProposalFin, ProposalInit, ProposalPart};
+use papyrus_storage::test_utils::CHAIN_ID_FOR_TESTS;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::{BlockHash, BlockNumber};
-use starknet_api::core::{ChainId, ContractAddress};
+use starknet_api::core::ContractAddress;
 use starknet_api::transaction::TransactionHash;
 use starknet_integration_tests::flow_test_setup::FlowTestSetup;
 use starknet_integration_tests::utils::{
@@ -27,7 +28,7 @@ async fn end_to_end(tx_generator: MultiAccountTransactionGenerator) {
     const LISTEN_TO_BROADCAST_MESSAGES_TIMEOUT: std::time::Duration =
         std::time::Duration::from_secs(5);
     // Setup.
-    let mock_running_system = FlowTestSetup::new_from_tx_generator(&tx_generator).await;
+    let mut mock_running_system = FlowTestSetup::new_from_tx_generator(&tx_generator).await;
 
     // Create and send transactions.
     let expected_batched_tx_hashes = run_integration_test_scenario(tx_generator, &mut |tx| {
@@ -38,7 +39,7 @@ async fn end_to_end(tx_generator: MultiAccountTransactionGenerator) {
     tokio::time::timeout(
         LISTEN_TO_BROADCAST_MESSAGES_TIMEOUT,
         listen_to_broadcasted_messages(
-            mock_running_system.consensus_proposals_channels,
+            &mut mock_running_system.consensus_proposals_channels,
             &expected_batched_tx_hashes,
         ),
     )
@@ -47,15 +48,12 @@ async fn end_to_end(tx_generator: MultiAccountTransactionGenerator) {
 }
 
 async fn listen_to_broadcasted_messages(
-    consensus_proposals_channels: BroadcastTopicChannels<ProposalPart>,
+    consensus_proposals_channels: &mut BroadcastTopicChannels<ProposalPart>,
     expected_batched_tx_hashes: &[TransactionHash],
 ) {
-    // TODO(Dan, Guy): retrieve chain ID. Maybe by modifying IntegrationTestSetup to hold it as a
-    // member, and instantiate the value using StorageTestSetup.
-    const CHAIN_ID_NAME: &str = "CHAIN_ID_SUBDIR";
-    let chain_id = ChainId::Other(CHAIN_ID_NAME.to_string());
-    let mut broadcasted_messages_receiver =
-        consensus_proposals_channels.broadcasted_messages_receiver;
+    let chain_id = CHAIN_ID_FOR_TESTS.clone();
+    let broadcasted_messages_receiver =
+        &mut consensus_proposals_channels.broadcasted_messages_receiver;
     let mut received_tx_hashes = HashSet::new();
     // TODO (Dan, Guy): retrieve / calculate the expected proposal init and fin.
     let expected_proposal_init = ProposalInit {

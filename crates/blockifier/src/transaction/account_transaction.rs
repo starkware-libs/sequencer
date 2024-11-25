@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::GasPriceVector;
 use starknet_api::calldata;
 use starknet_api::contract_class::EntryPointType;
@@ -23,10 +23,9 @@ use starknet_api::transaction::fields::{
     TransactionSignature,
     ValidResourceBounds,
 };
-use starknet_api::transaction::{TransactionHash, TransactionVersion};
+use starknet_api::transaction::{constants, TransactionHash, TransactionVersion};
 use starknet_types_core::felt::Felt;
 
-use crate::abi::abi_utils::selector_from_name;
 use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::CallInfo;
 use crate::execution::contract_class::RunnableContractClass;
@@ -47,7 +46,6 @@ use crate::fee::receipt::TransactionReceipt;
 use crate::retdata;
 use crate::state::cached_state::{StateChanges, TransactionalState};
 use crate::state::state_api::{State, StateReader, UpdatableState};
-use crate::transaction::constants;
 use crate::transaction::errors::{
     TransactionExecutionError,
     TransactionFeeError,
@@ -407,14 +405,13 @@ impl AccountTransaction {
     fn handle_validate_tx(
         &self,
         state: &mut dyn State,
-        resources: &mut ExecutionResources,
         tx_context: Arc<TransactionContext>,
         remaining_gas: &mut u64,
         validate: bool,
         limit_steps_by_resources: bool,
     ) -> TransactionExecutionResult<Option<CallInfo>> {
         if validate {
-            self.validate_tx(state, resources, tx_context, remaining_gas, limit_steps_by_resources)
+            self.validate_tx(state, tx_context, remaining_gas, limit_steps_by_resources)
         } else {
             Ok(None)
         }
@@ -501,12 +498,7 @@ impl AccountTransaction {
         let mut context = EntryPointExecutionContext::new_invoke(tx_context, true);
 
         Ok(fee_transfer_call
-            .execute(
-                state,
-                &mut ExecutionResources::default(),
-                &mut context,
-                &mut remaining_gas_for_fee_transfer,
-            )
+            .execute(state, &mut context, &mut remaining_gas_for_fee_transfer)
             .map_err(TransactionFeeError::ExecuteFeeTransferError)?)
     }
 
@@ -545,16 +537,13 @@ impl AccountTransaction {
     fn run_execute<S: State>(
         &self,
         state: &mut S,
-        resources: &mut ExecutionResources,
         context: &mut EntryPointExecutionContext,
         remaining_gas: &mut u64,
     ) -> TransactionExecutionResult<Option<CallInfo>> {
         match &self.tx {
-            Transaction::Declare(tx) => tx.run_execute(state, resources, context, remaining_gas),
-            Transaction::DeployAccount(tx) => {
-                tx.run_execute(state, resources, context, remaining_gas)
-            }
-            Transaction::Invoke(tx) => tx.run_execute(state, resources, context, remaining_gas),
+            Transaction::Declare(tx) => tx.run_execute(state, context, remaining_gas),
+            Transaction::DeployAccount(tx) => tx.run_execute(state, context, remaining_gas),
+            Transaction::Invoke(tx) => tx.run_execute(state, context, remaining_gas),
         }
     }
 
@@ -566,7 +555,6 @@ impl AccountTransaction {
         validate: bool,
         charge_fee: bool,
     ) -> TransactionExecutionResult<ValidateExecuteCallInfo> {
-        let mut resources = ExecutionResources::default();
         let validate_call_info: Option<CallInfo>;
         let execute_call_info: Option<CallInfo>;
         if matches!(&self.tx, Transaction::DeployAccount(_)) {
@@ -575,11 +563,9 @@ impl AccountTransaction {
             // validation context.
             let mut execution_context =
                 EntryPointExecutionContext::new_validate(tx_context.clone(), charge_fee);
-            execute_call_info =
-                self.run_execute(state, &mut resources, &mut execution_context, remaining_gas)?;
+            execute_call_info = self.run_execute(state, &mut execution_context, remaining_gas)?;
             validate_call_info = self.handle_validate_tx(
                 state,
-                &mut resources,
                 tx_context.clone(),
                 remaining_gas,
                 validate,
@@ -590,22 +576,22 @@ impl AccountTransaction {
                 EntryPointExecutionContext::new_invoke(tx_context.clone(), charge_fee);
             validate_call_info = self.handle_validate_tx(
                 state,
-                &mut resources,
                 tx_context.clone(),
                 remaining_gas,
                 validate,
                 charge_fee,
             )?;
-            execute_call_info =
-                self.run_execute(state, &mut resources, &mut execution_context, remaining_gas)?;
+            execute_call_info = self.run_execute(state, &mut execution_context, remaining_gas)?;
         }
 
         let tx_receipt = TransactionReceipt::from_account_tx(
             self,
             &tx_context,
             &state.get_actual_state_changes()?,
-            &resources,
-            CallInfo::summarize_many(validate_call_info.iter().chain(execute_call_info.iter())),
+            CallInfo::summarize_many(
+                validate_call_info.iter().chain(execute_call_info.iter()),
+                &tx_context.block_context.versioned_constants,
+            ),
             0,
         );
 
@@ -629,13 +615,11 @@ impl AccountTransaction {
         validate: bool,
         charge_fee: bool,
     ) -> TransactionExecutionResult<ValidateExecuteCallInfo> {
-        let mut resources = ExecutionResources::default();
         let mut execution_context =
             EntryPointExecutionContext::new_invoke(tx_context.clone(), charge_fee);
         // Run the validation, and if execution later fails, only keep the validation diff.
         let validate_call_info = self.handle_validate_tx(
             state,
-            &mut resources,
             tx_context.clone(),
             remaining_gas,
             validate,
@@ -652,27 +636,25 @@ impl AccountTransaction {
         // resource and fee calculation.
         let validate_state_changes = state.get_actual_state_changes()?;
 
-        // Create copies of state and resources for the execution.
+        // Create copies of state and validate_resources for the execution.
         // Both will be rolled back if the execution is reverted or committed upon success.
-        let mut execution_resources = resources.clone();
         let mut execution_state = TransactionalState::create_transactional(state);
 
-        let execution_result = self.run_execute(
-            &mut execution_state,
-            &mut execution_resources,
-            &mut execution_context,
-            remaining_gas,
-        );
+        let execution_result =
+            self.run_execute(&mut execution_state, &mut execution_context, remaining_gas);
 
         // Pre-compute cost in case of revert.
+        // TODO(tzahi): add reverted_l2_gas to the receipt.
         let execution_steps_consumed =
             n_allotted_execution_steps - execution_context.n_remaining_steps();
-        let revert_cost = TransactionReceipt::from_account_tx(
+        let revert_receipt = TransactionReceipt::from_account_tx(
             self,
             &tx_context,
             &validate_state_changes,
-            &resources,
-            CallInfo::summarize_many(validate_call_info.iter()),
+            CallInfo::summarize_many(
+                validate_call_info.iter(),
+                &tx_context.block_context.versioned_constants,
+            ),
             execution_steps_consumed,
         );
 
@@ -687,9 +669,9 @@ impl AccountTransaction {
                         validate_state_changes,
                         execution_state.get_actual_state_changes()?,
                     ]),
-                    &execution_resources,
                     CallInfo::summarize_many(
                         validate_call_info.iter().chain(execute_call_info.iter()),
+                        &tx_context.block_context.versioned_constants,
                     ),
                     0,
                 );
@@ -712,7 +694,7 @@ impl AccountTransaction {
                             post_execution_error.into(),
                             TransactionReceipt {
                                 fee: post_execution_report.recommended_fee(),
-                                ..revert_cost
+                                ..revert_receipt
                             },
                         ))
                     }
@@ -731,13 +713,13 @@ impl AccountTransaction {
                 // Error during execution. Revert, even if the error is sequencer-related.
                 execution_state.abort();
                 let post_execution_report =
-                    PostExecutionReport::new(state, &tx_context, &revert_cost, charge_fee)?;
+                    PostExecutionReport::new(state, &tx_context, &revert_receipt, charge_fee)?;
                 Ok(ValidateExecuteCallInfo::new_reverted(
                     validate_call_info,
                     gen_tx_execution_error_trace(&execution_error).into(),
                     TransactionReceipt {
                         fee: post_execution_report.recommended_fee(),
-                        ..revert_cost
+                        ..revert_receipt
                     },
                 ))
             }
@@ -888,7 +870,6 @@ impl ValidatableTransaction for AccountTransaction {
     fn validate_tx(
         &self,
         state: &mut dyn State,
-        resources: &mut ExecutionResources,
         tx_context: Arc<TransactionContext>,
         remaining_gas: &mut u64,
         limit_steps_by_resources: bool,
@@ -917,7 +898,7 @@ impl ValidatableTransaction for AccountTransaction {
 
         // Note that we allow a revert here and we handle it bellow to get a better error message.
         let validate_call_info = validate_call
-            .execute(state, resources, &mut context, remaining_gas)
+            .execute(state, &mut context, remaining_gas)
             .map_err(|error| TransactionExecutionError::ValidateTransactionError {
                 error,
                 class_hash,
@@ -930,7 +911,7 @@ impl ValidatableTransaction for AccountTransaction {
         if is_cairo1(&contract_class) {
             // The account contract class is a Cairo 1.0 contract; the `validate` entry point should
             // return `VALID`.
-            let expected_retdata = retdata![Felt::from_hex(constants::VALIDATE_RETDATA)?];
+            let expected_retdata = retdata![*constants::VALIDATE_RETDATA];
 
             if validate_call_info.execution.failed {
                 return Err(TransactionExecutionError::PanicInValidate {

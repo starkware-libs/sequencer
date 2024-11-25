@@ -106,8 +106,8 @@
   },
   "batcher_config.block_builder_config.sequencer_address": {
     "description": "The address of the sequencer.",
-    "privacy": "Public",
-    "value": "0x0"
+    "pointer_target": "sequencer_address",
+    "privacy": "Public"
   },
   "batcher_config.block_builder_config.tx_chunk_size": {
     "description": "The size of the transaction chunk.",
@@ -121,21 +121,26 @@
   },
   "batcher_config.block_builder_config.versioned_constants_overrides.invoke_tx_max_n_steps": {
     "description": "Maximum number of steps the invoke function is allowed to run.",
-    "privacy": "Public",
-    "value": 10000000
+    "pointer_target": "versioned_constants_overrides.invoke_tx_max_n_steps",
+    "privacy": "Public"
   },
   "batcher_config.block_builder_config.versioned_constants_overrides.max_recursion_depth": {
     "description": "Maximum recursion depth for nested calls during blockifier validation.",
-    "privacy": "Public",
-    "value": 50
+    "pointer_target": "versioned_constants_overrides.max_recursion_depth",
+    "privacy": "Public"
   },
   "batcher_config.block_builder_config.versioned_constants_overrides.validate_max_n_steps": {
     "description": "Maximum number of steps the validation function is allowed to run.",
-    "privacy": "Public",
-    "value": 1000000
+    "pointer_target": "versioned_constants_overrides.validate_max_n_steps",
+    "privacy": "Public"
   },
   "batcher_config.global_contract_cache_size": {
     "description": "Cache size for the global_class_hash_to_class. Initialized with this size on creation.",
+    "privacy": "Public",
+    "value": 400
+  },
+  "batcher_config.input_stream_content_buffer_size": {
+    "description": "Sets the buffer size for the input transaction channel. Adding more transactions beyond this limit will block until space is available.",
     "privacy": "Public",
     "value": 400
   },
@@ -145,7 +150,7 @@
     "value": 3
   },
   "batcher_config.outstream_content_buffer_size": {
-    "description": "Maximum items to add to the outstream buffer before blocking further filling of the stream.",
+    "description": "The maximum number of items to include in a single get_proposal_content response.",
     "privacy": "Public",
     "value": 100
   },
@@ -706,18 +711,18 @@
   },
   "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.invoke_tx_max_n_steps": {
     "description": "Maximum number of steps the invoke function is allowed to run.",
-    "privacy": "Public",
-    "value": 10000000
+    "pointer_target": "versioned_constants_overrides.invoke_tx_max_n_steps",
+    "privacy": "Public"
   },
   "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.max_recursion_depth": {
     "description": "Maximum recursion depth for nested calls during blockifier validation.",
-    "privacy": "Public",
-    "value": 50
+    "pointer_target": "versioned_constants_overrides.max_recursion_depth",
+    "privacy": "Public"
   },
   "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.validate_max_n_steps": {
     "description": "Maximum number of steps the validation function is allowed to run.",
-    "privacy": "Public",
-    "value": 1000000
+    "pointer_target": "versioned_constants_overrides.validate_max_n_steps",
+    "privacy": "Public"
   },
   "gateway_config.stateless_tx_validator_config.max_calldata_length": {
     "description": "Limitation of calldata length.",
@@ -894,9 +899,29 @@
     "privacy": "Public",
     "value": ""
   },
+  "sequencer_address": {
+    "description": "A required param! The sequencer address.",
+    "param_type": "String",
+    "privacy": "TemporaryValue"
+  },
   "strk_fee_token_address": {
     "description": "A required param! Address of the STRK fee token.",
     "param_type": "String",
     "privacy": "TemporaryValue"
+  },
+  "versioned_constants_overrides.invoke_tx_max_n_steps": {
+    "description": "Maximum number of steps the invoke function is allowed to run.",
+    "privacy": "TemporaryValue",
+    "value": 10000000
+  },
+  "versioned_constants_overrides.max_recursion_depth": {
+    "description": "Maximum recursion depth for nested calls during blockifier validation.",
+    "privacy": "TemporaryValue",
+    "value": 50
+  },
+  "versioned_constants_overrides.validate_max_n_steps": {
+    "description": "Maximum number of steps the validation function is allowed to run.",
+    "privacy": "TemporaryValue",
+    "value": 1000000
   }
 }

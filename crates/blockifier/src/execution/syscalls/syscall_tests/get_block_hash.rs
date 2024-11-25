@@ -1,4 +1,5 @@
 use pretty_assertions::assert_eq;
+use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::core::ContractAddress;
 use starknet_api::execution_utils::format_panic_data;
 use starknet_api::state::StorageKey;
@@ -6,7 +7,6 @@ use starknet_api::{calldata, felt};
 use starknet_types_core::felt::Felt;
 use test_case::test_case;
 
-use crate::abi::abi_utils::selector_from_name;
 use crate::abi::constants;
 use crate::context::ChainInfo;
 use crate::execution::call_info::CallExecution;
@@ -40,12 +40,10 @@ fn initialize_state(test_contract: FeatureContract) -> (CachedState<DictStateRea
     (state, block_number, block_hash)
 }
 
-#[cfg_attr(
-    feature = "cairo_native",
-    test_case(FeatureContract::TestContract(CairoVersion::Native), 13850; "Native")
-)]
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 5220; "VM")]
-fn positive_flow(test_contract: FeatureContract, expected_gas: u64) {
+#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Native;"Native"))]
+#[test_case(CairoVersion::Cairo1;"VM")]
+fn positive_flow(cairo_version: CairoVersion) {
+    let test_contract = FeatureContract::TestContract(cairo_version);
     let (mut state, block_number, block_hash) = initialize_state(test_contract);
 
     let calldata = calldata![block_number];
@@ -57,19 +55,14 @@ fn positive_flow(test_contract: FeatureContract, expected_gas: u64) {
 
     assert_eq!(
         entry_point_call.clone().execute_directly(&mut state).unwrap().execution,
-        CallExecution {
-            gas_consumed: expected_gas,
-            ..CallExecution::from_retdata(retdata![block_hash])
-        }
+        CallExecution { gas_consumed: 5220, ..CallExecution::from_retdata(retdata![block_hash]) }
     );
 }
 
-#[cfg_attr(
-    feature = "cairo_native",
-    test_case(FeatureContract::TestContract(CairoVersion::Native); "Native")
-)]
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1); "VM")]
-fn negative_flow_execution_mode_validate(test_contract: FeatureContract) {
+#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Native;"Native"))]
+#[test_case(CairoVersion::Cairo1;"VM")]
+fn negative_flow_execution_mode_validate(cairo_version: CairoVersion) {
+    let test_contract = FeatureContract::TestContract(cairo_version);
     let (mut state, block_number, _) = initialize_state(test_contract);
 
     let calldata = calldata![block_number];
@@ -100,12 +93,10 @@ fn negative_flow_execution_mode_validate(test_contract: FeatureContract) {
     );
 }
 
-#[cfg_attr(
-    feature = "cairo_native",
-    test_case(FeatureContract::TestContract(CairoVersion::Native); "Native")
-)]
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1); "VM")]
-fn negative_flow_block_number_out_of_range(test_contract: FeatureContract) {
+#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Native;"Native"))]
+#[test_case(CairoVersion::Cairo1;"VM")]
+fn negative_flow_block_number_out_of_range(cairo_version: CairoVersion) {
+    let test_contract = FeatureContract::TestContract(cairo_version);
     let (mut state, _, _) = initialize_state(test_contract);
 
     let requested_block_number = CURRENT_BLOCK_NUMBER - constants::STORED_BLOCK_HASH_BUFFER + 1;
@@ -117,11 +108,10 @@ fn negative_flow_block_number_out_of_range(test_contract: FeatureContract) {
         ..trivial_external_entry_point_new(test_contract)
     };
 
-    let call_result = entry_point_call.execute_directly(&mut state);
-    let (actual_error_msg, expected_error_msg) = (
-        format_panic_data(&call_result.unwrap().execution.retdata.0),
-        "0x426c6f636b206e756d626572206f7574206f662072616e6765 ('Block number out of range')",
+    let call_info = entry_point_call.execute_directly(&mut state).unwrap();
+    assert!(call_info.execution.failed);
+    assert_eq!(
+        format_panic_data(&call_info.execution.retdata.0),
+        "0x426c6f636b206e756d626572206f7574206f662072616e6765 ('Block number out of range')"
     );
-
-    assert_eq!(actual_error_msg, expected_error_msg);
 }

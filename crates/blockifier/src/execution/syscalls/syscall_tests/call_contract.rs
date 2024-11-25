@@ -4,19 +4,18 @@ use std::sync::Arc;
 use itertools::Itertools;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
+use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::execution_utils::format_panic_data;
 use starknet_api::felt;
 use starknet_api::transaction::fields::Calldata;
 use test_case::test_case;
 
 use super::constants::REQUIRED_GAS_CALL_CONTRACT_TEST;
-use crate::abi::abi_utils::selector_from_name;
 use crate::context::ChainInfo;
 use crate::execution::call_info::CallExecution;
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::retdata;
-use crate::state::state_api::StateReader;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::syscall::build_recurse_calldata;
@@ -62,32 +61,22 @@ fn test_call_contract_that_panics() {
     );
     assert!(inner_call.execution.events.is_empty());
     assert!(inner_call.execution.l2_to_l1_messages.is_empty());
-    assert_eq!(
-        state.get_class_hash_at(inner_call.call.storage_address).unwrap(),
-        test_contract.get_class_hash()
-    );
 }
 
 #[cfg_attr(
     feature = "cairo_native",
     test_case(
       FeatureContract::TestContract(CairoVersion::Native),
-      FeatureContract::TestContract(CairoVersion::Native),
-      189010;
+      FeatureContract::TestContract(CairoVersion::Native);
       "Call Contract between two contracts using Native"
     )
 )]
 #[test_case(
     FeatureContract::TestContract(CairoVersion::Cairo1),
-    FeatureContract::TestContract(CairoVersion::Cairo1),
-    REQUIRED_GAS_CALL_CONTRACT_TEST;
+    FeatureContract::TestContract(CairoVersion::Cairo1);
     "Call Contract between two contracts using VM"
 )]
-fn test_call_contract(
-    outer_contract: FeatureContract,
-    inner_contract: FeatureContract,
-    expected_gas: u64,
-) {
+fn test_call_contract(outer_contract: FeatureContract, inner_contract: FeatureContract) {
     let chain_info = &ChainInfo::create_for_testing();
     let mut state = test_state(chain_info, BALANCE, &[(outer_contract, 1), (inner_contract, 1)]);
 
@@ -110,7 +99,7 @@ fn test_call_contract(
         entry_point_call.execute_directly(&mut state).unwrap().execution,
         CallExecution {
             retdata: retdata![felt!(48_u8)],
-            gas_consumed: expected_gas,
+            gas_consumed: REQUIRED_GAS_CALL_CONTRACT_TEST,
             ..CallExecution::default()
         }
     );

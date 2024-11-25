@@ -1,18 +1,19 @@
 use async_trait::async_trait;
 use starknet_batcher_types::communication::{BatcherRequest, BatcherResponse};
 use starknet_sequencer_infra::component_definitions::ComponentRequestHandler;
-use starknet_sequencer_infra::component_server::LocalComponentServer;
+use starknet_sequencer_infra::component_server::{LocalComponentServer, RemoteComponentServer};
 
 use crate::batcher::Batcher;
 
 pub type LocalBatcherServer = LocalComponentServer<Batcher, BatcherRequest, BatcherResponse>;
+pub type RemoteBatcherServer = RemoteComponentServer<BatcherRequest, BatcherResponse>;
 
 #[async_trait]
 impl ComponentRequestHandler<BatcherRequest, BatcherResponse> for Batcher {
     async fn handle_request(&mut self, request: BatcherRequest) -> BatcherResponse {
         match request {
-            BatcherRequest::BuildProposal(input) => {
-                BatcherResponse::BuildProposal(self.build_proposal(input).await)
+            BatcherRequest::ProposeBlock(input) => {
+                BatcherResponse::ProposeBlock(self.propose_block(input).await)
             }
             BatcherRequest::GetProposalContent(input) => {
                 BatcherResponse::GetProposalContent(self.get_proposal_content(input).await)
@@ -23,8 +24,8 @@ impl ComponentRequestHandler<BatcherRequest, BatcherResponse> for Batcher {
             BatcherRequest::DecisionReached(input) => {
                 BatcherResponse::DecisionReached(self.decision_reached(input).await)
             }
-            BatcherRequest::ValidateProposal(input) => {
-                BatcherResponse::ValidateProposal(self.validate_proposal(input).await)
+            BatcherRequest::ValidateBlock(input) => {
+                BatcherResponse::ValidateBlock(self.validate_block(input).await)
             }
             BatcherRequest::SendProposalContent(input) => {
                 BatcherResponse::SendProposalContent(self.send_proposal_content(input).await)

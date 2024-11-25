@@ -23,6 +23,7 @@ use crate::state_reader::test_state_reader::{
     ConsecutiveStateReaders,
     ConsecutiveTestStateReaders,
     OfflineConsecutiveStateReaders,
+    ReexecutionResult,
     SerializableDataPrevBlock,
     SerializableOfflineReexecutionData,
 };
@@ -32,6 +33,20 @@ pub static RPC_NODE_URL: LazyLock<String> = LazyLock::new(|| {
         .unwrap_or_else(|_| "https://free-rpc.nethermind.io/mainnet-juno/".to_string())
 });
 pub const JSON_RPC_VERSION: &str = "2.0";
+
+pub fn guess_chain_id_from_node_url(node_url: &str) -> ReexecutionResult<ChainId> {
+    match (
+        node_url.contains("mainnet"),
+        node_url.contains("sepolia"),
+        node_url.contains("integration"),
+    ) {
+        (true, false, false) => Ok(ChainId::Mainnet),
+        (false, true, false) => Ok(ChainId::Sepolia),
+        // Integration URLs may contain the word "sepolia".
+        (false, _, true) => Ok(ChainId::IntegrationSepolia),
+        _ => Err(ReexecutionError::AmbiguousChainIdFromUrl(node_url.to_string())),
+    }
+}
 
 /// Returns the fee token addresses of mainnet.
 pub fn get_fee_token_addresses(chain_id: &ChainId) -> FeeTokenAddresses {
@@ -242,8 +257,9 @@ pub fn reexecute_block_for_testing(block_number: u64) {
 
 pub fn write_block_reexecution_data_to_file(
     block_number: BlockNumber,
-    full_file_path: &str,
+    full_file_path: String,
     node_url: String,
+    chain_id: ChainId,
 ) {
     let config =
         RpcStateReaderConfig { url: node_url, json_rpc_version: JSON_RPC_VERSION.to_string() };
@@ -251,6 +267,7 @@ pub fn write_block_reexecution_data_to_file(
     let consecutive_state_readers = ConsecutiveTestStateReaders::new(
         block_number.prev().expect("Should not run with block 0"),
         Some(config),
+        chain_id.clone(),
         true,
     );
 
@@ -270,9 +287,10 @@ pub fn write_block_reexecution_data_to_file(
     SerializableOfflineReexecutionData {
         serializable_data_prev_block,
         serializable_data_next_block,
+        chain_id,
         old_block_hash,
     }
-    .write_to_file(full_file_path)
+    .write_to_file(&full_file_path)
     .unwrap();
 
     println!("RPC replies required for reexecuting block {block_number} written to json file.");

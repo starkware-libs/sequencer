@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::contract_class::ClassInfo;
 use starknet_api::core::{calculate_contract_address, ContractAddress, Nonce};
 use starknet_api::executable_transaction::{
@@ -146,14 +145,11 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
     ) -> TransactionExecutionResult<TransactionExecutionInfo> {
         let tx_context = Arc::new(block_context.to_tx_context(self));
         let limit_steps_by_resources = false;
-        let mut execution_resources = ExecutionResources::default();
         let mut context =
             EntryPointExecutionContext::new_invoke(tx_context.clone(), limit_steps_by_resources);
         let mut remaining_gas = tx_context.initial_sierra_gas();
-        let execute_call_info =
-            self.run_execute(state, &mut execution_resources, &mut context, &mut remaining_gas)?;
+        let execute_call_info = self.run_execute(state, &mut context, &mut remaining_gas)?;
         let l1_handler_payload_size = self.payload_size();
-
         let TransactionReceipt {
             fee: actual_fee,
             da_gas,
@@ -162,9 +158,8 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
         } = TransactionReceipt::from_l1_handler(
             &tx_context,
             l1_handler_payload_size,
-            CallInfo::summarize_many(execute_call_info.iter()),
+            CallInfo::summarize_many(execute_call_info.iter(), &block_context.versioned_constants),
             &state.get_actual_state_changes()?,
-            &execution_resources,
         );
 
         let paid_fee = self.paid_fee_on_l1;
@@ -209,8 +204,8 @@ impl<U: UpdatableState> ExecutableTransaction<U> for Transaction {
 
         // Check if the transaction is too large to fit any block.
         // TODO(Yoni, 1/8/2024): consider caching these two.
-        let tx_execution_summary = tx_execution_info.summarize();
-        let mut tx_state_changes_keys = state.get_actual_state_changes()?.into_keys();
+        let tx_execution_summary = tx_execution_info.summarize(&block_context.versioned_constants);
+        let mut tx_state_changes_keys = state.get_actual_state_changes()?.state_maps.into_keys();
         tx_state_changes_keys.update_sequencer_key_in_storage(
             &block_context.to_tx_context(self),
             &tx_execution_info,

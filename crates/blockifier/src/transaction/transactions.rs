@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress};
 use starknet_api::executable_transaction::{
@@ -15,9 +15,13 @@ use starknet_api::transaction::fields::{
     Fee,
     TransactionSignature,
 };
-use starknet_api::transaction::{DeclareTransactionV2, DeclareTransactionV3, TransactionVersion};
+use starknet_api::transaction::{
+    constants,
+    DeclareTransactionV2,
+    DeclareTransactionV3,
+    TransactionVersion,
+};
 
-use crate::abi::abi_utils::selector_from_name;
 use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::CallInfo;
 use crate::execution::entry_point::{
@@ -30,7 +34,6 @@ use crate::execution::execution_utils::execute_deployment;
 use crate::state::cached_state::TransactionalState;
 use crate::state::errors::StateError;
 use crate::state::state_api::{State, UpdatableState};
-use crate::transaction::constants;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::{
     CommonAccountFields,
@@ -100,7 +103,6 @@ pub trait Executable<S: State> {
     fn run_execute(
         &self,
         state: &mut S,
-        resources: &mut ExecutionResources,
         context: &mut EntryPointExecutionContext,
         remaining_gas: &mut u64,
     ) -> TransactionExecutionResult<Option<CallInfo>>;
@@ -111,7 +113,6 @@ pub trait ValidatableTransaction {
     fn validate_tx(
         &self,
         state: &mut dyn State,
-        resources: &mut ExecutionResources,
         tx_context: Arc<TransactionContext>,
         remaining_gas: &mut u64,
         limit_steps_by_resources: bool,
@@ -132,7 +133,6 @@ impl<S: State> Executable<S> for L1HandlerTransaction {
     fn run_execute(
         &self,
         state: &mut S,
-        resources: &mut ExecutionResources,
         context: &mut EntryPointExecutionContext,
         remaining_gas: &mut u64,
     ) -> TransactionExecutionResult<Option<CallInfo>> {
@@ -152,15 +152,14 @@ impl<S: State> Executable<S> for L1HandlerTransaction {
             initial_gas: *remaining_gas,
         };
 
-        execute_call
-            .non_reverting_execute(state, resources, context, remaining_gas)
-            .map(Some)
-            .map_err(|error| TransactionExecutionError::ExecutionError {
+        execute_call.non_reverting_execute(state, context, remaining_gas).map(Some).map_err(
+            |error| TransactionExecutionError::ExecutionError {
                 error,
                 class_hash,
                 storage_address,
                 selector,
-            })
+            },
+        )
     }
 }
 
@@ -184,7 +183,6 @@ impl<S: State> Executable<S> for DeclareTransaction {
     fn run_execute(
         &self,
         state: &mut S,
-        _resources: &mut ExecutionResources,
         context: &mut EntryPointExecutionContext,
         _remaining_gas: &mut u64,
     ) -> TransactionExecutionResult<Option<CallInfo>> {
@@ -260,7 +258,6 @@ impl<S: State> Executable<S> for DeployAccountTransaction {
     fn run_execute(
         &self,
         state: &mut S,
-        resources: &mut ExecutionResources,
         context: &mut EntryPointExecutionContext,
         remaining_gas: &mut u64,
     ) -> TransactionExecutionResult<Option<CallInfo>> {
@@ -273,7 +270,6 @@ impl<S: State> Executable<S> for DeployAccountTransaction {
         };
         let call_info = execute_deployment(
             state,
-            resources,
             context,
             constructor_context,
             self.constructor_calldata(),
@@ -321,7 +317,6 @@ impl<S: State> Executable<S> for InvokeTransaction {
     fn run_execute(
         &self,
         state: &mut S,
-        resources: &mut ExecutionResources,
         context: &mut EntryPointExecutionContext,
         remaining_gas: &mut u64,
     ) -> TransactionExecutionResult<Option<CallInfo>> {
@@ -346,13 +341,14 @@ impl<S: State> Executable<S> for InvokeTransaction {
             initial_gas: *remaining_gas,
         };
 
-        let call_info = execute_call
-            .non_reverting_execute(state, resources, context, remaining_gas)
-            .map_err(|error| TransactionExecutionError::ExecutionError {
-                error,
-                class_hash,
-                storage_address,
-                selector: entry_point_selector,
+        let call_info =
+            execute_call.non_reverting_execute(state, context, remaining_gas).map_err(|error| {
+                TransactionExecutionError::ExecutionError {
+                    error,
+                    class_hash,
+                    storage_address,
+                    selector: entry_point_selector,
+                }
             })?;
         Ok(Some(call_info))
     }

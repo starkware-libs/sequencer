@@ -19,6 +19,7 @@ use papyrus_storage::StorageConfig;
 use reqwest::{Client, Response};
 use starknet_api::block::BlockNumber;
 use starknet_api::contract_address;
+use starknet_api::core::ContractAddress;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_batcher::block_builder::BlockBuilderConfig;
@@ -32,21 +33,26 @@ use starknet_gateway::config::{
 };
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_http_server::config::HttpServerConfig;
+use starknet_sequencer_infra::test_utils::get_available_socket;
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::config::test_utils::RequiredParams;
-use tokio::net::TcpListener;
+
+pub fn create_chain_info() -> ChainInfo {
+    let mut chain_info = ChainInfo::create_for_testing();
+    // Note that the chain_id affects hashes of transactions and blocks, therefore affecting the
+    // test.
+    chain_info.chain_id = papyrus_storage::test_utils::CHAIN_ID_FOR_TESTS.clone();
+    chain_info
+}
 
 pub async fn create_config(
+    chain_info: ChainInfo,
     rpc_server_addr: SocketAddr,
     batcher_storage_config: StorageConfig,
 ) -> (SequencerNodeConfig, RequiredParams, BroadcastTopicChannels<ProposalPart>) {
-    let chain_id = batcher_storage_config.db_config.chain_id.clone();
-    // TODO(Tsabary): create chain_info in setup, and pass relevant values throughout.
-    let mut chain_info = ChainInfo::create_for_testing();
-    chain_info.chain_id = chain_id.clone();
     let fee_token_addresses = chain_info.fee_token_addresses.clone();
     let batcher_config = create_batcher_config(batcher_storage_config, chain_info.clone());
-    let gateway_config = create_gateway_config(chain_info).await;
+    let gateway_config = create_gateway_config(chain_info.clone()).await;
     let http_server_config = create_http_server_config().await;
     let rpc_state_reader_config = test_rpc_state_reader_config(rpc_server_addr);
     let (consensus_manager_config, consensus_proposals_channels) =
@@ -61,9 +67,10 @@ pub async fn create_config(
             ..SequencerNodeConfig::default()
         },
         RequiredParams {
-            chain_id,
+            chain_id: chain_info.chain_id,
             eth_fee_token_address: fee_token_addresses.eth_fee_token_address,
             strk_fee_token_address: fee_token_addresses.strk_fee_token_address,
+            sequencer_address: ContractAddress::from(1312_u128), // Arbitrary non-zero value.
         },
         consensus_proposals_channels,
     )
@@ -96,21 +103,6 @@ pub fn test_rpc_state_reader_config(rpc_server_addr: SocketAddr) -> RpcStateRead
         url: format!("http://{rpc_server_addr:?}/rpc/{RPC_SPEC_VERSION}"),
         json_rpc_version: JSON_RPC_VERSION.to_string(),
     }
-}
-
-/// Returns a unique IP address and port for testing purposes.
-///
-/// Tests run in parallel, so servers (like RPC or web) running on separate tests must have
-/// different ports, otherwise the server will fail with "address already in use".
-pub async fn get_available_socket() -> SocketAddr {
-    // Dynamically select port.
-    // First, set the port to 0 (dynamic port).
-    TcpListener::bind("127.0.0.1:0")
-        .await
-        .expect("Failed to bind to address")
-        // Then, resolve to the actual selected port.
-        .local_addr()
-        .expect("Failed to get local address")
 }
 
 /// A test utility client for interacting with an http server.
@@ -182,14 +174,13 @@ fn create_txs_for_integration_test(
     vec![account0_invoke_nonce1, account0_invoke_nonce2, account1_invoke_nonce1]
 }
 
-fn create_txs_for_tx_generator_test_scenario(
+fn create_account_txs(
     mut tx_generator: MultiAccountTransactionGenerator,
+    account_id: AccountId,
     n_txs: usize,
 ) -> Vec<RpcTransaction> {
-    const ACCOUNT_ID_0: AccountId = 0;
-
     (0..n_txs)
-        .map(|_| tx_generator.account_with_id(ACCOUNT_ID_0).generate_invoke_with_tip(1))
+        .map(|_| tx_generator.account_with_id(account_id).generate_invoke_with_tip(1))
         .collect()
 }
 
@@ -231,18 +222,18 @@ where
     vec![tx_hashes[2], tx_hashes[0], tx_hashes[1]]
 }
 
-/// Creates and runs the many txs test scenario for the sequencer integration test. Returns
-/// a list of transaction hashes, in the order they are expected to be in the mempool.
-pub async fn run_transaction_generator_test_scenario<'a, Fut>(
+/// Returns a list of the transaction hashes, in the order they are expected to be in the mempool.
+pub async fn send_account_txs<'a, Fut>(
     tx_generator: MultiAccountTransactionGenerator,
+    account_id: AccountId,
     n_txs: usize,
     send_rpc_tx_fn: &'a mut dyn FnMut(RpcTransaction) -> Fut,
-) where
+) -> Vec<TransactionHash>
+where
     Fut: Future<Output = TransactionHash> + 'a,
 {
-    let rpc_txs = create_txs_for_tx_generator_test_scenario(tx_generator, n_txs);
-
-    send_rpc_txs(rpc_txs, send_rpc_tx_fn).await;
+    let rpc_txs = create_account_txs(tx_generator, n_txs, account_id);
+    send_rpc_txs(rpc_txs, send_rpc_tx_fn).await
 }
 
 pub async fn create_gateway_config(chain_info: ChainInfo) -> GatewayConfig {

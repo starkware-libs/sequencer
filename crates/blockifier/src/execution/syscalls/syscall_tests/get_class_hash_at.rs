@@ -1,7 +1,7 @@
+use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::{calldata, class_hash, contract_address, felt};
 use test_case::test_case;
 
-use crate::abi::abi_utils::selector_from_name;
 use crate::context::ChainInfo;
 use crate::execution::call_info::CallExecution;
 use crate::execution::entry_point::CallEntryPoint;
@@ -17,8 +17,10 @@ use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, BALANCE}
 /// 3. Execution succeeds with expected gas for valid cases.
 /// 4. Execution fails if `address` has a different `class_hash`.
 /// 5. Execution succeeds and returns `class_hash` = 0 if `address` is absent.
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), REQUIRED_GAS_GET_CLASS_HASH_AT_TEST; "VM")]
-fn test_get_class_hash_at(test_contract: FeatureContract, expected_gas: u64) {
+#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Native;"Native"))]
+#[test_case(CairoVersion::Cairo1;"VM")]
+fn test_get_class_hash_at(cairo_version: CairoVersion) {
+    let test_contract = FeatureContract::TestContract(cairo_version);
     let chain_info = &ChainInfo::create_for_testing();
     let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1)]);
     let address = contract_address!("0x111");
@@ -38,7 +40,7 @@ fn test_get_class_hash_at(test_contract: FeatureContract, expected_gas: u64) {
         positive_call_info.execution,
         CallExecution {
             retdata: retdata!(),
-            gas_consumed: expected_gas,
+            gas_consumed: REQUIRED_GAS_GET_CLASS_HASH_AT_TEST,
             failed: false,
             ..CallExecution::default()
         }

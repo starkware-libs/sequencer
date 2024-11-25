@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use mockall::predicate::*;
-use mockall::*;
+#[cfg(any(feature = "testing", test))]
+use mockall::automock;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_proc_macros::handle_response_variants;
 use serde::{Deserialize, Serialize};
@@ -37,7 +37,7 @@ pub struct AddTransactionArgsWrapper {
 
 /// Serves as the mempool's shared interface. Requires `Send + Sync` to allow transferring and
 /// sharing resources (inputs, futures) across threads.
-#[automock]
+#[cfg_attr(any(feature = "testing", test), automock)]
 #[async_trait]
 pub trait MempoolClient: Send + Sync {
     // TODO: Add Option<BroadcastedMessageMetadata> as an argument for add_transaction
@@ -70,33 +70,10 @@ pub enum MempoolClientError {
 }
 
 #[async_trait]
-impl MempoolClient for LocalMempoolClient {
-    async fn add_tx(&self, args: AddTransactionArgsWrapper) -> MempoolClientResult<()> {
-        let request = MempoolRequest::AddTransaction(args);
-        let response = self.send(request).await;
-        handle_response_variants!(MempoolResponse, AddTransaction, MempoolClientError, MempoolError)
-    }
-
-    async fn commit_block(&self, args: CommitBlockArgs) -> MempoolClientResult<()> {
-        let request = MempoolRequest::CommitBlock(args);
-        let response = self.send(request).await;
-        handle_response_variants!(MempoolResponse, CommitBlock, MempoolClientError, MempoolError)
-    }
-
-    async fn get_txs(&self, n_txs: usize) -> MempoolClientResult<Vec<AccountTransaction>> {
-        let request = MempoolRequest::GetTransactions(n_txs);
-        let response = self.send(request).await;
-        handle_response_variants!(
-            MempoolResponse,
-            GetTransactions,
-            MempoolClientError,
-            MempoolError
-        )
-    }
-}
-
-#[async_trait]
-impl MempoolClient for RemoteMempoolClient {
+impl<ComponentClientType> MempoolClient for ComponentClientType
+where
+    ComponentClientType: Send + Sync + ComponentClient<MempoolRequest, MempoolResponse>,
+{
     async fn add_tx(&self, args: AddTransactionArgsWrapper) -> MempoolClientResult<()> {
         let request = MempoolRequest::AddTransaction(args);
         let response = self.send(request).await;

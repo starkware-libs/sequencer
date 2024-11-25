@@ -1,7 +1,7 @@
 use rstest::{fixture, rstest};
 use starknet_api::execution_resources::GasVector;
 use starknet_api::transaction::fields::GasVectorComputationMode;
-use starknet_api::transaction::L2ToL1Payload;
+use starknet_api::transaction::{constants, L2ToL1Payload};
 use starknet_api::{invoke_tx_args, nonce};
 use starknet_types_core::felt::Felt;
 
@@ -24,7 +24,6 @@ use crate::state::cached_state::StateChangesCount;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{create_calldata, create_trivial_calldata, CairoVersion, BALANCE};
-use crate::transaction::constants;
 use crate::transaction::objects::HasRelatedFeeType;
 use crate::transaction::test_utils::{
     account_invoke_tx,
@@ -217,7 +216,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(
 
         call_infos.push(call_info);
     }
-    let execution_summary = CallInfo::summarize_many(call_infos.iter());
+    let execution_summary = CallInfo::summarize_many(call_infos.iter(), &versioned_constants);
 
     let l2_to_l1_state_changes_count = StateChangesCount {
         n_storage_updates: 0,
@@ -432,7 +431,8 @@ fn test_calculate_tx_gas_usage(
     };
     let execution_call_info =
         &tx_execution_info.execute_call_info.expect("Execution call info should exist.");
-    let execution_summary = CallInfo::summarize_many(vec![execution_call_info].into_iter());
+    let execution_summary =
+        CallInfo::summarize_many(vec![execution_call_info].into_iter(), versioned_constants);
     let starknet_resources = StarknetResources::new(
         calldata_length,
         signature_length,

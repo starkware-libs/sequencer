@@ -239,7 +239,7 @@ impl Deref for ContractClassV1 {
 }
 
 impl ContractClassV1 {
-    fn constructor_selector(&self) -> Option<EntryPointSelector> {
+    pub fn constructor_selector(&self) -> Option<EntryPointSelector> {
         self.0.entry_points_by_type.constructor.first().map(|ep| ep.selector)
     }
 

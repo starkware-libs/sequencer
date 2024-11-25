@@ -2,11 +2,11 @@ use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 
 use indexmap::IndexMap;
+use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
-use crate::abi::abi_utils::get_fee_token_var_address;
 use crate::context::TransactionContext;
 use crate::execution::contract_class::RunnableContractClass;
 use crate::state::errors::StateError;
@@ -55,7 +55,7 @@ impl<S: StateReader> CachedState<S> {
     // TODO(Yoni, 1/8/2024): remove this function.
     /// Returns the state changes made on this state.
     pub fn get_actual_state_changes(&mut self) -> StateResult<StateChanges> {
-        Ok(self.to_state_diff()?.into())
+        Ok(StateChanges { state_maps: self.to_state_diff()? })
     }
 
     pub fn update_cache(
@@ -360,6 +360,28 @@ impl StateMaps {
             ),
         }
     }
+
+    pub fn get_modified_contracts(&self) -> HashSet<ContractAddress> {
+        // Storage updates.
+        let mut modified_contracts: HashSet<ContractAddress> =
+            self.storage.keys().map(|address_key_pair| address_key_pair.0).collect();
+        // Nonce updates.
+        modified_contracts.extend(self.nonces.keys());
+        // Class hash updates (deployed contracts + replace_class syscall).
+        modified_contracts.extend(self.class_hashes.keys());
+
+        modified_contracts
+    }
+
+    pub fn into_keys(self) -> StateChangesKeys {
+        StateChangesKeys {
+            modified_contracts: self.get_modified_contracts(),
+            nonce_keys: self.nonces.into_keys().collect(),
+            class_hash_keys: self.class_hashes.into_keys().collect(),
+            storage_keys: self.storage.into_keys().collect(),
+            compiled_class_hash_keys: self.compiled_class_hashes.into_keys().collect(),
+        }
+    }
 }
 /// Caches read and write requests.
 /// The tracked changes are needed for block state commitment.
@@ -657,7 +679,9 @@ impl StateChangesKeys {
 /// Holds the state changes.
 #[cfg_attr(any(feature = "testing", test), derive(Clone))]
 #[derive(Debug, Default, Eq, PartialEq)]
-pub struct StateChanges(pub StateMaps);
+pub struct StateChanges {
+    pub state_maps: StateMaps,
+}
 
 impl StateChanges {
     /// Merges the given state changes into a single one. Note that the order of the state changes
@@ -665,22 +689,10 @@ impl StateChanges {
     pub fn merge(state_changes: Vec<Self>) -> Self {
         let mut merged_state_changes = Self::default();
         for state_change in state_changes {
-            merged_state_changes.0.extend(&state_change.0);
+            merged_state_changes.state_maps.extend(&state_change.state_maps);
         }
 
         merged_state_changes
-    }
-
-    pub fn get_modified_contracts(&self) -> HashSet<ContractAddress> {
-        // Storage updates.
-        let mut modified_contracts: HashSet<ContractAddress> =
-            self.0.storage.keys().map(|address_key_pair| address_key_pair.0).collect();
-        // Nonce updates.
-        modified_contracts.extend(self.0.nonces.keys());
-        // Class hash updates (deployed contracts + replace_class syscall).
-        modified_contracts.extend(self.0.class_hashes.keys());
-
-        modified_contracts
     }
 
     pub fn count_for_fee_charge(
@@ -688,17 +700,17 @@ impl StateChanges {
         sender_address: Option<ContractAddress>,
         fee_token_address: ContractAddress,
     ) -> StateChangesCount {
-        let mut modified_contracts = self.get_modified_contracts();
+        let mut modified_contracts = self.state_maps.get_modified_contracts();
 
         // For account transactions, we need to compute the transaction fee before we can execute
         // the fee transfer, and the fee should cover the state changes that happen in the
         // fee transfer. The fee transfer is going to update the balance of the sequencer
         // and the balance of the sender contract, but we don't charge the sender for the
         // sequencer balance change as it is amortized across the block.
-        let mut n_storage_updates = self.0.storage.len();
+        let mut n_storage_updates = self.state_maps.storage.len();
         if let Some(sender_address) = sender_address {
             let sender_balance_key = get_fee_token_var_address(sender_address);
-            if !self.0.storage.contains_key(&(fee_token_address, sender_balance_key)) {
+            if !self.state_maps.storage.contains_key(&(fee_token_address, sender_balance_key)) {
                 n_storage_updates += 1;
             }
         }
@@ -709,26 +721,10 @@ impl StateChanges {
 
         StateChangesCount {
             n_storage_updates,
-            n_class_hash_updates: self.0.class_hashes.len(),
-            n_compiled_class_hash_updates: self.0.compiled_class_hashes.len(),
+            n_class_hash_updates: self.state_maps.class_hashes.len(),
+            n_compiled_class_hash_updates: self.state_maps.compiled_class_hashes.len(),
             n_modified_contracts: modified_contracts.len(),
         }
-    }
-
-    pub fn into_keys(self) -> StateChangesKeys {
-        StateChangesKeys {
-            modified_contracts: self.get_modified_contracts(),
-            nonce_keys: self.0.nonces.into_keys().collect(),
-            class_hash_keys: self.0.class_hashes.into_keys().collect(),
-            storage_keys: self.0.storage.into_keys().collect(),
-            compiled_class_hash_keys: self.0.compiled_class_hashes.into_keys().collect(),
-        }
-    }
-}
-
-impl From<StateMaps> for StateChanges {
-    fn from(state_maps: StateMaps) -> Self {
-        Self(state_maps)
     }
 }
 

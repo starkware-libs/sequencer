@@ -45,4 +45,5 @@ papyrus_test_utils.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
 starknet_mempool.workspace = true
+starknet_mempool_types = { workspace = true, features = ["testing"] }
 tracing-test.workspace = true

@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 use std::iter::Sum;
-use std::ops::Add;
+use std::ops::{Add, AddAssign};
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use serde::Serialize;
@@ -14,6 +14,7 @@ use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::state::cached_state::StorageEntry;
 use crate::utils::u64_from_usize;
+use crate::versioned_constants::VersionedConstants;
 
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
@@ -72,6 +73,7 @@ pub struct EventSummary {
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ExecutionSummary {
+    pub charged_resources: ChargedResources,
     pub executed_class_hashes: HashSet<ClassHash>,
     pub visited_storage_entries: HashSet<StorageEntry>,
     pub l2_to_l1_payload_lengths: Vec<usize>,
@@ -82,6 +84,7 @@ impl Add for ExecutionSummary {
     type Output = Self;
 
     fn add(mut self, other: Self) -> Self {
+        self.charged_resources += &other.charged_resources;
         self.executed_class_hashes.extend(other.executed_class_hashes);
         self.visited_storage_entries.extend(other.visited_storage_entries);
         self.l2_to_l1_payload_lengths.extend(other.l2_to_l1_payload_lengths);
@@ -112,6 +115,24 @@ impl ChargedResources {
     }
 }
 
+impl Add<&ChargedResources> for &ChargedResources {
+    type Output = ChargedResources;
+
+    fn add(self, rhs: &ChargedResources) -> ChargedResources {
+        let mut new = self.clone();
+        new.add_assign(rhs);
+        new
+    }
+}
+
+impl AddAssign<&ChargedResources> for ChargedResources {
+    fn add_assign(&mut self, other: &Self) {
+        self.vm_resources += &other.vm_resources;
+        self.gas_for_fee =
+            self.gas_for_fee.checked_add(other.gas_for_fee).expect("Gas for fee overflowed.");
+    }
+}
+
 /// Represents the full effects of executing an entry point, including the inner calls it invoked.
 #[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
@@ -136,7 +157,17 @@ impl CallInfo {
         CallInfoIter { call_infos }
     }
 
-    pub fn summarize(&self) -> ExecutionSummary {
+    fn specific_event_summary(&self) -> EventSummary {
+        let mut event_summary =
+            EventSummary { n_events: self.execution.events.len(), ..Default::default() };
+        for OrderedEvent { event, .. } in self.execution.events.iter() {
+            event_summary.total_event_data_size += u64_from_usize(event.data.0.len());
+            event_summary.total_event_keys += u64_from_usize(event.keys.len());
+        }
+        event_summary
+    }
+
+    pub fn summarize(&self, versioned_constants: &VersionedConstants) -> ExecutionSummary {
         let mut executed_class_hashes: HashSet<ClassHash> = HashSet::new();
         let mut visited_storage_entries: HashSet<StorageEntry> = HashSet::new();
         let mut event_summary = EventSummary::default();
@@ -164,18 +195,22 @@ impl CallInfo {
                     .map(|message| message.message.payload.0.len()),
             );
 
-            // Events.
-            event_summary.n_events += call_info.execution.events.len();
-            for OrderedEvent { event, .. } in call_info.execution.events.iter() {
-                // TODO(barak: 18/03/2024): Once we start charging per byte
-                // change to num_bytes_keys
-                // and num_bytes_data.
-                event_summary.total_event_data_size += u64_from_usize(event.data.0.len());
-                event_summary.total_event_keys += u64_from_usize(event.keys.len());
+            // Events: all event resources in the execution tree, unless executing a 0.13.1 block.
+            if !versioned_constants.ignore_inner_event_resources {
+                event_summary += call_info.specific_event_summary();
             }
         }
 
+        if versioned_constants.ignore_inner_event_resources {
+            // For reexecution of 0.13.1 blocks, we ignore inner events resources - only outermost
+            // event data will be processed.
+            event_summary = self.specific_event_summary();
+        }
+
         ExecutionSummary {
+            // Note: the charged resourses of a call contains the inner call resources, unlike other
+            // fields such as events and messages,
+            charged_resources: self.charged_resources.clone(),
             executed_class_hashes,
             visited_storage_entries,
             l2_to_l1_payload_lengths,
@@ -183,8 +218,22 @@ impl CallInfo {
         }
     }
 
-    pub fn summarize_many<'a>(call_infos: impl Iterator<Item = &'a CallInfo>) -> ExecutionSummary {
-        call_infos.map(|call_info| call_info.summarize()).sum()
+    pub fn summarize_many<'a>(
+        call_infos: impl Iterator<Item = &'a CallInfo>,
+        versioned_constants: &VersionedConstants,
+    ) -> ExecutionSummary {
+        call_infos.map(|call_info| call_info.summarize(versioned_constants)).sum()
+    }
+
+    pub fn summarize_charged_resources<'a>(
+        call_infos: impl Iterator<Item = &'a CallInfo>,
+    ) -> ChargedResources {
+        // Note: the charged resourses of a call contains the inner call resources, unlike other
+        // fields such as events and messages,
+        call_infos.fold(ChargedResources::default(), |mut acc, inner_call| {
+            acc += &inner_call.charged_resources;
+            acc
+        })
     }
 }
 

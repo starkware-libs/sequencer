@@ -35,3 +35,4 @@ mockall.workspace = true
 rstest.workspace = true
 starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
+starknet_mempool_types = { workspace = true, features = ["testing"] }

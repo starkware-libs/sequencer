@@ -17,6 +17,7 @@ use blockifier::blockifier::block::BlockInfo;
 use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
 use starknet_api::class_hash;
+use starknet_api::core::ChainId;
 use starknet_api::transaction::{
     DeclareTransaction,
     DeployAccountTransaction,
@@ -33,6 +34,7 @@ use super::utils::RPC_NODE_URL;
 use crate::state_reader::compile::legacy_to_contract_class_v0;
 use crate::state_reader::reexecution_state_reader::ReexecutionStateReader;
 use crate::state_reader::test_state_reader::{ConsecutiveTestStateReaders, TestStateReader};
+use crate::state_reader::utils::guess_chain_id_from_node_url;
 
 const EXAMPLE_INVOKE_TX_HASH: &str =
     "0xa7c7db686c7f756ceb7ca85a759caef879d425d156da83d6a836f86851983";
@@ -67,7 +69,13 @@ const EXAMPLE_L1_HANDLER_TX_HASH: &str =
 /// Retrieves the test URL from the `TEST_URL` environment variable,
 /// falling back to a default URL if not provided.
 fn get_test_url() -> String {
-    RPC_NODE_URL.clone()
+    let url = RPC_NODE_URL.clone();
+    assert_eq!(
+        guess_chain_id_from_node_url(&url).unwrap(),
+        ChainId::Mainnet,
+        "RPC HTTP tests not supported on chains other than mainnet."
+    );
+    url
 }
 
 /// Retrieves the test block_number from the `TEST_URL` environment variable,
@@ -93,6 +101,7 @@ pub fn test_state_reader() -> TestStateReader {
             block_id: get_test_block_id(),
         },
         retry_config: RetryConfig::default(),
+        chain_id: ChainId::Mainnet,
         contract_class_mapping_dumper: Arc::new(Mutex::new(None)),
     }
 }
@@ -111,7 +120,7 @@ pub fn last_constructed_block(test_block_number: BlockNumber) -> BlockNumber {
 pub fn test_state_readers_last_and_current_block(
     last_constructed_block: BlockNumber,
 ) -> ConsecutiveTestStateReaders {
-    ConsecutiveTestStateReaders::new(last_constructed_block, None, false)
+    ConsecutiveTestStateReaders::new(last_constructed_block, None, ChainId::Mainnet, false)
 }
 
 /// Test that the block info can be retrieved from the RPC server.

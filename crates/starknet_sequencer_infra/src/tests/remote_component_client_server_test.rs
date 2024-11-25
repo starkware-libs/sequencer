@@ -22,6 +22,7 @@ use crate::component_client::{
     RemoteComponentClient,
 };
 use crate::component_definitions::{
+    ComponentClient,
     ComponentRequestAndResponseSender,
     RemoteClientConfig,
     RemoteServerConfig,

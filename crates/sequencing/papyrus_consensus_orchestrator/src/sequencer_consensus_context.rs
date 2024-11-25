@@ -31,16 +31,16 @@ use papyrus_protobuf::consensus::{
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::executable_transaction::Transaction;
 use starknet_batcher_types::batcher_types::{
-    BuildProposalInput,
     DecisionReachedInput,
     GetProposalContent,
     GetProposalContentInput,
     ProposalId,
     ProposalStatus,
+    ProposeBlockInput,
     SendProposalContent,
     SendProposalContentInput,
     StartHeightInput,
-    ValidateProposalInput,
+    ValidateBlockInput,
 };
 use starknet_batcher_types::communication::BatcherClient;
 use tracing::{debug, debug_span, error, info, trace, warn, Instrument};
@@ -106,7 +106,7 @@ impl ConsensusContext for SequencerConsensusContext {
         self.proposal_id += 1;
         let timeout =
             chrono::Duration::from_std(timeout).expect("Can't convert timeout to chrono::Duration");
-        let build_proposal_input = BuildProposalInput {
+        let build_proposal_input = ProposeBlockInput {
             proposal_id,
             // TODO: Discuss with batcher team passing std Duration instead.
             deadline: chrono::Utc::now() + timeout,
@@ -122,7 +122,7 @@ impl ConsensusContext for SequencerConsensusContext {
         // here also.
         debug!("Initiating proposal build: {build_proposal_input:?}");
         batcher
-            .build_proposal(build_proposal_input)
+            .propose_block(build_proposal_input)
             .await
             .expect("Failed to initiate proposal build");
         debug!("Broadcasting proposal init: {proposal_init:?}");
@@ -164,7 +164,7 @@ impl ConsensusContext for SequencerConsensusContext {
 
         let chrono_timeout =
             chrono::Duration::from_std(timeout).expect("Can't convert timeout to chrono::Duration");
-        let input = ValidateProposalInput {
+        let input = ValidateBlockInput {
             proposal_id,
             deadline: chrono::Utc::now() + chrono_timeout,
             // TODO(Matan 3/11/2024): Add the real value of the retrospective block hash.
@@ -174,7 +174,7 @@ impl ConsensusContext for SequencerConsensusContext {
             }),
         };
         self.maybe_start_height(height).await;
-        batcher.validate_proposal(input).await.expect("Failed to initiate proposal validation");
+        batcher.validate_block(input).await.expect("Failed to initiate proposal validation");
         tokio::spawn(
             async move {
                 let validate_fut = stream_validate_proposal(
@@ -368,6 +368,9 @@ async fn stream_validate_proposal(
             ProposalStatus::Finished(fin) => {
                 panic!("Batcher returned Fin before all content was sent: {proposal_id:?} {fin:?}");
             }
+            ProposalStatus::Aborted => {
+                panic!("Unexpected abort response for proposal: {:?}", proposal_id);
+            }
             ProposalStatus::InvalidProposal => {
                 warn!("Proposal was invalid: {:?}", proposal_id);
                 return;
@@ -385,6 +388,9 @@ async fn stream_validate_proposal(
         ProposalStatus::Finished(id) => id,
         ProposalStatus::Processing => {
             panic!("Batcher failed to return Fin after all content was sent: {:?}", proposal_id);
+        }
+        ProposalStatus::Aborted => {
+            panic!("Unexpected abort response for proposal: {:?}", proposal_id);
         }
         ProposalStatus::InvalidProposal => {
             warn!("Proposal was invalid: {:?}", proposal_id);

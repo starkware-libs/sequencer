@@ -61,6 +61,7 @@ tokio-stream = { workspace = true, optional = true }
 [dev-dependencies]
 assert-json-diff.workspace = true
 colored.workspace = true
+infra_utils.workspace = true
 insta = { workspace = true, features = ["json"] }
 metrics-exporter-prometheus.workspace = true
 papyrus_test_utils.workspace = true

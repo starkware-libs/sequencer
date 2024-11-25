@@ -22,7 +22,11 @@ const REQUIRED_CAIRO_NATIVE_VERSION: &str = "0.2.1-alpha.0";
 fn install_starknet_sierra_compile() {
     let binary_name = CAIRO_LANG_BINARY_NAME;
     let required_version = REQUIRED_CAIRO_LANG_VERSION;
-    let cargo_install_args = &[CAIRO_LANG_BINARY_NAME, "--version", REQUIRED_CAIRO_LANG_VERSION];
+
+    let cairo_lang_binary_path = binary_path(binary_name);
+    println!("cargo:rerun-if-changed={:?}", cairo_lang_binary_path);
+
+    let cargo_install_args = &[binary_name, "--version", required_version];
     install_compiler_binary(binary_name, required_version, cargo_install_args);
 }
 
@@ -32,13 +36,17 @@ fn install_starknet_sierra_compile() {
 /// compilation is required.
 #[cfg(feature = "cairo_native")]
 fn install_starknet_native_compile() {
-    // Set the runtime library path. This is required for Cairo native compilation.
-    let runtime_library_path = repo_root_dir().join("crates/blockifier/libcairo_native_runtime.a");
-    println!("cargo:rustc-env=CAIRO_NATIVE_RUNTIME_LIBRARY={}", runtime_library_path.display());
-    println!("cargo:rerun-if-env-changed=CAIRO_NATIVE_RUNTIME_LIBRARY");
-
     let binary_name = CAIRO_NATIVE_BINARY_NAME;
     let required_version = REQUIRED_CAIRO_NATIVE_VERSION;
+
+    let cairo_native_binary_path = binary_path(binary_name);
+    println!("cargo:rerun-if-changed={:?}", cairo_native_binary_path);
+
+    // Set the runtime library path. This is required for Cairo native compilation.
+    let runtime_library_path = repo_root_dir()
+        .join("crates/blockifier/cairo_native/target/release/libcairo_native_runtime.a");
+    println!("cargo:rustc-env=CAIRO_NATIVE_RUNTIME_LIBRARY={}", runtime_library_path.display());
+    println!("cargo:rerun-if-env-changed=CAIRO_NATIVE_RUNTIME_LIBRARY");
 
     let starknet_native_compile_crate_path = repo_root_dir().join("crates/bin").join(binary_name);
     let starknet_native_compile_crate_path_str = starknet_native_compile_crate_path

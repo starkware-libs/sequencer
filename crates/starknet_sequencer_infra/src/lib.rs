@@ -3,7 +3,7 @@ pub mod component_definitions;
 pub mod component_server;
 pub mod errors;
 pub mod serde_utils;
-#[cfg(test)]
+#[cfg(any(feature = "testing", test))]
 pub mod test_utils;
 #[cfg(test)]
 pub mod tests;

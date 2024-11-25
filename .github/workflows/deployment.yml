@@ -19,7 +19,6 @@ on:
     paths:
     - 'deployments/sequencer/*'
 
-
 jobs:
   deployment:
     runs-on: ubuntu-latest
@@ -33,4 +32,4 @@ jobs:
           # Synthesize the CDK8s Sequencer app.
           cd deployments/sequencer
           cdk8s synth
-          diff -au references/sequencer-system.k8s.yaml dist/sequencer-system.k8s.yaml
+          diff -aur references/* dist/*

@@ -118,7 +118,7 @@ fn test_add_tx_handles_nonces_correctly(mut mempool: Mempool) {
     add_tx(&mut mempool, &input_nonce_0);
     // Although the input account nonce is higher, mempool looks at its internal registry.
     add_tx(&mut mempool, &input_nonce_1);
-    get_txs_and_assert_expected(&mut mempool, 2, &[input_nonce_0.tx, input_nonce_1.tx]);
+    get_txs_and_assert_expected(&mut mempool, 2, &[input_nonce_1.tx]);
     // Although the input account nonce is lower, mempool looks at internal registry.
     add_tx(&mut mempool, &input_nonce_2);
     get_txs_and_assert_expected(&mut mempool, 1, &[input_nonce_2.tx]);
@@ -213,7 +213,7 @@ fn test_commit_block_fills_nonce_gap(mut mempool: Mempool) {
     add_tx_expect_error(
         &mut mempool,
         &tx_nonce_4_account_nonce_4,
-        MempoolError::DuplicateNonce { address: contract_address!("0x0"), nonce: nonce!(4) },
+        MempoolError::NonceTooOld { address: contract_address!("0x0"), nonce: nonce!(4) },
     );
 
     get_txs_and_assert_expected(&mut mempool, 2, &[tx_nonce_5_account_nonce_3.tx]);

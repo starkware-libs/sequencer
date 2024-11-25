@@ -1,11 +1,14 @@
+#[cfg(feature = "cairo_native")]
+use std::collections::HashMap;
 use std::sync::Arc;
+#[cfg(feature = "cairo_native")]
+use std::sync::{LazyLock, RwLock};
 
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 #[cfg(feature = "cairo_native")]
 use cairo_lang_starknet_classes::contract_class::ContractClass as SierraContractClass;
 #[cfg(feature = "cairo_native")]
 use cairo_native::executor::AotContractExecutor;
-use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use serde_json::Value;
 use starknet_api::block::{BlockNumber, BlockTimestamp, NonzeroGasPrice};
 use starknet_api::contract_address;
@@ -83,7 +86,7 @@ impl CallEntryPoint {
             limit_steps_by_resources,
         );
         let mut remaining_gas = self.initial_gas;
-        self.execute(state, &mut ExecutionResources::default(), &mut context, &mut remaining_gas)
+        self.execute(state, &mut context, &mut remaining_gas)
     }
 
     /// Executes the call directly in validate mode, without account context. Limits the number of
@@ -239,6 +242,10 @@ impl BouncerWeights {
 }
 
 #[cfg(feature = "cairo_native")]
+static COMPILED_NATIVE_CONTRACT_CACHE: LazyLock<RwLock<HashMap<String, NativeContractClassV1>>> =
+    LazyLock::new(|| RwLock::new(HashMap::new()));
+
+#[cfg(feature = "cairo_native")]
 impl NativeContractClassV1 {
     /// Convenience function to construct a NativeContractClassV1 from a raw contract class.
     /// If control over the compilation is desired use [Self::new] instead.
@@ -250,24 +257,39 @@ impl NativeContractClassV1 {
             .extract_sierra_program()
             .expect("Cannot extract sierra program from sierra contract class");
 
-        let executor = AotContractExecutor::new(&sierra_program, cairo_native::OptLevel::Default)
-            .expect("Cannot compile sierra into native");
+        let executor = AotContractExecutor::new(
+            &sierra_program,
+            &sierra_contract_class.entry_points_by_type,
+            cairo_native::OptLevel::Default,
+        )
+        .expect("Cannot compile sierra into native");
 
         // Compile the sierra contract class into casm
-        let casm_contract_class = CasmContractClass::from_contract_class(
-            sierra_contract_class.clone(),
-            false,
-            usize::MAX,
-        )
-        .expect("Cannot compile sierra contract class into casm contract class");
+        let casm_contract_class =
+            CasmContractClass::from_contract_class(sierra_contract_class, false, usize::MAX)
+                .expect("Cannot compile sierra contract class into casm contract class");
         let casm = ContractClassV1::try_from(casm_contract_class)
             .expect("Cannot get ContractClassV1 from CasmContractClass");
 
-        NativeContractClassV1::new(executor, sierra_contract_class, casm)
+        NativeContractClassV1::new(executor, casm)
     }
 
     pub fn from_file(contract_path: &str) -> Self {
         let raw_contract_class = get_raw_contract_class(contract_path);
         Self::try_from_json_string(&raw_contract_class)
+    }
+
+    /// Compile a contract from a file or get it from the cache.
+    pub fn compile_or_get_cached(path: &str) -> Self {
+        let cache = COMPILED_NATIVE_CONTRACT_CACHE.read().unwrap();
+        if let Some(cached_class) = cache.get(path) {
+            return cached_class.clone();
+        }
+        std::mem::drop(cache);
+
+        let class = NativeContractClassV1::from_file(path);
+        let mut cache = COMPILED_NATIVE_CONTRACT_CACHE.write().unwrap();
+        cache.insert(path.to_string(), class.clone());
+        class
     }
 }

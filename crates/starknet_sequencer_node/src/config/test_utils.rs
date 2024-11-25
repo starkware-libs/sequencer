@@ -11,6 +11,7 @@ pub struct RequiredParams {
     pub chain_id: ChainId,
     pub eth_fee_token_address: ContractAddress,
     pub strk_fee_token_address: ContractAddress,
+    pub sequencer_address: ContractAddress,
 }
 
 impl RequiredParams {
@@ -19,6 +20,7 @@ impl RequiredParams {
             chain_id: ChainId::create_for_testing(),
             eth_fee_token_address: ContractAddress::from(2_u128),
             strk_fee_token_address: ContractAddress::from(3_u128),
+            sequencer_address: ContractAddress::from(17_u128),
         }
     }
 
@@ -31,6 +33,8 @@ impl RequiredParams {
             self.eth_fee_token_address.to_string(),
             "--strk_fee_token_address".to_string(),
             self.strk_fee_token_address.to_string(),
+            "--sequencer_address".to_string(),
+            self.sequencer_address.to_string(),
         ];
         // Verify all arguments and their values are present.
         assert!(

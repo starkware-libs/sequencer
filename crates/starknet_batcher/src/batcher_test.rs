@@ -3,10 +3,12 @@ use std::sync::Arc;
 
 use assert_matches::assert_matches;
 use async_trait::async_trait;
+use blockifier::abi::constants;
+use chrono::Utc;
 use futures::future::BoxFuture;
 use futures::FutureExt;
 use mockall::automock;
-use mockall::predicate::eq;
+use mockall::predicate::{always, eq};
 use rstest::{fixture, rstest};
 use starknet_api::block::{BlockHashAndNumber, BlockNumber};
 use starknet_api::core::{ContractAddress, Nonce, StateDiffCommitment};
@@ -16,35 +18,52 @@ use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{contract_address, felt, nonce};
 use starknet_batcher_types::batcher_types::{
-    BuildProposalInput,
     DecisionReachedInput,
     GetProposalContent,
     GetProposalContentInput,
     GetProposalContentResponse,
     ProposalCommitment,
     ProposalId,
+    ProposalStatus,
+    ProposeBlockInput,
+    SendProposalContent,
+    SendProposalContentInput,
+    SendProposalContentResponse,
     StartHeightInput,
+    ValidateBlockInput,
 };
 use starknet_batcher_types::errors::BatcherError;
 use starknet_mempool_types::communication::MockMempoolClient;
 use starknet_mempool_types::mempool_types::CommitBlockArgs;
 
 use crate::batcher::{Batcher, MockBatcherStorageReaderTrait, MockBatcherStorageWriterTrait};
+use crate::block_builder::{BlockBuilderError, FailOnErrorCause};
 use crate::config::BatcherConfig;
 use crate::proposal_manager::{
     GenerateProposalError,
     GetProposalResultError,
+    InternalProposalStatus,
     ProposalManagerTrait,
     ProposalOutput,
     ProposalResult,
-    ProposalStatus,
-    StartHeightError,
 };
 use crate::test_utils::test_txs;
 use crate::transaction_provider::{ProposeTransactionProvider, ValidateTransactionProvider};
 
 const INITIAL_HEIGHT: BlockNumber = BlockNumber(3);
 const STREAMING_CHUNK_SIZE: usize = 3;
+const BLOCK_GENERATION_TIMEOUT: tokio::time::Duration = tokio::time::Duration::from_secs(1);
+const PROPOSAL_ID: ProposalId = ProposalId(0);
+
+fn proposal_commitment() -> ProposalCommitment {
+    ProposalCommitment {
+        state_diff_commitment: StateDiffCommitment(PoseidonHash(felt!(u128::try_from(7).unwrap()))),
+    }
+}
+
+fn deadline() -> chrono::DateTime<Utc> {
+    chrono::Utc::now() + BLOCK_GENERATION_TIMEOUT
+}
 
 #[fixture]
 fn storage_reader() -> MockBatcherStorageReaderTrait {
@@ -78,34 +97,285 @@ fn batcher(proposal_manager: MockProposalManagerTraitWrapper) -> Batcher {
     )
 }
 
+fn mock_proposal_manager_common_expectations(
+    proposal_manager: &mut MockProposalManagerTraitWrapper,
+) {
+    proposal_manager.expect_wrap_reset().times(1).return_once(|| async {}.boxed());
+    proposal_manager
+        .expect_wrap_await_proposal_commitment()
+        .times(1)
+        .with(eq(PROPOSAL_ID))
+        .return_once(move |_| { async move { Ok(proposal_commitment()) } }.boxed());
+}
+
+fn mock_proposal_manager_validate_flow() -> MockProposalManagerTraitWrapper {
+    let mut proposal_manager = MockProposalManagerTraitWrapper::new();
+    mock_proposal_manager_common_expectations(&mut proposal_manager);
+    proposal_manager
+        .expect_wrap_validate_block()
+        .times(1)
+        .with(eq(INITIAL_HEIGHT), eq(PROPOSAL_ID), eq(None), always(), always())
+        .return_once(|_, _, _, _, tx_provider| {
+            {
+                async move {
+                    // Spawn a task to keep tx_provider alive until the transactions sender is
+                    // dropped. Without this, the provider would be dropped,
+                    // causing the batcher to fail when sending transactions to
+                    // it during the test.
+                    tokio::spawn(async move {
+                        while !tx_provider.tx_receiver.is_closed() {
+                            tokio::task::yield_now().await;
+                        }
+                    });
+                    Ok(())
+                }
+            }
+            .boxed()
+        });
+    proposal_manager
+        .expect_wrap_get_proposal_status()
+        .times(1)
+        .with(eq(PROPOSAL_ID))
+        .returning(move |_| async move { InternalProposalStatus::Processing }.boxed());
+    proposal_manager
+}
+
 #[rstest]
 #[tokio::test]
-async fn get_stream_content() {
-    const PROPOSAL_ID: ProposalId = ProposalId(0);
+async fn start_height_success() {
+    let mut proposal_manager = MockProposalManagerTraitWrapper::new();
+    proposal_manager.expect_wrap_reset().times(1).return_once(|| async {}.boxed());
+
+    let mut batcher = batcher(proposal_manager);
+    assert_eq!(batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await, Ok(()));
+}
+
+#[rstest]
+#[case::height_already_passed(
+    INITIAL_HEIGHT.prev().unwrap(),
+    BatcherError::HeightAlreadyPassed {
+        storage_height: INITIAL_HEIGHT,
+        requested_height: INITIAL_HEIGHT.prev().unwrap()
+    }
+)]
+#[case::storage_not_synced(
+    INITIAL_HEIGHT.unchecked_next(),
+    BatcherError::StorageNotSynced {
+        storage_height: INITIAL_HEIGHT,
+        requested_height: INITIAL_HEIGHT.unchecked_next()
+    }
+)]
+#[tokio::test]
+async fn start_height_fail(#[case] height: BlockNumber, #[case] expected_error: BatcherError) {
+    let mut proposal_manager = MockProposalManagerTraitWrapper::new();
+    proposal_manager.expect_wrap_reset().never();
+
+    let mut batcher = batcher(proposal_manager);
+    assert_eq!(batcher.start_height(StartHeightInput { height }).await, Err(expected_error));
+}
+
+#[rstest]
+#[tokio::test]
+async fn duplicate_start_height() {
+    let mut proposal_manager = MockProposalManagerTraitWrapper::new();
+    proposal_manager.expect_wrap_reset().times(1).return_once(|| async {}.boxed());
+
+    let mut batcher = batcher(proposal_manager);
+
+    let initial_height = StartHeightInput { height: INITIAL_HEIGHT };
+    assert_eq!(batcher.start_height(initial_height.clone()).await, Ok(()));
+    assert_eq!(batcher.start_height(initial_height).await, Err(BatcherError::HeightInProgress));
+}
+
+#[rstest]
+#[tokio::test]
+async fn no_active_height() {
+    let proposal_manager = MockProposalManagerTraitWrapper::new();
+    let mut batcher = batcher(proposal_manager);
+
+    // Calling `propose_block` and `validate_block` without starting a height should fail.
+
+    let result = batcher
+        .propose_block(ProposeBlockInput {
+            proposal_id: ProposalId(0),
+            retrospective_block_hash: None,
+            deadline: chrono::Utc::now() + chrono::Duration::seconds(1),
+        })
+        .await;
+    assert_eq!(result, Err(BatcherError::NoActiveHeight));
+
+    let result = batcher
+        .validate_block(ValidateBlockInput {
+            proposal_id: ProposalId(0),
+            retrospective_block_hash: None,
+            deadline: chrono::Utc::now() + chrono::Duration::seconds(1),
+        })
+        .await;
+    assert_eq!(result, Err(BatcherError::NoActiveHeight));
+}
+
+#[rstest]
+#[tokio::test]
+async fn validate_block_full_flow() {
+    let proposal_manager = mock_proposal_manager_validate_flow();
+    let mut batcher = batcher(proposal_manager);
+
+    // TODO(Yael 14/11/2024): The test will pass without calling start height (if we delete the mock
+    // expectation). Leaving this here for future compatibility with the upcoming
+    // batcher-proposal_manager unification.
+    batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
+
+    let validate_block_input = ValidateBlockInput {
+        proposal_id: PROPOSAL_ID,
+        deadline: deadline(),
+        retrospective_block_hash: None,
+    };
+    batcher.validate_block(validate_block_input).await.unwrap();
+
+    let send_proposal_input_txs = SendProposalContentInput {
+        proposal_id: PROPOSAL_ID,
+        content: SendProposalContent::Txs(test_txs(0..1)),
+    };
+    let send_txs_result = batcher.send_proposal_content(send_proposal_input_txs).await.unwrap();
+    assert_eq!(
+        send_txs_result,
+        SendProposalContentResponse { response: ProposalStatus::Processing }
+    );
+
+    let send_proposal_input_finish =
+        SendProposalContentInput { proposal_id: PROPOSAL_ID, content: SendProposalContent::Finish };
+    let send_finish_result =
+        batcher.send_proposal_content(send_proposal_input_finish).await.unwrap();
+    assert_eq!(
+        send_finish_result,
+        SendProposalContentResponse { response: ProposalStatus::Finished(proposal_commitment()) }
+    );
+}
+
+#[rstest]
+#[tokio::test]
+async fn send_content_after_proposal_already_finished() {
+    let mut proposal_manager = MockProposalManagerTraitWrapper::new();
+    proposal_manager
+        .expect_wrap_get_proposal_status()
+        .with(eq(PROPOSAL_ID))
+        .times(1)
+        .returning(|_| async move { InternalProposalStatus::Finished }.boxed());
+
+    let mut batcher = batcher(proposal_manager);
+
+    // Send transactions after the proposal has finished.
+    let send_proposal_input_txs = SendProposalContentInput {
+        proposal_id: PROPOSAL_ID,
+        content: SendProposalContent::Txs(test_txs(0..1)),
+    };
+    let result = batcher.send_proposal_content(send_proposal_input_txs).await;
+    assert_eq!(result, Err(BatcherError::ProposalAlreadyFinished { proposal_id: PROPOSAL_ID }));
+}
+
+#[rstest]
+#[tokio::test]
+async fn send_content_to_unknown_proposal() {
+    let mut proposal_manager = MockProposalManagerTraitWrapper::new();
+    proposal_manager
+        .expect_wrap_get_proposal_status()
+        .times(1)
+        .with(eq(PROPOSAL_ID))
+        .return_once(move |_| async move { InternalProposalStatus::NotFound }.boxed());
+
+    let mut batcher = batcher(proposal_manager);
+
+    // Send transactions to an unknown proposal.
+    let send_proposal_input_txs = SendProposalContentInput {
+        proposal_id: PROPOSAL_ID,
+        content: SendProposalContent::Txs(test_txs(0..1)),
+    };
+    let result = batcher.send_proposal_content(send_proposal_input_txs).await;
+    assert_eq!(result, Err(BatcherError::ProposalNotFound { proposal_id: PROPOSAL_ID }));
+
+    // Send finish to an unknown proposal.
+    let send_proposal_input_txs =
+        SendProposalContentInput { proposal_id: PROPOSAL_ID, content: SendProposalContent::Finish };
+    let result = batcher.send_proposal_content(send_proposal_input_txs).await;
+    assert_eq!(result, Err(BatcherError::ProposalNotFound { proposal_id: PROPOSAL_ID }));
+}
+
+#[rstest]
+#[tokio::test]
+async fn send_txs_to_an_invalid_proposal() {
+    let mut proposal_manager = MockProposalManagerTraitWrapper::new();
+    proposal_manager
+        .expect_wrap_get_proposal_status()
+        .times(1)
+        .with(eq(PROPOSAL_ID))
+        .return_once(move |_| async move { InternalProposalStatus::Failed }.boxed());
+
+    let mut batcher = batcher(proposal_manager);
+
+    let send_proposal_input_txs = SendProposalContentInput {
+        proposal_id: PROPOSAL_ID,
+        content: SendProposalContent::Txs(test_txs(0..1)),
+    };
+    let result = batcher.send_proposal_content(send_proposal_input_txs).await.unwrap();
+    assert_eq!(result, SendProposalContentResponse { response: ProposalStatus::InvalidProposal });
+}
+
+#[rstest]
+#[tokio::test]
+async fn send_finish_to_an_invalid_proposal() {
+    let mut proposal_manager = MockProposalManagerTraitWrapper::new();
+    proposal_manager.expect_wrap_reset().times(1).return_once(|| async {}.boxed());
+    proposal_manager
+        .expect_wrap_validate_block()
+        .times(1)
+        .with(eq(INITIAL_HEIGHT), eq(PROPOSAL_ID), eq(None), always(), always())
+        .return_once(|_, _, _, _, _| { async move { Ok(()) } }.boxed());
+
+    let proposal_error = GetProposalResultError::BlockBuilderError(Arc::new(
+        BlockBuilderError::FailOnError(FailOnErrorCause::BlockFull),
+    ));
+    proposal_manager
+        .expect_wrap_await_proposal_commitment()
+        .times(1)
+        .with(eq(PROPOSAL_ID))
+        .return_once(move |_| { async move { Err(proposal_error) } }.boxed());
+
+    let mut batcher = batcher(proposal_manager);
+    batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
+
+    let validate_block_input = ValidateBlockInput {
+        proposal_id: PROPOSAL_ID,
+        deadline: deadline(),
+        retrospective_block_hash: None,
+    };
+    batcher.validate_block(validate_block_input).await.unwrap();
+
+    let send_proposal_input_txs =
+        SendProposalContentInput { proposal_id: PROPOSAL_ID, content: SendProposalContent::Finish };
+    let result = batcher.send_proposal_content(send_proposal_input_txs).await.unwrap();
+    assert_eq!(result, SendProposalContentResponse { response: ProposalStatus::InvalidProposal });
+}
+
+#[rstest]
+#[tokio::test]
+async fn propose_block_full_flow() {
     // Expecting 3 chunks of streamed txs.
     let expected_streamed_txs = test_txs(0..STREAMING_CHUNK_SIZE * 2 + 1);
     let txs_to_stream = expected_streamed_txs.clone();
-    let expected_proposal_commitment = ProposalCommitment {
-        state_diff_commitment: StateDiffCommitment(PoseidonHash(felt!(u128::try_from(7).unwrap()))),
-    };
 
     let mut proposal_manager = MockProposalManagerTraitWrapper::new();
-    proposal_manager.expect_wrap_start_height().times(1).return_once(|_| async { Ok(()) }.boxed());
-    proposal_manager.expect_wrap_build_block_proposal().times(1).return_once(
-        move |_proposal_id, _block_hash, _deadline, tx_sender, _tx_provider| {
+    mock_proposal_manager_common_expectations(&mut proposal_manager);
+    proposal_manager.expect_wrap_propose_block().times(1).return_once(
+        move |_height, _proposal_id, _block_hash, _deadline, tx_sender, _tx_provider| {
             simulate_build_block_proposal(tx_sender, txs_to_stream).boxed()
         },
     );
-    proposal_manager
-        .expect_wrap_executed_proposal_commitment()
-        .times(1)
-        .return_once(move |_| async move { Ok(expected_proposal_commitment) }.boxed());
 
     let mut batcher = batcher(proposal_manager);
 
     batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
     batcher
-        .build_proposal(BuildProposalInput {
+        .propose_block(ProposeBlockInput {
             proposal_id: PROPOSAL_ID,
             retrospective_block_hash: None,
             deadline: chrono::Utc::now() + chrono::Duration::seconds(1),
@@ -131,16 +401,60 @@ async fn get_stream_content() {
         .get_proposal_content(GetProposalContentInput { proposal_id: PROPOSAL_ID })
         .await
         .unwrap();
-    assert_matches!(
+    assert_eq!(
         commitment,
-        GetProposalContentResponse {
-            content: GetProposalContent::Finished(proposal_commitment)
-        } if proposal_commitment == expected_proposal_commitment
+        GetProposalContentResponse { content: GetProposalContent::Finished(proposal_commitment()) }
     );
 
     let exhausted =
         batcher.get_proposal_content(GetProposalContentInput { proposal_id: PROPOSAL_ID }).await;
     assert_matches!(exhausted, Err(BatcherError::ProposalNotFound { .. }));
+}
+
+#[tokio::test]
+async fn propose_block_without_retrospective_block_hash() {
+    let mut proposal_manager = MockProposalManagerTraitWrapper::new();
+    proposal_manager.expect_wrap_reset().times(1).return_once(|| async {}.boxed());
+
+    let mut storage_reader = MockBatcherStorageReaderTrait::new();
+    storage_reader
+        .expect_height()
+        .returning(|| Ok(BlockNumber(constants::STORED_BLOCK_HASH_BUFFER)));
+
+    let mut batcher = Batcher::new(
+        batcher_config(),
+        Arc::new(storage_reader),
+        Box::new(storage_writer()),
+        Arc::new(mempool_client()),
+        Box::new(proposal_manager),
+    );
+
+    batcher
+        .start_height(StartHeightInput { height: BlockNumber(constants::STORED_BLOCK_HASH_BUFFER) })
+        .await
+        .unwrap();
+    let result = batcher
+        .propose_block(ProposeBlockInput {
+            proposal_id: PROPOSAL_ID,
+            retrospective_block_hash: None,
+            deadline: deadline(),
+        })
+        .await;
+
+    assert_matches!(result, Err(BatcherError::MissingRetrospectiveBlockHash));
+}
+
+#[rstest]
+#[tokio::test]
+async fn get_content_from_unknown_proposal() {
+    let mut proposal_manager = MockProposalManagerTraitWrapper::new();
+    proposal_manager.expect_wrap_await_proposal_commitment().times(0);
+
+    let mut batcher = batcher(proposal_manager);
+
+    let get_proposal_content_input = GetProposalContentInput { proposal_id: PROPOSAL_ID };
+    let result = batcher.get_proposal_content(get_proposal_content_input).await;
+    assert_eq!(result, Err(BatcherError::ProposalNotFound { proposal_id: PROPOSAL_ID }));
 }
 
 #[rstest]
@@ -151,7 +465,6 @@ async fn decision_reached(
     mut storage_writer: MockBatcherStorageWriterTrait,
     mut mempool_client: MockMempoolClient,
 ) {
-    const PROPOSAL_ID: ProposalId = ProposalId(0);
     let expected_state_diff = ThinStateDiff::default();
     let state_diff_clone = expected_state_diff.clone();
     let expected_proposal_commitment = ProposalCommitment::default();
@@ -191,13 +504,12 @@ async fn decision_reached(
         Arc::new(mempool_client),
         Box::new(proposal_manager),
     );
-    batcher.decision_reached(DecisionReachedInput { proposal_id: ProposalId(0) }).await.unwrap();
+    batcher.decision_reached(DecisionReachedInput { proposal_id: PROPOSAL_ID }).await.unwrap();
 }
 
 #[rstest]
 #[tokio::test]
 async fn decision_reached_no_executed_proposal() {
-    const PROPOSAL_ID: ProposalId = ProposalId(0);
     let expected_error = BatcherError::ExecutedProposalNotFound { proposal_id: PROPOSAL_ID };
 
     let mut proposal_manager = MockProposalManagerTraitWrapper::new();
@@ -228,13 +540,9 @@ async fn simulate_build_block_proposal(
 // A wrapper trait to allow mocking the ProposalManagerTrait in tests.
 #[automock]
 trait ProposalManagerTraitWrapper: Send + Sync {
-    fn wrap_start_height(
+    fn wrap_propose_block(
         &mut self,
         height: BlockNumber,
-    ) -> BoxFuture<'_, Result<(), StartHeightError>>;
-
-    fn wrap_build_block_proposal(
-        &mut self,
         proposal_id: ProposalId,
         retrospective_block_hash: Option<BlockHashAndNumber>,
         deadline: tokio::time::Instant,
@@ -242,8 +550,9 @@ trait ProposalManagerTraitWrapper: Send + Sync {
         tx_provider: ProposeTransactionProvider,
     ) -> BoxFuture<'_, Result<(), GenerateProposalError>>;
 
-    fn wrap_validate_block_proposal(
+    fn wrap_validate_block(
         &mut self,
+        height: BlockNumber,
         proposal_id: ProposalId,
         retrospective_block_hash: Option<BlockHashAndNumber>,
         deadline: tokio::time::Instant,
@@ -255,31 +564,34 @@ trait ProposalManagerTraitWrapper: Send + Sync {
         proposal_id: ProposalId,
     ) -> BoxFuture<'_, ProposalResult<ProposalOutput>>;
 
-    fn wrap_get_proposal_status(&self, proposal_id: ProposalId) -> BoxFuture<'_, ProposalStatus>;
+    fn wrap_get_proposal_status(
+        &self,
+        proposal_id: ProposalId,
+    ) -> BoxFuture<'_, InternalProposalStatus>;
 
-    fn wrap_executed_proposal_commitment(
+    fn wrap_await_proposal_commitment(
         &self,
         proposal_id: ProposalId,
     ) -> BoxFuture<'_, ProposalResult<ProposalCommitment>>;
 
     fn wrap_abort_proposal(&mut self, proposal_id: ProposalId) -> BoxFuture<'_, ()>;
+
+    fn wrap_reset(&mut self) -> BoxFuture<'_, ()>;
 }
 
 #[async_trait]
 impl<T: ProposalManagerTraitWrapper> ProposalManagerTrait for T {
-    async fn start_height(&mut self, height: BlockNumber) -> Result<(), StartHeightError> {
-        self.wrap_start_height(height).await
-    }
-
-    async fn build_block_proposal(
+    async fn propose_block(
         &mut self,
+        height: BlockNumber,
         proposal_id: ProposalId,
         retrospective_block_hash: Option<BlockHashAndNumber>,
         deadline: tokio::time::Instant,
         output_content_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
         tx_provider: ProposeTransactionProvider,
     ) -> Result<(), GenerateProposalError> {
-        self.wrap_build_block_proposal(
+        self.wrap_propose_block(
+            height,
             proposal_id,
             retrospective_block_hash,
             deadline,
@@ -289,14 +601,16 @@ impl<T: ProposalManagerTraitWrapper> ProposalManagerTrait for T {
         .await
     }
 
-    async fn validate_block_proposal(
+    async fn validate_block(
         &mut self,
+        height: BlockNumber,
         proposal_id: ProposalId,
         retrospective_block_hash: Option<BlockHashAndNumber>,
         deadline: tokio::time::Instant,
         tx_provider: ValidateTransactionProvider,
     ) -> Result<(), GenerateProposalError> {
-        self.wrap_validate_block_proposal(
+        self.wrap_validate_block(
+            height,
             proposal_id,
             retrospective_block_hash,
             deadline,
@@ -312,7 +626,7 @@ impl<T: ProposalManagerTraitWrapper> ProposalManagerTrait for T {
         self.wrap_take_proposal_result(proposal_id).await
     }
 
-    async fn get_proposal_status(&self, proposal_id: ProposalId) -> ProposalStatus {
+    async fn get_proposal_status(&self, proposal_id: ProposalId) -> InternalProposalStatus {
         self.wrap_get_proposal_status(proposal_id).await
     }
 
@@ -320,11 +634,15 @@ impl<T: ProposalManagerTraitWrapper> ProposalManagerTrait for T {
         &mut self,
         proposal_id: ProposalId,
     ) -> ProposalResult<ProposalCommitment> {
-        self.wrap_executed_proposal_commitment(proposal_id).await
+        self.wrap_await_proposal_commitment(proposal_id).await
     }
 
     async fn abort_proposal(&mut self, proposal_id: ProposalId) {
         self.wrap_abort_proposal(proposal_id).await
+    }
+
+    async fn reset(&mut self) {
+        self.wrap_reset().await
     }
 }
 

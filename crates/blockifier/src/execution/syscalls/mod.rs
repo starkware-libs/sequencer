@@ -18,7 +18,6 @@ use starknet_types_core::felt::Felt;
 use self::hint_processor::{
     create_retdata_segment,
     execute_inner_call,
-    execute_library_call,
     felt_to_bool,
     read_call_params,
     read_calldata,
@@ -27,9 +26,7 @@ use self::hint_processor::{
     EmitEventError,
     SyscallExecutionError,
     SyscallHintProcessor,
-    BLOCK_NUMBER_OUT_OF_RANGE_ERROR,
 };
-use crate::abi::constants;
 use crate::execution::call_info::{MessageToL1, OrderedEvent, OrderedL2ToL1Message};
 use crate::execution::deprecated_syscalls::DeprecatedSyscallSelector;
 use crate::execution::entry_point::{CallEntryPoint, CallType, ConstructorContext};
@@ -41,16 +38,17 @@ use crate::execution::execution_utils::{
     ReadOnlySegment,
 };
 use crate::execution::syscalls::hint_processor::{INVALID_INPUT_LENGTH_ERROR, OUT_OF_GAS_ERROR};
+use crate::execution::syscalls::syscall_base::SyscallResult;
 use crate::transaction::account_transaction::is_cairo1;
 use crate::versioned_constants::{EventLimits, VersionedConstants};
 
 pub mod hint_processor;
 mod secp;
+pub mod syscall_base;
 
 #[cfg(test)]
 pub mod syscall_tests;
 
-pub type SyscallResult<T> = Result<T, SyscallExecutionError>;
 pub type WriteResponseResult = SyscallResult<()>;
 
 pub type SyscallSelector = DeprecatedSyscallSelector;
@@ -172,7 +170,7 @@ pub fn call_contract(
     remaining_gas: &mut u64,
 ) -> SyscallResult<CallContractResponse> {
     let storage_address = request.contract_address;
-    let class_hash = syscall_handler.state.get_class_hash_at(storage_address)?;
+    let class_hash = syscall_handler.base.state.get_class_hash_at(storage_address)?;
     let selector = request.function_selector;
     if syscall_handler.is_validate_mode() && syscall_handler.storage_address() != storage_address {
         return Err(SyscallExecutionError::InvalidSyscallInExecutionMode {
@@ -269,9 +267,8 @@ pub fn deploy(
         caller_address: deployer_address,
     };
     let call_info = execute_deployment(
-        syscall_handler.state,
-        syscall_handler.resources,
-        syscall_handler.context,
+        syscall_handler.base.state,
+        syscall_handler.base.context,
         ctor_context,
         request.constructor_calldata,
         remaining_gas,
@@ -279,7 +276,7 @@ pub fn deploy(
 
     let constructor_retdata =
         create_retdata_segment(vm, syscall_handler, &call_info.execution.retdata.0)?;
-    syscall_handler.inner_calls.push(call_info);
+    syscall_handler.base.inner_calls.push(call_info);
 
     Ok(DeployResponse { contract_address: deployed_contract_address, constructor_retdata })
 }
@@ -335,7 +332,7 @@ pub fn emit_event(
     syscall_handler: &mut SyscallHintProcessor<'_>,
     _remaining_gas: &mut u64,
 ) -> SyscallResult<EmitEventResponse> {
-    let execution_context = &mut syscall_handler.context;
+    let execution_context = &mut syscall_handler.base.context;
     exceeds_event_size_limit(
         execution_context.versioned_constants(),
         execution_context.n_emitted_events + 1,
@@ -343,7 +340,7 @@ pub fn emit_event(
     )?;
     let ordered_event =
         OrderedEvent { order: execution_context.n_emitted_events, event: request.content };
-    syscall_handler.events.push(ordered_event);
+    syscall_handler.base.events.push(ordered_event);
     execution_context.n_emitted_events += 1;
 
     Ok(EmitEventResponse {})
@@ -392,30 +389,7 @@ pub fn get_block_hash(
     syscall_handler: &mut SyscallHintProcessor<'_>,
     _remaining_gas: &mut u64,
 ) -> SyscallResult<GetBlockHashResponse> {
-    if syscall_handler.is_validate_mode() {
-        return Err(SyscallExecutionError::InvalidSyscallInExecutionMode {
-            syscall_name: "get_block_hash".to_string(),
-            execution_mode: syscall_handler.execution_mode(),
-        });
-    }
-
-    let requested_block_number = request.block_number.0;
-    let current_block_number =
-        syscall_handler.context.tx_context.block_context.block_info.block_number.0;
-
-    if current_block_number < constants::STORED_BLOCK_HASH_BUFFER
-        || requested_block_number > current_block_number - constants::STORED_BLOCK_HASH_BUFFER
-    {
-        let out_of_range_error =
-            Felt::from_hex(BLOCK_NUMBER_OUT_OF_RANGE_ERROR).map_err(SyscallExecutionError::from)?;
-        return Err(SyscallExecutionError::SyscallError { error_data: vec![out_of_range_error] });
-    }
-
-    let key = StorageKey::try_from(Felt::from(requested_block_number))?;
-    let block_hash_contract_address =
-        ContractAddress::try_from(Felt::from(constants::BLOCK_HASH_CONTRACT_ADDRESS))?;
-    let block_hash =
-        BlockHash(syscall_handler.state.get_storage_at(block_hash_contract_address, key)?);
+    let block_hash = BlockHash(syscall_handler.base.get_block_hash(request.block_number.0)?);
     Ok(GetBlockHashResponse { block_hash })
 }
 
@@ -471,16 +445,29 @@ pub fn library_call(
     syscall_handler: &mut SyscallHintProcessor<'_>,
     remaining_gas: &mut u64,
 ) -> SyscallResult<LibraryCallResponse> {
-    let call_to_external = true;
-    let retdata_segment = execute_library_call(
-        syscall_handler,
-        vm,
-        request.class_hash,
-        call_to_external,
-        request.function_selector,
-        request.calldata,
-        remaining_gas,
-    )?;
+    let entry_point = CallEntryPoint {
+        class_hash: Some(request.class_hash),
+        code_address: None,
+        entry_point_type: EntryPointType::External,
+        entry_point_selector: request.function_selector,
+        calldata: request.calldata,
+        // The call context remains the same in a library call.
+        storage_address: syscall_handler.storage_address(),
+        caller_address: syscall_handler.caller_address(),
+        call_type: CallType::Delegate,
+        // NOTE: this value might be overridden later on.
+        initial_gas: *remaining_gas,
+    };
+
+    let retdata_segment = execute_inner_call(entry_point, vm, syscall_handler, remaining_gas)
+        .map_err(|error| match error {
+            SyscallExecutionError::SyscallError { .. } => error,
+            _ => error.as_lib_call_execution_error(
+                request.class_hash,
+                syscall_handler.storage_address(),
+                request.function_selector,
+            ),
+        })?;
 
     Ok(LibraryCallResponse { segment: retdata_segment })
 }
@@ -510,12 +497,12 @@ pub fn replace_class(
 ) -> SyscallResult<ReplaceClassResponse> {
     // Ensure the class is declared (by reading it), and of type V1.
     let class_hash = request.class_hash;
-    let class = syscall_handler.state.get_compiled_contract_class(class_hash)?;
+    let class = syscall_handler.base.state.get_compiled_contract_class(class_hash)?;
 
     if !is_cairo1(&class) {
         return Err(SyscallExecutionError::ForbiddenClassReplacement { class_hash });
     }
-    syscall_handler.state.set_class_hash_at(syscall_handler.storage_address(), class_hash)?;
+    syscall_handler.base.state.set_class_hash_at(syscall_handler.storage_address(), class_hash)?;
     Ok(ReplaceClassResponse {})
 }
 
@@ -544,12 +531,12 @@ pub fn send_message_to_l1(
     syscall_handler: &mut SyscallHintProcessor<'_>,
     _remaining_gas: &mut u64,
 ) -> SyscallResult<SendMessageToL1Response> {
-    let execution_context = &mut syscall_handler.context;
+    let execution_context = &mut syscall_handler.base.context;
     let ordered_message_to_l1 = OrderedL2ToL1Message {
         order: execution_context.n_sent_messages_to_l1,
         message: request.message,
     };
-    syscall_handler.l2_to_l1_messages.push(ordered_message_to_l1);
+    syscall_handler.base.l2_to_l1_messages.push(ordered_message_to_l1);
     execution_context.n_sent_messages_to_l1 += 1;
 
     Ok(SendMessageToL1Response {})
@@ -681,7 +668,7 @@ pub fn keccak(
 
     // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion works.
     let n_rounds_as_u64 = u64::try_from(n_rounds).expect("Failed to convert usize to u64.");
-    let gas_cost = n_rounds_as_u64 * syscall_handler.context.gas_costs().keccak_round_cost_gas_cost;
+    let gas_cost = n_rounds_as_u64 * syscall_handler.gas_costs().keccak_round_cost_gas_cost;
     if gas_cost > *remaining_gas {
         let out_of_gas_error =
             Felt::from_hex(OUT_OF_GAS_ERROR).map_err(SyscallExecutionError::from)?;
@@ -812,8 +799,8 @@ pub(crate) fn get_class_hash_at(
     syscall_handler: &mut SyscallHintProcessor<'_>,
     _remaining_gas: &mut u64,
 ) -> SyscallResult<GetClassHashAtResponse> {
-    syscall_handler.accessed_contract_addresses.insert(request);
-    let class_hash = syscall_handler.state.get_class_hash_at(request)?;
-    syscall_handler.read_class_hash_values.push(class_hash);
+    syscall_handler.base.accessed_contract_addresses.insert(request);
+    let class_hash = syscall_handler.base.state.get_class_hash_at(request)?;
+    syscall_handler.base.read_class_hash_values.push(class_hash);
     Ok(class_hash)
 }

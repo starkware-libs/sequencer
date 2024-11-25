@@ -1491,7 +1491,6 @@ dependencies = [
  "cached",
  "cairo-lang-casm",
  "cairo-lang-runner",
- "cairo-lang-sierra",
  "cairo-lang-starknet-classes",
  "cairo-native",
  "cairo-vm",
@@ -1517,7 +1516,6 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
- "sha3",
  "starknet-types-core",
  "starknet_api",
  "strum 0.25.0",
@@ -1551,6 +1549,7 @@ dependencies = [
  "starknet_api",
  "starknet_gateway",
  "thiserror",
+ "tokio",
 ]
 
 [[package]]
@@ -2225,9 +2224,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-native"
-version = "0.2.1-alpha.0"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "897182bfc00fa8c9a4c405daaef576cd044d3ce5df30e34b2909659bc34270e5"
+checksum = "833170f422b08eec0e5ab116573bbb73c73f1601987d4b151cf71760836bd142"
 dependencies = [
  "anyhow",
  "aquamarine",
@@ -2279,9 +2278,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-native-runtime"
-version = "0.2.1-alpha.0"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8af9e9586d0e4c3cab5061cfcb9e024d5096ca7625bf2836976b32e76e0f2eb9"
+checksum = "7fa4ec78d0a6df2988b71838c330a5113f65a4db6ccff53d8d71465f6619a427"
 dependencies = [
  "cairo-lang-sierra-gas",
  "itertools 0.13.0",
@@ -5162,6 +5161,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b248f5224d1d606005e02c97f5aa4e88eeb230488bcc03bc9ca4d7991399f2b5"
 
 [[package]]
+name = "infra_utils"
+version = "0.0.0"
+dependencies = [
+ "thiserror",
+]
+
+[[package]]
 name = "inout"
 version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6337,6 +6343,7 @@ version = "0.0.0"
 dependencies = [
  "assert_matches",
  "blockifier",
+ "infra_utils",
  "pretty_assertions",
  "serde_json",
  "starknet-types-core",
@@ -7178,6 +7185,7 @@ dependencies = [
  "async-trait",
  "ethers",
  "ethers-core",
+ "papyrus_base_layer",
  "papyrus_config",
  "pretty_assertions",
  "serde",
@@ -7218,6 +7226,7 @@ version = "0.0.0"
 dependencies = [
  "assert_matches",
  "clap",
+ "infra_utils",
  "itertools 0.12.1",
  "lazy_static",
  "papyrus_test_utils",
@@ -7325,6 +7334,7 @@ dependencies = [
  "reqwest 0.11.27",
  "serde",
  "serde_json",
+ "starknet_api",
  "tokio",
 ]
 
@@ -7407,6 +7417,7 @@ dependencies = [
  "const_format",
  "futures",
  "futures-util",
+ "infra_utils",
  "insta",
  "itertools 0.12.1",
  "lazy_static",
@@ -10079,6 +10090,7 @@ dependencies = [
  "derive_more 0.99.18",
  "hex",
  "indexmap 2.6.0",
+ "infra_utils",
  "itertools 0.12.1",
  "num-bigint 0.4.6",
  "pretty_assertions",
@@ -10133,6 +10145,7 @@ dependencies = [
  "papyrus_proc_macros",
  "serde",
  "starknet_api",
+ "starknet_batcher_types",
  "starknet_sequencer_infra",
  "thiserror",
 ]
@@ -10259,6 +10272,7 @@ dependencies = [
  "serde",
  "serde_json",
  "starknet_api",
+ "starknet_gateway_types",
  "starknet_sequencer_infra",
  "thiserror",
  "tracing",
@@ -10296,6 +10310,7 @@ dependencies = [
  "mempool_test_utils",
  "papyrus_common",
  "papyrus_consensus",
+ "papyrus_execution",
  "papyrus_network",
  "papyrus_protobuf",
  "papyrus_rpc",
@@ -10307,7 +10322,6 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "starknet_batcher",
- "starknet_batcher_types",
  "starknet_client",
  "starknet_consensus_manager",
  "starknet_gateway",
@@ -10329,7 +10343,9 @@ name = "starknet_l1_provider"
 version = "0.0.0"
 dependencies = [
  "assert_matches",
+ "indexmap 2.6.0",
  "papyrus_base_layer",
+ "pretty_assertions",
  "starknet_api",
  "thiserror",
 ]
@@ -10400,6 +10416,7 @@ dependencies = [
  "papyrus_proc_macros",
  "serde",
  "starknet_api",
+ "starknet_mempool_types",
  "starknet_sequencer_infra",
  "thiserror",
 ]
@@ -10473,6 +10490,7 @@ dependencies = [
  "colored",
  "const_format",
  "futures",
+ "infra_utils",
  "mempool_test_utils",
  "papyrus_config",
  "papyrus_proc_macros",
@@ -10510,6 +10528,7 @@ dependencies = [
  "cairo-lang-starknet-classes",
  "cairo-lang-utils",
  "cairo-native",
+ "infra_utils",
  "mempool_test_utils",
  "papyrus_config",
  "rstest",
@@ -10519,6 +10538,26 @@ dependencies = [
  "starknet_api",
  "tempfile",
  "thiserror",
+ "validator",
+]
+
+[[package]]
+name = "starknet_state_sync"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "futures",
+ "papyrus_base_layer",
+ "papyrus_common",
+ "papyrus_config",
+ "papyrus_storage",
+ "papyrus_sync",
+ "serde",
+ "starknet_api",
+ "starknet_client",
+ "starknet_sequencer_infra",
+ "starknet_state_sync_types",
+ "tokio",
  "validator",
 ]
 

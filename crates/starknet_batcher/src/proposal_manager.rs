@@ -14,7 +14,6 @@ use thiserror::Error;
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, instrument, Instrument};
 
-use crate::batcher::BatcherStorageReaderTrait;
 use crate::block_builder::{
     BlockBuilderError,
     BlockBuilderExecutionParams,
@@ -24,22 +23,6 @@ use crate::block_builder::{
     BlockMetadata,
 };
 use crate::transaction_provider::{ProposeTransactionProvider, ValidateTransactionProvider};
-
-#[derive(Debug, Error)]
-pub enum StartHeightError {
-    #[error(
-        "Requested height {requested_height} is lower than the current storage height \
-         {storage_height}."
-    )]
-    HeightAlreadyPassed { storage_height: BlockNumber, requested_height: BlockNumber },
-    #[error(transparent)]
-    StorageError(#[from] papyrus_storage::StorageError),
-    #[error(
-        "Storage is not synced. Storage height: {storage_height}, requested height: \
-         {requested_height}."
-    )]
-    StorageNotSynced { storage_height: BlockNumber, requested_height: BlockNumber },
-}
 
 #[derive(Debug, Error)]
 pub enum GenerateProposalError {
@@ -69,7 +52,7 @@ pub enum GetProposalResultError {
     Aborted,
 }
 
-pub enum ProposalStatus {
+pub(crate) enum InternalProposalStatus {
     Processing,
     Finished,
     Failed,
@@ -78,10 +61,9 @@ pub enum ProposalStatus {
 
 #[async_trait]
 pub trait ProposalManagerTrait: Send + Sync {
-    async fn start_height(&mut self, height: BlockNumber) -> Result<(), StartHeightError>;
-
-    async fn build_block_proposal(
+    async fn propose_block(
         &mut self,
+        height: BlockNumber,
         proposal_id: ProposalId,
         retrospective_block_hash: Option<BlockHashAndNumber>,
         deadline: tokio::time::Instant,
@@ -89,10 +71,9 @@ pub trait ProposalManagerTrait: Send + Sync {
         tx_provider: ProposeTransactionProvider,
     ) -> Result<(), GenerateProposalError>;
 
-    // TODO: delete allow dead code once the batcher uses this code.
-    #[allow(dead_code)]
-    async fn validate_block_proposal(
+    async fn validate_block(
         &mut self,
+        height: BlockNumber,
         proposal_id: ProposalId,
         retrospective_block_hash: Option<BlockHashAndNumber>,
         deadline: tokio::time::Instant,
@@ -104,15 +85,17 @@ pub trait ProposalManagerTrait: Send + Sync {
         proposal_id: ProposalId,
     ) -> ProposalResult<ProposalOutput>;
 
-    async fn get_proposal_status(&self, proposal_id: ProposalId) -> ProposalStatus;
+    async fn get_proposal_status(&self, proposal_id: ProposalId) -> InternalProposalStatus;
 
     async fn await_proposal_commitment(
         &mut self,
         proposal_id: ProposalId,
     ) -> ProposalResult<ProposalCommitment>;
 
-    #[allow(dead_code)]
     async fn abort_proposal(&mut self, proposal_id: ProposalId);
+
+    // Resets the proposal manager, aborting any active proposal.
+    async fn reset(&mut self);
 }
 
 // Represents a spawned task of building new block proposal.
@@ -129,9 +112,6 @@ struct ProposalTask {
 ///
 /// Triggered by the consensus.
 pub(crate) struct ProposalManager {
-    storage_reader: Arc<dyn BatcherStorageReaderTrait>,
-    active_height: Option<BlockNumber>,
-
     /// The block proposal that is currently being built, if any.
     /// At any given time, there can be only one proposal being actively executed (either proposed
     /// or validated).
@@ -155,39 +135,13 @@ pub struct ProposalOutput {
 
 #[async_trait]
 impl ProposalManagerTrait for ProposalManager {
-    /// Starts working on the given height.
-    #[instrument(skip(self), err)]
-    async fn start_height(&mut self, height: BlockNumber) -> Result<(), StartHeightError> {
-        self.reset_active_height().await;
-
-        let next_height = self.storage_reader.height()?;
-        if next_height < height {
-            error!(
-                "Storage is not synced. Storage height: {}, requested height: {}.",
-                next_height, height
-            );
-            return Err(StartHeightError::StorageNotSynced {
-                storage_height: next_height,
-                requested_height: height,
-            });
-        }
-        if next_height > height {
-            return Err(StartHeightError::HeightAlreadyPassed {
-                storage_height: next_height,
-                requested_height: height,
-            });
-        }
-        info!("Starting to work on height {}.", height);
-        self.active_height = Some(height);
-        Ok(())
-    }
-
     /// Starts a new block proposal generation task for the given proposal_id and height with
     /// transactions from the mempool.
     /// Requires tx_sender for sending the generated transactions to the caller.
     #[instrument(skip(self, tx_sender, tx_provider), err, fields(self.active_height))]
-    async fn build_block_proposal(
+    async fn propose_block(
         &mut self,
+        height: BlockNumber,
         proposal_id: ProposalId,
         retrospective_block_hash: Option<BlockHashAndNumber>,
         deadline: tokio::time::Instant,
@@ -200,7 +154,6 @@ impl ProposalManagerTrait for ProposalManager {
 
         // Create the block builder, and a channel to allow aborting the block building task.
         let (abort_signal_sender, abort_signal_receiver) = tokio::sync::oneshot::channel();
-        let height = self.active_height.expect("No active height.");
 
         let block_builder = self.block_builder_factory.create_block_builder(
             BlockMetadata { height, retrospective_block_hash },
@@ -219,8 +172,9 @@ impl ProposalManagerTrait for ProposalManager {
     /// Starts validation of a block proposal for the given proposal_id and height with
     /// transactions from tx_receiver channel.
     #[instrument(skip(self, tx_provider), err, fields(self.active_height))]
-    async fn validate_block_proposal(
+    async fn validate_block(
         &mut self,
+        height: BlockNumber,
         proposal_id: ProposalId,
         retrospective_block_hash: Option<BlockHashAndNumber>,
         deadline: tokio::time::Instant,
@@ -232,7 +186,6 @@ impl ProposalManagerTrait for ProposalManager {
 
         // Create the block builder, and a channel to allow aborting the block building task.
         let (abort_signal_sender, abort_signal_receiver) = tokio::sync::oneshot::channel();
-        let height = self.active_height.expect("No active height.");
 
         let block_builder = self.block_builder_factory.create_block_builder(
             BlockMetadata { height, retrospective_block_hash },
@@ -260,15 +213,15 @@ impl ProposalManagerTrait for ProposalManager {
     }
 
     // Returns None if the proposal does not exist, otherwise, returns the status of the proposal.
-    async fn get_proposal_status(&self, proposal_id: ProposalId) -> ProposalStatus {
+    async fn get_proposal_status(&self, proposal_id: ProposalId) -> InternalProposalStatus {
         match self.executed_proposals.lock().await.get(&proposal_id) {
-            Some(Ok(_)) => ProposalStatus::Finished,
-            Some(Err(_)) => ProposalStatus::Failed,
+            Some(Ok(_)) => InternalProposalStatus::Finished,
+            Some(Err(_)) => InternalProposalStatus::Failed,
             None => {
                 if self.active_proposal.lock().await.as_ref() == Some(&proposal_id) {
-                    ProposalStatus::Processing
+                    InternalProposalStatus::Processing
                 } else {
-                    ProposalStatus::NotFound
+                    InternalProposalStatus::NotFound
                 }
             }
         }
@@ -278,7 +231,7 @@ impl ProposalManagerTrait for ProposalManager {
         &mut self,
         proposal_id: ProposalId,
     ) -> ProposalResult<ProposalCommitment> {
-        if self.active_proposal.lock().await.is_some_and(|id| id == proposal_id) {
+        if *self.active_proposal.lock().await == Some(proposal_id) {
             self.await_active_proposal().await;
         }
         let proposals = self.executed_proposals.lock().await;
@@ -294,7 +247,7 @@ impl ProposalManagerTrait for ProposalManager {
     // Aborts the proposal with the given ID, if active.
     // Should be used in validate flow, if the consensus decides to abort the proposal.
     async fn abort_proposal(&mut self, proposal_id: ProposalId) {
-        if self.active_proposal.lock().await.is_some_and(|id| id == proposal_id) {
+        if *self.active_proposal.lock().await == Some(proposal_id) {
             self.abort_active_proposal().await;
             self.executed_proposals
                 .lock()
@@ -302,19 +255,19 @@ impl ProposalManagerTrait for ProposalManager {
                 .insert(proposal_id, Err(GetProposalResultError::Aborted));
         }
     }
+
+    async fn reset(&mut self) {
+        self.abort_active_proposal().await;
+        self.executed_proposals.lock().await.clear();
+    }
 }
 
 impl ProposalManager {
-    pub fn new(
-        block_builder_factory: Arc<dyn BlockBuilderFactoryTrait + Send + Sync>,
-        storage_reader: Arc<dyn BatcherStorageReaderTrait>,
-    ) -> Self {
+    pub fn new(block_builder_factory: Arc<dyn BlockBuilderFactoryTrait + Send + Sync>) -> Self {
         Self {
-            storage_reader,
             active_proposal: Arc::new(Mutex::new(None)),
             block_builder_factory,
             active_proposal_task: None,
-            active_height: None,
             executed_proposals: Arc::new(Mutex::new(HashMap::new())),
         }
     }
@@ -339,21 +292,13 @@ impl ProposalManager {
                 // Keep the proposal result only if it is the same as the active proposal.
                 // The active proposal might have changed if this proposal was aborted.
                 let mut active_proposal = active_proposal.lock().await;
-                if active_proposal.is_some_and(|id| id == proposal_id) {
+                if *active_proposal == Some(proposal_id) {
                     active_proposal.take();
                     executed_proposals.lock().await.insert(proposal_id, result);
                 }
             }
             .in_current_span(),
         )
-    }
-
-    async fn reset_active_height(&mut self) {
-        if let Some(_active_proposal) = self.active_proposal.lock().await.take() {
-            // TODO: Abort the block_builder.
-        }
-        self.executed_proposals.lock().await.clear();
-        self.active_height = None;
     }
 
     // Sets a new active proposal task.
@@ -363,8 +308,6 @@ impl ProposalManager {
         &mut self,
         proposal_id: ProposalId,
     ) -> Result<(), GenerateProposalError> {
-        self.active_height.ok_or(GenerateProposalError::NoActiveHeight)?;
-
         if self.executed_proposals.lock().await.contains_key(&proposal_id) {
             return Err(GenerateProposalError::ProposalAlreadyExists { proposal_id });
         }

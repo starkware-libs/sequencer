@@ -54,7 +54,6 @@ pub fn execute_entry_point_call_wrapper(
     mut call: CallEntryPoint,
     contract_class: RunnableContractClass,
     state: &mut dyn State,
-    resources: &mut ExecutionResources,
     context: &mut EntryPointExecutionContext,
     remaining_gas: &mut u64,
 ) -> EntryPointExecutionResult<CallInfo> {
@@ -82,7 +81,7 @@ pub fn execute_entry_point_call_wrapper(
     };
 
     let orig_call = call.clone();
-    let res = execute_entry_point_call(call, contract_class, state, resources, context);
+    let res = execute_entry_point_call(call, contract_class, state, context);
     let current_tracked_resource =
         context.tracked_resource_stack.pop().expect("Unexpected empty tracked resource.");
 
@@ -123,7 +122,6 @@ pub fn execute_entry_point_call(
     call: CallEntryPoint,
     contract_class: RunnableContractClass,
     state: &mut dyn State,
-    resources: &mut ExecutionResources,
     context: &mut EntryPointExecutionContext,
 ) -> EntryPointExecutionResult<CallInfo> {
     match contract_class {
@@ -132,18 +130,11 @@ pub fn execute_entry_point_call(
                 call,
                 contract_class,
                 state,
-                resources,
                 context,
             )
         }
         RunnableContractClass::V1(contract_class) => {
-            entry_point_execution::execute_entry_point_call(
-                call,
-                contract_class,
-                state,
-                resources,
-                context,
-            )
+            entry_point_execution::execute_entry_point_call(call, contract_class, state, context)
         }
         #[cfg(feature = "cairo_native")]
         RunnableContractClass::V1Native(contract_class) => {
@@ -154,7 +145,6 @@ pub fn execute_entry_point_call(
                     call,
                     contract_class.casm(),
                     state,
-                    resources,
                     context,
                 )
             } else {
@@ -162,7 +152,6 @@ pub fn execute_entry_point_call(
                     call,
                     contract_class,
                     state,
-                    resources,
                     context,
                 )
             }
@@ -309,7 +298,6 @@ impl ReadOnlySegments {
 /// Returns the call info of the deployed class' constructor execution.
 pub fn execute_deployment(
     state: &mut dyn State,
-    resources: &mut ExecutionResources,
     context: &mut EntryPointExecutionContext,
     ctor_context: ConstructorContext,
     constructor_calldata: Calldata,
@@ -336,7 +324,6 @@ pub fn execute_deployment(
 
     execute_constructor_entry_point(
         state,
-        resources,
         context,
         ctor_context,
         constructor_calldata,

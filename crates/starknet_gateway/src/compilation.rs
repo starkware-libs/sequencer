@@ -5,7 +5,6 @@ use cairo_lang_starknet_classes::contract_class::ContractClass as CairoLangContr
 use starknet_api::contract_class::{ClassInfo, ContractClass};
 use starknet_api::rpc_transaction::RpcDeclareTransaction;
 use starknet_gateway_types::errors::GatewaySpecError;
-use starknet_sierra_compile::cairo_lang_compiler::CairoLangSierraToCasmCompiler;
 use starknet_sierra_compile::command_line_compiler::CommandLineCompiler;
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 use starknet_sierra_compile::utils::into_contract_class_for_compilation;
@@ -27,11 +26,6 @@ pub struct GatewayCompiler {
 impl GatewayCompiler {
     pub fn new_command_line_compiler(config: SierraToCasmCompilationConfig) -> Self {
         Self { sierra_to_casm_compiler: Arc::new(CommandLineCompiler::new(config)) }
-    }
-
-    // TODO(Arni): Cosider deleting `CairoLangSierraToCasmCompiler`.
-    pub fn new_cairo_lang_compiler(config: SierraToCasmCompilationConfig) -> Self {
-        Self { sierra_to_casm_compiler: Arc::new(CairoLangSierraToCasmCompiler { config }) }
     }
 
     /// Formats the contract class for compilation, compiles it, and returns the compiled contract

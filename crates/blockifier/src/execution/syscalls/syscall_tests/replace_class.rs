@@ -1,8 +1,8 @@
 use pretty_assertions::assert_eq;
+use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::{calldata, felt};
 use test_case::test_case;
 
-use crate::abi::abi_utils::selector_from_name;
 use crate::context::ChainInfo;
 use crate::execution::call_info::CallExecution;
 use crate::execution::entry_point::CallEntryPoint;
@@ -11,12 +11,10 @@ use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, BALANCE};
 
-#[cfg_attr(
-    feature = "cairo_native",
-    test_case(FeatureContract::TestContract(CairoVersion::Native); "Native")
-)]
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1); "VM")]
-fn undeclared_class_hash(test_contract: FeatureContract) {
+#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Native; "Native"))]
+#[test_case(CairoVersion::Cairo1; "VM")]
+fn undeclared_class_hash(cairo_version: CairoVersion) {
+    let test_contract = FeatureContract::TestContract(cairo_version);
     let mut state = test_state(&ChainInfo::create_for_testing(), BALANCE, &[(test_contract, 1)]);
 
     let entry_point_call = CallEntryPoint {
@@ -29,12 +27,10 @@ fn undeclared_class_hash(test_contract: FeatureContract) {
     assert!(error.to_string().contains("is not declared"));
 }
 
-#[cfg_attr(
-    feature = "cairo_native",
-    test_case(FeatureContract::TestContract(CairoVersion::Native); "Native")
-)]
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1); "VM")]
-fn cairo0_class_hash(test_contract: FeatureContract) {
+#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Native; "Native"))]
+#[test_case(CairoVersion::Cairo1; "VM")]
+fn cairo0_class_hash(cairo_version: CairoVersion) {
+    let test_contract = FeatureContract::TestContract(cairo_version);
     let empty_contract_cairo0 = FeatureContract::Empty(CairoVersion::Cairo0);
     let mut state = test_state(
         &ChainInfo::create_for_testing(),
@@ -55,12 +51,10 @@ fn cairo0_class_hash(test_contract: FeatureContract) {
     assert!(error.to_string().contains("Cannot replace V1 class hash with V0 class hash"));
 }
 
-#[cfg_attr(
-    feature = "cairo_native",
-    test_case(FeatureContract::TestContract(CairoVersion::Native), 13850; "Native")
-)]
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 5220; "VM")]
-fn positive_flow(test_contract: FeatureContract, gas_consumed: u64) {
+#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Native; "Native"))]
+#[test_case(CairoVersion::Cairo1; "VM")]
+fn positive_flow(cairo_version: CairoVersion) {
+    let test_contract = FeatureContract::TestContract(cairo_version);
     let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1);
     let empty_contract_cairo0 = FeatureContract::Empty(CairoVersion::Cairo0);
     let mut state = test_state(
@@ -80,7 +74,7 @@ fn positive_flow(test_contract: FeatureContract, gas_consumed: u64) {
     };
     assert_eq!(
         entry_point_call.execute_directly(&mut state).unwrap().execution,
-        CallExecution { gas_consumed, ..Default::default() }
+        CallExecution { gas_consumed: 5220, ..Default::default() }
     );
     assert_eq!(state.get_class_hash_at(contract_address).unwrap(), new_class_hash);
 }

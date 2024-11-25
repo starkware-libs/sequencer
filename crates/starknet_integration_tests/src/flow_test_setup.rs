@@ -5,7 +5,6 @@ use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::ProposalPart;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
-use starknet_batcher_types::communication::SharedBatcherClient;
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_http_server::config::HttpServerConfig;
 use starknet_sequencer_infra::trace_util::configure_tracing;
@@ -17,7 +16,7 @@ use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 
 use crate::state_reader::{spawn_test_rpc_state_reader, StorageTestSetup};
-use crate::utils::{create_config, HttpTestClient};
+use crate::utils::{create_chain_info, create_config, HttpTestClient};
 
 pub struct FlowTestSetup {
     pub task_executor: TokioExecutor,
@@ -28,9 +27,6 @@ pub struct FlowTestSetup {
     // Handlers for the storage files, maintained so the files are not deleted.
     pub batcher_storage_file_handle: TempDir,
     pub rpc_storage_file_handle: TempDir,
-
-    // TODO(Arni): Remove batcher client once the consensus manager is integrated into the test.
-    pub batcher_client: SharedBatcherClient,
 
     // Handle of the sequencer node.
     pub sequencer_node_handle: JoinHandle<Result<(), anyhow::Error>>,
@@ -43,25 +39,27 @@ impl FlowTestSetup {
     pub async fn new_from_tx_generator(tx_generator: &MultiAccountTransactionGenerator) -> Self {
         let handle = Handle::current();
         let task_executor = TokioExecutor::new(handle);
+        let chain_info = create_chain_info();
 
         // Configure and start tracing.
         configure_tracing();
 
         let accounts = tx_generator.accounts();
-        let storage_for_test = StorageTestSetup::new(accounts);
+        let storage_for_test = StorageTestSetup::new(accounts, chain_info.chain_id.clone());
 
         // Spawn a papyrus rpc server for a papyrus storage reader.
         let rpc_server_addr = spawn_test_rpc_state_reader(
             storage_for_test.rpc_storage_reader,
-            storage_for_test.chain_id,
+            chain_info.chain_id.clone(),
         )
         .await;
 
         // Derive the configuration for the sequencer node.
         let (config, _required_params, consensus_proposals_channels) =
-            create_config(rpc_server_addr, storage_for_test.batcher_storage_config).await;
+            create_config(chain_info, rpc_server_addr, storage_for_test.batcher_storage_config)
+                .await;
 
-        let (clients, servers) = create_node_modules(&config);
+        let (_clients, servers) = create_node_modules(&config);
 
         let HttpServerConfig { ip, port } = config.http_server_config;
         let add_tx_http_client = HttpTestClient::new(SocketAddr::from((ip, port)));
@@ -79,7 +77,6 @@ impl FlowTestSetup {
             task_executor,
             add_tx_http_client,
             batcher_storage_file_handle: storage_for_test.batcher_storage_handle,
-            batcher_client: clients.get_batcher_client().unwrap(),
             rpc_storage_file_handle: storage_for_test.rpc_storage_handle,
             sequencer_node_handle,
             consensus_proposals_channels,

@@ -1,8 +1,7 @@
-use starknet_api::core::EntryPointSelector;
-use starknet_api::felt;
-
 use crate::abi::abi_utils::selector_from_name;
 use crate::abi::constants as abi_constants;
+use crate::core::EntryPointSelector;
+use crate::felt;
 use crate::transaction::constants as tx_constants;
 
 #[test]

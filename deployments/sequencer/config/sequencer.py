@@ -1,30 +1,28 @@
-from typing import Dict, Any
+import typing
 import os
 import json
 import jsonschema
 
-ROOT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../../')
-CONFIG_DIR = os.path.join(ROOT_DIR, 'config/papyrus/')
+
+from services.objects import Config
 
 
-class Config():
-    def __init__(self, schema: Dict[Any, Any], config: Dict[Any, Any]):
-        self.schema = schema
-        self.config = config
-
-    def get(self):
-        return self.config
-
-    def validate(self):
-        pass
-
+def load_config(config_path):
+    root_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../../')
+    config_dir = os.path.join(root_dir, 'config/sequencer/')
+    
+    return json.loads(
+        open(os.path.join(config_dir, config_path), 'r').read()
+    )
 
 class SequencerDevConfig(Config):
-    def __init__(self):
+    def __init__(self, mount_path: str, custom_config_path: typing.Optional[str]):
         super().__init__(
-            schema=json.loads(open(os.path.join(CONFIG_DIR, 'default_config.json'), 'r').read()),
-            config=json.loads(open(os.path.join(CONFIG_DIR, 'presets', 'sepolia_testnet.json'), 'r').read())
-            )
+            schema=load_config(config_path='default_config.json'),
+            config=load_config(config_path='presets/config.json') if not custom_config_path else json.loads(open(os.path.abspath(custom_config_path)).read()),
+            mount_path=mount_path
+        )
+
 
     def validate(self):
         jsonschema.validate(self.config, schema=self.schema)

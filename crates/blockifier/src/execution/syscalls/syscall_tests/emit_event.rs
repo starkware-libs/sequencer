@@ -1,13 +1,13 @@
 use itertools::concat;
 #[cfg(feature = "cairo_native")]
 use pretty_assertions::assert_eq;
+use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::felt;
 use starknet_api::transaction::fields::Calldata;
 use starknet_api::transaction::{EventContent, EventData, EventKey};
 use starknet_types_core::felt::Felt;
 use test_case::test_case;
 
-use crate::abi::abi_utils::selector_from_name;
 use crate::context::ChainInfo;
 use crate::execution::call_info::{CallExecution, CallInfo, OrderedEvent};
 use crate::execution::entry_point::CallEntryPoint;
@@ -26,12 +26,10 @@ const DATA: [Felt; 3] = [
 ];
 const N_EMITTED_EVENTS: [Felt; 1] = [Felt::from_hex_unchecked("0x1")];
 
-#[cfg_attr(
-  feature = "cairo_native",
-  test_case(FeatureContract::TestContract(CairoVersion::Native), 57430; "Native")
-)]
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 47330; "VM")]
-fn positive_flow(test_contract: FeatureContract, expected_gas: u64) {
+#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Native;"Native"))]
+#[test_case(CairoVersion::Cairo1;"VM")]
+fn positive_flow(cairo_version: CairoVersion) {
+    let test_contract = FeatureContract::TestContract(cairo_version);
     let call_info = emit_events(test_contract, &N_EMITTED_EVENTS, &KEYS, &DATA)
         .expect("emit_events failed with valued parameters");
     let event = EventContent {
@@ -43,18 +41,16 @@ fn positive_flow(test_contract: FeatureContract, expected_gas: u64) {
         call_info.execution,
         CallExecution {
             events: vec![OrderedEvent { order: 0, event }],
-            gas_consumed: expected_gas,
+            gas_consumed: 47330,
             ..Default::default()
         }
     );
 }
 
-#[cfg_attr(
-  feature = "cairo_native",
-  test_case(FeatureContract::TestContract(CairoVersion::Native); "Native")
-)]
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1); "VM")]
-fn data_length_exceeds_limit(test_contract: FeatureContract) {
+#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Native;"Native"))]
+#[test_case(CairoVersion::Cairo1;"VM")]
+fn data_length_exceeds_limit(cairo_version: CairoVersion) {
+    let test_contract = FeatureContract::TestContract(cairo_version);
     let versioned_constants = VersionedConstants::create_for_testing();
 
     let max_event_data_length = versioned_constants.tx_event_limits.max_data_length;
@@ -71,12 +67,10 @@ fn data_length_exceeds_limit(test_contract: FeatureContract) {
     assert!(error_message.contains(&expected_error.to_string()));
 }
 
-#[cfg_attr(
-  feature = "cairo_native",
-  test_case(FeatureContract::TestContract(CairoVersion::Native); "Native")
-)]
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1); "VM")]
-fn keys_length_exceeds_limit(test_contract: FeatureContract) {
+#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Native;"Native"))]
+#[test_case(CairoVersion::Cairo1;"VM")]
+fn keys_length_exceeds_limit(cairo_version: CairoVersion) {
+    let test_contract = FeatureContract::TestContract(cairo_version);
     let versioned_constants = VersionedConstants::create_for_testing();
 
     let max_event_keys_length = versioned_constants.tx_event_limits.max_keys_length;
@@ -94,10 +88,10 @@ fn keys_length_exceeds_limit(test_contract: FeatureContract) {
     assert!(error_message.contains(&expected_error.to_string()));
 }
 
-#[cfg(feature = "cairo_native")]
-#[test_case(FeatureContract::TestContract(CairoVersion::Native); "Native")]
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1); "VM")]
-fn event_number_exceeds_limit(test_contract: FeatureContract) {
+#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Native;"Native"))]
+#[test_case(CairoVersion::Cairo1;"VM")]
+fn event_number_exceeds_limit(cairo_version: CairoVersion) {
+    let test_contract = FeatureContract::TestContract(cairo_version);
     let versioned_constants = VersionedConstants::create_for_testing();
 
     let max_n_emitted_events = versioned_constants.tx_event_limits.max_n_emitted_events;

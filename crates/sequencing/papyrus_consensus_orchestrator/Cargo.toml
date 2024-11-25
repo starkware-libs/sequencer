@@ -26,6 +26,7 @@ mockall.workspace = true
 papyrus_network = { workspace = true, features = ["testing"] }
 papyrus_storage = { workspace = true, features = ["testing"] }
 papyrus_test_utils.workspace = true
+starknet_batcher_types = { workspace = true, features = ["testing"] }
 test-case.workspace = true
 
 [lints]

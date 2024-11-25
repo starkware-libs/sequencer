@@ -8,6 +8,12 @@ use num_bigint::BigUint;
 use num_traits::Pow;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
+use starknet_api::abi::abi_utils::{
+    get_fee_token_var_address,
+    get_storage_var_address,
+    selector_from_name,
+};
+use starknet_api::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use starknet_api::block::GasPriceVector;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, EthAddress, Nonce};
@@ -28,6 +34,7 @@ use starknet_api::transaction::fields::{
     ValidResourceBounds,
 };
 use starknet_api::transaction::{
+    constants,
     EventContent,
     EventData,
     EventKey,
@@ -48,12 +55,6 @@ use starknet_api::{
 use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 
-use crate::abi::abi_utils::{
-    get_fee_token_var_address,
-    get_storage_var_address,
-    selector_from_name,
-};
-use crate::abi::constants as abi_constants;
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use crate::execution::call_info::{
     CallExecution,
@@ -117,7 +118,6 @@ use crate::test_utils::{
     TEST_SEQUENCER_ADDRESS,
 };
 use crate::transaction::account_transaction::AccountTransaction;
-use crate::transaction::constants;
 use crate::transaction::errors::{
     TransactionExecutionError,
     TransactionFeeError,
@@ -199,9 +199,9 @@ fn expected_validate_call_info(
 ) -> Option<CallInfo> {
     let retdata = match cairo_version {
         CairoVersion::Cairo0 => Retdata::default(),
-        CairoVersion::Cairo1 => retdata!(felt!(constants::VALIDATE_RETDATA)),
+        CairoVersion::Cairo1 => retdata!(*constants::VALIDATE_RETDATA),
         #[cfg(feature = "cairo_native")]
-        CairoVersion::Native => retdata!(felt!(constants::VALIDATE_RETDATA)),
+        CairoVersion::Native => retdata!(*constants::VALIDATE_RETDATA),
     };
     // Extra range check in regular (invoke) validate call, due to passing the calldata as an array.
     let n_range_checks = match cairo_version {
@@ -1729,21 +1729,20 @@ fn test_deploy_account_tx(
     let actual_execution_info = deploy_account.execute(state, block_context, true, true).unwrap();
 
     // Build expected validate call info.
-    // TODO(AvivG): When the AccountTransaction refactor is complete, simplify the creation of
-    // `validate_calldata` by accessing the DeployAccountTransaction directly, without match.
-    let validate_calldata = match &deploy_account.tx {
-        ApiExecutableTransaction::DeployAccount(tx) => Calldata(
+    let validate_calldata = if let ApiExecutableTransaction::DeployAccount(tx) = &deploy_account.tx
+    {
+        Calldata(
             [
-                vec![tx.class_hash().0, tx.contract_address_salt().0],
+                vec![class_hash.0, tx.contract_address_salt().0],
                 (*tx.constructor_calldata().0).clone(),
             ]
             .concat()
             .into(),
-        ),
-        ApiExecutableTransaction::Invoke(_) | ApiExecutableTransaction::Declare(_) => {
-            panic!("Expected DeployAccount transaction.")
-        }
+        )
+    } else {
+        panic!("Expected DeployAccount transaction.")
     };
+
     let expected_gas_consumed = 0;
     let expected_validate_call_info = expected_validate_call_info(
         account_class_hash,
@@ -1765,7 +1764,7 @@ fn test_deploy_account_tx(
             class_hash: Some(account_class_hash),
             code_address: None,
             entry_point_type: EntryPointType::Constructor,
-            entry_point_selector: selector_from_name(abi_constants::CONSTRUCTOR_ENTRY_POINT_NAME),
+            entry_point_selector: selector_from_name(CONSTRUCTOR_ENTRY_POINT_NAME),
             storage_address: deployed_account_address,
             initial_gas: user_initial_gas.unwrap_or(GasAmount(default_initial_gas_cost())).0,
             ..Default::default()
@@ -2342,6 +2341,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
             ..Default::default()
         },
     };
+
     assert_eq!(actual_execution_info.receipt.resources, expected_tx_resources);
     assert_eq!(
         expected_gas,
@@ -2391,6 +2391,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     // Today, we check that the paid_fee is positive, no matter what was the actual fee.
     let expected_actual_fee =
         get_fee_by_gas_vector(&block_context.block_info, total_gas, &FeeType::Eth);
+
     assert_matches!(
         error,
         TransactionExecutionError::TransactionFeeError(
