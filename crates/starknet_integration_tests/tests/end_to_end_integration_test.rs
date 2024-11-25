@@ -14,6 +14,7 @@ use starknet_api::state::StateNumber;
 use starknet_integration_tests::integration_test_setup::IntegrationTestSetup;
 use starknet_integration_tests::utils::{create_integration_test_tx_generator, send_account_txs};
 use starknet_sequencer_infra::trace_util::configure_tracing;
+use starknet_sequencer_node::test_utils::compilation::compile_node_result;
 use starknet_types_core::felt::Felt;
 use tokio::process::Child;
 use tokio::task::{self, JoinHandle};
@@ -28,14 +29,8 @@ fn tx_generator() -> MultiAccountTransactionGenerator {
 // TODO(Tsabary): Move to a suitable util location.
 async fn spawn_node_child_task(node_config_path: PathBuf) -> Child {
     // TODO(Tsabary): Capture output to a log file, and present it in case of a failure.
-    // TODO(Tsabary): Change invocation from "cargo run" to separate compilation and invocation
-    // (build, and then invoke the binary).
-    create_shell_command("cargo")
-        .arg("run")
-        .arg("--bin")
-        .arg("starknet_sequencer_node")
-        .arg("--quiet")
-        .arg("--")
+    compile_node_result().await.expect("Failed to compile the sequencer node.");
+    create_shell_command("target/debug/starknet_sequencer_node")
         .arg("--config_file")
         .arg(node_config_path.to_str().unwrap())
         .stderr(Stdio::inherit())
