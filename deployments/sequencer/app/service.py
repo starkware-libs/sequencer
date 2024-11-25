@@ -23,10 +23,10 @@ class ServiceApp(Construct):
         self.namespace = namespace
         self.label = {"app": Names.to_label_value(self, include_hash=False)}
         self.topology = topology
-
+        
         self.set_k8s_namespace()
 
-        if topology.port_mappings is not None:
+        if topology.service is not None:
             self.set_k8s_service()
         
         if topology.config is not None:

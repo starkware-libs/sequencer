@@ -1,9 +1,5 @@
 import dataclasses
-
 from typing import Optional, List, Dict, Any, Mapping, Sequence
-from enum import Enum
-from imports import k8s
-from cdk8s import Names
 
 
 @dataclasses.dataclass
@@ -27,15 +23,8 @@ class PortMapping:
 
 
 @dataclasses.dataclass
-class ServiceType(Enum):
-    CLUSTER_IP = "ClusterIP"
-    LOAD_BALANCER = "LoadBalancer"
-    NODE_PORT = "NodePort"
-
-
-@dataclasses.dataclass
 class Service:
-    type: Optional[ServiceType]
+    type: Optional[str]
     selector: Mapping[str, str]
     ports: Sequence[PortMapping]
 
@@ -97,12 +86,6 @@ class VolumeMount:
     name: str
     mount_path: str
     read_only: bool
-
-
-@dataclasses.dataclass
-class VolumeType(Enum):
-    CONFIG_MAP = "ConfigMap"
-    PERSISTENT_VOLUME_CLAIM = "PersistentVolumeClaim"
 
 
 @dataclasses.dataclass

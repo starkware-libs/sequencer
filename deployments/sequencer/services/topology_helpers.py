@@ -1,4 +1,4 @@
-import typing
+import const
 
 from services import objects
 from config.sequencer import SequencerDevConfig
@@ -14,14 +14,6 @@ def get_pvc() -> objects.PersistentVolumeClaim:
       mount_path="/data",
       read_only=False
     )
-
-
-def get_port_mappings() -> typing.Sequence[objects.PortMapping]:
-  return [
-      objects.PortMapping(name="http", port=80, container_port=8080),
-      objects.PortMapping(name="rpc", port=8081, container_port=8081),
-      objects.PortMapping(name="monitoring", port=8082, container_port=8082)
-  ]
 
 
 def get_config() -> objects.Config:
@@ -49,7 +41,7 @@ def get_ingress() -> objects.Ingress:
                         path="/monitoring/",
                         path_type="Prefix",
                         backend_service_name="sequencer-node-service",
-                        backend_service_port_number=8082
+                        backend_service_port_number=const.MONITORING_SERVICE_PORT
                     )
                 ]
             )
@@ -67,23 +59,23 @@ def get_ingress() -> objects.Ingress:
 
 def get_service() -> objects.Service:
   return objects.Service(
-    type=objects.ServiceType.CLUSTER_IP.value,
+    type=const.CLUSTER_IP,
     selector={},
     ports=[
       objects.PortMapping(
         name="http",
-        port=80,
-        container_port=8080
+        port=const.HTTP_SERVICE_PORT,
+        container_port=const.HTTP_CONTAINER_PORT
       ),
       objects.PortMapping(
         name="rpc",
-        port=8081,
-        container_port=8081
+        port=const.RPC_SERVICE_PORT,
+        container_port=const.RPC_CONTAINER_PORT
       ),
       objects.PortMapping(
         name="monitoring",
-        port=8082,
-        container_port=8082
+        port=const.MONITORING_SERVICE_PORT,
+        container_port=const.MONITORING_CONTAINER_PORT
       )
     ]
   )
@@ -99,13 +91,13 @@ def get_deployment() -> objects.Deployment:
         image="us.gcr.io/starkware-dev/sequencer-node-test:0.0.1-dev.3",
         args=["--config_file", "/config/sequencer/presets/config"],
         ports=[
-          objects.ContainerPort(container_port=8080),
-          objects.ContainerPort(container_port=8081),
-          objects.ContainerPort(container_port=8082)
+          objects.ContainerPort(container_port=const.HTTP_CONTAINER_PORT),
+          objects.ContainerPort(container_port=const.RPC_CONTAINER_PORT),
+          objects.ContainerPort(container_port=const.MONITORING_CONTAINER_PORT)
         ],
-        startup_probe=objects.Probe(port=8082, path="/monitoring/nodeVersion", period_seconds=10, failure_threshold=10, timeout_seconds=5),
-        readiness_probe=objects.Probe(port=8082, path="/monitoring/ready", period_seconds=10, failure_threshold=5, timeout_seconds=5),
-        liveness_probe=objects.Probe(port=8082, path="/monitoring/alive", period_seconds=10, failure_threshold=5, timeout_seconds=5),
+        startup_probe=objects.Probe(port=const.MONITORING_CONTAINER_PORT, path="/monitoring/nodeVersion", period_seconds=10, failure_threshold=10, timeout_seconds=5),
+        readiness_probe=objects.Probe(port=const.MONITORING_CONTAINER_PORT, path="/monitoring/ready", period_seconds=10, failure_threshold=5, timeout_seconds=5),
+        liveness_probe=objects.Probe(port=const.MONITORING_CONTAINER_PORT, path="/monitoring/alive", period_seconds=10, failure_threshold=5, timeout_seconds=5),
         volume_mounts=[
           objects.VolumeMount(
             name="config",
