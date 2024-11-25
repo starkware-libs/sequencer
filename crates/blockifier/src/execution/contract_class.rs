@@ -139,7 +139,9 @@ impl RunnableContractClass {
                 Self::V0(_) => TrackedResource::CairoSteps,
                 Self::V1(contract_class) => contract_class.tracked_resource(min_sierra_version),
                 #[cfg(feature = "cairo_native")]
-                Self::V1Native(_) => TrackedResource::SierraGas,
+                Self::V1Native(contract_class) => {
+                    contract_class.casm().tracked_resource(min_sierra_version)
+                }
             },
             GasVectorComputationMode::NoL2Gas => TrackedResource::CairoSteps,
         }
