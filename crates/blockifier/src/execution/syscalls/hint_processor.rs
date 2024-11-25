@@ -214,7 +214,7 @@ pub const INVALID_ARGUMENT: &str =
 /// Executes Starknet syscalls (stateful protocol hints) during the execution of an entry point
 /// call.
 pub struct SyscallHintProcessor<'a> {
-    pub base: syscall_base::SyscallHandlerBase<'a>,
+    pub base: Box<syscall_base::SyscallHandlerBase<'a>>,
 
     // VM-specific fields.
     pub syscall_counter: SyscallCounter,
@@ -246,7 +246,7 @@ impl<'a> SyscallHintProcessor<'a> {
         read_only_segments: ReadOnlySegments,
     ) -> Self {
         SyscallHintProcessor {
-            base: syscall_base::SyscallHandlerBase::new(call, state, context),
+            base: Box::new(syscall_base::SyscallHandlerBase::new(call, state, context)),
             syscall_counter: SyscallCounter::default(),
             read_only_segments,
             syscall_ptr: initial_syscall_ptr,
