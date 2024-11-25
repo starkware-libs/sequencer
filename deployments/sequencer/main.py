@@ -1,12 +1,25 @@
 #!/usr/bin/env python3
 
-from constructs import Construct
-from cdk8s import App, Chart
-from typing import Dict, Any
-from services.service import Service
 import dataclasses
+import os
 
-from config.sequencer import Config, SequencerDevConfig
+from constructs import Construct # type: ignore
+from cdk8s import App, Chart, YamlOutputType # type: ignore
+from typing import Dict, Any, Optional
+
+from services.service import Service
+from config.sequencer import Config
+from services.objects import *
+from services import defaults
+
+
+env = os.getenv("ENV", "dev")
+
+
+if env == "dev":
+    system_preset = defaults.sequencer_dev
+elif env == "prod":
+    system_preset = defaults.sequencer_prod 
 
 
 @dataclasses.dataclass
@@ -14,48 +27,47 @@ class SystemStructure:
     topology: str = "mesh"
     replicas: str = "2"
     size: str = "small"
-    config: Config = SequencerDevConfig()
+    config: Optional[Config] = None
 
     def __post_init__(self):
         self.config.validate()
 
 
-class SequencerSystem(Chart):
+class SequencerNode(Chart):
     def __init__(
         self,
         scope: Construct,
         name: str,
-        namespace: str,
-        system_structure: Dict[str, Dict[str, Any]],
+        namespace: str
     ):
         super().__init__(
             scope, name, disable_resource_name_hashes=True, namespace=namespace
         )
-        self.mempool = Service(
+        self.service = Service(
             self,
-            "mempool",
-            image="paulbouwer/hello-kubernetes:1.7",
-            replicas=2,
-            config=system_structure.config.get(),
-        )
-        self.batcher = Service(self, "batcher", image="ghost", container_port=2368)
-        self.sequencer_node = Service(
-            self, 
-            "sequencer", 
-            image="", 
-            container_port=8082, 
-            startup_probe_path="/monitoring/nodeVersion", 
-            readiness_probe_path="/monitoring/ready", 
-            liveness_probe_path="/monitoring/alive"
+            name,
+            namespace=namespace,
+            deployment=system_preset.deployment,
+            config=system_preset.config,
+            image=system_preset.image,
+            args=system_preset.args,
+            port_mappings=system_preset.port_mappings,
+            service_type=system_preset.service_type,
+            replicas=system_preset.replicas,
+            health_check=system_preset.health_check,
+            pvc=system_preset.pvc,
+            ingress=system_preset.ingress
         )
 
 
-app = App()
-a = SequencerSystem(
+app = App(
+    yaml_output_type=YamlOutputType.FOLDER_PER_CHART_FILE_PER_RESOURCE
+)
+
+sequencer_node = SequencerNode(
     scope=app,
-    name="sequencer-system",
-    namespace="test-namespace",
-    system_structure=SystemStructure(),
+    name=system_preset.name,
+    namespace=system_preset.namespace
 )
 
 app.synth()
