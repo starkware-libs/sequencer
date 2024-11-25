@@ -390,11 +390,7 @@ pub fn get_block_hash(
     syscall_handler: &mut SyscallHintProcessor<'_>,
     _remaining_gas: &mut u64,
 ) -> SyscallResult<GetBlockHashResponse> {
-    let block_hash = BlockHash(syscall_base::get_block_hash_base(
-        syscall_handler.base.context,
-        request.block_number.0,
-        syscall_handler.base.state,
-    )?);
+    let block_hash = BlockHash(syscall_handler.base.get_block_hash(request.block_number.0)?);
     Ok(GetBlockHashResponse { block_hash })
 }
 

@@ -43,18 +43,19 @@ use crate::execution::errors::EntryPointExecutionError;
 use crate::execution::execution_utils::execute_deployment;
 use crate::execution::native::utils::{calculate_resource_bounds, default_tx_v2_info};
 use crate::execution::secp;
+use crate::execution::syscalls::exceeds_event_size_limit;
 use crate::execution::syscalls::hint_processor::{
     SyscallExecutionError,
     INVALID_INPUT_LENGTH_ERROR,
     OUT_OF_GAS_ERROR,
 };
-use crate::execution::syscalls::{exceeds_event_size_limit, syscall_base};
+use crate::execution::syscalls::syscall_base::SyscallHandlerBase;
 use crate::state::state_api::State;
 use crate::transaction::objects::TransactionInfo;
 use crate::versioned_constants::GasCosts;
 
 pub struct NativeSyscallHandler<'state> {
-    pub base: Box<syscall_base::SyscallHandlerBase<'state>>,
+    pub base: Box<SyscallHandlerBase<'state>>,
 
     // It is set if an unrecoverable error happens during syscall execution
     pub unrecoverable_error: Option<SyscallExecutionError>,
@@ -67,7 +68,7 @@ impl<'state> NativeSyscallHandler<'state> {
         context: &'state mut EntryPointExecutionContext,
     ) -> NativeSyscallHandler<'state> {
         NativeSyscallHandler {
-            base: Box::new(syscall_base::SyscallHandlerBase::new(call, state, context)),
+            base: Box::new(SyscallHandlerBase::new(call, state, context)),
             unrecoverable_error: None,
         }
     }
@@ -237,7 +238,7 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
     ) -> SyscallResult<Felt> {
         self.pre_execute_syscall(remaining_gas, self.gas_costs().get_block_hash_gas_cost)?;
 
-        match syscall_base::get_block_hash_base(self.base.context, block_number, self.base.state) {
+        match self.base.get_block_hash(block_number) {
             Ok(value) => Ok(value),
             Err(e) => Err(self.handle_error(remaining_gas, e)),
         }

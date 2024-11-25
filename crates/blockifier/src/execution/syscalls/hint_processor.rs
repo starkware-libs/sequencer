@@ -51,6 +51,7 @@ use crate::execution::syscalls::secp::{
     secp256r1_new,
     SecpHintProcessor,
 };
+use crate::execution::syscalls::syscall_base::SyscallHandlerBase;
 use crate::execution::syscalls::{
     call_contract,
     deploy,
@@ -65,7 +66,6 @@ use crate::execution::syscalls::{
     sha_256_process_block,
     storage_read,
     storage_write,
-    syscall_base,
     StorageReadResponse,
     StorageWriteResponse,
     SyscallRequest,
@@ -215,7 +215,7 @@ pub const INVALID_ARGUMENT: &str =
 /// Executes Starknet syscalls (stateful protocol hints) during the execution of an entry point
 /// call.
 pub struct SyscallHintProcessor<'a> {
-    pub base: Box<syscall_base::SyscallHandlerBase<'a>>,
+    pub base: Box<SyscallHandlerBase<'a>>,
 
     // VM-specific fields.
     pub syscall_counter: SyscallCounter,
@@ -247,7 +247,7 @@ impl<'a> SyscallHintProcessor<'a> {
         read_only_segments: ReadOnlySegments,
     ) -> Self {
         SyscallHintProcessor {
-            base: Box::new(syscall_base::SyscallHandlerBase::new(call, state, context)),
+            base: Box::new(SyscallHandlerBase::new(call, state, context)),
             syscall_counter: SyscallCounter::default(),
             read_only_segments,
             syscall_ptr: initial_syscall_ptr,
