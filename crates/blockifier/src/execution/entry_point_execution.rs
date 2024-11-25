@@ -77,7 +77,7 @@ pub fn execute_entry_point_call(
     } = initialize_execution_context(call, &contract_class, state, context)?;
 
     let args = prepare_call_arguments(
-        &syscall_handler.call,
+        &syscall_handler.base.call,
         &mut runner,
         initial_syscall_ptr,
         &mut syscall_handler.read_only_segments,
@@ -93,7 +93,7 @@ pub fn execute_entry_point_call(
     // Collect the set PC values that were visited during the entry point execution.
     register_visited_pcs(
         &mut runner,
-        syscall_handler.state,
+        syscall_handler.base.state,
         class_hash,
         program_segment_size,
         bytecode_length,
@@ -416,7 +416,7 @@ pub fn finalize_execution(
         .get_execution_resources()
         .map_err(VirtualMachineError::RunnerError)?
         .filter_unused_builtins();
-    let versioned_constants = syscall_handler.context.versioned_constants();
+    let versioned_constants = syscall_handler.base.context.versioned_constants();
     if versioned_constants.segment_arena_cells {
         vm_resources_without_inner_calls
             .builtin_instance_counter
@@ -435,24 +435,25 @@ pub fn finalize_execution(
         gas_for_fee: GasAmount(0),
     };
     let charged_resources = &charged_resources_without_inner_calls
-        + &CallInfo::summarize_charged_resources(syscall_handler.inner_calls.iter());
+        + &CallInfo::summarize_charged_resources(syscall_handler.base.inner_calls.iter());
 
+    let syscall_handler_base = syscall_handler.base;
     Ok(CallInfo {
-        call: syscall_handler.call,
+        call: syscall_handler_base.call,
         execution: CallExecution {
             retdata: call_result.retdata,
-            events: syscall_handler.events,
-            l2_to_l1_messages: syscall_handler.l2_to_l1_messages,
+            events: syscall_handler_base.events,
+            l2_to_l1_messages: syscall_handler_base.l2_to_l1_messages,
             failed: call_result.failed,
             gas_consumed: call_result.gas_consumed,
         },
-        inner_calls: syscall_handler.inner_calls,
+        inner_calls: syscall_handler_base.inner_calls,
         tracked_resource,
         charged_resources,
-        storage_read_values: syscall_handler.read_values,
-        accessed_storage_keys: syscall_handler.accessed_keys,
-        read_class_hash_values: syscall_handler.read_class_hash_values,
-        accessed_contract_addresses: syscall_handler.accessed_contract_addresses,
+        storage_read_values: syscall_handler_base.read_values,
+        accessed_storage_keys: syscall_handler_base.accessed_keys,
+        read_class_hash_values: syscall_handler_base.read_class_hash_values,
+        accessed_contract_addresses: syscall_handler_base.accessed_contract_addresses,
     })
 }
 
@@ -489,13 +490,13 @@ fn get_call_result(
         error_message: format!("Unexpected remaining gas: {gas}."),
     })?;
 
-    if gas > syscall_handler.call.initial_gas {
+    if gas > syscall_handler.base.call.initial_gas {
         return Err(PostExecutionError::MalformedReturnData {
             error_message: format!("Unexpected remaining gas: {gas}."),
         });
     }
 
-    let gas_consumed = syscall_handler.call.initial_gas - gas;
+    let gas_consumed = syscall_handler.base.call.initial_gas - gas;
     Ok(CallResult {
         failed,
         retdata: read_execution_retdata(runner, retdata_size, retdata_start)?,

@@ -170,7 +170,7 @@ pub fn call_contract(
     remaining_gas: &mut u64,
 ) -> SyscallResult<CallContractResponse> {
     let storage_address = request.contract_address;
-    let class_hash = syscall_handler.state.get_class_hash_at(storage_address)?;
+    let class_hash = syscall_handler.base.state.get_class_hash_at(storage_address)?;
     let selector = request.function_selector;
     if syscall_handler.is_validate_mode() && syscall_handler.storage_address() != storage_address {
         return Err(SyscallExecutionError::InvalidSyscallInExecutionMode {
@@ -267,8 +267,8 @@ pub fn deploy(
         caller_address: deployer_address,
     };
     let call_info = execute_deployment(
-        syscall_handler.state,
-        syscall_handler.context,
+        syscall_handler.base.state,
+        syscall_handler.base.context,
         ctor_context,
         request.constructor_calldata,
         remaining_gas,
@@ -276,7 +276,7 @@ pub fn deploy(
 
     let constructor_retdata =
         create_retdata_segment(vm, syscall_handler, &call_info.execution.retdata.0)?;
-    syscall_handler.inner_calls.push(call_info);
+    syscall_handler.base.inner_calls.push(call_info);
 
     Ok(DeployResponse { contract_address: deployed_contract_address, constructor_retdata })
 }
@@ -332,7 +332,7 @@ pub fn emit_event(
     syscall_handler: &mut SyscallHintProcessor<'_>,
     _remaining_gas: &mut u64,
 ) -> SyscallResult<EmitEventResponse> {
-    let execution_context = &mut syscall_handler.context;
+    let execution_context = &mut syscall_handler.base.context;
     exceeds_event_size_limit(
         execution_context.versioned_constants(),
         execution_context.n_emitted_events + 1,
@@ -340,7 +340,7 @@ pub fn emit_event(
     )?;
     let ordered_event =
         OrderedEvent { order: execution_context.n_emitted_events, event: request.content };
-    syscall_handler.events.push(ordered_event);
+    syscall_handler.base.events.push(ordered_event);
     execution_context.n_emitted_events += 1;
 
     Ok(EmitEventResponse {})
@@ -390,9 +390,9 @@ pub fn get_block_hash(
     _remaining_gas: &mut u64,
 ) -> SyscallResult<GetBlockHashResponse> {
     let block_hash = BlockHash(syscall_base::get_block_hash_base(
-        syscall_handler.context,
+        syscall_handler.base.context,
         request.block_number.0,
-        syscall_handler.state,
+        syscall_handler.base.state,
     )?);
     Ok(GetBlockHashResponse { block_hash })
 }
@@ -501,12 +501,12 @@ pub fn replace_class(
 ) -> SyscallResult<ReplaceClassResponse> {
     // Ensure the class is declared (by reading it), and of type V1.
     let class_hash = request.class_hash;
-    let class = syscall_handler.state.get_compiled_contract_class(class_hash)?;
+    let class = syscall_handler.base.state.get_compiled_contract_class(class_hash)?;
 
     if !is_cairo1(&class) {
         return Err(SyscallExecutionError::ForbiddenClassReplacement { class_hash });
     }
-    syscall_handler.state.set_class_hash_at(syscall_handler.storage_address(), class_hash)?;
+    syscall_handler.base.state.set_class_hash_at(syscall_handler.storage_address(), class_hash)?;
     Ok(ReplaceClassResponse {})
 }
 
@@ -535,12 +535,12 @@ pub fn send_message_to_l1(
     syscall_handler: &mut SyscallHintProcessor<'_>,
     _remaining_gas: &mut u64,
 ) -> SyscallResult<SendMessageToL1Response> {
-    let execution_context = &mut syscall_handler.context;
+    let execution_context = &mut syscall_handler.base.context;
     let ordered_message_to_l1 = OrderedL2ToL1Message {
         order: execution_context.n_sent_messages_to_l1,
         message: request.message,
     };
-    syscall_handler.l2_to_l1_messages.push(ordered_message_to_l1);
+    syscall_handler.base.l2_to_l1_messages.push(ordered_message_to_l1);
     execution_context.n_sent_messages_to_l1 += 1;
 
     Ok(SendMessageToL1Response {})
@@ -672,7 +672,7 @@ pub fn keccak(
 
     // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion works.
     let n_rounds_as_u64 = u64::try_from(n_rounds).expect("Failed to convert usize to u64.");
-    let gas_cost = n_rounds_as_u64 * syscall_handler.context.gas_costs().keccak_round_cost_gas_cost;
+    let gas_cost = n_rounds_as_u64 * syscall_handler.gas_costs().keccak_round_cost_gas_cost;
     if gas_cost > *remaining_gas {
         let out_of_gas_error =
             Felt::from_hex(OUT_OF_GAS_ERROR).map_err(SyscallExecutionError::from)?;
@@ -803,8 +803,8 @@ pub(crate) fn get_class_hash_at(
     syscall_handler: &mut SyscallHintProcessor<'_>,
     _remaining_gas: &mut u64,
 ) -> SyscallResult<GetClassHashAtResponse> {
-    syscall_handler.accessed_contract_addresses.insert(request);
-    let class_hash = syscall_handler.state.get_class_hash_at(request)?;
-    syscall_handler.read_class_hash_values.push(class_hash);
+    syscall_handler.base.accessed_contract_addresses.insert(request);
+    let class_hash = syscall_handler.base.state.get_class_hash_at(request)?;
+    syscall_handler.base.read_class_hash_values.push(class_hash);
     Ok(class_hash)
 }
