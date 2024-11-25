@@ -49,6 +49,7 @@ pub fn execute_entry_point_call(
         Some(builtin_costs),
         &mut syscall_handler,
     );
+    syscall_handler.finalize();
 
     let call_result = execution_result.map_err(EntryPointExecutionError::NativeUnexpectedError)?;
 

@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{hash_map, HashMap, HashSet};
 use std::convert::From;
 
 use starknet_api::core::{ClassHash, ContractAddress};
@@ -99,6 +99,22 @@ impl<'state> SyscallHandlerBase<'state> {
         Ok(self.state.get_storage_at(block_hash_contract_address, key)?)
     }
 
+    pub fn storage_write(&mut self, key: StorageKey, value: Felt) -> SyscallResult<()> {
+        let contract_address = self.call.storage_address;
+
+        match self.original_values.entry(key) {
+            hash_map::Entry::Vacant(entry) => {
+                entry.insert(self.state.get_storage_at(contract_address, key)?);
+            }
+            hash_map::Entry::Occupied(_) => {}
+        }
+
+        self.accessed_keys.insert(key);
+        self.state.set_storage_at(contract_address, key, value)?;
+
+        Ok(())
+    }
+
     pub fn execute_inner_call(
         &mut self,
         call: CallEntryPoint,
@@ -137,5 +153,14 @@ impl<'state> SyscallHandlerBase<'state> {
         }
 
         Ok(raw_retdata)
+    }
+
+    pub fn finalize(&mut self) {
+        self.context
+            .revert_infos
+            .0
+            .last_mut()
+            .expect("Missing contract revert info.")
+            .original_values = std::mem::take(&mut self.original_values);
     }
 }

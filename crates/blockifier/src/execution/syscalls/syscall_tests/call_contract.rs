@@ -27,10 +27,10 @@ use crate::test_utils::{
     BALANCE,
 };
 
-// TODO: Add test for native once reverts are supported.
-#[test]
-fn test_call_contract_that_panics() {
-    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1);
+#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Native; "Native"))]
+#[test_case(CairoVersion::Cairo1;"VM")]
+fn test_call_contract_that_panics(cairo_version: CairoVersion) {
+    let test_contract = FeatureContract::TestContract(cairo_version);
     let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1);
     let chain_info = &ChainInfo::create_for_testing();
     let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1), (empty_contract, 0)]);
@@ -61,6 +61,11 @@ fn test_call_contract_that_panics() {
     );
     assert!(inner_call.execution.events.is_empty());
     assert!(inner_call.execution.l2_to_l1_messages.is_empty());
+
+    // Check that the tracked resource is SierraGas to make sure that Native is running.
+    for call in res.iter() {
+        assert_eq!(call.tracked_resource, TrackedResource::SierraGas);
+    }
 }
 
 #[cfg_attr(

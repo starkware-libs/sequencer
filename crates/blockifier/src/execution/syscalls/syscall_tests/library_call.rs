@@ -83,20 +83,16 @@ fn test_library_call_assert_fails(cairo_version: CairoVersion) {
         ..trivial_external_entry_point_new(test_contract)
     };
     let call_info = entry_point_call.execute_directly(&mut state).unwrap();
-    let expected_err_retdata = match test_contract.cairo_version() {
-        CairoVersion::Cairo0 | CairoVersion::Cairo1 => {
-            // 'x != y', 'ENTRYPOINT_FAILED'.
-            vec![felt!("0x7820213d2079"), felt!("0x454e545259504f494e545f4641494c4544")]
-        }
-        #[cfg(feature = "cairo_native")]
-        // 'x != y'.
-        CairoVersion::Native => vec![felt!("0x7820213d2079")],
-    };
 
     assert_eq!(
         call_info.execution,
         CallExecution {
-            retdata: Retdata(expected_err_retdata),
+            retdata: Retdata(vec![
+                // 'x != y'.
+                felt!("0x7820213d2079"),
+                // 'ENTRYPOINT_FAILED'.
+                felt!("0x454e545259504f494e545f4641494c4544")
+            ]),
             gas_consumed: 150980,
             failed: true,
             ..Default::default()

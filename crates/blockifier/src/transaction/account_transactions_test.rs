@@ -55,6 +55,7 @@ use starknet_types_core::felt::Felt;
 use crate::check_tx_execution_error_for_invalid_scenario;
 use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::CallInfo;
+use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::EntryPointExecutionContext;
 use crate::execution::syscalls::SyscallSelector;
 use crate::fee::fee_utils::{get_fee_by_gas_vector, get_sequencer_balance_keys};
@@ -1761,7 +1762,10 @@ fn test_revert_in_execute(
 }
 
 #[rstest]
+#[cfg_attr(feature = "cairo_native", case::native(CairoVersion::Native))]
+#[case::vm(CairoVersion::Cairo1)]
 fn test_call_contract_that_panics(
+    #[case] cairo_version: CairoVersion,
     mut block_context: BlockContext,
     default_all_resource_bounds: ValidResourceBounds,
     #[values(true, false)] enable_reverts: bool,
@@ -1769,7 +1773,8 @@ fn test_call_contract_that_panics(
 ) {
     // Override enable reverts.
     block_context.versioned_constants.enable_reverts = enable_reverts;
-    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1);
+    let test_contract = FeatureContract::TestContract(cairo_version);
+    // TODO(Yoni): use `class_version` here once the feature contract fully supports Native.
     let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
     let chain_info = &block_context.chain_info;
     let state = &mut test_state(chain_info, BALANCE, &[(test_contract, 1), (account, 1)]);
@@ -1809,4 +1814,11 @@ fn test_call_contract_that_panics(
     // If reverts are enabled, `test_call_contract_revert` should catch it and ignore it.
     // Otherwise, the transaction should revert.
     assert_eq!(tx_execution_info.is_reverted(), !enable_reverts);
+
+    if enable_reverts {
+        // Check that the tracked resource is SierraGas to make sure that Native is running.
+        for call in tx_execution_info.execute_call_info.unwrap().iter() {
+            assert_eq!(call.tracked_resource, TrackedResource::SierraGas);
+        }
+    }
 }
