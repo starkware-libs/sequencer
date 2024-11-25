@@ -5163,14 +5163,10 @@ checksum = "b248f5224d1d606005e02c97f5aa4e88eeb230488bcc03bc9ca4d7991399f2b5"
 [[package]]
 name = "infra_utils"
 version = "0.0.0"
-<<<<<<< HEAD
-=======
 dependencies = [
  "rstest",
- "thiserror",
  "tokio",
 ]
->>>>>>> 32f1a4b3b (chore: add shell command builder)
 
 [[package]]
 name = "inout"
@@ -10312,6 +10308,7 @@ dependencies = [
  "cairo-lang-starknet-classes",
  "futures",
  "indexmap 2.6.0",
+ "infra_utils",
  "mempool_test_utils",
  "papyrus_common",
  "papyrus_consensus",
