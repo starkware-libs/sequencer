@@ -2,9 +2,9 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   labels:
-    app: sequencer-dev
-  name: sequencer-dev-data
-  namespace: default
+    app: sequencer-node
+  name: sequencer-node-data
+  namespace: test
 spec:
   accessModes:
     - ReadWriteOnce

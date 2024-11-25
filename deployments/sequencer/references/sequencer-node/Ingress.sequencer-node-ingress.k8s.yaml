@@ -3,17 +3,17 @@ kind: Ingress
 metadata:
   annotations:
     acme.cert-manager.io/http01-edit-in-place: "true"
-    cert-manager.io/common-name: default.gcp-integration.sw-dev.io
+    cert-manager.io/common-name: test.gcp-integration.sw-dev.io
     cert-manager.io/issue-temporary-certificate: "true"
     cert-manager.io/issuer: letsencrypt-prod
     kubernetes.io/tls-acme: "true"
   labels:
-    app: sequencer-dev
-  name: sequencer-dev-ingress
-  namespace: default
+    app: sequencer-node
+  name: sequencer-node-ingress
+  namespace: test
 spec:
   rules:
-    - host: default.gcp-integration.sw-dev.io
+    - host: test.gcp-integration.sw-dev.io
       http:
         paths:
           - backend:
@@ -25,5 +25,5 @@ spec:
             pathType: Prefix
   tls:
     - hosts:
-        - default.gcp-integration.sw-dev.io
+        - test.gcp-integration.sw-dev.io
       secretName: sequencer-tls

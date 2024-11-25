@@ -6,7 +6,7 @@ from cdk8s import Names, ApiObjectMetadata
 from imports import k8s
 from imports.com.google import cloud as google
 
-from services.topology import ServiceTopology
+from services import topology
 
 
 class ServiceApp(Construct):        
@@ -16,7 +16,7 @@ class ServiceApp(Construct):
         id: str,
         *,
         namespace: str,
-        topology: ServiceTopology
+        topology: topology.ServiceTopology
     ):
         super().__init__(scope, id)
 
@@ -65,7 +65,7 @@ class ServiceApp(Construct):
                 self,
                 "service",
                 spec=k8s.ServiceSpec(
-                    type=self.topology.service.type,
+                    type=self.topology.service.type.value,
                     ports=[
                         k8s.ServicePort(
                             name=port.name,

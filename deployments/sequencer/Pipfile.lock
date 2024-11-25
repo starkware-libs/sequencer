@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "23b20fe88594a92c3020e94a2f732ae728ecf45544cfdf66d48eea4fd960827f"
+            "sha256": "285f4cd049b0929cb9456557aa88d520b18a14269a94291e3841af3ac4225304"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -34,12 +34,12 @@
         },
         "cdk8s": {
             "hashes": [
-                "sha256:1d5967db0b94b1e2f48c6bd02dfdde65cbb0cfd73199eaf7bf1c50448260e2cd",
-                "sha256:4395d4d4247557e2fda0b38d5e7002ca13cbafeb74d5734e3daf94e3b09fa90e"
+                "sha256:bd3bd68cdcd807a6bb91fa541a4b4e201d18198da61e57aceab0e53d661447d2",
+                "sha256:c09c35cce4af3d1a56afc62f30ce7a058d8f3de967343e44f4d88db5489e89be"
             ],
             "index": "pypi",
-            "markers": "python_version ~= '3.8'",
-            "version": "==2.69.19"
+            "markers": "python_version ~= '3.7'",
+            "version": "==2.66.13"
         },
         "constructs": {
             "hashes": [
@@ -49,6 +49,15 @@
             "index": "pypi",
             "markers": "python_version ~= '3.7'",
             "version": "==10.2.70"
+        },
+        "exceptiongroup": {
+            "hashes": [
+                "sha256:3111b9d131c238bec2f8f516e123e14ba243563fb135d3fe885990585aa7795b",
+                "sha256:47c2edf7c6738fafb49fd34290706d1a1a2f4d1c6df275526b62cbb4aa5393cc"
+            ],
+            "index": "pypi",
+            "markers": "python_version >= '3.7'",
+            "version": "==1.2.2"
         },
         "importlib-resources": {
             "hashes": [

@@ -6,11 +6,9 @@ from constructs import Construct
 from cdk8s import App, Chart, YamlOutputType
 from typing import Optional
 
-
 from config.sequencer import Config
 from app.service import ServiceApp
-from services.topology import ServiceTopology, SequencerDev, SequencerProd
-from services.helpers import args
+from services import topology, helpers
 
 
 @dataclasses.dataclass
@@ -30,7 +28,7 @@ class SequencerNode(Chart):
         scope: Construct,
         name: str,
         namespace: str,
-        topology: ServiceTopology
+        topology: topology.ServiceTopology
     ):
         super().__init__(
             scope, name, disable_resource_name_hashes=True, namespace=namespace
@@ -43,10 +41,10 @@ class SequencerNode(Chart):
         )
 
 def main():
-    if args.env == "dev":
-        system_preset = SequencerDev()
-    elif args.env == "prod":
-        system_preset = SequencerProd()
+    if helpers.args.env == "dev":
+        system_preset = topology.SequencerDev()
+    elif helpers.args.env == "prod":
+        system_preset = topology.SequencerProd()
 
     app = App(
         yaml_output_type=YamlOutputType.FOLDER_PER_CHART_FILE_PER_RESOURCE
@@ -55,7 +53,7 @@ def main():
     SequencerNode(
         scope=app,
         name="sequencer-node",
-        namespace=args.namespace,
+        namespace=helpers.args.namespace,
         topology=system_preset
     )
 

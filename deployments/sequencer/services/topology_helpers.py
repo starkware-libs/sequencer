@@ -1,8 +1,5 @@
-import const
-
-from services import objects
+from services import objects, const, helpers
 from config.sequencer import SequencerDevConfig
-from services.helpers import args
 
 
 def get_pvc() -> objects.PersistentVolumeClaim:
@@ -19,7 +16,7 @@ def get_pvc() -> objects.PersistentVolumeClaim:
 def get_config() -> objects.Config:
   return SequencerDevConfig(
     mount_path="/config/sequencer/presets/", 
-    config_file_path=args.config_file
+    config_file_path=helpers.args.config_file
   )
 
 
@@ -27,7 +24,7 @@ def get_ingress() -> objects.Ingress:
   return objects.Ingress(
         annotations={
             "kubernetes.io/tls-acme": "true",
-            "cert-manager.io/common-name": f"{args.namespace}.gcp-integration.sw-dev.io",
+            "cert-manager.io/common-name": f"{helpers.args.namespace}.gcp-integration.sw-dev.io",
             "cert-manager.io/issue-temporary-certificate": "true",
             "cert-manager.io/issuer": "letsencrypt-prod",
             "acme.cert-manager.io/http01-edit-in-place": "true"
@@ -35,7 +32,7 @@ def get_ingress() -> objects.Ingress:
         class_name=None,
         rules=[
             objects.IngressRule(
-                host=f"{args.namespace}.gcp-integration.sw-dev.io",
+                host=f"{helpers.args.namespace}.gcp-integration.sw-dev.io",
                 paths=[
                     objects.IngressRuleHttpPath(
                         path="/monitoring/",
@@ -49,7 +46,7 @@ def get_ingress() -> objects.Ingress:
         tls=[
             objects.IngressTls(
                 hosts=[
-                    f"{args.namespace}.gcp-integration.sw-dev.io"
+                    f"{helpers.args.namespace}.gcp-integration.sw-dev.io"
                 ],
                 secret_name="sequencer-tls"
             )
@@ -59,7 +56,7 @@ def get_ingress() -> objects.Ingress:
 
 def get_service() -> objects.Service:
   return objects.Service(
-    type=const.CLUSTER_IP,
+    type=const.ServiceType.CLUSTER_IP,
     selector={},
     ports=[
       objects.PortMapping(
