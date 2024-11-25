@@ -612,7 +612,8 @@ pub fn storage_write(
     syscall_handler: &mut SyscallHintProcessor<'_>,
     _remaining_gas: &mut u64,
 ) -> SyscallResult<StorageWriteResponse> {
-    syscall_handler.set_contract_storage_at(request.address, request.value)
+    syscall_handler.base.storage_write(request.address, request.value)?;
+    Ok(StorageWriteResponse {})
 }
 
 // Keccak syscall.

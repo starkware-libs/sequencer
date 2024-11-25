@@ -78,19 +78,12 @@ impl<'state> NativeSyscallHandler<'state> {
         entry_point: CallEntryPoint,
         remaining_gas: &mut u64,
     ) -> SyscallResult<Retdata> {
-        let call_info = entry_point
-            .execute(self.base.state, self.base.context, remaining_gas)
-            .map_err(|e| self.handle_error(remaining_gas, e.into()))?;
-        let retdata = call_info.execution.retdata.clone();
+        let raw_retdata = self
+            .base
+            .execute_inner_call(entry_point, remaining_gas)
+            .map_err(|e| self.handle_error(remaining_gas, e))?;
 
-        if call_info.execution.failed {
-            let error = SyscallExecutionError::SyscallError { error_data: retdata.0 };
-            return Err(self.handle_error(remaining_gas, error));
-        }
-
-        self.base.inner_calls.push(call_info);
-
-        Ok(retdata)
+        Ok(Retdata(raw_retdata))
     }
 
     pub fn gas_costs(&self) -> &GasCosts {
@@ -227,6 +220,9 @@ impl<'state> NativeSyscallHandler<'state> {
                 ..native_tx_info
             }),
         }
+    }
+    pub fn finalize(&mut self) {
+        self.base.finalize();
     }
 }
 
@@ -471,11 +467,7 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
 
         let key = StorageKey::try_from(address)
             .map_err(|e| self.handle_error(remaining_gas, e.into()))?;
-        self.base.accessed_keys.insert(key);
-
-        let write_result =
-            self.base.state.set_storage_at(self.base.call.storage_address, key, value);
-        write_result.map_err(|e| self.handle_error(remaining_gas, e.into()))?;
+        self.base.storage_write(key, value).map_err(|e| self.handle_error(remaining_gas, e))?;
 
         Ok(())
     }

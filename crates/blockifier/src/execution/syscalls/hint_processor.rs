@@ -1,5 +1,5 @@
 use std::any::Any;
-use std::collections::{hash_map, HashMap};
+use std::collections::HashMap;
 
 use cairo_lang_casm::hints::{Hint, StarknetHint};
 use cairo_lang_runner::casm_run::execute_core_hint_base;
@@ -65,7 +65,6 @@ use crate::execution::syscalls::{
     storage_read,
     storage_write,
     StorageReadResponse,
-    StorageWriteResponse,
     SyscallRequest,
     SyscallRequestWrapper,
     SyscallResponse,
@@ -643,34 +642,8 @@ impl<'a> SyscallHintProcessor<'a> {
         Ok(StorageReadResponse { value })
     }
 
-    pub fn set_contract_storage_at(
-        &mut self,
-        key: StorageKey,
-        value: Felt,
-    ) -> SyscallResult<StorageWriteResponse> {
-        let contract_address = self.storage_address();
-
-        match self.base.original_values.entry(key) {
-            hash_map::Entry::Vacant(entry) => {
-                entry.insert(self.base.state.get_storage_at(contract_address, key)?);
-            }
-            hash_map::Entry::Occupied(_) => {}
-        }
-
-        self.base.accessed_keys.insert(key);
-        self.base.state.set_storage_at(contract_address, key, value)?;
-
-        Ok(StorageWriteResponse {})
-    }
-
     pub fn finalize(&mut self) {
-        self.base
-            .context
-            .revert_infos
-            .0
-            .last_mut()
-            .expect("Missing contract revert info.")
-            .original_values = std::mem::take(&mut self.base.original_values);
+        self.base.finalize();
     }
 }
 
