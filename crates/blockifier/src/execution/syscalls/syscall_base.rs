@@ -1,6 +1,5 @@
 use std::collections::{HashMap, HashSet};
 use std::convert::From;
-use std::hash::RandomState;
 
 use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::state::StorageKey;
@@ -33,7 +32,7 @@ pub struct SyscallHandlerBase<'state> {
 
     // Additional information gathered during execution.
     pub read_values: Vec<Felt>,
-    pub accessed_keys: HashSet<StorageKey, RandomState>,
+    pub accessed_keys: HashSet<StorageKey>,
     pub read_class_hash_values: Vec<ClassHash>,
     // Accessed addresses by the `get_class_hash_at` syscall.
     pub accessed_contract_addresses: HashSet<ContractAddress>,
@@ -71,33 +70,31 @@ impl<'state> SyscallHandlerBase<'state> {
             original_values,
         }
     }
-}
 
-pub fn get_block_hash_base(
-    context: &EntryPointExecutionContext,
-    requested_block_number: u64,
-    state: &dyn State,
-) -> SyscallResult<Felt> {
-    let execution_mode = context.execution_mode;
-    if execution_mode == ExecutionMode::Validate {
-        return Err(SyscallExecutionError::InvalidSyscallInExecutionMode {
-            syscall_name: "get_block_hash".to_string(),
-            execution_mode,
-        });
+    pub fn get_block_hash(&self, requested_block_number: u64) -> SyscallResult<Felt> {
+        let execution_mode = self.context.execution_mode;
+        if execution_mode == ExecutionMode::Validate {
+            return Err(SyscallExecutionError::InvalidSyscallInExecutionMode {
+                syscall_name: "get_block_hash".to_string(),
+                execution_mode,
+            });
+        }
+
+        let current_block_number = self.context.tx_context.block_context.block_info.block_number.0;
+
+        if current_block_number < constants::STORED_BLOCK_HASH_BUFFER
+            || requested_block_number > current_block_number - constants::STORED_BLOCK_HASH_BUFFER
+        {
+            let out_of_range_error = Felt::from_hex(BLOCK_NUMBER_OUT_OF_RANGE_ERROR)
+                .expect("Converting BLOCK_NUMBER_OUT_OF_RANGE_ERROR to Felt should not fail.");
+            return Err(SyscallExecutionError::SyscallError {
+                error_data: vec![out_of_range_error],
+            });
+        }
+
+        let key = StorageKey::try_from(Felt::from(requested_block_number))?;
+        let block_hash_contract_address =
+            ContractAddress::try_from(Felt::from(constants::BLOCK_HASH_CONTRACT_ADDRESS))?;
+        Ok(self.state.get_storage_at(block_hash_contract_address, key)?)
     }
-
-    let current_block_number = context.tx_context.block_context.block_info.block_number.0;
-
-    if current_block_number < constants::STORED_BLOCK_HASH_BUFFER
-        || requested_block_number > current_block_number - constants::STORED_BLOCK_HASH_BUFFER
-    {
-        let out_of_range_error = Felt::from_hex(BLOCK_NUMBER_OUT_OF_RANGE_ERROR)
-            .expect("Converting BLOCK_NUMBER_OUT_OF_RANGE_ERROR to Felt should not fail.");
-        return Err(SyscallExecutionError::SyscallError { error_data: vec![out_of_range_error] });
-    }
-
-    let key = StorageKey::try_from(Felt::from(requested_block_number))?;
-    let block_hash_contract_address =
-        ContractAddress::try_from(Felt::from(constants::BLOCK_HASH_CONTRACT_ADDRESS))?;
-    Ok(state.get_storage_at(block_hash_contract_address, key)?)
 }
