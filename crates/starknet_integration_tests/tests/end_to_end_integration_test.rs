@@ -3,6 +3,7 @@ use std::process::Stdio;
 use std::time::Duration;
 
 use infra_utils::command::create_shell_command;
+use infra_utils::path::resolve_project_relative_path;
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use papyrus_execution::execution_utils::get_nonce_at;
 use papyrus_storage::state::StateStorageReader;
@@ -14,6 +15,7 @@ use starknet_api::state::StateNumber;
 use starknet_integration_tests::integration_test_setup::IntegrationTestSetup;
 use starknet_integration_tests::utils::{create_integration_test_tx_generator, send_account_txs};
 use starknet_sequencer_infra::trace_util::configure_tracing;
+use starknet_sequencer_node::test_utils::compilation::{compile_node_result, NODE_EXECUTABLE_PATH};
 use starknet_types_core::felt::Felt;
 use tokio::process::Child;
 use tokio::task::{self, JoinHandle};
@@ -28,14 +30,15 @@ fn tx_generator() -> MultiAccountTransactionGenerator {
 // TODO(Tsabary): Move to a suitable util location.
 async fn spawn_node_child_task(node_config_path: PathBuf) -> Child {
     // TODO(Tsabary): Capture output to a log file, and present it in case of a failure.
-    // TODO(Tsabary): Change invocation from "cargo run" to separate compilation and invocation
-    // (build, and then invoke the binary).
-    create_shell_command("cargo")
-        .arg("run")
-        .arg("--bin")
-        .arg("starknet_sequencer_node")
-        .arg("--quiet")
-        .arg("--")
+    info!("Compiling the node.");
+    compile_node_result().await.expect("Failed to compile the sequencer node.");
+    let node_executable = resolve_project_relative_path(NODE_EXECUTABLE_PATH)
+        .expect("Node executable should be available")
+        .to_string_lossy()
+        .to_string();
+
+    info!("Running the node from: {}", node_executable);
+    create_shell_command(node_executable.as_str())
         .arg("--config_file")
         .arg(node_config_path.to_str().unwrap())
         .stderr(Stdio::inherit())
@@ -129,7 +132,7 @@ async fn test_end_to_end_integration(mut tx_generator: MultiAccountTransactionGe
     let node_run_handle = spawn_run_node(integration_test_setup.node_config_path).await;
 
     // Wait for the node to start.
-    match integration_test_setup.is_alive_test_client.await_alive(Duration::from_secs(5), 30).await
+    match integration_test_setup.is_alive_test_client.await_alive(Duration::from_secs(5), 100).await
     {
         Ok(_) => {}
         Err(_) => panic!("Node is not alive."),
