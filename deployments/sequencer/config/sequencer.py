@@ -1,25 +1,19 @@
-import typing
 import os
 import json
 import jsonschema
 
-
 from services.objects import Config
 
 
-def load_config(config_path):
-    root_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../../')
-    config_dir = os.path.join(root_dir, 'config/sequencer/')
-    
-    return json.loads(
-        open(os.path.join(config_dir, config_path), 'r').read()
-    )
+ROOT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../../')
+CONFIG_DIR = os.path.join(ROOT_DIR, 'config/sequencer/')
+
 
 class SequencerDevConfig(Config):
-    def __init__(self, mount_path: str, custom_config_path: typing.Optional[str]):
+    def __init__(self, mount_path: str, config_file_path: str = ""):
         super().__init__(
-            schema=load_config(config_path='default_config.json'),
-            config=load_config(config_path='presets/config.json') if not custom_config_path else json.loads(open(os.path.abspath(custom_config_path)).read()),
+            schema=json.loads(open(os.path.join(CONFIG_DIR, 'default_config.json'), 'r').read()),
+            config=json.loads(open(os.path.join(CONFIG_DIR, 'presets', 'config.json'), 'r').read()) if not config_file_path else json.loads(open(os.path.abspath(config_file_path)).read()),
             mount_path=mount_path
         )
 
