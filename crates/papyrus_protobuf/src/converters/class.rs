@@ -207,6 +207,8 @@ impl TryFrom<protobuf::Cairo1Class> for state::SierraContractClass {
         let sierra_program =
             value.program.into_iter().map(Felt::try_from).collect::<Result<Vec<_>, _>>()?;
 
+        let contract_class_version = value.contract_class_version;
+
         let mut entry_points_by_type = HashMap::new();
         let entry_points =
             value.entry_points.clone().ok_or(ProtobufConversionError::MissingField {
@@ -243,7 +245,12 @@ impl TryFrom<protobuf::Cairo1Class> for state::SierraContractClass {
             );
         }
 
-        Ok(state::SierraContractClass { sierra_program, entry_points_by_type, abi })
+        Ok(state::SierraContractClass {
+            sierra_program,
+            entry_points_by_type,
+            abi,
+            contract_class_version,
+        })
     }
 }
 
@@ -282,15 +289,7 @@ impl From<state::SierraContractClass> for protobuf::Cairo1Class {
                 .collect(),
         });
 
-        let contract_class_version = format!(
-            "sierra-v{}.{}.{} cairo-v{}.{}.{}",
-            value.sierra_program[0],
-            value.sierra_program[1],
-            value.sierra_program[2],
-            value.sierra_program[3],
-            value.sierra_program[4],
-            value.sierra_program[5]
-        );
+        let contract_class_version = value.contract_class_version;
 
         protobuf::Cairo1Class { abi, program, entry_points, contract_class_version }
     }
