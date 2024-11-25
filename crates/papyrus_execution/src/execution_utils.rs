@@ -123,7 +123,8 @@ pub fn induced_state_diff(
     transactional_state: &mut CachedState<MutRefState<'_, CachedState<ExecutionStateReader>>>,
     deprecated_declared_class_hash: Option<ClassHash>,
 ) -> ExecutionResult<ThinStateDiff> {
-    let blockifier_state_diff = CommitmentStateDiff::from(transactional_state.to_state_diff()?);
+    let blockifier_state_diff =
+        CommitmentStateDiff::from(transactional_state.to_state_diff()?.state_maps);
     // Determine which contracts were deployed and which were replaced by comparing their
     // previous class hash (default value suggests it didn't exist before).
     let mut deployed_contracts = IndexMap::new();
