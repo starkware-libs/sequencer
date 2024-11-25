@@ -11,3 +11,7 @@ workspace = true
 
 [dependencies]
 thiserror.workspace = true
+tokio = { workspace = true, features = ["process"] }
+
+[dev-dependencies]
+rstest.workspace = true
