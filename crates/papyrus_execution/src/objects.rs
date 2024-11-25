@@ -164,9 +164,9 @@ pub(crate) fn tx_execution_output_to_fee_estimation(
 ) -> ExecutionResult<FeeEstimation> {
     let gas_prices = &block_context.block_info().gas_prices;
     let (l1_gas_price, l1_data_gas_price, l2_gas_price) = (
-        gas_prices.get_l1_gas_price_by_fee_type(&tx_execution_output.price_unit.into()).get(),
-        gas_prices.get_l1_data_gas_price_by_fee_type(&tx_execution_output.price_unit.into()).get(),
-        gas_prices.get_l2_gas_price_by_fee_type(&tx_execution_output.price_unit.into()).get(),
+        gas_prices.l1_gas_price(&tx_execution_output.price_unit.into()).get(),
+        gas_prices.l1_data_gas_price(&tx_execution_output.price_unit.into()).get(),
+        gas_prices.l2_gas_price(&tx_execution_output.price_unit.into()).get(),
     );
 
     let gas_vector = tx_execution_output.execution_info.receipt.gas;
