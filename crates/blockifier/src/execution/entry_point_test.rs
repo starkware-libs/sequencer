@@ -513,8 +513,8 @@ fn test_storage_related_members() {
 }
 
 #[test]
-fn test_cairo1_entry_point_segment_arena() {
-    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1);
+fn test_old_cairo1_entry_point_segment_arena() {
+    let test_contract = FeatureContract::CairoStepsTestContract;
     let chain_info = &ChainInfo::create_for_testing();
     let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1)]);
     let calldata = calldata![];
