@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: sequencer-node-service
+  name: sequencer-dev-service
   namespace: default
 spec:
   ports:
@@ -15,5 +15,5 @@ spec:
       port: 8082
       targetPort: 8082
   selector:
-    app: sequencer-node
+    app: sequencer-dev
   type: ClusterIP

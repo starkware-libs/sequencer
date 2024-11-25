@@ -8,8 +8,8 @@ metadata:
     cert-manager.io/issuer: letsencrypt-prod
     kubernetes.io/tls-acme: "true"
   labels:
-    app: sequencer-node
-  name: sequencer-node-ingress
+    app: sequencer-dev
+  name: sequencer-dev-ingress
   namespace: default
 spec:
   rules:
