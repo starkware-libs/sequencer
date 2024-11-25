@@ -25,6 +25,7 @@ use crate::{open_storage, StorageConfig, StorageError, StorageReader, StorageRes
 #[derive(Serialize)]
 struct DumpDeclaredClass {
     class_hash: ClassHash,
+    contract_class_version: String,
     compiled_class_hash: CompiledClassHash,
     sierra_program: Vec<Felt>,
     entry_points_by_type: HashMap<EntryPointType, Vec<EntryPoint>>,
@@ -75,6 +76,7 @@ fn dump_declared_classes_table_by_block_range_internal(
                         &mut writer,
                         &DumpDeclaredClass {
                             class_hash: *class_hash,
+                            contract_class_version: contract_class.contract_class_version.clone(),
                             compiled_class_hash: *compiled_class_hash,
                             sierra_program: contract_class.sierra_program.clone(),
                             entry_points_by_type: contract_class.entry_points_by_type.clone(),

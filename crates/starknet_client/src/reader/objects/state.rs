@@ -66,6 +66,7 @@ pub struct ContractClass {
 impl From<ContractClass> for starknet_api::state::SierraContractClass {
     fn from(class: ContractClass) -> Self {
         Self {
+            contract_class_version: class.contract_class_version,
             sierra_program: class.sierra_program,
             entry_points_by_type: class.entry_points_by_type,
             abi: class.abi,

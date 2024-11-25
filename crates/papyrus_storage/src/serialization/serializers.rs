@@ -969,6 +969,7 @@ impl StorageSerde for TransactionOffsetInBlock {
 impl StorageSerde for SierraContractClass {
     fn serialize_into(&self, res: &mut impl std::io::Write) -> Result<(), StorageSerdeError> {
         serialize_and_compress(&self.sierra_program)?.serialize_into(res)?;
+        self.contract_class_version.serialize_into(res)?;
         self.entry_points_by_type.serialize_into(res)?;
         serialize_and_compress(&self.abi)?.serialize_into(res)?;
         Ok(())
@@ -979,6 +980,7 @@ impl StorageSerde for SierraContractClass {
             sierra_program: Vec::<Felt>::deserialize_from(
                 &mut decompress_from_reader(bytes)?.as_slice(),
             )?,
+            contract_class_version: String::deserialize_from(bytes)?,
             entry_points_by_type: HashMap::<EntryPointType, Vec<EntryPoint>>::deserialize_from(
                 bytes,
             )?,

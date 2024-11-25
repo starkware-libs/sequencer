@@ -31,6 +31,7 @@ fn test_dump_declared_classes() {
         declared_classes.push((
             ClassHash(i_felt),
             SierraContractClass {
+                contract_class_version: "0.1.0".to_string(),
                 sierra_program: vec![i_felt, i_felt],
                 entry_points_by_type: HashMap::new(),
                 abi: "".to_string(),
@@ -65,12 +66,14 @@ fn test_dump_declared_classes() {
         DumpDeclaredClass {
             class_hash: declared_classes[2].0,
             compiled_class_hash,
+            contract_class_version: declared_classes[2].1.contract_class_version.clone(),
             sierra_program: declared_classes[2].1.sierra_program.clone(),
             entry_points_by_type: declared_classes[2].1.entry_points_by_type.clone(),
         },
         DumpDeclaredClass {
             class_hash: declared_classes[3].0,
             compiled_class_hash,
+            contract_class_version: declared_classes[3].1.contract_class_version.clone(),
             sierra_program: declared_classes[3].1.sierra_program.clone(),
             entry_points_by_type: declared_classes[3].1.entry_points_by_type.clone(),
         },
