@@ -3,8 +3,10 @@ use std::convert::From;
 
 use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::state::StorageKey;
+use starknet_api::transaction::EventContent;
 use starknet_types_core::felt::Felt;
 
+use super::exceeds_event_size_limit;
 use crate::abi::constants;
 use crate::execution::call_info::{CallInfo, OrderedEvent, OrderedL2ToL1Message};
 use crate::execution::common_hints::ExecutionMode;
@@ -99,6 +101,13 @@ impl<'state> SyscallHandlerBase<'state> {
         Ok(self.state.get_storage_at(block_hash_contract_address, key)?)
     }
 
+    pub fn storage_read(&mut self, key: StorageKey) -> SyscallResult<Felt> {
+        self.accessed_keys.insert(key);
+        let value = self.state.get_storage_at(self.call.storage_address, key)?;
+        self.read_values.push(value);
+        Ok(value)
+    }
+
     pub fn storage_write(&mut self, key: StorageKey, value: Felt) -> SyscallResult<()> {
         let contract_address = self.call.storage_address;
 
@@ -111,6 +120,19 @@ impl<'state> SyscallHandlerBase<'state> {
 
         self.accessed_keys.insert(key);
         self.state.set_storage_at(contract_address, key, value)?;
+
+        Ok(())
+    }
+
+    pub fn emit_event(&mut self, event: EventContent) -> SyscallResult<()> {
+        exceeds_event_size_limit(
+            self.context.versioned_constants(),
+            self.context.n_emitted_events + 1,
+            &event,
+        )?;
+        let ordered_event = OrderedEvent { order: self.context.n_emitted_events, event };
+        self.events.push(ordered_event);
+        self.context.n_emitted_events += 1;
 
         Ok(())
     }

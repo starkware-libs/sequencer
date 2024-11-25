@@ -27,7 +27,7 @@ use self::hint_processor::{
     SyscallExecutionError,
     SyscallHintProcessor,
 };
-use crate::execution::call_info::{MessageToL1, OrderedEvent, OrderedL2ToL1Message};
+use crate::execution::call_info::{MessageToL1, OrderedL2ToL1Message};
 use crate::execution::deprecated_syscalls::DeprecatedSyscallSelector;
 use crate::execution::entry_point::{CallEntryPoint, CallType, ConstructorContext};
 use crate::execution::execution_utils::{
@@ -332,17 +332,7 @@ pub fn emit_event(
     syscall_handler: &mut SyscallHintProcessor<'_>,
     _remaining_gas: &mut u64,
 ) -> SyscallResult<EmitEventResponse> {
-    let execution_context = &mut syscall_handler.base.context;
-    exceeds_event_size_limit(
-        execution_context.versioned_constants(),
-        execution_context.n_emitted_events + 1,
-        &request.content,
-    )?;
-    let ordered_event =
-        OrderedEvent { order: execution_context.n_emitted_events, event: request.content };
-    syscall_handler.base.events.push(ordered_event);
-    execution_context.n_emitted_events += 1;
-
+    syscall_handler.base.emit_event(request.content)?;
     Ok(EmitEventResponse {})
 }
 
@@ -580,7 +570,8 @@ pub fn storage_read(
     syscall_handler: &mut SyscallHintProcessor<'_>,
     _remaining_gas: &mut u64,
 ) -> SyscallResult<StorageReadResponse> {
-    syscall_handler.get_contract_storage_at(request.address)
+    let value = syscall_handler.base.storage_read(request.address)?;
+    Ok(StorageReadResponse { value })
 }
 
 // StorageWrite syscall.
