@@ -13,7 +13,6 @@ use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::runners::cairo_runner::{ResourceTracker, RunResources};
 use cairo_vm::vm::vm_core::VirtualMachine;
-use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::{
@@ -29,7 +28,7 @@ use thiserror::Error;
 use crate::abi::sierra_types::SierraTypeError;
 use crate::execution::call_info::{CallInfo, OrderedEvent, OrderedL2ToL1Message};
 use crate::execution::common_hints::{ExecutionMode, HintExecutionResult};
-use crate::execution::entry_point::{CallEntryPoint, CallType, EntryPointExecutionContext};
+use crate::execution::entry_point::{CallEntryPoint, EntryPointExecutionContext};
 use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
 use crate::execution::execution_utils::{
     felt_from_ptr,
@@ -843,42 +842,6 @@ pub fn create_retdata_segment(
     let (retdata_segment_start_ptr, _) = syscall_handler.allocate_data_segment(vm, raw_retdata)?;
 
     Ok(ReadOnlySegment { start_ptr: retdata_segment_start_ptr, length: raw_retdata.len() })
-}
-
-pub fn execute_library_call(
-    syscall_handler: &mut SyscallHintProcessor<'_>,
-    vm: &mut VirtualMachine,
-    class_hash: ClassHash,
-    call_to_external: bool,
-    entry_point_selector: EntryPointSelector,
-    calldata: Calldata,
-    remaining_gas: &mut u64,
-) -> SyscallResult<ReadOnlySegment> {
-    let entry_point_type =
-        if call_to_external { EntryPointType::External } else { EntryPointType::L1Handler };
-    let entry_point = CallEntryPoint {
-        class_hash: Some(class_hash),
-        code_address: None,
-        entry_point_type,
-        entry_point_selector,
-        calldata,
-        // The call context remains the same in a library call.
-        storage_address: syscall_handler.storage_address(),
-        caller_address: syscall_handler.caller_address(),
-        call_type: CallType::Delegate,
-        // NOTE: this value might be overridden later on.
-        initial_gas: *remaining_gas,
-    };
-
-    execute_inner_call(entry_point, vm, syscall_handler, remaining_gas).map_err(|error| match error
-    {
-        SyscallExecutionError::SyscallError { .. } => error,
-        _ => error.as_lib_call_execution_error(
-            class_hash,
-            syscall_handler.storage_address(),
-            entry_point_selector,
-        ),
-    })
 }
 
 pub fn read_felt_array<TErr>(vm: &VirtualMachine, ptr: &mut Relocatable) -> Result<Vec<Felt>, TErr>

@@ -18,7 +18,6 @@ use starknet_types_core::felt::Felt;
 use self::hint_processor::{
     create_retdata_segment,
     execute_inner_call,
-    execute_library_call,
     felt_to_bool,
     read_call_params,
     read_calldata,
@@ -450,16 +449,29 @@ pub fn library_call(
     syscall_handler: &mut SyscallHintProcessor<'_>,
     remaining_gas: &mut u64,
 ) -> SyscallResult<LibraryCallResponse> {
-    let call_to_external = true;
-    let retdata_segment = execute_library_call(
-        syscall_handler,
-        vm,
-        request.class_hash,
-        call_to_external,
-        request.function_selector,
-        request.calldata,
-        remaining_gas,
-    )?;
+    let entry_point = CallEntryPoint {
+        class_hash: Some(request.class_hash),
+        code_address: None,
+        entry_point_type: EntryPointType::External,
+        entry_point_selector: request.function_selector,
+        calldata: request.calldata,
+        // The call context remains the same in a library call.
+        storage_address: syscall_handler.storage_address(),
+        caller_address: syscall_handler.caller_address(),
+        call_type: CallType::Delegate,
+        // NOTE: this value might be overridden later on.
+        initial_gas: *remaining_gas,
+    };
+
+    let retdata_segment = execute_inner_call(entry_point, vm, syscall_handler, remaining_gas)
+        .map_err(|error| match error {
+            SyscallExecutionError::SyscallError { .. } => error,
+            _ => error.as_lib_call_execution_error(
+                request.class_hash,
+                syscall_handler.storage_address(),
+                request.function_selector,
+            ),
+        })?;
 
     Ok(LibraryCallResponse { segment: retdata_segment })
 }
