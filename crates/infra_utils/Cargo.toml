@@ -8,3 +8,9 @@ description = "Infrastructure utility."
 
 [lints]
 workspace = true
+
+[dependencies]
+tokio = { workspace = true, features = ["process"] }
+
+[dev-dependencies]
+rstest.workspace = true
