@@ -62,7 +62,7 @@ use papyrus_proc_macros::latency_histogram;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
-use starknet_api::state::{ContractClass, StateNumber, StorageKey, ThinStateDiff};
+use starknet_api::state::{SierraContractClass, StateNumber, StorageKey, ThinStateDiff};
 use starknet_types_core::felt::Felt;
 use tracing::debug;
 
@@ -135,7 +135,7 @@ pub trait StateStorageReader<Mode: TransactionKind> {
 
 type RevertedStateDiff = (
     ThinStateDiff,
-    IndexMap<ClassHash, ContractClass>,
+    IndexMap<ClassHash, SierraContractClass>,
     IndexMap<ClassHash, DeprecatedContractClass>,
     IndexMap<ClassHash, CasmContractClass>,
 );
@@ -358,7 +358,7 @@ impl<'env, Mode: TransactionKind> StateReader<'env, Mode> {
         &self,
         state_number: StateNumber,
         class_hash: &ClassHash,
-    ) -> StorageResult<Option<ContractClass>> {
+    ) -> StorageResult<Option<SierraContractClass>> {
         let Some(block_number) = self.declared_classes_block_table.get(self.txn, class_hash)?
         else {
             return Ok(None);
@@ -706,7 +706,7 @@ fn delete_declared_classes<'env>(
     declared_classes_table: &'env DeclaredClassesTable<'env>,
     declared_classes_block_table: &'env DeclaredClassesBlockTable<'env>,
     file_handlers: &FileHandlers<RW>,
-) -> StorageResult<IndexMap<ClassHash, ContractClass>> {
+) -> StorageResult<IndexMap<ClassHash, SierraContractClass>> {
     let mut deleted_data = IndexMap::new();
     for class_hash in thin_state_diff.declared_classes.keys() {
         let Some(contract_class_location) = declared_classes_table.get(txn, class_hash)? else {

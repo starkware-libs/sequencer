@@ -8,7 +8,7 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use pretty_assertions::assert_eq;
 use starknet_api::class_hash;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
-use starknet_api::state::ContractClass;
+use starknet_api::state::SierraContractClass;
 use starknet_types_core::felt::Felt;
 
 use crate::py_block_executor::{PyBlockExecutor, PyOsConfig};
@@ -31,7 +31,7 @@ fn global_contract_cache_update() {
         pythonic_hints: Default::default(),
         entry_points_by_type: Default::default(),
     };
-    let sierra = ContractClass::default();
+    let sierra = SierraContractClass::default();
     let contract_class =
         RunnableContractClass::V1(ContractClassV1::try_from(casm.clone()).unwrap());
     let class_hash = class_hash!("0x1");

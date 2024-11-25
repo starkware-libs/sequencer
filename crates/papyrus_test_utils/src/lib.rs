@@ -99,9 +99,9 @@ use starknet_api::rpc_transaction::{
     RpcTransaction,
 };
 use starknet_api::state::{
-    ContractClass,
     EntryPoint,
     FunctionIndex,
+    SierraContractClass,
     StateDiff,
     StorageKey,
     ThinStateDiff,
@@ -496,7 +496,7 @@ auto_impl_get_test_instance! {
     pub struct ClassHash(pub StarkHash);
     pub struct CompiledClassHash(pub StarkHash);
     pub struct ContractAddressSalt(pub StarkHash);
-    pub struct ContractClass {
+    pub struct SierraContractClass {
         pub sierra_program: Vec<Felt>,
         pub entry_points_by_type: HashMap<EntryPointType, Vec<EntryPoint>>,
         pub abi: String,
@@ -817,7 +817,7 @@ auto_impl_get_test_instance! {
     pub struct StateDiff {
         pub deployed_contracts: IndexMap<ContractAddress, ClassHash>,
         pub storage_diffs: IndexMap<ContractAddress, IndexMap<StorageKey, Felt>>,
-        pub declared_classes: IndexMap<ClassHash, (CompiledClassHash, ContractClass)>,
+        pub declared_classes: IndexMap<ClassHash, (CompiledClassHash, SierraContractClass)>,
         pub deprecated_declared_classes: IndexMap<ClassHash, DeprecatedContractClass>,
         pub nonces: IndexMap<ContractAddress, Nonce>,
         pub replaced_classes: IndexMap<ContractAddress, ClassHash>,
@@ -920,7 +920,7 @@ auto_impl_get_test_instance! {
     (ContractAddress, Nonce);
     (ContractAddress, StorageKey, BlockHash);
     (ContractAddress, StorageKey, BlockNumber);
-    (CompiledClassHash, ContractClass);
+    (CompiledClassHash, SierraContractClass);
     (usize, Vec<Hint>);
     (usize, Vec<String>);
 }

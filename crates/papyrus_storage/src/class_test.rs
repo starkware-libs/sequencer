@@ -5,7 +5,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::hash::StarkHash;
-use starknet_api::state::{ContractClass, StateNumber, ThinStateDiff};
+use starknet_api::state::{SierraContractClass, StateNumber, ThinStateDiff};
 use starknet_api::test_utils::read_json_file;
 
 use super::{ClassStorageReader, ClassStorageWriter};
@@ -16,7 +16,7 @@ use crate::StorageError;
 #[test]
 fn append_classes_writes_correct_data() {
     let class_json = read_json_file("class.json");
-    let expected_class: ContractClass = serde_json::from_value(class_json).unwrap();
+    let expected_class: SierraContractClass = serde_json::from_value(class_json).unwrap();
     let deprecated_class_json = read_json_file("deprecated_class.json");
     let expected_deprecated_class: DeprecatedContractClass =
         serde_json::from_value(deprecated_class_json).unwrap();

@@ -30,7 +30,7 @@ use starknet_api::core::{
     SequencerContractAddress,
 };
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
-use starknet_api::state::{ContractClass, StateNumber, ThinStateDiff};
+use starknet_api::state::{SierraContractClass, StateNumber, ThinStateDiff};
 use starknet_api::test_utils::read_json_file;
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::{
@@ -163,7 +163,7 @@ pub fn prepare_storage(mut storage_writer: StorageWriter) {
         .unwrap()
         .append_classes(
             BlockNumber(0),
-            &[(class_hash0, &ContractClass::default())],
+            &[(class_hash0, &SierraContractClass::default())],
             &[
                 (*TEST_ERC20_CONTRACT_CLASS_HASH, &get_test_erc20_fee_contract_class()),
                 (class_hash1, &get_test_deprecated_contract_class()),

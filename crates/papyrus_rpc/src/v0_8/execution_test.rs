@@ -1561,7 +1561,7 @@ async fn write_block_0_as_pending(
     .unwrap();
     let class_hash1 = class_hash!("0x1");
 
-    let class2 = starknet_api::state::ContractClass::default();
+    let class2 = starknet_api::state::SierraContractClass::default();
     let casm = serde_json::from_value::<CasmContractClass>(read_json_file("casm.json")).unwrap();
     let class_hash2 = class_hash!("0x2");
     let compiled_class_hash = CompiledClassHash(StarkHash::default());
@@ -1653,7 +1653,7 @@ fn prepare_storage_for_execution(mut storage_writer: StorageWriter) -> StorageWr
     .unwrap();
     let class_hash1 = class_hash!("0x1");
 
-    let class2 = starknet_api::state::ContractClass::default();
+    let class2 = starknet_api::state::SierraContractClass::default();
     let casm = serde_json::from_value::<CasmContractClass>(read_json_file("casm.json")).unwrap();
     let class_hash2 = class_hash!("0x2");
     let compiled_class_hash = CompiledClassHash(StarkHash::default());

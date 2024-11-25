@@ -214,8 +214,8 @@ pub struct ContractClass {
     pub abi: String,
 }
 
-impl From<starknet_api::state::ContractClass> for ContractClass {
-    fn from(class: starknet_api::state::ContractClass) -> Self {
+impl From<starknet_api::state::SierraContractClass> for ContractClass {
+    fn from(class: starknet_api::state::SierraContractClass) -> Self {
         Self {
             sierra_program: class.sierra_program,
             contract_class_version: CONTRACT_CLASS_VERSION.to_owned(),

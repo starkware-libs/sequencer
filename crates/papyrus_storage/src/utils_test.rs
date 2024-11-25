@@ -9,7 +9,7 @@ use prometheus_parse::Value::{Counter, Gauge};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::hash::StarkHash;
-use starknet_api::state::{ContractClass, ThinStateDiff};
+use starknet_api::state::{SierraContractClass, ThinStateDiff};
 use starknet_types_core::felt::Felt;
 
 use super::update_storage_metrics;
@@ -30,7 +30,7 @@ fn test_dump_declared_classes() {
         let i_felt = Felt::from(u128::try_from(i).expect("usize should fit in u128"));
         declared_classes.push((
             ClassHash(i_felt),
-            ContractClass {
+            SierraContractClass {
                 sierra_program: vec![i_felt, i_felt],
                 entry_points_by_type: HashMap::new(),
                 abi: "".to_string(),

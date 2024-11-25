@@ -26,7 +26,7 @@ use papyrus_storage::test_utils::get_test_storage;
 use starknet_api::block::{BlockBody, BlockHash, BlockHeader, BlockHeaderWithoutHash, BlockNumber};
 use starknet_api::core::{ClassHash, CompiledClassHash, Nonce};
 use starknet_api::hash::StarkHash;
-use starknet_api::state::{ContractClass, StateNumber, ThinStateDiff};
+use starknet_api::state::{SierraContractClass, StateNumber, ThinStateDiff};
 use starknet_api::{contract_address, felt, storage_key};
 use starknet_types_core::felt::Felt;
 
@@ -47,7 +47,7 @@ fn read_state() {
     let storage_value0 = felt!(777_u128);
     let storage_value1 = felt!(888_u128);
     // The class is not used in the execution, so it can be default.
-    let class0 = ContractClass::default();
+    let class0 = SierraContractClass::default();
     let casm0 = get_test_casm();
     let blockifier_casm0 =
         RunnableContractClass::V1(ContractClassV1::try_from(casm0.clone()).unwrap());

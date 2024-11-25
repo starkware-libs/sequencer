@@ -67,7 +67,7 @@ impl TryFrom<protobuf::Class> for (ApiContractClass, ClassHash) {
                 )
             }
             Some(protobuf::class::Class::Cairo1(class)) => {
-                ApiContractClass::ContractClass(state::ContractClass::try_from(class)?)
+                ApiContractClass::ContractClass(state::SierraContractClass::try_from(class)?)
             }
             None => {
                 return Err(ProtobufConversionError::MissingField {
@@ -199,7 +199,7 @@ impl From<deprecated_contract_class::ContractClass> for protobuf::Cairo0Class {
     }
 }
 
-impl TryFrom<protobuf::Cairo1Class> for state::ContractClass {
+impl TryFrom<protobuf::Cairo1Class> for state::SierraContractClass {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::Cairo1Class) -> Result<Self, Self::Error> {
         let abi = value.abi;
@@ -243,12 +243,12 @@ impl TryFrom<protobuf::Cairo1Class> for state::ContractClass {
             );
         }
 
-        Ok(state::ContractClass { sierra_program, entry_points_by_type, abi })
+        Ok(state::SierraContractClass { sierra_program, entry_points_by_type, abi })
     }
 }
 
-impl From<state::ContractClass> for protobuf::Cairo1Class {
-    fn from(value: state::ContractClass) -> Self {
+impl From<state::SierraContractClass> for protobuf::Cairo1Class {
+    fn from(value: state::SierraContractClass) -> Self {
         let abi = value.abi;
 
         let program =

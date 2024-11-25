@@ -17,7 +17,7 @@ use starknet_api::core::{ClassHash, CompiledClassHash, GlobalRoot, Nonce, Sequen
 use starknet_api::crypto::utils::PublicKey;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::hash::StarkHash;
-use starknet_api::state::{ContractClass as sn_api_ContractClass, ThinStateDiff};
+use starknet_api::state::{SierraContractClass as sn_api_ContractClass, ThinStateDiff};
 use starknet_api::{class_hash, contract_address, felt, storage_key};
 use starknet_client::reader::objects::block::BlockPostV0_13_1;
 use starknet_client::reader::{
@@ -424,11 +424,17 @@ async fn stream_state_updates() {
         IndexMap::from([
             (
                 new_class_hash1,
-                (compiled_class_hash1, starknet_api::state::ContractClass::from(contract_class1))
+                (
+                    compiled_class_hash1,
+                    starknet_api::state::SierraContractClass::from(contract_class1)
+                )
             ),
             (
                 new_class_hash2,
-                (compiled_class_hash2, starknet_api::state::ContractClass::from(contract_class2))
+                (
+                    compiled_class_hash2,
+                    starknet_api::state::SierraContractClass::from(contract_class2)
+                )
             ),
         ]),
         state_diff.declared_classes,
