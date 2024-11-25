@@ -30,11 +30,14 @@ cargo run --release --bin blockifier_reexecution reexecute -n <node_url> -d <dir
 ```
 
 ### Downloading Offline Reexecution Files from the GC Bucket
-To download the offline reexecution files required for the tests from the gc bucket, run
+Downloading files from the GC bucket requires authentication, by typing in the terminal
+`gcloud auth application-default login`
+
+Then, to download the offline reexecution files required for the tests from the gc bucket, in the same shell session run
 ```
 cargo run --bin blockifier_reexecution dowload-files
 ```
-Alternatively, to download only specific files, run
+Alternatively, to download only files of specific blocks, run
 ```
 cargo run --bin blockifier_reexecution download-files -b <block_number_1> ... <block_number_n>
 ```
@@ -57,7 +60,7 @@ The 3 main test types in the blockifier_reexecution crate are:
 cargo test -p blockifier_reexecution
 ```
 
-- **Full block reexecution tests:** These tests take a long time unless run in release mode, hence they are under #[ignore]. These tests can be run by the command
+- **Full block reexecution tests:** These tests take a long time unless run in release mode. To run these tests, it is first necessary to download the offline reexecution files, as explained above. Hence, these tests are under #[ignore]; they can be run by the command
 ```
 cargo test --release -p blockifier_reexecution -- --ignored
 ```
