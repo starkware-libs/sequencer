@@ -1,10 +1,11 @@
+use blockifier::blockifier::block::validated_gas_prices;
 use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::state_api::StateReader;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use papyrus_rpc::CompiledContractClass;
 use serde::Serialize;
 use serde_json::json;
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockInfo, BlockNumber};
 use starknet_api::{class_hash, contract_address, felt, nonce};
 
 use crate::config::RpcStateReaderConfig;
@@ -54,7 +55,23 @@ async fn test_get_block_info() {
     let mut server = run_rpc_server().await;
     let config = RpcStateReaderConfig { url: server.url(), ..Default::default() };
 
-    let expected_result = BlockNumber(100);
+    // GasPrice must be non-zero.
+    let l1_gas_price = ResourcePrice { price_in_wei: 1_u8.into(), price_in_fri: 1_u8.into() };
+    let l1_data_gas_price = ResourcePrice { price_in_wei: 1_u8.into(), price_in_fri: 1_u8.into() };
+    let l2_gas_price = ResourcePrice { price_in_wei: 1_u8.into(), price_in_fri: 1_u8.into() };
+    let gas_prices = validated_gas_prices(
+        l1_gas_price.price_in_wei.try_into().unwrap(),
+        l1_gas_price.price_in_fri.try_into().unwrap(),
+        l1_data_gas_price.price_in_wei.try_into().unwrap(),
+        l1_data_gas_price.price_in_fri.try_into().unwrap(),
+        l2_gas_price.price_in_wei.try_into().unwrap(),
+        l2_gas_price.price_in_fri.try_into().unwrap(),
+    );
+
+    let block_number = BlockNumber(100);
+
+    let expected_result =
+        BlockInfo { block_number, gas_prices, use_kzg_da: false, ..Default::default() };
 
     let mock = mock_rpc_interaction(
         &mut server,
@@ -63,20 +80,10 @@ async fn test_get_block_info() {
         GetBlockWithTxHashesParams { block_id: BlockId::Latest },
         &RpcResponse::Success(RpcSuccessResponse {
             result: serde_json::to_value(BlockHeader {
-                block_number: expected_result,
-                // GasPrice must be non-zero.
-                l1_gas_price: ResourcePrice {
-                    price_in_wei: 1_u8.into(),
-                    price_in_fri: 1_u8.into(),
-                },
-                l1_data_gas_price: ResourcePrice {
-                    price_in_wei: 1_u8.into(),
-                    price_in_fri: 1_u8.into(),
-                },
-                l2_gas_price: ResourcePrice {
-                    price_in_wei: 1_u8.into(),
-                    price_in_fri: 1_u8.into(),
-                },
+                block_number,
+                l1_gas_price,
+                l1_data_gas_price,
+                l2_gas_price,
                 ..Default::default()
             })
             .unwrap(),
@@ -87,8 +94,7 @@ async fn test_get_block_info() {
     let client = RpcStateReader::from_latest(&config);
     let result =
         tokio::task::spawn_blocking(move || client.get_block_info()).await.unwrap().unwrap();
-    // TODO(yair): Add partial_eq for BlockInfo and assert_eq the whole BlockInfo.
-    assert_eq!(result.block_number, expected_result);
+    assert_eq!(result, expected_result);
     mock.assert_async().await;
 }
 
