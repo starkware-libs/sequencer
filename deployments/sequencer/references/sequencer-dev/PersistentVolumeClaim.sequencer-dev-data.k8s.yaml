@@ -2,8 +2,8 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   labels:
-    app: sequencer-node
-  name: sequencer-node-data
+    app: sequencer-dev
+  name: sequencer-dev-data
   namespace: default
 spec:
   accessModes:
