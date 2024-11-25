@@ -548,13 +548,13 @@ fn test_max_fee_limit_validate(
                 GasVectorComputationMode::All => create_all_resource_bounds(
                     estimated_min_gas_usage_vector.l1_gas,
                     block_info.gas_prices
-                        .get_l1_gas_price_by_fee_type(&account_tx.fee_type()).into(),
+                        .l1_gas_price(&account_tx.fee_type()).into(),
                     estimated_min_gas_usage_vector.l2_gas,
                     block_info.gas_prices
-                        .get_l2_gas_price_by_fee_type(&account_tx.fee_type()).into(),
+                        .l2_gas_price(&account_tx.fee_type()).into(),
                     estimated_min_gas_usage_vector.l1_data_gas,
                     block_info.gas_prices
-                        .get_l1_data_gas_price_by_fee_type(&account_tx.fee_type()).into(),
+                        .l1_data_gas_price(&account_tx.fee_type()).into(),
                 ),
             },
             ..tx_args
@@ -1052,9 +1052,7 @@ fn test_max_fee_computation_from_tx_bounds(block_context: BlockContext) {
         account_tx_max_fee,
         (steps_per_l1_gas
             * max_fee
-                .checked_div(
-                    block_context.block_info.gas_prices.get_l1_gas_price_by_fee_type(&FeeType::Eth),
-                )
+                .checked_div(block_context.block_info.gas_prices.eth_gas_prices.l1_gas_price,)
                 .unwrap()
                 .0)
             .to_integer(),
@@ -1108,8 +1106,7 @@ fn test_max_fee_to_max_steps_conversion(
     )
     .into();
     let actual_fee = u128::from(actual_gas_used.0) * 100000000000;
-    let actual_strk_gas_price =
-        block_context.block_info.gas_prices.get_l1_gas_price_by_fee_type(&FeeType::Strk);
+    let actual_strk_gas_price = block_context.block_info.gas_prices.l1_gas_price(&FeeType::Strk);
     let execute_calldata = create_calldata(
         contract_address,
         "with_arg",
@@ -1205,11 +1202,11 @@ fn test_insufficient_max_fee_reverts(
     let resource_used_depth1 = match gas_mode {
         GasVectorComputationMode::NoL2Gas => l1_resource_bounds(
             tx_execution_info1.receipt.gas.l1_gas,
-            block_context.block_info.gas_prices.get_l1_gas_price_by_fee_type(&FeeType::Strk).into(),
+            block_context.block_info.gas_prices.l1_gas_price(&FeeType::Strk).into(),
         ),
         GasVectorComputationMode::All => ValidResourceBounds::all_bounds_from_vectors(
             &tx_execution_info1.receipt.gas,
-            block_context.block_info.gas_prices.get_gas_prices_by_fee_type(&FeeType::Strk),
+            block_context.block_info.gas_prices.gas_price_vector(&FeeType::Strk),
         ),
     };
     let tx_execution_info2 = run_invoke_tx(
