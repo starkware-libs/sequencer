@@ -54,7 +54,7 @@ use crate::transaction::objects::TransactionInfo;
 use crate::versioned_constants::GasCosts;
 
 pub struct NativeSyscallHandler<'state> {
-    pub base: syscall_base::SyscallHandlerBase<'state>,
+    pub base: Box<syscall_base::SyscallHandlerBase<'state>>,
 
     // It is set if an unrecoverable error happens during syscall execution
     pub unrecoverable_error: Option<SyscallExecutionError>,
@@ -67,7 +67,7 @@ impl<'state> NativeSyscallHandler<'state> {
         context: &'state mut EntryPointExecutionContext,
     ) -> NativeSyscallHandler<'state> {
         NativeSyscallHandler {
-            base: syscall_base::SyscallHandlerBase::new(call, state, context),
+            base: Box::new(syscall_base::SyscallHandlerBase::new(call, state, context)),
             unrecoverable_error: None,
         }
     }
