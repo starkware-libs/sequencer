@@ -41,11 +41,11 @@ pub fn execute_entry_point_call(
 
     // Fund the initial budget since the native executor charges it before the run.
     // TODO(Yoni): revert once the VM is aligned with this.
-    let gas = syscall_handler.base.call.initial_gas + gas_costs.entry_point_initial_budget;
+    let gas = syscall_handler.base.call.initial_gas;
     let execution_result = contract_class.executor.run(
         entry_point.selector.0,
         &syscall_handler.base.call.calldata.0.clone(),
-        Some(gas),
+        gas,
         Some(builtin_costs),
         &mut syscall_handler,
     );
@@ -64,24 +64,24 @@ fn create_callinfo(
     call_result: ContractExecutionResult,
     syscall_handler: NativeSyscallHandler<'_>,
 ) -> Result<CallInfo, EntryPointExecutionError> {
-    let mut remaining_gas = call_result.remaining_gas;
+    let remaining_gas = call_result.remaining_gas;
 
     if remaining_gas > syscall_handler.base.call.initial_gas {
-        if remaining_gas - syscall_handler.base.call.initial_gas
-            <= syscall_handler.base.context.gas_costs().entry_point_initial_budget
-        {
-            // Revert the refund.
-            // TODO(Yoni): temporary hack - this is probably a bug. Investigate and fix native.
-            remaining_gas = syscall_handler.base.call.initial_gas;
-        } else {
-            return Err(PostExecutionError::MalformedReturnData {
-                error_message: format!(
-                    "Unexpected remaining gas. Used gas is greater than initial gas: {} > {}",
-                    remaining_gas, syscall_handler.base.call.initial_gas
-                ),
-            }
-            .into());
+        // if remaining_gas - syscall_handler.call.initial_gas
+        //     <= syscall_handler.context.gas_costs().entry_point_initial_budget
+        // {
+        //     // Revert the refund.
+        //     // TODO(Yoni): temporary hack - this is probably a bug. Investigate and fix native.
+        //     remaining_gas = syscall_handler.call.initial_gas;
+        // } else {
+        return Err(PostExecutionError::MalformedReturnData {
+            error_message: format!(
+                "Unexpected remaining gas. Used gas is greater than initial gas: {} > {}",
+                remaining_gas, syscall_handler.base.call.initial_gas
+            ),
         }
+        .into());
+        // }
     }
 
     let gas_consumed = syscall_handler.base.call.initial_gas - remaining_gas;
