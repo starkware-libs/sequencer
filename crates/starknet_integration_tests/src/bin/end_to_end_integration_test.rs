@@ -3,11 +3,10 @@ use std::path::PathBuf;
 use std::process::Stdio;
 use std::time::Duration;
 
-use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
+use mempool_test_utils::starknet_api_test_utils::AccountId;
 use papyrus_execution::execution_utils::get_nonce_at;
 use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::StorageReader;
-use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::state::StateNumber;
@@ -19,11 +18,6 @@ use tokio::process::{Child, Command};
 use tokio::task::{self, JoinHandle};
 use tokio::time::interval;
 use tracing::{error, info};
-
-#[fixture]
-fn tx_generator() -> MultiAccountTransactionGenerator {
-    create_integration_test_tx_generator()
-}
 
 // TODO(Tsabary): Move to a suitable util location.
 async fn spawn_node_child_task(node_config_path: PathBuf) -> Child {
@@ -117,9 +111,9 @@ async fn await_block(
     }
 }
 
-#[rstest]
-#[tokio::test]
-async fn test_end_to_end_integration(mut tx_generator: MultiAccountTransactionGenerator) {
+#[tokio::main]
+async fn main() {
+    let mut tx_generator = create_integration_test_tx_generator();
     const EXPECTED_BLOCK_NUMBER: BlockNumber = BlockNumber(15);
 
     configure_tracing();
