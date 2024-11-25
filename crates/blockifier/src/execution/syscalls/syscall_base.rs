@@ -12,6 +12,7 @@ use crate::execution::entry_point::{CallEntryPoint, EntryPointExecutionContext};
 use crate::execution::syscalls::hint_processor::{
     SyscallExecutionError,
     BLOCK_NUMBER_OUT_OF_RANGE_ERROR,
+    ENTRYPOINT_FAILED_ERROR,
 };
 use crate::state::state_api::State;
 
@@ -96,5 +97,45 @@ impl<'state> SyscallHandlerBase<'state> {
         let block_hash_contract_address =
             ContractAddress::try_from(Felt::from(constants::BLOCK_HASH_CONTRACT_ADDRESS))?;
         Ok(self.state.get_storage_at(block_hash_contract_address, key)?)
+    }
+
+    pub fn execute_inner_call(
+        &mut self,
+        call: CallEntryPoint,
+        remaining_gas: &mut u64,
+    ) -> SyscallResult<Vec<Felt>> {
+        let revert_idx = self.context.revert_infos.0.len();
+
+        let call_info = call.execute(self.state, self.context, remaining_gas)?;
+
+        let mut raw_retdata = call_info.execution.retdata.0.clone();
+        let failed = call_info.execution.failed;
+        self.inner_calls.push(call_info);
+        if failed {
+            self.context.revert(revert_idx, self.state)?;
+
+            // Delete events and l2_to_l1_messages from the reverted call.
+            let reverted_call = &mut self.inner_calls.last_mut().unwrap();
+            let mut stack: Vec<&mut CallInfo> = vec![reverted_call];
+            while let Some(call_info) = stack.pop() {
+                call_info.execution.events.clear();
+                call_info.execution.l2_to_l1_messages.clear();
+                // Add inner calls that did not fail to the stack.
+                // The events and l2_to_l1_messages of the failed calls were already cleared.
+                stack.extend(
+                    call_info
+                        .inner_calls
+                        .iter_mut()
+                        .filter(|call_info| !call_info.execution.failed),
+                );
+            }
+
+            raw_retdata.push(
+                Felt::from_hex(ENTRYPOINT_FAILED_ERROR).map_err(SyscallExecutionError::from)?,
+            );
+            return Err(SyscallExecutionError::SyscallError { error_data: raw_retdata });
+        }
+
+        Ok(raw_retdata)
     }
 }
