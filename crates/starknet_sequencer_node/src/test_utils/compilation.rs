@@ -1,6 +1,7 @@
+use std::io;
 use std::process::{Command, ExitStatus, Stdio};
-use std::{env, io};
 
+use infra_utils::path::resolve_project_relative_path;
 use tracing::info;
 
 #[cfg(test)]
@@ -17,15 +18,17 @@ pub enum NodeCompilationError {
 
 /// Compiles the node using `cargo build` for testing purposes.
 fn compile_node() -> io::Result<ExitStatus> {
-    info!("Compiling the project");
-    // Get the current working directory for the project
-    let project_path = env::current_dir().expect("Failed to get current directory");
+    info!("Compiling the starknet_sequencer_node binary");
+    let project_path = resolve_project_relative_path(".").expect("Failed to resolve project path");
+    info!("project_path {:?}", project_path);
 
     // Run `cargo build` to compile the project
     let compilation_result = Command::new("cargo")
         .arg("build")
+        .arg("--bin")
+        .arg("starknet_sequencer_node")
         .current_dir(&project_path)
-        .arg("--quiet")
+        // .arg("--quiet")
         .stderr(Stdio::inherit())
         .stdout(Stdio::inherit())
         .status();
