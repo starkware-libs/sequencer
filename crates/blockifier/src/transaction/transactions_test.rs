@@ -1084,7 +1084,7 @@ fn test_insufficient_new_resource_bounds_pre_validation(
         l1_gas_price: actual_strk_l1_gas_price,
         l1_data_gas_price: actual_strk_l1_data_gas_price,
         l2_gas_price: actual_strk_l2_gas_price,
-    } = block_context.block_info.gas_prices.get_gas_prices_by_fee_type(&FeeType::Strk);
+    } = block_context.block_info.gas_prices.gas_price_vector(&FeeType::Strk);
 
     let minimal_gas_vector =
         estimate_minimal_gas_vector(block_context, tx, &GasVectorComputationMode::All);
@@ -1218,9 +1218,8 @@ fn test_insufficient_deprecated_resource_bounds_pre_validation(
 
     let gas_prices = &block_context.block_info.gas_prices;
     // TODO(Aner, 21/01/24) change to linear combination.
-    let minimal_fee = minimal_l1_gas
-        .checked_mul(gas_prices.get_l1_gas_price_by_fee_type(&FeeType::Eth).into())
-        .unwrap();
+    let minimal_fee =
+        minimal_l1_gas.checked_mul(gas_prices.l1_gas_price(&FeeType::Eth).into()).unwrap();
     // Max fee too low (lower than minimal estimated fee).
     let invalid_max_fee = Fee(minimal_fee.0 - 1);
     let invalid_v1_tx = account_invoke_tx(
@@ -1238,7 +1237,7 @@ fn test_insufficient_deprecated_resource_bounds_pre_validation(
     );
 
     // Test V3 transaction.
-    let actual_strk_l1_gas_price = gas_prices.get_l1_gas_price_by_fee_type(&FeeType::Strk);
+    let actual_strk_l1_gas_price = gas_prices.l1_gas_price(&FeeType::Strk);
 
     // Max L1 gas amount too low, old resource bounds.
     // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion works.
@@ -1292,7 +1291,7 @@ fn test_actual_fee_gt_resource_bounds(
     block_context.block_info.use_kzg_da = true;
     let mut nonce_manager = NonceManager::default();
     let gas_mode = resource_bounds.get_gas_vector_computation_mode();
-    let gas_prices = block_context.block_info.gas_prices.get_gas_prices_by_fee_type(&FeeType::Strk);
+    let gas_prices = block_context.block_info.gas_prices.gas_price_vector(&FeeType::Strk);
     let account_contract = FeatureContract::AccountWithoutValidations(account_cairo_version);
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
     let state = &mut test_state(

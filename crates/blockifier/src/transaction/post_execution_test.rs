@@ -269,7 +269,7 @@ fn test_revert_on_resource_overuse(
     block_context.block_info.use_kzg_da = true;
     let gas_mode = resource_bounds.get_gas_vector_computation_mode();
     let fee_type = if version == TransactionVersion::THREE { FeeType::Strk } else { FeeType::Eth };
-    let gas_prices = block_context.block_info.gas_prices.get_gas_prices_by_fee_type(&fee_type);
+    let gas_prices = block_context.block_info.gas_prices.gas_price_vector(&fee_type);
     let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
         init_data_by_version(&block_context.chain_info, cairo_version);
 

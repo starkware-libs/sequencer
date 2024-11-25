@@ -88,19 +88,19 @@ impl GasPrices {
         gas_prices
     }
 
-    pub fn get_l1_gas_price_by_fee_type(&self, fee_type: &FeeType) -> NonzeroGasPrice {
-        self.get_gas_prices_by_fee_type(fee_type).l1_gas_price
+    pub fn l1_gas_price(&self, fee_type: &FeeType) -> NonzeroGasPrice {
+        self.gas_price_vector(fee_type).l1_gas_price
     }
 
-    pub fn get_l1_data_gas_price_by_fee_type(&self, fee_type: &FeeType) -> NonzeroGasPrice {
-        self.get_gas_prices_by_fee_type(fee_type).l1_data_gas_price
+    pub fn l1_data_gas_price(&self, fee_type: &FeeType) -> NonzeroGasPrice {
+        self.gas_price_vector(fee_type).l1_data_gas_price
     }
 
-    pub fn get_l2_gas_price_by_fee_type(&self, fee_type: &FeeType) -> NonzeroGasPrice {
-        self.get_gas_prices_by_fee_type(fee_type).l2_gas_price
+    pub fn l2_gas_price(&self, fee_type: &FeeType) -> NonzeroGasPrice {
+        self.gas_price_vector(fee_type).l2_gas_price
     }
 
-    pub fn get_gas_prices_by_fee_type(&self, fee_type: &FeeType) -> &GasPriceVector {
+    pub fn gas_price_vector(&self, fee_type: &FeeType) -> &GasPriceVector {
         match fee_type {
             FeeType::Strk => &self.strk_gas_prices,
             FeeType::Eth => &self.eth_gas_prices,
