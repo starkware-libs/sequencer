@@ -1,5 +1,6 @@
 import dataclasses
 from typing import Optional, List, Dict, Any, Mapping, Sequence
+from services import const
 
 
 @dataclasses.dataclass
@@ -24,7 +25,7 @@ class PortMapping:
 
 @dataclasses.dataclass
 class Service:
-    type: Optional[str]
+    type: Optional[const.ServiceType]
     selector: Mapping[str, str]
     ports: Sequence[PortMapping]
 
