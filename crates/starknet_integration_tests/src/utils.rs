@@ -14,7 +14,7 @@ use mempool_test_utils::starknet_api_test_utils::{
 use papyrus_consensus::config::ConsensusConfig;
 use papyrus_network::network_manager::test_utils::create_network_config_connected_to_broadcast_channels;
 use papyrus_network::network_manager::BroadcastTopicChannels;
-use papyrus_protobuf::consensus::ProposalPart;
+use papyrus_protobuf::consensus::{ProposalPart, StreamMessage};
 use papyrus_storage::StorageConfig;
 use reqwest::{Client, Response};
 use starknet_api::block::BlockNumber;
@@ -49,7 +49,7 @@ pub async fn create_config(
     chain_info: ChainInfo,
     rpc_server_addr: SocketAddr,
     batcher_storage_config: StorageConfig,
-) -> (SequencerNodeConfig, RequiredParams, BroadcastTopicChannels<ProposalPart>) {
+) -> (SequencerNodeConfig, RequiredParams, BroadcastTopicChannels<StreamMessage<ProposalPart>>) {
     let fee_token_addresses = chain_info.fee_token_addresses.clone();
     let batcher_config = create_batcher_config(batcher_storage_config, chain_info.clone());
     let gateway_config = create_gateway_config(chain_info.clone()).await;
@@ -77,11 +77,12 @@ pub async fn create_config(
 }
 
 fn create_consensus_manager_config_and_channels()
--> (ConsensusManagerConfig, BroadcastTopicChannels<ProposalPart>) {
+-> (ConsensusManagerConfig, BroadcastTopicChannels<StreamMessage<ProposalPart>>) {
     let (network_config, broadcast_channels) =
         create_network_config_connected_to_broadcast_channels(
             papyrus_network::gossipsub_impl::Topic::new(
-                starknet_consensus_manager::consensus_manager::NETWORK_TOPIC,
+                // TODO(guyn): return this to NETWORK_TOPIC once we have integrated streaming.
+                starknet_consensus_manager::consensus_manager::NETWORK_TOPIC2,
             ),
         );
     let consensus_manager_config = ConsensusManagerConfig {
