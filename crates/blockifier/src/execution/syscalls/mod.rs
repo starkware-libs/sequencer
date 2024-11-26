@@ -39,7 +39,6 @@ use crate::execution::execution_utils::{
 };
 use crate::execution::syscalls::hint_processor::{INVALID_INPUT_LENGTH_ERROR, OUT_OF_GAS_ERROR};
 use crate::execution::syscalls::syscall_base::SyscallResult;
-use crate::transaction::account_transaction::is_cairo1;
 use crate::versioned_constants::{EventLimits, VersionedConstants};
 
 pub mod hint_processor;
@@ -485,14 +484,7 @@ pub fn replace_class(
     syscall_handler: &mut SyscallHintProcessor<'_>,
     _remaining_gas: &mut u64,
 ) -> SyscallResult<ReplaceClassResponse> {
-    // Ensure the class is declared (by reading it), and of type V1.
-    let class_hash = request.class_hash;
-    let class = syscall_handler.base.state.get_compiled_contract_class(class_hash)?;
-
-    if !is_cairo1(&class) {
-        return Err(SyscallExecutionError::ForbiddenClassReplacement { class_hash });
-    }
-    syscall_handler.base.state.set_class_hash_at(syscall_handler.storage_address(), class_hash)?;
+    syscall_handler.base.replace_class(request.class_hash)?;
     Ok(ReplaceClassResponse {})
 }
 
@@ -791,8 +783,5 @@ pub(crate) fn get_class_hash_at(
     syscall_handler: &mut SyscallHintProcessor<'_>,
     _remaining_gas: &mut u64,
 ) -> SyscallResult<GetClassHashAtResponse> {
-    syscall_handler.base.accessed_contract_addresses.insert(request);
-    let class_hash = syscall_handler.base.state.get_class_hash_at(request)?;
-    syscall_handler.base.read_class_hash_values.push(class_hash);
-    Ok(class_hash)
+    syscall_handler.base.get_class_hash_at(request)
 }

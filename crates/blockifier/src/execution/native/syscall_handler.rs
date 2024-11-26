@@ -259,15 +259,11 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
         self.pre_execute_syscall(remaining_gas, self.gas_costs().get_class_hash_at_gas_cost)?;
         let request = ContractAddress::try_from(contract_address)
             .map_err(|err| self.handle_error(remaining_gas, err.into()))?;
-        self.base.accessed_contract_addresses.insert(request);
 
         let class_hash = self
             .base
-            .state
             .get_class_hash_at(request)
-            .map_err(|err| self.handle_error(remaining_gas, err.into()))?;
-        self.base.read_class_hash_values.push(class_hash);
-
+            .map_err(|err| self.handle_error(remaining_gas, err))?;
         Ok(class_hash.0)
     }
 
@@ -333,27 +329,10 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
     fn replace_class(&mut self, class_hash: Felt, remaining_gas: &mut u64) -> SyscallResult<()> {
         self.pre_execute_syscall(remaining_gas, self.gas_costs().replace_class_gas_cost)?;
 
-        let class_hash = ClassHash(class_hash);
-        let contract_class = self
-            .base
-            .state
-            .get_compiled_contract_class(class_hash)
-            .map_err(|e| self.handle_error(remaining_gas, e.into()))?;
-
-        match contract_class {
-            RunnableContractClass::V0(_) => Err(self.handle_error(
-                remaining_gas,
-                SyscallExecutionError::ForbiddenClassReplacement { class_hash },
-            )),
-            RunnableContractClass::V1(_) | RunnableContractClass::V1Native(_) => {
-                self.base
-                    .state
-                    .set_class_hash_at(self.base.call.storage_address, class_hash)
-                    .map_err(|e| self.handle_error(remaining_gas, e.into()))?;
-
-                Ok(())
-            }
-        }
+        self.base
+            .replace_class(ClassHash(class_hash))
+            .map_err(|err| self.handle_error(remaining_gas, err))?;
+        Ok(())
     }
 
     fn library_call(

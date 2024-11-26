@@ -17,6 +17,7 @@ use crate::execution::syscalls::hint_processor::{
     ENTRYPOINT_FAILED_ERROR,
 };
 use crate::state::state_api::State;
+use crate::transaction::account_transaction::is_cairo1;
 
 pub type SyscallResult<T> = Result<T, SyscallExecutionError>;
 
@@ -124,6 +125,16 @@ impl<'state> SyscallHandlerBase<'state> {
         Ok(())
     }
 
+    pub fn get_class_hash_at(
+        &mut self,
+        contract_address: ContractAddress,
+    ) -> SyscallResult<ClassHash> {
+        self.accessed_contract_addresses.insert(contract_address);
+        let class_hash = self.state.get_class_hash_at(contract_address)?;
+        self.read_class_hash_values.push(class_hash);
+        Ok(class_hash)
+    }
+
     pub fn emit_event(&mut self, event: EventContent) -> SyscallResult<()> {
         exceeds_event_size_limit(
             self.context.versioned_constants(),
@@ -134,6 +145,17 @@ impl<'state> SyscallHandlerBase<'state> {
         self.events.push(ordered_event);
         self.context.n_emitted_events += 1;
 
+        Ok(())
+    }
+
+    pub fn replace_class(&mut self, class_hash: ClassHash) -> SyscallResult<()> {
+        // Ensure the class is declared (by reading it), and of type V1.
+        let class = self.state.get_compiled_contract_class(class_hash)?;
+
+        if !is_cairo1(&class) {
+            return Err(SyscallExecutionError::ForbiddenClassReplacement { class_hash });
+        }
+        self.state.set_class_hash_at(self.call.storage_address, class_hash)?;
         Ok(())
     }
 
