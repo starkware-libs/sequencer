@@ -30,9 +30,8 @@ use starknet_api::transaction::fields::{Calldata, ContractAddressSalt};
 use starknet_api::transaction::{EventContent, EventData, EventKey, L2ToL1Payload};
 use starknet_types_core::felt::Felt;
 
-use crate::execution::call_info::{MessageToL1, OrderedL2ToL1Message, Retdata};
+use crate::execution::call_info::{MessageToL1, Retdata};
 use crate::execution::common_hints::ExecutionMode;
-use crate::execution::contract_class::RunnableContractClass;
 use crate::execution::entry_point::{
     CallEntryPoint,
     CallType,
@@ -470,17 +469,11 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
     ) -> SyscallResult<()> {
         self.pre_execute_syscall(remaining_gas, self.gas_costs().send_message_to_l1_gas_cost)?;
 
-        let order = self.base.context.n_sent_messages_to_l1;
         let to_address = EthAddress::try_from(to_address)
-            .map_err(|e| self.handle_error(remaining_gas, e.into()))?;
-        self.base.l2_to_l1_messages.push(OrderedL2ToL1Message {
-            order,
-            message: MessageToL1 { to_address, payload: L2ToL1Payload(payload.to_vec()) },
-        });
+            .map_err(|err| self.handle_error(remaining_gas, err.into()))?;
+        let message = MessageToL1 { to_address, payload: L2ToL1Payload(payload.to_vec()) };
 
-        self.base.context.n_sent_messages_to_l1 += 1;
-
-        Ok(())
+        self.base.send_message_to_l1(message).map_err(|err| self.handle_error(remaining_gas, err))
     }
 
     fn keccak(&mut self, input: &[u64], remaining_gas: &mut u64) -> SyscallResult<U256> {

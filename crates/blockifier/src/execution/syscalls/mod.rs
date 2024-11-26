@@ -27,7 +27,7 @@ use self::hint_processor::{
     SyscallExecutionError,
     SyscallHintProcessor,
 };
-use crate::execution::call_info::{MessageToL1, OrderedL2ToL1Message};
+use crate::execution::call_info::MessageToL1;
 use crate::execution::deprecated_syscalls::DeprecatedSyscallSelector;
 use crate::execution::entry_point::{CallEntryPoint, CallType, ConstructorContext};
 use crate::execution::execution_utils::{
@@ -513,14 +513,7 @@ pub fn send_message_to_l1(
     syscall_handler: &mut SyscallHintProcessor<'_>,
     _remaining_gas: &mut u64,
 ) -> SyscallResult<SendMessageToL1Response> {
-    let execution_context = &mut syscall_handler.base.context;
-    let ordered_message_to_l1 = OrderedL2ToL1Message {
-        order: execution_context.n_sent_messages_to_l1,
-        message: request.message,
-    };
-    syscall_handler.base.l2_to_l1_messages.push(ordered_message_to_l1);
-    execution_context.n_sent_messages_to_l1 += 1;
-
+    syscall_handler.base.send_message_to_l1(request.message)?;
     Ok(SendMessageToL1Response {})
 }
 

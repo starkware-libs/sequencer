@@ -8,7 +8,7 @@ use starknet_types_core::felt::Felt;
 
 use super::exceeds_event_size_limit;
 use crate::abi::constants;
-use crate::execution::call_info::{CallInfo, OrderedEvent, OrderedL2ToL1Message};
+use crate::execution::call_info::{CallInfo, MessageToL1, OrderedEvent, OrderedL2ToL1Message};
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::entry_point::{CallEntryPoint, EntryPointExecutionContext};
 use crate::execution::syscalls::hint_processor::{
@@ -156,6 +156,15 @@ impl<'state> SyscallHandlerBase<'state> {
             return Err(SyscallExecutionError::ForbiddenClassReplacement { class_hash });
         }
         self.state.set_class_hash_at(self.call.storage_address, class_hash)?;
+        Ok(())
+    }
+
+    pub fn send_message_to_l1(&mut self, message: MessageToL1) -> SyscallResult<()> {
+        let ordered_message_to_l1 =
+            OrderedL2ToL1Message { order: self.context.n_sent_messages_to_l1, message };
+        self.l2_to_l1_messages.push(ordered_message_to_l1);
+        self.context.n_sent_messages_to_l1 += 1;
+
         Ok(())
     }
 
