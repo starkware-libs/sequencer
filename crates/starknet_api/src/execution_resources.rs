@@ -66,6 +66,10 @@ impl GasAmount {
     pub fn checked_mul(self, rhs: GasPrice) -> Option<Fee> {
         rhs.checked_mul(self)
     }
+
+    pub fn checked_factor_mul(self, factor: u64) -> Option<Self> {
+        self.0.checked_mul(factor).map(Self)
+    }
 }
 
 #[cfg_attr(
@@ -101,6 +105,19 @@ impl GasVector {
             self.l1_gas.checked_add(rhs.l1_gas),
             self.l1_data_gas.checked_add(rhs.l1_data_gas),
             self.l2_gas.checked_add(rhs.l2_gas),
+        ) {
+            (Some(l1_gas), Some(l1_data_gas), Some(l2_gas)) => {
+                Some(Self { l1_gas, l1_data_gas, l2_gas })
+            }
+            _ => None,
+        }
+    }
+
+    pub fn checked_scalar_mul(self, factor: u64) -> Option<Self> {
+        match (
+            self.l1_gas.checked_factor_mul(factor),
+            self.l1_data_gas.checked_factor_mul(factor),
+            self.l2_gas.checked_factor_mul(factor),
         ) {
             (Some(l1_gas), Some(l1_data_gas), Some(l2_gas)) => {
                 Some(Self { l1_gas, l1_data_gas, l2_gas })
