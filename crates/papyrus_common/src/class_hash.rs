@@ -45,6 +45,7 @@ fn entry_points_hash(
     PoseidonHash(Poseidon::hash_array(
         class
             .entry_points_by_type
+            .to_hash_map()
             .get(entry_point_type)
             .unwrap_or(&vec![])
             .iter()

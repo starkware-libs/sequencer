@@ -2,9 +2,12 @@
 #[path = "rpc_transaction_test.rs"]
 mod rpc_transaction_test;
 
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
 
+use crate::contract_class::EntryPointType;
 use crate::core::{
     calculate_contract_address,
     ClassHash,
@@ -278,6 +281,7 @@ pub struct ContractClass {
     pub abi: String,
 }
 
+// TODO(Aviv): remove duplication with sequencer/crates/papyrus_rpc/src/v0_8/state.rs
 #[derive(Debug, Clone, Default, Eq, PartialEq, Deserialize, Serialize, Hash)]
 pub struct EntryPointByType {
     #[serde(rename = "CONSTRUCTOR")]
@@ -286,4 +290,27 @@ pub struct EntryPointByType {
     pub external: Vec<EntryPoint>,
     #[serde(rename = "L1_HANDLER")]
     pub l1handler: Vec<EntryPoint>,
+}
+
+impl EntryPointByType {
+    pub fn from_hash_map(entry_points_by_type: HashMap<EntryPointType, Vec<EntryPoint>>) -> Self {
+        macro_rules! get_entrypoint_by_type {
+            ($variant:ident) => {
+                (*(entry_points_by_type.get(&EntryPointType::$variant).unwrap_or(&vec![]))).to_vec()
+            };
+        }
+
+        Self {
+            constructor: get_entrypoint_by_type!(Constructor),
+            external: get_entrypoint_by_type!(External),
+            l1handler: get_entrypoint_by_type!(L1Handler),
+        }
+    }
+    pub fn to_hash_map(&self) -> HashMap<EntryPointType, Vec<EntryPoint>> {
+        HashMap::from_iter([
+            (EntryPointType::Constructor, self.constructor.clone()),
+            (EntryPointType::External, self.external.clone()),
+            (EntryPointType::L1Handler, self.l1handler.clone()),
+        ])
+    }
 }

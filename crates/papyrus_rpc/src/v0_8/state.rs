@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockHash;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, GlobalRoot, Nonce};
+use starknet_api::rpc_transaction::EntryPointByType as starknet_api_EntryPointByType;
 use starknet_api::state::{EntryPoint, StorageKey, ThinStateDiff as starknet_api_ThinStateDiff};
 use starknet_client::reader::objects::state::{
     DeclaredClassHashEntry as ClientDeclaredClassHashEntry,
@@ -173,6 +174,8 @@ pub struct StorageEntry {
     pub key: StorageKey,
     pub value: Felt,
 }
+
+// TODO(Aviv): Remove this and use sn_api::rpc_transaction::EntryPointByType.
 #[derive(Debug, Clone, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct EntryPointByType {
     #[serde(rename = "CONSTRUCTOR")]
@@ -206,6 +209,16 @@ impl EntryPointByType {
     }
 }
 
+impl From<starknet_api_EntryPointByType> for EntryPointByType {
+    fn from(entry_points: starknet_api_EntryPointByType) -> Self {
+        Self {
+            constructor: entry_points.constructor.into_iter().map(EntryPoint::from).collect(),
+            external: entry_points.external.into_iter().map(EntryPoint::from).collect(),
+            l1handler: entry_points.l1handler.into_iter().map(EntryPoint::from).collect(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct ContractClass {
     pub sierra_program: Vec<Felt>,
@@ -219,7 +232,7 @@ impl From<starknet_api::state::SierraContractClass> for ContractClass {
         Self {
             sierra_program: class.sierra_program,
             contract_class_version: CONTRACT_CLASS_VERSION.to_owned(),
-            entry_points_by_type: EntryPointByType::from_hash_map(class.entry_points_by_type),
+            entry_points_by_type: class.entry_points_by_type.into(),
             abi: class.abi,
         }
     }

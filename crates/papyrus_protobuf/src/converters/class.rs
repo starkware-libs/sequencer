@@ -13,6 +13,7 @@ use serde::Serialize;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, EntryPointSelector};
 use starknet_api::data_availability::DataAvailabilityMode;
+use starknet_api::rpc_transaction::EntryPointByType;
 use starknet_api::{deprecated_contract_class, state};
 use starknet_types_core::felt::Felt;
 
@@ -245,6 +246,8 @@ impl TryFrom<protobuf::Cairo1Class> for state::SierraContractClass {
             );
         }
 
+        let entry_points_by_type = EntryPointByType::from_hash_map(entry_points_by_type);
+
         Ok(state::SierraContractClass {
             sierra_program,
             entry_points_by_type,
@@ -264,6 +267,7 @@ impl From<state::SierraContractClass> for protobuf::Cairo1Class {
         let entry_points = Some(protobuf::Cairo1EntryPoints {
             constructors: value
                 .entry_points_by_type
+                .to_hash_map()
                 .get(&EntryPointType::Constructor)
                 .unwrap_or(&vec![])
                 .iter()
@@ -273,6 +277,7 @@ impl From<state::SierraContractClass> for protobuf::Cairo1Class {
 
             externals: value
                 .entry_points_by_type
+                .to_hash_map()
                 .get(&EntryPointType::External)
                 .unwrap_or(&vec![])
                 .iter()
@@ -281,6 +286,7 @@ impl From<state::SierraContractClass> for protobuf::Cairo1Class {
                 .collect(),
             l1_handlers: value
                 .entry_points_by_type
+                .to_hash_map()
                 .get(&EntryPointType::L1Handler)
                 .unwrap_or(&vec![])
                 .iter()

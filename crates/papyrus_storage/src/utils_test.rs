@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::fs;
 
 use indexmap::indexmap;
@@ -9,6 +8,7 @@ use prometheus_parse::Value::{Counter, Gauge};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::hash::StarkHash;
+use starknet_api::rpc_transaction::EntryPointByType;
 use starknet_api::state::{SierraContractClass, ThinStateDiff};
 use starknet_types_core::felt::Felt;
 
@@ -33,7 +33,7 @@ fn test_dump_declared_classes() {
             SierraContractClass {
                 sierra_program: vec![i_felt, i_felt],
                 contract_class_version: "0.1.0".to_string(),
-                entry_points_by_type: HashMap::new(),
+                entry_points_by_type: EntryPointByType::default(),
                 abi: "".to_string(),
             },
         ));
