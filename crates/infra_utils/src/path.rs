@@ -47,3 +47,13 @@ fn path_of_project_root() -> PathBuf {
         // If `CARGO_MANIFEST_DIR` isn't set, fall back to the current working directory
         .unwrap_or(env::current_dir().expect("Failed to get current directory"))
 }
+
+// TODO(Tsabary/ Arni): consider alternatives.
+pub fn current_dir() -> std::io::Result<PathBuf> {
+    std::env::current_dir()
+}
+
+// TODO(Tsabary/ Arni): consider alternatives.
+pub fn is_feature_active(feature: &str) -> bool {
+    std::env::var(&format!("CARGO_FEATURE_{}", feature.to_uppercase())).is_ok()
+}

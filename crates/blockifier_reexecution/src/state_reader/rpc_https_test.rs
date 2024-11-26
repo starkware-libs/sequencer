@@ -78,7 +78,7 @@ fn get_test_url() -> String {
     url
 }
 
-/// Retrieves the test block_number from the `TEST_URL` environment variable,
+/// Retrieves the test block_number from the `BLOCK_NUMBER` environment variable,
 /// falling back to the latest block if not provided.
 pub fn get_test_block_id() -> BlockId {
     match env::var("BLOCK_NUMBER") {

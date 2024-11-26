@@ -1,8 +1,10 @@
 use std::path::PathBuf;
 use std::process::Command;
 
+use infra_utils::path::{cargo_manifest_dir, current_dir, is_feature_active};
+
 fn compile_cairo_native_aot_runtime() {
-    let cairo_native_dir = std::env::current_dir()
+    let cairo_native_dir = cargo_manifest_dir()
         .expect("Failed to get current directory")
         .join(PathBuf::from("cairo_native"));
 
@@ -44,7 +46,7 @@ fn compile_cairo_native_aot_runtime() {
         if expected_path.is_absolute() {
             expected_path
         } else {
-            std::env::current_dir().expect("Failed to get current directory").join(expected_path)
+            current_dir().expect("Failed to get current directory").join(expected_path)
         }
     };
 
@@ -62,7 +64,7 @@ fn main() {
     // `CARGO_FEATURE_CAIRO_NATIVE` env var is set by Cargo when compiling with the `cairo_native`
     // feature flag. Build instructions are defined behind this condition since they are only
     // relevant when using Cairo Native.
-    if std::env::var("CARGO_FEATURE_CAIRO_NATIVE").is_ok() {
+    if is_feature_active("cairo_native") {
         compile_cairo_native_aot_runtime();
     }
 }
