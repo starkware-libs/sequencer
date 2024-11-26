@@ -11,6 +11,7 @@ const CAIRO0_PIP_REQUIREMENTS_FILE: &str = "tests/requirements.txt";
 const CAIRO1_REPO_RELATIVE_PATH_OVERRIDE_ENV_VAR: &str = "CAIRO1_REPO_RELATIVE_PATH";
 const DEFAULT_CAIRO1_REPO_RELATIVE_PATH: &str = "../../../cairo";
 
+
 /// Objects for simple deserialization of Cargo.toml to fetch the Cairo1 compiler version.
 /// The compiler itself isn't actually a dependency, so we compile by using the version of the
 /// cairo-lang-casm crate.
@@ -49,6 +50,25 @@ struct WorkspaceFields {
 struct CargoToml {
     workspace: WorkspaceFields,
 }
+
+pub enum CompilationArtifacts {
+    Cairo0 { casm: Vec<u8> },
+    Cairo1 { casm: Vec<u8>, sierra: Vec<u8> },
+    #[cfg(feature = "cairo_native")]
+    Cairo1Native { sierra: Vec<u8> },
+}
+
+impl CompilationArtifacts {
+    pub fn get_compiled_output(&self) -> Vec<u8> {
+        match self {
+            CompilationArtifacts::Cairo0 { casm } => casm.clone(),
+            CompilationArtifacts::Cairo1 { casm, .. } => casm.clone(),
+            #[cfg(feature = "cairo_native")]
+            CompilationArtifacts::Cairo1Native { sierra } => sierra.clone(),
+        }
+    }
+}
+
 
 #[cached]
 /// Returns the version of the Cairo1 compiler defined in the root Cargo.toml (by checking the
@@ -89,7 +109,7 @@ fn run_and_verify_output(command: &mut Command) -> Output {
 }
 
 /// Compiles a Cairo0 program using the deprecated compiler.
-pub fn cairo0_compile(path: String, extra_arg: Option<String>, debug_info: bool) -> Vec<u8> {
+pub fn cairo0_compile(path: String, extra_arg: Option<String>, debug_info: bool) -> CompilationArtifacts {
     verify_cairo0_compiler_deps();
     let mut command = Command::new("starknet-compile-deprecated");
     command.arg(&path);
@@ -102,7 +122,7 @@ pub fn cairo0_compile(path: String, extra_arg: Option<String>, debug_info: bool)
     let compile_output = command.output().unwrap();
     let stderr_output = String::from_utf8(compile_output.stderr).unwrap();
     assert!(compile_output.status.success(), "{stderr_output}");
-    compile_output.stdout
+    CompilationArtifacts::Cairo0 { casm: compile_output.stdout}
 }
 
 /// Compiles a Cairo1 program using the compiler version set in the Cargo.toml.
@@ -110,7 +130,7 @@ pub fn cairo1_compile(
     path: String,
     git_tag_override: Option<String>,
     cargo_nightly_arg: Option<String>,
-) -> Vec<u8> {
+) -> CompilationArtifacts {
     let mut base_compile_args = vec![];
 
     let sierra_output =
@@ -131,7 +151,7 @@ pub fn cairo1_compile(
     ]);
     let casm_output = run_and_verify_output(&mut sierra_compile_command);
 
-    casm_output.stdout
+    CompilationArtifacts::Cairo1 {casm: casm_output.stdout, sierra: sierra_output}
 }
 
 /// Compile Cairo1 Contract into their Sierra version using the compiler version set in the
