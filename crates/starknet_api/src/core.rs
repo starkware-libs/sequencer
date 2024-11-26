@@ -358,6 +358,10 @@ impl PatriciaKey {
     pub fn key(&self) -> &StarkHash {
         &self.0
     }
+
+    pub const fn new_unchecked(key: StarkHash) -> Self {
+        PatriciaKey(key)
+    }
 }
 
 impl From<u128> for PatriciaKey {
