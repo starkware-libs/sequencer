@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use mockall::automock;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_proc_macros::handle_response_variants;
 use serde::{Deserialize, Serialize};
@@ -19,6 +20,7 @@ use thiserror::Error;
 use crate::errors::MempoolP2pPropagatorError;
 use crate::mempool_p2p_types::MempoolP2pPropagatorResult;
 
+#[automock]
 #[async_trait]
 pub trait MempoolP2pPropagatorClient: Send + Sync {
     /// Adds a transaction to be propagated to other peers. This should only be called on a new

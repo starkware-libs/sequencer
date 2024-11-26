@@ -19,15 +19,21 @@ starknet_api.workspace = true
 starknet_sequencer_infra.workspace = true
 starknet_mempool_p2p_types.workspace = true
 starknet_mempool_types.workspace = true
+tokio.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true
 itertools.workspace = true
+mockall.workspace = true
+papyrus_network = { workspace = true, features = ["testing"] }
+papyrus_network_types = { workspace = true, features = ["testing"] }
+papyrus_test_utils.workspace = true
 rstest.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 # Enable test utils feature for integration tests.
 starknet_mempool = { workspace = true, features = ["testing"] }
+starknet_mempool_p2p.workspace = true
 
 [features]
 testing = ["mempool_test_utils", "pretty_assertions", "starknet-types-core"]

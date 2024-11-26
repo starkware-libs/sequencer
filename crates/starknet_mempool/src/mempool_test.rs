@@ -1,11 +1,24 @@
+use std::sync::Arc;
+
+use mockall::predicate;
+use papyrus_network_types::network_types::BroadcastedMessageMetadata;
+use papyrus_test_utils::{get_rng, GetTestInstance};
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::GasPrice;
 use starknet_api::executable_transaction::AccountTransaction;
+use starknet_api::rpc_transaction::{
+    RpcDeployAccountTransaction,
+    RpcInvokeTransaction,
+    RpcTransaction,
+};
 use starknet_api::{contract_address, nonce};
+use starknet_mempool_p2p_types::communication::MockMempoolP2pPropagatorClient;
+use starknet_mempool_types::communication::AddTransactionArgsWrapper;
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::AddTransactionArgs;
 
+use crate::communication::MempoolCommunicationWrapper;
 use crate::mempool::{Mempool, MempoolConfig, TransactionReference};
 use crate::test_utils::{add_tx, add_tx_expect_error, commit_block, get_txs_and_assert_expected};
 use crate::transaction_pool::TransactionPool;
@@ -686,4 +699,61 @@ fn test_update_gas_price_threshold_decreases_threshold() {
         .with_priority_queue([tx_high_gas])
         .build();
     expected_mempool_content.assert_eq(&mempool);
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_new_tx_sent_to_p2p(mempool: Mempool) {
+    // add_tx_input! creates an Invoke Transaction
+    let tx_1_args = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 2, account_nonce: 2);
+    let new_tx_args =
+        AddTransactionArgsWrapper { args: tx_1_args.clone(), p2p_message_metadata: None };
+    let new_rpc_tx = match tx_1_args.tx {
+        AccountTransaction::Declare(_declare_tx) => {
+            panic!("No implementation for converting DeclareTransaction to an RpcTransaction")
+        }
+        AccountTransaction::DeployAccount(deploy_account_transaction) => {
+            RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(
+                deploy_account_transaction.clone().into(),
+            ))
+        }
+        AccountTransaction::Invoke(invoke_transaction) => {
+            RpcTransaction::Invoke(RpcInvokeTransaction::V3(invoke_transaction.clone().into()))
+        }
+    };
+
+    let mut mock_mempool_p2p_propagator_client = MockMempoolP2pPropagatorClient::new();
+    mock_mempool_p2p_propagator_client
+        .expect_add_transaction()
+        .times(1)
+        .with(predicate::eq(new_rpc_tx))
+        .returning(|_| Ok(()));
+    let mut mempool_wrapper =
+        MempoolCommunicationWrapper::new(mempool, Arc::new(mock_mempool_p2p_propagator_client));
+
+    mempool_wrapper.add_tx(new_tx_args).await.unwrap();
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_propagated_tx_sent_to_p2p(mempool: Mempool) {
+    // add_tx_input! creates an Invoke Transaction
+    let tx_2_args = add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 3, account_nonce: 2);
+    let expected_message_metadata = BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
+    let propagated_tx_args = AddTransactionArgsWrapper {
+        args: tx_2_args.clone(),
+        p2p_message_metadata: Some(expected_message_metadata.clone()),
+    };
+
+    let mut mock_mempool_p2p_propagator_client = MockMempoolP2pPropagatorClient::new();
+    mock_mempool_p2p_propagator_client
+        .expect_continue_propagation()
+        .times(1)
+        .with(predicate::eq(expected_message_metadata.clone()))
+        .returning(|_| Ok(()));
+
+    let mut mempool_wrapper =
+        MempoolCommunicationWrapper::new(mempool, Arc::new(mock_mempool_p2p_propagator_client));
+
+    mempool_wrapper.add_tx(propagated_tx_args).await.unwrap();
 }

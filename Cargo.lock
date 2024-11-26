@@ -10344,15 +10344,20 @@ dependencies = [
  "derive_more 0.99.18",
  "itertools 0.12.1",
  "mempool_test_utils",
+ "mockall",
+ "papyrus_network",
  "papyrus_network_types",
+ "papyrus_test_utils",
  "pretty_assertions",
  "rstest",
  "starknet-types-core",
  "starknet_api",
  "starknet_mempool",
+ "starknet_mempool_p2p",
  "starknet_mempool_p2p_types",
  "starknet_mempool_types",
  "starknet_sequencer_infra",
+ "tokio",
  "tracing",
 ]
 
@@ -10383,6 +10388,7 @@ name = "starknet_mempool_p2p_types"
 version = "0.0.0"
 dependencies = [
  "async-trait",
+ "mockall",
  "papyrus_network_types",
  "papyrus_proc_macros",
  "serde",
