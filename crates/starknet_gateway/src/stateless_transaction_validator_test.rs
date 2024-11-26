@@ -5,8 +5,8 @@ use assert_matches::assert_matches;
 use rstest::rstest;
 use starknet_api::core::{EntryPointSelector, L2_ADDRESS_UPPER_BOUND};
 use starknet_api::data_availability::DataAvailabilityMode;
-use starknet_api::rpc_transaction::{ContractClass, EntryPointByType};
-use starknet_api::state::EntryPoint;
+use starknet_api::rpc_transaction::EntryPointByType;
+use starknet_api::state::{EntryPoint, SierraContractClass};
 use starknet_api::test_utils::declare::rpc_declare_tx;
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
@@ -356,10 +356,12 @@ fn test_declare_sierra_version_failure(
     #[case] sierra_program: Vec<Felt>,
     #[case] expected_error: StatelessTransactionValidatorError,
 ) {
+    use starknet_api::state::SierraContractClass;
+
     let tx_validator =
         StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone() };
 
-    let contract_class = ContractClass { sierra_program, ..Default::default() };
+    let contract_class = SierraContractClass { sierra_program, ..Default::default() };
     let tx = rpc_declare_tx(declare_tx_args!(), contract_class);
 
     assert_eq!(tx_validator.validate(&tx).unwrap_err(), expected_error);
@@ -379,7 +381,7 @@ fn test_declare_sierra_version_sucsses(#[case] sierra_program: Vec<Felt>) {
     let tx_validator =
         StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone() };
 
-    let contract_class = ContractClass { sierra_program, ..Default::default() };
+    let contract_class = SierraContractClass { sierra_program, ..Default::default() };
     let tx = rpc_declare_tx(declare_tx_args!(), contract_class);
 
     assert_matches!(tx_validator.validate(&tx), Ok(()));
@@ -394,7 +396,7 @@ fn test_declare_contract_class_size_too_long() {
             ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
         },
     };
-    let contract_class = ContractClass {
+    let contract_class = SierraContractClass {
         sierra_program: create_sierra_program(&MIN_SIERRA_VERSION),
         ..Default::default()
     };
@@ -458,7 +460,7 @@ fn test_declare_entry_points_not_sorted_by_selector(
     let tx_validator =
         StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG_FOR_TESTING.clone() };
 
-    let contract_class = ContractClass {
+    let contract_class = SierraContractClass {
         sierra_program: create_sierra_program(&MIN_SIERRA_VERSION),
         entry_points_by_type: EntryPointByType {
             constructor: entry_points.clone(),
@@ -471,7 +473,7 @@ fn test_declare_entry_points_not_sorted_by_selector(
 
     assert_eq!(tx_validator.validate(&tx), expected);
 
-    let contract_class = ContractClass {
+    let contract_class = SierraContractClass {
         sierra_program: create_sierra_program(&MIN_SIERRA_VERSION),
         entry_points_by_type: EntryPointByType {
             constructor: vec![],
@@ -484,7 +486,7 @@ fn test_declare_entry_points_not_sorted_by_selector(
 
     assert_eq!(tx_validator.validate(&tx), expected);
 
-    let contract_class = ContractClass {
+    let contract_class = SierraContractClass {
         sierra_program: create_sierra_program(&MIN_SIERRA_VERSION),
         entry_points_by_type: EntryPointByType {
             constructor: vec![],

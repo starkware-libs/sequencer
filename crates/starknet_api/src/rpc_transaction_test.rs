@@ -7,7 +7,6 @@ use crate::block::GasPrice;
 use crate::core::CompiledClassHash;
 use crate::execution_resources::GasAmount;
 use crate::rpc_transaction::{
-    ContractClass,
     DataAvailabilityMode,
     RpcDeclareTransaction,
     RpcDeclareTransactionV3,
@@ -15,6 +14,7 @@ use crate::rpc_transaction::{
     RpcDeployAccountTransactionV3,
     RpcTransaction,
 };
+use crate::state::SierraContractClass;
 use crate::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
 use crate::transaction::fields::{
     AccountDeploymentData,
@@ -40,7 +40,7 @@ fn create_resource_bounds_for_testing() -> AllResourceBounds {
 
 fn create_declare_v3() -> RpcDeclareTransaction {
     RpcDeclareTransaction::V3(RpcDeclareTransactionV3 {
-        contract_class: ContractClass::default(),
+        contract_class: SierraContractClass::default(),
         resource_bounds: create_resource_bounds_for_testing(),
         tip: Tip(1),
         signature: TransactionSignature(vec![Felt::ONE, Felt::TWO]),
