@@ -1,20 +1,20 @@
 use std::collections::{HashMap, HashSet};
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
 
 use assert_matches::assert_matches;
 use async_trait::async_trait;
 use blockifier::abi::constants;
-use blockifier::test_utils::struct_impls::BlockInfoExt;
+use blockifier::test_utils::{CURRENT_BLOCK_TIMESTAMP, DEFAULT_GAS_PRICES};
 use chrono::Utc;
 use futures::future::BoxFuture;
 use futures::FutureExt;
 use mockall::automock;
 use mockall::predicate::{always, eq};
 use rstest::{fixture, rstest};
-use starknet_api::block::{BlockHashAndNumber, BlockInfo, BlockNumber};
-use starknet_api::core::{ContractAddress, Nonce, StateDiffCommitment};
+use starknet_api::block::{BlockHashAndNumber, BlockInfo, BlockNumber, BlockTimestamp};
+use starknet_api::core::{ContractAddress, Nonce, PatriciaKey, StateDiffCommitment};
 use starknet_api::executable_transaction::Transaction;
-use starknet_api::hash::PoseidonHash;
+use starknet_api::hash::{PoseidonHash, StarkHash};
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{contract_address, felt, nonce};
@@ -55,9 +55,14 @@ const INITIAL_HEIGHT: BlockNumber = BlockNumber(3);
 const STREAMING_CHUNK_SIZE: usize = 3;
 const BLOCK_GENERATION_TIMEOUT: tokio::time::Duration = tokio::time::Duration::from_secs(1);
 const PROPOSAL_ID: ProposalId = ProposalId(0);
-
-static INITIAL_BLOCK_INFO: LazyLock<BlockInfo> =
-    LazyLock::new(|| BlockInfo { block_number: INITIAL_HEIGHT, ..BlockInfo::create_for_testing() });
+const INITIAL_BLOCK_INFO: BlockInfo = BlockInfo {
+    block_number: INITIAL_HEIGHT,
+    block_timestamp: BlockTimestamp(CURRENT_BLOCK_TIMESTAMP),
+    // TODO: Use test sequencer address.
+    sequencer_address: ContractAddress(PatriciaKey::new_unchecked(StarkHash::ONE)),
+    gas_prices: DEFAULT_GAS_PRICES,
+    use_kzg_da: false,
+};
 
 fn proposal_commitment() -> ProposalCommitment {
     ProposalCommitment {
@@ -118,7 +123,7 @@ fn mock_proposal_manager_validate_flow() -> MockProposalManagerTraitWrapper {
     proposal_manager
         .expect_wrap_validate_block()
         .times(1)
-        .with(eq(INITIAL_BLOCK_INFO.clone()), eq(PROPOSAL_ID), eq(None), always(), always())
+        .with(eq(INITIAL_BLOCK_INFO), eq(PROPOSAL_ID), eq(None), always(), always())
         .return_once(|_, _, _, _, tx_provider| {
             {
                 async move {
@@ -235,7 +240,7 @@ async fn validate_block_full_flow() {
         proposal_id: PROPOSAL_ID,
         deadline: deadline(),
         retrospective_block_hash: None,
-        block_info: INITIAL_BLOCK_INFO.clone(),
+        block_info: INITIAL_BLOCK_INFO,
     };
     batcher.validate_block(validate_block_input).await.unwrap();
 
@@ -335,7 +340,7 @@ async fn send_finish_to_an_invalid_proposal() {
     proposal_manager
         .expect_wrap_validate_block()
         .times(1)
-        .with(eq(INITIAL_BLOCK_INFO.clone()), eq(PROPOSAL_ID), eq(None), always(), always())
+        .with(eq(INITIAL_BLOCK_INFO), eq(PROPOSAL_ID), eq(None), always(), always())
         .return_once(|_, _, _, _, _| { async move { Ok(()) } }.boxed());
 
     let proposal_error = GetProposalResultError::BlockBuilderError(Arc::new(
@@ -354,7 +359,7 @@ async fn send_finish_to_an_invalid_proposal() {
         proposal_id: PROPOSAL_ID,
         deadline: deadline(),
         retrospective_block_hash: None,
-        block_info: INITIAL_BLOCK_INFO.clone(),
+        block_info: INITIAL_BLOCK_INFO,
     };
     batcher.validate_block(validate_block_input).await.unwrap();
 
@@ -387,7 +392,7 @@ async fn propose_block_full_flow() {
             proposal_id: PROPOSAL_ID,
             retrospective_block_hash: None,
             deadline: chrono::Utc::now() + chrono::Duration::seconds(1),
-            block_info: INITIAL_BLOCK_INFO.clone(),
+            block_info: INITIAL_BLOCK_INFO,
         })
         .await
         .unwrap();

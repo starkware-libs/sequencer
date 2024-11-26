@@ -17,7 +17,15 @@ use std::path::PathBuf;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::abi::abi_utils::{get_fee_token_var_address, selector_from_name};
-use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber, GasPrice, NonzeroGasPrice};
+use starknet_api::block::{
+    BlockHash,
+    BlockHashAndNumber,
+    BlockNumber,
+    GasPrice,
+    GasPriceVector,
+    GasPrices,
+    NonzeroGasPrice,
+};
 use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::hash::StarkHash;
@@ -149,8 +157,24 @@ pub const DEFAULT_ETH_L1_DATA_GAS_PRICE: NonzeroGasPrice =
     NonzeroGasPrice::new_unchecked(GasPrice(u128::pow(10, 6))); // Given in units of Wei.
 pub const DEFAULT_STRK_L1_DATA_GAS_PRICE: NonzeroGasPrice =
     NonzeroGasPrice::new_unchecked(GasPrice(u128::pow(10, 9))); // Given in units of STRK.
+pub const DEFAULT_ETH_L2_GAS_PRICE: NonzeroGasPrice =
+    NonzeroGasPrice::new_unchecked(GasPrice(25 * u128::pow(10, 5)));
+// TODO(Arni): Fix to: 25 * u128::pow(10, 5) when the gas price is given in STRK.
 pub const DEFAULT_STRK_L2_GAS_PRICE: NonzeroGasPrice =
     NonzeroGasPrice::new_unchecked(GasPrice(u128::pow(10, 9)));
+
+pub const DEFAULT_GAS_PRICES: GasPrices = GasPrices {
+    eth_gas_prices: GasPriceVector {
+        l1_gas_price: DEFAULT_ETH_L1_GAS_PRICE,
+        l2_gas_price: DEFAULT_ETH_L2_GAS_PRICE,
+        l1_data_gas_price: DEFAULT_ETH_L1_DATA_GAS_PRICE,
+    },
+    strk_gas_prices: GasPriceVector {
+        l1_gas_price: DEFAULT_STRK_L1_GAS_PRICE,
+        l2_gas_price: DEFAULT_STRK_L2_GAS_PRICE,
+        l1_data_gas_price: DEFAULT_STRK_L1_DATA_GAS_PRICE,
+    },
+};
 
 // Deprecated transactions:
 pub const MAX_FEE: Fee = DEFAULT_L1_GAS_AMOUNT.nonzero_saturating_mul(DEFAULT_ETH_L1_GAS_PRICE);
