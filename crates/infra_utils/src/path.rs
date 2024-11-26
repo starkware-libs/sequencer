@@ -36,3 +36,8 @@ fn path_of_project_root() -> PathBuf {
     // directories above the current file.
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).ancestors().nth(2).expect("Cannot navigate up").into()
 }
+
+// TODO(Tsabary/ Arni): consider alternatives.
+pub fn current_dir() -> std::io::Result<PathBuf> {
+    std::env::current_dir()
+}
