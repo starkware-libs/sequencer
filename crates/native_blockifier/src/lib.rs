@@ -51,7 +51,6 @@ fn native_blockifier(py: Python<'_>, py_module: &PyModule) -> PyResult<()> {
     py_module.add("UndeclaredClassHashError", py.get_type::<UndeclaredClassHashError>())?;
     add_py_exceptions(py, py_module)?;
 
-    py_module.add_function(wrap_pyfunction!(blockifier_version, py)?)?;
     py_module.add_function(wrap_pyfunction!(starknet_version, py)?)?;
 
     // TODO(Dori, 1/4/2023): If and when supported in the Python build environment, gate this code
@@ -67,14 +66,6 @@ fn native_blockifier(py: Python<'_>, py_module: &PyModule) -> PyResult<()> {
     )?)?;
 
     Ok(())
-}
-
-/// Returns the version that the `blockifier` and `native_blockifier` crates were built with.
-// Assumption: both `blockifier` and `native_blockifier` use `version.workspace` in the package
-// section of their `Cargo.toml`.
-#[pyfunction]
-pub fn blockifier_version() -> PyResult<String> {
-    Ok(env!("CARGO_PKG_VERSION").to_string())
 }
 
 /// Returns the latest Starknet version for versioned constants.
