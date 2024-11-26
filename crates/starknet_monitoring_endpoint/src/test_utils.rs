@@ -9,8 +9,6 @@ use tracing::info;
 
 use crate::monitoring_endpoint::{ALIVE, MONITORING_PREFIX};
 
-// TODO(Tsabary): try avoid having to use http-body crate from the dependencies.
-
 /// Client for querying 'alive' status of an http server.
 pub struct IsAliveClient {
     socket: SocketAddr,

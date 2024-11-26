@@ -7447,7 +7447,6 @@ name = "papyrus_monitoring_gateway"
 version = "0.0.0"
 dependencies = [
  "axum",
- "http-body 0.4.6",
  "hyper 0.14.30",
  "metrics 0.21.1",
  "metrics-exporter-prometheus",
@@ -10558,7 +10557,6 @@ name = "starknet_monitoring_endpoint"
 version = "0.0.0"
 dependencies = [
  "axum",
- "http-body 0.4.6",
  "hyper 0.14.30",
  "papyrus_config",
  "pretty_assertions",

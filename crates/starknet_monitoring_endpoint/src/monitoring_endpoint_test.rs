@@ -1,10 +1,8 @@
 use std::net::IpAddr;
 
-use axum::body::Bytes;
 use axum::http::StatusCode;
 use axum::response::Response;
-use axum::{Error, Router};
-use http_body::combinators::UnsyncBoxBody;
+use axum::Router;
 use hyper::body::to_bytes;
 use hyper::Client;
 use pretty_assertions::assert_eq;
@@ -28,7 +26,7 @@ fn setup_monitoring_endpoint() -> MonitoringEndpoint {
     create_monitoring_endpoint(MonitoringEndpointConfig::default(), TEST_VERSION)
 }
 
-async fn request_app(app: Router, method: &str) -> Response<UnsyncBoxBody<Bytes, Error>> {
+async fn request_app(app: Router, method: &str) -> Response {
     app.oneshot(build_request(&IpAddr::from([0, 0, 0, 0]), 0, method)).await.unwrap()
 }
 
