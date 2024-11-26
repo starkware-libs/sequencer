@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: sequencer-node-deployment
-  namespace: default
+  namespace: test
 spec:
   replicas: 1
   selector:
@@ -25,7 +25,7 @@ spec:
               port: 8082
             periodSeconds: 10
             timeoutSeconds: 5
-          name: sequencer-node-container
+          name: sequencer-node-server
           ports:
             - containerPort: 8080
             - containerPort: 8081
@@ -46,10 +46,10 @@ spec:
             timeoutSeconds: 5
           volumeMounts:
             - mountPath: /config/sequencer/presets/
-              name: sequencer-node-config
+              name: config
               readOnly: true
             - mountPath: /data
-              name: sequencer-node-data
+              name: data
               readOnly: false
       securityContext:
         fsGroup: 1000

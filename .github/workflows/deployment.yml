@@ -31,5 +31,6 @@ jobs:
 
           # Synthesize the CDK8s Sequencer app.
           cd deployments/sequencer
-          cdk8s synth
-          diff -aur references/* dist/*
+          pipenv install
+          cdk8s synth --app "pipenv run python main.py --namespace test"
+          diff -aur references dist

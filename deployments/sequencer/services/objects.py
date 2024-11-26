@@ -1,12 +1,6 @@
 import dataclasses
-
-from typing import Optional, Dict, Any, Mapping, Sequence
-from enum import Enum
-
-
-@dataclasses.dataclass
-class Namespace:
-    pass
+from typing import Optional, List, Dict, Any, Mapping, Sequence
+from services import const
 
 
 @dataclasses.dataclass
@@ -23,17 +17,17 @@ class Probe:
 
 
 @dataclasses.dataclass
-class HealthCheck:
-    startup_probe: Optional[Probe] | None = None
-    readiness_probe: Optional[Probe] | None = None
-    liveness_probe: Optional[Probe] | None = None
+class PortMapping:
+    name: str
+    port: int
+    container_port: int
 
 
 @dataclasses.dataclass
-class ServiceType(Enum):
-    CLUSTER_IP = "ClusterIP"
-    LOAD_BALANCER = "LoadBalancer"
-    NODE_PORT = "NodePort"
+class Service:
+    type: Optional[const.ServiceType]
+    selector: Mapping[str, str]
+    ports: Sequence[PortMapping]
 
 
 @dataclasses.dataclass
@@ -60,19 +54,12 @@ class Config:
 
 
 @dataclasses.dataclass
-class PortMapping:
-    name: str
-    port: int
-    container_port: int
-
-
-@dataclasses.dataclass
 class IngressRuleHttpPath:
     path: Optional[str]
     path_type: str
-    backend_service_name: Optional[str] | None = None
-    backend_service_port_number: Optional[int] | None = None
-    backend_service_port_name: Optional[str] | None = None
+    backend_service_name: str
+    backend_service_port_number: int
+    backend_service_port_name: Optional[str] = None
 
 
 @dataclasses.dataclass
@@ -89,7 +76,51 @@ class IngressTls:
 
 @dataclasses.dataclass
 class Ingress:
-    annotations: Mapping[str, str] | None = None
-    class_name: str | None = None
-    rules: Sequence[IngressRule] | None = None
-    tls: Sequence[IngressTls] | None = None
+    annotations: Mapping[str, str] | None
+    class_name: str | None
+    rules: Sequence[IngressRule] | None
+    tls: Sequence[IngressTls] | None
+
+
+@dataclasses.dataclass
+class VolumeMount:
+    name: str
+    mount_path: str
+    read_only: bool
+
+
+@dataclasses.dataclass
+class ConfigMapVolume:
+    name: str
+
+
+@dataclasses.dataclass
+class PvcVolume:
+    name: str
+    read_only: bool
+
+
+@ dataclasses.dataclass
+class ContainerPort:
+    container_port: int
+
+
+@dataclasses.dataclass
+class Container:
+    name: str
+    image: str
+    args: List[str]
+    ports: Sequence[ContainerPort]
+    startup_probe: Optional[Probe]
+    readiness_probe: Optional[Probe]
+    liveness_probe: Optional[Probe]
+    volume_mounts: Sequence[VolumeMount]
+
+
+@dataclasses.dataclass
+class Deployment:
+    replicas: int
+    annotations: Mapping[str, str] | None
+    containers: Sequence[Container] | None
+    configmap_volumes: Sequence[ConfigMapVolume] | None
+    pvc_volumes: Sequence[PvcVolume] | None

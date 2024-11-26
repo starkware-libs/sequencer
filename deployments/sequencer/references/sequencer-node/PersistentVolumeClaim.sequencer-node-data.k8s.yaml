@@ -4,7 +4,7 @@ metadata:
   labels:
     app: sequencer-node
   name: sequencer-node-data
-  namespace: default
+  namespace: test
 spec:
   accessModes:
     - ReadWriteOnce
