@@ -16,6 +16,7 @@ use serde::de::Error as DeserializationError;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::{Map, Number, Value};
 use starknet_api::block::{GasPrice, StarknetVersion};
+use starknet_api::core::ContractAddress;
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::transaction::fields::GasVectorComputationMode;
 use strum::IntoEnumIterator;
@@ -691,6 +692,7 @@ impl GasCosts {
 pub struct OsConstants {
     pub gas_costs: GasCosts,
     pub validate_rounding_consts: ValidateRoundingConsts,
+    pub os_contract_addresses: OsContractAddresses,
 }
 
 impl OsConstants {
@@ -698,8 +700,7 @@ impl OsConstants {
     // not used by the blockifier but included for transparency. These constanst will be ignored
     // during the creation of the struct containing the gas costs.
 
-    const ADDITIONAL_FIELDS: [&'static str; 29] = [
-        "block_hash_contract_address",
+    const ADDITIONAL_FIELDS: [&'static str; 28] = [
         "constructor_entry_point_selector",
         "default_entry_point_selector",
         "entry_point_type_constructor",
@@ -747,8 +748,36 @@ impl TryFrom<OsConstantsRawJson> for OsConstants {
     fn try_from(raw_json_data: OsConstantsRawJson) -> Result<Self, Self::Error> {
         let gas_costs = GasCosts::try_from(&raw_json_data)?;
         let validate_rounding_consts = raw_json_data.validate_rounding_consts;
-        let os_constants = OsConstants { gas_costs, validate_rounding_consts };
+        let os_contract_addresses = raw_json_data.os_contract_addresses;
+        let os_constants =
+            OsConstants { gas_costs, validate_rounding_consts, os_contract_addresses };
         Ok(os_constants)
+    }
+}
+#[derive(Clone, Copy, Debug, Deserialize)]
+pub struct OsContractAddresses {
+    block_hash_contract_address: u8,
+    alias_contract_address: u8,
+    reserved_contract_address: u8,
+}
+
+impl OsContractAddresses {
+    pub fn block_hash_contract_address(&self) -> ContractAddress {
+        ContractAddress::from(self.block_hash_contract_address)
+    }
+
+    pub fn alias_contract_address(&self) -> ContractAddress {
+        ContractAddress::from(self.alias_contract_address)
+    }
+
+    pub fn reserved_contract_address(&self) -> ContractAddress {
+        ContractAddress::from(self.reserved_contract_address)
+    }
+}
+
+impl Default for OsContractAddresses {
+    fn default() -> Self {
+        VersionedConstants::latest_constants().os_constants.os_contract_addresses
     }
 }
 
@@ -760,6 +789,8 @@ struct OsConstantsRawJson {
     raw_json_file_as_dict: IndexMap<String, Value>,
     #[serde(default)]
     validate_rounding_consts: ValidateRoundingConsts,
+    #[serde(default)]
+    os_contract_addresses: OsContractAddresses,
 }
 
 impl OsConstantsRawJson {
