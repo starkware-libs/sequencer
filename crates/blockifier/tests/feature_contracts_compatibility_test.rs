@@ -1,13 +1,16 @@
 use std::fs;
 
-use blockifier::test_utils::cairo_compile::prepare_group_tag_compiler_deps;
+use blockifier::test_utils::cairo_compile::{
+    prepare_group_tag_compiler_deps,
+    CAIRO1_FEATURE_CONTRACTS_DIR,
+    SIERRA_CONTRACTS_SUBDIR,
+};
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::CairoVersion;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 
 const CAIRO0_FEATURE_CONTRACTS_DIR: &str = "feature_contracts/cairo0";
-const CAIRO1_FEATURE_CONTRACTS_DIR: &str = "feature_contracts/cairo1";
 #[cfg(feature = "cairo_native")]
 const NATIVE_FEATURE_CONTRACTS_DIR: &str = "feature_contracts/cairo_native";
 const COMPILED_CONTRACTS_SUBDIR: &str = "compiled";
@@ -64,7 +67,7 @@ fn verify_feature_contracts_compatibility(fix: bool, cairo_version: CairoVersion
 
 fn verify_feature_contracts_compatibility_logic(contract: &FeatureContract, fix: bool) {
     // Compare output of cairo-file on file with existing compiled file.
-    let expected_compiled_output = contract.compile();
+    let expected_compiled_output = contract.compile(fix);
     let existing_compiled_path = contract.get_compiled_path();
 
     if fix {
@@ -84,7 +87,7 @@ fn verify_feature_contracts_compatibility_logic(contract: &FeatureContract, fix:
 
 /// Verifies that the feature contracts directory contains the expected contents, and returns a list
 /// of pairs (source_path, base_filename, compiled_path) for each contract.
-fn verify_and_get_files(cairo_version: CairoVersion) -> Vec<(String, String, String)> {
+fn verify_and_get_files(cairo_version: CairoVersion) -> Vec<(String, String, String, String)> {
     let mut paths = vec![];
     let directory = match cairo_version {
         CairoVersion::Cairo0 => CAIRO0_FEATURE_CONTRACTS_DIR,
@@ -104,11 +107,10 @@ fn verify_and_get_files(cairo_version: CairoVersion) -> Vec<(String, String, Str
         // Verify `TEST_CONTRACTS` file and directory structure.
         if !path.is_file() {
             if let Some(dir_name) = path.file_name() {
-                assert_eq!(
-                    dir_name,
-                    COMPILED_CONTRACTS_SUBDIR,
+                assert!(
+                    dir_name == COMPILED_CONTRACTS_SUBDIR || dir_name == SIERRA_CONTRACTS_SUBDIR,
                     "Found directory '{}' in `{directory}`, which should contain only the \
-                     `{COMPILED_CONTRACTS_SUBDIR}` directory.",
+                     `{COMPILED_CONTRACTS_SUBDIR}` or `{SIERRA_CONTRACTS_SUBDIR}` directory.",
                     dir_name.to_string_lossy()
                 );
                 continue;
@@ -122,10 +124,20 @@ fn verify_and_get_files(cairo_version: CairoVersion) -> Vec<(String, String, Str
         );
 
         let file_name = path.file_stem().unwrap().to_string_lossy();
+        let mut existing_sierra_path = "".to_string();
+        if cairo_version == CairoVersion::Cairo1 {
+            existing_sierra_path =
+                format!("{directory}/{SIERRA_CONTRACTS_SUBDIR}/{file_name}.sierra.json");
+        }
         let existing_compiled_path =
             format!("{directory}/{COMPILED_CONTRACTS_SUBDIR}/{file_name}{compiled_extension}");
 
-        paths.push((path_str.to_string(), file_name.to_string(), existing_compiled_path));
+        paths.push((
+            path_str.to_string(),
+            file_name.to_string(),
+            existing_compiled_path,
+            existing_sierra_path,
+        ));
     }
 
     paths
@@ -136,14 +148,28 @@ fn verify_feature_contracts_match_enum() {
     let mut compiled_paths_from_enum: Vec<String> = FeatureContract::all_feature_contracts()
         .map(|contract| contract.get_compiled_path())
         .collect();
-    let mut compiled_paths_on_filesystem: Vec<String> = verify_and_get_files(CairoVersion::Cairo0)
+    let (mut compiled_paths_on_filesystem, mut sierra_paths_on_filesystem): (
+        Vec<String>,
+        Vec<String>,
+    ) = verify_and_get_files(CairoVersion::Cairo0)
         .into_iter()
         .chain(verify_and_get_files(CairoVersion::Cairo1))
-        .map(|(_, _, compiled_path)| compiled_path)
-        .collect();
+        .map(|(_, _, compiled_path, sierra_path)| (compiled_path, sierra_path))
+        .unzip();
     compiled_paths_from_enum.sort();
     compiled_paths_on_filesystem.sort();
     assert_eq!(compiled_paths_from_enum, compiled_paths_on_filesystem);
+
+    let mut sierra_paths_from_enum: Vec<String> = FeatureContract::all_feature_contracts()
+        .filter(|contract| contract.cairo_version() == CairoVersion::Cairo1)
+        .map(|contract| contract.get_sierra_path())
+        .collect();
+    sierra_paths_from_enum.sort();
+    sierra_paths_on_filesystem =
+        sierra_paths_on_filesystem.iter().filter(|s| !s.is_empty()).cloned().collect();
+    sierra_paths_on_filesystem.sort();
+
+    assert_eq!(sierra_paths_from_enum, sierra_paths_on_filesystem);
 }
 
 // todo(rdr): find the right way to feature verify native contracts as well

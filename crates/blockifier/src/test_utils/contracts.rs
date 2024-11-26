@@ -290,6 +290,10 @@ impl FeatureContract {
         }
     }
 
+    pub fn get_sierra_path(&self) -> String {
+        format!("feature_contracts/cairo1/sierra/{}.sierra.json", self.get_non_erc20_base_name())
+    }
+
     pub fn get_compiled_path(&self) -> String {
         // ERC20 is a special case - not in the feature_contracts directory.
         if let Self::ERC20(cairo_version) = self {
@@ -308,7 +312,7 @@ impl FeatureContract {
                     CairoVersion::Cairo0 => "0",
                     CairoVersion::Cairo1 => "1",
                     #[cfg(feature = "cairo_native")]
-                    CairoVersion::Native => "_native",
+                    CairoVersion::Native => "1",
                 },
                 self.get_non_erc20_base_name(),
                 match cairo_version {
@@ -323,7 +327,7 @@ impl FeatureContract {
 
     /// Compiles the feature contract and returns the compiled contract as a byte vector.
     /// Panics if the contract is ERC20, as ERC20 contract recompilation is not supported.
-    pub fn compile(&self) -> Vec<u8> {
+    pub fn compile(&self, fix: bool) -> Vec<u8> {
         if matches!(self, Self::ERC20(_)) {
             panic!("ERC20 contract recompilation not supported.");
         }
@@ -347,7 +351,7 @@ impl FeatureContract {
             }
             CairoVersion::Cairo1 => {
                 let (tag_override, cargo_nightly_arg) = self.fixed_tag_and_rust_toolchain();
-                cairo1_compile(self.get_source_path(), tag_override, cargo_nightly_arg)
+                cairo1_compile(self.get_source_path(), tag_override, cargo_nightly_arg, fix)
             }
             #[cfg(feature = "cairo_native")]
             CairoVersion::Native => {
