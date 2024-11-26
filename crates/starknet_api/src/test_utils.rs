@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::to_string_pretty;
 use starknet_types_core::felt::Felt;
 
-use crate::block::{BlockNumber, GasPrice, NonzeroGasPrice};
+use crate::block::{BlockNumber, GasPrice, GasPriceVector, GasPrices, NonzeroGasPrice};
 use crate::core::{ChainId, ContractAddress, Nonce};
 use crate::execution_resources::GasAmount;
 use crate::rpc_transaction::RpcTransaction;
@@ -135,8 +135,23 @@ pub const DEFAULT_ETH_L1_DATA_GAS_PRICE: NonzeroGasPrice =
     NonzeroGasPrice::new_unchecked(GasPrice(u128::pow(10, 6))); // Given in units of Wei.
 pub const DEFAULT_STRK_L1_DATA_GAS_PRICE: NonzeroGasPrice =
     NonzeroGasPrice::new_unchecked(GasPrice(u128::pow(10, 9))); // Given in units of STRK.
+pub const DEFAULT_ETH_L2_GAS_PRICE: NonzeroGasPrice =
+    NonzeroGasPrice::new_unchecked(GasPrice(25 * u128::pow(10, 5)));
 pub const DEFAULT_STRK_L2_GAS_PRICE: NonzeroGasPrice =
     NonzeroGasPrice::new_unchecked(GasPrice(25 * u128::pow(10, 5)));
+
+pub const DEFAULT_GAS_PRICES: GasPrices = GasPrices {
+    eth_gas_prices: GasPriceVector {
+        l1_gas_price: DEFAULT_ETH_L1_GAS_PRICE,
+        l2_gas_price: DEFAULT_ETH_L2_GAS_PRICE,
+        l1_data_gas_price: DEFAULT_ETH_L1_DATA_GAS_PRICE,
+    },
+    strk_gas_prices: GasPriceVector {
+        l1_gas_price: DEFAULT_STRK_L1_GAS_PRICE,
+        l2_gas_price: DEFAULT_STRK_L2_GAS_PRICE,
+        l1_data_gas_price: DEFAULT_STRK_L1_DATA_GAS_PRICE,
+    },
+};
 
 // Deprecated transactions:
 pub const MAX_FEE: Fee = DEFAULT_L1_GAS_AMOUNT.nonzero_saturating_mul(DEFAULT_ETH_L1_GAS_PRICE);
