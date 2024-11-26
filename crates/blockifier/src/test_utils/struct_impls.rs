@@ -10,19 +10,12 @@ use cairo_lang_starknet_classes::contract_class::ContractClass as SierraContract
 #[cfg(feature = "cairo_native")]
 use cairo_native::executor::AotContractExecutor;
 use serde_json::Value;
-use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp, NonzeroGasPrice};
+use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp};
 use starknet_api::contract_address;
 use starknet_api::core::{ChainId, ClassHash};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
-use starknet_api::test_utils::{DEFAULT_ETH_L1_DATA_GAS_PRICE, DEFAULT_ETH_L1_GAS_PRICE};
+use starknet_api::test_utils::DEFAULT_GAS_PRICES;
 
-use super::{
-    update_json_value,
-    TEST_ERC20_CONTRACT_ADDRESS,
-    TEST_ERC20_CONTRACT_ADDRESS2,
-    TEST_SEQUENCER_ADDRESS,
-};
-use crate::blockifier::block::validated_gas_prices;
 use crate::bouncer::{BouncerConfig, BouncerWeights, BuiltinCount};
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
@@ -39,10 +32,12 @@ use crate::execution::native::contract_class::NativeCompiledClassV1;
 use crate::state::state_api::State;
 use crate::test_utils::{
     get_raw_contract_class,
+    update_json_value,
     CURRENT_BLOCK_NUMBER,
     CURRENT_BLOCK_TIMESTAMP,
-    DEFAULT_STRK_L1_DATA_GAS_PRICE,
-    DEFAULT_STRK_L1_GAS_PRICE,
+    TEST_ERC20_CONTRACT_ADDRESS,
+    TEST_ERC20_CONTRACT_ADDRESS2,
+    TEST_SEQUENCER_ADDRESS,
 };
 use crate::transaction::objects::{
     CurrentTransactionInfo,
@@ -156,22 +151,7 @@ impl BlockInfoExt for BlockInfo {
             block_number: BlockNumber(CURRENT_BLOCK_NUMBER),
             block_timestamp: BlockTimestamp(CURRENT_BLOCK_TIMESTAMP),
             sequencer_address: contract_address!(TEST_SEQUENCER_ADDRESS),
-            gas_prices: validated_gas_prices(
-                DEFAULT_ETH_L1_GAS_PRICE,
-                DEFAULT_STRK_L1_GAS_PRICE,
-                DEFAULT_ETH_L1_DATA_GAS_PRICE,
-                DEFAULT_STRK_L1_DATA_GAS_PRICE,
-                NonzeroGasPrice::new(
-                    VersionedConstants::latest_constants()
-                        .convert_l1_to_l2_gas_price_round_up(DEFAULT_ETH_L1_GAS_PRICE.into()),
-                )
-                .unwrap(),
-                NonzeroGasPrice::new(
-                    VersionedConstants::latest_constants()
-                        .convert_l1_to_l2_gas_price_round_up(DEFAULT_STRK_L1_GAS_PRICE.into()),
-                )
-                .unwrap(),
-            ),
+            gas_prices: DEFAULT_GAS_PRICES,
             use_kzg_da: false,
         }
     }
