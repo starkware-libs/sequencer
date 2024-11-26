@@ -1,3 +1,5 @@
+use std::sync::LazyLock;
+
 use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
@@ -47,9 +49,10 @@ mod transaction_test;
 pub mod constants;
 pub mod fields;
 
-// TODO(Noa, 14/11/2023): Replace QUERY_VERSION_BASE_BIT with a lazy calculation.
-//      pub static QUERY_VERSION_BASE: Lazy<Felt> = ...
-pub const QUERY_VERSION_BASE_BIT: u32 = 128;
+pub static QUERY_VERSION_BASE: LazyLock<Felt> = LazyLock::new(|| {
+    const QUERY_VERSION_BASE_BIT: u32 = 128;
+    Felt::TWO.pow(QUERY_VERSION_BASE_BIT)
+});
 
 pub trait TransactionHasher {
     fn calculate_transaction_hash(
@@ -834,7 +837,7 @@ pub fn signed_tx_version(
     transaction_options: &TransactionOptions,
 ) -> TransactionVersion {
     // If only_query is true, set the 128-th bit.
-    let query_only_bit = Felt::TWO.pow(QUERY_VERSION_BASE_BIT);
+    let query_only_bit = *QUERY_VERSION_BASE;
     assert_eq!(
         tx_version.0.to_biguint() & query_only_bit.to_biguint(),
         BigUint::from(0_u8),

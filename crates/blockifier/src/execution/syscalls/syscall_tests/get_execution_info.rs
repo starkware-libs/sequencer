@@ -1,5 +1,3 @@
-use cairo_vm::Felt252;
-use num_traits::Pow;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::GasPrice;
 use starknet_api::core::ChainId;
@@ -15,7 +13,7 @@ use starknet_api::transaction::fields::{
     Tip,
     ValidResourceBounds,
 };
-use starknet_api::transaction::{TransactionHash, TransactionVersion, QUERY_VERSION_BASE_BIT};
+use starknet_api::transaction::{TransactionHash, TransactionVersion, QUERY_VERSION_BASE};
 use starknet_api::{felt, nonce};
 use starknet_types_core::felt::Felt;
 use test_case::test_case;
@@ -197,7 +195,7 @@ fn test_get_execution_info(
     };
 
     if only_query {
-        let simulate_version_base = Pow::pow(Felt252::from(2_u8), QUERY_VERSION_BASE_BIT);
+        let simulate_version_base = *QUERY_VERSION_BASE;
         let query_version = simulate_version_base + version.0;
         version = TransactionVersion(query_version);
     }

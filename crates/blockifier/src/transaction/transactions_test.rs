@@ -5,7 +5,6 @@ use assert_matches::assert_matches;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use num_bigint::BigUint;
-use num_traits::Pow;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::abi::abi_utils::{
@@ -40,7 +39,7 @@ use starknet_api::transaction::{
     EventKey,
     L2ToL1Payload,
     TransactionVersion,
-    QUERY_VERSION_BASE_BIT,
+    QUERY_VERSION_BASE,
 };
 use starknet_api::{
     calldata,
@@ -2159,8 +2158,7 @@ fn test_only_query_flag(
     );
     let mut version = Felt::from(3_u8);
     if only_query {
-        let query_version_base = Felt::TWO.pow(QUERY_VERSION_BASE_BIT);
-        version += query_version_base;
+        version += *QUERY_VERSION_BASE;
     }
     let sender_address = account.get_instance_address(0);
     let test_contract_address = test_contract.get_instance_address(0);
