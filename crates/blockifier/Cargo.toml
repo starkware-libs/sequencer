@@ -32,6 +32,7 @@ cairo-native = { workspace = true, optional = true }
 cairo-vm.workspace = true
 derive_more.workspace = true
 indexmap.workspace = true
+infra_utils.workspace = true
 itertools.workspace = true
 keccak.workspace = true
 log.workspace = true
@@ -68,6 +69,9 @@ regex.workspace = true
 rstest.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 test-case.workspace = true
+
+[build-dependencies]
+infra_utils.workspace = true
 
 [[bench]]
 harness = false
