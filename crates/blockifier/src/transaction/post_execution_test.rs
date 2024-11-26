@@ -44,6 +44,7 @@ use crate::transaction::test_utils::{
     TestInitData,
 };
 use crate::transaction::transactions::ExecutableTransaction;
+use crate::versioned_constants::AllocationCost;
 
 fn init_data_by_version(chain_info: &ChainInfo, cairo_version: CairoVersion) -> TestInitData {
     let test_contract = FeatureContract::TestContract(cairo_version);
@@ -86,11 +87,12 @@ fn calldata_for_write_and_transfer(
 fn test_revert_on_overdraft(
     max_fee: Fee,
     default_all_resource_bounds: ValidResourceBounds,
-    block_context: BlockContext,
+    mut block_context: BlockContext,
     #[case] version: TransactionVersion,
     #[case] fee_type: FeeType,
     #[values(CairoVersion::Cairo0)] cairo_version: CairoVersion,
 ) {
+    block_context.versioned_constants.allocation_cost = AllocationCost::ZERO;
     let chain_info = &block_context.chain_info;
     let fee_token_address = chain_info.fee_token_addresses.get_by_fee_type(&fee_type);
     // An address to be written into to observe state changes.
@@ -267,6 +269,7 @@ fn test_revert_on_resource_overuse(
     #[values(CairoVersion::Cairo0)] cairo_version: CairoVersion,
 ) {
     block_context.block_info.use_kzg_da = true;
+    block_context.versioned_constants.allocation_cost = AllocationCost::ZERO;
     let gas_mode = resource_bounds.get_gas_vector_computation_mode();
     let fee_type = if version == TransactionVersion::THREE { FeeType::Strk } else { FeeType::Eth };
     let gas_prices = block_context.block_info.gas_prices.get_gas_prices_by_fee_type(&fee_type);
