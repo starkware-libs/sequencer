@@ -28,7 +28,7 @@ use papyrus_protobuf::consensus::{
     TransactionBatch,
     Vote,
 };
-use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
+use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockInfo, BlockNumber};
 use starknet_api::executable_transaction::Transaction;
 use starknet_batcher_types::batcher_types::{
     DecisionReachedInput,
@@ -132,7 +132,7 @@ impl ConsensusContext for SequencerConsensusContext {
                 hash: BlockHash::default(),
             }),
             // TODO(Dan, Matan): Fill block info.
-            block_info: Default::default(),
+            block_info: BlockInfo { block_number: proposal_init.height, ..Default::default() },
         };
         // TODO: Should we be returning an error?
         // I think this implies defining an error type in this crate and moving the trait definition
@@ -310,7 +310,7 @@ impl SequencerConsensusContext {
                 hash: BlockHash::default(),
             }),
             // TODO(Dan, Matan): Fill block info.
-            block_info: Default::default(),
+            block_info: BlockInfo { block_number: height, ..Default::default() },
         };
         batcher.validate_block(input).await.expect("Failed to initiate proposal validation");
 
