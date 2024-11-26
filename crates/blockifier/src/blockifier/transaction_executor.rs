@@ -68,6 +68,7 @@ impl<S: StateReader> TransactionExecutor<S> {
             &mut block_state,
             old_block_number_and_hash,
             block_context.block_info().block_number,
+            &block_context.versioned_constants.os_constants,
         )?;
         Ok(Self::new(block_state, block_context, config))
     }

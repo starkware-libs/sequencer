@@ -97,8 +97,14 @@ impl<'state> SyscallHandlerBase<'state> {
         }
 
         let key = StorageKey::try_from(Felt::from(requested_block_number))?;
-        let block_hash_contract_address =
-            ContractAddress::try_from(Felt::from(constants::BLOCK_HASH_CONTRACT_ADDRESS))?;
+        let block_hash_contract_address = self
+            .context
+            .tx_context
+            .block_context
+            .versioned_constants
+            .os_constants
+            .os_contract_addresses
+            .block_hash_contract_address();
         Ok(self.state.get_storage_at(block_hash_contract_address, key)?)
     }
 
