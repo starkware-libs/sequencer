@@ -10,9 +10,9 @@ use mockall::predicate::eq;
 use mockall::Sequence;
 use rstest::rstest;
 use starknet_api::executable_transaction::Transaction;
-use starknet_api::felt;
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::TransactionHash;
+use starknet_api::tx_hash;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 use crate::block_builder::{
@@ -247,8 +247,8 @@ fn transaction_failed_test_expectations() -> TestExpectations {
     });
 
     let execution_infos_mapping = indexmap![
-        TransactionHash(felt!(u8::try_from(0).unwrap()))=> execution_info(),
-        TransactionHash(felt!(u8::try_from(2).unwrap()))=> execution_info(),
+        tx_hash!(0)=> execution_info(),
+        tx_hash!(2)=> execution_info(),
     ];
     let expected_block_artifacts = block_execution_artifacts(execution_infos_mapping);
     let expected_block_artifacts_copy = expected_block_artifacts.clone();
@@ -275,7 +275,7 @@ fn transaction_failed_test_expectations() -> TestExpectations {
 fn block_builder_expected_output(execution_info_len: usize) -> BlockExecutionArtifacts {
     let execution_info_len_u8 = u8::try_from(execution_info_len).unwrap();
     let execution_infos_mapping =
-        (0..execution_info_len_u8).map(|i| (TransactionHash(felt!(i)), execution_info())).collect();
+        (0..execution_info_len_u8).map(|i| (tx_hash!(i), execution_info())).collect();
     block_execution_artifacts(execution_infos_mapping)
 }
 

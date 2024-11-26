@@ -10,17 +10,13 @@ use crate::block_hash::receipt_commitment::{
 };
 use crate::block_hash::test_utils::{generate_message_to_l1, get_transaction_output};
 use crate::core::ReceiptCommitment;
-use crate::felt;
-use crate::transaction::{
-    RevertedTransactionExecutionStatus,
-    TransactionExecutionStatus,
-    TransactionHash,
-};
+use crate::transaction::{RevertedTransactionExecutionStatus, TransactionExecutionStatus};
+use crate::{felt, tx_hash};
 
 #[test]
 fn test_receipt_hash_regression() {
     let transaction_receipt = ReceiptElement {
-        transaction_hash: TransactionHash(Felt::from(1234_u16)),
+        transaction_hash: tx_hash!(1234),
         transaction_output: get_transaction_output(),
     };
 

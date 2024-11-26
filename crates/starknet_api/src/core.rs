@@ -413,6 +413,15 @@ macro_rules! contract_address {
     };
 }
 
+/// A utility macro to create a [`TransactionHash`] from an unsigned integer representation.
+#[cfg(any(feature = "testing", test))]
+#[macro_export]
+macro_rules! tx_hash {
+    ($tx_hash:expr) => {
+        $crate::transaction::TransactionHash($crate::hash::StarkHash::from($tx_hash))
+    };
+}
+
 /// An Ethereum address.
 #[derive(
     Debug, Copy, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord,

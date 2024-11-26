@@ -68,7 +68,6 @@ use starknet_api::deprecated_contract_class::{
     FunctionAbiEntry,
     FunctionStateMutability,
 };
-use starknet_api::hash::StarkHash;
 use starknet_api::state::{SierraContractClass as StarknetApiContractClass, StateDiff};
 use starknet_api::transaction::{
     Event as StarknetApiEvent,
@@ -81,7 +80,7 @@ use starknet_api::transaction::{
     TransactionOffsetInBlock,
     TransactionOutput as StarknetApiTransactionOutput,
 };
-use starknet_api::{class_hash, contract_address, felt, storage_key};
+use starknet_api::{class_hash, contract_address, felt, storage_key, tx_hash};
 use starknet_client::reader::objects::pending_data::{
     DeprecatedPendingBlock,
     PendingBlockOrDeprecated,
@@ -1350,7 +1349,7 @@ async fn get_transaction_status() {
     call_api_then_assert_and_validate_schema_for_err::<_, TransactionStatus>(
         &module,
         method_name,
-        vec![Box::new(TransactionHash(StarkHash::from(1_u8)))],
+        vec![Box::new(tx_hash!(1))],
         &VERSION,
         SpecFile::StarknetApiOpenrpc,
         &TRANSACTION_HASH_NOT_FOUND.into(),
@@ -1474,7 +1473,7 @@ async fn get_transaction_receipt() {
     call_api_then_assert_and_validate_schema_for_err::<_, TransactionReceipt>(
         &module,
         method_name,
-        vec![Box::new(TransactionHash(StarkHash::from(1_u8)))],
+        vec![Box::new(tx_hash!(1))],
         &VERSION,
         SpecFile::StarknetApiOpenrpc,
         &TRANSACTION_HASH_NOT_FOUND.into(),
@@ -2202,7 +2201,7 @@ async fn get_storage_at() {
 fn generate_client_transaction_client_receipt_rpc_transaction_and_rpc_receipt(
     rng: &mut ChaCha8Rng,
 ) -> (ClientTransaction, ClientTransactionReceipt, Transaction, PendingTransactionReceipt) {
-    let pending_transaction_hash = TransactionHash(StarkHash::from(rng.next_u64()));
+    let pending_transaction_hash = tx_hash!(rng.next_u64());
     let mut client_transaction_receipt = ClientTransactionReceipt::get_test_instance(rng);
     client_transaction_receipt.transaction_hash = pending_transaction_hash;
     client_transaction_receipt.execution_resources.n_memory_holes = 1;
@@ -2279,7 +2278,7 @@ async fn get_transaction_by_hash() {
     let mut block = get_test_block(1, None, None, None);
     // Change the transaction hash from 0 to a random value, so that later on we can add a
     // transaction with 0 hash to the pending block.
-    block.body.transaction_hashes[0] = TransactionHash(StarkHash::from(random::<u64>()));
+    block.body.transaction_hashes[0] = tx_hash!(random::<u64>());
     storage_writer
         .begin_rw_txn()
         .unwrap()
@@ -2333,7 +2332,7 @@ async fn get_transaction_by_hash() {
     call_api_then_assert_and_validate_schema_for_err::<_, TransactionWithHash>(
         &module,
         method_name,
-        vec![Box::new(TransactionHash(StarkHash::from(1_u8)))],
+        vec![Box::new(tx_hash!(1))],
         &VERSION,
         SpecFile::StarknetApiOpenrpc,
         &TRANSACTION_HASH_NOT_FOUND.into(),
@@ -2344,7 +2343,7 @@ async fn get_transaction_by_hash() {
 #[tokio::test]
 async fn get_transaction_by_hash_state_only() {
     let method_name = "starknet_V0_8_getTransactionByHash";
-    let params = [TransactionHash(StarkHash::from(1_u8))];
+    let params = [tx_hash!(1)];
     let (module, _) = get_test_rpc_server_and_storage_writer_from_params::<JsonRpcServerImpl>(
         None,
         None,
@@ -2736,7 +2735,7 @@ impl BlockMetadata {
         block.header.block_hash = BlockHash(rng.next_u64().into());
         // Randomize the transaction hashes because get_test_block returns constant hashes
         for transaction_hash in &mut block.body.transaction_hashes {
-            *transaction_hash = TransactionHash(rng.next_u64().into());
+            *transaction_hash = tx_hash!(rng.next_u64());
         }
 
         for (output, event_metadatas_of_tx) in
@@ -2761,9 +2760,8 @@ impl BlockMetadata {
         rng: &mut ChaCha8Rng,
         parent_hash: BlockHash,
     ) -> PendingBlockOrDeprecated {
-        let transaction_hashes = iter::repeat_with(|| TransactionHash(rng.next_u64().into()))
-            .take(self.0.len())
-            .collect::<Vec<_>>();
+        let transaction_hashes =
+            iter::repeat_with(|| tx_hash!(rng.next_u64())).take(self.0.len()).collect::<Vec<_>>();
         PendingBlockOrDeprecated::Deprecated(DeprecatedPendingBlock {
             parent_block_hash: parent_hash,
             transactions: transaction_hashes
