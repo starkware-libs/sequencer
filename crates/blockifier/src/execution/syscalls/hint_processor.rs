@@ -14,7 +14,6 @@ use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::runners::cairo_runner::{ResourceTracker, RunResources};
 use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
-use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::{
     AllResourceBounds,
     Calldata,
@@ -64,7 +63,6 @@ use crate::execution::syscalls::{
     sha_256_process_block,
     storage_read,
     storage_write,
-    StorageReadResponse,
     SyscallRequest,
     SyscallRequestWrapper,
     SyscallResponse,
@@ -629,17 +627,6 @@ impl<'a> SyscallHintProcessor<'a> {
 
         let tx_info_start_ptr = self.read_only_segments.allocate(vm, &tx_data)?;
         Ok(tx_info_start_ptr)
-    }
-
-    pub fn get_contract_storage_at(
-        &mut self,
-        key: StorageKey,
-    ) -> SyscallResult<StorageReadResponse> {
-        self.base.accessed_keys.insert(key);
-        let value = self.base.state.get_storage_at(self.storage_address(), key)?;
-        self.base.read_values.push(value);
-
-        Ok(StorageReadResponse { value })
     }
 
     pub fn finalize(&mut self) {

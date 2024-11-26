@@ -30,7 +30,7 @@ use starknet_api::transaction::fields::{Calldata, ContractAddressSalt};
 use starknet_api::transaction::{EventContent, EventData, EventKey, L2ToL1Payload};
 use starknet_types_core::felt::Felt;
 
-use crate::execution::call_info::{MessageToL1, OrderedEvent, OrderedL2ToL1Message, Retdata};
+use crate::execution::call_info::{MessageToL1, OrderedL2ToL1Message, Retdata};
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::contract_class::RunnableContractClass;
 use crate::execution::entry_point::{
@@ -43,7 +43,6 @@ use crate::execution::errors::EntryPointExecutionError;
 use crate::execution::execution_utils::execute_deployment;
 use crate::execution::native::utils::{calculate_resource_bounds, default_tx_v2_info};
 use crate::execution::secp;
-use crate::execution::syscalls::exceeds_event_size_limit;
 use crate::execution::syscalls::hint_processor::{
     SyscallExecutionError,
     INVALID_INPUT_LENGTH_ERROR,
@@ -441,12 +440,7 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
         let key = StorageKey::try_from(address)
             .map_err(|e| self.handle_error(remaining_gas, e.into()))?;
 
-        let read_result = self.base.state.get_storage_at(self.base.call.storage_address, key);
-        let value = read_result.map_err(|e| self.handle_error(remaining_gas, e.into()))?;
-
-        self.base.accessed_keys.insert(key);
-        self.base.read_values.push(value);
-
+        let value = self.base.storage_read(key).map_err(|e| self.handle_error(remaining_gas, e))?;
         Ok(value)
     }
 
@@ -480,22 +474,12 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
     ) -> SyscallResult<()> {
         self.pre_execute_syscall(remaining_gas, self.gas_costs().emit_event_gas_cost)?;
 
-        let order = self.base.context.n_emitted_events;
         let event = EventContent {
             keys: keys.iter().copied().map(EventKey).collect(),
             data: EventData(data.to_vec()),
         };
 
-        exceeds_event_size_limit(
-            self.base.context.versioned_constants(),
-            self.base.context.n_emitted_events + 1,
-            &event,
-        )
-        .map_err(|e| self.handle_error(remaining_gas, e.into()))?;
-
-        self.base.events.push(OrderedEvent { order, event });
-        self.base.context.n_emitted_events += 1;
-
+        self.base.emit_event(event).map_err(|e| self.handle_error(remaining_gas, e))?;
         Ok(())
     }
 
