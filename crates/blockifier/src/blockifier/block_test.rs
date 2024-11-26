@@ -10,11 +10,13 @@ use crate::state::state_api::StateReader;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{CairoVersion, BALANCE};
+use crate::versioned_constants::VersionedConstants;
 
 #[test]
 fn test_pre_process_block() {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1);
     let mut state = test_state(&ChainInfo::create_for_testing(), BALANCE, &[(test_contract, 1)]);
+    let os_constants = VersionedConstants::create_for_testing().os_constants;
 
     // Test the positive flow of pre_process_block inside the allowed block number interval
     let block_number = BlockNumber(constants::STORED_BLOCK_HASH_BUFFER);
@@ -23,11 +25,12 @@ fn test_pre_process_block() {
         &mut state,
         Some(BlockHashAndNumber { hash: BlockHash(block_hash), number: block_number }),
         block_number,
+        &os_constants,
     )
     .unwrap();
 
     let written_hash = state.get_storage_at(
-        ContractAddress::from(constants::BLOCK_HASH_CONTRACT_ADDRESS),
+        ContractAddress::from(os_constants.os_contract_addresses.block_hash_contract_address),
         StorageKey::from(block_number.0),
     );
     assert_eq!(written_hash.unwrap(), block_hash);
@@ -35,10 +38,10 @@ fn test_pre_process_block() {
     // Test that block pre-process with block hash None is successful only within the allowed
     // block number interval.
     let block_number = BlockNumber(constants::STORED_BLOCK_HASH_BUFFER - 1);
-    assert!(pre_process_block(&mut state, None, block_number).is_ok());
+    assert!(pre_process_block(&mut state, None, block_number, &os_constants).is_ok());
 
     let block_number = BlockNumber(constants::STORED_BLOCK_HASH_BUFFER);
-    let error = pre_process_block(&mut state, None, block_number);
+    let error = pre_process_block(&mut state, None, block_number, &os_constants);
     assert_eq!(
         format!(
             "A block hash must be provided for block number > {}.",

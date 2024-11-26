@@ -57,7 +57,6 @@
         "validate_deploy_entry_point_selector": "0x36fcbf06cd96843058359e1a75928beacfac10727dab22a3972f0af8aa92895",
         "transfer_entry_point_selector": "0x83afd3f4caedc6eebf44246fe54e38c95e3179a5ec9ea81740eca5b482d12e",
         "default_entry_point_selector": 0,
-        "block_hash_contract_address": 1,
         "stored_block_hash_buffer": 10,
         "step_gas_cost": 100,
         "range_check_gas_cost": 70,
@@ -67,6 +66,11 @@
         "poseidon_gas_cost": 0,
         "add_mod_gas_cost": 0,
         "mul_mod_gas_cost": 0,
+        "os_contract_addresses": {
+            "block_hash_contract_address": 1,
+            "alias_contract_address": 2,
+            "reserved_contract_address": 3
+        },
         "memory_hole_gas_cost": 10,
         "default_initial_gas_cost": {
             "step_gas_cost": 100000000

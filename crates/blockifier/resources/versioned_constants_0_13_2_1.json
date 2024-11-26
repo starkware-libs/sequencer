@@ -44,7 +44,6 @@
     "enable_reverts": false,
     "segment_arena_cells": false,
     "os_constants": {
-        "block_hash_contract_address": 1,
         "call_contract_gas_cost": {
             "entry_point_gas_cost": 1,
             "step_gas_cost": 10,
@@ -113,6 +112,11 @@
         },
         "memory_hole_gas_cost": 10,
         "nop_entry_point_offset": -1,
+        "os_contract_addresses": {
+            "block_hash_contract_address": 1,
+            "alias_contract_address": 2,
+            "reserved_contract_address": 3
+        },
         "range_check_gas_cost": 70,
         "pedersen_gas_cost": 0,
         "bitwise_builtin_gas_cost": 594,

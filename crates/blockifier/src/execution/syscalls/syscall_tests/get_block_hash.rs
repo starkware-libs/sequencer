@@ -22,6 +22,7 @@ use crate::test_utils::{
     BALANCE,
     CURRENT_BLOCK_NUMBER,
 };
+use crate::versioned_constants::VersionedConstants;
 use crate::{check_entry_point_execution_error_for_custom_hint, retdata};
 
 fn initialize_state(test_contract: FeatureContract) -> (CachedState<DictStateReader>, Felt, Felt) {
@@ -33,8 +34,12 @@ fn initialize_state(test_contract: FeatureContract) -> (CachedState<DictStateRea
     let block_number = felt!(upper_bound_block_number);
     let block_hash = felt!(66_u64);
     let key = StorageKey::try_from(block_number).unwrap();
-    let block_hash_contract_address =
-        ContractAddress::try_from(Felt::from(constants::BLOCK_HASH_CONTRACT_ADDRESS)).unwrap();
+    let block_hash_contract_address = ContractAddress::from(
+        VersionedConstants::create_for_testing()
+            .os_constants
+            .os_contract_addresses
+            .block_hash_contract_address,
+    );
     state.set_storage_at(block_hash_contract_address, key, block_hash).unwrap();
 
     (state, block_number, block_hash)
