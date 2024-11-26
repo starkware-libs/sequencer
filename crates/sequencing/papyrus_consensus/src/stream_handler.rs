@@ -4,6 +4,8 @@ use std::cmp::Ordering;
 use std::collections::btree_map::Entry as BTreeEntry;
 use std::collections::hash_map::Entry as HashMapEntry;
 use std::collections::{BTreeMap, HashMap};
+use std::fmt::{Debug, Display};
+use std::hash::Hash;
 
 use futures::channel::mpsc;
 use futures::StreamExt;
@@ -23,24 +25,31 @@ use tracing::{instrument, warn};
 mod stream_handler_test;
 
 type PeerId = OpaquePeerId;
-type StreamId = u64;
+// type StreamId = u64;
 type MessageId = u64;
-type StreamKey = (PeerId, StreamId);
+// type StreamKey = (PeerId, StreamId);
 
 const CHANNEL_BUFFER_LENGTH: usize = 100;
 
 #[derive(Debug, Clone)]
-struct StreamData<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> {
+struct StreamData<
+    T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>,
+    StreamId: Into<Vec<u8>> + From<Vec<u8>> + Eq + Hash + Clone + Unpin + Display + Debug,
+> {
     next_message_id: MessageId,
     // Last message ID. If None, it means we have not yet gotten to it.
     fin_message_id: Option<MessageId>,
     max_message_id_received: MessageId,
     sender: mpsc::Sender<T>,
     // A buffer for messages that were received out of order.
-    message_buffer: BTreeMap<MessageId, StreamMessage<T>>,
+    message_buffer: BTreeMap<MessageId, StreamMessage<T, StreamId>>,
 }
 
-impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> StreamData<T> {
+impl<
+    T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>,
+    StreamId: Into<Vec<u8>> + From<Vec<u8>> + Eq + Hash + Clone + Unpin + Display + Debug,
+> StreamData<T, StreamId>
+{
     fn new(sender: mpsc::Sender<T>) -> Self {
         StreamData {
             next_message_id: 0,
@@ -57,16 +66,17 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
 /// - Sending outbound messages to the network, wrapped in StreamMessage.
 pub struct StreamHandler<
     T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>,
+    StreamId: Into<Vec<u8>> + From<Vec<u8>> + Eq + Hash + Clone + Unpin + Display + Debug,
 > {
     // For each stream ID from the network, send the application a Receiver
     // that will receive the messages in order. This allows sending such Receivers.
     inbound_channel_sender: mpsc::Sender<mpsc::Receiver<T>>,
     // This receives messages from the network.
-    inbound_receiver: BroadcastTopicServer<StreamMessage<T>>,
+    inbound_receiver: BroadcastTopicServer<StreamMessage<T, StreamId>>,
     // A map from (peer_id, stream_id) to a struct that contains all the information
     // about the stream. This includes both the message buffer and some metadata
     // (like the latest message ID).
-    inbound_stream_data: HashMap<StreamKey, StreamData<T>>,
+    inbound_stream_data: HashMap<(PeerId, StreamId), StreamData<T, StreamId>>,
     // Whenever application wants to start a new stream, it must send out a
     // (stream_id, Receiver) pair. Each receiver gets messages that should
     // be sent out to the network.
@@ -74,20 +84,22 @@ pub struct StreamHandler<
     // A map where the abovementioned Receivers are stored.
     outbound_stream_receivers: StreamHashMap<StreamId, mpsc::Receiver<T>>,
     // A network sender that allows sending StreamMessages to peers.
-    outbound_sender: BroadcastTopicClient<StreamMessage<T>>,
+    outbound_sender: BroadcastTopicClient<StreamMessage<T, StreamId>>,
     // For each stream, keep track of the message_id of the last message sent.
     outbound_stream_number: HashMap<StreamId, MessageId>,
 }
 
-impl<T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>>
-    StreamHandler<T>
+impl<
+    T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>,
+    StreamId: Into<Vec<u8>> + From<Vec<u8>> + Eq + Hash + Clone + Unpin + Send + Display + Debug,
+> StreamHandler<T, StreamId>
 {
     /// Create a new StreamHandler.
     pub fn new(
         inbound_channel_sender: mpsc::Sender<mpsc::Receiver<T>>,
-        inbound_receiver: BroadcastTopicServer<StreamMessage<T>>,
+        inbound_receiver: BroadcastTopicServer<StreamMessage<T, StreamId>>,
         outbound_channel_receiver: mpsc::Receiver<(StreamId, mpsc::Receiver<T>)>,
-        outbound_sender: BroadcastTopicClient<StreamMessage<T>>,
+        outbound_sender: BroadcastTopicClient<StreamMessage<T, StreamId>>,
     ) -> Self {
         Self {
             inbound_channel_sender,
@@ -137,7 +149,7 @@ impl<T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversi
         }
     }
 
-    fn inbound_send(data: &mut StreamData<T>, message: StreamMessage<T>) {
+    fn inbound_send(data: &mut StreamData<T, StreamId>, message: StreamMessage<T, StreamId>) {
         // TODO(guyn): reconsider the "expect" here.
         let sender = &mut data.sender;
         if let StreamMessageBody::Content(content) = message.message {
@@ -150,20 +162,22 @@ impl<T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversi
     async fn broadcast(&mut self, stream_id: StreamId, message: T) {
         let message = StreamMessage {
             message: StreamMessageBody::Content(message),
-            stream_id,
+            stream_id: stream_id.clone(),
             message_id: *self.outbound_stream_number.get(&stream_id).unwrap_or(&0),
         };
         // TODO(guyn): reconsider the "expect" here.
         self.outbound_sender.broadcast_message(message).await.expect("Send should succeed");
-        self.outbound_stream_number
-            .insert(stream_id, self.outbound_stream_number.get(&stream_id).unwrap_or(&0) + 1);
+        self.outbound_stream_number.insert(
+            stream_id.clone(),
+            self.outbound_stream_number.get(&stream_id).unwrap_or(&0) + 1,
+        );
     }
 
     // Send a fin message to the network.
     async fn broadcast_fin(&mut self, stream_id: StreamId) {
         let message = StreamMessage {
             message: StreamMessageBody::Fin,
-            stream_id,
+            stream_id: stream_id.clone(),
             message_id: *self.outbound_stream_number.get(&stream_id).unwrap_or(&0),
         };
         self.outbound_sender.broadcast_message(message).await.expect("Send should succeed");
@@ -174,7 +188,10 @@ impl<T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversi
     #[instrument(skip_all, level = "warn")]
     fn handle_message(
         &mut self,
-        message: (Result<StreamMessage<T>, ProtobufConversionError>, BroadcastedMessageMetadata),
+        message: (
+            Result<StreamMessage<T, StreamId>, ProtobufConversionError>,
+            BroadcastedMessageMetadata,
+        ),
     ) {
         let (message, metadata) = message;
         let message = match message {
@@ -185,7 +202,7 @@ impl<T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversi
             }
         };
         let peer_id = metadata.originator_id;
-        let stream_id = message.stream_id;
+        let stream_id = message.stream_id.clone();
         let key = (peer_id, stream_id);
         let message_id = message.message_id;
 
@@ -263,7 +280,11 @@ impl<T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversi
     }
 
     // Store an inbound message in the buffer.
-    fn store(data: &mut StreamData<T>, key: StreamKey, message: StreamMessage<T>) {
+    fn store(
+        data: &mut StreamData<T, StreamId>,
+        key: (PeerId, StreamId),
+        message: StreamMessage<T, StreamId>,
+    ) {
         let message_id = message.message_id;
 
         match data.message_buffer.entry(message_id) {
@@ -282,7 +303,7 @@ impl<T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversi
 
     // Tries to drain as many messages as possible from the buffer (in order),
     // DOES NOT guarantee that the buffer will be empty after calling this function.
-    fn process_buffer(data: &mut StreamData<T>) {
+    fn process_buffer(data: &mut StreamData<T, StreamId>) {
         while let Some(message) = data.message_buffer.remove(&data.next_message_id) {
             Self::inbound_send(data, message);
         }
