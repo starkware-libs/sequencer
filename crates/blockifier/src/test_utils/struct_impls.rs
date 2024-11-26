@@ -153,26 +153,28 @@ pub trait BlockInfoExt {
 
 impl BlockInfoExt for BlockInfo {
     fn create_for_testing() -> Self {
+        let gas_prices = validated_gas_prices(
+            DEFAULT_ETH_L1_GAS_PRICE,
+            DEFAULT_STRK_L1_GAS_PRICE,
+            DEFAULT_ETH_L1_DATA_GAS_PRICE,
+            DEFAULT_STRK_L1_DATA_GAS_PRICE,
+            NonzeroGasPrice::new(
+                VersionedConstants::latest_constants()
+                    .convert_l1_to_l2_gas_price_round_up(DEFAULT_ETH_L1_GAS_PRICE.into()),
+            )
+            .unwrap(),
+            NonzeroGasPrice::new(
+                VersionedConstants::latest_constants()
+                    .convert_l1_to_l2_gas_price_round_up(DEFAULT_STRK_L1_GAS_PRICE.into()),
+            )
+            .unwrap(),
+        );
+        // TODO(Arni): assert_eq!(gas_prices, crate::test_utils::DEFAULT_GAS_PRICES);
         Self {
             block_number: BlockNumber(CURRENT_BLOCK_NUMBER),
             block_timestamp: BlockTimestamp(CURRENT_BLOCK_TIMESTAMP),
             sequencer_address: contract_address!(TEST_SEQUENCER_ADDRESS),
-            gas_prices: validated_gas_prices(
-                DEFAULT_ETH_L1_GAS_PRICE,
-                DEFAULT_STRK_L1_GAS_PRICE,
-                DEFAULT_ETH_L1_DATA_GAS_PRICE,
-                DEFAULT_STRK_L1_DATA_GAS_PRICE,
-                NonzeroGasPrice::new(
-                    VersionedConstants::latest_constants()
-                        .convert_l1_to_l2_gas_price_round_up(DEFAULT_ETH_L1_GAS_PRICE.into()),
-                )
-                .unwrap(),
-                NonzeroGasPrice::new(
-                    VersionedConstants::latest_constants()
-                        .convert_l1_to_l2_gas_price_round_up(DEFAULT_STRK_L1_GAS_PRICE.into()),
-                )
-                .unwrap(),
-            ),
+            gas_prices,
             use_kzg_da: false,
         }
     }
