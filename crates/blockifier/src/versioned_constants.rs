@@ -644,6 +644,7 @@ impl GasCosts {
 pub struct OsConstants {
     pub gas_costs: GasCosts,
     pub validate_rounding_consts: ValidateRoundingConsts,
+    pub os_contract_addresses: OsContractAddresses,
 }
 
 impl OsConstants {
@@ -651,8 +652,7 @@ impl OsConstants {
     // not used by the blockifier but included for transparency. These constanst will be ignored
     // during the creation of the struct containing the gas costs.
 
-    const ADDITIONAL_FIELDS: [&'static str; 29] = [
-        "block_hash_contract_address",
+    const ADDITIONAL_FIELDS: [&'static str; 28] = [
         "constructor_entry_point_selector",
         "default_entry_point_selector",
         "entry_point_type_constructor",
@@ -700,11 +700,24 @@ impl TryFrom<OsConstantsRawJson> for OsConstants {
     fn try_from(raw_json_data: OsConstantsRawJson) -> Result<Self, Self::Error> {
         let gas_costs = GasCosts::try_from(&raw_json_data)?;
         let validate_rounding_consts = raw_json_data.validate_rounding_consts;
-        let os_constants = OsConstants { gas_costs, validate_rounding_consts };
+        let os_contract_addresses = raw_json_data.os_contract_addresses;
+        let os_constants =
+            OsConstants { gas_costs, validate_rounding_consts, os_contract_addresses };
         Ok(os_constants)
     }
 }
+#[derive(Debug, Deserialize)]
+pub struct OsContractAddresses {
+    pub block_hash: u8,
+    pub alias: u8,
+    pub reserved: u8,
+}
 
+impl Default for OsContractAddresses {
+    fn default() -> Self {
+        Self { block_hash: 1, alias: 2, reserved: 3 }
+    }
+}
 // Intermediate representation of the JSON file in order to make the deserialization easier, using a
 // regular try_from.
 #[derive(Debug, Deserialize)]
@@ -713,6 +726,8 @@ struct OsConstantsRawJson {
     raw_json_file_as_dict: IndexMap<String, Value>,
     #[serde(default)]
     validate_rounding_consts: ValidateRoundingConsts,
+    #[serde(default)]
+    os_contract_addresses: OsContractAddresses,
 }
 
 impl OsConstantsRawJson {
