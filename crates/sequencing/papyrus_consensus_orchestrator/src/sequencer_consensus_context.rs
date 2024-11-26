@@ -343,10 +343,6 @@ async fn stream_build_proposal(
                     .entry(height)
                     .or_default()
                     .insert(proposal_content_id, (content, proposal_id));
-                // proposal_sender
-                //     .send(ProposalPart::Fin(ProposalFin { proposal_content_id }))
-                //     .await
-                //     .expect("Failed to broadcast proposal fin");
                 if fin_sender.send(proposal_content_id).is_err() {
                     // Consensus may exit early (e.g. sync).
                     warn!("Failed to send proposal content id");

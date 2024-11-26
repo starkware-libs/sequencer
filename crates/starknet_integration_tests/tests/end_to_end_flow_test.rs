@@ -3,7 +3,13 @@ use std::collections::HashSet;
 use futures::StreamExt;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use papyrus_network::network_manager::BroadcastTopicChannels;
-use papyrus_protobuf::consensus::{ProposalFin, ProposalInit, ProposalPart};
+use papyrus_protobuf::consensus::{
+    ProposalFin,
+    ProposalInit,
+    ProposalPart,
+    StreamMessage,
+    StreamMessageBody,
+};
 use papyrus_storage::test_utils::CHAIN_ID_FOR_TESTS;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
@@ -48,7 +54,7 @@ async fn end_to_end(tx_generator: MultiAccountTransactionGenerator) {
 }
 
 async fn listen_to_broadcasted_messages(
-    consensus_proposals_channels: &mut BroadcastTopicChannels<ProposalPart>,
+    consensus_proposals_channels: &mut BroadcastTopicChannels<StreamMessage<ProposalPart>>,
     expected_batched_tx_hashes: &[TransactionHash],
 ) {
     let chain_id = CHAIN_ID_FOR_TESTS.clone();
@@ -67,18 +73,31 @@ async fn listen_to_broadcasted_messages(
             "0x4597ceedbef644865917bf723184538ef70d43954d63f5b7d8cb9d1bd4c2c32",
         )),
     };
-    assert_eq!(
-        broadcasted_messages_receiver.next().await.unwrap().0.unwrap(),
-        ProposalPart::Init(expected_proposal_init)
-    );
+
+    let incoming_message = broadcasted_messages_receiver.next().await.unwrap().0.unwrap();
+    let incoming_stream_id = incoming_message.stream_id;
+    assert_eq!(incoming_message.message_id, 0);
+    let incoming_message = incoming_message.message;
+    let StreamMessageBody::Content(ProposalPart::Init(received_proposal_init)) = incoming_message
+    else {
+        panic!("Unexpected init: {:?}", incoming_message);
+    };
+    assert_eq!(received_proposal_init, expected_proposal_init);
+
+    let mut proposal_parts_fin = false;
+    let mut message_body_fin = false;
     loop {
-        match broadcasted_messages_receiver.next().await.unwrap().0.unwrap() {
-            ProposalPart::Init(init) => panic!("Unexpected init: {:?}", init),
-            ProposalPart::Fin(proposal_fin) => {
-                assert_eq!(proposal_fin, expected_proposal_fin);
-                break;
+        let message = broadcasted_messages_receiver.next().await.unwrap().0.unwrap();
+        assert_eq!(message.stream_id, incoming_stream_id);
+        match message.message {
+            StreamMessageBody::Content(ProposalPart::Init(init)) => {
+                panic!("Unexpected init: {:?}", init)
             }
-            ProposalPart::Transactions(transactions) => {
+            StreamMessageBody::Content(ProposalPart::Fin(proposal_fin)) => {
+                assert_eq!(proposal_fin, expected_proposal_fin);
+                proposal_parts_fin = true;
+            }
+            StreamMessageBody::Content(ProposalPart::Transactions(transactions)) => {
                 received_tx_hashes.extend(
                     transactions
                         .transactions
@@ -86,6 +105,13 @@ async fn listen_to_broadcasted_messages(
                         .map(|tx| tx.calculate_transaction_hash(&chain_id).unwrap()),
                 );
             }
+            // Ignore this, in case it comes out of the network before some of the other messages.
+            StreamMessageBody::Fin => {
+                message_body_fin = true;
+            }
+        }
+        if proposal_parts_fin && message_body_fin {
+            break;
         }
     }
     // Using HashSet to ignore the order of the transactions (broadcast can lead to reordering).
