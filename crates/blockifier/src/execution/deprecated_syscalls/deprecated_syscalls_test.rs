@@ -2,7 +2,6 @@ use std::collections::{HashMap, HashSet};
 
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
-use num_traits::Pow;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::selector_from_name;
@@ -15,7 +14,7 @@ use starknet_api::transaction::{
     EventKey,
     TransactionHash,
     TransactionVersion,
-    QUERY_VERSION_BASE_BIT,
+    QUERY_VERSION_BASE,
 };
 use starknet_api::{calldata, felt, nonce, storage_key};
 use starknet_types_core::felt::Felt;
@@ -465,7 +464,7 @@ fn test_tx_info(#[values(false, true)] only_query: bool) {
     let mut state = test_state(&ChainInfo::create_for_testing(), Fee(0), &[(test_contract, 1)]);
     let mut version = felt!(1_u8);
     if only_query {
-        let simulate_version_base = Pow::pow(felt!(2_u8), QUERY_VERSION_BASE_BIT);
+        let simulate_version_base = *QUERY_VERSION_BASE;
         version += simulate_version_base;
     }
     let tx_hash = TransactionHash(felt!(1991_u16));
