@@ -651,7 +651,8 @@ impl OsConstants {
     // not used by the blockifier but included for transparency. These constanst will be ignored
     // during the creation of the struct containing the gas costs.
 
-    const ADDITIONAL_FIELDS: [&'static str; 29] = [
+    const ADDITIONAL_FIELDS: [&'static str; 31] = [
+        "alias_contract_address",
         "block_hash_contract_address",
         "constructor_entry_point_selector",
         "default_entry_point_selector",
@@ -673,6 +674,7 @@ impl OsConstants {
         "l1_data_gas",
         "l1_data_gas_index",
         "nop_entry_point_offset",
+        "reserved_contract_address",
         "sierra_array_len_bound",
         "stored_block_hash_buffer",
         "transfer_entry_point_selector",
