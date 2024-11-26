@@ -2,7 +2,7 @@ use std::net::SocketAddr;
 
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use papyrus_network::network_manager::BroadcastTopicChannels;
-use papyrus_protobuf::consensus::ProposalPart;
+use papyrus_protobuf::consensus::{ProposalPart, StreamMessage};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::errors::GatewaySpecError;
@@ -33,7 +33,7 @@ pub struct FlowTestSetup {
     pub sequencer_node_handle: JoinHandle<Result<(), anyhow::Error>>,
 
     // Channels for consensus proposals, used for asserting the right transactions are proposed.
-    pub consensus_proposals_channels: BroadcastTopicChannels<ProposalPart>,
+    pub consensus_proposals_channels: BroadcastTopicChannels<StreamMessage<ProposalPart>>,
 }
 
 impl FlowTestSetup {

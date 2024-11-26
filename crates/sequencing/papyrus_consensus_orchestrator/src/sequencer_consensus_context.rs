@@ -11,7 +11,7 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
-use futures::StreamExt;
+use futures::{SinkExt, StreamExt};
 use papyrus_consensus::types::{
     ConsensusContext,
     ConsensusError,
@@ -19,7 +19,7 @@ use papyrus_consensus::types::{
     Round,
     ValidatorId,
 };
-use papyrus_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
+use papyrus_network::network_manager::BroadcastTopicClient;
 use papyrus_protobuf::consensus::{
     ConsensusMessage,
     ProposalFin,
@@ -54,6 +54,8 @@ type HeightToIdToContent =
     BTreeMap<BlockNumber, HashMap<ProposalContentId, (Vec<Transaction>, ProposalId)>>;
 type ValidationParams = (BlockNumber, Duration, mpsc::Receiver<Vec<Transaction>>);
 
+const CHANNEL_SIZE: usize = 100;
+
 pub struct SequencerConsensusContext {
     batcher: Arc<dyn BatcherClient>,
     validators: Vec<ValidatorId>,
@@ -69,7 +71,7 @@ pub struct SequencerConsensusContext {
     current_round: Round,
     // Used to broadcast proposals to other consensus nodes.
     // TODO(Guy) switch to the actual streaming struct.
-    proposal_streaming_client: BroadcastTopicClient<ProposalPart>,
+    _proposal_streaming_client: BroadcastTopicClient<ProposalPart>,
     // The active proposal refers to the proposal being validated at the current height/round.
     // Building proposals are not tracked as active, as consensus can't move on to the next
     // height/round until building is done. Context only works on proposals for the
@@ -77,20 +79,20 @@ pub struct SequencerConsensusContext {
     active_proposal: Option<(Arc<Notify>, JoinHandle<()>)>,
     // Stores proposals for future rounds until the round is reached.
     queued_proposals: BTreeMap<Round, (ValidationParams, oneshot::Sender<ProposalContentId>)>,
-    _outbound_proposal_sender: mpsc::Sender<(u64, mpsc::Receiver<ProposalPart>)>,
+    outbound_proposal_sender: mpsc::Sender<(u64, mpsc::Receiver<ProposalPart>)>,
 }
 
 impl SequencerConsensusContext {
     pub fn new(
         batcher: Arc<dyn BatcherClient>,
-        proposal_streaming_client: BroadcastTopicClient<ProposalPart>,
-        _outbound_proposal_sender: mpsc::Sender<(u64, mpsc::Receiver<ProposalPart>)>,
+        _proposal_streaming_client: BroadcastTopicClient<ProposalPart>,
+        outbound_proposal_sender: mpsc::Sender<(u64, mpsc::Receiver<ProposalPart>)>,
         num_validators: u64,
     ) -> Self {
         Self {
             batcher,
-            proposal_streaming_client,
-            _outbound_proposal_sender,
+            _proposal_streaming_client,
+            outbound_proposal_sender,
             validators: (0..num_validators).map(ValidatorId::from).collect(),
             valid_proposals: Arc::new(Mutex::new(HeightToIdToContent::new())),
             proposal_id: 0,
@@ -147,11 +149,16 @@ impl ConsensusContext for SequencerConsensusContext {
             .await
             .expect("Failed to initiate proposal build");
         debug!("Broadcasting proposal init: {proposal_init:?}");
-        self.proposal_streaming_client
-            .broadcast_message(ProposalPart::Init(proposal_init.clone()))
+        let (mut proposal_sender, proposal_receiver) = mpsc::channel(CHANNEL_SIZE);
+        let stream_id = proposal_init.height.0;
+        self.outbound_proposal_sender
+            .send((stream_id, proposal_receiver))
             .await
-            .expect("Failed to broadcast proposal init");
-        let broadcast_client = self.proposal_streaming_client.clone();
+            .expect("Failed to send proposal receiver");
+        proposal_sender
+            .send(ProposalPart::Init(proposal_init.clone()))
+            .await
+            .expect("Failed to send proposal init");
         tokio::spawn(
             async move {
                 stream_build_proposal(
@@ -159,7 +166,7 @@ impl ConsensusContext for SequencerConsensusContext {
                     proposal_id,
                     batcher,
                     valid_proposals,
-                    broadcast_client,
+                    proposal_sender,
                     fin_sender,
                 )
                 .await;
@@ -352,16 +359,16 @@ impl SequencerConsensusContext {
 
 // Handles building a new proposal without blocking consensus:
 // 1. Receive chunks of content from the batcher.
-// 2. Forward these to consensus to be streamed out to the network.
+// 2. Forward these to the stream handler to be streamed out to the network.
 // 3. Once finished, receive the commitment from the batcher.
 // 4. Store the proposal for re-proposal.
-// 5. Send the commitment to consensus.
+// 5. Send the commitment to the stream handler (to send fin).
 async fn stream_build_proposal(
     height: BlockNumber,
     proposal_id: ProposalId,
     batcher: Arc<dyn BatcherClient>,
     valid_proposals: Arc<Mutex<HeightToIdToContent>>,
-    mut broadcast_client: BroadcastTopicClient<ProposalPart>,
+    mut proposal_sender: mpsc::Sender<ProposalPart>,
     fin_sender: oneshot::Sender<ProposalContentId>,
 ) {
     let mut content = Vec::new();
@@ -388,8 +395,8 @@ async fn stream_build_proposal(
                 }
                 debug!("Broadcasting proposal content: {transaction_hashes:?}");
                 trace!("Broadcasting proposal content: {transactions:?}");
-                broadcast_client
-                    .broadcast_message(ProposalPart::Transactions(TransactionBatch {
+                proposal_sender
+                    .send(ProposalPart::Transactions(TransactionBatch {
                         transactions,
                         tx_hashes: transaction_hashes,
                     }))
@@ -407,8 +414,8 @@ async fn stream_build_proposal(
                     height
                 );
                 debug!("Broadcasting proposal fin: {proposal_content_id:?}");
-                broadcast_client
-                    .broadcast_message(ProposalPart::Fin(ProposalFin { proposal_content_id }))
+                proposal_sender
+                    .send(ProposalPart::Fin(ProposalFin { proposal_content_id }))
                     .await
                     .expect("Failed to broadcast proposal fin");
                 // Update valid_proposals before sending fin to avoid a race condition

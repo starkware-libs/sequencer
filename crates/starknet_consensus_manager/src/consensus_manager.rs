@@ -101,7 +101,6 @@ impl ConsensusManager {
             stream_handler_result = &mut stream_handler_task_handle => {
                 panic!("Consensus' stream handler task finished unexpectedly: {:?}", stream_handler_result);
             }
-<<<<<<< HEAD
             _ = async {
                 while let Some(_broadcasted_message) =
                     old_proposals_broadcast_channels.broadcasted_messages_receiver.next().await
@@ -111,8 +110,6 @@ impl ConsensusManager {
             } => {
                 panic!("Broadcasted messages channel finished unexpectedly");
             }
-=======
->>>>>>> bd0fbd479 (feat: allow a streamed proposal channel on top of existing one)
         }
     }
 }
