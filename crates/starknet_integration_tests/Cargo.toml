@@ -49,3 +49,8 @@ futures.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
 starknet_sequencer_infra.workspace = true
+
+
+[[bin]]
+name = "sequencer_end_to_end_integration_test"
+path = "src/bin/end_to_end_integration_test.rs"
