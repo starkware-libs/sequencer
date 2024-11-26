@@ -31,7 +31,13 @@ use starknet_mempool_types::mempool_types::CommitBlockArgs;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use tracing::{debug, error, info, instrument, trace};
 
-use crate::block_builder::{BlockBuilderError, BlockBuilderFactory};
+use crate::block_builder::{
+    BlockBuilderError,
+    BlockBuilderExecutionParams,
+    BlockBuilderFactory,
+    BlockBuilderFactoryTrait,
+    BlockMetadata,
+};
 use crate::config::BatcherConfig;
 use crate::proposal_manager::{
     GenerateProposalError,
@@ -58,6 +64,8 @@ pub struct Batcher {
 
     active_height: Option<BlockNumber>,
     proposal_manager: Box<dyn ProposalManagerTrait>,
+
+    block_builder_factory: Box<dyn BlockBuilderFactoryTrait>,
     propose_tx_streams: HashMap<ProposalId, OutputStreamReceiver>,
     validate_tx_streams: HashMap<ProposalId, InputStreamSender>,
 }
@@ -68,6 +76,7 @@ impl Batcher {
         storage_reader: Arc<dyn BatcherStorageReaderTrait>,
         storage_writer: Box<dyn BatcherStorageWriterTrait>,
         mempool_client: SharedMempoolClient,
+        block_builder_factory: Box<dyn BlockBuilderFactoryTrait>,
         proposal_manager: Box<dyn ProposalManagerTrait>,
     ) -> Self {
         Self {
@@ -76,6 +85,7 @@ impl Batcher {
             storage_writer,
             mempool_client,
             active_height: None,
+            block_builder_factory,
             proposal_manager,
             propose_tx_streams: HashMap::new(),
             validate_tx_streams: HashMap::new(),
@@ -122,10 +132,6 @@ impl Batcher {
         let active_height = self.active_height.ok_or(BatcherError::NoActiveHeight)?;
         verify_block_input(active_height, propose_block_input.retrospective_block_hash)?;
 
-        let proposal_id = propose_block_input.proposal_id;
-        let deadline = deadline_as_instant(propose_block_input.deadline)?;
-
-        let (output_tx_sender, output_tx_receiver) = tokio::sync::mpsc::unbounded_channel();
         let tx_provider = ProposeTransactionProvider::new(
             self.mempool_client.clone(),
             // TODO: use a real L1 provider client.
@@ -133,18 +139,34 @@ impl Batcher {
             self.config.max_l1_handler_txs_per_block_proposal,
         );
 
-        self.proposal_manager
-            .propose_block(
-                active_height,
-                proposal_id,
-                propose_block_input.retrospective_block_hash,
-                deadline,
-                output_tx_sender,
-                tx_provider,
+        // A channel to allow aborting the block building task.
+        let (abort_signal_sender, abort_signal_receiver) = tokio::sync::oneshot::channel();
+
+        // A channel to receive the transactions included in the proposed block.
+        let (output_tx_sender, output_tx_receiver) = tokio::sync::mpsc::unbounded_channel();
+
+        let block_builder = self
+            .block_builder_factory
+            .create_block_builder(
+                BlockMetadata {
+                    height: active_height,
+                    retrospective_block_hash: propose_block_input.retrospective_block_hash,
+                },
+                BlockBuilderExecutionParams {
+                    deadline: deadline_as_instant(propose_block_input.deadline)?,
+                    fail_on_err: false,
+                },
+                Box::new(tx_provider),
+                Some(output_tx_sender.clone()),
+                abort_signal_receiver,
             )
+            .map_err(|_| BatcherError::InternalError)?;
+
+        self.proposal_manager
+            .spawn_proposal(propose_block_input.proposal_id, block_builder, abort_signal_sender)
             .await?;
 
-        self.propose_tx_streams.insert(proposal_id, output_tx_receiver);
+        self.propose_tx_streams.insert(propose_block_input.proposal_id, output_tx_receiver);
         Ok(())
     }
 
@@ -156,28 +178,41 @@ impl Batcher {
         let active_height = self.active_height.ok_or(BatcherError::NoActiveHeight)?;
         verify_block_input(active_height, validate_block_input.retrospective_block_hash)?;
 
-        let proposal_id = validate_block_input.proposal_id;
-        let deadline = deadline_as_instant(validate_block_input.deadline)?;
-
+        // A channel to receive the transactions included in the proposed block.
         let (input_tx_sender, input_tx_receiver) =
             tokio::sync::mpsc::channel(self.config.input_stream_content_buffer_size);
+
         let tx_provider = ValidateTransactionProvider {
             tx_receiver: input_tx_receiver,
             // TODO: use a real L1 provider client.
             l1_provider_client: Arc::new(DummyL1ProviderClient),
         };
 
-        self.proposal_manager
-            .validate_block(
-                active_height,
-                proposal_id,
-                validate_block_input.retrospective_block_hash,
-                deadline,
-                tx_provider,
+        // A channel to allow aborting the block building task.
+        let (abort_signal_sender, abort_signal_receiver) = tokio::sync::oneshot::channel();
+
+        let block_builder = self
+            .block_builder_factory
+            .create_block_builder(
+                BlockMetadata {
+                    height: active_height,
+                    retrospective_block_hash: validate_block_input.retrospective_block_hash,
+                },
+                BlockBuilderExecutionParams {
+                    deadline: deadline_as_instant(validate_block_input.deadline)?,
+                    fail_on_err: true,
+                },
+                Box::new(tx_provider),
+                None,
+                abort_signal_receiver,
             )
+            .map_err(|_| BatcherError::InternalError)?;
+
+        self.proposal_manager
+            .spawn_proposal(validate_block_input.proposal_id, block_builder, abort_signal_sender)
             .await?;
 
-        self.validate_tx_streams.insert(proposal_id, input_tx_sender);
+        self.validate_tx_streams.insert(validate_block_input.proposal_id, input_tx_sender);
         Ok(())
     }
 
@@ -188,6 +223,10 @@ impl Batcher {
         &mut self,
         send_proposal_content_input: SendProposalContentInput,
     ) -> BatcherResult<SendProposalContentResponse> {
+        // TODO(Dafna): this method should return an meaningful error if the given proposal_id
+        // is of a proposed block (and not validated). Currently it panics or returns a
+        // wrong error.
+
         let proposal_id = send_proposal_content_input.proposal_id;
 
         match send_proposal_content_input.content {
@@ -329,15 +368,22 @@ pub fn create_batcher(config: BatcherConfig, mempool_client: SharedMempoolClient
     let (storage_reader, storage_writer) = papyrus_storage::open_storage(config.storage.clone())
         .expect("Failed to open batcher's storage");
 
-    let block_builder_factory = Arc::new(BlockBuilderFactory {
+    let block_builder_factory = Box::new(BlockBuilderFactory {
         block_builder_config: config.block_builder_config.clone(),
         storage_reader: storage_reader.clone(),
         global_class_hash_to_class: GlobalContractCache::new(config.global_contract_cache_size),
     });
     let storage_reader = Arc::new(storage_reader);
     let storage_writer = Box::new(storage_writer);
-    let proposal_manager = Box::new(ProposalManager::new(block_builder_factory));
-    Batcher::new(config, storage_reader, storage_writer, mempool_client, proposal_manager)
+    let proposal_manager = Box::new(ProposalManager::new());
+    Batcher::new(
+        config,
+        storage_reader,
+        storage_writer,
+        mempool_client,
+        block_builder_factory,
+        proposal_manager,
+    )
 }
 
 #[cfg_attr(test, automock)]
