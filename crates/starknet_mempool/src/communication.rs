@@ -78,7 +78,10 @@ impl MempoolCommunicationWrapper {
         }
     }
 
-    async fn add_tx(&mut self, args_wrapper: AddTransactionArgsWrapper) -> MempoolResult<()> {
+    pub(crate) async fn add_tx(
+        &mut self,
+        args_wrapper: AddTransactionArgsWrapper,
+    ) -> MempoolResult<()> {
         self.mempool.add_tx(args_wrapper.args.clone())?;
         // TODO: Verify that only transactions that were added to the mempool are sent.
         // TODO: handle declare correctly and remove this match.

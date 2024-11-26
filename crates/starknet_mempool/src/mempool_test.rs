@@ -1,11 +1,24 @@
+use std::sync::Arc;
+
+use mockall::predicate;
+use papyrus_network_types::network_types::BroadcastedMessageMetadata;
+use papyrus_test_utils::{get_rng, GetTestInstance};
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::GasPrice;
 use starknet_api::executable_transaction::AccountTransaction;
+use starknet_api::rpc_transaction::{
+    RpcDeployAccountTransaction,
+    RpcInvokeTransaction,
+    RpcTransaction,
+};
 use starknet_api::{contract_address, nonce};
+use starknet_mempool_p2p_types::communication::MockMempoolP2pPropagatorClient;
+use starknet_mempool_types::communication::AddTransactionArgsWrapper;
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::AddTransactionArgs;
 
+use crate::communication::MempoolCommunicationWrapper;
 use crate::mempool::{Mempool, MempoolConfig, TransactionReference};
 use crate::test_utils::{add_tx, add_tx_expect_error, commit_block, get_txs_and_assert_expected};
 use crate::transaction_pool::TransactionPool;
