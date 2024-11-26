@@ -2,7 +2,6 @@
 #[path = "state_test.rs"]
 mod state_test;
 
-use std::collections::HashMap;
 use std::fmt::Debug;
 
 use indexmap::IndexMap;
@@ -10,7 +9,6 @@ use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
 
 use crate::block::{BlockHash, BlockNumber};
-use crate::contract_class::EntryPointType;
 use crate::core::{
     ClassHash,
     CompiledClassHash,
@@ -22,6 +20,7 @@ use crate::core::{
 };
 use crate::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use crate::hash::StarkHash;
+use crate::rpc_transaction::EntryPointByType;
 use crate::{impl_from_through_intermediate, StarknetApiError};
 
 pub type DeclaredClasses = IndexMap<ClassHash, SierraContractClass>;
@@ -214,7 +213,7 @@ impl_from_through_intermediate!(u128, StorageKey, u8, u16, u32, u64);
 pub struct SierraContractClass {
     pub sierra_program: Vec<Felt>,
     pub contract_class_version: String,
-    pub entry_points_by_type: HashMap<EntryPointType, Vec<EntryPoint>>,
+    pub entry_points_by_type: EntryPointByType,
     pub abi: String,
 }
 

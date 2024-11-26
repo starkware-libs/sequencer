@@ -90,6 +90,7 @@ use starknet_api::hash::{PoseidonHash, StarkHash};
 use starknet_api::rpc_transaction::{
     ContractClass as RpcContractClass,
     EntryPointByType as RpcEntryPointByType,
+    EntryPointByType,
     RpcDeclareTransaction,
     RpcDeclareTransactionV3,
     RpcDeployAccountTransaction,
@@ -492,6 +493,7 @@ auto_impl_get_test_instance! {
         V0_13_3 = 18,
         V0_13_4 = 19,
     }
+
     pub struct Calldata(pub Arc<Vec<Felt>>);
     pub struct ClassHash(pub StarkHash);
     pub struct CompiledClassHash(pub StarkHash);
@@ -499,7 +501,7 @@ auto_impl_get_test_instance! {
     pub struct SierraContractClass {
         pub sierra_program: Vec<Felt>,
         pub contract_class_version: String,
-        pub entry_points_by_type: HashMap<EntryPointType, Vec<EntryPoint>>,
+        pub entry_points_by_type: EntryPointByType,
         pub abi: String,
     }
     pub struct DeprecatedContractClass {

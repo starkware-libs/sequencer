@@ -66,6 +66,7 @@ use starknet_api::deprecated_contract_class::{
 };
 use starknet_api::execution_resources::{Builtin, ExecutionResources, GasAmount, GasVector};
 use starknet_api::hash::{PoseidonHash, StarkHash};
+use starknet_api::rpc_transaction::EntryPointByType;
 use starknet_api::state::{
     EntryPoint,
     FunctionIndex,
@@ -242,6 +243,11 @@ auto_storage_serde! {
     pub struct EntryPoint {
         pub function_idx: FunctionIndex,
         pub selector: EntryPointSelector,
+    }
+    pub struct EntryPointByType {
+        pub constructor: Vec<EntryPoint>,
+        pub external: Vec<EntryPoint>,
+        pub l1handler: Vec<EntryPoint>,
     }
     pub struct FunctionIndex(pub usize);
     pub struct EntryPointOffset(pub usize);
@@ -981,9 +987,7 @@ impl StorageSerde for SierraContractClass {
                 &mut decompress_from_reader(bytes)?.as_slice(),
             )?,
             contract_class_version: String::deserialize_from(bytes)?,
-            entry_points_by_type: HashMap::<EntryPointType, Vec<EntryPoint>>::deserialize_from(
-                bytes,
-            )?,
+            entry_points_by_type: EntryPointByType::deserialize_from(bytes)?,
             abi: String::deserialize_from(&mut decompress_from_reader(bytes)?.as_slice())?,
         })
     }
