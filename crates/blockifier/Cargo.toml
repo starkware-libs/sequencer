@@ -32,6 +32,7 @@ cairo-native = { workspace = true, optional = true }
 cairo-vm.workspace = true
 derive_more.workspace = true
 indexmap.workspace = true
+infra_utils.workspace = true
 itertools.workspace = true
 keccak.workspace = true
 log.workspace = true
