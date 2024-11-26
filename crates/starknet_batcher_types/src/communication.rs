@@ -53,9 +53,8 @@ pub trait BatcherClient: Send + Sync {
     async fn validate_block(&self, input: ValidateBlockInput) -> BatcherClientResult<()>;
     /// Sends the content of a proposal. Only relevant when validating a proposal.
     /// Note:
-    ///   * The batcher acks when the content is received immediately, not waiting for it to finish
-    ///     processing. The next send might receive an `InvalidProposal` response for the previous
-    ///     send.
+    ///   * This call can be blocking if the batcher transaction buffer is full.
+    ///   * The next send might receive an `InvalidProposal` response for the previous send.
     ///   * If this marks the end of the content, i.e. `SendProposalContent::Finish` is received,
     ///     the batcher will block until the proposal has finished processing before responding.
     async fn send_proposal_content(
