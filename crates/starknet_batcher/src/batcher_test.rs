@@ -10,7 +10,7 @@ use futures::FutureExt;
 use mockall::automock;
 use mockall::predicate::{always, eq};
 use rstest::{fixture, rstest};
-use starknet_api::block::{BlockHashAndNumber, BlockNumber};
+use starknet_api::block::BlockNumber;
 use starknet_api::core::{ContractAddress, Nonce, StateDiffCommitment};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::hash::PoseidonHash;
@@ -37,7 +37,13 @@ use starknet_mempool_types::communication::MockMempoolClient;
 use starknet_mempool_types::mempool_types::CommitBlockArgs;
 
 use crate::batcher::{Batcher, MockBatcherStorageReaderTrait, MockBatcherStorageWriterTrait};
-use crate::block_builder::{BlockBuilderError, FailOnErrorCause};
+use crate::block_builder::{
+    BlockBuilderError,
+    BlockBuilderTrait,
+    FailOnErrorCause,
+    MockBlockBuilderFactoryTrait,
+    MockBlockBuilderTrait,
+};
 use crate::config::BatcherConfig;
 use crate::proposal_manager::{
     GenerateProposalError,
@@ -48,7 +54,7 @@ use crate::proposal_manager::{
     ProposalResult,
 };
 use crate::test_utils::test_txs;
-use crate::transaction_provider::{ProposeTransactionProvider, ValidateTransactionProvider};
+use crate::transaction_provider::NextTxs;
 
 const INITIAL_HEIGHT: BlockNumber = BlockNumber(3);
 const STREAMING_CHUNK_SIZE: usize = 3;
@@ -93,6 +99,21 @@ fn batcher(proposal_manager: MockProposalManagerTraitWrapper) -> Batcher {
         Arc::new(storage_reader()),
         Box::new(storage_writer()),
         Arc::new(mempool_client()),
+        Box::new(MockBlockBuilderFactoryTrait::new()),
+        Box::new(proposal_manager),
+    )
+}
+
+fn create_batcher(
+    proposal_manager: MockProposalManagerTraitWrapper,
+    block_builder_factory: MockBlockBuilderFactoryTrait,
+) -> Batcher {
+    Batcher::new(
+        batcher_config(),
+        Arc::new(storage_reader()),
+        Box::new(storage_writer()),
+        Arc::new(mempool_client()),
+        Box::new(block_builder_factory),
         Box::new(proposal_manager),
     )
 }
@@ -108,30 +129,48 @@ fn mock_proposal_manager_common_expectations(
         .return_once(move |_| { async move { Ok(proposal_commitment()) } }.boxed());
 }
 
+fn mock_create_builder_for_validate_block() -> MockBlockBuilderFactoryTrait {
+    let mut block_builder_factory = MockBlockBuilderFactoryTrait::new();
+    block_builder_factory.expect_create_block_builder().times(1).return_once(
+        |_, _, mut tx_provider, _, _| {
+            // Spawn a task to keep tx_provider alive until all transactions are read.
+            // Without this, the provider would be dropped, causing the batcher to fail when sending
+            // transactions to it during the test.
+            tokio::spawn(async move {
+                while tx_provider.get_txs(0).await.is_ok_and(|v| v == NextTxs::End) {
+                    tokio::task::yield_now().await;
+                }
+            });
+            Ok(Box::new(MockBlockBuilderTrait::new()))
+        },
+    );
+    block_builder_factory
+}
+
+fn mock_create_builder_for_propose_block(
+    output_txs: Vec<Transaction>,
+) -> MockBlockBuilderFactoryTrait {
+    let mut block_builder_factory = MockBlockBuilderFactoryTrait::new();
+    block_builder_factory.expect_create_block_builder().times(1).return_once(
+        |_, _, _, output_content_sender, _| {
+            // Simulate the streaming of the block builder output.
+            for tx in output_txs {
+                output_content_sender.as_ref().unwrap().send(tx).unwrap();
+            }
+            Ok(Box::new(MockBlockBuilderTrait::new()))
+        },
+    );
+    block_builder_factory
+}
+
 fn mock_proposal_manager_validate_flow() -> MockProposalManagerTraitWrapper {
     let mut proposal_manager = MockProposalManagerTraitWrapper::new();
     mock_proposal_manager_common_expectations(&mut proposal_manager);
     proposal_manager
-        .expect_wrap_validate_block()
+        .expect_wrap_spawn_proposal()
         .times(1)
-        .with(eq(INITIAL_HEIGHT), eq(PROPOSAL_ID), eq(None), always(), always())
-        .return_once(|_, _, _, _, tx_provider| {
-            {
-                async move {
-                    // Spawn a task to keep tx_provider alive until the transactions sender is
-                    // dropped. Without this, the provider would be dropped,
-                    // causing the batcher to fail when sending transactions to
-                    // it during the test.
-                    tokio::spawn(async move {
-                        while !tx_provider.tx_receiver.is_closed() {
-                            tokio::task::yield_now().await;
-                        }
-                    });
-                    Ok(())
-                }
-            }
-            .boxed()
-        });
+        .with(eq(PROPOSAL_ID), always(), always())
+        .return_once(|_, _, _| { async move { Ok(()) } }.boxed());
     proposal_manager
         .expect_wrap_get_proposal_status()
         .times(1)
@@ -217,12 +256,10 @@ async fn no_active_height() {
 #[rstest]
 #[tokio::test]
 async fn validate_block_full_flow() {
+    let block_builder_factory = mock_create_builder_for_validate_block();
     let proposal_manager = mock_proposal_manager_validate_flow();
-    let mut batcher = batcher(proposal_manager);
+    let mut batcher = create_batcher(proposal_manager, block_builder_factory);
 
-    // TODO(Yael 14/11/2024): The test will pass without calling start height (if we delete the mock
-    // expectation). Leaving this here for future compatibility with the upcoming
-    // batcher-proposal_manager unification.
     batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
 
     let validate_block_input = ValidateBlockInput {
@@ -323,13 +360,14 @@ async fn send_txs_to_an_invalid_proposal() {
 #[rstest]
 #[tokio::test]
 async fn send_finish_to_an_invalid_proposal() {
+    let block_builder_factory = mock_create_builder_for_validate_block();
     let mut proposal_manager = MockProposalManagerTraitWrapper::new();
     proposal_manager.expect_wrap_reset().times(1).return_once(|| async {}.boxed());
     proposal_manager
-        .expect_wrap_validate_block()
+        .expect_wrap_spawn_proposal()
         .times(1)
-        .with(eq(INITIAL_HEIGHT), eq(PROPOSAL_ID), eq(None), always(), always())
-        .return_once(|_, _, _, _, _| { async move { Ok(()) } }.boxed());
+        .with(eq(PROPOSAL_ID), always(), always())
+        .return_once(|_, _, _| { async move { Ok(()) } }.boxed());
 
     let proposal_error = GetProposalResultError::BlockBuilderError(Arc::new(
         BlockBuilderError::FailOnError(FailOnErrorCause::BlockFull),
@@ -340,7 +378,7 @@ async fn send_finish_to_an_invalid_proposal() {
         .with(eq(PROPOSAL_ID))
         .return_once(move |_| { async move { Err(proposal_error) } }.boxed());
 
-    let mut batcher = batcher(proposal_manager);
+    let mut batcher = create_batcher(proposal_manager, block_builder_factory);
     batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
 
     let validate_block_input = ValidateBlockInput {
@@ -363,15 +401,15 @@ async fn propose_block_full_flow() {
     let expected_streamed_txs = test_txs(0..STREAMING_CHUNK_SIZE * 2 + 1);
     let txs_to_stream = expected_streamed_txs.clone();
 
+    let block_builder_factory = mock_create_builder_for_propose_block(txs_to_stream);
     let mut proposal_manager = MockProposalManagerTraitWrapper::new();
     mock_proposal_manager_common_expectations(&mut proposal_manager);
-    proposal_manager.expect_wrap_propose_block().times(1).return_once(
-        move |_height, _proposal_id, _block_hash, _deadline, tx_sender, _tx_provider| {
-            simulate_build_block_proposal(tx_sender, txs_to_stream).boxed()
-        },
-    );
+    proposal_manager
+        .expect_wrap_spawn_proposal()
+        .times(1)
+        .return_once(|_, _, _| { async move { Ok(()) } }.boxed());
 
-    let mut batcher = batcher(proposal_manager);
+    let mut batcher = create_batcher(proposal_manager, block_builder_factory);
 
     batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
     batcher
@@ -426,6 +464,7 @@ async fn propose_block_without_retrospective_block_hash() {
         Arc::new(storage_reader),
         Box::new(storage_writer()),
         Arc::new(mempool_client()),
+        Box::new(MockBlockBuilderFactoryTrait::new()),
         Box::new(proposal_manager),
     );
 
@@ -502,6 +541,7 @@ async fn decision_reached(
         Arc::new(storage_reader),
         Box::new(storage_writer),
         Arc::new(mempool_client),
+        Box::new(MockBlockBuilderFactoryTrait::new()),
         Box::new(proposal_manager),
     );
     batcher.decision_reached(DecisionReachedInput { proposal_id: PROPOSAL_ID }).await.unwrap();
@@ -525,38 +565,14 @@ async fn decision_reached_no_executed_proposal() {
     assert_eq!(decision_reached_result, Err(expected_error));
 }
 
-async fn simulate_build_block_proposal(
-    tx_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
-    txs: Vec<Transaction>,
-) -> Result<(), GenerateProposalError> {
-    tokio::spawn(async move {
-        for tx in txs {
-            tx_sender.send(tx).unwrap();
-        }
-    });
-    Ok(())
-}
-
 // A wrapper trait to allow mocking the ProposalManagerTrait in tests.
 #[automock]
 trait ProposalManagerTraitWrapper: Send + Sync {
-    fn wrap_propose_block(
+    fn wrap_spawn_proposal(
         &mut self,
-        height: BlockNumber,
         proposal_id: ProposalId,
-        retrospective_block_hash: Option<BlockHashAndNumber>,
-        deadline: tokio::time::Instant,
-        output_content_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
-        tx_provider: ProposeTransactionProvider,
-    ) -> BoxFuture<'_, Result<(), GenerateProposalError>>;
-
-    fn wrap_validate_block(
-        &mut self,
-        height: BlockNumber,
-        proposal_id: ProposalId,
-        retrospective_block_hash: Option<BlockHashAndNumber>,
-        deadline: tokio::time::Instant,
-        tx_provider: ValidateTransactionProvider,
+        block_builder: Box<dyn BlockBuilderTrait>,
+        abort_signal_sender: tokio::sync::oneshot::Sender<()>,
     ) -> BoxFuture<'_, Result<(), GenerateProposalError>>;
 
     fn wrap_take_proposal_result(
@@ -581,42 +597,13 @@ trait ProposalManagerTraitWrapper: Send + Sync {
 
 #[async_trait]
 impl<T: ProposalManagerTraitWrapper> ProposalManagerTrait for T {
-    async fn propose_block(
+    async fn spawn_proposal(
         &mut self,
-        height: BlockNumber,
         proposal_id: ProposalId,
-        retrospective_block_hash: Option<BlockHashAndNumber>,
-        deadline: tokio::time::Instant,
-        output_content_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
-        tx_provider: ProposeTransactionProvider,
+        block_builder: Box<dyn BlockBuilderTrait>,
+        abort_signal_sender: tokio::sync::oneshot::Sender<()>,
     ) -> Result<(), GenerateProposalError> {
-        self.wrap_propose_block(
-            height,
-            proposal_id,
-            retrospective_block_hash,
-            deadline,
-            output_content_sender,
-            tx_provider,
-        )
-        .await
-    }
-
-    async fn validate_block(
-        &mut self,
-        height: BlockNumber,
-        proposal_id: ProposalId,
-        retrospective_block_hash: Option<BlockHashAndNumber>,
-        deadline: tokio::time::Instant,
-        tx_provider: ValidateTransactionProvider,
-    ) -> Result<(), GenerateProposalError> {
-        self.wrap_validate_block(
-            height,
-            proposal_id,
-            retrospective_block_hash,
-            deadline,
-            tx_provider,
-        )
-        .await
+        self.wrap_spawn_proposal(proposal_id, block_builder, abort_signal_sender).await
     }
 
     async fn take_proposal_result(
