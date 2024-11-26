@@ -150,7 +150,7 @@ use crate::transaction::test_utils::{
 };
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::ExecutableTransaction;
-use crate::versioned_constants::VersionedConstants;
+use crate::versioned_constants::{AllocationCost, VersionedConstants};
 use crate::{
     check_tx_execution_error_for_custom_hint,
     check_tx_execution_error_for_invalid_scenario,
@@ -553,7 +553,8 @@ fn test_invoke_tx(
         FeatureContract::ERC20(CairoVersion::Cairo0).get_class_hash(),
     );
 
-    let da_gas = starknet_resources.state.to_gas_vector(use_kzg_da);
+    let da_gas =
+        starknet_resources.state.da_gas_vector(use_kzg_da);
 
     let expected_cairo_resources = get_expected_cairo_resources(
         versioned_constants,
@@ -1286,6 +1287,7 @@ fn test_actual_fee_gt_resource_bounds(
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] account_cairo_version: CairoVersion,
 ) {
     let block_context = &mut block_context;
+    block_context.versioned_constants.allocation_cost = AllocationCost::ZERO;
     block_context.block_info.use_kzg_da = true;
     let mut nonce_manager = NonceManager::default();
     let gas_mode = resource_bounds.get_gas_vector_computation_mode();
@@ -1563,7 +1565,8 @@ fn test_declare_tx(
         )
     };
 
-    let da_gas = starknet_resources.state.to_gas_vector(use_kzg_da);
+    let da_gas =
+        starknet_resources.state.da_gas_vector(use_kzg_da);
     let expected_cairo_resources = get_expected_cairo_resources(
         versioned_constants,
         TransactionType::Declare,
@@ -2291,10 +2294,10 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     let expected_gas = match use_kzg_da {
         true => GasVector {
             l1_gas: 17988_u32.into(),
-            l1_data_gas: 128_u32.into(),
+            l1_data_gas: 160_u32.into(),
             l2_gas: 0_u32.into(),
         },
-        false => GasVector::from_l1_gas(19131_u32.into()),
+        false => GasVector::from_l1_gas(19682_u32.into()),
     };
 
     let expected_da_gas = match use_kzg_da {
