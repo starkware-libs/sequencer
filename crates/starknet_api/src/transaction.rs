@@ -775,6 +775,20 @@ impl std::fmt::Display for TransactionHash {
     }
 }
 
+// TODO(guyn): this is only used for conversion of transactions->executable transactions
+// It should be removed once we integrate a proper way to calculate executable transaction hashes
+impl From<TransactionHash> for Vec<u8> {
+    fn from(tx_hash: TransactionHash) -> Vec<u8> {
+        tx_hash.0.to_bytes_be().to_vec()
+    }
+}
+impl From<Vec<u8>> for TransactionHash {
+    fn from(bytes: Vec<u8>) -> TransactionHash {
+        let array: [u8; 32] = bytes.try_into().expect("Expected a Vec of length 32");
+        TransactionHash(StarkHash::from_bytes_be(&array))
+    }
+}
+
 /// A transaction version.
 #[derive(
     Debug,
