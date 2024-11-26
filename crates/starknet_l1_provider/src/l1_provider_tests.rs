@@ -1,9 +1,7 @@
 use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
-use starknet_api::hash::StarkHash;
-use starknet_api::l1_handler_tx_args;
 use starknet_api::test_utils::l1_handler::executable_l1_handler_tx;
-use starknet_api::transaction::TransactionHash;
+use starknet_api::{l1_handler_tx_args, tx_hash};
 
 use crate::errors::L1ProviderError;
 use crate::test_utils::L1ProviderContentBuilder;
@@ -14,16 +12,10 @@ macro_rules! tx {
     (tx_hash: $tx_hash:expr) => {{
         executable_l1_handler_tx(
             l1_handler_tx_args!(
-                tx_hash: TransactionHash(StarkHash::from($tx_hash)) , ..Default::default()
+                tx_hash: tx_hash!($tx_hash) , ..Default::default()
             )
         )
     }};
-}
-
-macro_rules! tx_hash {
-    ($tx_hash:expr) => {
-        TransactionHash(StarkHash::from($tx_hash))
-    };
 }
 
 #[test]

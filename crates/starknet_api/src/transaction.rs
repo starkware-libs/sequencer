@@ -772,6 +772,15 @@ pub struct RevertedTransactionExecutionStatus {
 )]
 pub struct TransactionHash(pub StarkHash);
 
+/// A utility macro to create a [`TransactionHash`] from an unsigned integer representation.
+#[cfg(any(feature = "testing", test))]
+#[macro_export]
+macro_rules! tx_hash {
+    ($tx_hash:expr) => {
+        $crate::transaction::TransactionHash($crate::hash::StarkHash::from($tx_hash))
+    };
+}
+
 impl std::fmt::Display for TransactionHash {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)

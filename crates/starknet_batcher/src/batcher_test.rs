@@ -16,7 +16,7 @@ use starknet_api::executable_transaction::Transaction;
 use starknet_api::hash::PoseidonHash;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
-use starknet_api::{contract_address, felt, nonce};
+use starknet_api::{contract_address, felt, nonce, tx_hash};
 use starknet_batcher_types::batcher_types::{
     DecisionReachedInput,
     GetProposalContent,
@@ -647,7 +647,7 @@ impl<T: ProposalManagerTraitWrapper> ProposalManagerTrait for T {
 }
 
 fn test_tx_hashes(range: std::ops::Range<u128>) -> HashSet<TransactionHash> {
-    range.map(|i| TransactionHash(felt!(i))).collect()
+    range.map(|i| tx_hash!(i)).collect()
 }
 
 fn test_contract_nonces(range: std::ops::Range<u128>) -> HashMap<ContractAddress, Nonce> {
