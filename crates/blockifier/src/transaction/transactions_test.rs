@@ -469,7 +469,7 @@ fn test_invoke_tx(
         calldata_length,
         signature_length,
         0,
-        StateResources::new_for_testing(state_changes_for_fee),
+        StateResources::new_for_testing(state_changes_for_fee, 0),
         None,
         ExecutionSummary::default(),
     );
@@ -1505,7 +1505,7 @@ fn test_declare_tx(
         0,
         0,
         class_info.code_size(),
-        StateResources::new_for_testing(state_changes_for_fee),
+        StateResources::new_for_testing(state_changes_for_fee, 0),
         None,
         ExecutionSummary::default(),
     );
