@@ -16,6 +16,7 @@ use std::path::PathBuf;
 
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use infra_utils::path::cargo_manifest_dir;
 use starknet_api::abi::abi_utils::{get_fee_token_var_address, selector_from_name};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber, GasPrice, NonzeroGasPrice};
 use starknet_api::core::{ClassHash, ContractAddress};
@@ -198,7 +199,12 @@ pub fn pad_address_to_64(address: &str) -> String {
 }
 
 pub fn get_raw_contract_class(contract_path: &str) -> String {
-    let path: PathBuf = [env!("CARGO_MANIFEST_DIR"), contract_path].iter().collect();
+    let path: PathBuf = [
+        cargo_manifest_dir().expect("CARGO_MANIFEST_DIR should be defined."),
+        contract_path.into(),
+    ]
+    .iter()
+    .collect();
     fs::read_to_string(path).unwrap()
 }
 
