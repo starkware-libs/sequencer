@@ -15,7 +15,8 @@ use starknet_api::block::GasPrice;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::execution_resources::GasAmount;
-use starknet_api::rpc_transaction::{ContractClass, RpcTransaction};
+use starknet_api::rpc_transaction::RpcTransaction;
+use starknet_api::state::SierraContractClass;
 use starknet_api::test_utils::declare::rpc_declare_tx;
 use starknet_api::test_utils::deploy_account::rpc_deploy_account_tx;
 use starknet_api::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
@@ -65,7 +66,7 @@ pub fn test_valid_resource_bounds() -> ValidResourceBounds {
 }
 
 /// Get the contract class used for testing.
-pub fn contract_class() -> ContractClass {
+pub fn contract_class() -> SierraContractClass {
     env::set_current_dir(resolve_project_relative_path(TEST_FILES_FOLDER).unwrap())
         .expect("Couldn't set working dir.");
     let json_file_path = Path::new(CONTRACT_CLASS_FILE);
