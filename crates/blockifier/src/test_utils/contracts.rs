@@ -21,9 +21,12 @@ use crate::execution::entry_point::CallEntryPoint;
 use crate::execution::native::contract_class::NativeCompiledClassV1;
 #[cfg(feature = "cairo_native")]
 use crate::test_utils::cairo_compile::starknet_compile;
-use crate::test_utils::cairo_compile::{cairo0_compile, cairo1_compile};
+use crate::test_utils::cairo_compile::{cairo0_compile, cairo1_compile, CompilationArtifacts};
 use crate::test_utils::struct_impls::LoadContractFromFile;
 use crate::test_utils::{get_raw_contract_class, CairoVersion};
+
+pub const CAIRO1_FEATURE_CONTRACTS_DIR: &str = "feature_contracts/cairo1";
+pub const SIERRA_CONTRACTS_SUBDIR: &str = "sierra";
 
 // This file contains featured contracts, used for tests. Use the function 'test_state' in
 // initial_test_state.rs to initialize a state with these contracts.
@@ -290,6 +293,15 @@ impl FeatureContract {
         }
     }
 
+    pub fn get_sierra_path(&self) -> String {
+        assert_ne!(self.cairo_version(), CairoVersion::Cairo0);
+        assert_ne!(self, &Self::ERC20(CairoVersion::Cairo1));
+        format!(
+            "{CAIRO1_FEATURE_CONTRACTS_DIR}/{SIERRA_CONTRACTS_SUBDIR}/{}.sierra.json",
+            self.get_non_erc20_base_name()
+        )
+    }
+
     pub fn get_compiled_path(&self) -> String {
         // ERC20 is a special case - not in the feature_contracts directory.
         if let Self::ERC20(cairo_version) = self {
@@ -323,7 +335,7 @@ impl FeatureContract {
 
     /// Compiles the feature contract and returns the compiled contract as a byte vector.
     /// Panics if the contract is ERC20, as ERC20 contract recompilation is not supported.
-    pub fn compile(&self) -> Vec<u8> {
+    pub fn compile(&self) -> CompilationArtifacts {
         if matches!(self, Self::ERC20(_)) {
             panic!("ERC20 contract recompilation not supported.");
         }
@@ -352,12 +364,13 @@ impl FeatureContract {
             #[cfg(feature = "cairo_native")]
             CairoVersion::Native => {
                 let (tag_override, cargo_nightly_arg) = self.fixed_tag_and_rust_toolchain();
-                starknet_compile(
+                let sierra_output = starknet_compile(
                     self.get_source_path(),
                     tag_override,
                     cargo_nightly_arg,
                     &mut vec![],
-                )
+                );
+                CompilationArtifacts::Cairo1Native { sierra: sierra_output }
             }
         }
     }
