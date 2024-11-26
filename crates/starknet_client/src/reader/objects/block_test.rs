@@ -4,8 +4,8 @@ use pretty_assertions::assert_eq;
 use starknet_api::block::BlockHash;
 use starknet_api::core::{CompiledClassHash, Nonce};
 use starknet_api::hash::StarkHash;
-use starknet_api::transaction::{TransactionHash, TransactionOffsetInBlock};
-use starknet_api::{class_hash, contract_address, felt, storage_key};
+use starknet_api::transaction::TransactionOffsetInBlock;
+use starknet_api::{class_hash, contract_address, felt, storage_key, tx_hash};
 
 use super::{Block, GlobalRoot, TransactionReceiptsError};
 use crate::reader::objects::block::BlockPostV0_13_1;
@@ -135,7 +135,7 @@ async fn to_starknet_api_block_and_version() {
     );
 
     let mut err_block: BlockPostV0_13_1 = serde_json::from_str(&raw_block).unwrap();
-    err_block.transaction_receipts[0].transaction_hash = TransactionHash(felt!("0x4"));
+    err_block.transaction_receipts[0].transaction_hash = tx_hash!(0x4);
     let err = err_block.to_starknet_api_block_and_version().unwrap_err();
     assert_matches!(
         err,

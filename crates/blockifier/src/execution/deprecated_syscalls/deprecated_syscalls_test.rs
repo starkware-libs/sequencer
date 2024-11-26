@@ -12,11 +12,10 @@ use starknet_api::transaction::{
     EventContent,
     EventData,
     EventKey,
-    TransactionHash,
     TransactionVersion,
     QUERY_VERSION_BASE,
 };
-use starknet_api::{calldata, felt, nonce, storage_key};
+use starknet_api::{calldata, felt, nonce, storage_key, tx_hash};
 use starknet_types_core::felt::Felt;
 use test_case::test_case;
 
@@ -467,7 +466,7 @@ fn test_tx_info(#[values(false, true)] only_query: bool) {
         let simulate_version_base = *QUERY_VERSION_BASE;
         version += simulate_version_base;
     }
-    let tx_hash = TransactionHash(felt!(1991_u16));
+    let tx_hash = tx_hash!(1991);
     let max_fee = Fee(0);
     let nonce = nonce!(3_u16);
     let sender_address = test_contract.get_instance_address(0);
