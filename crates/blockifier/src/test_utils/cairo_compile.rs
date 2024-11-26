@@ -1,15 +1,15 @@
-use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 use std::{env, fs};
 
 use cached::proc_macro::cached;
 use serde::{Deserialize, Serialize};
-use tempfile::NamedTempFile;
 
 const CAIRO0_PIP_REQUIREMENTS_FILE: &str = "tests/requirements.txt";
 const CAIRO1_REPO_RELATIVE_PATH_OVERRIDE_ENV_VAR: &str = "CAIRO1_REPO_RELATIVE_PATH";
 const DEFAULT_CAIRO1_REPO_RELATIVE_PATH: &str = "../../../cairo";
+pub const CAIRO1_FEATURE_CONTRACTS_DIR: &str = "feature_contracts/cairo1";
+pub const SIERRA_CONTRACTS_SUBDIR: &str = "sierra";
 
 /// Objects for simple deserialization of Cargo.toml to fetch the Cairo1 compiler version.
 /// The compiler itself isn't actually a dependency, so we compile by using the version of the
@@ -110,22 +110,28 @@ pub fn cairo1_compile(
     path: String,
     git_tag_override: Option<String>,
     cargo_nightly_arg: Option<String>,
+    fix: bool,
 ) -> Vec<u8> {
     let mut base_compile_args = vec![];
+    let path_new = path.clone();
+    let file_name = Path::new(&path_new).file_stem().unwrap().to_str().unwrap();
 
     let sierra_output =
         starknet_compile(path, git_tag_override, cargo_nightly_arg, &mut base_compile_args);
 
-    let mut temp_file = NamedTempFile::new().unwrap();
-    temp_file.write_all(&sierra_output).unwrap();
-    let temp_path_str = temp_file.into_temp_path();
-
+    let file_path = format!(
+        "{CAIRO1_FEATURE_CONTRACTS_DIR}/{SIERRA_CONTRACTS_SUBDIR}/{}.sierra.json",
+        file_name
+    );
+    if fix {
+        fs::write(&file_path, &sierra_output).unwrap();
+    }
     // Sierra -> CASM.
     let mut sierra_compile_command = Command::new("cargo");
     sierra_compile_command.args(base_compile_args);
     sierra_compile_command.args([
         "starknet-sierra-compile",
-        temp_path_str.to_str().unwrap(),
+        file_path.as_str(),
         "--allowed-libfuncs-list-name",
         "all",
     ]);
