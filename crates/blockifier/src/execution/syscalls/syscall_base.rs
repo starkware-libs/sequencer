@@ -1,8 +1,9 @@
 use std::collections::{hash_map, HashMap, HashSet};
 use std::convert::From;
 
-use starknet_api::core::{ClassHash, ContractAddress};
+use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress};
 use starknet_api::state::StorageKey;
+use starknet_api::transaction::fields::{Calldata, ContractAddressSalt};
 use starknet_api::transaction::EventContent;
 use starknet_types_core::felt::Felt;
 
@@ -10,7 +11,12 @@ use super::exceeds_event_size_limit;
 use crate::abi::constants;
 use crate::execution::call_info::{CallInfo, OrderedEvent, OrderedL2ToL1Message};
 use crate::execution::common_hints::ExecutionMode;
-use crate::execution::entry_point::{CallEntryPoint, EntryPointExecutionContext};
+use crate::execution::entry_point::{
+    CallEntryPoint,
+    ConstructorContext,
+    EntryPointExecutionContext,
+};
+use crate::execution::execution_utils::execute_deployment;
 use crate::execution::syscalls::hint_processor::{
     SyscallExecutionError,
     BLOCK_NUMBER_OUT_OF_RANGE_ERROR,
@@ -157,6 +163,42 @@ impl<'state> SyscallHandlerBase<'state> {
         }
         self.state.set_class_hash_at(self.call.storage_address, class_hash)?;
         Ok(())
+    }
+
+    pub fn deploy(
+        &mut self,
+        class_hash: ClassHash,
+        contract_address_salt: ContractAddressSalt,
+        constructor_calldata: Calldata,
+        deploy_from_zero: bool,
+        remaining_gas: &mut u64,
+    ) -> SyscallResult<(ContractAddress, CallInfo)> {
+        let deployer_address = self.call.storage_address;
+        let deployer_address_for_calculation = match deploy_from_zero {
+            true => ContractAddress::default(),
+            false => deployer_address,
+        };
+        let deployed_contract_address = calculate_contract_address(
+            contract_address_salt,
+            class_hash,
+            &constructor_calldata,
+            deployer_address_for_calculation,
+        )?;
+
+        let ctor_context = ConstructorContext {
+            class_hash,
+            code_address: Some(deployed_contract_address),
+            storage_address: deployed_contract_address,
+            caller_address: deployer_address,
+        };
+        let call_info = execute_deployment(
+            self.state,
+            self.context,
+            ctor_context,
+            constructor_calldata,
+            remaining_gas,
+        )?;
+        Ok((deployed_contract_address, call_info))
     }
 
     pub fn execute_inner_call(

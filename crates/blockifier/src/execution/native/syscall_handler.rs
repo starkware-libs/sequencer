@@ -18,13 +18,7 @@ use cairo_native::starknet::{
 };
 use num_bigint::BigUint;
 use starknet_api::contract_class::EntryPointType;
-use starknet_api::core::{
-    calculate_contract_address,
-    ClassHash,
-    ContractAddress,
-    EntryPointSelector,
-    EthAddress,
-};
+use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, EthAddress};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt};
 use starknet_api::transaction::{EventContent, EventData, EventKey, L2ToL1Payload};
@@ -32,15 +26,8 @@ use starknet_types_core::felt::Felt;
 
 use crate::execution::call_info::{MessageToL1, OrderedL2ToL1Message, Retdata};
 use crate::execution::common_hints::ExecutionMode;
-use crate::execution::contract_class::RunnableContractClass;
-use crate::execution::entry_point::{
-    CallEntryPoint,
-    CallType,
-    ConstructorContext,
-    EntryPointExecutionContext,
-};
+use crate::execution::entry_point::{CallEntryPoint, CallType, EntryPointExecutionContext};
 use crate::execution::errors::EntryPointExecutionError;
-use crate::execution::execution_utils::execute_deployment;
 use crate::execution::native::utils::{calculate_resource_bounds, default_tx_v2_info};
 use crate::execution::secp;
 use crate::execution::syscalls::hint_processor::{
@@ -289,39 +276,18 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
     ) -> SyscallResult<(Felt, Vec<Felt>)> {
         self.pre_execute_syscall(remaining_gas, self.gas_costs().deploy_gas_cost)?;
 
-        let deployer_address = self.base.call.storage_address;
-        let deployer_address_for_calculation =
-            if deploy_from_zero { ContractAddress::default() } else { deployer_address };
-
-        let class_hash = ClassHash(class_hash);
-        let calldata = Calldata(Arc::new(calldata.to_vec()));
-
-        let deployed_contract_address = calculate_contract_address(
-            ContractAddressSalt(contract_address_salt),
-            class_hash,
-            &calldata,
-            deployer_address_for_calculation,
-        )
-        .map_err(|err| self.handle_error(remaining_gas, err.into()))?;
-
-        let ctor_context = ConstructorContext {
-            class_hash,
-            code_address: Some(deployed_contract_address),
-            storage_address: deployed_contract_address,
-            caller_address: deployer_address,
-        };
-
-        let call_info = execute_deployment(
-            self.base.state,
-            self.base.context,
-            ctor_context,
-            calldata,
-            remaining_gas,
-        )
-        .map_err(|err| self.handle_error(remaining_gas, err.into()))?;
+        let (deployed_contract_address, call_info) = self
+            .base
+            .deploy(
+                ClassHash(class_hash),
+                ContractAddressSalt(contract_address_salt),
+                Calldata(Arc::new(calldata.to_vec())),
+                deploy_from_zero,
+                remaining_gas,
+            )
+            .map_err(|err| self.handle_error(remaining_gas, err))?;
 
         let constructor_retdata = call_info.execution.retdata.0[..].to_vec();
-
         self.base.inner_calls.push(call_info);
 
         Ok((Felt::from(deployed_contract_address), constructor_retdata))
