@@ -209,7 +209,7 @@ impl StorageKey {
 impl_from_through_intermediate!(u128, StorageKey, u8, u16, u32, u64);
 
 /// A contract class.
-#[derive(Debug, Clone, Default, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Eq, PartialEq, Deserialize, Serialize, Hash)]
 pub struct SierraContractClass {
     pub sierra_program: Vec<Felt>,
     pub contract_class_version: String,
