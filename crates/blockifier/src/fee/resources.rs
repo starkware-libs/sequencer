@@ -16,7 +16,7 @@ use crate::fee::gas_usage::{
 use crate::state::cached_state::{StateChanges, StateChangesCountForFee};
 use crate::transaction::errors::TransactionFeeError;
 use crate::utils::u64_from_usize;
-use crate::versioned_constants::{ArchivalDataGasCosts, VersionedConstants};
+use crate::versioned_constants::{AllocationCost, ArchivalDataGasCosts, VersionedConstants};
 
 pub type TransactionFeeResult<T> = Result<T, TransactionFeeError>;
 
@@ -139,7 +139,7 @@ impl StarknetResources {
     ) -> GasVector {
         [
             self.archival_data.to_gas_vector(versioned_constants, mode),
-            self.state.to_gas_vector(use_kzg_da),
+            self.state.to_gas_vector(use_kzg_da, &versioned_constants.allocation_cost),
             self.messages.to_gas_vector(),
         ]
         .iter()
@@ -186,9 +186,30 @@ impl StateResources {
     }
 
     /// Returns the gas cost of the transaction's state changes.
-    pub fn to_gas_vector(&self, use_kzg_da: bool) -> GasVector {
-        // TODO(Nimrod, 29/3/2024): delete `get_da_gas_cost` and move it's logic here.
-        // TODO(Yoav): Add the cost of allocating keys.
+    pub fn to_gas_vector(&self, use_kzg_da: bool, allocation_cost: &AllocationCost) -> GasVector {
+        let n_allocated_keys: u64 = self
+            .state_changes_for_fee
+            .n_allocated_keys
+            .try_into()
+            .expect("n_allocated_keys overflowed");
+        let allocation_gas_vector = allocation_cost.get_cost(use_kzg_da);
+        let total_allocation_cost =
+            allocation_gas_vector.checked_scalar_mul(n_allocated_keys).unwrap_or_else(|| {
+                panic!(
+                    "State resources to gas vector overflowed: tried to multiply \
+                     {allocation_gas_vector:?} by {n_allocated_keys:?}",
+                )
+            });
+        let da_gas_cost = self.da_gas_vector(use_kzg_da);
+        total_allocation_cost.checked_add(da_gas_cost).unwrap_or_else(|| {
+            panic!(
+                "State resources to gas vector overflowed: tried to add {total_allocation_cost:?} \
+                 to {da_gas_cost:?}",
+            )
+        })
+    }
+
+    pub fn da_gas_vector(&self, use_kzg_da: bool) -> GasVector {
         get_da_gas_cost(&self.state_changes_for_fee.state_changes_count, use_kzg_da)
     }
 

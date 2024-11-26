@@ -52,6 +52,7 @@ use crate::transaction::test_utils::{
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::ExecutableTransaction;
 use crate::utils::u64_from_usize;
+use crate::versioned_constants::AllocationCost;
 const VALIDATE_GAS_OVERHEAD: GasAmount = GasAmount(21);
 
 struct FlavorTestInitialState {
@@ -714,7 +715,8 @@ fn test_simulate_validate_charge_fee_post_execution(
     #[case] fee_type: FeeType,
     #[case] is_deprecated: bool,
 ) {
-    let block_context = BlockContext::create_for_account_testing();
+    let mut block_context = BlockContext::create_for_account_testing();
+    block_context.versioned_constants.allocation_cost = AllocationCost::ZERO;
     let gas_price = block_context.block_info.gas_prices.l1_gas_price(&fee_type);
     let chain_info = &block_context.chain_info;
     let fee_token_address = chain_info.fee_token_address(&fee_type);
