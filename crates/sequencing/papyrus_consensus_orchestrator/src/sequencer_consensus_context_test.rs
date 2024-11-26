@@ -160,11 +160,7 @@ async fn validate_proposal_success() {
         broadcasted_messages_receiver: inbound_network_receiver,
         broadcast_topic_client: outbound_network_sender,
     } = subscriber_channels;
-<<<<<<< HEAD
     let (outbound_internal_sender, _inbound_internal_receiver, _) =
-=======
-    let (outbound_internal_sender, _inbound_internal_receiver) =
->>>>>>> 883a253be (feat: allow a streamed proposal channel on top of existing one)
         StreamHandler::get_channels(inbound_network_receiver, outbound_network_sender);
 
     let mut context = SequencerConsensusContext::new(
