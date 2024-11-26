@@ -104,7 +104,7 @@ impl TransactionReceipt {
         let da_gas = tx_resources
             .starknet_resources
             .state
-            .to_gas_vector(tx_context.block_context.block_info.use_kzg_da);
+            .da_gas_vector(tx_context.block_context.block_info.use_kzg_da);
 
         Self { resources: tx_resources, gas, da_gas, fee }
     }
