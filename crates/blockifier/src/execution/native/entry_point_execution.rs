@@ -11,14 +11,14 @@ use crate::execution::entry_point::{
     EntryPointExecutionResult,
 };
 use crate::execution::errors::{EntryPointExecutionError, PostExecutionError};
-use crate::execution::native::contract_class::NativeContractClassV1;
+use crate::execution::native::contract_class::NativeCompiledClassV1;
 use crate::execution::native::syscall_handler::NativeSyscallHandler;
 use crate::state::state_api::State;
 
 // todo(rodrigo): add an `entry point not found` test for Native
 pub fn execute_entry_point_call(
     call: CallEntryPoint,
-    contract_class: NativeContractClassV1,
+    contract_class: NativeCompiledClassV1,
     state: &mut dyn State,
     context: &mut EntryPointExecutionContext,
 ) -> EntryPointExecutionResult<CallInfo> {

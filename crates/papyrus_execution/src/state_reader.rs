@@ -5,9 +5,9 @@ mod state_reader_test;
 use std::cell::Cell;
 
 use blockifier::execution::contract_class::{
-    ContractClassV0,
-    ContractClassV1,
-    RunnableContractClass,
+    CompiledClassV0,
+    CompiledClassV1,
+    RunnableCompiledClass,
 };
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
@@ -75,17 +75,14 @@ impl BlockifierStateReader for ExecutionStateReader {
         .unwrap_or_default())
     }
 
-    fn get_compiled_contract_class(
-        &self,
-        class_hash: ClassHash,
-    ) -> StateResult<RunnableContractClass> {
+    fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
         if let Some(pending_casm) = self
             .maybe_pending_data
             .as_ref()
             .and_then(|pending_data| pending_data.classes.get_compiled_class(class_hash))
         {
-            return Ok(RunnableContractClass::V1(
-                ContractClassV1::try_from(pending_casm).map_err(StateError::ProgramError)?,
+            return Ok(RunnableCompiledClass::V1(
+                CompiledClassV1::try_from(pending_casm).map_err(StateError::ProgramError)?,
             ));
         }
         if let Some(ApiContractClass::DeprecatedContractClass(pending_deprecated_class)) = self
@@ -93,8 +90,8 @@ impl BlockifierStateReader for ExecutionStateReader {
             .as_ref()
             .and_then(|pending_data| pending_data.classes.get_class(class_hash))
         {
-            return Ok(RunnableContractClass::V0(
-                ContractClassV0::try_from(pending_deprecated_class)
+            return Ok(RunnableCompiledClass::V0(
+                CompiledClassV0::try_from(pending_deprecated_class)
                     .map_err(StateError::ProgramError)?,
             ));
         }

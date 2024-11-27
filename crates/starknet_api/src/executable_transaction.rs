@@ -167,7 +167,7 @@ impl DeclareTransaction {
         Ok(Self { tx: declare_tx, tx_hash, class_info })
     }
 
-    /// Validates that the compiled class hash of the compiled contract class matches the supplied
+    /// Validates that the compiled class hash of the compiled class matches the supplied
     /// compiled class hash.
     /// Relevant only for version 3 transactions.
     pub fn validate_compiled_class_hash(&self) -> bool {

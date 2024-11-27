@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use blockifier::blockifier::transaction_executor::BLOCK_STATE_ACCESS_ERR;
-use blockifier::execution::contract_class::{ContractClassV1, RunnableContractClass};
+use blockifier::execution::contract_class::{CompiledClassV1, RunnableCompiledClass};
 use blockifier::state::state_api::StateReader;
 use cached::Cached;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
@@ -33,7 +33,7 @@ fn global_contract_cache_update() {
     };
     let sierra = SierraContractClass::default();
     let contract_class =
-        RunnableContractClass::V1(ContractClassV1::try_from(casm.clone()).unwrap());
+        RunnableCompiledClass::V1(CompiledClassV1::try_from(casm.clone()).unwrap());
     let class_hash = class_hash!("0x1");
 
     let temp_storage_path = tempfile::tempdir().unwrap().into_path();
@@ -75,7 +75,7 @@ fn global_contract_cache_update() {
         .block_state
         .as_ref()
         .expect(BLOCK_STATE_ACCESS_ERR)
-        .get_compiled_contract_class(class_hash)
+        .get_compiled_class(class_hash)
         .unwrap();
 
     assert_eq!(queried_contract_class, contract_class);
