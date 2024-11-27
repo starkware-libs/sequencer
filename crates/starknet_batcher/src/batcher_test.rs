@@ -65,6 +65,24 @@ fn deadline() -> chrono::DateTime<Utc> {
     chrono::Utc::now() + BLOCK_GENERATION_TIMEOUT
 }
 
+fn propose_block_input() -> ProposeBlockInput {
+    ProposeBlockInput {
+        proposal_id: PROPOSAL_ID,
+        deadline: deadline(),
+        retrospective_block_hash: None,
+        block_info: Default::default(),
+    }
+}
+
+fn validate_block_input() -> ValidateBlockInput {
+    ValidateBlockInput {
+        proposal_id: PROPOSAL_ID,
+        deadline: deadline(),
+        retrospective_block_hash: None,
+        block_info: Default::default(),
+    }
+}
+
 #[fixture]
 fn storage_reader() -> MockBatcherStorageReaderTrait {
     let mut storage = MockBatcherStorageReaderTrait::new();
@@ -195,24 +213,10 @@ async fn no_active_height() {
 
     // Calling `propose_block` and `validate_block` without starting a height should fail.
 
-    let result = batcher
-        .propose_block(ProposeBlockInput {
-            proposal_id: ProposalId(0),
-            retrospective_block_hash: None,
-            deadline: chrono::Utc::now() + chrono::Duration::seconds(1),
-            block_info: Default::default(),
-        })
-        .await;
+    let result = batcher.propose_block(propose_block_input()).await;
     assert_eq!(result, Err(BatcherError::NoActiveHeight));
 
-    let result = batcher
-        .validate_block(ValidateBlockInput {
-            proposal_id: ProposalId(0),
-            retrospective_block_hash: None,
-            deadline: chrono::Utc::now() + chrono::Duration::seconds(1),
-            block_info: Default::default(),
-        })
-        .await;
+    let result = batcher.validate_block(validate_block_input()).await;
     assert_eq!(result, Err(BatcherError::NoActiveHeight));
 }
 
@@ -227,13 +231,7 @@ async fn validate_block_full_flow() {
     // batcher-proposal_manager unification.
     batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
 
-    let validate_block_input = ValidateBlockInput {
-        proposal_id: PROPOSAL_ID,
-        deadline: deadline(),
-        retrospective_block_hash: None,
-        block_info: Default::default(),
-    };
-    batcher.validate_block(validate_block_input).await.unwrap();
+    batcher.validate_block(validate_block_input()).await.unwrap();
 
     let send_proposal_input_txs = SendProposalContentInput {
         proposal_id: PROPOSAL_ID,
@@ -346,13 +344,7 @@ async fn send_finish_to_an_invalid_proposal() {
     let mut batcher = batcher(proposal_manager);
     batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
 
-    let validate_block_input = ValidateBlockInput {
-        proposal_id: PROPOSAL_ID,
-        deadline: deadline(),
-        retrospective_block_hash: None,
-        block_info: Default::default(),
-    };
-    batcher.validate_block(validate_block_input).await.unwrap();
+    batcher.validate_block(validate_block_input()).await.unwrap();
 
     let send_proposal_input_txs =
         SendProposalContentInput { proposal_id: PROPOSAL_ID, content: SendProposalContent::Finish };
@@ -378,15 +370,7 @@ async fn propose_block_full_flow() {
     let mut batcher = batcher(proposal_manager);
 
     batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
-    batcher
-        .propose_block(ProposeBlockInput {
-            proposal_id: PROPOSAL_ID,
-            retrospective_block_hash: None,
-            deadline: chrono::Utc::now() + chrono::Duration::seconds(1),
-            block_info: Default::default(),
-        })
-        .await
-        .unwrap();
+    batcher.propose_block(propose_block_input()).await.unwrap();
 
     let expected_n_chunks = expected_streamed_txs.len().div_ceil(STREAMING_CHUNK_SIZE);
     let mut aggregated_streamed_txs = Vec::new();
@@ -438,14 +422,7 @@ async fn propose_block_without_retrospective_block_hash() {
         .start_height(StartHeightInput { height: BlockNumber(constants::STORED_BLOCK_HASH_BUFFER) })
         .await
         .unwrap();
-    let result = batcher
-        .propose_block(ProposeBlockInput {
-            proposal_id: PROPOSAL_ID,
-            retrospective_block_hash: None,
-            deadline: deadline(),
-            block_info: Default::default(),
-        })
-        .await;
+    let result = batcher.propose_block(propose_block_input()).await;
 
     assert_matches!(result, Err(BatcherError::MissingRetrospectiveBlockHash));
 }
