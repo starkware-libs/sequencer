@@ -88,7 +88,7 @@ pub struct AccountTransaction {
     pub tx: Transaction,
     only_query: bool,
 }
-
+// TODO(AvivG): create additional macro that returns a reference.
 macro_rules! implement_account_tx_inner_getters {
     ($(($field:ident, $field_type:ty)),*) => {
         $(pub fn $field(&self) -> $field_type {
@@ -227,13 +227,7 @@ impl AccountTransaction {
     }
 
     pub fn signature_length(&self) -> usize {
-        let signature = match &self.tx {
-            Transaction::Declare(tx) => tx.signature(),
-            Transaction::DeployAccount(tx) => tx.signature(),
-            Transaction::Invoke(tx) => tx.signature(),
-        };
-
-        signature.0.len()
+        self.signature().0.len()
     }
 
     pub fn tx_hash(&self) -> TransactionHash {
