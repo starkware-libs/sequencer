@@ -33,6 +33,7 @@ use starknet_api::block::{
     BlockTimestamp,
     NonzeroGasPrice,
 };
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::ContractAddress;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::transaction::TransactionHash;
@@ -303,7 +304,7 @@ impl SerializeConfig for BlockBuilderConfig {
 pub struct BlockBuilderFactory {
     pub block_builder_config: BlockBuilderConfig,
     pub storage_reader: StorageReader,
-    pub global_class_hash_to_class: GlobalContractCache<RunnableCompiledClass>,
+    pub global_class_hash_to_class: GlobalContractCache<(RunnableCompiledClass, SierraVersion)>,
 }
 
 impl BlockBuilderFactory {

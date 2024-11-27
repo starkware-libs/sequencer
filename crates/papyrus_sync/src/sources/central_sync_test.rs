@@ -23,6 +23,7 @@ use starknet_api::block::{
     BlockNumber,
     BlockSignature,
 };
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, SequencerPublicKey};
 use starknet_api::crypto::utils::PublicKey;
 use starknet_api::felt;
@@ -589,7 +590,7 @@ async fn sync_with_revert() {
         async fn get_compiled_class(
             &self,
             _class_hash: ClassHash,
-        ) -> Result<CasmContractClass, CentralError> {
+        ) -> Result<(CasmContractClass, SierraVersion), CentralError> {
             unimplemented!();
         }
 

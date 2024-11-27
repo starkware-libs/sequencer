@@ -371,8 +371,8 @@ pub(crate) fn stored_txn_to_executable_txn(
         starknet_api::transaction::Transaction::Declare(
             starknet_api::transaction::DeclareTransaction::V2(value),
         ) => {
-            let casm = storage_txn
-                .get_casm(&value.class_hash)
+            let versioned_casm = storage_txn
+                .get_versioned_casm(&value.class_hash)
                 .map_err(internal_server_error)?
                 .ok_or_else(|| {
                     internal_server_error(format!(
@@ -384,7 +384,7 @@ pub(crate) fn stored_txn_to_executable_txn(
                 get_class_lengths(storage_txn, state_number, value.class_hash)?;
             Ok(ExecutableTransactionInput::DeclareV2(
                 value,
-                casm,
+                versioned_casm.0,
                 sierra_program_length,
                 abi_length,
                 false,
@@ -394,8 +394,8 @@ pub(crate) fn stored_txn_to_executable_txn(
         starknet_api::transaction::Transaction::Declare(
             starknet_api::transaction::DeclareTransaction::V3(value),
         ) => {
-            let casm = storage_txn
-                .get_casm(&value.class_hash)
+            let versioned_casm = storage_txn
+                .get_versioned_casm(&value.class_hash)
                 .map_err(internal_server_error)?
                 .ok_or_else(|| {
                     internal_server_error(format!(
@@ -407,7 +407,7 @@ pub(crate) fn stored_txn_to_executable_txn(
                 get_class_lengths(storage_txn, state_number, value.class_hash)?;
             Ok(ExecutableTransactionInput::DeclareV3(
                 value,
-                casm,
+                versioned_casm.0,
                 sierra_program_length,
                 abi_length,
                 false,

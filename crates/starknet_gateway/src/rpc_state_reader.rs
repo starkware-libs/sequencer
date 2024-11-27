@@ -2,6 +2,7 @@ use blockifier::execution::contract_class::{
     CompiledClassV0,
     CompiledClassV1,
     RunnableCompiledClass,
+    VersionedRunnableCompiledClass,
 };
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
@@ -10,6 +11,7 @@ use reqwest::blocking::Client as BlockingClient;
 use serde::Serialize;
 use serde_json::{json, Value};
 use starknet_api::block::{BlockInfo, BlockNumber};
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
@@ -138,20 +140,31 @@ impl BlockifierStateReader for RpcStateReader {
         }
     }
 
-    fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
+    fn get_compiled_contract_class(
+        &self,
+        class_hash: ClassHash,
+    ) -> StateResult<VersionedRunnableCompiledClass> {
         let get_compiled_class_params =
             GetCompiledClassParams { class_hash, block_id: self.block_id };
 
         let result =
             self.send_rpc_request("starknet_getCompiledContractClass", get_compiled_class_params)?;
-        let contract_class: CompiledContractClass =
+        let versioned_contract_class: (CompiledContractClass, SierraVersion) =
             serde_json::from_value(result).map_err(serde_err_to_state_err)?;
-        match contract_class {
-            CompiledContractClass::V1(contract_class_v1) => Ok(RunnableCompiledClass::V1(
-                CompiledClassV1::try_from(contract_class_v1).map_err(StateError::ProgramError)?,
+        match versioned_contract_class.0 {
+            CompiledContractClass::V1(contract_class_v1) => Ok((
+                RunnableCompiledClass::V1(
+                    CompiledClassV1::try_from(contract_class_v1)
+                        .map_err(StateError::ProgramError)?,
+                ),
+                versioned_contract_class.1,
             )),
-            CompiledContractClass::V0(contract_class_v0) => Ok(RunnableCompiledClass::V0(
-                CompiledClassV0::try_from(contract_class_v0).map_err(StateError::ProgramError)?,
+            CompiledContractClass::V0(contract_class_v0) => Ok((
+                RunnableCompiledClass::V0(
+                    CompiledClassV0::try_from(contract_class_v0)
+                        .map_err(StateError::ProgramError)?,
+                ),
+                SierraVersion::zero(),
             )),
         }
     }

@@ -49,7 +49,7 @@ impl ContractClass {
 }
 
 #[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
-pub struct SierraVersion(Version);
+pub struct SierraVersion(pub Version);
 
 impl SierraVersion {
     pub fn new(major: u64, minor: u64, patch: u64) -> Self {

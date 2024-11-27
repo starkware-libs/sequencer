@@ -4,6 +4,7 @@ use indexmap::{indexmap, IndexMap};
 use papyrus_test_utils::get_test_state_diff;
 use pretty_assertions::assert_eq;
 use starknet_api::block::BlockNumber;
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::hash::StarkHash;
@@ -464,6 +465,7 @@ fn revert_state() {
         pythonic_hints: Default::default(),
         entry_points_by_type: Default::default(),
     };
+    let sierra_version_2 = SierraVersion::default();
     let updated_storage_key = storage_key!("0x1");
     let new_data = Felt::from(1_u8);
     let updated_storage = IndexMap::from([(updated_storage_key, new_data)]);
@@ -500,7 +502,7 @@ fn revert_state() {
             &[(class1, &DeprecatedContractClass::default())],
         )
         .unwrap()
-        .append_casm(&class2, &compiled_class2)
+        .append_versioned_casm(&class2, &(&compiled_class2, sierra_version_2))
         .unwrap()
         .commit()
         .unwrap();
@@ -531,15 +533,18 @@ fn revert_state() {
     let expected_deleted_classes = IndexMap::from([(class2, SierraContractClass::default())]);
     let expected_deleted_compiled_classes = IndexMap::from([(
         class2,
-        CasmContractClass {
-            prime: Default::default(),
-            compiler_version: Default::default(),
-            bytecode: Default::default(),
-            bytecode_segment_lengths: Default::default(),
-            hints: Default::default(),
-            pythonic_hints: Default::default(),
-            entry_points_by_type: Default::default(),
-        },
+        (
+            CasmContractClass {
+                prime: Default::default(),
+                compiler_version: Default::default(),
+                bytecode: Default::default(),
+                bytecode_segment_lengths: Default::default(),
+                hints: Default::default(),
+                pythonic_hints: Default::default(),
+                entry_points_by_type: Default::default(),
+            },
+            SierraVersion::default(),
+        ),
     )]);
     assert_matches!(
         deleted_data,
@@ -565,7 +570,7 @@ fn revert_state() {
         state_reader.get_storage_at(state_number, contract0, &updated_storage_key).unwrap(),
         Felt::ZERO
     );
-    assert!(txn.get_casm(&class2).unwrap().is_none());
+    assert!(txn.get_versioned_casm(&class2).unwrap().is_none());
 }
 
 #[test]

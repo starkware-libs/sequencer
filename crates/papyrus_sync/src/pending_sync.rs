@@ -199,7 +199,7 @@ async fn get_pending_compiled_class<TCentralSource: CentralSourceTrait + Sync + 
     central_source: Arc<TCentralSource>,
     pending_classes: Arc<RwLock<PendingClasses>>,
 ) -> Result<PendingSyncTaskResult, StateSyncError> {
-    let compiled_class = central_source.get_compiled_class(class_hash).await?;
-    pending_classes.write().await.add_compiled_class(class_hash, compiled_class);
+    let versioned_compiled_class = central_source.get_compiled_class(class_hash).await?;
+    pending_classes.write().await.add_compiled_contract_class(class_hash, versioned_compiled_class);
     Ok(PendingSyncTaskResult::DownloadedClassOrCompiledClass)
 }

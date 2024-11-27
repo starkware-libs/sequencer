@@ -763,6 +763,7 @@ fn test_fail_declare(block_context: BlockContext, max_fee: Fee) {
         create_test_init_data(chain_info, CairoVersion::Cairo0);
     let class_hash = class_hash!(0xdeadeadeaf72_u128);
     let contract_class = FeatureContract::Empty(CairoVersion::Cairo1).get_class();
+    let sierra_version = FeatureContract::TestContract(CairoVersion::Cairo1).get_sierra_version();
     let next_nonce = nonce_manager.next(account_address);
 
     // Cannot fail executing a declare tx unless it's V2 or above, and already declared.
@@ -772,7 +773,12 @@ fn test_fail_declare(block_context: BlockContext, max_fee: Fee) {
         sender_address: account_address,
         ..Default::default()
     };
-    state.set_contract_class(class_hash, contract_class.clone().try_into().unwrap()).unwrap();
+    state
+        .set_compiled_contract_class(
+            class_hash,
+            (contract_class.clone().try_into().unwrap(), sierra_version),
+        )
+        .unwrap();
     state.set_compiled_class_hash(class_hash, declare_tx_v2.compiled_class_hash).unwrap();
     let class_info = calculate_class_info_for_testing(contract_class);
     let declare_account_tx: AccountTransaction = ApiExecutableDeclareTransaction {

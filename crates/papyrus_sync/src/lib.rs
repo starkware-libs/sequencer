@@ -35,6 +35,7 @@ use papyrus_storage::{StorageError, StorageReader, StorageWriter};
 use serde::{Deserialize, Serialize};
 use sources::base_layer::BaseLayerSourceError;
 use starknet_api::block::{Block, BlockHash, BlockHashAndNumber, BlockNumber, BlockSignature};
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, CompiledClassHash, SequencerPublicKey};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{StateDiff, ThinStateDiff};
@@ -219,6 +220,7 @@ pub enum SyncEvent {
         class_hash: ClassHash,
         compiled_class_hash: CompiledClassHash,
         compiled_class: CasmContractClass,
+        sierra_version: SierraVersion,
     },
     NewBaseLayerBlock {
         block_number: BlockNumber,
@@ -390,7 +392,13 @@ impl<
                 class_hash,
                 compiled_class_hash,
                 compiled_class,
-            } => self.store_compiled_class(class_hash, compiled_class_hash, compiled_class),
+                sierra_version,
+            } => self.store_compiled_class(
+                class_hash,
+                compiled_class_hash,
+                compiled_class,
+                sierra_version,
+            ),
             SyncEvent::NewBaseLayerBlock { block_number, block_hash } => {
                 self.store_base_layer_block(block_number, block_hash)
             }
@@ -500,10 +508,11 @@ impl<
         class_hash: ClassHash,
         compiled_class_hash: CompiledClassHash,
         compiled_class: CasmContractClass,
+        sierra_version: SierraVersion,
     ) -> StateSyncResult {
         let txn = self.writer.begin_rw_txn()?;
         // TODO: verifications - verify casm corresponds to a class on storage.
-        match txn.append_casm(&class_hash, &compiled_class) {
+        match txn.append_versioned_casm(&class_hash, &(&compiled_class, sierra_version)) {
             #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
             Ok(txn) => {
                 txn.commit()?;
@@ -847,12 +856,13 @@ fn stream_new_compiled_classes<TCentralSource: CentralSourceTrait + Sync + Send>
                 central_source.stream_compiled_classes(from, up_to).fuse();
             pin_mut!(compiled_classes_stream);
 
-            while let Some(maybe_compiled_class) = compiled_classes_stream.next().await {
-                let (class_hash, compiled_class_hash, compiled_class) = maybe_compiled_class?;
+            while let Some(maybe_versioned_compiled_class) = compiled_classes_stream.next().await {
+                let (class_hash, compiled_class_hash, (compiled_class,sierra_version)) = maybe_versioned_compiled_class?;
                 yield SyncEvent::CompiledClassAvailable {
                     class_hash,
                     compiled_class_hash,
                     compiled_class,
+                    sierra_version
                 };
             }
         }

@@ -13,6 +13,7 @@ use papyrus_storage::test_utils::get_test_storage;
 use pretty_assertions::assert_eq;
 use reqwest::StatusCode;
 use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, CompiledClassHash, GlobalRoot, Nonce, SequencerPublicKey};
 use starknet_api::crypto::utils::PublicKey;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
@@ -62,7 +63,7 @@ async fn last_block_number() {
         storage_reader: reader,
         state_update_stream_config: state_update_stream_config_for_test(),
         class_cache: get_test_class_cache(),
-        compiled_class_cache: get_test_compiled_class_cache(),
+        versioned_compiled_class_cache: get_test_versioned_compiled_class_cache(),
     };
 
     let last_block_number = central_source.get_latest_block().await.unwrap().unwrap().number;
@@ -101,7 +102,7 @@ async fn stream_block_headers() {
         storage_reader: reader,
         state_update_stream_config: state_update_stream_config_for_test(),
         class_cache: get_test_class_cache(),
-        compiled_class_cache: get_test_compiled_class_cache(),
+        versioned_compiled_class_cache: get_test_versioned_compiled_class_cache(),
     };
 
     let mut expected_block_num = BlockNumber(START_BLOCK_NUMBER);
@@ -181,7 +182,7 @@ async fn stream_block_headers_some_are_missing() {
             storage_reader: reader,
             state_update_stream_config: state_update_stream_config_for_test(),
             class_cache: get_test_class_cache(),
-            compiled_class_cache: get_test_compiled_class_cache(),
+            versioned_compiled_class_cache: get_test_versioned_compiled_class_cache(),
         };
 
         let mut expected_block_num = BlockNumber(START_BLOCK_NUMBER);
@@ -245,7 +246,7 @@ async fn stream_block_headers_error() {
         storage_reader: reader,
         state_update_stream_config: state_update_stream_config_for_test(),
         class_cache: get_test_class_cache(),
-        compiled_class_cache: get_test_compiled_class_cache(),
+        versioned_compiled_class_cache: get_test_versioned_compiled_class_cache(),
     };
 
     let mut expected_block_num = BlockNumber(START_BLOCK_NUMBER);
@@ -384,7 +385,7 @@ async fn stream_state_updates() {
         state_update_stream_config: state_update_stream_config_for_test(),
         // TODO(shahak): Check that downloaded classes appear in the cache.
         class_cache: get_test_class_cache(),
-        compiled_class_cache: get_test_compiled_class_cache(),
+        versioned_compiled_class_cache: get_test_versioned_compiled_class_cache(),
     };
     let initial_block_num = BlockNumber(START_BLOCK_NUMBER);
 
@@ -518,15 +519,18 @@ async fn stream_compiled_classes() {
             .with(predicate::eq(ClassHash(felt)))
             .times(1)
             .returning(move |_x| {
-                Ok(Some(CasmContractClass {
-                    prime: Default::default(),
-                    compiler_version: Default::default(),
-                    bytecode: Default::default(),
-                    bytecode_segment_lengths: Default::default(),
-                    hints: Default::default(),
-                    pythonic_hints: Default::default(),
-                    entry_points_by_type: Default::default(),
-                }))
+                Ok(Some((
+                    CasmContractClass {
+                        prime: Default::default(),
+                        compiler_version: Default::default(),
+                        bytecode: Default::default(),
+                        bytecode_segment_lengths: Default::default(),
+                        hints: Default::default(),
+                        pythonic_hints: Default::default(),
+                        entry_points_by_type: Default::default(),
+                    },
+                    SierraVersion::default(),
+                )))
             });
     }
 
@@ -536,29 +540,32 @@ async fn stream_compiled_classes() {
         storage_reader: reader,
         state_update_stream_config: state_update_stream_config_for_test(),
         class_cache: get_test_class_cache(),
-        compiled_class_cache: get_test_compiled_class_cache(),
+        versioned_compiled_class_cache: get_test_versioned_compiled_class_cache(),
     };
 
     let stream = central_source.stream_compiled_classes(BlockNumber(0), BlockNumber(2));
     pin_mut!(stream);
 
-    let expected_compiled_class = CasmContractClass {
-        prime: Default::default(),
-        compiler_version: Default::default(),
-        bytecode: Default::default(),
-        bytecode_segment_lengths: Default::default(),
-        hints: Default::default(),
-        pythonic_hints: Default::default(),
-        entry_points_by_type: Default::default(),
-    };
+    let expected_compiled_class = (
+        CasmContractClass {
+            prime: Default::default(),
+            compiler_version: Default::default(),
+            bytecode: Default::default(),
+            bytecode_segment_lengths: Default::default(),
+            hints: Default::default(),
+            pythonic_hints: Default::default(),
+            entry_points_by_type: Default::default(),
+        },
+        SierraVersion::default(),
+    );
     for felt in felts {
-        let (class_hash, compiled_class_hash, compiled_class) =
+        let (class_hash, compiled_class_hash, versioned_compiled_class) =
             stream.next().await.unwrap().unwrap();
         let expected_class_hash = ClassHash(felt);
         let expected_compiled_class_hash = CompiledClassHash(felt);
         assert_eq!(class_hash, expected_class_hash);
         assert_eq!(compiled_class_hash, expected_compiled_class_hash);
-        assert_eq!(compiled_class, expected_compiled_class);
+        assert_eq!(versioned_compiled_class, expected_compiled_class);
     }
 }
 
@@ -590,7 +597,7 @@ async fn get_class() {
         storage_reader: reader,
         state_update_stream_config: state_update_stream_config_for_test(),
         class_cache: get_test_class_cache(),
-        compiled_class_cache: get_test_compiled_class_cache(),
+        versioned_compiled_class_cache: get_test_versioned_compiled_class_cache(),
     };
 
     assert_eq!(
@@ -613,20 +620,23 @@ async fn get_compiled_class() {
     let mut mock = MockStarknetReader::new();
 
     let class_hash = ClassHash(StarkHash::ONE);
-    let compiled_class = CasmContractClass {
-        prime: Default::default(),
-        compiler_version: Default::default(),
-        bytecode: Default::default(),
-        bytecode_segment_lengths: Default::default(),
-        hints: Default::default(),
-        pythonic_hints: Default::default(),
-        entry_points_by_type: Default::default(),
-    };
-    let compiled_class_clone = compiled_class.clone();
+    let versioned_compiled_class = (
+        CasmContractClass {
+            prime: Default::default(),
+            compiler_version: Default::default(),
+            bytecode: Default::default(),
+            bytecode_segment_lengths: Default::default(),
+            hints: Default::default(),
+            pythonic_hints: Default::default(),
+            entry_points_by_type: Default::default(),
+        },
+        SierraVersion::default(),
+    );
+    let versioned_compiled_class_clone = versioned_compiled_class.clone();
     mock.expect_compiled_class_by_hash()
         .with(predicate::eq(class_hash))
         .times(1)
-        .return_once(move |_x| Ok(Some(compiled_class_clone)));
+        .return_once(move |_x| Ok(Some(versioned_compiled_class_clone)));
 
     let ((reader, _), _temp_dir) = get_test_storage();
     let central_source = GenericCentralSource {
@@ -635,14 +645,20 @@ async fn get_compiled_class() {
         storage_reader: reader,
         state_update_stream_config: state_update_stream_config_for_test(),
         class_cache: get_test_class_cache(),
-        compiled_class_cache: get_test_compiled_class_cache(),
+        versioned_compiled_class_cache: get_test_versioned_compiled_class_cache(),
     };
 
-    assert_eq!(central_source.get_compiled_class(class_hash).await.unwrap(), compiled_class);
+    assert_eq!(
+        central_source.get_compiled_class(class_hash).await.unwrap(),
+        versioned_compiled_class
+    );
 
     // Repeating the call to see that source doesn't call the client and gets the result from
     // cache.
-    assert_eq!(central_source.get_compiled_class(class_hash).await.unwrap(), compiled_class);
+    assert_eq!(
+        central_source.get_compiled_class(class_hash).await.unwrap(),
+        versioned_compiled_class
+    );
 }
 
 #[tokio::test]
@@ -659,7 +675,7 @@ async fn get_sequencer_pub_key() {
         storage_reader: reader,
         state_update_stream_config: state_update_stream_config_for_test(),
         class_cache: get_test_class_cache(),
-        compiled_class_cache: get_test_compiled_class_cache(),
+        versioned_compiled_class_cache: get_test_versioned_compiled_class_cache(),
     };
 
     assert_eq!(central_source.get_sequencer_pub_key().await.unwrap(), sequencer_pub_key);
@@ -677,6 +693,7 @@ fn get_test_class_cache() -> Arc<Mutex<LruCache<ClassHash, ApiContractClass>>> {
     Arc::from(Mutex::new(LruCache::new(NonZeroUsize::new(2).unwrap())))
 }
 
-fn get_test_compiled_class_cache() -> Arc<Mutex<LruCache<ClassHash, CasmContractClass>>> {
+fn get_test_versioned_compiled_class_cache()
+-> Arc<Mutex<LruCache<ClassHash, (CasmContractClass, SierraVersion)>>> {
     Arc::from(Mutex::new(LruCache::new(NonZeroUsize::new(2).unwrap())))
 }
