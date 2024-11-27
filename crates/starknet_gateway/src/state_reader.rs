@@ -1,5 +1,5 @@
 use blockifier::blockifier::block::BlockInfo;
-use blockifier::execution::contract_class::RunnableContractClass;
+use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
 #[cfg(test)]
@@ -48,7 +48,7 @@ impl BlockifierStateReader for Box<dyn MempoolStateReader> {
     fn get_compiled_contract_class(
         &self,
         class_hash: ClassHash,
-    ) -> StateResult<RunnableContractClass> {
+    ) -> StateResult<RunnableCompiledClass> {
         self.as_ref().get_compiled_contract_class(class_hash)
     }
 

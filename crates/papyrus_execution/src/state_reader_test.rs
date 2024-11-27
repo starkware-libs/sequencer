@@ -2,9 +2,9 @@ use std::cell::Cell;
 
 use assert_matches::assert_matches;
 use blockifier::execution::contract_class::{
-    ContractClassV0,
-    ContractClassV1,
-    RunnableContractClass,
+    CompiledClassV0,
+    CompiledClassV1,
+    RunnableCompiledClass,
 };
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::StateReader;
@@ -50,7 +50,7 @@ fn read_state() {
     let class0 = SierraContractClass::default();
     let casm0 = get_test_casm();
     let blockifier_casm0 =
-        RunnableContractClass::V1(ContractClassV1::try_from(casm0.clone()).unwrap());
+        RunnableCompiledClass::V1(CompiledClassV1::try_from(casm0.clone()).unwrap());
     let compiled_class_hash0 = CompiledClassHash(StarkHash::default());
 
     let class_hash1 = ClassHash(1u128.into());
@@ -65,7 +65,7 @@ fn read_state() {
     let mut casm1 = get_test_casm();
     casm1.bytecode[0] = BigUintAsHex { value: 12345u32.into() };
     let blockifier_casm1 =
-        RunnableContractClass::V1(ContractClassV1::try_from(casm1.clone()).unwrap());
+        RunnableCompiledClass::V1(CompiledClassV1::try_from(casm1.clone()).unwrap());
     let nonce1 = Nonce(felt!(2_u128));
     let class_hash3 = ClassHash(567_u128.into());
     let class_hash4 = ClassHash(89_u128.into());
@@ -241,7 +241,7 @@ fn read_state() {
     // Test that if the class is deprecated it is returned.
     assert_eq!(
         state_reader2.get_compiled_contract_class(class_hash4).unwrap(),
-        RunnableContractClass::V0(ContractClassV0::try_from(class1).unwrap())
+        RunnableCompiledClass::V0(CompiledClassV0::try_from(class1).unwrap())
     );
 
     // Test get_class_hash_at when the class is replaced.

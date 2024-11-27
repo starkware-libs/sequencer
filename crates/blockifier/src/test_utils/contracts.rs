@@ -12,10 +12,10 @@ use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
-use crate::execution::contract_class::RunnableContractClass;
+use crate::execution::contract_class::RunnableCompiledClass;
 use crate::execution::entry_point::CallEntryPoint;
 #[cfg(feature = "cairo_native")]
-use crate::execution::native::contract_class::NativeContractClassV1;
+use crate::execution::native::contract_class::NativeCompiledClassV1;
 #[cfg(feature = "cairo_native")]
 use crate::test_utils::cairo_compile::starknet_compile;
 use crate::test_utils::cairo_compile::{cairo0_compile, cairo1_compile};
@@ -185,12 +185,12 @@ impl FeatureContract {
         }
     }
 
-    pub fn get_runnable_class(&self) -> RunnableContractClass {
+    pub fn get_runnable_class(&self) -> RunnableCompiledClass {
         #[cfg(feature = "cairo_native")]
         if CairoVersion::Native == self.cairo_version() {
             let native_contract_class =
-                NativeContractClassV1::compile_or_get_cached(&self.get_compiled_path());
-            return RunnableContractClass::V1Native(native_contract_class);
+                NativeCompiledClassV1::compile_or_get_cached(&self.get_compiled_path());
+            return RunnableCompiledClass::V1Native(native_contract_class);
         }
 
         self.get_class().try_into().unwrap()
@@ -365,7 +365,7 @@ impl FeatureContract {
         entry_point_type: EntryPointType,
     ) -> EntryPointOffset {
         match self.get_runnable_class() {
-            RunnableContractClass::V0(class) => {
+            RunnableCompiledClass::V0(class) => {
                 class
                     .entry_points_by_type
                     .get(&entry_point_type)
@@ -375,7 +375,7 @@ impl FeatureContract {
                     .unwrap()
                     .offset
             }
-            RunnableContractClass::V1(class) => {
+            RunnableCompiledClass::V1(class) => {
                 class
                     .entry_points_by_type
                     .get_entry_point(&CallEntryPoint {
@@ -387,7 +387,7 @@ impl FeatureContract {
                     .offset
             }
             #[cfg(feature = "cairo_native")]
-            RunnableContractClass::V1Native(_) => {
+            RunnableCompiledClass::V1Native(_) => {
                 panic!("Not implemented for cairo native contracts")
             }
         }

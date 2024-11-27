@@ -1,6 +1,6 @@
 use blockifier::blockifier::block::BlockInfo;
 use blockifier::context::BlockContext;
-use blockifier::execution::contract_class::RunnableContractClass;
+use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
 use blockifier::test_utils::contracts::FeatureContract;
@@ -47,7 +47,7 @@ impl BlockifierStateReader for TestStateReader {
     fn get_compiled_contract_class(
         &self,
         class_hash: ClassHash,
-    ) -> StateResult<RunnableContractClass> {
+    ) -> StateResult<RunnableCompiledClass> {
         self.blockifier_state_reader.get_compiled_contract_class(class_hash)
     }
 

@@ -14,7 +14,7 @@ use starknet_api::hash::StarkHash;
 
 use super::execution_utils::SEGMENT_ARENA_BUILTIN_SIZE;
 use crate::execution::call_info::{CallExecution, CallInfo, ChargedResources};
-use crate::execution::contract_class::{ContractClassV0, TrackedResource};
+use crate::execution::contract_class::{CompiledClassV0, TrackedResource};
 use crate::execution::deprecated_syscalls::hint_processor::DeprecatedSyscallHintProcessor;
 use crate::execution::entry_point::{
     CallEntryPoint,
@@ -44,7 +44,7 @@ pub const CAIRO0_BUILTINS_NAMES: [BuiltinName; 6] = [
 /// Executes a specific call to a contract entry point and returns its output.
 pub fn execute_entry_point_call(
     call: CallEntryPoint,
-    contract_class: ContractClassV0,
+    contract_class: CompiledClassV0,
     state: &mut dyn State,
     context: &mut EntryPointExecutionContext,
 ) -> EntryPointExecutionResult<CallInfo> {
@@ -67,7 +67,7 @@ pub fn execute_entry_point_call(
 
 pub fn initialize_execution_context<'a>(
     call: &CallEntryPoint,
-    contract_class: ContractClassV0,
+    contract_class: CompiledClassV0,
     state: &'a mut dyn State,
     context: &'a mut EntryPointExecutionContext,
 ) -> Result<VmExecutionContext<'a>, PreExecutionError> {
@@ -110,7 +110,7 @@ pub fn initialize_execution_context<'a>(
 
 pub fn resolve_entry_point_pc(
     call: &CallEntryPoint,
-    contract_class: &ContractClassV0,
+    contract_class: &CompiledClassV0,
 ) -> Result<usize, PreExecutionError> {
     if call.entry_point_type == EntryPointType::Constructor
         && call.entry_point_selector != selector_from_name(CONSTRUCTOR_ENTRY_POINT_NAME)
