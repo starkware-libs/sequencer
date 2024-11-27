@@ -97,12 +97,9 @@ fn test_versioned_state_proxy() {
         versioned_state_proxys[5].get_compiled_class_hash(class_hash).unwrap(),
         compiled_class_hash
     );
-    assert_eq!(
-        versioned_state_proxys[7].get_compiled_contract_class(class_hash).unwrap(),
-        contract_class
-    );
+    assert_eq!(versioned_state_proxys[7].get_compiled_class(class_hash).unwrap(), contract_class);
     assert_matches!(
-        versioned_state_proxys[7].get_compiled_contract_class(another_class_hash).unwrap_err(),
+        versioned_state_proxys[7].get_compiled_class(another_class_hash).unwrap_err(),
         StateError::UndeclaredClassHash(class_hash) if
         another_class_hash == class_hash
     );
@@ -197,7 +194,7 @@ fn test_versioned_state_proxy() {
         compiled_class_hash_v18
     );
     assert_eq!(
-        versioned_state_proxys[15].get_compiled_contract_class(class_hash).unwrap(),
+        versioned_state_proxys[15].get_compiled_class(class_hash).unwrap(),
         contract_class_v11
     );
 }
@@ -321,7 +318,7 @@ fn test_validate_reads(
 
     assert!(transactional_state.cache.borrow().initial_reads.declared_contracts.is_empty());
     assert_matches!(
-        transactional_state.get_compiled_contract_class(class_hash),
+        transactional_state.get_compiled_class(class_hash),
         Err(StateError::UndeclaredClassHash(err_class_hash)) if
         err_class_hash == class_hash
     );
@@ -440,10 +437,7 @@ fn test_apply_writes(
         &HashMap::default(),
     );
     assert!(transactional_states[1].get_class_hash_at(contract_address).unwrap() == class_hash_0);
-    assert!(
-        transactional_states[1].get_compiled_contract_class(class_hash).unwrap()
-            == contract_class_0
-    );
+    assert!(transactional_states[1].get_compiled_class(class_hash).unwrap() == contract_class_0);
 }
 
 #[rstest]
@@ -659,7 +653,5 @@ fn test_versioned_proxy_state_flow(
         .commit_chunk_and_recover_block_state(4, HashMap::new());
 
     assert!(modified_block_state.get_class_hash_at(contract_address).unwrap() == class_hash_3);
-    assert!(
-        modified_block_state.get_compiled_contract_class(class_hash).unwrap() == contract_class_2
-    );
+    assert!(modified_block_state.get_compiled_class(class_hash).unwrap() == contract_class_2);
 }

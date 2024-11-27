@@ -14,7 +14,7 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_types_core::felt::Felt;
 
 use crate::execution::call_info::{CallExecution, CallInfo, ChargedResources, Retdata};
-use crate::execution::contract_class::{ContractClassV1, EntryPointV1, TrackedResource};
+use crate::execution::contract_class::{CompiledClassV1, EntryPointV1, TrackedResource};
 use crate::execution::entry_point::{
     CallEntryPoint,
     EntryPointExecutionContext,
@@ -57,7 +57,7 @@ pub struct CallResult {
 /// Executes a specific call to a contract entry point and returns its output.
 pub fn execute_entry_point_call(
     call: CallEntryPoint,
-    contract_class: ContractClassV1,
+    compiled_class: CompiledClassV1,
     state: &mut dyn State,
     context: &mut EntryPointExecutionContext,
 ) -> EntryPointExecutionResult<CallInfo> {
@@ -74,7 +74,7 @@ pub fn execute_entry_point_call(
         initial_syscall_ptr,
         entry_point,
         program_extra_data_length,
-    } = initialize_execution_context(call, &contract_class, state, context)?;
+    } = initialize_execution_context(call, &compiled_class, state, context)?;
 
     let args = prepare_call_arguments(
         &syscall_handler.base.call,
@@ -86,7 +86,7 @@ pub fn execute_entry_point_call(
     let n_total_args = args.len();
 
     // Execute.
-    let bytecode_length = contract_class.bytecode_length();
+    let bytecode_length = compiled_class.bytecode_length();
     let program_segment_size = bytecode_length + program_extra_data_length;
     run_entry_point(&mut runner, &mut syscall_handler, entry_point, args, program_segment_size)?;
 
@@ -142,17 +142,17 @@ fn register_visited_pcs(
 
 pub fn initialize_execution_context<'a>(
     call: CallEntryPoint,
-    contract_class: &'a ContractClassV1,
+    compiled_class: &'a CompiledClassV1,
     state: &'a mut dyn State,
     context: &'a mut EntryPointExecutionContext,
 ) -> Result<VmExecutionContext<'a>, PreExecutionError> {
-    let entry_point = contract_class.get_entry_point(&call)?;
+    let entry_point = compiled_class.get_entry_point(&call)?;
 
     // Instantiate Cairo runner.
     let proof_mode = false;
     let trace_enabled = true;
     let mut runner = CairoRunner::new(
-        &contract_class.0.program,
+        &compiled_class.0.program,
         LayoutName::starknet,
         proof_mode,
         trace_enabled,
@@ -162,7 +162,7 @@ pub fn initialize_execution_context<'a>(
     let mut read_only_segments = ReadOnlySegments::default();
     let program_extra_data_length = prepare_program_extra_data(
         &mut runner,
-        contract_class,
+        compiled_class,
         &mut read_only_segments,
         &context.versioned_constants().os_constants.gas_costs,
     )?;
@@ -174,7 +174,7 @@ pub fn initialize_execution_context<'a>(
         context,
         initial_syscall_ptr,
         call,
-        &contract_class.hints,
+        &compiled_class.hints,
         read_only_segments,
     );
 
@@ -189,7 +189,7 @@ pub fn initialize_execution_context<'a>(
 
 fn prepare_program_extra_data(
     runner: &mut CairoRunner,
-    contract_class: &ContractClassV1,
+    contract_class: &CompiledClassV1,
     read_only_segments: &mut ReadOnlySegments,
     gas_costs: &GasCosts,
 ) -> Result<usize, PreExecutionError> {
