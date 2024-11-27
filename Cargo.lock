@@ -10228,6 +10228,7 @@ dependencies = [
  "pretty_assertions",
  "primitive-types",
  "rstest",
+ "semver 1.0.23",
  "serde",
  "serde_json",
  "sha3",
