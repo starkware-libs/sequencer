@@ -39,6 +39,18 @@ macro_rules! implement_getter_calls {
 };
 }
 
+macro_rules! implement_account_tx_inner_getters {
+    ($(($field:ident, $field_type:ty)),*) => {
+        $(pub fn $field(&self) -> $field_type {
+            match self {
+                AccountTransaction::Declare(tx) => tx.tx.$field().clone(),
+                AccountTransaction::DeployAccount(tx) => tx.tx.$field().clone(),
+                AccountTransaction::Invoke(tx) => tx.tx.$field().clone(),
+            }
+        })*
+    };
+}
+
 /// Represents a paid Starknet transaction.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum AccountTransaction {
@@ -48,6 +60,8 @@ pub enum AccountTransaction {
 }
 
 impl AccountTransaction {
+    implement_account_tx_inner_getters!((resource_bounds, ValidResourceBounds), (tip, Tip));
+
     pub fn contract_address(&self) -> ContractAddress {
         match self {
             AccountTransaction::Declare(tx_data) => tx_data.tx.sender_address(),
@@ -73,43 +87,6 @@ impl AccountTransaction {
             AccountTransaction::Declare(tx_data) => tx_data.tx_hash,
             AccountTransaction::DeployAccount(tx_data) => tx_data.tx_hash,
             AccountTransaction::Invoke(tx_data) => tx_data.tx_hash,
-        }
-    }
-
-    // TODO(Mohammad): add a getter macro.
-    pub fn tip(&self) -> Option<Tip> {
-        match self {
-            AccountTransaction::Declare(declare_tx) => match &declare_tx.tx {
-                crate::transaction::DeclareTransaction::V3(tx_v3) => Some(tx_v3.tip),
-                _ => None,
-            },
-            AccountTransaction::DeployAccount(deploy_account_tx) => match &deploy_account_tx.tx {
-                crate::transaction::DeployAccountTransaction::V3(tx_v3) => Some(tx_v3.tip),
-                _ => None,
-            },
-            AccountTransaction::Invoke(invoke_tx) => match &invoke_tx.tx {
-                crate::transaction::InvokeTransaction::V3(tx_v3) => Some(tx_v3.tip),
-                _ => None,
-            },
-        }
-    }
-
-    pub fn resource_bounds(&self) -> Option<&ValidResourceBounds> {
-        match self {
-            AccountTransaction::Declare(declare_tx) => match &declare_tx.tx {
-                crate::transaction::DeclareTransaction::V3(tx_v3) => Some(&tx_v3.resource_bounds),
-                _ => None,
-            },
-            AccountTransaction::DeployAccount(deploy_account_tx) => match &deploy_account_tx.tx {
-                crate::transaction::DeployAccountTransaction::V3(tx_v3) => {
-                    Some(&tx_v3.resource_bounds)
-                }
-                _ => None,
-            },
-            AccountTransaction::Invoke(invoke_tx) => match &invoke_tx.tx {
-                crate::transaction::InvokeTransaction::V3(tx_v3) => Some(&tx_v3.resource_bounds),
-                _ => None,
-            },
         }
     }
 }
