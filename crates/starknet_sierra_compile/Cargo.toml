@@ -30,3 +30,6 @@ assert_matches.workspace = true
 infra_utils.workspace = true
 mempool_test_utils.workspace = true
 rstest.workspace = true
+
+[build-dependencies]
+infra_utils.workspace = true
