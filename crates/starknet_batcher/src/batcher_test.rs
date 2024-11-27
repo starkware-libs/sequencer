@@ -38,6 +38,7 @@ use starknet_mempool_types::mempool_types::CommitBlockArgs;
 
 use crate::batcher::{Batcher, MockBatcherStorageReaderTrait, MockBatcherStorageWriterTrait};
 use crate::block_builder::{
+    AbortSignalSender,
     BlockBuilderError,
     BlockBuilderTrait,
     FailOnErrorCause,
@@ -129,10 +130,14 @@ fn mock_proposal_manager_common_expectations(
         .return_once(move |_| { async move { Ok(proposal_commitment()) } }.boxed());
 }
 
+fn abort_signal_sender() -> AbortSignalSender {
+    tokio::sync::oneshot::channel().0
+}
+
 fn mock_create_builder_for_validate_block() -> MockBlockBuilderFactoryTrait {
     let mut block_builder_factory = MockBlockBuilderFactoryTrait::new();
     block_builder_factory.expect_create_block_builder().times(1).return_once(
-        |_, _, mut tx_provider, _, _| {
+        |_, _, mut tx_provider, _| {
             // Spawn a task to keep tx_provider alive until all transactions are read.
             // Without this, the provider would be dropped, causing the batcher to fail when sending
             // transactions to it during the test.
@@ -141,7 +146,7 @@ fn mock_create_builder_for_validate_block() -> MockBlockBuilderFactoryTrait {
                     tokio::task::yield_now().await;
                 }
             });
-            Ok(Box::new(MockBlockBuilderTrait::new()))
+            Ok((Box::new(MockBlockBuilderTrait::new()), abort_signal_sender()))
         },
     );
     block_builder_factory
@@ -152,12 +157,12 @@ fn mock_create_builder_for_propose_block(
 ) -> MockBlockBuilderFactoryTrait {
     let mut block_builder_factory = MockBlockBuilderFactoryTrait::new();
     block_builder_factory.expect_create_block_builder().times(1).return_once(
-        |_, _, _, output_content_sender, _| {
+        |_, _, _, output_content_sender| {
             // Simulate the streaming of the block builder output.
             for tx in output_txs {
                 output_content_sender.as_ref().unwrap().send(tx).unwrap();
             }
-            Ok(Box::new(MockBlockBuilderTrait::new()))
+            Ok((Box::new(MockBlockBuilderTrait::new()), abort_signal_sender()))
         },
     );
     block_builder_factory
