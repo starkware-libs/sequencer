@@ -8,7 +8,7 @@ use starknet_api::transaction::{
     Transaction,
 };
 
-use crate::state_reader::test_state_reader::ReexecutionResult;
+use crate::state_reader::errors::ReexecutionResult;
 
 /// In old transaction, the resource bounds names are lowercase.
 /// need to convert to uppercase for deserialization to work.

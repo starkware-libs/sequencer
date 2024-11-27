@@ -24,3 +24,5 @@ pub enum ReexecutionError {
     #[error(transparent)]
     VersionedConstants(#[from] VersionedConstantsError),
 }
+
+pub type ReexecutionResult<T> = Result<T, ReexecutionError>;

@@ -1,4 +1,7 @@
-use blockifier::state::state_api::StateResult;
+use blockifier::blockifier::config::TransactionExecutorConfig;
+use blockifier::blockifier::transaction_executor::TransactionExecutor;
+use blockifier::state::cached_state::CommitmentStateDiff;
+use blockifier::state::state_api::{StateReader, StateResult};
 use blockifier::test_utils::MAX_FEE;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use papyrus_execution::DEPRECATED_CONTRACT_SIERRA_SIZE;
@@ -8,9 +11,8 @@ use starknet_api::core::ClassHash;
 use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_core::types::ContractClass as StarknetContractClass;
 
-use super::compile::{legacy_to_contract_class_v0, sierra_to_contact_class_v1};
-use crate::state_reader::errors::ReexecutionError;
-use crate::state_reader::test_state_reader::ReexecutionResult;
+use crate::state_reader::compile::{legacy_to_contract_class_v0, sierra_to_contact_class_v1};
+use crate::state_reader::errors::{ReexecutionError, ReexecutionResult};
 
 pub trait ReexecutionStateReader {
     fn get_contract_class(&self, class_hash: &ClassHash) -> StateResult<StarknetContractClass>;
@@ -75,4 +77,16 @@ pub trait ReexecutionStateReader {
     }
 
     fn get_old_block_hash(&self, old_block_number: BlockNumber) -> ReexecutionResult<BlockHash>;
+}
+
+/// Trait of the functions \ queries required for reexecution.
+pub trait ConsecutiveReexecutionStateReaders<S: StateReader> {
+    fn pre_process_and_create_executor(
+        self,
+        transaction_executor_config: Option<TransactionExecutorConfig>,
+    ) -> ReexecutionResult<TransactionExecutor<S>>;
+
+    fn get_next_block_txs(&self) -> ReexecutionResult<Vec<BlockifierTransaction>>;
+
+    fn get_next_block_state_diff(&self) -> ReexecutionResult<CommitmentStateDiff>;
 }

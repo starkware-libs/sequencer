@@ -1,5 +1,6 @@
 pub mod compile;
 mod errors;
+pub mod offline_state_reader;
 #[cfg(test)]
 pub mod raw_rpc_json_test;
 pub mod reexecution_state_reader;
