@@ -35,7 +35,13 @@ use tokio::sync::Mutex;
 use tracing::{debug, error, info, trace};
 
 use crate::transaction_executor::TransactionExecutorTrait;
-use crate::transaction_provider::{NextTxs, TransactionProvider, TransactionProviderError};
+use crate::transaction_provider::{
+    NextTxs,
+    ProposeTransactionProvider,
+    TransactionProvider,
+    TransactionProviderError,
+    ValidateTransactionProvider,
+};
 
 #[derive(Debug, Error)]
 pub enum BlockBuilderError {
@@ -222,6 +228,11 @@ pub struct BlockMetadata {
     pub retrospective_block_hash: Option<BlockHashAndNumber>,
 }
 
+// Type definitions for the channels required to communicate with the block builder.
+type ProposeBlockBuilderContext =
+    (tokio::sync::oneshot::Sender<()>, tokio::sync::mpsc::UnboundedReceiver<Transaction>);
+type ValidateBlockBuilderContext = tokio::sync::oneshot::Sender<()>;
+
 /// The BlockBuilderFactoryTrait is responsible for creating a new block builder.
 #[cfg_attr(test, automock)]
 pub trait BlockBuilderFactoryTrait: Send + Sync {
@@ -233,6 +244,26 @@ pub trait BlockBuilderFactoryTrait: Send + Sync {
         output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<Transaction>>,
         abort_signal_receiver: tokio::sync::oneshot::Receiver<()>,
     ) -> BlockBuilderResult<Box<dyn BlockBuilderTrait>>;
+
+    /// Creates a block builder for a propose block flow.
+    /// Specifacally, creates a block builder that uses a ProposeTransactionProvider, does not fail
+    /// on error, and streams the transactions to the output_content_sender.
+    fn create_builder_for_propose_block(
+        &self,
+        block_metadata: BlockMetadata,
+        deadline: tokio::time::Instant,
+        tx_provider: Box<ProposeTransactionProvider>,
+    ) -> BlockBuilderResult<(Box<dyn BlockBuilderTrait>, ProposeBlockBuilderContext)>;
+
+    /// Creates a block builder for a validate block flow.
+    /// Specifacally, creates a block builder that uses a ValidateTransactionProvider, and fails if
+    /// a transaction fails to execute.
+    fn create_builder_for_validate_block(
+        &self,
+        block_metadata: BlockMetadata,
+        deadline: tokio::time::Instant,
+        tx_provider: Box<ValidateTransactionProvider>,
+    ) -> BlockBuilderResult<(Box<dyn BlockBuilderTrait>, ValidateBlockBuilderContext)>;
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -361,5 +392,48 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
             self.block_builder_config.tx_chunk_size,
             execution_params,
         )))
+    }
+
+    fn create_builder_for_propose_block(
+        &self,
+        block_metadata: BlockMetadata,
+        deadline: tokio::time::Instant,
+        tx_provider: Box<ProposeTransactionProvider>,
+    ) -> BlockBuilderResult<(Box<dyn BlockBuilderTrait>, ProposeBlockBuilderContext)> {
+        // A channel to allow aborting the block building task.
+        let (abort_signal_sender, abort_signal_receiver) = tokio::sync::oneshot::channel();
+
+        // A channel to receive the transactions included in the proposed block.
+        let (output_tx_sender, output_tx_receiver) = tokio::sync::mpsc::unbounded_channel();
+
+        let block_builder = self.create_block_builder(
+            block_metadata,
+            BlockBuilderExecutionParams { deadline, fail_on_err: false },
+            tx_provider,
+            Some(output_tx_sender),
+            abort_signal_receiver,
+        )?;
+
+        Ok((block_builder, (abort_signal_sender, output_tx_receiver)))
+    }
+
+    fn create_builder_for_validate_block(
+        &self,
+        block_metadata: BlockMetadata,
+        deadline: tokio::time::Instant,
+        tx_provider: Box<ValidateTransactionProvider>,
+    ) -> BlockBuilderResult<(Box<dyn BlockBuilderTrait>, ValidateBlockBuilderContext)> {
+        // A channel to allow aborting the block building task.
+        let (abort_signal_sender, abort_signal_receiver) = tokio::sync::oneshot::channel();
+
+        let block_builder = self.create_block_builder(
+            block_metadata,
+            BlockBuilderExecutionParams { deadline, fail_on_err: true },
+            tx_provider,
+            None,
+            abort_signal_receiver,
+        )?;
+
+        Ok((block_builder, (abort_signal_sender)))
     }
 }

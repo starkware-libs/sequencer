@@ -33,7 +33,6 @@ use tracing::{debug, error, info, instrument, trace};
 
 use crate::block_builder::{
     BlockBuilderError,
-    BlockBuilderExecutionParams,
     BlockBuilderFactory,
     BlockBuilderFactoryTrait,
     BlockMetadata,
@@ -139,26 +138,15 @@ impl Batcher {
             self.config.max_l1_handler_txs_per_block_proposal,
         );
 
-        // A channel to allow aborting the block building task.
-        let (abort_signal_sender, abort_signal_receiver) = tokio::sync::oneshot::channel();
-
-        // A channel to receive the transactions included in the proposed block.
-        let (output_tx_sender, output_tx_receiver) = tokio::sync::mpsc::unbounded_channel();
-
-        let block_builder = self
+        let (block_builder, (abort_signal_sender, output_content_receiver)) = self
             .block_builder_factory
-            .create_block_builder(
+            .create_builder_for_propose_block(
                 BlockMetadata {
                     height: active_height,
                     retrospective_block_hash: propose_block_input.retrospective_block_hash,
                 },
-                BlockBuilderExecutionParams {
-                    deadline: deadline_as_instant(propose_block_input.deadline)?,
-                    fail_on_err: false,
-                },
+                deadline_as_instant(propose_block_input.deadline)?,
                 Box::new(tx_provider),
-                Some(output_tx_sender.clone()),
-                abort_signal_receiver,
             )
             .map_err(|_| BatcherError::InternalError)?;
 
@@ -166,7 +154,7 @@ impl Batcher {
             .spawn_proposal(propose_block_input.proposal_id, block_builder, abort_signal_sender)
             .await?;
 
-        self.propose_tx_streams.insert(propose_block_input.proposal_id, output_tx_receiver);
+        self.propose_tx_streams.insert(propose_block_input.proposal_id, output_content_receiver);
         Ok(())
     }
 
@@ -188,23 +176,15 @@ impl Batcher {
             l1_provider_client: Arc::new(DummyL1ProviderClient),
         };
 
-        // A channel to allow aborting the block building task.
-        let (abort_signal_sender, abort_signal_receiver) = tokio::sync::oneshot::channel();
-
-        let block_builder = self
+        let (block_builder, abort_signal_sender) = self
             .block_builder_factory
-            .create_block_builder(
+            .create_builder_for_validate_block(
                 BlockMetadata {
                     height: active_height,
                     retrospective_block_hash: validate_block_input.retrospective_block_hash,
                 },
-                BlockBuilderExecutionParams {
-                    deadline: deadline_as_instant(validate_block_input.deadline)?,
-                    fail_on_err: true,
-                },
+                deadline_as_instant(validate_block_input.deadline)?,
                 Box::new(tx_provider),
-                None,
-                abort_signal_receiver,
             )
             .map_err(|_| BatcherError::InternalError)?;
 

@@ -54,7 +54,7 @@ use crate::proposal_manager::{
     ProposalResult,
 };
 use crate::test_utils::test_txs;
-use crate::transaction_provider::NextTxs;
+use crate::transaction_provider::{NextTxs, TransactionProvider};
 
 const INITIAL_HEIGHT: BlockNumber = BlockNumber(3);
 const STREAMING_CHUNK_SIZE: usize = 3;
@@ -129,10 +129,14 @@ fn mock_proposal_manager_common_expectations(
         .return_once(move |_| { async move { Ok(proposal_commitment()) } }.boxed());
 }
 
+fn abort_signal_sender() -> tokio::sync::oneshot::Sender<()> {
+    tokio::sync::oneshot::channel().0
+}
+
 fn mock_create_builder_for_validate_block() -> MockBlockBuilderFactoryTrait {
     let mut block_builder_factory = MockBlockBuilderFactoryTrait::new();
-    block_builder_factory.expect_create_block_builder().times(1).return_once(
-        |_, _, mut tx_provider, _, _| {
+    block_builder_factory.expect_create_builder_for_validate_block().times(1).return_once(
+        |_, _, mut tx_provider| {
             // Spawn a task to keep tx_provider alive until all transactions are read.
             // Without this, the provider would be dropped, causing the batcher to fail when sending
             // transactions to it during the test.
@@ -141,7 +145,7 @@ fn mock_create_builder_for_validate_block() -> MockBlockBuilderFactoryTrait {
                     tokio::task::yield_now().await;
                 }
             });
-            Ok(Box::new(block_builder::MockBlockBuilderTrait::new()))
+            Ok((Box::new(block_builder::MockBlockBuilderTrait::new()), abort_signal_sender()))
         },
     );
     block_builder_factory
@@ -151,13 +155,18 @@ fn mock_create_builder_for_propose_block(
     output_txs: Vec<Transaction>,
 ) -> MockBlockBuilderFactoryTrait {
     let mut block_builder_factory = MockBlockBuilderFactoryTrait::new();
-    block_builder_factory.expect_create_block_builder().times(1).return_once(
-        |_, _, _, output_content_sender, _| {
+    block_builder_factory.expect_create_builder_for_propose_block().times(1).return_once(
+        |_, _, _| {
             // Simulate the streaming of the block builder output.
+            let (output_content_sender, output_content_receiver) =
+                tokio::sync::mpsc::unbounded_channel();
             for tx in output_txs {
-                output_content_sender.as_ref().unwrap().send(tx).unwrap();
+                output_content_sender.send(tx).unwrap();
             }
-            Ok(Box::new(block_builder::MockBlockBuilderTrait::new()))
+            Ok((
+                Box::new(block_builder::MockBlockBuilderTrait::new()),
+                (abort_signal_sender(), output_content_receiver),
+            ))
         },
     );
     block_builder_factory
