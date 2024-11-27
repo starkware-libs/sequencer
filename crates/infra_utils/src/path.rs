@@ -7,6 +7,14 @@ mod path_test;
 
 // TODO(tsabary): wrap path-related env::* invocations in the repo as utility functions
 
+// TODO(Tsabary): find a stable way to get access to the current crate directory at compile time.
+#[macro_export]
+macro_rules! compile_time_cargo_manifest_dir {
+    () => {
+        env!("CARGO_MANIFEST_DIR")
+    };
+}
+
 // TODO(Tsabary/ Arni): consolidate with other get_absolute_path functions.
 /// Resolves a relative path from the project root directory and returns its absolute path.
 ///
