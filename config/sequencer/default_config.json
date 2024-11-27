@@ -564,6 +564,56 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
+  "components.state_sync.execution_mode": {
+    "description": "The component execution mode.",
+    "privacy": "Public",
+    "value": "LocalExecutionWithRemoteDisabled"
+  },
+  "components.state_sync.local_server_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
+  "components.state_sync.local_server_config.channel_buffer_size": {
+    "description": "The communication channel buffer size.",
+    "privacy": "Public",
+    "value": 32
+  },
+  "components.state_sync.remote_client_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "components.state_sync.remote_client_config.idle_connections": {
+    "description": "The maximum number of idle connections to keep alive.",
+    "privacy": "Public",
+    "value": 18446744073709551615
+  },
+  "components.state_sync.remote_client_config.idle_timeout": {
+    "description": "The duration in seconds to keep an idle connection open before closing.",
+    "privacy": "Public",
+    "value": 90
+  },
+  "components.state_sync.remote_client_config.retries": {
+    "description": "The max number of retries for sending a message.",
+    "privacy": "Public",
+    "value": 3
+  },
+  "components.state_sync.remote_client_config.socket": {
+    "description": "The remote component server socket.",
+    "privacy": "Public",
+    "value": "0.0.0.0:8080"
+  },
+  "components.state_sync.remote_server_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "components.state_sync.remote_server_config.socket": {
+    "description": "The remote component server socket.",
+    "privacy": "Public",
+    "value": "0.0.0.0:8080"
+  },
   "consensus_manager_config.consensus_config.consensus_delay": {
     "description": "Delay (seconds) before starting consensus to give time for network peering.",
     "privacy": "Public",

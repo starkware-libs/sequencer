@@ -24,6 +24,8 @@ pub struct ComponentConfig {
     pub mempool_p2p: ComponentExecutionConfig,
     #[validate]
     pub monitoring_endpoint: ComponentExecutionConfig,
+    #[validate]
+    pub state_sync: ComponentExecutionConfig,
 }
 
 impl Default for ComponentConfig {
@@ -36,6 +38,7 @@ impl Default for ComponentConfig {
             mempool: ComponentExecutionConfig::mempool_default_config(),
             mempool_p2p: ComponentExecutionConfig::mempool_p2p_default_config(),
             monitoring_endpoint: ComponentExecutionConfig::monitoring_endpoint_default_config(),
+            state_sync: ComponentExecutionConfig::state_sync_default_config(),
         }
     }
 }
@@ -50,6 +53,7 @@ impl SerializeConfig for ComponentConfig {
             append_sub_config_name(self.mempool.dump(), "mempool"),
             append_sub_config_name(self.mempool_p2p.dump(), "mempool_p2p"),
             append_sub_config_name(self.monitoring_endpoint.dump(), "monitoring_endpoint"),
+            append_sub_config_name(self.state_sync.dump(), "state_sync"),
         ];
 
         sub_configs.into_iter().flatten().collect()
