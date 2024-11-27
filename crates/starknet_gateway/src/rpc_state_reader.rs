@@ -1,8 +1,8 @@
 use blockifier::blockifier::block::BlockInfo;
 use blockifier::execution::contract_class::{
-    ContractClassV0,
-    ContractClassV1,
-    RunnableContractClass,
+    CompiledClassV0,
+    CompiledClassV1,
+    RunnableCompiledClass,
 };
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
@@ -139,10 +139,10 @@ impl BlockifierStateReader for RpcStateReader {
         }
     }
 
-    fn get_compiled_contract_class(
+    fn get_compiled_class(
         &self,
         class_hash: ClassHash,
-    ) -> StateResult<RunnableContractClass> {
+    ) -> StateResult<RunnableCompiledClass> {
         let get_compiled_class_params =
             GetCompiledContractClassParams { class_hash, block_id: self.block_id };
 
@@ -151,11 +151,11 @@ impl BlockifierStateReader for RpcStateReader {
         let contract_class: CompiledContractClass =
             serde_json::from_value(result).map_err(serde_err_to_state_err)?;
         match contract_class {
-            CompiledContractClass::V1(contract_class_v1) => Ok(RunnableContractClass::V1(
-                ContractClassV1::try_from(contract_class_v1).map_err(StateError::ProgramError)?,
+            CompiledContractClass::V1(contract_class_v1) => Ok(RunnableCompiledClass::V1(
+                CompiledClassV1::try_from(contract_class_v1).map_err(StateError::ProgramError)?,
             )),
-            CompiledContractClass::V0(contract_class_v0) => Ok(RunnableContractClass::V0(
-                ContractClassV0::try_from(contract_class_v0).map_err(StateError::ProgramError)?,
+            CompiledContractClass::V0(contract_class_v0) => Ok(RunnableCompiledClass::V0(
+                CompiledClassV0::try_from(contract_class_v0).map_err(StateError::ProgramError)?,
             )),
         }
     }

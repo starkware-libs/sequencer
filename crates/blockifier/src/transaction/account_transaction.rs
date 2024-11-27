@@ -28,7 +28,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::CallInfo;
-use crate::execution::contract_class::RunnableContractClass;
+use crate::execution::contract_class::RunnableCompiledClass;
 use crate::execution::entry_point::{CallEntryPoint, CallType, EntryPointExecutionContext};
 use crate::execution::stack_trace::{
     extract_trailing_cairo1_revert_trace,
@@ -907,7 +907,7 @@ impl ValidatableTransaction for AccountTransaction {
             })?;
 
         // Validate return data.
-        let contract_class = state.get_compiled_contract_class(class_hash)?;
+        let contract_class = state.get_compiled_class(class_hash)?;
         if is_cairo1(&contract_class) {
             // The account contract class is a Cairo 1.0 contract; the `validate` entry point should
             // return `VALID`.
@@ -932,11 +932,11 @@ impl ValidatableTransaction for AccountTransaction {
     }
 }
 
-pub fn is_cairo1(contract_class: &RunnableContractClass) -> bool {
+pub fn is_cairo1(contract_class: &RunnableCompiledClass) -> bool {
     match contract_class {
-        RunnableContractClass::V0(_) => false,
-        RunnableContractClass::V1(_) => true,
+        RunnableCompiledClass::V0(_) => false,
+        RunnableCompiledClass::V1(_) => true,
         #[cfg(feature = "cairo_native")]
-        RunnableContractClass::V1Native(_) => true,
+        RunnableCompiledClass::V1Native(_) => true,
     }
 }

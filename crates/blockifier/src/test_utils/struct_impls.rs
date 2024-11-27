@@ -27,14 +27,14 @@ use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionCont
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::common_hints::ExecutionMode;
 #[cfg(feature = "cairo_native")]
-use crate::execution::contract_class::ContractClassV1;
+use crate::execution::contract_class::CompiledClassV1;
 use crate::execution::entry_point::{
     CallEntryPoint,
     EntryPointExecutionContext,
     EntryPointExecutionResult,
 };
 #[cfg(feature = "cairo_native")]
-use crate::execution::native::contract_class::NativeContractClassV1;
+use crate::execution::native::contract_class::NativeCompiledClassV1;
 use crate::state::state_api::State;
 use crate::test_utils::{
     get_raw_contract_class,
@@ -242,12 +242,12 @@ impl BouncerWeights {
 }
 
 #[cfg(feature = "cairo_native")]
-static COMPILED_NATIVE_CONTRACT_CACHE: LazyLock<RwLock<HashMap<String, NativeContractClassV1>>> =
+static COMPILED_NATIVE_CONTRACT_CACHE: LazyLock<RwLock<HashMap<String, NativeCompiledClassV1>>> =
     LazyLock::new(|| RwLock::new(HashMap::new()));
 
 #[cfg(feature = "cairo_native")]
-impl NativeContractClassV1 {
-    /// Convenience function to construct a NativeContractClassV1 from a raw contract class.
+impl NativeCompiledClassV1 {
+    /// Convenience function to construct a NativeCompiledClassV1 from a raw contract class.
     /// If control over the compilation is desired use [Self::new] instead.
     pub fn try_from_json_string(raw_sierra_contract_class: &str) -> Self {
         let sierra_contract_class: SierraContractClass =
@@ -268,10 +268,10 @@ impl NativeContractClassV1 {
         let casm_contract_class =
             CasmContractClass::from_contract_class(sierra_contract_class, false, usize::MAX)
                 .expect("Cannot compile sierra contract class into casm contract class");
-        let casm = ContractClassV1::try_from(casm_contract_class)
-            .expect("Cannot get ContractClassV1 from CasmContractClass");
+        let casm = CompiledClassV1::try_from(casm_contract_class)
+            .expect("Cannot get CompiledClassV1 from CasmContractClass");
 
-        NativeContractClassV1::new(executor, casm)
+        NativeCompiledClassV1::new(executor, casm)
     }
 
     pub fn from_file(contract_path: &str) -> Self {
@@ -287,7 +287,7 @@ impl NativeContractClassV1 {
         }
         std::mem::drop(cache);
 
-        let class = NativeContractClassV1::from_file(path);
+        let class = NativeCompiledClassV1::from_file(path);
         let mut cache = COMPILED_NATIVE_CONTRACT_CACHE.write().unwrap();
         cache.insert(path.to_string(), class.clone());
         class

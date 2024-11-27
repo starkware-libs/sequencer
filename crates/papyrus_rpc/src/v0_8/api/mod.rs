@@ -257,9 +257,9 @@ pub trait JsonRpc {
         block_id: BlockId,
     ) -> RpcResult<Vec<TransactionTraceWithHash>>;
 
-    /// Returns the compiled contract class associated with the given class hash.
+    /// Returns the compiled class associated with the given class hash.
     #[method(name = "getCompiledContractClass")]
-    fn get_compiled_contract_class(
+    fn get_compiled_class(
         &self,
         block_id: BlockId,
         class_hash: ClassHash,

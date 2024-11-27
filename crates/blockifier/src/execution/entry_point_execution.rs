@@ -14,7 +14,7 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_types_core::felt::Felt;
 
 use crate::execution::call_info::{CallExecution, CallInfo, ChargedResources, Retdata};
-use crate::execution::contract_class::{ContractClassV1, EntryPointV1, TrackedResource};
+use crate::execution::contract_class::{CompiledClassV1, EntryPointV1, TrackedResource};
 use crate::execution::entry_point::{
     CallEntryPoint,
     EntryPointExecutionContext,
@@ -57,7 +57,7 @@ pub struct CallResult {
 /// Executes a specific call to a contract entry point and returns its output.
 pub fn execute_entry_point_call(
     call: CallEntryPoint,
-    contract_class: ContractClassV1,
+    contract_class: CompiledClassV1,
     state: &mut dyn State,
     context: &mut EntryPointExecutionContext,
 ) -> EntryPointExecutionResult<CallInfo> {
@@ -142,7 +142,7 @@ fn register_visited_pcs(
 
 pub fn initialize_execution_context<'a>(
     call: CallEntryPoint,
-    contract_class: &'a ContractClassV1,
+    contract_class: &'a CompiledClassV1,
     state: &'a mut dyn State,
     context: &'a mut EntryPointExecutionContext,
 ) -> Result<VmExecutionContext<'a>, PreExecutionError> {
@@ -189,7 +189,7 @@ pub fn initialize_execution_context<'a>(
 
 fn prepare_program_extra_data(
     runner: &mut CairoRunner,
-    contract_class: &ContractClassV1,
+    contract_class: &CompiledClassV1,
     read_only_segments: &mut ReadOnlySegments,
     gas_costs: &GasCosts,
 ) -> Result<usize, PreExecutionError> {

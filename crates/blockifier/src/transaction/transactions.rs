@@ -401,7 +401,7 @@ fn try_declare<S: State>(
     class_hash: ClassHash,
     compiled_class_hash: Option<CompiledClassHash>,
 ) -> TransactionExecutionResult<()> {
-    match state.get_compiled_contract_class(class_hash) {
+    match state.get_compiled_class(class_hash) {
         Err(StateError::UndeclaredClassHash(_)) => {
             // Class is undeclared; declare it.
             state.set_contract_class(class_hash, tx.contract_class().try_into()?)?;

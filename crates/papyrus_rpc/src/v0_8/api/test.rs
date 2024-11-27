@@ -3680,7 +3680,7 @@ async fn get_deprecated_class_state_mutability() {
 
 // TODO (Yael 16/06/2024): Add a test case for block_number which is not the latest.
 #[tokio::test]
-async fn get_compiled_contract_class() {
+async fn get_compiled_class() {
     let cairo1_class_hash = ClassHash(Felt::ONE);
     let cairo0_class_hash = ClassHash(Felt::TWO);
     let invalid_class_hash = ClassHash(Felt::THREE);

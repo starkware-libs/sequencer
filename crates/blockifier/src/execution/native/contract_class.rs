@@ -4,30 +4,30 @@ use std::sync::Arc;
 use cairo_native::executor::AotContractExecutor;
 use starknet_api::core::EntryPointSelector;
 
-use crate::execution::contract_class::{ContractClassV1, EntryPointV1};
+use crate::execution::contract_class::{CompiledClassV1, EntryPointV1};
 use crate::execution::entry_point::CallEntryPoint;
 use crate::execution::errors::PreExecutionError;
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct NativeContractClassV1(pub Arc<NativeContractClassV1Inner>);
-impl Deref for NativeContractClassV1 {
-    type Target = NativeContractClassV1Inner;
+pub struct NativeCompiledClassV1(pub Arc<NativeCompiledClassV1Inner>);
+impl Deref for NativeCompiledClassV1 {
+    type Target = NativeCompiledClassV1Inner;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl NativeContractClassV1 {
+impl NativeCompiledClassV1 {
     pub(crate) fn constructor_selector(&self) -> Option<EntryPointSelector> {
         self.casm.constructor_selector()
     }
 
-    /// Initialize a compiled contract class for native.
+    /// Initialize a compiled class for native.
     ///
     /// executor must be derived from sierra_program which in turn must be derived from
     /// sierra_contract_class.
-    pub fn new(executor: AotContractExecutor, casm: ContractClassV1) -> NativeContractClassV1 {
-        let contract = NativeContractClassV1Inner::new(executor, casm);
+    pub fn new(executor: AotContractExecutor, casm: CompiledClassV1) -> NativeCompiledClassV1 {
+        let contract = NativeCompiledClassV1Inner::new(executor, casm);
 
         Self(Arc::new(contract))
     }
@@ -39,29 +39,29 @@ impl NativeContractClassV1 {
         self.casm.get_entry_point(call)
     }
 
-    pub fn casm(&self) -> ContractClassV1 {
+    pub fn casm(&self) -> CompiledClassV1 {
         self.casm.clone()
     }
 }
 
 #[derive(Debug)]
-pub struct NativeContractClassV1Inner {
+pub struct NativeCompiledClassV1Inner {
     pub executor: AotContractExecutor,
-    casm: ContractClassV1,
+    casm: CompiledClassV1,
 }
 
-impl NativeContractClassV1Inner {
-    fn new(executor: AotContractExecutor, casm: ContractClassV1) -> Self {
-        NativeContractClassV1Inner { executor, casm }
+impl NativeCompiledClassV1Inner {
+    fn new(executor: AotContractExecutor, casm: CompiledClassV1) -> Self {
+        NativeCompiledClassV1Inner { executor, casm }
     }
 }
 
-// The location where the compiled contract is loaded into memory will not
+// The location where the compiled class is loaded into memory will not
 // be the same therefore we exclude it from the comparison.
-impl PartialEq for NativeContractClassV1Inner {
+impl PartialEq for NativeCompiledClassV1Inner {
     fn eq(&self, other: &Self) -> bool {
         self.casm == other.casm
     }
 }
 
-impl Eq for NativeContractClassV1Inner {}
+impl Eq for NativeCompiledClassV1Inner {}
