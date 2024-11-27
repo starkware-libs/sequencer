@@ -65,7 +65,7 @@ pub async fn create_config(
     let mempool_p2p_config =
         create_mempool_p2p_config(sequencer_index, chain_info.chain_id.clone());
     let monitoring_endpoint_config = create_monitoring_endpoint_config(sequencer_index);
-    let state_sync_config = create_state_sync_config(state_sync_storage_config);
+    let state_sync_config = create_state_sync_config(state_sync_storage_config, sequencer_index);
 
     (
         SequencerNodeConfig {
@@ -285,11 +285,16 @@ fn create_monitoring_endpoint_config(sequencer_index: usize) -> MonitoringEndpoi
     config.port += u16::try_from(sequencer_index).unwrap();
     config
 }
-pub fn create_state_sync_config(state_sync_storage_config: StorageConfig) -> StateSyncConfig {
+
+pub fn create_state_sync_config(
+    state_sync_storage_config: StorageConfig,
+    sequencer_index: usize,
+) -> StateSyncConfig {
     StateSyncConfig {
         storage_config: state_sync_storage_config,
         network_config: NetworkConfig {
-            tcp_port: STATE_SYNC_NETWORK_CONFIG_TCP_PORT_FOR_TESTING,
+            tcp_port: STATE_SYNC_NETWORK_CONFIG_TCP_PORT_FOR_TESTING
+                + u16::try_from(sequencer_index).unwrap(),
             ..Default::default()
         },
         ..Default::default()
