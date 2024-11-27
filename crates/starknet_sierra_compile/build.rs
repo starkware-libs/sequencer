@@ -135,5 +135,5 @@ fn out_dir() -> PathBuf {
 
 #[cfg(feature = "cairo_native")]
 fn repo_root_dir() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../..").to_path_buf()
+    Path::new(infra_utils::compile_time_cargo_manifest_dir!()).join("../..").to_path_buf()
 }
