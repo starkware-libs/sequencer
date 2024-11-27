@@ -7,6 +7,7 @@ use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::StorageReader;
 use starknet_api::block::BlockNumber;
 use starknet_sequencer_infra::component_definitions::ComponentRequestHandler;
+use starknet_sequencer_infra::component_server::{LocalComponentServer, RemoteComponentServer};
 use starknet_state_sync_types::communication::{
     StateSyncRequest,
     StateSyncResponse,
@@ -54,3 +55,7 @@ impl StateSync {
         Ok(None)
     }
 }
+
+pub type LocalStateSyncServer =
+    LocalComponentServer<StateSync, StateSyncRequest, StateSyncResponse>;
+pub type RemoteStateSyncServer = RemoteComponentServer<StateSyncRequest, StateSyncResponse>;
