@@ -81,7 +81,6 @@ async fn send(sender: &mut MockBroadcastedMessagesSender<ConsensusMessage>, msg:
     sender.send((msg, broadcasted_message_metadata)).await.unwrap();
 }
 
-#[ignore] // TODO(guyn): return this once caching proposals is implemented.
 #[tokio::test]
 async fn manager_multiple_heights_unordered() {
     let TestSubscriberChannels { mock_network, subscriber_channels } =
@@ -155,7 +154,6 @@ async fn manager_multiple_heights_unordered() {
     assert_eq!(decision.block, BlockHash(Felt::TWO));
 }
 
-#[ignore] // TODO(guyn): return this once caching proposals is implemented.
 #[tokio::test]
 async fn run_consensus_sync() {
     // Set expectations.
