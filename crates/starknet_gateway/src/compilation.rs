@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_lang_starknet_classes::contract_class::ContractClass as CairoLangContractClass;
-use starknet_api::contract_class::{ClassInfo, ContractClass};
+use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
 use starknet_api::rpc_transaction::RpcDeclareTransaction;
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_sierra_compile::command_line_compiler::CommandLineCompiler;
@@ -41,10 +41,15 @@ impl GatewayCompiler {
 
         let casm_contract_class = self.compile(cairo_lang_contract_class)?;
 
+        let sierra_version =
+            SierraVersion::extract_from_program(&rpc_contract_class.sierra_program)
+                .map_err(|_| GatewaySpecError::UnsupportedContractClassVersion)?;
+
         Ok(ClassInfo {
             contract_class: ContractClass::V1(casm_contract_class),
             sierra_program_length: rpc_contract_class.sierra_program.len(),
             abi_length: rpc_contract_class.abi.len(),
+            sierra_version,
         })
     }
 
