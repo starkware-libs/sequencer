@@ -137,6 +137,21 @@ impl From<crate::executable_transaction::Transaction> for Transaction {
     }
 }
 
+impl From<(Transaction, TransactionHash)> for crate::executable_transaction::Transaction {
+    fn from((tx, tx_hash): (Transaction, TransactionHash)) -> Self {
+        match tx {
+            Transaction::Invoke(tx) => crate::executable_transaction::Transaction::Account(
+                crate::executable_transaction::AccountTransaction::Invoke(
+                    crate::executable_transaction::InvokeTransaction { tx, tx_hash },
+                ),
+            ),
+            _ => {
+                unimplemented!("Unsupported transaction type. Only Invoke is currently supported.")
+            }
+        }
+    }
+}
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Default)]
 pub struct TransactionOptions {
     /// Transaction that shouldn't be broadcasted to StarkNet. For example, users that want to
