@@ -58,6 +58,11 @@ impl<S: StateReader> CachedState<S> {
         self.to_state_diff()
     }
 
+    pub fn to_state_cache(&mut self) -> StateResult<StateCache> {
+        self.update_initial_values_of_write_only_access()?;
+        Ok(self.cache.borrow().clone())
+    }
+
     pub fn update_cache(
         &mut self,
         write_updates: &StateMaps,
@@ -387,7 +392,7 @@ impl StateMaps {
 /// The tracked changes are needed for block state commitment.
 
 // Invariant: keys cannot be deleted from fields (only used internally by the cached state).
-#[derive(Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct StateCache {
     // Reader's cached information; initial values, read before any write operation (per cell).
     pub(crate) initial_reads: StateMaps,
@@ -404,6 +409,22 @@ impl StateCache {
         let allocated_keys =
             AllocatedKeys::from_storage_diff(&self.writes.storage, &self.initial_reads.storage);
         StateChanges { state_maps, allocated_keys }
+    }
+
+    /// Merges the given state caches into a single one. Note that the order of the state caches
+    /// is important.
+    pub fn merge(state_caches: Vec<Self>) -> Self {
+        let mut merged_state_cache = StateCache::default();
+
+        // Gives priority to early initial reads.
+        state_caches.iter().rev().for_each(|state_cache| {
+            merged_state_cache.initial_reads.extend(&state_cache.initial_reads)
+        });
+        // Gives priority to late writes.
+        state_caches
+            .iter()
+            .for_each(|state_cache| merged_state_cache.writes.extend(&state_cache.writes));
+        merged_state_cache
     }
 
     fn declare_contract(&mut self, class_hash: ClassHash) {
@@ -687,18 +708,6 @@ impl StateChangesKeys {
 pub struct AllocatedKeys(HashSet<StorageEntry>);
 
 impl AllocatedKeys {
-    /// Extends the set of allocated keys with the allocated_keys of the given state changes.
-    /// Removes storage keys that are set back to zero.
-    pub fn update(&mut self, state_change: &StateChanges) {
-        self.0.extend(&state_change.allocated_keys.0);
-        // Remove keys that are set back to zero.
-        state_change.state_maps.storage.iter().for_each(|(k, v)| {
-            if v == &Felt::ZERO {
-                self.0.remove(k);
-            }
-        });
-    }
-
     pub fn len(&self) -> usize {
         self.0.len()
     }
@@ -733,17 +742,6 @@ pub struct StateChanges {
 }
 
 impl StateChanges {
-    /// Merges the given state changes into a single one. Note that the order of the state changes
-    /// is important. The state changes are merged in the order they appear in the given vector.
-    pub fn merge(state_changes: Vec<Self>) -> Self {
-        let mut merged_state_changes = Self::default();
-        for state_change in state_changes {
-            merged_state_changes.state_maps.extend(&state_change.state_maps);
-            merged_state_changes.allocated_keys.update(&state_change);
-        }
-        merged_state_changes
-    }
-
     pub fn count_for_fee_charge(
         &self,
         sender_address: Option<ContractAddress>,
