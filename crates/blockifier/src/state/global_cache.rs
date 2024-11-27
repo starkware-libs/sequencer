@@ -8,7 +8,7 @@ use starknet_api::core::ClassHash;
 use starknet_api::state::SierraContractClass;
 
 #[cfg(feature = "cairo_native")]
-use crate::execution::contract_class::RunnableContractClass;
+use crate::execution::contract_class::RunnableCompiledClass;
 
 type ContractClassLRUCache<T> = SizedCache<ClassHash, T>;
 pub type LockedContractClassCache<'a, T> = MutexGuard<'a, ContractClassLRUCache<T>>;
@@ -53,18 +53,18 @@ impl<T: Clone> GlobalContractCache<T> {
 
 #[cfg(feature = "cairo_native")]
 pub struct GlobalContractCacheManager {
-    pub casm_cache: GlobalContractCache<RunnableContractClass>,
+    pub casm_cache: GlobalContractCache<RunnableCompiledClass>,
     pub native_cache: GlobalContractCache<CachedCairoNative>,
     pub sierra_cache: GlobalContractCache<Arc<SierraContractClass>>,
 }
 
 #[cfg(feature = "cairo_native")]
 impl GlobalContractCacheManager {
-    pub fn get_casm(&self, class_hash: &ClassHash) -> Option<RunnableContractClass> {
+    pub fn get_casm(&self, class_hash: &ClassHash) -> Option<RunnableCompiledClass> {
         self.casm_cache.get(class_hash)
     }
 
-    pub fn set_casm(&self, class_hash: ClassHash, contract_class: RunnableContractClass) {
+    pub fn set_casm(&self, class_hash: ClassHash, contract_class: RunnableCompiledClass) {
         self.casm_cache.set(class_hash, contract_class);
     }
 

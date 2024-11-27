@@ -48,7 +48,7 @@ pub struct GetClassHashAtParams {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct GetCompiledContractClassParams {
+pub struct GetCompiledClassParams {
     pub class_hash: ClassHash,
     pub block_id: BlockId,
 }

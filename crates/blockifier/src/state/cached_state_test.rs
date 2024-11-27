@@ -115,7 +115,7 @@ fn declare_contract() {
 
     // Reading an undeclared contract class.
     assert_matches!(
-        state.get_compiled_contract_class(class_hash).unwrap_err(),
+        state.get_compiled_class(class_hash).unwrap_err(),
         StateError::UndeclaredClassHash(undeclared_class_hash) if
         undeclared_class_hash == class_hash
     );
@@ -166,14 +166,14 @@ fn get_contract_class() {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
     let state = test_state(&ChainInfo::create_for_testing(), Fee(0), &[(test_contract, 0)]);
     assert_eq!(
-        state.get_compiled_contract_class(test_contract.get_class_hash()).unwrap(),
+        state.get_compiled_class(test_contract.get_class_hash()).unwrap(),
         test_contract.get_runnable_class()
     );
 
     // Negative flow.
     let missing_class_hash = class_hash!("0x101");
     assert_matches!(
-        state.get_compiled_contract_class(missing_class_hash).unwrap_err(),
+        state.get_compiled_class(missing_class_hash).unwrap_err(),
         StateError::UndeclaredClassHash(undeclared) if undeclared == missing_class_hash
     );
 }
@@ -261,7 +261,7 @@ fn cached_state_state_diff_conversion() {
     let class_hash = FeatureContract::Empty(CairoVersion::Cairo0).get_class_hash();
     let compiled_class_hash = compiled_class_hash!(1_u8);
     // Cache the initial read value, as in regular declare flow.
-    state.get_compiled_contract_class(class_hash).unwrap_err();
+    state.get_compiled_class(class_hash).unwrap_err();
     state.set_compiled_class_hash(class_hash, compiled_class_hash).unwrap();
 
     // Write the initial value using key contract_address1.
@@ -309,7 +309,7 @@ fn create_state_changes_for_test<S: StateReader>(
     state.increment_nonce(contract_address2).unwrap();
 
     // Fill the initial read value, as in regular flow.
-    state.get_compiled_contract_class(class_hash).unwrap_err();
+    state.get_compiled_class(class_hash).unwrap_err();
     state.set_compiled_class_hash(class_hash, compiled_class_hash).unwrap();
 
     // Assign the existing value to the storage (this shouldn't be considered a change).
@@ -500,7 +500,7 @@ fn test_contract_cache_is_used() {
     assert!(state.class_hash_to_class.borrow().get(&class_hash).is_none());
 
     // Check state uses the cache.
-    assert_eq!(state.get_compiled_contract_class(class_hash).unwrap(), contract_class);
+    assert_eq!(state.get_compiled_class(class_hash).unwrap(), contract_class);
     assert_eq!(state.class_hash_to_class.borrow().get(&class_hash).unwrap(), &contract_class);
 }
 
