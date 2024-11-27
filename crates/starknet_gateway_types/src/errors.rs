@@ -41,6 +41,8 @@ pub enum GatewaySpecError {
     ContractClassSizeIsTooLarge,
     #[assoc(into_rpc = DUPLICATE_TX)]
     DuplicateTx,
+    #[assoc(into_rpc = unexpected_error(_data))]
+    ExtractSierraVersionError { data: String },
     #[assoc(into_rpc = INSUFFICIENT_ACCOUNT_BALANCE)]
     InsufficientAccountBalance,
     #[assoc(into_rpc = INSUFFICIENT_MAX_FEE)]
