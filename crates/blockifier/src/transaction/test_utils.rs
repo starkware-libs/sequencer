@@ -1,7 +1,7 @@
 use rstest::fixture;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::block::{FeeType, GasPrice};
-use starknet_api::contract_class::{ClassInfo, ContractClass};
+use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::deploy_account::DeployAccountTxArgs;
@@ -348,11 +348,11 @@ pub fn create_all_resource_bounds(
 }
 
 pub fn calculate_class_info_for_testing(contract_class: ContractClass) -> ClassInfo {
-    let sierra_program_length = match contract_class {
-        ContractClass::V0(_) => 0,
-        ContractClass::V1(_) => 100,
+    let (sierra_program_length, sierra_version) = match contract_class {
+        ContractClass::V0(_) => (0, SierraVersion::zero()),
+        ContractClass::V1(_) => (100, SierraVersion::new(2, 8, 4)),
     };
-    ClassInfo::new(&contract_class, sierra_program_length, 100).unwrap()
+    ClassInfo::new(&contract_class, sierra_program_length, 100, sierra_version).unwrap()
 }
 
 pub fn emit_n_events_tx(

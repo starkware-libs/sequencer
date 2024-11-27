@@ -12,7 +12,6 @@
 mod execution_test;
 pub mod execution_utils;
 mod state_reader;
-
 #[cfg(test)]
 mod test_utils;
 #[cfg(any(feature = "testing", test))]
@@ -58,7 +57,7 @@ use starknet_api::block::{
     NonzeroGasPrice,
     StarknetVersion,
 };
-use starknet_api::contract_class::{ClassInfo, EntryPointType};
+use starknet_api::contract_class::{ClassInfo, EntryPointType, SierraVersion};
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
@@ -428,8 +427,22 @@ pub enum ExecutableTransactionInput {
     // todo(yair): Do we need to support V0?
     DeclareV0(DeclareTransactionV0V1, DeprecatedContractClass, AbiSize, OnlyQuery),
     DeclareV1(DeclareTransactionV0V1, DeprecatedContractClass, AbiSize, OnlyQuery),
-    DeclareV2(DeclareTransactionV2, CasmContractClass, SierraSize, AbiSize, OnlyQuery),
-    DeclareV3(DeclareTransactionV3, CasmContractClass, SierraSize, AbiSize, OnlyQuery),
+    DeclareV2(
+        DeclareTransactionV2,
+        CasmContractClass,
+        SierraSize,
+        AbiSize,
+        OnlyQuery,
+        SierraVersion,
+    ),
+    DeclareV3(
+        DeclareTransactionV3,
+        CasmContractClass,
+        SierraSize,
+        AbiSize,
+        OnlyQuery,
+        SierraVersion,
+    ),
     DeployAccount(DeployAccountTransaction, OnlyQuery),
     L1Handler(L1HandlerTransaction, Fee, OnlyQuery),
 }
@@ -485,13 +498,24 @@ impl ExecutableTransactionInput {
                 sierra_program_length,
                 abi_length,
                 only_query,
+                sierra_version,
             ) => {
                 let as_transaction = Transaction::Declare(DeclareTransaction::V2(tx));
                 let res = func(&as_transaction, only_query);
                 let Transaction::Declare(DeclareTransaction::V2(tx)) = as_transaction else {
                     unreachable!("Should be declare v2 transaction.")
                 };
-                (Self::DeclareV2(tx, class, sierra_program_length, abi_length, only_query), res)
+                (
+                    Self::DeclareV2(
+                        tx,
+                        class,
+                        sierra_program_length,
+                        abi_length,
+                        only_query,
+                        sierra_version,
+                    ),
+                    res,
+                )
             }
             ExecutableTransactionInput::DeclareV3(
                 tx,
@@ -499,13 +523,24 @@ impl ExecutableTransactionInput {
                 sierra_program_length,
                 abi_length,
                 only_query,
+                sierra_version,
             ) => {
                 let as_transaction = Transaction::Declare(DeclareTransaction::V3(tx));
                 let res = func(&as_transaction, only_query);
                 let Transaction::Declare(DeclareTransaction::V3(tx)) = as_transaction else {
                     unreachable!("Should be declare v3 transaction.")
                 };
-                (Self::DeclareV3(tx, class, sierra_program_length, abi_length, only_query), res)
+                (
+                    Self::DeclareV3(
+                        tx,
+                        class,
+                        sierra_program_length,
+                        abi_length,
+                        only_query,
+                        sierra_version,
+                    ),
+                    res,
+                )
             }
             ExecutableTransactionInput::DeployAccount(tx, only_query) => {
                 let as_transaction = Transaction::DeployAccount(tx);
@@ -795,6 +830,7 @@ fn to_blockifier_tx(
                 &deprecated_class.into(),
                 DEPRECATED_CONTRACT_SIERRA_SIZE,
                 abi_length,
+                SierraVersion::zero(),
             )
             .map_err(|err| ExecutionError::BadDeclareTransaction {
                 tx: DeclareTransaction::V0(declare_tx.clone()),
@@ -821,6 +857,7 @@ fn to_blockifier_tx(
                 &deprecated_class.into(),
                 DEPRECATED_CONTRACT_SIERRA_SIZE,
                 abi_length,
+                SierraVersion::zero(),
             )
             .map_err(|err| ExecutionError::BadDeclareTransaction {
                 tx: DeclareTransaction::V1(declare_tx.clone()),
@@ -842,14 +879,18 @@ fn to_blockifier_tx(
             sierra_program_length,
             abi_length,
             only_query,
+            sierra_version,
         ) => {
-            let class_info =
-                ClassInfo::new(&compiled_class.into(), sierra_program_length, abi_length).map_err(
-                    |err| ExecutionError::BadDeclareTransaction {
-                        tx: DeclareTransaction::V2(declare_tx.clone()),
-                        err,
-                    },
-                )?;
+            let class_info = ClassInfo::new(
+                &compiled_class.into(),
+                sierra_program_length,
+                abi_length,
+                sierra_version,
+            )
+            .map_err(|err| ExecutionError::BadDeclareTransaction {
+                tx: DeclareTransaction::V2(declare_tx.clone()),
+                err,
+            })?;
             BlockifierTransaction::from_api(
                 Transaction::Declare(DeclareTransaction::V2(declare_tx)),
                 tx_hash,
@@ -866,14 +907,18 @@ fn to_blockifier_tx(
             sierra_program_length,
             abi_length,
             only_query,
+            sierra_version,
         ) => {
-            let class_info =
-                ClassInfo::new(&compiled_class.into(), sierra_program_length, abi_length).map_err(
-                    |err| ExecutionError::BadDeclareTransaction {
-                        tx: DeclareTransaction::V3(declare_tx.clone()),
-                        err,
-                    },
-                )?;
+            let class_info = ClassInfo::new(
+                &compiled_class.into(),
+                sierra_program_length,
+                abi_length,
+                sierra_version,
+            )
+            .map_err(|err| ExecutionError::BadDeclareTransaction {
+                tx: DeclareTransaction::V3(declare_tx.clone()),
+                err,
+            })?;
             BlockifierTransaction::from_api(
                 Transaction::Declare(DeclareTransaction::V3(declare_tx)),
                 tx_hash,
