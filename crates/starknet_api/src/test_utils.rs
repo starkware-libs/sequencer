@@ -136,7 +136,7 @@ pub const DEFAULT_ETH_L1_DATA_GAS_PRICE: NonzeroGasPrice =
 pub const DEFAULT_STRK_L1_DATA_GAS_PRICE: NonzeroGasPrice =
     NonzeroGasPrice::new_unchecked(GasPrice(u128::pow(10, 9))); // Given in units of STRK.
 pub const DEFAULT_STRK_L2_GAS_PRICE: NonzeroGasPrice =
-    NonzeroGasPrice::new_unchecked(GasPrice(u128::pow(10, 9)));
+    NonzeroGasPrice::new_unchecked(GasPrice(25 * u128::pow(10, 5)));
 
 // Deprecated transactions:
 pub const MAX_FEE: Fee = DEFAULT_L1_GAS_AMOUNT.nonzero_saturating_mul(DEFAULT_ETH_L1_GAS_PRICE);

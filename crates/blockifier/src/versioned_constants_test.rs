@@ -1,5 +1,8 @@
 use glob::{glob, Paths};
 use pretty_assertions::assert_eq;
+use rstest::rstest;
+use starknet_api::block::NonzeroGasPrice;
+use starknet_api::test_utils::{DEFAULT_STRK_L1_GAS_PRICE, DEFAULT_STRK_L2_GAS_PRICE};
 
 use super::*;
 
@@ -192,4 +195,19 @@ fn test_syscall_gas_cost_calculation() {
         versioned_constants.get_syscall_gas_cost(&SyscallSelector::Sha256ProcessBlock),
         EXPECTED_SHA256PROCESSBLOCK_GAS_COST
     );
+}
+
+#[rstest]
+#[case::strk(DEFAULT_STRK_L1_GAS_PRICE, DEFAULT_STRK_L2_GAS_PRICE)]
+fn test_convert_l1_to_l2_gas_price_round_up(
+    #[case] l1_gas_price: NonzeroGasPrice,
+    #[case] expected_l2_gas_price: NonzeroGasPrice,
+) {
+    let result_l2_gas_price = NonzeroGasPrice::new(
+        VersionedConstants::latest_constants()
+            .convert_l1_to_l2_gas_price_round_up(l1_gas_price.into()),
+    )
+    .unwrap();
+
+    assert_eq!(expected_l2_gas_price.get(), result_l2_gas_price.get());
 }
