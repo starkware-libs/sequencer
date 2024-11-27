@@ -3,13 +3,7 @@ use cairo_vm::vm::vm_core::VirtualMachine;
 use num_traits::ToPrimitive;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::contract_class::EntryPointType;
-use starknet_api::core::{
-    calculate_contract_address,
-    ClassHash,
-    ContractAddress,
-    EntryPointSelector,
-    EthAddress,
-};
+use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, EthAddress};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt};
 use starknet_api::transaction::{EventContent, EventData, EventKey, L2ToL1Payload};
@@ -29,9 +23,8 @@ use self::hint_processor::{
 };
 use crate::execution::call_info::{MessageToL1, OrderedL2ToL1Message};
 use crate::execution::deprecated_syscalls::DeprecatedSyscallSelector;
-use crate::execution::entry_point::{CallEntryPoint, CallType, ConstructorContext};
+use crate::execution::entry_point::{CallEntryPoint, CallType};
 use crate::execution::execution_utils::{
-    execute_deployment,
     felt_from_ptr,
     write_felt,
     write_maybe_relocatable,
@@ -247,32 +240,13 @@ pub fn deploy(
     syscall_handler: &mut SyscallHintProcessor<'_>,
     remaining_gas: &mut u64,
 ) -> SyscallResult<DeployResponse> {
-    let deployer_address = syscall_handler.storage_address();
-    let deployer_address_for_calculation = match request.deploy_from_zero {
-        true => ContractAddress::default(),
-        false => deployer_address,
-    };
-    let deployed_contract_address = calculate_contract_address(
-        request.contract_address_salt,
+    let (deployed_contract_address, call_info) = syscall_handler.base.deploy(
         request.class_hash,
-        &request.constructor_calldata,
-        deployer_address_for_calculation,
-    )?;
-
-    let ctor_context = ConstructorContext {
-        class_hash: request.class_hash,
-        code_address: Some(deployed_contract_address),
-        storage_address: deployed_contract_address,
-        caller_address: deployer_address,
-    };
-    let call_info = execute_deployment(
-        syscall_handler.base.state,
-        syscall_handler.base.context,
-        ctor_context,
+        request.contract_address_salt,
         request.constructor_calldata,
+        request.deploy_from_zero,
         remaining_gas,
     )?;
-
     let constructor_retdata =
         create_retdata_segment(vm, syscall_handler, &call_info.execution.retdata.0)?;
     syscall_handler.base.inner_calls.push(call_info);
