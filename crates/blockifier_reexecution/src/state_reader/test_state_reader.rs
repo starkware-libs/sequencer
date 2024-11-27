@@ -9,7 +9,7 @@ use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::TransactionExecutor;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::BlockContext;
-use blockifier::execution::contract_class::RunnableContractClass;
+use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::cached_state::{CommitmentStateDiff, StateMaps};
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader, StateResult};
@@ -220,7 +220,7 @@ impl StateReader for TestStateReader {
     fn get_compiled_contract_class(
         &self,
         class_hash: ClassHash,
-    ) -> StateResult<RunnableContractClass> {
+    ) -> StateResult<RunnableCompiledClass> {
         let contract_class =
             retry_request!(self.retry_config, || self.get_contract_class(&class_hash))?;
 
@@ -594,7 +594,7 @@ impl StateReader for OfflineStateReader {
     fn get_compiled_contract_class(
         &self,
         class_hash: ClassHash,
-    ) -> StateResult<RunnableContractClass> {
+    ) -> StateResult<RunnableCompiledClass> {
         match self.get_contract_class(&class_hash)? {
             StarknetContractClass::Sierra(sierra) => {
                 Ok(sierra_to_contact_class_v1(sierra).unwrap().try_into().unwrap())

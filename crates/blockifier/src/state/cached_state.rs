@@ -8,7 +8,7 @@ use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
 use crate::context::TransactionContext;
-use crate::execution::contract_class::RunnableContractClass;
+use crate::execution::contract_class::RunnableCompiledClass;
 use crate::state::errors::StateError;
 use crate::state::state_api::{State, StateReader, StateResult, UpdatableState};
 use crate::transaction::objects::TransactionExecutionInfo;
@@ -18,7 +18,7 @@ use crate::utils::{strict_subtract_mappings, subtract_mappings};
 #[path = "cached_state_test.rs"]
 mod test;
 
-pub type ContractClassMapping = HashMap<ClassHash, RunnableContractClass>;
+pub type ContractClassMapping = HashMap<ClassHash, RunnableCompiledClass>;
 
 /// Caches read and write requests.
 ///
@@ -177,7 +177,7 @@ impl<S: StateReader> StateReader for CachedState<S> {
     fn get_compiled_contract_class(
         &self,
         class_hash: ClassHash,
-    ) -> StateResult<RunnableContractClass> {
+    ) -> StateResult<RunnableCompiledClass> {
         let mut cache = self.cache.borrow_mut();
         let class_hash_to_class = &mut *self.class_hash_to_class.borrow_mut();
 
@@ -260,7 +260,7 @@ impl<S: StateReader> State for CachedState<S> {
     fn set_contract_class(
         &mut self,
         class_hash: ClassHash,
-        contract_class: RunnableContractClass,
+        contract_class: RunnableCompiledClass,
     ) -> StateResult<()> {
         self.class_hash_to_class.get_mut().insert(class_hash, contract_class);
         let mut cache = self.cache.borrow_mut();
@@ -531,7 +531,7 @@ impl<'a, S: StateReader + ?Sized> StateReader for MutRefState<'a, S> {
     fn get_compiled_contract_class(
         &self,
         class_hash: ClassHash,
-    ) -> StateResult<RunnableContractClass> {
+    ) -> StateResult<RunnableCompiledClass> {
         self.0.get_compiled_contract_class(class_hash)
     }
 

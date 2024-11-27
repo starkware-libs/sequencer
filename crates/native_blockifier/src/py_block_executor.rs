@@ -6,7 +6,7 @@ use blockifier::blockifier::transaction_executor::{TransactionExecutor, Transact
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
 use blockifier::execution::call_info::CallInfo;
-use blockifier::execution::contract_class::RunnableContractClass;
+use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::fee::receipt::TransactionReceipt;
 use blockifier::state::global_cache::GlobalContractCache;
 use blockifier::transaction::objects::{ExecutionResourcesTraits, TransactionExecutionInfo};
@@ -130,7 +130,7 @@ pub struct PyBlockExecutor {
     pub tx_executor: Option<TransactionExecutor<PapyrusReader>>,
     /// `Send` trait is required for `pyclass` compatibility as Python objects must be threadsafe.
     pub storage: Box<dyn Storage + Send>,
-    pub global_contract_cache: GlobalContractCache<RunnableContractClass>,
+    pub global_contract_cache: GlobalContractCache<RunnableCompiledClass>,
 }
 
 #[pymethods]

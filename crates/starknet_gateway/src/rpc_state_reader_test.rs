@@ -1,4 +1,4 @@
-use blockifier::execution::contract_class::RunnableContractClass;
+use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::state_api::StateReader;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use papyrus_rpc::CompiledContractClass;
@@ -188,7 +188,7 @@ async fn test_get_compiled_contract_class() {
             .await
             .unwrap()
             .unwrap();
-    assert_eq!(result, RunnableContractClass::V1(expected_result.try_into().unwrap()));
+    assert_eq!(result, RunnableCompiledClass::V1(expected_result.try_into().unwrap()));
     mock.assert_async().await;
 }
 

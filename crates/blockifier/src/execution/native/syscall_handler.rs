@@ -32,7 +32,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::execution::call_info::{MessageToL1, OrderedL2ToL1Message, Retdata};
 use crate::execution::common_hints::ExecutionMode;
-use crate::execution::contract_class::RunnableContractClass;
+use crate::execution::contract_class::RunnableCompiledClass;
 use crate::execution::entry_point::{
     CallEntryPoint,
     CallType,
