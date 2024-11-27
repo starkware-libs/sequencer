@@ -228,6 +228,9 @@ pub struct BlockMetadata {
     pub retrospective_block_hash: Option<BlockHashAndNumber>,
 }
 
+// Type definitions for the abort channel required to abort the block builder.
+type AbortSignalSender = tokio::sync::oneshot::Sender<()>;
+
 /// The BlockBuilderFactoryTrait is responsible for creating a new block builder.
 #[cfg_attr(test, automock)]
 pub trait BlockBuilderFactoryTrait: Send + Sync {
@@ -237,8 +240,7 @@ pub trait BlockBuilderFactoryTrait: Send + Sync {
         execution_params: BlockBuilderExecutionParams,
         tx_provider: Box<dyn TransactionProvider>,
         output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<Transaction>>,
-        abort_signal_receiver: tokio::sync::oneshot::Receiver<()>,
-    ) -> BlockBuilderResult<Box<dyn BlockBuilderTrait>>;
+    ) -> BlockBuilderResult<(Box<dyn BlockBuilderTrait>, AbortSignalSender)>;
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -356,16 +358,17 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
         execution_params: BlockBuilderExecutionParams,
         tx_provider: Box<dyn TransactionProvider>,
         output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<Transaction>>,
-        abort_signal_receiver: tokio::sync::oneshot::Receiver<()>,
-    ) -> BlockBuilderResult<Box<dyn BlockBuilderTrait>> {
+    ) -> BlockBuilderResult<(Box<dyn BlockBuilderTrait>, AbortSignalSender)> {
         let executor = self.preprocess_and_create_transaction_executor(&block_metadata)?;
-        Ok(Box::new(BlockBuilder::new(
+        let (abort_signal_sender, abort_signal_receiver) = tokio::sync::oneshot::channel();
+        let block_builder = Box::new(BlockBuilder::new(
             Box::new(executor),
             tx_provider,
             output_content_sender,
             abort_signal_receiver,
             self.block_builder_config.tx_chunk_size,
             execution_params,
-        )))
+        ));
+        Ok((block_builder, abort_signal_sender))
     }
 }
