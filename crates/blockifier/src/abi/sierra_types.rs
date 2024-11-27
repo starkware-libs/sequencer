@@ -4,7 +4,7 @@ use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use num_bigint::{BigUint, ToBigUint};
 use num_traits::ToPrimitive;
-use starknet_api::core::{ContractAddress, PatriciaKey};
+use starknet_api::core::ContractAddress;
 use starknet_api::state::StorageKey;
 use starknet_api::StarknetApiError;
 use starknet_types_core::felt::Felt;
@@ -12,6 +12,10 @@ use thiserror::Error;
 
 use crate::state::errors::StateError;
 use crate::state::state_api::StateReader;
+
+#[cfg(test)]
+#[path = "sierra_types_test.rs"]
+mod test;
 
 pub type SierraTypeResult<T> = Result<T, SierraTypeError>;
 
@@ -41,13 +45,8 @@ pub trait SierraType: Sized {
 
 // Utils.
 
-pub fn felt_to_u128(felt: &Felt) -> Result<u128, SierraTypeError> {
-    felt.to_u128().ok_or_else(|| SierraTypeError::ValueTooLargeForType { val: *felt, ty: "u128" })
-}
-
-// TODO(barak, 01/10/2023): Move to starknet_api under StorageKey implementation.
-pub fn next_storage_key(key: &StorageKey) -> Result<StorageKey, StarknetApiError> {
-    Ok(StorageKey(PatriciaKey::try_from(*key.0.key() + Felt::ONE)?))
+fn felt_to_u128(felt: &Felt) -> Result<u128, SierraTypeError> {
+    felt.to_u128().ok_or(SierraTypeError::ValueTooLargeForType { val: *felt, ty: "u128" })
 }
 
 // Implementations.
@@ -111,7 +110,7 @@ impl SierraType for SierraU256 {
         key: &StorageKey,
     ) -> SierraTypeResult<Self> {
         let low_val = SierraU128::from_storage(state, contract_address, key)?;
-        let high_key = next_storage_key(key)?;
+        let high_key = key.next_storage_key()?;
         let high_val = SierraU128::from_storage(state, contract_address, &high_key)?;
         Ok(Self { low_val: low_val.as_value(), high_val: high_val.as_value() })
     }

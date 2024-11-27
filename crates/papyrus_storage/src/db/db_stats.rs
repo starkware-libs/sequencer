@@ -59,6 +59,7 @@ impl DbReader {
             leaf_pages: stat.leaf_pages(),
             overflow_pages: stat.overflow_pages(),
             total_size: stat.total_size(),
+            #[allow(clippy::as_conversions)]
             db_portion: stat.total_size() as f64 / self.env.stat()?.total_size() as f64,
         })
     }
@@ -97,6 +98,7 @@ fn readable_bytes<S>(bytes_num: &u64, s: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {
+    #[allow(clippy::as_conversions)]
     s.serialize_str(&human_bytes(*bytes_num as f64))
 }
 
@@ -106,7 +108,7 @@ fn float_precision<S>(float: &f64, s: S) -> Result<S::Ok, S::Error>
 where
     S: serde::Serializer,
 {
-    const PRECISION: u32 = 4;
-    let power = u32::pow(10, PRECISION) as f64;
+    const PRECISION: i32 = 4;
+    let power = 10_f64.powi(PRECISION);
     s.serialize_f64((*float * power).round() / power)
 }

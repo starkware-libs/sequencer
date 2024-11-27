@@ -1,0 +1,164 @@
+---
+# Source: papyrus/templates/configmap-env.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: papyrus-env
+  labels:
+    helm.sh/chart: papyrus-0.1.0
+    app: papyrus
+    app.kubernetes.io/name: papyrus
+    app.kubernetes.io/managed-by: Helm
+data:
+  RUST_LOG: info
+  PRESET: mainnet.json
+  CONCURRENT_REQUESTS: "50"
+---
+# Source: papyrus/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: papyrus-config
+  labels:
+    helm.sh/chart: papyrus-0.1.0
+    app: papyrus
+    app.kubernetes.io/name: papyrus
+    app.kubernetes.io/managed-by: Helm
+data:
+  config.json: |-
+    {}
+---
+# Source: papyrus/templates/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: papyrus-data
+  labels:
+    helm.sh/chart: papyrus-0.1.0
+    app: papyrus
+    app.kubernetes.io/name: papyrus
+    app.kubernetes.io/managed-by: Helm
+spec:
+  storageClassName: 
+  accessModes:
+    - ReadWriteOnce
+  volumeMode: Filesystem
+  resources:
+    requests:
+      storage: "512Gi"
+---
+# Source: papyrus/templates/service-p2p.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: papyrus-p2p
+  labels:
+    helm.sh/chart: papyrus-0.1.0
+    app: papyrus
+    app.kubernetes.io/name: papyrus
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+      app.kubernetes.io/name: papyrus
+  type: ClusterIP
+  ports:
+  - name: p2p
+    port: 10000
+    protocol: TCP
+    targetPort: p2p
+---
+# Source: papyrus/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: papyrus
+  labels:
+    helm.sh/chart: papyrus-0.1.0
+    app: papyrus
+    app.kubernetes.io/name: papyrus
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+      app.kubernetes.io/name: papyrus
+  type: ClusterIP
+  ports:
+  - name: rpc
+    port: 8080
+    protocol: TCP
+    targetPort: rpc
+  - name: monitoring
+    port: 8081
+    protocol: TCP
+    targetPort: monitoring
+---
+# Source: papyrus/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: papyrus
+  namespace: idan-papyrus-p2p-dnsaddr-test
+  labels:
+    helm.sh/chart: papyrus-0.1.0
+    app: papyrus
+    app.kubernetes.io/name: papyrus
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: papyrus
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/monitoring/metrics"
+        prometheus.io/port: "8081"
+      labels:
+        app: papyrus
+        app.kubernetes.io/name: papyrus
+    spec:
+      securityContext:
+        fsGroup: 1000
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: papyrus-data
+        - name: config-volume
+          configMap:
+            name: papyrus-config
+      containers:
+      - name: papyrus
+        image: "ghcr.io/starkware-libs/sequencer/papyrus:0.4.0"
+        imagePullPolicy: Always
+        resources:
+          limits:
+            cpu: "1"
+            memory: 1Gi
+          requests:
+            cpu: "500m"
+            memory: 1Gi
+        args:
+          - --config_file
+          - /app/config/papyrus/presets/mainnet.json,/app/config/papyrus/custom/config.json
+          
+        ports:
+        - containerPort: 8080
+          name: rpc
+        - containerPort: 8081
+          name: monitoring
+        - containerPort: 10000
+          name: p2p
+        volumeMounts:
+        - name: data
+          mountPath: /app/data
+        - name: config-volume
+          mountPath: /app/config/papyrus/custom/config.json
+          subPath: config.json
+        envFrom:
+        - configMapRef:
+            name: papyrus-config

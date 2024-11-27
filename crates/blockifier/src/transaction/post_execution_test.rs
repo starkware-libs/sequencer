@@ -1,27 +1,45 @@
 use assert_matches::assert_matches;
 use rstest::rstest;
-use starknet_api::core::{ContractAddress, PatriciaKey};
+use starknet_api::core::ContractAddress;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::{Calldata, Fee, TransactionVersion, ValidResourceBounds};
-use starknet_api::{felt, patricia_key};
+use starknet_api::transaction::fields::{
+    AllResourceBounds,
+    Calldata,
+    Fee,
+    GasVectorComputationMode,
+    Resource,
+    ResourceBounds,
+    ValidResourceBounds,
+};
+use starknet_api::transaction::TransactionVersion;
+use starknet_api::{contract_address, felt, invoke_tx_args};
 use starknet_types_core::felt::Felt;
 
 use crate::context::{BlockContext, ChainInfo};
 use crate::fee::fee_checks::FeeCheckError;
-use crate::invoke_tx_args;
 use crate::state::state_api::StateReader;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{create_calldata, CairoVersion, BALANCE, MAX_L1_GAS_PRICE};
+use crate::test_utils::{
+    create_calldata,
+    CairoVersion,
+    BALANCE,
+    DEFAULT_STRK_L1_DATA_GAS_PRICE,
+    DEFAULT_STRK_L1_GAS_PRICE,
+    DEFAULT_STRK_L2_GAS_PRICE,
+};
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::{FeeType, HasRelatedFeeType, TransactionInfoCreator};
 use crate::transaction::test_utils::{
     account_invoke_tx,
     block_context,
+    create_all_resource_bounds,
+    default_all_resource_bounds,
+    default_l1_resource_bounds,
     l1_resource_bounds,
     max_fee,
-    max_resource_bounds,
     run_invoke_tx,
     TestInitData,
 };
@@ -67,7 +85,7 @@ fn calldata_for_write_and_transfer(
 #[case(TransactionVersion::THREE, FeeType::Strk)]
 fn test_revert_on_overdraft(
     max_fee: Fee,
-    max_resource_bounds: ValidResourceBounds,
+    default_all_resource_bounds: ValidResourceBounds,
     block_context: BlockContext,
     #[case] version: TransactionVersion,
     #[case] fee_type: FeeType,
@@ -83,7 +101,7 @@ fn test_revert_on_overdraft(
     // An address to be used as recipient of a transfer.
     let recipient_int = 7_u8;
     let recipient = felt!(recipient_int);
-    let recipient_address = ContractAddress(patricia_key!(recipient_int));
+    let recipient_address = contract_address!(recipient_int);
     // Amount expected to be transferred successfully.
     let final_received_amount = felt!(80_u8);
 
@@ -99,7 +117,7 @@ fn test_revert_on_overdraft(
         "approve",
         &[
             *contract_address.0.key(), // Calldata: to.
-            felt!(BALANCE),
+            felt!(BALANCE.0),
             felt!(0_u8),
         ],
     );
@@ -109,7 +127,7 @@ fn test_revert_on_overdraft(
         sender_address: account_address,
         calldata: approve_calldata,
         version,
-        resource_bounds: max_resource_bounds.clone(),
+        resource_bounds: default_all_resource_bounds,
         nonce: nonce_manager.next(account_address),
     });
     let tx_info = approve_tx.create_tx_info();
@@ -134,7 +152,7 @@ fn test_revert_on_overdraft(
                 fee_token_address
             ),
             version,
-            resource_bounds: max_resource_bounds.clone(),
+            resource_bounds: default_all_resource_bounds,
             nonce: nonce_manager.next(account_address),
         },
     )
@@ -165,7 +183,7 @@ fn test_revert_on_overdraft(
                 fee_token_address
             ),
             version,
-            resource_bounds: max_resource_bounds,
+            resource_bounds: default_all_resource_bounds,
             nonce: nonce_manager.next(account_address),
         },
     )
@@ -176,7 +194,13 @@ fn test_revert_on_overdraft(
 
     // Verify the execution was reverted (including nonce bump) with the correct error.
     assert!(execution_info.is_reverted());
-    assert!(execution_info.revert_error.unwrap().starts_with("Insufficient fee token balance"));
+    assert!(
+        execution_info
+            .revert_error
+            .unwrap()
+            .to_string()
+            .starts_with("Insufficient fee token balance")
+    );
     assert_eq!(state.get_nonce_at(account_address).unwrap(), nonce_manager.next(account_address));
 
     // Verify the storage key/value were not updated in the last tx.
@@ -207,18 +231,45 @@ fn test_revert_on_overdraft(
 /// execution is reverted; in the non-revertible case, checks for the correct error.
 // TODO(Aner, 21/01/24) modify for 4844 (taking blob_gas into account).
 #[rstest]
-#[case(TransactionVersion::ZERO, "", false)]
-#[case(TransactionVersion::ONE, "Insufficient max fee", true)]
-#[case(TransactionVersion::THREE, "Insufficient max L1 gas", true)]
+#[case::v0_no_revert(TransactionVersion::ZERO, false, default_all_resource_bounds(), None)]
+#[case::v1_insufficient_max_fee(TransactionVersion::ONE, true, default_all_resource_bounds(), None)]
+#[case::l1_bounds_insufficient(
+    TransactionVersion::THREE,
+    true,
+    default_l1_resource_bounds(),
+    Some(Resource::L1Gas)
+)]
+#[case::all_bounds_insufficient_l1_gas(
+    TransactionVersion::THREE,
+    true,
+    default_all_resource_bounds(),
+    Some(Resource::L1Gas)
+)]
+#[case::all_bounds_insufficient_l2_gas(
+    TransactionVersion::THREE,
+    true,
+    default_all_resource_bounds(),
+    Some(Resource::L2Gas)
+)]
+#[case::all_bounds_insufficient_l1_data_gas(
+    TransactionVersion::THREE,
+    true,
+    default_all_resource_bounds(),
+    Some(Resource::L1DataGas)
+)]
 fn test_revert_on_resource_overuse(
     max_fee: Fee,
-    max_resource_bounds: ValidResourceBounds,
-    block_context: BlockContext,
+    mut block_context: BlockContext,
     #[case] version: TransactionVersion,
-    #[case] expected_error_prefix: &str,
     #[case] is_revertible: bool,
+    #[case] resource_bounds: ValidResourceBounds,
+    #[case] resource_to_decrement: Option<Resource>,
     #[values(CairoVersion::Cairo0)] cairo_version: CairoVersion,
 ) {
+    block_context.block_info.use_kzg_da = true;
+    let gas_mode = resource_bounds.get_gas_vector_computation_mode();
+    let fee_type = if version == TransactionVersion::THREE { FeeType::Strk } else { FeeType::Eth };
+    let gas_prices = block_context.block_info.gas_prices.get_gas_prices_by_fee_type(&fee_type);
     let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
         init_data_by_version(&block_context.chain_info, cairo_version);
 
@@ -238,12 +289,12 @@ fn test_revert_on_resource_overuse(
     // We need this kind of invocation, to be able to test the specific scenario: the resource
     // bounds must be enough to allow completion of the transaction, and yet must still fail
     // post-execution bounds check.
-    let execution_info_measure = run_invoke_tx(
+    let mut execution_info_measure = run_invoke_tx(
         &mut state,
         &block_context,
         invoke_tx_args! {
             max_fee,
-            resource_bounds: max_resource_bounds,
+            resource_bounds,
             nonce: nonce_manager.next(account_address),
             calldata: write_a_lot_calldata(),
             ..base_args.clone()
@@ -251,16 +302,24 @@ fn test_revert_on_resource_overuse(
     )
     .unwrap();
     assert_eq!(execution_info_measure.revert_error, None);
+
     let actual_fee = execution_info_measure.receipt.fee;
-    // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion works.
-    let actual_gas_usage: u64 = execution_info_measure
-        .receipt
-        .resources
-        .to_gas_vector(&block_context.versioned_constants, block_context.block_info.use_kzg_da)
-        .unwrap()
-        .l1_gas
-        .try_into()
-        .expect("Failed to convert u128 to u64.");
+    let actual_gas_usage = execution_info_measure.receipt.resources.to_gas_vector(
+        &block_context.versioned_constants,
+        block_context.block_info.use_kzg_da,
+        &gas_mode,
+    );
+    // Final bounds checked depend on the gas mode; in NoL2Gas mode, data gas is converted to L1 gas
+    // units for bounds check in post-execution.
+    let tight_resource_bounds = match gas_mode {
+        GasVectorComputationMode::NoL2Gas => l1_resource_bounds(
+            actual_gas_usage.to_discounted_l1_gas(gas_prices),
+            DEFAULT_STRK_L1_GAS_PRICE.into(),
+        ),
+        GasVectorComputationMode::All => {
+            ValidResourceBounds::all_bounds_from_vectors(&actual_gas_usage, gas_prices)
+        }
+    };
 
     // Run the same function, with a different written value (to keep cost high), with the actual
     // resources used as upper bounds. Make sure execution does not revert.
@@ -269,7 +328,7 @@ fn test_revert_on_resource_overuse(
         &block_context,
         invoke_tx_args! {
             max_fee: actual_fee,
-            resource_bounds: l1_resource_bounds(actual_gas_usage, MAX_L1_GAS_PRICE),
+            resource_bounds: tight_resource_bounds,
             nonce: nonce_manager.next(account_address),
             calldata: write_a_lot_calldata(),
             ..base_args.clone()
@@ -278,17 +337,57 @@ fn test_revert_on_resource_overuse(
     .unwrap();
     assert_eq!(execution_info_tight.revert_error, None);
     assert_eq!(execution_info_tight.receipt.fee, actual_fee);
+    // The only difference between the two executions should be the number of allocated keys, as the
+    // second execution writes to the same keys as the first.
+    let n_allocated_keys = &mut execution_info_measure
+        .receipt
+        .resources
+        .starknet_resources
+        .state
+        .state_changes_for_fee
+        .n_allocated_keys;
+    assert_eq!(n_allocated_keys, &usize::from(n_writes));
+    *n_allocated_keys = 0;
     assert_eq!(execution_info_tight.receipt.resources, execution_info_measure.receipt.resources);
 
     // Re-run the same function with max bounds slightly below the actual usage, and verify it's
     // reverted.
     let low_max_fee = Fee(execution_info_measure.receipt.fee.0 - 1);
+    let low_bounds = if version < TransactionVersion::THREE {
+        // Dummy value for deprecated transaction case.
+        default_all_resource_bounds()
+    } else {
+        match tight_resource_bounds {
+            ValidResourceBounds::L1Gas(ResourceBounds { max_amount, .. }) => {
+                l1_resource_bounds(GasAmount(max_amount.0 - 1), DEFAULT_STRK_L1_GAS_PRICE.into())
+            }
+            ValidResourceBounds::AllResources(AllResourceBounds {
+                l1_gas: ResourceBounds { max_amount: mut l1_gas, .. },
+                l2_gas: ResourceBounds { max_amount: mut l2_gas, .. },
+                l1_data_gas: ResourceBounds { max_amount: mut l1_data_gas, .. },
+            }) => {
+                match resource_to_decrement.unwrap() {
+                    Resource::L1Gas => l1_gas.0 -= 1,
+                    Resource::L2Gas => l2_gas.0 -= 1,
+                    Resource::L1DataGas => l1_data_gas.0 -= 1,
+                }
+                create_all_resource_bounds(
+                    l1_gas,
+                    DEFAULT_STRK_L1_GAS_PRICE.into(),
+                    l2_gas,
+                    DEFAULT_STRK_L2_GAS_PRICE.into(),
+                    l1_data_gas,
+                    DEFAULT_STRK_L1_DATA_GAS_PRICE.into(),
+                )
+            }
+        }
+    };
     let execution_info_result = run_invoke_tx(
         &mut state,
         &block_context,
         invoke_tx_args! {
             max_fee: low_max_fee,
-            resource_bounds: l1_resource_bounds(actual_gas_usage - 1, MAX_L1_GAS_PRICE),
+            resource_bounds: low_bounds,
             nonce: nonce_manager.next(account_address),
             calldata: write_a_lot_calldata(),
             ..base_args
@@ -296,9 +395,22 @@ fn test_revert_on_resource_overuse(
     );
 
     // Assert the transaction was reverted with the correct error.
+    let expected_error_prefix = if version == TransactionVersion::ZERO {
+        ""
+    } else if version == TransactionVersion::ONE {
+        "Insufficient max fee"
+    } else {
+        assert_eq!(version, TransactionVersion::THREE);
+        &format!("Insufficient max {}", resource_to_decrement.unwrap())
+    };
     if is_revertible {
         assert!(
-            execution_info_result.unwrap().revert_error.unwrap().starts_with(expected_error_prefix)
+            execution_info_result
+                .unwrap()
+                .revert_error
+                .unwrap()
+                .to_string()
+                .starts_with(expected_error_prefix)
         );
     } else {
         assert_matches!(

@@ -9,7 +9,10 @@ mod starknet_feeder_gateway_client_test;
 use std::collections::HashMap;
 
 use async_trait::async_trait;
-use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use cairo_lang_starknet_classes::casm_contract_class::{
+    CasmContractClass,
+    CasmContractEntryPoints,
+};
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
 use papyrus_common::pending_classes::ApiContractClass;
@@ -299,7 +302,15 @@ impl StarknetReader for StarknetFeederGatewayClient {
         .contains(&class_hash)
         {
             debug!("Using default compiled class for class hash {}.", class_hash);
-            return Ok(Some(CasmContractClass::default()));
+            return Ok(Some(CasmContractClass {
+                prime: Default::default(),
+                compiler_version: String::default(),
+                bytecode: vec![],
+                bytecode_segment_lengths: None,
+                hints: vec![],
+                pythonic_hints: None,
+                entry_points_by_type: CasmContractEntryPoints::default(),
+            }));
         }
 
         let mut url = self.urls.get_compiled_class_by_class_hash.clone();

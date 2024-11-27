@@ -27,12 +27,13 @@ crate-type = ["cdylib"]
 
 [dependencies]
 # TODO(Dori, 1/1/2025): Add the "jemalloc" feature to the blockifier crate when possible.
-blockifier = { workspace = true, features = ["concurrency", "testing"] }
+blockifier = { workspace = true, features = ["testing"] }
 cairo-lang-starknet-classes.workspace = true
 cairo-vm.workspace = true
 indexmap.workspace = true
 log.workspace = true
 num-bigint.workspace = true
+papyrus_state_reader.workspace = true
 papyrus_storage = { workspace = true, features = ["testing"] }
 pyo3 = { workspace = true, features = ["hashbrown", "num-bigint"] }
 pyo3-log.workspace = true

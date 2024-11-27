@@ -2,8 +2,8 @@ use std::fmt::Debug;
 use std::future::Future;
 
 use mockito::{mock, Matcher};
-use papyrus_test_utils::read_json_file;
 use serde::{Deserialize, Serialize};
+use starknet_api::test_utils::read_json_file;
 
 use crate::test_utils::retry::get_test_config;
 use crate::writer::{StarknetGatewayClient, StarknetWriter, WriterClientError, WriterClientResult};

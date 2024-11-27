@@ -3,7 +3,6 @@
 #[path = "utils_test.rs"]
 mod utils_test;
 
-use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 
@@ -11,7 +10,7 @@ use metrics::{absolute_counter, gauge};
 use serde::Serialize;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash};
-use starknet_api::state::{EntryPoint, EntryPointType};
+use starknet_api::rpc_transaction::EntryPointByType;
 use starknet_types_core::felt::Felt;
 use tracing::debug;
 
@@ -26,7 +25,8 @@ struct DumpDeclaredClass {
     class_hash: ClassHash,
     compiled_class_hash: CompiledClassHash,
     sierra_program: Vec<Felt>,
-    entry_points_by_type: HashMap<EntryPointType, Vec<EntryPoint>>,
+    contract_class_version: String,
+    entry_points_by_type: EntryPointByType,
 }
 
 /// Dumps the declared_classes at a given block range from the storage to a file.
@@ -76,6 +76,7 @@ fn dump_declared_classes_table_by_block_range_internal(
                             class_hash: *class_hash,
                             compiled_class_hash: *compiled_class_hash,
                             sierra_program: contract_class.sierra_program.clone(),
+                            contract_class_version: contract_class.contract_class_version.clone(),
                             entry_points_by_type: contract_class.entry_points_by_type.clone(),
                         },
                     )?;
@@ -92,11 +93,18 @@ fn dump_declared_classes_table_by_block_range_internal(
 // TODO(dvir): relocate all the storage metrics in one module and export them (also in other
 // crates).
 /// Updates storage metrics about the state of the storage.
+#[allow(clippy::as_conversions)]
 pub fn update_storage_metrics(reader: &StorageReader) -> StorageResult<()> {
     debug!("updating storage metrics");
     gauge!("storage_free_pages_number", reader.db_reader.get_free_pages()? as f64);
     let info = reader.db_reader.get_db_info()?;
-    absolute_counter!("storage_last_page_number", info.last_pgno() as u64);
-    absolute_counter!("storage_last_transaction_index", info.last_txnid() as u64);
+    absolute_counter!(
+        "storage_last_page_number",
+        u64::try_from(info.last_pgno()).expect("usize should fit in u64")
+    );
+    absolute_counter!(
+        "storage_last_transaction_index",
+        u64::try_from(info.last_txnid()).expect("usize should fit in u64")
+    );
     Ok(())
 }

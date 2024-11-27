@@ -18,8 +18,8 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use chrono::{TimeZone, Utc};
 use futures_util::{pin_mut, select, Stream, StreamExt};
 use indexmap::IndexMap;
+use papyrus_common::metrics as papyrus_metrics;
 use papyrus_common::pending_classes::PendingClasses;
-use papyrus_common::{metrics as papyrus_metrics, BlockHashAndNumber};
 use papyrus_config::converters::deserialize_seconds_to_duration;
 use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
@@ -34,7 +34,7 @@ use papyrus_storage::state::{StateStorageReader, StateStorageWriter};
 use papyrus_storage::{StorageError, StorageReader, StorageWriter};
 use serde::{Deserialize, Serialize};
 use sources::base_layer::BaseLayerSourceError;
-use starknet_api::block::{Block, BlockHash, BlockNumber, BlockSignature};
+use starknet_api::block::{Block, BlockHash, BlockHashAndNumber, BlockNumber, BlockSignature};
 use starknet_api::core::{ClassHash, CompiledClassHash, SequencerPublicKey};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{StateDiff, ThinStateDiff};
@@ -50,7 +50,7 @@ use crate::sources::pending::{PendingError, PendingSource, PendingSourceTrait};
 // TODO(shahak): Consider adding genesis hash to the config to support chains that have
 // different genesis hash.
 // TODO: Consider moving to a more general place.
-const GENESIS_HASH: &str = "0x0";
+pub const GENESIS_HASH: &str = "0x0";
 
 // TODO(dvir): add to config.
 // Sleep duration between polling for pending data.
@@ -159,6 +159,7 @@ pub struct GenericStateSync<
 pub type StateSyncResult = Result<(), StateSyncError>;
 
 // TODO: Sort alphabetically.
+// TODO: Change this to CentralStateSyncError
 #[derive(thiserror::Error, Debug)]
 pub enum StateSyncError {
     #[error("Sync stopped progress.")]
@@ -231,7 +232,7 @@ impl<
     TBaseLayerSource: BaseLayerSourceTrait + Sync + Send,
 > GenericStateSync<TCentralSource, TPendingSource, TBaseLayerSource>
 {
-    pub async fn run(&mut self) -> StateSyncResult {
+    pub async fn run(mut self) -> StateSyncResult {
         info!("State sync started.");
         loop {
             match self.sync_while_ok().await {
@@ -404,6 +405,7 @@ impl<
         fields(block_hash = format_args!("{:#064x}", block.header.block_hash.0)),
         err
     )]
+    #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
     fn store_block(
         &mut self,
         block_number: BlockNumber,
@@ -432,7 +434,7 @@ impl<
         );
         let time_delta = Utc::now()
             - Utc
-                .timestamp_opt(block.header.timestamp.0 as i64, 0)
+                .timestamp_opt(block.header.block_header_without_hash.timestamp.0 as i64, 0)
                 .single()
                 .expect("block timestamp should be valid");
         let header_latency = time_delta.num_seconds();
@@ -445,6 +447,7 @@ impl<
 
     #[latency_histogram("sync_store_state_diff_latency_seconds", false)]
     #[instrument(skip(self, state_diff, deployed_contract_class_definitions), level = "debug", err)]
+    #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
     fn store_state_diff(
         &mut self,
         block_number: BlockNumber,
@@ -501,6 +504,7 @@ impl<
         let txn = self.writer.begin_rw_txn()?;
         // TODO: verifications - verify casm corresponds to a class on storage.
         match txn.append_casm(&class_hash, &compiled_class) {
+            #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
             Ok(txn) => {
                 txn.commit()?;
                 let compiled_class_marker =
@@ -546,6 +550,7 @@ impl<
                 l2_hash: expected_hash,
             });
         }
+        #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
         if txn.get_base_layer_block_marker()? != block_number.unchecked_next() {
             info!("Verified block {block_number} hash against base layer.");
             txn.update_base_layer_block_marker(&block_number.unchecked_next())?.commit()?;
@@ -579,16 +584,16 @@ impl<
             })?
             .block_hash;
 
-        if prev_hash != block.header.parent_hash {
+        if prev_hash != block.header.block_header_without_hash.parent_hash {
             // A revert detected, log and restart sync loop.
             info!(
                 "Detected revert while processing block {}. Parent hash of the incoming block is \
                  {}, current block hash is {}.",
-                block_number, block.header.parent_hash, prev_hash
+                block_number, block.header.block_header_without_hash.parent_hash, prev_hash
             );
             return Err(StateSyncError::ParentBlockHashMismatch {
                 block_number,
-                expected_parent_block_hash: block.header.parent_hash,
+                expected_parent_block_hash: block.header.block_header_without_hash.parent_hash,
                 stored_parent_block_hash: prev_hash,
             });
         }
@@ -678,12 +683,13 @@ fn stream_new_blocks<
     max_stream_size: u32,
 ) -> impl Stream<Item = Result<SyncEvent, StateSyncError>> {
     try_stream! {
+        #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
         loop {
             let header_marker = reader.begin_ro_txn()?.get_header_marker()?;
             let latest_central_block = central_source.get_latest_block().await?;
             *shared_highest_block.write().await = latest_central_block;
             let central_block_marker = latest_central_block.map_or(
-                BlockNumber::default(), |block| block.block_number.unchecked_next()
+                BlockNumber::default(), |block_hash_and_number| block_hash_and_number.number.unchecked_next()
             );
             metrics::gauge!(
                 papyrus_metrics::PAPYRUS_CENTRAL_BLOCK_MARKER, central_block_marker.0 as f64
@@ -738,7 +744,7 @@ fn stream_new_state_diffs<TCentralSource: CentralSourceTrait + Sync + Send>(
                 tokio::time::sleep(block_propagation_sleep_duration).await;
                 continue;
             }
-            let up_to = min(last_block_number, BlockNumber(state_marker.0 + max_stream_size as u64));
+            let up_to = min(last_block_number, BlockNumber(state_marker.0 + u64::from(max_stream_size)));
             debug!("Downloading state diffs [{} - {}).", state_marker, up_to);
             let state_diff_stream =
                 central_source.stream_state_updates(state_marker, up_to).fuse();
@@ -835,7 +841,7 @@ fn stream_new_compiled_classes<TCentralSource: CentralSourceTrait + Sync + Send>
                 tokio::time::sleep(block_propagation_sleep_duration).await;
                 continue;
             }
-            let up_to = min(state_marker, BlockNumber(from.0 + max_stream_size as u64));
+            let up_to = min(state_marker, BlockNumber(from.0 + u64::from(max_stream_size)));
             debug!("Downloading compiled classes of blocks [{} - {}).", from, up_to);
             let compiled_classes_stream =
                 central_source.stream_compiled_classes(from, up_to).fuse();

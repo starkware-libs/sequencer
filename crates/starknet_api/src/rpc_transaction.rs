@@ -2,9 +2,12 @@
 #[path = "rpc_transaction_test.rs"]
 mod rpc_transaction_test;
 
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
 
+use crate::contract_class::EntryPointType;
 use crate::core::{
     calculate_contract_address,
     ClassHash,
@@ -14,28 +17,30 @@ use crate::core::{
 };
 use crate::data_availability::DataAvailabilityMode;
 use crate::state::EntryPoint;
-use crate::transaction::{
+use crate::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
     Calldata,
     ContractAddressSalt,
+    PaymasterData,
+    Tip,
+    TransactionSignature,
+    ValidResourceBounds,
+};
+use crate::transaction::{
     DeclareTransaction,
     DeclareTransactionV3,
     DeployAccountTransaction,
     DeployAccountTransactionV3,
     InvokeTransaction,
     InvokeTransactionV3,
-    PaymasterData,
-    Tip,
     Transaction,
-    TransactionSignature,
-    ValidResourceBounds,
 };
 use crate::StarknetApiError;
 
 /// Transactions that are ready to be broadcasted to the network through RPC and are not included in
 /// a block.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
 #[serde(tag = "type")]
 #[serde(deny_unknown_fields)]
 pub enum RpcTransaction {
@@ -70,7 +75,9 @@ impl RpcTransaction {
         (nonce, Nonce),
         (resource_bounds, AllResourceBounds),
         (signature, TransactionSignature),
-        (tip, Tip)
+        (tip, Tip),
+        (nonce_data_availability_mode, DataAvailabilityMode),
+        (fee_data_availability_mode, DataAvailabilityMode)
     );
 
     pub fn calculate_sender_address(&self) -> Result<ContractAddress, StarknetApiError> {
@@ -106,7 +113,7 @@ impl From<RpcTransaction> for Transaction {
 /// either a contract class or a class hash).
 ///
 /// [`Starknet specs`]: https://github.com/starkware-libs/starknet-specs/blob/master/api/starknet_api_openrpc.json
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
 #[serde(tag = "version")]
 pub enum RpcDeclareTransaction {
     #[serde(rename = "0x3")]
@@ -165,7 +172,7 @@ impl From<RpcInvokeTransaction> for InvokeTransaction {
 
 /// A declare transaction of a Cairo-v1 contract class that can be added to Starknet through the
 /// RPC.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
 pub struct RpcDeclareTransactionV3 {
     // TODO: Check with Shahak why we need to keep the DeclareType.
     // pub r#type: DeclareType,
@@ -266,7 +273,7 @@ impl From<RpcInvokeTransactionV3> for InvokeTransactionV3 {
 }
 
 // The contract class in SN_API state doesn't have `contract_class_version`, not following the spec.
-#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, Hash)]
 pub struct ContractClass {
     pub sierra_program: Vec<Felt>,
     pub contract_class_version: String,
@@ -274,7 +281,8 @@ pub struct ContractClass {
     pub abi: String,
 }
 
-#[derive(Debug, Clone, Default, Eq, PartialEq, Deserialize, Serialize)]
+// TODO(Aviv): remove duplication with sequencer/crates/papyrus_rpc/src/v0_8/state.rs
+#[derive(Debug, Clone, Default, Eq, PartialEq, Deserialize, Serialize, Hash)]
 pub struct EntryPointByType {
     #[serde(rename = "CONSTRUCTOR")]
     pub constructor: Vec<EntryPoint>,
@@ -282,4 +290,27 @@ pub struct EntryPointByType {
     pub external: Vec<EntryPoint>,
     #[serde(rename = "L1_HANDLER")]
     pub l1handler: Vec<EntryPoint>,
+}
+
+impl EntryPointByType {
+    pub fn from_hash_map(entry_points_by_type: HashMap<EntryPointType, Vec<EntryPoint>>) -> Self {
+        macro_rules! get_entrypoint_by_type {
+            ($variant:ident) => {
+                (*(entry_points_by_type.get(&EntryPointType::$variant).unwrap_or(&vec![]))).to_vec()
+            };
+        }
+
+        Self {
+            constructor: get_entrypoint_by_type!(Constructor),
+            external: get_entrypoint_by_type!(External),
+            l1handler: get_entrypoint_by_type!(L1Handler),
+        }
+    }
+    pub fn to_hash_map(&self) -> HashMap<EntryPointType, Vec<EntryPoint>> {
+        HashMap::from_iter([
+            (EntryPointType::Constructor, self.constructor.clone()),
+            (EntryPointType::External, self.external.clone()),
+            (EntryPointType::L1Handler, self.l1handler.clone()),
+        ])
+    }
 }

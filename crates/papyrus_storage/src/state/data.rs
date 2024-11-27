@@ -2,11 +2,11 @@ use indexmap::IndexMap;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ClassHash;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
-use starknet_api::state::ContractClass;
+use starknet_api::state::SierraContractClass;
 
 use crate::mmap_file::LocationInFile;
 
-pub type DeclaredClasses = IndexMap<ClassHash, ContractClass>;
+pub type DeclaredClasses = IndexMap<ClassHash, SierraContractClass>;
 pub type DeprecatedDeclaredClasses = IndexMap<ClassHash, DeprecatedContractClass>;
 
 /// Data structs that are serialized into the database.

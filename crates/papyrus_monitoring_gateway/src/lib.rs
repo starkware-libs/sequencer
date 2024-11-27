@@ -6,7 +6,6 @@
 mod gateway_test;
 
 use std::collections::{BTreeMap, HashMap};
-use std::fmt::Display;
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -103,7 +102,7 @@ impl SerializeConfig for MonitoringGatewayConfig {
     }
 }
 
-impl Display for MonitoringGatewayConfig {
+impl std::fmt::Display for MonitoringGatewayConfig {
     #[cfg_attr(coverage_nightly, coverage_attribute)]
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{self:?}")
@@ -153,11 +152,6 @@ impl MonitoringServer {
         })
     }
 
-    /// Spawns a monitoring server.
-    pub async fn spawn_server(self) -> tokio::task::JoinHandle<Result<(), hyper::Error>> {
-        tokio::spawn(async move { self.run_server().await })
-    }
-
     #[instrument(
         skip(self),
         fields(
@@ -167,7 +161,7 @@ impl MonitoringServer {
             public_general_config_presentation = %self.public_general_config_presentation,
             present_full_config_secret = %self.config.present_full_config_secret),
         level = "debug")]
-    async fn run_server(&self) -> std::result::Result<(), hyper::Error> {
+    pub async fn run_server(&self) -> std::result::Result<(), hyper::Error> {
         let server_address = SocketAddr::from_str(&self.config.server_address)
             .expect("Configuration value for monitor server address should be valid");
         let app = app(

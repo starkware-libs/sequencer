@@ -24,7 +24,7 @@ use super::swarm_trait::{Event, SwarmTrait};
 use super::{BroadcastTopicChannels, GenericNetworkManager};
 use crate::gossipsub_impl::{self, Topic};
 use crate::mixed_behaviour;
-use crate::network_manager::{BroadcastClientChannels, ServerQueryManager};
+use crate::network_manager::{BroadcastTopicClientTrait, ServerQueryManager};
 use crate::sqmr::behaviour::{PeerNotConnected, SessionIdNotFoundError};
 use crate::sqmr::{Bytes, GenericEvent, InboundSessionId, OutboundSessionId};
 
@@ -185,7 +185,7 @@ impl SwarmTrait for MockSwarm {
         }
     }
 
-    fn report_peer(&mut self, peer_id: PeerId) {
+    fn report_peer_as_malicious(&mut self, peer_id: PeerId) {
         for sender in &self.reported_peer_senders {
             sender.unbounded_send(peer_id).unwrap();
         }
@@ -204,7 +204,7 @@ impl SwarmTrait for MockSwarm {
     }
 
     // TODO (shahak): Add test for continue propagation.
-    fn continue_propagation(&mut self, _message_manager: super::BroadcastedMessageManager) {
+    fn continue_propagation(&mut self, _message_metadata: super::BroadcastedMessageMetadata) {
         unimplemented!()
     }
 }
@@ -322,11 +322,11 @@ async fn broadcast_message() {
 
     let mut network_manager = GenericNetworkManager::generic_new(mock_swarm, None);
 
-    let mut messages_to_broadcast_sender = network_manager
+    let mut broadcast_topic_client = network_manager
         .register_broadcast_topic(topic.clone(), BUFFER_SIZE)
         .unwrap()
-        .messages_to_broadcast_sender;
-    messages_to_broadcast_sender.send(message.clone()).await.unwrap();
+        .broadcast_topic_client;
+    broadcast_topic_client.broadcast_message(message.clone()).await.unwrap();
 
     tokio::select! {
         _ = network_manager.run() => panic!("network manager ended"),
@@ -358,13 +358,11 @@ async fn receive_broadcasted_message_and_report_it() {
 
     let mut network_manager = GenericNetworkManager::generic_new(mock_swarm, None);
 
-    let BroadcastTopicChannels { broadcast_client_channels, .. } =
-        network_manager.register_broadcast_topic::<Bytes>(topic.clone(), BUFFER_SIZE).unwrap();
-    let BroadcastClientChannels {
-        mut reported_messages_sender,
+    let BroadcastTopicChannels {
+        mut broadcast_topic_client,
         mut broadcasted_messages_receiver,
         ..
-    } = broadcast_client_channels;
+    } = network_manager.register_broadcast_topic::<Bytes>(topic.clone(), BUFFER_SIZE).unwrap();
 
     tokio::select! {
         _ = network_manager.run() => panic!("network manager ended"),
@@ -372,9 +370,9 @@ async fn receive_broadcasted_message_and_report_it() {
         // running while we call report_callback.
         reported_peer_result = tokio::time::timeout(TIMEOUT, async {
             let result = broadcasted_messages_receiver.next().await;
-            let (message_result, broadcasted_message_manager) = result.unwrap();
+            let (message_result, broadcasted_message_metadata) = result.unwrap();
             assert_eq!(message, message_result.unwrap());
-            reported_messages_sender.send(broadcasted_message_manager).await.unwrap();
+            broadcast_topic_client.report_peer(broadcasted_message_metadata).await.unwrap();
             reported_peer_receiver.next().await
         }) => {
             assert_eq!(originated_peer_id, reported_peer_result.unwrap().unwrap());

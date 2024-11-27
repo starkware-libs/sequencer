@@ -1,49 +1,51 @@
 use rstest::fixture;
+use starknet_api::abi::abi_utils::get_fee_token_var_address;
+use starknet_api::block::GasPrice;
+use starknet_api::contract_class::{ClassInfo, ContractClass};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
-use starknet_api::transaction::{
-    Calldata,
+use starknet_api::execution_resources::GasAmount;
+use starknet_api::test_utils::deploy_account::DeployAccountTxArgs;
+use starknet_api::test_utils::invoke::InvokeTxArgs;
+use starknet_api::test_utils::NonceManager;
+use starknet_api::transaction::fields::{
+    AllResourceBounds,
     ContractAddressSalt,
     Fee,
-    InvokeTransactionV0,
-    InvokeTransactionV1,
-    InvokeTransactionV3,
+    GasVectorComputationMode,
     ResourceBounds,
-    TransactionHash,
     TransactionSignature,
-    TransactionVersion,
     ValidResourceBounds,
 };
-use starknet_api::{calldata, felt};
+use starknet_api::transaction::{constants, TransactionVersion};
+use starknet_api::{calldata, declare_tx_args, deploy_account_tx_args, felt, invoke_tx_args};
 use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 
-use crate::abi::abi_utils::get_fee_token_var_address;
 use crate::context::{BlockContext, ChainInfo};
-use crate::execution::contract_class::{ClassInfo, ContractClass};
 use crate::state::cached_state::CachedState;
 use crate::state::state_api::State;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::declare::declare_tx;
-use crate::test_utils::deploy_account::{deploy_account_tx, DeployAccountTxArgs};
+use crate::test_utils::deploy_account::deploy_account_tx;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::invoke::{invoke_tx, InvokeTxArgs};
+use crate::test_utils::invoke::invoke_tx;
 use crate::test_utils::{
     create_calldata,
-    default_testing_resource_bounds,
     CairoVersion,
-    NonceManager,
     BALANCE,
+    DEFAULT_L1_DATA_GAS_MAX_AMOUNT,
+    DEFAULT_L1_GAS_AMOUNT,
+    DEFAULT_L2_GAS_MAX_AMOUNT,
+    DEFAULT_STRK_L1_DATA_GAS_PRICE,
+    DEFAULT_STRK_L1_GAS_PRICE,
+    DEFAULT_STRK_L2_GAS_PRICE,
     MAX_FEE,
-    MAX_L1_GAS_AMOUNT,
-    MAX_L1_GAS_PRICE,
 };
 use crate::transaction::account_transaction::AccountTransaction;
-use crate::transaction::constants;
 use crate::transaction::objects::{FeeType, TransactionExecutionInfo, TransactionExecutionResult};
 use crate::transaction::transaction_types::TransactionType;
-use crate::transaction::transactions::{ExecutableTransaction, InvokeTransaction};
-use crate::{declare_tx_args, deploy_account_tx_args, invoke_tx_args};
+use crate::transaction::transactions::ExecutableTransaction;
 
 // Corresponding constants to the ones in faulty_account.
 pub const VALID: u64 = 0;
@@ -55,35 +57,38 @@ pub const GET_BLOCK_NUMBER: u64 = 5;
 pub const GET_BLOCK_TIMESTAMP: u64 = 6;
 pub const GET_SEQUENCER_ADDRESS: u64 = 7;
 
-macro_rules! impl_from_versioned_tx {
-    ($(($specified_tx_type:ty, $enum_variant:ident)),*) => {
-        $(impl From<$specified_tx_type> for InvokeTransaction {
-            fn from(tx: $specified_tx_type) -> Self {
-                Self::new(
-                    starknet_api::transaction::InvokeTransaction::$enum_variant(tx),
-                    TransactionHash::default(),
-                )
-            }
-        })*
-    };
-}
-
-impl_from_versioned_tx!(
-    (InvokeTransactionV0, V0),
-    (InvokeTransactionV1, V1),
-    (InvokeTransactionV3, V3)
-);
-
 /// Test fixtures.
 
 #[fixture]
 pub fn max_fee() -> Fee {
-    Fee(MAX_FEE)
+    MAX_FEE
+}
+
+// TODO(Amos, 1/10/2024): Delete this fixture and use `create_resource_bounds`
+#[fixture]
+pub fn default_l1_resource_bounds() -> ValidResourceBounds {
+    create_resource_bounds(&GasVectorComputationMode::NoL2Gas)
 }
 
 #[fixture]
-pub fn max_resource_bounds() -> ValidResourceBounds {
-    l1_resource_bounds(MAX_L1_GAS_AMOUNT, MAX_L1_GAS_PRICE)
+pub fn default_all_resource_bounds() -> ValidResourceBounds {
+    create_resource_bounds(&GasVectorComputationMode::All)
+}
+
+pub fn create_resource_bounds(computation_mode: &GasVectorComputationMode) -> ValidResourceBounds {
+    match computation_mode {
+        GasVectorComputationMode::NoL2Gas => {
+            l1_resource_bounds(DEFAULT_L1_GAS_AMOUNT, DEFAULT_STRK_L1_GAS_PRICE.into())
+        }
+        GasVectorComputationMode::All => create_all_resource_bounds(
+            DEFAULT_L1_GAS_AMOUNT,
+            DEFAULT_STRK_L1_GAS_PRICE.into(),
+            DEFAULT_L2_GAS_MAX_AMOUNT,
+            DEFAULT_STRK_L2_GAS_PRICE.into(),
+            DEFAULT_L1_DATA_GAS_MAX_AMOUNT,
+            DEFAULT_STRK_L1_DATA_GAS_PRICE.into(),
+        ),
+    }
 }
 
 #[fixture]
@@ -109,8 +114,7 @@ pub fn deploy_and_fund_account(
 ) -> (AccountTransaction, ContractAddress) {
     // Deploy an account contract.
     let deploy_account_tx = deploy_account_tx(deploy_tx_args, nonce_manager);
-    let account_address = deploy_account_tx.contract_address();
-    let account_tx = AccountTransaction::DeployAccount(deploy_account_tx);
+    let account_address = deploy_account_tx.sender_address();
 
     // Update the balance of the about-to-be deployed account contract in the erc20 contract, so it
     // can pay for the transaction execution.
@@ -119,11 +123,11 @@ pub fn deploy_and_fund_account(
     for fee_type in FeeType::iter() {
         let fee_token_address = chain_info.fee_token_address(&fee_type);
         state
-            .set_storage_at(fee_token_address, deployed_account_balance_key, felt!(BALANCE))
+            .set_storage_at(fee_token_address, deployed_account_balance_key, felt!(BALANCE.0))
             .unwrap();
     }
 
-    (account_tx, account_address)
+    (deploy_account_tx, account_address)
 }
 
 /// Initializes a state and returns a `TestInitData` instance.
@@ -172,7 +176,7 @@ impl Default for FaultyAccountTxCreatorArgs {
             contract_address_salt: ContractAddressSalt::default(),
             validate_constructor: false,
             max_fee: Fee::default(),
-            resource_bounds: default_testing_resource_bounds(),
+            resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),
             declared_contract: None,
         }
     }
@@ -234,7 +238,7 @@ pub fn create_account_tx_for_validate_test(
             declare_tx(
                 declare_tx_args! {
                     max_fee,
-                    resource_bounds: resource_bounds.clone(),
+                    resource_bounds,
                     signature,
                     sender_address,
                     version: tx_version,
@@ -252,10 +256,10 @@ pub fn create_account_tx_for_validate_test(
                 true => constants::FELT_TRUE,
                 false => constants::FELT_FALSE,
             })];
-            let deploy_account_tx = deploy_account_tx(
+            deploy_account_tx(
                 deploy_account_tx_args! {
                     max_fee,
-                    resource_bounds: resource_bounds.clone(),
+                    resource_bounds,
                     signature,
                     version: tx_version,
                     class_hash,
@@ -263,12 +267,11 @@ pub fn create_account_tx_for_validate_test(
                     constructor_calldata,
                 },
                 nonce_manager,
-            );
-            AccountTransaction::DeployAccount(deploy_account_tx)
+            )
         }
         TransactionType::InvokeFunction => {
             let execute_calldata = create_calldata(sender_address, "foo", &[]);
-            let invoke_tx = invoke_tx(invoke_tx_args! {
+            invoke_tx(invoke_tx_args! {
                 max_fee,
                 resource_bounds,
                 signature,
@@ -276,15 +279,14 @@ pub fn create_account_tx_for_validate_test(
                 calldata: execute_calldata,
                 version: tx_version,
                 nonce: nonce_manager.next(sender_address),
-            });
-            AccountTransaction::Invoke(invoke_tx)
+            })
         }
         _ => panic!("{tx_type:?} is not an account transaction."),
     }
 }
 
 pub fn account_invoke_tx(invoke_args: InvokeTxArgs) -> AccountTransaction {
-    AccountTransaction::Invoke(invoke_tx(invoke_args))
+    invoke_tx(invoke_args)
 }
 
 pub fn run_invoke_tx(
@@ -292,13 +294,57 @@ pub fn run_invoke_tx(
     block_context: &BlockContext,
     invoke_args: InvokeTxArgs,
 ) -> TransactionExecutionResult<TransactionExecutionInfo> {
-    account_invoke_tx(invoke_args).execute(state, block_context, true, true)
+    let tx = account_invoke_tx(invoke_args);
+    let charge_fee = tx.enforce_fee();
+
+    tx.execute(state, block_context, charge_fee, true)
 }
 
 /// Creates a `ResourceBoundsMapping` with the given `max_amount` and `max_price` for L1 gas limits.
 /// No guarantees on the values of the other resources bounds.
-pub fn l1_resource_bounds(max_amount: u64, max_price: u128) -> ValidResourceBounds {
-    ValidResourceBounds::L1Gas(ResourceBounds { max_amount, max_price_per_unit: max_price })
+// TODO: Check usages of this function and update to using all gas bounds.
+pub fn l1_resource_bounds(
+    max_amount: GasAmount,
+    max_price_per_unit: GasPrice,
+) -> ValidResourceBounds {
+    ValidResourceBounds::L1Gas(ResourceBounds { max_amount, max_price_per_unit })
+}
+
+#[fixture]
+pub fn all_resource_bounds(
+    #[default(DEFAULT_L1_GAS_AMOUNT)] l1_max_amount: GasAmount,
+    #[default(GasPrice::from(DEFAULT_STRK_L1_GAS_PRICE))] l1_max_price: GasPrice,
+    #[default(DEFAULT_L2_GAS_MAX_AMOUNT)] l2_max_amount: GasAmount,
+    #[default(GasPrice::from(DEFAULT_STRK_L2_GAS_PRICE))] l2_max_price: GasPrice,
+    #[default(DEFAULT_L1_DATA_GAS_MAX_AMOUNT)] l1_data_max_amount: GasAmount,
+    #[default(GasPrice::from(DEFAULT_STRK_L1_DATA_GAS_PRICE))] l1_data_max_price: GasPrice,
+) -> ValidResourceBounds {
+    create_all_resource_bounds(
+        l1_max_amount,
+        l1_max_price,
+        l2_max_amount,
+        l2_max_price,
+        l1_data_max_amount,
+        l1_data_max_price,
+    )
+}
+
+pub fn create_all_resource_bounds(
+    l1_max_amount: GasAmount,
+    l1_max_price: GasPrice,
+    l2_max_amount: GasAmount,
+    l2_max_price: GasPrice,
+    l1_data_max_amount: GasAmount,
+    l1_data_max_price: GasPrice,
+) -> ValidResourceBounds {
+    ValidResourceBounds::AllResources(AllResourceBounds {
+        l1_gas: ResourceBounds { max_amount: l1_max_amount, max_price_per_unit: l1_max_price },
+        l2_gas: ResourceBounds { max_amount: l2_max_amount, max_price_per_unit: l2_max_price },
+        l1_data_gas: ResourceBounds {
+            max_amount: l1_data_max_amount,
+            max_price_per_unit: l1_data_max_price,
+        },
+    })
 }
 
 pub fn calculate_class_info_for_testing(contract_class: ContractClass) -> ClassInfo {

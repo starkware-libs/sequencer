@@ -1,0 +1,36 @@
+[package]
+name = "blockifier_reexecution"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[features]
+blockifier_regression_https_testing = []
+
+[dependencies]
+assert_matches.workspace = true
+blockifier = { workspace = true, features = ["reexecution"] }
+cairo-lang-starknet-classes.workspace = true
+cairo-lang-utils.workspace = true
+clap = { workspace = true, features = ["cargo", "derive"] }
+flate2.workspace = true
+google-cloud-storage = "0.22.1"
+indexmap = { workspace = true, features = ["serde"] }
+papyrus_execution.workspace = true
+pretty_assertions.workspace = true
+retry.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+starknet-core.workspace = true
+starknet-types-core.workspace = true
+starknet_api.workspace = true
+starknet_gateway.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
+[dev-dependencies]
+rstest.workspace = true
+
+[lints]
+workspace = true

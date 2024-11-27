@@ -18,14 +18,13 @@ use lru::LruCache;
 #[cfg(test)]
 use mockall::automock;
 use papyrus_common::pending_classes::ApiContractClass;
-use papyrus_common::BlockHashAndNumber;
 use papyrus_config::converters::{deserialize_optional_map, serialize_optional_map};
 use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::{StorageError, StorageReader};
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{Block, BlockHash, BlockNumber, BlockSignature};
+use starknet_api::block::{Block, BlockHash, BlockHashAndNumber, BlockNumber, BlockSignature};
 use starknet_api::core::{ClassHash, CompiledClassHash, SequencerPublicKey};
 use starknet_api::crypto::utils::Signature;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
@@ -46,7 +45,7 @@ type CentralResult<T> = Result<T, CentralError>;
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct CentralSourceConfig {
     pub concurrent_requests: usize,
-    pub url: String,
+    pub starknet_url: String,
     #[serde(deserialize_with = "deserialize_optional_map")]
     pub http_headers: Option<HashMap<String, String>>,
     pub max_state_updates_to_download: usize,
@@ -61,7 +60,7 @@ impl Default for CentralSourceConfig {
     fn default() -> Self {
         CentralSourceConfig {
             concurrent_requests: 10,
-            url: String::from("https://alpha-mainnet.starknet.io/"),
+            starknet_url: String::from("https://alpha-mainnet.starknet.io/"),
             http_headers: None,
             max_state_updates_to_download: 20,
             max_state_updates_to_store_in_memory: 20,
@@ -87,8 +86,8 @@ impl SerializeConfig for CentralSourceConfig {
                 ParamPrivacyInput::Public,
             ),
             ser_param(
-                "url",
-                &self.url,
+                "starknet_url",
+                &self.starknet_url,
                 "Starknet feeder-gateway URL. It should match chain_id.",
                 ParamPrivacyInput::Public,
             ),
@@ -216,10 +215,7 @@ impl<TStarknetClient: StarknetReader + Send + Sync + 'static> CentralSourceTrait
     // Returns the block hash and the block number of the latest block from the central source.
     async fn get_latest_block(&self) -> Result<Option<BlockHashAndNumber>, CentralError> {
         self.starknet_client.latest_block().await.map_err(Arc::new)?.map_or(Ok(None), |block| {
-            Ok(Some(BlockHashAndNumber {
-                block_hash: block.block_hash(),
-                block_number: block.block_number(),
-            }))
+            Ok(Some(BlockHashAndNumber { hash: block.block_hash(), number: block.block_number() }))
         })
     }
 
@@ -449,7 +445,7 @@ impl CentralSource {
         storage_reader: StorageReader,
     ) -> Result<CentralSource, ClientCreationError> {
         let starknet_client = StarknetFeederGatewayClient::new(
-            &config.url,
+            &config.starknet_url,
             config.http_headers,
             node_version,
             config.retry_config,

@@ -76,9 +76,14 @@ where
 {
     let mut sorted_leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().copied().collect();
     let sorted_leaf_indices = SortedLeafIndices::new(&mut sorted_leaf_indices);
-    let mut original_skeleton =
-        OriginalSkeletonTreeImpl::create(storage, root_hash, sorted_leaf_indices, &config)
-            .expect("Failed to create the original skeleton tree");
+    let mut original_skeleton = OriginalSkeletonTreeImpl::create(
+        storage,
+        root_hash,
+        sorted_leaf_indices,
+        &config,
+        &leaf_modifications,
+    )
+    .expect("Failed to create the original skeleton tree");
 
     let updated_skeleton: UpdatedSkeletonTreeImpl = UpdatedSkeletonTree::create(
         &mut original_skeleton,
@@ -203,7 +208,7 @@ pub fn create_root_edge_entry(
         Felt::from(old_root)
             .to_bytes_be()
             .into_iter()
-            .chain(Felt::from(0_u128).to_bytes_be())
+            .chain(Felt::ZERO.to_bytes_be())
             .chain([length])
             .collect(),
     );

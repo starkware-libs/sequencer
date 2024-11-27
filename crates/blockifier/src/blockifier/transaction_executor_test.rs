@@ -1,8 +1,10 @@
 use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
-use starknet_api::felt;
-use starknet_api::transaction::{Fee, TransactionVersion};
+use starknet_api::test_utils::NonceManager;
+use starknet_api::transaction::fields::Fee;
+use starknet_api::transaction::TransactionVersion;
+use starknet_api::{declare_tx_args, deploy_account_tx_args, felt, invoke_tx_args, nonce};
 use starknet_types_core::felt::Felt;
 
 use crate::blockifier::config::TransactionExecutorConfig;
@@ -19,14 +21,14 @@ use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::declare::declare_tx;
 use crate::test_utils::deploy_account::deploy_account_tx;
 use crate::test_utils::initial_test_state::test_state;
+use crate::test_utils::l1_handler::l1handler_tx;
 use crate::test_utils::{
     create_calldata,
+    maybe_dummy_block_hash_and_number,
     CairoVersion,
-    NonceManager,
     BALANCE,
     DEFAULT_STRK_L1_GAS_PRICE,
 };
-use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::test_utils::{
     account_invoke_tx,
@@ -38,17 +40,21 @@ use crate::transaction::test_utils::{
     TestInitData,
 };
 use crate::transaction::transaction_execution::Transaction;
-use crate::transaction::transactions::L1HandlerTransaction;
-use crate::{declare_tx_args, deploy_account_tx_args, invoke_tx_args, nonce};
-
 fn tx_executor_test_body<S: StateReader>(
     state: CachedState<S>,
     block_context: BlockContext,
     tx: Transaction,
     expected_bouncer_weights: BouncerWeights,
 ) {
-    let mut tx_executor =
-        TransactionExecutor::new(state, block_context, TransactionExecutorConfig::default());
+    let block_number_hash_pair =
+        maybe_dummy_block_hash_and_number(block_context.block_info().block_number);
+    let mut tx_executor = TransactionExecutor::pre_process_and_create(
+        state,
+        block_context,
+        block_number_hash_pair,
+        TransactionExecutorConfig::default(),
+    )
+    .unwrap();
     // TODO(Arni, 30/03/2024): Consider adding a test for the transaction execution info. If A test
     // should not be added, rename the test to `test_bouncer_info`.
     // TODO(Arni, 30/03/2024): Test all bouncer weights.
@@ -63,50 +69,50 @@ fn tx_executor_test_body<S: StateReader>(
 }
 
 #[rstest]
-#[case::transaction_version_0(
+#[case::tx_version_0(
     TransactionVersion::ZERO,
     CairoVersion::Cairo0,
     BouncerWeights {
         state_diff_size: 0,
         message_segment_length: 0,
         n_events: 0,
-        ..Default::default()
+        ..BouncerWeights::empty()
     }
 )]
-#[case::transaction_version_1(
+#[case::tx_version_1(
     TransactionVersion::ONE,
     CairoVersion::Cairo0,
     BouncerWeights {
         state_diff_size: 2,
         message_segment_length: 0,
         n_events: 0,
-        ..Default::default()
+        ..BouncerWeights::empty()
     }
 )]
-#[case::transaction_version_2(
+#[case::tx_version_2(
     TransactionVersion::TWO,
     CairoVersion::Cairo1,
     BouncerWeights {
         state_diff_size: 4,
         message_segment_length: 0,
         n_events: 0,
-        ..Default::default()
+        ..BouncerWeights::empty()
     }
 )]
-#[case::transaction_version_3(
+#[case::tx_version_3(
     TransactionVersion::THREE,
     CairoVersion::Cairo1,
     BouncerWeights {
         state_diff_size: 4,
         message_segment_length: 0,
         n_events: 0,
-        ..Default::default()
+        ..BouncerWeights::empty()
     }
 )]
 fn test_declare(
     block_context: BlockContext,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] account_cairo_version: CairoVersion,
-    #[case] transaction_version: TransactionVersion,
+    #[case] tx_version: TransactionVersion,
     #[case] cairo_version: CairoVersion,
     #[case] expected_bouncer_weights: BouncerWeights,
 ) {
@@ -114,16 +120,17 @@ fn test_declare(
     let declared_contract = FeatureContract::Empty(cairo_version);
     let state = test_state(&block_context.chain_info, BALANCE, &[(account_contract, 1)]);
 
-    let tx = Transaction::AccountTransaction(declare_tx(
+    let tx = declare_tx(
         declare_tx_args! {
             sender_address: account_contract.get_instance_address(0),
             class_hash: declared_contract.get_class_hash(),
             compiled_class_hash: declared_contract.get_compiled_class_hash(),
-            version: transaction_version,
-            resource_bounds: l1_resource_bounds(0, DEFAULT_STRK_L1_GAS_PRICE),
+            version: tx_version,
+            resource_bounds: l1_resource_bounds(0_u8.into(), DEFAULT_STRK_L1_GAS_PRICE.into()),
         },
         calculate_class_info_for_testing(declared_contract.get_class()),
-    ));
+    )
+    .into();
     tx_executor_test_body(state, block_context, tx, expected_bouncer_weights);
 }
 
@@ -136,19 +143,20 @@ fn test_deploy_account(
     let account_contract = FeatureContract::AccountWithoutValidations(cairo_version);
     let state = test_state(&block_context.chain_info, BALANCE, &[(account_contract, 0)]);
 
-    let tx = Transaction::AccountTransaction(AccountTransaction::DeployAccount(deploy_account_tx(
+    let tx = deploy_account_tx(
         deploy_account_tx_args! {
             class_hash: account_contract.get_class_hash(),
-            resource_bounds: l1_resource_bounds(0, DEFAULT_STRK_L1_GAS_PRICE),
+            resource_bounds: l1_resource_bounds(0_u8.into(), DEFAULT_STRK_L1_GAS_PRICE.into()),
             version,
         },
         &mut NonceManager::default(),
-    )));
+    )
+    .into();
     let expected_bouncer_weights = BouncerWeights {
         state_diff_size: 3,
         message_segment_length: 0,
         n_events: 0,
-        ..Default::default()
+        ..BouncerWeights::empty()
     };
     tx_executor_test_body(state, block_context, tx, expected_bouncer_weights);
 }
@@ -164,7 +172,7 @@ fn test_deploy_account(
         state_diff_size: 2,
         message_segment_length: 0,
         n_events: 0,
-        ..Default::default()
+        ..BouncerWeights::empty()
     }
 )]
 #[case::emit_event_syscall(
@@ -178,7 +186,7 @@ fn test_deploy_account(
         state_diff_size: 2,
         message_segment_length: 0,
         n_events: 1,
-        ..Default::default()
+        ..BouncerWeights::empty()
     }
 )]
 #[case::storage_write_syscall(
@@ -188,7 +196,7 @@ fn test_deploy_account(
         state_diff_size: 6,
         message_segment_length: 0,
         n_events: 0,
-        ..Default::default()
+        ..BouncerWeights::empty()
     }
 )]
 fn test_invoke(
@@ -209,11 +217,12 @@ fn test_invoke(
 
     let calldata =
         create_calldata(test_contract.get_instance_address(0), entry_point_name, &entry_point_args);
-    let tx = Transaction::AccountTransaction(account_invoke_tx(invoke_tx_args! {
+    let tx = account_invoke_tx(invoke_tx_args! {
         sender_address: account_contract.get_instance_address(0),
         calldata,
         version,
-    }));
+    })
+    .into();
     tx_executor_test_body(state, block_context, tx, expected_bouncer_weights);
 }
 
@@ -222,7 +231,7 @@ fn test_l1_handler(block_context: BlockContext) {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1);
     let state = test_state(&block_context.chain_info, BALANCE, &[(test_contract, 1)]);
 
-    let tx = Transaction::L1HandlerTransaction(L1HandlerTransaction::create_for_testing(
+    let tx = Transaction::L1Handler(l1handler_tx(
         Fee(1908000000000000),
         test_contract.get_instance_address(0),
     ));
@@ -230,25 +239,24 @@ fn test_l1_handler(block_context: BlockContext) {
         state_diff_size: 4,
         message_segment_length: 7,
         n_events: 0,
-        ..Default::default()
+        ..BouncerWeights::empty()
     };
     tx_executor_test_body(state, block_context, tx, expected_bouncer_weights);
 }
 
 #[rstest]
-#[case::happy_flow(BouncerWeights::default(), 10)]
+#[case::happy_flow(BouncerWeights::empty(), 10)]
 #[should_panic(expected = "BlockFull: Transaction cannot be added to the current block, block \
                            capacity reached.")]
 #[case::block_full(
     BouncerWeights {
         n_events: 4,
-        ..Default::default()
+        ..BouncerWeights::empty()
     },
     7
 )]
-#[should_panic(expected = "TransactionExecutionError(TransactionTooLarge): Transaction size \
-                           exceeds the maximum block capacity.")]
-#[case::transaction_too_large(BouncerWeights::default(), 11)]
+#[should_panic(expected = "Transaction size exceeds the maximum block capacity.")]
+#[case::transaction_too_large(BouncerWeights::empty(), 11)]
 
 fn test_bouncing(#[case] initial_bouncer_weights: BouncerWeights, #[case] n_events: usize) {
     let max_n_events_in_block = 10;
@@ -264,19 +272,22 @@ fn test_bouncing(#[case] initial_bouncer_weights: BouncerWeights, #[case] n_even
     tx_executor.bouncer.set_accumulated_weights(initial_bouncer_weights);
 
     tx_executor
-        .execute(&Transaction::AccountTransaction(emit_n_events_tx(
-            n_events,
-            account_address,
-            contract_address,
-            nonce_manager.next(account_address),
-        )))
+        .execute(
+            &emit_n_events_tx(
+                n_events,
+                account_address,
+                contract_address,
+                nonce_manager.next(account_address),
+            )
+            .into(),
+        )
         .map_err(|error| panic!("{error:?}: {error}"))
         .unwrap();
 }
 
 #[rstest]
-fn test_execute_txs_bouncing() {
-    let config = TransactionExecutorConfig::create_for_testing();
+fn test_execute_txs_bouncing(#[values(true, false)] concurrency_enabled: bool) {
+    let config = TransactionExecutorConfig::create_for_testing(concurrency_enabled);
     let max_n_events_in_block = 10;
     let block_context = BlockContext::create_for_bouncer_testing(max_n_events_in_block);
 
@@ -301,7 +312,7 @@ fn test_execute_txs_bouncing() {
         emit_n_events_tx(1, account_address, contract_address, nonce!(3_u32)),
     ]
     .into_iter()
-    .map(Transaction::AccountTransaction)
+    .map(Transaction::Account)
     .collect();
 
     // Run.
@@ -315,7 +326,7 @@ fn test_execute_txs_bouncing() {
     assert_matches!(
         results[1].as_ref().unwrap_err(),
         TransactionExecutorError::TransactionExecutionError(
-            TransactionExecutionError::TransactionTooLarge
+            TransactionExecutionError::TransactionTooLarge { .. }
         )
     );
     assert!(results[2].is_ok());

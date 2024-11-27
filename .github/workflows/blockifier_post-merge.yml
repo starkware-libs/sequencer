@@ -8,6 +8,7 @@ on:
       - '.github/workflows/blockifier_post-merge.yml'
       - 'crates/blockifier/**'
       - 'crates/native_blockifier/**'
+      - 'scripts/dependencies.sh'
 
 jobs:
   if_merged:
@@ -15,11 +16,7 @@ jobs:
     runs-on: starkware-ubuntu-20-04-medium
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/install_rust
-      - uses: Noelware/setup-protoc@1.1.0
-      - uses: Swatinem/rust-cache@v2
-        with:
-          prefix-key: "v0-rust-ubuntu-20.04"
+      - uses: ./.github/actions/bootstrap
 
       # Setup pypy and link to the location expected by .cargo/config.toml.
       - uses: actions/setup-python@v5

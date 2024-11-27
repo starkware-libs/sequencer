@@ -1,14 +1,22 @@
 use std::sync::Arc;
 
-use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
-use starknet_api::core::{calculate_contract_address, ContractAddress};
-use starknet_api::transaction::{Fee, Transaction as StarknetApiTransaction, TransactionHash};
+use starknet_api::contract_class::ClassInfo;
+use starknet_api::core::{calculate_contract_address, ContractAddress, Nonce};
+use starknet_api::executable_transaction::{
+    AccountTransaction as ApiExecutableTransaction,
+    DeclareTransaction,
+    DeployAccountTransaction,
+    InvokeTransaction,
+    L1HandlerTransaction,
+};
+use starknet_api::transaction::fields::Fee;
+use starknet_api::transaction::{Transaction as StarknetApiTransaction, TransactionHash};
 
-use crate::bouncer::verify_tx_weights_in_bounds;
+use crate::bouncer::verify_tx_weights_within_max_capacity;
 use crate::context::BlockContext;
-use crate::execution::contract_class::ClassInfo;
+use crate::execution::call_info::CallInfo;
 use crate::execution::entry_point::EntryPointExecutionContext;
-use crate::fee::actual_cost::TransactionReceipt;
+use crate::fee::receipt::TransactionReceipt;
 use crate::state::cached_state::TransactionalState;
 use crate::state::state_api::UpdatableState;
 use crate::transaction::account_transaction::AccountTransaction;
@@ -19,24 +27,50 @@ use crate::transaction::objects::{
     TransactionInfo,
     TransactionInfoCreator,
 };
-use crate::transaction::transactions::{
-    DeclareTransaction,
-    DeployAccountTransaction,
-    Executable,
-    ExecutableTransaction,
-    ExecutionFlags,
-    InvokeTransaction,
-    L1HandlerTransaction,
-};
+use crate::transaction::transactions::{Executable, ExecutableTransaction, ExecutionFlags};
 
 // TODO: Move into transaction.rs, makes more sense to be defined there.
 #[derive(Clone, Debug, derive_more::From)]
 pub enum Transaction {
-    AccountTransaction(AccountTransaction),
-    L1HandlerTransaction(L1HandlerTransaction),
+    Account(AccountTransaction),
+    L1Handler(L1HandlerTransaction),
+}
+
+impl From<starknet_api::executable_transaction::Transaction> for Transaction {
+    fn from(value: starknet_api::executable_transaction::Transaction) -> Self {
+        match value {
+            starknet_api::executable_transaction::Transaction::Account(tx) => {
+                Transaction::Account(tx.into())
+            }
+            starknet_api::executable_transaction::Transaction::L1Handler(tx) => {
+                Transaction::L1Handler(tx)
+            }
+        }
+    }
 }
 
 impl Transaction {
+    pub fn nonce(&self) -> Nonce {
+        match self {
+            Self::Account(tx) => tx.nonce(),
+            Self::L1Handler(tx) => tx.tx.nonce,
+        }
+    }
+
+    pub fn sender_address(&self) -> ContractAddress {
+        match self {
+            Self::Account(tx) => tx.sender_address(),
+            Self::L1Handler(tx) => tx.tx.contract_address,
+        }
+    }
+
+    pub fn tx_hash(tx: &Transaction) -> TransactionHash {
+        match tx {
+            Transaction::Account(tx) => tx.tx_hash(),
+            Transaction::L1Handler(tx) => tx.tx_hash,
+        }
+    }
+
     pub fn from_api(
         tx: StarknetApiTransaction,
         tx_hash: TransactionHash,
@@ -45,25 +79,24 @@ impl Transaction {
         deployed_contract_address: Option<ContractAddress>,
         only_query: bool,
     ) -> TransactionExecutionResult<Self> {
-        match tx {
+        let executable_tx = match tx {
             StarknetApiTransaction::L1Handler(l1_handler) => {
-                Ok(Self::L1HandlerTransaction(L1HandlerTransaction {
+                return Ok(Self::L1Handler(L1HandlerTransaction {
                     tx: l1_handler,
                     tx_hash,
                     paid_fee_on_l1: paid_fee_on_l1
                         .expect("L1Handler should be created with the fee paid on L1"),
-                }))
+                }));
             }
             StarknetApiTransaction::Declare(declare) => {
                 let non_optional_class_info =
                     class_info.expect("Declare should be created with a ClassInfo.");
-                let declare_tx = match only_query {
-                    true => {
-                        DeclareTransaction::new_for_query(declare, tx_hash, non_optional_class_info)
-                    }
-                    false => DeclareTransaction::new(declare, tx_hash, non_optional_class_info),
-                };
-                Ok(Self::AccountTransaction(AccountTransaction::Declare(declare_tx?)))
+
+                ApiExecutableTransaction::Declare(DeclareTransaction {
+                    tx: declare,
+                    tx_hash,
+                    class_info: non_optional_class_info,
+                })
             }
             StarknetApiTransaction::DeployAccount(deploy_account) => {
                 let contract_address = match deployed_contract_address {
@@ -75,35 +108,30 @@ impl Transaction {
                         ContractAddress::default(),
                     )?,
                 };
-                let deploy_account_tx = match only_query {
-                    true => DeployAccountTransaction::new_for_query(
-                        deploy_account,
-                        tx_hash,
-                        contract_address,
-                    ),
-                    false => {
-                        DeployAccountTransaction::new(deploy_account, tx_hash, contract_address)
-                    }
-                };
-                Ok(Self::AccountTransaction(AccountTransaction::DeployAccount(deploy_account_tx)))
+                ApiExecutableTransaction::DeployAccount(DeployAccountTransaction {
+                    tx: deploy_account,
+                    tx_hash,
+                    contract_address,
+                })
             }
             StarknetApiTransaction::Invoke(invoke) => {
-                let invoke_tx = match only_query {
-                    true => InvokeTransaction::new_for_query(invoke, tx_hash),
-                    false => InvokeTransaction::new(invoke, tx_hash),
-                };
-                Ok(Self::AccountTransaction(AccountTransaction::Invoke(invoke_tx)))
+                ApiExecutableTransaction::Invoke(InvokeTransaction { tx: invoke, tx_hash })
             }
             _ => unimplemented!(),
-        }
+        };
+        let account_tx = match only_query {
+            true => AccountTransaction::new_for_query(executable_tx),
+            false => AccountTransaction::new(executable_tx),
+        };
+        Ok(account_tx.into())
     }
 }
 
 impl TransactionInfoCreator for Transaction {
     fn create_tx_info(&self) -> TransactionInfo {
         match self {
-            Self::AccountTransaction(account_tx) => account_tx.create_tx_info(),
-            Self::L1HandlerTransaction(l1_handler_tx) => l1_handler_tx.create_tx_info(),
+            Self::Account(account_tx) => account_tx.create_tx_info(),
+            Self::L1Handler(l1_handler_tx) => l1_handler_tx.create_tx_info(),
         }
     }
 }
@@ -116,14 +144,12 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
         _execution_flags: ExecutionFlags,
     ) -> TransactionExecutionResult<TransactionExecutionInfo> {
         let tx_context = Arc::new(block_context.to_tx_context(self));
-
-        let mut execution_resources = ExecutionResources::default();
-        let mut context = EntryPointExecutionContext::new_invoke(tx_context.clone(), true);
-        let mut remaining_gas = block_context.versioned_constants.tx_initial_gas();
-        let execute_call_info =
-            self.run_execute(state, &mut execution_resources, &mut context, &mut remaining_gas)?;
+        let limit_steps_by_resources = false;
+        let mut context =
+            EntryPointExecutionContext::new_invoke(tx_context.clone(), limit_steps_by_resources);
+        let mut remaining_gas = tx_context.initial_sierra_gas();
+        let execute_call_info = self.run_execute(state, &mut context, &mut remaining_gas)?;
         let l1_handler_payload_size = self.payload_size();
-
         let TransactionReceipt {
             fee: actual_fee,
             da_gas,
@@ -132,16 +158,15 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
         } = TransactionReceipt::from_l1_handler(
             &tx_context,
             l1_handler_payload_size,
-            execute_call_info.iter(),
+            CallInfo::summarize_many(execute_call_info.iter(), &block_context.versioned_constants),
             &state.get_actual_state_changes()?,
-            &execution_resources,
-        )?;
+        );
 
         let paid_fee = self.paid_fee_on_l1;
         // For now, assert only that any amount of fee was paid.
         // The error message still indicates the required fee.
         if paid_fee == Fee(0) {
-            return Err(TransactionFeeError::InsufficientL1Fee { paid_fee, actual_fee })?;
+            return Err(TransactionFeeError::InsufficientFee { paid_fee, actual_fee })?;
         }
 
         Ok(TransactionExecutionInfo {
@@ -171,24 +196,22 @@ impl<U: UpdatableState> ExecutableTransaction<U> for Transaction {
         // AccountTransaction::execute_raw.
         let concurrency_mode = execution_flags.concurrency_mode;
         let tx_execution_info = match self {
-            Self::AccountTransaction(account_tx) => {
+            Self::Account(account_tx) => {
                 account_tx.execute_raw(state, block_context, execution_flags)?
             }
-            Self::L1HandlerTransaction(tx) => {
-                tx.execute_raw(state, block_context, execution_flags)?
-            }
+            Self::L1Handler(tx) => tx.execute_raw(state, block_context, execution_flags)?,
         };
 
         // Check if the transaction is too large to fit any block.
         // TODO(Yoni, 1/8/2024): consider caching these two.
-        let tx_execution_summary = tx_execution_info.summarize();
-        let mut tx_state_changes_keys = state.get_actual_state_changes()?.into_keys();
+        let tx_execution_summary = tx_execution_info.summarize(&block_context.versioned_constants);
+        let mut tx_state_changes_keys = state.get_actual_state_changes()?.state_maps.into_keys();
         tx_state_changes_keys.update_sequencer_key_in_storage(
             &block_context.to_tx_context(self),
             &tx_execution_info,
             concurrency_mode,
         );
-        verify_tx_weights_in_bounds(
+        verify_tx_weights_within_max_capacity(
             state,
             &tx_execution_summary,
             &tx_execution_info.receipt.resources,

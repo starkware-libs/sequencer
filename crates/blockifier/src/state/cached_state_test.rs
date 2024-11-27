@@ -4,8 +4,8 @@ use assert_matches::assert_matches;
 use indexmap::indexmap;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
-use starknet_api::core::PatriciaKey;
-use starknet_api::{class_hash, contract_address, felt, patricia_key};
+use starknet_api::transaction::fields::Fee;
+use starknet_api::{class_hash, compiled_class_hash, contract_address, felt, nonce, storage_key};
 
 use crate::context::{BlockContext, ChainInfo};
 use crate::state::cached_state::*;
@@ -13,7 +13,6 @@ use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::CairoVersion;
-use crate::{compiled_class_hash, nonce, storage_key};
 const CONTRACT_ADDRESS: &str = "0x100";
 
 fn set_initial_state_values(
@@ -109,7 +108,7 @@ fn declare_contract() {
     let mut state = CachedState::from(DictStateReader { ..Default::default() });
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
     let class_hash = test_contract.get_class_hash();
-    let contract_class = test_contract.get_class();
+    let contract_class = test_contract.get_runnable_class();
 
     assert_eq!(state.cache.borrow().writes.declared_contracts.get(&class_hash), None);
     assert_eq!(state.cache.borrow().initial_reads.declared_contracts.get(&class_hash), None);
@@ -165,10 +164,10 @@ fn get_and_increment_nonce() {
 fn get_contract_class() {
     // Positive flow.
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
-    let state = test_state(&ChainInfo::create_for_testing(), 0, &[(test_contract, 0)]);
+    let state = test_state(&ChainInfo::create_for_testing(), Fee(0), &[(test_contract, 0)]);
     assert_eq!(
         state.get_compiled_contract_class(test_contract.get_class_hash()).unwrap(),
-        test_contract.get_class()
+        test_contract.get_runnable_class()
     );
 
     // Negative flow.
@@ -215,7 +214,8 @@ fn cached_state_state_diff_conversion() {
     // are aligned with.
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
     let test_class_hash = test_contract.get_class_hash();
-    let class_hash_to_class = HashMap::from([(test_class_hash, test_contract.get_class())]);
+    let class_hash_to_class =
+        HashMap::from([(test_class_hash, test_contract.get_runnable_class())]);
 
     let nonce_initial_values = HashMap::new();
 
@@ -286,7 +286,7 @@ fn cached_state_state_diff_conversion() {
         address_to_nonce: IndexMap::from_iter([(contract_address2, nonce!(1_u64))]),
     };
 
-    assert_eq!(expected_state_diff, state.to_state_diff().unwrap().into());
+    assert_eq!(expected_state_diff, state.to_state_diff().unwrap().state_maps.into());
 }
 
 fn create_state_changes_for_test<S: StateReader>(
@@ -323,7 +323,6 @@ fn create_state_changes_for_test<S: StateReader>(
         let sender_balance_key = get_fee_token_var_address(sender_address);
         state.set_storage_at(fee_token_address, sender_balance_key, felt!("0x1999")).unwrap();
     }
-
     state.get_actual_state_changes().unwrap()
 }
 
@@ -336,12 +335,16 @@ fn test_from_state_changes_for_fee_charge(
     let state_changes =
         create_state_changes_for_test(&mut state, sender_address, fee_token_address);
     let state_changes_count = state_changes.count_for_fee_charge(sender_address, fee_token_address);
-    let expected_state_changes_count = StateChangesCount {
+    let n_expected_storage_updates = 1 + usize::from(sender_address.is_some());
+    let expected_state_changes_count = StateChangesCountForFee {
         // 1 for storage update + 1 for sender balance update if sender is defined.
-        n_storage_updates: 1 + usize::from(sender_address.is_some()),
-        n_class_hash_updates: 1,
-        n_compiled_class_hash_updates: 1,
-        n_modified_contracts: 2,
+        state_changes_count: StateChangesCount {
+            n_storage_updates: n_expected_storage_updates,
+            n_class_hash_updates: 1,
+            n_compiled_class_hash_updates: 1,
+            n_modified_contracts: 2,
+        },
+        n_allocated_keys: n_expected_storage_updates,
     };
     assert_eq!(state_changes_count, expected_state_changes_count);
 }
@@ -378,12 +381,12 @@ fn test_state_changes_merge(
     );
 
     // Get the storage updates addresses and keys from the state_changes1, to overwrite.
-    let mut storage_updates_keys = state_changes1.0.storage.keys();
+    let mut storage_updates_keys = state_changes1.state_maps.storage.keys();
     let &(contract_address, storage_key) = storage_updates_keys
         .find(|(contract_address, _)| contract_address == &contract_address!(CONTRACT_ADDRESS))
         .unwrap();
     // A new address, not included in state_changes1, to write to.
-    let new_contract_address = ContractAddress(patricia_key!("0x111"));
+    let new_contract_address = contract_address!("0x111");
 
     // Overwrite existing and new storage values.
     transactional_state.set_storage_at(contract_address, storage_key, felt!("0x1234")).unwrap();
@@ -413,13 +416,82 @@ fn test_state_changes_merge(
     );
 }
 
+// Test that `allocated_keys` collects zero -> nonzero updates, where we commit each update.
+#[rstest]
+#[case(false, vec![felt!("0x0")], false)]
+#[case(true, vec![felt!("0x7")], true)]
+#[case(false, vec![felt!("0x7")], false)]
+#[case(true, vec![felt!("0x7"), felt!("0x0")], false)]
+#[case(false, vec![felt!("0x0"), felt!("0x8")], true)]
+#[case(false, vec![felt!("0x0"), felt!("0x8"), felt!("0x0")], false)]
+fn test_allocated_keys_commit_and_merge(
+    #[case] is_base_empty: bool,
+    #[case] storage_updates: Vec<Felt>,
+    #[case] charged: bool,
+) {
+    let contract_address = contract_address!(CONTRACT_ADDRESS);
+    let storage_key = StorageKey::from(0x10_u16);
+    // Set initial state
+    let mut state: CachedState<DictStateReader> = CachedState::default();
+    if !is_base_empty {
+        state.set_storage_at(contract_address, storage_key, felt!("0x1")).unwrap();
+    }
+    let mut state_changes = vec![];
+
+    for value in storage_updates {
+        // In the end of the previous loop, state has moved into the transactional state.
+        let mut transactional_state = TransactionalState::create_transactional(&mut state);
+        // Update state and collect the state changes.
+        transactional_state.set_storage_at(contract_address, storage_key, value).unwrap();
+        state_changes.push(transactional_state.get_actual_state_changes().unwrap());
+        transactional_state.commit();
+    }
+
+    let merged_changes = StateChanges::merge(state_changes);
+    assert_ne!(merged_changes.allocated_keys.is_empty(), charged);
+}
+
+// Test that allocations in validate and execute phases are properly squashed.
+#[rstest]
+#[case(false, felt!("0x7"), felt!("0x8"), false)]
+#[case(true, felt!("0x0"), felt!("0x8"), true)]
+#[case(true, felt!("0x7"), felt!("0x7"), true)]
+// TODO: not charge in the following case.
+#[case(false, felt!("0x0"), felt!("0x8"), true)]
+#[case(true, felt!("0x7"), felt!("0x0"), false)]
+fn test_allocated_keys_two_transactions(
+    #[case] is_base_empty: bool,
+    #[case] validate_value: Felt,
+    #[case] execute_value: Felt,
+    #[case] charged: bool,
+) {
+    let contract_address = contract_address!(CONTRACT_ADDRESS);
+    let storage_key = StorageKey::from(0x10_u16);
+    // Set initial state
+    let mut state: CachedState<DictStateReader> = CachedState::default();
+    if !is_base_empty {
+        state.set_storage_at(contract_address, storage_key, felt!("0x1")).unwrap();
+    }
+
+    let mut first_state = TransactionalState::create_transactional(&mut state);
+    first_state.set_storage_at(contract_address, storage_key, validate_value).unwrap();
+    let first_state_changes = first_state.get_actual_state_changes().unwrap();
+
+    let mut second_state = TransactionalState::create_transactional(&mut first_state);
+    second_state.set_storage_at(contract_address, storage_key, execute_value).unwrap();
+    let second_state_changes = second_state.get_actual_state_changes().unwrap();
+
+    let merged_changes = StateChanges::merge(vec![first_state_changes, second_state_changes]);
+    assert_ne!(merged_changes.allocated_keys.is_empty(), charged);
+}
+
 #[test]
 fn test_contract_cache_is_used() {
     // Initialize the global cache with a single class, and initialize an empty state with this
     // cache.
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
     let class_hash = test_contract.get_class_hash();
-    let contract_class = test_contract.get_class();
+    let contract_class = test_contract.get_runnable_class();
     let mut reader = DictStateReader::default();
     reader.class_hash_to_class.insert(class_hash, contract_class.clone());
     let state = CachedState::new(reader);
@@ -435,7 +507,7 @@ fn test_contract_cache_is_used() {
 #[test]
 fn test_cache_get_write_keys() {
     // Trivial case.
-    assert_eq!(StateChanges::default().into_keys(), StateChangesKeys::default());
+    assert_eq!(StateMaps::default().into_keys(), StateChangesKeys::default());
 
     // Interesting case.
     let some_felt = felt!("0x1");
@@ -448,7 +520,7 @@ fn test_cache_get_write_keys() {
 
     let class_hash0 = class_hash!("0x300");
 
-    let state_changes = StateChanges(StateMaps {
+    let state_maps = StateMaps {
         nonces: HashMap::from([(contract_address0, Nonce(some_felt))]),
         class_hashes: HashMap::from([
             (contract_address1, some_class_hash),
@@ -461,7 +533,7 @@ fn test_cache_get_write_keys() {
         ]),
         compiled_class_hashes: HashMap::from([(class_hash0, compiled_class_hash!(0x3_u16))]),
         declared_contracts: HashMap::default(),
-    });
+    };
 
     let expected_keys = StateChangesKeys {
         nonce_keys: HashSet::from([contract_address0]),
@@ -480,7 +552,7 @@ fn test_cache_get_write_keys() {
         ]),
     };
 
-    assert_eq!(state_changes.into_keys(), expected_keys);
+    assert_eq!(state_maps.into_keys(), expected_keys);
 }
 
 #[test]

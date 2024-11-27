@@ -3,27 +3,20 @@
 use std::sync::Arc;
 
 use assert_matches::assert_matches;
-use blockifier::abi::abi_utils::get_storage_var_address;
 use blockifier::execution::call_info::Retdata;
 use blockifier::execution::errors::ConstructorEntryPointExecutionError;
-use blockifier::execution::stack_trace::gen_transaction_execution_error_trace;
+use blockifier::execution::stack_trace::gen_tx_execution_error_trace;
 use blockifier::transaction::errors::TransactionExecutionError as BlockifierTransactionExecutionError;
+use blockifier::versioned_constants::VersionedConstants;
 use indexmap::indexmap;
 use papyrus_storage::test_utils::get_test_storage;
 use pretty_assertions::assert_eq;
+use starknet_api::abi::abi_utils::get_storage_var_address;
 use starknet_api::block::{BlockNumber, StarknetVersion};
-use starknet_api::core::{
-    ChainId,
-    ClassHash,
-    CompiledClassHash,
-    ContractAddress,
-    EntryPointSelector,
-    Nonce,
-    PatriciaKey,
-};
+use starknet_api::core::{ChainId, CompiledClassHash, EntryPointSelector};
 use starknet_api::state::{StateNumber, ThinStateDiff};
-use starknet_api::transaction::{Calldata, Fee};
-use starknet_api::{calldata, class_hash, contract_address, felt, patricia_key};
+use starknet_api::transaction::fields::{Calldata, Fee};
+use starknet_api::{calldata, class_hash, contract_address, felt, nonce};
 use starknet_types_core::felt::Felt;
 
 use crate::execution_utils::selector_from_name;
@@ -56,7 +49,6 @@ use crate::testing_instances::get_test_execution_config;
 use crate::{
     estimate_fee,
     execute_call,
-    get_versioned_constants,
     ExecutableTransactionInput,
     ExecutionError,
     FeeEstimationResult,
@@ -180,7 +172,7 @@ fn estimate_fee_invoke() {
     let fees = estimate_fees(tx).expect("Fee estimation should succeed.");
     for fee in fees {
         assert_ne!(fee.overall_fee, Fee(0));
-        assert_eq!(fee.gas_price, GAS_PRICE.price_in_wei);
+        assert_eq!(fee.l1_gas_price, GAS_PRICE.price_in_wei);
     }
 }
 
@@ -191,7 +183,7 @@ fn estimate_fee_declare_deprecated_class() {
     let fees = estimate_fees(tx).expect("Fee estimation should succeed.");
     for fee in fees {
         assert_ne!(fee.overall_fee, Fee(0));
-        assert_eq!(fee.gas_price, GAS_PRICE.price_in_wei);
+        assert_eq!(fee.l1_gas_price, GAS_PRICE.price_in_wei);
     }
 }
 
@@ -202,7 +194,7 @@ fn estimate_fee_declare_class() {
     let fees = estimate_fees(tx).expect("Fee estimation should succeed.");
     for fee in fees {
         assert_ne!(fee.overall_fee, Fee(0));
-        assert_eq!(fee.gas_price, GAS_PRICE.price_in_wei);
+        assert_eq!(fee.l1_gas_price, GAS_PRICE.price_in_wei);
     }
 }
 
@@ -213,7 +205,7 @@ fn estimate_fee_deploy_account() {
     let fees = estimate_fees(tx).expect("Fee estimation should succeed.");
     for fee in fees {
         assert_ne!(fee.overall_fee, Fee(0));
-        assert_eq!(fee.gas_price, GAS_PRICE.price_in_wei);
+        assert_eq!(fee.l1_gas_price, GAS_PRICE.price_in_wei);
     }
 }
 
@@ -229,7 +221,7 @@ fn estimate_fee_combination() {
     let fees = estimate_fees(txs).expect("Fee estimation should succeed.");
     for fee in fees {
         assert_ne!(fee.overall_fee, Fee(0));
-        assert_eq!(fee.gas_price, GAS_PRICE.price_in_wei);
+        assert_eq!(fee.l1_gas_price, GAS_PRICE.price_in_wei);
     }
 }
 
@@ -330,7 +322,7 @@ fn simulate_invoke() {
                 fee_transfer_invocation: Some(_),
             }
         );
-        assert_eq!(charge_fee.fee_estimation.gas_price, GAS_PRICE.price_in_wei);
+        assert_eq!(charge_fee.fee_estimation.l1_gas_price, GAS_PRICE.price_in_wei);
 
         assert_eq!(exec_only_trace.execute_invocation, charge_fee_trace.execute_invocation);
 
@@ -561,7 +553,7 @@ fn simulate_invoke_from_new_account() {
             *NEW_ACCOUNT_ADDRESS,
             *DEPRECATED_CONTRACT_ADDRESS,
             // the deploy account make the next nonce be 1.
-            Some(Nonce(felt!(1_u128))),
+            Some(nonce!(1_u128)),
             false,
         )
         // TODO(yair): Find out how to deploy another contract to test calling a new contract.
@@ -600,9 +592,8 @@ fn simulate_invoke_from_new_account_validate_and_charge() {
     prepare_storage(storage_writer);
 
     // Taken from the trace of the deploy account transaction.
-    let new_account_address = ContractAddress(patricia_key!(
-        "0x0153ade9ef510502c4f3b879c049dcc3ad5866706cae665f0d9df9b01e794fdb"
-    ));
+    let new_account_address =
+        contract_address!("0x0153ade9ef510502c4f3b879c049dcc3ad5866706cae665f0d9df9b01e794fdb");
     let txs = TxsScenarioBuilder::default()
         // Invoke contract from a newly deployed account.
         .deploy_account()
@@ -610,7 +601,7 @@ fn simulate_invoke_from_new_account_validate_and_charge() {
             new_account_address,
             *DEPRECATED_CONTRACT_ADDRESS,
             // the deploy account make the next nonce be 1.
-            Some(Nonce(felt!(1_u128))),
+            Some(nonce!(1_u128)),
             false,
         )
         // TODO(yair): Find out how to deploy another contract to test calling a new contract.
@@ -681,7 +672,7 @@ fn induced_state_diff() {
     account_balance -= simulation_results[0].fee_estimation.overall_fee.0;
     sequencer_balance += simulation_results[0].fee_estimation.overall_fee.0;
     let expected_invoke_deprecated = ThinStateDiff {
-        nonces: indexmap! {*ACCOUNT_ADDRESS => Nonce(felt!(1_u128))},
+        nonces: indexmap! {*ACCOUNT_ADDRESS => nonce!(1_u128)},
         deployed_contracts: indexmap! {},
         storage_diffs: indexmap! {
             *TEST_ERC20_CONTRACT_ADDRESS => indexmap!{
@@ -698,7 +689,7 @@ fn induced_state_diff() {
     account_balance -= simulation_results[1].fee_estimation.overall_fee.0;
     sequencer_balance += simulation_results[1].fee_estimation.overall_fee.0;
     let expected_declare_class = ThinStateDiff {
-        nonces: indexmap! {*ACCOUNT_ADDRESS => Nonce(felt!(2_u128))},
+        nonces: indexmap! {*ACCOUNT_ADDRESS => nonce!(2_u128)},
         declared_classes: indexmap! {class_hash!(next_declared_class_hash) => CompiledClassHash::default()},
         storage_diffs: indexmap! {
             *TEST_ERC20_CONTRACT_ADDRESS => indexmap!{
@@ -716,7 +707,7 @@ fn induced_state_diff() {
     account_balance -= simulation_results[2].fee_estimation.overall_fee.0;
     sequencer_balance += simulation_results[2].fee_estimation.overall_fee.0;
     let expected_declare_deprecated_class = ThinStateDiff {
-        nonces: indexmap! {*ACCOUNT_ADDRESS => Nonce(felt!(3_u128))},
+        nonces: indexmap! {*ACCOUNT_ADDRESS => nonce!(3_u128)},
         deprecated_declared_classes: vec![class_hash!(next_declared_class_hash)],
         storage_diffs: indexmap! {
             *TEST_ERC20_CONTRACT_ADDRESS => indexmap!{
@@ -737,7 +728,7 @@ fn induced_state_diff() {
 
     sequencer_balance += simulation_results[3].fee_estimation.overall_fee.0;
     let expected_deploy_account = ThinStateDiff {
-        nonces: indexmap! {*NEW_ACCOUNT_ADDRESS => Nonce(felt!(1_u128))},
+        nonces: indexmap! {*NEW_ACCOUNT_ADDRESS => nonce!(1_u128)},
         deprecated_declared_classes: vec![],
         storage_diffs: indexmap! {
             *TEST_ERC20_CONTRACT_ADDRESS => indexmap!{
@@ -814,11 +805,7 @@ fn blockifier_error_mapping() {
         storage_address,
         selector,
     };
-    let expected = format!(
-        "Transaction execution has failed:\n{}",
-        // TODO: consider adding ErrorStack display instead.
-        String::from(gen_transaction_execution_error_trace(&blockifier_err))
-    );
+    let expected = format!("{}", gen_tx_execution_error_trace(&blockifier_err));
     let err = ExecutionError::from((0, blockifier_err));
     let ExecutionError::TransactionExecutionError { transaction_index, execution_error } = err
     else {
@@ -834,10 +821,7 @@ fn blockifier_error_mapping() {
         storage_address,
         selector,
     };
-    let expected = format!(
-        "Transaction validation has failed:\n{}",
-        String::from(gen_transaction_execution_error_trace(&blockifier_err))
-    );
+    let expected = format!("{}", gen_tx_execution_error_trace(&blockifier_err));
     let err = ExecutionError::from((0, blockifier_err));
     let ExecutionError::TransactionExecutionError { transaction_index, execution_error } = err
     else {
@@ -850,13 +834,13 @@ fn blockifier_error_mapping() {
 // Test that we retrieve the correct versioned constants.
 #[test]
 fn test_get_versioned_constants() {
-    let starknet_version_13_0 = StarknetVersion("0.13.0".to_string());
-    let starknet_version_13_1 = StarknetVersion("0.13.1".to_string());
-    let starknet_version_13_2 = StarknetVersion("0.13.2".to_string());
-    let versioned_constants = get_versioned_constants(Some(&starknet_version_13_0)).unwrap();
+    let starknet_version_13_0 = StarknetVersion::try_from("0.13.0".to_string()).unwrap();
+    let starknet_version_13_1 = StarknetVersion::try_from("0.13.1".to_string()).unwrap();
+    let starknet_version_13_2 = StarknetVersion::try_from("0.13.2".to_string()).unwrap();
+    let versioned_constants = VersionedConstants::get(&starknet_version_13_0).unwrap();
     assert_eq!(versioned_constants.invoke_tx_max_n_steps, 3_000_000);
-    let versioned_constants = get_versioned_constants(Some(&starknet_version_13_1)).unwrap();
+    let versioned_constants = VersionedConstants::get(&starknet_version_13_1).unwrap();
     assert_eq!(versioned_constants.invoke_tx_max_n_steps, 4_000_000);
-    let versioned_constants = get_versioned_constants(Some(&starknet_version_13_2)).unwrap();
+    let versioned_constants = VersionedConstants::get(&starknet_version_13_2).unwrap();
     assert_eq!(versioned_constants.invoke_tx_max_n_steps, 10_000_000);
 }

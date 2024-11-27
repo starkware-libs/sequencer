@@ -4,10 +4,10 @@ use starknet_types_core::felt::Felt;
 
 use super::block_hash_calculator::TransactionOutputForHash;
 use crate::core::{ClassHash, CompiledClassHash, ContractAddress, EthAddress, Nonce};
-use crate::execution_resources::GasVector;
+use crate::execution_resources::{GasAmount, GasVector};
 use crate::state::ThinStateDiff;
+use crate::transaction::fields::Fee;
 use crate::transaction::{
-    Fee,
     L2ToL1Payload,
     MessageToL1,
     RevertedTransactionExecutionStatus,
@@ -24,7 +24,11 @@ pub(crate) fn get_transaction_output() -> TransactionOutputForHash {
         messages_sent: vec![generate_message_to_l1(34), generate_message_to_l1(56)],
         events: vec![],
         execution_status,
-        gas_consumed: GasVector { l1_gas: 16580, l1_data_gas: 32 },
+        gas_consumed: GasVector {
+            l1_gas: GasAmount(16580),
+            l2_gas: GasAmount(0),
+            l1_data_gas: GasAmount(32),
+        },
     }
 }
 

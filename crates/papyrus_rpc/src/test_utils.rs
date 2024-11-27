@@ -1,13 +1,11 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use derive_more::Display;
 use jsonrpsee::core::RpcResult;
 use jsonrpsee::server::RpcModule;
 use jsonrpsee::types::ErrorObjectOwned;
 use jsonschema::JSONSchema;
 use papyrus_common::pending_classes::PendingClasses;
-use papyrus_common::BlockHashAndNumber;
 use papyrus_execution::ExecutionConfig;
 use papyrus_storage::test_utils::get_test_storage_by_scope;
 use papyrus_storage::{StorageScope, StorageWriter};
@@ -15,8 +13,9 @@ use pretty_assertions::assert_eq;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
-use starknet_api::core::{ChainId, ContractAddress, PatriciaKey};
-use starknet_api::{contract_address, felt, patricia_key};
+use starknet_api::block::BlockHashAndNumber;
+use starknet_api::contract_address;
+use starknet_api::core::ChainId;
 use starknet_client::reader::PendingData;
 use starknet_client::writer::MockStarknetWriter;
 use strum::IntoEnumIterator;
@@ -33,7 +32,7 @@ pub fn get_test_rpc_config() -> RpcConfig {
         execution_config: ExecutionConfig {
             eth_fee_contract_address: contract_address!("0x1001"),
             strk_fee_contract_address: contract_address!("0x1001"),
-            initial_gas_cost: 10000000000,
+            default_initial_gas_cost: 10000000000,
         },
         server_address: String::from("127.0.0.1:0"),
         max_events_chunk_size: 10,
@@ -137,7 +136,7 @@ pub fn validate_schema(schema: &JSONSchema, result: &Value) -> bool {
     result != &Value::Null && schema.is_valid(result)
 }
 
-#[derive(Clone, Copy, Display, EnumIter)]
+#[derive(Clone, Copy, derive_more::Display, EnumIter)]
 pub enum SpecFile {
     #[display(fmt = "starknet_api_openrpc.json")]
     StarknetApiOpenrpc,

@@ -1,26 +1,18 @@
+use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use regex::Regex;
 use rstest::rstest;
-use starknet_api::core::{calculate_contract_address, Nonce};
-use starknet_api::transaction::{
-    Calldata,
-    ContractAddressSalt,
-    Fee,
-    TransactionSignature,
-    TransactionVersion,
-    ValidResourceBounds,
+use starknet_api::abi::abi_utils::selector_from_name;
+use starknet_api::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
+use starknet_api::core::{
+    calculate_contract_address,
+    ClassHash,
+    ContractAddress,
+    EntryPointSelector,
+    Nonce,
 };
-use starknet_api::{calldata, felt};
-
-use crate::abi::abi_utils::selector_from_name;
-use crate::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
-use crate::context::{BlockContext, ChainInfo};
-use crate::invoke_tx_args;
-use crate::test_utils::contracts::FeatureContract;
-use crate::test_utils::initial_test_state::{fund_account, test_state};
-use crate::test_utils::{create_calldata, CairoVersion, BALANCE};
-use crate::transaction::account_transaction::AccountTransaction;
-use crate::transaction::constants::{
+use starknet_api::executable_transaction::AccountTransaction as Transaction;
+use starknet_api::transaction::constants::{
     DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME,
     EXECUTE_ENTRY_POINT_NAME,
     FELT_TRUE,
@@ -28,19 +20,42 @@ use crate::transaction::constants::{
     VALIDATE_DEPLOY_ENTRY_POINT_NAME,
     VALIDATE_ENTRY_POINT_NAME,
 };
+use starknet_api::transaction::fields::{
+    ContractAddressSalt,
+    Fee,
+    TransactionSignature,
+    ValidResourceBounds,
+};
+use starknet_api::transaction::TransactionVersion;
+use starknet_api::{calldata, felt, invoke_tx_args};
+use starknet_types_core::felt::Felt;
+
+use crate::context::{BlockContext, ChainInfo};
+use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
+use crate::execution::entry_point::CallEntryPoint;
+use crate::execution::errors::EntryPointExecutionError;
+use crate::execution::stack_trace::{
+    extract_trailing_cairo1_revert_trace,
+    Cairo1RevertHeader,
+    Cairo1RevertSummary,
+    MIN_CAIRO1_FRAME_LENGTH,
+    TRACE_LENGTH_CAP,
+};
+use crate::execution::syscalls::hint_processor::ENTRYPOINT_FAILED_ERROR;
+use crate::test_utils::contracts::FeatureContract;
+use crate::test_utils::initial_test_state::{fund_account, test_state};
+use crate::test_utils::{create_calldata, CairoVersion, BALANCE};
 use crate::transaction::test_utils::{
     account_invoke_tx,
     block_context,
     create_account_tx_for_validate_test_nonce_0,
-    max_resource_bounds,
+    default_all_resource_bounds,
     run_invoke_tx,
     FaultyAccountTxCreatorArgs,
     INVALID,
 };
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::ExecutableTransaction;
-
-const INNER_CALL_CONTRACT_IN_CALL_CHAIN_OFFSET: usize = 117;
 
 #[rstest]
 fn test_stack_trace_with_inner_error_msg(block_context: BlockContext) {
@@ -117,9 +132,9 @@ Unknown location (pc=0:{entry_point_location})
 2: Error in the called contract (contract address: {test_contract_address_2_felt:#064x}, class \
          hash: {test_contract_hash:#064x}, selector: {inner_entry_point_selector_felt:#064x}):
 Error message: You shall not pass!
-Error at pc=0:1215:
+Error at pc=0:1294:
 Cairo traceback (most recent call last):
-Unknown location (pc=0:1219)
+Unknown location (pc=0:1298)
 
 An ASSERT_EQ instruction failed: 1 != 0.
 "
@@ -205,9 +220,9 @@ Unknown location (pc=0:{entry_point_location})
 2: Error in the called contract (contract address: {test_contract_address_2_felt:#064x}, class \
          hash: {test_contract_hash:#064x}, selector: {inner_entry_point_selector_felt:#064x}):
 Error message: You shall not pass!
-Error at pc=0:1215:
+Error at pc=0:1294:
 Cairo traceback (most recent call last):
-Unknown location (pc=0:1219)
+Unknown location (pc=0:1298)
 
 An ASSERT_EQ instruction failed: 1 != 0.
 "
@@ -217,27 +232,30 @@ An ASSERT_EQ instruction failed: 1 != 0.
         "Transaction execution has failed:
 0: Error in the called contract (contract address: {account_address_felt:#064x}, class hash: \
          {account_contract_hash:#064x}, selector: {execute_selector_felt:#064x}):
-Error at pc=0:767:
-1: Error in the called contract (contract address: {test_contract_address_felt:#064x}, class hash: \
+Execution failed. Failure reason:
+Error in contract (contract address: {account_address_felt:#064x}, class hash: \
+         {account_contract_hash:#064x}, selector: {execute_selector_felt:#064x}):
+Error in contract (contract address: {test_contract_address_felt:#064x}, class hash: \
          {test_contract_hash:#064x}, selector: {external_entry_point_selector_felt:#064x}):
-Error at pc=0:612:
-2: Error in the called contract (contract address: {test_contract_address_2_felt:#064x}, class \
-         hash: {test_contract_hash:#064x}, selector: {inner_entry_point_selector_felt:#064x}):
-Execution failed. Failure reason: 0x6661696c ('fail').
+Error in contract (contract address: {test_contract_address_2_felt:#064x}, class hash: \
+         {test_contract_hash:#064x}, selector: {inner_entry_point_selector_felt:#064x}):
+0x6661696c ('fail').
 "
     );
 
     let expected_trace = match cairo_version {
         CairoVersion::Cairo0 => expected_trace_cairo0,
         CairoVersion::Cairo1 => expected_trace_cairo1,
+        #[cfg(feature = "cairo_native")]
+        CairoVersion::Native => panic!("Cairo Native is not yet supported"),
     };
 
     assert_eq!(tx_execution_error.to_string(), expected_trace);
 }
 
 #[rstest]
-#[case(CairoVersion::Cairo0, "invoke_call_chain", "Couldn't compute operand op0. Unknown value for memory cell 1:37", (1112_u16, 1158_u16))]
-#[case(CairoVersion::Cairo0, "fail", "An ASSERT_EQ instruction failed: 1 != 0.", (1215_u16, 1166_u16))]
+#[case(CairoVersion::Cairo0, "invoke_call_chain", "Couldn't compute operand op0. Unknown value for memory cell 1:37", (1191_u16, 1237_u16))]
+#[case(CairoVersion::Cairo0, "fail", "An ASSERT_EQ instruction failed: 1 != 0.", (1294_u16, 1245_u16))]
 #[case(CairoVersion::Cairo1, "invoke_call_chain", "0x4469766973696f6e2062792030 ('Division by 0')", (0_u16, 0_u16))]
 #[case(CairoVersion::Cairo1, "fail", "0x6661696c ('fail')", (0_u16, 0_u16))]
 fn test_trace_callchain_ends_with_regular_call(
@@ -335,23 +353,24 @@ Unknown location (pc=0:{expected_pc1})
             )
         }
         CairoVersion::Cairo1 => {
-            let pc_location = entry_point_offset.0 + INNER_CALL_CONTRACT_IN_CALL_CHAIN_OFFSET;
             format!(
                 "Transaction execution has failed:
 0: Error in the called contract (contract address: {account_address_felt:#064x}, class hash: \
                  {account_contract_hash:#064x}, selector: {execute_selector_felt:#064x}):
-Error at pc=0:767:
-1: Error in the called contract (contract address: {contract_address_felt:#064x}, class hash: \
+Execution failed. Failure reason:
+Error in contract (contract address: {account_address_felt:#064x}, class hash: \
+                 {account_contract_hash:#064x}, selector: {execute_selector_felt:#064x}):
+Error in contract (contract address: {contract_address_felt:#064x}, class hash: \
                  {test_contract_hash:#064x}, selector: {invoke_call_chain_selector_felt:#064x}):
-Error at pc=0:9631:
-Cairo traceback (most recent call last):
-Unknown location (pc=0:{pc_location})
-
-2: Error in the called contract (contract address: {contract_address_felt:#064x}, class hash: \
+Error in contract (contract address: {contract_address_felt:#064x}, class hash: \
                  {test_contract_hash:#064x}, selector: {invoke_call_chain_selector_felt:#064x}):
-Execution failed. Failure reason: {expected_error}.
+{expected_error}.
 "
             )
+        }
+        #[cfg(feature = "cairo_native")]
+        CairoVersion::Native => {
+            todo!("Cairo Native is not yet supported here")
         }
     };
 
@@ -359,10 +378,10 @@ Execution failed. Failure reason: {expected_error}.
 }
 
 #[rstest]
-#[case(CairoVersion::Cairo0, "invoke_call_chain", "Couldn't compute operand op0. Unknown value for memory cell 1:23", 1_u8, 0_u8, (37_u16, 1124_u16, 1112_u16, 1197_u16))]
-#[case(CairoVersion::Cairo0, "invoke_call_chain", "Couldn't compute operand op0. Unknown value for memory cell 1:23", 1_u8, 1_u8, (49_u16, 1142_u16, 1112_u16, 1197_u16))]
-#[case(CairoVersion::Cairo0, "fail", "An ASSERT_EQ instruction failed: 1 != 0.", 0_u8, 0_u8, (37_u16, 1124_u16, 1215_u16, 1219_u16))]
-#[case(CairoVersion::Cairo0, "fail", "An ASSERT_EQ instruction failed: 1 != 0.", 0_u8, 1_u8, (49_u16, 1142_u16, 1215_u16, 1219_u16))]
+#[case(CairoVersion::Cairo0, "invoke_call_chain", "Couldn't compute operand op0. Unknown value for memory cell 1:23", 1_u8, 0_u8, (37_u16, 1203_u16, 1191_u16, 1276_u16))]
+#[case(CairoVersion::Cairo0, "invoke_call_chain", "Couldn't compute operand op0. Unknown value for memory cell 1:23", 1_u8, 1_u8, (49_u16, 1221_u16, 1191_u16, 1276_u16))]
+#[case(CairoVersion::Cairo0, "fail", "An ASSERT_EQ instruction failed: 1 != 0.", 0_u8, 0_u8, (37_u16, 1203_u16, 1294_u16, 1298_u16))]
+#[case(CairoVersion::Cairo0, "fail", "An ASSERT_EQ instruction failed: 1 != 0.", 0_u8, 1_u8, (49_u16, 1221_u16, 1294_u16, 1298_u16))]
 #[case(CairoVersion::Cairo1, "invoke_call_chain", "0x4469766973696f6e2062792030 ('Division by 0')", 1_u8, 0_u8, (9631_u16, 9631_u16, 0_u16, 0_u16))]
 #[case(CairoVersion::Cairo1, "invoke_call_chain", "0x4469766973696f6e2062792030 ('Division by 0')", 1_u8, 1_u8, (9631_u16, 9700_u16, 0_u16, 0_u16))]
 #[case(CairoVersion::Cairo1, "fail", "0x6661696c ('fail')", 0_u8, 0_u8, (9631_u16, 9631_u16, 0_u16, 0_u16))]
@@ -491,29 +510,26 @@ Unknown location (pc=0:{expected_pc3})
             )
         }
         CairoVersion::Cairo1 => {
-            let pc_location = entry_point_offset.0 + INNER_CALL_CONTRACT_IN_CALL_CHAIN_OFFSET;
-            let (expected_pc0, expected_pc1, _, _) = expected_pcs;
             format!(
                 "Transaction execution has failed:
 0: Error in the called contract (contract address: {account_address_felt:#064x}, class hash: \
                  {account_contract_hash:#064x}, selector: {execute_selector_felt:#064x}):
-Error at pc=0:767:
-1: Error in the called contract (contract address: {address_felt:#064x}, class hash: \
-                 {test_contract_hash:#064x}, selector: {invoke_call_chain_selector_felt:#064x}):
-Error at pc=0:{expected_pc0}:
-Cairo traceback (most recent call last):
-Unknown location (pc=0:{pc_location})
-
-2: Error in the called contract (contract address: {address_felt:#064x}, class hash: \
-                 {test_contract_hash:#064x}, selector: {invoke_call_chain_selector_felt:#064x}):
-Error at pc=0:{expected_pc1}:
-Cairo traceback (most recent call last):
-Unknown location (pc=0:{pc_location})
-
-3: {last_call_preamble}:
-Execution failed. Failure reason: {expected_error}.
+Execution failed. Failure reason:
+Error in contract (contract address: {account_address_felt:#064x}, class hash: \
+                 {account_contract_hash:#064x}, selector: {execute_selector_felt:#064x}):
+Error in contract (contract address: {address_felt:#064x}, class hash: {test_contract_hash:#064x}, \
+                 selector: {invoke_call_chain_selector_felt:#064x}):
+Error in contract (contract address: {address_felt:#064x}, class hash: {test_contract_hash:#064x}, \
+                 selector: {invoke_call_chain_selector_felt:#064x}):
+Error in contract (contract address: {address_felt:#064x}, class hash: {test_contract_hash:#064x}, \
+                 selector: {last_func_selector_felt:#064x}):
+{expected_error}.
 "
             )
+        }
+        #[cfg(feature = "cairo_native")]
+        CairoVersion::Native => {
+            todo!("Cairo Native not yet supported here.")
         }
     };
 
@@ -569,7 +585,7 @@ fn test_validate_trace(
     let faulty_account = FeatureContract::FaultyAccount(cairo_version);
     let mut sender_address = faulty_account.get_instance_address(0);
     let class_hash = faulty_account.get_class_hash();
-    let state = &mut test_state(&block_context.chain_info, 0, &[(faulty_account, 1)]);
+    let state = &mut test_state(&block_context.chain_info, Fee(0), &[(faulty_account, 1)]);
     let selector = selector_from_name(entry_point_name).0;
 
     // Logic failure.
@@ -584,8 +600,8 @@ fn test_validate_trace(
 
     if let TransactionType::DeployAccount = tx_type {
         // Deploy account uses the actual address as the sender address.
-        match &account_tx {
-            AccountTransaction::DeployAccount(tx) => {
+        match &account_tx.tx {
+            Transaction::DeployAccount(tx) => {
                 sender_address = tx.contract_address();
             }
             _ => panic!("Expected DeployAccountTransaction type"),
@@ -609,19 +625,22 @@ An ASSERT_EQ instruction failed: 1 != 0.
             class_hash.0
         ),
         CairoVersion::Cairo1 => format!(
-            "Transaction validation has failed:
-0: Error in the called contract (contract address: {contract_address:#064x}, class hash: {:#064x}, \
-             selector: {selector:#064x}):
-Execution failed. Failure reason: 0x496e76616c6964207363656e6172696f ('Invalid scenario').
+            "The `validate` entry point panicked with:
+Error in contract (contract address: {contract_address:#064x}, class hash: {:#064x}, selector: \
+             {selector:#064x}):
+0x496e76616c6964207363656e6172696f ('Invalid scenario').
 ",
             class_hash.0
         ),
+        #[cfg(feature = "cairo_native")]
+        CairoVersion::Native => todo!("Cairo Native is not yet supported here."),
     };
 
     // Clean pc locations from the trace.
     let re = Regex::new(r"pc=0:[0-9]+").unwrap();
     let cleaned_expected_error = &re.replace_all(&expected_error, "pc=0:*");
-    let actual_error = account_tx.execute(state, block_context, true, true).unwrap_err();
+    let charge_fee = account_tx.enforce_fee();
+    let actual_error = account_tx.execute(state, block_context, charge_fee, true).unwrap_err();
     let actual_error_str = actual_error.to_string();
     let cleaned_actual_error = &re.replace_all(&actual_error_str, "pc=0:*");
     // Compare actual trace to the expected trace (sans pc locations).
@@ -646,17 +665,18 @@ fn test_account_ctor_frame_stack_trace(
             tx_type: TransactionType::DeployAccount,
             scenario: INVALID,
             class_hash,
-            max_fee: Fee(BALANCE),
+            max_fee: BALANCE,
+            resource_bounds: default_all_resource_bounds(),
             validate_constructor: true,
             ..Default::default()
         });
 
     // Fund the account so it can afford the deployment.
-    let deploy_address = match &deploy_account_tx {
-        AccountTransaction::DeployAccount(deploy_tx) => deploy_tx.contract_address(),
+    let deploy_address = match &deploy_account_tx.tx {
+        Transaction::DeployAccount(deploy_tx) => deploy_tx.contract_address(),
         _ => unreachable!("deploy_account_tx is a DeployAccount"),
     };
-    fund_account(chain_info, deploy_address, BALANCE * 2, &mut state.state);
+    fund_account(chain_info, deploy_address, Fee(BALANCE.0 * 2), &mut state.state);
 
     let expected_selector = selector_from_name(CONSTRUCTOR_ENTRY_POINT_NAME).0;
     let expected_address = deploy_address.0.key();
@@ -666,22 +686,31 @@ fn test_account_ctor_frame_stack_trace(
          hash: {:#064x}, selector: {expected_selector:#064x}):
 ",
         class_hash.0
-    ) + match cairo_version {
-        CairoVersion::Cairo0 => {
-            "Error at pc=0:223:
+    )
+    .to_string()
+        + &match cairo_version {
+            CairoVersion::Cairo0 => "Error at pc=0:223:
 Cairo traceback (most recent call last):
 Unknown location (pc=0:195)
 Unknown location (pc=0:179)
 
 An ASSERT_EQ instruction failed: 1 != 0.
 "
-        }
-        CairoVersion::Cairo1 => {
-            "Execution failed. Failure reason: 0x496e76616c6964207363656e6172696f ('Invalid \
-             scenario').
-"
-        }
-    };
+            .to_string(),
+            CairoVersion::Cairo1 => format!(
+                "Execution failed. Failure reason:
+Error in contract (contract address: {expected_address:#064x}, class hash: {:#064x}, selector: \
+                 {expected_selector:#064x}):
+0x496e76616c6964207363656e6172696f ('Invalid scenario').
+",
+                class_hash.0
+            )
+            .to_string(),
+            #[cfg(feature = "cairo_native")]
+            CairoVersion::Native => {
+                todo!("Cairo Native not yet supported here.")
+            }
+        };
 
     // Compare expected and actual error.
     let error = deploy_account_tx.execute(state, &block_context, true, true).unwrap_err();
@@ -694,7 +723,7 @@ An ASSERT_EQ instruction failed: 1 != 0.
 /// point selector).
 fn test_contract_ctor_frame_stack_trace(
     block_context: BlockContext,
-    max_resource_bounds: ValidResourceBounds,
+    default_all_resource_bounds: ValidResourceBounds,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
 ) {
     let chain_info = &block_context.chain_info;
@@ -731,7 +760,7 @@ fn test_contract_ctor_frame_stack_trace(
                 validate_constructor,
             ]
         ),
-        resource_bounds: max_resource_bounds,
+        resource_bounds: default_all_resource_bounds,
         nonce: Nonce(felt!(0_u8)),
     });
 
@@ -807,11 +836,20 @@ Error at pc=0:{}:
 {frame_1}
 Error at pc=0:{}:
 {frame_2}
-Execution failed. Failure reason: 0x496e76616c6964207363656e6172696f ('Invalid scenario').
+Execution failed. Failure reason:
+Error in contract (contract address: {expected_address:#064x}, class hash: {:#064x}, selector: \
+                 {:#064x}):
+0x496e76616c6964207363656e6172696f ('Invalid scenario').
 ",
-                execute_offset + 205,
-                deploy_offset + 194
+                execute_offset + 165,
+                deploy_offset + 154,
+                faulty_class_hash.0,
+                ctor_selector.0
             )
+        }
+        #[cfg(feature = "cairo_native")]
+        CairoVersion::Native => {
+            todo!("Cairo Native not yet supported here.")
         }
     };
 
@@ -819,4 +857,243 @@ Execution failed. Failure reason: 0x496e76616c6964207363656e6172696f ('Invalid s
     let error =
         invoke_deploy_tx.execute(state, &block_context, true, true).unwrap().revert_error.unwrap();
     assert_eq!(error.to_string(), expected_error);
+}
+
+#[test]
+fn test_min_cairo1_frame_length() {
+    let failure_hex = "0xdeadbeef";
+    let call_info_1_frame = CallInfo {
+        call: CallEntryPoint {
+            class_hash: Some(ClassHash::default()),
+            storage_address: ContractAddress::default(),
+            entry_point_selector: EntryPointSelector::default(),
+            ..Default::default()
+        },
+        execution: CallExecution {
+            retdata: Retdata(vec![felt!(failure_hex)]),
+            failed: true,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let call_info_2_frames = CallInfo {
+        call: CallEntryPoint {
+            class_hash: Some(ClassHash::default()),
+            storage_address: ContractAddress::default(),
+            entry_point_selector: EntryPointSelector::default(),
+            ..Default::default()
+        },
+        execution: CallExecution {
+            retdata: Retdata(vec![felt!(failure_hex), felt!(ENTRYPOINT_FAILED_ERROR)]),
+            failed: true,
+            ..Default::default()
+        },
+        inner_calls: vec![call_info_1_frame.clone()],
+        ..Default::default()
+    };
+    let error_stack_1_frame =
+        extract_trailing_cairo1_revert_trace(&call_info_1_frame, Cairo1RevertHeader::Execution);
+    let error_stack_2_frames =
+        extract_trailing_cairo1_revert_trace(&call_info_2_frames, Cairo1RevertHeader::Execution);
+    let diff = error_stack_2_frames.to_string().len() - error_stack_1_frame.to_string().len();
+    assert_eq!(diff, *MIN_CAIRO1_FRAME_LENGTH);
+}
+
+#[rstest]
+#[case::too_many_frames(TRACE_LENGTH_CAP / *MIN_CAIRO1_FRAME_LENGTH + 10, 1, "too_many_frames")]
+// Each (large) felt should require at least 30 chars.
+#[case::too_much_retdata(1, TRACE_LENGTH_CAP / 30, "too_much_retdata")]
+#[case::both_too_much(
+    TRACE_LENGTH_CAP / (2 * *MIN_CAIRO1_FRAME_LENGTH), TRACE_LENGTH_CAP / 40, "both_too_much"
+)]
+fn test_cairo1_revert_error_truncation(
+    #[case] n_frames: usize,
+    #[case] n_retdata: usize,
+    #[case] scenario: &str,
+) {
+    let failure_felt = "0xbeefbeefbeefbeefbeefbeefbeefbeef";
+    let call = CallEntryPoint {
+        class_hash: Some(ClassHash::default()),
+        storage_address: ContractAddress::default(),
+        entry_point_selector: EntryPointSelector::default(),
+        ..Default::default()
+    };
+    let mut retdata = Retdata(vec![felt!(failure_felt); n_retdata]);
+    let mut next_call_info = CallInfo {
+        call: call.clone(),
+        execution: CallExecution { retdata: retdata.clone(), failed: true, ..Default::default() },
+        ..Default::default()
+    };
+    for _ in 1..n_frames {
+        retdata.0.push(felt!(ENTRYPOINT_FAILED_ERROR));
+        next_call_info = CallInfo {
+            call: call.clone(),
+            inner_calls: vec![next_call_info],
+            execution: CallExecution {
+                retdata: retdata.clone(),
+                failed: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+    }
+
+    // Check that the error message is structured as expected.
+    let header_type = Cairo1RevertHeader::Execution;
+    let header_str = header_type.to_string();
+    let tail_str = ".\n";
+    let error_stack = extract_trailing_cairo1_revert_trace(&next_call_info, header_type);
+    let error_string = error_stack.to_string();
+    let first_frame = error_stack.stack.first().unwrap().to_string();
+    let last_frame = error_stack.stack.last().unwrap().to_string();
+    let (expected_head, expected_tail) = match scenario {
+        // Frames truncated, entire failure reason (a single felt) is output.
+        "too_many_frames" => {
+            (
+                format!("{header_str}\n{first_frame}\n"),
+                [
+                    Cairo1RevertSummary::TRUNCATION_SEPARATOR.into(),
+                    last_frame,
+                    // One failure felt.
+                    format!("{failure_felt}{tail_str}"),
+                ]
+                .join("\n"),
+            )
+        }
+        // A single frame, but failure reason itself is too long. No frames printed.
+        "too_much_retdata" => (
+            format!("{header_str}\n({failure_felt}"),
+            Cairo1RevertSummary::TRUNCATION_SEPARATOR.into(),
+        ),
+        // Too many frames and too much retdata - retdata takes precedence.
+        "both_too_much" => {
+            let retdata_tail = format!(
+                "({}{failure_felt}){tail_str}",
+                format!("{failure_felt}, ").repeat(n_retdata - 1)
+            );
+            (
+                format!("{header_str}\n{first_frame}\n"),
+                [Cairo1RevertSummary::TRUNCATION_SEPARATOR.into(), last_frame, retdata_tail]
+                    .join("\n"),
+            )
+        }
+        _ => panic!("Test not implemented for {n_frames} frames."),
+    };
+    assert!(error_string.len() <= TRACE_LENGTH_CAP);
+    assert_eq!(error_string[..expected_head.len()], expected_head);
+    assert_eq!(error_string[error_string.len() - expected_tail.len()..], expected_tail);
+}
+
+#[test]
+fn test_cairo1_stack_extraction_inner_call_successful() {
+    let failure_reason_str = "0x1";
+    let error_data = Retdata(vec![felt!(failure_reason_str)]);
+    let callinfo = CallInfo {
+        execution: CallExecution { retdata: error_data, failed: true, ..Default::default() },
+        inner_calls: vec![CallInfo::default()],
+        ..Default::default()
+    };
+    let error = EntryPointExecutionError::ExecutionFailed {
+        error_trace: extract_trailing_cairo1_revert_trace(&callinfo, Cairo1RevertHeader::Execution),
+    };
+    assert_eq!(
+        error.to_string(),
+        format!(
+            "Execution failed. Failure reason:
+Error in contract (contract address: {:#064x}, class hash: _, selector: {:#064x}):
+{failure_reason_str}.
+",
+            ContractAddress::default().0.key(),
+            EntryPointSelector::default().0
+        )
+    );
+}
+
+#[test]
+fn test_ambiguous_inner_cairo1_failure() {
+    let (failure_reason_0, failure_reason_1) = (Felt::ONE, Felt::TWO);
+    let outer_retdata =
+        Retdata(vec![failure_reason_0, failure_reason_1, felt!(ENTRYPOINT_FAILED_ERROR)]);
+    let inner_call_info = CallInfo {
+        execution: CallExecution {
+            retdata: Retdata(vec![failure_reason_0, failure_reason_1]),
+            failed: true,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let call_info = CallInfo {
+        execution: CallExecution {
+            retdata: outer_retdata.clone(),
+            failed: true,
+            ..Default::default()
+        },
+        // Both of these inner calls can be the source of error; expect fallback value.
+        inner_calls: vec![inner_call_info.clone(), inner_call_info],
+        ..Default::default()
+    };
+    assert_matches!(
+        extract_trailing_cairo1_revert_trace(&call_info, Cairo1RevertHeader::Execution),
+        Cairo1RevertSummary { stack, last_retdata, .. }
+        if stack.is_empty() && last_retdata == outer_retdata
+    );
+}
+
+#[rstest]
+fn test_inner_cairo1_failure_not_last(#[values(true, false)] last_is_failed: bool) {
+    let (failure_reason_0, failure_reason_1) = (Felt::ONE, Felt::TWO);
+    let outer_retdata =
+        Retdata(vec![failure_reason_0, failure_reason_1, felt!(ENTRYPOINT_FAILED_ERROR)]);
+    let first_inner_retdata = Retdata(outer_retdata.0[..outer_retdata.0.len() - 1].into());
+    let first_inner_call_info = CallInfo {
+        execution: CallExecution {
+            retdata: first_inner_retdata.clone(),
+            failed: true,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let last_inner_call_info = CallInfo {
+        execution: CallExecution {
+            retdata: Retdata(
+                // Not a prefix of the outer retdata. Should not be selected as inner failure.
+                vec![failure_reason_1, felt!(ENTRYPOINT_FAILED_ERROR)],
+            ),
+            failed: last_is_failed,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let call_info = CallInfo {
+        execution: CallExecution {
+            retdata: outer_retdata.clone(),
+            failed: true,
+            ..Default::default()
+        },
+        inner_calls: vec![first_inner_call_info, last_inner_call_info],
+        ..Default::default()
+    };
+    assert_matches!(
+        extract_trailing_cairo1_revert_trace(&call_info, Cairo1RevertHeader::Execution),
+        Cairo1RevertSummary { stack, last_retdata, .. }
+        if stack.len() == 2 && last_retdata == first_inner_retdata
+    );
+}
+
+/// If extraction function is called with a successful callinfo, it should return an empty stack and
+/// the original retdata.
+/// We don't expect the extraction function to ever be called with a successful callinfo, but it
+/// shouldn't panic anyway.
+#[test]
+fn test_cairo1_stack_extraction_not_failure_fallback() {
+    let expected_retdata = Retdata(vec![Felt::ONE, Felt::THREE]);
+    let successful_call = CallInfo {
+        execution: CallExecution { retdata: expected_retdata.clone(), ..Default::default() },
+        ..Default::default()
+    };
+    assert_matches!(
+        extract_trailing_cairo1_revert_trace(&successful_call, Cairo1RevertHeader::Execution),
+        Cairo1RevertSummary { stack, last_retdata, .. }
+        if stack.is_empty() && last_retdata == expected_retdata
+    );
 }

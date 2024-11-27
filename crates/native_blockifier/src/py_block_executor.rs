@@ -1,23 +1,27 @@
 use std::collections::HashMap;
 
-use blockifier::blockifier::block::pre_process_block;
+use blockifier::abi::constants as abi_constants;
 use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::{TransactionExecutor, TransactionExecutorError};
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
 use blockifier::execution::call_info::CallInfo;
-use blockifier::state::cached_state::CachedState;
+use blockifier::execution::contract_class::RunnableContractClass;
+use blockifier::fee::receipt::TransactionReceipt;
 use blockifier::state::global_cache::GlobalContractCache;
-use blockifier::transaction::objects::{GasVector, ResourcesMapping, TransactionExecutionInfo};
+use blockifier::transaction::objects::{ExecutionResourcesTraits, TransactionExecutionInfo};
 use blockifier::transaction::transaction_execution::Transaction;
+use blockifier::utils::usize_from_u64;
 use blockifier::versioned_constants::VersionedConstants;
+use papyrus_state_reader::papyrus_state::PapyrusReader;
 use pyo3::prelude::*;
 use pyo3::types::{PyBytes, PyList};
 use pyo3::{FromPyObject, PyAny, Python};
 use serde::Serialize;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, ContractAddress};
-use starknet_api::transaction::Fee;
+use starknet_api::execution_resources::GasVector;
+use starknet_api::transaction::fields::Fee;
 use starknet_types_core::felt::Felt;
 
 use crate::errors::{NativeBlockifierError, NativeBlockifierResult};
@@ -25,8 +29,13 @@ use crate::py_objects::{PyBouncerConfig, PyConcurrencyConfig, PyVersionedConstan
 use crate::py_state_diff::{PyBlockInfo, PyStateDiff};
 use crate::py_transaction::{py_tx, PyClassInfo, PY_TX_PARSING_ERR};
 use crate::py_utils::{int_to_chain_id, into_block_number_hash_pair, PyFelt};
-use crate::state_readers::papyrus_state::PapyrusReader;
-use crate::storage::{PapyrusStorage, Storage, StorageConfig};
+use crate::storage::{
+    PapyrusStorage,
+    RawDeclaredClassMapping,
+    RawDeprecatedDeclaredClassMapping,
+    Storage,
+    StorageConfig,
+};
 
 pub(crate) type RawTransactionExecutionResult = Vec<u8>;
 pub(crate) type PyVisitedSegmentsMapping = Vec<(PyFelt, Vec<usize>)>;
@@ -36,6 +45,10 @@ pub(crate) type PyVisitedSegmentsMapping = Vec<(PyFelt, Vec<usize>)>;
 mod py_block_executor_test;
 
 const RESULT_SERIALIZE_ERR: &str = "Failed serializing execution info.";
+
+/// A mapping from a transaction execution resource to its actual usage.
+#[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
+pub struct ResourcesMapping(pub HashMap<String, usize>);
 
 /// Stripped down `TransactionExecutionInfo` for Python serialization, containing only the required
 /// fields.
@@ -52,27 +65,59 @@ pub(crate) struct ThinTransactionExecutionInfo {
 }
 
 impl ThinTransactionExecutionInfo {
-    pub fn from_tx_execution_info(
-        block_context: &BlockContext,
-        tx_execution_info: TransactionExecutionInfo,
-    ) -> Self {
+    pub fn from_tx_execution_info(tx_execution_info: TransactionExecutionInfo) -> Self {
         Self {
             validate_call_info: tx_execution_info.validate_call_info,
             execute_call_info: tx_execution_info.execute_call_info,
             fee_transfer_call_info: tx_execution_info.fee_transfer_call_info,
             actual_fee: tx_execution_info.receipt.fee,
             da_gas: tx_execution_info.receipt.da_gas,
-            actual_resources: tx_execution_info.receipt.resources.to_resources_mapping(
-                block_context.versioned_constants(),
-                block_context.block_info().use_kzg_da,
-                true,
+            actual_resources: ThinTransactionExecutionInfo::receipt_to_resources_mapping(
+                &tx_execution_info.receipt,
             ),
-            revert_error: tx_execution_info.revert_error,
+            revert_error: tx_execution_info.revert_error.map(|error| error.to_string()),
             total_gas: tx_execution_info.receipt.gas,
         }
     }
     pub fn serialize(self) -> RawTransactionExecutionResult {
         serde_json::to_vec(&self).expect(RESULT_SERIALIZE_ERR)
+    }
+
+    pub fn receipt_to_resources_mapping(receipt: &TransactionReceipt) -> ResourcesMapping {
+        let GasVector { l1_gas, l1_data_gas, l2_gas } = receipt.gas;
+        let vm_resources = &receipt.resources.computation.vm_resources;
+        let mut resources = HashMap::from([(
+            abi_constants::N_STEPS_RESOURCE.to_string(),
+            vm_resources.total_n_steps(),
+        )]);
+        resources.extend(
+            vm_resources
+                .prover_builtins()
+                .iter()
+                .map(|(builtin, value)| (builtin.to_str_with_suffix().to_string(), *value)),
+        );
+        // TODO(Yoni) remove these since we pass the gas vector in separate.
+        resources.extend(HashMap::from([
+            (
+                abi_constants::L1_GAS_USAGE.to_string(),
+                usize_from_u64(l1_gas.0)
+                    .expect("This conversion should not fail as the value is a converted usize."),
+            ),
+            (
+                abi_constants::BLOB_GAS_USAGE.to_string(),
+                usize_from_u64(l1_data_gas.0)
+                    .expect("This conversion should not fail as the value is a converted usize."),
+            ),
+            (
+                abi_constants::L2_GAS_USAGE.to_string(),
+                usize_from_u64(l2_gas.0)
+                    .expect("This conversion should not fail as the value is a converted usize."),
+            ),
+        ]));
+        *resources.get_mut(abi_constants::N_STEPS_RESOURCE).unwrap_or(&mut 0) +=
+            receipt.resources.computation.n_reverted_steps;
+
+        ResourcesMapping(resources)
     }
 }
 
@@ -85,7 +130,7 @@ pub struct PyBlockExecutor {
     pub tx_executor: Option<TransactionExecutor<PapyrusReader>>,
     /// `Send` trait is required for `pyclass` compatibility as Python objects must be threadsafe.
     pub storage: Box<dyn Storage + Send>,
-    pub global_contract_cache: GlobalContractCache,
+    pub global_contract_cache: GlobalContractCache<RunnableContractClass>,
 }
 
 #[pymethods]
@@ -140,18 +185,13 @@ impl PyBlockExecutor {
 
         // Create state reader.
         let papyrus_reader = self.get_aligned_reader(next_block_number);
-        let mut state = CachedState::new(papyrus_reader);
-
-        pre_process_block(
-            &mut state,
+        // Create and set executor.
+        self.tx_executor = Some(TransactionExecutor::pre_process_and_create(
+            papyrus_reader,
+            block_context,
             into_block_number_hash_pair(old_block_number_and_hash),
-            next_block_number,
-        )?;
-
-        let tx_executor =
-            TransactionExecutor::new(state, block_context, self.tx_executor_config.clone());
-        self.tx_executor = Some(tx_executor);
-
+            self.tx_executor_config.clone(),
+        )?);
         Ok(())
     }
 
@@ -167,10 +207,8 @@ impl PyBlockExecutor {
     ) -> NativeBlockifierResult<Py<PyBytes>> {
         let tx: Transaction = py_tx(tx, optional_py_class_info).expect(PY_TX_PARSING_ERR);
         let tx_execution_info = self.tx_executor().execute(&tx)?;
-        let thin_tx_execution_info = ThinTransactionExecutionInfo::from_tx_execution_info(
-            &self.tx_executor().block_context,
-            tx_execution_info,
-        );
+        let thin_tx_execution_info =
+            ThinTransactionExecutionInfo::from_tx_execution_info(tx_execution_info);
 
         // Serialize and convert to PyBytes.
         let serialized_tx_execution_info = thin_tx_execution_info.serialize();
@@ -199,7 +237,6 @@ impl PyBlockExecutor {
 
         // Process results.
         // TODO(Yoni, 15/5/2024): serialize concurrently.
-        let block_context = &self.tx_executor().block_context;
         let serialized_results: Vec<(bool, RawTransactionExecutionResult)> = results
             .into_iter()
             // Note: there might be less results than txs (if there is no room for all of them).
@@ -207,7 +244,6 @@ impl PyBlockExecutor {
                 Ok(tx_execution_info) => (
                     true,
                     ThinTransactionExecutionInfo::from_tx_execution_info(
-                        block_context,
                         tx_execution_info,
                     )
                     .serialize(),
@@ -276,8 +312,8 @@ impl PyBlockExecutor {
         previous_block_id: Option<PyFelt>,
         py_block_info: PyBlockInfo,
         py_state_diff: PyStateDiff,
-        declared_class_hash_to_class: HashMap<PyFelt, (PyFelt, String)>,
-        deprecated_declared_class_hash_to_class: HashMap<PyFelt, String>,
+        declared_class_hash_to_class: RawDeclaredClassMapping,
+        deprecated_declared_class_hash_to_class: RawDeprecatedDeclaredClassMapping,
     ) -> NativeBlockifierResult<()> {
         self.storage.append_block(
             block_id,
@@ -386,7 +422,7 @@ impl PyBlockExecutor {
         use blockifier::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
         Self {
             bouncer_config: BouncerConfig::max(),
-            tx_executor_config: TransactionExecutorConfig::create_for_testing(),
+            tx_executor_config: TransactionExecutorConfig::create_for_testing(true),
             storage: Box::new(storage),
             chain_info: ChainInfo::default(),
             versioned_constants: VersionedConstants::latest_constants().clone(),

@@ -1,26 +1,30 @@
-use std::collections::{HashMap, HashSet};
-use std::io;
-use std::path::Path;
+use std::collections::{BTreeMap, HashMap, HashSet};
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock};
+use std::{fs, io};
 
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use indexmap::{IndexMap, IndexSet};
 use num_rational::Ratio;
+use num_traits::Inv;
+use papyrus_config::dumping::{ser_param, SerializeConfig};
+use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use paste::paste;
+use semver::Version;
 use serde::de::Error as DeserializationError;
-use serde::{Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::{Map, Number, Value};
+use starknet_api::block::{GasPrice, StarknetVersion};
+use starknet_api::execution_resources::{GasAmount, GasVector};
+use starknet_api::transaction::fields::GasVectorComputationMode;
 use strum::IntoEnumIterator;
-use strum_macros::{EnumCount, EnumIter};
 use thiserror::Error;
 
 use crate::execution::deprecated_syscalls::hint_processor::SyscallCounter;
-use crate::execution::errors::PostExecutionError;
 use crate::execution::execution_utils::poseidon_hash_many_cost;
 use crate::execution::syscalls::SyscallSelector;
-use crate::transaction::errors::TransactionExecutionError;
-use crate::transaction::objects::StarknetResources;
+use crate::fee::resources::StarknetResources;
 use crate::transaction::transaction_types::TransactionType;
 
 #[cfg(test)]
@@ -30,19 +34,13 @@ pub mod test;
 /// Auto-generate getters for listed versioned constants versions.
 macro_rules! define_versioned_constants {
     ($(($variant:ident, $path_to_json:expr)),* $(,)?) => {
-        /// Enum of all the Starknet versions supporting versioned constants.
-        #[derive(Clone, Debug, EnumCount, EnumIter, Hash, Eq, PartialEq)]
-        pub enum StarknetVersion {
-            $($variant,)*
-        }
-
         // Static (lazy) instances of the versioned constants.
         // For internal use only; for access to a static instance use the `StarknetVersion` enum.
         paste! {
             $(
                 pub(crate) const [<VERSIONED_CONSTANTS_ $variant:upper _JSON>]: &str =
                     include_str!($path_to_json);
-                static [<VERSIONED_CONSTANTS_ $variant:upper>]: LazyLock<VersionedConstants> = LazyLock::new(|| {
+                pub static [<VERSIONED_CONSTANTS_ $variant:upper>]: LazyLock<VersionedConstants> = LazyLock::new(|| {
                     serde_json::from_str([<VERSIONED_CONSTANTS_ $variant:upper _JSON>])
                         .expect(&format!("Versioned constants {} is malformed.", $path_to_json))
                 });
@@ -50,96 +48,205 @@ macro_rules! define_versioned_constants {
         }
 
         /// API to access a static instance of the versioned constants.
-        impl From<StarknetVersion> for &'static VersionedConstants {
-            fn from(version: StarknetVersion) -> Self {
+        impl TryFrom<StarknetVersion> for &'static VersionedConstants {
+            type Error = VersionedConstantsError;
+
+            fn try_from(version: StarknetVersion) -> VersionedConstantsResult<Self> {
                 match version {
                     $(
                         StarknetVersion::$variant => {
-                           & paste! { [<VERSIONED_CONSTANTS_ $variant:upper>] }
+                           Ok(& paste! { [<VERSIONED_CONSTANTS_ $variant:upper>] })
                         }
                     )*
+                    _ => Err(VersionedConstantsError::InvalidStarknetVersion(version)),
                 }
             }
         }
+
+        impl VersionedConstants {
+            pub fn path_to_json(version: &StarknetVersion) -> VersionedConstantsResult<&'static str> {
+                match version {
+                    $(StarknetVersion::$variant => Ok($path_to_json),)*
+                    _ => Err(VersionedConstantsError::InvalidStarknetVersion(*version)),
+                }
+            }
+
+            /// Gets the constants that shipped with the current version of the Blockifier.
+            /// To use custom constants, initialize the struct from a file using `from_path`.
+            pub fn latest_constants() -> &'static Self {
+                Self::get(&StarknetVersion::LATEST)
+                    .expect("Latest version should support VC.")
+            }
+
+            /// Gets the constants for the specified Starknet version.
+            pub fn get(version: &StarknetVersion) -> VersionedConstantsResult<&'static Self> {
+                match version {
+                    $(
+                        StarknetVersion::$variant => Ok(
+                            & paste! { [<VERSIONED_CONSTANTS_ $variant:upper>] }
+                        ),
+                    )*
+                    _ => Err(VersionedConstantsError::InvalidStarknetVersion(*version)),
+                }
+            }
+        }
+
+        pub static VERSIONED_CONSTANTS_LATEST_JSON: LazyLock<String> = LazyLock::new(|| {
+            let latest_variant = StarknetVersion::LATEST;
+            let path_to_json: PathBuf = [
+                env!("CARGO_MANIFEST_DIR"),
+                "src",
+                VersionedConstants::path_to_json(&latest_variant)
+                    .expect("Latest variant should have a path to json.")
+            ].iter().collect();
+            fs::read_to_string(path_to_json.clone())
+                .expect(&format!("Failed to read file {}.", path_to_json.display()))
+        });
     };
 }
 
 define_versioned_constants! {
-    (V0_13_0, "../resources/versioned_constants_13_0.json"),
-    (V0_13_1, "../resources/versioned_constants_13_1.json"),
-    (V0_13_1_1, "../resources/versioned_constants_13_1_1.json"),
-    (V0_13_2, "../resources/versioned_constants_13_2.json"),
-    (V0_13_2_1, "../resources/versioned_constants_13_2_1.json"),
-    (Latest, "../resources/versioned_constants.json"),
+    (V0_13_0, "../resources/versioned_constants_0_13_0.json"),
+    (V0_13_1, "../resources/versioned_constants_0_13_1.json"),
+    (V0_13_1_1, "../resources/versioned_constants_0_13_1_1.json"),
+    (V0_13_2, "../resources/versioned_constants_0_13_2.json"),
+    (V0_13_2_1, "../resources/versioned_constants_0_13_2_1.json"),
+    (V0_13_3, "../resources/versioned_constants_0_13_3.json"),
+    (V0_13_4, "../resources/versioned_constants_0_13_4.json"),
 }
 
-pub type ResourceCost = Ratio<u128>;
+pub type ResourceCost = Ratio<u64>;
+
+// TODO: Delete this ratio-converter function once event keys / data length are no longer 128 bits
+//   (no other usage is expected).
+pub fn resource_cost_to_u128_ratio(cost: ResourceCost) -> Ratio<u128> {
+    Ratio::new((*cost.numer()).into(), (*cost.denom()).into())
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, PartialOrd)]
+pub struct CompilerVersion(pub Version);
+impl Default for CompilerVersion {
+    fn default() -> Self {
+        Self(Version::new(0, 0, 0))
+    }
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
+pub struct VmResourceCosts {
+    pub n_steps: ResourceCost,
+    #[serde(deserialize_with = "builtin_map_from_string_map")]
+    pub builtins: HashMap<BuiltinName, ResourceCost>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
+pub struct AllocationCost {
+    pub blob_cost: GasVector,
+    pub gas_cost: GasVector,
+}
+
+impl AllocationCost {
+    pub const ZERO: AllocationCost =
+        AllocationCost { blob_cost: GasVector::ZERO, gas_cost: GasVector::ZERO };
+
+    pub fn get_cost(&self, use_kzg_da: bool) -> &GasVector {
+        if use_kzg_da { &self.blob_cost } else { &self.gas_cost }
+    }
+}
+
+// TODO: This (along with the Serialize impl) is implemented in pub(crate) scope in the VM (named
+//   serde_generic_map_impl); use it if and when it's public.
+fn builtin_map_from_string_map<'de, D: Deserializer<'de>>(
+    d: D,
+) -> Result<HashMap<BuiltinName, ResourceCost>, D::Error> {
+    HashMap::<String, ResourceCost>::deserialize(d)?
+        .into_iter()
+        .map(|(k, v)| BuiltinName::from_str_with_suffix(&k).map(|k| (k, v)))
+        .collect::<Option<HashMap<_, _>>>()
+        .ok_or(D::Error::custom("Invalid builtin name"))
+}
 
 /// Contains constants for the Blockifier that may vary between versions.
 /// Additional constants in the JSON file, not used by Blockifier but included for transparency, are
 /// automatically ignored during deserialization.
 /// Instances of this struct for specific Starknet versions can be selected by using the above enum.
 #[derive(Clone, Debug, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct VersionedConstants {
     // Limits.
-    #[serde(default = "EventLimits::max")]
     pub tx_event_limits: EventLimits,
     pub invoke_tx_max_n_steps: u32,
-    #[serde(default)]
-    pub l2_resource_gas_costs: L2ResourceGasCosts,
+    pub deprecated_l2_resource_gas_costs: ArchivalDataGasCosts,
+    pub archival_data_gas_costs: ArchivalDataGasCosts,
     pub max_recursion_depth: usize,
     pub validate_max_n_steps: u32,
+    pub min_compiler_version_for_sierra_gas: CompilerVersion,
     // BACKWARD COMPATIBILITY: If true, the segment_arena builtin instance counter will be
     // multiplied by 3. This offsets a bug in the old vm where the counter counted the number of
     // cells used by instances of the builtin, instead of the number of instances.
-    #[serde(default)]
     pub segment_arena_cells: bool,
 
     // Transactions settings.
-    #[serde(default)]
     pub disable_cairo0_redeclaration: bool,
+    pub enable_stateful_compression: bool,
+    pub ignore_inner_event_resources: bool,
+
+    // Compiler settings.
+    pub enable_reverts: bool,
 
     // Cairo OS constants.
     // Note: if loaded from a json file, there are some assumptions made on its structure.
     // See the struct's docstring for more details.
     pub os_constants: Arc<OsConstants>,
 
+    // Fee related.
+    pub(crate) vm_resource_fee_cost: Arc<VmResourceCosts>,
+    // Cost of allocating a storage cell.
+    pub allocation_cost: AllocationCost,
+
     // Resources.
     os_resources: Arc<OsResources>,
 
-    // Fee related.
-    // TODO: Consider making this a struct, this will require change the way we access these
-    // values.
-    vm_resource_fee_cost: Arc<HashMap<String, ResourceCost>>,
+    // Just to make sure the value exists, but don't use the actual values.
+    #[allow(dead_code)]
+    gateway: serde::de::IgnoredAny,
 }
 
 impl VersionedConstants {
-    /// Get the constants for the specified Starknet version.
-    pub fn get(version: StarknetVersion) -> &'static Self {
-        version.into()
+    pub fn from_path(path: &Path) -> VersionedConstantsResult<Self> {
+        Ok(serde_json::from_reader(std::fs::File::open(path)?)?)
     }
 
-    /// Get the constants that shipped with the current version of the Blockifier.
-    /// To use custom constants, initialize the struct from a file using `try_from`.
-    pub fn latest_constants() -> &'static Self {
-        Self::get(StarknetVersion::Latest)
+    /// Converts from L1 gas price to L2 gas price with **upward rounding**.
+    pub fn convert_l1_to_l2_gas_price_round_up(&self, l1_gas_price: GasPrice) -> GasPrice {
+        (*(resource_cost_to_u128_ratio(self.l1_to_l2_gas_price_ratio()) * l1_gas_price.0)
+            .ceil()
+            .numer())
+        .into()
     }
 
-    /// Converts from l1 gas cost to l2 gas cost with **upward rounding**
-    pub fn l1_to_l2_gas_price_conversion(&self, l1_gas_price: u128) -> u128 {
-        let l1_to_l2_gas_price_ratio: Ratio<u128> =
-            Ratio::new(1, u128::from(self.os_constants.gas_costs.step_gas_cost))
-                * self.vm_resource_fee_cost()["n_steps"];
-        *(l1_to_l2_gas_price_ratio * l1_gas_price).ceil().numer()
+    /// Converts from L1 gas amount to L2 gas amount with **upward rounding**.
+    pub fn convert_l1_to_l2_gas_amount_round_up(&self, l1_gas_amount: GasAmount) -> GasAmount {
+        // The amount ratio is the inverse of the price ratio.
+        (*(self.l1_to_l2_gas_price_ratio().inv() * l1_gas_amount.0).ceil().numer()).into()
     }
 
-    /// Returns the initial gas of any transaction to run with.
-    pub fn tx_initial_gas(&self) -> u64 {
-        let os_consts = &self.os_constants;
-        os_consts.gas_costs.initial_gas_cost - os_consts.gas_costs.transaction_gas_cost
+    /// Returns the following ratio: L2_gas_price/L1_gas_price.
+    fn l1_to_l2_gas_price_ratio(&self) -> ResourceCost {
+        Ratio::new(1, self.os_constants.gas_costs.step_gas_cost)
+            * self.vm_resource_fee_cost().n_steps
     }
 
-    pub fn vm_resource_fee_cost(&self) -> &HashMap<String, ResourceCost> {
+    #[cfg(any(feature = "testing", test))]
+    pub fn get_l1_to_l2_gas_price_ratio(&self) -> ResourceCost {
+        self.l1_to_l2_gas_price_ratio()
+    }
+
+    /// Returns the default initial gas for VM mode transactions.
+    pub fn default_initial_gas_cost(&self) -> u64 {
+        self.os_constants.gas_costs.default_initial_gas_cost
+    }
+
+    pub fn vm_resource_fee_cost(&self) -> &VmResourceCosts {
         &self.vm_resource_fee_cost
     }
 
@@ -160,11 +267,11 @@ impl VersionedConstants {
         tx_type: TransactionType,
         starknet_resources: &StarknetResources,
         use_kzg_da: bool,
-    ) -> Result<ExecutionResources, TransactionExecutionError> {
+    ) -> ExecutionResources {
         self.os_resources.get_additional_os_tx_resources(
             tx_type,
-            starknet_resources.calldata_length,
-            starknet_resources.get_onchain_data_segment_length(),
+            starknet_resources.archival_data.calldata_length,
+            starknet_resources.state.get_onchain_data_segment_length(),
             use_kzg_da,
         )
     }
@@ -172,7 +279,7 @@ impl VersionedConstants {
     pub fn get_additional_os_syscall_resources(
         &self,
         syscall_counter: &SyscallCounter,
-    ) -> Result<ExecutionResources, PostExecutionError> {
+    ) -> ExecutionResources {
         self.os_resources.get_additional_os_syscall_resources(syscall_counter)
     }
 
@@ -186,54 +293,35 @@ impl VersionedConstants {
 
     #[cfg(any(feature = "testing", test))]
     pub fn create_for_account_testing() -> Self {
-        let vm_resource_fee_cost = Arc::new(HashMap::from([
-            (crate::abi::constants::N_STEPS_RESOURCE.to_string(), ResourceCost::from_integer(1)),
-            (BuiltinName::pedersen.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
-            (
-                BuiltinName::range_check.to_str_with_suffix().to_string(),
-                ResourceCost::from_integer(1),
-            ),
-            (BuiltinName::ecdsa.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
-            (BuiltinName::bitwise.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
-            (BuiltinName::poseidon.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
-            (BuiltinName::output.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
-            (BuiltinName::ec_op.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
-            (
-                BuiltinName::range_check96.to_str_with_suffix().to_string(),
-                ResourceCost::from_integer(1),
-            ),
-            (BuiltinName::add_mod.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
-            (BuiltinName::mul_mod.to_str_with_suffix().to_string(), ResourceCost::from_integer(1)),
-        ]));
+        let step_cost = ResourceCost::from_integer(1);
+        let vm_resource_fee_cost = Arc::new(VmResourceCosts {
+            n_steps: step_cost,
+            builtins: HashMap::from([
+                (BuiltinName::pedersen, ResourceCost::from_integer(1)),
+                (BuiltinName::range_check, ResourceCost::from_integer(1)),
+                (BuiltinName::ecdsa, ResourceCost::from_integer(1)),
+                (BuiltinName::bitwise, ResourceCost::from_integer(1)),
+                (BuiltinName::poseidon, ResourceCost::from_integer(1)),
+                (BuiltinName::output, ResourceCost::from_integer(1)),
+                (BuiltinName::ec_op, ResourceCost::from_integer(1)),
+                (BuiltinName::range_check96, ResourceCost::from_integer(1)),
+                (BuiltinName::add_mod, ResourceCost::from_integer(1)),
+                (BuiltinName::mul_mod, ResourceCost::from_integer(1)),
+            ]),
+        });
 
-        Self { vm_resource_fee_cost, ..Self::create_for_testing() }
+        // Maintain the ratio between L1 gas price and L2 gas price.
+        let latest = Self::create_for_testing();
+        let latest_step_cost = latest.vm_resource_fee_cost.n_steps;
+        let mut archival_data_gas_costs = latest.archival_data_gas_costs;
+        archival_data_gas_costs.gas_per_code_byte *= latest_step_cost / step_cost;
+        archival_data_gas_costs.gas_per_data_felt *= latest_step_cost / step_cost;
+        Self { vm_resource_fee_cost, archival_data_gas_costs, ..latest }
     }
 
-    // A more complicated instance to increase test coverage.
-    #[cfg(any(feature = "testing", test))]
-    pub fn create_float_for_testing() -> Self {
-        let vm_resource_fee_cost = Arc::new(HashMap::from([
-            (crate::abi::constants::N_STEPS_RESOURCE.to_string(), ResourceCost::new(25, 10000)),
-            (BuiltinName::pedersen.to_str_with_suffix().to_string(), ResourceCost::new(8, 100)),
-            (BuiltinName::range_check.to_str_with_suffix().to_string(), ResourceCost::new(4, 100)),
-            (BuiltinName::ecdsa.to_str_with_suffix().to_string(), ResourceCost::new(512, 100)),
-            (BuiltinName::bitwise.to_str_with_suffix().to_string(), ResourceCost::new(16, 100)),
-            (BuiltinName::poseidon.to_str_with_suffix().to_string(), ResourceCost::new(8, 100)),
-            (BuiltinName::output.to_str_with_suffix().to_string(), ResourceCost::from_integer(0)),
-            (BuiltinName::ec_op.to_str_with_suffix().to_string(), ResourceCost::new(256, 100)),
-        ]));
-
-        Self { vm_resource_fee_cost, ..Self::create_for_testing() }
-    }
-
-    pub fn latest_constants_with_overrides(
-        validate_max_n_steps: u32,
-        max_recursion_depth: usize,
-    ) -> Self {
-        Self { validate_max_n_steps, max_recursion_depth, ..Self::latest_constants().clone() }
-    }
-
-    /// Returns the latest versioned constants after applying the given overrides.
+    // TODO(Arni): Consider replacing each call to this function with `latest_with_overrides`, and
+    // squashing the functions together.
+    /// Returns the latest versioned constants, applying the given overrides.
     pub fn get_versioned_constants(
         versioned_constants_overrides: VersionedConstantsOverrides,
     ) -> Self {
@@ -249,18 +337,20 @@ impl VersionedConstants {
             ..Self::latest_constants().clone()
         }
     }
-}
 
-impl TryFrom<&Path> for VersionedConstants {
-    type Error = VersionedConstantsError;
-
-    fn try_from(path: &Path) -> Result<Self, Self::Error> {
-        Ok(serde_json::from_reader(std::fs::File::open(path)?)?)
+    pub fn get_archival_data_gas_costs(
+        &self,
+        mode: &GasVectorComputationMode,
+    ) -> &ArchivalDataGasCosts {
+        match mode {
+            GasVectorComputationMode::All => &self.archival_data_gas_costs,
+            GasVectorComputationMode::NoL2Gas => &self.deprecated_l2_resource_gas_costs,
+        }
     }
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
-pub struct L2ResourceGasCosts {
+pub struct ArchivalDataGasCosts {
     // TODO(barak, 18/03/2024): Once we start charging per byte change to milligas_per_data_byte,
     // divide the value by 32 in the JSON file.
     pub gas_per_data_felt: ResourceCost,
@@ -276,16 +366,6 @@ pub struct EventLimits {
     pub max_data_length: usize,
     pub max_keys_length: usize,
     pub max_n_emitted_events: usize,
-}
-
-impl EventLimits {
-    fn max() -> Self {
-        Self {
-            max_data_length: usize::MAX,
-            max_keys_length: usize::MAX,
-            max_n_emitted_events: usize::MAX,
-        }
-    }
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]
@@ -379,14 +459,14 @@ impl OsResources {
         calldata_length: usize,
         data_segment_length: usize,
         use_kzg_da: bool,
-    ) -> Result<ExecutionResources, TransactionExecutionError> {
+    ) -> ExecutionResources {
         let mut os_additional_vm_resources = self.resources_for_tx_type(&tx_type, calldata_length);
 
         if use_kzg_da {
             os_additional_vm_resources += &self.os_kzg_da_resources(data_segment_length);
         }
 
-        Ok(os_additional_vm_resources)
+        os_additional_vm_resources
     }
 
     /// Calculates the additional resources needed for the OS to run the given syscalls;
@@ -394,7 +474,7 @@ impl OsResources {
     fn get_additional_os_syscall_resources(
         &self,
         syscall_counter: &SyscallCounter,
-    ) -> Result<ExecutionResources, PostExecutionError> {
+    ) -> ExecutionResources {
         let mut os_additional_resources = ExecutionResources::default();
         for (syscall_selector, count) in syscall_counter {
             let syscall_resources =
@@ -404,7 +484,7 @@ impl OsResources {
             os_additional_resources += &(syscall_resources * *count);
         }
 
-        Ok(os_additional_resources)
+        os_additional_resources
     }
 
     fn resources_params_for_tx_type(&self, tx_type: &TransactionType) -> &ResourcesParams {
@@ -469,13 +549,12 @@ pub struct GasCosts {
     pub mul_mod_gas_cost: u64,
     // An estimation of the initial gas for a transaction to run with. This solution is
     // temporary and this value will be deduced from the transaction's fields.
-    pub initial_gas_cost: u64,
+    pub default_initial_gas_cost: u64,
     // Compiler gas costs.
     pub entry_point_initial_budget: u64,
     pub syscall_base_gas_cost: u64,
     // OS gas costs.
     pub entry_point_gas_cost: u64,
-    pub fee_transfer_gas_cost: u64,
     pub transaction_gas_cost: u64,
     // Syscall gas costs.
     pub call_contract_gas_cost: u64,
@@ -486,6 +565,7 @@ pub struct GasCosts {
     pub replace_class_gas_cost: u64,
     pub storage_read_gas_cost: u64,
     pub storage_write_gas_cost: u64,
+    pub get_class_hash_at_gas_cost: u64,
     pub emit_event_gas_cost: u64,
     pub send_message_to_l1_gas_cost: u64,
     pub secp256k1_add_gas_cost: u64,
@@ -501,6 +581,74 @@ pub struct GasCosts {
     pub keccak_gas_cost: u64,
     pub keccak_round_cost_gas_cost: u64,
     pub sha256_process_block_gas_cost: u64,
+}
+
+impl GasCosts {
+    pub fn get_builtin_gas_cost(&self, builtin: &BuiltinName) -> Result<u64, GasCostsError> {
+        const KECCAK_BUILTIN_GAS_COST: u64 = 136189;
+
+        let gas_cost = match *builtin {
+            BuiltinName::range_check => self.range_check_gas_cost,
+            BuiltinName::pedersen => self.pedersen_gas_cost,
+            BuiltinName::bitwise => self.bitwise_builtin_gas_cost,
+            BuiltinName::ec_op => self.ecop_gas_cost,
+            // TODO (Yonatan): once keccak_builtin_gas_cost is being inserted to the versioned
+            // constants, replace the constant with field's value
+            BuiltinName::keccak => KECCAK_BUILTIN_GAS_COST,
+            BuiltinName::poseidon => self.poseidon_gas_cost,
+            BuiltinName::range_check96 => self.range_check_gas_cost,
+            BuiltinName::add_mod => self.add_mod_gas_cost,
+            BuiltinName::mul_mod => self.mul_mod_gas_cost,
+            BuiltinName::segment_arena => return Err(GasCostsError::VirtualBuiltin),
+            BuiltinName::output | BuiltinName::ecdsa => {
+                return Err(GasCostsError::UnsupportedBuiltinInCairo1 { builtin: *builtin });
+            }
+        };
+
+        Ok(gas_cost)
+    }
+
+    pub fn get_syscall_gas_cost(&self, selector: &SyscallSelector) -> Result<u64, GasCostsError> {
+        let gas_cost = match *selector {
+            SyscallSelector::CallContract => self.call_contract_gas_cost,
+            SyscallSelector::Deploy => self.deploy_gas_cost,
+            SyscallSelector::EmitEvent => self.emit_event_gas_cost,
+            SyscallSelector::GetBlockHash => self.get_block_hash_gas_cost,
+            SyscallSelector::GetExecutionInfo => self.get_execution_info_gas_cost,
+            SyscallSelector::GetClassHashAt => self.get_class_hash_at_gas_cost,
+            SyscallSelector::Keccak => self.keccak_gas_cost,
+            SyscallSelector::Sha256ProcessBlock => self.sha256_process_block_gas_cost,
+            SyscallSelector::LibraryCall => self.library_call_gas_cost,
+            SyscallSelector::ReplaceClass => self.replace_class_gas_cost,
+            SyscallSelector::Secp256k1Add => self.secp256k1_add_gas_cost,
+            SyscallSelector::Secp256k1GetPointFromX => self.secp256k1_get_point_from_x_gas_cost,
+            SyscallSelector::Secp256k1GetXy => self.secp256k1_get_xy_gas_cost,
+            SyscallSelector::Secp256k1Mul => self.secp256k1_mul_gas_cost,
+            SyscallSelector::Secp256k1New => self.secp256k1_new_gas_cost,
+            SyscallSelector::Secp256r1Add => self.secp256r1_add_gas_cost,
+            SyscallSelector::Secp256r1GetPointFromX => self.secp256r1_get_point_from_x_gas_cost,
+            SyscallSelector::Secp256r1GetXy => self.secp256r1_get_xy_gas_cost,
+            SyscallSelector::Secp256r1Mul => self.secp256r1_mul_gas_cost,
+            SyscallSelector::Secp256r1New => self.secp256r1_new_gas_cost,
+            SyscallSelector::SendMessageToL1 => self.send_message_to_l1_gas_cost,
+            SyscallSelector::StorageRead => self.storage_read_gas_cost,
+            SyscallSelector::StorageWrite => self.storage_write_gas_cost,
+            SyscallSelector::DelegateCall
+            | SyscallSelector::DelegateL1Handler
+            | SyscallSelector::GetBlockNumber
+            | SyscallSelector::GetBlockTimestamp
+            | SyscallSelector::GetCallerAddress
+            | SyscallSelector::GetContractAddress
+            | SyscallSelector::GetTxInfo
+            | SyscallSelector::GetSequencerAddress
+            | SyscallSelector::GetTxSignature
+            | SyscallSelector::LibraryCallL1Handler => {
+                return Err(GasCostsError::DeprecatedSyscall { selector: *selector });
+            }
+        };
+
+        Ok(gas_cost)
+    }
 }
 
 // Below, serde first deserializes the json into a regular IndexMap wrapped by the newtype
@@ -520,7 +668,7 @@ impl OsConstants {
     // not used by the blockifier but included for transparency. These constanst will be ignored
     // during the creation of the struct containing the gas costs.
 
-    const ADDITIONAL_FIELDS: [&'static str; 27] = [
+    const ADDITIONAL_FIELDS: [&'static str; 29] = [
         "block_hash_contract_address",
         "constructor_entry_point_selector",
         "default_entry_point_selector",
@@ -530,6 +678,8 @@ impl OsConstants {
         "error_block_number_out_of_range",
         "error_invalid_input_len",
         "error_invalid_argument",
+        "error_entry_point_failed",
+        "error_entry_point_not_found",
         "error_out_of_gas",
         "execute_entry_point_selector",
         "l1_gas",
@@ -667,7 +817,13 @@ pub enum VersionedConstantsError {
     IoError(#[from] io::Error),
     #[error("JSON file cannot be serialized into VersionedConstants: {0}")]
     ParseError(#[from] serde_json::Error),
+    #[error("Invalid version: {version:?}")]
+    InvalidVersion { version: String },
+    #[error("Invalid Starknet version: {0}")]
+    InvalidStarknetVersion(StarknetVersion),
 }
+
+pub type VersionedConstantsResult<T> = Result<T, VersionedConstantsError>;
 
 #[derive(Debug, Error)]
 pub enum OsConstantsSerdeError {
@@ -690,6 +846,16 @@ pub enum OsConstantsSerdeError {
     ValidationError(String),
 }
 
+#[derive(Debug, Error)]
+pub enum GasCostsError {
+    #[error("used syscall: {:?} is not supported in a Cairo 0 contract.", selector)]
+    DeprecatedSyscall { selector: SyscallSelector },
+    #[error("used builtin: {:?} is not supported in a Cairo 1 contract.", builtin)]
+    UnsupportedBuiltinInCairo1 { builtin: BuiltinName },
+    #[error("a virtual builtin does not have a gas cost.")]
+    VirtualBuiltin,
+}
+
 #[derive(Clone, Debug, Deserialize)]
 #[serde(try_from = "ResourceParamsRaw")]
 pub struct ResourcesParams {
@@ -706,7 +872,7 @@ struct ResourceParamsRaw {
 impl TryFrom<ResourceParamsRaw> for ResourcesParams {
     type Error = VersionedConstantsError;
 
-    fn try_from(mut json_data: ResourceParamsRaw) -> Result<Self, Self::Error> {
+    fn try_from(mut json_data: ResourceParamsRaw) -> VersionedConstantsResult<Self> {
         let constant_value = json_data.raw_resource_params_as_dict.remove("constant");
         let calldata_factor_value = json_data.raw_resource_params_as_dict.remove("calldata_factor");
 
@@ -752,8 +918,45 @@ pub struct ResourcesByVersion {
     pub deprecated_resources: ResourcesParams,
 }
 
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct VersionedConstantsOverrides {
     pub validate_max_n_steps: u32,
     pub max_recursion_depth: usize,
     pub invoke_tx_max_n_steps: u32,
+}
+
+impl Default for VersionedConstantsOverrides {
+    fn default() -> Self {
+        let latest_versioned_constants = VersionedConstants::latest_constants();
+        Self {
+            validate_max_n_steps: latest_versioned_constants.validate_max_n_steps,
+            max_recursion_depth: latest_versioned_constants.max_recursion_depth,
+            invoke_tx_max_n_steps: latest_versioned_constants.invoke_tx_max_n_steps,
+        }
+    }
+}
+
+impl SerializeConfig for VersionedConstantsOverrides {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([
+            ser_param(
+                "validate_max_n_steps",
+                &self.validate_max_n_steps,
+                "Maximum number of steps the validation function is allowed to run.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_recursion_depth",
+                &self.max_recursion_depth,
+                "Maximum recursion depth for nested calls during blockifier validation.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "invoke_tx_max_n_steps",
+                &self.invoke_tx_max_n_steps,
+                "Maximum number of steps the invoke function is allowed to run.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
+    }
 }

@@ -28,6 +28,7 @@ use starknet_api::block::{
     GasPricePerToken,
     StarknetVersion,
 };
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{
     ClassHash,
     CompiledClassHash,
@@ -49,9 +50,8 @@ use starknet_api::deprecated_contract_class::{
     ConstructorType,
     ContractClass as DeprecatedContractClass,
     ContractClassAbiEntry,
-    EntryPoint as DeprecatedEntryPoint,
     EntryPointOffset,
-    EntryPointType as DeprecatedEntryPointType,
+    EntryPointV0 as DeprecatedEntryPoint,
     EventAbiEntry,
     EventType,
     FunctionAbiEntry,
@@ -64,21 +64,30 @@ use starknet_api::deprecated_contract_class::{
     StructType,
     TypedParameter,
 };
-use starknet_api::execution_resources::{Builtin, ExecutionResources, GasVector};
+use starknet_api::execution_resources::{Builtin, ExecutionResources, GasAmount, GasVector};
 use starknet_api::hash::{PoseidonHash, StarkHash};
+use starknet_api::rpc_transaction::EntryPointByType;
 use starknet_api::state::{
-    ContractClass,
     EntryPoint,
-    EntryPointType,
     FunctionIndex,
+    SierraContractClass,
     StorageKey,
     ThinStateDiff,
 };
-use starknet_api::transaction::{
+use starknet_api::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
     Calldata,
     ContractAddressSalt,
+    Fee,
+    PaymasterData,
+    Resource,
+    ResourceBounds,
+    Tip,
+    TransactionSignature,
+    ValidResourceBounds,
+};
+use starknet_api::transaction::{
     DeclareTransaction,
     DeclareTransactionOutput,
     DeclareTransactionV0V1,
@@ -95,7 +104,6 @@ use starknet_api::transaction::{
     EventData,
     EventIndexInTransactionOutput,
     EventKey,
-    Fee,
     InvokeTransaction,
     InvokeTransactionOutput,
     InvokeTransactionV0,
@@ -107,19 +115,13 @@ use starknet_api::transaction::{
     L2ToL1Payload,
     MessageToL1,
     MessageToL2,
-    PaymasterData,
-    Resource,
-    ResourceBounds,
     RevertedTransactionExecutionStatus,
-    Tip,
     Transaction,
     TransactionExecutionStatus,
     TransactionHash,
     TransactionOffsetInBlock,
     TransactionOutput,
-    TransactionSignature,
     TransactionVersion,
-    ValidResourceBounds,
 };
 use starknet_types_core::felt::Felt;
 use tracing::warn;
@@ -160,6 +162,7 @@ auto_storage_serde! {
         pub block_number: BlockNumber,
         pub l1_gas_price: GasPricePerToken,
         pub l1_data_gas_price: GasPricePerToken,
+        pub l2_gas_price: GasPricePerToken,
         pub state_root: GlobalRoot,
         pub sequencer: SequencerContractAddress,
         pub timestamp: BlockTimestamp,
@@ -237,14 +240,14 @@ auto_storage_serde! {
         pub selector: EntryPointSelector,
         pub offset: EntryPointOffset,
     }
-    pub enum DeprecatedEntryPointType {
-        Constructor = 0,
-        External = 1,
-        L1Handler = 2,
-    }
     pub struct EntryPoint {
         pub function_idx: FunctionIndex,
         pub selector: EntryPointSelector,
+    }
+    pub struct EntryPointByType {
+        pub constructor: Vec<EntryPoint>,
+        pub external: Vec<EntryPoint>,
+        pub l1handler: Vec<EntryPoint>,
     }
     pub struct FunctionIndex(pub usize);
     pub struct EntryPointOffset(pub usize);
@@ -283,13 +286,15 @@ auto_storage_serde! {
         View = 0,
     }
     pub struct GasPrice(pub u128);
+    pub struct GasAmount(pub u64);
     pub struct GasPricePerToken {
         pub price_in_fri: GasPrice,
         pub price_in_wei: GasPrice,
     }
     pub struct GasVector {
-        pub l1_gas: u64,
-        pub l1_data_gas: u64,
+        pub l1_gas: GasAmount,
+        pub l1_data_gas: GasAmount,
+        pub l2_gas: GasAmount,
     }
     pub struct GlobalRoot(pub StarkHash);
     pub struct H160(pub [u8; 20]);
@@ -364,8 +369,8 @@ auto_storage_serde! {
         L1DataGas = 2,
     }
     pub struct ResourceBounds {
-        pub max_amount: u64,
-        pub max_price_per_unit: u128,
+        pub max_amount: GasAmount,
+        pub max_price_per_unit: GasPrice,
     }
     pub struct SequencerContractAddress(pub ContractAddress);
     pub struct Signature {
@@ -386,7 +391,28 @@ auto_storage_serde! {
     pub enum StructType {
         Struct = 0,
     }
-    pub struct StarknetVersion(pub String);
+    pub enum StarknetVersion {
+        V0_9_1 = 0,
+        V0_10_0 = 1,
+        V0_10_1 = 2,
+        V0_10_2 = 3,
+        V0_10_3 = 4,
+        V0_11_0 = 5,
+        V0_11_0_2 = 6,
+        V0_11_1 = 7,
+        V0_11_2 = 8,
+        V0_12_0 = 9,
+        V0_12_1 = 10,
+        V0_12_2 = 11,
+        V0_12_3 = 12,
+        V0_13_0 = 13,
+        V0_13_1 = 14,
+        V0_13_1_1 = 15,
+        V0_13_2 = 16,
+        V0_13_2_1 = 17,
+        V0_13_3 = 18,
+        V0_13_4 = 19,
+    }
     pub struct StateDiffCommitment(pub PoseidonHash);
     pub struct Tip(pub u64);
     pub struct TransactionCommitment(pub StarkHash);
@@ -582,6 +608,7 @@ macro_rules! auto_storage_serde {
     ($(pub)? enum $name:ident { $($variant:ident $( ($ty:ty) )? = $num:expr ,)* } $($rest:tt)*) => {
         impl StorageSerde for $name {
             fn serialize_into(&self, res: &mut impl std::io::Write) -> Result<(), StorageSerdeError> {
+                #[allow(clippy::as_conversions)]
                 match self {
                     $(
                         variant!( value, $variant $( ($ty) )?) => {
@@ -753,7 +780,7 @@ impl StorageSerde for u8 {
 // TODO(dan): get rid of usize.
 impl StorageSerde for usize {
     fn serialize_into(&self, res: &mut impl std::io::Write) -> Result<(), StorageSerdeError> {
-        (*self as u64).serialize_into(res)
+        (u64::try_from(*self).expect("usize should fit in u64")).serialize_into(res)
     }
 
     fn deserialize_from(bytes: &mut impl std::io::Read) -> Option<Self> {
@@ -918,7 +945,7 @@ impl StorageSerde for BlockNumber {
     }
 
     fn deserialize_from(bytes: &mut impl std::io::Read) -> Option<Self> {
-        Some(BlockNumber(u32::deserialize_from(bytes)? as u64))
+        Some(BlockNumber(u32::deserialize_from(bytes)?.into()))
     }
 }
 
@@ -945,9 +972,10 @@ impl StorageSerde for TransactionOffsetInBlock {
 ////////////////////////////////////////////////////////////////////////
 //  Custom serialization with compression.
 ////////////////////////////////////////////////////////////////////////
-impl StorageSerde for ContractClass {
+impl StorageSerde for SierraContractClass {
     fn serialize_into(&self, res: &mut impl std::io::Write) -> Result<(), StorageSerdeError> {
         serialize_and_compress(&self.sierra_program)?.serialize_into(res)?;
+        self.contract_class_version.serialize_into(res)?;
         self.entry_points_by_type.serialize_into(res)?;
         serialize_and_compress(&self.abi)?.serialize_into(res)?;
         Ok(())
@@ -958,15 +986,14 @@ impl StorageSerde for ContractClass {
             sierra_program: Vec::<Felt>::deserialize_from(
                 &mut decompress_from_reader(bytes)?.as_slice(),
             )?,
-            entry_points_by_type: HashMap::<EntryPointType, Vec<EntryPoint>>::deserialize_from(
-                bytes,
-            )?,
+            contract_class_version: String::deserialize_from(bytes)?,
+            entry_points_by_type: EntryPointByType::deserialize_from(bytes)?,
             abi: String::deserialize_from(&mut decompress_from_reader(bytes)?.as_slice())?,
         })
     }
 }
 #[cfg(test)]
-create_storage_serde_test!(ContractClass);
+create_storage_serde_test!(SierraContractClass);
 
 impl StorageSerde for DeprecatedContractClass {
     fn serialize_into(&self, res: &mut impl std::io::Write) -> Result<(), StorageSerdeError> {
@@ -996,9 +1023,7 @@ impl StorageSerde for DeprecatedContractClass {
             abi: Option::<Vec<ContractClassAbiEntry>>::deserialize_from(data)?,
             program: Program::deserialize_from(data)?,
             entry_points_by_type:
-                HashMap::<DeprecatedEntryPointType, Vec<DeprecatedEntryPoint>>::deserialize_from(
-                    bytes,
-                )?,
+                HashMap::<EntryPointType, Vec<DeprecatedEntryPoint>>::deserialize_from(bytes)?,
         })
     }
 }

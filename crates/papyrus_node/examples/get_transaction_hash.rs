@@ -5,15 +5,11 @@ use std::sync::Mutex;
 use clap::{Arg, Command};
 use futures::future::join_all;
 use once_cell::sync::OnceCell;
-use papyrus_common::transaction_hash::{
-    get_transaction_hash,
-    MAINNET_TRANSACTION_HASH_WITH_VERSION,
-};
-use papyrus_common::TransactionOptions;
 use reqwest::Client;
 use serde_json::{json, to_writer_pretty, Map, Value};
 use starknet_api::core::ChainId;
-use starknet_api::transaction::{self, Transaction};
+use starknet_api::transaction::{self, Transaction, TransactionOptions};
+use starknet_api::transaction_hash::{get_transaction_hash, MAINNET_TRANSACTION_HASH_WITH_VERSION};
 use starknet_client::reader::objects::transaction::TransactionType;
 use strum::IntoEnumIterator;
 
@@ -26,7 +22,7 @@ struct CliParams {
     iteration_increments: u64,
     file_path: String,
     deprecated: bool,
-    concurrent_requests: u64,
+    concurrent_requests: usize,
 }
 
 /// The start_block and end_block arguments are mandatory and define the block range to dump,
@@ -83,7 +79,7 @@ fn get_cli_params() -> CliParams {
     let concurrent_requests = matches
         .get_one::<String>("concurrent_requests")
         .expect("Failed parsing concurrent_requests")
-        .parse::<u64>()
+        .parse::<usize>()
         .expect("Failed parsing concurrent_requests");
     let deprecated = matches
         .get_one::<String>("deprecated")
@@ -160,7 +156,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .lock()
                 .expect("Couldn't lock transaction types")
                 .is_empty()
-            && handles.len() < concurrent_requests as usize
+            && handles.len() < concurrent_requests
         {
             let client_ref = client.clone();
             let node_url_ref = node_url.clone();

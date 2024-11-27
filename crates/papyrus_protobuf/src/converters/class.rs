@@ -1,10 +1,19 @@
+#[cfg(test)]
+#[path = "class_test.rs"]
+mod class_test;
+
 use std::collections::HashMap;
 use std::convert::{TryFrom, TryInto};
 
+use papyrus_common::compression_utils::{compress_and_encode, decode_and_decompress};
 use papyrus_common::pending_classes::ApiContractClass;
+use papyrus_common::python_json::PythonJsonFormatter;
 use prost::Message;
+use serde::Serialize;
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, EntryPointSelector};
 use starknet_api::data_availability::DataAvailabilityMode;
+use starknet_api::rpc_transaction::EntryPointByType;
 use starknet_api::{deprecated_contract_class, state};
 use starknet_types_core::felt::Felt;
 
@@ -59,7 +68,7 @@ impl TryFrom<protobuf::Class> for (ApiContractClass, ClassHash) {
                 )
             }
             Some(protobuf::class::Class::Cairo1(class)) => {
-                ApiContractClass::ContractClass(state::ContractClass::try_from(class)?)
+                ApiContractClass::ContractClass(state::SierraContractClass::try_from(class)?)
             }
             None => {
                 return Err(ProtobufConversionError::MissingField {
@@ -100,7 +109,7 @@ impl TryFrom<protobuf::Cairo0Class> for deprecated_contract_class::ContractClass
 
         if !value.constructors.is_empty() {
             entry_points_by_type.insert(
-                deprecated_contract_class::EntryPointType::Constructor,
+                EntryPointType::Constructor,
                 value
                     .constructors
                     .into_iter()
@@ -110,7 +119,7 @@ impl TryFrom<protobuf::Cairo0Class> for deprecated_contract_class::ContractClass
         }
         if !value.externals.is_empty() {
             entry_points_by_type.insert(
-                deprecated_contract_class::EntryPointType::External,
+                EntryPointType::External,
                 value
                     .externals
                     .into_iter()
@@ -120,7 +129,7 @@ impl TryFrom<protobuf::Cairo0Class> for deprecated_contract_class::ContractClass
         }
         if !value.l1_handlers.is_empty() {
             entry_points_by_type.insert(
-                deprecated_contract_class::EntryPointType::L1Handler,
+                EntryPointType::L1Handler,
                 value
                     .l1_handlers
                     .into_iter()
@@ -128,10 +137,8 @@ impl TryFrom<protobuf::Cairo0Class> for deprecated_contract_class::ContractClass
                     .collect::<Result<Vec<_>, _>>()?,
             );
         }
-        // TODO: fill abi
-        let abi = None;
-        // TODO: fill program
-        let program = deprecated_contract_class::Program::default();
+        let abi = serde_json::from_str(&value.abi)?;
+        let program = serde_json::from_value(decode_and_decompress(&value.program)?)?;
 
         Ok(Self { program, entry_points_by_type, abi })
     }
@@ -139,10 +146,33 @@ impl TryFrom<protobuf::Cairo0Class> for deprecated_contract_class::ContractClass
 
 impl From<deprecated_contract_class::ContractClass> for protobuf::Cairo0Class {
     fn from(value: deprecated_contract_class::ContractClass) -> Self {
+        // TODO: remove expects and handle results properly
+        let serialized_program = serde_json::to_value(&value.program)
+            .expect("Failed to serialize Cairo 0 program to serde_json::Value");
+
+        // TODO: consider storing the encoded program
+        let encoded_program = compress_and_encode(serialized_program)
+            .expect("Failed to compress and encode serialized Cairo 0 program");
+
+        // TODO: remove expects and handle results properly
+        let encoded_abi = match value.abi {
+            Some(abi_entries) => {
+                let mut abi_bytes = vec![];
+                abi_entries
+                    .serialize(&mut serde_json::Serializer::with_formatter(
+                        &mut abi_bytes,
+                        PythonJsonFormatter,
+                    ))
+                    .expect("ABI is not in the expected Pythonic JSON byte format");
+                String::from_utf8(abi_bytes).expect("Failed decoding ABI bytes as utf8 string")
+            }
+            None => "".to_string(),
+        };
+
         protobuf::Cairo0Class {
             constructors: value
                 .entry_points_by_type
-                .get(&deprecated_contract_class::EntryPointType::Constructor)
+                .get(&EntryPointType::Constructor)
                 .unwrap_or(&vec![])
                 .iter()
                 .cloned()
@@ -150,7 +180,7 @@ impl From<deprecated_contract_class::ContractClass> for protobuf::Cairo0Class {
                 .collect(),
             externals: value
                 .entry_points_by_type
-                .get(&deprecated_contract_class::EntryPointType::External)
+                .get(&EntryPointType::External)
                 .unwrap_or(&vec![])
                 .iter()
                 .cloned()
@@ -158,26 +188,27 @@ impl From<deprecated_contract_class::ContractClass> for protobuf::Cairo0Class {
                 .collect(),
             l1_handlers: value
                 .entry_points_by_type
-                .get(&deprecated_contract_class::EntryPointType::L1Handler)
+                .get(&EntryPointType::L1Handler)
                 .unwrap_or(&vec![])
                 .iter()
                 .cloned()
                 .map(protobuf::EntryPoint::from)
                 .collect(),
-            // TODO: fill abi and program
-            abi: "".to_string(),
-            program: "".to_string(),
+            abi: encoded_abi,
+            program: encoded_program,
         }
     }
 }
 
-impl TryFrom<protobuf::Cairo1Class> for state::ContractClass {
+impl TryFrom<protobuf::Cairo1Class> for state::SierraContractClass {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::Cairo1Class) -> Result<Self, Self::Error> {
         let abi = value.abi;
 
         let sierra_program =
             value.program.into_iter().map(Felt::try_from).collect::<Result<Vec<_>, _>>()?;
+
+        let contract_class_version = value.contract_class_version;
 
         let mut entry_points_by_type = HashMap::new();
         let entry_points =
@@ -186,7 +217,7 @@ impl TryFrom<protobuf::Cairo1Class> for state::ContractClass {
             })?;
         if !entry_points.constructors.is_empty() {
             entry_points_by_type.insert(
-                state::EntryPointType::Constructor,
+                EntryPointType::Constructor,
                 entry_points
                     .constructors
                     .into_iter()
@@ -196,7 +227,7 @@ impl TryFrom<protobuf::Cairo1Class> for state::ContractClass {
         }
         if !entry_points.externals.is_empty() {
             entry_points_by_type.insert(
-                state::EntryPointType::External,
+                EntryPointType::External,
                 entry_points
                     .externals
                     .into_iter()
@@ -206,7 +237,7 @@ impl TryFrom<protobuf::Cairo1Class> for state::ContractClass {
         }
         if !entry_points.l1_handlers.is_empty() {
             entry_points_by_type.insert(
-                state::EntryPointType::L1Handler,
+                EntryPointType::L1Handler,
                 entry_points
                     .l1_handlers
                     .into_iter()
@@ -215,12 +246,19 @@ impl TryFrom<protobuf::Cairo1Class> for state::ContractClass {
             );
         }
 
-        Ok(state::ContractClass { sierra_program, entry_points_by_type, abi })
+        let entry_points_by_type = EntryPointByType::from_hash_map(entry_points_by_type);
+
+        Ok(state::SierraContractClass {
+            sierra_program,
+            entry_points_by_type,
+            abi,
+            contract_class_version,
+        })
     }
 }
 
-impl From<state::ContractClass> for protobuf::Cairo1Class {
-    fn from(value: state::ContractClass) -> Self {
+impl From<state::SierraContractClass> for protobuf::Cairo1Class {
+    fn from(value: state::SierraContractClass) -> Self {
         let abi = value.abi;
 
         let program =
@@ -229,7 +267,8 @@ impl From<state::ContractClass> for protobuf::Cairo1Class {
         let entry_points = Some(protobuf::Cairo1EntryPoints {
             constructors: value
                 .entry_points_by_type
-                .get(&state::EntryPointType::Constructor)
+                .to_hash_map()
+                .get(&EntryPointType::Constructor)
                 .unwrap_or(&vec![])
                 .iter()
                 .cloned()
@@ -238,7 +277,8 @@ impl From<state::ContractClass> for protobuf::Cairo1Class {
 
             externals: value
                 .entry_points_by_type
-                .get(&state::EntryPointType::External)
+                .to_hash_map()
+                .get(&EntryPointType::External)
                 .unwrap_or(&vec![])
                 .iter()
                 .cloned()
@@ -246,7 +286,8 @@ impl From<state::ContractClass> for protobuf::Cairo1Class {
                 .collect(),
             l1_handlers: value
                 .entry_points_by_type
-                .get(&state::EntryPointType::L1Handler)
+                .to_hash_map()
+                .get(&EntryPointType::L1Handler)
                 .unwrap_or(&vec![])
                 .iter()
                 .cloned()
@@ -254,21 +295,13 @@ impl From<state::ContractClass> for protobuf::Cairo1Class {
                 .collect(),
         });
 
-        let contract_class_version = format!(
-            "sierra-v{}.{}.{} cairo-v{}.{}.{}",
-            value.sierra_program[0],
-            value.sierra_program[1],
-            value.sierra_program[2],
-            value.sierra_program[3],
-            value.sierra_program[4],
-            value.sierra_program[5]
-        );
+        let contract_class_version = value.contract_class_version;
 
         protobuf::Cairo1Class { abi, program, entry_points, contract_class_version }
     }
 }
 
-impl TryFrom<protobuf::EntryPoint> for deprecated_contract_class::EntryPoint {
+impl TryFrom<protobuf::EntryPoint> for deprecated_contract_class::EntryPointV0 {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::EntryPoint) -> Result<Self, Self::Error> {
         let selector_felt =
@@ -281,12 +314,12 @@ impl TryFrom<protobuf::EntryPoint> for deprecated_contract_class::EntryPoint {
             value.offset.try_into().expect("Failed converting u64 to usize"),
         );
 
-        Ok(deprecated_contract_class::EntryPoint { selector, offset })
+        Ok(deprecated_contract_class::EntryPointV0 { selector, offset })
     }
 }
 
-impl From<deprecated_contract_class::EntryPoint> for protobuf::EntryPoint {
-    fn from(value: deprecated_contract_class::EntryPoint) -> Self {
+impl From<deprecated_contract_class::EntryPointV0> for protobuf::EntryPoint {
+    fn from(value: deprecated_contract_class::EntryPointV0) -> Self {
         protobuf::EntryPoint {
             selector: Some(value.selector.0.into()),
             offset: u64::try_from(value.offset.0).expect("Failed converting usize to u64"),

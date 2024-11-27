@@ -12,12 +12,12 @@ use papyrus_storage::test_utils::get_test_storage;
 use papyrus_storage::{StorageReader, StorageWriter};
 use papyrus_test_utils::{get_rng, GetTestInstance};
 use pretty_assertions::assert_eq;
-use starknet_api::block::{BlockHash, BlockHeader, BlockNumber};
-use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce, PatriciaKey};
+use starknet_api::block::{BlockHash, BlockHeader, BlockHeaderWithoutHash, BlockNumber};
+use starknet_api::core::{ClassHash, CompiledClassHash, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::hash::StarkHash;
-use starknet_api::state::{ContractClass, StateDiff, StorageKey};
-use starknet_api::{felt, patricia_key};
+use starknet_api::state::{SierraContractClass, StateDiff};
+use starknet_api::{contract_address, felt, storage_key};
 use starknet_client::reader::objects::pending_data::{
     AcceptedOnL2ExtraData,
     DeprecatedPendingBlock,
@@ -48,24 +48,24 @@ use crate::{
 #[test]
 fn state_sorted() {
     let hash0 = felt!("0x0");
-    let patricia_key0 = patricia_key!("0x0");
+    let contract_address_0 = contract_address!("0x0");
     let hash1 = felt!("0x1");
-    let patricia_key1 = patricia_key!("0x1");
+    let contract_address_1 = contract_address!("0x1");
 
-    let dep_contract_0 = (ContractAddress(patricia_key0), ClassHash(hash0));
-    let dep_contract_1 = (ContractAddress(patricia_key1), ClassHash(hash1));
-    let storage_key_0 = StorageKey(patricia_key!("0x0"));
-    let storage_key_1 = StorageKey(patricia_key!("0x1"));
+    let dep_contract_0 = (contract_address_0, ClassHash(hash0));
+    let dep_contract_1 = (contract_address_1, ClassHash(hash1));
+    let storage_key_0 = storage_key!("0x0");
+    let storage_key_1 = storage_key!("0x1");
     let declare_class_0 =
-        (ClassHash(hash0), (CompiledClassHash::default(), ContractClass::default()));
+        (ClassHash(hash0), (CompiledClassHash::default(), SierraContractClass::default()));
     let declare_class_1 =
-        (ClassHash(hash1), (CompiledClassHash::default(), ContractClass::default()));
+        (ClassHash(hash1), (CompiledClassHash::default(), SierraContractClass::default()));
     let deprecated_declared_0 = (ClassHash(hash0), DeprecatedContractClass::default());
     let deprecated_declared_1 = (ClassHash(hash1), DeprecatedContractClass::default());
-    let nonce_0 = (ContractAddress(patricia_key0), Nonce(hash0));
-    let nonce_1 = (ContractAddress(patricia_key1), Nonce(hash1));
-    let replaced_class_0 = (ContractAddress(patricia_key0), ClassHash(hash0));
-    let replaced_class_1 = (ContractAddress(patricia_key1), ClassHash(hash1));
+    let nonce_0 = (contract_address_0, Nonce(hash0));
+    let nonce_1 = (contract_address_1, Nonce(hash1));
+    let replaced_class_0 = (contract_address_0, ClassHash(hash0));
+    let replaced_class_1 = (contract_address_1, ClassHash(hash1));
 
     let unsorted_deployed_contracts = IndexMap::from([dep_contract_1, dep_contract_0]);
     let unsorted_declared_classes =
@@ -75,8 +75,8 @@ fn state_sorted() {
     let unsorted_nonces = IndexMap::from([nonce_1, nonce_0]);
     let unsorted_storage_entries = IndexMap::from([(storage_key_1, hash1), (storage_key_0, hash0)]);
     let unsorted_storage_diffs = IndexMap::from([
-        (ContractAddress(patricia_key1), unsorted_storage_entries.clone()),
-        (ContractAddress(patricia_key0), unsorted_storage_entries),
+        (contract_address_1, unsorted_storage_entries.clone()),
+        (contract_address_0, unsorted_storage_entries),
     ]);
     let unsorted_replaced_classes = IndexMap::from([replaced_class_1, replaced_class_0]);
 
@@ -95,8 +95,8 @@ fn state_sorted() {
     let sorted_nonces = IndexMap::from([nonce_0, nonce_1]);
     let sorted_storage_entries = IndexMap::from([(storage_key_0, hash0), (storage_key_1, hash1)]);
     let sorted_storage_diffs = IndexMap::from([
-        (ContractAddress(patricia_key0), sorted_storage_entries.clone()),
-        (ContractAddress(patricia_key1), sorted_storage_entries.clone()),
+        (contract_address_0, sorted_storage_entries.clone()),
+        (contract_address_1, sorted_storage_entries.clone()),
     ]);
     let sorted_replaced_classes = IndexMap::from([replaced_class_0, replaced_class_1]);
 
@@ -177,9 +177,12 @@ fn store_base_layer_block_test() {
 
     let header_hash = BlockHash(felt!("0x0"));
     let header = BlockHeader {
-        block_number: BlockNumber(0),
         block_hash: header_hash,
-        ..BlockHeader::default()
+        block_header_without_hash: BlockHeaderWithoutHash {
+            block_number: BlockNumber(0),
+            ..Default::default()
+        },
+        ..Default::default()
     };
     writer
         .begin_rw_txn()
@@ -222,9 +225,12 @@ fn store_base_layer_block_test() {
 fn add_headers(headers_num: u64, writer: &mut StorageWriter) {
     for i in 0..headers_num {
         let header = BlockHeader {
-            block_number: BlockNumber(i),
             block_hash: BlockHash(i.into()),
-            ..BlockHeader::default()
+            block_header_without_hash: BlockHeaderWithoutHash {
+                block_number: BlockNumber(i),
+                ..Default::default()
+            },
+            ..Default::default()
         };
         writer
             .begin_rw_txn()
@@ -369,8 +375,11 @@ async fn pending_sync_new_data_has_more_advanced_hash_and_less_transactions() {
             BlockNumber(0),
             &BlockHeader {
                 block_hash: FIRST_BLOCK_HASH,
-                parent_hash: genesis_hash,
-                block_number: BlockNumber(0),
+                block_header_without_hash: BlockHeaderWithoutHash {
+                    parent_hash: genesis_hash,
+                    block_number: BlockNumber(0),
+                    ..Default::default()
+                },
                 ..Default::default()
             },
         )
@@ -483,8 +492,11 @@ async fn pending_sync_doesnt_stop_when_data_has_block_hash_field_with_the_same_h
             BlockNumber(0),
             &BlockHeader {
                 block_hash: FIRST_BLOCK_HASH,
-                parent_hash: genesis_hash,
-                block_number: BlockNumber(0),
+                block_header_without_hash: BlockHeaderWithoutHash {
+                    parent_hash: genesis_hash,
+                    block_number: BlockNumber(0),
+                    ..Default::default()
+                },
                 ..Default::default()
             },
         )
@@ -557,8 +569,11 @@ async fn pending_sync_updates_when_data_has_block_hash_field_with_the_same_hash_
             BlockNumber(0),
             &BlockHeader {
                 block_hash: FIRST_BLOCK_HASH,
-                parent_hash: genesis_hash,
-                block_number: BlockNumber(0),
+                block_header_without_hash: BlockHeaderWithoutHash {
+                    parent_hash: genesis_hash,
+                    block_number: BlockNumber(0),
+                    ..Default::default()
+                },
                 ..Default::default()
             },
         )
@@ -661,7 +676,8 @@ async fn pending_sync_classes_request_only_new_classes() {
     let first_class = ApiContractClass::DeprecatedContractClass(
         DeprecatedContractClass::get_test_instance(&mut rng),
     );
-    let second_class = ApiContractClass::ContractClass(ContractClass::get_test_instance(&mut rng));
+    let second_class =
+        ApiContractClass::ContractClass(SierraContractClass::get_test_instance(&mut rng));
     let compiled_class = CasmContractClass::get_test_instance(&mut rng);
 
     let mut expected_pending_classes = PendingClasses::default();
@@ -709,8 +725,11 @@ async fn pending_sync_classes_are_cleaned_on_first_pending_data_from_latest_bloc
             BlockNumber(0),
             &BlockHeader {
                 block_hash: FIRST_BLOCK_HASH,
-                parent_hash: genesis_hash,
-                block_number: BlockNumber(0),
+                block_header_without_hash: BlockHeaderWithoutHash {
+                    parent_hash: genesis_hash,
+                    block_number: BlockNumber(0),
+                    ..Default::default()
+                },
                 ..Default::default()
             },
         )

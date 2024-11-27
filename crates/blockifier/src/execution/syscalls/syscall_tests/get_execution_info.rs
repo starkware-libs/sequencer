@@ -1,42 +1,38 @@
-use cairo_vm::Felt252;
-use num_traits::Pow;
+use starknet_api::abi::abi_utils::selector_from_name;
+use starknet_api::block::GasPrice;
 use starknet_api::core::ChainId;
 use starknet_api::data_availability::DataAvailabilityMode;
-use starknet_api::felt;
-use starknet_api::transaction::{
+use starknet_api::execution_resources::GasAmount;
+use starknet_api::transaction::fields::{
     AccountDeploymentData,
     Calldata,
     Fee,
     PaymasterData,
+    Resource,
     ResourceBounds,
     Tip,
-    TransactionHash,
-    TransactionVersion,
     ValidResourceBounds,
 };
+use starknet_api::transaction::{TransactionHash, TransactionVersion, QUERY_VERSION_BASE};
+use starknet_api::{felt, nonce};
 use starknet_types_core::felt::Felt;
 use test_case::test_case;
 
-use crate::abi::abi_utils::selector_from_name;
 use crate::context::ChainInfo;
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::entry_point::CallEntryPoint;
-use crate::execution::syscalls::hint_processor::{L1_DATA, L1_GAS, L2_GAS};
-use crate::nonce;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{
     trivial_external_entry_point_with_address,
     CairoVersion,
     BALANCE,
-    CHAIN_ID_NAME,
     CURRENT_BLOCK_NUMBER,
     CURRENT_BLOCK_NUMBER_FOR_VALIDATE,
     CURRENT_BLOCK_TIMESTAMP,
     CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE,
     TEST_SEQUENCER_ADDRESS,
 };
-use crate::transaction::constants::QUERY_VERSION_BASE_BIT;
 use crate::transaction::objects::{
     CommonAccountFields,
     CurrentTransactionInfo,
@@ -44,6 +40,66 @@ use crate::transaction::objects::{
     TransactionInfo,
 };
 
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(
+        FeatureContract::SierraExecutionInfoV1Contract,
+        ExecutionMode::Validate,
+        TransactionVersion::ONE,
+        false;
+        "Native [V1]: Validate execution mode: block info fields should be zeroed. Transaction V1."
+    )
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(
+        FeatureContract::SierraExecutionInfoV1Contract,
+        ExecutionMode::Execute,
+        TransactionVersion::ONE,
+        false;
+        "Native [V1]: Execute execution mode: block info should be as usual. Transaction V1."
+    )
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(
+        FeatureContract::TestContract(CairoVersion::Native),
+        ExecutionMode::Validate,
+        TransactionVersion::ONE,
+        false;
+        "Native: Validate execution mode: block info fields should be zeroed. Transaction V1."
+    )
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(
+        FeatureContract::TestContract(CairoVersion::Native),
+        ExecutionMode::Execute,
+        TransactionVersion::ONE,
+        false;
+        "Native: Execute execution mode: block info should be as usual. Transaction V1."
+    )
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(
+        FeatureContract::TestContract(CairoVersion::Native),
+        ExecutionMode::Validate,
+        TransactionVersion::THREE,
+        false;
+        "Native: Validate execution mode: block info fields should be zeroed. Transaction V3."
+    )
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(
+        FeatureContract::TestContract(CairoVersion::Native),
+        ExecutionMode::Execute,
+        TransactionVersion::THREE,
+        false;
+        "Native: Execute execution mode: block info should be as usual. Transaction V3."
+    )
+)]
 #[test_case(
     FeatureContract::TestContract(CairoVersion::Cairo1),
     ExecutionMode::Validate,
@@ -123,6 +179,10 @@ fn test_get_execution_info(
             };
             vec![]
         }
+        #[cfg(feature = "cairo_native")]
+        FeatureContract::SierraExecutionInfoV1Contract => {
+            vec![]
+        }
         _ => {
             vec![
                 Felt::ZERO, // Tip.
@@ -135,7 +195,7 @@ fn test_get_execution_info(
     };
 
     if only_query {
-        let simulate_version_base = Pow::pow(Felt252::from(2_u8), QUERY_VERSION_BASE_BIT);
+        let simulate_version_base = *QUERY_VERSION_BASE;
         let query_version = simulate_version_base + version.0;
         version = TransactionVersion(query_version);
     }
@@ -145,22 +205,24 @@ fn test_get_execution_info(
     let nonce = nonce!(3_u16);
     let sender_address = test_contract_address;
 
-    let max_amount = Fee(13);
-    let max_price_per_unit = Fee(61);
+    let max_amount = GasAmount(13);
+    let max_price_per_unit = GasPrice(61);
 
     let expected_resource_bounds: Vec<Felt> = match (test_contract, version) {
         (FeatureContract::LegacyTestContract, _) => vec![],
+        #[cfg(feature = "cairo_native")]
+        (FeatureContract::SierraExecutionInfoV1Contract, _) => vec![],
         (_, version) if version == TransactionVersion::ONE => vec![
             felt!(0_u16), // Length of resource bounds array.
         ],
         (_, _) => vec![
-            Felt::from(2u32),            // Length of ResourceBounds array.
-            felt!(L1_GAS),               // Resource.
-            felt!(max_amount.0),         // Max amount.
-            felt!(max_price_per_unit.0), // Max price per unit.
-            felt!(L2_GAS),               // Resource.
-            Felt::ZERO,                  // Max amount.
-            Felt::ZERO,                  // Max price per unit.
+            Felt::from(2u32),                // Length of ResourceBounds array.
+            felt!(Resource::L1Gas.to_hex()), // Resource.
+            max_amount.into(),               // Max amount.
+            max_price_per_unit.into(),       // Max price per unit.
+            felt!(Resource::L2Gas.to_hex()), // Resource.
+            Felt::ZERO,                      // Max amount.
+            Felt::ZERO,                      // Max price per unit.
         ],
     };
 
@@ -168,13 +230,13 @@ fn test_get_execution_info(
     let tx_info: TransactionInfo;
     if version == TransactionVersion::ONE {
         expected_tx_info = vec![
-            version.0,                                                   /* Transaction
-                                                                          * version. */
+            version.0,                                       /* Transaction
+                                                              * version. */
             *sender_address.0.key(), // Account address.
             felt!(max_fee.0),        // Max fee.
             Felt::ZERO,              // Signature.
             tx_hash.0,               // Transaction hash.
-            felt!(&*ChainId::Other(CHAIN_ID_NAME.to_string()).as_hex()), // Chain ID.
+            felt!(&*ChainId::create_for_testing().as_hex()), // Chain ID.
             nonce.0,                 // Nonce.
         ];
 
@@ -191,13 +253,13 @@ fn test_get_execution_info(
         });
     } else {
         expected_tx_info = vec![
-            version.0,                                                   /* Transaction
-                                                                          * version. */
+            version.0,                                       /* Transaction
+                                                              * version. */
             *sender_address.0.key(), // Account address.
             Felt::ZERO,              // Max fee.
             Felt::ZERO,              // Signature.
             tx_hash.0,               // Transaction hash.
-            felt!(&*ChainId::Other(CHAIN_ID_NAME.to_string()).as_hex()), // Chain ID.
+            felt!(&*ChainId::create_for_testing().as_hex()), // Chain ID.
             nonce.0,                 // Nonce.
         ];
 
@@ -211,8 +273,8 @@ fn test_get_execution_info(
                 ..Default::default()
             },
             resource_bounds: ValidResourceBounds::L1Gas(ResourceBounds {
-                max_amount: max_amount.0.try_into().expect("Failed to convert u128 to u64."),
-                max_price_per_unit: max_price_per_unit.0,
+                max_amount,
+                max_price_per_unit,
             }),
             tip: Tip::default(),
             nonce_data_availability_mode: DataAvailabilityMode::L1,
@@ -243,24 +305,17 @@ fn test_get_execution_info(
         ),
         ..trivial_external_entry_point_with_address(test_contract_address)
     };
-
-    let result = match execution_mode {
-        ExecutionMode::Validate => {
-            entry_point_call.execute_directly_given_tx_info_in_validate_mode(state, tx_info, false)
-        }
-        ExecutionMode::Execute => {
-            entry_point_call.execute_directly_given_tx_info(state, tx_info, false)
-        }
-    };
+    let result =
+        entry_point_call.execute_directly_given_tx_info(state, tx_info, false, execution_mode);
 
     assert!(!result.unwrap().execution.failed);
 }
 
 #[test]
 fn test_gas_types_constants() {
-    assert_eq!(str_to_32_bytes_in_hex("L1_GAS"), L1_GAS);
-    assert_eq!(str_to_32_bytes_in_hex("L2_GAS"), L2_GAS);
-    assert_eq!(str_to_32_bytes_in_hex("L1_DATA"), L1_DATA);
+    assert_eq!(str_to_32_bytes_in_hex("L1_GAS"), Resource::L1Gas.to_hex());
+    assert_eq!(str_to_32_bytes_in_hex("L2_GAS"), Resource::L2Gas.to_hex());
+    assert_eq!(str_to_32_bytes_in_hex("L1_DATA"), Resource::L1DataGas.to_hex());
 }
 
 fn str_to_32_bytes_in_hex(s: &str) -> String {

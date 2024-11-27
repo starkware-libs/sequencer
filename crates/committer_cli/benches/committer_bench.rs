@@ -48,7 +48,7 @@ pub fn single_tree_flow_benchmark(criterion: &mut Criterion) {
                         leaf_modifications_input,
                         &storage,
                         root_hash,
-                        OriginalSkeletonStorageTrieConfig::new(&leaf_modifications, false),
+                        OriginalSkeletonStorageTrieConfig::new(false),
                     ),
                 );
             },

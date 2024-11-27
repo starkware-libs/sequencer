@@ -17,13 +17,12 @@ rand.workspace = true
 reqwest.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
+starknet_api.workspace = true
 tokio.workspace = true
 
 [dev-dependencies]
 lazy_static.workspace = true
 pretty_assertions.workspace = true
 
-[lints.rust]
-# See [here](https://github.com/taiki-e/cargo-llvm-cov/issues/370) for a discussion on why this is
-# needed (from rust 1.80).
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }
+[lints]
+workspace = true

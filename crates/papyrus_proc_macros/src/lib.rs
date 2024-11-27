@@ -5,6 +5,7 @@ use quote::{quote, ToTokens};
 use syn::parse::{Parse, ParseStream, Result};
 use syn::{
     parse_macro_input,
+    DeriveInput,
     ExprLit,
     Ident,
     ItemFn,
@@ -242,7 +243,7 @@ pub fn handle_response_variants(input: TokenStream) -> TokenStream {
     } = parse_macro_input!(input as HandleResponseVariantsMacroInput);
 
     let expanded = quote! {
-        match response {
+        match response? {
             #response_enum::#request_response_enum_var(Ok(response)) => Ok(response),
             #response_enum::#request_response_enum_var(Err(response)) => {
                 Err(#component_client_error::#component_error(response))
@@ -252,4 +253,55 @@ pub fn handle_response_variants(input: TokenStream) -> TokenStream {
     };
 
     TokenStream::from(expanded)
+}
+
+/// This macro generates a `pub fn field_names() -> Vec<String>`, a method that returns a vector of
+/// the struct field element names.
+///
+/// # Example
+/// ```rust
+/// use papyrus_proc_macros::gen_field_names_fn;
+///
+/// #[gen_field_names_fn]
+/// pub struct Example {
+///     pub field_a: u8,
+///     field_b: u32,
+///     pub field_c: String,
+/// }
+///
+/// assert_eq!(Example::field_names(), vec!["field_a", "field_b", "field_c"]);
+/// ```
+#[proc_macro_attribute]
+pub fn gen_field_names_fn(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    // Parse the input tokens as a Rust struct
+    let input = parse_macro_input!(item as DeriveInput);
+
+    // Get the struct name
+    let struct_name = &input.ident;
+
+    // Collect the names of the struct's fields as string literals
+    let field_names = if let syn::Data::Struct(data) = &input.data {
+        data.fields
+            .iter()
+            .filter_map(|field| field.ident.as_ref())
+            .map(|ident| ident.to_string())
+            .collect::<Vec<_>>()
+    } else {
+        panic!("#[gen_field_names_fn] can only be used on structs");
+    };
+
+    // Generate the field_names method
+    let gen = quote! {
+        #input
+
+        impl #struct_name {
+            pub fn field_names() -> Vec<String> {
+                vec![
+                    #(#field_names.to_string()),*
+                ]
+            }
+        }
+    };
+
+    gen.into()
 }

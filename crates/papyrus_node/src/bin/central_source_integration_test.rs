@@ -31,7 +31,7 @@ async fn main() {
         .await
         .expect("Central get latest_block")
         .expect("No blocks in central")
-        .block_number
+        .number
         .unchecked_next();
     let initial_block_number = BlockNumber(last_block_number.0 - STREAM_LENGTH);
 

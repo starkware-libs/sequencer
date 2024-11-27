@@ -1,20 +1,24 @@
 use std::collections::{HashMap, HashSet};
 
+use assert_matches::assert_matches;
 use cairo_vm::types::builtin_name::BuiltinName;
+use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use rstest::rstest;
-use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey};
-use starknet_api::{class_hash, contract_address, felt, patricia_key};
+use starknet_api::transaction::fields::Fee;
+use starknet_api::{class_hash, contract_address, storage_key};
 
 use super::BouncerConfig;
-use crate::blockifier::transaction_executor::{
-    TransactionExecutorError,
-    TransactionExecutorResult,
+use crate::blockifier::transaction_executor::TransactionExecutorError;
+use crate::bouncer::{
+    verify_tx_weights_within_max_capacity,
+    Bouncer,
+    BouncerWeights,
+    BuiltinCount,
 };
-use crate::bouncer::{verify_tx_weights_in_bounds, Bouncer, BouncerWeights, BuiltinCount};
 use crate::context::BlockContext;
 use crate::execution::call_info::ExecutionSummary;
+use crate::fee::resources::{ComputationResources, TransactionResources};
 use crate::state::cached_state::{StateChangesKeys, TransactionalState};
-use crate::storage_key;
 use crate::test_utils::initial_test_state::test_state;
 use crate::transaction::errors::TransactionExecutionError;
 
@@ -94,7 +98,7 @@ fn test_block_weights_has_room() {
         storage_key!(0_u128),
     )]),
     state_changes_keys: StateChangesKeys::create_for_testing(HashSet::from([
-        ContractAddress::from(0_u128),
+        contract_address!(0_u128),
     ])),
     bouncer_config: BouncerConfig::empty(),
     accumulated_weights: BouncerWeights {
@@ -121,8 +125,8 @@ fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
     let execution_summary_to_update = ExecutionSummary {
         executed_class_hashes: HashSet::from([class_hash!(1_u128), class_hash!(2_u128)]),
         visited_storage_entries: HashSet::from([
-            (ContractAddress::from(1_u128), storage_key!(1_u128)),
-            (ContractAddress::from(2_u128), storage_key!(2_u128)),
+            (contract_address!(1_u128), storage_key!(1_u128)),
+            (contract_address!(2_u128), storage_key!(2_u128)),
         ]),
         ..Default::default()
     };
@@ -148,7 +152,7 @@ fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
     };
 
     let state_changes_keys_to_update =
-        StateChangesKeys::create_for_testing(HashSet::from([ContractAddress::from(1_u128)]));
+        StateChangesKeys::create_for_testing(HashSet::from([contract_address!(1_u128)]));
 
     let mut updated_bouncer = initial_bouncer.clone();
     updated_bouncer.update(
@@ -171,23 +175,12 @@ fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
 }
 
 #[rstest]
-#[case::positive_flow(1, Ok(()))]
-#[case::block_full(11, Err(TransactionExecutorError::BlockFull))]
-#[case::transaction_too_large(
-    21,
-    Err(TransactionExecutorError::TransactionExecutionError(
-        TransactionExecutionError::TransactionTooLarge
-    ))
-)]
-fn test_bouncer_try_update(
-    #[case] added_ecdsa: usize,
-    #[case] expected_result: TransactionExecutorResult<()>,
-) {
-    use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
-
-    use crate::transaction::objects::TransactionResources;
-
-    let state = &mut test_state(&BlockContext::create_for_account_testing().chain_info, 0, &[]);
+#[case::positive_flow(1, "ok")]
+#[case::block_full(11, "block_full")]
+#[case::transaction_too_large(21, "too_large")]
+fn test_bouncer_try_update(#[case] added_ecdsa: usize, #[case] scenario: &'static str) {
+    let state =
+        &mut test_state(&BlockContext::create_for_account_testing().chain_info, Fee(0), &[]);
     let mut transactional_state = TransactionalState::create_transactional(state);
 
     // Setup the bouncer.
@@ -232,7 +225,7 @@ fn test_bouncer_try_update(
         state_diff_size: 10,
     };
 
-    let mut bouncer = Bouncer { accumulated_weights, bouncer_config, ..Default::default() };
+    let mut bouncer = Bouncer { accumulated_weights, bouncer_config, ..Bouncer::empty() };
 
     // Prepare the resources to be added to the bouncer.
     let execution_summary = ExecutionSummary { ..Default::default() };
@@ -246,18 +239,22 @@ fn test_bouncer_try_update(
         (BuiltinName::range_check, 1),
     ]);
     let tx_resources = TransactionResources {
-        vm_resources: ExecutionResources {
-            builtin_instance_counter: builtin_counter,
+        computation: ComputationResources {
+            vm_resources: ExecutionResources {
+                builtin_instance_counter: builtin_counter.clone(),
+                ..Default::default()
+            },
             ..Default::default()
         },
         ..Default::default()
     };
-    let tx_state_changes_keys = transactional_state.get_actual_state_changes().unwrap().into_keys();
+    let tx_state_changes_keys =
+        transactional_state.get_actual_state_changes().unwrap().state_maps.into_keys();
 
     // TODO(Yoni, 1/10/2024): simplify this test and move tx-too-large cases out.
 
     // Check that the transaction is not too large.
-    let mut result = verify_tx_weights_in_bounds(
+    let mut result = verify_tx_weights_within_max_capacity(
         &transactional_state,
         &execution_summary,
         &tx_resources,
@@ -265,6 +262,8 @@ fn test_bouncer_try_update(
         &bouncer.bouncer_config,
     )
     .map_err(TransactionExecutorError::TransactionExecutionError);
+    let expected_weights =
+        BouncerWeights { builtin_count: builtin_counter.into(), ..BouncerWeights::empty() };
 
     if result.is_ok() {
         // Try to update the bouncer.
@@ -276,6 +275,14 @@ fn test_bouncer_try_update(
         );
     }
 
-    // TODO(yael 27/3/24): compare the results without using string comparison.
-    assert_eq!(format!("{:?}", result), format!("{:?}", expected_result));
+    match scenario {
+        "ok" => assert_matches!(result, Ok(())),
+        "block_full" => assert_matches!(result, Err(TransactionExecutorError::BlockFull)),
+        "too_large" => assert_matches!(result, Err(
+                TransactionExecutorError::TransactionExecutionError(
+                    TransactionExecutionError::TransactionTooLarge { max_capacity, tx_size }
+                )
+            ) if *max_capacity == block_max_capacity && *tx_size == expected_weights),
+        _ => panic!("Unexpected scenario: {}", scenario),
+    }
 }

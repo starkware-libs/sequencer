@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 
+use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::core::ContractAddress;
 use starknet_api::felt;
+use starknet_api::transaction::fields::Fee;
 use strum::IntoEnumIterator;
 
-use crate::abi::abi_utils::get_fee_token_var_address;
 use crate::context::ChainInfo;
 use crate::state::cached_state::CachedState;
 use crate::test_utils::contracts::FeatureContract;
@@ -16,14 +17,16 @@ use crate::transaction::objects::FeeType;
 pub fn fund_account(
     chain_info: &ChainInfo,
     account_address: ContractAddress,
-    initial_balance: u128,
+    initial_balance: Fee,
     state_reader: &mut DictStateReader,
 ) {
     let storage_view = &mut state_reader.storage_view;
     let balance_key = get_fee_token_var_address(account_address);
     for fee_type in FeeType::iter() {
-        storage_view
-            .insert((chain_info.fee_token_address(&fee_type), balance_key), felt!(initial_balance));
+        storage_view.insert(
+            (chain_info.fee_token_address(&fee_type), balance_key),
+            felt!(initial_balance.0),
+        );
     }
 }
 
@@ -37,7 +40,7 @@ pub fn fund_account(
 /// * Makes each input account contract privileged.
 pub fn test_state_inner(
     chain_info: &ChainInfo,
-    initial_balances: u128,
+    initial_balances: Fee,
     contract_instances: &[(FeatureContract, u16)],
     erc20_contract_version: CairoVersion,
 ) -> CachedState<DictStateReader> {
@@ -46,7 +49,7 @@ pub fn test_state_inner(
 
     // Declare and deploy account and ERC20 contracts.
     let erc20 = FeatureContract::ERC20(erc20_contract_version);
-    class_hash_to_class.insert(erc20.get_class_hash(), erc20.get_class());
+    class_hash_to_class.insert(erc20.get_class_hash(), erc20.get_runnable_class());
     address_to_class_hash
         .insert(chain_info.fee_token_address(&FeeType::Eth), erc20.get_class_hash());
     address_to_class_hash
@@ -55,7 +58,7 @@ pub fn test_state_inner(
     // Set up the rest of the requested contracts.
     for (contract, n_instances) in contract_instances.iter() {
         let class_hash = contract.get_class_hash();
-        class_hash_to_class.insert(class_hash, contract.get_class());
+        class_hash_to_class.insert(class_hash, contract.get_runnable_class());
         for instance in 0..*n_instances {
             let instance_address = contract.get_instance_address(instance);
             address_to_class_hash.insert(instance_address, class_hash);
@@ -85,7 +88,7 @@ pub fn test_state_inner(
 
 pub fn test_state(
     chain_info: &ChainInfo,
-    initial_balances: u128,
+    initial_balances: Fee,
     contract_instances: &[(FeatureContract, u16)],
 ) -> CachedState<DictStateReader> {
     test_state_inner(chain_info, initial_balances, contract_instances, CairoVersion::Cairo0)

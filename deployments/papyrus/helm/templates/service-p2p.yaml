@@ -1,0 +1,28 @@
+{{- if and ( not .Values.backup.enabled ) .Values.p2pService.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "papyrus.name" . }}-p2p
+  labels:
+    {{- include "papyrus.labels" . | nindent 4 }}
+  annotations:
+  {{- if .Values.p2pService.annotations }}
+    {{ toYaml .Values.p2pService.annotations | nindent 4 }}
+  {{- end}}
+spec:
+  selector:
+    {{- include "papyrus.selectorLabels" . | nindent 6 }}
+  type: {{ .Values.p2pService.type }}
+  {{- if and (eq .Values.p2pService.type "ClusterIP") .Values.p2pService.clusterIP }}
+  clusterIP: {{ .Values.p2pService.clusterIP }}
+  {{- end }}
+  {{- if and (eq .Values.p2pService.type "LoadBalancer") .Values.p2pService.loadBalancerIP }}
+  loadBalancerIP: {{ .Values.p2pService.loadBalancerIP }}
+  {{- end }}
+  ports:
+  - name: p2p
+    port: {{ .Values.p2pService.port }}
+    protocol: {{ .Values.p2pService.protocol }}
+    targetPort: p2p
+{{- end }}

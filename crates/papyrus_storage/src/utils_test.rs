@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::fs;
 
 use indexmap::indexmap;
@@ -9,7 +8,8 @@ use prometheus_parse::Value::{Counter, Gauge};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::hash::StarkHash;
-use starknet_api::state::{ContractClass, ThinStateDiff};
+use starknet_api::rpc_transaction::EntryPointByType;
+use starknet_api::state::{SierraContractClass, ThinStateDiff};
 use starknet_types_core::felt::Felt;
 
 use super::update_storage_metrics;
@@ -27,12 +27,13 @@ fn test_dump_declared_classes() {
     let mut state_diffs = vec![];
     let ((reader, mut writer), _temp_dir) = get_test_storage();
     for i in 0..5 {
-        let i_felt = Felt::from(i as u128);
+        let i_felt = Felt::from(u128::try_from(i).expect("usize should fit in u128"));
         declared_classes.push((
             ClassHash(i_felt),
-            ContractClass {
+            SierraContractClass {
                 sierra_program: vec![i_felt, i_felt],
-                entry_points_by_type: HashMap::new(),
+                contract_class_version: "0.1.0".to_string(),
+                entry_points_by_type: EntryPointByType::default(),
                 abi: "".to_string(),
             },
         ));
@@ -46,7 +47,7 @@ fn test_dump_declared_classes() {
             nonces: indexmap!(),
             replaced_classes: indexmap!(),
         });
-        let block_number = BlockNumber(i as u64);
+        let block_number = BlockNumber(u64::try_from(i).expect("usize should fit in u64"));
         let txn = writer.begin_rw_txn().unwrap();
         txn.append_state_diff(block_number, state_diffs[i].clone())
             .unwrap()
@@ -66,12 +67,14 @@ fn test_dump_declared_classes() {
             class_hash: declared_classes[2].0,
             compiled_class_hash,
             sierra_program: declared_classes[2].1.sierra_program.clone(),
+            contract_class_version: declared_classes[2].1.contract_class_version.clone(),
             entry_points_by_type: declared_classes[2].1.entry_points_by_type.clone(),
         },
         DumpDeclaredClass {
             class_hash: declared_classes[3].0,
             compiled_class_hash,
             sierra_program: declared_classes[3].1.sierra_program.clone(),
+            contract_class_version: declared_classes[3].1.contract_class_version.clone(),
             entry_points_by_type: declared_classes[3].1.entry_points_by_type.clone(),
         },
     ];

@@ -7,13 +7,14 @@ use serde::de::Error as DeserializationError;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
 
+use crate::contract_class::EntryPointType;
 use crate::core::EntryPointSelector;
 use crate::hash::StarkHash;
 use crate::serde_utils::deserialize_optional_contract_class_abi_entry_vector;
 use crate::StarknetApiError;
 
 /// A deprecated contract class.
-#[derive(Debug, Clone, Default, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ContractClass {
     // Starknet does not verify the abi. If we can't parse it, we set it to None.
     #[serde(default, deserialize_with = "deserialize_optional_contract_class_abi_entry_vector")]
@@ -22,7 +23,13 @@ pub struct ContractClass {
     /// The selector of each entry point is a unique identifier in the program.
     // TODO: Consider changing to IndexMap, since this is used for computing the
     // class hash.
-    pub entry_points_by_type: HashMap<EntryPointType, Vec<EntryPoint>>,
+    pub entry_points_by_type: HashMap<EntryPointType, Vec<EntryPointV0>>,
+}
+
+impl ContractClass {
+    pub fn bytecode_length(&self) -> usize {
+        self.program.data.as_array().expect("The program data must be an array.").len()
+    }
 }
 
 /// A [ContractClass](`crate::deprecated_contract_class::ContractClass`) abi entry.
@@ -164,36 +171,18 @@ where
     )
 }
 
-/// An entry point type of a [ContractClass](`crate::deprecated_contract_class::ContractClass`).
-#[derive(
-    Debug, Default, Clone, Copy, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord,
-)]
-#[serde(deny_unknown_fields)]
-pub enum EntryPointType {
-    /// A constructor entry point.
-    #[serde(rename = "CONSTRUCTOR")]
-    Constructor,
-    /// An external4 entry point.
-    #[serde(rename = "EXTERNAL")]
-    #[default]
-    External,
-    /// An L1 handler entry point.
-    #[serde(rename = "L1_HANDLER")]
-    L1Handler,
-}
-
 /// An entry point of a [ContractClass](`crate::deprecated_contract_class::ContractClass`).
 #[derive(Debug, Default, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
-pub struct EntryPoint {
+pub struct EntryPointV0 {
     pub selector: EntryPointSelector,
     pub offset: EntryPointOffset,
 }
 
-impl TryFrom<CasmContractEntryPoint> for EntryPoint {
+impl TryFrom<CasmContractEntryPoint> for EntryPointV0 {
     type Error = StarknetApiError;
 
     fn try_from(value: CasmContractEntryPoint) -> Result<Self, Self::Error> {
-        Ok(EntryPoint {
+        Ok(EntryPointV0 {
             selector: EntryPointSelector(StarkHash::from(value.selector)),
             offset: EntryPointOffset(value.offset),
         })
@@ -206,7 +195,7 @@ pub struct TypedParameter {
     pub r#type: String,
 }
 
-/// The offset of an [EntryPoint](`crate::deprecated_contract_class::EntryPoint`).
+/// The offset of an [EntryPoint](`crate::state::EntryPoint`).
 #[derive(
     Debug, Copy, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord,
 )]
@@ -223,10 +212,10 @@ impl TryFrom<String> for EntryPointOffset {
 
 pub fn number_or_string<'de, D: Deserializer<'de>>(deserializer: D) -> Result<usize, D::Error> {
     let usize_value = match Value::deserialize(deserializer)? {
-        Value::Number(number) => {
-            number.as_u64().ok_or(DeserializationError::custom("Cannot cast number to usize."))?
-                as usize
-        }
+        Value::Number(number) => number
+            .as_u64()
+            .and_then(|num_u64| usize::try_from(num_u64).ok())
+            .ok_or(DeserializationError::custom("Cannot cast number to usize."))?,
         Value::String(s) => hex_string_try_into_usize(&s).map_err(DeserializationError::custom)?,
         _ => return Err(DeserializationError::custom("Cannot cast value into usize.")),
     };

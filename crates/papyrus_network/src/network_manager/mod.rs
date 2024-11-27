@@ -2,7 +2,7 @@ mod swarm_trait;
 
 #[cfg(test)]
 mod test;
-#[cfg(feature = "testing")]
+#[cfg(any(test, feature = "testing"))]
 pub mod test_utils;
 
 use std::collections::HashMap;
@@ -14,13 +14,14 @@ use futures::channel::mpsc::{Receiver, SendError, Sender};
 use futures::channel::oneshot;
 use futures::future::{ready, BoxFuture, Ready};
 use futures::sink::With;
-use futures::stream::{self, FuturesUnordered, Map, Stream};
+use futures::stream::{FuturesUnordered, Map, Stream};
 use futures::{pin_mut, FutureExt, Sink, SinkExt, StreamExt};
 use libp2p::gossipsub::{SubscriptionError, TopicHash};
 use libp2p::swarm::SwarmEvent;
 use libp2p::{Multiaddr, PeerId, StreamProtocol, Swarm};
 use metrics::gauge;
 use papyrus_common::metrics as papyrus_metrics;
+use papyrus_network_types::network_types::{BroadcastedMessageMetadata, OpaquePeerId};
 use sqmr::Bytes;
 use tracing::{debug, error, info, trace, warn};
 
@@ -40,7 +41,7 @@ pub enum NetworkError {
 }
 
 // TODO: Understand whats the correct thing to do here.
-const MESSAGE_MANAGER_BUFFER_SIZE: usize = 100000;
+const MESSAGE_METADATA_BUFFER_SIZE: usize = 100000;
 
 pub struct GenericNetworkManager<SwarmT: SwarmTrait> {
     swarm: SwarmT,
@@ -54,13 +55,13 @@ pub struct GenericNetworkManager<SwarmT: SwarmTrait> {
     // receivers simultaneously.
     // Each receiver has a matching sender and vice versa (i.e the maps have the same keys).
     messages_to_broadcast_receivers: StreamHashMap<TopicHash, Receiver<Bytes>>,
-    broadcasted_messages_senders: HashMap<TopicHash, Sender<(Bytes, BroadcastedMessageManager)>>,
+    broadcasted_messages_senders: HashMap<TopicHash, Sender<(Bytes, BroadcastedMessageMetadata)>>,
     reported_peer_receivers: FuturesUnordered<BoxFuture<'static, Option<PeerId>>>,
     advertised_multiaddr: Option<Multiaddr>,
     reported_peers_receiver: Receiver<PeerId>,
     reported_peers_sender: Sender<PeerId>,
-    continue_propagation_sender: Sender<BroadcastedMessageManager>,
-    continue_propagation_receiver: Receiver<BroadcastedMessageManager>,
+    continue_propagation_sender: Sender<BroadcastedMessageMetadata>,
+    continue_propagation_receiver: Receiver<BroadcastedMessageMetadata>,
     // Fields for metrics
     num_active_inbound_sessions: usize,
     num_active_outbound_sessions: usize,
@@ -73,15 +74,15 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                 Some(event) = self.swarm.next() => self.handle_swarm_event(event),
                 Some(res) = self.sqmr_inbound_response_receivers.next() => self.handle_response_for_inbound_query(res),
                 Some((protocol, client_payload)) = self.sqmr_outbound_payload_receivers.next() => {
-                    self.handle_local_sqmr_payload(protocol, client_payload)
+                    self.handle_local_sqmr_payload(protocol, client_payload.expect("An SQMR client channel should not be terminated."))
                 }
                 Some((topic_hash, message)) = self.messages_to_broadcast_receivers.next() => {
-                    self.broadcast_message(message, topic_hash);
+                    self.broadcast_message(message.expect("A broadcast channel should not be terminated."), topic_hash);
                 }
-                Some(Some(peer_id)) = self.reported_peer_receivers.next() => self.swarm.report_peer(peer_id),
-                Some(peer_id) = self.reported_peers_receiver.next() => self.swarm.report_peer(peer_id),
-                Some(broadcasted_message_manager) = self.continue_propagation_receiver.next() => {
-                    self.swarm.continue_propagation(broadcasted_message_manager);
+                Some(Some(peer_id)) = self.reported_peer_receivers.next() => self.swarm.report_peer_as_malicious(peer_id),
+                Some(peer_id) = self.reported_peers_receiver.next() => self.swarm.report_peer_as_malicious(peer_id),
+                Some(broadcasted_message_metadata) = self.continue_propagation_receiver.next() => {
+                    self.swarm.continue_propagation(broadcasted_message_metadata);
                 }
             }
         }
@@ -97,9 +98,9 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             swarm.add_external_address(address);
         }
         let (reported_peers_sender, reported_peers_receiver) =
-            futures::channel::mpsc::channel(MESSAGE_MANAGER_BUFFER_SIZE);
+            futures::channel::mpsc::channel(MESSAGE_METADATA_BUFFER_SIZE);
         let (continue_propagation_sender, continue_propagation_receiver) =
-            futures::channel::mpsc::channel(MESSAGE_MANAGER_BUFFER_SIZE);
+            futures::channel::mpsc::channel(MESSAGE_METADATA_BUFFER_SIZE);
         Self {
             swarm,
             inbound_protocol_to_buffer_size: HashMap::new(),
@@ -195,7 +196,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         buffer_size: usize,
     ) -> Result<BroadcastTopicChannels<T>, SubscriptionError>
     where
-        T: TryFrom<Bytes>,
+        T: TryFrom<Bytes> + 'static,
         Bytes: From<T>,
     {
         self.swarm.subscribe_to_topic(&topic)?;
@@ -221,30 +222,38 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             panic!("Topic '{}' has already been registered.", topic);
         }
 
+        let broadcasted_messages_fn: BroadcastReceivedMessagesConverterFn<T> =
+            |(x, broadcasted_message_metadata)| (T::try_from(x), broadcasted_message_metadata);
+        let broadcasted_messages_receiver =
+            broadcasted_messages_receiver.map(broadcasted_messages_fn);
+
         let messages_to_broadcast_fn: fn(T) -> Ready<Result<Bytes, SendError>> =
             |x| ready(Ok(Bytes::from(x)));
         let messages_to_broadcast_sender =
             messages_to_broadcast_sender.with(messages_to_broadcast_fn);
 
-        let broadcasted_messages_fn: BroadcastReceivedMessagesConverterFn<T> =
-            |(x, broadcasted_message_manager)| (T::try_from(x), broadcasted_message_manager);
-        let broadcasted_messages_receiver =
-            broadcasted_messages_receiver.map(broadcasted_messages_fn);
-
-        let reported_messages_sender = self
-            .reported_peers_sender
-            .clone()
-            .with(|manager: BroadcastedMessageManager| ready(Ok(manager.peer_id)));
-        let continue_propagation_sender = self.continue_propagation_sender.clone();
-        let broadcast_client_channels = BroadcastClientChannels {
-            broadcasted_messages_receiver,
-            reported_messages_sender: Box::new(reported_messages_sender),
-            continue_propagation_sender: Box::new(continue_propagation_sender),
+        let reported_messages_fn: fn(
+            BroadcastedMessageMetadata,
+        ) -> Ready<Result<PeerId, SendError>> = |broadcasted_message_metadata| {
+            ready(Ok(broadcasted_message_metadata.originator_id.private_get_peer_id()))
         };
-        Ok(BroadcastTopicChannels { messages_to_broadcast_sender, broadcast_client_channels })
+        let reported_messages_sender =
+            self.reported_peers_sender.clone().with(reported_messages_fn);
+
+        let continue_propagation_sender = self.continue_propagation_sender.clone();
+
+        Ok(BroadcastTopicChannels {
+            broadcasted_messages_receiver,
+            broadcast_topic_client: BroadcastTopicClient::new(
+                messages_to_broadcast_sender,
+                reported_messages_sender,
+                continue_propagation_sender,
+            ),
+        })
     }
 
     fn handle_swarm_event(&mut self, event: SwarmEvent<mixed_behaviour::Event>) {
+        #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
         match event {
             SwarmEvent::ConnectionEstablished { peer_id, .. } => {
                 debug!("Connected to peer id: {peer_id:?}");
@@ -269,7 +278,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                 self.handle_behaviour_event(event);
             }
             SwarmEvent::OutgoingConnectionError { connection_id, peer_id, error } => {
-                error!(
+                warn!(
                     "Outgoing connection error. connection id: {connection_id:?}, requested peer \
                      id: {peer_id:?}, error: {error:?}"
                 );
@@ -282,7 +291,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             } => {
                 // No need to panic here since this is a result of another peer trying to dial to us
                 // and failing. Other peers are welcome to retry.
-                error!(
+                warn!(
                     "Incoming connection error. connection id: {connection_id:?}, local addr: \
                      {local_addr:?}, send back addr: {send_back_addr:?}, error: {error:?}"
                 );
@@ -367,6 +376,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         }
     }
 
+    #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
     fn handle_sqmr_event_new_inbound_session(
         &mut self,
         peer_id: PeerId,
@@ -396,7 +406,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             inbound_session_id,
             // Adding a None at the end of the stream so that we will receive a message
             // letting us know the stream has ended.
-            Box::new(responses_receiver.map(Some).chain(stream::once(ready(None)))),
+            Box::new(responses_receiver),
         );
 
         // TODO(shahak): Close the inbound session if the buffer is full.
@@ -465,7 +475,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             if let Some(_report_receiver) =
                 self.sqmr_outbound_report_receivers_awaiting_assignment.remove(&outbound_session_id)
             {
-                error!(
+                warn!(
                     "Outbound session finished with no messages in it. Ignoring incoming reports \
                      for the session."
                 );
@@ -476,19 +486,21 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     fn handle_gossipsub_behaviour_event(&mut self, event: gossipsub_impl::ExternalEvent) {
         let gossipsub_impl::ExternalEvent::Received { originated_peer_id, message, topic_hash } =
             event;
-        let broadcasted_message_manager = BroadcastedMessageManager { peer_id: originated_peer_id };
+        let broadcasted_message_metadata = BroadcastedMessageMetadata {
+            originator_id: OpaquePeerId::private_new(originated_peer_id),
+        };
         let Some(sender) = self.broadcasted_messages_senders.get_mut(&topic_hash) else {
             error!(
                 "Received a message from a topic we're not subscribed to with hash {topic_hash:?}"
             );
             return;
         };
-        let send_result = sender.try_send((message, broadcasted_message_manager));
+        let send_result = sender.try_send((message, broadcasted_message_metadata));
         if let Err(e) = send_result {
             if e.is_disconnected() {
                 panic!("Receiver was dropped. This should never happen.")
             } else if e.is_full() {
-                error!(
+                warn!(
                     "Receiver buffer is full. Dropping broadcasted message for topic with hash: \
                      {topic_hash:?}."
                 );
@@ -527,6 +539,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     ) {
         let SqmrClientPayload { query, report_receiver, responses_sender } = client_payload;
         match self.swarm.send_query(query, PeerId::random(), protocol.clone()) {
+            #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
             Ok(outbound_session_id) => {
                 debug!(
                     "Network received new query. waiting for peer assignment. \
@@ -555,6 +568,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     }
 
     fn report_session_removed_to_metrics(&mut self, session_id: SessionId) {
+        #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
         match session_id {
             SessionId::InboundSessionId(_) => {
                 self.num_active_inbound_sessions -= 1;
@@ -592,7 +606,7 @@ fn send_now<Item>(sender: &mut GenericSender<Item>, item: Item, buffer_full_mess
             error!("Received error while sending message: {:?}", error);
         }
         None => {
-            error!(buffer_full_message);
+            warn!(buffer_full_message);
         }
     }
 }
@@ -610,6 +624,8 @@ impl NetworkManager {
             advertised_multiaddr,
             secret_key,
             chain_id,
+            discovery_config,
+            peer_manager_config,
         } = config;
 
         let listen_addresses = vec![
@@ -625,6 +641,8 @@ impl NetworkManager {
                 sqmr::Config { session_timeout },
                 chain_id,
                 node_version,
+                discovery_config,
+                peer_manager_config,
             )
         });
         let advertised_multiaddr = advertised_multiaddr.map(|address| {
@@ -648,7 +666,7 @@ type GenericSender<T> = Box<dyn Sink<T, Error = SendError> + Unpin + Send>;
 pub type GenericReceiver<T> = Box<dyn Stream<Item = T> + Unpin + Send>;
 
 type ResponsesSender = GenericSender<Bytes>;
-type ResponsesReceiver = GenericReceiver<Option<Bytes>>;
+type ResponsesReceiver = GenericReceiver<Bytes>;
 
 type ClientResponsesReceiver<Response> =
     GenericReceiver<Result<Response, <Response as TryFrom<Bytes>>::Error>>;
@@ -721,6 +739,7 @@ pub struct ClientResponsesManager<Response: TryFrom<Bytes>> {
 }
 
 impl<Response: TryFrom<Bytes>> ClientResponsesManager<Response> {
+    /// Use this function to report peer as malicious
     pub fn report_peer(self) {
         warn!("Reporting peer");
         if let Err(e) = self.report_sender.send(()) {
@@ -828,64 +847,80 @@ struct SqmrServerPayload {
     responses_sender: ResponsesSender,
 }
 
-pub type BroadcastTopicSender<T> = With<
-    Sender<Bytes>,
-    Bytes,
+#[async_trait]
+pub trait BroadcastTopicClientTrait<T> {
+    async fn broadcast_message(&mut self, message: T) -> Result<(), SendError>;
+    async fn report_peer(
+        &mut self,
+        broadcasted_message_metadata: BroadcastedMessageMetadata,
+    ) -> Result<(), SendError>;
+    async fn continue_propagation(
+        &mut self,
+        broadcasted_message_metadata: &BroadcastedMessageMetadata,
+    ) -> Result<(), SendError>;
+}
+
+#[derive(Clone)]
+pub struct BroadcastTopicClient<T: TryFrom<Bytes>> {
+    messages_to_broadcast_sender: BroadcastTopicSender<T, Bytes>,
+    reported_messages_sender: BroadcastTopicSender<BroadcastedMessageMetadata, PeerId>,
+    continue_propagation_sender: Sender<BroadcastedMessageMetadata>,
+}
+
+impl<T: TryFrom<Bytes>> BroadcastTopicClient<T> {
+    // TODO(matan): Remove once consensus_manager no longer needs to build fake channels.
+    pub fn new(
+        messages_to_broadcast_sender: BroadcastTopicSender<T, Bytes>,
+        reported_messages_sender: BroadcastTopicSender<BroadcastedMessageMetadata, PeerId>,
+        continue_propagation_sender: Sender<BroadcastedMessageMetadata>,
+    ) -> Self {
+        BroadcastTopicClient {
+            messages_to_broadcast_sender,
+            reported_messages_sender,
+            continue_propagation_sender,
+        }
+    }
+}
+
+#[async_trait]
+impl<T: TryFrom<Bytes> + Send> BroadcastTopicClientTrait<T> for BroadcastTopicClient<T> {
+    async fn broadcast_message(&mut self, message: T) -> Result<(), SendError> {
+        self.messages_to_broadcast_sender.send(message).await
+    }
+
+    async fn report_peer(
+        &mut self,
+        broadcasted_message_metadata: BroadcastedMessageMetadata,
+    ) -> Result<(), SendError> {
+        self.reported_messages_sender.send(broadcasted_message_metadata).await
+    }
+
+    async fn continue_propagation(
+        &mut self,
+        broadcasted_message_metadata: &BroadcastedMessageMetadata,
+    ) -> Result<(), SendError> {
+        self.continue_propagation_sender.send(broadcasted_message_metadata.clone()).await
+    }
+}
+
+pub type BroadcastTopicSender<T, Message> = With<
+    Sender<Message>,
+    Message,
     T,
-    Ready<Result<Bytes, SendError>>,
-    fn(T) -> Ready<Result<Bytes, SendError>>,
+    Ready<Result<Message, SendError>>,
+    fn(T) -> Ready<Result<Message, SendError>>,
 >;
 
-// TODO(alonl): remove clone
-#[derive(Clone)]
-pub struct BroadcastedMessageManager {
-    peer_id: PeerId,
-}
+pub type BroadcastTopicServer<T> =
+    Map<Receiver<(Bytes, BroadcastedMessageMetadata)>, BroadcastReceivedMessagesConverterFn<T>>;
 
-pub type BroadcastTopicReceiver<T> =
-    Map<Receiver<(Bytes, BroadcastedMessageManager)>, BroadcastReceivedMessagesConverterFn<T>>;
+type ReceivedBroadcastedMessage<Message> =
+    (Result<Message, <Message as TryFrom<Bytes>>::Error>, BroadcastedMessageMetadata);
 
 type BroadcastReceivedMessagesConverterFn<T> =
-    fn(
-        (Bytes, BroadcastedMessageManager),
-    ) -> (Result<T, <T as TryFrom<Bytes>>::Error>, BroadcastedMessageManager);
+    fn((Bytes, BroadcastedMessageMetadata)) -> ReceivedBroadcastedMessage<T>;
 
 pub struct BroadcastTopicChannels<T: TryFrom<Bytes>> {
-    pub messages_to_broadcast_sender: BroadcastTopicSender<T>,
-    pub broadcast_client_channels: BroadcastClientChannels<T>,
-}
-
-pub struct BroadcastClientChannels<T: TryFrom<Bytes>> {
-    broadcasted_messages_receiver: BroadcastTopicReceiver<T>,
-    reported_messages_sender: GenericSender<BroadcastedMessageManager>,
-    continue_propagation_sender: GenericSender<BroadcastedMessageManager>,
-}
-
-impl<T: TryFrom<Bytes>> Stream for BroadcastClientChannels<T> {
-    type Item = (Result<T, <T as TryFrom<Bytes>>::Error>, BroadcastedMessageManager);
-    fn poll_next(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-    ) -> Poll<Option<(Result<T, <T as TryFrom<Bytes>>::Error>, BroadcastedMessageManager)>> {
-        self.broadcasted_messages_receiver.poll_next_unpin(cx)
-    }
-}
-
-#[async_trait]
-pub trait BroadcastClientTrait<T: TryFrom<Bytes>>:
-    Stream<Item = (Result<T, <T as TryFrom<Bytes>>::Error>, BroadcastedMessageManager)> + Unpin
-{
-    async fn report_message(&mut self, message_manager: BroadcastedMessageManager);
-    async fn continue_propagation(&mut self, message_manager: &BroadcastedMessageManager);
-}
-
-#[async_trait]
-impl<T: TryFrom<Bytes>> BroadcastClientTrait<T> for BroadcastClientChannels<T> {
-    async fn report_message(&mut self, message_manager: BroadcastedMessageManager) {
-        let _ = self.reported_messages_sender.send(message_manager).await;
-    }
-
-    async fn continue_propagation(&mut self, message_manager: &BroadcastedMessageManager) {
-        let _ = self.continue_propagation_sender.send(message_manager.clone()).await;
-    }
+    pub broadcasted_messages_receiver: BroadcastTopicServer<T>,
+    pub broadcast_topic_client: BroadcastTopicClient<T>,
 }

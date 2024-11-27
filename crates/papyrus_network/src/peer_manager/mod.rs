@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::time::Duration;
 
 use futures::future::BoxFuture;
@@ -6,6 +6,14 @@ use futures::FutureExt;
 use libp2p::swarm::dial_opts::DialOpts;
 use libp2p::swarm::ToSwarm;
 use libp2p::PeerId;
+use papyrus_config::converters::{
+    deserialize_milliseconds_to_duration,
+    deserialize_seconds_to_duration,
+};
+use papyrus_config::dumping::{ser_param, SerializeConfig};
+use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use peer::Peer;
+use serde::{Deserialize, Serialize};
 use tracing::info;
 
 pub use self::behaviour_impl::ToOtherBehaviourEvent;
@@ -20,14 +28,21 @@ pub(crate) mod peer;
 #[cfg(test)]
 mod test;
 
+pub const MALICIOUS: f64 = 1.0;
+
 #[cfg_attr(test, derive(Debug, PartialEq))]
+#[derive(Clone, Copy)]
 pub enum ReputationModifier {
-    // TODO: Implement this enum
-    Bad,
+    /// misconduct_score is in the range [0, 1]. When a peer's total misconduct_score reaches 1, it
+    /// is considered malicious.
+    Misconduct {
+        misconduct_score: f64,
+    },
+    Unstable,
 }
 
-pub struct PeerManager<P: PeerTrait + 'static> {
-    peers: HashMap<PeerId, P>,
+pub struct PeerManager {
+    peers: HashMap<PeerId, Peer>,
     // TODO: consider implementing a cleanup mechanism to not store all queries forever
     session_to_peer_map: HashMap<OutboundSessionId, PeerId>,
     config: PeerManagerConfig,
@@ -39,9 +54,12 @@ pub struct PeerManager<P: PeerTrait + 'static> {
     sleep_waiting_for_unblocked_peer: Option<BoxFuture<'static, ()>>,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct PeerManagerConfig {
-    blacklist_timeout: Duration,
+    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
+    malicious_timeout_seconds: Duration,
+    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
+    unstable_timeout_millis: Duration,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -58,16 +76,33 @@ impl Default for PeerManagerConfig {
     fn default() -> Self {
         Self {
             // 1 year.
-            blacklist_timeout: Duration::from_secs(3600 * 24 * 365),
+            malicious_timeout_seconds: Duration::from_secs(3600 * 24 * 365),
+            unstable_timeout_millis: Duration::from_millis(1000),
         }
     }
 }
 
+impl SerializeConfig for PeerManagerConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from([
+            ser_param(
+                "malicious_timeout_seconds",
+                &self.malicious_timeout_seconds.as_secs(),
+                "The duration in seconds a peer is blacklisted after being marked as malicious.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "unstable_timeout_millis",
+                &self.unstable_timeout_millis.as_millis(),
+                "The duration in milliseconds a peer blacklisted after being reported as unstable.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
+    }
+}
+
 #[allow(dead_code)]
-impl<P> PeerManager<P>
-where
-    P: PeerTrait,
-{
+impl PeerManager {
     pub(crate) fn new(config: PeerManagerConfig) -> Self {
         let peers = HashMap::new();
         Self {
@@ -82,9 +117,8 @@ where
         }
     }
 
-    fn add_peer(&mut self, mut peer: P) {
+    fn add_peer(&mut self, peer: Peer) {
         info!("Peer Manager found new peer {:?}", peer.peer_id());
-        peer.set_timeout_duration(self.config.blacklist_timeout);
         self.peers.insert(peer.peer_id(), peer);
         // The new peer is unblocked so we don't need to wait for unblocked peer.
         self.sleep_waiting_for_unblocked_peer = None;
@@ -94,7 +128,7 @@ where
     }
 
     #[cfg(test)]
-    fn get_mut_peer(&mut self, peer_id: PeerId) -> Option<&mut P> {
+    fn get_mut_peer(&mut self, peer_id: PeerId) -> Option<&mut Peer> {
         self.peers.get_mut(&peer_id)
     }
 
@@ -184,7 +218,18 @@ where
         self.pending_events
             .push(ToSwarm::GenerateEvent(ToOtherBehaviourEvent::PeerBlacklisted { peer_id }));
         if let Some(peer) = self.peers.get_mut(&peer_id) {
-            peer.update_reputation(reason);
+            match reason {
+                ReputationModifier::Misconduct { misconduct_score } => {
+                    peer.report(misconduct_score);
+                    if peer.is_malicious() {
+                        peer.blacklist_peer(self.config.malicious_timeout_seconds);
+                        peer.reset_misconduct_score();
+                    }
+                }
+                ReputationModifier::Unstable => {
+                    peer.blacklist_peer(self.config.unstable_timeout_millis);
+                }
+            }
             Ok(())
         } else {
             Err(PeerManagerError::NoSuchPeer(peer_id))
@@ -197,12 +242,7 @@ where
         reason: ReputationModifier,
     ) -> Result<(), PeerManagerError> {
         if let Some(peer_id) = self.session_to_peer_map.get(&outbound_session_id) {
-            if let Some(peer) = self.peers.get_mut(peer_id) {
-                peer.update_reputation(reason);
-                Ok(())
-            } else {
-                Err(PeerManagerError::NoSuchPeer(*peer_id))
-            }
+            self.report_peer(*peer_id, reason)
         } else {
             Err(PeerManagerError::NoSuchSession(outbound_session_id))
         }
@@ -215,7 +255,7 @@ impl From<ToOtherBehaviourEvent> for mixed_behaviour::Event {
     }
 }
 
-impl<P: PeerTrait + 'static> BridgedBehaviour for PeerManager<P> {
+impl BridgedBehaviour for PeerManager {
     fn on_other_behaviour_event(&mut self, event: &mixed_behaviour::ToOtherBehaviourEvent) {
         match event {
             mixed_behaviour::ToOtherBehaviourEvent::Sqmr(
@@ -241,7 +281,7 @@ impl<P: PeerTrait + 'static> BridgedBehaviour for PeerManager<P> {
                     return;
                 };
 
-                let peer = P::new(*peer_id, address.clone());
+                let peer = Peer::new(*peer_id, address.clone());
                 self.add_peer(peer);
             }
             _ => {}

@@ -7,7 +7,7 @@
 //! # Example
 //!
 //! ```
-//! use std::collections::BTreeMap;
+//! use std::collections::{BTreeMap, HashSet};
 //! use std::fs::File;
 //! use std::path::Path;
 //!
@@ -36,7 +36,7 @@
 //!
 //! let dir = TempDir::new().unwrap();
 //! let file_path = dir.path().join("config.json");
-//! ConfigExample { key: 42 }.dump_to_file(&vec![], file_path.to_str().unwrap());
+//! ConfigExample { key: 42 }.dump_to_file(&vec![], &HashSet::new(), file_path.to_str().unwrap());
 //! let file = File::open(file_path).unwrap();
 //! let loaded_config = load_and_process_config::<ConfigExample>(
 //!     file,
@@ -48,12 +48,14 @@
 //! ```
 
 use clap::parser::MatchesError;
+use dumping::REQUIRED_PARAM_DESCRIPTION_PREFIX;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use validator::ValidationError;
 use validators::ParsedValidationErrors;
 
 pub(crate) const IS_NONE_MARK: &str = "#is_none";
+pub(crate) const FIELD_SEPARATOR: &str = ".";
 
 /// A nested path of a configuration parameter.
 pub type ParamPath = String;
@@ -131,7 +133,7 @@ impl SerializedContent {
                 _ => None,
             },
             SerializedContent::PointerTarget(_) => None,
-            SerializedContent::ParamType(ser_type) => Some(ser_type.clone()),
+            SerializedContent::ParamType(ser_type) => Some(*ser_type),
         }
     }
 }
@@ -147,8 +149,16 @@ pub struct SerializedParam {
     pub(crate) privacy: ParamPrivacy,
 }
 
+impl SerializedParam {
+    /// Whether the parameter is required.
+    // TODO(yair): Find a better way to identify required params - maybe add to the dump.
+    pub fn is_required(&self) -> bool {
+        self.description.starts_with(REQUIRED_PARAM_DESCRIPTION_PREFIX)
+    }
+}
+
 /// A serialized type of a configuration parameter.
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, strum_macros::Display)]
+#[derive(Clone, Copy, Serialize, Deserialize, Debug, PartialEq, strum_macros::Display)]
 #[allow(missing_docs)]
 pub enum SerializationType {
     Boolean,

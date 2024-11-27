@@ -8,13 +8,21 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use futures::StreamExt;
 use indexmap::IndexMap;
 use papyrus_common::pending_classes::{ApiContractClass, PendingClasses};
-use papyrus_common::BlockHashAndNumber;
 use papyrus_storage::base_layer::BaseLayerStorageReader;
 use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::test_utils::get_test_storage;
 use papyrus_storage::{StorageError, StorageReader, StorageWriter};
-use starknet_api::block::{Block, BlockBody, BlockHash, BlockHeader, BlockNumber, BlockSignature};
+use starknet_api::block::{
+    Block,
+    BlockBody,
+    BlockHash,
+    BlockHashAndNumber,
+    BlockHeader,
+    BlockHeaderWithoutHash,
+    BlockNumber,
+    BlockSignature,
+};
 use starknet_api::core::{ClassHash, SequencerPublicKey};
 use starknet_api::crypto::utils::PublicKey;
 use starknet_api::felt;
@@ -110,7 +118,7 @@ async fn run_sync(
     let mut pending_source = MockPendingSourceTrait::new();
     pending_source.expect_get_pending_data().returning(|| Ok(PendingData::default()));
 
-    let mut state_sync = GenericStateSync {
+    let state_sync = GenericStateSync {
         config,
         shared_highest_block: Arc::new(RwLock::new(None)),
         pending_data: Arc::new(RwLock::new(PendingData::default())),
@@ -175,8 +183,8 @@ async fn sync_happy_flow() {
     let mut central_mock = MockCentralSourceTrait::new();
     central_mock.expect_get_latest_block().returning(|| {
         Ok(Some(BlockHashAndNumber {
-            block_number: LATEST_BLOCK_NUMBER,
-            block_hash: create_block_hash(LATEST_BLOCK_NUMBER, false),
+            number: LATEST_BLOCK_NUMBER,
+            hash: create_block_hash(LATEST_BLOCK_NUMBER, false),
         }))
     });
     central_mock.expect_stream_new_blocks().returning(move |initial, up_to| {
@@ -186,10 +194,13 @@ async fn sync_happy_flow() {
                     yield Err(CentralError::BlockNotFound { block_number });
                 }
                 let header = BlockHeader {
-                    block_number,
                     block_hash: create_block_hash(block_number, false),
-                    parent_hash: create_block_hash(block_number.prev().unwrap_or_default(), false),
-                    ..BlockHeader::default()
+                    block_header_without_hash: BlockHeaderWithoutHash {
+                        block_number,
+                        parent_hash: create_block_hash(block_number.prev().unwrap_or_default(), false),
+                        ..Default::default()
+                    },
+                    ..Default::default()
                 };
                 yield Ok((
                     block_number,
@@ -438,8 +449,8 @@ async fn sync_with_revert() {
             .prev()
             .unwrap();
             Ok(Some(BlockHashAndNumber {
-                block_hash: create_block_hash(block_number, already_reverted),
-                block_number,
+                hash: create_block_hash(block_number, already_reverted),
+                number: block_number,
             }))
         }
 
@@ -479,10 +490,13 @@ async fn sync_with_revert() {
                             yield Err(CentralError::BlockNotFound { block_number: i });
                         }
                         let header = BlockHeader{
-                            block_number: i,
                             block_hash: create_block_hash(i, false),
-                            parent_hash: create_block_hash(i.prev().unwrap_or_default(), false),
-                            ..BlockHeader::default()
+                            block_header_without_hash: BlockHeaderWithoutHash {
+                                block_number: i,
+                                parent_hash: create_block_hash(i.prev().unwrap_or_default(), false),
+                                ..Default::default()
+                            },
+                            ..Default::default()
                         };
                         yield Ok((
                             i,
@@ -498,10 +512,13 @@ async fn sync_with_revert() {
                             yield Err(CentralError::BlockNotFound { block_number: i });
                         }
                         let header = BlockHeader {
-                            block_number: i,
                             block_hash: create_block_hash(i, i.0 >= CHAIN_FORK_BLOCK_NUMBER),
-                            parent_hash: create_block_hash(i.prev().unwrap_or_default(), i.0 > CHAIN_FORK_BLOCK_NUMBER),
-                            ..BlockHeader::default()
+                            block_header_without_hash: BlockHeaderWithoutHash {
+                                block_number: i,
+                                parent_hash: create_block_hash(i.prev().unwrap_or_default(), i.0 > CHAIN_FORK_BLOCK_NUMBER),
+                                ..Default::default()
+                            },
+                            ..Default::default()
                         };
                         yield Ok((
                             i,
@@ -594,17 +611,20 @@ async fn test_unrecoverable_sync_error_flow() {
     let mut mock = MockCentralSourceTrait::new();
     mock.expect_get_latest_block().returning(|| {
         Ok(Some(BlockHashAndNumber {
-            block_number: LATEST_BLOCK_NUMBER,
-            block_hash: create_block_hash(LATEST_BLOCK_NUMBER, false),
+            number: LATEST_BLOCK_NUMBER,
+            hash: create_block_hash(LATEST_BLOCK_NUMBER, false),
         }))
     });
     mock.expect_stream_new_blocks().returning(move |_, _| {
         let blocks_stream: BlocksStream<'_> = stream! {
             let header = BlockHeader {
-                    block_number: BLOCK_NUMBER,
                     block_hash: create_block_hash(BLOCK_NUMBER, false),
-                    parent_hash: create_block_hash(BLOCK_NUMBER.prev().unwrap_or_default(), false),
-                    ..BlockHeader::default()
+                    block_header_without_hash: BlockHeaderWithoutHash {
+                        block_number: BLOCK_NUMBER,
+                        parent_hash: create_block_hash(BLOCK_NUMBER.prev().unwrap_or_default(), false),
+                        ..Default::default()
+                    },
+                    ..Default::default()
                 };
             yield Ok((
                 BLOCK_NUMBER,

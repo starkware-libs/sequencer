@@ -1,4 +1,7 @@
-use super::verify_block_signature;
+use serde_json::json;
+use strum::IntoEnumIterator;
+
+use super::{verify_block_signature, StarknetVersion};
 use crate::block::{BlockHash, BlockNumber, BlockSignature};
 use crate::core::{GlobalRoot, SequencerPublicKey};
 use crate::crypto::utils::{PublicKey, Signature};
@@ -44,4 +47,36 @@ fn block_signature_verification() {
         verify_block_signature(&sequencer_pub_key, &signature, &state_commitment, &block_hash)
             .unwrap()
     );
+}
+
+#[test]
+fn test_version_serde() {
+    for version in StarknetVersion::iter() {
+        // To/from Vec<u8>.
+        assert_eq!(StarknetVersion::try_from(Vec::<u8>::from(&version)).unwrap(), version);
+        // To/from json.
+        assert_eq!(serde_json::from_value::<StarknetVersion>(json!(version)).unwrap(), version);
+    }
+
+    // Sanity check substring deserialization.
+    assert_eq!(StarknetVersion::try_from("0.13.1").unwrap(), StarknetVersion::V0_13_1);
+    assert_eq!(StarknetVersion::try_from("0.13.1.1").unwrap(), StarknetVersion::V0_13_1_1);
+}
+
+/// Order of version variants should match byte-vector lexicographic order.
+#[test]
+fn test_version_byte_vec_order() {
+    let versions = StarknetVersion::iter().collect::<Vec<_>>();
+    for i in 0..(versions.len() - 1) {
+        assert!(Vec::<u8>::from(versions[i]) <= Vec::<u8>::from(versions[i + 1]));
+    }
+}
+
+#[test]
+fn test_latest_version() {
+    let latest = StarknetVersion::LATEST;
+    assert_eq!(StarknetVersion::default(), latest);
+    for version in StarknetVersion::iter() {
+        assert!(version <= latest);
+    }
 }

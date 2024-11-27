@@ -9,8 +9,10 @@ pub use papyrus_common::state::{
 };
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockHash;
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, GlobalRoot, Nonce};
-use starknet_api::state::{EntryPoint, EntryPointType};
+use starknet_api::rpc_transaction::EntryPointByType;
+use starknet_api::state::EntryPoint;
 use starknet_types_core::felt::Felt;
 
 /// A state update derived from a single block as returned by the starknet gateway.
@@ -62,11 +64,12 @@ pub struct ContractClass {
     pub abi: String,
 }
 
-impl From<ContractClass> for starknet_api::state::ContractClass {
+impl From<ContractClass> for starknet_api::state::SierraContractClass {
     fn from(class: ContractClass) -> Self {
         Self {
             sierra_program: class.sierra_program,
-            entry_points_by_type: class.entry_points_by_type,
+            contract_class_version: class.contract_class_version,
+            entry_points_by_type: EntryPointByType::from_hash_map(class.entry_points_by_type),
             abi: class.abi,
         }
     }

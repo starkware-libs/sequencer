@@ -33,3 +33,10 @@ scripts/__pycache__
 # Papyrus p2p sync test artifacts.
 scripts/papyrus/p2p_sync_e2e_test/data_client/
 scripts/papyrus/p2p_sync_e2e_test/data_server/
+
+# Papyrus helm chart
+deployments/papyrus/helm/config/*
+!deployments/papyrus/helm/config/example.json
+
+# Generated file used for running contracts compiled with Cairo Native
+crates/blockifier/libcairo_native_runtime.a

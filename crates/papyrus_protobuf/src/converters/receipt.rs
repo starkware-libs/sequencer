@@ -2,11 +2,11 @@ use std::collections::HashMap;
 
 use starknet_api::core::{ContractAddress, EthAddress, PatriciaKey};
 use starknet_api::execution_resources::{Builtin, ExecutionResources, GasVector};
+use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::{
     DeclareTransactionOutput,
     DeployAccountTransactionOutput,
     DeployTransactionOutput,
-    Fee,
     InvokeTransactionOutput,
     L1HandlerTransactionOutput,
     L2ToL1Payload,
@@ -332,7 +332,11 @@ impl TryFrom<protobuf::receipt::ExecutionResources> for ExecutionResources {
 
 impl From<protobuf::receipt::execution_resources::GasVector> for GasVector {
     fn from(value: protobuf::receipt::execution_resources::GasVector) -> Self {
-        GasVector { l1_gas: value.l1_gas, l1_data_gas: value.l1_data_gas }
+        GasVector {
+            l1_gas: starknet_api::execution_resources::GasAmount(value.l1_gas),
+            l1_data_gas: starknet_api::execution_resources::GasAmount(value.l1_data_gas),
+            l2_gas: starknet_api::execution_resources::GasAmount(value.l2_gas),
+        }
     }
 }
 
@@ -359,8 +363,9 @@ impl From<ExecutionResources> for protobuf::receipt::ExecutionResources {
 impl From<GasVector> for protobuf::receipt::execution_resources::GasVector {
     fn from(value: GasVector) -> Self {
         protobuf::receipt::execution_resources::GasVector {
-            l1_gas: value.l1_gas,
-            l1_data_gas: value.l1_data_gas,
+            l1_gas: value.l1_gas.0,
+            l1_data_gas: value.l1_data_gas.0,
+            l2_gas: value.l2_gas.0,
         }
     }
 }

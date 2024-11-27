@@ -9,12 +9,16 @@ license-file.workspace = true
 testing = ["papyrus_test_utils", "rand", "rand_chacha"]
 
 [dependencies]
+# TODO(Guy): Remove after implementing broadcast streams.
+futures.workspace = true
 indexmap.workspace = true
 lazy_static.workspace = true
 primitive-types.workspace = true
 prost.workspace = true
 rand = { workspace = true, optional = true }
 rand_chacha = { workspace = true, optional = true }
+serde.workspace = true
+serde_json.workspace = true
 starknet_api.workspace = true
 starknet-types-core.workspace = true
 papyrus_test_utils = { workspace = true, optional = true }
@@ -33,3 +37,6 @@ protoc-prebuilt.workspace = true
 [package.metadata.cargo-machete]
 # The `rand` and `rand_chacha` crates are used in the `testing` feature, which is optional.
 ignored = ["rand", "rand_chacha"]
+
+[lints]
+workspace = true

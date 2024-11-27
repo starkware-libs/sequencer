@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use papyrus_test_utils::{auto_impl_get_test_instance, get_number_of_variants, GetTestInstance};
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{
     ClassHash,
     CompiledClassHash,
@@ -11,22 +12,24 @@ use starknet_api::core::{
 };
 use starknet_api::execution_resources::GasVector;
 use starknet_api::hash::StarkHash;
-use starknet_api::state::{EntryPoint, EntryPointType};
-use starknet_api::transaction::{
+use starknet_api::state::EntryPoint;
+use starknet_api::transaction::fields::{
     AccountDeploymentData,
     Calldata,
     ContractAddressSalt,
-    Event,
     Fee,
-    L1ToL2Payload,
-    L2ToL1Payload,
     PaymasterData,
     Tip,
+    TransactionSignature,
+    ValidResourceBounds,
+};
+use starknet_api::transaction::{
+    Event,
+    L1ToL2Payload,
+    L2ToL1Payload,
     TransactionHash,
     TransactionOffsetInBlock,
-    TransactionSignature,
     TransactionVersion,
-    ValidResourceBounds,
 };
 use starknet_types_core::felt::Felt;
 

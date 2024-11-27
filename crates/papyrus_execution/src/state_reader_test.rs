@@ -2,9 +2,9 @@ use std::cell::Cell;
 
 use assert_matches::assert_matches;
 use blockifier::execution::contract_class::{
-    ContractClass as BlockifierContractClass,
     ContractClassV0,
     ContractClassV1,
+    RunnableContractClass,
 };
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::StateReader;
@@ -23,11 +23,11 @@ use papyrus_storage::compiled_class::CasmStorageWriter;
 use papyrus_storage::header::HeaderStorageWriter;
 use papyrus_storage::state::StateStorageWriter;
 use papyrus_storage::test_utils::get_test_storage;
-use starknet_api::block::{BlockBody, BlockHash, BlockHeader, BlockNumber};
-use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce, PatriciaKey};
+use starknet_api::block::{BlockBody, BlockHash, BlockHeader, BlockHeaderWithoutHash, BlockNumber};
+use starknet_api::core::{ClassHash, CompiledClassHash, Nonce};
 use starknet_api::hash::StarkHash;
-use starknet_api::state::{ContractClass, StateNumber, StorageKey, ThinStateDiff};
-use starknet_api::{felt, patricia_key};
+use starknet_api::state::{SierraContractClass, StateNumber, ThinStateDiff};
+use starknet_api::{contract_address, felt, storage_key};
 use starknet_types_core::felt::Felt;
 
 use crate::objects::PendingData;
@@ -42,30 +42,30 @@ fn read_state() {
     let ((storage_reader, mut storage_writer), _temp_dir) = get_test_storage();
 
     let class_hash0 = ClassHash(2u128.into());
-    let address0 = ContractAddress(patricia_key!(CONTRACT_ADDRESS));
-    let storage_key0 = StorageKey(patricia_key!("0x0"));
+    let address0 = contract_address!(CONTRACT_ADDRESS);
+    let storage_key0 = storage_key!("0x0");
     let storage_value0 = felt!(777_u128);
     let storage_value1 = felt!(888_u128);
     // The class is not used in the execution, so it can be default.
-    let class0 = ContractClass::default();
+    let class0 = SierraContractClass::default();
     let casm0 = get_test_casm();
     let blockifier_casm0 =
-        BlockifierContractClass::V1(ContractClassV1::try_from(casm0.clone()).unwrap());
+        RunnableContractClass::V1(ContractClassV1::try_from(casm0.clone()).unwrap());
     let compiled_class_hash0 = CompiledClassHash(StarkHash::default());
 
     let class_hash1 = ClassHash(1u128.into());
     let class1 = get_test_deprecated_contract_class();
-    let address1 = ContractAddress(patricia_key!(DEPRECATED_CONTRACT_ADDRESS));
+    let address1 = contract_address!(DEPRECATED_CONTRACT_ADDRESS);
     let nonce0 = Nonce(felt!(1_u128));
 
-    let address2 = ContractAddress(patricia_key!("0x123"));
+    let address2 = contract_address!("0x123");
     let storage_value2 = felt!(999_u128);
     let class_hash2 = ClassHash(1234u128.into());
     let compiled_class_hash2 = CompiledClassHash(StarkHash::TWO);
     let mut casm1 = get_test_casm();
     casm1.bytecode[0] = BigUintAsHex { value: 12345u32.into() };
     let blockifier_casm1 =
-        BlockifierContractClass::V1(ContractClassV1::try_from(casm1.clone()).unwrap());
+        RunnableContractClass::V1(ContractClassV1::try_from(casm1.clone()).unwrap());
     let nonce1 = Nonce(felt!(2_u128));
     let class_hash3 = ClassHash(567_u128.into());
     let class_hash4 = ClassHash(89_u128.into());
@@ -86,7 +86,10 @@ fn read_state() {
             BlockNumber(1),
             &BlockHeader {
                 block_hash: BlockHash(felt!(1_u128)),
-                block_number: BlockNumber(1),
+                block_header_without_hash: BlockHeaderWithoutHash {
+                    block_number: BlockNumber(1),
+                    ..Default::default()
+                },
                 ..Default::default()
             },
         )
@@ -130,7 +133,10 @@ fn read_state() {
             BlockNumber(2),
             &BlockHeader {
                 block_hash: BlockHash(felt!(2_u128)),
-                block_number: BlockNumber(2),
+                block_header_without_hash: BlockHeaderWithoutHash {
+                    block_number: BlockNumber(2),
+                    ..Default::default()
+                },
                 ..Default::default()
             },
         )
@@ -235,7 +241,7 @@ fn read_state() {
     // Test that if the class is deprecated it is returned.
     assert_eq!(
         state_reader2.get_compiled_contract_class(class_hash4).unwrap(),
-        BlockifierContractClass::V0(ContractClassV0::try_from(class1).unwrap())
+        RunnableContractClass::V0(ContractClassV0::try_from(class1).unwrap())
     );
 
     // Test get_class_hash_at when the class is replaced.

@@ -2,11 +2,9 @@
 #[path = "core_test.rs"]
 mod core_test;
 
-use core::fmt::Display;
 use std::fmt::Debug;
 use std::sync::LazyLock;
 
-use derive_more::Display;
 use primitive_types::H160;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use starknet_types_core::felt::{Felt, NonZeroFelt};
@@ -15,8 +13,15 @@ use starknet_types_core::hash::{Pedersen, StarkHash as CoreStarkHash};
 use crate::crypto::utils::PublicKey;
 use crate::hash::{PoseidonHash, StarkHash};
 use crate::serde_utils::{BytesAsHex, PrefixedBytesAsHex};
-use crate::transaction::{Calldata, ContractAddressSalt};
+use crate::transaction::fields::{Calldata, ContractAddressSalt};
 use crate::{impl_from_through_intermediate, StarknetApiError};
+
+/// Felt.
+pub fn ascii_as_felt(ascii_str: &str) -> Result<Felt, StarknetApiError> {
+    Felt::from_hex(hex::encode(ascii_str).as_str()).map_err(|_| StarknetApiError::OutOfRange {
+        string: format!("The str {}, does not fit into a single felt", ascii_str),
+    })
+}
 
 /// A chain id.
 #[derive(Clone, Debug, Eq, PartialEq, Hash, PartialOrd, Ord)]
@@ -55,7 +60,7 @@ impl From<String> for ChainId {
         }
     }
 }
-impl Display for ChainId {
+impl std::fmt::Display for ChainId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ChainId::Mainnet => write!(f, "SN_MAIN"),
@@ -70,6 +75,13 @@ impl ChainId {
     pub fn as_hex(&self) -> String {
         format!("0x{}", hex::encode(self.to_string()))
     }
+
+    #[cfg(any(feature = "testing", test))]
+    pub fn create_for_testing() -> Self {
+        const CHAIN_ID_NAME: &str = "SN_GOERLI";
+
+        ChainId::Other(CHAIN_ID_NAME.to_string())
+    }
 }
 
 /// The address of a contract, used for example in [StateDiff](`crate::state::StateDiff`),
@@ -79,12 +91,13 @@ impl ChainId {
 // The block hash table is stored in address 0x1,
 // this is a special address that is not used for contracts.
 pub const BLOCK_HASH_TABLE_ADDRESS: ContractAddress = ContractAddress(PatriciaKey(StarkHash::ONE));
+
 #[derive(
     Debug,
     Default,
     Copy,
     Clone,
-    Display,
+    derive_more::Display,
     Eq,
     PartialEq,
     Hash,
@@ -95,6 +108,21 @@ pub const BLOCK_HASH_TABLE_ADDRESS: ContractAddress = ContractAddress(PatriciaKe
     derive_more::Deref,
 )]
 pub struct ContractAddress(pub PatriciaKey);
+
+impl ContractAddress {
+    /// Validates the contract address is in the valid range for external access.
+    /// The lower bound is above the special saved addresses and the upper bound is congruent with
+    /// the storage var address upper bound.
+    pub fn validate(&self) -> Result<(), StarknetApiError> {
+        let value = self.0.0;
+        let l2_address_upper_bound = Felt::from(*L2_ADDRESS_UPPER_BOUND);
+        if (value > BLOCK_HASH_TABLE_ADDRESS.0.0) && (value < l2_address_upper_bound) {
+            return Ok(());
+        }
+
+        Err(StarknetApiError::OutOfRange { string: format!("[0x2, {})", l2_address_upper_bound) })
+    }
+}
 
 impl From<ContractAddress> for Felt {
     fn from(contract_address: ContractAddress) -> Felt {
@@ -164,7 +192,7 @@ pub fn calculate_contract_address(
     Serialize,
     PartialOrd,
     Ord,
-    Display,
+    derive_more::Display,
     derive_more::Deref,
 )]
 pub struct ClassHash(pub StarkHash);
@@ -182,7 +210,7 @@ pub struct ClassHash(pub StarkHash);
     Serialize,
     PartialOrd,
     Ord,
-    Display,
+    derive_more::Display,
 )]
 pub struct CompiledClassHash(pub StarkHash);
 
@@ -190,6 +218,7 @@ pub struct CompiledClassHash(pub StarkHash);
 #[derive(
     Debug,
     Default,
+    derive_more::Display,
     Copy,
     Clone,
     Eq,
@@ -222,7 +251,7 @@ impl Nonce {
     }
 }
 
-/// The selector of an [EntryPoint](`crate::deprecated_contract_class::EntryPoint`).
+/// The selector of an [EntryPoint](`crate::state::EntryPoint`).
 #[derive(
     Debug, Copy, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord,
 )]
@@ -242,7 +271,7 @@ pub struct EntryPointSelector(pub StarkHash);
     Serialize,
     PartialOrd,
     Ord,
-    Display,
+    derive_more::Display,
 )]
 pub struct GlobalRoot(pub StarkHash);
 
@@ -259,7 +288,7 @@ pub struct GlobalRoot(pub StarkHash);
     Serialize,
     PartialOrd,
     Ord,
-    Display,
+    derive_more::Display,
 )]
 pub struct TransactionCommitment(pub StarkHash);
 
@@ -276,7 +305,7 @@ pub struct TransactionCommitment(pub StarkHash);
     Serialize,
     PartialOrd,
     Ord,
-    Display,
+    derive_more::Display,
 )]
 pub struct EventCommitment(pub StarkHash);
 
@@ -293,11 +322,13 @@ pub struct EventCommitment(pub StarkHash);
     Serialize,
     PartialOrd,
     Ord,
-    Display,
+    derive_more::Display,
 )]
 pub struct ReceiptCommitment(pub StarkHash);
 
-#[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
+#[derive(
+    Debug, Copy, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord,
+)]
 pub struct StateDiffCommitment(pub PoseidonHash);
 
 /// A key for nodes of a Patricia tree.
@@ -305,7 +336,7 @@ pub struct StateDiffCommitment(pub PoseidonHash);
 #[derive(
     Copy,
     Clone,
-    Display,
+    derive_more::Display,
     Eq,
     PartialEq,
     Default,
@@ -359,7 +390,7 @@ impl Debug for PatriciaKey {
 #[macro_export]
 macro_rules! patricia_key {
     ($s:expr) => {
-        PatriciaKey::try_from(felt!($s)).unwrap()
+        $crate::core::PatriciaKey::try_from($crate::felt!($s)).unwrap()
     };
 }
 
@@ -368,7 +399,7 @@ macro_rules! patricia_key {
 #[macro_export]
 macro_rules! class_hash {
     ($s:expr) => {
-        ClassHash(felt!($s))
+        $crate::core::ClassHash($crate::felt!($s))
     };
 }
 
@@ -378,7 +409,7 @@ macro_rules! class_hash {
 #[macro_export]
 macro_rules! contract_address {
     ($s:expr) => {
-        ContractAddress(patricia_key!($s))
+        $crate::core::ContractAddress($crate::patricia_key!($s))
     };
 }
 

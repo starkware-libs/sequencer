@@ -54,7 +54,7 @@ mod Account {
         selector: felt252,
         calldata: Array<felt252>
     ) -> felt252 {
-        grind();
+        grind_recurse(*calldata[0]);
         starknet::VALIDATED
     }
 

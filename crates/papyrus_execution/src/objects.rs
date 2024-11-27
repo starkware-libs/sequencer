@@ -9,7 +9,8 @@ use blockifier::execution::call_info::{
     Retdata as BlockifierRetdata,
 };
 use blockifier::execution::entry_point::CallType as BlockifierCallType;
-use blockifier::transaction::objects::{FeeType, GasVector, TransactionExecutionInfo};
+use blockifier::transaction::objects::{FeeType, TransactionExecutionInfo};
+use blockifier::utils::u64_from_usize;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources as VmExecutionResources;
 use indexmap::IndexMap;
@@ -23,6 +24,7 @@ use papyrus_common::state::{
 };
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockTimestamp, GasPrice, GasPricePerToken};
+use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{
     ClassHash,
     ContractAddress,
@@ -31,14 +33,15 @@ use starknet_api::core::{
     SequencerContractAddress,
 };
 use starknet_api::data_availability::L1DataAvailabilityMode;
-use starknet_api::deprecated_contract_class::EntryPointType;
 use starknet_api::execution_resources::{
     Builtin,
     ExecutionResources,
+    GasVector,
     GasVector as StarknetApiGasVector,
 };
 use starknet_api::state::ThinStateDiff;
-use starknet_api::transaction::{Calldata, EventContent, Fee, MessageToL1};
+use starknet_api::transaction::fields::{Calldata, Fee};
+use starknet_api::transaction::{EventContent, MessageToL1};
 use starknet_types_core::felt::Felt;
 
 use crate::{ExecutionError, ExecutionResult, TransactionExecutionOutput};
@@ -92,11 +95,15 @@ pub struct FeeEstimation {
     /// Gas consumed by this transaction. This includes gas for DA in calldata mode.
     pub gas_consumed: Felt,
     /// The gas price for execution and calldata DA.
-    pub gas_price: GasPrice,
+    pub l1_gas_price: GasPrice,
     /// Gas consumed by DA in blob mode.
     pub data_gas_consumed: Felt,
     /// The gas price for DA blob.
-    pub data_gas_price: GasPrice,
+    pub l1_data_gas_price: GasPrice,
+    // TODO(Tzahi): Add l2_gas_consumed. Verify overall_fee estimation of l1_gas_price only is
+    // close enough (as there are roundings) to the fee of both l1_gas_price and l2_gas_price.
+    /// The L2 gas price for execution.
+    pub l2_gas_price: GasPrice,
     /// The total amount of fee. This is equal to:
     /// gas_consumed * gas_price + data_gas_consumed * data_gas_price.
     pub overall_fee: Fee,
@@ -117,7 +124,7 @@ impl TryFrom<TransactionExecutionInfo> for InvokeTransactionTrace {
     fn try_from(transaction_execution_info: TransactionExecutionInfo) -> ExecutionResult<Self> {
         let execute_invocation = match transaction_execution_info.revert_error {
             Some(revert_error) => {
-                FunctionInvocationResult::Err(RevertReason::RevertReason(revert_error))
+                FunctionInvocationResult::Err(RevertReason::RevertReason(revert_error.to_string()))
             }
             None => FunctionInvocationResult::Ok(
                 (
@@ -148,29 +155,28 @@ impl TryFrom<TransactionExecutionInfo> for InvokeTransactionTrace {
     }
 }
 
+// TODO(Dan, Yair): consider box large elements (because of BadDeclareTransaction) or use ID
+// instead.
+#[allow(clippy::result_large_err)]
 pub(crate) fn tx_execution_output_to_fee_estimation(
     tx_execution_output: &TransactionExecutionOutput,
     block_context: &BlockContext,
 ) -> ExecutionResult<FeeEstimation> {
     let gas_prices = &block_context.block_info().gas_prices;
-    let (gas_price, data_gas_price) = (
-        GasPrice(
-            gas_prices.get_l1_gas_price_by_fee_type(&tx_execution_output.price_unit.into()).get(),
-        ),
-        GasPrice(
-            gas_prices
-                .get_l1_data_gas_price_by_fee_type(&tx_execution_output.price_unit.into())
-                .get(),
-        ),
+    let (l1_gas_price, l1_data_gas_price, l2_gas_price) = (
+        gas_prices.get_l1_gas_price_by_fee_type(&tx_execution_output.price_unit.into()).get(),
+        gas_prices.get_l1_data_gas_price_by_fee_type(&tx_execution_output.price_unit.into()).get(),
+        gas_prices.get_l2_gas_price_by_fee_type(&tx_execution_output.price_unit.into()).get(),
     );
 
     let gas_vector = tx_execution_output.execution_info.receipt.gas;
 
     Ok(FeeEstimation {
-        gas_consumed: gas_vector.l1_gas.into(),
-        gas_price,
-        data_gas_consumed: gas_vector.l1_data_gas.into(),
-        data_gas_price,
+        gas_consumed: gas_vector.l1_gas.0.into(),
+        l1_gas_price,
+        data_gas_consumed: gas_vector.l1_data_gas.0.into(),
+        l1_data_gas_price,
+        l2_gas_price,
         overall_fee: tx_execution_output.execution_info.receipt.fee,
         unit: tx_execution_output.price_unit,
     })
@@ -344,7 +350,7 @@ impl TryFrom<(CallInfo, GasVector)> for FunctionInvocation {
                 })
                 .collect(),
             execution_resources: vm_resources_to_execution_resources(
-                call_info.resources,
+                call_info.charged_resources.vm_resources,
                 gas_vector,
             )?,
         })
@@ -352,16 +358,19 @@ impl TryFrom<(CallInfo, GasVector)> for FunctionInvocation {
 }
 
 // Can't implement `TryFrom` because both types are from external crates.
+// TODO(Dan, Yair): consider box large elements (because of BadDeclareTransaction) or use ID
+// instead.
+#[allow(clippy::result_large_err)]
 fn vm_resources_to_execution_resources(
     vm_resources: VmExecutionResources,
-    GasVector { l1_gas, l1_data_gas, .. }: GasVector,
+    GasVector { l1_gas, l1_data_gas, l2_gas }: GasVector,
 ) -> ExecutionResult<ExecutionResources> {
     let mut builtin_instance_counter = HashMap::new();
     for (builtin_name, count) in vm_resources.builtin_instance_counter {
         if count == 0 {
             continue;
         }
-        let count: u64 = count as u64;
+        let count = u64_from_usize(count);
         match builtin_name {
             BuiltinName::output => continue,
             BuiltinName::pedersen => builtin_instance_counter.insert(Builtin::Pedersen, count),
@@ -384,15 +393,10 @@ fn vm_resources_to_execution_resources(
         };
     }
     Ok(ExecutionResources {
-        steps: vm_resources.n_steps as u64,
+        steps: u64_from_usize(vm_resources.n_steps),
         builtin_instance_counter,
-        memory_holes: vm_resources.n_memory_holes as u64,
-        da_gas_consumed: StarknetApiGasVector {
-            l1_gas: l1_gas.try_into().map_err(|_| ExecutionError::GasConsumedOutOfRange)?,
-            l1_data_gas: l1_data_gas
-                .try_into()
-                .map_err(|_| ExecutionError::GasConsumedOutOfRange)?,
-        },
+        memory_holes: u64_from_usize(vm_resources.n_memory_holes),
+        da_gas_consumed: StarknetApiGasVector { l1_gas, l2_gas, l1_data_gas },
         gas_consumed: StarknetApiGasVector::default(),
     })
 }
@@ -501,6 +505,8 @@ pub struct PendingData {
     pub l1_gas_price: GasPricePerToken,
     /// The data price of the pending block.
     pub l1_data_gas_price: GasPricePerToken,
+    /// The L2 gas price of the pending block.
+    pub l2_gas_price: GasPricePerToken,
     /// The data availability mode of the pending block.
     pub l1_da_mode: L1DataAvailabilityMode,
     /// The sequencer address of the pending block.

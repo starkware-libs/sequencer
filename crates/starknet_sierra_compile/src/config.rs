@@ -7,6 +7,7 @@ use validator::Validate;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct SierraToCasmCompilationConfig {
+    /// CASM bytecode size limit.
     pub max_bytecode_size: usize,
 }
 

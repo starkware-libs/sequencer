@@ -1,15 +1,16 @@
 #![allow(clippy::unwrap_used)]
 //! Utilities for generating testing instances of the execution objects.
 
-/// Returns the storage key of a storage variable.
-pub use blockifier::abi::abi_utils::get_storage_var_address;
 use papyrus_test_utils::{auto_impl_get_test_instance, get_number_of_variants, GetTestInstance};
+/// Returns the storage key of a storage variable.
+pub use starknet_api::abi::abi_utils::get_storage_var_address;
 use starknet_api::block::GasPrice;
-use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, PatriciaKey};
-use starknet_api::deprecated_contract_class::EntryPointType;
+use starknet_api::contract_address;
+use starknet_api::contract_class::EntryPointType;
+use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::execution_resources::ExecutionResources;
-use starknet_api::transaction::{Calldata, EventContent, Fee, MessageToL1};
-use starknet_api::{contract_address, felt, patricia_key};
+use starknet_api::transaction::fields::{Calldata, Fee};
+use starknet_api::transaction::{EventContent, MessageToL1};
 use starknet_types_core::felt::Felt;
 
 use crate::objects::{
@@ -36,7 +37,7 @@ pub fn get_test_execution_config() -> ExecutionConfig {
     ExecutionConfig {
         strk_fee_contract_address: contract_address!("0x1001"),
         eth_fee_contract_address: contract_address!("0x1001"),
-        initial_gas_cost: 10_u64.pow(10),
+        default_initial_gas_cost: 10_u64.pow(10),
     }
 }
 
@@ -66,9 +67,10 @@ auto_impl_get_test_instance! {
     }
     pub struct FeeEstimation {
         pub gas_consumed: Felt,
-        pub gas_price: GasPrice,
+        pub l1_gas_price: GasPrice,
         pub data_gas_consumed: Felt,
-        pub data_gas_price: GasPrice,
+        pub l1_data_gas_price: GasPrice,
+        pub l2_gas_price: GasPrice,
         pub overall_fee: Fee,
         pub unit: PriceUnit,
     }

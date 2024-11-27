@@ -1,18 +1,6 @@
 name: Papyrus-CI
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/papyrus_ci.yml'
-      - 'Dockerfile'
-      - 'papyrus_utilities.Dockerfile'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - 'crates/papyrus**/**'
-      - 'crates/sequencing/**'
-      - 'crates/starknet_client/**'
-
   pull_request:
     types:
       - opened
@@ -29,28 +17,22 @@ on:
       - 'crates/papyrus**/**'
       - 'crates/sequencing/**'
       - 'crates/starknet_client/**'
+      - 'scripts/dependencies.sh'
 
   merge_group:
     types: [checks_requested]
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.job }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-
-env:
-  PROTOC_VERSION: v25.1
 
 jobs:
   executable-run:
     runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
-      - uses: Noelware/setup-protoc@1.1.0
-        with:
-          version: ${{env.PROTOC_VERSION}}
+      - uses: ./.github/actions/bootstrap
       - name: Build node
         run: |
           mkdir data
@@ -65,11 +47,7 @@ jobs:
     runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
-      - uses: Noelware/setup-protoc@1.1.0
-        with:
-          version: ${{env.PROTOC_VERSION}}
+      - uses: ./.github/actions/bootstrap
       - name: Build node
         run: |
           mkdir data
@@ -80,33 +58,25 @@ jobs:
           target/release/papyrus_node --base_layer.node_url ${{ secrets.CI_BASE_LAYER_NODE_URL }}
           & sleep 30 ; kill $!
 
-  p2p-sync-e2e-test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - uses: Noelware/setup-protoc@1.1.0
-        with:
-          version: ${{env.PROTOC_VERSION}}
+  # FIXME: Job is currently running out of disk space, error is hidden inside the `Annoatations`
+  # tab on github. FIX THE ISSUE AND RE-ENABLE THE JOB.
+  # p2p-sync-e2e-test:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: ./.github/actions/bootstrap
 
-      - name: Build node
-        run: |
-          cargo build -r -p papyrus_node
+  #     - name: Build node
+  #       run: cargo build -r -p papyrus_node
 
-      - name: Run p2p sync end-to-end test
-        run: |
-          scripts/papyrus/p2p_sync_e2e_test/main.sh ${{ secrets.CI_BASE_LAYER_NODE_URL }}
+  #     - name: Run p2p sync end-to-end test
+  #       run: scripts/papyrus/p2p_sync_e2e_test/main.sh ${{ secrets.CI_BASE_LAYER_NODE_URL }}
 
   integration-test:
     runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
-      - uses: Noelware/setup-protoc@1.1.0
-        with:
-          version: ${{env.PROTOC_VERSION}}
+      - uses: ./.github/actions/bootstrap
       - run: >
           cargo test -r
           --test latency_histogram
@@ -119,51 +89,12 @@ jobs:
     runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
-      - uses: Noelware/setup-protoc@1.1.0
-
+      - uses: ./.github/actions/bootstrap
       - run: |
           cargo test -p papyrus_node --no-default-features
         env:
           SEED: 0
 
-  codecov:
-    runs-on: starkware-ubuntu-latest-medium
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/install_rust
-      - name: Set-Up
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang llvm libudev-dev
-      - uses: Noelware/setup-protoc@1.1.0
-        with:
-          version: ${{env.PROTOC_VERSION}}
-
-      - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
-      - uses: Swatinem/rust-cache@v2
-      - run: npm install -g ganache
-      - name: Coverage
-        run: cargo llvm-cov --codecov -r --output-path codecov.json
-        env:
-          SEED: 0
-      - name: Codecov
-        uses: codecov/codecov-action@v3
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          verbose: true
-          fail_ci_if_error: true
-          version: "v0.1.15"
-
-  check-starknet_api-dependency:
-    runs-on: starkware-ubuntu-latest-small
-    if: github.base_ref == 'main' # this step is only run if the pr is to the main branch
-    steps:
-      - uses: actions/checkout@v4
-      - run: sudo apt-get install jq
-      - run: ./check_starknet_api_version_dependency.sh # this script checks that if the starknet_api dependency is by git rev then this rev (commit) is on main
 
   build-papyrus-utilities-image:
     runs-on: starkware-ubuntu-latest-medium
@@ -196,8 +127,7 @@ jobs:
           filters: |
             target_directory:
               - 'crates/papyrus_storage/src/db/**'
-      - uses: ./.github/actions/install_rust
-      - uses: Swatinem/rust-cache@v2
+      - uses: ./.github/actions/bootstrap
       # repeat this job 32 times. this is a random test for part of the code that may cause a corrupted database.
       - run: for run in {1..32}; do cargo test -r -p papyrus_storage -- --include-ignored common_prefix_compare_with_simple_table_random; done
         if: steps.changes.outputs.target_directory == 'true'

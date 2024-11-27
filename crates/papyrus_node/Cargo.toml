@@ -11,11 +11,17 @@ normal = ["clap", "papyrus_base_layer", "reqwest", "tokio"]
 [features]
 default = ["rpc"]
 rpc = ["papyrus_rpc"]
+testing = []
 
 [[bin]]
 name = "central_source_integration_test"
 path = "src/bin/central_source_integration_test.rs"
 required-features = ["futures-util", "tokio-stream"]
+
+[[bin]]
+name = "run_consensus"
+path = "src/bin/run_consensus.rs"
+required-features = ["testing"]
 
 [dependencies]
 anyhow.workspace = true
@@ -29,6 +35,7 @@ papyrus_base_layer.workspace = true
 papyrus_common.workspace = true
 papyrus_config.workspace = true
 papyrus_consensus.workspace = true
+papyrus_consensus_orchestrator.workspace = true
 papyrus_monitoring_gateway.workspace = true
 papyrus_network.workspace = true
 papyrus_p2p_sync.workspace = true
@@ -54,13 +61,12 @@ tokio-stream = { workspace = true, optional = true }
 [dev-dependencies]
 assert-json-diff.workspace = true
 colored.workspace = true
+infra_utils.workspace = true
 insta = { workspace = true, features = ["json"] }
 metrics-exporter-prometheus.workspace = true
 papyrus_test_utils.workspace = true
 pretty_assertions.workspace = true
 tempfile.workspace = true
 
-[lints.rust]
-# See [here](https://github.com/taiki-e/cargo-llvm-cov/issues/370) for a discussion on why this is
-# needed (from rust 1.80).
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }
+[lints]
+workspace = true

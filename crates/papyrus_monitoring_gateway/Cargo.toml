@@ -22,14 +22,11 @@ tracing.workspace = true
 validator = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
-http-body.workspace = true
 metrics.workspace = true
 papyrus_storage = { workspace = true, features = ["testing"] }
 pretty_assertions.workspace = true
 starknet_client = { workspace = true, features = ["testing"] }
 tower = { workspace = true, features = ["util"] }
 
-[lints.rust]
-# See [here](https://github.com/taiki-e/cargo-llvm-cov/issues/370) for a discussion on why this is
-# needed (from rust 1.80).
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }
+[lints]
+workspace = true

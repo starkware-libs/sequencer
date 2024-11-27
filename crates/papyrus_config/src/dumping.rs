@@ -34,7 +34,7 @@
 //! }
 //! ```
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::fs::File;
 use std::io::{BufWriter, Write};
 
@@ -50,8 +50,77 @@ use crate::{
     SerializationType,
     SerializedContent,
     SerializedParam,
+    FIELD_SEPARATOR,
     IS_NONE_MARK,
 };
+
+/// Type alias for a pointer parameter and its serialized representation.
+type PointerTarget = (ParamPath, SerializedParam);
+
+/// Type alias for a set of pointing parameters.
+pub type Pointers = HashSet<ParamPath>;
+
+/// Detailing pointers in the config map.
+pub type ConfigPointers = Vec<(PointerTarget, Pointers)>;
+
+/// Given a set of paths that are configuration of the same struct type, makes all the paths point
+/// to the same target.
+pub fn generate_struct_pointer<T: SerializeConfig>(
+    target_prefix: ParamPath,
+    default_instance: &T,
+    pointer_prefixes: HashSet<ParamPath>,
+) -> ConfigPointers {
+    let mut res = ConfigPointers::new();
+    for (param_path, serialized_param) in default_instance.dump() {
+        let pointer_target = serialized_param_to_pointer_target(
+            target_prefix.clone(),
+            &param_path,
+            &serialized_param,
+        );
+        let pointers = pointer_prefixes
+            .iter()
+            .map(|pointer| chain_param_paths(&[pointer, &param_path]))
+            .collect();
+
+        res.push((pointer_target, pointers));
+    }
+    res
+}
+
+// Converts a serialized param to a pointer target.
+fn serialized_param_to_pointer_target(
+    target_prefix: ParamPath,
+    param_path: &ParamPath,
+    serialized_param: &SerializedParam,
+) -> PointerTarget {
+    let full_param_path = chain_param_paths(&[&target_prefix, param_path]);
+    if serialized_param.is_required() {
+        let description = serialized_param
+            .description
+            .strip_prefix(REQUIRED_PARAM_DESCRIPTION_PREFIX)
+            .unwrap_or(&serialized_param.description)
+            .trim_start();
+        ser_pointer_target_required_param(
+            &full_param_path,
+            serialized_param.content.get_serialization_type().unwrap(),
+            description,
+        )
+    } else {
+        let default_value = match &serialized_param.content {
+            SerializedContent::DefaultValue(value) => value,
+            SerializedContent::PointerTarget(_) => panic!("Pointers to pointer is not supported."),
+            // We already checked that the param is not required, so it must be a generated param.
+            SerializedContent::ParamType(_) => {
+                panic!("Generated pointer targets are not supported.")
+            }
+        };
+        ser_pointer_target_param(&full_param_path, default_value, &serialized_param.description)
+    }
+}
+
+fn chain_param_paths(param_paths: &[&str]) -> ParamPath {
+    param_paths.join(FIELD_SEPARATOR)
+}
 
 /// Serialization for configs.
 pub trait SerializeConfig {
@@ -64,11 +133,12 @@ pub trait SerializeConfig {
     /// Takes a vector of {target pointer params, SerializedParam, and vector of pointing params},
     /// adds the target pointer params with the description and a value, and replaces the value of
     /// the pointing params to contain only the name of the target they point to.
+    /// Fails if a param is not pointing to a same-named pointer target nor whitelisted.
     ///
     /// # Example
     ///
     /// ```
-    /// # use std::collections::BTreeMap;
+    /// # use std::collections::{BTreeMap, HashSet};
     ///
     /// # use papyrus_config::dumping::{ser_param, SerializeConfig};
     /// # use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
@@ -93,18 +163,29 @@ pub trait SerializeConfig {
     ///
     /// let dir = TempDir::new().unwrap();
     /// let file_path = dir.path().join("config.json");
-    /// ConfigExample { key: 42 }.dump_to_file(&vec![], file_path.to_str().unwrap());
+    /// ConfigExample { key: 42 }.dump_to_file(&vec![], &HashSet::new(), file_path.to_str().unwrap());
     /// ```
     /// Note, in the case of a None sub configs, its elements will not be included in the file.
     fn dump_to_file(
         &self,
-        config_pointers: &Vec<((ParamPath, SerializedParam), Vec<ParamPath>)>,
+        config_pointers: &ConfigPointers,
+        non_pointer_params: &Pointers,
         file_path: &str,
     ) -> Result<(), ConfigError> {
-        let combined_map = combine_config_map_and_pointers(self.dump(), config_pointers)?;
+        let combined_map =
+            combine_config_map_and_pointers(self.dump(), config_pointers, non_pointer_params)?;
+
+        // Create file writer.
         let file = File::create(file_path)?;
         let mut writer = BufWriter::new(file);
+
+        // Add config as JSON content to writer.
         serde_json::to_writer_pretty(&mut writer, &combined_map)?;
+
+        // Add an extra newline after the JSON content.
+        writer.write_all(b"\n")?;
+
+        // Write to file.
         writer.flush()?;
         Ok(())
     }
@@ -118,9 +199,9 @@ pub fn append_sub_config_name(
     sub_config_name: &str,
 ) -> BTreeMap<ParamPath, SerializedParam> {
     BTreeMap::from_iter(
-        sub_config_dump
-            .into_iter()
-            .map(|(field_name, val)| (format!("{sub_config_name}.{field_name}"), val)),
+        sub_config_dump.into_iter().map(|(field_name, val)| {
+            (format!("{sub_config_name}{FIELD_SEPARATOR}{field_name}"), val)
+        }),
     )
 }
 
@@ -161,7 +242,7 @@ pub fn ser_required_param(
     common_ser_param(
         name,
         SerializedContent::ParamType(serialization_type),
-        format!("A required param! {}", description).as_str(),
+        required_param_description(description).as_str(),
         privacy.into(),
     )
 }
@@ -227,7 +308,7 @@ pub fn ser_optional_param<T: Serialize>(
 /// Serializes is_none flag for a param.
 pub fn ser_is_param_none(name: &str, is_none: bool) -> (String, SerializedParam) {
     common_ser_param(
-        format!("{name}.{IS_NONE_MARK}").as_str(),
+        format!("{name}{FIELD_SEPARATOR}{IS_NONE_MARK}").as_str(),
         SerializedContent::DefaultValue(json!(is_none)),
         "Flag for an optional field.",
         ParamPrivacy::TemporaryValue,
@@ -263,17 +344,36 @@ pub fn ser_pointer_target_param<T: Serialize>(
     )
 }
 
-// Takes a config map and a vector of {target param, serialized pointer, and vector of params that
-// will point to it}.
-// Adds to the map the target params.
-// Replaces the value of the pointers to contain only the name of the target they point to.
+/// Serializes a pointer target for a required param of a config.
+pub fn ser_pointer_target_required_param(
+    name: &str,
+    serialization_type: SerializationType,
+    description: &str,
+) -> (String, SerializedParam) {
+    common_ser_param(
+        name,
+        SerializedContent::ParamType(serialization_type),
+        required_param_description(description).as_str(),
+        ParamPrivacy::TemporaryValue,
+    )
+}
+
+/// Takes a config map and a vector of target parameters with their serialized representations.
+/// Adds each target param to the config map.
+/// Updates entries in the map to point to these targets, replacing values of entries that match
+/// the target parameter paths to contain only the name of the target they point to.
+/// Fails if a param is not pointing to a same-named pointer target nor whitelisted.
 pub(crate) fn combine_config_map_and_pointers(
     mut config_map: BTreeMap<ParamPath, SerializedParam>,
-    pointers: &Vec<((ParamPath, SerializedParam), Vec<ParamPath>)>,
+    pointers: &ConfigPointers,
+    non_pointer_params: &Pointers,
 ) -> Result<Value, ConfigError> {
+    // Update config with target params.
     for ((target_param, serialized_pointer), pointing_params_vec) in pointers {
+        // Insert target param.
         config_map.insert(target_param.clone(), serialized_pointer.clone());
 
+        // Update pointing params to point at the target param.
         for pointing_param in pointing_params_vec {
             let pointing_serialized_param =
                 config_map.get(pointing_param).ok_or(ConfigError::PointerSourceNotFound {
@@ -289,5 +389,56 @@ pub(crate) fn combine_config_map_and_pointers(
             );
         }
     }
+
+    verify_pointing_params_by_name(&config_map, pointers, non_pointer_params);
+
     Ok(json!(config_map))
+}
+
+/// Creates a set of pointing params, ensuring no duplications.
+pub fn set_pointing_param_paths(param_path_list: &[&str]) -> Pointers {
+    let mut param_paths = HashSet::new();
+    for &param_path in param_path_list {
+        assert!(
+            param_paths.insert(param_path.to_string()),
+            "Duplicate parameter path found: {}",
+            param_path
+        );
+    }
+    param_paths
+}
+
+/// Prefix for required params description.
+pub(crate) const REQUIRED_PARAM_DESCRIPTION_PREFIX: &str = "A required param!";
+
+pub(crate) fn required_param_description(description: &str) -> String {
+    format!("{} {}", REQUIRED_PARAM_DESCRIPTION_PREFIX, description)
+}
+
+/// Verifies that params whose name matches a pointer target either point at it, or are whitelisted.
+fn verify_pointing_params_by_name(
+    config_map: &BTreeMap<ParamPath, SerializedParam>,
+    pointers: &ConfigPointers,
+    non_pointer_params: &Pointers,
+) {
+    // Iterate over the config, check that all parameters whose name matches a pointer target either
+    // point at it or are in the whitelist.
+    config_map.iter().for_each(|(param_path, serialized_param)| {
+        for ((target_param, _), _) in pointers {
+            // Check if the param name matches a pointer target, and that it is not in the
+            // whitelist.
+            if param_path.ends_with(format!("{FIELD_SEPARATOR}{target_param}").as_str())
+                && !non_pointer_params.contains(param_path)
+            {
+                // Check that the param points to the target param.
+                assert!(
+                    serialized_param.content
+                        == SerializedContent::PointerTarget(target_param.to_owned()),
+                    "The target param {} should point to {}, or to be whitelisted.",
+                    param_path,
+                    target_param
+                );
+            };
+        }
+    });
 }

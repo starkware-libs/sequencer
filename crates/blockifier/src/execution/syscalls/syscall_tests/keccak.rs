@@ -1,17 +1,19 @@
-use starknet_api::transaction::Calldata;
+use starknet_api::abi::abi_utils::selector_from_name;
+use starknet_api::transaction::fields::Calldata;
 use test_case::test_case;
 
-use crate::abi::abi_utils::selector_from_name;
 use crate::context::ChainInfo;
-use crate::execution::call_info::{CallExecution, Retdata};
+use crate::execution::call_info::CallExecution;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::retdata;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, BALANCE};
 
-#[test_case(FeatureContract::TestContract(CairoVersion::Cairo1), 255110; "VM")]
-fn test_keccak(test_contract: FeatureContract, expected_gas: u64) {
+#[test_case(CairoVersion::Cairo1; "VM")]
+#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Native; "Native"))]
+fn test_keccak(cairo_version: CairoVersion) {
+    let test_contract = FeatureContract::TestContract(cairo_version);
     let chain_info = &ChainInfo::create_for_testing();
     let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1)]);
 
@@ -22,8 +24,8 @@ fn test_keccak(test_contract: FeatureContract, expected_gas: u64) {
         ..trivial_external_entry_point_new(test_contract)
     };
 
-    assert_eq!(
+    pretty_assertions::assert_eq!(
         entry_point_call.execute_directly(&mut state).unwrap().execution,
-        CallExecution { gas_consumed: expected_gas, ..CallExecution::from_retdata(retdata![]) }
+        CallExecution { gas_consumed: 254910, ..CallExecution::from_retdata(retdata![]) }
     );
 }

@@ -1,8 +1,8 @@
 use assert_matches::assert_matches;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
-use papyrus_test_utils::read_json_file;
 use pretty_assertions::assert_eq;
 use starknet_api::core::ClassHash;
+use starknet_api::test_utils::read_json_file;
 
 use crate::compiled_class::{CasmStorageReader, CasmStorageWriter};
 use crate::db::{DbError, KeyAlreadyExistsError};
@@ -34,16 +34,34 @@ fn casm_rewrite() {
     writer
         .begin_rw_txn()
         .unwrap()
-        .append_casm(&ClassHash::default(), &CasmContractClass::default())
+        .append_casm(
+            &ClassHash::default(),
+            &CasmContractClass {
+                prime: Default::default(),
+                compiler_version: Default::default(),
+                bytecode: Default::default(),
+                bytecode_segment_lengths: Default::default(),
+                hints: Default::default(),
+                pythonic_hints: Default::default(),
+                entry_points_by_type: Default::default(),
+            },
+        )
         .unwrap()
         .commit()
         .unwrap();
 
-    let Err(err) = writer
-        .begin_rw_txn()
-        .unwrap()
-        .append_casm(&ClassHash::default(), &CasmContractClass::default())
-    else {
+    let Err(err) = writer.begin_rw_txn().unwrap().append_casm(
+        &ClassHash::default(),
+        &CasmContractClass {
+            prime: Default::default(),
+            compiler_version: Default::default(),
+            bytecode: Default::default(),
+            bytecode_segment_lengths: Default::default(),
+            hints: Default::default(),
+            pythonic_hints: Default::default(),
+            entry_points_by_type: Default::default(),
+        },
+    ) else {
         panic!("Unexpected Ok.");
     };
 

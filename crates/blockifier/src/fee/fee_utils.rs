@@ -1,71 +1,76 @@
 use std::collections::HashSet;
 
+use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use num_bigint::BigUint;
+use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::core::ContractAddress;
+use starknet_api::execution_resources::GasVector;
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::Fee;
+use starknet_api::transaction::fields::ValidResourceBounds::{AllResources, L1Gas};
+use starknet_api::transaction::fields::{Fee, GasVectorComputationMode, Resource};
 use starknet_types_core::felt::Felt;
 
-use crate::abi::abi_utils::get_fee_token_var_address;
-use crate::abi::constants;
-use crate::abi::sierra_types::next_storage_key;
 use crate::blockifier::block::BlockInfo;
 use crate::context::{BlockContext, TransactionContext};
+use crate::fee::resources::TransactionFeeResult;
 use crate::state::state_api::StateReader;
 use crate::transaction::errors::TransactionFeeError;
-use crate::transaction::objects::{
-    ExecutionResourcesTraits,
-    FeeType,
-    GasVector,
-    TransactionFeeResult,
-    TransactionInfo,
-};
-use crate::utils::u128_from_usize;
+use crate::transaction::objects::{ExecutionResourcesTraits, FeeType, TransactionInfo};
+use crate::utils::u64_from_usize;
 use crate::versioned_constants::VersionedConstants;
 
 #[cfg(test)]
 #[path = "fee_test.rs"]
 pub mod test;
 
-/// Calculates the L1 gas consumed when submitting the underlying Cairo program to SHARP.
-/// I.e., returns the heaviest Cairo resource weight (in terms of L1 gas), as the size of
+/// Calculates the gas consumed when submitting the underlying Cairo program to SHARP.
+/// I.e., returns the heaviest Cairo resource weight (in terms of gas), as the size of
 /// a proof is determined similarly - by the (normalized) largest segment.
-pub fn calculate_l1_gas_by_vm_usage(
+/// The result can be in either L1 or L2 gas, according to the gas vector computation mode.
+pub fn get_vm_resources_cost(
     versioned_constants: &VersionedConstants,
     vm_resource_usage: &ExecutionResources,
     n_reverted_steps: usize,
-) -> TransactionFeeResult<GasVector> {
+    computation_mode: &GasVectorComputationMode,
+) -> GasVector {
     // TODO(Yoni, 1/7/2024): rename vm -> cairo.
     let vm_resource_fee_costs = versioned_constants.vm_resource_fee_cost();
-    let mut vm_resource_usage_for_fee = vm_resource_usage.prover_builtins_by_name();
-    vm_resource_usage_for_fee.insert(
-        constants::N_STEPS_RESOURCE.to_string(),
-        vm_resource_usage.total_n_steps() + n_reverted_steps,
-    );
+    let builtin_usage_for_fee = vm_resource_usage.prover_builtins();
 
-    // Validate used Cairo resources.
-    let used_resource_names = HashSet::<&String>::from_iter(vm_resource_usage_for_fee.keys());
-
+    // Validate used builtin resources.
+    let used_builtins = HashSet::<&BuiltinName>::from_iter(builtin_usage_for_fee.keys());
+    let known_builtins = HashSet::<&BuiltinName>::from_iter(vm_resource_fee_costs.builtins.keys());
     assert!(
-        used_resource_names.is_subset(&HashSet::from_iter(vm_resource_fee_costs.keys())),
+        used_builtins.is_subset(&known_builtins),
         "{:#?} should contain {:#?}",
-        vm_resource_fee_costs.keys(),
-        used_resource_names,
+        known_builtins,
+        used_builtins,
     );
 
-    // Convert Cairo usage to L1 gas usage.
+    // Convert Cairo resource usage to L1 gas usage.
+    // Do so by taking the maximum of the usage of each builtin + step usage.
     let vm_l1_gas_usage = vm_resource_fee_costs
+        .builtins
         .iter()
-        .map(|(key, resource_val)| {
-            ((*resource_val)
-                * u128_from_usize(vm_resource_usage_for_fee.get(key).cloned().unwrap_or_default()))
-            .ceil()
-            .to_integer()
+        // Builtin costs and usage.
+        .map(|(builtin, resource_cost)| {
+            (*resource_cost, builtin_usage_for_fee.get(builtin).cloned().unwrap_or_default())
         })
-        .fold(0, u128::max);
+        // Step costs and usage.
+        .chain(vec![(
+            vm_resource_fee_costs.n_steps,
+            vm_resource_usage.total_n_steps() + n_reverted_steps,
+        )])
+        .map(|(cost, usage)| (cost * u64_from_usize(usage)).ceil().to_integer())
+        .fold(0, u64::max).into();
 
-    Ok(GasVector::from_l1_gas(vm_l1_gas_usage))
+    match computation_mode {
+        GasVectorComputationMode::NoL2Gas => GasVector::from_l1_gas(vm_l1_gas_usage),
+        GasVectorComputationMode::All => GasVector::from_l2_gas(
+            versioned_constants.convert_l1_to_l2_gas_amount_round_up(vm_l1_gas_usage),
+        ),
+    }
 }
 
 /// Converts the gas vector to a fee.
@@ -74,10 +79,7 @@ pub fn get_fee_by_gas_vector(
     gas_vector: GasVector,
     fee_type: &FeeType,
 ) -> Fee {
-    gas_vector.saturated_cost(
-        u128::from(block_info.gas_prices.get_l1_gas_price_by_fee_type(fee_type)),
-        u128::from(block_info.gas_prices.get_l1_data_gas_price_by_fee_type(fee_type)),
-    )
+    gas_vector.cost(block_info.gas_prices.get_gas_prices_by_fee_type(fee_type))
 }
 
 /// Returns the current fee balance and a boolean indicating whether the balance covers the fee.
@@ -94,7 +96,7 @@ pub fn get_balance_and_if_covers_fee(
         balance_high,
         // TODO(Dori,1/10/2023): If/when fees can be more than 128 bit integers, this should be
         //   updated.
-        balance_high > Felt::from(0_u8) || balance_low >= Felt::from(fee.0),
+        balance_high > Felt::ZERO || balance_low >= Felt::from(fee.0),
     ))
 }
 
@@ -106,13 +108,7 @@ pub fn verify_can_pay_committed_bounds(
 ) -> TransactionFeeResult<()> {
     let tx_info = &tx_context.tx_info;
     let committed_fee = match tx_info {
-        TransactionInfo::Current(context) => {
-            let l1_bounds = context.l1_resource_bounds();
-            let max_amount: u128 = l1_bounds.max_amount.into();
-            // Sender will not be charged by `max_price_per_unit`, but this check should not depend
-            // on the current gas price.
-            Fee(max_amount * l1_bounds.max_price_per_unit)
-        }
+        TransactionInfo::Current(context) => context.resource_bounds.max_possible_fee(),
         TransactionInfo::Deprecated(context) => context.max_fee,
     };
     let (balance_low, balance_high, can_pay) =
@@ -121,14 +117,18 @@ pub fn verify_can_pay_committed_bounds(
         Ok(())
     } else {
         Err(match tx_info {
-            TransactionInfo::Current(context) => {
-                let l1_bounds = context.l1_resource_bounds();
-                TransactionFeeError::L1GasBoundsExceedBalance {
-                    max_amount: l1_bounds.max_amount,
-                    max_price: l1_bounds.max_price_per_unit,
+            TransactionInfo::Current(context) => match &context.resource_bounds {
+                L1Gas(l1_gas) => TransactionFeeError::GasBoundsExceedBalance {
+                    resource: Resource::L1Gas,
+                    max_amount: l1_gas.max_amount,
+                    max_price: l1_gas.max_price_per_unit,
                     balance: balance_to_big_uint(&balance_low, &balance_high),
-                }
-            }
+                },
+                AllResources(bounds) => TransactionFeeError::ResourcesBoundsExceedBalance {
+                    bounds: *bounds,
+                    balance: balance_to_big_uint(&balance_low, &balance_high),
+                },
+            },
             TransactionInfo::Deprecated(context) => TransactionFeeError::MaxFeeExceedsBalance {
                 max_fee: context.max_fee,
                 balance: balance_to_big_uint(&balance_low, &balance_high),
@@ -144,7 +144,7 @@ pub fn get_sequencer_balance_keys(block_context: &BlockContext) -> (StorageKey, 
 
 pub fn get_address_balance_keys(address: ContractAddress) -> (StorageKey, StorageKey) {
     let balance_key_low = get_fee_token_var_address(address);
-    let balance_key_high = next_storage_key(&balance_key_low).unwrap_or_else(|_| {
+    let balance_key_high = balance_key_low.next_storage_key().unwrap_or_else(|_| {
         panic!("Failed to get balance_key_high for address: {:?}", address.0);
     });
     (balance_key_low, balance_key_high)

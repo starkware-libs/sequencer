@@ -1,20 +1,22 @@
 use std::sync::Arc;
 
 use blockifier::transaction::transaction_types::TransactionType;
-use blockifier::transaction::transactions::DeployAccountTransaction;
 use pyo3::prelude::*;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
-use starknet_api::transaction::{
+use starknet_api::executable_transaction::DeployAccountTransaction;
+use starknet_api::transaction::fields::{
     Calldata,
     ContractAddressSalt,
-    DeployAccountTransactionV1,
-    DeployAccountTransactionV3,
     Fee,
     PaymasterData,
     Tip,
-    TransactionHash,
     TransactionSignature,
+};
+use starknet_api::transaction::{
+    DeployAccountTransactionV1,
+    DeployAccountTransactionV3,
+    TransactionHash,
 };
 use starknet_types_core::felt::Felt;
 
@@ -100,5 +102,5 @@ pub fn py_deploy_account(py_tx: &PyAny) -> NativeBlockifierResult<DeployAccountT
     let tx_hash = TransactionHash(py_attr::<PyFelt>(py_tx, "hash_value")?.0);
     let contract_address =
         ContractAddress::try_from(py_attr::<PyFelt>(py_tx, "sender_address")?.0)?;
-    Ok(DeployAccountTransaction::new(tx, tx_hash, contract_address))
+    Ok(DeployAccountTransaction { tx, tx_hash, contract_address })
 }

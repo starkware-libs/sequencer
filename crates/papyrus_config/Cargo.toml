@@ -11,6 +11,7 @@ development = ["tempfile"] # Dependency of a doc-test
 
 [dependencies]
 clap = { workspace = true, features = ["env", "string"] }
+infra_utils.workspace = true
 itertools.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
@@ -20,12 +21,12 @@ validator = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
 assert_matches.workspace = true
+infra_utils.workspace = true
 itertools.workspace = true
 lazy_static.workspace = true
 papyrus_test_utils.workspace = true
+starknet_api.workspace = true
 tempfile.workspace = true
 
-[lints.rust]
-# See [here](https://github.com/taiki-e/cargo-llvm-cov/issues/370) for a discussion on why this is
-# needed (from rust 1.80).
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }
+[lints]
+workspace = true

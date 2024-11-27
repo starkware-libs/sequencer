@@ -6,9 +6,9 @@ use prost::Message;
 use starknet_api::block::{
     BlockHash,
     BlockHeader,
+    BlockHeaderWithoutHash,
     BlockNumber,
     BlockSignature,
-    GasPrice,
     GasPricePerToken,
     StarknetVersion,
 };
@@ -136,44 +136,60 @@ impl TryFrom<protobuf::SignedBlockHeader> for SignedBlockHeader {
 
         let l1_da_mode = enum_int_to_l1_data_availability_mode(value.l1_data_availability_mode)?;
 
-        let starknet_version = StarknetVersion(value.protocol_version);
+        let starknet_version = match StarknetVersion::try_from(value.protocol_version.to_owned()) {
+            Ok(version) => version,
+            Err(_) => {
+                return Err(ProtobufConversionError::OutOfRangeValue {
+                    type_description: "starknet version",
+                    value_as_str: value.protocol_version,
+                });
+            }
+        };
 
         let l1_gas_price = GasPricePerToken {
-            price_in_fri: GasPrice(
-                value
-                    .gas_price_fri
-                    .ok_or(ProtobufConversionError::MissingField {
-                        field_description: "SignedBlockHeader::gas_price_fri",
-                    })?
-                    .into(),
-            ),
-            price_in_wei: GasPrice(
-                value
-                    .gas_price_wei
-                    .ok_or(ProtobufConversionError::MissingField {
-                        field_description: "SignedBlockHeader::gas_price_wei",
-                    })?
-                    .into(),
-            ),
+            price_in_fri: u128::from(value.gas_price_fri.ok_or(
+                ProtobufConversionError::MissingField {
+                    field_description: "SignedBlockHeader::gas_price_fri",
+                },
+            )?)
+            .into(),
+
+            price_in_wei: u128::from(value.gas_price_wei.ok_or(
+                ProtobufConversionError::MissingField {
+                    field_description: "SignedBlockHeader::gas_price_wei",
+                },
+            )?)
+            .into(),
         };
 
         let l1_data_gas_price = GasPricePerToken {
-            price_in_fri: GasPrice(
-                value
-                    .data_gas_price_fri
-                    .ok_or(ProtobufConversionError::MissingField {
-                        field_description: "SignedBlockHeader::data_gas_price_fri",
-                    })?
-                    .into(),
-            ),
-            price_in_wei: GasPrice(
-                value
-                    .data_gas_price_wei
-                    .ok_or(ProtobufConversionError::MissingField {
-                        field_description: "SignedBlockHeader::data_gas_price_wei",
-                    })?
-                    .into(),
-            ),
+            price_in_fri: u128::from(value.data_gas_price_fri.ok_or(
+                ProtobufConversionError::MissingField {
+                    field_description: "SignedBlockHeader::data_gas_price_fri",
+                },
+            )?)
+            .into(),
+            price_in_wei: u128::from(value.data_gas_price_wei.ok_or(
+                ProtobufConversionError::MissingField {
+                    field_description: "SignedBlockHeader::data_gas_price_wei",
+                },
+            )?)
+            .into(),
+        };
+        let l2_gas_price = GasPricePerToken {
+            price_in_fri: u128::from(value.l2_gas_price_fri.ok_or(
+                ProtobufConversionError::MissingField {
+                    field_description: "SignedBlockHeader::l2_gas_price_fri",
+                },
+            )?)
+            .into(),
+
+            price_in_wei: u128::from(value.l2_gas_price_wei.ok_or(
+                ProtobufConversionError::MissingField {
+                    field_description: "SignedBlockHeader::l2_gas_price_wei",
+                },
+            )?)
+            .into(),
         };
 
         let receipt_commitment = value
@@ -194,14 +210,18 @@ impl TryFrom<protobuf::SignedBlockHeader> for SignedBlockHeader {
         Ok(SignedBlockHeader {
             block_header: BlockHeader {
                 block_hash,
-                parent_hash,
-                block_number: BlockNumber(value.number),
-                l1_gas_price,
-                l1_data_gas_price,
-                state_root,
-                sequencer,
-                timestamp,
-                l1_da_mode,
+                block_header_without_hash: BlockHeaderWithoutHash {
+                    parent_hash,
+                    block_number: BlockNumber(value.number),
+                    l1_gas_price,
+                    l1_data_gas_price,
+                    l2_gas_price,
+                    state_root,
+                    sequencer,
+                    timestamp,
+                    l1_da_mode,
+                    starknet_version,
+                },
                 state_diff_commitment,
                 state_diff_length,
                 transaction_commitment,
@@ -209,7 +229,6 @@ impl TryFrom<protobuf::SignedBlockHeader> for SignedBlockHeader {
                 n_transactions,
                 n_events,
                 receipt_commitment,
-                starknet_version,
             },
             // collect will convert from Vec<Result> to Result<Vec>.
             signatures: value
@@ -240,12 +259,12 @@ impl From<(BlockHeader, Vec<BlockSignature>)> for protobuf::SignedBlockHeader {
             });
         Self {
             block_hash: Some(header.block_hash.into()),
-            parent_hash: Some(header.parent_hash.into()),
-            number: header.block_number.0,
-            time: header.timestamp.0,
-            sequencer_address: Some(header.sequencer.0.into()),
+            parent_hash: Some(header.block_header_without_hash.parent_hash.into()),
+            number: header.block_header_without_hash.block_number.0,
+            time: header.block_header_without_hash.timestamp.0,
+            sequencer_address: Some(header.block_header_without_hash.sequencer.0.into()),
             state_diff_commitment,
-            state_root: Some(header.state_root.0.into()),
+            state_root: Some(header.block_header_without_hash.state_root.0.into()),
             transactions: Some(protobuf::Patricia {
                 n_leaves: header.n_transactions.try_into().expect("Converting usize to u64 failed"),
                 root: header
@@ -259,12 +278,28 @@ impl From<(BlockHeader, Vec<BlockSignature>)> for protobuf::SignedBlockHeader {
             receipts: header
                 .receipt_commitment
                 .map(|receipt_commitment| receipt_commitment.0.into()),
-            protocol_version: header.starknet_version.0,
-            gas_price_wei: Some(header.l1_gas_price.price_in_wei.0.into()),
-            gas_price_fri: Some(header.l1_gas_price.price_in_fri.0.into()),
-            data_gas_price_wei: Some(header.l1_data_gas_price.price_in_wei.0.into()),
-            data_gas_price_fri: Some(header.l1_data_gas_price.price_in_fri.0.into()),
-            l1_data_availability_mode: l1_data_availability_mode_to_enum_int(header.l1_da_mode),
+            protocol_version: header.block_header_without_hash.starknet_version.to_string(),
+            gas_price_wei: Some(
+                header.block_header_without_hash.l1_gas_price.price_in_wei.0.into(),
+            ),
+            gas_price_fri: Some(
+                header.block_header_without_hash.l1_gas_price.price_in_fri.0.into(),
+            ),
+            data_gas_price_wei: Some(
+                header.block_header_without_hash.l1_data_gas_price.price_in_wei.0.into(),
+            ),
+            data_gas_price_fri: Some(
+                header.block_header_without_hash.l1_data_gas_price.price_in_fri.0.into(),
+            ),
+            l2_gas_price_wei: Some(
+                header.block_header_without_hash.l2_gas_price.price_in_wei.0.into(),
+            ),
+            l2_gas_price_fri: Some(
+                header.block_header_without_hash.l2_gas_price.price_in_fri.0.into(),
+            ),
+            l1_data_availability_mode: l1_data_availability_mode_to_enum_int(
+                header.block_header_without_hash.l1_da_mode,
+            ),
             signatures: signatures.iter().map(|signature| (*signature).into()).collect(),
         }
     }

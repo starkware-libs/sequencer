@@ -8,30 +8,23 @@ use indexmap::indexmap;
 use mockito::mock;
 use pretty_assertions::assert_eq;
 use starknet_api::block::{BlockHash, BlockNumber};
-use starknet_api::core::{
-    ClassHash,
-    ContractAddress,
-    EntryPointSelector,
-    GlobalRoot,
-    Nonce,
-    PatriciaKey,
-    SequencerPublicKey,
-};
+use starknet_api::contract_class::EntryPointType;
+use starknet_api::core::{ContractAddress, EntryPointSelector, GlobalRoot, SequencerPublicKey};
 use starknet_api::crypto::utils::PublicKey;
 use starknet_api::deprecated_contract_class::{
     ConstructorType,
     ContractClass as DeprecatedContractClass,
     ContractClassAbiEntry,
-    EntryPoint as DeprecatedEntryPoint,
     EntryPointOffset,
-    EntryPointType as DeprecatedEntryPointType,
+    EntryPointV0 as DeprecatedEntryPoint,
     FunctionAbiEntry,
     Program,
     TypedParameter,
 };
-use starknet_api::state::{EntryPoint, EntryPointType, FunctionIndex};
-use starknet_api::transaction::{Fee, TransactionHash, TransactionSignature, TransactionVersion};
-use starknet_api::{felt, patricia_key};
+use starknet_api::state::{EntryPoint, FunctionIndex};
+use starknet_api::transaction::fields::{Fee, TransactionSignature};
+use starknet_api::transaction::{TransactionHash, TransactionVersion};
+use starknet_api::{class_hash, contract_address, felt, nonce};
 
 use super::objects::state::StateUpdate;
 use super::objects::transaction::IntermediateDeclareTransaction;
@@ -104,12 +97,12 @@ async fn get_block_number() {
 #[tokio::test]
 async fn declare_tx_serde() {
     let declare_tx = IntermediateDeclareTransaction {
-        class_hash: ClassHash(felt!(
+        class_hash: class_hash!(
             "0x7319e2f01b0947afd86c0bb0e95029551b32f6dc192c47b2e8b08415eebbc25"
-        )),
+        ),
         compiled_class_hash: None,
-        sender_address: ContractAddress(patricia_key!("0x1")),
-        nonce: Nonce(felt!("0x0")),
+        sender_address: contract_address!("0x1"),
+        nonce: nonce!(0_u64),
         max_fee: Some(Fee(0)),
         version: TransactionVersion::ONE,
         resource_bounds: None,
@@ -208,9 +201,9 @@ async fn contract_class() {
         .with_body(read_resource_file("reader/contract_class.json"))
         .create();
     let contract_class = starknet_client
-        .class_by_hash(ClassHash(felt!(
+        .class_by_hash(class_hash!(
             "0x4e70b19333ae94bd958625f7b61ce9eec631653597e68645e13780061b2136c"
-        )))
+        ))
         .await
         .unwrap()
         .unwrap();
@@ -262,9 +255,9 @@ async fn deprecated_contract_class() {
             reference_manager: serde_json::Value::Object(serde_json::Map::new()),
         },
         entry_points_by_type: HashMap::from([
-            (DeprecatedEntryPointType::L1Handler, vec![]),
+            (EntryPointType::L1Handler, vec![]),
             (
-                DeprecatedEntryPointType::Constructor,
+                EntryPointType::Constructor,
                 vec![DeprecatedEntryPoint {
                     selector: EntryPointSelector(felt!(
                         "0x028ffe4ff0f226a9107253e17a904099aa4f63a02a5621de0576e5aa71bc5194"
@@ -273,7 +266,7 @@ async fn deprecated_contract_class() {
                 }],
             ),
             (
-                DeprecatedEntryPointType::External,
+                EntryPointType::External,
                 vec![DeprecatedEntryPoint {
                     selector: EntryPointSelector(felt!(
                         "0x0000000000000000000000000000000000000000000000000000000000000000"
@@ -293,9 +286,9 @@ async fn deprecated_contract_class() {
         .with_body(read_resource_file("reader/deprecated_contract_class.json"))
         .create();
     let contract_class = starknet_client
-        .class_by_hash(ClassHash(felt!(
+        .class_by_hash(class_hash!(
             "0x7af612493193c771c1b12f511a8b4d3b0c6d0648242af4680c7cd0d06186f17"
-        )))
+        ))
         .await
         .unwrap()
         .unwrap();
@@ -318,7 +311,7 @@ async fn deprecated_contract_class() {
         .with_status(400)
         .with_body(body)
         .create();
-    let class = starknet_client.class_by_hash(ClassHash(felt!("0x7"))).await.unwrap();
+    let class = starknet_client.class_by_hash(class_hash!("0x7")).await.unwrap();
     mock_by_hash.assert();
     assert!(class.is_none());
 }
@@ -412,7 +405,7 @@ async fn compiled_class_by_hash() {
     .with_body(&raw_casm_contract_class)
     .create();
     let casm_contract_class =
-        starknet_client.compiled_class_by_hash(ClassHash(felt!("0x7"))).await.unwrap().unwrap();
+        starknet_client.compiled_class_by_hash(class_hash!("0x7")).await.unwrap().unwrap();
     mock_casm_contract_class.assert();
     let expected_casm_contract_class: CasmContractClass =
         serde_json::from_str(&raw_casm_contract_class).unwrap();
@@ -429,7 +422,7 @@ async fn compiled_class_by_hash() {
     .with_status(400)
     .with_body(body)
     .create();
-    let class = starknet_client.compiled_class_by_hash(ClassHash(felt!("0x0"))).await.unwrap();
+    let class = starknet_client.compiled_class_by_hash(class_hash!("0x0")).await.unwrap();
     mock_undeclared.assert();
     assert!(class.is_none());
 }
@@ -521,7 +514,7 @@ async fn class_by_hash_unserializable() {
     test_unserializable(
         &format!("/feeder_gateway/get_class_by_hash?blockNumber=pending&{CLASS_HASH_QUERY}=0x1")[..],
         |starknet_client| async move {
-            starknet_client.class_by_hash(ClassHash(felt!("0x1"))).await
+            starknet_client.class_by_hash(class_hash!("0x1")).await
         },
     )
     .await
@@ -544,7 +537,7 @@ async fn compiled_class_by_hash_unserializable() {
              {CLASS_HASH_QUERY}=0x7"
         )[..],
         |starknet_client| async move {
-            starknet_client.compiled_class_by_hash(ClassHash(felt!("0x7"))).await
+            starknet_client.compiled_class_by_hash(class_hash!("0x7")).await
         },
     )
     .await

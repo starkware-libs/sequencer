@@ -1,0 +1,26 @@
+[package]
+name = "starknet_mempool_types"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+version.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+testing = ["mockall"]
+
+[dependencies]
+async-trait.workspace = true
+mockall = { workspace = true, optional = true }
+papyrus_network_types.workspace = true
+papyrus_proc_macros.workspace = true
+serde = { workspace = true, features = ["derive"] }
+starknet_api.workspace = true
+starknet_sequencer_infra.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+# Enable self with "testing" feature in tests.
+starknet_mempool_types = { workspace = true, features = ["testing"] }

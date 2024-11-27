@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sequencer-node-deployment
+  namespace: test
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sequencer-node
+  template:
+    metadata:
+      labels:
+        app: sequencer-node
+    spec:
+      containers:
+        - args:
+            - --config_file
+            - /config/sequencer/presets/config
+          image: us.gcr.io/starkware-dev/sequencer-node-test:0.0.1-dev.3
+          livenessProbe:
+            failureThreshold: 5
+            httpGet:
+              path: /monitoring/alive
+              port: 8082
+            periodSeconds: 10
+            timeoutSeconds: 5
+          name: sequencer-node-server
+          ports:
+            - containerPort: 8080
+            - containerPort: 8081
+            - containerPort: 8082
+          readinessProbe:
+            failureThreshold: 5
+            httpGet:
+              path: /monitoring/ready
+              port: 8082
+            periodSeconds: 10
+            timeoutSeconds: 5
+          startupProbe:
+            failureThreshold: 10
+            httpGet:
+              path: /monitoring/nodeVersion
+              port: 8082
+            periodSeconds: 10
+            timeoutSeconds: 5
+          volumeMounts:
+            - mountPath: /config/sequencer/presets/
+              name: config
+              readOnly: true
+            - mountPath: /data
+              name: data
+              readOnly: false
+      securityContext:
+        fsGroup: 1000
+      volumes:
+        - configMap:
+            name: sequencer-node-config
+          name: sequencer-node-config
+        - name: sequencer-node-data
+          persistentVolumeClaim:
+            claimName: sequencer-node-data
+            readOnly: false

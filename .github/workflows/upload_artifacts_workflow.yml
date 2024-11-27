@@ -1,0 +1,89 @@
+name: Upload-Artifacts
+
+on:
+  workflow_run:
+    workflows: [Trigger-Workflow]
+    types: [completed]
+
+jobs:
+  native-blockifier-artifacts-push:
+    runs-on: starkware-ubuntu-20-04-medium
+    steps:
+      - name: Get commit hash prefix for PR update
+        env:
+          COMMIT_SHA: ${{ github.event.workflow_run.head_commit.id }}
+        run: |
+          echo "SHORT_HASH=${COMMIT_SHA:0:7}" >> $GITHUB_ENV
+          echo "COMMIT_SHA=${COMMIT_SHA}" >> $GITHUB_ENV
+
+      # This workflow is always triggered in `main` branch context, so need to checkout the commit.
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.COMMIT_SHA }}
+
+      # Set environment variables.
+      - name: Set environment variable
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          pr_number=$(gh pr list --head "${{ github.event.workflow_run.head_branch }}" --json number --jq '.[0].number')
+          echo "PR_NUMBER=$pr_number" >> $GITHUB_ENV
+          echo "WORKFLOW_LINK=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" >> $GITHUB_ENV
+
+      # Comment with a link to the workflow (or update existing comment on rerun).
+      # Required, as this is a triggered workflow, and does not appear on the PR status page.
+      - name: Find Comment
+        if: env.PR_NUMBER != ''
+        uses: starkware-libs/find-comment@v3
+        id: find-comment
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          issue-number: ${{ env.PR_NUMBER }}
+          comment-author: 'github-actions[bot]'
+          body-includes: Artifacts upload workflows
+
+      - name: Create comment
+        # If the PR number is found and the comment is not found, create a new comment.
+        if: env.PR_NUMBER != '' && steps.find-comment.outputs.comment-id == ''
+        uses: starkware-libs/create-or-update-comment@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          issue-number: ${{ env.PR_NUMBER }}
+          body: |
+            Artifacts upload workflows:
+            * [Started at ${{ github.event.workflow_run.run_started_at }}](${{ env.WORKFLOW_LINK }})
+
+      - name: Update comment
+        # If the PR number is found and the comment exists, update it.
+        if: env.PR_NUMBER != '' && steps.find-comment.outputs.comment-id != ''
+        uses: starkware-libs/create-or-update-comment@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          comment-id: ${{ steps.find-comment.outputs.comment-id }}
+          edit-mode: append
+          body: |
+            * [Started at ${{ github.event.workflow_run.run_started_at }}](${{ env.WORKFLOW_LINK }})
+
+      # Build artifact.
+      - uses: ./.github/actions/bootstrap
+      - name: Build native blockifier
+        run: ./build_native_in_docker.sh scripts/build_native_blockifier.sh
+
+      # Rename is required; see https://pyo3.rs/v0.19.2/building_and_distribution#manual-builds.
+      - name: Rename shared object
+        run: |
+          mv \
+            target/release/libnative_blockifier.so \
+            target/release/native_blockifier.pypy39-pp73-x86_64-linux-gnu.so
+
+      - name: Authenticate with GCS
+        uses: "google-github-actions/auth@v2"
+        with:
+          credentials_json: ${{ secrets.SA_NATIVE_BLOCKIFIER_ARTIFACTS_BUCKET_WRITER_ACCESS_KEY }}
+
+      - name: Upload binary to GCP
+        id: upload_file
+        uses: "google-github-actions/upload-cloud-storage@v2"
+        with:
+          path: "target/release/native_blockifier.pypy39-pp73-x86_64-linux-gnu.so"
+          destination: "native_blockifier_artifacts/${{ env.SHORT_HASH }}/release/"

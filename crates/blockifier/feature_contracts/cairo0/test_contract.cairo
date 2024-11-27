@@ -1,10 +1,12 @@
 %lang starknet
 
+from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bitwise import bitwise_xor
 from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.cairo_builtins import BitwiseBuiltin, HashBuiltin, EcOpBuiltin
 from starkware.cairo.common.ec import ec_op
 from starkware.cairo.common.ec_point import EcPoint
+from starkware.cairo.common.memcpy import memcpy
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.starknet.common.messages import send_message_to_l1
 from starkware.starknet.common.syscalls import (
@@ -95,6 +97,7 @@ func write_a_lot{syscall_ptr: felt*}(n_writes: felt, value: felt) {
     if (n_writes == 0) {
         return ();
     }
+    send_message(7);
     storage_write(address=n_writes, value=value);
     return write_a_lot(n_writes - 1, value);
 }
@@ -163,6 +166,39 @@ func test_call_contract{syscall_ptr: felt*}(
         calldata=calldata,
     );
     return (retdata_size=retdata_size, retdata=retdata);
+}
+
+@external
+@raw_output
+func test_call_two_contracts{syscall_ptr: felt*}(
+    contract_address_0: felt,
+    function_selector_0: felt,
+    calldata_0_len: felt,
+    calldata_0: felt*,
+    contract_address_1: felt,
+    function_selector_1: felt,
+    calldata_1_len: felt,
+    calldata_1: felt*,
+) -> (retdata_size: felt, retdata: felt*) {
+    alloc_locals;
+
+    let (retdata_0_len: felt, retdata_0: felt*) = call_contract(
+        contract_address=contract_address_0,
+        function_selector=function_selector_0,
+        calldata_size=calldata_0_len,
+        calldata=calldata_0,
+    );
+    let (retdata_1_len: felt, retdata_1: felt*) = call_contract(
+        contract_address=contract_address_1,
+        function_selector=function_selector_1,
+        calldata_size=calldata_1_len,
+        calldata=calldata_1,
+    );
+
+    let retdata: felt* = alloc();
+    memcpy(dst=retdata, src=retdata_0, len=retdata_0_len);
+    memcpy(dst=retdata + retdata_0_len, src=retdata_1, len=retdata_1_len);
+    return (retdata_size=retdata_0_len + retdata_1_len, retdata=retdata);
 }
 
 @external
@@ -519,4 +555,3 @@ func test_emit_events{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_chec
 ) {
     return emit_event_recurse(events_count, keys_len, keys, data_len, data);
 }
-

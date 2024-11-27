@@ -268,7 +268,8 @@ async fn test_delete_leaf_from_empty_tree() {
         &MapStorage { storage: HashMap::new() },
         HashOutput::ROOT_OF_EMPTY_TREE,
         SortedLeafIndices::new(&mut indices),
-        &OriginalSkeletonMockTrieConfig::new(&storage_modifications, false),
+        &OriginalSkeletonMockTrieConfig::new(false),
+        &storage_modifications,
     )
     .unwrap();
 

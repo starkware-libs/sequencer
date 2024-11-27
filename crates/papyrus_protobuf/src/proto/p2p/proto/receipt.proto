@@ -32,6 +32,7 @@ message Receipt {
     message GasVector {
       uint64 l1_gas = 1;
       uint64 l1_data_gas = 2;
+      uint64 l2_gas = 3;
     }
 
     BuiltinCounter builtins = 1;

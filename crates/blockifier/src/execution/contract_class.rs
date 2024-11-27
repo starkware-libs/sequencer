@@ -1,5 +1,5 @@
 use std::collections::{HashMap, HashSet};
-use std::ops::Deref;
+use std::ops::{Deref, Index};
 use std::sync::Arc;
 
 use cairo_lang_casm;
@@ -18,60 +18,86 @@ use cairo_vm::types::program::Program;
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use itertools::Itertools;
+use semver::Version;
 use serde::de::Error as DeserializationError;
-use serde::{Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize};
+use starknet_api::contract_class::{ContractClass, EntryPointType};
 use starknet_api::core::EntryPointSelector;
 use starknet_api::deprecated_contract_class::{
     ContractClass as DeprecatedContractClass,
-    EntryPoint,
     EntryPointOffset,
-    EntryPointType,
+    EntryPointV0,
     Program as DeprecatedProgram,
 };
+use starknet_api::transaction::fields::GasVectorComputationMode;
 use starknet_types_core::felt::Felt;
 
-use super::execution_utils::poseidon_hash_many_cost;
-use crate::abi::abi_utils::selector_from_name;
-use crate::abi::constants::{self, CONSTRUCTOR_ENTRY_POINT_NAME};
+use crate::abi::constants::{self};
 use crate::execution::entry_point::CallEntryPoint;
-use crate::execution::errors::{ContractClassError, PreExecutionError};
-use crate::execution::execution_utils::sn_api_to_cairo_vm_program;
-use crate::fee::eth_gas_constants;
+use crate::execution::errors::PreExecutionError;
+use crate::execution::execution_utils::{poseidon_hash_many_cost, sn_api_to_cairo_vm_program};
+#[cfg(feature = "cairo_native")]
+use crate::execution::native::contract_class::NativeContractClassV1;
 use crate::transaction::errors::TransactionExecutionError;
+use crate::versioned_constants::CompilerVersion;
 
 #[cfg(test)]
 #[path = "contract_class_test.rs"]
 pub mod test;
 
-pub type ContractClassResult<T> = Result<T, ContractClassError>;
+pub trait HasSelector {
+    fn selector(&self) -> &EntryPointSelector;
+}
+
+/// The resource used to run a contract function.
+#[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
+#[derive(Clone, Copy, Default, Debug, Eq, PartialEq, Serialize)]
+pub enum TrackedResource {
+    #[default]
+    CairoSteps, // AKA VM mode.
+    SierraGas, // AKA Sierra mode.
+}
 
 /// Represents a runnable Starknet contract class (meaning, the program is runnable by the VM).
 #[derive(Clone, Debug, Eq, PartialEq, derive_more::From)]
-pub enum ContractClass {
+pub enum RunnableContractClass {
     V0(ContractClassV0),
     V1(ContractClassV1),
+    #[cfg(feature = "cairo_native")]
+    V1Native(NativeContractClassV1),
 }
 
-impl TryFrom<CasmContractClass> for ContractClass {
+impl TryFrom<ContractClass> for RunnableContractClass {
     type Error = ProgramError;
 
-    fn try_from(contract_class: CasmContractClass) -> Result<Self, Self::Error> {
-        Ok(ContractClass::V1(contract_class.try_into()?))
+    fn try_from(raw_contract_class: ContractClass) -> Result<Self, Self::Error> {
+        let contract_class: Self = match raw_contract_class {
+            ContractClass::V0(raw_contract_class) => Self::V0(raw_contract_class.try_into()?),
+            ContractClass::V1(raw_contract_class) => Self::V1(raw_contract_class.try_into()?),
+        };
+
+        Ok(contract_class)
     }
 }
 
-impl ContractClass {
+impl RunnableContractClass {
     pub fn constructor_selector(&self) -> Option<EntryPointSelector> {
         match self {
-            ContractClass::V0(class) => class.constructor_selector(),
-            ContractClass::V1(class) => class.constructor_selector(),
+            Self::V0(class) => class.constructor_selector(),
+            Self::V1(class) => class.constructor_selector(),
+            #[cfg(feature = "cairo_native")]
+            Self::V1Native(class) => class.constructor_selector(),
         }
     }
 
     pub fn estimate_casm_hash_computation_resources(&self) -> ExecutionResources {
         match self {
-            ContractClass::V0(class) => class.estimate_casm_hash_computation_resources(),
-            ContractClass::V1(class) => class.estimate_casm_hash_computation_resources(),
+            Self::V0(class) => class.estimate_casm_hash_computation_resources(),
+            Self::V1(class) => class.estimate_casm_hash_computation_resources(),
+            #[cfg(feature = "cairo_native")]
+            Self::V1Native(_) => {
+                todo!("Use casm to estimate casm hash computation resources")
+            }
         }
     }
 
@@ -80,24 +106,51 @@ impl ContractClass {
         visited_pcs: &HashSet<usize>,
     ) -> Result<Vec<usize>, TransactionExecutionError> {
         match self {
-            ContractClass::V0(_) => {
+            Self::V0(_) => {
                 panic!("get_visited_segments is not supported for v0 contracts.")
             }
-            ContractClass::V1(class) => class.get_visited_segments(visited_pcs),
+            Self::V1(class) => class.get_visited_segments(visited_pcs),
+            #[cfg(feature = "cairo_native")]
+            Self::V1Native(_) => {
+                panic!("get_visited_segments is not supported for native contracts.")
+            }
         }
     }
 
     pub fn bytecode_length(&self) -> usize {
         match self {
-            ContractClass::V0(class) => class.bytecode_length(),
-            ContractClass::V1(class) => class.bytecode_length(),
+            Self::V0(class) => class.bytecode_length(),
+            Self::V1(class) => class.bytecode_length(),
+            #[cfg(feature = "cairo_native")]
+            Self::V1Native(_) => {
+                todo!("implement bytecode_length for native contracts.")
+            }
+        }
+    }
+
+    /// Returns whether this contract should run using Cairo steps or Sierra gas.
+    pub fn tracked_resource(
+        &self,
+        min_sierra_version: &CompilerVersion,
+        gas_mode: GasVectorComputationMode,
+    ) -> TrackedResource {
+        match gas_mode {
+            GasVectorComputationMode::All => match self {
+                Self::V0(_) => TrackedResource::CairoSteps,
+                Self::V1(contract_class) => contract_class.tracked_resource(min_sierra_version),
+                #[cfg(feature = "cairo_native")]
+                Self::V1Native(contract_class) => {
+                    contract_class.casm().tracked_resource(min_sierra_version)
+                }
+            },
+            GasVectorComputationMode::NoL2Gas => TrackedResource::CairoSteps,
         }
     }
 }
 
 // V0.
 
-/// Represents a runnable Cario 0 Starknet contract class (meaning, the program is runnable by the
+/// Represents a runnable Cairo 0 Starknet contract class (meaning, the program is runnable by the
 /// VM). We wrap the actual class in an Arc to avoid cloning the program when cloning the
 /// class.
 // Note: when deserializing from a SN API class JSON string, the ABI field is ignored
@@ -144,6 +197,10 @@ impl ContractClassV0 {
         }
     }
 
+    pub fn tracked_resource(&self) -> TrackedResource {
+        TrackedResource::CairoSteps
+    }
+
     pub fn try_from_json_string(raw_contract_class: &str) -> Result<ContractClassV0, ProgramError> {
         let contract_class: ContractClassV0Inner = serde_json::from_str(raw_contract_class)?;
         Ok(ContractClassV0(Arc::new(contract_class)))
@@ -154,7 +211,7 @@ impl ContractClassV0 {
 pub struct ContractClassV0Inner {
     #[serde(deserialize_with = "deserialize_program")]
     pub program: Program,
-    pub entry_points_by_type: HashMap<EntryPointType, Vec<EntryPoint>>,
+    pub entry_points_by_type: HashMap<EntryPointType, Vec<EntryPointV0>>,
 }
 
 impl TryFrom<DeprecatedContractClass> for ContractClassV0 {
@@ -184,8 +241,8 @@ impl Deref for ContractClassV1 {
 }
 
 impl ContractClassV1 {
-    fn constructor_selector(&self) -> Option<EntryPointSelector> {
-        Some(self.0.entry_points_by_type[&EntryPointType::Constructor].first()?.selector)
+    pub fn constructor_selector(&self) -> Option<EntryPointSelector> {
+        self.0.entry_points_by_type.constructor.first().map(|ep| ep.selector)
     }
 
     pub fn bytecode_length(&self) -> usize {
@@ -200,25 +257,15 @@ impl ContractClassV1 {
         &self,
         call: &CallEntryPoint,
     ) -> Result<EntryPointV1, PreExecutionError> {
-        if call.entry_point_type == EntryPointType::Constructor
-            && call.entry_point_selector != selector_from_name(CONSTRUCTOR_ENTRY_POINT_NAME)
-        {
-            return Err(PreExecutionError::InvalidConstructorEntryPointName);
-        }
+        self.entry_points_by_type.get_entry_point(call)
+    }
 
-        let entry_points_of_same_type = &self.0.entry_points_by_type[&call.entry_point_type];
-        let filtered_entry_points: Vec<_> = entry_points_of_same_type
-            .iter()
-            .filter(|ep| ep.selector == call.entry_point_selector)
-            .collect();
-
-        match &filtered_entry_points[..] {
-            [] => Err(PreExecutionError::EntryPointNotFound(call.entry_point_selector)),
-            [entry_point] => Ok((*entry_point).clone()),
-            _ => Err(PreExecutionError::DuplicatedEntryPointSelector {
-                selector: call.entry_point_selector,
-                typ: call.entry_point_type,
-            }),
+    /// Returns whether this contract should run using Cairo steps or Sierra gas.
+    pub fn tracked_resource(&self, min_sierra_version: &CompilerVersion) -> TrackedResource {
+        if *min_sierra_version <= self.compiler_version {
+            TrackedResource::SierraGas
+        } else {
+            TrackedResource::CairoSteps
         }
     }
 
@@ -241,20 +288,9 @@ impl ContractClassV1 {
 
     pub fn try_from_json_string(raw_contract_class: &str) -> Result<ContractClassV1, ProgramError> {
         let casm_contract_class: CasmContractClass = serde_json::from_str(raw_contract_class)?;
-        let contract_class: ContractClassV1 = casm_contract_class.try_into()?;
+        let contract_class = ContractClassV1::try_from(casm_contract_class)?;
 
         Ok(contract_class)
-    }
-
-    /// Returns an empty contract class for testing purposes.
-    #[cfg(any(feature = "testing", test))]
-    pub fn empty_for_testing() -> Self {
-        Self(Arc::new(ContractClassV1Inner {
-            program: Default::default(),
-            entry_points_by_type: Default::default(),
-            hints: Default::default(),
-            bytecode_segment_lengths: NestedIntList::Leaf(0),
-        }))
     }
 }
 
@@ -352,8 +388,9 @@ fn get_visited_segments(
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ContractClassV1Inner {
     pub program: Program,
-    pub entry_points_by_type: HashMap<EntryPointType, Vec<EntryPointV1>>,
+    pub entry_points_by_type: EntryPointsByType<EntryPointV1>,
     pub hints: HashMap<String, Hint>,
+    pub compiler_version: CompilerVersion,
     bytecode_segment_lengths: NestedIntList,
 }
 
@@ -370,15 +407,18 @@ impl EntryPointV1 {
     }
 }
 
+impl HasSelector for EntryPointV1 {
+    fn selector(&self) -> &EntryPointSelector {
+        &self.selector
+    }
+}
+
 impl TryFrom<CasmContractClass> for ContractClassV1 {
     type Error = ProgramError;
 
     fn try_from(class: CasmContractClass) -> Result<Self, Self::Error> {
-        let data: Vec<MaybeRelocatable> = class
-            .bytecode
-            .into_iter()
-            .map(|x| MaybeRelocatable::from(Felt::from(x.value)))
-            .collect();
+        let data: Vec<MaybeRelocatable> =
+            class.bytecode.iter().map(|x| MaybeRelocatable::from(Felt::from(&x.value))).collect();
 
         let mut hints: HashMap<usize, Vec<HintParams>> = HashMap::new();
         for (i, hint_list) in class.hints.iter() {
@@ -414,28 +454,23 @@ impl TryFrom<CasmContractClass> for ContractClassV1 {
             instruction_locations,
         )?;
 
-        let mut entry_points_by_type = HashMap::new();
-        entry_points_by_type.insert(
-            EntryPointType::Constructor,
-            convert_entry_points_v1(class.entry_points_by_type.constructor),
-        );
-        entry_points_by_type.insert(
-            EntryPointType::External,
-            convert_entry_points_v1(class.entry_points_by_type.external),
-        );
-        entry_points_by_type.insert(
-            EntryPointType::L1Handler,
-            convert_entry_points_v1(class.entry_points_by_type.l1_handler),
-        );
-
+        let entry_points_by_type = EntryPointsByType {
+            constructor: convert_entry_points_v1(&class.entry_points_by_type.constructor),
+            external: convert_entry_points_v1(&class.entry_points_by_type.external),
+            l1_handler: convert_entry_points_v1(&class.entry_points_by_type.l1_handler),
+        };
         let bytecode_segment_lengths = class
             .bytecode_segment_lengths
             .unwrap_or_else(|| NestedIntList::Leaf(program.data_len()));
-
-        Ok(Self(Arc::new(ContractClassV1Inner {
+        let compiler_version = CompilerVersion(
+            Version::parse(&class.compiler_version)
+                .unwrap_or_else(|_| panic!("Invalid version: '{}'", class.compiler_version)),
+        );
+        Ok(ContractClassV1(Arc::new(ContractClassV1Inner {
             program,
             entry_points_by_type,
             hints: string_to_hint,
+            compiler_version,
             bytecode_segment_lengths,
         })))
     }
@@ -455,7 +490,7 @@ pub fn deserialize_program<'de, D: Deserializer<'de>>(
 // V1 utilities.
 
 // TODO(spapini): Share with cairo-lang-runner.
-fn hint_to_hint_params(hint: &cairo_lang_casm::hints::Hint) -> Result<HintParams, ProgramError> {
+fn hint_to_hint_params(hint: &Hint) -> Result<HintParams, ProgramError> {
     Ok(HintParams {
         code: serde_json::to_string(hint)?,
         accessible_scopes: vec![],
@@ -466,88 +501,59 @@ fn hint_to_hint_params(hint: &cairo_lang_casm::hints::Hint) -> Result<HintParams
     })
 }
 
-fn convert_entry_points_v1(external: Vec<CasmContractEntryPoint>) -> Vec<EntryPointV1> {
+fn convert_entry_points_v1(external: &[CasmContractEntryPoint]) -> Vec<EntryPointV1> {
     external
-        .into_iter()
+        .iter()
         .map(|ep| EntryPointV1 {
-            selector: EntryPointSelector(Felt::from(ep.selector)),
+            selector: EntryPointSelector(Felt::from(&ep.selector)),
             offset: EntryPointOffset(ep.offset),
             builtins: ep
                 .builtins
-                .into_iter()
-                .map(|builtin| BuiltinName::from_str(&builtin).expect("Unrecognized builtin."))
+                .iter()
+                .map(|builtin| BuiltinName::from_str(builtin).expect("Unrecognized builtin."))
                 .collect(),
         })
         .collect()
 }
 
-#[derive(Clone, Debug)]
-// TODO(Ayelet,10/02/2024): Change to bytes.
-pub struct ClassInfo {
-    contract_class: ContractClass,
-    sierra_program_length: usize,
-    abi_length: usize,
+// TODO(Yoni): organize this file.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+/// Modelled after [cairo_lang_starknet_classes::contract_class::ContractEntryPoints].
+pub struct EntryPointsByType<EP: HasSelector> {
+    pub constructor: Vec<EP>,
+    pub external: Vec<EP>,
+    pub l1_handler: Vec<EP>,
 }
 
-impl TryFrom<starknet_api::contract_class::ClassInfo> for ClassInfo {
-    type Error = ProgramError;
+impl<EP: Clone + HasSelector> EntryPointsByType<EP> {
+    pub fn get_entry_point(&self, call: &CallEntryPoint) -> Result<EP, PreExecutionError> {
+        call.verify_constructor()?;
 
-    fn try_from(class_info: starknet_api::contract_class::ClassInfo) -> Result<Self, Self::Error> {
-        let starknet_api::contract_class::ClassInfo {
-            casm_contract_class,
-            sierra_program_length,
-            abi_length,
-        } = class_info;
+        let entry_points_of_same_type = &self[call.entry_point_type];
+        let filtered_entry_points: Vec<_> = entry_points_of_same_type
+            .iter()
+            .filter(|ep| *ep.selector() == call.entry_point_selector)
+            .collect();
 
-        Ok(Self {
-            contract_class: casm_contract_class.try_into()?,
-            sierra_program_length,
-            abi_length,
-        })
+        match filtered_entry_points[..] {
+            [] => Err(PreExecutionError::EntryPointNotFound(call.entry_point_selector)),
+            [entry_point] => Ok(entry_point.clone()),
+            _ => Err(PreExecutionError::DuplicatedEntryPointSelector {
+                selector: call.entry_point_selector,
+                typ: call.entry_point_type,
+            }),
+        }
     }
 }
 
-impl ClassInfo {
-    pub fn bytecode_length(&self) -> usize {
-        self.contract_class.bytecode_length()
-    }
+impl<EP: HasSelector> Index<EntryPointType> for EntryPointsByType<EP> {
+    type Output = Vec<EP>;
 
-    pub fn contract_class(&self) -> ContractClass {
-        self.contract_class.clone()
-    }
-
-    pub fn sierra_program_length(&self) -> usize {
-        self.sierra_program_length
-    }
-
-    pub fn abi_length(&self) -> usize {
-        self.abi_length
-    }
-
-    pub fn code_size(&self) -> usize {
-        (self.bytecode_length() + self.sierra_program_length())
-            // We assume each felt is a word.
-            * eth_gas_constants::WORD_WIDTH
-            + self.abi_length()
-    }
-
-    pub fn new(
-        contract_class: &ContractClass,
-        sierra_program_length: usize,
-        abi_length: usize,
-    ) -> ContractClassResult<Self> {
-        let (contract_class_version, condition) = match contract_class {
-            ContractClass::V0(_) => (0, sierra_program_length == 0),
-            ContractClass::V1(_) => (1, sierra_program_length > 0),
-        };
-
-        if condition {
-            Ok(Self { contract_class: contract_class.clone(), sierra_program_length, abi_length })
-        } else {
-            Err(ContractClassError::ContractClassVersionSierraProgramLengthMismatch {
-                contract_class_version,
-                sierra_program_length,
-            })
+    fn index(&self, index: EntryPointType) -> &Self::Output {
+        match index {
+            EntryPointType::Constructor => &self.constructor,
+            EntryPointType::External => &self.external,
+            EntryPointType::L1Handler => &self.l1_handler,
         }
     }
 }

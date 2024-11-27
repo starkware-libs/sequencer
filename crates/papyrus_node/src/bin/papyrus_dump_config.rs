@@ -5,7 +5,7 @@
 #[cfg(feature = "rpc")]
 use papyrus_config::dumping::SerializeConfig;
 #[cfg(feature = "rpc")]
-use papyrus_node::config::pointers::CONFIG_POINTERS;
+use papyrus_node::config::pointers::{CONFIG_NON_POINTERS_WHITELIST, CONFIG_POINTERS};
 #[cfg(feature = "rpc")]
 use papyrus_node::config::{NodeConfig, DEFAULT_CONFIG_PATH};
 
@@ -15,7 +15,7 @@ use papyrus_node::config::{NodeConfig, DEFAULT_CONFIG_PATH};
 fn main() {
     #[cfg(feature = "rpc")]
     NodeConfig::default()
-        .dump_to_file(&CONFIG_POINTERS, DEFAULT_CONFIG_PATH)
+        .dump_to_file(&CONFIG_POINTERS, &CONFIG_NON_POINTERS_WHITELIST, DEFAULT_CONFIG_PATH)
         .expect("dump to file error");
     // TODO(shahak): Try to find a way to remove this binary altogether when the feature rpc is
     // turned off.

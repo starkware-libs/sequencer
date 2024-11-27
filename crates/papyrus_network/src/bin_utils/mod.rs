@@ -30,6 +30,8 @@ where
         .with_tokio()
         .with_tcp(Default::default(), noise::Config::new, yamux::Config::default)
         .expect("Error building TCP transport")
+        .with_dns()
+        .expect("Error building DNS transport")
         // TODO: quic transpot does not work (failure appears in the command line when running in debug mode)
         // .with_quic()
         .with_behaviour(|key| behaviour(key.clone()))

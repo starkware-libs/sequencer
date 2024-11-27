@@ -3,7 +3,7 @@
 use core::{panic, time};
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use assert_matches::assert_matches;
 use futures::future::poll_fn;
@@ -11,7 +11,6 @@ use futures::{FutureExt, Stream, StreamExt};
 use libp2p::swarm::behaviour::ConnectionEstablished;
 use libp2p::swarm::{ConnectionId, NetworkBehaviour, ToSwarm};
 use libp2p::{Multiaddr, PeerId};
-use mockall::predicate::eq;
 use tokio::time::sleep;
 use void::Void;
 
@@ -19,13 +18,13 @@ use super::behaviour_impl::ToOtherBehaviourEvent;
 use crate::discovery::identify_impl::IdentifyToOtherBehaviourEvent;
 use crate::mixed_behaviour;
 use crate::mixed_behaviour::BridgedBehaviour;
-use crate::peer_manager::peer::{MockPeerTrait, Peer, PeerTrait};
-use crate::peer_manager::{PeerManager, PeerManagerConfig, ReputationModifier};
+use crate::peer_manager::peer::{Peer, PeerTrait};
+use crate::peer_manager::{PeerManager, PeerManagerConfig, ReputationModifier, MALICIOUS};
 use crate::sqmr::OutboundSessionId;
 
-impl<P: PeerTrait> Unpin for PeerManager<P> {}
+impl Unpin for PeerManager {}
 
-impl<P: PeerTrait> Stream for PeerManager<P> {
+impl Stream for PeerManager {
     type Item = ToSwarm<ToOtherBehaviourEvent, Void>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
@@ -74,12 +73,12 @@ fn peer_assignment_round_robin() {
     }
 
     // check assignment events
-    for event in peer_manager.pending_events {
-        let ToSwarm::GenerateEvent(ToOtherBehaviourEvent::SessionAssigned {
+    while let Some(event) = peer_manager.next().now_or_never() {
+        let Some(ToSwarm::GenerateEvent(ToOtherBehaviourEvent::SessionAssigned {
             outbound_session_id,
             peer_id,
             connection_id,
-        }) = event
+        })) = event
         else {
             continue;
         };
@@ -123,7 +122,7 @@ fn peer_assignment_round_robin() {
 async fn peer_assignment_no_peers() {
     // Create a new peer manager
     let config = PeerManagerConfig::default();
-    let mut peer_manager: PeerManager<MockPeerTrait> = PeerManager::new(config.clone());
+    let mut peer_manager: PeerManager = PeerManager::new(config.clone());
 
     // Create a session
     let outbound_session_id = OutboundSessionId { value: 1 };
@@ -134,9 +133,9 @@ async fn peer_assignment_no_peers() {
 
     // Now the peer manager finds a new peer and can assign the session.
     let connection_id = ConnectionId::new_unchecked(0);
-    let (mut peer, peer_id) =
-        create_mock_peer(config.blacklist_timeout, false, Some(connection_id));
-    peer.expect_is_blocked().times(1).return_const(false);
+    let peer_id = PeerId::random();
+    let mut peer = Peer::new(peer_id, Multiaddr::empty());
+    peer.add_connection_id(connection_id);
     peer_manager.add_peer(peer);
     assert_matches!(
         peer_manager.next().await.unwrap(),
@@ -157,21 +156,21 @@ async fn peer_assignment_no_unblocked_peers() {
     const BLOCKED_UNTIL: Duration = Duration::from_secs(5);
     const TIMEOUT: Duration = Duration::from_secs(1);
     // Create a new peer manager
-    let config = PeerManagerConfig::default();
-    let mut peer_manager: PeerManager<MockPeerTrait> = PeerManager::new(config.clone());
+    let config =
+        PeerManagerConfig { malicious_timeout_seconds: TIMEOUT, unstable_timeout_millis: TIMEOUT };
+    let mut peer_manager: PeerManager = PeerManager::new(config.clone());
 
     // Create a session
     let outbound_session_id = OutboundSessionId { value: 1 };
 
     // Create a peer
     let connection_id = ConnectionId::new_unchecked(0);
-    let (mut peer, peer_id) = create_mock_peer(config.blacklist_timeout, true, Some(connection_id));
-    peer.expect_is_blocked().times(1).return_const(true);
-    peer.expect_is_blocked().times(1).return_const(false);
-    peer.expect_blocked_until().times(1).returning(|| Instant::now() + BLOCKED_UNTIL);
+    let peer_id = PeerId::random();
+    let mut peer = Peer::new(peer_id, Multiaddr::empty());
+    peer.add_connection_id(connection_id);
 
     peer_manager.add_peer(peer);
-    peer_manager.report_peer(peer_id, ReputationModifier::Bad {}).unwrap();
+    peer_manager.report_peer(peer_id, ReputationModifier::Unstable).unwrap();
 
     // Consume the peer blacklisted event
     let event = tokio::time::timeout(TIMEOUT, peer_manager.next()).await.unwrap().unwrap();
@@ -210,17 +209,17 @@ async fn peer_assignment_no_unblocked_peers() {
 fn report_peer_calls_update_reputation_and_notifies_kad() {
     // Create a new peer manager
     let config = PeerManagerConfig::default();
-    let mut peer_manager: PeerManager<MockPeerTrait> = PeerManager::new(config.clone());
+    let mut peer_manager: PeerManager = PeerManager::new(config.clone());
 
-    // Create a mock peer
-    let (peer, peer_id) = create_mock_peer(config.blacklist_timeout, true, None);
+    // Create a peer
+    let peer_id = PeerId::random();
+    let peer = Peer::new(peer_id, Multiaddr::empty());
 
-    // Add the mock peer to the peer manager
     peer_manager.add_peer(peer);
 
     // Call the report_peer function on the peer manager
-    peer_manager.report_peer(peer_id, ReputationModifier::Bad {}).unwrap();
-    peer_manager.get_mut_peer(peer_id).unwrap().checkpoint();
+    peer_manager.report_peer(peer_id, ReputationModifier::Unstable).unwrap();
+    peer_manager.get_mut_peer(peer_id).unwrap();
 
     // Validate that we have an event to notify Kademlia
     assert_eq!(peer_manager.pending_events.len(), 1);
@@ -232,11 +231,10 @@ fn report_peer_calls_update_reputation_and_notifies_kad() {
 }
 
 #[tokio::test]
-async fn peer_block_realeased_after_timeout() {
+async fn peer_block_released_after_timeout() {
     const DURATION_IN_MILLIS: u64 = 50;
     let mut peer = Peer::new(PeerId::random(), Multiaddr::empty());
-    peer.set_timeout_duration(Duration::from_millis(DURATION_IN_MILLIS));
-    peer.update_reputation(ReputationModifier::Bad {});
+    peer.blacklist_peer(Duration::from_millis(DURATION_IN_MILLIS));
     assert!(peer.is_blocked());
     sleep(time::Duration::from_millis(DURATION_IN_MILLIS)).await;
     assert!(!peer.is_blocked());
@@ -245,13 +243,12 @@ async fn peer_block_realeased_after_timeout() {
 #[test]
 fn report_peer_on_unknown_peer_id() {
     // Create a new peer manager
-    let mut peer_manager: PeerManager<MockPeerTrait> =
-        PeerManager::new(PeerManagerConfig::default());
+    let mut peer_manager: PeerManager = PeerManager::new(PeerManagerConfig::default());
 
     // report peer on an unknown peer_id
     let peer_id = PeerId::random();
     peer_manager
-        .report_peer(peer_id, ReputationModifier::Bad {})
+        .report_peer(peer_id, ReputationModifier::Unstable {})
         .expect_err("report_peer on unknown peer_id should return an error");
 }
 
@@ -259,14 +256,14 @@ fn report_peer_on_unknown_peer_id() {
 fn report_session_calls_update_reputation() {
     // Create a new peer manager
     let config = PeerManagerConfig::default();
-    let mut peer_manager: PeerManager<MockPeerTrait> = PeerManager::new(config.clone());
+    let mut peer_manager: PeerManager = PeerManager::new(config.clone());
 
-    // Create a mock peer
-    let (mut peer, peer_id) =
-        create_mock_peer(config.blacklist_timeout, true, Some(ConnectionId::new_unchecked(0)));
-    peer.expect_is_blocked().times(1).return_const(false);
+    // Create a peer
+    let peer_id = PeerId::random();
+    let mut peer = Peer::new(peer_id, Multiaddr::empty());
+    peer.add_connection_id(ConnectionId::new_unchecked(0));
 
-    // Add the mock peer to the peer manager
+    // Add the peer to the peer manager
     peer_manager.add_peer(peer);
 
     // Create a session
@@ -277,21 +274,23 @@ fn report_session_calls_update_reputation() {
     assert_eq!(res_peer_id, peer_id);
 
     // Call the report_peer function on the peer manager
-    peer_manager.report_session(outbound_session_id, ReputationModifier::Bad {}).unwrap();
-    peer_manager.get_mut_peer(peer_id).unwrap().checkpoint();
+    peer_manager.report_session(outbound_session_id, ReputationModifier::Unstable {}).unwrap();
+    peer_manager.get_mut_peer(peer_id).unwrap();
 }
 
 #[test]
 fn report_session_on_unknown_session_id() {
     // Create a new peer manager
-    let mut peer_manager: PeerManager<MockPeerTrait> =
-        PeerManager::new(PeerManagerConfig::default());
+    let mut peer_manager: PeerManager = PeerManager::new(PeerManagerConfig::default());
 
     // Create a session
     let outbound_session_id = OutboundSessionId { value: 1 };
 
     peer_manager
-        .report_session(outbound_session_id, ReputationModifier::Bad {})
+        .report_session(
+            outbound_session_id,
+            ReputationModifier::Misconduct { misconduct_score: MALICIOUS },
+        )
         .expect_err("report_session on unknown outbound_session_id should return an error");
 }
 
@@ -299,18 +298,19 @@ fn report_session_on_unknown_session_id() {
 async fn timed_out_peer_not_assignable_to_queries() {
     // Create a new peer manager
     let config = PeerManagerConfig::default();
-    let mut peer_manager: PeerManager<MockPeerTrait> = PeerManager::new(config.clone());
+    let mut peer_manager: PeerManager = PeerManager::new(config.clone());
 
-    // Create a mock peer
-    let (mut peer, peer_id) = create_mock_peer(config.blacklist_timeout, true, None);
-    peer.expect_is_blocked().times(1).return_const(true);
-    peer.expect_blocked_until().times(1).returning(|| Instant::now() + Duration::from_secs(1));
+    // Create a peer
+    let peer_id = PeerId::random();
+    let peer = Peer::new(peer_id, Multiaddr::empty());
 
-    // Add the mock peer to the peer manager
+    // Add the peer to the peer manager
     peer_manager.add_peer(peer);
 
     // Report the peer as bad
-    peer_manager.report_peer(peer_id, ReputationModifier::Bad {}).unwrap();
+    peer_manager
+        .report_peer(peer_id, ReputationModifier::Misconduct { misconduct_score: MALICIOUS })
+        .unwrap();
 
     // Create a session
     let outbound_session_id = OutboundSessionId { value: 1 };
@@ -323,25 +323,27 @@ async fn timed_out_peer_not_assignable_to_queries() {
 fn wrap_around_in_peer_assignment() {
     // Create a new peer manager
     let config = PeerManagerConfig::default();
-    let mut peer_manager: PeerManager<MockPeerTrait> = PeerManager::new(config.clone());
+    let mut peer_manager: PeerManager = PeerManager::new(config.clone());
 
-    // Create a mock peer
-    let (mut peer1, peer_id1) =
-        create_mock_peer(config.blacklist_timeout, true, Some(ConnectionId::new_unchecked(0)));
-    peer1.expect_is_blocked().times(..2).return_const(true);
+    // Create a peer
+    let peer_id1 = PeerId::random();
+    let mut peer1 = Peer::new(peer_id1, Multiaddr::empty());
+    peer1.add_connection_id(ConnectionId::new_unchecked(0));
 
-    // Add the mock peer to the peer manager
+    // Add the peer to the peer manager
     peer_manager.add_peer(peer1);
 
-    // Report the peer as bad
-    peer_manager.report_peer(peer_id1, ReputationModifier::Bad {}).unwrap();
+    // Report the peer as malicious
+    peer_manager
+        .report_peer(peer_id1, ReputationModifier::Misconduct { misconduct_score: MALICIOUS })
+        .unwrap();
 
-    // Create a mock peer
-    let (mut peer2, peer_id2) =
-        create_mock_peer(config.blacklist_timeout, false, Some(ConnectionId::new_unchecked(0)));
-    peer2.expect_is_blocked().times(2).return_const(false);
+    // Create a peer
+    let peer_id2 = PeerId::random();
+    let mut peer2 = Peer::new(peer_id2, Multiaddr::empty());
+    peer2.add_connection_id(ConnectionId::new_unchecked(0));
 
-    // Add the mock peer to the peer manager
+    // Add the peer to the peer manager
     peer_manager.add_peer(peer2);
 
     // Create a session
@@ -353,50 +355,26 @@ fn wrap_around_in_peer_assignment() {
     assert_matches!(peer_manager.assign_peer_to_session(outbound_session_id), Some(peer_id) if peer_id == peer_id2);
 }
 
-fn create_mock_peer(
-    blacklist_timeout_duration: Duration,
-    call_update_reputaion: bool,
-    connection_id: Option<ConnectionId>,
-) -> (MockPeerTrait, PeerId) {
-    let peer_id = PeerId::random();
-    let mut peer = MockPeerTrait::default();
-    let mut mockall_seq = mockall::Sequence::new();
-
-    peer.expect_peer_id().return_const(peer_id);
-    peer.expect_set_timeout_duration()
-        .times(1)
-        .with(eq(blacklist_timeout_duration))
-        .return_const(())
-        .in_sequence(&mut mockall_seq);
-    if call_update_reputaion {
-        peer.expect_update_reputation()
-            .times(1)
-            .with(eq(ReputationModifier::Bad {}))
-            .return_once(|_| ())
-            .in_sequence(&mut mockall_seq);
-    }
-    peer.expect_connection_ids().return_const(connection_id.map(|x| vec![x]).unwrap_or_default());
-
-    (peer, peer_id)
-}
-
 #[test]
 fn block_and_allow_inbound_connection() {
     // Create a new peer manager
     let config = PeerManagerConfig::default();
-    let mut peer_manager: PeerManager<MockPeerTrait> = PeerManager::new(config.clone());
+    let mut peer_manager: PeerManager = PeerManager::new(config.clone());
 
-    // Create a mock peer - blocked
-    let (mut peer1, peer_id1) = create_mock_peer(config.blacklist_timeout, false, None);
-    peer1.expect_is_blocked().times(..2).return_const(true);
+    // Create a peer - report as malicious
+    let peer_id1 = PeerId::random();
+    let peer1 = Peer::new(peer_id1, Multiaddr::empty());
 
-    // Create a mock peer - not blocked
-    let (mut peer2, peer_id2) = create_mock_peer(config.blacklist_timeout, false, None);
-    peer2.expect_is_blocked().times(..2).return_const(false);
+    // Create a peer - not blocked
+    let peer_id2 = PeerId::random();
+    let peer2 = Peer::new(peer_id2, Multiaddr::empty());
 
-    // Add the mock peers to the peer manager
     peer_manager.add_peer(peer1);
     peer_manager.add_peer(peer2);
+
+    peer_manager
+        .report_peer(peer_id1, ReputationModifier::Misconduct { misconduct_score: MALICIOUS })
+        .unwrap();
 
     // call handle_established_inbound_connection with the blocked peer
     let res = peer_manager.handle_established_inbound_connection(
@@ -423,14 +401,13 @@ fn block_and_allow_inbound_connection() {
 fn assign_non_connected_peer_raises_dial_event() {
     // Create a new peer manager
     let config = PeerManagerConfig::default();
-    let mut peer_manager: PeerManager<MockPeerTrait> = PeerManager::new(config.clone());
+    let mut peer_manager: PeerManager = PeerManager::new(config.clone());
 
-    // Create a mock peer
-    let (mut peer, _) = create_mock_peer(config.blacklist_timeout, false, None);
-    peer.expect_is_blocked().times(1).return_const(false);
-    peer.expect_multiaddr().return_const(Multiaddr::empty());
+    // Create a peer
+    let peer_id = PeerId::random();
+    let peer = Peer::new(peer_id, Multiaddr::empty());
 
-    // Add the mock peer to the peer manager
+    // Add the peer to the peer manager
     peer_manager.add_peer(peer);
 
     // Create a session
@@ -449,15 +426,13 @@ fn assign_non_connected_peer_raises_dial_event() {
 async fn flow_test_assign_non_connected_peer() {
     // Create a new peer manager
     let config = PeerManagerConfig::default();
-    let mut peer_manager: PeerManager<MockPeerTrait> = PeerManager::new(config.clone());
+    let mut peer_manager: PeerManager = PeerManager::new(config.clone());
 
-    // Create a mock peer
-    let (mut peer, peer_id) = create_mock_peer(config.blacklist_timeout, false, None);
-    peer.expect_is_blocked().times(1).return_const(false);
-    peer.expect_multiaddr().return_const(Multiaddr::empty());
-    peer.expect_add_connection_id().times(1).return_const(());
+    // Create a peer
+    let peer_id = PeerId::random();
+    let peer = Peer::new(peer_id, Multiaddr::empty());
 
-    // Add the mock peer to the peer manager
+    // Add the peer to the peer manager
     peer_manager.add_peer(peer);
 
     // Create a session
@@ -495,7 +470,7 @@ async fn flow_test_assign_non_connected_peer() {
 fn identify_on_unknown_peer_is_added_to_peer_manager() {
     // Create a new peer manager
     let config = PeerManagerConfig::default();
-    let mut peer_manager: PeerManager<Peer> = PeerManager::new(config.clone());
+    let mut peer_manager: PeerManager = PeerManager::new(config.clone());
 
     // Send Identify event
     let peer_id = PeerId::random();

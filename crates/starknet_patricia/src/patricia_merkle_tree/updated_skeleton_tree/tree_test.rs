@@ -155,7 +155,8 @@ fn test_updated_empty_tree(#[case] modifications: LeafModifications<MockLeaf>) {
         &storage,
         HashOutput::ROOT_OF_EMPTY_TREE,
         SortedLeafIndices::new(&mut indices),
-        &OriginalSkeletonMockTrieConfig::new(&modifications, false),
+        &OriginalSkeletonMockTrieConfig::new(false),
+        &modifications,
     )
     .unwrap();
 

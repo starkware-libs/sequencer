@@ -1,48 +1,55 @@
+#[cfg(feature = "cairo_native")]
+use std::collections::HashMap;
 use std::sync::Arc;
+#[cfg(feature = "cairo_native")]
+use std::sync::{LazyLock, RwLock};
 
-use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+#[cfg(feature = "cairo_native")]
+use cairo_lang_starknet_classes::contract_class::ContractClass as SierraContractClass;
+#[cfg(feature = "cairo_native")]
+use cairo_native::executor::AotContractExecutor;
 use serde_json::Value;
-use starknet_api::block::{BlockNumber, BlockTimestamp};
-use starknet_api::core::{ChainId, ContractAddress, Nonce, PatriciaKey};
-use starknet_api::transaction::{Calldata, Fee, TransactionHash, TransactionVersion};
-use starknet_api::{calldata, contract_address, felt, patricia_key};
-use starknet_types_core::felt::Felt;
+use starknet_api::block::{BlockNumber, BlockTimestamp, NonzeroGasPrice};
+use starknet_api::contract_address;
+use starknet_api::core::{ChainId, ClassHash};
+use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 
-use super::update_json_value;
-use crate::abi::abi_utils::selector_from_name;
+use super::{
+    update_json_value,
+    TEST_ERC20_CONTRACT_ADDRESS,
+    TEST_ERC20_CONTRACT_ADDRESS2,
+    TEST_SEQUENCER_ADDRESS,
+};
 use crate::blockifier::block::{BlockInfo, GasPrices};
-use crate::bouncer::{BouncerConfig, BouncerWeights};
+use crate::bouncer::{BouncerConfig, BouncerWeights, BuiltinCount};
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
-use crate::execution::contract_class::{ContractClassV0, ContractClassV1};
+use crate::execution::common_hints::ExecutionMode;
+#[cfg(feature = "cairo_native")]
+use crate::execution::contract_class::ContractClassV1;
 use crate::execution::entry_point::{
     CallEntryPoint,
     EntryPointExecutionContext,
     EntryPointExecutionResult,
 };
-use crate::fee::fee_utils::get_fee_by_gas_vector;
+#[cfg(feature = "cairo_native")]
+use crate::execution::native::contract_class::NativeContractClassV1;
 use crate::state::state_api::State;
 use crate::test_utils::{
     get_raw_contract_class,
-    CHAIN_ID_NAME,
     CURRENT_BLOCK_NUMBER,
     CURRENT_BLOCK_TIMESTAMP,
     DEFAULT_ETH_L1_DATA_GAS_PRICE,
     DEFAULT_ETH_L1_GAS_PRICE,
     DEFAULT_STRK_L1_DATA_GAS_PRICE,
     DEFAULT_STRK_L1_GAS_PRICE,
-    TEST_ERC20_CONTRACT_ADDRESS,
-    TEST_ERC20_CONTRACT_ADDRESS2,
-    TEST_SEQUENCER_ADDRESS,
 };
 use crate::transaction::objects::{
+    CurrentTransactionInfo,
     DeprecatedTransactionInfo,
-    FeeType,
-    TransactionFeeResult,
     TransactionInfo,
-    TransactionResources,
 };
-use crate::transaction::transactions::L1HandlerTransaction;
 use crate::versioned_constants::{
     GasCosts,
     OsConstants,
@@ -54,10 +61,13 @@ impl CallEntryPoint {
     /// Executes the call directly, without account context. Limits the number of steps by resource
     /// bounds.
     pub fn execute_directly(self, state: &mut dyn State) -> EntryPointExecutionResult<CallInfo> {
+        // Do not limit steps by resources as we use default resources.
+        let limit_steps_by_resources = false;
         self.execute_directly_given_tx_info(
             state,
-            TransactionInfo::Deprecated(DeprecatedTransactionInfo::default()),
-            true,
+            TransactionInfo::Current(CurrentTransactionInfo::create_for_testing()),
+            limit_steps_by_resources,
+            ExecutionMode::Execute,
         )
     }
 
@@ -66,12 +76,17 @@ impl CallEntryPoint {
         state: &mut dyn State,
         tx_info: TransactionInfo,
         limit_steps_by_resources: bool,
+        execution_mode: ExecutionMode,
     ) -> EntryPointExecutionResult<CallInfo> {
         let tx_context =
             TransactionContext { block_context: BlockContext::create_for_testing(), tx_info };
-        let mut context =
-            EntryPointExecutionContext::new_invoke(Arc::new(tx_context), limit_steps_by_resources);
-        self.execute(state, &mut ExecutionResources::default(), &mut context)
+        let mut context = EntryPointExecutionContext::new(
+            Arc::new(tx_context),
+            execution_mode,
+            limit_steps_by_resources,
+        );
+        let mut remaining_gas = self.initial_gas;
+        self.execute(state, &mut context, &mut remaining_gas)
     }
 
     /// Executes the call directly in validate mode, without account context. Limits the number of
@@ -80,26 +95,21 @@ impl CallEntryPoint {
         self,
         state: &mut dyn State,
     ) -> EntryPointExecutionResult<CallInfo> {
-        self.execute_directly_given_tx_info_in_validate_mode(
+        let limit_steps_by_resources = false; // Do not limit steps by resources as we use default reasources.
+        self.execute_directly_given_tx_info(
             state,
+            // TODO(Yoni, 1/12/2024): change the default to V3.
             TransactionInfo::Deprecated(DeprecatedTransactionInfo::default()),
-            true,
+            limit_steps_by_resources,
+            ExecutionMode::Validate,
         )
     }
+}
 
-    pub fn execute_directly_given_tx_info_in_validate_mode(
-        self,
-        state: &mut dyn State,
-        tx_info: TransactionInfo,
-        limit_steps_by_resources: bool,
-    ) -> EntryPointExecutionResult<CallInfo> {
-        let tx_context =
-            TransactionContext { block_context: BlockContext::create_for_testing(), tx_info };
-        let mut context = EntryPointExecutionContext::new_validate(
-            Arc::new(tx_context),
-            limit_steps_by_resources,
-        );
-        self.execute(state, &mut ExecutionResources::default(), &mut context)
+impl CallInfo {
+    pub fn with_some_class_hash(mut self) -> Self {
+        self.call.class_hash = Some(ClassHash::default());
+        self
     }
 }
 
@@ -109,25 +119,11 @@ impl VersionedConstants {
     }
 }
 
-impl TransactionResources {
-    pub fn calculate_tx_fee(
-        &self,
-        block_context: &BlockContext,
-        fee_type: &FeeType,
-    ) -> TransactionFeeResult<Fee> {
-        let gas_vector = self.to_gas_vector(
-            &block_context.versioned_constants,
-            block_context.block_info.use_kzg_da,
-        )?;
-        Ok(get_fee_by_gas_vector(&block_context.block_info, gas_vector, fee_type))
-    }
-}
-
 impl GasCosts {
     pub fn create_for_testing_from_subset(subset_of_os_constants: &str) -> Self {
         let subset_of_os_constants: Value = serde_json::from_str(subset_of_os_constants).unwrap();
         let mut os_constants: Value =
-            serde_json::from_str::<Value>(VERSIONED_CONSTANTS_LATEST_JSON)
+            serde_json::from_str::<Value>(VERSIONED_CONSTANTS_LATEST_JSON.as_str())
                 .unwrap()
                 .get("os_constants")
                 .unwrap()
@@ -141,7 +137,7 @@ impl GasCosts {
 impl ChainInfo {
     pub fn create_for_testing() -> Self {
         Self {
-            chain_id: ChainId::Other(CHAIN_ID_NAME.to_string()),
+            chain_id: ChainId::create_for_testing(),
             fee_token_addresses: FeeTokenAddresses {
                 eth_fee_token_address: contract_address!(TEST_ERC20_CONTRACT_ADDRESS),
                 strk_fee_token_address: contract_address!(TEST_ERC20_CONTRACT_ADDRESS2),
@@ -157,18 +153,20 @@ impl BlockInfo {
             block_timestamp: BlockTimestamp(CURRENT_BLOCK_TIMESTAMP),
             sequencer_address: contract_address!(TEST_SEQUENCER_ADDRESS),
             gas_prices: GasPrices::new(
-                DEFAULT_ETH_L1_GAS_PRICE.try_into().unwrap(),
-                DEFAULT_STRK_L1_GAS_PRICE.try_into().unwrap(),
-                DEFAULT_ETH_L1_DATA_GAS_PRICE.try_into().unwrap(),
-                DEFAULT_STRK_L1_DATA_GAS_PRICE.try_into().unwrap(),
-                VersionedConstants::latest_constants()
-                    .l1_to_l2_gas_price_conversion(DEFAULT_ETH_L1_GAS_PRICE)
-                    .try_into()
-                    .unwrap(),
-                VersionedConstants::latest_constants()
-                    .l1_to_l2_gas_price_conversion(DEFAULT_STRK_L1_GAS_PRICE)
-                    .try_into()
-                    .unwrap(),
+                DEFAULT_ETH_L1_GAS_PRICE,
+                DEFAULT_STRK_L1_GAS_PRICE,
+                DEFAULT_ETH_L1_DATA_GAS_PRICE,
+                DEFAULT_STRK_L1_DATA_GAS_PRICE,
+                NonzeroGasPrice::new(
+                    VersionedConstants::latest_constants()
+                        .convert_l1_to_l2_gas_price_round_up(DEFAULT_ETH_L1_GAS_PRICE.into()),
+                )
+                .unwrap(),
+                NonzeroGasPrice::new(
+                    VersionedConstants::latest_constants()
+                        .convert_l1_to_l2_gas_price_round_up(DEFAULT_STRK_L1_GAS_PRICE.into()),
+                )
+                .unwrap(),
             ),
             use_kzg_da: false,
         }
@@ -226,35 +224,72 @@ impl CallExecution {
 
 // Contract loaders.
 
-impl ContractClassV0 {
-    pub fn from_file(contract_path: &str) -> Self {
+// TODO(Noa): Consider using PathBuf.
+pub trait LoadContractFromFile: serde::de::DeserializeOwned {
+    fn from_file(contract_path: &str) -> Self {
         let raw_contract_class = get_raw_contract_class(contract_path);
-        Self::try_from_json_string(&raw_contract_class).unwrap()
+        serde_json::from_str(&raw_contract_class).unwrap()
     }
 }
 
-impl ContractClassV1 {
-    pub fn from_file(contract_path: &str) -> Self {
-        let raw_contract_class = get_raw_contract_class(contract_path);
-        Self::try_from_json_string(&raw_contract_class).unwrap()
+impl LoadContractFromFile for CasmContractClass {}
+impl LoadContractFromFile for DeprecatedContractClass {}
+
+impl BouncerWeights {
+    pub fn create_for_testing(builtin_count: BuiltinCount) -> Self {
+        Self { builtin_count, ..Self::empty() }
     }
 }
 
-impl L1HandlerTransaction {
-    pub fn create_for_testing(l1_fee: Fee, contract_address: ContractAddress) -> Self {
-        let calldata = calldata![
-            Felt::from(0x123), // from_address.
-            Felt::from(0x876), // key.
-            Felt::from(0x44)   // value.
-        ];
-        let tx = starknet_api::transaction::L1HandlerTransaction {
-            version: TransactionVersion::ZERO,
-            nonce: Nonce::default(),
-            contract_address,
-            entry_point_selector: selector_from_name("l1_handler_set_value"),
-            calldata,
-        };
-        let tx_hash = TransactionHash::default();
-        Self { tx, tx_hash, paid_fee_on_l1: l1_fee }
+#[cfg(feature = "cairo_native")]
+static COMPILED_NATIVE_CONTRACT_CACHE: LazyLock<RwLock<HashMap<String, NativeContractClassV1>>> =
+    LazyLock::new(|| RwLock::new(HashMap::new()));
+
+#[cfg(feature = "cairo_native")]
+impl NativeContractClassV1 {
+    /// Convenience function to construct a NativeContractClassV1 from a raw contract class.
+    /// If control over the compilation is desired use [Self::new] instead.
+    pub fn try_from_json_string(raw_sierra_contract_class: &str) -> Self {
+        let sierra_contract_class: SierraContractClass =
+            serde_json::from_str(raw_sierra_contract_class).unwrap();
+
+        let sierra_program = sierra_contract_class
+            .extract_sierra_program()
+            .expect("Cannot extract sierra program from sierra contract class");
+
+        let executor = AotContractExecutor::new(
+            &sierra_program,
+            &sierra_contract_class.entry_points_by_type,
+            cairo_native::OptLevel::Default,
+        )
+        .expect("Cannot compile sierra into native");
+
+        // Compile the sierra contract class into casm
+        let casm_contract_class =
+            CasmContractClass::from_contract_class(sierra_contract_class, false, usize::MAX)
+                .expect("Cannot compile sierra contract class into casm contract class");
+        let casm = ContractClassV1::try_from(casm_contract_class)
+            .expect("Cannot get ContractClassV1 from CasmContractClass");
+
+        NativeContractClassV1::new(executor, casm)
+    }
+
+    pub fn from_file(contract_path: &str) -> Self {
+        let raw_contract_class = get_raw_contract_class(contract_path);
+        Self::try_from_json_string(&raw_contract_class)
+    }
+
+    /// Compile a contract from a file or get it from the cache.
+    pub fn compile_or_get_cached(path: &str) -> Self {
+        let cache = COMPILED_NATIVE_CONTRACT_CACHE.read().unwrap();
+        if let Some(cached_class) = cache.get(path) {
+            return cached_class.clone();
+        }
+        std::mem::drop(cache);
+
+        let class = NativeContractClassV1::from_file(path);
+        let mut cache = COMPILED_NATIVE_CONTRACT_CACHE.write().unwrap();
+        cache.insert(path.to_string(), class.clone());
+        class
     }
 }

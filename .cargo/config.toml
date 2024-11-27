@@ -1,0 +1,13 @@
+[env]
+CAIRO_NATIVE_RUNTIME_LIBRARY = "./libcairo_native_runtime.a"
+LLVM_SYS_191_PREFIX = "/usr/lib/llvm-19/"
+MLIR_SYS_190_PREFIX = "/usr/lib/llvm-19/"
+TABLEGEN_190_PREFIX = "/usr/lib/llvm-19/"
+
+# Use `lld` for linking instead of `ld`, since we run out of memory while linking with `ld` on
+# 16-cores linux machines, see:
+# https://nnethercote.github.io/perf-book/build-configuration.html#linking.
+# TODO: remove this once `rust` stabilizes `lld` as the default linker, currently only on nightly:
+# https://github.com/rust-lang/rust/issues/39915#issuecomment-618726211
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-Clink-arg=-fuse-ld=lld"]

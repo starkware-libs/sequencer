@@ -1,0 +1,8 @@
+{
+  "base_layer.node_url": "",
+  "network.tcp_port": 10000,
+  "storage.db_config.path_prefix": "./data",
+  "network.#is_none": false,
+  "storage.scope": "FullArchive",
+  "collect_metrics": true
+}

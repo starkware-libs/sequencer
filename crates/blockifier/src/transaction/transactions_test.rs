@@ -5,53 +5,83 @@ use assert_matches::assert_matches;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use num_bigint::BigUint;
-use num_traits::Pow;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
-use starknet_api::core::{ChainId, ClassHash, ContractAddress, EthAddress, Nonce, PatriciaKey};
-use starknet_api::deprecated_contract_class::EntryPointType;
-use starknet_api::state::StorageKey;
-use starknet_api::transaction::{
-    Calldata,
-    EventContent,
-    EventData,
-    EventKey,
-    Fee,
-    L2ToL1Payload,
-    TransactionSignature,
-    TransactionVersion,
-    ValidResourceBounds,
-};
-use starknet_api::{calldata, class_hash, contract_address, felt, patricia_key};
-use starknet_types_core::felt::Felt;
-use strum::IntoEnumIterator;
-
-use crate::abi::abi_utils::{
+use starknet_api::abi::abi_utils::{
     get_fee_token_var_address,
     get_storage_var_address,
     selector_from_name,
 };
-use crate::abi::constants as abi_constants;
-use crate::abi::sierra_types::next_storage_key;
+use starknet_api::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
+use starknet_api::block::GasPriceVector;
+use starknet_api::contract_class::EntryPointType;
+use starknet_api::core::{ChainId, ClassHash, ContractAddress, EthAddress, Nonce};
+use starknet_api::executable_transaction::AccountTransaction as ApiExecutableTransaction;
+use starknet_api::execution_resources::{GasAmount, GasVector};
+use starknet_api::state::StorageKey;
+use starknet_api::test_utils::invoke::InvokeTxArgs;
+use starknet_api::test_utils::NonceManager;
+use starknet_api::transaction::fields::Resource::{L1DataGas, L1Gas, L2Gas};
+use starknet_api::transaction::fields::{
+    AllResourceBounds,
+    Calldata,
+    Fee,
+    GasVectorComputationMode,
+    Resource,
+    ResourceBounds,
+    TransactionSignature,
+    ValidResourceBounds,
+};
+use starknet_api::transaction::{
+    constants,
+    EventContent,
+    EventData,
+    EventKey,
+    L2ToL1Payload,
+    TransactionVersion,
+    QUERY_VERSION_BASE,
+};
+use starknet_api::{
+    calldata,
+    class_hash,
+    contract_address,
+    declare_tx_args,
+    deploy_account_tx_args,
+    felt,
+    invoke_tx_args,
+    nonce,
+};
+use starknet_types_core::felt::Felt;
+use strum::IntoEnumIterator;
+
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use crate::execution::call_info::{
     CallExecution,
     CallInfo,
+    ChargedResources,
+    ExecutionSummary,
     MessageToL1,
     OrderedEvent,
     OrderedL2ToL1Message,
     Retdata,
 };
+use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::{CallEntryPoint, CallType};
 use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
-use crate::execution::syscalls::hint_processor::{EmitEventError, L1_GAS, L2_GAS};
+use crate::execution::syscalls::hint_processor::EmitEventError;
 use crate::execution::syscalls::SyscallSelector;
-use crate::fee::actual_cost::TransactionReceipt;
-use crate::fee::fee_utils::balance_to_big_uint;
+use crate::fee::fee_utils::{balance_to_big_uint, get_fee_by_gas_vector};
 use crate::fee::gas_usage::{
     estimate_minimal_gas_vector,
     get_da_gas_cost,
     get_onchain_data_segment_length,
+};
+use crate::fee::receipt::TransactionReceipt;
+use crate::fee::resources::{
+    ComputationResources,
+    StarknetResources,
+    StateResources,
+    TransactionResources,
 };
 use crate::state::cached_state::{CachedState, StateChangesCount, TransactionalState};
 use crate::state::errors::StateError;
@@ -62,30 +92,31 @@ use crate::test_utils::deploy_account::deploy_account_tx;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::invoke::invoke_tx;
+use crate::test_utils::l1_handler::l1handler_tx;
 use crate::test_utils::prices::Prices;
 use crate::test_utils::{
     create_calldata,
     create_trivial_calldata,
-    default_testing_resource_bounds,
     get_syscall_resources,
     get_tx_resources,
     test_erc20_sequencer_balance_key,
     CairoVersion,
-    NonceManager,
     SaltManager,
     BALANCE,
-    CHAIN_ID_NAME,
     CURRENT_BLOCK_NUMBER,
     CURRENT_BLOCK_NUMBER_FOR_VALIDATE,
     CURRENT_BLOCK_TIMESTAMP,
     CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE,
+    DEFAULT_L1_DATA_GAS_MAX_AMOUNT,
+    DEFAULT_L1_GAS_AMOUNT,
+    DEFAULT_L2_GAS_MAX_AMOUNT,
+    DEFAULT_STRK_L1_DATA_GAS_PRICE,
+    DEFAULT_STRK_L1_GAS_PRICE,
+    DEFAULT_STRK_L2_GAS_PRICE,
     MAX_FEE,
-    MAX_L1_GAS_AMOUNT,
-    MAX_L1_GAS_PRICE,
     TEST_SEQUENCER_ADDRESS,
 };
 use crate::transaction::account_transaction::AccountTransaction;
-use crate::transaction::constants;
 use crate::transaction::errors::{
     TransactionExecutionError,
     TransactionFeeError,
@@ -93,12 +124,10 @@ use crate::transaction::errors::{
 };
 use crate::transaction::objects::{
     FeeType,
-    GasVector,
     HasRelatedFeeType,
-    StarknetResources,
     TransactionExecutionInfo,
     TransactionInfo,
-    TransactionResources,
+    TransactionInfoCreator,
 };
 use crate::transaction::test_utils::{
     account_invoke_tx,
@@ -106,8 +135,10 @@ use crate::transaction::test_utils::{
     calculate_class_info_for_testing,
     create_account_tx_for_validate_test,
     create_account_tx_for_validate_test_nonce_0,
+    create_all_resource_bounds,
+    default_all_resource_bounds,
+    default_l1_resource_bounds,
     l1_resource_bounds,
-    max_resource_bounds,
     FaultyAccountTxCreatorArgs,
     CALL_CONTRACT,
     GET_BLOCK_HASH,
@@ -119,15 +150,11 @@ use crate::transaction::test_utils::{
     VALID,
 };
 use crate::transaction::transaction_types::TransactionType;
-use crate::transaction::transactions::{ExecutableTransaction, L1HandlerTransaction};
+use crate::transaction::transactions::ExecutableTransaction;
 use crate::versioned_constants::VersionedConstants;
 use crate::{
-    check_transaction_execution_error_for_custom_hint,
-    check_transaction_execution_error_for_invalid_scenario,
-    declare_tx_args,
-    deploy_account_tx_args,
-    invoke_tx_args,
-    nonce,
+    check_tx_execution_error_for_custom_hint,
+    check_tx_execution_error_for_invalid_scenario,
     retdata,
 };
 
@@ -135,8 +162,8 @@ static VERSIONED_CONSTANTS: LazyLock<VersionedConstants> =
     LazyLock::new(VersionedConstants::create_for_testing);
 
 #[fixture]
-fn tx_initial_gas() -> u64 {
-    VERSIONED_CONSTANTS.tx_initial_gas()
+fn default_initial_gas_cost() -> u64 {
+    VERSIONED_CONSTANTS.default_initial_gas_cost()
 }
 
 #[fixture]
@@ -151,6 +178,14 @@ struct ExpectedResultTestInvokeTx {
     inner_call_initial_gas: u64,
 }
 
+fn user_initial_gas_from_bounds(bounds: ValidResourceBounds) -> Option<GasAmount> {
+    match bounds {
+        ValidResourceBounds::L1Gas(_) => None,
+        ValidResourceBounds::AllResources(bounds) => Some(bounds.l2_gas.max_amount),
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
 fn expected_validate_call_info(
     class_hash: ClassHash,
     entry_point_selector_name: &str,
@@ -158,10 +193,14 @@ fn expected_validate_call_info(
     calldata: Calldata,
     storage_address: ContractAddress,
     cairo_version: CairoVersion,
+    tracked_resource: TrackedResource,
+    user_initial_gas: Option<GasAmount>,
 ) -> Option<CallInfo> {
     let retdata = match cairo_version {
         CairoVersion::Cairo0 => Retdata::default(),
-        CairoVersion::Cairo1 => retdata!(felt!(constants::VALIDATE_RETDATA)),
+        CairoVersion::Cairo1 => retdata!(*constants::VALIDATE_RETDATA),
+        #[cfg(feature = "cairo_native")]
+        CairoVersion::Native => retdata!(*constants::VALIDATE_RETDATA),
     };
     // Extra range check in regular (invoke) validate call, due to passing the calldata as an array.
     let n_range_checks = match cairo_version {
@@ -171,14 +210,18 @@ fn expected_validate_call_info(
         CairoVersion::Cairo1 => {
             if entry_point_selector_name == constants::VALIDATE_ENTRY_POINT_NAME { 7 } else { 2 }
         }
+        #[cfg(feature = "cairo_native")]
+        CairoVersion::Native => {
+            if entry_point_selector_name == constants::VALIDATE_ENTRY_POINT_NAME { 7 } else { 2 }
+        }
     };
     let n_steps = match (entry_point_selector_name, cairo_version) {
         (constants::VALIDATE_DEPLOY_ENTRY_POINT_NAME, CairoVersion::Cairo0) => 13_usize,
-        (constants::VALIDATE_DEPLOY_ENTRY_POINT_NAME, CairoVersion::Cairo1) => 40_usize,
+        (constants::VALIDATE_DEPLOY_ENTRY_POINT_NAME, CairoVersion::Cairo1) => 32_usize,
         (constants::VALIDATE_DECLARE_ENTRY_POINT_NAME, CairoVersion::Cairo0) => 12_usize,
-        (constants::VALIDATE_DECLARE_ENTRY_POINT_NAME, CairoVersion::Cairo1) => 32_usize,
+        (constants::VALIDATE_DECLARE_ENTRY_POINT_NAME, CairoVersion::Cairo1) => 28_usize,
         (constants::VALIDATE_ENTRY_POINT_NAME, CairoVersion::Cairo0) => 21_usize,
-        (constants::VALIDATE_ENTRY_POINT_NAME, CairoVersion::Cairo1) => 112_usize,
+        (constants::VALIDATE_ENTRY_POINT_NAME, CairoVersion::Cairo1) => 100_usize,
         (selector, _) => panic!("Selector {selector} is not a known validate selector."),
     };
     let resources = ExecutionResources {
@@ -187,6 +230,7 @@ fn expected_validate_call_info(
         builtin_instance_counter: HashMap::from([(BuiltinName::range_check, n_range_checks)]),
     }
     .filter_unused_builtins();
+    let initial_gas = user_initial_gas.unwrap_or(GasAmount(default_initial_gas_cost())).0;
 
     Some(CallInfo {
         call: CallEntryPoint {
@@ -198,11 +242,12 @@ fn expected_validate_call_info(
             storage_address,
             caller_address: ContractAddress::default(),
             call_type: CallType::Call,
-            initial_gas: tx_initial_gas(),
+            initial_gas,
         },
         // The account contract we use for testing has trivial `validate` functions.
-        resources,
+        charged_resources: ChargedResources::from_execution_resources(resources),
         execution: CallExecution { retdata, gas_consumed, ..Default::default() },
+        tracked_resource,
         ..Default::default()
     })
 }
@@ -235,7 +280,11 @@ fn expected_fee_transfer_call_info(
         storage_address,
         caller_address: account_address,
         call_type: CallType::Call,
-        initial_gas: block_context.versioned_constants.os_constants.gas_costs.initial_gas_cost,
+        initial_gas: block_context
+            .versioned_constants
+            .os_constants
+            .gas_costs
+            .default_initial_gas_cost,
     };
     let expected_fee_sender_address = *account_address.0.key();
     let expected_fee_transfer_event = OrderedEvent {
@@ -253,9 +302,10 @@ fn expected_fee_transfer_call_info(
 
     let sender_balance_key_low = get_fee_token_var_address(account_address);
     let sender_balance_key_high =
-        next_storage_key(&sender_balance_key_low).expect("Cannot get sender balance high key.");
+        sender_balance_key_low.next_storage_key().expect("Cannot get sender balance high key.");
     let sequencer_balance_key_low = get_fee_token_var_address(expected_sequencer_address);
-    let sequencer_balance_key_high = next_storage_key(&sequencer_balance_key_low)
+    let sequencer_balance_key_high = sequencer_balance_key_low
+        .next_storage_key()
         .expect("Cannot get sequencer balance high key.");
     Some(CallInfo {
         call: expected_fee_transfer_call,
@@ -264,9 +314,11 @@ fn expected_fee_transfer_call_info(
             events: vec![expected_fee_transfer_event],
             ..Default::default()
         },
-        resources: Prices::FeeTransfer(account_address, *fee_type).into(),
+        charged_resources: ChargedResources::from_execution_resources(
+            Prices::FeeTransfer(account_address, *fee_type).into(),
+        ),
         // We read sender and recipient balance - Uint256(BALANCE, 0) then Uint256(0, 0).
-        storage_read_values: vec![felt!(BALANCE), felt!(0_u8), felt!(0_u8), felt!(0_u8)],
+        storage_read_values: vec![felt!(BALANCE.0), felt!(0_u8), felt!(0_u8), felt!(0_u8)],
         accessed_storage_keys: HashSet::from_iter(vec![
             sender_balance_key_low,
             sender_balance_key_high,
@@ -283,12 +335,11 @@ fn get_expected_cairo_resources(
     starknet_resources: &StarknetResources,
     call_infos: Vec<&Option<CallInfo>>,
 ) -> ExecutionResources {
-    let mut expected_cairo_resources = versioned_constants
-        .get_additional_os_tx_resources(tx_type, starknet_resources, false)
-        .unwrap();
+    let mut expected_cairo_resources =
+        versioned_constants.get_additional_os_tx_resources(tx_type, starknet_resources, false);
     for call_info in call_infos {
         if let Some(call_info) = &call_info {
-            expected_cairo_resources += &call_info.resources
+            expected_cairo_resources += &call_info.charged_resources.vm_resources
         };
     }
 
@@ -304,16 +355,16 @@ fn validate_final_balances(
     expected_actual_fee: Fee,
     erc20_account_balance_key: StorageKey,
     fee_type: &FeeType,
-    initial_account_balance_eth: u128,
-    initial_account_balance_strk: u128,
+    initial_account_balance_eth: Fee,
+    initial_account_balance_strk: Fee,
 ) {
     // Expected balances of account and sequencer, per fee type.
     let (expected_sequencer_balance_eth, expected_sequencer_balance_strk) = match fee_type {
         FeeType::Eth => (felt!(expected_actual_fee.0), Felt::ZERO),
         FeeType::Strk => (Felt::ZERO, felt!(expected_actual_fee.0)),
     };
-    let mut expected_account_balance_eth = initial_account_balance_eth;
-    let mut expected_account_balance_strk = initial_account_balance_strk;
+    let mut expected_account_balance_eth = initial_account_balance_eth.0;
+    let mut expected_account_balance_strk = initial_account_balance_strk.0;
     if fee_type == &FeeType::Eth {
         expected_account_balance_eth -= expected_actual_fee.0;
     } else {
@@ -366,25 +417,27 @@ fn add_kzg_da_resources_to_resources_mapping(
         },
         validate_gas_consumed: 0,
         execute_gas_consumed: 0,
-        inner_call_initial_gas: versioned_constants_for_account_testing().os_constants.gas_costs.initial_gas_cost,
+        inner_call_initial_gas: versioned_constants_for_account_testing().default_initial_gas_cost(),
     },
     CairoVersion::Cairo0)]
 #[case::with_cairo1_account(
     ExpectedResultTestInvokeTx{
         resources: &get_syscall_resources(SyscallSelector::CallContract) + &ExecutionResources {
-            n_steps: 219,
+            n_steps: 207,
             n_memory_holes: 0,
             builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 8)]),
         },
         validate_gas_consumed: 4740, // The gas consumption results from parsing the input
             // arguments.
-        execute_gas_consumed: 159980,
-        inner_call_initial_gas: 9999635280,
+        execute_gas_consumed: 162080,
+        inner_call_initial_gas: versioned_constants_for_account_testing().default_initial_gas_cost(),
     },
     CairoVersion::Cairo1)]
+// TODO(Tzahi): Add calls to cairo1 test contracts (where gas flows to and from the inner call).
 fn test_invoke_tx(
-    max_resource_bounds: ValidResourceBounds,
-    #[case] expected_arguments: ExpectedResultTestInvokeTx,
+    #[values(default_l1_resource_bounds(), default_all_resource_bounds())]
+    resource_bounds: ValidResourceBounds,
+    #[case] mut expected_arguments: ExpectedResultTestInvokeTx,
     #[case] account_cairo_version: CairoVersion,
     #[values(false, true)] use_kzg_da: bool,
 ) {
@@ -396,35 +449,45 @@ fn test_invoke_tx(
     let state = &mut test_state(chain_info, BALANCE, &[(account_contract, 1), (test_contract, 1)]);
     let test_contract_address = test_contract.get_instance_address(0);
     let account_contract_address = account_contract.get_instance_address(0);
+    let calldata = create_trivial_calldata(test_contract_address);
     let invoke_tx = invoke_tx(invoke_tx_args! {
         sender_address: account_contract_address,
-        calldata: create_trivial_calldata(test_contract_address),
-        resource_bounds: max_resource_bounds,
+        calldata: Calldata(Arc::clone(&calldata.0)),
+        resource_bounds,
     });
 
     // Extract invoke transaction fields for testing, as it is consumed when creating an account
     // transaction.
-    let calldata = Calldata(Arc::clone(&invoke_tx.calldata().0));
-    let calldata_length = invoke_tx.calldata().0.len();
-    let signature_length = invoke_tx.signature().0.len();
+    let calldata_length = invoke_tx.calldata_length();
+    let signature_length = invoke_tx.signature_length();
+    let state_changes_for_fee = StateChangesCount {
+        n_storage_updates: 1,
+        n_modified_contracts: 1,
+        ..StateChangesCount::default()
+    };
     let starknet_resources = StarknetResources::new(
         calldata_length,
         signature_length,
         0,
-        StateChangesCount {
-            n_storage_updates: 1,
-            n_modified_contracts: 1,
-            ..StateChangesCount::default()
-        },
+        StateResources::new_for_testing(state_changes_for_fee, 0),
         None,
-        std::iter::empty(),
+        ExecutionSummary::default(),
     );
     let sender_address = invoke_tx.sender_address();
 
-    let account_tx = AccountTransaction::Invoke(invoke_tx);
-    let tx_context = block_context.to_tx_context(&account_tx);
+    let tx_context = block_context.to_tx_context(&invoke_tx);
 
-    let actual_execution_info = account_tx.execute(state, block_context, true, true).unwrap();
+    let actual_execution_info = invoke_tx.execute(state, block_context, true, true).unwrap();
+
+    let tracked_resource = account_contract.get_runnable_class().tracked_resource(
+        &versioned_constants.min_compiler_version_for_sierra_gas,
+        tx_context.tx_info.gas_mode(),
+    );
+    if tracked_resource == TrackedResource::CairoSteps {
+        // In CairoSteps mode, the initial gas is set to the default once before the validate call.
+        expected_arguments.inner_call_initial_gas -=
+            expected_arguments.validate_gas_consumed + expected_arguments.execute_gas_consumed
+    }
 
     // Build expected validate call info.
     let expected_account_class_hash = account_contract.get_class_hash();
@@ -435,6 +498,8 @@ fn test_invoke_tx(
         calldata,
         sender_address,
         account_cairo_version,
+        tracked_resource,
+        user_initial_gas_from_bounds(resource_bounds),
     );
 
     // Build expected execute call info.
@@ -450,10 +515,11 @@ fn test_invoke_tx(
         call_type: CallType::Call,
         initial_gas: expected_arguments.inner_call_initial_gas,
     };
+    let expected_validated_call = expected_validate_call_info.as_ref().unwrap().call.clone();
     let expected_execute_call = CallEntryPoint {
         entry_point_selector: selector_from_name(constants::EXECUTE_ENTRY_POINT_NAME),
-        initial_gas: tx_initial_gas() - expected_arguments.validate_gas_consumed,
-        ..expected_validate_call_info.as_ref().unwrap().call.clone()
+        initial_gas: expected_validated_call.initial_gas - expected_arguments.validate_gas_consumed,
+        ..expected_validated_call
     };
     let expected_return_result_retdata = Retdata(expected_return_result_calldata);
     let expected_execute_call_info = Some(CallInfo {
@@ -463,20 +529,24 @@ fn test_invoke_tx(
             gas_consumed: expected_arguments.execute_gas_consumed,
             ..Default::default()
         },
-        resources: expected_arguments.resources,
+        charged_resources: ChargedResources::from_execution_resources(expected_arguments.resources),
         inner_calls: vec![CallInfo {
             call: expected_return_result_call,
             execution: CallExecution::from_retdata(expected_return_result_retdata),
-            resources: ExecutionResources { n_steps: 23, n_memory_holes: 0, ..Default::default() },
+            charged_resources: ChargedResources::from_execution_resources(ExecutionResources {
+                n_steps: 23,
+                n_memory_holes: 0,
+                ..Default::default()
+            }),
             ..Default::default()
         }],
+        tracked_resource,
         ..Default::default()
     });
 
     // Build expected fee transfer call info.
     let fee_type = &tx_context.tx_info.fee_type();
-    let expected_actual_fee =
-        actual_execution_info.receipt.resources.calculate_tx_fee(block_context, fee_type).unwrap();
+    let expected_actual_fee = actual_execution_info.receipt.fee;
     let expected_fee_transfer_call_info = expected_fee_transfer_call_info(
         &tx_context,
         sender_address,
@@ -484,7 +554,7 @@ fn test_invoke_tx(
         FeatureContract::ERC20(CairoVersion::Cairo0).get_class_hash(),
     );
 
-    let da_gas = starknet_resources.get_state_changes_cost(use_kzg_da);
+    let da_gas = starknet_resources.state.to_gas_vector(use_kzg_da);
 
     let expected_cairo_resources = get_expected_cairo_resources(
         versioned_constants,
@@ -492,23 +562,26 @@ fn test_invoke_tx(
         &starknet_resources,
         vec![&expected_validate_call_info, &expected_execute_call_info],
     );
-    let state_changes_count = starknet_resources.state_changes_for_fee;
     let mut expected_actual_resources = TransactionResources {
         starknet_resources,
-        vm_resources: expected_cairo_resources,
-        ..Default::default()
+        computation: ComputationResources {
+            vm_resources: expected_cairo_resources,
+            ..Default::default()
+        },
     };
 
     add_kzg_da_resources_to_resources_mapping(
-        &mut expected_actual_resources.vm_resources,
-        &state_changes_count,
+        &mut expected_actual_resources.computation.vm_resources,
+        &state_changes_for_fee,
         versioned_constants,
         use_kzg_da,
     );
 
-    let total_gas = expected_actual_resources
-        .to_gas_vector(&block_context.versioned_constants, block_context.block_info.use_kzg_da)
-        .unwrap();
+    let total_gas = expected_actual_resources.to_gas_vector(
+        &block_context.versioned_constants,
+        block_context.block_info.use_kzg_da,
+        &resource_bounds.get_gas_vector_computation_mode(),
+    );
 
     let expected_execution_info = TransactionExecutionInfo {
         validate_call_info: expected_validate_call_info,
@@ -556,7 +629,7 @@ fn verify_storage_after_invoke_advanced_operations(
     let key = get_storage_var_address("two_counters", &[index]);
     let value = state.get_storage_at(contract_address, key).unwrap();
     assert_eq!(value, expected_counters[0]);
-    let key = next_storage_key(&key).unwrap();
+    let key = key.next_storage_key().unwrap();
     let value = state.get_storage_at(contract_address, key).unwrap();
     assert_eq!(value, expected_counters[1]);
 
@@ -564,7 +637,7 @@ fn verify_storage_after_invoke_advanced_operations(
     let key = get_storage_var_address("ec_point", &[]);
     let value = state.get_storage_at(contract_address, key).unwrap();
     assert_eq!(value, expected_ec_point[0]);
-    let key = next_storage_key(&key).unwrap();
+    let key = key.next_storage_key().unwrap();
     let value = state.get_storage_at(contract_address, key).unwrap();
     assert_eq!(value, expected_ec_point[1]);
 
@@ -576,7 +649,7 @@ fn verify_storage_after_invoke_advanced_operations(
 #[rstest]
 fn test_invoke_tx_advanced_operations(
     block_context: BlockContext,
-    max_resource_bounds: ValidResourceBounds,
+    default_all_resource_bounds: ValidResourceBounds,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
 ) {
     let block_context = &block_context;
@@ -588,7 +661,7 @@ fn test_invoke_tx_advanced_operations(
     let contract_address = test_contract.get_instance_address(0);
     let index = felt!(123_u32);
     let base_tx_args = invoke_tx_args! {
-        resource_bounds: max_resource_bounds,
+        resource_bounds: default_all_resource_bounds,
         sender_address: account_address,
     };
 
@@ -771,7 +844,8 @@ fn test_state_get_fee_token_balance(
     let execute_calldata =
         create_calldata(fee_token_address, "permissionedMint", &[recipient, mint_low, mint_high]);
     let account_tx = account_invoke_tx(invoke_tx_args! {
-        max_fee: Fee(MAX_FEE),
+        max_fee: MAX_FEE,
+        resource_bounds: default_l1_resource_bounds(),
         sender_address: account_address,
         calldata: execute_calldata,
         version: tx_version,
@@ -787,40 +861,98 @@ fn test_state_get_fee_token_balance(
     assert_eq!(high, mint_high);
 }
 
-fn assert_failure_if_resource_bounds_exceed_balance(
+fn assert_resource_bounds_exceed_balance_failure(
     state: &mut CachedState<DictStateReader>,
     block_context: &BlockContext,
     invalid_tx: AccountTransaction,
 ) {
-    match block_context.to_tx_context(&invalid_tx).tx_info {
+    let tx_error = invalid_tx.execute(state, block_context, true, true).unwrap_err();
+    match invalid_tx.create_tx_info() {
         TransactionInfo::Deprecated(context) => {
             assert_matches!(
-                invalid_tx.execute(state, block_context, true, true).unwrap_err(),
+                tx_error,
                 TransactionExecutionError::TransactionPreValidationError(
                     TransactionPreValidationError::TransactionFeeError(
                         TransactionFeeError::MaxFeeExceedsBalance{ max_fee, .. }))
                 if max_fee == context.max_fee
             );
         }
-        TransactionInfo::Current(context) => {
-            let l1_bounds = context.l1_resource_bounds();
-            assert_matches!(
-                invalid_tx.execute(state, block_context, true, true).unwrap_err(),
+        TransactionInfo::Current(context) => match context.resource_bounds {
+            ValidResourceBounds::L1Gas(l1_bounds) => assert_matches!(
+                tx_error,
                 TransactionExecutionError::TransactionPreValidationError(
                     TransactionPreValidationError::TransactionFeeError(
-                        TransactionFeeError::L1GasBoundsExceedBalance{ max_amount, max_price, .. }))
-                if max_amount == l1_bounds.max_amount && max_price == l1_bounds.max_price_per_unit
-            );
-        }
+                        TransactionFeeError::GasBoundsExceedBalance{
+                            resource, max_amount, max_price, ..
+                        }
+                    )
+                )
+                if max_amount == l1_bounds.max_amount
+                    && max_price == l1_bounds.max_price_per_unit
+                    && resource == L1Gas
+            ),
+            ValidResourceBounds::AllResources(actual_bounds) => {
+                assert_matches!(
+                    tx_error,
+                    TransactionExecutionError::TransactionPreValidationError(
+                        TransactionPreValidationError::TransactionFeeError(
+                            TransactionFeeError::ResourcesBoundsExceedBalance {
+                                bounds: error_bounds, ..
+                            }
+                        )
+                    )
+                    if actual_bounds == error_bounds
+                );
+            }
+        },
     };
 }
 
 #[rstest]
-fn test_max_fee_exceeds_balance(
-    block_context: BlockContext,
-    max_resource_bounds: ValidResourceBounds,
+fn test_estimate_minimal_gas_vector(
+    mut block_context: BlockContext,
+    #[values(true, false)] use_kzg_da: bool,
+    #[values(GasVectorComputationMode::NoL2Gas, GasVectorComputationMode::All)]
+    gas_vector_computation_mode: GasVectorComputationMode,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] account_cairo_version: CairoVersion,
 ) {
+    block_context.block_info.use_kzg_da = use_kzg_da;
+    let block_context = &block_context;
+    let account_contract = FeatureContract::AccountWithoutValidations(account_cairo_version);
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
+
+    let valid_invoke_tx_args = invoke_tx_args! {
+        sender_address: account_contract.get_instance_address(0),
+        calldata: create_trivial_calldata(test_contract.get_instance_address(0)),
+        max_fee: MAX_FEE
+    };
+
+    // The minimal gas estimate does not depend on tx version.
+    let tx = &account_invoke_tx(valid_invoke_tx_args);
+    let minimal_gas_vector =
+        estimate_minimal_gas_vector(block_context, tx, &gas_vector_computation_mode);
+    let minimal_l1_gas = minimal_gas_vector.l1_gas;
+    let minimal_l2_gas = minimal_gas_vector.l2_gas;
+    let minimal_l1_data_gas = minimal_gas_vector.l1_data_gas;
+    if gas_vector_computation_mode == GasVectorComputationMode::NoL2Gas || !use_kzg_da {
+        assert!(minimal_l1_gas > 0_u8.into());
+    }
+    assert_eq!(
+        minimal_l2_gas > 0_u8.into(),
+        gas_vector_computation_mode == GasVectorComputationMode::All
+    );
+    assert_eq!(minimal_l1_data_gas > 0_u8.into(), use_kzg_da);
+}
+
+#[rstest]
+fn test_max_fee_exceeds_balance(
+    mut block_context: BlockContext,
+    #[values(default_l1_resource_bounds(), default_all_resource_bounds())]
+    resource_bounds: ValidResourceBounds,
+    #[values(true, false)] use_kzg_da: bool,
+    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] account_cairo_version: CairoVersion,
+) {
+    block_context.block_info.use_kzg_da = use_kzg_da;
     let block_context = &block_context;
     let account_contract = FeatureContract::AccountWithoutValidations(account_cairo_version);
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
@@ -829,61 +961,236 @@ fn test_max_fee_exceeds_balance(
         BALANCE,
         &[(account_contract, 1), (test_contract, 1)],
     );
-    let account_contract_address = account_contract.get_instance_address(0);
-    let default_args = invoke_tx_args! {
-        sender_address: account_contract_address,
+    let sender_address = account_contract.get_instance_address(0);
+    let default_invoke_args = invoke_tx_args! {
+        sender_address,
         calldata: create_trivial_calldata(test_contract.get_instance_address(0)
     )};
 
-    let invalid_max_fee = Fee(BALANCE + 1);
-    // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion works.
-    let balance_over_gas_price: u64 =
-        (BALANCE / MAX_L1_GAS_PRICE).try_into().expect("Failed to convert u128 to u64.");
-    let invalid_resource_bounds = l1_resource_bounds(balance_over_gas_price + 1, MAX_L1_GAS_PRICE);
-
-    // V1 Invoke.
-    let invalid_tx = account_invoke_tx(invoke_tx_args! {
-        max_fee: invalid_max_fee,
-        version: TransactionVersion::ONE,
-        ..default_args.clone()
-    });
-    assert_failure_if_resource_bounds_exceed_balance(state, block_context, invalid_tx);
-
-    // V3 invoke.
-    let invalid_tx = account_invoke_tx(invoke_tx_args! {
-        resource_bounds: invalid_resource_bounds.clone(),
-        ..default_args
-    });
-    assert_failure_if_resource_bounds_exceed_balance(state, block_context, invalid_tx);
-
     // Deploy.
-    let invalid_tx = AccountTransaction::DeployAccount(deploy_account_tx(
+    let invalid_tx = deploy_account_tx(
         deploy_account_tx_args! {
-            resource_bounds: max_resource_bounds,
+            resource_bounds,
             class_hash: test_contract.get_class_hash()
         },
         &mut NonceManager::default(),
-    ));
-    assert_failure_if_resource_bounds_exceed_balance(state, block_context, invalid_tx);
-
-    // Declare.
-    let contract_to_declare = FeatureContract::Empty(CairoVersion::Cairo1);
-    let class_info = calculate_class_info_for_testing(contract_to_declare.get_class());
-    let invalid_tx = declare_tx(
-        declare_tx_args! {
-            class_hash: contract_to_declare.get_class_hash(),
-            compiled_class_hash: contract_to_declare.get_compiled_class_hash(),
-            sender_address: account_contract_address,
-            resource_bounds: invalid_resource_bounds,
-        },
-        class_info,
     );
-    assert_failure_if_resource_bounds_exceed_balance(state, block_context, invalid_tx);
+    assert_resource_bounds_exceed_balance_failure(state, block_context, invalid_tx);
+
+    // V1 Invoke.
+    let invalid_max_fee = Fee(BALANCE.0 + 1);
+    let invalid_tx = account_invoke_tx(invoke_tx_args! {
+        max_fee: invalid_max_fee,
+        version: TransactionVersion::ONE,
+        ..default_invoke_args.clone()
+    });
+    assert_resource_bounds_exceed_balance_failure(state, block_context, invalid_tx);
+
+    // V3 txs.
+    macro_rules! assert_resource_overdraft {
+        ($invalid_resource_bounds:expr) => {
+            // V3 invoke.
+            let invalid_tx = account_invoke_tx(invoke_tx_args! {
+                resource_bounds: $invalid_resource_bounds,
+                ..default_invoke_args.clone()
+            });
+            assert_resource_bounds_exceed_balance_failure(state, block_context, invalid_tx);
+            // Declare.
+            let contract_to_declare = FeatureContract::Empty(CairoVersion::Cairo1);
+            let class_info = calculate_class_info_for_testing(contract_to_declare.get_class());
+            let invalid_tx = declare_tx(
+                declare_tx_args! {
+                    class_hash: contract_to_declare.get_class_hash(),
+                    compiled_class_hash: contract_to_declare.get_compiled_class_hash(),
+                    sender_address,
+                    resource_bounds: $invalid_resource_bounds,
+                },
+                class_info,
+            );
+            assert_resource_bounds_exceed_balance_failure(state, block_context, invalid_tx);
+        };
+    }
+
+    // Test V3 insufficient balance w.r.t. the bounds type.
+    match resource_bounds.get_gas_vector_computation_mode() {
+        GasVectorComputationMode::NoL2Gas => {
+            let balance_over_l1_gas_price = BALANCE.checked_div(DEFAULT_STRK_L1_GAS_PRICE).unwrap();
+            let invalid_resource_bounds = l1_resource_bounds(
+                (balance_over_l1_gas_price.0 + 1).into(),
+                DEFAULT_STRK_L1_GAS_PRICE.into(),
+            );
+            assert_resource_overdraft!(invalid_resource_bounds);
+        }
+        GasVectorComputationMode::All => {
+            // Divide balance into 3 parts, one for each resource. Get overdraft on each.
+            let partial_balance = Fee(BALANCE.0 / 3);
+            let l1_gas_amount = partial_balance.checked_div(DEFAULT_STRK_L1_GAS_PRICE).unwrap();
+            let l2_gas_amount = partial_balance.checked_div(DEFAULT_STRK_L2_GAS_PRICE).unwrap();
+            let l1_data_gas_amount =
+                partial_balance.checked_div(DEFAULT_STRK_L1_DATA_GAS_PRICE).unwrap();
+            let ValidResourceBounds::AllResources(mut base_resource_bounds) =
+                create_all_resource_bounds(
+                    l1_gas_amount,
+                    DEFAULT_STRK_L1_GAS_PRICE.into(),
+                    l2_gas_amount,
+                    DEFAULT_STRK_L2_GAS_PRICE.into(),
+                    l1_data_gas_amount,
+                    DEFAULT_STRK_L1_DATA_GAS_PRICE.into(),
+                )
+            else {
+                panic!("Invalid resource bounds.");
+            };
+            // L1 gas overdraft.
+            base_resource_bounds.l1_gas.max_amount.0 += 10;
+            assert_resource_overdraft!(ValidResourceBounds::AllResources(base_resource_bounds));
+            base_resource_bounds.l1_gas.max_amount.0 -= 10;
+            // L2 gas overdraft.
+            base_resource_bounds.l2_gas.max_amount.0 += 10;
+            assert_resource_overdraft!(ValidResourceBounds::AllResources(base_resource_bounds));
+            base_resource_bounds.l2_gas.max_amount.0 -= 10;
+            // L1 data gas overdraft.
+            base_resource_bounds.l1_data_gas.max_amount.0 += 10;
+            assert_resource_overdraft!(ValidResourceBounds::AllResources(base_resource_bounds));
+            base_resource_bounds.l1_data_gas.max_amount.0 -= 10;
+        }
+    }
 }
 
-// TODO(Aner, 21/01/24) modify for 4844 (taking blob_gas into account).
 #[rstest]
-fn test_insufficient_resource_bounds(
+fn test_insufficient_new_resource_bounds_pre_validation(
+    mut block_context: BlockContext,
+    #[values(true, false)] use_kzg_da: bool,
+    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] account_cairo_version: CairoVersion,
+) {
+    block_context.block_info.use_kzg_da = use_kzg_da;
+    let block_context = &block_context;
+    let account_contract = FeatureContract::AccountWithoutValidations(account_cairo_version);
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
+    let state = &mut test_state(
+        &block_context.chain_info,
+        BALANCE,
+        &[(account_contract, 1), (test_contract, 1)],
+    );
+    let valid_invoke_tx_args = invoke_tx_args! {
+        sender_address: account_contract.get_instance_address(0),
+        calldata: create_trivial_calldata(test_contract.get_instance_address(0)),
+        max_fee: MAX_FEE
+    };
+    let tx = &account_invoke_tx(valid_invoke_tx_args.clone());
+
+    // V3 transaction.
+    let GasPriceVector {
+        l1_gas_price: actual_strk_l1_gas_price,
+        l1_data_gas_price: actual_strk_l1_data_gas_price,
+        l2_gas_price: actual_strk_l2_gas_price,
+    } = block_context.block_info.gas_prices.get_gas_prices_by_fee_type(&FeeType::Strk);
+
+    let minimal_gas_vector =
+        estimate_minimal_gas_vector(block_context, tx, &GasVectorComputationMode::All);
+
+    let default_resource_bounds = AllResourceBounds {
+        l1_gas: ResourceBounds {
+            max_amount: minimal_gas_vector.l1_gas,
+            max_price_per_unit: actual_strk_l1_gas_price.get(),
+        },
+        l2_gas: ResourceBounds {
+            max_amount: minimal_gas_vector.l2_gas,
+            max_price_per_unit: actual_strk_l2_gas_price.get(),
+        },
+        l1_data_gas: ResourceBounds {
+            max_amount: minimal_gas_vector.l1_data_gas,
+            max_price_per_unit: actual_strk_l1_data_gas_price.get(),
+        },
+    };
+
+    // Verify successful execution on default resource bounds.
+    let valid_resources_tx = account_invoke_tx(InvokeTxArgs {
+        resource_bounds: ValidResourceBounds::AllResources(default_resource_bounds),
+        ..valid_invoke_tx_args.clone()
+    })
+    .execute(state, block_context, true, true);
+
+    let next_nonce = match valid_resources_tx {
+        Ok(_) => 1,
+        Err(err) => match err {
+            TransactionExecutionError::TransactionPreValidationError(
+                TransactionPreValidationError::TransactionFeeError(
+                    TransactionFeeError::MaxGasAmountTooLow { .. },
+                ),
+            ) => panic!("Transaction failed with expected minimal amount."),
+            TransactionExecutionError::TransactionPreValidationError(
+                TransactionPreValidationError::TransactionFeeError(
+                    TransactionFeeError::MaxGasPriceTooLow { .. },
+                ),
+            ) => panic!("Transaction failed with expected minimal price."),
+            // Ignore failures other than those above (e.g., post-validation errors).
+            _ => 0,
+        },
+    };
+
+    // Max gas amount too low, new resource bounds.
+    // TODO(Aner): add a test for more than 1 insufficient resource amount, after error message
+    // contains all insufficient resources.
+    for (insufficient_resource, resource_bounds) in [
+        (L1Gas, default_resource_bounds.l1_gas),
+        (L2Gas, default_resource_bounds.l2_gas),
+        (L1DataGas, default_resource_bounds.l1_data_gas),
+    ] {
+        if resource_bounds.max_amount == 0_u8.into() {
+            continue;
+        }
+        let mut invalid_resources = default_resource_bounds;
+        match insufficient_resource {
+            L1Gas => invalid_resources.l1_gas.max_amount.0 -= 1,
+            L2Gas => invalid_resources.l2_gas.max_amount.0 -= 1,
+            L1DataGas => invalid_resources.l1_data_gas.max_amount.0 -= 1,
+        }
+        let invalid_v3_tx = account_invoke_tx(InvokeTxArgs {
+            resource_bounds: ValidResourceBounds::AllResources(invalid_resources),
+            nonce: nonce!(next_nonce),
+            ..valid_invoke_tx_args.clone()
+        });
+        let execution_error = invalid_v3_tx.execute(state, block_context, true, true).unwrap_err();
+        assert_matches!(
+            execution_error,
+            TransactionExecutionError::TransactionPreValidationError(
+                TransactionPreValidationError::TransactionFeeError(
+                    TransactionFeeError::MaxGasAmountTooLow{
+                        resource,
+                        ..}))
+            if resource == insufficient_resource
+        );
+    }
+
+    // Max gas price too low, new resource bounds.
+    for insufficient_resource in [L1Gas, L2Gas, L1DataGas] {
+        let mut invalid_resources = default_resource_bounds;
+        match insufficient_resource {
+            L1Gas => invalid_resources.l1_gas.max_price_per_unit.0 -= 1,
+            L2Gas => invalid_resources.l2_gas.max_price_per_unit.0 -= 1,
+            L1DataGas => invalid_resources.l1_data_gas.max_price_per_unit.0 -= 1,
+        }
+
+        let invalid_v3_tx = account_invoke_tx(InvokeTxArgs {
+            resource_bounds: ValidResourceBounds::AllResources(invalid_resources),
+            nonce: nonce!(next_nonce),
+            ..valid_invoke_tx_args.clone()
+        });
+        let execution_error = invalid_v3_tx.execute(state, block_context, true, true).unwrap_err();
+        assert_matches!(
+            execution_error,
+            TransactionExecutionError::TransactionPreValidationError(
+                TransactionPreValidationError::TransactionFeeError(
+                    TransactionFeeError::MaxGasPriceTooLow{
+                        resource,
+                        ..}))
+            if resource == insufficient_resource
+        );
+    }
+}
+
+#[rstest]
+fn test_insufficient_deprecated_resource_bounds_pre_validation(
     block_context: BlockContext,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] account_cairo_version: CairoVersion,
 ) {
@@ -898,19 +1205,21 @@ fn test_insufficient_resource_bounds(
     let valid_invoke_tx_args = invoke_tx_args! {
         sender_address: account_contract.get_instance_address(0),
         calldata: create_trivial_calldata(test_contract.get_instance_address(0)),
-        max_fee: Fee(MAX_FEE)
+        max_fee: MAX_FEE
     };
 
     // The minimal gas estimate does not depend on tx version.
     let tx = &account_invoke_tx(valid_invoke_tx_args.clone());
-    let minimal_l1_gas = estimate_minimal_gas_vector(block_context, tx).unwrap().l1_gas;
+    let minimal_l1_gas =
+        estimate_minimal_gas_vector(block_context, tx, &GasVectorComputationMode::NoL2Gas).l1_gas;
 
     // Test V1 transaction.
 
     let gas_prices = &block_context.block_info.gas_prices;
     // TODO(Aner, 21/01/24) change to linear combination.
-    let minimal_fee =
-        Fee(minimal_l1_gas * u128::from(gas_prices.get_l1_gas_price_by_fee_type(&FeeType::Eth)));
+    let minimal_fee = minimal_l1_gas
+        .checked_mul(gas_prices.get_l1_gas_price_by_fee_type(&FeeType::Eth).into())
+        .unwrap();
     // Max fee too low (lower than minimal estimated fee).
     let invalid_max_fee = Fee(minimal_fee.0 - 1);
     let invalid_v1_tx = account_invoke_tx(
@@ -923,103 +1232,134 @@ fn test_insufficient_resource_bounds(
         execution_error,
         TransactionExecutionError::TransactionPreValidationError(
             TransactionPreValidationError::TransactionFeeError(
-                TransactionFeeError::MaxFeeTooLow { min_fee, max_fee }))
+                TransactionFeeError::MaxFeeTooLow {  min_fee, max_fee }))
         if max_fee == invalid_max_fee && min_fee == minimal_fee
     );
 
     // Test V3 transaction.
     let actual_strk_l1_gas_price = gas_prices.get_l1_gas_price_by_fee_type(&FeeType::Strk);
 
-    // Max L1 gas amount too low.
+    // Max L1 gas amount too low, old resource bounds.
     // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion works.
-    let insufficient_max_l1_gas_amount =
-        (minimal_l1_gas - 1).try_into().expect("Failed to convert u128 to u64.");
+    let insufficient_max_l1_gas_amount = (minimal_l1_gas.0 - 1).into();
     let invalid_v3_tx = account_invoke_tx(invoke_tx_args! {
         resource_bounds: l1_resource_bounds(insufficient_max_l1_gas_amount, actual_strk_l1_gas_price.into()),
         ..valid_invoke_tx_args.clone()
     });
     let execution_error = invalid_v3_tx.execute(state, block_context, true, true).unwrap_err();
-    // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion works.
-    let minimal_l1_gas_as_u64 =
-        u64::try_from(minimal_l1_gas).expect("Failed to convert u128 to u64.");
     assert_matches!(
         execution_error,
         TransactionExecutionError::TransactionPreValidationError(
             TransactionPreValidationError::TransactionFeeError(
-                TransactionFeeError::MaxL1GasAmountTooLow{
-                    max_l1_gas_amount, minimal_l1_gas_amount }))
-        if max_l1_gas_amount == insufficient_max_l1_gas_amount &&
-        minimal_l1_gas_amount == minimal_l1_gas_as_u64
+                TransactionFeeError::MaxGasAmountTooLow{
+                    resource,
+                    max_gas_amount,
+                    minimal_gas_amount}))
+        if max_gas_amount == insufficient_max_l1_gas_amount &&
+        minimal_gas_amount == minimal_l1_gas && resource == L1Gas
     );
 
-    // Max L1 gas price too low.
-    let insufficient_max_l1_gas_price = u128::from(actual_strk_l1_gas_price) - 1;
+    // Max L1 gas price too low, old resource bounds.
+    let insufficient_max_l1_gas_price = (actual_strk_l1_gas_price.get().0 - 1).into();
     let invalid_v3_tx = account_invoke_tx(invoke_tx_args! {
-        // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion
-        // works.
-        resource_bounds: l1_resource_bounds(minimal_l1_gas.try_into().expect("Failed to convert u128 to u64."), insufficient_max_l1_gas_price),
-        ..valid_invoke_tx_args
+        resource_bounds: l1_resource_bounds(minimal_l1_gas, insufficient_max_l1_gas_price),
+        ..valid_invoke_tx_args.clone()
     });
     let execution_error = invalid_v3_tx.execute(state, block_context, true, true).unwrap_err();
     assert_matches!(
         execution_error,
         TransactionExecutionError::TransactionPreValidationError(
             TransactionPreValidationError::TransactionFeeError(
-                TransactionFeeError::MaxL1GasPriceTooLow{ max_l1_gas_price, actual_l1_gas_price }))
+                TransactionFeeError::MaxGasPriceTooLow{ resource: L1Gas ,max_gas_price: max_l1_gas_price, actual_gas_price: actual_l1_gas_price }))
         if max_l1_gas_price == insufficient_max_l1_gas_price &&
         actual_l1_gas_price == actual_strk_l1_gas_price.into()
     );
 }
 
-// TODO(Aner, 21/01/24) modify test for 4844.
 #[rstest]
+#[case::l1_bounds(default_l1_resource_bounds(), Resource::L1Gas)]
+#[case::all_bounds_l1_gas_overdraft(default_all_resource_bounds(), Resource::L1Gas)]
+#[case::all_bounds_l2_gas_overdraft(default_all_resource_bounds(), Resource::L2Gas)]
+#[case::all_bounds_l1_data_gas_overdraft(default_all_resource_bounds(), Resource::L1DataGas)]
 fn test_actual_fee_gt_resource_bounds(
-    block_context: BlockContext,
-    max_resource_bounds: ValidResourceBounds,
+    mut block_context: BlockContext,
+    #[case] resource_bounds: ValidResourceBounds,
+    #[case] overdraft_resource: Resource,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] account_cairo_version: CairoVersion,
 ) {
-    let block_context = &block_context;
+    let block_context = &mut block_context;
+    block_context.block_info.use_kzg_da = true;
+    let mut nonce_manager = NonceManager::default();
+    let gas_mode = resource_bounds.get_gas_vector_computation_mode();
+    let gas_prices = block_context.block_info.gas_prices.get_gas_prices_by_fee_type(&FeeType::Strk);
     let account_contract = FeatureContract::AccountWithoutValidations(account_cairo_version);
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
     let state = &mut test_state(
         &block_context.chain_info,
         BALANCE,
-        &[(account_contract, 1), (test_contract, 1)],
+        &[(account_contract, 2), (test_contract, 1)],
     );
-    let invoke_tx_args = invoke_tx_args! {
-        sender_address: account_contract.get_instance_address(0),
-        calldata: create_trivial_calldata(test_contract.get_instance_address(0)),
-        resource_bounds: max_resource_bounds
-    };
-    let tx = &account_invoke_tx(invoke_tx_args.clone());
-    let minimal_l1_gas = estimate_minimal_gas_vector(block_context, tx).unwrap().l1_gas;
-    let minimal_resource_bounds = l1_resource_bounds(
-        u64::try_from(minimal_l1_gas).unwrap(),
-        u128::from(
-            block_context.block_info.gas_prices.get_l1_gas_price_by_fee_type(&FeeType::Strk),
+    let sender_address0 = account_contract.get_instance_address(0);
+    let sender_address1 = account_contract.get_instance_address(1);
+    let tx_args = invoke_tx_args! {
+        sender_address: sender_address0,
+        calldata: create_calldata(
+            test_contract.get_instance_address(0), "write_a_lot", &[felt!(2_u8), felt!(7_u8)]
         ),
-    );
-    // The estimated minimal fee is lower than the actual fee.
-    let invalid_tx = account_invoke_tx(
-        invoke_tx_args! { resource_bounds: minimal_resource_bounds, ..invoke_tx_args },
-    );
+        resource_bounds,
+        nonce: nonce_manager.next(sender_address0),
+    };
 
+    // Execute the tx to compute the final gas costs.
+    let tx = &account_invoke_tx(tx_args.clone());
+    let execution_result = tx.execute(state, block_context, true, true).unwrap();
+    let mut actual_gas = execution_result.receipt.gas;
+
+    // Create new gas bounds that are lower than the actual gas.
+    let (expected_fee, overdraft_resource_bounds) = match gas_mode {
+        GasVectorComputationMode::NoL2Gas => {
+            let l1_gas_bound = GasAmount(actual_gas.to_discounted_l1_gas(gas_prices).0 - 1);
+            (
+                GasVector::from_l1_gas(l1_gas_bound).cost(gas_prices),
+                l1_resource_bounds(l1_gas_bound, gas_prices.l1_gas_price.into()),
+            )
+        }
+        GasVectorComputationMode::All => {
+            match overdraft_resource {
+                Resource::L1Gas => actual_gas.l1_gas.0 -= 1,
+                Resource::L2Gas => actual_gas.l2_gas.0 -= 1,
+                Resource::L1DataGas => actual_gas.l1_data_gas.0 -= 1,
+            }
+            (
+                actual_gas.cost(gas_prices),
+                ValidResourceBounds::all_bounds_from_vectors(&actual_gas, gas_prices),
+            )
+        }
+    };
+    let invalid_tx = account_invoke_tx(invoke_tx_args! {
+        sender_address: sender_address1,
+        resource_bounds: overdraft_resource_bounds,
+        // To get the same DA cost, write a different value.
+        calldata: create_calldata(
+            test_contract.get_instance_address(0), "write_a_lot", &[felt!(2_u8), felt!(8_u8)]
+        ),
+        nonce: nonce_manager.next(sender_address1),
+    });
     let execution_result = invalid_tx.execute(state, block_context, true, true).unwrap();
     let execution_error = execution_result.revert_error.unwrap();
-    // Test error.
-    assert!(execution_error.starts_with("Insufficient max L1 gas:"));
-    // Test that fee was charged.
-    let minimal_fee = Fee(minimal_l1_gas
-        * u128::from(
-            block_context.block_info.gas_prices.get_l1_gas_price_by_fee_type(&FeeType::Strk),
-        ));
-    assert_eq!(execution_result.receipt.fee, minimal_fee);
+
+    // Test error and that fee was charged. Should be at most the fee charged in a successful
+    // execution.
+    assert!(
+        execution_error.to_string().starts_with(&format!("Insufficient max {overdraft_resource}"))
+    );
+    assert_eq!(execution_result.receipt.fee, expected_fee);
 }
 
 #[rstest]
 fn test_invalid_nonce(
     block_context: BlockContext,
-    max_resource_bounds: ValidResourceBounds,
+    default_all_resource_bounds: ValidResourceBounds,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] account_cairo_version: CairoVersion,
 ) {
     let account_contract = FeatureContract::AccountWithoutValidations(account_cairo_version);
@@ -1032,7 +1372,7 @@ fn test_invalid_nonce(
     let valid_invoke_tx_args = invoke_tx_args! {
         sender_address: account_contract.get_instance_address(0),
         calldata: create_trivial_calldata(test_contract.get_instance_address(0)),
-        resource_bounds: max_resource_bounds,
+        resource_bounds: default_all_resource_bounds,
     };
     let mut transactional_state = TransactionalState::create_transactional(state);
 
@@ -1090,6 +1430,8 @@ fn declare_validate_callinfo(
     declared_class_hash: ClassHash,
     account_class_hash: ClassHash,
     account_address: ContractAddress,
+    tracked_resource: TrackedResource,
+    user_initial_gas: Option<GasAmount>,
 ) -> Option<CallInfo> {
     // V0 transactions do not run validate.
     if version == TransactionVersion::ZERO {
@@ -1102,6 +1444,8 @@ fn declare_validate_callinfo(
             calldata![declared_class_hash.0],
             account_address,
             declared_contract_version,
+            tracked_resource,
+            user_initial_gas,
         )
     }
 }
@@ -1139,7 +1483,7 @@ fn declare_expected_state_changes_count(version: TransactionVersion) -> StateCha
 #[case(TransactionVersion::TWO, CairoVersion::Cairo1)]
 #[case(TransactionVersion::THREE, CairoVersion::Cairo1)]
 fn test_declare_tx(
-    max_resource_bounds: ValidResourceBounds,
+    default_all_resource_bounds: ValidResourceBounds,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] account_cairo_version: CairoVersion,
     #[case] tx_version: TransactionVersion,
     #[case] empty_contract_version: CairoVersion,
@@ -1156,21 +1500,21 @@ fn test_declare_tx(
     let class_info = calculate_class_info_for_testing(empty_contract.get_class());
     let sender_address = account.get_instance_address(0);
     let mut nonce_manager = NonceManager::default();
+    let state_changes_for_fee = declare_expected_state_changes_count(tx_version);
     let starknet_resources = StarknetResources::new(
         0,
         0,
         class_info.code_size(),
-        declare_expected_state_changes_count(tx_version),
+        StateResources::new_for_testing(state_changes_for_fee, 0),
         None,
-        std::iter::empty(),
+        ExecutionSummary::default(),
     );
-
     let account_tx = declare_tx(
         declare_tx_args! {
-            max_fee: Fee(MAX_FEE),
+            max_fee: MAX_FEE,
             sender_address,
             version: tx_version,
-            resource_bounds: max_resource_bounds.clone(),
+            resource_bounds: default_all_resource_bounds,
             class_hash,
             compiled_class_hash,
             nonce: nonce_manager.next(sender_address),
@@ -1187,6 +1531,7 @@ fn test_declare_tx(
     let fee_type = &account_tx.fee_type();
     let tx_context = &block_context.to_tx_context(&account_tx);
     let actual_execution_info = account_tx.execute(state, block_context, true, true).unwrap();
+    assert_eq!(actual_execution_info.revert_error, None);
 
     // Build expected validate call info.
     let expected_validate_call_info = declare_validate_callinfo(
@@ -1195,41 +1540,58 @@ fn test_declare_tx(
         class_hash,
         account.get_class_hash(),
         sender_address,
+        account.get_runnable_class().tracked_resource(
+            &versioned_constants.min_compiler_version_for_sierra_gas,
+            tx_context.tx_info.gas_mode(),
+        ),
+        if tx_version >= TransactionVersion::THREE {
+            user_initial_gas_from_bounds(default_all_resource_bounds)
+        } else {
+            None
+        },
     );
 
     // Build expected fee transfer call info.
-    let expected_actual_fee =
-        actual_execution_info.receipt.resources.calculate_tx_fee(block_context, fee_type).unwrap();
-    let expected_fee_transfer_call_info = expected_fee_transfer_call_info(
-        tx_context,
-        sender_address,
-        expected_actual_fee,
-        FeatureContract::ERC20(CairoVersion::Cairo0).get_class_hash(),
-    );
+    let expected_actual_fee = actual_execution_info.receipt.fee;
+    // V0 transactions do not handle fee.
+    let expected_fee_transfer_call_info = if tx_version == TransactionVersion::ZERO {
+        None
+    } else {
+        expected_fee_transfer_call_info(
+            tx_context,
+            sender_address,
+            expected_actual_fee,
+            FeatureContract::ERC20(CairoVersion::Cairo0).get_class_hash(),
+        )
+    };
 
-    let da_gas = starknet_resources.get_state_changes_cost(use_kzg_da);
+    let da_gas = starknet_resources.state.to_gas_vector(use_kzg_da);
     let expected_cairo_resources = get_expected_cairo_resources(
         versioned_constants,
         TransactionType::Declare,
         &starknet_resources,
         vec![&expected_validate_call_info],
     );
-    let state_changes_count = starknet_resources.state_changes_for_fee;
     let mut expected_actual_resources = TransactionResources {
         starknet_resources,
-        vm_resources: expected_cairo_resources,
-        ..Default::default()
+        computation: ComputationResources {
+            vm_resources: expected_cairo_resources,
+            ..Default::default()
+        },
     };
 
     add_kzg_da_resources_to_resources_mapping(
-        &mut expected_actual_resources.vm_resources,
-        &state_changes_count,
+        &mut expected_actual_resources.computation.vm_resources,
+        &state_changes_for_fee,
         versioned_constants,
         use_kzg_da,
     );
 
-    let expected_total_gas =
-        expected_actual_resources.to_gas_vector(versioned_constants, use_kzg_da).unwrap();
+    let expected_total_gas = expected_actual_resources.to_gas_vector(
+        versioned_constants,
+        use_kzg_da,
+        &tx_context.get_gas_vector_computation_mode(),
+    );
 
     let expected_execution_info = TransactionExecutionInfo {
         validate_call_info: expected_validate_call_info,
@@ -1265,15 +1627,15 @@ fn test_declare_tx(
 
     // Verify class declaration.
     let contract_class_from_state = state.get_compiled_contract_class(class_hash).unwrap();
-    assert_eq!(contract_class_from_state, class_info.contract_class());
+    assert_eq!(contract_class_from_state, class_info.contract_class().try_into().unwrap());
 
     // Checks that redeclaring the same contract fails.
     let account_tx2 = declare_tx(
         declare_tx_args! {
-            max_fee: Fee(MAX_FEE),
+            max_fee: MAX_FEE,
             sender_address,
             version: tx_version,
-            resource_bounds: max_resource_bounds,
+            resource_bounds: default_all_resource_bounds,
             class_hash,
             compiled_class_hash,
             nonce: nonce_manager.next(sender_address),
@@ -1289,10 +1651,43 @@ fn test_declare_tx(
 }
 
 #[rstest]
+fn test_declare_tx_v0(default_l1_resource_bounds: ValidResourceBounds) {
+    let tx_version = TransactionVersion::ZERO;
+    let block_context = &BlockContext::create_for_account_testing();
+    let empty_contract = FeatureContract::Empty(CairoVersion::Cairo0);
+    let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
+    let chain_info = &block_context.chain_info;
+    let state = &mut test_state(chain_info, BALANCE, &[(account, 1)]);
+    let class_hash = empty_contract.get_class_hash();
+    let compiled_class_hash = empty_contract.get_compiled_class_hash();
+    let class_info = calculate_class_info_for_testing(empty_contract.get_class());
+    let sender_address = account.get_instance_address(0);
+    let mut nonce_manager = NonceManager::default();
+
+    let account_tx = declare_tx(
+        declare_tx_args! {
+            max_fee: Fee(0),
+            sender_address,
+            version: tx_version,
+            resource_bounds: default_l1_resource_bounds,
+            class_hash,
+            compiled_class_hash,
+            nonce: nonce_manager.next(sender_address),
+        },
+        class_info.clone(),
+    );
+
+    let actual_execution_info = account_tx.execute(state, block_context, false, true).unwrap(); // fee not charged for declare v0.
+
+    assert_eq!(actual_execution_info.fee_transfer_call_info, None, "not none");
+    assert_eq!(actual_execution_info.receipt.fee, Fee(0));
+}
+
+#[rstest]
 fn test_deploy_account_tx(
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
     #[values(false, true)] use_kzg_da: bool,
-    max_resource_bounds: ValidResourceBounds,
+    default_all_resource_bounds: ValidResourceBounds,
 ) {
     let block_context = &BlockContext::create_for_account_testing_with_kzg(use_kzg_da);
     let versioned_constants = &block_context.versioned_constants;
@@ -1302,16 +1697,18 @@ fn test_deploy_account_tx(
     let account_class_hash = account.get_class_hash();
     let state = &mut test_state(chain_info, BALANCE, &[(account, 1)]);
     let deploy_account = deploy_account_tx(
-        deploy_account_tx_args! { resource_bounds: max_resource_bounds.clone(), class_hash: account_class_hash },
+        deploy_account_tx_args! {
+            resource_bounds: default_all_resource_bounds,
+            class_hash: account_class_hash
+        },
         &mut nonce_manager,
     );
 
     // Extract deploy account transaction fields for testing, as it is consumed when creating an
     // account transaction.
-    let class_hash = deploy_account.class_hash();
-    let deployed_account_address = deploy_account.contract_address();
-    let constructor_calldata = deploy_account.constructor_calldata();
-    let salt = deploy_account.contract_address_salt();
+    let class_hash = deploy_account.class_hash().unwrap();
+    let deployed_account_address = deploy_account.sender_address();
+    let user_initial_gas = user_initial_gas_from_bounds(default_all_resource_bounds);
 
     // Update the balance of the about to be deployed account contract in the erc20 contract, so it
     // can pay for the transaction execution.
@@ -1321,27 +1718,43 @@ fn test_deploy_account_tx(
             .set_storage_at(
                 chain_info.fee_token_address(&fee_type),
                 deployed_account_balance_key,
-                felt!(BALANCE),
+                felt!(BALANCE.0),
             )
             .unwrap();
     }
 
-    let account_tx = AccountTransaction::DeployAccount(deploy_account);
-    let fee_type = &account_tx.fee_type();
-    let tx_context = &block_context.to_tx_context(&account_tx);
-    let actual_execution_info = account_tx.execute(state, block_context, true, true).unwrap();
+    let fee_type = &deploy_account.fee_type();
+    let tx_context = &block_context.to_tx_context(&deploy_account);
+    let actual_execution_info = deploy_account.execute(state, block_context, true, true).unwrap();
 
     // Build expected validate call info.
-    let validate_calldata =
-        [vec![class_hash.0, salt.0], (*constructor_calldata.0).clone()].concat();
+    let validate_calldata = if let ApiExecutableTransaction::DeployAccount(tx) = &deploy_account.tx
+    {
+        Calldata(
+            [
+                vec![class_hash.0, tx.contract_address_salt().0],
+                (*tx.constructor_calldata().0).clone(),
+            ]
+            .concat()
+            .into(),
+        )
+    } else {
+        panic!("Expected DeployAccount transaction.")
+    };
+
     let expected_gas_consumed = 0;
     let expected_validate_call_info = expected_validate_call_info(
         account_class_hash,
         constants::VALIDATE_DEPLOY_ENTRY_POINT_NAME,
         expected_gas_consumed,
-        Calldata(validate_calldata.into()),
+        validate_calldata,
         deployed_account_address,
         cairo_version,
+        account.get_runnable_class().tracked_resource(
+            &versioned_constants.min_compiler_version_for_sierra_gas,
+            tx_context.tx_info.gas_mode(),
+        ),
+        user_initial_gas,
     );
 
     // Build expected execute call info.
@@ -1350,17 +1763,16 @@ fn test_deploy_account_tx(
             class_hash: Some(account_class_hash),
             code_address: None,
             entry_point_type: EntryPointType::Constructor,
-            entry_point_selector: selector_from_name(abi_constants::CONSTRUCTOR_ENTRY_POINT_NAME),
+            entry_point_selector: selector_from_name(CONSTRUCTOR_ENTRY_POINT_NAME),
             storage_address: deployed_account_address,
-            initial_gas: tx_initial_gas(),
+            initial_gas: user_initial_gas.unwrap_or(GasAmount(default_initial_gas_cost())).0,
             ..Default::default()
         },
         ..Default::default()
     });
 
     // Build expected fee transfer call info.
-    let expected_actual_fee =
-        actual_execution_info.receipt.resources.calculate_tx_fee(block_context, fee_type).unwrap();
+    let expected_actual_fee = actual_execution_info.receipt.fee;
     let expected_fee_transfer_call_info = expected_fee_transfer_call_info(
         tx_context,
         deployed_account_address,
@@ -1385,20 +1797,24 @@ fn test_deploy_account_tx(
 
     let mut actual_resources = TransactionResources {
         starknet_resources,
-        vm_resources: expected_cairo_resources,
-        ..Default::default()
+        computation: ComputationResources {
+            vm_resources: expected_cairo_resources,
+            ..Default::default()
+        },
     };
 
     add_kzg_da_resources_to_resources_mapping(
-        &mut actual_resources.vm_resources,
+        &mut actual_resources.computation.vm_resources,
         &state_changes_count,
         versioned_constants,
         use_kzg_da,
     );
 
-    let expected_total_gas = actual_resources
-        .to_gas_vector(&block_context.versioned_constants, block_context.block_info.use_kzg_da)
-        .unwrap();
+    let expected_total_gas = actual_resources.to_gas_vector(
+        &block_context.versioned_constants,
+        block_context.block_info.use_kzg_da,
+        &tx_context.get_gas_vector_computation_mode(),
+    );
 
     let expected_execution_info = TransactionExecutionInfo {
         validate_call_info: expected_validate_call_info,
@@ -1438,11 +1854,13 @@ fn test_deploy_account_tx(
     // Negative flow.
     // Deploy to an existing address.
     let deploy_account = deploy_account_tx(
-        deploy_account_tx_args! { resource_bounds: max_resource_bounds, class_hash: account_class_hash },
+        deploy_account_tx_args! {
+            resource_bounds: default_all_resource_bounds,
+            class_hash: account_class_hash
+        },
         &mut nonce_manager,
     );
-    let account_tx = AccountTransaction::DeployAccount(deploy_account);
-    let error = account_tx.execute(state, block_context, true, true).unwrap_err();
+    let error = deploy_account.execute(state, block_context, true, true).unwrap_err();
     assert_matches!(
         error,
         TransactionExecutionError::ContractConstructorExecutionFailed(
@@ -1459,7 +1877,7 @@ fn test_deploy_account_tx(
 #[rstest]
 fn test_fail_deploy_account_undeclared_class_hash(
     block_context: BlockContext,
-    max_resource_bounds: ValidResourceBounds,
+    default_all_resource_bounds: ValidResourceBounds,
 ) {
     let block_context = &block_context;
     let chain_info = &block_context.chain_info;
@@ -1467,7 +1885,9 @@ fn test_fail_deploy_account_undeclared_class_hash(
     let mut nonce_manager = NonceManager::default();
     let undeclared_hash = class_hash!("0xdeadbeef");
     let deploy_account = deploy_account_tx(
-        deploy_account_tx_args! {resource_bounds: max_resource_bounds,  class_hash: undeclared_hash },
+        deploy_account_tx_args! {
+            resource_bounds: default_all_resource_bounds,  class_hash: undeclared_hash
+        },
         &mut nonce_manager,
     );
     let tx_context = block_context.to_tx_context(&deploy_account);
@@ -1477,13 +1897,12 @@ fn test_fail_deploy_account_undeclared_class_hash(
     state
         .set_storage_at(
             chain_info.fee_token_address(&fee_type),
-            get_fee_token_var_address(deploy_account.contract_address()),
-            felt!(BALANCE),
+            get_fee_token_var_address(deploy_account.sender_address()),
+            felt!(BALANCE.0),
         )
         .unwrap();
 
-    let account_tx = AccountTransaction::DeployAccount(deploy_account);
-    let error = account_tx.execute(state, block_context, true, true).unwrap_err();
+    let error = deploy_account.execute(state, block_context, true, true).unwrap_err();
     assert_matches!(
         error,
         TransactionExecutionError::ContractConstructorExecutionFailed(
@@ -1518,7 +1937,7 @@ fn test_validate_accounts_tx(
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
 ) {
     let block_context = &block_context;
-    let account_balance = 0;
+    let account_balance = Fee(0);
     let faulty_account = FeatureContract::FaultyAccount(cairo_version);
     let sender_address = faulty_account.get_instance_address(0);
     let class_hash = faulty_account.get_class_hash();
@@ -1543,12 +1962,11 @@ fn test_validate_accounts_tx(
         additional_data: None,
         ..default_args
     });
-    let error = account_tx.execute(state, block_context, true, true).unwrap_err();
-    check_transaction_execution_error_for_invalid_scenario!(
-        cairo_version,
-        error,
-        validate_constructor,
-    );
+    // We test `__validate__`, and don't care about the cahrge fee flow.
+    let charge_fee = false;
+
+    let error = account_tx.execute(state, block_context, charge_fee, true).unwrap_err();
+    check_tx_execution_error_for_invalid_scenario!(cairo_version, error, validate_constructor,);
 
     // Try to call another contract (forbidden).
     let account_tx = create_account_tx_for_validate_test_nonce_0(FaultyAccountTxCreatorArgs {
@@ -1557,11 +1975,11 @@ fn test_validate_accounts_tx(
                                                        * the address of
                                                        * faulty_account. */
         contract_address_salt: salt_manager.next_salt(),
-        resource_bounds: default_testing_resource_bounds(),
+        resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),
         ..default_args
     });
-    let error = account_tx.execute(state, block_context, true, true).unwrap_err();
-    check_transaction_execution_error_for_custom_hint!(
+    let error = account_tx.execute(state, block_context, charge_fee, true).unwrap_err();
+    check_tx_execution_error_for_custom_hint!(
         &error,
         "Unauthorized syscall call_contract in execution mode Validate.",
         validate_constructor,
@@ -1573,11 +1991,11 @@ fn test_validate_accounts_tx(
             scenario: GET_BLOCK_HASH,
             contract_address_salt: salt_manager.next_salt(),
             additional_data: None,
-            resource_bounds: default_testing_resource_bounds(),
+            resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),
             ..default_args
         });
-        let error = account_tx.execute(state, block_context, true, true).unwrap_err();
-        check_transaction_execution_error_for_custom_hint!(
+        let error = account_tx.execute(state, block_context, charge_fee, true).unwrap_err();
+        check_tx_execution_error_for_custom_hint!(
             &error,
             "Unauthorized syscall get_block_hash in execution mode Validate.",
             validate_constructor,
@@ -1588,11 +2006,11 @@ fn test_validate_accounts_tx(
         let account_tx = create_account_tx_for_validate_test_nonce_0(FaultyAccountTxCreatorArgs {
             scenario: GET_SEQUENCER_ADDRESS,
             contract_address_salt: salt_manager.next_salt(),
-            resource_bounds: default_testing_resource_bounds(),
+            resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),
             ..default_args
         });
-        let error = account_tx.execute(state, block_context, true, true).unwrap_err();
-        check_transaction_execution_error_for_custom_hint!(
+        let error = account_tx.execute(state, block_context, charge_fee, true).unwrap_err();
+        check_tx_execution_error_for_custom_hint!(
             &error,
             "Unauthorized syscall get_sequencer_address in execution mode Validate.",
             validate_constructor,
@@ -1611,11 +2029,11 @@ fn test_validate_accounts_tx(
             contract_address_salt: salt_manager.next_salt(),
             additional_data: None,
             declared_contract: Some(FeatureContract::TestContract(declared_contract_cairo_version)),
-            resource_bounds: default_testing_resource_bounds(),
+            resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),
             ..default_args
         },
     );
-    let result = account_tx.execute(state, block_context, true, true);
+    let result = account_tx.execute(state, block_context, charge_fee, true);
     assert!(result.is_ok(), "Execution failed: {:?}", result.unwrap_err());
 
     if tx_type != TransactionType::DeployAccount {
@@ -1628,11 +2046,11 @@ fn test_validate_accounts_tx(
                 declared_contract: Some(FeatureContract::AccountWithLongValidate(
                     declared_contract_cairo_version,
                 )),
-                resource_bounds: default_testing_resource_bounds(),
+                resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),
                 ..default_args
             },
         );
-        let result = account_tx.execute(state, block_context, true, true);
+        let result = account_tx.execute(state, block_context, charge_fee, true);
         assert!(result.is_ok(), "Execution failed: {:?}", result.unwrap_err());
     }
 
@@ -1648,11 +2066,11 @@ fn test_validate_accounts_tx(
                 declared_contract: Some(FeatureContract::AccountWithoutValidations(
                     declared_contract_cairo_version,
                 )),
-                resource_bounds: default_testing_resource_bounds(),
+                resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),
                 ..default_args
             },
         );
-        let result = account_tx.execute(state, block_context, true, true);
+        let result = account_tx.execute(state, block_context, charge_fee, true);
         assert!(result.is_ok(), "Execution failed: {:?}", result.unwrap_err());
 
         // Call the syscall get_block_timestamp and assert the returned timestamp was modified
@@ -1664,11 +2082,11 @@ fn test_validate_accounts_tx(
                 contract_address_salt: salt_manager.next_salt(),
                 additional_data: Some(vec![Felt::from(CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE)]),
                 declared_contract: Some(FeatureContract::Empty(declared_contract_cairo_version)),
-                resource_bounds: default_testing_resource_bounds(),
+                resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),
                 ..default_args
             },
         );
-        let result = account_tx.execute(state, block_context, true, true);
+        let result = account_tx.execute(state, block_context, charge_fee, true);
         assert!(result.is_ok(), "Execution failed: {:?}", result.unwrap_err());
     }
 
@@ -1683,14 +2101,14 @@ fn test_validate_accounts_tx(
                 additional_data: Some(vec![
                     Felt::from(CURRENT_BLOCK_NUMBER_FOR_VALIDATE),
                     Felt::from(CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE),
-                    Felt::from(0_u64), // Sequencer address for validate.
+                    Felt::ZERO, // Sequencer address for validate.
                 ]),
                 declared_contract: Some(FeatureContract::Empty(declared_contract_cairo_version)),
-                resource_bounds: default_testing_resource_bounds(),
+                resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),
                 ..default_args
             },
         );
-        let result = account_tx.execute(state, block_context, true, true);
+        let result = account_tx.execute(state, block_context, charge_fee, true);
         assert!(result.is_ok(), "Execution failed: {:?}", result.unwrap_err());
     }
 }
@@ -1698,7 +2116,7 @@ fn test_validate_accounts_tx(
 #[rstest]
 fn test_valid_flag(
     block_context: BlockContext,
-    max_resource_bounds: ValidResourceBounds,
+    default_all_resource_bounds: ValidResourceBounds,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] account_cairo_version: CairoVersion,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] test_contract_cairo_version: CairoVersion,
 ) {
@@ -1714,7 +2132,7 @@ fn test_valid_flag(
     let account_tx = account_invoke_tx(invoke_tx_args! {
         sender_address: account_contract.get_instance_address(0),
         calldata: create_trivial_calldata(test_contract.get_instance_address(0)),
-        resource_bounds: max_resource_bounds,
+        resource_bounds: default_all_resource_bounds,
     });
 
     let actual_execution_info = account_tx.execute(state, block_context, true, false).unwrap();
@@ -1726,7 +2144,7 @@ fn test_valid_flag(
 #[rstest]
 fn test_only_query_flag(
     block_context: BlockContext,
-    max_resource_bounds: ValidResourceBounds,
+    default_all_resource_bounds: ValidResourceBounds,
     #[values(true, false)] only_query: bool,
 ) {
     let account_balance = BALANCE;
@@ -1740,29 +2158,31 @@ fn test_only_query_flag(
     );
     let mut version = Felt::from(3_u8);
     if only_query {
-        let query_version_base = Felt::TWO.pow(constants::QUERY_VERSION_BASE_BIT);
-        version += query_version_base;
+        version += *QUERY_VERSION_BASE;
     }
     let sender_address = account.get_instance_address(0);
     let test_contract_address = test_contract.get_instance_address(0);
     let expected_tx_info = vec![
-        version,                                                     // Transaction version.
-        *sender_address.0.key(),                                     // Account address.
-        Felt::ZERO,                                                  // Max fee.
-        Felt::ZERO,                                                  // Signature.
-        Felt::ZERO,                                                  // Transaction hash.
-        felt!(&*ChainId::Other(CHAIN_ID_NAME.to_string()).as_hex()), // Chain ID.
-        Felt::ZERO,                                                  // Nonce.
+        version,                                         // Transaction version.
+        *sender_address.0.key(),                         // Account address.
+        Felt::ZERO,                                      // Max fee.
+        Felt::ZERO,                                      // Signature.
+        Felt::ZERO,                                      // Transaction hash.
+        felt!(&*ChainId::create_for_testing().as_hex()), // Chain ID.
+        Felt::ZERO,                                      // Nonce.
     ];
 
     let expected_resource_bounds = vec![
-        Felt::TWO,                // Length of ResourceBounds array.
-        felt!(L1_GAS),            // Resource.
-        felt!(MAX_L1_GAS_AMOUNT), // Max amount.
-        felt!(MAX_L1_GAS_PRICE),  // Max price per unit.
-        felt!(L2_GAS),            // Resource.
-        Felt::ZERO,               // Max amount.
-        Felt::ZERO,               // Max price per unit.
+        Felt::THREE,                                   // Length of ResourceBounds array.
+        felt!(L1Gas.to_hex()),                         // Resource.
+        felt!(DEFAULT_L1_GAS_AMOUNT.0),                // Max amount.
+        felt!(DEFAULT_STRK_L1_GAS_PRICE.get().0),      // Max price per unit.
+        felt!(L2Gas.to_hex()),                         // Resource.
+        felt!(DEFAULT_L2_GAS_MAX_AMOUNT.0),            // Max amount.
+        felt!(DEFAULT_STRK_L2_GAS_PRICE.get().0),      // Max price per unit.
+        felt!(L1DataGas.to_hex()),                     // Resource.
+        felt!(DEFAULT_L1_DATA_GAS_MAX_AMOUNT.0),       // Max amount.
+        felt!(DEFAULT_STRK_L1_DATA_GAS_PRICE.get().0), // Max price per unit.
     ];
 
     let expected_unsupported_fields = vec![
@@ -1810,32 +2230,30 @@ fn test_only_query_flag(
     );
     let invoke_tx = crate::test_utils::invoke::invoke_tx(invoke_tx_args! {
         calldata: execute_calldata,
-        resource_bounds: max_resource_bounds,
+        resource_bounds: default_all_resource_bounds,
         sender_address,
         only_query,
     });
-    let account_tx = AccountTransaction::Invoke(invoke_tx);
 
-    let tx_execution_info = account_tx.execute(state, block_context, true, true).unwrap();
-    assert!(!tx_execution_info.is_reverted())
+    let tx_execution_info = invoke_tx.execute(state, block_context, true, true).unwrap();
+    assert_eq!(tx_execution_info.revert_error, None);
 }
 
 #[rstest]
 fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
-    let cairo_version = CairoVersion::Cairo1;
-    let test_contract = FeatureContract::TestContract(cairo_version);
+    let gas_mode = GasVectorComputationMode::NoL2Gas;
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1);
     let chain_info = &ChainInfo::create_for_testing();
     let state = &mut test_state(chain_info, BALANCE, &[(test_contract, 1)]);
     let block_context = &BlockContext::create_for_account_testing_with_kzg(use_kzg_da);
     let contract_address = test_contract.get_instance_address(0);
     let versioned_constants = &block_context.versioned_constants;
-    let tx = L1HandlerTransaction::create_for_testing(Fee(1), contract_address);
+    let tx = l1handler_tx(Fee(1), contract_address);
     let calldata = tx.tx.calldata.clone();
     let key = calldata.0[1];
     let value = calldata.0[2];
     let payload_size = tx.payload_size();
-
-    let actual_execution_info = tx.execute(state, block_context, true, true).unwrap();
+    let actual_execution_info = tx.execute(state, block_context, false, true).unwrap(); // Do not charge fee as L1Handler's resource bounds (/max fee) is 0.
 
     // Build the expected call info.
     let accessed_storage_key = StorageKey::try_from(key).unwrap();
@@ -1849,19 +2267,23 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
             storage_address: contract_address,
             caller_address: ContractAddress::default(),
             call_type: CallType::Call,
-            initial_gas: tx_initial_gas(),
+            initial_gas: default_initial_gas_cost(),
         },
         execution: CallExecution {
             retdata: Retdata(vec![value]),
-            gas_consumed: 6820,
+            gas_consumed: 6120,
             ..Default::default()
         },
-        resources: ExecutionResources {
-            n_steps: 158,
+        charged_resources: ChargedResources::from_execution_resources(ExecutionResources {
+            n_steps: 151,
             n_memory_holes: 0,
             builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 6)]),
-        },
+        }),
         accessed_storage_keys: HashSet::from_iter(vec![accessed_storage_key]),
+        tracked_resource: test_contract.get_runnable_class().tracked_resource(
+            &versioned_constants.min_compiler_version_for_sierra_gas,
+            GasVectorComputationMode::NoL2Gas,
+        ),
         ..Default::default()
     };
 
@@ -1869,12 +2291,17 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     // TODO(Nimrod, 1/5/2024): Change these hard coded values to match to the transaction resources
     // (currently matches only starknet resources).
     let expected_gas = match use_kzg_da {
-        true => GasVector { l1_gas: 16023, l1_data_gas: 128, l2_gas: 0 },
-        false => GasVector::from_l1_gas(17675),
+        true => GasVector {
+            l1_gas: 17988_u32.into(),
+            l1_data_gas: 128_u32.into(),
+            l2_gas: 0_u32.into(),
+        },
+        false => GasVector::from_l1_gas(19131_u32.into()),
     };
+
     let expected_da_gas = match use_kzg_da {
-        true => GasVector::from_l1_data_gas(128),
-        false => GasVector::from_l1_gas(1652),
+        true => GasVector::from_l1_data_gas(128_u32.into()),
+        false => GasVector::from_l1_gas(1652_u32.into()),
     };
 
     let state_changes_count = StateChangesCount {
@@ -1893,7 +2320,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
                     + 6,
             ),
         ]),
-        n_steps: get_tx_resources(TransactionType::L1Handler).n_steps + 171,
+        n_steps: get_tx_resources(TransactionType::L1Handler).n_steps + 164,
         n_memory_holes: 0,
     };
 
@@ -1907,21 +2334,27 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     // Copy StarknetResources from actual resources and assert gas usage calculation is correct.
     let expected_tx_resources = TransactionResources {
         starknet_resources: actual_execution_info.receipt.resources.starknet_resources.clone(),
-        vm_resources: expected_execution_resources,
-        ..Default::default()
+        computation: ComputationResources {
+            vm_resources: expected_execution_resources,
+            ..Default::default()
+        },
     };
+
+    assert_eq!(actual_execution_info.receipt.resources, expected_tx_resources);
     assert_eq!(
         expected_gas,
-        actual_execution_info
-            .receipt
-            .resources
-            .starknet_resources
-            .to_gas_vector(versioned_constants, use_kzg_da)
+        actual_execution_info.receipt.resources.to_gas_vector(
+            versioned_constants,
+            use_kzg_da,
+            &gas_mode,
+        )
     );
 
-    let total_gas = expected_tx_resources
-        .to_gas_vector(versioned_constants, block_context.block_info.use_kzg_da)
-        .unwrap();
+    let total_gas = expected_tx_resources.to_gas_vector(
+        versioned_constants,
+        block_context.block_info.use_kzg_da,
+        &gas_mode,
+    );
 
     // Build the expected execution info.
     let expected_execution_info = TransactionExecutionInfo {
@@ -1951,24 +2384,25 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     // TODO(Meshi, 15/6/2024): change the l1_handler_set_value cairo function to
     // always uptade the storage instad.
     state.set_storage_at(contract_address, StorageKey::try_from(key).unwrap(), Felt::ZERO).unwrap();
-    let tx_no_fee = L1HandlerTransaction::create_for_testing(Fee(0), contract_address);
-    let error = tx_no_fee.execute(state, block_context, true, true).unwrap_err();
+    let tx_no_fee = l1handler_tx(Fee(0), contract_address);
+    let error = tx_no_fee.execute(state, block_context, false, true).unwrap_err(); // Do not charge fee as L1Handler's resource bounds (/max fee) is 0.
     // Today, we check that the paid_fee is positive, no matter what was the actual fee.
     let expected_actual_fee =
-        (expected_execution_info.receipt.resources.calculate_tx_fee(block_context, &FeeType::Eth))
-            .unwrap();
+        get_fee_by_gas_vector(&block_context.block_info, total_gas, &FeeType::Eth);
+
     assert_matches!(
         error,
         TransactionExecutionError::TransactionFeeError(
-            TransactionFeeError::InsufficientL1Fee { paid_fee, actual_fee, })
-            if paid_fee == Fee(0) && actual_fee == expected_actual_fee
+            TransactionFeeError::InsufficientFee { paid_fee, actual_fee }
+        )
+        if paid_fee == Fee(0) && actual_fee == expected_actual_fee
     );
 }
 
 #[rstest]
-fn test_execute_tx_with_invalid_transaction_version(
+fn test_execute_tx_with_invalid_tx_version(
     block_context: BlockContext,
-    max_resource_bounds: ValidResourceBounds,
+    default_all_resource_bounds: ValidResourceBounds,
 ) {
     let cairo_version = CairoVersion::Cairo0;
     let account = FeatureContract::AccountWithoutValidations(cairo_version);
@@ -1983,7 +2417,7 @@ fn test_execute_tx_with_invalid_transaction_version(
         &[felt!(invalid_version)],
     );
     let account_tx = account_invoke_tx(invoke_tx_args! {
-        resource_bounds: max_resource_bounds,
+        resource_bounds: default_all_resource_bounds,
         sender_address: account.get_instance_address(0),
         calldata,
     });
@@ -1993,6 +2427,7 @@ fn test_execute_tx_with_invalid_transaction_version(
         execution_info
             .revert_error
             .unwrap()
+            .to_string()
             .contains(format!("ASSERT_EQ instruction failed: {} != 3.", invalid_version).as_str())
     );
 }
@@ -2041,7 +2476,7 @@ fn max_event_data() -> usize {
     }))]
 fn test_emit_event_exceeds_limit(
     block_context: BlockContext,
-    max_resource_bounds: ValidResourceBounds,
+    default_all_resource_bounds: ValidResourceBounds,
     #[case] event_keys: Vec<Felt>,
     #[case] event_data: Vec<Felt>,
     #[case] n_emitted_events: usize,
@@ -2080,13 +2515,13 @@ fn test_emit_event_exceeds_limit(
     let account_tx = account_invoke_tx(invoke_tx_args! {
         sender_address: account_contract.get_instance_address(0),
         calldata: execute_calldata,
-        resource_bounds: max_resource_bounds,
+        resource_bounds: default_all_resource_bounds,
         nonce: nonce!(0_u8),
     });
     let execution_info = account_tx.execute(state, block_context, true, true).unwrap();
     match &expected_error {
         Some(expected_error) => {
-            let error_string = execution_info.revert_error.unwrap();
+            let error_string = execution_info.revert_error.unwrap().to_string();
             assert!(error_string.contains(&format!("{}", expected_error)));
         }
         None => {

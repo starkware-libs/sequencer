@@ -24,6 +24,10 @@ message SignedBlockHeader {
     L1DataAvailabilityMode l1_data_availability_mode = 16;
     // for now, we assume a small consensus, so this fits in 1M. Else, these will be repeated and extracted from this message.
     repeated ConsensusSignature signatures = 17;
+    // TODO(Shahak): Move l2_gas_price up next to the gas price context and renumber,
+    // once we insert l2 gas fields to the p2p specs.
+    optional Uint128 l2_gas_price_fri = 18;  // Added on v0.13.3.
+    optional Uint128 l2_gas_price_wei = 19;  // Added on v0.13.3.
     // can be more explicit here about the signature structure as this is not part of account abstraction
 }
 

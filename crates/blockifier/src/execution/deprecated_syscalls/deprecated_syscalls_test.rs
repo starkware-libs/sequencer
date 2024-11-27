@@ -2,28 +2,26 @@ use std::collections::{HashMap, HashSet};
 
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
-use num_traits::Pow;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
-use starknet_api::core::{calculate_contract_address, ChainId, PatriciaKey};
+use starknet_api::abi::abi_utils::selector_from_name;
+use starknet_api::core::{calculate_contract_address, ChainId};
 use starknet_api::state::StorageKey;
+use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, Fee};
 use starknet_api::transaction::{
-    Calldata,
-    ContractAddressSalt,
     EventContent,
     EventData,
     EventKey,
-    Fee,
     TransactionHash,
     TransactionVersion,
+    QUERY_VERSION_BASE,
 };
-use starknet_api::{calldata, felt};
+use starknet_api::{calldata, felt, nonce, storage_key};
 use starknet_types_core::felt::Felt;
 use test_case::test_case;
 
-use crate::abi::abi_utils::selector_from_name;
 use crate::context::ChainInfo;
-use crate::execution::call_info::{CallExecution, CallInfo, OrderedEvent, Retdata};
+use crate::execution::call_info::{CallExecution, CallInfo, ChargedResources, OrderedEvent};
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::deprecated_syscalls::DeprecatedSyscallSelector;
 use crate::execution::entry_point::{CallEntryPoint, CallType};
@@ -37,26 +35,24 @@ use crate::test_utils::{
     get_syscall_resources,
     trivial_external_entry_point_new,
     CairoVersion,
-    CHAIN_ID_NAME,
     CURRENT_BLOCK_NUMBER,
     CURRENT_BLOCK_NUMBER_FOR_VALIDATE,
     CURRENT_BLOCK_TIMESTAMP,
     CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE,
     TEST_SEQUENCER_ADDRESS,
 };
-use crate::transaction::constants::QUERY_VERSION_BASE_BIT;
 use crate::transaction::objects::{
     CommonAccountFields,
     DeprecatedTransactionInfo,
     TransactionInfo,
 };
 use crate::versioned_constants::VersionedConstants;
-use crate::{check_entry_point_execution_error_for_custom_hint, nonce, retdata, storage_key};
+use crate::{check_entry_point_execution_error_for_custom_hint, retdata};
 
 #[test]
 fn test_storage_read_write() {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
-    let mut state = test_state(&ChainInfo::create_for_testing(), 0, &[(test_contract, 1)]);
+    let mut state = test_state(&ChainInfo::create_for_testing(), Fee(0), &[(test_contract, 1)]);
 
     let key = felt!(1234_u16);
     let value = felt!(18_u8);
@@ -80,7 +76,7 @@ fn test_storage_read_write() {
 #[test]
 fn test_library_call() {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
-    let mut state = test_state(&ChainInfo::create_for_testing(), 0, &[(test_contract, 1)]);
+    let mut state = test_state(&ChainInfo::create_for_testing(), Fee(0), &[(test_contract, 1)]);
     let inner_entry_point_selector = selector_from_name("test_storage_read_write");
     let calldata = calldata![
         test_contract.get_class_hash().0, // Class hash.
@@ -104,7 +100,7 @@ fn test_library_call() {
 #[test]
 fn test_nested_library_call() {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
-    let mut state = test_state(&ChainInfo::create_for_testing(), 0, &[(test_contract, 1)]);
+    let mut state = test_state(&ChainInfo::create_for_testing(), Fee(0), &[(test_contract, 1)]);
     let (key, value) = (255_u64, 44_u64);
     let outer_entry_point_selector = selector_from_name("test_library_call");
     let inner_entry_point_selector = selector_from_name("test_storage_read_write");
@@ -151,14 +147,16 @@ fn test_nested_library_call() {
         ..nested_storage_entry_point
     };
     let storage_entry_point_resources = ExecutionResources {
-        n_steps: 224,
+        n_steps: 222,
         n_memory_holes: 0,
         builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 2)]),
     };
     let nested_storage_call_info = CallInfo {
         call: nested_storage_entry_point,
         execution: CallExecution::from_retdata(retdata![felt!(value + 1)]),
-        resources: storage_entry_point_resources.clone(),
+        charged_resources: ChargedResources::from_execution_resources(
+            storage_entry_point_resources.clone(),
+        ),
         storage_read_values: vec![felt!(value + 1)],
         accessed_storage_keys: HashSet::from([storage_key!(key + 1)]),
         ..Default::default()
@@ -173,14 +171,18 @@ fn test_nested_library_call() {
     let library_call_info = CallInfo {
         call: library_entry_point,
         execution: CallExecution::from_retdata(retdata![felt!(value + 1)]),
-        resources: library_call_resources.clone(),
+        charged_resources: ChargedResources::from_execution_resources(
+            library_call_resources.clone(),
+        ),
         inner_calls: vec![nested_storage_call_info],
         ..Default::default()
     };
     let storage_call_info = CallInfo {
         call: storage_entry_point,
         execution: CallExecution::from_retdata(retdata![felt!(value)]),
-        resources: storage_entry_point_resources.clone(),
+        charged_resources: ChargedResources::from_execution_resources(
+            storage_entry_point_resources.clone(),
+        ),
         storage_read_values: vec![felt!(value)],
         accessed_storage_keys: HashSet::from([storage_key!(key)]),
         ..Default::default()
@@ -197,7 +199,7 @@ fn test_nested_library_call() {
     let expected_call_info = CallInfo {
         call: main_entry_point.clone(),
         execution: CallExecution::from_retdata(retdata![felt!(0_u8)]),
-        resources: main_call_resources,
+        charged_resources: ChargedResources::from_execution_resources(main_call_resources),
         inner_calls: vec![library_call_info, storage_call_info],
         ..Default::default()
     };
@@ -209,7 +211,7 @@ fn test_nested_library_call() {
 fn test_call_contract() {
     let chain_info = &ChainInfo::create_for_testing();
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
-    let mut state = test_state(chain_info, 0, &[(test_contract, 1)]);
+    let mut state = test_state(chain_info, Fee(0), &[(test_contract, 1)]);
     let test_address = test_contract.get_instance_address(0);
 
     let trivial_external_entry_point = trivial_external_entry_point_new(test_contract);
@@ -242,11 +244,11 @@ fn test_call_contract() {
             ..trivial_external_entry_point
         },
         execution: expected_execution.clone(),
-        resources: ExecutionResources {
-            n_steps: 224,
+        charged_resources: ChargedResources::from_execution_resources(ExecutionResources {
+            n_steps: 222,
             n_memory_holes: 0,
             builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 2)]),
-        },
+        }),
         storage_read_values: vec![value],
         accessed_storage_keys: HashSet::from([storage_key!(key_int)]),
         ..Default::default()
@@ -260,12 +262,14 @@ fn test_call_contract() {
             ..trivial_external_entry_point
         },
         execution: expected_execution,
-        resources: &get_syscall_resources(DeprecatedSyscallSelector::CallContract)
-            + &ExecutionResources {
-                n_steps: 263,
-                n_memory_holes: 0,
-                builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 3)]),
-            },
+        charged_resources: ChargedResources::from_execution_resources(
+            &get_syscall_resources(DeprecatedSyscallSelector::CallContract)
+                + &ExecutionResources {
+                    n_steps: 261,
+                    n_memory_holes: 0,
+                    builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 3)]),
+                },
+        ),
         ..Default::default()
     };
 
@@ -278,7 +282,7 @@ fn test_replace_class() {
     let chain_info = &ChainInfo::create_for_testing();
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
     let empty_contract = FeatureContract::Empty(CairoVersion::Cairo0);
-    let mut state = test_state(chain_info, 0, &[(test_contract, 1), (empty_contract, 1)]);
+    let mut state = test_state(chain_info, Fee(0), &[(test_contract, 1), (empty_contract, 1)]);
     let test_address = test_contract.get_instance_address(0);
     // Replace with undeclared class hash.
     let calldata = calldata![felt!(1234_u16)];
@@ -321,7 +325,7 @@ fn test_replace_class() {
 )]
 #[case::deploy_to_unavailable_address(
     true, true, false, true,
-    Some("is unavailable for deployment.".to_string())
+    Some("Deployment failed:".to_string())
     // With constructor, nontrivial calldata, address unavailable, deploy from zero; Negative flow.
 )]
 #[case::corrupt_deploy_from_zero(
@@ -343,8 +347,11 @@ fn test_deploy(
 ) {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
     let empty_contract = FeatureContract::Empty(CairoVersion::Cairo0);
-    let mut state =
-        test_state(&ChainInfo::create_for_testing(), 0, &[(empty_contract, 0), (test_contract, 1)]);
+    let mut state = test_state(
+        &ChainInfo::create_for_testing(),
+        Fee(0),
+        &[(empty_contract, 0), (test_contract, 1)],
+    );
 
     let class_hash = if constructor_exists {
         test_contract.get_class_hash()
@@ -419,7 +426,7 @@ fn test_block_info_syscalls(
     calldata: Calldata,
 ) {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
-    let mut state = test_state(&ChainInfo::create_for_testing(), 0, &[(test_contract, 1)]);
+    let mut state = test_state(&ChainInfo::create_for_testing(), Fee(0), &[(test_contract, 1)]);
     let entry_point_selector = selector_from_name(&format!("test_get_{}", block_info_member_name));
     let entry_point_call = CallEntryPoint {
         entry_point_selector,
@@ -454,10 +461,10 @@ fn test_block_info_syscalls(
 #[rstest]
 fn test_tx_info(#[values(false, true)] only_query: bool) {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
-    let mut state = test_state(&ChainInfo::create_for_testing(), 0, &[(test_contract, 1)]);
+    let mut state = test_state(&ChainInfo::create_for_testing(), Fee(0), &[(test_contract, 1)]);
     let mut version = felt!(1_u8);
     if only_query {
-        let simulate_version_base = Pow::pow(felt!(2_u8), QUERY_VERSION_BASE_BIT);
+        let simulate_version_base = *QUERY_VERSION_BASE;
         version += simulate_version_base;
     }
     let tx_hash = TransactionHash(felt!(1991_u16));
@@ -465,12 +472,12 @@ fn test_tx_info(#[values(false, true)] only_query: bool) {
     let nonce = nonce!(3_u16);
     let sender_address = test_contract.get_instance_address(0);
     let expected_tx_info = calldata![
-        version,                                                     // Transaction version.
-        *sender_address.0.key(),                                     // Account address.
-        felt!(max_fee.0),                                            // Max fee.
-        tx_hash.0,                                                   // Transaction hash.
-        felt!(&*ChainId::Other(CHAIN_ID_NAME.to_string()).as_hex()), // Chain ID.
-        nonce.0                                                      // Nonce.
+        version,                                         // Transaction version.
+        *sender_address.0.key(),                         // Account address.
+        felt!(max_fee.0),                                // Max fee.
+        tx_hash.0,                                       // Transaction hash.
+        felt!(&*ChainId::create_for_testing().as_hex()), // Chain ID.
+        nonce.0                                          // Nonce.
     ];
     let entry_point_selector = selector_from_name("test_get_tx_info");
     let entry_point_call = CallEntryPoint {
@@ -489,9 +496,14 @@ fn test_tx_info(#[values(false, true)] only_query: bool) {
         },
         max_fee,
     });
-    let limit_steps_by_resources = true;
+    let limit_steps_by_resources = false; // Do not limit steps by resources as we use default reasources.
     let result = entry_point_call
-        .execute_directly_given_tx_info(&mut state, tx_info, limit_steps_by_resources)
+        .execute_directly_given_tx_info(
+            &mut state,
+            tx_info,
+            limit_steps_by_resources,
+            ExecutionMode::Execute,
+        )
         .unwrap();
 
     assert!(!result.execution.failed)
@@ -557,7 +569,7 @@ fn emit_events(
     data: &[Felt],
 ) -> Result<CallInfo, EntryPointExecutionError> {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
-    let mut state = test_state(&ChainInfo::create_for_testing(), 0, &[(test_contract, 1)]);
+    let mut state = test_state(&ChainInfo::create_for_testing(), Fee(0), &[(test_contract, 1)]);
     let calldata = Calldata(
         [
             n_emitted_events.to_owned(),

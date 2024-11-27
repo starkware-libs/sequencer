@@ -222,7 +222,7 @@ pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (StorageKey, Storag
         },
         storage_tries: HashMap::from([
             (
-                ContractAddress(Felt::from(0_u128)),
+                ContractAddress(Felt::ZERO),
                 OriginalSkeletonTreeImpl {
                     nodes: create_expected_skeleton_nodes(
                         vec![

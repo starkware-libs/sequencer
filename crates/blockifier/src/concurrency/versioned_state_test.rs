@@ -4,17 +4,21 @@ use std::thread;
 
 use assert_matches::assert_matches;
 use rstest::{fixture, rstest};
-use starknet_api::core::{
-    calculate_contract_address,
-    ClassHash,
-    ContractAddress,
-    Nonce,
-    PatriciaKey,
+use starknet_api::abi::abi_utils::{get_fee_token_var_address, get_storage_var_address};
+use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress};
+use starknet_api::test_utils::NonceManager;
+use starknet_api::transaction::fields::{ContractAddressSalt, ValidResourceBounds};
+use starknet_api::{
+    calldata,
+    class_hash,
+    compiled_class_hash,
+    contract_address,
+    deploy_account_tx_args,
+    felt,
+    nonce,
+    storage_key,
 };
-use starknet_api::transaction::{Calldata, ContractAddressSalt, ValidResourceBounds};
-use starknet_api::{calldata, class_hash, contract_address, felt, patricia_key};
 
-use crate::abi::abi_utils::{get_fee_token_var_address, get_storage_var_address};
 use crate::concurrency::test_utils::{
     class_hash,
     contract_address,
@@ -39,12 +43,10 @@ use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::deploy_account::deploy_account_tx;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{CairoVersion, NonceManager, BALANCE, DEFAULT_STRK_L1_GAS_PRICE};
-use crate::transaction::account_transaction::AccountTransaction;
-use crate::transaction::objects::{HasRelatedFeeType, TransactionInfoCreator};
-use crate::transaction::test_utils::{l1_resource_bounds, max_resource_bounds};
+use crate::test_utils::{CairoVersion, BALANCE, DEFAULT_STRK_L1_GAS_PRICE};
+use crate::transaction::objects::HasRelatedFeeType;
+use crate::transaction::test_utils::{default_all_resource_bounds, l1_resource_bounds};
 use crate::transaction::transactions::ExecutableTransaction;
-use crate::{compiled_class_hash, deploy_account_tx_args, nonce, storage_key};
 
 #[fixture]
 pub fn safe_versioned_state(
@@ -69,7 +71,7 @@ fn test_versioned_state_proxy() {
     let class_hash = class_hash!(27_u8);
     let another_class_hash = class_hash!(28_u8);
     let compiled_class_hash = compiled_class_hash!(29_u8);
-    let contract_class = test_contract.get_class();
+    let contract_class = test_contract.get_runnable_class();
 
     // Create the versioned state
     let cached_state = CachedState::from(DictStateReader {
@@ -115,7 +117,8 @@ fn test_versioned_state_proxy() {
     let class_hash_v7 = class_hash!(28_u8);
     let class_hash_v10 = class_hash!(29_u8);
     let compiled_class_hash_v18 = compiled_class_hash!(30_u8);
-    let contract_class_v11 = FeatureContract::TestContract(CairoVersion::Cairo1).get_class();
+    let contract_class_v11 =
+        FeatureContract::TestContract(CairoVersion::Cairo1).get_runnable_class();
 
     versioned_state_proxys[3].state().apply_writes(
         3,
@@ -201,7 +204,7 @@ fn test_versioned_state_proxy() {
 
 #[rstest]
 // Test parallel execution of two transactions that use the same versioned state.
-fn test_run_parallel_txs(max_resource_bounds: ValidResourceBounds) {
+fn test_run_parallel_txs(default_all_resource_bounds: ValidResourceBounds) {
     let block_context = BlockContext::create_for_account_testing();
     let chain_info = &block_context.chain_info;
     let zero_bounds = true;
@@ -228,12 +231,14 @@ fn test_run_parallel_txs(max_resource_bounds: ValidResourceBounds) {
     let deploy_account_tx_1 = deploy_account_tx(
         deploy_account_tx_args! {
             class_hash: account_without_validation.get_class_hash(),
-            resource_bounds: l1_resource_bounds(u64::from(!zero_bounds), DEFAULT_STRK_L1_GAS_PRICE),
+            resource_bounds: l1_resource_bounds(
+                u8::from(!zero_bounds).into(),
+                DEFAULT_STRK_L1_GAS_PRICE.into()
+            ),
         },
         &mut NonceManager::default(),
     );
-    let account_tx_1 = AccountTransaction::DeployAccount(deploy_account_tx_1);
-    let enforce_fee = account_tx_1.create_tx_info().enforce_fee();
+    let enforce_fee = deploy_account_tx_1.enforce_fee();
 
     let class_hash = grindy_account.get_class_hash();
     let ctor_storage_arg = felt!(1_u8);
@@ -241,32 +246,33 @@ fn test_run_parallel_txs(max_resource_bounds: ValidResourceBounds) {
     let constructor_calldata = calldata![ctor_grind_arg, ctor_storage_arg];
     let deploy_tx_args = deploy_account_tx_args! {
         class_hash,
-        resource_bounds: max_resource_bounds,
+        resource_bounds: default_all_resource_bounds,
         constructor_calldata: constructor_calldata.clone(),
     };
     let nonce_manager = &mut NonceManager::default();
-    let deploy_account_tx_2 = deploy_account_tx(deploy_tx_args, nonce_manager);
-    let account_address = deploy_account_tx_2.contract_address();
-    let account_tx_2 = AccountTransaction::DeployAccount(deploy_account_tx_2);
-    let tx_context = block_context.to_tx_context(&account_tx_2);
+    let delpoy_account_tx_2 = deploy_account_tx(deploy_tx_args, nonce_manager);
+    let account_address = delpoy_account_tx_2.sender_address();
+    let tx_context = block_context.to_tx_context(&delpoy_account_tx_2);
     let fee_type = tx_context.tx_info.fee_type();
 
     let deployed_account_balance_key = get_fee_token_var_address(account_address);
     let fee_token_address = chain_info.fee_token_address(&fee_type);
     state_2
-        .set_storage_at(fee_token_address, deployed_account_balance_key, felt!(BALANCE))
+        .set_storage_at(fee_token_address, deployed_account_balance_key, felt!(BALANCE.0))
         .unwrap();
 
     let block_context_1 = block_context.clone();
     let block_context_2 = block_context.clone();
+
     // Execute transactions
     thread::scope(|s| {
         s.spawn(move || {
-            let result = account_tx_1.execute(&mut state_1, &block_context_1, true, true);
-            assert_eq!(result.is_err(), enforce_fee);
+            let result =
+                deploy_account_tx_1.execute(&mut state_1, &block_context_1, enforce_fee, true);
+            assert_eq!(result.is_err(), enforce_fee); // Transaction fails iff we enforced the fee charge (as the acount is not funded).
         });
         s.spawn(move || {
-            account_tx_2.execute(&mut state_2, &block_context_2, true, true).unwrap();
+            delpoy_account_tx_2.execute(&mut state_2, &block_context_2, true, true).unwrap();
             // Check that the constructor wrote ctor_arg to the storage.
             let storage_key = get_storage_var_address("ctor_arg", &[]);
             let deployed_contract_address = calculate_contract_address(
@@ -397,7 +403,8 @@ fn test_false_validate_reads_declared_contracts(
         ..Default::default()
     };
     let version_state_proxy = safe_versioned_state.pin_version(0);
-    let compiled_contract_calss = FeatureContract::TestContract(CairoVersion::Cairo1).get_class();
+    let compiled_contract_calss =
+        FeatureContract::TestContract(CairoVersion::Cairo1).get_runnable_class();
     let class_hash_to_class = HashMap::from([(class_hash!(1_u8), compiled_contract_calss)]);
     version_state_proxy.state().apply_writes(0, &tx_0_writes, &class_hash_to_class);
     assert!(!safe_versioned_state.pin_version(1).validate_reads(&tx_1_reads));
@@ -422,7 +429,7 @@ fn test_apply_writes(
     assert_eq!(transactional_states[0].cache.borrow().writes.class_hashes.len(), 1);
 
     // Transaction 0 contract class.
-    let contract_class_0 = FeatureContract::TestContract(CairoVersion::Cairo1).get_class();
+    let contract_class_0 = FeatureContract::TestContract(CairoVersion::Cairo1).get_runnable_class();
     assert!(transactional_states[0].class_hash_to_class.borrow().is_empty());
     transactional_states[0].set_contract_class(class_hash, contract_class_0.clone()).unwrap();
     assert_eq!(transactional_states[0].class_hash_to_class.borrow().len(), 1);
@@ -502,7 +509,10 @@ fn test_delete_writes(
         }
         // Modify the `class_hash_to_class` member of the CachedState.
         tx_state
-            .set_contract_class(feature_contract.get_class_hash(), feature_contract.get_class())
+            .set_contract_class(
+                feature_contract.get_class_hash(),
+                feature_contract.get_runnable_class(),
+            )
             .unwrap();
         safe_versioned_state.pin_version(i).apply_writes(
             &tx_state.cache.borrow().writes,
@@ -548,7 +558,7 @@ fn test_delete_writes_completeness(
 ) {
     let feature_contract = FeatureContract::TestContract(CairoVersion::Cairo1);
     let state_maps_writes = StateMaps {
-        nonces: HashMap::from([(contract_address!("0x1"), Nonce(felt!(1_u8)))]),
+        nonces: HashMap::from([(contract_address!("0x1"), nonce!(1_u8))]),
         class_hashes: HashMap::from([(
             contract_address!("0x1"),
             feature_contract.get_class_hash(),
@@ -561,7 +571,7 @@ fn test_delete_writes_completeness(
         declared_contracts: HashMap::from([(feature_contract.get_class_hash(), true)]),
     };
     let class_hash_to_class_writes =
-        HashMap::from([(feature_contract.get_class_hash(), feature_contract.get_class())]);
+        HashMap::from([(feature_contract.get_class_hash(), feature_contract.get_runnable_class())]);
 
     let tx_index = 0;
     let mut versioned_state_proxy = safe_versioned_state.pin_version(tx_index);
@@ -606,7 +616,7 @@ fn test_versioned_proxy_state_flow(
     safe_versioned_state: ThreadSafeVersionedState<CachedState<DictStateReader>>,
 ) {
     let contract_address = contract_address!("0x1");
-    let class_hash = ClassHash(felt!(27_u8));
+    let class_hash = class_hash!(27_u8);
 
     let mut versioned_proxy_states: Vec<VersionedStateProxy<CachedState<DictStateReader>>> =
         (0..4).map(|i| safe_versioned_state.pin_version(i)).collect();
@@ -617,16 +627,16 @@ fn test_versioned_proxy_state_flow(
     }
 
     // Clients class hash values.
-    let class_hash_1 = ClassHash(felt!(76_u8));
-    let class_hash_3 = ClassHash(felt!(234_u8));
+    let class_hash_1 = class_hash!(76_u8);
+    let class_hash_3 = class_hash!(234_u8);
 
     transactional_states[1].set_class_hash_at(contract_address, class_hash_1).unwrap();
     transactional_states[3].set_class_hash_at(contract_address, class_hash_3).unwrap();
 
     // Clients contract class values.
-    let contract_class_0 = FeatureContract::TestContract(CairoVersion::Cairo0).get_class();
+    let contract_class_0 = FeatureContract::TestContract(CairoVersion::Cairo0).get_runnable_class();
     let contract_class_2 =
-        FeatureContract::AccountWithLongValidate(CairoVersion::Cairo1).get_class();
+        FeatureContract::AccountWithLongValidate(CairoVersion::Cairo1).get_runnable_class();
 
     transactional_states[0].set_contract_class(class_hash, contract_class_0).unwrap();
     transactional_states[2].set_contract_class(class_hash, contract_class_2.clone()).unwrap();

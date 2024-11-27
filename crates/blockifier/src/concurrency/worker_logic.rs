@@ -15,14 +15,13 @@ use crate::concurrency::utils::lock_mutex_in_array;
 use crate::concurrency::versioned_state::ThreadSafeVersionedState;
 use crate::concurrency::TxIndex;
 use crate::context::BlockContext;
-use crate::state::cached_state::{
-    ContractClassMapping,
-    StateChanges,
-    StateMaps,
-    TransactionalState,
-};
+use crate::state::cached_state::{ContractClassMapping, StateMaps, TransactionalState};
 use crate::state::state_api::{StateReader, UpdatableState};
-use crate::transaction::objects::{TransactionExecutionInfo, TransactionExecutionResult};
+use crate::transaction::objects::{
+    TransactionExecutionInfo,
+    TransactionExecutionResult,
+    TransactionInfoCreator,
+};
 use crate::transaction::transaction_execution::Transaction;
 use crate::transaction::transactions::{ExecutableTransaction, ExecutionFlags};
 
@@ -35,6 +34,7 @@ const EXECUTION_OUTPUTS_UNWRAP_ERROR: &str = "Execution task outputs should not 
 #[derive(Debug)]
 pub struct ExecutionTaskOutput {
     pub reads: StateMaps,
+    // TODO(Yoni): rename to state_diff.
     pub writes: StateMaps,
     pub contract_classes: ContractClassMapping,
     pub visited_pcs: HashMap<ClassHash, HashSet<usize>>,
@@ -109,11 +109,11 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
     }
 
     fn commit_while_possible(&self) {
-        if let Some(mut transaction_committer) = self.scheduler.try_enter_commit_phase() {
-            while let Some(tx_index) = transaction_committer.try_commit() {
+        if let Some(mut tx_committer) = self.scheduler.try_enter_commit_phase() {
+            while let Some(tx_index) = tx_committer.try_commit() {
                 let commit_succeeded = self.commit_tx(tx_index);
                 if !commit_succeeded {
-                    transaction_committer.halt_scheduler();
+                    tx_committer.halt_scheduler();
                 }
             }
         }
@@ -127,39 +127,42 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
     fn execute_tx(&self, tx_index: TxIndex) {
         let mut tx_versioned_state = self.state.pin_version(tx_index);
         let tx = &self.chunk[tx_index];
+        let tx_charge_fee = tx.create_tx_info().enforce_fee();
         let mut transactional_state =
             TransactionalState::create_transactional(&mut tx_versioned_state);
         let execution_flags =
-            ExecutionFlags { charge_fee: true, validate: true, concurrency_mode: true };
+            ExecutionFlags { charge_fee: tx_charge_fee, validate: true, concurrency_mode: true };
         let execution_result =
             tx.execute_raw(&mut transactional_state, self.block_context, execution_flags);
 
-        if execution_result.is_ok() {
-            // TODO(Noa, 15/05/2024): use `tx_versioned_state` when we add support to transactional
-            // versioned state.
-            self.state.pin_version(tx_index).apply_writes(
-                &transactional_state.cache.borrow().writes,
-                &transactional_state.class_hash_to_class.borrow(),
-                &HashMap::default(),
-            );
-        }
-
-        // Write the transaction execution outputs.
-        let tx_reads_writes = transactional_state.cache.take();
-        let class_hash_to_class = transactional_state.class_hash_to_class.take();
-        // In case of a failed transaction, we don't record its writes and visited pcs.
-        let (writes, contract_classes, visited_pcs) = match execution_result {
-            Ok(_) => (tx_reads_writes.writes, class_hash_to_class, transactional_state.visited_pcs),
-            Err(_) => (StateMaps::default(), HashMap::default(), HashMap::default()),
+        // Update the versioned state and store the transaction execution output.
+        let execution_output_inner = match execution_result {
+            Ok(_) => {
+                let tx_reads_writes = transactional_state.cache.take();
+                let writes = tx_reads_writes.to_state_diff().state_maps;
+                let contract_classes = transactional_state.class_hash_to_class.take();
+                let visited_pcs = transactional_state.visited_pcs;
+                // The versioned state does not carry the visited PCs.
+                tx_versioned_state.apply_writes(&writes, &contract_classes, &HashMap::default());
+                ExecutionTaskOutput {
+                    reads: tx_reads_writes.initial_reads,
+                    writes,
+                    contract_classes,
+                    visited_pcs,
+                    result: execution_result,
+                }
+            }
+            Err(_) => ExecutionTaskOutput {
+                reads: transactional_state.cache.take().initial_reads,
+                // Failed transaction - ignore the writes and visited PCs.
+                writes: StateMaps::default(),
+                contract_classes: HashMap::default(),
+                visited_pcs: HashMap::default(),
+                result: execution_result,
+            },
         };
         let mut execution_output = lock_mutex_in_array(&self.execution_outputs, tx_index);
-        *execution_output = Some(ExecutionTaskOutput {
-            reads: tx_reads_writes.initial_reads,
-            writes,
-            contract_classes,
-            visited_pcs,
-            result: execution_result,
-        });
+        *execution_output = Some(execution_output_inner);
     }
 
     fn validate(&self, tx_index: TxIndex) -> Task {
@@ -224,8 +227,8 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
         // Execution is final.
         let mut execution_output = lock_mutex_in_array(&self.execution_outputs, tx_index);
         let writes = &execution_output.as_ref().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR).writes;
-        let reads = &execution_output.as_ref().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR).reads;
-        let mut tx_state_changes_keys = StateChanges::from(writes.diff(reads)).into_keys();
+        // TODO(Yoni): get rid of this clone.
+        let mut tx_state_changes_keys = writes.clone().into_keys();
         let tx_result =
             &mut execution_output.as_mut().expect(EXECUTION_OUTPUTS_UNWRAP_ERROR).result;
 
@@ -242,7 +245,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
             let bouncer_result = self.bouncer.lock().expect("Bouncer lock failed.").try_update(
                 &tx_versioned_state,
                 &tx_state_changes_keys,
-                &tx_execution_info.summarize(),
+                &tx_execution_info.summarize(&self.block_context.versioned_constants),
                 &tx_execution_info.receipt.resources,
             );
             if let Err(error) = bouncer_result {

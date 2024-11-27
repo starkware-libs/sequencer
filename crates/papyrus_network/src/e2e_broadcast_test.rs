@@ -1,15 +1,17 @@
 use std::time::Duration;
 
-use futures::{FutureExt, SinkExt, StreamExt};
+use futures::{FutureExt, StreamExt};
 use libp2p::core::multiaddr::Protocol;
 use libp2p::swarm::SwarmEvent;
 use libp2p::{Multiaddr, Swarm};
 use libp2p_swarm_test::SwarmExt;
 use starknet_api::core::ChainId;
 
+use crate::discovery::DiscoveryConfig;
 use crate::gossipsub_impl::Topic;
 use crate::mixed_behaviour::MixedBehaviour;
-use crate::network_manager::GenericNetworkManager;
+use crate::network_manager::{BroadcastTopicClientTrait, GenericNetworkManager};
+use crate::peer_manager::PeerManagerConfig;
 use crate::sqmr;
 use crate::sqmr::Bytes;
 
@@ -23,6 +25,8 @@ async fn create_swarm(bootstrap_peer_multiaddr: Option<Multiaddr>) -> Swarm<Mixe
             sqmr::Config::default(),
             ChainId::Mainnet,
             None,
+            DiscoveryConfig::default(),
+            PeerManagerConfig::default(),
         )
     });
     // Not using SwarmExt::listen because it panics if the swarm emits other events
@@ -91,7 +95,6 @@ async fn broadcast_subscriber_end_to_end_test() {
 
     let subscriber_channels2_1 =
         network_manager2.register_broadcast_topic::<Number>(topic1.clone(), BUFFER_SIZE).unwrap();
-
     let subscriber_channels2_2 =
         network_manager2.register_broadcast_topic::<Number>(topic2.clone(), BUFFER_SIZE).unwrap();
 
@@ -107,11 +110,11 @@ async fn broadcast_subscriber_end_to_end_test() {
                 let number1 = Number(1);
                 let number2 = Number(2);
                 let mut broadcast_client2_1 =
-                    subscriber_channels2_1.broadcast_client_channels;
+                    subscriber_channels2_1.broadcasted_messages_receiver;
                 let mut broadcast_client2_2 =
-                    subscriber_channels2_2.broadcast_client_channels;
-                subscriber_channels1_1.messages_to_broadcast_sender.send(number1).await.unwrap();
-                subscriber_channels1_2.messages_to_broadcast_sender.send(number2).await.unwrap();
+                    subscriber_channels2_2.broadcasted_messages_receiver;
+                subscriber_channels1_1.broadcast_topic_client.broadcast_message(number1).await.unwrap();
+                subscriber_channels1_2.broadcast_topic_client.broadcast_message(number2).await.unwrap();
                 let (received_number1, _report_callback) =
                     broadcast_client2_1.next().await.unwrap();
                 let (received_number2, _report_callback) =

@@ -5,35 +5,43 @@ pub mod deploy_account;
 pub mod dict_state_reader;
 pub mod initial_test_state;
 pub mod invoke;
+pub mod l1_handler;
 pub mod prices;
 pub mod struct_impls;
+pub mod syscall;
 pub mod transfers_generator;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
+use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
-use starknet_api::core::{ClassHash, ContractAddress, Nonce, PatriciaKey};
+use starknet_api::abi::abi_utils::{get_fee_token_var_address, selector_from_name};
+use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber, GasPrice, NonzeroGasPrice};
+use starknet_api::core::{ClassHash, ContractAddress};
+use starknet_api::execution_resources::{GasAmount, GasVector};
+use starknet_api::hash::StarkHash;
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::{
+use starknet_api::transaction::fields::{
     Calldata,
     ContractAddressSalt,
-    ResourceBounds,
-    TransactionVersion,
-    ValidResourceBounds,
+    Fee,
+    GasVectorComputationMode,
 };
-use starknet_api::{contract_address, felt, patricia_key};
+use starknet_api::transaction::TransactionVersion;
+use starknet_api::{contract_address, felt};
 use starknet_types_core::felt::Felt;
 
-use crate::abi::abi_utils::{get_fee_token_var_address, selector_from_name};
+use crate::abi::constants;
+use crate::execution::call_info::ExecutionSummary;
+use crate::execution::contract_class::TrackedResource;
 use crate::execution::deprecated_syscalls::hint_processor::SyscallCounter;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::execution::syscalls::SyscallSelector;
-use crate::state::cached_state::StateChangesCount;
+use crate::fee::resources::{StarknetResources, StateResources};
 use crate::test_utils::contracts::FeatureContract;
-use crate::transaction::objects::StarknetResources;
 use crate::transaction::transaction_types::TransactionType;
-use crate::utils::{const_max, u128_from_usize};
+use crate::utils::{const_max, u64_from_usize};
 use crate::versioned_constants::VersionedConstants;
 // TODO(Dori, 1/2/2024): Remove these constants once all tests use the `contracts` and
 //   `initial_test_state` modules for testing.
@@ -57,6 +65,8 @@ pub const ERC20_CONTRACT_PATH: &str = "./ERC20/ERC20_Cairo0/ERC20_without_some_s
 pub enum CairoVersion {
     Cairo0,
     Cairo1,
+    #[cfg(feature = "cairo_native")]
+    Native,
 }
 
 impl Default for CairoVersion {
@@ -83,6 +93,36 @@ impl CairoVersion {
         match self {
             Self::Cairo0 => Self::Cairo1,
             Self::Cairo1 => Self::Cairo0,
+            #[cfg(feature = "cairo_native")]
+            Self::Native => panic!("There is no other version for native"),
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum CompilerBasedVersion {
+    CairoVersion(CairoVersion),
+    OldCairo1,
+}
+
+impl CompilerBasedVersion {
+    pub fn get_test_contract(&self) -> FeatureContract {
+        match self {
+            Self::CairoVersion(version) => FeatureContract::TestContract(*version),
+            Self::OldCairo1 => FeatureContract::CairoStepsTestContract,
+        }
+    }
+
+    /// Returns the context-free tracked resource of this contract (does not take caller contract
+    /// and the transaction info into account).
+    pub fn own_tracked_resource(&self) -> TrackedResource {
+        match self {
+            Self::CairoVersion(CairoVersion::Cairo0) | Self::OldCairo1 => {
+                TrackedResource::CairoSteps
+            }
+            Self::CairoVersion(CairoVersion::Cairo1) => TrackedResource::SierraGas,
+            #[cfg(feature = "cairo_native")]
+            Self::CairoVersion(CairoVersion::Native) => TrackedResource::SierraGas,
         }
     }
 }
@@ -93,21 +133,43 @@ pub fn test_erc20_sequencer_balance_key() -> StorageKey {
 }
 
 // The max_fee / resource bounds used for txs in this test.
-pub const MAX_L1_GAS_AMOUNT: u64 = 1000000;
-#[allow(clippy::as_conversions)]
-pub const MAX_L1_GAS_AMOUNT_U128: u128 = MAX_L1_GAS_AMOUNT as u128;
-pub const MAX_L1_GAS_PRICE: u128 = DEFAULT_STRK_L1_GAS_PRICE;
-pub const MAX_RESOURCE_COMMITMENT: u128 = MAX_L1_GAS_AMOUNT_U128 * MAX_L1_GAS_PRICE;
-pub const MAX_FEE: u128 = MAX_L1_GAS_AMOUNT_U128 * DEFAULT_ETH_L1_GAS_PRICE;
+// V3 transactions:
+pub const DEFAULT_L1_GAS_AMOUNT: GasAmount = GasAmount(u64::pow(10, 6));
+pub const DEFAULT_L1_DATA_GAS_MAX_AMOUNT: GasAmount = GasAmount(u64::pow(10, 6));
+pub const DEFAULT_L2_GAS_MAX_AMOUNT: GasAmount = GasAmount(u64::pow(10, 9));
+pub const MAX_L1_GAS_PRICE: NonzeroGasPrice = DEFAULT_STRK_L1_GAS_PRICE;
+pub const MAX_L2_GAS_PRICE: NonzeroGasPrice = DEFAULT_STRK_L2_GAS_PRICE;
+pub const MAX_L1_DATA_GAS_PRICE: NonzeroGasPrice = DEFAULT_STRK_L1_DATA_GAS_PRICE;
 
+pub const DEFAULT_ETH_L1_GAS_PRICE: NonzeroGasPrice =
+    NonzeroGasPrice::new_unchecked(GasPrice(100 * u128::pow(10, 9))); // Given in units of Wei.
+pub const DEFAULT_STRK_L1_GAS_PRICE: NonzeroGasPrice =
+    NonzeroGasPrice::new_unchecked(GasPrice(100 * u128::pow(10, 9))); // Given in units of STRK.
+pub const DEFAULT_ETH_L1_DATA_GAS_PRICE: NonzeroGasPrice =
+    NonzeroGasPrice::new_unchecked(GasPrice(u128::pow(10, 6))); // Given in units of Wei.
+pub const DEFAULT_STRK_L1_DATA_GAS_PRICE: NonzeroGasPrice =
+    NonzeroGasPrice::new_unchecked(GasPrice(u128::pow(10, 9))); // Given in units of STRK.
+pub const DEFAULT_STRK_L2_GAS_PRICE: NonzeroGasPrice =
+    NonzeroGasPrice::new_unchecked(GasPrice(u128::pow(10, 9)));
+
+// Deprecated transactions:
+pub const MAX_FEE: Fee = DEFAULT_L1_GAS_AMOUNT.nonzero_saturating_mul(DEFAULT_ETH_L1_GAS_PRICE);
+
+// Commitment fee bounds.
+const DEFAULT_L1_BOUNDS_COMMITTED_FEE: Fee =
+    DEFAULT_L1_GAS_AMOUNT.nonzero_saturating_mul(DEFAULT_STRK_L1_GAS_PRICE);
+const DEFAULT_ALL_BOUNDS_COMMITTED_FEE: Fee = DEFAULT_L1_BOUNDS_COMMITTED_FEE
+    .saturating_add(DEFAULT_L2_GAS_MAX_AMOUNT.nonzero_saturating_mul(DEFAULT_STRK_L2_GAS_PRICE))
+    .saturating_add(
+        DEFAULT_L1_DATA_GAS_MAX_AMOUNT.nonzero_saturating_mul(DEFAULT_STRK_L1_DATA_GAS_PRICE),
+    );
 // The amount of test-token allocated to the account in this test, set to a multiple of the max
 // amount deprecated / non-deprecated transactions commit to paying.
-pub const BALANCE: u128 = 10 * const_max(MAX_FEE, MAX_RESOURCE_COMMITMENT);
-
-pub const DEFAULT_ETH_L1_GAS_PRICE: u128 = 100 * u128::pow(10, 9); // Given in units of Wei.
-pub const DEFAULT_STRK_L1_GAS_PRICE: u128 = 100 * u128::pow(10, 9); // Given in units of STRK.
-pub const DEFAULT_ETH_L1_DATA_GAS_PRICE: u128 = u128::pow(10, 6); // Given in units of Wei.
-pub const DEFAULT_STRK_L1_DATA_GAS_PRICE: u128 = u128::pow(10, 9); // Given in units of STRK.
+pub const BALANCE: Fee = Fee(10
+    * const_max(
+        const_max(DEFAULT_ALL_BOUNDS_COMMITTED_FEE.0, DEFAULT_L1_BOUNDS_COMMITTED_FEE.0),
+        MAX_FEE.0,
+    ));
 
 // The block number of the BlockContext being used for testing.
 pub const CURRENT_BLOCK_NUMBER: u64 = 2001;
@@ -116,57 +178,6 @@ pub const CURRENT_BLOCK_NUMBER_FOR_VALIDATE: u64 = 2000;
 // The block timestamp of the BlockContext being used for testing.
 pub const CURRENT_BLOCK_TIMESTAMP: u64 = 1072023;
 pub const CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE: u64 = 1069200;
-
-pub const CHAIN_ID_NAME: &str = "SN_GOERLI";
-
-#[derive(Default)]
-pub struct NonceManager {
-    next_nonce: HashMap<ContractAddress, Felt>,
-}
-
-impl NonceManager {
-    pub fn next(&mut self, account_address: ContractAddress) -> Nonce {
-        let next = self.next_nonce.remove(&account_address).unwrap_or_default();
-        self.next_nonce.insert(account_address, next + 1);
-        Nonce(next)
-    }
-
-    /// Decrements the nonce of the account, unless it is zero.
-    pub fn rollback(&mut self, account_address: ContractAddress) {
-        let current = *self.next_nonce.get(&account_address).unwrap_or(&Felt::default());
-        if current != Felt::ZERO {
-            self.next_nonce.insert(account_address, current - 1);
-        }
-    }
-}
-
-// TODO(Yoni, 1/1/2025): move to SN API.
-/// A utility macro to create a [`Nonce`] from a hex string / unsigned integer representation.
-#[macro_export]
-macro_rules! nonce {
-    ($s:expr) => {
-        starknet_api::core::Nonce(starknet_types_core::felt::Felt::from($s))
-    };
-}
-
-// TODO(Yoni, 1/1/2025): move to SN API.
-/// A utility macro to create a [`StorageKey`] from a hex string / unsigned integer representation.
-#[macro_export]
-macro_rules! storage_key {
-    ($s:expr) => {
-        starknet_api::state::StorageKey(starknet_api::patricia_key!($s))
-    };
-}
-
-// TODO(Yoni, 1/1/2025): move to SN API.
-/// A utility macro to create a [`starknet_api::core::CompiledClassHash`] from a hex string /
-/// unsigned integer representation.
-#[macro_export]
-macro_rules! compiled_class_hash {
-    ($s:expr) => {
-        starknet_api::core::CompiledClassHash(starknet_types_core::felt::Felt::from($s))
-    };
-}
 
 #[derive(Default)]
 pub struct SaltManager {
@@ -205,24 +216,19 @@ pub fn trivial_external_entry_point_with_address(
         initial_gas: VersionedConstants::create_for_testing()
             .os_constants
             .gas_costs
-            .initial_gas_cost,
+            .default_initial_gas_cost,
         ..Default::default()
     }
 }
 
-// TODO: Default testing bounds should probably be AllResourceBounds variant.
-pub fn default_testing_resource_bounds() -> ValidResourceBounds {
-    ValidResourceBounds::L1Gas(ResourceBounds { max_amount: 0, max_price_per_unit: 1 })
-}
-
 #[macro_export]
 macro_rules! check_inner_exc_for_custom_hint {
-    ($inner_exc:expr, $expected_hint:expr) => {
-        if let cairo_vm::vm::errors::vm_errors::VirtualMachineError::Hint(hint) = $inner_exc {
-            if let cairo_vm::vm::errors::hint_errors::HintError::Internal(
-                cairo_vm::vm::errors::vm_errors::VirtualMachineError::Other(error),
-            ) = &hint.1
-            {
+    ($inner_exc:expr, $expected_hint:expr) => {{
+        use cairo_vm::vm::errors::hint_errors::HintError;
+        use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
+
+        if let VirtualMachineError::Hint(hint) = $inner_exc {
+            if let HintError::Internal(VirtualMachineError::Other(error)) = &hint.1 {
                 assert_eq!(error.to_string(), $expected_hint.to_string());
             } else {
                 panic!("Unexpected hint: {:?}", hint);
@@ -230,29 +236,32 @@ macro_rules! check_inner_exc_for_custom_hint {
         } else {
             panic!("Unexpected structure for inner_exc: {:?}", $inner_exc);
         }
-    };
+    }};
 }
 
 #[macro_export]
 macro_rules! check_inner_exc_for_invalid_scenario {
-    ($inner_exc:expr) => {
-        if let cairo_vm::vm::errors::vm_errors::VirtualMachineError::DiffAssertValues(_) =
-            $inner_exc
-        {
+    ($inner_exc:expr) => {{
+        use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
+
+        if let VirtualMachineError::DiffAssertValues(_) = $inner_exc {
         } else {
             panic!("Unexpected structure for inner_exc: {:?}", $inner_exc)
         }
-    };
+    }};
 }
 
 #[macro_export]
 macro_rules! check_entry_point_execution_error {
-    ($error:expr, $expected_hint:expr $(,)?) => {
-        if let $crate::execution::errors::EntryPointExecutionError::CairoRunError(
-            cairo_vm::vm::errors::cairo_run_errors::CairoRunError::VmException(
-                cairo_vm::vm::errors::vm_exception::VmException { inner_exc, .. },
-            ),
-        ) = $error
+    ($error:expr, $expected_hint:expr $(,)?) => {{
+        use cairo_vm::vm::errors::cairo_run_errors::CairoRunError;
+        use cairo_vm::vm::errors::vm_exception::VmException;
+        use $crate::execution::errors::EntryPointExecutionError;
+
+        if let EntryPointExecutionError::CairoRunError(CairoRunError::VmException(VmException {
+            inner_exc,
+            ..
+        })) = $error
         {
             match $expected_hint {
                 Some(expected_hint) => {
@@ -263,7 +272,7 @@ macro_rules! check_entry_point_execution_error {
         } else {
             panic!("Unexpected structure for error: {:?}", $error);
         }
-    };
+    }};
 }
 
 /// Checks that the given error is a `HintError::CustomHint` with the given hint.
@@ -275,15 +284,15 @@ macro_rules! check_entry_point_execution_error_for_custom_hint {
 }
 
 #[macro_export]
-macro_rules! check_transaction_execution_error_inner {
-    ($error:expr, $expected_hint:expr, $validate_constructor:expr $(,)?) => {
+macro_rules! check_tx_execution_error_inner {
+    ($error:expr, $expected_hint:expr, $validate_constructor:expr $(,)?) => {{
+        use $crate::execution::errors::ConstructorEntryPointExecutionError;
+        use $crate::transaction::errors::TransactionExecutionError;
+
         if $validate_constructor {
             match $error {
-                $crate::transaction::errors::TransactionExecutionError::
-                    ContractConstructorExecutionFailed(
-                    $crate::execution::errors::ConstructorEntryPointExecutionError::ExecutionError {
-                        error, ..
-                    }
+                TransactionExecutionError::ContractConstructorExecutionFailed(
+                    ConstructorEntryPointExecutionError::ExecutionError { error, .. },
                 ) => {
                     $crate::check_entry_point_execution_error!(error, $expected_hint)
                 }
@@ -291,22 +300,19 @@ macro_rules! check_transaction_execution_error_inner {
             }
         } else {
             match $error {
-                $crate::transaction::errors::TransactionExecutionError::ValidateTransactionError {
-                    error,
-                    ..
-                } => {
+                TransactionExecutionError::ValidateTransactionError { error, .. } => {
                     $crate::check_entry_point_execution_error!(error, $expected_hint)
                 }
                 _ => panic!("Unexpected structure for error: {:?}", $error),
             }
         }
-    };
+    }};
 }
 
 #[macro_export]
-macro_rules! check_transaction_execution_error_for_custom_hint {
+macro_rules! check_tx_execution_error_for_custom_hint {
     ($error:expr, $expected_hint:expr, $validate_constructor:expr $(,)?) => {
-        $crate::check_transaction_execution_error_inner!(
+        $crate::check_tx_execution_error_inner!(
             $error,
             Some($expected_hint),
             $validate_constructor,
@@ -317,17 +323,29 @@ macro_rules! check_transaction_execution_error_for_custom_hint {
 /// Checks that a given error is an assertion error with the expected message.
 /// Formatted for test_validate_accounts_tx.
 #[macro_export]
-macro_rules! check_transaction_execution_error_for_invalid_scenario {
+macro_rules! check_tx_execution_error_for_invalid_scenario {
     ($cairo_version:expr, $error:expr, $validate_constructor:expr $(,)?) => {
         match $cairo_version {
             CairoVersion::Cairo0 => {
-                $crate::check_transaction_execution_error_inner!(
+                $crate::check_tx_execution_error_inner!(
                     $error,
                     None::<&str>,
                     $validate_constructor,
                 );
             }
-            CairoVersion::Cairo1 => {
+            CairoVersion::Cairo1  => {
+                if let $crate::transaction::errors::TransactionExecutionError::ValidateTransactionError {
+                    error, ..
+                } = $error {
+                    assert_eq!(
+                        error.to_string(),
+                        "Execution failed. Failure reason: 0x496e76616c6964207363656e6172696f \
+                         ('Invalid scenario')."
+                    )
+                }
+            }
+            #[cfg(feature = "cairo_native")]
+            CairoVersion::Native   => {
                 if let $crate::transaction::errors::TransactionExecutionError::ValidateTransactionError {
                     error, ..
                 } = $error {
@@ -345,15 +363,21 @@ macro_rules! check_transaction_execution_error_for_invalid_scenario {
 pub fn get_syscall_resources(syscall_selector: SyscallSelector) -> ExecutionResources {
     let versioned_constants = VersionedConstants::create_for_testing();
     let syscall_counter: SyscallCounter = HashMap::from([(syscall_selector, 1)]);
-    versioned_constants.get_additional_os_syscall_resources(&syscall_counter).unwrap()
+    versioned_constants.get_additional_os_syscall_resources(&syscall_counter)
 }
 
 pub fn get_tx_resources(tx_type: TransactionType) -> ExecutionResources {
     let versioned_constants = VersionedConstants::create_for_testing();
-    let starknet_resources =
-        StarknetResources::new(1, 0, 0, StateChangesCount::default(), None, std::iter::empty());
+    let starknet_resources = StarknetResources::new(
+        1,
+        0,
+        0,
+        StateResources::default(),
+        None,
+        ExecutionSummary::default(),
+    );
 
-    versioned_constants.get_additional_os_tx_resources(tx_type, &starknet_resources, false).unwrap()
+    versioned_constants.get_additional_os_tx_resources(tx_type, &starknet_resources, false)
 }
 
 /// Creates the calldata for the Cairo function "test_deploy" in the featured contract TestContract.
@@ -375,7 +399,7 @@ pub fn calldata_for_deploy_test(
             vec![
                 class_hash.0,
                 ContractAddressSalt::default().0,
-                felt!(u128_from_usize(constructor_calldata.len())),
+                felt!(u64_from_usize(constructor_calldata.len())),
             ],
             constructor_calldata.into(),
             vec![felt!(if valid_deploy_from_zero { 0_u8 } else { 2_u8 })],
@@ -406,7 +430,7 @@ pub fn create_calldata(
             vec![
                 *contract_address.0.key(),              // Contract address.
                 selector_from_name(entry_point_name).0, // EP selector name.
-                felt!(u128_from_usize(entry_point_args.len())),
+                felt!(u64_from_usize(entry_point_args.len())),
             ],
             entry_point_args.into(),
         ]
@@ -424,10 +448,6 @@ pub fn create_trivial_calldata(test_contract_address: ContractAddress) -> Callda
     )
 }
 
-pub fn u64_from_usize(val: usize) -> u64 {
-    val.try_into().unwrap()
-}
-
 pub fn update_json_value(base: &mut serde_json::Value, update: serde_json::Value) {
     match (base, update) {
         (serde_json::Value::Object(base_map), serde_json::Value::Object(update_map)) => {
@@ -435,4 +455,41 @@ pub fn update_json_value(base: &mut serde_json::Value, update: serde_json::Value
         }
         _ => panic!("Both base and update should be of type serde_json::Value::Object."),
     }
+}
+
+pub fn gas_vector_from_vm_usage(
+    vm_usage_in_l1_gas: GasAmount,
+    computation_mode: &GasVectorComputationMode,
+    versioned_constants: &VersionedConstants,
+) -> GasVector {
+    match computation_mode {
+        GasVectorComputationMode::NoL2Gas => GasVector::from_l1_gas(vm_usage_in_l1_gas),
+        GasVectorComputationMode::All => GasVector::from_l2_gas(
+            versioned_constants.convert_l1_to_l2_gas_amount_round_up(vm_usage_in_l1_gas),
+        ),
+    }
+}
+
+pub fn get_vm_resource_usage() -> ExecutionResources {
+    ExecutionResources {
+        n_steps: 10000,
+        n_memory_holes: 0,
+        builtin_instance_counter: HashMap::from([
+            (BuiltinName::pedersen, 10),
+            (BuiltinName::range_check, 24),
+            (BuiltinName::ecdsa, 1),
+            (BuiltinName::bitwise, 1),
+            (BuiltinName::poseidon, 1),
+        ]),
+    }
+}
+
+pub fn maybe_dummy_block_hash_and_number(block_number: BlockNumber) -> Option<BlockHashAndNumber> {
+    if block_number.0 < constants::STORED_BLOCK_HASH_BUFFER {
+        return None;
+    }
+    Some(BlockHashAndNumber {
+        number: BlockNumber(block_number.0 - constants::STORED_BLOCK_HASH_BUFFER),
+        hash: BlockHash(StarkHash::ONE),
+    })
 }

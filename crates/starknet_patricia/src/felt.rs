@@ -1,5 +1,3 @@
-use core::fmt;
-
 use ethnum::U256;
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::{Felt as StarknetTypesFelt, FromStrError};
@@ -67,8 +65,8 @@ impl std::ops::Mul for Felt {
     }
 }
 
-impl fmt::Debug for Felt {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl core::fmt::Debug for Felt {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{:?}", U256::from(self))
     }
 }

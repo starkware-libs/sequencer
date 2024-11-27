@@ -20,7 +20,7 @@ const ONE_MEGA: usize = 1 << 20;
 #[derive(NetworkBehaviour)]
 #[behaviour(out_event = "Event")]
 pub struct MixedBehaviour {
-    pub peer_manager: peer_manager::PeerManager<peer_manager::peer::Peer>,
+    pub peer_manager: peer_manager::PeerManager,
     pub discovery: Toggle<discovery::Behaviour>,
     pub identify: identify::Behaviour,
     // TODO(shahak): Consider using a different store.
@@ -64,6 +64,8 @@ impl MixedBehaviour {
         streamed_bytes_config: sqmr::Config,
         chain_id: ChainId,
         node_version: Option<String>,
+        discovery_config: DiscoveryConfig,
+        peer_manager_config: PeerManagerConfig,
     ) -> Self {
         let public_key = keypair.public();
         let local_peer_id = PeerId::from_public_key(&public_key);
@@ -73,11 +75,11 @@ impl MixedBehaviour {
                 .expect("Failed to create StreamProtocol from a string that starts with /"),
         ]);
         Self {
-            peer_manager: peer_manager::PeerManager::new(PeerManagerConfig::default()),
+            peer_manager: peer_manager::PeerManager::new(peer_manager_config),
             discovery: bootstrap_peer_multiaddr
                 .map(|bootstrap_peer_multiaddr| {
                     discovery::Behaviour::new(
-                        DiscoveryConfig::default(),
+                        discovery_config,
                         DialOpts::from(bootstrap_peer_multiaddr.clone())
                             .get_peer_id()
                             .expect("bootstrap_peer_multiaddr doesn't have a peer id"),

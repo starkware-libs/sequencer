@@ -2,12 +2,10 @@
 use std::fs::File;
 use std::path::PathBuf;
 
-// Expose the tool for creating entry point selectors from function names.
-pub use blockifier::abi::abi_utils::selector_from_name;
 use blockifier::execution::contract_class::{
-    ContractClass as BlockifierContractClass,
     ContractClassV0,
     ContractClassV1,
+    RunnableContractClass,
 };
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, MutRefState};
 use blockifier::state::state_api::StateReader;
@@ -19,6 +17,8 @@ use papyrus_storage::compiled_class::CasmStorageReader;
 use papyrus_storage::db::{TransactionKind, RO};
 use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::{StorageError, StorageResult, StorageTxn};
+// Expose the tool for creating entry point selectors from function names.
+pub use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::state::{StateNumber, StorageKey, ThinStateDiff};
 use starknet_types_core::felt::Felt;
@@ -59,14 +59,14 @@ pub(crate) fn get_contract_class(
     txn: &StorageTxn<'_, RO>,
     class_hash: &ClassHash,
     state_number: StateNumber,
-) -> Result<Option<BlockifierContractClass>, ExecutionUtilsError> {
+) -> Result<Option<RunnableContractClass>, ExecutionUtilsError> {
     match txn.get_state_reader()?.get_class_definition_block_number(class_hash)? {
         Some(block_number) if state_number.is_before(block_number) => return Ok(None),
         Some(_block_number) => {
             let Some(casm) = txn.get_casm(class_hash)? else {
                 return Err(ExecutionUtilsError::CasmTableNotSynced);
             };
-            return Ok(Some(BlockifierContractClass::V1(
+            return Ok(Some(RunnableContractClass::V1(
                 ContractClassV1::try_from(casm).map_err(ExecutionUtilsError::ProgramError)?,
             )));
         }
@@ -78,7 +78,7 @@ pub(crate) fn get_contract_class(
     else {
         return Ok(None);
     };
-    Ok(Some(BlockifierContractClass::V0(
+    Ok(Some(RunnableContractClass::V0(
         ContractClassV0::try_from(deprecated_class).map_err(ExecutionUtilsError::ProgramError)?,
     )))
 }
@@ -116,11 +116,15 @@ pub fn get_trace_constructor(
 /// Returns the state diff induced by a single transaction. If the transaction
 /// is a deprecated Declare, the user is required to pass the class hash of the deprecated class as
 /// it is not provided by the blockifier API.
+// TODO(Dan, Yair): consider box large elements (because of BadDeclareTransaction) or use ID
+// instead.
+#[allow(clippy::result_large_err)]
 pub fn induced_state_diff(
     transactional_state: &mut CachedState<MutRefState<'_, CachedState<ExecutionStateReader>>>,
     deprecated_declared_class_hash: Option<ClassHash>,
 ) -> ExecutionResult<ThinStateDiff> {
-    let blockifier_state_diff = CommitmentStateDiff::from(transactional_state.to_state_diff()?);
+    let blockifier_state_diff =
+        CommitmentStateDiff::from(transactional_state.to_state_diff()?.state_maps);
     // Determine which contracts were deployed and which were replaced by comparing their
     // previous class hash (default value suggests it didn't exist before).
     let mut deployed_contracts = IndexMap::new();

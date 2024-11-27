@@ -8,7 +8,13 @@ use papyrus_storage::{StorageError, StorageReader, StorageWriter};
 use starknet_api::block::{BlockBody, BlockNumber};
 use starknet_api::transaction::FullTransaction;
 
-use super::stream_builder::{BlockData, BlockNumberLimit, DataStreamBuilder};
+use super::stream_builder::{
+    BadPeerError,
+    BlockData,
+    BlockNumberLimit,
+    DataStreamBuilder,
+    ParseDataError,
+};
 use super::{P2PSyncClientError, NETWORK_DATA_TIMEOUT};
 
 impl BlockData for (BlockBody, BlockNumber) {
@@ -33,7 +39,7 @@ impl DataStreamBuilder<FullTransaction> for TransactionStreamFactory {
         transactions_response_manager: &'a mut ClientResponsesManager<DataOrFin<FullTransaction>>,
         block_number: BlockNumber,
         storage_reader: &'a StorageReader,
-    ) -> BoxFuture<'a, Result<Option<Self::Output>, P2PSyncClientError>> {
+    ) -> BoxFuture<'a, Result<Option<Self::Output>, ParseDataError>> {
         async move {
             let mut block_body = BlockBody::default();
             let mut current_transaction_len = 0;
@@ -57,11 +63,11 @@ impl DataStreamBuilder<FullTransaction> for TransactionStreamFactory {
                     if current_transaction_len == 0 {
                         return Ok(None);
                     } else {
-                        return Err(P2PSyncClientError::NotEnoughTransactions {
+                        return Err(ParseDataError::BadPeer(BadPeerError::NotEnoughTransactions {
                             expected: target_transaction_len,
                             actual: current_transaction_len,
                             block_number: block_number.0,
-                        });
+                        }));
                     }
                 };
                 block_body.transactions.push(transaction);

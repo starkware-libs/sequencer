@@ -6,12 +6,13 @@ use std::path::Path;
 
 use cairo_lang_casm::hints::CoreHintBase;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
-use papyrus_test_utils::{get_rng, read_json_file, GetTestInstance};
+use papyrus_test_utils::{get_rng, GetTestInstance};
 use pretty_assertions::assert_eq;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ContractAddress;
 use starknet_api::hash::StarkHash;
 use starknet_api::state::StorageKey;
+use starknet_api::test_utils::{path_in_resources, read_json_file};
 use starknet_api::transaction::TransactionOffsetInBlock;
 
 use crate::db::serialization::StorageSerde;
@@ -161,10 +162,7 @@ fn casm_serialization_regression() {
         json_casm
             .serialize_into(&mut serialized)
             .expect("Failed to serialize casm file: {json_file_name}");
-        let bin_path = Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap())
-            .join("resources")
-            .join("casm")
-            .join(bin_file_name);
+        let bin_path = path_in_resources(Path::new("casm").join(bin_file_name));
         let mut bin_file = File::open(bin_path)
             .expect("Failed to open bin file: {bin_file_name}\n{FIX_SUGGESTION}");
         let mut regression_casm_bytes = Vec::new();
@@ -186,10 +184,10 @@ fn casm_deserialization_regression() {
         fix_casm_regression_files()
     }
 
-    let resources_path = Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap()).join("resources");
     for (json_file_name, bin_file_name) in CASM_SERIALIZATION_REGRESSION_FILES {
-        let mut regression_casm_file = File::open(resources_path.join("casm").join(bin_file_name))
-            .expect("Failed to open bin file: {bin_file_name}\n{FIX_SUGGESTION}");
+        let mut regression_casm_file =
+            File::open(path_in_resources(Path::new("casm").join(bin_file_name)))
+                .expect("Failed to open bin file: {bin_file_name}\n{FIX_SUGGESTION}");
         let mut regression_casm_bytes = Vec::new();
         regression_casm_file
             .read_to_end(&mut regression_casm_bytes)
@@ -209,7 +207,6 @@ result.\n{FIX_SUGGESTION}"
 }
 
 fn fix_casm_regression_files() {
-    let resources_path = Path::new(&env::var("CARGO_MANIFEST_DIR").unwrap()).join("resources");
     for (json_file_name, bin_file_name) in CASM_SERIALIZATION_REGRESSION_FILES {
         let json_path = format!("casm/{}", json_file_name);
         let json_casm: CasmContractClass =
@@ -218,8 +215,9 @@ fn fix_casm_regression_files() {
         let mut serialized: Vec<u8> = Vec::new();
         json_casm.serialize_into(&mut serialized).unwrap();
         let casm_bytes = serialized.into_boxed_slice();
-        let mut hardcoded_file = File::create(resources_path.join("casm").join(bin_file_name))
-            .expect("Failed to create bin file {bin_file_name}\n");
+        let mut hardcoded_file =
+            File::create(path_in_resources(Path::new("casm").join(bin_file_name)))
+                .expect("Failed to create bin file {bin_file_name}\n");
         hardcoded_file.write_all(&casm_bytes).unwrap();
     }
 }

@@ -7,6 +7,8 @@ use rstest::rstest;
 
 const CAIRO0_FEATURE_CONTRACTS_DIR: &str = "feature_contracts/cairo0";
 const CAIRO1_FEATURE_CONTRACTS_DIR: &str = "feature_contracts/cairo1";
+#[cfg(feature = "cairo_native")]
+const NATIVE_FEATURE_CONTRACTS_DIR: &str = "feature_contracts/cairo_native";
 const COMPILED_CONTRACTS_SUBDIR: &str = "compiled";
 const FIX_COMMAND: &str = "FIX_FEATURE_TEST=1 cargo test -p blockifier --test \
                            feature_contracts_compatibility_test --features testing -- \
@@ -64,10 +66,14 @@ fn verify_and_get_files(cairo_version: CairoVersion) -> Vec<(String, String, Str
     let directory = match cairo_version {
         CairoVersion::Cairo0 => CAIRO0_FEATURE_CONTRACTS_DIR,
         CairoVersion::Cairo1 => CAIRO1_FEATURE_CONTRACTS_DIR,
+        #[cfg(feature = "cairo_native")]
+        CairoVersion::Native => NATIVE_FEATURE_CONTRACTS_DIR,
     };
     let compiled_extension = match cairo_version {
         CairoVersion::Cairo0 => "_compiled.json",
         CairoVersion::Cairo1 => ".casm.json",
+        #[cfg(feature = "cairo_native")]
+        CairoVersion::Native => ".sierra.json",
     };
     for file in fs::read_dir(directory).unwrap() {
         let path = file.unwrap().path();
@@ -117,6 +123,7 @@ fn verify_feature_contracts_match_enum() {
     assert_eq!(compiled_paths_from_enum, compiled_paths_on_filesystem);
 }
 
+// todo(rdr): find the right way to feature verify native contracts as well
 #[rstest]
 #[ignore]
 fn verify_feature_contracts(

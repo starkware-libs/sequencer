@@ -1,0 +1,53 @@
+[package]
+name = "starknet_sequencer_node"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[features]
+testing = ["papyrus_proc_macros", "thiserror"]
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+const_format.workspace = true
+futures.workspace = true
+infra_utils.workspace = true
+papyrus_config.workspace = true
+papyrus_proc_macros = { workspace = true, optional = true }
+rstest.workspace = true
+serde.workspace = true
+starknet_api.workspace = true
+starknet_batcher.workspace = true
+starknet_batcher_types.workspace = true
+starknet_consensus_manager.workspace = true
+starknet_gateway.workspace = true
+starknet_gateway_types.workspace = true
+starknet_http_server.workspace = true
+starknet_mempool.workspace = true
+starknet_mempool_p2p.workspace = true
+starknet_mempool_p2p_types.workspace = true
+starknet_mempool_types.workspace = true
+starknet_monitoring_endpoint.workspace = true
+starknet_sequencer_infra.workspace = true
+starknet_sierra_compile.workspace = true
+starknet_state_sync_types.workspace = true
+thiserror = { workspace = true, optional = true }
+tokio.workspace = true
+tracing.workspace = true
+validator.workspace = true
+
+[dev-dependencies]
+assert-json-diff.workspace = true
+assert_matches.workspace = true
+colored.workspace = true
+infra_utils.workspace = true
+mempool_test_utils.workspace = true
+pretty_assertions.workspace = true
+serde_json.workspace = true
+# Enable self with "testing" feature in tests.
+starknet_sequencer_node = { workspace = true, features = ["testing"] }

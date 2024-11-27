@@ -2,19 +2,17 @@ use std::sync::Arc;
 
 use jsonrpsee::{Methods, RpcModule};
 use papyrus_common::pending_classes::PendingClasses;
-use papyrus_common::BlockHashAndNumber;
 use papyrus_execution::ExecutionConfig;
 use papyrus_storage::StorageReader;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockHash, BlockNumber};
+use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::core::{ChainId, ContractAddress, EntryPointSelector};
-use starknet_api::transaction::Calldata;
+use starknet_api::transaction::fields::Calldata;
 use starknet_client::reader::PendingData;
 use starknet_client::writer::StarknetWriter;
 use tokio::sync::RwLock;
 
-use crate::v0_6::api::api_impl::JsonRpcServerImpl as JsonRpcServerV0_6Impl;
-use crate::v0_7::api::api_impl::JsonRpcServerImpl as JsonRpcServerV0_7Impl;
+use crate::v0_8::api::api_impl::JsonRpcServerImpl as JsonRpcServerV0_8Impl;
 use crate::version_config;
 
 #[derive(Copy, Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -86,11 +84,8 @@ pub fn get_methods_from_supported_apis(
                 version_config::VersionState::Deprecated => None,
                 version_config::VersionState::Supported => {
                     let methods = match *version {
-                        version_config::VERSION_0_6 => {
-                            server_gen.clone().generator::<JsonRpcServerV0_6Impl>()
-                        }
-                        version_config::VERSION_0_7 => {
-                            server_gen.clone().generator::<JsonRpcServerV0_7Impl>()
+                        version_config::VERSION_0_8 => {
+                            server_gen.clone().generator::<JsonRpcServerV0_8Impl>()
                         }
                         // TODO(yair): remove this once the version is an enum instead of a string.
                         _ => unreachable!("Unrecognized RPC spec version: {}", version),

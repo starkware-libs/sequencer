@@ -1,13 +1,12 @@
 use std::collections::{HashMap, HashSet};
 
+use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
 use super::cached_state::{ContractClassMapping, StateMaps};
-use crate::abi::abi_utils::get_fee_token_var_address;
-use crate::abi::sierra_types::next_storage_key;
-use crate::execution::contract_class::ContractClass;
+use crate::execution::contract_class::RunnableContractClass;
 use crate::state::errors::StateError;
 
 pub type StateResult<T> = Result<T, StateError>;
@@ -41,7 +40,10 @@ pub trait StateReader {
     fn get_class_hash_at(&self, contract_address: ContractAddress) -> StateResult<ClassHash>;
 
     /// Returns the contract class of the given class hash.
-    fn get_compiled_contract_class(&self, class_hash: ClassHash) -> StateResult<ContractClass>;
+    fn get_compiled_contract_class(
+        &self,
+        class_hash: ClassHash,
+    ) -> StateResult<RunnableContractClass>;
 
     /// Returns the compiled class hash of the given class hash.
     fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash>;
@@ -57,7 +59,7 @@ pub trait StateReader {
         fee_token_address: ContractAddress,
     ) -> Result<(Felt, Felt), StateError> {
         let low_key = get_fee_token_var_address(contract_address);
-        let high_key = next_storage_key(&low_key)?;
+        let high_key = low_key.next_storage_key()?;
         let low = self.get_storage_at(fee_token_address, low_key)?;
         let high = self.get_storage_at(fee_token_address, high_key)?;
 
@@ -94,7 +96,7 @@ pub trait State: StateReader {
     fn set_contract_class(
         &mut self,
         class_hash: ClassHash,
-        contract_class: ContractClass,
+        contract_class: RunnableContractClass,
     ) -> StateResult<()>;
 
     /// Sets the given compiled class hash under the given class hash.
@@ -107,7 +109,7 @@ pub trait State: StateReader {
     /// Marks the given set of PC values as visited for the given class hash.
     // TODO(lior): Once we have a BlockResources object, move this logic there. Make sure reverted
     //   entry points do not affect the final set of PCs.
-    fn add_visited_pcs(&mut self, class_hash: ClassHash, pcs: &HashSet<usize>);
+    fn add_visited_pcs(&mut self, _class_hash: ClassHash, _pcs: &HashSet<usize>) {}
 }
 
 /// A class defining the API for updating a state with transactions writes.

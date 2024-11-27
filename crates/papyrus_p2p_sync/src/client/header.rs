@@ -10,19 +10,29 @@ use papyrus_storage::{StorageError, StorageReader, StorageWriter};
 use starknet_api::block::BlockNumber;
 use tracing::debug;
 
-use super::stream_builder::{BlockData, BlockNumberLimit, DataStreamBuilder};
+use super::stream_builder::{
+    BadPeerError,
+    BlockData,
+    BlockNumberLimit,
+    DataStreamBuilder,
+    ParseDataError,
+};
 use super::{P2PSyncClientError, ALLOWED_SIGNATURES_LENGTH, NETWORK_DATA_TIMEOUT};
 
 impl BlockData for SignedBlockHeader {
+    #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
     fn write_to_storage(
         self: Box<Self>,
         storage_writer: &mut StorageWriter,
     ) -> Result<(), StorageError> {
         storage_writer
             .begin_rw_txn()?
-            .append_header(self.block_header.block_number, &self.block_header)?
+            .append_header(
+                self.block_header.block_header_without_hash.block_number,
+                &self.block_header,
+            )?
             .append_block_signature(
-                self.block_header.block_number,
+                self.block_header.block_header_without_hash.block_number,
                 self
                     .signatures
                     // In the future we will support multiple signatures.
@@ -34,12 +44,12 @@ impl BlockData for SignedBlockHeader {
             .commit()?;
         gauge!(
             papyrus_metrics::PAPYRUS_HEADER_MARKER,
-            self.block_header.block_number.unchecked_next().0 as f64
+            self.block_header.block_header_without_hash.block_number.unchecked_next().0 as f64
         );
         // TODO(shahak): Fix code dup with central sync
         let time_delta = Utc::now()
             - Utc
-                .timestamp_opt(self.block_header.timestamp.0 as i64, 0)
+                .timestamp_opt(self.block_header.block_header_without_hash.timestamp.0 as i64, 0)
                 .single()
                 .expect("block timestamp should be valid");
         let header_latency = time_delta.num_seconds();
@@ -65,7 +75,7 @@ impl DataStreamBuilder<SignedBlockHeader> for HeaderStreamBuilder {
         >,
         block_number: BlockNumber,
         _storage_reader: &'a StorageReader,
-    ) -> BoxFuture<'a, Result<Option<Self::Output>, P2PSyncClientError>> {
+    ) -> BoxFuture<'a, Result<Option<Self::Output>, ParseDataError>> {
         async move {
             let maybe_signed_header =
                 tokio::time::timeout(NETWORK_DATA_TIMEOUT, signed_headers_response_manager.next())
@@ -78,16 +88,21 @@ impl DataStreamBuilder<SignedBlockHeader> for HeaderStreamBuilder {
             };
             // TODO(shahak): Check that parent_hash is the same as the previous block's hash
             // and handle reverts.
-            if block_number != signed_block_header.block_header.block_number {
-                return Err(P2PSyncClientError::HeadersUnordered {
+            if block_number
+                != signed_block_header.block_header.block_header_without_hash.block_number
+            {
+                return Err(ParseDataError::BadPeer(BadPeerError::HeadersUnordered {
                     expected_block_number: block_number,
-                    actual_block_number: signed_block_header.block_header.block_number,
-                });
+                    actual_block_number: signed_block_header
+                        .block_header
+                        .block_header_without_hash
+                        .block_number,
+                }));
             }
             if signed_block_header.signatures.len() != ALLOWED_SIGNATURES_LENGTH {
-                return Err(P2PSyncClientError::WrongSignaturesLength {
+                return Err(ParseDataError::BadPeer(BadPeerError::WrongSignaturesLength {
                     signatures: signed_block_header.signatures,
-                });
+                }));
             }
             Ok(Some(signed_block_header))
         }

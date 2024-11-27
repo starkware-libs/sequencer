@@ -10,9 +10,10 @@ description = "The transaction-executing component in the Starknet sequencer."
 workspace = true
 
 [features]
-concurrency = []
+cairo_native = ["dep:cairo-native"]
 jemalloc = ["dep:tikv-jemallocator"]
-testing = ["rand", "rstest"]
+reexecution = ["transaction_serde"]
+testing = ["rand", "rstest", "starknet_api/testing"]
 transaction_serde = []
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -27,7 +28,7 @@ cached.workspace = true
 cairo-lang-casm = { workspace = true, features = ["parity-scale-codec"] }
 cairo-lang-runner.workspace = true
 cairo-lang-starknet-classes.workspace = true
-cairo-lang-utils.workspace = true
+cairo-native = { workspace = true, optional = true }
 cairo-vm.workspace = true
 derive_more.workspace = true
 indexmap.workspace = true
@@ -43,12 +44,12 @@ paste.workspace = true
 phf = { workspace = true, features = ["macros"] }
 rand = { workspace = true, optional = true }
 rstest = { workspace = true, optional = true }
+semver.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
 sha2.workspace = true
-sha3.workspace = true
 starknet-types-core.workspace = true
-starknet_api = { workspace = true, features = ["testing"] }
+starknet_api.workspace = true
 strum.workspace = true
 strum_macros.workspace = true
 tempfile.workspace = true
@@ -60,10 +61,12 @@ toml.workspace = true
 assert_matches.workspace = true
 criterion = { workspace = true, features = ["html_reports"] }
 glob.workspace = true
+itertools.workspace = true
 pretty_assertions.workspace = true
 rand.workspace = true
 regex.workspace = true
 rstest.workspace = true
+starknet_api = { workspace = true, features = ["testing"] }
 test-case.workspace = true
 
 [[bench]]
