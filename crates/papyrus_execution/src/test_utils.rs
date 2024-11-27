@@ -21,6 +21,7 @@ use starknet_api::block::{
     GasPrice,
     GasPricePerToken,
 };
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{
     ChainId,
     ClassHash,
@@ -312,6 +313,7 @@ impl TxsScenarioBuilder {
             DUMMY_SIERRA_SIZE,
             0,
             false,
+            SierraVersion::latest(),
         );
         self.txs.push(tx);
         self
