@@ -7,6 +7,7 @@ use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_http_server::config::HttpServerConfig;
+use starknet_http_server::test_utils::HttpTestClient;
 use starknet_sequencer_infra::trace_util::configure_tracing;
 use starknet_sequencer_node::servers::run_component_servers;
 use starknet_sequencer_node::utils::create_node_modules;
@@ -16,7 +17,7 @@ use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 
 use crate::state_reader::{spawn_test_rpc_state_reader, StorageTestSetup};
-use crate::utils::{create_chain_info, create_config, HttpTestClient};
+use crate::utils::{create_chain_info, create_config};
 
 pub struct FlowTestSetup {
     pub task_executor: TokioExecutor,

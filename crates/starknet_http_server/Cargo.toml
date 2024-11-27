@@ -5,13 +5,18 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 
+[features]
+testing = ["mempool_test_utils", "reqwest"]
+
 [lints]
 workspace = true
 
 [dependencies]
 axum.workspace = true
 hyper.workspace = true
+mempool_test_utils = { workspace = true, optional = true }
 papyrus_config.workspace = true
+reqwest = { workspace = true, optional = true }
 serde.workspace = true
 starknet_api.workspace = true
 starknet_gateway_types.workspace = true

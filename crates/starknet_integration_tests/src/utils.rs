@@ -2,21 +2,15 @@ use std::future::Future;
 use std::net::SocketAddr;
 use std::time::Duration;
 
-use axum::body::Body;
 use blockifier::context::ChainInfo;
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::CairoVersion;
-use mempool_test_utils::starknet_api_test_utils::{
-    rpc_tx_to_json,
-    AccountId,
-    MultiAccountTransactionGenerator,
-};
+use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use papyrus_consensus::config::ConsensusConfig;
 use papyrus_network::network_manager::test_utils::create_network_config_connected_to_broadcast_channels;
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::ProposalPart;
 use papyrus_storage::StorageConfig;
-use reqwest::{Client, Response};
 use starknet_api::block::BlockNumber;
 use starknet_api::contract_address;
 use starknet_api::core::ContractAddress;
@@ -31,7 +25,6 @@ use starknet_gateway::config::{
     StatefulTransactionValidatorConfig,
     StatelessTransactionValidatorConfig,
 };
-use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_http_server::config::HttpServerConfig;
 use starknet_sequencer_infra::test_utils::get_available_socket;
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
@@ -102,44 +95,6 @@ pub fn test_rpc_state_reader_config(rpc_server_addr: SocketAddr) -> RpcStateRead
     RpcStateReaderConfig {
         url: format!("http://{rpc_server_addr:?}/rpc/{RPC_SPEC_VERSION}"),
         json_rpc_version: JSON_RPC_VERSION.to_string(),
-    }
-}
-
-/// A test utility client for interacting with an http server.
-pub struct HttpTestClient {
-    socket: SocketAddr,
-    client: Client,
-}
-
-impl HttpTestClient {
-    pub fn new(socket: SocketAddr) -> Self {
-        let client = Client::new();
-        Self { socket, client }
-    }
-
-    pub async fn assert_add_tx_success(&self, rpc_tx: RpcTransaction) -> TransactionHash {
-        let response = self.add_tx(rpc_tx).await;
-        assert!(response.status().is_success());
-
-        response.json().await.unwrap()
-    }
-
-    // TODO: implement when usage eventually arises.
-    pub async fn assert_add_tx_error(&self, _tx: RpcTransaction) -> GatewaySpecError {
-        todo!()
-    }
-
-    // Prefer using assert_add_tx_success or other higher level methods of this client, to ensure
-    // tests are boilerplate and implementation-detail free.
-    pub async fn add_tx(&self, rpc_tx: RpcTransaction) -> Response {
-        let tx_json = rpc_tx_to_json(&rpc_tx);
-        self.client
-            .post(format!("http://{}/add_tx", self.socket))
-            .header("content-type", "application/json")
-            .body(Body::from(tx_json))
-            .send()
-            .await
-            .unwrap()
     }
 }
 

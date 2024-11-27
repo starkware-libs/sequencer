@@ -4,13 +4,14 @@ use std::path::PathBuf;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use papyrus_storage::StorageConfig;
 use starknet_http_server::config::HttpServerConfig;
+use starknet_http_server::test_utils::HttpTestClient;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_monitoring_endpoint::test_utils::IsAliveClient;
 use tempfile::{tempdir, TempDir};
 
 use crate::config_utils::dump_config_file_changes;
 use crate::state_reader::{spawn_test_rpc_state_reader, StorageTestSetup};
-use crate::utils::{create_chain_info, create_config, HttpTestClient};
+use crate::utils::{create_chain_info, create_config};
 
 pub struct IntegrationTestSetup {
     // Client for adding transactions to the sequencer node.

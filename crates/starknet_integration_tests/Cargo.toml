@@ -11,7 +11,6 @@ workspace = true
 [dependencies]
 anyhow.workspace = true
 assert_matches.workspace = true
-axum.workspace = true
 blockifier.workspace = true
 cairo-lang-starknet-classes.workspace = true
 futures.workspace = true
@@ -24,7 +23,6 @@ papyrus_network = { workspace = true, features = ["testing"] }
 papyrus_protobuf.workspace = true
 papyrus_rpc.workspace = true
 papyrus_storage = { workspace = true, features = ["testing"] }
-reqwest.workspace = true
 serde_json.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
@@ -33,7 +31,7 @@ starknet_client.workspace = true
 starknet_consensus_manager.workspace = true
 starknet_gateway = { workspace = true, features = ["testing"] }
 starknet_gateway_types.workspace = true
-starknet_http_server.workspace = true
+starknet_http_server = { workspace = true, features = ["testing"] }
 starknet_mempool_p2p.workspace = true
 starknet_monitoring_endpoint = { workspace = true, features = ["testing"] }
 starknet_sequencer_infra = { workspace = true, features = ["testing"] }
