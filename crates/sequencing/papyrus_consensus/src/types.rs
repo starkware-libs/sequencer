@@ -35,7 +35,8 @@ pub trait ConsensusContext {
         + TryInto<ProposalInit, Error = ProtobufConversionError>
         + From<ProposalInit>
         + Clone
-        + Send;
+        + Send
+        + Debug;
 
     // TODO(matan): The oneshot for receiving the build block could be generalized to just be some
     // future which returns a block.
@@ -77,8 +78,8 @@ pub trait ConsensusContext {
         height: BlockNumber,
         round: Round,
         timeout: Duration,
-        content: mpsc::Receiver<Self::ProposalChunk>,
-    ) -> oneshot::Receiver<ProposalContentId>;
+        content: mpsc::Receiver<Self::ProposalPart>,
+    ) -> oneshot::Receiver<(ProposalContentId, ProposalContentId)>;
 
     /// This function is called by consensus to retrieve the content of a previously built or
     /// validated proposal. It broadcasts the proposal to the network.

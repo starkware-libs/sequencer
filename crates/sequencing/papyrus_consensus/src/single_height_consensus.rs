@@ -66,11 +66,7 @@ pub enum ShcTask {
     ///    result without blocking consensus.
     /// 3. Once validation is complete, the manager returns the built proposal to the SHC as an
     ///    event, which can be sent to the SM.
-    ValidateProposal(
-        ProposalInit,
-        oneshot::Receiver<ProposalContentId>, // Block built from the content.
-        oneshot::Receiver<ProposalContentId>, // Fin sent by the proposer.
-    ),
+    ValidateProposal(ProposalInit, oneshot::Receiver<(ProposalContentId, ProposalContentId)>),
 }
 
 impl PartialEq for ShcTask {
@@ -82,9 +78,7 @@ impl PartialEq for ShcTask {
             | (ShcTask::Prevote(d1, e1), ShcTask::Prevote(d2, e2))
             | (ShcTask::Precommit(d1, e1), ShcTask::Precommit(d2, e2)) => d1 == d2 && e1 == e2,
             (ShcTask::BuildProposal(r1, _), ShcTask::BuildProposal(r2, _)) => r1 == r2,
-            (ShcTask::ValidateProposal(pi1, _, _), ShcTask::ValidateProposal(pi2, _, _)) => {
-                pi1 == pi2
-            }
+            (ShcTask::ValidateProposal(pi1, _), ShcTask::ValidateProposal(pi2, _)) => pi1 == pi2,
             _ => false,
         }
     }
@@ -117,28 +111,24 @@ impl ShcTask {
                 let proposal_id = receiver.await.expect("Block building failed.");
                 ShcEvent::BuildProposal(StateMachineEvent::GetProposal(Some(proposal_id), round))
             }
-            ShcTask::ValidateProposal(
-                init,
-                id_built_from_content_receiver,
-                fin_from_proposer_receiver,
-            ) => {
+            ShcTask::ValidateProposal(init, block_receiver) => {
                 // Handle the result of the block validation:
-                // - If successful, set it as Some.
+                // The output is a tuple with the proposal id, calculated and from network.
+                // - If successful, set it as (Some, Some).
                 // - If there was an error (e.g., invalid proposal, no proposal received from the
-                //   peer, or the process was interrupted), set it to None.
+                //   peer, or the process was interrupted), set it to (None, None).
                 // TODO(Asmaa): Consider if we want to differentiate between an interrupt and other
                 // failures.
-                let proposal_id = match id_built_from_content_receiver.await {
-                    Ok(proposal_id) => Some(proposal_id),
-                    Err(_) => None,
-                };
-                let fin = match fin_from_proposer_receiver.await {
-                    Ok(fin) => Some(fin),
-                    Err(_) => None,
+                let (block_proposal_id, network_proposal_id) = match block_receiver.await {
+                    Ok((block_proposal_id, network_proposal_id)) => {
+                        (Some(block_proposal_id), Some(network_proposal_id))
+                    }
+                    // Proposal never received from peer.
+                    Err(_) => (None, None),
                 };
                 ShcEvent::ValidateProposal(
-                    StateMachineEvent::Proposal(proposal_id, init.round, init.valid_round),
-                    fin,
+                    StateMachineEvent::Proposal(block_proposal_id, init.round, init.valid_round),
+                    network_proposal_id,
                 )
             }
         }
@@ -212,8 +202,7 @@ impl SingleHeightConsensus {
         &mut self,
         context: &mut ContextT,
         init: ProposalInit,
-        p2p_messages_receiver: mpsc::Receiver<ContextT::ProposalChunk>,
-        fin_receiver: oneshot::Receiver<ProposalContentId>,
+        p2p_messages_receiver: mpsc::Receiver<ContextT::ProposalPart>,
     ) -> Result<ShcReturn, ConsensusError> {
         debug!(
             "Received proposal: height={}, round={}, proposer={:?}",
@@ -245,7 +234,7 @@ impl SingleHeightConsensus {
             )
             .await;
         context.set_height_and_round(self.height, self.state_machine.round()).await;
-        Ok(ShcReturn::Tasks(vec![ShcTask::ValidateProposal(init, block_receiver, fin_receiver)]))
+        Ok(ShcReturn::Tasks(vec![ShcTask::ValidateProposal(init, block_receiver)]))
     }
 
     async fn process_inbound_proposal<ContextT: ConsensusContext>(
@@ -320,19 +309,19 @@ impl SingleHeightConsensus {
                 )]))
             }
             ShcEvent::ValidateProposal(
-                StateMachineEvent::Proposal(proposal_id, round, valid_round),
-                fin,
+                StateMachineEvent::Proposal(block_proposal_id, round, valid_round),
+                network_proposal_id,
             ) => {
                 // TODO(matan): Switch to signature validation.
-                let id = if proposal_id != fin {
+                let id = if block_proposal_id != network_proposal_id {
                     warn!(
                         "proposal_id built from content receiver does not match fin: {:#064x?} != \
                          {:#064x?}",
-                        proposal_id, fin
+                        block_proposal_id, network_proposal_id
                     );
                     None
                 } else {
-                    proposal_id
+                    block_proposal_id
                 };
                 // Retaining the entry for this round prevents us from receiving another proposal on
                 // this round. If the validations failed, which can be caused by a network issue, we
