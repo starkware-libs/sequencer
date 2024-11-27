@@ -40,9 +40,16 @@
     "disable_cairo0_redeclaration": true,
     "enable_stateful_compression": false,
     "allocation_cost": {
-        "l1_gas": 0,
-        "l1_data_gas": 0,
-        "l2_gas": 0
+        "blob_cost": {
+            "l1_gas": 0,
+            "l1_data_gas": 0,
+            "l2_gas": 0
+        },
+        "gas_cost": {
+            "l1_gas": 0,
+            "l1_data_gas": 0,
+            "l2_gas": 0
+        }
     },
     "ignore_inner_event_resources": false,
     "max_recursion_depth": 50,

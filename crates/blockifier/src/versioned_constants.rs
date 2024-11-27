@@ -138,6 +138,21 @@ pub struct VmResourceCosts {
     pub builtins: HashMap<BuiltinName, ResourceCost>,
 }
 
+#[derive(Clone, Debug, Default, Deserialize)]
+pub struct AllocationCost {
+    pub blob_cost: GasVector,
+    pub gas_cost: GasVector,
+}
+
+impl AllocationCost {
+    pub const ZERO: AllocationCost =
+        AllocationCost { blob_cost: GasVector::ZERO, gas_cost: GasVector::ZERO };
+
+    pub fn get_cost(&self, use_kzg_da: bool) -> &GasVector {
+        if use_kzg_da { &self.blob_cost } else { &self.gas_cost }
+    }
+}
+
 // TODO: This (along with the Serialize impl) is implemented in pub(crate) scope in the VM (named
 //   serde_generic_map_impl); use it if and when it's public.
 fn builtin_map_from_string_map<'de, D: Deserializer<'de>>(
@@ -186,7 +201,7 @@ pub struct VersionedConstants {
     // Fee related.
     pub(crate) vm_resource_fee_cost: Arc<VmResourceCosts>,
     // Cost of allocating a storage cell.
-    pub allocation_cost: GasVector,
+    pub allocation_cost: AllocationCost,
 
     // Resources.
     os_resources: Arc<OsResources>,
