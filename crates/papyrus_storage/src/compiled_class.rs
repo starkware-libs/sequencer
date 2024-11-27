@@ -49,6 +49,7 @@ mod casm_test;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use papyrus_proc_macros::latency_histogram;
 use starknet_api::block::BlockNumber;
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::ClassHash;
 
 use crate::db::serialization::VersionZeroWrapper;
@@ -59,8 +60,8 @@ use crate::{FileHandlers, MarkerKind, MarkersTable, OffsetKind, StorageResult, S
 
 /// Interface for reading data related to the compiled classes.
 pub trait CasmStorageReader {
-    /// Returns the Cairo assembly of a class given its Sierra class hash.
-    fn get_casm(&self, class_hash: &ClassHash) -> StorageResult<Option<CasmContractClass>>;
+    /// Returns the Cairo assembly and the Sierra version of a class given its Sierra class hash.
+    fn get_compiled_contract_class(&self, class_hash: &ClassHash) -> StorageResult<Option<(CasmContractClass,SierraVersion)>>;
     /// The block marker is the first block number that doesn't exist yet.
     ///
     /// Note: If the last blocks don't contain any declared classes, the marker will point at the
@@ -78,8 +79,8 @@ where
     fn append_casm(self, class_hash: &ClassHash, casm: &CasmContractClass) -> StorageResult<Self>;
 }
 
-impl<Mode: TransactionKind> CasmStorageReader for StorageTxn<'_, Mode> {
-    fn get_casm(&self, class_hash: &ClassHash) -> StorageResult<Option<CasmContractClass>> {
+impl<'env, Mode: TransactionKind> CasmStorageReader for StorageTxn<'env, Mode> {
+    fn get_compiled_contract_class(&self, class_hash: &ClassHash) -> StorageResult<Option<(CasmContractClass,SierraVersion)>> {
         let casm_table = self.open_table(&self.tables.casms)?;
         let casm_location = casm_table.get(&self.txn, class_hash)?;
         casm_location.map(|location| self.file_handlers.get_casm_unchecked(location)).transpose()

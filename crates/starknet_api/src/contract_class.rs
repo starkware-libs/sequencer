@@ -1,10 +1,8 @@
-use std::fmt::Display;
-use std::str::FromStr;
-
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use derive_more::Deref;
 use semver::Version;
 use serde::{Deserialize, Serialize};
+use starknet_types_core::felt::Felt;
 
 use crate::core::CompiledClassHash;
 use crate::deprecated_contract_class::ContractClass as DeprecatedContractClass;
@@ -47,80 +45,7 @@ impl ContractClass {
         }
     }
 }
-
-#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
-pub struct SierraVersion(Version);
-
-impl SierraVersion {
-    pub fn new(major: u64, minor: u64, patch: u64) -> Self {
-        Self(Version::new(major, minor, patch))
-    }
-
-    /// Version of deprecated contract class.
-    pub fn zero() -> Self {
-        Self(Version::new(0, 0, 0))
-    }
-
-    // TODO(Aviv): Implement logic to fetch the latest version dynamically from Cargo.toml and write
-    // tests to ensure that it matches the value returned by this function.
-    pub fn latest() -> Self {
-        Self::new(2, 8, 4)
-    }
-
-    /// Converts a sierra program to a SierraVersion.
-    /// The sierra program is a list of felts.
-    /// The first 3 felts are the major, minor and patch version.
-    /// The rest of the felts are ignored.
-    pub fn extract_from_program<F>(sierra_program: &[F]) -> Result<Self, StarknetApiError>
-    // TODO(Aviv): Refactor the implementation to remove generic handling once we standardize to a
-    // single type of Felt.
-    where
-        F: TryInto<u64> + Display + Clone,
-        <F as TryInto<u64>>::Error: std::fmt::Display,
-    {
-        if sierra_program.len() < 3 {
-            return Err(StarknetApiError::ParseSierraVersionError(
-                "Sierra program length must be at least 3 Felts.".to_string(),
-            ));
-        }
-
-        let version_components: Vec<u64> = sierra_program
-            .iter()
-            .take(3)
-            .enumerate()
-            .map(|(index, felt)| {
-                felt.clone().try_into().map_err(|err| {
-                    StarknetApiError::ParseSierraVersionError(format!(
-                        "Failed to parse Sierra program to Sierra version. Index: {}, Felt: {}, \
-                         Error: {}",
-                        index, felt, err
-                    ))
-                })
-            })
-            .collect::<Result<_, _>>()?;
-
-        Ok(Self::new(version_components[0], version_components[1], version_components[2]))
-    }
-}
-
-impl Default for SierraVersion {
-    fn default() -> Self {
-        Self::latest()
-    }
-}
-
-impl FromStr for SierraVersion {
-    type Err = StarknetApiError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Self(
-            Version::parse(s)
-                .map_err(|_| StarknetApiError::ParseSierraVersionError(s.to_string()))?,
-        ))
-    }
-}
-
-/// All relevant information about a declared contract class, including the compiled contract class
+/// All relevant information about a declared contract class, including the compiled class
 /// and other parameters derived from the original declare transaction required for billing.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 // TODO(Ayelet,10/02/2024): Change to bytes.

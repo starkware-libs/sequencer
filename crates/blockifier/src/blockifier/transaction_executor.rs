@@ -157,12 +157,12 @@ impl<S: StateReader> TransactionExecutor<S> {
             .visited_pcs
             .iter()
             .map(|(class_hash, class_visited_pcs)| -> TransactionExecutorResult<_> {
-                let contract_class = self
+                let (contract_class,_) = self
                     .block_state
                     .as_ref()
                     .expect(BLOCK_STATE_ACCESS_ERR)
-                    .get_compiled_class(*class_hash)?;
-                Ok((*class_hash, contract_class.get_visited_segments(class_visited_pcs)?))
+                    .get_compiled_contract_class(*class_hash)?;
+                 Ok((*class_hash, contract_class.get_visited_segments(class_visited_pcs)?))
             })
             .collect::<TransactionExecutorResult<_>>()?;
 

@@ -197,7 +197,10 @@ impl<S: State> Executable<S> for DeclareTransaction {
                     // We allow redeclaration of the class for backward compatibility.
                     // In the past, we allowed redeclaration of Cairo 0 contracts since there was
                     // no class commitment (so no need to check if the class is already declared).
-                    state.set_contract_class(class_hash, self.contract_class().try_into()?)?;
+                    state.set_compiled_contract_class(
+                        class_hash,
+                        (self.contract_class().try_into()?, self.class_info.sierra_version.clone()),
+                    )?;
                 }
             }
             starknet_api::transaction::DeclareTransaction::V2(DeclareTransactionV2 {
@@ -401,10 +404,13 @@ fn try_declare<S: State>(
     class_hash: ClassHash,
     compiled_class_hash: Option<CompiledClassHash>,
 ) -> TransactionExecutionResult<()> {
-    match state.get_compiled_class(class_hash) {
+    match state.get_compiled_contract_class(class_hash) {
         Err(StateError::UndeclaredClassHash(_)) => {
             // Class is undeclared; declare it.
-            state.set_contract_class(class_hash, tx.contract_class().try_into()?)?;
+            state.set_compiled_contract_class(
+                class_hash,
+                (tx.contract_class().try_into()?, tx.class_info.sierra_version.clone()),
+            )?;
             if let Some(compiled_class_hash) = compiled_class_hash {
                 state.set_compiled_class_hash(class_hash, compiled_class_hash)?;
             }

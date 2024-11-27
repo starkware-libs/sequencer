@@ -18,6 +18,7 @@ use integer_encoding::*;
 use num_bigint::BigUint;
 use parity_scale_codec::{Decode, Encode};
 use primitive_types::H160;
+use serde::Serialize;
 use starknet_api::block::{
     BlockHash,
     BlockNumber,
@@ -28,7 +29,7 @@ use starknet_api::block::{
     GasPricePerToken,
     StarknetVersion,
 };
-use starknet_api::contract_class::EntryPointType;
+use starknet_api::contract_class::{EntryPointType, SierraVersion};
 use starknet_api::core::{
     ClassHash,
     CompiledClassHash,
@@ -1050,16 +1051,17 @@ impl<TYPE: Default> StorageSerde for FunctionAbiEntry<TYPE> {
     }
 }
 
-impl StorageSerde for CasmContractClass {
+impl StorageSerde for (CasmContractClass, SierraVersion) {
     fn serialize_into(&self, res: &mut impl std::io::Write) -> Result<(), StorageSerdeError> {
         let mut to_compress: Vec<u8> = Vec::new();
-        self.prime.serialize_into(&mut to_compress)?;
-        self.compiler_version.serialize_into(&mut to_compress)?;
-        self.bytecode.serialize_into(&mut to_compress)?;
-        self.bytecode_segment_lengths.serialize_into(&mut to_compress)?;
-        self.hints.serialize_into(&mut to_compress)?;
-        self.pythonic_hints.serialize_into(&mut to_compress)?;
-        self.entry_points_by_type.serialize_into(&mut to_compress)?;
+        self.0.prime.serialize_into(&mut to_compress)?;
+        self.0.compiler_version.serialize_into(&mut to_compress)?;
+        self.0.bytecode.serialize_into(&mut to_compress)?;
+        self.0.bytecode_segment_lengths.serialize_into(&mut to_compress)?;
+        self.0.hints.serialize_into(&mut to_compress)?;
+        self.0.pythonic_hints.serialize_into(&mut to_compress)?;
+        self.0.entry_points_by_type.serialize_into(&mut to_compress)?;
+        self.1.serialize(&mut to_compress)?;
         if to_compress.len() > crate::compression_utils::MAX_DECOMPRESSED_SIZE {
             warn!(
                 "CasmContractClass serialization size is too large and will lead to \

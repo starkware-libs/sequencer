@@ -279,7 +279,10 @@ pub fn write_block_reexecution_data_to_file(
     let block_state = reexecute_and_verify_correctness(consecutive_state_readers).unwrap();
     let serializable_data_prev_block = SerializableDataPrevBlock {
         state_maps: block_state.get_initial_reads().unwrap().into(),
-        contract_class_mapping: block_state.state.get_contract_class_mapping_dumper().unwrap(),
+        contract_class_mapping: block_state
+            .state
+            .get_compiled_contract_class_mapping_dumper()
+            .unwrap(),
     };
 
     // Write the reexecution data to a json file.

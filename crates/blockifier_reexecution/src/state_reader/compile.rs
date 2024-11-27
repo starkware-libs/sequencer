@@ -5,6 +5,7 @@
 use std::collections::HashMap;
 use std::io::{self, Read};
 
+use blockifier::execution::contract_class::VersionedRunnableCompiledClass;
 use blockifier::state::state_api::StateResult;
 use cairo_lang_starknet_classes::contract_class::ContractEntryPoints;
 use cairo_lang_utils::bigint::BigUintAsHex;
@@ -18,6 +19,7 @@ use starknet_api::deprecated_contract_class::{
     EntryPointV0,
     Program,
 };
+use starknet_api::felt;
 use starknet_api::hash::StarkHash;
 use starknet_core::types::{
     CompressedLegacyContractClass,
@@ -73,11 +75,14 @@ pub fn decode_reader(bytes: Vec<u8>) -> io::Result<String> {
 }
 
 /// Compile a FlattenedSierraClass to a ContractClass V1 (casm) using cairo_lang_starknet_classes.
-pub fn sierra_to_contact_class_v1(sierra: FlattenedSierraClass) -> StateResult<ContractClass> {
+pub fn sierra_to_compiled_contact_class_v1(sierra: FlattenedSierraClass) -> StateResult<VersionedRunnableCompiledClass> {
     let middle_sierra: MiddleSierraContractClass = {
         let v = serde_json::to_value(sierra).map_err(serde_err_to_state_err);
         serde_json::from_value(v?).map_err(serde_err_to_state_err)?
     };
+
+    let sierra_version_vector: Vec<Felt> = middle_sierra.sierra_program.iter.take(3).map(|x| felt!(x).unwrap()).collect();
+    let sierra_version = SierraVersion::try_from(&sierra_version_vector).unwrap();
     let sierra = cairo_lang_starknet_classes::contract_class::ContractClass {
         sierra_program: middle_sierra.sierra_program,
         contract_class_version: middle_sierra.contract_class_version,
@@ -85,6 +90,8 @@ pub fn sierra_to_contact_class_v1(sierra: FlattenedSierraClass) -> StateResult<C
         sierra_program_debug_info: None,
         abi: None,
     };
+
+
 
     let casm =
         cairo_lang_starknet_classes::casm_contract_class::CasmContractClass::from_contract_class(
@@ -94,7 +101,7 @@ pub fn sierra_to_contact_class_v1(sierra: FlattenedSierraClass) -> StateResult<C
         )
         // TODO(Aviv): Reconsider the unwrap.
         .unwrap();
-    Ok(ContractClass::V1(casm))
+    Ok((ContractClass::V1(casm), sierra_version))
 }
 
 /// Compile a CompressedLegacyContractClass to a ContractClass V0 using cairo_lang_starknet_classes.

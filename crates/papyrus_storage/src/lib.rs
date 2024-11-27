@@ -123,6 +123,7 @@ use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_proc_macros::latency_histogram;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockNumber, BlockSignature, StarknetVersion};
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{SierraContractClass, StateNumber, StorageKey, ThinStateDiff};
@@ -667,7 +668,7 @@ pub(crate) type MarkersTable<'env> =
 struct FileHandlers<Mode: TransactionKind> {
     thin_state_diff: FileHandler<VersionZeroWrapper<ThinStateDiff>, Mode>,
     contract_class: FileHandler<VersionZeroWrapper<SierraContractClass>, Mode>,
-    casm: FileHandler<VersionZeroWrapper<CasmContractClass>, Mode>,
+    compiled_contract_class: FileHandler<VersionZeroWrapper<(CasmContractClass, SierraVersion)>, Mode>,
     deprecated_contract_class: FileHandler<VersionZeroWrapper<DeprecatedContractClass>, Mode>,
     transaction_output: FileHandler<VersionZeroWrapper<TransactionOutput>, Mode>,
     transaction: FileHandler<VersionZeroWrapper<Transaction>, Mode>,
@@ -755,7 +756,7 @@ impl<Mode: TransactionKind> FileHandlers<Mode> {
     }
 
     // Returns the CASM at the given location or an error in case it doesn't exist.
-    fn get_casm_unchecked(&self, location: LocationInFile) -> StorageResult<CasmContractClass> {
+    fn get_compiled_contract_class_unchecked(&self, location: LocationInFile) -> StorageResult<(CasmContractClass,SierraVersion)> {
         self.casm.get(location)?.ok_or(StorageError::DBInconsistency {
             msg: format!("CasmContractClass at location {:?} not found.", location),
         })

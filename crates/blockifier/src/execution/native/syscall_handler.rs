@@ -300,7 +300,7 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
             .map_err(|err| self.handle_error(remaining_gas, err))?;
         Ok(())
     }
-
+    
     fn library_call(
         &mut self,
         class_hash: Felt,

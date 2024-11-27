@@ -21,7 +21,7 @@ use itertools::Itertools;
 use semver::Version;
 use serde::de::Error as DeserializationError;
 use serde::{Deserialize, Deserializer, Serialize};
-use starknet_api::contract_class::{ContractClass, EntryPointType};
+use starknet_api::contract_class::{ContractClass, EntryPointType, SierraVersion};
 use starknet_api::core::EntryPointSelector;
 use starknet_api::deprecated_contract_class::{
     ContractClass as DeprecatedContractClass,
@@ -67,6 +67,8 @@ pub enum RunnableCompiledClass {
     #[cfg(feature = "cairo_native")]
     V1Native(NativeCompiledClassV1),
 }
+
+pub type VersionedRunnableCompiledClass = (RunnableCompiledClass, SierraVersion);
 
 impl TryFrom<ContractClass> for RunnableCompiledClass {
     type Error = ProgramError;

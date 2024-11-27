@@ -125,7 +125,7 @@ impl StateReader for TestStateReader {
 
     /// Returns the contract class of the given class hash.
     /// Compile the contract class if it is Sierra.
-    fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
+    fn get_compiled_contract_class(&self, class_hash: ClassHash) -> StateResult<VersionedRunnableCompiledClass> {
         let contract_class =
             retry_request!(self.retry_config, || self.get_contract_class(&class_hash))?;
 

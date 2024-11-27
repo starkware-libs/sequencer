@@ -163,7 +163,7 @@ fn read_state() {
     assert_eq!(nonce_after_block_0, Nonce::default());
     let class_hash_after_block_0 = state_reader0.get_class_hash_at(address0).unwrap();
     assert_eq!(class_hash_after_block_0, ClassHash::default());
-    let compiled_contract_class_after_block_0 = state_reader0.get_compiled_class(class_hash0);
+    let (compiled_contract_class_after_block_0, _) = state_reader0.get_compiled_contract_class(class_hash0);
     assert_matches!(
         compiled_contract_class_after_block_0, Err(StateError::UndeclaredClassHash(class_hash))
         if class_hash == class_hash0
@@ -184,12 +184,12 @@ fn read_state() {
     let class_hash_after_block_1 = state_reader1.get_class_hash_at(address0).unwrap();
     assert_eq!(class_hash_after_block_1, class_hash0);
     let compiled_contract_class_after_block_1 =
-        state_reader1.get_compiled_class(class_hash0).unwrap();
+        state_reader1.get_compiled_contract_class(class_hash0).unwrap();
     assert_eq!(compiled_contract_class_after_block_1, blockifier_casm0);
 
     // Test that an error is returned if we try to get a missing casm, and the field
     // `missing_compiled_class` is set to the missing casm's hash.
-    state_reader1.get_compiled_class(class_hash5).unwrap_err();
+    state_reader1.get_compiled_contract_class(class_hash5).unwrap_err();
     assert_eq!(state_reader1.missing_compiled_class.get().unwrap(), class_hash5);
 
     let state_number2 = StateNumber::unchecked_right_after_block(BlockNumber(2));

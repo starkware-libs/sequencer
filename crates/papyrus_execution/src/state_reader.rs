@@ -8,6 +8,7 @@ use blockifier::execution::contract_class::{
     CompiledClassV0,
     CompiledClassV1,
     RunnableCompiledClass,
+    VersionedRunnableCompiledClass,
 };
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
@@ -15,6 +16,7 @@ use papyrus_common::pending_classes::{ApiContractClass, PendingClassesTrait};
 use papyrus_common::state::DeclaredClassHashEntry;
 use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::{StorageError, StorageReader};
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::{StateNumber, StorageKey};
 use starknet_types_core::felt::Felt;
@@ -75,14 +77,20 @@ impl BlockifierStateReader for ExecutionStateReader {
         .unwrap_or_default())
     }
 
-    fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
-        if let Some(pending_casm) = self
+    fn get_compiled_contract_class(
+        &self,
+        class_hash: ClassHash,
+    ) -> StateResult<VersionedRunnableCompiledClass> {
+        if let Some((pending_casm, sierra_version)) = self
             .maybe_pending_data
             .as_ref()
-            .and_then(|pending_data| pending_data.classes.get_compiled_class(class_hash))
+            .and_then(|pending_data| pending_data.classes.get_compiled_contract_class(class_hash))
         {
-            return Ok(RunnableCompiledClass::V1(
-                CompiledClassV1::try_from(pending_casm).map_err(StateError::ProgramError)?,
+            return Ok((
+                RunnableCompiledClass::V1(
+                    CompiledClassV1::try_from(pending_casm).map_err(StateError::ProgramError)?,
+                ),
+                sierra_version,
             ));
         }
         if let Some(ApiContractClass::DeprecatedContractClass(pending_deprecated_class)) = self
@@ -90,9 +98,12 @@ impl BlockifierStateReader for ExecutionStateReader {
             .as_ref()
             .and_then(|pending_data| pending_data.classes.get_class(class_hash))
         {
-            return Ok(RunnableCompiledClass::V0(
-                CompiledClassV0::try_from(pending_deprecated_class)
-                    .map_err(StateError::ProgramError)?,
+            return Ok((
+                RunnableCompiledClass::V0(
+                    CompiledClassV0::try_from(pending_deprecated_class)
+                        .map_err(StateError::ProgramError)?,
+                ),
+                SierraVersion::zero(),
             ));
         }
         match get_contract_class(

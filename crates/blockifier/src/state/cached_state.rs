@@ -8,7 +8,7 @@ use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
 use crate::context::TransactionContext;
-use crate::execution::contract_class::RunnableCompiledClass;
+use crate::execution::contract_class::{RunnableCompiledClass, VersionedRunnableCompiledClass};
 use crate::state::errors::StateError;
 use crate::state::state_api::{State, StateReader, StateResult, UpdatableState};
 use crate::transaction::objects::TransactionExecutionInfo;
@@ -18,7 +18,7 @@ use crate::utils::{strict_subtract_mappings, subtract_mappings};
 #[path = "cached_state_test.rs"]
 mod test;
 
-pub type ContractClassMapping = HashMap<ClassHash, RunnableCompiledClass>;
+pub type ContractClassMapping = HashMap<ClassHash, VersionedRunnableCompiledClass>;
 
 /// Caches read and write requests.
 ///
@@ -173,14 +173,17 @@ impl<S: StateReader> StateReader for CachedState<S> {
         Ok(*class_hash)
     }
 
-    fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
+    fn get_compiled_contract_class(
+        &self,
+        class_hash: ClassHash,
+    ) -> StateResult<VersionedRunnableCompiledClass> {
         let mut cache = self.cache.borrow_mut();
         let class_hash_to_class = &mut *self.class_hash_to_class.borrow_mut();
 
         if let std::collections::hash_map::Entry::Vacant(vacant_entry) =
             class_hash_to_class.entry(class_hash)
         {
-            match self.state.get_compiled_class(class_hash) {
+            match self.state.get_compiled_contract_class(class_hash) {
                 Err(StateError::UndeclaredClassHash(class_hash)) => {
                     cache.set_declared_contract_initial_value(class_hash, false);
                     cache.set_compiled_class_hash_initial_value(
@@ -253,10 +256,10 @@ impl<S: StateReader> State for CachedState<S> {
         Ok(())
     }
 
-    fn set_contract_class(
+    fn set_compiled_contract_class(
         &mut self,
         class_hash: ClassHash,
-        contract_class: RunnableCompiledClass,
+        contract_class: VersionedRunnableCompiledClass,
     ) -> StateResult<()> {
         self.class_hash_to_class.get_mut().insert(class_hash, contract_class);
         let mut cache = self.cache.borrow_mut();
@@ -524,8 +527,11 @@ impl<S: StateReader + ?Sized> StateReader for MutRefState<'_, S> {
         self.0.get_class_hash_at(contract_address)
     }
 
-    fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
-        self.0.get_compiled_class(class_hash)
+    fn get_compiled_contract_class(
+        &self,
+        class_hash: ClassHash,
+    ) -> StateResult<VersionedRunnableCompiledClass> {
+        self.0.get_compiled_contract_class(class_hash)
     }
 
     fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
