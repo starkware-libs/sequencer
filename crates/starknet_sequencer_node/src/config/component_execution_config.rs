@@ -133,6 +133,15 @@ impl ComponentExecutionConfig {
             remote_server_config: None,
         }
     }
+
+    pub fn state_sync_default_config() -> Self {
+        Self {
+            execution_mode: ComponentExecutionMode::LocalExecutionWithRemoteDisabled,
+            local_server_config: Some(LocalServerConfig::default()),
+            remote_client_config: None,
+            remote_server_config: None,
+        }
+    }
 }
 
 pub fn validate_single_component_config(
