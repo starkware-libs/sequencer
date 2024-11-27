@@ -139,13 +139,10 @@ impl Batcher {
             self.config.max_l1_handler_txs_per_block_proposal,
         );
 
-        // A channel to allow aborting the block building task.
-        let (abort_signal_sender, abort_signal_receiver) = tokio::sync::oneshot::channel();
-
         // A channel to receive the transactions included in the proposed block.
         let (output_tx_sender, output_tx_receiver) = tokio::sync::mpsc::unbounded_channel();
 
-        let block_builder = self
+        let (block_builder, abort_signal_sender) = self
             .block_builder_factory
             .create_block_builder(
                 BlockMetadata {
@@ -158,7 +155,6 @@ impl Batcher {
                 },
                 Box::new(tx_provider),
                 Some(output_tx_sender),
-                abort_signal_receiver,
             )
             .map_err(|_| BatcherError::InternalError)?;
 
@@ -188,10 +184,7 @@ impl Batcher {
             l1_provider_client: Arc::new(DummyL1ProviderClient),
         };
 
-        // A channel to allow aborting the block building task.
-        let (abort_signal_sender, abort_signal_receiver) = tokio::sync::oneshot::channel();
-
-        let block_builder = self
+        let (block_builder, abort_signal_sender) = self
             .block_builder_factory
             .create_block_builder(
                 BlockMetadata {
@@ -204,7 +197,6 @@ impl Batcher {
                 },
                 Box::new(tx_provider),
                 None,
-                abort_signal_receiver,
             )
             .map_err(|_| BatcherError::InternalError)?;
 
