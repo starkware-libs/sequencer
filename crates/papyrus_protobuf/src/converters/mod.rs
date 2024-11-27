@@ -27,10 +27,6 @@ pub enum ProtobufConversionError {
         type_description: &'static str,
         value_as_str: String,
         expected: &'static str,
-<<<<<<< HEAD
-=======
-        got: &'static str,
->>>>>>> 93fd11f32 (feat: allow a streamed proposal channel on top of existing one)
     },
     #[error(transparent)]
     DecodeError(#[from] DecodeError),
