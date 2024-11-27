@@ -148,8 +148,8 @@ impl ConsensusContext for PapyrusConsensusContext {
         &mut self,
         height: BlockNumber,
         _timeout: Duration,
-        mut content: mpsc::Receiver<Transaction>,
-    ) -> oneshot::Receiver<ProposalContentId> {
+        mut content: mpsc::Receiver<ProposalPart>,
+    ) -> oneshot::Receiver<(ProposalContentId, ProposalContentId)> {
         let (fin_sender, fin_receiver) = oneshot::channel();
 
         let storage_reader = self.storage_reader.clone();
@@ -169,18 +169,35 @@ impl ConsensusContext for PapyrusConsensusContext {
                         panic!("Block in {height} was not found in storage despite waiting for it")
                     });
 
-                for tx in transactions.iter() {
-                    let received_tx = content
-                        .next()
-                        .await
-                        .unwrap_or_else(|| panic!("Not received transaction equals to {tx:?}"));
+                // First gather all the non-fin transactions.
+                let mut content_transactions: Vec<Transaction> = Vec::new();
+                let received_block_hash = loop {
+                    match content.next().await {
+                        Some(ProposalPart::Init(_)) => {
+                            panic!("Should not have ProposalInit at this point");
+                        }
+                        Some(ProposalPart::Transactions(batch)) => {
+                            for tx in batch.transactions {
+                                content_transactions.push(tx);
+                            }
+                        }
+                        Some(ProposalPart::Fin(fin)) => {
+                            break fin.proposal_content_id;
+                        }
+                        None => {
+                            panic!("Did not receive a Fin message");
+                        }
+                    }
+                };
+
+                // Check each transaction matches the transactions in the storage.
+                for tx in transactions.iter().rev() {
+                    let received_tx = content_transactions
+                        .pop()
+                        .expect("Received less transactions than expected");
                     if tx != &received_tx {
                         panic!("Transactions are not equal. In storage: {tx:?}, : {received_tx:?}");
                     }
-                }
-
-                if content.next().await.is_some() {
-                    panic!("Received more transactions than expected");
                 }
 
                 let block_hash = txn
@@ -199,7 +216,7 @@ impl ConsensusContext for PapyrusConsensusContext {
                 // Done after inserting the proposal into the map to avoid race conditions between
                 // insertion and calls to `repropose`.
                 // This can happen as a result of sync interrupting `run_height`.
-                fin_sender.send(block_hash).unwrap_or_else(|_| {
+                fin_sender.send((block_hash, received_block_hash)).unwrap_or_else(|_| {
                     warn!("Failed to send block to consensus. height={height}");
                 })
             }
