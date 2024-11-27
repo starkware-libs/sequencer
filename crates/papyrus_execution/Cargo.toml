@@ -22,6 +22,7 @@ papyrus_config.workspace = true
 papyrus_storage.workspace = true
 rand = { workspace = true, optional = true }
 rand_chacha = { workspace = true, optional = true }
+semver.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
 starknet_api.workspace = true

@@ -3,7 +3,7 @@ use blockifier::test_utils::MAX_FEE;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use papyrus_execution::DEPRECATED_CONTRACT_SIERRA_SIZE;
 use starknet_api::block::{BlockHash, BlockNumber};
-use starknet_api::contract_class::ClassInfo;
+use starknet_api::contract_class::{ClassInfo, SierraVersion};
 use starknet_api::core::ClassHash;
 use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_core::types::ContractClass as StarknetContractClass;
@@ -20,7 +20,21 @@ pub trait ReexecutionStateReader {
             StarknetContractClass::Sierra(sierra) => {
                 let abi_length = sierra.abi.len();
                 let sierra_length = sierra.sierra_program.len();
-                Ok(ClassInfo::new(&sierra_to_contact_class_v1(sierra)?, sierra_length, abi_length)?)
+
+                // Extract the version from the sierra program.
+                let (minor, major, path): (u64, u64, u64) = (
+                    sierra.sierra_program[0].try_into().unwrap(),
+                    sierra.sierra_program[1].try_into().unwrap(),
+                    sierra.sierra_program[2].try_into().unwrap(),
+                );
+                let sierra_version: SierraVersion = SierraVersion::new(major, minor, path);
+
+                Ok(ClassInfo::new(
+                    &sierra_to_contact_class_v1(sierra)?,
+                    sierra_length,
+                    abi_length,
+                    sierra_version,
+                )?)
             }
             StarknetContractClass::Legacy(legacy) => {
                 let abi_length =
@@ -29,6 +43,7 @@ pub trait ReexecutionStateReader {
                     &legacy_to_contract_class_v0(legacy)?,
                     DEPRECATED_CONTRACT_SIERRA_SIZE,
                     abi_length,
+                    SierraVersion::zero(),
                 )?)
             }
         }
