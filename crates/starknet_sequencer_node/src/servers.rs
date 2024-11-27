@@ -20,6 +20,8 @@ use starknet_sequencer_infra::component_server::{
     WrapperServer,
 };
 use starknet_sequencer_infra::errors::ComponentServerError;
+use starknet_state_sync::runner::StateSyncRunnerServer;
+use starknet_state_sync::{LocalStateSyncServer, RemoteStateSyncServer};
 use tracing::error;
 
 use crate::clients::SequencerNodeClients;
@@ -34,6 +36,7 @@ struct LocalServers {
     pub(crate) gateway: Option<Box<LocalGatewayServer>>,
     pub(crate) mempool: Option<Box<LocalMempoolServer>>,
     pub(crate) mempool_p2p_propagator: Option<Box<LocalMempoolP2pPropagatorServer>>,
+    pub(crate) state_sync: Option<Box<LocalStateSyncServer>>,
 }
 
 // Component servers that wrap a component without a server.
@@ -42,6 +45,7 @@ struct WrapperServers {
     pub(crate) http_server: Option<Box<HttpServer>>,
     pub(crate) monitoring_endpoint: Option<Box<MonitoringEndpointServer>>,
     pub(crate) mempool_p2p_runner: Option<Box<MempoolP2pRunnerServer>>,
+    pub(crate) state_sync_runner: Option<Box<StateSyncRunnerServer>>,
 }
 
 // Component servers that can run remotely.
@@ -51,6 +55,7 @@ pub struct RemoteServers {
     pub gateway: Option<Box<RemoteGatewayServer>>,
     pub mempool: Option<Box<RemoteMempoolServer>>,
     pub mempool_p2p_propagator: Option<Box<RemoteMempoolP2pPropagatorServer>>,
+    pub state_sync: Option<Box<RemoteStateSyncServer>>,
 }
 
 pub struct SequencerNodeServers {
@@ -232,11 +237,18 @@ fn create_local_servers(
         components.mempool_p2p_propagator,
         communication.take_mempool_p2p_propagator_rx()
     );
+    let state_sync_server = create_local_server!(
+        &config.components.state_sync.execution_mode,
+        components.state_sync,
+        communication.take_state_sync_rx()
+    );
+
     LocalServers {
         batcher: batcher_server,
         gateway: gateway_server,
         mempool: mempool_server,
         mempool_p2p_propagator: mempool_p2p_propagator_server,
+        state_sync: state_sync_server,
     }
 }
 
@@ -271,11 +283,20 @@ pub fn create_remote_servers(
         mempool_p2p_propagator_client,
         config.components.mempool_p2p.remote_server_config
     );
+
+    let state_sync_client = clients.get_state_sync_local_client();
+    let state_sync_server = create_remote_server!(
+        &config.components.state_sync.execution_mode,
+        state_sync_client,
+        config.components.state_sync.remote_server_config
+    );
+
     RemoteServers {
         batcher: batcher_server,
         gateway: gateway_server,
         mempool: mempool_server,
         mempool_p2p_propagator: mempool_p2p_propagator_server,
+        state_sync: state_sync_server,
     }
 }
 
@@ -301,11 +322,18 @@ fn create_wrapper_servers(
         &config.components.mempool_p2p.execution_mode,
         components.mempool_p2p_runner
     );
+
+    let state_sync_runner_server = create_wrapper_server!(
+        &config.components.state_sync.execution_mode,
+        components.state_sync_runner
+    );
+
     WrapperServers {
         consensus_manager: consensus_manager_server,
         http_server,
         monitoring_endpoint: monitoring_endpoint_server,
         mempool_p2p_runner: mempool_p2p_runner_server,
+        state_sync_runner: state_sync_runner_server,
     }
 }
 
