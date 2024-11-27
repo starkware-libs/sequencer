@@ -8,8 +8,7 @@ use super::*;
 
 /// Returns all JSON files in the resources directory (should be all versioned constants files).
 fn all_jsons_in_dir() -> Paths {
-    glob(format!("{}/resources/*.json", cargo_manifest_dir().unwrap().to_str().unwrap()).as_str())
-        .unwrap()
+    glob(format!("{}/resources/*.json", compile_time_cargo_manifest_dir!()).as_str()).unwrap()
 }
 
 #[test]

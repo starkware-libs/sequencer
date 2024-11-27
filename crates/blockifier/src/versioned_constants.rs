@@ -6,7 +6,7 @@ use std::{fs, io};
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use indexmap::{IndexMap, IndexSet};
-use infra_utils::path::cargo_manifest_dir;
+use infra_utils::compile_time_cargo_manifest_dir;
 use num_rational::Ratio;
 use num_traits::Inv;
 use papyrus_config::dumping::{ser_param, SerializeConfig};
@@ -95,7 +95,7 @@ macro_rules! define_versioned_constants {
         pub static VERSIONED_CONSTANTS_LATEST_JSON: LazyLock<String> = LazyLock::new(|| {
             let latest_variant = StarknetVersion::LATEST;
             let path_to_json: PathBuf = [
-                cargo_manifest_dir().expect("CARGO_MANIFEST_DIR should be defined."),
+                compile_time_cargo_manifest_dir!(),
                 "src".into(),
                 VersionedConstants::path_to_json(&latest_variant)
                     .expect("Latest variant should have a path to json.").into()

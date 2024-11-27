@@ -37,6 +37,7 @@ const Configuration = {
             'gateway',
             'helm',
             'infra',
+            'infra_utils',
             'JSON-RPC',
             'l1_provider',
             'load_test',

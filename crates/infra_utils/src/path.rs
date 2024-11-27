@@ -15,6 +15,14 @@ pub fn cargo_manifest_dir() -> Option<PathBuf> {
     PATH_TO_CARGO_MANIFEST_DIR.clone()
 }
 
+// TODO(Tsabary): find a stable way to get access to the current crate directory at compile time.
+#[macro_export]
+macro_rules! compile_time_cargo_manifest_dir {
+    () => {
+        env!("CARGO_MANIFEST_DIR")
+    };
+}
+
 // TODO(Tsabary/ Arni): consolidate with other get_absolute_path functions.
 /// Resolves a relative path from the project root directory and returns its absolute path.
 ///
