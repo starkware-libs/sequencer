@@ -679,14 +679,24 @@ impl StateChangesKeys {
     }
 }
 
+/// Holds the set of allocated storage keys.
+/// Ignores all but storage entry allocations - newly allocated contract addresses and
+/// class hashes are paid for separately.
 #[cfg_attr(any(feature = "testing", test), derive(Clone))]
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct AllocatedKeys(HashSet<StorageEntry>);
 
 impl AllocatedKeys {
+    /// Extends the set of allocated keys with the allocated_keys of the given state changes.
+    /// Removes storage keys that are set back to zero.
     pub fn update(&mut self, state_change: &StateChanges) {
         self.0.extend(&state_change.allocated_keys.0);
-        // TODO: Remove keys that are set back to zero.
+        // Remove keys that are set back to zero.
+        state_change.state_maps.storage.iter().for_each(|(k, v)| {
+            if v == &Felt::ZERO {
+                self.0.remove(k);
+            }
+        });
     }
 
     pub fn len(&self) -> usize {
@@ -697,14 +707,19 @@ impl AllocatedKeys {
         self.0.is_empty()
     }
 
-    /// Collect entries that turn zero -> nonzero.
+    /// Collects entries that turn zero -> nonzero.
     pub fn from_storage_diff(
-        _updated_storage: &HashMap<StorageEntry, Felt>,
-        _base_storage: &HashMap<StorageEntry, Felt>,
+        updated_storage: &HashMap<StorageEntry, Felt>,
+        base_storage: &HashMap<StorageEntry, Felt>,
     ) -> Self {
         Self(
-            HashSet::new(),
-            // TODO: Calculate the difference between the updated_storage and the base_storage.
+            updated_storage
+                .iter()
+                .filter_map(|(k, v)| {
+                    let base_value = base_storage.get(k).unwrap_or(&Felt::ZERO);
+                    if *v != Felt::ZERO && *base_value == Felt::ZERO { Some(*k) } else { None }
+                })
+                .collect(),
         )
     }
 }
