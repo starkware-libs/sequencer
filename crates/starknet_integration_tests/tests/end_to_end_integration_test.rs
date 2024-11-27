@@ -1,9 +1,5 @@
-use std::path::PathBuf;
-use std::process::Stdio;
 use std::time::Duration;
 
-use infra_utils::command::create_shell_command;
-use infra_utils::path::resolve_project_relative_path;
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use papyrus_execution::execution_utils::get_nonce_at;
 use papyrus_storage::state::StateStorageReader;
@@ -15,48 +11,14 @@ use starknet_api::state::StateNumber;
 use starknet_integration_tests::integration_test_setup::IntegrationTestSetup;
 use starknet_integration_tests::utils::{create_integration_test_tx_generator, send_account_txs};
 use starknet_sequencer_infra::trace_util::configure_tracing;
-use starknet_sequencer_node::test_utils::compilation::{compile_node_result, NODE_EXECUTABLE_PATH};
+use starknet_sequencer_node::test_utils::compilation::spawn_run_node;
 use starknet_types_core::felt::Felt;
-use tokio::process::Child;
-use tokio::task::{self, JoinHandle};
 use tokio::time::interval;
 use tracing::{error, info};
 
 #[fixture]
 fn tx_generator() -> MultiAccountTransactionGenerator {
     create_integration_test_tx_generator()
-}
-
-// TODO(Tsabary): Move to a suitable util location.
-async fn spawn_node_child_task(node_config_path: PathBuf) -> Child {
-    // TODO(Tsabary): Capture output to a log file, and present it in case of a failure.
-    info!("Compiling the node.");
-    compile_node_result().await.expect("Failed to compile the sequencer node.");
-    let node_executable = resolve_project_relative_path(NODE_EXECUTABLE_PATH)
-        .expect("Node executable should be available")
-        .to_string_lossy()
-        .to_string();
-
-    info!("Running the node from: {}", node_executable);
-    create_shell_command(node_executable.as_str())
-        .arg("--config_file")
-        .arg(node_config_path.to_str().unwrap())
-        .stderr(Stdio::inherit())
-        .stdout(Stdio::null())
-        .kill_on_drop(true) // Required for stopping the node when the handle is dropped.
-        .spawn()
-        .expect("Failed to spawn the sequencer node.")
-}
-
-async fn spawn_run_node(node_config_path: PathBuf) -> JoinHandle<()> {
-    task::spawn(async move {
-        info!("Running the node from its spawned task.");
-        let _node_run_result = spawn_node_child_task(node_config_path).
-            await. // awaits the completion of spawn_node_child_task.
-            wait(). // runs the node until completion -- should be running indefinitely.
-            await; // awaits the completion of the node.
-        panic!("Node stopped unexpectedly.");
-    })
 }
 
 /// Reads the latest block number from the storage.
