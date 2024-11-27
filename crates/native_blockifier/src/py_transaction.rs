@@ -164,6 +164,7 @@ pub struct PyClassInfo {
     raw_contract_class: String,
     sierra_program_length: usize,
     abi_length: usize,
+    sierra_version: String,
 }
 
 impl PyClassInfo {
@@ -185,6 +186,7 @@ impl PyClassInfo {
             &contract_class,
             py_class_info.sierra_program_length,
             py_class_info.abi_length,
+            py_class_info.sierra_version.parse()?,
         )?;
         Ok(class_info)
     }

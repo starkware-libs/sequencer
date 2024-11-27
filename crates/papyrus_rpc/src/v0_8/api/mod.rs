@@ -18,6 +18,7 @@ use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::StorageTxn;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHashAndNumber, BlockNumber};
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::{
     ContractClass as StarknetApiDeprecatedContractClass,
@@ -379,7 +380,7 @@ pub(crate) fn stored_txn_to_executable_txn(
                         value.class_hash
                     ))
                 })?;
-            let (sierra_program_length, abi_length) =
+            let (sierra_program_length, abi_length, sierra_version) =
                 get_class_lengths(storage_txn, state_number, value.class_hash)?;
             Ok(ExecutableTransactionInput::DeclareV2(
                 value,
@@ -387,6 +388,7 @@ pub(crate) fn stored_txn_to_executable_txn(
                 sierra_program_length,
                 abi_length,
                 false,
+                sierra_version,
             ))
         }
         starknet_api::transaction::Transaction::Declare(
@@ -401,7 +403,7 @@ pub(crate) fn stored_txn_to_executable_txn(
                         value.class_hash
                     ))
                 })?;
-            let (sierra_program_length, abi_length) =
+            let (sierra_program_length, abi_length, sierra_version) =
                 get_class_lengths(storage_txn, state_number, value.class_hash)?;
             Ok(ExecutableTransactionInput::DeclareV3(
                 value,
@@ -409,6 +411,7 @@ pub(crate) fn stored_txn_to_executable_txn(
                 sierra_program_length,
                 abi_length,
                 false,
+                sierra_version,
             ))
         }
         starknet_api::transaction::Transaction::Deploy(_) => {
@@ -453,9 +456,10 @@ fn get_class_lengths(
     storage_txn: &StorageTxn<'_, RO>,
     state_number: StateNumber,
     class_hash: ClassHash,
-) -> Result<(SierraSize, AbiSize), ErrorObjectOwned> {
+) -> Result<(SierraSize, AbiSize, SierraVersion), ErrorObjectOwned> {
     let state_number_after_block =
         StateNumber::unchecked_right_after_block(state_number.block_after());
+
     storage_txn
         .get_state_reader()
         .map_err(internal_server_error)?
@@ -464,7 +468,13 @@ fn get_class_lengths(
         .ok_or_else(|| {
             internal_server_error(format!("Missing deprecated class definition of {class_hash}."))
         })
-        .map(|contract_class| (contract_class.sierra_program.len(), contract_class.abi.len()))
+        .and_then(|contract_class| {
+            let sierra_program_len = contract_class.sierra_program.len();
+            let abi_len = contract_class.abi.len();
+            let sierra_program = SierraVersion::try_from(&contract_class.sierra_program)
+                .map_err(internal_server_error)?;
+            Ok((sierra_program_len, abi_len, sierra_program))
+        })
 }
 
 impl TryFrom<BroadcastedDeclareTransaction> for ExecutableTransactionInput {
