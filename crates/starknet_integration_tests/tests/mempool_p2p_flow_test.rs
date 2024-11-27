@@ -9,6 +9,7 @@ use papyrus_protobuf::mempool::RpcTransactionWrapper;
 use rstest::{fixture, rstest};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_http_server::config::HttpServerConfig;
+use starknet_http_server::test_utils::HttpTestClient;
 use starknet_integration_tests::state_reader::{spawn_test_rpc_state_reader, StorageTestSetup};
 use starknet_integration_tests::utils::{
     create_batcher_config,
@@ -18,7 +19,6 @@ use starknet_integration_tests::utils::{
     create_integration_test_tx_generator,
     run_integration_test_scenario,
     test_rpc_state_reader_config,
-    HttpTestClient,
 };
 use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_mempool_p2p::MEMPOOL_TOPIC;
