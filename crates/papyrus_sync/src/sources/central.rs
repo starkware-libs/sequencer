@@ -25,6 +25,7 @@ use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::{StorageError, StorageReader};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{Block, BlockHash, BlockHashAndNumber, BlockNumber, BlockSignature};
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, CompiledClassHash, SequencerPublicKey};
 use starknet_api::crypto::utils::Signature;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
@@ -133,7 +134,7 @@ pub struct GenericCentralSource<TStarknetClient: StarknetReader + Send + Sync> {
     pub storage_reader: StorageReader,
     pub state_update_stream_config: StateUpdateStreamConfig,
     pub(crate) class_cache: Arc<Mutex<LruCache<ClassHash, ApiContractClass>>>,
-    compiled_class_cache: Arc<Mutex<LruCache<ClassHash, CasmContractClass>>>,
+    versioned_compiled_class_cache: Arc<Mutex<LruCache<ClassHash, (CasmContractClass, SierraVersion)>>>,
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -195,7 +196,7 @@ pub trait CentralSourceTrait {
     async fn get_compiled_class(
         &self,
         class_hash: ClassHash,
-    ) -> Result<CasmContractClass, CentralError>;
+    ) -> Result<(CasmContractClass, SierraVersion), CentralError>;
 
     async fn get_sequencer_pub_key(&self) -> Result<SequencerPublicKey, CentralError>;
 }
@@ -205,7 +206,7 @@ pub(crate) type BlocksStream<'a> =
 type CentralStateUpdate =
     (BlockNumber, BlockHash, StateDiff, IndexMap<ClassHash, DeprecatedContractClass>);
 pub(crate) type StateUpdatesStream<'a> = BoxStream<'a, CentralResult<CentralStateUpdate>>;
-type CentralCompiledClass = (ClassHash, CompiledClassHash, CasmContractClass);
+type CentralCompiledClass = (ClassHash, CompiledClassHash, (CasmContractClass, SierraVersion));
 pub(crate) type CompiledClassesStream<'a> = BoxStream<'a, CentralResult<CentralCompiledClass>>;
 
 #[async_trait]
@@ -369,20 +370,20 @@ impl<TStarknetClient: StarknetReader + Send + Sync + 'static> CentralSourceTrait
     async fn get_compiled_class(
         &self,
         class_hash: ClassHash,
-    ) -> Result<CasmContractClass, CentralError> {
+    ) -> Result<(CasmContractClass, SierraVersion), CentralError> {
         {
-            let mut compiled_class_cache =
-                self.compiled_class_cache.lock().expect("Failed to lock class cache.");
-            if let Some(class) = compiled_class_cache.get(&class_hash) {
-                return Ok(class.clone());
+            let mut versioned_compiled_class_cache =
+                self.versioned_compiled_class_cache.lock().expect("Failed to lock class cache.");
+            if let Some(versioned_class) = versioned_compiled_class_cache.get(&class_hash) {
+                return Ok(versioned_class.clone());
             }
         }
         match self.starknet_client.compiled_class_by_hash(class_hash).await {
-            Ok(Some(compiled_class)) => {
-                let mut compiled_class_cache =
-                    self.compiled_class_cache.lock().expect("Failed to lock class cache.");
-                compiled_class_cache.put(class_hash, compiled_class.clone());
-                Ok(compiled_class)
+            Ok(Some(versioned_compiled_class)) => {
+                let mut versioned_compiled_class_cache =
+                    self.versioned_compiled_class_cache.lock().expect("Failed to lock class cache.");
+                versioned_compiled_class_cache.put(class_hash, versioned_compiled_class.clone());
+                Ok(versioned_compiled_class)
             }
             Ok(None) => Err(CentralError::CompiledClassNotFound { class_hash }),
             Err(err) => Err(CentralError::ClientError(Arc::new(err))),
@@ -464,7 +465,7 @@ impl CentralSource {
                 NonZeroUsize::new(config.class_cache_size)
                     .expect("class_cache_size should be a positive integer."),
             ))),
-            compiled_class_cache: Arc::from(Mutex::new(LruCache::new(
+            versioned_compiled_class_cache: Arc::from(Mutex::new(LruCache::new(
                 NonZeroUsize::new(config.class_cache_size)
                     .expect("class_cache_size should be a positive integer."),
             ))),

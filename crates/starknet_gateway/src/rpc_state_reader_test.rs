@@ -180,10 +180,11 @@ async fn test_get_compiled_class() {
     );
 
     let client = RpcStateReader::from_latest(&config);
-    let result = tokio::task::spawn_blocking(move || client.get_compiled_class(class_hash!("0x1")))
-        .await
-        .unwrap()
-        .unwrap();
+    let (result, _) =
+        tokio::task::spawn_blocking(move || client.get_compiled_contract_class(class_hash!("0x1")))
+            .await
+            .unwrap()
+            .unwrap();
     assert_eq!(result, RunnableCompiledClass::V1(expected_result.try_into().unwrap()));
     mock.assert_async().await;
 }

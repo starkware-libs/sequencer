@@ -24,6 +24,7 @@ use papyrus_storage::header::HeaderStorageWriter;
 use papyrus_storage::state::StateStorageWriter;
 use papyrus_storage::test_utils::get_test_storage;
 use starknet_api::block::{BlockBody, BlockHash, BlockHeader, BlockHeaderWithoutHash, BlockNumber};
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, CompiledClassHash, Nonce};
 use starknet_api::hash::StarkHash;
 use starknet_api::state::{SierraContractClass, StateNumber, ThinStateDiff};
@@ -48,6 +49,7 @@ fn read_state() {
     let storage_value1 = felt!(888_u128);
     // The class is not used in the execution, so it can be default.
     let class0 = SierraContractClass::default();
+    let sierra_version_0 = SierraVersion::extract_from_program(&class0.sierra_program).unwrap();
     let casm0 = get_test_casm();
     let blockifier_casm0 =
         RunnableCompiledClass::V1(CompiledClassV1::try_from(casm0.clone()).unwrap());
@@ -55,6 +57,7 @@ fn read_state() {
 
     let class_hash1 = ClassHash(1u128.into());
     let class1 = get_test_deprecated_contract_class();
+    let sierra_version_1 = SierraVersion::zero();
     let address1 = contract_address!(DEPRECATED_CONTRACT_ADDRESS);
     let nonce0 = Nonce(felt!(1_u128));
 
@@ -127,7 +130,7 @@ fn read_state() {
             &[(class_hash1, &class1)],
         )
         .unwrap()
-        .append_casm(&class_hash0, &casm0)
+        .append_versioned_casm(&class_hash0, &(&casm0, sierra_version_0.clone()))
         .unwrap()
         .append_header(
             BlockNumber(2),
@@ -163,9 +166,10 @@ fn read_state() {
     assert_eq!(nonce_after_block_0, Nonce::default());
     let class_hash_after_block_0 = state_reader0.get_class_hash_at(address0).unwrap();
     assert_eq!(class_hash_after_block_0, ClassHash::default());
-    let compiled_contract_class_after_block_0 = state_reader0.get_compiled_class(class_hash0);
+    let compiled_contract_class_after_block_0_result =
+        state_reader0.get_compiled_contract_class(class_hash0);
     assert_matches!(
-        compiled_contract_class_after_block_0, Err(StateError::UndeclaredClassHash(class_hash))
+        compiled_contract_class_after_block_0_result, Err(StateError::UndeclaredClassHash(class_hash))
         if class_hash == class_hash0
     );
     assert_eq!(state_reader0.get_compiled_class_hash(class_hash0).unwrap(), compiled_class_hash0);
@@ -183,13 +187,13 @@ fn read_state() {
     assert_eq!(nonce_after_block_1, nonce0);
     let class_hash_after_block_1 = state_reader1.get_class_hash_at(address0).unwrap();
     assert_eq!(class_hash_after_block_1, class_hash0);
-    let compiled_contract_class_after_block_1 =
-        state_reader1.get_compiled_class(class_hash0).unwrap();
+    let (compiled_contract_class_after_block_1, _) =
+        state_reader1.get_compiled_contract_class(class_hash0).unwrap();
     assert_eq!(compiled_contract_class_after_block_1, blockifier_casm0);
 
     // Test that an error is returned if we try to get a missing casm, and the field
     // `missing_compiled_class` is set to the missing casm's hash.
-    state_reader1.get_compiled_class(class_hash5).unwrap_err();
+    state_reader1.get_compiled_contract_class(class_hash5).unwrap_err();
     assert_eq!(state_reader1.missing_compiled_class.get().unwrap(), class_hash5);
 
     let state_number2 = StateNumber::unchecked_right_after_block(BlockNumber(2));
@@ -204,7 +208,7 @@ fn read_state() {
 
     // Test pending state diff
     let mut pending_classes = PendingClasses::default();
-    pending_classes.add_compiled_class(class_hash2, casm1);
+    pending_classes.add_compiled_contract_class(class_hash2, (casm1, sierra_version_1.clone()));
     pending_classes.add_class(class_hash3, ApiContractClass::ContractClass(class0));
     pending_classes
         .add_class(class_hash4, ApiContractClass::DeprecatedContractClass(class1.clone()));
@@ -233,14 +237,23 @@ fn read_state() {
     assert_eq!(state_reader2.get_compiled_class_hash(class_hash2).unwrap(), compiled_class_hash2);
     assert_eq!(state_reader2.get_nonce_at(address0).unwrap(), nonce0);
     assert_eq!(state_reader2.get_nonce_at(address2).unwrap(), nonce1);
-    assert_eq!(state_reader2.get_compiled_class(class_hash0).unwrap(), blockifier_casm0);
-    assert_eq!(state_reader2.get_compiled_class(class_hash2).unwrap(), blockifier_casm1);
+    assert_eq!(
+        state_reader2.get_compiled_contract_class(class_hash0).unwrap(),
+        (blockifier_casm0, sierra_version_0)
+    );
+    assert_eq!(
+        state_reader2.get_compiled_contract_class(class_hash2).unwrap(),
+        (blockifier_casm1, sierra_version_1)
+    );
     // Test that an error is returned if we only got the class without the casm.
-    state_reader2.get_compiled_class(class_hash3).unwrap_err();
+    state_reader2.get_compiled_contract_class(class_hash3).unwrap_err();
     // Test that if the class is deprecated it is returned.
     assert_eq!(
-        state_reader2.get_compiled_class(class_hash4).unwrap(),
-        RunnableCompiledClass::V0(CompiledClassV0::try_from(class1).unwrap())
+        state_reader2.get_compiled_contract_class(class_hash4).unwrap(),
+        (
+            RunnableCompiledClass::V0(CompiledClassV0::try_from(class1).unwrap()),
+            SierraVersion::zero()
+        )
     );
 
     // Test get_class_hash_at when the class is replaced.

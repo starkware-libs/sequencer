@@ -5,7 +5,10 @@ use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::TransactionExecutor;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::BlockContext;
-use blockifier::execution::contract_class::RunnableCompiledClass;
+use blockifier::execution::contract_class::{
+    RunnableCompiledClass,
+    VersionedRunnableCompiledClass,
+};
 use blockifier::state::cached_state::{CommitmentStateDiff, StateMaps};
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader, StateResult};
@@ -13,6 +16,7 @@ use blockifier::transaction::transaction_execution::Transaction as BlockifierTra
 use blockifier::versioned_constants::VersionedConstants;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockInfo, BlockNumber, StarknetVersion};
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::{Transaction, TransactionHash};
@@ -154,13 +158,22 @@ impl StateReader for OfflineStateReader {
         )?)
     }
 
-    fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
+    fn get_compiled_contract_class(
+        &self,
+        class_hash: ClassHash,
+    ) -> StateResult<VersionedRunnableCompiledClass> {
         match self.get_contract_class(&class_hash)? {
             StarknetContractClass::Sierra(sierra) => {
-                Ok(sierra_to_contact_class_v1(sierra).unwrap().try_into().unwrap())
+                let sierra_version =
+                    SierraVersion::extract_from_program(&sierra.sierra_program).unwrap();
+                let runnable_compiled_class =
+                    sierra_to_contact_class_v1(sierra).unwrap().try_into().unwrap();
+                Ok((runnable_compiled_class, sierra_version))
             }
             StarknetContractClass::Legacy(legacy) => {
-                Ok(legacy_to_contract_class_v0(legacy).unwrap().try_into().unwrap())
+                let runnable_compiled_class: RunnableCompiledClass =
+                    legacy_to_contract_class_v0(legacy).unwrap().try_into().unwrap();
+                Ok((runnable_compiled_class, SierraVersion::zero()))
             }
         }
     }

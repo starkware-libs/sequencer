@@ -18,6 +18,7 @@ use mockall::automock;
 use papyrus_common::pending_classes::ApiContractClass;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, SequencerPublicKey};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::transaction::TransactionHash;
@@ -93,7 +94,7 @@ pub trait StarknetReader {
     async fn compiled_class_by_hash(
         &self,
         class_hash: ClassHash,
-    ) -> ReaderClientResult<Option<CasmContractClass>>;
+    ) -> ReaderClientResult<Option<(CasmContractClass, SierraVersion)>>;
     /// Returns a [`starknet_client`][`StateUpdate`] corresponding to `block_number`.
     async fn state_update(
         &self,
@@ -276,7 +277,7 @@ impl StarknetReader for StarknetFeederGatewayClient {
     async fn compiled_class_by_hash(
         &self,
         class_hash: ClassHash,
-    ) -> ReaderClientResult<Option<CasmContractClass>> {
+    ) -> ReaderClientResult<Option<(CasmContractClass, SierraVersion)>> {
         debug!("Got compiled_class_by_hash {} from starknet server.", class_hash);
         // FIXME: Remove the following default CasmContractClass once integration environment gets
         // regenesissed.
@@ -302,15 +303,18 @@ impl StarknetReader for StarknetFeederGatewayClient {
         .contains(&class_hash)
         {
             debug!("Using default compiled class for class hash {}.", class_hash);
-            return Ok(Some(CasmContractClass {
-                prime: Default::default(),
-                compiler_version: String::default(),
-                bytecode: vec![],
-                bytecode_segment_lengths: None,
-                hints: vec![],
-                pythonic_hints: None,
-                entry_points_by_type: CasmContractEntryPoints::default(),
-            }));
+            return Ok(Some((
+                CasmContractClass {
+                    prime: Default::default(),
+                    compiler_version: String::default(),
+                    bytecode: vec![],
+                    bytecode_segment_lengths: None,
+                    hints: vec![],
+                    pythonic_hints: None,
+                    entry_points_by_type: CasmContractEntryPoints::default(),
+                },
+                SierraVersion::default(),
+            )));
         }
 
         let mut url = self.urls.get_compiled_class_by_class_hash.clone();

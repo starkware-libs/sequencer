@@ -52,6 +52,7 @@ use starknet_api::block::{
     GasPricePerToken,
     StarknetVersion,
 };
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{
     ClassHash,
     CompiledClassHash,
@@ -3705,7 +3706,7 @@ async fn get_compiled_class() {
             },
         )
         .unwrap()
-        .append_casm(&cairo1_class_hash, &cairo1_contract_class)
+        .append_versioned_casm(&cairo1_class_hash, &(&cairo1_contract_class, SierraVersion::default()))
         .unwrap()
         // Note: there is no need to write the cairo1 contract class here because the
         // declared_classes_table is not used in the rpc method.

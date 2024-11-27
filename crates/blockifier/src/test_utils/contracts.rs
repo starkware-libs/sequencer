@@ -1,7 +1,7 @@
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
-use starknet_api::contract_class::{ContractClass, EntryPointType};
+use starknet_api::contract_class::{ContractClass, EntryPointType, SierraVersion};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::deprecated_contract_class::{
     ContractClass as DeprecatedContractClass,
@@ -12,7 +12,7 @@ use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
-use crate::execution::contract_class::RunnableCompiledClass;
+use crate::execution::contract_class::{VersionedRunnableCompiledClass, RunnableCompiledClass};
 use crate::execution::entry_point::CallEntryPoint;
 #[cfg(feature = "cairo_native")]
 use crate::execution::native::contract_class::NativeCompiledClassV1;
@@ -185,6 +185,10 @@ impl FeatureContract {
         }
     }
 
+    pub fn get_sierra_version(&self) -> SierraVersion {
+        todo!("Aviv 24/11/2024: Implement this function")
+    }
+
     pub fn get_runnable_class(&self) -> RunnableCompiledClass {
         #[cfg(feature = "cairo_native")]
         if CairoVersion::Native == self.cairo_version() {
@@ -194,6 +198,10 @@ impl FeatureContract {
         }
 
         self.get_class().try_into().unwrap()
+    }
+
+    pub fn get_compiled_contract_class(&self) -> VersionedRunnableCompiledClass {
+        (self.get_runnable_class(), self.get_sierra_version())
     }
 
     pub fn get_raw_class(&self) -> String {

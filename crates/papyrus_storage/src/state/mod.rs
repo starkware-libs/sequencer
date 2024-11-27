@@ -60,6 +60,7 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::IndexMap;
 use papyrus_proc_macros::latency_histogram;
 use starknet_api::block::BlockNumber;
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{SierraContractClass, StateNumber, StorageKey, ThinStateDiff};
@@ -136,7 +137,7 @@ type RevertedStateDiff = (
     ThinStateDiff,
     IndexMap<ClassHash, SierraContractClass>,
     IndexMap<ClassHash, DeprecatedContractClass>,
-    IndexMap<ClassHash, CasmContractClass>,
+    IndexMap<ClassHash, (CasmContractClass, SierraVersion)>,
 );
 
 /// Interface for writing data related to the state.
@@ -769,7 +770,7 @@ fn delete_compiled_classes<'a, 'env>(
     class_hashes: impl Iterator<Item = &'a ClassHash>,
     compiled_classes_table: &'env CompiledClassesTable<'env>,
     file_handlers: &FileHandlers<RW>,
-) -> StorageResult<IndexMap<ClassHash, CasmContractClass>> {
+) -> StorageResult<IndexMap<ClassHash, (CasmContractClass, SierraVersion)>> {
     let mut deleted_data = IndexMap::new();
     for class_hash in class_hashes {
         let Some(compiled_class_location) = compiled_classes_table.get(txn, class_hash)?
