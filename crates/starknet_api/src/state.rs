@@ -213,6 +213,7 @@ impl_from_through_intermediate!(u128, StorageKey, u8, u16, u32, u64);
 #[derive(Debug, Clone, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct SierraContractClass {
     pub sierra_program: Vec<Felt>,
+    pub contract_class_version: String,
     pub entry_points_by_type: HashMap<EntryPointType, Vec<EntryPoint>>,
     pub abi: String,
 }
