@@ -22,7 +22,7 @@ use starknet_api::transaction::fields::Calldata;
 use starknet_types_core::felt::Felt;
 
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
-use crate::execution::contract_class::{RunnableContractClass, TrackedResource};
+use crate::execution::contract_class::{RunnableCompiledClass, TrackedResource};
 use crate::execution::entry_point::{
     execute_constructor_entry_point,
     CallEntryPoint,
@@ -52,7 +52,7 @@ pub const SEGMENT_ARENA_BUILTIN_SIZE: usize = 3;
 /// A wrapper for execute_entry_point_call that performs pre and post-processing.
 pub fn execute_entry_point_call_wrapper(
     mut call: CallEntryPoint,
-    contract_class: RunnableContractClass,
+    contract_class: RunnableCompiledClass,
     state: &mut dyn State,
     context: &mut EntryPointExecutionContext,
     remaining_gas: &mut u64,
@@ -120,12 +120,12 @@ pub fn execute_entry_point_call_wrapper(
 /// Executes a specific call to a contract entry point and returns its output.
 pub fn execute_entry_point_call(
     call: CallEntryPoint,
-    contract_class: RunnableContractClass,
+    contract_class: RunnableCompiledClass,
     state: &mut dyn State,
     context: &mut EntryPointExecutionContext,
 ) -> EntryPointExecutionResult<CallInfo> {
     match contract_class {
-        RunnableContractClass::V0(contract_class) => {
+        RunnableCompiledClass::V0(contract_class) => {
             deprecated_entry_point_execution::execute_entry_point_call(
                 call,
                 contract_class,
@@ -133,11 +133,11 @@ pub fn execute_entry_point_call(
                 context,
             )
         }
-        RunnableContractClass::V1(contract_class) => {
+        RunnableCompiledClass::V1(contract_class) => {
             entry_point_execution::execute_entry_point_call(call, contract_class, state, context)
         }
         #[cfg(feature = "cairo_native")]
-        RunnableContractClass::V1Native(contract_class) => {
+        RunnableCompiledClass::V1Native(contract_class) => {
             if context.tracked_resource_stack.last() == Some(&TrackedResource::CairoSteps) {
                 // We cannot run native with cairo steps as the tracked resources (it's a vm
                 // resouorce).

@@ -8,7 +8,7 @@ use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
 use crate::context::TransactionContext;
-use crate::execution::contract_class::RunnableContractClass;
+use crate::execution::contract_class::RunnableCompiledClass;
 use crate::state::errors::StateError;
 use crate::state::state_api::{State, StateReader, StateResult, UpdatableState};
 use crate::transaction::objects::TransactionExecutionInfo;
@@ -18,7 +18,7 @@ use crate::utils::{strict_subtract_mappings, subtract_mappings};
 #[path = "cached_state_test.rs"]
 mod test;
 
-pub type ContractClassMapping = HashMap<ClassHash, RunnableContractClass>;
+pub type ContractClassMapping = HashMap<ClassHash, RunnableCompiledClass>;
 
 /// Caches read and write requests.
 ///
@@ -85,8 +85,7 @@ impl<S: StateReader> CachedState<S> {
     ///   * Nonce: read previous before incrementing.
     ///   * Class hash: Deploy: verify the address is not occupied; Replace class: verify the
     ///     contract is deployed before running any code.
-    ///   * Compiled class hash: verify the class is not declared through
-    ///     `get_compiled_contract_class`.
+    ///   * Compiled class hash: verify the class is not declared through `get_compiled_class`.
     ///
     /// TODO(Noa, 30/07/23): Consider adding DB getters in bulk (via a DB read transaction).
     fn update_initial_values_of_write_only_access(&mut self) -> StateResult<()> {
@@ -174,17 +173,14 @@ impl<S: StateReader> StateReader for CachedState<S> {
         Ok(*class_hash)
     }
 
-    fn get_compiled_contract_class(
-        &self,
-        class_hash: ClassHash,
-    ) -> StateResult<RunnableContractClass> {
+    fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
         let mut cache = self.cache.borrow_mut();
         let class_hash_to_class = &mut *self.class_hash_to_class.borrow_mut();
 
         if let std::collections::hash_map::Entry::Vacant(vacant_entry) =
             class_hash_to_class.entry(class_hash)
         {
-            match self.state.get_compiled_contract_class(class_hash) {
+            match self.state.get_compiled_class(class_hash) {
                 Err(StateError::UndeclaredClassHash(class_hash)) => {
                     cache.set_declared_contract_initial_value(class_hash, false);
                     cache.set_compiled_class_hash_initial_value(
@@ -260,7 +256,7 @@ impl<S: StateReader> State for CachedState<S> {
     fn set_contract_class(
         &mut self,
         class_hash: ClassHash,
-        contract_class: RunnableContractClass,
+        contract_class: RunnableCompiledClass,
     ) -> StateResult<()> {
         self.class_hash_to_class.get_mut().insert(class_hash, contract_class);
         let mut cache = self.cache.borrow_mut();
@@ -528,11 +524,8 @@ impl<'a, S: StateReader + ?Sized> StateReader for MutRefState<'a, S> {
         self.0.get_class_hash_at(contract_address)
     }
 
-    fn get_compiled_contract_class(
-        &self,
-        class_hash: ClassHash,
-    ) -> StateResult<RunnableContractClass> {
-        self.0.get_compiled_contract_class(class_hash)
+    fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
+        self.0.get_compiled_class(class_hash)
     }
 
     fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {

@@ -150,7 +150,7 @@ impl<'state> SyscallHandlerBase<'state> {
 
     pub fn replace_class(&mut self, class_hash: ClassHash) -> SyscallResult<()> {
         // Ensure the class is declared (by reading it), and of type V1.
-        let class = self.state.get_compiled_contract_class(class_hash)?;
+        let class = self.state.get_compiled_class(class_hash)?;
 
         if !is_cairo1(&class) {
             return Err(SyscallExecutionError::ForbiddenClassReplacement { class_hash });

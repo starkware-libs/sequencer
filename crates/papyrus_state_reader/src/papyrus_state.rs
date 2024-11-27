@@ -1,7 +1,7 @@
 use blockifier::execution::contract_class::{
-    ContractClassV0,
-    ContractClassV1,
-    RunnableContractClass,
+    CompiledClassV0,
+    CompiledClassV1,
+    RunnableCompiledClass,
 };
 use blockifier::state::errors::StateError;
 use blockifier::state::global_cache::GlobalContractCache;
@@ -23,14 +23,14 @@ type RawPapyrusReader<'env> = papyrus_storage::StorageTxn<'env, RO>;
 pub struct PapyrusReader {
     storage_reader: StorageReader,
     latest_block: BlockNumber,
-    global_class_hash_to_class: GlobalContractCache<RunnableContractClass>,
+    global_class_hash_to_class: GlobalContractCache<RunnableCompiledClass>,
 }
 
 impl PapyrusReader {
     pub fn new(
         storage_reader: StorageReader,
         latest_block: BlockNumber,
-        global_class_hash_to_class: GlobalContractCache<RunnableContractClass>,
+        global_class_hash_to_class: GlobalContractCache<RunnableCompiledClass>,
     ) -> Self {
         Self { storage_reader, latest_block, global_class_hash_to_class }
     }
@@ -43,10 +43,10 @@ impl PapyrusReader {
 
     /// Returns a V1 contract if found, or a V0 contract if a V1 contract is not
     /// found, or an `Error` otherwise.
-    fn get_compiled_contract_class_inner(
+    fn get_compiled_class_inner(
         &self,
         class_hash: ClassHash,
-    ) -> StateResult<RunnableContractClass> {
+    ) -> StateResult<RunnableCompiledClass> {
         let state_number = StateNumber(self.latest_block);
         let class_declaration_block_number = self
             .reader()?
@@ -57,7 +57,7 @@ impl PapyrusReader {
                         Some(block_number) if block_number <= state_number.0);
 
         if class_is_declared {
-            let casm_contract_class = self
+            let casm_compiled_class = self
                 .reader()?
                 .get_casm(&class_hash)
                 .map_err(|err| StateError::StateReadError(err.to_string()))?
@@ -66,18 +66,18 @@ impl PapyrusReader {
                      inconsistent.",
                 );
 
-            return Ok(RunnableContractClass::V1(ContractClassV1::try_from(casm_contract_class)?));
+            return Ok(RunnableCompiledClass::V1(CompiledClassV1::try_from(casm_compiled_class)?));
         }
 
-        let v0_contract_class = self
+        let v0_compiled_class = self
             .reader()?
             .get_state_reader()
             .and_then(|sr| sr.get_deprecated_class_definition_at(state_number, &class_hash))
             .map_err(|err| StateError::StateReadError(err.to_string()))?;
 
-        match v0_contract_class {
+        match v0_compiled_class {
             Some(starknet_api_contract_class) => {
-                Ok(ContractClassV0::try_from(starknet_api_contract_class)?.into())
+                Ok(CompiledClassV0::try_from(starknet_api_contract_class)?.into())
             }
             None => Err(StateError::UndeclaredClassHash(class_hash)),
         }
@@ -124,17 +124,14 @@ impl StateReader for PapyrusReader {
         }
     }
 
-    fn get_compiled_contract_class(
-        &self,
-        class_hash: ClassHash,
-    ) -> StateResult<RunnableContractClass> {
+    fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
         // Assumption: the global cache is cleared upon reverted blocks.
         let contract_class = self.global_class_hash_to_class.get(&class_hash);
 
         match contract_class {
             Some(contract_class) => Ok(contract_class),
             None => {
-                let contract_class_from_db = self.get_compiled_contract_class_inner(class_hash)?;
+                let contract_class_from_db = self.get_compiled_class_inner(class_hash)?;
                 // The class was declared in a previous (finalized) state; update the global cache.
                 self.global_class_hash_to_class.set(class_hash, contract_class_from_db.clone());
                 Ok(contract_class_from_db)
