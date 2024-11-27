@@ -7,14 +7,14 @@ mod manager_test;
 use std::collections::BTreeMap;
 use std::time::Duration;
 
-use futures::channel::{mpsc, oneshot};
+use futures::channel::mpsc;
 use futures::stream::FuturesUnordered;
 use futures::{Stream, StreamExt};
 use papyrus_common::metrics::{PAPYRUS_CONSENSUS_HEIGHT, PAPYRUS_CONSENSUS_SYNC_COUNT};
 use papyrus_network::network_manager::BroadcastTopicClientTrait;
-use papyrus_protobuf::consensus::{ConsensusMessage, ProposalInit, ProposalWrapper};
-use starknet_api::block::{BlockHash, BlockNumber};
-use tracing::{debug, info, instrument};
+use papyrus_protobuf::consensus::{ConsensusMessage, ProposalInit};
+use starknet_api::block::BlockNumber;
+use tracing::{debug, info, instrument, warn};
 
 use crate::config::TimeoutsConfig;
 use crate::single_height_consensus::{ShcReturn, SingleHeightConsensus};
@@ -42,8 +42,7 @@ pub async fn run_consensus<ContextT, SyncReceiverT>(
 ) -> Result<(), ConsensusError>
 where
     ContextT: ConsensusContext,
-    ProposalWrapper:
-        Into<(ProposalInit, mpsc::Receiver<ContextT::ProposalChunk>, oneshot::Receiver<BlockHash>)>,
+    <ContextT as ConsensusContext>::ProposalPart: std::fmt::Debug,
     SyncReceiverT: Stream<Item = BlockNumber> + Unpin,
 {
     info!(
@@ -116,11 +115,7 @@ impl MultiHeightManager {
     ) -> Result<Decision, ConsensusError>
     where
         ContextT: ConsensusContext,
-        ProposalWrapper: Into<(
-            ProposalInit,
-            mpsc::Receiver<ContextT::ProposalChunk>,
-            oneshot::Receiver<BlockHash>,
-        )>,
+        <ContextT as ConsensusContext>::ProposalPart: std::fmt::Debug,
     {
         let validators = context.validators(height).await;
         info!("running consensus for height {height:?} with validator set {validators:?}");
@@ -147,6 +142,17 @@ impl MultiHeightManager {
                 message = next_message(&mut current_height_messages, broadcast_channels) => {
                     self.handle_message(context, height, &mut shc, message?).await?
                 },
+                Some(mut content_receiver) = proposal_receiver.next() => {
+                    // Get the first message to verify the init was sent.
+                    // TODO(guyn): what happens if the channel never sends anything?
+                    let Some(first_part) = content_receiver.next().await else {
+                        return Err(ConsensusError::InternalNetworkError(
+                            "Proposal receiver closed".to_string(),
+                        ));
+                    };
+                    let proposal_init: ProposalInit = first_part.try_into()?;
+                    self.handle_proposal(context, height, &mut shc, proposal_init, content_receiver).await?
+                },
                 Some(shc_event) = shc_events.next() => {
                     shc.handle_event(context, shc_event).await?
                 },
@@ -163,6 +169,27 @@ impl MultiHeightManager {
         }
     }
 
+    // Handle a new proposal receiver from the network.
+    async fn handle_proposal<ContextT>(
+        &mut self,
+        context: &mut ContextT,
+        height: BlockNumber,
+        shc: &mut SingleHeightConsensus,
+        proposal_init: ProposalInit,
+        content_receiver: mpsc::Receiver<ContextT::ProposalPart>,
+    ) -> Result<ShcReturn, ConsensusError>
+    where
+        ContextT: ConsensusContext,
+        <ContextT as ConsensusContext>::ProposalPart: std::fmt::Debug,
+    {
+        // TODO(guyn): what is the right thing to do if proposal's height doesn't match?
+        if proposal_init.height != height {
+            // TODO(guyn): add caching of heights for future use.
+            warn!("Received a proposal for a different height. {:?}", proposal_init);
+        }
+        shc.handle_proposal(context, proposal_init.into(), content_receiver).await
+    }
+
     // Handle a single consensus message.
     async fn handle_message<ContextT>(
         &mut self,
@@ -173,11 +200,6 @@ impl MultiHeightManager {
     ) -> Result<ShcReturn, ConsensusError>
     where
         ContextT: ConsensusContext,
-        ProposalWrapper: Into<(
-            ProposalInit,
-            mpsc::Receiver<ContextT::ProposalChunk>,
-            oneshot::Receiver<BlockHash>,
-        )>,
     {
         // TODO(matan): We need to figure out an actual cacheing strategy under 2 constraints:
         // 1. Malicious - must be capped so a malicious peer can't DoS us.
@@ -191,16 +213,9 @@ impl MultiHeightManager {
             return Ok(ShcReturn::Tasks(Vec::new()));
         }
         match message {
-            ConsensusMessage::Proposal(proposal) => {
-                // Special case due to fake streaming.
-                // TODO(guyn): this will be gone once we integrate the proposal channels.
-                let (proposal_init, content_receiver, fin_receiver) =
-                    ProposalWrapper(proposal).into();
-                let res = shc
-                    .handle_proposal(context, proposal_init, content_receiver, fin_receiver)
-                    .await?;
-                Ok(res)
-            }
+            ConsensusMessage::Proposal(_) => Err(ConsensusError::InternalNetworkError(
+                "Proposal variant of ConsensusMessage no longer supported".to_string(),
+            )),
             _ => {
                 let res = shc.handle_message(context, message).await?;
                 Ok(res)

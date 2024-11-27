@@ -12,7 +12,7 @@ use papyrus_network::network_manager::test_utils::{
     TestSubscriberChannels,
 };
 use papyrus_network::network_manager::BroadcastTopicChannels;
-use papyrus_protobuf::consensus::ProposalInit;
+use papyrus_protobuf::consensus::{ProposalInit, ProposalPart, TransactionBatch};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::{ContractAddress, StateDiffCommitment};
 use starknet_api::executable_transaction::{AccountTransaction, Transaction};
@@ -170,10 +170,19 @@ async fn validate_proposal_success() {
         NUM_VALIDATORS,
     );
     let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
-    content_sender.send(TX_BATCH.clone()).await.unwrap();
+    let tx_hash = TX_BATCH.first().unwrap().tx_hash();
+    let txs =
+        TX_BATCH.clone().into_iter().map(starknet_api::transaction::Transaction::from).collect();
+    content_sender
+        .send(ProposalPart::Transactions(TransactionBatch {
+            transactions: txs,
+            tx_hashes: vec![tx_hash],
+        }))
+        .await
+        .unwrap();
     let fin_receiver = context.validate_proposal(BlockNumber(0), TIMEOUT, content_receiver).await;
     content_sender.close_channel();
-    assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
+    assert_eq!(fin_receiver.await.unwrap().0.0, STATE_DIFF_COMMITMENT.0.0);
 }
 
 #[tokio::test]
@@ -225,11 +234,18 @@ async fn repropose() {
 
     // Receive a valid proposal.
     let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
-    let txs = vec![generate_invoke_tx(Felt::TWO)];
-    content_sender.send(txs.clone()).await.unwrap();
+    let txs = vec![generate_invoke_tx(Felt::TWO)]
+        .into_iter()
+        .map(starknet_api::transaction::Transaction::from)
+        .collect();
+    let prop_part = ProposalPart::Transactions(TransactionBatch {
+        transactions: txs,
+        tx_hashes: vec![TransactionHash(Felt::ZERO)],
+    });
+    content_sender.send(prop_part).await.unwrap();
     let fin_receiver = context.validate_proposal(BlockNumber(0), TIMEOUT, content_receiver).await;
     content_sender.close_channel();
-    assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
+    assert_eq!(fin_receiver.await.unwrap().0.0, STATE_DIFF_COMMITMENT.0.0);
 
     // Re-proposal: Just asserts this is a known valid proposal.
     context
