@@ -39,7 +39,7 @@ use crate::fee::fee_utils::{
 use crate::fee::gas_usage::estimate_minimal_gas_vector;
 use crate::fee::receipt::TransactionReceipt;
 use crate::retdata;
-use crate::state::cached_state::{StateChanges, TransactionalState};
+use crate::state::cached_state::{StateCache, TransactionalState};
 use crate::state::state_api::{State, StateReader, UpdatableState};
 use crate::transaction::errors::{
     TransactionExecutionError,
@@ -575,7 +575,7 @@ impl AccountTransaction {
 
         // Save the state changes resulting from running `validate_tx`, to be used later for
         // resource and fee calculation.
-        let validate_state_changes = state.get_actual_state_changes()?;
+        let validate_state_cache = state.borrow_updated_state_cache()?.clone();
 
         // Create copies of state and validate_resources for the execution.
         // Both will be rolled back if the execution is reverted or committed upon success.
@@ -591,7 +591,7 @@ impl AccountTransaction {
         let revert_receipt = TransactionReceipt::from_account_tx(
             self,
             &tx_context,
-            &validate_state_changes,
+            &validate_state_cache.to_state_diff(),
             CallInfo::summarize_many(
                 validate_call_info.iter(),
                 &tx_context.block_context.versioned_constants,
@@ -606,10 +606,13 @@ impl AccountTransaction {
                 let tx_receipt = TransactionReceipt::from_account_tx(
                     self,
                     &tx_context,
-                    &StateChanges::merge(vec![
-                        validate_state_changes,
-                        execution_state.get_actual_state_changes()?,
-                    ]),
+                    &StateCache::squash_state_diff_backward_compatible(
+                        vec![
+                            &validate_state_cache,
+                            &execution_state.borrow_updated_state_cache()?.clone(),
+                        ],
+                        tx_context.block_context.versioned_constants.comprehensive_state_diff,
+                    ),
                     CallInfo::summarize_many(
                         validate_call_info.iter().chain(execute_call_info.iter()),
                         &tx_context.block_context.versioned_constants,
