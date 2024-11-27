@@ -3,6 +3,7 @@ use starknet_gateway_types::communication::GatewayRequestAndResponseSender;
 use starknet_mempool_p2p_types::communication::MempoolP2pPropagatorRequestAndResponseSender;
 use starknet_mempool_types::communication::MempoolRequestAndResponseSender;
 use starknet_sequencer_infra::component_definitions::ComponentCommunication;
+use starknet_state_sync_types::communication::StateSyncRequestAndResponseSender;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 
 pub struct SequencerNodeCommunication {
@@ -11,6 +12,7 @@ pub struct SequencerNodeCommunication {
     mempool_channel: ComponentCommunication<MempoolRequestAndResponseSender>,
     mempool_p2p_propagator_channel:
         ComponentCommunication<MempoolP2pPropagatorRequestAndResponseSender>,
+    state_sync_channel: ComponentCommunication<StateSyncRequestAndResponseSender>,
 }
 
 impl SequencerNodeCommunication {
@@ -48,6 +50,14 @@ impl SequencerNodeCommunication {
     pub fn take_mempool_rx(&mut self) -> Receiver<MempoolRequestAndResponseSender> {
         self.mempool_channel.take_rx()
     }
+
+    pub fn take_state_sync_tx(&mut self) -> Sender<StateSyncRequestAndResponseSender> {
+        self.state_sync_channel.take_tx()
+    }
+
+    pub fn take_state_sync_rx(&mut self) -> Receiver<StateSyncRequestAndResponseSender> {
+        self.state_sync_channel.take_rx()
+    }
 }
 
 pub fn create_node_channels() -> SequencerNodeCommunication {
@@ -64,6 +74,9 @@ pub fn create_node_channels() -> SequencerNodeCommunication {
     let (tx_mempool_p2p_propagator, rx_mempool_p2p_propagator) =
         channel::<MempoolP2pPropagatorRequestAndResponseSender>(DEFAULT_INVOCATIONS_QUEUE_SIZE);
 
+    let (tx_state_sync, rx_state_sync) =
+        channel::<StateSyncRequestAndResponseSender>(DEFAULT_INVOCATIONS_QUEUE_SIZE);
+
     SequencerNodeCommunication {
         batcher_channel: ComponentCommunication::new(Some(tx_batcher), Some(rx_batcher)),
         gateway_channel: ComponentCommunication::new(Some(tx_gateway), Some(rx_gateway)),
@@ -72,5 +85,6 @@ pub fn create_node_channels() -> SequencerNodeCommunication {
             Some(tx_mempool_p2p_propagator),
             Some(rx_mempool_p2p_propagator),
         ),
+        state_sync_channel: ComponentCommunication::new(Some(tx_state_sync), Some(rx_state_sync)),
     }
 }
