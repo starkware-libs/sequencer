@@ -6,7 +6,7 @@ use blockifier::transaction::transaction_types::TransactionType;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use starknet_api::block::GasPrice;
-use starknet_api::contract_class::{ClassInfo, ContractClass};
+use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
 use starknet_api::executable_transaction::AccountTransaction as ExecutableTransaction;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::{
@@ -164,6 +164,7 @@ pub struct PyClassInfo {
     raw_contract_class: String,
     sierra_program_length: usize,
     abi_length: usize,
+    sierra_version: Vec<u64>,
 }
 
 impl PyClassInfo {
@@ -181,10 +182,17 @@ impl PyClassInfo {
                 ContractClass::V1(serde_json::from_str(&py_class_info.raw_contract_class)?)
             }
         };
+        let (major, minor, patch) = (
+            py_class_info.sierra_version[0],
+            py_class_info.sierra_version[1],
+            py_class_info.sierra_version[2],
+        );
+
         let class_info = ClassInfo::new(
             &contract_class,
             py_class_info.sierra_program_length,
             py_class_info.abi_length,
+            SierraVersion::new(major, minor, patch),
         )?;
         Ok(class_info)
     }
