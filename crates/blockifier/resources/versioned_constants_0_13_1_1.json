@@ -73,6 +73,7 @@
         "stored_block_hash_buffer": 10,
         "step_gas_cost": 100,
         "range_check_gas_cost": 70,
+        "keccak_builtin_gas_cost": 0,
         "pedersen_gas_cost": 0,
         "bitwise_builtin_gas_cost": 0,
         "ecop_gas_cost": 0,
