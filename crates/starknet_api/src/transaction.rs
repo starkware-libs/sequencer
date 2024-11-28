@@ -146,7 +146,10 @@ impl From<(Transaction, TransactionHash)> for crate::executable_transaction::Tra
                 ),
             ),
             _ => {
-                unimplemented!("Unsupported transaction type. Only Invoke is currently supported.")
+                unimplemented!(
+                    "Unsupported transaction type. Only Invoke is currently supported. tx: {:?}",
+                    tx
+                )
             }
         }
     }
