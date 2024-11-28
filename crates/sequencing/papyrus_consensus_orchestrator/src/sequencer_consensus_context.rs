@@ -170,6 +170,7 @@ impl ConsensusContext for SequencerConsensusContext {
                 block_timestamp: BlockTimestamp(
                     now.timestamp().try_into().expect("Failed to convert timestamp"),
                 ),
+                use_kzg_da: true,
                 ..Default::default()
             },
         };
@@ -361,6 +362,7 @@ impl SequencerConsensusContext {
                 block_timestamp: BlockTimestamp(
                     now.timestamp().try_into().expect("Failed to convert timestamp"),
                 ),
+                use_kzg_da: true,
                 ..Default::default()
             },
         };
