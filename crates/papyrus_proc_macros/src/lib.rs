@@ -257,12 +257,14 @@ pub fn handle_response_variants(input: TokenStream) -> TokenStream {
 
 /// This macro generates a `pub fn field_names() -> Vec<String>`, a method that returns a vector of
 /// the struct field element names.
+/// This macro also generates a `pub fn cli_args() -> Vec<String>`, a method that returns a vector
+/// of the struct fields as command line arguments..
 ///
 /// # Example
 /// ```rust
-/// use papyrus_proc_macros::gen_field_names_fn;
+/// use papyrus_proc_macros::gen_field_names_and_cli_args_fn;
 ///
-/// #[gen_field_names_fn]
+/// #[gen_field_names_and_cli_args_fn]
 /// pub struct Example {
 ///     pub field_a: u8,
 ///     field_b: u32,
@@ -270,9 +272,12 @@ pub fn handle_response_variants(input: TokenStream) -> TokenStream {
 /// }
 ///
 /// assert_eq!(Example::field_names(), vec!["field_a", "field_b", "field_c"]);
+///
+/// let example = Example { field_a: 1, field_b: 2, field_c: "C".to_string() };
+/// assert_eq!(example.cli_args(), vec!["--field_a", "1", "--field_b", "2", "--field_c", "C"]);
 /// ```
 #[proc_macro_attribute]
-pub fn gen_field_names_fn(_attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn gen_field_names_and_cli_args_fn(_attr: TokenStream, item: TokenStream) -> TokenStream {
     // Parse the input tokens as a Rust struct
     let input = parse_macro_input!(item as DeriveInput);
 
@@ -280,15 +285,14 @@ pub fn gen_field_names_fn(_attr: TokenStream, item: TokenStream) -> TokenStream 
     let struct_name = &input.ident;
 
     // Collect the names of the struct's fields as string literals
-    let field_names = if let syn::Data::Struct(data) = &input.data {
-        data.fields
-            .iter()
-            .filter_map(|field| field.ident.as_ref())
-            .map(|ident| ident.to_string())
-            .collect::<Vec<_>>()
+    let field_idents = if let syn::Data::Struct(data) = &input.data {
+        data.fields.iter().filter_map(|field| field.ident.as_ref()).collect::<Vec<_>>()
     } else {
-        panic!("#[gen_field_names_fn] can only be used on structs");
+        panic!("#[gen_field_names_and_cli_args_fn] can only be used on structs");
     };
+
+    // Collect the names of the struct's fields as string literals
+    let field_names = field_idents.iter().map(|ident| ident.to_string()).collect::<Vec<_>>();
 
     // Generate the field_names method
     let gen = quote! {
@@ -300,7 +304,18 @@ pub fn gen_field_names_fn(_attr: TokenStream, item: TokenStream) -> TokenStream 
                     #(#field_names.to_string()),*
                 ]
             }
+
+            pub fn cli_args(&self) -> Vec<String> {
+                let mut args = Vec::new();
+                #(
+                    args.push(format!("--{}", #field_names));
+                    args.push(self.#field_idents.to_string());
+                )*
+
+                args
+            }
         }
+
     };
 
     gen.into()
