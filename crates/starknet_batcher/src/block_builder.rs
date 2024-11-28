@@ -15,7 +15,7 @@ use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::state::errors::StateError;
 use blockifier::state::global_cache::GlobalContractCache;
-use blockifier::transaction::account_transaction::AccountTransaction;
+use blockifier::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use blockifier::versioned_constants::{VersionedConstants, VersionedConstantsOverrides};
@@ -165,7 +165,7 @@ impl BlockBuilderTrait for BlockBuilder {
                         BlockifierTransaction::Account(AccountTransaction {
                             // TODO(yair): Avoid this clone.
                             tx: account_tx.clone(),
-                            only_query: false,
+                            execution_flags: ExecutionFlags::default(),
                         })
                     }
                     Transaction::L1Handler(l1_handler_tx) => {

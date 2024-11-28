@@ -5,7 +5,7 @@ use blockifier::blockifier::stateful_validator::{
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo};
 use blockifier::state::cached_state::CachedState;
-use blockifier::transaction::account_transaction::AccountTransaction;
+use blockifier::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
 use blockifier::versioned_constants::VersionedConstants;
 #[cfg(test)]
 use mockall::automock;
@@ -75,7 +75,10 @@ impl StatefulTransactionValidator {
         mut validator: V,
     ) -> StatefulTransactionValidatorResult<()> {
         let skip_validate = skip_stateful_validations(executable_tx, account_nonce);
-        let account_tx = AccountTransaction { tx: executable_tx.clone(), only_query: false };
+        let account_tx = AccountTransaction {
+            tx: executable_tx.clone(),
+            execution_flags: ExecutionFlags::default(),
+        };
         validator
             .validate(account_tx, skip_validate)
             .map_err(|err| GatewaySpecError::ValidationFailure { data: err.to_string() })?;

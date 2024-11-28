@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use blockifier::transaction::account_transaction::AccountTransaction;
+use blockifier::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
 use blockifier::transaction::transaction_execution::Transaction;
 use blockifier::transaction::transaction_types::TransactionType;
 use pyo3::exceptions::PyValueError;
@@ -140,18 +140,18 @@ pub fn py_tx(
                 .expect("A class info must be passed in a Declare transaction.");
             AccountTransaction {
                 tx: ExecutableTransaction::Declare(py_declare(tx, non_optional_py_class_info)?),
-                only_query: false,
+                execution_flags: ExecutionFlags::default(),
             }
             .into()
         }
         TransactionType::DeployAccount => AccountTransaction {
             tx: ExecutableTransaction::DeployAccount(py_deploy_account(tx)?),
-            only_query: false,
+            execution_flags: ExecutionFlags::default(),
         }
         .into(),
         TransactionType::InvokeFunction => AccountTransaction {
             tx: ExecutableTransaction::Invoke(py_invoke_function(tx)?),
-            only_query: false,
+            execution_flags: ExecutionFlags::default(),
         }
         .into(),
         TransactionType::L1Handler => py_l1_handler(tx)?.into(),

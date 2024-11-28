@@ -83,7 +83,10 @@ use crate::test_utils::{
     DEFAULT_STRK_L2_GAS_PRICE,
     MAX_FEE,
 };
-use crate::transaction::account_transaction::AccountTransaction;
+use crate::transaction::account_transaction::{
+    AccountTransaction,
+    ExecutionFlags as AccountExecutionFlags,
+};
 use crate::transaction::objects::{HasRelatedFeeType, TransactionInfoCreator};
 use crate::transaction::test_utils::{
     account_invoke_tx,
@@ -104,7 +107,7 @@ use crate::transaction::test_utils::{
     INVALID,
 };
 use crate::transaction::transaction_types::TransactionType;
-use crate::transaction::transactions::{ExecutableTransaction, ExecutionFlags};
+use crate::transaction::transactions::{enforce_fee, ExecutableTransaction, ExecutionFlags};
 use crate::utils::u64_from_usize;
 
 #[rstest]
@@ -190,31 +193,33 @@ fn test_fee_enforcement(
 ) {
     let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0);
     let state = &mut test_state(&block_context.chain_info, BALANCE, &[(account, 1)]);
-    let deploy_account_tx = AccountTransaction {
-        tx: deploy_account_tx(
-            deploy_account_tx_args! {
-                class_hash: account.get_class_hash(),
-                max_fee: Fee(if zero_bounds { 0 } else { MAX_FEE.0 }),
-                resource_bounds: match gas_bounds_mode {
-                    GasVectorComputationMode::NoL2Gas => l1_resource_bounds(
-                        (if zero_bounds { 0 } else { DEFAULT_L1_GAS_AMOUNT.0 }).into(),
-                        DEFAULT_STRK_L1_GAS_PRICE.into()
-                    ),
-                    GasVectorComputationMode::All => create_all_resource_bounds(
-                        (if zero_bounds { 0 } else { DEFAULT_L1_GAS_AMOUNT.0 }).into(),
-                        DEFAULT_STRK_L1_GAS_PRICE.into(),
-                        (if zero_bounds { 0 } else { DEFAULT_L2_GAS_MAX_AMOUNT.0 }).into(),
-                        DEFAULT_STRK_L2_GAS_PRICE.into(),
-                        (if zero_bounds { 0 } else { DEFAULT_L1_DATA_GAS_MAX_AMOUNT.0 }).into(),
-                        DEFAULT_STRK_L1_DATA_GAS_PRICE.into(),
-                    ),
-                },
-                version,
+    let tx = deploy_account_tx(
+        deploy_account_tx_args! {
+            class_hash: account.get_class_hash(),
+            max_fee: Fee(if zero_bounds { 0 } else { MAX_FEE.0 }),
+            resource_bounds: match gas_bounds_mode {
+                GasVectorComputationMode::NoL2Gas => l1_resource_bounds(
+                    (if zero_bounds { 0 } else { DEFAULT_L1_GAS_AMOUNT.0 }).into(),
+                    DEFAULT_STRK_L1_GAS_PRICE.into()
+                ),
+                GasVectorComputationMode::All => create_all_resource_bounds(
+                    (if zero_bounds { 0 } else { DEFAULT_L1_GAS_AMOUNT.0 }).into(),
+                    DEFAULT_STRK_L1_GAS_PRICE.into(),
+                    (if zero_bounds { 0 } else { DEFAULT_L2_GAS_MAX_AMOUNT.0 }).into(),
+                    DEFAULT_STRK_L2_GAS_PRICE.into(),
+                    (if zero_bounds { 0 } else { DEFAULT_L1_DATA_GAS_MAX_AMOUNT.0 }).into(),
+                    DEFAULT_STRK_L1_DATA_GAS_PRICE.into(),
+                ),
             },
-            &mut NonceManager::default(),
-        ),
-        only_query: false,
-    };
+            version,
+        },
+        &mut NonceManager::default(),
+    );
+    let only_query = false;
+    let charge_fee = enforce_fee(&tx, only_query);
+    let execution_flags =
+        AccountExecutionFlags { only_query, charge_fee, ..AccountExecutionFlags::default() };
+    let deploy_account_tx = AccountTransaction { tx, execution_flags };
 
     let enforce_fee = deploy_account_tx.enforce_fee();
     assert_ne!(zero_bounds, enforce_fee);
@@ -463,7 +468,8 @@ fn test_max_fee_limit_validate(
         },
         class_info,
     );
-    let account_tx = AccountTransaction { tx, only_query: false };
+    let execution_flags = AccountExecutionFlags::default();
+    let account_tx = AccountTransaction { tx, execution_flags };
     account_tx.execute(&mut state, &block_context, true, true).unwrap();
 
     // Deploy grindy account with a lot of grind in the constructor.
@@ -786,7 +792,7 @@ fn test_fail_declare(block_context: BlockContext, max_fee: Fee) {
     };
     let declare_account_tx = AccountTransaction {
         tx: ApiExecutableTransaction::Declare(executable_declare),
-        only_query: false,
+        execution_flags: AccountExecutionFlags::default(),
     };
 
     // Fail execution, assert nonce and balance are unchanged.

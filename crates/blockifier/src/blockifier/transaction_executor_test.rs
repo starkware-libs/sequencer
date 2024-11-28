@@ -29,7 +29,7 @@ use crate::test_utils::{
     BALANCE,
     DEFAULT_STRK_L1_GAS_PRICE,
 };
-use crate::transaction::account_transaction::AccountTransaction;
+use crate::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::test_utils::{
     account_invoke_tx,
@@ -121,7 +121,7 @@ fn test_declare(
     let declared_contract = FeatureContract::Empty(cairo_version);
     let state = test_state(&block_context.chain_info, BALANCE, &[(account_contract, 1)]);
 
-    let tx = declare_tx(
+    let declare_tx = declare_tx(
         declare_tx_args! {
             sender_address: account_contract.get_instance_address(0),
             class_hash: declared_contract.get_class_hash(),
@@ -131,8 +131,9 @@ fn test_declare(
         },
         calculate_class_info_for_testing(declared_contract.get_class()),
     );
-    let account_tx = AccountTransaction { tx, only_query: false }.into();
-    tx_executor_test_body(state, block_context, account_tx, expected_bouncer_weights);
+    let execution_flags = ExecutionFlags::default();
+    let tx = AccountTransaction { tx: declare_tx, execution_flags }.into();
+    tx_executor_test_body(state, block_context, tx, expected_bouncer_weights);
 }
 
 #[rstest]
@@ -153,7 +154,7 @@ fn test_deploy_account(
             },
             &mut NonceManager::default(),
         ),
-        only_query: false,
+        execution_flags: ExecutionFlags::default(),
     }
     .into();
     let expected_bouncer_weights = BouncerWeights {
