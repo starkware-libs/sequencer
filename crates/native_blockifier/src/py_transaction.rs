@@ -30,6 +30,7 @@ pub(crate) const PY_TX_PARSING_ERR: &str = "Failed parsing Py transaction.";
 #[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub enum PyResource {
     L1Gas,
+    L1DataGas,
     L2Gas,
 }
 
@@ -37,6 +38,7 @@ impl From<PyResource> for Resource {
     fn from(py_resource: PyResource) -> Self {
         match py_resource {
             PyResource::L1Gas => Resource::L1Gas,
+            PyResource::L1DataGas => Resource::L1DataGas,
             PyResource::L2Gas => Resource::L2Gas,
         }
     }
@@ -47,6 +49,7 @@ impl FromPyObject<'_> for PyResource {
         let resource_name: &str = resource.getattr("name")?.extract()?;
         match resource_name {
             "L1_GAS" => Ok(PyResource::L1Gas),
+            "L1_DATA_GAS" => Ok(PyResource::L1DataGas),
             "L2_GAS" => Ok(PyResource::L2Gas),
             _ => Err(PyValueError::new_err(format!("Invalid resource: {resource_name}"))),
         }
