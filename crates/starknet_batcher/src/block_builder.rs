@@ -31,7 +31,6 @@ use starknet_api::core::ContractAddress;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
-use tokio::sync::Mutex;
 use tracing::{debug, error, info, trace};
 
 use crate::transaction_executor::TransactionExecutorTrait;
@@ -92,7 +91,7 @@ pub struct BlockBuilderExecutionParams {
 
 pub struct BlockBuilder {
     // TODO(Yael 14/10/2024): make the executor thread safe and delete this mutex.
-    executor: Mutex<Box<dyn TransactionExecutorTrait>>,
+    executor: Box<dyn TransactionExecutorTrait>,
     tx_provider: Box<dyn TransactionProvider>,
     output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<Transaction>>,
     abort_signal_receiver: tokio::sync::oneshot::Receiver<()>,
@@ -112,7 +111,7 @@ impl BlockBuilder {
         execution_params: BlockBuilderExecutionParams,
     ) -> Self {
         Self {
-            executor: Mutex::new(executor),
+            executor,
             tx_provider,
             output_content_sender,
             abort_signal_receiver,
@@ -157,7 +156,7 @@ impl BlockBuilderTrait for BlockBuilder {
                 // TODO(yair): Avoid this clone.
                 executor_input_chunk.push(BlockifierTransaction::from(tx.clone()));
             }
-            let results = self.executor.lock().await.add_txs_to_block(&executor_input_chunk);
+            let results = self.executor.add_txs_to_block(&executor_input_chunk);
             trace!("Transaction execution results: {:?}", results);
             block_is_full = collect_execution_results_and_stream_txs(
                 next_tx_chunk,
@@ -169,7 +168,7 @@ impl BlockBuilderTrait for BlockBuilder {
             .await?;
         }
         let (commitment_state_diff, visited_segments_mapping, bouncer_weights) =
-            self.executor.lock().await.close_block()?;
+            self.executor.close_block()?;
         Ok(BlockExecutionArtifacts {
             execution_infos,
             commitment_state_diff,
