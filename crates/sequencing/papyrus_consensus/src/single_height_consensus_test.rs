@@ -94,7 +94,7 @@ async fn proposer() {
         block_sender.send(BLOCK.id).unwrap();
         block_receiver
     });
-    context.expect_set_height_and_round().returning(move |_, _| ());
+    context.expect_set_height_and_round().returning(move |_, _, _| ());
     context
         .expect_broadcast()
         .times(1)
@@ -174,12 +174,12 @@ async fn validator(repeat_proposal: bool) {
     );
 
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
-    context.expect_validate_proposal().times(1).returning(move |_, _, _, _| {
+    context.expect_validate_proposal().times(1).returning(move |_, _, _, _, _| {
         let (block_sender, block_receiver) = oneshot::channel();
         block_sender.send(BLOCK.id).unwrap();
         block_receiver
     });
-    context.expect_set_height_and_round().returning(move |_, _| ());
+    context.expect_set_height_and_round().returning(move |_, _, _| ());
     context
         .expect_broadcast()
         .times(1)
@@ -253,12 +253,12 @@ async fn vote_twice(same_vote: bool) {
     );
 
     context.expect_proposer().times(1).returning(move |_, _| *PROPOSER_ID);
-    context.expect_validate_proposal().times(1).returning(move |_, _, _, _| {
+    context.expect_validate_proposal().times(1).returning(move |_, _, _, _, _| {
         let (block_sender, block_receiver) = oneshot::channel();
         block_sender.send(BLOCK.id).unwrap();
         block_receiver
     });
-    context.expect_set_height_and_round().returning(move |_, _| ());
+    context.expect_set_height_and_round().returning(move |_, _, _| ());
     context
         .expect_broadcast()
         .times(1) // Shows the repeat vote is ignored.
@@ -327,7 +327,7 @@ async fn rebroadcast_votes() {
         block_sender.send(BLOCK.id).unwrap();
         block_receiver
     });
-    context.expect_set_height_and_round().returning(move |_, _| ());
+    context.expect_set_height_and_round().returning(move |_, _, _| ());
     context
         .expect_broadcast()
         .times(1)
@@ -389,7 +389,7 @@ async fn repropose() {
         block_sender.send(BLOCK.id).unwrap();
         block_receiver
     });
-    context.expect_set_height_and_round().returning(move |_, _| ());
+    context.expect_set_height_and_round().returning(move |_, _, _| ());
     context
         .expect_broadcast()
         .times(1)

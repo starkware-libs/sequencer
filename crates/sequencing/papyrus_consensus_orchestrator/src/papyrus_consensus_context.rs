@@ -28,7 +28,6 @@ use papyrus_storage::body::BodyStorageReader;
 use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::{StorageError, StorageReader};
 use starknet_api::block::BlockNumber;
-use starknet_api::core::ContractAddress;
 use starknet_api::transaction::Transaction;
 use tracing::{debug, debug_span, info, warn, Instrument};
 
@@ -57,7 +56,7 @@ impl PapyrusConsensusContext {
         Self {
             storage_reader,
             network_broadcast_client,
-            validators: (0..num_validators).map(ContractAddress::from).collect(),
+            validators: (0..num_validators).map(ValidatorId::from).collect(),
             sync_broadcast_sender,
             valid_proposals: Arc::new(Mutex::new(BTreeMap::new())),
         }
@@ -141,6 +140,7 @@ impl ConsensusContext for PapyrusConsensusContext {
         &mut self,
         height: BlockNumber,
         _round: Round,
+        _proposer: ValidatorId,
         _timeout: Duration,
         mut content: mpsc::Receiver<Transaction>,
     ) -> oneshot::Receiver<ProposalContentId> {
@@ -261,7 +261,12 @@ impl ConsensusContext for PapyrusConsensusContext {
         Ok(())
     }
 
-    async fn set_height_and_round(&mut self, _height: BlockNumber, _round: Round) {
+    async fn set_height_and_round(
+        &mut self,
+        _height: BlockNumber,
+        _round: Round,
+        _proposer: ValidatorId,
+    ) {
         // No-op
     }
 }
