@@ -28,7 +28,15 @@ use papyrus_protobuf::consensus::{
     TransactionBatch,
     Vote,
 };
-use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockInfo, BlockNumber};
+use starknet_api::block::{
+    BlockHash,
+    BlockHashAndNumber,
+    BlockInfo,
+    BlockNumber,
+    GasPriceVector,
+    GasPrices,
+    NonzeroGasPrice,
+};
 use starknet_api::executable_transaction::Transaction;
 use starknet_batcher_types::batcher_types::{
     DecisionReachedInput,
@@ -46,6 +54,20 @@ use starknet_batcher_types::communication::BatcherClient;
 use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 use tracing::{debug, debug_span, error, info, trace, warn, Instrument};
+
+// TODO(Dan, Matan): Remove this once and replace with real gas prices.
+const TEMPORARY_GAS_PRICES: GasPrices = GasPrices {
+    eth_gas_prices: GasPriceVector {
+        l1_gas_price: NonzeroGasPrice::MIN,
+        l1_data_gas_price: NonzeroGasPrice::MIN,
+        l2_gas_price: NonzeroGasPrice::MIN,
+    },
+    strk_gas_prices: GasPriceVector {
+        l1_gas_price: NonzeroGasPrice::MIN,
+        l1_data_gas_price: NonzeroGasPrice::MIN,
+        l2_gas_price: NonzeroGasPrice::MIN,
+    },
+};
 
 // {height: {proposal_id: (content, [proposal_ids])}}
 // Note that multiple proposals IDs can be associated with the same content, but we only need to
@@ -131,8 +153,12 @@ impl ConsensusContext for SequencerConsensusContext {
                 number: BlockNumber::default(),
                 hash: BlockHash::default(),
             }),
-            // TODO: Fill block info.
-            block_info: BlockInfo { block_number: proposal_init.height, ..Default::default() },
+            // TODO(Dan, Matan): Fill block info.
+            block_info: BlockInfo {
+                block_number: proposal_init.height,
+                gas_prices: TEMPORARY_GAS_PRICES,
+                ..Default::default()
+            },
         };
         // TODO: Should we be returning an error?
         // I think this implies defining an error type in this crate and moving the trait definition
@@ -310,7 +336,11 @@ impl SequencerConsensusContext {
                 hash: BlockHash::default(),
             }),
             // TODO: Fill block info.
-            block_info: BlockInfo { block_number: height, ..Default::default() },
+            block_info: BlockInfo {
+                block_number: height,
+                gas_prices: TEMPORARY_GAS_PRICES,
+                ..Default::default()
+            },
         };
         batcher.validate_block(input).await.expect("Failed to initiate proposal validation");
 
