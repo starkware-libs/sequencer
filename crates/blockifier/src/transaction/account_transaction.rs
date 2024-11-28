@@ -1,3 +1,4 @@
+use std::cmp::min;
 use std::sync::Arc;
 
 use starknet_api::abi::abi_utils::selector_from_name;
@@ -589,7 +590,8 @@ impl AccountTransaction {
         &self,
         state: &mut TransactionalState<'_, S>,
         tx_context: Arc<TransactionContext>,
-        remaining_gas: &mut u64,
+        remaining_validation_gas: &mut u64,
+        additional_execution_gas: u64,
         validate: bool,
         charge_fee: bool,
     ) -> TransactionExecutionResult<ValidateExecuteCallInfo> {
@@ -599,7 +601,7 @@ impl AccountTransaction {
         let validate_call_info = self.handle_validate_tx(
             state,
             tx_context.clone(),
-            remaining_gas,
+            remaining_validation_gas,
             validate,
             charge_fee,
         )?;
@@ -618,8 +620,13 @@ impl AccountTransaction {
         // Both will be rolled back if the execution is reverted or committed upon success.
         let mut execution_state = TransactionalState::create_transactional(state);
 
+        // Adjust the remaining gas after validation and limit it by the global execution gas limit.
+        let mut remaining_gas = min(
+            *remaining_validation_gas + additional_execution_gas,
+            tx_context.block_context.versioned_constants.execute_max_sierra_gas,
+        );
         let execution_result =
-            self.run_execute(&mut execution_state, &mut execution_context, remaining_gas);
+            self.run_execute(&mut execution_state, &mut execution_context, &mut remaining_gas);
 
         // Pre-compute cost in case of revert.
         // TODO(tzahi): add reverted_l2_gas to the receipt.
@@ -727,16 +734,37 @@ impl AccountTransaction {
     fn run_or_revert<S: StateReader>(
         &self,
         state: &mut TransactionalState<'_, S>,
-        remaining_gas: &mut u64,
         tx_context: Arc<TransactionContext>,
         validate: bool,
         charge_fee: bool,
     ) -> TransactionExecutionResult<ValidateExecuteCallInfo> {
         if self.is_non_revertible(&tx_context.tx_info) {
-            return self.run_non_revertible(state, tx_context, remaining_gas, validate, charge_fee);
+            // Limit the gas by global execution gas limit.
+            let mut remaining_gas = min(
+                tx_context.initial_sierra_gas(),
+                tx_context.block_context.versioned_constants.execute_max_sierra_gas,
+            );
+            return self.run_non_revertible(
+                state,
+                tx_context,
+                &mut remaining_gas,
+                validate,
+                charge_fee,
+            );
         }
 
-        self.run_revertible(state, tx_context, remaining_gas, validate, charge_fee)
+        // Limit the gas by global validation gas limit. The difference between validation and
+        // remaining user_gas / max_execution_sierra_gas needs to be readded after validation.
+        let (mut validation_gas, additional_execution_gas) =
+            tx_context.initial_sierra_gas_validation_execution_split();
+        self.run_revertible(
+            state,
+            tx_context,
+            &mut validation_gas,
+            additional_execution_gas,
+            validate,
+            charge_fee,
+        )
     }
 }
 
@@ -760,7 +788,8 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
         )?;
 
         // Run validation and execution.
-        let mut remaining_gas = tx_context.initial_sierra_gas();
+        // let mut remaining_gas = tx_context.initial_sierra_gas(); // ANER: HERE - need to add
+        // global gas limit
         let ValidateExecuteCallInfo {
             validate_call_info,
             execute_call_info,
@@ -774,7 +803,6 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
                 },
         } = self.run_or_revert(
             state,
-            &mut remaining_gas,
             tx_context.clone(),
             execution_flags.validate,
             execution_flags.charge_fee,

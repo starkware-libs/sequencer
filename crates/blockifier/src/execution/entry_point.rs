@@ -109,7 +109,7 @@ pub struct CallEntryPoint {
     pub caller_address: ContractAddress,
     pub call_type: CallType,
     // We can assume that the initial gas is less than 2^64.
-    pub initial_gas: u64,
+    pub initial_gas: u64, // HERE
 }
 
 impl CallEntryPoint {
@@ -225,6 +225,8 @@ pub struct EntryPointExecutionContext {
 }
 
 impl EntryPointExecutionContext {
+    // This is a global context for the execution of an entry point.
+    // HERE? Probably not...
     pub fn new(
         tx_context: Arc<TransactionContext>,
         mode: ExecutionMode,
@@ -261,13 +263,13 @@ impl EntryPointExecutionContext {
     fn max_steps(
         tx_context: &TransactionContext,
         mode: &ExecutionMode,
-        limit_steps_by_resources: bool,
+        limit_steps_by_resources: bool, // ???
     ) -> usize {
         let TransactionContext { block_context, tx_info } = tx_context;
         let BlockContext { block_info, versioned_constants, .. } = block_context;
         let block_upper_bound = match mode {
-            ExecutionMode::Validate => versioned_constants.validate_max_n_steps,
-            ExecutionMode::Execute => versioned_constants.invoke_tx_max_n_steps,
+            ExecutionMode::Validate => versioned_constants.validate_max_n_steps,//HERE - new fn where replaced with validate_max_sierra_gas
+            ExecutionMode::Execute => versioned_constants.invoke_tx_max_n_steps,//HERE - execute_max_sierra_gas
         }
         .try_into()
         .unwrap_or_else(|error| {

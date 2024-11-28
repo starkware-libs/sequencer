@@ -56,6 +56,17 @@ impl TransactionContext {
             }) => l2_gas.max_amount.0,
         }
     }
+
+    pub fn initial_sierra_gas_validation_execution_split(&self) -> (u64, u64) {
+        let user_gas_limit = self.initial_sierra_gas();
+        match user_gas_limit > self.block_context.versioned_constants.validate_max_sierra_gas {
+            true => (
+                self.block_context.versioned_constants.validate_max_sierra_gas,
+                user_gas_limit - self.block_context.versioned_constants.validate_max_sierra_gas,
+            ),
+            false => (user_gas_limit, 0),
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
