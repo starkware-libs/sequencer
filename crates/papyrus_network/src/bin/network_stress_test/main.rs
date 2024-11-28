@@ -61,15 +61,18 @@ async fn main() {
                     Ok(None) => break,
                     Ok(Some((received_message, _report_callback))) => {
                         let received_message = received_message.unwrap();
+                        let end_time = SystemTime::now();
+                        let start_time = received_message.time;
+                        let duration = match end_time.duration_since(start_time) {
+                            Ok(duration) => duration.as_micros() as i128,
+                            Err(_) => -(start_time.duration_since(end_time).unwrap().as_micros() as i128),
+                        };
                         output_vector.push(Record {
                             peer_id: received_message.peer_id,
                             id: received_message.id,
-                            start_time: received_message.time,
-                            end_time: SystemTime::now(),
-                            duration: SystemTime::now()
-                                .duration_since(received_message.time)
-                                .unwrap()
-                                .as_micros(),
+                            start_time,
+                            end_time,
+                            duration,
                         });
                         i += 1;
                         if i == num_messages * 4 {

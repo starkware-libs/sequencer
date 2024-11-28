@@ -115,7 +115,7 @@ pub struct Record {
     pub start_time: SystemTime,
     #[serde(serialize_with = "serialize_system_time_as_u128_millis")]
     pub end_time: SystemTime,
-    pub duration: u128,
+    pub duration: i128,
 }
 
 pub fn serialize_system_time_as_u128_millis<S>(
