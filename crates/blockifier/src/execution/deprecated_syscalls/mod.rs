@@ -219,7 +219,7 @@ pub fn call_contract(
         storage_address,
         caller_address: syscall_handler.storage_address,
         call_type: CallType::Call,
-        initial_gas: syscall_handler.context.gas_costs().default_initial_gas_cost,
+        initial_gas: syscall_handler.context.gas_costs().base.default_initial_gas_cost,
     };
     let retdata_segment =
         execute_inner_call(entry_point, vm, syscall_handler).map_err(|error| {
@@ -344,7 +344,7 @@ pub fn deploy(
         storage_address: deployed_contract_address,
         caller_address: deployer_address,
     };
-    let mut remaining_gas = syscall_handler.context.gas_costs().default_initial_gas_cost;
+    let mut remaining_gas = syscall_handler.context.gas_costs().base.default_initial_gas_cost;
     let call_info = execute_deployment(
         syscall_handler.state,
         syscall_handler.context,
