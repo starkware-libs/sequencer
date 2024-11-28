@@ -5246,6 +5246,7 @@ dependencies = [
  "rstest",
  "tokio",
  "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

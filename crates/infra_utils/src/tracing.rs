@@ -1,5 +1,8 @@
 use tracing::{debug, error, info, trace, warn};
 
+#[cfg(test)]
+#[path = "tracing_test.rs"]
+mod tracing_test;
 /// Dynamically set tracing level of a message.
 pub struct DynamicLogger {
     level: TraceLevel,
