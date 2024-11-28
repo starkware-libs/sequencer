@@ -571,6 +571,7 @@ pub struct GasCosts {
     // retrieving its price from the table.
     pub range_check_gas_cost: u64,
     // Priced builtins.
+    pub keccak_builtin_gas_cost : u64,
     pub pedersen_gas_cost: u64,
     pub bitwise_builtin_gas_cost: u64,
     pub ecop_gas_cost: u64,
@@ -614,16 +615,12 @@ pub struct GasCosts {
 
 impl GasCosts {
     pub fn get_builtin_gas_cost(&self, builtin: &BuiltinName) -> Result<u64, GasCostsError> {
-        const KECCAK_BUILTIN_GAS_COST: u64 = 136189;
-
         let gas_cost = match *builtin {
             BuiltinName::range_check => self.range_check_gas_cost,
             BuiltinName::pedersen => self.pedersen_gas_cost,
             BuiltinName::bitwise => self.bitwise_builtin_gas_cost,
             BuiltinName::ec_op => self.ecop_gas_cost,
-            // TODO (Yonatan): once keccak_builtin_gas_cost is being inserted to the versioned
-            // constants, replace the constant with field's value
-            BuiltinName::keccak => KECCAK_BUILTIN_GAS_COST,
+            BuiltinName::keccak => self.keccak_builtin_gas_cost,
             BuiltinName::poseidon => self.poseidon_gas_cost,
             BuiltinName::range_check96 => self.range_check_gas_cost,
             BuiltinName::add_mod => self.add_mod_gas_cost,
