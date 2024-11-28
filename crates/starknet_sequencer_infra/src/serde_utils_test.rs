@@ -1,9 +1,9 @@
 use std::fmt::Debug;
 
 use serde::{Deserialize, Serialize};
-use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::core::{CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::{DataAvailabilityMode};
-use starknet_api::rpc_transaction::RpcInvokeTransactionV3;
+use starknet_api::rpc_transaction::{RpcDeclareTransaction, RpcDeclareTransactionV3, RpcDeployAccountTransaction, RpcDeployAccountTransactionV3, RpcInvokeTransaction, RpcInvokeTransactionV3, RpcTransaction};
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
@@ -52,9 +52,10 @@ fn test_serde_felt() {
     test_generic_data_serde(data);
 }
 
+
 #[test]
-fn test_serde_rpc_invoke_tx() {
-    let tx = RpcInvokeTransactionV3 {
+fn test_serde_rpc_invoke_tx_v3() {
+    let invoke_tx = RpcInvokeTransactionV3 {
         sender_address: ContractAddress::default(),
         calldata: Calldata::default(),
         signature: TransactionSignature::default(),
@@ -66,11 +67,74 @@ fn test_serde_rpc_invoke_tx() {
         nonce_data_availability_mode: DataAvailabilityMode::L1,
         fee_data_availability_mode: DataAvailabilityMode::L1,
     };
-    test_generic_data_serde(tx);
+    let rpc_invoke_tx = RpcInvokeTransaction::V3(invoke_tx);
+
+    test_generic_data_serde(rpc_invoke_tx);
 }
 
 
 #[test]
-fn test_serde_sender_tx_fields() {
-    test_generic_data_serde(DataAvailabilityMode::L1);
+fn test_serde_rpc_invoke_tx() {
+    let invoke_tx = RpcInvokeTransactionV3 {
+        sender_address: ContractAddress::default(),
+        calldata: Calldata::default(),
+        signature: TransactionSignature::default(),
+        nonce: Nonce::default(),
+        resource_bounds: AllResourceBounds::default(),
+        tip: Tip::default(),
+        paymaster_data: PaymasterData::default(),
+        account_deployment_data: AccountDeploymentData::default(),
+        nonce_data_availability_mode: DataAvailabilityMode::L1,
+        fee_data_availability_mode: DataAvailabilityMode::L1,
+    };
+    let rpc_invoke_tx = RpcInvokeTransaction::V3(invoke_tx);
+
+    let rpc_tx = RpcTransaction::Invoke(rpc_invoke_tx);
+
+    test_generic_data_serde(rpc_tx);
+}
+
+#[test]
+fn test_serde_rpc_deploy_account_tx() {
+
+    let deploy_account_tx = RpcDeployAccountTransactionV3{
+        signature: Default::default(),
+        nonce: Default::default(),
+        class_hash: Default::default(),
+        resource_bounds: Default::default(),
+        contract_address_salt: Default::default(),
+        constructor_calldata: Default::default(),
+        tip: Default::default(),
+        paymaster_data: Default::default(),
+        nonce_data_availability_mode: DataAvailabilityMode::L1,
+        fee_data_availability_mode: DataAvailabilityMode::L1,
+    };
+    let rpc_deploy_account_tx = RpcDeployAccountTransaction::V3(deploy_account_tx);
+
+    let rpc_tx = RpcTransaction::DeployAccount(rpc_deploy_account_tx);
+
+    test_generic_data_serde(rpc_tx);
+}
+
+#[test]
+fn test_serde_rpc_declare_tx() {
+
+    let declare_tx = RpcDeclareTransactionV3 {
+        sender_address: Default::default(),
+        compiled_class_hash: Default::default(),
+        signature: Default::default(),
+        nonce: Default::default(),
+        contract_class: Default::default(),
+        resource_bounds: Default::default(),
+        tip: Default::default(),
+        paymaster_data: Default::default(),
+        account_deployment_data: Default::default(),
+        nonce_data_availability_mode: DataAvailabilityMode::L1,
+        fee_data_availability_mode: DataAvailabilityMode::L1,
+    };
+    let rpc_declare_tx = RpcDeclareTransaction::V3(declare_tx);
+
+    let rpc_tx = RpcTransaction::Declare(rpc_declare_tx);
+
+    test_generic_data_serde(rpc_tx);
 }

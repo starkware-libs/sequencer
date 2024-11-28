@@ -1,10 +1,12 @@
 #[cfg(test)]
 #[path = "rpc_transaction_test.rs"]
 mod rpc_transaction_test;
-
 use std::collections::HashMap;
+use std::fmt;
 
-use serde::{Deserialize, Serialize};
+use serde::de::{self, MapAccess, Visitor};
+use serde::ser::SerializeMap;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::contract_class::EntryPointType;
 use crate::core::{
@@ -112,12 +114,82 @@ impl From<RpcTransaction> for Transaction {
 /// either a contract class or a class hash).
 ///
 /// [`Starknet specs`]: https://github.com/starkware-libs/starknet-specs/blob/master/api/starknet_api_openrpc.json
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, Hash)]
-#[serde(tag = "version")]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub enum RpcDeclareTransaction {
-    #[serde(rename = "0x3")]
     V3(RpcDeclareTransactionV3),
 }
+
+impl Serialize for RpcDeclareTransaction {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_map(Some(2))?; // 2 fields: version + data
+        match self {
+            RpcDeclareTransaction::V3(data) => {
+                state.serialize_entry("version", "0x3")?;
+                state.serialize_entry("data", data)?;
+            }
+        }
+        state.end()
+    }
+}
+
+impl<'de> Deserialize<'de> for RpcDeclareTransaction {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct RpcDeclareTransactionVisitor;
+
+        impl<'de> Visitor<'de> for RpcDeclareTransactionVisitor {
+            type Value = RpcDeclareTransaction;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a map with version and data fields")
+            }
+
+            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+            where
+                A: MapAccess<'de>,
+            {
+                let mut version: Option<String> = None;
+                let mut data: Option<RpcDeclareTransactionV3> = None;
+
+                while let Some(key) = map.next_key::<String>()? {
+                    match key.as_str() {
+                        "version" => {
+                            if version.is_some() {
+                                return Err(de::Error::duplicate_field("version"));
+                            }
+                            version = Some(map.next_value()?);
+                        }
+                        "data" => {
+                            if data.is_some() {
+                                return Err(de::Error::duplicate_field("data"));
+                            }
+                            data = Some(map.next_value()?);
+                        }
+                        _ => {
+                            return Err(de::Error::unknown_field(&key, &["version", "data"]));
+                        }
+                    }
+                }
+
+                let version = version.ok_or_else(|| de::Error::missing_field("version"))?;
+                let data = data.ok_or_else(|| de::Error::missing_field("data"))?;
+
+                match version.as_str() {
+                    "0x3" => Ok(RpcDeclareTransaction::V3(data)),
+                    _ => Err(de::Error::unknown_variant(&version, &["0x3"])),
+                }
+            }
+        }
+
+        deserializer.deserialize_map(RpcDeclareTransactionVisitor)
+    }
+}
+
 
 impl From<RpcDeclareTransaction> for DeclareTransaction {
     fn from(rpc_declare_transaction: RpcDeclareTransaction) -> Self {
@@ -133,11 +205,80 @@ impl From<RpcDeclareTransaction> for DeclareTransaction {
 /// [`Starknet specs`].
 ///
 /// [`Starknet specs`]: https://github.com/starkware-libs/starknet-specs/blob/master/api/starknet_api_openrpc.json
-#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-#[serde(tag = "version")]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum RpcDeployAccountTransaction {
-    #[serde(rename = "0x3")]
     V3(RpcDeployAccountTransactionV3),
+}
+
+impl Serialize for RpcDeployAccountTransaction {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_map(Some(2))?; // 2 fields: version + data
+        match self {
+            RpcDeployAccountTransaction::V3(data) => {
+                state.serialize_entry("version", "0x3")?;
+                state.serialize_entry("data", data)?;
+            }
+        }
+        state.end()
+    }
+}
+
+impl<'de> Deserialize<'de> for RpcDeployAccountTransaction {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct RpcDeployAccountTransactionVisitor;
+
+        impl<'de> Visitor<'de> for RpcDeployAccountTransactionVisitor {
+            type Value = RpcDeployAccountTransaction;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a map with version and data fields")
+            }
+
+            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+            where
+                A: MapAccess<'de>,
+            {
+                let mut version: Option<String> = None;
+                let mut data: Option<RpcDeployAccountTransactionV3> = None;
+
+                while let Some(key) = map.next_key::<String>()? {
+                    match key.as_str() {
+                        "version" => {
+                            if version.is_some() {
+                                return Err(de::Error::duplicate_field("version"));
+                            }
+                            version = Some(map.next_value()?);
+                        }
+                        "data" => {
+                            if data.is_some() {
+                                return Err(de::Error::duplicate_field("data"));
+                            }
+                            data = Some(map.next_value()?);
+                        }
+                        _ => {
+                            return Err(de::Error::unknown_field(&key, &["version", "data"]));
+                        }
+                    }
+                }
+
+                let version = version.ok_or_else(|| de::Error::missing_field("version"))?;
+                let data = data.ok_or_else(|| de::Error::missing_field("data"))?;
+
+                match version.as_str() {
+                    "0x3" => Ok(RpcDeployAccountTransaction::V3(data)),
+                    _ => Err(de::Error::unknown_variant(&version, &["0x3"])),
+                }
+            }
+        }
+
+        deserializer.deserialize_map(RpcDeployAccountTransactionVisitor)
+    }
 }
 
 impl From<RpcDeployAccountTransaction> for DeployAccountTransaction {
@@ -154,11 +295,80 @@ impl From<RpcDeployAccountTransaction> for DeployAccountTransaction {
 /// [`Starknet specs`].
 ///
 /// [`Starknet specs`]: https://github.com/starkware-libs/starknet-specs/blob/master/api/starknet_api_openrpc.json
-#[derive(Clone, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
-#[serde(tag = "version")]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum RpcInvokeTransaction {
-    #[serde(rename = "0x3")]
     V3(RpcInvokeTransactionV3),
+}
+
+impl Serialize for RpcInvokeTransaction {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_map(Some(2))?; // 2 fields: version + data
+        match self {
+            RpcInvokeTransaction::V3(data) => {
+                state.serialize_entry("version", "0x3")?;
+                state.serialize_entry("data", data)?;
+            }
+        }
+        state.end()
+    }
+}
+
+impl<'de> Deserialize<'de> for RpcInvokeTransaction {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct RpcInvokeTransactionVisitor;
+
+        impl<'de> Visitor<'de> for RpcInvokeTransactionVisitor {
+            type Value = RpcInvokeTransaction;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a map with version and data fields")
+            }
+
+            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+            where
+                A: MapAccess<'de>,
+            {
+                let mut version: Option<String> = None;
+                let mut data: Option<RpcInvokeTransactionV3> = None;
+
+                while let Some(key) = map.next_key::<String>()? {
+                    match key.as_str() {
+                        "version" => {
+                            if version.is_some() {
+                                return Err(de::Error::duplicate_field("version"));
+                            }
+                            version = Some(map.next_value()?);
+                        }
+                        "data" => {
+                            if data.is_some() {
+                                return Err(de::Error::duplicate_field("data"));
+                            }
+                            data = Some(map.next_value()?);
+                        }
+                        _ => {
+                            return Err(de::Error::unknown_field(&key, &["version", "data"]));
+                        }
+                    }
+                }
+
+                let version = version.ok_or_else(|| de::Error::missing_field("version"))?;
+                let data = data.ok_or_else(|| de::Error::missing_field("data"))?;
+
+                match version.as_str() {
+                    "0x3" => Ok(RpcInvokeTransaction::V3(data)),
+                    _ => Err(de::Error::unknown_variant(&version, &["0x3"])),
+                }
+            }
+        }
+
+        deserializer.deserialize_map(RpcInvokeTransactionVisitor)
+    }
 }
 
 impl From<RpcInvokeTransaction> for InvokeTransaction {
