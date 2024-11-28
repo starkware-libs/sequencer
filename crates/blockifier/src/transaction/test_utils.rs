@@ -1,6 +1,6 @@
 use rstest::fixture;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
-use starknet_api::block::GasPrice;
+use starknet_api::block::{FeeType, GasPrice};
 use starknet_api::contract_class::{ClassInfo, ContractClass};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::execution_resources::GasAmount;
@@ -43,7 +43,7 @@ use crate::test_utils::{
     MAX_FEE,
 };
 use crate::transaction::account_transaction::AccountTransaction;
-use crate::transaction::objects::{FeeType, TransactionExecutionInfo, TransactionExecutionResult};
+use crate::transaction::objects::{TransactionExecutionInfo, TransactionExecutionResult};
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::ExecutableTransaction;
 
