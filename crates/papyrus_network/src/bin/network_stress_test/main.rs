@@ -40,6 +40,9 @@ async fn main() {
                 network_channels.broadcast_topic_client.broadcast_message(message).await.unwrap();
                 tokio::time::sleep(std::time::Duration::from_micros(100)).await;
                 i += 1;
+                if i % 10000 == 0 {
+                    println!("Peer {} sent {} messages", peer_id, i);
+                }
                 if i == num_messages {
                     println!("Finished sending messages");
                     futures::future::pending::<()>().await;
@@ -75,6 +78,9 @@ async fn main() {
                             duration,
                         });
                         i += 1;
+                        if i % 10000 == 0 {
+                            println!("Peer {} received {} messages", received_message.peer_id, i);
+                        }
                         if i == num_messages * 4 {
                             tokio::time::sleep(std::time::Duration::from_secs(20)).await;
                             break;
