@@ -10,7 +10,10 @@ description = "Infrastructure utility."
 workspace = true
 
 [dependencies]
-tokio = { workspace = true, features = ["process"] }
+tokio = { workspace = true, features = ["process", "time"] }
+tracing.workspace = true
 
 [dev-dependencies]
+pretty_assertions.workspace = true
 rstest.workspace = true
+tokio = { workspace = true, features = ["macros", "rt"] }
