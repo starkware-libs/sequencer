@@ -86,6 +86,15 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
             ),
             set_pointing_param_paths(&["batcher_config.block_builder_config.sequencer_address"]),
         ),
+        // TODO(tsabary): set as a regular required parameter.
+        (
+            ser_pointer_target_required_param(
+                "node_url",
+                SerializationType::String,
+                "Ethereum node url.",
+            ),
+            set_pointing_param_paths(&["state_sync_config.base_layer_config.node_url"]),
+        ),
     ];
     let mut common_execution_config = generate_struct_pointer(
         "versioned_constants_overrides".to_owned(),

@@ -939,6 +939,11 @@
     "privacy": "Public",
     "value": 8082
   },
+  "node_url": {
+    "description": "A required param! Ethereum node url.",
+    "param_type": "String",
+    "privacy": "TemporaryValue"
+  },
   "rpc_state_reader_config.json_rpc_version": {
     "description": "The json rpc version.",
     "privacy": "Public",
@@ -956,7 +961,7 @@
   },
   "state_sync_config.base_layer_config.node_url": {
     "description": "A required param! Ethereum node URL. A schema to match to Infura node: https://mainnet.infura.io/v3/<your_api_key>, but any other node can be used.",
-    "param_type": "String",
+    "pointer_target": "node_url",
     "privacy": "Private"
   },
   "state_sync_config.base_layer_config.starknet_contract_address": {

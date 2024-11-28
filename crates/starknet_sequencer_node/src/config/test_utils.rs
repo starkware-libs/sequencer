@@ -12,6 +12,7 @@ pub struct RequiredParams {
     pub eth_fee_token_address: ContractAddress,
     pub strk_fee_token_address: ContractAddress,
     pub sequencer_address: ContractAddress,
+    pub node_url: String,
 }
 
 impl RequiredParams {
@@ -21,6 +22,7 @@ impl RequiredParams {
             eth_fee_token_address: ContractAddress::from(2_u128),
             strk_fee_token_address: ContractAddress::from(3_u128),
             sequencer_address: ContractAddress::from(17_u128),
+            node_url: "http://localhost:12345/".to_string(),
         }
     }
 
@@ -35,6 +37,8 @@ impl RequiredParams {
             self.strk_fee_token_address.to_string(),
             "--sequencer_address".to_string(),
             self.sequencer_address.to_string(),
+            "--node_url".to_string(),
+            self.node_url.to_string(),
         ];
         // Verify all arguments and their values are present.
         assert!(
