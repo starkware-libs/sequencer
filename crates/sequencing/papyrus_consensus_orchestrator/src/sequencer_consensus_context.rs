@@ -33,6 +33,7 @@ use starknet_api::block::{
     BlockHashAndNumber,
     BlockInfo,
     BlockNumber,
+    BlockTimestamp,
     GasPriceVector,
     GasPrices,
     NonzeroGasPrice,
@@ -144,10 +145,11 @@ impl ConsensusContext for SequencerConsensusContext {
         self.proposal_id += 1;
         let timeout =
             chrono::Duration::from_std(timeout).expect("Can't convert timeout to chrono::Duration");
+        let now = chrono::Utc::now();
         let build_proposal_input = ProposeBlockInput {
             proposal_id,
             // TODO: Discuss with batcher team passing std Duration instead.
-            deadline: chrono::Utc::now() + timeout,
+            deadline: now + timeout,
             // TODO: This is not part of Milestone 1.
             retrospective_block_hash: Some(BlockHashAndNumber {
                 number: BlockNumber::default(),
@@ -157,6 +159,9 @@ impl ConsensusContext for SequencerConsensusContext {
             block_info: BlockInfo {
                 block_number: proposal_init.height,
                 gas_prices: TEMPORARY_GAS_PRICES,
+                block_timestamp: BlockTimestamp(
+                    now.timestamp().try_into().expect("Failed to convert timestamp"),
+                ),
                 ..Default::default()
             },
         };
@@ -327,9 +332,10 @@ impl SequencerConsensusContext {
 
         let chrono_timeout =
             chrono::Duration::from_std(timeout).expect("Can't convert timeout to chrono::Duration");
+        let now = chrono::Utc::now();
         let input = ValidateBlockInput {
             proposal_id,
-            deadline: chrono::Utc::now() + chrono_timeout,
+            deadline: now + chrono_timeout,
             // TODO(Matan 3/11/2024): Add the real value of the retrospective block hash.
             retrospective_block_hash: Some(BlockHashAndNumber {
                 number: BlockNumber::default(),
@@ -339,6 +345,9 @@ impl SequencerConsensusContext {
             block_info: BlockInfo {
                 block_number: height,
                 gas_prices: TEMPORARY_GAS_PRICES,
+                block_timestamp: BlockTimestamp(
+                    now.timestamp().try_into().expect("Failed to convert timestamp"),
+                ),
                 ..Default::default()
             },
         };
