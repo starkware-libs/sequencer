@@ -31,15 +31,15 @@ struct ContractClassManager {
     contract_caches: Arc<ContractCaches>,
     // The sending half of the compilation request channel.
     sender: SyncSender<CompilationRequest>,
-    // A flag that signals the termination of the compilation handler.
+    // A flag that signals the termination of the compilation worker.
     stop_marker: Arc<AtomicBool>,
-    // The join handle to the thread running the compilation handler.
+    // The join handle to the thread running the compilation worker.
     join_handle: JoinHandle<()>,
 }
 
 impl ContractClassManager {
     /// Creates a new contract class manager and spawns a thread that listens for compilation
-    /// requests and processes them (a.k.a. the compilation handler).
+    /// requests and processes them (a.k.a. the compilation worker).
     /// Returns the contract class manager.
     pub fn start(contract_caches: ContractCaches) -> ContractClassManager {
         // TODO(Avi, 15/12/2024): Add the size of the channel to the config.
@@ -52,18 +52,18 @@ impl ContractClassManager {
         let join_handle = std::thread::spawn({
             let contract_caches = Arc::clone(&contract_caches);
             let stop_marker = Arc::clone(&stop_marker);
-            move || run_compilation_handler(contract_caches, receiver, compiler, stop_marker)
+            move || run_compilation_worker(contract_caches, receiver, compiler, stop_marker)
         });
 
         ContractClassManager { contract_caches, sender, stop_marker, join_handle }
     }
 
-    /// Stops the compilation handler.
+    /// Stops the compilation worker.
     pub fn stop(&self) {
         self.stop_marker.store(true, Ordering::Relaxed);
     }
 
-    /// Sends a compilation request to the compilation handler. Does not block the sender. Logs an
+    /// Sends a compilation request to the compilation worker. Does not block the sender. Logs an
     /// error is the channel is full.
     pub fn send_compilation_request(&self, request: CompilationRequest) {
         self.cache_request_contracts(&request);
@@ -97,7 +97,7 @@ impl ContractClassManager {
         self.contract_caches.get_casm(class_hash)
     }
 
-    /// Waits for the compilation handler to terminate.
+    /// Waits for the compilation worker to terminate.
     pub fn join(self) {
         self.join_handle.join().unwrap();
     }
@@ -111,20 +111,19 @@ impl ContractClassManager {
     }
 }
 
-/// Handles compilation requests from the channel.
+/// Handles compilation requests from the channel, holding the receiver end of the channel.
 /// If no request is available, non-busy-waits until a request is available.
-/// When the sender is dropped, the compilation handler processes all pending requests and
-/// terminates.
-fn run_compilation_handler(
+/// When the sender is dropped, the worker processes all pending requests and terminates.
+fn run_compilation_worker(
     contract_caches: Arc<ContractCaches>,
     receiver: Receiver<CompilationRequest>,
     compiler: CommandLineCompiler,
     stop_marker: Arc<AtomicBool>,
 ) {
-    info!("Compilation handler started.");
+    info!("Compilation worker started.");
     for (class_hash, sierra, casm) in receiver.iter() {
         if stop_marker.load(Ordering::Relaxed) {
-            info!("Compilation handler terminated.");
+            info!("Compilation worker terminated.");
             return;
         }
         if contract_caches.get_native(&class_hash).is_some() {
