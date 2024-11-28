@@ -10,9 +10,9 @@ use crate::concurrency::test_utils::create_fee_transfer_call_info;
 use crate::context::BlockContext;
 use crate::fee::fee_utils::get_sequencer_balance_keys;
 use crate::state::state_api::StateReader;
-use crate::test_utils::contracts::FeatureContract;
+use crate::test_utils::contracts::{FeatureContract, RunnableContractVersion};
 use crate::test_utils::initial_test_state::{fund_account, test_state, test_state_inner};
-use crate::test_utils::{create_trivial_calldata, CairoVersion, BALANCE};
+use crate::test_utils::{create_trivial_calldata, BALANCE};
 use crate::transaction::test_utils::{
     account_invoke_tx,
     block_context,
@@ -20,19 +20,25 @@ use crate::transaction::test_utils::{
 };
 
 #[rstest]
+#[case::cairo0(RunnableContractVersion::Cairo0)]
+#[case::cairo1_casm(RunnableContractVersion::Cairo1Casm)]
+#[cfg_attr(
+    feature = "cairo_native",
+    case::cairo1_native(RunnableContractVersion::Cairo1Native)
+)]
 pub fn test_fill_sequencer_balance_reads(
     block_context: BlockContext,
     default_all_resource_bounds: ValidResourceBounds,
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] erc20_version: CairoVersion,
+    #[case] cairo_version: RunnableContractVersion,
 ) {
-    let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
+    let account = FeatureContract::AccountWithoutValidations(cairo_version);
     let account_tx = account_invoke_tx(invoke_tx_args! {
         sender_address: account.get_instance_address(0),
         calldata: create_trivial_calldata(account.get_instance_address(0)),
         resource_bounds: default_all_resource_bounds,
     });
     let chain_info = &block_context.chain_info;
-    let state = &mut test_state_inner(chain_info, BALANCE, &[(account, 1)], erc20_version);
+    let state = &mut test_state_inner(chain_info, BALANCE, &[(account, 1)], cairo_version);
 
     let sequencer_balance = Fee(100);
     let sequencer_address = block_context.block_info.sequencer_address;
@@ -61,7 +67,7 @@ pub fn test_add_fee_to_sequencer_balance(
     #[case] sequencer_balance_high: Felt,
 ) {
     let block_context = BlockContext::create_for_account_testing();
-    let account = FeatureContract::Empty(CairoVersion::Cairo1);
+    let account = FeatureContract::Empty(RunnableContractVersion::Cairo1Casm);
     let mut state = test_state(&block_context.chain_info, Fee(0), &[(account, 1)]);
     let (sequencer_balance_key_low, sequencer_balance_key_high) =
         get_sequencer_balance_keys(&block_context);

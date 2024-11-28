@@ -9,10 +9,10 @@ use starknet_api::{class_hash, compiled_class_hash, contract_address, felt, nonc
 
 use crate::context::{BlockContext, ChainInfo};
 use crate::state::cached_state::*;
-use crate::test_utils::contracts::FeatureContract;
+use crate::test_utils::contracts::{FeatureContract, RunnableContractVersion};
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::CairoVersion;
+
 const CONTRACT_ADDRESS: &str = "0x100";
 
 fn set_initial_state_values(
@@ -106,7 +106,7 @@ fn get_uninitialized_value() {
 #[test]
 fn declare_contract() {
     let mut state = CachedState::from(DictStateReader { ..Default::default() });
-    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
+    let test_contract = FeatureContract::TestContract(RunnableContractVersion::Cairo0);
     let class_hash = test_contract.get_class_hash();
     let contract_class = test_contract.get_runnable_class();
 
@@ -163,7 +163,7 @@ fn get_and_increment_nonce() {
 #[test]
 fn get_contract_class() {
     // Positive flow.
-    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
+    let test_contract = FeatureContract::TestContract(RunnableContractVersion::Cairo0);
     let state = test_state(&ChainInfo::create_for_testing(), Fee(0), &[(test_contract, 0)]);
     assert_eq!(
         state.get_compiled_class(test_contract.get_class_hash()).unwrap(),
@@ -212,7 +212,7 @@ fn cannot_set_class_hash_to_uninitialized_contract() {
 fn cached_state_state_diff_conversion() {
     // This will not appear in the diff, since this mapping is immutable for the current version we
     // are aligned with.
-    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
+    let test_contract = FeatureContract::TestContract(RunnableContractVersion::Cairo0);
     let test_class_hash = test_contract.get_class_hash();
     let class_hash_to_class =
         HashMap::from([(test_class_hash, test_contract.get_runnable_class())]);
@@ -258,7 +258,7 @@ fn cached_state_state_diff_conversion() {
     );
 
     // Declare a new class.
-    let class_hash = FeatureContract::Empty(CairoVersion::Cairo0).get_class_hash();
+    let class_hash = FeatureContract::Empty(RunnableContractVersion::Cairo0).get_class_hash();
     let compiled_class_hash = compiled_class_hash!(1_u8);
     // Cache the initial read value, as in regular declare flow.
     state.get_compiled_class(class_hash).unwrap_err();
@@ -489,7 +489,7 @@ fn test_allocated_keys_two_transactions(
 fn test_contract_cache_is_used() {
     // Initialize the global cache with a single class, and initialize an empty state with this
     // cache.
-    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
+    let test_contract = FeatureContract::TestContract(RunnableContractVersion::Cairo0);
     let class_hash = test_contract.get_class_hash();
     let contract_class = test_contract.get_runnable_class();
     let mut reader = DictStateReader::default();

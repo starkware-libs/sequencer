@@ -9,6 +9,7 @@ use starknet_api::transaction::TransactionVersion;
 use starknet_api::{calldata, felt, invoke_tx_args};
 use starknet_types_core::felt::Felt;
 
+use super::contracts::RunnableContractVersion;
 use crate::blockifier::config::{ConcurrencyConfig, TransactionExecutorConfig};
 use crate::blockifier::transaction_executor::TransactionExecutor;
 use crate::context::{BlockContext, ChainInfo};
@@ -16,14 +17,14 @@ use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::invoke::invoke_tx;
-use crate::test_utils::{CairoVersion, BALANCE, MAX_FEE};
+use crate::test_utils::{BALANCE, MAX_FEE};
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::transaction_execution::Transaction;
 
 const N_ACCOUNTS: u16 = 10000;
 const N_TXS: usize = 1000;
 const RANDOMIZATION_SEED: u64 = 0;
-const CAIRO_VERSION: CairoVersion = CairoVersion::Cairo0;
+const CAIRO_VERSION: RunnableContractVersion = RunnableContractVersion::Cairo0;
 const TRANSACTION_VERSION: TransactionVersion = TransactionVersion(Felt::THREE);
 const RECIPIENT_GENERATOR_TYPE: RecipientGeneratorType = RecipientGeneratorType::RoundRobin;
 
@@ -33,7 +34,7 @@ pub struct TransfersGeneratorConfig {
     pub max_fee: Fee,
     pub n_txs: usize,
     pub randomization_seed: u64,
-    pub cairo_version: CairoVersion,
+    pub cairo_version: RunnableContractVersion,
     pub tx_version: TransactionVersion,
     pub recipient_generator_type: RecipientGeneratorType,
     pub concurrency_config: ConcurrencyConfig,
