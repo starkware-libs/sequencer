@@ -122,6 +122,7 @@
         "memory_hole_gas_cost": 10,
         "nop_entry_point_offset": -1,
         "range_check_gas_cost": 70,
+        "keccak_builtin_gas_cost": 136189,
         "pedersen_gas_cost": 0,
         "bitwise_builtin_gas_cost": 594,
         "ecop_gas_cost": 0,
