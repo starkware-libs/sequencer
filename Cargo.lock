@@ -10415,7 +10415,6 @@ version = "0.0.0"
 dependencies = [
  "axum",
  "hyper 0.14.30",
- "mempool_test_utils",
  "papyrus_config",
  "reqwest 0.11.27",
  "serde",
