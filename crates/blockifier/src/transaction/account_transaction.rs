@@ -456,7 +456,7 @@ impl AccountTransaction {
         // The fee contains the cost of running this transfer, and the token contract is
         // well known to the sequencer, so there is no need to limit its run.
         let mut remaining_gas_for_fee_transfer =
-            block_context.versioned_constants.os_constants.gas_costs.default_initial_gas_cost;
+            block_context.versioned_constants.os_constants.gas_costs.base.default_initial_gas_cost;
         let fee_transfer_call = CallEntryPoint {
             class_hash: None,
             code_address: None,
