@@ -145,6 +145,7 @@ pub struct CallInfo {
     pub charged_resources: ChargedResources,
 
     // Additional information gathered during execution.
+    pub time: std::time::Duration,
     pub storage_read_values: Vec<Felt>,
     pub accessed_storage_keys: HashSet<StorageKey>,
     pub read_class_hash_values: Vec<ClassHash>,

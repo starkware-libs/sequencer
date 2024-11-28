@@ -61,6 +61,8 @@ pub fn execute_entry_point_call(
     state: &mut dyn State,
     context: &mut EntryPointExecutionContext,
 ) -> EntryPointExecutionResult<CallInfo> {
+    let pre_time = std::time::Instant::now();
+
     // Fetch the class hash from `call`.
     let class_hash = call.class_hash.ok_or(EntryPointExecutionError::InternalError(
         "Class hash must not be None when executing an entry point.".into(),
@@ -99,12 +101,14 @@ pub fn execute_entry_point_call(
         bytecode_length,
     )?;
 
+    let time = pre_time.elapsed();
     Ok(finalize_execution(
         runner,
         syscall_handler,
         n_total_args,
         program_extra_data_length,
         tracked_resource,
+        time,
     )?)
 }
 
@@ -392,6 +396,7 @@ pub fn finalize_execution(
     n_total_args: usize,
     program_extra_data_length: usize,
     tracked_resource: TrackedResource,
+    time: std::time::Duration,
 ) -> Result<CallInfo, PostExecutionError> {
     // Close memory holes in segments (OS code touches those memory cells, we simulate it).
     let program_start_ptr = runner
@@ -454,6 +459,7 @@ pub fn finalize_execution(
         accessed_storage_keys: syscall_handler_base.accessed_keys,
         read_class_hash_values: syscall_handler_base.read_class_hash_values,
         accessed_contract_addresses: syscall_handler_base.accessed_contract_addresses,
+        time,
     })
 }
 

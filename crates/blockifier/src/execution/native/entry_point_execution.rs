@@ -22,6 +22,8 @@ pub fn execute_entry_point_call(
     state: &mut dyn State,
     context: &mut EntryPointExecutionContext,
 ) -> EntryPointExecutionResult<CallInfo> {
+    let pre_time = std::time::Instant::now();
+
     let entry_point = contract_class.get_entry_point(&call)?;
 
     let mut syscall_handler: NativeSyscallHandler<'_> =
@@ -54,12 +56,14 @@ pub fn execute_entry_point_call(
         return Err(EntryPointExecutionError::NativeUnrecoverableError(Box::new(error)));
     }
 
-    create_callinfo(call_result, syscall_handler)
+    let time = pre_time.elapsed();
+    create_callinfo(call_result, syscall_handler, time)
 }
 
 fn create_callinfo(
     call_result: ContractExecutionResult,
     syscall_handler: NativeSyscallHandler<'_>,
+    time: std::time::Duration,
 ) -> Result<CallInfo, EntryPointExecutionError> {
     let remaining_gas = call_result.remaining_gas;
 
@@ -99,5 +103,6 @@ fn create_callinfo(
         accessed_contract_addresses: syscall_handler.base.accessed_contract_addresses,
         read_class_hash_values: syscall_handler.base.read_class_hash_values,
         tracked_resource: TrackedResource::SierraGas,
+        time,
     })
 }
