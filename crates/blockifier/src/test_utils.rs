@@ -216,7 +216,7 @@ pub fn trivial_external_entry_point_with_address(
         initial_gas: VersionedConstants::create_for_testing()
             .os_constants
             .gas_costs
-            .default_initial_gas_cost,
+            .base.default_initial_gas_cost,
         ..Default::default()
     }
 }
