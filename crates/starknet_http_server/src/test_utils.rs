@@ -1,9 +1,9 @@
 use std::net::SocketAddr;
 
 use axum::body::Body;
-use mempool_test_utils::starknet_api_test_utils::rpc_tx_to_json;
 use reqwest::{Client, Response};
 use starknet_api::rpc_transaction::RpcTransaction;
+use starknet_api::test_utils::rpc_tx_to_json;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_sequencer_infra::test_utils::get_available_socket;
