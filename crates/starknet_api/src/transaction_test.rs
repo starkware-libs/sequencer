@@ -49,7 +49,7 @@ fn convert_executable_transaction_and_back() {
             }
         }
     };
-    let executable_tx: ExecutableTransaction = (tx.clone(), tx_hash.clone()).into();
+    let executable_tx: ExecutableTransaction = (tx.clone(), tx_hash).into();
     let tx_back = Transaction::from(executable_tx);
     assert_eq!(tx, tx_back);
 }
