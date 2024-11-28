@@ -81,7 +81,7 @@ pub mod class;
 pub mod compiled_class;
 #[cfg(feature = "document_calls")]
 pub mod document_calls;
-pub mod utils;
+pub mod storage_metrics;
 // TODO(yair): Make the compression_utils module pub(crate) or extract it from the crate.
 #[doc(hidden)]
 pub mod compression_utils;
@@ -150,7 +150,6 @@ use crate::db::{
 use crate::header::StorageBlockHeader;
 use crate::mmap_file::MMapFileStats;
 use crate::state::data::IndexedDeprecatedContractClass;
-pub use crate::utils::update_storage_metrics;
 use crate::version::{VersionStorageReader, VersionStorageWriter};
 
 // For more details on the storage version, see the module documentation.

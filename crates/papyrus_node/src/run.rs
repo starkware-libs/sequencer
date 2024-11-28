@@ -23,7 +23,8 @@ use papyrus_p2p_sync::server::{P2PSyncServer, P2PSyncServerChannels};
 use papyrus_p2p_sync::{Protocol, BUFFER_SIZE};
 #[cfg(feature = "rpc")]
 use papyrus_rpc::run_server;
-use papyrus_storage::{open_storage, update_storage_metrics, StorageReader, StorageWriter};
+use papyrus_storage::storage_metrics::update_storage_metrics;
+use papyrus_storage::{open_storage, StorageReader, StorageWriter};
 use papyrus_sync::sources::base_layer::{BaseLayerSourceError, EthereumBaseLayerSource};
 use papyrus_sync::sources::central::{CentralError, CentralSource, CentralSourceConfig};
 use papyrus_sync::sources::pending::PendingSource;

@@ -11,11 +11,6 @@ document_calls = ["lazy_static"]
 testing = ["tempfile"]
 
 [[bin]]
-name = "dump_declared_classes"
-path = "src/bin/dump_declared_classes.rs"
-required-features = ["clap"]
-
-[[bin]]
 name = "storage_benchmark"
 path = "src/bin/storage_benchmark.rs"
 required-features = ["clap", "statistical"]
