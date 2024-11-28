@@ -10,6 +10,7 @@ use starknet_consensus_manager::config::ConsensusManagerConfig;
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_http_server::config::HttpServerConfig;
 use starknet_http_server::test_utils::HttpTestClient;
+use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::servers::run_component_servers;
 use starknet_sequencer_node::utils::create_node_modules;
 use starknet_task_executor::tokio_executor::TokioExecutor;
@@ -25,13 +26,15 @@ use crate::utils::{
     create_consensus_manager_configs_and_channels,
 };
 
-const PROPOSER_ID: usize = 0;
-const SEQUENCER_IDS: [usize; 1] = [PROPOSER_ID];
+const SEQUENCER_0: usize = 0;
+const SEQUENCER_1: usize = 1;
+const SEQUENCER_INDICES: [usize; 2] = [SEQUENCER_0, SEQUENCER_1];
 
 pub struct FlowTestSetup {
     // TODO(Tsabary): Remove this field.
     pub task_executor: TokioExecutor,
-    pub proposer: SequencerSetup,
+    pub sequencer_0: SequencerSetup,
+    pub sequencer_1: SequencerSetup,
 
     // Channels for consensus proposals, used for asserting the right transactions are proposed.
     pub consensus_proposals_channels: BroadcastTopicChannels<StreamMessage<ProposalPart>>,
@@ -48,7 +51,8 @@ impl FlowTestSetup {
         let (mut consensus_manager_configs, consensus_proposals_channels) =
             create_consensus_manager_configs_and_channels(SEQUENCER_IDS.len());
 
-        // Take the first config for every sequencer node.
+        // Take the first config for every sequencer node, and create nodes one after the other in
+        // order to make sure the ports are not overlapping.
         let proposer_consensus_manager_config = consensus_manager_configs.remove(0);
         let proposer = SequencerSetup::new(
             accounts.clone(),
@@ -59,11 +63,17 @@ impl FlowTestSetup {
         )
         .await;
 
-        Self { task_executor, proposer, consensus_proposals_channels }
-    }
+        let validator_consensus_manager_config = consensus_manager_configs.remove(0);
+        let validator = SequencerSetup::new(
+            accounts,
+            VALIDATOR_ID,
+            chain_info,
+            &task_executor,
+            validator_consensus_manager_config,
+        )
+        .await;
 
-    pub async fn assert_add_tx_success(&self, tx: RpcTransaction) -> TransactionHash {
-        self.proposer.add_tx_http_client.assert_add_tx_success(tx).await
+        Self { task_executor, sequencer_0, sequencer_1, consensus_proposals_channels }
     }
 
     pub async fn assert_add_tx_error(&self, tx: RpcTransaction) -> GatewaySpecError {
@@ -73,7 +83,7 @@ impl FlowTestSetup {
 
 pub struct SequencerSetup {
     /// Used to differentiate between different sequencer nodes.
-    pub sequencer_id: usize,
+    pub sequencer_index: usize,
 
     // Client for adding transactions to the sequencer node.
     pub add_tx_http_client: HttpTestClient,
@@ -84,6 +94,8 @@ pub struct SequencerSetup {
 
     // Handle of the sequencer node.
     pub sequencer_node_handle: JoinHandle<Result<(), anyhow::Error>>,
+
+    pub config: SequencerNodeConfig,
 }
 
 impl SequencerSetup {
@@ -93,7 +105,7 @@ impl SequencerSetup {
     )]
     pub async fn new(
         accounts: Vec<Contract>,
-        sequencer_id: usize,
+        sequencer_index: usize,
         chain_info: ChainInfo,
         task_executor: &TokioExecutor,
         consensus_manager_config: ConsensusManagerConfig,
@@ -134,11 +146,16 @@ impl SequencerSetup {
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
         Self {
-            sequencer_id,
+            sequencer_index,
             add_tx_http_client,
             batcher_storage_file_handle: storage_for_test.batcher_storage_handle,
             rpc_storage_file_handle: storage_for_test.rpc_storage_handle,
             sequencer_node_handle,
+            config,
         }
+    }
+
+    pub async fn assert_add_tx_success(&self, tx: RpcTransaction) -> TransactionHash {
+        self.add_tx_http_client.assert_add_tx_success(tx).await
     }
 }
