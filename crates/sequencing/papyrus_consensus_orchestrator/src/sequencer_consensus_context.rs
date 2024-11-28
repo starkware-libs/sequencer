@@ -141,7 +141,12 @@ impl ConsensusContext for SequencerConsensusContext {
         timeout: Duration,
     ) -> oneshot::Receiver<ProposalContentId> {
         // Handles interrupting an active proposal from a previous height/round
-        self.set_height_and_round(proposal_init.height, proposal_init.round).await;
+        self.set_height_and_round(
+            proposal_init.height,
+            proposal_init.round,
+            proposal_init.proposer,
+        )
+        .await;
         debug!(
             "Building proposal for height: {} with timeout: {:?}",
             proposal_init.height, timeout
@@ -173,7 +178,7 @@ impl ConsensusContext for SequencerConsensusContext {
                     now.timestamp().try_into().expect("Failed to convert timestamp"),
                 ),
                 use_kzg_da: true,
-                ..Default::default()
+                sequencer_address: proposal_init.proposer,
             },
         };
         // TODO: Should we be returning an error?
@@ -219,6 +224,7 @@ impl ConsensusContext for SequencerConsensusContext {
         &mut self,
         height: BlockNumber,
         round: Round,
+        proposer: ValidatorId,
         timeout: Duration,
         content_receiver: mpsc::Receiver<Self::ProposalPart>,
     ) -> oneshot::Receiver<(ProposalContentId, ProposalFin)> {
@@ -232,8 +238,14 @@ impl ConsensusContext for SequencerConsensusContext {
                 fin_receiver
             }
             std::cmp::Ordering::Equal => {
-                self.validate_current_round_proposal(height, timeout, content_receiver, fin_sender)
-                    .await;
+                self.validate_current_round_proposal(
+                    height,
+                    proposer,
+                    timeout,
+                    content_receiver,
+                    fin_sender,
+                )
+                .await;
                 fin_receiver
             }
         }
@@ -295,7 +307,12 @@ impl ConsensusContext for SequencerConsensusContext {
         Ok(())
     }
 
-    async fn set_height_and_round(&mut self, height: BlockNumber, round: Round) {
+    async fn set_height_and_round(
+        &mut self,
+        height: BlockNumber,
+        round: Round,
+        proposer: ValidatorId,
+    ) {
         if self.current_height.map(|h| height > h).unwrap_or(true) {
             self.current_height = Some(height);
             assert_eq!(round, 0);
@@ -337,7 +354,7 @@ impl ConsensusContext for SequencerConsensusContext {
         let Some(((height, timeout, content), fin_sender)) = to_process else {
             return;
         };
-        self.validate_current_round_proposal(height, timeout, content, fin_sender).await;
+        self.validate_current_round_proposal(height, proposer, timeout, content, fin_sender).await;
     }
 }
 
@@ -345,6 +362,7 @@ impl SequencerConsensusContext {
     async fn validate_current_round_proposal(
         &mut self,
         height: BlockNumber,
+        proposer: ValidatorId,
         timeout: Duration,
         content_receiver: mpsc::Receiver<ProposalPart>,
         fin_sender: oneshot::Sender<(ProposalContentId, ProposalFin)>,
@@ -374,7 +392,7 @@ impl SequencerConsensusContext {
                     now.timestamp().try_into().expect("Failed to convert timestamp"),
                 ),
                 use_kzg_da: true,
-                ..Default::default()
+                sequencer_address: proposer,
             },
         };
         batcher.validate_block(input).await.expect("Failed to initiate proposal validation");

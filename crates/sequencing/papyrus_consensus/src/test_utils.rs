@@ -78,6 +78,7 @@ mock! {
             &mut self,
             height: BlockNumber,
             round: Round,
+            proposer: ValidatorId,
             timeout: Duration,
             content: mpsc::Receiver<MockProposalPart>
         ) -> oneshot::Receiver<(ProposalContentId, ProposalFin)>;
@@ -100,7 +101,12 @@ mock! {
             precommits: Vec<Vote>,
         ) -> Result<(), ConsensusError>;
 
-        async fn set_height_and_round(&mut self, height: BlockNumber, round: Round);
+        async fn set_height_and_round(
+            &mut self,
+            height: BlockNumber,
+            round: Round,
+            proposer: ValidatorId
+        );
     }
 }
 

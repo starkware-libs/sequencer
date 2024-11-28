@@ -58,6 +58,7 @@ mock! {
             &mut self,
             height: BlockNumber,
             round: Round,
+            proposer: ValidatorId,
             timeout: Duration,
             content: mpsc::Receiver<ProposalPart>
         ) -> oneshot::Receiver<(ProposalContentId, ProposalFin)>;
@@ -80,8 +81,12 @@ mock! {
             precommits: Vec<Vote>,
         ) -> Result<(), ConsensusError>;
 
-        async fn set_height_and_round(&mut self, height: BlockNumber, round: Round);
-
+        async fn set_height_and_round(
+            &mut self,
+            height: BlockNumber,
+            round: Round,
+            proposer: ValidatorId
+        );
     }
 }
 
@@ -123,7 +128,7 @@ async fn manager_multiple_heights_unordered() {
     // Run the manager for height 1.
     context
         .expect_validate_proposal()
-        .return_once(move |_, _, _, _| {
+        .return_once(move |_, _, _, _, _| {
             let (block_sender, block_receiver) = oneshot::channel();
             block_sender
                 .send((
@@ -136,7 +141,7 @@ async fn manager_multiple_heights_unordered() {
         .times(1);
     context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
-    context.expect_set_height_and_round().returning(move |_, _| ());
+    context.expect_set_height_and_round().returning(move |_, _, _| ());
     context.expect_broadcast().returning(move |_| Ok(()));
 
     let mut manager = MultiHeightManager::new(*VALIDATOR_ID, TIMEOUTS.clone());
@@ -155,7 +160,7 @@ async fn manager_multiple_heights_unordered() {
     // Run the manager for height 2.
     context
         .expect_validate_proposal()
-        .return_once(move |_, _, _, _| {
+        .return_once(move |_, _, _, _, _| {
             let (block_sender, block_receiver) = oneshot::channel();
             block_sender
                 .send((
@@ -188,7 +193,7 @@ async fn run_consensus_sync() {
     // TODO(guyn): refactor this test to pass proposals through the correct channels.
     let (mut proposal_receiver_sender, proposal_receiver_receiver) = mpsc::channel(CHANNEL_SIZE);
 
-    context.expect_validate_proposal().return_once(move |_, _, _, _| {
+    context.expect_validate_proposal().return_once(move |_, _, _, _, _| {
         let (block_sender, block_receiver) = oneshot::channel();
         block_sender
             .send((BlockHash(Felt::TWO), ProposalFin { proposal_content_id: BlockHash(Felt::TWO) }))
@@ -197,7 +202,7 @@ async fn run_consensus_sync() {
     });
     context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
-    context.expect_set_height_and_round().returning(move |_, _| ());
+    context.expect_set_height_and_round().returning(move |_, _, _| ());
     context.expect_broadcast().returning(move |_| Ok(()));
     context.expect_decision_reached().return_once(move |block, votes| {
         assert_eq!(block, BlockHash(Felt::TWO));
@@ -258,7 +263,7 @@ async fn run_consensus_sync_cancellation_safety() {
     // TODO(guyn): refactor this test to pass proposals through the correct channels.
     let (mut proposal_receiver_sender, proposal_receiver_receiver) = mpsc::channel(CHANNEL_SIZE);
 
-    context.expect_validate_proposal().return_once(move |_, _, _, _| {
+    context.expect_validate_proposal().return_once(move |_, _, _, _, _| {
         let (block_sender, block_receiver) = oneshot::channel();
         block_sender
             .send((BlockHash(Felt::ONE), ProposalFin { proposal_content_id: BlockHash(Felt::ONE) }))
@@ -267,7 +272,7 @@ async fn run_consensus_sync_cancellation_safety() {
     });
     context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
-    context.expect_set_height_and_round().returning(move |_, _| ());
+    context.expect_set_height_and_round().returning(move |_, _, _| ());
     context.expect_broadcast().with(eq(prevote(Some(Felt::ONE), 1, 0, *VALIDATOR_ID))).return_once(
         move |_| {
             proposal_handled_tx.send(()).unwrap();
@@ -345,8 +350,8 @@ async fn test_timeouts() {
     send(&mut sender, precommit(None, 1, 0, *VALIDATOR_ID_3)).await;
 
     let mut context = MockTestContext::new();
-    context.expect_set_height_and_round().returning(move |_, _| ());
-    context.expect_validate_proposal().returning(move |_, _, _, _| {
+    context.expect_set_height_and_round().returning(move |_, _, _| ());
+    context.expect_validate_proposal().returning(move |_, _, _, _, _| {
         let (block_sender, block_receiver) = oneshot::channel();
         block_sender
             .send((BlockHash(Felt::ONE), ProposalFin { proposal_content_id: BlockHash(Felt::ONE) }))
