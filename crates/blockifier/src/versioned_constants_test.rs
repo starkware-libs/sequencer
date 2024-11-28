@@ -29,11 +29,11 @@ fn test_successful_gas_costs_parsing() {
     let os_constants: Arc<OsConstants> = Arc::new(OsConstants { gas_costs, ..Default::default() });
     let versioned_constants = VersionedConstants { os_constants, ..Default::default() };
 
-    assert_eq!(versioned_constants.os_constants.gas_costs.step_gas_cost, 2);
-    assert_eq!(versioned_constants.os_constants.gas_costs.entry_point_initial_budget, 2 * 3); // step_gas_cost * 3.
+    assert_eq!(versioned_constants.os_constants.gas_costs.base_gas_costs.step_gas_cost, 2);
+    assert_eq!(versioned_constants.os_constants.gas_costs.base_gas_costs.entry_point_initial_budget, 2 * 3); // step_gas_cost * 3.
 
     // entry_point_initial_budget * 4 + step_gas_cost * 5.
-    assert_eq!(versioned_constants.os_constants.gas_costs.transaction_gas_cost, 6 * 4 + 2 * 5);
+    assert_eq!(versioned_constants.os_constants.gas_costs.base_gas_costs.transaction_gas_cost, 6 * 4 + 2 * 5);
 }
 
 /// Assert versioned constants overrides are used when provided.
@@ -138,7 +138,7 @@ fn test_invalid_number() {
 fn test_old_json_parsing() {
     for file in all_jsons_in_dir().map(Result::unwrap) {
         serde_json::from_reader::<_, VersionedConstants>(&std::fs::File::open(&file).unwrap())
-            .unwrap_or_else(|_| panic!("Versioned constants JSON file {file:#?} is malformed"));
+            .unwrap_or_else(|_| self::panic!("Versioned constants JSON file {file:#?} is malformed"));
     }
 }
 

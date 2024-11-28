@@ -283,7 +283,7 @@ fn expected_fee_transfer_call_info(
             .versioned_constants
             .os_constants
             .gas_costs
-            .default_initial_gas_cost,
+            .base_gas_costs.default_initial_gas_cost,
     };
     let expected_fee_sender_address = *account_address.0.key();
     let expected_fee_transfer_event = OrderedEvent {
