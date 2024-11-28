@@ -3,8 +3,7 @@ use std::net::SocketAddr;
 use std::time::Duration;
 
 use blockifier::context::ChainInfo;
-use blockifier::test_utils::contracts::FeatureContract;
-use blockifier::test_utils::CairoVersion;
+use blockifier::test_utils::contracts::{FeatureContract, RunnableContractVersion};
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use papyrus_consensus::config::ConsensusConfig;
 use papyrus_network::network_manager::test_utils::create_network_configs_connected_to_broadcast_channels;
@@ -112,8 +111,8 @@ pub fn create_integration_test_tx_generator() -> MultiAccountTransactionGenerato
         MultiAccountTransactionGenerator::new();
 
     for account in [
-        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1),
-        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0),
+        FeatureContract::AccountWithoutValidations(RunnableContractVersion::Cairo1Casm),
+        FeatureContract::AccountWithoutValidations(RunnableContractVersion::Cairo0),
     ] {
         tx_generator.register_account_for_flow_test(account);
     }

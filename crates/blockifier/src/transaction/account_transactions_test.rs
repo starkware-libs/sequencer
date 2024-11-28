@@ -62,7 +62,7 @@ use crate::fee::fee_utils::{get_fee_by_gas_vector, get_sequencer_balance_keys};
 use crate::fee::gas_usage::estimate_minimal_gas_vector;
 use crate::state::cached_state::{StateChangesCount, StateChangesCountForFee, TransactionalState};
 use crate::state::state_api::{State, StateReader};
-use crate::test_utils::contracts::FeatureContract;
+use crate::test_utils::contracts::{FeatureContract, RunnableContractVersion};
 use crate::test_utils::declare::declare_tx;
 use crate::test_utils::deploy_account::deploy_account_tx;
 use crate::test_utils::initial_test_state::{fund_account, test_state};
@@ -108,9 +108,15 @@ use crate::transaction::transactions::{ExecutableTransaction, ExecutionFlags};
 use crate::utils::u64_from_usize;
 
 #[rstest]
-fn test_circuit(block_context: BlockContext, default_all_resource_bounds: ValidResourceBounds) {
-    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1);
-    let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
+#[case(RunnableContractVersion::Cairo1Casm)]
+#[cfg_attr(feature = "cairo_native", case(RunnableContractVersion::Cairo1Native))]
+fn test_circuit(
+    #[case] cairo_version: RunnableContractVersion,
+    block_context: BlockContext,
+    default_all_resource_bounds: ValidResourceBounds,
+) {
+    let test_contract = FeatureContract::TestContract(cairo_version);
+    let account = FeatureContract::AccountWithoutValidations(cairo_version);
     let chain_info = &block_context.chain_info;
     let state = &mut test_state(chain_info, BALANCE, &[(test_contract, 1), (account, 1)]);
     let test_contract_address = test_contract.get_instance_address(0);
@@ -141,9 +147,15 @@ fn test_circuit(block_context: BlockContext, default_all_resource_bounds: ValidR
 }
 
 #[rstest]
-fn test_rc96_holes(block_context: BlockContext, default_all_resource_bounds: ValidResourceBounds) {
-    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1);
-    let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
+#[case(RunnableContractVersion::Cairo1Casm)]
+#[cfg_attr(feature = "cairo_native", case(RunnableContractVersion::Cairo1Native))]
+fn test_rc96_holes(
+    #[case] cairo_version: RunnableContractVersion,
+    block_context: BlockContext,
+    default_all_resource_bounds: ValidResourceBounds,
+) {
+    let test_contract = FeatureContract::TestContract(cairo_version);
+    let account = FeatureContract::AccountWithoutValidations(cairo_version);
     let chain_info = &block_context.chain_info;
     let state = &mut test_state(chain_info, BALANCE, &[(test_contract, 1), (account, 1)]);
     let test_contract_address = test_contract.get_instance_address(0);
@@ -188,7 +200,7 @@ fn test_fee_enforcement(
     #[case] gas_bounds_mode: GasVectorComputationMode,
     #[values(true, false)] zero_bounds: bool,
 ) {
-    let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0);
+    let account = FeatureContract::AccountWithoutValidations(RunnableContractVersion::Cairo0);
     let state = &mut test_state(&block_context.chain_info, BALANCE, &[(account, 1)]);
     let deploy_account_tx = deploy_account_tx(
         deploy_account_tx_args! {
@@ -305,7 +317,7 @@ fn test_account_flow_test(
     #[values(true, false)] only_query: bool,
 ) {
     let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
-        create_test_init_data(&block_context.chain_info, CairoVersion::Cairo0);
+        create_test_init_data(&block_context.chain_info, RunnableContractVersion::Cairo0);
 
     // Invoke a function from the newly deployed contract.
     run_invoke_tx(
@@ -335,7 +347,7 @@ fn test_invoke_tx_from_non_deployed_account(
     #[case] tx_version: TransactionVersion,
 ) {
     let TestInitData { mut state, account_address, contract_address: _, mut nonce_manager } =
-        create_test_init_data(&block_context.chain_info, CairoVersion::Cairo0);
+        create_test_init_data(&block_context.chain_info, RunnableContractVersion::Cairo0);
     // Invoke a function from the newly deployed contract.
     let entry_point_selector = selector_from_name("return_result");
 
@@ -387,7 +399,7 @@ fn test_infinite_recursion(
     block_context.versioned_constants.invoke_tx_max_n_steps = 4200;
 
     let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
-        create_test_init_data(&block_context.chain_info, CairoVersion::Cairo0);
+        create_test_init_data(&block_context.chain_info, RunnableContractVersion::Cairo0);
 
     let recursion_depth = if success { 3_u32 } else { 1000_u32 };
 
@@ -444,8 +456,9 @@ fn test_max_fee_limit_validate(
     let chain_info = &block_context.chain_info;
     let gas_computation_mode = resource_bounds.get_gas_vector_computation_mode();
     let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
-        create_test_init_data(chain_info, CairoVersion::Cairo1);
-    let grindy_validate_account = FeatureContract::AccountWithLongValidate(CairoVersion::Cairo1);
+        create_test_init_data(chain_info, RunnableContractVersion::Cairo1Casm);
+    let grindy_validate_account =
+        FeatureContract::AccountWithLongValidate(RunnableContractVersion::Cairo1Casm);
     let grindy_class_hash = grindy_validate_account.get_class_hash();
     let block_info = &block_context.block_info;
     let class_info = calculate_class_info_for_testing(grindy_validate_account.get_class());
@@ -567,12 +580,63 @@ fn test_max_fee_limit_validate(
 }
 
 #[rstest]
-#[case::v1(TransactionVersion::ONE, default_all_resource_bounds())]
-#[case::l1_bounds(TransactionVersion::THREE, default_l1_resource_bounds())]
-#[case::all_bounds(TransactionVersion::THREE, default_all_resource_bounds())]
+#[case::cairo0_v1(
+    RunnableContractVersion::Cairo0,
+    TransactionVersion::ONE,
+    default_all_resource_bounds()
+)]
+#[case::cairo0_l1_bounds(
+    RunnableContractVersion::Cairo0,
+    TransactionVersion::THREE,
+    default_l1_resource_bounds()
+)]
+#[case::cairo0_all_bounds(
+    RunnableContractVersion::Cairo0,
+    TransactionVersion::THREE,
+    default_all_resource_bounds()
+)]
+#[case::cairo1_casm_v1(
+    RunnableContractVersion::Cairo1Casm,
+    TransactionVersion::ONE,
+    default_all_resource_bounds()
+)]
+#[case::cairo1_casm_l1_bounds(
+    RunnableContractVersion::Cairo1Casm,
+    TransactionVersion::THREE,
+    default_l1_resource_bounds()
+)]
+#[case::cairo1_casm_all_bounds(
+    RunnableContractVersion::Cairo1Casm,
+    TransactionVersion::THREE,
+    default_all_resource_bounds()
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    case::cairo1_native_v1(
+        RunnableContractVersion::Cairo1Native,
+        TransactionVersion::ONE,
+        default_all_resource_bounds()
+    )
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    case::cairo1_native_l1_bounds(
+        RunnableContractVersion::Cairo1Native,
+        TransactionVersion::THREE,
+        default_l1_resource_bounds()
+    )
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    case::cairo1_native_all_bounds(
+        RunnableContractVersion::Cairo1Native,
+        TransactionVersion::THREE,
+        default_all_resource_bounds()
+    )
+)]
 fn test_recursion_depth_exceeded(
+    #[case] cairo_version: RunnableContractVersion,
     #[case] tx_version: TransactionVersion,
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
     block_context: BlockContext,
     max_fee: Fee,
     #[case] resource_bounds: ValidResourceBounds,
@@ -654,8 +718,8 @@ fn test_revert_invoke(
     #[case] transaction_version: TransactionVersion,
     #[case] fee_type: FeeType,
 ) {
-    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
-    let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0);
+    let test_contract = FeatureContract::TestContract(RunnableContractVersion::Cairo0);
+    let account = FeatureContract::AccountWithoutValidations(RunnableContractVersion::Cairo0);
     let chain_info = &block_context.chain_info;
     let state = &mut test_state(chain_info, BALANCE, &[(test_contract, 1), (account, 1)]);
     let test_contract_address = test_contract.get_instance_address(0);
@@ -711,10 +775,13 @@ fn test_revert_invoke(
 }
 
 #[rstest]
+#[case(RunnableContractVersion::Cairo0)]
+#[case(RunnableContractVersion::Cairo1Casm)]
+#[cfg_attr(feature = "cairo_native", case(RunnableContractVersion::Cairo1Native))]
 /// Tests that failing account deployment should not change state (no fee charge or nonce bump).
 fn test_fail_deploy_account(
     block_context: BlockContext,
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
+    #[case] cairo_version: RunnableContractVersion,
     #[values(TransactionVersion::ONE, TransactionVersion::THREE)] tx_version: TransactionVersion,
 ) {
     let chain_info = &block_context.chain_info;
@@ -760,9 +827,9 @@ fn test_fail_deploy_account(
 fn test_fail_declare(block_context: BlockContext, max_fee: Fee) {
     let chain_info = &block_context.chain_info;
     let TestInitData { mut state, account_address, mut nonce_manager, .. } =
-        create_test_init_data(chain_info, CairoVersion::Cairo0);
+        create_test_init_data(chain_info, RunnableContractVersion::Cairo0);
     let class_hash = class_hash!(0xdeadeadeaf72_u128);
-    let contract_class = FeatureContract::Empty(CairoVersion::Cairo1).get_class();
+    let contract_class = FeatureContract::Empty(RunnableContractVersion::Cairo1Casm).get_class();
     let next_nonce = nonce_manager.next(account_address);
 
     // Cannot fail executing a declare tx unless it's V2 or above, and already declared.
@@ -817,15 +884,66 @@ fn recursive_function_calldata(
 /// Tests that reverted transactions are charged more fee and steps than their (recursive) prefix
 /// successful counterparts.
 /// In this test reverted transactions are valid function calls that got insufficient steps limit.
-#[case::v1(TransactionVersion::ONE, default_all_resource_bounds())]
-#[case::l1_bounds(TransactionVersion::THREE, default_l1_resource_bounds())]
-#[case::all_bounds(TransactionVersion::THREE, default_all_resource_bounds())]
+#[case::cairo0_v1(
+    RunnableContractVersion::Cairo0,
+    TransactionVersion::ONE,
+    default_all_resource_bounds()
+)]
+#[case::cairo0_l1_bounds(
+    RunnableContractVersion::Cairo0,
+    TransactionVersion::THREE,
+    default_l1_resource_bounds()
+)]
+#[case::cairo0_all_bounds(
+    RunnableContractVersion::Cairo0,
+    TransactionVersion::THREE,
+    default_all_resource_bounds()
+)]
+#[case::cairo1_casm_v1(
+    RunnableContractVersion::Cairo1Casm,
+    TransactionVersion::ONE,
+    default_all_resource_bounds()
+)]
+#[case::cairo1_casm_l1_bounds(
+    RunnableContractVersion::Cairo1Casm,
+    TransactionVersion::THREE,
+    default_l1_resource_bounds()
+)]
+#[case::cairo1_casm_all_bounds(
+    RunnableContractVersion::Cairo1Casm,
+    TransactionVersion::THREE,
+    default_all_resource_bounds()
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    case::cairo1_native_v1(
+        RunnableContractVersion::Cairo1Native,
+        TransactionVersion::ONE,
+        default_all_resource_bounds()
+    )
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    case::cairo1_native_l1_bounds(
+        RunnableContractVersion::Cairo1Native,
+        TransactionVersion::THREE,
+        default_l1_resource_bounds()
+    )
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    case::cairo1_native_all_bounds(
+        RunnableContractVersion::Cairo1Native,
+        TransactionVersion::THREE,
+        default_all_resource_bounds()
+    )
+)]
 fn test_reverted_reach_steps_limit(
     max_fee: Fee,
     mut block_context: BlockContext,
+    #[case] cairo_version: RunnableContractVersion,
     #[case] version: TransactionVersion,
     #[case] resource_bounds: ValidResourceBounds,
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
 ) {
     let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
         create_test_init_data(&block_context.chain_info, cairo_version);
@@ -930,11 +1048,14 @@ fn test_reverted_reach_steps_limit(
 /// Tests that n_steps and actual_fees of reverted transactions invocations are consistent.
 /// In this test reverted transactions are recursive function invocations where the innermost call
 /// asserts false. We test deltas between consecutive depths, and further depths.
+#[case(RunnableContractVersion::Cairo0)]
+#[case(RunnableContractVersion::Cairo1Casm)]
+#[cfg_attr(feature = "cairo_native", case(RunnableContractVersion::Cairo1Native))]
 fn test_n_reverted_steps(
     block_context: BlockContext,
     #[values(default_l1_resource_bounds(), default_all_resource_bounds())]
     resource_bounds: ValidResourceBounds,
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
+    #[case] cairo_version: RunnableContractVersion,
 ) {
     let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
         create_test_init_data(&block_context.chain_info, cairo_version);
@@ -1098,7 +1219,7 @@ fn test_max_fee_to_max_steps_conversion(
     #[case] version: TransactionVersion,
 ) {
     let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
-        create_test_init_data(&block_context.chain_info, CairoVersion::Cairo0);
+        create_test_init_data(&block_context.chain_info, RunnableContractVersion::Cairo0);
     let actual_gas_used: GasAmount = u64_from_usize(
         get_syscall_resources(SyscallSelector::CallContract).n_steps
             + get_tx_resources(TransactionType::InvokeFunction).n_steps
@@ -1168,11 +1289,14 @@ fn test_max_fee_to_max_steps_conversion(
 #[rstest]
 /// Tests that transactions with insufficient max_fee are reverted, the correct revert_error is
 /// recorded and max_fee is charged.
+#[case(RunnableContractVersion::Cairo0)]
+#[case(RunnableContractVersion::Cairo1Casm)]
+#[cfg_attr(feature = "cairo_native", case(RunnableContractVersion::Cairo1Native))]
 fn test_insufficient_max_fee_reverts(
     block_context: BlockContext,
     #[values(default_l1_resource_bounds(), default_all_resource_bounds())]
     resource_bounds: ValidResourceBounds,
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
+    #[case] cairo_version: RunnableContractVersion,
 ) {
     let gas_mode = resource_bounds.get_gas_vector_computation_mode();
     let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
@@ -1263,10 +1387,13 @@ fn test_insufficient_max_fee_reverts(
 }
 
 #[rstest]
+#[case(RunnableContractVersion::Cairo0)]
+#[case(RunnableContractVersion::Cairo1Casm)]
+#[cfg_attr(feature = "cairo_native", case(RunnableContractVersion::Cairo1Native))]
 fn test_deploy_account_constructor_storage_write(
     default_all_resource_bounds: ValidResourceBounds,
     block_context: BlockContext,
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
+    #[case] cairo_version: RunnableContractVersion,
 ) {
     let grindy_account = FeatureContract::AccountWithLongValidate(cairo_version);
     let class_hash = grindy_account.get_class_hash();
@@ -1303,15 +1430,45 @@ fn test_deploy_account_constructor_storage_write(
 
 /// Test for counting actual storage changes.
 #[rstest]
-#[case::tx_version_1(TransactionVersion::ONE, FeeType::Eth)]
-#[case::tx_version_3(TransactionVersion::THREE, FeeType::Strk)]
+#[case::cairo0_tx_version_1(RunnableContractVersion::Cairo0, TransactionVersion::ONE, FeeType::Eth)]
+#[case::cairo0_tx_version_3(
+    RunnableContractVersion::Cairo0,
+    TransactionVersion::THREE,
+    FeeType::Strk
+)]
+#[case::cairo1_casm_tx_version_1(
+    RunnableContractVersion::Cairo1Casm,
+    TransactionVersion::ONE,
+    FeeType::Eth
+)]
+#[case::cairo1_casm_tx_version_3(
+    RunnableContractVersion::Cairo1Casm,
+    TransactionVersion::THREE,
+    FeeType::Strk
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    case::cairo1_native_tx_version_1(
+        RunnableContractVersion::Cairo1Native,
+        TransactionVersion::ONE,
+        FeeType::Eth
+    )
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    case::cairo1_native_tx_version_3(
+        RunnableContractVersion::Cairo1Native,
+        TransactionVersion::THREE,
+        FeeType::Strk
+    )
+)]
 fn test_count_actual_storage_changes(
     max_fee: Fee,
     block_context: BlockContext,
     default_all_resource_bounds: ValidResourceBounds,
+    #[case] cairo_version: RunnableContractVersion,
     #[case] version: TransactionVersion,
     #[case] fee_type: FeeType,
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
 ) {
     // FeeType according to version.
 
@@ -1510,8 +1667,8 @@ fn test_concurrency_execute_fee_transfer(
     const SEQUENCER_BALANCE_LOW_INITIAL: u128 = 50;
 
     let block_context = BlockContext::create_for_account_testing();
-    let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
-    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
+    let account = FeatureContract::AccountWithoutValidations(RunnableContractVersion::Cairo1Casm);
+    let test_contract = FeatureContract::TestContract(RunnableContractVersion::Cairo0);
     let chain_info = &block_context.chain_info;
     let state = &mut test_state(chain_info, BALANCE, &[(account, 1), (test_contract, 1)]);
     let (sequencer_balance_key_low, sequencer_balance_key_high) =
@@ -1605,10 +1762,10 @@ fn test_concurrent_fee_transfer_when_sender_is_sequencer(
     #[case] version: TransactionVersion,
 ) {
     let mut block_context = BlockContext::create_for_account_testing();
-    let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
+    let account = FeatureContract::AccountWithoutValidations(RunnableContractVersion::Cairo1Casm);
     let account_address = account.get_instance_address(0_u16);
     block_context.block_info.sequencer_address = account_address;
-    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
+    let test_contract = FeatureContract::TestContract(RunnableContractVersion::Cairo0);
     let sender_balance = BALANCE;
     let chain_info = &block_context.chain_info;
     let state = &mut test_state(chain_info, sender_balance, &[(account, 1), (test_contract, 1)]);
@@ -1653,7 +1810,7 @@ fn test_initial_gas(
     default_all_resource_bounds: ValidResourceBounds,
 ) {
     let block_context = BlockContext::create_for_account_testing();
-    let account_version = CairoVersion::Cairo1;
+    let account_version = RunnableContractVersion::Cairo1Casm;
     let account = FeatureContract::AccountWithoutValidations(account_version);
     let account_address = account.get_instance_address(0_u16);
     let used_test_contracts: HashSet<FeatureContract> =
@@ -1688,7 +1845,7 @@ fn test_initial_gas(
     let mut curr_initial_gas;
     let mut started_vm_mode = false;
     // The __validate__ call of a the account contract.
-    let mut prev_version = &CompilerBasedVersion::CairoVersion(account_version);
+    let mut prev_version = &CompilerBasedVersion::CairoVersion(account_version.into());
     // Insert the __execute__ call in the beginning of versions (same version as the __validate__).
     for version in [*prev_version].iter().chain(versions) {
         curr_initial_gas = execute_call_info.call.initial_gas;
@@ -1738,7 +1895,7 @@ fn test_revert_in_execute(
     block_context: BlockContext,
     default_all_resource_bounds: ValidResourceBounds,
 ) {
-    let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
+    let account = FeatureContract::AccountWithoutValidations(RunnableContractVersion::Cairo1Casm);
     let chain_info = &block_context.chain_info;
     let state = &mut test_state(chain_info, BALANCE, &[(account, 1)]);
     let account_address = account.get_instance_address(0);
@@ -1771,10 +1928,10 @@ fn test_revert_in_execute(
 }
 
 #[rstest]
-#[cfg_attr(feature = "cairo_native", case::native(CairoVersion::Native))]
-#[case::vm(CairoVersion::Cairo1)]
+#[cfg_attr(feature = "cairo_native", case::native(RunnableContractVersion::Cairo1Native))]
+#[case::vm(RunnableContractVersion::Cairo1Casm)]
 fn test_call_contract_that_panics(
-    #[case] cairo_version: CairoVersion,
+    #[case] cairo_version: RunnableContractVersion,
     mut block_context: BlockContext,
     default_all_resource_bounds: ValidResourceBounds,
     #[values(true, false)] enable_reverts: bool,
@@ -1784,7 +1941,7 @@ fn test_call_contract_that_panics(
     block_context.versioned_constants.enable_reverts = enable_reverts;
     let test_contract = FeatureContract::TestContract(cairo_version);
     // TODO(Yoni): use `class_version` here once the feature contract fully supports Native.
-    let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
+    let account = FeatureContract::AccountWithoutValidations(RunnableContractVersion::Cairo1Casm);
     let chain_info = &block_context.chain_info;
     let state = &mut test_state(chain_info, BALANCE, &[(test_contract, 1), (account, 1)]);
     let test_contract_address = test_contract.get_instance_address(0);
@@ -1794,7 +1951,10 @@ fn test_call_contract_that_panics(
     let new_class_hash = test_contract.get_class_hash();
 
     let calldata = [
-        *FeatureContract::TestContract(CairoVersion::Cairo1).get_instance_address(0).0.key(),
+        *FeatureContract::TestContract(RunnableContractVersion::Cairo1Casm)
+            .get_instance_address(0)
+            .0
+            .key(),
         selector_from_name(inner_selector).0,
         felt!(1_u8),
         new_class_hash.0,
