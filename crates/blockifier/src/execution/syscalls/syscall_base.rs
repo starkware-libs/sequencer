@@ -31,7 +31,6 @@ pub type SyscallResult<T> = Result<T, SyscallExecutionError>;
 pub const KECCAK_FULL_RATE_IN_WORDS: usize = 17;
 
 /// This file is for sharing common logic between Native and VM syscall implementations.
-
 pub struct SyscallHandlerBase<'state> {
     // Input for execution.
     pub state: &'state mut dyn State,

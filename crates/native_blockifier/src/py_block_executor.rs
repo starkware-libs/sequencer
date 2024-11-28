@@ -1,3 +1,4 @@
+#![allow(non_local_definitions)]
 use std::collections::HashMap;
 
 use blockifier::abi::constants as abi_constants;
