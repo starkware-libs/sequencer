@@ -21,11 +21,10 @@ use test_case::test_case;
 use crate::context::ChainInfo;
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::entry_point::CallEntryPoint;
-use crate::test_utils::contracts::FeatureContract;
+use crate::test_utils::contracts::{FeatureContract, RunnableContractVersion};
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{
     trivial_external_entry_point_with_address,
-    CairoVersion,
     BALANCE,
     CURRENT_BLOCK_NUMBER,
     CURRENT_BLOCK_NUMBER_FOR_VALIDATE,
@@ -63,7 +62,7 @@ use crate::transaction::objects::{
 #[cfg_attr(
     feature = "cairo_native",
     test_case(
-        FeatureContract::TestContract(CairoVersion::Native),
+        FeatureContract::TestContract(RunnableContractVersion::Native),
         ExecutionMode::Validate,
         TransactionVersion::ONE,
         false;
@@ -73,7 +72,7 @@ use crate::transaction::objects::{
 #[cfg_attr(
     feature = "cairo_native",
     test_case(
-        FeatureContract::TestContract(CairoVersion::Native),
+        FeatureContract::TestContract(RunnableContractVersion::Native),
         ExecutionMode::Execute,
         TransactionVersion::ONE,
         false;
@@ -83,7 +82,7 @@ use crate::transaction::objects::{
 #[cfg_attr(
     feature = "cairo_native",
     test_case(
-        FeatureContract::TestContract(CairoVersion::Native),
+        FeatureContract::TestContract(RunnableContractVersion::Native),
         ExecutionMode::Validate,
         TransactionVersion::THREE,
         false;
@@ -93,7 +92,7 @@ use crate::transaction::objects::{
 #[cfg_attr(
     feature = "cairo_native",
     test_case(
-        FeatureContract::TestContract(CairoVersion::Native),
+        FeatureContract::TestContract(RunnableContractVersion::Native),
         ExecutionMode::Execute,
         TransactionVersion::THREE,
         false;
@@ -101,25 +100,25 @@ use crate::transaction::objects::{
     )
 )]
 #[test_case(
-    FeatureContract::TestContract(CairoVersion::Cairo1),
+    FeatureContract::TestContract(RunnableContractVersion::Cairo1Casm),
     ExecutionMode::Validate,
     TransactionVersion::ONE,
     false;
     "Validate execution mode: block info fields should be zeroed. Transaction V1.")]
 #[test_case(
-    FeatureContract::TestContract(CairoVersion::Cairo1),
+    FeatureContract::TestContract(RunnableContractVersion::Cairo1Casm),
     ExecutionMode::Execute,
     TransactionVersion::ONE,
     false;
     "Execute execution mode: block info should be as usual. Transaction V1.")]
 #[test_case(
-    FeatureContract::TestContract(CairoVersion::Cairo1),
+    FeatureContract::TestContract(RunnableContractVersion::Cairo1Casm),
     ExecutionMode::Validate,
     TransactionVersion::THREE,
     false;
     "Validate execution mode: block info fields should be zeroed. Transaction V3.")]
 #[test_case(
-    FeatureContract::TestContract(CairoVersion::Cairo1),
+    FeatureContract::TestContract(RunnableContractVersion::Cairo1Casm),
     ExecutionMode::Execute,
     TransactionVersion::THREE,
     false;
@@ -137,7 +136,7 @@ use crate::transaction::objects::{
     false;
     "Legacy contract. Execute execution mode: block info should be as usual. Transaction V3.")]
 #[test_case(
-    FeatureContract::TestContract(CairoVersion::Cairo1),
+    FeatureContract::TestContract(RunnableContractVersion::Cairo1Casm),
     ExecutionMode::Execute,
     TransactionVersion::THREE,
     true;

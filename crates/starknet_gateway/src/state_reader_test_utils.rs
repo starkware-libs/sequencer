@@ -3,10 +3,10 @@ use blockifier::context::BlockContext;
 use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
-use blockifier::test_utils::contracts::FeatureContract;
+use blockifier::test_utils::contracts::{FeatureContract, RunnableContractVersion};
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::test_utils::initial_test_state::test_state;
-use blockifier::test_utils::{CairoVersion, BALANCE};
+use blockifier::test_utils::BALANCE;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
@@ -68,7 +68,7 @@ impl StateReaderFactory for TestStateReaderFactory {
 }
 
 pub fn local_test_state_reader_factory(
-    cairo_version: CairoVersion,
+    cairo_version: RunnableContractVersion,
     zero_balance: bool,
 ) -> TestStateReaderFactory {
     let block_context = BlockContext::create_for_testing();

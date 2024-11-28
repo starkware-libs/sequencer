@@ -13,15 +13,13 @@ use crate::execution::call_info::CallExecution;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::state::cached_state::CachedState;
 use crate::state::state_api::State;
-use crate::test_utils::contracts::FeatureContract;
+use crate::test_utils::contracts::{
+    FeatureContract,
+    RunnableContractVersion,
+};
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{
-    trivial_external_entry_point_new,
-    CairoVersion,
-    BALANCE,
-    CURRENT_BLOCK_NUMBER,
-};
+use crate::test_utils::{trivial_external_entry_point_new, BALANCE, CURRENT_BLOCK_NUMBER};
 use crate::{check_entry_point_execution_error_for_custom_hint, retdata};
 
 fn initialize_state(test_contract: FeatureContract) -> (CachedState<DictStateReader>, Felt, Felt) {
@@ -40,9 +38,12 @@ fn initialize_state(test_contract: FeatureContract) -> (CachedState<DictStateRea
     (state, block_number, block_hash)
 }
 
-#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Native;"Native"))]
-#[test_case(CairoVersion::Cairo1;"VM")]
-fn positive_flow(cairo_version: CairoVersion) {
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(RunnableContractVersion::Cairo1(RunnableCairo1ContractVersion::Native); "Native")
+)]
+#[test_case(RunnableContractVersion::Cairo1Casm;"VM")]
+fn positive_flow(cairo_version: RunnableContractVersion) {
     let test_contract = FeatureContract::TestContract(cairo_version);
     let (mut state, block_number, block_hash) = initialize_state(test_contract);
 
@@ -59,9 +60,12 @@ fn positive_flow(cairo_version: CairoVersion) {
     );
 }
 
-#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Native;"Native"))]
-#[test_case(CairoVersion::Cairo1;"VM")]
-fn negative_flow_execution_mode_validate(cairo_version: CairoVersion) {
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(RunnableContractVersion::Cairo1(RunnableCairo1ContractVersion::Native); "Native")
+)]
+#[test_case(RunnableContractVersion::Cairo1Casm;"VM")]
+fn negative_flow_execution_mode_validate(cairo_version: RunnableContractVersion) {
     let test_contract = FeatureContract::TestContract(cairo_version);
     let (mut state, block_number, _) = initialize_state(test_contract);
 
@@ -74,7 +78,12 @@ fn negative_flow_execution_mode_validate(cairo_version: CairoVersion) {
 
     let error = entry_point_call.execute_directly_in_validate_mode(&mut state).unwrap_err();
     #[cfg(feature = "cairo_native")]
-    if matches!(test_contract, FeatureContract::TestContract(CairoVersion::Native)) {
+    if matches!(
+        test_contract,
+        FeatureContract::TestContract(RunnableContractVersion::Cairo1(
+            RunnableCairo1ContractVersion::Native
+        ))
+    ) {
         assert!(
             error
                 .to_string()
@@ -93,9 +102,12 @@ fn negative_flow_execution_mode_validate(cairo_version: CairoVersion) {
     );
 }
 
-#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Native;"Native"))]
-#[test_case(CairoVersion::Cairo1;"VM")]
-fn negative_flow_block_number_out_of_range(cairo_version: CairoVersion) {
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(RunnableContractVersion::Cairo1(RunnableCairo1ContractVersion::Native); "Native")
+)]
+#[test_case(RunnableContractVersion::Cairo1Casm;"VM")]
+fn negative_flow_block_number_out_of_range(cairo_version: RunnableContractVersion) {
     let test_contract = FeatureContract::TestContract(cairo_version);
     let (mut state, _, _) = initialize_state(test_contract);
 

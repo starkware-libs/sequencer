@@ -19,11 +19,10 @@ use starknet_types_core::felt::Felt;
 use crate::context::{BlockContext, ChainInfo};
 use crate::fee::fee_checks::FeeCheckError;
 use crate::state::state_api::StateReader;
-use crate::test_utils::contracts::FeatureContract;
+use crate::test_utils::contracts::{FeatureContract, RunnableContractVersion};
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{
     create_calldata,
-    CairoVersion,
     BALANCE,
     DEFAULT_STRK_L1_DATA_GAS_PRICE,
     DEFAULT_STRK_L1_GAS_PRICE,
@@ -45,7 +44,10 @@ use crate::transaction::test_utils::{
 };
 use crate::transaction::transactions::ExecutableTransaction;
 
-fn init_data_by_version(chain_info: &ChainInfo, cairo_version: CairoVersion) -> TestInitData {
+fn init_data_by_version(
+    chain_info: &ChainInfo,
+    cairo_version: RunnableContractVersion,
+) -> TestInitData {
     let test_contract = FeatureContract::TestContract(cairo_version);
     let account_contract = FeatureContract::AccountWithoutValidations(cairo_version);
     let state = test_state(chain_info, BALANCE, &[(account_contract, 1), (test_contract, 1)]);
@@ -89,7 +91,7 @@ fn test_revert_on_overdraft(
     block_context: BlockContext,
     #[case] version: TransactionVersion,
     #[case] fee_type: FeeType,
-    #[values(CairoVersion::Cairo0)] cairo_version: CairoVersion,
+    #[values(RunnableContractVersion::Cairo0)] cairo_version: RunnableContractVersion,
 ) {
     let chain_info = &block_context.chain_info;
     let fee_token_address = chain_info.fee_token_addresses.get_by_fee_type(&fee_type);
@@ -264,7 +266,7 @@ fn test_revert_on_resource_overuse(
     #[case] is_revertible: bool,
     #[case] resource_bounds: ValidResourceBounds,
     #[case] resource_to_decrement: Option<Resource>,
-    #[values(CairoVersion::Cairo0)] cairo_version: CairoVersion,
+    #[values(RunnableContractVersion::Cairo0)] cairo_version: RunnableContractVersion,
 ) {
     block_context.block_info.use_kzg_da = true;
     let gas_mode = resource_bounds.get_gas_vector_computation_mode();

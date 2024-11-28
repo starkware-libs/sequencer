@@ -6,11 +6,11 @@ use starknet_api::felt;
 use starknet_api::transaction::fields::Fee;
 use strum::IntoEnumIterator;
 
+use super::contracts::RunnableContractVersion;
 use crate::context::ChainInfo;
 use crate::state::cached_state::CachedState;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::dict_state_reader::DictStateReader;
-use crate::test_utils::CairoVersion;
 use crate::transaction::objects::FeeType;
 
 /// Utility to fund an account.
@@ -42,7 +42,7 @@ pub fn test_state_inner(
     chain_info: &ChainInfo,
     initial_balances: Fee,
     contract_instances: &[(FeatureContract, u16)],
-    erc20_contract_version: CairoVersion,
+    erc20_contract_version: RunnableContractVersion,
 ) -> CachedState<DictStateReader> {
     let mut class_hash_to_class = HashMap::new();
     let mut address_to_class_hash = HashMap::new();
@@ -91,5 +91,10 @@ pub fn test_state(
     initial_balances: Fee,
     contract_instances: &[(FeatureContract, u16)],
 ) -> CachedState<DictStateReader> {
-    test_state_inner(chain_info, initial_balances, contract_instances, CairoVersion::Cairo0)
+    test_state_inner(
+        chain_info,
+        initial_balances,
+        contract_instances,
+        RunnableContractVersion::Cairo0,
+    )
 }

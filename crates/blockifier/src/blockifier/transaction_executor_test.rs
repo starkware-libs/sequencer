@@ -17,7 +17,10 @@ use crate::bouncer::{Bouncer, BouncerWeights};
 use crate::context::BlockContext;
 use crate::state::cached_state::CachedState;
 use crate::state::state_api::StateReader;
-use crate::test_utils::contracts::FeatureContract;
+use crate::test_utils::contracts::{
+    FeatureContract,
+    RunnableContractVersion,
+};
 use crate::test_utils::declare::declare_tx;
 use crate::test_utils::deploy_account::deploy_account_tx;
 use crate::test_utils::initial_test_state::test_state;
@@ -25,7 +28,6 @@ use crate::test_utils::l1_handler::l1handler_tx;
 use crate::test_utils::{
     create_calldata,
     maybe_dummy_block_hash_and_number,
-    CairoVersion,
     BALANCE,
     DEFAULT_STRK_L1_GAS_PRICE,
 };
@@ -71,7 +73,7 @@ fn tx_executor_test_body<S: StateReader>(
 #[rstest]
 #[case::tx_version_0(
     TransactionVersion::ZERO,
-    CairoVersion::Cairo0,
+    RunnableContractVersion::Cairo0,
     BouncerWeights {
         state_diff_size: 0,
         message_segment_length: 0,
@@ -81,7 +83,7 @@ fn tx_executor_test_body<S: StateReader>(
 )]
 #[case::tx_version_1(
     TransactionVersion::ONE,
-    CairoVersion::Cairo0,
+    RunnableContractVersion::Cairo0,
     BouncerWeights {
         state_diff_size: 2,
         message_segment_length: 0,
@@ -89,9 +91,9 @@ fn tx_executor_test_body<S: StateReader>(
         ..BouncerWeights::empty()
     }
 )]
-#[case::tx_version_2(
+#[case::tx_version_2_casm(
     TransactionVersion::TWO,
-    CairoVersion::Cairo1,
+    RunnableContractVersion::Cairo1Casm,
     BouncerWeights {
         state_diff_size: 4,
         message_segment_length: 0,
@@ -99,9 +101,19 @@ fn tx_executor_test_body<S: StateReader>(
         ..BouncerWeights::empty()
     }
 )]
-#[case::tx_version_3(
+#[cfg_attr(feature = "cairo_native", case::tx_version_2_native(
+    TransactionVersion::TWO,
+    RunnableContractVersion::Cairo1(RunnableCairo1ContractVersion::Native),
+    BouncerWeights {
+        state_diff_size: 4,
+        message_segment_length: 0,
+        n_events: 0,
+        ..BouncerWeights::empty()
+    }
+))]
+#[case::tx_version_3_casm(
     TransactionVersion::THREE,
-    CairoVersion::Cairo1,
+    RunnableContractVersion::Cairo1Casm,
     BouncerWeights {
         state_diff_size: 4,
         message_segment_length: 0,
@@ -109,11 +121,28 @@ fn tx_executor_test_body<S: StateReader>(
         ..BouncerWeights::empty()
     }
 )]
+#[cfg_attr(feature = "cairo_native", case::tx_version_3_native(
+    TransactionVersion::THREE,
+    RunnableContractVersion::Cairo1(RunnableCairo1ContractVersion::Native),
+    BouncerWeights {
+        state_diff_size: 4,
+        message_segment_length: 0,
+        n_events: 0,
+        ..BouncerWeights::empty()
+    }
+))]
 fn test_declare(
     block_context: BlockContext,
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] account_cairo_version: CairoVersion,
+    // TODO: Add Native case if the feature is active. Currently it seems that this would require
+    //   duplicating the test... or move from using #[values] to more #[case]es as done for the
+    //   cairo_version parameter.
+    #[values(
+        RunnableContractVersion::Cairo0,
+        RunnableContractVersion::Cairo1Casm
+    )]
+    account_cairo_version: RunnableContractVersion,
     #[case] tx_version: TransactionVersion,
-    #[case] cairo_version: CairoVersion,
+    #[case] cairo_version: RunnableContractVersion,
     #[case] expected_bouncer_weights: BouncerWeights,
 ) {
     let account_contract = FeatureContract::AccountWithoutValidations(account_cairo_version);
@@ -135,10 +164,16 @@ fn test_declare(
 }
 
 #[rstest]
+#[case::cairo0(RunnableContractVersion::Cairo0)]
+#[case::cairo1_casm(RunnableContractVersion::Cairo1Casm)]
+#[cfg_attr(
+    feature = "cairo_native",
+    case::cairo1_native(RunnableContractVersion::Cairo1(RunnableCairo1ContractVersion::Native))
+)]
 fn test_deploy_account(
     block_context: BlockContext,
     #[values(TransactionVersion::ONE, TransactionVersion::THREE)] version: TransactionVersion,
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
+    #[case] cairo_version: RunnableContractVersion,
 ) {
     let account_contract = FeatureContract::AccountWithoutValidations(cairo_version);
     let state = test_state(&block_context.chain_info, BALANCE, &[(account_contract, 0)]);
@@ -162,7 +197,8 @@ fn test_deploy_account(
 }
 
 #[rstest]
-#[case::invoke_function_base_case(
+#[case::invoke_function_base_case_cairo0(
+    RunnableContractVersion::Cairo0,
     "assert_eq",
     vec![
         felt!(3_u32), // x.
@@ -175,7 +211,8 @@ fn test_deploy_account(
         ..BouncerWeights::empty()
     }
 )]
-#[case::emit_event_syscall(
+#[case::emit_event_syscall_cairo0(
+    RunnableContractVersion::Cairo0,
     "test_emit_events",
     vec![
         felt!(1_u32), // events_number.
@@ -189,7 +226,8 @@ fn test_deploy_account(
         ..BouncerWeights::empty()
     }
 )]
-#[case::storage_write_syscall(
+#[case::storage_write_syscall_cairo0(
+    RunnableContractVersion::Cairo0,
     "test_count_actual_storage_changes",
     vec![],
     BouncerWeights {
@@ -199,10 +237,90 @@ fn test_deploy_account(
         ..BouncerWeights::empty()
     }
 )]
+#[case::invoke_function_base_case_cairo1_casm(
+    RunnableContractVersion::Cairo1Casm,
+    "assert_eq",
+    vec![
+        felt!(3_u32), // x.
+        felt!(3_u32)  // y.
+    ],
+    BouncerWeights {
+        state_diff_size: 2,
+        message_segment_length: 0,
+        n_events: 0,
+        ..BouncerWeights::empty()
+    }
+)]
+#[case::emit_event_syscall_cairo1_casm(
+    RunnableContractVersion::Cairo1Casm,
+    "test_emit_events",
+    vec![
+        felt!(1_u32), // events_number.
+        felt!(0_u32), // keys length.
+        felt!(0_u32)  // data length.
+    ],
+    BouncerWeights {
+        state_diff_size: 2,
+        message_segment_length: 0,
+        n_events: 1,
+        ..BouncerWeights::empty()
+    }
+)]
+#[case::storage_write_syscall_cairo1_casm(
+    RunnableContractVersion::Cairo1Casm,
+    "test_count_actual_storage_changes",
+    vec![],
+    BouncerWeights {
+        state_diff_size: 6,
+        message_segment_length: 0,
+        n_events: 0,
+        ..BouncerWeights::empty()
+    }
+)]
+#[cfg_attr(feature = "cairo_native", case::invoke_function_base_case_cairo1_native(
+    RunnableContractVersion::Cairo1(RunnableCairo1ContractVersion::Native),
+    "assert_eq",
+    vec![
+        felt!(3_u32), // x.
+        felt!(3_u32)  // y.
+    ],
+    BouncerWeights {
+        state_diff_size: 2,
+        message_segment_length: 0,
+        n_events: 0,
+        ..BouncerWeights::empty()
+    }
+))]
+#[cfg_attr(feature = "cairo_native", case::emit_event_syscall_cairo1_native(
+    RunnableContractVersion::Cairo1(RunnableCairo1ContractVersion::Native),
+    "test_emit_events",
+    vec![
+        felt!(1_u32), // events_number.
+        felt!(0_u32), // keys length.
+        felt!(0_u32)  // data length.
+    ],
+    BouncerWeights {
+        state_diff_size: 2,
+        message_segment_length: 0,
+        n_events: 1,
+        ..BouncerWeights::empty()
+    }
+))]
+#[cfg_attr(feature = "cairo_native", case::storage_write_syscall_cairo1_native(
+    RunnableContractVersion::Cairo1(RunnableCairo1ContractVersion::Native),
+    "test_count_actual_storage_changes",
+    vec![],
+    BouncerWeights {
+        state_diff_size: 6,
+        message_segment_length: 0,
+        n_events: 0,
+        ..BouncerWeights::empty()
+    }
+))]
 fn test_invoke(
     block_context: BlockContext,
     #[values(TransactionVersion::ONE, TransactionVersion::THREE)] version: TransactionVersion,
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
+    #[case] cairo_version: RunnableContractVersion,
     #[case] entry_point_name: &str,
     #[case] entry_point_args: Vec<Felt>,
     #[case] expected_bouncer_weights: BouncerWeights,
@@ -227,8 +345,13 @@ fn test_invoke(
 }
 
 #[rstest]
-fn test_l1_handler(block_context: BlockContext) {
-    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1);
+#[case::cairo1_casm(RunnableContractVersion::Cairo1Casm)]
+#[cfg_attr(
+    feature = "cairo_native",
+    case::cairo1_native(RunnableContractVersion::Cairo1(RunnableCairo1ContractVersion::Native))
+)]
+fn test_l1_handler(#[case] cairo_version: RunnableContractVersion, block_context: BlockContext) {
+    let test_contract = FeatureContract::TestContract(cairo_version);
     let state = test_state(&block_context.chain_info, BALANCE, &[(test_contract, 1)]);
 
     let tx = Transaction::L1Handler(l1handler_tx(
@@ -263,7 +386,10 @@ fn test_bouncing(#[case] initial_bouncer_weights: BouncerWeights, #[case] n_even
     let block_context = BlockContext::create_for_bouncer_testing(max_n_events_in_block);
 
     let TestInitData { state, account_address, contract_address, mut nonce_manager } =
-        create_test_init_data(&block_context.chain_info, CairoVersion::Cairo1);
+        create_test_init_data(
+            &block_context.chain_info,
+            RunnableContractVersion::Cairo1Casm,
+        );
 
     // TODO(Yoni, 15/6/2024): turn on concurrency mode.
     let mut tx_executor =
@@ -291,8 +417,10 @@ fn test_execute_txs_bouncing(#[values(true, false)] concurrency_enabled: bool) {
     let max_n_events_in_block = 10;
     let block_context = BlockContext::create_for_bouncer_testing(max_n_events_in_block);
 
-    let TestInitData { state, account_address, contract_address, .. } =
-        create_test_init_data(&block_context.chain_info, CairoVersion::Cairo1);
+    let TestInitData { state, account_address, contract_address, .. } = create_test_init_data(
+        &block_context.chain_info,
+        RunnableContractVersion::Cairo1Casm,
+    );
 
     let mut tx_executor = TransactionExecutor::new(state, block_context, config);
 

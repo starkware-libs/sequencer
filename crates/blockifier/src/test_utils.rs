@@ -16,6 +16,7 @@ use std::path::PathBuf;
 
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use contracts::RunnableContractVersion;
 use starknet_api::abi::abi_utils::{get_fee_token_var_address, selector_from_name};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber, GasPrice, NonzeroGasPrice};
 use starknet_api::core::{ClassHash, ContractAddress};
@@ -28,7 +29,6 @@ use starknet_api::transaction::fields::{
     Fee,
     GasVectorComputationMode,
 };
-use starknet_api::transaction::TransactionVersion;
 use starknet_api::{contract_address, felt};
 use starknet_types_core::felt::Felt;
 
@@ -65,6 +65,8 @@ pub const ERC20_CONTRACT_PATH: &str = "./ERC20/ERC20_Cairo0/ERC20_without_some_s
 pub enum CairoVersion {
     Cairo0,
     Cairo1,
+    // TODO: Delete the native variant; use RunnableContractVersion when distinction between
+    //   Cairo1 compilation methods is required.
     #[cfg(feature = "cairo_native")]
     Native,
 }
@@ -76,19 +78,6 @@ impl Default for CairoVersion {
 }
 
 impl CairoVersion {
-    // A declare transaction of the given version, can be used to declare contracts of the returned
-    // cairo version.
-    // TODO: Make TransactionVersion an enum and use match here.
-    pub fn from_declare_tx_version(tx_version: TransactionVersion) -> Self {
-        if tx_version == TransactionVersion::ZERO || tx_version == TransactionVersion::ONE {
-            CairoVersion::Cairo0
-        } else if tx_version == TransactionVersion::TWO || tx_version == TransactionVersion::THREE {
-            CairoVersion::Cairo1
-        } else {
-            panic!("Transaction version {:?} is not supported.", tx_version)
-        }
-    }
-
     pub fn other(&self) -> Self {
         match self {
             Self::Cairo0 => Self::Cairo1,
@@ -108,7 +97,16 @@ pub enum CompilerBasedVersion {
 impl CompilerBasedVersion {
     pub fn get_test_contract(&self) -> FeatureContract {
         match self {
-            Self::CairoVersion(version) => FeatureContract::TestContract(*version),
+            Self::CairoVersion(CairoVersion::Cairo0) => {
+                FeatureContract::TestContract(RunnableContractVersion::Cairo0)
+            }
+            Self::CairoVersion(CairoVersion::Cairo1) => {
+                FeatureContract::TestContract(RunnableContractVersion::Cairo1Casm)
+            }
+            #[cfg(feature = "cairo_native")]
+            Self::CairoVersion(CairoVersion::Native) => FeatureContract::TestContract(
+                RunnableContractVersion::Cairo1(RunnableCairo1ContractVersion::Native),
+            ),
             Self::OldCairo1 => FeatureContract::CairoStepsTestContract,
         }
     }
@@ -326,14 +324,14 @@ macro_rules! check_tx_execution_error_for_custom_hint {
 macro_rules! check_tx_execution_error_for_invalid_scenario {
     ($cairo_version:expr, $error:expr, $validate_constructor:expr $(,)?) => {
         match $cairo_version {
-            CairoVersion::Cairo0 => {
+            RunnableContractVersion::Cairo0 => {
                 $crate::check_tx_execution_error_inner!(
                     $error,
                     None::<&str>,
                     $validate_constructor,
                 );
             }
-            CairoVersion::Cairo1  => {
+            RunnableContractVersion::Cairo1Casm  => {
                 if let $crate::transaction::errors::TransactionExecutionError::ValidateTransactionError {
                     error, ..
                 } = $error {
@@ -345,7 +343,7 @@ macro_rules! check_tx_execution_error_for_invalid_scenario {
                 }
             }
             #[cfg(feature = "cairo_native")]
-            CairoVersion::Native   => {
+            RunnableContractVersion::Cairo1Native   => {
                 if let $crate::transaction::errors::TransactionExecutionError::ValidateTransactionError {
                     error, ..
                 } = $error {

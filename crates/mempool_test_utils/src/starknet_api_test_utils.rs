@@ -6,7 +6,7 @@ use std::rc::Rc;
 use std::sync::LazyLock;
 
 use assert_matches::assert_matches;
-use blockifier::test_utils::contracts::FeatureContract;
+use blockifier::test_utils::contracts::{FeatureContract, RunnableContractVersion};
 use blockifier::test_utils::{create_trivial_calldata, CairoVersion};
 use infra_utils::path::resolve_project_relative_path;
 use pretty_assertions::assert_ne;
@@ -80,7 +80,8 @@ pub fn declare_tx() -> RpcTransaction {
     let contract_class = contract_class();
     let compiled_class_hash = *COMPILED_CLASS_HASH;
 
-    let account_contract = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
+    let account_contract =
+        FeatureContract::AccountWithoutValidations(RunnableContractVersion::Cairo1Casm);
     let account_address = account_contract.get_instance_address(0);
     let mut nonce_manager = NonceManager::default();
     let nonce = nonce_manager.next(account_address);
@@ -100,7 +101,7 @@ pub fn declare_tx() -> RpcTransaction {
 /// Convenience method for generating a single invoke transaction with trivial fields.
 /// For multiple, nonce-incrementing transactions under a single account address, use the
 /// transaction generator..
-pub fn invoke_tx(cairo_version: CairoVersion) -> RpcTransaction {
+pub fn invoke_tx(cairo_version: RunnableContractVersion) -> RpcTransaction {
     let test_contract = FeatureContract::TestContract(cairo_version);
     let account_contract = FeatureContract::AccountWithoutValidations(cairo_version);
     let sender_address = account_contract.get_instance_address(0);
@@ -114,7 +115,7 @@ pub fn invoke_tx(cairo_version: CairoVersion) -> RpcTransaction {
     ))
 }
 
-pub fn executable_invoke_tx(cairo_version: CairoVersion) -> AccountTransaction {
+pub fn executable_invoke_tx(cairo_version: RunnableContractVersion) -> AccountTransaction {
     let default_account = FeatureContract::AccountWithoutValidations(cairo_version);
 
     let mut tx_generator = MultiAccountTransactionGenerator::new();
@@ -334,7 +335,7 @@ impl Contract {
     }
 
     pub fn cairo_version(&self) -> CairoVersion {
-        self.contract.cairo_version()
+        self.contract.runnable_contract_version().into()
     }
 
     pub fn raw_class(&self) -> String {

@@ -4,8 +4,7 @@ use std::time::Duration;
 
 use axum::body::Body;
 use blockifier::context::ChainInfo;
-use blockifier::test_utils::contracts::FeatureContract;
-use blockifier::test_utils::CairoVersion;
+use blockifier::test_utils::contracts::{FeatureContract, RunnableContractVersion};
 use mempool_test_utils::starknet_api_test_utils::{
     rpc_tx_to_json,
     AccountId,
@@ -149,8 +148,8 @@ pub fn create_integration_test_tx_generator() -> MultiAccountTransactionGenerato
         MultiAccountTransactionGenerator::new();
 
     for account in [
-        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1),
-        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0),
+        FeatureContract::AccountWithoutValidations(RunnableContractVersion::Cairo1Casm),
+        FeatureContract::AccountWithoutValidations(RunnableContractVersion::Cairo0),
     ] {
         tx_generator.register_account_for_flow_test(account);
     }
