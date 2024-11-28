@@ -193,11 +193,15 @@ impl SingleHeightConsensus {
         context: &mut ContextT,
     ) -> Result<ShcReturn, ConsensusError> {
         info!("Starting consensus with validators {:?}", self.validators);
-        context.set_height_and_round(self.height, self.state_machine.round()).await;
+        context
+            .set_height_and_round(self.height, self.state_machine.round(), ValidatorId::default())
+            .await;
         let leader_fn = |round: Round| -> ValidatorId { context.proposer(self.height, round) };
         let events = self.state_machine.start(&leader_fn);
         let ret = self.handle_state_machine_events(context, events).await;
-        context.set_height_and_round(self.height, self.state_machine.round()).await;
+        context
+            .set_height_and_round(self.height, self.state_machine.round(), ValidatorId::default())
+            .await;
         ret
     }
 
@@ -240,11 +244,14 @@ impl SingleHeightConsensus {
             .validate_proposal(
                 self.height,
                 init.round,
+                init.proposer,
                 self.timeouts.proposal_timeout,
                 p2p_messages_receiver,
             )
             .await;
-        context.set_height_and_round(self.height, self.state_machine.round()).await;
+        context
+            .set_height_and_round(self.height, self.state_machine.round(), ValidatorId::default())
+            .await;
         Ok(ShcReturn::Tasks(vec![ShcTask::ValidateProposal(init, block_receiver, fin_receiver)]))
     }
 
@@ -272,7 +279,13 @@ impl SingleHeightConsensus {
             }
             ConsensusMessage::Vote(vote) => {
                 let ret = self.handle_vote(context, vote).await;
-                context.set_height_and_round(self.height, self.state_machine.round()).await;
+                context
+                    .set_height_and_round(
+                        self.height,
+                        self.state_machine.round(),
+                        ValidatorId::default(),
+                    )
+                    .await;
                 ret
             }
         }
@@ -359,7 +372,9 @@ impl SingleHeightConsensus {
             }
             _ => unimplemented!("Unexpected event: {:?}", event),
         };
-        context.set_height_and_round(self.height, self.state_machine.round()).await;
+        context
+            .set_height_and_round(self.height, self.state_machine.round(), ValidatorId::default())
+            .await;
         ret
     }
 
