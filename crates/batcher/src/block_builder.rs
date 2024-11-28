@@ -38,13 +38,13 @@ use crate::proposal_manager::InputTxStream;
 
 pub struct BlockBuilder {
     // TODO(Yael 14/10/2024): make the executor thread safe and delete this mutex.
-    executor: Mutex<Box<dyn TransactionExecutorTrait>>,
+    executor: Box<dyn TransactionExecutorTrait>,
     tx_chunk_size: usize,
 }
 
 impl BlockBuilder {
     pub fn new(executor: Box<dyn TransactionExecutorTrait>, tx_chunk_size: usize) -> Self {
-        Self { executor: Mutex::new(executor), tx_chunk_size }
+        Self { executor, tx_chunk_size }
     }
 }
 
@@ -108,7 +108,7 @@ impl BlockBuilderTrait for BlockBuilder {
                 executor_input_chunk
                     .push(BlockifierTransaction::Account(AccountTransaction::try_from(tx)?));
             }
-            let results = self.executor.lock().await.add_txs_to_block(&executor_input_chunk);
+            let results = self.executor.add_txs_to_block(&executor_input_chunk);
             should_close_block = collect_execution_results_and_stream_txs(
                 next_tx_chunk,
                 results,
@@ -118,7 +118,7 @@ impl BlockBuilderTrait for BlockBuilder {
             .await?;
         }
         let (commitment_state_diff, visited_segments_mapping, bouncer_weights) =
-            self.executor.lock().await.close_block()?;
+            self.executor.close_block()?;
         Ok(BlockExecutionArtifacts {
             execution_infos,
             commitment_state_diff,
