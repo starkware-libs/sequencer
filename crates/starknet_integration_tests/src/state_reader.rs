@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use assert_matches::assert_matches;
 use blockifier::context::{BlockContext, ChainInfo};
-use blockifier::test_utils::contracts::FeatureContract;
+use blockifier::test_utils::contracts::{FeatureContract, RunnableContractVersion};
 use blockifier::test_utils::{
     CairoVersion,
     BALANCE,
@@ -86,14 +86,14 @@ fn create_test_state(storage_writer: &mut StorageWriter, test_defined_accounts: 
         sender_address: contract.get_instance_address(0),
     };
     let default_test_contracts = [
-        FeatureContract::TestContract(CairoVersion::Cairo0),
-        FeatureContract::TestContract(CairoVersion::Cairo1),
+        FeatureContract::TestContract(RunnableContractVersion::Cairo0),
+        FeatureContract::TestContract(RunnableContractVersion::Cairo1Casm),
     ]
     .into_iter()
     .map(into_contract)
     .collect();
 
-    let erc20_contract = FeatureContract::ERC20(CairoVersion::Cairo0);
+    let erc20_contract = FeatureContract::ERC20(RunnableContractVersion::Cairo0);
     let erc20_contract = into_contract(erc20_contract);
 
     initialize_papyrus_test_state(
@@ -284,7 +284,7 @@ struct ThinStateDiffBuilder<'a> {
 impl<'a> ThinStateDiffBuilder<'a> {
     fn new(chain_info: &ChainInfo) -> Self {
         const TEST_INITIAL_ACCOUNT_BALANCE: Fee = BALANCE;
-        let erc20 = FeatureContract::ERC20(CairoVersion::Cairo0);
+        let erc20 = FeatureContract::ERC20(RunnableContractVersion::Cairo0);
         let erc20_class_hash = erc20.get_class_hash();
 
         let deployed_contracts: IndexMap<ContractAddress, ClassHash> = FeeType::iter()

@@ -5,13 +5,16 @@ use test_case::test_case;
 use crate::context::ChainInfo;
 use crate::execution::call_info::CallExecution;
 use crate::execution::entry_point::CallEntryPoint;
-use crate::test_utils::contracts::FeatureContract;
+use crate::test_utils::contracts::{FeatureContract, RunnableContractVersion};
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, BALANCE};
+use crate::test_utils::{trivial_external_entry_point_new, BALANCE};
 
-#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Native; "Native"))]
-#[test_case(CairoVersion::Cairo1; "VM")]
-fn test_secp256k1(cairo_version: CairoVersion) {
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(RunnableContractVersion::Cairo1Native; "Native")
+)]
+#[test_case(RunnableContractVersion::Cairo1Casm;"VM")]
+fn test_secp256k1(cairo_version: RunnableContractVersion) {
     let test_contract = FeatureContract::TestContract(cairo_version);
     let chain_info = &ChainInfo::create_for_testing();
     let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1)]);
@@ -29,9 +32,12 @@ fn test_secp256k1(cairo_version: CairoVersion) {
     );
 }
 
-#[cfg_attr(feature = "cairo_native",test_case(CairoVersion::Native; "Native"))]
-#[test_case(CairoVersion::Cairo1; "VM")]
-fn test_secp256r1(cairo_version: CairoVersion) {
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(RunnableContractVersion::Cairo1Native; "Native")
+)]
+#[test_case(RunnableContractVersion::Cairo1Casm;"VM")]
+fn test_secp256r1(cairo_version: RunnableContractVersion) {
     let test_contract = FeatureContract::TestContract(cairo_version);
     let chain_info = &ChainInfo::create_for_testing();
     let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1)]);
