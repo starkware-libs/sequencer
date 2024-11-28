@@ -138,19 +138,22 @@ pub fn py_tx(
         TransactionType::Declare => {
             let non_optional_py_class_info: PyClassInfo = optional_py_class_info
                 .expect("A class info must be passed in a Declare transaction.");
-            AccountTransaction::new(ExecutableTransaction::Declare(py_declare(
-                tx,
-                non_optional_py_class_info,
-            )?))
+            AccountTransaction {
+                tx: ExecutableTransaction::Declare(py_declare(tx, non_optional_py_class_info)?),
+                only_query: false,
+            }
             .into()
         }
-        TransactionType::DeployAccount => {
-            AccountTransaction::new(ExecutableTransaction::DeployAccount(py_deploy_account(tx)?))
-                .into()
+        TransactionType::DeployAccount => AccountTransaction {
+            tx: ExecutableTransaction::DeployAccount(py_deploy_account(tx)?),
+            only_query: false,
         }
-        TransactionType::InvokeFunction => {
-            AccountTransaction::new(ExecutableTransaction::Invoke(py_invoke_function(tx)?)).into()
+        .into(),
+        TransactionType::InvokeFunction => AccountTransaction {
+            tx: ExecutableTransaction::Invoke(py_invoke_function(tx)?),
+            only_query: false,
         }
+        .into(),
         TransactionType::L1Handler => py_l1_handler(tx)?.into(),
     })
 }

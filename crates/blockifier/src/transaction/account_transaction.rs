@@ -6,12 +6,7 @@ use starknet_api::calldata;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
-use starknet_api::executable_transaction::{
-    AccountTransaction as Transaction,
-    DeclareTransaction,
-    DeployAccountTransaction,
-    InvokeTransaction,
-};
+use starknet_api::executable_transaction::AccountTransaction as Transaction;
 use starknet_api::transaction::fields::Resource::{L1DataGas, L1Gas, L2Gas};
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
@@ -86,7 +81,7 @@ mod post_execution_test;
 #[derive(Clone, Debug, derive_more::From)]
 pub struct AccountTransaction {
     pub tx: Transaction,
-    only_query: bool,
+    pub only_query: bool,
 }
 // TODO(AvivG): create additional macro that returns a reference.
 macro_rules! implement_tx_getter_calls {
@@ -95,30 +90,6 @@ macro_rules! implement_tx_getter_calls {
             self.tx.$field()
         })*
     };
-}
-
-impl From<Transaction> for AccountTransaction {
-    fn from(tx: Transaction) -> Self {
-        Self::new(tx)
-    }
-}
-
-impl From<DeclareTransaction> for AccountTransaction {
-    fn from(tx: DeclareTransaction) -> Self {
-        Transaction::Declare(tx).into()
-    }
-}
-
-impl From<DeployAccountTransaction> for AccountTransaction {
-    fn from(tx: DeployAccountTransaction) -> Self {
-        Transaction::DeployAccount(tx).into()
-    }
-}
-
-impl From<InvokeTransaction> for AccountTransaction {
-    fn from(tx: InvokeTransaction) -> Self {
-        Transaction::Invoke(tx).into()
-    }
 }
 
 impl HasRelatedFeeType for AccountTransaction {
@@ -143,14 +114,6 @@ impl AccountTransaction {
         (fee_data_availability_mode, DataAvailabilityMode),
         (paymaster_data, PaymasterData)
     );
-
-    pub fn new(tx: starknet_api::executable_transaction::AccountTransaction) -> Self {
-        AccountTransaction { tx, only_query: false }
-    }
-
-    pub fn new_for_query(tx: starknet_api::executable_transaction::AccountTransaction) -> Self {
-        AccountTransaction { tx, only_query: true }
-    }
 
     pub fn class_hash(&self) -> Option<ClassHash> {
         match &self.tx {

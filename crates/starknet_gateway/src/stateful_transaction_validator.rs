@@ -75,7 +75,7 @@ impl StatefulTransactionValidator {
         mut validator: V,
     ) -> StatefulTransactionValidatorResult<()> {
         let skip_validate = skip_stateful_validations(executable_tx, account_nonce);
-        let account_tx = AccountTransaction::new(executable_tx.clone());
+        let account_tx = AccountTransaction { tx: executable_tx.clone(), only_query: false };
         validator
             .validate(account_tx, skip_validate)
             .map_err(|err| GatewaySpecError::ValidationFailure { data: err.to_string() })?;
