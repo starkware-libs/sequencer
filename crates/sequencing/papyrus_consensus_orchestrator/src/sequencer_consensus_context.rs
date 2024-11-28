@@ -76,7 +76,7 @@ const TEMPORARY_GAS_PRICES: GasPrices = GasPrices {
 // store one of them.
 type HeightToIdToContent =
     BTreeMap<BlockNumber, HashMap<ProposalContentId, (Vec<ExecutableTransaction>, ProposalId)>>;
-type ValidationParams = (BlockNumber, Duration, mpsc::Receiver<ProposalPart>);
+type ValidationParams = (BlockNumber, ValidatorId, Duration, mpsc::Receiver<ProposalPart>);
 
 const CHANNEL_SIZE: usize = 100;
 
@@ -173,7 +173,7 @@ impl ConsensusContext for SequencerConsensusContext {
                     now.timestamp().try_into().expect("Failed to convert timestamp"),
                 ),
                 use_kzg_da: true,
-                ..Default::default()
+                sequencer_address: proposal_init.proposer,
             },
         };
         // TODO: Should we be returning an error?
@@ -219,6 +219,7 @@ impl ConsensusContext for SequencerConsensusContext {
         &mut self,
         height: BlockNumber,
         round: Round,
+        validator: ValidatorId,
         timeout: Duration,
         content_receiver: mpsc::Receiver<Self::ProposalPart>,
     ) -> oneshot::Receiver<(ProposalContentId, ProposalFin)> {
@@ -228,12 +229,18 @@ impl ConsensusContext for SequencerConsensusContext {
             std::cmp::Ordering::Less => fin_receiver,
             std::cmp::Ordering::Greater => {
                 self.queued_proposals
-                    .insert(round, ((height, timeout, content_receiver), fin_sender));
+                    .insert(round, ((height, validator, timeout, content_receiver), fin_sender));
                 fin_receiver
             }
             std::cmp::Ordering::Equal => {
-                self.validate_current_round_proposal(height, timeout, content_receiver, fin_sender)
-                    .await;
+                self.validate_current_round_proposal(
+                    height,
+                    validator,
+                    timeout,
+                    content_receiver,
+                    fin_sender,
+                )
+                .await;
                 fin_receiver
             }
         }
@@ -334,10 +341,10 @@ impl ConsensusContext for SequencerConsensusContext {
             }
         }
         // Validate the proposal for the current round if exists.
-        let Some(((height, timeout, content), fin_sender)) = to_process else {
+        let Some(((height, validator, timeout, content), fin_sender)) = to_process else {
             return;
         };
-        self.validate_current_round_proposal(height, timeout, content, fin_sender).await;
+        self.validate_current_round_proposal(height, validator, timeout, content, fin_sender).await;
     }
 }
 
@@ -345,6 +352,7 @@ impl SequencerConsensusContext {
     async fn validate_current_round_proposal(
         &mut self,
         height: BlockNumber,
+        proposer: ValidatorId,
         timeout: Duration,
         content_receiver: mpsc::Receiver<ProposalPart>,
         fin_sender: oneshot::Sender<(ProposalContentId, ProposalFin)>,
@@ -374,7 +382,7 @@ impl SequencerConsensusContext {
                     now.timestamp().try_into().expect("Failed to convert timestamp"),
                 ),
                 use_kzg_da: true,
-                ..Default::default()
+                sequencer_address: proposer,
             },
         };
         batcher.validate_block(input).await.expect("Failed to initiate proposal validation");

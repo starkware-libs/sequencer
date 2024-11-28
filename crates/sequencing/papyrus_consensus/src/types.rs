@@ -77,6 +77,7 @@ pub trait ConsensusContext {
         &mut self,
         height: BlockNumber,
         round: Round,
+        proposer: ValidatorId,
         timeout: Duration,
         content: mpsc::Receiver<Self::ProposalPart>,
     ) -> oneshot::Receiver<(ProposalContentId, ProposalFin)>;

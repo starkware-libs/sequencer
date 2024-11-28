@@ -78,6 +78,7 @@ mock! {
             &mut self,
             height: BlockNumber,
             round: Round,
+            proposer: ValidatorId,
             timeout: Duration,
             content: mpsc::Receiver<MockProposalPart>
         ) -> oneshot::Receiver<(ProposalContentId, ProposalFin)>;

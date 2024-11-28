@@ -171,7 +171,7 @@ async fn validator(repeat_proposal: bool) {
     );
 
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
-    context.expect_validate_proposal().times(1).returning(move |_, _, _, _| {
+    context.expect_validate_proposal().times(1).returning(move |_, _, _, _, _| {
         let (block_sender, block_receiver) = oneshot::channel();
         block_sender.send((BLOCK.id, PROPOSAL_FIN.clone())).unwrap();
         block_receiver
@@ -250,7 +250,7 @@ async fn vote_twice(same_vote: bool) {
     );
 
     context.expect_proposer().times(1).returning(move |_, _| *PROPOSER_ID);
-    context.expect_validate_proposal().times(1).returning(move |_, _, _, _| {
+    context.expect_validate_proposal().times(1).returning(move |_, _, _, _, _| {
         let (block_sender, block_receiver) = oneshot::channel();
         block_sender.send((BLOCK.id, PROPOSAL_FIN.clone())).unwrap();
         block_receiver
