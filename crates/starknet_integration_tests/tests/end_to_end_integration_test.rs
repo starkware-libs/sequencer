@@ -31,11 +31,8 @@ fn get_latest_block_number(storage_reader: &StorageReader) -> BlockNumber {
 }
 
 /// Reads an account nonce after a block number from storage.
-fn get_account_nonce(
-    storage_reader: &StorageReader,
-    block_number: BlockNumber,
-    contract_address: ContractAddress,
-) -> Nonce {
+fn get_account_nonce(storage_reader: &StorageReader, contract_address: ContractAddress) -> Nonce {
+    let block_number = get_latest_block_number(storage_reader);
     let txn = storage_reader.begin_ro_txn().unwrap();
     let state_number = StateNumber::unchecked_right_after_block(block_number);
     get_nonce_at(&txn, state_number, None, contract_address)
@@ -136,6 +133,6 @@ async fn test_end_to_end_integration(mut tx_generator: MultiAccountTransactionGe
     let expected_nonce_value = tx_hashes.len() + 1;
     let expected_nonce =
         Nonce(Felt::from_hex_unchecked(format!("0x{:X}", expected_nonce_value).as_str()));
-    let nonce = get_account_nonce(&batcher_storage_reader, EXPECTED_BLOCK_NUMBER, sender_address);
+    let nonce = get_account_nonce(&batcher_storage_reader, sender_address);
     assert_eq!(nonce, expected_nonce);
 }
