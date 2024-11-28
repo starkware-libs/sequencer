@@ -807,6 +807,15 @@ impl From<Vec<u8>> for TransactionHash {
     }
 }
 
+/// A utility macro to create a [`TransactionHash`] from an unsigned integer representation.
+#[cfg(any(feature = "testing", test))]
+#[macro_export]
+macro_rules! tx_hash {
+    ($tx_hash:expr) => {
+        $crate::transaction::TransactionHash($crate::hash::StarkHash::from($tx_hash))
+    };
+}
+
 /// A transaction version.
 #[derive(
     Debug,

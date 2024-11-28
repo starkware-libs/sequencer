@@ -7,9 +7,8 @@ use crate::block_hash::transaction_commitment::{
     calculate_transaction_leaf,
 };
 use crate::core::TransactionCommitment;
-use crate::felt;
 use crate::transaction::fields::TransactionSignature;
-use crate::transaction::TransactionHash;
+use crate::{felt, tx_hash};
 
 #[test]
 fn test_transaction_leaf_regression() {
@@ -22,7 +21,7 @@ fn test_transaction_leaf_regression() {
 #[test]
 fn test_transaction_leaf_without_signature_regression() {
     let transaction_leaf_elements = TransactionLeafElement {
-        transaction_hash: TransactionHash(Felt::ONE),
+        transaction_hash: tx_hash!(1),
         transaction_signature: TransactionSignature(vec![]),
     };
     let expected_leaf = felt!("0x579e8877c7755365d5ec1ec7d3a94a457eff5d1f40482bbe9729c064cdead2");
@@ -45,7 +44,7 @@ fn test_transaction_commitment_regression() {
 }
 
 fn get_transaction_leaf_element() -> TransactionLeafElement {
-    let transaction_hash = TransactionHash(Felt::ONE);
+    let transaction_hash = tx_hash!(1);
     let transaction_signature = TransactionSignature(vec![Felt::TWO, Felt::THREE]);
     TransactionLeafElement { transaction_hash, transaction_signature }
 }
