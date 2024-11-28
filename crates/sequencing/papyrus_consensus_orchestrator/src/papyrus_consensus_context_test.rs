@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use futures::channel::{mpsc, oneshot};
 use futures::StreamExt;
-use papyrus_consensus::types::ConsensusContext;
+use papyrus_consensus::types::{ConsensusContext, ValidatorId};
 use papyrus_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
     BroadcastNetworkMock,
@@ -13,7 +13,6 @@ use papyrus_storage::header::HeaderStorageWriter;
 use papyrus_storage::test_utils::get_test_storage;
 use papyrus_test_utils::get_test_block;
 use starknet_api::block::{Block, BlockHash};
-use starknet_api::core::ContractAddress;
 
 use crate::papyrus_consensus_context::PapyrusConsensusContext;
 
@@ -29,7 +28,7 @@ async fn build_proposal() {
     let proposal_init = ProposalInit {
         height: block_number,
         round: 0,
-        proposer: ContractAddress::default(),
+        proposer: ValidatorId::default(),
         valid_round: None,
     };
     // TODO(Asmaa): Test proposal content.
@@ -51,7 +50,13 @@ async fn validate_proposal_success() {
     validate_sender.close_channel();
 
     let fin = papyrus_context
-        .validate_proposal(block_number, 0, Duration::MAX, validate_receiver)
+        .validate_proposal(
+            block_number,
+            0,
+            ValidatorId::default(),
+            Duration::MAX,
+            validate_receiver,
+        )
         .await
         .await
         .unwrap();
@@ -72,7 +77,13 @@ async fn validate_proposal_fail() {
     validate_sender.close_channel();
 
     let fin = papyrus_context
-        .validate_proposal(block_number, 0, Duration::MAX, validate_receiver)
+        .validate_proposal(
+            block_number,
+            0,
+            ValidatorId::default(),
+            Duration::MAX,
+            validate_receiver,
+        )
         .await
         .await;
     assert_eq!(fin, Err(oneshot::Canceled));

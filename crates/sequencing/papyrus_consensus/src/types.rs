@@ -70,6 +70,7 @@ pub trait ConsensusContext {
         &mut self,
         height: BlockNumber,
         round: Round,
+        proposer: ValidatorId,
         timeout: Duration,
         content: mpsc::Receiver<Self::ProposalChunk>,
     ) -> oneshot::Receiver<ProposalContentId>;
@@ -106,7 +107,12 @@ pub trait ConsensusContext {
 
     /// Update the context with the current height and round.
     /// Must be called at the beginning of each height.
-    async fn set_height_and_round(&mut self, height: BlockNumber, round: Round);
+    async fn set_height_and_round(
+        &mut self,
+        height: BlockNumber,
+        round: Round,
+        proposer: ValidatorId,
+    );
 }
 
 #[derive(PartialEq)]
