@@ -227,6 +227,8 @@ impl From<ProposalInit> for protobuf::ProposalInit {
 
 auto_impl_into_and_try_from_vec_u8!(ProposalInit, protobuf::ProposalInit);
 
+// TODO(guyn): remove tx_hashes once we know how to compile the hashes
+// when making the executable transactions.
 impl TryFrom<protobuf::TransactionBatch> for TransactionBatch {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::TransactionBatch) -> Result<Self, Self::Error> {
@@ -311,6 +313,7 @@ impl From<ProposalPart> for protobuf::ProposalPart {
 
 auto_impl_into_and_try_from_vec_u8!(ProposalPart, protobuf::ProposalPart);
 
+// TODO(guyn): remove this once we are happy with how proposals are sent separate from votes.
 impl TryFrom<protobuf::ConsensusMessage> for ConsensusMessage {
     type Error = ProtobufConversionError;
 

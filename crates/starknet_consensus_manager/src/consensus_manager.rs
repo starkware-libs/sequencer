@@ -6,12 +6,17 @@ use futures::channel::mpsc::{self, SendError};
 use futures::future::Ready;
 use futures::SinkExt;
 use libp2p::PeerId;
+use papyrus_consensus::stream_handler::StreamHandler;
 use papyrus_consensus::types::{BroadcastConsensusMessageChannel, ConsensusError};
 use papyrus_consensus_orchestrator::sequencer_consensus_context::SequencerConsensusContext;
 use papyrus_network::gossipsub_impl::Topic;
-use papyrus_network::network_manager::{BroadcastTopicClient, NetworkManager};
+use papyrus_network::network_manager::{
+    BroadcastTopicChannels,
+    BroadcastTopicClient,
+    NetworkManager,
+};
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
-use papyrus_protobuf::consensus::{ConsensusMessage, ProposalPart};
+use papyrus_protobuf::consensus::{ConsensusMessage, ProposalPart, StreamMessage};
 use starknet_batcher_types::communication::SharedBatcherClient;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_sequencer_infra::errors::ComponentError;
@@ -22,6 +27,8 @@ use crate::config::ConsensusManagerConfig;
 // TODO(Dan, Guy): move to config.
 pub const BROADCAST_BUFFER_SIZE: usize = 100;
 pub const NETWORK_TOPIC: &str = "consensus_proposals";
+// TODO(guyn): remove this once we have integrated streaming.
+pub const NETWORK_TOPIC2: &str = "streamed_consensus_proposals";
 
 #[derive(Clone)]
 pub struct ConsensusManager {
@@ -37,15 +44,33 @@ impl ConsensusManager {
     pub async fn run(&self) -> Result<(), ConsensusError> {
         let mut network_manager =
             NetworkManager::new(self.config.consensus_config.network_config.clone(), None);
-        let proposals_broadcast_channels = network_manager
+
+        // TODO(guyn): remove this channel once we have integrated streaming.
+        let old_proposals_broadcast_channels = network_manager
             .register_broadcast_topic::<ProposalPart>(
                 Topic::new(NETWORK_TOPIC),
                 BROADCAST_BUFFER_SIZE,
             )
             .expect("Failed to register broadcast topic");
+
+        let proposals_broadcast_channels = network_manager
+            .register_broadcast_topic::<StreamMessage<ProposalPart>>(
+                Topic::new(NETWORK_TOPIC2),
+                BROADCAST_BUFFER_SIZE,
+            )
+            .expect("Failed to register broadcast topic");
+        let BroadcastTopicChannels {
+            broadcasted_messages_receiver: inbound_network_receiver,
+            broadcast_topic_client: outbound_network_sender,
+        } = proposals_broadcast_channels;
+
+        let (outbound_internal_sender, inbound_internal_receiver, _) =
+            StreamHandler::get_channels(inbound_network_receiver, outbound_network_sender);
+
         let context = SequencerConsensusContext::new(
             Arc::clone(&self.batcher_client),
-            proposals_broadcast_channels.broadcast_topic_client.clone(),
+            old_proposals_broadcast_channels.broadcast_topic_client.clone(),
+            outbound_internal_sender,
             self.config.consensus_config.num_validators,
         );
 
@@ -57,6 +82,7 @@ impl ConsensusManager {
             self.config.consensus_config.consensus_delay,
             self.config.consensus_config.timeouts.clone(),
             create_fake_network_channels(),
+            inbound_internal_receiver,
             futures::stream::pending(),
         );
 
