@@ -13,7 +13,7 @@ use starknet_sierra_compile::SierraToNativeCompiler;
 
 use crate::execution::contract_class::{ContractClassV1, RunnableContractClass};
 use crate::execution::native::contract_class::NativeContractClassV1;
-use crate::state::global_cache::{CachedCairoNative, ContractClassCaches};
+use crate::state::global_cache::{CachedCairoNative, ContractCaches};
 
 const CHANNEL_SIZE: usize = 1000;
 
@@ -26,7 +26,7 @@ const CHANNEL_SIZE: usize = 1000;
 /// # `Request::Compile` fields:
 /// * `class_hash` - used to identify the contract class in the cache.
 /// * `sierra_contract_class` - the sierra contract class to be compiled.
-/// * `casm_contract_class` - stored in [`NativeContractClassV1`] to allow fallback to cairo_vm
+/// * `casm_compiled_class` - stored in [`NativeContractClassV1`] to allow fallback to cairo_vm
 ///   execution in case of unxecpected failure during native execution.
 pub enum Request {
     Terminate,
@@ -47,7 +47,7 @@ impl Display for Request {
 /// Manages the global cache of contract classes and handles sierra-to-native compilation requests.
 struct ContractClassManager {
     // The global cache of contract classes: casm, sierra, and native.
-    contract_class_caches: ContractClassCaches,
+    contract_caches: ContractCaches,
     // The sending half of the compilation request channel.
     sender: SyncSender<Request>,
     // A flag that signals the termination of the compilation handler.
@@ -60,7 +60,7 @@ impl ContractClassManager {
     /// Creates a new contract class manager and spawns a thread that listens for compilation
     /// requests and processes them (a.k.a. the compilation handler).
     /// Returns an `Arc` to the created contract class manager.
-    pub fn start(contract_class_caches: ContractClassCaches) -> Arc<ContractClassManager> {
+    pub fn start(contract_caches: ContractCaches) -> Arc<ContractClassManager> {
         // TODO(Avi, 15/12/2024): Add the size of the channel to the config.
         let (sender, receiver) = sync_channel(CHANNEL_SIZE);
         let compiler_config = SierraToCasmCompilationConfig::default();
@@ -68,7 +68,7 @@ impl ContractClassManager {
 
         // Create the contract class manager.
         let contract_class_manager = Arc::new(ContractClassManager {
-            contract_class_caches,
+            contract_caches,
             sender,
             stop_marker: AtomicBool::new(false),
             // Store `None` in a mutex-guarded Option to allow setting the join handle after
@@ -133,17 +133,17 @@ impl ContractClassManager {
 
     /// Returns the native compiled class for the given class hash, if it exists in cache.
     pub fn get_native(&self, class_hash: &ClassHash) -> Option<CachedCairoNative> {
-        self.contract_class_caches.get_native(class_hash)
+        self.contract_caches.get_native(class_hash)
     }
 
     /// Returns the Sierra contract class for the given class hash, if it exists in cache.
     pub fn get_sierra(&self, class_hash: &ClassHash) -> Option<Arc<SierraContractClass>> {
-        self.contract_class_caches.get_sierra(class_hash)
+        self.contract_caches.get_sierra(class_hash)
     }
 
     /// Returns the casm compiled class for the given class hash, if it exists in cache.
     pub fn get_casm(&self, class_hash: &ClassHash) -> Option<RunnableContractClass> {
-        self.contract_class_caches.get_casm(class_hash)
+        self.contract_caches.get_casm(class_hash)
     }
 
     /// Handles requests on the compilation request channel.
@@ -161,7 +161,7 @@ impl ContractClassManager {
                     return;
                 }
                 Request::Compile(class_hash, sierra, casm) => {
-                    if self.contract_class_caches.get_native(&class_hash).is_some() {
+                    if self.contract_caches.get_native(&class_hash).is_some() {
                         // The contract class is already compiled to native - skip the compilation.
                         continue;
                     }
@@ -170,15 +170,15 @@ impl ContractClassManager {
                     let compilation_result = compiler.compile_to_native(sierra.into());
                     match compilation_result {
                         Ok(executor) => {
-                            let native_contract_class = NativeContractClassV1::new(executor, casm);
-                            self.contract_class_caches.set_native(
+                            let native_compiled_class = NativeContractClassV1::new(executor, casm);
+                            self.contract_caches.set_native(
                                 class_hash,
-                                CachedCairoNative::Compiled(native_contract_class),
+                                CachedCairoNative::Compiled(native_compiled_class),
                             );
                         }
                         Err(err) => {
                             error!("Error compiling contract class: {}", err);
-                            self.contract_class_caches
+                            self.contract_caches
                                 .set_native(class_hash, CachedCairoNative::CompilationFailed);
                         }
                     }
@@ -192,9 +192,9 @@ impl ContractClassManager {
         match request {
             Request::Terminate => {}
             Request::Compile(class_hash, sierra, casm) => {
-                self.contract_class_caches.set_sierra(class_hash.clone(), sierra.clone());
+                self.contract_caches.set_sierra(class_hash.clone(), sierra.clone());
                 let cached_casm = RunnableContractClass::from(casm.clone());
-                self.contract_class_caches.set_casm(class_hash.clone(), cached_casm);
+                self.contract_caches.set_casm(class_hash.clone(), cached_casm);
             }
         }
     }
