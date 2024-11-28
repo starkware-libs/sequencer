@@ -175,10 +175,12 @@ pub struct VersionedConstants {
     // Limits.
     pub tx_event_limits: EventLimits,
     pub invoke_tx_max_n_steps: u32,
+    pub execute_max_sierra_gas: u64,
     pub deprecated_l2_resource_gas_costs: ArchivalDataGasCosts,
     pub archival_data_gas_costs: ArchivalDataGasCosts,
     pub max_recursion_depth: usize,
     pub validate_max_n_steps: u32,
+    pub validate_max_sierra_gas: u64,
     pub min_compiler_version_for_sierra_gas: CompilerVersion,
     // BACKWARD COMPATIBILITY: If true, the segment_arena builtin instance counter will be
     // multiplied by 3. This offsets a bug in the old vm where the counter counted the number of
