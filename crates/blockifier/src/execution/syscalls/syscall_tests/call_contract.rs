@@ -16,7 +16,7 @@ use crate::execution::call_info::CallExecution;
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::retdata;
-use crate::test_utils::contracts::FeatureContract;
+use crate::test_utils::contracts::{FeatureContract, RunnableContractVersion};
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::syscall::build_recurse_calldata;
 use crate::test_utils::{
@@ -27,18 +27,21 @@ use crate::test_utils::{
     BALANCE,
 };
 
-#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Native; "Native"))]
-#[test_case(CairoVersion::Cairo1;"VM")]
-fn test_call_contract_that_panics(cairo_version: CairoVersion) {
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(RunnableContractVersion::Cairo1Native; "Native")
+)]
+#[test_case(RunnableContractVersion::Cairo1Casm;"VM")]
+fn test_call_contract_that_panics(cairo_version: RunnableContractVersion) {
     let test_contract = FeatureContract::TestContract(cairo_version);
-    let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1);
+    let empty_contract = FeatureContract::Empty(RunnableContractVersion::Cairo1Casm);
     let chain_info = &ChainInfo::create_for_testing();
     let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1), (empty_contract, 0)]);
 
     let new_class_hash = empty_contract.get_class_hash();
     let outer_entry_point_selector = selector_from_name("test_call_contract_revert");
     let calldata = create_calldata(
-        FeatureContract::TestContract(CairoVersion::Cairo1).get_instance_address(0),
+        FeatureContract::TestContract(RunnableContractVersion::Cairo1Casm).get_instance_address(0),
         "test_revert_helper",
         &[new_class_hash.0],
     );
@@ -71,14 +74,18 @@ fn test_call_contract_that_panics(cairo_version: CairoVersion) {
 #[cfg_attr(
     feature = "cairo_native",
     test_case(
-      FeatureContract::TestContract(CairoVersion::Native),
-      FeatureContract::TestContract(CairoVersion::Native);
-      "Call Contract between two contracts using Native"
+        FeatureContract::TestContract(
+            RunnableContractVersion::Cairo1Native
+        ),
+        FeatureContract::TestContract(
+            RunnableContractVersion::Cairo1Native
+        );
+        "Call Contract between two contracts using Native"
     )
 )]
 #[test_case(
-    FeatureContract::TestContract(CairoVersion::Cairo1),
-    FeatureContract::TestContract(CairoVersion::Cairo1);
+    FeatureContract::TestContract(RunnableContractVersion::Cairo1Casm),
+    FeatureContract::TestContract(RunnableContractVersion::Cairo1Casm);
     "Call Contract between two contracts using VM"
 )]
 fn test_call_contract(outer_contract: FeatureContract, inner_contract: FeatureContract) {

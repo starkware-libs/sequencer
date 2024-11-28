@@ -21,9 +21,9 @@ use crate::fee::gas_usage::{
 };
 use crate::fee::resources::{StarknetResources, StateResources};
 use crate::state::cached_state::StateChangesCount;
-use crate::test_utils::contracts::FeatureContract;
+use crate::test_utils::contracts::{FeatureContract, RunnableContractVersion};
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{create_calldata, create_trivial_calldata, CairoVersion, BALANCE};
+use crate::test_utils::{create_calldata, create_trivial_calldata, BALANCE};
 use crate::transaction::objects::HasRelatedFeeType;
 use crate::transaction::test_utils::{
     account_invoke_tx,
@@ -58,6 +58,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(
     gas_vector_computation_mode: GasVectorComputationMode,
 ) {
     // An empty transaction (a theoretical case for sanity check).
+
     let versioned_constants = VersionedConstants::create_for_account_testing();
     let empty_tx_starknet_resources = StarknetResources::default();
     let empty_tx_gas_usage_vector = empty_tx_starknet_resources.to_gas_vector(
@@ -68,7 +69,12 @@ fn test_calculate_tx_gas_usage_basic<'a>(
     assert_eq!(empty_tx_gas_usage_vector, GasVector::default());
 
     // Declare.
-    for cairo_version in [CairoVersion::Cairo0, CairoVersion::Cairo1] {
+    for cairo_version in [
+        RunnableContractVersion::Cairo0,
+        RunnableContractVersion::Cairo1Casm,
+        #[cfg(feature = "cairo_native")]
+        RunnableContractVersion::Cairo1Native,
+    ] {
         let empty_contract = FeatureContract::Empty(cairo_version).get_class();
         let class_info = calculate_class_info_for_testing(empty_contract);
         let declare_tx_starknet_resources = StarknetResources::new(
@@ -350,8 +356,8 @@ fn test_calculate_tx_gas_usage(
     gas_vector_computation_mode: GasVectorComputationMode,
 ) {
     let max_resource_bounds = create_resource_bounds(&gas_vector_computation_mode);
-    let account_cairo_version = CairoVersion::Cairo0;
-    let test_contract_cairo_version = CairoVersion::Cairo0;
+    let account_cairo_version = RunnableContractVersion::Cairo0;
+    let test_contract_cairo_version = RunnableContractVersion::Cairo0;
     let block_context = &BlockContext::create_for_account_testing_with_kzg(use_kzg_da);
     let versioned_constants = &block_context.versioned_constants;
     let chain_info = &block_context.chain_info;

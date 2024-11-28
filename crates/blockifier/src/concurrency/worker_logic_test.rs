@@ -22,13 +22,12 @@ use crate::context::{BlockContext, TransactionContext};
 use crate::fee::fee_utils::get_sequencer_balance_keys;
 use crate::state::cached_state::StateMaps;
 use crate::state::state_api::StateReader;
-use crate::test_utils::contracts::FeatureContract;
+use crate::test_utils::contracts::{FeatureContract, RunnableContractVersion};
 use crate::test_utils::declare::declare_tx;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{
     create_calldata,
     create_trivial_calldata,
-    CairoVersion,
     BALANCE,
     TEST_ERC20_CONTRACT_ADDRESS2,
 };
@@ -80,8 +79,8 @@ fn verify_sequencer_balance_update<S: StateReader>(
 #[rstest]
 pub fn test_commit_tx() {
     let block_context = BlockContext::create_for_account_testing();
-    let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
-    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
+    let account = FeatureContract::AccountWithoutValidations(RunnableContractVersion::Cairo1Casm);
+    let test_contract = FeatureContract::TestContract(RunnableContractVersion::Cairo0);
     let mut expected_sequencer_balance_low = 0_u128;
     let mut nonce_manager = NonceManager::default();
     let account_address = account.get_instance_address(0);
@@ -186,8 +185,8 @@ pub fn test_commit_tx() {
 // commit tx should be the same (except for re-execution changes).
 fn test_commit_tx_when_sender_is_sequencer() {
     let mut block_context = BlockContext::create_for_account_testing();
-    let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
-    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
+    let account = FeatureContract::AccountWithoutValidations(RunnableContractVersion::Cairo1Casm);
+    let test_contract = FeatureContract::TestContract(RunnableContractVersion::Cairo0);
     let account_address = account.get_instance_address(0_u16);
     let test_contract_address = test_contract.get_instance_address(0_u16);
     block_context.block_info.sequencer_address = account_address;
@@ -253,8 +252,9 @@ fn test_commit_tx_when_sender_is_sequencer() {
 fn test_worker_execute(default_all_resource_bounds: ValidResourceBounds) {
     // Settings.
     let block_context = BlockContext::create_for_account_testing();
-    let account_contract = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
-    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
+    let account_contract =
+        FeatureContract::AccountWithoutValidations(RunnableContractVersion::Cairo1Casm);
+    let test_contract = FeatureContract::TestContract(RunnableContractVersion::Cairo0);
     let chain_info = &block_context.chain_info;
 
     // Create the state.
@@ -341,7 +341,7 @@ fn test_worker_execute(default_all_resource_bounds: ValidResourceBounds) {
     let account_balance = BALANCE.0 - result.receipt.fee.0;
     assert!(!result.is_reverted());
 
-    let erc20 = FeatureContract::ERC20(CairoVersion::Cairo0);
+    let erc20 = FeatureContract::ERC20(RunnableContractVersion::Cairo0);
     let erc_contract_address = contract_address!(TEST_ERC20_CONTRACT_ADDRESS2);
     let account_balance_key_low = get_fee_token_var_address(account_address);
     let account_balance_key_high = account_balance_key_low.next_storage_key().unwrap();
@@ -427,8 +427,9 @@ fn test_worker_execute(default_all_resource_bounds: ValidResourceBounds) {
 fn test_worker_validate(default_all_resource_bounds: ValidResourceBounds) {
     // Settings.
     let block_context = BlockContext::create_for_account_testing();
-    let account_contract = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
-    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
+    let account_contract =
+        FeatureContract::AccountWithoutValidations(RunnableContractVersion::Cairo1Casm);
+    let test_contract = FeatureContract::TestContract(RunnableContractVersion::Cairo0);
     let chain_info = &block_context.chain_info;
 
     // Create the state.
@@ -527,18 +528,23 @@ fn test_worker_validate(default_all_resource_bounds: ValidResourceBounds) {
 }
 
 #[rstest]
-#[case::declare_cairo0(CairoVersion::Cairo0, TransactionVersion::ONE)]
-#[case::declare_cairo1(CairoVersion::Cairo1, TransactionVersion::THREE)]
+#[case::declare_cairo0(RunnableContractVersion::Cairo0, TransactionVersion::ONE)]
+#[case::declare_cairo1_casm(RunnableContractVersion::Cairo1Casm, TransactionVersion::THREE)]
+#[cfg_attr(
+    feature = "cairo_native",
+    case::declare_cairo1_native(RunnableContractVersion::Cairo1Native, TransactionVersion::THREE)
+)]
 fn test_deploy_before_declare(
     max_fee: Fee,
     default_all_resource_bounds: ValidResourceBounds,
-    #[case] cairo_version: CairoVersion,
+    #[case] cairo_version: RunnableContractVersion,
     #[case] version: TransactionVersion,
 ) {
     // Create the state.
     let block_context = BlockContext::create_for_account_testing();
     let chain_info = &block_context.chain_info;
-    let account_contract = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
+    let account_contract =
+        FeatureContract::AccountWithoutValidations(RunnableContractVersion::Cairo1Casm);
     let state = test_state(chain_info, BALANCE, &[(account_contract, 2)]);
     let safe_versioned_state = safe_versioned_state_for_testing(state);
 
@@ -624,8 +630,9 @@ fn test_deploy_before_declare(
 fn test_worker_commit_phase(default_all_resource_bounds: ValidResourceBounds) {
     // Settings.
     let block_context = BlockContext::create_for_account_testing();
-    let account_contract = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
-    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
+    let account_contract =
+        FeatureContract::AccountWithoutValidations(RunnableContractVersion::Cairo1Casm);
+    let test_contract = FeatureContract::TestContract(RunnableContractVersion::Cairo0);
     let chain_info = &block_context.chain_info;
 
     // Create the state.
@@ -717,8 +724,9 @@ fn test_worker_commit_phase_with_halt() {
     let max_n_events_in_block = 3;
     let block_context = BlockContext::create_for_bouncer_testing(max_n_events_in_block);
 
-    let account_contract = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
-    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
+    let account_contract =
+        FeatureContract::AccountWithoutValidations(RunnableContractVersion::Cairo1Casm);
+    let test_contract = FeatureContract::TestContract(RunnableContractVersion::Cairo0);
     let chain_info = &block_context.chain_info;
 
     // Create the state.
