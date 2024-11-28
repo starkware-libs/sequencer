@@ -562,31 +562,8 @@ impl<'de> Deserialize<'de> for OsResources {
     }
 }
 
-/// Gas cost constants. For more documentation see in core/os/constants.cairo.
 #[derive(Debug, Default, Deserialize)]
-pub struct GasCosts {
-    pub step_gas_cost: u64,
-    pub memory_hole_gas_cost: u64,
-    // Range check has a hard-coded cost higher than its proof percentage to avoid the overhead of
-    // retrieving its price from the table.
-    pub range_check_gas_cost: u64,
-    // Priced builtins.
-    pub keccak_builtin_gas_cost : u64,
-    pub pedersen_gas_cost: u64,
-    pub bitwise_builtin_gas_cost: u64,
-    pub ecop_gas_cost: u64,
-    pub poseidon_gas_cost: u64,
-    pub add_mod_gas_cost: u64,
-    pub mul_mod_gas_cost: u64,
-    // An estimation of the initial gas for a transaction to run with. This solution is
-    // temporary and this value will be deduced from the transaction's fields.
-    pub default_initial_gas_cost: u64,
-    // Compiler gas costs.
-    pub entry_point_initial_budget: u64,
-    pub syscall_base_gas_cost: u64,
-    // OS gas costs.
-    pub transaction_gas_cost: u64,
-    // Syscall gas costs.
+pub struct SyscallsGasCosts {
     pub call_contract_gas_cost: u64,
     pub deploy_gas_cost: u64,
     pub get_block_hash_gas_cost: u64,
@@ -613,27 +590,7 @@ pub struct GasCosts {
     pub sha256_process_block_gas_cost: u64,
 }
 
-impl GasCosts {
-    pub fn get_builtin_gas_cost(&self, builtin: &BuiltinName) -> Result<u64, GasCostsError> {
-        let gas_cost = match *builtin {
-            BuiltinName::range_check => self.range_check_gas_cost,
-            BuiltinName::pedersen => self.pedersen_gas_cost,
-            BuiltinName::bitwise => self.bitwise_builtin_gas_cost,
-            BuiltinName::ec_op => self.ecop_gas_cost,
-            BuiltinName::keccak => self.keccak_builtin_gas_cost,
-            BuiltinName::poseidon => self.poseidon_gas_cost,
-            BuiltinName::range_check96 => self.range_check_gas_cost,
-            BuiltinName::add_mod => self.add_mod_gas_cost,
-            BuiltinName::mul_mod => self.mul_mod_gas_cost,
-            BuiltinName::segment_arena => return Err(GasCostsError::VirtualBuiltin),
-            BuiltinName::output | BuiltinName::ecdsa => {
-                return Err(GasCostsError::UnsupportedBuiltinInCairo1 { builtin: *builtin });
-            }
-        };
-
-        Ok(gas_cost)
-    }
-
+impl SyscallsGasCosts {
     pub fn get_syscall_gas_cost(&self, selector: &SyscallSelector) -> Result<u64, GasCostsError> {
         let gas_cost = match *selector {
             SyscallSelector::CallContract => self.call_contract_gas_cost,
@@ -677,6 +634,56 @@ impl GasCosts {
     }
 }
 
+
+/// Gas cost constants. For more documentation see in core/os/constants.cairo.
+#[derive(Debug, Default, Deserialize)]
+pub struct GasCosts {
+    pub step_gas_cost: u64,
+    pub memory_hole_gas_cost: u64,
+    // Range check has a hard-coded cost higher than its proof percentage to avoid the overhead of
+    // retrieving its price from the table.
+    pub range_check_gas_cost: u64,
+    // Priced builtins.
+    pub keccak_builtin_gas_cost : u64,
+    pub pedersen_gas_cost: u64,
+    pub bitwise_builtin_gas_cost: u64,
+    pub ecop_gas_cost: u64,
+    pub poseidon_gas_cost: u64,
+    pub add_mod_gas_cost: u64,
+    pub mul_mod_gas_cost: u64,
+    // An estimation of the initial gas for a transaction to run with. This solution is
+    // temporary and this value will be deduced from the transaction's fields.
+    pub default_initial_gas_cost: u64,
+    // Compiler gas costs.
+    pub entry_point_initial_budget: u64,
+    pub syscall_base_gas_cost: u64,
+    // OS gas costs.
+    pub transaction_gas_cost: u64,
+    pub syscalls_gas_costs: SyscallsGasCosts,
+}
+
+impl GasCosts {
+    pub fn get_builtin_gas_cost(&self, builtin: &BuiltinName) -> Result<u64, GasCostsError> {
+        let gas_cost = match *builtin {
+            BuiltinName::range_check => self.range_check_gas_cost,
+            BuiltinName::pedersen => self.pedersen_gas_cost,
+            BuiltinName::bitwise => self.bitwise_builtin_gas_cost,
+            BuiltinName::ec_op => self.ecop_gas_cost,
+            BuiltinName::keccak => self.keccak_builtin_gas_cost,
+            BuiltinName::poseidon => self.poseidon_gas_cost,
+            BuiltinName::range_check96 => self.range_check_gas_cost,
+            BuiltinName::add_mod => self.add_mod_gas_cost,
+            BuiltinName::mul_mod => self.mul_mod_gas_cost,
+            BuiltinName::segment_arena => return Err(GasCostsError::VirtualBuiltin),
+            BuiltinName::output | BuiltinName::ecdsa => {
+                return Err(GasCostsError::UnsupportedBuiltinInCairo1 { builtin: *builtin });
+            }
+        };
+
+        Ok(gas_cost)
+    }
+}
+
 // Below, serde first deserializes the json into a regular IndexMap wrapped by the newtype
 // `OsConstantsRawJson`, then calls the `try_from` of the newtype, which handles the
 // conversion into actual values.
@@ -694,7 +701,7 @@ impl OsConstants {
     // not used by the blockifier but included for transparency. These constanst will be ignored
     // during the creation of the struct containing the gas costs.
 
-    const ADDITIONAL_FIELDS: [&'static str; 29] = [
+    const ADDITIONAL_FIELDS: [&'static str; 30] = [
         "block_hash_contract_address",
         "constructor_entry_point_selector",
         "default_entry_point_selector",
@@ -724,6 +731,7 @@ impl OsConstants {
         "validate_entry_point_selector",
         "validate_rounding_consts",
         "validated",
+        "syscalls_gas_costs",
     ];
 }
 
@@ -771,6 +779,13 @@ impl OsConstantsRawJson {
 
             self.recursive_add_to_gas_costs(key, value, &mut gas_costs)?;
         }
+
+        let mut syscalls_gas_costs = IndexMap::new();
+        for (key, value) in &self.raw_json_file_as_dict.get(syscalls_gas_costs) {
+            self.add_to_syscalls_gas_costs(key, value, &mut syscalls_gas_costs, &gas_costs)?;
+        }
+
+
         Ok(gas_costs)
     }
 
@@ -835,7 +850,37 @@ impl OsConstantsRawJson {
 
         Ok(())
     }
+
+    fn add_to_syscalls_gas_costs (&self, key: &str,
+        value: &Value,
+        syscalls_gas_costs: &mut IndexMap<String, u64>, gas_costs: &IndexMap<String, u64>) -> Result<(), OsConstantsSerdeError> {
+            let mut value = 0;
+            match value {
+                Object(obj) => {
+                    for (inner_key , factor) in obj {
+                        let inner_value = gas_costs.get(inner_key).ok_or_else(|| {
+                            OsConstantsSerdeError::KeyNotFound {
+                                key: key.to_string(),
+                                inner_key: inner_key.clone(),
+                            }
+                        })?;
+                        let factor =
+                            factor.as_u64().ok_or_else(|| OsConstantsSerdeError::OutOfRangeFactor {
+                                key: key.to_string(),
+                                value: factor.clone(),
+                            })?;
+                        value += inner_value * factor;
+                    }
+                    syscalls_gas_costs.insert(key.to_string(), value);
+                } 
+                _ => {
+                    panic!("All the values under the field syscalls_gas_costs suppose to be objects")
+                }
+        }
+        Ok(())
 }
+
+
 
 #[derive(Debug, Error)]
 pub enum VersionedConstantsError {

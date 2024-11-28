@@ -189,3 +189,22 @@ fn test_syscall_gas_cost_calculation() {
         EXPECTED_SHA256PROCESSBLOCK_GAS_COST
     );
 }
+
+#[test]
+fn test_raw_os_constants() {
+    let json_data = r#"
+    {
+        "step_gas_cost": 2,
+        "entry_point_initial_budget": {
+            "step_gas_cost": 3
+        },
+        "transaction_gas_cost": {
+            "entry_point_initial_budget": 4,
+            "step_gas_cost": 5
+        },
+        "error_out_of_gas": "An additional field in GasCosts::ADDITIONAL_ALLOWED_NAMES, ignored."
+    }"#;
+    let gas_costs = GasCosts::create_for_testing_from_subset(&json_data);
+
+    assert_eq!(0,1)
+}

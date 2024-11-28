@@ -57,23 +57,8 @@
     "segment_arena_cells": false,
     "os_constants": {
         "block_hash_contract_address": 1,
-        "call_contract_gas_cost": {
-            "entry_point_initial_budget": 1,
-            "step_gas_cost": 860,
-            "range_check_gas_cost": 15
-        },
         "constructor_entry_point_selector": "0x28ffe4ff0f226a9107253e17a904099aa4f63a02a5621de0576e5aa71bc5194",
         "default_entry_point_selector": 0,
-        "deploy_gas_cost": {
-            "entry_point_initial_budget": 1,
-            "step_gas_cost": 1128,
-            "range_check_gas_cost": 18,
-            "pedersen_gas_cost": 7
-        },
-        "emit_event_gas_cost": {
-            "step_gas_cost": 100,
-            "range_check_gas_cost": 1
-        },
         "entry_point_initial_budget": {
             "step_gas_cost": 100
         },
@@ -87,14 +72,6 @@
         "error_entry_point_failed": "ENTRYPOINT_FAILED",
         "error_entry_point_not_found": "ENTRYPOINT_NOT_FOUND",
         "execute_entry_point_selector": "0x15d40a3d6ca2ac30f4031e42be28da9b056fef9bb7357ac5e85627ee876e5ad",
-        "get_block_hash_gas_cost": {
-            "step_gas_cost": 104,
-            "range_check_gas_cost": 2
-        },
-        "get_execution_info_gas_cost": {
-            "step_gas_cost": 100,
-            "range_check_gas_cost": 1
-        },
         "default_initial_gas_cost": {
             "step_gas_cost": 100000000
         },
@@ -109,17 +86,6 @@
         "l1_data_gas": "L1_DATA",
         "l1_data_gas_index": 2,
         "l2_gas_index": 1,
-        "library_call_gas_cost": {
-            "entry_point_initial_budget": 1,
-            "step_gas_cost": 836,
-            "range_check_gas_cost": 15
-        },
-        "sha256_process_block_gas_cost": {
-            "step_gas_cost": 1855,
-            "range_check_gas_cost": 65,
-            "bitwise_builtin_gas_cost": 1115,
-            "syscall_base_gas_cost": 1
-        },
         "memory_hole_gas_cost": 10,
         "nop_entry_point_offset": -1,
         "range_check_gas_cost": 70,
@@ -130,76 +96,8 @@
         "poseidon_gas_cost": 491,
         "add_mod_gas_cost": 230,
         "mul_mod_gas_cost": 604,
-        "replace_class_gas_cost": {
-            "step_gas_cost": 104,
-            "range_check_gas_cost": 1
-        },
-        "secp256k1_add_gas_cost": {
-            "range_check_gas_cost": 29,
-            "step_gas_cost": 410
-        },
-        "secp256k1_get_point_from_x_gas_cost": {
-            "memory_hole_gas_cost": 20,
-            "range_check_gas_cost": 30,
-            "step_gas_cost": 395
-        },
-        "secp256k1_get_xy_gas_cost": {
-            "memory_hole_gas_cost": 40,
-            "range_check_gas_cost": 11,
-            "step_gas_cost": 207
-        },
-        "secp256k1_mul_gas_cost": {
-            "memory_hole_gas_cost": 2,
-            "range_check_gas_cost": 7045,
-            "step_gas_cost": 76505
-        },
-        "secp256k1_new_gas_cost": {
-            "memory_hole_gas_cost": 40,
-            "range_check_gas_cost": 35,
-            "step_gas_cost": 461
-        },
-        "secp256r1_add_gas_cost": {
-            "range_check_gas_cost": 57,
-            "step_gas_cost": 593
-        },
-        "secp256r1_get_point_from_x_gas_cost": {
-            "memory_hole_gas_cost": 20,
-            "range_check_gas_cost": 44,
-            "step_gas_cost": 514
-        },
-        "secp256r1_get_xy_gas_cost": {
-            "memory_hole_gas_cost": 40,
-            "range_check_gas_cost": 11,
-            "step_gas_cost": 209
-        },
-        "secp256r1_mul_gas_cost": {
-            "memory_hole_gas_cost": 2,
-            "range_check_gas_cost": 13961,
-            "step_gas_cost": 125344
-        },
-        "secp256r1_new_gas_cost": {
-            "memory_hole_gas_cost": 40,
-            "range_check_gas_cost": 49,
-            "step_gas_cost": 580
-        },
-        "send_message_to_l1_gas_cost": {
-            "step_gas_cost": 141,
-            "range_check_gas_cost": 1
-        },
         "sierra_array_len_bound": 4294967296,
         "step_gas_cost": 100,
-        "storage_read_gas_cost": {
-            "step_gas_cost": 100,
-            "range_check_gas_cost": 1
-        },
-        "storage_write_gas_cost": {
-            "step_gas_cost": 100,
-            "range_check_gas_cost": 1
-        },
-        "get_class_hash_at_gas_cost": {
-            "step_gas_cost": 100,
-            "range_check_gas_cost": 1
-        },
         "stored_block_hash_buffer": 10,
         "syscall_base_gas_cost": {
             "step_gas_cost": 100
@@ -218,7 +116,111 @@
             "validate_block_number_rounding": 100,
             "validate_timestamp_rounding": 3600
         },
-        "validated": "VALID"
+        "validated": "VALID",
+        "syscalls_gas_costs": {
+            "call_contract_gas_cost": {
+                "entry_point_initial_budget": 1,
+                "step_gas_cost": 860,
+                "range_check_gas_cost": 15
+            },
+            "deploy_gas_cost": {
+                "entry_point_initial_budget": 1,
+                "step_gas_cost": 1128,
+                "range_check_gas_cost": 18,
+                "pedersen_gas_cost": 7
+            },
+            "emit_event_gas_cost": {
+                "step_gas_cost": 100,
+                "range_check_gas_cost": 1
+            },
+            "get_block_hash_gas_cost": {
+                "step_gas_cost": 104,
+                "range_check_gas_cost": 2
+            },
+            "get_execution_info_gas_cost": {
+                "step_gas_cost": 100,
+                "range_check_gas_cost": 1
+            },
+            "library_call_gas_cost": {
+                "entry_point_initial_budget": 1,
+                "step_gas_cost": 836,
+                "range_check_gas_cost": 15
+            },
+            "sha256_process_block_gas_cost": {
+                "step_gas_cost": 1855,
+                "range_check_gas_cost": 65,
+                "bitwise_builtin_gas_cost": 1115,
+                "syscall_base_gas_cost": 1
+            },
+            "replace_class_gas_cost": {
+                "step_gas_cost": 104,
+                "range_check_gas_cost": 1
+            },
+            "secp256k1_add_gas_cost": {
+                "range_check_gas_cost": 29,
+                "step_gas_cost": 410
+            },
+            "secp256k1_get_point_from_x_gas_cost": {
+                "memory_hole_gas_cost": 20,
+                "range_check_gas_cost": 30,
+                "step_gas_cost": 395
+            },
+            "secp256k1_get_xy_gas_cost": {
+                "memory_hole_gas_cost": 40,
+                "range_check_gas_cost": 11,
+                "step_gas_cost": 207
+            },
+            "secp256k1_mul_gas_cost": {
+                "memory_hole_gas_cost": 2,
+                "range_check_gas_cost": 7045,
+                "step_gas_cost": 76505
+            },
+            "secp256k1_new_gas_cost": {
+                "memory_hole_gas_cost": 40,
+                "range_check_gas_cost": 35,
+                "step_gas_cost": 461
+            },
+            "secp256r1_add_gas_cost": {
+                "range_check_gas_cost": 57,
+                "step_gas_cost": 593
+            },
+            "secp256r1_get_point_from_x_gas_cost": {
+                "memory_hole_gas_cost": 20,
+                "range_check_gas_cost": 44,
+                "step_gas_cost": 514
+            },
+            "secp256r1_get_xy_gas_cost": {
+                "memory_hole_gas_cost": 40,
+                "range_check_gas_cost": 11,
+                "step_gas_cost": 209
+            },
+            "secp256r1_mul_gas_cost": {
+                "memory_hole_gas_cost": 2,
+                "range_check_gas_cost": 13961,
+                "step_gas_cost": 125344
+            },
+            "secp256r1_new_gas_cost": {
+                "memory_hole_gas_cost": 40,
+                "range_check_gas_cost": 49,
+                "step_gas_cost": 580
+            },
+            "send_message_to_l1_gas_cost": {
+                "step_gas_cost": 141,
+                "range_check_gas_cost": 1
+            },
+            "storage_read_gas_cost": {
+                "step_gas_cost": 100,
+                "range_check_gas_cost": 1
+            },
+            "storage_write_gas_cost": {
+                "step_gas_cost": 100,
+                "range_check_gas_cost": 1
+            },
+            "get_class_hash_at_gas_cost": {
+                "step_gas_cost": 100,
+                "range_check_gas_cost": 1
+            }
+        }
     },
     "os_resources": {
         "execute_syscalls": {
