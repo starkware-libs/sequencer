@@ -27,7 +27,7 @@ pub enum NextTxs {
 
 #[cfg_attr(test, automock)]
 #[async_trait]
-pub trait TransactionProvider: Send + Sync {
+pub trait TransactionProvider: Send {
     async fn get_txs(&mut self, n_txs: usize) -> Result<NextTxs, TransactionProviderError>;
 }
 
