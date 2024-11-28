@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use assert_matches::assert_matches;
 use blockifier::context::ChainInfo;
-use blockifier::test_utils::CairoVersion;
+use blockifier::test_utils::contracts::RunnableContractVersion;
 use mempool_test_utils::starknet_api_test_utils::{declare_tx, invoke_tx};
 use mockall::predicate::eq;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
@@ -41,7 +41,7 @@ fn compiler() -> GatewayCompiler {
 
 #[fixture]
 fn state_reader_factory() -> TestStateReaderFactory {
-    local_test_state_reader_factory(CairoVersion::Cairo1, false)
+    local_test_state_reader_factory(RunnableContractVersion::Cairo1Casm, false)
 }
 
 #[fixture]
@@ -79,7 +79,7 @@ impl MockDependencies {
 type SenderAddress = ContractAddress;
 
 fn create_tx() -> (RpcTransaction, SenderAddress) {
-    let tx = invoke_tx(CairoVersion::Cairo1);
+    let tx = invoke_tx(RunnableContractVersion::Cairo1Casm);
     let sender_address = match &tx {
         RpcTransaction::Invoke(starknet_api::rpc_transaction::RpcInvokeTransaction::V3(
             invoke_tx,

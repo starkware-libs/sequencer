@@ -6,14 +6,14 @@ use crate::abi::constants;
 use crate::blockifier::block::pre_process_block;
 use crate::context::ChainInfo;
 use crate::state::state_api::StateReader;
-use crate::test_utils::contracts::FeatureContract;
+use crate::test_utils::contracts::{FeatureContract, RunnableContractVersion};
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{CairoVersion, BALANCE};
+use crate::test_utils::BALANCE;
 use crate::versioned_constants::VersionedConstants;
 
 #[test]
 fn test_pre_process_block() {
-    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1);
+    let test_contract = FeatureContract::TestContract(RunnableContractVersion::Cairo1Casm);
     let mut state = test_state(&ChainInfo::create_for_testing(), BALANCE, &[(test_contract, 1)]);
     let os_constants = VersionedConstants::create_for_testing().os_constants;
 

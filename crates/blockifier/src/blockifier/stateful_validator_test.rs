@@ -6,9 +6,9 @@ use starknet_api::transaction::TransactionVersion;
 
 use crate::blockifier::stateful_validator::StatefulValidator;
 use crate::context::BlockContext;
-use crate::test_utils::contracts::FeatureContract;
+use crate::test_utils::contracts::{FeatureContract, RunnableContractVersion};
 use crate::test_utils::initial_test_state::{fund_account, test_state};
-use crate::test_utils::{CairoVersion, BALANCE};
+use crate::test_utils::BALANCE;
 use crate::transaction::test_utils::{
     block_context,
     create_account_tx_for_validate_test_nonce_0,
@@ -37,7 +37,10 @@ fn test_tx_validator(
     block_context: BlockContext,
     #[values(default_l1_resource_bounds(), default_all_resource_bounds())]
     resource_bounds: ValidResourceBounds,
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
+    // TODO: Add Native case if the feature is active. Currently it seems that this would require
+    //   duplicating the test...
+    #[values(RunnableContractVersion::Cairo0, RunnableContractVersion::Cairo1Casm)]
+    cairo_version: RunnableContractVersion,
 ) {
     let chain_info = &block_context.chain_info;
 
@@ -83,7 +86,8 @@ fn test_tx_validator_skip_validate(
     resource_bounds: ValidResourceBounds,
 ) {
     let block_context = BlockContext::create_for_testing();
-    let faulty_account = FeatureContract::FaultyAccount(CairoVersion::Cairo1);
+    // TODO: If Native is available, parametrize to also use native contract.
+    let faulty_account = FeatureContract::FaultyAccount(RunnableContractVersion::Cairo1Casm);
     let state = test_state(&block_context.chain_info, BALANCE, &[(faulty_account, 1)]);
 
     // Create a transaction that does not pass validations.
