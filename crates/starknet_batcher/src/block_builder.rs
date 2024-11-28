@@ -46,7 +46,7 @@ use crate::transaction_provider::{NextTxs, TransactionProvider, TransactionProvi
 #[derive(Debug, Error)]
 pub enum BlockBuilderError {
     #[error(transparent)]
-    BadTimestamp(#[from] std::num::TryFromIntError),
+    BadTimestamp(std::num::TryFromIntError),
     #[error(transparent)]
     BlockifierStateError(#[from] StateError),
     #[error(transparent)]
@@ -313,7 +313,12 @@ impl BlockBuilderFactory {
         let block_builder_config = self.block_builder_config.clone();
         let next_block_info = BlockInfo {
             block_number: block_metadata.height,
-            block_timestamp: BlockTimestamp(chrono::Utc::now().timestamp().try_into()?),
+            block_timestamp: BlockTimestamp(
+                chrono::Utc::now()
+                    .timestamp()
+                    .try_into()
+                    .map_err(BlockBuilderError::BadTimestamp)?,
+            ),
             sequencer_address: block_builder_config.sequencer_address,
             // TODO (yael 7/10/2024): add logic to compute gas prices
             gas_prices: {
