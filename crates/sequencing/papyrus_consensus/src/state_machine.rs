@@ -234,7 +234,6 @@ impl StateMachine {
         assert!(self.awaiting_get_proposal);
         assert_eq!(round, self.round);
         self.awaiting_get_proposal = false;
-        assert!(proposal_id.is_some(), "SHC should pass a valid proposal content id");
         VecDeque::from([StateMachineEvent::Proposal(proposal_id, round, None)])
     }
 
