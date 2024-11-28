@@ -486,7 +486,7 @@ impl GasPrices {
 )]
 pub struct BlockTimestamp(pub u64);
 
-#[derive(Clone, Debug, Deserialize, Default, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct BlockInfo {
     pub block_number: BlockNumber,
     pub block_timestamp: BlockTimestamp,
@@ -495,6 +495,18 @@ pub struct BlockInfo {
     pub sequencer_address: ContractAddress,
     pub gas_prices: GasPrices,
     pub use_kzg_da: bool,
+}
+
+impl Default for BlockInfo {
+    fn default() -> Self {
+        Self {
+            block_number: BlockNumber::default(),
+            block_timestamp: BlockTimestamp::default(),
+            sequencer_address: ContractAddress::default(),
+            gas_prices: GasPrices::default(),
+            use_kzg_da: true,
+        }
+    }
 }
 
 /// The signature of a [Block](`crate::block::Block`), signed by the sequencer. The signed message
