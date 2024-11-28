@@ -171,10 +171,8 @@ expression: dumped_default_config
     "privacy": "Public"
   },
   "consensus.network_config.quic_port": {
-    "description": "The port that the node listens on for incoming quic connections.",
-    "value": {
-      "$serde_json::private::Number": "10101"
-    },
+    "description": "The port that the node listens on for incoming quic connections. If no value is provided, the system will generate one.",
+    "param_type": "PositiveInteger",
     "privacy": "Public"
   },
   "consensus.network_config.secret_key": {
@@ -190,10 +188,8 @@ expression: dumped_default_config
     "privacy": "Public"
   },
   "consensus.network_config.tcp_port": {
-    "description": "The port that the node listens on for incoming tcp connections.",
-    "value": {
-      "$serde_json::private::Number": "10100"
-    },
+    "description": "The port that the node listens on for incoming tcp connections. If no value is provided, the system will generate one.",
+    "param_type": "PositiveInteger",
     "privacy": "Public"
   },
   "consensus.network_topic": {
@@ -346,10 +342,8 @@ expression: dumped_default_config
     "privacy": "Public"
   },
   "network.quic_port": {
-    "description": "The port that the node listens on for incoming quic connections.",
-    "value": {
-      "$serde_json::private::Number": "10001"
-    },
+    "description": "The port that the node listens on for incoming quic connections. If no value is provided, the system will generate one.",
+    "param_type": "PositiveInteger",
     "privacy": "Public"
   },
   "network.secret_key": {
@@ -365,10 +359,8 @@ expression: dumped_default_config
     "privacy": "Public"
   },
   "network.tcp_port": {
-    "description": "The port that the node listens on for incoming tcp connections.",
-    "value": {
-      "$serde_json::private::Number": "10000"
-    },
+    "description": "The port that the node listens on for incoming tcp connections. If no value is provided, the system will generate one.",
+    "param_type": "PositiveInteger",
     "privacy": "Public"
   },
   "p2p_sync.#is_none": {

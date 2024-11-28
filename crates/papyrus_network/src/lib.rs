@@ -20,6 +20,7 @@ use std::time::Duration;
 
 use discovery::DiscoveryConfig;
 use libp2p::Multiaddr;
+use papyrus_common::tcp::find_free_port;
 use papyrus_config::converters::{
     deserialize_optional_vec_u8,
     deserialize_seconds_to_duration,
@@ -27,12 +28,13 @@ use papyrus_config::converters::{
 };
 use papyrus_config::dumping::{
     append_sub_config_name,
+    ser_generated_param,
     ser_optional_param,
     ser_param,
     SerializeConfig,
 };
 use papyrus_config::validators::validate_vec_u256;
-use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use papyrus_config::{ParamPath, ParamPrivacyInput, SerializationType, SerializedParam};
 use peer_manager::PeerManagerConfig;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ChainId;
@@ -41,7 +43,9 @@ use validator::Validate;
 // TODO: add peer manager config to the network config
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Validate)]
 pub struct NetworkConfig {
+    #[serde(default = "find_free_port")]
     pub tcp_port: u16,
+    #[serde(default = "find_free_port")]
     pub quic_port: u16,
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
     pub session_timeout: Duration,
@@ -60,15 +64,15 @@ pub struct NetworkConfig {
 impl SerializeConfig for NetworkConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let mut config = BTreeMap::from_iter([
-            ser_param(
+            ser_generated_param(
                 "tcp_port",
-                &self.tcp_port,
+                SerializationType::PositiveInteger,
                 "The port that the node listens on for incoming tcp connections.",
                 ParamPrivacyInput::Public,
             ),
-            ser_param(
+            ser_generated_param(
                 "quic_port",
-                &self.quic_port,
+                SerializationType::PositiveInteger,
                 "The port that the node listens on for incoming quic connections.",
                 ParamPrivacyInput::Public,
             ),

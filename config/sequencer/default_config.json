@@ -630,9 +630,9 @@
     "value": 1000
   },
   "consensus_manager_config.consensus_config.network_config.quic_port": {
-    "description": "The port that the node listens on for incoming quic connections.",
-    "privacy": "Public",
-    "value": 10101
+    "description": "The port that the node listens on for incoming quic connections. If no value is provided, the system will generate one.",
+    "param_type": "PositiveInteger",
+    "privacy": "Public"
   },
   "consensus_manager_config.consensus_config.network_config.secret_key": {
     "description": "The secret key used for building the peer id. If it's an empty string a random one will be used.",
@@ -645,9 +645,9 @@
     "value": 120
   },
   "consensus_manager_config.consensus_config.network_config.tcp_port": {
-    "description": "The port that the node listens on for incoming tcp connections.",
-    "privacy": "Public",
-    "value": 10100
+    "description": "The port that the node listens on for incoming tcp connections. If no value is provided, the system will generate one.",
+    "param_type": "PositiveInteger",
+    "privacy": "Public"
   },
   "consensus_manager_config.consensus_config.network_topic": {
     "description": "The network topic of the consensus.",
@@ -860,9 +860,9 @@
     "value": 1000
   },
   "mempool_p2p_config.network_config.quic_port": {
-    "description": "The port that the node listens on for incoming quic connections.",
-    "privacy": "Public",
-    "value": 10001
+    "description": "The port that the node listens on for incoming quic connections. If no value is provided, the system will generate one.",
+    "param_type": "PositiveInteger",
+    "privacy": "Public"
   },
   "mempool_p2p_config.network_config.secret_key": {
     "description": "The secret key used for building the peer id. If it's an empty string a random one will be used.",
@@ -875,9 +875,9 @@
     "value": 120
   },
   "mempool_p2p_config.network_config.tcp_port": {
-    "description": "The port that the node listens on for incoming tcp connections.",
-    "privacy": "Public",
-    "value": 10000
+    "description": "The port that the node listens on for incoming tcp connections. If no value is provided, the system will generate one.",
+    "param_type": "PositiveInteger",
+    "privacy": "Public"
   },
   "monitoring_endpoint_config.ip": {
     "description": "The monitoring endpoint ip address.",

@@ -145,9 +145,9 @@
     "value": 1000
   },
   "consensus.network_config.quic_port": {
-    "description": "The port that the node listens on for incoming quic connections.",
-    "privacy": "Public",
-    "value": 10101
+    "description": "The port that the node listens on for incoming quic connections. If no value is provided, the system will generate one.",
+    "param_type": "PositiveInteger",
+    "privacy": "Public"
   },
   "consensus.network_config.secret_key": {
     "description": "The secret key used for building the peer id. If it's an empty string a random one will be used.",
@@ -160,9 +160,9 @@
     "value": 120
   },
   "consensus.network_config.tcp_port": {
-    "description": "The port that the node listens on for incoming tcp connections.",
-    "privacy": "Public",
-    "value": 10100
+    "description": "The port that the node listens on for incoming tcp connections. If no value is provided, the system will generate one.",
+    "param_type": "PositiveInteger",
+    "privacy": "Public"
   },
   "consensus.network_topic": {
     "description": "The network topic of the consensus.",
@@ -290,9 +290,9 @@
     "value": 1000
   },
   "network.quic_port": {
-    "description": "The port that the node listens on for incoming quic connections.",
-    "privacy": "Public",
-    "value": 10001
+    "description": "The port that the node listens on for incoming quic connections. If no value is provided, the system will generate one.",
+    "param_type": "PositiveInteger",
+    "privacy": "Public"
   },
   "network.secret_key": {
     "description": "The secret key used for building the peer id. If it's an empty string a random one will be used.",
@@ -305,9 +305,9 @@
     "value": 120
   },
   "network.tcp_port": {
-    "description": "The port that the node listens on for incoming tcp connections.",
-    "privacy": "Public",
-    "value": 10000
+    "description": "The port that the node listens on for incoming tcp connections. If no value is provided, the system will generate one.",
+    "param_type": "PositiveInteger",
+    "privacy": "Public"
   },
   "p2p_sync.#is_none": {
     "description": "Flag for an optional field.",
