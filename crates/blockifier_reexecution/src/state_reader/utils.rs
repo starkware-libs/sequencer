@@ -18,15 +18,14 @@ use starknet_gateway::config::RpcStateReaderConfig;
 use starknet_types_core::felt::Felt;
 
 use crate::assert_eq_state_diff;
-use crate::state_reader::errors::ReexecutionError;
-use crate::state_reader::test_state_reader::{
-    ConsecutiveStateReaders,
-    ConsecutiveTestStateReaders,
+use crate::state_reader::errors::{ReexecutionError, ReexecutionResult};
+use crate::state_reader::offline_state_reader::{
     OfflineConsecutiveStateReaders,
-    ReexecutionResult,
     SerializableDataPrevBlock,
     SerializableOfflineReexecutionData,
 };
+use crate::state_reader::reexecution_state_reader::ConsecutiveReexecutionStateReaders;
+use crate::state_reader::test_state_reader::ConsecutiveTestStateReaders;
 
 pub static RPC_NODE_URL: LazyLock<String> = LazyLock::new(|| {
     env::var("TEST_URL")
@@ -218,7 +217,7 @@ impl From<CommitmentStateDiff> for ComparableStateDiff {
 
 pub fn reexecute_and_verify_correctness<
     S: StateReader + Send + Sync,
-    T: ConsecutiveStateReaders<S>,
+    T: ConsecutiveReexecutionStateReaders<S>,
 >(
     consecutive_state_readers: T,
 ) -> Option<CachedState<S>> {
