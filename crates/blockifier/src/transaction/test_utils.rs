@@ -21,6 +21,7 @@ use starknet_api::{calldata, declare_tx_args, deploy_account_tx_args, felt, invo
 use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 
+use super::account_transaction::ExecutionFlags;
 use crate::context::{BlockContext, ChainInfo};
 use crate::state::cached_state::CachedState;
 use crate::state::state_api::State;
@@ -115,7 +116,7 @@ pub fn deploy_and_fund_account(
     // Deploy an account contract.
     let deploy_account_tx = AccountTransaction {
         tx: deploy_account_tx(deploy_tx_args, nonce_manager),
-        only_query: false,
+        execution_flags: ExecutionFlags::default(),
     };
     let account_address = deploy_account_tx.sender_address();
 
@@ -165,6 +166,9 @@ pub struct FaultyAccountTxCreatorArgs {
     pub validate_constructor: bool,
     // Should be used with tx_type Declare.
     pub declared_contract: Option<FeatureContract>,
+    pub validate: bool,
+    pub only_query: bool,
+    pub charge_fee: bool,
 }
 
 impl Default for FaultyAccountTxCreatorArgs {
@@ -181,6 +185,9 @@ impl Default for FaultyAccountTxCreatorArgs {
             max_fee: Fee::default(),
             resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),
             declared_contract: None,
+            validate: true,
+            only_query: false,
+            charge_fee: true,
         }
     }
 }
@@ -217,6 +224,9 @@ pub fn create_account_tx_for_validate_test(
         max_fee,
         resource_bounds,
         declared_contract,
+        validate,
+        only_query,
+        charge_fee,
     } = faulty_account_tx_creator_args;
 
     // The first felt of the signature is used to set the scenario. If the scenario is
@@ -226,7 +236,7 @@ pub fn create_account_tx_for_validate_test(
         signature_vector.extend(additional_data);
     }
     let signature = TransactionSignature(signature_vector);
-
+    let execution_flags = ExecutionFlags { validate, charge_fee, only_query };
     match tx_type {
         TransactionType::Declare => {
             let declared_contract = match declared_contract {
@@ -251,7 +261,7 @@ pub fn create_account_tx_for_validate_test(
                 },
                 class_info,
             );
-            AccountTransaction { tx, only_query: false }
+            AccountTransaction { tx, execution_flags }
         }
         TransactionType::DeployAccount => {
             // We do not use the sender address here because the transaction generates the actual
@@ -272,7 +282,7 @@ pub fn create_account_tx_for_validate_test(
                 },
                 nonce_manager,
             );
-            AccountTransaction { tx, only_query: false }
+            AccountTransaction { tx, execution_flags }
         }
         TransactionType::InvokeFunction => {
             let execute_calldata = create_calldata(sender_address, "foo", &[]);
@@ -285,7 +295,7 @@ pub fn create_account_tx_for_validate_test(
                 version: tx_version,
                 nonce: nonce_manager.next(sender_address),
             });
-            AccountTransaction { tx, only_query: false }
+            AccountTransaction { tx, execution_flags }
         }
         _ => panic!("{tx_type:?} is not an account transaction."),
     }
@@ -294,7 +304,8 @@ pub fn create_account_tx_for_validate_test(
 // TODO(AvivG): Consider removing this function.
 pub fn account_invoke_tx(invoke_args: InvokeTxArgs) -> AccountTransaction {
     let only_query = invoke_args.only_query;
-    AccountTransaction { tx: invoke_tx(invoke_args), only_query }
+    let execution_flags = ExecutionFlags { only_query, ..ExecutionFlags::default() };
+    AccountTransaction { tx: invoke_tx(invoke_args), execution_flags }
 }
 
 pub fn run_invoke_tx(

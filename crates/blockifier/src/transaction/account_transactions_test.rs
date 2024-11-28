@@ -84,7 +84,10 @@ use crate::test_utils::{
     DEFAULT_STRK_L2_GAS_PRICE,
     MAX_FEE,
 };
-use crate::transaction::account_transaction::AccountTransaction;
+use crate::transaction::account_transaction::{
+    AccountTransaction,
+    ExecutionFlags as AccountExecutionFlags,
+};
 use crate::transaction::objects::{HasRelatedFeeType, TransactionInfoCreator};
 use crate::transaction::test_utils::{
     account_invoke_tx,
@@ -105,7 +108,7 @@ use crate::transaction::test_utils::{
     INVALID,
 };
 use crate::transaction::transaction_types::TransactionType;
-use crate::transaction::transactions::{ExecutableTransaction, ExecutionFlags};
+use crate::transaction::transactions::{enforce_fee, ExecutableTransaction, ExecutionFlags};
 use crate::utils::u64_from_usize;
 
 #[rstest]
@@ -213,7 +216,11 @@ fn test_fee_enforcement(
         },
         &mut NonceManager::default(),
     );
-    let deploy_account_tx = AccountTransaction { tx, only_query: false };
+    let only_query = false;
+    let charge_fee = enforce_fee(&tx, only_query);
+    let execution_flags =
+        AccountExecutionFlags { only_query, charge_fee, ..AccountExecutionFlags::default() };
+    let deploy_account_tx = AccountTransaction { tx, execution_flags };
 
     let enforce_fee = deploy_account_tx.enforce_fee();
     assert_ne!(zero_bounds, enforce_fee);
@@ -462,7 +469,8 @@ fn test_max_fee_limit_validate(
         },
         class_info,
     );
-    let account_tx = AccountTransaction { tx, only_query: false };
+    let execution_flags = AccountExecutionFlags::default();
+    let account_tx = AccountTransaction { tx, execution_flags };
     account_tx.execute(&mut state, &block_context, true, true).unwrap();
 
     // Deploy grindy account with a lot of grind in the constructor.
@@ -785,7 +793,7 @@ fn test_fail_declare(block_context: BlockContext, max_fee: Fee) {
     };
     let declare_account_tx = AccountTransaction {
         tx: ApiExecutableTransaction::Declare(executable_declare),
-        only_query: false,
+        execution_flags: AccountExecutionFlags::default(),
     };
 
     // Fail execution, assert nonce and balance are unchanged.

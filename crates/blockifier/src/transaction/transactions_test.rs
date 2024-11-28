@@ -116,7 +116,7 @@ use crate::test_utils::{
     MAX_FEE,
     TEST_SEQUENCER_ADDRESS,
 };
-use crate::transaction::account_transaction::AccountTransaction;
+use crate::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
 use crate::transaction::errors::{
     TransactionExecutionError,
     TransactionFeeError,
@@ -454,7 +454,8 @@ fn test_invoke_tx(
         calldata: Calldata(Arc::clone(&calldata.0)),
         resource_bounds,
     });
-    let invoke_tx = AccountTransaction { tx, only_query: false };
+    let execution_flags = ExecutionFlags::default();
+    let invoke_tx = AccountTransaction { tx, execution_flags };
 
     // Extract invoke transaction fields for testing, as it is consumed when creating an account
     // transaction.
@@ -976,7 +977,7 @@ fn test_max_fee_exceeds_balance(
             },
             &mut NonceManager::default(),
         ),
-        only_query: false,
+        execution_flags: ExecutionFlags::default(),
     };
     assert_resource_bounds_exceed_balance_failure(state, block_context, invalid_tx);
 
@@ -1011,7 +1012,7 @@ fn test_max_fee_exceeds_balance(
                     },
                     class_info,
                 ),
-                only_query: false,
+                execution_flags: ExecutionFlags::default(),
             };
             assert_resource_bounds_exceed_balance_failure(state, block_context, invalid_tx);
         };
@@ -1527,7 +1528,7 @@ fn test_declare_tx(
         },
         class_info.clone(),
     );
-    let account_tx = AccountTransaction { tx, only_query: false };
+    let account_tx = AccountTransaction { tx, execution_flags: ExecutionFlags::default() };
 
     // Check state before transaction application.
     assert_matches!(
@@ -1649,7 +1650,7 @@ fn test_declare_tx(
         },
         class_info.clone(),
     );
-    let account_tx2 = AccountTransaction { tx: tx2, only_query: false };
+    let account_tx2 = AccountTransaction { tx: tx2, execution_flags: ExecutionFlags::default() };
     let result = account_tx2.execute(state, block_context, true, true);
     assert_matches!(
          result.unwrap_err(),
@@ -1684,7 +1685,10 @@ fn test_declare_tx_v0(default_l1_resource_bounds: ValidResourceBounds) {
         },
         class_info.clone(),
     );
-    let account_tx = AccountTransaction { tx, only_query: false };
+    let account_tx = AccountTransaction {
+        tx,
+        execution_flags: ExecutionFlags { charge_fee: false, ..ExecutionFlags::default() },
+    };
 
     let actual_execution_info = account_tx.execute(state, block_context, false, true).unwrap(); // fee not charged for declare v0.
 
@@ -1713,7 +1717,7 @@ fn test_deploy_account_tx(
             },
             &mut nonce_manager,
         ),
-        only_query: false,
+        execution_flags: ExecutionFlags::default(),
     };
 
     // Extract deploy account transaction fields for testing, as it is consumed when creating an
@@ -1873,7 +1877,7 @@ fn test_deploy_account_tx(
             },
             &mut nonce_manager,
         ),
-        only_query: false,
+        execution_flags: ExecutionFlags::default(),
     };
     let error = deploy_account.execute(state, block_context, true, true).unwrap_err();
     assert_matches!(
@@ -1906,7 +1910,7 @@ fn test_fail_deploy_account_undeclared_class_hash(
             },
             &mut nonce_manager,
         ),
-        only_query: false,
+        execution_flags: ExecutionFlags::default(),
     };
     let tx_context = block_context.to_tx_context(&deploy_account);
     let fee_type = tx_context.tx_info.fee_type();
@@ -2253,7 +2257,8 @@ fn test_only_query_flag(
         sender_address,
         only_query,
     });
-    let invoke_tx = AccountTransaction { tx, only_query };
+    let execution_flags = ExecutionFlags { only_query, ..Default::default() };
+    let invoke_tx = AccountTransaction { tx, execution_flags };
 
     let tx_execution_info = invoke_tx.execute(state, block_context, true, true).unwrap();
     assert_eq!(tx_execution_info.revert_error, None);
