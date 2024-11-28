@@ -16,3 +16,4 @@ tracing.workspace = true
 [dev-dependencies]
 rstest.workspace = true
 tokio = { workspace = true, features = ["macros", "rt"] }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
