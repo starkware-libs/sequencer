@@ -11,6 +11,8 @@ workspace = true
 
 [dependencies]
 tokio = { workspace = true, features = ["process"] }
+tracing.workspace = true
 
 [dev-dependencies]
 rstest.workspace = true
+tokio = { workspace = true, features = ["macros", "rt"] }
