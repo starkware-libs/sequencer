@@ -9,6 +9,7 @@
         "max_contract_bytecode_size": 81920
     },
     "invoke_tx_max_n_steps": 10000000,
+    "execute_max_sierra_gas": 10000000000,
     "deprecated_l2_resource_gas_costs": {
         "gas_per_data_felt": [
             128,
@@ -600,6 +601,7 @@
         }
     },
     "validate_max_n_steps": 1000000,
+    "validate_max_sierra_gas": 10000000000,
     "min_compiler_version_for_sierra_gas": "2.8.0",
     "vm_resource_fee_cost": {
         "builtins": {
