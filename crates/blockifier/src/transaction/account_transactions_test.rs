@@ -775,12 +775,15 @@ fn test_fail_declare(block_context: BlockContext, max_fee: Fee) {
     state.set_contract_class(class_hash, contract_class.clone().try_into().unwrap()).unwrap();
     state.set_compiled_class_hash(class_hash, declare_tx_v2.compiled_class_hash).unwrap();
     let class_info = calculate_class_info_for_testing(contract_class);
-    let declare_account_tx: AccountTransaction = ApiExecutableDeclareTransaction {
+    let executable_declare = ApiExecutableDeclareTransaction {
         tx: DeclareTransaction::V2(DeclareTransactionV2 { nonce: next_nonce, ..declare_tx_v2 }),
         tx_hash: TransactionHash::default(),
         class_info,
-    }
-    .into();
+    };
+    let declare_account_tx = AccountTransaction {
+        tx: ApiExecutableTransaction::Declare(executable_declare),
+        only_query: false,
+    };
 
     // Fail execution, assert nonce and balance are unchanged.
     let tx_info = declare_account_tx.create_tx_info();

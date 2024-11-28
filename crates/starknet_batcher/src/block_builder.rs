@@ -15,6 +15,7 @@ use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::state::errors::StateError;
 use blockifier::state::global_cache::GlobalContractCache;
+use blockifier::transaction::account_transaction::AccountTransaction;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use blockifier::versioned_constants::{VersionedConstants, VersionedConstantsOverrides};
@@ -159,8 +160,20 @@ impl BlockBuilderTrait for BlockBuilder {
 
             let mut executor_input_chunk = vec![];
             for tx in &next_tx_chunk {
-                // TODO(yair): Avoid this clone.
-                executor_input_chunk.push(BlockifierTransaction::from(tx.clone()));
+                let executable_tx = match tx {
+                    Transaction::Account(account_tx) => {
+                        BlockifierTransaction::Account(AccountTransaction {
+                            // TODO(yair): Avoid this clone.
+                            tx: account_tx.clone(),
+                            only_query: false,
+                        })
+                    }
+                    Transaction::L1Handler(l1_handler_tx) => {
+                        // TODO(yair): Avoid this clone.
+                        BlockifierTransaction::L1Handler(l1_handler_tx.clone())
+                    }
+                };
+                executor_input_chunk.push(executable_tx);
             }
             let results = self.executor.add_txs_to_block(&executor_input_chunk);
             trace!("Transaction execution results: {:?}", results);
