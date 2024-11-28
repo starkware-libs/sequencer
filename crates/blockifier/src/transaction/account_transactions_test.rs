@@ -72,7 +72,6 @@ use crate::test_utils::{
     create_trivial_calldata,
     get_syscall_resources,
     get_tx_resources,
-    CairoVersion,
     CompilerBasedVersion,
     BALANCE,
     DEFAULT_L1_DATA_GAS_MAX_AMOUNT,
@@ -1799,10 +1798,10 @@ fn test_concurrent_fee_transfer_when_sender_is_sequencer(
 /// history.
 #[rstest]
 #[case(&[
-    CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1),
-    CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1),
-    CompilerBasedVersion::CairoVersion(CairoVersion::Cairo0),
-    CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1)
+    CompilerBasedVersion::CairoVersion(RunnableContractVersion::Cairo1Casm),
+    CompilerBasedVersion::CairoVersion(RunnableContractVersion::Cairo1Casm),
+    CompilerBasedVersion::CairoVersion(RunnableContractVersion::Cairo0),
+    CompilerBasedVersion::CairoVersion(RunnableContractVersion::Cairo1Casm)
 ])]
 // TODO(Tzahi, 1/12/2024): Add a case with OldCairo1 instead of Cairo0.
 fn test_initial_gas(
@@ -1851,18 +1850,21 @@ fn test_initial_gas(
         curr_initial_gas = execute_call_info.call.initial_gas;
 
         match (prev_version, version, started_vm_mode) {
-            (CompilerBasedVersion::CairoVersion(CairoVersion::Cairo0), _, _) => {
+            (CompilerBasedVersion::CairoVersion(RunnableContractVersion::Cairo0), _, _) => {
                 assert_eq!(started_vm_mode, true);
                 assert_eq!(curr_initial_gas, prev_initial_gas);
             }
             (
                 _,
-                CompilerBasedVersion::CairoVersion(CairoVersion::Cairo0)
+                CompilerBasedVersion::CairoVersion(RunnableContractVersion::Cairo0)
                 | CompilerBasedVersion::OldCairo1,
                 false,
             ) => {
                 // First time we are in VM mode.
-                assert_eq!(prev_version, &CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1));
+                assert_eq!(
+                    prev_version,
+                    &CompilerBasedVersion::CairoVersion(RunnableContractVersion::Cairo1Casm)
+                );
                 assert_eq!(
                     curr_initial_gas,
                     block_context.versioned_constants.default_initial_gas_cost()
@@ -1873,7 +1875,9 @@ fn test_initial_gas(
                 // prev_version is a non Cairo0 contract, thus it consumes gas from the initial
                 // gas.
                 assert!(curr_initial_gas < prev_initial_gas);
-                if version == &CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1) {
+                if version
+                    == &CompilerBasedVersion::CairoVersion(RunnableContractVersion::Cairo1Casm)
+                {
                     assert!(execute_call_info.execution.gas_consumed > 0);
                 } else {
                     assert!(execute_call_info.execution.gas_consumed == 0);

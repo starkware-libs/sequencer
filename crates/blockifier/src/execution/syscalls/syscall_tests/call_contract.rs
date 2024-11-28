@@ -22,7 +22,6 @@ use crate::test_utils::syscall::build_recurse_calldata;
 use crate::test_utils::{
     create_calldata,
     trivial_external_entry_point_new,
-    CairoVersion,
     CompilerBasedVersion,
     BALANCE,
 };
@@ -122,17 +121,17 @@ fn test_call_contract(outer_contract: FeatureContract, inner_contract: FeatureCo
 #[rstest]
 fn test_tracked_resources(
     #[values(
-        CompilerBasedVersion::CairoVersion(CairoVersion::Cairo0),
+        CompilerBasedVersion::CairoVersion(RunnableContractVersion::Cairo0),
         CompilerBasedVersion::OldCairo1,
-        CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1),
-        CompilerBasedVersion::CairoVersion(CairoVersion::Native)
+        CompilerBasedVersion::CairoVersion(RunnableContractVersion::Cairo1Casm),
+        CompilerBasedVersion::CairoVersion(RunnableContractVersion::Cairo1Native)
     )]
     outer_version: CompilerBasedVersion,
     #[values(
-        CompilerBasedVersion::CairoVersion(CairoVersion::Cairo0),
+        CompilerBasedVersion::CairoVersion(RunnableContractVersion::Cairo0),
         CompilerBasedVersion::OldCairo1,
-        CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1),
-        CompilerBasedVersion::CairoVersion(CairoVersion::Native)
+        CompilerBasedVersion::CairoVersion(RunnableContractVersion::Cairo1Casm),
+        CompilerBasedVersion::CairoVersion(RunnableContractVersion::Cairo1Native)
     )]
     inner_version: CompilerBasedVersion,
 ) {
@@ -144,15 +143,15 @@ fn test_tracked_resources(
 #[rstest]
 fn test_tracked_resources(
     #[values(
-        CompilerBasedVersion::CairoVersion(CairoVersion::Cairo0),
+        CompilerBasedVersion::CairoVersion(RunnableContractVersion::Cairo0),
         CompilerBasedVersion::OldCairo1,
-        CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1)
+        CompilerBasedVersion::CairoVersion(RunnableContractVersion::Cairo1Casm)
     )]
     outer_version: CompilerBasedVersion,
     #[values(
-        CompilerBasedVersion::CairoVersion(CairoVersion::Cairo0),
+        CompilerBasedVersion::CairoVersion(RunnableContractVersion::Cairo0),
         CompilerBasedVersion::OldCairo1,
-        CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1)
+        CompilerBasedVersion::CairoVersion(RunnableContractVersion::Cairo1Casm)
     )]
     inner_version: CompilerBasedVersion,
 ) {
@@ -192,15 +191,31 @@ fn test_tracked_resources_fn(
     assert_eq!(execution.inner_calls.first().unwrap().tracked_resource, expected_inner_resource);
 }
 
-#[test_case(CompilerBasedVersion::CairoVersion(CairoVersion::Cairo0), CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1); "Cairo0_and_Cairo1")]
-#[test_case(CompilerBasedVersion::OldCairo1, CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1); "OldCairo1_and_Cairo1")]
-#[cfg_attr(
-  feature = "cairo_native",
-  test_case(CompilerBasedVersion::CairoVersion(CairoVersion::Cairo0), CompilerBasedVersion::CairoVersion(CairoVersion::Native); "Cairo0_and_Native")
+#[test_case(
+    CompilerBasedVersion::CairoVersion(RunnableContractVersion::Cairo0),
+    CompilerBasedVersion::CairoVersion(RunnableContractVersion::Cairo1Casm);
+    "Cairo0_and_Cairo1"
+)]
+#[test_case(
+    CompilerBasedVersion::OldCairo1,
+    CompilerBasedVersion::CairoVersion(RunnableContractVersion::Cairo1Casm);
+    "OldCairo1_and_Cairo1"
 )]
 #[cfg_attr(
-  feature = "cairo_native",
-  test_case(CompilerBasedVersion::OldCairo1, CompilerBasedVersion::CairoVersion(CairoVersion::Native); "OldCairo1_and_Native")
+    feature = "cairo_native",
+    test_case(
+        CompilerBasedVersion::CairoVersion(RunnableContractVersion::Cairo0),
+        CompilerBasedVersion::CairoVersion(RunnableContractVersion::Cairo1Native);
+        "Cairo0_and_Native"
+    )
+)]
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(
+        CompilerBasedVersion::OldCairo1,
+        CompilerBasedVersion::CairoVersion(RunnableContractVersion::Cairo1Native);
+        "OldCairo1_and_Native"
+    )
 )]
 fn test_tracked_resources_nested(
     cairo_steps_contract_version: CompilerBasedVersion,
