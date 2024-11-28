@@ -4,10 +4,12 @@ use std::path::{Path, PathBuf};
 
 use infra_utils::path::cargo_manifest_dir;
 use serde::{Deserialize, Serialize};
+use serde_json::to_string_pretty;
 use starknet_types_core::felt::Felt;
 
 use crate::block::BlockNumber;
 use crate::core::{ChainId, ContractAddress, Nonce};
+use crate::rpc_transaction::RpcTransaction;
 use crate::transaction::{Transaction, TransactionHash};
 
 pub mod declare;
@@ -89,4 +91,25 @@ macro_rules! compiled_class_hash {
     ($s:expr) => {
         $crate::core::CompiledClassHash(starknet_types_core::felt::Felt::from($s))
     };
+}
+
+/// Converts a [`RpcTransaction`] to a JSON string.
+pub fn rpc_tx_to_json(tx: &RpcTransaction) -> String {
+    let mut tx_json = serde_json::to_value(tx)
+        .unwrap_or_else(|tx| panic!("Failed to serialize transaction: {tx:?}"));
+
+    // Add type and version manually
+    let type_string = match tx {
+        RpcTransaction::Declare(_) => "DECLARE",
+        RpcTransaction::DeployAccount(_) => "DEPLOY_ACCOUNT",
+        RpcTransaction::Invoke(_) => "INVOKE",
+    };
+
+    tx_json
+        .as_object_mut()
+        .unwrap()
+        .extend([("type".to_string(), type_string.into()), ("version".to_string(), "0x3".into())]);
+
+    // Serialize back to pretty JSON string
+    to_string_pretty(&tx_json).expect("Failed to serialize transaction")
 }
