@@ -29,7 +29,7 @@ use crate::test_utils::{
     BALANCE,
     DEFAULT_STRK_L1_GAS_PRICE,
 };
-use crate::transaction::account_transaction::AccountTransaction;
+use crate::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::test_utils::{
     account_invoke_tx,
@@ -131,7 +131,8 @@ fn test_declare(
         },
         calculate_class_info_for_testing(declared_contract.get_class()),
     );
-    let tx = AccountTransaction { tx: declare_tx, only_query: false }.into();
+    let execution_flags = ExecutionFlags::default();
+    let tx = AccountTransaction { tx: declare_tx, execution_flags }.into();
     tx_executor_test_body(state, block_context, tx, expected_bouncer_weights);
 }
 
@@ -152,7 +153,7 @@ fn test_deploy_account(
         },
         &mut NonceManager::default(),
     );
-    let tx = AccountTransaction { tx: deploy_account_tx, only_query: false }.into();
+    let tx = AccountTransaction { tx: deploy_account_tx, execution_flags: ExecutionFlags::default() }.into();
     let expected_bouncer_weights = BouncerWeights {
         state_diff_size: 3,
         message_segment_length: 0,
