@@ -533,7 +533,7 @@ pub fn execute_library_call(
         storage_address: syscall_handler.storage_address,
         caller_address: syscall_handler.caller_address,
         call_type: CallType::Delegate,
-        initial_gas: syscall_handler.context.gas_costs().default_initial_gas_cost,
+        initial_gas: syscall_handler.context.gas_costs().base.default_initial_gas_cost,
     };
 
     execute_inner_call(entry_point, vm, syscall_handler).map_err(|error| {
