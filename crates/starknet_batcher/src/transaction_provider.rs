@@ -83,6 +83,7 @@ impl ProposeTransactionProvider {
 #[async_trait]
 impl TransactionProvider for ProposeTransactionProvider {
     async fn get_txs(&mut self, n_txs: usize) -> Result<NextTxs, TransactionProviderError> {
+        assert!(n_txs > 0, "The number of transactions requested must be greater than zero.");
         let mut txs = vec![];
         if self.phase == TxProviderPhase::L1 {
             let n_l1handler_txs_to_get =
@@ -118,6 +119,7 @@ pub struct ValidateTransactionProvider {
 #[async_trait]
 impl TransactionProvider for ValidateTransactionProvider {
     async fn get_txs(&mut self, n_txs: usize) -> Result<NextTxs, TransactionProviderError> {
+        assert!(n_txs > 0, "The number of transactions requested must be greater than zero.");
         let mut buffer = Vec::with_capacity(n_txs);
         self.tx_receiver.recv_many(&mut buffer, n_txs).await;
         // If the buffer is empty, it means that the stream was dropped, otherwise it would have
