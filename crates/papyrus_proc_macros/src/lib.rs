@@ -1,3 +1,5 @@
+use std::fs;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 use proc_macro::TokenStream;
@@ -304,4 +306,65 @@ pub fn gen_field_names_fn(_attr: TokenStream, item: TokenStream) -> TokenStream 
     };
 
     gen.into()
+}
+
+/// Procedural macro to generate a `get_package_dir()` function
+///
+/// # Example
+///
+/// ```rust
+/// use std::env;
+///
+/// use papyrus_proc_macros::generate_get_package_dir;
+///
+/// generate_get_package_dir!();
+///
+/// assert_eq!(get_package_dir(), env::var("CARGO_MANIFEST_DIR").unwrap());
+/// ```
+#[proc_macro]
+pub fn generate_get_package_dir(_input: TokenStream) -> TokenStream {
+    // Use the `file!` macro to get the file path where the macro is invoked
+    let file_path = Path::new(file!());
+
+    // Start from the directory containing the invoking file
+    let start_dir =
+        file_path.parent().expect("Failed to get the parent directory of the invoking file");
+
+    // Find the directory containing "Cargo.toml"
+    let package_dir =
+        find_cargo_toml_dir(start_dir).expect("Cargo.toml not found in any parent directory");
+
+    // Convert the directory path to an absolute path
+    let absolute_path_package_dir = fs::canonicalize(package_dir)
+        .expect("Failed to resolve absolute path to package directory directory");
+
+    // Generate the `get_package_dir()` function
+    let package_dir_str =
+        absolute_path_package_dir.to_str().expect("Invalid UTF-8 in package directory");
+    let expanded = quote! {
+        pub fn get_package_dir() -> &'static str {
+            #package_dir_str
+        }
+    };
+
+    TokenStream::from(expanded)
+}
+
+/// Traverse up the directory tree from a given path and find the directory containing "Cargo.toml"
+fn find_cargo_toml_dir(start_path: &Path) -> Option<PathBuf> {
+    let mut current_dir = start_path;
+
+    loop {
+        if current_dir.join("Cargo.toml").is_file() {
+            return Some(current_dir.to_path_buf());
+        }
+
+        // Traverse up to the parent directory
+        match current_dir.parent() {
+            Some(parent) => current_dir = parent,
+            None => break, // Stop if there's no parent directory
+        }
+    }
+
+    unreachable!();
 }
