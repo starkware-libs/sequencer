@@ -70,7 +70,7 @@ impl TaskExecutor for TokioExecutor {
 
     /// Spawns a task that may block, on a dedicated thread, preventing disruption of the async
     /// runtime.
-
+    ///
     /// # Example
     ///
     /// ```

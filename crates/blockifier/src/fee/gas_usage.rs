@@ -65,12 +65,7 @@ pub fn get_da_gas_cost(state_changes_count: &StateChangesCount, use_kzg_da: bool
         let fee_balance_value_cost = eth_gas_constants::get_calldata_word_cost(12);
         discount += eth_gas_constants::GAS_PER_MEMORY_WORD - fee_balance_value_cost;
 
-        let gas = if naive_cost < discount {
-            // Cost must be non-negative after discount.
-            0
-        } else {
-            naive_cost - discount
-        };
+        let gas = naive_cost.saturating_sub(discount);
 
         (u64_from_usize(gas).into(), 0_u8.into())
     };

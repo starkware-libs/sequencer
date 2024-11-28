@@ -361,7 +361,7 @@ fn set_events(tx: &mut TransactionOutput, events: Vec<Event>) {
 }
 
 //////////////////////////////////////////////////////////////////////////
-/// EXTERNAL FUNCTIONS - REMOVE DUPLICATIONS
+// /// EXTERNAL FUNCTIONS - REMOVE DUPLICATIONS
 //////////////////////////////////////////////////////////////////////////
 
 // Returns a test block with a variable number of transactions and events.

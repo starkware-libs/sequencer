@@ -162,7 +162,7 @@ pub(crate) struct NextOnMutexStream<'a, T: StreamTrait + Unpin> {
     mutex: &'a Mutex<T>,
 }
 
-impl<'a, T: StreamTrait + Unpin> Future for NextOnMutexStream<'a, T> {
+impl<T: StreamTrait + Unpin> Future for NextOnMutexStream<'_, T> {
     type Output = Option<T::Item>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
