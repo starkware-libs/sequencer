@@ -284,7 +284,7 @@ impl EntryPointExecutionContext {
         // New transactions with only L1 bounds use the L1 resource bounds directly.
         // New transactions with L2 bounds use the L2 bounds directly.
         let l1_gas_per_step = versioned_constants.vm_resource_fee_cost().n_steps;
-        let l2_gas_per_step = versioned_constants.os_constants.gas_costs.step_gas_cost;
+        let l2_gas_per_step = versioned_constants.os_constants.gas_costs.base_gas_costs.step_gas_cost;
 
         let tx_upper_bound_u64 = match tx_info {
             // Fee is a larger uint type than GasAmount, so we need to saturate the division.

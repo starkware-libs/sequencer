@@ -1085,7 +1085,7 @@ fn test_max_fee_computation_from_tx_bounds(block_context: BlockContext) {
     });
     assert_max_steps_as_expected!(
         account_tx_l2_bounds,
-        l2_gas_bound / block_context.versioned_constants.os_constants.gas_costs.step_gas_cost,
+        l2_gas_bound / block_context.versioned_constants.os_constants.gas_costs.base_gas_costs.step_gas_cost,
     );
 }
 
