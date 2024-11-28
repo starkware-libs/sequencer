@@ -34,10 +34,6 @@ use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::config::test_utils::RequiredParams;
 use starknet_types_core::felt::Felt;
 
-// Currently the orchestrator expects the sequencer addresses in the form of [0..n_sequencers).
-// TODO(yair): Change this offset to be a non-zero value once the orchestrator is updated.
-pub const SEQUENCER_ADDRESS_OFFSET: usize = 0;
-
 pub fn create_chain_info() -> ChainInfo {
     let mut chain_info = ChainInfo::create_for_testing();
     // Note that the chain_id affects hashes of transactions and blocks, therefore affecting the
@@ -55,7 +51,6 @@ pub async fn create_config(
     batcher_storage_config: StorageConfig,
     mut consensus_manager_config: ConsensusManagerConfig,
 ) -> (SequencerNodeConfig, RequiredParams) {
-    set_validator_id(&mut consensus_manager_config, sequencer_id);
     let fee_token_addresses = chain_info.fee_token_addresses.clone();
     let batcher_config = create_batcher_config(batcher_storage_config, chain_info.clone());
     let gateway_config = create_gateway_config(chain_info.clone()).await;
@@ -64,6 +59,7 @@ pub async fn create_config(
     let mempool_p2p_config = create_mempool_p2p_config(sequencer_id, chain_info.chain_id.clone());
     let monitoring_endpoint_config = create_monitoring_endpoint_config(sequencer_id);
     let sequencer_address = create_sequencer_address(sequencer_id);
+    set_validator_id(&mut consensus_manager_config, sequencer_address);
 
     (
         SequencerNodeConfig {
@@ -253,16 +249,17 @@ pub fn create_batcher_config(
     }
 }
 
-fn set_validator_id(consensus_manager_config: &mut ConsensusManagerConfig, sequencer_id: usize) {
-    consensus_manager_config.consensus_config.validator_id = ValidatorId::try_from(
-        Felt::from(consensus_manager_config.consensus_config.validator_id)
-            + Felt::from(sequencer_id),
-    )
-    .unwrap();
+fn set_validator_id(
+    consensus_manager_config: &mut ConsensusManagerConfig,
+    sequencer_address: ContractAddress,
+) {
+    consensus_manager_config.consensus_config.validator_id = sequencer_address;
 }
 
 fn create_sequencer_address(sequencer_id: usize) -> ContractAddress {
-    ContractAddress::from(u128::try_from(SEQUENCER_ADDRESS_OFFSET + sequencer_id).unwrap())
+    ContractAddress::from(
+        u128::from(papyrus_consensus::VALIDATOR_OFFSET) + u128::try_from(sequencer_id).unwrap(),
+    )
 }
 
 fn create_mempool_p2p_config(sequencer_id: usize, chain_id: ChainId) -> MempoolP2pConfig {

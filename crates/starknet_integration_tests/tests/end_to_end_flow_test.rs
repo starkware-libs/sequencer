@@ -53,7 +53,13 @@ async fn end_to_end(mut tx_generator: MultiAccountTransactionGenerator) {
         ),
     ];
 
-    // Buld multiple heights to ensure heights are committed.
+    let sequencers = [&mock_running_system.proposer, &mock_running_system.validator];
+    let mut expected_proposer_id = sequencers
+        .iter()
+        .map(|s| s.config.consensus_manager_config.consensus_config.validator_id)
+        .cycle();
+
+    // Build multiple heights to ensure heights are committed.
     for (height, expected_content_id) in itertools::zip_eq(heights_to_build, expected_content_ids) {
         debug!("Starting height {}.", height);
         // Create and send transactions.
@@ -70,6 +76,7 @@ async fn end_to_end(mut tx_generator: MultiAccountTransactionGenerator) {
                 &expected_batched_tx_hashes,
                 height,
                 expected_content_id,
+                expected_proposer_id.next().unwrap(),
             ),
         )
         .await
