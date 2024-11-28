@@ -5242,8 +5242,10 @@ checksum = "b248f5224d1d606005e02c97f5aa4e88eeb230488bcc03bc9ca4d7991399f2b5"
 name = "infra_utils"
 version = "0.0.0"
 dependencies = [
+ "pretty_assertions",
  "rstest",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
