@@ -124,7 +124,7 @@ impl From<RunnableContractVersion> for CairoVersion {
             RunnableContractVersion::Cairo0 => Self::Cairo0,
             RunnableContractVersion::Cairo1Casm => Self::Cairo1,
             #[cfg(feature = "cairo_native")]
-            RunnableContractVersion::Cairo1Native => Self::Native,
+            RunnableContractVersion::Cairo1Native => Self::Cairo1,
         }
     }
 }

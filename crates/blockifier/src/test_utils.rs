@@ -65,10 +65,6 @@ pub const ERC20_CONTRACT_PATH: &str = "./ERC20/ERC20_Cairo0/ERC20_without_some_s
 pub enum CairoVersion {
     Cairo0,
     Cairo1,
-    // TODO: Delete the native variant; use RunnableContractVersion when distinction between
-    //   Cairo1 compilation methods is required.
-    #[cfg(feature = "cairo_native")]
-    Native,
 }
 
 impl Default for CairoVersion {
@@ -82,30 +78,21 @@ impl CairoVersion {
         match self {
             Self::Cairo0 => Self::Cairo1,
             Self::Cairo1 => Self::Cairo0,
-            #[cfg(feature = "cairo_native")]
-            Self::Native => panic!("There is no other version for native"),
         }
     }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum CompilerBasedVersion {
-    CairoVersion(CairoVersion),
+    CairoVersion(RunnableContractVersion),
     OldCairo1,
 }
 
 impl CompilerBasedVersion {
     pub fn get_test_contract(&self) -> FeatureContract {
         match self {
-            Self::CairoVersion(CairoVersion::Cairo0) => {
-                FeatureContract::TestContract(RunnableContractVersion::Cairo0)
-            }
-            Self::CairoVersion(CairoVersion::Cairo1) => {
-                FeatureContract::TestContract(RunnableContractVersion::Cairo1Casm)
-            }
-            #[cfg(feature = "cairo_native")]
-            Self::CairoVersion(CairoVersion::Native) => {
-                FeatureContract::TestContract(RunnableContractVersion::Cairo1Native)
+            Self::CairoVersion(runnable_version) => {
+                FeatureContract::TestContract(*runnable_version)
             }
             Self::OldCairo1 => FeatureContract::CairoStepsTestContract,
         }
@@ -115,12 +102,12 @@ impl CompilerBasedVersion {
     /// and the transaction info into account).
     pub fn own_tracked_resource(&self) -> TrackedResource {
         match self {
-            Self::CairoVersion(CairoVersion::Cairo0) | Self::OldCairo1 => {
+            Self::CairoVersion(RunnableContractVersion::Cairo0) | Self::OldCairo1 => {
                 TrackedResource::CairoSteps
             }
-            Self::CairoVersion(CairoVersion::Cairo1) => TrackedResource::SierraGas,
+            Self::CairoVersion(RunnableContractVersion::Cairo1Casm) => TrackedResource::SierraGas,
             #[cfg(feature = "cairo_native")]
-            Self::CairoVersion(CairoVersion::Native) => TrackedResource::SierraGas,
+            Self::CairoVersion(RunnableContractVersion::Cairo1Native) => TrackedResource::SierraGas,
         }
     }
 }
