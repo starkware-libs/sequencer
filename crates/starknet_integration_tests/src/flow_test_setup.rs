@@ -10,6 +10,7 @@ use starknet_consensus_manager::config::ConsensusManagerConfig;
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_http_server::config::HttpServerConfig;
 use starknet_http_server::test_utils::HttpTestClient;
+use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::servers::run_component_servers;
 use starknet_sequencer_node::utils::create_node_modules;
 use starknet_task_executor::tokio_executor::TokioExecutor;
@@ -25,13 +26,15 @@ use crate::utils::{
     create_consensus_manager_configs_and_channels,
 };
 
-const PROPOSER_ID: usize = 0;
-const SEQUENCER_IDS: [usize; 1] = [PROPOSER_ID];
+const SEQUENCER_0: usize = 0;
+const SEQUENCER_1: usize = 1;
+const SEQUENCER_INDICES: [usize; 2] = [SEQUENCER_0, SEQUENCER_1];
 
 pub struct FlowTestSetup {
     // TODO(Tsabary): Remove this field.
     pub task_executor: TokioExecutor,
-    pub proposer: SequencerSetup,
+    pub sequencer_0: SequencerSetup,
+    pub sequencer_1: SequencerSetup,
 
     // Channels for consensus proposals, used for asserting the right transactions are proposed.
     pub consensus_proposals_channels: BroadcastTopicChannels<StreamMessage<ProposalPart>>,
@@ -46,28 +49,35 @@ impl FlowTestSetup {
 
         let accounts = tx_generator.accounts();
         let (mut consensus_manager_configs, consensus_proposals_channels) =
-            create_consensus_manager_configs_and_channels(SEQUENCER_IDS.len());
+            create_consensus_manager_configs_and_channels(SEQUENCER_INDICES.len());
 
-        // Take the first config for every sequencer node.
-        let proposer_consensus_manager_config = consensus_manager_configs.remove(0);
-        let proposer = SequencerSetup::new(
+        // Take the first config for every sequencer node, and create nodes one after the other in
+        // order to make sure the ports are not overlapping.
+        let sequencer_0_consensus_manager_config = consensus_manager_configs.remove(0);
+        let sequencer_0 = SequencerSetup::new(
             accounts.clone(),
-            PROPOSER_ID,
+            SEQUENCER_0,
             chain_info.clone(),
             &task_executor,
-            proposer_consensus_manager_config,
+            sequencer_0_consensus_manager_config,
         )
         .await;
 
-        Self { task_executor, proposer, consensus_proposals_channels }
-    }
+        let sequencer_1_consensus_manager_config = consensus_manager_configs.remove(0);
+        let sequencer_1 = SequencerSetup::new(
+            accounts,
+            SEQUENCER_1,
+            chain_info,
+            &task_executor,
+            sequencer_1_consensus_manager_config,
+        )
+        .await;
 
-    pub async fn assert_add_tx_success(&self, tx: RpcTransaction) -> TransactionHash {
-        self.proposer.add_tx_http_client.assert_add_tx_success(tx).await
+        Self { task_executor, sequencer_0, sequencer_1, consensus_proposals_channels }
     }
 
     pub async fn assert_add_tx_error(&self, tx: RpcTransaction) -> GatewaySpecError {
-        self.proposer.add_tx_http_client.assert_add_tx_error(tx).await
+        self.sequencer_0.add_tx_http_client.assert_add_tx_error(tx).await
     }
 }
 
@@ -84,6 +94,8 @@ pub struct SequencerSetup {
 
     // Handle of the sequencer node.
     pub sequencer_node_handle: JoinHandle<Result<(), anyhow::Error>>,
+
+    pub config: SequencerNodeConfig,
 }
 
 impl SequencerSetup {
@@ -139,6 +151,11 @@ impl SequencerSetup {
             batcher_storage_file_handle: storage_for_test.batcher_storage_handle,
             rpc_storage_file_handle: storage_for_test.rpc_storage_handle,
             sequencer_node_handle,
+            config,
         }
+    }
+
+    pub async fn assert_add_tx_success(&self, tx: RpcTransaction) -> TransactionHash {
+        self.add_tx_http_client.assert_add_tx_success(tx).await
     }
 }
