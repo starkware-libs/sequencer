@@ -237,7 +237,7 @@ impl StatelessTransactionValidator {
 
     fn validate_class_length(
         &self,
-        contract_class: &starknet_api::rpc_transaction::ContractClass,
+        contract_class: &starknet_api::state::SierraContractClass,
     ) -> StatelessTransactionValidatorResult<()> {
         let contract_class_object_size = serde_json::to_string(&contract_class)
             .expect("Unexpected error serializing contract class.")
@@ -254,7 +254,7 @@ impl StatelessTransactionValidator {
 
     fn validate_entry_points_sorted_and_unique(
         &self,
-        contract_class: &starknet_api::rpc_transaction::ContractClass,
+        contract_class: &starknet_api::state::SierraContractClass,
     ) -> StatelessTransactionValidatorResult<()> {
         let is_sorted_unique = |entry_points: &[EntryPoint]| {
             entry_points.windows(2).all(|pair| pair[0].selector < pair[1].selector)
