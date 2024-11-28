@@ -18,3 +18,7 @@ pub(crate) mod test_utils;
 pub mod types;
 
 pub use manager::run_consensus;
+
+/// The offset of the validator ids used in the consensus.
+// TODO(Matan): Remove once PapyrusConsensusContext uses actual validator IDs.
+pub const VALIDATOR_OFFSET: u64 = 100;
