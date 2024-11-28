@@ -486,7 +486,7 @@ impl GasPrices {
 )]
 pub struct BlockTimestamp(pub u64);
 
-#[derive(Clone, Debug, Deserialize, Default, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct BlockInfo {
     pub block_number: BlockNumber,
     pub block_timestamp: BlockTimestamp,
