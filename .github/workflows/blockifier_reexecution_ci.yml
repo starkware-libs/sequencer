@@ -41,4 +41,4 @@ jobs:
       # Run blockifier re-execution tests.
       - run: cargo test --release -p blockifier_reexecution -- --include-ignored
       # Compile the rpc-tests, without running them.
-      - run: cargo test -p blockifier_reexecution --features blockifier_regression_https_testing --no-run
+      - run: cargo test --release -p blockifier_reexecution --features blockifier_regression_https_testing --no-run
