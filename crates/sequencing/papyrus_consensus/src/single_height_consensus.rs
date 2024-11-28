@@ -114,8 +114,8 @@ impl ShcTask {
                 ShcEvent::Precommit(event)
             }
             ShcTask::BuildProposal(round, receiver) => {
-                let proposal_id = receiver.await.expect("Block building failed.");
-                ShcEvent::BuildProposal(StateMachineEvent::GetProposal(Some(proposal_id), round))
+                let proposal_id = receiver.await.ok();
+                ShcEvent::BuildProposal(StateMachineEvent::GetProposal(proposal_id, round))
             }
             ShcTask::ValidateProposal(
                 init,

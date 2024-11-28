@@ -234,7 +234,6 @@ impl StateMachine {
         assert!(self.awaiting_get_proposal);
         assert_eq!(round, self.round);
         self.awaiting_get_proposal = false;
-        assert!(proposal_id.is_some(), "SHC should pass a valid proposal content id");
         VecDeque::from([StateMachineEvent::Proposal(proposal_id, round, None)])
     }
 
@@ -249,8 +248,7 @@ impl StateMachine {
     where
         LeaderFn: Fn(Round) -> ValidatorId,
     {
-        let old = self.proposals.insert(round, (proposal_id, valid_round));
-        assert!(old.is_none(), "SHC should handle conflicts & replays");
+        self.proposals.insert(round, (proposal_id, valid_round));
         self.map_round_to_upons(round, leader_fn)
     }
 
