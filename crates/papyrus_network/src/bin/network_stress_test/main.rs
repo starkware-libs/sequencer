@@ -71,7 +71,7 @@ async fn main() {
                             Err(_) => -(start_time.duration_since(end_time).unwrap().as_micros() as i128),
                         };
                         output_vector.push(Record {
-                            peer_id: received_message.peer_id,
+                            peer_id: received_message.peer_id.clone(),
                             id: received_message.id,
                             start_time,
                             end_time,
