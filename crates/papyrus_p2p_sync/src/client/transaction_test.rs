@@ -179,3 +179,107 @@ async fn transaction_basic_flow() {
         _ = parse_queries_future => {}
     }
 }
+
+#[tokio::test]
+async fn transaction_negative_flow() {
+    let TestArgs {
+        p2p_sync,
+        storage_reader,
+        mut mock_header_response_manager,
+        mut mock_transaction_response_manager,
+        // The test will fail if we drop these
+        mock_state_diff_response_manager: _mock_state_diff_response_manager,
+        mock_class_response_manager: _mock_class_responses_manager,
+        ..
+    } = setup();
+
+    const EXPECTED_NUM_TRANSACTIONS: usize = 3;
+    let (block_hash, block_signature) =
+        create_block_hashes_and_signatures(EXPECTED_NUM_TRANSACTIONS.try_into().unwrap())[0];
+    let BlockBody { transactions, transaction_outputs, transaction_hashes } =
+        get_test_body(EXPECTED_NUM_TRANSACTIONS - 1, None, None, None);
+
+    // Create a future that will receive queries, send responses and validate the results.
+    let parse_queries_future = async move {
+        // We wait for the state diff sync to see that there are no headers and start sleeping
+        tokio::time::sleep(SLEEP_DURATION_TO_LET_SYNC_ADVANCE).await;
+
+        // Check that before we send headers there is no transaction query.
+        assert!(mock_transaction_response_manager.next().now_or_never().is_none());
+        let mut mock_header_responses_manager = mock_header_response_manager.next().await.unwrap();
+
+        mock_header_responses_manager
+            .send_response(DataOrFin(Some(SignedBlockHeader {
+                block_header: BlockHeader {
+                    block_hash,
+                    block_header_without_hash: BlockHeaderWithoutHash {
+                        block_number: BlockNumber(0),
+                        ..Default::default()
+                    },
+                    n_transactions: EXPECTED_NUM_TRANSACTIONS,
+                    state_diff_length: Some(0),
+                    ..Default::default()
+                },
+                signatures: vec![block_signature],
+            })))
+            .await
+            .unwrap();
+
+        wait_for_marker(
+            DataType::Header,
+            &storage_reader,
+            BlockNumber(1),
+            SLEEP_DURATION_TO_LET_SYNC_ADVANCE,
+            TIMEOUT_FOR_TEST,
+        )
+        .await;
+
+        // Simulate time has passed so that transaction sync will resend query after it waited for
+        // new header
+        tokio::time::pause();
+        tokio::time::advance(WAIT_PERIOD_FOR_NEW_DATA).await;
+        tokio::time::resume();
+
+        // Receive query and validate it.
+        let mut mock_transaction_responses_manager =
+            mock_transaction_response_manager.next().await.unwrap();
+        assert_eq!(
+            *mock_transaction_responses_manager.query(),
+            Ok(TransactionQuery(Query {
+                start_block: BlockHashOrNumber::Number(BlockNumber(0)),
+                direction: Direction::Forward,
+                limit: 1,
+                step: 1,
+            })),
+        );
+
+        for ((transaction, transaction_output), transaction_hash) in transactions
+            .into_iter()
+            .zip(transaction_outputs.into_iter())
+            .zip(transaction_hashes.into_iter())
+        {
+            mock_transaction_responses_manager
+                .send_response(DataOrFin(Some(FullTransaction {
+                    transaction,
+                    transaction_output,
+                    transaction_hash,
+                })))
+                .await
+                .unwrap();
+        }
+
+        mock_transaction_responses_manager.send_response(DataOrFin(None)).await.unwrap();
+
+        mock_transaction_responses_manager.assert_reported(TIMEOUT_FOR_TEST).await;
+    };
+
+    tokio::select! {
+        sync_result = p2p_sync.run() => {
+            sync_result.unwrap();
+            panic!("P2P sync aborted with no failure.");
+        }
+        parse_queries_result = tokio::time::timeout(TIMEOUT_FOR_TEST, parse_queries_future) => {
+            parse_queries_result.expect("Test timed out");
+        }
+    }
+}
