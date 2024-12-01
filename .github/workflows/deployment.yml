@@ -24,6 +24,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: black all files
+        run: |
+          python3 -m pip install black
+          pushd deployments/sequencer
+          ./black.sh --check
+          popd
+
       - run: |
           # Install deps.
           npm install -g cdk8s-cli

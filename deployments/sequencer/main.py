@@ -24,21 +24,11 @@ class SystemStructure:
 
 class SequencerNode(Chart):
     def __init__(
-        self,
-        scope: Construct,
-        name: str,
-        namespace: str,
-        topology: topology.ServiceTopology
+        self, scope: Construct, name: str, namespace: str, topology: topology.ServiceTopology
     ):
-        super().__init__(
-            scope, name, disable_resource_name_hashes=True, namespace=namespace
-        )
-        self.service = ServiceApp(
-            self,
-            name,
-            namespace=namespace,
-            topology=topology
-        )
+        super().__init__(scope, name, disable_resource_name_hashes=True, namespace=namespace)
+        self.service = ServiceApp(self, name, namespace=namespace, topology=topology)
+
 
 def main():
     if helpers.args.env == "dev":
@@ -46,15 +36,10 @@ def main():
     elif helpers.args.env == "prod":
         system_preset = topology.SequencerProd()
 
-    app = App(
-        yaml_output_type=YamlOutputType.FOLDER_PER_CHART_FILE_PER_RESOURCE
-    )
+    app = App(yaml_output_type=YamlOutputType.FOLDER_PER_CHART_FILE_PER_RESOURCE)
 
     SequencerNode(
-        scope=app,
-        name="sequencer-node",
-        namespace=helpers.args.namespace,
-        topology=system_preset
+        scope=app, name="sequencer-node", namespace=helpers.args.namespace, topology=system_preset
     )
 
     app.synth()
