@@ -342,13 +342,19 @@ pub fn generate_get_package_dir(_input: TokenStream) -> TokenStream {
     let package_dir_str =
         absolute_path_package_dir.to_str().expect("Invalid UTF-8 in package directory");
     let expanded = quote! {
-        pub fn get_package_dir() -> &'static str {
+        pub(crate) fn get_package_dir() -> &'static str {
             #package_dir_str
         }
     };
 
     TokenStream::from(expanded)
 }
+
+
+// /// Returns a canonicalized PathBuf object to the package root directory.
+// fn find_package_root() -> PathBuf {
+
+// }
 
 /// Traverse up the directory tree from a given path and find the directory containing "Cargo.toml"
 fn find_cargo_toml_dir(start_path: &Path) -> Option<PathBuf> {
