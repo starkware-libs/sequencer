@@ -10225,6 +10225,7 @@ dependencies = [
  "infra_utils",
  "itertools 0.12.1",
  "num-bigint 0.4.6",
+ "papyrus_proc_macros",
  "pretty_assertions",
  "primitive-types",
  "rstest",
