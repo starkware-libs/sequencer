@@ -151,7 +151,7 @@ where
     ) -> StorageResult<Self>;
 }
 
-impl<'env, Mode: TransactionKind> HeaderStorageReader for StorageTxn<'env, Mode> {
+impl<Mode: TransactionKind> HeaderStorageReader for StorageTxn<'_, Mode> {
     fn get_header_marker(&self) -> StorageResult<BlockNumber> {
         let markers_table = self.open_table(&self.tables.markers)?;
         Ok(markers_table.get(&self.txn, &MarkerKind::Header)?.unwrap_or_default())
@@ -234,7 +234,7 @@ impl<'env, Mode: TransactionKind> HeaderStorageReader for StorageTxn<'env, Mode>
     }
 }
 
-impl<'env> HeaderStorageWriter for StorageTxn<'env, RW> {
+impl HeaderStorageWriter for StorageTxn<'_, RW> {
     fn append_header(
         self,
         block_number: BlockNumber,
