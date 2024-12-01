@@ -1,36 +1,16 @@
 use libp2p::kad;
-use tracing::{error, info};
+use tracing::info;
 
 use super::identify_impl::IdentifyToOtherBehaviourEvent;
 use crate::mixed_behaviour::BridgedBehaviour;
 use crate::{mixed_behaviour, peer_manager};
 
 #[derive(Debug)]
-pub enum KadToOtherBehaviourEvent {
-    KadQueryFinished,
-}
+pub enum KadToOtherBehaviourEvent {}
 
 impl From<kad::Event> for mixed_behaviour::Event {
-    fn from(event: kad::Event) -> Self {
-        match event {
-            kad::Event::OutboundQueryProgressed {
-                id: _,
-                result: kad::QueryResult::GetClosestPeers(result),
-                ..
-            } => {
-                if let Err(err) = result {
-                    error!("Kademlia query failed on {err:?}");
-                }
-                mixed_behaviour::Event::ToOtherBehaviourEvent(
-                    mixed_behaviour::ToOtherBehaviourEvent::Kad(
-                        KadToOtherBehaviourEvent::KadQueryFinished,
-                    ),
-                )
-            }
-            _ => mixed_behaviour::Event::ToOtherBehaviourEvent(
-                mixed_behaviour::ToOtherBehaviourEvent::NoOp,
-            ),
-        }
+    fn from(_event: kad::Event) -> Self {
+        mixed_behaviour::Event::ToOtherBehaviourEvent(mixed_behaviour::ToOtherBehaviourEvent::NoOp)
     }
 }
 
