@@ -230,7 +230,7 @@ pub struct BlockMetadata {
 
 /// The BlockBuilderFactoryTrait is responsible for creating a new block builder.
 #[cfg_attr(test, automock)]
-pub trait BlockBuilderFactoryTrait {
+pub trait BlockBuilderFactoryTrait: Send + Sync {
     fn create_block_builder(
         &self,
         block_metadata: BlockMetadata,

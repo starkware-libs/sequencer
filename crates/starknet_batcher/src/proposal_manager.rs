@@ -3,10 +3,8 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use indexmap::IndexMap;
-use starknet_api::block::{BlockHashAndNumber, BlockNumber};
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::core::{ContractAddress, Nonce};
-use starknet_api::executable_transaction::Transaction;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 use starknet_batcher_types::batcher_types::{ProposalCommitment, ProposalId};
@@ -14,15 +12,7 @@ use thiserror::Error;
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, instrument, Instrument};
 
-use crate::block_builder::{
-    BlockBuilderError,
-    BlockBuilderExecutionParams,
-    BlockBuilderFactoryTrait,
-    BlockBuilderTrait,
-    BlockExecutionArtifacts,
-    BlockMetadata,
-};
-use crate::transaction_provider::{ProposeTransactionProvider, ValidateTransactionProvider};
+use crate::block_builder::{BlockBuilderError, BlockBuilderTrait, BlockExecutionArtifacts};
 
 #[derive(Debug, Error)]
 pub enum GenerateProposalError {
@@ -61,23 +51,11 @@ pub(crate) enum InternalProposalStatus {
 
 #[async_trait]
 pub trait ProposalManagerTrait: Send + Sync {
-    async fn propose_block(
+    async fn spawn_proposal(
         &mut self,
-        height: BlockNumber,
         proposal_id: ProposalId,
-        retrospective_block_hash: Option<BlockHashAndNumber>,
-        deadline: tokio::time::Instant,
-        tx_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
-        tx_provider: ProposeTransactionProvider,
-    ) -> Result<(), GenerateProposalError>;
-
-    async fn validate_block(
-        &mut self,
-        height: BlockNumber,
-        proposal_id: ProposalId,
-        retrospective_block_hash: Option<BlockHashAndNumber>,
-        deadline: tokio::time::Instant,
-        tx_provider: ValidateTransactionProvider,
+        mut block_builder: Box<dyn BlockBuilderTrait>,
+        abort_signal_sender: tokio::sync::oneshot::Sender<()>,
     ) -> Result<(), GenerateProposalError>;
 
     async fn take_proposal_result(
@@ -118,8 +96,6 @@ pub(crate) struct ProposalManager {
     active_proposal: Arc<Mutex<Option<ProposalId>>>,
     active_proposal_task: Option<ProposalTask>,
 
-    // Use a factory object, to be able to mock BlockBuilder in tests.
-    block_builder_factory: Arc<dyn BlockBuilderFactoryTrait + Send + Sync>,
     executed_proposals: Arc<Mutex<HashMap<ProposalId, ProposalResult<ProposalOutput>>>>,
 }
 
@@ -135,69 +111,43 @@ pub struct ProposalOutput {
 
 #[async_trait]
 impl ProposalManagerTrait for ProposalManager {
-    /// Starts a new block proposal generation task for the given proposal_id and height with
-    /// transactions from the mempool.
-    /// Requires tx_sender for sending the generated transactions to the caller.
-    #[instrument(skip(self, tx_sender, tx_provider), err, fields(self.active_height))]
-    async fn propose_block(
+    /// Starts a new block proposal generation task for the given proposal_id.
+    /// Uses the given block_builder to generate the proposal.
+    #[instrument(skip(self, block_builder), err)]
+    async fn spawn_proposal(
         &mut self,
-        height: BlockNumber,
         proposal_id: ProposalId,
-        retrospective_block_hash: Option<BlockHashAndNumber>,
-        deadline: tokio::time::Instant,
-        tx_sender: tokio::sync::mpsc::UnboundedSender<Transaction>,
-        tx_provider: ProposeTransactionProvider,
+        mut block_builder: Box<dyn BlockBuilderTrait>,
+        abort_signal_sender: tokio::sync::oneshot::Sender<()>,
     ) -> Result<(), GenerateProposalError> {
         self.set_active_proposal(proposal_id).await?;
 
         info!("Starting generation of a new proposal with id {}.", proposal_id);
 
-        // Create the block builder, and a channel to allow aborting the block building task.
-        let (abort_signal_sender, abort_signal_receiver) = tokio::sync::oneshot::channel();
+        let active_proposal = self.active_proposal.clone();
+        let executed_proposals = self.executed_proposals.clone();
 
-        let block_builder = self.block_builder_factory.create_block_builder(
-            BlockMetadata { height, retrospective_block_hash },
-            BlockBuilderExecutionParams { deadline, fail_on_err: false },
-            Box::new(tx_provider),
-            Some(tx_sender.clone()),
-            abort_signal_receiver,
-        )?;
+        let join_handle = tokio::spawn(
+            async move {
+                let result = block_builder
+                    .build_block()
+                    .await
+                    .map(ProposalOutput::from)
+                    .map_err(|e| GetProposalResultError::BlockBuilderError(Arc::new(e)));
 
-        let join_handle = self.spawn_build_block_task(proposal_id, block_builder).await;
+                // The proposal is done, clear the active proposal.
+                // Keep the proposal result only if it is the same as the active proposal.
+                // The active proposal might have changed if this proposal was aborted.
+                let mut active_proposal = active_proposal.lock().await;
+                if *active_proposal == Some(proposal_id) {
+                    active_proposal.take();
+                    executed_proposals.lock().await.insert(proposal_id, result);
+                }
+            }
+            .in_current_span(),
+        );
+
         self.active_proposal_task = Some(ProposalTask { abort_signal_sender, join_handle });
-
-        Ok(())
-    }
-
-    /// Starts validation of a block proposal for the given proposal_id and height with
-    /// transactions from tx_receiver channel.
-    #[instrument(skip(self, tx_provider), err, fields(self.active_height))]
-    async fn validate_block(
-        &mut self,
-        height: BlockNumber,
-        proposal_id: ProposalId,
-        retrospective_block_hash: Option<BlockHashAndNumber>,
-        deadline: tokio::time::Instant,
-        tx_provider: ValidateTransactionProvider,
-    ) -> Result<(), GenerateProposalError> {
-        self.set_active_proposal(proposal_id).await?;
-
-        info!("Starting validation of proposal with id {}.", proposal_id);
-
-        // Create the block builder, and a channel to allow aborting the block building task.
-        let (abort_signal_sender, abort_signal_receiver) = tokio::sync::oneshot::channel();
-
-        let block_builder = self.block_builder_factory.create_block_builder(
-            BlockMetadata { height, retrospective_block_hash },
-            BlockBuilderExecutionParams { deadline, fail_on_err: true },
-            Box::new(tx_provider),
-            None,
-            abort_signal_receiver,
-        )?;
-
-        let join_handle = self.spawn_build_block_task(proposal_id, block_builder).await;
-        self.active_proposal_task = Some(ProposalTask { abort_signal_sender, join_handle });
-
         Ok(())
     }
 
@@ -263,42 +213,12 @@ impl ProposalManagerTrait for ProposalManager {
 }
 
 impl ProposalManager {
-    pub fn new(block_builder_factory: Arc<dyn BlockBuilderFactoryTrait + Send + Sync>) -> Self {
+    pub fn new() -> Self {
         Self {
             active_proposal: Arc::new(Mutex::new(None)),
-            block_builder_factory,
             active_proposal_task: None,
             executed_proposals: Arc::new(Mutex::new(HashMap::new())),
         }
-    }
-
-    async fn spawn_build_block_task(
-        &mut self,
-        proposal_id: ProposalId,
-        mut block_builder: Box<dyn BlockBuilderTrait>,
-    ) -> tokio::task::JoinHandle<()> {
-        let active_proposal = self.active_proposal.clone();
-        let executed_proposals = self.executed_proposals.clone();
-
-        tokio::spawn(
-            async move {
-                let result = block_builder
-                    .build_block()
-                    .await
-                    .map(ProposalOutput::from)
-                    .map_err(|e| GetProposalResultError::BlockBuilderError(Arc::new(e)));
-
-                // The proposal is done, clear the active proposal.
-                // Keep the proposal result only if it is the same as the active proposal.
-                // The active proposal might have changed if this proposal was aborted.
-                let mut active_proposal = active_proposal.lock().await;
-                if *active_proposal == Some(proposal_id) {
-                    active_proposal.take();
-                    executed_proposals.lock().await.insert(proposal_id, result);
-                }
-            }
-            .in_current_span(),
-        )
     }
 
     // Sets a new active proposal task.
