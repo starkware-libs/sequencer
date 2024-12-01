@@ -56,7 +56,7 @@ where
     fn delete_blocks_version(self) -> StorageResult<Self>;
 }
 
-impl<'env, Mode: TransactionKind> VersionStorageReader for StorageTxn<'env, Mode> {
+impl<Mode: TransactionKind> VersionStorageReader for StorageTxn<'_, Mode> {
     fn get_state_version(&self) -> StorageResult<Option<Version>> {
         let version_table = self.open_table(&self.tables.storage_version)?;
         Ok(version_table.get(&self.txn, &VERSION_STATE_KEY.to_string())?)
@@ -68,7 +68,7 @@ impl<'env, Mode: TransactionKind> VersionStorageReader for StorageTxn<'env, Mode
     }
 }
 
-impl<'env> VersionStorageWriter for StorageTxn<'env, RW> {
+impl VersionStorageWriter for StorageTxn<'_, RW> {
     fn set_state_version(self, version: &Version) -> StorageResult<Self> {
         let version_table = self.open_table(&self.tables.storage_version)?;
         if let Some(current_storage_version) = self.get_state_version()? {
