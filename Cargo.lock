@@ -10702,6 +10702,7 @@ dependencies = [
  "infra_utils",
  "mempool_test_utils",
  "papyrus_config",
+ "rlimit",
  "rstest",
  "serde",
  "serde_json",
