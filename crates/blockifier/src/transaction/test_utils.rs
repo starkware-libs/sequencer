@@ -21,7 +21,6 @@ use starknet_api::{calldata, declare_tx_args, deploy_account_tx_args, felt, invo
 use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 
-use super::account_transaction::ExecutionFlags;
 use crate::context::{BlockContext, ChainInfo};
 use crate::state::cached_state::CachedState;
 use crate::state::state_api::State;
@@ -43,10 +42,10 @@ use crate::test_utils::{
     DEFAULT_STRK_L2_GAS_PRICE,
     MAX_FEE,
 };
-use crate::transaction::account_transaction::AccountTransaction;
+use crate::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
 use crate::transaction::objects::{TransactionExecutionInfo, TransactionExecutionResult};
 use crate::transaction::transaction_types::TransactionType;
-use crate::transaction::transactions::ExecutableTransaction;
+use crate::transaction::transactions::{enforce_fee, ExecutableTransaction};
 
 // Corresponding constants to the ones in faulty_account.
 pub const VALID: u64 = 0;
@@ -294,6 +293,7 @@ pub fn create_account_tx_for_validate_test(
                 calldata: execute_calldata,
                 version: tx_version,
                 nonce: nonce_manager.next(sender_address),
+
             });
             AccountTransaction { tx, execution_flags }
         }
@@ -315,8 +315,9 @@ pub fn run_invoke_tx(
 ) -> TransactionExecutionResult<TransactionExecutionInfo> {
     let only_query = invoke_args.only_query;
     let tx = invoke_tx(invoke_args);
-    let account_tx = AccountTransaction { tx, only_query };
-    let charge_fee = account_tx.enforce_fee();
+    let charge_fee = enforce_fee(&tx, only_query);
+    let execution_flags = ExecutionFlags { charge_fee, only_query, ..ExecutionFlags::default() };
+    let account_tx = AccountTransaction { tx, execution_flags };
 
     account_tx.execute(state, block_context, charge_fee, true)
 }
@@ -393,6 +394,9 @@ pub fn emit_n_events_tx(
         calldata,
         nonce
     });
+    let only_query = false;
+    let charge_fee = enforce_fee(&tx, only_query);
+    let execution_flags = ExecutionFlags { only_query, charge_fee, ..ExecutionFlags::default() };
 
-    AccountTransaction { tx, only_query: false }
+    AccountTransaction { tx, execution_flags }
 }

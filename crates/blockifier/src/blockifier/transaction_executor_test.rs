@@ -41,6 +41,7 @@ use crate::transaction::test_utils::{
     TestInitData,
 };
 use crate::transaction::transaction_execution::Transaction;
+use crate::transaction::transactions::enforce_fee;
 fn tx_executor_test_body<S: StateReader>(
     state: CachedState<S>,
     block_context: BlockContext,
@@ -131,7 +132,9 @@ fn test_declare(
         },
         calculate_class_info_for_testing(declared_contract.get_class()),
     );
-    let execution_flags = ExecutionFlags::default();
+    let only_query = false;
+    let charge_fee = enforce_fee(&declare_tx, only_query);
+    let execution_flags = ExecutionFlags { only_query, charge_fee, ..ExecutionFlags::default() };
     let tx = AccountTransaction { tx: declare_tx, execution_flags }.into();
     tx_executor_test_body(state, block_context, tx, expected_bouncer_weights);
 }
@@ -153,13 +156,17 @@ fn test_deploy_account(
         },
         &mut NonceManager::default(),
     );
-    let tx = AccountTransaction { tx: deploy_account_tx, execution_flags: ExecutionFlags::default() }.into();
+    let only_query = false;
+    let charge_fee = enforce_fee(&deploy_account_tx, only_query);
+    let execution_flags = ExecutionFlags { only_query, charge_fee, ..ExecutionFlags::default() };
+    let tx = AccountTransaction { tx: deploy_account_tx, execution_flags }.into();
     let expected_bouncer_weights = BouncerWeights {
         state_diff_size: 3,
         message_segment_length: 0,
         n_events: 0,
         ..BouncerWeights::empty()
-    };
+    }
+    .into();
     tx_executor_test_body(state, block_context, tx, expected_bouncer_weights);
 }
 
@@ -224,7 +231,10 @@ fn test_invoke(
         calldata,
         version,
     });
-    let tx = AccountTransaction { tx: invoke_tx, only_query: false }.into();
+    let only_query = false;
+    let charge_fee = enforce_fee(&invoke_tx, only_query);
+    let execution_flags = ExecutionFlags { only_query, charge_fee, ..ExecutionFlags::default() };
+    let tx = AccountTransaction { tx: invoke_tx, execution_flags }.into();
     tx_executor_test_body(state, block_context, tx, expected_bouncer_weights);
 }
 

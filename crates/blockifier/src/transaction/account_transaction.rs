@@ -721,7 +721,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
         &self,
         state: &mut TransactionalState<'_, U>,
         block_context: &BlockContext,
-        execution_flags: TransactionExecutionFlags,
+        execution_flags_: TransactionExecutionFlags,
     ) -> TransactionExecutionResult<TransactionExecutionInfo> {
         let tx_context = Arc::new(block_context.to_tx_context(self));
         self.verify_tx_version(tx_context.tx_info.version())?;
@@ -731,7 +731,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
         self.perform_pre_validation_stage(
             state,
             &tx_context,
-            execution_flags.charge_fee,
+            self.execution_flags.charge_fee,
             strict_nonce_check,
         )?;
 
@@ -752,15 +752,15 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
             state,
             &mut remaining_gas,
             tx_context.clone(),
-            execution_flags.validate,
-            execution_flags.charge_fee,
+            self.execution_flags.validate,
+            self.execution_flags.charge_fee,
         )?;
         let fee_transfer_call_info = Self::handle_fee(
             state,
             tx_context,
             final_fee,
-            execution_flags.charge_fee,
-            execution_flags.concurrency_mode,
+            self.execution_flags.charge_fee,
+            execution_flags_.concurrency_mode,
         )?;
 
         let tx_execution_info = TransactionExecutionInfo {

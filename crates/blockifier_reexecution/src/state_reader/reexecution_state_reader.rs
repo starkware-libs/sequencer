@@ -54,7 +54,9 @@ pub trait ReexecutionStateReader {
             .into_iter()
             .map(|(tx, tx_hash)| match tx {
                 Transaction::Invoke(_) | Transaction::DeployAccount(_) => {
-                    Ok(BlockifierTransaction::from_api(tx, tx_hash, None, None, None, false)?)
+                    Ok(BlockifierTransaction::from_api(
+                        tx, tx_hash, None, None, None, false, true, true,
+                    )?)
                 }
                 Transaction::Declare(ref declare_tx) => {
                     let class_info = self
@@ -67,6 +69,8 @@ pub trait ReexecutionStateReader {
                         None,
                         None,
                         false,
+                        true,
+                        true,
                     )?)
                 }
                 Transaction::L1Handler(_) => Ok(BlockifierTransaction::from_api(
@@ -76,6 +80,8 @@ pub trait ReexecutionStateReader {
                     Some(MAX_FEE),
                     None,
                     false,
+                    true,
+                    true,
                 )?),
 
                 Transaction::Deploy(_) => {

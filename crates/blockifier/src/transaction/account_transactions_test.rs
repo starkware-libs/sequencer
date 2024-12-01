@@ -1372,8 +1372,7 @@ fn test_count_actual_storage_changes(
         nonce: nonce_manager.next(account_address),
     };
     let account_tx = account_invoke_tx(invoke_args.clone());
-    let execution_flags =
-        ExecutionFlags { charge_fee: true, validate: true, concurrency_mode: false };
+    let execution_flags = ExecutionFlags { concurrency_mode: false };
     let execution_info =
         account_tx.execute_raw(&mut state, &block_context, execution_flags).unwrap();
 
@@ -1543,8 +1542,7 @@ fn test_concurrency_execute_fee_transfer(
     // Case 1: The transaction did not read form/ write to the sequenser balance before executing
     // fee transfer.
     let mut transactional_state = TransactionalState::create_transactional(state);
-    let execution_flags =
-        ExecutionFlags { charge_fee: true, validate: true, concurrency_mode: true };
+    let execution_flags = ExecutionFlags { concurrency_mode: true };
     let result =
         account_tx.execute_raw(&mut transactional_state, &block_context, execution_flags).unwrap();
     assert!(!result.is_reverted());
@@ -1639,8 +1637,7 @@ fn test_concurrent_fee_transfer_when_sender_is_sequencer(
     let fee_token_address = block_context.chain_info.fee_token_address(fee_type);
 
     let mut transactional_state = TransactionalState::create_transactional(state);
-    let execution_flags =
-        ExecutionFlags { charge_fee: true, validate: true, concurrency_mode: true };
+    let execution_flags = ExecutionFlags { concurrency_mode: true };
     let result =
         account_tx.execute_raw(&mut transactional_state, &block_context, execution_flags).unwrap();
     assert!(!result.is_reverted());
@@ -1771,7 +1768,8 @@ fn test_revert_in_execute(
         resource_bounds: default_all_resource_bounds,
         ..tx_args
     });
-    let account_tx = AccountTransaction { tx, only_query: false };
+    let execution_flags = AccountExecutionFlags { validate, ..AccountExecutionFlags::default() };
+    let account_tx = AccountTransaction { tx, execution_flags };
     let tx_execution_info = account_tx.execute(state, &block_context, true, validate).unwrap();
 
     assert!(tx_execution_info.is_reverted());
