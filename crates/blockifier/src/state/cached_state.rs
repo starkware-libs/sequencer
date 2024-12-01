@@ -507,7 +507,7 @@ impl<'a, S: StateReader + ?Sized> MutRefState<'a, S> {
 }
 
 /// Proxies inner object to expose `State` functionality.
-impl<'a, S: StateReader + ?Sized> StateReader for MutRefState<'a, S> {
+impl<S: StateReader + ?Sized> StateReader for MutRefState<'_, S> {
     fn get_storage_at(
         &self,
         contract_address: ContractAddress,
@@ -535,7 +535,7 @@ impl<'a, S: StateReader + ?Sized> StateReader for MutRefState<'a, S> {
 
 pub type TransactionalState<'a, U> = CachedState<MutRefState<'a, U>>;
 
-impl<'a, S: StateReader> TransactionalState<'a, S> {
+impl<S: StateReader> TransactionalState<'_, S> {
     /// Creates a transactional instance from the given updatable state.
     /// It allows performing buffered modifying actions on the given state, which
     /// will either all happen (will be updated in the state and committed)
@@ -549,7 +549,7 @@ impl<'a, S: StateReader> TransactionalState<'a, S> {
 }
 
 /// Adds the ability to perform a transactional execution.
-impl<'a, U: UpdatableState> TransactionalState<'a, U> {
+impl<U: UpdatableState> TransactionalState<'_, U> {
     /// Commits changes in the child (wrapping) state to its parent.
     pub fn commit(self) {
         let state = self.state.0;

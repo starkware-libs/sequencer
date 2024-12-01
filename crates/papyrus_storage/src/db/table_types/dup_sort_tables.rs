@@ -409,12 +409,11 @@ impl<'env, K: KeyTrait + Debug, V: ValueSerde + Debug, T: DupSortTableType + Dup
 }
 
 impl<
-    'txn,
     Mode: TransactionKind,
     K: KeyTrait + Debug,
     V: ValueSerde + Debug,
     T: DupSortTableType + DupSortUtils<K, V>,
-> DbCursorTrait for DbCursor<'txn, Mode, K, V, T>
+> DbCursorTrait for DbCursor<'_, Mode, K, V, T>
 {
     type Key = K;
     type Value = V;
