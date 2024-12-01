@@ -13,7 +13,7 @@ pub enum ClientError {
     #[error("Communication error: {0}")]
     CommunicationFailure(Arc<hyper::Error>),
     #[error("Could not deserialize server response: {0}")]
-    ResponseDeserializationFailure(Arc<bincode::Error>),
+    ResponseDeserializationFailure(Arc<serde_cbor::Error>),
     #[error("Could not parse the response: {0}")]
     ResponseParsingFailure(Arc<hyper::Error>),
     #[error("Got status code: {0}, with server error: {1}")]
