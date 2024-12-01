@@ -343,11 +343,7 @@ impl EntryPointExecutionContext {
         // would cause underflow error.
         // Logically, we update remaining steps to `max(0, remaining_steps - steps_to_subtract)`.
         let remaining_steps = self.n_remaining_steps();
-        let new_remaining_steps = if remaining_steps < steps_to_subtract {
-            0
-        } else {
-            remaining_steps - steps_to_subtract
-        };
+        let new_remaining_steps = remaining_steps.saturating_sub(steps_to_subtract);
         self.vm_run_resources = RunResources::new(new_remaining_steps);
         self.n_remaining_steps()
     }
