@@ -10,6 +10,7 @@ description = "Infrastructure utility."
 workspace = true
 
 [dependencies]
+papyrus_proc_macros.workspace = true
 tokio = { workspace = true, features = ["process"] }
 
 [dev-dependencies]

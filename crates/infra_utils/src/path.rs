@@ -2,6 +2,13 @@ use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 use std::{env, fs};
 
+use papyrus_proc_macros::generate_get_package_dir;
+
+
+generate_get_package_dir!();
+// use get_package_dir()
+
+
 #[cfg(test)]
 #[path = "path_test.rs"]
 mod path_test;
