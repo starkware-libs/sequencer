@@ -1,4 +1,4 @@
-use futures::StreamExt;
+use futures::{FutureExt, StreamExt};
 use papyrus_protobuf::sync::{
     BlockHashOrNumber,
     DataOrFin,
@@ -8,13 +8,16 @@ use papyrus_protobuf::sync::{
     SignedBlockHeader,
 };
 use papyrus_storage::header::HeaderStorageReader;
+use papyrus_test_utils::{get_rng, GetTestInstance};
 use starknet_api::block::{BlockHeader, BlockHeaderWithoutHash, BlockNumber};
 use tokio::time::timeout;
 
 use super::test_utils::{
     create_block_hashes_and_signatures,
+    run_test,
     setup,
     wait_for_marker,
+    Action,
     MarkerKind,
     TestArgs,
     HEADER_QUERY_LENGTH,
@@ -192,4 +195,31 @@ async fn sync_sends_new_header_query_if_it_got_partial_responses() {
     }
 }
 
-// TODO(shahak): Add negative tests.
+#[tokio::test]
+async fn wrong_block_number() {
+    let mut rng = get_rng();
+    run_test(vec![
+        // We already validate the query content in other tests.
+        Action::ReceiveQuery(Box::new(|_query| ())),
+        Action::SendHeader(DataOrFin(Some(SignedBlockHeader {
+            block_header: BlockHeader {
+                block_header_without_hash: BlockHeaderWithoutHash {
+                    block_number: BlockNumber(1),
+                    ..GetTestInstance::get_test_instance(&mut rng)
+                },
+                ..GetTestInstance::get_test_instance(&mut rng)
+            },
+            ..GetTestInstance::get_test_instance(&mut rng)
+        }))),
+        Action::ValidateReportSent,
+        Action::CheckStorage(Box::new(|reader| {
+            async move {
+                assert_eq!(0, reader.begin_ro_txn().unwrap().get_header_marker().unwrap().0);
+            }
+            .boxed()
+        })),
+    ])
+    .await;
+}
+
+// TODO(shahak): Add more negative tests.
