@@ -10,6 +10,7 @@ pub mod build_utils;
 pub mod command_line_compiler;
 pub mod config;
 pub mod errors;
+pub mod resource_limits;
 pub mod utils;
 
 #[cfg(test)]
