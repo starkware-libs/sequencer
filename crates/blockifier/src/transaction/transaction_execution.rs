@@ -84,6 +84,8 @@ impl Transaction {
         paid_fee_on_l1: Option<Fee>,
         deployed_contract_address: Option<ContractAddress>,
         only_query: bool,
+        charge_fee: bool,
+        validate: bool,
     ) -> TransactionExecutionResult<Self> {
         let executable_tx = match tx {
             StarknetApiTransaction::L1Handler(l1_handler) => {
@@ -127,11 +129,7 @@ impl Transaction {
         };
         Ok(AccountTransaction {
             tx: executable_tx,
-            execution_flags: AccountExecutionFlags {
-                only_query,
-                charge_fee: false,
-                validate: false,
-            },
+            execution_flags: AccountExecutionFlags { only_query, charge_fee, validate },
         }
         .into())
     }
