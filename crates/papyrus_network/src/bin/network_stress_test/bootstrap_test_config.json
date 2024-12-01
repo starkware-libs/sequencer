@@ -92,7 +92,7 @@
   "num_messages": {
     "description": "The amount of messages to send and receive.",
     "privacy": "Public",
-    "value": 12000000
+    "value": 1000000
   },
   "output_path": {
     "description": "The path of the output file.",
