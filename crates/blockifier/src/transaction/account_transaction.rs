@@ -768,11 +768,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
 
 impl TransactionInfoCreator for AccountTransaction {
     fn create_tx_info(&self) -> TransactionInfo {
-        match &self.tx {
-            Transaction::Declare(tx) => tx.create_tx_info(self.only_query),
-            Transaction::DeployAccount(tx) => tx.create_tx_info(self.only_query),
-            Transaction::Invoke(tx) => tx.create_tx_info(self.only_query),
-        }
+        self.tx.create_tx_info(self.only_query)
     }
 }
 
