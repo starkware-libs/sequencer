@@ -2,9 +2,9 @@ from enum import Enum
 
 # k8s service types
 class ServiceType(Enum):
-  CLUSTER_IP = "ClusterIP"
-  LOAD_BALANCER = "LoadBalancer"
-  NODE_PORT = "NodePort"
+    CLUSTER_IP = "ClusterIP"
+    LOAD_BALANCER = "LoadBalancer"
+    NODE_PORT = "NodePort"
 
 
 # k8s container ports

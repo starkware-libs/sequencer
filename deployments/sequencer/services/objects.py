@@ -12,8 +12,7 @@ class Probe:
     timeout_seconds: int
 
     def __post_init__(self):
-        assert not isinstance(self.port, (bool)), \
-            "Port must be of type int or str, not bool."
+        assert not isinstance(self.port, (bool)), "Port must be of type int or str, not bool."
 
 
 @dataclasses.dataclass
@@ -100,7 +99,7 @@ class PvcVolume:
     read_only: bool
 
 
-@ dataclasses.dataclass
+@dataclasses.dataclass
 class ContainerPort:
     container_port: int
 
