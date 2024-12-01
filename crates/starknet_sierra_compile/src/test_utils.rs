@@ -1,5 +1,7 @@
 use std::fs;
+use std::io::Read;
 use std::path::Path;
+use std::process::ChildStderr;
 
 use cairo_lang_starknet_classes::contract_class::{ContractClass, ContractEntryPoints};
 use cairo_lang_utils::bigint::BigUintAsHex;
