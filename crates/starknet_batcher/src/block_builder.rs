@@ -18,6 +18,7 @@ use blockifier::state::global_cache::GlobalContractCache;
 use blockifier::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
+use blockifier::transaction::transactions::enforce_fee;
 use blockifier::versioned_constants::{VersionedConstants, VersionedConstantsOverrides};
 use indexmap::IndexMap;
 #[cfg(test)]
@@ -162,10 +163,16 @@ impl BlockBuilderTrait for BlockBuilder {
             for tx in &next_tx_chunk {
                 let executable_tx = match tx {
                     Transaction::Account(account_tx) => {
+                        let only_query = false;
+                        let charge_fee = enforce_fee(&account_tx, only_query);
                         BlockifierTransaction::Account(AccountTransaction {
                             // TODO(yair): Avoid this clone.
                             tx: account_tx.clone(),
-                            execution_flags: ExecutionFlags::default(),
+                            execution_flags: ExecutionFlags {
+                                only_query,
+                                charge_fee,
+                                validate: true,
+                            },
                         })
                     }
                     Transaction::L1Handler(l1_handler_tx) => {

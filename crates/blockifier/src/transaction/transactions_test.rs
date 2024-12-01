@@ -1971,10 +1971,15 @@ fn test_validate_accounts_tx(
         sender_address,
         class_hash,
         validate_constructor,
+        validate: true,
+        charge_fee: false,
         ..Default::default()
     };
 
     // Negative flows.
+
+    // We test `__validate__`, and don't care about the cahrge fee flow.
+    let charge_fee = false;
 
     // Logic failure.
     let account_tx = create_account_tx_for_validate_test_nonce_0(FaultyAccountTxCreatorArgs {
@@ -1983,8 +1988,6 @@ fn test_validate_accounts_tx(
         additional_data: None,
         ..default_args
     });
-    // We test `__validate__`, and don't care about the cahrge fee flow.
-    let charge_fee = false;
 
     let error = account_tx.execute(state, block_context, charge_fee, true).unwrap_err();
     check_tx_execution_error_for_invalid_scenario!(cairo_version, error, validate_constructor,);
@@ -2150,11 +2153,15 @@ fn test_valid_flag(
         &[(account_contract, 1), (test_contract, 1)],
     );
 
-    let account_tx = account_invoke_tx(invoke_tx_args! {
+    let tx = invoke_tx(invoke_tx_args! {
         sender_address: account_contract.get_instance_address(0),
         calldata: create_trivial_calldata(test_contract.get_instance_address(0)),
         resource_bounds: default_all_resource_bounds,
     });
+    let account_tx = AccountTransaction {
+        tx,
+        execution_flags: ExecutionFlags { validate: false, ..ExecutionFlags::default() },
+    };
 
     let actual_execution_info = account_tx.execute(state, block_context, true, false).unwrap();
 

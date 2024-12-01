@@ -45,6 +45,7 @@ use crate::execution::syscalls::hint_processor::ENTRYPOINT_FAILED_ERROR;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::{fund_account, test_state};
 use crate::test_utils::{create_calldata, CairoVersion, BALANCE};
+use crate::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
 use crate::transaction::test_utils::{
     account_invoke_tx,
     block_context,
@@ -607,6 +608,11 @@ fn test_validate_trace(
             _ => panic!("Expected DeployAccountTransaction type"),
         }
     }
+
+    // TODO(AvivG): Change this fixup to not create account_tx twice w wrong charge_fee.
+    let execution_flags =
+        ExecutionFlags { charge_fee: account_tx.enforce_fee(), ..ExecutionFlags::default() };
+    let account_tx = AccountTransaction { tx: account_tx.tx, execution_flags };
 
     let contract_address = *sender_address.0.key();
 
