@@ -13,17 +13,17 @@ def get_pvc() -> objects.PersistentVolumeClaim:
     )
 
 
-def get_config() -> objects.Config:
+def get_dev_config(config_file_path: str) -> objects.Config:
     return SequencerDevConfig(
-        mount_path="/config/sequencer/presets/", config_file_path=helpers.args.config_file
+        mount_path="/config/sequencer/presets/", config_file_path=config_file_path
     )
 
 
-def get_ingress() -> objects.Ingress:
+def get_ingress(url: str = "test.gcp-integration.sw-dev.io") -> objects.Ingress:
     return objects.Ingress(
         annotations={
             "kubernetes.io/tls-acme": "true",
-            "cert-manager.io/common-name": f"{helpers.args.namespace}.gcp-integration.sw-dev.io",
+            "cert-manager.io/common-name": f"{url}",
             "cert-manager.io/issue-temporary-certificate": "true",
             "cert-manager.io/issuer": "letsencrypt-prod",
             "acme.cert-manager.io/http01-edit-in-place": "true",
@@ -31,7 +31,7 @@ def get_ingress() -> objects.Ingress:
         class_name=None,
         rules=[
             objects.IngressRule(
-                host=f"{helpers.args.namespace}.gcp-integration.sw-dev.io",
+                host=url,
                 paths=[
                     objects.IngressRuleHttpPath(
                         path="/monitoring/",
@@ -42,12 +42,7 @@ def get_ingress() -> objects.Ingress:
                 ],
             )
         ],
-        tls=[
-            objects.IngressTls(
-                hosts=[f"{helpers.args.namespace}.gcp-integration.sw-dev.io"],
-                secret_name="sequencer-tls",
-            )
-        ],
+        tls=[objects.IngressTls(hosts=[url], secret_name="sequencer-tls")],
     )
 
 
@@ -57,10 +52,14 @@ def get_service() -> objects.Service:
         selector={},
         ports=[
             objects.PortMapping(
-                name="http", port=const.HTTP_SERVICE_PORT, container_port=const.HTTP_CONTAINER_PORT
+                name="http",
+                port=const.HTTP_SERVICE_PORT,
+                container_port=const.HTTP_CONTAINER_PORT,
             ),
             objects.PortMapping(
-                name="rpc", port=const.RPC_SERVICE_PORT, container_port=const.RPC_CONTAINER_PORT
+                name="rpc",
+                port=const.RPC_SERVICE_PORT,
+                container_port=const.RPC_CONTAINER_PORT,
             ),
             objects.PortMapping(
                 name="monitoring",
@@ -108,7 +107,9 @@ def get_deployment() -> objects.Deployment:
                 ),
                 volume_mounts=[
                     objects.VolumeMount(
-                        name="config", mount_path="/config/sequencer/presets/", read_only=True
+                        name="config",
+                        mount_path="/config/sequencer/presets/",
+                        read_only=True,
                     ),
                     objects.VolumeMount(name="data", mount_path="/data", read_only=False),
                 ],

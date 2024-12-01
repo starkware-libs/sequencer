@@ -15,6 +15,3 @@ def argument_parser():
     )
 
     return parser.parse_args()
-
-
-args = argument_parser()

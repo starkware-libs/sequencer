@@ -11,13 +11,19 @@ from services import topology
 
 class ServiceApp(Construct):
     def __init__(
-        self, scope: Construct, id: str, *, namespace: str, topology: topology.ServiceTopology
+        self,
+        scope: Construct,
+        id: str,
+        *,
+        namespace: str,
+        topology: topology.ServiceTopology,
     ):
         super().__init__(scope, id)
 
         self.namespace = namespace
         self.label = {"app": Names.to_label_value(self, include_hash=False)}
         self.topology = topology
+        self.node_config = topology.config.get_config()
 
         self.set_k8s_namespace()
 
@@ -44,7 +50,7 @@ class ServiceApp(Construct):
             self,
             "configmap",
             metadata=k8s.ObjectMeta(name=f"{self.node.id}-config"),
-            data=dict(config=json.dumps(self.topology.config.get())),
+            data=dict(config=json.dumps(self.topology.config.get_config())),
         )
 
     def set_k8s_service(self):
@@ -65,7 +71,14 @@ class ServiceApp(Construct):
             ),
         )
 
+    def _get_container_ports(self):
+        ports = []
+        for c in ["http_server_config.port", "monitoring_endpoint_config.port"]:
+            ports.append(self.node_config[c].get("value"))
+        return ports
+
     def set_k8s_deployment(self):
+        node_http_port = self.node_config["http_server_config.port"].get("value")
         return k8s.KubeDeployment(
             self,
             "deployment",
@@ -83,60 +96,50 @@ class ServiceApp(Construct):
                                 # command=["sleep", "infinity"],
                                 args=container.args,
                                 ports=[
-                                    k8s.ContainerPort(container_port=port.container_port)
-                                    for port in container.ports
+                                    k8s.ContainerPort(
+                                        container_port=port,
+                                    )
+                                    for port in self._get_container_ports()
                                 ],
-                                startup_probe=k8s.Probe(
-                                    http_get=k8s.HttpGetAction(
-                                        path=container.startup_probe.path,
-                                        port=k8s.IntOrString.from_string(
-                                            container.startup_probe.port
-                                        )
-                                        if isinstance(container.startup_probe.port, str)
-                                        else k8s.IntOrString.from_number(
-                                            container.startup_probe.port
+                                startup_probe=(
+                                    k8s.Probe(
+                                        http_get=k8s.HttpGetAction(
+                                            path=container.startup_probe.path,
+                                            port=k8s.IntOrString.from_number(node_http_port),
                                         ),
-                                    ),
-                                    period_seconds=container.startup_probe.period_seconds,
-                                    failure_threshold=container.startup_probe.failure_threshold,
-                                    timeout_seconds=container.startup_probe.timeout_seconds,
-                                )
-                                if container.startup_probe is not None
-                                else None,
-                                readiness_probe=k8s.Probe(
-                                    http_get=k8s.HttpGetAction(
-                                        path=container.readiness_probe.path,
-                                        port=k8s.IntOrString.from_string(
-                                            container.readiness_probe.port
-                                        )
-                                        if isinstance(container.readiness_probe.port, str)
-                                        else k8s.IntOrString.from_number(
-                                            container.readiness_probe.port
+                                        period_seconds=container.startup_probe.period_seconds,
+                                        failure_threshold=container.startup_probe.failure_threshold,
+                                        timeout_seconds=container.startup_probe.timeout_seconds,
+                                    )
+                                    if container.startup_probe is not None
+                                    else None
+                                ),
+                                readiness_probe=(
+                                    k8s.Probe(
+                                        http_get=k8s.HttpGetAction(
+                                            path=container.readiness_probe.path,
+                                            port=k8s.IntOrString.from_number(node_http_port),
                                         ),
-                                    ),
-                                    period_seconds=container.readiness_probe.period_seconds,
-                                    failure_threshold=container.readiness_probe.failure_threshold,
-                                    timeout_seconds=container.readiness_probe.timeout_seconds,
-                                )
-                                if container.readiness_probe is not None
-                                else None,
-                                liveness_probe=k8s.Probe(
-                                    http_get=k8s.HttpGetAction(
-                                        path=container.liveness_probe.path,
-                                        port=k8s.IntOrString.from_string(
-                                            container.liveness_probe.port
-                                        )
-                                        if isinstance(container.liveness_probe.port, str)
-                                        else k8s.IntOrString.from_number(
-                                            container.liveness_probe.port
+                                        period_seconds=container.readiness_probe.period_seconds,
+                                        failure_threshold=container.readiness_probe.failure_threshold,
+                                        timeout_seconds=container.readiness_probe.timeout_seconds,
+                                    )
+                                    if container.readiness_probe is not None
+                                    else None
+                                ),
+                                liveness_probe=(
+                                    k8s.Probe(
+                                        http_get=k8s.HttpGetAction(
+                                            path=container.liveness_probe.path,
+                                            port=k8s.IntOrString.from_number(node_http_port),
                                         ),
-                                    ),
-                                    period_seconds=container.liveness_probe.period_seconds,
-                                    failure_threshold=container.liveness_probe.failure_threshold,
-                                    timeout_seconds=container.liveness_probe.timeout_seconds,
-                                )
-                                if container.liveness_probe is not None
-                                else None,
+                                        period_seconds=container.liveness_probe.period_seconds,
+                                        failure_threshold=container.liveness_probe.failure_threshold,
+                                        timeout_seconds=container.liveness_probe.timeout_seconds,
+                                    )
+                                    if container.liveness_probe is not None
+                                    else None
+                                ),
                                 volume_mounts=[
                                     k8s.VolumeMount(
                                         name=mount.name,
@@ -151,28 +154,32 @@ class ServiceApp(Construct):
                         volumes=list(
                             chain(
                                 (
-                                    k8s.Volume(
-                                        name=f"{self.node.id}-{volume.name}",
-                                        config_map=k8s.ConfigMapVolumeSource(
-                                            name=f"{self.node.id}-{volume.name}"
-                                        ),
+                                    (
+                                        k8s.Volume(
+                                            name=f"{self.node.id}-{volume.name}",
+                                            config_map=k8s.ConfigMapVolumeSource(
+                                                name=f"{self.node.id}-{volume.name}"
+                                            ),
+                                        )
+                                        for volume in self.topology.deployment.configmap_volumes
                                     )
-                                    for volume in self.topology.deployment.configmap_volumes
-                                )
-                                if self.topology.deployment.configmap_volumes is not None
-                                else None,
+                                    if self.topology.deployment.configmap_volumes is not None
+                                    else None
+                                ),
                                 (
-                                    k8s.Volume(
-                                        name=f"{self.node.id}-{volume.name}",
-                                        persistent_volume_claim=k8s.PersistentVolumeClaimVolumeSource(
-                                            claim_name=f"{self.node.id}-{volume.name}",
-                                            read_only=volume.read_only,
-                                        ),
+                                    (
+                                        k8s.Volume(
+                                            name=f"{self.node.id}-{volume.name}",
+                                            persistent_volume_claim=k8s.PersistentVolumeClaimVolumeSource(
+                                                claim_name=f"{self.node.id}-{volume.name}",
+                                                read_only=volume.read_only,
+                                            ),
+                                        )
+                                        for volume in self.topology.deployment.pvc_volumes
                                     )
-                                    for volume in self.topology.deployment.pvc_volumes
-                                )
-                                if self.topology.deployment is not None
-                                else None,
+                                    if self.topology.deployment is not None
+                                    else None
+                                ),
                             )
                         ),
                     ),
