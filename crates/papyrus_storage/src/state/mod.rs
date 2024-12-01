@@ -123,7 +123,6 @@ pub(crate) type NoncesTable<'env> =
 //   block_num.
 // * nonces_table: (contract_address, block_num) -> (nonce). Specifies that at `block_num`, the
 //   nonce of `contract_address` was changed to `nonce`.
-
 pub trait StateStorageReader<Mode: TransactionKind> {
     /// The state marker is the first block number that doesn't exist yet.
     fn get_state_marker(&self) -> StorageResult<BlockNumber>;
@@ -159,7 +158,7 @@ where
     ) -> StorageResult<(Self, Option<RevertedStateDiff>)>;
 }
 
-impl<'env, Mode: TransactionKind> StateStorageReader<Mode> for StorageTxn<'env, Mode> {
+impl<Mode: TransactionKind> StateStorageReader<Mode> for StorageTxn<'_, Mode> {
     // The block number marker is the first block number that doesn't exist yet.
     fn get_state_marker(&self) -> StorageResult<BlockNumber> {
         let markers_table = self.open_table(&self.tables.markers)?;
@@ -425,7 +424,7 @@ impl<'env, Mode: TransactionKind> StateReader<'env, Mode> {
     }
 }
 
-impl<'env> StateStorageWriter for StorageTxn<'env, RW> {
+impl StateStorageWriter for StorageTxn<'_, RW> {
     #[latency_histogram("storage_append_thin_state_diff_latency_seconds", false)]
     fn append_state_diff(
         self,

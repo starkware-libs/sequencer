@@ -238,7 +238,7 @@ impl ConsensusContext for SequencerConsensusContext {
     }
 
     async fn set_height_and_round(&mut self, height: BlockNumber, round: Round) {
-        if self.current_height.is_none_or(|h| height > h) {
+        if self.current_height.map(|h| height > h).unwrap_or(true) {
             self.current_height = Some(height);
             assert_eq!(round, 0);
             self.current_round = round;

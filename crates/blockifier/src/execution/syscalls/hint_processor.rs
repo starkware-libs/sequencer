@@ -187,7 +187,6 @@ impl SyscallExecutionError {
 }
 
 /// Error codes returned by Cairo 1.0 code.
-
 // "Out of gas";
 pub const OUT_OF_GAS_ERROR: &str =
     "0x000000000000000000000000000000000000000000004f7574206f6620676173";
