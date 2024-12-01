@@ -4,7 +4,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use futures::channel::mpsc::{self, SendError};
 use futures::future::Ready;
-use futures::SinkExt;
+use futures::{SinkExt, StreamExt};
 use libp2p::PeerId;
 use papyrus_consensus::types::{BroadcastConsensusMessageChannel, ConsensusError};
 use papyrus_consensus_orchestrator::sequencer_consensus_context::SequencerConsensusContext;
@@ -37,7 +37,7 @@ impl ConsensusManager {
     pub async fn run(&self) -> Result<(), ConsensusError> {
         let mut network_manager =
             NetworkManager::new(self.config.consensus_config.network_config.clone(), None);
-        let proposals_broadcast_channels = network_manager
+        let mut proposals_broadcast_channels = network_manager
             .register_broadcast_topic::<ProposalPart>(
                 Topic::new(NETWORK_TOPIC),
                 BROADCAST_BUFFER_SIZE,
@@ -69,6 +69,15 @@ impl ConsensusManager {
             },
             network_result = &mut network_handle => {
                 panic!("Consensus' network task finished unexpectedly: {:?}", network_result);
+            }
+            _ = async {
+                while let Some(_broadcasted_message) =
+                    proposals_broadcast_channels.broadcasted_messages_receiver.next().await
+                {
+                    // TODO(matan): pass receiver to consensus and sender to context.
+                }
+            } => {
+                panic!("Broadcasted messages channel finished unexpectedly");
             }
         }
     }
