@@ -6,6 +6,7 @@ use blockifier::context::ChainInfo;
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::CairoVersion;
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
+use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use papyrus_consensus::config::ConsensusConfig;
 use papyrus_network::network_manager::test_utils::create_network_configs_connected_to_broadcast_channels;
 use papyrus_network::network_manager::BroadcastTopicChannels;
@@ -29,6 +30,8 @@ use starknet_http_server::config::HttpServerConfig;
 use starknet_sequencer_infra::test_utils::get_available_socket;
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::config::test_utils::RequiredParams;
+use starknet_state_sync::config::StateSyncConfig;
+use url::Url;
 
 pub fn create_chain_info() -> ChainInfo {
     let mut chain_info = ChainInfo::create_for_testing();
@@ -42,6 +45,7 @@ pub async fn create_config(
     chain_info: ChainInfo,
     rpc_server_addr: SocketAddr,
     batcher_storage_config: StorageConfig,
+    state_sync_storage_config: StorageConfig,
 ) -> (SequencerNodeConfig, RequiredParams, BroadcastTopicChannels<ProposalPart>) {
     let fee_token_addresses = chain_info.fee_token_addresses.clone();
     let batcher_config = create_batcher_config(batcher_storage_config, chain_info.clone());
@@ -51,6 +55,8 @@ pub async fn create_config(
     let (mut consensus_manager_configs, consensus_proposals_channels) =
         create_consensus_manager_configs_and_channels(1);
     let consensus_manager_config = consensus_manager_configs.pop().unwrap();
+    let state_sync_config =
+        create_state_sync_config(state_sync_storage_config, "http://localhost:12345/");
     (
         SequencerNodeConfig {
             batcher_config,
@@ -58,6 +64,7 @@ pub async fn create_config(
             gateway_config,
             http_server_config,
             rpc_state_reader_config,
+            state_sync_config,
             ..SequencerNodeConfig::default()
         },
         RequiredParams {
@@ -65,6 +72,7 @@ pub async fn create_config(
             eth_fee_token_address: fee_token_addresses.eth_fee_token_address,
             strk_fee_token_address: fee_token_addresses.strk_fee_token_address,
             sequencer_address: ContractAddress::from(1312_u128), // Arbitrary non-zero value.
+            node_url: "http://localhost:12345/".to_string(),
         },
         consensus_proposals_channels,
     )
@@ -229,6 +237,20 @@ pub fn create_batcher_config(
         block_builder_config: BlockBuilderConfig {
             chain_info,
             sequencer_address: contract_address!(SEQUENCER_ADDRESS_FOR_TESTING),
+            ..Default::default()
+        },
+        ..Default::default()
+    }
+}
+
+pub fn create_state_sync_config(
+    state_sync_storage_config: StorageConfig,
+    node_url: &str,
+) -> StateSyncConfig {
+    StateSyncConfig {
+        storage_config: state_sync_storage_config,
+        base_layer_config: EthereumBaseLayerConfig {
+            node_url: Url::parse(node_url).unwrap(),
             ..Default::default()
         },
         ..Default::default()

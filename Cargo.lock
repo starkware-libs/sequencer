@@ -10441,6 +10441,7 @@ dependencies = [
  "indexmap 2.6.0",
  "infra_utils",
  "mempool_test_utils",
+ "papyrus_base_layer",
  "papyrus_common",
  "papyrus_consensus",
  "papyrus_execution",
@@ -10463,11 +10464,13 @@ dependencies = [
  "starknet_monitoring_endpoint",
  "starknet_sequencer_infra",
  "starknet_sequencer_node",
+ "starknet_state_sync",
  "starknet_task_executor",
  "strum 0.25.0",
  "tempfile",
  "tokio",
  "tracing",
+ "url",
 ]
 
 [[package]]
@@ -10644,6 +10647,7 @@ dependencies = [
  "starknet_sequencer_infra",
  "starknet_sequencer_node",
  "starknet_sierra_compile",
+ "starknet_state_sync",
  "starknet_state_sync_types",
  "thiserror",
  "tokio",

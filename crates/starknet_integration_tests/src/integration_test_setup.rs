@@ -22,6 +22,8 @@ pub struct IntegrationTestSetup {
     pub node_config_path: PathBuf,
     // Storage reader for the batcher.
     pub batcher_storage_config: StorageConfig,
+    // Storage reader for the state sync.
+    pub state_sync_storage_config: StorageConfig,
     // Handlers for the storage and config files, maintained so the files are not deleted. Since
     // these are only maintained to avoid dropping the handlers, private visibility suffices, and
     // as such, the '#[allow(dead_code)]' attributes are used to suppress the warning.
@@ -31,6 +33,8 @@ pub struct IntegrationTestSetup {
     rpc_storage_handle: TempDir,
     #[allow(dead_code)]
     node_config_dir_handle: TempDir,
+    #[allow(dead_code)]
+    state_sync_storage_handle: TempDir,
 }
 
 impl IntegrationTestSetup {
@@ -48,9 +52,13 @@ impl IntegrationTestSetup {
         .await;
 
         // Derive the configuration for the sequencer node.
-        let (config, required_params, _) =
-            create_config(chain_info, rpc_server_addr, storage_for_test.batcher_storage_config)
-                .await;
+        let (config, required_params, _) = create_config(
+            chain_info,
+            rpc_server_addr,
+            storage_for_test.batcher_storage_config,
+            storage_for_test.state_sync_storage_config,
+        )
+        .await;
 
         let node_config_dir_handle = tempdir().unwrap();
         let node_config_path = dump_config_file_changes(
@@ -74,6 +82,8 @@ impl IntegrationTestSetup {
             rpc_storage_handle: storage_for_test.rpc_storage_handle,
             node_config_dir_handle,
             node_config_path,
+            state_sync_storage_handle: storage_for_test.state_sync_storage_handle,
+            state_sync_storage_config: config.state_sync_config.storage_config,
         }
     }
 }

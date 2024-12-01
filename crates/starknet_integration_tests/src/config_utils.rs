@@ -47,6 +47,7 @@ pub(crate) fn dump_config_file_changes(
         required_params.eth_fee_token_address,
         required_params.strk_fee_token_address,
         required_params.sequencer_address,
+        required_params.node_url,
         config.rpc_state_reader_config.json_rpc_version,
         config.rpc_state_reader_config.url,
         config.batcher_config.storage.db_config.path_prefix,

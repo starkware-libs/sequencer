@@ -56,9 +56,13 @@ impl FlowTestSetup {
         .await;
 
         // Derive the configuration for the sequencer node.
-        let (config, _required_params, consensus_proposals_channels) =
-            create_config(chain_info, rpc_server_addr, storage_for_test.batcher_storage_config)
-                .await;
+        let (config, _required_params, consensus_proposals_channels) = create_config(
+            chain_info,
+            rpc_server_addr,
+            storage_for_test.batcher_storage_config,
+            storage_for_test.state_sync_storage_config,
+        )
+        .await;
 
         let (_clients, servers) = create_node_modules(&config);
 
