@@ -700,7 +700,7 @@ fn execute_transactions(
             ) => Some(*class_hash),
             _ => None,
         };
-        let blockifier_tx = to_blockifier_tx(tx, tx_hash, transaction_index)?;
+        let blockifier_tx = to_blockifier_tx(tx, tx_hash, transaction_index, charge_fee, validate)?;
         // TODO(Yoni): use the TransactionExecutor instead.
         let tx_execution_info_result =
             blockifier_tx.execute(&mut transactional_state, &block_context, charge_fee, validate);
@@ -762,6 +762,8 @@ fn to_blockifier_tx(
     tx: ExecutableTransactionInput,
     tx_hash: TransactionHash,
     transaction_index: usize,
+    charge_fee: bool,
+    validate: bool,
 ) -> ExecutionResult<BlockifierTransaction> {
     // TODO(yair): support only_query version bit (enable in the RPC v0.6 and use the correct
     // value).
@@ -774,6 +776,8 @@ fn to_blockifier_tx(
                 None,
                 None,
                 only_query,
+                charge_fee,
+                validate,
             )
             .map_err(|err| ExecutionError::from((transaction_index, err)))
         }
@@ -786,6 +790,8 @@ fn to_blockifier_tx(
                 None,
                 None,
                 only_query,
+                charge_fee,
+                validate,
             )
             .map_err(|err| ExecutionError::from((transaction_index, err)))
         }
@@ -813,6 +819,8 @@ fn to_blockifier_tx(
                 None,
                 None,
                 only_query,
+                charge_fee,
+                validate,
             )
             .map_err(|err| ExecutionError::from((transaction_index, err)))
         }
@@ -838,6 +846,8 @@ fn to_blockifier_tx(
                 None,
                 None,
                 only_query,
+                charge_fee,
+                validate,
             )
             .map_err(|err| ExecutionError::from((transaction_index, err)))
         }
@@ -862,6 +872,8 @@ fn to_blockifier_tx(
                 None,
                 None,
                 only_query,
+                charge_fee,
+                validate,
             )
             .map_err(|err| ExecutionError::from((transaction_index, err)))
         }
@@ -886,6 +898,8 @@ fn to_blockifier_tx(
                 None,
                 None,
                 only_query,
+                charge_fee,
+                validate,
             )
             .map_err(|err| ExecutionError::from((transaction_index, err)))
         }
@@ -897,6 +911,8 @@ fn to_blockifier_tx(
                 Some(paid_fee),
                 None,
                 only_query,
+                charge_fee,
+                validate,
             )
             .map_err(|err| ExecutionError::from((transaction_index, err)))
         }

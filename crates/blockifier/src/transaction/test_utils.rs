@@ -22,6 +22,7 @@ use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 
 use super::account_transaction::ExecutionFlags;
+use super::transactions::enforce_fee;
 use crate::context::{BlockContext, ChainInfo};
 use crate::state::cached_state::CachedState;
 use crate::state::state_api::State;
@@ -43,7 +44,7 @@ use crate::test_utils::{
     DEFAULT_STRK_L2_GAS_PRICE,
     MAX_FEE,
 };
-use crate::transaction::account_transaction::AccountTransaction;
+use crate::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
 use crate::transaction::objects::{TransactionExecutionInfo, TransactionExecutionResult};
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::ExecutableTransaction;
@@ -270,21 +271,19 @@ pub fn create_account_tx_for_validate_test(
                 true => constants::FELT_TRUE,
                 false => constants::FELT_FALSE,
             })];
-            AccountTransaction {
-                tx: deploy_account_tx(
-                    deploy_account_tx_args! {
-                        max_fee,
-                        resource_bounds,
-                        signature,
-                        version: tx_version,
-                        class_hash,
-                        contract_address_salt,
-                        constructor_calldata,
-                    },
-                    nonce_manager,
-                ),
-                execution_flags,
-            }
+            let tx = deploy_account_tx(
+                deploy_account_tx_args! {
+                    max_fee,
+                    resource_bounds,
+                    signature,
+                    version: tx_version,
+                    class_hash,
+                    contract_address_salt,
+                    constructor_calldata,
+                },
+                nonce_manager,
+            );
+            AccountTransaction { tx, execution_flags }
         }
         TransactionType::InvokeFunction => {
             let execute_calldata = create_calldata(sender_address, "foo", &[]);
@@ -296,6 +295,7 @@ pub fn create_account_tx_for_validate_test(
                 calldata: execute_calldata,
                 version: tx_version,
                 nonce: nonce_manager.next(sender_address),
+
             });
             AccountTransaction { tx, execution_flags }
         }
@@ -314,10 +314,14 @@ pub fn run_invoke_tx(
     block_context: &BlockContext,
     invoke_args: InvokeTxArgs,
 ) -> TransactionExecutionResult<TransactionExecutionInfo> {
-    let tx = account_invoke_tx(invoke_args);
-    let charge_fee = tx.enforce_fee();
+    let only_query = invoke_args.only_query;
+    let tx = invoke_tx(invoke_args);
+    let charge_fee = enforce_fee(&tx, only_query);
+    let execution_flags = ExecutionFlags { charge_fee, only_query, ..ExecutionFlags::default() };
+    let account_tx = AccountTransaction { tx, execution_flags };
+    // let charge_fee = tx.enforce_fee();
 
-    tx.execute(state, block_context, charge_fee, true)
+    account_tx.execute(state, block_context, charge_fee, true)
 }
 
 /// Creates a `ResourceBoundsMapping` with the given `max_amount` and `max_price` for L1 gas limits.
@@ -387,9 +391,13 @@ pub fn emit_n_events_tx(
         felt!(0_u32),                     // data length.
     ];
     let calldata = create_calldata(contract_address, "test_emit_events", &entry_point_args);
-    account_invoke_tx(invoke_tx_args! {
+    let tx = invoke_tx(invoke_tx_args! {
         sender_address: account_contract,
         calldata,
         nonce
-    })
+    });
+    let only_query = false;
+    let charge_fee = enforce_fee(&tx, only_query);
+    let execution_flags = ExecutionFlags { only_query, charge_fee, ..ExecutionFlags::default() };
+    AccountTransaction { tx, execution_flags }
 }
