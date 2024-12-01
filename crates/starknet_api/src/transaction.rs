@@ -119,8 +119,8 @@ impl Transaction {
 impl From<crate::executable_transaction::Transaction> for Transaction {
     fn from(tx: crate::executable_transaction::Transaction) -> Self {
         match tx {
-            crate::executable_transaction::Transaction::L1Handler(_) => {
-                unimplemented!("L1Handler transactions are not supported yet.")
+            crate::executable_transaction::Transaction::L1Handler(tx) => {
+                Transaction::L1Handler(tx.tx)
             }
             crate::executable_transaction::Transaction::Account(account_tx) => match account_tx {
                 crate::executable_transaction::AccountTransaction::Declare(tx) => {
@@ -145,8 +145,19 @@ impl From<(Transaction, TransactionHash)> for crate::executable_transaction::Tra
                     crate::executable_transaction::InvokeTransaction { tx, tx_hash },
                 ),
             ),
+            Transaction::L1Handler(tx) => crate::executable_transaction::Transaction::L1Handler(
+                crate::executable_transaction::L1HandlerTransaction {
+                    tx,
+                    tx_hash,
+                    // TODO (yael 1/12/2024): The paid fee should be an input from the l1_handler.
+                    paid_fee_on_l1: Fee(1),
+                },
+            ),
             _ => {
-                unimplemented!("Unsupported transaction type. Only Invoke is currently supported.")
+                unimplemented!(
+                    "Unsupported transaction type. Only Invoke and L1Handler are currently \
+                     supported."
+                )
             }
         }
     }
