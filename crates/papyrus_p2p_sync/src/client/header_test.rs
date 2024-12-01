@@ -198,23 +198,26 @@ async fn sync_sends_new_header_query_if_it_got_partial_responses() {
 
 #[tokio::test]
 async fn wrong_block_number() {
-    run_test(vec![
-        // We already validate the query content in other tests.
-        Action::ReceiveQuery(Box::new(|_query| ())),
-        Action::SendHeader(DataOrFin(Some(random_header(
-            &mut get_rng(),
-            BlockNumber(1),
-            None,
-            None,
-        )))),
-        Action::ValidateReportSent,
-        Action::CheckStorage(Box::new(|reader| {
-            async move {
-                assert_eq!(0, reader.begin_ro_txn().unwrap().get_header_marker().unwrap().0);
-            }
-            .boxed()
-        })),
-    ])
+    run_test(
+        1,
+        vec![
+            // We already validate the query content in other tests.
+            Action::ReceiveQuery(Box::new(|_query| ())),
+            Action::SendHeader(DataOrFin(Some(random_header(
+                &mut get_rng(),
+                BlockNumber(1),
+                None,
+                None,
+            )))),
+            Action::ValidateReportSent,
+            Action::CheckStorage(Box::new(|reader| {
+                async move {
+                    assert_eq!(0, reader.begin_ro_txn().unwrap().get_header_marker().unwrap().0);
+                }
+                .boxed()
+            })),
+        ],
+    )
     .await;
 }
 
