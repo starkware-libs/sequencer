@@ -162,7 +162,7 @@ where
     ) -> StorageResult<(Self, Option<RevertedBlockBody>)>;
 }
 
-impl<'env, Mode: TransactionKind> BodyStorageReader for StorageTxn<'env, Mode> {
+impl<Mode: TransactionKind> BodyStorageReader for StorageTxn<'_, Mode> {
     fn get_body_marker(&self) -> StorageResult<BlockNumber> {
         let markers_table = self.open_table(&self.tables.markers)?;
         Ok(markers_table.get(&self.txn, &MarkerKind::Body)?.unwrap_or_default())
@@ -341,7 +341,7 @@ impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
     }
 }
 
-impl<'env> BodyStorageWriter for StorageTxn<'env, RW> {
+impl BodyStorageWriter for StorageTxn<'_, RW> {
     #[latency_histogram("storage_append_body_latency_seconds", false)]
     fn append_body(self, block_number: BlockNumber, block_body: BlockBody) -> StorageResult<Self> {
         let markers_table = self.open_table(&self.tables.markers)?;
