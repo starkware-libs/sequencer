@@ -85,6 +85,7 @@ fn create_consensus_manager_configs_and_channels(
 
     let consensus_manager_configs = network_configs
         .into_iter()
+        // TODO(Matan): Get config from default config file.
         .map(|network_config| ConsensusManagerConfig {
             consensus_config: ConsensusConfig {
                 start_height: BlockNumber(1),

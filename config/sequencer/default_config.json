@@ -732,7 +732,7 @@
   "consensus_manager_config.consensus_config.validator_id": {
     "description": "The validator id of the node.",
     "privacy": "Public",
-    "value": "0x0"
+    "value": "0x100"
   },
   "eth_fee_token_address": {
     "description": "A required param! Address of the ETH fee token.",
