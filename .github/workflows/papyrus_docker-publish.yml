@@ -28,6 +28,7 @@ concurrency:
 env:
   REGISTRY: ghcr.io
   REPO_NAME: ${{ github.repository }}
+  RUSTFLAGS: "-D warnings"
 
 jobs:
   docker-build-push:
