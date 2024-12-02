@@ -197,9 +197,12 @@ async fn validate_proposal_success() {
         .unwrap();
     let fin_receiver = context
         .validate_proposal(
-            BlockNumber(0),
-            0,
-            ValidatorId::from(DEFAULT_VALIDATOR_ID),
+            ProposalInit {
+                height: BlockNumber(0),
+                round: 0,
+                proposer: ValidatorId::from(DEFAULT_VALIDATOR_ID),
+                ..Default::default()
+            },
             TIMEOUT,
             content_receiver,
         )
@@ -255,9 +258,12 @@ async fn repropose() {
         .unwrap();
     let fin_receiver = context
         .validate_proposal(
-            BlockNumber(0),
-            0,
-            ValidatorId::from(DEFAULT_VALIDATOR_ID),
+            ProposalInit {
+                height: BlockNumber(0),
+                round: 0,
+                proposer: ValidatorId::from(DEFAULT_VALIDATOR_ID),
+                ..Default::default()
+            },
             TIMEOUT,
             content_receiver,
         )
@@ -330,9 +336,12 @@ async fn proposals_from_different_rounds() {
 
     let fin_receiver_past_round = context
         .validate_proposal(
-            BlockNumber(0),
-            0,
-            ValidatorId::from(DEFAULT_VALIDATOR_ID),
+            ProposalInit {
+                height: BlockNumber(0),
+                round: 0,
+                proposer: ValidatorId::from(DEFAULT_VALIDATOR_ID),
+                ..Default::default()
+            },
             TIMEOUT,
             content_receiver,
         )
@@ -346,9 +355,12 @@ async fn proposals_from_different_rounds() {
     content_sender.send(prop_part_fin.clone()).await.unwrap();
     let fin_receiver_curr_round = context
         .validate_proposal(
-            BlockNumber(0),
-            1,
-            ValidatorId::from(DEFAULT_VALIDATOR_ID),
+            ProposalInit {
+                height: BlockNumber(0),
+                round: 1,
+                proposer: ValidatorId::from(DEFAULT_VALIDATOR_ID),
+                ..Default::default()
+            },
             TIMEOUT,
             content_receiver,
         )
@@ -361,9 +373,12 @@ async fn proposals_from_different_rounds() {
     content_sender.send(prop_part_fin.clone()).await.unwrap();
     let fin_receiver_future_round = context
         .validate_proposal(
-            BlockNumber(0),
-            2,
-            ValidatorId::from(DEFAULT_VALIDATOR_ID),
+            ProposalInit {
+                height: BlockNumber(0),
+                round: 2,
+                proposer: ValidatorId::from(DEFAULT_VALIDATOR_ID),
+                ..Default::default()
+            },
             TIMEOUT,
             content_receiver,
         )
@@ -423,9 +438,12 @@ async fn interrupt_active_proposal() {
     let (mut _content_sender_0, content_receiver) = mpsc::channel(CHANNEL_SIZE);
     let fin_receiver_0 = context
         .validate_proposal(
-            BlockNumber(0),
-            0,
-            ValidatorId::from(DEFAULT_VALIDATOR_ID),
+            ProposalInit {
+                height: BlockNumber(0),
+                round: 0,
+                proposer: ValidatorId::from(DEFAULT_VALIDATOR_ID),
+                ..Default::default()
+            },
             TIMEOUT,
             content_receiver,
         )
@@ -447,9 +465,12 @@ async fn interrupt_active_proposal() {
         .unwrap();
     let fin_receiver_1 = context
         .validate_proposal(
-            BlockNumber(0),
-            1,
-            ValidatorId::from(DEFAULT_VALIDATOR_ID),
+            ProposalInit {
+                height: BlockNumber(0),
+                round: 1,
+                proposer: ValidatorId::from(DEFAULT_VALIDATOR_ID),
+                ..Default::default()
+            },
             TIMEOUT,
             content_receiver,
         )
