@@ -7,9 +7,10 @@ use std::sync::LazyLock;
 
 use assert_matches::assert_matches;
 use blockifier::test_utils::contracts::FeatureContract;
-use blockifier::test_utils::{create_trivial_calldata, CairoVersion};
+use blockifier::test_utils::{create_trivial_calldata, CairoVersion, TEST_ERC20_CONTRACT_ADDRESS2};
 use infra_utils::path::resolve_project_relative_path;
 use pretty_assertions::assert_ne;
+use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::executable_transaction::AccountTransaction;
@@ -20,6 +21,7 @@ use starknet_api::test_utils::declare::rpc_declare_tx;
 use starknet_api::test_utils::deploy_account::rpc_deploy_account_tx;
 use starknet_api::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::NonceManager;
+use starknet_api::transaction::constants::TRANSFER_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::{
     AllResourceBounds,
     ContractAddressSalt,
@@ -28,7 +30,14 @@ use starknet_api::transaction::fields::{
     TransactionSignature,
     ValidResourceBounds,
 };
-use starknet_api::{declare_tx_args, deploy_account_tx_args, felt, invoke_tx_args, nonce};
+use starknet_api::{
+    calldata,
+    declare_tx_args,
+    deploy_account_tx_args,
+    felt,
+    invoke_tx_args,
+    nonce,
+};
 use starknet_types_core::felt::Felt;
 
 use crate::{COMPILED_CLASS_HASH_OF_CONTRACT_CLASS, CONTRACT_CLASS_FILE, TEST_FILES_FOLDER};
@@ -192,6 +201,23 @@ impl MultiAccountTransactionGenerator {
         default_deploy_account_tx
     }
 
+    pub fn register_account_with_manual_funding(
+        &mut self,
+        account_contract: FeatureContract,
+    ) -> (RpcTransaction, RpcTransaction) {
+        let new_account_id = self.account_tx_generators.len();
+        let (mut account_tx_generator, default_deploy_account_tx) =
+            AccountTransactionGenerator::new(
+                new_account_id,
+                account_contract,
+                self.nonce_manager.clone(),
+            );
+        let fund_account_tx = account_tx_generator.generate_transfer_to_deploy_account();
+        self.account_tx_generators.push(account_tx_generator);
+
+        (default_deploy_account_tx, fund_account_tx)
+    }
+
     pub fn account_with_id(&mut self, account_id: AccountId) -> &mut AccountTransactionGenerator {
         self.account_tx_generators.get_mut(account_id).unwrap_or_else(|| {
             panic!(
@@ -313,6 +339,31 @@ impl AccountTransactionGenerator {
         account_tx_generator.next_nonce();
 
         (account_tx_generator, default_deploy_account_tx)
+    }
+
+    fn generate_transfer_to_deploy_account(&mut self) -> RpcTransaction {
+        let nonce = Nonce::default();
+
+        let entry_point_selector = selector_from_name(TRANSFER_ENTRY_POINT_NAME);
+        let erc20_address = felt!(TEST_ERC20_CONTRACT_ADDRESS2);
+
+        let calldata = calldata![
+            erc20_address,                // Contract address.
+            entry_point_selector.0,       // EP selector.
+            felt!(3_u8),                  // Calldata length.
+            *self.sender_address().key(), // Calldata: recipient.
+            felt!(1_u8),                  // Calldata: lsb amount.
+            felt!(0_u8)                   // Calldata: msb amount.
+        ];
+
+        let invoke_args = invoke_tx_args!(
+            sender_address: self.sender_address(),
+            resource_bounds: test_valid_resource_bounds(),
+            nonce,
+            calldata
+        );
+
+        rpc_invoke_tx(invoke_args)
     }
 }
 
