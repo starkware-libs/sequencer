@@ -21,7 +21,7 @@ use crate::config::ConsensusManagerConfig;
 
 // TODO(Dan, Guy): move to config.
 pub const BROADCAST_BUFFER_SIZE: usize = 100;
-pub const NETWORK_TOPIC: &str = "consensus_proposals";
+pub const CONSENSUS_PROPOSALS_TOPIC: &str = "consensus_proposals";
 
 #[derive(Clone)]
 pub struct ConsensusManager {
@@ -39,7 +39,7 @@ impl ConsensusManager {
             NetworkManager::new(self.config.consensus_config.network_config.clone(), None);
         let mut proposals_broadcast_channels = network_manager
             .register_broadcast_topic::<ProposalPart>(
-                Topic::new(NETWORK_TOPIC),
+                Topic::new(CONSENSUS_PROPOSALS_TOPIC),
                 BROADCAST_BUFFER_SIZE,
             )
             .expect("Failed to register broadcast topic");

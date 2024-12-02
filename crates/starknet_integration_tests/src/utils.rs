@@ -77,7 +77,7 @@ fn create_consensus_manager_configs_and_channels(
         create_network_configs_connected_to_broadcast_channels(
             n_managers,
             papyrus_network::gossipsub_impl::Topic::new(
-                starknet_consensus_manager::consensus_manager::NETWORK_TOPIC,
+                starknet_consensus_manager::consensus_manager::CONSENSUS_PROPOSALS_TOPIC,
             ),
         );
 
