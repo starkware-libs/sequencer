@@ -1,3 +1,5 @@
+use std::future::Future;
+
 use tokio::time::{sleep, Duration};
 
 use crate::tracing::DynamicLogger;
@@ -11,7 +13,7 @@ mod run_until_test;
 /// # Arguments
 /// - `interval`: Time between each attempt (in milliseconds).
 /// - `max_attempts`: Maximum number of attempts.
-/// - `executable`: An asynchronous function to execute, which returns a value of type `T`.
+/// - `executable`: An asynchronous function to execute, which returns a future type `T` value.
 /// - `condition`: A closure that takes a value of type `T` and returns `true` if the condition is
 ///   met.
 /// - `logger`: Optional trace logger.
@@ -19,7 +21,7 @@ mod run_until_test;
 /// # Returns
 /// - `Option<T>`: Returns `Some(value)` if the condition is met within the attempts, otherwise
 ///   `None`.
-pub async fn run_until<T, F, C>(
+pub async fn run_until<T, F, C, Fut>(
     interval: u64,
     max_attempts: usize,
     mut executable: F,
@@ -28,11 +30,14 @@ pub async fn run_until<T, F, C>(
 ) -> Option<T>
 where
     T: Clone + Send + std::fmt::Debug + 'static,
-    F: FnMut() -> T + Send,
+    F: FnMut() -> Fut,
+    Fut: Future<Output = T>,
     C: Fn(&T) -> bool + Send + Sync,
 {
     for attempt in 1..=max_attempts {
-        let result = executable();
+        let result = executable().await;
+
+        println!("Attempt {}/{}, Value {:?}", attempt, max_attempts, result);
 
         // Log attempt message.
         if let Some(config) = &logger {
