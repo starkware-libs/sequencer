@@ -57,7 +57,8 @@ use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 use tracing::{debug, debug_span, error, info, trace, warn, Instrument};
 
-// TODO(Dan, Matan): Remove this once and replace with real gas prices.
+// TODO(Dan, Matan): Remove these and replace with real gas prices and real sequencer address.
+const TEMPORARY_SEQUENCER_ADDRESS: u16 = 1991;
 const TEMPORARY_GAS_PRICES: GasPrices = GasPrices {
     eth_gas_prices: GasPriceVector {
         l1_gas_price: NonzeroGasPrice::MIN,
@@ -173,7 +174,7 @@ impl ConsensusContext for SequencerConsensusContext {
                     now.timestamp().try_into().expect("Failed to convert timestamp"),
                 ),
                 use_kzg_da: true,
-                sequencer_address: proposal_init.proposer,
+                sequencer_address: ValidatorId::from(TEMPORARY_SEQUENCER_ADDRESS),
             },
         };
         // TODO: Should we be returning an error?
@@ -352,7 +353,7 @@ impl SequencerConsensusContext {
     async fn validate_current_round_proposal(
         &mut self,
         height: BlockNumber,
-        proposer: ValidatorId,
+        _proposer: ValidatorId,
         timeout: Duration,
         content_receiver: mpsc::Receiver<ProposalPart>,
         fin_sender: oneshot::Sender<(ProposalContentId, ProposalFin)>,
@@ -382,7 +383,7 @@ impl SequencerConsensusContext {
                     now.timestamp().try_into().expect("Failed to convert timestamp"),
                 ),
                 use_kzg_da: true,
-                sequencer_address: proposer,
+                sequencer_address: ValidatorId::from(TEMPORARY_SEQUENCER_ADDRESS),
             },
         };
         batcher.validate_block(input).await.expect("Failed to initiate proposal validation");

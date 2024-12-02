@@ -12,8 +12,6 @@ use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{ProposalPart, StreamMessage};
 use papyrus_storage::StorageConfig;
 use starknet_api::block::BlockNumber;
-use starknet_api::contract_address;
-use starknet_api::core::ContractAddress;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_batcher::block_builder::BlockBuilderConfig;
@@ -64,7 +62,6 @@ pub async fn create_config(
             chain_id: chain_info.chain_id,
             eth_fee_token_address: fee_token_addresses.eth_fee_token_address,
             strk_fee_token_address: fee_token_addresses.strk_fee_token_address,
-            sequencer_address: ContractAddress::from(1312_u128), // Arbitrary non-zero value.
         },
         consensus_proposals_channels,
     )
@@ -224,15 +221,9 @@ pub fn create_batcher_config(
     chain_info: ChainInfo,
 ) -> BatcherConfig {
     // TODO(Arni): Create BlockBuilderConfig create for testing method and use here.
-    const SEQUENCER_ADDRESS_FOR_TESTING: u128 = 1991;
-
     BatcherConfig {
         storage: batcher_storage_config,
-        block_builder_config: BlockBuilderConfig {
-            chain_info,
-            sequencer_address: contract_address!(SEQUENCER_ADDRESS_FOR_TESTING),
-            ..Default::default()
-        },
+        block_builder_config: BlockBuilderConfig { chain_info, ..Default::default() },
         ..Default::default()
     }
 }
