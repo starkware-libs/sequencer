@@ -23,7 +23,7 @@ use super::test_utils::{
     TRANSACTION_QUERY_LENGTH,
     WAIT_PERIOD_FOR_NEW_DATA,
 };
-use crate::client::test_utils::{wait_for_marker, MarkerKind, TIMEOUT_FOR_TEST};
+use crate::client::test_utils::{wait_for_marker, DataType, TIMEOUT_FOR_TEST};
 
 #[tokio::test]
 async fn transaction_basic_flow() {
@@ -79,7 +79,7 @@ async fn transaction_basic_flow() {
         }
 
         wait_for_marker(
-            MarkerKind::Header,
+            DataType::Header,
             &storage_reader,
             BlockNumber(HEADER_QUERY_LENGTH),
             SLEEP_DURATION_TO_LET_SYNC_ADVANCE,
@@ -139,7 +139,7 @@ async fn transaction_basic_flow() {
                 // sent.
                 let block_number = BlockNumber(block_number);
                 wait_for_marker(
-                    MarkerKind::Body,
+                    DataType::Transaction,
                     &storage_reader,
                     block_number.unchecked_next(),
                     SLEEP_DURATION_TO_LET_SYNC_ADVANCE,

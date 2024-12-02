@@ -30,8 +30,8 @@ use super::test_utils::{
     create_block_hashes_and_signatures,
     setup,
     wait_for_marker,
+    DataType,
     HeaderTestPayload,
-    MarkerKind,
     StateDiffTestPayload,
     TestArgs,
     HEADER_QUERY_LENGTH,
@@ -95,7 +95,7 @@ async fn state_diff_basic_flow() {
                 // responses.
 
                 wait_for_marker(
-                    MarkerKind::State,
+                    DataType::StateDiff,
                     &storage_reader,
                     block_number.unchecked_next(),
                     SLEEP_DURATION_TO_LET_SYNC_ADVANCE,
