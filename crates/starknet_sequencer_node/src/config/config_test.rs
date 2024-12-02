@@ -10,12 +10,14 @@ use papyrus_config::dumping::SerializeConfig;
 use papyrus_config::validators::config_validate;
 use papyrus_config::SerializedParam;
 use rstest::rstest;
+use starknet_batcher::block_builder::BlockBuilderConfig;
+use starknet_batcher::config::BatcherConfig;
 use starknet_sequencer_infra::component_definitions::{
     LocalServerConfig,
     RemoteClientConfig,
     RemoteServerConfig,
 };
-use validator::Validate;
+use validator::{Validate, ValidationErrors, ValidationErrorsKind};
 
 use crate::config::component_execution_config::{ComponentExecutionConfig, ComponentExecutionMode};
 use crate::config::node_config::{
@@ -129,4 +131,39 @@ fn test_required_params_setting() {
 
     let required_params: HashSet<String> = RequiredParams::field_names().into_iter().collect();
     assert_eq!(required_params, expected_required_keys);
+}
+
+#[test]
+fn test_validate_config_success() {
+    let config = SequencerNodeConfig::default();
+    assert!(config.validate().is_ok());
+}
+
+#[test]
+fn test_validate_batcher_config_failure() {
+    let config = SequencerNodeConfig {
+        batcher_config: BatcherConfig {
+            input_stream_content_buffer_size: 99,
+            block_builder_config: BlockBuilderConfig { tx_chunk_size: 100, ..Default::default() },
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    let error_code = get_batcher_config_error_code(config.validate().unwrap_err());
+    assert_eq!(error_code, "input_stream_content_buffer_size must be at least tx_chunk_size");
+}
+
+fn get_batcher_config_error_code(validation_errors: ValidationErrors) -> String {
+    let batcher_errors = validation_errors.errors().get("batcher_config").unwrap();
+    if let ValidationErrorsKind::Struct(errors) = batcher_errors {
+        let error = errors.errors().values().next().unwrap();
+        if let ValidationErrorsKind::Field(vec) = error {
+            vec[0].code.to_string()
+        } else {
+            panic!("Expected Field but got {:?}", error);
+        }
+    } else {
+        panic!("Expected Struct but got {:?}", batcher_errors);
+    }
 }
