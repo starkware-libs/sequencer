@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use infra_utils::run_until::run_until;
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use papyrus_execution::execution_utils::get_nonce_at;
 use papyrus_storage::state::StateStorageReader;
@@ -43,36 +44,15 @@ fn get_account_nonce(storage_reader: &StorageReader, contract_address: ContractA
 /// Sample a storage until sufficiently many blocks have been stored. Returns an error if after
 /// the given number of attempts the target block number has not been reached.
 async fn await_block(
-    interval_duration: Duration,
+    interval: u64,
     target_block_number: BlockNumber,
     max_attempts: usize,
     storage_reader: &StorageReader,
-) -> Result<(), ()> {
-    let mut interval = interval(interval_duration);
-    let mut count = 0;
-    loop {
-        // Read the latest block number.
-        let latest_block_number = get_latest_block_number(storage_reader);
-        count += 1;
-
-        // Check if reached the target block number.
-        if latest_block_number >= target_block_number {
-            info!("Found block {} after {} queries.", target_block_number, count);
-            return Ok(());
-        }
-
-        // Check if reached the maximum attempts.
-        if count > max_attempts {
-            error!(
-                "Latest block is {}, expected {}, stopping sampling.",
-                latest_block_number, target_block_number
-            );
-            return Err(());
-        }
-
-        // Wait for the next interval.
-        interval.tick().await;
-    }
+) -> Result<BlockNumber, ()> {
+    let condition = |&latest_block_number: &BlockNumber| latest_block_number >= target_block_number;
+    let result =
+        run_until(interval, max_attempts, get_latest_block_number(storage_reader), condition, None)
+            .ok_or(());
 }
 
 #[rstest]
@@ -114,9 +94,7 @@ async fn test_end_to_end_integration(mut tx_generator: MultiAccountTransactionGe
         papyrus_storage::open_storage(integration_test_setup.batcher_storage_config)
             .expect("Failed to open batcher's storage");
 
-    match await_block(Duration::from_secs(5), EXPECTED_BLOCK_NUMBER, 15, &batcher_storage_reader)
-        .await
-    {
+    match await_block(5000, EXPECTED_BLOCK_NUMBER, 15, &batcher_storage_reader).await {
         Ok(_) => {}
         Err(_) => panic!("Did not reach expected block number."),
     }
