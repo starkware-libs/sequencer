@@ -31,11 +31,7 @@ use starknet_api::transaction::fields::{
 use starknet_api::{declare_tx_args, deploy_account_tx_args, felt, invoke_tx_args, nonce};
 use starknet_types_core::felt::Felt;
 
-use crate::{
-    COMPILED_CLASS_HASH_OF_CONTRACT_CLASS,
-    CONTRACT_CLASS_FILE,
-    TEST_FILES_FOLDER_RELATIVE_TO_PACKAGE_DIR,
-};
+use crate::{COMPILED_CLASS_HASH_OF_CONTRACT_CLASS, CONTRACT_CLASS_FILE, TEST_FILES_FOLDER};
 
 pub const VALID_L1_GAS_MAX_AMOUNT: u64 = 203484;
 pub const VALID_L1_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000;
@@ -72,10 +68,8 @@ pub fn test_valid_resource_bounds() -> ValidResourceBounds {
 
 /// Get the contract class used for testing.
 pub fn contract_class() -> SierraContractClass {
-    env::set_current_dir(
-        PathBuf::from(get_package_dir()).join(TEST_FILES_FOLDER_RELATIVE_TO_PACKAGE_DIR),
-    )
-    .expect("Couldn't set working dir.");
+    env::set_current_dir(PathBuf::from(get_package_dir()).join(TEST_FILES_FOLDER))
+        .expect("Couldn't set working dir.");
     let json_file_path = Path::new(CONTRACT_CLASS_FILE);
     serde_json::from_reader(File::open(json_file_path).unwrap()).unwrap()
 }
