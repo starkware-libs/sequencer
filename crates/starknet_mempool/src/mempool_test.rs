@@ -687,3 +687,61 @@ fn test_update_gas_price_threshold_decreases_threshold() {
         .build();
     expected_mempool_content.assert_eq(&mempool);
 }
+
+#[rstest]
+#[tokio::test]
+async fn test_new_tx_sent_to_p2p(mempool: Mempool) {
+    // add_tx_input! creates an Invoke Transaction
+    let tx_args = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 2, account_nonce: 2);
+    let propagateor_args =
+        AddTransactionArgsWrapper { args: tx_args.clone(), p2p_message_metadata: None };
+    // TODO: use regular conversion once we have a compiler component
+    let rpc_tx = match tx_args.tx {
+        AccountTransaction::Declare(_declare_tx) => {
+            panic!("No implementation for converting DeclareTransaction to an RpcTransaction")
+        }
+        AccountTransaction::DeployAccount(deploy_account_transaction) => {
+            RpcTransaction::DeployAccount(RpcDeployAccountTransaction::V3(
+                deploy_account_transaction.clone().into(),
+            ))
+        }
+        AccountTransaction::Invoke(invoke_transaction) => {
+            RpcTransaction::Invoke(RpcInvokeTransaction::V3(invoke_transaction.clone().into()))
+        }
+    };
+
+    let mut mock_mempool_p2p_propagator_client = MockMempoolP2pPropagatorClient::new();
+    mock_mempool_p2p_propagator_client
+        .expect_add_transaction()
+        .times(1)
+        .with(predicate::eq(rpc_tx))
+        .returning(|_| Ok(()));
+    let mut mempool_wrapper =
+        MempoolCommunicationWrapper::new(mempool, Arc::new(mock_mempool_p2p_propagator_client));
+
+    mempool_wrapper.add_tx(propagateor_args).await.unwrap();
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_propagated_tx_sent_to_p2p(mempool: Mempool) {
+    // add_tx_input! creates an Invoke Transaction
+    let tx_args = add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 3, account_nonce: 2);
+    let expected_message_metadata = BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
+    let propagated_args = AddTransactionArgsWrapper {
+        args: tx_args.clone(),
+        p2p_message_metadata: Some(expected_message_metadata.clone()),
+    };
+
+    let mut mock_mempool_p2p_propagator_client = MockMempoolP2pPropagatorClient::new();
+    mock_mempool_p2p_propagator_client
+        .expect_continue_propagation()
+        .times(1)
+        .with(predicate::eq(expected_message_metadata.clone()))
+        .returning(|_| Ok(()));
+
+    let mut mempool_wrapper =
+        MempoolCommunicationWrapper::new(mempool, Arc::new(mock_mempool_p2p_propagator_client));
+
+    mempool_wrapper.add_tx(propagated_args).await.unwrap();
+}
