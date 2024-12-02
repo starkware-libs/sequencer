@@ -60,9 +60,12 @@ async fn validate_proposal_success() {
 
     let fin = papyrus_context
         .validate_proposal(
-            block_number,
-            0,
-            ValidatorId::default(),
+            ProposalInit {
+                height: block_number,
+                round: 0,
+                valid_round: None,
+                proposer: ValidatorId::default(),
+            },
             Duration::MAX,
             validate_receiver,
         )
@@ -87,9 +90,12 @@ async fn validate_proposal_fail() {
 
     let fin = papyrus_context
         .validate_proposal(
-            block_number,
-            0,
-            ValidatorId::default(),
+            ProposalInit {
+                height: block_number,
+                round: 0,
+                valid_round: None,
+                proposer: ValidatorId::default(),
+            },
             Duration::MAX,
             validate_receiver,
         )

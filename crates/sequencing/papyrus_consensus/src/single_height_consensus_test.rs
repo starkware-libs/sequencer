@@ -69,7 +69,7 @@ async fn handle_proposal(
 
     shc.handle_proposal(
         context,
-        PROPOSAL_INIT.clone(),
+        *PROPOSAL_INIT,
         mpsc::channel(1).1, // content - ignored by SHC.
         fin_receiver,
     )
@@ -174,7 +174,7 @@ async fn validator(repeat_proposal: bool) {
     );
 
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
-    context.expect_validate_proposal().times(1).returning(move |_, _, _, _, _| {
+    context.expect_validate_proposal().times(1).returning(move |_, _, _| {
         let (block_sender, block_receiver) = oneshot::channel();
         block_sender.send(BLOCK.id).unwrap();
         block_receiver
@@ -253,7 +253,7 @@ async fn vote_twice(same_vote: bool) {
     );
 
     context.expect_proposer().times(1).returning(move |_, _| *PROPOSER_ID);
-    context.expect_validate_proposal().times(1).returning(move |_, _, _, _, _| {
+    context.expect_validate_proposal().times(1).returning(move |_, _, _| {
         let (block_sender, block_receiver) = oneshot::channel();
         block_sender.send(BLOCK.id).unwrap();
         block_receiver
