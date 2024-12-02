@@ -549,7 +549,7 @@ fn test_deploy_before_declare(
     let test_class_hash = test_contract.get_class_hash();
     let test_class_info = calculate_class_info_for_testing(test_contract.get_class());
     let test_compiled_class_hash = test_contract.get_compiled_class_hash();
-    let declare_tx = declare_tx(
+    let tx = declare_tx(
         declare_tx_args! {
             sender_address: account_address_0,
             resource_bounds: default_all_resource_bounds,
@@ -561,6 +561,7 @@ fn test_deploy_before_declare(
         },
         test_class_info.clone(),
     );
+    let declare_tx = AccountTransaction { tx, only_query: false };
 
     // Deploy test contract.
     let invoke_tx = account_invoke_tx(invoke_tx_args! {
