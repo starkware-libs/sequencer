@@ -26,7 +26,6 @@ use papyrus_state_reader::papyrus_state::PapyrusReader;
 use papyrus_storage::StorageReader;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHashAndNumber, BlockInfo};
-use starknet_api::core::ContractAddress;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
@@ -238,7 +237,6 @@ pub struct BlockBuilderConfig {
     pub chain_info: ChainInfo,
     pub execute_config: TransactionExecutorConfig,
     pub bouncer_config: BouncerConfig,
-    pub sequencer_address: ContractAddress,
     pub tx_chunk_size: usize,
     pub versioned_constants_overrides: VersionedConstantsOverrides,
 }
@@ -250,7 +248,6 @@ impl Default for BlockBuilderConfig {
             chain_info: ChainInfo::default(),
             execute_config: TransactionExecutorConfig::default(),
             bouncer_config: BouncerConfig::default(),
-            sequencer_address: ContractAddress::default(),
             tx_chunk_size: 100,
             versioned_constants_overrides: VersionedConstantsOverrides::default(),
         }
@@ -262,12 +259,6 @@ impl SerializeConfig for BlockBuilderConfig {
         let mut dump = append_sub_config_name(self.chain_info.dump(), "chain_info");
         dump.append(&mut append_sub_config_name(self.execute_config.dump(), "execute_config"));
         dump.append(&mut append_sub_config_name(self.bouncer_config.dump(), "bouncer_config"));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "sequencer_address",
-            &self.sequencer_address,
-            "The address of the sequencer.",
-            ParamPrivacyInput::Public,
-        )]));
         dump.append(&mut BTreeMap::from([ser_param(
             "tx_chunk_size",
             &self.tx_chunk_size,
@@ -295,15 +286,11 @@ impl BlockBuilderFactory {
     ) -> BlockBuilderResult<TransactionExecutor<PapyrusReader>> {
         let height = block_metadata.block_info.block_number;
         let block_builder_config = self.block_builder_config.clone();
-        let block_info = BlockInfo {
-            sequencer_address: block_builder_config.sequencer_address,
-            ..block_metadata.block_info
-        };
         let versioned_constants = VersionedConstants::get_versioned_constants(
             block_builder_config.versioned_constants_overrides,
         );
         let block_context = BlockContext::new(
-            block_info,
+            block_metadata.block_info,
             block_builder_config.chain_info,
             versioned_constants,
             block_builder_config.bouncer_config,
