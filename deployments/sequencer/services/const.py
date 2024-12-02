@@ -1,7 +1,8 @@
+import dataclasses
 from enum import Enum
 
 # k8s service types
-class ServiceType(Enum):
+class ServiceType(str, Enum):
     CLUSTER_IP = "ClusterIP"
     LOAD_BALANCER = "LoadBalancer"
     NODE_PORT = "NodePort"
