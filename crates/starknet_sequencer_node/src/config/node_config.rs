@@ -26,7 +26,7 @@ use starknet_http_server::config::HttpServerConfig;
 use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
-use validator::Validate;
+use validator::{Validate, ValidationError};
 
 use crate::config::component_config::ComponentConfig;
 use crate::version::VERSION_FULL;
@@ -106,7 +106,7 @@ pub static CONFIG_NON_POINTERS_WHITELIST: LazyLock<Pointers> =
 pub struct SequencerNodeConfig {
     #[validate]
     pub components: ComponentConfig,
-    #[validate]
+    #[validate(custom(function = "validate_batcher_config"))]
     pub batcher_config: BatcherConfig,
     #[validate]
     pub consensus_manager_config: ConsensusManagerConfig,
@@ -180,4 +180,15 @@ pub(crate) fn node_command() -> Command {
     Command::new("Sequencer")
         .version(VERSION_FULL)
         .about("A Starknet sequencer node written in Rust.")
+}
+
+fn validate_batcher_config(batcher_config: &BatcherConfig) -> Result<(), ValidationError> {
+    if batcher_config.input_stream_content_buffer_size
+        < batcher_config.block_builder_config.tx_chunk_size
+    {
+        return Err(ValidationError::new(
+            "input_stream_content_buffer_size ({}) must be at least tx_chunk_size ({})",
+        ));
+    }
+    Ok(())
 }
