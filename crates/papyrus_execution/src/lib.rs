@@ -405,7 +405,12 @@ fn create_block_context(
     );
     let next_block_number = block_context.block_info().block_number;
 
-    pre_process_block(cached_state, ten_blocks_ago, next_block_number)?;
+    pre_process_block(
+        cached_state,
+        ten_blocks_ago,
+        next_block_number,
+        &versioned_constants.os_constants,
+    )?;
     Ok(block_context)
 }
 
