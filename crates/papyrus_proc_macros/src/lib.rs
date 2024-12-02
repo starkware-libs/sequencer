@@ -328,8 +328,24 @@ pub fn generate_get_package_dir(_input: TokenStream) -> TokenStream {
             // Get the path of the current file using `file!`
             let relative_file_path = std::path::Path::new(file!());
 
+            // Look for the invoking file absolute path. The following is required to handle situations where the current working directory differs from the package directory.
+            let mut current_dir = cwd;
+            let relative_file_dir = loop {
+                if current_dir.join(relative_file_path).is_file() {
+                    break current_dir.to_path_buf();
+                }
+
+                // Traverse up to the parent directory
+                match current_dir.parent() {
+                    Some(parent) => current_dir = parent.to_path_buf(),
+                    None => panic!("Could not find absolute file path"), // Stop if there's no parent directory
+                }
+            };
+
+
+
             // Join into absolute file path
-            let absolute_file_path = cwd.join(relative_file_path);
+            let absolute_file_path = relative_file_dir.join(relative_file_path);
 
             // Start from the directory containing the invoking file
             let start_dir = absolute_file_path.parent()
@@ -353,8 +369,6 @@ pub fn generate_get_package_dir(_input: TokenStream) -> TokenStream {
             package_dir.to_str()
                 .expect("Invalid UTF-8 in package directory").to_string()
         }
-
-
     };
 
     TokenStream::from(expanded)
