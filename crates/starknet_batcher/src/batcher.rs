@@ -130,7 +130,11 @@ impl Batcher {
         propose_block_input: ProposeBlockInput,
     ) -> BatcherResult<()> {
         let active_height = self.active_height.ok_or(BatcherError::NoActiveHeight)?;
-        verify_block_input(active_height, propose_block_input.retrospective_block_hash)?;
+        verify_block_input(
+            active_height,
+            propose_block_input.block_info.block_number,
+            propose_block_input.retrospective_block_hash,
+        )?;
 
         let tx_provider = ProposeTransactionProvider::new(
             self.mempool_client.clone(),
@@ -172,7 +176,11 @@ impl Batcher {
         validate_block_input: ValidateBlockInput,
     ) -> BatcherResult<()> {
         let active_height = self.active_height.ok_or(BatcherError::NoActiveHeight)?;
-        verify_block_input(active_height, validate_block_input.retrospective_block_hash)?;
+        verify_block_input(
+            active_height,
+            validate_block_input.block_info.block_number,
+            validate_block_input.retrospective_block_hash,
+        )?;
 
         // A channel to send the transactions to include in the block being validated.
         let (input_tx_sender, input_tx_receiver) =
@@ -452,6 +460,17 @@ pub fn deadline_as_instant(deadline: chrono::DateTime<Utc>) -> BatcherResult<tok
 
 fn verify_block_input(
     height: BlockNumber,
+    block_number: BlockNumber,
+    retrospective_block_hash: Option<BlockHashAndNumber>,
+) -> BatcherResult<()> {
+    verify_non_empty_retrospective_block_hash(height, retrospective_block_hash)?;
+    verify_block_number(height, block_number)?;
+
+    Ok(())
+}
+
+fn verify_non_empty_retrospective_block_hash(
+    height: BlockNumber,
     retrospective_block_hash: Option<BlockHashAndNumber>,
 ) -> BatcherResult<()> {
     if height >= BlockNumber(constants::STORED_BLOCK_HASH_BUFFER)
@@ -459,5 +478,14 @@ fn verify_block_input(
     {
         return Err(BatcherError::MissingRetrospectiveBlockHash);
     }
+
+    Ok(())
+}
+
+fn verify_block_number(height: BlockNumber, block_number: BlockNumber) -> BatcherResult<()> {
+    if block_number != height {
+        return Err(BatcherError::InvalidBlockNumber { active_height: height, block_number });
+    }
+
     Ok(())
 }

@@ -10,7 +10,7 @@ use futures::FutureExt;
 use mockall::automock;
 use mockall::predicate::{always, eq};
 use rstest::rstest;
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockInfo, BlockNumber};
 use starknet_api::core::{ContractAddress, Nonce, StateDiffCommitment};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::hash::PoseidonHash;
@@ -263,7 +263,7 @@ async fn validate_block_full_flow() {
         proposal_id: PROPOSAL_ID,
         deadline: deadline(),
         retrospective_block_hash: None,
-        block_info: Default::default(),
+        block_info: BlockInfo { block_number: INITIAL_HEIGHT, ..Default::default() },
     };
     batcher.validate_block(validate_block_input).await.unwrap();
 
@@ -387,7 +387,7 @@ async fn send_finish_to_an_invalid_proposal() {
         proposal_id: PROPOSAL_ID,
         deadline: deadline(),
         retrospective_block_hash: None,
-        block_info: Default::default(),
+        block_info: BlockInfo { block_number: INITIAL_HEIGHT, ..Default::default() },
     };
     batcher.validate_block(validate_block_input).await.unwrap();
 
@@ -424,7 +424,7 @@ async fn propose_block_full_flow() {
             proposal_id: PROPOSAL_ID,
             retrospective_block_hash: None,
             deadline: chrono::Utc::now() + chrono::Duration::seconds(1),
-            block_info: Default::default(),
+            block_info: BlockInfo { block_number: INITIAL_HEIGHT, ..Default::default() },
         })
         .await
         .unwrap();
