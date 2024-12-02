@@ -189,6 +189,7 @@ pub struct VersionedConstants {
     // Transactions settings.
     pub disable_cairo0_redeclaration: bool,
     pub enable_stateful_compression: bool,
+    pub comprehensive_state_diff: bool,
     pub ignore_inner_event_resources: bool,
 
     // Compiler settings.
