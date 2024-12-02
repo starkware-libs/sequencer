@@ -28,7 +28,7 @@ use papyrus_protobuf::consensus::{
     TransactionBatch,
     Vote,
 };
-use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockInfo, BlockNumber};
+use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockInfo, BlockNumber, BlockTimestamp};
 use starknet_api::executable_transaction::Transaction;
 use starknet_batcher_types::batcher_types::{
     DecisionReachedInput,
@@ -130,17 +130,24 @@ impl ConsensusContext for SequencerConsensusContext {
         self.proposal_id += 1;
         let timeout =
             chrono::Duration::from_std(timeout).expect("Can't convert timeout to chrono::Duration");
+        let now = chrono::Utc::now();
         let build_proposal_input = ProposeBlockInput {
             proposal_id,
             // TODO: Discuss with batcher team passing std Duration instead.
-            deadline: chrono::Utc::now() + timeout,
+            deadline: now + timeout,
             // TODO: This is not part of Milestone 1.
             retrospective_block_hash: Some(BlockHashAndNumber {
                 number: BlockNumber::default(),
                 hash: BlockHash::default(),
             }),
             // TODO(Dan, Matan): Fill block info.
-            block_info: BlockInfo { block_number: proposal_init.height, ..Default::default() },
+            block_info: BlockInfo {
+                block_number: proposal_init.height,
+                block_timestamp: BlockTimestamp(
+                    now.timestamp().try_into().expect("Failed to convert timestamp"),
+                ),
+                ..Default::default()
+            },
         };
         // TODO: Should we be returning an error?
         // I think this implies defining an error type in this crate and moving the trait definition
@@ -314,16 +321,23 @@ impl SequencerConsensusContext {
 
         let chrono_timeout =
             chrono::Duration::from_std(timeout).expect("Can't convert timeout to chrono::Duration");
+        let now = chrono::Utc::now();
         let input = ValidateBlockInput {
             proposal_id,
-            deadline: chrono::Utc::now() + chrono_timeout,
+            deadline: now + chrono_timeout,
             // TODO(Matan 3/11/2024): Add the real value of the retrospective block hash.
             retrospective_block_hash: Some(BlockHashAndNumber {
                 number: BlockNumber::default(),
                 hash: BlockHash::default(),
             }),
             // TODO(Dan, Matan): Fill block info.
-            block_info: BlockInfo { block_number: height, ..Default::default() },
+            block_info: BlockInfo {
+                block_number: height,
+                block_timestamp: BlockTimestamp(
+                    now.timestamp().try_into().expect("Failed to convert timestamp"),
+                ),
+                ..Default::default()
+            },
         };
         batcher.validate_block(input).await.expect("Failed to initiate proposal validation");
 
