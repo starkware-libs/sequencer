@@ -113,7 +113,10 @@ pub fn deploy_and_fund_account(
     deploy_tx_args: DeployAccountTxArgs,
 ) -> (AccountTransaction, ContractAddress) {
     // Deploy an account contract.
-    let deploy_account_tx = deploy_account_tx(deploy_tx_args, nonce_manager);
+    let deploy_account_tx = AccountTransaction {
+        tx: deploy_account_tx(deploy_tx_args, nonce_manager),
+        only_query: false,
+    };
     let account_address = deploy_account_tx.sender_address();
 
     // Update the balance of the about-to-be deployed account contract in the erc20 contract, so it
@@ -235,7 +238,7 @@ pub fn create_account_tx_for_validate_test(
             };
             let class_hash = declared_contract.get_class_hash();
             let class_info = calculate_class_info_for_testing(declared_contract.get_class());
-            declare_tx(
+            let tx = declare_tx(
                 declare_tx_args! {
                     max_fee,
                     resource_bounds,
@@ -247,7 +250,8 @@ pub fn create_account_tx_for_validate_test(
                     compiled_class_hash: declared_contract.get_compiled_class_hash(),
                 },
                 class_info,
-            )
+            );
+            AccountTransaction { tx, only_query: false }
         }
         TransactionType::DeployAccount => {
             // We do not use the sender address here because the transaction generates the actual
@@ -256,22 +260,25 @@ pub fn create_account_tx_for_validate_test(
                 true => constants::FELT_TRUE,
                 false => constants::FELT_FALSE,
             })];
-            deploy_account_tx(
-                deploy_account_tx_args! {
-                    max_fee,
-                    resource_bounds,
-                    signature,
-                    version: tx_version,
-                    class_hash,
-                    contract_address_salt,
-                    constructor_calldata,
-                },
-                nonce_manager,
-            )
+            AccountTransaction {
+                tx: deploy_account_tx(
+                    deploy_account_tx_args! {
+                        max_fee,
+                        resource_bounds,
+                        signature,
+                        version: tx_version,
+                        class_hash,
+                        contract_address_salt,
+                        constructor_calldata,
+                    },
+                    nonce_manager,
+                ),
+                only_query: false,
+            }
         }
         TransactionType::InvokeFunction => {
             let execute_calldata = create_calldata(sender_address, "foo", &[]);
-            invoke_tx(invoke_tx_args! {
+            let tx = invoke_tx(invoke_tx_args! {
                 max_fee,
                 resource_bounds,
                 signature,
@@ -279,14 +286,16 @@ pub fn create_account_tx_for_validate_test(
                 calldata: execute_calldata,
                 version: tx_version,
                 nonce: nonce_manager.next(sender_address),
-            })
+            });
+            AccountTransaction { tx, only_query: false }
         }
         _ => panic!("{tx_type:?} is not an account transaction."),
     }
 }
 
 pub fn account_invoke_tx(invoke_args: InvokeTxArgs) -> AccountTransaction {
-    invoke_tx(invoke_args)
+    let only_query = invoke_args.only_query;
+    AccountTransaction { tx: invoke_tx(invoke_args), only_query }
 }
 
 pub fn run_invoke_tx(

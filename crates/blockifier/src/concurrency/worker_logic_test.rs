@@ -561,6 +561,7 @@ fn test_deploy_before_declare(
         },
         test_class_info.clone(),
     );
+    let declare_account_tx = AccountTransaction { tx: declare_tx, only_query: false };
 
     // Deploy test contract.
     let invoke_tx = account_invoke_tx(invoke_tx_args! {
@@ -580,8 +581,10 @@ fn test_deploy_before_declare(
         nonce: nonce!(0_u8)
     });
 
-    let txs =
-        [declare_tx, invoke_tx].into_iter().map(Transaction::Account).collect::<Vec<Transaction>>();
+    let txs = [declare_account_tx, invoke_tx]
+        .into_iter()
+        .map(Transaction::Account)
+        .collect::<Vec<Transaction>>();
 
     let mut bouncer = Bouncer::new(block_context.bouncer_config.clone());
     let worker_executor =
