@@ -3,12 +3,13 @@ use std::collections::BTreeMap;
 use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
-use validator::Validate;
+use validator::{Validate, ValidationError};
 
 use crate::block_builder::BlockBuilderConfig;
 
 /// The batcher related configuration.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
+#[validate(schema(function = "validate_batcher_config"))]
 pub struct BatcherConfig {
     pub storage: papyrus_storage::StorageConfig,
     pub outstream_content_buffer_size: usize,
@@ -79,4 +80,15 @@ impl Default for BatcherConfig {
             max_l1_handler_txs_per_block_proposal: 3,
         }
     }
+}
+
+fn validate_batcher_config(batcher_config: &BatcherConfig) -> Result<(), ValidationError> {
+    if batcher_config.input_stream_content_buffer_size
+        < batcher_config.block_builder_config.tx_chunk_size
+    {
+        return Err(ValidationError::new(
+            "input_stream_content_buffer_size must be at least tx_chunk_size",
+        ));
+    }
+    Ok(())
 }

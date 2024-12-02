@@ -10,6 +10,8 @@ use papyrus_config::dumping::SerializeConfig;
 use papyrus_config::validators::config_validate;
 use papyrus_config::SerializedParam;
 use rstest::rstest;
+use starknet_batcher::block_builder::BlockBuilderConfig;
+use starknet_batcher::config::BatcherConfig;
 use starknet_sequencer_infra::component_definitions::{
     LocalServerConfig,
     RemoteClientConfig,
@@ -129,4 +131,23 @@ fn test_required_params_setting() {
 
     let required_params: HashSet<String> = RequiredParams::field_names().into_iter().collect();
     assert_eq!(required_params, expected_required_keys);
+}
+
+#[test]
+fn test_validate_config_success() {
+    let config = SequencerNodeConfig::default();
+    assert!(config.validate().is_ok());
+}
+
+#[test]
+fn test_validate_batcher_config_failure() {
+    let config = SequencerNodeConfig {
+        batcher_config: BatcherConfig {
+            input_stream_content_buffer_size: 99,
+            block_builder_config: BlockBuilderConfig { tx_chunk_size: 100, ..Default::default() },
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    assert!(config.validate().is_err());
 }
