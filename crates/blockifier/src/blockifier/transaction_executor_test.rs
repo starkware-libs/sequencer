@@ -29,6 +29,7 @@ use crate::test_utils::{
     BALANCE,
     DEFAULT_STRK_L1_GAS_PRICE,
 };
+use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::test_utils::{
     account_invoke_tx,
@@ -129,9 +130,9 @@ fn test_declare(
             resource_bounds: l1_resource_bounds(0_u8.into(), DEFAULT_STRK_L1_GAS_PRICE.into()),
         },
         calculate_class_info_for_testing(declared_contract.get_class()),
-    )
-    .into();
-    tx_executor_test_body(state, block_context, tx, expected_bouncer_weights);
+    );
+    let account_tx = AccountTransaction { tx, only_query: false }.into();
+    tx_executor_test_body(state, block_context, account_tx, expected_bouncer_weights);
 }
 
 #[rstest]
@@ -143,14 +144,17 @@ fn test_deploy_account(
     let account_contract = FeatureContract::AccountWithoutValidations(cairo_version);
     let state = test_state(&block_context.chain_info, BALANCE, &[(account_contract, 0)]);
 
-    let tx = deploy_account_tx(
-        deploy_account_tx_args! {
-            class_hash: account_contract.get_class_hash(),
-            resource_bounds: l1_resource_bounds(0_u8.into(), DEFAULT_STRK_L1_GAS_PRICE.into()),
-            version,
-        },
-        &mut NonceManager::default(),
-    )
+    let tx = AccountTransaction {
+        tx: deploy_account_tx(
+            deploy_account_tx_args! {
+                class_hash: account_contract.get_class_hash(),
+                resource_bounds: l1_resource_bounds(0_u8.into(), DEFAULT_STRK_L1_GAS_PRICE.into()),
+                version,
+            },
+            &mut NonceManager::default(),
+        ),
+        only_query: false,
+    }
     .into();
     let expected_bouncer_weights = BouncerWeights {
         state_diff_size: 3,
