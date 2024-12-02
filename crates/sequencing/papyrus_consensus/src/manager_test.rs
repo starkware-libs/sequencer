@@ -31,10 +31,10 @@ use crate::test_utils::{precommit, prevote, proposal_init};
 use crate::types::{ConsensusContext, ConsensusError, ProposalContentId, Round, ValidatorId};
 
 lazy_static! {
-    static ref PROPOSER_ID: ValidatorId = 0_u32.into();
-    static ref VALIDATOR_ID: ValidatorId = 1_u32.into();
-    static ref VALIDATOR_ID_2: ValidatorId = 2_u32.into();
-    static ref VALIDATOR_ID_3: ValidatorId = 3_u32.into();
+    static ref PROPOSER_ID: ValidatorId = 100_u32.into();
+    static ref VALIDATOR_ID: ValidatorId = 101_u32.into();
+    static ref VALIDATOR_ID_2: ValidatorId = 102_u32.into();
+    static ref VALIDATOR_ID_3: ValidatorId = 103_u32.into();
     static ref TIMEOUTS: TimeoutsConfig = TimeoutsConfig::default();
 }
 

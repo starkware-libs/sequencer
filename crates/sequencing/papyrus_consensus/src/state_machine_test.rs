@@ -10,8 +10,8 @@ use crate::state_machine::{StateMachine, StateMachineEvent};
 use crate::types::{ProposalContentId, ValidatorId};
 
 lazy_static! {
-    static ref PROPOSER_ID: ValidatorId = 0_u32.into();
-    static ref VALIDATOR_ID: ValidatorId = 1_u32.into();
+    static ref PROPOSER_ID: ValidatorId = 100_u32.into();
+    static ref VALIDATOR_ID: ValidatorId = 101_u32.into();
 }
 
 const PROPOSAL_ID: Option<ProposalContentId> = Some(BlockHash(Felt::ONE));
