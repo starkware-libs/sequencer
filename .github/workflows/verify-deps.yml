@@ -4,6 +4,9 @@ on:
   schedule:
     - cron: '0 0 * * *' # Runs at 00:00 UTC every day
 
+env:
+  RUSTFLAGS: "-D warnings"
+
 jobs:
   latest_deps:
     name: Latest Dependencies
