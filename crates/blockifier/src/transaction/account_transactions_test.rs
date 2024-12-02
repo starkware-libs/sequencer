@@ -190,7 +190,7 @@ fn test_fee_enforcement(
 ) {
     let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0);
     let state = &mut test_state(&block_context.chain_info, BALANCE, &[(account, 1)]);
-    let deploy_account_tx = deploy_account_tx(
+    let tx = deploy_account_tx(
         deploy_account_tx_args! {
             class_hash: account.get_class_hash(),
             max_fee: Fee(if zero_bounds { 0 } else { MAX_FEE.0 }),
@@ -212,6 +212,7 @@ fn test_fee_enforcement(
         },
         &mut NonceManager::default(),
     );
+    let deploy_account_tx = AccountTransaction { tx, only_query: false };
 
     let enforce_fee = deploy_account_tx.enforce_fee();
     assert_ne!(zero_bounds, enforce_fee);
@@ -451,7 +452,7 @@ fn test_max_fee_limit_validate(
     let class_info = calculate_class_info_for_testing(grindy_validate_account.get_class());
 
     // Declare the grindy-validation account.
-    let account_tx = declare_tx(
+    let tx = declare_tx(
         declare_tx_args! {
             class_hash: grindy_class_hash,
             sender_address: account_address,
@@ -460,6 +461,7 @@ fn test_max_fee_limit_validate(
         },
         class_info,
     );
+    let account_tx = AccountTransaction { tx, only_query: false };
     account_tx.execute(&mut state, &block_context, true, true).unwrap();
 
     // Deploy grindy account with a lot of grind in the constructor.
