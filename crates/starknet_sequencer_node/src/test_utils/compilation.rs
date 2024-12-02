@@ -3,10 +3,11 @@ use std::path::PathBuf;
 use std::process::{ExitStatus, Stdio};
 
 use infra_utils::command::create_shell_command;
-use infra_utils::path::resolve_project_relative_path;
 use tokio::process::Child;
 use tokio::task::{self, JoinHandle};
 use tracing::{error, info};
+
+use crate::utils::get_package_dir;
 
 pub const NODE_EXECUTABLE_PATH: &str = "target/debug/starknet_sequencer_node";
 
@@ -67,10 +68,8 @@ async fn spawn_node_child_task(node_config_path: PathBuf) -> Child {
     // TODO(Tsabary): Capture output to a log file, and present it in case of a failure.
     info!("Compiling the node.");
     compile_node_result().await.expect("Failed to compile the sequencer node.");
-    let node_executable = resolve_project_relative_path(NODE_EXECUTABLE_PATH)
-        .expect("Node executable should be available")
-        .to_string_lossy()
-        .to_string();
+    let node_executable =
+        PathBuf::from(get_package_dir()).join(NODE_EXECUTABLE_PATH).to_string_lossy().to_string();
 
     info!("Running the node from: {}", node_executable);
     create_shell_command(node_executable.as_str())

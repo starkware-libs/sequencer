@@ -1,11 +1,11 @@
 use std::collections::HashSet;
 use std::env;
 use std::fs::File;
+use std::path::PathBuf;
 
 use assert_json_diff::assert_json_eq;
 use assert_matches::assert_matches;
 use colored::Colorize;
-use infra_utils::path::resolve_project_relative_path;
 use papyrus_config::dumping::SerializeConfig;
 use papyrus_config::validators::config_validate;
 use papyrus_config::SerializedParam;
@@ -25,6 +25,7 @@ use crate::config::node_config::{
     DEFAULT_CONFIG_PATH,
 };
 use crate::config::test_utils::{create_test_config_load_args, RequiredParams};
+use crate::utils::get_package_dir;
 
 const LOCAL_EXECUTION_MODE: ComponentExecutionMode =
     ComponentExecutionMode::LocalExecutionWithRemoteDisabled;
@@ -63,8 +64,7 @@ fn test_valid_component_execution_config(
 /// cargo run --bin sequencer_dump_config -q
 #[test]
 fn test_default_config_file_is_up_to_date() {
-    env::set_current_dir(resolve_project_relative_path("").unwrap())
-        .expect("Couldn't set working dir.");
+    env::set_current_dir(PathBuf::from(get_package_dir())).expect("Couldn't set working dir.");
     let from_default_config_file: serde_json::Value =
         serde_json::from_reader(File::open(DEFAULT_CONFIG_PATH).unwrap()).unwrap();
 
@@ -117,7 +117,7 @@ fn test_config_parsing() {
 fn test_required_params_setting() {
     // Load the default config file.
     let file =
-        std::fs::File::open(resolve_project_relative_path(DEFAULT_CONFIG_PATH).unwrap()).unwrap();
+        std::fs::File::open(PathBuf::from(get_package_dir()).join(DEFAULT_CONFIG_PATH)).unwrap();
     let mut deserialized = serde_json::from_reader::<_, serde_json::Value>(file).unwrap();
     let expected_required_params = deserialized.as_object_mut().unwrap();
     expected_required_params.retain(|_, value| {
