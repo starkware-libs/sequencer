@@ -45,7 +45,7 @@ function install_pypy() {
 }
 
 function install_rust() {
-    curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain=1.82.0
+    curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain=1.81.0
 }
 
 cd "$(dirname "$0")"
