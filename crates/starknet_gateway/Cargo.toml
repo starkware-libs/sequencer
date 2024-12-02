@@ -37,6 +37,7 @@ validator.workspace = true
 [dev-dependencies]
 assert_matches.workspace = true
 cairo-lang-sierra-to-casm.workspace = true
+criterion = { workspace = true, features = ["html_reports"] }
 mockall.workspace = true
 mockito.workspace = true
 num-bigint.workspace = true
@@ -47,3 +48,8 @@ rstest.workspace = true
 starknet_mempool.workspace = true
 starknet_mempool_types = { workspace = true, features = ["testing"] }
 tracing-test.workspace = true
+
+[[bench]]
+harness = false
+name = "gateway_bench"
+path = "bench/gateway_bench.rs"

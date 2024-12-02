@@ -10363,6 +10363,7 @@ dependencies = [
  "blockifier",
  "cairo-lang-sierra-to-casm",
  "cairo-lang-starknet-classes",
+ "criterion",
  "mempool_test_utils",
  "mockall",
  "mockito 1.5.0",
