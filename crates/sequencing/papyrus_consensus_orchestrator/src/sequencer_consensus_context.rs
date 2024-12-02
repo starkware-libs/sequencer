@@ -77,17 +77,21 @@ pub struct SequencerConsensusContext {
     active_proposal: Option<(Arc<Notify>, JoinHandle<()>)>,
     // Stores proposals for future rounds until the round is reached.
     queued_proposals: BTreeMap<Round, (ValidationParams, oneshot::Sender<ProposalContentId>)>,
+    // Used to broadcast votes to other consensus nodes.
+    vote_broadcast_client: BroadcastTopicClient<ConsensusMessage>,
 }
 
 impl SequencerConsensusContext {
     pub fn new(
         batcher: Arc<dyn BatcherClient>,
         proposal_streaming_client: BroadcastTopicClient<ProposalPart>,
+        vote_broadcast_client: BroadcastTopicClient<ConsensusMessage>,
         num_validators: u64,
     ) -> Self {
         Self {
             batcher,
             proposal_streaming_client,
+            vote_broadcast_client,
             validators: (0..num_validators).map(ValidatorId::from).collect(),
             valid_proposals: Arc::new(Mutex::new(HeightToIdToContent::new())),
             proposal_id: 0,
@@ -211,7 +215,8 @@ impl ConsensusContext for SequencerConsensusContext {
     }
 
     async fn broadcast(&mut self, message: ConsensusMessage) -> Result<(), ConsensusError> {
-        debug!("No-op broadcasting message: {message:?}");
+        debug!("Broadcasting message: {message:?}");
+        self.vote_broadcast_client.broadcast_message(message).await?;
         Ok(())
     }
 

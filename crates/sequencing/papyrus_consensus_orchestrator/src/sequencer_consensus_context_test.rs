@@ -8,10 +8,11 @@ use lazy_static::lazy_static;
 use papyrus_consensus::types::ConsensusContext;
 use papyrus_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
+    BroadcastNetworkMock,
     TestSubscriberChannels,
 };
 use papyrus_network::network_manager::BroadcastTopicChannels;
-use papyrus_protobuf::consensus::ProposalInit;
+use papyrus_protobuf::consensus::{ConsensusMessage, ProposalInit, ProposalPart};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::{ContractAddress, StateDiffCommitment};
 use starknet_api::executable_transaction::{AccountTransaction, Transaction};
@@ -51,6 +52,31 @@ fn generate_invoke_tx(tx_hash: Felt) -> Transaction {
     })))
 }
 
+fn create_context_and_network(
+    batcher: MockBatcherClient,
+) -> (
+    SequencerConsensusContext,
+    BroadcastNetworkMock<ProposalPart>,
+    BroadcastNetworkMock<ConsensusMessage>,
+) {
+    let TestSubscriberChannels { mock_network: mock_proposal_network, subscriber_channels } =
+        mock_register_broadcast_topic().expect("Failed to create mock network");
+    let BroadcastTopicChannels { broadcast_topic_client: proposals_topic_client, .. } =
+        subscriber_channels;
+    let TestSubscriberChannels { mock_network: mock_vote_network, subscriber_channels } =
+        mock_register_broadcast_topic().expect("Failed to create mock network");
+    let BroadcastTopicChannels { broadcast_topic_client: votes_topic_client, .. } =
+        subscriber_channels;
+    let context = SequencerConsensusContext::new(
+        Arc::new(batcher),
+        proposals_topic_client,
+        votes_topic_client,
+        NUM_VALIDATORS,
+    );
+
+    (context, mock_proposal_network, mock_vote_network)
+}
+
 #[tokio::test]
 async fn build_proposal() {
     let mut batcher = MockBatcherClient::new();
@@ -78,12 +104,7 @@ async fn build_proposal() {
             }),
         })
     });
-    let TestSubscriberChannels { mock_network: _mock_network, subscriber_channels } =
-        mock_register_broadcast_topic().expect("Failed to create mock network");
-    let BroadcastTopicChannels { broadcasted_messages_receiver: _, broadcast_topic_client } =
-        subscriber_channels;
-    let mut context =
-        SequencerConsensusContext::new(Arc::new(batcher), broadcast_topic_client, NUM_VALIDATORS);
+    let (mut context, _proposal_network, _vote_network) = create_context_and_network(batcher);
     let init = ProposalInit {
         height: BlockNumber(0),
         round: 0,
@@ -131,12 +152,7 @@ async fn validate_proposal_success() {
             })
         },
     );
-    let TestSubscriberChannels { mock_network: _, subscriber_channels } =
-        mock_register_broadcast_topic().expect("Failed to create mock network");
-    let BroadcastTopicChannels { broadcasted_messages_receiver: _, broadcast_topic_client } =
-        subscriber_channels;
-    let mut context =
-        SequencerConsensusContext::new(Arc::new(batcher), broadcast_topic_client, NUM_VALIDATORS);
+    let (mut context, _proposal_network, _vote_network) = create_context_and_network(batcher);
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
     let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
@@ -172,12 +188,7 @@ async fn repropose() {
             })
         },
     );
-    let TestSubscriberChannels { mock_network: _, subscriber_channels } =
-        mock_register_broadcast_topic().expect("Failed to create mock network");
-    let BroadcastTopicChannels { broadcasted_messages_receiver: _, broadcast_topic_client } =
-        subscriber_channels;
-    let mut context =
-        SequencerConsensusContext::new(Arc::new(batcher), broadcast_topic_client, NUM_VALIDATORS);
+    let (mut context, _proposal_network, _vote_network) = create_context_and_network(batcher);
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
 
@@ -235,12 +246,7 @@ async fn proposals_from_different_rounds() {
             })
         },
     );
-    let TestSubscriberChannels { mock_network: _, subscriber_channels } =
-        mock_register_broadcast_topic().expect("Failed to create mock network");
-    let BroadcastTopicChannels { broadcasted_messages_receiver: _, broadcast_topic_client } =
-        subscriber_channels;
-    let mut context =
-        SequencerConsensusContext::new(Arc::new(batcher), broadcast_topic_client, NUM_VALIDATORS);
+    let (mut context, _proposal_network, _vote_network) = create_context_and_network(batcher);
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
     context.set_height_and_round(BlockNumber(0), 1).await;
@@ -311,12 +317,7 @@ async fn interrupt_active_proposal() {
                 }),
             })
         });
-    let TestSubscriberChannels { mock_network: _, subscriber_channels } =
-        mock_register_broadcast_topic().expect("Failed to create mock network");
-    let BroadcastTopicChannels { broadcasted_messages_receiver: _, broadcast_topic_client } =
-        subscriber_channels;
-    let mut context =
-        SequencerConsensusContext::new(Arc::new(batcher), broadcast_topic_client, NUM_VALIDATORS);
+    let (mut context, _proposal_network, _vote_network) = create_context_and_network(batcher);
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
 
