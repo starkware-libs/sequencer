@@ -2,6 +2,10 @@
 //!
 //! LOC refers to the line of code from Algorithm 1 (page 6) of the tendermint
 //! [paper](https://arxiv.org/pdf/1807.04938).
+//!
+//! The state machine tracks the state of consensus rounds, processes incoming events, and
+//! generates corresponding actions (e.g., proposals, votes, and timeouts). It handles both
+//! self-generated and externally received events.
 
 #[cfg(test)]
 #[path = "state_machine_test.rs"]
