@@ -39,7 +39,7 @@ async fn build_proposal() {
     let proposal_init = ProposalInit {
         height: block_number,
         round: 0,
-        proposer: ValidatorId::default(),
+        proposer: ValidatorId::from(100_u32),
         valid_round: None,
     };
     // TODO(Asmaa): Test proposal content.
