@@ -1,14 +1,14 @@
 use std::cell::RefCell;
 use std::env;
 use std::fs::File;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::sync::LazyLock;
 
 use assert_matches::assert_matches;
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{create_trivial_calldata, CairoVersion};
-use infra_utils::path::resolve_project_relative_path;
+use papyrus_proc_macros::generate_get_package_dir;
 use pretty_assertions::assert_ne;
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
@@ -40,6 +40,8 @@ pub const VALID_L2_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000;
 pub const VALID_L1_DATA_GAS_MAX_AMOUNT: u64 = 203484;
 pub const VALID_L1_DATA_GAS_MAX_PRICE_PER_UNIT: u128 = 100000000000;
 
+generate_get_package_dir!();
+
 // Utils.
 
 // TODO(Noam): Merge this into test_valid_resource_bounds
@@ -66,7 +68,7 @@ pub fn test_valid_resource_bounds() -> ValidResourceBounds {
 
 /// Get the contract class used for testing.
 pub fn contract_class() -> SierraContractClass {
-    env::set_current_dir(resolve_project_relative_path(TEST_FILES_FOLDER).unwrap())
+    env::set_current_dir(PathBuf::from(get_package_dir()).join(TEST_FILES_FOLDER))
         .expect("Couldn't set working dir.");
     let json_file_path = Path::new(CONTRACT_CLASS_FILE);
     serde_json::from_reader(File::open(json_file_path).unwrap()).unwrap()

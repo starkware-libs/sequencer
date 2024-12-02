@@ -6438,7 +6438,7 @@ version = "0.0.0"
 dependencies = [
  "assert_matches",
  "blockifier",
- "infra_utils",
+ "papyrus_proc_macros",
  "pretty_assertions",
  "serde_json",
  "starknet-types-core",
