@@ -238,7 +238,7 @@ expression: dumped_default_config
   },
   "consensus.validator_id": {
     "description": "The validator id of the node.",
-    "value": "0x0",
+    "value": "0x7c7",
     "privacy": "Public"
   },
   "monitoring_gateway.collect_metrics": {
