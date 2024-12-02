@@ -305,3 +305,57 @@ pub fn gen_field_names_fn(_attr: TokenStream, item: TokenStream) -> TokenStream 
 
     gen.into()
 }
+
+/// Procedural macro to generate a [`get_package_dir()`] function.
+/// Note: this function relies on the file location of the invoking file to find the package
+/// directory. As such, it cannot have `public` visibility.
+///
+/// # Example
+///
+/// ```rust
+/// use papyrus_proc_macros::generate_get_package_dir;
+///
+/// generate_get_package_dir!();
+///
+/// assert_eq!(get_package_dir(), std::env::var("CARGO_MANIFEST_DIR").unwrap());
+/// ```
+#[proc_macro]
+pub fn generate_get_package_dir(_input: TokenStream) -> TokenStream {
+    let expanded = quote! {
+        pub(crate) fn get_package_dir() -> String {
+            // Get the current working directory
+            let cwd = std::env::current_dir().expect("Failed to get current directory");
+            // Get the path of the current file using `file!`
+            let relative_file_path = std::path::Path::new(file!());
+
+            // Join into absolute file path
+            let absolute_file_path = cwd.join(relative_file_path);
+
+            // Start from the directory containing the invoking file
+            let start_dir = absolute_file_path.parent()
+                .expect("Failed to get the parent directory of the invoking file");
+
+            // Traverse upwards the directory tree, looking for a directory containing "Cargo.toml"
+            let mut current_dir = start_dir;
+            let package_dir = loop {
+                if current_dir.join("Cargo.toml").is_file() {
+                    break current_dir.to_path_buf();
+                }
+
+                // Traverse up to the parent directory
+                match current_dir.parent() {
+                    Some(parent) => current_dir = parent,
+                    None => panic!("Could not find package directory"), // Stop if there's no parent directory
+                }
+            };
+
+            // Return the package directory as a String
+            package_dir.to_str()
+                .expect("Invalid UTF-8 in package directory").to_string()
+        }
+
+
+    };
+
+    TokenStream::from(expanded)
+}
