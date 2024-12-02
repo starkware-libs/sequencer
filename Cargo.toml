@@ -65,8 +65,6 @@ license = "Apache-2.0"
 license-file = "LICENSE"
 
 [workspace.dependencies]
-# fixating the version of parity-scale-codec and parity-scale-codec-derive due to an error in udeps.
-# TODO: Remove this once udeps is fixed.
 alloy-contract = "0.3.5"
 alloy-dyn-abi = "0.8.3"
 alloy-json-rpc = "0.3.5"
@@ -177,8 +175,8 @@ papyrus_state_reader = { path = "crates/papyrus_state_reader", version = "0.0.0"
 papyrus_storage = { path = "crates/papyrus_storage", version = "0.0.0" }
 papyrus_sync = { path = "crates/papyrus_sync", version = "0.0.0" }
 papyrus_test_utils = { path = "crates/papyrus_test_utils", version = "0.0.0" }
-parity-scale-codec = "=3.6.9"
-parity-scale-codec-derive = "=3.6.9"
+parity-scale-codec = "=3.6"
+parity-scale-codec-derive = "=3.6"
 paste = "1.0.15"
 phf = "0.11"
 pretty_assertions = "1.4.0"
