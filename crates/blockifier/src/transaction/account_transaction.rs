@@ -26,7 +26,7 @@ use starknet_api::transaction::fields::{
 use starknet_api::transaction::{constants, TransactionHash, TransactionVersion};
 use starknet_types_core::felt::Felt;
 
-use crate::context::{BlockContext, TransactionContext};
+use crate::context::{BlockContext, GasCounter, TransactionContext};
 use crate::execution::call_info::CallInfo;
 use crate::execution::contract_class::RunnableCompiledClass;
 use crate::execution::entry_point::{CallEntryPoint, CallType, EntryPointExecutionContext};
@@ -384,12 +384,23 @@ impl AccountTransaction {
         &self,
         state: &mut dyn State,
         tx_context: Arc<TransactionContext>,
-        remaining_gas: &mut u64,
+        remaining_gas: &mut GasCounter,
         validate: bool,
         limit_steps_by_resources: bool,
     ) -> TransactionExecutionResult<Option<CallInfo>> {
         if validate {
-            self.validate_tx(state, tx_context, remaining_gas, limit_steps_by_resources)
+            // TODO(Aner): cap the gas for validation.
+            let remaining_validation_gas = &mut remaining_gas
+                .cap_usage(tx_context.block_context.versioned_constants.validate_max_sierra_gas);
+            let call_info = self.validate_tx(
+                state,
+                tx_context,
+                remaining_validation_gas,
+                limit_steps_by_resources,
+            )?;
+            // TODO(Aner): Update the gas counter.
+            remaining_gas.subtract_used_gas(call_info.as_ref().expect("CallInfo is expected."));
+            Ok(call_info)
         } else {
             Ok(None)
         }
@@ -516,20 +527,29 @@ impl AccountTransaction {
         &self,
         state: &mut S,
         context: &mut EntryPointExecutionContext,
-        remaining_gas: &mut u64,
+        remaining_gas: &mut GasCounter,
     ) -> TransactionExecutionResult<Option<CallInfo>> {
-        match &self.tx {
-            Transaction::Declare(tx) => tx.run_execute(state, context, remaining_gas),
-            Transaction::DeployAccount(tx) => tx.run_execute(state, context, remaining_gas),
-            Transaction::Invoke(tx) => tx.run_execute(state, context, remaining_gas),
-        }
+        // TODO(Aner): cap the gas usage for execution.
+        let remaining_execution_gas = &mut remaining_gas
+            .cap_usage(context.tx_context.block_context.versioned_constants.execute_max_sierra_gas);
+
+        let call_info = match &self.tx {
+            Transaction::Declare(tx) => tx.run_execute(state, context, remaining_execution_gas),
+            Transaction::DeployAccount(tx) => {
+                tx.run_execute(state, context, remaining_execution_gas)
+            }
+            Transaction::Invoke(tx) => tx.run_execute(state, context, remaining_execution_gas),
+        }?;
+        // TODO(Aner): Update the gas counter.
+        remaining_gas.subtract_used_gas(call_info.as_ref().expect("CallInfo is expected."));
+        Ok(call_info)
     }
 
     fn run_non_revertible<S: StateReader>(
         &self,
         state: &mut TransactionalState<'_, S>,
         tx_context: Arc<TransactionContext>,
-        remaining_gas: &mut u64,
+        remaining_gas: &mut GasCounter,
         validate: bool,
         charge_fee: bool,
     ) -> TransactionExecutionResult<ValidateExecuteCallInfo> {
@@ -589,7 +609,7 @@ impl AccountTransaction {
         &self,
         state: &mut TransactionalState<'_, S>,
         tx_context: Arc<TransactionContext>,
-        remaining_gas: &mut u64,
+        remaining_gas: &mut GasCounter,
         validate: bool,
         charge_fee: bool,
     ) -> TransactionExecutionResult<ValidateExecuteCallInfo> {
@@ -727,7 +747,7 @@ impl AccountTransaction {
     fn run_or_revert<S: StateReader>(
         &self,
         state: &mut TransactionalState<'_, S>,
-        remaining_gas: &mut u64,
+        remaining_gas: &mut GasCounter,
         tx_context: Arc<TransactionContext>,
         validate: bool,
         charge_fee: bool,
@@ -760,7 +780,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
         )?;
 
         // Run validation and execution.
-        let mut remaining_gas = tx_context.initial_sierra_gas();
+        let initial_gas = tx_context.initial_sierra_gas();
         let ValidateExecuteCallInfo {
             validate_call_info,
             execute_call_info,
@@ -774,7 +794,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
                 },
         } = self.run_or_revert(
             state,
-            &mut remaining_gas,
+            &mut GasCounter::new(initial_gas),
             tx_context.clone(),
             execution_flags.validate,
             execution_flags.charge_fee,
