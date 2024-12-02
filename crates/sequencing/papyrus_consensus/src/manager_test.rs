@@ -61,9 +61,7 @@ mock! {
 
         async fn validate_proposal(
             &mut self,
-            height: BlockNumber,
-            round: Round,
-            proposer: ValidatorId,
+            init: ProposalInit,
             timeout: Duration,
             content: mpsc::Receiver<ProposalPart>
         ) -> oneshot::Receiver<(ProposalContentId, ProposalFin)>;
@@ -110,7 +108,7 @@ async fn send_proposal(
 fn expect_validate_proposal(context: &mut MockTestContext, block_hash: Felt) {
     context
         .expect_validate_proposal()
-        .return_once(move |_, _, _, _, _| {
+        .return_once(move |_, _, _| {
             let (block_sender, block_receiver) = oneshot::channel();
             block_sender
                 .send((
@@ -350,7 +348,7 @@ async fn test_timeouts() {
 
     let mut context = MockTestContext::new();
     context.expect_set_height_and_round().returning(move |_, _| ());
-    context.expect_validate_proposal().returning(move |_, _, _, _, _| {
+    context.expect_validate_proposal().returning(move |_, _, _| {
         let (block_sender, block_receiver) = oneshot::channel();
         block_sender
             .send((BlockHash(Felt::ONE), ProposalFin { proposal_content_id: BlockHash(Felt::ONE) }))
