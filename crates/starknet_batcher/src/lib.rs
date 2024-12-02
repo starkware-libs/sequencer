@@ -6,6 +6,8 @@ pub mod block_builder;
 mod block_builder_test;
 pub mod communication;
 pub mod config;
+#[cfg(test)]
+mod config_test;
 pub mod fee_market;
 mod proposal_manager;
 #[cfg(test)]
