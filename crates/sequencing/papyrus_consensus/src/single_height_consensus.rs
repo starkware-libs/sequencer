@@ -184,13 +184,21 @@ impl SingleHeightConsensus {
     ) -> Result<ShcReturn, ConsensusError> {
         info!("Starting consensus with validators {:?}", self.validators);
         context
-            .set_height_and_round(self.height, self.state_machine.round(), ValidatorId::default())
+            .set_height_and_round(
+                self.height,
+                self.state_machine.round(),
+                ValidatorId::from(1991_u32),
+            )
             .await;
         let leader_fn = |round: Round| -> ValidatorId { context.proposer(self.height, round) };
         let events = self.state_machine.start(&leader_fn);
         let ret = self.handle_state_machine_events(context, events).await;
         context
-            .set_height_and_round(self.height, self.state_machine.round(), ValidatorId::default())
+            .set_height_and_round(
+                self.height,
+                self.state_machine.round(),
+                ValidatorId::from(1991_u32),
+            )
             .await;
         ret
     }
@@ -239,7 +247,11 @@ impl SingleHeightConsensus {
             )
             .await;
         context
-            .set_height_and_round(self.height, self.state_machine.round(), ValidatorId::default())
+            .set_height_and_round(
+                self.height,
+                self.state_machine.round(),
+                ValidatorId::from(1991_u32),
+            )
             .await;
         Ok(ShcReturn::Tasks(vec![ShcTask::ValidateProposal(init, block_receiver)]))
     }
@@ -272,7 +284,7 @@ impl SingleHeightConsensus {
                     .set_height_and_round(
                         self.height,
                         self.state_machine.round(),
-                        ValidatorId::default(),
+                        ValidatorId::from(1991_u32),
                     )
                     .await;
                 ret
@@ -368,7 +380,11 @@ impl SingleHeightConsensus {
             _ => unimplemented!("Unexpected event: {:?}", event),
         };
         context
-            .set_height_and_round(self.height, self.state_machine.round(), ValidatorId::default())
+            .set_height_and_round(
+                self.height,
+                self.state_machine.round(),
+                ValidatorId::from(1991_u32),
+            )
             .await;
         ret
     }

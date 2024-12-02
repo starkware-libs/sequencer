@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use futures::StreamExt;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
+use papyrus_consensus::types::ValidatorId;
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{
     ProposalFin,
@@ -14,7 +15,6 @@ use papyrus_storage::test_utils::CHAIN_ID_FOR_TESTS;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::{BlockHash, BlockNumber};
-use starknet_api::core::ContractAddress;
 use starknet_api::transaction::TransactionHash;
 use starknet_integration_tests::flow_test_setup::FlowTestSetup;
 use starknet_integration_tests::utils::{
@@ -65,7 +65,7 @@ async fn listen_to_broadcasted_messages(
         height: BlockNumber(1),
         round: 0,
         valid_round: None,
-        proposer: ContractAddress::default(),
+        proposer: ValidatorId::from(1991_u32),
     };
     let expected_proposal_fin = ProposalFin {
         proposal_content_id: BlockHash(Felt::from_hex_unchecked(

@@ -90,7 +90,7 @@ impl Default for ConsensusConfig {
             ..Default::default()
         };
         Self {
-            validator_id: ValidatorId::default(),
+            validator_id: ValidatorId::from(1991_u128),
             network_topic: "consensus".to_string(),
             start_height: BlockNumber::default(),
             num_validators: 1,
