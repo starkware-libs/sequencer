@@ -18,7 +18,6 @@ hex.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
 itertools.workspace = true
 num-bigint.workspace = true
-papyrus_proc_macros.workspace = true
 pretty_assertions.workspace = true
 primitive-types = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["derive", "rc"] }
