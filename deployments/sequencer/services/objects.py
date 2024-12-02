@@ -1,10 +1,30 @@
 import dataclasses
 from typing import Optional, List, Dict, Any, Mapping, Sequence
+
+from imports import k8s
 from services import const
 
 
+def to_quantity(value: str | int | float) -> k8s.Quantity:
+    if isinstance(value, str):
+        return k8s.Quantity.from_string(value)
+    elif isinstance(value, (int, float)):
+        return k8s.Quantity.from_number(value)
+    else:
+        raise ValueError("Value must be of type int, float or str.")
+
+
+def to_int_or_string(value: str | int | float):
+    if isinstance(value, str):
+        return k8s.IntOrString.from_string(value)
+    elif isinstance(value, (int, float)):
+        return k8s.IntOrString.from_number(value)
+    else:
+        raise ValueError("Value must be of type int, float or str.")
+
+
 @dataclasses.dataclass
-class Probe:
+class HttpProbe:
     port: int | str
     path: str
     period_seconds: int
@@ -12,8 +32,18 @@ class Probe:
     timeout_seconds: int
 
     def __post_init__(self):
-        assert not isinstance(self.port, (bool)), "Port must be of type int or str, not bool."
+        assert not isinstance(self.port, bool), "Port must be of type int or str, not bool."
 
+    def to_k8s(self) -> k8s.Probe:
+        return k8s.Probe(
+            http_get=k8s.HttpGetAction(
+                port=to_int_or_string(self.port),
+                path=self.path,
+            ),
+            period_seconds=self.period_seconds,
+            failure_threshold=self.failure_threshold,
+            timeout_seconds=self.timeout_seconds
+        )
 
 @dataclasses.dataclass
 class PortMapping:
@@ -87,6 +117,13 @@ class VolumeMount:
     mount_path: str
     read_only: bool
 
+    def to_k8s(self) -> k8s.VolumeMount:
+        return k8s.VolumeMount(
+            name=self.name,
+            mount_path=self.mount_path,
+            read_only=self.read_only
+        )
+
 
 @dataclasses.dataclass
 class ConfigMapVolume:
@@ -100,20 +137,51 @@ class PvcVolume:
 
 
 @dataclasses.dataclass
+class ContainerResources:
+    requests_cpu: str | int
+    requests_memory: str
+    limits_cpu: str | int
+    limits_memory: str
+
+    def to_k8s(self) -> k8s.ResourceRequirements:
+        return k8s.ResourceRequirements(
+            requests={
+                "cpu": to_quantity(self.requests_cpu),
+                "memory": to_quantity(self.requests_memory),
+            },
+            limits={
+                "cpu": to_quantity(self.limits_cpu),
+                "memory": to_quantity(self.limits_memory),
+            }
+        )
+
+
+@dataclasses.dataclass
 class ContainerPort:
-    container_port: int
+    port: int
+    name: Optional[str] = None
+    protocol: Optional[str] = None
+
+    def to_k8s(self) -> k8s.ContainerPort:
+        return k8s.ContainerPort(
+            container_port=self.port,
+            name=self.name,
+            protocol=self.protocol
+        )
 
 
 @dataclasses.dataclass
 class Container:
     name: str
     image: str
-    args: List[str]
     ports: Sequence[ContainerPort]
-    startup_probe: Optional[Probe]
-    readiness_probe: Optional[Probe]
-    liveness_probe: Optional[Probe]
+    resources: ContainerResources
+    startup_probe: Optional[HttpProbe]
+    readiness_probe: Optional[HttpProbe]
+    liveness_probe: Optional[HttpProbe]
     volume_mounts: Sequence[VolumeMount]
+    args: Optional[List[str]] = None
+    command: Optional[List[str]] = None
 
 
 @dataclasses.dataclass

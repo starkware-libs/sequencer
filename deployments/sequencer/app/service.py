@@ -5,13 +5,15 @@ from constructs import Construct
 from cdk8s import Names, ApiObjectMetadata
 from imports import k8s
 from imports.com.google import cloud as google
+from imports.k8s import ResourceClaim, Quantity
 
 from services import topology
+from services.objects import ContainerResources
 
 
 class ServiceApp(Construct):
     def __init__(
-        self, scope: Construct, id: str, *, namespace: str, topology: topology.ServiceTopology
+            self, scope: Construct, id: str, *, namespace: str, topology: topology.ServiceTopology
     ):
         super().__init__(scope, id)
 
@@ -80,73 +82,15 @@ class ServiceApp(Construct):
                             k8s.Container(
                                 name=f"{self.node.id}-{container.name}",
                                 image=container.image,
-                                # command=["sleep", "infinity"],
+                                command=container.command,
                                 args=container.args,
-                                ports=[
-                                    k8s.ContainerPort(container_port=port.container_port)
-                                    for port in container.ports
-                                ],
-                                startup_probe=k8s.Probe(
-                                    http_get=k8s.HttpGetAction(
-                                        path=container.startup_probe.path,
-                                        port=k8s.IntOrString.from_string(
-                                            container.startup_probe.port
-                                        )
-                                        if isinstance(container.startup_probe.port, str)
-                                        else k8s.IntOrString.from_number(
-                                            container.startup_probe.port
-                                        ),
-                                    ),
-                                    period_seconds=container.startup_probe.period_seconds,
-                                    failure_threshold=container.startup_probe.failure_threshold,
-                                    timeout_seconds=container.startup_probe.timeout_seconds,
-                                )
-                                if container.startup_probe is not None
-                                else None,
-                                readiness_probe=k8s.Probe(
-                                    http_get=k8s.HttpGetAction(
-                                        path=container.readiness_probe.path,
-                                        port=k8s.IntOrString.from_string(
-                                            container.readiness_probe.port
-                                        )
-                                        if isinstance(container.readiness_probe.port, str)
-                                        else k8s.IntOrString.from_number(
-                                            container.readiness_probe.port
-                                        ),
-                                    ),
-                                    period_seconds=container.readiness_probe.period_seconds,
-                                    failure_threshold=container.readiness_probe.failure_threshold,
-                                    timeout_seconds=container.readiness_probe.timeout_seconds,
-                                )
-                                if container.readiness_probe is not None
-                                else None,
-                                liveness_probe=k8s.Probe(
-                                    http_get=k8s.HttpGetAction(
-                                        path=container.liveness_probe.path,
-                                        port=k8s.IntOrString.from_string(
-                                            container.liveness_probe.port
-                                        )
-                                        if isinstance(container.liveness_probe.port, str)
-                                        else k8s.IntOrString.from_number(
-                                            container.liveness_probe.port
-                                        ),
-                                    ),
-                                    period_seconds=container.liveness_probe.period_seconds,
-                                    failure_threshold=container.liveness_probe.failure_threshold,
-                                    timeout_seconds=container.liveness_probe.timeout_seconds,
-                                )
-                                if container.liveness_probe is not None
-                                else None,
-                                volume_mounts=[
-                                    k8s.VolumeMount(
-                                        name=mount.name,
-                                        mount_path=mount.mount_path,
-                                        read_only=mount.read_only,
-                                    )
-                                    for mount in container.volume_mounts
-                                ],
-                            )
-                            for container in self.topology.deployment.containers
+                                ports=[container_port.to_k8s() for container_port in container.ports],
+                                resources=container.resources.to_k8s(),
+                                startup_probe=container.startup_probe.to_k8s(),
+                                readiness_probe=container.readiness_probe.to_k8s(),
+                                liveness_probe=container.liveness_probe.to_k8s(),
+                                volume_mounts=[mount.to_k8s() for mount in container.volume_mounts],
+                            ) for container in self.topology.deployment.containers
                         ],
                         volumes=list(
                             chain(
