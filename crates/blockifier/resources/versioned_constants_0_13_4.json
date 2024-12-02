@@ -39,6 +39,7 @@
     },
     "disable_cairo0_redeclaration": true,
     "enable_stateful_compression": true,
+    "comprehensive_state_diff": true,
     "allocation_cost": {
         "blob_cost": {
             "l1_gas": 0,
