@@ -10430,6 +10430,7 @@ dependencies = [
  "blockifier",
  "cairo-lang-sierra-to-casm",
  "cairo-lang-starknet-classes",
+ "criterion",
  "futures",
  "mempool_test_utils",
  "mockall",
