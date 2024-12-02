@@ -13,6 +13,8 @@ use crate::transaction::fields::{Fee, Resource};
 )]
 #[derive(
     derive_more::Display,
+    derive_more::Sub,
+    derive_more::SubAssign,
     Clone,
     Copy,
     Debug,
