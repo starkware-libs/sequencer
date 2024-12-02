@@ -36,7 +36,6 @@ use papyrus_storage::body::BodyStorageReader;
 use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::{StorageError, StorageReader};
 use starknet_api::block::BlockNumber;
-use starknet_api::core::ContractAddress;
 use starknet_api::transaction::Transaction;
 use tracing::{debug, debug_span, info, warn, Instrument};
 
@@ -70,7 +69,8 @@ impl PapyrusConsensusContext {
             storage_reader,
             network_broadcast_client,
             network_proposal_sender,
-            validators: (0..num_validators).map(ContractAddress::from).collect(),
+            // TODO(Matan): Set the actual validator IDs (contract addresses).
+            validators: (100..100 + num_validators).map(ValidatorId::from).collect(),
             sync_broadcast_sender,
             valid_proposals: Arc::new(Mutex::new(BTreeMap::new())),
         }
