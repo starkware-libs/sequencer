@@ -22,12 +22,8 @@ lazy_static! {
     static ref VALIDATORS: Vec<ValidatorId> =
         vec![*PROPOSER_ID, *VALIDATOR_ID_1, *VALIDATOR_ID_2, *VALIDATOR_ID_3];
     static ref BLOCK: TestBlock = TestBlock { content: vec![1, 2, 3], id: BlockHash(Felt::ONE) };
-    static ref PROPOSAL_INIT: ProposalInit = ProposalInit {
-        height: BlockNumber(0),
-        round: 0,
-        proposer: *PROPOSER_ID,
-        valid_round: None
-    };
+    static ref PROPOSAL_INIT: ProposalInit =
+        ProposalInit { proposer: *PROPOSER_ID, ..Default::default() };
     static ref TIMEOUTS: TimeoutsConfig = TimeoutsConfig::default();
     static ref VALIDATE_PROPOSAL_EVENT: ShcEvent = ShcEvent::ValidateProposal(
         StateMachineEvent::Proposal(Some(BLOCK.id), PROPOSAL_INIT.round, PROPOSAL_INIT.valid_round,),
@@ -71,7 +67,7 @@ async fn handle_proposal(
     let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
     content_sender.send(MockProposalPart(1)).await.unwrap();
 
-    shc.handle_proposal(context, PROPOSAL_INIT.clone(), content_receiver).await.unwrap()
+    shc.handle_proposal(context, *PROPOSAL_INIT, content_receiver).await.unwrap()
 }
 
 #[tokio::test]
@@ -173,7 +169,7 @@ async fn validator(repeat_proposal: bool) {
     );
 
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
-    context.expect_validate_proposal().times(1).returning(move |_, _, _, _, _| {
+    context.expect_validate_proposal().times(1).returning(move |_, _, _| {
         let (block_sender, block_receiver) = oneshot::channel();
         block_sender.send((BLOCK.id, PROPOSAL_FIN.clone())).unwrap();
         block_receiver
@@ -253,7 +249,7 @@ async fn vote_twice(same_vote: bool) {
     );
 
     context.expect_proposer().times(1).returning(move |_, _| *PROPOSER_ID);
-    context.expect_validate_proposal().times(1).returning(move |_, _, _, _, _| {
+    context.expect_validate_proposal().times(1).returning(move |_, _, _| {
         let (block_sender, block_receiver) = oneshot::channel();
         block_sender.send((BLOCK.id, PROPOSAL_FIN.clone())).unwrap();
         block_receiver

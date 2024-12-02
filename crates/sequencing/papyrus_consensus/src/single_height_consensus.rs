@@ -247,13 +247,7 @@ impl SingleHeightConsensus {
         // twice in parallel. This could be caused by a network repeat or a malicious spam attack.
         proposal_entry.insert(None);
         let block_receiver = context
-            .validate_proposal(
-                self.height,
-                init.round,
-                init.proposer,
-                self.timeouts.proposal_timeout,
-                p2p_messages_receiver,
-            )
+            .validate_proposal(init, self.timeouts.proposal_timeout, p2p_messages_receiver)
             .await;
         context.set_height_and_round(self.height, self.state_machine.round()).await;
         Ok(ShcReturn::Tasks(vec![ShcTask::ValidateProposal(init, block_receiver)]))

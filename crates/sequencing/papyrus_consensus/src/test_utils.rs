@@ -8,14 +8,7 @@ use papyrus_protobuf::converters::ProtobufConversionError;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_types_core::felt::Felt;
 
-use crate::types::{
-    ConsensusContext,
-    ConsensusError,
-    ProposalContentId,
-    Round,
-    ValidatorId,
-    DEFAULT_VALIDATOR_ID,
-};
+use crate::types::{ConsensusContext, ConsensusError, ProposalContentId, Round, ValidatorId};
 
 /// Define a consensus block which can be used to enable auto mocking Context.
 #[derive(Debug, PartialEq, Clone)]
@@ -36,11 +29,7 @@ impl From<ProposalInit> for MockProposalPart {
 impl TryFrom<MockProposalPart> for ProposalInit {
     type Error = ProtobufConversionError;
     fn try_from(part: MockProposalPart) -> Result<Self, Self::Error> {
-        Ok(ProposalInit {
-            height: BlockNumber(part.0),
-            proposer: DEFAULT_VALIDATOR_ID.into(),
-            ..Default::default()
-        })
+        Ok(ProposalInit { height: BlockNumber(part.0), ..Default::default() })
     }
 }
 
@@ -74,9 +63,7 @@ mock! {
 
         async fn validate_proposal(
             &mut self,
-            height: BlockNumber,
-            round: Round,
-            proposer: ValidatorId,
+            init: ProposalInit,
             timeout: Duration,
             content: mpsc::Receiver<MockProposalPart>
         ) -> oneshot::Receiver<(ProposalContentId, ProposalFin)>;
@@ -129,5 +116,5 @@ pub fn precommit(
     })
 }
 pub fn proposal_init(height: u64, round: u32, proposer: ValidatorId) -> ProposalInit {
-    ProposalInit { height: BlockNumber(height), round, proposer, valid_round: None }
+    ProposalInit { height: BlockNumber(height), round, proposer, ..Default::default() }
 }

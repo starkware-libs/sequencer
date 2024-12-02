@@ -6,7 +6,7 @@ use futures::channel::mpsc;
 use futures::{FutureExt, SinkExt};
 use lazy_static::lazy_static;
 use papyrus_consensus::stream_handler::StreamHandler;
-use papyrus_consensus::types::{ConsensusContext, ValidatorId, DEFAULT_VALIDATOR_ID};
+use papyrus_consensus::types::ConsensusContext;
 use papyrus_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
     BroadcastNetworkMock,
@@ -130,8 +130,7 @@ async fn build_proposal() {
     });
     let (mut context, _network) = setup(batcher);
 
-    let init =
-        ProposalInit { proposer: ValidatorId::from(DEFAULT_VALIDATOR_ID), ..Default::default() };
+    let init = ProposalInit::default();
     // TODO(Asmaa): Test proposal content.
     let fin_receiver = context.build_proposal(init, TIMEOUT).await;
     assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
@@ -195,15 +194,8 @@ async fn validate_proposal_success() {
         }))
         .await
         .unwrap();
-    let fin_receiver = context
-        .validate_proposal(
-            BlockNumber(0),
-            0,
-            ValidatorId::from(DEFAULT_VALIDATOR_ID),
-            TIMEOUT,
-            content_receiver,
-        )
-        .await;
+    let fin_receiver =
+        context.validate_proposal(ProposalInit::default(), TIMEOUT, content_receiver).await;
     content_sender.close_channel();
     assert_eq!(fin_receiver.await.unwrap().0.0, STATE_DIFF_COMMITMENT.0.0);
 }
@@ -253,25 +245,13 @@ async fn repropose() {
         }))
         .await
         .unwrap();
-    let fin_receiver = context
-        .validate_proposal(
-            BlockNumber(0),
-            0,
-            ValidatorId::from(DEFAULT_VALIDATOR_ID),
-            TIMEOUT,
-            content_receiver,
-        )
-        .await;
+    let fin_receiver =
+        context.validate_proposal(ProposalInit::default(), TIMEOUT, content_receiver).await;
     content_sender.close_channel();
     assert_eq!(fin_receiver.await.unwrap().0.0, STATE_DIFF_COMMITMENT.0.0);
 
     // Re-proposal: Just asserts this is a known valid proposal.
-    context
-        .repropose(
-            BlockHash(STATE_DIFF_COMMITMENT.0.0),
-            ProposalInit { height: BlockNumber(0), ..Default::default() },
-        )
-        .await;
+    context.repropose(BlockHash(STATE_DIFF_COMMITMENT.0.0), ProposalInit::default()).await;
 }
 
 #[tokio::test]
@@ -328,15 +308,8 @@ async fn proposals_from_different_rounds() {
     let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
     content_sender.send(prop_part_txs.clone()).await.unwrap();
 
-    let fin_receiver_past_round = context
-        .validate_proposal(
-            BlockNumber(0),
-            0,
-            ValidatorId::from(DEFAULT_VALIDATOR_ID),
-            TIMEOUT,
-            content_receiver,
-        )
-        .await;
+    let mut init = ProposalInit { round: 0, ..Default::default() };
+    let fin_receiver_past_round = context.validate_proposal(init, TIMEOUT, content_receiver).await;
     // No fin was sent, channel remains open.
     assert!(fin_receiver_past_round.await.is_err());
 
@@ -344,15 +317,8 @@ async fn proposals_from_different_rounds() {
     let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
     content_sender.send(prop_part_txs.clone()).await.unwrap();
     content_sender.send(prop_part_fin.clone()).await.unwrap();
-    let fin_receiver_curr_round = context
-        .validate_proposal(
-            BlockNumber(0),
-            1,
-            ValidatorId::from(DEFAULT_VALIDATOR_ID),
-            TIMEOUT,
-            content_receiver,
-        )
-        .await;
+    init.round = 1;
+    let fin_receiver_curr_round = context.validate_proposal(init, TIMEOUT, content_receiver).await;
     assert_eq!(fin_receiver_curr_round.await.unwrap().0.0, STATE_DIFF_COMMITMENT.0.0);
 
     // The proposal from the future round should not be processed.
@@ -361,9 +327,7 @@ async fn proposals_from_different_rounds() {
     content_sender.send(prop_part_fin.clone()).await.unwrap();
     let fin_receiver_future_round = context
         .validate_proposal(
-            BlockNumber(0),
-            2,
-            ValidatorId::from(DEFAULT_VALIDATOR_ID),
+            ProposalInit { round: 2, ..Default::default() },
             TIMEOUT,
             content_receiver,
         )
@@ -421,15 +385,8 @@ async fn interrupt_active_proposal() {
     // Keep the sender open, as closing it or sending Fin would cause the validate to complete
     // without needing interrupt.
     let (mut _content_sender_0, content_receiver) = mpsc::channel(CHANNEL_SIZE);
-    let fin_receiver_0 = context
-        .validate_proposal(
-            BlockNumber(0),
-            0,
-            ValidatorId::from(DEFAULT_VALIDATOR_ID),
-            TIMEOUT,
-            content_receiver,
-        )
-        .await;
+    let fin_receiver_0 =
+        context.validate_proposal(ProposalInit::default(), TIMEOUT, content_receiver).await;
 
     let (mut content_sender_1, content_receiver) = mpsc::channel(CHANNEL_SIZE);
     content_sender_1
@@ -447,9 +404,7 @@ async fn interrupt_active_proposal() {
         .unwrap();
     let fin_receiver_1 = context
         .validate_proposal(
-            BlockNumber(0),
-            1,
-            ValidatorId::from(DEFAULT_VALIDATOR_ID),
+            ProposalInit { round: 1, ..Default::default() },
             TIMEOUT,
             content_receiver,
         )
