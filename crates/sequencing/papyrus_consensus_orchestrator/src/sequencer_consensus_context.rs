@@ -210,8 +210,13 @@ impl ConsensusContext for SequencerConsensusContext {
         self.validators.clone()
     }
 
-    fn proposer(&self, _height: BlockNumber, _round: Round) -> ValidatorId {
-        *self.validators.first().expect("there should be at least one validator")
+    fn proposer(&self, height: BlockNumber, round: Round) -> ValidatorId {
+        let height: usize = height.0.try_into().expect("Cannot convert to usize");
+        let round: usize = round.try_into().expect("Cannot convert to usize");
+        *self
+            .validators
+            .get((height + round) % self.validators.len())
+            .expect("There should be at least one validator")
     }
 
     async fn broadcast(&mut self, message: ConsensusMessage) -> Result<(), ConsensusError> {
