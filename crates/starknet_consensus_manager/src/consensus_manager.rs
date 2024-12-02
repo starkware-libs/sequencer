@@ -2,15 +2,10 @@ use std::any::type_name;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use futures::channel::mpsc::{self, SendError};
-use futures::future::Ready;
-use futures::SinkExt;
-use libp2p::PeerId;
-use papyrus_consensus::types::{BroadcastConsensusMessageChannel, ConsensusError};
+use papyrus_consensus::types::ConsensusError;
 use papyrus_consensus_orchestrator::sequencer_consensus_context::SequencerConsensusContext;
 use papyrus_network::gossipsub_impl::Topic;
-use papyrus_network::network_manager::{BroadcastTopicClient, NetworkManager};
-use papyrus_network_types::network_types::BroadcastedMessageMetadata;
+use papyrus_network::network_manager::NetworkManager;
 use papyrus_protobuf::consensus::{ConsensusMessage, ProposalPart};
 use starknet_batcher_types::communication::SharedBatcherClient;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
@@ -22,6 +17,7 @@ use crate::config::ConsensusManagerConfig;
 // TODO(Dan, Guy): move to config.
 pub const BROADCAST_BUFFER_SIZE: usize = 100;
 pub const CONSENSUS_PROPOSALS_TOPIC: &str = "consensus_proposals";
+pub const CONSENSUS_TOPIC: &str = "consensus";
 
 #[derive(Clone)]
 pub struct ConsensusManager {
@@ -43,9 +39,16 @@ impl ConsensusManager {
                 BROADCAST_BUFFER_SIZE,
             )
             .expect("Failed to register broadcast topic");
+        let votes_broadcast_channels = network_manager
+            .register_broadcast_topic::<ConsensusMessage>(
+                Topic::new(CONSENSUS_TOPIC),
+                BROADCAST_BUFFER_SIZE,
+            )
+            .expect("Failed to register broadcast topic");
         let context = SequencerConsensusContext::new(
             Arc::clone(&self.batcher_client),
             proposals_broadcast_channels.broadcast_topic_client.clone(),
+            votes_broadcast_channels.broadcast_topic_client.clone(),
             self.config.consensus_config.num_validators,
         );
 
@@ -56,7 +59,7 @@ impl ConsensusManager {
             self.config.consensus_config.validator_id,
             self.config.consensus_config.consensus_delay,
             self.config.consensus_config.timeouts.clone(),
-            create_fake_network_channels(),
+            votes_broadcast_channels.into(),
             futures::stream::pending(),
         );
 
@@ -71,28 +74,6 @@ impl ConsensusManager {
                 panic!("Consensus' network task finished unexpectedly: {:?}", network_result);
             }
         }
-    }
-}
-
-// Milestone 1:
-// We want to only run 1 node (e.g. no network), implying the local node can reach a quorum
-// alone and is always the proposer. Actually connecting to the network will require an external
-// dependency.
-fn create_fake_network_channels() -> BroadcastConsensusMessageChannel {
-    let messages_to_broadcast_fn: fn(ConsensusMessage) -> Ready<Result<Vec<u8>, SendError>> =
-        |_| todo!("messages_to_broadcast_sender should not be used");
-    let reported_messages_sender_fn: fn(
-        BroadcastedMessageMetadata,
-    ) -> Ready<Result<PeerId, SendError>> =
-        |_| todo!("messages_to_broadcast_sender should not be used");
-    let broadcast_topic_client = BroadcastTopicClient::new(
-        mpsc::channel(0).0.with(messages_to_broadcast_fn),
-        mpsc::channel(0).0.with(reported_messages_sender_fn),
-        mpsc::channel(0).0,
-    );
-    BroadcastConsensusMessageChannel {
-        broadcasted_messages_receiver: Box::new(futures::stream::pending()),
-        broadcast_topic_client,
     }
 }
 
