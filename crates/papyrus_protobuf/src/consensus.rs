@@ -54,7 +54,7 @@ pub enum StreamMessageBody<T> {
     Fin,
 }
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct StreamMessage<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> {
     pub message: StreamMessageBody<T>,
     pub stream_id: u64,
@@ -62,7 +62,7 @@ pub struct StreamMessage<T: Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufCon
 }
 
 /// This message must be sent first when proposing a new block.
-#[derive(Default, Debug, Clone, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct ProposalInit {
     /// The height of the consensus (block number).
     pub height: BlockNumber,
