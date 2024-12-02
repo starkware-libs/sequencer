@@ -67,7 +67,9 @@ pub struct SequencerConsensusContext {
     proposal_id: u64,
     current_height: Option<BlockNumber>,
     current_round: Round,
-    network_broadcast_client: BroadcastTopicClient<ProposalPart>,
+    // Used to broadcast proposals to other consensus nodes.
+    // TODO(Guy) switch to the actual streaming struct.
+    proposal_streaming_client: BroadcastTopicClient<ProposalPart>,
     // The active proposal refers to the proposal being validated at the current height/round.
     // Building proposals are not tracked as active, as consensus can't move on to the next
     // height/round until building is done. Context only works on proposals for the
@@ -80,12 +82,12 @@ pub struct SequencerConsensusContext {
 impl SequencerConsensusContext {
     pub fn new(
         batcher: Arc<dyn BatcherClient>,
-        network_broadcast_client: BroadcastTopicClient<ProposalPart>,
+        proposal_streaming_client: BroadcastTopicClient<ProposalPart>,
         num_validators: u64,
     ) -> Self {
         Self {
             batcher,
-            network_broadcast_client,
+            proposal_streaming_client,
             validators: (0..num_validators).map(ValidatorId::from).collect(),
             valid_proposals: Arc::new(Mutex::new(HeightToIdToContent::new())),
             proposal_id: 0,
@@ -141,11 +143,11 @@ impl ConsensusContext for SequencerConsensusContext {
             .await
             .expect("Failed to initiate proposal build");
         debug!("Broadcasting proposal init: {proposal_init:?}");
-        self.network_broadcast_client
+        self.proposal_streaming_client
             .broadcast_message(ProposalPart::Init(proposal_init.clone()))
             .await
             .expect("Failed to broadcast proposal init");
-        let broadcast_client = self.network_broadcast_client.clone();
+        let broadcast_client = self.proposal_streaming_client.clone();
         tokio::spawn(
             async move {
                 stream_build_proposal(

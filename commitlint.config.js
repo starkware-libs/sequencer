@@ -25,6 +25,7 @@ const Configuration = {
             'ci',
             'committer',
             'committer_cli',
+            'consensus',
             'deployment',
             'helm',
             'infra_utils',
