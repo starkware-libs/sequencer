@@ -243,7 +243,6 @@ pub trait BlockBuilderFactoryTrait: Send + Sync {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct BlockBuilderConfig {
-    // TODO(Yael 1/10/2024): add to config pointers
     pub chain_info: ChainInfo,
     pub execute_config: TransactionExecutorConfig,
     pub bouncer_config: BouncerConfig,
