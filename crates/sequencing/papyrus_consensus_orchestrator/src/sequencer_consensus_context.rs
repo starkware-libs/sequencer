@@ -197,7 +197,7 @@ impl ConsensusContext for SequencerConsensusContext {
             .await
             .expect("Failed to send proposal receiver");
         proposal_sender
-            .send(ProposalPart::Init(proposal_init.clone()))
+            .send(ProposalPart::Init(proposal_init))
             .await
             .expect("Failed to send proposal init");
         tokio::spawn(
@@ -222,25 +222,28 @@ impl ConsensusContext for SequencerConsensusContext {
     // That part is consumed by the caller, so it can know the height/round.
     async fn validate_proposal(
         &mut self,
-        height: BlockNumber,
-        round: Round,
-        validator: ValidatorId,
+        proposal_init: ProposalInit,
         timeout: Duration,
         content_receiver: mpsc::Receiver<Self::ProposalPart>,
     ) -> oneshot::Receiver<(ProposalContentId, ProposalFin)> {
-        assert_eq!(Some(height), self.current_height);
+        assert_eq!(Some(proposal_init.height), self.current_height);
         let (fin_sender, fin_receiver) = oneshot::channel();
-        match round.cmp(&self.current_round) {
+        match proposal_init.round.cmp(&self.current_round) {
             std::cmp::Ordering::Less => fin_receiver,
             std::cmp::Ordering::Greater => {
-                self.queued_proposals
-                    .insert(round, ((height, validator, timeout, content_receiver), fin_sender));
+                self.queued_proposals.insert(
+                    proposal_init.round,
+                    (
+                        (proposal_init.height, proposal_init.proposer, timeout, content_receiver),
+                        fin_sender,
+                    ),
+                );
                 fin_receiver
             }
             std::cmp::Ordering::Equal => {
                 self.validate_current_round_proposal(
-                    height,
-                    validator,
+                    proposal_init.height,
+                    proposal_init.proposer,
                     timeout,
                     content_receiver,
                     fin_sender,

@@ -130,7 +130,7 @@ impl ConsensusContext for PapyrusConsensusContext {
                     .await
                     .expect("Failed to send proposal receiver");
                 proposal_sender
-                    .send(Self::ProposalPart::Init(proposal_init.clone()))
+                    .send(Self::ProposalPart::Init(proposal_init))
                     .await
                     .expect("Failed to send proposal init");
                 proposal_sender
@@ -165,9 +165,7 @@ impl ConsensusContext for PapyrusConsensusContext {
 
     async fn validate_proposal(
         &mut self,
-        height: BlockNumber,
-        _round: Round,
-        _proposer: ValidatorId,
+        proposal_init: ProposalInit,
         _timeout: Duration,
         mut content: mpsc::Receiver<ProposalPart>,
     ) -> oneshot::Receiver<(ProposalContentId, ProposalFin)> {
@@ -180,14 +178,19 @@ impl ConsensusContext for PapyrusConsensusContext {
                 // TODO(dvir): consider fix this for the case of reverts. If between the check that
                 // the block in storage and to getting the transaction was a revert
                 // this flow will fail.
-                wait_for_block(&storage_reader, height).await.expect("Failed to wait to block");
+                wait_for_block(&storage_reader, proposal_init.height)
+                    .await
+                    .expect("Failed to wait to block");
 
                 let txn = storage_reader.begin_ro_txn().expect("Failed to begin ro txn");
                 let transactions = txn
-                    .get_block_transactions(height)
+                    .get_block_transactions(proposal_init.height)
                     .expect("Get transactions from storage failed")
                     .unwrap_or_else(|| {
-                        panic!("Block in {height} was not found in storage despite waiting for it")
+                        panic!(
+                            "Block in {} was not found in storage despite waiting for it",
+                            proposal_init.height
+                        )
                     });
 
                 // First gather all the non-fin transactions.
@@ -221,10 +224,13 @@ impl ConsensusContext for PapyrusConsensusContext {
                 );
 
                 let block_hash = txn
-                    .get_block_header(height)
+                    .get_block_header(proposal_init.height)
                     .expect("Get header from storage failed")
                     .unwrap_or_else(|| {
-                        panic!("Block in {height} was not found in storage despite waiting for it")
+                        panic!(
+                            "Block in {} was not found in storage despite waiting for it",
+                            proposal_init.height
+                        )
                     })
                     .block_hash;
 
@@ -232,14 +238,14 @@ impl ConsensusContext for PapyrusConsensusContext {
                     .lock()
                     .expect("Lock on active proposals was poisoned due to a previous panic");
 
-                proposals.entry(height).or_default().insert(block_hash, transactions);
+                proposals.entry(proposal_init.height).or_default().insert(block_hash, transactions);
                 // Done after inserting the proposal into the map to avoid race conditions between
                 // insertion and calls to `repropose`.
                 // This can happen as a result of sync interrupting `run_height`.
                 fin_sender
                     .send((block_hash, ProposalFin { proposal_content_id: received_block_hash }))
                     .unwrap_or_else(|_| {
-                        warn!("Failed to send block to consensus. height={height}");
+                        warn!("Failed to send block to consensus. height={}", proposal_init.height);
                     })
             }
             .instrument(debug_span!("consensus_validate_proposal")),
