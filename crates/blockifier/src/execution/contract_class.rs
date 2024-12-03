@@ -21,7 +21,7 @@ use itertools::Itertools;
 use semver::Version;
 use serde::de::Error as DeserializationError;
 use serde::{Deserialize, Deserializer, Serialize};
-use starknet_api::contract_class::{ContractClass, EntryPointType};
+use starknet_api::contract_class::{ContractClass, EntryPointType, SierraVersion, VersionedCasm};
 use starknet_api::core::EntryPointSelector;
 use starknet_api::deprecated_contract_class::{
     ContractClass as DeprecatedContractClass,
@@ -132,7 +132,7 @@ impl RunnableCompiledClass {
     /// Returns whether this contract should run using Cairo steps or Sierra gas.
     pub fn tracked_resource(
         &self,
-        min_sierra_version: &CompilerVersion,
+        min_sierra_version: &SierraVersion,
         gas_mode: GasVectorComputationMode,
     ) -> TrackedResource {
         match gas_mode {
@@ -262,8 +262,8 @@ impl CompiledClassV1 {
     }
 
     /// Returns whether this contract should run using Cairo steps or Sierra gas.
-    pub fn tracked_resource(&self, min_sierra_version: &CompilerVersion) -> TrackedResource {
-        if *min_sierra_version <= self.compiler_version {
+    pub fn tracked_resource(&self, min_sierra_version: &SierraVersion) -> TrackedResource {
+        if *min_sierra_version <= self.sierra_version {
             TrackedResource::SierraGas
         } else {
             TrackedResource::CairoSteps
