@@ -1,9 +1,8 @@
 use std::collections::BTreeMap;
 
-use blockifier::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
+use blockifier::transaction::account_transaction::AccountTransaction;
 use blockifier::transaction::transaction_execution::Transaction;
 use blockifier::transaction::transaction_types::TransactionType;
-use blockifier::transaction::transactions::enforce_fee;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use starknet_api::block::GasPrice;
@@ -144,30 +143,15 @@ pub fn py_tx(
             let non_optional_py_class_info: PyClassInfo = optional_py_class_info
                 .expect("A class info must be passed in a Declare transaction.");
             let tx = ExecutableTransaction::Declare(py_declare(tx, non_optional_py_class_info)?);
-            let execution_flags = ExecutionFlags {
-                only_query,
-                charge_fee: enforce_fee(&tx, only_query),
-                ..ExecutionFlags::default()
-            };
-            AccountTransaction { tx, execution_flags }.into()
+            AccountTransaction::new_for_sequencing(tx, only_query).into()
         }
         TransactionType::DeployAccount => {
             let tx = ExecutableTransaction::DeployAccount(py_deploy_account(tx)?);
-            let execution_flags = ExecutionFlags {
-                only_query,
-                charge_fee: enforce_fee(&tx, only_query),
-                ..ExecutionFlags::default()
-            };
-            AccountTransaction { tx, execution_flags }.into()
+            AccountTransaction::new_for_sequencing(tx, only_query).into()
         }
         TransactionType::InvokeFunction => {
             let tx = ExecutableTransaction::Invoke(py_invoke_function(tx)?);
-            let execution_flags = ExecutionFlags {
-                only_query,
-                charge_fee: enforce_fee(&tx, only_query),
-                ..ExecutionFlags::default()
-            };
-            AccountTransaction { tx, execution_flags }.into()
+            AccountTransaction::new_for_sequencing(tx, only_query).into()
         }
         TransactionType::L1Handler => py_l1_handler(tx)?.into(),
     })

@@ -30,7 +30,7 @@ use crate::test_utils::{
     BALANCE,
     DEFAULT_STRK_L1_GAS_PRICE,
 };
-use crate::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
+use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::test_utils::{
     block_context,
@@ -41,7 +41,6 @@ use crate::transaction::test_utils::{
     TestInitData,
 };
 use crate::transaction::transaction_execution::Transaction;
-use crate::transaction::transactions::enforce_fee;
 fn tx_executor_test_body<S: StateReader>(
     state: CachedState<S>,
     block_context: BlockContext,
@@ -132,10 +131,7 @@ fn test_declare(
         },
         calculate_class_info_for_testing(declared_contract.get_class()),
     );
-    let only_query = false;
-    let charge_fee = enforce_fee(&declare_tx, only_query);
-    let execution_flags = ExecutionFlags { only_query, charge_fee, ..ExecutionFlags::default() };
-    let tx = AccountTransaction { tx: declare_tx, execution_flags }.into();
+    let tx = AccountTransaction::new_for_sequencing(declare_tx, false).into();
     tx_executor_test_body(state, block_context, tx, expected_bouncer_weights);
 }
 
@@ -156,10 +152,7 @@ fn test_deploy_account(
         },
         &mut NonceManager::default(),
     );
-    let only_query = false;
-    let charge_fee = enforce_fee(&deploy_account_tx, only_query);
-    let execution_flags = ExecutionFlags { only_query, charge_fee, ..ExecutionFlags::default() };
-    let tx = AccountTransaction { tx: deploy_account_tx, execution_flags }.into();
+    let tx = AccountTransaction::new_for_sequencing(deploy_account_tx, false).into();
     let expected_bouncer_weights = BouncerWeights {
         state_diff_size: 3,
         message_segment_length: 0,
@@ -231,10 +224,7 @@ fn test_invoke(
         calldata,
         version,
     });
-    let only_query = false;
-    let charge_fee = enforce_fee(&invoke_tx, only_query);
-    let execution_flags = ExecutionFlags { only_query, charge_fee, ..ExecutionFlags::default() };
-    let tx = AccountTransaction { tx: invoke_tx, execution_flags }.into();
+    let tx = AccountTransaction::new_for_sequencing(invoke_tx, false).into();
     tx_executor_test_body(state, block_context, tx, expected_bouncer_weights);
 }
 

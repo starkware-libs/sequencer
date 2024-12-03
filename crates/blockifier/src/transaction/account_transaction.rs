@@ -59,6 +59,7 @@ use crate::transaction::objects::{
 };
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::{
+    enforce_fee,
     Executable,
     ExecutableTransaction,
     ExecutionFlags as TransactionExecutionFlags,
@@ -127,6 +128,19 @@ impl AccountTransaction {
         (fee_data_availability_mode, DataAvailabilityMode),
         (paymaster_data, PaymasterData)
     );
+
+    pub fn new(tx: Transaction) -> Self {
+        Self { tx, execution_flags: ExecutionFlags::default() }
+    }
+
+    pub fn new_for_sequencing(tx: Transaction, only_query: bool) -> Self {
+        let execution_flags = ExecutionFlags {
+            only_query,
+            charge_fee: enforce_fee(&tx, only_query),
+            ..ExecutionFlags::default()
+        };
+        AccountTransaction { tx, execution_flags }
+    }
 
     pub fn class_hash(&self) -> Option<ClassHash> {
         match &self.tx {

@@ -108,7 +108,7 @@ use crate::transaction::test_utils::{
     INVALID,
 };
 use crate::transaction::transaction_types::TransactionType;
-use crate::transaction::transactions::{enforce_fee, ExecutableTransaction, ExecutionFlags};
+use crate::transaction::transactions::{ExecutableTransaction, ExecutionFlags};
 use crate::utils::u64_from_usize;
 
 #[rstest]
@@ -216,11 +216,7 @@ fn test_fee_enforcement(
         },
         &mut NonceManager::default(),
     );
-    let only_query = false;
-    let charge_fee = enforce_fee(&tx, only_query);
-    let execution_flags =
-        AccountExecutionFlags { only_query, charge_fee, ..AccountExecutionFlags::default() };
-    let deploy_account_tx = AccountTransaction { tx, execution_flags };
+    let deploy_account_tx = AccountTransaction::new_for_sequencing(tx, false);
 
     let enforce_fee = deploy_account_tx.enforce_fee();
     assert_ne!(zero_bounds, enforce_fee);
@@ -469,8 +465,7 @@ fn test_max_fee_limit_validate(
         },
         class_info,
     );
-    let execution_flags = AccountExecutionFlags::default();
-    let account_tx = AccountTransaction { tx, execution_flags };
+    let account_tx = AccountTransaction::new(tx);
     account_tx.execute(&mut state, &block_context).unwrap();
 
     // Deploy grindy account with a lot of grind in the constructor.
@@ -791,10 +786,8 @@ fn test_fail_declare(block_context: BlockContext, max_fee: Fee) {
         tx_hash: TransactionHash::default(),
         class_info,
     };
-    let declare_account_tx = AccountTransaction {
-        tx: ApiExecutableTransaction::Declare(executable_declare),
-        execution_flags: AccountExecutionFlags::default(),
-    };
+    let declare_account_tx =
+        AccountTransaction::new(ApiExecutableTransaction::Declare(executable_declare));
 
     // Fail execution, assert nonce and balance are unchanged.
     let tx_info = declare_account_tx.create_tx_info();
