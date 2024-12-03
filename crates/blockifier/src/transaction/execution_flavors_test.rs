@@ -185,7 +185,6 @@ fn recurse_calldata(contract_address: ContractAddress, fail: bool, depth: u32) -
 fn get_pre_validate_test_args(
     cairo_version: CairoVersion,
     version: TransactionVersion,
-    only_query: bool,
 ) -> (BlockContext, CachedState<DictStateReader>, InvokeTxArgs, NonceManager) {
     let block_context = BlockContext::create_for_account_testing();
     let max_fee = MAX_FEE;
@@ -203,7 +202,6 @@ fn get_pre_validate_test_args(
         sender_address: account_address,
         calldata: create_trivial_calldata(test_contract_address),
         version,
-        only_query,
     };
     (block_context, state, pre_validation_base_args, nonce_manager)
 }
@@ -219,7 +217,7 @@ fn test_invalid_nonce_pre_validate(
     #[values(TransactionVersion::ONE, TransactionVersion::THREE)] version: TransactionVersion,
 ) {
     let (block_context, mut state, pre_validation_base_args, _) =
-        get_pre_validate_test_args(cairo_version, version, only_query);
+        get_pre_validate_test_args(cairo_version, version);
     let account_address = pre_validation_base_args.sender_address;
 
     // First scenario: invalid nonce. Regardless of flags, should fail.
@@ -261,7 +259,7 @@ fn test_simulate_validate_pre_validate_with_charge_fee(
 ) {
     let charge_fee = true;
     let (block_context, mut state, pre_validation_base_args, mut nonce_manager) =
-        get_pre_validate_test_args(cairo_version, version, only_query);
+        get_pre_validate_test_args(cairo_version, version);
     let account_address = pre_validation_base_args.sender_address;
 
     // First scenario: minimal fee not covered. Actual fee is precomputed.
@@ -379,7 +377,7 @@ fn test_simulate_validate_pre_validate_not_charge_fee(
 ) {
     let charge_fee = false;
     let (block_context, mut state, pre_validation_base_args, mut nonce_manager) =
-        get_pre_validate_test_args(cairo_version, version, only_query);
+        get_pre_validate_test_args(cairo_version, version);
     let account_address = pre_validation_base_args.sender_address;
 
     let tx = invoke_tx(invoke_tx_args! {
@@ -596,14 +594,12 @@ fn test_simulate_validate_charge_fee_mid_execution(
         resource_bounds: default_l1_resource_bounds,
         sender_address: account_address,
         version,
-        only_query,
     };
 
     // First scenario: logic error. Should result in revert; actual fee should be shown.
     let tx = invoke_tx(invoke_tx_args! {
         calldata: recurse_calldata(test_contract_address, true, 3),
         nonce: nonce_manager.next(account_address),
-        only_query,
         ..execution_base_args.clone()
     });
     let account_tx = AccountTransaction {
@@ -655,8 +651,6 @@ fn test_simulate_validate_charge_fee_mid_execution(
         resource_bounds: l1_resource_bounds(gas_bound, gas_price.into()),
         calldata: recurse_calldata(test_contract_address, false, 1000),
         nonce: nonce_manager.next(account_address),
-        only_query,
-
         ..execution_base_args.clone()
     });
     let account_tx = AccountTransaction {
@@ -804,7 +798,6 @@ fn test_simulate_validate_charge_fee_post_execution(
         nonce: nonce_manager.next(account_address),
         sender_address: account_address,
         version,
-        only_query,
     });
     let account_tx = AccountTransaction {
         tx,
@@ -867,8 +860,6 @@ fn test_simulate_validate_charge_fee_post_execution(
         nonce: nonce_manager.next(account_address),
         sender_address: account_address,
         version,
-        only_query,
-
     });
     let account_tx = AccountTransaction {
         tx,
