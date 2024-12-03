@@ -34,6 +34,7 @@ use starknet_api::block::{
     BlockTimestamp,
     NonzeroGasPrice,
 };
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::ContractAddress;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::transaction::TransactionHash;
@@ -318,6 +319,7 @@ pub struct BlockBuilderFactory {
     pub block_builder_config: BlockBuilderConfig,
     pub storage_reader: StorageReader,
     pub global_class_hash_to_class: GlobalContractCache<RunnableCompiledClass>,
+    pub global_class_hash_to_sierra_version: GlobalContractCache<SierraVersion>,
 }
 
 impl BlockBuilderFactory {
@@ -351,6 +353,7 @@ impl BlockBuilderFactory {
             self.storage_reader.clone(),
             block_metadata.height,
             self.global_class_hash_to_class.clone(),
+            self.global_class_hash_to_sierra_version.clone(),
         );
 
         let executor = TransactionExecutor::pre_process_and_create(

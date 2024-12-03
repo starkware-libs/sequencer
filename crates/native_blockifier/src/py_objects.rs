@@ -5,7 +5,10 @@ use std::collections::HashMap;
 use blockifier::abi::constants;
 use blockifier::blockifier::config::{ConcurrencyConfig, ContractClassManagerConfig};
 use blockifier::bouncer::{BouncerConfig, BouncerWeights, BuiltinCount, HashMapWrapper};
-use blockifier::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
+use blockifier::state::global_cache::{
+    GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST,
+    GLOBAL_SIERRA_VERSION_CACHE_SIZE_FOR_TEST,
+};
 use blockifier::versioned_constants::VersionedConstantsOverrides;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
@@ -157,6 +160,7 @@ pub struct PyContractClassManagerConfig {
     pub run_cairo_native: bool,
     pub wait_on_native_compilation: bool,
     pub contract_cache_size: usize,
+    pub sierra_version_cache_size: usize,
 }
 
 impl Default for PyContractClassManagerConfig {
@@ -165,6 +169,7 @@ impl Default for PyContractClassManagerConfig {
             run_cairo_native: false,
             wait_on_native_compilation: false,
             contract_cache_size: GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST,
+            sierra_version_cache_size: GLOBAL_SIERRA_VERSION_CACHE_SIZE_FOR_TEST,
         }
     }
 }

@@ -63,7 +63,8 @@ use crate::{FileHandlers, MarkerKind, MarkersTable, OffsetKind, StorageResult, S
 pub trait CasmStorageReader {
     /// Returns the Cairo assembly of a class given its Sierra class hash.
     fn get_casm(&self, class_hash: &ClassHash) -> StorageResult<Option<CasmContractClass>>;
-    /// Returns the Cairo assembly of a class and its sierra contract class given its Sierra class hash.
+    /// Returns the Cairo assembly of a class and its sierra contract class given its Sierra class
+    /// hash.
     fn get_casm_and_sierra(
         &self,
         class_hash: &ClassHash,

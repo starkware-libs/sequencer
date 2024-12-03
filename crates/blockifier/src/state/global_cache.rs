@@ -26,6 +26,8 @@ pub enum CachedCairoNative {
 }
 
 pub const GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST: usize = 400;
+// TODO(AVIV): Check with Avi if this number makes sense.
+pub const GLOBAL_SIERRA_VERSION_CACHE_SIZE_FOR_TEST: usize = 50;
 
 impl<T: Clone> GlobalContractCache<T> {
     /// Locks the cache for atomic access. Although conceptually shared, writing to this cache is
