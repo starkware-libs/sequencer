@@ -14,8 +14,6 @@ use pretty_assertions::assert_eq;
 use rstest::rstest;
 
 const CAIRO0_FEATURE_CONTRACTS_DIR: &str = "feature_contracts/cairo0";
-#[cfg(feature = "cairo_native")]
-const NATIVE_FEATURE_CONTRACTS_DIR: &str = "feature_contracts/cairo_native";
 const COMPILED_CONTRACTS_SUBDIR: &str = "compiled";
 const FIX_COMMAND: &str = "FIX_FEATURE_TEST=1 cargo test -p blockifier --test \
                            feature_contracts_compatibility_test --features testing -- \
@@ -153,13 +151,8 @@ fn compare_compilation_data(contract: &FeatureContract) {
         }
         // TODO (Meshi 01/01/2025) Remove this once native folder is deleted.
         #[cfg(feature = "cairo_native")]
-        CompilationArtifacts::Cairo1Native { sierra } => {
-            check_compilation(
-                sierra,
-                &existing_compiled_contents,
-                &existing_compiled_path,
-                contract.get_source_path(),
-            );
+        CompilationArtifacts::Cairo1Native { .. } => {
+            panic!("This test does not support native CairoVersion.")
         }
     }
 }
@@ -177,10 +170,9 @@ fn verify_feature_contracts_compatibility_logic(contract: &FeatureContract, fix:
                 fs::write(&existing_compiled_path, casm).unwrap();
                 fs::write(contract.get_sierra_path(), sierra).unwrap();
             }
-            // TODO (Meshi 01/01/2025) Remove this once native folder is deleted.
             #[cfg(feature = "cairo_native")]
-            CompilationArtifacts::Cairo1Native { ref sierra } => {
-                fs::write(&existing_compiled_path, sierra).unwrap();
+            CompilationArtifacts::Cairo1Native { .. } => {
+                panic!("This test does not support native CairoVersion.")
             }
         }
     }
@@ -196,13 +188,13 @@ fn verify_and_get_files(cairo_version: CairoVersion) -> Vec<FeatureContractMetad
         CairoVersion::Cairo0 => CAIRO0_FEATURE_CONTRACTS_DIR,
         CairoVersion::Cairo1 => CAIRO1_FEATURE_CONTRACTS_DIR,
         #[cfg(feature = "cairo_native")]
-        CairoVersion::Native => NATIVE_FEATURE_CONTRACTS_DIR,
+        CairoVersion::Native => panic!("This test does not support native CairoVersion."),
     };
     let compiled_extension = match cairo_version {
         CairoVersion::Cairo0 => "_compiled.json",
         CairoVersion::Cairo1 => ".casm.json",
         #[cfg(feature = "cairo_native")]
-        CairoVersion::Native => ".sierra.json",
+        CairoVersion::Native => panic!("This test does not support native CairoVersion."),
     };
     for file in fs::read_dir(directory).unwrap() {
         let path = file.unwrap().path();
@@ -238,6 +230,7 @@ fn verify_and_get_files(cairo_version: CairoVersion) -> Vec<FeatureContractMetad
                     compiled_path: existing_compiled_path,
                 }))
             }
+
             CairoVersion::Cairo1 => {
                 let existing_sierra_path =
                     format!("{directory}/{SIERRA_CONTRACTS_SUBDIR}/{file_name}.sierra.json");
@@ -249,49 +242,15 @@ fn verify_and_get_files(cairo_version: CairoVersion) -> Vec<FeatureContractMetad
                 }));
             }
             #[cfg(feature = "cairo_native")]
-            CairoVersion::Native => {
-                let existing_sierra_path =
-                    format!("{directory}/{SIERRA_CONTRACTS_SUBDIR}/{file_name}.sierra.json");
-                paths.push(FeatureContractMetadata::Cairo1(Cairo1FeatureContractMetadata {
-                    source_path: path_str.to_string(),
-                    base_filename: file_name.to_string(),
-                    compiled_path: existing_compiled_path,
-                    sierra_path: existing_sierra_path,
-                }));
-            }
+            CairoVersion::Native => panic!("This test does not support native CairoVersion."),
         }
     }
 
     paths
 }
 
-// TODO (Meshi 01/01/2025) Remove this once cairo native feature is stable.
-fn verify_feature_contracts_cairo1_logic(
-    cairo_version: CairoVersion,
-    mut compiled_paths_from_enum: Vec<String>,
-) {
-    let (mut compiled_paths_on_filesystem, mut sierra_paths_on_filesystem): (
-        Vec<String>,
-        Vec<String>,
-    ) = verify_and_get_files(cairo_version)
-        .into_iter()
-        .map(|metadata| (metadata.compiled_path(), metadata.sierra_path()))
-        .collect();
-
-    compiled_paths_from_enum.sort();
-    compiled_paths_on_filesystem.sort();
-    assert_eq!(compiled_paths_from_enum, compiled_paths_on_filesystem);
-
-    let mut sierra_paths_from_enum: Vec<String> = FeatureContract::all_feature_contracts()
-        .filter(|contract| contract.cairo_version() == cairo_version)
-        .map(|contract| contract.get_sierra_path())
-        .collect();
-
-    sierra_paths_from_enum.sort();
-    sierra_paths_on_filesystem.sort();
-    assert_eq!(sierra_paths_from_enum, sierra_paths_on_filesystem);
-}
-
+// Native and Casm have the same contracts, therefore should have the same enum, so we exclude
+// Native CairoVersion from this test.
 #[rstest]
 fn verify_feature_contracts_match_enum(
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
@@ -301,27 +260,43 @@ fn verify_feature_contracts_match_enum(
         .map(|contract| contract.get_compiled_path())
         .collect();
 
+    let mut compiled_paths_on_filesystem: Vec<String>;
+
     match cairo_version {
         CairoVersion::Cairo0 => {
-            let mut compiled_paths_on_filesystem: Vec<String> = verify_and_get_files(cairo_version)
+            compiled_paths_on_filesystem = verify_and_get_files(cairo_version)
                 .into_iter()
                 .map(|metadata| metadata.compiled_path().to_string())
                 .collect();
-            compiled_paths_from_enum.sort();
-            compiled_paths_on_filesystem.sort();
-            assert_eq!(compiled_paths_from_enum, compiled_paths_on_filesystem);
         }
         CairoVersion::Cairo1 => {
-            verify_feature_contracts_cairo1_logic(cairo_version, compiled_paths_from_enum);
+            let mut sierra_paths_on_filesystem: Vec<String>;
+            (compiled_paths_on_filesystem, sierra_paths_on_filesystem) =
+                verify_and_get_files(cairo_version)
+                    .into_iter()
+                    .map(|metadata| (metadata.compiled_path(), metadata.sierra_path()))
+                    .collect();
+
+            let mut sierra_paths_from_enum: Vec<String> = FeatureContract::all_feature_contracts()
+                .filter(|contract| contract.cairo_version() == cairo_version)
+                .map(|contract| contract.get_sierra_path())
+                .collect();
+
+            sierra_paths_from_enum.sort();
+            sierra_paths_on_filesystem.sort();
+            assert_eq!(sierra_paths_from_enum, sierra_paths_on_filesystem);
         }
+
         #[cfg(feature = "cairo_native")]
-        CairoVersion::Native => {
-            verify_feature_contracts_cairo1_logic(cairo_version, compiled_paths_from_enum);
-        }
+        CairoVersion::Native => panic!("This test does not support native CairoVersion."),
     }
+    compiled_paths_from_enum.sort();
+    compiled_paths_on_filesystem.sort();
+    assert_eq!(compiled_paths_from_enum, compiled_paths_on_filesystem);
 }
 
-// todo(rdr): find the right way to feature verify native contracts as well
+// Native and Casm have the same contracts and compiled files, as we only save the sierra for
+// Native, so we exclude Native CairoVersion from this test.
 #[rstest]
 #[ignore]
 fn verify_feature_contracts(
