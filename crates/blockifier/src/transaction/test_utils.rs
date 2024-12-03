@@ -301,8 +301,7 @@ pub fn create_account_tx_for_validate_test(
 
 // TODO(AvivG): Consider removing this function.
 pub fn account_invoke_tx(invoke_args: InvokeTxArgs) -> AccountTransaction {
-    let only_query = invoke_args.only_query;
-    let execution_flags = ExecutionFlags { only_query, ..ExecutionFlags::default() };
+    let execution_flags = ExecutionFlags::default();
     AccountTransaction { tx: invoke_tx(invoke_args), execution_flags }
 }
 
@@ -311,7 +310,6 @@ pub fn run_invoke_tx(
     block_context: &BlockContext,
     invoke_args: InvokeTxArgs,
 ) -> TransactionExecutionResult<TransactionExecutionInfo> {
-    let only_query = invoke_args.only_query;
     let tx = invoke_tx(invoke_args);
     let account_tx = AccountTransaction::new_for_sequencing(tx, only_query);
 

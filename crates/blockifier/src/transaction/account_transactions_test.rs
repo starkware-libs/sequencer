@@ -323,7 +323,6 @@ fn test_account_flow_test(
             version: tx_version,
             resource_bounds,
             nonce: nonce_manager.next(account_address),
-            only_query,
         },
     )
     .unwrap();
