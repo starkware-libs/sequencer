@@ -27,7 +27,7 @@ use starknet_types_core::felt::Felt;
 
 use super::{run_consensus, MultiHeightManager};
 use crate::config::TimeoutsConfig;
-use crate::test_utils::{precommit, prevote, proposal, proposal_init};
+use crate::test_utils::{precommit, prevote, proposal_init};
 use crate::types::{ConsensusContext, ConsensusError, ProposalContentId, Round, ValidatorId};
 
 lazy_static! {
@@ -93,14 +93,15 @@ async fn send(sender: &mut MockBroadcastedMessagesSender<ConsensusMessage>, msg:
 
 async fn send_proposal(
     proposal_receiver_sender: &mut mpsc::Sender<mpsc::Receiver<ProposalPart>>,
-    content: ProposalPart,
+    content: Vec<ProposalPart>,
 ) {
     let (mut proposal_sender, proposal_receiver) = mpsc::channel(CHANNEL_SIZE);
     proposal_receiver_sender.send(proposal_receiver).await.unwrap();
-    proposal_sender.send(content).await.unwrap();
+    for item in content {
+        proposal_sender.send(item).await.unwrap();
+    }
 }
 
-#[ignore] // TODO(guyn): return this once caching proposals is implemented.
 #[tokio::test]
 async fn manager_multiple_heights_unordered() {
     let TestSubscriberChannels { mock_network, subscriber_channels } =
@@ -108,14 +109,29 @@ async fn manager_multiple_heights_unordered() {
     let mut sender = mock_network.broadcasted_messages_sender;
 
     // TODO(guyn): refactor this test to pass proposals through the correct channels.
-    let (_proposal_receiver_sender, mut proposal_receiver_receiver) = mpsc::channel(CHANNEL_SIZE);
+    let (mut proposal_receiver_sender, mut proposal_receiver_receiver) =
+        mpsc::channel(CHANNEL_SIZE);
 
     // Send messages for height 2 followed by those for height 1.
-    send(&mut sender, proposal(Felt::TWO, 2, 0, *PROPOSER_ID)).await;
+    send_proposal(
+        &mut proposal_receiver_sender,
+        vec![
+            ProposalPart::Init(proposal_init(2, 0, *PROPOSER_ID)),
+            ProposalPart::Fin(ProposalFin { proposal_content_id: BlockHash(Felt::TWO) }),
+        ],
+    )
+    .await;
     send(&mut sender, prevote(Some(Felt::TWO), 2, 0, *PROPOSER_ID)).await;
     send(&mut sender, precommit(Some(Felt::TWO), 2, 0, *PROPOSER_ID)).await;
 
-    send(&mut sender, proposal(Felt::ONE, 1, 0, *PROPOSER_ID)).await;
+    send_proposal(
+        &mut proposal_receiver_sender,
+        vec![
+            ProposalPart::Init(proposal_init(1, 0, *PROPOSER_ID)),
+            ProposalPart::Fin(ProposalFin { proposal_content_id: BlockHash(Felt::ONE) }),
+        ],
+    )
+    .await;
     send(&mut sender, prevote(Some(Felt::ONE), 1, 0, *PROPOSER_ID)).await;
     send(&mut sender, precommit(Some(Felt::ONE), 1, 0, *PROPOSER_ID)).await;
 
@@ -178,7 +194,6 @@ async fn manager_multiple_heights_unordered() {
     assert_eq!(decision.block, BlockHash(Felt::TWO));
 }
 
-#[ignore] // TODO(guyn): return this once caching proposals is implemented.
 #[tokio::test]
 async fn run_consensus_sync() {
     // Set expectations.
@@ -209,7 +224,7 @@ async fn run_consensus_sync() {
     // Send messages for height 2.
     send_proposal(
         &mut proposal_receiver_sender,
-        ProposalPart::Init(proposal_init(2, 0, *PROPOSER_ID)),
+        vec![ProposalPart::Init(proposal_init(2, 0, *PROPOSER_ID))],
     )
     .await;
     let TestSubscriberChannels { mock_network, subscriber_channels } =
@@ -304,7 +319,7 @@ async fn run_consensus_sync_cancellation_safety() {
     // Send a proposal for height 1.
     send_proposal(
         &mut proposal_receiver_sender,
-        ProposalPart::Init(proposal_init(1, 0, *PROPOSER_ID)),
+        vec![ProposalPart::Init(proposal_init(1, 0, *PROPOSER_ID))],
     )
     .await;
     proposal_handled_rx.await.unwrap();
@@ -336,7 +351,7 @@ async fn test_timeouts() {
 
     send_proposal(
         &mut proposal_receiver_sender,
-        ProposalPart::Init(proposal_init(1, 0, *PROPOSER_ID)),
+        vec![ProposalPart::Init(proposal_init(1, 0, *PROPOSER_ID))],
     )
     .await;
     send(&mut sender, prevote(None, 1, 0, *VALIDATOR_ID_2)).await;
@@ -390,7 +405,7 @@ async fn test_timeouts() {
     // reach a decision.
     send_proposal(
         &mut proposal_receiver_sender,
-        ProposalPart::Init(proposal_init(1, 1, *PROPOSER_ID)),
+        vec![ProposalPart::Init(proposal_init(1, 1, *PROPOSER_ID))],
     )
     .await;
     send(&mut sender, prevote(Some(Felt::ONE), 1, 1, *PROPOSER_ID)).await;
