@@ -127,6 +127,7 @@ use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{SierraContractClass, StateNumber, StorageKey, ThinStateDiff};
 use starknet_api::transaction::{Transaction, TransactionHash, TransactionOutput};
+use starknet_api::StarknetApiError;
 use starknet_types_core::felt::Felt;
 use tracing::{debug, warn};
 use validator::Validate;
@@ -589,6 +590,8 @@ pub enum StorageError {
     StorageVersionInconsistency(#[from] StorageVersionError),
     #[error("The table {table_name} is unused under the {storage_scope:?} storage scope.")]
     ScopeError { table_name: String, storage_scope: StorageScope },
+    #[error(transparent)]
+    StarknetApiError(#[from] StarknetApiError),
     #[error(transparent)]
     IOError(#[from] std::io::Error),
     #[error(transparent)]
