@@ -17,8 +17,8 @@ use crate::utils::{
     create_consensus_manager_configs_and_channels,
 };
 
-const SEQUENCER_ID: usize = 0;
-const SEQUENCER_IDS: [usize; 1] = [SEQUENCER_ID];
+const SEQUENCER_INDEX: usize = 0;
+const SEQUENCER_INDICES: [usize; 1] = [SEQUENCER_INDEX];
 
 pub struct IntegrationTestSetup {
     // Client for adding transactions to the sequencer node.
@@ -54,10 +54,11 @@ impl IntegrationTestSetup {
         .await;
 
         let (mut consensus_manager_configs, _consensus_proposals_channels) =
-            create_consensus_manager_configs_and_channels(SEQUENCER_IDS.len());
+            create_consensus_manager_configs_and_channels(SEQUENCER_INDICES.len());
 
         // Derive the configuration for the sequencer node.
         let (config, required_params) = create_config(
+            SEQUENCER_INDEX,
             chain_info,
             rpc_server_addr,
             storage_for_test.batcher_storage_config,
