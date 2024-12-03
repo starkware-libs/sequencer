@@ -38,19 +38,20 @@ pub fn create_chain_info() -> ChainInfo {
     chain_info
 }
 
+// TODO(yair, Tsabary): Create config presets for tests, then remove all the functions that modify
+// the config.
 pub async fn create_config(
     chain_info: ChainInfo,
     rpc_server_addr: SocketAddr,
     batcher_storage_config: StorageConfig,
-) -> (SequencerNodeConfig, RequiredParams, BroadcastTopicChannels<StreamMessage<ProposalPart>>) {
+    consensus_manager_config: ConsensusManagerConfig,
+) -> (SequencerNodeConfig, RequiredParams) {
     let fee_token_addresses = chain_info.fee_token_addresses.clone();
     let batcher_config = create_batcher_config(batcher_storage_config, chain_info.clone());
     let gateway_config = create_gateway_config(chain_info.clone()).await;
     let http_server_config = create_http_server_config().await;
     let rpc_state_reader_config = test_rpc_state_reader_config(rpc_server_addr);
-    let (mut consensus_manager_configs, consensus_proposals_channels) =
-        create_consensus_manager_configs_and_channels(1);
-    let consensus_manager_config = consensus_manager_configs.pop().unwrap();
+
     (
         SequencerNodeConfig {
             batcher_config,
@@ -66,11 +67,10 @@ pub async fn create_config(
             strk_fee_token_address: fee_token_addresses.strk_fee_token_address,
             sequencer_address: ContractAddress::from(1312_u128), // Arbitrary non-zero value.
         },
-        consensus_proposals_channels,
     )
 }
 
-fn create_consensus_manager_configs_and_channels(
+pub fn create_consensus_manager_configs_and_channels(
     n_managers: usize,
 ) -> (Vec<ConsensusManagerConfig>, BroadcastTopicChannels<StreamMessage<ProposalPart>>) {
     let (network_configs, broadcast_channels) =
