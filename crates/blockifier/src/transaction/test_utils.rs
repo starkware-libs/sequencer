@@ -301,8 +301,7 @@ pub fn create_account_tx_for_validate_test(
 
 // TODO(AvivG): Consider removing this function.
 pub fn account_invoke_tx(invoke_args: InvokeTxArgs) -> AccountTransaction {
-    let only_query = invoke_args.only_query;
-    let execution_flags = ExecutionFlags { only_query, ..ExecutionFlags::default() };
+    let execution_flags = ExecutionFlags::default();
     AccountTransaction { tx: invoke_tx(invoke_args), execution_flags }
 }
 
@@ -311,8 +310,8 @@ pub fn run_invoke_tx(
     block_context: &BlockContext,
     invoke_args: InvokeTxArgs,
 ) -> TransactionExecutionResult<TransactionExecutionInfo> {
-    let only_query = invoke_args.only_query;
     let tx = invoke_tx(invoke_args);
+    let only_query = false;
     let charge_fee = enforce_fee(&tx, only_query);
     let execution_flags = ExecutionFlags { charge_fee, only_query, ..ExecutionFlags::default() };
     let account_tx = AccountTransaction { tx, execution_flags };
