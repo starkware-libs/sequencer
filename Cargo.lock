@@ -10483,6 +10483,7 @@ dependencies = [
  "indexmap 2.6.0",
  "papyrus_base_layer",
  "pretty_assertions",
+ "serde",
  "starknet_api",
  "thiserror",
 ]

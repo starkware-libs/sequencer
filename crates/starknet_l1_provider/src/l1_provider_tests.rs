@@ -77,13 +77,13 @@ fn proposal_start_errors() {
     // Test.
     l1_provider.proposal_start().unwrap();
 
-    assert_matches!(
+    assert_eq!(
         l1_provider.proposal_start().unwrap_err(),
-        L1ProviderError::UnexpectedProviderStateTransition { from: Propose, to: Propose }
+        L1ProviderError::unexpected_transition(Propose, Propose)
     );
-    assert_matches!(
+    assert_eq!(
         l1_provider.validation_start().unwrap_err(),
-        L1ProviderError::UnexpectedProviderStateTransition { from: Propose, to: Validate }
+        L1ProviderError::unexpected_transition(Propose, Validate)
     );
 }
 
@@ -95,12 +95,12 @@ fn validation_start_errors() {
     // Test.
     l1_provider.validation_start().unwrap();
 
-    assert_matches!(
+    assert_eq!(
         l1_provider.validation_start().unwrap_err(),
-        L1ProviderError::UnexpectedProviderStateTransition { from: Validate, to: Validate }
+        L1ProviderError::unexpected_transition(Validate, Validate)
     );
-    assert_matches!(
+    assert_eq!(
         l1_provider.proposal_start().unwrap_err(),
-        L1ProviderError::UnexpectedProviderStateTransition { from: Validate, to: Propose }
+        L1ProviderError::unexpected_transition(Validate, Propose)
     );
 }

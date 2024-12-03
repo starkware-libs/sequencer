@@ -160,20 +160,14 @@ impl ProviderState {
     fn transition_to_propose(self) -> L1ProviderResult<Self> {
         match self {
             ProviderState::Pending => Ok(ProviderState::Propose),
-            _ => Err(L1ProviderError::UnexpectedProviderStateTransition {
-                from: self,
-                to: ProviderState::Propose,
-            }),
+            _ => Err(L1ProviderError::unexpected_transition(self, ProviderState::Propose)),
         }
     }
 
     fn transition_to_validate(self) -> L1ProviderResult<Self> {
         match self {
             ProviderState::Pending => Ok(ProviderState::Validate),
-            _ => Err(L1ProviderError::UnexpectedProviderStateTransition {
-                from: self,
-                to: ProviderState::Validate,
-            }),
+            _ => Err(L1ProviderError::unexpected_transition(self, ProviderState::Validate)),
         }
     }
 
