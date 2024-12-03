@@ -2,6 +2,7 @@ use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::core::ContractAddress;
+use starknet_api::executable_transaction::AccountTransaction as ApiExecutableTransaction;
 use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::constants::TRANSFER_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::Fee;
@@ -143,7 +144,8 @@ impl TransfersGenerator {
             let recipient_address = self.get_next_recipient();
             self.sender_index = (self.sender_index + 1) % self.account_addresses.len();
 
-            let account_tx = self.generate_transfer(sender_address, recipient_address);
+            let tx = self.generate_transfer(sender_address, recipient_address);
+            let account_tx = AccountTransaction { tx, only_query: false };
             txs.push(Transaction::Account(account_tx));
         }
         let results = self.executor.execute_txs(&txs);
@@ -159,7 +161,7 @@ impl TransfersGenerator {
         &mut self,
         sender_address: ContractAddress,
         recipient_address: ContractAddress,
-    ) -> AccountTransaction {
+    ) -> ApiExecutableTransaction {
         let nonce = self.nonce_manager.next(sender_address);
 
         let entry_point_selector = selector_from_name(TRANSFER_ENTRY_POINT_NAME);
