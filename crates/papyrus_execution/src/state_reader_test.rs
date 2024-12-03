@@ -24,6 +24,7 @@ use papyrus_storage::header::HeaderStorageWriter;
 use papyrus_storage::state::StateStorageWriter;
 use papyrus_storage::test_utils::get_test_storage;
 use starknet_api::block::{BlockBody, BlockHash, BlockHeader, BlockHeaderWithoutHash, BlockNumber};
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, CompiledClassHash, Nonce};
 use starknet_api::hash::StarkHash;
 use starknet_api::state::{SierraContractClass, StateNumber, ThinStateDiff};
@@ -48,9 +49,11 @@ fn read_state() {
     let storage_value1 = felt!(888_u128);
     // The class is not used in the execution, so it can be default.
     let class0 = SierraContractClass::default();
+    let sierra_version0 = SierraVersion::extract_from_program(&class0.sierra_program).unwrap();
     let casm0 = get_test_casm();
-    let blockifier_casm0 =
-        RunnableCompiledClass::V1(CompiledClassV1::try_from(casm0.clone()).unwrap());
+    let blockifier_casm0 = RunnableCompiledClass::V1(
+        CompiledClassV1::try_from((casm0.clone(), sierra_version0)).unwrap(),
+    );
     let compiled_class_hash0 = CompiledClassHash(StarkHash::default());
 
     let class_hash1 = ClassHash(1u128.into());
@@ -65,8 +68,10 @@ fn read_state() {
     let mut casm2 = get_test_casm();
     casm2.bytecode[0] = BigUintAsHex { value: 12345u32.into() };
     let class2 = SierraContractClass::default();
-    let blockifier_casm2 =
-        RunnableCompiledClass::V1(CompiledClassV1::try_from(casm2.clone()).unwrap());
+    let sierra_version2 = SierraVersion::extract_from_program(&class2.sierra_program).unwrap();
+    let blockifier_casm2 = RunnableCompiledClass::V1(
+        CompiledClassV1::try_from((casm2.clone(), sierra_version2)).unwrap(),
+    );
     let nonce1 = Nonce(felt!(2_u128));
     let class_hash3 = ClassHash(567_u128.into());
     let class_hash4 = ClassHash(89_u128.into());

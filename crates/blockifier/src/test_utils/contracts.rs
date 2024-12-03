@@ -169,9 +169,10 @@ impl FeatureContract {
             CairoVersion::Cairo0 => {
                 ContractClass::V0(DeprecatedContractClass::from_file(&self.get_compiled_path()))
             }
-            CairoVersion::Cairo1(RunnableCairo1::Casm) => {
-                ContractClass::V1(CasmContractClass::from_file(&self.get_compiled_path()))
-            }
+            CairoVersion::Cairo1(RunnableCairo1::Casm) => ContractClass::V1((
+                CasmContractClass::from_file(&self.get_compiled_path()),
+                self.get_sierra_version(),
+            )),
             #[cfg(feature = "cairo_native")]
             CairoVersion::Cairo1(RunnableCairo1::Native) => {
                 panic!("Native contracts are not supported by this function.")

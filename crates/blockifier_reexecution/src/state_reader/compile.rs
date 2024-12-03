@@ -102,7 +102,8 @@ pub fn sierra_to_versioned_contract_class_v1(
         )
         // TODO(Aviv): Reconsider the unwrap.
         .unwrap();
-    Ok((ContractClass::V1(casm), sierra_version))
+    // TODO(AVIV): return only ContractClass.
+    Ok((ContractClass::V1((casm, sierra_version.clone())), sierra_version))
 }
 
 /// Compile a CompressedLegacyContractClass to a ContractClass V0 using cairo_lang_starknet_classes.
