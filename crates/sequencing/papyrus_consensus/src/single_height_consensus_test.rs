@@ -80,6 +80,7 @@ async fn proposer() {
 
     let mut shc = SingleHeightConsensus::new(
         BlockNumber(0),
+        false,
         *PROPOSER_ID,
         VALIDATORS.to_vec(),
         TIMEOUTS.clone(),
@@ -165,6 +166,7 @@ async fn validator(repeat_proposal: bool) {
     // Creation calls to `context.validators`.
     let mut shc = SingleHeightConsensus::new(
         BlockNumber(0),
+        false,
         *VALIDATOR_ID_1,
         VALIDATORS.to_vec(),
         TIMEOUTS.clone(),
@@ -244,6 +246,7 @@ async fn vote_twice(same_vote: bool) {
 
     let mut shc = SingleHeightConsensus::new(
         BlockNumber(0),
+        false,
         *VALIDATOR_ID_1,
         VALIDATORS.to_vec(),
         TIMEOUTS.clone(),
@@ -313,6 +316,7 @@ async fn rebroadcast_votes() {
 
     let mut shc = SingleHeightConsensus::new(
         BlockNumber(0),
+        false,
         *PROPOSER_ID,
         VALIDATORS.to_vec(),
         TIMEOUTS.clone(),
@@ -375,6 +379,7 @@ async fn repropose() {
 
     let mut shc = SingleHeightConsensus::new(
         BlockNumber(0),
+        false,
         *PROPOSER_ID,
         VALIDATORS.to_vec(),
         TIMEOUTS.clone(),

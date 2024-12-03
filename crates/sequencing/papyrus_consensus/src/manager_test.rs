@@ -145,6 +145,7 @@ async fn manager_multiple_heights_unordered() {
         .run_height(
             &mut context,
             BlockNumber(1),
+            false,
             &mut subscriber_channels,
             &mut proposal_receiver_receiver,
         )
@@ -170,6 +171,7 @@ async fn manager_multiple_heights_unordered() {
         .run_height(
             &mut context,
             BlockNumber(2),
+            false,
             &mut subscriber_channels,
             &mut proposal_receiver_receiver,
         )
@@ -223,6 +225,7 @@ async fn run_consensus_sync() {
     let consensus_handle = tokio::spawn(async move {
         run_consensus(
             context,
+            BlockNumber(1),
             BlockNumber(1),
             *VALIDATOR_ID,
             Duration::ZERO,
@@ -289,6 +292,7 @@ async fn run_consensus_sync_cancellation_safety() {
     let consensus_handle = tokio::spawn(async move {
         run_consensus(
             context,
+            BlockNumber(1),
             BlockNumber(1),
             *VALIDATOR_ID,
             Duration::ZERO,
@@ -376,6 +380,7 @@ async fn test_timeouts() {
             .run_height(
                 &mut context,
                 BlockNumber(1),
+                false,
                 &mut subscriber_channels.into(),
                 &mut proposal_receiver_receiver,
             )

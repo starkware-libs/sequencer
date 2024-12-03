@@ -155,6 +155,7 @@ pub(crate) struct SingleHeightConsensus {
 impl SingleHeightConsensus {
     pub(crate) fn new(
         height: BlockNumber,
+        is_observer: bool,
         id: ValidatorId,
         validators: Vec<ValidatorId>,
         timeouts: TimeoutsConfig,
@@ -162,7 +163,7 @@ impl SingleHeightConsensus {
         // TODO(matan): Use actual weights, not just `len`.
         let n_validators =
             u32::try_from(validators.len()).expect("Should have way less than u32::MAX validators");
-        let state_machine = StateMachine::new(id, n_validators);
+        let state_machine = StateMachine::new(id, n_validators, is_observer);
         Self {
             height,
             validators,
