@@ -11,7 +11,10 @@ use blockifier::blockifier::transaction_executor::{
 };
 use blockifier::bouncer::{BouncerConfig, BouncerWeights};
 use blockifier::context::{BlockContext, ChainInfo};
-use blockifier::execution::contract_class::RunnableCompiledClass;
+use blockifier::execution::contract_class::{
+    RunnableCompiledClass,
+    VersionedRunnableCompiledClass,
+};
 use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::state::errors::StateError;
 use blockifier::state::global_cache::GlobalContractCache;
@@ -34,6 +37,7 @@ use starknet_api::block::{
     BlockTimestamp,
     NonzeroGasPrice,
 };
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::ContractAddress;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::transaction::TransactionHash;
@@ -317,7 +321,7 @@ impl SerializeConfig for BlockBuilderConfig {
 pub struct BlockBuilderFactory {
     pub block_builder_config: BlockBuilderConfig,
     pub storage_reader: StorageReader,
-    pub global_class_hash_to_class: GlobalContractCache<RunnableCompiledClass>,
+    pub global_class_hash_to_class: GlobalContractCache<VersionedRunnableCompiledClass>,
 }
 
 impl BlockBuilderFactory {
