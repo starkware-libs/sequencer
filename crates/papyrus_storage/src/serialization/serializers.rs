@@ -28,7 +28,7 @@ use starknet_api::block::{
     GasPricePerToken,
     StarknetVersion,
 };
-use starknet_api::contract_class::EntryPointType;
+use starknet_api::contract_class::{EntryPointType, SierraVersion};
 use starknet_api::core::{
     ClassHash,
     CompiledClassHash,
@@ -742,6 +742,16 @@ impl StorageSerde for String {
 
     fn deserialize_from(bytes: &mut impl std::io::Read) -> Option<Self> {
         Self::from_utf8(Vec::deserialize_from(bytes)?).ok()
+    }
+}
+
+impl StorageSerde for SierraVersion {
+    fn serialize_into(&self, res: &mut impl std::io::Write) -> Result<(), StorageSerdeError> {
+        serde_json::to_value(self)?.serialize_into(res)
+    }
+
+    fn deserialize_from(bytes: &mut impl std::io::Read) -> Option<Self> {
+        serde_json::from_value(serde_json::Value::deserialize_from(bytes)?).ok()
     }
 }
 

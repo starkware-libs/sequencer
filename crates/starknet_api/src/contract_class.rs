@@ -120,6 +120,9 @@ impl FromStr for SierraVersion {
     }
 }
 
+/// A tuple of a CasmContractClass and a Sierra Version.
+pub type VersionedCasm = (CasmContractClass, SierraVersion);
+
 /// All relevant information about a declared contract class, including the compiled contract class
 /// and other parameters derived from the original declare transaction required for billing.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
