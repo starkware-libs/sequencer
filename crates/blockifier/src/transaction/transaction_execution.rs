@@ -19,7 +19,10 @@ use crate::execution::entry_point::EntryPointExecutionContext;
 use crate::fee::receipt::TransactionReceipt;
 use crate::state::cached_state::TransactionalState;
 use crate::state::state_api::UpdatableState;
-use crate::transaction::account_transaction::AccountTransaction;
+use crate::transaction::account_transaction::{
+    AccountTransaction,
+    ExecutionFlags as AccountExecutionFlags,
+};
 use crate::transaction::errors::TransactionFeeError;
 use crate::transaction::objects::{
     TransactionExecutionInfo,
@@ -40,7 +43,10 @@ impl From<starknet_api::executable_transaction::Transaction> for Transaction {
     fn from(value: starknet_api::executable_transaction::Transaction) -> Self {
         match value {
             starknet_api::executable_transaction::Transaction::Account(tx) => {
-                Transaction::Account(AccountTransaction { tx, only_query: false })
+                Transaction::Account(AccountTransaction {
+                    tx,
+                    execution_flags: AccountExecutionFlags::default(),
+                })
             }
             starknet_api::executable_transaction::Transaction::L1Handler(tx) => {
                 Transaction::L1Handler(tx)
@@ -78,6 +84,8 @@ impl Transaction {
         paid_fee_on_l1: Option<Fee>,
         deployed_contract_address: Option<ContractAddress>,
         only_query: bool,
+        charge_fee: bool,
+        validate: bool,
     ) -> TransactionExecutionResult<Self> {
         let executable_tx = match tx {
             StarknetApiTransaction::L1Handler(l1_handler) => {
@@ -119,7 +127,11 @@ impl Transaction {
             }
             _ => unimplemented!(),
         };
-        Ok(AccountTransaction { tx: executable_tx, only_query }.into())
+        Ok(AccountTransaction {
+            tx: executable_tx,
+            execution_flags: AccountExecutionFlags { only_query, charge_fee, validate },
+        }
+        .into())
     }
 }
 

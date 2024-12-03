@@ -42,10 +42,10 @@ use crate::test_utils::{
     DEFAULT_STRK_L2_GAS_PRICE,
     MAX_FEE,
 };
-use crate::transaction::account_transaction::AccountTransaction;
+use crate::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
 use crate::transaction::objects::{TransactionExecutionInfo, TransactionExecutionResult};
 use crate::transaction::transaction_types::TransactionType;
-use crate::transaction::transactions::ExecutableTransaction;
+use crate::transaction::transactions::{enforce_fee, ExecutableTransaction};
 
 // Corresponding constants to the ones in faulty_account.
 pub const VALID: u64 = 0;
@@ -115,7 +115,7 @@ pub fn deploy_and_fund_account(
     // Deploy an account contract.
     let deploy_account_tx = AccountTransaction {
         tx: deploy_account_tx(deploy_tx_args, nonce_manager),
-        only_query: false,
+        execution_flags: ExecutionFlags::default(),
     };
     let account_address = deploy_account_tx.sender_address();
 
@@ -165,6 +165,9 @@ pub struct FaultyAccountTxCreatorArgs {
     pub validate_constructor: bool,
     // Should be used with tx_type Declare.
     pub declared_contract: Option<FeatureContract>,
+    pub validate: bool,
+    pub only_query: bool,
+    pub charge_fee: bool,
 }
 
 impl Default for FaultyAccountTxCreatorArgs {
@@ -181,6 +184,9 @@ impl Default for FaultyAccountTxCreatorArgs {
             max_fee: Fee::default(),
             resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),
             declared_contract: None,
+            validate: true,
+            only_query: false,
+            charge_fee: true,
         }
     }
 }
@@ -217,6 +223,9 @@ pub fn create_account_tx_for_validate_test(
         max_fee,
         resource_bounds,
         declared_contract,
+        validate,
+        only_query,
+        charge_fee,
     } = faulty_account_tx_creator_args;
 
     // The first felt of the signature is used to set the scenario. If the scenario is
@@ -226,7 +235,7 @@ pub fn create_account_tx_for_validate_test(
         signature_vector.extend(additional_data);
     }
     let signature = TransactionSignature(signature_vector);
-
+    let execution_flags = ExecutionFlags { validate, charge_fee, only_query };
     match tx_type {
         TransactionType::Declare => {
             let declared_contract = match declared_contract {
@@ -251,7 +260,7 @@ pub fn create_account_tx_for_validate_test(
                 },
                 class_info,
             );
-            AccountTransaction { tx, only_query: false }
+            AccountTransaction { tx, execution_flags }
         }
         TransactionType::DeployAccount => {
             // We do not use the sender address here because the transaction generates the actual
@@ -272,7 +281,7 @@ pub fn create_account_tx_for_validate_test(
                 },
                 nonce_manager,
             );
-            AccountTransaction { tx, only_query: false }
+            AccountTransaction { tx, execution_flags }
         }
         TransactionType::InvokeFunction => {
             let execute_calldata = create_calldata(sender_address, "foo", &[]);
@@ -284,8 +293,9 @@ pub fn create_account_tx_for_validate_test(
                 calldata: execute_calldata,
                 version: tx_version,
                 nonce: nonce_manager.next(sender_address),
+
             });
-            AccountTransaction { tx, only_query: false }
+            AccountTransaction { tx, execution_flags }
         }
         _ => panic!("{tx_type:?} is not an account transaction."),
     }
@@ -293,7 +303,8 @@ pub fn create_account_tx_for_validate_test(
 
 pub fn account_invoke_tx(invoke_args: InvokeTxArgs) -> AccountTransaction {
     let only_query = invoke_args.only_query;
-    AccountTransaction { tx: invoke_tx(invoke_args), only_query }
+    let execution_flags = ExecutionFlags { only_query, ..ExecutionFlags::default() };
+    AccountTransaction { tx: invoke_tx(invoke_args), execution_flags }
 }
 
 pub fn run_invoke_tx(
@@ -303,8 +314,9 @@ pub fn run_invoke_tx(
 ) -> TransactionExecutionResult<TransactionExecutionInfo> {
     let only_query = invoke_args.only_query;
     let tx = invoke_tx(invoke_args);
-    let account_tx = AccountTransaction { tx, only_query };
-    let charge_fee = account_tx.enforce_fee();
+    let charge_fee = enforce_fee(&tx, only_query);
+    let execution_flags = ExecutionFlags { charge_fee, only_query, ..ExecutionFlags::default() };
+    let account_tx = AccountTransaction { tx, execution_flags };
 
     account_tx.execute(state, block_context, charge_fee, true)
 }
@@ -381,6 +393,9 @@ pub fn emit_n_events_tx(
         calldata,
         nonce
     });
+    let only_query = false;
+    let charge_fee = enforce_fee(&tx, only_query);
+    let execution_flags = ExecutionFlags { only_query, charge_fee, ..ExecutionFlags::default() };
 
-    AccountTransaction { tx, only_query: false }
+    AccountTransaction { tx, execution_flags }
 }
