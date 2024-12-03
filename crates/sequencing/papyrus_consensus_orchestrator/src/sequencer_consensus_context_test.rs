@@ -13,13 +13,22 @@ use papyrus_network::network_manager::test_utils::{
     TestSubscriberChannels,
 };
 use papyrus_network::network_manager::BroadcastTopicChannels;
-use papyrus_protobuf::consensus::{ProposalInit, ProposalPart, StreamMessage};
+use papyrus_protobuf::consensus::{
+    ProposalFin,
+    ProposalInit,
+    ProposalPart,
+    StreamMessage,
+    TransactionBatch,
+};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::{ContractAddress, StateDiffCommitment};
-use starknet_api::executable_transaction::{AccountTransaction, Transaction};
+use starknet_api::executable_transaction::{
+    AccountTransaction,
+    Transaction as ExecutableTransaction,
+};
 use starknet_api::hash::PoseidonHash;
-use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
-use starknet_api::transaction::TransactionHash;
+use starknet_api::test_utils::invoke::{executable_invoke_tx, invoke_tx, InvokeTxArgs};
+use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_batcher_types::batcher_types::{
     GetProposalContent,
     GetProposalContentResponse,
@@ -43,11 +52,16 @@ const NUM_VALIDATORS: u64 = 4;
 const STATE_DIFF_COMMITMENT: StateDiffCommitment = StateDiffCommitment(PoseidonHash(Felt::ZERO));
 
 lazy_static! {
-    static ref TX_BATCH: Vec<Transaction> = vec![generate_invoke_tx(Felt::THREE)];
+    static ref TX_BATCH: Vec<ExecutableTransaction> =
+        vec![generate_executable_invoke_tx(Felt::THREE)];
 }
 
-fn generate_invoke_tx(tx_hash: Felt) -> Transaction {
-    Transaction::Account(AccountTransaction::Invoke(executable_invoke_tx(InvokeTxArgs {
+fn generate_invoke_tx() -> Transaction {
+    Transaction::Invoke(invoke_tx(InvokeTxArgs::default()))
+}
+
+fn generate_executable_invoke_tx(tx_hash: Felt) -> ExecutableTransaction {
+    ExecutableTransaction::Account(AccountTransaction::Invoke(executable_invoke_tx(InvokeTxArgs {
         tx_hash: TransactionHash(tx_hash),
         ..Default::default()
     })))
@@ -177,11 +191,26 @@ async fn validate_proposal_success() {
     context.set_height_and_round(BlockNumber(0), 0).await;
 
     let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
-    content_sender.send(TX_BATCH.clone()).await.unwrap();
+    let tx_hash = TX_BATCH.first().unwrap().tx_hash();
+    let txs =
+        TX_BATCH.clone().into_iter().map(starknet_api::transaction::Transaction::from).collect();
+    content_sender
+        .send(ProposalPart::Transactions(TransactionBatch {
+            transactions: txs,
+            tx_hashes: vec![tx_hash],
+        }))
+        .await
+        .unwrap();
+    content_sender
+        .send(ProposalPart::Fin(ProposalFin {
+            proposal_content_id: BlockHash(STATE_DIFF_COMMITMENT.0.0),
+        }))
+        .await
+        .unwrap();
     let fin_receiver =
         context.validate_proposal(BlockNumber(0), 0, TIMEOUT, content_receiver).await;
     content_sender.close_channel();
-    assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
+    assert_eq!(fin_receiver.await.unwrap().0.0, STATE_DIFF_COMMITMENT.0.0);
 }
 
 #[tokio::test]
@@ -229,12 +258,19 @@ async fn repropose() {
 
     // Receive a valid proposal.
     let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
-    let txs = vec![generate_invoke_tx(Felt::TWO)];
-    content_sender.send(txs.clone()).await.unwrap();
+    let prop_part = ProposalPart::Transactions(TransactionBatch {
+        transactions: vec![generate_invoke_tx()],
+        tx_hashes: vec![TransactionHash(Felt::TWO)],
+    });
+    content_sender.send(prop_part).await.unwrap();
+    let prop_part = ProposalPart::Fin(ProposalFin {
+        proposal_content_id: BlockHash(STATE_DIFF_COMMITMENT.0.0),
+    });
+    content_sender.send(prop_part).await.unwrap();
     let fin_receiver =
         context.validate_proposal(BlockNumber(0), 0, TIMEOUT, content_receiver).await;
     content_sender.close_channel();
-    assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
+    assert_eq!(fin_receiver.await.unwrap().0.0, STATE_DIFF_COMMITMENT.0.0);
 
     // Re-proposal: Just asserts this is a known valid proposal.
     context
@@ -299,28 +335,40 @@ async fn proposals_from_different_rounds() {
     context.set_height_and_round(BlockNumber(0), 0).await;
     context.set_height_and_round(BlockNumber(0), 1).await;
 
+    // Proposal parts sent in the proposals.
+    let prop_part_txs = ProposalPart::Transactions(TransactionBatch {
+        transactions: TX_BATCH.clone().into_iter().map(Transaction::from).collect(),
+        tx_hashes: vec![TX_BATCH[0].tx_hash()],
+    });
+    let prop_part_fin = ProposalPart::Fin(ProposalFin {
+        proposal_content_id: BlockHash(STATE_DIFF_COMMITMENT.0.0),
+    });
+
     // The proposal from the past round is ignored.
     let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
-    content_sender.send(TX_BATCH.clone()).await.unwrap();
+    content_sender.send(prop_part_txs.clone()).await.unwrap();
+
     let fin_receiver_past_round =
         context.validate_proposal(BlockNumber(0), 0, TIMEOUT, content_receiver).await;
-    content_sender.close_channel();
+    // No fin was sent, channel remains open.
     assert!(fin_receiver_past_round.await.is_err());
 
     // The proposal from the current round should be validated.
     let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
-    content_sender.send(TX_BATCH.clone()).await.unwrap();
+    content_sender.send(prop_part_txs.clone()).await.unwrap();
+    content_sender.send(prop_part_fin.clone()).await.unwrap();
     let fin_receiver_curr_round =
         context.validate_proposal(BlockNumber(0), 1, TIMEOUT, content_receiver).await;
-    content_sender.close_channel();
-    assert_eq!(fin_receiver_curr_round.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
+    assert_eq!(fin_receiver_curr_round.await.unwrap().0.0, STATE_DIFF_COMMITMENT.0.0);
 
     // The proposal from the future round should not be processed.
     let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
-    content_sender.send(TX_BATCH.clone()).await.unwrap();
+    content_sender.send(prop_part_txs.clone()).await.unwrap();
+    content_sender.send(prop_part_fin.clone()).await.unwrap();
     let fin_receiver_future_round =
         context.validate_proposal(BlockNumber(0), 2, TIMEOUT, content_receiver).await;
     content_sender.close_channel();
+    // Even with sending fin and closing the channel.
     assert!(fin_receiver_future_round.now_or_never().is_none());
 }
 
@@ -389,14 +437,25 @@ async fn interrupt_active_proposal() {
         context.validate_proposal(BlockNumber(0), 0, TIMEOUT, content_receiver).await;
 
     let (mut content_sender_1, content_receiver) = mpsc::channel(CHANNEL_SIZE);
-    content_sender_1.send(TX_BATCH.clone()).await.unwrap();
+    content_sender_1
+        .send(ProposalPart::Transactions(TransactionBatch {
+            transactions: TX_BATCH.clone().into_iter().map(Transaction::from).collect(),
+            tx_hashes: vec![TX_BATCH[0].tx_hash()],
+        }))
+        .await
+        .unwrap();
+    content_sender_1
+        .send(ProposalPart::Fin(ProposalFin {
+            proposal_content_id: BlockHash(STATE_DIFF_COMMITMENT.0.0),
+        }))
+        .await
+        .unwrap();
     let fin_receiver_1 =
         context.validate_proposal(BlockNumber(0), 1, TIMEOUT, content_receiver).await;
-    content_sender_1.close_channel();
     // Move the context to the next round.
     context.set_height_and_round(BlockNumber(0), 1).await;
 
     // Interrupt active proposal.
     assert!(fin_receiver_0.await.is_err());
-    assert_eq!(fin_receiver_1.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
+    assert_eq!(fin_receiver_1.await.unwrap().0.0, STATE_DIFF_COMMITMENT.0.0);
 }
