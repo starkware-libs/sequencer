@@ -49,6 +49,7 @@ impl PapyrusReader {
         &self,
         class_hash: ClassHash,
     ) -> StateResult<VersionedRunnableCompiledClass> {
+        // TODO(AVIV): Return RunnableCompiledClass.
         let state_number = StateNumber(self.latest_block);
         let class_declaration_block_number = self
             .reader()?
@@ -69,9 +70,10 @@ impl PapyrusReader {
                      database is inconsistent.",
                 );
             let sierra_version = SierraVersion::extract_from_program(&sierra.sierra_program)?;
-            let runnable_compiled =
-                RunnableCompiledClass::V1(CompiledClassV1::try_from(casm_compiled_class)?);
-
+            let runnable_compiled = RunnableCompiledClass::V1(CompiledClassV1::try_from((
+                casm_compiled_class,
+                sierra_version.clone(),
+            ))?);
             return Ok(VersionedRunnableCompiledClass::Cairo1((runnable_compiled, sierra_version)));
         }
 

@@ -7,6 +7,7 @@ use cached::Cached;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use pretty_assertions::assert_eq;
 use starknet_api::class_hash;
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::SierraContractClass;
 use starknet_types_core::felt::Felt;
@@ -32,8 +33,13 @@ fn global_contract_cache_update() {
         entry_points_by_type: Default::default(),
     };
     let sierra = SierraContractClass::default();
-    let contract_class =
-        RunnableCompiledClass::V1(CompiledClassV1::try_from(casm.clone()).unwrap());
+    let contract_class = RunnableCompiledClass::V1(
+        CompiledClassV1::try_from((
+            casm.clone(),
+            SierraVersion::extract_from_program(&sierra.sierra_program).unwrap(),
+        ))
+        .unwrap(),
+    );
     let class_hash = class_hash!("0x1");
 
     let temp_storage_path = tempfile::tempdir().unwrap().into_path();

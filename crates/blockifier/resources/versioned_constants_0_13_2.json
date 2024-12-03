@@ -610,7 +610,7 @@
     },
     "validate_max_n_steps": 1000000,
     "validate_max_sierra_gas": 10000000000,
-    "min_compiler_version_for_sierra_gas": "100.0.0",
+    "min_sierra_version_for_sierra_gas": "100.0.0",
     "vm_resource_fee_cost": {
         "builtins": {
             "add_mod_builtin": [
