@@ -3,6 +3,7 @@ use blockifier::blockifier::transaction_executor::TransactionExecutor;
 use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::state::state_api::{StateReader, StateResult};
 use blockifier::test_utils::MAX_FEE;
+use blockifier::transaction::account_transaction::ExecutionFlags;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use papyrus_execution::DEPRECATED_CONTRACT_SIERRA_SIZE;
 use starknet_api::block::{BlockHash, BlockNumber};
@@ -41,11 +42,19 @@ pub trait ReexecutionStateReader {
         &self,
         txs_and_hashes: Vec<(Transaction, TransactionHash)>,
     ) -> ReexecutionResult<Vec<BlockifierTransaction>> {
+        let execution_flags = ExecutionFlags::default();
         txs_and_hashes
             .into_iter()
             .map(|(tx, tx_hash)| match tx {
                 Transaction::Invoke(_) | Transaction::DeployAccount(_) => {
-                    Ok(BlockifierTransaction::from_api(tx, tx_hash, None, None, None, false)?)
+                    Ok(BlockifierTransaction::from_api(
+                        tx,
+                        tx_hash,
+                        None,
+                        None,
+                        None,
+                        execution_flags.clone(),
+                    )?)
                 }
                 Transaction::Declare(ref declare_tx) => {
                     let class_info = self
@@ -57,7 +66,7 @@ pub trait ReexecutionStateReader {
                         Some(class_info),
                         None,
                         None,
-                        false,
+                        execution_flags.clone(),
                     )?)
                 }
                 Transaction::L1Handler(_) => Ok(BlockifierTransaction::from_api(
@@ -66,7 +75,7 @@ pub trait ReexecutionStateReader {
                     None,
                     Some(MAX_FEE),
                     None,
-                    false,
+                    execution_flags.clone(),
                 )?),
 
                 Transaction::Deploy(_) => {
