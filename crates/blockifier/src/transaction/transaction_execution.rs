@@ -40,7 +40,7 @@ impl From<starknet_api::executable_transaction::Transaction> for Transaction {
     fn from(value: starknet_api::executable_transaction::Transaction) -> Self {
         match value {
             starknet_api::executable_transaction::Transaction::Account(tx) => {
-                Transaction::Account(tx.into())
+                Transaction::Account(AccountTransaction { tx, only_query: false })
             }
             starknet_api::executable_transaction::Transaction::L1Handler(tx) => {
                 Transaction::L1Handler(tx)
@@ -119,11 +119,7 @@ impl Transaction {
             }
             _ => unimplemented!(),
         };
-        let account_tx = match only_query {
-            true => AccountTransaction::new_for_query(executable_tx),
-            false => AccountTransaction::new(executable_tx),
-        };
-        Ok(account_tx.into())
+        Ok(AccountTransaction { tx: executable_tx, only_query }.into())
     }
 }
 

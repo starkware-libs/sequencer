@@ -7,8 +7,5 @@ pub fn invoke_tx(invoke_args: InvokeTxArgs) -> AccountTransaction {
     let only_query = invoke_args.only_query;
     let invoke_tx = ExecutableTransaction::Invoke(executable_invoke_tx(invoke_args));
 
-    match only_query {
-        true => AccountTransaction::new_for_query(invoke_tx),
-        false => AccountTransaction::new(invoke_tx),
-    }
+    AccountTransaction { tx: invoke_tx, only_query }
 }
