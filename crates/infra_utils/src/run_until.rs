@@ -2,7 +2,7 @@ use std::future::Future;
 
 use tokio::time::{sleep, Duration};
 
-use crate::tracing::DynamicLogger;
+use crate::tracing::CustomLogger;
 
 #[cfg(test)]
 #[path = "run_until_test.rs"]
@@ -26,7 +26,7 @@ pub async fn run_until<T, F, C, Fut>(
     max_attempts: usize,
     mut executable: F,
     condition: C,
-    logger: Option<DynamicLogger>,
+    logger: Option<CustomLogger>,
 ) -> Option<T>
 where
     T: Clone + Send + std::fmt::Debug + 'static,
