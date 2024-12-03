@@ -21,7 +21,7 @@ use itertools::Itertools;
 use semver::Version;
 use serde::de::Error as DeserializationError;
 use serde::{Deserialize, Deserializer, Serialize};
-use starknet_api::contract_class::{ContractClass, EntryPointType};
+use starknet_api::contract_class::{ContractClass, EntryPointType, SierraVersion};
 use starknet_api::core::EntryPointSelector;
 use starknet_api::deprecated_contract_class::{
     ContractClass as DeprecatedContractClass,
@@ -66,6 +66,27 @@ pub enum RunnableCompiledClass {
     V1(CompiledClassV1),
     #[cfg(feature = "cairo_native")]
     V1Native(NativeCompiledClassV1),
+}
+
+/// Represents a runnable compiled class for Cairo, with the Sierra version (for Cairo 1).
+pub enum VersionedRunnableCompiledClass {
+    Cairo0(RunnableCompiledClass),
+    Cairo1((RunnableCompiledClass, SierraVersion)),
+}
+
+impl From<VersionedRunnableCompiledClass> for RunnableCompiledClass {
+    fn from(
+        versioned_runnable_compiled_class: VersionedRunnableCompiledClass,
+    ) -> RunnableCompiledClass {
+        match versioned_runnable_compiled_class {
+            VersionedRunnableCompiledClass::Cairo0(runnable_compiled_class) => {
+                runnable_compiled_class
+            }
+            VersionedRunnableCompiledClass::Cairo1((runnable_compiled_class, __)) => {
+                runnable_compiled_class
+            }
+        }
+    }
 }
 
 impl TryFrom<ContractClass> for RunnableCompiledClass {
