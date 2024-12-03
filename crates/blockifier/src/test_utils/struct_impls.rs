@@ -12,6 +12,8 @@ use cairo_native::executor::AotContractExecutor;
 use serde_json::Value;
 use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp};
 use starknet_api::contract_address;
+#[cfg(feature = "cairo_native")]
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ChainId, ClassHash};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::test_utils::DEFAULT_GAS_PRICES;
@@ -241,6 +243,16 @@ impl NativeCompiledClassV1 {
             .extract_sierra_program()
             .expect("Cannot extract sierra program from sierra contract class");
 
+        let sierra_version_values = sierra_contract_class
+            .sierra_program
+            .iter()
+            .take(3)
+            .map(|x| x.value.clone())
+            .collect::<Vec<_>>();
+
+        let sierra_version = SierraVersion::extract_from_program(&sierra_version_values)
+            .expect("Cannot extract sierra version from sierra program");
+
         let executor = AotContractExecutor::new(
             &sierra_program,
             &sierra_contract_class.entry_points_by_type,
@@ -252,7 +264,7 @@ impl NativeCompiledClassV1 {
         let casm_contract_class =
             CasmContractClass::from_contract_class(sierra_contract_class, false, usize::MAX)
                 .expect("Cannot compile sierra contract class into casm contract class");
-        let casm = CompiledClassV1::try_from(casm_contract_class)
+        let casm = CompiledClassV1::try_from((casm_contract_class, sierra_version))
             .expect("Cannot get CompiledClassV1 from CasmContractClass");
 
         NativeCompiledClassV1::new(executor, casm)

@@ -69,9 +69,10 @@ pub(crate) fn get_contract_class(
             let (Some(casm), Some(sierra)) = txn.get_casm_and_sierra(class_hash)? else {
                 return Err(ExecutionUtilsError::CasmTableNotSynced);
             };
-            let _sierra_version = SierraVersion::extract_from_program(&sierra.sierra_program)?;
+            let sierra_version = SierraVersion::extract_from_program(&sierra.sierra_program)?;
             return Ok(Some(RunnableCompiledClass::V1(
-                CompiledClassV1::try_from(casm).map_err(ExecutionUtilsError::ProgramError)?,
+                CompiledClassV1::try_from((casm, sierra_version))
+                    .map_err(ExecutionUtilsError::ProgramError)?,
             )));
         }
         None => {}
