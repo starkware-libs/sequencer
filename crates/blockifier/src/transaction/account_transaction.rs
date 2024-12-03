@@ -104,7 +104,11 @@ macro_rules! implement_tx_getter_calls {
         })*
     };
 }
-
+impl AccountTransaction {
+    pub fn new(tx: Transaction) -> Self {
+        Self { tx, execution_flags: ExecutionFlags::default() }
+    }
+}
 impl HasRelatedFeeType for AccountTransaction {
     fn version(&self) -> TransactionVersion {
         self.tx.version()
