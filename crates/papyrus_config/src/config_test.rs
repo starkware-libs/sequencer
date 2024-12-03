@@ -6,9 +6,9 @@ use std::time::Duration;
 
 use assert_matches::assert_matches;
 use clap::Command;
-use infra_utils::path::resolve_project_relative_path;
 use itertools::chain;
 use lazy_static::lazy_static;
+use papyrus_proc_macros::generate_get_package_dir;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tempfile::TempDir;
@@ -50,10 +50,11 @@ use crate::{
     SerializedParam,
 };
 
+generate_get_package_dir!();
+
 lazy_static! {
-    static ref CUSTOM_CONFIG_PATH: PathBuf =
-        resolve_project_relative_path("crates/papyrus_config/resources/custom_config_example.json")
-            .unwrap();
+    static ref CUSTOM_CONFIG_PATH: PathBuf = PathBuf::from(get_package_dir())
+        .join("crates/papyrus_config/resources/custom_config_example.json");
 }
 
 #[derive(Clone, Copy, Default, Serialize, Deserialize, Debug, PartialEq, Validate)]

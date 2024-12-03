@@ -7334,9 +7334,9 @@ version = "0.0.0"
 dependencies = [
  "assert_matches",
  "clap",
- "infra_utils",
  "itertools 0.12.1",
  "lazy_static",
+ "papyrus_proc_macros",
  "papyrus_test_utils",
  "serde",
  "serde_json",
