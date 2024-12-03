@@ -229,6 +229,7 @@ impl SingleHeightConsensus {
             .validate_proposal(
                 self.height,
                 init.round,
+                init.proposer,
                 self.timeouts.proposal_timeout,
                 p2p_messages_receiver,
             )
