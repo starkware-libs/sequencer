@@ -79,10 +79,8 @@ impl From<VersionedRunnableCompiledClass> for RunnableCompiledClass {
         versioned_runnable_compiled_class: VersionedRunnableCompiledClass,
     ) -> RunnableCompiledClass {
         match versioned_runnable_compiled_class {
-            VersionedRunnableCompiledClass::Cairo0(runnable_compiled_class) => {
-                runnable_compiled_class
-            }
-            VersionedRunnableCompiledClass::Cairo1((runnable_compiled_class, __)) => {
+            VersionedRunnableCompiledClass::Cairo0(runnable_compiled_class)
+            | VersionedRunnableCompiledClass::Cairo1((runnable_compiled_class, _)) => {
                 runnable_compiled_class
             }
         }

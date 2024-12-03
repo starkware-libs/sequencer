@@ -26,6 +26,9 @@ pub struct PapyrusReader {
     storage_reader: StorageReader,
     latest_block: BlockNumber,
     global_class_hash_to_class: GlobalContractCache<RunnableCompiledClass>,
+    #[allow(dead_code)]
+    // TODO(Aviv): use this cache
+    global_class_hash_to_sierra_version: GlobalContractCache<SierraVersion>,
 }
 
 impl PapyrusReader {
@@ -33,8 +36,14 @@ impl PapyrusReader {
         storage_reader: StorageReader,
         latest_block: BlockNumber,
         global_class_hash_to_class: GlobalContractCache<RunnableCompiledClass>,
+        global_class_hash_to_sierra_version: GlobalContractCache<SierraVersion>,
     ) -> Self {
-        Self { storage_reader, latest_block, global_class_hash_to_class }
+        Self {
+            storage_reader,
+            latest_block,
+            global_class_hash_to_class,
+            global_class_hash_to_sierra_version,
+        }
     }
 
     fn reader(&self) -> StateResult<RawPapyrusReader<'_>> {

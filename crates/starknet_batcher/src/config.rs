@@ -15,6 +15,7 @@ pub struct BatcherConfig {
     pub input_stream_content_buffer_size: usize,
     pub block_builder_config: BlockBuilderConfig,
     pub global_contract_cache_size: usize,
+    pub global_sierra_version_cache_size: usize,
     pub max_l1_handler_txs_per_block_proposal: usize,
 }
 
@@ -76,6 +77,8 @@ impl Default for BatcherConfig {
             input_stream_content_buffer_size: 400,
             block_builder_config: BlockBuilderConfig::default(),
             global_contract_cache_size: 400,
+            // TODO(Aviv): set a more reasonable default value.
+            global_sierra_version_cache_size: 50,
             max_l1_handler_txs_per_block_proposal: 3,
         }
     }
