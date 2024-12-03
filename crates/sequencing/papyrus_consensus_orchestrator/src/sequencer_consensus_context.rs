@@ -19,7 +19,7 @@ use papyrus_consensus::types::{
     Round,
     ValidatorId,
 };
-use papyrus_network::network_manager::BroadcastTopicClient;
+use papyrus_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
 use papyrus_protobuf::consensus::{
     ConsensusMessage,
     ProposalFin,
@@ -82,6 +82,8 @@ pub struct SequencerConsensusContext {
     queued_proposals:
         BTreeMap<Round, (ValidationParams, oneshot::Sender<(ProposalContentId, ProposalFin)>)>,
     outbound_proposal_sender: mpsc::Sender<(u64, mpsc::Receiver<ProposalPart>)>,
+    // Used to broadcast votes to other consensus nodes.
+    vote_broadcast_client: BroadcastTopicClient<ConsensusMessage>,
 }
 
 impl SequencerConsensusContext {
@@ -89,12 +91,14 @@ impl SequencerConsensusContext {
         batcher: Arc<dyn BatcherClient>,
         _proposal_streaming_client: BroadcastTopicClient<ProposalPart>,
         outbound_proposal_sender: mpsc::Sender<(u64, mpsc::Receiver<ProposalPart>)>,
+        vote_broadcast_client: BroadcastTopicClient<ConsensusMessage>,
         num_validators: u64,
     ) -> Self {
         Self {
             batcher,
             _proposal_streaming_client,
             outbound_proposal_sender,
+            vote_broadcast_client,
             validators: (0..num_validators).map(ValidatorId::from).collect(),
             valid_proposals: Arc::new(Mutex::new(HeightToIdToContent::new())),
             proposal_id: 0,
@@ -242,7 +246,8 @@ impl ConsensusContext for SequencerConsensusContext {
     }
 
     async fn broadcast(&mut self, message: ConsensusMessage) -> Result<(), ConsensusError> {
-        debug!("No-op broadcasting message: {message:?}");
+        debug!("Broadcasting message: {message:?}");
+        self.vote_broadcast_client.broadcast_message(message).await?;
         Ok(())
     }
 
