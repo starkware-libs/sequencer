@@ -18,10 +18,9 @@ use cairo_vm::types::program::Program;
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use itertools::Itertools;
-use semver::Version;
 use serde::de::Error as DeserializationError;
 use serde::{Deserialize, Deserializer, Serialize};
-use starknet_api::contract_class::{ContractClass, EntryPointType, SierraVersion};
+use starknet_api::contract_class::{ContractClass, EntryPointType, SierraVersion, VersionedCasm};
 use starknet_api::core::EntryPointSelector;
 use starknet_api::deprecated_contract_class::{
     ContractClass as DeprecatedContractClass,
@@ -38,7 +37,6 @@ use crate::execution::execution_utils::{poseidon_hash_many_cost, sn_api_to_cairo
 #[cfg(feature = "cairo_native")]
 use crate::execution::native::contract_class::NativeCompiledClassV1;
 use crate::transaction::errors::TransactionExecutionError;
-use crate::versioned_constants::CompilerVersion;
 
 #[cfg(test)]
 #[path = "contract_class_test.rs"]
@@ -70,6 +68,7 @@ pub enum RunnableCompiledClass {
 /// Represents a runnable compiled class for Cairo, with the Sierra version (for Cairo 1).
 #[derive(Clone)]
 pub enum VersionedRunnableCompiledClass {
+    // TODO(Aviv): Delete this enum.
     Cairo0(RunnableCompiledClass),
     Cairo1((RunnableCompiledClass, SierraVersion)),
 }
@@ -93,7 +92,7 @@ impl TryFrom<ContractClass> for RunnableCompiledClass {
     fn try_from(raw_contract_class: ContractClass) -> Result<Self, Self::Error> {
         let contract_class: Self = match raw_contract_class {
             ContractClass::V0(raw_contract_class) => Self::V0(raw_contract_class.try_into()?),
-            ContractClass::V1(raw_contract_class) => Self::V1(raw_contract_class.try_into()?),
+            ContractClass::V1(versioned_casm) => Self::V1(versioned_casm.try_into()?),
         };
 
         Ok(contract_class)
@@ -151,7 +150,7 @@ impl RunnableCompiledClass {
     /// Returns whether this contract should run using Cairo steps or Sierra gas.
     pub fn tracked_resource(
         &self,
-        min_sierra_version: &CompilerVersion,
+        min_sierra_version: &SierraVersion,
         last_tracked_resource: Option<&TrackedResource>,
     ) -> TrackedResource {
         let contract_tracked_resource = match self {
@@ -283,8 +282,8 @@ impl CompiledClassV1 {
     }
 
     /// Returns whether this contract should run using Cairo steps or Sierra gas.
-    pub fn tracked_resource(&self, min_sierra_version: &CompilerVersion) -> TrackedResource {
-        if *min_sierra_version <= self.compiler_version {
+    pub fn tracked_resource(&self, min_sierra_version: &SierraVersion) -> TrackedResource {
+        if *min_sierra_version <= self.sierra_version {
             TrackedResource::SierraGas
         } else {
             TrackedResource::CairoSteps
@@ -310,7 +309,9 @@ impl CompiledClassV1 {
 
     pub fn try_from_json_string(raw_contract_class: &str) -> Result<CompiledClassV1, ProgramError> {
         let casm_contract_class: CasmContractClass = serde_json::from_str(raw_contract_class)?;
-        let contract_class = CompiledClassV1::try_from(casm_contract_class)?;
+        // TODO(Aviv): Use Sierra version received from Python state reader.
+        let sierra_version = SierraVersion::DEPRECATED;
+        let contract_class = CompiledClassV1::try_from((casm_contract_class, sierra_version))?;
 
         Ok(contract_class)
     }
@@ -412,7 +413,7 @@ pub struct ContractClassV1Inner {
     pub program: Program,
     pub entry_points_by_type: EntryPointsByType<EntryPointV1>,
     pub hints: HashMap<String, Hint>,
-    pub compiler_version: CompilerVersion,
+    pub sierra_version: SierraVersion,
     bytecode_segment_lengths: NestedIntList,
 }
 
@@ -435,10 +436,10 @@ impl HasSelector for EntryPointV1 {
     }
 }
 
-impl TryFrom<CasmContractClass> for CompiledClassV1 {
+impl TryFrom<VersionedCasm> for CompiledClassV1 {
     type Error = ProgramError;
 
-    fn try_from(class: CasmContractClass) -> Result<Self, Self::Error> {
+    fn try_from((class, sierra_version): VersionedCasm) -> Result<Self, Self::Error> {
         let data: Vec<MaybeRelocatable> =
             class.bytecode.iter().map(|x| MaybeRelocatable::from(Felt::from(&x.value))).collect();
 
@@ -484,15 +485,11 @@ impl TryFrom<CasmContractClass> for CompiledClassV1 {
         let bytecode_segment_lengths = class
             .bytecode_segment_lengths
             .unwrap_or_else(|| NestedIntList::Leaf(program.data_len()));
-        let compiler_version = CompilerVersion(
-            Version::parse(&class.compiler_version)
-                .unwrap_or_else(|_| panic!("Invalid version: '{}'", class.compiler_version)),
-        );
         Ok(CompiledClassV1(Arc::new(ContractClassV1Inner {
             program,
             entry_points_by_type,
             hints: string_to_hint,
-            compiler_version,
+            sierra_version,
             bytecode_segment_lengths,
         })))
     }

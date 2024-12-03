@@ -89,13 +89,14 @@ impl BlockifierStateReader for ExecutionStateReader {
                             pending_data.classes.get_compiled_class(class_hash)
                         })
                     {
+                        let sierra_version =
+                            SierraVersion::extract_from_program(&sierra.sierra_program)?;
+
                         let runnable_compiled_class = RunnableCompiledClass::V1(
-                            CompiledClassV1::try_from(pending_casm)
+                            CompiledClassV1::try_from((pending_casm, sierra_version))
                                 .map_err(StateError::ProgramError)?,
                         );
-                        let _sierra_version =
-                            SierraVersion::extract_from_program(&sierra.sierra_program)?;
-                        // TODO(AVIV): Use the sierra version when the return type is updated.
+
                         return Ok(runnable_compiled_class);
                     }
                 }
