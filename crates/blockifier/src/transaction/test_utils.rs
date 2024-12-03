@@ -291,6 +291,7 @@ pub fn create_account_tx_for_validate_test(
     }
 }
 
+// TODO(AvivG): Consider removing this function.
 pub fn account_invoke_tx(invoke_args: InvokeTxArgs) -> AccountTransaction {
     let only_query = invoke_args.only_query;
     AccountTransaction { tx: invoke_tx(invoke_args), only_query }
@@ -301,10 +302,12 @@ pub fn run_invoke_tx(
     block_context: &BlockContext,
     invoke_args: InvokeTxArgs,
 ) -> TransactionExecutionResult<TransactionExecutionInfo> {
-    let tx = account_invoke_tx(invoke_args);
-    let charge_fee = tx.enforce_fee();
+    let only_query = invoke_args.only_query;
+    let tx = invoke_tx(invoke_args);
+    let account_tx = AccountTransaction { tx, only_query };
+    let charge_fee = account_tx.enforce_fee();
 
-    tx.execute(state, block_context, charge_fee, true)
+    account_tx.execute(state, block_context, charge_fee, true)
 }
 
 /// Creates a `ResourceBoundsMapping` with the given `max_amount` and `max_price` for L1 gas limits.
@@ -374,9 +377,11 @@ pub fn emit_n_events_tx(
         felt!(0_u32),                     // data length.
     ];
     let calldata = create_calldata(contract_address, "test_emit_events", &entry_point_args);
-    account_invoke_tx(invoke_tx_args! {
+    let tx = invoke_tx(invoke_tx_args! {
         sender_address: account_contract,
         calldata,
         nonce
-    })
+    });
+
+    AccountTransaction { tx, only_query: false }
 }
