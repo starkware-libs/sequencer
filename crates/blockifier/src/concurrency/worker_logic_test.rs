@@ -32,7 +32,7 @@ use crate::test_utils::{
     BALANCE,
     TEST_ERC20_CONTRACT_ADDRESS2,
 };
-use crate::transaction::account_transaction::AccountTransaction;
+use crate::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
 use crate::transaction::objects::HasRelatedFeeType;
 use crate::transaction::test_utils::{
     account_invoke_tx,
@@ -561,7 +561,8 @@ fn test_deploy_before_declare(
         },
         test_class_info.clone(),
     );
-    let declare_tx = AccountTransaction { tx, only_query: false };
+    let execution_flags = ExecutionFlags::default();
+    let declare_tx = AccountTransaction { tx, execution_flags };
 
     // Deploy test contract.
     let invoke_tx = account_invoke_tx(invoke_tx_args! {

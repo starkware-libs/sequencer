@@ -61,7 +61,7 @@ use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::{
     Executable,
     ExecutableTransaction,
-    ExecutionFlags,
+    ExecutionFlags as TransactionExecutionFlags,
     ValidatableTransaction,
 };
 
@@ -77,11 +77,24 @@ mod flavors_test;
 #[path = "post_execution_test.rs"]
 mod post_execution_test;
 
+#[derive(Clone, Debug, derive_more::From)]
+pub struct ExecutionFlags {
+    pub only_query: bool,
+    pub charge_fee: bool,
+    pub validate: bool,
+}
+
+impl Default for ExecutionFlags {
+    fn default() -> Self {
+        Self { only_query: false, charge_fee: true, validate: true }
+    }
+}
+
 /// Represents a paid Starknet transaction.
 #[derive(Clone, Debug, derive_more::From)]
 pub struct AccountTransaction {
     pub tx: Transaction,
-    pub only_query: bool,
+    pub execution_flags: ExecutionFlags,
 }
 // TODO(AvivG): create additional macro that returns a reference.
 macro_rules! implement_tx_getter_calls {
@@ -708,7 +721,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
         &self,
         state: &mut TransactionalState<'_, U>,
         block_context: &BlockContext,
-        execution_flags: ExecutionFlags,
+        execution_flags_: TransactionExecutionFlags,
     ) -> TransactionExecutionResult<TransactionExecutionInfo> {
         let tx_context = Arc::new(block_context.to_tx_context(self));
         self.verify_tx_version(tx_context.tx_info.version())?;
@@ -718,7 +731,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
         self.perform_pre_validation_stage(
             state,
             &tx_context,
-            execution_flags.charge_fee,
+            self.execution_flags.charge_fee,
             strict_nonce_check,
         )?;
 
@@ -739,15 +752,15 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
             state,
             &mut remaining_gas,
             tx_context.clone(),
-            execution_flags.validate,
-            execution_flags.charge_fee,
+            self.execution_flags.validate,
+            self.execution_flags.charge_fee,
         )?;
         let fee_transfer_call_info = Self::handle_fee(
             state,
             tx_context,
             final_fee,
-            execution_flags.charge_fee,
-            execution_flags.concurrency_mode,
+            self.execution_flags.charge_fee,
+            execution_flags_.concurrency_mode,
         )?;
 
         let tx_execution_info = TransactionExecutionInfo {
@@ -768,7 +781,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
 
 impl TransactionInfoCreator for AccountTransaction {
     fn create_tx_info(&self) -> TransactionInfo {
-        self.tx.create_tx_info(self.only_query)
+        self.tx.create_tx_info(self.execution_flags.only_query)
     }
 }
 

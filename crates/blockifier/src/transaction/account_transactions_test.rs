@@ -84,7 +84,10 @@ use crate::test_utils::{
     DEFAULT_STRK_L2_GAS_PRICE,
     MAX_FEE,
 };
-use crate::transaction::account_transaction::AccountTransaction;
+use crate::transaction::account_transaction::{
+    AccountTransaction,
+    ExecutionFlags as AccountExecutionFlags,
+};
 use crate::transaction::objects::{HasRelatedFeeType, TransactionInfoCreator};
 use crate::transaction::test_utils::{
     account_invoke_tx,
@@ -105,7 +108,7 @@ use crate::transaction::test_utils::{
     INVALID,
 };
 use crate::transaction::transaction_types::TransactionType;
-use crate::transaction::transactions::{ExecutableTransaction, ExecutionFlags};
+use crate::transaction::transactions::{enforce_fee, ExecutableTransaction, ExecutionFlags};
 use crate::utils::u64_from_usize;
 
 #[rstest]
@@ -213,11 +216,15 @@ fn test_fee_enforcement(
         },
         &mut NonceManager::default(),
     );
-    let deploy_account_tx = AccountTransaction { tx, only_query: false };
+    let only_query = false;
+    let charge_fee = enforce_fee(&tx, only_query);
+    let execution_flags =
+        AccountExecutionFlags { only_query, charge_fee, ..AccountExecutionFlags::default() };
+    let deploy_account_tx = AccountTransaction { tx, execution_flags };
 
     let enforce_fee = deploy_account_tx.enforce_fee();
     assert_ne!(zero_bounds, enforce_fee);
-    let result = deploy_account_tx.execute(state, &block_context, enforce_fee, true);
+    let result = deploy_account_tx.execute(state, &block_context);
     // Execution should fail if the fee is enforced because the account doesn't have sufficient
     // balance.
     assert_eq!(result.is_err(), enforce_fee);
@@ -462,8 +469,9 @@ fn test_max_fee_limit_validate(
         },
         class_info,
     );
-    let account_tx = AccountTransaction { tx, only_query: false };
-    account_tx.execute(&mut state, &block_context, true, true).unwrap();
+    let execution_flags = AccountExecutionFlags::default();
+    let account_tx = AccountTransaction { tx, execution_flags };
+    account_tx.execute(&mut state, &block_context).unwrap();
 
     // Deploy grindy account with a lot of grind in the constructor.
     // Expect this to fail without bumping nonce, so pass a temporary nonce manager.
@@ -483,7 +491,7 @@ fn test_max_fee_limit_validate(
         },
     );
     let error_trace =
-        deploy_account_tx.execute(&mut state, &block_context, true, true).unwrap_err().to_string();
+        deploy_account_tx.execute(&mut state, &block_context).unwrap_err().to_string();
     assert!(error_trace.contains("no remaining steps"));
     block_context.versioned_constants.validate_max_n_steps = old_validate_max_n_steps;
 
@@ -499,7 +507,7 @@ fn test_max_fee_limit_validate(
             constructor_calldata: calldata![ctor_grind_arg, ctor_storage_arg],
         },
     );
-    deploy_account_tx.execute(&mut state, &block_context, true, true).unwrap();
+    deploy_account_tx.execute(&mut state, &block_context).unwrap();
 
     // Invoke a function that grinds validate (any function will do); set bounds low enough to fail
     // on this grind.
@@ -745,7 +753,7 @@ fn test_fail_deploy_account(
 
     let initial_balance = state.get_fee_token_balance(deploy_address, fee_token_address).unwrap();
 
-    let error = deploy_account_tx.execute(state, &block_context, true, true).unwrap_err();
+    let error = deploy_account_tx.execute(state, &block_context).unwrap_err();
     // Check the error is as expected. Assure the error message is not nonce or fee related.
     check_tx_execution_error_for_invalid_scenario!(cairo_version, error, false);
 
@@ -785,7 +793,7 @@ fn test_fail_declare(block_context: BlockContext, max_fee: Fee) {
     };
     let declare_account_tx = AccountTransaction {
         tx: ApiExecutableTransaction::Declare(executable_declare),
-        only_query: false,
+        execution_flags: AccountExecutionFlags::default(),
     };
 
     // Fail execution, assert nonce and balance are unchanged.
@@ -793,7 +801,7 @@ fn test_fail_declare(block_context: BlockContext, max_fee: Fee) {
     let initial_balance = state
         .get_fee_token_balance(account_address, chain_info.fee_token_address(&tx_info.fee_type()))
         .unwrap();
-    declare_account_tx.execute(&mut state, &block_context, true, true).unwrap_err();
+    declare_account_tx.execute(&mut state, &block_context).unwrap_err();
 
     assert_eq!(state.get_nonce_at(account_address).unwrap(), next_nonce);
     assert_eq!(
@@ -1131,7 +1139,7 @@ fn test_max_fee_to_max_steps_conversion(
     let tx_context1 = Arc::new(block_context.to_tx_context(&account_tx1));
     let execution_context1 = EntryPointExecutionContext::new_invoke(tx_context1, true);
     let max_steps_limit1 = execution_context1.vm_run_resources.get_n_steps();
-    let tx_execution_info1 = account_tx1.execute(&mut state, &block_context, true, true).unwrap();
+    let tx_execution_info1 = account_tx1.execute(&mut state, &block_context).unwrap();
     let n_steps1 = tx_execution_info1.receipt.resources.computation.vm_resources.n_steps;
     let gas_used_vector1 = tx_execution_info1.receipt.resources.to_gas_vector(
         &block_context.versioned_constants,
@@ -1152,7 +1160,7 @@ fn test_max_fee_to_max_steps_conversion(
     let tx_context2 = Arc::new(block_context.to_tx_context(&account_tx2));
     let execution_context2 = EntryPointExecutionContext::new_invoke(tx_context2, true);
     let max_steps_limit2 = execution_context2.vm_run_resources.get_n_steps();
-    let tx_execution_info2 = account_tx2.execute(&mut state, &block_context, true, true).unwrap();
+    let tx_execution_info2 = account_tx2.execute(&mut state, &block_context).unwrap();
     let n_steps2 = tx_execution_info2.receipt.resources.computation.vm_resources.n_steps;
     let gas_used_vector2 = tx_execution_info2.receipt.resources.to_gas_vector(
         &block_context.versioned_constants,
@@ -1292,7 +1300,7 @@ fn test_deploy_account_constructor_storage_write(
             constructor_calldata: constructor_calldata.clone(),
         },
     );
-    deploy_account_tx.execute(state, &block_context, true, true).unwrap();
+    deploy_account_tx.execute(state, &block_context).unwrap();
 
     // Check that the constructor wrote ctor_arg to the storage.
     let storage_key = get_storage_var_address("ctor_arg", &[]);
@@ -1364,8 +1372,7 @@ fn test_count_actual_storage_changes(
         nonce: nonce_manager.next(account_address),
     };
     let account_tx = account_invoke_tx(invoke_args.clone());
-    let execution_flags =
-        ExecutionFlags { charge_fee: true, validate: true, concurrency_mode: false };
+    let execution_flags = ExecutionFlags { concurrency_mode: false };
     let execution_info =
         account_tx.execute_raw(&mut state, &block_context, execution_flags).unwrap();
 
@@ -1535,8 +1542,7 @@ fn test_concurrency_execute_fee_transfer(
     // Case 1: The transaction did not read form/ write to the sequenser balance before executing
     // fee transfer.
     let mut transactional_state = TransactionalState::create_transactional(state);
-    let execution_flags =
-        ExecutionFlags { charge_fee: true, validate: true, concurrency_mode: true };
+    let execution_flags = ExecutionFlags { concurrency_mode: true };
     let result =
         account_tx.execute_raw(&mut transactional_state, &block_context, execution_flags).unwrap();
     assert!(!result.is_reverted());
@@ -1631,8 +1637,7 @@ fn test_concurrent_fee_transfer_when_sender_is_sequencer(
     let fee_token_address = block_context.chain_info.fee_token_address(fee_type);
 
     let mut transactional_state = TransactionalState::create_transactional(state);
-    let execution_flags =
-        ExecutionFlags { charge_fee: true, validate: true, concurrency_mode: true };
+    let execution_flags = ExecutionFlags { concurrency_mode: true };
     let result =
         account_tx.execute_raw(&mut transactional_state, &block_context, execution_flags).unwrap();
     assert!(!result.is_reverted());
@@ -1680,7 +1685,7 @@ fn test_initial_gas(
         version: TransactionVersion::THREE
     });
 
-    let transaction_ex_info = account_tx.execute(state, &block_context, true, true).unwrap();
+    let transaction_ex_info = account_tx.execute(state, &block_context).unwrap();
 
     let validate_call_info = &transaction_ex_info.validate_call_info.unwrap();
     let validate_initial_gas = validate_call_info.call.initial_gas;
@@ -1763,8 +1768,9 @@ fn test_revert_in_execute(
         resource_bounds: default_all_resource_bounds,
         ..tx_args
     });
-    let account_tx = AccountTransaction { tx, only_query: false };
-    let tx_execution_info = account_tx.execute(state, &block_context, true, validate).unwrap();
+    let execution_flags = AccountExecutionFlags { validate, ..AccountExecutionFlags::default() };
+    let account_tx = AccountTransaction { tx, execution_flags };
+    let tx_execution_info = account_tx.execute(state, &block_context).unwrap();
 
     assert!(tx_execution_info.is_reverted());
     assert!(
