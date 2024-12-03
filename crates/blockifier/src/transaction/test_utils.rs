@@ -113,10 +113,8 @@ pub fn deploy_and_fund_account(
     deploy_tx_args: DeployAccountTxArgs,
 ) -> (AccountTransaction, ContractAddress) {
     // Deploy an account contract.
-    let deploy_account_tx = AccountTransaction {
-        tx: deploy_account_tx(deploy_tx_args, nonce_manager),
-        execution_flags: ExecutionFlags::default(),
-    };
+    let deploy_account_tx =
+        AccountTransaction::new(deploy_account_tx(deploy_tx_args, nonce_manager));
     let account_address = deploy_account_tx.sender_address();
 
     // Update the balance of the about-to-be deployed account contract in the erc20 contract, so it

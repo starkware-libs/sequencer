@@ -43,10 +43,7 @@ impl From<starknet_api::executable_transaction::Transaction> for Transaction {
     fn from(value: starknet_api::executable_transaction::Transaction) -> Self {
         match value {
             starknet_api::executable_transaction::Transaction::Account(tx) => {
-                Transaction::Account(AccountTransaction {
-                    tx,
-                    execution_flags: AccountExecutionFlags::default(),
-                })
+                Transaction::Account(AccountTransaction::new(tx))
             }
             starknet_api::executable_transaction::Transaction::L1Handler(tx) => {
                 Transaction::L1Handler(tx)

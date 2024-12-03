@@ -469,8 +469,7 @@ fn test_max_fee_limit_validate(
         },
         class_info,
     );
-    let execution_flags = AccountExecutionFlags::default();
-    let account_tx = AccountTransaction { tx, execution_flags };
+    let account_tx = AccountTransaction::new(tx);
     account_tx.execute(&mut state, &block_context).unwrap();
 
     // Deploy grindy account with a lot of grind in the constructor.
@@ -791,10 +790,8 @@ fn test_fail_declare(block_context: BlockContext, max_fee: Fee) {
         tx_hash: TransactionHash::default(),
         class_info,
     };
-    let declare_account_tx = AccountTransaction {
-        tx: ApiExecutableTransaction::Declare(executable_declare),
-        execution_flags: AccountExecutionFlags::default(),
-    };
+    let declare_account_tx =
+        AccountTransaction::new(ApiExecutableTransaction::Declare(executable_declare));
 
     // Fail execution, assert nonce and balance are unchanged.
     let tx_info = declare_account_tx.create_tx_info();
