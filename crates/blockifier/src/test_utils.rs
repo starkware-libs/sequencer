@@ -93,17 +93,6 @@ impl CairoVersion {
             panic!("Transaction version {:?} is not supported.", tx_version)
         }
     }
-
-    pub fn other(&self) -> Self {
-        match self {
-            Self::Cairo0 => CairoVersion::Cairo1(RunnableCairoVersion::Casm),
-            CairoVersion::Cairo1(RunnableCairoVersion::Casm) => Self::Cairo0,
-            #[cfg(feature = "cairo_native")]
-            CairoVersion::Cairo1(RunnableCairoVersion::Native) => {
-                panic!("There is no other version for native")
-            }
-        }
-    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
