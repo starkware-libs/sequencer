@@ -79,6 +79,11 @@
     "privacy": "TemporaryValue",
     "value": true
   },
+  "consensus.chain_id": {
+    "description": "The chain id of the Starknet chain.",
+    "pointer_target": "chain_id",
+    "privacy": "Public"
+  },
   "consensus.consensus_delay": {
     "description": "Delay (seconds) before starting consensus to give time for network peering.",
     "privacy": "Public",

@@ -41,11 +41,12 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
             ser_pointer_target_required_param(
                 "chain_id",
                 SerializationType::String,
-                "The chain to follow.",
+                "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
             ),
             set_pointing_param_paths(&[
                 "batcher_config.block_builder_config.chain_info.chain_id",
                 "batcher_config.storage.db_config.chain_id",
+                "consensus_manager_config.consensus_config.chain_id",
                 "consensus_manager_config.consensus_config.network_config.chain_id",
                 "gateway_config.chain_info.chain_id",
                 "mempool_p2p_config.network_config.chain_id",
