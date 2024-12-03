@@ -28,7 +28,16 @@ use papyrus_protobuf::consensus::{
     TransactionBatch,
     Vote,
 };
-use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockInfo, BlockNumber, BlockTimestamp};
+use starknet_api::block::{
+    BlockHash,
+    BlockHashAndNumber,
+    BlockInfo,
+    BlockNumber,
+    BlockTimestamp,
+    GasPriceVector,
+    GasPrices,
+    NonzeroGasPrice,
+};
 use starknet_api::executable_transaction::Transaction as ExecutableTransaction;
 use starknet_api::transaction::Transaction;
 use starknet_batcher_types::batcher_types::{
@@ -47,6 +56,20 @@ use starknet_batcher_types::communication::BatcherClient;
 use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 use tracing::{debug, debug_span, error, info, trace, warn, Instrument};
+
+// TODO(Dan, Matan): Remove this once and replace with real gas prices.
+const TEMPORARY_GAS_PRICES: GasPrices = GasPrices {
+    eth_gas_prices: GasPriceVector {
+        l1_gas_price: NonzeroGasPrice::MIN,
+        l1_data_gas_price: NonzeroGasPrice::MIN,
+        l2_gas_price: NonzeroGasPrice::MIN,
+    },
+    strk_gas_prices: GasPriceVector {
+        l1_gas_price: NonzeroGasPrice::MIN,
+        l1_data_gas_price: NonzeroGasPrice::MIN,
+        l2_gas_price: NonzeroGasPrice::MIN,
+    },
+};
 
 // {height: {proposal_id: (content, [proposal_ids])}}
 // Note that multiple proposals IDs can be associated with the same content, but we only need to
@@ -145,6 +168,7 @@ impl ConsensusContext for SequencerConsensusContext {
             // TODO(Dan, Matan): Fill block info.
             block_info: BlockInfo {
                 block_number: proposal_init.height,
+                gas_prices: TEMPORARY_GAS_PRICES,
                 block_timestamp: BlockTimestamp(
                     now.timestamp().try_into().expect("Failed to convert timestamp"),
                 ),
@@ -344,6 +368,7 @@ impl SequencerConsensusContext {
             // TODO(Dan, Matan): Fill block info.
             block_info: BlockInfo {
                 block_number: height,
+                gas_prices: TEMPORARY_GAS_PRICES,
                 block_timestamp: BlockTimestamp(
                     now.timestamp().try_into().expect("Failed to convert timestamp"),
                 ),
