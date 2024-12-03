@@ -27,6 +27,6 @@ validator.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true
-infra_utils.workspace = true
 mempool_test_utils.workspace = true
+papyrus_proc_macros.workspace = true
 rstest.workspace = true

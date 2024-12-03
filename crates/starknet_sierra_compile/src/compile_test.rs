@@ -1,10 +1,10 @@
 use std::env;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use assert_matches::assert_matches;
 use cairo_lang_starknet_classes::contract_class::ContractClass;
-use infra_utils::path::resolve_project_relative_path;
 use mempool_test_utils::{FAULTY_ACCOUNT_CLASS_FILE, TEST_FILES_FOLDER};
+use papyrus_proc_macros::generate_get_package_dir;
 use rstest::rstest;
 
 use crate::command_line_compiler::CommandLineCompiler;
@@ -15,6 +15,8 @@ use crate::SierraToCasmCompiler;
 #[cfg(feature = "cairo_native")]
 use crate::SierraToNativeCompiler;
 
+generate_get_package_dir!();
+
 const SIERRA_TO_CASM_COMPILATION_CONFIG: SierraToCasmCompilationConfig =
     SierraToCasmCompilationConfig { max_bytecode_size: 81920 };
 
@@ -22,7 +24,7 @@ fn command_line_compiler() -> CommandLineCompiler {
     CommandLineCompiler::new(SIERRA_TO_CASM_COMPILATION_CONFIG)
 }
 fn get_test_contract() -> ContractClass {
-    env::set_current_dir(resolve_project_relative_path(TEST_FILES_FOLDER).unwrap())
+    env::set_current_dir(PathBuf::from(get_package_dir()).join(TEST_FILES_FOLDER))
         .expect("Failed to set current dir.");
     let sierra_path = Path::new(FAULTY_ACCOUNT_CLASS_FILE);
     contract_class_from_file(sierra_path)
