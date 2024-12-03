@@ -136,7 +136,9 @@ fn test_calculate_tx_gas_usage_basic<'a>(
         GasVectorComputationMode::All => GasVector::from_l2_gas(calldata_and_signature_gas_cost),
     };
     let manual_gas_vector = manual_starknet_gas_usage_vector
-        + deploy_account_tx_starknet_resources.state.to_gas_vector(use_kzg_da);
+        + deploy_account_tx_starknet_resources
+            .state
+            .to_gas_vector(use_kzg_da, &versioned_constants.allocation_cost);
 
     let deploy_account_gas_usage_vector = deploy_account_tx_starknet_resources.to_gas_vector(
         &versioned_constants,
@@ -249,10 +251,18 @@ fn test_calculate_tx_gas_usage_basic<'a>(
             .unwrap();
     let manual_sharp_gas_usage = message_segment_length
         * eth_gas_constants::SHARP_GAS_PER_MEMORY_WORD
-        + usize_from_u64(l2_to_l1_starknet_resources.state.to_gas_vector(use_kzg_da).l1_gas.0)
-            .unwrap();
-    let manual_sharp_blob_gas_usage =
-        l2_to_l1_starknet_resources.state.to_gas_vector(use_kzg_da).l1_data_gas;
+        + usize_from_u64(
+            l2_to_l1_starknet_resources
+                .state
+                .to_gas_vector(use_kzg_da, &versioned_constants.allocation_cost)
+                .l1_gas
+                .0,
+        )
+        .unwrap();
+    let manual_sharp_blob_gas_usage = l2_to_l1_starknet_resources
+        .state
+        .to_gas_vector(use_kzg_da, &versioned_constants.allocation_cost)
+        .l1_data_gas;
     let manual_gas_computation = GasVector {
         l1_gas: u64_from_usize(manual_starknet_gas_usage + manual_sharp_gas_usage).into(),
         l1_data_gas: manual_sharp_blob_gas_usage,
@@ -288,7 +298,9 @@ fn test_calculate_tx_gas_usage_basic<'a>(
 
     // Manual calculation.
     // No L2 gas is used, so gas amount does not depend on gas vector computation mode.
-    let manual_gas_computation = storage_writes_starknet_resources.state.to_gas_vector(use_kzg_da);
+    let manual_gas_computation = storage_writes_starknet_resources
+        .state
+        .to_gas_vector(use_kzg_da, &versioned_constants.allocation_cost);
 
     assert_eq!(manual_gas_computation, storage_writings_gas_usage_vector);
 
@@ -334,7 +346,10 @@ fn test_calculate_tx_gas_usage_basic<'a>(
         // the combined calculation got it once.
         + u64_from_usize(fee_balance_discount).into(),
         // Expected blob gas usage is from data availability only.
-        l1_data_gas: combined_cases_starknet_resources.state.to_gas_vector(use_kzg_da).l1_data_gas,
+        l1_data_gas: combined_cases_starknet_resources
+            .state
+            .to_gas_vector(use_kzg_da, &versioned_constants.allocation_cost)
+            .l1_data_gas,
         l2_gas: l1_handler_gas_usage_vector.l2_gas,
     };
 
@@ -378,11 +393,12 @@ fn test_calculate_tx_gas_usage(
         n_modified_contracts,
         n_compiled_class_hash_updates: 0,
     };
+    let n_allocated_keys = 0; // This tx doesn't allocate the account balance.
     let starknet_resources = StarknetResources::new(
         calldata_length,
         signature_length,
         0,
-        StateResources::new_for_testing(state_changes_count, 0),
+        StateResources::new_for_testing(state_changes_count, n_allocated_keys),
         None,
         ExecutionSummary::default(),
     );
@@ -432,6 +448,7 @@ fn test_calculate_tx_gas_usage(
         n_modified_contracts,
         n_compiled_class_hash_updates: 0,
     };
+    let n_allocated_keys = 1; // Only for the recipient.
     let execution_call_info =
         &tx_execution_info.execute_call_info.expect("Execution call info should exist.");
     let execution_summary =
@@ -440,7 +457,7 @@ fn test_calculate_tx_gas_usage(
         calldata_length,
         signature_length,
         0,
-        StateResources::new_for_testing(state_changes_count, 0),
+        StateResources::new_for_testing(state_changes_count, n_allocated_keys),
         None,
         // The transfer entrypoint emits an event - pass the call info to count its resources.
         execution_summary,
