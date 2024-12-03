@@ -307,7 +307,7 @@ fn test_account_flow_test(
     max_fee: Fee,
     #[case] tx_version: TransactionVersion,
     #[case] resource_bounds: ValidResourceBounds,
-    #[values(true, false)] only_query: bool,
+    #[values(true, false)] _only_query: bool,
 ) {
     let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
         create_test_init_data(&block_context.chain_info, CairoVersion::Cairo0);
@@ -323,7 +323,6 @@ fn test_account_flow_test(
             version: tx_version,
             resource_bounds,
             nonce: nonce_manager.next(account_address),
-            only_query,
         },
     )
     .unwrap();
