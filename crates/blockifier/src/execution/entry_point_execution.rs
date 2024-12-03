@@ -408,7 +408,7 @@ pub fn finalize_execution(
     runner.vm.mark_address_range_as_accessed(args_ptr, n_total_args)?;
     syscall_handler.read_only_segments.mark_as_accessed(&mut runner)?;
 
-    let call_result = get_call_result(&runner, &syscall_handler)?;
+    let call_result = get_call_result(&runner, &syscall_handler, &tracked_resource)?;
 
     // Take into account the resources of the current call, without inner calls.
     // Has to happen after marking holes in segments as accessed.
@@ -460,6 +460,7 @@ pub fn finalize_execution(
 fn get_call_result(
     runner: &CairoRunner,
     syscall_handler: &SyscallHintProcessor<'_>,
+    tracked_resource: &TrackedResource,
 ) -> Result<CallResult, PostExecutionError> {
     let return_result = runner.vm.get_return_values(5)?;
     // Corresponds to the Cairo 1.0 enum:
@@ -496,7 +497,11 @@ fn get_call_result(
         });
     }
 
-    let gas_consumed = syscall_handler.base.call.initial_gas - gas;
+    let gas_consumed = match tracked_resource {
+        // Do not count Sierra gas in CairoSteps mode.
+        TrackedResource::CairoSteps => 0,
+        TrackedResource::SierraGas => syscall_handler.base.call.initial_gas - gas,
+    };
     Ok(CallResult {
         failed,
         retdata: read_execution_retdata(runner, retdata_size, retdata_start)?,
