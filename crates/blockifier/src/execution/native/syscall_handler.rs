@@ -360,7 +360,8 @@ impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
             entry_point_selector: EntryPointSelector(entry_point_selector),
             calldata: wrapper_calldata,
             storage_address: contract_address,
-            caller_address: self.base.call.caller_address,
+            caller_address: self.base.call.storage_address,
+
             call_type: CallType::Call,
             initial_gas: *remaining_gas,
         };
