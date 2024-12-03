@@ -44,10 +44,10 @@ use crate::test_utils::deploy_account::deploy_account_tx;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{CairoVersion, BALANCE, DEFAULT_STRK_L1_GAS_PRICE};
-use crate::transaction::account_transaction::AccountTransaction;
+use crate::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
 use crate::transaction::objects::HasRelatedFeeType;
 use crate::transaction::test_utils::{default_all_resource_bounds, l1_resource_bounds};
-use crate::transaction::transactions::ExecutableTransaction;
+use crate::transaction::transactions::{enforce_fee, ExecutableTransaction};
 
 #[fixture]
 pub fn safe_versioned_state(
@@ -236,8 +236,9 @@ fn test_run_parallel_txs(default_all_resource_bounds: ValidResourceBounds) {
         },
         &mut NonceManager::default(),
     );
-    let deploy_account_tx_1 = AccountTransaction { tx, only_query: false };
-    let enforce_fee = deploy_account_tx_1.enforce_fee();
+    let enforce_fee = enforce_fee(&tx, false);
+    let execution_flags = ExecutionFlags { charge_fee: enforce_fee, ..ExecutionFlags::default() };
+    let deploy_account_tx_1 = AccountTransaction { tx, execution_flags: execution_flags.clone() };
 
     let class_hash = grindy_account.get_class_hash();
     let ctor_storage_arg = felt!(1_u8);
@@ -251,8 +252,9 @@ fn test_run_parallel_txs(default_all_resource_bounds: ValidResourceBounds) {
     let nonce_manager = &mut NonceManager::default();
     let delpoy_account_tx_2 = AccountTransaction {
         tx: deploy_account_tx(deploy_tx_args, nonce_manager),
-        only_query: false,
+        execution_flags,
     };
+
     let account_address = delpoy_account_tx_2.sender_address();
     let tx_context = block_context.to_tx_context(&delpoy_account_tx_2);
     let fee_type = tx_context.tx_info.fee_type();
@@ -269,12 +271,11 @@ fn test_run_parallel_txs(default_all_resource_bounds: ValidResourceBounds) {
     // Execute transactions
     thread::scope(|s| {
         s.spawn(move || {
-            let result =
-                deploy_account_tx_1.execute(&mut state_1, &block_context_1, enforce_fee, true);
+            let result = deploy_account_tx_1.execute(&mut state_1, &block_context_1);
             assert_eq!(result.is_err(), enforce_fee); // Transaction fails iff we enforced the fee charge (as the acount is not funded).
         });
         s.spawn(move || {
-            delpoy_account_tx_2.execute(&mut state_2, &block_context_2, true, true).unwrap();
+            delpoy_account_tx_2.execute(&mut state_2, &block_context_2).unwrap();
             // Check that the constructor wrote ctor_arg to the storage.
             let storage_key = get_storage_var_address("ctor_arg", &[]);
             let deployed_contract_address = calculate_contract_address(

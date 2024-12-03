@@ -383,7 +383,7 @@ fn test_calculate_tx_gas_usage(
     let calldata_length = account_tx.calldata_length();
     let signature_length = account_tx.signature_length();
     let fee_token_address = chain_info.fee_token_address(&account_tx.fee_type());
-    let tx_execution_info = account_tx.execute(state, block_context, true, true).unwrap();
+    let tx_execution_info = account_tx.execute(state, block_context).unwrap();
 
     let n_storage_updates = 1; // For the account balance update.
     let n_modified_contracts = 1;
@@ -437,7 +437,7 @@ fn test_calculate_tx_gas_usage(
 
     let calldata_length = account_tx.calldata_length();
     let signature_length = account_tx.signature_length();
-    let tx_execution_info = account_tx.execute(state, block_context, true, true).unwrap();
+    let tx_execution_info = account_tx.execute(state, block_context).unwrap();
     // For the balance update of the sender and the recipient.
     let n_storage_updates = 2;
     // Only the account contract modification (nonce update) excluding the fee token contract.
