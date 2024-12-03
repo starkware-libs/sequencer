@@ -58,10 +58,6 @@ pub enum CompilationArtifacts {
         casm: Vec<u8>,
         sierra: Vec<u8>,
     },
-    #[cfg(feature = "cairo_native")]
-    Cairo1Native {
-        sierra: Vec<u8>,
-    },
 }
 
 #[cached]

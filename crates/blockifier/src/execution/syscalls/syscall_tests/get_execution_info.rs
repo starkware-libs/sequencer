@@ -43,7 +43,7 @@ use crate::transaction::objects::{
 #[cfg_attr(
     feature = "cairo_native",
     test_case(
-        FeatureContract::SierraExecutionInfoV1Contract,
+        FeatureContract::LegacyTestContract(CairoVersion::Native),
         ExecutionMode::Validate,
         TransactionVersion::ONE,
         false;
@@ -53,7 +53,7 @@ use crate::transaction::objects::{
 #[cfg_attr(
     feature = "cairo_native",
     test_case(
-        FeatureContract::SierraExecutionInfoV1Contract,
+        FeatureContract::LegacyTestContract(CairoVersion::Native),
         ExecutionMode::Execute,
         TransactionVersion::ONE,
         false;
@@ -125,13 +125,13 @@ use crate::transaction::objects::{
     false;
     "Execute execution mode: block info should be as usual. Transaction V3.")]
 #[test_case(
-    FeatureContract::LegacyTestContract,
+    FeatureContract::LegacyTestContract(CairoVersion::Cairo1),
     ExecutionMode::Execute,
     TransactionVersion::ONE,
     false;
     "Legacy contract. Execute execution mode: block info should be as usual. Transaction V1.")]
 #[test_case(
-    FeatureContract::LegacyTestContract,
+    FeatureContract::LegacyTestContract(CairoVersion::Cairo1),
     ExecutionMode::Execute,
     TransactionVersion::THREE,
     false;
@@ -167,7 +167,7 @@ fn test_get_execution_info(
     let test_contract_address = test_contract.get_instance_address(0);
 
     let expected_unsupported_fields = match test_contract {
-        FeatureContract::LegacyTestContract => {
+        FeatureContract::LegacyTestContract(CairoVersion::Cairo1) => {
             // Read and parse file content.
             let raw_contract: serde_json::Value =
                 serde_json::from_str(&test_contract.get_raw_class()).expect("Error parsing JSON");
@@ -180,7 +180,7 @@ fn test_get_execution_info(
             vec![]
         }
         #[cfg(feature = "cairo_native")]
-        FeatureContract::SierraExecutionInfoV1Contract => {
+        FeatureContract::LegacyTestContract(CairoVersion::Native) => {
             vec![]
         }
         _ => {
@@ -209,9 +209,9 @@ fn test_get_execution_info(
     let max_price_per_unit = GasPrice(61);
 
     let expected_resource_bounds: Vec<Felt> = match (test_contract, version) {
-        (FeatureContract::LegacyTestContract, _) => vec![],
+        (FeatureContract::LegacyTestContract(CairoVersion::Cairo1), _) => vec![],
         #[cfg(feature = "cairo_native")]
-        (FeatureContract::SierraExecutionInfoV1Contract, _) => vec![],
+        (FeatureContract::LegacyTestContract(CairoVersion::Native), _) => vec![],
         (_, version) if version == TransactionVersion::ONE => vec![
             felt!(0_u16), // Length of resource bounds array.
         ],

@@ -88,15 +88,6 @@ impl CairoVersion {
             panic!("Transaction version {:?} is not supported.", tx_version)
         }
     }
-
-    pub fn other(&self) -> Self {
-        match self {
-            Self::Cairo0 => Self::Cairo1,
-            Self::Cairo1 => Self::Cairo0,
-            #[cfg(feature = "cairo_native")]
-            Self::Native => panic!("There is no other version for native"),
-        }
-    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
