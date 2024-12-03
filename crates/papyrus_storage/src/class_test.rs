@@ -14,7 +14,7 @@ use crate::test_utils::get_test_storage;
 use crate::StorageError;
 
 #[test]
-fn append_classes_writes_correct_data() {
+pub fn append_classes_writes_correct_data() {
     let class_json = read_json_file("class.json");
     let expected_class: SierraContractClass = serde_json::from_value(class_json).unwrap();
     let deprecated_class_json = read_json_file("deprecated_class.json");

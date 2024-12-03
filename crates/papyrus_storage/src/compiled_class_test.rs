@@ -1,9 +1,12 @@
 use assert_matches::assert_matches;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use pretty_assertions::assert_eq;
+use starknet_api::block::BlockNumber;
 use starknet_api::core::ClassHash;
+use starknet_api::state::SierraContractClass;
 use starknet_api::test_utils::read_json_file;
 
+use crate::class::ClassStorageWriter;
 use crate::compiled_class::{CasmStorageReader, CasmStorageWriter};
 use crate::db::{DbError, KeyAlreadyExistsError};
 use crate::test_utils::get_test_storage;
@@ -25,6 +28,30 @@ fn append_casm() {
 
     let casm = reader.begin_ro_txn().unwrap().get_casm(&ClassHash::default()).unwrap().unwrap();
     assert_eq!(casm, expected_casm);
+}
+
+#[test]
+fn test_casm_and_sierra() {
+    let test_class_hash = ClassHash::default();
+    let casm_json = read_json_file("compiled_class.json");
+    let expected_casm: CasmContractClass = serde_json::from_value(casm_json).unwrap();
+    let sierra_json = read_json_file("class.json");
+    let expected_sierra: SierraContractClass = serde_json::from_value(sierra_json).unwrap();
+    let ((reader, mut writer), _temp_dir) = get_test_storage();
+    writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_casm(&test_class_hash, &expected_casm)
+        .unwrap()
+        .append_classes(BlockNumber::default(), &[(test_class_hash, &expected_sierra)], &[])
+        .unwrap()
+        .commit()
+        .unwrap();
+    let (casm, sierra) =
+        reader.begin_ro_txn().unwrap().get_casm_and_sierra(&test_class_hash).unwrap().unwrap();
+
+    assert_eq!(casm, expected_casm);
+    assert_eq!(sierra, expected_sierra);
 }
 
 #[test]
