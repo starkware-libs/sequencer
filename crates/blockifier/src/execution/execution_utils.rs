@@ -57,33 +57,21 @@ pub fn execute_entry_point_call_wrapper(
     context: &mut EntryPointExecutionContext,
     remaining_gas: &mut u64,
 ) -> EntryPointExecutionResult<CallInfo> {
-    let contract_tracked_resource = compiled_class.tracked_resource(
+    let current_tracked_resource = compiled_class.tracked_resource(
         &context.versioned_constants().min_compiler_version_for_sierra_gas,
-        context.tx_context.tx_info.gas_mode(),
+        context.tracked_resource_stack.last(),
     );
+    if current_tracked_resource == TrackedResource::CairoSteps {
+        // Override the initial gas with a high value so it won't limit the run.
+        call.initial_gas = context.versioned_constants().default_initial_gas_cost();
+    }
+    let orig_call = call.clone();
+
     // Note: no return statements (explicit or implicit) should be added between the push and the
     // pop commands.
-
-    // Once we ran with CairoSteps, we will continue to run using it for all nested calls.
-    match context.tracked_resource_stack.last() {
-        Some(TrackedResource::CairoSteps) => {
-            context.tracked_resource_stack.push(TrackedResource::CairoSteps)
-        }
-        Some(TrackedResource::SierraGas) => {
-            if contract_tracked_resource == TrackedResource::CairoSteps {
-                // Switching from SierraGas to CairoSteps: override initial_gas with a high value so
-                // it won't limit the run.
-                call.initial_gas = context.versioned_constants().default_initial_gas_cost();
-            };
-            context.tracked_resource_stack.push(contract_tracked_resource)
-        }
-        None => context.tracked_resource_stack.push(contract_tracked_resource),
-    };
-
-    let orig_call = call.clone();
+    context.tracked_resource_stack.push(current_tracked_resource);
     let res = execute_entry_point_call(call, compiled_class, state, context);
-    let current_tracked_resource =
-        context.tracked_resource_stack.pop().expect("Unexpected empty tracked resource.");
+    context.tracked_resource_stack.pop().expect("Unexpected empty tracked resource.");
 
     match res {
         Ok(call_info) => {

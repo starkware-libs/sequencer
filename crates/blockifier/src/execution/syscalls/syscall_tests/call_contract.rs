@@ -221,16 +221,19 @@ fn test_tracked_resources_nested(
         calldata: concated_calldata,
         ..trivial_external_entry_point_new(sierra_gas_contract)
     };
-    let execution = entry_point_call.execute_directly(&mut state).unwrap();
+    let main_call_info = entry_point_call.execute_directly(&mut state).unwrap();
 
-    assert_eq!(execution.tracked_resource, TrackedResource::SierraGas);
-    let first_call_info = execution.inner_calls.first().unwrap();
-    assert_eq!(first_call_info.tracked_resource, TrackedResource::CairoSteps);
-    assert_eq!(
-        first_call_info.inner_calls.first().unwrap().tracked_resource,
-        TrackedResource::CairoSteps
-    );
+    assert_eq!(main_call_info.tracked_resource, TrackedResource::SierraGas);
+    assert!(main_call_info.execution.gas_consumed != 0);
 
-    let second_inner_call_info = execution.inner_calls.get(1).unwrap();
-    assert_eq!(second_inner_call_info.tracked_resource, TrackedResource::SierraGas);
+    let first_inner_call = main_call_info.inner_calls.first().unwrap();
+    assert_eq!(first_inner_call.tracked_resource, TrackedResource::CairoSteps);
+    assert_eq!(first_inner_call.execution.gas_consumed, 0);
+    let inner_inner_call = first_inner_call.inner_calls.first().unwrap();
+    assert_eq!(inner_inner_call.tracked_resource, TrackedResource::CairoSteps);
+    assert_eq!(inner_inner_call.execution.gas_consumed, 0);
+
+    let second_inner_call = main_call_info.inner_calls.get(1).unwrap();
+    assert_eq!(second_inner_call.tracked_resource, TrackedResource::SierraGas);
+    assert!(second_inner_call.execution.gas_consumed != 0);
 }
