@@ -213,6 +213,8 @@ fn spawn_consensus(
         Ok(papyrus_consensus::run_consensus(
             context,
             config.start_height,
+            // TODO(Asmaa): replace with the correct value.
+            config.start_height,
             config.validator_id,
             config.consensus_delay,
             config.timeouts.clone(),
