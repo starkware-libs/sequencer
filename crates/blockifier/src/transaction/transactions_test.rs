@@ -2239,7 +2239,6 @@ fn test_only_query_flag(
         calldata: execute_calldata,
         resource_bounds: default_all_resource_bounds,
         sender_address,
-        only_query,
     });
     let execution_flags = ExecutionFlags { only_query, ..Default::default() };
     let invoke_tx = AccountTransaction { tx, execution_flags };
