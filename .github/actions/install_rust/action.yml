@@ -7,3 +7,4 @@ runs:
     - uses: moonrepo/setup-rust@v1
       with:
         cache-base: main(-v[0-9].*)?
+        inherit-toolchain: true
