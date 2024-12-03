@@ -205,7 +205,7 @@
     "value": "StateOnly"
   },
   "chain_id": {
-    "description": "A required param! The chain to follow.",
+    "description": "A required param! The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
     "param_type": "String",
     "privacy": "TemporaryValue"
   },
@@ -613,6 +613,11 @@
     "description": "The remote component server socket.",
     "privacy": "Public",
     "value": "0.0.0.0:8080"
+  },
+  "consensus_manager_config.consensus_config.chain_id": {
+    "description": "The chain id of the Starknet chain.",
+    "pointer_target": "chain_id",
+    "privacy": "Public"
   },
   "consensus_manager_config.consensus_config.consensus_delay": {
     "description": "Delay (seconds) before starting consensus to give time for network peering.",
