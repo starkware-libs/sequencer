@@ -44,7 +44,7 @@ use crate::transaction::objects::{
 #[cfg_attr(
     feature = "cairo_native",
     test_case(
-        FeatureContract::SierraExecutionInfoV1Contract,
+        FeatureContract::SierraExecutionInfoV1Contract(RunnableCairoVersion::Native),
         ExecutionMode::Validate,
         TransactionVersion::ONE,
         false;
@@ -54,7 +54,7 @@ use crate::transaction::objects::{
 #[cfg_attr(
     feature = "cairo_native",
     test_case(
-        FeatureContract::SierraExecutionInfoV1Contract,
+        FeatureContract::SierraExecutionInfoV1Contract(RunnableCairoVersion::Native),
         ExecutionMode::Execute,
         TransactionVersion::ONE,
         false;
@@ -181,7 +181,7 @@ fn test_get_execution_info(
             vec![]
         }
         #[cfg(feature = "cairo_native")]
-        FeatureContract::SierraExecutionInfoV1Contract => {
+        FeatureContract::SierraExecutionInfoV1Contract(RunnableCairoVersion::Native) => {
             vec![]
         }
         _ => {
@@ -212,7 +212,7 @@ fn test_get_execution_info(
     let expected_resource_bounds: Vec<Felt> = match (test_contract, version) {
         (FeatureContract::LegacyTestContract, _) => vec![],
         #[cfg(feature = "cairo_native")]
-        (FeatureContract::SierraExecutionInfoV1Contract, _) => vec![],
+        (FeatureContract::SierraExecutionInfoV1Contract(RunnableCairoVersion::Native), _) => vec![],
         (_, version) if version == TransactionVersion::ONE => vec![
             felt!(0_u16), // Length of resource bounds array.
         ],
