@@ -18,12 +18,11 @@ use crate::context::BlockContext;
 use crate::fee::fee_checks::{FeeCheckError, FeeCheckReportFields, PostExecutionReport};
 use crate::fee::fee_utils::{get_fee_by_gas_vector, get_vm_resources_cost};
 use crate::fee::receipt::TransactionReceipt;
-use crate::test_utils::contracts::FeatureContract;
+use crate::test_utils::contracts::{FeatureContract, RunnableContractVersion};
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{
     gas_vector_from_vm_usage,
     get_vm_resource_usage,
-    CairoVersion,
     BALANCE,
     DEFAULT_ETH_L1_DATA_GAS_PRICE,
     DEFAULT_ETH_L1_GAS_PRICE,
@@ -193,7 +192,7 @@ fn test_discounted_gas_overdraft(
             .unwrap(),
     );
 
-    let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0);
+    let account = FeatureContract::AccountWithoutValidations(RunnableContractVersion::Cairo0);
     let mut state = test_state(&block_context.chain_info, BALANCE, &[(account, 1)]);
     let tx = account_invoke_tx(invoke_tx_args! {
         sender_address: account.get_instance_address(0),
@@ -268,7 +267,7 @@ fn test_post_execution_gas_overdraft_all_resource_bounds(
 ) {
     let block_context = BlockContext::create_for_account_testing();
 
-    let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0);
+    let account = FeatureContract::AccountWithoutValidations(RunnableContractVersion::Cairo0);
     let mut state = test_state(&block_context.chain_info, BALANCE, &[(account, 1)]);
     let tx = account_invoke_tx(invoke_tx_args! {
         sender_address: account.get_instance_address(0),

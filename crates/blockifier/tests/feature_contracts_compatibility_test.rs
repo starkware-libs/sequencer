@@ -1,7 +1,6 @@
 use std::fs;
 
-use blockifier::test_utils::contracts::FeatureContract;
-use blockifier::test_utils::CairoVersion;
+use blockifier::test_utils::contracts::{FeatureContract, RunnableContractVersion};
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 
@@ -34,10 +33,10 @@ const FIX_COMMAND: &str = "FIX_FEATURE_TEST=1 cargo test -p blockifier --test \
 // `COMPILED_CONTRACTS_SUBDIR`.
 // 2. for each `X.cairo` file in `TEST_CONTRACTS` there exists an `X_compiled.json` file in
 // `COMPILED_CONTRACTS_SUBDIR` which equals `starknet-compile-deprecated X.cairo --no_debug_info`.
-fn verify_feature_contracts_compatibility(fix: bool, cairo_version: CairoVersion) {
+fn verify_feature_contracts_compatibility(fix: bool, cairo_version: RunnableContractVersion) {
     // TODO(Dori, 1/10/2024): Parallelize this test.
     for contract in FeatureContract::all_feature_contracts()
-        .filter(|contract| contract.cairo_version() == cairo_version)
+        .filter(|contract| contract.runnable_contract_version() == cairo_version)
     {
         // Compare output of cairo-file on file with existing compiled file.
         let expected_compiled_output = contract.compile();
@@ -61,19 +60,19 @@ fn verify_feature_contracts_compatibility(fix: bool, cairo_version: CairoVersion
 
 /// Verifies that the feature contracts directory contains the expected contents, and returns a list
 /// of pairs (source_path, base_filename, compiled_path) for each contract.
-fn verify_and_get_files(cairo_version: CairoVersion) -> Vec<(String, String, String)> {
+fn verify_and_get_files(cairo_version: RunnableContractVersion) -> Vec<(String, String, String)> {
     let mut paths = vec![];
     let directory = match cairo_version {
-        CairoVersion::Cairo0 => CAIRO0_FEATURE_CONTRACTS_DIR,
-        CairoVersion::Cairo1 => CAIRO1_FEATURE_CONTRACTS_DIR,
+        RunnableContractVersion::Cairo0 => CAIRO0_FEATURE_CONTRACTS_DIR,
+        RunnableContractVersion::Cairo1Casm => CAIRO1_FEATURE_CONTRACTS_DIR,
         #[cfg(feature = "cairo_native")]
-        CairoVersion::Native => NATIVE_FEATURE_CONTRACTS_DIR,
+        RunnableContractVersion::Cairo1Native => NATIVE_FEATURE_CONTRACTS_DIR,
     };
     let compiled_extension = match cairo_version {
-        CairoVersion::Cairo0 => "_compiled.json",
-        CairoVersion::Cairo1 => ".casm.json",
+        RunnableContractVersion::Cairo0 => "_compiled.json",
+        RunnableContractVersion::Cairo1Casm => ".casm.json",
         #[cfg(feature = "cairo_native")]
-        CairoVersion::Native => ".sierra.json",
+        RunnableContractVersion::Cairo1Native => ".sierra.json",
     };
     for file in fs::read_dir(directory).unwrap() {
         let path = file.unwrap().path();
@@ -113,11 +112,18 @@ fn verify_feature_contracts_match_enum() {
     let mut compiled_paths_from_enum: Vec<String> = FeatureContract::all_feature_contracts()
         .map(|contract| contract.get_compiled_path())
         .collect();
-    let mut compiled_paths_on_filesystem: Vec<String> = verify_and_get_files(CairoVersion::Cairo0)
-        .into_iter()
-        .chain(verify_and_get_files(CairoVersion::Cairo1))
-        .map(|(_, _, compiled_path)| compiled_path)
-        .collect();
+    let mut compiled_paths_on_filesystem: Vec<String> =
+        verify_and_get_files(RunnableContractVersion::Cairo0)
+            .into_iter()
+            .chain(verify_and_get_files(RunnableContractVersion::Cairo1Casm))
+            .map(|(_, _, compiled_path)| compiled_path)
+            .collect();
+    #[cfg(feature = "cairo_native")]
+    compiled_paths_on_filesystem.extend(
+        verify_and_get_files(RunnableContractVersion::Cairo1Native)
+            .into_iter()
+            .map(|(_, _, compiled_path)| compiled_path),
+    );
     compiled_paths_from_enum.sort();
     compiled_paths_on_filesystem.sort();
     assert_eq!(compiled_paths_from_enum, compiled_paths_on_filesystem);
@@ -125,10 +131,11 @@ fn verify_feature_contracts_match_enum() {
 
 // todo(rdr): find the right way to feature verify native contracts as well
 #[rstest]
+#[case(RunnableContractVersion::Cairo0)]
+#[case(RunnableContractVersion::Cairo1Casm)]
+#[cfg_attr(feature = "cairo_native", case(RunnableContractVersion::Cairo1Native))]
 #[ignore]
-fn verify_feature_contracts(
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
-) {
+fn verify_feature_contracts(#[case] cairo_version: RunnableContractVersion) {
     let fix_features = std::env::var("FIX_FEATURE_TEST").is_ok();
     verify_feature_contracts_compatibility(fix_features, cairo_version)
 }

@@ -5,8 +5,8 @@ use blockifier::retdata;
 use blockifier::state::cached_state::CachedState;
 use blockifier::state::global_cache::{GlobalContractCache, GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST};
 use blockifier::state::state_api::StateReader;
-use blockifier::test_utils::contracts::FeatureContract;
-use blockifier::test_utils::{trivial_external_entry_point_new, CairoVersion};
+use blockifier::test_utils::contracts::{FeatureContract, RunnableContractVersion};
+use blockifier::test_utils::trivial_external_entry_point_new;
 use indexmap::IndexMap;
 use papyrus_storage::class::ClassStorageWriter;
 use papyrus_storage::state::StateStorageWriter;
@@ -22,7 +22,7 @@ use crate::papyrus_state::PapyrusReader;
 fn test_entry_point_with_papyrus_state() -> papyrus_storage::StorageResult<()> {
     let ((storage_reader, mut storage_writer), _) = papyrus_storage::test_utils::get_test_storage();
 
-    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
+    let test_contract = FeatureContract::TestContract(RunnableContractVersion::Cairo0);
     let test_class_hash = test_contract.get_class_hash();
     let test_class = assert_matches!(
         test_contract.get_class(), ContractClass::V0(contract_class) => contract_class

@@ -23,7 +23,7 @@ use crate::execution::syscalls::SyscallSelector;
 use crate::fee::fee_utils::get_fee_by_gas_vector;
 use crate::state::cached_state::CachedState;
 use crate::state::state_api::StateReader;
-use crate::test_utils::contracts::FeatureContract;
+use crate::test_utils::contracts::{FeatureContract, RunnableContractVersion};
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{
@@ -31,7 +31,6 @@ use crate::test_utils::{
     create_trivial_calldata,
     get_syscall_resources,
     get_tx_resources,
-    CairoVersion,
     BALANCE,
     DEFAULT_L1_GAS_AMOUNT,
     DEFAULT_STRK_L1_GAS_PRICE,
@@ -65,7 +64,7 @@ struct FlavorTestInitialState {
 
 fn create_flavors_test_state(
     chain_info: &ChainInfo,
-    cairo_version: CairoVersion,
+    cairo_version: RunnableContractVersion,
 ) -> FlavorTestInitialState {
     let test_contract = FeatureContract::TestContract(cairo_version);
     let account_contract = FeatureContract::AccountWithoutValidations(cairo_version);
@@ -181,7 +180,7 @@ fn recurse_calldata(contract_address: ContractAddress, fail: bool, depth: u32) -
 
 // Helper function to get the arguments for the pre-validation tests.
 fn get_pre_validate_test_args(
-    cairo_version: CairoVersion,
+    cairo_version: RunnableContractVersion,
     version: TransactionVersion,
     only_query: bool,
 ) -> (BlockContext, CachedState<DictStateReader>, InvokeTxArgs, NonceManager) {
@@ -213,7 +212,7 @@ fn test_invalid_nonce_pre_validate(
     #[values(true, false)] validate: bool,
     #[values(true, false)] charge_fee: bool,
     // TODO(Dori, 1/1/2024): Add Cairo1 case, after price abstraction is implemented.
-    #[values(CairoVersion::Cairo0)] cairo_version: CairoVersion,
+    #[values(RunnableContractVersion::Cairo0)] cairo_version: RunnableContractVersion,
     #[values(TransactionVersion::ONE, TransactionVersion::THREE)] version: TransactionVersion,
 ) {
     let (block_context, mut state, pre_validation_base_args, _) =
@@ -251,7 +250,7 @@ fn test_simulate_validate_pre_validate_with_charge_fee(
     #[values(true, false)] only_query: bool,
     #[values(true, false)] validate: bool,
     // TODO(Dori, 1/1/2024): Add Cairo1 case, after price abstraction is implemented.
-    #[values(CairoVersion::Cairo0)] cairo_version: CairoVersion,
+    #[values(RunnableContractVersion::Cairo0)] cairo_version: RunnableContractVersion,
     #[case] version: TransactionVersion,
     #[case] fee_type: FeeType,
     #[case] is_deprecated: bool,
@@ -359,7 +358,7 @@ fn test_simulate_validate_pre_validate_not_charge_fee(
     #[values(true, false)] only_query: bool,
     #[values(true, false)] validate: bool,
     // TODO(Dori, 1/1/2024): Add Cairo1 case, after price abstraction is implemented.
-    #[values(CairoVersion::Cairo0)] cairo_version: CairoVersion,
+    #[values(RunnableContractVersion::Cairo0)] cairo_version: RunnableContractVersion,
     #[case] version: TransactionVersion,
     #[case] fee_type: FeeType,
     #[case] is_deprecated: bool,
@@ -432,7 +431,7 @@ fn execute_fail_validation(
     only_query: bool,
     validate: bool,
     charge_fee: bool,
-    cairo_version: CairoVersion,
+    cairo_version: RunnableContractVersion,
     version: TransactionVersion,
     max_resource_bounds: ValidResourceBounds,
 ) -> TransactionExecutionResult<TransactionExecutionInfo> {
@@ -470,7 +469,7 @@ fn test_simulate_charge_fee_with_validation_fail_validate(
     #[values(true, false)] only_query: bool,
     #[values(true, false)] charge_fee: bool,
     // TODO(Dori, 1/1/2024): Add Cairo1 case, after price abstraction is implemented.
-    #[values(CairoVersion::Cairo0)] cairo_version: CairoVersion,
+    #[values(RunnableContractVersion::Cairo0)] cairo_version: RunnableContractVersion,
     #[values(TransactionVersion::ONE, TransactionVersion::THREE)] version: TransactionVersion,
     default_l1_resource_bounds: ValidResourceBounds,
 ) {
@@ -499,7 +498,7 @@ fn test_simulate_charge_fee_no_validation_fail_validate(
     #[values(true, false)] only_query: bool,
     #[values(true, false)] charge_fee: bool,
     // TODO(Dori, 1/1/2024): Add Cairo1 case, after price abstraction is implemented.
-    #[values(CairoVersion::Cairo0)] cairo_version: CairoVersion,
+    #[values(RunnableContractVersion::Cairo0)] cairo_version: RunnableContractVersion,
     #[case] version: TransactionVersion,
     #[case] fee_type: FeeType,
     default_l1_resource_bounds: ValidResourceBounds,
@@ -543,7 +542,7 @@ fn test_simulate_validate_charge_fee_mid_execution(
     #[values(true, false)] validate: bool,
     #[values(true, false)] charge_fee: bool,
     // TODO(Dori, 1/1/2024): Add Cairo1 case, after price abstraction is implemented.
-    #[values(CairoVersion::Cairo0)] cairo_version: CairoVersion,
+    #[values(RunnableContractVersion::Cairo0)] cairo_version: RunnableContractVersion,
     #[case] version: TransactionVersion,
     #[case] fee_type: FeeType,
     default_l1_resource_bounds: ValidResourceBounds,
@@ -710,7 +709,7 @@ fn test_simulate_validate_charge_fee_post_execution(
     #[values(true, false)] validate: bool,
     #[values(true, false)] charge_fee: bool,
     // TODO(Dori, 1/1/2024): Add Cairo1 case, after price abstraction is implemented.
-    #[values(CairoVersion::Cairo0)] cairo_version: CairoVersion,
+    #[values(RunnableContractVersion::Cairo0)] cairo_version: RunnableContractVersion,
     #[case] version: TransactionVersion,
     #[case] fee_type: FeeType,
     #[case] is_deprecated: bool,
