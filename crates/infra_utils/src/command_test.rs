@@ -10,6 +10,6 @@ async fn create_shell_command_example() {
     let stdout = String::from_utf8_lossy(&output.stdout);
 
     assert!(output.status.success());
-    // Project root should contain the `crates` directory.
-    assert!(stdout.contains("crates"));
+    // Package root should contain a `Cargo.toml` file.
+    assert!(stdout.contains("Cargo.toml"));
 }
