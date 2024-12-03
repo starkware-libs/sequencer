@@ -66,6 +66,7 @@ use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::declare::declare_tx;
 use crate::test_utils::deploy_account::deploy_account_tx;
 use crate::test_utils::initial_test_state::{fund_account, test_state};
+use crate::test_utils::invoke::invoke_tx;
 use crate::test_utils::syscall::build_recurse_calldata;
 use crate::test_utils::{
     create_calldata,
@@ -1758,12 +1759,12 @@ fn test_revert_in_execute(
 
     // Skip validate phase, as we want to test the revert in the execute phase.
     let validate = false;
-    let tx_execution_info = account_invoke_tx(invoke_tx_args! {
+    let tx = invoke_tx(invoke_tx_args! {
         resource_bounds: default_all_resource_bounds,
         ..tx_args
-    })
-    .execute(state, &block_context, true, validate)
-    .unwrap();
+    });
+    let account_tx = AccountTransaction { tx, only_query: false };
+    let tx_execution_info = account_tx.execute(state, &block_context, true, validate).unwrap();
 
     assert!(tx_execution_info.is_reverted());
     assert!(

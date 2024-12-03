@@ -2147,11 +2147,12 @@ fn test_valid_flag(
         &[(account_contract, 1), (test_contract, 1)],
     );
 
-    let account_tx = account_invoke_tx(invoke_tx_args! {
+    let tx = invoke_tx(invoke_tx_args! {
         sender_address: account_contract.get_instance_address(0),
         calldata: create_trivial_calldata(test_contract.get_instance_address(0)),
         resource_bounds: default_all_resource_bounds,
     });
+    let account_tx = AccountTransaction { tx, only_query: false };
 
     let actual_execution_info = account_tx.execute(state, block_context, true, false).unwrap();
 
