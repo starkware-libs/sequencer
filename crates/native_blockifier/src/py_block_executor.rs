@@ -21,6 +21,7 @@ use pyo3::types::{PyBytes, PyList};
 use pyo3::{FromPyObject, PyAny, Python};
 use serde::Serialize;
 use starknet_api::block::BlockNumber;
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ChainId, ContractAddress};
 use starknet_api::execution_resources::GasVector;
 use starknet_api::transaction::fields::Fee;
@@ -139,6 +140,7 @@ pub struct PyBlockExecutor {
     pub storage: Box<dyn Storage + Send>,
     pub contract_class_manager_config: ContractClassManagerConfig,
     pub global_contract_cache: GlobalContractCache<RunnableCompiledClass>,
+    pub global_sierra_version_cache: GlobalContractCache<SierraVersion>,
 }
 
 #[pymethods]
@@ -171,6 +173,9 @@ impl PyBlockExecutor {
             storage: Box::new(storage),
             contract_class_manager_config: contract_class_manager_config.into(),
             global_contract_cache: GlobalContractCache::new(
+                contract_class_manager_config.contract_cache_size,
+            ),
+            global_sierra_version_cache: GlobalContractCache::new(
                 contract_class_manager_config.contract_cache_size,
             ),
         }
@@ -412,6 +417,9 @@ impl PyBlockExecutor {
             global_contract_cache: GlobalContractCache::new(
                 contract_class_manager_config.contract_cache_size,
             ),
+            global_sierra_version_cache: GlobalContractCache::new(
+                contract_class_manager_config.sierra_version_cache_size,
+            ),
         }
     }
 }
@@ -428,12 +436,16 @@ impl PyBlockExecutor {
             self.storage.reader().clone(),
             next_block_number,
             self.global_contract_cache.clone(),
+            self.global_sierra_version_cache.clone(),
         )
     }
 
     #[cfg(any(feature = "testing", test))]
     pub fn create_for_testing_with_storage(storage: impl Storage + Send + 'static) -> Self {
-        use blockifier::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
+        use blockifier::state::global_cache::{
+            GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST,
+            GLOBAL_SIERRA_VERSION_CACHE_SIZE_FOR_TEST,
+        };
         Self {
             bouncer_config: BouncerConfig::max(),
             tx_executor_config: TransactionExecutorConfig::create_for_testing(true),
@@ -447,6 +459,9 @@ impl PyBlockExecutor {
                 contract_cache_size: GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST,
             },
             global_contract_cache: GlobalContractCache::new(GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST),
+            global_sierra_version_cache: GlobalContractCache::new(
+                GLOBAL_SIERRA_VERSION_CACHE_SIZE_FOR_TEST,
+            ),
         }
     }
 

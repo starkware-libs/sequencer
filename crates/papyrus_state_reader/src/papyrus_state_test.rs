@@ -3,7 +3,11 @@ use blockifier::execution::call_info::CallExecution;
 use blockifier::execution::entry_point::CallEntryPoint;
 use blockifier::retdata;
 use blockifier::state::cached_state::CachedState;
-use blockifier::state::global_cache::{GlobalContractCache, GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST};
+use blockifier::state::global_cache::{
+    GlobalContractCache,
+    GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST,
+    GLOBAL_SIERRA_VERSION_CACHE_SIZE_FOR_TEST,
+};
 use blockifier::state::state_api::StateReader;
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{trivial_external_entry_point_new, CairoVersion};
@@ -50,6 +54,7 @@ fn test_entry_point_with_papyrus_state() -> papyrus_storage::StorageResult<()> {
         storage_reader,
         block_number,
         GlobalContractCache::new(GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST),
+        GlobalContractCache::new(GLOBAL_SIERRA_VERSION_CACHE_SIZE_FOR_TEST),
     );
     let mut state = CachedState::from(papyrus_reader);
 

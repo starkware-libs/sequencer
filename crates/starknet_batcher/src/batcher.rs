@@ -372,6 +372,9 @@ pub fn create_batcher(config: BatcherConfig, mempool_client: SharedMempoolClient
         block_builder_config: config.block_builder_config.clone(),
         storage_reader: storage_reader.clone(),
         global_class_hash_to_class: GlobalContractCache::new(config.global_contract_cache_size),
+        global_class_hash_to_sierra_version: GlobalContractCache::new(
+            config.global_sierra_version_cache_size,
+        ),
     });
     let storage_reader = Arc::new(storage_reader);
     let storage_writer = Box::new(storage_writer);
