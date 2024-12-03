@@ -213,6 +213,7 @@ fn spawn_consensus(
         Ok(papyrus_consensus::run_consensus(
             context,
             config.start_height,
+            config.start_height,
             config.validator_id,
             config.consensus_delay,
             config.timeouts.clone(),

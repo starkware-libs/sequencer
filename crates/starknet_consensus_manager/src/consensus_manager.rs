@@ -80,6 +80,7 @@ impl ConsensusManager {
         let consensus_task = papyrus_consensus::run_consensus(
             context,
             self.config.consensus_config.start_height,
+            self.config.consensus_config.start_height,
             self.config.consensus_config.validator_id,
             self.config.consensus_config.consensus_delay,
             self.config.consensus_config.timeouts.clone(),

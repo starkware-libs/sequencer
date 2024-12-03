@@ -32,7 +32,8 @@ use crate::types::{
 #[allow(clippy::too_many_arguments)]
 pub async fn run_consensus<ContextT, SyncReceiverT>(
     mut context: ContextT,
-    start_height: BlockNumber,
+    start_active_height: BlockNumber,
+    start_observe_height: BlockNumber,
     validator_id: ValidatorId,
     consensus_delay: Duration,
     timeouts: TimeoutsConfig,
@@ -45,8 +46,10 @@ where
     SyncReceiverT: Stream<Item = BlockNumber> + Unpin,
 {
     info!(
-        "Running consensus, start_height={}, validator_id={}, consensus_delay={}, timeouts={:?}",
-        start_height,
+        "Running consensus, start_active_height={}, start_observe_height={}, validator_id={}, \
+         consensus_delay={}, timeouts={:?}",
+        start_active_height,
+        start_observe_height,
         validator_id,
         consensus_delay.as_secs(),
         timeouts
@@ -54,7 +57,9 @@ where
 
     // Add a short delay to allow peers to connect and avoid "InsufficientPeers" error
     tokio::time::sleep(consensus_delay).await;
-    let mut current_height = start_height;
+    assert!(start_observe_height <= start_active_height);
+    let is_observer = start_observe_height < start_active_height;
+    let mut current_height = if is_observer { start_observe_height } else { start_active_height };
     let mut manager = MultiHeightManager::new(validator_id, timeouts);
     #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
     loop {
@@ -63,6 +68,7 @@ where
         let run_height = manager.run_height(
             &mut context,
             current_height,
+            is_observer,
             &mut broadcast_channels,
             &mut inbound_proposal_receiver,
         );
@@ -109,6 +115,7 @@ impl MultiHeightManager {
         &mut self,
         context: &mut ContextT,
         height: BlockNumber,
+        is_observer: bool,
         broadcast_channels: &mut BroadcastConsensusMessageChannel,
         proposal_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
     ) -> Result<Decision, ConsensusError>
@@ -119,6 +126,7 @@ impl MultiHeightManager {
         info!("running consensus for height {height:?} with validator set {validators:?}");
         let mut shc = SingleHeightConsensus::new(
             height,
+            is_observer,
             self.validator_id,
             validators,
             self.timeouts.clone(),

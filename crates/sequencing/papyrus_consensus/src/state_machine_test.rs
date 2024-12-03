@@ -24,9 +24,10 @@ struct TestWrapper<LeaderFn: Fn(Round) -> ValidatorId> {
 }
 
 impl<LeaderFn: Fn(Round) -> ValidatorId> TestWrapper<LeaderFn> {
-    pub fn new(id: ValidatorId, total_weight: u32, leader_fn: LeaderFn) -> Self {
+    pub fn new(id: ValidatorId, total_weight: u32, leader_fn: LeaderFn, is_observer: bool) -> Self {
+        //! !
         Self {
-            state_machine: StateMachine::new(id, total_weight),
+            state_machine: StateMachine::new(id, total_weight, is_observer),
             leader_fn,
             events: VecDeque::new(),
         }
@@ -77,7 +78,7 @@ impl<LeaderFn: Fn(Round) -> ValidatorId> TestWrapper<LeaderFn> {
 #[test_case(false; "validator")]
 fn events_arrive_in_ideal_order(is_proposer: bool) {
     let id = if is_proposer { *PROPOSER_ID } else { *VALIDATOR_ID };
-    let mut wrapper = TestWrapper::new(id, 4, |_: Round| *PROPOSER_ID);
+    let mut wrapper = TestWrapper::new(id, 4, |_: Round| *PROPOSER_ID, false);
 
     wrapper.start();
     if is_proposer {
@@ -120,7 +121,7 @@ fn events_arrive_in_ideal_order(is_proposer: bool) {
 
 #[test]
 fn validator_receives_votes_first() {
-    let mut wrapper = TestWrapper::new(*VALIDATOR_ID, 4, |_: Round| *PROPOSER_ID);
+    let mut wrapper = TestWrapper::new(*VALIDATOR_ID, 4, |_: Round| *PROPOSER_ID, false);
 
     wrapper.start();
     // Waiting for the proposal.
@@ -154,7 +155,7 @@ fn validator_receives_votes_first() {
 #[test_case(PROPOSAL_ID ; "valid_proposal")]
 #[test_case(None ; "invalid_proposal")]
 fn buffer_events_during_get_proposal(vote: Option<ProposalContentId>) {
-    let mut wrapper = TestWrapper::new(*PROPOSER_ID, 4, |_: Round| *PROPOSER_ID);
+    let mut wrapper = TestWrapper::new(*PROPOSER_ID, 4, |_: Round| *PROPOSER_ID, false);
 
     wrapper.start();
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::GetProposal(None, 0));
@@ -179,7 +180,7 @@ fn buffer_events_during_get_proposal(vote: Option<ProposalContentId>) {
 
 #[test]
 fn only_send_precommit_with_prevote_quorum_and_proposal() {
-    let mut wrapper = TestWrapper::new(*VALIDATOR_ID, 4, |_: Round| *PROPOSER_ID);
+    let mut wrapper = TestWrapper::new(*VALIDATOR_ID, 4, |_: Round| *PROPOSER_ID, false);
 
     wrapper.start();
     // Waiting for the proposal.
@@ -202,7 +203,7 @@ fn only_send_precommit_with_prevote_quorum_and_proposal() {
 
 #[test]
 fn only_decide_with_prcommit_quorum_and_proposal() {
-    let mut wrapper = TestWrapper::new(*VALIDATOR_ID, 4, |_: Round| *PROPOSER_ID);
+    let mut wrapper = TestWrapper::new(*VALIDATOR_ID, 4, |_: Round| *PROPOSER_ID, false);
 
     wrapper.start();
     // Waiting for the proposal.
@@ -232,7 +233,7 @@ fn only_decide_with_prcommit_quorum_and_proposal() {
 
 #[test]
 fn advance_to_the_next_round() {
-    let mut wrapper = TestWrapper::new(*VALIDATOR_ID, 4, |_: Round| *PROPOSER_ID);
+    let mut wrapper = TestWrapper::new(*VALIDATOR_ID, 4, |_: Round| *PROPOSER_ID, false);
 
     wrapper.start();
     // Waiting for the proposal.
@@ -258,7 +259,7 @@ fn advance_to_the_next_round() {
 
 #[test]
 fn prevote_when_receiving_proposal_in_current_round() {
-    let mut wrapper = TestWrapper::new(*VALIDATOR_ID, 4, |_: Round| *PROPOSER_ID);
+    let mut wrapper = TestWrapper::new(*VALIDATOR_ID, 4, |_: Round| *PROPOSER_ID, false);
 
     wrapper.start();
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPropose(ROUND));
@@ -283,7 +284,7 @@ fn prevote_when_receiving_proposal_in_current_round() {
 #[test_case(true ; "send_proposal")]
 #[test_case(false ; "send_timeout_propose")]
 fn mixed_quorum(send_prposal: bool) {
-    let mut wrapper = TestWrapper::new(*VALIDATOR_ID, 4, |_: Round| *PROPOSER_ID);
+    let mut wrapper = TestWrapper::new(*VALIDATOR_ID, 4, |_: Round| *PROPOSER_ID, false);
 
     wrapper.start();
     // Waiting for the proposal.
@@ -313,7 +314,7 @@ fn mixed_quorum(send_prposal: bool) {
 
 #[test]
 fn dont_handle_enqueued_while_awaiting_get_proposal() {
-    let mut wrapper = TestWrapper::new(*PROPOSER_ID, 4, |_: Round| *PROPOSER_ID);
+    let mut wrapper = TestWrapper::new(*PROPOSER_ID, 4, |_: Round| *PROPOSER_ID, false);
 
     wrapper.start();
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::GetProposal(None, ROUND));
@@ -358,7 +359,7 @@ fn dont_handle_enqueued_while_awaiting_get_proposal() {
 
 #[test]
 fn return_proposal_if_locked_value_is_set() {
-    let mut wrapper = TestWrapper::new(*PROPOSER_ID, 4, |_: Round| *PROPOSER_ID);
+    let mut wrapper = TestWrapper::new(*PROPOSER_ID, 4, |_: Round| *PROPOSER_ID, false);
 
     wrapper.start();
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::GetProposal(None, ROUND));
@@ -388,4 +389,29 @@ fn return_proposal_if_locked_value_is_set() {
         StateMachineEvent::Proposal(PROPOSAL_ID, ROUND + 1, Some(ROUND))
     );
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Prevote(PROPOSAL_ID, ROUND + 1));
+}
+
+#[test]
+fn observer_node_reaches_decision() {
+    let id = *VALIDATOR_ID;
+    let mut wrapper = TestWrapper::new(id, 4, |_: Round| *PROPOSER_ID, true);
+
+    wrapper.start();
+
+    // Waiting for the proposal.
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPropose(ROUND));
+    assert!(wrapper.next_event().is_none());
+    wrapper.send_proposal(PROPOSAL_ID, ROUND);
+    // The observer node does not respond to the proposal by sending votes.
+    assert!(wrapper.next_event().is_none());
+
+    wrapper.send_precommit(PROPOSAL_ID, ROUND);
+    wrapper.send_precommit(PROPOSAL_ID, ROUND);
+    wrapper.send_precommit(PROPOSAL_ID, ROUND);
+    // Once a quorum of precommits is observed, the node should generate a decision event.
+    assert_eq!(
+        wrapper.next_event().unwrap(),
+        StateMachineEvent::Decision(PROPOSAL_ID.unwrap(), ROUND)
+    );
+    assert!(wrapper.next_event().is_none());
 }
