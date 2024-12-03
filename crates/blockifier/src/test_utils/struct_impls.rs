@@ -14,6 +14,7 @@ use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp, NonzeroGasPric
 use starknet_api::contract_address;
 use starknet_api::core::{ChainId, ClassHash};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
+use starknet_api::test_utils::{DEFAULT_ETH_L1_DATA_GAS_PRICE, DEFAULT_ETH_L1_GAS_PRICE};
 
 use super::{
     update_json_value,
@@ -40,8 +41,6 @@ use crate::test_utils::{
     get_raw_contract_class,
     CURRENT_BLOCK_NUMBER,
     CURRENT_BLOCK_TIMESTAMP,
-    DEFAULT_ETH_L1_DATA_GAS_PRICE,
-    DEFAULT_ETH_L1_GAS_PRICE,
     DEFAULT_STRK_L1_DATA_GAS_PRICE,
     DEFAULT_STRK_L1_GAS_PRICE,
 };
