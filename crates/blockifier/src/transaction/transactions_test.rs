@@ -520,7 +520,7 @@ fn test_invoke_tx(
 
     let tracked_resource = account_contract
         .get_runnable_class()
-        .tracked_resource(&versioned_constants.min_compiler_version_for_sierra_gas, None);
+        .tracked_resource(&versioned_constants.min_sierra_version_for_sierra_gas, None);
 
     // Build expected validate call info.
     let expected_account_class_hash = account_contract.get_class_hash();
@@ -1617,7 +1617,7 @@ fn test_declare_tx(
         sender_address,
         account
             .get_runnable_class()
-            .tracked_resource(&versioned_constants.min_compiler_version_for_sierra_gas, None),
+            .tracked_resource(&versioned_constants.min_sierra_version_for_sierra_gas, None),
         if tx_version >= TransactionVersion::THREE {
             Some(user_initial_gas_from_bounds(default_all_resource_bounds, Some(block_context)))
         } else {
@@ -1826,7 +1826,7 @@ fn test_deploy_account_tx(
         cairo_version,
         account
             .get_runnable_class()
-            .tracked_resource(&versioned_constants.min_compiler_version_for_sierra_gas, None),
+            .tracked_resource(&versioned_constants.min_sierra_version_for_sierra_gas, None),
         Some(user_initial_gas),
     );
 
@@ -2365,7 +2365,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
         accessed_storage_keys: HashSet::from_iter(vec![accessed_storage_key]),
         tracked_resource: test_contract
             .get_runnable_class()
-            .tracked_resource(&versioned_constants.min_compiler_version_for_sierra_gas, None),
+            .tracked_resource(&versioned_constants.min_sierra_version_for_sierra_gas, None),
         ..Default::default()
     };
 
@@ -2679,10 +2679,10 @@ fn test_invoke_max_sierra_gas_validate_execute(
 
     let account_tracked_resource = account_contract
         .get_runnable_class()
-        .tracked_resource(&versioned_constants.min_compiler_version_for_sierra_gas, None);
+        .tracked_resource(&versioned_constants.min_sierra_version_for_sierra_gas, None);
 
     let contract_tracked_resource = test_contract.get_runnable_class().tracked_resource(
-        &versioned_constants.min_compiler_version_for_sierra_gas,
+        &versioned_constants.min_sierra_version_for_sierra_gas,
         Some(&account_tracked_resource),
     );
 
@@ -2802,7 +2802,7 @@ fn test_deploy_max_sierra_gas_validate_execute(
 
     let account_tracked_resource = account
         .get_runnable_class()
-        .tracked_resource(&versioned_constants.min_compiler_version_for_sierra_gas, None);
+        .tracked_resource(&versioned_constants.min_sierra_version_for_sierra_gas, None);
 
     let actual_execution_info = deploy_account.execute(state, &block_context).unwrap();
 

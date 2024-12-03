@@ -173,6 +173,8 @@ async fn test_get_compiled_class() {
         entry_points_by_type: Default::default(),
     };
 
+    let expected_sierra_version = SierraVersion::default();
+
     let mock = mock_rpc_interaction(
         &mut server,
         &config.json_rpc_version,
@@ -193,7 +195,10 @@ async fn test_get_compiled_class() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(result, RunnableCompiledClass::V1(expected_result.try_into().unwrap()));
+    assert_eq!(
+        result,
+        RunnableCompiledClass::V1((expected_result, expected_sierra_version).try_into().unwrap())
+    );
     mock.assert_async().await;
 }
 
