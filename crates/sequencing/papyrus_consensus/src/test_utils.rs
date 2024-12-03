@@ -39,7 +39,7 @@ impl TryFrom<MockProposalPart> for ProposalInit {
         Ok(ProposalInit {
             height: BlockNumber(part.0),
             round: 0,
-            proposer: ValidatorId::default(),
+            proposer: ValidatorId::from(100_u32),
             valid_round: None,
         })
     }

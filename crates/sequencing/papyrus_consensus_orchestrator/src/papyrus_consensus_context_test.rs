@@ -39,7 +39,7 @@ async fn build_proposal() {
     let proposal_init = ProposalInit {
         height: block_number,
         round: 0,
-        proposer: ValidatorId::default(),
+        proposer: ValidatorId::from(100_u32),
         valid_round: None,
     };
     // TODO(Asmaa): Test proposal content.
@@ -70,7 +70,7 @@ async fn validate_proposal_success() {
         .validate_proposal(
             block_number,
             0,
-            ValidatorId::default(),
+            ValidatorId::from(100_u32),
             Duration::MAX,
             validate_receiver,
         )
@@ -101,7 +101,7 @@ async fn validate_proposal_fail() {
         .validate_proposal(
             block_number,
             0,
-            ValidatorId::default(),
+            ValidatorId::from(100_u32),
             Duration::MAX,
             validate_receiver,
         )

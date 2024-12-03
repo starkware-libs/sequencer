@@ -128,7 +128,7 @@ async fn build_proposal() {
     let init = ProposalInit {
         height: BlockNumber(0),
         round: 0,
-        proposer: ValidatorId::default(),
+        proposer: ValidatorId::from(100_u32),
         valid_round: None,
     };
     // TODO(Asmaa): Test proposal content.
@@ -208,7 +208,7 @@ async fn validate_proposal_success() {
         .await
         .unwrap();
     let fin_receiver = context
-        .validate_proposal(BlockNumber(0), 0, ValidatorId::default(), TIMEOUT, content_receiver)
+        .validate_proposal(BlockNumber(0), 0, ValidatorId::from(100_u32), TIMEOUT, content_receiver)
         .await;
     content_sender.close_channel();
     assert_eq!(fin_receiver.await.unwrap().0.0, STATE_DIFF_COMMITMENT.0.0);
@@ -269,7 +269,7 @@ async fn repropose() {
     });
     content_sender.send(prop_part).await.unwrap();
     let fin_receiver = context
-        .validate_proposal(BlockNumber(0), 0, ValidatorId::default(), TIMEOUT, content_receiver)
+        .validate_proposal(BlockNumber(0), 0, ValidatorId::from(100_u32), TIMEOUT, content_receiver)
         .await;
     content_sender.close_channel();
     assert_eq!(fin_receiver.await.unwrap().0.0, STATE_DIFF_COMMITMENT.0.0);
@@ -351,7 +351,7 @@ async fn proposals_from_different_rounds() {
     content_sender.send(prop_part_txs.clone()).await.unwrap();
 
     let fin_receiver_past_round = context
-        .validate_proposal(BlockNumber(0), 0, ValidatorId::default(), TIMEOUT, content_receiver)
+        .validate_proposal(BlockNumber(0), 0, ValidatorId::from(100_u32), TIMEOUT, content_receiver)
         .await;
     // No fin was sent, channel remains open.
     assert!(fin_receiver_past_round.await.is_err());
@@ -361,7 +361,7 @@ async fn proposals_from_different_rounds() {
     content_sender.send(prop_part_txs.clone()).await.unwrap();
     content_sender.send(prop_part_fin.clone()).await.unwrap();
     let fin_receiver_curr_round = context
-        .validate_proposal(BlockNumber(0), 1, ValidatorId::default(), TIMEOUT, content_receiver)
+        .validate_proposal(BlockNumber(0), 1, ValidatorId::from(100_u32), TIMEOUT, content_receiver)
         .await;
     assert_eq!(fin_receiver_curr_round.await.unwrap().0.0, STATE_DIFF_COMMITMENT.0.0);
 
@@ -370,7 +370,7 @@ async fn proposals_from_different_rounds() {
     content_sender.send(prop_part_txs.clone()).await.unwrap();
     content_sender.send(prop_part_fin.clone()).await.unwrap();
     let fin_receiver_future_round = context
-        .validate_proposal(BlockNumber(0), 2, ValidatorId::default(), TIMEOUT, content_receiver)
+        .validate_proposal(BlockNumber(0), 2, ValidatorId::from(100_u32), TIMEOUT, content_receiver)
         .await;
     content_sender.close_channel();
     // Even with sending fin and closing the channel.
@@ -439,7 +439,7 @@ async fn interrupt_active_proposal() {
     // without needing interrupt.
     let (mut _content_sender_0, content_receiver) = mpsc::channel(CHANNEL_SIZE);
     let fin_receiver_0 = context
-        .validate_proposal(BlockNumber(0), 0, ValidatorId::default(), TIMEOUT, content_receiver)
+        .validate_proposal(BlockNumber(0), 0, ValidatorId::from(100_u32), TIMEOUT, content_receiver)
         .await;
 
     let (mut content_sender_1, content_receiver) = mpsc::channel(CHANNEL_SIZE);
@@ -457,7 +457,7 @@ async fn interrupt_active_proposal() {
         .await
         .unwrap();
     let fin_receiver_1 = context
-        .validate_proposal(BlockNumber(0), 1, ValidatorId::default(), TIMEOUT, content_receiver)
+        .validate_proposal(BlockNumber(0), 1, ValidatorId::from(100_u32), TIMEOUT, content_receiver)
         .await;
     // Move the context to the next round.
     context.set_height_and_round(BlockNumber(0), 1).await;
