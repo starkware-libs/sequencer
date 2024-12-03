@@ -73,7 +73,7 @@ impl FlowTestSetup {
 
 pub struct SequencerSetup {
     /// Used to differentiate between different sequencer nodes.
-    pub sequencer_id: usize,
+    pub sequencer_index: usize,
 
     // Client for adding transactions to the sequencer node.
     pub add_tx_http_client: HttpTestClient,
@@ -93,7 +93,7 @@ impl SequencerSetup {
     )]
     pub async fn new(
         accounts: Vec<Contract>,
-        sequencer_id: usize,
+        sequencer_index: usize,
         chain_info: ChainInfo,
         task_executor: &TokioExecutor,
         consensus_manager_config: ConsensusManagerConfig,
@@ -109,6 +109,7 @@ impl SequencerSetup {
 
         // Derive the configuration for the sequencer node.
         let (config, _required_params) = create_config(
+            sequencer_index,
             chain_info,
             rpc_server_addr,
             storage_for_test.batcher_storage_config,
@@ -133,7 +134,7 @@ impl SequencerSetup {
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
         Self {
-            sequencer_id,
+            sequencer_index,
             add_tx_http_client,
             batcher_storage_file_handle: storage_for_test.batcher_storage_handle,
             rpc_storage_file_handle: storage_for_test.rpc_storage_handle,
