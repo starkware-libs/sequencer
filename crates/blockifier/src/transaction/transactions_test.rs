@@ -449,13 +449,11 @@ fn test_invoke_tx(
     let test_contract_address = test_contract.get_instance_address(0);
     let account_contract_address = account_contract.get_instance_address(0);
     let calldata = create_trivial_calldata(test_contract_address);
-    let tx = invoke_tx(invoke_tx_args! {
+    let invoke_tx = AccountTransaction::new_with_default_flags(invoke_tx(invoke_tx_args! {
         sender_address: account_contract_address,
         calldata: Calldata(Arc::clone(&calldata.0)),
         resource_bounds,
-    });
-    let execution_flags = ExecutionFlags::default();
-    let invoke_tx = AccountTransaction { tx, execution_flags };
+    }));
 
     // Extract invoke transaction fields for testing, as it is consumed when creating an account
     // transaction.
@@ -969,16 +967,13 @@ fn test_max_fee_exceeds_balance(
     )};
 
     // Deploy.
-    let invalid_tx = AccountTransaction {
-        tx: deploy_account_tx(
-            deploy_account_tx_args! {
-                resource_bounds,
-                class_hash: test_contract.get_class_hash()
-            },
-            &mut NonceManager::default(),
-        ),
-        execution_flags: ExecutionFlags::default(),
-    };
+    let invalid_tx = AccountTransaction::new_with_default_flags(deploy_account_tx(
+        deploy_account_tx_args! {
+            resource_bounds,
+            class_hash: test_contract.get_class_hash()
+        },
+        &mut NonceManager::default(),
+    ));
     assert_resource_bounds_exceed_balance_failure(state, block_context, invalid_tx);
 
     // V1 Invoke.
@@ -1002,18 +997,15 @@ fn test_max_fee_exceeds_balance(
             // Declare.
             let contract_to_declare = FeatureContract::Empty(CairoVersion::Cairo1);
             let class_info = calculate_class_info_for_testing(contract_to_declare.get_class());
-            let invalid_tx = AccountTransaction {
-                tx: declare_tx(
-                    declare_tx_args! {
-                        class_hash: contract_to_declare.get_class_hash(),
-                        compiled_class_hash: contract_to_declare.get_compiled_class_hash(),
-                        sender_address,
-                        resource_bounds: $invalid_resource_bounds,
-                    },
-                    class_info,
-                ),
-                execution_flags: ExecutionFlags::default(),
-            };
+            let invalid_tx = AccountTransaction::new_with_default_flags(declare_tx(
+                declare_tx_args! {
+                    class_hash: contract_to_declare.get_class_hash(),
+                    compiled_class_hash: contract_to_declare.get_compiled_class_hash(),
+                    sender_address,
+                    resource_bounds: $invalid_resource_bounds,
+                },
+                class_info,
+            ));
             assert_resource_bounds_exceed_balance_failure(state, block_context, invalid_tx);
         };
     }
@@ -1516,7 +1508,7 @@ fn test_declare_tx(
         None,
         ExecutionSummary::default(),
     );
-    let tx = declare_tx(
+    let account_tx = AccountTransaction::new_with_default_flags(declare_tx(
         declare_tx_args! {
             max_fee: MAX_FEE,
             sender_address,
@@ -1527,8 +1519,7 @@ fn test_declare_tx(
             nonce: nonce_manager.next(sender_address),
         },
         class_info.clone(),
-    );
-    let account_tx = AccountTransaction { tx, execution_flags: ExecutionFlags::default() };
+    ));
 
     // Check state before transaction application.
     assert_matches!(
@@ -1638,7 +1629,7 @@ fn test_declare_tx(
     assert_eq!(contract_class_from_state, class_info.contract_class().try_into().unwrap());
 
     // Checks that redeclaring the same contract fails.
-    let tx2 = declare_tx(
+    let account_tx2 = AccountTransaction::new_with_default_flags(declare_tx(
         declare_tx_args! {
             max_fee: MAX_FEE,
             sender_address,
@@ -1649,8 +1640,7 @@ fn test_declare_tx(
             nonce: nonce_manager.next(sender_address),
         },
         class_info.clone(),
-    );
-    let account_tx2 = AccountTransaction { tx: tx2, execution_flags: ExecutionFlags::default() };
+    ));
     let result = account_tx2.execute(state, block_context);
     assert_matches!(
          result.unwrap_err(),
@@ -1709,16 +1699,13 @@ fn test_deploy_account_tx(
     let account = FeatureContract::AccountWithoutValidations(cairo_version);
     let account_class_hash = account.get_class_hash();
     let state = &mut test_state(chain_info, BALANCE, &[(account, 1)]);
-    let deploy_account = AccountTransaction {
-        tx: deploy_account_tx(
-            deploy_account_tx_args! {
-                resource_bounds: default_all_resource_bounds,
-                class_hash: account_class_hash
-            },
-            &mut nonce_manager,
-        ),
-        execution_flags: ExecutionFlags::default(),
-    };
+    let deploy_account = AccountTransaction::new_with_default_flags(deploy_account_tx(
+        deploy_account_tx_args! {
+            resource_bounds: default_all_resource_bounds,
+            class_hash: account_class_hash
+        },
+        &mut nonce_manager,
+    ));
 
     // Extract deploy account transaction fields for testing, as it is consumed when creating an
     // account transaction.
@@ -1869,16 +1856,13 @@ fn test_deploy_account_tx(
 
     // Negative flow.
     // Deploy to an existing address.
-    let deploy_account = AccountTransaction {
-        tx: deploy_account_tx(
-            deploy_account_tx_args! {
-                resource_bounds: default_all_resource_bounds,
-                class_hash: account_class_hash
-            },
-            &mut nonce_manager,
-        ),
-        execution_flags: ExecutionFlags::default(),
-    };
+    let deploy_account = AccountTransaction::new_with_default_flags(deploy_account_tx(
+        deploy_account_tx_args! {
+            resource_bounds: default_all_resource_bounds,
+            class_hash: account_class_hash
+        },
+        &mut nonce_manager,
+    ));
     let error = deploy_account.execute(state, block_context).unwrap_err();
     assert_matches!(
         error,
@@ -1903,15 +1887,12 @@ fn test_fail_deploy_account_undeclared_class_hash(
     let state = &mut test_state(chain_info, BALANCE, &[]);
     let mut nonce_manager = NonceManager::default();
     let undeclared_hash = class_hash!("0xdeadbeef");
-    let deploy_account = AccountTransaction {
-        tx: deploy_account_tx(
-            deploy_account_tx_args! {
-                resource_bounds: default_all_resource_bounds,  class_hash: undeclared_hash
-            },
-            &mut nonce_manager,
-        ),
-        execution_flags: ExecutionFlags::default(),
-    };
+    let deploy_account = AccountTransaction::new_with_default_flags(deploy_account_tx(
+        deploy_account_tx_args! {
+            resource_bounds: default_all_resource_bounds,  class_hash: undeclared_hash
+        },
+        &mut nonce_manager,
+    ));
     let tx_context = block_context.to_tx_context(&deploy_account);
     let fee_type = tx_context.tx_info.fee_type();
 
