@@ -21,6 +21,7 @@ use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::declare::declare_tx;
 use crate::test_utils::deploy_account::deploy_account_tx;
 use crate::test_utils::initial_test_state::test_state;
+use crate::test_utils::invoke::invoke_tx;
 use crate::test_utils::l1_handler::l1handler_tx;
 use crate::test_utils::{
     create_calldata,
@@ -32,7 +33,6 @@ use crate::test_utils::{
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::test_utils::{
-    account_invoke_tx,
     block_context,
     calculate_class_info_for_testing,
     create_test_init_data,
@@ -218,12 +218,12 @@ fn test_invoke(
 
     let calldata =
         create_calldata(test_contract.get_instance_address(0), entry_point_name, &entry_point_args);
-    let tx = account_invoke_tx(invoke_tx_args! {
+    let invoke_tx = invoke_tx(invoke_tx_args! {
         sender_address: account_contract.get_instance_address(0),
         calldata,
         version,
-    })
-    .into();
+    });
+    let tx = AccountTransaction { tx: invoke_tx, only_query: false }.into();
     tx_executor_test_body(state, block_context, tx, expected_bouncer_weights);
 }
 
