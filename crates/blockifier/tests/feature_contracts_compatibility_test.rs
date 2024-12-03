@@ -14,8 +14,6 @@ use pretty_assertions::assert_eq;
 use rstest::rstest;
 
 const CAIRO0_FEATURE_CONTRACTS_DIR: &str = "feature_contracts/cairo0";
-#[cfg(feature = "cairo_native")]
-const NATIVE_FEATURE_CONTRACTS_DIR: &str = "feature_contracts/cairo_native";
 const COMPILED_CONTRACTS_SUBDIR: &str = "compiled";
 const FIX_COMMAND: &str = "FIX_FEATURE_TEST=1 cargo test -p blockifier --test \
                            feature_contracts_compatibility_test --features testing -- \
@@ -196,7 +194,7 @@ fn verify_and_get_files(cairo_version: CairoVersion) -> Vec<FeatureContractMetad
         CairoVersion::Cairo0 => CAIRO0_FEATURE_CONTRACTS_DIR,
         CairoVersion::Cairo1 => CAIRO1_FEATURE_CONTRACTS_DIR,
         #[cfg(feature = "cairo_native")]
-        CairoVersion::Native => NATIVE_FEATURE_CONTRACTS_DIR,
+        CairoVersion::Native => CAIRO1_FEATURE_CONTRACTS_DIR,
     };
     let compiled_extension = match cairo_version {
         CairoVersion::Cairo0 => "_compiled.json",
@@ -227,8 +225,13 @@ fn verify_and_get_files(cairo_version: CairoVersion) -> Vec<FeatureContractMetad
         );
 
         let file_name = path.file_stem().unwrap().to_string_lossy();
+        let compiled_contract_folder = match cairo_version {
+            CairoVersion::Cairo1 | CairoVersion::Cairo0 => COMPILED_CONTRACTS_SUBDIR,
+            #[cfg(feature = "cairo_native")]
+            CairoVersion::Native => SIERRA_CONTRACTS_SUBDIR,
+        };
         let existing_compiled_path =
-            format!("{directory}/{COMPILED_CONTRACTS_SUBDIR}/{file_name}{compiled_extension}");
+            format!("{directory}/{compiled_contract_folder}/{file_name}{compiled_extension}");
 
         match cairo_version {
             CairoVersion::Cairo0 => {
