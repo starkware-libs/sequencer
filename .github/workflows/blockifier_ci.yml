@@ -44,7 +44,7 @@ concurrency:
 
 jobs:
   feature-combo-builds:
-    runs-on: starkware-ubuntu-20-04-medium
+    runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
         with:
@@ -60,5 +60,4 @@ jobs:
       - run: cargo test -p blockifier --features transaction_serde
       # cairo_native is not activated by any workspace crate; test the build.
       - run: cargo build -p blockifier --features cairo_native
-      # TODO(Meshi): Reinstate native tests once it works again...
-      # - run: cargo test -p blockifier --features cairo_native
+      - run: cargo test -p blockifier --features cairo_native
