@@ -18,9 +18,8 @@ use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::invoke::invoke_tx;
 use crate::test_utils::{CairoVersion, BALANCE, MAX_FEE};
-use crate::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
+use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::transaction_execution::Transaction;
-use crate::transaction::transactions::enforce_fee;
 const N_ACCOUNTS: u16 = 10000;
 const N_TXS: usize = 1000;
 const RANDOMIZATION_SEED: u64 = 0;
@@ -145,13 +144,7 @@ impl TransfersGenerator {
             self.sender_index = (self.sender_index + 1) % self.account_addresses.len();
 
             let tx = self.generate_transfer(sender_address, recipient_address);
-            let only_query = false;
-            let execution_flags = ExecutionFlags {
-                charge_fee: enforce_fee(&tx, only_query),
-                only_query,
-                ..ExecutionFlags::default()
-            };
-            let account_tx = AccountTransaction { tx, execution_flags };
+            let account_tx = AccountTransaction::new_for_sequencing(tx);
             txs.push(Transaction::Account(account_tx));
         }
         let results = self.executor.execute_txs(&txs);

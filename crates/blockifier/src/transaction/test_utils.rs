@@ -113,10 +113,10 @@ pub fn deploy_and_fund_account(
     deploy_tx_args: DeployAccountTxArgs,
 ) -> (AccountTransaction, ContractAddress) {
     // Deploy an account contract.
-    let deploy_account_tx = AccountTransaction {
-        tx: deploy_account_tx(deploy_tx_args, nonce_manager),
-        execution_flags: ExecutionFlags::default(),
-    };
+    let deploy_account_tx = AccountTransaction::new_with_default_flags(deploy_account_tx(
+        deploy_tx_args,
+        nonce_manager,
+    ));
     let account_address = deploy_account_tx.sender_address();
 
     // Update the balance of the about-to-be deployed account contract in the erc20 contract, so it
@@ -315,8 +315,8 @@ pub fn run_invoke_tx(
 ) -> TransactionExecutionResult<TransactionExecutionInfo> {
     let only_query = invoke_args.only_query;
     let tx = invoke_tx(invoke_args);
-    let charge_fee = enforce_fee(&tx, only_query);
-    let execution_flags = ExecutionFlags { charge_fee, only_query, ..ExecutionFlags::default() };
+    let execution_flags =
+        ExecutionFlags { only_query, charge_fee: enforce_fee(&tx, only_query), validate: true };
     let account_tx = AccountTransaction { tx, execution_flags };
 
     account_tx.execute(state, block_context)
@@ -394,9 +394,6 @@ pub fn emit_n_events_tx(
         calldata,
         nonce
     });
-    let only_query = false;
-    let charge_fee = enforce_fee(&tx, only_query);
-    let execution_flags = ExecutionFlags { only_query, charge_fee, ..ExecutionFlags::default() };
 
-    AccountTransaction { tx, execution_flags }
+    AccountTransaction::new_for_sequencing(tx)
 }
