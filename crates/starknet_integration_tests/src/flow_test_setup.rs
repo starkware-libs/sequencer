@@ -109,6 +109,7 @@ impl SequencerSetup {
 
         // Derive the configuration for the sequencer node.
         let (config, _required_params) = create_config(
+            sequencer_id,
             chain_info,
             rpc_server_addr,
             storage_for_test.batcher_storage_config,
