@@ -894,7 +894,7 @@ fn to_blockifier_tx(
             sierra_version,
         ) => {
             let class_info = ClassInfo::new(
-                &compiled_class.into(),
+                &(compiled_class, sierra_version.clone()).into(),
                 sierra_program_length,
                 abi_length,
                 sierra_version,
@@ -923,7 +923,7 @@ fn to_blockifier_tx(
             sierra_version,
         ) => {
             let class_info = ClassInfo::new(
-                &compiled_class.into(),
+                &(compiled_class, sierra_version.clone()).into(),
                 sierra_program_length,
                 abi_length,
                 sierra_version,
