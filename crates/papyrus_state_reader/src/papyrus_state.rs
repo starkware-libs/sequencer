@@ -2,8 +2,9 @@ use blockifier::execution::contract_class::{
     CompiledClassV0,
     CompiledClassV1,
     RunnableCompiledClass,
+    VersionedRunnableCompiledClass,
 };
-use blockifier::state::errors::StateError;
+use blockifier::state::errors::{validate_casm_and_sierra, StateError};
 use blockifier::state::global_cache::GlobalContractCache;
 use blockifier::state::state_api::{StateReader, StateResult};
 use papyrus_storage::compiled_class::CasmStorageReader;
@@ -11,6 +12,7 @@ use papyrus_storage::db::RO;
 use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::StorageReader;
 use starknet_api::block::BlockNumber;
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::{StateNumber, StorageKey};
 use starknet_types_core::felt::Felt;
@@ -46,7 +48,7 @@ impl PapyrusReader {
     fn get_compiled_class_inner(
         &self,
         class_hash: ClassHash,
-    ) -> StateResult<RunnableCompiledClass> {
+    ) -> StateResult<VersionedRunnableCompiledClass> {
         let state_number = StateNumber(self.latest_block);
         let class_declaration_block_number = self
             .reader()?
@@ -57,16 +59,21 @@ impl PapyrusReader {
                         Some(block_number) if block_number <= state_number.0);
 
         if class_is_declared {
-            let casm_compiled_class = self
+            let (option_casm_compiled_class, option_sierra) = self
                 .reader()?
-                .get_casm(&class_hash)
-                .map_err(|err| StateError::StateReadError(err.to_string()))?
-                .expect(
-                    "Should be able to fetch a Casm class if its definition exists, database is \
-                     inconsistent.",
-                );
+                .get_casm_and_sierra(&class_hash)
+                .map_err(|err| StateError::StateReadError(err.to_string()))?;
+            let (casm_compiled_class, sierra) =
+                validate_casm_and_sierra(class_hash, option_casm_compiled_class, option_sierra)?
+                    .expect(
+                        "Should be able to fetch a Casm and Sierra class if its definition \
+                         exists, database is inconsistent.",
+                    );
+            let sierra_version = SierraVersion::extract_from_program(&sierra.sierra_program)?;
+            let runnable_compiled =
+                RunnableCompiledClass::V1(CompiledClassV1::try_from(casm_compiled_class)?);
 
-            return Ok(RunnableCompiledClass::V1(CompiledClassV1::try_from(casm_compiled_class)?));
+            return Ok(VersionedRunnableCompiledClass::Cairo1((runnable_compiled, sierra_version)));
         }
 
         let v0_compiled_class = self
@@ -76,9 +83,9 @@ impl PapyrusReader {
             .map_err(|err| StateError::StateReadError(err.to_string()))?;
 
         match v0_compiled_class {
-            Some(starknet_api_contract_class) => {
-                Ok(CompiledClassV0::try_from(starknet_api_contract_class)?.into())
-            }
+            Some(starknet_api_contract_class) => Ok(VersionedRunnableCompiledClass::Cairo0(
+                CompiledClassV0::try_from(starknet_api_contract_class)?.into(),
+            )),
             None => Err(StateError::UndeclaredClassHash(class_hash)),
         }
     }
@@ -131,7 +138,8 @@ impl StateReader for PapyrusReader {
         match contract_class {
             Some(contract_class) => Ok(contract_class),
             None => {
-                let contract_class_from_db = self.get_compiled_class_inner(class_hash)?;
+                let contract_class_from_db =
+                    RunnableCompiledClass::from(self.get_compiled_class_inner(class_hash)?);
                 // The class was declared in a previous (finalized) state; update the global cache.
                 self.global_class_hash_to_class.set(class_hash, contract_class_from_db.clone());
                 Ok(contract_class_from_db)
