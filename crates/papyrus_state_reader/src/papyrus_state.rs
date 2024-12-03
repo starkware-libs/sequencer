@@ -25,14 +25,14 @@ type RawPapyrusReader<'env> = papyrus_storage::StorageTxn<'env, RO>;
 pub struct PapyrusReader {
     storage_reader: StorageReader,
     latest_block: BlockNumber,
-    global_class_hash_to_class: GlobalContractCache<RunnableCompiledClass>,
+    global_class_hash_to_class: GlobalContractCache<VersionedRunnableCompiledClass>,
 }
 
 impl PapyrusReader {
     pub fn new(
         storage_reader: StorageReader,
         latest_block: BlockNumber,
-        global_class_hash_to_class: GlobalContractCache<RunnableCompiledClass>,
+        global_class_hash_to_class: GlobalContractCache<VersionedRunnableCompiledClass>,
     ) -> Self {
         Self { storage_reader, latest_block, global_class_hash_to_class }
     }
@@ -132,16 +132,16 @@ impl StateReader for PapyrusReader {
 
     fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
         // Assumption: the global cache is cleared upon reverted blocks.
-        let contract_class = self.global_class_hash_to_class.get(&class_hash);
+        let versioned_contract_class = self.global_class_hash_to_class.get(&class_hash);
 
-        match contract_class {
-            Some(contract_class) => Ok(contract_class),
+        match versioned_contract_class {
+            Some(contract_class) => Ok(RunnableCompiledClass::from(contract_class)),
             None => {
-                let contract_class_from_db =
-                    RunnableCompiledClass::from(self.get_compiled_class_inner(class_hash)?);
+                let versioned_contract_class_from_db = self.get_compiled_class_inner(class_hash)?;
                 // The class was declared in a previous (finalized) state; update the global cache.
-                self.global_class_hash_to_class.set(class_hash, contract_class_from_db.clone());
-                Ok(contract_class_from_db)
+                self.global_class_hash_to_class
+                    .set(class_hash, versioned_contract_class_from_db.clone());
+                Ok(RunnableCompiledClass::from(versioned_contract_class_from_db))
             }
         }
     }
