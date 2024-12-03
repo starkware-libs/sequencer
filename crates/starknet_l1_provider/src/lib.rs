@@ -39,6 +39,7 @@ impl L1Provider {
             ProviderState::Propose => Ok(self.tx_manager.get_txs(n_txs)),
             ProviderState::Pending => Err(L1ProviderError::GetTransactionsInPendingState),
             ProviderState::Validate => Err(L1ProviderError::GetTransactionConsensusBug),
+            ProviderState::Uninitialized => panic!("Uninitialized L1 provider"),
         }
     }
 
@@ -49,6 +50,7 @@ impl L1Provider {
             ProviderState::Validate => Ok(self.tx_manager.tx_status(tx_hash)),
             ProviderState::Propose => Err(L1ProviderError::ValidateTransactionConsensusBug),
             ProviderState::Pending => Err(L1ProviderError::ValidateInPendingState),
+            ProviderState::Uninitialized => panic!("Uninitialized L1 provider"),
         }
     }
 
@@ -148,9 +150,10 @@ pub enum ValidationStatus {
 }
 
 /// Current state of the provider, where pending means: idle, between proposal/validation cycles.
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum ProviderState {
     #[default]
+    Uninitialized,
     Pending,
     Propose,
     Validate,
@@ -185,6 +188,7 @@ impl ProviderState {
         match self {
             ProviderState::Pending => "Pending",
             ProviderState::Propose => "Propose",
+            ProviderState::Uninitialized => "Uninitialized",
             ProviderState::Validate => "Validate",
         }
     }
