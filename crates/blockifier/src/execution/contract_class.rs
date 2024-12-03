@@ -96,9 +96,7 @@ impl RunnableCompiledClass {
             Self::V0(class) => class.estimate_casm_hash_computation_resources(),
             Self::V1(class) => class.estimate_casm_hash_computation_resources(),
             #[cfg(feature = "cairo_native")]
-            Self::V1Native(_) => {
-                ExecutionResources::default()
-            }
+            Self::V1Native(_) => ExecutionResources::default(),
         }
     }
 

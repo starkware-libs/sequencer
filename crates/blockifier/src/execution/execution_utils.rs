@@ -148,12 +148,12 @@ pub fn execute_entry_point_call(
             //         context,
             //     )
             // } else {
-                native_entry_point_execution::execute_entry_point_call(
-                    call,
-                    compiled_class,
-                    state,
-                    context,
-                )
+            native_entry_point_execution::execute_entry_point_call(
+                call,
+                compiled_class,
+                state,
+                context,
+            )
             // }
         }
     }
