@@ -12,9 +12,11 @@ use papyrus_network::network_manager::test_utils::{
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{
     ConsensusMessage,
+    ProposalFin,
     ProposalInit,
     ProposalPart,
     StreamMessage,
+    TransactionBatch,
     Vote,
 };
 use papyrus_storage::body::BodyStorageWriter;
@@ -55,8 +57,14 @@ async fn validate_proposal_success() {
 
     let (mut validate_sender, validate_receiver) = mpsc::channel(TEST_CHANNEL_SIZE);
     for tx in block.body.transactions.clone() {
-        validate_sender.try_send(tx).unwrap();
+        let tx_part = ProposalPart::Transactions(TransactionBatch {
+            transactions: vec![tx],
+            tx_hashes: vec![],
+        });
+        validate_sender.try_send(tx_part).unwrap();
     }
+    let fin_part = ProposalPart::Fin(ProposalFin { proposal_content_id: block.header.block_hash });
+    validate_sender.try_send(fin_part).unwrap();
     validate_sender.close_channel();
 
     let fin = papyrus_context
@@ -65,7 +73,7 @@ async fn validate_proposal_success() {
         .await
         .unwrap();
 
-    assert_eq!(fin, block.header.block_hash);
+    assert_eq!(fin.0, block.header.block_hash);
 }
 
 #[tokio::test]
@@ -76,7 +84,11 @@ async fn validate_proposal_fail() {
     let different_block = get_test_block(4, None, None, None);
     let (mut validate_sender, validate_receiver) = mpsc::channel(5000);
     for tx in different_block.body.transactions.clone() {
-        validate_sender.try_send(tx).unwrap();
+        let tx_part = ProposalPart::Transactions(TransactionBatch {
+            transactions: vec![tx],
+            tx_hashes: vec![],
+        });
+        validate_sender.try_send(tx_part).unwrap();
     }
     validate_sender.close_channel();
 

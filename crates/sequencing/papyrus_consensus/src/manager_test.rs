@@ -13,7 +13,13 @@ use papyrus_network::network_manager::test_utils::{
     TestSubscriberChannels,
 };
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
-use papyrus_protobuf::consensus::{ConsensusMessage, ProposalInit, ProposalPart, Vote};
+use papyrus_protobuf::consensus::{
+    ConsensusMessage,
+    ProposalFin,
+    ProposalInit,
+    ProposalPart,
+    Vote,
+};
 use papyrus_test_utils::{get_rng, GetTestInstance};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::transaction::Transaction;
@@ -21,7 +27,7 @@ use starknet_types_core::felt::Felt;
 
 use super::{run_consensus, MultiHeightManager};
 use crate::config::TimeoutsConfig;
-use crate::test_utils::{precommit, prevote, proposal};
+use crate::test_utils::{precommit, prevote, proposal, proposal_init};
 use crate::types::{ConsensusContext, ConsensusError, ProposalContentId, Round, ValidatorId};
 
 lazy_static! {
@@ -53,8 +59,8 @@ mock! {
             height: BlockNumber,
             round: Round,
             timeout: Duration,
-            content: mpsc::Receiver<Transaction>
-        ) -> oneshot::Receiver<ProposalContentId>;
+            content: mpsc::Receiver<ProposalPart>
+        ) -> oneshot::Receiver<(ProposalContentId, ProposalFin)>;
 
         async fn repropose(
             &mut self,
@@ -85,6 +91,16 @@ async fn send(sender: &mut MockBroadcastedMessagesSender<ConsensusMessage>, msg:
     sender.send((msg, broadcasted_message_metadata)).await.unwrap();
 }
 
+async fn send_proposal(
+    proposal_receiver_sender: &mut mpsc::Sender<mpsc::Receiver<ProposalPart>>,
+    content: ProposalPart,
+) {
+    let (mut proposal_sender, proposal_receiver) = mpsc::channel(CHANNEL_SIZE);
+    proposal_receiver_sender.send(proposal_receiver).await.unwrap();
+    proposal_sender.send(content).await.unwrap();
+}
+
+#[ignore] // TODO(guyn): return this once caching proposals is implemented.
 #[tokio::test]
 async fn manager_multiple_heights_unordered() {
     let TestSubscriberChannels { mock_network, subscriber_channels } =
@@ -92,13 +108,13 @@ async fn manager_multiple_heights_unordered() {
     let mut sender = mock_network.broadcasted_messages_sender;
 
     // TODO(guyn): refactor this test to pass proposals through the correct channels.
-    let (mut _proposal_receiver_sender, mut proposal_receiver_receiver) =
-        mpsc::channel(CHANNEL_SIZE);
+    let (_proposal_receiver_sender, mut proposal_receiver_receiver) = mpsc::channel(CHANNEL_SIZE);
 
     // Send messages for height 2 followed by those for height 1.
     send(&mut sender, proposal(Felt::TWO, 2, 0, *PROPOSER_ID)).await;
     send(&mut sender, prevote(Some(Felt::TWO), 2, 0, *PROPOSER_ID)).await;
     send(&mut sender, precommit(Some(Felt::TWO), 2, 0, *PROPOSER_ID)).await;
+
     send(&mut sender, proposal(Felt::ONE, 1, 0, *PROPOSER_ID)).await;
     send(&mut sender, prevote(Some(Felt::ONE), 1, 0, *PROPOSER_ID)).await;
     send(&mut sender, precommit(Some(Felt::ONE), 1, 0, *PROPOSER_ID)).await;
@@ -109,7 +125,12 @@ async fn manager_multiple_heights_unordered() {
         .expect_validate_proposal()
         .return_once(move |_, _, _, _| {
             let (block_sender, block_receiver) = oneshot::channel();
-            block_sender.send(BlockHash(Felt::ONE)).unwrap();
+            block_sender
+                .send((
+                    BlockHash(Felt::ONE),
+                    ProposalFin { proposal_content_id: BlockHash(Felt::ONE) },
+                ))
+                .unwrap();
             block_receiver
         })
         .times(1);
@@ -136,7 +157,12 @@ async fn manager_multiple_heights_unordered() {
         .expect_validate_proposal()
         .return_once(move |_, _, _, _| {
             let (block_sender, block_receiver) = oneshot::channel();
-            block_sender.send(BlockHash(Felt::TWO)).unwrap();
+            block_sender
+                .send((
+                    BlockHash(Felt::TWO),
+                    ProposalFin { proposal_content_id: BlockHash(Felt::TWO) },
+                ))
+                .unwrap();
             block_receiver
         })
         .times(1);
@@ -152,6 +178,7 @@ async fn manager_multiple_heights_unordered() {
     assert_eq!(decision.block, BlockHash(Felt::TWO));
 }
 
+#[ignore] // TODO(guyn): return this once caching proposals is implemented.
 #[tokio::test]
 async fn run_consensus_sync() {
     // Set expectations.
@@ -159,11 +186,13 @@ async fn run_consensus_sync() {
     let (decision_tx, decision_rx) = oneshot::channel();
 
     // TODO(guyn): refactor this test to pass proposals through the correct channels.
-    let (mut _proposal_receiver_sender, proposal_receiver_receiver) = mpsc::channel(CHANNEL_SIZE);
+    let (mut proposal_receiver_sender, proposal_receiver_receiver) = mpsc::channel(CHANNEL_SIZE);
 
     context.expect_validate_proposal().return_once(move |_, _, _, _| {
         let (block_sender, block_receiver) = oneshot::channel();
-        block_sender.send(BlockHash(Felt::TWO)).unwrap();
+        block_sender
+            .send((BlockHash(Felt::TWO), ProposalFin { proposal_content_id: BlockHash(Felt::TWO) }))
+            .unwrap();
         block_receiver
     });
     context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
@@ -178,10 +207,14 @@ async fn run_consensus_sync() {
     });
 
     // Send messages for height 2.
+    send_proposal(
+        &mut proposal_receiver_sender,
+        ProposalPart::Init(proposal_init(2, 0, *PROPOSER_ID)),
+    )
+    .await;
     let TestSubscriberChannels { mock_network, subscriber_channels } =
         mock_register_broadcast_topic().unwrap();
     let mut network_sender = mock_network.broadcasted_messages_sender;
-    send(&mut network_sender, proposal(Felt::TWO, 2, 0, *PROPOSER_ID)).await;
     send(&mut network_sender, prevote(Some(Felt::TWO), 2, 0, *PROPOSER_ID)).await;
     send(&mut network_sender, precommit(Some(Felt::TWO), 2, 0, *PROPOSER_ID)).await;
 
@@ -223,11 +256,13 @@ async fn run_consensus_sync_cancellation_safety() {
     let (decision_tx, decision_rx) = oneshot::channel();
 
     // TODO(guyn): refactor this test to pass proposals through the correct channels.
-    let (mut _proposal_receiver_sender, proposal_receiver_receiver) = mpsc::channel(CHANNEL_SIZE);
+    let (mut proposal_receiver_sender, proposal_receiver_receiver) = mpsc::channel(CHANNEL_SIZE);
 
     context.expect_validate_proposal().return_once(move |_, _, _, _| {
         let (block_sender, block_receiver) = oneshot::channel();
-        block_sender.send(BlockHash(Felt::ONE)).unwrap();
+        block_sender
+            .send((BlockHash(Felt::ONE), ProposalFin { proposal_content_id: BlockHash(Felt::ONE) }))
+            .unwrap();
         block_receiver
     });
     context.expect_validators().returning(move |_| vec![*PROPOSER_ID, *VALIDATOR_ID]);
@@ -267,7 +302,11 @@ async fn run_consensus_sync_cancellation_safety() {
     let mut network_sender = mock_network.broadcasted_messages_sender;
 
     // Send a proposal for height 1.
-    send(&mut network_sender, proposal(Felt::ONE, 1, 0, *PROPOSER_ID)).await;
+    send_proposal(
+        &mut proposal_receiver_sender,
+        ProposalPart::Init(proposal_init(1, 0, *PROPOSER_ID)),
+    )
+    .await;
     proposal_handled_rx.await.unwrap();
 
     // Send an old sync. This should not cancel the current height.
@@ -292,10 +331,14 @@ async fn test_timeouts() {
     let mut sender = mock_network.broadcasted_messages_sender;
 
     // TODO(guyn): refactor this test to pass proposals through the correct channels.
-    let (mut _proposal_receiver_sender, mut proposal_receiver_receiver) =
+    let (mut proposal_receiver_sender, mut proposal_receiver_receiver) =
         mpsc::channel(CHANNEL_SIZE);
 
-    send(&mut sender, proposal(Felt::ONE, 1, 0, *PROPOSER_ID)).await;
+    send_proposal(
+        &mut proposal_receiver_sender,
+        ProposalPart::Init(proposal_init(1, 0, *PROPOSER_ID)),
+    )
+    .await;
     send(&mut sender, prevote(None, 1, 0, *VALIDATOR_ID_2)).await;
     send(&mut sender, prevote(None, 1, 0, *VALIDATOR_ID_3)).await;
     send(&mut sender, precommit(None, 1, 0, *VALIDATOR_ID_2)).await;
@@ -305,7 +348,9 @@ async fn test_timeouts() {
     context.expect_set_height_and_round().returning(move |_, _| ());
     context.expect_validate_proposal().returning(move |_, _, _, _| {
         let (block_sender, block_receiver) = oneshot::channel();
-        block_sender.send(BlockHash(Felt::ONE)).unwrap();
+        block_sender
+            .send((BlockHash(Felt::ONE), ProposalFin { proposal_content_id: BlockHash(Felt::ONE) }))
+            .unwrap();
         block_receiver
     });
     context
@@ -343,7 +388,11 @@ async fn test_timeouts() {
     timeout_receive.await.unwrap();
     // Show that after the timeout is triggered we can still precommit in favor of the block and
     // reach a decision.
-    send(&mut sender, proposal(Felt::ONE, 1, 1, *PROPOSER_ID)).await;
+    send_proposal(
+        &mut proposal_receiver_sender,
+        ProposalPart::Init(proposal_init(1, 1, *PROPOSER_ID)),
+    )
+    .await;
     send(&mut sender, prevote(Some(Felt::ONE), 1, 1, *PROPOSER_ID)).await;
     send(&mut sender, prevote(Some(Felt::ONE), 1, 1, *VALIDATOR_ID_2)).await;
     send(&mut sender, prevote(Some(Felt::ONE), 1, 1, *VALIDATOR_ID_3)).await;

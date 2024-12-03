@@ -51,6 +51,7 @@ const DEFAULT_LEVEL: LevelFilter = LevelFilter::INFO;
 // different genesis hash.
 // TODO: Consider moving to a more general place.
 const GENESIS_HASH: &str = "0x0";
+
 // TODO(guyn): move this to the config.
 pub const NETWORK_TOPIC: &str = "consensus_proposals";
 
