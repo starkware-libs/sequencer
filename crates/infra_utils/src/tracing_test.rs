@@ -6,14 +6,14 @@ use tracing::span::{Attributes, Id, Record};
 use tracing::subscriber::with_default;
 use tracing::{Event, Metadata, Subscriber};
 
-use crate::tracing::{DynamicLogger, TraceLevel};
+use crate::tracing::{CustomLogger, TraceLevel};
 
 #[test]
 fn test_dynamic_logger_without_base_message() {
     let subscriber = TestSubscriber::new();
 
     with_default(subscriber.clone(), || {
-        let logger = DynamicLogger::new(TraceLevel::Info, None);
+        let logger = CustomLogger::new(TraceLevel::Info, None);
         logger.log_message("Test message");
     });
 
@@ -28,7 +28,7 @@ fn test_dynamic_logger_with_base_message() {
     let subscriber = TestSubscriber::new();
 
     with_default(subscriber.clone(), || {
-        let logger = DynamicLogger::new(TraceLevel::Debug, Some("BaseMessage".to_string()));
+        let logger = CustomLogger::new(TraceLevel::Debug, Some("BaseMessage".to_string()));
         logger.log_message("Test message");
     });
 
@@ -53,7 +53,7 @@ fn test_all_trace_levels() {
     with_default(subscriber.clone(), || {
         for (level, expected_level_str) in test_cases {
             subscriber.clear();
-            let logger = DynamicLogger::new(level, None);
+            let logger = CustomLogger::new(level, None);
             logger.log_message("Test message");
 
             let messages = subscriber.messages();
@@ -70,7 +70,7 @@ fn test_message_formatting() {
 
     with_default(subscriber.clone(), || {
         let base_message = Some("Component".to_string());
-        let logger = DynamicLogger::new(TraceLevel::Info, base_message);
+        let logger = CustomLogger::new(TraceLevel::Info, base_message);
         logger.log_message("Operation completed");
     });
 
@@ -85,7 +85,7 @@ fn test_empty_message() {
     let subscriber = TestSubscriber::new();
 
     with_default(subscriber.clone(), || {
-        let logger = DynamicLogger::new(TraceLevel::Warn, None);
+        let logger = CustomLogger::new(TraceLevel::Warn, None);
         logger.log_message("");
     });
 

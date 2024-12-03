@@ -3,13 +3,14 @@ use tracing::{debug, error, info, trace, warn};
 #[cfg(test)]
 #[path = "tracing_test.rs"]
 mod tracing_test;
-/// Dynamically set tracing level of a message.
-pub struct DynamicLogger {
+
+/// Enable setting a message tracing level at runtime.
+pub struct CustomLogger {
     level: TraceLevel,
     base_message: Option<String>,
 }
 
-impl DynamicLogger {
+impl CustomLogger {
     /// Creates a new trace configuration
     pub fn new(level: TraceLevel, base_message: Option<String>) -> Self {
         Self { level, base_message }
