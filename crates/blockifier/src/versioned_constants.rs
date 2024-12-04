@@ -248,10 +248,9 @@ impl VersionedConstants {
     }
 
     /// Default initial gas amount when L2 gas is not provided.
-    pub fn default_initial_gas_amount(&self) -> u64 {
+    pub fn default_initial_gas_amount(&self) -> GasAmount {
         (self.execute_max_sierra_gas.checked_add(self.validate_max_sierra_gas))
             .expect("The default initial gas cost should be less than the maximum gas amount.")
-            .0
     }
 
     /// Returns the maximum gas amount for validation.

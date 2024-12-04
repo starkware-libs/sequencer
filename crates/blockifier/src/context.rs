@@ -51,7 +51,7 @@ impl TransactionContext {
             | TransactionInfo::Current(CurrentTransactionInfo {
                 resource_bounds: ValidResourceBounds::L1Gas(_),
                 ..
-            }) => self.block_context.versioned_constants.default_initial_gas_amount(),
+            }) => self.block_context.versioned_constants.default_initial_gas_amount().0,
             TransactionInfo::Current(CurrentTransactionInfo {
                 resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds { l2_gas, .. }),
                 ..

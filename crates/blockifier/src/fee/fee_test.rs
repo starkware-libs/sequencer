@@ -361,7 +361,7 @@ fn test_get_fee_by_gas_vector_overflow(
 
 #[rstest]
 #[case::default(
-    VersionedConstants::create_for_account_testing().default_initial_gas_cost(),
+    VersionedConstants::create_for_account_testing().default_initial_gas_amount().0,
     GasVectorComputationMode::NoL2Gas
 )]
 #[case::from_l2_gas(4321, GasVectorComputationMode::All)]

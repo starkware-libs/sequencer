@@ -500,7 +500,6 @@ impl AccountTransaction {
         // TODO(Aner): cap the gas usage for execution.
         let remaining_execution_gas = &mut remaining_gas
             .cap_usage(context.tx_context.block_context.versioned_constants.execute_max_sierra_gas);
-
         let call_info = match &self.tx {
             Transaction::Declare(tx) => tx.run_execute(state, context, remaining_execution_gas),
             Transaction::DeployAccount(tx) => {
