@@ -1,3 +1,4 @@
+use std::cmp::min;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, LazyLock};
 
@@ -161,6 +162,11 @@ static VERSIONED_CONSTANTS: LazyLock<VersionedConstants> =
     LazyLock::new(VersionedConstants::create_for_testing);
 
 #[fixture]
+fn default_initial_gas_amount() -> GasAmount {
+    VERSIONED_CONSTANTS.default_initial_gas_amount()
+}
+
+#[fixture]
 fn default_initial_gas_cost() -> u64 {
     VERSIONED_CONSTANTS.default_initial_gas_cost()
 }
@@ -179,7 +185,7 @@ struct ExpectedResultTestInvokeTx {
 
 fn user_initial_gas_from_bounds(bounds: ValidResourceBounds) -> Option<GasAmount> {
     match bounds {
-        ValidResourceBounds::L1Gas(_) => None,
+        ValidResourceBounds::L1Gas(_) => Some(default_initial_gas_amount()),
         ValidResourceBounds::AllResources(bounds) => Some(bounds.l2_gas.max_amount),
     }
 }
@@ -483,14 +489,10 @@ fn test_invoke_tx(
         &versioned_constants.min_compiler_version_for_sierra_gas,
         tx_context.tx_info.gas_mode(),
     );
-    if tracked_resource == TrackedResource::CairoSteps {
-        // In CairoSteps mode, the initial gas is set to the default once before the validate call.
-        expected_arguments.inner_call_initial_gas -=
-            expected_arguments.validate_gas_consumed + expected_arguments.execute_gas_consumed
-    }
 
     // Build expected validate call info.
     let expected_account_class_hash = account_contract.get_class_hash();
+    let initial_gas = user_initial_gas_from_bounds(resource_bounds);
     let expected_validate_call_info = expected_validate_call_info(
         expected_account_class_hash,
         constants::VALIDATE_ENTRY_POINT_NAME,
@@ -499,11 +501,35 @@ fn test_invoke_tx(
         sender_address,
         account_cairo_version,
         tracked_resource,
-        user_initial_gas_from_bounds(resource_bounds),
+        initial_gas.min(Some(VERSIONED_CONSTANTS.max_validation_sierra_gas())),
     );
 
     // Build expected execute call info.
     let expected_return_result_calldata = vec![felt!(2_u8)];
+
+    let expected_validated_call = expected_validate_call_info.as_ref().unwrap().call.clone();
+    let expected_initial_execution_gas = VERSIONED_CONSTANTS
+        .max_execution_sierra_gas()
+        .min(initial_gas.unwrap() - GasAmount(expected_arguments.validate_gas_consumed))
+        .0;
+    let expected_execute_call = CallEntryPoint {
+        entry_point_selector: selector_from_name(constants::EXECUTE_ENTRY_POINT_NAME),
+        initial_gas: expected_initial_execution_gas, /* expected_validated_call.initial_gas - expected_arguments.validate_gas_consumed, */
+        ..expected_validated_call
+    };
+    if tracked_resource == TrackedResource::CairoSteps {
+        if account_cairo_version == CairoVersion::Cairo0 {
+            expected_arguments.inner_call_initial_gas =
+                VERSIONED_CONSTANTS.default_initial_gas_cost();
+        } else {
+            expected_arguments.inner_call_initial_gas -= expected_arguments.validate_gas_consumed;
+            expected_arguments.inner_call_initial_gas = min(
+                expected_arguments.inner_call_initial_gas,
+                VERSIONED_CONSTANTS.max_execution_sierra_gas().0,
+            );
+            expected_arguments.inner_call_initial_gas -= expected_arguments.execute_gas_consumed;
+        }
+    }
     let expected_return_result_call = CallEntryPoint {
         entry_point_selector: selector_from_name("return_result"),
         class_hash: Some(test_contract.get_class_hash()),
@@ -514,12 +540,6 @@ fn test_invoke_tx(
         caller_address: sender_address,
         call_type: CallType::Call,
         initial_gas: expected_arguments.inner_call_initial_gas,
-    };
-    let expected_validated_call = expected_validate_call_info.as_ref().unwrap().call.clone();
-    let expected_execute_call = CallEntryPoint {
-        entry_point_selector: selector_from_name(constants::EXECUTE_ENTRY_POINT_NAME),
-        initial_gas: expected_validated_call.initial_gas - expected_arguments.validate_gas_consumed,
-        ..expected_validated_call
     };
     let expected_return_result_retdata = Retdata(expected_return_result_calldata);
     let expected_execute_call_info = Some(CallInfo {
@@ -2286,7 +2306,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
             storage_address: contract_address,
             caller_address: ContractAddress::default(),
             call_type: CallType::Call,
-            initial_gas: default_initial_gas_cost(),
+            initial_gas: default_initial_gas_amount().0,
         },
         execution: CallExecution {
             retdata: Retdata(vec![value]),
