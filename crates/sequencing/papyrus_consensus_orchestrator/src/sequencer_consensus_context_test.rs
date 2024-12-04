@@ -71,7 +71,6 @@ fn generate_executable_invoke_tx(tx_hash: Felt) -> ExecutableTransaction {
 // Structs which aren't utilized but should not be dropped.
 struct NetworkDependencies {
     _vote_network: BroadcastNetworkMock<ConsensusMessage>,
-    _old_proposal_network: BroadcastNetworkMock<ProposalPart>,
     _new_proposal_network: BroadcastNetworkMock<StreamMessage<ProposalPart>>,
 }
 
@@ -85,12 +84,6 @@ fn setup(batcher: MockBatcherClient) -> (SequencerConsensusContext, NetworkDepen
     let (outbound_proposal_stream_sender, _, _) =
         StreamHandler::get_channels(inbound_network_receiver, outbound_network_sender);
 
-    // TODO(guyn): remove this first set of channels once we are using only the streaming channels.
-    let TestSubscriberChannels { mock_network: mock_proposal_network, subscriber_channels } =
-        mock_register_broadcast_topic().expect("Failed to create mock network");
-    let BroadcastTopicChannels { broadcast_topic_client: proposal_streaming_client, .. } =
-        subscriber_channels;
-
     let TestSubscriberChannels { mock_network: mock_vote_network, subscriber_channels } =
         mock_register_broadcast_topic().expect("Failed to create mock network");
     let BroadcastTopicChannels { broadcast_topic_client: votes_topic_client, .. } =
@@ -98,7 +91,6 @@ fn setup(batcher: MockBatcherClient) -> (SequencerConsensusContext, NetworkDepen
 
     let context = SequencerConsensusContext::new(
         Arc::new(batcher),
-        proposal_streaming_client,
         outbound_proposal_stream_sender,
         votes_topic_client,
         NUM_VALIDATORS,
@@ -106,7 +98,6 @@ fn setup(batcher: MockBatcherClient) -> (SequencerConsensusContext, NetworkDepen
 
     let network_dependencies = NetworkDependencies {
         _vote_network: mock_vote_network,
-        _old_proposal_network: mock_proposal_network,
         _new_proposal_network: mock_proposal_stream_network,
     };
 

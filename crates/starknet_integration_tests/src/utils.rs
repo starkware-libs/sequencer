@@ -77,8 +77,7 @@ fn create_consensus_manager_configs_and_channels(
         create_network_configs_connected_to_broadcast_channels(
             n_managers,
             papyrus_network::gossipsub_impl::Topic::new(
-                // TODO(guyn): return this to NETWORK_TOPIC once we have integrated streaming.
-                starknet_consensus_manager::consensus_manager::NETWORK_TOPIC2,
+                starknet_consensus_manager::consensus_manager::CONSENSUS_PROPOSALS_TOPIC,
             ),
         );
     // TODO: Need to also add a channel for votes, in addition to the proposals channel.
