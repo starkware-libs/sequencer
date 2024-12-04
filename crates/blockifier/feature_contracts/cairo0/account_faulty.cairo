@@ -11,7 +11,8 @@ from starkware.starknet.common.syscalls import (
     get_block_number,
     get_block_timestamp,
     get_sequencer_address,
-    get_tx_info
+    get_tx_info,
+    storage_write
 )
 from starkware.starknet.common.messages import send_message_to_l1
 
@@ -29,10 +30,14 @@ const GET_BLOCK_NUMBER = 5;
 const GET_BLOCK_TIMESTAMP = 6;
 // Use get_sequencer_address syscall.
 const GET_SEQUENCER_ADDRESS = 7;
+// Write to the storage.
+const STORAGE_WRITE = 8;
 
 // get_selector_from_name('foo').
 const FOO_ENTRY_POINT_SELECTOR = (
     0x1b1a0649752af1b28b3dc29a1556eee781e4a4c3a1f7f53f90fa834de098c4d);
+
+const STORAGE_WRITE_KEY = 15;
 
 @external
 func __validate_declare__{syscall_ptr: felt*}(class_hash: felt) {
@@ -68,6 +73,14 @@ func __validate__{syscall_ptr: felt*}(
 func __execute__{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     contract_address: felt, selector: felt, calldata_len: felt, calldata: felt*
 ) {
+    let (tx_info: TxInfo*) = get_tx_info();
+    let scenario = tx_info.signature[0];
+    if (scenario == STORAGE_WRITE) {
+        let value = tx_info.signature[2];
+        storage_write(address=STORAGE_WRITE_KEY, value=value);
+        return ();
+    }
+
     let to_address = 0;
 
     send_message_to_l1(to_address, calldata_len, calldata);
@@ -118,6 +131,11 @@ func faulty_validate{syscall_ptr: felt*}() {
         let expected_block_timestamp = tx_info.signature[1];
         let (block_timestamp) = get_block_timestamp();
         assert block_timestamp = expected_block_timestamp;
+        return ();
+    }
+    if (scenario == STORAGE_WRITE) {
+        let value = tx_info.signature[1];
+        storage_write(address=STORAGE_WRITE_KEY, value=value);
         return ();
     }
 
