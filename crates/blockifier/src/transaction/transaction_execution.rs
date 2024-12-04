@@ -143,7 +143,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
         let limit_steps_by_resources = false;
         let mut context =
             EntryPointExecutionContext::new_invoke(tx_context.clone(), limit_steps_by_resources);
-        let mut remaining_gas = tx_context.initial_sierra_gas();
+        let mut remaining_gas = tx_context.initial_sierra_gas().0;
         let execute_call_info = self.run_execute(state, &mut context, &mut remaining_gas)?;
         let l1_handler_payload_size = self.payload_size();
         let TransactionReceipt {

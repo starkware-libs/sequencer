@@ -1684,13 +1684,22 @@ fn test_initial_gas(
 
     let validate_call_info = &transaction_ex_info.validate_call_info.unwrap();
     let validate_initial_gas = validate_call_info.call.initial_gas;
-    assert_eq!(validate_initial_gas, DEFAULT_L2_GAS_MAX_AMOUNT.0);
+    assert_eq!(validate_initial_gas, block_context.versioned_constants.validate_max_sierra_gas.0);
     let validate_gas_consumed = validate_call_info.execution.gas_consumed;
     assert!(validate_gas_consumed > 0, "New Cairo1 contract should consume gas.");
 
     let default_call_info = CallInfo::default();
-    let mut prev_initial_gas = validate_initial_gas;
     let mut execute_call_info = &transaction_ex_info.execute_call_info.unwrap();
+    // Initial gas for execution is the minimum between the max execution gas and the initial gas
+    // minus the gas consumed by validate.
+    let mut prev_initial_gas = block_context
+        .versioned_constants
+        .max_execution_sierra_gas()
+        .min(
+            block_context.versioned_constants.default_initial_gas_amount()
+                - GasAmount(validate_gas_consumed),
+        )
+        .0;
     let mut curr_initial_gas;
     let mut started_vm_mode = false;
     // The __validate__ call of a the account contract.
