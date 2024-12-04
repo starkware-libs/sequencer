@@ -9,7 +9,7 @@ use crate::state::cached_state::{CachedState, TransactionalState};
 use crate::state::state_api::StateReader;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::transaction::account_transaction::AccountTransaction;
-use crate::transaction::transactions::{ExecutableTransaction, ExecutionFlags};
+use crate::transaction::transactions::ExecutableTransaction;
 
 // Public Consts.
 
@@ -76,9 +76,8 @@ pub fn create_fee_transfer_call_info<S: StateReader>(
 ) -> CallInfo {
     let block_context = BlockContext::create_for_account_testing();
     let mut transactional_state = TransactionalState::create_transactional(state);
-    let execution_flags = ExecutionFlags { concurrency_mode };
     let execution_info =
-        account_tx.execute_raw(&mut transactional_state, &block_context, execution_flags).unwrap();
+        account_tx.execute_raw(&mut transactional_state, &block_context, concurrency_mode).unwrap();
 
     let execution_info = execution_info.fee_transfer_call_info.unwrap();
     transactional_state.abort();
