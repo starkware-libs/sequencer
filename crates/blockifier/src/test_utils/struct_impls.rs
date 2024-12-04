@@ -10,11 +10,11 @@ use cairo_lang_starknet_classes::contract_class::ContractClass as SierraContract
 #[cfg(feature = "cairo_native")]
 use cairo_native::executor::AotContractExecutor;
 use serde_json::Value;
-use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp};
+use starknet_api::block::BlockInfo;
 use starknet_api::contract_address;
 use starknet_api::core::{ChainId, ClassHash};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
-use starknet_api::test_utils::DEFAULT_GAS_PRICES;
+use starknet_api::test_utils::{TEST_ERC20_CONTRACT_ADDRESS, TEST_ERC20_CONTRACT_ADDRESS2};
 
 use crate::bouncer::{BouncerConfig, BouncerWeights, BuiltinCount};
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
@@ -30,15 +30,7 @@ use crate::execution::entry_point::{
 #[cfg(feature = "cairo_native")]
 use crate::execution::native::contract_class::NativeCompiledClassV1;
 use crate::state::state_api::State;
-use crate::test_utils::{
-    get_raw_contract_class,
-    update_json_value,
-    CURRENT_BLOCK_NUMBER,
-    CURRENT_BLOCK_TIMESTAMP,
-    TEST_ERC20_CONTRACT_ADDRESS,
-    TEST_ERC20_CONTRACT_ADDRESS2,
-    TEST_SEQUENCER_ADDRESS,
-};
+use crate::test_utils::{get_raw_contract_class, update_json_value};
 use crate::transaction::objects::{
     CurrentTransactionInfo,
     DeprecatedTransactionInfo,
@@ -137,27 +129,6 @@ impl ChainInfo {
                 strk_fee_token_address: contract_address!(TEST_ERC20_CONTRACT_ADDRESS2),
             },
         }
-    }
-}
-
-pub trait BlockInfoExt {
-    fn create_for_testing() -> Self;
-    fn create_for_testing_with_kzg(use_kzg_da: bool) -> Self;
-}
-
-impl BlockInfoExt for BlockInfo {
-    fn create_for_testing() -> Self {
-        Self {
-            block_number: BlockNumber(CURRENT_BLOCK_NUMBER),
-            block_timestamp: BlockTimestamp(CURRENT_BLOCK_TIMESTAMP),
-            sequencer_address: contract_address!(TEST_SEQUENCER_ADDRESS),
-            gas_prices: DEFAULT_GAS_PRICES,
-            use_kzg_da: false,
-        }
-    }
-
-    fn create_for_testing_with_kzg(use_kzg_da: bool) -> Self {
-        Self { use_kzg_da, ..Self::create_for_testing() }
     }
 }
 
