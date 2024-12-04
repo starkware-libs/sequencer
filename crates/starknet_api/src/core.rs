@@ -135,6 +135,10 @@ impl From<u128> for ContractAddress {
     }
 }
 
+pub const fn const_into_contract_address(val: &str) -> ContractAddress {
+    ContractAddress(const_into_patricia_key(val))
+}
+
 impl_from_through_intermediate!(u128, ContractAddress, u8, u16, u32, u64);
 
 /// The maximal size of storage var.
@@ -366,6 +370,10 @@ impl From<u128> for PatriciaKey {
 }
 
 impl_from_through_intermediate!(u128, PatriciaKey, u8, u16, u32, u64);
+
+pub const fn const_into_patricia_key(val: &str) -> PatriciaKey {
+    PatriciaKey(Felt::from_hex_unchecked(val))
+}
 
 impl TryFrom<StarkHash> for PatriciaKey {
     type Error = StarknetApiError;
