@@ -33,20 +33,11 @@ pub enum GenerateProposalError {
 }
 
 #[derive(Clone, Debug, Error)]
-pub enum GetProposalResultError {
+pub enum ProposalError {
     #[error(transparent)]
     BlockBuilderError(Arc<BlockBuilderError>),
-    #[error("Proposal with id {proposal_id} does not exist.")]
-    ProposalDoesNotExist { proposal_id: ProposalId },
     #[error("Proposal was aborted")]
     Aborted,
-}
-
-pub(crate) enum InternalProposalStatus {
-    Processing,
-    Finished,
-    Failed,
-    NotFound,
 }
 
 #[async_trait]
@@ -61,24 +52,15 @@ pub trait ProposalManagerTrait: Send + Sync {
     async fn take_proposal_result(
         &mut self,
         proposal_id: ProposalId,
-    ) -> ProposalResult<ProposalOutput>;
+    ) -> Option<ProposalResult<ProposalOutput>>;
 
-    #[allow(dead_code)]
     async fn get_active_proposal(&self) -> Option<ProposalId>;
 
-    #[allow(dead_code)]
     async fn get_completed_proposals(
         &self,
     ) -> Arc<Mutex<HashMap<ProposalId, ProposalResult<ProposalOutput>>>>;
 
     async fn await_active_proposal(&mut self) -> bool;
-
-    async fn get_proposal_status(&self, proposal_id: ProposalId) -> InternalProposalStatus;
-
-    async fn await_proposal_commitment(
-        &mut self,
-        proposal_id: ProposalId,
-    ) -> ProposalResult<ProposalCommitment>;
 
     async fn abort_proposal(&mut self, proposal_id: ProposalId);
 
@@ -109,7 +91,7 @@ pub(crate) struct ProposalManager {
     executed_proposals: Arc<Mutex<HashMap<ProposalId, ProposalResult<ProposalOutput>>>>,
 }
 
-pub type ProposalResult<T> = Result<T, GetProposalResultError>;
+pub type ProposalResult<T> = Result<T, ProposalError>;
 
 #[derive(Debug, PartialEq)]
 pub struct ProposalOutput {
@@ -143,7 +125,7 @@ impl ProposalManagerTrait for ProposalManager {
                     .build_block()
                     .await
                     .map(ProposalOutput::from)
-                    .map_err(|e| GetProposalResultError::BlockBuilderError(Arc::new(e)));
+                    .map_err(|e| ProposalError::BlockBuilderError(Arc::new(e)));
 
                 // The proposal is done, clear the active proposal.
                 // Keep the proposal result only if it is the same as the active proposal.
@@ -164,12 +146,8 @@ impl ProposalManagerTrait for ProposalManager {
     async fn take_proposal_result(
         &mut self,
         proposal_id: ProposalId,
-    ) -> ProposalResult<ProposalOutput> {
-        self.executed_proposals
-            .lock()
-            .await
-            .remove(&proposal_id)
-            .ok_or(GetProposalResultError::ProposalDoesNotExist { proposal_id })?
+    ) -> Option<ProposalResult<ProposalOutput>> {
+        self.executed_proposals.lock().await.remove(&proposal_id)
     }
 
     async fn get_active_proposal(&self) -> Option<ProposalId> {
@@ -192,47 +170,12 @@ impl ProposalManagerTrait for ProposalManager {
         false
     }
 
-    // Returns None if the proposal does not exist, otherwise, returns the status of the proposal.
-    async fn get_proposal_status(&self, proposal_id: ProposalId) -> InternalProposalStatus {
-        match self.executed_proposals.lock().await.get(&proposal_id) {
-            Some(Ok(_)) => InternalProposalStatus::Finished,
-            Some(Err(_)) => InternalProposalStatus::Failed,
-            None => {
-                if self.active_proposal.lock().await.as_ref() == Some(&proposal_id) {
-                    InternalProposalStatus::Processing
-                } else {
-                    InternalProposalStatus::NotFound
-                }
-            }
-        }
-    }
-
-    async fn await_proposal_commitment(
-        &mut self,
-        proposal_id: ProposalId,
-    ) -> ProposalResult<ProposalCommitment> {
-        if *self.active_proposal.lock().await == Some(proposal_id) {
-            self.await_active_proposal().await;
-        }
-        let proposals = self.executed_proposals.lock().await;
-        let output = proposals
-            .get(&proposal_id)
-            .ok_or(GetProposalResultError::ProposalDoesNotExist { proposal_id })?;
-        match output {
-            Ok(output) => Ok(output.commitment),
-            Err(e) => Err(e.clone()),
-        }
-    }
-
     // Aborts the proposal with the given ID, if active.
     // Should be used in validate flow, if the consensus decides to abort the proposal.
     async fn abort_proposal(&mut self, proposal_id: ProposalId) {
         if *self.active_proposal.lock().await == Some(proposal_id) {
             self.abort_active_proposal().await;
-            self.executed_proposals
-                .lock()
-                .await
-                .insert(proposal_id, Err(GetProposalResultError::Aborted));
+            self.executed_proposals.lock().await.insert(proposal_id, Err(ProposalError::Aborted));
         }
     }
 
