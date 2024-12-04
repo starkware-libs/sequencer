@@ -26,11 +26,15 @@ mod Account {
     const GET_BLOCK_HASH: felt252 = 3;
     // Use get_execution_info syscall.
     const GET_EXECUTION_INFO: felt252 = 4;
+    // Write to the storage.
+    const STORAGE_WRITE: felt252 = 8;
 
     // get_selector_from_name('foo').
     const FOO_ENTRY_POINT_SELECTOR: felt252 = (
         0x1b1a0649752af1b28b3dc29a1556eee781e4a4c3a1f7f53f90fa834de098c4d
     );
+
+    const STORAGE_WRITE_KEY: felt252 = 15;
 
     #[storage]
     struct Storage {
@@ -80,6 +84,18 @@ mod Account {
         selector: felt252,
         calldata: Array<felt252>
     ) -> felt252 {
+        let tx_info = starknet::get_tx_info().unbox();
+        let signature = tx_info.signature;
+        let scenario = *signature[0_u32];
+
+        if (scenario == STORAGE_WRITE) {
+            let key = STORAGE_WRITE_KEY.try_into().unwrap();
+            let value: felt252 = *signature[2_u32];
+            starknet::syscalls::storage_write_syscall(0, key, value).unwrap_syscall();
+
+            return starknet::VALIDATED;
+        }
+
         let to_address = 0;
 
         send_message_to_l1_syscall(
@@ -126,6 +142,13 @@ mod Account {
         if (scenario == GET_BLOCK_HASH){
             let block_number: u64 = 0;
             get_block_hash_syscall(block_number).unwrap_syscall();
+            return starknet::VALIDATED;
+        }
+
+        if (scenario == STORAGE_WRITE) {
+            let key = STORAGE_WRITE_KEY.try_into().unwrap();
+            let value: felt252 = *signature[1_u32];
+            starknet::syscalls::storage_write_syscall(0, key, value).unwrap_syscall();
             return starknet::VALIDATED;
         }
 
