@@ -3,15 +3,15 @@ use std::fmt::Debug;
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
 
-use crate::serde_utils::BincodeSerdeWrapper;
+use crate::serde_utils::SerdeWrapper;
 
 fn test_generic_data_serde<T>(data: T)
 where
     T: Serialize + for<'de> Deserialize<'de> + Debug + Clone + Copy + PartialEq,
 {
     // Serialize and deserialize the data.
-    let encoded = BincodeSerdeWrapper::new(data).to_bincode().unwrap();
-    let decoded = BincodeSerdeWrapper::<T>::from_bincode(&encoded).unwrap();
+    let encoded = SerdeWrapper::new(data).serialize().unwrap();
+    let decoded = SerdeWrapper::<T>::deserialize(&encoded).unwrap();
 
     // Assert that the data is the same after serialization and deserialization.
     assert_eq!(data, decoded);
