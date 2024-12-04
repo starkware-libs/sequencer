@@ -397,7 +397,7 @@ impl SequencerConsensusContext {
         let notify_clone = Arc::clone(&notify);
         let chain_id = self.chain_id.clone();
 
-        let handle = tokio::spawn(
+        let handle = tokio::spawn({
             async move {
                 let validate_fut = stream_validate_proposal(
                     height,
@@ -417,8 +417,8 @@ impl SequencerConsensusContext {
                     }
                 }
             }
-            .instrument(debug_span!("consensus_validate_proposal")),
-        );
+            .instrument(debug_span!("consensus_validate_proposal"))
+        });
         self.active_proposal = Some((notify, handle));
     }
 
