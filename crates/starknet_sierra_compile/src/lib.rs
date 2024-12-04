@@ -6,9 +6,11 @@ use cairo_native::executor::AotContractExecutor;
 
 use crate::errors::CompilationUtilError;
 
+// TODO(Tsabary/Arni/Avi): `build_utils` should not be used in runtime.
 pub mod build_utils;
 pub mod command_line_compiler;
 pub mod config;
+pub mod constants;
 pub mod errors;
 pub mod utils;
 

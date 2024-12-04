@@ -1,12 +1,22 @@
+use std::env;
 use std::path::{Path, PathBuf};
 
-pub(crate) const CAIRO_LANG_BINARY_NAME: &str = "starknet-sierra-compile";
-#[cfg(feature = "cairo_native")]
-pub(crate) const CAIRO_NATIVE_BINARY_NAME: &str = "starknet-native-compile";
+include!("constants.rs");
+
+fn set_out_dir_env_var_for_runtime() {
+    // Get the OUT_DIR environment variable.
+    let out_dir = env::var("OUT_DIR").unwrap();
+
+    // Tell Cargo to pass this variable to the compiler
+    println!("cargo:rustc-env={}={}", RUNTIME_ACCESSIBLE_OUT_DIR_ENV_VAR_NAME, out_dir);
+}
 
 fn out_dir() -> PathBuf {
-    Path::new(&std::env::var("OUT_DIR").expect("Failed to get the OUT_DIR environment variable"))
-        .to_path_buf()
+    Path::new(
+        &std::env::var(RUNTIME_ACCESSIBLE_OUT_DIR_ENV_VAR_NAME)
+            .expect("Failed to get the OUT_DIR environment variable"),
+    )
+    .to_path_buf()
 }
 
 /// Get the crate's `OUT_DIR` and navigate up to reach the `target/BUILD_FLAVOR` directory.
