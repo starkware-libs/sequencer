@@ -354,7 +354,7 @@ impl AccountTransaction {
         if validate {
             // TODO(Aner): cap the gas for validation.
             let remaining_validation_gas = &mut remaining_gas
-                .cap_usage(tx_context.block_context.versioned_constants.validate_max_sierra_gas);
+                .limit_usage(tx_context.block_context.versioned_constants.validate_max_sierra_gas);
             let call_info = self.validate_tx(
                 state,
                 tx_context,
@@ -498,9 +498,13 @@ impl AccountTransaction {
         remaining_gas: &mut GasCounter,
     ) -> TransactionExecutionResult<Option<CallInfo>> {
         // TODO(Aner): cap the gas usage for execution.
-        let remaining_execution_gas = &mut remaining_gas
-            .cap_usage(context.tx_context.block_context.versioned_constants.execute_max_sierra_gas);
-
+        let remaining_execution_gas = &mut remaining_gas.limit_usage(
+            context
+                .tx_context
+                .block_context
+                .versioned_constants
+                .sierra_gas_limit(&context.execution_mode),
+        );
         let call_info = match &self.tx {
             Transaction::Declare(tx) => tx.run_execute(state, context, remaining_execution_gas),
             Transaction::DeployAccount(tx) => {
