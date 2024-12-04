@@ -68,6 +68,7 @@ impl ConsensusManager {
             outbound_internal_sender,
             votes_broadcast_channels.broadcast_topic_client.clone(),
             self.config.consensus_config.num_validators,
+            self.config.consensus_config.chain_id.clone(),
         );
 
         let mut network_handle = tokio::task::spawn(network_manager.run());
