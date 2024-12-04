@@ -6,6 +6,8 @@ fn main() {
     println!("cargo:rerun-if-changed=../../Cargo.lock");
     println!("cargo:rerun-if-changed=build.rs");
 
+    set_out_dir_env_var_for_runtime();
+
     install_starknet_sierra_compile();
     #[cfg(feature = "cairo_native")]
     install_starknet_native_compile();
