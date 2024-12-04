@@ -21,7 +21,7 @@ use papyrus_protobuf::consensus::{
     TransactionBatch,
 };
 use starknet_api::block::{BlockHash, BlockNumber};
-use starknet_api::core::{ContractAddress, StateDiffCommitment};
+use starknet_api::core::{ChainId, ContractAddress, StateDiffCommitment};
 use starknet_api::executable_transaction::{
     AccountTransaction,
     Transaction as ExecutableTransaction,
@@ -50,6 +50,7 @@ const TIMEOUT: Duration = Duration::from_millis(100);
 const CHANNEL_SIZE: usize = 5000;
 const NUM_VALIDATORS: u64 = 4;
 const STATE_DIFF_COMMITMENT: StateDiffCommitment = StateDiffCommitment(PoseidonHash(Felt::ZERO));
+const CHAIN_ID: ChainId = ChainId::Mainnet;
 
 lazy_static! {
     static ref TX_BATCH: Vec<ExecutableTransaction> =
@@ -124,6 +125,7 @@ async fn build_proposal() {
         broadcast_topic_client,
         outbound_internal_sender,
         NUM_VALIDATORS,
+        CHAIN_ID,
     );
     let init = ProposalInit {
         height: BlockNumber(0),
@@ -186,6 +188,7 @@ async fn validate_proposal_success() {
         broadcast_topic_client,
         outbound_internal_sender,
         NUM_VALIDATORS,
+        CHAIN_ID,
     );
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
@@ -252,6 +255,7 @@ async fn repropose() {
         broadcast_topic_client,
         outbound_internal_sender,
         NUM_VALIDATORS,
+        CHAIN_ID,
     );
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
@@ -330,6 +334,7 @@ async fn proposals_from_different_rounds() {
         broadcast_topic_client,
         outbound_internal_sender,
         NUM_VALIDATORS,
+        CHAIN_ID,
     );
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
@@ -426,6 +431,7 @@ async fn interrupt_active_proposal() {
         broadcast_topic_client,
         outbound_internal_sender,
         NUM_VALIDATORS,
+        CHAIN_ID,
     );
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
