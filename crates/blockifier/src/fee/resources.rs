@@ -73,14 +73,21 @@ impl ComputationResources {
             self.n_reverted_steps,
             computation_mode,
         );
-        let sierra_gas_cost = GasVector::from_l2_gas(
+
+        let total_sierra_gas =
             self.sierra_gas.checked_add(self.reverted_sierra_gas).unwrap_or_else(|| {
                 panic!(
                     "Sierra gas overflowed: tried to add {} to {}",
                     self.sierra_gas, self.reverted_sierra_gas
                 )
-            }),
-        );
+            });
+        let sierra_gas_cost = match computation_mode {
+            GasVectorComputationMode::All => GasVector::from_l2_gas(total_sierra_gas),
+            GasVectorComputationMode::NoL2Gas => GasVector::from_l1_gas(
+                versioned_constants.sierra_gas_to_l1_gas_amount_round_up(total_sierra_gas),
+            ),
+        };
+
         vm_cost.checked_add(sierra_gas_cost).unwrap_or_else(|| {
             panic!(
                 "Computation resources to gas vector overflowed: tried to add {sierra_gas_cost:?} \
