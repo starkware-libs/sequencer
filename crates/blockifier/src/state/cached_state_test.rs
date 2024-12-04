@@ -4,15 +4,25 @@ use assert_matches::assert_matches;
 use indexmap::indexmap;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
-use starknet_api::transaction::fields::Fee;
-use starknet_api::{class_hash, compiled_class_hash, contract_address, felt, nonce, storage_key};
+use starknet_api::transaction::fields::{Fee, TransactionSignature};
+use starknet_api::{
+    class_hash,
+    compiled_class_hash,
+    contract_address,
+    felt,
+    invoke_tx_args,
+    nonce,
+    storage_key,
+};
 
 use crate::context::{BlockContext, ChainInfo};
 use crate::state::cached_state::*;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::CairoVersion;
+use crate::test_utils::{create_calldata, CairoVersion, BALANCE};
+use crate::transaction::test_utils::{account_invoke_tx, STORAGE_WRITE};
+use crate::transaction::transactions::ExecutableTransaction;
 const CONTRACT_ADDRESS: &str = "0x100";
 
 fn set_initial_state_values(
@@ -470,6 +480,48 @@ fn test_state_cache_commit_and_merge(
         merged_changes.state_maps.storage.get(&(contract_address, storage_key)),
         expected_storage_diff,
     );
+}
+
+#[rstest]
+#[case(false, felt!("0x7"), felt!("0x8"), false)]
+#[case(true, felt!("0x0"), felt!("0x8"), true)]
+#[case(true, felt!("0x7"), felt!("0x7"), true)]
+#[case(false, felt!("0x0"), felt!("0x8"), false)]
+#[case(true, felt!("0x7"), felt!("0x0"), false)]
+fn test_write_at_validate_and_execute(
+    #[case] is_base_empty: bool,
+    #[case] validate_value: Felt,
+    #[case] execute_value: Felt,
+    #[case] charged: bool,
+) {
+    let block_context = BlockContext::create_for_testing();
+    let chain_info = &block_context.chain_info;
+    let faulty_account_feature_contract = FeatureContract::FaultyAccount(CairoVersion::Cairo1);
+    let contract_address = faulty_account_feature_contract.get_instance_address(0);
+    let mut state = test_state(chain_info, BALANCE, &[(faulty_account_feature_contract, 1)]);
+
+    if !is_base_empty {
+        state.set_storage_at(contract_address, 15_u8.into(), felt!("0x1")).unwrap();
+    }
+    let mut transactional_state = TransactionalState::create_transactional(&mut state);
+
+    let signature =
+        TransactionSignature(vec![Felt::from(STORAGE_WRITE), validate_value, execute_value]);
+    let invoke_tx = account_invoke_tx(invoke_tx_args! {
+        signature,
+        sender_address: contract_address,
+        calldata: create_calldata(contract_address, "foo", &[]),
+    });
+    let tx_execution_info =
+        invoke_tx.execute(&mut transactional_state, &block_context, false, true).unwrap();
+    let n_allocated_keys = tx_execution_info
+        .receipt
+        .resources
+        .starknet_resources
+        .state
+        .state_changes_for_fee
+        .n_allocated_keys;
+    assert_eq!(n_allocated_keys > 0, charged);
 }
 
 // Test that allocations in validate and execute phases are properly squashed.
