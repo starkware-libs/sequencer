@@ -7,10 +7,10 @@ use crate::serde_utils::SerdeWrapper;
 
 fn test_generic_data_serde<T>(data: T)
 where
-    T: Serialize + for<'de> Deserialize<'de> + Debug + Clone + Copy + PartialEq,
+    T: Serialize + for<'de> Deserialize<'de> + Debug + Clone + PartialEq,
 {
     // Serialize and deserialize the data.
-    let encoded = SerdeWrapper::new(data).wrapper_serialize().unwrap();
+    let encoded = SerdeWrapper::new(data.clone()).wrapper_serialize().unwrap();
     let decoded = SerdeWrapper::<T>::wrapper_deserialize(&encoded).unwrap();
 
     // Assert that the data is the same after serialization and deserialization.
