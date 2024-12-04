@@ -30,7 +30,7 @@ use crate::transaction::objects::{
     TransactionInfo,
     TransactionInfoCreator,
 };
-use crate::transaction::transactions::{Executable, ExecutableTransaction, ExecutionFlags};
+use crate::transaction::transactions::{Executable, ExecutableTransaction};
 
 // TODO: Move into transaction.rs, makes more sense to be defined there.
 #[derive(Clone, Debug, derive_more::From)]
@@ -140,7 +140,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
         &self,
         state: &mut TransactionalState<'_, U>,
         block_context: &BlockContext,
-        _execution_flags: ExecutionFlags,
+        _concurrency_mode: bool,
     ) -> TransactionExecutionResult<TransactionExecutionInfo> {
         let tx_context = Arc::new(block_context.to_tx_context(self));
         let limit_steps_by_resources = false;
@@ -188,17 +188,16 @@ impl<U: UpdatableState> ExecutableTransaction<U> for Transaction {
         &self,
         state: &mut TransactionalState<'_, U>,
         block_context: &BlockContext,
-        execution_flags: ExecutionFlags,
+        concurrency_mode: bool,
     ) -> TransactionExecutionResult<TransactionExecutionInfo> {
         // TODO(Yoni, 1/8/2024): consider unimplementing the ExecutableTransaction trait for inner
         // types, since now running Transaction::execute_raw is not identical to
         // AccountTransaction::execute_raw.
-        let concurrency_mode = execution_flags.concurrency_mode;
         let tx_execution_info = match self {
             Self::Account(account_tx) => {
-                account_tx.execute_raw(state, block_context, execution_flags)?
+                account_tx.execute_raw(state, block_context, concurrency_mode)?
             }
-            Self::L1Handler(tx) => tx.execute_raw(state, block_context, execution_flags)?,
+            Self::L1Handler(tx) => tx.execute_raw(state, block_context, concurrency_mode)?,
         };
 
         // Check if the transaction is too large to fit any block.

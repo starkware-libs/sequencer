@@ -62,7 +62,6 @@ use crate::transaction::transactions::{
     enforce_fee,
     Executable,
     ExecutableTransaction,
-    ExecutionFlags as TransactionExecutionFlags,
     ValidatableTransaction,
 };
 
@@ -743,7 +742,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
         &self,
         state: &mut TransactionalState<'_, U>,
         block_context: &BlockContext,
-        execution_flags_: TransactionExecutionFlags,
+        concurrency_mode: bool,
     ) -> TransactionExecutionResult<TransactionExecutionInfo> {
         let tx_context = Arc::new(block_context.to_tx_context(self));
         self.verify_tx_version(tx_context.tx_info.version())?;
@@ -784,7 +783,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
             tx_context,
             final_fee,
             self.execution_flags.charge_fee,
-            execution_flags_.concurrency_mode,
+            concurrency_mode,
         )?;
 
         let tx_execution_info = TransactionExecutionInfo {
