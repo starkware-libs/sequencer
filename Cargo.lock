@@ -10342,12 +10342,10 @@ version = "0.0.0"
 dependencies = [
  "async-trait",
  "futures",
- "libp2p",
  "papyrus_config",
  "papyrus_consensus",
  "papyrus_consensus_orchestrator",
  "papyrus_network",
- "papyrus_network_types",
  "papyrus_protobuf",
  "serde",
  "starknet_batcher_types",
