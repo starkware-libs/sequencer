@@ -12,7 +12,9 @@ use futures::stream::FuturesUnordered;
 use futures::{Stream, StreamExt};
 use papyrus_common::metrics::{PAPYRUS_CONSENSUS_HEIGHT, PAPYRUS_CONSENSUS_SYNC_COUNT};
 use papyrus_network::network_manager::BroadcastTopicClientTrait;
+use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_protobuf::consensus::{ConsensusMessage, ProposalInit};
+use papyrus_protobuf::converters::ProtobufConversionError;
 use starknet_api::block::BlockNumber;
 use tracing::{debug, info, instrument, warn};
 
@@ -65,30 +67,35 @@ where
         metrics::gauge!(PAPYRUS_CONSENSUS_HEIGHT, current_height.0 as f64);
 
         let is_observer = current_height < start_active_height;
-        let run_height = manager.run_height(
-            &mut context,
-            current_height,
-            is_observer,
-            &mut broadcast_channels,
-            &mut inbound_proposal_receiver,
-        );
-
-        // `run_height` is not cancel safe. Our implementation doesn't enable us to start and stop
-        // it. We also cannot restart the height; when we dropped the future we dropped the state it
-        // built and risk equivocating. Therefore, we must only enter the other select branches if
-        // we are certain to leave this height.
-        tokio::select! {
-            decision = run_height => {
-                let decision = decision?;
+        match manager
+            .run_height(
+                &mut context,
+                current_height,
+                is_observer,
+                &mut broadcast_channels,
+                &mut inbound_proposal_receiver,
+                &mut sync_receiver,
+            )
+            .await?
+        {
+            RunHeightRes::Decision(decision) => {
                 context.decision_reached(decision.block, decision.precommits).await?;
                 current_height = current_height.unchecked_next();
-            },
-            sync_height = sync_height(current_height, &mut sync_receiver) => {
+            }
+            RunHeightRes::Sync(sync_height) => {
                 metrics::increment_counter!(PAPYRUS_CONSENSUS_SYNC_COUNT);
-                current_height = sync_height?.unchecked_next();
+                current_height = sync_height.unchecked_next();
             }
         }
     }
+}
+
+/// Result of Manager::run_height.
+pub enum RunHeightRes {
+    /// Decision reached.
+    Decision(Decision),
+    /// Sync protocol returned a future height.
+    Sync(BlockNumber),
 }
 
 /// Runs Tendermint repeatedly across different heights. Handles issues which are not explicitly
@@ -110,20 +117,23 @@ impl MultiHeightManager {
     ///
     /// Assumes that `height` is monotonically increasing across calls for the sake of filtering
     /// `cached_messaged`.
-    #[instrument(skip(self, context, broadcast_channels), level = "info")]
-    pub async fn run_height<ContextT>(
+    #[instrument(skip(self, context, broadcast_channels, sync_receiver), level = "info")]
+    pub async fn run_height<SyncReceiverT, ContextT>(
         &mut self,
         context: &mut ContextT,
         height: BlockNumber,
         is_observer: bool,
         broadcast_channels: &mut BroadcastConsensusMessageChannel,
         proposal_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
-    ) -> Result<Decision, ConsensusError>
+        sync_receiver: &mut SyncReceiverT,
+    ) -> Result<RunHeightRes, ConsensusError>
     where
         ContextT: ConsensusContext,
+        SyncReceiverT: Stream<Item = BlockNumber> + Unpin,
     {
         let validators = context.validators(height).await;
         info!("running consensus for height {height:?} with validator set {validators:?}");
+        let mut shc_events = FuturesUnordered::new();
         let mut shc = SingleHeightConsensus::new(
             height,
             is_observer,
@@ -131,10 +141,9 @@ impl MultiHeightManager {
             validators,
             self.timeouts.clone(),
         );
-        let mut shc_events = FuturesUnordered::new();
 
-        match shc.start(context).await? {
-            ShcReturn::Decision(decision) => return Ok(decision),
+        match self.start_height(context, height, &mut shc).await? {
+            ShcReturn::Decision(decision) => return Ok(RunHeightRes::Decision(decision)),
             ShcReturn::Tasks(tasks) => {
                 for task in tasks {
                     shc_events.push(task.run());
@@ -142,31 +151,26 @@ impl MultiHeightManager {
             }
         }
 
-        let mut current_height_messages = self.get_current_height_messages(height);
+        // Loop over incoming proposals, messages, cached messages, and events.
         loop {
             let shc_return = tokio::select! {
-                message = next_message(&mut current_height_messages, broadcast_channels) => {
-                    self.handle_message(context, height, &mut shc, message?).await?
+                message = broadcast_channels.broadcasted_messages_receiver.next() => {
+                    self.handle_message(
+                        context, height, &mut shc, message, broadcast_channels).await?
                 },
-                Some(mut content_receiver) = proposal_receiver.next() => {
-                    // Get the first message to verify the init was sent.
-                     // TODO(guyn): add a timeout and panic, since StreamHandler should only send once
-                    // the first message (message_id=0) has arrived.
-                    let Some(first_part) = content_receiver.next().await else {
-                        return Err(ConsensusError::InternalNetworkError(
-                            "Proposal receiver closed".to_string(),
-                        ));
-                    };
-                    let proposal_init: ProposalInit = first_part.try_into()?;
-                    self.handle_proposal(context, height, &mut shc, proposal_init, content_receiver).await?
+                receiver = proposal_receiver.next() => {
+                    self.handle_proposal(context, height, &mut shc, receiver).await?
                 },
                 Some(shc_event) = shc_events.next() => {
                     shc.handle_event(context, shc_event).await?
                 },
+                sync_height = sync_height(height, sync_receiver) => {
+                    return Ok(RunHeightRes::Sync(sync_height?));
+                }
             };
 
             match shc_return {
-                ShcReturn::Decision(decision) => return Ok(decision),
+                ShcReturn::Decision(decision) => return Ok(RunHeightRes::Decision(decision)),
                 ShcReturn::Tasks(tasks) => {
                     for task in tasks {
                         shc_events.push(task.run());
@@ -176,19 +180,59 @@ impl MultiHeightManager {
         }
     }
 
+    async fn start_height<ContextT>(
+        &mut self,
+        context: &mut ContextT,
+        height: BlockNumber,
+        shc: &mut SingleHeightConsensus,
+    ) -> Result<ShcReturn, ConsensusError>
+    where
+        ContextT: ConsensusContext,
+    {
+        let mut tasks = match shc.start(context).await? {
+            decision @ ShcReturn::Decision(_) => return Ok(decision),
+            ShcReturn::Tasks(tasks) => tasks,
+        };
+
+        // TODO(guyn): use cached proposal.
+
+        for msg in self.get_current_height_messages(height) {
+            match shc.handle_message(context, msg).await? {
+                decision @ ShcReturn::Decision(_) => return Ok(decision),
+                ShcReturn::Tasks(new_tasks) => tasks.extend(new_tasks),
+            }
+        }
+
+        Ok(ShcReturn::Tasks(tasks))
+    }
+
     // Handle a new proposal receiver from the network.
     async fn handle_proposal<ContextT>(
         &mut self,
         context: &mut ContextT,
         height: BlockNumber,
         shc: &mut SingleHeightConsensus,
-        proposal_init: ProposalInit,
-        content_receiver: mpsc::Receiver<ContextT::ProposalPart>,
+        content_receiver: Option<mpsc::Receiver<ContextT::ProposalPart>>,
     ) -> Result<ShcReturn, ConsensusError>
     where
         ContextT: ConsensusContext,
+        <ContextT as ConsensusContext>::ProposalPart: std::fmt::Debug,
     {
-        // TODO(guyn): what is the right thing to do if proposal's height doesn't match?
+        let Some(mut content_receiver) = content_receiver else {
+            return Err(ConsensusError::InternalNetworkError(
+                "NetworkReceiver should never be closed".to_string(),
+            ));
+        };
+
+        // Get the first message to verify the init was sent.
+        // TODO(guyn): what happens if the channel never sends anything?
+        let Some(first_part) = content_receiver.next().await else {
+            return Err(ConsensusError::InternalNetworkError(
+                "Proposal receiver closed".to_string(),
+            ));
+        };
+        let proposal_init: ProposalInit = first_part.try_into()?;
+
         if proposal_init.height != height {
             // TODO(guyn): add caching of heights for future use.
             warn!("Received a proposal for a different height. {:?}", proposal_init);
@@ -202,12 +246,33 @@ impl MultiHeightManager {
         context: &mut ContextT,
         height: BlockNumber,
         shc: &mut SingleHeightConsensus,
-        message: ConsensusMessage,
+        message: Option<(
+            Result<ConsensusMessage, ProtobufConversionError>,
+            BroadcastedMessageMetadata,
+        )>,
+        broadcast_channels: &mut BroadcastConsensusMessageChannel,
     ) -> Result<ShcReturn, ConsensusError>
     where
         ContextT: ConsensusContext,
     {
-        // TODO(matan): We need to figure out an actual cacheing strategy under 2 constraints:
+        let message = match message {
+            None => Err(ConsensusError::InternalNetworkError(
+                "NetworkReceiver should never be closed".to_string(),
+            )),
+            Some((Ok(msg), metadata)) => {
+                // TODO(matan): Hold onto report_sender for use in later errors by SHC.
+                let _ =
+                    broadcast_channels.broadcast_topic_client.continue_propagation(&metadata).await;
+                Ok(msg)
+            }
+            Some((Err(e), metadata)) => {
+                // Failed to parse consensus message
+                let _ = broadcast_channels.broadcast_topic_client.report_peer(metadata).await;
+                Err(e.into())
+            }
+        }?;
+
+        // TODO(matan): We need to figure out an actual caching strategy under 2 constraints:
         // 1. Malicious - must be capped so a malicious peer can't DoS us.
         // 2. Parallel proposals - we may send/receive a proposal for (H+1, 0).
         // In general I think we will want to only cache (H+1, 0) messages.
@@ -218,6 +283,7 @@ impl MultiHeightManager {
             }
             return Ok(ShcReturn::Tasks(Vec::new()));
         }
+
         match message {
             ConsensusMessage::Proposal(_) => Err(ConsensusError::InternalNetworkError(
                 "Proposal variant of ConsensusMessage no longer supported".to_string(),
@@ -250,41 +316,10 @@ impl MultiHeightManager {
     }
 }
 
-async fn next_message(
-    cached_messages: &mut Vec<ConsensusMessage>,
-    broadcast_channels: &mut BroadcastConsensusMessageChannel,
-) -> Result<ConsensusMessage, ConsensusError> {
-    let BroadcastConsensusMessageChannel { broadcasted_messages_receiver, broadcast_topic_client } =
-        broadcast_channels;
-    if let Some(msg) = cached_messages.pop() {
-        return Ok(msg);
-    }
-
-    let (msg, broadcasted_message_metadata) =
-        broadcasted_messages_receiver.next().await.ok_or_else(|| {
-            ConsensusError::InternalNetworkError(
-                "NetworkReceiver should never be closed".to_string(),
-            )
-        })?;
-    match msg {
-        // TODO(matan): Return report_sender for use in later errors by SHC.
-        Ok(msg) => {
-            let _ =
-                broadcast_topic_client.continue_propagation(&broadcasted_message_metadata).await;
-            Ok(msg)
-        }
-        Err(e) => {
-            // Failed to parse consensus message
-            let _ = broadcast_topic_client.report_peer(broadcasted_message_metadata).await;
-            Err(e.into())
-        }
-    }
-}
-
 // Return only when a height is reached that is greater than or equal to the current height.
 async fn sync_height<SyncReceiverT>(
     height: BlockNumber,
-    mut sync_receiver: SyncReceiverT,
+    sync_receiver: &mut SyncReceiverT,
 ) -> Result<BlockNumber, ConsensusError>
 where
     SyncReceiverT: Stream<Item = BlockNumber> + Unpin,
