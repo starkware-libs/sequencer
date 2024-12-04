@@ -3,14 +3,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use mockall::mock;
-use papyrus_protobuf::consensus::{
-    ConsensusMessage,
-    Proposal,
-    ProposalFin,
-    ProposalInit,
-    Vote,
-    VoteType,
-};
+use papyrus_protobuf::consensus::{ConsensusMessage, ProposalFin, ProposalInit, Vote, VoteType};
 use papyrus_protobuf::converters::ProtobufConversionError;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_types_core::felt::Felt;
@@ -130,24 +123,6 @@ pub fn precommit(
         voter,
     })
 }
-
-pub fn proposal(
-    block_felt: Felt,
-    height: u64,
-    round: u32,
-    proposer: ValidatorId,
-) -> ConsensusMessage {
-    let block_hash = BlockHash(block_felt);
-    ConsensusMessage::Proposal(Proposal {
-        height,
-        block_hash,
-        round,
-        proposer,
-        transactions: Vec::new(),
-        valid_round: None,
-    })
-}
-
 pub fn proposal_init(height: u64, round: u32, proposer: ValidatorId) -> ProposalInit {
     ProposalInit { height: BlockNumber(height), round, proposer, valid_round: None }
 }

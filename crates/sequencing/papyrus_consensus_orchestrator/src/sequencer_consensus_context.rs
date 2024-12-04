@@ -521,6 +521,7 @@ async fn stream_validate_proposal(
     let mut content = Vec::new();
     let network_block_id = loop {
         let Some(prop_part) = content_receiver.next().await else {
+            // TODO(Asmaa): Tell the batcher to abort.
             warn!("Failed to receive proposal content: {proposal_id:?}");
             return;
         };
