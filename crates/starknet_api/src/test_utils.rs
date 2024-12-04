@@ -6,7 +6,16 @@ use serde::{Deserialize, Serialize};
 use serde_json::to_string_pretty;
 use starknet_types_core::felt::Felt;
 
-use crate::block::{BlockNumber, GasPrice, GasPriceVector, GasPrices, NonzeroGasPrice};
+use crate::block::{
+    BlockInfo,
+    BlockNumber,
+    BlockTimestamp,
+    GasPrice,
+    GasPriceVector,
+    GasPrices,
+    NonzeroGasPrice,
+};
+use crate::contract_address;
 use crate::core::{ChainId, ContractAddress, Nonce};
 use crate::execution_resources::GasAmount;
 use crate::rpc_transaction::RpcTransaction;
@@ -17,6 +26,21 @@ pub mod declare;
 pub mod deploy_account;
 pub mod invoke;
 pub mod l1_handler;
+
+// TODO(Dori, 1/2/2024): Remove these constants once all tests use the `contracts` and
+//   `initial_test_state` modules for testing.
+// Addresses.
+pub const TEST_SEQUENCER_ADDRESS: &str = "0x1000";
+pub const TEST_ERC20_CONTRACT_ADDRESS: &str = "0x1001";
+pub const TEST_ERC20_CONTRACT_ADDRESS2: &str = "0x1002";
+
+// The block number of the BlockContext being used for testing.
+pub const CURRENT_BLOCK_NUMBER: u64 = 2001;
+pub const CURRENT_BLOCK_NUMBER_FOR_VALIDATE: u64 = 2000;
+
+// The block timestamp of the BlockContext being used for testing.
+pub const CURRENT_BLOCK_TIMESTAMP: u64 = 1072023;
+pub const CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE: u64 = 1069200;
 
 /// Returns the path to a file in the resources directory. This assumes the current working
 /// directory has a `resources` folder. The value for file_path should be the path to the required
@@ -152,3 +176,19 @@ pub const DEFAULT_GAS_PRICES: GasPrices = GasPrices {
 
 // Deprecated transactions:
 pub const MAX_FEE: Fee = DEFAULT_L1_GAS_AMOUNT.nonzero_saturating_mul(DEFAULT_ETH_L1_GAS_PRICE);
+
+impl BlockInfo {
+    pub fn create_for_testing() -> Self {
+        Self {
+            block_number: BlockNumber(CURRENT_BLOCK_NUMBER),
+            block_timestamp: BlockTimestamp(CURRENT_BLOCK_TIMESTAMP),
+            sequencer_address: contract_address!(TEST_SEQUENCER_ADDRESS),
+            gas_prices: DEFAULT_GAS_PRICES,
+            use_kzg_da: false,
+        }
+    }
+
+    pub fn create_for_testing_with_kzg(use_kzg_da: bool) -> Self {
+        Self { use_kzg_da, ..Self::create_for_testing() }
+    }
+}
