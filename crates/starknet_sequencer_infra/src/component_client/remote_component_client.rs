@@ -12,7 +12,12 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 
 use super::definitions::{ClientError, ClientResult};
-use crate::component_definitions::{ComponentClient, RemoteClientConfig, APPLICATION_OCTET_STREAM};
+use crate::component_definitions::{
+    ComponentClient,
+    RemoteClientConfig,
+    ServerError,
+    APPLICATION_OCTET_STREAM,
+};
 use crate::serde_utils::SerdeWrapper;
 
 /// The `RemoteComponentClient` struct is a generic client for sending component requests and
@@ -128,7 +133,9 @@ where
             StatusCode::OK => get_response_body(http_response).await,
             status_code => Err(ClientError::ResponseError(
                 status_code,
-                get_response_body(http_response).await?,
+                ServerError::RequestDeserializationFailure(
+                    "Could not deserialize server response".to_string(),
+                ),
             )),
         }
     }

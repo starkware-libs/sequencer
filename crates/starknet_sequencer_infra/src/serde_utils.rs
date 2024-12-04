@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
-use bincode::{deserialize, serialize};
 use serde::{Deserialize, Serialize};
+use serde_json::{from_slice, to_vec};
 
 #[cfg(test)]
 #[path = "serde_utils_test.rs"]
@@ -22,11 +22,11 @@ where
         Self { data }
     }
 
-    pub fn wrapper_serialize(&self) -> Result<Vec<u8>, bincode::Error> {
-        serialize(self)
+    pub fn wrapper_serialize(&self) -> Result<Vec<u8>, serde_json::Error> {
+        to_vec(self)
     }
 
-    pub fn wrapper_deserialize(bytes: &[u8]) -> Result<T, bincode::Error> {
-        deserialize(bytes).map(|serde_wrapper: Self| serde_wrapper.data)
+    pub fn wrapper_deserialize(bytes: &[u8]) -> Result<T, serde_json::Error> {
+        from_slice(bytes).map(|serde_wrapper: Self| serde_wrapper.data)
     }
 }
