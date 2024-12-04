@@ -10,6 +10,7 @@ use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::{
     AllResourceBounds,
@@ -373,6 +374,10 @@ impl EntryPointExecutionContext {
 
     pub fn gas_costs(&self) -> &GasCosts {
         &self.versioned_constants().os_constants.gas_costs
+    }
+
+    pub fn mode_sierra_gas_limit(&self) -> GasAmount {
+        self.tx_context.block_context.versioned_constants.sierra_gas_limit(&self.execution_mode)
     }
 
     /// Reverts the state back to the way it was when self.revert_infos.0['revert_idx'] was created.
