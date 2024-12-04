@@ -1679,18 +1679,26 @@ fn test_initial_gas(
         resource_bounds:  default_all_resource_bounds,
         version: TransactionVersion::THREE
     });
+    let user_gas_bound = block_context.to_tx_context(&account_tx).initial_sierra_gas();
 
     let transaction_ex_info = account_tx.execute(state, &block_context, true, true).unwrap();
 
     let validate_call_info = &transaction_ex_info.validate_call_info.unwrap();
     let validate_initial_gas = validate_call_info.call.initial_gas;
-    assert_eq!(validate_initial_gas, DEFAULT_L2_GAS_MAX_AMOUNT.0);
+    assert_eq!(validate_initial_gas, block_context.versioned_constants.validate_max_sierra_gas.0);
     let validate_gas_consumed = validate_call_info.execution.gas_consumed;
     assert!(validate_gas_consumed > 0, "New Cairo1 contract should consume gas.");
 
     let default_call_info = CallInfo::default();
-    let mut prev_initial_gas = validate_initial_gas;
     let mut execute_call_info = &transaction_ex_info.execute_call_info.unwrap();
+    // Initial gas for execution is the minimum between the max execution gas and the initial gas
+    // minus the gas consumed by validate. Need to add 1 as the check is strictly less than.
+    let mut prev_initial_gas = block_context
+        .versioned_constants
+        .execute_max_sierra_gas
+        .min(user_gas_bound - GasAmount(validate_gas_consumed))
+        .0
+        + 1;
     let mut curr_initial_gas;
     let mut started_vm_mode = false;
     // The __validate__ call of a the account contract.
