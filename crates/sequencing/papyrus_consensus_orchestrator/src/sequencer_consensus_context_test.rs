@@ -21,13 +21,11 @@ use papyrus_protobuf::consensus::{
     TransactionBatch,
 };
 use starknet_api::block::{BlockHash, BlockNumber};
-use starknet_api::core::{ContractAddress, StateDiffCommitment};
-use starknet_api::executable_transaction::{
-    AccountTransaction,
-    Transaction as ExecutableTransaction,
-};
+use starknet_api::core::{ChainId, ContractAddress, Nonce, StateDiffCommitment};
+use starknet_api::executable_transaction::Transaction as ExecutableTransaction;
+use starknet_api::felt;
 use starknet_api::hash::PoseidonHash;
-use starknet_api::test_utils::invoke::{executable_invoke_tx, invoke_tx, InvokeTxArgs};
+use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
 use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_batcher_types::batcher_types::{
     GetProposalContent,
@@ -50,21 +48,19 @@ const TIMEOUT: Duration = Duration::from_millis(100);
 const CHANNEL_SIZE: usize = 5000;
 const NUM_VALIDATORS: u64 = 4;
 const STATE_DIFF_COMMITMENT: StateDiffCommitment = StateDiffCommitment(PoseidonHash(Felt::ZERO));
+const CHAIN_ID: ChainId = ChainId::Mainnet;
 
 lazy_static! {
-    static ref TX_BATCH: Vec<ExecutableTransaction> =
-        vec![generate_executable_invoke_tx(Felt::THREE)];
+    static ref TX_BATCH: Vec<ExecutableTransaction> = vec![generate_executable_invoke_tx()];
 }
 
 fn generate_invoke_tx() -> Transaction {
-    Transaction::Invoke(invoke_tx(InvokeTxArgs::default()))
+    Transaction::Invoke(invoke_tx(InvokeTxArgs { nonce: Nonce(felt!(3_u8)), ..Default::default() }))
 }
 
-fn generate_executable_invoke_tx(tx_hash: Felt) -> ExecutableTransaction {
-    ExecutableTransaction::Account(AccountTransaction::Invoke(executable_invoke_tx(InvokeTxArgs {
-        tx_hash: TransactionHash(tx_hash),
-        ..Default::default()
-    })))
+fn generate_executable_invoke_tx() -> ExecutableTransaction {
+    let tx = generate_invoke_tx();
+    (tx, &CHAIN_ID).try_into().unwrap()
 }
 
 fn make_streaming_channels() -> (
@@ -124,6 +120,7 @@ async fn build_proposal() {
         broadcast_topic_client,
         outbound_internal_sender,
         NUM_VALIDATORS,
+        CHAIN_ID,
     );
     let init = ProposalInit {
         height: BlockNumber(0),
@@ -186,6 +183,7 @@ async fn validate_proposal_success() {
         broadcast_topic_client,
         outbound_internal_sender,
         NUM_VALIDATORS,
+        CHAIN_ID,
     );
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
@@ -252,6 +250,7 @@ async fn repropose() {
         broadcast_topic_client,
         outbound_internal_sender,
         NUM_VALIDATORS,
+        CHAIN_ID,
     );
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
@@ -330,6 +329,7 @@ async fn proposals_from_different_rounds() {
         broadcast_topic_client,
         outbound_internal_sender,
         NUM_VALIDATORS,
+        CHAIN_ID,
     );
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
@@ -426,6 +426,7 @@ async fn interrupt_active_proposal() {
         broadcast_topic_client,
         outbound_internal_sender,
         NUM_VALIDATORS,
+        CHAIN_ID,
     );
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
