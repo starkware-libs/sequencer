@@ -220,29 +220,31 @@ impl VersionedConstants {
         Ok(serde_json::from_reader(std::fs::File::open(path)?)?)
     }
 
-    /// Converts from L1 gas price to L2 gas price with **upward rounding**.
+    /// Converts from L1 gas price to L2 gas price with **upward rounding**, based on the
+    /// conversion of a Cairo step from Sierra gas to L1 gas.
     pub fn convert_l1_to_l2_gas_price_round_up(&self, l1_gas_price: GasPrice) -> GasPrice {
-        (*(resource_cost_to_u128_ratio(self.l1_to_l2_gas_price_ratio()) * l1_gas_price.0)
+        (*(resource_cost_to_u128_ratio(self.sierra_gas_in_l1_gas_amount()) * l1_gas_price.0)
             .ceil()
             .numer())
         .into()
     }
 
-    /// Converts from L1 gas amount to L2 gas amount with **upward rounding**.
-    pub fn convert_l1_to_l2_gas_amount_round_up(&self, l1_gas_amount: GasAmount) -> GasAmount {
+    /// Converts L1 gas amount to Sierra (L2) gas amount with **upward rounding**.
+    pub fn l1_gas_to_sierra_gas_amount_round_up(&self, l1_gas_amount: GasAmount) -> GasAmount {
         // The amount ratio is the inverse of the price ratio.
-        (*(self.l1_to_l2_gas_price_ratio().inv() * l1_gas_amount.0).ceil().numer()).into()
+        (*(self.sierra_gas_in_l1_gas_amount().inv() * l1_gas_amount.0).ceil().numer()).into()
     }
 
-    /// Returns the following ratio: L2_gas_price/L1_gas_price.
-    fn l1_to_l2_gas_price_ratio(&self) -> ResourceCost {
+    /// Converts Sierra (L2) gas amount to L1 gas amount with **upward rounding**.
+    pub fn sierra_gas_to_l1_gas_amount_round_up(&self, l2_gas_amount: GasAmount) -> GasAmount {
+        (*(self.sierra_gas_in_l1_gas_amount() * l2_gas_amount.0).ceil().numer()).into()
+    }
+
+    /// Returns the equivalent L1 gas amount of one unit of Sierra gas.
+    /// The conversion is based on the pricing of a single Cairo step.
+    fn sierra_gas_in_l1_gas_amount(&self) -> ResourceCost {
         Ratio::new(1, self.os_constants.gas_costs.step_gas_cost)
             * self.vm_resource_fee_cost().n_steps
-    }
-
-    #[cfg(any(feature = "testing", test))]
-    pub fn get_l1_to_l2_gas_price_ratio(&self) -> ResourceCost {
-        self.l1_to_l2_gas_price_ratio()
     }
 
     /// Returns the default initial gas for VM mode transactions.

@@ -465,7 +465,7 @@ pub fn gas_vector_from_vm_usage(
     match computation_mode {
         GasVectorComputationMode::NoL2Gas => GasVector::from_l1_gas(vm_usage_in_l1_gas),
         GasVectorComputationMode::All => GasVector::from_l2_gas(
-            versioned_constants.convert_l1_to_l2_gas_amount_round_up(vm_usage_in_l1_gas),
+            versioned_constants.l1_gas_to_sierra_gas_amount_round_up(vm_usage_in_l1_gas),
         ),
     }
 }
