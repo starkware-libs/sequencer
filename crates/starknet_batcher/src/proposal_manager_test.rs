@@ -6,7 +6,7 @@ use starknet_batcher_types::batcher_types::ProposalId;
 use crate::block_builder::{BlockBuilderTrait, BlockExecutionArtifacts, MockBlockBuilderTrait};
 use crate::proposal_manager::{
     GenerateProposalError,
-    GetProposalResultError,
+    ProposalError,
     ProposalManager,
     ProposalManagerTrait,
     ProposalOutput,
@@ -70,7 +70,7 @@ async fn spawn_proposal(
 async fn spawn_proposal_success(mut proposal_manager: ProposalManager) {
     spawn_proposal(&mut proposal_manager, ProposalId(0), mock_build_block()).await;
 
-    proposal_manager.take_proposal_result(ProposalId(0)).await.unwrap();
+    proposal_manager.take_proposal_result(ProposalId(0)).await.unwrap().unwrap();
 }
 
 #[rstest]
@@ -117,13 +117,10 @@ async fn take_proposal_result_no_active_proposal(mut proposal_manager: ProposalM
     let expected_proposal_output =
         ProposalOutput::from(BlockExecutionArtifacts::create_for_testing());
     assert_eq!(
-        proposal_manager.take_proposal_result(ProposalId(0)).await.unwrap(),
+        proposal_manager.take_proposal_result(ProposalId(0)).await.unwrap().unwrap(),
         expected_proposal_output
     );
-    assert_matches!(
-        proposal_manager.take_proposal_result(ProposalId(0)).await,
-        Err(GetProposalResultError::ProposalDoesNotExist { .. })
-    );
+    assert_matches!(proposal_manager.take_proposal_result(ProposalId(0)).await, None);
 }
 
 #[rstest]
@@ -137,7 +134,7 @@ async fn abort_active_proposal(mut proposal_manager: ProposalManager) {
 
     assert_matches!(
         proposal_manager.take_proposal_result(ProposalId(0)).await,
-        Err(GetProposalResultError::Aborted)
+        Some(Err(ProposalError::Aborted))
     );
 
     // Make sure there is no active proposal.
@@ -156,10 +153,7 @@ async fn reset(mut proposal_manager: ProposalManager) {
     proposal_manager.reset().await;
 
     // Make sure executed proposals are deleted.
-    assert_matches!(
-        proposal_manager.take_proposal_result(ProposalId(0)).await,
-        Err(GetProposalResultError::ProposalDoesNotExist { .. })
-    );
+    assert_matches!(proposal_manager.take_proposal_result(ProposalId(0)).await, None);
 
     // Make sure there is no active proposal.
     assert!(!proposal_manager.await_active_proposal().await);
