@@ -5,7 +5,7 @@ use starknet_api::{l1_handler_tx_args, tx_hash};
 
 use crate::errors::L1ProviderError;
 use crate::test_utils::L1ProviderContentBuilder;
-use crate::ProviderState::{Propose, Validate};
+use crate::ProviderState::{Pending, Propose, Uninitialized, Validate};
 use crate::{L1Provider, ValidationStatus};
 
 macro_rules! tx {
@@ -54,8 +54,10 @@ fn validate_happy_flow() {
 #[test]
 fn pending_state_errors() {
     // Setup.
-    let mut l1_provider =
-        L1ProviderContentBuilder::new().with_txs([tx!(tx_hash: 1)]).build_into_l1_provider();
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_state(Pending)
+        .with_txs([tx!(tx_hash: 1)])
+        .build_into_l1_provider();
 
     // Test.
     assert_matches!(
@@ -70,10 +72,28 @@ fn pending_state_errors() {
 }
 
 #[test]
+#[should_panic(expected = "Uninitialized L1 provider")]
+fn uninitialized_get_txs() {
+    let mut uninitialized_l1_provider = L1Provider::default();
+    assert_eq!(uninitialized_l1_provider.state, Uninitialized);
+
+    uninitialized_l1_provider.get_txs(1).unwrap();
+}
+
+#[test]
+#[should_panic(expected = "Uninitialized L1 provider")]
+fn uninitialized_validate() {
+    let uninitialized_l1_provider = L1Provider::default();
+    assert_eq!(uninitialized_l1_provider.state, Uninitialized);
+
+    uninitialized_l1_provider.validate(Default::default()).unwrap();
+}
+
+#[test]
 fn proposal_start_errors() {
     // Setup.
-    let mut l1_provider = L1Provider::default();
-
+    let mut l1_provider =
+        L1ProviderContentBuilder::new().with_state(Pending).build_into_l1_provider();
     // Test.
     l1_provider.proposal_start().unwrap();
 
@@ -90,7 +110,8 @@ fn proposal_start_errors() {
 #[test]
 fn validation_start_errors() {
     // Setup.
-    let mut l1_provider = L1Provider::default();
+    let mut l1_provider =
+        L1ProviderContentBuilder::new().with_state(Pending).build_into_l1_provider();
 
     // Test.
     l1_provider.validation_start().unwrap();
