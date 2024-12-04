@@ -35,8 +35,8 @@ pub trait ConsensusContext {
         + TryInto<ProposalInit, Error = ProtobufConversionError>
         + From<ProposalInit>
         + Clone
-        + Send
-        + Debug;
+        + std::fmt::Debug
+        + Send;
 
     // TODO(matan): The oneshot for receiving the build block could be generalized to just be some
     // future which returns a block.
