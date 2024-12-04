@@ -1,3 +1,4 @@
+use std::cmp::min;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, LazyLock};
 
@@ -170,6 +171,13 @@ fn versioned_constants_for_account_testing() -> VersionedConstants {
     VERSIONED_CONSTANTS.clone()
 }
 
+fn initial_gas_amount_from_block_context(block_context: Option<&BlockContext>) -> GasAmount {
+    match block_context {
+        Some(block_context) => block_context.versioned_constants.default_initial_gas_amount(),
+        None => VERSIONED_CONSTANTS.default_initial_gas_amount(),
+    }
+}
+
 struct ExpectedResultTestInvokeTx {
     resources: ExecutionResources,
     validate_gas_consumed: u64,
@@ -177,10 +185,13 @@ struct ExpectedResultTestInvokeTx {
     inner_call_initial_gas: u64,
 }
 
-fn user_initial_gas_from_bounds(bounds: ValidResourceBounds) -> Option<GasAmount> {
+fn user_initial_gas_from_bounds(
+    bounds: ValidResourceBounds,
+    block_context: Option<&BlockContext>,
+) -> GasAmount {
     match bounds {
-        ValidResourceBounds::L1Gas(_) => None,
-        ValidResourceBounds::AllResources(bounds) => Some(bounds.l2_gas.max_amount),
+        ValidResourceBounds::L1Gas(_) => initial_gas_amount_from_block_context(block_context),
+        ValidResourceBounds::AllResources(bounds) => bounds.l2_gas.max_amount,
     }
 }
 
@@ -229,11 +240,21 @@ fn expected_validate_call_info(
         builtin_instance_counter: HashMap::from([(BuiltinName::range_check, n_range_checks)]),
     }
     .filter_unused_builtins();
-    let initial_gas = match tracked_resource {
-        TrackedResource::CairoSteps => default_initial_gas_cost(),
-        TrackedResource::SierraGas => {
-            user_initial_gas.unwrap_or(GasAmount(default_initial_gas_cost())).0
-        }
+    let initial_gas = match cairo_version {
+        CairoVersion::Cairo0 => default_initial_gas_cost(),
+        CairoVersion::Cairo1 => match tracked_resource {
+            TrackedResource::CairoSteps => {
+                initial_gas_amount_from_block_context(None)
+                    .min(VERSIONED_CONSTANTS.validate_max_sierra_gas)
+                    .0
+            }
+            TrackedResource::SierraGas => {
+                user_initial_gas
+                    .unwrap_or(initial_gas_amount_from_block_context(None))
+                    .min(VERSIONED_CONSTANTS.validate_max_sierra_gas)
+                    .0
+            }
+        },
     };
 
     Some(CallInfo {
@@ -487,14 +508,10 @@ fn test_invoke_tx(
     let tracked_resource = account_contract
         .get_runnable_class()
         .tracked_resource(&versioned_constants.min_compiler_version_for_sierra_gas, None);
-    if tracked_resource == TrackedResource::CairoSteps {
-        // In CairoSteps mode, the initial gas is set to the default once before the validate call.
-        expected_arguments.inner_call_initial_gas -=
-            expected_arguments.validate_gas_consumed + expected_arguments.execute_gas_consumed
-    }
 
     // Build expected validate call info.
     let expected_account_class_hash = account_contract.get_class_hash();
+    let initial_gas = user_initial_gas_from_bounds(resource_bounds, Some(block_context));
     let expected_validate_call_info = expected_validate_call_info(
         expected_account_class_hash,
         constants::VALIDATE_ENTRY_POINT_NAME,
@@ -503,11 +520,37 @@ fn test_invoke_tx(
         sender_address,
         account_cairo_version,
         tracked_resource,
-        user_initial_gas_from_bounds(resource_bounds),
+        Some(initial_gas.min(versioned_constants.validate_max_sierra_gas)),
     );
 
     // Build expected execute call info.
     let expected_return_result_calldata = vec![felt!(2_u8)];
+
+    let expected_validated_call = expected_validate_call_info.as_ref().unwrap().call.clone();
+    let expected_initial_execution_gas = versioned_constants
+        .execute_max_sierra_gas
+        .min(initial_gas - GasAmount(expected_arguments.validate_gas_consumed))
+        .0;
+    if account_cairo_version == CairoVersion::Cairo0 {
+        expected_arguments.inner_call_initial_gas = versioned_constants.default_initial_gas_cost();
+    }
+    let expected_execute_call = CallEntryPoint {
+        entry_point_selector: selector_from_name(constants::EXECUTE_ENTRY_POINT_NAME),
+        initial_gas: if account_cairo_version == CairoVersion::Cairo0 {
+            versioned_constants.default_initial_gas_cost()
+        } else {
+            expected_initial_execution_gas
+        },
+        ..expected_validated_call
+    };
+    if tracked_resource == TrackedResource::CairoSteps {
+        expected_arguments.inner_call_initial_gas -= expected_arguments.validate_gas_consumed;
+        expected_arguments.inner_call_initial_gas = min(
+            expected_arguments.inner_call_initial_gas,
+            versioned_constants.execute_max_sierra_gas.0,
+        );
+        expected_arguments.inner_call_initial_gas -= expected_arguments.execute_gas_consumed;
+    }
     let expected_return_result_call = CallEntryPoint {
         entry_point_selector: selector_from_name("return_result"),
         class_hash: Some(test_contract.get_class_hash()),
@@ -517,13 +560,11 @@ fn test_invoke_tx(
         storage_address: test_contract_address,
         caller_address: sender_address,
         call_type: CallType::Call,
-        initial_gas: expected_arguments.inner_call_initial_gas,
-    };
-    let expected_validated_call = expected_validate_call_info.as_ref().unwrap().call.clone();
-    let expected_execute_call = CallEntryPoint {
-        entry_point_selector: selector_from_name(constants::EXECUTE_ENTRY_POINT_NAME),
-        initial_gas: expected_validated_call.initial_gas - expected_arguments.validate_gas_consumed,
-        ..expected_validated_call
+        initial_gas: if account_cairo_version == CairoVersion::Cairo0 {
+            versioned_constants.default_initial_gas_cost()
+        } else {
+            expected_arguments.inner_call_initial_gas
+        },
     };
     let expected_return_result_retdata = Retdata(expected_return_result_calldata);
     let expected_execute_call_info = Some(CallInfo {
@@ -1555,7 +1596,7 @@ fn test_declare_tx(
             .get_runnable_class()
             .tracked_resource(&versioned_constants.min_compiler_version_for_sierra_gas, None),
         if tx_version >= TransactionVersion::THREE {
-            user_initial_gas_from_bounds(default_all_resource_bounds)
+            Some(user_initial_gas_from_bounds(default_all_resource_bounds, Some(block_context)))
         } else {
             None
         },
@@ -1723,7 +1764,8 @@ fn test_deploy_account_tx(
     // account transaction.
     let class_hash = deploy_account.class_hash().unwrap();
     let deployed_account_address = deploy_account.sender_address();
-    let user_initial_gas = user_initial_gas_from_bounds(default_all_resource_bounds);
+    let user_initial_gas =
+        user_initial_gas_from_bounds(default_all_resource_bounds, Some(block_context));
 
     // Update the balance of the about to be deployed account contract in the erc20 contract, so it
     // can pay for the transaction execution.
@@ -1768,10 +1810,14 @@ fn test_deploy_account_tx(
         account
             .get_runnable_class()
             .tracked_resource(&versioned_constants.min_compiler_version_for_sierra_gas, None),
-        user_initial_gas,
+        Some(user_initial_gas),
     );
 
     // Build expected execute call info.
+    let expected_execute_initial_gas = user_initial_gas
+        // Note that in the case of deploy account, the initial gas in "execute" is limited by 
+        // max_validation_sierra_gas.
+        .min(versioned_constants.validate_max_sierra_gas);
     let expected_execute_call_info = Some(CallInfo {
         call: CallEntryPoint {
             class_hash: Some(account_class_hash),
@@ -1779,7 +1825,7 @@ fn test_deploy_account_tx(
             entry_point_type: EntryPointType::Constructor,
             entry_point_selector: selector_from_name(CONSTRUCTOR_ENTRY_POINT_NAME),
             storage_address: deployed_account_address,
-            initial_gas: user_initial_gas.unwrap_or(GasAmount(default_initial_gas_cost())).0,
+            initial_gas: expected_execute_initial_gas.0,
             ..Default::default()
         },
         ..Default::default()
@@ -2289,7 +2335,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
             storage_address: contract_address,
             caller_address: ContractAddress::default(),
             call_type: CallType::Call,
-            initial_gas: default_initial_gas_cost(),
+            initial_gas: initial_gas_amount_from_block_context(Some(block_context)).0,
         },
         execution: CallExecution {
             retdata: Retdata(vec![value]),
