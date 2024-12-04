@@ -3,6 +3,13 @@ use starknet_api::block::GasPrice;
 use starknet_api::core::ChainId;
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::execution_resources::GasAmount;
+use starknet_api::test_utils::{
+    CURRENT_BLOCK_NUMBER,
+    CURRENT_BLOCK_NUMBER_FOR_VALIDATE,
+    CURRENT_BLOCK_TIMESTAMP,
+    CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE,
+    TEST_SEQUENCER_ADDRESS,
+};
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
     Calldata,
@@ -23,16 +30,7 @@ use crate::execution::common_hints::ExecutionMode;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{
-    trivial_external_entry_point_with_address,
-    CairoVersion,
-    BALANCE,
-    CURRENT_BLOCK_NUMBER,
-    CURRENT_BLOCK_NUMBER_FOR_VALIDATE,
-    CURRENT_BLOCK_TIMESTAMP,
-    CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE,
-    TEST_SEQUENCER_ADDRESS,
-};
+use crate::test_utils::{trivial_external_entry_point_with_address, CairoVersion, BALANCE};
 use crate::transaction::objects::{
     CommonAccountFields,
     CurrentTransactionInfo,

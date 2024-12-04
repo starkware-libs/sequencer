@@ -22,6 +22,10 @@ use starknet_api::state::StorageKey;
 use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::test_utils::{
     NonceManager,
+    CURRENT_BLOCK_NUMBER,
+    CURRENT_BLOCK_NUMBER_FOR_VALIDATE,
+    CURRENT_BLOCK_TIMESTAMP,
+    CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE,
     DEFAULT_L1_DATA_GAS_MAX_AMOUNT,
     DEFAULT_L1_GAS_AMOUNT,
     DEFAULT_L2_GAS_MAX_AMOUNT,
@@ -29,6 +33,7 @@ use starknet_api::test_utils::{
     DEFAULT_STRK_L1_GAS_PRICE,
     DEFAULT_STRK_L2_GAS_PRICE,
     MAX_FEE,
+    TEST_SEQUENCER_ADDRESS,
 };
 use starknet_api::transaction::fields::Resource::{L1DataGas, L1Gas, L2Gas};
 use starknet_api::transaction::fields::{
@@ -112,11 +117,6 @@ use crate::test_utils::{
     CairoVersion,
     SaltManager,
     BALANCE,
-    CURRENT_BLOCK_NUMBER,
-    CURRENT_BLOCK_NUMBER_FOR_VALIDATE,
-    CURRENT_BLOCK_TIMESTAMP,
-    CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE,
-    TEST_SEQUENCER_ADDRESS,
 };
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::errors::{

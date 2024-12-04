@@ -4,12 +4,7 @@ use std::sync::Arc;
 use assert_matches::assert_matches;
 use blockifier::context::{BlockContext, ChainInfo};
 use blockifier::test_utils::contracts::FeatureContract;
-use blockifier::test_utils::{
-    CairoVersion,
-    BALANCE,
-    CURRENT_BLOCK_TIMESTAMP,
-    TEST_SEQUENCER_ADDRESS,
-};
+use blockifier::test_utils::{CairoVersion, BALANCE};
 use blockifier::versioned_constants::VersionedConstants;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::IndexMap;
@@ -36,7 +31,12 @@ use starknet_api::block::{
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, Nonce, SequencerContractAddress};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{StorageKey, ThinStateDiff};
-use starknet_api::test_utils::{DEFAULT_ETH_L1_GAS_PRICE, DEFAULT_STRK_L1_GAS_PRICE};
+use starknet_api::test_utils::{
+    CURRENT_BLOCK_TIMESTAMP,
+    DEFAULT_ETH_L1_GAS_PRICE,
+    DEFAULT_STRK_L1_GAS_PRICE,
+    TEST_SEQUENCER_ADDRESS,
+};
 use starknet_api::transaction::fields::Fee;
 use starknet_api::{contract_address, felt};
 use starknet_client::reader::PendingData;
