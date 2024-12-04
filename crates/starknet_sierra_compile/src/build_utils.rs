@@ -36,5 +36,5 @@ pub fn output_file_path() -> String {
 
 #[cfg(feature = "cairo_native")]
 pub fn repo_root_dir() -> PathBuf {
-    Path::new(&std::env::var("CARGO_MANIFEST_DIR").unwrap()).join("../..").to_path_buf()
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../..").to_path_buf()
 }
