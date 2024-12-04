@@ -54,10 +54,7 @@ async fn validate_proposal_success(repropose: bool) {
 
     let (mut validate_sender, validate_receiver) = mpsc::channel(TEST_CHANNEL_SIZE);
     for tx in block.body.transactions.clone() {
-        let tx_part = ProposalPart::Transactions(TransactionBatch {
-            transactions: vec![tx],
-            tx_hashes: vec![],
-        });
+        let tx_part = ProposalPart::Transactions(TransactionBatch { transactions: vec![tx] });
         validate_sender.try_send(tx_part).unwrap();
     }
     let fin_part = ProposalPart::Fin(ProposalFin { proposal_content_id: block.header.block_hash });
@@ -91,10 +88,7 @@ async fn validate_proposal_fail() {
     let different_block = get_test_block(4, None, None, None);
     let (mut validate_sender, validate_receiver) = mpsc::channel(5000);
     for tx in different_block.body.transactions.clone() {
-        let tx_part = ProposalPart::Transactions(TransactionBatch {
-            transactions: vec![tx],
-            tx_hashes: vec![],
-        });
+        let tx_part = ProposalPart::Transactions(TransactionBatch { transactions: vec![tx] });
         validate_sender.try_send(tx_part).unwrap();
     }
     validate_sender.close_channel();

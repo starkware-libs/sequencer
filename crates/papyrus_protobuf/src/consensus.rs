@@ -1,6 +1,6 @@
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::ContractAddress;
-use starknet_api::transaction::{Transaction, TransactionHash};
+use starknet_api::transaction::Transaction;
 
 use crate::converters::ProtobufConversionError;
 
@@ -93,9 +93,6 @@ impl Default for ProposalInit {
 pub struct TransactionBatch {
     /// The transactions in the batch.
     pub transactions: Vec<Transaction>,
-    // TODO(guyn): remove this once we know how to get hashes as part of the compilation.
-    /// The transaction's hashes.
-    pub tx_hashes: Vec<TransactionHash>,
 }
 
 /// The proposal is done when receiving this fin message, which contains the block hash.

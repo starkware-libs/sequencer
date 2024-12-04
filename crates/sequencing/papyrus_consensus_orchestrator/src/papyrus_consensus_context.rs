@@ -130,7 +130,6 @@ impl ConsensusContext for PapyrusConsensusContext {
                 proposal_sender
                     .send(ProposalPart::Transactions(TransactionBatch {
                         transactions: transactions.clone(),
-                        tx_hashes: vec![],
                     }))
                     .await
                     .expect("Failed to send transactions");
@@ -261,7 +260,7 @@ impl ConsensusContext for PapyrusConsensusContext {
             .await
             .expect("Failed to send proposal init");
         proposal_sender
-            .send(ProposalPart::Transactions(TransactionBatch { transactions, tx_hashes: vec![] }))
+            .send(ProposalPart::Transactions(TransactionBatch { transactions }))
             .await
             .expect("Failed to send transactions");
         proposal_sender
