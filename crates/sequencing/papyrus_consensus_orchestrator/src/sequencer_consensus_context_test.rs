@@ -27,7 +27,7 @@ use starknet_api::executable_transaction::Transaction as ExecutableTransaction;
 use starknet_api::felt;
 use starknet_api::hash::PoseidonHash;
 use starknet_api::test_utils::invoke::{invoke_tx, InvokeTxArgs};
-use starknet_api::transaction::{Transaction, TransactionHash};
+use starknet_api::transaction::Transaction;
 use starknet_batcher_types::batcher_types::{
     GetProposalContent,
     GetProposalContentResponse,
@@ -52,16 +52,19 @@ const STATE_DIFF_COMMITMENT: StateDiffCommitment = StateDiffCommitment(PoseidonH
 const CHAIN_ID: ChainId = ChainId::Mainnet;
 
 lazy_static! {
-    static ref TX_BATCH: Vec<ExecutableTransaction> = vec![generate_executable_invoke_tx()];
+    static ref TX_BATCH: Vec<Transaction> = (0..3).map(generate_invoke_tx).collect();
 }
 
-fn generate_invoke_tx() -> Transaction {
-    Transaction::Invoke(invoke_tx(InvokeTxArgs { nonce: Nonce(felt!(3_u8)), ..Default::default() }))
+lazy_static! {
+    static ref EXECUTABLE_TX_BATCH: Vec<ExecutableTransaction> =
+        TX_BATCH.iter().map(|tx| (tx.clone(), &CHAIN_ID).try_into().unwrap()).collect();
 }
 
-fn generate_executable_invoke_tx() -> ExecutableTransaction {
-    let tx = generate_invoke_tx();
-    (tx, &CHAIN_ID).try_into().unwrap()
+fn generate_invoke_tx(nonce: u8) -> Transaction {
+    Transaction::Invoke(invoke_tx(InvokeTxArgs {
+        nonce: Nonce(felt!(nonce)),
+        ..Default::default()
+    }))
 }
 
 // Structs which aren't utilized but should not be dropped.
@@ -117,7 +120,9 @@ async fn build_proposal() {
     let proposal_id_clone = Arc::clone(&proposal_id);
     batcher.expect_get_proposal_content().times(1).returning(move |input| {
         assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
-        Ok(GetProposalContentResponse { content: GetProposalContent::Txs(TX_BATCH.clone()) })
+        Ok(GetProposalContentResponse {
+            content: GetProposalContent::Txs(EXECUTABLE_TX_BATCH.clone()),
+        })
     });
     let proposal_id_clone = Arc::clone(&proposal_id);
     batcher.expect_get_proposal_content().times(1).returning(move |input| {
@@ -157,7 +162,7 @@ async fn validate_proposal_success() {
             let SendProposalContent::Txs(txs) = input.content else {
                 panic!("Expected SendProposalContent::Txs, got {:?}", input.content);
             };
-            assert_eq!(txs, *TX_BATCH);
+            assert_eq!(txs, *EXECUTABLE_TX_BATCH);
             Ok(SendProposalContentResponse { response: ProposalStatus::Processing })
         },
     );
@@ -179,14 +184,8 @@ async fn validate_proposal_success() {
     context.set_height_and_round(BlockNumber(0), 0).await;
 
     let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
-    let tx_hash = TX_BATCH.first().unwrap().tx_hash();
-    let txs =
-        TX_BATCH.clone().into_iter().map(starknet_api::transaction::Transaction::from).collect();
     content_sender
-        .send(ProposalPart::Transactions(TransactionBatch {
-            transactions: txs,
-            tx_hashes: vec![tx_hash],
-        }))
+        .send(ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() }))
         .await
         .unwrap();
     content_sender
@@ -242,8 +241,7 @@ async fn repropose() {
     let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
     content_sender
         .send(ProposalPart::Transactions(TransactionBatch {
-            transactions: vec![generate_invoke_tx()],
-            tx_hashes: vec![TransactionHash(Felt::TWO)],
+            transactions: vec![generate_invoke_tx(2)],
         }))
         .await
         .unwrap();
@@ -294,7 +292,7 @@ async fn proposals_from_different_rounds() {
             let SendProposalContent::Txs(txs) = input.content else {
                 panic!("Expected SendProposalContent::Txs, got {:?}", input.content);
             };
-            assert_eq!(txs, *TX_BATCH);
+            assert_eq!(txs, *EXECUTABLE_TX_BATCH);
             Ok(SendProposalContentResponse { response: ProposalStatus::Processing })
         },
     );
@@ -316,10 +314,8 @@ async fn proposals_from_different_rounds() {
     context.set_height_and_round(BlockNumber(0), 1).await;
 
     // Proposal parts sent in the proposals.
-    let prop_part_txs = ProposalPart::Transactions(TransactionBatch {
-        transactions: TX_BATCH.clone().into_iter().map(Transaction::from).collect(),
-        tx_hashes: vec![TX_BATCH[0].tx_hash()],
-    });
+    let prop_part_txs =
+        ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() });
     let prop_part_fin = ProposalPart::Fin(ProposalFin {
         proposal_content_id: BlockHash(STATE_DIFF_COMMITMENT.0.0),
     });
@@ -394,7 +390,7 @@ async fn interrupt_active_proposal() {
         .expect_send_proposal_content()
         .withf(|input| {
             input.proposal_id == ProposalId(1)
-                && input.content == SendProposalContent::Txs(TX_BATCH.clone())
+                && input.content == SendProposalContent::Txs(EXECUTABLE_TX_BATCH.clone())
         })
         .times(1)
         .returning(move |_| {
@@ -433,10 +429,7 @@ async fn interrupt_active_proposal() {
 
     let (mut content_sender_1, content_receiver) = mpsc::channel(CHANNEL_SIZE);
     content_sender_1
-        .send(ProposalPart::Transactions(TransactionBatch {
-            transactions: TX_BATCH.clone().into_iter().map(Transaction::from).collect(),
-            tx_hashes: vec![TX_BATCH[0].tx_hash()],
-        }))
+        .send(ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() }))
         .await
         .unwrap();
     content_sender_1
