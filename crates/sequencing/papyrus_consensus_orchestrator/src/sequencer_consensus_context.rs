@@ -39,6 +39,7 @@ use starknet_api::block::{
     GasPrices,
     NonzeroGasPrice,
 };
+use starknet_api::core::ChainId;
 use starknet_api::executable_transaction::Transaction as ExecutableTransaction;
 use starknet_api::transaction::Transaction;
 use starknet_batcher_types::batcher_types::{
@@ -105,6 +106,8 @@ pub struct SequencerConsensusContext {
     outbound_proposal_sender: mpsc::Sender<(u64, mpsc::Receiver<ProposalPart>)>,
     // Used to broadcast votes to other consensus nodes.
     vote_broadcast_client: BroadcastTopicClient<ConsensusMessage>,
+    // Used to convert Transaction to ExecutableTransaction.
+    chain_id: ChainId,
 }
 
 impl SequencerConsensusContext {
@@ -113,6 +116,7 @@ impl SequencerConsensusContext {
         outbound_proposal_sender: mpsc::Sender<(u64, mpsc::Receiver<ProposalPart>)>,
         vote_broadcast_client: BroadcastTopicClient<ConsensusMessage>,
         num_validators: u64,
+        chain_id: ChainId,
     ) -> Self {
         Self {
             batcher,
@@ -128,6 +132,7 @@ impl SequencerConsensusContext {
             current_round: 0,
             active_proposal: None,
             queued_proposals: BTreeMap::new(),
+            chain_id,
         }
     }
 }
@@ -393,8 +398,9 @@ impl SequencerConsensusContext {
 
         let notify = Arc::new(Notify::new());
         let notify_clone = Arc::clone(&notify);
+        let chain_id = self.chain_id.clone();
 
-        let handle = tokio::spawn(
+        let handle = tokio::spawn({
             async move {
                 let validate_fut = stream_validate_proposal(
                     height,
@@ -403,6 +409,7 @@ impl SequencerConsensusContext {
                     valid_proposals,
                     content_receiver,
                     fin_sender,
+                    chain_id,
                 );
                 tokio::select! {
                     _ = notify_clone.notified() => {}
@@ -413,8 +420,8 @@ impl SequencerConsensusContext {
                     }
                 }
             }
-            .instrument(debug_span!("consensus_validate_proposal")),
-        );
+            .instrument(debug_span!("consensus_validate_proposal"))
+        });
         self.active_proposal = Some((notify, handle));
     }
 
@@ -516,6 +523,7 @@ async fn stream_validate_proposal(
     valid_proposals: Arc<Mutex<HeightToIdToContent>>,
     mut content_receiver: mpsc::Receiver<ProposalPart>,
     fin_sender: oneshot::Sender<(ProposalContentId, ProposalFin)>,
+    chain_id: ChainId,
 ) {
     let mut content = Vec::new();
     let network_block_id = loop {
@@ -525,11 +533,14 @@ async fn stream_validate_proposal(
             return;
         };
         match prop_part {
-            ProposalPart::Transactions(TransactionBatch { transactions: txs, tx_hashes }) => {
+            ProposalPart::Transactions(TransactionBatch { transactions: txs, tx_hashes: _ }) => {
                 let exe_txs: Vec<ExecutableTransaction> = txs
                     .into_iter()
-                    .zip(tx_hashes.into_iter())
-                    .map(|tx_tup| tx_tup.into())
+                    .map(|tx| {
+                        (tx, &chain_id)
+                            .try_into()
+                            .expect("Failed to convert transaction to executable_transation.")
+                    })
                     .collect();
                 content.extend_from_slice(&exe_txs[..]);
                 let input = SendProposalContentInput {
