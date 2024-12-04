@@ -40,7 +40,7 @@ use crate::transaction_hash::{
     get_invoke_transaction_v3_hash,
     get_l1_handler_transaction_hash,
 };
-use crate::StarknetApiError;
+use crate::{executable_transaction, StarknetApiError};
 
 #[cfg(test)]
 #[path = "transaction_test.rs"]
@@ -116,20 +116,18 @@ impl Transaction {
     }
 }
 
-impl From<crate::executable_transaction::Transaction> for Transaction {
-    fn from(tx: crate::executable_transaction::Transaction) -> Self {
+impl From<executable_transaction::Transaction> for Transaction {
+    fn from(tx: executable_transaction::Transaction) -> Self {
         match tx {
-            crate::executable_transaction::Transaction::L1Handler(tx) => {
-                Transaction::L1Handler(tx.tx)
-            }
-            crate::executable_transaction::Transaction::Account(account_tx) => match account_tx {
-                crate::executable_transaction::AccountTransaction::Declare(tx) => {
+            executable_transaction::Transaction::L1Handler(tx) => Transaction::L1Handler(tx.tx),
+            executable_transaction::Transaction::Account(account_tx) => match account_tx {
+                executable_transaction::AccountTransaction::Declare(tx) => {
                     Transaction::Declare(tx.tx)
                 }
-                crate::executable_transaction::AccountTransaction::DeployAccount(tx) => {
+                executable_transaction::AccountTransaction::DeployAccount(tx) => {
                     Transaction::DeployAccount(tx.tx)
                 }
-                crate::executable_transaction::AccountTransaction::Invoke(tx) => {
+                executable_transaction::AccountTransaction::Invoke(tx) => {
                     Transaction::Invoke(tx.tx)
                 }
             },
@@ -137,16 +135,16 @@ impl From<crate::executable_transaction::Transaction> for Transaction {
     }
 }
 
-impl From<(Transaction, TransactionHash)> for crate::executable_transaction::Transaction {
+impl From<(Transaction, TransactionHash)> for executable_transaction::Transaction {
     fn from((tx, tx_hash): (Transaction, TransactionHash)) -> Self {
         match tx {
-            Transaction::Invoke(tx) => crate::executable_transaction::Transaction::Account(
-                crate::executable_transaction::AccountTransaction::Invoke(
-                    crate::executable_transaction::InvokeTransaction { tx, tx_hash },
+            Transaction::Invoke(tx) => executable_transaction::Transaction::Account(
+                executable_transaction::AccountTransaction::Invoke(
+                    executable_transaction::InvokeTransaction { tx, tx_hash },
                 ),
             ),
-            Transaction::L1Handler(tx) => crate::executable_transaction::Transaction::L1Handler(
-                crate::executable_transaction::L1HandlerTransaction {
+            Transaction::L1Handler(tx) => executable_transaction::Transaction::L1Handler(
+                executable_transaction::L1HandlerTransaction {
                     tx,
                     tx_hash,
                     // TODO (yael 1/12/2024): The paid fee should be an input from the l1_handler.
