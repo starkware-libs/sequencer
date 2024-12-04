@@ -3,7 +3,6 @@ use std::sync::Arc;
 
 use assert_matches::assert_matches;
 use blockifier::abi::constants;
-use blockifier::test_utils::struct_impls::BlockInfoExt;
 use chrono::Utc;
 use indexmap::indexmap;
 use mockall::predicate::eq;
