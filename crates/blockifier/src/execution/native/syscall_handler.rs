@@ -208,7 +208,7 @@ impl<'state> NativeSyscallHandler<'state> {
     }
 }
 
-impl<'state> StarknetSyscallHandler for &mut NativeSyscallHandler<'state> {
+impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
     fn get_block_hash(
         &mut self,
         block_number: u64,
