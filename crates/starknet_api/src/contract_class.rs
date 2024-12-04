@@ -48,7 +48,7 @@ impl ContractClass {
     }
 }
 
-#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Deref, Serialize, Deserialize, Clone, Debug, Eq, PartialEq, PartialOrd)]
 pub struct SierraVersion(Version);
 
 impl SierraVersion {

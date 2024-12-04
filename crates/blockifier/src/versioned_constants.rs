@@ -16,6 +16,7 @@ use serde::de::Error as DeserializationError;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::{Map, Number, Value};
 use starknet_api::block::{GasPrice, StarknetVersion};
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::ContractAddress;
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::transaction::fields::GasVectorComputationMode;
@@ -183,7 +184,7 @@ pub struct VersionedConstants {
     pub max_recursion_depth: usize,
     pub validate_max_n_steps: u32,
     pub validate_max_sierra_gas: GasAmount,
-    pub min_compiler_version_for_sierra_gas: CompilerVersion,
+    pub min_compiler_version_for_sierra_gas: SierraVersion,
     // BACKWARD COMPATIBILITY: If true, the segment_arena builtin instance counter will be
     // multiplied by 3. This offsets a bug in the old vm where the counter counted the number of
     // cells used by instances of the builtin, instead of the number of instances.
