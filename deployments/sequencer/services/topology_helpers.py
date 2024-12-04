@@ -1,5 +1,6 @@
 from services import objects, const, helpers
 from config.sequencer import SequencerDevConfig
+from services.objects import ContainerResources
 
 
 def get_pvc() -> objects.PersistentVolumeClaim:
@@ -81,25 +82,31 @@ def get_deployment() -> objects.Deployment:
                 image="us.gcr.io/starkware-dev/sequencer-node-test:0.0.1-dev.3",
                 args=["--config_file", "/config/sequencer/presets/config"],
                 ports=[
-                    objects.ContainerPort(container_port=const.HTTP_CONTAINER_PORT),
-                    objects.ContainerPort(container_port=const.RPC_CONTAINER_PORT),
-                    objects.ContainerPort(container_port=const.MONITORING_CONTAINER_PORT),
+                    objects.ContainerPort(port=const.HTTP_CONTAINER_PORT),
+                    objects.ContainerPort(port=const.RPC_CONTAINER_PORT),
+                    objects.ContainerPort(port=const.MONITORING_CONTAINER_PORT),
                 ],
-                startup_probe=objects.Probe(
+                resources=objects.ContainerResources(
+                    requests_cpu=4,
+                    requests_memory="8Gi",
+                    limits_cpu=8,
+                    limits_memory="16Gi"
+                ),
+                startup_probe=objects.HttpProbe(
                     port=const.MONITORING_CONTAINER_PORT,
                     path="/monitoring/nodeVersion",
                     period_seconds=10,
                     failure_threshold=10,
                     timeout_seconds=5,
                 ),
-                readiness_probe=objects.Probe(
+                readiness_probe=objects.HttpProbe(
                     port=const.MONITORING_CONTAINER_PORT,
                     path="/monitoring/ready",
                     period_seconds=10,
                     failure_threshold=5,
                     timeout_seconds=5,
                 ),
-                liveness_probe=objects.Probe(
+                liveness_probe=objects.HttpProbe(
                     port=const.MONITORING_CONTAINER_PORT,
                     path="/monitoring/alive",
                     period_seconds=10,
