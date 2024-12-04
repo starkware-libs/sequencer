@@ -4,7 +4,6 @@ use std::sync::Arc;
 use assert_matches::assert_matches;
 use async_trait::async_trait;
 use blockifier::abi::constants;
-use blockifier::test_utils::struct_impls::BlockInfoExt;
 use chrono::Utc;
 use futures::future::BoxFuture;
 use futures::FutureExt;
