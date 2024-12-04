@@ -15,8 +15,7 @@ use crate::block::{
     GasPrices,
     NonzeroGasPrice,
 };
-use crate::contract_address;
-use crate::core::{ChainId, ContractAddress, Nonce};
+use crate::core::{const_into_contract_address, ChainId, ContractAddress, Nonce};
 use crate::execution_resources::GasAmount;
 use crate::rpc_transaction::RpcTransaction;
 use crate::transaction::fields::Fee;
@@ -178,17 +177,17 @@ pub const DEFAULT_GAS_PRICES: GasPrices = GasPrices {
 pub const MAX_FEE: Fee = DEFAULT_L1_GAS_AMOUNT.nonzero_saturating_mul(DEFAULT_ETH_L1_GAS_PRICE);
 
 impl BlockInfo {
-    pub fn create_for_testing() -> Self {
+    pub const fn create_for_testing() -> Self {
         Self {
             block_number: BlockNumber(CURRENT_BLOCK_NUMBER),
             block_timestamp: BlockTimestamp(CURRENT_BLOCK_TIMESTAMP),
-            sequencer_address: contract_address!(TEST_SEQUENCER_ADDRESS),
+            sequencer_address: const_into_contract_address(TEST_SEQUENCER_ADDRESS),
             gas_prices: DEFAULT_GAS_PRICES,
             use_kzg_da: false,
         }
     }
 
-    pub fn create_for_testing_with_kzg(use_kzg_da: bool) -> Self {
+    pub const fn create_for_testing_with_kzg(use_kzg_da: bool) -> Self {
         Self { use_kzg_da, ..Self::create_for_testing() }
     }
 }
