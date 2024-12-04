@@ -19,7 +19,7 @@ use crate::state::cached_state::{ContractClassMapping, StateMaps, TransactionalS
 use crate::state::state_api::{StateReader, UpdatableState};
 use crate::transaction::objects::{TransactionExecutionInfo, TransactionExecutionResult};
 use crate::transaction::transaction_execution::Transaction;
-use crate::transaction::transactions::{ExecutableTransaction, ExecutionFlags};
+use crate::transaction::transactions::ExecutableTransaction;
 
 #[cfg(test)]
 #[path = "worker_logic_test.rs"]
@@ -125,9 +125,9 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
         let tx = &self.chunk[tx_index];
         let mut transactional_state =
             TransactionalState::create_transactional(&mut tx_versioned_state);
-        let execution_flags = ExecutionFlags { concurrency_mode: true };
+        let concurrency_mode = true;
         let execution_result =
-            tx.execute_raw(&mut transactional_state, self.block_context, execution_flags);
+            tx.execute_raw(&mut transactional_state, self.block_context, concurrency_mode);
 
         // Update the versioned state and store the transaction execution output.
         let execution_output_inner = match execution_result {
