@@ -30,6 +30,7 @@ use starknet_api::test_utils::{
     DEFAULT_STRK_L1_GAS_PRICE,
     DEFAULT_STRK_L2_GAS_PRICE,
     MAX_FEE,
+    TEST_SEQUENCER_ADDRESS,
 };
 use starknet_api::transaction::fields::{
     Calldata,
@@ -52,13 +53,6 @@ use crate::test_utils::contracts::FeatureContract;
 use crate::transaction::transaction_types::TransactionType;
 use crate::utils::{const_max, u64_from_usize};
 use crate::versioned_constants::VersionedConstants;
-// TODO(Dori, 1/2/2024): Remove these constants once all tests use the `contracts` and
-//   `initial_test_state` modules for testing.
-// Addresses.
-pub const TEST_SEQUENCER_ADDRESS: &str = "0x1000";
-pub const TEST_ERC20_CONTRACT_ADDRESS: &str = "0x1001";
-pub const TEST_ERC20_CONTRACT_ADDRESS2: &str = "0x1002";
-
 // Class hashes.
 // TODO(Adi, 15/01/2023): Remove and compute the class hash corresponding to the ERC20 contract in
 // starkgate once we use the real ERC20 contract.
@@ -156,14 +150,6 @@ pub const BALANCE: Fee = Fee(10
         const_max(DEFAULT_ALL_BOUNDS_COMMITTED_FEE.0, DEFAULT_L1_BOUNDS_COMMITTED_FEE.0),
         MAX_FEE.0,
     ));
-
-// The block number of the BlockContext being used for testing.
-pub const CURRENT_BLOCK_NUMBER: u64 = 2001;
-pub const CURRENT_BLOCK_NUMBER_FOR_VALIDATE: u64 = 2000;
-
-// The block timestamp of the BlockContext being used for testing.
-pub const CURRENT_BLOCK_TIMESTAMP: u64 = 1072023;
-pub const CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE: u64 = 1069200;
 
 #[derive(Default)]
 pub struct SaltManager {
