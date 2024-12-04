@@ -464,19 +464,11 @@ async fn stream_build_proposal(
                 // TODO: Broadcast the transactions to the network.
                 // TODO(matan): Convert to protobuf and make sure this isn't too large for a single
                 // proto message (could this be a With adapter added to the channel in `new`?).
-                let mut transaction_hashes = Vec::with_capacity(txs.len());
-                let mut transactions = Vec::with_capacity(txs.len());
-                for tx in txs.into_iter() {
-                    transaction_hashes.push(tx.tx_hash());
-                    transactions.push(tx.into());
-                }
-                debug!("Broadcasting proposal content: {transaction_hashes:?}");
+                let transactions =
+                    txs.into_iter().map(|tx| tx.into()).collect::<Vec<Transaction>>();
                 trace!("Broadcasting proposal content: {transactions:?}");
                 proposal_sender
-                    .send(ProposalPart::Transactions(TransactionBatch {
-                        transactions,
-                        tx_hashes: transaction_hashes,
-                    }))
+                    .send(ProposalPart::Transactions(TransactionBatch { transactions }))
                     .await
                     .expect("Failed to broadcast proposal content");
             }
@@ -535,7 +527,7 @@ async fn stream_validate_proposal(
             return;
         };
         match prop_part {
-            ProposalPart::Transactions(TransactionBatch { transactions: txs, tx_hashes: _ }) => {
+            ProposalPart::Transactions(TransactionBatch { transactions: txs }) => {
                 let exe_txs: Vec<ExecutableTransaction> = txs
                     .into_iter()
                     .map(|tx| {
