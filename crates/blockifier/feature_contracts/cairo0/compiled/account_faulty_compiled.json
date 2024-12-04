@@ -97,29 +97,29 @@
     "entry_points_by_type": {
         "CONSTRUCTOR": [
             {
-                "offset": 188,
+                "offset": 215,
                 "selector": "0x28ffe4ff0f226a9107253e17a904099aa4f63a02a5621de0576e5aa71bc5194"
             }
         ],
         "EXTERNAL": [
             {
-                "offset": 145,
+                "offset": 172,
                 "selector": "0x15d40a3d6ca2ac30f4031e42be28da9b056fef9bb7357ac5e85627ee876e5ad"
             },
             {
-                "offset": 108,
+                "offset": 116,
                 "selector": "0x162da33a4585851fe8d3af3c2a9c60b557814e221e0d4f30ff0b2189d9c7775"
             },
             {
-                "offset": 283,
+                "offset": 324,
                 "selector": "0x1b1a0649752af1b28b3dc29a1556eee781e4a4c3a1f7f53f90fa834de098c4d"
             },
             {
-                "offset": 56,
+                "offset": 64,
                 "selector": "0x289da278a8dc833409cabfdad1581e8e7d40e42dcaed693fa4008dcdb4963b3"
             },
             {
-                "offset": 80,
+                "offset": 88,
                 "selector": "0x36fcbf06cd96843058359e1a75928beacfac10727dab22a3972f0af8aa92895"
             }
         ],
@@ -170,6 +170,14 @@
             "0x480280017ffd8000",
             "0x208b7fff7fff7ffe",
             "0x480680017fff8000",
+            "0x53746f726167655772697465",
+            "0x400280007ffb7fff",
+            "0x400380017ffb7ffc",
+            "0x400380027ffb7ffd",
+            "0x482680017ffb8000",
+            "0x3",
+            "0x208b7fff7fff7ffe",
+            "0x480680017fff8000",
             "0x4765745478496e666f",
             "0x400280007ffd7fff",
             "0x482680017ffd8000",
@@ -187,7 +195,7 @@
             "0x208b7fff7fff7ffe",
             "0x480a7ffc7fff8000",
             "0x1104800180018000",
-            "0x99",
+            "0xac",
             "0x208b7fff7fff7ffe",
             "0x482680017ffd8000",
             "0x1",
@@ -209,7 +217,7 @@
             "0x6",
             "0x480a7ffa7fff8000",
             "0x1104800180018000",
-            "0x83",
+            "0x96",
             "0x208b7fff7fff7ffe",
             "0x480a7ffa7fff8000",
             "0x208b7fff7fff7ffe",
@@ -239,7 +247,7 @@
             "0x1104800180018000",
             "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffc5",
             "0x1104800180018000",
-            "0x65",
+            "0x78",
             "0x208b7fff7fff7ffe",
             "0x480280027ffb8000",
             "0x480280027ffd8000",
@@ -269,12 +277,31 @@
             "0x48127ffa7fff8000",
             "0x208b7fff7fff7ffe",
             "0x480a7ff77fff8000",
+            "0x1104800180018000",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff9d",
+            "0x480080047fff8000",
+            "0x480080007fff8000",
+            "0x482480017fff8000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffff9",
+            "0x20680017fff7fff",
+            "0xc",
+            "0x480080047ffc8000",
+            "0x48127ffa7fff8000",
+            "0x480680017fff8000",
+            "0xf",
+            "0x480080027ffd8000",
+            "0x1104800180018000",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff88",
+            "0x480a7ff87fff8000",
+            "0x480a7ff97fff8000",
+            "0x208b7fff7fff7ffe",
+            "0x48127ffb7fff8000",
             "0x480680017fff8000",
             "0x0",
             "0x480a7ffc7fff8000",
             "0x480a7ffd7fff8000",
             "0x1104800180018000",
-            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffa0",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff8d",
             "0x480a7ff87fff8000",
             "0x480a7ff97fff8000",
             "0x208b7fff7fff7ffe",
@@ -297,7 +324,7 @@
             "0x482680017ffd8000",
             "0x3",
             "0x1104800180018000",
-            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffe5",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffffd2",
             "0x40780017fff7fff",
             "0x1",
             "0x48127ffc7fff8000",
@@ -341,7 +368,7 @@
             "0x208b7fff7fff7ffe",
             "0x480a7ffd7fff8000",
             "0x1104800180018000",
-            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff56",
+            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff43",
             "0x480080047fff8000",
             "0x480080007fff8000",
             "0x20680017fff7fff",
@@ -367,7 +394,7 @@
             "0x20680017fff7fff",
             "0x10",
             "0x1104800180018000",
-            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff18",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffefd",
             "0x480080047ff48000",
             "0x48127ff27fff8000",
             "0x480080017ffe8000",
@@ -377,7 +404,7 @@
             "0x0",
             "0x48127ffa7fff8000",
             "0x1104800180018000",
-            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff11",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffef6",
             "0x48127ffd7fff8000",
             "0x208b7fff7fff7ffe",
             "0x480080047ff78000",
@@ -388,7 +415,7 @@
             "0x9",
             "0x48127ff37fff8000",
             "0x1104800180018000",
-            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff19",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffefe",
             "0x480080047fee8000",
             "0x400080017fff7ffe",
             "0x48127ffd7fff8000",
@@ -401,18 +428,32 @@
             "0x9",
             "0x48127ff07fff8000",
             "0x1104800180018000",
-            "0x800000000000010ffffffffffffffffffffffffffffffffffffffffffffff13",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffef8",
             "0x480080047feb8000",
             "0x400080017fff7ffe",
             "0x48127ffd7fff8000",
             "0x208b7fff7fff7ffe",
             "0x480080047ff18000",
+            "0x480080007fff8000",
+            "0x482480017fff8000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffff9",
+            "0x20680017fff7fff",
+            "0xa",
+            "0x480080047fee8000",
+            "0x48127fec7fff8000",
+            "0x480680017fff8000",
+            "0xf",
+            "0x480080017ffd8000",
+            "0x1104800180018000",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffeee",
+            "0x208b7fff7fff7ffe",
+            "0x480080047fee8000",
             "0x480680017fff8000",
             "0x7",
             "0x400080007ffe7fff",
-            "0x48127fee7fff8000",
+            "0x48127feb7fff8000",
             "0x1104800180018000",
-            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffefa",
+            "0x800000000000010fffffffffffffffffffffffffffffffffffffffffffffed1",
             "0x48127ffe7fff8000",
             "0x208b7fff7fff7ffe",
             "0x208b7fff7fff7ffe",
@@ -519,7 +560,25 @@
                     }
                 }
             ],
-            "39": [
+            "41": [
+                {
+                    "accessible_scopes": [
+                        "starkware.starknet.common.syscalls",
+                        "starkware.starknet.common.syscalls.storage_write"
+                    ],
+                    "code": "syscall_handler.storage_write(segments=segments, syscall_ptr=ids.syscall_ptr)",
+                    "flow_tracking_data": {
+                        "ap_tracking": {
+                            "group": 5,
+                            "offset": 1
+                        },
+                        "reference_ids": {
+                            "starkware.starknet.common.syscalls.storage_write.syscall_ptr": 4
+                        }
+                    }
+                }
+            ],
+            "47": [
                 {
                     "accessible_scopes": [
                         "starkware.starknet.common.syscalls",
@@ -528,16 +587,16 @@
                     "code": "syscall_handler.get_tx_info(segments=segments, syscall_ptr=ids.syscall_ptr)",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 5,
+                            "group": 6,
                             "offset": 1
                         },
                         "reference_ids": {
-                            "starkware.starknet.common.syscalls.get_tx_info.syscall_ptr": 4
+                            "starkware.starknet.common.syscalls.get_tx_info.syscall_ptr": 5
                         }
                     }
                 }
             ],
-            "49": [
+            "57": [
                 {
                     "accessible_scopes": [
                         "starkware.starknet.common.messages",
@@ -546,16 +605,16 @@
                     "code": "syscall_handler.send_message_to_l1(segments=segments, syscall_ptr=ids.syscall_ptr)",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 6,
+                            "group": 7,
                             "offset": 1
                         },
                         "reference_ids": {
-                            "starkware.starknet.common.messages.send_message_to_l1.syscall_ptr": 5
+                            "starkware.starknet.common.messages.send_message_to_l1.syscall_ptr": 6
                         }
                     }
                 }
             ],
-            "63": [
+            "71": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -566,14 +625,14 @@
                     "code": "memory[ap] = segments.add()",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 10,
+                            "group": 11,
                             "offset": 0
                         },
                         "reference_ids": {}
                     }
                 }
             ],
-            "89": [
+            "97": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -584,14 +643,14 @@
                     "code": "memory[ap] = segments.add()",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 14,
+                            "group": 15,
                             "offset": 0
                         },
                         "reference_ids": {}
                     }
                 }
             ],
-            "124": [
+            "132": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -602,14 +661,14 @@
                     "code": "memory[ap] = segments.add()",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 18,
+                            "group": 19,
                             "offset": 0
                         },
                         "reference_ids": {}
                     }
                 }
             ],
-            "165": [
+            "192": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -620,14 +679,14 @@
                     "code": "memory[ap] = segments.add()",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 20,
-                            "offset": 25
+                            "group": 21,
+                            "offset": 34
                         },
                         "reference_ids": {}
                     }
                 }
             ],
-            "197": [
+            "224": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -638,14 +697,14 @@
                     "code": "memory[ap] = segments.add()",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 24,
+                            "group": 25,
                             "offset": 0
                         },
                         "reference_ids": {}
                     }
                 }
             ],
-            "286": [
+            "327": [
                 {
                     "accessible_scopes": [
                         "__main__",
@@ -656,7 +715,7 @@
                     "code": "memory[ap] = segments.add()",
                     "flow_tracking_data": {
                         "ap_tracking": {
-                            "group": 27,
+                            "group": 28,
                             "offset": 2
                         },
                         "reference_ids": {}
@@ -697,6 +756,14 @@
                 "type": "const",
                 "value": 1
             },
+            "__main__.STORAGE_WRITE": {
+                "type": "const",
+                "value": 8
+            },
+            "__main__.STORAGE_WRITE_KEY": {
+                "type": "const",
+                "value": 15
+            },
             "__main__.TRUE": {
                 "destination": "starkware.cairo.common.bool.TRUE",
                 "type": "alias"
@@ -713,7 +780,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 135,
+                "pc": 143,
                 "type": "function"
             },
             "__main__.__execute__.Args": {
@@ -770,7 +837,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 98,
+                "pc": 106,
                 "type": "function"
             },
             "__main__.__validate__.Args": {
@@ -819,7 +886,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 52,
+                "pc": 60,
                 "type": "function"
             },
             "__main__.__validate_declare__.Args": {
@@ -856,7 +923,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 72,
+                "pc": 80,
                 "type": "function"
             },
             "__main__.__validate_deploy__.Args": {
@@ -909,7 +976,7 @@
                 "decorators": [
                     "constructor"
                 ],
-                "pc": 174,
+                "pc": 201,
                 "type": "function"
             },
             "__main__.constructor.Args": {
@@ -952,7 +1019,7 @@
             },
             "__main__.faulty_validate": {
                 "decorators": [],
-                "pc": 206,
+                "pc": 233,
                 "type": "function"
             },
             "__main__.faulty_validate.Args": {
@@ -984,7 +1051,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 282,
+                "pc": 323,
                 "type": "function"
             },
             "__main__.foo.Args": {
@@ -1027,11 +1094,15 @@
                 "destination": "starkware.starknet.common.messages.send_message_to_l1",
                 "type": "alias"
             },
+            "__main__.storage_write": {
+                "destination": "starkware.starknet.common.syscalls.storage_write",
+                "type": "alias"
+            },
             "__wrappers__.__execute__": {
                 "decorators": [
                     "external"
                 ],
-                "pc": 145,
+                "pc": 172,
                 "type": "function"
             },
             "__wrappers__.__execute__.Args": {
@@ -1066,7 +1137,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 108,
+                "pc": 116,
                 "type": "function"
             },
             "__wrappers__.__validate__.Args": {
@@ -1101,7 +1172,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 56,
+                "pc": 64,
                 "type": "function"
             },
             "__wrappers__.__validate_declare__.Args": {
@@ -1136,7 +1207,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 80,
+                "pc": 88,
                 "type": "function"
             },
             "__wrappers__.__validate_deploy__.Args": {
@@ -1171,7 +1242,7 @@
                 "decorators": [
                     "constructor"
                 ],
-                "pc": 188,
+                "pc": 215,
                 "type": "function"
             },
             "__wrappers__.constructor.Args": {
@@ -1206,7 +1277,7 @@
                 "decorators": [
                     "external"
                 ],
-                "pc": 283,
+                "pc": 324,
                 "type": "function"
             },
             "__wrappers__.foo.Args": {
@@ -1510,7 +1581,7 @@
             },
             "starkware.starknet.common.messages.send_message_to_l1": {
                 "decorators": [],
-                "pc": 43,
+                "pc": 51,
                 "type": "function"
             },
             "starkware.starknet.common.messages.send_message_to_l1.Args": {
@@ -1557,18 +1628,18 @@
                 "references": [
                     {
                         "ap_tracking_data": {
-                            "group": 6,
+                            "group": 7,
                             "offset": 0
                         },
-                        "pc": 43,
+                        "pc": 51,
                         "value": "[cast(fp + (-6), felt**)]"
                     },
                     {
                         "ap_tracking_data": {
-                            "group": 6,
+                            "group": 7,
                             "offset": 1
                         },
-                        "pc": 49,
+                        "pc": 57,
                         "value": "cast([fp + (-6)] + 4, felt*)"
                     }
                 ],
@@ -2484,7 +2555,7 @@
             },
             "starkware.starknet.common.syscalls.get_tx_info": {
                 "decorators": [],
-                "pc": 36,
+                "pc": 44,
                 "type": "function"
             },
             "starkware.starknet.common.syscalls.get_tx_info.Args": {
@@ -2518,19 +2589,81 @@
                 "references": [
                     {
                         "ap_tracking_data": {
+                            "group": 6,
+                            "offset": 0
+                        },
+                        "pc": 44,
+                        "value": "[cast(fp + (-3), felt**)]"
+                    },
+                    {
+                        "ap_tracking_data": {
+                            "group": 6,
+                            "offset": 1
+                        },
+                        "pc": 47,
+                        "value": "cast([fp + (-3)] + 2, felt*)"
+                    }
+                ],
+                "type": "reference"
+            },
+            "starkware.starknet.common.syscalls.storage_write": {
+                "decorators": [],
+                "pc": 36,
+                "type": "function"
+            },
+            "starkware.starknet.common.syscalls.storage_write.Args": {
+                "full_name": "starkware.starknet.common.syscalls.storage_write.Args",
+                "members": {
+                    "address": {
+                        "cairo_type": "felt",
+                        "offset": 0
+                    },
+                    "value": {
+                        "cairo_type": "felt",
+                        "offset": 1
+                    }
+                },
+                "size": 2,
+                "type": "struct"
+            },
+            "starkware.starknet.common.syscalls.storage_write.ImplicitArgs": {
+                "full_name": "starkware.starknet.common.syscalls.storage_write.ImplicitArgs",
+                "members": {
+                    "syscall_ptr": {
+                        "cairo_type": "felt*",
+                        "offset": 0
+                    }
+                },
+                "size": 1,
+                "type": "struct"
+            },
+            "starkware.starknet.common.syscalls.storage_write.Return": {
+                "cairo_type": "()",
+                "type": "type_definition"
+            },
+            "starkware.starknet.common.syscalls.storage_write.SIZEOF_LOCALS": {
+                "type": "const",
+                "value": 0
+            },
+            "starkware.starknet.common.syscalls.storage_write.syscall_ptr": {
+                "cairo_type": "felt*",
+                "full_name": "starkware.starknet.common.syscalls.storage_write.syscall_ptr",
+                "references": [
+                    {
+                        "ap_tracking_data": {
                             "group": 5,
                             "offset": 0
                         },
                         "pc": 36,
-                        "value": "[cast(fp + (-3), felt**)]"
+                        "value": "[cast(fp + (-5), felt**)]"
                     },
                     {
                         "ap_tracking_data": {
                             "group": 5,
                             "offset": 1
                         },
-                        "pc": 39,
-                        "value": "cast([fp + (-3)] + 2, felt*)"
+                        "pc": 41,
+                        "value": "cast([fp + (-5)] + 3, felt*)"
                     }
                 ],
                 "type": "reference"
@@ -2578,14 +2711,22 @@
                         "offset": 0
                     },
                     "pc": 36,
-                    "value": "[cast(fp + (-3), felt**)]"
+                    "value": "[cast(fp + (-5), felt**)]"
                 },
                 {
                     "ap_tracking_data": {
                         "group": 6,
                         "offset": 0
                     },
-                    "pc": 43,
+                    "pc": 44,
+                    "value": "[cast(fp + (-3), felt**)]"
+                },
+                {
+                    "ap_tracking_data": {
+                        "group": 7,
+                        "offset": 0
+                    },
+                    "pc": 51,
                     "value": "[cast(fp + (-6), felt**)]"
                 }
             ]
