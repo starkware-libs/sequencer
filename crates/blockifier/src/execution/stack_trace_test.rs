@@ -689,10 +689,10 @@ fn test_account_ctor_frame_stack_trace(
     )
     .to_string()
         + &match cairo_version {
-            CairoVersion::Cairo0 => "Error at pc=0:223:
+            CairoVersion::Cairo0 => "Error at pc=0:250:
 Cairo traceback (most recent call last):
-Unknown location (pc=0:195)
-Unknown location (pc=0:179)
+Unknown location (pc=0:222)
+Unknown location (pc=0:206)
 
 An ASSERT_EQ instruction failed: 1 != 0.
 "
@@ -812,7 +812,7 @@ Unknown location (pc=0:{})
 Unknown location (pc=0:{})
 
 {frame_2}
-Error at pc=0:223:
+Error at pc=0:250:
 Cairo traceback (most recent call last):
 Unknown location (pc=0:{})
 Unknown location (pc=0:{})
