@@ -83,7 +83,7 @@ pub fn cairo1_compiler_tag() -> String {
 /// overridden by the environment variable (otherwise, the default is used).
 fn local_cairo1_compiler_repo_path() -> PathBuf {
     // Location of blockifier's Cargo.toml.
-    let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
 
     Path::new(&manifest_dir).join(
         env::var(CAIRO1_REPO_RELATIVE_PATH_OVERRIDE_ENV_VAR)
@@ -217,7 +217,7 @@ fn verify_cairo0_compiler_deps() {
         } else {
             format!("installed version: {cairo_lang_version}")
         },
-        env::var("CARGO_MANIFEST_DIR").unwrap(),
+        env!("CARGO_MANIFEST_DIR"),
         CAIRO0_PIP_REQUIREMENTS_FILE
     );
 }
