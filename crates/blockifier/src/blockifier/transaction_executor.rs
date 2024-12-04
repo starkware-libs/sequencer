@@ -19,7 +19,7 @@ use crate::state::state_api::{StateReader, StateResult};
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::TransactionExecutionInfo;
 use crate::transaction::transaction_execution::Transaction;
-use crate::transaction::transactions::{ExecutableTransaction, ExecutionFlags};
+use crate::transaction::transactions::ExecutableTransaction;
 
 #[cfg(test)]
 #[path = "transaction_executor_test.rs"]
@@ -102,9 +102,9 @@ impl<S: StateReader> TransactionExecutor<S> {
         );
 
         // Executing a single transaction cannot be done in a concurrent mode.
-        let execution_flags = ExecutionFlags { concurrency_mode: false };
+        let concurrency_mode = false;
         let tx_execution_result =
-            tx.execute_raw(&mut transactional_state, &self.block_context, execution_flags);
+            tx.execute_raw(&mut transactional_state, &self.block_context, concurrency_mode);
         match tx_execution_result {
             Ok(tx_execution_info) => {
                 let tx_state_changes_keys =
