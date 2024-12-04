@@ -40,13 +40,6 @@ pub enum ProposalError {
     Aborted,
 }
 
-pub(crate) enum InternalProposalStatus {
-    Processing,
-    Finished,
-    Failed,
-    NotFound,
-}
-
 #[async_trait]
 pub trait ProposalManagerTrait: Send + Sync {
     async fn spawn_proposal(
@@ -61,22 +54,13 @@ pub trait ProposalManagerTrait: Send + Sync {
         proposal_id: ProposalId,
     ) -> Option<ProposalResult<ProposalOutput>>;
 
-    #[allow(dead_code)]
     async fn get_active_proposal(&self) -> Option<ProposalId>;
 
-    #[allow(dead_code)]
     async fn get_completed_proposals(
         &self,
     ) -> Arc<Mutex<HashMap<ProposalId, ProposalResult<ProposalOutput>>>>;
 
     async fn await_active_proposal(&mut self) -> bool;
-
-    async fn get_proposal_status(&self, proposal_id: ProposalId) -> InternalProposalStatus;
-
-    async fn await_proposal_commitment(
-        &mut self,
-        proposal_id: ProposalId,
-    ) -> Option<ProposalResult<ProposalCommitment>>;
 
     async fn abort_proposal(&mut self, proposal_id: ProposalId);
 
@@ -184,37 +168,6 @@ impl ProposalManagerTrait for ProposalManager {
             return true;
         }
         false
-    }
-
-    // Returns None if the proposal does not exist, otherwise, returns the status of the proposal.
-    async fn get_proposal_status(&self, proposal_id: ProposalId) -> InternalProposalStatus {
-        match self.executed_proposals.lock().await.get(&proposal_id) {
-            Some(Ok(_)) => InternalProposalStatus::Finished,
-            Some(Err(_)) => InternalProposalStatus::Failed,
-            None => {
-                if self.active_proposal.lock().await.as_ref() == Some(&proposal_id) {
-                    InternalProposalStatus::Processing
-                } else {
-                    InternalProposalStatus::NotFound
-                }
-            }
-        }
-    }
-
-    async fn await_proposal_commitment(
-        &mut self,
-        proposal_id: ProposalId,
-    ) -> Option<ProposalResult<ProposalCommitment>> {
-        if *self.active_proposal.lock().await == Some(proposal_id) {
-            self.await_active_proposal().await;
-        }
-        let proposals = self.executed_proposals.lock().await;
-        let output = proposals.get(&proposal_id);
-        match output {
-            Some(Ok(output)) => Some(Ok(output.commitment)),
-            Some(Err(e)) => Some(Err(e.clone())),
-            None => None,
-        }
     }
 
     // Aborts the proposal with the given ID, if active.
