@@ -11,7 +11,7 @@ class ServiceTopology:
         default_factory=topology_helpers.get_deployment
     )
     config: typing.Optional[objects.Config] = dataclasses.field(
-        default_factory=topology_helpers.get_config
+        default_factory=topology_helpers.get_dev_config
     )
     service: typing.Optional[objects.Service] = dataclasses.field(
         default_factory=topology_helpers.get_service
