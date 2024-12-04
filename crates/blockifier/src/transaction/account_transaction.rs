@@ -354,21 +354,13 @@ impl AccountTransaction {
         if validate {
             // TODO(Aner): cap the gas for validation.
             let remaining_validation_gas = &mut remaining_gas
-                .cap_usage(tx_context.block_context.versioned_constants.validate_max_sierra_gas);
-            let call_info = self.validate_tx(
-                state,
-                tx_context,
-                remaining_validation_gas,
-                limit_steps_by_resources,
-            )?;
-            match call_info {
-                // TODO(Aner): Update the gas counter.
-                Some(call_info) => {
-                    remaining_gas.subtract_used_gas(&call_info);
-                    Ok(Some(call_info))
-                }
-                None => Ok(None),
-            }
+                .limit_usage(tx_context.block_context.versioned_constants.validate_max_sierra_gas);
+            Ok(self
+                .validate_tx(state, tx_context, remaining_validation_gas, limit_steps_by_resources)?
+                .inspect(|call_info| {
+                    // TODO(Aner): Update the gas counter.
+                    remaining_gas.subtract_used_gas(call_info);
+                }))
         } else {
             Ok(None)
         }
@@ -498,24 +490,19 @@ impl AccountTransaction {
         remaining_gas: &mut GasCounter,
     ) -> TransactionExecutionResult<Option<CallInfo>> {
         // TODO(Aner): cap the gas usage for execution.
-        let remaining_execution_gas = &mut remaining_gas
-            .cap_usage(context.tx_context.block_context.versioned_constants.execute_max_sierra_gas);
-
-        let call_info = match &self.tx {
+        let remaining_execution_gas =
+            &mut remaining_gas.limit_usage(context.mode_sierra_gas_limit());
+        Ok(match &self.tx {
             Transaction::Declare(tx) => tx.run_execute(state, context, remaining_execution_gas),
             Transaction::DeployAccount(tx) => {
                 tx.run_execute(state, context, remaining_execution_gas)
             }
             Transaction::Invoke(tx) => tx.run_execute(state, context, remaining_execution_gas),
-        }?;
-        match call_info {
+        }?
+        .inspect(|call_info| {
             // TODO(Aner): Update the gas counter.
-            Some(call_info) => {
-                remaining_gas.subtract_used_gas(&call_info);
-                Ok(Some(call_info))
-            }
-            None => Ok(None),
-        }
+            remaining_gas.subtract_used_gas(call_info);
+        }))
     }
 
     fn run_non_revertible<S: StateReader>(
