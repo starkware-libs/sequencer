@@ -245,6 +245,23 @@ impl VersionedConstants {
         self.l1_to_l2_gas_price_ratio()
     }
 
+    /// Default initial gas amount when L2 gas is not provided.
+    pub fn default_initial_gas_amount(&self) -> u64 {
+        (self.execute_max_sierra_gas.checked_add(self.validate_max_sierra_gas))
+            .expect("The default initial gas cost should be less than the maximum gas amount.")
+            .0
+    }
+
+    /// Returns the maximum gas amount for validation.
+    pub fn max_validation_sierra_gas(&self) -> GasAmount {
+        self.validate_max_sierra_gas
+    }
+
+    /// Returns the maximum gas amount for execute.
+    pub fn max_execution_sierra_gas(&self) -> GasAmount {
+        self.execute_max_sierra_gas
+    }
+
     /// Returns the default initial gas for VM mode transactions.
     pub fn default_initial_gas_cost(&self) -> u64 {
         self.os_constants.gas_costs.default_initial_gas_cost
