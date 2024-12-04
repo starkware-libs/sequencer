@@ -45,9 +45,9 @@ impl TryFrom<MockProposalPart> for ProposalInit {
     }
 }
 
-impl Into<Vec<u8>> for MockProposalPart {
-    fn into(self) -> Vec<u8> {
-        vec![self.0 as u8]
+impl From<MockProposalPart> for Vec<u8> {
+    fn from(part: MockProposalPart) -> Vec<u8> {
+        vec![u8::try_from(part.0).expect("Invalid MockProposalPart conversion")]
     }
 }
 
