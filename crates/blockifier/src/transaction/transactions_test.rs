@@ -128,7 +128,6 @@ use crate::transaction::objects::{
     TransactionInfoCreator,
 };
 use crate::transaction::test_utils::{
-    account_invoke_tx,
     block_context,
     calculate_class_info_for_testing,
     create_account_tx_for_validate_test,
@@ -136,6 +135,7 @@ use crate::transaction::test_utils::{
     create_all_resource_bounds,
     default_all_resource_bounds,
     default_l1_resource_bounds,
+    invoke_tx_with_default_flags,
     l1_resource_bounds,
     FaultyAccountTxCreatorArgs,
     CALL_CONTRACT,
@@ -453,12 +453,11 @@ fn test_invoke_tx(
     let test_contract_address = test_contract.get_instance_address(0);
     let account_contract_address = account_contract.get_instance_address(0);
     let calldata = create_trivial_calldata(test_contract_address);
-    let invoke_tx =
-        AccountTransaction::new_with_default_flags(executable_invoke_tx(invoke_tx_args! {
-            sender_address: account_contract_address,
-            calldata: Calldata(Arc::clone(&calldata.0)),
-            resource_bounds,
-        }));
+    let invoke_tx = invoke_tx_with_default_flags(invoke_tx_args! {
+        sender_address: account_contract_address,
+        calldata: Calldata(Arc::clone(&calldata.0)),
+        resource_bounds,
+    });
 
     // Extract invoke transaction fields for testing, as it is consumed when creating an account
     // transaction.
@@ -674,7 +673,7 @@ fn test_invoke_tx_advanced_operations(
     let initial_counters = [felt!(counter_diffs[0]), felt!(counter_diffs[1])];
     let calldata_args = vec![index, initial_counters[0], initial_counters[1]];
 
-    let account_tx = account_invoke_tx(invoke_tx_args! {
+    let account_tx = invoke_tx_with_default_flags(invoke_tx_args! {
         nonce: nonce_manager.next(account_address),
         calldata:
             create_calldata(contract_address, "advance_counter", &calldata_args),
@@ -699,7 +698,7 @@ fn test_invoke_tx_advanced_operations(
     let calldata_args =
         vec![*contract_address.0.key(), index, felt!(xor_values[0]), felt!(xor_values[1])];
 
-    let account_tx = account_invoke_tx(invoke_tx_args! {
+    let account_tx = invoke_tx_with_default_flags(invoke_tx_args! {
         nonce: next_nonce,
         calldata:
             create_calldata(contract_address, "call_xor_counters", &calldata_args),
@@ -721,7 +720,7 @@ fn test_invoke_tx_advanced_operations(
     );
 
     // Invoke test_ec_op function.
-    let account_tx = account_invoke_tx(invoke_tx_args! {
+    let account_tx = invoke_tx_with_default_flags(invoke_tx_args! {
         nonce: next_nonce,
         calldata:
             create_calldata(contract_address, "test_ec_op", &[]),
@@ -758,7 +757,7 @@ fn test_invoke_tx_advanced_operations(
     let signature_values = [Felt::from(200_u64), Felt::from(300_u64)];
     let signature = TransactionSignature(signature_values.into());
 
-    let account_tx = account_invoke_tx(invoke_tx_args! {
+    let account_tx = invoke_tx_with_default_flags(invoke_tx_args! {
         signature,
         nonce: next_nonce,
         calldata:
@@ -784,7 +783,7 @@ fn test_invoke_tx_advanced_operations(
 
     // Invoke send_message function that send a message to L1.
     let to_address = Felt::from(85);
-    let account_tx = account_invoke_tx(invoke_tx_args! {
+    let account_tx = invoke_tx_with_default_flags(invoke_tx_args! {
         nonce: next_nonce,
         calldata:
             create_calldata(contract_address, "send_message", &[to_address]),
@@ -846,7 +845,7 @@ fn test_state_get_fee_token_balance(
     // Mint some tokens.
     let execute_calldata =
         create_calldata(fee_token_address, "permissionedMint", &[recipient, mint_low, mint_high]);
-    let account_tx = account_invoke_tx(invoke_tx_args! {
+    let account_tx = invoke_tx_with_default_flags(invoke_tx_args! {
         max_fee: MAX_FEE,
         resource_bounds: default_l1_resource_bounds(),
         sender_address: account_address,
@@ -931,7 +930,7 @@ fn test_estimate_minimal_gas_vector(
     };
 
     // The minimal gas estimate does not depend on tx version.
-    let tx = &account_invoke_tx(valid_invoke_tx_args);
+    let tx = &invoke_tx_with_default_flags(valid_invoke_tx_args);
     let minimal_gas_vector =
         estimate_minimal_gas_vector(block_context, tx, &gas_vector_computation_mode);
     let minimal_l1_gas = minimal_gas_vector.l1_gas;
@@ -982,7 +981,7 @@ fn test_max_fee_exceeds_balance(
 
     // V1 Invoke.
     let invalid_max_fee = Fee(BALANCE.0 + 1);
-    let invalid_tx = account_invoke_tx(invoke_tx_args! {
+    let invalid_tx = invoke_tx_with_default_flags(invoke_tx_args! {
         max_fee: invalid_max_fee,
         version: TransactionVersion::ONE,
         ..default_invoke_args.clone()
@@ -993,7 +992,7 @@ fn test_max_fee_exceeds_balance(
     macro_rules! assert_resource_overdraft {
         ($invalid_resource_bounds:expr) => {
             // V3 invoke.
-            let invalid_tx = account_invoke_tx(invoke_tx_args! {
+            let invalid_tx = invoke_tx_with_default_flags(invoke_tx_args! {
                 resource_bounds: $invalid_resource_bounds,
                 ..default_invoke_args.clone()
             });
@@ -1079,7 +1078,7 @@ fn test_insufficient_new_resource_bounds_pre_validation(
         calldata: create_trivial_calldata(test_contract.get_instance_address(0)),
         max_fee: MAX_FEE
     };
-    let tx = &account_invoke_tx(valid_invoke_tx_args.clone());
+    let tx = &invoke_tx_with_default_flags(valid_invoke_tx_args.clone());
 
     // V3 transaction.
     let GasPriceVector {
@@ -1107,7 +1106,7 @@ fn test_insufficient_new_resource_bounds_pre_validation(
     };
 
     // Verify successful execution on default resource bounds.
-    let valid_resources_tx = account_invoke_tx(InvokeTxArgs {
+    let valid_resources_tx = invoke_tx_with_default_flags(InvokeTxArgs {
         resource_bounds: ValidResourceBounds::AllResources(default_resource_bounds),
         ..valid_invoke_tx_args.clone()
     })
@@ -1148,7 +1147,7 @@ fn test_insufficient_new_resource_bounds_pre_validation(
             L2Gas => invalid_resources.l2_gas.max_amount.0 -= 1,
             L1DataGas => invalid_resources.l1_data_gas.max_amount.0 -= 1,
         }
-        let invalid_v3_tx = account_invoke_tx(InvokeTxArgs {
+        let invalid_v3_tx = invoke_tx_with_default_flags(InvokeTxArgs {
             resource_bounds: ValidResourceBounds::AllResources(invalid_resources),
             nonce: nonce!(next_nonce),
             ..valid_invoke_tx_args.clone()
@@ -1174,7 +1173,7 @@ fn test_insufficient_new_resource_bounds_pre_validation(
             L1DataGas => invalid_resources.l1_data_gas.max_price_per_unit.0 -= 1,
         }
 
-        let invalid_v3_tx = account_invoke_tx(InvokeTxArgs {
+        let invalid_v3_tx = invoke_tx_with_default_flags(InvokeTxArgs {
             resource_bounds: ValidResourceBounds::AllResources(invalid_resources),
             nonce: nonce!(next_nonce),
             ..valid_invoke_tx_args.clone()
@@ -1212,7 +1211,7 @@ fn test_insufficient_deprecated_resource_bounds_pre_validation(
     };
 
     // The minimal gas estimate does not depend on tx version.
-    let tx = &account_invoke_tx(valid_invoke_tx_args.clone());
+    let tx = &invoke_tx_with_default_flags(valid_invoke_tx_args.clone());
     let minimal_l1_gas =
         estimate_minimal_gas_vector(block_context, tx, &GasVectorComputationMode::NoL2Gas).l1_gas;
 
@@ -1224,7 +1223,7 @@ fn test_insufficient_deprecated_resource_bounds_pre_validation(
         minimal_l1_gas.checked_mul(gas_prices.eth_gas_prices.l1_gas_price.get()).unwrap();
     // Max fee too low (lower than minimal estimated fee).
     let invalid_max_fee = Fee(minimal_fee.0 - 1);
-    let invalid_v1_tx = account_invoke_tx(
+    let invalid_v1_tx = invoke_tx_with_default_flags(
         invoke_tx_args! { max_fee: invalid_max_fee, version: TransactionVersion::ONE,  ..valid_invoke_tx_args.clone() },
     );
     let execution_error = invalid_v1_tx.execute(state, block_context).unwrap_err();
@@ -1244,7 +1243,7 @@ fn test_insufficient_deprecated_resource_bounds_pre_validation(
     // Max L1 gas amount too low, old resource bounds.
     // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion works.
     let insufficient_max_l1_gas_amount = (minimal_l1_gas.0 - 1).into();
-    let invalid_v3_tx = account_invoke_tx(invoke_tx_args! {
+    let invalid_v3_tx = invoke_tx_with_default_flags(invoke_tx_args! {
         resource_bounds: l1_resource_bounds(insufficient_max_l1_gas_amount, actual_strk_l1_gas_price.into()),
         ..valid_invoke_tx_args.clone()
     });
@@ -1263,7 +1262,7 @@ fn test_insufficient_deprecated_resource_bounds_pre_validation(
 
     // Max L1 gas price too low, old resource bounds.
     let insufficient_max_l1_gas_price = (actual_strk_l1_gas_price.get().0 - 1).into();
-    let invalid_v3_tx = account_invoke_tx(invoke_tx_args! {
+    let invalid_v3_tx = invoke_tx_with_default_flags(invoke_tx_args! {
         resource_bounds: l1_resource_bounds(minimal_l1_gas, insufficient_max_l1_gas_price),
         ..valid_invoke_tx_args.clone()
     });
@@ -1314,7 +1313,7 @@ fn test_actual_fee_gt_resource_bounds(
     };
 
     // Execute the tx to compute the final gas costs.
-    let tx = &account_invoke_tx(tx_args.clone());
+    let tx = &invoke_tx_with_default_flags(tx_args.clone());
     let execution_result = tx.execute(state, block_context).unwrap();
     let mut actual_gas = execution_result.receipt.gas;
 
@@ -1339,7 +1338,7 @@ fn test_actual_fee_gt_resource_bounds(
             )
         }
     };
-    let invalid_tx = account_invoke_tx(invoke_tx_args! {
+    let invalid_tx = invoke_tx_with_default_flags(invoke_tx_args! {
         sender_address: sender_address1,
         resource_bounds: overdraft_resource_bounds,
         // To get the same DA cost, write a different value.
@@ -1381,8 +1380,9 @@ fn test_invalid_nonce(
 
     // Strict, negative flow: account nonce = 0, incoming tx nonce = 1.
     let invalid_nonce = nonce!(1_u8);
-    let invalid_tx =
-        account_invoke_tx(invoke_tx_args! { nonce: invalid_nonce, ..valid_invoke_tx_args.clone() });
+    let invalid_tx = invoke_tx_with_default_flags(
+        invoke_tx_args! { nonce: invalid_nonce, ..valid_invoke_tx_args.clone() },
+    );
     let invalid_tx_context = block_context.to_tx_context(&invalid_tx);
     let pre_validation_err = invalid_tx
         .perform_pre_validation_stage(&mut transactional_state, &invalid_tx_context, false, true)
@@ -1400,8 +1400,9 @@ fn test_invalid_nonce(
 
     // Positive flow: account nonce = 0, incoming tx nonce = 1.
     let valid_nonce = nonce!(1_u8);
-    let valid_tx =
-        account_invoke_tx(invoke_tx_args! { nonce: valid_nonce, ..valid_invoke_tx_args.clone() });
+    let valid_tx = invoke_tx_with_default_flags(
+        invoke_tx_args! { nonce: valid_nonce, ..valid_invoke_tx_args.clone() },
+    );
 
     let valid_tx_context = block_context.to_tx_context(&valid_tx);
     valid_tx
@@ -1410,8 +1411,9 @@ fn test_invalid_nonce(
 
     // Negative flow: account nonce = 1, incoming tx nonce = 0.
     let invalid_nonce = nonce!(0_u8);
-    let invalid_tx =
-        account_invoke_tx(invoke_tx_args! { nonce: invalid_nonce, ..valid_invoke_tx_args.clone() });
+    let invalid_tx = invoke_tx_with_default_flags(
+        invoke_tx_args! { nonce: invalid_nonce, ..valid_invoke_tx_args.clone() },
+    );
     let invalid_tx_context = block_context.to_tx_context(&invalid_tx);
     let pre_validation_err = invalid_tx
         .perform_pre_validation_stage(&mut transactional_state, &invalid_tx_context, false, false)
@@ -2425,7 +2427,7 @@ fn test_execute_tx_with_invalid_tx_version(
         "test_tx_version",
         &[felt!(invalid_version)],
     );
-    let account_tx = account_invoke_tx(invoke_tx_args! {
+    let account_tx = invoke_tx_with_default_flags(invoke_tx_args! {
         resource_bounds: default_all_resource_bounds,
         sender_address: account.get_instance_address(0),
         calldata,
@@ -2521,7 +2523,7 @@ fn test_emit_event_exceeds_limit(
         .into(),
     );
 
-    let account_tx = account_invoke_tx(invoke_tx_args! {
+    let account_tx = invoke_tx_with_default_flags(invoke_tx_args! {
         sender_address: account_contract.get_instance_address(0),
         calldata: execute_calldata,
         resource_bounds: default_all_resource_bounds,

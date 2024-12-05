@@ -15,7 +15,7 @@ use crate::execution::entry_point::{CallEntryPoint, EntryPointExecutionContext};
 use crate::state::state_api::State;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::BALANCE;
-use crate::transaction::test_utils::account_invoke_tx;
+use crate::transaction::test_utils::invoke_tx_with_default_flags;
 
 /// Enum for all resource costs.
 pub enum Prices {
@@ -71,7 +71,10 @@ fn fee_transfer_resources(
         .execute(
             state,
             &mut EntryPointExecutionContext::new(
-                Arc::new(block_context.to_tx_context(&account_invoke_tx(InvokeTxArgs::default()))),
+                Arc::new(
+                    block_context
+                        .to_tx_context(&invoke_tx_with_default_flags(InvokeTxArgs::default())),
+                ),
                 ExecutionMode::Execute,
                 false,
             ),

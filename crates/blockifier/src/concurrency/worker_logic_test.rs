@@ -35,10 +35,10 @@ use crate::test_utils::{
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::objects::HasRelatedFeeType;
 use crate::transaction::test_utils::{
-    account_invoke_tx,
     calculate_class_info_for_testing,
     default_all_resource_bounds,
     emit_n_events_tx,
+    invoke_tx_with_default_flags,
     max_fee,
 };
 use crate::transaction::transaction_execution::Transaction;
@@ -48,7 +48,7 @@ fn trivial_calldata_invoke_tx(
     test_contract_address: ContractAddress,
     nonce: Nonce,
 ) -> AccountTransaction {
-    account_invoke_tx(invoke_tx_args! {
+    invoke_tx_with_default_flags(invoke_tx_args! {
         sender_address: account_address,
         calldata: create_trivial_calldata(test_contract_address),
         resource_bounds: default_all_resource_bounds(),
@@ -268,7 +268,7 @@ fn test_worker_execute(default_all_resource_bounds: ValidResourceBounds) {
     let storage_value = felt!(93_u8);
     let storage_key = storage_key!(1993_u16);
 
-    let tx_success = account_invoke_tx(invoke_tx_args! {
+    let tx_success = invoke_tx_with_default_flags(invoke_tx_args! {
         sender_address: account_address,
         calldata: create_calldata(
             test_contract_address,
@@ -281,7 +281,7 @@ fn test_worker_execute(default_all_resource_bounds: ValidResourceBounds) {
 
     // Create a transaction with invalid nonce.
     nonce_manager.rollback(account_address);
-    let tx_failure = account_invoke_tx(invoke_tx_args! {
+    let tx_failure = invoke_tx_with_default_flags(invoke_tx_args! {
         sender_address: account_address,
         calldata: create_calldata(
             test_contract_address,
@@ -293,7 +293,7 @@ fn test_worker_execute(default_all_resource_bounds: ValidResourceBounds) {
 
     });
 
-    let tx_revert = account_invoke_tx(invoke_tx_args! {
+    let tx_revert = invoke_tx_with_default_flags(invoke_tx_args! {
         sender_address: account_address,
         calldata: create_calldata(
             test_contract_address,
@@ -444,7 +444,7 @@ fn test_worker_validate(default_all_resource_bounds: ValidResourceBounds) {
     let storage_key = storage_key!(1993_u16);
 
     // Both transactions change the same storage key.
-    let account_tx0 = account_invoke_tx(invoke_tx_args! {
+    let account_tx0 = invoke_tx_with_default_flags(invoke_tx_args! {
         sender_address: account_address,
         calldata: create_calldata(
             test_contract_address,
@@ -455,7 +455,7 @@ fn test_worker_validate(default_all_resource_bounds: ValidResourceBounds) {
         nonce: nonce_manager.next(account_address)
     });
 
-    let account_tx1 = account_invoke_tx(invoke_tx_args! {
+    let account_tx1 = invoke_tx_with_default_flags(invoke_tx_args! {
         sender_address: account_address,
         calldata: create_calldata(
             test_contract_address,
@@ -563,7 +563,7 @@ fn test_deploy_before_declare(
     ));
 
     // Deploy test contract.
-    let invoke_tx = account_invoke_tx(invoke_tx_args! {
+    let invoke_tx = invoke_tx_with_default_flags(invoke_tx_args! {
         sender_address: account_address_1,
         calldata: create_calldata(
             account_address_0,
@@ -646,7 +646,7 @@ fn test_worker_commit_phase(default_all_resource_bounds: ValidResourceBounds) {
 
     let txs = (0..3)
         .map(|_| {
-            Transaction::Account(account_invoke_tx(invoke_tx_args! {
+            Transaction::Account(invoke_tx_with_default_flags(invoke_tx_args! {
                 sender_address,
                 calldata: calldata.clone(),
                 resource_bounds: default_all_resource_bounds,
