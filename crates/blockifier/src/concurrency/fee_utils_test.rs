@@ -14,9 +14,9 @@ use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::{fund_account, test_state, test_state_inner};
 use crate::test_utils::{create_trivial_calldata, CairoVersion, BALANCE};
 use crate::transaction::test_utils::{
-    account_invoke_tx,
     block_context,
     default_all_resource_bounds,
+    invoke_tx_with_default_flags,
 };
 
 #[rstest]
@@ -26,7 +26,7 @@ pub fn test_fill_sequencer_balance_reads(
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] erc20_version: CairoVersion,
 ) {
     let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
-    let account_tx = account_invoke_tx(invoke_tx_args! {
+    let account_tx = invoke_tx_with_default_flags(invoke_tx_args! {
         sender_address: account.get_instance_address(0),
         calldata: create_trivial_calldata(account.get_instance_address(0)),
         resource_bounds: default_all_resource_bounds,

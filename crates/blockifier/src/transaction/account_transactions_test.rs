@@ -89,7 +89,6 @@ use crate::transaction::account_transaction::{
 };
 use crate::transaction::objects::{HasRelatedFeeType, TransactionInfoCreator};
 use crate::transaction::test_utils::{
-    account_invoke_tx,
     all_resource_bounds,
     block_context,
     calculate_class_info_for_testing,
@@ -99,6 +98,7 @@ use crate::transaction::test_utils::{
     default_all_resource_bounds,
     default_l1_resource_bounds,
     deploy_and_fund_account,
+    invoke_tx_with_default_flags,
     l1_resource_bounds,
     max_fee,
     run_invoke_tx,
@@ -232,7 +232,7 @@ fn test_all_bounds_combinations_enforce_fee(
     #[values(0, 1)] l2_gas_bound: u64,
 ) {
     let expected_enforce_fee = l1_gas_bound + l1_data_gas_bound + l2_gas_bound > 0;
-    let account_tx = account_invoke_tx(invoke_tx_args! {
+    let account_tx = invoke_tx_with_default_flags(invoke_tx_args! {
         version: TransactionVersion::THREE,
         resource_bounds: create_all_resource_bounds(
             l1_gas_bound.into(),
@@ -261,7 +261,9 @@ fn test_assert_actual_fee_in_bounds(
     let actual_fee_offset = Fee(if positive_flow { 0 } else { 1 });
     if deprecated_tx {
         let max_fee = Fee(100);
-        let tx = account_invoke_tx(invoke_tx_args! { max_fee, version: TransactionVersion::ONE });
+        let tx = invoke_tx_with_default_flags(
+            invoke_tx_args! { max_fee, version: TransactionVersion::ONE },
+        );
         let context = Arc::new(block_context.to_tx_context(&tx));
         AccountTransaction::assert_actual_fee_in_bounds(&context, max_fee + actual_fee_offset);
     } else {
@@ -285,7 +287,7 @@ fn test_assert_actual_fee_in_bounds(
         for (bounds, actual_fee) in
             [(all_resource_bounds, all_resource_fee), (l1_resource_bounds, l1_resource_fee)]
         {
-            let tx = account_invoke_tx(invoke_tx_args! {
+            let tx = invoke_tx_with_default_flags(invoke_tx_args! {
                 resource_bounds: bounds,
                 version: TransactionVersion::THREE,
             });
@@ -514,7 +516,7 @@ fn test_max_fee_limit_validate(
         nonce: nonce_manager.next(grindy_account_address)
     };
 
-    let account_tx = account_invoke_tx(invoke_tx_args! {
+    let account_tx = invoke_tx_with_default_flags(invoke_tx_args! {
         // Temporary upper bounds; just for gas estimation.
         max_fee: MAX_FEE,
         resource_bounds,
@@ -1049,7 +1051,7 @@ fn test_max_fee_computation_from_tx_bounds(block_context: BlockContext) {
     // V1 transaction: limit based on max fee.
     // Convert max fee to L1 gas units, and then to steps.
     let max_fee = Fee(100);
-    let account_tx_max_fee = account_invoke_tx(invoke_tx_args! {
+    let account_tx_max_fee = invoke_tx_with_default_flags(invoke_tx_args! {
         max_fee, version: TransactionVersion::ONE
     });
     let steps_per_l1_gas = block_context.versioned_constants.vm_resource_fee_cost().n_steps.inv();
@@ -1066,7 +1068,7 @@ fn test_max_fee_computation_from_tx_bounds(block_context: BlockContext) {
     // V3 transaction: limit based on L1 gas bounds.
     // Convert L1 gas units to steps.
     let l1_gas_bound = 200_u64;
-    let account_tx_l1_bounds = account_invoke_tx(invoke_tx_args! {
+    let account_tx_l1_bounds = invoke_tx_with_default_flags(invoke_tx_args! {
         resource_bounds: l1_resource_bounds(l1_gas_bound.into(), 1_u8.into()),
         version: TransactionVersion::THREE
     });
@@ -1078,7 +1080,7 @@ fn test_max_fee_computation_from_tx_bounds(block_context: BlockContext) {
     // V3 transaction: limit based on L2 gas bounds (all resource_bounds).
     // Convert L2 gas units to steps.
     let l2_gas_bound = 300_u64;
-    let account_tx_l2_bounds = account_invoke_tx(invoke_tx_args! {
+    let account_tx_l2_bounds = invoke_tx_with_default_flags(invoke_tx_args! {
         resource_bounds: ValidResourceBounds::AllResources(AllResourceBounds {
             l2_gas: ResourceBounds {
                 max_amount: l2_gas_bound.into(),
@@ -1119,7 +1121,7 @@ fn test_max_fee_to_max_steps_conversion(
     );
 
     // First invocation of `with_arg` gets the exact pre-calculated actual fee as max_fee.
-    let account_tx1 = account_invoke_tx(invoke_tx_args! {
+    let account_tx1 = invoke_tx_with_default_flags(invoke_tx_args! {
         max_fee: Fee(actual_fee),
         sender_address: account_address,
         calldata: execute_calldata.clone(),
@@ -1139,7 +1141,7 @@ fn test_max_fee_to_max_steps_conversion(
     );
 
     // Second invocation of `with_arg` gets twice the pre-calculated actual fee as max_fee.
-    let account_tx2 = account_invoke_tx(invoke_tx_args! {
+    let account_tx2 = invoke_tx_with_default_flags(invoke_tx_args! {
         max_fee: Fee(2 * actual_fee),
         sender_address: account_address,
         calldata: execute_calldata,
@@ -1362,7 +1364,7 @@ fn test_count_actual_storage_changes(
         calldata: write_1_calldata,
         nonce: nonce_manager.next(account_address),
     };
-    let account_tx = account_invoke_tx(invoke_args.clone());
+    let account_tx = invoke_tx_with_default_flags(invoke_args.clone());
     let concurrency_mode = false;
     let execution_info =
         account_tx.execute_raw(&mut state, &block_context, concurrency_mode).unwrap();
@@ -1408,7 +1410,7 @@ fn test_count_actual_storage_changes(
 
     // Second transaction: storage cell starts and ends with value 1.
     let mut state = TransactionalState::create_transactional(&mut state);
-    let account_tx = account_invoke_tx(InvokeTxArgs {
+    let account_tx = invoke_tx_with_default_flags(InvokeTxArgs {
         nonce: nonce_manager.next(account_address),
         ..invoke_args.clone()
     });
@@ -1448,7 +1450,7 @@ fn test_count_actual_storage_changes(
 
     // Transfer transaction: transfer 1 ETH to recepient.
     let mut state = TransactionalState::create_transactional(&mut state);
-    let account_tx = account_invoke_tx(InvokeTxArgs {
+    let account_tx = invoke_tx_with_default_flags(InvokeTxArgs {
         nonce: nonce_manager.next(account_address),
         calldata: transfer_calldata,
         ..invoke_args
@@ -1520,7 +1522,7 @@ fn test_concurrency_execute_fee_transfer(
     let state = &mut test_state(chain_info, BALANCE, &[(account, 1), (test_contract, 1)]);
     let (sequencer_balance_key_low, sequencer_balance_key_high) =
         get_sequencer_balance_keys(&block_context);
-    let account_tx = account_invoke_tx(invoke_tx_args! {
+    let account_tx = invoke_tx_with_default_flags(invoke_tx_args! {
     sender_address: account.get_instance_address(0),
     max_fee,
     calldata: create_trivial_calldata(test_contract.get_instance_address(0)),
@@ -1566,7 +1568,7 @@ fn test_concurrency_execute_fee_transfer(
     let mut transactional_state = TransactionalState::create_transactional(state);
 
     // Invokes transfer to the sequencer.
-    let account_tx = account_invoke_tx(invoke_tx_args! {
+    let account_tx = invoke_tx_with_default_flags(invoke_tx_args! {
         sender_address: account.get_instance_address(0),
         calldata: transfer_calldata,
         max_fee,
@@ -1617,7 +1619,7 @@ fn test_concurrent_fee_transfer_when_sender_is_sequencer(
     let state = &mut test_state(chain_info, sender_balance, &[(account, 1), (test_contract, 1)]);
     let (sequencer_balance_key_low, sequencer_balance_key_high) =
         get_sequencer_balance_keys(&block_context);
-    let account_tx = account_invoke_tx(invoke_tx_args! {
+    let account_tx = invoke_tx_with_default_flags(invoke_tx_args! {
         max_fee,
         sender_address: account_address,
         calldata: create_trivial_calldata(test_contract.get_instance_address(0)),
@@ -1669,7 +1671,7 @@ fn test_initial_gas(
         sender_balance,
         &contracts.into_iter().map(|contract| (contract, 1u16)).collect::<Vec<_>>(),
     );
-    let account_tx = account_invoke_tx(invoke_tx_args! {
+    let account_tx = invoke_tx_with_default_flags(invoke_tx_args! {
         sender_address: account_address,
         calldata: build_recurse_calldata(versions),
         resource_bounds:  default_all_resource_bounds,

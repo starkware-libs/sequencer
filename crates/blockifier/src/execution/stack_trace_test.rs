@@ -47,10 +47,10 @@ use crate::test_utils::initial_test_state::{fund_account, test_state};
 use crate::test_utils::{create_calldata, CairoVersion, BALANCE};
 use crate::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
 use crate::transaction::test_utils::{
-    account_invoke_tx,
     block_context,
     create_account_tx_for_validate_test_nonce_0,
     default_all_resource_bounds,
+    invoke_tx_with_default_flags,
     run_invoke_tx,
     FaultyAccountTxCreatorArgs,
     INVALID,
@@ -752,7 +752,7 @@ fn test_contract_ctor_frame_stack_trace(
     )
     .unwrap();
     // Invoke the deploy_contract function on the dummy account to deploy the faulty contract.
-    let invoke_deploy_tx = account_invoke_tx(invoke_tx_args! {
+    let invoke_deploy_tx = invoke_tx_with_default_flags(invoke_tx_args! {
         sender_address: account_address,
         signature,
         calldata: create_calldata(
