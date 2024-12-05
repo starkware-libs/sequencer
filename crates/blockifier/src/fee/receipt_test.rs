@@ -23,7 +23,13 @@ use crate::fee::resources::{StarknetResources, StateResources};
 use crate::state::cached_state::StateChangesCount;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{create_calldata, create_trivial_calldata, CairoVersion, BALANCE};
+use crate::test_utils::{
+    create_calldata,
+    create_trivial_calldata,
+    CairoVersion,
+    RunnableCairoVersion,
+    BALANCE,
+};
 use crate::transaction::objects::HasRelatedFeeType;
 use crate::transaction::test_utils::{
     account_invoke_tx,
@@ -68,7 +74,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(
     assert_eq!(empty_tx_gas_usage_vector, GasVector::default());
 
     // Declare.
-    for cairo_version in [CairoVersion::Cairo0, CairoVersion::Cairo1] {
+    for cairo_version in [CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairoVersion::Casm)] {
         let empty_contract = FeatureContract::Empty(cairo_version).get_class();
         let class_info = calculate_class_info_for_testing(empty_contract);
         let declare_tx_starknet_resources = StarknetResources::new(

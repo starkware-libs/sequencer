@@ -23,7 +23,7 @@ use crate::execution::native::contract_class::NativeCompiledClassV1;
 use crate::test_utils::cairo_compile::starknet_compile;
 use crate::test_utils::cairo_compile::{cairo0_compile, cairo1_compile, CompilationArtifacts};
 use crate::test_utils::struct_impls::LoadContractFromFile;
-use crate::test_utils::{get_raw_contract_class, CairoVersion};
+use crate::test_utils::{get_raw_contract_class, CairoVersion, RunnableCairoVersion};
 
 pub const CAIRO1_FEATURE_CONTRACTS_DIR: &str = "feature_contracts/cairo1";
 pub const SIERRA_CONTRACTS_SUBDIR: &str = "sierra";
@@ -122,9 +122,13 @@ impl FeatureContract {
             | Self::TestContract(version)
             | Self::ERC20(version) => *version,
             Self::SecurityTests => CairoVersion::Cairo0,
-            Self::LegacyTestContract | Self::CairoStepsTestContract => CairoVersion::Cairo1,
+            Self::LegacyTestContract | Self::CairoStepsTestContract => {
+                CairoVersion::Cairo1(RunnableCairoVersion::Casm)
+            }
             #[cfg(feature = "cairo_native")]
-            Self::SierraExecutionInfoV1Contract => CairoVersion::Native,
+            Self::SierraExecutionInfoV1Contract => {
+                CairoVersion::Cairo1(RunnableCairoVersion::Native)
+            }
         }
     }
 
@@ -167,9 +171,13 @@ impl FeatureContract {
     pub fn get_compiled_class_hash(&self) -> CompiledClassHash {
         match self.cairo_version() {
             CairoVersion::Cairo0 => CompiledClassHash(Felt::ZERO),
-            CairoVersion::Cairo1 => CompiledClassHash(felt!(self.get_integer_base())),
+            CairoVersion::Cairo1(RunnableCairoVersion::Casm) => {
+                CompiledClassHash(felt!(self.get_integer_base()))
+            }
             #[cfg(feature = "cairo_native")]
-            CairoVersion::Native => CompiledClassHash(felt!(self.get_integer_base())),
+            CairoVersion::Cairo1(RunnableCairoVersion::Native) => {
+                CompiledClassHash(felt!(self.get_integer_base()))
+            }
         }
     }
 
@@ -184,11 +192,11 @@ impl FeatureContract {
             CairoVersion::Cairo0 => {
                 ContractClass::V0(DeprecatedContractClass::from_file(&self.get_compiled_path()))
             }
-            CairoVersion::Cairo1 => {
+            CairoVersion::Cairo1(RunnableCairoVersion::Casm) => {
                 ContractClass::V1(CasmContractClass::from_file(&self.get_compiled_path()))
             }
             #[cfg(feature = "cairo_native")]
-            CairoVersion::Native => {
+            CairoVersion::Cairo1(RunnableCairoVersion::Native) => {
                 panic!("Native contracts are not supported by this function.")
             }
         }
@@ -196,7 +204,7 @@ impl FeatureContract {
 
     pub fn get_runnable_class(&self) -> RunnableCompiledClass {
         #[cfg(feature = "cairo_native")]
-        if CairoVersion::Native == self.cairo_version() {
+        if CairoVersion::Cairo1(RunnableCairoVersion::Native) == self.cairo_version() {
             let native_contract_class =
                 NativeCompiledClassV1::compile_or_get_cached(&self.get_compiled_path());
             return RunnableCompiledClass::V1Native(native_contract_class);
@@ -212,9 +220,9 @@ impl FeatureContract {
     fn get_cairo_version_bit(&self) -> u32 {
         match self.cairo_version() {
             CairoVersion::Cairo0 => 0,
-            CairoVersion::Cairo1 => CAIRO1_BIT,
+            CairoVersion::Cairo1(RunnableCairoVersion::Casm) => CAIRO1_BIT,
             #[cfg(feature = "cairo_native")]
-            CairoVersion::Native => CAIRO1_BIT,
+            CairoVersion::Cairo1(RunnableCairoVersion::Native) => CAIRO1_BIT,
         }
     }
 
@@ -274,9 +282,13 @@ impl FeatureContract {
         if let Self::ERC20(cairo_version) = self {
             match cairo_version {
                 CairoVersion::Cairo0 => ERC20_CAIRO0_CONTRACT_SOURCE_PATH,
-                CairoVersion::Cairo1 => ERC20_CAIRO1_CONTRACT_SOURCE_PATH,
+                CairoVersion::Cairo1(RunnableCairoVersion::Casm) => {
+                    ERC20_CAIRO1_CONTRACT_SOURCE_PATH
+                }
                 #[cfg(feature = "cairo_native")]
-                CairoVersion::Native => todo!("ERC20 contract is not supported by Native yet"),
+                CairoVersion::Cairo1(RunnableCairoVersion::Native) => {
+                    todo!("ERC20 contract is not supported by Native yet")
+                }
             }
             .into()
         } else {
@@ -284,9 +296,9 @@ impl FeatureContract {
                 "feature_contracts/cairo{}/{}.cairo",
                 match self.cairo_version() {
                     CairoVersion::Cairo0 => "0",
-                    CairoVersion::Cairo1 => "1",
+                    CairoVersion::Cairo1(RunnableCairoVersion::Casm) => "1",
                     #[cfg(feature = "cairo_native")]
-                    CairoVersion::Native => "_native",
+                    CairoVersion::Cairo1(RunnableCairoVersion::Native) => "_native",
                 },
                 self.get_non_erc20_base_name()
             )
@@ -295,7 +307,7 @@ impl FeatureContract {
 
     pub fn get_sierra_path(&self) -> String {
         assert_ne!(self.cairo_version(), CairoVersion::Cairo0);
-        assert_ne!(self, &Self::ERC20(CairoVersion::Cairo1));
+        assert_ne!(self, &Self::ERC20(CairoVersion::Cairo1(RunnableCairoVersion::Casm)));
         format!(
             "{CAIRO1_FEATURE_CONTRACTS_DIR}/{SIERRA_CONTRACTS_SUBDIR}/{}.sierra.json",
             self.get_non_erc20_base_name()
@@ -307,9 +319,11 @@ impl FeatureContract {
         if let Self::ERC20(cairo_version) = self {
             match cairo_version {
                 CairoVersion::Cairo0 => ERC20_CAIRO0_CONTRACT_PATH,
-                CairoVersion::Cairo1 => ERC20_CAIRO1_CONTRACT_PATH,
+                CairoVersion::Cairo1(RunnableCairoVersion::Casm) => ERC20_CAIRO1_CONTRACT_PATH,
                 #[cfg(feature = "cairo_native")]
-                CairoVersion::Native => todo!("ERC20 cannot be tested with Native"),
+                CairoVersion::Cairo1(RunnableCairoVersion::Native) => {
+                    todo!("ERC20 cannot be tested with Native")
+                }
             }
             .into()
         } else {
@@ -318,16 +332,16 @@ impl FeatureContract {
                 "feature_contracts/cairo{}/compiled/{}{}.json",
                 match cairo_version {
                     CairoVersion::Cairo0 => "0",
-                    CairoVersion::Cairo1 => "1",
+                    CairoVersion::Cairo1(RunnableCairoVersion::Casm) => "1",
                     #[cfg(feature = "cairo_native")]
-                    CairoVersion::Native => "_native",
+                    CairoVersion::Cairo1(RunnableCairoVersion::Native) => "_native",
                 },
                 self.get_non_erc20_base_name(),
                 match cairo_version {
                     CairoVersion::Cairo0 => "_compiled",
-                    CairoVersion::Cairo1 => ".casm",
+                    CairoVersion::Cairo1(RunnableCairoVersion::Casm) => ".casm",
                     #[cfg(feature = "cairo_native")]
-                    CairoVersion::Native => ".sierra",
+                    CairoVersion::Cairo1(RunnableCairoVersion::Native) => ".sierra",
                 }
             )
         }
@@ -357,12 +371,12 @@ impl FeatureContract {
                 };
                 cairo0_compile(self.get_source_path(), extra_arg, false)
             }
-            CairoVersion::Cairo1 => {
+            CairoVersion::Cairo1(RunnableCairoVersion::Casm) => {
                 let (tag_override, cargo_nightly_arg) = self.fixed_tag_and_rust_toolchain();
                 cairo1_compile(self.get_source_path(), tag_override, cargo_nightly_arg)
             }
             #[cfg(feature = "cairo_native")]
-            CairoVersion::Native => {
+            CairoVersion::Cairo1(RunnableCairoVersion::Native) => {
                 let (tag_override, cargo_nightly_arg) = self.fixed_tag_and_rust_toolchain();
                 let sierra_output = starknet_compile(
                     self.get_source_path(),
