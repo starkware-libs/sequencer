@@ -10,7 +10,7 @@ env:
 
 jobs:
   native-blockifier-artifacts-push:
-    runs-on: starkware-ubuntu-20-04-medium
+    runs-on: starkware-ubuntu-latest-medium
     steps:
       - name: Get commit hash prefix for PR update
         env:
@@ -23,6 +23,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.COMMIT_SHA }}
+          submodules: recursive
 
       # Set environment variables.
       - name: Set environment variable
