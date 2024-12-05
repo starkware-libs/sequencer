@@ -19,7 +19,9 @@ use starknet_api::core::{ChainId, ClassHash, ContractAddress, EthAddress, Nonce}
 use starknet_api::executable_transaction::AccountTransaction as ApiExecutableTransaction;
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::state::StorageKey;
-use starknet_api::test_utils::invoke::InvokeTxArgs;
+use starknet_api::test_utils::declare::executable_declare_tx;
+use starknet_api::test_utils::deploy_account::executable_deploy_account_tx;
+use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::fields::Resource::{L1DataGas, L1Gas, L2Gas};
 use starknet_api::transaction::fields::{
@@ -87,11 +89,8 @@ use crate::state::cached_state::{CachedState, StateChangesCount, TransactionalSt
 use crate::state::errors::StateError;
 use crate::state::state_api::{State, StateReader};
 use crate::test_utils::contracts::FeatureContract;
-use crate::test_utils::declare::declare_tx;
-use crate::test_utils::deploy_account::deploy_account_tx;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::invoke::invoke_tx;
 use crate::test_utils::l1_handler::l1handler_tx;
 use crate::test_utils::prices::Prices;
 use crate::test_utils::{
@@ -449,11 +448,12 @@ fn test_invoke_tx(
     let test_contract_address = test_contract.get_instance_address(0);
     let account_contract_address = account_contract.get_instance_address(0);
     let calldata = create_trivial_calldata(test_contract_address);
-    let invoke_tx = AccountTransaction::new_with_default_flags(invoke_tx(invoke_tx_args! {
-        sender_address: account_contract_address,
-        calldata: Calldata(Arc::clone(&calldata.0)),
-        resource_bounds,
-    }));
+    let invoke_tx =
+        AccountTransaction::new_with_default_flags(executable_invoke_tx(invoke_tx_args! {
+            sender_address: account_contract_address,
+            calldata: Calldata(Arc::clone(&calldata.0)),
+            resource_bounds,
+        }));
 
     // Extract invoke transaction fields for testing, as it is consumed when creating an account
     // transaction.
@@ -967,7 +967,7 @@ fn test_max_fee_exceeds_balance(
     )};
 
     // Deploy.
-    let invalid_tx = AccountTransaction::new_with_default_flags(deploy_account_tx(
+    let invalid_tx = AccountTransaction::new_with_default_flags(executable_deploy_account_tx(
         deploy_account_tx_args! {
             resource_bounds,
             class_hash: test_contract.get_class_hash()
@@ -997,7 +997,7 @@ fn test_max_fee_exceeds_balance(
             // Declare.
             let contract_to_declare = FeatureContract::Empty(CairoVersion::Cairo1);
             let class_info = calculate_class_info_for_testing(contract_to_declare.get_class());
-            let invalid_tx = AccountTransaction::new_with_default_flags(declare_tx(
+            let invalid_tx = AccountTransaction::new_with_default_flags(executable_declare_tx(
                 declare_tx_args! {
                     class_hash: contract_to_declare.get_class_hash(),
                     compiled_class_hash: contract_to_declare.get_compiled_class_hash(),
@@ -1508,7 +1508,7 @@ fn test_declare_tx(
         None,
         ExecutionSummary::default(),
     );
-    let account_tx = AccountTransaction::new_with_default_flags(declare_tx(
+    let account_tx = AccountTransaction::new_with_default_flags(executable_declare_tx(
         declare_tx_args! {
             max_fee: MAX_FEE,
             sender_address,
@@ -1629,7 +1629,7 @@ fn test_declare_tx(
     assert_eq!(contract_class_from_state, class_info.contract_class().try_into().unwrap());
 
     // Checks that redeclaring the same contract fails.
-    let account_tx2 = AccountTransaction::new_with_default_flags(declare_tx(
+    let account_tx2 = AccountTransaction::new_with_default_flags(executable_declare_tx(
         declare_tx_args! {
             max_fee: MAX_FEE,
             sender_address,
@@ -1663,7 +1663,7 @@ fn test_declare_tx_v0(default_l1_resource_bounds: ValidResourceBounds) {
     let sender_address = account.get_instance_address(0);
     let mut nonce_manager = NonceManager::default();
 
-    let tx = declare_tx(
+    let tx = executable_declare_tx(
         declare_tx_args! {
             max_fee: Fee(0),
             sender_address,
@@ -1699,7 +1699,7 @@ fn test_deploy_account_tx(
     let account = FeatureContract::AccountWithoutValidations(cairo_version);
     let account_class_hash = account.get_class_hash();
     let state = &mut test_state(chain_info, BALANCE, &[(account, 1)]);
-    let deploy_account = AccountTransaction::new_with_default_flags(deploy_account_tx(
+    let deploy_account = AccountTransaction::new_with_default_flags(executable_deploy_account_tx(
         deploy_account_tx_args! {
             resource_bounds: default_all_resource_bounds,
             class_hash: account_class_hash
@@ -1856,7 +1856,7 @@ fn test_deploy_account_tx(
 
     // Negative flow.
     // Deploy to an existing address.
-    let deploy_account = AccountTransaction::new_with_default_flags(deploy_account_tx(
+    let deploy_account = AccountTransaction::new_with_default_flags(executable_deploy_account_tx(
         deploy_account_tx_args! {
             resource_bounds: default_all_resource_bounds,
             class_hash: account_class_hash
@@ -1887,7 +1887,7 @@ fn test_fail_deploy_account_undeclared_class_hash(
     let state = &mut test_state(chain_info, BALANCE, &[]);
     let mut nonce_manager = NonceManager::default();
     let undeclared_hash = class_hash!("0xdeadbeef");
-    let deploy_account = AccountTransaction::new_with_default_flags(deploy_account_tx(
+    let deploy_account = AccountTransaction::new_with_default_flags(executable_deploy_account_tx(
         deploy_account_tx_args! {
             resource_bounds: default_all_resource_bounds,  class_hash: undeclared_hash
         },
@@ -2132,7 +2132,7 @@ fn test_valid_flag(
         &[(account_contract, 1), (test_contract, 1)],
     );
 
-    let tx = invoke_tx(invoke_tx_args! {
+    let tx = executable_invoke_tx(invoke_tx_args! {
         sender_address: account_contract.get_instance_address(0),
         calldata: create_trivial_calldata(test_contract.get_instance_address(0)),
         resource_bounds: default_all_resource_bounds,
@@ -2235,7 +2235,7 @@ fn test_only_query_flag(
         .concat()
         .into(),
     );
-    let tx = crate::test_utils::invoke::invoke_tx(invoke_tx_args! {
+    let tx = executable_invoke_tx(invoke_tx_args! {
         calldata: execute_calldata,
         resource_bounds: default_all_resource_bounds,
         sender_address,

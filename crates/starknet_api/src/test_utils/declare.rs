@@ -2,7 +2,10 @@ use crate::contract_address;
 use crate::contract_class::ClassInfo;
 use crate::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use crate::data_availability::DataAvailabilityMode;
-use crate::executable_transaction::DeclareTransaction as ExecutableDeclareTransaction;
+use crate::executable_transaction::{
+    AccountTransaction,
+    DeclareTransaction as ExecutableDeclareTransaction,
+};
 use crate::rpc_transaction::{RpcDeclareTransaction, RpcDeclareTransactionV3, RpcTransaction};
 use crate::state::SierraContractClass;
 use crate::transaction::fields::{
@@ -130,10 +133,12 @@ pub fn declare_tx(declare_tx_args: DeclareTxArgs) -> DeclareTransaction {
 pub fn executable_declare_tx(
     declare_tx_args: DeclareTxArgs,
     class_info: ClassInfo,
-) -> ExecutableDeclareTransaction {
+) -> AccountTransaction {
     let tx_hash = declare_tx_args.tx_hash;
     let tx = declare_tx(declare_tx_args);
-    ExecutableDeclareTransaction { tx, tx_hash, class_info }
+    let declare_tx = ExecutableDeclareTransaction { tx, tx_hash, class_info };
+
+    AccountTransaction::Declare(declare_tx)
 }
 
 pub fn rpc_declare_tx(

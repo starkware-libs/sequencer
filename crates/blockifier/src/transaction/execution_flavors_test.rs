@@ -4,7 +4,7 @@ use rstest::rstest;
 use starknet_api::block::FeeType;
 use starknet_api::core::ContractAddress;
 use starknet_api::execution_resources::{GasAmount, GasVector};
-use starknet_api::test_utils::invoke::InvokeTxArgs;
+use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::fields::{
     Calldata,
@@ -26,7 +26,6 @@ use crate::state::state_api::StateReader;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::invoke::invoke_tx;
 use crate::test_utils::{
     create_calldata,
     create_trivial_calldata,
@@ -223,7 +222,8 @@ fn test_invalid_nonce_pre_validate(
     // First scenario: invalid nonce. Regardless of flags, should fail.
     let invalid_nonce = nonce!(7_u8);
     let account_nonce = state.get_nonce_at(account_address).unwrap();
-    let tx = invoke_tx(invoke_tx_args! {nonce: invalid_nonce, ..pre_validation_base_args});
+    let tx =
+        executable_invoke_tx(invoke_tx_args! {nonce: invalid_nonce, ..pre_validation_base_args});
     let execution_flags = ExecutionFlags { only_query, charge_fee, validate };
     let account_tx = AccountTransaction { tx, execution_flags };
     let result = account_tx.execute(&mut state, &block_context);
@@ -297,7 +297,7 @@ fn test_simulate_validate_pre_validate_with_charge_fee(
     // Second scenario: resource bounds greater than balance.
     let gas_price = block_context.block_info.gas_prices.l1_gas_price(&fee_type);
     let balance_over_gas_price = BALANCE.checked_div(gas_price).unwrap();
-    let tx = invoke_tx(invoke_tx_args! {
+    let tx = executable_invoke_tx(invoke_tx_args! {
         max_fee: Fee(BALANCE.0 + 1),
         resource_bounds: l1_resource_bounds(
             (balance_over_gas_price.0 + 10).into(),
@@ -337,7 +337,7 @@ fn test_simulate_validate_pre_validate_with_charge_fee(
 
     // Third scenario: L1 gas price bound lower than the price on the block.
     if !is_deprecated {
-        let tx = invoke_tx(invoke_tx_args! {
+        let tx = executable_invoke_tx(invoke_tx_args! {
             resource_bounds: l1_resource_bounds(DEFAULT_L1_GAS_AMOUNT, (gas_price.get().0 - 1).into()),
             nonce: nonce_manager.next(account_address),
 
@@ -380,7 +380,7 @@ fn test_simulate_validate_pre_validate_not_charge_fee(
         get_pre_validate_test_args(cairo_version, version);
     let account_address = pre_validation_base_args.sender_address;
 
-    let tx = invoke_tx(invoke_tx_args! {
+    let tx = executable_invoke_tx(invoke_tx_args! {
         nonce: nonce_manager.next(account_address),
         ..pre_validation_base_args.clone()
     });
@@ -402,7 +402,7 @@ fn test_simulate_validate_pre_validate_not_charge_fee(
     let (actual_gas_used, actual_fee) = gas_and_fee(base_gas, validate, &fee_type);
     macro_rules! execute_and_check_gas_and_fee {
         ($max_fee:expr, $resource_bounds:expr) => {{
-            let tx = invoke_tx(invoke_tx_args! {
+            let tx = executable_invoke_tx(invoke_tx_args! {
                 max_fee: $max_fee,
                 resource_bounds: $resource_bounds,
                 nonce: nonce_manager.next(account_address),
@@ -466,7 +466,7 @@ fn execute_fail_validation(
     } = create_flavors_test_state(&block_context.chain_info, cairo_version);
 
     // Validation scenario: fallible validation.
-    let tx = invoke_tx(invoke_tx_args! {
+    let tx = executable_invoke_tx(invoke_tx_args! {
         max_fee,
         resource_bounds: max_resource_bounds,
         signature: TransactionSignature(vec![
@@ -597,7 +597,7 @@ fn test_simulate_validate_charge_fee_mid_execution(
     };
 
     // First scenario: logic error. Should result in revert; actual fee should be shown.
-    let tx = invoke_tx(invoke_tx_args! {
+    let tx = executable_invoke_tx(invoke_tx_args! {
         calldata: recurse_calldata(test_contract_address, true, 3),
         nonce: nonce_manager.next(account_address),
         ..execution_base_args.clone()
@@ -646,7 +646,7 @@ fn test_simulate_validate_charge_fee_mid_execution(
         validate,
         &fee_type,
     );
-    let tx = invoke_tx(invoke_tx_args! {
+    let tx = executable_invoke_tx(invoke_tx_args! {
         max_fee: fee_bound,
         resource_bounds: l1_resource_bounds(gas_bound, gas_price.into()),
         calldata: recurse_calldata(test_contract_address, false, 1000),
@@ -703,7 +703,7 @@ fn test_simulate_validate_charge_fee_mid_execution(
         &fee_type,
     );
 
-    let tx = invoke_tx(invoke_tx_args! {
+    let tx = executable_invoke_tx(invoke_tx_args! {
         max_fee: huge_fee,
         resource_bounds: l1_resource_bounds(huge_gas_limit, gas_price.into()),
         calldata: recurse_calldata(test_contract_address, false, 10000),
@@ -791,7 +791,7 @@ fn test_simulate_validate_charge_fee_post_execution(
         validate,
         &fee_type,
     );
-    let tx = invoke_tx(invoke_tx_args! {
+    let tx = executable_invoke_tx(invoke_tx_args! {
         max_fee: just_not_enough_fee_bound,
         resource_bounds: l1_resource_bounds(just_not_enough_gas_bound, gas_price.into()),
         calldata: recurse_calldata(test_contract_address, false, 1000),
@@ -853,7 +853,7 @@ fn test_simulate_validate_charge_fee_post_execution(
             felt!(0_u8),
         ],
     );
-    let tx = invoke_tx(invoke_tx_args! {
+    let tx = executable_invoke_tx(invoke_tx_args! {
         max_fee: actual_fee,
         resource_bounds: l1_resource_bounds(success_actual_gas, gas_price.into()),
         calldata: transfer_calldata,
