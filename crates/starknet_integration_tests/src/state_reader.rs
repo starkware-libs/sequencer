@@ -6,6 +6,7 @@ use blockifier::context::ChainInfo;
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{
     CairoVersion,
+    RunnableCairo1,
     BALANCE,
     CURRENT_BLOCK_TIMESTAMP,
     DEFAULT_ETH_L1_GAS_PRICE,
@@ -89,7 +90,7 @@ fn create_test_state(
     };
     let default_test_contracts = [
         FeatureContract::TestContract(CairoVersion::Cairo0),
-        FeatureContract::TestContract(CairoVersion::Cairo1),
+        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
     ]
     .into_iter()
     .map(into_contract)
