@@ -58,6 +58,7 @@ impl IntegrationTestSetup {
 
         // Derive the configuration for the sequencer node.
         let (config, required_params) = create_config(
+            SEQUENCER_ID,
             chain_info,
             rpc_server_addr,
             storage_for_test.batcher_storage_config,
