@@ -6,6 +6,7 @@ use papyrus_rpc::CompiledContractClass;
 use serde::Serialize;
 use serde_json::json;
 use starknet_api::block::{BlockInfo, BlockNumber};
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::{class_hash, contract_address, felt, nonce};
 
 use crate::config::RpcStateReaderConfig;
@@ -178,8 +179,11 @@ async fn test_get_compiled_class() {
         "starknet_getCompiledContractClass",
         GetCompiledClassParams { block_id: BlockId::Latest, class_hash: class_hash!("0x1") },
         &RpcResponse::Success(RpcSuccessResponse {
-            result: serde_json::to_value(CompiledContractClass::V1(expected_result.clone()))
-                .unwrap(),
+            result: serde_json::to_value((
+                CompiledContractClass::V1(expected_result.clone()),
+                SierraVersion::default(),
+            ))
+            .unwrap(),
             ..Default::default()
         }),
     );
