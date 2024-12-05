@@ -1,9 +1,7 @@
-use std::cmp::min;
 use std::collections::HashMap;
 
-use futures::{FutureExt, StreamExt};
+use futures::FutureExt;
 use indexmap::indexmap;
-use papyrus_network::network_manager::GenericReceiver;
 use papyrus_protobuf::sync::{
     BlockHashOrNumber,
     ContractDiff,
@@ -12,33 +10,24 @@ use papyrus_protobuf::sync::{
     DeprecatedDeclaredClass,
     Direction,
     Query,
-    SignedBlockHeader,
     StateDiffChunk,
 };
 use papyrus_storage::state::StateStorageReader;
 use papyrus_test_utils::get_rng;
-use starknet_api::block::{BlockHeader, BlockHeaderWithoutHash, BlockNumber};
+use starknet_api::block::BlockNumber;
 use starknet_api::core::{ascii_as_felt, ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::{StorageKey, ThinStateDiff};
 use starknet_types_core::felt::Felt;
-use tokio::sync::mpsc::{channel, Receiver};
 
 use super::test_utils::{
-    create_block_hashes_and_signatures,
     random_header,
     run_test,
     wait_for_marker,
     Action,
     DataType,
-    HeaderTestPayload,
-    StateDiffTestPayload,
-    HEADER_QUERY_LENGTH,
     SLEEP_DURATION_TO_LET_SYNC_ADVANCE,
-    STATE_DIFF_QUERY_LENGTH,
     TIMEOUT_FOR_TEST,
-    WAIT_PERIOD_FOR_NEW_DATA,
 };
-use super::{P2PSyncClientConfig, StateDiffQuery};
 
 #[tokio::test]
 async fn state_diff_basic_flow() {
@@ -352,159 +341,4 @@ async fn validate_state_diff_fails(
         actions,
     )
     .await;
-}
-
-// Advances the header sync with associated header state diffs.
-// The receiver waits for external sender to provide the state diff chunks.
-async fn run_state_diff_sync_through_channel(
-    mock_header_response_manager: &mut GenericReceiver<HeaderTestPayload>,
-    mock_state_diff_response_manager: &mut GenericReceiver<StateDiffTestPayload>,
-    header_state_diff_lengths: Vec<usize>,
-    state_diff_chunk_receiver: &mut Receiver<Option<StateDiffChunk>>,
-    should_assert_reported: bool,
-) {
-    // We wait for the state diff sync to see that there are no headers and start sleeping
-    tokio::time::sleep(SLEEP_DURATION_TO_LET_SYNC_ADVANCE).await;
-
-    // Check that before we send headers there is no state diff query.
-    assert!(mock_state_diff_response_manager.next().now_or_never().is_none());
-
-    let num_headers = header_state_diff_lengths.len();
-    let block_hashes_and_signatures =
-        create_block_hashes_and_signatures(num_headers.try_into().unwrap());
-
-    // split the headers into queries of size HEADER_QUERY_LENGTH and send headers for each query
-    for headers_for_current_query in block_hashes_and_signatures
-        .into_iter()
-        .zip(header_state_diff_lengths.clone().into_iter())
-        .enumerate()
-        .collect::<Vec<_>>()
-        .chunks(HEADER_QUERY_LENGTH.try_into().unwrap())
-        .map(Vec::from)
-    {
-        // Receive the next query from header sync
-        let mut mock_header_responses_manager = mock_header_response_manager.next().await.unwrap();
-
-        for (i, ((block_hash, block_signature), header_state_diff_length)) in
-            headers_for_current_query
-        {
-            // Send header responses
-            mock_header_responses_manager
-                .send_response(DataOrFin(Some(SignedBlockHeader {
-                    block_header: BlockHeader {
-                        block_hash,
-                        block_header_without_hash: BlockHeaderWithoutHash {
-                            block_number: BlockNumber(u64::try_from(i).unwrap()),
-                            ..Default::default()
-                        },
-                        state_diff_length: Some(header_state_diff_length),
-                        ..Default::default()
-                    },
-                    signatures: vec![block_signature],
-                })))
-                .await
-                .unwrap();
-        }
-
-        mock_header_responses_manager.send_response(DataOrFin(None)).await.unwrap();
-    }
-
-    // TODO(noamsp): remove sleep and wait until header marker writes the new headers. remove the
-    // comment from the StateDiffQuery about the limit being too low. We wait for the header
-    // sync to write the new headers.
-    tokio::time::sleep(SLEEP_DURATION_TO_LET_SYNC_ADVANCE).await;
-
-    // Simulate time has passed so that state diff sync will resend query after it waited for
-    // new header
-    tokio::time::pause();
-    tokio::time::advance(WAIT_PERIOD_FOR_NEW_DATA).await;
-    tokio::time::resume();
-
-    let num_state_diff_headers = u64::try_from(num_headers).unwrap();
-    let num_state_diff_queries = num_state_diff_headers.div_ceil(STATE_DIFF_QUERY_LENGTH);
-
-    for i in 0..num_state_diff_queries {
-        let start_block_number = i * STATE_DIFF_QUERY_LENGTH;
-        let limit = min(num_state_diff_headers - start_block_number, STATE_DIFF_QUERY_LENGTH);
-
-        // Get a state diff query and validate it
-        let mut mock_state_diff_responses_manager =
-            mock_state_diff_response_manager.next().await.unwrap();
-        assert_eq!(
-            *mock_state_diff_responses_manager.query(),
-            Ok(StateDiffQuery(Query {
-                start_block: BlockHashOrNumber::Number(BlockNumber(start_block_number)),
-                direction: Direction::Forward,
-                limit,
-                step: 1,
-            })),
-            "If the limit of the query is too low, try to increase \
-             SLEEP_DURATION_TO_LET_SYNC_ADVANCE",
-        );
-
-        let mut current_state_diff_length = 0;
-        let destination_state_diff_length =
-            header_state_diff_lengths[start_block_number.try_into().unwrap()
-                ..(start_block_number + limit).try_into().unwrap()]
-                .iter()
-                .sum();
-
-        while current_state_diff_length < destination_state_diff_length {
-            let state_diff_chunk = state_diff_chunk_receiver.recv().await.unwrap();
-
-            mock_state_diff_responses_manager
-                .send_response(DataOrFin(state_diff_chunk.clone()))
-                .await
-                .unwrap();
-
-            if let Some(state_diff_chunk) = state_diff_chunk {
-                if !state_diff_chunk.is_empty() {
-                    current_state_diff_length += state_diff_chunk.len();
-                    continue;
-                }
-            }
-
-            break;
-        }
-
-        if should_assert_reported {
-            mock_state_diff_responses_manager.assert_reported(TIMEOUT_FOR_TEST).await;
-            continue;
-        }
-
-        assert_eq!(current_state_diff_length, destination_state_diff_length);
-        let state_diff_chunk = state_diff_chunk_receiver.recv().await.unwrap();
-        mock_state_diff_responses_manager
-            .send_response(DataOrFin(state_diff_chunk.clone()))
-            .await
-            .unwrap();
-    }
-}
-
-pub(crate) async fn run_state_diff_sync(
-    config: P2PSyncClientConfig,
-    mock_header_response_manager: &mut GenericReceiver<HeaderTestPayload>,
-    mock_state_diff_response_manager: &mut GenericReceiver<StateDiffTestPayload>,
-    header_state_diff_lengths: Vec<usize>,
-    state_diff_chunks: Vec<Option<StateDiffChunk>>,
-) {
-    let (state_diff_sender, mut state_diff_receiver) = channel(config.buffer_size);
-    tokio::join! {
-        run_state_diff_sync_through_channel(
-            mock_header_response_manager,
-            mock_state_diff_response_manager,
-            header_state_diff_lengths,
-            &mut state_diff_receiver,
-            false,
-        ),
-        async {
-            for state_diff in state_diff_chunks.chunks(STATE_DIFF_QUERY_LENGTH.try_into().unwrap()) {
-                for state_diff_chunk in state_diff {
-                    state_diff_sender.send(state_diff_chunk.clone()).await.unwrap();
-                }
-
-                state_diff_sender.send(None).await.unwrap();
-            }
-        }
-    };
 }
