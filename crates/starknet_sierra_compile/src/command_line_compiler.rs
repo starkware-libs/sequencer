@@ -32,9 +32,12 @@ impl CommandLineCompiler {
     pub fn new(config: SierraToCasmCompilationConfig) -> Self {
         Self {
             config,
-            path_to_starknet_sierra_compile_binary: binary_path(CAIRO_LANG_BINARY_NAME),
+            path_to_starknet_sierra_compile_binary: binary_path(out_dir(), CAIRO_LANG_BINARY_NAME),
             #[cfg(feature = "cairo_native")]
-            path_to_starknet_native_compile_binary: binary_path(CAIRO_NATIVE_BINARY_NAME),
+            path_to_starknet_native_compile_binary: binary_path(
+                out_dir(),
+                CAIRO_NATIVE_BINARY_NAME,
+            ),
         }
     }
 }
@@ -63,7 +66,7 @@ impl SierraToNativeCompiler for CommandLineCompiler {
         contract_class: ContractClass,
     ) -> Result<AotContractExecutor, CompilationUtilError> {
         let compiler_binary_path = &self.path_to_starknet_native_compile_binary;
-        let output_file_path = output_file_path();
+        let output_file_path = output_file_path(out_dir());
         let additional_args = [output_file_path.as_str()];
 
         let _stdout = compile_with_args(compiler_binary_path, contract_class, &additional_args)?;
@@ -100,4 +103,9 @@ fn compile_with_args(
         return Err(CompilationUtilError::CompilationError(stderr_output));
     };
     Ok(compile_output.stdout)
+}
+
+// Returns the OUT_DIR. This function is only operable at run time.
+fn out_dir() -> PathBuf {
+    env!("RUNTIME_ACCESSIBLE_OUT_DIR").into()
 }
