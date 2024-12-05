@@ -8,11 +8,14 @@ use cairo_lang_starknet_classes::contract_class::ContractClass;
 use cairo_native::executor::AotContractExecutor;
 use tempfile::NamedTempFile;
 
-use crate::build_utils::{binary_path, CAIRO_LANG_BINARY_NAME};
-#[cfg(feature = "cairo_native")]
-use crate::build_utils::{output_file_path, CAIRO_NATIVE_BINARY_NAME};
 use crate::config::SierraToCasmCompilationConfig;
+use crate::constants::CAIRO_LANG_BINARY_NAME;
+#[cfg(feature = "cairo_native")]
+use crate::constants::CAIRO_NATIVE_BINARY_NAME;
 use crate::errors::CompilationUtilError;
+use crate::paths::binary_path;
+#[cfg(feature = "cairo_native")]
+use crate::paths::output_file_path;
 use crate::SierraToCasmCompiler;
 #[cfg(feature = "cairo_native")]
 use crate::SierraToNativeCompiler;
