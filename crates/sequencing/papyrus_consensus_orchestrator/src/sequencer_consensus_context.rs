@@ -18,6 +18,7 @@ use papyrus_consensus::types::{
     ProposalContentId,
     Round,
     ValidatorId,
+    DEFAULT_VALIDATOR_ID,
 };
 use papyrus_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
 use papyrus_protobuf::consensus::{
@@ -118,7 +119,9 @@ impl SequencerConsensusContext {
             outbound_proposal_sender,
             vote_broadcast_client,
             // TODO(Matan): Set the actual validator IDs (contract addresses).
-            validators: (100..100 + num_validators).map(ValidatorId::from).collect(),
+            validators: (0..num_validators)
+                .map(|i| ValidatorId::from(DEFAULT_VALIDATOR_ID + i))
+                .collect(),
             valid_proposals: Arc::new(Mutex::new(HeightToIdToContent::new())),
             proposal_id: 0,
             current_height: None,

@@ -70,7 +70,7 @@ async fn validate_proposal_success() {
         .validate_proposal(
             block_number,
             0,
-            ValidatorId::default(),
+            ValidatorId::from(DEFAULT_VALIDATOR_ID),
             Duration::MAX,
             validate_receiver,
         )
@@ -101,7 +101,7 @@ async fn validate_proposal_fail() {
         .validate_proposal(
             block_number,
             0,
-            ValidatorId::default(),
+            ValidatorId::from(DEFAULT_VALIDATOR_ID),
             Duration::MAX,
             validate_receiver,
         )
