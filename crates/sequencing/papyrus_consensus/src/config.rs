@@ -17,6 +17,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::core::ChainId;
 
 use super::types::ValidatorId;
+use crate::types::DEFAULT_VALIDATOR_ID;
 
 const CONSENSUS_TCP_PORT: u16 = 10100;
 const CONSENSUS_QUIC_PORT: u16 = 10101;
@@ -100,7 +101,7 @@ impl Default for ConsensusConfig {
         };
         Self {
             chain_id: ChainId::Other("0x0".to_string()),
-            validator_id: ValidatorId::from(100_u32),
+            validator_id: ValidatorId::from(DEFAULT_VALIDATOR_ID),
             network_topic: "consensus".to_string(),
             start_height: BlockNumber::default(),
             num_validators: 1,
