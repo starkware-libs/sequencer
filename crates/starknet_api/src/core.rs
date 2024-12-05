@@ -368,6 +368,10 @@ impl PatriciaKey {
     pub fn key(&self) -> &StarkHash {
         &self.0
     }
+
+    pub const fn from_hex_unchecked(val: &str) -> Self {
+        Self(StarkHash::from_hex_unchecked(val))
+    }
 }
 
 impl From<u128> for PatriciaKey {

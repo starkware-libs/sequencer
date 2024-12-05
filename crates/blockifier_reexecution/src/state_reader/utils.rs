@@ -238,6 +238,8 @@ pub fn reexecute_and_verify_correctness<
 
     assert_eq_state_diff!(expected_state_diff, actual_state_diff);
 
+    // TODO(Yoav): After finalizing, the block state is None. We should return some fields from the
+    // state.
     transaction_executor.block_state
 }
 

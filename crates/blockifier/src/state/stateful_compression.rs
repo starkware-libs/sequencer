@@ -1,11 +1,10 @@
-use std::collections::HashMap;
-use std::sync::LazyLock;
+use std::collections::{BTreeSet, HashMap};
 
 use starknet_api::core::{ContractAddress, PatriciaKey};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
-use super::cached_state::{CachedState, StorageEntry};
+use super::cached_state::{CachedState, StateMaps, StorageEntry};
 use super::state_api::{StateReader, StateResult};
 
 #[cfg(test)]
@@ -16,26 +15,68 @@ type Alias = Felt;
 type AliasKey = StorageKey;
 
 // The initial alias available for allocation.
-const INITIAL_AVAILABLE_ALIAS: Felt = Felt::from_hex_unchecked("0x80");
+const INITIAL_AVAILABLE_ALIAS_HEX: &str = "0x80";
+const INITIAL_AVAILABLE_ALIAS: Felt = Felt::from_hex_unchecked(INITIAL_AVAILABLE_ALIAS_HEX);
 
 // The address of the alias contract.
 const ALIAS_CONTRACT_ADDRESS: ContractAddress = ContractAddress(PatriciaKey::TWO);
 // The storage key of the alias counter in the alias contract.
 const ALIAS_COUNTER_STORAGE_KEY: StorageKey = StorageKey(PatriciaKey::ZERO);
+// The maximal contract address for which aliases are not used and all keys are serialized as is,
+// without compression.
+const MAX_NON_COMPRESSED_CONTRACT_ADDRESS: ContractAddress =
+    ContractAddress(PatriciaKey::from_hex_unchecked("0xf"));
 // The minimal value for a key to be allocated an alias. Smaller keys are serialized as is (their
 // alias is identical to the key).
-static MIN_VALUE_FOR_ALIAS_ALLOC: LazyLock<PatriciaKey> =
-    LazyLock::new(|| PatriciaKey::try_from(INITIAL_AVAILABLE_ALIAS).unwrap());
+const MIN_VALUE_FOR_ALIAS_ALLOC: PatriciaKey =
+    PatriciaKey::from_hex_unchecked(INITIAL_AVAILABLE_ALIAS_HEX);
+
+/// Allocates aliases for the new addresses and storage keys in the alias contract.
+/// Iterates over the addresses in ascending order. For each address, sets an alias for the new
+/// storage keys (in ascending order) and for the address itself.
+pub fn state_diff_with_alias_allocation<S: StateReader>(
+    state: &mut CachedState<S>,
+) -> StateResult<StateMaps> {
+    let mut state_diff = state.to_state_diff()?.state_maps;
+
+    // Collect the contract addresses and the storage keys that need aliases.
+    let contract_addresses: BTreeSet<ContractAddress> =
+        state_diff.get_contract_addresses().into_iter().collect();
+    let mut contract_address_to_sorted_storage_keys = HashMap::new();
+    for (contract_address, storage_key) in state_diff.storage.keys() {
+        if contract_address > &MAX_NON_COMPRESSED_CONTRACT_ADDRESS {
+            contract_address_to_sorted_storage_keys
+                .entry(contract_address)
+                .or_insert_with(BTreeSet::new)
+                .insert(storage_key);
+        }
+    }
+
+    // Iterate over the addresses and the storage keys and update the aliases.
+    let mut alias_updater = AliasUpdater::new(state)?;
+    for contract_address in contract_addresses {
+        if let Some(storage_keys) = contract_address_to_sorted_storage_keys.get(&contract_address) {
+            for key in storage_keys {
+                alias_updater.insert_alias(key)?;
+            }
+        }
+        alias_updater.insert_alias(&StorageKey(contract_address.0))?;
+    }
+
+    let alias_storage_updates = alias_updater.finalize_updates();
+    state_diff.storage.extend(alias_storage_updates);
+    Ok(state_diff)
+}
 
 /// Generate updates for the alias contract with the new keys.
 struct AliasUpdater<'a, S: StateReader> {
-    state: &'a CachedState<S>,
+    state: &'a S,
     new_aliases: HashMap<AliasKey, Alias>,
     next_free_alias: Option<Alias>,
 }
 
 impl<'a, S: StateReader> AliasUpdater<'a, S> {
-    fn new(state: &'a CachedState<S>) -> StateResult<Self> {
+    fn new(state: &'a S) -> StateResult<Self> {
         let stored_counter =
             state.get_storage_at(ALIAS_CONTRACT_ADDRESS, ALIAS_COUNTER_STORAGE_KEY)?;
         Ok(Self {
@@ -47,7 +88,7 @@ impl<'a, S: StateReader> AliasUpdater<'a, S> {
 
     /// Inserts the alias key to the updates if it's not already aliased.
     fn insert_alias(&mut self, alias_key: &AliasKey) -> StateResult<()> {
-        if alias_key.0 >= *MIN_VALUE_FOR_ALIAS_ALLOC
+        if alias_key.0 >= MIN_VALUE_FOR_ALIAS_ALLOC
             && self.state.get_storage_at(ALIAS_CONTRACT_ADDRESS, *alias_key)? == Felt::ZERO
             && !self.new_aliases.contains_key(alias_key)
         {
