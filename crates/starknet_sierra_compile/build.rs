@@ -1,4 +1,3 @@
-use std::path::PathBuf;
 use std::process::Command;
 
 include!("src/constants.rs");
@@ -42,7 +41,7 @@ fn install_starknet_native_compile() {
     let binary_name = CAIRO_NATIVE_BINARY_NAME;
     let required_version = REQUIRED_CAIRO_NATIVE_VERSION;
 
-    let cairo_native_binary_path = binary_path(binary_name);
+    let cairo_native_binary_path = binary_path(out_dir(), binary_name);
     println!("cargo:rerun-if-changed={:?}", cairo_native_binary_path);
 
     // Set the runtime library path. This is required for Cairo native compilation.
@@ -127,13 +126,13 @@ fn set_run_time_out_dir_env_var() {
 }
 
 // Returns the OUT_DIR. This function is only operable at build time.
-fn out_dir() -> PathBuf {
+fn out_dir() -> std::path::PathBuf {
     std::env::var("OUT_DIR")
         .expect("Failed to get the build time OUT_DIR environment variable")
         .into()
 }
 
 #[cfg(feature = "cairo_native")]
-fn repo_root_dir() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../..").to_path_buf()
+fn repo_root_dir() -> std::path::PathBuf {
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..").to_path_buf()
 }
