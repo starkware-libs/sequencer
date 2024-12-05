@@ -23,10 +23,7 @@ use papyrus_protobuf::consensus::{
 };
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::StateDiffCommitment;
-use starknet_api::executable_transaction::{
-    AccountTransaction,
-    Transaction as ExecutableTransaction,
-};
+use starknet_api::executable_transaction::Transaction as ExecutableTransaction;
 use starknet_api::hash::PoseidonHash;
 use starknet_api::test_utils::invoke::{executable_invoke_tx, invoke_tx, InvokeTxArgs};
 use starknet_api::transaction::{Transaction, TransactionHash};
@@ -62,10 +59,10 @@ fn generate_invoke_tx() -> Transaction {
 }
 
 fn generate_executable_invoke_tx(tx_hash: Felt) -> ExecutableTransaction {
-    ExecutableTransaction::Account(AccountTransaction::Invoke(executable_invoke_tx(InvokeTxArgs {
+    ExecutableTransaction::Account(executable_invoke_tx(InvokeTxArgs {
         tx_hash: TransactionHash(tx_hash),
         ..Default::default()
-    })))
+    }))
 }
 
 // Structs which aren't utilized but should not be dropped.

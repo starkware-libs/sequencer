@@ -20,7 +20,6 @@ macro_rules! tx {
         max_l2_gas_price: $max_l2_gas_price:expr
     ) => {{
             use starknet_api::block::GasPrice;
-            use starknet_api::executable_transaction::AccountTransaction;
             use starknet_api::{invoke_tx_args, tx_hash};
             use starknet_api::test_utils::invoke::executable_invoke_tx;
             use starknet_api::transaction::fields::{
@@ -38,13 +37,13 @@ macro_rules! tx {
                 ..Default::default()
             });
 
-            AccountTransaction::Invoke(executable_invoke_tx(invoke_tx_args!{
+            executable_invoke_tx(invoke_tx_args!{
                 tx_hash: tx_hash!($tx_hash),
                 sender_address: contract_address!($address),
                 nonce: nonce!($tx_nonce),
                 tip: Tip($tip),
                 resource_bounds,
-            }))
+            })
     }};
     (tx_hash: $tx_hash:expr, address: $address:expr, tx_nonce: $tx_nonce:expr, tip: $tip:expr) => {{
         use mempool_test_utils::starknet_api_test_utils::VALID_L2_GAS_MAX_PRICE_PER_UNIT;

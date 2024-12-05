@@ -2,7 +2,10 @@ use crate::abi::abi_utils::selector_from_name;
 use crate::calldata;
 use crate::core::{ContractAddress, Nonce};
 use crate::data_availability::DataAvailabilityMode;
-use crate::executable_transaction::InvokeTransaction as ExecutableInvokeTransaction;
+use crate::executable_transaction::{
+    AccountTransaction,
+    InvokeTransaction as ExecutableInvokeTransaction,
+};
 use crate::rpc_transaction::{RpcInvokeTransaction, RpcInvokeTransactionV3, RpcTransaction};
 use crate::transaction::constants::EXECUTE_ENTRY_POINT_NAME;
 use crate::transaction::fields::{
@@ -116,11 +119,12 @@ pub fn invoke_tx(invoke_args: InvokeTxArgs) -> InvokeTransaction {
     }
 }
 
-pub fn executable_invoke_tx(invoke_args: InvokeTxArgs) -> ExecutableInvokeTransaction {
+pub fn executable_invoke_tx(invoke_args: InvokeTxArgs) -> AccountTransaction {
     let tx_hash = invoke_args.tx_hash;
     let tx = invoke_tx(invoke_args);
+    let invoke_tx = ExecutableInvokeTransaction { tx, tx_hash };
 
-    ExecutableInvokeTransaction { tx, tx_hash }
+    AccountTransaction::Invoke(invoke_tx)
 }
 
 pub fn rpc_invoke_tx(invoke_args: InvokeTxArgs) -> RpcTransaction {
