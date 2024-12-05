@@ -1,6 +1,6 @@
-// Note: This module includes constants that are needed during build and run times. It must
-// not contain functionality that is available in only in one of these modes. Specifically, it
-// must avoid relying on env variables such as 'CARGO_*' or 'OUT_DIR'.
+// Note: This module includes path resolution functions that are needed during build and run times.
+// It must not contain functionality that is available in only in one of these modes. Specifically,
+// it must avoid relying on env variables such as 'CARGO_*' or 'OUT_DIR'.
 
 fn target_dir(out_dir: std::path::PathBuf) -> std::path::PathBuf {
     out_dir
