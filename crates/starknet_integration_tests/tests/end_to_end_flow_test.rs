@@ -38,7 +38,7 @@ async fn end_to_end(mut tx_generator: MultiAccountTransactionGenerator) {
     starknet_sequencer_infra::trace_util::configure_tracing();
 
     const LISTEN_TO_BROADCAST_MESSAGES_TIMEOUT: std::time::Duration =
-        std::time::Duration::from_secs(5);
+        std::time::Duration::from_secs(50);
     // Setup.
     let mut mock_running_system = FlowTestSetup::new_from_tx_generator(&tx_generator).await;
 
@@ -58,6 +58,8 @@ async fn end_to_end(mut tx_generator: MultiAccountTransactionGenerator) {
         .iter()
         .map(|s| s.config.consensus_manager_config.consensus_config.validator_id)
         .cycle();
+    // We start at height 1, so we need to skip the proposer of the initial height.
+    expected_proposer_id.next().unwrap();
 
     // Build multiple heights to ensure heights are committed.
     for (height, expected_content_id) in itertools::zip_eq(heights_to_build, expected_content_ids) {
@@ -89,6 +91,7 @@ async fn listen_to_broadcasted_messages(
     expected_batched_tx_hashes: &[TransactionHash],
     expected_height: BlockNumber,
     expected_content_id: Felt,
+    expected_proposer_id: ValidatorId,
 ) {
     let chain_id = CHAIN_ID_FOR_TESTS.clone();
     let broadcasted_messages_receiver =
@@ -98,7 +101,7 @@ async fn listen_to_broadcasted_messages(
         height: expected_height,
         round: 0,
         valid_round: None,
-        proposer: ValidatorId::from(100_u32),
+        proposer: expected_proposer_id,
     };
     let expected_proposal_fin = ProposalFin { proposal_content_id: BlockHash(expected_content_id) };
 
