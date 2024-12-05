@@ -93,9 +93,6 @@ pub struct SequencerConsensusContext {
     proposal_id: u64,
     current_height: Option<BlockNumber>,
     current_round: Round,
-    // Used to broadcast proposals to other consensus nodes.
-    // TODO(Guy) switch to the actual streaming struct.
-    _proposal_streaming_client: BroadcastTopicClient<ProposalPart>,
     // The active proposal refers to the proposal being validated at the current height/round.
     // Building proposals are not tracked as active, as consensus can't move on to the next
     // height/round until building is done. Context only works on proposals for the
@@ -112,14 +109,12 @@ pub struct SequencerConsensusContext {
 impl SequencerConsensusContext {
     pub fn new(
         batcher: Arc<dyn BatcherClient>,
-        _proposal_streaming_client: BroadcastTopicClient<ProposalPart>,
         outbound_proposal_sender: mpsc::Sender<(u64, mpsc::Receiver<ProposalPart>)>,
         vote_broadcast_client: BroadcastTopicClient<ConsensusMessage>,
         num_validators: u64,
     ) -> Self {
         Self {
             batcher,
-            _proposal_streaming_client,
             outbound_proposal_sender,
             vote_broadcast_client,
             // TODO(Matan): Set the actual validator IDs (contract addresses).
