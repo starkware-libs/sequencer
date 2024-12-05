@@ -55,14 +55,15 @@ impl MonitoringEndpoint {
         let MonitoringEndpointConfig { ip, port, .. } = self.config;
         let endpoint_addr = SocketAddr::new(ip, port);
 
-        let app = self.app(self.prometheus_handle.clone());
+        let app = self.app();
         info!("MonitoringEndpoint running using socket: {}", endpoint_addr);
 
         Server::bind(&endpoint_addr).serve(app.into_make_service()).await
     }
 
-    fn app(&self, prometheus_handle: Option<PrometheusHandle>) -> Router {
+    fn app(&self) -> Router {
         let version = self.version.to_string();
+        let prometheus_handle = self.prometheus_handle.clone();
 
         Router::new()
             .route(
