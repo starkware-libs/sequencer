@@ -9,10 +9,15 @@ use crate::execution::syscalls::syscall_tests::constants::REQUIRED_GAS_STORAGE_R
 use crate::retdata;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, BALANCE};
+use crate::test_utils::{
+    trivial_external_entry_point_new,
+    CairoVersion,
+    RunnableCairoVersion,
+    BALANCE,
+};
 
-#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Native; "Native"))]
-#[test_case(CairoVersion::Cairo1; "VM")]
+#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Cairo1(RunnableCairoVersion::Native); "Native"))]
+#[test_case(CairoVersion::Cairo1(RunnableCairoVersion::Casm); "VM")]
 fn test_out_of_gas(cairo_version: CairoVersion) {
     let test_contract = FeatureContract::TestContract(cairo_version);
     let chain_info = &ChainInfo::create_for_testing();
