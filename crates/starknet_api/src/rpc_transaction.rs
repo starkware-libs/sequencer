@@ -4,6 +4,7 @@ mod rpc_transaction_test;
 
 use std::collections::HashMap;
 
+use cairo_lang_starknet_classes::contract_class::ContractEntryPoints as CairoLangContractEntryPoints;
 use serde::{Deserialize, Serialize};
 
 use crate::contract_class::EntryPointType;
@@ -280,6 +281,18 @@ pub struct EntryPointByType {
     pub external: Vec<EntryPoint>,
     #[serde(rename = "L1_HANDLER")]
     pub l1handler: Vec<EntryPoint>,
+}
+
+// TODO(AVIV): Consider removing this conversion and using CairoLangContractEntryPoints instead of
+// defining the EntryPointByType struct.
+impl From<CairoLangContractEntryPoints> for EntryPointByType {
+    fn from(value: CairoLangContractEntryPoints) -> Self {
+        Self {
+            constructor: value.constructor.into_iter().map(EntryPoint::from).collect(),
+            external: value.external.into_iter().map(EntryPoint::from).collect(),
+            l1handler: value.l1_handler.into_iter().map(EntryPoint::from).collect(),
+        }
+    }
 }
 
 impl EntryPointByType {
