@@ -1,6 +1,9 @@
 runs:
   using: "composite"
   steps:
+    # required to clone native as a gitsubmodule
+    - name: Submodules update.
+      run: git submodule update --init --recursive
     - name: Install rust.
       uses: ./.github/actions/install_rust
     - name: Install cairo native.
