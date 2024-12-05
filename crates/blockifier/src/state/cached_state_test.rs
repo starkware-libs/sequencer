@@ -20,7 +20,7 @@ use crate::state::cached_state::*;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{create_calldata, CairoVersion, BALANCE};
+use crate::test_utils::{create_calldata, CairoVersion, RunnableCairo1,  BALANCE};
 use crate::transaction::test_utils::{default_all_resource_bounds, run_invoke_tx, STORAGE_WRITE};
 const CONTRACT_ADDRESS: &str = "0x100";
 
@@ -487,7 +487,7 @@ fn test_write_at_validate_and_execute(
     #[case] validate_value: Felt,
     #[case] execute_value: Felt,
     #[case] charged: bool,
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
+    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm))] cairo_version: CairoVersion,
     default_all_resource_bounds: ValidResourceBounds,
 ) {
     let block_context = BlockContext::create_for_testing();
