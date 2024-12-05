@@ -67,30 +67,37 @@ where
         metrics::gauge!(PAPYRUS_CONSENSUS_HEIGHT, current_height.0 as f64);
 
         let is_observer = current_height < start_active_height;
-        let run_height = manager.run_height(
-            &mut context,
-            current_height,
-            is_observer,
-            &mut broadcast_channels,
-            &mut inbound_proposal_receiver,
-        );
-
-        // `run_height` is not cancel safe. Our implementation doesn't enable us to start and stop
-        // it. We also cannot restart the height; when we dropped the future we dropped the state it
-        // built and risk equivocating. Therefore, we must only enter the other select branches if
-        // we are certain to leave this height.
-        tokio::select! {
-            decision = run_height => {
-                let decision = decision?;
+        match manager
+            .run_height(
+                &mut context,
+                current_height,
+                is_observer,
+                &mut broadcast_channels,
+                &mut inbound_proposal_receiver,
+                &mut sync_receiver,
+            )
+            .await?
+        {
+            RunHeightRes::Decision(decision) => {
                 context.decision_reached(decision.block, decision.precommits).await?;
                 current_height = current_height.unchecked_next();
-            },
-            sync_height = sync_height(current_height, &mut sync_receiver) => {
+            }
+            RunHeightRes::Sync(sync_height) => {
                 metrics::increment_counter!(PAPYRUS_CONSENSUS_SYNC_COUNT);
-                current_height = sync_height?.unchecked_next();
+                current_height = sync_height.unchecked_next();
             }
         }
     }
+}
+
+/// Run height can end either when consensus reaches a decision or when we learn, via sync, of the
+/// decision.
+// TODO(Matan): Sync may change when Shahak actually implements.
+pub enum RunHeightRes {
+    /// Decision reached.
+    Decision(Decision),
+    /// Sync protocol returned a future height.
+    Sync(BlockNumber),
 }
 
 /// Runs Tendermint repeatedly across different heights. Handles issues which are not explicitly
@@ -118,15 +125,19 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
     ///
     /// Assumes that `height` is monotonically increasing across calls for the sake of filtering
     /// `cached_messaged`.
-    #[instrument(skip(self, context, broadcast_channels), level = "info")]
-    pub async fn run_height(
+    #[instrument(skip(self, context, broadcast_channels, sync_receiver), level = "info")]
+    pub async fn run_height<SyncReceiverT>(
         &mut self,
         context: &mut ContextT,
         height: BlockNumber,
         is_observer: bool,
         broadcast_channels: &mut BroadcastConsensusMessageChannel,
         proposal_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
-    ) -> Result<Decision, ConsensusError> {
+        sync_receiver: &mut SyncReceiverT,
+    ) -> Result<RunHeightRes, ConsensusError>
+    where
+        SyncReceiverT: Stream<Item = BlockNumber> + Unpin,
+    {
         let validators = context.validators(height).await;
         info!("running consensus for height {height:?} with validator set {validators:?}");
         let mut shc = SingleHeightConsensus::new(
@@ -139,7 +150,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         let mut shc_events = FuturesUnordered::new();
 
         match self.start_height(context, height, &mut shc).await? {
-            ShcReturn::Decision(decision) => return Ok(decision),
+            ShcReturn::Decision(decision) => return Ok(RunHeightRes::Decision(decision)),
             ShcReturn::Tasks(tasks) => {
                 for task in tasks {
                     shc_events.push(task.run());
@@ -169,10 +180,13 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 Some(shc_event) = shc_events.next() => {
                     shc.handle_event(context, shc_event).await?
                 },
+                sync_height = sync_height(height, sync_receiver) => {
+                    return Ok(RunHeightRes::Sync(sync_height?));
+                }
             };
 
             match shc_return {
-                ShcReturn::Decision(decision) => return Ok(decision),
+                ShcReturn::Decision(decision) => return Ok(RunHeightRes::Decision(decision)),
                 ShcReturn::Tasks(tasks) => {
                     for task in tasks {
                         shc_events.push(task.run());
@@ -319,7 +333,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
 // Return only when a height is reached that is greater than or equal to the current height.
 async fn sync_height<SyncReceiverT>(
     height: BlockNumber,
-    mut sync_receiver: SyncReceiverT,
+    sync_receiver: &mut SyncReceiverT,
 ) -> Result<BlockNumber, ConsensusError>
 where
     SyncReceiverT: Stream<Item = BlockNumber> + Unpin,
