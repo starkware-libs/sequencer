@@ -1,4 +1,5 @@
 import json
+import typing
 
 from itertools import chain
 from constructs import Construct
@@ -6,7 +7,7 @@ from cdk8s import Names, ApiObjectMetadata
 from imports import k8s
 from imports.com.google import cloud as google
 
-from services import topology
+from services import topology, const
 
 
 class ServiceApp(Construct):
@@ -42,6 +43,61 @@ class ServiceApp(Construct):
         if topology.pvc is not None:
             self.set_k8s_pvc()
 
+    def _get_config_attr(self, attribute):
+        config_attr = self.node_config.get(attribute).get('value')
+        if config_attr is not None:
+            return config_attr
+        else:
+            assert f'Config attribute "{attribute}" is missing.'
+
+    def _get_container_ports(self):
+        return [
+            k8s.ContainerPort(
+                container_port=self._get_config_attr(port)
+            ) for port in ["http_server_config.port", "monitoring_endpoint_config.port"]
+        ]
+
+    def _get_container_resources(self):
+        pass
+
+    def _get_service_ports(self):
+        return [
+            k8s.ServicePort(
+                name=attr.split("_")[0],
+                port=self._get_config_attr(attr),
+                target_port=k8s.IntOrString.from_number(self._get_config_attr(attr))
+            ) for attr in ["http_server_config.port", "monitoring_endpoint_config.port"]
+        ]
+
+    def _get_http_probe(
+            self,
+            period_seconds: int = const.PROBE_PERIOD_SECONDS,
+            failure_threshold: int = const.PROBE_FAILURE_THRESHOLD,
+            timeout_seconds: int = const.PROBE_TIMEOUT_SECONDS
+    ):
+        path = "/monitoring/alive"
+        # path = self.node_config['monitoring_path'].get("value") # TODO add monitoring path in node_config
+        port = self.node_config.get('monitoring_endpoint_config.port').get("value")
+
+        return k8s.Probe(
+            http_get=k8s.HttpGetAction(
+                path=path,
+                port=k8s.IntOrString.from_number(port),
+            ),
+            period_seconds=period_seconds,
+            failure_threshold=failure_threshold,
+            timeout_seconds=timeout_seconds,
+        )
+
+    def _get_ingress_rules(self):
+        pass
+
+    def _get_ingress_paths(self):
+        pass
+
+    def _get_ingress_tls(self):
+        pass
+
     def set_k8s_namespace(self):
         return k8s.KubeNamespace(self, "namespace", metadata=k8s.ObjectMeta(name=self.namespace))
 
@@ -58,27 +114,13 @@ class ServiceApp(Construct):
             self,
             "service",
             spec=k8s.ServiceSpec(
-                type=self.topology.service.type.value,
-                ports=[
-                    k8s.ServicePort(
-                        name=port.name,
-                        port=port.port,
-                        target_port=k8s.IntOrString.from_number(port.container_port),
-                    )
-                    for port in self.topology.service.ports
-                ],
+                type=self.topology.service.type,
+                ports=self._get_service_ports(),
                 selector=self.label,
             ),
         )
 
-    def _get_container_ports(self):
-        ports = []
-        for c in ["http_server_config.port", "monitoring_endpoint_config.port"]:
-            ports.append(self.node_config[c].get("value"))
-        return ports
-
     def set_k8s_deployment(self):
-        node_http_port = self.node_config["http_server_config.port"].get("value")
         return k8s.KubeDeployment(
             self,
             "deployment",
@@ -91,55 +133,14 @@ class ServiceApp(Construct):
                         security_context=k8s.PodSecurityContext(fs_group=1000),
                         containers=[
                             k8s.Container(
-                                name=f"{self.node.id}-{container.name}",
+                                name=self.node.id,
                                 image=container.image,
                                 # command=["sleep", "infinity"],
                                 args=container.args,
-                                ports=[
-                                    k8s.ContainerPort(
-                                        container_port=port,
-                                    )
-                                    for port in self._get_container_ports()
-                                ],
-                                startup_probe=(
-                                    k8s.Probe(
-                                        http_get=k8s.HttpGetAction(
-                                            path=container.startup_probe.path,
-                                            port=k8s.IntOrString.from_number(node_http_port),
-                                        ),
-                                        period_seconds=container.startup_probe.period_seconds,
-                                        failure_threshold=container.startup_probe.failure_threshold,
-                                        timeout_seconds=container.startup_probe.timeout_seconds,
-                                    )
-                                    if container.startup_probe is not None
-                                    else None
-                                ),
-                                readiness_probe=(
-                                    k8s.Probe(
-                                        http_get=k8s.HttpGetAction(
-                                            path=container.readiness_probe.path,
-                                            port=k8s.IntOrString.from_number(node_http_port),
-                                        ),
-                                        period_seconds=container.readiness_probe.period_seconds,
-                                        failure_threshold=container.readiness_probe.failure_threshold,
-                                        timeout_seconds=container.readiness_probe.timeout_seconds,
-                                    )
-                                    if container.readiness_probe is not None
-                                    else None
-                                ),
-                                liveness_probe=(
-                                    k8s.Probe(
-                                        http_get=k8s.HttpGetAction(
-                                            path=container.liveness_probe.path,
-                                            port=k8s.IntOrString.from_number(node_http_port),
-                                        ),
-                                        period_seconds=container.liveness_probe.period_seconds,
-                                        failure_threshold=container.liveness_probe.failure_threshold,
-                                        timeout_seconds=container.liveness_probe.timeout_seconds,
-                                    )
-                                    if container.liveness_probe is not None
-                                    else None
-                                ),
+                                ports=self._get_container_ports(),
+                                startup_probe=self._get_http_probe(),
+                                readiness_probe=self._get_http_probe(),
+                                liveness_probe=self._get_http_probe(),
                                 volume_mounts=[
                                     k8s.VolumeMount(
                                         name=mount.name,
@@ -199,7 +200,7 @@ class ServiceApp(Construct):
             spec=k8s.IngressSpec(
                 ingress_class_name=self.topology.ingress.class_name,
                 tls=[
-                    k8s.IngressTls(hosts=tls.hosts, secret_name=tls.secret_name)
+                    k8s.IngressTls(hosts=tls.hosts, secret_name=f"{self.node.id}-tls")
                     for tls in self.topology.ingress.tls or []
                 ],
                 rules=[
@@ -239,29 +240,6 @@ class ServiceApp(Construct):
                 volume_mode=self.topology.pvc.volume_mode,
                 resources=k8s.ResourceRequirements(
                     requests={"storage": k8s.Quantity.from_string(self.topology.pvc.storage)}
-                ),
-            ),
-        )
-
-    def set_k8s_backend_config(self):
-        return google.BackendConfig(
-            self,
-            "backendconfig",
-            metadata=ApiObjectMetadata(name=f"{self.node.id}-backendconfig", labels=self.label),
-            spec=google.BackendConfigSpec(
-                health_check=google.BackendConfigSpecHealthCheck(
-                    check_interval_sec=5,
-                    healthy_threshold=10,
-                    unhealthy_threshold=5,
-                    timeout_sec=5,
-                    request_path="/",
-                    type="http",
-                ),
-                iap=google.BackendConfigSpecIap(
-                    enabled=True,
-                    oauthclient_credentials=google.BackendConfigSpecIapOauthclientCredentials(
-                        secret_name=""
-                    ),
                 ),
             ),
         )

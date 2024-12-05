@@ -1,5 +1,17 @@
-from services import objects, const, helpers
+from services import objects, const
 from config.sequencer import SequencerDevConfig
+
+
+# replicas
+# types
+# config
+# validators
+
+cluster_name = "gcp-integration"
+replicas = 1
+images = {
+    "sequencer": "us.gcr.io/starkware-dev/sequencer-node-test:0.0.1-dev.3"
+}
 
 
 def get_pvc() -> objects.PersistentVolumeClaim:
@@ -58,7 +70,7 @@ def get_service() -> objects.Service:
             ),
             objects.PortMapping(
                 name="rpc",
-                port=const.RPC_SERVICE_PORT,
+                port=const.GRPC_SERVICE_PORT,
                 container_port=const.RPC_CONTAINER_PORT,
             ),
             objects.PortMapping(
