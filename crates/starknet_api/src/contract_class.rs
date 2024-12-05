@@ -52,19 +52,15 @@ impl ContractClass {
 pub struct SierraVersion(Version);
 
 impl SierraVersion {
-    pub fn new(major: u64, minor: u64, patch: u64) -> Self {
-        Self(Version::new(major, minor, patch))
-    }
-
-    /// Version of deprecated contract class.
-    pub fn zero() -> Self {
-        Self(Version::new(0, 0, 0))
-    }
+    /// Version of deprecated contract class (Cairo 0).
+    pub const DEPRECATED: Self = Self(Version::new(0, 0, 0));
 
     // TODO(Aviv): Implement logic to fetch the latest version dynamically from Cargo.toml and write
     // tests to ensure that it matches the value returned by this function.
-    pub fn latest() -> Self {
-        Self::new(2, 8, 4)
+    pub const LATEST: Self = Self(Version::new(2, 8, 4));
+
+    pub fn new(major: u64, minor: u64, patch: u64) -> Self {
+        Self(Version::new(major, minor, patch))
     }
 
     /// Converts a sierra program to a SierraVersion.
@@ -105,7 +101,7 @@ impl SierraVersion {
 
 impl Default for SierraVersion {
     fn default() -> Self {
-        Self::latest()
+        Self::LATEST
     }
 }
 
