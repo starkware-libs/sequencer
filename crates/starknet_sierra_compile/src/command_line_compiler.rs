@@ -6,13 +6,18 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_lang_starknet_classes::contract_class::ContractClass;
 #[cfg(feature = "cairo_native")]
 use cairo_native::executor::AotContractExecutor;
+use infra_utils::path::runtime_resolve_project_relative_path;
 use tempfile::NamedTempFile;
 
-use crate::build_utils::{binary_path, CAIRO_LANG_BINARY_NAME};
-#[cfg(feature = "cairo_native")]
-use crate::build_utils::{output_file_path, CAIRO_NATIVE_BINARY_NAME};
 use crate::config::SierraToCasmCompilationConfig;
 use crate::errors::CompilationUtilError;
+use crate::path_constants::{CAIRO_LANG_BINARY_NAME, SHARED_EXECUTABLES_DIR};
+#[cfg(feature = "cairo_native")]
+use crate::path_constants::{
+    CAIRO_NATIVE_BINARY_NAME,
+    COMPILED_OUTPUT_NAME,
+    NATIVE_COMPILE_OUT_DIR,
+};
 use crate::SierraToCasmCompiler;
 #[cfg(feature = "cairo_native")]
 use crate::SierraToNativeCompiler;
@@ -27,11 +32,14 @@ pub struct CommandLineCompiler {
 
 impl CommandLineCompiler {
     pub fn new(config: SierraToCasmCompilationConfig) -> Self {
+        let shared_executables_dir = runtime_resolve_project_relative_path(SHARED_EXECUTABLES_DIR);
         Self {
             config,
-            path_to_starknet_sierra_compile_binary: binary_path(CAIRO_LANG_BINARY_NAME),
+            path_to_starknet_sierra_compile_binary: shared_executables_dir
+                .join(CAIRO_LANG_BINARY_NAME),
             #[cfg(feature = "cairo_native")]
-            path_to_starknet_native_compile_binary: binary_path(CAIRO_NATIVE_BINARY_NAME),
+            path_to_starknet_native_compile_binary: shared_executables_dir
+                .join(CAIRO_NATIVE_BINARY_NAME),
         }
     }
 }
@@ -60,8 +68,12 @@ impl SierraToNativeCompiler for CommandLineCompiler {
         contract_class: ContractClass,
     ) -> Result<AotContractExecutor, CompilationUtilError> {
         let compiler_binary_path = &self.path_to_starknet_native_compile_binary;
-        let output_file_path = output_file_path();
-        let additional_args = [output_file_path.as_str()];
+        let output_directory = runtime_resolve_project_relative_path(NATIVE_COMPILE_OUT_DIR);
+        std::fs::create_dir_all(&output_directory)
+            .expect("Failed to create native compilation output directory");
+        let output_file_path = output_directory.join(COMPILED_OUTPUT_NAME);
+        let additional_args =
+            [output_file_path.to_str().expect("Failed to convert output file path to str.")];
 
         let _stdout = compile_with_args(compiler_binary_path, contract_class, &additional_args)?;
 
