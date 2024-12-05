@@ -26,102 +26,26 @@ class ServiceApp(Construct):
         self.topology = topology
         self.node_config = topology.config.get_config()
 
-        self.set_k8s_namespace()
+        k8s.KubeNamespace(self, "namespace", metadata=k8s.ObjectMeta(name=self.namespace))
 
-        if topology.service is not None:
-            self.set_k8s_service()
-
-        if topology.config is not None:
-            self.set_k8s_configmap()
-
-        if topology.deployment is not None:
-            self.set_k8s_deployment()
-
-        if topology.ingress is not None:
-            self.set_k8s_ingress()
-
-        if topology.pvc is not None:
-            self.set_k8s_pvc()
-
-    def _get_config_attr(self, attribute):
-        config_attr = self.node_config.get(attribute).get('value')
-        if config_attr is not None:
-            return config_attr
-        else:
-            assert f'Config attribute "{attribute}" is missing.'
-
-    def _get_container_ports(self):
-        return [
-            k8s.ContainerPort(
-                container_port=self._get_config_attr(port)
-            ) for port in ["http_server_config.port", "monitoring_endpoint_config.port"]
-        ]
-
-    def _get_container_resources(self):
-        pass
-
-    def _get_service_ports(self):
-        return [
-            k8s.ServicePort(
-                name=attr.split("_")[0],
-                port=self._get_config_attr(attr),
-                target_port=k8s.IntOrString.from_number(self._get_config_attr(attr))
-            ) for attr in ["http_server_config.port", "monitoring_endpoint_config.port"]
-        ]
-
-    def _get_http_probe(
-            self,
-            period_seconds: int = const.PROBE_PERIOD_SECONDS,
-            failure_threshold: int = const.PROBE_FAILURE_THRESHOLD,
-            timeout_seconds: int = const.PROBE_TIMEOUT_SECONDS
-    ):
-        path = "/monitoring/alive"
-        # path = self.node_config['monitoring_path'].get("value") # TODO add monitoring path in node_config
-        port = self.node_config.get('monitoring_endpoint_config.port').get("value")
-
-        return k8s.Probe(
-            http_get=k8s.HttpGetAction(
-                path=path,
-                port=k8s.IntOrString.from_number(port),
-            ),
-            period_seconds=period_seconds,
-            failure_threshold=failure_threshold,
-            timeout_seconds=timeout_seconds,
-        )
-
-    def _get_ingress_rules(self):
-        pass
-
-    def _get_ingress_paths(self):
-        pass
-
-    def _get_ingress_tls(self):
-        pass
-
-    def set_k8s_namespace(self):
-        return k8s.KubeNamespace(self, "namespace", metadata=k8s.ObjectMeta(name=self.namespace))
-
-    def set_k8s_configmap(self):
-        return k8s.KubeConfigMap(
+        k8s.KubeConfigMap(
             self,
             "configmap",
             metadata=k8s.ObjectMeta(name=f"{self.node.id}-config"),
             data=dict(config=json.dumps(self.topology.config.get_config())),
         )
 
-    def set_k8s_service(self):
-        return k8s.KubeService(
+        k8s.KubeService(
             self,
             "service",
             spec=k8s.ServiceSpec(
-                type=self.topology.service.type,
+                type=const.ServiceType.CLUSTER_IP,
                 ports=self._get_service_ports(),
                 selector=self.label,
             ),
         )
 
-    def set_k8s_deployment(self):
-        return k8s.KubeDeployment(
+        k8s.KubeDeployment(
             self,
             "deployment",
             spec=k8s.DeploymentSpec(
@@ -188,8 +112,7 @@ class ServiceApp(Construct):
             ),
         )
 
-    def set_k8s_ingress(self):
-        return k8s.KubeIngress(
+        k8s.KubeIngress(
             self,
             "ingress",
             metadata=k8s.ObjectMeta(
@@ -229,7 +152,6 @@ class ServiceApp(Construct):
             ),
         )
 
-    def set_k8s_pvc(self):
         k8s.KubePersistentVolumeClaim(
             self,
             "pvc",
@@ -243,3 +165,60 @@ class ServiceApp(Construct):
                 ),
             ),
         )
+
+
+    def _get_config_attr(self, attribute):
+        config_attr = self.node_config.get(attribute).get('value')
+        if config_attr is None:
+            assert f'Config attribute "{attribute}" is missing.'
+        else:
+            return config_attr
+
+    def _get_container_ports(self):
+        return [
+            k8s.ContainerPort(
+                container_port=self._get_config_attr(port)
+            ) for port in ["http_server_config.port", "monitoring_endpoint_config.port"]
+        ]
+
+    def _get_container_resources(self):
+        pass
+
+    def _get_service_ports(self):
+        return [
+            k8s.ServicePort(
+                name=attr.split("_")[0],
+                port=self._get_config_attr(attr),
+                target_port=k8s.IntOrString.from_number(self._get_config_attr(attr))
+            ) for attr in ["http_server_config.port", "monitoring_endpoint_config.port"]
+        ]
+
+    def _get_http_probe(
+            self,
+            period_seconds: int = const.PROBE_PERIOD_SECONDS,
+            failure_threshold: int = const.PROBE_FAILURE_THRESHOLD,
+            timeout_seconds: int = const.PROBE_TIMEOUT_SECONDS
+    ):
+        path = "/monitoring/alive"
+        # path = self.node_config['monitoring_path'].get("value") # TODO add monitoring path in node_config
+        port = self.node_config.get('monitoring_endpoint_config.port').get("value")
+
+        return k8s.Probe(
+            http_get=k8s.HttpGetAction(
+                path=path,
+                port=k8s.IntOrString.from_number(port),
+            ),
+            period_seconds=period_seconds,
+            failure_threshold=failure_threshold,
+            timeout_seconds=timeout_seconds,
+        )
+
+    def _get_ingress_rules(self):
+        pass
+
+    def _get_ingress_paths(self):
+        pass
+
+    def _get_ingress_tls(self):
+        pass
+
