@@ -225,7 +225,7 @@ pub fn create_batcher_config(
     chain_info: ChainInfo,
 ) -> BatcherConfig {
     // TODO(Arni): Create BlockBuilderConfig create for testing method and use here.
-    const SEQUENCER_ADDRESS_FOR_TESTING: u128 = 1991;
+    const SEQUENCER_ADDRESS_FOR_TESTING: u32 = 100;
 
     BatcherConfig {
         storage: batcher_storage_config,
