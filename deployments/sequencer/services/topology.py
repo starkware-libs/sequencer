@@ -7,6 +7,9 @@ from services import objects, topology_helpers
 
 @dataclasses.dataclass
 class ServiceTopology:
+    cluster_name: topology_helpers.cluster_name
+    images: topology_helpers.images
+
     deployment: typing.Optional[objects.Deployment] = dataclasses.field(
         default_factory=topology_helpers.get_deployment
     )
