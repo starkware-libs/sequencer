@@ -726,8 +726,8 @@
   },
   "consensus_manager_config.consensus_config.validator_id": {
     "description": "The validator id of the node.",
-    "privacy": "Public",
-    "value": "0x64"
+    "pointer_target": "validator_id",
+    "privacy": "Public"
   },
   "eth_fee_token_address": {
     "description": "A required param! Address of the ETH fee token.",
@@ -946,6 +946,11 @@
   },
   "strk_fee_token_address": {
     "description": "A required param! Address of the STRK fee token.",
+    "param_type": "String",
+    "privacy": "TemporaryValue"
+  },
+  "validator_id": {
+    "description": "A required param! The ID of the validator.Also the address of this validator as a starknet contract.",
     "param_type": "String",
     "privacy": "TemporaryValue"
   },
