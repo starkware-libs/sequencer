@@ -26,7 +26,7 @@ use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_types_core::felt::Felt;
 use tokio::sync::Notify;
 
-use super::{run_consensus, MultiHeightManager};
+use super::{run_consensus, MultiHeightManager, RunHeightRes};
 use crate::config::TimeoutsConfig;
 use crate::test_utils::{precommit, prevote, proposal_init};
 use crate::types::{
@@ -129,6 +129,13 @@ fn expect_validate_proposal(context: &mut MockTestContext, block_hash: Felt) {
         .times(1);
 }
 
+fn assert_decision(res: RunHeightRes, id: Felt) {
+    match res {
+        RunHeightRes::Decision(decision) => assert_eq!(decision.block, BlockHash(id)),
+        _ => panic!("Expected decision"),
+    }
+}
+
 #[tokio::test]
 async fn manager_multiple_heights_unordered() {
     let TestSubscriberChannels { mock_network, subscriber_channels } =
@@ -179,10 +186,11 @@ async fn manager_multiple_heights_unordered() {
             false,
             &mut subscriber_channels,
             &mut proposal_receiver_receiver,
+            &mut futures::stream::pending(),
         )
         .await
         .unwrap();
-    assert_eq!(decision.block, BlockHash(Felt::ONE));
+    assert_decision(decision, Felt::ONE);
 
     // Run the manager for height 2.
     expect_validate_proposal(&mut context, Felt::TWO);
@@ -193,10 +201,11 @@ async fn manager_multiple_heights_unordered() {
             false,
             &mut subscriber_channels,
             &mut proposal_receiver_receiver,
+            &mut futures::stream::pending(),
         )
         .await
         .unwrap();
-    assert_eq!(decision.block, BlockHash(Felt::TWO));
+    assert_decision(decision, Felt::TWO);
 }
 
 #[tokio::test]
@@ -392,10 +401,11 @@ async fn test_timeouts() {
                 false,
                 &mut subscriber_channels.into(),
                 &mut proposal_receiver_receiver,
+                &mut futures::stream::pending(),
             )
             .await
             .unwrap();
-        assert_eq!(decision.block, BlockHash(Felt::ONE));
+        assert_decision(decision, Felt::ONE);
     });
 
     // Wait for the timeout to be triggered.
