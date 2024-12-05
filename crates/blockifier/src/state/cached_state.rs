@@ -24,6 +24,7 @@ pub type ContractClassMapping = HashMap<ClassHash, RunnableCompiledClass>;
 ///
 /// Writer functionality is builtin, whereas Reader functionality is injected through
 /// initialization.
+#[cfg_attr(any(test, feature = "reexecution"), derive(Clone))]
 #[derive(Debug)]
 pub struct CachedState<S: StateReader> {
     pub state: S,
@@ -362,7 +363,7 @@ impl StateMaps {
         }
     }
 
-    pub fn get_modified_contracts(&self) -> HashSet<ContractAddress> {
+    pub fn get_contract_addresses(&self) -> HashSet<ContractAddress> {
         // Storage updates.
         let mut modified_contracts: HashSet<ContractAddress> =
             self.storage.keys().map(|address_key_pair| address_key_pair.0).collect();
@@ -376,7 +377,7 @@ impl StateMaps {
 
     pub fn into_keys(self) -> StateChangesKeys {
         StateChangesKeys {
-            modified_contracts: self.get_modified_contracts(),
+            modified_contracts: self.get_contract_addresses(),
             nonce_keys: self.nonces.into_keys().collect(),
             class_hash_keys: self.class_hashes.into_keys().collect(),
             storage_keys: self.storage.into_keys().collect(),
@@ -762,7 +763,7 @@ impl StateChanges {
         sender_address: Option<ContractAddress>,
         fee_token_address: ContractAddress,
     ) -> StateChangesCountForFee {
-        let mut modified_contracts = self.state_maps.get_modified_contracts();
+        let mut modified_contracts = self.state_maps.get_contract_addresses();
 
         // For account transactions, we need to compute the transaction fee before we can execute
         // the fee transfer, and the fee should cover the state changes that happen in the

@@ -68,6 +68,7 @@ pub struct GetTransactionByHashParams {
     pub transaction_hash: String,
 }
 
+#[derive(Clone)]
 pub struct RetryConfig {
     pub(crate) n_retries: usize,
     pub(crate) retry_interval_milliseconds: u64,
@@ -86,6 +87,7 @@ impl Default for RetryConfig {
     }
 }
 
+#[derive(Clone)]
 pub struct TestStateReader {
     pub(crate) rpc_state_reader: RpcStateReader,
     pub(crate) retry_config: RetryConfig,

@@ -122,7 +122,7 @@ impl From<SerializableOfflineReexecutionData> for OfflineReexecutionData {
     }
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct OfflineStateReader {
     pub state_maps: StateMaps,
     pub contract_class_mapping: StarknetContractClassMapping,
