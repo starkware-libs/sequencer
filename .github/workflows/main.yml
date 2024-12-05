@@ -110,6 +110,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          # required to clone native as a gitsubmodule
+          submodules: recursive
           # Fetch the entire history.
           fetch-depth: 0
       - uses: ./.github/actions/bootstrap
@@ -150,6 +152,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          # required to clone native as a gitsubmodule
+          submodules: recursive
           # Fetch the entire history.
           fetch-depth: 0
       - uses: ./.github/actions/bootstrap
