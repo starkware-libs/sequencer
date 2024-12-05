@@ -835,7 +835,7 @@ fn to_blockifier_tx(
                 &deprecated_class.into(),
                 DEPRECATED_CONTRACT_SIERRA_SIZE,
                 abi_length,
-                SierraVersion::zero(),
+                SierraVersion::DEPRECATED,
             )
             .map_err(|err| ExecutionError::BadDeclareTransaction {
                 tx: DeclareTransaction::V0(declare_tx.clone()),
@@ -862,7 +862,7 @@ fn to_blockifier_tx(
                 &deprecated_class.into(),
                 DEPRECATED_CONTRACT_SIERRA_SIZE,
                 abi_length,
-                SierraVersion::zero(),
+                SierraVersion::DEPRECATED,
             )
             .map_err(|err| ExecutionError::BadDeclareTransaction {
                 tx: DeclareTransaction::V1(declare_tx.clone()),

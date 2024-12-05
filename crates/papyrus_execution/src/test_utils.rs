@@ -313,7 +313,7 @@ impl TxsScenarioBuilder {
             DUMMY_SIERRA_SIZE,
             0,
             false,
-            SierraVersion::latest(),
+            SierraVersion::LATEST,
         );
         self.txs.push(tx);
         self

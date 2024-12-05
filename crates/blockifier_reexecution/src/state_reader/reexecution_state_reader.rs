@@ -39,7 +39,7 @@ pub trait ReexecutionStateReader {
                     &legacy_to_contract_class_v0(legacy)?,
                     DEPRECATED_CONTRACT_SIERRA_SIZE,
                     abi_length,
-                    SierraVersion::zero(),
+                    SierraVersion::DEPRECATED,
                 )?)
             }
         }
