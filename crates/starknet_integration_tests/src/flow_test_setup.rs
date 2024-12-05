@@ -46,7 +46,7 @@ impl FlowTestSetup {
         configure_tracing();
 
         let accounts = tx_generator.accounts();
-        let storage_for_test = StorageTestSetup::new(accounts, chain_info.chain_id.clone());
+        let storage_for_test = StorageTestSetup::new(accounts, &chain_info);
 
         // Spawn a papyrus rpc server for a papyrus storage reader.
         let rpc_server_addr = spawn_test_rpc_state_reader(

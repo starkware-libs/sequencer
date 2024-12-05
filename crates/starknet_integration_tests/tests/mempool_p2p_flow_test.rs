@@ -47,7 +47,7 @@ async fn test_mempool_sends_tx_to_other_peer(mut tx_generator: MultiAccountTrans
 
     let chain_info = create_chain_info();
     let accounts = tx_generator.accounts();
-    let storage_for_test = StorageTestSetup::new(accounts, chain_info.chain_id.clone());
+    let storage_for_test = StorageTestSetup::new(accounts, &chain_info);
 
     // Spawn a papyrus rpc server for a papyrus storage reader.
     let rpc_server_addr = spawn_test_rpc_state_reader(
