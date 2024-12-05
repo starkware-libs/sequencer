@@ -15,7 +15,7 @@ use crate::execution::errors::EntryPointExecutionError;
 use crate::execution::syscalls::hint_processor::EmitEventError;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, BALANCE};
+use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, RunnableCairo1, BALANCE};
 use crate::versioned_constants::VersionedConstants;
 
 const KEYS: [Felt; 2] = [Felt::from_hex_unchecked("0x2019"), Felt::from_hex_unchecked("0x2020")];
@@ -26,8 +26,8 @@ const DATA: [Felt; 3] = [
 ];
 const N_EMITTED_EVENTS: [Felt; 1] = [Felt::from_hex_unchecked("0x1")];
 
-#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Native;"Native"))]
-#[test_case(CairoVersion::Cairo1;"VM")]
+#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Cairo1(RunnableCairo1::Native);"Native"))]
+#[test_case(CairoVersion::Cairo1(RunnableCairo1::Casm);"VM")]
 fn positive_flow(cairo_version: CairoVersion) {
     let test_contract = FeatureContract::TestContract(cairo_version);
     let call_info = emit_events(test_contract, &N_EMITTED_EVENTS, &KEYS, &DATA)
@@ -47,8 +47,8 @@ fn positive_flow(cairo_version: CairoVersion) {
     );
 }
 
-#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Native;"Native"))]
-#[test_case(CairoVersion::Cairo1;"VM")]
+#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Cairo1(RunnableCairo1::Native);"Native"))]
+#[test_case(CairoVersion::Cairo1(RunnableCairo1::Casm);"VM")]
 fn data_length_exceeds_limit(cairo_version: CairoVersion) {
     let test_contract = FeatureContract::TestContract(cairo_version);
     let versioned_constants = VersionedConstants::create_for_testing();
@@ -67,8 +67,8 @@ fn data_length_exceeds_limit(cairo_version: CairoVersion) {
     assert!(error_message.contains(&expected_error.to_string()));
 }
 
-#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Native;"Native"))]
-#[test_case(CairoVersion::Cairo1;"VM")]
+#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Cairo1(RunnableCairo1::Native);"Native"))]
+#[test_case(CairoVersion::Cairo1(RunnableCairo1::Casm);"VM")]
 fn keys_length_exceeds_limit(cairo_version: CairoVersion) {
     let test_contract = FeatureContract::TestContract(cairo_version);
     let versioned_constants = VersionedConstants::create_for_testing();
@@ -88,8 +88,8 @@ fn keys_length_exceeds_limit(cairo_version: CairoVersion) {
     assert!(error_message.contains(&expected_error.to_string()));
 }
 
-#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Native;"Native"))]
-#[test_case(CairoVersion::Cairo1;"VM")]
+#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Cairo1(RunnableCairo1::Native);"Native"))]
+#[test_case(CairoVersion::Cairo1(RunnableCairo1::Casm);"VM")]
 fn event_number_exceeds_limit(cairo_version: CairoVersion) {
     let test_contract = FeatureContract::TestContract(cairo_version);
     let versioned_constants = VersionedConstants::create_for_testing();

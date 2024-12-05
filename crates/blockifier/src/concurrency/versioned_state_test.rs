@@ -43,7 +43,7 @@ use crate::state::state_api::{State, StateReader, UpdatableState};
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{CairoVersion, BALANCE, DEFAULT_STRK_L1_GAS_PRICE};
+use crate::test_utils::{CairoVersion, RunnableCairo1, BALANCE, DEFAULT_STRK_L1_GAS_PRICE};
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::objects::HasRelatedFeeType;
 use crate::transaction::test_utils::{default_all_resource_bounds, l1_resource_bounds};
@@ -116,7 +116,8 @@ fn test_versioned_state_proxy() {
     let class_hash_v10 = class_hash!(29_u8);
     let compiled_class_hash_v18 = compiled_class_hash!(30_u8);
     let contract_class_v11 =
-        FeatureContract::TestContract(CairoVersion::Cairo1).get_runnable_class();
+        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm))
+            .get_runnable_class();
 
     versioned_state_proxys[3].state().apply_writes(
         3,
@@ -404,7 +405,8 @@ fn test_false_validate_reads_declared_contracts(
     };
     let version_state_proxy = safe_versioned_state.pin_version(0);
     let compiled_contract_calss =
-        FeatureContract::TestContract(CairoVersion::Cairo1).get_runnable_class();
+        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm))
+            .get_runnable_class();
     let class_hash_to_class = HashMap::from([(class_hash!(1_u8), compiled_contract_calss)]);
     version_state_proxy.state().apply_writes(0, &tx_0_writes, &class_hash_to_class);
     assert!(!safe_versioned_state.pin_version(1).validate_reads(&tx_1_reads));
@@ -429,7 +431,9 @@ fn test_apply_writes(
     assert_eq!(transactional_states[0].cache.borrow().writes.class_hashes.len(), 1);
 
     // Transaction 0 contract class.
-    let contract_class_0 = FeatureContract::TestContract(CairoVersion::Cairo1).get_runnable_class();
+    let contract_class_0 =
+        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm))
+            .get_runnable_class();
     assert!(transactional_states[0].class_hash_to_class.borrow().is_empty());
     transactional_states[0].set_contract_class(class_hash, contract_class_0.clone()).unwrap();
     assert_eq!(transactional_states[0].class_hash_to_class.borrow().len(), 1);
@@ -498,7 +502,8 @@ fn test_delete_writes(
         (contract_address!("0x100"), class_hash!(20_u8)),
         (contract_address!("0x200"), class_hash!(21_u8)),
     ];
-    let feature_contract = FeatureContract::TestContract(CairoVersion::Cairo1);
+    let feature_contract =
+        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
     for (i, tx_state) in transactional_states.iter_mut().enumerate() {
         // Modify the `cache` member of the CachedState.
         for (contract_address, class_hash) in contract_addresses.iter() {
@@ -553,7 +558,8 @@ fn test_delete_writes(
 fn test_delete_writes_completeness(
     safe_versioned_state: ThreadSafeVersionedState<CachedState<DictStateReader>>,
 ) {
-    let feature_contract = FeatureContract::TestContract(CairoVersion::Cairo1);
+    let feature_contract =
+        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
     let state_maps_writes = StateMaps {
         nonces: HashMap::from([(contract_address!("0x1"), nonce!(1_u8))]),
         class_hashes: HashMap::from([(
@@ -633,7 +639,8 @@ fn test_versioned_proxy_state_flow(
     // Clients contract class values.
     let contract_class_0 = FeatureContract::TestContract(CairoVersion::Cairo0).get_runnable_class();
     let contract_class_2 =
-        FeatureContract::AccountWithLongValidate(CairoVersion::Cairo1).get_runnable_class();
+        FeatureContract::AccountWithLongValidate(CairoVersion::Cairo1(RunnableCairo1::Casm))
+            .get_runnable_class();
 
     transactional_states[0].set_contract_class(class_hash, contract_class_0).unwrap();
     transactional_states[2].set_contract_class(class_hash, contract_class_2.clone()).unwrap();
