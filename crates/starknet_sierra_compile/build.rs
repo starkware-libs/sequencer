@@ -1,4 +1,3 @@
-use std::path::PathBuf;
 use std::process::Command;
 
 include!("src/constants.rs");
@@ -127,13 +126,13 @@ fn set_run_time_out_dir_env_var() {
 }
 
 // Returns the OUT_DIR. This function is only operable at build time.
-fn out_dir() -> PathBuf {
+fn out_dir() -> std::path::PathBuf {
     std::env::var("OUT_DIR")
         .expect("Failed to get the build time OUT_DIR environment variable")
         .into()
 }
 
 #[cfg(feature = "cairo_native")]
-fn repo_root_dir() -> PathBuf {
+fn repo_root_dir() -> std::path::PathBuf {
     std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..").to_path_buf()
 }
