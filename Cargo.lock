@@ -10561,6 +10561,7 @@ dependencies = [
  "hyper 0.14.30",
  "metrics 0.21.1",
  "metrics-exporter-prometheus",
+ "infra_utils",
  "papyrus_config",
  "pretty_assertions",
  "serde",
