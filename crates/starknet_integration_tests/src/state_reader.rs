@@ -125,13 +125,9 @@ fn initialize_papyrus_test_state(
         test_defined_accounts.into_iter().chain(default_test_contracts).chain([erc20_contract]);
     let (cairo0_contract_classes, cairo1_contract_classes) =
         prepare_compiled_contract_classes(contract_classes_to_retrieve);
+    let classes = (cairo0_contract_classes, cairo1_contract_classes);
 
-    write_state_to_papyrus_storage(
-        storage_writer,
-        state_diff,
-        &cairo0_contract_classes,
-        &cairo1_contract_classes,
-    )
+    write_state_to_papyrus_storage(storage_writer, state_diff, &classes)
 }
 
 fn prepare_state_diff(
@@ -189,19 +185,18 @@ fn prepare_compiled_contract_classes(
 fn write_state_to_papyrus_storage(
     storage_writer: &mut StorageWriter,
     state_diff: ThinStateDiff,
-    cairo0_contract_classes: &[(ClassHash, DeprecatedContractClass)],
-    cairo1_contract_classes: &[(ClassHash, CasmContractClass)],
+    classes: &ContractClassesMap,
 ) {
     let block_number = BlockNumber(0);
     let block_header = test_block_header(block_number);
-    let cairo0_contract_classes: Vec<_> =
-        cairo0_contract_classes.iter().map(|(hash, contract)| (*hash, contract)).collect();
 
     let mut write_txn = storage_writer.begin_rw_txn().unwrap();
 
-    for (class_hash, casm) in cairo1_contract_classes {
+    for (class_hash, casm) in classes.1.iter() {
         write_txn = write_txn.append_casm(class_hash, casm).unwrap();
     }
+    let deprecated_classes_refs =
+        classes.0.iter().map(|(class_hash, class)| (*class_hash, class)).collect::<Vec<_>>();
     write_txn
         .append_header(block_number, &block_header)
         .unwrap()
@@ -209,7 +204,7 @@ fn write_state_to_papyrus_storage(
         .unwrap()
         .append_state_diff(block_number, state_diff)
         .unwrap()
-        .append_classes(block_number, &[], &cairo0_contract_classes)
+        .append_classes(block_number, &[], &deprecated_classes_refs)
         .unwrap()
         .commit()
         .unwrap();
