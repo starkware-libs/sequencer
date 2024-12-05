@@ -588,16 +588,19 @@ impl AccountTransaction {
         // TODO(tzahi): add reverted_l2_gas to the receipt.
         let execution_steps_consumed =
             n_allotted_execution_steps - execution_context.n_remaining_steps();
-        let revert_receipt = TransactionReceipt::from_account_tx(
-            self,
-            &tx_context,
-            &validate_state_cache.to_state_diff(),
-            CallInfo::summarize_many(
-                validate_call_info.iter(),
-                &tx_context.block_context.versioned_constants,
-            ),
-            execution_steps_consumed,
-        );
+        // Get the receipt only in case of revert.
+        let get_revert_receipt = || {
+            TransactionReceipt::from_account_tx(
+                self,
+                &tx_context,
+                &validate_state_cache.to_state_diff(),
+                CallInfo::summarize_many(
+                    validate_call_info.iter(),
+                    &tx_context.block_context.versioned_constants,
+                ),
+                execution_steps_consumed,
+            )
+        };
 
         match execution_result {
             Ok(execute_call_info) => {
@@ -633,13 +636,14 @@ impl AccountTransaction {
                         // revert case, compute resources by adding consumed execution steps to
                         // validation resources).
                         execution_state.abort();
+                        let tx_receipt = TransactionReceipt {
+                            fee: post_execution_report.recommended_fee(),
+                            ..get_revert_receipt()
+                        };
                         Ok(ValidateExecuteCallInfo::new_reverted(
                             validate_call_info,
                             post_execution_error.into(),
-                            TransactionReceipt {
-                                fee: post_execution_report.recommended_fee(),
-                                ..revert_receipt
-                            },
+                            tx_receipt,
                         ))
                     }
                     None => {
@@ -654,6 +658,7 @@ impl AccountTransaction {
                 }
             }
             Err(execution_error) => {
+                let revert_receipt = get_revert_receipt();
                 // Error during execution. Revert, even if the error is sequencer-related.
                 execution_state.abort();
                 let post_execution_report =
