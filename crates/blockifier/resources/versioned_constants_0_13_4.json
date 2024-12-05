@@ -136,6 +136,7 @@
         "poseidon_gas_cost": 491,
         "add_mod_gas_cost": 230,
         "mul_mod_gas_cost": 604,
+        "ecdsa_gas_cost": 10561,
         "replace_class_gas_cost": {
             "step_gas_cost": 104,
             "range_check_gas_cost": 1

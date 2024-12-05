@@ -584,6 +584,7 @@ pub struct GasCosts {
     pub poseidon_gas_cost: u64,
     pub add_mod_gas_cost: u64,
     pub mul_mod_gas_cost: u64,
+    pub ecdsa_gas_cost: u64,
     // An estimation of the initial gas for a transaction to run with. This solution is
     // temporary and this value will be deduced from the transaction's fields.
     pub default_initial_gas_cost: u64,
@@ -631,8 +632,9 @@ impl GasCosts {
             BuiltinName::range_check96 => self.range_check_gas_cost,
             BuiltinName::add_mod => self.add_mod_gas_cost,
             BuiltinName::mul_mod => self.mul_mod_gas_cost,
+            BuiltinName::ecdsa => self.ecdsa_gas_cost,
             BuiltinName::segment_arena => return Err(GasCostsError::VirtualBuiltin),
-            BuiltinName::output | BuiltinName::ecdsa => {
+            BuiltinName::output => {
                 return Err(GasCostsError::UnsupportedBuiltinInCairo1 { builtin: *builtin });
             }
         };
