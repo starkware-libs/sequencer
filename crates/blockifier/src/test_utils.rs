@@ -95,6 +95,15 @@ impl CairoVersion {
             Self::Native => panic!("There is no other version for native"),
         }
     }
+
+    pub fn is_cairo0(&self) -> bool {
+        match self {
+            Self::Cairo0 => true,
+            Self::Cairo1 => false,
+            #[cfg(feature = "cairo_native")]
+            Self::Native => false,
+        }
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

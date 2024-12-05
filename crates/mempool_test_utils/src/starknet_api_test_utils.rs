@@ -334,6 +334,10 @@ impl Contract {
         self.contract.cairo_version()
     }
 
+    pub fn sierra(&self) -> SierraContractClass {
+        self.contract.get_sierra()
+    }
+
     pub fn raw_class(&self) -> String {
         self.contract.get_raw_class()
     }
