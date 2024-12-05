@@ -3,7 +3,7 @@ use std::time::Duration;
 use futures::channel::{mpsc, oneshot};
 use futures::StreamExt;
 use papyrus_consensus::stream_handler::StreamHandler;
-use papyrus_consensus::types::{ConsensusContext, ValidatorId};
+use papyrus_consensus::types::{ConsensusContext, ValidatorId, DEFAULT_VALIDATOR_ID};
 use papyrus_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
     BroadcastNetworkMock,
@@ -39,7 +39,7 @@ async fn build_proposal() {
     let proposal_init = ProposalInit {
         height: block_number,
         round: 0,
-        proposer: ValidatorId::from(100_u32),
+        proposer: ValidatorId::from(DEFAULT_VALIDATOR_ID),
         valid_round: None,
     };
     // TODO(Asmaa): Test proposal content.

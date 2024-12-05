@@ -12,13 +12,13 @@ use crate::config::TimeoutsConfig;
 use crate::single_height_consensus::{ShcEvent, ShcReturn, ShcTask};
 use crate::state_machine::StateMachineEvent;
 use crate::test_utils::{precommit, prevote, MockProposalPart, MockTestContext, TestBlock};
-use crate::types::{ConsensusError, ValidatorId};
+use crate::types::{ConsensusError, ValidatorId, DEFAULT_VALIDATOR_ID};
 
 lazy_static! {
-    static ref PROPOSER_ID: ValidatorId = 100_u32.into();
-    static ref VALIDATOR_ID_1: ValidatorId = 101_u32.into();
-    static ref VALIDATOR_ID_2: ValidatorId = 102_u32.into();
-    static ref VALIDATOR_ID_3: ValidatorId = 103_u32.into();
+    static ref PROPOSER_ID: ValidatorId = DEFAULT_VALIDATOR_ID.into();
+    static ref VALIDATOR_ID_1: ValidatorId = (DEFAULT_VALIDATOR_ID + 1).into();
+    static ref VALIDATOR_ID_2: ValidatorId = (DEFAULT_VALIDATOR_ID + 2).into();
+    static ref VALIDATOR_ID_3: ValidatorId = (DEFAULT_VALIDATOR_ID + 3).into();
     static ref VALIDATORS: Vec<ValidatorId> =
         vec![*PROPOSER_ID, *VALIDATOR_ID_1, *VALIDATOR_ID_2, *VALIDATOR_ID_3];
     static ref BLOCK: TestBlock = TestBlock { content: vec![1, 2, 3], id: BlockHash(Felt::ONE) };
