@@ -17,11 +17,20 @@ use std::path::PathBuf;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::abi::abi_utils::{get_fee_token_var_address, selector_from_name};
-use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber, GasPrice, NonzeroGasPrice};
+use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::hash::StarkHash;
 use starknet_api::state::StorageKey;
+use starknet_api::test_utils::{
+    DEFAULT_L1_DATA_GAS_MAX_AMOUNT,
+    DEFAULT_L1_GAS_AMOUNT,
+    DEFAULT_L2_GAS_MAX_AMOUNT,
+    DEFAULT_STRK_L1_DATA_GAS_PRICE,
+    DEFAULT_STRK_L1_GAS_PRICE,
+    DEFAULT_STRK_L2_GAS_PRICE,
+    MAX_FEE,
+};
 use starknet_api::transaction::fields::{
     Calldata,
     ContractAddressSalt,
@@ -131,29 +140,6 @@ impl CompilerBasedVersion {
 pub fn test_erc20_sequencer_balance_key() -> StorageKey {
     get_fee_token_var_address(contract_address!(TEST_SEQUENCER_ADDRESS))
 }
-
-// The max_fee / resource bounds used for txs in this test.
-// V3 transactions:
-pub const DEFAULT_L1_GAS_AMOUNT: GasAmount = GasAmount(u64::pow(10, 6));
-pub const DEFAULT_L1_DATA_GAS_MAX_AMOUNT: GasAmount = GasAmount(u64::pow(10, 6));
-pub const DEFAULT_L2_GAS_MAX_AMOUNT: GasAmount = GasAmount(u64::pow(10, 9));
-pub const MAX_L1_GAS_PRICE: NonzeroGasPrice = DEFAULT_STRK_L1_GAS_PRICE;
-pub const MAX_L2_GAS_PRICE: NonzeroGasPrice = DEFAULT_STRK_L2_GAS_PRICE;
-pub const MAX_L1_DATA_GAS_PRICE: NonzeroGasPrice = DEFAULT_STRK_L1_DATA_GAS_PRICE;
-
-pub const DEFAULT_ETH_L1_GAS_PRICE: NonzeroGasPrice =
-    NonzeroGasPrice::new_unchecked(GasPrice(100 * u128::pow(10, 9))); // Given in units of Wei.
-pub const DEFAULT_STRK_L1_GAS_PRICE: NonzeroGasPrice =
-    NonzeroGasPrice::new_unchecked(GasPrice(100 * u128::pow(10, 9))); // Given in units of STRK.
-pub const DEFAULT_ETH_L1_DATA_GAS_PRICE: NonzeroGasPrice =
-    NonzeroGasPrice::new_unchecked(GasPrice(u128::pow(10, 6))); // Given in units of Wei.
-pub const DEFAULT_STRK_L1_DATA_GAS_PRICE: NonzeroGasPrice =
-    NonzeroGasPrice::new_unchecked(GasPrice(u128::pow(10, 9))); // Given in units of STRK.
-pub const DEFAULT_STRK_L2_GAS_PRICE: NonzeroGasPrice =
-    NonzeroGasPrice::new_unchecked(GasPrice(u128::pow(10, 9)));
-
-// Deprecated transactions:
-pub const MAX_FEE: Fee = DEFAULT_L1_GAS_AMOUNT.nonzero_saturating_mul(DEFAULT_ETH_L1_GAS_PRICE);
 
 // Commitment fee bounds.
 const DEFAULT_L1_BOUNDS_COMMITTED_FEE: Fee =
