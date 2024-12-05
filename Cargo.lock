@@ -10558,6 +10558,7 @@ version = "0.0.0"
 dependencies = [
  "axum",
  "hyper 0.14.30",
+ "infra_utils",
  "papyrus_config",
  "pretty_assertions",
  "serde",

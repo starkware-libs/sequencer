@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use infra_utils::run_until::run_until;
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use papyrus_execution::execution_utils::get_nonce_at;
@@ -72,8 +70,7 @@ async fn test_end_to_end_integration(mut tx_generator: MultiAccountTransactionGe
     let node_run_handle = spawn_run_node(integration_test_setup.node_config_path).await;
 
     // Wait for the node to start.
-    match integration_test_setup.is_alive_test_client.await_alive(Duration::from_secs(5), 50).await
-    {
+    match integration_test_setup.is_alive_test_client.await_alive(5000, 50).await {
         Ok(_) => {}
         Err(_) => panic!("Node is not alive."),
     }
