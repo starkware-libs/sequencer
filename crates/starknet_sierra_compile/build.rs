@@ -42,7 +42,7 @@ fn install_starknet_native_compile() {
     let binary_name = CAIRO_NATIVE_BINARY_NAME;
     let required_version = REQUIRED_CAIRO_NATIVE_VERSION;
 
-    let cairo_native_binary_path = binary_path(binary_name);
+    let cairo_native_binary_path = binary_path(out_dir(), binary_name);
     println!("cargo:rerun-if-changed={:?}", cairo_native_binary_path);
 
     // Set the runtime library path. This is required for Cairo native compilation.
@@ -135,5 +135,5 @@ fn out_dir() -> PathBuf {
 
 #[cfg(feature = "cairo_native")]
 fn repo_root_dir() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../..").to_path_buf()
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..").to_path_buf()
 }
