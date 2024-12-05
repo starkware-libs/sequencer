@@ -1,6 +1,7 @@
 use std::process::Command;
 
-include!("src/build_utils.rs");
+include!("src/constants.rs");
+include!("src/paths.rs");
 
 fn main() {
     println!("cargo:rerun-if-changed=../../Cargo.lock");
