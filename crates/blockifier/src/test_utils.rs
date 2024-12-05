@@ -97,6 +97,10 @@ impl CairoVersion {
             Self::Native => panic!("There is no other version for native"),
         }
     }
+
+    pub fn is_cairo0(&self) -> bool {
+        matches!(self, Self::Cairo0)
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
