@@ -25,7 +25,16 @@ use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::test_utils::get_test_storage;
 use papyrus_storage::StorageReader;
-use starknet_api::block::{BlockHash, BlockNumber, BlockSignature};
+use papyrus_test_utils::GetTestInstance;
+use rand::{Rng, RngCore};
+use rand_chacha::ChaCha8Rng;
+use starknet_api::block::{
+    BlockHash,
+    BlockHeader,
+    BlockHeaderWithoutHash,
+    BlockNumber,
+    BlockSignature,
+};
 use starknet_api::core::ClassHash;
 use starknet_api::crypto::utils::Signature;
 use starknet_api::hash::StarkHash;
@@ -176,6 +185,32 @@ pub async fn run_test(actions: Vec<Action>) {
         _ = tokio::time::sleep(TIMEOUT_FOR_TEST) => {
             panic!("Test timed out.");
         }
+    }
+}
+
+pub fn random_header(
+    rng: &mut ChaCha8Rng,
+    block_number: BlockNumber,
+    state_diff_length: Option<usize>,
+    num_transactions: Option<usize>,
+) -> SignedBlockHeader {
+    SignedBlockHeader {
+        block_header: BlockHeader {
+            // TODO(shahak): Remove this once get_test_instance puts random values.
+            block_hash: BlockHash(rng.next_u64().into()),
+            block_header_without_hash: BlockHeaderWithoutHash {
+                block_number,
+                ..GetTestInstance::get_test_instance(rng)
+            },
+            state_diff_length: Some(state_diff_length.unwrap_or_else(|| rng.gen())),
+            n_transactions: num_transactions.unwrap_or_else(|| rng.gen()),
+            ..GetTestInstance::get_test_instance(rng)
+        },
+        // TODO(shahak): Remove this once get_test_instance puts random values.
+        signatures: vec![BlockSignature(Signature {
+            r: rng.next_u64().into(),
+            s: rng.next_u64().into(),
+        })],
     }
 }
 
