@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use cairo_lang_starknet_classes::contract_class::ContractClass as CairoLangContractClass;
 use itertools::Itertools;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
@@ -10,6 +11,7 @@ use starknet_api::deprecated_contract_class::{
     ContractClass as DeprecatedContractClass,
     EntryPointOffset,
 };
+use starknet_api::state::SierraContractClass;
 use starknet_api::{class_hash, contract_address, felt};
 use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
@@ -203,6 +205,21 @@ impl FeatureContract {
         }
 
         self.get_class().try_into().unwrap()
+    }
+
+    pub fn get_raw_sierra(&self) -> String {
+        if self.cairo_version() == CairoVersion::Cairo0 {
+            panic!("The sierra contract is only available for Cairo1.");
+        }
+
+        get_raw_contract_class(&self.get_sierra_path())
+    }
+
+    pub fn get_sierra(&self) -> SierraContractClass {
+        let raw_sierra = self.get_raw_sierra();
+        let cairo_contract_class: CairoLangContractClass =
+            serde_json::from_str(&raw_sierra).unwrap();
+        SierraContractClass::from(cairo_contract_class)
     }
 
     pub fn get_raw_class(&self) -> String {
