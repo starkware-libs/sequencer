@@ -4,8 +4,9 @@ use starknet_api::block::{FeeType, GasPrice};
 use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::execution_resources::GasAmount;
-use starknet_api::test_utils::deploy_account::DeployAccountTxArgs;
-use starknet_api::test_utils::invoke::InvokeTxArgs;
+use starknet_api::test_utils::declare::executable_declare_tx;
+use starknet_api::test_utils::deploy_account::{executable_deploy_account_tx, DeployAccountTxArgs};
+use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::fields::{
     AllResourceBounds,
@@ -25,11 +26,8 @@ use crate::context::{BlockContext, ChainInfo};
 use crate::state::cached_state::CachedState;
 use crate::state::state_api::State;
 use crate::test_utils::contracts::FeatureContract;
-use crate::test_utils::declare::declare_tx;
-use crate::test_utils::deploy_account::deploy_account_tx;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::invoke::invoke_tx;
 use crate::test_utils::{
     create_calldata,
     CairoVersion,
@@ -113,10 +111,9 @@ pub fn deploy_and_fund_account(
     deploy_tx_args: DeployAccountTxArgs,
 ) -> (AccountTransaction, ContractAddress) {
     // Deploy an account contract.
-    let deploy_account_tx = AccountTransaction::new_with_default_flags(deploy_account_tx(
-        deploy_tx_args,
-        nonce_manager,
-    ));
+    let deploy_account_tx = AccountTransaction::new_with_default_flags(
+        executable_deploy_account_tx(deploy_tx_args, nonce_manager),
+    );
     let account_address = deploy_account_tx.sender_address();
 
     // Update the balance of the about-to-be deployed account contract in the erc20 contract, so it
@@ -247,7 +244,7 @@ pub fn create_account_tx_for_validate_test(
             };
             let class_hash = declared_contract.get_class_hash();
             let class_info = calculate_class_info_for_testing(declared_contract.get_class());
-            let tx = declare_tx(
+            let tx = executable_declare_tx(
                 declare_tx_args! {
                     max_fee,
                     resource_bounds,
@@ -269,7 +266,7 @@ pub fn create_account_tx_for_validate_test(
                 true => constants::FELT_TRUE,
                 false => constants::FELT_FALSE,
             })];
-            let tx = deploy_account_tx(
+            let tx = executable_deploy_account_tx(
                 deploy_account_tx_args! {
                     max_fee,
                     resource_bounds,
@@ -285,7 +282,7 @@ pub fn create_account_tx_for_validate_test(
         }
         TransactionType::InvokeFunction => {
             let execute_calldata = create_calldata(sender_address, "foo", &[]);
-            let tx = invoke_tx(invoke_tx_args! {
+            let tx = executable_invoke_tx(invoke_tx_args! {
                 max_fee,
                 resource_bounds,
                 signature,
@@ -304,7 +301,7 @@ pub fn create_account_tx_for_validate_test(
 // TODO(AvivG): Consider removing this function.
 pub fn account_invoke_tx(invoke_args: InvokeTxArgs) -> AccountTransaction {
     let execution_flags = ExecutionFlags::default();
-    AccountTransaction { tx: invoke_tx(invoke_args), execution_flags }
+    AccountTransaction { tx: executable_invoke_tx(invoke_args), execution_flags }
 }
 
 pub fn run_invoke_tx(
@@ -312,7 +309,7 @@ pub fn run_invoke_tx(
     block_context: &BlockContext,
     invoke_args: InvokeTxArgs,
 ) -> TransactionExecutionResult<TransactionExecutionInfo> {
-    let tx = invoke_tx(invoke_args);
+    let tx = executable_invoke_tx(invoke_args);
     let account_tx = AccountTransaction::new_for_sequencing(tx);
 
     account_tx.execute(state, block_context)
@@ -385,7 +382,7 @@ pub fn emit_n_events_tx(
         felt!(0_u32),                     // data length.
     ];
     let calldata = create_calldata(contract_address, "test_emit_events", &entry_point_args);
-    let tx = invoke_tx(invoke_tx_args! {
+    let tx = executable_invoke_tx(invoke_tx_args! {
         sender_address: account_contract,
         calldata,
         nonce

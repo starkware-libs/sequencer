@@ -109,29 +109,28 @@ fn test_instantiate_validator(stateful_validator: StatefulTransactionValidator) 
 
 #[rstest]
 #[case::should_skip_validation(
-    AccountTransaction::Invoke(executable_invoke_tx(invoke_tx_args!(nonce: nonce!(1)))),
+    executable_invoke_tx(invoke_tx_args!(nonce: nonce!(1))),
     nonce!(0),
     true
 )]
 #[case::should_not_skip_validation_nonce_over_max_nonce_for_skip(
-    AccountTransaction::Invoke(executable_invoke_tx(invoke_tx_args!(nonce: nonce!(0)))),
+    executable_invoke_tx(invoke_tx_args!(nonce: nonce!(0))),
     nonce!(0),
     false
 )]
 #[case::should_not_skip_validation_non_invoke(
-    AccountTransaction::DeployAccount(
         executable_deploy_account_tx(deploy_account_tx_args!(), &mut NonceManager::default())
-    ),
+    ,
     nonce!(0),
     false)
 ]
 #[case::should_not_skip_validation_account_nonce_1(
-    AccountTransaction::Invoke(executable_invoke_tx(
+    executable_invoke_tx(
         invoke_tx_args!(
             nonce: nonce!(1),
             sender_address: TEST_SENDER_ADDRESS.into()
         )
-    )),
+    ),
     nonce!(1),
     false
 )]
