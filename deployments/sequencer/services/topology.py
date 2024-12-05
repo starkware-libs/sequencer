@@ -7,9 +7,9 @@ from services import objects, topology_helpers
 
 @dataclasses.dataclass
 class ServiceTopology:
-    cluster_name: topology_helpers.cluster_name
-    images: topology_helpers.images
-
+    images: typing.Optional[typing.Mapping] = dataclasses.field(
+        default_factory=topology_helpers.get_images
+    )
     deployment: typing.Optional[objects.Deployment] = dataclasses.field(
         default_factory=topology_helpers.get_deployment
     )
@@ -25,7 +25,6 @@ class ServiceTopology:
     ingress: typing.Optional[objects.Ingress] = dataclasses.field(
         default_factory=topology_helpers.get_ingress
     )
-
 
 class SequencerDev(ServiceTopology):
     pass
