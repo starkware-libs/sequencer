@@ -551,7 +551,7 @@ pub fn get_casm_hash_calculation_resources<S: StateReader>(
     let mut casm_hash_computation_resources = ExecutionResources::default();
 
     for class_hash in executed_class_hashes {
-        let class = state_reader.get_compiled_class(*class_hash)?;
+        let (class, _) = state_reader.get_compiled_contract_class(*class_hash)?;
         casm_hash_computation_resources += &class.estimate_casm_hash_computation_resources();
     }
 

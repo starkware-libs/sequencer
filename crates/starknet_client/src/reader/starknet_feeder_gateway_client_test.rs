@@ -404,7 +404,7 @@ async fn compiled_class_by_hash() {
     .with_status(200)
     .with_body(&raw_casm_contract_class)
     .create();
-    let casm_contract_class =
+    let (casm_contract_class, _) =
         starknet_client.compiled_class_by_hash(class_hash!("0x7")).await.unwrap().unwrap();
     mock_casm_contract_class.assert();
     let expected_casm_contract_class: CasmContractClass =

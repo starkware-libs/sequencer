@@ -2,6 +2,7 @@ use blockifier::execution::contract_class::{
     CompiledClassV0,
     CompiledClassV1,
     RunnableCompiledClass,
+    VersionedRunnableCompiledClass,
 };
 use blockifier::state::errors::StateError;
 use blockifier::state::global_cache::GlobalContractCache;
@@ -11,6 +12,7 @@ use papyrus_storage::db::RO;
 use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::StorageReader;
 use starknet_api::block::BlockNumber;
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::{StateNumber, StorageKey};
 use starknet_types_core::felt::Felt;
@@ -23,14 +25,14 @@ type RawPapyrusReader<'env> = papyrus_storage::StorageTxn<'env, RO>;
 pub struct PapyrusReader {
     storage_reader: StorageReader,
     latest_block: BlockNumber,
-    global_class_hash_to_class: GlobalContractCache<RunnableCompiledClass>,
+    global_class_hash_to_class: GlobalContractCache<VersionedRunnableCompiledClass>,
 }
 
 impl PapyrusReader {
     pub fn new(
         storage_reader: StorageReader,
         latest_block: BlockNumber,
-        global_class_hash_to_class: GlobalContractCache<RunnableCompiledClass>,
+        global_class_hash_to_class: GlobalContractCache<VersionedRunnableCompiledClass>,
     ) -> Self {
         Self { storage_reader, latest_block, global_class_hash_to_class }
     }
@@ -46,7 +48,7 @@ impl PapyrusReader {
     fn get_compiled_class_inner(
         &self,
         class_hash: ClassHash,
-    ) -> StateResult<RunnableCompiledClass> {
+    ) -> StateResult<VersionedRunnableCompiledClass> {
         let state_number = StateNumber(self.latest_block);
         let class_declaration_block_number = self
             .reader()?
@@ -57,16 +59,19 @@ impl PapyrusReader {
                         Some(block_number) if block_number <= state_number.0);
 
         if class_is_declared {
-            let casm_compiled_class = self
+            let (casm_compiled_class, sierra_version) = self
                 .reader()?
-                .get_casm(&class_hash)
+                .get_versioned_casm(&class_hash)
                 .map_err(|err| StateError::StateReadError(err.to_string()))?
                 .expect(
                     "Should be able to fetch a Casm class if its definition exists, database is \
                      inconsistent.",
                 );
 
-            return Ok(RunnableCompiledClass::V1(CompiledClassV1::try_from(casm_compiled_class)?));
+            return Ok((
+                (RunnableCompiledClass::V1(CompiledClassV1::try_from(casm_compiled_class)?)),
+                sierra_version,
+            ));
         }
 
         let v0_compiled_class = self
@@ -76,9 +81,10 @@ impl PapyrusReader {
             .map_err(|err| StateError::StateReadError(err.to_string()))?;
 
         match v0_compiled_class {
-            Some(starknet_api_contract_class) => {
-                Ok(CompiledClassV0::try_from(starknet_api_contract_class)?.into())
-            }
+            Some(starknet_api_contract_class) => Ok((
+                CompiledClassV0::try_from(starknet_api_contract_class)?.into(),
+                SierraVersion::zero(),
+            )),
             None => Err(StateError::UndeclaredClassHash(class_hash)),
         }
     }
@@ -124,7 +130,10 @@ impl StateReader for PapyrusReader {
         }
     }
 
-    fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
+    fn get_compiled_contract_class(
+        &self,
+        class_hash: ClassHash,
+    ) -> StateResult<VersionedRunnableCompiledClass> {
         // Assumption: the global cache is cleared upon reverted blocks.
         let contract_class = self.global_class_hash_to_class.get(&class_hash);
 

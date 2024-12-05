@@ -49,6 +49,7 @@ mod casm_test;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use papyrus_proc_macros::latency_histogram;
 use starknet_api::block::BlockNumber;
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::ClassHash;
 
 use crate::db::serialization::VersionZeroWrapper;
@@ -60,7 +61,7 @@ use crate::{FileHandlers, MarkerKind, MarkersTable, OffsetKind, StorageResult, S
 /// Interface for reading data related to the compiled classes.
 pub trait CasmStorageReader {
     /// Returns the Cairo assembly of a class given its Sierra class hash.
-    fn get_casm(&self, class_hash: &ClassHash) -> StorageResult<Option<CasmContractClass>>;
+    fn get_versioned_casm(&self, class_hash: &ClassHash) -> StorageResult<Option<(CasmContractClass,SierraVersion)>>;
     /// The block marker is the first block number that doesn't exist yet.
     ///
     /// Note: If the last blocks don't contain any declared classes, the marker will point at the
@@ -75,11 +76,11 @@ where
 {
     /// Stores the Cairo assembly of a class, mapped to its class hash.
     // To enforce that no commit happen after a failure, we consume and return Self on success.
-    fn append_casm(self, class_hash: &ClassHash, casm: &CasmContractClass) -> StorageResult<Self>;
+    fn append_versioned_casm(self, class_hash: &ClassHash, versioned_casm: &(&CasmContractClass, SierraVersion)) -> StorageResult<Self>;
 }
 
-impl<Mode: TransactionKind> CasmStorageReader for StorageTxn<'_, Mode> {
-    fn get_casm(&self, class_hash: &ClassHash) -> StorageResult<Option<CasmContractClass>> {
+impl<'env, Mode: TransactionKind> CasmStorageReader for StorageTxn<'env, Mode> {
+    fn get_versioned_casm(&self, class_hash: &ClassHash) -> StorageResult<Option<(CasmContractClass, SierraVersion)>> {
         let casm_table = self.open_table(&self.tables.casms)?;
         let casm_location = casm_table.get(&self.txn, class_hash)?;
         casm_location.map(|location| self.file_handlers.get_casm_unchecked(location)).transpose()
@@ -93,13 +94,13 @@ impl<Mode: TransactionKind> CasmStorageReader for StorageTxn<'_, Mode> {
 
 impl CasmStorageWriter for StorageTxn<'_, RW> {
     #[latency_histogram("storage_append_casm_latency_seconds", false)]
-    fn append_casm(self, class_hash: &ClassHash, casm: &CasmContractClass) -> StorageResult<Self> {
+    fn append_versioned_casm(self, class_hash: &ClassHash, versioned_casm: &(&CasmContractClass,SierraVersion)) -> StorageResult<Self> {
         let casm_table = self.open_table(&self.tables.casms)?;
         let markers_table = self.open_table(&self.tables.markers)?;
         let state_diff_table = self.open_table(&self.tables.state_diffs)?;
         let file_offset_table = self.txn.open_table(&self.tables.file_offsets)?;
 
-        let location = self.file_handlers.append_casm(casm);
+        let location = self.file_handlers.append_versioned_casm(versioned_casm);
         casm_table.insert(&self.txn, class_hash, &location)?;
         file_offset_table.upsert(&self.txn, &OffsetKind::Casm, &location.next_offset())?;
         update_marker(

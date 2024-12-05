@@ -49,7 +49,7 @@ pub fn test_state_inner(
 
     // Declare and deploy account and ERC20 contracts.
     let erc20 = FeatureContract::ERC20(erc20_contract_version);
-    class_hash_to_class.insert(erc20.get_class_hash(), erc20.get_runnable_class());
+    class_hash_to_class.insert(erc20.get_class_hash(), erc20.get_compiled_contract_class());
     address_to_class_hash
         .insert(chain_info.fee_token_address(&FeeType::Eth), erc20.get_class_hash());
     address_to_class_hash
@@ -58,7 +58,7 @@ pub fn test_state_inner(
     // Set up the rest of the requested contracts.
     for (contract, n_instances) in contract_instances.iter() {
         let class_hash = contract.get_class_hash();
-        class_hash_to_class.insert(class_hash, contract.get_runnable_class());
+        class_hash_to_class.insert(class_hash, contract.get_compiled_contract_class());
         for instance in 0..*n_instances {
             let instance_address = contract.get_instance_address(instance);
             address_to_class_hash.insert(instance_address, class_hash);

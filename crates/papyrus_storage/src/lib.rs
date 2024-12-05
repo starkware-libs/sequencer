@@ -123,6 +123,7 @@ use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_proc_macros::latency_histogram;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockNumber, BlockSignature, StarknetVersion};
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{SierraContractClass, StateNumber, StorageKey, ThinStateDiff};
@@ -667,7 +668,7 @@ pub(crate) type MarkersTable<'env> =
 struct FileHandlers<Mode: TransactionKind> {
     thin_state_diff: FileHandler<VersionZeroWrapper<ThinStateDiff>, Mode>,
     contract_class: FileHandler<VersionZeroWrapper<SierraContractClass>, Mode>,
-    casm: FileHandler<VersionZeroWrapper<CasmContractClass>, Mode>,
+    versioned_casm: FileHandler<VersionZeroWrapper<(CasmContractClass, SierraVersion)>, Mode>,
     deprecated_contract_class: FileHandler<VersionZeroWrapper<DeprecatedContractClass>, Mode>,
     transaction_output: FileHandler<VersionZeroWrapper<TransactionOutput>, Mode>,
     transaction: FileHandler<VersionZeroWrapper<Transaction>, Mode>,
@@ -686,8 +687,9 @@ impl FileHandlers<RW> {
     }
 
     // Appends a CASM to the corresponding file and returns its location.
-    fn append_casm(&self, casm: &CasmContractClass) -> LocationInFile {
-        self.clone().casm.append(casm)
+    fn append_versioned_casm(&self, versioned_casm: &(&CasmContractClass,SierraVersion)) -> LocationInFile {
+        let value = (versioned_casm.0.clone(), versioned_casm.1.clone());
+        self.clone().versioned_casm.append(&value)
     }
 
     // Appends a deprecated contract class to the corresponding file and returns its location.
@@ -714,7 +716,7 @@ impl FileHandlers<RW> {
         debug!("Flushing the mmap files.");
         self.thin_state_diff.flush();
         self.contract_class.flush();
-        self.casm.flush();
+        self.versioned_casm.flush();
         self.deprecated_contract_class.flush();
         self.transaction_output.flush();
         self.transaction.flush();
@@ -727,7 +729,7 @@ impl<Mode: TransactionKind> FileHandlers<Mode> {
         HashMap::from_iter([
             ("thin_state_diff".to_string(), self.thin_state_diff.stats()),
             ("contract_class".to_string(), self.contract_class.stats()),
-            ("casm".to_string(), self.casm.stats()),
+            ("versioned_casm".to_string(), self.versioned_casm.stats()),
             ("deprecated_contract_class".to_string(), self.deprecated_contract_class.stats()),
             ("transaction_output".to_string(), self.transaction_output.stats()),
             ("transaction".to_string(), self.transaction.stats()),
@@ -755,8 +757,8 @@ impl<Mode: TransactionKind> FileHandlers<Mode> {
     }
 
     // Returns the CASM at the given location or an error in case it doesn't exist.
-    fn get_casm_unchecked(&self, location: LocationInFile) -> StorageResult<CasmContractClass> {
-        self.casm.get(location)?.ok_or(StorageError::DBInconsistency {
+    fn get_casm_unchecked(&self, location: LocationInFile) -> StorageResult<(CasmContractClass, SierraVersion)> {
+        self.versioned_casm.get(location)?.ok_or(StorageError::DBInconsistency {
             msg: format!("CasmContractClass at location {:?} not found.", location),
         })
     }
@@ -817,9 +819,9 @@ fn open_storage_files(
         contract_class_offset,
     )?;
 
-    let casm_offset = table.get(&db_transaction, &OffsetKind::Casm)?.unwrap_or_default();
-    let (casm_writer, casm_reader) =
-        open_file(mmap_file_config.clone(), db_config.path().join("casm.dat"), casm_offset)?;
+    let versioned_casm_offset = table.get(&db_transaction, &OffsetKind::Casm)?.unwrap_or_default();
+    let (versioned_casm_writer, versioned_casm_reader) =
+        open_file(mmap_file_config.clone(), db_config.path().join("casm.dat"), versioned_casm_offset)?;
 
     let deprecated_contract_class_offset =
         table.get(&db_transaction, &OffsetKind::DeprecatedContractClass)?.unwrap_or_default();
@@ -846,7 +848,7 @@ fn open_storage_files(
         FileHandlers {
             thin_state_diff: thin_state_diff_writer,
             contract_class: contract_class_writer,
-            casm: casm_writer,
+            versioned_casm: versioned_casm_writer,
             deprecated_contract_class: deprecated_contract_class_writer,
             transaction_output: transaction_output_writer,
             transaction: transaction_writer,
@@ -854,7 +856,7 @@ fn open_storage_files(
         FileHandlers {
             thin_state_diff: thin_state_diff_reader,
             contract_class: contract_class_reader,
-            casm: casm_reader,
+            versioned_casm: versioned_casm_reader,
             deprecated_contract_class: deprecated_contract_class_reader,
             transaction_output: transaction_output_reader,
             transaction: transaction_reader,

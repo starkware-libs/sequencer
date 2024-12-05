@@ -4,7 +4,7 @@ use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
-use crate::execution::contract_class::RunnableCompiledClass;
+use crate::execution::contract_class::VersionedRunnableCompiledClass;
 use crate::state::cached_state::StorageEntry;
 use crate::state::errors::StateError;
 use crate::state::state_api::{StateReader, StateResult};
@@ -15,7 +15,7 @@ pub struct DictStateReader {
     pub storage_view: HashMap<StorageEntry, Felt>,
     pub address_to_nonce: HashMap<ContractAddress, Nonce>,
     pub address_to_class_hash: HashMap<ContractAddress, ClassHash>,
-    pub class_hash_to_class: HashMap<ClassHash, RunnableCompiledClass>,
+    pub class_hash_to_class: HashMap<ClassHash, VersionedRunnableCompiledClass>,
     pub class_hash_to_compiled_class_hash: HashMap<ClassHash, CompiledClassHash>,
 }
 
@@ -35,7 +35,10 @@ impl StateReader for DictStateReader {
         Ok(nonce)
     }
 
-    fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
+    fn get_compiled_contract_class(
+        &self,
+        class_hash: ClassHash,
+    ) -> StateResult<VersionedRunnableCompiledClass> {
         let contract_class = self.class_hash_to_class.get(&class_hash).cloned();
         match contract_class {
             Some(contract_class) => Ok(contract_class),

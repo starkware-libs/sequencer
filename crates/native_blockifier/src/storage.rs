@@ -12,6 +12,7 @@ use papyrus_storage::header::{HeaderStorageReader, HeaderStorageWriter};
 use papyrus_storage::state::{StateStorageReader, StateStorageWriter};
 use pyo3::prelude::*;
 use starknet_api::block::{BlockHash, BlockHeader, BlockHeaderWithoutHash, BlockNumber};
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::hash::StarkHash;
@@ -174,7 +175,8 @@ impl Storage for PapyrusStorage {
 
         let mut declared_classes =
             IndexMap::<ClassHash, (CompiledClassHash, SierraContractClass)>::new();
-        let mut undeclared_casm_contracts = Vec::<(ClassHash, CasmContractClass)>::new();
+        let mut undeclared_casm_contracts =
+            Vec::<(ClassHash, (CasmContractClass, SierraVersion))>::new();
         for (class_hash, (raw_sierra, (compiled_class_hash, raw_casm))) in
             declared_class_hash_to_class
         {
@@ -188,18 +190,20 @@ impl Storage for PapyrusStorage {
 
             if class_undeclared {
                 let sierra_contract_class: SierraContractClass = serde_json::from_str(&raw_sierra)?;
+                let sierra_version =
+                    SierraVersion::extract_from_program(&sierra_contract_class.sierra_program)?;
                 declared_classes.insert(
                     class_hash,
                     (CompiledClassHash(compiled_class_hash.0), sierra_contract_class),
                 );
                 let casm_contract_class: CasmContractClass = serde_json::from_str(&raw_casm)?;
-                undeclared_casm_contracts.push((class_hash, casm_contract_class));
+                undeclared_casm_contracts.push((class_hash, (casm_contract_class, sierra_version)));
             }
         }
 
         let mut append_txn = self.writer().begin_rw_txn()?;
-        for (class_hash, contract_class) in undeclared_casm_contracts {
-            append_txn = append_txn.append_casm(&class_hash, &contract_class)?;
+        for (class_hash, (casm, sierra_version)) in undeclared_casm_contracts {
+            append_txn = append_txn.append_versioned_casm(&class_hash, &(&casm, sierra_version))?;
         }
 
         // Construct state diff; manually add declared classes.

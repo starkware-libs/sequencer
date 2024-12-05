@@ -48,7 +48,7 @@ use starknet_api::block::{
     BlockTimestamp,
     GasPricePerToken,
 };
-use starknet_api::contract_class::EntryPointType;
+use starknet_api::contract_class::{EntryPointType, SierraVersion};
 use starknet_api::core::{
     ClassHash,
     CompiledClassHash,
@@ -1563,6 +1563,7 @@ async fn write_block_0_as_pending(
 
     let class2 = starknet_api::state::SierraContractClass::default();
     let casm = serde_json::from_value::<CasmContractClass>(read_json_file("casm.json")).unwrap();
+    let sierra_version = SierraVersion::default();
     let class_hash2 = class_hash!("0x2");
     let compiled_class_hash = CompiledClassHash(StarkHash::default());
 
@@ -1578,7 +1579,7 @@ async fn write_block_0_as_pending(
 
     let mut pending_classes_ref = pending_classes.write().await;
     pending_classes_ref.add_class(class_hash2, ApiContractClass::ContractClass(class2));
-    pending_classes_ref.add_compiled_class(class_hash2, casm);
+    pending_classes_ref.add_compiled_contract_class(class_hash2, (casm, sierra_version));
     pending_classes_ref.add_class(class_hash1, ApiContractClass::DeprecatedContractClass(class1));
     pending_classes_ref
         .add_class(*ACCOUNT_CLASS_HASH, ApiContractClass::DeprecatedContractClass(account_class));
@@ -1655,6 +1656,7 @@ fn prepare_storage_for_execution(mut storage_writer: StorageWriter) -> StorageWr
 
     let class2 = starknet_api::state::SierraContractClass::default();
     let casm = serde_json::from_value::<CasmContractClass>(read_json_file("casm.json")).unwrap();
+    let sierra_version = SierraVersion::default();
     let class_hash2 = class_hash!("0x2");
     let compiled_class_hash = CompiledClassHash(StarkHash::default());
 
@@ -1735,7 +1737,7 @@ fn prepare_storage_for_execution(mut storage_writer: StorageWriter) -> StorageWr
             ],
         )
         .unwrap()
-        .append_casm(&class_hash2, &casm)
+        .append_versioned_casm(&class_hash2, &(&casm,sierra_version))
         .unwrap()
         .append_header(
             BlockNumber(1),

@@ -35,6 +35,7 @@ use starknet_api::block::{
     FeeType,
     GasPricePerToken,
 };
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, Nonce, SequencerContractAddress};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{StorageKey, ThinStateDiff};
@@ -198,7 +199,8 @@ fn write_state_to_papyrus_storage(
     let mut write_txn = storage_writer.begin_rw_txn().unwrap();
 
     for (class_hash, casm) in cairo1_contract_classes {
-        write_txn = write_txn.append_casm(class_hash, casm).unwrap();
+        write_txn =
+            write_txn.append_versioned_casm(class_hash, &(casm, SierraVersion::latest())).unwrap();
     }
     write_txn
         .append_header(block_number, &block_header)

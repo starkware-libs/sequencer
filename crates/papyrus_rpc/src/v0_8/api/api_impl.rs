@@ -1462,8 +1462,8 @@ impl JsonRpcServer for JsonRpcServerImpl {
             if class_definition_block_number > block_number {
                 return Err(ErrorObjectOwned::from(CLASS_HASH_NOT_FOUND));
             }
-            let casm = storage_txn
-                .get_casm(&class_hash)
+            let (casm,_) = storage_txn
+                .get_versioned_casm(&class_hash)
                 .map_err(internal_server_error)?
                 .ok_or_else(|| ErrorObjectOwned::from(CLASS_HASH_NOT_FOUND))?;
             return Ok(CompiledContractClass::V1(casm));

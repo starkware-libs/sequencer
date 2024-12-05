@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::ClassHash;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::SierraContractClass;
@@ -15,9 +16,9 @@ pub trait PendingClassesTrait {
 
     // TODO(shahak) Return an Arc to avoid cloning the class. This requires to re-implement
     // From/TryFrom for various structs in a way that the input is passed by reference.
-    fn get_compiled_class(&self, class_hash: ClassHash) -> Option<CasmContractClass>;
+    fn get_compiled_contract_class(&self, class_hash: ClassHash) -> Option<(CasmContractClass,SierraVersion)>;
 
-    fn add_compiled_class(&mut self, class_hash: ClassHash, compiled_class: CasmContractClass);
+    fn add_compiled_contract_class(&mut self, class_hash: ClassHash, compiled_class: (CasmContractClass, SierraVersion));
 
     fn clear(&mut self);
 }
@@ -27,7 +28,7 @@ pub struct PendingClasses {
     // Putting the contracts inside Arc so we won't have to clone them when we clone the entire
     // PendingClasses struct.
     pub classes: HashMap<ClassHash, Arc<ApiContractClass>>,
-    pub compiled_classes: HashMap<ClassHash, Arc<CasmContractClass>>,
+    pub compiled_classes: HashMap<ClassHash, Arc<(CasmContractClass,SierraVersion)>>,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -61,11 +62,11 @@ impl PendingClassesTrait for PendingClasses {
         self.classes.insert(class_hash, Arc::new(class));
     }
 
-    fn get_compiled_class(&self, class_hash: ClassHash) -> Option<CasmContractClass> {
+    fn get_compiled_contract_class(&self, class_hash: ClassHash) -> Option<(CasmContractClass,SierraVersion)> {
         self.compiled_classes.get(&class_hash).map(|compiled_class| (**compiled_class).clone())
     }
 
-    fn add_compiled_class(&mut self, class_hash: ClassHash, compiled_class: CasmContractClass) {
+    fn add_compiled_contract_class(&mut self, class_hash: ClassHash, compiled_class: (CasmContractClass,SierraVersion)) {
         self.compiled_classes.insert(class_hash, Arc::new(compiled_class));
     }
 

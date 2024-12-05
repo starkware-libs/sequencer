@@ -96,6 +96,10 @@ pub fn get_test_account_class() -> DeprecatedContractClass {
     get_test_instance("account_class.json")
 }
 
+pub fn get_dummy_sierra_versaion() -> SierraVersion {
+    SierraVersion::latest()
+}
+
 pub fn prepare_storage(mut storage_writer: StorageWriter) {
     let class_hash0 = class_hash!("0x2");
     let class_hash1 = class_hash!("0x1");
@@ -172,7 +176,7 @@ pub fn prepare_storage(mut storage_writer: StorageWriter) {
             ],
         )
         .unwrap()
-        .append_casm(&class_hash0, &get_test_casm())
+        .append_versioned_casm(&class_hash0, &(&get_test_casm(), get_dummy_sierra_versaion()))
         .unwrap()
         .append_header(
             BlockNumber(1),

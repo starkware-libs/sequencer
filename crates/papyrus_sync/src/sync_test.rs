@@ -13,6 +13,7 @@ use papyrus_storage::{StorageReader, StorageWriter};
 use papyrus_test_utils::{get_rng, GetTestInstance};
 use pretty_assertions::assert_eq;
 use starknet_api::block::{BlockHash, BlockHeader, BlockHeaderWithoutHash, BlockNumber};
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, CompiledClassHash, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::hash::StarkHash;
@@ -251,7 +252,7 @@ async fn test_pending_sync(
     old_pending_classes_data: Option<PendingClasses>,
     // Verifies that the classes will be requested in the given order.
     new_pending_classes: Vec<(ClassHash, ApiContractClass)>,
-    new_pending_compiled_classes: Vec<(ClassHash, CasmContractClass)>,
+    new_pending_compiled_classes: Vec<(ClassHash, (CasmContractClass, SierraVersion))>,
     expected_pending_classes: Option<PendingClasses>,
 ) {
     let mut mock_pending_source = MockPendingSourceTrait::new();
@@ -683,7 +684,10 @@ async fn pending_sync_classes_request_only_new_classes() {
     let mut expected_pending_classes = PendingClasses::default();
     expected_pending_classes.add_class(first_class_hash, first_class.clone());
     expected_pending_classes.add_class(second_class_hash, second_class.clone());
-    expected_pending_classes.add_compiled_class(first_class_hash, compiled_class.clone());
+    expected_pending_classes.add_compiled_contract_class(
+        first_class_hash,
+        (compiled_class.clone(), SierraVersion::default()),
+    );
 
     let old_pending_data = PendingData {
         block: PendingBlockOrDeprecated::Deprecated(DeprecatedPendingBlock {
@@ -698,7 +702,8 @@ async fn pending_sync_classes_request_only_new_classes() {
     let old_pending_classes_data = PendingClasses::default();
     let new_pending_classes =
         vec![(first_class_hash, first_class.clone()), (second_class_hash, second_class.clone())];
-    let new_pending_compiled_classes = vec![(first_class_hash, compiled_class.clone())];
+    let new_pending_compiled_classes =
+        vec![(first_class_hash, (compiled_class.clone(), SierraVersion::default()))];
     test_pending_sync(
         reader,
         old_pending_data,
@@ -767,9 +772,9 @@ async fn pending_sync_classes_are_cleaned_on_first_pending_data_from_latest_bloc
             &mut rng,
         )),
     );
-    old_pending_classes_data.add_compiled_class(
+    old_pending_classes_data.add_compiled_contract_class(
         ClassHash(StarkHash::TWO),
-        CasmContractClass::get_test_instance(&mut rng),
+        (CasmContractClass::get_test_instance(&mut rng), SierraVersion::default()),
     );
 
     let new_pending_datas = vec![new_pending_data.clone(), new_block_pending_data];
