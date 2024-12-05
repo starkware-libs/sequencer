@@ -122,7 +122,8 @@ impl SequencerConsensusContext {
             _proposal_streaming_client,
             outbound_proposal_sender,
             vote_broadcast_client,
-            validators: (0..num_validators).map(ValidatorId::from).collect(),
+            // TODO(Matan): Set the actual validator IDs (contract addresses).
+            validators: (100..100 + num_validators).map(ValidatorId::from).collect(),
             valid_proposals: Arc::new(Mutex::new(HeightToIdToContent::new())),
             proposal_id: 0,
             current_height: None,

@@ -202,7 +202,7 @@
   "consensus.validator_id": {
     "description": "The validator id of the node.",
     "privacy": "Public",
-    "value": "0x0"
+    "value": "0x64"
   },
   "monitoring_gateway.collect_metrics": {
     "description": "If true, collect and return metrics in the monitoring gateway.",
