@@ -264,7 +264,7 @@ pub trait JsonRpc {
         &self,
         block_id: BlockId,
         class_hash: ClassHash,
-    ) -> RpcResult<CompiledContractClass>;
+    ) -> RpcResult<(CompiledContractClass, SierraVersion)>;
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

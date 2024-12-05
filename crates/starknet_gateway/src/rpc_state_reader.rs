@@ -10,6 +10,7 @@ use reqwest::blocking::Client as BlockingClient;
 use serde::Serialize;
 use serde_json::{json, Value};
 use starknet_api::block::{BlockInfo, BlockNumber};
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
@@ -144,7 +145,7 @@ impl BlockifierStateReader for RpcStateReader {
 
         let result =
             self.send_rpc_request("starknet_getCompiledContractClass", get_compiled_class_params)?;
-        let contract_class: CompiledContractClass =
+        let (contract_class, _): (CompiledContractClass, SierraVersion) =
             serde_json::from_value(result).map_err(serde_err_to_state_err)?;
         match contract_class {
             CompiledContractClass::V1(contract_class_v1) => Ok(RunnableCompiledClass::V1(
