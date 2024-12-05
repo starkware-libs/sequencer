@@ -10687,6 +10687,8 @@ dependencies = [
  "papyrus_base_layer",
  "papyrus_common",
  "papyrus_config",
+ "papyrus_network",
+ "papyrus_p2p_sync",
  "papyrus_storage",
  "papyrus_sync",
  "serde",
