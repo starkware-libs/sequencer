@@ -250,15 +250,19 @@ async fn repropose() {
 
     // Receive a valid proposal.
     let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
-    let prop_part = ProposalPart::Transactions(TransactionBatch {
-        transactions: vec![generate_invoke_tx()],
-        tx_hashes: vec![TransactionHash(Felt::TWO)],
-    });
-    content_sender.send(prop_part).await.unwrap();
-    let prop_part = ProposalPart::Fin(ProposalFin {
-        proposal_content_id: BlockHash(STATE_DIFF_COMMITMENT.0.0),
-    });
-    content_sender.send(prop_part).await.unwrap();
+    content_sender
+        .send(ProposalPart::Transactions(TransactionBatch {
+            transactions: vec![generate_invoke_tx()],
+            tx_hashes: vec![TransactionHash(Felt::TWO)],
+        }))
+        .await
+        .unwrap();
+    content_sender
+        .send(ProposalPart::Fin(ProposalFin {
+            proposal_content_id: BlockHash(STATE_DIFF_COMMITMENT.0.0),
+        }))
+        .await
+        .unwrap();
     let fin_receiver = context
         .validate_proposal(BlockNumber(0), 0, ValidatorId::default(), TIMEOUT, content_receiver)
         .await;
