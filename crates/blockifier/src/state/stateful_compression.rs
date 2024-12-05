@@ -18,6 +18,9 @@ type AliasKey = StorageKey;
 const ALIAS_CONTRACT_ADDRESS: u8 = 2;
 // The storage key of the alias counter in the alias contract.
 const ALIAS_COUNTER_STORAGE_KEY: u8 = 0;
+// The maximal contract address for which aliases are not used and all keys are serialized as is,
+// without compression.
+const MAX_NON_COMPRESSED_CONTRACT_ADDRESS: u8 = 15;
 // The minimal value for a key to be allocated an alias. Smaller keys are serialized as is (their
 // alias is identical to the key).
 const MIN_VALUE_FOR_ALIAS_ALLOC: Felt = Felt::from_hex_unchecked("0x80");
@@ -27,6 +30,36 @@ pub fn get_alias_contract_address() -> ContractAddress {
 }
 pub fn get_alias_counter_storage_key() -> StorageKey {
     StorageKey::from(ALIAS_COUNTER_STORAGE_KEY)
+}
+pub fn get_max_non_compressed_contract_address() -> ContractAddress {
+    ContractAddress::from(MAX_NON_COMPRESSED_CONTRACT_ADDRESS)
+}
+
+pub fn insert_aliases<S: StateReader>(state: &mut CachedState<S>) -> StateResult<()> {
+    let writes = state.borrow_updated_state_cache()?.clone().writes;
+
+    // Collect the addresses and storage keys that need aliases.
+    let mut addresses = BTreeSet::new();
+    let mut sorted_storage_keys = HashMap::new();
+    addresses.extend(writes.class_hashes.keys().chain(writes.nonces.keys()));
+    for (address, storage_key) in writes.storage.keys() {
+        addresses.insert(address);
+        if address > &get_max_non_compressed_contract_address() {
+            sorted_storage_keys.entry(address).or_insert_with(BTreeSet::new).insert(storage_key);
+        }
+    }
+
+    // Iterate over the addresses and the storage keys and update the aliases.
+    let mut alias_updater = AliasUpdater::new(state)?;
+    for address in addresses {
+        if let Some(storage_keys) = sorted_storage_keys.get(address) {
+            for key in storage_keys {
+                alias_updater.set_alias(key)?;
+            }
+        }
+        alias_updater.set_alias(&StorageKey(address.0))?;
+    }
+    alias_updater.finalize_updates()
 }
 
 /// Updates the alias contract with the new keys.
