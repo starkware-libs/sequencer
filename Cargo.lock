@@ -1492,6 +1492,7 @@ dependencies = [
  "infra_utils",
  "itertools 0.12.1",
  "keccak",
+ "lazy_static",
  "log",
  "num-bigint 0.4.6",
  "num-integer",
