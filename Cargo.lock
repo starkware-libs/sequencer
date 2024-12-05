@@ -10559,6 +10559,8 @@ version = "0.0.0"
 dependencies = [
  "axum",
  "hyper 0.14.30",
+ "metrics 0.21.1",
+ "metrics-exporter-prometheus",
  "papyrus_config",
  "pretty_assertions",
  "serde",
