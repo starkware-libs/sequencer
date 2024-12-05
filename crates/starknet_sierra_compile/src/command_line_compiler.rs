@@ -9,6 +9,7 @@ use cairo_native::executor::AotContractExecutor;
 use tempfile::NamedTempFile;
 
 use crate::config::SierraToCasmCompilationConfig;
+<<<<<<< Updated upstream
 use crate::constants::CAIRO_LANG_BINARY_NAME;
 #[cfg(feature = "cairo_native")]
 use crate::constants::CAIRO_NATIVE_BINARY_NAME;
@@ -16,6 +17,13 @@ use crate::errors::CompilationUtilError;
 use crate::paths::binary_path;
 #[cfg(feature = "cairo_native")]
 use crate::paths::output_file_path;
+=======
+#[cfg(feature = "cairo_native")]
+use crate::constants::CAIRO_NATIVE_BINARY_NAME;
+use crate::constants::{CAIRO_LANG_BINARY_NAME, RUNTIME_ACCESSIBLE_OUT_DIR_ENV_VAR_NAME};
+use crate::errors::CompilationUtilError;
+use crate::paths::binary_path;
+>>>>>>> Stashed changes
 use crate::SierraToCasmCompiler;
 #[cfg(feature = "cairo_native")]
 use crate::SierraToNativeCompiler;
@@ -32,9 +40,12 @@ impl CommandLineCompiler {
     pub fn new(config: SierraToCasmCompilationConfig) -> Self {
         Self {
             config,
-            path_to_starknet_sierra_compile_binary: binary_path(CAIRO_LANG_BINARY_NAME),
+            path_to_starknet_sierra_compile_binary: binary_path(out_dir(), CAIRO_LANG_BINARY_NAME),
             #[cfg(feature = "cairo_native")]
-            path_to_starknet_native_compile_binary: binary_path(CAIRO_NATIVE_BINARY_NAME),
+            path_to_starknet_native_compile_binary: binary_path(
+                out_dir(),
+                CAIRO_NATIVE_BINARY_NAME,
+            ),
         }
     }
 }
@@ -100,4 +111,13 @@ fn compile_with_args(
         return Err(CompilationUtilError::CompilationError(stderr_output));
     };
     Ok(compile_output.stdout)
+}
+
+fn out_dir() -> PathBuf {
+    env!("RUNTIME_ACCESSIBLE_OUT_DIR").into()
+}
+
+#[cfg(feature = "cairo_native")]
+fn output_file_path() -> String {
+    out_dir().join("output.so").to_str().unwrap().into()
 }
