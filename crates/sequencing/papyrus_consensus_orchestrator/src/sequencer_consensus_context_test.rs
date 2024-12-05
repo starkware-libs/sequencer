@@ -6,7 +6,7 @@ use futures::channel::mpsc;
 use futures::{FutureExt, SinkExt};
 use lazy_static::lazy_static;
 use papyrus_consensus::stream_handler::StreamHandler;
-use papyrus_consensus::types::{ConsensusContext, ValidatorId};
+use papyrus_consensus::types::{ConsensusContext, ValidatorId, DEFAULT_VALIDATOR_ID};
 use papyrus_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
     BroadcastNetworkMock,
@@ -130,12 +130,8 @@ async fn build_proposal() {
     });
     let (mut context, _network) = setup(batcher);
 
-    let init = ProposalInit {
-        height: BlockNumber(0),
-        round: 0,
-        proposer: ValidatorId::default(),
-        valid_round: None,
-    };
+    let init =
+        ProposalInit { proposer: ValidatorId::from(DEFAULT_VALIDATOR_ID), ..Default::default() };
     // TODO(Asmaa): Test proposal content.
     let fin_receiver = context.build_proposal(init, TIMEOUT).await;
     assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
@@ -200,7 +196,13 @@ async fn validate_proposal_success() {
         .await
         .unwrap();
     let fin_receiver = context
-        .validate_proposal(BlockNumber(0), 0, ValidatorId::default(), TIMEOUT, content_receiver)
+        .validate_proposal(
+            BlockNumber(0),
+            0,
+            ValidatorId::from(DEFAULT_VALIDATOR_ID),
+            TIMEOUT,
+            content_receiver,
+        )
         .await;
     content_sender.close_channel();
     assert_eq!(fin_receiver.await.unwrap().0.0, STATE_DIFF_COMMITMENT.0.0);
@@ -252,7 +254,13 @@ async fn repropose() {
         .await
         .unwrap();
     let fin_receiver = context
-        .validate_proposal(BlockNumber(0), 0, ValidatorId::default(), TIMEOUT, content_receiver)
+        .validate_proposal(
+            BlockNumber(0),
+            0,
+            ValidatorId::from(DEFAULT_VALIDATOR_ID),
+            TIMEOUT,
+            content_receiver,
+        )
         .await;
     content_sender.close_channel();
     assert_eq!(fin_receiver.await.unwrap().0.0, STATE_DIFF_COMMITMENT.0.0);
@@ -321,7 +329,13 @@ async fn proposals_from_different_rounds() {
     content_sender.send(prop_part_txs.clone()).await.unwrap();
 
     let fin_receiver_past_round = context
-        .validate_proposal(BlockNumber(0), 0, ValidatorId::default(), TIMEOUT, content_receiver)
+        .validate_proposal(
+            BlockNumber(0),
+            0,
+            ValidatorId::from(DEFAULT_VALIDATOR_ID),
+            TIMEOUT,
+            content_receiver,
+        )
         .await;
     // No fin was sent, channel remains open.
     assert!(fin_receiver_past_round.await.is_err());
@@ -331,7 +345,13 @@ async fn proposals_from_different_rounds() {
     content_sender.send(prop_part_txs.clone()).await.unwrap();
     content_sender.send(prop_part_fin.clone()).await.unwrap();
     let fin_receiver_curr_round = context
-        .validate_proposal(BlockNumber(0), 1, ValidatorId::default(), TIMEOUT, content_receiver)
+        .validate_proposal(
+            BlockNumber(0),
+            1,
+            ValidatorId::from(DEFAULT_VALIDATOR_ID),
+            TIMEOUT,
+            content_receiver,
+        )
         .await;
     assert_eq!(fin_receiver_curr_round.await.unwrap().0.0, STATE_DIFF_COMMITMENT.0.0);
 
@@ -340,7 +360,13 @@ async fn proposals_from_different_rounds() {
     content_sender.send(prop_part_txs.clone()).await.unwrap();
     content_sender.send(prop_part_fin.clone()).await.unwrap();
     let fin_receiver_future_round = context
-        .validate_proposal(BlockNumber(0), 2, ValidatorId::default(), TIMEOUT, content_receiver)
+        .validate_proposal(
+            BlockNumber(0),
+            2,
+            ValidatorId::from(DEFAULT_VALIDATOR_ID),
+            TIMEOUT,
+            content_receiver,
+        )
         .await;
     content_sender.close_channel();
     // Even with sending fin and closing the channel.
@@ -396,7 +422,13 @@ async fn interrupt_active_proposal() {
     // without needing interrupt.
     let (mut _content_sender_0, content_receiver) = mpsc::channel(CHANNEL_SIZE);
     let fin_receiver_0 = context
-        .validate_proposal(BlockNumber(0), 0, ValidatorId::default(), TIMEOUT, content_receiver)
+        .validate_proposal(
+            BlockNumber(0),
+            0,
+            ValidatorId::from(DEFAULT_VALIDATOR_ID),
+            TIMEOUT,
+            content_receiver,
+        )
         .await;
 
     let (mut content_sender_1, content_receiver) = mpsc::channel(CHANNEL_SIZE);
@@ -414,7 +446,13 @@ async fn interrupt_active_proposal() {
         .await
         .unwrap();
     let fin_receiver_1 = context
-        .validate_proposal(BlockNumber(0), 1, ValidatorId::default(), TIMEOUT, content_receiver)
+        .validate_proposal(
+            BlockNumber(0),
+            1,
+            ValidatorId::from(DEFAULT_VALIDATOR_ID),
+            TIMEOUT,
+            content_receiver,
+        )
         .await;
     // Move the context to the next round.
     context.set_height_and_round(BlockNumber(0), 1).await;
