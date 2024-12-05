@@ -44,10 +44,10 @@ async fn end_to_end(mut tx_generator: MultiAccountTransactionGenerator) {
     let heights_to_build = next_height.iter_up_to(LAST_HEIGHT.unchecked_next());
     let expected_content_ids = [
         Felt::from_hex_unchecked(
-            "0x4597ceedbef644865917bf723184538ef70d43954d63f5b7d8cb9d1bd4c2c32",
+            "0x7d62e32fd8f1a12104a5d215af26ec0f362da81af3d14c24e08e46976cdfbf5",
         ),
         Felt::from_hex_unchecked(
-            "0x7e2c0e448bea6bbf00962017d8addd56c6146d5beb5a273b2e02f5fb862d20f",
+            "0x259aeaad847bffe6c342998c4510e5e474577219cfbb118f5cb2f2286260d52",
         ),
     ];
 
