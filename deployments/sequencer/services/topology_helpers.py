@@ -9,10 +9,11 @@ from config.sequencer import SequencerDevConfig
 
 cluster_name = "gcp-integration"
 replicas = 1
-images = {
-    "sequencer": "us.gcr.io/starkware-dev/sequencer-node-test:0.0.1-dev.3"
-}
 
+def get_images():
+    return {
+        "sequencer": "us.gcr.io/starkware-dev/sequencer-node-test:0.0.1-dev.3"
+    }
 
 def get_pvc() -> objects.PersistentVolumeClaim:
     return objects.PersistentVolumeClaim(
@@ -27,7 +28,8 @@ def get_pvc() -> objects.PersistentVolumeClaim:
 
 def get_dev_config(config_file_path: str) -> objects.Config:
     return SequencerDevConfig(
-        mount_path="/config/sequencer/presets/", config_file_path=config_file_path
+        mount_path="/config/sequencer/presets/",
+        config_file_path=config_file_path
     )
 
 
@@ -46,7 +48,7 @@ def get_ingress(url: str = "test.gcp-integration.sw-dev.io") -> objects.Ingress:
                 host=url,
                 paths=[
                     objects.IngressRuleHttpPath(
-                        path="/monitoring/",
+                        path="/monitoring",
                         path_type="Prefix",
                         backend_service_name="sequencer-node-service",
                         backend_service_port_number=const.MONITORING_SERVICE_PORT,
