@@ -37,8 +37,7 @@ impl IntegrationTestSetup {
     pub async fn new_from_tx_generator(tx_generator: &MultiAccountTransactionGenerator) -> Self {
         let chain_info = create_chain_info();
         // Creating the storage for the test.
-        let storage_for_test =
-            StorageTestSetup::new(tx_generator.accounts(), chain_info.chain_id.clone());
+        let storage_for_test = StorageTestSetup::new(tx_generator.accounts(), &chain_info);
 
         // Spawn a papyrus rpc server for a papyrus storage reader.
         let rpc_server_addr = spawn_test_rpc_state_reader(
