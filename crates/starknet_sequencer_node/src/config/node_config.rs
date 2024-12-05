@@ -76,6 +76,16 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                 "gateway_config.chain_info.fee_token_addresses.strk_fee_token_address",
             ]),
         ),
+        // TODO(tsabary): set as a regular required parameter.
+        (
+            ser_pointer_target_required_param(
+                "validator_id",
+                SerializationType::String,
+                "The ID of the validator.\
+                 Also the address of this validator as a starknet contract.",
+            ),
+            set_pointing_param_paths(&["consensus_manager_config.consensus_config.validator_id"]),
+        ),
     ];
     let mut common_execution_config = generate_struct_pointer(
         "versioned_constants_overrides".to_owned(),
