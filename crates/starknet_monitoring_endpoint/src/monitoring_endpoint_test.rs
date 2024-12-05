@@ -90,7 +90,7 @@ async fn test_endpoint_as_server() {
     spawn(async move { setup_monitoring_endpoint().run().await });
     yield_now().await;
 
-    let MonitoringEndpointConfig { ip, port } = MonitoringEndpointConfig::default();
+    let MonitoringEndpointConfig { ip, port, .. } = MonitoringEndpointConfig::default();
 
     let client = Client::new();
 
