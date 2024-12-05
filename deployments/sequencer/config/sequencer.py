@@ -10,7 +10,7 @@ CONFIG_DIR = os.path.join(ROOT_DIR, "config/sequencer/")
 
 
 class SequencerDevConfig(Config):
-    def __init__(self, mount_path: str, config_file_path: str = ""):
+    def __init__(self, config_file_path: str = ""):
         super().__init__(
             global_config=json.loads(
                 open(os.path.join(CONFIG_DIR, "default_config.json"), "r").read()
@@ -19,8 +19,7 @@ class SequencerDevConfig(Config):
                 json.loads(open(os.path.join(CONFIG_DIR, "presets", "config.json"), "r").read())
                 if not config_file_path
                 else json.loads(open(os.path.abspath(config_file_path)).read())
-            ),
-            mount_path=mount_path,
+            )
         )
 
     def validate(self):
