@@ -1,8 +1,20 @@
 use std::fs::File;
 use std::io::Write;
+use std::net::SocketAddr;
 use std::path::PathBuf;
 
 use serde_json::{json, Value};
+use starknet_sequencer_infra::component_definitions::{
+    LocalServerConfig,
+    RemoteClientConfig,
+    RemoteServerConfig,
+};
+use starknet_sequencer_infra::test_utils::get_available_socket;
+use starknet_sequencer_node::config::component_config::ComponentConfig;
+use starknet_sequencer_node::config::component_execution_config::{
+    ComponentExecutionConfig,
+    ComponentExecutionMode,
+};
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::config::test_utils::RequiredParams;
 use tracing::info;
@@ -79,4 +91,69 @@ fn strip_config_prefix(input: &str) -> &str {
         .strip_prefix("config.")
         .or_else(|| input.strip_prefix("required_params."))
         .unwrap_or(input)
+}
+
+pub fn get_disabled_component_config() -> ComponentExecutionConfig {
+    ComponentExecutionConfig {
+        execution_mode: ComponentExecutionMode::Disabled,
+        local_server_config: None,
+        remote_client_config: None,
+        remote_server_config: None,
+    }
+}
+
+pub fn get_remote_component_config(socket: SocketAddr) -> ComponentExecutionConfig {
+    ComponentExecutionConfig {
+        execution_mode: ComponentExecutionMode::Remote,
+        local_server_config: None,
+        remote_client_config: Some(RemoteClientConfig { socket, ..RemoteClientConfig::default() }),
+        remote_server_config: None,
+    }
+}
+
+pub fn get_local_with_remote_enabled_component_config(
+    socket: SocketAddr,
+) -> ComponentExecutionConfig {
+    ComponentExecutionConfig {
+        execution_mode: ComponentExecutionMode::LocalExecutionWithRemoteEnabled,
+        local_server_config: Some(LocalServerConfig::default()),
+        remote_client_config: None,
+        remote_server_config: Some(RemoteServerConfig { socket }),
+    }
+}
+
+pub async fn get_http_only_component_config(gateway_socket: SocketAddr) -> ComponentConfig {
+    let monitoring_endpoint_socket = get_available_socket().await;
+    ComponentConfig {
+        http_server: ComponentExecutionConfig::http_server_default_config(),
+        gateway: get_remote_component_config(gateway_socket),
+        monitoring_endpoint: get_local_with_remote_enabled_component_config(
+            monitoring_endpoint_socket,
+        ),
+        batcher: get_disabled_component_config(),
+        consensus_manager: get_disabled_component_config(),
+        mempool: get_disabled_component_config(),
+        mempool_p2p: get_disabled_component_config(),
+        state_sync: get_disabled_component_config(),
+    }
+}
+
+pub async fn get_non_http_component_config(gateway_socket: SocketAddr) -> ComponentConfig {
+    let monitoring_endpoint_socket = get_available_socket().await;
+    ComponentConfig {
+        http_server: get_disabled_component_config(),
+        monitoring_endpoint: get_local_with_remote_enabled_component_config(
+            monitoring_endpoint_socket,
+        ),
+        gateway: get_local_with_remote_enabled_component_config(gateway_socket),
+        ..ComponentConfig::default()
+    }
+}
+
+pub async fn get_remote_flow_test_config() -> Vec<ComponentConfig> {
+    let gateway_socket = get_available_socket().await;
+    vec![
+        get_http_only_component_config(gateway_socket).await,
+        get_non_http_component_config(gateway_socket).await,
+    ]
 }
