@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 
 use serde::{Deserialize, Serialize};
+use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_types_core::felt::Felt;
 
 use crate::serde_utils::BincodeSerdeWrapper;
@@ -39,4 +40,10 @@ fn test_serde_struct_type() {
 fn test_serde_felt() {
     let data: Felt = Felt::ONE;
     test_generic_data_serde(data);
+}
+
+// TODO(Nadin): Add test for RpcTransaction.
+#[test]
+fn test_serde_data_availability_mode() {
+    test_generic_data_serde(DataAvailabilityMode::L1);
 }
