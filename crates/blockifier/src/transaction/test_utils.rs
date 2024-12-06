@@ -45,7 +45,7 @@ use crate::test_utils::{
 use crate::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
 use crate::transaction::objects::{TransactionExecutionInfo, TransactionExecutionResult};
 use crate::transaction::transaction_types::TransactionType;
-use crate::transaction::transactions::{enforce_fee, ExecutableTransaction};
+use crate::transaction::transactions::ExecutableTransaction;
 
 // Corresponding constants to the ones in faulty_account.
 pub const VALID: u64 = 0;
@@ -303,8 +303,7 @@ pub fn create_account_tx_for_validate_test(
 
 // TODO(AvivG): Consider removing this function.
 pub fn account_invoke_tx(invoke_args: InvokeTxArgs) -> AccountTransaction {
-    let only_query = invoke_args.only_query;
-    let execution_flags = ExecutionFlags { only_query, ..ExecutionFlags::default() };
+    let execution_flags = ExecutionFlags::default();
     AccountTransaction { tx: invoke_tx(invoke_args), execution_flags }
 }
 
@@ -313,11 +312,8 @@ pub fn run_invoke_tx(
     block_context: &BlockContext,
     invoke_args: InvokeTxArgs,
 ) -> TransactionExecutionResult<TransactionExecutionInfo> {
-    let only_query = invoke_args.only_query;
     let tx = invoke_tx(invoke_args);
-    let execution_flags =
-        ExecutionFlags { only_query, charge_fee: enforce_fee(&tx, only_query), validate: true };
-    let account_tx = AccountTransaction { tx, execution_flags };
+    let account_tx = AccountTransaction::new_for_sequencing(tx);
 
     account_tx.execute(state, block_context)
 }
