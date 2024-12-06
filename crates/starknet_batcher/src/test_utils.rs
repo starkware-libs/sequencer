@@ -4,7 +4,7 @@ use blockifier::blockifier::transaction_executor::VisitedSegmentsMapping;
 use blockifier::bouncer::BouncerWeights;
 use blockifier::state::cached_state::CommitmentStateDiff;
 use indexmap::IndexMap;
-use starknet_api::executable_transaction::{AccountTransaction, Transaction};
+use starknet_api::executable_transaction::Transaction;
 use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
 use starknet_api::tx_hash;
 
@@ -13,10 +13,10 @@ use crate::block_builder::BlockExecutionArtifacts;
 pub fn test_txs(tx_hash_range: Range<usize>) -> Vec<Transaction> {
     tx_hash_range
         .map(|i| {
-            Transaction::Account(AccountTransaction::Invoke(executable_invoke_tx(InvokeTxArgs {
+            Transaction::Account(executable_invoke_tx(InvokeTxArgs {
                 tx_hash: tx_hash!(i),
                 ..Default::default()
-            })))
+            }))
         })
         .collect()
 }

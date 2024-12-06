@@ -18,9 +18,9 @@ hex.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
 itertools.workspace = true
 num-bigint.workspace = true
-papyrus_proc_macros.workspace = true
 pretty_assertions.workspace = true
 primitive-types = { workspace = true, features = ["serde"] }
+semver.workspace = true
 serde = { workspace = true, features = ["derive", "rc"] }
 serde_json.workspace = true
 sha3.workspace = true
@@ -33,6 +33,7 @@ thiserror.workspace = true
 [dev-dependencies]
 assert_matches.workspace = true
 rstest.workspace = true
+
 
 [lints]
 workspace = true

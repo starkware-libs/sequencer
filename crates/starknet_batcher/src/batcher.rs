@@ -150,7 +150,7 @@ impl Batcher {
             .block_builder_factory
             .create_block_builder(
                 BlockMetadata {
-                    height: active_height,
+                    block_info: propose_block_input.block_info,
                     retrospective_block_hash: propose_block_input.retrospective_block_hash,
                 },
                 BlockBuilderExecutionParams {
@@ -196,7 +196,7 @@ impl Batcher {
             .block_builder_factory
             .create_block_builder(
                 BlockMetadata {
-                    height: active_height,
+                    block_info: validate_block_input.block_info,
                     retrospective_block_hash: validate_block_input.retrospective_block_hash,
                 },
                 BlockBuilderExecutionParams {
@@ -465,7 +465,6 @@ fn verify_block_input(
 ) -> BatcherResult<()> {
     verify_non_empty_retrospective_block_hash(height, retrospective_block_hash)?;
     verify_block_number(height, block_number)?;
-
     Ok(())
 }
 
@@ -478,7 +477,6 @@ fn verify_non_empty_retrospective_block_hash(
     {
         return Err(BatcherError::MissingRetrospectiveBlockHash);
     }
-
     Ok(())
 }
 
@@ -486,6 +484,5 @@ fn verify_block_number(height: BlockNumber, block_number: BlockNumber) -> Batche
     if block_number != height {
         return Err(BatcherError::InvalidBlockNumber { active_height: height, block_number });
     }
-
     Ok(())
 }

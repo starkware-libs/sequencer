@@ -10,9 +10,16 @@ workspace = true
 
 [dependencies]
 async-trait.workspace = true
+mockall = { workspace = true, optional = true }
 papyrus_network_types.workspace = true
 papyrus_proc_macros.workspace = true
 serde = { workspace = true, features = ["derive"] }
 starknet_api.workspace = true
 starknet_sequencer_infra.workspace = true
 thiserror.workspace = true
+
+[dev-dependencies]
+mockall.workspace = true
+
+[features]
+testing = ["mockall"]

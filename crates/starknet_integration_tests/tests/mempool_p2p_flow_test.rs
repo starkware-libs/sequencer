@@ -41,13 +41,13 @@ fn tx_generator() -> MultiAccountTransactionGenerator {
 // TODO: remove code duplication with FlowTestSetup
 #[rstest]
 #[tokio::test]
-async fn test_mempool_sends_tx_to_other_peer(tx_generator: MultiAccountTransactionGenerator) {
+async fn test_mempool_sends_tx_to_other_peer(mut tx_generator: MultiAccountTransactionGenerator) {
     let handle = Handle::current();
     let task_executor = TokioExecutor::new(handle);
 
     let chain_info = create_chain_info();
     let accounts = tx_generator.accounts();
-    let storage_for_test = StorageTestSetup::new(accounts, chain_info.chain_id.clone());
+    let storage_for_test = StorageTestSetup::new(accounts, &chain_info);
 
     // Spawn a papyrus rpc server for a papyrus storage reader.
     let rpc_server_addr = spawn_test_rpc_state_reader(
@@ -110,7 +110,7 @@ async fn test_mempool_sends_tx_to_other_peer(tx_generator: MultiAccountTransacti
     let mut expected_txs = HashSet::new();
 
     // Create and send transactions.
-    let _tx_hashes = run_integration_test_scenario(tx_generator, &mut |tx: RpcTransaction| {
+    let _tx_hashes = run_integration_test_scenario(&mut tx_generator, &mut |tx: RpcTransaction| {
         expected_txs.insert(tx.clone()); // push the sent tx to the expected_txs list
         add_tx_http_client.assert_add_tx_success(tx)
     })

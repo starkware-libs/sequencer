@@ -14,6 +14,7 @@ use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_network::NetworkConfig;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
+use starknet_api::core::ChainId;
 
 use super::types::ValidatorId;
 
@@ -23,6 +24,8 @@ const CONSENSUS_QUIC_PORT: u16 = 10101;
 /// Configuration for consensus.
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub struct ConsensusConfig {
+    /// The chain id of the Starknet chain.
+    pub chain_id: ChainId,
     /// The validator ID of the node.
     pub validator_id: ValidatorId,
     /// The network topic of the consensus.
@@ -45,6 +48,12 @@ pub struct ConsensusConfig {
 impl SerializeConfig for ConsensusConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let mut config = BTreeMap::from_iter([
+            ser_param(
+                "chain_id",
+                &self.chain_id,
+                "The chain id of the Starknet chain.",
+                ParamPrivacyInput::Public,
+            ),
             ser_param(
                 "validator_id",
                 &self.validator_id,
@@ -90,7 +99,8 @@ impl Default for ConsensusConfig {
             ..Default::default()
         };
         Self {
-            validator_id: ValidatorId::default(),
+            chain_id: ChainId::Other("0x0".to_string()),
+            validator_id: ValidatorId::from(100_u32),
             network_topic: "consensus".to_string(),
             start_height: BlockNumber::default(),
             num_validators: 1,

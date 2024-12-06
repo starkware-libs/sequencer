@@ -19,7 +19,7 @@ use papyrus_consensus::types::{
     Round,
     ValidatorId,
 };
-use papyrus_network::network_manager::BroadcastTopicClient;
+use papyrus_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
 use papyrus_protobuf::consensus::{
     ConsensusMessage,
     ProposalFin,
@@ -28,8 +28,18 @@ use papyrus_protobuf::consensus::{
     TransactionBatch,
     Vote,
 };
-use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockInfo, BlockNumber, BlockTimestamp};
-use starknet_api::executable_transaction::Transaction;
+use starknet_api::block::{
+    BlockHash,
+    BlockHashAndNumber,
+    BlockInfo,
+    BlockNumber,
+    BlockTimestamp,
+    GasPriceVector,
+    GasPrices,
+    NonzeroGasPrice,
+};
+use starknet_api::executable_transaction::Transaction as ExecutableTransaction;
+use starknet_api::transaction::Transaction;
 use starknet_batcher_types::batcher_types::{
     DecisionReachedInput,
     GetProposalContent,
@@ -47,12 +57,26 @@ use tokio::sync::Notify;
 use tokio::task::JoinHandle;
 use tracing::{debug, debug_span, error, info, trace, warn, Instrument};
 
+// TODO(Dan, Matan): Remove this once and replace with real gas prices.
+const TEMPORARY_GAS_PRICES: GasPrices = GasPrices {
+    eth_gas_prices: GasPriceVector {
+        l1_gas_price: NonzeroGasPrice::MIN,
+        l1_data_gas_price: NonzeroGasPrice::MIN,
+        l2_gas_price: NonzeroGasPrice::MIN,
+    },
+    strk_gas_prices: GasPriceVector {
+        l1_gas_price: NonzeroGasPrice::MIN,
+        l1_data_gas_price: NonzeroGasPrice::MIN,
+        l2_gas_price: NonzeroGasPrice::MIN,
+    },
+};
+
 // {height: {proposal_id: (content, [proposal_ids])}}
 // Note that multiple proposals IDs can be associated with the same content, but we only need to
 // store one of them.
 type HeightToIdToContent =
-    BTreeMap<BlockNumber, HashMap<ProposalContentId, (Vec<Transaction>, ProposalId)>>;
-type ValidationParams = (BlockNumber, Duration, mpsc::Receiver<Vec<Transaction>>);
+    BTreeMap<BlockNumber, HashMap<ProposalContentId, (Vec<ExecutableTransaction>, ProposalId)>>;
+type ValidationParams = (BlockNumber, ValidatorId, Duration, mpsc::Receiver<ProposalPart>);
 
 const CHANNEL_SIZE: usize = 100;
 
@@ -69,31 +93,32 @@ pub struct SequencerConsensusContext {
     proposal_id: u64,
     current_height: Option<BlockNumber>,
     current_round: Round,
-    // Used to broadcast proposals to other consensus nodes.
-    // TODO(Guy) switch to the actual streaming struct.
-    _proposal_streaming_client: BroadcastTopicClient<ProposalPart>,
     // The active proposal refers to the proposal being validated at the current height/round.
     // Building proposals are not tracked as active, as consensus can't move on to the next
     // height/round until building is done. Context only works on proposals for the
     // current round.
     active_proposal: Option<(Arc<Notify>, JoinHandle<()>)>,
     // Stores proposals for future rounds until the round is reached.
-    queued_proposals: BTreeMap<Round, (ValidationParams, oneshot::Sender<ProposalContentId>)>,
+    queued_proposals:
+        BTreeMap<Round, (ValidationParams, oneshot::Sender<(ProposalContentId, ProposalFin)>)>,
     outbound_proposal_sender: mpsc::Sender<(u64, mpsc::Receiver<ProposalPart>)>,
+    // Used to broadcast votes to other consensus nodes.
+    vote_broadcast_client: BroadcastTopicClient<ConsensusMessage>,
 }
 
 impl SequencerConsensusContext {
     pub fn new(
         batcher: Arc<dyn BatcherClient>,
-        _proposal_streaming_client: BroadcastTopicClient<ProposalPart>,
         outbound_proposal_sender: mpsc::Sender<(u64, mpsc::Receiver<ProposalPart>)>,
+        vote_broadcast_client: BroadcastTopicClient<ConsensusMessage>,
         num_validators: u64,
     ) -> Self {
         Self {
             batcher,
-            _proposal_streaming_client,
             outbound_proposal_sender,
-            validators: (0..num_validators).map(ValidatorId::from).collect(),
+            vote_broadcast_client,
+            // TODO(Matan): Set the actual validator IDs (contract addresses).
+            validators: (100..100 + num_validators).map(ValidatorId::from).collect(),
             valid_proposals: Arc::new(Mutex::new(HeightToIdToContent::new())),
             proposal_id: 0,
             current_height: None,
@@ -143,10 +168,12 @@ impl ConsensusContext for SequencerConsensusContext {
             // TODO(Dan, Matan): Fill block info.
             block_info: BlockInfo {
                 block_number: proposal_init.height,
+                gas_prices: TEMPORARY_GAS_PRICES,
                 block_timestamp: BlockTimestamp(
                     now.timestamp().try_into().expect("Failed to convert timestamp"),
                 ),
-                ..Default::default()
+                use_kzg_da: true,
+                sequencer_address: proposal_init.proposer,
             },
         };
         // TODO: Should we be returning an error?
@@ -186,23 +213,34 @@ impl ConsensusContext for SequencerConsensusContext {
         fin_receiver
     }
 
+    // Note: this function does not receive ProposalInit.
+    // That part is consumed by the caller, so it can know the height/round.
     async fn validate_proposal(
         &mut self,
         height: BlockNumber,
         round: Round,
+        validator: ValidatorId,
         timeout: Duration,
-        content: mpsc::Receiver<Self::ProposalChunk>,
-    ) -> oneshot::Receiver<ProposalContentId> {
+        content_receiver: mpsc::Receiver<Self::ProposalPart>,
+    ) -> oneshot::Receiver<(ProposalContentId, ProposalFin)> {
         assert_eq!(Some(height), self.current_height);
         let (fin_sender, fin_receiver) = oneshot::channel();
         match round.cmp(&self.current_round) {
             std::cmp::Ordering::Less => fin_receiver,
             std::cmp::Ordering::Greater => {
-                self.queued_proposals.insert(round, ((height, timeout, content), fin_sender));
+                self.queued_proposals
+                    .insert(round, ((height, validator, timeout, content_receiver), fin_sender));
                 fin_receiver
             }
             std::cmp::Ordering::Equal => {
-                self.validate_current_round_proposal(height, timeout, content, fin_sender).await;
+                self.validate_current_round_proposal(
+                    height,
+                    validator,
+                    timeout,
+                    content_receiver,
+                    fin_sender,
+                )
+                .await;
                 fin_receiver
             }
         }
@@ -219,19 +257,25 @@ impl ConsensusContext for SequencerConsensusContext {
             .unwrap_or_else(|| panic!("No proposals found for height {height}"))
             .get(&id)
             .unwrap_or_else(|| panic!("No proposal found for height {height} and id {id}"));
-        // TODO: Stream the TXs to the network.
+        // TODO(guyn): Stream the TXs to the network.
     }
 
     async fn validators(&self, _height: BlockNumber) -> Vec<ValidatorId> {
         self.validators.clone()
     }
 
-    fn proposer(&self, _height: BlockNumber, _round: Round) -> ValidatorId {
-        *self.validators.first().expect("there should be at least one validator")
+    fn proposer(&self, height: BlockNumber, round: Round) -> ValidatorId {
+        let height: usize = height.0.try_into().expect("Cannot convert to usize");
+        let round: usize = round.try_into().expect("Cannot convert to usize");
+        *self
+            .validators
+            .get((height + round) % self.validators.len())
+            .expect("There should be at least one validator")
     }
 
     async fn broadcast(&mut self, message: ConsensusMessage) -> Result<(), ConsensusError> {
-        debug!("No-op broadcasting message: {message:?}");
+        debug!("Broadcasting message: {message:?}");
+        self.vote_broadcast_client.broadcast_message(message).await?;
         Ok(())
     }
 
@@ -298,10 +342,10 @@ impl ConsensusContext for SequencerConsensusContext {
             }
         }
         // Validate the proposal for the current round if exists.
-        let Some(((height, timeout, content), fin_sender)) = to_process else {
+        let Some(((height, validator, timeout, content), fin_sender)) = to_process else {
             return;
         };
-        self.validate_current_round_proposal(height, timeout, content, fin_sender).await;
+        self.validate_current_round_proposal(height, validator, timeout, content, fin_sender).await;
     }
 }
 
@@ -309,9 +353,10 @@ impl SequencerConsensusContext {
     async fn validate_current_round_proposal(
         &mut self,
         height: BlockNumber,
+        proposer: ValidatorId,
         timeout: Duration,
-        content: mpsc::Receiver<Vec<Transaction>>,
-        fin_sender: oneshot::Sender<ProposalContentId>,
+        content_receiver: mpsc::Receiver<ProposalPart>,
+        fin_sender: oneshot::Sender<(ProposalContentId, ProposalFin)>,
     ) {
         debug!("Validating proposal for height: {height} with timeout: {timeout:?}");
         let batcher = Arc::clone(&self.batcher);
@@ -333,10 +378,12 @@ impl SequencerConsensusContext {
             // TODO(Dan, Matan): Fill block info.
             block_info: BlockInfo {
                 block_number: height,
+                gas_prices: TEMPORARY_GAS_PRICES,
                 block_timestamp: BlockTimestamp(
                     now.timestamp().try_into().expect("Failed to convert timestamp"),
                 ),
-                ..Default::default()
+                use_kzg_da: true,
+                sequencer_address: proposer,
             },
         };
         batcher.validate_block(input).await.expect("Failed to initiate proposal validation");
@@ -351,7 +398,7 @@ impl SequencerConsensusContext {
                     proposal_id,
                     batcher,
                     valid_proposals,
-                    content,
+                    content_receiver,
                     fin_sender,
                 );
                 tokio::select! {
@@ -464,65 +511,80 @@ async fn stream_validate_proposal(
     proposal_id: ProposalId,
     batcher: Arc<dyn BatcherClient>,
     valid_proposals: Arc<Mutex<HeightToIdToContent>>,
-    mut content_receiver: mpsc::Receiver<Vec<Transaction>>,
-    fin_sender: oneshot::Sender<ProposalContentId>,
+    mut content_receiver: mpsc::Receiver<ProposalPart>,
+    fin_sender: oneshot::Sender<(ProposalContentId, ProposalFin)>,
 ) {
     let mut content = Vec::new();
-    while let Some(txs) = content_receiver.next().await {
-        content.extend_from_slice(&txs[..]);
-        let input =
-            SendProposalContentInput { proposal_id, content: SendProposalContent::Txs(txs) };
-        let response = batcher.send_proposal_content(input).await.unwrap_or_else(|e| {
-            panic!("Failed to send proposal content to batcher: {proposal_id:?}. {e:?}")
-        });
-        match response.response {
-            ProposalStatus::Processing => {}
-            ProposalStatus::Finished(fin) => {
-                panic!("Batcher returned Fin before all content was sent: {proposal_id:?} {fin:?}");
+    let network_block_id = loop {
+        let Some(prop_part) = content_receiver.next().await else {
+            // TODO(Asmaa): Tell the batcher to abort.
+            warn!("Failed to receive proposal content: {proposal_id:?}");
+            return;
+        };
+        match prop_part {
+            ProposalPart::Transactions(TransactionBatch { transactions: txs, tx_hashes }) => {
+                let exe_txs: Vec<ExecutableTransaction> = txs
+                    .into_iter()
+                    .zip(tx_hashes.into_iter())
+                    .map(|tx_tup| tx_tup.into())
+                    .collect();
+                content.extend_from_slice(&exe_txs[..]);
+                let input = SendProposalContentInput {
+                    proposal_id,
+                    content: SendProposalContent::Txs(exe_txs),
+                };
+                let response = batcher.send_proposal_content(input).await.unwrap_or_else(|e| {
+                    panic!("Failed to send proposal content to batcher: {proposal_id:?}. {e:?}")
+                });
+                match response.response {
+                    ProposalStatus::Processing => {}
+                    ProposalStatus::InvalidProposal => {
+                        warn!("Proposal was invalid: {:?}", proposal_id);
+                        return;
+                    }
+                    status => panic!("Unexpected status: for {proposal_id:?}, {status:?}"),
+                }
             }
-            ProposalStatus::Aborted => {
-                panic!("Unexpected abort response for proposal: {:?}", proposal_id);
+            ProposalPart::Fin(ProposalFin { proposal_content_id: id }) => {
+                // Output this along with the ID from batcher, to compare them.
+                break id;
             }
-            ProposalStatus::InvalidProposal => {
-                warn!("Proposal was invalid: {:?}", proposal_id);
-                return;
-            }
+            _ => panic!("Invalid proposal part: {:?}", prop_part),
         }
-    }
-    // TODO: In the future we will receive a Fin from the network instead of the channel closing.
-    // We will just send the network Fin out along with what the batcher calculates.
+    };
     let input = SendProposalContentInput { proposal_id, content: SendProposalContent::Finish };
     let response = batcher
         .send_proposal_content(input)
         .await
         .unwrap_or_else(|e| panic!("Failed to send Fin to batcher: {proposal_id:?}. {e:?}"));
-    let id = match response.response {
+    let response_id = match response.response {
         ProposalStatus::Finished(id) => id,
-        ProposalStatus::Processing => {
-            panic!("Batcher failed to return Fin after all content was sent: {:?}", proposal_id);
-        }
-        ProposalStatus::Aborted => {
-            panic!("Unexpected abort response for proposal: {:?}", proposal_id);
-        }
         ProposalStatus::InvalidProposal => {
             warn!("Proposal was invalid: {:?}", proposal_id);
             return;
         }
+        status => panic!("Unexpected status: for {proposal_id:?}, {status:?}"),
     };
-    let proposal_content_id = BlockHash(id.state_diff_commitment.0.0);
+    let batcher_block_id = BlockHash(response_id.state_diff_commitment.0.0);
     info!(
-        "Finished validating proposal {:?}: content_id = {:?}, num_txs = {:?}, height = {:?}",
+        "Finished validating proposal {:?}: network_block_id: {:?}, batcher_block_id = {:?}, \
+         num_txs = {:?}, height = {:?}",
         proposal_id,
-        proposal_content_id,
+        network_block_id,
+        batcher_block_id,
         content.len(),
         height
     );
     // Update valid_proposals before sending fin to avoid a race condition
     // with `get_proposal` being called before `valid_proposals` is updated.
+    // TODO(Matan): Consider validating the ProposalFin signature here.
     let mut valid_proposals = valid_proposals.lock().unwrap();
-    valid_proposals.entry(height).or_default().insert(proposal_content_id, (content, proposal_id));
-    if fin_sender.send(proposal_content_id).is_err() {
+    valid_proposals.entry(height).or_default().insert(batcher_block_id, (content, proposal_id));
+    if fin_sender
+        .send((batcher_block_id, ProposalFin { proposal_content_id: network_block_id }))
+        .is_err()
+    {
         // Consensus may exit early (e.g. sync).
-        warn!("Failed to send proposal content id");
+        warn!("Failed to send proposal content ids");
     }
 }

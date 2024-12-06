@@ -8,11 +8,14 @@ use cairo_lang_starknet_classes::contract_class::ContractClass;
 use cairo_native::executor::AotContractExecutor;
 use tempfile::NamedTempFile;
 
-use crate::build_utils::{binary_path, CAIRO_LANG_BINARY_NAME};
-#[cfg(feature = "cairo_native")]
-use crate::build_utils::{output_file_path, CAIRO_NATIVE_BINARY_NAME};
 use crate::config::SierraToCasmCompilationConfig;
+use crate::constants::CAIRO_LANG_BINARY_NAME;
+#[cfg(feature = "cairo_native")]
+use crate::constants::CAIRO_NATIVE_BINARY_NAME;
 use crate::errors::CompilationUtilError;
+use crate::paths::binary_path;
+#[cfg(feature = "cairo_native")]
+use crate::paths::output_file_path;
 use crate::SierraToCasmCompiler;
 #[cfg(feature = "cairo_native")]
 use crate::SierraToNativeCompiler;
@@ -29,9 +32,12 @@ impl CommandLineCompiler {
     pub fn new(config: SierraToCasmCompilationConfig) -> Self {
         Self {
             config,
-            path_to_starknet_sierra_compile_binary: binary_path(CAIRO_LANG_BINARY_NAME),
+            path_to_starknet_sierra_compile_binary: binary_path(out_dir(), CAIRO_LANG_BINARY_NAME),
             #[cfg(feature = "cairo_native")]
-            path_to_starknet_native_compile_binary: binary_path(CAIRO_NATIVE_BINARY_NAME),
+            path_to_starknet_native_compile_binary: binary_path(
+                out_dir(),
+                CAIRO_NATIVE_BINARY_NAME,
+            ),
         }
     }
 }
@@ -60,7 +66,7 @@ impl SierraToNativeCompiler for CommandLineCompiler {
         contract_class: ContractClass,
     ) -> Result<AotContractExecutor, CompilationUtilError> {
         let compiler_binary_path = &self.path_to_starknet_native_compile_binary;
-        let output_file_path = output_file_path();
+        let output_file_path = output_file_path(out_dir());
         let additional_args = [output_file_path.as_str()];
 
         let _stdout = compile_with_args(compiler_binary_path, contract_class, &additional_args)?;
@@ -97,4 +103,9 @@ fn compile_with_args(
         return Err(CompilationUtilError::CompilationError(stderr_output));
     };
     Ok(compile_output.stdout)
+}
+
+// Returns the OUT_DIR. This function is only operable at run time.
+fn out_dir() -> PathBuf {
+    env!("RUNTIME_ACCESSIBLE_OUT_DIR").into()
 }
