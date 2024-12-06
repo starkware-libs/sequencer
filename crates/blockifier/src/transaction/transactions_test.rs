@@ -1385,7 +1385,7 @@ fn test_invalid_nonce(
     );
     let invalid_tx_context = block_context.to_tx_context(&invalid_tx);
     let pre_validation_err = invalid_tx
-        .perform_pre_validation_stage(&mut transactional_state, &invalid_tx_context, false, true)
+        .perform_pre_validation_stage(&mut transactional_state, &invalid_tx_context, true)
         .unwrap_err();
 
     // Test error.
@@ -1406,7 +1406,7 @@ fn test_invalid_nonce(
 
     let valid_tx_context = block_context.to_tx_context(&valid_tx);
     valid_tx
-        .perform_pre_validation_stage(&mut transactional_state, &valid_tx_context, false, false)
+        .perform_pre_validation_stage(&mut transactional_state, &valid_tx_context, false)
         .unwrap();
 
     // Negative flow: account nonce = 1, incoming tx nonce = 0.
@@ -1416,7 +1416,7 @@ fn test_invalid_nonce(
     );
     let invalid_tx_context = block_context.to_tx_context(&invalid_tx);
     let pre_validation_err = invalid_tx
-        .perform_pre_validation_stage(&mut transactional_state, &invalid_tx_context, false, false)
+        .perform_pre_validation_stage(&mut transactional_state, &invalid_tx_context, false)
         .unwrap_err();
 
     // Test error.
