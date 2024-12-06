@@ -17,10 +17,7 @@ use itertools::{chain, Itertools};
 use lazy_static::lazy_static;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use papyrus_config::dumping::{
-    append_sub_config_name,
-    ser_optional_sub_config,
-    ser_param,
-    ser_pointer_target_param,
+    append_sub_config_name, ser_optional_sub_config, ser_param, ser_pointer_target_param,
     SerializeConfig,
 };
 use papyrus_config::loading::load_and_process_config;

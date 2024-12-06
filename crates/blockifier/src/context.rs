@@ -6,17 +6,12 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockInfo, FeeType, GasPriceVector};
 use starknet_api::core::{ChainId, ContractAddress};
 use starknet_api::transaction::fields::{
-    AllResourceBounds,
-    GasVectorComputationMode,
-    ValidResourceBounds,
+    AllResourceBounds, GasVectorComputationMode, ValidResourceBounds,
 };
 
 use crate::bouncer::BouncerConfig;
 use crate::transaction::objects::{
-    CurrentTransactionInfo,
-    HasRelatedFeeType,
-    TransactionInfo,
-    TransactionInfoCreator,
+    CurrentTransactionInfo, HasRelatedFeeType, TransactionInfo, TransactionInfoCreator,
 };
 use crate::versioned_constants::VersionedConstants;
 

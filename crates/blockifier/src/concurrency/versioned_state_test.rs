@@ -9,33 +9,20 @@ use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress}
 use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::fields::{ContractAddressSalt, ValidResourceBounds};
 use starknet_api::{
-    calldata,
-    class_hash,
-    compiled_class_hash,
-    contract_address,
-    deploy_account_tx_args,
-    felt,
-    nonce,
-    storage_key,
+    calldata, class_hash, compiled_class_hash, contract_address, deploy_account_tx_args, felt,
+    nonce, storage_key,
 };
 
 use crate::concurrency::test_utils::{
-    class_hash,
-    contract_address,
-    safe_versioned_state_for_testing,
+    class_hash, contract_address, safe_versioned_state_for_testing,
 };
 use crate::concurrency::versioned_state::{
-    ThreadSafeVersionedState,
-    VersionedState,
-    VersionedStateProxy,
+    ThreadSafeVersionedState, VersionedState, VersionedStateProxy,
 };
 use crate::concurrency::TxIndex;
 use crate::context::BlockContext;
 use crate::state::cached_state::{
-    CachedState,
-    ContractClassMapping,
-    StateMaps,
-    TransactionalState,
+    CachedState, ContractClassMapping, StateMaps, TransactionalState,
 };
 use crate::state::errors::StateError;
 use crate::state::state_api::{State, StateReader, UpdatableState};
@@ -104,9 +91,11 @@ fn test_versioned_state_proxy() {
         StateError::UndeclaredClassHash(class_hash) if
         another_class_hash == class_hash
     );
-    assert!(
-        !versioned_state_proxys[0].state().declared_contracts.read(0, another_class_hash).unwrap()
-    );
+    assert!(!versioned_state_proxys[0]
+        .state()
+        .declared_contracts
+        .read(0, another_class_hash)
+        .unwrap());
 
     // Write to the state.
     let new_key = storage_key!(0x11_u8);
@@ -175,12 +164,16 @@ fn test_versioned_state_proxy() {
         versioned_state_proxys[9].get_class_hash_at(contract_address).unwrap(),
         class_hash_v7
     );
-    assert!(
-        !versioned_state_proxys[0].state().declared_contracts.read(0, another_class_hash).unwrap()
-    );
-    assert!(
-        versioned_state_proxys[4].state().declared_contracts.read(4, another_class_hash).unwrap()
-    );
+    assert!(!versioned_state_proxys[0]
+        .state()
+        .declared_contracts
+        .read(0, another_class_hash)
+        .unwrap());
+    assert!(versioned_state_proxys[4]
+        .state()
+        .declared_contracts
+        .read(4, another_class_hash)
+        .unwrap());
     // Include the writes in the current transaction.
     assert_eq!(
         versioned_state_proxys[10].get_class_hash_at(contract_address).unwrap(),
@@ -328,11 +321,9 @@ fn test_validate_reads(
 
     assert_eq!(transactional_state.cache.borrow().initial_reads.declared_contracts.len(), 1);
 
-    assert!(
-        safe_versioned_state
-            .pin_version(1)
-            .validate_reads(&transactional_state.cache.borrow().initial_reads)
-    );
+    assert!(safe_versioned_state
+        .pin_version(1)
+        .validate_reads(&transactional_state.cache.borrow().initial_reads));
 }
 
 #[rstest]

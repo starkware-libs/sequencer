@@ -9,14 +9,8 @@ use starknet_types_core::hash::{Poseidon, StarkHash as CoreStarkHash};
 use strum_macros::EnumIter;
 
 use crate::core::{
-    ContractAddress,
-    EventCommitment,
-    GlobalRoot,
-    ReceiptCommitment,
-    SequencerContractAddress,
-    SequencerPublicKey,
-    StateDiffCommitment,
-    TransactionCommitment,
+    ContractAddress, EventCommitment, GlobalRoot, ReceiptCommitment, SequencerContractAddress,
+    SequencerPublicKey, StateDiffCommitment, TransactionCommitment,
 };
 use crate::crypto::utils::{verify_message_hash_signature, CryptoError, Signature};
 use crate::data_availability::L1DataAvailabilityMode;

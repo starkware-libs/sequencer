@@ -8,16 +8,12 @@ use starknet_gateway::communication::{LocalGatewayServer, RemoteGatewayServer};
 use starknet_http_server::communication::HttpServer;
 use starknet_mempool::communication::{LocalMempoolServer, RemoteMempoolServer};
 use starknet_mempool_p2p::propagator::{
-    LocalMempoolP2pPropagatorServer,
-    RemoteMempoolP2pPropagatorServer,
+    LocalMempoolP2pPropagatorServer, RemoteMempoolP2pPropagatorServer,
 };
 use starknet_mempool_p2p::runner::MempoolP2pRunnerServer;
 use starknet_monitoring_endpoint::communication::MonitoringEndpointServer;
 use starknet_sequencer_infra::component_server::{
-    ComponentServerStarter,
-    LocalComponentServer,
-    RemoteComponentServer,
-    WrapperServer,
+    ComponentServerStarter, LocalComponentServer, RemoteComponentServer, WrapperServer,
 };
 use starknet_sequencer_infra::errors::ComponentServerError;
 use tracing::error;

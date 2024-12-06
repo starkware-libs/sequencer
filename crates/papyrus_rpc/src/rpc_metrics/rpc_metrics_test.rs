@@ -16,20 +16,12 @@ use starknet_api::block::{BlockBody, BlockHeader, BlockNumber};
 use starknet_api::state::ThinStateDiff;
 
 use crate::rpc_metrics::{
-    get_method_and_version,
-    MetricLogger,
-    FAILED_REQUESTS,
-    ILLEGAL_METHOD,
-    INCOMING_REQUEST,
-    METHOD_LABEL,
-    VERSION_LABEL,
+    get_method_and_version, MetricLogger, FAILED_REQUESTS, ILLEGAL_METHOD, INCOMING_REQUEST,
+    METHOD_LABEL, VERSION_LABEL,
 };
 use crate::run_server;
 use crate::test_utils::{
-    get_test_highest_block,
-    get_test_pending_classes,
-    get_test_pending_data,
-    get_test_rpc_config,
+    get_test_highest_block, get_test_pending_classes, get_test_pending_data, get_test_rpc_config,
 };
 
 #[test]

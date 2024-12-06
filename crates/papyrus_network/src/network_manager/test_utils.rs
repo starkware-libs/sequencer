@@ -14,17 +14,9 @@ use libp2p::{Multiaddr, PeerId};
 use papyrus_common::tcp::find_n_free_ports;
 
 use super::{
-    BroadcastTopicClient,
-    BroadcastedMessageMetadata,
-    GenericReceiver,
-    NetworkManager,
-    ReportReceiver,
-    ServerQueryManager,
-    ServerResponsesSender,
-    SqmrClientPayload,
-    SqmrClientSender,
-    SqmrServerReceiver,
-    Topic,
+    BroadcastTopicClient, BroadcastedMessageMetadata, GenericReceiver, NetworkManager,
+    ReportReceiver, ServerQueryManager, ServerResponsesSender, SqmrClientPayload, SqmrClientSender,
+    SqmrServerReceiver, Topic,
 };
 use crate::network_manager::{BroadcastReceivedMessagesConverterFn, BroadcastTopicChannels};
 use crate::sqmr::Bytes;

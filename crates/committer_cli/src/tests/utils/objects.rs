@@ -1,29 +1,16 @@
 use indexmap::indexmap;
 use starknet_api::block_hash::block_hash_calculator::{
-    TransactionHashingData,
-    TransactionOutputForHash,
+    TransactionHashingData, TransactionOutputForHash,
 };
 use starknet_api::core::{
-    ClassHash,
-    CompiledClassHash,
-    ContractAddress,
-    EthAddress,
-    Nonce,
-    PatriciaKey,
+    ClassHash, CompiledClassHash, ContractAddress, EthAddress, Nonce, PatriciaKey,
 };
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::state::{StorageKey, ThinStateDiff};
 use starknet_api::transaction::fields::{Fee, TransactionSignature};
 use starknet_api::transaction::{
-    Event,
-    EventContent,
-    EventData,
-    EventKey,
-    L2ToL1Payload,
-    MessageToL1,
-    RevertedTransactionExecutionStatus,
-    TransactionExecutionStatus,
-    TransactionHash,
+    Event, EventContent, EventData, EventKey, L2ToL1Payload, MessageToL1,
+    RevertedTransactionExecutionStatus, TransactionExecutionStatus, TransactionHash,
 };
 use starknet_types_core::felt::Felt;
 

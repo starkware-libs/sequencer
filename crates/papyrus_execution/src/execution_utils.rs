@@ -3,9 +3,7 @@ use std::fs::File;
 use std::path::PathBuf;
 
 use blockifier::execution::contract_class::{
-    CompiledClassV0,
-    CompiledClassV1,
-    RunnableCompiledClass,
+    CompiledClassV0, CompiledClassV1, RunnableCompiledClass,
 };
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, MutRefState};
 use blockifier::state::state_api::StateReader;
@@ -27,11 +25,7 @@ use thiserror::Error;
 use crate::objects::TransactionTrace;
 use crate::state_reader::ExecutionStateReader;
 use crate::{
-    BlockifierError,
-    ExecutableTransactionInput,
-    ExecutionConfig,
-    ExecutionError,
-    ExecutionResult,
+    BlockifierError, ExecutableTransactionInput, ExecutionConfig, ExecutionError, ExecutionResult,
 };
 
 // An error that can occur during the use of the execution utils.

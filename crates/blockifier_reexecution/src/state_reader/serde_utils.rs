@@ -2,10 +2,7 @@ use indexmap::IndexMap;
 use serde::Deserialize;
 use serde_json::Value;
 use starknet_api::transaction::{
-    DeclareTransaction,
-    DeployAccountTransaction,
-    InvokeTransaction,
-    Transaction,
+    DeclareTransaction, DeployAccountTransaction, InvokeTransaction, Transaction,
 };
 
 use crate::state_reader::errors::ReexecutionResult;

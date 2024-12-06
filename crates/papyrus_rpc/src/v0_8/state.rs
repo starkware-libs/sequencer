@@ -8,10 +8,8 @@ use starknet_api::rpc_transaction::EntryPointByType as starknet_api_EntryPointBy
 use starknet_api::state::{EntryPoint, StorageKey, ThinStateDiff as starknet_api_ThinStateDiff};
 use starknet_client::reader::objects::state::{
     DeclaredClassHashEntry as ClientDeclaredClassHashEntry,
-    DeployedContract as ClientDeployedContract,
-    ReplacedClass as ClientReplacedClass,
-    StateDiff as ClientStateDiff,
-    StorageEntry as ClientStorageEntry,
+    DeployedContract as ClientDeployedContract, ReplacedClass as ClientReplacedClass,
+    StateDiff as ClientStateDiff, StorageEntry as ClientStorageEntry,
 };
 use starknet_types_core::felt::Felt;
 

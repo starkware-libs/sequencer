@@ -2,8 +2,7 @@ use starknet_patricia::felt::Felt;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::NodeData;
 use starknet_patricia::patricia_merkle_tree::updated_skeleton_tree::hash_function::{
-    HashFunction,
-    TreeHashFunction,
+    HashFunction, TreeHashFunction,
 };
 use starknet_types_core::hash::{Pedersen, Poseidon, StarkHash};
 

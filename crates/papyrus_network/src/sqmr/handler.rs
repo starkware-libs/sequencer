@@ -14,16 +14,10 @@ use async_stream::stream;
 use futures::stream::BoxStream;
 use futures::{FutureExt, StreamExt};
 use libp2p::swarm::handler::{
-    ConnectionEvent,
-    DialUpgradeError,
-    FullyNegotiatedInbound,
-    FullyNegotiatedOutbound,
+    ConnectionEvent, DialUpgradeError, FullyNegotiatedInbound, FullyNegotiatedOutbound,
 };
 use libp2p::swarm::{
-    ConnectionHandler,
-    ConnectionHandlerEvent,
-    StreamUpgradeError,
-    SubstreamProtocol,
+    ConnectionHandler, ConnectionHandlerEvent, StreamUpgradeError, SubstreamProtocol,
 };
 use libp2p::{PeerId, StreamProtocol};
 use tracing::debug;

@@ -9,11 +9,7 @@ use starknet_api::rpc_transaction::EntryPointByType;
 use starknet_api::state::{EntryPoint, SierraContractClass};
 use starknet_api::test_utils::declare::rpc_declare_tx;
 use starknet_api::transaction::fields::{
-    AccountDeploymentData,
-    AllResourceBounds,
-    PaymasterData,
-    Resource,
-    ResourceBounds,
+    AccountDeploymentData, AllResourceBounds, PaymasterData, Resource, ResourceBounds,
     TransactionSignature,
 };
 use starknet_api::{calldata, contract_address, declare_tx_args, felt, StarknetApiError};
@@ -23,14 +19,10 @@ use crate::compiler_version::{VersionId, VersionIdError};
 use crate::config::StatelessTransactionValidatorConfig;
 use crate::errors::StatelessTransactionValidatorResult;
 use crate::stateless_transaction_validator::{
-    StatelessTransactionValidator,
-    StatelessTransactionValidatorError,
+    StatelessTransactionValidator, StatelessTransactionValidatorError,
 };
 use crate::test_utils::{
-    create_sierra_program,
-    rpc_tx_for_testing,
-    RpcTransactionArgs,
-    TransactionType,
+    create_sierra_program, rpc_tx_for_testing, RpcTransactionArgs, TransactionType,
     NON_EMPTY_RESOURCE_BOUNDS,
 };
 

@@ -1,7 +1,5 @@
 use blockifier::execution::contract_class::{
-    CompiledClassV0,
-    CompiledClassV1,
-    RunnableCompiledClass,
+    CompiledClassV0, CompiledClassV1, RunnableCompiledClass,
 };
 use blockifier::state::errors::StateError;
 use blockifier::state::global_cache::GlobalContractCache;

@@ -21,11 +21,7 @@ use starknet_api::test_utils::deploy_account::rpc_deploy_account_tx;
 use starknet_api::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::fields::{
-    AllResourceBounds,
-    ContractAddressSalt,
-    ResourceBounds,
-    Tip,
-    TransactionSignature,
+    AllResourceBounds, ContractAddressSalt, ResourceBounds, Tip, TransactionSignature,
     ValidResourceBounds,
 };
 use starknet_api::{declare_tx_args, deploy_account_tx_args, felt, invoke_tx_args, nonce};

@@ -4,10 +4,7 @@ use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey};
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{class_hash, felt, tx_hash};
 use starknet_client::writer::objects::response::{
-    DeclareResponse,
-    DeployAccountResponse,
-    InvokeResponse,
-    SuccessfulStarknetErrorCode,
+    DeclareResponse, DeployAccountResponse, InvokeResponse, SuccessfulStarknetErrorCode,
 };
 
 use super::{AddDeclareOkResult, AddDeployAccountOkResult, AddInvokeOkResult};

@@ -28,19 +28,14 @@ use starknet_types_core::felt::Felt;
 
 use crate::errors::{NativeBlockifierError, NativeBlockifierResult};
 use crate::py_objects::{
-    PyBouncerConfig,
-    PyConcurrencyConfig,
-    PyContractClassManagerConfig,
+    PyBouncerConfig, PyConcurrencyConfig, PyContractClassManagerConfig,
     PyVersionedConstantsOverrides,
 };
 use crate::py_state_diff::{PyBlockInfo, PyStateDiff};
 use crate::py_transaction::{py_tx, PyClassInfo, PY_TX_PARSING_ERR};
 use crate::py_utils::{int_to_chain_id, into_block_number_hash_pair, PyFelt};
 use crate::storage::{
-    PapyrusStorage,
-    RawDeclaredClassMapping,
-    RawDeprecatedDeclaredClassMapping,
-    Storage,
+    PapyrusStorage, RawDeclaredClassMapping, RawDeprecatedDeclaredClassMapping, Storage,
     StorageConfig,
 };
 

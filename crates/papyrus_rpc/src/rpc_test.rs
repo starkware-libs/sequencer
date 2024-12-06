@@ -16,20 +16,13 @@ use papyrus_test_utils::get_rng;
 use pretty_assertions::assert_eq;
 use rand::seq::SliceRandom;
 use starknet_api::block::{
-    BlockHash,
-    BlockHeader,
-    BlockHeaderWithoutHash,
-    BlockNumber,
-    BlockStatus,
+    BlockHash, BlockHeader, BlockHeaderWithoutHash, BlockNumber, BlockStatus,
 };
 use tower::BoxError;
 
 use crate::middleware::proxy_rpc_request;
 use crate::test_utils::{
-    get_test_highest_block,
-    get_test_pending_classes,
-    get_test_pending_data,
-    get_test_rpc_config,
+    get_test_highest_block, get_test_pending_classes, get_test_pending_data, get_test_rpc_config,
 };
 use crate::version_config::VERSION_CONFIG;
 use crate::{get_block_status, run_server, SERVER_MAX_BODY_SIZE};

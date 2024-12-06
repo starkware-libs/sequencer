@@ -54,8 +54,8 @@ pub(crate) fn get_test_pending_classes() -> Arc<RwLock<PendingClasses>> {
     Arc::new(RwLock::new(PendingClasses::default()))
 }
 
-pub(crate) fn get_test_rpc_server_and_storage_writer<T: JsonRpcServerTrait>()
--> (RpcModule<T>, StorageWriter) {
+pub(crate) fn get_test_rpc_server_and_storage_writer<T: JsonRpcServerTrait>(
+) -> (RpcModule<T>, StorageWriter) {
     get_test_rpc_server_and_storage_writer_from_params(None, None, None, None, None)
 }
 

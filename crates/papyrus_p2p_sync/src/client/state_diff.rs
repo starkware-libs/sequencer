@@ -15,10 +15,7 @@ use starknet_api::state::ThinStateDiff;
 
 use super::stream_builder::BadPeerError;
 use crate::client::stream_builder::{
-    BlockData,
-    BlockNumberLimit,
-    DataStreamBuilder,
-    ParseDataError,
+    BlockData, BlockNumberLimit, DataStreamBuilder, ParseDataError,
 };
 use crate::client::{P2PSyncClientError, NETWORK_DATA_TIMEOUT};
 

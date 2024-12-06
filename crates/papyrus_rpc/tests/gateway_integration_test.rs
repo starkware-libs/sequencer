@@ -4,9 +4,7 @@ use jsonrpsee::core::client::ClientT;
 use jsonrpsee::http_client::{HttpClient, HttpClientBuilder};
 use jsonrpsee::rpc_params;
 use papyrus_rpc::{
-    AddInvokeOkResultRPC0_8,
-    InvokeTransactionRPC0_8,
-    InvokeTransactionV1RPC0_8,
+    AddInvokeOkResultRPC0_8, InvokeTransactionRPC0_8, InvokeTransactionV1RPC0_8,
     TransactionVersion1RPC0_8,
 };
 use starknet_api::core::{ChainId, ContractAddress, EntryPointSelector, Nonce};

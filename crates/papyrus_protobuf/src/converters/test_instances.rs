@@ -5,16 +5,8 @@ use starknet_api::core::ContractAddress;
 use starknet_api::transaction::{Transaction, TransactionHash};
 
 use crate::consensus::{
-    ConsensusMessage,
-    Proposal,
-    ProposalFin,
-    ProposalInit,
-    ProposalPart,
-    StreamMessage,
-    StreamMessageBody,
-    TransactionBatch,
-    Vote,
-    VoteType,
+    ConsensusMessage, Proposal, ProposalFin, ProposalInit, ProposalPart, StreamMessage,
+    StreamMessageBody, TransactionBatch, Vote, VoteType,
 };
 
 auto_impl_get_test_instance! {

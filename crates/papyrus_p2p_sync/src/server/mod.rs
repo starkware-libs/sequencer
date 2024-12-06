@@ -5,18 +5,8 @@ use papyrus_common::pending_classes::ApiContractClass;
 use papyrus_network::network_manager::{ServerQueryManager, SqmrServerReceiver};
 use papyrus_protobuf::converters::ProtobufConversionError;
 use papyrus_protobuf::sync::{
-    BlockHashOrNumber,
-    ClassQuery,
-    ContractDiff,
-    DataOrFin,
-    DeclaredClass,
-    DeprecatedDeclaredClass,
-    EventQuery,
-    HeaderQuery,
-    Query,
-    SignedBlockHeader,
-    StateDiffChunk,
-    StateDiffQuery,
+    BlockHashOrNumber, ClassQuery, ContractDiff, DataOrFin, DeclaredClass, DeprecatedDeclaredClass,
+    EventQuery, HeaderQuery, Query, SignedBlockHeader, StateDiffChunk, StateDiffQuery,
     TransactionQuery,
 };
 use papyrus_storage::body::BodyStorageReader;

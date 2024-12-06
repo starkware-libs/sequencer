@@ -17,35 +17,18 @@ use papyrus_storage::StorageTxn;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use starknet_api::block::{BlockHash, BlockNumber, BlockStatus};
 use starknet_api::core::{
-    ClassHash,
-    CompiledClassHash,
-    ContractAddress,
-    EntryPointSelector,
-    EthAddress,
-    Nonce,
+    ClassHash, CompiledClassHash, ContractAddress, EntryPointSelector, EthAddress, Nonce,
 };
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::serde_utils::bytes_from_hex_str;
 use starknet_api::transaction::fields::{
-    AccountDeploymentData,
-    AllResourceBounds,
-    Calldata,
-    ContractAddressSalt,
-    Fee,
-    PaymasterData,
-    Resource,
-    ResourceBounds,
-    Tip,
-    TransactionSignature,
+    AccountDeploymentData, AllResourceBounds, Calldata, ContractAddressSalt, Fee, PaymasterData,
+    Resource, ResourceBounds, Tip, TransactionSignature,
 };
 use starknet_api::transaction::{
-    DeployTransaction,
-    L1HandlerTransaction,
-    MessageToL1,
-    TransactionExecutionStatus,
-    TransactionHash,
-    TransactionVersion,
+    DeployTransaction, L1HandlerTransaction, MessageToL1, TransactionExecutionStatus,
+    TransactionHash, TransactionVersion,
 };
 use starknet_client::writer::objects::transaction as client_transaction;
 use starknet_types_core::felt::Felt;

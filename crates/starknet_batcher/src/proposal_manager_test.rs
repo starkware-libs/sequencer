@@ -5,10 +5,7 @@ use starknet_batcher_types::batcher_types::ProposalId;
 
 use crate::block_builder::{BlockBuilderTrait, BlockExecutionArtifacts, MockBlockBuilderTrait};
 use crate::proposal_manager::{
-    GenerateProposalError,
-    GetProposalResultError,
-    ProposalManager,
-    ProposalManagerTrait,
+    GenerateProposalError, GetProposalResultError, ProposalManager, ProposalManagerTrait,
     ProposalOutput,
 };
 

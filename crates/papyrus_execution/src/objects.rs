@@ -3,10 +3,8 @@ use std::collections::HashMap;
 
 use blockifier::context::BlockContext;
 use blockifier::execution::call_info::{
-    CallInfo,
-    OrderedEvent as BlockifierOrderedEvent,
-    OrderedL2ToL1Message as BlockifierOrderedL2ToL1Message,
-    Retdata as BlockifierRetdata,
+    CallInfo, OrderedEvent as BlockifierOrderedEvent,
+    OrderedL2ToL1Message as BlockifierOrderedL2ToL1Message, Retdata as BlockifierRetdata,
 };
 use blockifier::execution::entry_point::CallType as BlockifierCallType;
 use blockifier::transaction::objects::TransactionExecutionInfo;
@@ -17,27 +15,17 @@ use indexmap::IndexMap;
 use itertools::Itertools;
 use papyrus_common::pending_classes::PendingClasses;
 use papyrus_common::state::{
-    DeclaredClassHashEntry,
-    DeployedContract,
-    ReplacedClass,
-    StorageEntry,
+    DeclaredClassHashEntry, DeployedContract, ReplacedClass, StorageEntry,
 };
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockTimestamp, FeeType, GasPrice, GasPricePerToken};
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{
-    ClassHash,
-    ContractAddress,
-    EntryPointSelector,
-    Nonce,
-    SequencerContractAddress,
+    ClassHash, ContractAddress, EntryPointSelector, Nonce, SequencerContractAddress,
 };
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::execution_resources::{
-    Builtin,
-    ExecutionResources,
-    GasVector,
-    GasVector as StarknetApiGasVector,
+    Builtin, ExecutionResources, GasVector, GasVector as StarknetApiGasVector,
 };
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::fields::{Calldata, Fee};

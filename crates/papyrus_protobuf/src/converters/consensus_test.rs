@@ -2,25 +2,13 @@ use papyrus_test_utils::{get_rng, GetTestInstance};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::ValidResourceBounds;
 use starknet_api::transaction::{
-    DeclareTransaction,
-    DeclareTransactionV3,
-    DeployAccountTransaction,
-    DeployAccountTransactionV3,
-    InvokeTransaction,
-    InvokeTransactionV3,
-    Transaction,
+    DeclareTransaction, DeclareTransactionV3, DeployAccountTransaction, DeployAccountTransactionV3,
+    InvokeTransaction, InvokeTransactionV3, Transaction,
 };
 
 use crate::consensus::{
-    ConsensusMessage,
-    Proposal,
-    ProposalFin,
-    ProposalInit,
-    ProposalPart,
-    StreamMessage,
-    StreamMessageBody,
-    TransactionBatch,
-    Vote,
+    ConsensusMessage, Proposal, ProposalFin, ProposalInit, ProposalPart, StreamMessage,
+    StreamMessageBody, TransactionBatch, Vote,
 };
 
 // If all the fields of `AllResources` are 0 upon serialization,

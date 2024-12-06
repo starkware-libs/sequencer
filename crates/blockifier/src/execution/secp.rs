@@ -17,7 +17,11 @@ where
     let maybe_ec_point = Affine::<Curve>::get_ys_from_x_unchecked(x)
         .map(|(smaller, greater)| {
             // Return the correct y coordinate based on the parity.
-            if smaller.into_bigint().is_odd() == y_parity { smaller } else { greater }
+            if smaller.into_bigint().is_odd() == y_parity {
+                smaller
+            } else {
+                greater
+            }
         })
         .map(|y| Affine::<Curve>::new_unchecked(x, y))
         .filter(|p| p.is_in_correct_subgroup_assuming_on_curve());

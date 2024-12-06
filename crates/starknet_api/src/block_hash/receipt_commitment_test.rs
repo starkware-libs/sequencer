@@ -3,10 +3,7 @@ use starknet_types_core::hash::Poseidon;
 
 use super::calculate_messages_sent_hash;
 use crate::block_hash::receipt_commitment::{
-    calculate_receipt_commitment,
-    calculate_receipt_hash,
-    get_revert_reason_hash,
-    ReceiptElement,
+    calculate_receipt_commitment, calculate_receipt_hash, get_revert_reason_hash, ReceiptElement,
 };
 use crate::block_hash::test_utils::{generate_message_to_l1, get_transaction_output};
 use crate::core::ReceiptCommitment;

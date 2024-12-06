@@ -173,6 +173,10 @@ impl BlockNotRevertedValidator {
             .map_err(internal_server_error)?
             .ok_or(error.clone())?
             .block_hash;
-        if new_block_hash == self.old_block_hash { Ok(()) } else { Err(error) }
+        if new_block_hash == self.old_block_hash {
+            Ok(())
+        } else {
+            Err(error)
+        }
     }
 }

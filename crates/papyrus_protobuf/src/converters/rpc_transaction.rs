@@ -4,19 +4,12 @@ mod rpc_transaction_test;
 
 use prost::Message;
 use starknet_api::rpc_transaction::{
-    RpcDeclareTransaction,
-    RpcDeclareTransactionV3,
-    RpcDeployAccountTransaction,
-    RpcDeployAccountTransactionV3,
-    RpcInvokeTransaction,
-    RpcInvokeTransactionV3,
-    RpcTransaction,
+    RpcDeclareTransaction, RpcDeclareTransactionV3, RpcDeployAccountTransaction,
+    RpcDeployAccountTransactionV3, RpcInvokeTransaction, RpcInvokeTransactionV3, RpcTransaction,
 };
 use starknet_api::transaction::fields::{AllResourceBounds, ValidResourceBounds};
 use starknet_api::transaction::{
-    DeclareTransactionV3,
-    DeployAccountTransactionV3,
-    InvokeTransactionV3,
+    DeclareTransactionV3, DeployAccountTransactionV3, InvokeTransactionV3,
 };
 
 use super::ProtobufConversionError;

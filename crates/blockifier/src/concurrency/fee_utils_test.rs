@@ -14,9 +14,7 @@ use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::{fund_account, test_state, test_state_inner};
 use crate::test_utils::{create_trivial_calldata, CairoVersion, BALANCE};
 use crate::transaction::test_utils::{
-    account_invoke_tx,
-    block_context,
-    default_all_resource_bounds,
+    account_invoke_tx, block_context, default_all_resource_bounds,
 };
 
 #[rstest]

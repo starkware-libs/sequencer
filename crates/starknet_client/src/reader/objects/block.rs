@@ -6,20 +6,11 @@ use std::ops::Index;
 
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{
-    Block as starknet_api_block,
-    BlockHash,
-    BlockHeaderWithoutHash,
-    BlockNumber,
-    BlockTimestamp,
-    GasPricePerToken,
-    StarknetVersion,
+    Block as starknet_api_block, BlockHash, BlockHeaderWithoutHash, BlockNumber, BlockTimestamp,
+    GasPricePerToken, StarknetVersion,
 };
 use starknet_api::core::{
-    EventCommitment,
-    GlobalRoot,
-    ReceiptCommitment,
-    SequencerContractAddress,
-    StateDiffCommitment,
+    EventCommitment, GlobalRoot, ReceiptCommitment, SequencerContractAddress, StateDiffCommitment,
     TransactionCommitment,
 };
 use starknet_api::data_availability::L1DataAvailabilityMode;
@@ -29,10 +20,7 @@ use starknet_api::transaction::{TransactionHash, TransactionOffsetInBlock};
 use starknet_types_core::felt::Felt;
 
 use crate::reader::objects::transaction::{
-    L1ToL2Message,
-    Transaction,
-    TransactionReceipt,
-    TransactionType,
+    L1ToL2Message, Transaction, TransactionReceipt, TransactionType,
 };
 use crate::reader::{ReaderClientError, ReaderClientResult};
 

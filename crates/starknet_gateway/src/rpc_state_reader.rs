@@ -1,7 +1,5 @@
 use blockifier::execution::contract_class::{
-    CompiledClassV0,
-    CompiledClassV1,
-    RunnableCompiledClass,
+    CompiledClassV0, CompiledClassV1, RunnableCompiledClass,
 };
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
@@ -17,18 +15,9 @@ use starknet_types_core::felt::Felt;
 use crate::config::RpcStateReaderConfig;
 use crate::errors::{serde_err_to_state_err, RPCStateReaderError, RPCStateReaderResult};
 use crate::rpc_objects::{
-    BlockHeader,
-    BlockId,
-    GetBlockWithTxHashesParams,
-    GetClassHashAtParams,
-    GetCompiledClassParams,
-    GetNonceParams,
-    GetStorageAtParams,
-    RpcResponse,
-    RPC_CLASS_HASH_NOT_FOUND,
-    RPC_ERROR_BLOCK_NOT_FOUND,
-    RPC_ERROR_CONTRACT_ADDRESS_NOT_FOUND,
-    RPC_ERROR_INVALID_PARAMS,
+    BlockHeader, BlockId, GetBlockWithTxHashesParams, GetClassHashAtParams, GetCompiledClassParams,
+    GetNonceParams, GetStorageAtParams, RpcResponse, RPC_CLASS_HASH_NOT_FOUND,
+    RPC_ERROR_BLOCK_NOT_FOUND, RPC_ERROR_CONTRACT_ADDRESS_NOT_FOUND, RPC_ERROR_INVALID_PARAMS,
 };
 use crate::state_reader::{MempoolStateReader, StateReaderFactory};
 

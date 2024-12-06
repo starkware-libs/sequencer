@@ -4,20 +4,11 @@ mod header_test;
 
 use prost::Message;
 use starknet_api::block::{
-    BlockHash,
-    BlockHeader,
-    BlockHeaderWithoutHash,
-    BlockNumber,
-    BlockSignature,
-    GasPricePerToken,
+    BlockHash, BlockHeader, BlockHeaderWithoutHash, BlockNumber, BlockSignature, GasPricePerToken,
     StarknetVersion,
 };
 use starknet_api::core::{
-    EventCommitment,
-    GlobalRoot,
-    ReceiptCommitment,
-    SequencerContractAddress,
-    StateDiffCommitment,
+    EventCommitment, GlobalRoot, ReceiptCommitment, SequencerContractAddress, StateDiffCommitment,
     TransactionCommitment,
 };
 use starknet_api::crypto::utils::Signature;
@@ -255,7 +246,7 @@ impl From<(BlockHeader, Vec<BlockSignature>)> for protobuf::SignedBlockHeader {
                     .expect("Converting usize to u64 failed"),
                 root: header
                     .state_diff_commitment
-                    .map(|state_diff_commitment| state_diff_commitment.0.0.into()),
+                    .map(|state_diff_commitment| state_diff_commitment.0 .0.into()),
             });
         Self {
             block_hash: Some(header.block_hash.into()),

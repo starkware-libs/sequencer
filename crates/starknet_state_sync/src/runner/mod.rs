@@ -15,9 +15,7 @@ use papyrus_sync::sources::base_layer::EthereumBaseLayerSource;
 use papyrus_sync::sources::central::CentralSource;
 use papyrus_sync::sources::pending::PendingSource;
 use papyrus_sync::{
-    StateSync as PapyrusStateSync,
-    StateSyncError as PapyrusStateSyncError,
-    GENESIS_HASH,
+    StateSync as PapyrusStateSync, StateSyncError as PapyrusStateSyncError, GENESIS_HASH,
 };
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::felt;
@@ -26,9 +24,7 @@ use starknet_client::reader::PendingData;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_sequencer_infra::errors::ComponentError;
 use starknet_state_sync_types::communication::{
-    StateSyncRequest,
-    StateSyncResponse,
-    StateSyncResult,
+    StateSyncRequest, StateSyncResponse, StateSyncResult,
 };
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 use tokio::sync::RwLock;

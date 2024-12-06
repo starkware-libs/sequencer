@@ -5,13 +5,8 @@ use rstest::rstest;
 use starknet_patricia::felt::Felt;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::external_test_utils::{
-    create_32_bytes_entry,
-    create_binary_entry,
-    create_binary_skeleton_node,
-    create_edge_entry,
-    create_edge_skeleton_node,
-    create_expected_skeleton_nodes,
-    create_root_edge_entry,
+    create_32_bytes_entry, create_binary_entry, create_binary_skeleton_node, create_edge_entry,
+    create_edge_skeleton_node, create_expected_skeleton_nodes, create_root_edge_entry,
     create_unmodified_subtree_skeleton_node,
 };
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
@@ -23,12 +18,7 @@ use tracing::level_filters::LevelFilter;
 
 use crate::block_committer::commit::get_all_modified_indices;
 use crate::block_committer::input::{
-    ConfigImpl,
-    ContractAddress,
-    Input,
-    StarknetStorageKey,
-    StarknetStorageValue,
-    StateDiff,
+    ConfigImpl, ContractAddress, Input, StarknetStorageKey, StarknetStorageValue, StateDiff,
 };
 use crate::forest::original_skeleton_forest::{ForestSortedIndices, OriginalSkeletonForest};
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;

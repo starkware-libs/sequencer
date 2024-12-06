@@ -149,12 +149,10 @@ async fn proposer() {
         panic!("Expected decision");
     };
     assert_eq!(decision.block, BLOCK.id);
-    assert!(
-        decision
-            .precommits
-            .into_iter()
-            .all(|item| precommits.contains(&ConsensusMessage::Vote(item)))
-    );
+    assert!(decision
+        .precommits
+        .into_iter()
+        .all(|item| precommits.contains(&ConsensusMessage::Vote(item))));
 }
 
 #[test_case(false; "single_proposal")]
@@ -230,12 +228,10 @@ async fn validator(repeat_proposal: bool) {
         panic!("Expected decision");
     };
     assert_eq!(decision.block, BLOCK.id);
-    assert!(
-        decision
-            .precommits
-            .into_iter()
-            .all(|item| precommits.contains(&ConsensusMessage::Vote(item)))
-    );
+    assert!(decision
+        .precommits
+        .into_iter()
+        .all(|item| precommits.contains(&ConsensusMessage::Vote(item))));
 }
 
 #[test_case(true; "repeat")]
@@ -459,10 +455,8 @@ async fn repropose() {
         panic!("Expected decision");
     };
     assert_eq!(decision.block, BLOCK.id);
-    assert!(
-        decision
-            .precommits
-            .into_iter()
-            .all(|item| precommits.contains(&ConsensusMessage::Vote(item)))
-    );
+    assert!(decision
+        .precommits
+        .into_iter()
+        .all(|item| precommits.contains(&ConsensusMessage::Vote(item))));
 }

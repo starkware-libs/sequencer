@@ -10,8 +10,7 @@ use std::collections::HashMap;
 
 use async_trait::async_trait;
 use cairo_lang_starknet_classes::casm_contract_class::{
-    CasmContractClass,
-    CasmContractEntryPoints,
+    CasmContractClass, CasmContractEntryPoints,
 };
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
@@ -27,19 +26,11 @@ use tracing::{debug, error, instrument};
 use url::Url;
 
 pub use crate::reader::objects::block::{
-    Block,
-    BlockSignatureData,
-    BlockSignatureMessage,
-    TransactionReceiptsError,
+    Block, BlockSignatureData, BlockSignatureMessage, TransactionReceiptsError,
 };
 pub use crate::reader::objects::pending_data::PendingData;
 pub use crate::reader::objects::state::{
-    ContractClass,
-    DeclaredClassHashEntry,
-    DeployedContract,
-    ReplacedClass,
-    StateDiff,
-    StateUpdate,
+    ContractClass, DeclaredClassHashEntry, DeployedContract, ReplacedClass, StateDiff, StateUpdate,
     StorageEntry,
 };
 #[cfg(doc)]

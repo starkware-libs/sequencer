@@ -2,9 +2,7 @@ use std::cell::Cell;
 
 use assert_matches::assert_matches;
 use blockifier::execution::contract_class::{
-    CompiledClassV0,
-    CompiledClassV1,
-    RunnableCompiledClass,
+    CompiledClassV0, CompiledClassV1, RunnableCompiledClass,
 };
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::StateReader;
@@ -12,10 +10,7 @@ use cairo_lang_utils::bigint::BigUintAsHex;
 use indexmap::indexmap;
 use papyrus_common::pending_classes::{ApiContractClass, PendingClasses, PendingClassesTrait};
 use papyrus_common::state::{
-    DeclaredClassHashEntry,
-    DeployedContract,
-    ReplacedClass,
-    StorageEntry,
+    DeclaredClassHashEntry, DeployedContract, ReplacedClass, StorageEntry,
 };
 use papyrus_storage::body::BodyStorageWriter;
 use papyrus_storage::class::ClassStorageWriter;

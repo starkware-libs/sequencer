@@ -11,18 +11,13 @@ use papyrus_config::validators::config_validate;
 use papyrus_config::SerializedParam;
 use rstest::rstest;
 use starknet_sequencer_infra::component_definitions::{
-    LocalServerConfig,
-    RemoteClientConfig,
-    RemoteServerConfig,
+    LocalServerConfig, RemoteClientConfig, RemoteServerConfig,
 };
 use validator::Validate;
 
 use crate::config::component_execution_config::{ComponentExecutionConfig, ComponentExecutionMode};
 use crate::config::node_config::{
-    SequencerNodeConfig,
-    CONFIG_NON_POINTERS_WHITELIST,
-    CONFIG_POINTERS,
-    DEFAULT_CONFIG_PATH,
+    SequencerNodeConfig, CONFIG_NON_POINTERS_WHITELIST, CONFIG_POINTERS, DEFAULT_CONFIG_PATH,
 };
 use crate::config::test_utils::{create_test_config_load_args, RequiredParams};
 

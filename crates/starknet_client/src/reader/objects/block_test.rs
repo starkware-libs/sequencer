@@ -10,12 +10,7 @@ use starknet_api::{class_hash, contract_address, felt, storage_key, tx_hash};
 use super::{Block, GlobalRoot, TransactionReceiptsError};
 use crate::reader::objects::block::BlockPostV0_13_1;
 use crate::reader::objects::state::{
-    DeclaredClassHashEntry,
-    DeployedContract,
-    ReplacedClass,
-    StateDiff,
-    StateUpdate,
-    StorageEntry,
+    DeclaredClassHashEntry, DeployedContract, ReplacedClass, StateDiff, StateUpdate, StorageEntry,
 };
 use crate::reader::objects::transaction::TransactionReceipt;
 use crate::reader::ReaderClientError;

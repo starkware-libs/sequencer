@@ -12,20 +12,15 @@ use starknet_http_server::config::HttpServerConfig;
 use starknet_http_server::test_utils::HttpTestClient;
 use starknet_integration_tests::state_reader::{spawn_test_rpc_state_reader, StorageTestSetup};
 use starknet_integration_tests::utils::{
-    create_batcher_config,
-    create_chain_info,
-    create_gateway_config,
-    create_http_server_config,
-    create_integration_test_tx_generator,
-    run_integration_test_scenario,
+    create_batcher_config, create_chain_info, create_gateway_config, create_http_server_config,
+    create_integration_test_tx_generator, run_integration_test_scenario,
     test_rpc_state_reader_config,
 };
 use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_mempool_p2p::MEMPOOL_TOPIC;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::component_execution_config::{
-    ComponentExecutionConfig,
-    ComponentExecutionMode,
+    ComponentExecutionConfig, ComponentExecutionMode,
 };
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::servers::run_component_servers;

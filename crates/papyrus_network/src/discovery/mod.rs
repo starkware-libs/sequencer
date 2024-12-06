@@ -15,21 +15,12 @@ use libp2p::core::Endpoint;
 use libp2p::swarm::behaviour::ConnectionEstablished;
 use libp2p::swarm::dial_opts::{DialOpts, PeerCondition};
 use libp2p::swarm::{
-    dummy,
-    AddressChange,
-    ConnectionClosed,
-    ConnectionDenied,
-    ConnectionHandler,
-    ConnectionId,
-    DialFailure,
-    FromSwarm,
-    NetworkBehaviour,
-    ToSwarm,
+    dummy, AddressChange, ConnectionClosed, ConnectionDenied, ConnectionHandler, ConnectionId,
+    DialFailure, FromSwarm, NetworkBehaviour, ToSwarm,
 };
 use libp2p::{Multiaddr, PeerId};
 use papyrus_config::converters::{
-    deserialize_milliseconds_to_duration,
-    deserialize_seconds_to_duration,
+    deserialize_milliseconds_to_duration, deserialize_seconds_to_duration,
 };
 use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};

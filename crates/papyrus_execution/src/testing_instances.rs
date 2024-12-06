@@ -14,21 +14,10 @@ use starknet_api::transaction::{EventContent, MessageToL1};
 use starknet_types_core::felt::Felt;
 
 use crate::objects::{
-    CallType,
-    DeclareTransactionTrace,
-    DeployAccountTransactionTrace,
-    FeeEstimation,
-    FunctionCall,
-    FunctionInvocation,
-    FunctionInvocationResult,
-    InvokeTransactionTrace,
-    L1HandlerTransactionTrace,
-    OrderedEvent,
-    OrderedL2ToL1Message,
-    PriceUnit,
-    Retdata,
-    RevertReason,
-    TransactionTrace,
+    CallType, DeclareTransactionTrace, DeployAccountTransactionTrace, FeeEstimation, FunctionCall,
+    FunctionInvocation, FunctionInvocationResult, InvokeTransactionTrace,
+    L1HandlerTransactionTrace, OrderedEvent, OrderedL2ToL1Message, PriceUnit, Retdata,
+    RevertReason, TransactionTrace,
 };
 use crate::ExecutionConfig;
 

@@ -6,23 +6,13 @@ use lazy_static::lazy_static;
 use papyrus_common::pending_classes::ApiContractClass;
 use papyrus_common::state::create_random_state_diff;
 use papyrus_network::network_manager::test_utils::{
-    create_test_server_query_manager,
-    mock_register_sqmr_protocol_server,
+    create_test_server_query_manager, mock_register_sqmr_protocol_server,
 };
 use papyrus_network::network_manager::ServerQueryManager;
 use papyrus_protobuf::converters::ProtobufConversionError;
 use papyrus_protobuf::sync::{
-    BlockHashOrNumber,
-    ClassQuery,
-    DataOrFin,
-    Direction,
-    EventQuery,
-    HeaderQuery,
-    Query,
-    SignedBlockHeader,
-    StateDiffChunk,
-    StateDiffQuery,
-    TransactionQuery,
+    BlockHashOrNumber, ClassQuery, DataOrFin, Direction, EventQuery, HeaderQuery, Query,
+    SignedBlockHeader, StateDiffChunk, StateDiffQuery, TransactionQuery,
 };
 use papyrus_storage::body::BodyStorageWriter;
 use papyrus_storage::class::ClassStorageWriter;
@@ -33,21 +23,12 @@ use papyrus_storage::{StorageReader, StorageWriter};
 use papyrus_test_utils::{get_rng, get_test_body, GetTestInstance};
 use rand::random;
 use starknet_api::block::{
-    BlockBody,
-    BlockHash,
-    BlockHeader,
-    BlockHeaderWithoutHash,
-    BlockNumber,
-    BlockSignature,
+    BlockBody, BlockHash, BlockHeader, BlockHeaderWithoutHash, BlockNumber, BlockSignature,
 };
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::SierraContractClass;
 use starknet_api::transaction::{
-    Event,
-    FullTransaction,
-    Transaction,
-    TransactionHash,
-    TransactionOutput,
+    Event, FullTransaction, Transaction, TransactionHash, TransactionOutput,
 };
 
 use super::{split_thin_state_diff, FetchBlockDataFromDb, P2PSyncServer, P2PSyncServerChannels};

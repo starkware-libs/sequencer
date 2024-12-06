@@ -18,12 +18,7 @@ use serde_json::{json, Map, Value};
 
 use crate::validators::validate_path_exists;
 use crate::{
-    command,
-    ConfigError,
-    ParamPath,
-    SerializationType,
-    SerializedContent,
-    SerializedParam,
+    command, ConfigError, ParamPath, SerializationType, SerializedContent, SerializedParam,
     IS_NONE_MARK,
 };
 

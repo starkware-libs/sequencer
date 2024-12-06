@@ -32,8 +32,7 @@ use crate::py_objects::PyVersionedConstantsOverrides;
 use crate::py_state_diff::PyStateDiff;
 use crate::py_testing_wrappers::{
     estimate_casm_hash_computation_resources_for_testing_list,
-    estimate_casm_hash_computation_resources_for_testing_single,
-    raise_error_for_testing,
+    estimate_casm_hash_computation_resources_for_testing_single, raise_error_for_testing,
 };
 
 #[pymodule]

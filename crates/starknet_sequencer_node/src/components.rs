@@ -7,8 +7,7 @@ use starknet_mempool_p2p::create_p2p_propagator_and_runner;
 use starknet_mempool_p2p::propagator::MempoolP2pPropagator;
 use starknet_mempool_p2p::runner::MempoolP2pRunner;
 use starknet_monitoring_endpoint::monitoring_endpoint::{
-    create_monitoring_endpoint,
-    MonitoringEndpoint,
+    create_monitoring_endpoint, MonitoringEndpoint,
 };
 
 use crate::clients::SequencerNodeClients;

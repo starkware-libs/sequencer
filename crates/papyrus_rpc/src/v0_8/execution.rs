@@ -1,13 +1,7 @@
 use papyrus_execution::objects::{
-    CallType,
-    FunctionCall,
-    FunctionInvocation as ExecutionFunctionInvocation,
-    FunctionInvocationResult as ExecutionFunctionInvocationResult,
-    OrderedEvent,
-    OrderedL2ToL1Message,
-    Retdata,
-    RevertReason,
-    TransactionTrace as ExecutionTransactionTrace,
+    CallType, FunctionCall, FunctionInvocation as ExecutionFunctionInvocation,
+    FunctionInvocationResult as ExecutionFunctionInvocationResult, OrderedEvent,
+    OrderedL2ToL1Message, Retdata, RevertReason, TransactionTrace as ExecutionTransactionTrace,
 };
 use serde::{Deserialize, Serialize};
 use starknet_api::contract_class::EntryPointType;

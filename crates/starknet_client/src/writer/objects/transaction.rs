@@ -16,26 +16,15 @@ use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{
-    ClassHash,
-    CompiledClassHash,
-    ContractAddress,
-    EntryPointSelector,
-    Nonce,
+    ClassHash, CompiledClassHash, ContractAddress, EntryPointSelector, Nonce,
 };
 use starknet_api::deprecated_contract_class::{
-    ContractClassAbiEntry as DeprecatedContractClassAbiEntry,
-    EntryPointV0 as DeprecatedEntryPoint,
+    ContractClassAbiEntry as DeprecatedContractClassAbiEntry, EntryPointV0 as DeprecatedEntryPoint,
 };
 use starknet_api::state::EntryPoint;
 use starknet_api::transaction::fields::{
-    AccountDeploymentData,
-    Calldata,
-    ContractAddressSalt,
-    DeprecatedResourceBoundsMapping,
-    Fee,
-    PaymasterData,
-    Tip,
-    TransactionSignature,
+    AccountDeploymentData, Calldata, ContractAddressSalt, DeprecatedResourceBoundsMapping, Fee,
+    PaymasterData, Tip, TransactionSignature,
 };
 use starknet_api::transaction::TransactionVersion;
 

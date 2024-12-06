@@ -40,21 +40,11 @@ mod header_test;
 
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{
-    BlockHash,
-    BlockHeader,
-    BlockHeaderWithoutHash,
-    BlockNumber,
-    BlockSignature,
-    BlockTimestamp,
-    GasPricePerToken,
-    StarknetVersion,
+    BlockHash, BlockHeader, BlockHeaderWithoutHash, BlockNumber, BlockSignature, BlockTimestamp,
+    GasPricePerToken, StarknetVersion,
 };
 use starknet_api::core::{
-    EventCommitment,
-    GlobalRoot,
-    ReceiptCommitment,
-    SequencerContractAddress,
-    StateDiffCommitment,
+    EventCommitment, GlobalRoot, ReceiptCommitment, SequencerContractAddress, StateDiffCommitment,
     TransactionCommitment,
 };
 use starknet_api::data_availability::L1DataAvailabilityMode;

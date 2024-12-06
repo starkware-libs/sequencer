@@ -50,10 +50,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockBody, BlockNumber};
 use starknet_api::core::ContractAddress;
 use starknet_api::transaction::{
-    Transaction,
-    TransactionHash,
-    TransactionOffsetInBlock,
-    TransactionOutput,
+    Transaction, TransactionHash, TransactionOffsetInBlock, TransactionOutput,
 };
 use tracing::debug;
 
@@ -61,15 +58,8 @@ use crate::db::serialization::{NoVersionValueWrapper, VersionZeroWrapper};
 use crate::db::table_types::{CommonPrefix, DbCursorTrait, NoValue, SimpleTable, Table};
 use crate::db::{DbTransaction, TableHandle, TransactionKind, RW};
 use crate::{
-    FileHandlers,
-    MarkerKind,
-    MarkersTable,
-    OffsetKind,
-    StorageError,
-    StorageResult,
-    StorageScope,
-    StorageTxn,
-    TransactionMetadata,
+    FileHandlers, MarkerKind, MarkersTable, OffsetKind, StorageError, StorageResult, StorageScope,
+    StorageTxn, TransactionMetadata,
 };
 
 type FileOffsetsTable<'env> =

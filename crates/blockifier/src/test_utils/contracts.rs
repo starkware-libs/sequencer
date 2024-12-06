@@ -7,8 +7,7 @@ use starknet_api::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use starknet_api::contract_class::{ContractClass, EntryPointType};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::deprecated_contract_class::{
-    ContractClass as DeprecatedContractClass,
-    EntryPointOffset,
+    ContractClass as DeprecatedContractClass, EntryPointOffset,
 };
 use starknet_api::{class_hash, contract_address, felt};
 use starknet_types_core::felt::Felt;

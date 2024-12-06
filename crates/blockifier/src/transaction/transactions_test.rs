@@ -8,9 +8,7 @@ use num_bigint::BigUint;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::abi::abi_utils::{
-    get_fee_token_var_address,
-    get_storage_var_address,
-    selector_from_name,
+    get_fee_token_var_address, get_storage_var_address, selector_from_name,
 };
 use starknet_api::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use starknet_api::block::{FeeType, GasPriceVector};
@@ -23,47 +21,24 @@ use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::fields::Resource::{L1DataGas, L1Gas, L2Gas};
 use starknet_api::transaction::fields::{
-    AllResourceBounds,
-    Calldata,
-    Fee,
-    GasVectorComputationMode,
-    Resource,
-    ResourceBounds,
-    TransactionSignature,
-    ValidResourceBounds,
+    AllResourceBounds, Calldata, Fee, GasVectorComputationMode, Resource, ResourceBounds,
+    TransactionSignature, ValidResourceBounds,
 };
 use starknet_api::transaction::{
-    constants,
-    EventContent,
-    EventData,
-    EventKey,
-    L2ToL1Payload,
-    TransactionVersion,
+    constants, EventContent, EventData, EventKey, L2ToL1Payload, TransactionVersion,
     QUERY_VERSION_BASE,
 };
 use starknet_api::{
-    calldata,
-    class_hash,
-    contract_address,
-    declare_tx_args,
-    deploy_account_tx_args,
-    felt,
-    invoke_tx_args,
-    nonce,
+    calldata, class_hash, contract_address, declare_tx_args, deploy_account_tx_args, felt,
+    invoke_tx_args, nonce,
 };
 use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use crate::execution::call_info::{
-    CallExecution,
-    CallInfo,
-    ChargedResources,
-    ExecutionSummary,
-    MessageToL1,
-    OrderedEvent,
-    OrderedL2ToL1Message,
-    Retdata,
+    CallExecution, CallInfo, ChargedResources, ExecutionSummary, MessageToL1, OrderedEvent,
+    OrderedL2ToL1Message, Retdata,
 };
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::{CallEntryPoint, CallType};
@@ -72,16 +47,11 @@ use crate::execution::syscalls::hint_processor::EmitEventError;
 use crate::execution::syscalls::SyscallSelector;
 use crate::fee::fee_utils::{balance_to_big_uint, get_fee_by_gas_vector};
 use crate::fee::gas_usage::{
-    estimate_minimal_gas_vector,
-    get_da_gas_cost,
-    get_onchain_data_segment_length,
+    estimate_minimal_gas_vector, get_da_gas_cost, get_onchain_data_segment_length,
 };
 use crate::fee::receipt::TransactionReceipt;
 use crate::fee::resources::{
-    ComputationResources,
-    StarknetResources,
-    StateResources,
-    TransactionResources,
+    ComputationResources, StarknetResources, StateResources, TransactionResources,
 };
 use crate::state::cached_state::{CachedState, StateChangesCount, TransactionalState};
 use crate::state::errors::StateError;
@@ -95,65 +65,33 @@ use crate::test_utils::invoke::invoke_tx;
 use crate::test_utils::l1_handler::l1handler_tx;
 use crate::test_utils::prices::Prices;
 use crate::test_utils::{
-    create_calldata,
-    create_trivial_calldata,
-    get_syscall_resources,
-    get_tx_resources,
-    test_erc20_sequencer_balance_key,
-    CairoVersion,
-    SaltManager,
-    BALANCE,
-    CURRENT_BLOCK_NUMBER,
-    CURRENT_BLOCK_NUMBER_FOR_VALIDATE,
-    CURRENT_BLOCK_TIMESTAMP,
-    CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE,
-    DEFAULT_L1_DATA_GAS_MAX_AMOUNT,
-    DEFAULT_L1_GAS_AMOUNT,
-    DEFAULT_L2_GAS_MAX_AMOUNT,
-    DEFAULT_STRK_L1_DATA_GAS_PRICE,
-    DEFAULT_STRK_L1_GAS_PRICE,
-    DEFAULT_STRK_L2_GAS_PRICE,
-    MAX_FEE,
-    TEST_SEQUENCER_ADDRESS,
+    create_calldata, create_trivial_calldata, get_syscall_resources, get_tx_resources,
+    test_erc20_sequencer_balance_key, CairoVersion, SaltManager, BALANCE, CURRENT_BLOCK_NUMBER,
+    CURRENT_BLOCK_NUMBER_FOR_VALIDATE, CURRENT_BLOCK_TIMESTAMP,
+    CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE, DEFAULT_L1_DATA_GAS_MAX_AMOUNT, DEFAULT_L1_GAS_AMOUNT,
+    DEFAULT_L2_GAS_MAX_AMOUNT, DEFAULT_STRK_L1_DATA_GAS_PRICE, DEFAULT_STRK_L1_GAS_PRICE,
+    DEFAULT_STRK_L2_GAS_PRICE, MAX_FEE, TEST_SEQUENCER_ADDRESS,
 };
 use crate::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
 use crate::transaction::errors::{
-    TransactionExecutionError,
-    TransactionFeeError,
-    TransactionPreValidationError,
+    TransactionExecutionError, TransactionFeeError, TransactionPreValidationError,
 };
 use crate::transaction::objects::{
-    HasRelatedFeeType,
-    TransactionExecutionInfo,
-    TransactionInfo,
-    TransactionInfoCreator,
+    HasRelatedFeeType, TransactionExecutionInfo, TransactionInfo, TransactionInfoCreator,
 };
 use crate::transaction::test_utils::{
-    account_invoke_tx,
-    block_context,
-    calculate_class_info_for_testing,
-    create_account_tx_for_validate_test,
-    create_account_tx_for_validate_test_nonce_0,
-    create_all_resource_bounds,
-    default_all_resource_bounds,
-    default_l1_resource_bounds,
-    l1_resource_bounds,
-    FaultyAccountTxCreatorArgs,
-    CALL_CONTRACT,
-    GET_BLOCK_HASH,
-    GET_BLOCK_NUMBER,
-    GET_BLOCK_TIMESTAMP,
-    GET_EXECUTION_INFO,
-    GET_SEQUENCER_ADDRESS,
-    INVALID,
+    account_invoke_tx, block_context, calculate_class_info_for_testing,
+    create_account_tx_for_validate_test, create_account_tx_for_validate_test_nonce_0,
+    create_all_resource_bounds, default_all_resource_bounds, default_l1_resource_bounds,
+    l1_resource_bounds, FaultyAccountTxCreatorArgs, CALL_CONTRACT, GET_BLOCK_HASH,
+    GET_BLOCK_NUMBER, GET_BLOCK_TIMESTAMP, GET_EXECUTION_INFO, GET_SEQUENCER_ADDRESS, INVALID,
     VALID,
 };
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::ExecutableTransaction;
 use crate::versioned_constants::{AllocationCost, VersionedConstants};
 use crate::{
-    check_tx_execution_error_for_custom_hint,
-    check_tx_execution_error_for_invalid_scenario,
+    check_tx_execution_error_for_custom_hint, check_tx_execution_error_for_invalid_scenario,
     retdata,
 };
 
@@ -207,11 +145,19 @@ fn expected_validate_call_info(
             usize::from(entry_point_selector_name == constants::VALIDATE_ENTRY_POINT_NAME)
         }
         CairoVersion::Cairo1 => {
-            if entry_point_selector_name == constants::VALIDATE_ENTRY_POINT_NAME { 7 } else { 2 }
+            if entry_point_selector_name == constants::VALIDATE_ENTRY_POINT_NAME {
+                7
+            } else {
+                2
+            }
         }
         #[cfg(feature = "cairo_native")]
         CairoVersion::Native => {
-            if entry_point_selector_name == constants::VALIDATE_ENTRY_POINT_NAME { 7 } else { 2 }
+            if entry_point_selector_name == constants::VALIDATE_ENTRY_POINT_NAME {
+                7
+            } else {
+                2
+            }
         }
     };
     let n_steps = match (entry_point_selector_name, cairo_version) {
@@ -1353,9 +1299,9 @@ fn test_actual_fee_gt_resource_bounds(
 
     // Test error and that fee was charged. Should be at most the fee charged in a successful
     // execution.
-    assert!(
-        execution_error.to_string().starts_with(&format!("Insufficient max {overdraft_resource}"))
-    );
+    assert!(execution_error
+        .to_string()
+        .starts_with(&format!("Insufficient max {overdraft_resource}")));
     assert_eq!(execution_result.receipt.fee, expected_fee);
 }
 
@@ -2395,7 +2341,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     state.set_storage_at(contract_address, StorageKey::try_from(key).unwrap(), Felt::ZERO).unwrap();
     let tx_no_fee = l1handler_tx(Fee(0), contract_address);
     let error = tx_no_fee.execute(state, block_context).unwrap_err(); // Do not charge fee as L1Handler's resource bounds (/max fee) is 0.
-    // Today, we check that the paid_fee is positive, no matter what was the actual fee.
+                                                                      // Today, we check that the paid_fee is positive, no matter what was the actual fee.
     let expected_actual_fee =
         get_fee_by_gas_vector(&block_context.block_info, total_gas, &FeeType::Eth);
 
@@ -2432,13 +2378,11 @@ fn test_execute_tx_with_invalid_tx_version(
     });
 
     let execution_info = account_tx.execute(state, block_context).unwrap();
-    assert!(
-        execution_info
-            .revert_error
-            .unwrap()
-            .to_string()
-            .contains(format!("ASSERT_EQ instruction failed: {} != 3.", invalid_version).as_str())
-    );
+    assert!(execution_info
+        .revert_error
+        .unwrap()
+        .to_string()
+        .contains(format!("ASSERT_EQ instruction failed: {} != 3.", invalid_version).as_str()));
 }
 
 fn max_n_emitted_events() -> usize {

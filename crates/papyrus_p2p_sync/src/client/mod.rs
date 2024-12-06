@@ -27,12 +27,7 @@ use papyrus_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_network::network_manager::SqmrClientSender;
 use papyrus_protobuf::sync::{
-    ClassQuery,
-    DataOrFin,
-    HeaderQuery,
-    SignedBlockHeader,
-    StateDiffChunk,
-    StateDiffQuery,
+    ClassQuery, DataOrFin, HeaderQuery, SignedBlockHeader, StateDiffChunk, StateDiffQuery,
     TransactionQuery,
 };
 use papyrus_storage::{StorageError, StorageReader, StorageWriter};

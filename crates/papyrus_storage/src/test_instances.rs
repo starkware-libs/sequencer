@@ -1,18 +1,12 @@
 use papyrus_test_utils::{auto_impl_get_test_instance, get_number_of_variants, GetTestInstance};
 use starknet_api::block::{BlockHash, BlockNumber, BlockTimestamp, GasPricePerToken};
 use starknet_api::core::{
-    EventCommitment,
-    GlobalRoot,
-    ReceiptCommitment,
-    SequencerContractAddress,
-    StateDiffCommitment,
+    EventCommitment, GlobalRoot, ReceiptCommitment, SequencerContractAddress, StateDiffCommitment,
     TransactionCommitment,
 };
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::transaction::{
-    EventIndexInTransactionOutput,
-    TransactionHash,
-    TransactionOffsetInBlock,
+    EventIndexInTransactionOutput, TransactionHash, TransactionOffsetInBlock,
 };
 
 use crate::body::TransactionIndex;

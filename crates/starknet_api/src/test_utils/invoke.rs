@@ -6,21 +6,12 @@ use crate::executable_transaction::InvokeTransaction as ExecutableInvokeTransact
 use crate::rpc_transaction::{RpcInvokeTransaction, RpcInvokeTransactionV3, RpcTransaction};
 use crate::transaction::constants::EXECUTE_ENTRY_POINT_NAME;
 use crate::transaction::fields::{
-    AccountDeploymentData,
-    Calldata,
-    Fee,
-    PaymasterData,
-    Tip,
-    TransactionSignature,
+    AccountDeploymentData, Calldata, Fee, PaymasterData, Tip, TransactionSignature,
     ValidResourceBounds,
 };
 use crate::transaction::{
-    InvokeTransaction,
-    InvokeTransactionV0,
-    InvokeTransactionV1,
-    InvokeTransactionV3,
-    TransactionHash,
-    TransactionVersion,
+    InvokeTransaction, InvokeTransactionV0, InvokeTransactionV1, InvokeTransactionV3,
+    TransactionHash, TransactionVersion,
 };
 
 #[derive(Clone)]

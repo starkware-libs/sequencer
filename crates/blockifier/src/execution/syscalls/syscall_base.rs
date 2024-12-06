@@ -13,17 +13,12 @@ use crate::abi::constants;
 use crate::execution::call_info::{CallInfo, MessageToL1, OrderedEvent, OrderedL2ToL1Message};
 use crate::execution::common_hints::ExecutionMode;
 use crate::execution::entry_point::{
-    CallEntryPoint,
-    ConstructorContext,
-    EntryPointExecutionContext,
+    CallEntryPoint, ConstructorContext, EntryPointExecutionContext,
 };
 use crate::execution::execution_utils::execute_deployment;
 use crate::execution::syscalls::hint_processor::{
-    SyscallExecutionError,
-    BLOCK_NUMBER_OUT_OF_RANGE_ERROR,
-    ENTRYPOINT_FAILED_ERROR,
-    INVALID_INPUT_LENGTH_ERROR,
-    OUT_OF_GAS_ERROR,
+    SyscallExecutionError, BLOCK_NUMBER_OUT_OF_RANGE_ERROR, ENTRYPOINT_FAILED_ERROR,
+    INVALID_INPUT_LENGTH_ERROR, OUT_OF_GAS_ERROR,
 };
 use crate::state::state_api::State;
 use crate::transaction::account_transaction::is_cairo1;
@@ -269,10 +264,8 @@ impl<'state> SyscallHandlerBase<'state> {
 
         if remainder != 0 {
             return Err(SyscallExecutionError::SyscallError {
-                error_data: vec![
-                    Felt::from_hex(INVALID_INPUT_LENGTH_ERROR)
-                        .expect("Failed to parse INVALID_INPUT_LENGTH_ERROR hex string"),
-                ],
+                error_data: vec![Felt::from_hex(INVALID_INPUT_LENGTH_ERROR)
+                    .expect("Failed to parse INVALID_INPUT_LENGTH_ERROR hex string")],
             });
         }
         // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion

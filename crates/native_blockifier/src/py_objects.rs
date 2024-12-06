@@ -12,9 +12,7 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use pyo3::prelude::*;
 
 use crate::errors::{
-    InvalidNativeBlockifierInputError,
-    NativeBlockifierError,
-    NativeBlockifierInputError,
+    InvalidNativeBlockifierInputError, NativeBlockifierError, NativeBlockifierInputError,
     NativeBlockifierResult,
 };
 

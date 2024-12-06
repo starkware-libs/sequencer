@@ -13,43 +13,21 @@ use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use futures::{SinkExt, StreamExt};
 use papyrus_consensus::types::{
-    ConsensusContext,
-    ConsensusError,
-    ProposalContentId,
-    Round,
-    ValidatorId,
+    ConsensusContext, ConsensusError, ProposalContentId, Round, ValidatorId,
 };
 use papyrus_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
 use papyrus_protobuf::consensus::{
-    ConsensusMessage,
-    ProposalFin,
-    ProposalInit,
-    ProposalPart,
-    TransactionBatch,
-    Vote,
+    ConsensusMessage, ProposalFin, ProposalInit, ProposalPart, TransactionBatch, Vote,
 };
 use starknet_api::block::{
-    BlockHash,
-    BlockHashAndNumber,
-    BlockInfo,
-    BlockNumber,
-    BlockTimestamp,
-    GasPriceVector,
-    GasPrices,
-    NonzeroGasPrice,
+    BlockHash, BlockHashAndNumber, BlockInfo, BlockNumber, BlockTimestamp, GasPriceVector,
+    GasPrices, NonzeroGasPrice,
 };
 use starknet_api::executable_transaction::Transaction as ExecutableTransaction;
 use starknet_api::transaction::Transaction;
 use starknet_batcher_types::batcher_types::{
-    DecisionReachedInput,
-    GetProposalContent,
-    GetProposalContentInput,
-    ProposalId,
-    ProposalStatus,
-    ProposeBlockInput,
-    SendProposalContent,
-    SendProposalContentInput,
-    StartHeightInput,
+    DecisionReachedInput, GetProposalContent, GetProposalContentInput, ProposalId, ProposalStatus,
+    ProposeBlockInput, SendProposalContent, SendProposalContentInput, StartHeightInput,
     ValidateBlockInput,
 };
 use starknet_batcher_types::communication::BatcherClient;
@@ -469,7 +447,7 @@ async fn stream_build_proposal(
                     .expect("Failed to broadcast proposal content");
             }
             GetProposalContent::Finished(id) => {
-                let proposal_content_id = BlockHash(id.state_diff_commitment.0.0);
+                let proposal_content_id = BlockHash(id.state_diff_commitment.0 .0);
                 info!(
                     "Finished building proposal {:?}: content_id = {:?}, num_txs = {:?}, height = \
                      {:?}",
@@ -565,7 +543,7 @@ async fn stream_validate_proposal(
         }
         status => panic!("Unexpected status: for {proposal_id:?}, {status:?}"),
     };
-    let batcher_block_id = BlockHash(response_id.state_diff_commitment.0.0);
+    let batcher_block_id = BlockHash(response_id.state_diff_commitment.0 .0);
     info!(
         "Finished validating proposal {:?}: network_block_id: {:?}, batcher_block_id = {:?}, \
          num_txs = {:?}, height = {:?}",

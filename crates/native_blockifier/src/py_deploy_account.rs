@@ -6,17 +6,10 @@ use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::executable_transaction::DeployAccountTransaction;
 use starknet_api::transaction::fields::{
-    Calldata,
-    ContractAddressSalt,
-    Fee,
-    PaymasterData,
-    Tip,
-    TransactionSignature,
+    Calldata, ContractAddressSalt, Fee, PaymasterData, Tip, TransactionSignature,
 };
 use starknet_api::transaction::{
-    DeployAccountTransactionV1,
-    DeployAccountTransactionV3,
-    TransactionHash,
+    DeployAccountTransactionV1, DeployAccountTransactionV3, TransactionHash,
 };
 use starknet_types_core::felt::Felt;
 

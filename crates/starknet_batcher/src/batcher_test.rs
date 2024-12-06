@@ -19,19 +19,9 @@ use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{contract_address, felt, nonce, tx_hash};
 use starknet_batcher_types::batcher_types::{
-    DecisionReachedInput,
-    GetProposalContent,
-    GetProposalContentInput,
-    GetProposalContentResponse,
-    ProposalCommitment,
-    ProposalId,
-    ProposalStatus,
-    ProposeBlockInput,
-    SendProposalContent,
-    SendProposalContentInput,
-    SendProposalContentResponse,
-    StartHeightInput,
-    ValidateBlockInput,
+    DecisionReachedInput, GetProposalContent, GetProposalContentInput, GetProposalContentResponse,
+    ProposalCommitment, ProposalId, ProposalStatus, ProposeBlockInput, SendProposalContent,
+    SendProposalContentInput, SendProposalContentResponse, StartHeightInput, ValidateBlockInput,
 };
 use starknet_batcher_types::errors::BatcherError;
 use starknet_mempool_types::communication::MockMempoolClient;
@@ -39,21 +29,13 @@ use starknet_mempool_types::mempool_types::CommitBlockArgs;
 
 use crate::batcher::{Batcher, MockBatcherStorageReaderTrait, MockBatcherStorageWriterTrait};
 use crate::block_builder::{
-    AbortSignalSender,
-    BlockBuilderError,
-    BlockBuilderTrait,
-    FailOnErrorCause,
-    MockBlockBuilderFactoryTrait,
-    MockBlockBuilderTrait,
+    AbortSignalSender, BlockBuilderError, BlockBuilderTrait, FailOnErrorCause,
+    MockBlockBuilderFactoryTrait, MockBlockBuilderTrait,
 };
 use crate::config::BatcherConfig;
 use crate::proposal_manager::{
-    GenerateProposalError,
-    GetProposalResultError,
-    InternalProposalStatus,
-    ProposalManagerTrait,
-    ProposalOutput,
-    ProposalResult,
+    GenerateProposalError, GetProposalResultError, InternalProposalStatus, ProposalManagerTrait,
+    ProposalOutput, ProposalResult,
 };
 use crate::test_utils::test_txs;
 use crate::transaction_provider::NextTxs;

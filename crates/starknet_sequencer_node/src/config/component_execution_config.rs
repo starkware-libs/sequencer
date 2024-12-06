@@ -4,9 +4,7 @@ use papyrus_config::dumping::{ser_optional_sub_config, ser_param, SerializeConfi
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_sequencer_infra::component_definitions::{
-    LocalServerConfig,
-    RemoteClientConfig,
-    RemoteServerConfig,
+    LocalServerConfig, RemoteClientConfig, RemoteServerConfig,
 };
 use tracing::error;
 use validator::{Validate, ValidationError};
