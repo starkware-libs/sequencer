@@ -5,12 +5,12 @@ use assert_matches::assert_matches;
 use cairo_lang_starknet_classes::NestedIntList;
 use rstest::rstest;
 
-use crate::execution::contract_class::{ContractClassV1, ContractClassV1Inner};
+use crate::execution::contract_class::{CompiledClassV1, ContractClassV1Inner};
 use crate::transaction::errors::TransactionExecutionError;
 
 #[rstest]
 fn test_get_visited_segments() {
-    let test_contract = ContractClassV1(Arc::new(ContractClassV1Inner {
+    let test_contract = CompiledClassV1(Arc::new(ContractClassV1Inner {
         program: Default::default(),
         entry_points_by_type: Default::default(),
         hints: Default::default(),

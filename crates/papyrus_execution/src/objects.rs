@@ -9,7 +9,7 @@ use blockifier::execution::call_info::{
     Retdata as BlockifierRetdata,
 };
 use blockifier::execution::entry_point::CallType as BlockifierCallType;
-use blockifier::transaction::objects::{FeeType, TransactionExecutionInfo};
+use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::utils::u64_from_usize;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources as VmExecutionResources;
@@ -23,7 +23,7 @@ use papyrus_common::state::{
     StorageEntry,
 };
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockTimestamp, GasPrice, GasPricePerToken};
+use starknet_api::block::{BlockTimestamp, FeeType, GasPrice, GasPricePerToken};
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{
     ClassHash,
@@ -164,9 +164,9 @@ pub(crate) fn tx_execution_output_to_fee_estimation(
 ) -> ExecutionResult<FeeEstimation> {
     let gas_prices = &block_context.block_info().gas_prices;
     let (l1_gas_price, l1_data_gas_price, l2_gas_price) = (
-        gas_prices.get_l1_gas_price_by_fee_type(&tx_execution_output.price_unit.into()).get(),
-        gas_prices.get_l1_data_gas_price_by_fee_type(&tx_execution_output.price_unit.into()).get(),
-        gas_prices.get_l2_gas_price_by_fee_type(&tx_execution_output.price_unit.into()).get(),
+        gas_prices.l1_gas_price(&tx_execution_output.price_unit.into()).get(),
+        gas_prices.l1_data_gas_price(&tx_execution_output.price_unit.into()).get(),
+        gas_prices.l2_gas_price(&tx_execution_output.price_unit.into()).get(),
     );
 
     let gas_vector = tx_execution_output.execution_info.receipt.gas;

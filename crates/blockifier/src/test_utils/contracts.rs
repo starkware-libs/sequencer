@@ -1,4 +1,7 @@
+use std::collections::HashMap;
+
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use itertools::Itertools;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use starknet_api::contract_class::{ContractClass, EntryPointType};
@@ -12,15 +15,18 @@ use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
-use crate::execution::contract_class::RunnableContractClass;
+use crate::execution::contract_class::RunnableCompiledClass;
 use crate::execution::entry_point::CallEntryPoint;
 #[cfg(feature = "cairo_native")]
-use crate::execution::native::contract_class::NativeContractClassV1;
+use crate::execution::native::contract_class::NativeCompiledClassV1;
 #[cfg(feature = "cairo_native")]
 use crate::test_utils::cairo_compile::starknet_compile;
-use crate::test_utils::cairo_compile::{cairo0_compile, cairo1_compile};
+use crate::test_utils::cairo_compile::{cairo0_compile, cairo1_compile, CompilationArtifacts};
 use crate::test_utils::struct_impls::LoadContractFromFile;
 use crate::test_utils::{get_raw_contract_class, CairoVersion};
+
+pub const CAIRO1_FEATURE_CONTRACTS_DIR: &str = "feature_contracts/cairo1";
+pub const SIERRA_CONTRACTS_SUBDIR: &str = "sierra";
 
 // This file contains featured contracts, used for tests. Use the function 'test_state' in
 // initial_test_state.rs to initialize a state with these contracts.
@@ -85,6 +91,9 @@ const LEGACY_CONTRACT_RUST_TOOLCHAIN: &str = "2023-07-05";
 
 const CAIRO_STEPS_TEST_CONTRACT_COMPILER_TAG: &str = "v2.7.0";
 const CAIRO_STEPS_TEST_CONTRACT_RUST_TOOLCHAIN: &str = "2024-04-29";
+
+pub type TagAndToolchain = (Option<String>, Option<String>);
+pub type TagToContractsMapping = HashMap<TagAndToolchain, Vec<FeatureContract>>;
 
 /// Enum representing all feature contracts.
 /// The contracts that are implemented in both Cairo versions include a version field.
@@ -185,12 +194,12 @@ impl FeatureContract {
         }
     }
 
-    pub fn get_runnable_class(&self) -> RunnableContractClass {
+    pub fn get_runnable_class(&self) -> RunnableCompiledClass {
         #[cfg(feature = "cairo_native")]
         if CairoVersion::Native == self.cairo_version() {
             let native_contract_class =
-                NativeContractClassV1::compile_or_get_cached(&self.get_compiled_path());
-            return RunnableContractClass::V1Native(native_contract_class);
+                NativeCompiledClassV1::compile_or_get_cached(&self.get_compiled_path());
+            return RunnableCompiledClass::V1Native(native_contract_class);
         }
 
         self.get_class().try_into().unwrap()
@@ -212,7 +221,7 @@ impl FeatureContract {
     /// Some contracts are designed to test behavior of code compiled with a
     /// specific (old) compiler tag. To run the (old) compiler, older rust
     /// version is required.
-    pub fn fixed_tag_and_rust_toolchain(&self) -> (Option<String>, Option<String>) {
+    pub fn fixed_tag_and_rust_toolchain(&self) -> TagAndToolchain {
         match self {
             Self::LegacyTestContract => (
                 Some(LEGACY_CONTRACT_COMPILER_TAG.into()),
@@ -284,6 +293,15 @@ impl FeatureContract {
         }
     }
 
+    pub fn get_sierra_path(&self) -> String {
+        assert_ne!(self.cairo_version(), CairoVersion::Cairo0);
+        assert_ne!(self, &Self::ERC20(CairoVersion::Cairo1));
+        format!(
+            "{CAIRO1_FEATURE_CONTRACTS_DIR}/{SIERRA_CONTRACTS_SUBDIR}/{}.sierra.json",
+            self.get_non_erc20_base_name()
+        )
+    }
+
     pub fn get_compiled_path(&self) -> String {
         // ERC20 is a special case - not in the feature_contracts directory.
         if let Self::ERC20(cairo_version) = self {
@@ -317,7 +335,7 @@ impl FeatureContract {
 
     /// Compiles the feature contract and returns the compiled contract as a byte vector.
     /// Panics if the contract is ERC20, as ERC20 contract recompilation is not supported.
-    pub fn compile(&self) -> Vec<u8> {
+    pub fn compile(&self) -> CompilationArtifacts {
         if matches!(self, Self::ERC20(_)) {
             panic!("ERC20 contract recompilation not supported.");
         }
@@ -346,12 +364,13 @@ impl FeatureContract {
             #[cfg(feature = "cairo_native")]
             CairoVersion::Native => {
                 let (tag_override, cargo_nightly_arg) = self.fixed_tag_and_rust_toolchain();
-                starknet_compile(
+                let sierra_output = starknet_compile(
                     self.get_source_path(),
                     tag_override,
                     cargo_nightly_arg,
                     &mut vec![],
-                )
+                );
+                CompilationArtifacts::Cairo1Native { sierra: sierra_output }
             }
         }
     }
@@ -365,7 +384,7 @@ impl FeatureContract {
         entry_point_type: EntryPointType,
     ) -> EntryPointOffset {
         match self.get_runnable_class() {
-            RunnableContractClass::V0(class) => {
+            RunnableCompiledClass::V0(class) => {
                 class
                     .entry_points_by_type
                     .get(&entry_point_type)
@@ -375,7 +394,7 @@ impl FeatureContract {
                     .unwrap()
                     .offset
             }
-            RunnableContractClass::V1(class) => {
+            RunnableCompiledClass::V1(class) => {
                 class
                     .entry_points_by_type
                     .get_entry_point(&CallEntryPoint {
@@ -387,7 +406,7 @@ impl FeatureContract {
                     .offset
             }
             #[cfg(feature = "cairo_native")]
-            RunnableContractClass::V1Native(_) => {
+            RunnableCompiledClass::V1Native(_) => {
                 panic!("Not implemented for cairo native contracts")
             }
         }
@@ -426,5 +445,12 @@ impl FeatureContract {
     pub fn all_feature_contracts() -> impl Iterator<Item = Self> {
         // ERC20 is a special case - not in the feature_contracts directory.
         Self::all_contracts().filter(|contract| !matches!(contract, Self::ERC20(_)))
+    }
+
+    pub fn cairo1_feature_contracts_by_tag() -> TagToContractsMapping {
+        Self::all_feature_contracts()
+            .filter(|contract| contract.cairo_version() != CairoVersion::Cairo0)
+            .map(|contract| (contract.fixed_tag_and_rust_toolchain(), contract))
+            .into_group_map()
     }
 }

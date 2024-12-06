@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
-use starknet_api::block::GasPriceVector;
+use starknet_api::block::{BlockInfo, FeeType, GasPriceVector};
 use starknet_api::core::{ChainId, ContractAddress};
 use starknet_api::transaction::fields::{
     AllResourceBounds,
@@ -11,11 +11,9 @@ use starknet_api::transaction::fields::{
     ValidResourceBounds,
 };
 
-use crate::blockifier::block::BlockInfo;
 use crate::bouncer::BouncerConfig;
 use crate::transaction::objects::{
     CurrentTransactionInfo,
-    FeeType,
     HasRelatedFeeType,
     TransactionInfo,
     TransactionInfoCreator,
@@ -39,10 +37,7 @@ impl TransactionContext {
         self.tx_info.gas_mode()
     }
     pub fn get_gas_prices(&self) -> &GasPriceVector {
-        self.block_context
-            .block_info
-            .gas_prices
-            .get_gas_prices_by_fee_type(&self.tx_info.fee_type())
+        self.block_context.block_info.gas_prices.gas_price_vector(&self.tx_info.fee_type())
     }
 
     /// Returns the initial Sierra gas of the transaction.

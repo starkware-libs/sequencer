@@ -3,12 +3,8 @@ use crate::contract_class::ClassInfo;
 use crate::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use crate::data_availability::DataAvailabilityMode;
 use crate::executable_transaction::DeclareTransaction as ExecutableDeclareTransaction;
-use crate::rpc_transaction::{
-    ContractClass,
-    RpcDeclareTransaction,
-    RpcDeclareTransactionV3,
-    RpcTransaction,
-};
+use crate::rpc_transaction::{RpcDeclareTransaction, RpcDeclareTransactionV3, RpcTransaction};
+use crate::state::SierraContractClass;
 use crate::transaction::fields::{
     AccountDeploymentData,
     Fee,
@@ -142,7 +138,7 @@ pub fn executable_declare_tx(
 
 pub fn rpc_declare_tx(
     declare_tx_args: DeclareTxArgs,
-    contract_class: ContractClass,
+    contract_class: SierraContractClass,
 ) -> RpcTransaction {
     if declare_tx_args.version != TransactionVersion::THREE {
         panic!("Unsupported transaction version: {:?}.", declare_tx_args.version);

@@ -8,6 +8,7 @@ from typing import Optional
 
 from config.sequencer import Config
 from app.service import ServiceApp
+from services.topology_helpers import get_dev_config
 from services import topology, helpers
 
 
@@ -24,37 +25,27 @@ class SystemStructure:
 
 class SequencerNode(Chart):
     def __init__(
-        self,
-        scope: Construct,
-        name: str,
-        namespace: str,
-        topology: topology.ServiceTopology
+        self, scope: Construct, name: str, namespace: str, topology: topology.ServiceTopology
     ):
-        super().__init__(
-            scope, name, disable_resource_name_hashes=True, namespace=namespace
-        )
-        self.service = ServiceApp(
-            self,
-            name,
-            namespace=namespace,
-            topology=topology
-        )
+        super().__init__(scope, name, disable_resource_name_hashes=True, namespace=namespace)
+        self.service = ServiceApp(self, name, namespace=namespace, topology=topology)
+
 
 def main():
-    if helpers.args.env == "dev":
-        system_preset = topology.SequencerDev()
-    elif helpers.args.env == "prod":
-        system_preset = topology.SequencerProd()
+    args = helpers.argument_parser()
+    if args.env == "dev":
+        system_preset = topology.SequencerDev(config=get_dev_config(args.config_file))
+    elif args.env == "prod":
+        raise NotImplementedError("Production environment not supported.")
+        # system_preset = topology.SequencerProd()
 
-    app = App(
-        yaml_output_type=YamlOutputType.FOLDER_PER_CHART_FILE_PER_RESOURCE
-    )
+    app = App(yaml_output_type=YamlOutputType.FOLDER_PER_CHART_FILE_PER_RESOURCE)
 
     SequencerNode(
         scope=app,
         name="sequencer-node",
-        namespace=helpers.args.namespace,
-        topology=system_preset
+        namespace=args.namespace,
+        topology=system_preset,
     )
 
     app.synth()

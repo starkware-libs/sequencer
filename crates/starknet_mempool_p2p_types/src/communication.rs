@@ -19,6 +19,7 @@ use thiserror::Error;
 use crate::errors::MempoolP2pPropagatorError;
 use crate::mempool_p2p_types::MempoolP2pPropagatorResult;
 
+#[cfg_attr(any(feature = "testing", test), mockall::automock)]
 #[async_trait]
 pub trait MempoolP2pPropagatorClient: Send + Sync {
     /// Adds a transaction to be propagated to other peers. This should only be called on a new

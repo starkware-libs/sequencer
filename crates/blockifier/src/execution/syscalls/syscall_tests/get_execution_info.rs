@@ -13,8 +13,8 @@ use starknet_api::transaction::fields::{
     Tip,
     ValidResourceBounds,
 };
-use starknet_api::transaction::{TransactionHash, TransactionVersion, QUERY_VERSION_BASE};
-use starknet_api::{felt, nonce};
+use starknet_api::transaction::{TransactionVersion, QUERY_VERSION_BASE};
+use starknet_api::{felt, nonce, tx_hash};
 use starknet_types_core::felt::Felt;
 use test_case::test_case;
 
@@ -200,7 +200,7 @@ fn test_get_execution_info(
         version = TransactionVersion(query_version);
     }
 
-    let tx_hash = TransactionHash(felt!(1991_u16));
+    let tx_hash = tx_hash!(1991);
     let max_fee = Fee(42);
     let nonce = nonce!(3_u16);
     let sender_address = test_contract_address;

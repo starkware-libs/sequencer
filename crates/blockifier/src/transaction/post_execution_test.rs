@@ -1,5 +1,6 @@
 use assert_matches::assert_matches;
 use rstest::rstest;
+use starknet_api::block::FeeType;
 use starknet_api::core::ContractAddress;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::StorageKey;
@@ -31,7 +32,7 @@ use crate::test_utils::{
 };
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::errors::TransactionExecutionError;
-use crate::transaction::objects::{FeeType, HasRelatedFeeType, TransactionInfoCreator};
+use crate::transaction::objects::{HasRelatedFeeType, TransactionInfoCreator};
 use crate::transaction::test_utils::{
     account_invoke_tx,
     block_context,
@@ -44,6 +45,7 @@ use crate::transaction::test_utils::{
     TestInitData,
 };
 use crate::transaction::transactions::ExecutableTransaction;
+use crate::versioned_constants::AllocationCost;
 
 fn init_data_by_version(chain_info: &ChainInfo, cairo_version: CairoVersion) -> TestInitData {
     let test_contract = FeatureContract::TestContract(cairo_version);
@@ -86,11 +88,12 @@ fn calldata_for_write_and_transfer(
 fn test_revert_on_overdraft(
     max_fee: Fee,
     default_all_resource_bounds: ValidResourceBounds,
-    block_context: BlockContext,
+    mut block_context: BlockContext,
     #[case] version: TransactionVersion,
     #[case] fee_type: FeeType,
     #[values(CairoVersion::Cairo0)] cairo_version: CairoVersion,
 ) {
+    block_context.versioned_constants.allocation_cost = AllocationCost::ZERO;
     let chain_info = &block_context.chain_info;
     let fee_token_address = chain_info.fee_token_addresses.get_by_fee_type(&fee_type);
     // An address to be written into to observe state changes.
@@ -131,8 +134,7 @@ fn test_revert_on_overdraft(
         nonce: nonce_manager.next(account_address),
     });
     let tx_info = approve_tx.create_tx_info();
-    let approval_execution_info =
-        approve_tx.execute(&mut state, &block_context, true, true).unwrap();
+    let approval_execution_info = approve_tx.execute(&mut state, &block_context).unwrap();
     assert!(!approval_execution_info.is_reverted());
 
     // Transfer a valid amount of funds to compute the cost of a successful
@@ -267,9 +269,10 @@ fn test_revert_on_resource_overuse(
     #[values(CairoVersion::Cairo0)] cairo_version: CairoVersion,
 ) {
     block_context.block_info.use_kzg_da = true;
+    block_context.versioned_constants.allocation_cost = AllocationCost::ZERO;
     let gas_mode = resource_bounds.get_gas_vector_computation_mode();
     let fee_type = if version == TransactionVersion::THREE { FeeType::Strk } else { FeeType::Eth };
-    let gas_prices = block_context.block_info.gas_prices.get_gas_prices_by_fee_type(&fee_type);
+    let gas_prices = block_context.block_info.gas_prices.gas_price_vector(&fee_type);
     let TestInitData { mut state, account_address, contract_address, mut nonce_manager } =
         init_data_by_version(&block_context.chain_info, cairo_version);
 

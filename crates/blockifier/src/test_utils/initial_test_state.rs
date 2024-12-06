@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
+use starknet_api::block::FeeType;
 use starknet_api::core::ContractAddress;
 use starknet_api::felt;
 use starknet_api::transaction::fields::Fee;
@@ -11,7 +12,6 @@ use crate::state::cached_state::CachedState;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::CairoVersion;
-use crate::transaction::objects::FeeType;
 
 /// Utility to fund an account.
 pub fn fund_account(

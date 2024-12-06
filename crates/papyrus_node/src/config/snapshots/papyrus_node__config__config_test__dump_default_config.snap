@@ -1,6 +1,7 @@
 ---
 source: crates/papyrus_node/src/config/config_test.rs
 expression: dumped_default_config
+snapshot_kind: text
 ---
 {
   "base_layer.node_url": {
@@ -88,6 +89,11 @@ expression: dumped_default_config
     "description": "Flag for an optional field.",
     "value": true,
     "privacy": "TemporaryValue"
+  },
+  "consensus.chain_id": {
+    "description": "The chain id of the Starknet chain.",
+    "value": "0x0",
+    "privacy": "Public"
   },
   "consensus.consensus_delay": {
     "description": "Delay (seconds) before starting consensus to give time for network peering.",
@@ -238,7 +244,7 @@ expression: dumped_default_config
   },
   "consensus.validator_id": {
     "description": "The validator id of the node.",
-    "value": "0x0",
+    "value": "0x64",
     "privacy": "Public"
   },
   "monitoring_gateway.collect_metrics": {

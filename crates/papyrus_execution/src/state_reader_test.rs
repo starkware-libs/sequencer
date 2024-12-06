@@ -2,9 +2,9 @@ use std::cell::Cell;
 
 use assert_matches::assert_matches;
 use blockifier::execution::contract_class::{
-    ContractClassV0,
-    ContractClassV1,
-    RunnableContractClass,
+    CompiledClassV0,
+    CompiledClassV1,
+    RunnableCompiledClass,
 };
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::StateReader;
@@ -50,7 +50,7 @@ fn read_state() {
     let class0 = SierraContractClass::default();
     let casm0 = get_test_casm();
     let blockifier_casm0 =
-        RunnableContractClass::V1(ContractClassV1::try_from(casm0.clone()).unwrap());
+        RunnableCompiledClass::V1(CompiledClassV1::try_from(casm0.clone()).unwrap());
     let compiled_class_hash0 = CompiledClassHash(StarkHash::default());
 
     let class_hash1 = ClassHash(1u128.into());
@@ -65,7 +65,7 @@ fn read_state() {
     let mut casm1 = get_test_casm();
     casm1.bytecode[0] = BigUintAsHex { value: 12345u32.into() };
     let blockifier_casm1 =
-        RunnableContractClass::V1(ContractClassV1::try_from(casm1.clone()).unwrap());
+        RunnableCompiledClass::V1(CompiledClassV1::try_from(casm1.clone()).unwrap());
     let nonce1 = Nonce(felt!(2_u128));
     let class_hash3 = ClassHash(567_u128.into());
     let class_hash4 = ClassHash(89_u128.into());
@@ -163,8 +163,7 @@ fn read_state() {
     assert_eq!(nonce_after_block_0, Nonce::default());
     let class_hash_after_block_0 = state_reader0.get_class_hash_at(address0).unwrap();
     assert_eq!(class_hash_after_block_0, ClassHash::default());
-    let compiled_contract_class_after_block_0 =
-        state_reader0.get_compiled_contract_class(class_hash0);
+    let compiled_contract_class_after_block_0 = state_reader0.get_compiled_class(class_hash0);
     assert_matches!(
         compiled_contract_class_after_block_0, Err(StateError::UndeclaredClassHash(class_hash))
         if class_hash == class_hash0
@@ -185,12 +184,12 @@ fn read_state() {
     let class_hash_after_block_1 = state_reader1.get_class_hash_at(address0).unwrap();
     assert_eq!(class_hash_after_block_1, class_hash0);
     let compiled_contract_class_after_block_1 =
-        state_reader1.get_compiled_contract_class(class_hash0).unwrap();
+        state_reader1.get_compiled_class(class_hash0).unwrap();
     assert_eq!(compiled_contract_class_after_block_1, blockifier_casm0);
 
-    // Test that if we try to get a casm and it's missing, that an error is returned and the field
-    // `missing_compiled_class` is set to its hash
-    state_reader1.get_compiled_contract_class(class_hash5).unwrap_err();
+    // Test that an error is returned if we try to get a missing casm, and the field
+    // `missing_compiled_class` is set to the missing casm's hash.
+    state_reader1.get_compiled_class(class_hash5).unwrap_err();
     assert_eq!(state_reader1.missing_compiled_class.get().unwrap(), class_hash5);
 
     let state_number2 = StateNumber::unchecked_right_after_block(BlockNumber(2));
@@ -234,14 +233,14 @@ fn read_state() {
     assert_eq!(state_reader2.get_compiled_class_hash(class_hash2).unwrap(), compiled_class_hash2);
     assert_eq!(state_reader2.get_nonce_at(address0).unwrap(), nonce0);
     assert_eq!(state_reader2.get_nonce_at(address2).unwrap(), nonce1);
-    assert_eq!(state_reader2.get_compiled_contract_class(class_hash0).unwrap(), blockifier_casm0);
-    assert_eq!(state_reader2.get_compiled_contract_class(class_hash2).unwrap(), blockifier_casm1);
-    // Test that if we only got the class without the casm then an error is returned.
-    state_reader2.get_compiled_contract_class(class_hash3).unwrap_err();
+    assert_eq!(state_reader2.get_compiled_class(class_hash0).unwrap(), blockifier_casm0);
+    assert_eq!(state_reader2.get_compiled_class(class_hash2).unwrap(), blockifier_casm1);
+    // Test that an error is returned if we only got the class without the casm.
+    state_reader2.get_compiled_class(class_hash3).unwrap_err();
     // Test that if the class is deprecated it is returned.
     assert_eq!(
-        state_reader2.get_compiled_contract_class(class_hash4).unwrap(),
-        RunnableContractClass::V0(ContractClassV0::try_from(class1).unwrap())
+        state_reader2.get_compiled_class(class_hash4).unwrap(),
+        RunnableCompiledClass::V0(CompiledClassV0::try_from(class1).unwrap())
     );
 
     // Test get_class_hash_at when the class is replaced.

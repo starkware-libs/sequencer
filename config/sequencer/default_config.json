@@ -104,20 +104,10 @@
     "privacy": "Public",
     "value": 0
   },
-  "batcher_config.block_builder_config.sequencer_address": {
-    "description": "The address of the sequencer.",
-    "pointer_target": "sequencer_address",
-    "privacy": "Public"
-  },
   "batcher_config.block_builder_config.tx_chunk_size": {
     "description": "The size of the transaction chunk.",
     "privacy": "Public",
     "value": 100
-  },
-  "batcher_config.block_builder_config.use_kzg_da": {
-    "description": "Indicates whether the kzg mechanism is used for data availability.",
-    "privacy": "Public",
-    "value": true
   },
   "batcher_config.block_builder_config.versioned_constants_overrides.invoke_tx_max_n_steps": {
     "description": "Maximum number of steps the invoke function is allowed to run.",
@@ -205,7 +195,7 @@
     "value": "StateOnly"
   },
   "chain_id": {
-    "description": "A required param! The chain to follow.",
+    "description": "A required param! The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
     "param_type": "String",
     "privacy": "TemporaryValue"
   },
@@ -564,6 +554,61 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
+  "components.state_sync.execution_mode": {
+    "description": "The component execution mode.",
+    "privacy": "Public",
+    "value": "LocalExecutionWithRemoteDisabled"
+  },
+  "components.state_sync.local_server_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
+  "components.state_sync.local_server_config.channel_buffer_size": {
+    "description": "The communication channel buffer size.",
+    "privacy": "Public",
+    "value": 32
+  },
+  "components.state_sync.remote_client_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "components.state_sync.remote_client_config.idle_connections": {
+    "description": "The maximum number of idle connections to keep alive.",
+    "privacy": "Public",
+    "value": 18446744073709551615
+  },
+  "components.state_sync.remote_client_config.idle_timeout": {
+    "description": "The duration in seconds to keep an idle connection open before closing.",
+    "privacy": "Public",
+    "value": 90
+  },
+  "components.state_sync.remote_client_config.retries": {
+    "description": "The max number of retries for sending a message.",
+    "privacy": "Public",
+    "value": 3
+  },
+  "components.state_sync.remote_client_config.socket": {
+    "description": "The remote component server socket.",
+    "privacy": "Public",
+    "value": "0.0.0.0:8080"
+  },
+  "components.state_sync.remote_server_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "components.state_sync.remote_server_config.socket": {
+    "description": "The remote component server socket.",
+    "privacy": "Public",
+    "value": "0.0.0.0:8080"
+  },
+  "consensus_manager_config.consensus_config.chain_id": {
+    "description": "The chain id of the Starknet chain.",
+    "pointer_target": "chain_id",
+    "privacy": "Public"
+  },
   "consensus_manager_config.consensus_config.consensus_delay": {
     "description": "Delay (seconds) before starting consensus to give time for network peering.",
     "privacy": "Public",
@@ -682,7 +727,7 @@
   "consensus_manager_config.consensus_config.validator_id": {
     "description": "The validator id of the node.",
     "privacy": "Public",
-    "value": "0x0"
+    "value": "0x64"
   },
   "eth_fee_token_address": {
     "description": "A required param! Address of the ETH fee token.",
@@ -898,11 +943,6 @@
     "description": "The url of the rpc server.",
     "privacy": "Public",
     "value": ""
-  },
-  "sequencer_address": {
-    "description": "A required param! The sequencer address.",
-    "param_type": "String",
-    "privacy": "TemporaryValue"
   },
   "strk_fee_token_address": {
     "description": "A required param! Address of the STRK fee token.",

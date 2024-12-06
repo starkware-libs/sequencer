@@ -71,7 +71,7 @@ use starknet_api::transaction::{
     TransactionOffsetInBlock,
     TransactionVersion,
 };
-use starknet_api::{calldata, class_hash, contract_address, felt, nonce};
+use starknet_api::{calldata, class_hash, contract_address, felt, nonce, tx_hash};
 use starknet_client::reader::objects::pending_data::{
     PendingBlock,
     PendingBlockOrDeprecated,
@@ -302,7 +302,7 @@ async fn execution_call() {
         *BLOCK_TIMESTAMP,
         *SEQUENCER_ADDRESS,
         &InvokeTransactionV1::default(),
-        TransactionHash(StarkHash::ZERO),
+        tx_hash!(0),
         Some(Felt::ZERO),
     );
     // Calling the contract directly and not through the account contract.
@@ -363,7 +363,7 @@ async fn pending_execution_call() {
         *BLOCK_TIMESTAMP,
         *SEQUENCER_ADDRESS,
         &InvokeTransactionV1::default(),
-        TransactionHash(StarkHash::ZERO),
+        tx_hash!(0),
         Some(Felt::ZERO),
     );
     // Calling the contract directly and not through the account contract.
@@ -630,7 +630,7 @@ async fn test_call_simulate(
         // Because the transaction hash depends on the calldata and the calldata needs to contain
         // the transaction hash, there's no way to put the correct hash here. Instead, we'll check
         // that the function `test_get_execution_info` fails on the transaction hash validation.
-        TransactionHash(StarkHash::ZERO),
+        tx_hash!(0),
         None,
     );
     invoke_v1.calldata = calldata;
@@ -763,8 +763,8 @@ async fn trace_block_transactions_regular_and_pending() {
 
     let mut writer = prepare_storage_for_execution(storage_writer);
 
-    let tx_hash1 = TransactionHash(felt!("0x1234"));
-    let tx_hash2 = TransactionHash(felt!("0x5678"));
+    let tx_hash1 = tx_hash!(0x1234);
+    let tx_hash2 = tx_hash!(0x5678);
 
     let client_tx1 = ClientTransaction::Invoke(ClientInvokeTransaction {
         max_fee: Some(*MAX_FEE),
@@ -945,8 +945,8 @@ async fn trace_block_transactions_regular_and_pending() {
 
 #[tokio::test]
 async fn trace_block_transactions_and_trace_transaction_execution_context() {
-    let tx_hash1 = TransactionHash(felt!("0x1234"));
-    let tx_hash2 = TransactionHash(felt!("0x5678"));
+    let tx_hash1 = tx_hash!(0x1234);
+    let tx_hash2 = tx_hash!(0x5678);
 
     let mut invoke_tx1 = starknet_api::transaction::InvokeTransactionV1 {
         max_fee: *MAX_FEE,
@@ -1084,8 +1084,8 @@ async fn trace_block_transactions_and_trace_transaction_execution_context() {
 
 #[tokio::test]
 async fn pending_trace_block_transactions_and_trace_transaction_execution_context() {
-    let tx_hash1 = TransactionHash(felt!("0x1234"));
-    let tx_hash2 = TransactionHash(felt!("0x5678"));
+    let tx_hash1 = tx_hash!(0x1234);
+    let tx_hash2 = tx_hash!(0x5678);
 
     let mut client_invoke_tx1 = ClientInvokeTransaction {
         max_fee: Some(*MAX_FEE),

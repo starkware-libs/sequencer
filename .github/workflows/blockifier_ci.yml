@@ -34,6 +34,9 @@ on:
       - 'scripts/install_build_tools.sh'
       - 'scripts/sequencer-ci.Dockerfile'
 
+env:
+  RUSTFLAGS: "-D warnings"
+
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.job }}
@@ -41,7 +44,7 @@ concurrency:
 
 jobs:
   feature-combo-builds:
-    runs-on: starkware-ubuntu-20-04-medium
+    runs-on: starkware-ubuntu-latest-medium
     steps:
       - uses: actions/checkout@v4
         with:

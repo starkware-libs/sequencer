@@ -1,3 +1,5 @@
+#![allow(non_local_definitions)]
+
 use blockifier::blockifier::stateful_validator::{StatefulValidator, StatefulValidatorResult};
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::BlockContext;

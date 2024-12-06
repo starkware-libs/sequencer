@@ -22,7 +22,7 @@ use starknet_api::transaction::fields::Calldata;
 use starknet_types_core::felt::Felt;
 
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
-use crate::execution::contract_class::{RunnableContractClass, TrackedResource};
+use crate::execution::contract_class::{RunnableCompiledClass, TrackedResource};
 use crate::execution::entry_point::{
     execute_constructor_entry_point,
     CallEntryPoint,
@@ -52,38 +52,26 @@ pub const SEGMENT_ARENA_BUILTIN_SIZE: usize = 3;
 /// A wrapper for execute_entry_point_call that performs pre and post-processing.
 pub fn execute_entry_point_call_wrapper(
     mut call: CallEntryPoint,
-    contract_class: RunnableContractClass,
+    compiled_class: RunnableCompiledClass,
     state: &mut dyn State,
     context: &mut EntryPointExecutionContext,
     remaining_gas: &mut u64,
 ) -> EntryPointExecutionResult<CallInfo> {
-    let contract_tracked_resource = contract_class.tracked_resource(
+    let current_tracked_resource = compiled_class.tracked_resource(
         &context.versioned_constants().min_compiler_version_for_sierra_gas,
-        context.tx_context.tx_info.gas_mode(),
+        context.tracked_resource_stack.last(),
     );
+    if current_tracked_resource == TrackedResource::CairoSteps {
+        // Override the initial gas with a high value so it won't limit the run.
+        call.initial_gas = context.versioned_constants().default_initial_gas_cost();
+    }
+    let orig_call = call.clone();
+
     // Note: no return statements (explicit or implicit) should be added between the push and the
     // pop commands.
-
-    // Once we ran with CairoSteps, we will continue to run using it for all nested calls.
-    match context.tracked_resource_stack.last() {
-        Some(TrackedResource::CairoSteps) => {
-            context.tracked_resource_stack.push(TrackedResource::CairoSteps)
-        }
-        Some(TrackedResource::SierraGas) => {
-            if contract_tracked_resource == TrackedResource::CairoSteps {
-                // Switching from SierraGas to CairoSteps: override initial_gas with a high value so
-                // it won't limit the run.
-                call.initial_gas = context.versioned_constants().default_initial_gas_cost();
-            };
-            context.tracked_resource_stack.push(contract_tracked_resource)
-        }
-        None => context.tracked_resource_stack.push(contract_tracked_resource),
-    };
-
-    let orig_call = call.clone();
-    let res = execute_entry_point_call(call, contract_class, state, context);
-    let current_tracked_resource =
-        context.tracked_resource_stack.pop().expect("Unexpected empty tracked resource.");
+    context.tracked_resource_stack.push(current_tracked_resource);
+    let res = execute_entry_point_call(call, compiled_class, state, context);
+    context.tracked_resource_stack.pop().expect("Unexpected empty tracked resource.");
 
     match res {
         Ok(call_info) => {
@@ -120,37 +108,37 @@ pub fn execute_entry_point_call_wrapper(
 /// Executes a specific call to a contract entry point and returns its output.
 pub fn execute_entry_point_call(
     call: CallEntryPoint,
-    contract_class: RunnableContractClass,
+    compiled_class: RunnableCompiledClass,
     state: &mut dyn State,
     context: &mut EntryPointExecutionContext,
 ) -> EntryPointExecutionResult<CallInfo> {
-    match contract_class {
-        RunnableContractClass::V0(contract_class) => {
+    match compiled_class {
+        RunnableCompiledClass::V0(compiled_class) => {
             deprecated_entry_point_execution::execute_entry_point_call(
                 call,
-                contract_class,
+                compiled_class,
                 state,
                 context,
             )
         }
-        RunnableContractClass::V1(contract_class) => {
-            entry_point_execution::execute_entry_point_call(call, contract_class, state, context)
+        RunnableCompiledClass::V1(compiled_class) => {
+            entry_point_execution::execute_entry_point_call(call, compiled_class, state, context)
         }
         #[cfg(feature = "cairo_native")]
-        RunnableContractClass::V1Native(contract_class) => {
+        RunnableCompiledClass::V1Native(compiled_class) => {
             if context.tracked_resource_stack.last() == Some(&TrackedResource::CairoSteps) {
                 // We cannot run native with cairo steps as the tracked resources (it's a vm
                 // resouorce).
                 entry_point_execution::execute_entry_point_call(
                     call,
-                    contract_class.casm(),
+                    compiled_class.casm(),
                     state,
                     context,
                 )
             } else {
                 native_entry_point_execution::execute_entry_point_call(
                     call,
-                    contract_class,
+                    compiled_class,
                     state,
                     context,
                 )

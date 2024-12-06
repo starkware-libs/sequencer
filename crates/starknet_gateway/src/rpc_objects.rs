@@ -1,7 +1,14 @@
-use blockifier::blockifier::block::{BlockInfo, GasPrices};
+use blockifier::blockifier::block::validated_gas_prices;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use starknet_api::block::{BlockHash, BlockNumber, BlockTimestamp, GasPrice, NonzeroGasPrice};
+use starknet_api::block::{
+    BlockHash,
+    BlockInfo,
+    BlockNumber,
+    BlockTimestamp,
+    GasPrice,
+    NonzeroGasPrice,
+};
 use starknet_api::core::{ClassHash, ContractAddress, GlobalRoot};
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::state::StorageKey;
@@ -48,7 +55,7 @@ pub struct GetClassHashAtParams {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct GetCompiledContractClassParams {
+pub struct GetCompiledClassParams {
     pub class_hash: ClassHash,
     pub block_id: BlockId,
 }
@@ -86,7 +93,7 @@ impl TryInto<BlockInfo> for BlockHeader {
             block_number: self.block_number,
             sequencer_address: self.sequencer_address,
             block_timestamp: self.timestamp,
-            gas_prices: GasPrices::new(
+            gas_prices: validated_gas_prices(
                 parse_gas_price(self.l1_gas_price.price_in_wei)?,
                 parse_gas_price(self.l1_gas_price.price_in_fri)?,
                 parse_gas_price(self.l1_data_gas_price.price_in_wei)?,

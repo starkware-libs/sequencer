@@ -137,8 +137,8 @@ impl<'env, K: KeyTrait + Debug, V: ValueSerde + Debug> Table<'env>
     }
 }
 
-impl<'txn, Mode: TransactionKind, K: KeyTrait + Debug, V: ValueSerde + Debug> DbCursorTrait
-    for DbCursor<'txn, Mode, K, V, SimpleTable>
+impl<Mode: TransactionKind, K: KeyTrait + Debug, V: ValueSerde + Debug> DbCursorTrait
+    for DbCursor<'_, Mode, K, V, SimpleTable>
 {
     type Key = K;
     type Value = V;

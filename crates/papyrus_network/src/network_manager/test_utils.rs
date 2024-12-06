@@ -148,9 +148,9 @@ where
     Ok(TestSubscriberChannels { subscriber_channels, mock_network })
 }
 
-// TODO(shahak): Change to n instead of 2.
-pub fn create_two_connected_network_configs() -> (NetworkConfig, NetworkConfig) {
-    let [port0, port1] = find_n_free_ports::<2>();
+pub fn create_connected_network_configs(n: usize) -> Vec<NetworkConfig> {
+    let mut ports = find_n_free_ports(n);
+    let port0 = ports.remove(0);
 
     let secret_key0 = [1u8; 32];
     let public_key0 = Keypair::ed25519_from_bytes(secret_key0).unwrap().public();
@@ -160,37 +160,43 @@ pub fn create_two_connected_network_configs() -> (NetworkConfig, NetworkConfig) 
         secret_key: Some(secret_key0.to_vec()),
         ..Default::default()
     };
-    let config1 = NetworkConfig {
-        tcp_port: port1,
-        bootstrap_peer_multiaddr: Some(
-            Multiaddr::empty()
-                .with(Protocol::Ip4(Ipv4Addr::LOCALHOST))
-                .with(Protocol::Tcp(port0))
-                .with(Protocol::P2p(PeerId::from_public_key(&public_key0))),
-        ),
-        ..Default::default()
-    };
-    (config0, config1)
+    let mut configs = Vec::with_capacity(n);
+    configs.push(config0);
+    for port in ports.iter() {
+        configs.push(NetworkConfig {
+            tcp_port: *port,
+            bootstrap_peer_multiaddr: Some(
+                Multiaddr::empty()
+                    .with(Protocol::Ip4(Ipv4Addr::LOCALHOST))
+                    .with(Protocol::Tcp(port0))
+                    .with(Protocol::P2p(PeerId::from_public_key(&public_key0))),
+            ),
+            ..Default::default()
+        });
+    }
+    configs
 }
 
-pub fn create_network_config_connected_to_broadcast_channels<T>(
+pub fn create_network_configs_connected_to_broadcast_channels<T>(
+    n_configs: usize,
     topic: Topic,
-) -> (NetworkConfig, BroadcastTopicChannels<T>)
+) -> (Vec<NetworkConfig>, BroadcastTopicChannels<T>)
 where
     T: TryFrom<Bytes> + 'static,
     Bytes: From<T>,
 {
     const BUFFER_SIZE: usize = 1000;
 
-    let (channels_config, result_config) = create_two_connected_network_configs();
+    let mut channels_configs = create_connected_network_configs(n_configs + 1);
+    let broadcast_channels = channels_configs.pop().unwrap();
 
-    let mut channels_network_manager = NetworkManager::new(channels_config, None);
+    let mut channels_network_manager = NetworkManager::new(broadcast_channels, None);
     let broadcast_channels =
         channels_network_manager.register_broadcast_topic(topic, BUFFER_SIZE).unwrap();
 
     tokio::task::spawn(channels_network_manager.run());
 
-    (result_config, broadcast_channels)
+    (channels_configs, broadcast_channels)
 }
 
 pub struct MockClientResponsesManager<Query: TryFrom<Bytes>, Response: TryFrom<Bytes>> {

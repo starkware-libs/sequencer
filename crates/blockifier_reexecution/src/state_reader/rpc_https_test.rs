@@ -13,9 +13,8 @@ use std::env;
 use std::sync::{Arc, Mutex};
 
 use assert_matches::assert_matches;
-use blockifier::blockifier::block::BlockInfo;
 use rstest::{fixture, rstest};
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockInfo, BlockNumber};
 use starknet_api::class_hash;
 use starknet_api::core::ChainId;
 use starknet_api::transaction::{

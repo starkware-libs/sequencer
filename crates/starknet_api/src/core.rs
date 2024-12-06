@@ -87,7 +87,6 @@ impl ChainId {
 /// The address of a contract, used for example in [StateDiff](`crate::state::StateDiff`),
 /// [DeclareTransaction](`crate::transaction::DeclareTransaction`), and
 /// [BlockHeader](`crate::block::BlockHeader`).
-
 // The block hash table is stored in address 0x1,
 // this is a special address that is not used for contracts.
 pub const BLOCK_HASH_TABLE_ADDRESS: ContractAddress = ContractAddress(PatriciaKey(StarkHash::ONE));

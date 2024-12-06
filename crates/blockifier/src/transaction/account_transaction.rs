@@ -6,12 +6,7 @@ use starknet_api::calldata;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
-use starknet_api::executable_transaction::{
-    AccountTransaction as Transaction,
-    DeclareTransaction,
-    DeployAccountTransaction,
-    InvokeTransaction,
-};
+use starknet_api::executable_transaction::AccountTransaction as Transaction;
 use starknet_api::transaction::fields::Resource::{L1DataGas, L1Gas, L2Gas};
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
@@ -28,7 +23,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::CallInfo;
-use crate::execution::contract_class::RunnableContractClass;
+use crate::execution::contract_class::RunnableCompiledClass;
 use crate::execution::entry_point::{CallEntryPoint, CallType, EntryPointExecutionContext};
 use crate::execution::stack_trace::{
     extract_trailing_cairo1_revert_trace,
@@ -44,7 +39,7 @@ use crate::fee::fee_utils::{
 use crate::fee::gas_usage::estimate_minimal_gas_vector;
 use crate::fee::receipt::TransactionReceipt;
 use crate::retdata;
-use crate::state::cached_state::{StateChanges, TransactionalState};
+use crate::state::cached_state::{StateCache, TransactionalState};
 use crate::state::state_api::{State, StateReader, UpdatableState};
 use crate::transaction::errors::{
     TransactionExecutionError,
@@ -64,9 +59,10 @@ use crate::transaction::objects::{
 };
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::{
+    enforce_fee,
     Executable,
     ExecutableTransaction,
-    ExecutionFlags,
+    ExecutionFlags as TransactionExecutionFlags,
     ValidatableTransaction,
 };
 
@@ -82,11 +78,24 @@ mod flavors_test;
 #[path = "post_execution_test.rs"]
 mod post_execution_test;
 
+#[derive(Clone, Debug, derive_more::From)]
+pub struct ExecutionFlags {
+    pub only_query: bool,
+    pub charge_fee: bool,
+    pub validate: bool,
+}
+
+impl Default for ExecutionFlags {
+    fn default() -> Self {
+        Self { only_query: false, charge_fee: true, validate: true }
+    }
+}
+
 /// Represents a paid Starknet transaction.
 #[derive(Clone, Debug, derive_more::From)]
 pub struct AccountTransaction {
     pub tx: Transaction,
-    only_query: bool,
+    pub execution_flags: ExecutionFlags,
 }
 // TODO(AvivG): create additional macro that returns a reference.
 macro_rules! implement_tx_getter_calls {
@@ -95,30 +104,6 @@ macro_rules! implement_tx_getter_calls {
             self.tx.$field()
         })*
     };
-}
-
-impl From<Transaction> for AccountTransaction {
-    fn from(tx: Transaction) -> Self {
-        Self::new(tx)
-    }
-}
-
-impl From<DeclareTransaction> for AccountTransaction {
-    fn from(tx: DeclareTransaction) -> Self {
-        Transaction::Declare(tx).into()
-    }
-}
-
-impl From<DeployAccountTransaction> for AccountTransaction {
-    fn from(tx: DeployAccountTransaction) -> Self {
-        Transaction::DeployAccount(tx).into()
-    }
-}
-
-impl From<InvokeTransaction> for AccountTransaction {
-    fn from(tx: InvokeTransaction) -> Self {
-        Transaction::Invoke(tx).into()
-    }
 }
 
 impl HasRelatedFeeType for AccountTransaction {
@@ -144,12 +129,17 @@ impl AccountTransaction {
         (paymaster_data, PaymasterData)
     );
 
-    pub fn new(tx: starknet_api::executable_transaction::AccountTransaction) -> Self {
-        AccountTransaction { tx, only_query: false }
+    pub fn new_with_default_flags(tx: Transaction) -> Self {
+        Self { tx, execution_flags: ExecutionFlags::default() }
     }
 
-    pub fn new_for_query(tx: starknet_api::executable_transaction::AccountTransaction) -> Self {
-        AccountTransaction { tx, only_query: true }
+    pub fn new_for_sequencing(tx: Transaction) -> Self {
+        let execution_flags = ExecutionFlags {
+            only_query: false,
+            charge_fee: enforce_fee(&tx, false),
+            validate: true,
+        };
+        AccountTransaction { tx, execution_flags }
     }
 
     pub fn class_hash(&self) -> Option<ClassHash> {
@@ -288,7 +278,7 @@ impl AccountTransaction {
                         L1Gas,
                         l1_gas_resource_bounds,
                         minimal_gas_amount_vector.to_discounted_l1_gas(tx_context.get_gas_prices()),
-                        block_info.gas_prices.get_l1_gas_price_by_fee_type(fee_type),
+                        block_info.gas_prices.l1_gas_price(fee_type),
                     )],
                     ValidResourceBounds::AllResources(AllResourceBounds {
                         l1_gas: l1_gas_resource_bounds,
@@ -296,7 +286,7 @@ impl AccountTransaction {
                         l1_data_gas: l1_data_gas_resource_bounds,
                     }) => {
                         let GasPriceVector { l1_gas_price, l1_data_gas_price, l2_gas_price } =
-                            block_info.gas_prices.get_gas_prices_by_fee_type(fee_type);
+                            block_info.gas_prices.gas_price_vector(fee_type);
                         vec![
                             (
                                 L1Gas,
@@ -612,7 +602,7 @@ impl AccountTransaction {
 
         // Save the state changes resulting from running `validate_tx`, to be used later for
         // resource and fee calculation.
-        let validate_state_changes = state.get_actual_state_changes()?;
+        let validate_state_cache = state.borrow_updated_state_cache()?.clone();
 
         // Create copies of state and validate_resources for the execution.
         // Both will be rolled back if the execution is reverted or committed upon success.
@@ -625,16 +615,19 @@ impl AccountTransaction {
         // TODO(tzahi): add reverted_l2_gas to the receipt.
         let execution_steps_consumed =
             n_allotted_execution_steps - execution_context.n_remaining_steps();
-        let revert_receipt = TransactionReceipt::from_account_tx(
-            self,
-            &tx_context,
-            &validate_state_changes,
-            CallInfo::summarize_many(
-                validate_call_info.iter(),
-                &tx_context.block_context.versioned_constants,
-            ),
-            execution_steps_consumed,
-        );
+        // Get the receipt only in case of revert.
+        let get_revert_receipt = || {
+            TransactionReceipt::from_account_tx(
+                self,
+                &tx_context,
+                &validate_state_cache.to_state_diff(),
+                CallInfo::summarize_many(
+                    validate_call_info.iter(),
+                    &tx_context.block_context.versioned_constants,
+                ),
+                execution_steps_consumed,
+            )
+        };
 
         match execution_result {
             Ok(execute_call_info) => {
@@ -643,10 +636,13 @@ impl AccountTransaction {
                 let tx_receipt = TransactionReceipt::from_account_tx(
                     self,
                     &tx_context,
-                    &StateChanges::merge(vec![
-                        validate_state_changes,
-                        execution_state.get_actual_state_changes()?,
-                    ]),
+                    &StateCache::squash_state_diff(
+                        vec![
+                            &validate_state_cache,
+                            &execution_state.borrow_updated_state_cache()?.clone(),
+                        ],
+                        tx_context.block_context.versioned_constants.comprehensive_state_diff,
+                    ),
                     CallInfo::summarize_many(
                         validate_call_info.iter().chain(execute_call_info.iter()),
                         &tx_context.block_context.versioned_constants,
@@ -667,13 +663,14 @@ impl AccountTransaction {
                         // revert case, compute resources by adding consumed execution steps to
                         // validation resources).
                         execution_state.abort();
+                        let tx_receipt = TransactionReceipt {
+                            fee: post_execution_report.recommended_fee(),
+                            ..get_revert_receipt()
+                        };
                         Ok(ValidateExecuteCallInfo::new_reverted(
                             validate_call_info,
                             post_execution_error.into(),
-                            TransactionReceipt {
-                                fee: post_execution_report.recommended_fee(),
-                                ..revert_receipt
-                            },
+                            tx_receipt,
                         ))
                     }
                     None => {
@@ -688,6 +685,7 @@ impl AccountTransaction {
                 }
             }
             Err(execution_error) => {
+                let revert_receipt = get_revert_receipt();
                 // Error during execution. Revert, even if the error is sequencer-related.
                 execution_state.abort();
                 let post_execution_report =
@@ -745,7 +743,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
         &self,
         state: &mut TransactionalState<'_, U>,
         block_context: &BlockContext,
-        execution_flags: ExecutionFlags,
+        execution_flags_: TransactionExecutionFlags,
     ) -> TransactionExecutionResult<TransactionExecutionInfo> {
         let tx_context = Arc::new(block_context.to_tx_context(self));
         self.verify_tx_version(tx_context.tx_info.version())?;
@@ -755,7 +753,8 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
         self.perform_pre_validation_stage(
             state,
             &tx_context,
-            execution_flags.charge_fee,
+            // TODO (AvivG): access execution_flags within func instead of passing them as args.
+            self.execution_flags.charge_fee,
             strict_nonce_check,
         )?;
 
@@ -776,15 +775,16 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
             state,
             &mut remaining_gas,
             tx_context.clone(),
-            execution_flags.validate,
-            execution_flags.charge_fee,
+            // TODO (AvivG): access execution_flags within func instead of passing them as args.
+            self.execution_flags.validate,
+            self.execution_flags.charge_fee,
         )?;
         let fee_transfer_call_info = Self::handle_fee(
             state,
             tx_context,
             final_fee,
-            execution_flags.charge_fee,
-            execution_flags.concurrency_mode,
+            self.execution_flags.charge_fee,
+            execution_flags_.concurrency_mode,
         )?;
 
         let tx_execution_info = TransactionExecutionInfo {
@@ -805,11 +805,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
 
 impl TransactionInfoCreator for AccountTransaction {
     fn create_tx_info(&self) -> TransactionInfo {
-        match &self.tx {
-            Transaction::Declare(tx) => tx.create_tx_info(self.only_query),
-            Transaction::DeployAccount(tx) => tx.create_tx_info(self.only_query),
-            Transaction::Invoke(tx) => tx.create_tx_info(self.only_query),
-        }
+        self.tx.create_tx_info(self.execution_flags.only_query)
     }
 }
 
@@ -885,8 +881,8 @@ impl ValidatableTransaction for AccountTransaction {
             })?;
 
         // Validate return data.
-        let contract_class = state.get_compiled_contract_class(class_hash)?;
-        if is_cairo1(&contract_class) {
+        let compiled_class = state.get_compiled_class(class_hash)?;
+        if is_cairo1(&compiled_class) {
             // The account contract class is a Cairo 1.0 contract; the `validate` entry point should
             // return `VALID`.
             let expected_retdata = retdata![*constants::VALIDATE_RETDATA];
@@ -910,11 +906,11 @@ impl ValidatableTransaction for AccountTransaction {
     }
 }
 
-pub fn is_cairo1(contract_class: &RunnableContractClass) -> bool {
-    match contract_class {
-        RunnableContractClass::V0(_) => false,
-        RunnableContractClass::V1(_) => true,
+pub fn is_cairo1(compiled_class: &RunnableCompiledClass) -> bool {
+    match compiled_class {
+        RunnableCompiledClass::V0(_) => false,
+        RunnableCompiledClass::V1(_) => true,
         #[cfg(feature = "cairo_native")]
-        RunnableContractClass::V1Native(_) => true,
+        RunnableCompiledClass::V1Native(_) => true,
     }
 }

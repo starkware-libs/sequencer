@@ -1,7 +1,7 @@
 use rstest::fixture;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
-use starknet_api::block::GasPrice;
-use starknet_api::contract_class::{ClassInfo, ContractClass};
+use starknet_api::block::{FeeType, GasPrice};
+use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::deploy_account::DeployAccountTxArgs;
@@ -42,8 +42,8 @@ use crate::test_utils::{
     DEFAULT_STRK_L2_GAS_PRICE,
     MAX_FEE,
 };
-use crate::transaction::account_transaction::AccountTransaction;
-use crate::transaction::objects::{FeeType, TransactionExecutionInfo, TransactionExecutionResult};
+use crate::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
+use crate::transaction::objects::{TransactionExecutionInfo, TransactionExecutionResult};
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::ExecutableTransaction;
 
@@ -113,7 +113,10 @@ pub fn deploy_and_fund_account(
     deploy_tx_args: DeployAccountTxArgs,
 ) -> (AccountTransaction, ContractAddress) {
     // Deploy an account contract.
-    let deploy_account_tx = deploy_account_tx(deploy_tx_args, nonce_manager);
+    let deploy_account_tx = AccountTransaction::new_with_default_flags(deploy_account_tx(
+        deploy_tx_args,
+        nonce_manager,
+    ));
     let account_address = deploy_account_tx.sender_address();
 
     // Update the balance of the about-to-be deployed account contract in the erc20 contract, so it
@@ -162,6 +165,9 @@ pub struct FaultyAccountTxCreatorArgs {
     pub validate_constructor: bool,
     // Should be used with tx_type Declare.
     pub declared_contract: Option<FeatureContract>,
+    pub validate: bool,
+    pub only_query: bool,
+    pub charge_fee: bool,
 }
 
 impl Default for FaultyAccountTxCreatorArgs {
@@ -178,6 +184,9 @@ impl Default for FaultyAccountTxCreatorArgs {
             max_fee: Fee::default(),
             resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),
             declared_contract: None,
+            validate: true,
+            only_query: false,
+            charge_fee: true,
         }
     }
 }
@@ -214,6 +223,9 @@ pub fn create_account_tx_for_validate_test(
         max_fee,
         resource_bounds,
         declared_contract,
+        validate,
+        only_query,
+        charge_fee,
     } = faulty_account_tx_creator_args;
 
     // The first felt of the signature is used to set the scenario. If the scenario is
@@ -223,7 +235,7 @@ pub fn create_account_tx_for_validate_test(
         signature_vector.extend(additional_data);
     }
     let signature = TransactionSignature(signature_vector);
-
+    let execution_flags = ExecutionFlags { validate, charge_fee, only_query };
     match tx_type {
         TransactionType::Declare => {
             let declared_contract = match declared_contract {
@@ -235,7 +247,7 @@ pub fn create_account_tx_for_validate_test(
             };
             let class_hash = declared_contract.get_class_hash();
             let class_info = calculate_class_info_for_testing(declared_contract.get_class());
-            declare_tx(
+            let tx = declare_tx(
                 declare_tx_args! {
                     max_fee,
                     resource_bounds,
@@ -247,7 +259,8 @@ pub fn create_account_tx_for_validate_test(
                     compiled_class_hash: declared_contract.get_compiled_class_hash(),
                 },
                 class_info,
-            )
+            );
+            AccountTransaction { tx, execution_flags }
         }
         TransactionType::DeployAccount => {
             // We do not use the sender address here because the transaction generates the actual
@@ -256,7 +269,7 @@ pub fn create_account_tx_for_validate_test(
                 true => constants::FELT_TRUE,
                 false => constants::FELT_FALSE,
             })];
-            deploy_account_tx(
+            let tx = deploy_account_tx(
                 deploy_account_tx_args! {
                     max_fee,
                     resource_bounds,
@@ -267,11 +280,12 @@ pub fn create_account_tx_for_validate_test(
                     constructor_calldata,
                 },
                 nonce_manager,
-            )
+            );
+            AccountTransaction { tx, execution_flags }
         }
         TransactionType::InvokeFunction => {
             let execute_calldata = create_calldata(sender_address, "foo", &[]);
-            invoke_tx(invoke_tx_args! {
+            let tx = invoke_tx(invoke_tx_args! {
                 max_fee,
                 resource_bounds,
                 signature,
@@ -279,14 +293,18 @@ pub fn create_account_tx_for_validate_test(
                 calldata: execute_calldata,
                 version: tx_version,
                 nonce: nonce_manager.next(sender_address),
-            })
+
+            });
+            AccountTransaction { tx, execution_flags }
         }
         _ => panic!("{tx_type:?} is not an account transaction."),
     }
 }
 
+// TODO(AvivG): Consider removing this function.
 pub fn account_invoke_tx(invoke_args: InvokeTxArgs) -> AccountTransaction {
-    invoke_tx(invoke_args)
+    let execution_flags = ExecutionFlags::default();
+    AccountTransaction { tx: invoke_tx(invoke_args), execution_flags }
 }
 
 pub fn run_invoke_tx(
@@ -294,10 +312,10 @@ pub fn run_invoke_tx(
     block_context: &BlockContext,
     invoke_args: InvokeTxArgs,
 ) -> TransactionExecutionResult<TransactionExecutionInfo> {
-    let tx = account_invoke_tx(invoke_args);
-    let charge_fee = tx.enforce_fee();
+    let tx = invoke_tx(invoke_args);
+    let account_tx = AccountTransaction::new_for_sequencing(tx);
 
-    tx.execute(state, block_context, charge_fee, true)
+    account_tx.execute(state, block_context)
 }
 
 /// Creates a `ResourceBoundsMapping` with the given `max_amount` and `max_price` for L1 gas limits.
@@ -348,11 +366,11 @@ pub fn create_all_resource_bounds(
 }
 
 pub fn calculate_class_info_for_testing(contract_class: ContractClass) -> ClassInfo {
-    let sierra_program_length = match contract_class {
-        ContractClass::V0(_) => 0,
-        ContractClass::V1(_) => 100,
+    let (sierra_program_length, sierra_version) = match contract_class {
+        ContractClass::V0(_) => (0, SierraVersion::DEPRECATED),
+        ContractClass::V1(_) => (100, SierraVersion::LATEST),
     };
-    ClassInfo::new(&contract_class, sierra_program_length, 100).unwrap()
+    ClassInfo::new(&contract_class, sierra_program_length, 100, sierra_version).unwrap()
 }
 
 pub fn emit_n_events_tx(
@@ -367,9 +385,11 @@ pub fn emit_n_events_tx(
         felt!(0_u32),                     // data length.
     ];
     let calldata = create_calldata(contract_address, "test_emit_events", &entry_point_args);
-    account_invoke_tx(invoke_tx_args! {
+    let tx = invoke_tx(invoke_tx_args! {
         sender_address: account_contract,
         calldata,
         nonce
-    })
+    });
+
+    AccountTransaction::new_for_sequencing(tx)
 }

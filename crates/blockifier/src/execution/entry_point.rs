@@ -147,7 +147,7 @@ impl CallEntryPoint {
         }
         // Add class hash to the call, that will appear in the output (call info).
         self.class_hash = Some(class_hash);
-        let contract_class = state.get_compiled_contract_class(class_hash)?;
+        let compiled_class = state.get_compiled_class(class_hash)?;
 
         context.revert_infos.0.push(EntryPointRevertInfo::new(
             self.storage_address,
@@ -157,7 +157,7 @@ impl CallEntryPoint {
         ));
 
         // This is the last operation of this function.
-        execute_entry_point_call_wrapper(self, contract_class, state, context, remaining_gas)
+        execute_entry_point_call_wrapper(self, compiled_class, state, context, remaining_gas)
     }
 
     /// Similar to `execute`, but returns an error if the outer call is reverted.
@@ -293,9 +293,9 @@ impl EntryPointExecutionContext {
                 if l1_gas_per_step.is_zero() {
                     u64::MAX
                 } else {
-                    let induced_l1_gas_limit = context.max_fee.saturating_div(
-                        block_info.gas_prices.get_l1_gas_price_by_fee_type(&tx_info.fee_type()),
-                    );
+                    let induced_l1_gas_limit = context
+                        .max_fee
+                        .saturating_div(block_info.gas_prices.l1_gas_price(&tx_info.fee_type()));
                     (l1_gas_per_step.inv() * induced_l1_gas_limit.0).to_integer()
                 }
             }
@@ -343,11 +343,7 @@ impl EntryPointExecutionContext {
         // would cause underflow error.
         // Logically, we update remaining steps to `max(0, remaining_steps - steps_to_subtract)`.
         let remaining_steps = self.n_remaining_steps();
-        let new_remaining_steps = if remaining_steps < steps_to_subtract {
-            0
-        } else {
-            remaining_steps - steps_to_subtract
-        };
+        let new_remaining_steps = remaining_steps.saturating_sub(steps_to_subtract);
         self.vm_run_resources = RunResources::new(new_remaining_steps);
         self.n_remaining_steps()
     }
@@ -406,11 +402,10 @@ pub fn execute_constructor_entry_point(
     remaining_gas: &mut u64,
 ) -> ConstructorEntryPointExecutionResult<CallInfo> {
     // Ensure the class is declared (by reading it).
-    let contract_class =
-        state.get_compiled_contract_class(ctor_context.class_hash).map_err(|error| {
-            ConstructorEntryPointExecutionError::new(error.into(), &ctor_context, None)
-        })?;
-    let Some(constructor_selector) = contract_class.constructor_selector() else {
+    let compiled_class = state.get_compiled_class(ctor_context.class_hash).map_err(|error| {
+        ConstructorEntryPointExecutionError::new(error.into(), &ctor_context, None)
+    })?;
+    let Some(constructor_selector) = compiled_class.constructor_selector() else {
         // Contract has no constructor.
         return handle_empty_constructor(&ctor_context, calldata, *remaining_gas)
             .map_err(|error| ConstructorEntryPointExecutionError::new(error, &ctor_context, None));

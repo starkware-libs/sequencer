@@ -1445,7 +1445,7 @@ impl JsonRpcServer for JsonRpcServerImpl {
     }
 
     #[instrument(skip(self), level = "debug", err)]
-    fn get_compiled_contract_class(
+    fn get_compiled_class(
         &self,
         block_id: BlockId,
         class_hash: ClassHash,

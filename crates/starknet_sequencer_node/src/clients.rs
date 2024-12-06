@@ -29,6 +29,13 @@ use starknet_mempool_types::communication::{
     SharedMempoolClient,
 };
 use starknet_sequencer_infra::component_client::{Client, LocalComponentClient};
+use starknet_state_sync_types::communication::{
+    LocalStateSyncClient,
+    RemoteStateSyncClient,
+    SharedStateSyncClient,
+    StateSyncRequest,
+    StateSyncResponse,
+};
 
 use crate::communication::SequencerNodeCommunication;
 use crate::config::component_execution_config::ComponentExecutionMode;
@@ -41,6 +48,7 @@ pub struct SequencerNodeClients {
     // TODO (Lev): Change to Option<Box<dyn MemPoolClient>>.
     mempool_p2p_propagator_client:
         Option<Client<MempoolP2pPropagatorRequest, MempoolP2pPropagatorResponse>>,
+    state_sync_client: Option<Client<StateSyncRequest, StateSyncResponse>>,
 }
 
 /// A macro to retrieve a shared client (either local or remote) from a specified field in a struct,
@@ -148,6 +156,19 @@ impl SequencerNodeClients {
             None => None,
         }
     }
+
+    pub fn get_state_sync_shared_client(&self) -> Option<SharedStateSyncClient> {
+        get_shared_client!(self, state_sync_client)
+    }
+
+    pub fn get_state_sync_local_client(
+        &self,
+    ) -> Option<LocalComponentClient<StateSyncRequest, StateSyncResponse>> {
+        match &self.state_sync_client {
+            Some(client) => client.get_local_client(),
+            None => None,
+        }
+    }
 }
 
 /// A macro for creating a component client, determined by the component's execution mode. Returns a
@@ -250,10 +271,20 @@ pub fn create_node_clients(
         channels.take_mempool_p2p_propagator_tx(),
         config.components.mempool_p2p.remote_client_config
     );
+
+    let state_sync_client = create_client!(
+        &config.components.state_sync.execution_mode,
+        LocalStateSyncClient,
+        RemoteStateSyncClient,
+        channels.take_state_sync_tx(),
+        config.components.state_sync.remote_client_config
+    );
+
     SequencerNodeClients {
         batcher_client,
         mempool_client,
         gateway_client,
         mempool_p2p_propagator_client,
+        state_sync_client,
     }
 }

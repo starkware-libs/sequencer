@@ -9,6 +9,7 @@
         "max_contract_bytecode_size": 81920
     },
     "invoke_tx_max_n_steps": 10000000,
+    "execute_max_sierra_gas": 10000000000,
     "deprecated_l2_resource_gas_costs": {
         "gas_per_data_felt": [
             128,
@@ -39,6 +40,7 @@
     },
     "disable_cairo0_redeclaration": true,
     "enable_stateful_compression": false,
+    "comprehensive_state_diff": false,
     "allocation_cost": {
         "blob_cost": {
             "l1_gas": 0,
@@ -56,26 +58,21 @@
     "enable_reverts": false,
     "segment_arena_cells": false,
     "os_constants": {
-        "block_hash_contract_address": 1,
         "call_contract_gas_cost": {
-            "entry_point_gas_cost": 1,
-            "step_gas_cost": 10,
+            "entry_point_initial_budget": 1,
+            "step_gas_cost": 510,
             "syscall_base_gas_cost": 1
         },
         "constructor_entry_point_selector": "0x28ffe4ff0f226a9107253e17a904099aa4f63a02a5621de0576e5aa71bc5194",
         "default_entry_point_selector": 0,
         "deploy_gas_cost": {
-            "entry_point_gas_cost": 1,
-            "step_gas_cost": 200,
+            "entry_point_initial_budget": 1,
+            "step_gas_cost": 700,
             "syscall_base_gas_cost": 1
         },
         "emit_event_gas_cost": {
             "step_gas_cost": 10,
             "syscall_base_gas_cost": 1
-        },
-        "entry_point_gas_cost": {
-            "entry_point_initial_budget": 1,
-            "step_gas_cost": 500
         },
         "entry_point_initial_budget": {
             "step_gas_cost": 100
@@ -91,8 +88,8 @@
         "error_entry_point_not_found": "ENTRYPOINT_NOT_FOUND",
         "execute_entry_point_selector": "0x15d40a3d6ca2ac30f4031e42be28da9b056fef9bb7357ac5e85627ee876e5ad",
         "fee_transfer_gas_cost": {
-            "entry_point_gas_cost": 1,
-            "step_gas_cost": 100
+            "entry_point_initial_budget": 1,
+            "step_gas_cost": 600
         },
         "get_block_hash_gas_cost": {
             "step_gas_cost": 50,
@@ -125,7 +122,13 @@
         },
         "memory_hole_gas_cost": 10,
         "nop_entry_point_offset": -1,
+        "os_contract_addresses": {
+            "block_hash_contract_address": 1,
+            "alias_contract_address": 2,
+            "reserved_contract_address": 3
+        },
         "range_check_gas_cost": 70,
+        "keccak_builtin_gas_cost": 0,
         "pedersen_gas_cost": 0,
         "bitwise_builtin_gas_cost": 594,
         "ecop_gas_cost": 0,
@@ -207,9 +210,9 @@
             "step_gas_cost": 100
         },
         "transaction_gas_cost": {
-            "entry_point_gas_cost": 2,
+            "entry_point_initial_budget": 2,
             "fee_transfer_gas_cost": 1,
-            "step_gas_cost": 100
+            "step_gas_cost": 1100
         },
         "transfer_entry_point_selector": "0x83afd3f4caedc6eebf44246fe54e38c95e3179a5ec9ea81740eca5b482d12e",
         "validate_declare_entry_point_selector": "0x289da278a8dc833409cabfdad1581e8e7d40e42dcaed693fa4008dcdb4963b3",
@@ -600,6 +603,7 @@
         }
     },
     "validate_max_n_steps": 1000000,
+    "validate_max_sierra_gas": 10000000000,
     "min_compiler_version_for_sierra_gas": "2.8.0",
     "vm_resource_fee_cost": {
         "builtins": {

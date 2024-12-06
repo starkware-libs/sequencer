@@ -3,8 +3,8 @@ use starknet_types_core::hash::Poseidon;
 
 use super::{calculate_event_commitment, calculate_event_hash, EventLeafElement};
 use crate::core::EventCommitment;
-use crate::transaction::{Event, EventContent, EventData, EventKey, TransactionHash};
-use crate::{contract_address, felt};
+use crate::transaction::{Event, EventContent, EventData, EventKey};
+use crate::{contract_address, felt, tx_hash};
 
 #[test]
 fn test_event_commitment_regression() {
@@ -39,6 +39,6 @@ fn get_event_leaf_element(seed: u8) -> EventLeafElement {
                 ),
             },
         },
-        transaction_hash: TransactionHash(felt!("0x1234")),
+        transaction_hash: tx_hash!(0x1234),
     }
 }

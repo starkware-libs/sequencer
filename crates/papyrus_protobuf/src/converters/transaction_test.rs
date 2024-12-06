@@ -15,10 +15,9 @@ use starknet_api::transaction::{
     InvokeTransactionOutput,
     L1HandlerTransactionOutput,
     Transaction as StarknetApiTransaction,
-    TransactionHash,
     TransactionOutput,
 };
-use starknet_types_core::felt::Felt;
+use starknet_api::tx_hash;
 
 use crate::sync::DataOrFin;
 
@@ -167,7 +166,7 @@ fn assert_transaction_to_vec_u8_and_back(
     transaction: StarknetApiTransaction,
     transaction_output: TransactionOutput,
 ) {
-    let random_transaction_hash = TransactionHash(Felt::from(random::<u64>()));
+    let random_transaction_hash = tx_hash!(random::<u64>());
     let data = DataOrFin(Some(FullTransaction {
         transaction,
         transaction_output,

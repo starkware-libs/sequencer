@@ -10,12 +10,12 @@ use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{create_trivial_calldata, CairoVersion};
 use infra_utils::path::resolve_project_relative_path;
 use pretty_assertions::assert_ne;
-use serde_json::to_string_pretty;
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::execution_resources::GasAmount;
-use starknet_api::rpc_transaction::{ContractClass, RpcTransaction};
+use starknet_api::rpc_transaction::RpcTransaction;
+use starknet_api::state::SierraContractClass;
 use starknet_api::test_utils::declare::rpc_declare_tx;
 use starknet_api::test_utils::deploy_account::rpc_deploy_account_tx;
 use starknet_api::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
@@ -65,7 +65,7 @@ pub fn test_valid_resource_bounds() -> ValidResourceBounds {
 }
 
 /// Get the contract class used for testing.
-pub fn contract_class() -> ContractClass {
+pub fn contract_class() -> SierraContractClass {
     env::set_current_dir(resolve_project_relative_path(TEST_FILES_FOLDER).unwrap())
         .expect("Couldn't set working dir.");
     let json_file_path = Path::new(CONTRACT_CLASS_FILE);
@@ -359,24 +359,4 @@ impl Contract {
             sender_address: deploy_account_tx.calculate_sender_address().unwrap(),
         }
     }
-}
-
-pub fn rpc_tx_to_json(tx: &RpcTransaction) -> String {
-    let mut tx_json = serde_json::to_value(tx)
-        .unwrap_or_else(|tx| panic!("Failed to serialize transaction: {tx:?}"));
-
-    // Add type and version manually
-    let type_string = match tx {
-        RpcTransaction::Declare(_) => "DECLARE",
-        RpcTransaction::DeployAccount(_) => "DEPLOY_ACCOUNT",
-        RpcTransaction::Invoke(_) => "INVOKE",
-    };
-
-    tx_json
-        .as_object_mut()
-        .unwrap()
-        .extend([("type".to_string(), type_string.into()), ("version".to_string(), "0x3".into())]);
-
-    // Serialize back to pretty JSON string
-    to_string_pretty(&tx_json).expect("Failed to serialize transaction")
 }

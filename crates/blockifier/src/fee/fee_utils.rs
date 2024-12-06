@@ -4,6 +4,7 @@ use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use num_bigint::BigUint;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
+use starknet_api::block::{BlockInfo, FeeType};
 use starknet_api::core::ContractAddress;
 use starknet_api::execution_resources::GasVector;
 use starknet_api::state::StorageKey;
@@ -11,12 +12,11 @@ use starknet_api::transaction::fields::ValidResourceBounds::{AllResources, L1Gas
 use starknet_api::transaction::fields::{Fee, GasVectorComputationMode, Resource};
 use starknet_types_core::felt::Felt;
 
-use crate::blockifier::block::BlockInfo;
 use crate::context::{BlockContext, TransactionContext};
 use crate::fee::resources::TransactionFeeResult;
 use crate::state::state_api::StateReader;
 use crate::transaction::errors::TransactionFeeError;
-use crate::transaction::objects::{ExecutionResourcesTraits, FeeType, TransactionInfo};
+use crate::transaction::objects::{ExecutionResourcesTraits, TransactionInfo};
 use crate::utils::u64_from_usize;
 use crate::versioned_constants::VersionedConstants;
 
@@ -68,7 +68,7 @@ pub fn get_vm_resources_cost(
     match computation_mode {
         GasVectorComputationMode::NoL2Gas => GasVector::from_l1_gas(vm_l1_gas_usage),
         GasVectorComputationMode::All => GasVector::from_l2_gas(
-            versioned_constants.convert_l1_to_l2_gas_amount_round_up(vm_l1_gas_usage),
+            versioned_constants.l1_gas_to_sierra_gas_amount_round_up(vm_l1_gas_usage),
         ),
     }
 }
@@ -79,7 +79,7 @@ pub fn get_fee_by_gas_vector(
     gas_vector: GasVector,
     fee_type: &FeeType,
 ) -> Fee {
-    gas_vector.cost(block_info.gas_prices.get_gas_prices_by_fee_type(fee_type))
+    gas_vector.cost(block_info.gas_prices.gas_price_vector(fee_type))
 }
 
 /// Returns the current fee balance and a boolean indicating whether the balance covers the fee.

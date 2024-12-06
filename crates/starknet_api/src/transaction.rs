@@ -40,7 +40,7 @@ use crate::transaction_hash::{
     get_invoke_transaction_v3_hash,
     get_l1_handler_transaction_hash,
 };
-use crate::StarknetApiError;
+use crate::{executable_transaction, StarknetApiError};
 
 #[cfg(test)]
 #[path = "transaction_test.rs"]
@@ -116,20 +116,18 @@ impl Transaction {
     }
 }
 
-impl From<crate::executable_transaction::Transaction> for Transaction {
-    fn from(tx: crate::executable_transaction::Transaction) -> Self {
+impl From<executable_transaction::Transaction> for Transaction {
+    fn from(tx: executable_transaction::Transaction) -> Self {
         match tx {
-            crate::executable_transaction::Transaction::L1Handler(_) => {
-                unimplemented!("L1Handler transactions are not supported yet.")
-            }
-            crate::executable_transaction::Transaction::Account(account_tx) => match account_tx {
-                crate::executable_transaction::AccountTransaction::Declare(tx) => {
+            executable_transaction::Transaction::L1Handler(tx) => Transaction::L1Handler(tx.tx),
+            executable_transaction::Transaction::Account(account_tx) => match account_tx {
+                executable_transaction::AccountTransaction::Declare(tx) => {
                     Transaction::Declare(tx.tx)
                 }
-                crate::executable_transaction::AccountTransaction::DeployAccount(tx) => {
+                executable_transaction::AccountTransaction::DeployAccount(tx) => {
                     Transaction::DeployAccount(tx.tx)
                 }
-                crate::executable_transaction::AccountTransaction::Invoke(tx) => {
+                executable_transaction::AccountTransaction::Invoke(tx) => {
                     Transaction::Invoke(tx.tx)
                 }
             },
@@ -137,16 +135,27 @@ impl From<crate::executable_transaction::Transaction> for Transaction {
     }
 }
 
-impl From<(Transaction, TransactionHash)> for crate::executable_transaction::Transaction {
+impl From<(Transaction, TransactionHash)> for executable_transaction::Transaction {
     fn from((tx, tx_hash): (Transaction, TransactionHash)) -> Self {
         match tx {
-            Transaction::Invoke(tx) => crate::executable_transaction::Transaction::Account(
-                crate::executable_transaction::AccountTransaction::Invoke(
-                    crate::executable_transaction::InvokeTransaction { tx, tx_hash },
+            Transaction::Invoke(tx) => executable_transaction::Transaction::Account(
+                executable_transaction::AccountTransaction::Invoke(
+                    executable_transaction::InvokeTransaction { tx, tx_hash },
                 ),
             ),
+            Transaction::L1Handler(tx) => executable_transaction::Transaction::L1Handler(
+                executable_transaction::L1HandlerTransaction {
+                    tx,
+                    tx_hash,
+                    // TODO (yael 1/12/2024): The paid fee should be an input from the l1_handler.
+                    paid_fee_on_l1: Fee(1),
+                },
+            ),
             _ => {
-                unimplemented!("Unsupported transaction type. Only Invoke is currently supported.")
+                unimplemented!(
+                    "Unsupported transaction type. Only Invoke and L1Handler are currently \
+                     supported."
+                )
             }
         }
     }
@@ -155,12 +164,10 @@ impl From<(Transaction, TransactionHash)> for crate::executable_transaction::Tra
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Default)]
 pub struct TransactionOptions {
     /// Transaction that shouldn't be broadcasted to StarkNet. For example, users that want to
-    /// test the execution result of a transaction without the risk of it being rebroadcasted (the
     /// signature will be different while the execution remain the same). Using this flag will
     /// modify the transaction version by setting the 128-th bit to 1.
     pub only_query: bool,
 }
-
 macro_rules! implement_v3_tx_getters {
     ($(($field:ident, $field_type:ty)),*) => {
         $(pub fn $field(&self) -> $field_type {
@@ -805,6 +812,15 @@ impl From<Vec<u8>> for TransactionHash {
         let array: [u8; 32] = bytes.try_into().expect("Expected a Vec of length 32");
         TransactionHash(StarkHash::from_bytes_be(&array))
     }
+}
+
+/// A utility macro to create a [`TransactionHash`] from an unsigned integer representation.
+#[cfg(any(feature = "testing", test))]
+#[macro_export]
+macro_rules! tx_hash {
+    ($tx_hash:expr) => {
+        $crate::transaction::TransactionHash($crate::hash::StarkHash::from($tx_hash))
+    };
 }
 
 /// A transaction version.

@@ -2,7 +2,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use assert_matches::assert_matches;
-use blockifier::context::{BlockContext, ChainInfo};
+use blockifier::context::ChainInfo;
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{
     CairoVersion,
@@ -12,7 +12,6 @@ use blockifier::test_utils::{
     DEFAULT_STRK_L1_GAS_PRICE,
     TEST_SEQUENCER_ADDRESS,
 };
-use blockifier::transaction::objects::FeeType;
 use blockifier::versioned_constants::VersionedConstants;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::IndexMap;
@@ -33,6 +32,7 @@ use starknet_api::block::{
     BlockHeaderWithoutHash,
     BlockNumber,
     BlockTimestamp,
+    FeeType,
     GasPricePerToken,
 };
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, Nonce, SequencerContractAddress};
@@ -58,16 +58,16 @@ pub struct StorageTestSetup {
 }
 
 impl StorageTestSetup {
-    pub fn new(test_defined_accounts: Vec<Contract>, chain_id: ChainId) -> Self {
+    pub fn new(test_defined_accounts: Vec<Contract>, chain_info: &ChainInfo) -> Self {
         let ((rpc_storage_reader, mut rpc_storage_writer), _, rpc_storage_file_handle) =
-            TestStorageBuilder::default().chain_id(chain_id.clone()).build();
-        create_test_state(&mut rpc_storage_writer, test_defined_accounts.clone());
+            TestStorageBuilder::default().chain_id(chain_info.chain_id.clone()).build();
+        create_test_state(&mut rpc_storage_writer, chain_info, test_defined_accounts.clone());
         let ((_, mut batcher_storage_writer), batcher_storage_config, batcher_storage_file_handle) =
             TestStorageBuilder::default()
                 .scope(StorageScope::StateOnly)
-                .chain_id(chain_id.clone())
+                .chain_id(chain_info.chain_id.clone())
                 .build();
-        create_test_state(&mut batcher_storage_writer, test_defined_accounts);
+        create_test_state(&mut batcher_storage_writer, chain_info, test_defined_accounts);
         Self {
             rpc_storage_reader,
             rpc_storage_handle: rpc_storage_file_handle,
@@ -78,9 +78,11 @@ impl StorageTestSetup {
 }
 
 /// A variable number of identical accounts and test contracts are initialized and funded.
-fn create_test_state(storage_writer: &mut StorageWriter, test_defined_accounts: Vec<Contract>) {
-    let block_context = BlockContext::create_for_testing();
-
+fn create_test_state(
+    storage_writer: &mut StorageWriter,
+    chain_info: &ChainInfo,
+    test_defined_accounts: Vec<Contract>,
+) {
     let into_contract = |contract: FeatureContract| Contract {
         contract,
         sender_address: contract.get_instance_address(0),
@@ -98,7 +100,7 @@ fn create_test_state(storage_writer: &mut StorageWriter, test_defined_accounts: 
 
     initialize_papyrus_test_state(
         storage_writer,
-        block_context.chain_info(),
+        chain_info,
         test_defined_accounts,
         default_test_contracts,
         erc20_contract,

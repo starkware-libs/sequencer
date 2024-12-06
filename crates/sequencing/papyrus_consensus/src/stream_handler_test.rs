@@ -83,7 +83,7 @@ mod tests {
             mock_register_broadcast_topic().unwrap();
         let network_sender_to_inbound = mock_network.broadcasted_messages_sender;
 
-        // The inbound_receiver is given to StreamHandler to inbound to mock network messages.
+        // The inbound_receiver is given to StreamHandler to mock network messages.
         let BroadcastTopicChannels {
             broadcasted_messages_receiver: inbound_receiver,
             broadcast_topic_client: _,

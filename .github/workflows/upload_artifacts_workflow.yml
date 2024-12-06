@@ -5,6 +5,9 @@ on:
     workflows: [Trigger-Workflow]
     types: [completed]
 
+env:
+  RUSTFLAGS: "-D warnings"
+
 jobs:
   native-blockifier-artifacts-push:
     runs-on: starkware-ubuntu-20-04-medium

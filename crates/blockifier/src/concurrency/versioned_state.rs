@@ -7,7 +7,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::concurrency::versioned_storage::VersionedStorage;
 use crate::concurrency::TxIndex;
-use crate::execution::contract_class::RunnableContractClass;
+use crate::execution::contract_class::RunnableCompiledClass;
 use crate::state::cached_state::{ContractClassMapping, StateMaps};
 use crate::state::errors::StateError;
 use crate::state::state_api::{StateReader, StateResult, UpdatableState};
@@ -34,7 +34,7 @@ pub struct VersionedState<S: StateReader> {
     // the compiled contract classes mapping. Each key with value false, sohuld not apprear
     // in the compiled contract classes mapping.
     declared_contracts: VersionedStorage<ClassHash, bool>,
-    compiled_contract_classes: VersionedStorage<ClassHash, RunnableContractClass>,
+    compiled_contract_classes: VersionedStorage<ClassHash, RunnableCompiledClass>,
 }
 
 impl<S: StateReader> VersionedState<S> {
@@ -336,14 +336,11 @@ impl<S: StateReader> StateReader for VersionedStateProxy<S> {
         }
     }
 
-    fn get_compiled_contract_class(
-        &self,
-        class_hash: ClassHash,
-    ) -> StateResult<RunnableContractClass> {
+    fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
         let mut state = self.state();
         match state.compiled_contract_classes.read(self.tx_index, class_hash) {
             Some(value) => Ok(value),
-            None => match state.initial_state.get_compiled_contract_class(class_hash) {
+            None => match state.initial_state.get_compiled_class(class_hash) {
                 Ok(initial_value) => {
                     state.declared_contracts.set_initial_value(class_hash, true);
                     state

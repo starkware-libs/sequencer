@@ -78,7 +78,7 @@ where
     fn append_casm(self, class_hash: &ClassHash, casm: &CasmContractClass) -> StorageResult<Self>;
 }
 
-impl<'env, Mode: TransactionKind> CasmStorageReader for StorageTxn<'env, Mode> {
+impl<Mode: TransactionKind> CasmStorageReader for StorageTxn<'_, Mode> {
     fn get_casm(&self, class_hash: &ClassHash) -> StorageResult<Option<CasmContractClass>> {
         let casm_table = self.open_table(&self.tables.casms)?;
         let casm_location = casm_table.get(&self.txn, class_hash)?;
@@ -91,7 +91,7 @@ impl<'env, Mode: TransactionKind> CasmStorageReader for StorageTxn<'env, Mode> {
     }
 }
 
-impl<'env> CasmStorageWriter for StorageTxn<'env, RW> {
+impl CasmStorageWriter for StorageTxn<'_, RW> {
     #[latency_histogram("storage_append_casm_latency_seconds", false)]
     fn append_casm(self, class_hash: &ClassHash, casm: &CasmContractClass) -> StorageResult<Self> {
         let casm_table = self.open_table(&self.tables.casms)?;

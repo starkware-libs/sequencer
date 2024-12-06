@@ -1,4 +1,3 @@
-use blockifier::blockifier::block::BlockInfo;
 use blockifier::blockifier::stateful_validator::{
     StatefulValidator,
     StatefulValidatorResult as BlockifierStatefulValidatorResult,
@@ -6,10 +5,12 @@ use blockifier::blockifier::stateful_validator::{
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo};
 use blockifier::state::cached_state::CachedState;
-use blockifier::transaction::account_transaction::AccountTransaction;
+use blockifier::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
+use blockifier::transaction::transactions::enforce_fee;
 use blockifier::versioned_constants::VersionedConstants;
 #[cfg(test)]
 use mockall::automock;
+use starknet_api::block::BlockInfo;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::{
     AccountTransaction as ExecutableTransaction,
@@ -75,7 +76,11 @@ impl StatefulTransactionValidator {
         mut validator: V,
     ) -> StatefulTransactionValidatorResult<()> {
         let skip_validate = skip_stateful_validations(executable_tx, account_nonce);
-        let account_tx = AccountTransaction::new(executable_tx.clone());
+        let only_query = false;
+        let charge_fee = enforce_fee(executable_tx, only_query);
+        let execution_flags = ExecutionFlags { only_query, charge_fee, validate: !skip_validate };
+
+        let account_tx = AccountTransaction { tx: executable_tx.clone(), execution_flags };
         validator
             .validate(account_tx, skip_validate)
             .map_err(|err| GatewaySpecError::ValidationFailure { data: err.to_string() })?;

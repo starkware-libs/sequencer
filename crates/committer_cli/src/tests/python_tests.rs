@@ -121,7 +121,7 @@ impl TryFrom<String> for PythonTest {
 impl PythonTest {
     /// Returns the input string if it's `Some`, or an error if it's `None`.
     pub fn non_optional_input(input: Option<&str>) -> Result<&str, PythonTestError> {
-        input.ok_or_else(|| PythonTestError::NoneInputError)
+        input.ok_or(PythonTestError::NoneInputError)
     }
 
     /// Runs the test with the given arguments.

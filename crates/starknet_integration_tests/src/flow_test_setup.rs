@@ -2,11 +2,12 @@ use std::net::SocketAddr;
 
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use papyrus_network::network_manager::BroadcastTopicChannels;
-use papyrus_protobuf::consensus::ProposalPart;
+use papyrus_protobuf::consensus::{ProposalPart, StreamMessage};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_http_server::config::HttpServerConfig;
+use starknet_http_server::test_utils::HttpTestClient;
 use starknet_sequencer_infra::trace_util::configure_tracing;
 use starknet_sequencer_node::servers::run_component_servers;
 use starknet_sequencer_node::utils::create_node_modules;
@@ -16,7 +17,7 @@ use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 
 use crate::state_reader::{spawn_test_rpc_state_reader, StorageTestSetup};
-use crate::utils::{create_chain_info, create_config, HttpTestClient};
+use crate::utils::{create_chain_info, create_config};
 
 pub struct FlowTestSetup {
     pub task_executor: TokioExecutor,
@@ -32,7 +33,7 @@ pub struct FlowTestSetup {
     pub sequencer_node_handle: JoinHandle<Result<(), anyhow::Error>>,
 
     // Channels for consensus proposals, used for asserting the right transactions are proposed.
-    pub consensus_proposals_channels: BroadcastTopicChannels<ProposalPart>,
+    pub consensus_proposals_channels: BroadcastTopicChannels<StreamMessage<ProposalPart>>,
 }
 
 impl FlowTestSetup {
@@ -45,7 +46,7 @@ impl FlowTestSetup {
         configure_tracing();
 
         let accounts = tx_generator.accounts();
-        let storage_for_test = StorageTestSetup::new(accounts, chain_info.chain_id.clone());
+        let storage_for_test = StorageTestSetup::new(accounts, &chain_info);
 
         // Spawn a papyrus rpc server for a papyrus storage reader.
         let rpc_server_addr = spawn_test_rpc_state_reader(

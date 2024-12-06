@@ -16,6 +16,7 @@ use serde::de::Error as DeserializationError;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::{Map, Number, Value};
 use starknet_api::block::{GasPrice, StarknetVersion};
+use starknet_api::core::ContractAddress;
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::transaction::fields::GasVectorComputationMode;
 use strum::IntoEnumIterator;
@@ -26,6 +27,7 @@ use crate::execution::execution_utils::poseidon_hash_many_cost;
 use crate::execution::syscalls::SyscallSelector;
 use crate::fee::resources::StarknetResources;
 use crate::transaction::transaction_types::TransactionType;
+use crate::utils::u64_from_usize;
 
 #[cfg(test)]
 #[path = "versioned_constants_test.rs"]
@@ -175,10 +177,12 @@ pub struct VersionedConstants {
     // Limits.
     pub tx_event_limits: EventLimits,
     pub invoke_tx_max_n_steps: u32,
+    pub execute_max_sierra_gas: GasAmount,
     pub deprecated_l2_resource_gas_costs: ArchivalDataGasCosts,
     pub archival_data_gas_costs: ArchivalDataGasCosts,
     pub max_recursion_depth: usize,
     pub validate_max_n_steps: u32,
+    pub validate_max_sierra_gas: GasAmount,
     pub min_compiler_version_for_sierra_gas: CompilerVersion,
     // BACKWARD COMPATIBILITY: If true, the segment_arena builtin instance counter will be
     // multiplied by 3. This offsets a bug in the old vm where the counter counted the number of
@@ -188,6 +192,7 @@ pub struct VersionedConstants {
     // Transactions settings.
     pub disable_cairo0_redeclaration: bool,
     pub enable_stateful_compression: bool,
+    pub comprehensive_state_diff: bool,
     pub ignore_inner_event_resources: bool,
 
     // Compiler settings.
@@ -216,29 +221,31 @@ impl VersionedConstants {
         Ok(serde_json::from_reader(std::fs::File::open(path)?)?)
     }
 
-    /// Converts from L1 gas price to L2 gas price with **upward rounding**.
+    /// Converts from L1 gas price to L2 gas price with **upward rounding**, based on the
+    /// conversion of a Cairo step from Sierra gas to L1 gas.
     pub fn convert_l1_to_l2_gas_price_round_up(&self, l1_gas_price: GasPrice) -> GasPrice {
-        (*(resource_cost_to_u128_ratio(self.l1_to_l2_gas_price_ratio()) * l1_gas_price.0)
+        (*(resource_cost_to_u128_ratio(self.sierra_gas_in_l1_gas_amount()) * l1_gas_price.0)
             .ceil()
             .numer())
         .into()
     }
 
-    /// Converts from L1 gas amount to L2 gas amount with **upward rounding**.
-    pub fn convert_l1_to_l2_gas_amount_round_up(&self, l1_gas_amount: GasAmount) -> GasAmount {
+    /// Converts L1 gas amount to Sierra (L2) gas amount with **upward rounding**.
+    pub fn l1_gas_to_sierra_gas_amount_round_up(&self, l1_gas_amount: GasAmount) -> GasAmount {
         // The amount ratio is the inverse of the price ratio.
-        (*(self.l1_to_l2_gas_price_ratio().inv() * l1_gas_amount.0).ceil().numer()).into()
+        (*(self.sierra_gas_in_l1_gas_amount().inv() * l1_gas_amount.0).ceil().numer()).into()
     }
 
-    /// Returns the following ratio: L2_gas_price/L1_gas_price.
-    fn l1_to_l2_gas_price_ratio(&self) -> ResourceCost {
+    /// Converts Sierra (L2) gas amount to L1 gas amount with **upward rounding**.
+    pub fn sierra_gas_to_l1_gas_amount_round_up(&self, l2_gas_amount: GasAmount) -> GasAmount {
+        (*(self.sierra_gas_in_l1_gas_amount() * l2_gas_amount.0).ceil().numer()).into()
+    }
+
+    /// Returns the equivalent L1 gas amount of one unit of Sierra gas.
+    /// The conversion is based on the pricing of a single Cairo step.
+    fn sierra_gas_in_l1_gas_amount(&self) -> ResourceCost {
         Ratio::new(1, self.os_constants.gas_costs.step_gas_cost)
             * self.vm_resource_fee_cost().n_steps
-    }
-
-    #[cfg(any(feature = "testing", test))]
-    pub fn get_l1_to_l2_gas_price_ratio(&self) -> ResourceCost {
-        self.l1_to_l2_gas_price_ratio()
     }
 
     /// Returns the default initial gas for VM mode transactions.
@@ -346,6 +353,35 @@ impl VersionedConstants {
             GasVectorComputationMode::All => &self.archival_data_gas_costs,
             GasVectorComputationMode::NoL2Gas => &self.deprecated_l2_resource_gas_costs,
         }
+    }
+
+    /// Calculates the syscall gas cost from the OS resources.
+    pub fn get_syscall_gas_cost(&self, syscall_selector: &SyscallSelector) -> u64 {
+        let gas_costs = &self.os_constants.gas_costs;
+        let execution_resources = &self
+            .os_resources
+            .execute_syscalls
+            .get(syscall_selector)
+            .expect("Fetching the execution resources of a syscall should not fail.");
+        let n_steps = u64_from_usize(execution_resources.n_steps);
+        let n_memory_holes = u64_from_usize(execution_resources.n_memory_holes);
+        let total_builtin_gas_cost: u64 = execution_resources
+            .builtin_instance_counter
+            .iter()
+            .map(|(builtin, amount)| {
+                let builtin_cost = gas_costs
+                    .get_builtin_gas_cost(builtin)
+                    .unwrap_or_else(|err| panic!("Failed to get gas cost: {}", err));
+                builtin_cost * u64_from_usize(*amount)
+            })
+            .sum();
+        // The minimum total cost is `syscall_base_gas_cost`, which is pre-charged by the compiler.
+        std::cmp::max(
+            n_steps * gas_costs.step_gas_cost
+                + n_memory_holes * gas_costs.memory_hole_gas_cost
+                + total_builtin_gas_cost,
+            gas_costs.syscall_base_gas_cost,
+        )
     }
 }
 
@@ -541,6 +577,7 @@ pub struct GasCosts {
     // retrieving its price from the table.
     pub range_check_gas_cost: u64,
     // Priced builtins.
+    pub keccak_builtin_gas_cost: u64,
     pub pedersen_gas_cost: u64,
     pub bitwise_builtin_gas_cost: u64,
     pub ecop_gas_cost: u64,
@@ -554,7 +591,6 @@ pub struct GasCosts {
     pub entry_point_initial_budget: u64,
     pub syscall_base_gas_cost: u64,
     // OS gas costs.
-    pub entry_point_gas_cost: u64,
     pub transaction_gas_cost: u64,
     // Syscall gas costs.
     pub call_contract_gas_cost: u64,
@@ -585,16 +621,12 @@ pub struct GasCosts {
 
 impl GasCosts {
     pub fn get_builtin_gas_cost(&self, builtin: &BuiltinName) -> Result<u64, GasCostsError> {
-        const KECCAK_BUILTIN_GAS_COST: u64 = 136189;
-
         let gas_cost = match *builtin {
             BuiltinName::range_check => self.range_check_gas_cost,
             BuiltinName::pedersen => self.pedersen_gas_cost,
             BuiltinName::bitwise => self.bitwise_builtin_gas_cost,
             BuiltinName::ec_op => self.ecop_gas_cost,
-            // TODO (Yonatan): once keccak_builtin_gas_cost is being inserted to the versioned
-            // constants, replace the constant with field's value
-            BuiltinName::keccak => KECCAK_BUILTIN_GAS_COST,
+            BuiltinName::keccak => self.keccak_builtin_gas_cost,
             BuiltinName::poseidon => self.poseidon_gas_cost,
             BuiltinName::range_check96 => self.range_check_gas_cost,
             BuiltinName::add_mod => self.add_mod_gas_cost,
@@ -661,6 +693,7 @@ impl GasCosts {
 pub struct OsConstants {
     pub gas_costs: GasCosts,
     pub validate_rounding_consts: ValidateRoundingConsts,
+    pub os_contract_addresses: OsContractAddresses,
 }
 
 impl OsConstants {
@@ -668,8 +701,7 @@ impl OsConstants {
     // not used by the blockifier but included for transparency. These constanst will be ignored
     // during the creation of the struct containing the gas costs.
 
-    const ADDITIONAL_FIELDS: [&'static str; 29] = [
-        "block_hash_contract_address",
+    const ADDITIONAL_FIELDS: [&'static str; 28] = [
         "constructor_entry_point_selector",
         "default_entry_point_selector",
         "entry_point_type_constructor",
@@ -717,8 +749,36 @@ impl TryFrom<OsConstantsRawJson> for OsConstants {
     fn try_from(raw_json_data: OsConstantsRawJson) -> Result<Self, Self::Error> {
         let gas_costs = GasCosts::try_from(&raw_json_data)?;
         let validate_rounding_consts = raw_json_data.validate_rounding_consts;
-        let os_constants = OsConstants { gas_costs, validate_rounding_consts };
+        let os_contract_addresses = raw_json_data.os_contract_addresses;
+        let os_constants =
+            OsConstants { gas_costs, validate_rounding_consts, os_contract_addresses };
         Ok(os_constants)
+    }
+}
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+pub struct OsContractAddresses {
+    block_hash_contract_address: u8,
+    alias_contract_address: u8,
+    reserved_contract_address: u8,
+}
+
+impl OsContractAddresses {
+    pub fn block_hash_contract_address(&self) -> ContractAddress {
+        ContractAddress::from(self.block_hash_contract_address)
+    }
+
+    pub fn alias_contract_address(&self) -> ContractAddress {
+        ContractAddress::from(self.alias_contract_address)
+    }
+
+    pub fn reserved_contract_address(&self) -> ContractAddress {
+        ContractAddress::from(self.reserved_contract_address)
+    }
+}
+
+impl Default for OsContractAddresses {
+    fn default() -> Self {
+        VersionedConstants::latest_constants().os_constants.os_contract_addresses
     }
 }
 
@@ -730,6 +790,7 @@ struct OsConstantsRawJson {
     raw_json_file_as_dict: IndexMap<String, Value>,
     #[serde(default)]
     validate_rounding_consts: ValidateRoundingConsts,
+    os_contract_addresses: OsContractAddresses,
 }
 
 impl OsConstantsRawJson {

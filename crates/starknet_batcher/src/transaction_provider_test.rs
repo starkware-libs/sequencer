@@ -5,9 +5,8 @@ use mockall::predicate::eq;
 use rstest::{fixture, rstest};
 use starknet_api::executable_transaction::{AccountTransaction, L1HandlerTransaction, Transaction};
 use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
-use starknet_api::transaction::TransactionHash;
+use starknet_api::tx_hash;
 use starknet_mempool_types::communication::MockMempoolClient;
-use starknet_types_core::felt::Felt;
 
 use crate::transaction_provider::{
     MockL1ProviderClient,
@@ -95,7 +94,7 @@ fn tx_channel() -> (tokio::sync::mpsc::Sender<Transaction>, tokio::sync::mpsc::R
 }
 
 fn test_l1handler_tx() -> L1HandlerTransaction {
-    L1HandlerTransaction { tx_hash: TransactionHash(Felt::ONE), ..Default::default() }
+    L1HandlerTransaction { tx_hash: tx_hash!(1), ..Default::default() }
 }
 
 #[rstest]

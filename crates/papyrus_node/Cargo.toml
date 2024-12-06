@@ -5,9 +5,6 @@ edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
 
-[package.metadata.cargo-udeps.ignore]
-normal = ["clap", "papyrus_base_layer", "reqwest", "tokio"]
-
 [features]
 default = ["rpc"]
 rpc = ["papyrus_rpc"]
@@ -39,6 +36,7 @@ papyrus_consensus_orchestrator.workspace = true
 papyrus_monitoring_gateway.workspace = true
 papyrus_network.workspace = true
 papyrus_p2p_sync.workspace = true
+papyrus_protobuf.workspace = true
 papyrus_rpc = { workspace = true, optional = true }
 papyrus_storage.workspace = true
 papyrus_sync.workspace = true

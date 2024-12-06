@@ -57,6 +57,7 @@ pub struct StateMachine {
     step: Step,
     quorum: u32,
     round_skip_threshold: u32,
+    is_observer: bool,
     // {round: (proposal_id, valid_round)}
     proposals: HashMap<Round, (Option<ProposalContentId>, Option<Round>)>,
     // {round: {proposal_id: vote_count}
@@ -75,13 +76,14 @@ pub struct StateMachine {
 
 impl StateMachine {
     /// total_weight - the total voting weight of all validators for this height.
-    pub fn new(id: ValidatorId, total_weight: u32) -> Self {
+    pub fn new(id: ValidatorId, total_weight: u32, is_observer: bool) -> Self {
         Self {
             id,
             round: 0,
             step: Step::Propose,
             quorum: (2 * total_weight / 3) + 1,
             round_skip_threshold: total_weight / 3 + 1,
+            is_observer,
             proposals: HashMap::new(),
             prevotes: HashMap::new(),
             precommits: HashMap::new(),
@@ -93,6 +95,10 @@ impl StateMachine {
             mixed_prevote_quorum: HashSet::new(),
             mixed_precommit_quorum: HashSet::new(),
         }
+    }
+
+    pub fn round(&self) -> Round {
+        self.round
     }
 
     pub fn quorum_size(&self) -> u32 {
@@ -163,6 +169,9 @@ impl StateMachine {
                     StateMachineEvent::Proposal(_, _, _)
                     | StateMachineEvent::Prevote(_, _)
                     | StateMachineEvent::Precommit(_, _) => {
+                        if self.is_observer {
+                            continue;
+                        }
                         self.events_queue.push_back(e.clone());
                     }
                     StateMachineEvent::Decision(_, _) => {
@@ -171,7 +180,8 @@ impl StateMachine {
                     }
                     StateMachineEvent::GetProposal(_, _) => {
                         // LOC 18.
-                        debug_assert!(resultant_events.is_empty());
+                        assert!(resultant_events.is_empty());
+                        assert!(!self.is_observer);
                         output_events.push_back(e);
                         return output_events;
                     }
@@ -192,7 +202,7 @@ impl StateMachine {
         LeaderFn: Fn(Round) -> ValidatorId,
     {
         if self.awaiting_get_proposal {
-            debug_assert!(matches!(event, StateMachineEvent::GetProposal(_, _)), "{:?}", event);
+            assert!(matches!(event, StateMachineEvent::GetProposal(_, _)), "{:?}", event);
         }
 
         match event {
@@ -230,7 +240,6 @@ impl StateMachine {
         assert!(self.awaiting_get_proposal);
         assert_eq!(round, self.round);
         self.awaiting_get_proposal = false;
-        assert!(proposal_id.is_some(), "SHC should pass a valid proposal content id");
         VecDeque::from([StateMachineEvent::Proposal(proposal_id, round, None)])
     }
 
@@ -326,7 +335,7 @@ impl StateMachine {
     {
         self.round = round;
         self.step = Step::Propose;
-        let mut output = if self.id == leader_fn(self.round) {
+        let mut output = if !self.is_observer && self.id == leader_fn(self.round) {
             // Leader.
             match self.valid_value_round {
                 Some((proposal_id, valid_round)) => VecDeque::from([StateMachineEvent::Proposal(

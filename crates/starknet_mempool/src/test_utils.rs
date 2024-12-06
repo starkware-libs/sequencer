@@ -2,8 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use pretty_assertions::assert_eq;
 use starknet_api::executable_transaction::AccountTransaction;
-use starknet_api::transaction::TransactionHash;
-use starknet_api::{contract_address, felt, nonce};
+use starknet_api::{contract_address, nonce, tx_hash};
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{AddTransactionArgs, CommitBlockArgs};
 
@@ -22,8 +21,7 @@ macro_rules! tx {
     ) => {{
             use starknet_api::block::GasPrice;
             use starknet_api::executable_transaction::AccountTransaction;
-            use starknet_api::hash::StarkHash;
-            use starknet_api::invoke_tx_args;
+            use starknet_api::{invoke_tx_args, tx_hash};
             use starknet_api::test_utils::invoke::executable_invoke_tx;
             use starknet_api::transaction::fields::{
                 AllResourceBounds,
@@ -31,7 +29,6 @@ macro_rules! tx {
                 Tip,
                 ValidResourceBounds,
             };
-            use starknet_api::transaction::TransactionHash;
 
             let resource_bounds = ValidResourceBounds::AllResources(AllResourceBounds {
                 l2_gas: ResourceBounds {
@@ -42,7 +39,7 @@ macro_rules! tx {
             });
 
             AccountTransaction::Invoke(executable_invoke_tx(invoke_tx_args!{
-                tx_hash: TransactionHash(StarkHash::from($tx_hash)),
+                tx_hash: tx_hash!($tx_hash),
                 sender_address: contract_address!($address),
                 nonce: nonce!($tx_nonce),
                 tip: Tip($tip),
@@ -242,8 +239,7 @@ pub fn commit_block(
     let nonces = HashMap::from_iter(
         nonces.into_iter().map(|(address, nonce)| (contract_address!(address), nonce!(nonce))),
     );
-    let tx_hashes =
-        HashSet::from_iter(tx_hashes.into_iter().map(|tx_hash| TransactionHash(felt!(tx_hash))));
+    let tx_hashes = HashSet::from_iter(tx_hashes.into_iter().map(|tx_hash| tx_hash!(tx_hash)));
     let args = CommitBlockArgs { address_to_nonce: nonces, tx_hashes };
 
     assert_eq!(mempool.commit_block(args), Ok(()));
