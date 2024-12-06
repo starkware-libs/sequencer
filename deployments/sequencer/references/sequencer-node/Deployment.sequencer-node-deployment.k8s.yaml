@@ -22,26 +22,25 @@ spec:
             failureThreshold: 5
             httpGet:
               path: /monitoring/alive
-              port: 8082
+              port: 8080
             periodSeconds: 10
             timeoutSeconds: 5
           name: sequencer-node-server
           ports:
             - containerPort: 8080
-            - containerPort: 8081
             - containerPort: 8082
           readinessProbe:
             failureThreshold: 5
             httpGet:
               path: /monitoring/ready
-              port: 8082
+              port: 8080
             periodSeconds: 10
             timeoutSeconds: 5
           startupProbe:
             failureThreshold: 10
             httpGet:
               path: /monitoring/nodeVersion
-              port: 8082
+              port: 8080
             periodSeconds: 10
             timeoutSeconds: 5
           volumeMounts:

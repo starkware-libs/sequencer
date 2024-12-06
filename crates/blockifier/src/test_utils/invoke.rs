@@ -1,14 +1,8 @@
-use starknet_api::executable_transaction::AccountTransaction as ExecutableTransaction;
+use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
 
-use crate::transaction::account_transaction::AccountTransaction;
-
+// TODO(AvivG): remove this func & file.
 pub fn invoke_tx(invoke_args: InvokeTxArgs) -> AccountTransaction {
-    let only_query = invoke_args.only_query;
-    let invoke_tx = ExecutableTransaction::Invoke(executable_invoke_tx(invoke_args));
-
-    match only_query {
-        true => AccountTransaction::new_for_query(invoke_tx),
-        false => AccountTransaction::new(invoke_tx),
-    }
+    // TODO(AvivG): see into making 'executable_invoke_tx' ret type AccountTransaction.
+    AccountTransaction::Invoke(executable_invoke_tx(invoke_args))
 }

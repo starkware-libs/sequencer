@@ -6,20 +6,30 @@ use futures::channel::mpsc;
 use futures::{FutureExt, SinkExt};
 use lazy_static::lazy_static;
 use papyrus_consensus::stream_handler::StreamHandler;
-use papyrus_consensus::types::ConsensusContext;
+use papyrus_consensus::types::{ConsensusContext, ValidatorId};
 use papyrus_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
     BroadcastNetworkMock,
     TestSubscriberChannels,
 };
 use papyrus_network::network_manager::BroadcastTopicChannels;
-use papyrus_protobuf::consensus::{ProposalInit, ProposalPart, StreamMessage};
+use papyrus_protobuf::consensus::{
+    ConsensusMessage,
+    ProposalFin,
+    ProposalInit,
+    ProposalPart,
+    StreamMessage,
+    TransactionBatch,
+};
 use starknet_api::block::{BlockHash, BlockNumber};
-use starknet_api::core::{ContractAddress, StateDiffCommitment};
-use starknet_api::executable_transaction::{AccountTransaction, Transaction};
+use starknet_api::core::StateDiffCommitment;
+use starknet_api::executable_transaction::{
+    AccountTransaction,
+    Transaction as ExecutableTransaction,
+};
 use starknet_api::hash::PoseidonHash;
-use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
-use starknet_api::transaction::TransactionHash;
+use starknet_api::test_utils::invoke::{executable_invoke_tx, invoke_tx, InvokeTxArgs};
+use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_batcher_types::batcher_types::{
     GetProposalContent,
     GetProposalContentResponse,
@@ -43,30 +53,55 @@ const NUM_VALIDATORS: u64 = 4;
 const STATE_DIFF_COMMITMENT: StateDiffCommitment = StateDiffCommitment(PoseidonHash(Felt::ZERO));
 
 lazy_static! {
-    static ref TX_BATCH: Vec<Transaction> = vec![generate_invoke_tx(Felt::THREE)];
+    static ref TX_BATCH: Vec<ExecutableTransaction> =
+        vec![generate_executable_invoke_tx(Felt::THREE)];
 }
 
-fn generate_invoke_tx(tx_hash: Felt) -> Transaction {
-    Transaction::Account(AccountTransaction::Invoke(executable_invoke_tx(InvokeTxArgs {
+fn generate_invoke_tx() -> Transaction {
+    Transaction::Invoke(invoke_tx(InvokeTxArgs::default()))
+}
+
+fn generate_executable_invoke_tx(tx_hash: Felt) -> ExecutableTransaction {
+    ExecutableTransaction::Account(AccountTransaction::Invoke(executable_invoke_tx(InvokeTxArgs {
         tx_hash: TransactionHash(tx_hash),
         ..Default::default()
     })))
 }
 
-fn make_streaming_channels() -> (
-    mpsc::Sender<(u64, mpsc::Receiver<ProposalPart>)>,
-    mpsc::Receiver<mpsc::Receiver<ProposalPart>>,
-    BroadcastNetworkMock<StreamMessage<ProposalPart>>,
-) {
-    let TestSubscriberChannels { mock_network, subscriber_channels } =
+// Structs which aren't utilized but should not be dropped.
+struct NetworkDependencies {
+    _vote_network: BroadcastNetworkMock<ConsensusMessage>,
+    _new_proposal_network: BroadcastNetworkMock<StreamMessage<ProposalPart>>,
+}
+
+fn setup(batcher: MockBatcherClient) -> (SequencerConsensusContext, NetworkDependencies) {
+    let TestSubscriberChannels { mock_network: mock_proposal_stream_network, subscriber_channels } =
         mock_register_broadcast_topic().expect("Failed to create mock network");
     let BroadcastTopicChannels {
         broadcasted_messages_receiver: inbound_network_receiver,
         broadcast_topic_client: outbound_network_sender,
     } = subscriber_channels;
-    let (outbound_internal_sender, inbound_internal_receiver, _) =
+    let (outbound_proposal_stream_sender, _, _) =
         StreamHandler::get_channels(inbound_network_receiver, outbound_network_sender);
-    (outbound_internal_sender, inbound_internal_receiver, mock_network)
+
+    let TestSubscriberChannels { mock_network: mock_vote_network, subscriber_channels } =
+        mock_register_broadcast_topic().expect("Failed to create mock network");
+    let BroadcastTopicChannels { broadcast_topic_client: votes_topic_client, .. } =
+        subscriber_channels;
+
+    let context = SequencerConsensusContext::new(
+        Arc::new(batcher),
+        outbound_proposal_stream_sender,
+        votes_topic_client,
+        NUM_VALIDATORS,
+    );
+
+    let network_dependencies = NetworkDependencies {
+        _vote_network: mock_vote_network,
+        _new_proposal_network: mock_proposal_stream_network,
+    };
+
+    (context, network_dependencies)
 }
 
 #[tokio::test]
@@ -96,25 +131,12 @@ async fn build_proposal() {
             }),
         })
     });
-    // TODO(guyn): remove this first set of channels once we are using only the streaming channels.
-    let TestSubscriberChannels { mock_network: _mock_network, subscriber_channels } =
-        mock_register_broadcast_topic().expect("Failed to create mock network");
-    let BroadcastTopicChannels { broadcasted_messages_receiver: _, broadcast_topic_client } =
-        subscriber_channels;
+    let (mut context, _network) = setup(batcher);
 
-    let (outbound_internal_sender, _inbound_internal_receiver, _mock_network) =
-        make_streaming_channels();
-
-    let mut context = SequencerConsensusContext::new(
-        Arc::new(batcher),
-        broadcast_topic_client,
-        outbound_internal_sender,
-        NUM_VALIDATORS,
-    );
     let init = ProposalInit {
         height: BlockNumber(0),
         round: 0,
-        proposer: ContractAddress::default(),
+        proposer: ValidatorId::default(),
         valid_round: None,
     };
     // TODO(Asmaa): Test proposal content.
@@ -158,30 +180,33 @@ async fn validate_proposal_success() {
             })
         },
     );
-    // TODO(guyn): remove this first set of channels once we are using only the streaming channels.
-    let TestSubscriberChannels { mock_network: _, subscriber_channels } =
-        mock_register_broadcast_topic().expect("Failed to create mock network");
-    let BroadcastTopicChannels { broadcasted_messages_receiver: _, broadcast_topic_client } =
-        subscriber_channels;
+    let (mut context, _network) = setup(batcher);
 
-    let (outbound_internal_sender, _inbound_internal_receiver, _mock_network) =
-        make_streaming_channels();
-
-    let mut context = SequencerConsensusContext::new(
-        Arc::new(batcher),
-        broadcast_topic_client,
-        outbound_internal_sender,
-        NUM_VALIDATORS,
-    );
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
 
     let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
-    content_sender.send(TX_BATCH.clone()).await.unwrap();
-    let fin_receiver =
-        context.validate_proposal(BlockNumber(0), 0, TIMEOUT, content_receiver).await;
+    let tx_hash = TX_BATCH.first().unwrap().tx_hash();
+    let txs =
+        TX_BATCH.clone().into_iter().map(starknet_api::transaction::Transaction::from).collect();
+    content_sender
+        .send(ProposalPart::Transactions(TransactionBatch {
+            transactions: txs,
+            tx_hashes: vec![tx_hash],
+        }))
+        .await
+        .unwrap();
+    content_sender
+        .send(ProposalPart::Fin(ProposalFin {
+            proposal_content_id: BlockHash(STATE_DIFF_COMMITMENT.0.0),
+        }))
+        .await
+        .unwrap();
+    let fin_receiver = context
+        .validate_proposal(BlockNumber(0), 0, ValidatorId::default(), TIMEOUT, content_receiver)
+        .await;
     content_sender.close_channel();
-    assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
+    assert_eq!(fin_receiver.await.unwrap().0.0, STATE_DIFF_COMMITMENT.0.0);
 }
 
 #[tokio::test]
@@ -209,32 +234,31 @@ async fn repropose() {
             })
         },
     );
-    // TODO(guyn): remove this first set of channels once we are using only the streaming channels.
-    let TestSubscriberChannels { mock_network: _, subscriber_channels } =
-        mock_register_broadcast_topic().expect("Failed to create mock network");
-    let BroadcastTopicChannels { broadcasted_messages_receiver: _, broadcast_topic_client } =
-        subscriber_channels;
+    let (mut context, _network) = setup(batcher);
 
-    let (outbound_internal_sender, _inbound_internal_receiver, _mock_network) =
-        make_streaming_channels();
-
-    let mut context = SequencerConsensusContext::new(
-        Arc::new(batcher),
-        broadcast_topic_client,
-        outbound_internal_sender,
-        NUM_VALIDATORS,
-    );
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
 
     // Receive a valid proposal.
     let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
-    let txs = vec![generate_invoke_tx(Felt::TWO)];
-    content_sender.send(txs.clone()).await.unwrap();
-    let fin_receiver =
-        context.validate_proposal(BlockNumber(0), 0, TIMEOUT, content_receiver).await;
+    content_sender
+        .send(ProposalPart::Transactions(TransactionBatch {
+            transactions: vec![generate_invoke_tx()],
+            tx_hashes: vec![TransactionHash(Felt::TWO)],
+        }))
+        .await
+        .unwrap();
+    content_sender
+        .send(ProposalPart::Fin(ProposalFin {
+            proposal_content_id: BlockHash(STATE_DIFF_COMMITMENT.0.0),
+        }))
+        .await
+        .unwrap();
+    let fin_receiver = context
+        .validate_proposal(BlockNumber(0), 0, ValidatorId::default(), TIMEOUT, content_receiver)
+        .await;
     content_sender.close_channel();
-    assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
+    assert_eq!(fin_receiver.await.unwrap().0.0, STATE_DIFF_COMMITMENT.0.0);
 
     // Re-proposal: Just asserts this is a known valid proposal.
     context
@@ -281,46 +305,48 @@ async fn proposals_from_different_rounds() {
             })
         },
     );
-    let TestSubscriberChannels { mock_network: _, subscriber_channels } =
-        mock_register_broadcast_topic().expect("Failed to create mock network");
-    let BroadcastTopicChannels { broadcasted_messages_receiver: _, broadcast_topic_client } =
-        subscriber_channels;
-
-    let (outbound_internal_sender, _inbound_internal_receiver, _mock_network) =
-        make_streaming_channels();
-
-    let mut context = SequencerConsensusContext::new(
-        Arc::new(batcher),
-        broadcast_topic_client,
-        outbound_internal_sender,
-        NUM_VALIDATORS,
-    );
+    let (mut context, _network) = setup(batcher);
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
     context.set_height_and_round(BlockNumber(0), 1).await;
 
+    // Proposal parts sent in the proposals.
+    let prop_part_txs = ProposalPart::Transactions(TransactionBatch {
+        transactions: TX_BATCH.clone().into_iter().map(Transaction::from).collect(),
+        tx_hashes: vec![TX_BATCH[0].tx_hash()],
+    });
+    let prop_part_fin = ProposalPart::Fin(ProposalFin {
+        proposal_content_id: BlockHash(STATE_DIFF_COMMITMENT.0.0),
+    });
+
     // The proposal from the past round is ignored.
     let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
-    content_sender.send(TX_BATCH.clone()).await.unwrap();
-    let fin_receiver_past_round =
-        context.validate_proposal(BlockNumber(0), 0, TIMEOUT, content_receiver).await;
-    content_sender.close_channel();
+    content_sender.send(prop_part_txs.clone()).await.unwrap();
+
+    let fin_receiver_past_round = context
+        .validate_proposal(BlockNumber(0), 0, ValidatorId::default(), TIMEOUT, content_receiver)
+        .await;
+    // No fin was sent, channel remains open.
     assert!(fin_receiver_past_round.await.is_err());
 
     // The proposal from the current round should be validated.
     let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
-    content_sender.send(TX_BATCH.clone()).await.unwrap();
-    let fin_receiver_curr_round =
-        context.validate_proposal(BlockNumber(0), 1, TIMEOUT, content_receiver).await;
-    content_sender.close_channel();
-    assert_eq!(fin_receiver_curr_round.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
+    content_sender.send(prop_part_txs.clone()).await.unwrap();
+    content_sender.send(prop_part_fin.clone()).await.unwrap();
+    let fin_receiver_curr_round = context
+        .validate_proposal(BlockNumber(0), 1, ValidatorId::default(), TIMEOUT, content_receiver)
+        .await;
+    assert_eq!(fin_receiver_curr_round.await.unwrap().0.0, STATE_DIFF_COMMITMENT.0.0);
 
     // The proposal from the future round should not be processed.
     let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
-    content_sender.send(TX_BATCH.clone()).await.unwrap();
-    let fin_receiver_future_round =
-        context.validate_proposal(BlockNumber(0), 2, TIMEOUT, content_receiver).await;
+    content_sender.send(prop_part_txs.clone()).await.unwrap();
+    content_sender.send(prop_part_fin.clone()).await.unwrap();
+    let fin_receiver_future_round = context
+        .validate_proposal(BlockNumber(0), 2, ValidatorId::default(), TIMEOUT, content_receiver)
+        .await;
     content_sender.close_channel();
+    // Even with sending fin and closing the channel.
     assert!(fin_receiver_future_round.now_or_never().is_none());
 }
 
@@ -365,38 +391,38 @@ async fn interrupt_active_proposal() {
                 }),
             })
         });
-    let TestSubscriberChannels { mock_network: _, subscriber_channels } =
-        mock_register_broadcast_topic().expect("Failed to create mock network");
-    let BroadcastTopicChannels { broadcasted_messages_receiver: _, broadcast_topic_client } =
-        subscriber_channels;
-
-    let (outbound_internal_sender, _inbound_internal_receiver, _mock_network) =
-        make_streaming_channels();
-
-    let mut context = SequencerConsensusContext::new(
-        Arc::new(batcher),
-        broadcast_topic_client,
-        outbound_internal_sender,
-        NUM_VALIDATORS,
-    );
+    let (mut context, _network) = setup(batcher);
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
 
     // Keep the sender open, as closing it or sending Fin would cause the validate to complete
     // without needing interrupt.
     let (mut _content_sender_0, content_receiver) = mpsc::channel(CHANNEL_SIZE);
-    let fin_receiver_0 =
-        context.validate_proposal(BlockNumber(0), 0, TIMEOUT, content_receiver).await;
+    let fin_receiver_0 = context
+        .validate_proposal(BlockNumber(0), 0, ValidatorId::default(), TIMEOUT, content_receiver)
+        .await;
 
     let (mut content_sender_1, content_receiver) = mpsc::channel(CHANNEL_SIZE);
-    content_sender_1.send(TX_BATCH.clone()).await.unwrap();
-    let fin_receiver_1 =
-        context.validate_proposal(BlockNumber(0), 1, TIMEOUT, content_receiver).await;
-    content_sender_1.close_channel();
+    content_sender_1
+        .send(ProposalPart::Transactions(TransactionBatch {
+            transactions: TX_BATCH.clone().into_iter().map(Transaction::from).collect(),
+            tx_hashes: vec![TX_BATCH[0].tx_hash()],
+        }))
+        .await
+        .unwrap();
+    content_sender_1
+        .send(ProposalPart::Fin(ProposalFin {
+            proposal_content_id: BlockHash(STATE_DIFF_COMMITMENT.0.0),
+        }))
+        .await
+        .unwrap();
+    let fin_receiver_1 = context
+        .validate_proposal(BlockNumber(0), 1, ValidatorId::default(), TIMEOUT, content_receiver)
+        .await;
     // Move the context to the next round.
     context.set_height_and_round(BlockNumber(0), 1).await;
 
     // Interrupt active proposal.
     assert!(fin_receiver_0.await.is_err());
-    assert_eq!(fin_receiver_1.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
+    assert_eq!(fin_receiver_1.await.unwrap().0.0, STATE_DIFF_COMMITMENT.0.0);
 }

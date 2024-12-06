@@ -25,7 +25,16 @@ use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::test_utils::get_test_storage;
 use papyrus_storage::StorageReader;
-use starknet_api::block::{BlockHash, BlockNumber, BlockSignature};
+use papyrus_test_utils::GetTestInstance;
+use rand::{Rng, RngCore};
+use rand_chacha::ChaCha8Rng;
+use starknet_api::block::{
+    BlockHash,
+    BlockHeader,
+    BlockHeaderWithoutHash,
+    BlockNumber,
+    BlockSignature,
+};
 use starknet_api::core::ClassHash;
 use starknet_api::crypto::utils::Signature;
 use starknet_api::hash::StarkHash;
@@ -126,18 +135,38 @@ pub enum Action {
 }
 
 // TODO(shahak): add support for state diffs, transactions and classes.
-// TODO(shahak): add max query size as argument instead of constant.
-pub async fn run_test(actions: Vec<Action>) {
-    let TestArgs {
-        p2p_sync,
-        storage_reader,
-        mut mock_header_response_manager,
-        // The test will fail if we drop these
-        mock_state_diff_response_manager: _mock_state_diff_responses_manager,
-        mock_class_response_manager: _mock_class_responses_manager,
-        mock_transaction_response_manager: _mock_transaction_responses_manager,
-        ..
-    } = setup();
+pub async fn run_test(header_max_query_length: u64, actions: Vec<Action>) {
+    let p2p_sync_config = P2PSyncClientConfig {
+        num_headers_per_query: header_max_query_length,
+        num_block_state_diffs_per_query: STATE_DIFF_QUERY_LENGTH,
+        num_block_transactions_per_query: TRANSACTION_QUERY_LENGTH,
+        num_block_classes_per_query: CLASS_DIFF_QUERY_LENGTH,
+        wait_period_for_new_data: WAIT_PERIOD_FOR_NEW_DATA,
+        buffer_size: BUFFER_SIZE,
+        stop_sync_at_block_number: None,
+    };
+    let buffer_size = p2p_sync_config.buffer_size;
+    let ((storage_reader, storage_writer), _temp_dir) = get_test_storage();
+    let (header_sender, mut mock_header_response_manager) =
+        mock_register_sqmr_protocol_client(buffer_size);
+    let (state_diff_sender, _mock_state_diff_response_manager) =
+        mock_register_sqmr_protocol_client(buffer_size);
+    let (transaction_sender, _mock_transaction_response_manager) =
+        mock_register_sqmr_protocol_client(buffer_size);
+    let (class_sender, _mock_class_response_manager) =
+        mock_register_sqmr_protocol_client(buffer_size);
+    let p2p_sync_channels = P2PSyncClientChannels {
+        header_sender,
+        state_diff_sender,
+        transaction_sender,
+        class_sender,
+    };
+    let p2p_sync = P2PSyncClient::new(
+        p2p_sync_config,
+        storage_reader.clone(),
+        storage_writer,
+        p2p_sync_channels,
+    );
 
     let mut headers_current_query_responses_manager = None;
 
@@ -176,6 +205,32 @@ pub async fn run_test(actions: Vec<Action>) {
         _ = tokio::time::sleep(TIMEOUT_FOR_TEST) => {
             panic!("Test timed out.");
         }
+    }
+}
+
+pub fn random_header(
+    rng: &mut ChaCha8Rng,
+    block_number: BlockNumber,
+    state_diff_length: Option<usize>,
+    num_transactions: Option<usize>,
+) -> SignedBlockHeader {
+    SignedBlockHeader {
+        block_header: BlockHeader {
+            // TODO(shahak): Remove this once get_test_instance puts random values.
+            block_hash: BlockHash(rng.next_u64().into()),
+            block_header_without_hash: BlockHeaderWithoutHash {
+                block_number,
+                ..GetTestInstance::get_test_instance(rng)
+            },
+            state_diff_length: Some(state_diff_length.unwrap_or_else(|| rng.gen())),
+            n_transactions: num_transactions.unwrap_or_else(|| rng.gen()),
+            ..GetTestInstance::get_test_instance(rng)
+        },
+        // TODO(shahak): Remove this once get_test_instance puts random values.
+        signatures: vec![BlockSignature(Signature {
+            r: rng.next_u64().into(),
+            s: rng.next_u64().into(),
+        })],
     }
 }
 

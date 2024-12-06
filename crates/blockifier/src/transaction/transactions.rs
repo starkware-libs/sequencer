@@ -4,6 +4,7 @@ use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress};
 use starknet_api::executable_transaction::{
+    AccountTransaction,
     DeclareTransaction,
     DeployAccountTransaction,
     InvokeTransaction,
@@ -52,8 +53,6 @@ mod test;
 
 #[derive(Clone, Copy, Debug)]
 pub struct ExecutionFlags {
-    pub charge_fee: bool,
-    pub validate: bool,
     pub concurrency_mode: bool,
 }
 
@@ -64,12 +63,10 @@ pub trait ExecutableTransaction<U: UpdatableState>: Sized {
         &self,
         state: &mut U,
         block_context: &BlockContext,
-        charge_fee: bool,
-        validate: bool,
     ) -> TransactionExecutionResult<TransactionExecutionInfo> {
         log::debug!("Executing Transaction...");
         let mut transactional_state = TransactionalState::create_transactional(state);
-        let execution_flags = ExecutionFlags { charge_fee, validate, concurrency_mode: false };
+        let execution_flags = ExecutionFlags { concurrency_mode: false };
         let execution_result =
             self.execute_raw(&mut transactional_state, block_context, execution_flags);
 
@@ -176,6 +173,16 @@ impl TransactionInfoCreator for L1HandlerTransaction {
             },
             max_fee: Fee::default(),
         })
+    }
+}
+
+impl TransactionInfoCreatorInner for AccountTransaction {
+    fn create_tx_info(&self, only_query: bool) -> TransactionInfo {
+        match self {
+            Self::Declare(tx) => tx.create_tx_info(only_query),
+            Self::DeployAccount(tx) => tx.create_tx_info(only_query),
+            Self::Invoke(tx) => tx.create_tx_info(only_query),
+        }
     }
 }
 
@@ -391,6 +398,12 @@ impl TransactionInfoCreatorInner for InvokeTransaction {
             }
         }
     }
+}
+
+/// Determines whether the fee should be enforced for the given transaction.
+pub fn enforce_fee(tx: &AccountTransaction, only_query: bool) -> bool {
+    // TODO(AvivG): Consider implemetation without 'create_tx_info'.
+    tx.create_tx_info(only_query).enforce_fee()
 }
 
 /// Attempts to declare a contract class by setting the contract class in the state with the

@@ -12,7 +12,6 @@
 mod execution_test;
 pub mod execution_utils;
 mod state_reader;
-
 #[cfg(test)]
 mod test_utils;
 #[cfg(any(feature = "testing", test))]
@@ -33,6 +32,7 @@ use blockifier::execution::entry_point::{
     EntryPointExecutionContext,
 };
 use blockifier::state::cached_state::CachedState;
+use blockifier::transaction::account_transaction::ExecutionFlags;
 use blockifier::transaction::errors::TransactionExecutionError as BlockifierTransactionExecutionError;
 use blockifier::transaction::objects::{
     DeprecatedTransactionInfo,
@@ -58,7 +58,7 @@ use starknet_api::block::{
     NonzeroGasPrice,
     StarknetVersion,
 };
-use starknet_api::contract_class::{ClassInfo, EntryPointType};
+use starknet_api::contract_class::{ClassInfo, EntryPointType, SierraVersion};
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
@@ -433,8 +433,22 @@ pub enum ExecutableTransactionInput {
     // todo(yair): Do we need to support V0?
     DeclareV0(DeclareTransactionV0V1, DeprecatedContractClass, AbiSize, OnlyQuery),
     DeclareV1(DeclareTransactionV0V1, DeprecatedContractClass, AbiSize, OnlyQuery),
-    DeclareV2(DeclareTransactionV2, CasmContractClass, SierraSize, AbiSize, OnlyQuery),
-    DeclareV3(DeclareTransactionV3, CasmContractClass, SierraSize, AbiSize, OnlyQuery),
+    DeclareV2(
+        DeclareTransactionV2,
+        CasmContractClass,
+        SierraSize,
+        AbiSize,
+        OnlyQuery,
+        SierraVersion,
+    ),
+    DeclareV3(
+        DeclareTransactionV3,
+        CasmContractClass,
+        SierraSize,
+        AbiSize,
+        OnlyQuery,
+        SierraVersion,
+    ),
     DeployAccount(DeployAccountTransaction, OnlyQuery),
     L1Handler(L1HandlerTransaction, Fee, OnlyQuery),
 }
@@ -490,13 +504,24 @@ impl ExecutableTransactionInput {
                 sierra_program_length,
                 abi_length,
                 only_query,
+                sierra_version,
             ) => {
                 let as_transaction = Transaction::Declare(DeclareTransaction::V2(tx));
                 let res = func(&as_transaction, only_query);
                 let Transaction::Declare(DeclareTransaction::V2(tx)) = as_transaction else {
                     unreachable!("Should be declare v2 transaction.")
                 };
-                (Self::DeclareV2(tx, class, sierra_program_length, abi_length, only_query), res)
+                (
+                    Self::DeclareV2(
+                        tx,
+                        class,
+                        sierra_program_length,
+                        abi_length,
+                        only_query,
+                        sierra_version,
+                    ),
+                    res,
+                )
             }
             ExecutableTransactionInput::DeclareV3(
                 tx,
@@ -504,13 +529,24 @@ impl ExecutableTransactionInput {
                 sierra_program_length,
                 abi_length,
                 only_query,
+                sierra_version,
             ) => {
                 let as_transaction = Transaction::Declare(DeclareTransaction::V3(tx));
                 let res = func(&as_transaction, only_query);
                 let Transaction::Declare(DeclareTransaction::V3(tx)) = as_transaction else {
                     unreachable!("Should be declare v3 transaction.")
                 };
-                (Self::DeclareV3(tx, class, sierra_program_length, abi_length, only_query), res)
+                (
+                    Self::DeclareV3(
+                        tx,
+                        class,
+                        sierra_program_length,
+                        abi_length,
+                        only_query,
+                        sierra_version,
+                    ),
+                    res,
+                )
             }
             ExecutableTransactionInput::DeployAccount(tx, only_query) => {
                 let as_transaction = Transaction::DeployAccount(tx);
@@ -700,10 +736,10 @@ fn execute_transactions(
             ) => Some(*class_hash),
             _ => None,
         };
-        let blockifier_tx = to_blockifier_tx(tx, tx_hash, transaction_index)?;
+        let blockifier_tx = to_blockifier_tx(tx, tx_hash, transaction_index, charge_fee, validate)?;
         // TODO(Yoni): use the TransactionExecutor instead.
         let tx_execution_info_result =
-            blockifier_tx.execute(&mut transactional_state, &block_context, charge_fee, validate);
+            blockifier_tx.execute(&mut transactional_state, &block_context);
         let state_diff =
             induced_state_diff(&mut transactional_state, deprecated_declared_class_hash)?;
         transactional_state.commit();
@@ -762,30 +798,34 @@ fn to_blockifier_tx(
     tx: ExecutableTransactionInput,
     tx_hash: TransactionHash,
     transaction_index: usize,
+    charge_fee: bool,
+    validate: bool,
 ) -> ExecutionResult<BlockifierTransaction> {
     // TODO(yair): support only_query version bit (enable in the RPC v0.6 and use the correct
     // value).
     match tx {
         ExecutableTransactionInput::Invoke(invoke_tx, only_query) => {
+            let execution_flags = ExecutionFlags { only_query, charge_fee, validate };
             BlockifierTransaction::from_api(
                 Transaction::Invoke(invoke_tx),
                 tx_hash,
                 None,
                 None,
                 None,
-                only_query,
+                execution_flags,
             )
             .map_err(|err| ExecutionError::from((transaction_index, err)))
         }
 
         ExecutableTransactionInput::DeployAccount(deploy_acc_tx, only_query) => {
+            let execution_flags = ExecutionFlags { only_query, charge_fee, validate };
             BlockifierTransaction::from_api(
                 Transaction::DeployAccount(deploy_acc_tx),
                 tx_hash,
                 None,
                 None,
                 None,
-                only_query,
+                execution_flags,
             )
             .map_err(|err| ExecutionError::from((transaction_index, err)))
         }
@@ -800,19 +840,21 @@ fn to_blockifier_tx(
                 &deprecated_class.into(),
                 DEPRECATED_CONTRACT_SIERRA_SIZE,
                 abi_length,
+                SierraVersion::DEPRECATED,
             )
             .map_err(|err| ExecutionError::BadDeclareTransaction {
                 tx: DeclareTransaction::V0(declare_tx.clone()),
                 err,
             })?;
 
+            let execution_flags = ExecutionFlags { only_query, charge_fee, validate };
             BlockifierTransaction::from_api(
                 Transaction::Declare(DeclareTransaction::V0(declare_tx)),
                 tx_hash,
                 Some(class_info),
                 None,
                 None,
-                only_query,
+                execution_flags,
             )
             .map_err(|err| ExecutionError::from((transaction_index, err)))
         }
@@ -826,18 +868,20 @@ fn to_blockifier_tx(
                 &deprecated_class.into(),
                 DEPRECATED_CONTRACT_SIERRA_SIZE,
                 abi_length,
+                SierraVersion::DEPRECATED,
             )
             .map_err(|err| ExecutionError::BadDeclareTransaction {
                 tx: DeclareTransaction::V1(declare_tx.clone()),
                 err,
             })?;
+            let execution_flags = ExecutionFlags { only_query, charge_fee, validate };
             BlockifierTransaction::from_api(
                 Transaction::Declare(DeclareTransaction::V1(declare_tx)),
                 tx_hash,
                 Some(class_info),
                 None,
                 None,
-                only_query,
+                execution_flags,
             )
             .map_err(|err| ExecutionError::from((transaction_index, err)))
         }
@@ -847,21 +891,26 @@ fn to_blockifier_tx(
             sierra_program_length,
             abi_length,
             only_query,
+            sierra_version,
         ) => {
-            let class_info =
-                ClassInfo::new(&compiled_class.into(), sierra_program_length, abi_length).map_err(
-                    |err| ExecutionError::BadDeclareTransaction {
-                        tx: DeclareTransaction::V2(declare_tx.clone()),
-                        err,
-                    },
-                )?;
+            let class_info = ClassInfo::new(
+                &compiled_class.into(),
+                sierra_program_length,
+                abi_length,
+                sierra_version,
+            )
+            .map_err(|err| ExecutionError::BadDeclareTransaction {
+                tx: DeclareTransaction::V2(declare_tx.clone()),
+                err,
+            })?;
+            let execution_flags = ExecutionFlags { only_query, charge_fee, validate };
             BlockifierTransaction::from_api(
                 Transaction::Declare(DeclareTransaction::V2(declare_tx)),
                 tx_hash,
                 Some(class_info),
                 None,
                 None,
-                only_query,
+                execution_flags,
             )
             .map_err(|err| ExecutionError::from((transaction_index, err)))
         }
@@ -871,32 +920,38 @@ fn to_blockifier_tx(
             sierra_program_length,
             abi_length,
             only_query,
+            sierra_version,
         ) => {
-            let class_info =
-                ClassInfo::new(&compiled_class.into(), sierra_program_length, abi_length).map_err(
-                    |err| ExecutionError::BadDeclareTransaction {
-                        tx: DeclareTransaction::V3(declare_tx.clone()),
-                        err,
-                    },
-                )?;
+            let class_info = ClassInfo::new(
+                &compiled_class.into(),
+                sierra_program_length,
+                abi_length,
+                sierra_version,
+            )
+            .map_err(|err| ExecutionError::BadDeclareTransaction {
+                tx: DeclareTransaction::V3(declare_tx.clone()),
+                err,
+            })?;
+            let execution_flags = ExecutionFlags { only_query, charge_fee, validate };
             BlockifierTransaction::from_api(
                 Transaction::Declare(DeclareTransaction::V3(declare_tx)),
                 tx_hash,
                 Some(class_info),
                 None,
                 None,
-                only_query,
+                execution_flags,
             )
             .map_err(|err| ExecutionError::from((transaction_index, err)))
         }
         ExecutableTransactionInput::L1Handler(l1_handler_tx, paid_fee, only_query) => {
+            let execution_flags = ExecutionFlags { only_query, charge_fee, validate };
             BlockifierTransaction::from_api(
                 Transaction::L1Handler(l1_handler_tx),
                 tx_hash,
                 None,
                 Some(paid_fee),
                 None,
-                only_query,
+                execution_flags,
             )
             .map_err(|err| ExecutionError::from((transaction_index, err)))
         }

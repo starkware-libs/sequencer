@@ -76,7 +76,7 @@ pub fn create_fee_transfer_call_info<S: StateReader>(
 ) -> CallInfo {
     let block_context = BlockContext::create_for_account_testing();
     let mut transactional_state = TransactionalState::create_transactional(state);
-    let execution_flags = ExecutionFlags { charge_fee: true, validate: true, concurrency_mode };
+    let execution_flags = ExecutionFlags { concurrency_mode };
     let execution_info =
         account_tx.execute_raw(&mut transactional_state, &block_context, execution_flags).unwrap();
 

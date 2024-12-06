@@ -16,6 +16,9 @@ on:
       SLACK_ALERT_CHANNEL:
         required: true
 
+env:
+  RUSTFLAGS: "-D warnings"
+
 jobs:
   GW-integration-test-call:
     runs-on: ${{ inputs.os }}

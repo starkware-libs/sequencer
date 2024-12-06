@@ -77,7 +77,7 @@ async fn spawn_node_child_task(node_config_path: PathBuf) -> Child {
         .arg("--config_file")
         .arg(node_config_path.to_str().unwrap())
         .stderr(Stdio::inherit())
-        .stdout(Stdio::null())
+        .stdout(Stdio::inherit())
         .kill_on_drop(true) // Required for stopping the node when the handle is dropped.
         .spawn()
         .expect("Failed to spawn the sequencer node.")

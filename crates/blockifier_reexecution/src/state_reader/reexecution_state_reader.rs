@@ -3,10 +3,11 @@ use blockifier::blockifier::transaction_executor::TransactionExecutor;
 use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::state::state_api::{StateReader, StateResult};
 use blockifier::test_utils::MAX_FEE;
+use blockifier::transaction::account_transaction::ExecutionFlags;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use papyrus_execution::DEPRECATED_CONTRACT_SIERRA_SIZE;
 use starknet_api::block::{BlockHash, BlockNumber};
-use starknet_api::contract_class::ClassInfo;
+use starknet_api::contract_class::{ClassInfo, SierraVersion};
 use starknet_api::core::ClassHash;
 use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_core::types::ContractClass as StarknetContractClass;
@@ -22,7 +23,15 @@ pub trait ReexecutionStateReader {
             StarknetContractClass::Sierra(sierra) => {
                 let abi_length = sierra.abi.len();
                 let sierra_length = sierra.sierra_program.len();
-                Ok(ClassInfo::new(&sierra_to_contact_class_v1(sierra)?, sierra_length, abi_length)?)
+
+                let sierra_version = SierraVersion::extract_from_program(&sierra.sierra_program)?;
+
+                Ok(ClassInfo::new(
+                    &sierra_to_contact_class_v1(sierra)?,
+                    sierra_length,
+                    abi_length,
+                    sierra_version,
+                )?)
             }
             StarknetContractClass::Legacy(legacy) => {
                 let abi_length =
@@ -31,6 +40,7 @@ pub trait ReexecutionStateReader {
                     &legacy_to_contract_class_v0(legacy)?,
                     DEPRECATED_CONTRACT_SIERRA_SIZE,
                     abi_length,
+                    SierraVersion::DEPRECATED,
                 )?)
             }
         }
@@ -41,11 +51,19 @@ pub trait ReexecutionStateReader {
         &self,
         txs_and_hashes: Vec<(Transaction, TransactionHash)>,
     ) -> ReexecutionResult<Vec<BlockifierTransaction>> {
+        let execution_flags = ExecutionFlags::default();
         txs_and_hashes
             .into_iter()
             .map(|(tx, tx_hash)| match tx {
                 Transaction::Invoke(_) | Transaction::DeployAccount(_) => {
-                    Ok(BlockifierTransaction::from_api(tx, tx_hash, None, None, None, false)?)
+                    Ok(BlockifierTransaction::from_api(
+                        tx,
+                        tx_hash,
+                        None,
+                        None,
+                        None,
+                        execution_flags.clone(),
+                    )?)
                 }
                 Transaction::Declare(ref declare_tx) => {
                     let class_info = self
@@ -57,7 +75,7 @@ pub trait ReexecutionStateReader {
                         Some(class_info),
                         None,
                         None,
-                        false,
+                        execution_flags.clone(),
                     )?)
                 }
                 Transaction::L1Handler(_) => Ok(BlockifierTransaction::from_api(
@@ -66,7 +84,7 @@ pub trait ReexecutionStateReader {
                     None,
                     Some(MAX_FEE),
                     None,
-                    false,
+                    execution_flags.clone(),
                 )?),
 
                 Transaction::Deploy(_) => {

@@ -51,6 +51,7 @@ const DEFAULT_LEVEL: LevelFilter = LevelFilter::INFO;
 // different genesis hash.
 // TODO: Consider moving to a more general place.
 const GENESIS_HASH: &str = "0x0";
+
 // TODO(guyn): move this to the config.
 pub const NETWORK_TOPIC: &str = "consensus_proposals";
 
@@ -211,6 +212,8 @@ fn spawn_consensus(
     Ok(tokio::spawn(async move {
         Ok(papyrus_consensus::run_consensus(
             context,
+            config.start_height,
+            // TODO(Asmaa): replace with the correct value.
             config.start_height,
             config.validator_id,
             config.consensus_delay,

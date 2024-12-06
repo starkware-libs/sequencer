@@ -12,8 +12,6 @@ use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{ProposalPart, StreamMessage};
 use papyrus_storage::StorageConfig;
 use starknet_api::block::BlockNumber;
-use starknet_api::contract_address;
-use starknet_api::core::ContractAddress;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_batcher::block_builder::BlockBuilderConfig;
@@ -64,7 +62,6 @@ pub async fn create_config(
             chain_id: chain_info.chain_id,
             eth_fee_token_address: fee_token_addresses.eth_fee_token_address,
             strk_fee_token_address: fee_token_addresses.strk_fee_token_address,
-            sequencer_address: ContractAddress::from(1312_u128), // Arbitrary non-zero value.
         },
         consensus_proposals_channels,
     )
@@ -77,14 +74,14 @@ fn create_consensus_manager_configs_and_channels(
         create_network_configs_connected_to_broadcast_channels(
             n_managers,
             papyrus_network::gossipsub_impl::Topic::new(
-                // TODO(guyn): return this to NETWORK_TOPIC once we have integrated streaming.
-                starknet_consensus_manager::consensus_manager::NETWORK_TOPIC2,
+                starknet_consensus_manager::consensus_manager::CONSENSUS_PROPOSALS_TOPIC,
             ),
         );
     // TODO: Need to also add a channel for votes, in addition to the proposals channel.
 
     let consensus_manager_configs = network_configs
         .into_iter()
+        // TODO(Matan): Get config from default config file.
         .map(|network_config| ConsensusManagerConfig {
             consensus_config: ConsensusConfig {
                 start_height: BlockNumber(1),
@@ -123,7 +120,7 @@ pub fn create_integration_test_tx_generator() -> MultiAccountTransactionGenerato
 }
 
 fn create_txs_for_integration_test(
-    mut tx_generator: MultiAccountTransactionGenerator,
+    tx_generator: &mut MultiAccountTransactionGenerator,
 ) -> Vec<RpcTransaction> {
     const ACCOUNT_ID_0: AccountId = 0;
     const ACCOUNT_ID_1: AccountId = 1;
@@ -166,7 +163,7 @@ where
 /// Creates and runs the integration test scenario for the sequencer integration test. Returns a
 /// list of transaction hashes, in the order they are expected to be in the mempool.
 pub async fn run_integration_test_scenario<'a, Fut>(
-    tx_generator: MultiAccountTransactionGenerator,
+    tx_generator: &mut MultiAccountTransactionGenerator,
     send_rpc_tx_fn: &'a mut dyn FnMut(RpcTransaction) -> Fut,
 ) -> Vec<TransactionHash>
 where
@@ -224,15 +221,9 @@ pub fn create_batcher_config(
     chain_info: ChainInfo,
 ) -> BatcherConfig {
     // TODO(Arni): Create BlockBuilderConfig create for testing method and use here.
-    const SEQUENCER_ADDRESS_FOR_TESTING: u128 = 1991;
-
     BatcherConfig {
         storage: batcher_storage_config,
-        block_builder_config: BlockBuilderConfig {
-            chain_info,
-            sequencer_address: contract_address!(SEQUENCER_ADDRESS_FOR_TESTING),
-            ..Default::default()
-        },
+        block_builder_config: BlockBuilderConfig { chain_info, ..Default::default() },
         ..Default::default()
     }
 }

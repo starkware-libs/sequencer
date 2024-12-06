@@ -8,6 +8,7 @@ from typing import Optional
 
 from config.sequencer import Config
 from app.service import ServiceApp
+from services.topology_helpers import get_dev_config
 from services import topology, helpers
 
 
@@ -31,15 +32,20 @@ class SequencerNode(Chart):
 
 
 def main():
-    if helpers.args.env == "dev":
-        system_preset = topology.SequencerDev()
-    elif helpers.args.env == "prod":
-        system_preset = topology.SequencerProd()
+    args = helpers.argument_parser()
+    if args.env == "dev":
+        system_preset = topology.SequencerDev(config=get_dev_config(args.config_file))
+    elif args.env == "prod":
+        raise NotImplementedError("Production environment not supported.")
+        # system_preset = topology.SequencerProd()
 
     app = App(yaml_output_type=YamlOutputType.FOLDER_PER_CHART_FILE_PER_RESOURCE)
 
     SequencerNode(
-        scope=app, name="sequencer-node", namespace=helpers.args.namespace, topology=system_preset
+        scope=app,
+        name="sequencer-node",
+        namespace=args.namespace,
+        topology=system_preset,
     )
 
     app.synth()

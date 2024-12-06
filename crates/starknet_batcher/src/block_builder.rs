@@ -1,7 +1,6 @@
 use std::collections::BTreeMap;
 
 use async_trait::async_trait;
-use blockifier::blockifier::block::validated_gas_prices;
 use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::{
     TransactionExecutor,
@@ -15,6 +14,7 @@ use blockifier::execution::contract_class::RunnableCompiledClass;
 use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::state::errors::StateError;
 use blockifier::state::global_cache::GlobalContractCache;
+use blockifier::transaction::account_transaction::AccountTransaction;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use blockifier::versioned_constants::{VersionedConstants, VersionedConstantsOverrides};
@@ -26,14 +26,7 @@ use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_state_reader::papyrus_state::PapyrusReader;
 use papyrus_storage::StorageReader;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{
-    BlockHashAndNumber,
-    BlockInfo,
-    BlockNumber,
-    BlockTimestamp,
-    NonzeroGasPrice,
-};
-use starknet_api::core::ContractAddress;
+use starknet_api::block::{BlockHashAndNumber, BlockInfo};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
@@ -44,8 +37,6 @@ use crate::transaction_provider::{NextTxs, TransactionProvider, TransactionProvi
 
 #[derive(Debug, Error)]
 pub enum BlockBuilderError {
-    #[error(transparent)]
-    BadTimestamp(#[from] std::num::TryFromIntError),
     #[error(transparent)]
     BlockifierStateError(#[from] StateError),
     #[error(transparent)]
@@ -159,8 +150,21 @@ impl BlockBuilderTrait for BlockBuilder {
 
             let mut executor_input_chunk = vec![];
             for tx in &next_tx_chunk {
-                // TODO(yair): Avoid this clone.
-                executor_input_chunk.push(BlockifierTransaction::from(tx.clone()));
+                // TODO(AvivG): Create a 'from' tx to BlockifierTransaction to simplify & remove
+                // 'match'.
+                let executable_tx = match tx {
+                    Transaction::Account(account_tx) => {
+                        BlockifierTransaction::Account(AccountTransaction::new_for_sequencing(
+                            // TODO(yair): Avoid this clone.
+                            account_tx.clone(),
+                        ))
+                    }
+                    Transaction::L1Handler(l1_handler_tx) => {
+                        // TODO(yair): Avoid this clone.
+                        BlockifierTransaction::L1Handler(l1_handler_tx.clone())
+                    }
+                };
+                executor_input_chunk.push(executable_tx);
             }
             let results = self.executor.add_txs_to_block(&executor_input_chunk);
             trace!("Transaction execution results: {:?}", results);
@@ -223,7 +227,7 @@ async fn collect_execution_results_and_stream_txs(
 }
 
 pub struct BlockMetadata {
-    pub height: BlockNumber,
+    pub block_info: BlockInfo,
     pub retrospective_block_hash: Option<BlockHashAndNumber>,
 }
 
@@ -244,12 +248,9 @@ pub trait BlockBuilderFactoryTrait: Send + Sync {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct BlockBuilderConfig {
-    // TODO(Yael 1/10/2024): add to config pointers
     pub chain_info: ChainInfo,
     pub execute_config: TransactionExecutorConfig,
     pub bouncer_config: BouncerConfig,
-    pub sequencer_address: ContractAddress,
-    pub use_kzg_da: bool,
     pub tx_chunk_size: usize,
     pub versioned_constants_overrides: VersionedConstantsOverrides,
 }
@@ -261,8 +262,6 @@ impl Default for BlockBuilderConfig {
             chain_info: ChainInfo::default(),
             execute_config: TransactionExecutorConfig::default(),
             bouncer_config: BouncerConfig::default(),
-            sequencer_address: ContractAddress::default(),
-            use_kzg_da: true,
             tx_chunk_size: 100,
             versioned_constants_overrides: VersionedConstantsOverrides::default(),
         }
@@ -274,18 +273,6 @@ impl SerializeConfig for BlockBuilderConfig {
         let mut dump = append_sub_config_name(self.chain_info.dump(), "chain_info");
         dump.append(&mut append_sub_config_name(self.execute_config.dump(), "execute_config"));
         dump.append(&mut append_sub_config_name(self.bouncer_config.dump(), "bouncer_config"));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "sequencer_address",
-            &self.sequencer_address,
-            "The address of the sequencer.",
-            ParamPrivacyInput::Public,
-        )]));
-        dump.append(&mut BTreeMap::from([ser_param(
-            "use_kzg_da",
-            &self.use_kzg_da,
-            "Indicates whether the kzg mechanism is used for data availability.",
-            ParamPrivacyInput::Public,
-        )]));
         dump.append(&mut BTreeMap::from([ser_param(
             "tx_chunk_size",
             &self.tx_chunk_size,
@@ -309,25 +296,15 @@ pub struct BlockBuilderFactory {
 impl BlockBuilderFactory {
     fn preprocess_and_create_transaction_executor(
         &self,
-        block_metadata: &BlockMetadata,
+        block_metadata: BlockMetadata,
     ) -> BlockBuilderResult<TransactionExecutor<PapyrusReader>> {
+        let height = block_metadata.block_info.block_number;
         let block_builder_config = self.block_builder_config.clone();
-        let next_block_info = BlockInfo {
-            block_number: block_metadata.height,
-            block_timestamp: BlockTimestamp(chrono::Utc::now().timestamp().try_into()?),
-            sequencer_address: block_builder_config.sequencer_address,
-            // TODO (yael 7/10/2024): add logic to compute gas prices
-            gas_prices: {
-                let tmp_val = NonzeroGasPrice::MIN;
-                validated_gas_prices(tmp_val, tmp_val, tmp_val, tmp_val, tmp_val, tmp_val)
-            },
-            use_kzg_da: block_builder_config.use_kzg_da,
-        };
         let versioned_constants = VersionedConstants::get_versioned_constants(
             block_builder_config.versioned_constants_overrides,
         );
         let block_context = BlockContext::new(
-            next_block_info,
+            block_metadata.block_info,
             block_builder_config.chain_info,
             versioned_constants,
             block_builder_config.bouncer_config,
@@ -335,7 +312,7 @@ impl BlockBuilderFactory {
 
         let state_reader = PapyrusReader::new(
             self.storage_reader.clone(),
-            block_metadata.height,
+            height,
             self.global_class_hash_to_class.clone(),
         );
 
@@ -358,7 +335,7 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
         tx_provider: Box<dyn TransactionProvider>,
         output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<Transaction>>,
     ) -> BlockBuilderResult<(Box<dyn BlockBuilderTrait>, AbortSignalSender)> {
-        let executor = self.preprocess_and_create_transaction_executor(&block_metadata)?;
+        let executor = self.preprocess_and_create_transaction_executor(block_metadata)?;
         let (abort_signal_sender, abort_signal_receiver) = tokio::sync::oneshot::channel();
         let block_builder = Box::new(BlockBuilder::new(
             Box::new(executor),
