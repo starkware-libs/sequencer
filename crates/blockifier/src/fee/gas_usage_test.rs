@@ -28,7 +28,7 @@ use crate::test_utils::{
     DEFAULT_ETH_L1_DATA_GAS_PRICE,
     DEFAULT_ETH_L1_GAS_PRICE,
 };
-use crate::transaction::test_utils::account_invoke_tx;
+use crate::transaction::test_utils::invoke_tx_with_default_flags;
 use crate::utils::u64_from_usize;
 use crate::versioned_constants::{ResourceCost, VersionedConstants, VmResourceCosts};
 
@@ -282,8 +282,8 @@ fn test_get_message_segment_length(
 
 #[rstest]
 fn test_discounted_gas_from_gas_vector_computation() {
-    let tx_context =
-        BlockContext::create_for_testing().to_tx_context(&account_invoke_tx(invoke_tx_args! {}));
+    let tx_context = BlockContext::create_for_testing()
+        .to_tx_context(&invoke_tx_with_default_flags(invoke_tx_args! {}));
     let gas_usage =
         GasVector { l1_gas: 100_u8.into(), l1_data_gas: 2_u8.into(), ..Default::default() };
     let actual_result = gas_usage.to_discounted_l1_gas(tx_context.get_gas_prices());

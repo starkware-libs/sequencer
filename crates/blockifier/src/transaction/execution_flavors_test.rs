@@ -45,8 +45,8 @@ use crate::transaction::errors::{
 };
 use crate::transaction::objects::{TransactionExecutionInfo, TransactionExecutionResult};
 use crate::transaction::test_utils::{
-    account_invoke_tx,
     default_l1_resource_bounds,
+    invoke_tx_with_default_flags,
     l1_resource_bounds,
     INVALID,
 };
@@ -263,7 +263,7 @@ fn test_simulate_validate_pre_validate_with_charge_fee(
     let account_address = pre_validation_base_args.sender_address;
 
     // First scenario: minimal fee not covered. Actual fee is precomputed.
-    let err = account_invoke_tx(invoke_tx_args! {
+    let err = invoke_tx_with_default_flags(invoke_tx_args! {
         max_fee: Fee(10),
         resource_bounds: l1_resource_bounds(10_u8.into(), 10_u8.into()),
         nonce: nonce_manager.next(account_address),
