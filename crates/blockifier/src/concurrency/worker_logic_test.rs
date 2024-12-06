@@ -4,6 +4,7 @@ use std::sync::Mutex;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::test_utils::declare::executable_declare_tx;
 use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::constants::DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::{ContractAddressSalt, Fee, ValidResourceBounds};
@@ -23,7 +24,6 @@ use crate::fee::fee_utils::get_sequencer_balance_keys;
 use crate::state::cached_state::StateMaps;
 use crate::state::state_api::StateReader;
 use crate::test_utils::contracts::FeatureContract;
-use crate::test_utils::declare::declare_tx;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{
     create_calldata,
@@ -549,7 +549,7 @@ fn test_deploy_before_declare(
     let test_class_hash = test_contract.get_class_hash();
     let test_class_info = calculate_class_info_for_testing(test_contract.get_class());
     let test_compiled_class_hash = test_contract.get_compiled_class_hash();
-    let declare_tx = AccountTransaction::new_with_default_flags(declare_tx(
+    let declare_tx = AccountTransaction::new_with_default_flags(executable_declare_tx(
         declare_tx_args! {
             sender_address: account_address_0,
             resource_bounds: default_all_resource_bounds,

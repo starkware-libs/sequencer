@@ -3,6 +3,7 @@ use rand::{Rng, SeedableRng};
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::core::ContractAddress;
 use starknet_api::executable_transaction::AccountTransaction as ApiExecutableTransaction;
+use starknet_api::test_utils::invoke::executable_invoke_tx;
 use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::constants::TRANSFER_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::Fee;
@@ -16,7 +17,6 @@ use crate::context::{BlockContext, ChainInfo};
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::invoke::invoke_tx;
 use crate::test_utils::{CairoVersion, BALANCE, MAX_FEE};
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::transaction_execution::Transaction;
@@ -181,7 +181,7 @@ impl TransfersGenerator {
             felt!(0_u8)                 // Calldata: msb amount.
         ];
 
-        invoke_tx(invoke_tx_args! {
+        executable_invoke_tx(invoke_tx_args! {
             max_fee: self.config.max_fee,
             sender_address,
             calldata: execute_calldata,

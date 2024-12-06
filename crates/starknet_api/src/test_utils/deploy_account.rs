@@ -1,7 +1,10 @@
 use super::NonceManager;
 use crate::core::{calculate_contract_address, ClassHash, ContractAddress, Nonce};
 use crate::data_availability::DataAvailabilityMode;
-use crate::executable_transaction::DeployAccountTransaction as ExecutableDeployAccountTransaction;
+use crate::executable_transaction::{
+    AccountTransaction,
+    DeployAccountTransaction as ExecutableDeployAccountTransaction,
+};
 use crate::rpc_transaction::{
     RpcDeployAccountTransaction,
     RpcDeployAccountTransactionV3,
@@ -115,7 +118,7 @@ pub fn deploy_account_tx(
 pub fn executable_deploy_account_tx(
     deploy_tx_args: DeployAccountTxArgs,
     nonce_manager: &mut NonceManager,
-) -> ExecutableDeployAccountTransaction {
+) -> AccountTransaction {
     let tx_hash = deploy_tx_args.tx_hash;
     let contract_address = calculate_contract_address(
         deploy_tx_args.contract_address_salt,
@@ -126,8 +129,9 @@ pub fn executable_deploy_account_tx(
     .unwrap();
     let nonce = nonce_manager.next(contract_address);
     let tx = deploy_account_tx(deploy_tx_args, nonce);
+    let deploy_account_tx = ExecutableDeployAccountTransaction { tx, tx_hash, contract_address };
 
-    ExecutableDeployAccountTransaction { tx, tx_hash, contract_address }
+    AccountTransaction::DeployAccount(deploy_account_tx)
 }
 
 pub fn rpc_deploy_account_tx(deploy_tx_args: DeployAccountTxArgs) -> RpcTransaction {

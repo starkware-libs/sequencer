@@ -262,9 +262,7 @@ impl AccountTransactionGenerator {
             calldata: create_trivial_calldata(self.sender_address()),
         );
 
-        AccountTransaction::Invoke(starknet_api::test_utils::invoke::executable_invoke_tx(
-            invoke_args,
-        ))
+        starknet_api::test_utils::invoke::executable_invoke_tx(invoke_args)
     }
 
     /// Generates an `RpcTransaction` with fully custom parameters.
