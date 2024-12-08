@@ -11,7 +11,7 @@ use super::SingleHeightConsensus;
 use crate::config::TimeoutsConfig;
 use crate::single_height_consensus::{ShcEvent, ShcReturn, ShcTask};
 use crate::state_machine::StateMachineEvent;
-use crate::test_utils::{precommit, prevote, MockProposalPart, MockTestContext, TestBlock};
+use crate::test_utils::{precommit, prevote, MockTestContext, TestBlock, TestProposalPart};
 use crate::types::{ConsensusError, ValidatorId, DEFAULT_VALIDATOR_ID};
 
 lazy_static! {
@@ -69,7 +69,7 @@ async fn handle_proposal(
 ) -> ShcReturn {
     // Send the proposal from the peer.
     let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
-    content_sender.send(MockProposalPart(1)).await.unwrap();
+    content_sender.send(TestProposalPart::Init(ProposalInit::default())).await.unwrap();
 
     shc.handle_proposal(context, PROPOSAL_INIT.clone(), content_receiver).await.unwrap()
 }
