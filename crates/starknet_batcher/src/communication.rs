@@ -30,6 +30,8 @@ impl ComponentRequestHandler<BatcherRequest, BatcherResponse> for Batcher {
             BatcherRequest::SendProposalContent(input) => {
                 BatcherResponse::SendProposalContent(self.send_proposal_content(input).await)
             }
+            // TODO(alonh): fill this
+            BatcherRequest::AddSyncBlock(_sync_block) => BatcherResponse::AddSyncBlock(Ok(())),
         }
     }
 }
