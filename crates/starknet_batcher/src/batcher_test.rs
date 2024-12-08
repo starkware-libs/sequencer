@@ -49,8 +49,8 @@ use crate::block_builder::{
 use crate::config::BatcherConfig;
 use crate::proposal_manager::{
     GenerateProposalError,
-    GetProposalResultError,
     InternalProposalStatus,
+    ProposalError,
     ProposalManagerTrait,
     ProposalOutput,
     ProposalResult,
@@ -156,7 +156,7 @@ fn mock_proposal_manager_common_expectations(
         .expect_wrap_await_proposal_commitment()
         .times(1)
         .with(eq(PROPOSAL_ID))
-        .return_once(move |_| { async move { Ok(proposal_commitment()) } }.boxed());
+        .return_once(move |_| { async move { Some(Ok(proposal_commitment())) } }.boxed());
 }
 
 fn mock_proposal_manager_validate_flow() -> MockProposalManagerTraitWrapper {
@@ -372,14 +372,14 @@ async fn send_finish_to_an_invalid_proposal() {
         .with(eq(PROPOSAL_ID), always(), always())
         .return_once(|_, _, _| { async move { Ok(()) } }.boxed());
 
-    let proposal_error = GetProposalResultError::BlockBuilderError(Arc::new(
+    let proposal_error = ProposalError::BlockBuilderError(Arc::new(
         BlockBuilderError::FailOnError(FailOnErrorCause::BlockFull),
     ));
     proposal_manager
         .expect_wrap_await_proposal_commitment()
         .times(1)
         .with(eq(PROPOSAL_ID))
-        .return_once(move |_| { async move { Err(proposal_error) } }.boxed());
+        .return_once(move |_| { async move { Some(Err(proposal_error)) } }.boxed());
 
     let mut batcher = create_batcher(MockDependencies {
         proposal_manager,
@@ -517,12 +517,12 @@ async fn decision_reached() {
         .with(eq(PROPOSAL_ID))
         .return_once(move |_| {
             async move {
-                Ok(ProposalOutput {
+                Some(Ok(ProposalOutput {
                     state_diff: ThinStateDiff::default(),
                     commitment: ProposalCommitment::default(),
                     tx_hashes: test_tx_hashes(),
                     nonces: test_contract_nonces(),
-                })
+                }))
             }
             .boxed()
         });
@@ -553,11 +553,11 @@ async fn decision_reached_no_executed_proposal() {
     let expected_error = BatcherError::ExecutedProposalNotFound { proposal_id: PROPOSAL_ID };
 
     let mut proposal_manager = MockProposalManagerTraitWrapper::new();
-    proposal_manager.expect_wrap_take_proposal_result().times(1).with(eq(PROPOSAL_ID)).return_once(
-        |proposal_id| {
-            async move { Err(GetProposalResultError::ProposalDoesNotExist { proposal_id }) }.boxed()
-        },
-    );
+    proposal_manager
+        .expect_wrap_take_proposal_result()
+        .times(1)
+        .with(eq(PROPOSAL_ID))
+        .return_once(|_| async move { None }.boxed());
 
     let mut batcher = create_batcher(MockDependencies { proposal_manager, ..Default::default() });
     let decision_reached_result =
@@ -578,7 +578,7 @@ trait ProposalManagerTraitWrapper: Send + Sync {
     fn wrap_take_proposal_result(
         &mut self,
         proposal_id: ProposalId,
-    ) -> BoxFuture<'_, ProposalResult<ProposalOutput>>;
+    ) -> BoxFuture<'_, Option<ProposalResult<ProposalOutput>>>;
 
     fn wrap_get_active_proposal(&self) -> BoxFuture<'_, Option<ProposalId>>;
 
@@ -596,7 +596,7 @@ trait ProposalManagerTraitWrapper: Send + Sync {
     fn wrap_await_proposal_commitment(
         &self,
         proposal_id: ProposalId,
-    ) -> BoxFuture<'_, ProposalResult<ProposalCommitment>>;
+    ) -> BoxFuture<'_, Option<ProposalResult<ProposalCommitment>>>;
 
     fn wrap_abort_proposal(&mut self, proposal_id: ProposalId) -> BoxFuture<'_, ()>;
 
@@ -617,7 +617,7 @@ impl<T: ProposalManagerTraitWrapper> ProposalManagerTrait for T {
     async fn take_proposal_result(
         &mut self,
         proposal_id: ProposalId,
-    ) -> ProposalResult<ProposalOutput> {
+    ) -> Option<ProposalResult<ProposalOutput>> {
         self.wrap_take_proposal_result(proposal_id).await
     }
 
@@ -642,7 +642,7 @@ impl<T: ProposalManagerTraitWrapper> ProposalManagerTrait for T {
     async fn await_proposal_commitment(
         &mut self,
         proposal_id: ProposalId,
-    ) -> ProposalResult<ProposalCommitment> {
+    ) -> Option<ProposalResult<ProposalCommitment>> {
         self.wrap_await_proposal_commitment(proposal_id).await
     }
 
