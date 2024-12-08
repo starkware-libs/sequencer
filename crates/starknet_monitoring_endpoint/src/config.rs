@@ -11,11 +11,12 @@ use validator::Validate;
 pub struct MonitoringEndpointConfig {
     pub ip: IpAddr,
     pub port: u16,
+    pub collect_metrics: bool,
 }
 
 impl Default for MonitoringEndpointConfig {
     fn default() -> Self {
-        Self { ip: "0.0.0.0".parse().unwrap(), port: 8082 }
+        Self { ip: "0.0.0.0".parse().unwrap(), port: 8082, collect_metrics: false }
     }
 }
 
@@ -32,6 +33,12 @@ impl SerializeConfig for MonitoringEndpointConfig {
                 "port",
                 &self.port,
                 "The monitoring endpoint port.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "collect_metrics",
+                &self.collect_metrics,
+                "If true, collect and return metrics in the monitoring endpoint.",
                 ParamPrivacyInput::Public,
             ),
         ])

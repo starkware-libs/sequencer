@@ -59,7 +59,7 @@ impl IntegrationTestSetup {
         );
 
         // Wait for the node to start.
-        let MonitoringEndpointConfig { ip, port } = config.monitoring_endpoint_config;
+        let MonitoringEndpointConfig { ip, port, .. } = config.monitoring_endpoint_config;
         let is_alive_test_client = IsAliveClient::new(SocketAddr::from((ip, port)));
 
         let HttpServerConfig { ip, port } = config.http_server_config;
