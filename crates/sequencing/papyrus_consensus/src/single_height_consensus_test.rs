@@ -1,12 +1,7 @@
 use futures::channel::{mpsc, oneshot};
 use futures::SinkExt;
 use lazy_static::lazy_static;
-use papyrus_protobuf::consensus::{
-    ConsensusMessage,
-    ProposalFin,
-    ProposalInit,
-    DEFAULT_VALIDATOR_ID,
-};
+use papyrus_protobuf::consensus::{ProposalFin, ProposalInit, Vote, DEFAULT_VALIDATOR_ID};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_types_core::felt::Felt;
 use test_case::test_case;
@@ -96,7 +91,7 @@ async fn proposer() {
     context
         .expect_broadcast()
         .times(1)
-        .withf(move |msg: &ConsensusMessage| msg == &prevote(Some(BLOCK.id.0), 0, 0, *PROPOSER_ID))
+        .withf(move |msg: &Vote| msg == &prevote(Some(BLOCK.id.0), 0, 0, *PROPOSER_ID))
         .returning(move |_| Ok(()));
     // Sends proposal and prevote.
     let shc_ret = shc.start(&mut context).await.unwrap();
@@ -117,9 +112,7 @@ async fn proposer() {
     context
         .expect_broadcast()
         .times(1)
-        .withf(move |msg: &ConsensusMessage| {
-            msg == &precommit(Some(BLOCK.id.0), 0, 0, *PROPOSER_ID)
-        })
+        .withf(move |msg: &Vote| msg == &precommit(Some(BLOCK.id.0), 0, 0, *PROPOSER_ID))
         .returning(move |_| Ok(()));
     // The Node got a Prevote quorum.
     assert_eq!(
@@ -149,12 +142,7 @@ async fn proposer() {
         panic!("Expected decision");
     };
     assert_eq!(decision.block, BLOCK.id);
-    assert!(
-        decision
-            .precommits
-            .into_iter()
-            .all(|item| precommits.contains(&ConsensusMessage::Vote(item)))
-    );
+    assert!(decision.precommits.into_iter().all(|item| precommits.contains(&item)));
 }
 
 #[test_case(false; "single_proposal")]
@@ -182,9 +170,7 @@ async fn validator(repeat_proposal: bool) {
     context
         .expect_broadcast()
         .times(1)
-        .withf(move |msg: &ConsensusMessage| {
-            msg == &prevote(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_1)
-        })
+        .withf(move |msg: &Vote| msg == &prevote(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_1))
         .returning(move |_| Ok(()));
     let shc_ret = handle_proposal(&mut shc, &mut context).await;
     assert_eq!(shc_ret.as_tasks().unwrap()[0].as_validate_proposal().unwrap().0, &*PROPOSAL_INIT);
@@ -205,9 +191,7 @@ async fn validator(repeat_proposal: bool) {
     context
         .expect_broadcast()
         .times(1)
-        .withf(move |msg: &ConsensusMessage| {
-            msg == &precommit(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_1)
-        })
+        .withf(move |msg: &Vote| msg == &precommit(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_1))
         .returning(move |_| Ok(()));
     // The Node got a Prevote quorum.
     assert_eq!(
@@ -230,12 +214,7 @@ async fn validator(repeat_proposal: bool) {
         panic!("Expected decision");
     };
     assert_eq!(decision.block, BLOCK.id);
-    assert!(
-        decision
-            .precommits
-            .into_iter()
-            .all(|item| precommits.contains(&ConsensusMessage::Vote(item)))
-    );
+    assert!(decision.precommits.into_iter().all(|item| precommits.contains(&item)));
 }
 
 #[test_case(true; "repeat")]
@@ -262,7 +241,7 @@ async fn vote_twice(same_vote: bool) {
     context
         .expect_broadcast()
         .times(1) // Shows the repeat vote is ignored.
-        .withf(move |msg: &ConsensusMessage| msg == &prevote(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_1))
+        .withf(move |msg: &Vote| msg == &prevote(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_1))
         .returning(move |_| Ok(()));
     let shc_ret = handle_proposal(&mut shc, &mut context).await;
     assert_eq!(shc_ret.as_tasks().unwrap()[0].as_validate_proposal().unwrap().0, &*PROPOSAL_INIT,);
@@ -277,7 +256,7 @@ async fn vote_twice(same_vote: bool) {
     context
     .expect_broadcast()
     .times(1) // Shows the repeat vote is ignored.
-    .withf(move |msg: &ConsensusMessage| msg == &precommit(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_1))
+    .withf(move |msg: &Vote| msg == &precommit(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_1))
     .returning(move |_| Ok(()));
     let res =
         shc.handle_message(&mut context, prevote(Some(BLOCK.id.0), 0, 0, *VALIDATOR_ID_2)).await;
@@ -332,7 +311,7 @@ async fn rebroadcast_votes() {
     context
         .expect_broadcast()
         .times(1)
-        .withf(move |msg: &ConsensusMessage| msg == &prevote(Some(BLOCK.id.0), 0, 0, *PROPOSER_ID))
+        .withf(move |msg: &Vote| msg == &prevote(Some(BLOCK.id.0), 0, 0, *PROPOSER_ID))
         .returning(move |_| Ok(()));
     // Sends proposal and prevote.
     let shc_ret = shc.start(&mut context).await.unwrap();
@@ -353,7 +332,7 @@ async fn rebroadcast_votes() {
     context
         .expect_broadcast()
         .times(2) // vote rebroadcast
-        .withf(move |msg: &ConsensusMessage| {
+        .withf(move |msg: &Vote| {
             msg == &precommit(Some(BLOCK.id.0), 0, 0, *PROPOSER_ID)
         })
         .returning(move |_| Ok(()));
@@ -395,7 +374,7 @@ async fn repropose() {
     context
         .expect_broadcast()
         .times(1)
-        .withf(move |msg: &ConsensusMessage| msg == &prevote(Some(BLOCK.id.0), 0, 0, *PROPOSER_ID))
+        .withf(move |msg: &Vote| msg == &prevote(Some(BLOCK.id.0), 0, 0, *PROPOSER_ID))
         .returning(move |_| Ok(()));
     // Sends proposal and prevote.
     shc.start(&mut context).await.unwrap();
@@ -411,9 +390,7 @@ async fn repropose() {
     context
         .expect_broadcast()
         .times(1)
-        .withf(move |msg: &ConsensusMessage| {
-            msg == &precommit(Some(BLOCK.id.0), 0, 0, *PROPOSER_ID)
-        })
+        .withf(move |msg: &Vote| msg == &precommit(Some(BLOCK.id.0), 0, 0, *PROPOSER_ID))
         .returning(move |_| Ok(()));
     // The Node got a Prevote quorum, and set valid proposal.
     assert_eq!(
@@ -436,7 +413,7 @@ async fn repropose() {
     context
         .expect_broadcast()
         .times(1)
-        .withf(move |msg: &ConsensusMessage| msg == &prevote(Some(BLOCK.id.0), 0, 1, *PROPOSER_ID))
+        .withf(move |msg: &Vote| msg == &prevote(Some(BLOCK.id.0), 0, 1, *PROPOSER_ID))
         .returning(move |_| Ok(()));
     shc.handle_message(&mut context, precommits[2].clone()).await.unwrap();
     shc.handle_event(
@@ -459,10 +436,5 @@ async fn repropose() {
         panic!("Expected decision");
     };
     assert_eq!(decision.block, BLOCK.id);
-    assert!(
-        decision
-            .precommits
-            .into_iter()
-            .all(|item| precommits.contains(&ConsensusMessage::Vote(item)))
-    );
+    assert!(decision.precommits.into_iter().all(|item| precommits.contains(&item)));
 }
