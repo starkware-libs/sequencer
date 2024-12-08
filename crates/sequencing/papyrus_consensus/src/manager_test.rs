@@ -12,7 +12,7 @@ use papyrus_network::network_manager::test_utils::{
     TestSubscriberChannels,
 };
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
-use papyrus_protobuf::consensus::{ConsensusMessage, ProposalFin};
+use papyrus_protobuf::consensus::{ProposalFin, Vote};
 use papyrus_test_utils::{get_rng, GetTestInstance};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_types_core::felt::Felt;
@@ -37,7 +37,7 @@ lazy_static! {
 
 const CHANNEL_SIZE: usize = 10;
 
-async fn send(sender: &mut MockBroadcastedMessagesSender<ConsensusMessage>, msg: ConsensusMessage) {
+async fn send(sender: &mut MockBroadcastedMessagesSender<Vote>, msg: Vote) {
     let broadcasted_message_metadata =
         BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
     sender.send((msg, broadcasted_message_metadata)).await.unwrap();
@@ -326,7 +326,7 @@ async fn test_timeouts() {
     context
         .expect_broadcast()
         .times(1)
-        .withf(move |msg: &ConsensusMessage| msg == &prevote(None, 1, 1, *VALIDATOR_ID))
+        .withf(move |msg: &Vote| msg == &prevote(None, 1, 1, *VALIDATOR_ID))
         .return_once(move |_| {
             timeout_send.send(()).unwrap();
             Ok(())

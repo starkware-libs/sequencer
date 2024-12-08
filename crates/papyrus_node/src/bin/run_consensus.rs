@@ -9,7 +9,7 @@ use clap::Parser;
 use futures::stream::StreamExt;
 use papyrus_consensus::config::ConsensusConfig;
 use papyrus_consensus::simulation_network_receiver::NetworkReceiver;
-use papyrus_consensus::types::BroadcastConsensusMessageChannel;
+use papyrus_consensus::types::BroadcastVoteChannel;
 use papyrus_consensus_orchestrator::papyrus_consensus_context::PapyrusConsensusContext;
 use papyrus_network::gossipsub_impl::Topic;
 use papyrus_network::network_manager::NetworkManager;
@@ -80,7 +80,7 @@ fn build_consensus(
         test_config.drop_probability,
         test_config.invalid_probability,
     );
-    let broadcast_channels = BroadcastConsensusMessageChannel {
+    let broadcast_channels = BroadcastVoteChannel {
         broadcasted_messages_receiver: Box::new(network_receiver),
         broadcast_topic_client: network_channels.broadcast_topic_client,
     };
