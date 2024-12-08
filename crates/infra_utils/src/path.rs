@@ -5,9 +5,6 @@ use std::{env, fs};
 #[path = "path_test.rs"]
 mod path_test;
 
-// TODO(tsabary): wrap path-related env::* invocations in the repo as utility functions
-
-// TODO(Tsabary/ Arni): consolidate with other get_absolute_path functions.
 /// Resolves a relative path from the project root directory and returns its absolute path.
 ///
 /// # Arguments
