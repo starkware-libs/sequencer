@@ -14,12 +14,12 @@ use papyrus_network::network_manager::test_utils::{
 };
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{
-    ConsensusMessage,
     ProposalFin,
     ProposalInit,
     ProposalPart,
     StreamMessage,
     TransactionBatch,
+    Vote,
 };
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::{ChainId, Nonce, StateDiffCommitment};
@@ -66,7 +66,7 @@ fn generate_executable_invoke_tx() -> ExecutableTransaction {
 
 // Structs which aren't utilized but should not be dropped.
 struct NetworkDependencies {
-    _vote_network: BroadcastNetworkMock<ConsensusMessage>,
+    _vote_network: BroadcastNetworkMock<Vote>,
     _new_proposal_network: BroadcastNetworkMock<StreamMessage<ProposalPart>>,
 }
 
