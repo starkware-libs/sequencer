@@ -11,10 +11,10 @@ use crate::execution::call_info::{CallExecution, MessageToL1, OrderedL2ToL1Messa
 use crate::execution::entry_point::CallEntryPoint;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, BALANCE};
+use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, RunnableCairo1, BALANCE};
 
-#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Native; "Native"))]
-#[test_case(CairoVersion::Cairo1; "VM")]
+#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Cairo1(RunnableCairo1::Native); "Native"))]
+#[test_case(CairoVersion::Cairo1(RunnableCairo1::Casm); "VM")]
 fn test_send_message_to_l1(cairo_version: CairoVersion) {
     let test_contract = FeatureContract::TestContract(cairo_version);
     let chain_info = &ChainInfo::create_for_testing();

@@ -9,7 +9,7 @@ use blockifier::test_utils::contracts::{
     CAIRO1_FEATURE_CONTRACTS_DIR,
     SIERRA_CONTRACTS_SUBDIR,
 };
-use blockifier::test_utils::CairoVersion;
+use blockifier::test_utils::{CairoVersion, RunnableCairo1};
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 
@@ -194,15 +194,15 @@ fn verify_and_get_files(cairo_version: CairoVersion) -> Vec<FeatureContractMetad
     let mut paths = vec![];
     let directory = match cairo_version {
         CairoVersion::Cairo0 => CAIRO0_FEATURE_CONTRACTS_DIR,
-        CairoVersion::Cairo1 => CAIRO1_FEATURE_CONTRACTS_DIR,
+        CairoVersion::Cairo1(RunnableCairo1::Casm) => CAIRO1_FEATURE_CONTRACTS_DIR,
         #[cfg(feature = "cairo_native")]
-        CairoVersion::Native => NATIVE_FEATURE_CONTRACTS_DIR,
+        CairoVersion::Cairo1(RunnableCairo1::Native) => NATIVE_FEATURE_CONTRACTS_DIR,
     };
     let compiled_extension = match cairo_version {
         CairoVersion::Cairo0 => "_compiled.json",
-        CairoVersion::Cairo1 => ".casm.json",
+        CairoVersion::Cairo1(RunnableCairo1::Casm) => ".casm.json",
         #[cfg(feature = "cairo_native")]
-        CairoVersion::Native => ".sierra.json",
+        CairoVersion::Cairo1(RunnableCairo1::Native) => ".sierra.json",
     };
     for file in fs::read_dir(directory).unwrap() {
         let path = file.unwrap().path();
@@ -238,7 +238,7 @@ fn verify_and_get_files(cairo_version: CairoVersion) -> Vec<FeatureContractMetad
                     compiled_path: existing_compiled_path,
                 }))
             }
-            CairoVersion::Cairo1 => {
+            CairoVersion::Cairo1(RunnableCairo1::Casm) => {
                 let existing_sierra_path =
                     format!("{directory}/{SIERRA_CONTRACTS_SUBDIR}/{file_name}.sierra.json");
                 paths.push(FeatureContractMetadata::Cairo1(Cairo1FeatureContractMetadata {
@@ -249,7 +249,7 @@ fn verify_and_get_files(cairo_version: CairoVersion) -> Vec<FeatureContractMetad
                 }));
             }
             #[cfg(feature = "cairo_native")]
-            CairoVersion::Native => {
+            CairoVersion::Cairo1(RunnableCairo1::Native) => {
                 let existing_sierra_path =
                     format!("{directory}/{SIERRA_CONTRACTS_SUBDIR}/{file_name}.sierra.json");
                 paths.push(FeatureContractMetadata::Cairo1(Cairo1FeatureContractMetadata {
@@ -294,7 +294,8 @@ fn verify_feature_contracts_cairo1_logic(
 
 #[rstest]
 fn verify_feature_contracts_match_enum(
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
+    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm))]
+    cairo_version: CairoVersion,
 ) {
     let mut compiled_paths_from_enum: Vec<String> = FeatureContract::all_feature_contracts()
         .filter(|contract| contract.cairo_version() == cairo_version)
@@ -311,11 +312,11 @@ fn verify_feature_contracts_match_enum(
             compiled_paths_on_filesystem.sort();
             assert_eq!(compiled_paths_from_enum, compiled_paths_on_filesystem);
         }
-        CairoVersion::Cairo1 => {
+        CairoVersion::Cairo1(RunnableCairo1::Casm) => {
             verify_feature_contracts_cairo1_logic(cairo_version, compiled_paths_from_enum);
         }
         #[cfg(feature = "cairo_native")]
-        CairoVersion::Native => {
+        CairoVersion::Cairo1(RunnableCairo1::Native) => {
             verify_feature_contracts_cairo1_logic(cairo_version, compiled_paths_from_enum);
         }
     }
@@ -325,7 +326,8 @@ fn verify_feature_contracts_match_enum(
 #[rstest]
 #[ignore]
 fn verify_feature_contracts(
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
+    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm))]
+    cairo_version: CairoVersion,
 ) {
     let fix_features = std::env::var("FIX_FEATURE_TEST").is_ok();
     verify_feature_contracts_compatibility(fix_features, cairo_version)
