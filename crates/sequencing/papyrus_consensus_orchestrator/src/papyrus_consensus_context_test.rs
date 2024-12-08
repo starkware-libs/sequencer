@@ -11,7 +11,6 @@ use papyrus_network::network_manager::test_utils::{
 };
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{
-    ConsensusMessage,
     ProposalFin,
     ProposalInit,
     ProposalPart,
@@ -113,12 +112,8 @@ async fn decision() {
     assert_eq!(sync_network.messages_to_broadcast_receiver.next().await.unwrap(), precommit);
 }
 
-fn test_setup() -> (
-    Block,
-    PapyrusConsensusContext,
-    BroadcastNetworkMock<ConsensusMessage>,
-    BroadcastNetworkMock<Vote>,
-) {
+fn test_setup()
+-> (Block, PapyrusConsensusContext, BroadcastNetworkMock<Vote>, BroadcastNetworkMock<Vote>) {
     let ((storage_reader, mut storage_writer), _temp_dir) = get_test_storage();
     let block = get_test_block(5, None, None, None);
     let block_number = block.header.block_header_without_hash.block_number;
