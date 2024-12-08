@@ -161,8 +161,7 @@ fn test_deploy_account(
         message_segment_length: 0,
         n_events: 0,
         ..BouncerWeights::empty()
-    }
-    .into();
+    };
     tx_executor_test_body(state, block_context, tx, expected_bouncer_weights);
 }
 
