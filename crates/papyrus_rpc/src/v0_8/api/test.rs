@@ -52,6 +52,7 @@ use starknet_api::block::{
     GasPricePerToken,
     StarknetVersion,
 };
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{
     ClassHash,
     CompiledClassHash,
@@ -3688,6 +3689,9 @@ async fn get_compiled_class() {
         JsonRpcServerImpl,
     >(None, None, None, None, None);
     let cairo1_contract_class = CasmContractClass::get_test_instance(&mut get_rng());
+    // We need to save the Sierra component of the Cairo 1 contract in storage to maintain
+    // consistency.
+    let sierra_contract_class = StarknetApiContractClass::default();
     let cairo0_contract_class =
         StarknetApiDeprecatedContractClass::get_test_instance(&mut get_rng());
     storage_writer
@@ -3709,28 +3713,34 @@ async fn get_compiled_class() {
         .unwrap()
         // Note: there is no need to write the cairo1 contract class here because the
         // declared_classes_table is not used in the rpc method.
-        .append_classes(BlockNumber(0), &[], &[(cairo0_class_hash, &cairo0_contract_class)])
+        .append_classes(BlockNumber(0), &[(cairo1_class_hash, &sierra_contract_class)], &[(cairo0_class_hash, &cairo0_contract_class)])
         .unwrap()
         .commit()
         .unwrap();
 
     let res = module
-        .call::<_, CompiledContractClass>(
+        .call::<_, (CompiledContractClass, SierraVersion)>(
             method_name,
             (BlockId::Tag(Tag::Latest), cairo1_class_hash),
         )
         .await
         .unwrap();
-    assert_eq!(res, CompiledContractClass::V1(cairo1_contract_class));
+    assert_eq!(
+        res,
+        (
+            CompiledContractClass::V1(cairo1_contract_class),
+            SierraVersion::extract_from_program(&sierra_contract_class.sierra_program).unwrap()
+        )
+    );
 
     let res = module
-        .call::<_, CompiledContractClass>(
+        .call::<_, (CompiledContractClass, SierraVersion)>(
             method_name,
             (BlockId::Tag(Tag::Latest), cairo0_class_hash),
         )
         .await
         .unwrap();
-    assert_eq!(res, CompiledContractClass::V0(cairo0_contract_class));
+    assert_eq!(res, (CompiledContractClass::V0(cairo0_contract_class), SierraVersion::DEPRECATED));
 
     // Ask for an invalid class hash, which does no exist in the table.
     let err = module
