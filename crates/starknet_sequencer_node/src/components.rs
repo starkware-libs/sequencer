@@ -12,6 +12,8 @@ use starknet_monitoring_endpoint::monitoring_endpoint::{
     create_monitoring_endpoint,
     MonitoringEndpoint,
 };
+use starknet_state_sync::runner::StateSyncRunner;
+use starknet_state_sync::{create_state_sync_and_runner, StateSync};
 use starknet_state_sync_types::communication::EmptyStateSyncClient;
 
 use crate::clients::SequencerNodeClients;
@@ -31,6 +33,8 @@ pub struct SequencerNodeComponents {
     pub monitoring_endpoint: Option<MonitoringEndpoint>,
     pub mempool_p2p_propagator: Option<MempoolP2pPropagator>,
     pub mempool_p2p_runner: Option<MempoolP2pRunner>,
+    pub state_sync: Option<StateSync>,
+    pub state_sync_runner: Option<StateSyncRunner>,
 }
 
 pub fn create_node_components(
@@ -123,6 +127,18 @@ pub fn create_node_components(
         ActiveComponentExecutionMode::Disabled => None,
     };
 
+    let (state_sync, state_sync_runner) = match config.components.state_sync.execution_mode {
+        ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
+        | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
+            let (state_sync, state_sync_runner) =
+                create_state_sync_and_runner(config.state_sync_config.clone());
+            (Some(state_sync), Some(state_sync_runner))
+        }
+        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
+            (None, None)
+        }
+    };
+
     SequencerNodeComponents {
         batcher,
         consensus_manager,
@@ -132,5 +148,7 @@ pub fn create_node_components(
         monitoring_endpoint,
         mempool_p2p_propagator,
         mempool_p2p_runner,
+        state_sync,
+        state_sync_runner,
     }
 }

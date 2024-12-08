@@ -10,6 +10,7 @@ use papyrus_consensus::config::ConsensusConfig;
 use papyrus_consensus::types::ValidatorId;
 use papyrus_network::network_manager::test_utils::create_network_configs_connected_to_broadcast_channels;
 use papyrus_network::network_manager::BroadcastTopicChannels;
+use papyrus_network::NetworkConfig;
 use papyrus_protobuf::consensus::{ProposalPart, StreamMessage};
 use papyrus_storage::StorageConfig;
 use starknet_api::block::BlockNumber;
@@ -31,7 +32,11 @@ use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_sequencer_infra::test_utils::get_available_socket;
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::config::test_utils::RequiredParams;
+use starknet_state_sync::config::StateSyncConfig;
 use starknet_types_core::felt::Felt;
+
+// TODO(Tsabary): Get rid of this constant once we have a better way to set the port for testing.
+const STATE_SYNC_NETWORK_CONFIG_TCP_PORT_FOR_TESTING: u16 = 12345;
 
 pub fn create_chain_info() -> ChainInfo {
     let mut chain_info = ChainInfo::create_for_testing();
@@ -48,6 +53,7 @@ pub async fn create_config(
     chain_info: ChainInfo,
     rpc_server_addr: SocketAddr,
     batcher_storage_config: StorageConfig,
+    state_sync_storage_config: StorageConfig,
     mut consensus_manager_config: ConsensusManagerConfig,
 ) -> (SequencerNodeConfig, RequiredParams) {
     set_validator_id(&mut consensus_manager_config, sequencer_index);
@@ -59,6 +65,7 @@ pub async fn create_config(
     let mempool_p2p_config =
         create_mempool_p2p_config(sequencer_index, chain_info.chain_id.clone());
     let monitoring_endpoint_config = create_monitoring_endpoint_config(sequencer_index);
+    let state_sync_config = create_state_sync_config(state_sync_storage_config);
 
     (
         SequencerNodeConfig {
@@ -69,6 +76,7 @@ pub async fn create_config(
             rpc_state_reader_config,
             mempool_p2p_config,
             monitoring_endpoint_config,
+            state_sync_config,
             ..Default::default()
         },
         RequiredParams {
@@ -267,4 +275,14 @@ fn create_monitoring_endpoint_config(sequencer_index: usize) -> MonitoringEndpoi
     let mut config = MonitoringEndpointConfig::default();
     config.port += u16::try_from(sequencer_index).unwrap();
     config
+}
+pub fn create_state_sync_config(state_sync_storage_config: StorageConfig) -> StateSyncConfig {
+    StateSyncConfig {
+        storage_config: state_sync_storage_config,
+        network_config: NetworkConfig {
+            tcp_port: STATE_SYNC_NETWORK_CONFIG_TCP_PORT_FOR_TESTING,
+            ..Default::default()
+        },
+        ..Default::default()
+    }
 }

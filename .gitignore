@@ -21,6 +21,7 @@ tmp_venv/*
 .vscode/settings.json
 /data
 /logs
+/sequencer_data
 /target
 /.vscode
 # Git hooks

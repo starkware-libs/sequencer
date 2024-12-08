@@ -1,14 +1,16 @@
 use std::collections::BTreeMap;
+use std::path::PathBuf;
 
 use papyrus_config::dumping::{append_sub_config_name, SerializeConfig};
 use papyrus_config::{ParamPath, SerializedParam};
 use papyrus_network::NetworkConfig;
 use papyrus_p2p_sync::client::P2PSyncClientConfig;
+use papyrus_storage::db::DbConfig;
 use papyrus_storage::StorageConfig;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
-#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq, Validate)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
 pub struct StateSyncConfig {
     #[validate]
     pub storage_config: StorageConfig,
@@ -28,5 +30,21 @@ impl SerializeConfig for StateSyncConfig {
         .into_iter()
         .flatten()
         .collect()
+    }
+}
+
+impl Default for StateSyncConfig {
+    fn default() -> Self {
+        Self {
+            storage_config: StorageConfig {
+                db_config: DbConfig {
+                    path_prefix: PathBuf::from("./sequencer_data"),
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            p2p_sync_client_config: Default::default(),
+            network_config: Default::default(),
+        }
     }
 }
