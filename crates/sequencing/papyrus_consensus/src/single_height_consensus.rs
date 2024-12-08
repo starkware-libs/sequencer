@@ -1,3 +1,12 @@
+//! Single Height Consensus (SHC) manages the consensus process for a single height, including tasks
+//! such as proposing, voting, and validating proposals.
+//!
+//! SHC is invoked directly by the Manager. To perform work asynchronously without blocking itself,
+//! SHC returns a future to the Manager, which will update SHC upon completion of the task.
+//!
+//! SHC is responsible for validating messages, passing only the valid ones to the state machine,
+//! and calling the context when the state machine requests a block.
+
 #[cfg(test)]
 #[path = "single_height_consensus_test.rs"]
 mod single_height_consensus_test;
