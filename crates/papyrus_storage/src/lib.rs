@@ -102,6 +102,7 @@ pub mod test_utils;
 
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
+use std::fs;
 use std::sync::Arc;
 
 use body::events::EventIndex;
@@ -128,7 +129,7 @@ use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContract
 use starknet_api::state::{SierraContractClass, StateNumber, StorageKey, ThinStateDiff};
 use starknet_api::transaction::{Transaction, TransactionHash, TransactionOutput};
 use starknet_types_core::felt::Felt;
-use tracing::{debug, warn};
+use tracing::{debug, info, warn};
 use validator::Validate;
 use version::{StorageVersionError, Version};
 
@@ -162,6 +163,13 @@ pub const STORAGE_VERSION_BLOCKS: Version = Version { major: 4, minor: 0 };
 pub fn open_storage(
     storage_config: StorageConfig,
 ) -> StorageResult<(StorageReader, StorageWriter)> {
+    if !storage_config.db_config.path_prefix.exists()
+        && !storage_config.db_config.enforce_file_exists
+    {
+        fs::create_dir_all(storage_config.db_config.path_prefix.clone())?;
+        info!("Created storage directory: {:?}", storage_config.db_config.path());
+    }
+
     let (db_reader, mut db_writer) = open_env(&storage_config.db_config)?;
     let tables = Arc::new(Tables {
         block_hash_to_number: db_writer.create_simple_table("block_hash_to_number")?,
