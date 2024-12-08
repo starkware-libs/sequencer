@@ -9,7 +9,7 @@ use papyrus_network::network_manager::{
     GenericReceiver,
 };
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
-use papyrus_protobuf::consensus::{ConsensusMessage, ProposalFin, ProposalInit, Vote};
+use papyrus_protobuf::consensus::{ProposalFin, ProposalInit, Vote};
 use papyrus_protobuf::converters::ProtobufConversionError;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::ContractAddress;
@@ -28,7 +28,7 @@ pub type ProposalContentId = BlockHash;
 pub trait ConsensusContext {
     /// The chunks of content returned when iterating the proposal.
     // In practice I expect this to match the type sent to the network
-    // (papyrus_protobuf::ConsensusMessage), and not to be specific to just the block's content.
+    // (papyrus_protobuf::Vote), and not to be specific to just the block's content.
     type ProposalPart: TryFrom<Vec<u8>, Error = ProtobufConversionError>
         + Into<Vec<u8>>
         + TryInto<ProposalInit, Error = ProtobufConversionError>
@@ -99,7 +99,7 @@ pub trait ConsensusContext {
     /// Calculates the ID of the Proposer based on the inputs.
     fn proposer(&self, height: BlockNumber, round: Round) -> ValidatorId;
 
-    async fn broadcast(&mut self, message: ConsensusMessage) -> Result<(), ConsensusError>;
+    async fn broadcast(&mut self, message: Vote) -> Result<(), ConsensusError>;
 
     /// Update the context that a decision has been reached for a given height.
     /// - `block` identifies the decision.
@@ -131,17 +131,15 @@ impl Debug for Decision {
     }
 }
 
-pub struct BroadcastConsensusMessageChannel {
-    pub broadcasted_messages_receiver: GenericReceiver<(
-        Result<ConsensusMessage, ProtobufConversionError>,
-        BroadcastedMessageMetadata,
-    )>,
-    pub broadcast_topic_client: BroadcastTopicClient<ConsensusMessage>,
+pub struct BroadcastVoteChannel {
+    pub broadcasted_messages_receiver:
+        GenericReceiver<(Result<Vote, ProtobufConversionError>, BroadcastedMessageMetadata)>,
+    pub broadcast_topic_client: BroadcastTopicClient<Vote>,
 }
 
-impl From<BroadcastTopicChannels<ConsensusMessage>> for BroadcastConsensusMessageChannel {
-    fn from(broadcast_topic_channels: BroadcastTopicChannels<ConsensusMessage>) -> Self {
-        BroadcastConsensusMessageChannel {
+impl From<BroadcastTopicChannels<Vote>> for BroadcastVoteChannel {
+    fn from(broadcast_topic_channels: BroadcastTopicChannels<Vote>) -> Self {
+        BroadcastVoteChannel {
             broadcasted_messages_receiver: Box::new(
                 broadcast_topic_channels.broadcasted_messages_receiver,
             ),
@@ -164,7 +162,7 @@ pub enum ConsensusError {
     #[error(transparent)]
     SendError(#[from] mpsc::SendError),
     #[error("Conflicting messages for block {0}. Old: {1:?}, New: {2:?}")]
-    Equivocation(BlockNumber, ConsensusMessage, ConsensusMessage),
+    Equivocation(BlockNumber, Vote, Vote),
     // Indicates an error in communication between consensus and the node's networking component.
     // As opposed to an error between this node and peer nodes.
     #[error("{0}")]
