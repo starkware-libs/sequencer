@@ -67,6 +67,7 @@ pretty_assertions.workspace = true
 prometheus-parse.workspace = true
 rand.workspace = true
 rand_chacha.workspace = true
+rstest.workspace = true
 schemars = { workspace = true, features = ["preserve_order"] }
 simple_logger.workspace = true
 tempfile = { workspace = true }
