@@ -21,12 +21,7 @@ use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{create_calldata, CairoVersion, BALANCE};
-use crate::transaction::test_utils::{
-    account_invoke_tx,
-    default_all_resource_bounds,
-    STORAGE_WRITE,
-};
-use crate::transaction::transactions::ExecutableTransaction;
+use crate::transaction::test_utils::{default_all_resource_bounds, run_invoke_tx, STORAGE_WRITE};
 const CONTRACT_ADDRESS: &str = "0x100";
 
 fn set_initial_state_values(
@@ -508,13 +503,17 @@ fn test_write_at_validate_and_execute(
 
     let signature =
         TransactionSignature(vec![Felt::from(STORAGE_WRITE), validate_value, execute_value]);
-    let invoke_tx = account_invoke_tx(invoke_tx_args! {
-        signature,
-        sender_address: contract_address,
-        resource_bounds: default_all_resource_bounds,
-        calldata: create_calldata(contract_address, "foo", &[]),
-    });
-    let tx_execution_info = invoke_tx.execute(&mut state, &block_context, true, true).unwrap();
+    let tx_execution_info = run_invoke_tx(
+        &mut state,
+        &block_context,
+        invoke_tx_args! {
+            signature,
+            sender_address: contract_address,
+            resource_bounds: default_all_resource_bounds,
+            calldata: create_calldata(contract_address, "foo", &[]),
+        },
+    )
+    .unwrap();
     let n_allocated_keys = tx_execution_info
         .receipt
         .resources
