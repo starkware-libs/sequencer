@@ -81,6 +81,7 @@
         "poseidon_gas_cost": 0,
         "add_mod_gas_cost": 0,
         "mul_mod_gas_cost": 0,
+        "ecdsa_gas_cost": 0,
         "memory_hole_gas_cost": 10,
         "os_contract_addresses": {
             "block_hash_contract_address": 1,
