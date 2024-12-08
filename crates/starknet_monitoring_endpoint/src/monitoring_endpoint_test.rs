@@ -34,7 +34,7 @@ async fn request_app(app: Router, method: &str) -> Response {
 }
 
 #[tokio::test]
-async fn test_node_version() {
+async fn node_version() {
     let response = request_app(setup_monitoring_endpoint(None).app(), VERSION).await;
     assert_eq!(response.status(), StatusCode::OK);
 
@@ -43,13 +43,13 @@ async fn test_node_version() {
 }
 
 #[tokio::test]
-async fn test_alive() {
+async fn alive_endpoint() {
     let response = request_app(setup_monitoring_endpoint(None).app(), ALIVE).await;
     assert_eq!(response.status(), StatusCode::OK);
 }
 
 #[tokio::test]
-async fn test_ready() {
+async fn ready_endpoint() {
     let response = request_app(setup_monitoring_endpoint(None).app(), READY).await;
     assert_eq!(response.status(), StatusCode::OK);
 }
@@ -86,7 +86,7 @@ async fn without_metrics() {
 }
 
 #[tokio::test]
-async fn test_endpoint_as_server() {
+async fn endpoint_as_server() {
     spawn(async move { setup_monitoring_endpoint(None).run().await });
     yield_now().await;
 
