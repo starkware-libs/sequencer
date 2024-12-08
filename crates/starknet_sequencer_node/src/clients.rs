@@ -38,8 +38,8 @@ use starknet_state_sync_types::communication::{
 };
 
 use crate::communication::SequencerNodeCommunication;
-use crate::config::component_execution_config::ReactiveComponentMode;
 use crate::config::node_config::SequencerNodeConfig;
+use crate::config::reactive_component_config::ReactiveComponentMode;
 
 pub struct SequencerNodeClients {
     batcher_client: Option<Client<BatcherRequest, BatcherResponse>>,

@@ -23,11 +23,11 @@ use starknet_integration_tests::utils::{
 use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_mempool_p2p::MEMPOOL_TOPIC;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
-use starknet_sequencer_node::config::component_execution_config::{
+use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
+use starknet_sequencer_node::config::reactive_component_config::{
     ReactiveComponentExecutionConfig,
     ReactiveComponentMode,
 };
-use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::servers::run_component_servers;
 use starknet_sequencer_node::utils::create_node_modules;
 use starknet_task_executor::tokio_executor::TokioExecutor;

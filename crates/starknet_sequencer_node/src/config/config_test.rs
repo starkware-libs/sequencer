@@ -17,15 +17,15 @@ use starknet_sequencer_infra::component_definitions::{
 };
 use validator::Validate;
 
-use crate::config::component_execution_config::{
-    ReactiveComponentExecutionConfig,
-    ReactiveComponentMode,
-};
 use crate::config::node_config::{
     SequencerNodeConfig,
     CONFIG_NON_POINTERS_WHITELIST,
     CONFIG_POINTERS,
     DEFAULT_CONFIG_PATH,
+};
+use crate::config::reactive_component_config::{
+    ReactiveComponentExecutionConfig,
+    ReactiveComponentMode,
 };
 use crate::config::test_utils::{create_test_config_load_args, RequiredParams};
 
@@ -46,7 +46,7 @@ const ENABLE_REMOTE_CONNECTION_MODE: ReactiveComponentMode =
     None,
     Some(RemoteServerConfig::default())
 )]
-fn test_valid_component_execution_config(
+fn test_valid_reactive_component_config(
     #[case] execution_mode: ReactiveComponentMode,
     #[case] local_server_config: Option<LocalServerConfig>,
     #[case] remote_client_config: Option<RemoteClientConfig>,
