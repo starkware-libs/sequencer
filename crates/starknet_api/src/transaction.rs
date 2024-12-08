@@ -154,7 +154,8 @@ impl From<(Transaction, TransactionHash)> for executable_transaction::Transactio
             _ => {
                 unimplemented!(
                     "Unsupported transaction type. Only Invoke and L1Handler are currently \
-                     supported."
+                     supported. tx: {:?}",
+                    tx
                 )
             }
         }
