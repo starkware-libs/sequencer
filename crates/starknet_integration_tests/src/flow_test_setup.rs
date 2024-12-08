@@ -28,6 +28,7 @@ pub struct FlowTestSetup {
     // Handlers for the storage files, maintained so the files are not deleted.
     pub batcher_storage_file_handle: TempDir,
     pub rpc_storage_file_handle: TempDir,
+    pub state_sync_storage_file_handle: TempDir,
 
     // Handle of the sequencer node.
     pub sequencer_node_handle: JoinHandle<Result<(), anyhow::Error>>,
@@ -56,9 +57,13 @@ impl FlowTestSetup {
         .await;
 
         // Derive the configuration for the sequencer node.
-        let (config, _required_params, consensus_proposals_channels) =
-            create_config(chain_info, rpc_server_addr, storage_for_test.batcher_storage_config)
-                .await;
+        let (config, _required_params, consensus_proposals_channels) = create_config(
+            chain_info,
+            rpc_server_addr,
+            storage_for_test.batcher_storage_config,
+            storage_for_test.state_sync_storage_config,
+        )
+        .await;
 
         let (_clients, servers) = create_node_modules(&config);
 
@@ -79,6 +84,7 @@ impl FlowTestSetup {
             add_tx_http_client,
             batcher_storage_file_handle: storage_for_test.batcher_storage_handle,
             rpc_storage_file_handle: storage_for_test.rpc_storage_handle,
+            state_sync_storage_file_handle: storage_for_test.state_sync_storage_handle,
             sequencer_node_handle,
             consensus_proposals_channels,
         }

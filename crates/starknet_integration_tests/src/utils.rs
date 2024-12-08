@@ -9,6 +9,7 @@ use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransac
 use papyrus_consensus::config::ConsensusConfig;
 use papyrus_network::network_manager::test_utils::create_network_configs_connected_to_broadcast_channels;
 use papyrus_network::network_manager::BroadcastTopicChannels;
+use papyrus_network::NetworkConfig;
 use papyrus_protobuf::consensus::{ProposalPart, StreamMessage};
 use papyrus_storage::StorageConfig;
 use starknet_api::block::BlockNumber;
@@ -27,6 +28,7 @@ use starknet_http_server::config::HttpServerConfig;
 use starknet_sequencer_infra::test_utils::get_available_socket;
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::config::test_utils::RequiredParams;
+use starknet_state_sync::config::StateSyncConfig;
 
 pub fn create_chain_info() -> ChainInfo {
     let mut chain_info = ChainInfo::create_for_testing();
@@ -40,6 +42,7 @@ pub async fn create_config(
     chain_info: ChainInfo,
     rpc_server_addr: SocketAddr,
     batcher_storage_config: StorageConfig,
+    state_sync_storage_config: StorageConfig,
 ) -> (SequencerNodeConfig, RequiredParams, BroadcastTopicChannels<StreamMessage<ProposalPart>>) {
     let fee_token_addresses = chain_info.fee_token_addresses.clone();
     let batcher_config = create_batcher_config(batcher_storage_config, chain_info.clone());
@@ -49,6 +52,7 @@ pub async fn create_config(
     let (mut consensus_manager_configs, consensus_proposals_channels) =
         create_consensus_manager_configs_and_channels(1);
     let consensus_manager_config = consensus_manager_configs.pop().unwrap();
+    let state_sync_config = create_state_sync_config(state_sync_storage_config);
     (
         SequencerNodeConfig {
             batcher_config,
@@ -56,6 +60,7 @@ pub async fn create_config(
             gateway_config,
             http_server_config,
             rpc_state_reader_config,
+            state_sync_config,
             ..SequencerNodeConfig::default()
         },
         RequiredParams {
@@ -224,6 +229,18 @@ pub fn create_batcher_config(
     BatcherConfig {
         storage: batcher_storage_config,
         block_builder_config: BlockBuilderConfig { chain_info, ..Default::default() },
+        ..Default::default()
+    }
+}
+
+pub fn create_state_sync_config(state_sync_storage_config: StorageConfig) -> StateSyncConfig {
+    const STATE_SYNC_NETWORK_CONFIG_TCP_PORT_FOR_TESTING: u16 = 12345;
+    StateSyncConfig {
+        storage_config: state_sync_storage_config,
+        network_config: NetworkConfig {
+            tcp_port: STATE_SYNC_NETWORK_CONFIG_TCP_PORT_FOR_TESTING,
+            ..Default::default()
+        },
         ..Default::default()
     }
 }

@@ -17,6 +17,7 @@ use starknet_integration_tests::utils::{
     create_gateway_config,
     create_http_server_config,
     create_integration_test_tx_generator,
+    create_state_sync_config,
     run_integration_test_scenario,
     test_rpc_state_reader_config,
 };
@@ -76,6 +77,7 @@ async fn test_mempool_sends_tx_to_other_peer(mut tx_generator: MultiAccountTrans
     let gateway_config = create_gateway_config(chain_info).await;
     let http_server_config = create_http_server_config().await;
     let rpc_state_reader_config = test_rpc_state_reader_config(rpc_server_addr);
+    let state_sync_config = create_state_sync_config(storage_for_test.state_sync_storage_config);
     let (mut network_configs, mut broadcast_channels) =
         create_network_configs_connected_to_broadcast_channels::<RpcTransactionWrapper>(
             1,
@@ -90,6 +92,7 @@ async fn test_mempool_sends_tx_to_other_peer(mut tx_generator: MultiAccountTrans
         http_server_config,
         rpc_state_reader_config,
         mempool_p2p_config,
+        state_sync_config,
         ..SequencerNodeConfig::default()
     };
 
