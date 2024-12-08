@@ -1,6 +1,7 @@
 use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use starknet_api::test_utils::l1_handler::executable_l1_handler_tx;
+use starknet_api::transaction::TransactionHash;
 use starknet_api::{l1_handler_tx_args, tx_hash};
 
 use crate::errors::L1ProviderError;
@@ -86,7 +87,7 @@ fn uninitialized_validate() {
     let uninitialized_l1_provider = L1Provider::default();
     assert_eq!(uninitialized_l1_provider.state, Uninitialized);
 
-    uninitialized_l1_provider.validate(Default::default()).unwrap();
+    uninitialized_l1_provider.validate(TransactionHash::default()).unwrap();
 }
 
 #[test]
@@ -97,13 +98,13 @@ fn proposal_start_errors() {
     // Test.
     l1_provider.proposal_start().unwrap();
 
-    assert_matches!(
+    assert_eq!(
         l1_provider.proposal_start().unwrap_err(),
-        L1ProviderError::UnexpectedProviderStateTransition { from: Propose, to: Propose }
+        L1ProviderError::unexpected_transition(Propose, Propose)
     );
-    assert_matches!(
+    assert_eq!(
         l1_provider.validation_start().unwrap_err(),
-        L1ProviderError::UnexpectedProviderStateTransition { from: Propose, to: Validate }
+        L1ProviderError::unexpected_transition(Propose, Validate)
     );
 }
 
@@ -116,12 +117,12 @@ fn validation_start_errors() {
     // Test.
     l1_provider.validation_start().unwrap();
 
-    assert_matches!(
+    assert_eq!(
         l1_provider.validation_start().unwrap_err(),
-        L1ProviderError::UnexpectedProviderStateTransition { from: Validate, to: Validate }
+        L1ProviderError::unexpected_transition(Validate, Validate)
     );
-    assert_matches!(
+    assert_eq!(
         l1_provider.proposal_start().unwrap_err(),
-        L1ProviderError::UnexpectedProviderStateTransition { from: Validate, to: Propose }
+        L1ProviderError::unexpected_transition(Validate, Propose)
     );
 }
