@@ -361,7 +361,7 @@ fn test_get_fee_by_gas_vector_overflow(
 
 #[rstest]
 #[case::default(
-    VersionedConstants::create_for_account_testing().default_initial_gas_cost(),
+    VersionedConstants::create_for_account_testing().default_initial_gas_amount().0,
     GasVectorComputationMode::NoL2Gas
 )]
 #[case::from_l2_gas(4321, GasVectorComputationMode::All)]
@@ -384,6 +384,6 @@ fn test_initial_sierra_gas(
         }),
     };
     let account_tx = invoke_tx_with_default_flags(invoke_tx_args!(resource_bounds));
-    let actual = block_context.to_tx_context(&account_tx).initial_sierra_gas();
+    let actual = block_context.to_tx_context(&account_tx).initial_sierra_gas().0;
     assert_eq!(actual, expected)
 }
