@@ -1,9 +1,8 @@
 //! Stream handler, see StreamManager struct.
 
 use std::cmp::Ordering;
-use std::collections::btree_map::Entry as BTreeEntry;
-use std::collections::hash_map::Entry as HashMapEntry;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::hash_map::Entry::{Occupied, Vacant};
+use std::collections::HashMap;
 
 use futures::channel::mpsc;
 use futures::StreamExt;
@@ -39,7 +38,7 @@ struct StreamData<
     max_message_id_received: MessageId,
     sender: mpsc::Sender<T>,
     // A buffer for messages that were received out of order.
-    message_buffer: BTreeMap<MessageId, StreamMessage<T>>,
+    message_buffer: HashMap<MessageId, StreamMessage<T>>,
 }
 
 impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError>> StreamData<T> {
@@ -49,7 +48,7 @@ impl<T: Clone + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversionError
             fin_message_id: None,
             max_message_id_received: 0,
             sender,
-            message_buffer: BTreeMap::new(),
+            message_buffer: HashMap::new(),
         }
     }
 }
@@ -232,8 +231,8 @@ impl<T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversi
         let message_id = message.message_id;
 
         let data = match self.inbound_stream_data.entry(key.clone()) {
-            HashMapEntry::Occupied(entry) => entry.into_mut(),
-            HashMapEntry::Vacant(e) => {
+            Occupied(entry) => entry.into_mut(),
+            Vacant(e) => {
                 // If we received a message for a stream that we have not seen before,
                 // we need to create a new receiver for it.
                 let (sender, receiver) = mpsc::channel(CHANNEL_BUFFER_LENGTH);
@@ -309,10 +308,10 @@ impl<T: Clone + Send + Into<Vec<u8>> + TryFrom<Vec<u8>, Error = ProtobufConversi
         let message_id = message.message_id;
 
         match data.message_buffer.entry(message_id) {
-            BTreeEntry::Vacant(e) => {
+            Vacant(e) => {
                 e.insert(message);
             }
-            BTreeEntry::Occupied(_) => {
+            Occupied(_) => {
                 // TODO(guyn): replace warnings with more graceful error handling
                 warn!(
                     "Two messages with the same message_id in buffer! key: {:?}, message_id: {}",
