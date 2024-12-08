@@ -39,20 +39,18 @@ pub enum Transaction {
     L1Handler(L1HandlerTransaction),
 }
 
-impl From<starknet_api::executable_transaction::Transaction> for Transaction {
-    fn from(value: starknet_api::executable_transaction::Transaction) -> Self {
+impl Transaction {
+    pub fn new_for_sequencing(value: starknet_api::executable_transaction::Transaction) -> Self {
         match value {
             starknet_api::executable_transaction::Transaction::Account(tx) => {
-                Transaction::Account(AccountTransaction::new_with_default_flags(tx))
+                Transaction::Account(AccountTransaction::new_for_sequencing(tx))
             }
             starknet_api::executable_transaction::Transaction::L1Handler(tx) => {
                 Transaction::L1Handler(tx)
             }
         }
     }
-}
 
-impl Transaction {
     pub fn nonce(&self) -> Nonce {
         match self {
             Self::Account(tx) => tx.nonce(),
