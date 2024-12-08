@@ -1,11 +1,9 @@
 use std::time::Duration;
 use std::vec;
 
-use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use futures::SinkExt;
 use lazy_static::lazy_static;
-use mockall::mock;
 use mockall::predicate::eq;
 use papyrus_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
@@ -13,21 +11,15 @@ use papyrus_network::network_manager::test_utils::{
     TestSubscriberChannels,
 };
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
-use papyrus_protobuf::consensus::{
-    ConsensusMessage,
-    ProposalFin,
-    ProposalInit,
-    ProposalPart,
-    Vote,
-};
+use papyrus_protobuf::consensus::{ConsensusMessage, ProposalFin};
 use papyrus_test_utils::{get_rng, GetTestInstance};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_types_core::felt::Felt;
 
 use super::{run_consensus, MultiHeightManager};
 use crate::config::TimeoutsConfig;
-use crate::test_utils::{precommit, prevote, proposal_init};
-use crate::types::{ConsensusContext, ConsensusError, ProposalContentId, Round, ValidatorId};
+use crate::test_utils::{precommit, prevote, proposal_init, MockTestContext, TestProposalPart};
+use crate::types::{ConsensusError, ValidatorId};
 
 lazy_static! {
     static ref PROPOSER_ID: ValidatorId = 100_u32.into();
@@ -39,50 +31,6 @@ lazy_static! {
 
 const CHANNEL_SIZE: usize = 10;
 
-mock! {
-    pub TestContext {}
-
-    #[async_trait]
-    impl ConsensusContext for TestContext {
-        type ProposalPart = ProposalPart;
-
-        async fn build_proposal(
-            &mut self,
-            init: ProposalInit,
-            timeout: Duration
-        ) -> oneshot::Receiver<ProposalContentId>;
-
-        async fn validate_proposal(
-            &mut self,
-            height: BlockNumber,
-            round: Round,
-            proposer: ValidatorId,
-            timeout: Duration,
-            content: mpsc::Receiver<ProposalPart>
-        ) -> oneshot::Receiver<(ProposalContentId, ProposalFin)>;
-
-        async fn repropose(
-            &mut self,
-            id: ProposalContentId,
-            init: ProposalInit,
-        );
-
-        async fn validators(&self, height: BlockNumber) -> Vec<ValidatorId>;
-
-        fn proposer(&self, height: BlockNumber, round: Round) -> ValidatorId;
-
-        async fn broadcast(&mut self, message: ConsensusMessage) -> Result<(), ConsensusError>;
-
-        async fn decision_reached(
-            &mut self,
-            block: ProposalContentId,
-            precommits: Vec<Vote>,
-        ) -> Result<(), ConsensusError>;
-
-        async fn set_height_and_round(&mut self, height: BlockNumber, round: Round);
-    }
-}
-
 async fn send(sender: &mut MockBroadcastedMessagesSender<ConsensusMessage>, msg: ConsensusMessage) {
     let broadcasted_message_metadata =
         BroadcastedMessageMetadata::get_test_instance(&mut get_rng());
@@ -90,8 +38,8 @@ async fn send(sender: &mut MockBroadcastedMessagesSender<ConsensusMessage>, msg:
 }
 
 async fn send_proposal(
-    proposal_receiver_sender: &mut mpsc::Sender<mpsc::Receiver<ProposalPart>>,
-    content: Vec<ProposalPart>,
+    proposal_receiver_sender: &mut mpsc::Sender<mpsc::Receiver<TestProposalPart>>,
+    content: Vec<TestProposalPart>,
 ) {
     let (mut proposal_sender, proposal_receiver) = mpsc::channel(CHANNEL_SIZE);
     proposal_receiver_sender.send(proposal_receiver).await.unwrap();
@@ -130,8 +78,8 @@ async fn manager_multiple_heights_unordered() {
     send_proposal(
         &mut proposal_receiver_sender,
         vec![
-            ProposalPart::Init(proposal_init(2, 0, *PROPOSER_ID)),
-            ProposalPart::Fin(ProposalFin { proposal_content_id: BlockHash(Felt::TWO) }),
+            TestProposalPart::Init(proposal_init(2, 0, *PROPOSER_ID)),
+            TestProposalPart::Fin(ProposalFin { proposal_content_id: BlockHash(Felt::TWO) }),
         ],
     )
     .await;
@@ -141,8 +89,8 @@ async fn manager_multiple_heights_unordered() {
     send_proposal(
         &mut proposal_receiver_sender,
         vec![
-            ProposalPart::Init(proposal_init(1, 0, *PROPOSER_ID)),
-            ProposalPart::Fin(ProposalFin { proposal_content_id: BlockHash(Felt::ONE) }),
+            TestProposalPart::Init(proposal_init(1, 0, *PROPOSER_ID)),
+            TestProposalPart::Fin(ProposalFin { proposal_content_id: BlockHash(Felt::ONE) }),
         ],
     )
     .await;
@@ -210,7 +158,7 @@ async fn run_consensus_sync() {
     // Send messages for height 2.
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![ProposalPart::Init(proposal_init(2, 0, *PROPOSER_ID))],
+        vec![TestProposalPart::Init(proposal_init(2, 0, *PROPOSER_ID))],
     )
     .await;
     let TestSubscriberChannels { mock_network, subscriber_channels } =
@@ -301,7 +249,7 @@ async fn run_consensus_sync_cancellation_safety() {
     // Send a proposal for height 1.
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![ProposalPart::Init(proposal_init(1, 0, *PROPOSER_ID))],
+        vec![TestProposalPart::Init(proposal_init(1, 0, *PROPOSER_ID))],
     )
     .await;
     proposal_handled_rx.await.unwrap();
@@ -333,7 +281,7 @@ async fn test_timeouts() {
 
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![ProposalPart::Init(proposal_init(1, 0, *PROPOSER_ID))],
+        vec![TestProposalPart::Init(proposal_init(1, 0, *PROPOSER_ID))],
     )
     .await;
     send(&mut sender, prevote(None, 1, 0, *VALIDATOR_ID_2)).await;
@@ -388,7 +336,7 @@ async fn test_timeouts() {
     // reach a decision.
     send_proposal(
         &mut proposal_receiver_sender,
-        vec![ProposalPart::Init(proposal_init(1, 1, *PROPOSER_ID))],
+        vec![TestProposalPart::Init(proposal_init(1, 1, *PROPOSER_ID))],
     )
     .await;
     send(&mut sender, prevote(Some(Felt::ONE), 1, 1, *PROPOSER_ID)).await;
