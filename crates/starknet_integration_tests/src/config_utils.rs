@@ -52,6 +52,8 @@ pub(crate) fn dump_config_file_changes(
         config.http_server_config.ip,
         config.http_server_config.port,
         config.consensus_manager_config.consensus_config.start_height,
+        config.state_sync_config.storage_config.db_config.path_prefix,
+        config.state_sync_config.network_config.tcp_port,
     );
     let node_config_path = dump_json_data(json_data, NODE_CONFIG_CHANGES_FILE_PATH, dir);
     assert!(node_config_path.exists(), "File does not exist: {:?}", node_config_path);

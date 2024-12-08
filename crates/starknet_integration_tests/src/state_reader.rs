@@ -51,10 +51,13 @@ type ContractClassesMap =
     (Vec<(ClassHash, DeprecatedContractClass)>, Vec<(ClassHash, CasmContractClass)>);
 
 pub struct StorageTestSetup {
+    // TODO: Decide if we want to keep the rpc and batcher storage instances.
     pub rpc_storage_reader: StorageReader,
     pub rpc_storage_handle: TempDir,
     pub batcher_storage_config: StorageConfig,
     pub batcher_storage_handle: TempDir,
+    pub state_sync_storage_config: StorageConfig,
+    pub state_sync_storage_handle: TempDir,
 }
 
 impl StorageTestSetup {
@@ -67,12 +70,23 @@ impl StorageTestSetup {
                 .scope(StorageScope::StateOnly)
                 .chain_id(chain_info.chain_id.clone())
                 .build();
-        create_test_state(&mut batcher_storage_writer, chain_info, test_defined_accounts);
+        create_test_state(&mut batcher_storage_writer, chain_info, test_defined_accounts.clone());
+        let (
+            (_, mut state_sync_storage_writer),
+            state_sync_storage_config,
+            state_sync_storage_handle,
+        ) = TestStorageBuilder::default()
+            .scope(StorageScope::FullArchive)
+            .chain_id(chain_info.chain_id.clone())
+            .build();
+        create_test_state(&mut state_sync_storage_writer, chain_info, test_defined_accounts);
         Self {
             rpc_storage_reader,
             rpc_storage_handle: rpc_storage_file_handle,
             batcher_storage_config,
             batcher_storage_handle: batcher_storage_file_handle,
+            state_sync_storage_config,
+            state_sync_storage_handle,
         }
     }
 }
