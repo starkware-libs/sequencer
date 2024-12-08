@@ -31,6 +31,7 @@ pub struct Vote {
     pub voter: ContractAddress,
 }
 
+// TODO: remove this once we are sure everything works using just Vote.
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 pub enum ConsensusMessage {
     Proposal(Proposal), // To be deprecated
