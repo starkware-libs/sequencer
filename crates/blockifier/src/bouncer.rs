@@ -6,6 +6,7 @@ use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ClassHash;
+use starknet_api::execution_resources::GasAmount;
 
 use crate::blockifier::transaction_executor::{
     TransactionExecutorError,
@@ -98,6 +99,7 @@ pub struct BouncerWeights {
     pub n_events: usize,
     pub n_steps: usize,
     pub state_diff_size: usize,
+    pub sierra_gas: GasAmount,
 }
 
 impl BouncerWeights {
@@ -107,7 +109,8 @@ impl BouncerWeights {
         message_segment_length,
         n_events,
         n_steps,
-        state_diff_size
+        state_diff_size,
+        sierra_gas
     );
 
     pub fn has_room(&self, other: Self) -> bool {
@@ -122,6 +125,7 @@ impl BouncerWeights {
             state_diff_size: usize::MAX,
             n_events: usize::MAX,
             builtin_count: BuiltinCount::max(),
+            sierra_gas: GasAmount::MAX,
         }
     }
 
@@ -133,6 +137,7 @@ impl BouncerWeights {
             message_segment_length: 0,
             n_steps: 0,
             state_diff_size: 0,
+            sierra_gas: GasAmount::ZERO,
         }
     }
 }
@@ -147,6 +152,7 @@ impl Default for BouncerWeights {
             n_events: 5000,
             state_diff_size: 4000,
             builtin_count: BuiltinCount::default(),
+            sierra_gas: GasAmount(1000000), // TODO(AvivG): replace w desired val.
         }
     }
 }
@@ -184,6 +190,12 @@ impl SerializeConfig for BouncerWeights {
             "An upper bound on the total state diff size in a block.",
             ParamPrivacyInput::Public,
         )]));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "sierra_gas",
+            &self.sierra_gas,
+            "An upper bound on the total sierra_gas used in a block.",
+            ParamPrivacyInput::Public,
+        )]));
         dump
     }
 }
@@ -193,13 +205,14 @@ impl std::fmt::Display for BouncerWeights {
         write!(
             f,
             "BouncerWeights {{ l1gas: {}, n_steps: {}, message_segment_length: {}, n_events: {}, \
-             state_diff_size: {}, builtin_count: {} }}",
+             state_diff_size: {}, builtin_count: {}, sierra_gas: {} }}",
             self.l1gas,
             self.n_steps,
             self.message_segment_length,
             self.n_events,
             self.state_diff_size,
-            self.builtin_count
+            self.builtin_count,
+            self.sierra_gas
         )
     }
 }
@@ -539,6 +552,7 @@ pub fn get_tx_weights<S: StateReader>(
         n_steps: vm_resources.total_n_steps(),
         builtin_count: BuiltinCount::from(vm_resources.prover_builtins()),
         state_diff_size: get_onchain_data_segment_length(&state_changes_keys.count()),
+        sierra_gas: tx_resources.computation.sierra_gas,
     })
 }
 
