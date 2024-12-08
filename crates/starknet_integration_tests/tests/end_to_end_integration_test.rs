@@ -65,6 +65,8 @@ async fn test_end_to_end_integration(mut tx_generator: MultiAccountTransactionGe
         return;
     }
 
+    assert_eq!(1, 5);
+
     const EXPECTED_BLOCK_NUMBER: BlockNumber = BlockNumber(15);
 
     configure_tracing();
