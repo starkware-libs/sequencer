@@ -93,7 +93,7 @@ impl SerializeConfig for BouncerConfig {
 /// Represents the execution resources counted throughout block creation.
 pub struct BouncerWeights {
     pub builtin_count: BuiltinCount,
-    pub gas: usize,
+    pub l1gas: usize,
     pub message_segment_length: usize,
     pub n_events: usize,
     pub n_steps: usize,
@@ -103,7 +103,7 @@ pub struct BouncerWeights {
 impl BouncerWeights {
     impl_checked_sub!(
         builtin_count,
-        gas,
+        l1gas,
         message_segment_length,
         n_events,
         n_steps,
@@ -116,7 +116,7 @@ impl BouncerWeights {
 
     pub fn max() -> Self {
         Self {
-            gas: usize::MAX,
+            l1gas: usize::MAX,
             n_steps: usize::MAX,
             message_segment_length: usize::MAX,
             state_diff_size: usize::MAX,
@@ -129,7 +129,7 @@ impl BouncerWeights {
         Self {
             n_events: 0,
             builtin_count: BuiltinCount::empty(),
-            gas: 0,
+            l1gas: 0,
             message_segment_length: 0,
             n_steps: 0,
             state_diff_size: 0,
@@ -141,7 +141,7 @@ impl Default for BouncerWeights {
     // TODO: update the default values once the actual values are known.
     fn default() -> Self {
         Self {
-            gas: 2500000,
+            l1gas: 2500000,
             n_steps: 2500000,
             message_segment_length: 3700,
             n_events: 5000,
@@ -155,9 +155,9 @@ impl SerializeConfig for BouncerWeights {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let mut dump = append_sub_config_name(self.builtin_count.dump(), "builtin_count");
         dump.append(&mut BTreeMap::from([ser_param(
-            "gas",
-            &self.gas,
-            "An upper bound on the total gas used in a block.",
+            "l1gas",
+            &self.l1gas,
+            "An upper bound on the total l1gas used in a block.",
             ParamPrivacyInput::Public,
         )]));
         dump.append(&mut BTreeMap::from([ser_param(
@@ -192,9 +192,9 @@ impl std::fmt::Display for BouncerWeights {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "BouncerWeights {{ gas: {}, n_steps: {}, message_segment_length: {}, n_events: {}, \
+            "BouncerWeights {{ l1gas: {}, n_steps: {}, message_segment_length: {}, n_events: {}, \
              state_diff_size: {}, builtin_count: {} }}",
-            self.gas,
+            self.l1gas,
             self.n_steps,
             self.message_segment_length,
             self.n_events,
@@ -524,7 +524,7 @@ pub fn get_tx_weights<S: StateReader>(
     state_changes_keys: &StateChangesKeys,
 ) -> TransactionExecutionResult<BouncerWeights> {
     let message_resources = &tx_resources.starknet_resources.messages;
-    let message_starknet_gas = usize_from_u64(message_resources.get_starknet_gas_cost().l1_gas.0)
+    let message_starknet_l1gas = usize_from_u64(message_resources.get_starknet_gas_cost().l1_gas.0)
         .expect("This conversion should not fail as the value is a converted usize.");
     let mut additional_os_resources =
         get_casm_hash_calculation_resources(state_reader, executed_class_hashes)?;
@@ -533,7 +533,7 @@ pub fn get_tx_weights<S: StateReader>(
     let vm_resources = &additional_os_resources + &tx_resources.computation.vm_resources;
 
     Ok(BouncerWeights {
-        gas: message_starknet_gas,
+        l1gas: message_starknet_l1gas,
         message_segment_length: message_resources.message_segment_length,
         n_events: tx_resources.starknet_resources.archival_data.event_summary.n_events,
         n_steps: vm_resources.total_n_steps(),

@@ -49,8 +49,8 @@
     "privacy": "Public",
     "value": 156250
   },
-  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.gas": {
-    "description": "An upper bound on the total gas used in a block.",
+  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.l1gas": {
+    "description": "An upper bound on the total l1gas used in a block.",
     "privacy": "Public",
     "value": 2500000
   },
