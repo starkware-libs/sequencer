@@ -80,3 +80,16 @@ impl StateSyncClient for RemoteStateSyncClient {
         handle_response_variants!(StateSyncResponse, GetBlock, StateSyncClientError, StateSyncError)
     }
 }
+
+// TODO(shahak): Remove this once we connect state sync to the node.
+pub struct EmptyStateSyncClient;
+
+#[async_trait]
+impl StateSyncClient for EmptyStateSyncClient {
+    async fn get_block(
+        &self,
+        _block_number: BlockNumber,
+    ) -> StateSyncClientResult<Option<SyncBlock>> {
+        Ok(None)
+    }
+}

@@ -18,6 +18,7 @@ papyrus_network.workspace = true
 papyrus_protobuf.workspace = true
 serde.workspace = true
 starknet_batcher_types.workspace = true
+starknet_state_sync_types.workspace = true
 starknet_sequencer_infra.workspace = true
 tokio.workspace = true
 tracing.workspace = true

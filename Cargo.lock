@@ -10350,6 +10350,7 @@ dependencies = [
  "serde",
  "starknet_batcher_types",
  "starknet_sequencer_infra",
+ "starknet_state_sync_types",
  "tokio",
  "tracing",
  "validator",
