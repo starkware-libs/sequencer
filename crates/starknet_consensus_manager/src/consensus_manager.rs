@@ -11,6 +11,7 @@ use papyrus_protobuf::consensus::{ConsensusMessage, ProposalPart, StreamMessage}
 use starknet_batcher_types::communication::SharedBatcherClient;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_sequencer_infra::errors::ComponentError;
+use starknet_state_sync_types::communication::SharedStateSyncClient;
 use tracing::{error, info};
 
 use crate::config::ConsensusManagerConfig;
@@ -24,11 +25,16 @@ pub const CONSENSUS_VOTES_TOPIC: &str = "consensus_votes";
 pub struct ConsensusManager {
     pub config: ConsensusManagerConfig,
     pub batcher_client: SharedBatcherClient,
+    pub state_sync_client: SharedStateSyncClient,
 }
 
 impl ConsensusManager {
-    pub fn new(config: ConsensusManagerConfig, batcher_client: SharedBatcherClient) -> Self {
-        Self { config, batcher_client }
+    pub fn new(
+        config: ConsensusManagerConfig,
+        batcher_client: SharedBatcherClient,
+        state_sync_client: SharedStateSyncClient,
+    ) -> Self {
+        Self { config, batcher_client, state_sync_client }
     }
 
     pub async fn run(&self) -> Result<(), ConsensusError> {
@@ -98,8 +104,9 @@ impl ConsensusManager {
 pub fn create_consensus_manager(
     config: ConsensusManagerConfig,
     batcher_client: SharedBatcherClient,
+    state_sync_client: SharedStateSyncClient,
 ) -> ConsensusManager {
-    ConsensusManager::new(config, batcher_client)
+    ConsensusManager::new(config, batcher_client, state_sync_client)
 }
 
 #[async_trait]
