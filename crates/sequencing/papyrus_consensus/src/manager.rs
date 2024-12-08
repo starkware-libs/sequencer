@@ -136,7 +136,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         );
         let mut shc_events = FuturesUnordered::new();
 
-        match shc.start(context).await? {
+        match self.start_height(context, height, &mut shc).await? {
             ShcReturn::Decision(decision) => return Ok(decision),
             ShcReturn::Tasks(tasks) => {
                 for task in tasks {
@@ -145,27 +145,11 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             }
         }
 
-        let mut current_height_messages = self.get_current_height_messages(height);
-        // If there's already a cached proposal, handle that before looping.
-        if let Some((init, proposal)) = self.get_current_proposal(height) {
-            let shc_return =
-                self.handle_proposal(context, height, &mut shc, init, proposal).await?;
-            // Handle potential tasks like validate the proposal.
-            match shc_return {
-                ShcReturn::Decision(decision) => return Ok(decision),
-                ShcReturn::Tasks(tasks) => {
-                    for task in tasks {
-                        shc_events.push(task.run());
-                    }
-                }
-            }
-        };
-
-        // No cached proposal, loop over incoming proposals, messages, cached messages, and events.
+        // Loop over incoming proposals, messages, and self generated events.
         loop {
             let shc_return = tokio::select! {
                 // TODO(Matan): remove report peer / continue propagation, as they are not cancel safe.
-                message = next_message(&mut current_height_messages, broadcast_channels) => {
+                message = next_message(broadcast_channels) => {
                     self.handle_message(context, height, &mut shc, message?).await?
                 },
                 Some(mut content_receiver) = proposal_receiver.next() => {
@@ -194,6 +178,34 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 }
             }
         }
+    }
+
+    async fn start_height(
+        &mut self,
+        context: &mut ContextT,
+        height: BlockNumber,
+        shc: &mut SingleHeightConsensus,
+    ) -> Result<ShcReturn, ConsensusError> {
+        let mut tasks = match shc.start(context).await? {
+            decision @ ShcReturn::Decision(_) => return Ok(decision),
+            ShcReturn::Tasks(tasks) => tasks,
+        };
+
+        if let Some((init, content_receiver)) = self.get_current_proposal(height) {
+            match shc.handle_proposal(context, init, content_receiver).await? {
+                decision @ ShcReturn::Decision(_) => return Ok(decision),
+                ShcReturn::Tasks(new_tasks) => tasks.extend(new_tasks),
+            }
+        };
+
+        for msg in self.get_current_height_messages(height) {
+            match shc.handle_message(context, msg).await? {
+                decision @ ShcReturn::Decision(_) => return Ok(decision),
+                ShcReturn::Tasks(new_tasks) => tasks.extend(new_tasks),
+            }
+        }
+
+        Ok(ShcReturn::Tasks(tasks))
     }
 
     // Handle a new proposal receiver from the network.
@@ -289,14 +301,10 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
 }
 
 async fn next_message(
-    cached_messages: &mut Vec<ConsensusMessage>,
     broadcast_channels: &mut BroadcastConsensusMessageChannel,
 ) -> Result<ConsensusMessage, ConsensusError> {
     let BroadcastConsensusMessageChannel { broadcasted_messages_receiver, broadcast_topic_client } =
         broadcast_channels;
-    if let Some(msg) = cached_messages.pop() {
-        return Ok(msg);
-    }
 
     let (msg, broadcasted_message_metadata) =
         broadcasted_messages_receiver.next().await.ok_or_else(|| {
