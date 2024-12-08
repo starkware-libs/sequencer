@@ -29,7 +29,7 @@ use starknet_batcher_types::errors::BatcherError;
 use starknet_mempool_types::communication::SharedMempoolClient;
 use starknet_mempool_types::mempool_types::CommitBlockArgs;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
-use tracing::{debug, error, info, instrument, trace};
+use tracing::{debug, error, info, instrument, trace, warn};
 
 use crate::block_builder::{
     BlockBuilderError,
@@ -246,6 +246,7 @@ impl Batcher {
         proposal_id: ProposalId,
         txs: Vec<Transaction>,
     ) -> BatcherResult<SendProposalContentResponse> {
+        warn!("send Txs received for proposal {}: {:?}", proposal_id, txs);
         match self.proposal_manager.get_proposal_status(proposal_id).await {
             InternalProposalStatus::Processing => {
                 let tx_provider_sender = &self
@@ -320,6 +321,7 @@ impl Batcher {
 
         if n_executed_txs != 0 {
             debug!("Streaming {} txs", n_executed_txs);
+            warn!("get Txs streamed for proposal {}: {:?}", proposal_id, txs);
             return Ok(GetProposalContentResponse { content: GetProposalContent::Txs(txs) });
         }
 
@@ -455,7 +457,8 @@ pub fn deadline_as_instant(deadline: chrono::DateTime<Utc>) -> BatcherResult<tok
     let time_to_deadline = deadline - chrono::Utc::now();
     let as_duration =
         time_to_deadline.to_std().map_err(|_| BatcherError::TimeToDeadlineError { deadline })?;
-    Ok((std::time::Instant::now() + as_duration).into())
+    // TODO(Matan): this is a temporary solution to the timeout issue.
+    Ok((std::time::Instant::now() + (as_duration / 2)).into())
 }
 
 fn verify_block_input(

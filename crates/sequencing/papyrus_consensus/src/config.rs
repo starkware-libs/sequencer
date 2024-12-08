@@ -153,9 +153,9 @@ impl SerializeConfig for TimeoutsConfig {
 impl Default for TimeoutsConfig {
     fn default() -> Self {
         Self {
-            proposal_timeout: Duration::from_secs_f64(3.0),
-            prevote_timeout: Duration::from_secs_f64(1.0),
-            precommit_timeout: Duration::from_secs_f64(1.0),
+            proposal_timeout: Duration::from_secs_f64(9.0),
+            prevote_timeout: Duration::from_secs_f64(3.0),
+            precommit_timeout: Duration::from_secs_f64(3.0),
         }
     }
 }

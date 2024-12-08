@@ -145,6 +145,15 @@ async fn listen_to_broadcasted_messages(
                 got_channel_fin = true;
             }
         }
+        // println!(
+        //     "Expected {} transactions, Received {} transactions, got proposal fin: {}, got \
+        //      channel fin: {}",
+        //     expected_batched_tx_hashes.len(),
+        //     received_tx_hashes.len(),
+        //     got_proposal_fin,
+        //     got_channel_fin
+        // );
+        // println!("Transaction hashes: {:?}", received_tx_hashes);
         if got_proposal_fin
             && got_channel_fin
             && received_tx_hashes.len() == expected_batched_tx_hashes.len()

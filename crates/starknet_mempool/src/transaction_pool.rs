@@ -22,7 +22,7 @@ pub struct TransactionPool {
     // Transactions organized by account address, sorted by ascending nonce values.
     txs_by_account: AccountTransactionIndex,
     // Tracks the capacity of the pool.
-    capacity: PoolCapacity,
+    pub capacity: PoolCapacity,
 }
 
 impl TransactionPool {

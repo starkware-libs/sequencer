@@ -107,6 +107,7 @@ impl TransactionProvider for ProposeTransactionProvider {
 
         let mut mempool_txs = self.get_mempool_txs(n_txs - txs.len()).await?;
         txs.append(&mut mempool_txs);
+        // println!("{} txs = {:?}", txs.len(), txs);
         Ok(NextTxs::Txs(txs))
     }
 }

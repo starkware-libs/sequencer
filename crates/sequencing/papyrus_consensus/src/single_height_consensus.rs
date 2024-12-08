@@ -413,6 +413,7 @@ impl SingleHeightConsensus {
         let mut ret_val = Vec::new();
         while let Some(event) = events.pop_front() {
             trace!("Handling event: {:?}", event);
+            info!("Handling event: {:?}", event);
             match event {
                 StateMachineEvent::GetProposal(proposal_id, round) => {
                     ret_val.extend(

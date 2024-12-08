@@ -156,6 +156,7 @@ impl Mempool {
     // TODO: Consider renaming to `pop_txs` to be more consistent with the standard library.
     #[tracing::instrument(skip(self), err)]
     pub fn get_txs(&mut self, n_txs: usize) -> MempoolResult<Vec<AccountTransaction>> {
+        println!("get_txs self.tx_pool: {:?}", self.tx_pool.capacity);
         let mut eligible_tx_references: Vec<TransactionReference> = Vec::with_capacity(n_txs);
         let mut n_remaining_txs = n_txs;
 
@@ -176,15 +177,17 @@ impl Mempool {
             eligible_tx_references.len()
         );
 
-        Ok(eligible_tx_references
-            .iter()
-            .map(|tx_reference| {
-                self.tx_pool
-                    .get_by_tx_hash(tx_reference.tx_hash)
-                    .expect("Transaction hash from queue must appear in pool.")
-            })
-            .cloned() // Soft-delete: return without deleting from mempool.
-            .collect())
+        let res: Vec<_> = eligible_tx_references
+        .iter()
+        .map(|tx_reference| {
+            self.tx_pool
+                .get_by_tx_hash(tx_reference.tx_hash)
+                .expect("Transaction hash from queue must appear in pool.")
+        })
+        .cloned() // Soft-delete: return without deleting from mempool.
+        .collect();
+        println!("res: {:?}", res.len());
+        Ok(res)
     }
 
     /// Adds a new transaction to the mempool.
@@ -214,7 +217,7 @@ impl Mempool {
             self.tx_queue.remove(address);
             self.tx_queue.insert(tx_reference);
         }
-
+        println!("add_tx self.tx_pool: {:?}", self.tx_pool.capacity);
         Ok(())
     }
 
@@ -222,6 +225,7 @@ impl Mempool {
     /// updates account balances).
     #[tracing::instrument(skip(self, args), err)]
     pub fn commit_block(&mut self, args: CommitBlockArgs) -> MempoolResult<()> {
+        println!("Precommit self.tx_pool: {:?}", self.tx_pool.capacity);
         let CommitBlockArgs { address_to_nonce, tx_hashes } = args;
         tracing::debug!("Committing block with {} transactions to mempool.", tx_hashes.len());
 
@@ -276,6 +280,7 @@ impl Mempool {
             // TTL.
         }
         tracing::debug!("Removed committed transactions known to mempool.");
+        println!("Postcommit self.tx_pool: {:?}", self.tx_pool.capacity);
 
         Ok(())
     }

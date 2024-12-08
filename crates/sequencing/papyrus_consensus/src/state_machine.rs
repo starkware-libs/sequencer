@@ -9,7 +9,7 @@ mod state_machine_test;
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use tracing::trace;
+use tracing::{trace, warn};
 
 use crate::types::{ProposalContentId, Round, ValidatorId};
 
@@ -335,6 +335,12 @@ impl StateMachine {
     {
         self.round = round;
         self.step = Step::Propose;
+        warn!(
+            "observer: {}, self.id: {}, leader_fn(self.round): {}",
+            self.is_observer,
+            self.id,
+            leader_fn(self.round)
+        );
         let mut output = if !self.is_observer && self.id == leader_fn(self.round) {
             // Leader.
             match self.valid_value_round {
