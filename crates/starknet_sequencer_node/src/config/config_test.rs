@@ -17,7 +17,10 @@ use starknet_sequencer_infra::component_definitions::{
 };
 use validator::Validate;
 
-use crate::config::component_execution_config::{ComponentExecutionConfig, ReactiveComponentMode};
+use crate::config::component_execution_config::{
+    ReactiveComponentExecutionConfig,
+    ReactiveComponentMode,
+};
 use crate::config::node_config::{
     SequencerNodeConfig,
     CONFIG_NON_POINTERS_WHITELIST,
@@ -31,7 +34,7 @@ const LOCAL_EXECUTION_MODE: ReactiveComponentMode =
 const ENABLE_REMOTE_CONNECTION_MODE: ReactiveComponentMode =
     ReactiveComponentMode::LocalExecutionWithRemoteEnabled;
 
-/// Test the validation of the struct ComponentExecutionConfig.
+/// Test the validation of the struct ReactiveComponentExecutionConfig.
 /// Validates that execution mode of the component and the local/remote config are at sync.
 #[rstest]
 #[case::local(ReactiveComponentMode::Disabled, None, None, None)]
@@ -49,7 +52,7 @@ fn test_valid_component_execution_config(
     #[case] remote_client_config: Option<RemoteClientConfig>,
     #[case] remote_server_config: Option<RemoteServerConfig>,
 ) {
-    let component_exe_config = ComponentExecutionConfig {
+    let component_exe_config = ReactiveComponentExecutionConfig {
         execution_mode,
         local_server_config,
         remote_client_config,
