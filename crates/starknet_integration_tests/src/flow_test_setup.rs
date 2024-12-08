@@ -91,6 +91,7 @@ pub struct SequencerSetup {
     // Handlers for the storage files, maintained so the files are not deleted.
     pub batcher_storage_file_handle: TempDir,
     pub rpc_storage_file_handle: TempDir,
+    pub state_sync_storage_file_handle: TempDir,
 
     // Handle of the sequencer node.
     pub sequencer_node_handle: JoinHandle<Result<(), anyhow::Error>>,
@@ -125,6 +126,7 @@ impl SequencerSetup {
             chain_info,
             rpc_server_addr,
             storage_for_test.batcher_storage_config,
+            storage_for_test.state_sync_storage_config,
             consensus_manager_config,
         )
         .await;
@@ -150,6 +152,7 @@ impl SequencerSetup {
             add_tx_http_client,
             batcher_storage_file_handle: storage_for_test.batcher_storage_handle,
             rpc_storage_file_handle: storage_for_test.rpc_storage_handle,
+            state_sync_storage_file_handle: storage_for_test.state_sync_storage_handle,
             sequencer_node_handle,
             config,
         }
