@@ -64,10 +64,13 @@ auto_impl_get_test_instance! {
 
 // The auto_impl_get_test_instance macro does not work for StreamMessage because it has
 // a generic type. TODO(guyn): try to make the macro work with generic types.
-impl GetTestInstance for StreamMessage<ConsensusMessage> {
+impl GetTestInstance for StreamMessage<ProposalPart> {
     fn get_test_instance(rng: &mut rand_chacha::ChaCha8Rng) -> Self {
         let message = if rng.gen_bool(0.5) {
-            StreamMessageBody::Content(ConsensusMessage::Proposal(Proposal::get_test_instance(rng)))
+            StreamMessageBody::Content(ProposalPart::Transactions(TransactionBatch {
+                transactions: vec![Transaction::get_test_instance(rng)],
+                tx_hashes: vec![TransactionHash::get_test_instance(rng)],
+            }))
         } else {
             StreamMessageBody::Fin
         };
