@@ -10507,6 +10507,7 @@ version = "0.0.0"
 dependencies = [
  "async-trait",
  "futures",
+ "mockall",
  "papyrus_config",
  "papyrus_network",
  "papyrus_network_types",
