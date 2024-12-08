@@ -34,10 +34,17 @@ mod tests {
         StreamMessage { message: content, stream_id, message_id }
     }
 
-    // Check if two vectors are the same:
-    fn do_vecs_match<T: PartialEq>(a: &[T], b: &[T]) -> bool {
-        let matching = a.iter().zip(b.iter()).filter(|&(a, b)| a == b).count();
-        matching == a.len() && matching == b.len()
+    // Check if two vectors are the same, regardless of ordering
+    fn do_vecs_match_unordered<T: PartialEq>(a: &[T], b: &[T]) -> bool
+    where
+        T: std::hash::Hash + Eq,
+    {
+        if a.len() != b.len() {
+            return false;
+        }
+        let set_a: std::collections::HashSet<_> = a.iter().collect();
+        let set_b: std::collections::HashSet<_> = b.iter().collect();
+        set_a == set_b
     }
 
     async fn send(
@@ -183,7 +190,7 @@ mod tests {
             .message_buffer
             .into_keys()
             .collect();
-        assert!(do_vecs_match(&keys, &range));
+        assert!(do_vecs_match_unordered(&keys, &range));
 
         // Now send the last message:
         send(&mut network_sender, &inbound_metadata, make_test_message(stream_id, 0, false)).await;
@@ -258,7 +265,7 @@ mod tests {
         );
 
         // We have all message from 1 to 9 buffered.
-        assert!(do_vecs_match(
+        assert!(do_vecs_match_unordered(
             &stream_handler.inbound_stream_data[&(peer_id.clone(), stream_id1)]
                 .message_buffer
                 .clone()
@@ -268,7 +275,7 @@ mod tests {
         ));
 
         // We have all message from 1 to 5 buffered.
-        assert!(do_vecs_match(
+        assert!(do_vecs_match_unordered(
             &stream_handler.inbound_stream_data[&(peer_id.clone(), stream_id2)]
                 .message_buffer
                 .clone()
@@ -278,7 +285,7 @@ mod tests {
         ));
 
         // We have all message from 1 to 5 buffered.
-        assert!(do_vecs_match(
+        assert!(do_vecs_match_unordered(
             &stream_handler.inbound_stream_data[&(peer_id.clone(), stream_id3)]
                 .message_buffer
                 .clone()
@@ -486,7 +493,7 @@ mod tests {
         vec1.sort();
         let mut vec2 = vec![&stream_id1, &stream_id2];
         vec2.sort();
-        do_vecs_match(&vec1, &vec2);
+        do_vecs_match_unordered(&vec1, &vec2);
         assert_eq!(stream_handler.outbound_stream_number[&stream_id2], 1);
 
         // Close the first channel.
