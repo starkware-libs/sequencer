@@ -7,12 +7,12 @@ use strum_macros::EnumIter;
 use crate::block::{GasPrice, GasPriceVector, NonzeroGasPrice};
 use crate::transaction::fields::{Fee, Resource};
 
-#[cfg_attr(
-    any(test, feature = "testing"),
-    derive(derive_more::Add, derive_more::Sum, derive_more::AddAssign, derive_more::Div)
-)]
+#[cfg_attr(any(test, feature = "testing"), derive(derive_more::Sum, derive_more::Div))]
 #[derive(
     derive_more::Display,
+    derive_more::Sub,
+    derive_more::Add,
+    derive_more::AddAssign,
     Clone,
     Copy,
     Debug,
@@ -53,6 +53,10 @@ impl GasAmount {
 
     pub fn checked_add(self, rhs: Self) -> Option<Self> {
         self.0.checked_add(rhs.0).map(Self)
+    }
+
+    pub fn checked_sub(self, rhs: Self) -> Option<Self> {
+        self.0.checked_sub(rhs.0).map(Self)
     }
 
     pub const fn nonzero_saturating_mul(self, rhs: NonzeroGasPrice) -> Fee {
