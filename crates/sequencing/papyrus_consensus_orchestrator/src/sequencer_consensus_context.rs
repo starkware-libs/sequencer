@@ -39,7 +39,6 @@ use starknet_api::block::{
     NonzeroGasPrice,
 };
 use starknet_api::executable_transaction::Transaction as ExecutableTransaction;
-use starknet_api::transaction::Transaction;
 use starknet_batcher_types::batcher_types::{
     DecisionReachedInput,
     GetProposalContent,
@@ -132,7 +131,6 @@ impl SequencerConsensusContext {
 #[async_trait]
 impl ConsensusContext for SequencerConsensusContext {
     // TODO(guyn): Switch to ProposalPart when done with the streaming integration.
-    type ProposalChunk = Vec<Transaction>;
     type ProposalPart = ProposalPart;
 
     async fn build_proposal(
