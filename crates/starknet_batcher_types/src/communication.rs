@@ -14,6 +14,7 @@ use starknet_sequencer_infra::component_definitions::{
     ComponentClient,
     ComponentRequestAndResponseSender,
 };
+use starknet_state_sync_types::state_sync_types::SyncBlock;
 use thiserror::Error;
 
 use crate::batcher_types::{
@@ -68,6 +69,8 @@ pub trait BatcherClient: Send + Sync {
     /// Notifies the batcher that a decision has been reached.
     /// This closes the process of the given height, and the accepted proposal is committed.
     async fn decision_reached(&self, input: DecisionReachedInput) -> BatcherClientResult<()>;
+
+    async fn add_sync_block(&self, sync_block: SyncBlock) -> BatcherClientResult<()>;
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -78,6 +81,7 @@ pub enum BatcherRequest {
     SendProposalContent(SendProposalContentInput),
     StartHeight(StartHeightInput),
     DecisionReached(DecisionReachedInput),
+    AddSyncBlock(SyncBlock),
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -88,6 +92,7 @@ pub enum BatcherResponse {
     SendProposalContent(BatcherResult<SendProposalContentResponse>),
     StartHeight(BatcherResult<()>),
     DecisionReached(BatcherResult<()>),
+    AddSyncBlock(BatcherResult<()>),
 }
 
 #[derive(Clone, Debug, Error)]
@@ -158,5 +163,11 @@ where
             BatcherClientError,
             BatcherError
         )
+    }
+
+    async fn add_sync_block(&self, sync_block: SyncBlock) -> BatcherClientResult<()> {
+        let request = BatcherRequest::AddSyncBlock(sync_block);
+        let response = self.send(request).await;
+        handle_response_variants!(BatcherResponse, AddSyncBlock, BatcherClientError, BatcherError)
     }
 }

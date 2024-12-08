@@ -20,6 +20,7 @@ papyrus_proc_macros.workspace = true
 serde = { workspace = true, features = ["derive"] }
 starknet_api.workspace = true
 starknet_sequencer_infra.workspace = true
+starknet_state_sync_types.workspace = true
 thiserror.workspace = true
 
 
