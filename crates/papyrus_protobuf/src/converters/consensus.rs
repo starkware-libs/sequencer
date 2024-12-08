@@ -24,6 +24,7 @@ use crate::consensus::{
 use crate::converters::ProtobufConversionError;
 use crate::{auto_impl_into_and_try_from_vec_u8, protobuf};
 
+// TODO(guyn): remove this once we integrate ProposalPart everywhere.
 impl TryFrom<protobuf::Proposal> for Proposal {
     type Error = ProtobufConversionError;
 
