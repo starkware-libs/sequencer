@@ -63,6 +63,16 @@ pub trait ProposalManagerTrait: Send + Sync {
         proposal_id: ProposalId,
     ) -> ProposalResult<ProposalOutput>;
 
+    #[allow(dead_code)]
+    async fn get_active_proposal(&self) -> Option<ProposalId>;
+
+    #[allow(dead_code)]
+    async fn get_completed_proposals(
+        &self,
+    ) -> Arc<Mutex<HashMap<ProposalId, ProposalResult<ProposalOutput>>>>;
+
+    async fn await_active_proposal(&mut self) -> bool;
+
     async fn get_proposal_status(&self, proposal_id: ProposalId) -> InternalProposalStatus;
 
     async fn await_proposal_commitment(
@@ -162,6 +172,26 @@ impl ProposalManagerTrait for ProposalManager {
             .ok_or(GetProposalResultError::ProposalDoesNotExist { proposal_id })?
     }
 
+    async fn get_active_proposal(&self) -> Option<ProposalId> {
+        *self.active_proposal.lock().await
+    }
+
+    async fn get_completed_proposals(
+        &self,
+    ) -> Arc<Mutex<HashMap<ProposalId, ProposalResult<ProposalOutput>>>> {
+        self.executed_proposals.clone()
+    }
+
+    // Awaits the active proposal.
+    // Returns true if there was an active proposal, and false otherwise.
+    async fn await_active_proposal(&mut self) -> bool {
+        if let Some(proposal_task) = self.active_proposal_task.take() {
+            proposal_task.join_handle.await.ok();
+            return true;
+        }
+        false
+    }
+
     // Returns None if the proposal does not exist, otherwise, returns the status of the proposal.
     async fn get_proposal_status(&self, proposal_id: ProposalId) -> InternalProposalStatus {
         match self.executed_proposals.lock().await.get(&proposal_id) {
@@ -243,16 +273,6 @@ impl ProposalManager {
         debug!("Set proposal {} as the one being generated.", proposal_id);
         *active_proposal = Some(proposal_id);
         Ok(())
-    }
-
-    // Awaits the active proposal.
-    // Returns true if there was an active proposal, and false otherwise.
-    pub async fn await_active_proposal(&mut self) -> bool {
-        if let Some(proposal_task) = self.active_proposal_task.take() {
-            proposal_task.join_handle.await.ok();
-            return true;
-        }
-        false
     }
 
     // Ends the current active proposal.

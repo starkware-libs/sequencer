@@ -580,6 +580,14 @@ trait ProposalManagerTraitWrapper: Send + Sync {
         proposal_id: ProposalId,
     ) -> BoxFuture<'_, ProposalResult<ProposalOutput>>;
 
+    fn wrap_get_active_proposal(&self) -> BoxFuture<'_, Option<ProposalId>>;
+
+    fn wrap_get_completed_proposals(
+        &self,
+    ) -> BoxFuture<'_, Arc<tokio::sync::Mutex<HashMap<ProposalId, ProposalResult<ProposalOutput>>>>>;
+
+    fn wrap_await_active_proposal(&mut self) -> BoxFuture<'_, bool>;
+
     fn wrap_get_proposal_status(
         &self,
         proposal_id: ProposalId,
@@ -611,6 +619,20 @@ impl<T: ProposalManagerTraitWrapper> ProposalManagerTrait for T {
         proposal_id: ProposalId,
     ) -> ProposalResult<ProposalOutput> {
         self.wrap_take_proposal_result(proposal_id).await
+    }
+
+    async fn get_active_proposal(&self) -> Option<ProposalId> {
+        self.wrap_get_active_proposal().await
+    }
+
+    async fn get_completed_proposals(
+        &self,
+    ) -> Arc<tokio::sync::Mutex<HashMap<ProposalId, ProposalResult<ProposalOutput>>>> {
+        self.wrap_get_completed_proposals().await
+    }
+
+    async fn await_active_proposal(&mut self) -> bool {
+        self.wrap_await_active_proposal().await
     }
 
     async fn get_proposal_status(&self, proposal_id: ProposalId) -> InternalProposalStatus {
