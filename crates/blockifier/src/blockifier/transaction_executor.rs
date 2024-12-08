@@ -16,6 +16,7 @@ use crate::context::BlockContext;
 use crate::state::cached_state::{CachedState, CommitmentStateDiff, TransactionalState};
 use crate::state::errors::StateError;
 use crate::state::state_api::{StateReader, StateResult};
+use crate::state::stateful_compression::insert_aliases;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::TransactionExecutionInfo;
 use crate::transaction::transaction_execution::Transaction;
@@ -166,13 +167,12 @@ impl<S: StateReader> TransactionExecutor<S> {
             .collect::<TransactionExecutorResult<_>>()?;
 
         log::debug!("Final block weights: {:?}.", self.bouncer.get_accumulated_weights());
+        let mut block_state = self.block_state.take().expect(BLOCK_STATE_ACCESS_ERR);
+        if self.block_context.versioned_constants.enable_stateful_compression {
+            insert_aliases(&mut block_state)?;
+        }
         Ok((
-            self.block_state
-                .as_mut()
-                .expect(BLOCK_STATE_ACCESS_ERR)
-                .to_state_diff()?
-                .state_maps
-                .into(),
+            block_state.to_state_diff()?.state_maps.into(),
             visited_segments,
             *self.bouncer.get_accumulated_weights(),
         ))
