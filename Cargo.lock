@@ -7607,7 +7607,6 @@ dependencies = [
 name = "papyrus_protobuf"
 version = "0.0.0"
 dependencies = [
- "futures",
  "indexmap 2.6.0",
  "lazy_static",
  "papyrus_common",
