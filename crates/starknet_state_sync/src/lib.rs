@@ -4,7 +4,7 @@ pub mod runner;
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use futures::SinkExt;
-use starknet_sequencer_infra::component_definitions::ComponentRequestHandler;
+use starknet_sequencer_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
 use starknet_sequencer_infra::component_server::{LocalComponentServer, RemoteComponentServer};
 use starknet_state_sync_types::communication::{StateSyncRequest, StateSyncResponse};
 use starknet_state_sync_types::errors::StateSyncError;
@@ -42,3 +42,5 @@ impl ComponentRequestHandler<StateSyncRequest, StateSyncResponse> for StateSync 
 pub type LocalStateSyncServer =
     LocalComponentServer<StateSync, StateSyncRequest, StateSyncResponse>;
 pub type RemoteStateSyncServer = RemoteComponentServer<StateSyncRequest, StateSyncResponse>;
+
+impl ComponentStarter for StateSync {}

@@ -383,6 +383,13 @@ pub async fn run_component_servers(servers: SequencerNodeServers) -> anyhow::Res
     // MempoolP2pRunner server.
     let mempool_p2p_runner_future = get_server_future(servers.wrapper_servers.mempool_p2p_runner);
 
+    // StateSync servers.
+    let local_state_sync_future = get_server_future(servers.local_servers.state_sync);
+    let remote_state_sync_future = get_server_future(servers.remote_servers.state_sync);
+
+    // StateSyncRunner server.
+    let state_sync_runner_future = get_server_future(servers.wrapper_servers.state_sync_runner);
+
     // Start servers.
     let local_batcher_handle = tokio::spawn(local_batcher_future);
     let remote_batcher_handle = tokio::spawn(remote_batcher_future);
@@ -396,6 +403,9 @@ pub async fn run_component_servers(servers: SequencerNodeServers) -> anyhow::Res
     let local_mempool_p2p_propagator_handle = tokio::spawn(local_mempool_p2p_propagator_future);
     let remote_mempool_p2p_propagator_handle = tokio::spawn(remote_mempool_p2p_propagator_future);
     let mempool_p2p_runner_handle = tokio::spawn(mempool_p2p_runner_future);
+    let local_state_sync_handle = tokio::spawn(local_state_sync_future);
+    let remote_state_sync_handle = tokio::spawn(remote_state_sync_future);
+    let state_sync_runner_handle = tokio::spawn(state_sync_runner_future);
 
     let result = tokio::select! {
         res = local_batcher_handle => {
@@ -444,6 +454,18 @@ pub async fn run_component_servers(servers: SequencerNodeServers) -> anyhow::Res
         }
         res = mempool_p2p_runner_handle => {
             error!("Mempool P2P Runner Server stopped.");
+            res?
+        }
+        res = local_state_sync_handle => {
+            error!("Local State Sync Server stopped.");
+            res?
+        }
+        res = remote_state_sync_handle => {
+            error!("Remote State Sync Server stopped.");
+            res?
+        }
+        res = state_sync_runner_handle => {
+            error!("State Sync Runner Server stopped.");
             res?
         }
     };
