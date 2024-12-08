@@ -31,12 +31,12 @@ pub fn execute_entry_point_call(
     let builtin_costs = BuiltinCosts {
         // todo(rodrigo): Unsure of what value `const` means, but 1 is the right value.
         r#const: 1,
-        pedersen: gas_costs.base.pedersen_gas_cost,
-        bitwise: gas_costs.base.bitwise_builtin_gas_cost,
-        ecop: gas_costs.base.ecop_gas_cost,
-        poseidon: gas_costs.base.poseidon_gas_cost,
-        add_mod: gas_costs.base.add_mod_gas_cost,
-        mul_mod: gas_costs.base.mul_mod_gas_cost,
+        pedersen: gas_costs.builtins.pedersen_gas_cost,
+        bitwise: gas_costs.builtins.bitwise_builtin_gas_cost,
+        ecop: gas_costs.builtins.ecop_gas_cost,
+        poseidon: gas_costs.builtins.poseidon_gas_cost,
+        add_mod: gas_costs.builtins.add_mod_gas_cost,
+        mul_mod: gas_costs.builtins.mul_mod_gas_cost,
     };
 
     let execution_result = compiled_class.executor.run(

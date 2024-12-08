@@ -73,15 +73,17 @@
         "default_entry_point_selector": 0,
         "stored_block_hash_buffer": 10,
         "step_gas_cost": 100,
-        "range_check_gas_cost": 70,
-        "keccak_builtin_gas_cost": 0,
-        "pedersen_gas_cost": 0,
-        "bitwise_builtin_gas_cost": 0,
-        "ecop_gas_cost": 0,
-        "poseidon_gas_cost": 0,
-        "add_mod_gas_cost": 0,
-        "mul_mod_gas_cost": 0,
-        "ecdsa_gas_cost": 0,
+        "builtin_gas_costs": {
+            "range_check_gas_cost": 70,
+            "keccak_builtin_gas_cost": 0,
+            "pedersen_gas_cost": 0,
+            "bitwise_builtin_gas_cost": 0,
+            "ecop_gas_cost": 0,
+            "poseidon_gas_cost": 0,
+            "add_mod_gas_cost": 0,
+            "mul_mod_gas_cost": 0,
+            "ecdsa_gas_cost": 0
+        },
         "os_contract_addresses": {
             "block_hash_contract_address": 1,
             "alias_contract_address": 2,
@@ -100,11 +102,6 @@
         "fee_transfer_gas_cost": {
             "entry_point_initial_budget": 1,
             "step_gas_cost": 600
-        },
-        "transaction_gas_cost": {
-            "entry_point_initial_budget": 2,
-            "fee_transfer_gas_cost": 1,
-            "step_gas_cost": 1100
         },
         "error_block_number_out_of_range": "Block number out of range",
         "error_out_of_gas": "Out of gas",
