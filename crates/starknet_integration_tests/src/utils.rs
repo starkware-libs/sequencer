@@ -8,7 +8,10 @@ use blockifier::test_utils::{CairoVersion, RunnableCairo1};
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use papyrus_consensus::config::ConsensusConfig;
 use papyrus_consensus::types::ValidatorId;
-use papyrus_network::network_manager::test_utils::create_network_configs_connected_to_broadcast_channels;
+use papyrus_network::network_manager::test_utils::{
+    create_connected_network_configs,
+    create_network_configs_connected_to_broadcast_channels,
+};
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{ProposalPart, StreamMessage};
 use papyrus_storage::StorageConfig;
@@ -49,6 +52,7 @@ pub async fn create_config(
     rpc_server_addr: SocketAddr,
     batcher_storage_config: StorageConfig,
     mut consensus_manager_config: ConsensusManagerConfig,
+    mempool_p2p_config: MempoolP2pConfig,
 ) -> (SequencerNodeConfig, RequiredParams) {
     set_validator_id(&mut consensus_manager_config, sequencer_index);
     let fee_token_addresses = chain_info.fee_token_addresses.clone();
@@ -56,8 +60,6 @@ pub async fn create_config(
     let gateway_config = create_gateway_config(chain_info.clone()).await;
     let http_server_config = create_http_server_config().await;
     let rpc_state_reader_config = test_rpc_state_reader_config(rpc_server_addr);
-    let mempool_p2p_config =
-        create_mempool_p2p_config(sequencer_index, chain_info.chain_id.clone());
     let monitoring_endpoint_config = create_monitoring_endpoint_config(sequencer_index);
 
     (
@@ -125,6 +127,16 @@ pub fn test_rpc_state_reader_config(rpc_server_addr: SocketAddr) -> RpcStateRead
         url: format!("http://{rpc_server_addr:?}/rpc/{RPC_SPEC_VERSION}"),
         json_rpc_version: JSON_RPC_VERSION.to_string(),
     }
+}
+
+pub fn create_mempool_p2p_configs(n_mempools: usize, chain_id: ChainId) -> Vec<MempoolP2pConfig> {
+    create_connected_network_configs(n_mempools)
+        .into_iter()
+        .map(|mut network_config| {
+            network_config.chain_id = chain_id.clone();
+            MempoolP2pConfig { network_config, ..Default::default() }
+        })
+        .collect()
 }
 
 /// Creates a multi-account transaction generator for integration tests.
@@ -260,16 +272,6 @@ fn set_validator_id(consensus_manager_config: &mut ConsensusManagerConfig, seque
             + Felt::from(sequencer_index),
     )
     .unwrap();
-}
-
-fn create_mempool_p2p_config(sequencer_index: usize, chain_id: ChainId) -> MempoolP2pConfig {
-    let mut config = MempoolP2pConfig::default();
-    // When running multiple sequencers on the same machine, we need to make sure their ports are
-    // different. Use the sequencer_index to differentiate between them.
-    config.network_config.tcp_port += u16::try_from(sequencer_index).unwrap();
-    config.network_config.quic_port += u16::try_from(sequencer_index).unwrap();
-    config.network_config.chain_id = chain_id;
-    config
 }
 
 fn create_monitoring_endpoint_config(sequencer_index: usize) -> MonitoringEndpointConfig {
