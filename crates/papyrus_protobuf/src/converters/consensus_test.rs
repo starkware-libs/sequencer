@@ -66,6 +66,7 @@ fn convert_stream_message_to_vec_u8_and_back() {
     assert_eq!(stream_message, res_data);
 }
 
+// TODO(guyn): this can be removed once ConsensusMessage is taken out.
 #[test]
 fn convert_consensus_message_to_vec_u8_and_back() {
     let mut rng = get_rng();
