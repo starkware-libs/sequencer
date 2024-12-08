@@ -227,3 +227,7 @@ pub fn create_batcher_config(
         ..Default::default()
     }
 }
+
+pub fn run_integration_test() -> bool {
+    std::env::var("SEQUENCER_INTEGRATION_TESTS").is_ok()
+}
