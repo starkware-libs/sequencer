@@ -10,7 +10,7 @@ use papyrus_network::network_manager::test_utils::{
 };
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
-use papyrus_protobuf::consensus::{ConsensusMessage, Proposal, StreamMessage, StreamMessageBody};
+use papyrus_protobuf::consensus::{StreamMessage, StreamMessageBody};
 use papyrus_test_utils::{get_rng, GetTestInstance};
 
 use super::{MessageId, StreamHandler, StreamId};
@@ -20,16 +20,18 @@ const CHANNEL_SIZE: usize = 100;
 
 #[cfg(test)]
 mod tests {
+    use papyrus_protobuf::consensus::{ProposalInit, ProposalPart};
+
     use super::*;
 
     fn make_test_message(
         stream_id: StreamId,
         message_id: MessageId,
         fin: bool,
-    ) -> StreamMessage<ConsensusMessage> {
+    ) -> StreamMessage<ProposalPart> {
         let content = match fin {
             true => StreamMessageBody::Fin,
-            false => StreamMessageBody::Content(ConsensusMessage::Proposal(Proposal::default())),
+            false => StreamMessageBody::Content(ProposalPart::Init(ProposalInit::default())),
         };
         StreamMessage { message: content, stream_id, message_id }
     }
@@ -47,24 +49,21 @@ mod tests {
     }
 
     async fn send(
-        sender: &mut MockBroadcastedMessagesSender<StreamMessage<ConsensusMessage>>,
+        sender: &mut MockBroadcastedMessagesSender<StreamMessage<ProposalPart>>,
         metadata: &BroadcastedMessageMetadata,
-        msg: StreamMessage<ConsensusMessage>,
+        msg: StreamMessage<ProposalPart>,
     ) {
         sender.send((msg, metadata.clone())).await.unwrap();
     }
 
     #[allow(clippy::type_complexity)]
     fn setup_test() -> (
-        StreamHandler<ConsensusMessage>,
-        MockBroadcastedMessagesSender<StreamMessage<ConsensusMessage>>,
-        mpsc::Receiver<mpsc::Receiver<ConsensusMessage>>,
+        StreamHandler<ProposalPart>,
+        MockBroadcastedMessagesSender<StreamMessage<ProposalPart>>,
+        mpsc::Receiver<mpsc::Receiver<ProposalPart>>,
         BroadcastedMessageMetadata,
-        mpsc::Sender<(StreamId, mpsc::Receiver<ConsensusMessage>)>,
-        futures::stream::Map<
-            mpsc::Receiver<Vec<u8>>,
-            fn(Vec<u8>) -> StreamMessage<ConsensusMessage>,
-        >,
+        mpsc::Sender<(StreamId, mpsc::Receiver<ProposalPart>)>,
+        futures::stream::Map<mpsc::Receiver<Vec<u8>>, fn(Vec<u8>) -> StreamMessage<ProposalPart>>,
     ) {
         // The outbound_sender is the network connector for broadcasting messages.
         // The network_broadcast_receiver is used to catch those messages in the test.
@@ -81,7 +80,7 @@ mod tests {
         // The receiver goes into StreamHandler, sender is used by the test (as mock Consensus).
         // Note that each new channel comes in a tuple with (stream_id, receiver).
         let (outbound_channel_sender, outbound_channel_receiver) =
-            mpsc::channel::<(StreamId, mpsc::Receiver<ConsensusMessage>)>(CHANNEL_SIZE);
+            mpsc::channel::<(StreamId, mpsc::Receiver<ProposalPart>)>(CHANNEL_SIZE);
 
         // The network_sender_to_inbound is the sender of the mock network, that is used by the
         // test to send messages into the StreamHandler (from the mock network).
@@ -99,7 +98,7 @@ mod tests {
         // each stream. The inbound_channel_receiver is given to the "mock consensus" that
         // gets new channels and inbounds to them.
         let (inbound_channel_sender, inbound_channel_receiver) =
-            mpsc::channel::<mpsc::Receiver<ConsensusMessage>>(CHANNEL_SIZE);
+            mpsc::channel::<mpsc::Receiver<ProposalPart>>(CHANNEL_SIZE);
 
         // TODO(guyn): We should also give the broadcast_topic_client to the StreamHandler
         // This will allow reporting to the network things like bad peers.
@@ -470,7 +469,7 @@ mod tests {
         broadcast_channel_sender.send((stream_id1, receiver1)).await.unwrap();
 
         // Send a message on the stream.
-        let message1 = ConsensusMessage::Proposal(Proposal::default());
+        let message1 = ProposalPart::Init(ProposalInit::default());
         sender1.send(message1.clone()).await.unwrap();
 
         // Run the loop for a short duration to process the message.
@@ -497,7 +496,7 @@ mod tests {
         assert_eq!(stream_handler.outbound_stream_number[&stream_id1], 1);
 
         // Send another message on the same stream.
-        let message2 = ConsensusMessage::Proposal(Proposal::default());
+        let message2 = ProposalPart::Init(ProposalInit::default());
         sender1.send(message2.clone()).await.unwrap();
 
         // Run the loop for a short duration to process the message.
@@ -522,7 +521,7 @@ mod tests {
         broadcast_channel_sender.send((stream_id2, receiver2)).await.unwrap();
 
         // Send a message on the stream.
-        let message3 = ConsensusMessage::Proposal(Proposal::default());
+        let message3 = ProposalPart::Init(ProposalInit::default());
         sender2.send(message3.clone()).await.unwrap();
 
         // Run the loop for a short duration to process the message.
