@@ -1,6 +1,7 @@
 use std::collections::HashSet;
-use std::env;
 use std::fs::File;
+use std::path::{Path, PathBuf};
+use std::{env, fs};
 
 use assert_json_diff::assert_json_eq;
 use assert_matches::assert_matches;
@@ -68,8 +69,14 @@ fn test_default_config_file_is_up_to_date() {
     let from_default_config_file: serde_json::Value =
         serde_json::from_reader(File::open(DEFAULT_CONFIG_PATH).unwrap()).unwrap();
 
+    // The validate function will fail if the data directory does not exist. we assert the directory
+    // does not exist to prevent deleting a non related folder with the same path.
+    assert!(!Path::new("data").exists());
+    fs::create_dir_all("data").expect("Should make a temporary `data` directory");
+
     let default_config = SequencerNodeConfig::default();
     assert_matches!(default_config.validate(), Ok(()));
+    fs::remove_dir("data").unwrap();
 
     // Create a temporary file and dump the default config to it.
     let mut tmp_file_path = env::temp_dir();
@@ -105,8 +112,11 @@ fn test_config_parsing() {
     let required_params = RequiredParams::create_for_testing();
     let args = create_test_config_load_args(required_params);
     let config = SequencerNodeConfig::load_and_process(args);
-    let config = config.expect("Parsing function failed.");
+    let mut config = config.expect("Parsing function failed.");
 
+    // The validate function will fail if the data directory does not exist so we change the path to
+    // point to an existing directory.
+    config.state_sync_config.storage_config.db_config.path_prefix = PathBuf::from(".");
     let result = config_validate(&config);
     assert_matches!(result, Ok(_), "Expected Ok but got {:?}", result);
 }
