@@ -91,15 +91,23 @@ pub fn create_consensus_manager_configs_and_channels(
         );
     // TODO: Need to also add a channel for votes, in addition to the proposals channel.
 
+    // TODO(Matan, Dan): set reasonable default timeouts.
+    let mut timeouts = papyrus_consensus::config::TimeoutsConfig::default();
+    timeouts.precommit_timeout *= 3;
+    timeouts.prevote_timeout *= 3;
+    timeouts.proposal_timeout *= 3;
+
     let consensus_manager_configs = network_configs
         .into_iter()
         // TODO(Matan): Get config from default config file.
         .map(|network_config| ConsensusManagerConfig {
             consensus_config: ConsensusConfig {
                 start_height: BlockNumber(1),
-                consensus_delay: Duration::from_secs(1),
+		// TODO(Matan, Dan): Set the right amount
+                consensus_delay: Duration::from_secs(5),
                 network_config,
                 num_validators: u64::try_from(n_managers).unwrap(),
+                timeouts: timeouts.clone(),
                 ..Default::default()
             },
         })

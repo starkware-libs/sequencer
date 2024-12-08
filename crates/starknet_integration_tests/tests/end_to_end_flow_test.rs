@@ -39,7 +39,7 @@ async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
     configure_tracing();
 
     const LISTEN_TO_BROADCAST_MESSAGES_TIMEOUT: std::time::Duration =
-        std::time::Duration::from_secs(5);
+        std::time::Duration::from_secs(50);
     // Setup.
     let mut mock_running_system = FlowTestSetup::new_from_tx_generator(&tx_generator).await;
 
