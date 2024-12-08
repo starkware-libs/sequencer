@@ -391,6 +391,8 @@ impl SequencerConsensusContext {
         let notify = Arc::new(Notify::new());
         let notify_clone = Arc::clone(&notify);
 
+        // TODO(Matan): this is a temporary solution to the timeout issue.
+        let timeout = timeout + timeout;
         let handle = tokio::spawn(
             async move {
                 let validate_fut = stream_validate_proposal(

@@ -77,6 +77,9 @@ impl FlowTestSetup {
     }
 
     pub async fn assert_add_tx_success(&self, tx: RpcTransaction) -> TransactionHash {
+        // TODO(Yair): this is a temporary solution to make sure both the proposer and the validator
+        // have the transactions.
+        self.validator.add_tx_http_client.assert_add_tx_success(tx.clone()).await;
         self.proposer.add_tx_http_client.assert_add_tx_success(tx).await
     }
 
