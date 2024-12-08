@@ -159,8 +159,8 @@ type SharedNonceManager = Rc<RefCell<NonceManager>>;
 /// let some_account_type =
 ///     FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm));
 /// // Initialize multiple accounts, these can be any account type in `FeatureContract`.
-/// tx_generator.register_account_for_flow_test(some_account_type.clone());
-/// tx_generator.register_account_for_flow_test(some_account_type);
+/// tx_generator.register_account(some_account_type.clone());
+/// tx_generator.register_account(some_account_type);
 ///
 /// let account_0_tx_with_nonce_0 = tx_generator.account_with_id(0).generate_invoke_with_tip(1);
 /// let account_1_tx_with_nonce_0 = tx_generator.account_with_id(1).generate_invoke_with_tip(3);
@@ -201,13 +201,6 @@ impl MultiAccountTransactionGenerator {
                  initialization array. "
             )
         })
-    }
-
-    // TODO(deploy_account_support): once we support deploy account in tests, remove this method and
-    // only use new_account_default in tests. In particular, deploy account txs must be then sent to
-    // the GW via the add tx endpoint just like other txs.
-    pub fn register_account_for_flow_test(&mut self, account_contract: FeatureContract) {
-        self.register_account(account_contract);
     }
 
     pub fn accounts(&self) -> Vec<Contract> {
