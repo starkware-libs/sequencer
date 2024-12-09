@@ -304,7 +304,7 @@ fn create_wrapper_servers(
     config: &SequencerNodeConfig,
     components: &mut SequencerNodeComponents,
 ) -> WrapperServers {
-    let consensus_manager_server = create_wrapper_server!(
+    let consensus_manager_server = create_wrapper_server_for_active_component!(
         &config.components.consensus_manager.execution_mode,
         components.consensus_manager
     );

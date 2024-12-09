@@ -131,7 +131,7 @@ pub async fn get_http_only_component_config(gateway_socket: SocketAddr) -> Compo
         gateway: get_remote_component_config(gateway_socket),
         monitoring_endpoint: Default::default(),
         batcher: get_disabled_component_config(),
-        consensus_manager: get_disabled_component_config(),
+        consensus_manager: ActiveComponentExecutionConfig::disabled(),
         mempool: get_disabled_component_config(),
         mempool_p2p: get_disabled_component_config(),
         state_sync: get_disabled_component_config(),
