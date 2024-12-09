@@ -52,6 +52,10 @@ impl ComponentStarter for StateSyncRunner {
                         StateSyncRequest::GetBlock(block_number) => {
                             StateSyncResponse::GetBlock(self.get_block(block_number))
                         }
+                        //TODO(alonl): fill this
+                        StateSyncRequest::AddNewInternalBlock(_sync_block) => {
+                            StateSyncResponse::AddNewInternalBlock(Ok(()))
+                        }
                     };
 
                     sender.send(response).map_err(|_| ComponentError::InternalComponentError)?
