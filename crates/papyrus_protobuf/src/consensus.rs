@@ -4,17 +4,6 @@ use starknet_api::transaction::Transaction;
 
 use crate::converters::ProtobufConversionError;
 
-// TODO(guyn): remove this once we integrate ProposalPart everywhere.
-#[derive(Debug, Default, Hash, Clone, Eq, PartialEq)]
-pub struct Proposal {
-    pub height: u64,
-    pub round: u32,
-    pub proposer: ContractAddress,
-    pub transactions: Vec<Transaction>,
-    pub block_hash: BlockHash,
-    pub valid_round: Option<u32>,
-}
-
 #[derive(Debug, Default, Hash, Clone, Eq, PartialEq)]
 pub enum VoteType {
     Prevote,
@@ -29,22 +18,6 @@ pub struct Vote {
     pub round: u32,
     pub block_hash: Option<BlockHash>,
     pub voter: ContractAddress,
-}
-
-// TODO: remove this once we are sure everything works using just Vote.
-#[derive(Debug, Clone, Hash, Eq, PartialEq)]
-pub enum ConsensusMessage {
-    Proposal(Proposal), // To be deprecated
-    Vote(Vote),
-}
-
-impl ConsensusMessage {
-    pub fn height(&self) -> u64 {
-        match self {
-            ConsensusMessage::Proposal(proposal) => proposal.height,
-            ConsensusMessage::Vote(vote) => vote.height,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
