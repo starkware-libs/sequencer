@@ -38,7 +38,7 @@ use starknet_state_sync_types::communication::{
 };
 
 use crate::communication::SequencerNodeCommunication;
-use crate::config::component_execution_config::ComponentExecutionMode;
+use crate::config::component_execution_config::ReactiveComponentExecutionMode;
 use crate::config::node_config::SequencerNodeConfig;
 
 pub struct SequencerNodeClients {
@@ -178,7 +178,7 @@ impl SequencerNodeClients {
 /// # Arguments
 ///
 /// * $execution_mode - A reference to the component's execution mode, i.e., type
-///   &ComponentExecutionMode.
+///   &ReactiveComponentExecutionMode.
 /// * $local_client_type - The type for the local client to create, e.g., LocalBatcherClient. The
 ///   client type should have a function $local_client_type::new(tx: $channel_expr).
 /// * $remote_client_type - The type for the remote client to create, e.g., RemoteBatcherClient. The
@@ -196,7 +196,7 @@ impl SequencerNodeClients {
 /// # Example
 ///
 /// ```rust,ignore
-/// // Assuming ComponentExecutionMode, channels, and remote client configuration are defined, and
+/// // Assuming ReactiveComponentExecutionMode, channels, and remote client configuration are defined, and
 /// // LocalBatcherClient and RemoteBatcherClient have new methods that accept a channel and config,
 /// // respectively.
 /// let batcher_client: Option<Client<BatcherRequest, BatcherResponse>> = create_client!(
@@ -221,19 +221,19 @@ macro_rules! create_client {
         $remote_client_config:expr
     ) => {
         match *$execution_mode {
-            ComponentExecutionMode::LocalExecutionWithRemoteDisabled
-            | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
+            ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
+            | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
                 let local_client = Some(<$local_client_type>::new($channel_expr));
                 Some(Client::new(local_client, None))
             }
-            ComponentExecutionMode::Remote => match $remote_client_config {
+            ReactiveComponentExecutionMode::Remote => match $remote_client_config {
                 Some(ref config) => {
                     let remote_client = Some(<$remote_client_type>::new(config.clone()));
                     Some(Client::new(None, remote_client))
                 }
                 None => None,
             },
-            ComponentExecutionMode::Disabled => None,
+            ReactiveComponentExecutionMode::Disabled => None,
         }
     };
 }

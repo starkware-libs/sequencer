@@ -17,7 +17,10 @@ use starknet_sequencer_infra::component_definitions::{
 };
 use validator::Validate;
 
-use crate::config::component_execution_config::{ComponentExecutionConfig, ComponentExecutionMode};
+use crate::config::component_execution_config::{
+    ComponentExecutionConfig,
+    ReactiveComponentExecutionMode,
+};
 use crate::config::node_config::{
     SequencerNodeConfig,
     CONFIG_NON_POINTERS_WHITELIST,
@@ -26,16 +29,21 @@ use crate::config::node_config::{
 };
 use crate::config::test_utils::{create_test_config_load_args, RequiredParams};
 
-const LOCAL_EXECUTION_MODE: ComponentExecutionMode =
-    ComponentExecutionMode::LocalExecutionWithRemoteDisabled;
-const ENABLE_REMOTE_CONNECTION_MODE: ComponentExecutionMode =
-    ComponentExecutionMode::LocalExecutionWithRemoteEnabled;
+const LOCAL_EXECUTION_MODE: ReactiveComponentExecutionMode =
+    ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled;
+const ENABLE_REMOTE_CONNECTION_MODE: ReactiveComponentExecutionMode =
+    ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled;
 
 /// Test the validation of the struct ComponentExecutionConfig.
 /// Validates that execution mode of the component and the local/remote config are at sync.
 #[rstest]
-#[case::local(ComponentExecutionMode::Disabled, None, None, None)]
-#[case::local(ComponentExecutionMode::Remote, None, Some(RemoteClientConfig::default()), None)]
+#[case::local(ReactiveComponentExecutionMode::Disabled, None, None, None)]
+#[case::local(
+    ReactiveComponentExecutionMode::Remote,
+    None,
+    Some(RemoteClientConfig::default()),
+    None
+)]
 #[case::local(LOCAL_EXECUTION_MODE, Some(LocalServerConfig::default()), None, None)]
 #[case::remote(
     ENABLE_REMOTE_CONNECTION_MODE,
@@ -44,7 +52,7 @@ const ENABLE_REMOTE_CONNECTION_MODE: ComponentExecutionMode =
     Some(RemoteServerConfig::default())
 )]
 fn test_valid_component_execution_config(
-    #[case] execution_mode: ComponentExecutionMode,
+    #[case] execution_mode: ReactiveComponentExecutionMode,
     #[case] local_server_config: Option<LocalServerConfig>,
     #[case] remote_client_config: Option<RemoteClientConfig>,
     #[case] remote_server_config: Option<RemoteServerConfig>,
