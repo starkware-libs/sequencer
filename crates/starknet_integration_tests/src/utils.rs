@@ -25,9 +25,13 @@ use starknet_gateway::config::{
 };
 use starknet_http_server::config::HttpServerConfig;
 use starknet_sequencer_infra::test_utils::get_available_socket;
+use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::component_execution_config::ComponentExecutionMode;
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::config::test_utils::RequiredParams;
+
+use crate::config_utils::get_remote_flow_test_config;
+use crate::definitions::MockSystemMode;
 
 pub fn create_chain_info() -> ChainInfo {
     let mut chain_info = ChainInfo::create_for_testing();
@@ -41,6 +45,7 @@ pub async fn create_config(
     chain_info: ChainInfo,
     rpc_server_addr: SocketAddr,
     batcher_storage_config: StorageConfig,
+    mock_system_mode: MockSystemMode,
 ) -> (Vec<SequencerNodeConfig>, RequiredParams, BroadcastTopicChannels<StreamMessage<ProposalPart>>)
 {
     let fee_token_addresses = chain_info.fee_token_addresses.clone();
@@ -51,15 +56,24 @@ pub async fn create_config(
     let (mut consensus_manager_configs, consensus_proposals_channels) =
         create_consensus_manager_configs_and_channels(1);
     let consensus_manager_config = consensus_manager_configs.pop().unwrap();
-    (
-        vec![SequencerNodeConfig {
-            batcher_config,
-            consensus_manager_config,
-            gateway_config,
-            http_server_config,
-            rpc_state_reader_config,
+    let component_configs = match mock_system_mode {
+        MockSystemMode::Remote => get_remote_flow_test_config().await,
+        MockSystemMode::Local => async { vec![ComponentConfig::default()] }.await,
+    };
+    let sequencer_node_configs: Vec<SequencerNodeConfig> = component_configs
+        .iter()
+        .map(|component_config| SequencerNodeConfig {
+            batcher_config: batcher_config.clone(),
+            consensus_manager_config: consensus_manager_config.clone(),
+            gateway_config: gateway_config.clone(),
+            http_server_config: http_server_config.clone(),
+            rpc_state_reader_config: rpc_state_reader_config.clone(),
+            components: component_config.clone(),
             ..SequencerNodeConfig::default()
-        }],
+        })
+        .collect();
+    (
+        sequencer_node_configs,
         RequiredParams {
             chain_id: chain_info.chain_id,
             eth_fee_token_address: fee_token_addresses.eth_fee_token_address,
