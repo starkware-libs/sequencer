@@ -5,8 +5,8 @@ use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
-use super::cached_state::{ContractClassMapping, StateMaps};
-use crate::execution::contract_class::RunnableCompiledClass;
+use super::cached_state::{StateMaps, VersionedContractClassMapping};
+use crate::execution::contract_class::VersionedRunnableCompiledClass;
 use crate::state::errors::StateError;
 
 pub type StateResult<T> = Result<T, StateError>;
@@ -39,8 +39,11 @@ pub trait StateReader {
     /// Default: 0 (uninitialized class hash) for an uninitialized contract address.
     fn get_class_hash_at(&self, contract_address: ContractAddress) -> StateResult<ClassHash>;
 
-    /// Returns the compiled class of the given class hash.
-    fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass>;
+    /// Returns the versioned runnable compiled class of the given class hash.
+    fn get_compiled_class(
+        &self,
+        class_hash: ClassHash,
+    ) -> StateResult<VersionedRunnableCompiledClass>;
 
     /// Returns the compiled class hash of the given class hash.
     fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash>;
@@ -89,11 +92,11 @@ pub trait State: StateReader {
         class_hash: ClassHash,
     ) -> StateResult<()>;
 
-    /// Sets the given contract class under the given class hash.
+    /// Sets the given versioned contract class under the given class hash.
     fn set_contract_class(
         &mut self,
         class_hash: ClassHash,
-        contract_class: RunnableCompiledClass,
+        contract_class: VersionedRunnableCompiledClass,
     ) -> StateResult<()>;
 
     /// Sets the given compiled class hash under the given class hash.
@@ -114,7 +117,7 @@ pub trait UpdatableState: StateReader {
     fn apply_writes(
         &mut self,
         writes: &StateMaps,
-        class_hash_to_class: &ContractClassMapping,
+        class_hash_to_class: &VersionedContractClassMapping,
         visited_pcs: &HashMap<ClassHash, HashSet<usize>>,
     );
 }

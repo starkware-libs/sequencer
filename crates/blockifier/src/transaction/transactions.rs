@@ -25,6 +25,7 @@ use starknet_api::transaction::{
 
 use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::CallInfo;
+use crate::execution::contract_class::VersionedRunnableCompiledClass;
 use crate::execution::entry_point::{
     CallEntryPoint,
     CallType,
@@ -204,7 +205,23 @@ impl<S: State> Executable<S> for DeclareTransaction {
                     // We allow redeclaration of the class for backward compatibility.
                     // In the past, we allowed redeclaration of Cairo 0 contracts since there was
                     // no class commitment (so no need to check if the class is already declared).
-                    state.set_contract_class(class_hash, self.contract_class().try_into()?)?;
+                    let compiled_contract_class = self.contract_class();
+                    let versioned_compiled_contract_class = {
+                        match compiled_contract_class {
+                            starknet_api::contract_class::ContractClass::V0(_) => {
+                                VersionedRunnableCompiledClass::Cairo0(
+                                    compiled_contract_class.try_into()?,
+                                )
+                            }
+                            starknet_api::contract_class::ContractClass::V1(_) => {
+                                VersionedRunnableCompiledClass::Cairo1((
+                                    compiled_contract_class.try_into()?,
+                                    self.class_info.sierra_version.clone(),
+                                ))
+                            }
+                        }
+                    };
+                    state.set_contract_class(class_hash, versioned_compiled_contract_class)?;
                 }
             }
             starknet_api::transaction::DeclareTransaction::V2(DeclareTransactionV2 {
@@ -417,7 +434,21 @@ fn try_declare<S: State>(
     match state.get_compiled_class(class_hash) {
         Err(StateError::UndeclaredClassHash(_)) => {
             // Class is undeclared; declare it.
-            state.set_contract_class(class_hash, tx.contract_class().try_into()?)?;
+            let compiled_contract_class = tx.contract_class();
+            let versioned_compiled_contract_class = {
+                match compiled_contract_class {
+                    starknet_api::contract_class::ContractClass::V0(_) => {
+                        VersionedRunnableCompiledClass::Cairo0(compiled_contract_class.try_into()?)
+                    }
+                    starknet_api::contract_class::ContractClass::V1(_) => {
+                        VersionedRunnableCompiledClass::Cairo1((
+                            compiled_contract_class.try_into()?,
+                            tx.class_info.sierra_version.clone(),
+                        ))
+                    }
+                }
+            };
+            state.set_contract_class(class_hash, versioned_compiled_contract_class)?;
             if let Some(compiled_class_hash) = compiled_class_hash {
                 state.set_compiled_class_hash(class_hash, compiled_class_hash)?;
             }

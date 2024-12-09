@@ -71,13 +71,14 @@ fn global_contract_cache_update() {
 
     assert_eq!(block_executor.global_contract_cache.lock().cache_size(), 0);
 
-    let queried_contract_class = block_executor
+    let queried_contract_class: RunnableCompiledClass = block_executor
         .tx_executor()
         .block_state
         .as_ref()
         .expect(BLOCK_STATE_ACCESS_ERR)
         .get_compiled_class(class_hash)
-        .unwrap();
+        .unwrap()
+        .into();
 
     assert_eq!(queried_contract_class, contract_class);
     assert_eq!(block_executor.global_contract_cache.lock().cache_size(), 1);

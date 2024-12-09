@@ -15,7 +15,7 @@ use crate::concurrency::utils::lock_mutex_in_array;
 use crate::concurrency::versioned_state::ThreadSafeVersionedState;
 use crate::concurrency::TxIndex;
 use crate::context::BlockContext;
-use crate::state::cached_state::{ContractClassMapping, StateMaps, TransactionalState};
+use crate::state::cached_state::{StateMaps, TransactionalState, VersionedContractClassMapping};
 use crate::state::state_api::{StateReader, UpdatableState};
 use crate::transaction::objects::{TransactionExecutionInfo, TransactionExecutionResult};
 use crate::transaction::transaction_execution::Transaction;
@@ -32,7 +32,7 @@ pub struct ExecutionTaskOutput {
     pub reads: StateMaps,
     // TODO(Yoni): rename to state_diff.
     pub writes: StateMaps,
-    pub contract_classes: ContractClassMapping,
+    pub contract_classes: VersionedContractClassMapping,
     pub visited_pcs: HashMap<ClassHash, HashSet<usize>>,
     pub result: TransactionExecutionResult<TransactionExecutionInfo>,
 }
