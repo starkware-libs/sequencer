@@ -17,19 +17,13 @@ use starknet_api::block::BlockHash;
 use starknet_api::core::{ContractAddress, PatriciaKey};
 use tracing::{debug, instrument};
 
-/// Receiver used to help run simulations of consensus. It has 2 goals in mind:
-/// 1. Simulate network failures.
-/// 2. Make tests repeatable - This is challenging because simulations involve a noisy environment;
-///    so the actual network issues experienced may differ between 2 test runs.
-///     - We expect simulations to use fairly reliable networks. That means messages arriving in
-///       different order between runs will make up most of the actual noise between runs, as
-///       opposed to actual drops or corruption.
-///     - Tendermint is, to a large extent, unaffected by minor network reorderings. For instance it
-///       doesn't matter if prevotes arrive before or after the Proposal they are for.
-///     - This struct is therefore also designed not to be overly sensistive to message order. If
-///       message A was dropped by this struct in one run, it should be dropped in the rerun. This
-///       is as opposed to using a stateful RNG where the random number is a function of all the
-///       previous calls to the RNG.
+/// Receiver which can simulate network issues in a repeatable manner. Simulates drops and network
+/// corruption. The errors are meant to be repeatable regardless of the order of messages received.
+///
+/// Being indifferent to the order of messages on the network means that we don't have a state which
+/// changes across all messages. If we were truly stateless though we would treat resends of
+/// messages all the same, meaning that a dropped message would always be dropped. To avoid this we
+/// have the cache, which allows us to treat resends of a specific message differently.
 pub struct NetworkReceiver {
     pub broadcasted_messages_receiver: BroadcastTopicServer<ConsensusMessage>,
     // Cache is used so that repeat sends of a message can be processed differently. For example,
@@ -43,6 +37,14 @@ pub struct NetworkReceiver {
 }
 
 impl NetworkReceiver {
+    /// Creates a new NetworkReceiver.
+    ///
+    /// Inputs:
+    /// - `broadcasted_messages_receiver`: The receiver to listen to.
+    /// - `cache_size`: Determines the size of the cache. A small cache risks acting the same across
+    ///   resends of a given message.    /// - `seed`: Seed for the random number generator.
+    /// - `drop_probability`: Probability of dropping a message [0, 1].
+    /// - `invalid_probability`: Probability of making a message invalid [0, 1].
     pub fn new(
         broadcasted_messages_receiver: BroadcastTopicServer<ConsensusMessage>,
         cache_size: usize,

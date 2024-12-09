@@ -55,7 +55,7 @@ use starknet_batcher_types::batcher_types::{
 use starknet_batcher_types::communication::BatcherClient;
 use tokio::sync::Notify;
 use tokio::task::JoinHandle;
-use tracing::{debug, debug_span, error, info, trace, warn, Instrument};
+use tracing::{debug, debug_span, error, info, instrument, trace, warn, Instrument};
 
 // TODO(Dan, Matan): Remove this once and replace with real gas prices.
 const TEMPORARY_GAS_PRICES: GasPrices = GasPrices {
