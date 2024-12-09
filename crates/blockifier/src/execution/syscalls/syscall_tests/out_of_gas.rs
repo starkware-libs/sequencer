@@ -10,13 +10,14 @@ use crate::retdata;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, RunnableCairo1, BALANCE};
+#[cfg(feature = "cairo_native")]
+use crate::versioned_constants::VersionedConstants;
 
 #[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native; "Native"))]
 #[test_case(RunnableCairo1::Casm; "VM")]
 fn test_out_of_gas(runnable_version: RunnableCairo1) {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable_version));
-    let chain_info = &ChainInfo::create_for_testing();
-    let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1)]);
+    let mut state = test_state(&ChainInfo::create_for_testing(), BALANCE, &[(test_contract, 1)]);
 
     let key = felt!(1234_u16);
     let value = felt!(18_u8);
@@ -34,6 +35,43 @@ fn test_out_of_gas(runnable_version: RunnableCairo1) {
             // 'Out of gas'
             retdata: retdata![felt!["0x4f7574206f6620676173"]],
             gas_consumed: REQUIRED_GAS_STORAGE_READ_WRITE_TEST - 70,
+            failed: true,
+            ..Default::default()
+        }
+    );
+}
+
+#[cfg(feature = "cairo_native")]
+#[test]
+/// Tests that Native can handle deep recursion calls without overflowing the stack.
+/// Note that the recursive function must be complicated, since the compiler might transform
+/// simple recursions into loops. The tested function was manually tested with higher gas and
+/// reached stack overflow.
+///
+/// Also, there is no need to test the VM here since it doesn't use the stack.
+fn test_stack_overflow() {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native));
+    let mut state = test_state(&ChainInfo::create_for_testing(), BALANCE, &[(test_contract, 1)]);
+
+    let depth = felt!(1000000_u128);
+    // TODO(Aner): assert that the total tx limits are <= 3500M gas.
+    let max_n_steps_for_sierra_mode = 35_000_000;
+    let step_gas_cost =
+        VersionedConstants::latest_constants().os_constants.gas_costs.base.step_gas_cost;
+    let max_initial_gas_for_sierra_mode = max_n_steps_for_sierra_mode * step_gas_cost;
+    let entry_point_call = CallEntryPoint {
+        calldata: calldata![depth],
+        entry_point_selector: selector_from_name("test_stack_overflow"),
+        initial_gas: max_initial_gas_for_sierra_mode,
+        ..trivial_external_entry_point_new(test_contract)
+    };
+    let call_info = entry_point_call.execute_directly(&mut state).unwrap();
+    assert_eq!(
+        call_info.execution,
+        CallExecution {
+            // 'Out of gas'
+            retdata: retdata![felt!["0x4f7574206f6620676173"]],
+            gas_consumed: max_initial_gas_for_sierra_mode - 6590,
             failed: true,
             ..Default::default()
         }

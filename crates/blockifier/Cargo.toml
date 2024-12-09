@@ -10,7 +10,7 @@ description = "The transaction-executing component in the Starknet sequencer."
 workspace = true
 
 [features]
-cairo_native = ["dep:cairo-native", "starknet_sierra_compile/cairo_native"]
+cairo_native = ["dep:cairo-native", "dep:stacker", "starknet_sierra_compile/cairo_native"]
 jemalloc = ["dep:tikv-jemallocator"]
 reexecution = ["transaction_serde"]
 testing = ["rand", "rstest", "starknet_api/testing"]
@@ -49,6 +49,7 @@ semver.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
 sha2.workspace = true
+stacker = { workspace = true, optional = true }
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 starknet_sierra_compile = { workspace = true, optional = true }
