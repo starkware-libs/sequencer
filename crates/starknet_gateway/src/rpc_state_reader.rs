@@ -2,6 +2,7 @@ use blockifier::execution::contract_class::{
     CompiledClassV0,
     CompiledClassV1,
     RunnableCompiledClass,
+    VersionedRunnableCompiledClass,
 };
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
@@ -139,21 +140,29 @@ impl BlockifierStateReader for RpcStateReader {
         }
     }
 
-    fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
+    fn get_compiled_class(
+        &self,
+        class_hash: ClassHash,
+    ) -> StateResult<VersionedRunnableCompiledClass> {
         let get_compiled_class_params =
             GetCompiledClassParams { class_hash, block_id: self.block_id };
 
         let result =
             self.send_rpc_request("starknet_getCompiledContractClass", get_compiled_class_params)?;
-        let (contract_class, _): (CompiledContractClass, SierraVersion) =
+        let (contract_class, sierra_version): (CompiledContractClass, SierraVersion) =
             serde_json::from_value(result).map_err(serde_err_to_state_err)?;
-        match contract_class {
-            CompiledContractClass::V1(contract_class_v1) => Ok(RunnableCompiledClass::V1(
+        let runnable_contract_class = match contract_class {
+            CompiledContractClass::V1(contract_class_v1) => RunnableCompiledClass::V1(
                 CompiledClassV1::try_from(contract_class_v1).map_err(StateError::ProgramError)?,
-            )),
-            CompiledContractClass::V0(contract_class_v0) => Ok(RunnableCompiledClass::V0(
+            ),
+            CompiledContractClass::V0(contract_class_v0) => RunnableCompiledClass::V0(
                 CompiledClassV0::try_from(contract_class_v0).map_err(StateError::ProgramError)?,
-            )),
+            ),
+        };
+        if sierra_version == SierraVersion::DEPRECATED {
+            Ok(VersionedRunnableCompiledClass::Cairo0(runnable_contract_class))
+        } else {
+            Ok(VersionedRunnableCompiledClass::Cairo1((runnable_contract_class, sierra_version)))
         }
     }
 

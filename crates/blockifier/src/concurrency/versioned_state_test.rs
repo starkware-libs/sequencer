@@ -34,9 +34,9 @@ use crate::concurrency::TxIndex;
 use crate::context::BlockContext;
 use crate::state::cached_state::{
     CachedState,
-    ContractClassMapping,
     StateMaps,
     TransactionalState,
+    VersionedContractClassMapping,
 };
 use crate::state::errors::StateError;
 use crate::state::state_api::{State, StateReader, UpdatableState};
@@ -72,7 +72,7 @@ fn test_versioned_state_proxy() {
     let class_hash = class_hash!(27_u8);
     let another_class_hash = class_hash!(28_u8);
     let compiled_class_hash = compiled_class_hash!(29_u8);
-    let contract_class = test_contract.get_runnable_class();
+    let contract_class = test_contract.get_versioned_runnable_class();
 
     // Create the versioned state
     let cached_state = CachedState::from(DictStateReader {
@@ -117,7 +117,7 @@ fn test_versioned_state_proxy() {
     let compiled_class_hash_v18 = compiled_class_hash!(30_u8);
     let contract_class_v11 =
         FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm))
-            .get_runnable_class();
+            .get_versioned_runnable_class();
 
     versioned_state_proxys[3].state().apply_writes(
         3,
@@ -404,10 +404,11 @@ fn test_false_validate_reads_declared_contracts(
         ..Default::default()
     };
     let version_state_proxy = safe_versioned_state.pin_version(0);
-    let compiled_contract_calss =
+    let versioned_compiled_contract_class =
         FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm))
-            .get_runnable_class();
-    let class_hash_to_class = HashMap::from([(class_hash!(1_u8), compiled_contract_calss)]);
+            .get_versioned_runnable_class();
+    let class_hash_to_class =
+        HashMap::from([(class_hash!(1_u8), versioned_compiled_contract_class)]);
     version_state_proxy.state().apply_writes(0, &tx_0_writes, &class_hash_to_class);
     assert!(!safe_versioned_state.pin_version(1).validate_reads(&tx_1_reads));
 }
@@ -431,11 +432,15 @@ fn test_apply_writes(
     assert_eq!(transactional_states[0].cache.borrow().writes.class_hashes.len(), 1);
 
     // Transaction 0 contract class.
-    let contract_class_0 =
+
+    let versioned_contract_class_0 =
         FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm))
-            .get_runnable_class();
+            .get_versioned_runnable_class();
+
     assert!(transactional_states[0].class_hash_to_class.borrow().is_empty());
-    transactional_states[0].set_contract_class(class_hash, contract_class_0.clone()).unwrap();
+    transactional_states[0]
+        .set_contract_class(class_hash, versioned_contract_class_0.clone())
+        .unwrap();
     assert_eq!(transactional_states[0].class_hash_to_class.borrow().len(), 1);
 
     safe_versioned_state.pin_version(0).apply_writes(
@@ -444,7 +449,10 @@ fn test_apply_writes(
         &HashMap::default(),
     );
     assert!(transactional_states[1].get_class_hash_at(contract_address).unwrap() == class_hash_0);
-    assert!(transactional_states[1].get_compiled_class(class_hash).unwrap() == contract_class_0);
+    assert!(
+        transactional_states[1].get_compiled_class(class_hash).unwrap()
+            == versioned_contract_class_0
+    );
 }
 
 #[rstest]
@@ -513,7 +521,7 @@ fn test_delete_writes(
         tx_state
             .set_contract_class(
                 feature_contract.get_class_hash(),
-                feature_contract.get_runnable_class(),
+                feature_contract.get_versioned_runnable_class(),
             )
             .unwrap();
         safe_versioned_state.pin_version(i).apply_writes(
@@ -546,7 +554,7 @@ fn test_delete_writes(
                 .0
                 .lock()
                 .unwrap()
-                .compiled_contract_classes
+                .versioned_compiled_contract_classes
                 .get_writes_of_index(tx_index)
                 .is_empty(),
             should_be_empty
@@ -573,8 +581,10 @@ fn test_delete_writes_completeness(
         )]),
         declared_contracts: HashMap::from([(feature_contract.get_class_hash(), true)]),
     };
-    let class_hash_to_class_writes =
-        HashMap::from([(feature_contract.get_class_hash(), feature_contract.get_runnable_class())]);
+    let class_hash_to_class_writes = HashMap::from([(
+        feature_contract.get_class_hash(),
+        feature_contract.get_versioned_runnable_class(),
+    )]);
 
     let tx_index = 0;
     let mut versioned_state_proxy = safe_versioned_state.pin_version(tx_index);
@@ -593,7 +603,7 @@ fn test_delete_writes_completeness(
             .0
             .lock()
             .unwrap()
-            .compiled_contract_classes
+            .versioned_compiled_contract_classes
             .get_writes_of_index(tx_index),
         class_hash_to_class_writes
     );
@@ -608,9 +618,9 @@ fn test_delete_writes_completeness(
             .0
             .lock()
             .unwrap()
-            .compiled_contract_classes
+            .versioned_compiled_contract_classes
             .get_writes_of_index(tx_index),
-        ContractClassMapping::default()
+        VersionedContractClassMapping::default()
     );
 }
 
@@ -637,10 +647,11 @@ fn test_versioned_proxy_state_flow(
     transactional_states[3].set_class_hash_at(contract_address, class_hash_3).unwrap();
 
     // Clients contract class values.
-    let contract_class_0 = FeatureContract::TestContract(CairoVersion::Cairo0).get_runnable_class();
+    let contract_class_0 =
+        FeatureContract::TestContract(CairoVersion::Cairo0).get_versioned_runnable_class();
     let contract_class_2 =
-        FeatureContract::AccountWithLongValidate(CairoVersion::Cairo1(RunnableCairo1::Casm))
-            .get_runnable_class();
+        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm))
+            .get_versioned_runnable_class();
 
     transactional_states[0].set_contract_class(class_hash, contract_class_0).unwrap();
     transactional_states[2].set_contract_class(class_hash, contract_class_2.clone()).unwrap();
