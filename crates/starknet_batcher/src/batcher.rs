@@ -455,7 +455,8 @@ pub fn deadline_as_instant(deadline: chrono::DateTime<Utc>) -> BatcherResult<tok
     let time_to_deadline = deadline - chrono::Utc::now();
     let as_duration =
         time_to_deadline.to_std().map_err(|_| BatcherError::TimeToDeadlineError { deadline })?;
-    Ok((std::time::Instant::now() + as_duration).into())
+    // TODO(Matan): this is a temporary solution to the timeout issue.
+    Ok((std::time::Instant::now() + (as_duration / 2)).into())
 }
 
 fn verify_block_input(
