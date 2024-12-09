@@ -73,22 +73,27 @@ impl Default for ReactiveComponentExecutionConfig {
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct ActiveComponentExecutionConfig {
     pub execution_mode: ActiveComponentExecutionMode,
+    pub remote_client_config: Option<RemoteClientConfig>,
 }
 
 impl SerializeConfig for ActiveComponentExecutionConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([ser_param(
+        let members = BTreeMap::from_iter([ser_param(
             "execution_mode",
             &self.execution_mode,
             "The component execution mode.",
             ParamPrivacyInput::Public,
-        )])
+        )]);
+        vec![members, ser_optional_sub_config(&self.remote_client_config, "remote_client_config")]
+            .into_iter()
+            .flatten()
+            .collect()
     }
 }
 
 impl Default for ActiveComponentExecutionConfig {
     fn default() -> Self {
-        Self { execution_mode: ActiveComponentExecutionMode::Enabled }
+        Self { execution_mode: ActiveComponentExecutionMode::Enabled, remote_client_config: None }
     }
 }
 
