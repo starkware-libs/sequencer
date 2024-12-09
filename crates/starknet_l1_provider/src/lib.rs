@@ -4,7 +4,13 @@ pub mod errors;
 #[cfg(test)]
 pub mod test_utils;
 
+use std::collections::BTreeMap;
+use std::time::Duration;
+
 use indexmap::{IndexMap, IndexSet};
+use papyrus_config::converters::deserialize_milliseconds_to_duration;
+use papyrus_config::dumping::{ser_param, SerializeConfig};
+use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
@@ -190,7 +196,21 @@ impl std::fmt::Display for ProviderState {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
-pub struct L1ProviderConfig;
+pub struct L1ProviderConfig {
+    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
+    pub _poll_interval: Duration,
+}
+
+impl SerializeConfig for L1ProviderConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from([ser_param(
+            "_poll_interval",
+            &Duration::from_millis(100).as_millis(),
+            "Interval in milliseconds between each scraping attempt of L1.",
+            ParamPrivacyInput::Public,
+        )])
+    }
+}
 
 pub fn create_l1_provider(_config: L1ProviderConfig) -> L1Provider {
     L1Provider { state: ProviderState::Propose, ..Default::default() }

@@ -6,6 +6,7 @@ use starknet_batcher::communication::{LocalBatcherServer, RemoteBatcherServer};
 use starknet_consensus_manager::communication::ConsensusManagerServer;
 use starknet_gateway::communication::{LocalGatewayServer, RemoteGatewayServer};
 use starknet_http_server::communication::HttpServer;
+use starknet_l1_provider::communication::{LocalL1ProviderServer, RemoteL1ProviderServer};
 use starknet_mempool::communication::{LocalMempoolServer, RemoteMempoolServer};
 use starknet_mempool_p2p::propagator::{
     LocalMempoolP2pPropagatorServer,
@@ -20,8 +21,6 @@ use starknet_sequencer_infra::component_server::{
     WrapperServer,
 };
 use starknet_sequencer_infra::errors::ComponentServerError;
-use starknet_state_sync::runner::StateSyncRunnerServer;
-use starknet_state_sync::{LocalStateSyncServer, RemoteStateSyncServer};
 use tracing::error;
 
 use crate::clients::SequencerNodeClients;
@@ -37,9 +36,9 @@ use crate::config::node_config::SequencerNodeConfig;
 struct LocalServers {
     pub(crate) batcher: Option<Box<LocalBatcherServer>>,
     pub(crate) gateway: Option<Box<LocalGatewayServer>>,
+    pub(crate) l1_provider: Option<Box<LocalL1ProviderServer>>,
     pub(crate) mempool: Option<Box<LocalMempoolServer>>,
     pub(crate) mempool_p2p_propagator: Option<Box<LocalMempoolP2pPropagatorServer>>,
-    pub(crate) state_sync: Option<Box<LocalStateSyncServer>>,
 }
 
 // Component servers that wrap a component without a server.
@@ -48,7 +47,6 @@ struct WrapperServers {
     pub(crate) http_server: Option<Box<HttpServer>>,
     pub(crate) monitoring_endpoint: Option<Box<MonitoringEndpointServer>>,
     pub(crate) mempool_p2p_runner: Option<Box<MempoolP2pRunnerServer>>,
-    pub(crate) state_sync_runner: Option<Box<StateSyncRunnerServer>>,
 }
 
 // Component servers that can run remotely.
@@ -56,9 +54,9 @@ struct WrapperServers {
 pub struct RemoteServers {
     pub batcher: Option<Box<RemoteBatcherServer>>,
     pub gateway: Option<Box<RemoteGatewayServer>>,
+    pub l1_provider: Option<Box<RemoteL1ProviderServer>>,
     pub mempool: Option<Box<RemoteMempoolServer>>,
     pub mempool_p2p_propagator: Option<Box<RemoteMempoolP2pPropagatorServer>>,
-    pub state_sync: Option<Box<RemoteStateSyncServer>>,
 }
 
 pub struct SequencerNodeServers {
@@ -227,6 +225,11 @@ fn create_local_servers(
         components.gateway,
         communication.take_gateway_rx()
     );
+    let l1_provider_server = create_local_server!(
+        &config.components.l1_provider.execution_mode,
+        components.l1_provider,
+        communication.take_l1_provider_rx()
+    );
     let mempool_server = create_local_server!(
         &config.components.mempool.execution_mode,
         components.mempool,
@@ -237,18 +240,12 @@ fn create_local_servers(
         components.mempool_p2p_propagator,
         communication.take_mempool_p2p_propagator_rx()
     );
-    let state_sync_server = create_local_server!(
-        &config.components.state_sync.execution_mode,
-        components.state_sync,
-        communication.take_state_sync_rx()
-    );
-
     LocalServers {
         batcher: batcher_server,
         gateway: gateway_server,
+        l1_provider: l1_provider_server,
         mempool: mempool_server,
         mempool_p2p_propagator: mempool_p2p_propagator_server,
-        state_sync: state_sync_server,
     }
 }
 
@@ -270,6 +267,13 @@ pub fn create_remote_servers(
         config.components.gateway.remote_server_config
     );
 
+    let l1_provider_client = clients.get_l1_provider_local_client();
+    let l1_provider_server = create_remote_server!(
+        &config.components.l1_provider.execution_mode,
+        l1_provider_client,
+        config.components.l1_provider.remote_server_config
+    );
+
     let mempool_client = clients.get_mempool_local_client();
     let mempool_server = create_remote_server!(
         &config.components.mempool.execution_mode,
@@ -283,20 +287,12 @@ pub fn create_remote_servers(
         mempool_p2p_propagator_client,
         config.components.mempool_p2p.remote_server_config
     );
-
-    let state_sync_client = clients.get_state_sync_local_client();
-    let state_sync_server = create_remote_server!(
-        &config.components.state_sync.execution_mode,
-        state_sync_client,
-        config.components.state_sync.remote_server_config
-    );
-
     RemoteServers {
         batcher: batcher_server,
         gateway: gateway_server,
+        l1_provider: l1_provider_server,
         mempool: mempool_server,
         mempool_p2p_propagator: mempool_p2p_propagator_server,
-        state_sync: state_sync_server,
     }
 }
 
@@ -322,18 +318,11 @@ fn create_wrapper_servers(
         &config.components.mempool_p2p.execution_mode.clone().into(),
         components.mempool_p2p_runner
     );
-
-    let state_sync_runner_server = create_wrapper_server!(
-        &config.components.state_sync.execution_mode.clone().into(),
-        components.state_sync_runner
-    );
-
     WrapperServers {
         consensus_manager: consensus_manager_server,
         http_server,
         monitoring_endpoint: monitoring_endpoint_server,
         mempool_p2p_runner: mempool_p2p_runner_server,
-        state_sync_runner: state_sync_runner_server,
     }
 }
 
@@ -383,12 +372,9 @@ pub async fn run_component_servers(servers: SequencerNodeServers) -> anyhow::Res
     // MempoolP2pRunner server.
     let mempool_p2p_runner_future = get_server_future(servers.wrapper_servers.mempool_p2p_runner);
 
-    // StateSync servers.
-    let local_state_sync_future = get_server_future(servers.local_servers.state_sync);
-    let remote_state_sync_future = get_server_future(servers.remote_servers.state_sync);
-
-    // StateSyncRunner server.
-    let state_sync_runner_future = get_server_future(servers.wrapper_servers.state_sync_runner);
+    // L1Provider server.
+    let local_l1_provider_future = get_server_future(servers.local_servers.l1_provider);
+    let remote_l1_provider_future = get_server_future(servers.remote_servers.l1_provider);
 
     // Start servers.
     let local_batcher_handle = tokio::spawn(local_batcher_future);
@@ -403,9 +389,8 @@ pub async fn run_component_servers(servers: SequencerNodeServers) -> anyhow::Res
     let local_mempool_p2p_propagator_handle = tokio::spawn(local_mempool_p2p_propagator_future);
     let remote_mempool_p2p_propagator_handle = tokio::spawn(remote_mempool_p2p_propagator_future);
     let mempool_p2p_runner_handle = tokio::spawn(mempool_p2p_runner_future);
-    let local_state_sync_handle = tokio::spawn(local_state_sync_future);
-    let remote_state_sync_handle = tokio::spawn(remote_state_sync_future);
-    let state_sync_runner_handle = tokio::spawn(state_sync_runner_future);
+    let local_l1_provider_handle = tokio::spawn(local_l1_provider_future);
+    let remote_l1_provider_handle = tokio::spawn(remote_l1_provider_future);
 
     let result = tokio::select! {
         res = local_batcher_handle => {
@@ -456,16 +441,12 @@ pub async fn run_component_servers(servers: SequencerNodeServers) -> anyhow::Res
             error!("Mempool P2P Runner Server stopped.");
             res?
         }
-        res = local_state_sync_handle => {
-            error!("Local State Sync Server stopped.");
+        res = local_l1_provider_handle => {
+            error!("Local L1 Provider Server stopped.");
             res?
         }
-        res = remote_state_sync_handle => {
-            error!("Remote State Sync Server stopped.");
-            res?
-        }
-        res = state_sync_runner_handle => {
-            error!("State Sync Runner Server stopped.");
+        res = remote_l1_provider_handle => {
+            error!("Remote L1 Provider Server stopped.");
             res?
         }
     };
