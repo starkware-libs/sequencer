@@ -27,6 +27,9 @@ pub trait StateSyncClient: Send + Sync {
         block_number: BlockNumber,
     ) -> StateSyncClientResult<Option<SyncBlock>>;
 
+    // Add a new block to the sync storage from another component within the same node.
+    async fn add_new_internal_block(&self, sync_block: SyncBlock) -> StateSyncClientResult<()>;
+
     // TODO: Add state reader methods for gateway.
 }
 
@@ -50,11 +53,13 @@ pub type StateSyncRequestAndResponseSender =
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum StateSyncRequest {
     GetBlock(BlockNumber),
+    AddNewInternalBlock(SyncBlock),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum StateSyncResponse {
     GetBlock(StateSyncResult<Option<SyncBlock>>),
+    AddNewInternalBlock(StateSyncResult<()>),
 }
 
 #[async_trait]
@@ -66,6 +71,17 @@ impl StateSyncClient for LocalStateSyncClient {
         let request = StateSyncRequest::GetBlock(block_number);
         let response = self.send(request).await;
         handle_response_variants!(StateSyncResponse, GetBlock, StateSyncClientError, StateSyncError)
+    }
+
+    async fn add_new_internal_block(&self, sync_block: SyncBlock) -> StateSyncClientResult<()> {
+        let request = StateSyncRequest::AddNewInternalBlock(sync_block);
+        let response = self.send(request).await;
+        handle_response_variants!(
+            StateSyncResponse,
+            AddNewInternalBlock,
+            StateSyncClientError,
+            StateSyncError
+        )
     }
 }
 
@@ -79,6 +95,17 @@ impl StateSyncClient for RemoteStateSyncClient {
         let response = self.send(request).await;
         handle_response_variants!(StateSyncResponse, GetBlock, StateSyncClientError, StateSyncError)
     }
+
+    async fn add_new_internal_block(&self, sync_block: SyncBlock) -> StateSyncClientResult<()> {
+        let request = StateSyncRequest::AddNewInternalBlock(sync_block);
+        let response = self.send(request).await;
+        handle_response_variants!(
+            StateSyncResponse,
+            AddNewInternalBlock,
+            StateSyncClientError,
+            StateSyncError
+        )
+    }
 }
 
 // TODO(shahak): Remove this once we connect state sync to the node.
@@ -91,5 +118,9 @@ impl StateSyncClient for EmptyStateSyncClient {
         _block_number: BlockNumber,
     ) -> StateSyncClientResult<Option<SyncBlock>> {
         Ok(None)
+    }
+
+    async fn add_new_internal_block(&self, _sync_block: SyncBlock) -> StateSyncClientResult<()> {
+        Ok(())
     }
 }
