@@ -11,7 +11,7 @@ use crate::config::component_execution_config::{
 };
 
 /// The components configuration.
-#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
 pub struct ComponentConfig {
     // Reactive component configs.
     #[validate]
@@ -32,23 +32,6 @@ pub struct ComponentConfig {
     pub http_server: ActiveComponentExecutionConfig,
     #[validate]
     pub monitoring_endpoint: ActiveComponentExecutionConfig,
-}
-
-impl Default for ComponentConfig {
-    fn default() -> Self {
-        Self {
-            // Reactive component configs.
-            batcher: ReactiveComponentExecutionConfig::batcher_default_config(),
-            gateway: ReactiveComponentExecutionConfig::gateway_default_config(),
-            mempool: ReactiveComponentExecutionConfig::mempool_default_config(),
-            mempool_p2p: ReactiveComponentExecutionConfig::mempool_p2p_default_config(),
-            state_sync: ReactiveComponentExecutionConfig::state_sync_default_config(),
-            // Active component configs.
-            consensus_manager: Default::default(),
-            http_server: Default::default(),
-            monitoring_endpoint: Default::default(),
-        }
-    }
 }
 
 impl SerializeConfig for ComponentConfig {
