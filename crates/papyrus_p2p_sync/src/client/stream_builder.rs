@@ -1,11 +1,12 @@
 use std::cmp::min;
+use std::collections::HashMap;
 use std::time::Duration;
 
 use async_stream::stream;
 use futures::channel::mpsc::Receiver;
 use futures::future::BoxFuture;
 use futures::stream::BoxStream;
-use futures::StreamExt;
+use futures::{FutureExt, StreamExt};
 use papyrus_network::network_manager::{ClientResponsesManager, SqmrClientSender};
 use papyrus_protobuf::converters::ProtobufConversionError;
 use papyrus_protobuf::sync::{BlockHashOrNumber, DataOrFin, Direction, Query};
@@ -53,10 +54,34 @@ where
 
     fn get_start_block_number(storage_reader: &StorageReader) -> Result<BlockNumber, StorageError>;
 
+    fn get_internal_block_at(
+        internal_blocks_received: &mut HashMap<BlockNumber, Self::Output>,
+        internal_block_receiver: &mut Option<Receiver<(BlockNumber, Self::Output)>>,
+        current_block_number: BlockNumber,
+    ) -> Option<Self::Output> {
+        if let Some(block) = internal_blocks_received.remove(&current_block_number) {
+            return Some(block);
+        }
+        let Some(internal_block_receiver) = internal_block_receiver else { return None };
+        while let Some((block_number, block_data)) = internal_block_receiver
+            .next()
+            .now_or_never()
+            .map(|now_or_never_res| now_or_never_res.expect("Internal block receiver closed"))
+        {
+            if block_number >= current_block_number {
+                if block_number == current_block_number {
+                    return Some(block_data);
+                }
+                internal_blocks_received.insert(block_number, block_data);
+            }
+        }
+        None
+    }
+
     fn create_stream<TQuery>(
         mut sqmr_sender: SqmrClientSender<TQuery, DataOrFin<InputFromNetwork>>,
         storage_reader: StorageReader,
-        _internal_block_receiver: Option<Receiver<(BlockNumber, Self::Output)>>,
+        mut internal_block_receiver: Option<Receiver<(BlockNumber, Self::Output)>>,
         wait_period_for_new_data: Duration,
         num_blocks_per_query: u64,
     ) -> BoxStream<'static, DataStreamResult>
@@ -66,6 +91,7 @@ where
     {
         stream! {
             let mut current_block_number = Self::get_start_block_number(&storage_reader)?;
+            let mut internal_blocks_received = HashMap::new();
             'send_query_and_parse_responses: loop {
                 let limit = match Self::BLOCK_NUMBER_LIMIT {
                     BlockNumberLimit::Unlimited => num_blocks_per_query,
@@ -84,13 +110,23 @@ where
                         limit
                     },
                 };
+
+                if let Some(block) = Self::get_internal_block_at(&mut internal_blocks_received, &mut internal_block_receiver, current_block_number)
+                {
+                    debug!("Sync received internally {:?} for block {}.", Self::TYPE_DESCRIPTION, current_block_number);
+                    yield Ok(Box::<dyn BlockData>::from(Box::new(block)));
+                    current_block_number = current_block_number.unchecked_next();
+                    continue 'send_query_and_parse_responses;
+                }
+
                 let end_block_number = current_block_number.0 + limit;
                 debug!(
-                    "Downloading {:?} for blocks [{}, {})",
+                    "Sync downloading {:?} for blocks [{}, {}) from network.",
                     Self::TYPE_DESCRIPTION,
                     current_block_number.0,
                     end_block_number,
                 );
+
                 // TODO(shahak): Use the report callback.
                 let mut client_response_manager = sqmr_sender
                     .send_new_query(
@@ -100,9 +136,7 @@ where
                             limit,
                             step: STEP,
                         })
-                    )
-                    .await?;
-
+                    ).await?;
                 while current_block_number.0 < end_block_number {
                     match Self::parse_data_for_block(
                         &mut client_response_manager, current_block_number, &storage_reader
