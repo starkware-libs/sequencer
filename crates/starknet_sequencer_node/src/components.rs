@@ -47,8 +47,7 @@ pub fn create_node_components(
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };
     let consensus_manager = match config.components.consensus_manager.execution_mode {
-        ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
-        | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
+        ActiveComponentExecutionMode::Enabled => {
             let batcher_client =
                 clients.get_batcher_shared_client().expect("Batcher Client should be available");
             // TODO(shahak): Use the real client once we connect state sync to the node.
@@ -59,7 +58,7 @@ pub fn create_node_components(
                 state_sync_client,
             ))
         }
-        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
+        ActiveComponentExecutionMode::Disabled => None,
     };
     let gateway = match config.components.gateway.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled

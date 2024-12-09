@@ -17,8 +17,6 @@ pub struct ComponentConfig {
     #[validate]
     pub batcher: ReactiveComponentExecutionConfig,
     #[validate]
-    pub consensus_manager: ReactiveComponentExecutionConfig,
-    #[validate]
     pub gateway: ReactiveComponentExecutionConfig,
     #[validate]
     pub mempool: ReactiveComponentExecutionConfig,
@@ -28,6 +26,7 @@ pub struct ComponentConfig {
     pub state_sync: ReactiveComponentExecutionConfig,
 
     // Active component configs.
+    pub consensus_manager: ActiveComponentExecutionConfig,
     pub http_server: ActiveComponentExecutionConfig,
     pub monitoring_endpoint: ActiveComponentExecutionConfig,
 }
@@ -37,12 +36,12 @@ impl Default for ComponentConfig {
         Self {
             // Reactive component configs.
             batcher: ReactiveComponentExecutionConfig::batcher_default_config(),
-            consensus_manager: ReactiveComponentExecutionConfig::consensus_manager_default_config(),
             gateway: ReactiveComponentExecutionConfig::gateway_default_config(),
             mempool: ReactiveComponentExecutionConfig::mempool_default_config(),
             mempool_p2p: ReactiveComponentExecutionConfig::mempool_p2p_default_config(),
             state_sync: ReactiveComponentExecutionConfig::state_sync_default_config(),
             // Active component configs.
+            consensus_manager: Default::default(),
             http_server: Default::default(),
             monitoring_endpoint: Default::default(),
         }
