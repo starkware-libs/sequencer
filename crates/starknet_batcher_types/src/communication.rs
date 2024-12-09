@@ -69,11 +69,12 @@ pub trait BatcherClient: Send + Sync {
     /// From this point onwards, the batcher will accept requests only for proposals associated
     /// with this height.
     async fn start_height(&self, input: StartHeightInput) -> BatcherClientResult<()>;
+    /// Adds a block from the state sync. Updates the batcher's state and commits the
+    /// transactions to the mempool.
+    async fn add_sync_block(&self, sync_block: SyncBlock) -> BatcherClientResult<()>;
     /// Notifies the batcher that a decision has been reached.
     /// This closes the process of the given height, and the accepted proposal is committed.
     async fn decision_reached(&self, input: DecisionReachedInput) -> BatcherClientResult<()>;
-
-    async fn add_sync_block(&self, sync_block: SyncBlock) -> BatcherClientResult<()>;
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

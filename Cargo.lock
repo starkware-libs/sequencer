@@ -10280,6 +10280,7 @@ dependencies = [
  "starknet_batcher_types",
  "starknet_mempool_types",
  "starknet_sequencer_infra",
+ "starknet_state_sync_types",
  "thiserror",
  "tokio",
  "tracing",
