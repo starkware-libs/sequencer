@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use blockifier::abi::constants;
@@ -8,8 +8,10 @@ use chrono::Utc;
 use mockall::automock;
 use papyrus_storage::state::{StateStorageReader, StateStorageWriter};
 use starknet_api::block::{BlockHashAndNumber, BlockNumber};
+use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::state::ThinStateDiff;
+use starknet_api::transaction::TransactionHash;
 use starknet_batcher_types::batcher_types::{
     BatcherResult,
     DecisionReachedInput,
@@ -348,9 +350,17 @@ impl Batcher {
         })
     }
 
-    // TODO(Arni): Impl add sync block
-    pub async fn add_sync_block(&mut self, _sync_block: SyncBlock) -> BatcherResult<()> {
-        todo!("Implement add sync block");
+    pub async fn add_sync_block(&mut self, sync_block: SyncBlock) -> BatcherResult<()> {
+        let SyncBlock { state_diff, transaction_hashes } = sync_block;
+        let address_to_nonce = state_diff.nonces.iter().map(|(k, v)| (*k, *v)).collect();
+        let tx_hashes = transaction_hashes.into_iter().collect();
+        // TODO: Keep the height from start_height or get it from the input.
+        let height = self.storage_reader.height().map_err(|err| {
+            error!("Failed to get height from storage: {}", err);
+            BatcherError::InternalError
+        })?;
+        info!("Syncing block at height {} and notifying mempool of the block.", height);
+        self.commit_proposal_and_block(height, state_diff, address_to_nonce, tx_hashes).await
     }
 
     #[instrument(skip(self), err)]
@@ -363,6 +373,8 @@ impl Batcher {
             .ok_or(BatcherError::ExecutedProposalNotFound { proposal_id })??;
         let ProposalOutput { state_diff, nonces: address_to_nonce, tx_hashes, .. } =
             proposal_output;
+        // TODO(Arni): Move the height and the `info` level log into the function
+        // `commit_proposal_and_block`.
         // TODO: Keep the height from start_height or get it from the input.
         let height = self.storage_reader.height().map_err(|err| {
             error!("Failed to get height from storage: {}", err);
@@ -372,6 +384,16 @@ impl Batcher {
             "Committing proposal {} at height {} and notifying mempool of the block.",
             proposal_id, height
         );
+        self.commit_proposal_and_block(height, state_diff, address_to_nonce, tx_hashes).await
+    }
+
+    async fn commit_proposal_and_block(
+        &mut self,
+        height: BlockNumber,
+        state_diff: ThinStateDiff,
+        address_to_nonce: HashMap<ContractAddress, Nonce>,
+        tx_hashes: HashSet<TransactionHash>,
+    ) -> BatcherResult<()> {
         trace!("Transactions: {:#?}, State diff: {:#?}.", tx_hashes, state_diff);
         self.storage_writer.commit_proposal(height, state_diff).map_err(|err| {
             error!("Failed to commit proposal to storage: {}", err);
