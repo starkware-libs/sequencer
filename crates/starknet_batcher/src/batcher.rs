@@ -13,6 +13,8 @@ use starknet_api::state::ThinStateDiff;
 use starknet_batcher_types::batcher_types::{
     BatcherResult,
     DecisionReachedInput,
+    GetHeightInput,
+    GetHeightResponse,
     GetProposalContent,
     GetProposalContentInput,
     GetProposalContentResponse,
@@ -299,6 +301,12 @@ impl Batcher {
             .remove(&proposal_id)
             .ok_or(BatcherError::ProposalNotFound { proposal_id })?;
         Ok(())
+    }
+
+    // TODO(Arni): Implement this function.
+    #[instrument(skip(self), err)]
+    pub async fn get_height(&mut self, input: GetHeightInput) -> BatcherResult<GetHeightResponse> {
+        todo!("Implement this function");
     }
 
     #[instrument(skip(self), err)]
