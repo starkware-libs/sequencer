@@ -99,7 +99,10 @@ where
 struct MultiHeightManager<ContextT: ConsensusContext> {
     validator_id: ValidatorId,
     cached_messages: BTreeMap<u64, Vec<ConsensusMessage>>,
-    cached_proposals: BTreeMap<u64, (ProposalInit, mpsc::Receiver<ContextT::ProposalPart>)>,
+    // The external map is keyed on the height
+    // The internal map is keyed on round of the proposal
+    cached_proposals:
+        BTreeMap<u64, BTreeMap<u32, (ProposalInit, mpsc::Receiver<ContextT::ProposalPart>)>>,
     timeouts: TimeoutsConfig,
 }
 
@@ -220,11 +223,13 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         content_receiver: mpsc::Receiver<ContextT::ProposalPart>,
     ) -> Result<ShcReturn, ConsensusError> {
         if proposal_init.height != height {
-            debug!("Received a proposal for a different height. {:?}", proposal_init);
+            debug!("Received a proposal for a different height or round. {:?}", proposal_init);
             if proposal_init.height > height {
-                // Note: this will overwrite an existing content_receiver for this height!
+                // Note: ignores new proposals with the same height/round that were already cached.
                 self.cached_proposals
-                    .insert(proposal_init.height.0, (proposal_init, content_receiver));
+                    .entry(proposal_init.height.0)
+                    .or_default()
+                    .insert(proposal_init.round, (proposal_init, content_receiver));
             }
             return Ok(ShcReturn::Tasks(Vec::new()));
         }
@@ -275,10 +280,11 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         shc.handle_message(context, message).await
     }
 
-    // Checks if a cached proposal already exists
+    // Checks if a cached proposal already exists (with correct height)
     // - returns the proposal if it exists and removes it from the cache.
     // - returns None if no proposal exists.
     // - cleans up any proposals from earlier heights.
+    // - for a given height, returns the proposal with the lowest round (and removes it).
     fn get_current_proposal(
         &mut self,
         height: BlockNumber,
@@ -287,7 +293,10 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             let entry = self.cached_proposals.first_entry()?;
             match entry.key().cmp(&height.0) {
                 std::cmp::Ordering::Greater => return None,
-                std::cmp::Ordering::Equal => return Some(entry.remove()),
+                std::cmp::Ordering::Equal => {
+                    let mut submap = entry.remove();
+                    return Some(submap.first_entry()?.remove());
+                }
                 std::cmp::Ordering::Less => {
                     entry.remove();
                 }
