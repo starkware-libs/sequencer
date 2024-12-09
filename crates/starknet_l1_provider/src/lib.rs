@@ -6,10 +6,8 @@ pub mod test_utils;
 use indexmap::{IndexMap, IndexSet};
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
-
-use crate::errors::L1ProviderError;
-
-type L1ProviderResult<T> = Result<T, L1ProviderError>;
+use starknet_l1_provider_types::errors::L1ProviderError;
+use starknet_l1_provider_types::{L1ProviderResult, ValidationStatus};
 
 #[cfg(test)]
 #[path = "l1_provider_tests.rs"]
@@ -140,13 +138,6 @@ impl TransactionManager {
     pub fn _mark_tx_included_on_l2(&mut self, _tx_hash: &TransactionHash) {
         todo!("Adds the tx hash to l2 buffer; remove tx from the txs storage if it's there.")
     }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum ValidationStatus {
-    Validated,
-    AlreadyIncludedOnL2,
-    ConsumedOnL1OrUnknown,
 }
 
 /// Current state of the provider, where pending means: idle, between proposal/validation cycles.

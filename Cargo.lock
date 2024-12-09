@@ -10472,8 +10472,16 @@ dependencies = [
  "indexmap 2.6.0",
  "papyrus_base_layer",
  "pretty_assertions",
- "serde",
  "starknet_api",
+ "starknet_l1_provider_types",
+ "thiserror",
+]
+
+[[package]]
+name = "starknet_l1_provider_types"
+version = "0.0.0"
+dependencies = [
+ "serde",
  "thiserror",
 ]
 
