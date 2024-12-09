@@ -29,7 +29,7 @@ class BaseCommand(Enum):
             package_args.extend(["--package", package])
 
         if self == BaseCommand.TEST:
-            return ["cargo", "test"] + package_args
+            return ["RUST_LOG=debug", "cargo", "test"] + package_args
         elif self == BaseCommand.CODECOV:
             return [
                 "cargo",

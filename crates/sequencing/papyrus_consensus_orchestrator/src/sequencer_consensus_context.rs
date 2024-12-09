@@ -55,7 +55,7 @@ use starknet_batcher_types::batcher_types::{
 use starknet_batcher_types::communication::BatcherClient;
 use tokio::sync::Notify;
 use tokio::task::JoinHandle;
-use tracing::{debug, debug_span, error, info, trace, warn, Instrument};
+use tracing::{debug, debug_span, error, info, instrument, trace, warn, Instrument};
 
 // TODO(Dan, Matan): Remove this once and replace with real gas prices.
 const TEMPORARY_GAS_PRICES: GasPrices = GasPrices {
@@ -135,17 +135,20 @@ impl SequencerConsensusContext {
 impl ConsensusContext for SequencerConsensusContext {
     type ProposalPart = ProposalPart;
 
+    #[instrument(
+        level = "info",
+        skip_all,
+        fields(height=?proposal_init.height, round=?proposal_init.round)
+    )]
     async fn build_proposal(
         &mut self,
         proposal_init: ProposalInit,
         timeout: Duration,
     ) -> oneshot::Receiver<ProposalContentId> {
+        info!("Building proposal: {timeout:?} {proposal_init:?}");
+
         // Handles interrupting an active proposal from a previous height/round
         self.set_height_and_round(proposal_init.height, proposal_init.round).await;
-        debug!(
-            "Building proposal for height: {} with timeout: {:?}",
-            proposal_init.height, timeout
-        );
         let (fin_sender, fin_receiver) = oneshot::channel();
 
         let batcher = Arc::clone(&self.batcher);
