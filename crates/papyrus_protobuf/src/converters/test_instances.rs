@@ -5,8 +5,6 @@ use starknet_api::core::ContractAddress;
 use starknet_api::transaction::{Transaction, TransactionHash};
 
 use crate::consensus::{
-    ConsensusMessage, // TODO: remove this
-    Proposal,         // TODO: remove this
     ProposalFin,
     ProposalInit,
     ProposalPart,
@@ -18,19 +16,6 @@ use crate::consensus::{
 };
 
 auto_impl_get_test_instance! {
-    // TODO(guyn): remove this once we integrate ProposalPart everywhere.
-    pub enum ConsensusMessage {
-        Proposal(Proposal) = 0,
-        Vote(Vote) = 1,
-    }
-    pub struct Proposal {
-        pub height: u64,
-        pub round: u32,
-        pub proposer: ContractAddress,
-        pub transactions: Vec<Transaction>,
-        pub block_hash: BlockHash,
-        pub valid_round: Option<u32>,
-    }
     pub struct Vote {
         pub vote_type: VoteType,
         pub height: u64,
