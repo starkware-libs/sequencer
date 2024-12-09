@@ -37,6 +37,7 @@ use starknet_batcher_types::batcher_types::{
 use starknet_batcher_types::errors::BatcherError;
 use starknet_mempool_types::communication::MockMempoolClient;
 use starknet_mempool_types::mempool_types::CommitBlockArgs;
+use starknet_state_sync_types::state_sync_types::SyncBlock;
 use tokio::sync::Mutex;
 
 use crate::batcher::{Batcher, MockBatcherStorageReaderTrait, MockBatcherStorageWriterTrait};
@@ -485,6 +486,41 @@ async fn get_content_from_unknown_proposal() {
 
 #[rstest]
 #[tokio::test]
+async fn add_sync_block() {
+    let mut mock_dependencies = MockDependencies::default();
+
+    mock_dependencies
+        .storage_writer
+        .expect_commit_proposal()
+        .with(eq(INITIAL_HEIGHT), eq(ThinStateDiff::default()))
+        .returning(|_, _| Ok(()));
+
+    mock_dependencies
+        .storage_writer
+        .expect_commit_proposal()
+        .with(eq(INITIAL_HEIGHT.unchecked_next()), eq(get_state_diff()))
+        .returning(|_, _| Ok(()));
+
+    mock_dependencies
+        .mempool_client
+        .expect_commit_block()
+        .with(eq(CommitBlockArgs {
+            address_to_nonce: test_contract_nonces(),
+            tx_hashes: test_tx_hashes(),
+        }))
+        .returning(|_| Ok(()));
+
+    let mut batcher = create_batcher(mock_dependencies);
+
+    let sync_block = SyncBlock {
+        state_diff: get_state_diff(),
+        transaction_hashes: test_tx_hashes().into_iter().collect(),
+    };
+    batcher.add_sync_block(sync_block).await.unwrap();
+}
+
+#[rstest]
+#[tokio::test]
 async fn decision_reached() {
     let mut mock_dependencies = MockDependencies::default();
 
@@ -619,4 +655,8 @@ fn test_tx_hashes() -> HashSet<TransactionHash> {
 
 fn test_contract_nonces() -> HashMap<ContractAddress, Nonce> {
     HashMap::from_iter((0..3u8).map(|i| (contract_address!(i + 33), nonce!(i + 9))))
+}
+
+pub fn get_state_diff() -> ThinStateDiff {
+    ThinStateDiff { nonces: test_contract_nonces().into_iter().collect(), ..Default::default() }
 }
