@@ -125,8 +125,9 @@ pub fn get_local_with_remote_enabled_component_config(
 
 pub async fn get_http_only_component_config(gateway_socket: SocketAddr) -> ComponentConfig {
     let monitoring_endpoint_socket = get_available_socket().await;
+    let http_server_socket = get_available_socket().await;
     ComponentConfig {
-        http_server: ComponentExecutionConfig::http_server_default_config(),
+        http_server: get_local_with_remote_enabled_component_config(http_server_socket),
         gateway: get_remote_component_config(gateway_socket),
         monitoring_endpoint: get_local_with_remote_enabled_component_config(
             monitoring_endpoint_socket,
