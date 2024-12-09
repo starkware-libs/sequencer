@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use blockifier::state::global_cache::GlobalContractCache;
@@ -6,8 +6,10 @@ use blockifier::state::global_cache::GlobalContractCache;
 use mockall::automock;
 use papyrus_storage::state::{StateStorageReader, StateStorageWriter};
 use starknet_api::block::BlockNumber;
+use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::state::ThinStateDiff;
+use starknet_api::transaction::TransactionHash;
 use starknet_batcher_types::batcher_types::{
     BatcherResult,
     DecisionReachedInput,
@@ -351,9 +353,22 @@ impl Batcher {
         Ok(GetProposalContentResponse { content: GetProposalContent::Finished(commitment) })
     }
 
-    // TODO(Arni): Impl add sync block
-    pub async fn add_sync_block(&mut self, _sync_block: SyncBlock) -> BatcherResult<()> {
-        todo!("Implement add sync block");
+    pub async fn add_sync_block(&mut self, sync_block: SyncBlock) -> BatcherResult<()> {
+        if let Some(height) = self.active_height {
+            info!("Aborting all work on height {} due to state sync.", height);
+            self.abort_active_height().await;
+            self.active_height = None;
+        }
+
+        let SyncBlock { state_diff, transaction_hashes } = sync_block;
+        let address_to_nonce = state_diff.nonces.iter().map(|(k, v)| (*k, *v)).collect();
+        let tx_hashes = transaction_hashes.into_iter().collect();
+
+        let info_callback = |height: BlockNumber| {
+            info!("Syncing block at height {} and notifying mempool of the block.", height);
+        };
+        // TODO(Arni): Assert the input `sync_block` corresponds to this `height`.
+        self.commit_proposal_and_block(info_callback, state_diff, address_to_nonce, tx_hashes).await
     }
 
     #[instrument(skip(self), err)]
@@ -367,12 +382,26 @@ impl Batcher {
             .map_err(|_| BatcherError::InternalError)?;
         let ProposalOutput { state_diff, nonces: address_to_nonce, tx_hashes, .. } =
             proposal_output;
+        let info_callback = |height: BlockNumber| {
+            info!(
+                "Committing proposal {} at height {} and notifying mempool of the block.",
+                proposal_id, height
+            );
+        };
+        self.commit_proposal_and_block(info_callback, state_diff, address_to_nonce, tx_hashes).await
+    }
+
+    async fn commit_proposal_and_block(
+        &mut self,
+        info_callback: impl Fn(BlockNumber),
+        state_diff: ThinStateDiff,
+        address_to_nonce: HashMap<ContractAddress, Nonce>,
+        tx_hashes: HashSet<TransactionHash>,
+    ) -> BatcherResult<()> {
         // TODO: Keep the height from start_height or get it from the input.
         let height = self.get_height_from_storage()?;
-        info!(
-            "Committing proposal {} at height {} and notifying mempool of the block.",
-            proposal_id, height
-        );
+        info_callback(height);
+
         trace!("Transactions: {:#?}, State diff: {:#?}.", tx_hashes, state_diff);
         self.storage_writer.commit_proposal(height, state_diff).map_err(|err| {
             error!("Failed to commit proposal to storage: {}", err);
