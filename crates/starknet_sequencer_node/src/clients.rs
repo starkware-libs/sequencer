@@ -14,6 +14,8 @@ use starknet_gateway_types::communication::{
     RemoteGatewayClient,
     SharedGatewayClient,
 };
+use starknet_l1_provider::communication::{LocalL1ProviderClient, RemoteL1ProviderClient};
+use starknet_l1_provider_types::{L1ProviderRequest, L1ProviderResponse, SharedL1ProviderClient};
 use starknet_mempool_p2p_types::communication::{
     LocalMempoolP2pPropagatorClient,
     MempoolP2pPropagatorRequest,
@@ -49,6 +51,7 @@ pub struct SequencerNodeClients {
     mempool_p2p_propagator_client:
         Option<Client<MempoolP2pPropagatorRequest, MempoolP2pPropagatorResponse>>,
     state_sync_client: Option<Client<StateSyncRequest, StateSyncResponse>>,
+    l1_provider_client: Option<Client<L1ProviderRequest, L1ProviderResponse>>,
 }
 
 /// A macro to retrieve a shared client (either local or remote) from a specified field in a struct,
@@ -139,6 +142,19 @@ impl SequencerNodeClients {
             Some(client) => client.get_local_client(),
             None => None,
         }
+    }
+
+    pub fn get_l1_provider_local_client(
+        &self,
+    ) -> Option<LocalComponentClient<L1ProviderRequest, L1ProviderResponse>> {
+        match &self.l1_provider_client {
+            Some(client) => client.get_local_client(),
+            None => None,
+        }
+    }
+
+    pub fn get_l1_provider_shared_client(&self) -> Option<SharedL1ProviderClient> {
+        get_shared_client!(self, l1_provider_client)
     }
 
     pub fn get_mempool_p2p_propagator_shared_client(
@@ -280,11 +296,20 @@ pub fn create_node_clients(
         config.components.state_sync.remote_client_config
     );
 
+    let l1_provider_client = create_client!(
+        &config.components.l1_provider.execution_mode,
+        LocalL1ProviderClient,
+        RemoteL1ProviderClient,
+        channels.take_l1_provider_tx(),
+        config.components.l1_provider.remote_client_config
+    );
+
     SequencerNodeClients {
         batcher_client,
         mempool_client,
         gateway_client,
         mempool_p2p_propagator_client,
         state_sync_client,
+        l1_provider_client,
     }
 }
