@@ -28,17 +28,17 @@ pub enum ActiveComponentExecutionMode {
 // TODO(Lev/Tsabary): When papyrus_config will support it, change to include communication config in
 // the enum.
 
-/// The single component configuration.
+/// Reactive component configuration.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
-#[validate(schema(function = "validate_single_component_config"))]
-pub struct ComponentExecutionConfig {
+#[validate(schema(function = "validate_reactive_component_execution_config"))]
+pub struct ReactiveComponentExecutionConfig {
     pub execution_mode: ReactiveComponentExecutionMode,
     pub local_server_config: Option<LocalServerConfig>,
     pub remote_client_config: Option<RemoteClientConfig>,
     pub remote_server_config: Option<RemoteServerConfig>,
 }
 
-impl SerializeConfig for ComponentExecutionConfig {
+impl SerializeConfig for ReactiveComponentExecutionConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let members = BTreeMap::from_iter([ser_param(
             "execution_mode",
@@ -58,7 +58,7 @@ impl SerializeConfig for ComponentExecutionConfig {
     }
 }
 
-impl Default for ComponentExecutionConfig {
+impl Default for ReactiveComponentExecutionConfig {
     fn default() -> Self {
         Self {
             execution_mode: ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled,
@@ -70,7 +70,7 @@ impl Default for ComponentExecutionConfig {
 }
 
 /// Specific components default configurations.
-impl ComponentExecutionConfig {
+impl ReactiveComponentExecutionConfig {
     pub fn gateway_default_config() -> Self {
         Self {
             execution_mode: ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled,
@@ -150,8 +150,8 @@ impl ComponentExecutionConfig {
     }
 }
 
-pub fn validate_single_component_config(
-    component_config: &ComponentExecutionConfig,
+fn validate_reactive_component_execution_config(
+    component_config: &ReactiveComponentExecutionConfig,
 ) -> Result<(), ValidationError> {
     match (
         component_config.execution_mode.clone(),

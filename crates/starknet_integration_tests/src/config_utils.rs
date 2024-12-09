@@ -12,7 +12,7 @@ use starknet_sequencer_infra::component_definitions::{
 use starknet_sequencer_infra::test_utils::get_available_socket;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::component_execution_config::{
-    ComponentExecutionConfig,
+    ReactiveComponentExecutionConfig,
     ReactiveComponentExecutionMode,
 };
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
@@ -93,9 +93,10 @@ fn strip_config_prefix(input: &str) -> &str {
         .unwrap_or(input)
 }
 
-// TODO(Nadin): Refactor the following functions to be static methods of ComponentExecutionConfig.
-pub fn get_disabled_component_config() -> ComponentExecutionConfig {
-    ComponentExecutionConfig {
+// TODO(Nadin): Refactor the following functions to be static methods of
+// ReactiveComponentExecutionConfig.
+pub fn get_disabled_component_config() -> ReactiveComponentExecutionConfig {
+    ReactiveComponentExecutionConfig {
         execution_mode: ReactiveComponentExecutionMode::Disabled,
         local_server_config: None,
         remote_client_config: None,
@@ -103,8 +104,8 @@ pub fn get_disabled_component_config() -> ComponentExecutionConfig {
     }
 }
 
-pub fn get_remote_component_config(socket: SocketAddr) -> ComponentExecutionConfig {
-    ComponentExecutionConfig {
+pub fn get_remote_component_config(socket: SocketAddr) -> ReactiveComponentExecutionConfig {
+    ReactiveComponentExecutionConfig {
         execution_mode: ReactiveComponentExecutionMode::Remote,
         local_server_config: None,
         remote_client_config: Some(RemoteClientConfig { socket, ..RemoteClientConfig::default() }),
@@ -114,8 +115,8 @@ pub fn get_remote_component_config(socket: SocketAddr) -> ComponentExecutionConf
 
 pub fn get_local_with_remote_enabled_component_config(
     socket: SocketAddr,
-) -> ComponentExecutionConfig {
-    ComponentExecutionConfig {
+) -> ReactiveComponentExecutionConfig {
+    ReactiveComponentExecutionConfig {
         execution_mode: ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled,
         local_server_config: Some(LocalServerConfig::default()),
         remote_client_config: None,
@@ -126,7 +127,7 @@ pub fn get_local_with_remote_enabled_component_config(
 pub async fn get_http_only_component_config(gateway_socket: SocketAddr) -> ComponentConfig {
     let monitoring_endpoint_socket = get_available_socket().await;
     ComponentConfig {
-        http_server: ComponentExecutionConfig::http_server_default_config(),
+        http_server: ReactiveComponentExecutionConfig::http_server_default_config(),
         gateway: get_remote_component_config(gateway_socket),
         monitoring_endpoint: get_local_with_remote_enabled_component_config(
             monitoring_endpoint_socket,
