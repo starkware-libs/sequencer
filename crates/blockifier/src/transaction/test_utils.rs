@@ -44,6 +44,7 @@ use crate::transaction::account_transaction::{AccountTransaction, ExecutionFlags
 use crate::transaction::objects::{TransactionExecutionInfo, TransactionExecutionResult};
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::ExecutableTransaction;
+use crate::versioned_constants::VersionedConstants;
 
 // Corresponding constants to the ones in faulty_account.
 pub const VALID: u64 = 0;
@@ -90,9 +91,29 @@ pub fn create_resource_bounds(computation_mode: &GasVectorComputationMode) -> Va
     }
 }
 
+pub fn create_gas_amount_bounds_with_default_price(
+    l1_gas_amount: GasAmount,
+    l2_gas_amount: GasAmount,
+    l1_data_gas_amount: GasAmount,
+) -> ValidResourceBounds {
+    create_all_resource_bounds(
+        l1_gas_amount,
+        DEFAULT_STRK_L1_GAS_PRICE.into(),
+        l2_gas_amount,
+        DEFAULT_STRK_L2_GAS_PRICE.into(),
+        l1_data_gas_amount,
+        DEFAULT_STRK_L1_DATA_GAS_PRICE.into(),
+    )
+}
+
 #[fixture]
 pub fn block_context() -> BlockContext {
     BlockContext::create_for_account_testing()
+}
+
+#[fixture]
+pub fn versioned_constants(block_context: BlockContext) -> VersionedConstants {
+    block_context.versioned_constants().clone()
 }
 
 /// Struct containing the data usually needed to initialize a test.
