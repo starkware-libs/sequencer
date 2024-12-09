@@ -19,6 +19,12 @@ pub enum ReactiveComponentExecutionMode {
     LocalExecutionWithRemoteDisabled,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum ActiveComponentExecutionMode {
+    Disabled,
+    Enabled,
+}
+
 // TODO(Lev/Tsabary): When papyrus_config will support it, change to include communication config in
 // the enum.
 
