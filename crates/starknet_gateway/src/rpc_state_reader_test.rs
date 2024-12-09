@@ -193,7 +193,10 @@ async fn test_get_compiled_class() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(result, RunnableCompiledClass::V1(expected_result.try_into().unwrap()));
+    assert_eq!(
+        RunnableCompiledClass::from(result),
+        RunnableCompiledClass::V1(expected_result.try_into().unwrap())
+    );
     mock.assert_async().await;
 }
 

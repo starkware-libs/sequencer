@@ -1,4 +1,4 @@
-use blockifier::execution::contract_class::RunnableCompiledClass;
+use blockifier::execution::contract_class::VersionedRunnableCompiledClass;
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
 #[cfg(test)]
@@ -44,7 +44,10 @@ impl BlockifierStateReader for Box<dyn MempoolStateReader> {
         self.as_ref().get_class_hash_at(contract_address)
     }
 
-    fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
+    fn get_compiled_class(
+        &self,
+        class_hash: ClassHash,
+    ) -> StateResult<VersionedRunnableCompiledClass> {
         self.as_ref().get_compiled_class(class_hash)
     }
 

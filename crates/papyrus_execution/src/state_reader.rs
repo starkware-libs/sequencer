@@ -8,6 +8,7 @@ use blockifier::execution::contract_class::{
     CompiledClassV0,
     CompiledClassV1,
     RunnableCompiledClass,
+    VersionedRunnableCompiledClass,
 };
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
@@ -15,12 +16,13 @@ use papyrus_common::pending_classes::{ApiContractClass, PendingClassesTrait};
 use papyrus_common::state::DeclaredClassHashEntry;
 use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::{StorageError, StorageReader};
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::{StateNumber, StorageKey};
 use starknet_types_core::felt::Felt;
 
 use crate::execution_utils;
-use crate::execution_utils::{get_contract_class, ExecutionUtilsError};
+use crate::execution_utils::{get_versioned_contract_class, ExecutionUtilsError};
 use crate::objects::PendingData;
 
 /// A view into the state at a specific state number.
@@ -75,32 +77,46 @@ impl BlockifierStateReader for ExecutionStateReader {
         .unwrap_or_default())
     }
 
-    fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
+    fn get_compiled_class(
+        &self,
+        class_hash: ClassHash,
+    ) -> StateResult<VersionedRunnableCompiledClass> {
         if let Some(pending_casm) = self
             .maybe_pending_data
             .as_ref()
             .and_then(|pending_data| pending_data.classes.get_compiled_class(class_hash))
         {
-            return Ok(RunnableCompiledClass::V1(
-                CompiledClassV1::try_from(pending_casm).map_err(StateError::ProgramError)?,
-            ));
+            if let Some(ApiContractClass::ContractClass(sierra)) = self
+                .maybe_pending_data
+                .as_ref()
+                .and_then(|pending_data| pending_data.classes.get_class(class_hash))
+            {
+                let runnable_compiled_class = RunnableCompiledClass::V1(
+                    CompiledClassV1::try_from(pending_casm).map_err(StateError::ProgramError)?,
+                );
+                return Ok(VersionedRunnableCompiledClass::Cairo1((
+                    runnable_compiled_class,
+                    SierraVersion::extract_from_program(&sierra.sierra_program)?,
+                )));
+            }
         }
+
         if let Some(ApiContractClass::DeprecatedContractClass(pending_deprecated_class)) = self
             .maybe_pending_data
             .as_ref()
             .and_then(|pending_data| pending_data.classes.get_class(class_hash))
         {
-            return Ok(RunnableCompiledClass::V0(
+            return Ok(VersionedRunnableCompiledClass::Cairo0(RunnableCompiledClass::V0(
                 CompiledClassV0::try_from(pending_deprecated_class)
                     .map_err(StateError::ProgramError)?,
-            ));
+            )));
         }
-        match get_contract_class(
+        match get_versioned_contract_class(
             &self.storage_reader.begin_ro_txn().map_err(storage_err_to_state_err)?,
             &class_hash,
             self.state_number,
         ) {
-            Ok(Some(contract_class)) => Ok(contract_class),
+            Ok(Some(versioned_contract_class)) => Ok(versioned_contract_class),
             Ok(None) => Err(StateError::UndeclaredClassHash(class_hash)),
             Err(ExecutionUtilsError::CasmTableNotSynced) => {
                 self.missing_compiled_class.set(Some(class_hash));

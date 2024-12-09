@@ -13,6 +13,7 @@ use crate::blockifier::config::TransactionExecutorConfig;
 use crate::bouncer::{Bouncer, BouncerWeights};
 use crate::concurrency::worker_logic::WorkerExecutor;
 use crate::context::BlockContext;
+use crate::execution::contract_class::RunnableCompiledClass;
 use crate::state::cached_state::{CachedState, CommitmentStateDiff, TransactionalState};
 use crate::state::errors::StateError;
 use crate::state::state_api::{StateReader, StateResult};
@@ -156,12 +157,16 @@ impl<S: StateReader> TransactionExecutor<S> {
             .visited_pcs
             .iter()
             .map(|(class_hash, class_visited_pcs)| -> TransactionExecutorResult<_> {
-                let contract_class = self
+                let versioned_contract_class = self
                     .block_state
                     .as_ref()
                     .expect(BLOCK_STATE_ACCESS_ERR)
                     .get_compiled_class(*class_hash)?;
-                Ok((*class_hash, contract_class.get_visited_segments(class_visited_pcs)?))
+                Ok((
+                    *class_hash,
+                    RunnableCompiledClass::from(versioned_contract_class)
+                        .get_visited_segments(class_visited_pcs)?,
+                ))
             })
             .collect::<TransactionExecutorResult<_>>()?;
 

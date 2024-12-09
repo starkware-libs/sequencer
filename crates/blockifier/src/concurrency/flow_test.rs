@@ -9,7 +9,7 @@ use crate::abi::sierra_types::{SierraType, SierraU128};
 use crate::concurrency::scheduler::{Scheduler, Task, TransactionStatus};
 use crate::concurrency::test_utils::{safe_versioned_state_for_testing, DEFAULT_CHUNK_SIZE};
 use crate::concurrency::versioned_state::ThreadSafeVersionedState;
-use crate::state::cached_state::{CachedState, ContractClassMapping, StateMaps};
+use crate::state::cached_state::{CachedState, StateMaps, VersionedContractClassMapping};
 use crate::state::state_api::UpdatableState;
 use crate::test_utils::dict_state_reader::DictStateReader;
 
@@ -43,14 +43,15 @@ fn scheduler_flow_test(
                             get_reads_writes_for(Task::ValidationTask(tx_index), &versioned_state);
                         let reads_valid = state_proxy.validate_reads(&reads);
                         if !reads_valid {
-                            state_proxy.delete_writes(&writes, &ContractClassMapping::default());
+                            state_proxy
+                                .delete_writes(&writes, &VersionedContractClassMapping::default());
                             let (_, new_writes) = get_reads_writes_for(
                                 Task::ExecutionTask(tx_index),
                                 &versioned_state,
                             );
                             state_proxy.apply_writes(
                                 &new_writes,
-                                &ContractClassMapping::default(),
+                                &VersionedContractClassMapping::default(),
                                 &HashMap::default(),
                             );
                             scheduler.finish_execution_during_commit(tx_index);
@@ -63,7 +64,7 @@ fn scheduler_flow_test(
                             get_reads_writes_for(Task::ExecutionTask(tx_index), &versioned_state);
                         versioned_state.pin_version(tx_index).apply_writes(
                             &writes,
-                            &ContractClassMapping::default(),
+                            &VersionedContractClassMapping::default(),
                             &HashMap::default(),
                         );
                         scheduler.finish_execution(tx_index);
@@ -76,7 +77,8 @@ fn scheduler_flow_test(
                         let read_set_valid = state_proxy.validate_reads(&reads);
                         let aborted = !read_set_valid && scheduler.try_validation_abort(tx_index);
                         if aborted {
-                            state_proxy.delete_writes(&writes, &ContractClassMapping::default());
+                            state_proxy
+                                .delete_writes(&writes, &VersionedContractClassMapping::default());
                             scheduler.finish_abort(tx_index)
                         } else {
                             Task::AskForTask
