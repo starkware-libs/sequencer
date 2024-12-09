@@ -93,7 +93,7 @@ impl SerializeConfig for ActiveComponentExecutionConfig {
 
 impl Default for ActiveComponentExecutionConfig {
     fn default() -> Self {
-        Self { execution_mode: ActiveComponentExecutionMode::Enabled, remote_client_config: None }
+        ActiveComponentExecutionConfig::enabled()
     }
 }
 
@@ -163,6 +163,16 @@ impl ReactiveComponentExecutionConfig {
             remote_client_config: None,
             remote_server_config: None,
         }
+    }
+}
+
+impl ActiveComponentExecutionConfig {
+    pub fn disabled() -> Self {
+        Self { execution_mode: ActiveComponentExecutionMode::Disabled, remote_client_config: None }
+    }
+
+    pub fn enabled() -> Self {
+        Self { execution_mode: ActiveComponentExecutionMode::Enabled, remote_client_config: None }
     }
 }
 
