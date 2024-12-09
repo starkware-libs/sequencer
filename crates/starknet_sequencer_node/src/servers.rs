@@ -308,7 +308,7 @@ fn create_wrapper_servers(
         &config.components.consensus_manager.execution_mode,
         components.consensus_manager
     );
-    let http_server = create_wrapper_server!(
+    let http_server = create_wrapper_server_for_active_component!(
         &config.components.http_server.execution_mode,
         components.http_server
     );
