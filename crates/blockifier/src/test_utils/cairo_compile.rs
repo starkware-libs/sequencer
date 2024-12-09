@@ -52,17 +52,8 @@ struct CargoToml {
 }
 
 pub enum CompilationArtifacts {
-    Cairo0 {
-        casm: Vec<u8>,
-    },
-    Cairo1 {
-        casm: Vec<u8>,
-        sierra: Vec<u8>,
-    },
-    #[cfg(feature = "cairo_native")]
-    Cairo1Native {
-        sierra: Vec<u8>,
-    },
+    Cairo0 { casm: Vec<u8> },
+    Cairo1 { casm: Vec<u8>, sierra: Vec<u8> },
 }
 
 #[cached]

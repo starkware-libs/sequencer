@@ -64,6 +64,12 @@ pub enum RunnableCairo1 {
     Native,
 }
 
+impl Default for RunnableCairo1 {
+    fn default() -> Self {
+        Self::Casm
+    }
+}
+
 // TODO(Aviv, 14/7/2024): Move from test utils module, and use it in ContractClassVersionMismatch
 // error.
 #[derive(Clone, Hash, PartialEq, Eq, Copy, Debug)]
@@ -89,17 +95,6 @@ impl CairoVersion {
             CairoVersion::Cairo1(RunnableCairo1::Casm)
         } else {
             panic!("Transaction version {:?} is not supported.", tx_version)
-        }
-    }
-
-    pub fn other(&self) -> Self {
-        match self {
-            Self::Cairo0 => CairoVersion::Cairo1(RunnableCairo1::Casm),
-            CairoVersion::Cairo1(RunnableCairo1::Casm) => Self::Cairo0,
-            #[cfg(feature = "cairo_native")]
-            CairoVersion::Cairo1(RunnableCairo1::Native) => {
-                panic!("There is no other version for native")
-            }
         }
     }
 
