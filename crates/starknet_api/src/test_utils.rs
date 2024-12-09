@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::fs::read_to_string;
 use std::path::{Path, PathBuf};
 
+use infra_utils::path::current_dir;
 use serde::{Deserialize, Serialize};
 use serde_json::to_string_pretty;
 use starknet_types_core::felt::Felt;
@@ -20,7 +21,7 @@ pub mod l1_handler;
 /// directory has a `resources` folder. The value for file_path should be the path to the required
 /// file in the folder "resources".
 pub fn path_in_resources<P: AsRef<Path>>(file_path: P) -> PathBuf {
-    std::env::current_dir().unwrap().join("resources").join(file_path)
+    current_dir().unwrap().join("resources").join(file_path)
 }
 
 /// Reads from the directory containing the manifest at run time, same as current working directory.
