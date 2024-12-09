@@ -8,7 +8,7 @@ use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
 use crate::context::TransactionContext;
-use crate::execution::contract_class::RunnableCompiledClass;
+use crate::execution::contract_class::VersionedRunnableCompiledClass;
 use crate::state::errors::StateError;
 use crate::state::state_api::{State, StateReader, StateResult, UpdatableState};
 use crate::transaction::objects::TransactionExecutionInfo;
@@ -18,7 +18,7 @@ use crate::utils::{strict_subtract_mappings, subtract_mappings};
 #[path = "cached_state_test.rs"]
 mod test;
 
-pub type ContractClassMapping = HashMap<ClassHash, RunnableCompiledClass>;
+pub type VersionedContractClassMapping = HashMap<ClassHash, VersionedRunnableCompiledClass>;
 
 /// Caches read and write requests.
 ///
@@ -30,7 +30,7 @@ pub struct CachedState<S: StateReader> {
     // Invariant: read/write access is managed by CachedState.
     // Using interior mutability to update caches during `State`'s immutable getters.
     pub(crate) cache: RefCell<StateCache>,
-    pub(crate) class_hash_to_class: RefCell<ContractClassMapping>,
+    pub(crate) class_hash_to_class: RefCell<VersionedContractClassMapping>,
     /// A map from class hash to the set of PC values that were visited in the class.
     pub visited_pcs: HashMap<ClassHash, HashSet<usize>>,
 }
@@ -66,7 +66,7 @@ impl<S: StateReader> CachedState<S> {
     pub fn update_cache(
         &mut self,
         write_updates: &StateMaps,
-        local_contract_cache_updates: ContractClassMapping,
+        local_contract_cache_updates: VersionedContractClassMapping,
     ) {
         // Check consistency between declared_contracts and class_hash_to_class.
         for (&key, &value) in &write_updates.declared_contracts {
@@ -114,7 +114,7 @@ impl<S: StateReader> UpdatableState for CachedState<S> {
     fn apply_writes(
         &mut self,
         writes: &StateMaps,
-        class_hash_to_class: &ContractClassMapping,
+        class_hash_to_class: &VersionedContractClassMapping,
         visited_pcs: &HashMap<ClassHash, HashSet<usize>>,
     ) {
         // TODO(Noa,15/5/24): Reconsider the clone.
@@ -178,7 +178,10 @@ impl<S: StateReader> StateReader for CachedState<S> {
         Ok(*class_hash)
     }
 
-    fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
+    fn get_compiled_class(
+        &self,
+        class_hash: ClassHash,
+    ) -> StateResult<VersionedRunnableCompiledClass> {
         let mut cache = self.cache.borrow_mut();
         let class_hash_to_class = &mut *self.class_hash_to_class.borrow_mut();
 
@@ -202,12 +205,12 @@ impl<S: StateReader> StateReader for CachedState<S> {
             }
         }
 
-        let contract_class = class_hash_to_class
+        let versioned_contract_class = class_hash_to_class
             .get(&class_hash)
             .cloned()
             .expect("The class hash must appear in the cache.");
 
-        Ok(contract_class)
+        Ok(versioned_contract_class)
     }
 
     fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
@@ -261,9 +264,10 @@ impl<S: StateReader> State for CachedState<S> {
     fn set_contract_class(
         &mut self,
         class_hash: ClassHash,
-        contract_class: RunnableCompiledClass,
+        versioned_contract_class: VersionedRunnableCompiledClass,
     ) -> StateResult<()> {
-        self.class_hash_to_class.get_mut().insert(class_hash, contract_class);
+        // TODO(Aviv): Use the actual Sierra version after the change in StateReader trait.
+        self.class_hash_to_class.get_mut().insert(class_hash, versioned_contract_class);
         let mut cache = self.cache.borrow_mut();
         cache.declare_contract(class_hash);
         Ok(())
@@ -567,7 +571,10 @@ impl<S: StateReader + ?Sized> StateReader for MutRefState<'_, S> {
         self.0.get_class_hash_at(contract_address)
     }
 
-    fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
+    fn get_compiled_class(
+        &self,
+        class_hash: ClassHash,
+    ) -> StateResult<VersionedRunnableCompiledClass> {
         self.0.get_compiled_class(class_hash)
     }
 
