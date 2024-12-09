@@ -1,3 +1,11 @@
+//! Run a single height of consensus.
+//!
+//! [`SingleHeightConsensus`] (SHC) - run consensus for a single height.
+//!
+//! [`ShcTask`] - a task which should be run without blocking consensus.
+//!
+//! [`ShcEvent`] - an event, generated from an `ShcTask` which should be handled by the SHC.
+
 #[cfg(test)]
 #[path = "single_height_consensus_test.rs"]
 mod single_height_consensus_test;
@@ -24,6 +32,8 @@ use crate::types::{
     ValidatorId,
 };
 
+/// The SHC can either update the manager of a decision or return tasks that should be run without
+/// blocking further calls to itself.
 #[derive(Debug, PartialEq)]
 #[cfg_attr(test, derive(EnumAsInner))]
 pub enum ShcReturn {
@@ -31,6 +41,7 @@ pub enum ShcReturn {
     Decision(Decision),
 }
 
+/// Events produced from tasks for the SHC to handle.
 #[derive(Debug, Clone)]
 pub enum ShcEvent {
     TimeoutPropose(StateMachineEvent),
@@ -43,6 +54,7 @@ pub enum ShcEvent {
     ValidateProposal(StateMachineEvent, Option<ProposalFin>),
 }
 
+/// A task which should be run without blocking calls to SHC.
 #[derive(Debug)]
 #[cfg_attr(test, derive(EnumAsInner))]
 pub enum ShcTask {
@@ -135,10 +147,18 @@ impl ShcTask {
     }
 }
 
-/// Struct which represents a single height of consensus. Each height is expected to be begun with a
-/// call to `start`, which is relevant if we are the proposer for this height's first round.
-/// SingleHeightConsensus receives messages directly as parameters to function calls. It can send
-/// out messages "directly" to the network, and returning a decision to the caller.
+/// Represents a single height of consensus. It is responsible for mapping between the idealized
+/// view of consensus represented in the StateMachine and the real world implementation.
+///
+/// Example:
+/// - Timeouts: the SM returns an event timeout, but SHC then maps that to a task which can be run
+///   by the Manager. The manager though unaware of the specific task as it has minimal consensus
+///   logic.
+///
+/// Each height is begun with a call to `start`, with no further calls to it.
+///
+/// SHC is not a top level task, it is called directly and returns values (doesn't directly run sub
+/// tasks). SHC does have side effects, such as sending messages to the network via the context.
 pub(crate) struct SingleHeightConsensus {
     height: BlockNumber,
     validators: Vec<ValidatorId>,

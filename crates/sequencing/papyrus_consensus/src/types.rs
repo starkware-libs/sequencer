@@ -1,3 +1,5 @@
+//! Types for interfacing between consensus and the node.
+
 use std::fmt::Debug;
 use std::time::Duration;
 
@@ -28,6 +30,8 @@ pub type ProposalContentId = BlockHash;
 pub const DEFAULT_VALIDATOR_ID: u64 = 100;
 
 /// Interface for consensus to call out to the node.
+///
+/// Function calls should be assumed to not be cancel safe.
 #[async_trait]
 pub trait ConsensusContext {
     /// The parts of the proposal that are streamed in.
