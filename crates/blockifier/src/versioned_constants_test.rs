@@ -2,7 +2,12 @@ use glob::{glob, Paths};
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::block::NonzeroGasPrice;
-use starknet_api::test_utils::{DEFAULT_STRK_L1_GAS_PRICE, DEFAULT_STRK_L2_GAS_PRICE};
+use starknet_api::test_utils::{
+    DEFAULT_ETH_L1_GAS_PRICE,
+    DEFAULT_ETH_L2_GAS_PRICE,
+    DEFAULT_STRK_L1_GAS_PRICE,
+    DEFAULT_STRK_L2_GAS_PRICE,
+};
 
 use super::*;
 
@@ -198,6 +203,7 @@ fn test_syscall_gas_cost_calculation() {
 }
 
 #[rstest]
+#[case::eth(DEFAULT_ETH_L1_GAS_PRICE, DEFAULT_ETH_L2_GAS_PRICE)]
 #[case::strk(DEFAULT_STRK_L1_GAS_PRICE, DEFAULT_STRK_L2_GAS_PRICE)]
 fn test_convert_l1_to_l2_gas_price_round_up(
     #[case] l1_gas_price: NonzeroGasPrice,
