@@ -7,7 +7,10 @@ use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::TransactionExecutor;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::BlockContext;
-use blockifier::execution::contract_class::RunnableCompiledClass;
+use blockifier::execution::contract_class::{
+    RunnableCompiledClass,
+    VersionedRunnableCompiledClass,
+};
 use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader, StateResult};
@@ -128,19 +131,25 @@ impl StateReader for TestStateReader {
 
     /// Returns the contract class of the given class hash.
     /// Compile the contract class if it is Sierra.
-    fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
+    fn get_compiled_class(
+        &self,
+        class_hash: ClassHash,
+    ) -> StateResult<VersionedRunnableCompiledClass> {
         let contract_class =
             retry_request!(self.retry_config, || self.get_contract_class(&class_hash))?;
 
         match contract_class {
             StarknetContractClass::Sierra(sierra) => {
-                let (casm, _) = sierra_to_versioned_contract_class_v1(sierra).unwrap();
+                let (casm, sierra_version) = sierra_to_versioned_contract_class_v1(sierra).unwrap();
                 let runnable_contract_class: RunnableCompiledClass = casm.try_into().unwrap();
-                Ok(runnable_contract_class.try_into().unwrap())
+                Ok(VersionedRunnableCompiledClass::Cairo1((
+                    runnable_contract_class,
+                    sierra_version,
+                )))
             }
-            StarknetContractClass::Legacy(legacy) => {
-                Ok(legacy_to_contract_class_v0(legacy).unwrap().try_into().unwrap())
-            }
+            StarknetContractClass::Legacy(legacy) => Ok(VersionedRunnableCompiledClass::Cairo0(
+                legacy_to_contract_class_v0(legacy).unwrap().try_into().unwrap(),
+            )),
         }
     }
 

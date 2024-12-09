@@ -190,7 +190,6 @@ impl FeatureContract {
         self.get_class().try_into().unwrap()
     }
 
-    #[allow(dead_code)]
     pub fn get_versioned_runnable_class(&self) -> VersionedRunnableCompiledClass {
         let runnable_class = self.get_runnable_class();
         match self.cairo_version() {

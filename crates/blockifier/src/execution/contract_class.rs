@@ -68,7 +68,7 @@ pub enum RunnableCompiledClass {
 }
 
 /// Represents a runnable compiled class for Cairo, with the Sierra version (for Cairo 1).
-#[derive(Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum VersionedRunnableCompiledClass {
     Cairo0(RunnableCompiledClass),
     Cairo1((RunnableCompiledClass, SierraVersion)),
