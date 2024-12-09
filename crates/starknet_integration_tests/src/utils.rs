@@ -227,3 +227,17 @@ pub fn create_batcher_config(
         ..Default::default()
     }
 }
+
+pub fn get_http_server_config(configs: &[SequencerNodeConfig]) -> Option<&HttpServerConfig> {
+    configs
+        .iter()
+        .find(|config| {
+            matches!(
+                config.components.http_server.execution_mode,
+                ComponentExecutionMode::Remote
+                    | ComponentExecutionMode::LocalExecutionWithRemoteEnabled
+                    | ComponentExecutionMode::LocalExecutionWithRemoteDisabled
+            )
+        })
+        .map(|config| &config.http_server_config)
+}
