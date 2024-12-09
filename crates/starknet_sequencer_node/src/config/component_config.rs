@@ -5,40 +5,41 @@ use papyrus_config::{ParamPath, SerializedParam};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
-use crate::config::component_execution_config::ComponentExecutionConfig;
+use crate::config::component_execution_config::ReactiveComponentExecutionConfig;
 
 /// The components configuration.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct ComponentConfig {
     #[validate]
-    pub batcher: ComponentExecutionConfig,
+    pub batcher: ReactiveComponentExecutionConfig,
     #[validate]
-    pub consensus_manager: ComponentExecutionConfig,
+    pub consensus_manager: ReactiveComponentExecutionConfig,
     #[validate]
-    pub gateway: ComponentExecutionConfig,
+    pub gateway: ReactiveComponentExecutionConfig,
     #[validate]
-    pub http_server: ComponentExecutionConfig,
+    pub http_server: ReactiveComponentExecutionConfig,
     #[validate]
-    pub mempool: ComponentExecutionConfig,
+    pub mempool: ReactiveComponentExecutionConfig,
     #[validate]
-    pub mempool_p2p: ComponentExecutionConfig,
+    pub mempool_p2p: ReactiveComponentExecutionConfig,
     #[validate]
-    pub monitoring_endpoint: ComponentExecutionConfig,
+    pub monitoring_endpoint: ReactiveComponentExecutionConfig,
     #[validate]
-    pub state_sync: ComponentExecutionConfig,
+    pub state_sync: ReactiveComponentExecutionConfig,
 }
 
 impl Default for ComponentConfig {
     fn default() -> Self {
         Self {
-            batcher: ComponentExecutionConfig::batcher_default_config(),
-            consensus_manager: ComponentExecutionConfig::consensus_manager_default_config(),
-            gateway: ComponentExecutionConfig::gateway_default_config(),
-            http_server: ComponentExecutionConfig::http_server_default_config(),
-            mempool: ComponentExecutionConfig::mempool_default_config(),
-            mempool_p2p: ComponentExecutionConfig::mempool_p2p_default_config(),
-            monitoring_endpoint: ComponentExecutionConfig::monitoring_endpoint_default_config(),
-            state_sync: ComponentExecutionConfig::state_sync_default_config(),
+            batcher: ReactiveComponentExecutionConfig::batcher_default_config(),
+            consensus_manager: ReactiveComponentExecutionConfig::consensus_manager_default_config(),
+            gateway: ReactiveComponentExecutionConfig::gateway_default_config(),
+            http_server: ReactiveComponentExecutionConfig::http_server_default_config(),
+            mempool: ReactiveComponentExecutionConfig::mempool_default_config(),
+            mempool_p2p: ReactiveComponentExecutionConfig::mempool_p2p_default_config(),
+            monitoring_endpoint:
+                ReactiveComponentExecutionConfig::monitoring_endpoint_default_config(),
+            state_sync: ReactiveComponentExecutionConfig::state_sync_default_config(),
         }
     }
 }
