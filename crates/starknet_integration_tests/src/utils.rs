@@ -41,7 +41,8 @@ pub async fn create_config(
     chain_info: ChainInfo,
     rpc_server_addr: SocketAddr,
     batcher_storage_config: StorageConfig,
-) -> (SequencerNodeConfig, RequiredParams, BroadcastTopicChannels<StreamMessage<ProposalPart>>) {
+) -> (Vec<SequencerNodeConfig>, RequiredParams, BroadcastTopicChannels<StreamMessage<ProposalPart>>)
+{
     let fee_token_addresses = chain_info.fee_token_addresses.clone();
     let batcher_config = create_batcher_config(batcher_storage_config, chain_info.clone());
     let gateway_config = create_gateway_config(chain_info.clone()).await;
@@ -51,14 +52,14 @@ pub async fn create_config(
         create_consensus_manager_configs_and_channels(1);
     let consensus_manager_config = consensus_manager_configs.pop().unwrap();
     (
-        SequencerNodeConfig {
+        vec![SequencerNodeConfig {
             batcher_config,
             consensus_manager_config,
             gateway_config,
             http_server_config,
             rpc_state_reader_config,
             ..SequencerNodeConfig::default()
-        },
+        }],
         RequiredParams {
             chain_id: chain_info.chain_id,
             eth_fee_token_address: fee_token_addresses.eth_fee_token_address,
