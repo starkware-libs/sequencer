@@ -7,7 +7,7 @@ use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{CairoVersion, RunnableCairo1};
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use papyrus_consensus::config::ConsensusConfig;
-use papyrus_consensus::types::ValidatorId;
+use papyrus_consensus::types::{ValidatorId, DEFAULT_VALIDATOR_ID};
 use papyrus_network::network_manager::test_utils::create_network_configs_connected_to_broadcast_channels;
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{ProposalPart, StreamMessage};
@@ -75,7 +75,7 @@ pub async fn create_config(
             chain_id: chain_info.chain_id,
             eth_fee_token_address: fee_token_addresses.eth_fee_token_address,
             strk_fee_token_address: fee_token_addresses.strk_fee_token_address,
-            validator_id: ContractAddress::from(100_u128),
+            validator_id: ContractAddress::from(DEFAULT_VALIDATOR_ID),
         },
     )
 }
