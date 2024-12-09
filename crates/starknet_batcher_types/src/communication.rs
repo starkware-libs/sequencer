@@ -20,6 +20,7 @@ use thiserror::Error;
 use crate::batcher_types::{
     BatcherResult,
     DecisionReachedInput,
+    GetHeightResponse,
     GetProposalContentInput,
     GetProposalContentResponse,
     ProposeBlockInput,
@@ -44,6 +45,8 @@ pub type SharedBatcherClient = Arc<dyn BatcherClient>;
 pub trait BatcherClient: Send + Sync {
     /// Starts the process of building a proposal.
     async fn propose_block(&self, input: ProposeBlockInput) -> BatcherClientResult<()>;
+    /// Gets the first height that is not written in the storage yet.
+    async fn get_height(&self) -> BatcherClientResult<GetHeightResponse>;
     /// Gets the next available content from the proposal stream (only relevant when building a
     /// proposal).
     async fn get_proposal_content(
@@ -80,6 +83,7 @@ pub enum BatcherRequest {
     ValidateBlock(ValidateBlockInput),
     SendProposalContent(SendProposalContentInput),
     StartHeight(StartHeightInput),
+    GetCurrentHeight,
     DecisionReached(DecisionReachedInput),
     AddSyncBlock(SyncBlock),
 }
@@ -87,6 +91,7 @@ pub enum BatcherRequest {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum BatcherResponse {
     ProposeBlock(BatcherResult<()>),
+    GetCurrentHeight(BatcherResult<GetHeightResponse>),
     GetProposalContent(BatcherResult<GetProposalContentResponse>),
     ValidateBlock(BatcherResult<()>),
     SendProposalContent(BatcherResult<SendProposalContentResponse>),
@@ -152,6 +157,17 @@ where
         let request = BatcherRequest::StartHeight(input);
         let response = self.send(request).await;
         handle_response_variants!(BatcherResponse, StartHeight, BatcherClientError, BatcherError)
+    }
+
+    async fn get_height(&self) -> BatcherClientResult<GetHeightResponse> {
+        let request = BatcherRequest::GetCurrentHeight;
+        let response = self.send(request).await;
+        handle_response_variants!(
+            BatcherResponse,
+            GetCurrentHeight,
+            BatcherClientError,
+            BatcherError
+        )
     }
 
     async fn decision_reached(&self, input: DecisionReachedInput) -> BatcherClientResult<()> {
