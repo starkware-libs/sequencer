@@ -43,7 +43,7 @@ impl FlowTestSetup {
         let chain_info = create_chain_info();
 
         // Configure and start tracing.
-        configure_tracing();
+        configure_tracing().await;
 
         let accounts = tx_generator.accounts();
         let storage_for_test = StorageTestSetup::new(accounts, &chain_info);
