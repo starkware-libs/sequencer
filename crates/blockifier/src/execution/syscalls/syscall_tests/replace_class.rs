@@ -11,10 +11,10 @@ use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, RunnableCairo1, BALANCE};
 
-#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Cairo1(RunnableCairo1::Native); "Native"))]
-#[test_case(CairoVersion::Cairo1(RunnableCairo1::Casm); "VM")]
-fn undeclared_class_hash(cairo_version: CairoVersion) {
-    let test_contract = FeatureContract::TestContract(cairo_version);
+#[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native; "Native"))]
+#[test_case(RunnableCairo1::Casm; "VM")]
+fn undeclared_class_hash(runnable_version: RunnableCairo1) {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable_version));
     let mut state = test_state(&ChainInfo::create_for_testing(), BALANCE, &[(test_contract, 1)]);
 
     let entry_point_call = CallEntryPoint {
@@ -27,10 +27,10 @@ fn undeclared_class_hash(cairo_version: CairoVersion) {
     assert!(error.to_string().contains("is not declared"));
 }
 
-#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Cairo1(RunnableCairo1::Native); "Native"))]
-#[test_case(CairoVersion::Cairo1(RunnableCairo1::Casm); "VM")]
-fn cairo0_class_hash(cairo_version: CairoVersion) {
-    let test_contract = FeatureContract::TestContract(cairo_version);
+#[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native; "Native"))]
+#[test_case(RunnableCairo1::Casm; "VM")]
+fn cairo0_class_hash(runnable_version: RunnableCairo1) {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable_version));
     let empty_contract_cairo0 = FeatureContract::Empty(CairoVersion::Cairo0);
     let mut state = test_state(
         &ChainInfo::create_for_testing(),
@@ -51,11 +51,11 @@ fn cairo0_class_hash(cairo_version: CairoVersion) {
     assert!(error.to_string().contains("Cannot replace V1 class hash with V0 class hash"));
 }
 
-#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Cairo1(RunnableCairo1::Native); "Native"))]
-#[test_case(CairoVersion::Cairo1(RunnableCairo1::Casm); "VM")]
-fn positive_flow(cairo_version: CairoVersion) {
-    let test_contract = FeatureContract::TestContract(cairo_version);
-    let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1(RunnableCairo1::Casm));
+#[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native; "Native"))]
+#[test_case(RunnableCairo1::Casm; "VM")]
+fn positive_flow(runnable_version: RunnableCairo1) {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable_version));
+    let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1(runnable_version));
     let empty_contract_cairo0 = FeatureContract::Empty(CairoVersion::Cairo0);
     let mut state = test_state(
         &ChainInfo::create_for_testing(),
