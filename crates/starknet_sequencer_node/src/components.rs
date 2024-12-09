@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use starknet_batcher::batcher::{create_batcher, Batcher};
 use starknet_consensus_manager::consensus_manager::ConsensusManager;
 use starknet_gateway::gateway::{create_gateway, Gateway};
@@ -10,6 +12,7 @@ use starknet_monitoring_endpoint::monitoring_endpoint::{
     create_monitoring_endpoint,
     MonitoringEndpoint,
 };
+use starknet_state_sync_types::communication::EmptyStateSyncClient;
 
 use crate::clients::SequencerNodeClients;
 use crate::config::component_execution_config::ReactiveComponentExecutionMode;
@@ -45,7 +48,13 @@ pub fn create_node_components(
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
             let batcher_client =
                 clients.get_batcher_shared_client().expect("Batcher Client should be available");
-            Some(ConsensusManager::new(config.consensus_manager_config.clone(), batcher_client))
+            // TODO(shahak): Use the real client once we connect state sync to the node.
+            let state_sync_client = Arc::new(EmptyStateSyncClient);
+            Some(ConsensusManager::new(
+                config.consensus_manager_config.clone(),
+                batcher_client,
+                state_sync_client,
+            ))
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };
