@@ -17,7 +17,7 @@ use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 
 use crate::state_reader::{spawn_test_rpc_state_reader, StorageTestSetup};
-use crate::utils::{create_chain_info, create_config};
+use crate::utils::{create_chain_info, create_config, get_http_server_config};
 
 pub struct FlowTestSetup {
     pub task_executor: TokioExecutor,
@@ -56,18 +56,29 @@ impl FlowTestSetup {
         .await;
 
         // Derive the configuration for the sequencer node.
-        let (config, _required_params, consensus_proposals_channels) =
+        let (configs, _required_params, consensus_proposals_channels) =
             create_config(chain_info, rpc_server_addr, storage_for_test.batcher_storage_config)
                 .await;
 
-        let (_clients, servers) = create_node_modules(&config);
+        let mut all_clients = vec![];
+        let mut all_servers = vec![];
+        for config in configs.iter() {
+            let (clients, servers) = create_node_modules(config);
+            all_clients.push(clients);
+            all_servers.push(servers);
+        }
 
-        let HttpServerConfig { ip, port } = config.http_server_config;
-        let add_tx_http_client = HttpTestClient::new(SocketAddr::from((ip, port)));
+        let HttpServerConfig { ip, port } =
+            get_http_server_config(&configs).expect("No matching HttpServerConfig found");
+        let add_tx_http_client = HttpTestClient::new(SocketAddr::from((*ip, *port)));
 
         // Build and run the sequencer node.
-        let sequencer_node_future = run_component_servers(servers);
-        let sequencer_node_handles = vec![task_executor.spawn_with_handle(sequencer_node_future)];
+        let mut sequencer_node_handles = vec![];
+        for server in all_servers {
+            let sequencer_node_future = run_component_servers(server);
+            let sequencer_node_handle = task_executor.spawn_with_handle(sequencer_node_future);
+            sequencer_node_handles.push(sequencer_node_handle);
+        }
 
         // Wait for server to spin up.
         // TODO(Gilad): Replace with a persistent Client with a built-in retry to protect against CI
