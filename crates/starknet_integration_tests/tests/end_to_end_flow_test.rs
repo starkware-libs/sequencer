@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use futures::StreamExt;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
-use papyrus_consensus::types::ValidatorId;
+use papyrus_consensus::types::{ValidatorId, DEFAULT_VALIDATOR_ID};
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{
     ProposalFin,
@@ -89,7 +89,7 @@ async fn listen_to_broadcasted_messages(
         height: expected_height,
         round: 0,
         valid_round: None,
-        proposer: ValidatorId::from(100_u32),
+        proposer: ValidatorId::from(DEFAULT_VALIDATOR_ID),
     };
     let expected_proposal_fin = ProposalFin { proposal_content_id: BlockHash(expected_content_id) };
 
