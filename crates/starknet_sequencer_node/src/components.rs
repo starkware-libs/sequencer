@@ -12,6 +12,7 @@ use starknet_monitoring_endpoint::monitoring_endpoint::{
 };
 
 use crate::clients::SequencerNodeClients;
+use crate::config::active_component_config::ActiveComponentMode;
 use crate::config::node_config::SequencerNodeConfig;
 use crate::config::reactive_component_config::ReactiveComponentMode;
 use crate::version::VERSION_FULL;
@@ -41,13 +42,12 @@ pub fn create_node_components(
         ReactiveComponentMode::Disabled | ReactiveComponentMode::Remote => None,
     };
     let consensus_manager = match config.components.consensus_manager.execution_mode {
-        ReactiveComponentMode::LocalExecutionWithRemoteDisabled
-        | ReactiveComponentMode::LocalExecutionWithRemoteEnabled => {
+        ActiveComponentMode::Enabled => {
             let batcher_client =
                 clients.get_batcher_shared_client().expect("Batcher Client should be available");
             Some(ConsensusManager::new(config.consensus_manager_config.clone(), batcher_client))
         }
-        ReactiveComponentMode::Disabled | ReactiveComponentMode::Remote => None,
+        ActiveComponentMode::Disabled => None,
     };
     let gateway = match config.components.gateway.execution_mode {
         ReactiveComponentMode::LocalExecutionWithRemoteDisabled
@@ -65,14 +65,13 @@ pub fn create_node_components(
         ReactiveComponentMode::Disabled | ReactiveComponentMode::Remote => None,
     };
     let http_server = match config.components.http_server.execution_mode {
-        ReactiveComponentMode::LocalExecutionWithRemoteDisabled
-        | ReactiveComponentMode::LocalExecutionWithRemoteEnabled => {
+        ActiveComponentMode::Enabled => {
             let gateway_client =
                 clients.get_gateway_shared_client().expect("Gateway Client should be available");
 
             Some(create_http_server(config.http_server_config.clone(), gateway_client))
         }
-        ReactiveComponentMode::Disabled | ReactiveComponentMode::Remote => None,
+        ActiveComponentMode::Disabled => None,
     };
 
     let (mempool_p2p_propagator, mempool_p2p_runner) = match config
@@ -104,12 +103,11 @@ pub fn create_node_components(
     };
 
     let monitoring_endpoint = match config.components.monitoring_endpoint.execution_mode {
-        ReactiveComponentMode::LocalExecutionWithRemoteEnabled => Some(create_monitoring_endpoint(
+        ActiveComponentMode::Enabled => Some(create_monitoring_endpoint(
             config.monitoring_endpoint_config.clone(),
             VERSION_FULL,
         )),
-        ReactiveComponentMode::LocalExecutionWithRemoteDisabled => None,
-        ReactiveComponentMode::Disabled | ReactiveComponentMode::Remote => None,
+        ActiveComponentMode::Disabled => None,
     };
 
     SequencerNodeComponents {
