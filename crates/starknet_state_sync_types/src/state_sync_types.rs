@@ -2,10 +2,6 @@ use serde::{Deserialize, Serialize};
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 
-use crate::errors::StateSyncError;
-
-pub type StateSyncResult<T> = Result<T, StateSyncError>;
-
 /// A block that came from the state sync.
 /// Contains all the data needed to update the state of the system about this block.
 ///
