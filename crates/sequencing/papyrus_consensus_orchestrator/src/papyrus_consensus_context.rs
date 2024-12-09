@@ -22,6 +22,7 @@ use papyrus_consensus::types::{
     Round,
     ValidatorId,
 };
+use papyrus_consensus::VALIDATOR_OFFSET;
 use papyrus_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
 use papyrus_protobuf::consensus::{
     ConsensusMessage,
@@ -44,6 +45,7 @@ use tracing::{debug, debug_span, info, warn, Instrument};
 type HeightToIdToContent = BTreeMap<BlockNumber, HashMap<ProposalContentId, Vec<Transaction>>>;
 
 const CHANNEL_SIZE: usize = 100;
+
 
 pub struct PapyrusConsensusContext {
     storage_reader: StorageReader,
@@ -70,7 +72,7 @@ impl PapyrusConsensusContext {
             network_broadcast_client,
             network_proposal_sender,
             // TODO(Matan): Set the actual validator IDs (contract addresses).
-            validators: (100..100 + num_validators).map(ValidatorId::from).collect(),
+            validators: (VALIDATOR_OFFSET..VALIDATOR_OFFSET + num_validators).map(ValidatorId::from).collect(),
             sync_broadcast_sender,
             valid_proposals: Arc::new(Mutex::new(BTreeMap::new())),
         }
