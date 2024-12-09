@@ -12,10 +12,7 @@ use starknet_api::transaction::{
 };
 
 use crate::consensus::{
-    ConsensusMessage, // TODO: remove this
-    Proposal,         // TODO: remove this
     ProposalFin,
-    ProposalInit,
     ProposalPart,
     StreamMessage,
     StreamMessageBody,
@@ -66,23 +63,6 @@ fn convert_stream_message_to_vec_u8_and_back() {
     assert_eq!(stream_message, res_data);
 }
 
-// TODO(guyn): this can be removed once ConsensusMessage is taken out.
-#[test]
-fn convert_consensus_message_to_vec_u8_and_back() {
-    let mut rng = get_rng();
-
-    // Test that we can convert a ConsensusMessage to bytes and back.
-    let mut message = ConsensusMessage::get_test_instance(&mut rng);
-
-    if let ConsensusMessage::Proposal(proposal) = &mut message {
-        add_gas_values_to_transaction(&mut proposal.transactions);
-    }
-
-    let bytes_data: Vec<u8> = message.clone().into();
-    let res_data = ConsensusMessage::try_from(bytes_data).unwrap();
-    assert_eq!(message, res_data);
-}
-
 #[test]
 fn convert_vote_to_vec_u8_and_back() {
     let mut rng = get_rng();
@@ -92,30 +72,6 @@ fn convert_vote_to_vec_u8_and_back() {
     let bytes_data: Vec<u8> = vote.clone().into();
     let res_data = Vote::try_from(bytes_data).unwrap();
     assert_eq!(vote, res_data);
-}
-
-#[test]
-fn convert_proposal_to_vec_u8_and_back() {
-    let mut rng = get_rng();
-
-    let mut proposal = Proposal::get_test_instance(&mut rng);
-
-    add_gas_values_to_transaction(&mut proposal.transactions);
-
-    let bytes_data: Vec<u8> = proposal.clone().into();
-    let res_data = Proposal::try_from(bytes_data).unwrap();
-    assert_eq!(proposal, res_data);
-}
-
-#[test]
-fn convert_proposal_init_to_vec_u8_and_back() {
-    let mut rng = get_rng();
-
-    let proposal_init = ProposalInit::get_test_instance(&mut rng);
-
-    let bytes_data: Vec<u8> = proposal_init.into();
-    let res_data = ProposalInit::try_from(bytes_data).unwrap();
-    assert_eq!(proposal_init, res_data);
 }
 
 #[test]
@@ -162,7 +118,7 @@ fn stream_message_display() {
     let mut rng = get_rng();
     let stream_id = 42;
     let message_id = 127;
-    let proposal = Proposal::get_test_instance(&mut rng);
+    let proposal = ProposalPart::get_test_instance(&mut rng);
     let proposal_bytes: Vec<u8> = proposal.clone().into();
     let proposal_length = proposal_bytes.len();
     let content = StreamMessageBody::Content(proposal);
@@ -177,7 +133,7 @@ fn stream_message_display() {
         )
     );
 
-    let content: StreamMessageBody<Proposal> = StreamMessageBody::Fin;
+    let content: StreamMessageBody<ProposalPart> = StreamMessageBody::Fin;
     let message = StreamMessage { message: content, stream_id, message_id };
     let txt = message.to_string();
     assert_eq!(
