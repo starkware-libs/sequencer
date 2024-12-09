@@ -2,33 +2,19 @@
 mod test;
 
 use async_trait::async_trait;
-use futures::channel::{mpsc, oneshot};
 use futures::future::BoxFuture;
-use futures::{FutureExt, StreamExt};
+use futures::FutureExt;
 use papyrus_network::network_manager::{self, NetworkError};
 use papyrus_p2p_sync::client::{P2PSyncClient, P2PSyncClientChannels, P2PSyncClientError};
 use papyrus_p2p_sync::server::{P2PSyncServer, P2PSyncServerChannels};
 use papyrus_p2p_sync::{Protocol, BUFFER_SIZE};
-use papyrus_storage::body::BodyStorageReader;
-use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::{open_storage, StorageReader};
-use starknet_api::block::BlockNumber;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_sequencer_infra::errors::ComponentError;
-use starknet_state_sync_types::communication::{
-    StateSyncRequest,
-    StateSyncResponse,
-    StateSyncResult,
-};
-use starknet_state_sync_types::state_sync_types::SyncBlock;
 
 use crate::config::StateSyncConfig;
 
 pub struct StateSyncRunner {
-    #[allow(dead_code)]
-    request_receiver: mpsc::Receiver<(StateSyncRequest, oneshot::Sender<StateSyncResponse>)>,
-    #[allow(dead_code)]
-    storage_reader: StorageReader,
     network_future: BoxFuture<'static, Result<(), NetworkError>>,
     // TODO: change client and server to requester and responder respectively
     p2p_sync_client_future: BoxFuture<'static, Result<(), P2PSyncClientError>>,
@@ -38,34 +24,20 @@ pub struct StateSyncRunner {
 #[async_trait]
 impl ComponentStarter for StateSyncRunner {
     async fn start(&mut self) -> Result<(), ComponentError> {
-        loop {
-            tokio::select! {
-                result = &mut self.network_future => {
-                    return result.map_err(|_| ComponentError::InternalComponentError);
-                }
-                result = &mut self.p2p_sync_client_future => return result.map_err(|_| ComponentError::InternalComponentError),
-                () = &mut self.p2p_sync_server_future => {
-                    return Err(ComponentError::InternalComponentError);
-                }
-                Some((request, sender)) = self.request_receiver.next() => {
-                    let response = match request {
-                        StateSyncRequest::GetBlock(block_number) => {
-                            StateSyncResponse::GetBlock(self.get_block(block_number))
-                        }
-                    };
-
-                    sender.send(response).map_err(|_| ComponentError::InternalComponentError)?
-                }
+        tokio::select! {
+            result = &mut self.network_future => {
+                return result.map_err(|_| ComponentError::InternalComponentError);
+            }
+            result = &mut self.p2p_sync_client_future => return result.map_err(|_| ComponentError::InternalComponentError),
+            () = &mut self.p2p_sync_server_future => {
+                return Err(ComponentError::InternalComponentError);
             }
         }
     }
 }
 
 impl StateSyncRunner {
-    pub fn new(
-        config: StateSyncConfig,
-        request_receiver: mpsc::Receiver<(StateSyncRequest, oneshot::Sender<StateSyncResponse>)>,
-    ) -> Self {
+    pub fn new(config: StateSyncConfig) -> (Self, StorageReader) {
         let (storage_reader, storage_writer) =
             open_storage(config.storage_config).expect("StateSyncRunner failed opening storage");
 
@@ -119,27 +91,7 @@ impl StateSyncRunner {
         let p2p_sync_server_future = p2p_sync_server.run().boxed();
 
         // TODO(shahak): add rpc.
-        Self {
-            request_receiver,
-            storage_reader,
-            network_future,
-            p2p_sync_client_future,
-            p2p_sync_server_future,
-        }
-    }
-
-    fn get_block(&self, block_number: BlockNumber) -> StateSyncResult<Option<SyncBlock>> {
-        let txn = self.storage_reader.begin_ro_txn()?;
-        if let Some(block_transaction_hashes) = txn.get_block_transaction_hashes(block_number)? {
-            if let Some(thin_state_diff) = txn.get_state_diff(block_number)? {
-                return Ok(Some(SyncBlock {
-                    state_diff: thin_state_diff,
-                    transaction_hashes: block_transaction_hashes,
-                }));
-            }
-        }
-
-        Ok(None)
+        (Self { network_future, p2p_sync_client_future, p2p_sync_server_future }, storage_reader)
     }
 }
 
