@@ -2,6 +2,7 @@ use std::cmp::min;
 use std::time::Duration;
 
 use async_stream::stream;
+use futures::channel::mpsc::Receiver;
 use futures::future::BoxFuture;
 use futures::stream::BoxStream;
 use futures::StreamExt;
@@ -55,6 +56,7 @@ where
     fn create_stream<TQuery>(
         mut sqmr_sender: SqmrClientSender<TQuery, DataOrFin<InputFromNetwork>>,
         storage_reader: StorageReader,
+        _internal_block_receiver: Option<Receiver<(BlockNumber, Self::Output)>>,
         wait_period_for_new_data: Duration,
         num_blocks_per_query: u64,
         stop_sync_at_block_number: Option<BlockNumber>,

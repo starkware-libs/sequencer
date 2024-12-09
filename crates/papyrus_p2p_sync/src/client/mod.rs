@@ -184,6 +184,7 @@ impl P2PSyncClientChannels {
         let header_stream = HeaderStreamBuilder::create_stream(
             self.header_sender,
             storage_reader.clone(),
+            None,
             config.wait_period_for_new_data,
             config.num_headers_per_query,
             config.stop_sync_at_block_number,
@@ -192,6 +193,7 @@ impl P2PSyncClientChannels {
         let state_diff_stream = StateDiffStreamBuilder::create_stream(
             self.state_diff_sender,
             storage_reader.clone(),
+            None,
             config.wait_period_for_new_data,
             config.num_block_state_diffs_per_query,
             config.stop_sync_at_block_number,
@@ -200,6 +202,7 @@ impl P2PSyncClientChannels {
         let transaction_stream = TransactionStreamFactory::create_stream(
             self.transaction_sender,
             storage_reader.clone(),
+            None,
             config.wait_period_for_new_data,
             config.num_block_transactions_per_query,
             config.stop_sync_at_block_number,
@@ -208,6 +211,7 @@ impl P2PSyncClientChannels {
         let class_stream = ClassStreamBuilder::create_stream(
             self.class_sender,
             storage_reader.clone(),
+            None,
             config.wait_period_for_new_data,
             config.num_block_classes_per_query,
             config.stop_sync_at_block_number,
