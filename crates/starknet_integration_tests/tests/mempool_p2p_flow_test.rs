@@ -25,7 +25,7 @@ use starknet_mempool_p2p::MEMPOOL_TOPIC;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::component_execution_config::{
     ComponentExecutionConfig,
-    ComponentExecutionMode,
+    ReactiveComponentExecutionMode,
 };
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::servers::run_component_servers;
@@ -59,12 +59,12 @@ async fn test_mempool_sends_tx_to_other_peer(mut tx_generator: MultiAccountTrans
     // Derive the configuration for the mempool node.
     let components = ComponentConfig {
         consensus_manager: ComponentExecutionConfig {
-            execution_mode: ComponentExecutionMode::Disabled,
+            execution_mode: ReactiveComponentExecutionMode::Disabled,
             local_server_config: None,
             ..Default::default()
         },
         batcher: ComponentExecutionConfig {
-            execution_mode: ComponentExecutionMode::Disabled,
+            execution_mode: ReactiveComponentExecutionMode::Disabled,
             local_server_config: None,
             ..Default::default()
         },
