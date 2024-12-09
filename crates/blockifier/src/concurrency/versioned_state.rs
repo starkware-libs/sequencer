@@ -7,8 +7,8 @@ use starknet_types_core::felt::Felt;
 
 use crate::concurrency::versioned_storage::VersionedStorage;
 use crate::concurrency::TxIndex;
-use crate::execution::contract_class::RunnableCompiledClass;
-use crate::state::cached_state::{ContractClassMapping, StateMaps};
+use crate::execution::contract_class::VersionedRunnableCompiledClass;
+use crate::state::cached_state::{StateMaps, VersionedContractClassMapping};
 use crate::state::errors::StateError;
 use crate::state::state_api::{StateReader, StateResult, UpdatableState};
 
@@ -34,7 +34,8 @@ pub struct VersionedState<S: StateReader> {
     // the compiled contract classes mapping. Each key with value false, sohuld not apprear
     // in the compiled contract classes mapping.
     declared_contracts: VersionedStorage<ClassHash, bool>,
-    compiled_contract_classes: VersionedStorage<ClassHash, RunnableCompiledClass>,
+    versioned_compiled_contract_classes:
+        VersionedStorage<ClassHash, VersionedRunnableCompiledClass>,
 }
 
 impl<S: StateReader> VersionedState<S> {
@@ -45,7 +46,7 @@ impl<S: StateReader> VersionedState<S> {
             nonces: VersionedStorage::default(),
             class_hashes: VersionedStorage::default(),
             compiled_class_hashes: VersionedStorage::default(),
-            compiled_contract_classes: VersionedStorage::default(),
+            versioned_compiled_contract_classes: VersionedStorage::default(),
             declared_contracts: VersionedStorage::default(),
         }
     }
@@ -121,7 +122,7 @@ impl<S: StateReader> VersionedState<S> {
             let is_declared = self.declared_contracts.read(tx_index, class_hash).expect(READ_ERR);
             assert_eq!(
                 is_declared,
-                self.compiled_contract_classes.read(tx_index, class_hash).is_some(),
+                self.versioned_compiled_contract_classes.read(tx_index, class_hash).is_some(),
                 "The declared contracts mapping should match the compiled contract classes \
                  mapping."
             );
@@ -139,7 +140,7 @@ impl<S: StateReader> VersionedState<S> {
         &mut self,
         tx_index: TxIndex,
         writes: &StateMaps,
-        class_hash_to_class: &ContractClassMapping,
+        class_hash_to_class: &VersionedContractClassMapping,
     ) {
         for (&key, &value) in &writes.storage {
             self.storage.write(tx_index, key, value);
@@ -154,13 +155,13 @@ impl<S: StateReader> VersionedState<S> {
             self.compiled_class_hashes.write(tx_index, key, value);
         }
         for (&key, value) in class_hash_to_class {
-            self.compiled_contract_classes.write(tx_index, key, value.clone());
+            self.versioned_compiled_contract_classes.write(tx_index, key, value.clone());
         }
         for (&key, &value) in &writes.declared_contracts {
             self.declared_contracts.write(tx_index, key, value);
             assert_eq!(
                 value,
-                self.compiled_contract_classes.read(tx_index, key).is_some(),
+                self.versioned_compiled_contract_classes.read(tx_index, key).is_some(),
                 "The declared contracts mapping should match the compiled contract classes \
                  mapping."
             );
@@ -171,7 +172,7 @@ impl<S: StateReader> VersionedState<S> {
         &mut self,
         tx_index: TxIndex,
         writes: &StateMaps,
-        class_hash_to_class: &ContractClassMapping,
+        class_hash_to_class: &VersionedContractClassMapping,
     ) {
         for &key in writes.storage.keys() {
             self.storage.delete_write(key, tx_index);
@@ -189,7 +190,7 @@ impl<S: StateReader> VersionedState<S> {
             self.declared_contracts.delete_write(key, tx_index);
         }
         for &key in class_hash_to_class.keys() {
-            self.compiled_contract_classes.delete_write(key, tx_index);
+            self.versioned_compiled_contract_classes.delete_write(key, tx_index);
         }
     }
 
@@ -210,7 +211,7 @@ impl<U: UpdatableState> VersionedState<U> {
         let commit_index = n_committed_txs - 1;
         let writes = self.get_writes_up_to_index(commit_index);
         let class_hash_to_class =
-            self.compiled_contract_classes.get_writes_up_to_index(commit_index);
+            self.versioned_compiled_contract_classes.get_writes_up_to_index(commit_index);
         let mut state = self.into_initial_state();
         state.apply_writes(&writes, &class_hash_to_class, &visited_pcs);
         state
@@ -266,7 +267,11 @@ impl<S: StateReader> VersionedStateProxy<S> {
         self.state().validate_reads(self.tx_index, reads)
     }
 
-    pub fn delete_writes(&self, writes: &StateMaps, class_hash_to_class: &ContractClassMapping) {
+    pub fn delete_writes(
+        &self,
+        writes: &StateMaps,
+        class_hash_to_class: &VersionedContractClassMapping,
+    ) {
         self.state().delete_writes(self.tx_index, writes, class_hash_to_class);
     }
 }
@@ -276,7 +281,7 @@ impl<S: StateReader> UpdatableState for VersionedStateProxy<S> {
     fn apply_writes(
         &mut self,
         writes: &StateMaps,
-        class_hash_to_class: &ContractClassMapping,
+        class_hash_to_class: &VersionedContractClassMapping,
         _visited_pcs: &HashMap<ClassHash, HashSet<usize>>,
     ) {
         self.state().apply_writes(self.tx_index, writes, class_hash_to_class)
@@ -336,15 +341,18 @@ impl<S: StateReader> StateReader for VersionedStateProxy<S> {
         }
     }
 
-    fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
+    fn get_compiled_class(
+        &self,
+        class_hash: ClassHash,
+    ) -> StateResult<VersionedRunnableCompiledClass> {
         let mut state = self.state();
-        match state.compiled_contract_classes.read(self.tx_index, class_hash) {
+        match state.versioned_compiled_contract_classes.read(self.tx_index, class_hash) {
             Some(value) => Ok(value),
             None => match state.initial_state.get_compiled_class(class_hash) {
                 Ok(initial_value) => {
                     state.declared_contracts.set_initial_value(class_hash, true);
                     state
-                        .compiled_contract_classes
+                        .versioned_compiled_contract_classes
                         .set_initial_value(class_hash, initial_value.clone());
                     Ok(initial_value)
                 }

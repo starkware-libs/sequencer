@@ -26,7 +26,7 @@ const CONTRACT_ADDRESS: &str = "0x100";
 
 fn set_initial_state_values(
     state: &mut CachedState<DictStateReader>,
-    class_hash_to_class: ContractClassMapping,
+    class_hash_to_class: VersionedContractClassMapping,
     nonce_initial_values: HashMap<ContractAddress, Nonce>,
     class_hash_initial_values: HashMap<ContractAddress, ClassHash>,
     storage_initial_values: HashMap<StorageEntry, Felt>,
@@ -117,7 +117,7 @@ fn declare_contract() {
     let mut state = CachedState::from(DictStateReader { ..Default::default() });
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
     let class_hash = test_contract.get_class_hash();
-    let contract_class = test_contract.get_runnable_class();
+    let contract_class = test_contract.get_versioned_runnable_class();
 
     assert_eq!(state.cache.borrow().writes.declared_contracts.get(&class_hash), None);
     assert_eq!(state.cache.borrow().initial_reads.declared_contracts.get(&class_hash), None);
@@ -176,7 +176,7 @@ fn get_contract_class() {
     let state = test_state(&ChainInfo::create_for_testing(), Fee(0), &[(test_contract, 0)]);
     assert_eq!(
         state.get_compiled_class(test_contract.get_class_hash()).unwrap(),
-        test_contract.get_runnable_class()
+        test_contract.get_versioned_runnable_class()
     );
 
     // Negative flow.
@@ -224,7 +224,7 @@ fn cached_state_state_diff_conversion() {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
     let test_class_hash = test_contract.get_class_hash();
     let class_hash_to_class =
-        HashMap::from([(test_class_hash, test_contract.get_runnable_class())]);
+        HashMap::from([(test_class_hash, test_contract.get_versioned_runnable_class())]);
 
     let nonce_initial_values = HashMap::new();
 
@@ -531,7 +531,7 @@ fn test_contract_cache_is_used() {
     // cache.
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
     let class_hash = test_contract.get_class_hash();
-    let contract_class = test_contract.get_runnable_class();
+    let contract_class = test_contract.get_versioned_runnable_class();
     let mut reader = DictStateReader::default();
     reader.class_hash_to_class.insert(class_hash, contract_class.clone());
     let state = CachedState::new(reader);
@@ -540,7 +540,7 @@ fn test_contract_cache_is_used() {
     assert!(state.class_hash_to_class.borrow().get(&class_hash).is_none());
 
     // Check state uses the cache.
-    assert_eq!(state.get_compiled_class(class_hash).unwrap(), contract_class);
+    assert_eq!(state.get_compiled_class(class_hash).unwrap(), contract_class.clone());
     assert_eq!(state.class_hash_to_class.borrow().get(&class_hash).unwrap(), &contract_class);
 }
 

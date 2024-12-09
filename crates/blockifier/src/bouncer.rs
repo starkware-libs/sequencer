@@ -13,6 +13,7 @@ use crate::blockifier::transaction_executor::{
     TransactionExecutorResult,
 };
 use crate::execution::call_info::ExecutionSummary;
+use crate::execution::contract_class::RunnableCompiledClass;
 use crate::fee::gas_usage::get_onchain_data_segment_length;
 use crate::fee::resources::TransactionResources;
 use crate::state::cached_state::{StateChangesKeys, StorageEntry};
@@ -565,7 +566,7 @@ pub fn get_casm_hash_calculation_resources<S: StateReader>(
     let mut casm_hash_computation_resources = ExecutionResources::default();
 
     for class_hash in executed_class_hashes {
-        let class = state_reader.get_compiled_class(*class_hash)?;
+        let class: RunnableCompiledClass = state_reader.get_compiled_class(*class_hash)?.into();
         casm_hash_computation_resources += &class.estimate_casm_hash_computation_resources();
     }
 

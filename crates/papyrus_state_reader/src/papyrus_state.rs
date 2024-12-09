@@ -130,18 +130,21 @@ impl StateReader for PapyrusReader {
         }
     }
 
-    fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
+    fn get_compiled_class(
+        &self,
+        class_hash: ClassHash,
+    ) -> StateResult<VersionedRunnableCompiledClass> {
         // Assumption: the global cache is cleared upon reverted blocks.
         let versioned_contract_class = self.global_class_hash_to_class.get(&class_hash);
 
         match versioned_contract_class {
-            Some(contract_class) => Ok(RunnableCompiledClass::from(contract_class)),
+            Some(versioned_contract_class) => Ok(versioned_contract_class),
             None => {
                 let versioned_contract_class_from_db = self.get_compiled_class_inner(class_hash)?;
                 // The class was declared in a previous (finalized) state; update the global cache.
                 self.global_class_hash_to_class
                     .set(class_hash, versioned_contract_class_from_db.clone());
-                Ok(RunnableCompiledClass::from(versioned_contract_class_from_db))
+                Ok(versioned_contract_class_from_db)
             }
         }
     }

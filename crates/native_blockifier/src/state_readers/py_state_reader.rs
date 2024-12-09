@@ -2,6 +2,7 @@ use blockifier::execution::contract_class::{
     CompiledClassV0,
     CompiledClassV1,
     RunnableCompiledClass,
+    VersionedRunnableCompiledClass,
 };
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader, StateResult};
@@ -70,8 +71,11 @@ impl StateReader for PyStateReader {
         .map_err(|err| StateError::StateReadError(err.to_string()))
     }
 
-    fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
-        Python::with_gil(|py| -> Result<RunnableCompiledClass, PyErr> {
+    fn get_compiled_class(
+        &self,
+        class_hash: ClassHash,
+    ) -> StateResult<VersionedRunnableCompiledClass> {
+        Python::with_gil(|py| -> Result<VersionedRunnableCompiledClass, PyErr> {
             let args = (PyFelt::from(class_hash),);
             let py_versioned_raw_compiled_class: &PyTuple = self
                 .state_reader_proxy
@@ -87,9 +91,11 @@ impl StateReader for PyStateReader {
             // Extract and process the Sierra version
             let (minor, major, patch): (u64, u64, u64) =
                 py_versioned_raw_compiled_class.get_item(1)?.extract()?;
-            // TODO(Aviv): Return it in the next PR after the change in the StateReader API.
-            let _sierra_version = SierraVersion::new(major, minor, patch);
-            Ok(runnable_compiled_class)
+            let sierra_version = SierraVersion::new(major, minor, patch);
+            if sierra_version == SierraVersion::DEPRECATED {
+                return Ok(VersionedRunnableCompiledClass::Cairo0(runnable_compiled_class));
+            }
+            Ok(VersionedRunnableCompiledClass::Cairo1((runnable_compiled_class, sierra_version)))
         })
         .map_err(|err| {
             if Python::with_gil(|py| err.is_instance_of::<UndeclaredClassHashError>(py)) {
