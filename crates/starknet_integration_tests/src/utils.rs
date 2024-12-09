@@ -24,6 +24,7 @@ use starknet_gateway::config::{
     StatelessTransactionValidatorConfig,
 };
 use starknet_http_server::config::HttpServerConfig;
+use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_sequencer_infra::test_utils::get_available_socket;
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::config::test_utils::RequiredParams;
@@ -45,6 +46,7 @@ pub async fn create_config(
     let batcher_config = create_batcher_config(batcher_storage_config, chain_info.clone());
     let gateway_config = create_gateway_config(chain_info.clone()).await;
     let http_server_config = create_http_server_config().await;
+    let monitoring_endpoint_config = create_monitoring_endpoint_config().await;
     let rpc_state_reader_config = test_rpc_state_reader_config(rpc_server_addr);
     let (mut consensus_manager_configs, consensus_proposals_channels) =
         create_consensus_manager_configs_and_channels(1);
@@ -55,6 +57,7 @@ pub async fn create_config(
             consensus_manager_config,
             gateway_config,
             http_server_config,
+            monitoring_endpoint_config,
             rpc_state_reader_config,
             ..SequencerNodeConfig::default()
         },
@@ -214,6 +217,11 @@ pub async fn create_http_server_config() -> HttpServerConfig {
     // TODO(Tsabary): use ser_generated_param.
     let socket = get_available_socket().await;
     HttpServerConfig { ip: socket.ip(), port: socket.port() }
+}
+
+pub async fn create_monitoring_endpoint_config() -> MonitoringEndpointConfig {
+    let socket = get_available_socket().await;
+    MonitoringEndpointConfig { ip: socket.ip(), port: socket.port() }
 }
 
 pub fn create_batcher_config(
