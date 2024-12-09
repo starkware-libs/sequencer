@@ -93,13 +93,16 @@ where
     }
 }
 
+type ProposalReceiverTuple<T> = (ProposalInit, mpsc::Receiver<T>);
+
 /// Runs Tendermint repeatedly across different heights. Handles issues which are not explicitly
 /// part of the single height consensus algorithm (e.g. messages from future heights).
 #[derive(Debug, Default)]
 struct MultiHeightManager<ContextT: ConsensusContext> {
     validator_id: ValidatorId,
     cached_messages: BTreeMap<u64, Vec<ConsensusMessage>>,
-    cached_proposals: BTreeMap<u64, (ProposalInit, mpsc::Receiver<ContextT::ProposalPart>)>,
+    // Mapping: { Height : { Round : (Init, Receiver)}}
+    cached_proposals: BTreeMap<u64, BTreeMap<u32, ProposalReceiverTuple<ContextT::ProposalPart>>>,
     timeouts: TimeoutsConfig,
 }
 
@@ -193,12 +196,12 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             ShcReturn::Tasks(tasks) => tasks,
         };
 
-        if let Some((init, content_receiver)) = self.get_current_proposal(height) {
+        for (init, content_receiver) in self.get_current_proposal(height) {
             match shc.handle_proposal(context, init, content_receiver).await? {
                 decision @ ShcReturn::Decision(_) => return Ok(decision),
                 ShcReturn::Tasks(new_tasks) => tasks.extend(new_tasks),
             }
-        };
+        }
 
         for msg in self.get_current_height_messages(height) {
             match shc.handle_message(context, msg).await? {
@@ -220,11 +223,13 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         content_receiver: mpsc::Receiver<ContextT::ProposalPart>,
     ) -> Result<ShcReturn, ConsensusError> {
         if proposal_init.height != height {
-            debug!("Received a proposal for a different height. {:?}", proposal_init);
+            debug!("Received a proposal for a different height or round. {:?}", proposal_init);
             if proposal_init.height > height {
-                // Note: this will overwrite an existing content_receiver for this height!
+                // Note: overwrites cached proposals that have the same height/round as new ones.
                 self.cached_proposals
-                    .insert(proposal_init.height.0, (proposal_init, content_receiver));
+                    .entry(proposal_init.height.0)
+                    .or_default()
+                    .insert(proposal_init.round, (proposal_init, content_receiver));
             }
             return Ok(ShcReturn::Tasks(Vec::new()));
         }
@@ -275,22 +280,29 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         shc.handle_message(context, message).await
     }
 
-    // Checks if a cached proposal already exists
+    // Checks if a cached proposal already exists (with correct height)
     // - returns the proposal if it exists and removes it from the cache.
     // - returns None if no proposal exists.
     // - cleans up any proposals from earlier heights.
+    // - for a given height, returns the proposal with the lowest round (and removes it).
     fn get_current_proposal(
         &mut self,
         height: BlockNumber,
-    ) -> Option<(ProposalInit, mpsc::Receiver<ContextT::ProposalPart>)> {
+    ) -> Vec<(ProposalInit, mpsc::Receiver<ContextT::ProposalPart>)> {
         loop {
-            let entry = self.cached_proposals.first_entry()?;
-            match entry.key().cmp(&height.0) {
-                std::cmp::Ordering::Greater => return None,
-                std::cmp::Ordering::Equal => return Some(entry.remove()),
-                std::cmp::Ordering::Less => {
-                    entry.remove();
-                }
+            let entry = self.cached_proposals.first_entry();
+            match entry {
+                None => return Vec::new(),
+                Some(entry) => match entry.key().cmp(&height.0) {
+                    std::cmp::Ordering::Greater => return vec![],
+                    std::cmp::Ordering::Equal => {
+                        let submap = entry.remove();
+                        return submap.into_values().collect();
+                    }
+                    std::cmp::Ordering::Less => {
+                        entry.remove();
+                    }
+                },
             }
         }
     }
