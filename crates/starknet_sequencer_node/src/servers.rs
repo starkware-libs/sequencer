@@ -199,27 +199,6 @@ macro_rules! create_local_server {
 macro_rules! create_wrapper_server {
     ($execution_mode:expr, $component:expr) => {
         match *$execution_mode {
-            ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
-            | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-                Some(Box::new(WrapperServer::new(
-                    $component
-                        .take()
-                        .expect(concat!(stringify!($component), " is not initialized.")),
-                )))
-            }
-            ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
-                None
-            }
-        }
-    };
-}
-
-// TODO(Tsabary): the following macro is a copy-pasted version of `create_wrapper_server!` macro,
-// with the execution mode types changed. Once all active components have been marked as such, unify
-// these.
-macro_rules! create_wrapper_server_for_active_component {
-    ($execution_mode:expr, $component:expr) => {
-        match *$execution_mode {
             ActiveComponentExecutionMode::Enabled => Some(Box::new(WrapperServer::new(
                 $component.take().expect(concat!(stringify!($component), " is not initialized.")),
             ))),
@@ -304,22 +283,22 @@ fn create_wrapper_servers(
     config: &SequencerNodeConfig,
     components: &mut SequencerNodeComponents,
 ) -> WrapperServers {
-    let consensus_manager_server = create_wrapper_server_for_active_component!(
+    let consensus_manager_server = create_wrapper_server!(
         &config.components.consensus_manager.execution_mode,
         components.consensus_manager
     );
-    let http_server = create_wrapper_server_for_active_component!(
+    let http_server = create_wrapper_server!(
         &config.components.http_server.execution_mode,
         components.http_server
     );
 
-    let monitoring_endpoint_server = create_wrapper_server_for_active_component!(
+    let monitoring_endpoint_server = create_wrapper_server!(
         &config.components.monitoring_endpoint.execution_mode,
         components.monitoring_endpoint
     );
 
     let mempool_p2p_runner_server = create_wrapper_server!(
-        &config.components.mempool_p2p.execution_mode,
+        &config.components.mempool_p2p.execution_mode.clone().into(),
         components.mempool_p2p_runner
     );
     WrapperServers {
