@@ -23,6 +23,7 @@ use starknet_batcher::VersionedConstantsOverrides;
 use starknet_consensus_manager::config::ConsensusManagerConfig;
 use starknet_gateway::config::{GatewayConfig, RpcStateReaderConfig};
 use starknet_http_server::config::HttpServerConfig;
+use starknet_l1_provider::L1ProviderConfig;
 use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
@@ -122,6 +123,8 @@ pub struct SequencerNodeConfig {
     pub rpc_state_reader_config: RpcStateReaderConfig,
     #[validate]
     pub compiler_config: SierraToCasmCompilationConfig,
+    #[validate]
+    pub l1_provider_config: L1ProviderConfig,
     #[validate]
     pub mempool_p2p_config: MempoolP2pConfig,
     #[validate]
