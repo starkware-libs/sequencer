@@ -28,11 +28,11 @@ use crate::test_utils::{
     BALANCE,
 };
 
-#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Cairo1(RunnableCairo1::Native); "Native"))]
-#[test_case(CairoVersion::Cairo1(RunnableCairo1::Casm);"VM")]
-fn test_call_contract_that_panics(cairo_version: CairoVersion) {
-    let test_contract = FeatureContract::TestContract(cairo_version);
-    let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1(RunnableCairo1::Casm));
+#[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native; "Native"))]
+#[test_case(RunnableCairo1::Casm;"VM")]
+fn test_call_contract_that_panics(runnable_version: RunnableCairo1) {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable_version));
+    let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1(runnable_version));
     let chain_info = &ChainInfo::create_for_testing();
     let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1), (empty_contract, 0)]);
 
