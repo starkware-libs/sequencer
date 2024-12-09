@@ -71,6 +71,7 @@ impl Default for ReactiveComponentExecutionConfig {
 
 /// Active component configuration.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
+#[validate(schema(function = "validate_active_component_execution_config"))]
 pub struct ActiveComponentExecutionConfig {
     pub execution_mode: ActiveComponentExecutionMode,
     pub remote_client_config: Option<RemoteClientConfig>,
@@ -195,13 +196,34 @@ fn validate_reactive_component_execution_config(
         }
         (mode, local_server_config, remote_client_config, remote_server_config) => {
             error!(
-                "Invalid component execution configuration: mode: {:?}, local_server_config: \
-                 {:?}, remote_client_config: {:?}, remote_server_config: {:?}",
+                "Invalid reactive component execution configuration: mode: {:?}, \
+                 local_server_config: {:?}, remote_client_config: {:?}, remote_server_config: {:?}",
                 mode, local_server_config, remote_client_config, remote_server_config
             );
-            let mut error = ValidationError::new("Invalid component execution configuration.");
+            let mut error =
+                ValidationError::new("Invalid reactive component execution configuration.");
             error.message = Some("Ensure settings align with the chosen execution mode.".into());
             Err(error)
         }
+    }
+}
+
+fn validate_active_component_execution_config(
+    component_config: &ActiveComponentExecutionConfig,
+) -> Result<(), ValidationError> {
+    match (component_config.execution_mode.clone(), component_config.remote_client_config.is_some())
+    {
+        (ActiveComponentExecutionMode::Disabled, true) => {
+            error!(
+                "Invalid active component execution configuration: Disabled mode with \
+                 remote_client_config: {:?}",
+                component_config.remote_client_config
+            );
+            let mut error =
+                ValidationError::new("Invalid active component execution configuration.");
+            error.message = Some("Ensure settings align with the chosen execution mode.".into());
+            Err(error)
+        }
+        _ => Ok(()),
     }
 }
