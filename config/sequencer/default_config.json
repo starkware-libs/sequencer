@@ -357,17 +357,7 @@
   "components.http_server.execution_mode": {
     "description": "The component execution mode.",
     "privacy": "Public",
-    "value": "LocalExecutionWithRemoteEnabled"
-  },
-  "components.http_server.local_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
-  "components.http_server.local_server_config.channel_buffer_size": {
-    "description": "The communication channel buffer size.",
-    "privacy": "Public",
-    "value": 32
+    "value": "Enabled"
   },
   "components.http_server.remote_client_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -390,16 +380,6 @@
     "value": 3
   },
   "components.http_server.remote_client_config.socket": {
-    "description": "The remote component server socket.",
-    "privacy": "Public",
-    "value": "0.0.0.0:8080"
-  },
-  "components.http_server.remote_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
-  "components.http_server.remote_server_config.socket": {
     "description": "The remote component server socket.",
     "privacy": "Public",
     "value": "0.0.0.0:8080"
