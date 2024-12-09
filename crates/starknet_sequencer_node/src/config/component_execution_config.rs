@@ -12,27 +12,33 @@ use tracing::error;
 use validator::{Validate, ValidationError};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub enum ComponentExecutionMode {
+pub enum ReactiveComponentExecutionMode {
     Disabled,
     Remote,
     LocalExecutionWithRemoteEnabled,
     LocalExecutionWithRemoteDisabled,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum ActiveComponentExecutionMode {
+    Disabled,
+    Enabled,
+}
+
 // TODO(Lev/Tsabary): When papyrus_config will support it, change to include communication config in
 // the enum.
 
-/// The single component configuration.
+/// Reactive component configuration.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
-#[validate(schema(function = "validate_single_component_config"))]
-pub struct ComponentExecutionConfig {
-    pub execution_mode: ComponentExecutionMode,
+#[validate(schema(function = "validate_reactive_component_execution_config"))]
+pub struct ReactiveComponentExecutionConfig {
+    pub execution_mode: ReactiveComponentExecutionMode,
     pub local_server_config: Option<LocalServerConfig>,
     pub remote_client_config: Option<RemoteClientConfig>,
     pub remote_server_config: Option<RemoteServerConfig>,
 }
 
-impl SerializeConfig for ComponentExecutionConfig {
+impl SerializeConfig for ReactiveComponentExecutionConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let members = BTreeMap::from_iter([ser_param(
             "execution_mode",
@@ -52,10 +58,10 @@ impl SerializeConfig for ComponentExecutionConfig {
     }
 }
 
-impl Default for ComponentExecutionConfig {
+impl Default for ReactiveComponentExecutionConfig {
     fn default() -> Self {
         Self {
-            execution_mode: ComponentExecutionMode::LocalExecutionWithRemoteDisabled,
+            execution_mode: ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled,
             local_server_config: Some(LocalServerConfig::default()),
             remote_client_config: None,
             remote_server_config: None,
@@ -63,11 +69,34 @@ impl Default for ComponentExecutionConfig {
     }
 }
 
+/// Active component configuration.
+#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
+pub struct ActiveComponentExecutionConfig {
+    pub execution_mode: ActiveComponentExecutionMode,
+}
+
+impl SerializeConfig for ActiveComponentExecutionConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([ser_param(
+            "execution_mode",
+            &self.execution_mode,
+            "The component execution mode.",
+            ParamPrivacyInput::Public,
+        )])
+    }
+}
+
+impl Default for ActiveComponentExecutionConfig {
+    fn default() -> Self {
+        Self { execution_mode: ActiveComponentExecutionMode::Enabled }
+    }
+}
+
 /// Specific components default configurations.
-impl ComponentExecutionConfig {
+impl ReactiveComponentExecutionConfig {
     pub fn gateway_default_config() -> Self {
         Self {
-            execution_mode: ComponentExecutionMode::LocalExecutionWithRemoteDisabled,
+            execution_mode: ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled,
             local_server_config: Some(LocalServerConfig::default()),
             remote_client_config: None,
             remote_server_config: None,
@@ -79,19 +108,7 @@ impl ComponentExecutionConfig {
     // a workaround I've set the local one, but this should be addressed.
     pub fn http_server_default_config() -> Self {
         Self {
-            execution_mode: ComponentExecutionMode::LocalExecutionWithRemoteEnabled,
-            local_server_config: Some(LocalServerConfig::default()),
-            remote_client_config: None,
-            remote_server_config: Some(RemoteServerConfig::default()),
-        }
-    }
-
-    // TODO(Tsabary/Lev): There's a bug here: the monitoring endpoint component does not
-    // need a local nor a remote config. However, the validation function requires that at least
-    // one of them is set. As a workaround I've set the local one, but this should be addressed.
-    pub fn monitoring_endpoint_default_config() -> Self {
-        Self {
-            execution_mode: ComponentExecutionMode::LocalExecutionWithRemoteEnabled,
+            execution_mode: ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled,
             local_server_config: Some(LocalServerConfig::default()),
             remote_client_config: None,
             remote_server_config: Some(RemoteServerConfig::default()),
@@ -100,7 +117,7 @@ impl ComponentExecutionConfig {
 
     pub fn mempool_default_config() -> Self {
         Self {
-            execution_mode: ComponentExecutionMode::LocalExecutionWithRemoteDisabled,
+            execution_mode: ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled,
             local_server_config: Some(LocalServerConfig::default()),
             remote_client_config: None,
             remote_server_config: None,
@@ -109,7 +126,7 @@ impl ComponentExecutionConfig {
 
     pub fn batcher_default_config() -> Self {
         Self {
-            execution_mode: ComponentExecutionMode::LocalExecutionWithRemoteDisabled,
+            execution_mode: ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled,
             local_server_config: Some(LocalServerConfig::default()),
             remote_client_config: None,
             remote_server_config: None,
@@ -118,7 +135,7 @@ impl ComponentExecutionConfig {
 
     pub fn consensus_manager_default_config() -> Self {
         Self {
-            execution_mode: ComponentExecutionMode::LocalExecutionWithRemoteDisabled,
+            execution_mode: ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled,
             local_server_config: Some(LocalServerConfig::default()),
             remote_client_config: None,
             remote_server_config: None,
@@ -127,7 +144,7 @@ impl ComponentExecutionConfig {
 
     pub fn mempool_p2p_default_config() -> Self {
         Self {
-            execution_mode: ComponentExecutionMode::LocalExecutionWithRemoteDisabled,
+            execution_mode: ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled,
             local_server_config: Some(LocalServerConfig::default()),
             remote_client_config: None,
             remote_server_config: None,
@@ -136,7 +153,7 @@ impl ComponentExecutionConfig {
 
     pub fn state_sync_default_config() -> Self {
         Self {
-            execution_mode: ComponentExecutionMode::LocalExecutionWithRemoteDisabled,
+            execution_mode: ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled,
             local_server_config: Some(LocalServerConfig::default()),
             remote_client_config: None,
             remote_server_config: None,
@@ -144,8 +161,8 @@ impl ComponentExecutionConfig {
     }
 }
 
-pub fn validate_single_component_config(
-    component_config: &ComponentExecutionConfig,
+fn validate_reactive_component_execution_config(
+    component_config: &ReactiveComponentExecutionConfig,
 ) -> Result<(), ValidationError> {
     match (
         component_config.execution_mode.clone(),
@@ -153,10 +170,14 @@ pub fn validate_single_component_config(
         component_config.remote_client_config.is_some(),
         component_config.remote_server_config.is_some(),
     ) {
-        (ComponentExecutionMode::Disabled, false, false, false) => Ok(()),
-        (ComponentExecutionMode::Remote, false, true, false) => Ok(()),
-        (ComponentExecutionMode::LocalExecutionWithRemoteEnabled, true, false, true) => Ok(()),
-        (ComponentExecutionMode::LocalExecutionWithRemoteDisabled, true, false, false) => Ok(()),
+        (ReactiveComponentExecutionMode::Disabled, false, false, false) => Ok(()),
+        (ReactiveComponentExecutionMode::Remote, false, true, false) => Ok(()),
+        (ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled, true, false, true) => {
+            Ok(())
+        }
+        (ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled, true, false, false) => {
+            Ok(())
+        }
         (mode, local_server_config, remote_client_config, remote_server_config) => {
             error!(
                 "Invalid component execution configuration: mode: {:?}, local_server_config: \
