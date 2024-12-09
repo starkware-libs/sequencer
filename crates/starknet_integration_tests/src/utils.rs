@@ -25,6 +25,7 @@ use starknet_gateway::config::{
 };
 use starknet_http_server::config::HttpServerConfig;
 use starknet_sequencer_infra::test_utils::get_available_socket;
+use starknet_sequencer_node::config::component_execution_config::ComponentExecutionMode;
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::config::test_utils::RequiredParams;
 
@@ -230,4 +231,18 @@ pub fn create_batcher_config(
 
 pub fn run_integration_test() -> bool {
     std::env::var("SEQUENCER_INTEGRATION_TESTS").is_ok()
+}
+
+pub fn get_http_server_config(configs: &[SequencerNodeConfig]) -> Option<&HttpServerConfig> {
+    configs
+        .iter()
+        .find(|config| {
+            matches!(
+                config.components.http_server.execution_mode,
+                ComponentExecutionMode::Remote
+                    | ComponentExecutionMode::LocalExecutionWithRemoteEnabled
+                    | ComponentExecutionMode::LocalExecutionWithRemoteDisabled
+            )
+        })
+        .map(|config| &config.http_server_config)
 }
