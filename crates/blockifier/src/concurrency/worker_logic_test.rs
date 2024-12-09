@@ -5,7 +5,7 @@ use rstest::rstest;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::test_utils::declare::executable_declare_tx;
-use starknet_api::test_utils::NonceManager;
+use starknet_api::test_utils::{NonceManager, TEST_ERC20_CONTRACT_ADDRESS2};
 use starknet_api::transaction::constants::DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::{ContractAddressSalt, Fee, ValidResourceBounds};
 use starknet_api::transaction::TransactionVersion;
@@ -31,7 +31,6 @@ use crate::test_utils::{
     CairoVersion,
     RunnableCairo1,
     BALANCE,
-    TEST_ERC20_CONTRACT_ADDRESS2,
 };
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::objects::HasRelatedFeeType;

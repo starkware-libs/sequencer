@@ -2,6 +2,7 @@ use pretty_assertions::assert_eq;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::execution_utils::format_panic_data;
 use starknet_api::state::StorageKey;
+use starknet_api::test_utils::CURRENT_BLOCK_NUMBER;
 use starknet_api::{calldata, felt};
 use starknet_types_core::felt::Felt;
 use test_case::test_case;
@@ -15,13 +16,7 @@ use crate::state::state_api::State;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{
-    trivial_external_entry_point_new,
-    CairoVersion,
-    RunnableCairo1,
-    BALANCE,
-    CURRENT_BLOCK_NUMBER,
-};
+use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, RunnableCairo1, BALANCE};
 use crate::versioned_constants::VersionedConstants;
 use crate::{check_entry_point_execution_error_for_custom_hint, retdata};
 
