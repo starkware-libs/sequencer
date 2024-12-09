@@ -14,6 +14,7 @@ use papyrus_protobuf::consensus::{
 use papyrus_storage::test_utils::CHAIN_ID_FOR_TESTS;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
+use serial_test::serial;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::transaction::TransactionHash;
 use starknet_integration_tests::definitions::MockSystemMode;
@@ -34,13 +35,19 @@ fn tx_generator() -> MultiAccountTransactionGenerator {
 }
 
 #[rstest]
+#[case::local_connection(MockSystemMode::Local)]
+#[case::remote_connection(MockSystemMode::Remote)]
 #[tokio::test]
-async fn end_to_end(mut tx_generator: MultiAccountTransactionGenerator) {
+#[serial]
+async fn end_to_end(
+    mut tx_generator: MultiAccountTransactionGenerator,
+    #[case] mock_system_mode: MockSystemMode,
+) {
     const LISTEN_TO_BROADCAST_MESSAGES_TIMEOUT: std::time::Duration =
         std::time::Duration::from_secs(5);
     // Setup.
     let mut mock_running_system =
-        FlowTestSetup::new_from_tx_generator(&tx_generator, MockSystemMode::Local).await;
+        FlowTestSetup::new_from_tx_generator(&tx_generator, mock_system_mode).await;
 
     let next_height = INITIAL_HEIGHT.unchecked_next();
     let heights_to_build = next_height.iter_up_to(LAST_HEIGHT.unchecked_next());
