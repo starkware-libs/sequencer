@@ -10803,6 +10803,7 @@ dependencies = [
  "cairo-lang-starknet-classes",
  "futures",
  "indexmap 2.6.0",
+ "libp2p",
  "papyrus_config",
  "papyrus_network",
  "papyrus_p2p_sync",

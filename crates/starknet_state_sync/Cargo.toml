@@ -26,6 +26,7 @@ validator.workspace = true
 [dev-dependencies]
 cairo-lang-starknet-classes.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
+libp2p.workspace = true
 papyrus_storage = { workspace = true, features = ["testing"] }
 papyrus_test_utils.workspace = true
 rand_chacha.workspace = true
