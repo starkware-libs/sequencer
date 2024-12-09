@@ -99,12 +99,20 @@ async fn listen_to_broadcasted_messages(
         message_id: incoming_message_id,
     } = broadcasted_messages_receiver.next().await.unwrap().0.unwrap();
 
-    assert_eq!(incoming_message_id, 0);
+    assert_eq!(
+        incoming_message_id, 0,
+        "Expected the first message in the stream to have id 0, got {}",
+        incoming_message_id
+    );
     let StreamMessageBody::Content(ProposalPart::Init(incoming_proposal_init)) = init_message
     else {
         panic!("Expected an init message. Got: {:?}", init_message)
     };
-    assert_eq!(incoming_proposal_init, expected_proposal_init);
+    assert_eq!(
+        incoming_proposal_init, expected_proposal_init,
+        "Unexpected init message: {:?}, expected: {:?}",
+        incoming_proposal_init, expected_proposal_init
+    );
 
     let mut received_tx_hashes = HashSet::new();
     let mut got_proposal_fin = false;
@@ -112,7 +120,7 @@ async fn listen_to_broadcasted_messages(
     loop {
         let StreamMessage { message, stream_id, message_id: _ } =
             broadcasted_messages_receiver.next().await.unwrap().0.unwrap();
-        assert_eq!(stream_id, first_stream_id);
+        assert_eq!(stream_id, first_stream_id, "Expected the same stream id for all messages");
         match message {
             StreamMessageBody::Content(ProposalPart::Init(init)) => {
                 panic!("Unexpected init: {:?}", init)
@@ -126,17 +134,24 @@ async fn listen_to_broadcasted_messages(
                 );
             }
             StreamMessageBody::Content(ProposalPart::Fin(proposal_fin)) => {
-                assert_eq!(proposal_fin, expected_proposal_fin);
+                assert_eq!(
+                    proposal_fin, expected_proposal_fin,
+                    "Unexpected fin message: {:?}, expected: {:?}",
+                    proposal_fin, expected_proposal_fin
+                );
                 got_proposal_fin = true;
             }
             StreamMessageBody::Fin => {
                 got_channel_fin = true;
             }
         }
-        if got_proposal_fin
-            && got_channel_fin
-            && received_tx_hashes.len() == expected_batched_tx_hashes.len()
-        {
+        if got_proposal_fin && got_channel_fin {
+            assert!(
+                received_tx_hashes.len() == expected_batched_tx_hashes.len(),
+                "Expected {} transactions, got {}",
+                expected_batched_tx_hashes.len(),
+                received_tx_hashes.len()
+            );
             break;
         }
     }
@@ -144,6 +159,7 @@ async fn listen_to_broadcasted_messages(
     // Using HashSet to ignore the order of the transactions (broadcast can lead to reordering).
     assert_eq!(
         received_tx_hashes,
-        expected_batched_tx_hashes.iter().cloned().collect::<HashSet<_>>()
+        expected_batched_tx_hashes.iter().cloned().collect::<HashSet<_>>(),
+        "Unexpected transactions"
     );
 }
