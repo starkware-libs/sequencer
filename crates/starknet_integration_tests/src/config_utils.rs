@@ -13,7 +13,7 @@ use starknet_sequencer_infra::test_utils::get_available_socket;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::component_execution_config::{
     ComponentExecutionConfig,
-    ComponentExecutionMode,
+    ReactiveComponentExecutionMode,
 };
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::config::test_utils::RequiredParams;
@@ -96,7 +96,7 @@ fn strip_config_prefix(input: &str) -> &str {
 // TODO(Nadin): Refactor the following functions to be static methods of ComponentExecutionConfig.
 pub fn get_disabled_component_config() -> ComponentExecutionConfig {
     ComponentExecutionConfig {
-        execution_mode: ComponentExecutionMode::Disabled,
+        execution_mode: ReactiveComponentExecutionMode::Disabled,
         local_server_config: None,
         remote_client_config: None,
         remote_server_config: None,
@@ -105,7 +105,7 @@ pub fn get_disabled_component_config() -> ComponentExecutionConfig {
 
 pub fn get_remote_component_config(socket: SocketAddr) -> ComponentExecutionConfig {
     ComponentExecutionConfig {
-        execution_mode: ComponentExecutionMode::Remote,
+        execution_mode: ReactiveComponentExecutionMode::Remote,
         local_server_config: None,
         remote_client_config: Some(RemoteClientConfig { socket, ..RemoteClientConfig::default() }),
         remote_server_config: None,
@@ -116,7 +116,7 @@ pub fn get_local_with_remote_enabled_component_config(
     socket: SocketAddr,
 ) -> ComponentExecutionConfig {
     ComponentExecutionConfig {
-        execution_mode: ComponentExecutionMode::LocalExecutionWithRemoteEnabled,
+        execution_mode: ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled,
         local_server_config: Some(LocalServerConfig::default()),
         remote_client_config: None,
         remote_server_config: Some(RemoteServerConfig { socket }),
