@@ -25,8 +25,8 @@ use tracing::error;
 use crate::clients::SequencerNodeClients;
 use crate::communication::SequencerNodeCommunication;
 use crate::components::SequencerNodeComponents;
-use crate::config::component_execution_config::ReactiveComponentMode;
 use crate::config::node_config::SequencerNodeConfig;
+use crate::config::reactive_component_config::ReactiveComponentMode;
 
 // Component servers that can run locally.
 struct LocalServers {
