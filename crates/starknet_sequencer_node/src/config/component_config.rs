@@ -26,8 +26,11 @@ pub struct ComponentConfig {
     pub state_sync: ReactiveComponentExecutionConfig,
 
     // Active component configs.
+    #[validate]
     pub consensus_manager: ActiveComponentExecutionConfig,
+    #[validate]
     pub http_server: ActiveComponentExecutionConfig,
+    #[validate]
     pub monitoring_endpoint: ActiveComponentExecutionConfig,
 }
 
