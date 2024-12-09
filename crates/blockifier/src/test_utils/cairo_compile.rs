@@ -8,6 +8,8 @@ use infra_utils::compile_time_cargo_manifest_dir;
 use serde::{Deserialize, Serialize};
 use tempfile::NamedTempFile;
 
+use crate::test_utils::contracts::TagAndToolchain;
+
 const CAIRO0_PIP_REQUIREMENTS_FILE: &str = "tests/requirements.txt";
 const CAIRO1_REPO_RELATIVE_PATH_OVERRIDE_ENV_VAR: &str = "CAIRO1_REPO_RELATIVE_PATH";
 const DEFAULT_CAIRO1_REPO_RELATIVE_PATH: &str = "../../../cairo";
@@ -228,15 +230,24 @@ fn get_tag_and_repo_file_path(git_tag_override: Option<String>) -> (String, Path
     (tag, cairo_repo_path)
 }
 
-pub fn prepare_group_tag_compiler_deps(git_tag_override: Option<String>) {
-    let (tag, cairo_repo_path) = get_tag_and_repo_file_path(git_tag_override);
+pub fn prepare_group_tag_compiler_deps(tag_and_toolchain: &TagAndToolchain) {
+    let (optional_tag, optional_toolchain) = tag_and_toolchain;
+
     // Checkout the required version in the compiler repo.
+    let (tag, cairo_repo_path) = get_tag_and_repo_file_path(optional_tag.clone());
     run_and_verify_output(Command::new("git").args([
         "-C",
         cairo_repo_path.to_str().unwrap(),
         "checkout",
         &tag,
     ]));
+
+    // Install the toolchain, if specified.
+    if let Some(toolchain) = optional_toolchain {
+        run_and_verify_output(
+            Command::new("rustup").args(["install", &format!("nightly-{toolchain}")]),
+        );
+    }
 }
 
 fn verify_cairo1_compiler_deps(git_tag_override: Option<String>) {
