@@ -20,6 +20,7 @@ use starknet_api::transaction::TransactionHash;
 use starknet_api::{contract_address, felt, nonce, tx_hash};
 use starknet_batcher_types::batcher_types::{
     DecisionReachedInput,
+    GetHeightResponse,
     GetProposalContent,
     GetProposalContentInput,
     GetProposalContentResponse,
@@ -460,6 +461,18 @@ async fn propose_block_full_flow() {
     let exhausted =
         batcher.get_proposal_content(GetProposalContentInput { proposal_id: PROPOSAL_ID }).await;
     assert_matches!(exhausted, Err(BatcherError::ProposalNotFound { .. }));
+}
+
+#[rstest]
+#[tokio::test]
+async fn get_height() {
+    let mut storage_reader = MockBatcherStorageReaderTrait::new();
+    storage_reader.expect_height().returning(|| Ok(INITIAL_HEIGHT));
+
+    let mut batcher = create_batcher(MockDependencies { storage_reader, ..Default::default() });
+
+    let result = batcher.get_height().await.unwrap();
+    assert_eq!(result, GetHeightResponse { height: INITIAL_HEIGHT });
 }
 
 #[rstest]
