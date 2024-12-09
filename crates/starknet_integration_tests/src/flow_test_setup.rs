@@ -16,6 +16,7 @@ use tempfile::TempDir;
 use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 
+use crate::definitions::MockSystemMode;
 use crate::state_reader::{spawn_test_rpc_state_reader, StorageTestSetup};
 use crate::utils::{create_chain_info, create_config, get_http_server_config};
 
@@ -37,7 +38,10 @@ pub struct FlowTestSetup {
 }
 
 impl FlowTestSetup {
-    pub async fn new_from_tx_generator(tx_generator: &MultiAccountTransactionGenerator) -> Self {
+    pub async fn new_from_tx_generator(
+        tx_generator: &MultiAccountTransactionGenerator,
+        mock_system_mode: MockSystemMode,
+    ) -> Self {
         let handle = Handle::current();
         let task_executor = TokioExecutor::new(handle);
         let chain_info = create_chain_info();
@@ -56,9 +60,13 @@ impl FlowTestSetup {
         .await;
 
         // Derive the configuration for the sequencer node.
-        let (configs, _required_params, consensus_proposals_channels) =
-            create_config(chain_info, rpc_server_addr, storage_for_test.batcher_storage_config)
-                .await;
+        let (configs, _required_params, consensus_proposals_channels) = create_config(
+            chain_info,
+            rpc_server_addr,
+            storage_for_test.batcher_storage_config,
+            mock_system_mode,
+        )
+        .await;
 
         let mut all_clients = vec![];
         let mut all_servers = vec![];

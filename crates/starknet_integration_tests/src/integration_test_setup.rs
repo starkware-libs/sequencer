@@ -10,6 +10,7 @@ use starknet_monitoring_endpoint::test_utils::IsAliveClient;
 use tempfile::{tempdir, TempDir};
 
 use crate::config_utils::dump_config_file_changes;
+use crate::definitions::MockSystemMode;
 use crate::state_reader::{spawn_test_rpc_state_reader, StorageTestSetup};
 use crate::utils::{create_chain_info, create_config};
 
@@ -47,9 +48,13 @@ impl IntegrationTestSetup {
         .await;
 
         // Derive the configuration for the sequencer node.
-        let (configs, required_params, _) =
-            create_config(chain_info, rpc_server_addr, storage_for_test.batcher_storage_config)
-                .await;
+        let (configs, required_params, _) = create_config(
+            chain_info,
+            rpc_server_addr,
+            storage_for_test.batcher_storage_config,
+            MockSystemMode::Local,
+        )
+        .await;
 
         let config = &configs[0];
 
