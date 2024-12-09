@@ -1,6 +1,7 @@
 use cairo_native::execution_result::ContractExecutionResult;
 use cairo_native::utils::BuiltinCosts;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use stacker;
 use starknet_api::execution_resources::GasAmount;
 
 use crate::execution::call_info::{CallExecution, CallInfo, ChargedResources, Retdata};
@@ -39,13 +40,31 @@ pub fn execute_entry_point_call(
         mul_mod: gas_costs.base.mul_mod_gas_cost,
     };
 
-    let execution_result = compiled_class.executor.run(
-        entry_point.selector.0,
-        &syscall_handler.base.call.calldata.0.clone(),
-        syscall_handler.base.call.initial_gas,
-        Some(builtin_costs),
-        &mut syscall_handler,
-    );
+    // Grow the stack (if it's below the red zone) to handle deep Cairo recursions -
+    // when running Cairo natively, the real stack is used and could get overflowed
+    // (unlike the VM where the stack is simulated in the heap as a memory segment).
+    //
+    // We pre-allocate the stack here, and not during Native execution (technichal issue), so it
+    // needs to be big enough ahead.
+    // However, making it very big is wasteful (especially with multi-threading).
+    // So, the stack size should support calls with a reasonable gas limit, for extreamly deep
+    // recursions to reach out-of-gas before hitting the bottom of the recursion.
+    //
+    // The gas upper bound is 3500M (35M steps), and sequencers must not raise it without adjusting
+    // the stack size.
+    // This also limits multi-threading, since each thread has its own stack.
+    // TODO(Aviv/Yonatan): add these numbers to overridable VC.
+    let stack_size_red_zone = 160 * 1024 * 1024;
+    let target_stack_size = stack_size_red_zone + 10 * 1024 * 1024;
+    let execution_result = stacker::maybe_grow(stack_size_red_zone, target_stack_size, || {
+        compiled_class.executor.run(
+            entry_point.selector.0,
+            &syscall_handler.base.call.calldata.0.clone(),
+            syscall_handler.base.call.initial_gas,
+            Some(builtin_costs),
+            &mut syscall_handler,
+        )
+    });
     syscall_handler.finalize();
 
     let call_result = execution_result.map_err(EntryPointExecutionError::NativeUnexpectedError)?;
