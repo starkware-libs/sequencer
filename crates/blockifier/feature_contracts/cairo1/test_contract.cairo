@@ -252,6 +252,14 @@ mod TestContract {
             .unwrap_syscall();
     }
 
+    #[external(v0)]
+    fn test_stack_overflow(ref self: ContractState, depth: u128) -> u128 {
+        non_trivial_recursion(depth)
+    }
+
+    fn non_trivial_recursion(depth: u128) -> u128 {
+        non_trivial_recursion(depth - 1) + 2 * non_trivial_recursion(depth - 2)
+    }
 
     #[external(v0)]
     fn test_keccak(ref self: ContractState) {

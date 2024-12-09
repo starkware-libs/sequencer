@@ -41,3 +41,7 @@ pub const N_STEPS_PER_PEDERSEN: usize = 8;
 
 // The block number -> block hash mapping is written for the current block number minus this number.
 pub const STORED_BLOCK_HASH_BUFFER: u64 = 10;
+
+// Maximum possible Sierra gas for a transaction to run with in Sierra mode.
+// This limit is derived from the stack size limit when running natively.
+pub const MAX_POSSIBLE_SIERRA_GAS: u64 = 3_500_000_000;
