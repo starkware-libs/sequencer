@@ -25,7 +25,10 @@ use tracing::error;
 use crate::clients::SequencerNodeClients;
 use crate::communication::SequencerNodeCommunication;
 use crate::components::SequencerNodeComponents;
-use crate::config::component_execution_config::ReactiveComponentExecutionMode;
+use crate::config::component_execution_config::{
+    ActiveComponentExecutionMode,
+    ReactiveComponentExecutionMode,
+};
 use crate::config::node_config::SequencerNodeConfig;
 
 // Component servers that can run locally.
@@ -211,6 +214,20 @@ macro_rules! create_wrapper_server {
     };
 }
 
+// TODO(Tsabary): the following macro is a copy-pasted version of `create_wrapper_server!` macro,
+// with the execution mode types changed. Once all active components have been marked as such, unify
+// these.
+macro_rules! create_wrapper_server_for_active_component {
+    ($execution_mode:expr, $component:expr) => {
+        match *$execution_mode {
+            ActiveComponentExecutionMode::Enabled => Some(Box::new(WrapperServer::new(
+                $component.take().expect(concat!(stringify!($component), " is not initialized.")),
+            ))),
+            ActiveComponentExecutionMode::Disabled => None,
+        }
+    };
+}
+
 fn create_local_servers(
     config: &SequencerNodeConfig,
     communication: &mut SequencerNodeCommunication,
@@ -296,7 +313,7 @@ fn create_wrapper_servers(
         components.http_server
     );
 
-    let monitoring_endpoint_server = create_wrapper_server!(
+    let monitoring_endpoint_server = create_wrapper_server_for_active_component!(
         &config.components.monitoring_endpoint.execution_mode,
         components.monitoring_endpoint
     );

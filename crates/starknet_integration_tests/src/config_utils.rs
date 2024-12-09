@@ -125,13 +125,10 @@ pub fn get_local_with_remote_enabled_component_config(
 }
 
 pub async fn get_http_only_component_config(gateway_socket: SocketAddr) -> ComponentConfig {
-    let monitoring_endpoint_socket = get_available_socket().await;
     ComponentConfig {
         http_server: ReactiveComponentExecutionConfig::http_server_default_config(),
         gateway: get_remote_component_config(gateway_socket),
-        monitoring_endpoint: get_local_with_remote_enabled_component_config(
-            monitoring_endpoint_socket,
-        ),
+        monitoring_endpoint: Default::default(),
         batcher: get_disabled_component_config(),
         consensus_manager: get_disabled_component_config(),
         mempool: get_disabled_component_config(),
@@ -141,12 +138,9 @@ pub async fn get_http_only_component_config(gateway_socket: SocketAddr) -> Compo
 }
 
 pub async fn get_non_http_component_config(gateway_socket: SocketAddr) -> ComponentConfig {
-    let monitoring_endpoint_socket = get_available_socket().await;
     ComponentConfig {
         http_server: get_disabled_component_config(),
-        monitoring_endpoint: get_local_with_remote_enabled_component_config(
-            monitoring_endpoint_socket,
-        ),
+        monitoring_endpoint: Default::default(),
         gateway: get_local_with_remote_enabled_component_config(gateway_socket),
         ..ComponentConfig::default()
     }

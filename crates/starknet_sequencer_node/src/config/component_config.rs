@@ -5,11 +5,15 @@ use papyrus_config::{ParamPath, SerializedParam};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
-use crate::config::component_execution_config::ReactiveComponentExecutionConfig;
+use crate::config::component_execution_config::{
+    ActiveComponentExecutionConfig,
+    ReactiveComponentExecutionConfig,
+};
 
 /// The components configuration.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct ComponentConfig {
+    // Reactive component configs.
     #[validate]
     pub batcher: ReactiveComponentExecutionConfig,
     #[validate]
@@ -23,9 +27,10 @@ pub struct ComponentConfig {
     #[validate]
     pub mempool_p2p: ReactiveComponentExecutionConfig,
     #[validate]
-    pub monitoring_endpoint: ReactiveComponentExecutionConfig,
-    #[validate]
     pub state_sync: ReactiveComponentExecutionConfig,
+
+    // Reactive component configs.
+    pub monitoring_endpoint: ActiveComponentExecutionConfig,
 }
 
 impl Default for ComponentConfig {
@@ -37,9 +42,9 @@ impl Default for ComponentConfig {
             http_server: ReactiveComponentExecutionConfig::http_server_default_config(),
             mempool: ReactiveComponentExecutionConfig::mempool_default_config(),
             mempool_p2p: ReactiveComponentExecutionConfig::mempool_p2p_default_config(),
-            monitoring_endpoint:
-                ReactiveComponentExecutionConfig::monitoring_endpoint_default_config(),
             state_sync: ReactiveComponentExecutionConfig::state_sync_default_config(),
+            // Reactive component configs.
+            monitoring_endpoint: Default::default(),
         }
     }
 }
