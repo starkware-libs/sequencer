@@ -31,6 +31,7 @@ use starknet_batcher_types::errors::BatcherError;
 use starknet_mempool_types::communication::SharedMempoolClient;
 use starknet_mempool_types::mempool_types::CommitBlockArgs;
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
+use starknet_state_sync_types::state_sync_types::SyncBlock;
 use tracing::{debug, error, info, instrument, trace};
 
 use crate::block_builder::{
@@ -343,6 +344,11 @@ impl Batcher {
             .expect("Proposal should exist.")?;
 
         Ok(GetProposalContentResponse { content: GetProposalContent::Finished(commitment) })
+    }
+
+    // TODO(Arni): Impl add sync block
+    pub async fn add_sync_block(&mut self, _sync_block: SyncBlock) -> BatcherResult<()> {
+        todo!("Implement add sync block");
     }
 
     #[instrument(skip(self), err)]
