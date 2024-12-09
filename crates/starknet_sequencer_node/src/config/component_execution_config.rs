@@ -227,3 +227,21 @@ fn validate_active_component_execution_config(
         _ => Ok(()),
     }
 }
+
+// There are components that are described with a reactive mode setting, however, result in the
+// creation of two components: one reactive and one active. The defined behavior is such that
+// the active component is active if and only if the local component is running locally. The
+// following function applies this logic.
+impl From<ReactiveComponentExecutionMode> for ActiveComponentExecutionMode {
+    fn from(mode: ReactiveComponentExecutionMode) -> Self {
+        match mode {
+            ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
+                ActiveComponentExecutionMode::Disabled
+            }
+            ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled
+            | ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled => {
+                ActiveComponentExecutionMode::Enabled
+            }
+        }
+    }
+}
