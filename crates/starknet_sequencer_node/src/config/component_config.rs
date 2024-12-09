@@ -5,41 +5,42 @@ use papyrus_config::{ParamPath, SerializedParam};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
+use crate::config::active_component_config::ActiveComponentExecutionConfig;
 use crate::config::reactive_component_config::ReactiveComponentExecutionConfig;
 
 /// The components configuration.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct ComponentConfig {
+    // Reactive components
     #[validate]
     pub batcher: ReactiveComponentExecutionConfig,
     #[validate]
-    pub consensus_manager: ReactiveComponentExecutionConfig,
-    #[validate]
     pub gateway: ReactiveComponentExecutionConfig,
-    #[validate]
-    pub http_server: ReactiveComponentExecutionConfig,
     #[validate]
     pub mempool: ReactiveComponentExecutionConfig,
     #[validate]
     pub mempool_p2p: ReactiveComponentExecutionConfig,
     #[validate]
-    pub monitoring_endpoint: ReactiveComponentExecutionConfig,
-    #[validate]
     pub state_sync: ReactiveComponentExecutionConfig,
+
+    // Active components
+    pub consensus_manager: ActiveComponentExecutionConfig,
+    pub http_server: ActiveComponentExecutionConfig,
+    pub monitoring_endpoint: ActiveComponentExecutionConfig,
 }
 
 impl Default for ComponentConfig {
     fn default() -> Self {
         Self {
             batcher: ReactiveComponentExecutionConfig::batcher_default_config(),
-            consensus_manager: ReactiveComponentExecutionConfig::consensus_manager_default_config(),
             gateway: ReactiveComponentExecutionConfig::gateway_default_config(),
-            http_server: ReactiveComponentExecutionConfig::http_server_default_config(),
             mempool: ReactiveComponentExecutionConfig::mempool_default_config(),
             mempool_p2p: ReactiveComponentExecutionConfig::mempool_p2p_default_config(),
-            monitoring_endpoint:
-                ReactiveComponentExecutionConfig::monitoring_endpoint_default_config(),
             state_sync: ReactiveComponentExecutionConfig::state_sync_default_config(),
+
+            consensus_manager: Default::default(),
+            http_server: Default::default(),
+            monitoring_endpoint: Default::default(),
         }
     }
 }

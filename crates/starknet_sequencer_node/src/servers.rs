@@ -25,6 +25,7 @@ use tracing::error;
 use crate::clients::SequencerNodeClients;
 use crate::communication::SequencerNodeCommunication;
 use crate::components::SequencerNodeComponents;
+use crate::config::active_component_config::ActiveComponentMode;
 use crate::config::node_config::SequencerNodeConfig;
 use crate::config::reactive_component_config::ReactiveComponentMode;
 
@@ -166,20 +167,19 @@ macro_rules! create_local_server {
 /// # Arguments
 ///
 /// * $execution_mode - A reference to the component's execution mode, i.e., type
-///   &ReactiveComponentMode.
-/// * $component - The component that will be taken to initialize the server if the execution mode
-///   is enabled(LocalExecutionWithRemoteDisabled / LocalExecutionWithRemoteEnabled).
+///   &ActiveComponentMode.
+/// * $component - The component that will be taken to initialize the server if its execution mode
+///   is enabled.
 ///
 /// # Returns
 ///
 /// An `Option<Box<WrapperServer<ComponentType>>>` containing the server if the execution mode is
-/// enabled(LocalExecutionWithRemoteDisabled / LocalExecutionWithRemoteEnabled), or `None` if the
-/// execution mode is `Disabled`.
+/// `Enabled``, or `None` if the execution mode is `Disabled`.
 ///
 /// # Example
 ///
 /// ```rust, ignore
-/// // Assuming ReactiveComponentMode and components are defined, and WrapperServer
+/// // Assuming ActiveComponentMode and components are defined, and WrapperServer
 /// // has a new method that accepts a component.
 /// let consensus_manager_server = create_wrapper_server!(
 ///     &config.components.consensus_manager.execution_mode,
@@ -194,15 +194,10 @@ macro_rules! create_local_server {
 macro_rules! create_wrapper_server {
     ($execution_mode:expr, $component:expr) => {
         match *$execution_mode {
-            ReactiveComponentMode::LocalExecutionWithRemoteDisabled
-            | ReactiveComponentMode::LocalExecutionWithRemoteEnabled => {
-                Some(Box::new(WrapperServer::new(
-                    $component
-                        .take()
-                        .expect(concat!(stringify!($component), " is not initialized.")),
-                )))
-            }
-            ReactiveComponentMode::Disabled | ReactiveComponentMode::Remote => None,
+            ActiveComponentMode::Enabled => Some(Box::new(WrapperServer::new(
+                $component.take().expect(concat!(stringify!($component), " is not initialized.")),
+            ))),
+            ActiveComponentMode::Disabled => None,
         }
     };
 }
@@ -298,7 +293,7 @@ fn create_wrapper_servers(
     );
 
     let mempool_p2p_runner_server = create_wrapper_server!(
-        &config.components.mempool_p2p.execution_mode,
+        &config.components.mempool_p2p.execution_mode.clone().into(),
         components.mempool_p2p_runner
     );
     WrapperServers {
