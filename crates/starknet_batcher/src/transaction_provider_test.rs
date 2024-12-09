@@ -6,10 +6,10 @@ use rstest::{fixture, rstest};
 use starknet_api::executable_transaction::{L1HandlerTransaction, Transaction};
 use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
 use starknet_api::tx_hash;
+use starknet_l1_provider_types::{MockL1ProviderClient, ValidationStatus as L1ValidationStatus};
 use starknet_mempool_types::communication::MockMempoolClient;
 
 use crate::transaction_provider::{
-    MockL1ProviderClient,
     NextTxs,
     ProposeTransactionProvider,
     TransactionProvider,
@@ -33,7 +33,7 @@ impl MockDependencies {
         self.l1_provider_client
             .expect_get_txs()
             .with(eq(n_to_request))
-            .returning(move |_| vec![L1HandlerTransaction::default(); n_to_return]);
+            .returning(move |_| Ok(vec![L1HandlerTransaction::default(); n_to_return]));
     }
 
     fn expect_get_mempool_txs(&mut self, n_to_request: usize) {
@@ -42,11 +42,11 @@ impl MockDependencies {
         });
     }
 
-    fn expect_validate_l1handler(&mut self, tx: L1HandlerTransaction, result: bool) {
+    fn expect_validate_l1handler(&mut self, tx: L1HandlerTransaction, result: L1ValidationStatus) {
         self.l1_provider_client
             .expect_validate()
-            .withf(move |tx_arg| tx_arg == &tx)
-            .returning(move |_| result);
+            .withf(move |tx_arg| tx_arg == &tx.tx_hash)
+            .returning(move |_| Ok(result));
     }
 
     async fn simulate_input_txs(&mut self, txs: Vec<Transaction>) {
@@ -163,7 +163,7 @@ async fn no_more_l1_handler(mut mock_dependencies: MockDependencies) {
 #[tokio::test]
 async fn validate_flow(mut mock_dependencies: MockDependencies) {
     let test_tx = test_l1handler_tx();
-    mock_dependencies.expect_validate_l1handler(test_tx.clone(), true);
+    mock_dependencies.expect_validate_l1handler(test_tx.clone(), L1ValidationStatus::Validated);
     mock_dependencies
         .simulate_input_txs(vec![
             Transaction::L1Handler(test_tx),
@@ -183,7 +183,8 @@ async fn validate_flow(mut mock_dependencies: MockDependencies) {
 #[tokio::test]
 async fn validate_fails(mut mock_dependencies: MockDependencies) {
     let test_tx = test_l1handler_tx();
-    mock_dependencies.expect_validate_l1handler(test_tx.clone(), false);
+    mock_dependencies
+        .expect_validate_l1handler(test_tx.clone(), L1ValidationStatus::AlreadyIncludedOnL2);
     mock_dependencies
         .simulate_input_txs(vec![
             Transaction::L1Handler(test_tx),
