@@ -12,6 +12,7 @@ use starknet_sequencer_infra::component_definitions::{
 use starknet_sequencer_infra::test_utils::get_available_socket;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::component_execution_config::{
+    ActiveComponentExecutionConfig,
     ReactiveComponentExecutionConfig,
     ReactiveComponentExecutionMode,
 };
@@ -126,7 +127,7 @@ pub fn get_local_with_remote_enabled_component_config(
 
 pub async fn get_http_only_component_config(gateway_socket: SocketAddr) -> ComponentConfig {
     ComponentConfig {
-        http_server: ReactiveComponentExecutionConfig::http_server_default_config(),
+        http_server: ActiveComponentExecutionConfig::default(),
         gateway: get_remote_component_config(gateway_socket),
         monitoring_endpoint: Default::default(),
         batcher: get_disabled_component_config(),
@@ -139,7 +140,7 @@ pub async fn get_http_only_component_config(gateway_socket: SocketAddr) -> Compo
 
 pub async fn get_non_http_component_config(gateway_socket: SocketAddr) -> ComponentConfig {
     ComponentConfig {
-        http_server: get_disabled_component_config(),
+        http_server: ActiveComponentExecutionConfig::disabled(),
         monitoring_endpoint: Default::default(),
         gateway: get_local_with_remote_enabled_component_config(gateway_socket),
         ..ComponentConfig::default()

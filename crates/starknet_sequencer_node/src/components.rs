@@ -77,14 +77,13 @@ pub fn create_node_components(
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };
     let http_server = match config.components.http_server.execution_mode {
-        ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
-        | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
+        ActiveComponentExecutionMode::Enabled => {
             let gateway_client =
                 clients.get_gateway_shared_client().expect("Gateway Client should be available");
 
             Some(create_http_server(config.http_server_config.clone(), gateway_client))
         }
-        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
+        ActiveComponentExecutionMode::Disabled => None,
     };
 
     let (mempool_p2p_propagator, mempool_p2p_runner) = match config
