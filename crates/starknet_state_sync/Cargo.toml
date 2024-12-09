@@ -24,4 +24,5 @@ tokio.workspace = true
 validator.workspace = true
 
 [dev-dependencies]
+libp2p.workspace = true
 papyrus_storage = { workspace = true, features = ["testing"] }

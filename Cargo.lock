@@ -10802,6 +10802,7 @@ version = "0.0.0"
 dependencies = [
  "async-trait",
  "futures",
+ "libp2p",
  "papyrus_config",
  "papyrus_network",
  "papyrus_p2p_sync",
