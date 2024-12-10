@@ -355,9 +355,9 @@
     "value": true
   },
   "p2p_sync.wait_period_for_new_data": {
-    "description": "Time in seconds to wait when a query returned with partial data before sending a new query",
+    "description": "Time in millisseconds to wait when a query returned with partial data before sending a new query",
     "privacy": "Public",
-    "value": 5
+    "value": 50
   },
   "rpc.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
