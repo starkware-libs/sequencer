@@ -8,7 +8,6 @@ use blockifier_reexecution::state_reader::utils::{
     guess_chain_id_from_node_url,
     reexecute_and_verify_correctness,
     write_block_reexecution_data_to_file,
-    JSON_RPC_VERSION,
 };
 use clap::{Args, Parser, Subcommand};
 use google_cloud_storage::client::{Client, ClientConfig};
@@ -181,10 +180,7 @@ async fn main() {
                 rpc_args.node_url
             );
 
-            let config = RpcStateReaderConfig {
-                url: rpc_args.node_url.clone(),
-                json_rpc_version: JSON_RPC_VERSION.to_string(),
-            };
+            let config = RpcStateReaderConfig::from_url(rpc_args.node_url.clone());
 
             // RPC calls are "synchronous IO" (see, e.g., https://stackoverflow.com/questions/74547541/when-should-you-use-tokios-spawn-blocking)
             // for details), so should be executed in a blocking thread.

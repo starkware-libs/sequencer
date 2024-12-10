@@ -31,7 +31,6 @@ pub static RPC_NODE_URL: LazyLock<String> = LazyLock::new(|| {
     env::var("TEST_URL")
         .unwrap_or_else(|_| "https://free-rpc.nethermind.io/mainnet-juno/".to_string())
 });
-pub const JSON_RPC_VERSION: &str = "2.0";
 
 pub fn guess_chain_id_from_node_url(node_url: &str) -> ReexecutionResult<ChainId> {
     match (
@@ -59,12 +58,9 @@ pub fn get_fee_token_addresses(chain_id: &ChainId) -> FeeTokenAddresses {
     }
 }
 
-/// Returns the RPC state reader configuration with the constants RPC_NODE_URL and JSON_RPC_VERSION.
+/// Returns the RPC state reader configuration with the constant RPC_NODE_URL.
 pub fn get_rpc_state_reader_config() -> RpcStateReaderConfig {
-    RpcStateReaderConfig {
-        url: RPC_NODE_URL.clone(),
-        json_rpc_version: JSON_RPC_VERSION.to_string(),
-    }
+    RpcStateReaderConfig::from_url(RPC_NODE_URL.clone())
 }
 
 /// Returns the chain info of mainnet.
@@ -260,8 +256,7 @@ pub fn write_block_reexecution_data_to_file(
     node_url: String,
     chain_id: ChainId,
 ) {
-    let config =
-        RpcStateReaderConfig { url: node_url, json_rpc_version: JSON_RPC_VERSION.to_string() };
+    let config = RpcStateReaderConfig::from_url(node_url);
 
     let consecutive_state_readers = ConsecutiveTestStateReaders::new(
         block_number.prev().expect("Should not run with block 0"),
