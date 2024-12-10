@@ -10737,6 +10737,7 @@ name = "starknet_state_sync_types"
 version = "0.0.0"
 dependencies = [
  "async-trait",
+ "futures",
  "papyrus_proc_macros",
  "papyrus_storage",
  "serde",
