@@ -87,7 +87,7 @@ fn verify_feature_contracts_compatibility(fix: bool, cairo_version: CairoVersion
             for (tag_and_tool_chain, feature_contracts) in
                 FeatureContract::cairo1_feature_contracts_by_tag()
             {
-                prepare_group_tag_compiler_deps(tag_and_tool_chain.0.clone());
+                prepare_group_tag_compiler_deps(&tag_and_tool_chain);
                 // TODO(Meshi 01/01/2025) Make this loop concurrent
                 for contract in feature_contracts
                     .into_iter()
