@@ -570,6 +570,7 @@ trait ProposalManagerTraitWrapper: Send + Sync {
 
     fn wrap_get_active_proposal(&self) -> BoxFuture<'_, Option<ProposalId>>;
 
+    #[allow(clippy::type_complexity)]
     fn wrap_get_completed_proposals(
         &self,
     ) -> BoxFuture<'_, Arc<tokio::sync::Mutex<HashMap<ProposalId, ProposalResult<ProposalOutput>>>>>;
