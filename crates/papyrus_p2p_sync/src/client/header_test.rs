@@ -11,11 +11,13 @@ use papyrus_protobuf::sync::{
 };
 use papyrus_storage::header::HeaderStorageReader;
 use papyrus_test_utils::get_rng;
+use papyrus_test_utils::get_rng;
 use starknet_api::block::{BlockHeader, BlockHeaderWithoutHash, BlockNumber};
 use tokio::time::timeout;
 
 use super::test_utils::{
     create_block_hashes_and_signatures,
+    random_header,
     random_header,
     run_test,
     setup,

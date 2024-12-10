@@ -233,6 +233,11 @@ fn get_tag_and_repo_file_path(git_tag_override: Option<String>) -> (String, Path
 pub fn prepare_group_tag_compiler_deps(tag_and_toolchain: &TagAndToolchain) {
     let (optional_tag, optional_toolchain) = tag_and_toolchain;
 
+    (tag, cairo_repo_path)
+}
+
+pub fn prepare_group_tag_compiler_deps(git_tag_override: Option<String>) {
+    let (tag, cairo_repo_path) = get_tag_and_repo_file_path(git_tag_override);
     // Checkout the required version in the compiler repo.
     let (tag, cairo_repo_path) = get_tag_and_repo_file_path(optional_tag.clone());
     run_and_verify_output(Command::new("git").args([

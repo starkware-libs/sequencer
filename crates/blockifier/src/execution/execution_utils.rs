@@ -126,23 +126,23 @@ pub fn execute_entry_point_call(
         }
         #[cfg(feature = "cairo_native")]
         RunnableCompiledClass::V1Native(compiled_class) => {
-            if context.tracked_resource_stack.last() == Some(&TrackedResource::CairoSteps) {
-                // We cannot run native with cairo steps as the tracked resources (it's a vm
-                // resouorce).
-                entry_point_execution::execute_entry_point_call(
-                    call,
-                    compiled_class.casm(),
-                    state,
-                    context,
-                )
-            } else {
-                native_entry_point_execution::execute_entry_point_call(
-                    call,
-                    compiled_class,
-                    state,
-                    context,
-                )
-            }
+            // if context.tracked_resource_stack.last() == Some(&TrackedResource::CairoSteps) {
+            //     // We cannot run native with cairo steps as the tracked resources (it's a vm
+            //     // resouorce).
+            //     entry_point_execution::execute_entry_point_call(
+            //         call,
+            //         compiled_class.casm(),
+            //         state,
+            //         context,
+            //     )
+            // } else {
+            native_entry_point_execution::execute_entry_point_call(
+                call,
+                compiled_class,
+                state,
+                context,
+            )
+            // }
         }
     }
 }

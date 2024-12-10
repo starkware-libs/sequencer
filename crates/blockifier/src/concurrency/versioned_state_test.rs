@@ -7,6 +7,7 @@ use rstest::{fixture, rstest};
 use starknet_api::abi::abi_utils::{get_fee_token_var_address, get_storage_var_address};
 use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress};
 use starknet_api::test_utils::deploy_account::executable_deploy_account_tx;
+use starknet_api::test_utils::deploy_account::executable_deploy_account_tx;
 use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::fields::{ContractAddressSalt, ValidResourceBounds};
 use starknet_api::{
@@ -228,6 +229,7 @@ fn test_run_parallel_txs(default_all_resource_bounds: ValidResourceBounds) {
 
     // Prepare transactions
     let tx = executable_deploy_account_tx(
+    let tx = executable_deploy_account_tx(
         deploy_account_tx_args! {
             class_hash: account_without_validation.get_class_hash(),
             resource_bounds: l1_resource_bounds(
@@ -253,6 +255,9 @@ fn test_run_parallel_txs(default_all_resource_bounds: ValidResourceBounds) {
     let tx = executable_deploy_account_tx(deploy_tx_args, nonce_manager);
     let delpoy_account_tx_2 = AccountTransaction::new_for_sequencing(tx);
 
+    let tx = executable_deploy_account_tx(deploy_tx_args, nonce_manager);
+    let delpoy_account_tx_2 = AccountTransaction::new_for_sequencing(tx);
+
     let account_address = delpoy_account_tx_2.sender_address();
     let tx_context = block_context.to_tx_context(&delpoy_account_tx_2);
     let fee_type = tx_context.tx_info.fee_type();
@@ -273,6 +278,7 @@ fn test_run_parallel_txs(default_all_resource_bounds: ValidResourceBounds) {
             assert_eq!(result.is_err(), enforce_fee); // Transaction fails iff we enforced the fee charge (as the acount is not funded).
         });
         s.spawn(move || {
+            delpoy_account_tx_2.execute(&mut state_2, &block_context_2).unwrap();
             delpoy_account_tx_2.execute(&mut state_2, &block_context_2).unwrap();
             // Check that the constructor wrote ctor_arg to the storage.
             let storage_key = get_storage_var_address("ctor_arg", &[]);

@@ -618,6 +618,11 @@ fn test_validate_trace(
         ExecutionFlags { charge_fee: account_tx.enforce_fee(), ..ExecutionFlags::default() };
     let account_tx = AccountTransaction { tx: account_tx.tx, execution_flags };
 
+    // TODO(AvivG): Change this fixup to not create account_tx twice w wrong charge_fee.
+    let execution_flags =
+        ExecutionFlags { charge_fee: account_tx.enforce_fee(), ..ExecutionFlags::default() };
+    let account_tx = AccountTransaction { tx: account_tx.tx, execution_flags };
+
     let contract_address = *sender_address.0.key();
 
     let expected_error = match cairo_version {
@@ -651,6 +656,7 @@ Error in contract (contract address: {contract_address:#064x}, class hash: {:#06
     // Clean pc locations from the trace.
     let re = Regex::new(r"pc=0:[0-9]+").unwrap();
     let cleaned_expected_error = &re.replace_all(&expected_error, "pc=0:*");
+    let actual_error = account_tx.execute(state, block_context).unwrap_err();
     let actual_error = account_tx.execute(state, block_context).unwrap_err();
     let actual_error_str = actual_error.to_string();
     let cleaned_actual_error = &re.replace_all(&actual_error_str, "pc=0:*");
@@ -725,6 +731,7 @@ Error in contract (contract address: {expected_address:#064x}, class hash: {:#06
         };
 
     // Compare expected and actual error.
+    let error = deploy_account_tx.execute(state, &block_context).unwrap_err();
     let error = deploy_account_tx.execute(state, &block_context).unwrap_err();
     assert_eq!(error.to_string(), expected_error);
 }
@@ -867,6 +874,7 @@ Error in contract (contract address: {expected_address:#064x}, class hash: {:#06
     };
 
     // Compare expected and actual error.
+    let error = invoke_deploy_tx.execute(state, &block_context).unwrap().revert_error.unwrap();
     let error = invoke_deploy_tx.execute(state, &block_context).unwrap().revert_error.unwrap();
     assert_eq!(error.to_string(), expected_error);
 }

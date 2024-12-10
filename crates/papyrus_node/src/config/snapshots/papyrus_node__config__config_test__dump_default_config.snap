@@ -1,6 +1,7 @@
 ---
 source: crates/papyrus_node/src/config/config_test.rs
 expression: dumped_default_config
+snapshot_kind: text
 ---
 {
   "base_layer.node_url": {

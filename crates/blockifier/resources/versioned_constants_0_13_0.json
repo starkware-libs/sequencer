@@ -5,10 +5,12 @@
     },
     "invoke_tx_max_n_steps": 3000000,
     "execute_max_sierra_gas": 10000000000,
+    "execute_max_sierra_gas": 10000000000,
     "max_recursion_depth": 50,
     "segment_arena_cells": true,
     "disable_cairo0_redeclaration": false,
     "enable_stateful_compression": false,
+    "comprehensive_state_diff": false,
     "comprehensive_state_diff": false,
     "allocation_cost": {
         "blob_cost": {
@@ -75,6 +77,7 @@
         "step_gas_cost": 100,
         "range_check_gas_cost": 70,
         "keccak_builtin_gas_cost": 0,
+        "keccak_builtin_gas_cost": 0,
         "pedersen_gas_cost": 0,
         "bitwise_builtin_gas_cost": 0,
         "ecop_gas_cost": 0,
@@ -98,12 +101,16 @@
             "step_gas_cost": 100
         },
         "fee_transfer_gas_cost": {
+        "fee_transfer_gas_cost": {
             "entry_point_initial_budget": 1,
+            "step_gas_cost": 600
             "step_gas_cost": 600
         },
         "transaction_gas_cost": {
             "entry_point_initial_budget": 2,
+            "entry_point_initial_budget": 2,
             "fee_transfer_gas_cost": 1,
+            "step_gas_cost": 1100
             "step_gas_cost": 1100
         },
         "error_block_number_out_of_range": "Block number out of range",

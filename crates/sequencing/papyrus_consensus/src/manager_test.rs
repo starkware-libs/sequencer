@@ -20,6 +20,13 @@ use papyrus_protobuf::consensus::{
     ProposalPart,
     Vote,
 };
+use papyrus_protobuf::consensus::{
+    ConsensusMessage,
+    ProposalFin,
+    ProposalInit,
+    ProposalPart,
+    Vote,
+};
 use papyrus_test_utils::{get_rng, GetTestInstance};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_types_core::felt::Felt;

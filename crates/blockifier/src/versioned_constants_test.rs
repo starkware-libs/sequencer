@@ -20,6 +20,7 @@ fn test_successful_gas_costs_parsing() {
             "step_gas_cost": 3
         },
         "transaction_gas_cost": {
+        "transaction_gas_cost": {
             "entry_point_initial_budget": 4,
             "step_gas_cost": 5
         },

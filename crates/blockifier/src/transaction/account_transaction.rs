@@ -7,6 +7,7 @@ use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::executable_transaction::AccountTransaction as Transaction;
+use starknet_api::executable_transaction::AccountTransaction as Transaction;
 use starknet_api::transaction::fields::Resource::{L1DataGas, L1Gas, L2Gas};
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
@@ -40,6 +41,7 @@ use crate::fee::gas_usage::estimate_minimal_gas_vector;
 use crate::fee::receipt::TransactionReceipt;
 use crate::retdata;
 use crate::state::cached_state::{StateCache, TransactionalState};
+use crate::state::cached_state::{StateCache, TransactionalState};
 use crate::state::state_api::{State, StateReader, UpdatableState};
 use crate::transaction::errors::{
     TransactionExecutionError,
@@ -59,6 +61,7 @@ use crate::transaction::objects::{
 };
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::{
+    enforce_fee,
     enforce_fee,
     Executable,
     ExecutableTransaction,
@@ -90,10 +93,24 @@ impl Default for ExecutionFlags {
     }
 }
 
+#[derive(Clone, Debug, derive_more::From)]
+pub struct ExecutionFlags {
+    pub only_query: bool,
+    pub charge_fee: bool,
+    pub validate: bool,
+}
+
+impl Default for ExecutionFlags {
+    fn default() -> Self {
+        Self { only_query: false, charge_fee: true, validate: true }
+    }
+}
+
 /// Represents a paid Starknet transaction.
 #[derive(Clone, Debug, derive_more::From)]
 pub struct AccountTransaction {
     pub tx: Transaction,
+    pub execution_flags: ExecutionFlags,
     pub execution_flags: ExecutionFlags,
 }
 // TODO(AvivG): create additional macro that returns a reference.
@@ -128,6 +145,17 @@ impl AccountTransaction {
         (paymaster_data, PaymasterData)
     );
 
+    pub fn new_with_default_flags(tx: Transaction) -> Self {
+        Self { tx, execution_flags: ExecutionFlags::default() }
+    }
+
+    pub fn new_for_sequencing(tx: Transaction) -> Self {
+        let execution_flags = ExecutionFlags {
+            only_query: false,
+            charge_fee: enforce_fee(&tx, false),
+            validate: true,
+        };
+        AccountTransaction { tx, execution_flags }
     pub fn new_with_default_flags(tx: Transaction) -> Self {
         Self { tx, execution_flags: ExecutionFlags::default() }
     }
@@ -591,6 +619,7 @@ impl AccountTransaction {
         // Save the state changes resulting from running `validate_tx`, to be used later for
         // resource and fee calculation.
         let validate_state_cache = state.borrow_updated_state_cache()?.clone();
+        let validate_state_cache = state.borrow_updated_state_cache()?.clone();
 
         // Create copies of state and validate_resources for the execution.
         // Both will be rolled back if the execution is reverted or committed upon success.
@@ -616,6 +645,19 @@ impl AccountTransaction {
                 execution_steps_consumed,
             )
         };
+        // Get the receipt only in case of revert.
+        let get_revert_receipt = || {
+            TransactionReceipt::from_account_tx(
+                self,
+                &tx_context,
+                &validate_state_cache.to_state_diff(),
+                CallInfo::summarize_many(
+                    validate_call_info.iter(),
+                    &tx_context.block_context.versioned_constants,
+                ),
+                execution_steps_consumed,
+            )
+        };
 
         match execution_result {
             Ok(execute_call_info) => {
@@ -624,6 +666,13 @@ impl AccountTransaction {
                 let tx_receipt = TransactionReceipt::from_account_tx(
                     self,
                     &tx_context,
+                    &StateCache::squash_state_diff(
+                        vec![
+                            &validate_state_cache,
+                            &execution_state.borrow_updated_state_cache()?.clone(),
+                        ],
+                        tx_context.block_context.versioned_constants.comprehensive_state_diff,
+                    ),
                     &StateCache::squash_state_diff(
                         vec![
                             &validate_state_cache,
@@ -655,9 +704,14 @@ impl AccountTransaction {
                             fee: post_execution_report.recommended_fee(),
                             ..get_revert_receipt()
                         };
+                        let tx_receipt = TransactionReceipt {
+                            fee: post_execution_report.recommended_fee(),
+                            ..get_revert_receipt()
+                        };
                         Ok(ValidateExecuteCallInfo::new_reverted(
                             validate_call_info,
                             post_execution_error.into(),
+                            tx_receipt,
                             tx_receipt,
                         ))
                     }
@@ -673,6 +727,7 @@ impl AccountTransaction {
                 }
             }
             Err(execution_error) => {
+                let revert_receipt = get_revert_receipt();
                 let revert_receipt = get_revert_receipt();
                 // Error during execution. Revert, even if the error is sequencer-related.
                 execution_state.abort();
@@ -734,6 +789,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
         state: &mut TransactionalState<'_, U>,
         block_context: &BlockContext,
         concurrency_mode: bool,
+        concurrency_mode: bool,
     ) -> TransactionExecutionResult<TransactionExecutionInfo> {
         let tx_context = Arc::new(block_context.to_tx_context(self));
         self.verify_tx_version(tx_context.tx_info.version())?;
@@ -762,6 +818,8 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
             final_fee,
             self.execution_flags.charge_fee,
             concurrency_mode,
+            self.execution_flags.charge_fee,
+            concurrency_mode,
         )?;
 
         let tx_execution_info = TransactionExecutionInfo {
@@ -782,6 +840,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
 
 impl TransactionInfoCreator for AccountTransaction {
     fn create_tx_info(&self) -> TransactionInfo {
+        self.tx.create_tx_info(self.execution_flags.only_query)
         self.tx.create_tx_info(self.execution_flags.only_query)
     }
 }
