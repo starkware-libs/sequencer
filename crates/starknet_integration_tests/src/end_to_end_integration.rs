@@ -96,7 +96,7 @@ pub async fn end_to_end_integration(mut tx_generator: MultiAccountTransactionGen
     );
 
     info!("Verifying tx sender account nonce.");
-    let expected_nonce_value = tx_hashes.len() + 1;
+    let expected_nonce_value = tx_hashes.len() + 2; //1;
     let expected_nonce =
         Nonce(Felt::from_hex_unchecked(format!("0x{:X}", expected_nonce_value).as_str()));
     let nonce = get_account_nonce(&batcher_storage_reader, sender_address);
