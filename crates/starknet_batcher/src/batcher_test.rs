@@ -48,15 +48,10 @@ use crate::block_builder::{
     MockBlockBuilderTrait,
 };
 use crate::config::BatcherConfig;
-use crate::proposal_manager::{
-    GenerateProposalError,
-    ProposalError,
-    ProposalManagerTrait,
-    ProposalOutput,
-    ProposalResult,
-};
+use crate::proposal_manager::{GenerateProposalError, ProposalManagerTrait};
 use crate::test_utils::test_txs;
 use crate::transaction_provider::NextTxs;
+use crate::utils::{ProposalError, ProposalOutput, ProposalResult};
 
 const INITIAL_HEIGHT: BlockNumber = BlockNumber(3);
 const STREAMING_CHUNK_SIZE: usize = 3;

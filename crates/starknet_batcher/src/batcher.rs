@@ -1,13 +1,11 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use blockifier::abi::constants;
 use blockifier::state::global_cache::GlobalContractCache;
-use chrono::Utc;
 #[cfg(test)]
 use mockall::automock;
 use papyrus_storage::state::{StateStorageReader, StateStorageWriter};
-use starknet_api::block::{BlockHashAndNumber, BlockNumber};
+use starknet_api::block::BlockNumber;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::state::ThinStateDiff;
 use starknet_batcher_types::batcher_types::{
@@ -33,25 +31,24 @@ use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use tracing::{debug, error, info, instrument, trace};
 
 use crate::block_builder::{
-    BlockBuilderError,
     BlockBuilderExecutionParams,
     BlockBuilderFactory,
     BlockBuilderFactoryTrait,
     BlockMetadata,
 };
 use crate::config::BatcherConfig;
-use crate::proposal_manager::{
-    GenerateProposalError,
-    ProposalError,
-    ProposalManager,
-    ProposalManagerTrait,
-    ProposalOutput,
-    ProposalResult,
-};
+use crate::proposal_manager::{GenerateProposalError, ProposalManager, ProposalManagerTrait};
 use crate::transaction_provider::{
     DummyL1ProviderClient,
     ProposeTransactionProvider,
     ValidateTransactionProvider,
+};
+use crate::utils::{
+    deadline_as_instant,
+    proposal_status_from,
+    verify_block_input,
+    ProposalOutput,
+    ProposalResult,
 };
 
 type OutputStreamReceiver = tokio::sync::mpsc::UnboundedReceiver<Transaction>;
@@ -458,65 +455,4 @@ impl From<GenerateProposalError> for BatcherError {
     }
 }
 
-impl From<ProposalError> for BatcherError {
-    fn from(err: ProposalError) -> Self {
-        match err {
-            ProposalError::BlockBuilderError(..) => BatcherError::InternalError,
-            ProposalError::Aborted => BatcherError::ProposalAborted,
-        }
-    }
-}
-
 impl ComponentStarter for Batcher {}
-
-pub fn deadline_as_instant(deadline: chrono::DateTime<Utc>) -> BatcherResult<tokio::time::Instant> {
-    let time_to_deadline = deadline - chrono::Utc::now();
-    let as_duration =
-        time_to_deadline.to_std().map_err(|_| BatcherError::TimeToDeadlineError { deadline })?;
-    Ok((std::time::Instant::now() + as_duration).into())
-}
-
-fn verify_block_input(
-    height: BlockNumber,
-    block_number: BlockNumber,
-    retrospective_block_hash: Option<BlockHashAndNumber>,
-) -> BatcherResult<()> {
-    verify_non_empty_retrospective_block_hash(height, retrospective_block_hash)?;
-    verify_block_number(height, block_number)?;
-    Ok(())
-}
-
-fn verify_non_empty_retrospective_block_hash(
-    height: BlockNumber,
-    retrospective_block_hash: Option<BlockHashAndNumber>,
-) -> BatcherResult<()> {
-    if height >= BlockNumber(constants::STORED_BLOCK_HASH_BUFFER)
-        && retrospective_block_hash.is_none()
-    {
-        return Err(BatcherError::MissingRetrospectiveBlockHash);
-    }
-    Ok(())
-}
-
-fn verify_block_number(height: BlockNumber, block_number: BlockNumber) -> BatcherResult<()> {
-    if block_number != height {
-        return Err(BatcherError::InvalidBlockNumber { active_height: height, block_number });
-    }
-    Ok(())
-}
-
-// Return the appropriate ProposalStatus for a given ProposalError.
-fn proposal_status_from(proposal_error: ProposalError) -> BatcherResult<ProposalStatus> {
-    match proposal_error {
-        ProposalError::BlockBuilderError(err) => {
-            if let BlockBuilderError::FailOnError(_) = err.as_ref() {
-                // The proposal either failed due to bad input (e.g. invalid transactions), or
-                // couldn't finish in time.
-                Ok(ProposalStatus::InvalidProposal)
-            } else {
-                Err(BatcherError::InternalError)
-            }
-        }
-        ProposalError::Aborted => Err(BatcherError::ProposalAborted),
-    }
-}
