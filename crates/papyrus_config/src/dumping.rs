@@ -43,15 +43,8 @@ use serde::Serialize;
 use serde_json::{json, Value};
 
 use crate::{
-    ConfigError,
-    ParamPath,
-    ParamPrivacy,
-    ParamPrivacyInput,
-    SerializationType,
-    SerializedContent,
-    SerializedParam,
-    FIELD_SEPARATOR,
-    IS_NONE_MARK,
+    ConfigError, ParamPath, ParamPrivacy, ParamPrivacyInput, SerializationType, SerializedContent,
+    SerializedParam, FIELD_SEPARATOR, IS_NONE_MARK,
 };
 
 /// Type alias for a pointer parameter and its serialized representation.

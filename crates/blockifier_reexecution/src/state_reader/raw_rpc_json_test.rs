@@ -7,10 +7,7 @@ use rstest::{fixture, rstest};
 use starknet_api::block::{BlockInfo, BlockNumber};
 use starknet_api::test_utils::read_json_file;
 use starknet_api::transaction::{
-    DeclareTransaction,
-    DeployAccountTransaction,
-    InvokeTransaction,
-    Transaction,
+    DeclareTransaction, DeployAccountTransaction, InvokeTransaction, Transaction,
 };
 use starknet_api::{class_hash, compiled_class_hash, contract_address, felt, nonce, storage_key};
 use starknet_core::types::ContractClass;

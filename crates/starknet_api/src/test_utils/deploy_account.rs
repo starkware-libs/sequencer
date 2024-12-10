@@ -2,29 +2,18 @@ use super::NonceManager;
 use crate::core::{calculate_contract_address, ClassHash, ContractAddress, Nonce};
 use crate::data_availability::DataAvailabilityMode;
 use crate::executable_transaction::{
-    AccountTransaction,
-    DeployAccountTransaction as ExecutableDeployAccountTransaction,
+    AccountTransaction, DeployAccountTransaction as ExecutableDeployAccountTransaction,
 };
 use crate::rpc_transaction::{
-    RpcDeployAccountTransaction,
-    RpcDeployAccountTransactionV3,
-    RpcTransaction,
+    RpcDeployAccountTransaction, RpcDeployAccountTransactionV3, RpcTransaction,
 };
 use crate::transaction::fields::{
-    Calldata,
-    ContractAddressSalt,
-    Fee,
-    PaymasterData,
-    Tip,
-    TransactionSignature,
+    Calldata, ContractAddressSalt, Fee, PaymasterData, Tip, TransactionSignature,
     ValidResourceBounds,
 };
 use crate::transaction::{
-    DeployAccountTransaction,
-    DeployAccountTransactionV1,
-    DeployAccountTransactionV3,
-    TransactionHash,
-    TransactionVersion,
+    DeployAccountTransaction, DeployAccountTransactionV1, DeployAccountTransactionV3,
+    TransactionHash, TransactionVersion,
 };
 
 #[derive(Clone)]

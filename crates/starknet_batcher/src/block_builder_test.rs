@@ -16,13 +16,8 @@ use starknet_api::tx_hash;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 use crate::block_builder::{
-    BlockBuilder,
-    BlockBuilderError,
-    BlockBuilderExecutionParams,
-    BlockBuilderResult,
-    BlockBuilderTrait,
-    BlockExecutionArtifacts,
-    FailOnErrorCause,
+    BlockBuilder, BlockBuilderError, BlockBuilderExecutionParams, BlockBuilderResult,
+    BlockBuilderTrait, BlockExecutionArtifacts, FailOnErrorCause,
 };
 use crate::test_utils::test_txs;
 use crate::transaction_executor::MockTransactionExecutorTrait;

@@ -6,9 +6,7 @@ use futures::channel::mpsc::Sender;
 use futures::stream::StreamExt;
 use futures::SinkExt;
 use papyrus_network::network_manager::test_utils::{
-    mock_register_broadcast_topic,
-    BroadcastNetworkMock,
-    TestSubscriberChannels,
+    mock_register_broadcast_topic, BroadcastNetworkMock, TestSubscriberChannels,
 };
 use papyrus_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use papyrus_network::NetworkConfig;

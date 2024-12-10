@@ -29,9 +29,9 @@ pub trait BaseLayerSourceTrait {
 
 #[async_trait]
 impl<
-    Error: std::error::Error + 'static + Sync + Send,
-    BaseLayerSource: BaseLayerContract<Error = Error> + Sync + Send,
-> BaseLayerSourceTrait for BaseLayerSource
+        Error: std::error::Error + 'static + Sync + Send,
+        BaseLayerSource: BaseLayerContract<Error = Error> + Sync + Send,
+    > BaseLayerSourceTrait for BaseLayerSource
 {
     async fn latest_proved_block(
         &self,

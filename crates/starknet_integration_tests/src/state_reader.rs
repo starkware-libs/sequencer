@@ -5,13 +5,8 @@ use assert_matches::assert_matches;
 use blockifier::context::ChainInfo;
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{
-    CairoVersion,
-    RunnableCairo1,
-    BALANCE,
-    CURRENT_BLOCK_TIMESTAMP,
-    DEFAULT_ETH_L1_GAS_PRICE,
-    DEFAULT_STRK_L1_GAS_PRICE,
-    TEST_SEQUENCER_ADDRESS,
+    CairoVersion, RunnableCairo1, BALANCE, CURRENT_BLOCK_TIMESTAMP, DEFAULT_ETH_L1_GAS_PRICE,
+    DEFAULT_STRK_L1_GAS_PRICE, TEST_SEQUENCER_ADDRESS,
 };
 use blockifier::versioned_constants::VersionedConstants;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
@@ -28,12 +23,7 @@ use papyrus_storage::test_utils::TestStorageBuilder;
 use papyrus_storage::{StorageConfig, StorageReader, StorageScope, StorageWriter};
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::block::{
-    BlockBody,
-    BlockHeader,
-    BlockHeaderWithoutHash,
-    BlockNumber,
-    BlockTimestamp,
-    FeeType,
+    BlockBody, BlockHeader, BlockHeaderWithoutHash, BlockNumber, BlockTimestamp, FeeType,
     GasPricePerToken,
 };
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, Nonce, SequencerContractAddress};

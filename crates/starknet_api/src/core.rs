@@ -113,9 +113,9 @@ impl ContractAddress {
     /// The lower bound is above the special saved addresses and the upper bound is congruent with
     /// the storage var address upper bound.
     pub fn validate(&self) -> Result<(), StarknetApiError> {
-        let value = self.0.0;
+        let value = self.0 .0;
         let l2_address_upper_bound = Felt::from(*L2_ADDRESS_UPPER_BOUND);
-        if (value > BLOCK_HASH_TABLE_ADDRESS.0.0) && (value < l2_address_upper_bound) {
+        if (value > BLOCK_HASH_TABLE_ADDRESS.0 .0) && (value < l2_address_upper_bound) {
             return Ok(());
         }
 

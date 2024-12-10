@@ -18,9 +18,7 @@ use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 
 use crate::compilation::GatewayCompiler;
 use crate::config::{
-    GatewayConfig,
-    StatefulTransactionValidatorConfig,
-    StatelessTransactionValidatorConfig,
+    GatewayConfig, StatefulTransactionValidatorConfig, StatelessTransactionValidatorConfig,
 };
 use crate::gateway::Gateway;
 use crate::state_reader_test_utils::{local_test_state_reader_factory, TestStateReaderFactory};

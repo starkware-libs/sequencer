@@ -77,14 +77,8 @@ use crate::db::table_types::Table;
 use crate::db::{TransactionKind, RW};
 use crate::state::{DeclaredClassesTable, DeprecatedDeclaredClassesTable, FileOffsetTable};
 use crate::{
-    DbTransaction,
-    FileHandlers,
-    IndexedDeprecatedContractClass,
-    MarkerKind,
-    OffsetKind,
-    StorageError,
-    StorageResult,
-    StorageTxn,
+    DbTransaction, FileHandlers, IndexedDeprecatedContractClass, MarkerKind, OffsetKind,
+    StorageError, StorageResult, StorageTxn,
 };
 
 /// Interface for reading data related to classes or deprecated classes.

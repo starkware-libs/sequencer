@@ -9,19 +9,12 @@ use jsonrpsee::RpcModule;
 use lazy_static::lazy_static;
 use papyrus_common::pending_classes::{ApiContractClass, PendingClasses, PendingClassesTrait};
 use papyrus_common::state::{
-    DeclaredClassHashEntry,
-    DeployedContract as CommonDeployedContract,
+    DeclaredClassHashEntry, DeployedContract as CommonDeployedContract,
     StorageEntry as CommonStorageEntry,
 };
 use papyrus_execution::execution_utils::selector_from_name;
 use papyrus_execution::objects::{
-    CallType,
-    FeeEstimation,
-    FunctionCall,
-    OrderedEvent,
-    OrderedL2ToL1Message,
-    PriceUnit,
-    Retdata,
+    CallType, FeeEstimation, FunctionCall, OrderedEvent, OrderedL2ToL1Message, PriceUnit, Retdata,
     RevertReason,
 };
 use papyrus_execution::testing_instances::get_storage_var_address;
@@ -33,31 +26,17 @@ use papyrus_storage::header::HeaderStorageWriter;
 use papyrus_storage::state::StateStorageWriter;
 use papyrus_storage::StorageWriter;
 use papyrus_test_utils::{
-    auto_impl_get_test_instance,
-    get_number_of_variants,
-    get_rng,
-    GetTestInstance,
+    auto_impl_get_test_instance, get_number_of_variants, get_rng, GetTestInstance,
 };
 use pretty_assertions::assert_eq;
 use starknet_api::block::{
-    BlockBody,
-    BlockHash,
-    BlockHeader,
-    BlockHeaderWithoutHash,
-    BlockNumber,
-    BlockTimestamp,
+    BlockBody, BlockHash, BlockHeader, BlockHeaderWithoutHash, BlockNumber, BlockTimestamp,
     GasPricePerToken,
 };
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{
-    ClassHash,
-    CompiledClassHash,
-    ContractAddress,
-    EntryPointSelector,
-    EthAddress,
-    Nonce,
-    PatriciaKey,
-    SequencerContractAddress,
+    ClassHash, CompiledClassHash, ContractAddress, EntryPointSelector, EthAddress, Nonce,
+    PatriciaKey, SequencerContractAddress,
 };
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::deprecated_contract_class::ContractClass as SN_API_DeprecatedContractClass;
@@ -66,21 +45,15 @@ use starknet_api::state::{StorageKey, ThinStateDiff as StarknetApiStateDiff};
 use starknet_api::test_utils::{path_in_resources, read_json_file};
 use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::transaction::{
-    L1HandlerTransaction,
-    TransactionHash,
-    TransactionOffsetInBlock,
-    TransactionVersion,
+    L1HandlerTransaction, TransactionHash, TransactionOffsetInBlock, TransactionVersion,
 };
 use starknet_api::{calldata, class_hash, contract_address, felt, nonce, tx_hash};
 use starknet_client::reader::objects::pending_data::{
-    PendingBlock,
-    PendingBlockOrDeprecated,
-    PendingStateUpdate,
+    PendingBlock, PendingBlockOrDeprecated, PendingStateUpdate,
 };
 use starknet_client::reader::objects::state::StateDiff as ClientStateDiff;
 use starknet_client::reader::objects::transaction::{
-    IntermediateInvokeTransaction as ClientInvokeTransaction,
-    Transaction as ClientTransaction,
+    IntermediateInvokeTransaction as ClientInvokeTransaction, Transaction as ClientTransaction,
     TransactionReceipt as ClientTransactionReceipt,
 };
 use starknet_client::reader::PendingData;
@@ -89,57 +62,31 @@ use tokio::sync::RwLock;
 
 use super::api::api_impl::JsonRpcServerImpl;
 use super::api::{
-    decompress_program,
-    SimulatedTransaction,
-    SimulationFlag,
-    TransactionTraceWithHash,
+    decompress_program, SimulatedTransaction, SimulationFlag, TransactionTraceWithHash,
 };
 use super::broadcasted_transaction::{
-    BroadcastedDeclareTransaction,
-    BroadcastedDeclareV1Transaction,
-    BroadcastedTransaction,
+    BroadcastedDeclareTransaction, BroadcastedDeclareV1Transaction, BroadcastedTransaction,
 };
 use super::error::{TransactionExecutionError, BLOCK_NOT_FOUND, CONTRACT_NOT_FOUND};
 use super::execution::{
-    DeclareTransactionTrace,
-    DeployAccountTransactionTrace,
-    FunctionInvocation,
-    FunctionInvocationResult,
-    InvokeTransactionTrace,
-    L1HandlerTransactionTrace,
-    TransactionTrace,
+    DeclareTransactionTrace, DeployAccountTransactionTrace, FunctionInvocation,
+    FunctionInvocationResult, InvokeTransactionTrace, L1HandlerTransactionTrace, TransactionTrace,
 };
 use super::state::{
-    ClassHashes,
-    ContractNonce,
-    DeployedContract,
-    ReplacedClasses,
-    StorageDiff,
-    StorageEntry,
+    ClassHashes, ContractNonce, DeployedContract, ReplacedClasses, StorageDiff, StorageEntry,
     ThinStateDiff,
 };
 use super::transaction::{
-    Builtin,
-    DeployAccountTransaction,
-    ExecutionResources,
-    InvokeTransaction,
-    InvokeTransactionV1,
-    MessageFromL1,
-    TransactionVersion1,
+    Builtin, DeployAccountTransaction, ExecutionResources, InvokeTransaction, InvokeTransactionV1,
+    MessageFromL1, TransactionVersion1,
 };
 use crate::api::{BlockHashOrNumber, BlockId, CallRequest, Tag};
 use crate::test_utils::{
-    call_and_validate_schema_for_result,
-    call_api_then_assert_and_validate_schema_for_result,
-    get_starknet_spec_api_schema_for_components,
-    get_starknet_spec_api_schema_for_method_results,
-    get_test_pending_classes,
-    get_test_pending_data,
-    get_test_rpc_config,
-    get_test_rpc_server_and_storage_writer,
-    get_test_rpc_server_and_storage_writer_from_params,
-    validate_schema,
-    SpecFile,
+    call_and_validate_schema_for_result, call_api_then_assert_and_validate_schema_for_result,
+    get_starknet_spec_api_schema_for_components, get_starknet_spec_api_schema_for_method_results,
+    get_test_pending_classes, get_test_pending_data, get_test_rpc_config,
+    get_test_rpc_server_and_storage_writer, get_test_rpc_server_and_storage_writer_from_params,
+    validate_schema, SpecFile,
 };
 use crate::version_config::VERSION_0_8 as VERSION;
 
@@ -1486,7 +1433,7 @@ fn get_calldata_for_test_execution_info(
     let entry_point_selector = selector_from_name("test_get_execution_info");
     let expected_block_number = felt!(expected_block_number.0);
     let expected_block_timestamp = felt!(expected_block_timestamp.0);
-    let expected_sequencer_address = *(expected_sequencer_address.0.0.key());
+    let expected_sequencer_address = *(expected_sequencer_address.0 .0.key());
     let expected_caller_address = *(invoke_tx.sender_address.0.key());
     let expected_contract_address = *CONTRACT_ADDRESS.0.key();
     let expected_transaction_version = override_tx_version.unwrap_or(Felt::ONE);

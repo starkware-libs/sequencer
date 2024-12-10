@@ -5,15 +5,8 @@ use futures::{FutureExt, StreamExt};
 use indexmap::indexmap;
 use papyrus_network::network_manager::GenericReceiver;
 use papyrus_protobuf::sync::{
-    BlockHashOrNumber,
-    ContractDiff,
-    DataOrFin,
-    DeclaredClass,
-    DeprecatedDeclaredClass,
-    Direction,
-    Query,
-    SignedBlockHeader,
-    StateDiffChunk,
+    BlockHashOrNumber, ContractDiff, DataOrFin, DeclaredClass, DeprecatedDeclaredClass, Direction,
+    Query, SignedBlockHeader, StateDiffChunk,
 };
 use papyrus_storage::state::StateStorageReader;
 use papyrus_test_utils::{get_rng, GetTestInstance};
@@ -27,18 +20,9 @@ use static_assertions::const_assert;
 use tokio::sync::mpsc::{channel, Receiver};
 
 use super::test_utils::{
-    create_block_hashes_and_signatures,
-    setup,
-    wait_for_marker,
-    DataType,
-    HeaderTestPayload,
-    StateDiffTestPayload,
-    TestArgs,
-    HEADER_QUERY_LENGTH,
-    SLEEP_DURATION_TO_LET_SYNC_ADVANCE,
-    STATE_DIFF_QUERY_LENGTH,
-    TIMEOUT_FOR_TEST,
-    WAIT_PERIOD_FOR_NEW_DATA,
+    create_block_hashes_and_signatures, setup, wait_for_marker, DataType, HeaderTestPayload,
+    StateDiffTestPayload, TestArgs, HEADER_QUERY_LENGTH, SLEEP_DURATION_TO_LET_SYNC_ADVANCE,
+    STATE_DIFF_QUERY_LENGTH, TIMEOUT_FOR_TEST, WAIT_PERIOD_FOR_NEW_DATA,
 };
 use super::{P2PSyncClientConfig, StateDiffQuery};
 

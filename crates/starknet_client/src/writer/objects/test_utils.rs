@@ -4,16 +4,12 @@ use papyrus_test_utils::{auto_impl_get_test_instance, get_number_of_variants, Ge
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::deprecated_contract_class::{
-    ContractClassAbiEntry as DeprecatedContractClassAbiEntry,
-    EntryPointV0 as DeprecatedEntryPoint,
+    ContractClassAbiEntry as DeprecatedContractClassAbiEntry, EntryPointV0 as DeprecatedEntryPoint,
 };
 use starknet_api::transaction::TransactionHash;
 
 use crate::writer::objects::response::{
-    DeclareResponse,
-    DeployAccountResponse,
-    InvokeResponse,
-    SuccessfulStarknetErrorCode,
+    DeclareResponse, DeployAccountResponse, InvokeResponse, SuccessfulStarknetErrorCode,
 };
 use crate::writer::objects::transaction::DeprecatedContractClass;
 

@@ -7,9 +7,7 @@ use tokio::sync::mpsc::Receiver;
 use tracing::{debug, error, info};
 
 use crate::component_definitions::{
-    ComponentRequestAndResponseSender,
-    ComponentRequestHandler,
-    ComponentStarter,
+    ComponentRequestAndResponseSender, ComponentRequestHandler, ComponentStarter,
 };
 use crate::component_server::{ComponentReplacer, ComponentServerStarter};
 use crate::errors::{ComponentServerError, ReplaceComponentError};

@@ -20,12 +20,8 @@ use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::syscall::build_recurse_calldata;
 use crate::test_utils::{
-    create_calldata,
-    trivial_external_entry_point_new,
-    CairoVersion,
-    CompilerBasedVersion,
-    RunnableCairo1,
-    BALANCE,
+    create_calldata, trivial_external_entry_point_new, CairoVersion, CompilerBasedVersion,
+    RunnableCairo1, BALANCE,
 };
 
 #[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native; "Native"))]

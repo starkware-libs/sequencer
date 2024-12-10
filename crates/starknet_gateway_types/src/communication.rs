@@ -7,13 +7,10 @@ use papyrus_proc_macros::handle_response_variants;
 use serde::{Deserialize, Serialize};
 use starknet_api::transaction::TransactionHash;
 use starknet_sequencer_infra::component_client::{
-    ClientError,
-    LocalComponentClient,
-    RemoteComponentClient,
+    ClientError, LocalComponentClient, RemoteComponentClient,
 };
 use starknet_sequencer_infra::component_definitions::{
-    ComponentClient,
-    ComponentRequestAndResponseSender,
+    ComponentClient, ComponentRequestAndResponseSender,
 };
 use thiserror::Error;
 

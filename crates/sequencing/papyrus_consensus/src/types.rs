@@ -4,9 +4,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use papyrus_network::network_manager::{
-    BroadcastTopicChannels,
-    BroadcastTopicClient,
-    GenericReceiver,
+    BroadcastTopicChannels, BroadcastTopicClient, GenericReceiver,
 };
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_protobuf::consensus::{ConsensusMessage, ProposalFin, ProposalInit, Vote};

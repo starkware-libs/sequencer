@@ -7,5 +7,9 @@ pub fn format_panic_data(felts: &[Felt]) -> String {
     while let Some(item) = format_next_item(&mut felts) {
         items.push(item.quote_if_string());
     }
-    if let [item] = &items[..] { item.clone() } else { format!("({})", items.join(", ")) }
+    if let [item] = &items[..] {
+        item.clone()
+    } else {
+        format!("({})", items.join(", "))
+    }
 }

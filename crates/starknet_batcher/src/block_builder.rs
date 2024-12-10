@@ -3,10 +3,8 @@ use std::collections::BTreeMap;
 use async_trait::async_trait;
 use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::{
-    TransactionExecutor,
-    TransactionExecutorError as BlockifierTransactionExecutorError,
-    TransactionExecutorResult,
-    VisitedSegmentsMapping,
+    TransactionExecutor, TransactionExecutorError as BlockifierTransactionExecutorError,
+    TransactionExecutorResult, VisitedSegmentsMapping,
 };
 use blockifier::bouncer::{BouncerConfig, BouncerWeights};
 use blockifier::context::{BlockContext, ChainInfo};

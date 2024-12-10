@@ -54,10 +54,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ContractAddress;
 use starknet_api::transaction::{
-    Event,
-    EventContent,
-    EventIndexInTransactionOutput,
-    TransactionOutput,
+    Event, EventContent, EventIndexInTransactionOutput, TransactionOutput,
 };
 
 use super::TransactionMetadataTable;
@@ -268,7 +265,7 @@ where
         let events_table = self.open_table(&self.tables.events)?;
         let mut cursor = events_table.cursor(&self.txn)?;
         let events_queue = if let Some((contract_address, tx_index)) =
-            cursor.lower_bound(&(key.0, key.1.0))?.map(|(key, _)| key)
+            cursor.lower_bound(&(key.0, key.1 .0))?.map(|(key, _)| key)
         {
             let tx_metadata =
                 transaction_metadata_table.get(&self.txn, &tx_index)?.unwrap_or_else(|| {
@@ -280,7 +277,7 @@ where
 
             // In case of we get tx_index different from the key, it means we need to start a new
             // transaction which means the first event.
-            let start_event_index = if tx_index == key.1.0 { key.1.1.0 } else { 0 };
+            let start_event_index = if tx_index == key.1 .0 { key.1 .1 .0 } else { 0 };
             // TODO(dvir): don't clone the events here.
             get_events_from_tx(
                 tx_output.events().into(),

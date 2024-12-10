@@ -2,15 +2,11 @@ use async_trait::async_trait;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::{
-    RpcDeployAccountTransaction,
-    RpcInvokeTransaction,
-    RpcTransaction,
+    RpcDeployAccountTransaction, RpcInvokeTransaction, RpcTransaction,
 };
 use starknet_mempool_p2p_types::communication::SharedMempoolP2pPropagatorClient;
 use starknet_mempool_types::communication::{
-    AddTransactionArgsWrapper,
-    MempoolRequest,
-    MempoolResponse,
+    AddTransactionArgsWrapper, MempoolRequest, MempoolResponse,
 };
 use starknet_mempool_types::errors::MempoolError;
 use starknet_mempool_types::mempool_types::{CommitBlockArgs, MempoolResult};

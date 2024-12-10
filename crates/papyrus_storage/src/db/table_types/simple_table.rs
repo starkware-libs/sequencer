@@ -12,17 +12,8 @@ use super::{DbResult, Table, TableType};
 use crate::db::serialization::{Key as KeyTrait, ValueSerde};
 use crate::db::table_types::DbCursorTrait;
 use crate::db::{
-    DbCursor,
-    DbError,
-    DbKeyType,
-    DbTransaction,
-    DbValueType,
-    DbWriter,
-    KeyAlreadyExistsError,
-    TableHandle,
-    TableIdentifier,
-    TransactionKind,
-    RW,
+    DbCursor, DbError, DbKeyType, DbTransaction, DbValueType, DbWriter, KeyAlreadyExistsError,
+    TableHandle, TableIdentifier, TransactionKind, RW,
 };
 
 // A simple mapping between key and value.

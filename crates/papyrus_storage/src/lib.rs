@@ -110,13 +110,7 @@ use db::db_stats::{DbTableStats, DbWholeStats};
 use db::serialization::{Key, NoVersionValueWrapper, ValueSerde, VersionZeroWrapper};
 use db::table_types::{CommonPrefix, NoValue, Table, TableType};
 use mmap_file::{
-    open_file,
-    FileHandler,
-    LocationInFile,
-    MMapFileError,
-    MmapFileConfig,
-    Reader,
-    Writer,
+    open_file, FileHandler, LocationInFile, MMapFileError, MmapFileConfig, Reader, Writer,
 };
 use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
@@ -135,17 +129,8 @@ use version::{StorageVersionError, Version};
 use crate::body::TransactionIndex;
 use crate::db::table_types::SimpleTable;
 use crate::db::{
-    open_env,
-    DbConfig,
-    DbError,
-    DbReader,
-    DbTransaction,
-    DbWriter,
-    TableHandle,
-    TableIdentifier,
-    TransactionKind,
-    RO,
-    RW,
+    open_env, DbConfig, DbError, DbReader, DbTransaction, DbWriter, TableHandle, TableIdentifier,
+    TransactionKind, RO, RW,
 };
 use crate::header::StorageBlockHeader;
 use crate::mmap_file::MMapFileStats;

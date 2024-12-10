@@ -16,40 +16,21 @@ use tokio::sync::Mutex;
 use tokio::task;
 
 use crate::component_client::{
-    ClientError,
-    ClientResult,
-    LocalComponentClient,
-    RemoteComponentClient,
+    ClientError, ClientResult, LocalComponentClient, RemoteComponentClient,
 };
 use crate::component_definitions::{
-    ComponentClient,
-    ComponentRequestAndResponseSender,
-    RemoteClientConfig,
-    RemoteServerConfig,
-    ServerError,
-    APPLICATION_OCTET_STREAM,
+    ComponentClient, ComponentRequestAndResponseSender, RemoteClientConfig, RemoteServerConfig,
+    ServerError, APPLICATION_OCTET_STREAM,
 };
 use crate::component_server::{
-    ComponentServerStarter,
-    LocalComponentServer,
-    RemoteComponentServer,
+    ComponentServerStarter, LocalComponentServer, RemoteComponentServer,
 };
 use crate::serde_utils::SerdeWrapper;
 use crate::test_utils::get_available_socket;
 use crate::tests::{
-    test_a_b_functionality,
-    ComponentA,
-    ComponentAClientTrait,
-    ComponentARequest,
-    ComponentAResponse,
-    ComponentB,
-    ComponentBClientTrait,
-    ComponentBRequest,
-    ComponentBResponse,
-    ResultA,
-    ResultB,
-    ValueA,
-    ValueB,
+    test_a_b_functionality, ComponentA, ComponentAClientTrait, ComponentARequest,
+    ComponentAResponse, ComponentB, ComponentBClientTrait, ComponentBRequest, ComponentBResponse,
+    ResultA, ResultB, ValueA, ValueB,
 };
 
 type ComponentAClient = RemoteComponentClient<ComponentARequest, ComponentAResponse>;

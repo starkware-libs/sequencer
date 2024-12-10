@@ -11,10 +11,7 @@ use starknet_api::{class_hash, contract_address, storage_key};
 use super::BouncerConfig;
 use crate::blockifier::transaction_executor::TransactionExecutorError;
 use crate::bouncer::{
-    verify_tx_weights_within_max_capacity,
-    Bouncer,
-    BouncerWeights,
-    BuiltinCount,
+    verify_tx_weights_within_max_capacity, Bouncer, BouncerWeights, BuiltinCount,
 };
 use crate::context::BlockContext;
 use crate::execution::call_info::ExecutionSummary;

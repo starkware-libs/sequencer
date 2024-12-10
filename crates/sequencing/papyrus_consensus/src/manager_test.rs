@@ -8,17 +8,11 @@ use lazy_static::lazy_static;
 use mockall::mock;
 use mockall::predicate::eq;
 use papyrus_network::network_manager::test_utils::{
-    mock_register_broadcast_topic,
-    MockBroadcastedMessagesSender,
-    TestSubscriberChannels,
+    mock_register_broadcast_topic, MockBroadcastedMessagesSender, TestSubscriberChannels,
 };
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_protobuf::consensus::{
-    ConsensusMessage,
-    ProposalFin,
-    ProposalInit,
-    ProposalPart,
-    Vote,
+    ConsensusMessage, ProposalFin, ProposalInit, ProposalPart, Vote,
 };
 use papyrus_test_utils::{get_rng, GetTestInstance};
 use starknet_api::block::{BlockHash, BlockNumber};
@@ -28,12 +22,7 @@ use super::{run_consensus, MultiHeightManager};
 use crate::config::TimeoutsConfig;
 use crate::test_utils::{precommit, prevote, proposal_init};
 use crate::types::{
-    ConsensusContext,
-    ConsensusError,
-    ProposalContentId,
-    Round,
-    ValidatorId,
-    DEFAULT_VALIDATOR_ID,
+    ConsensusContext, ConsensusError, ProposalContentId, Round, ValidatorId, DEFAULT_VALIDATOR_ID,
 };
 
 lazy_static! {

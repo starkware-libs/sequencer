@@ -7,8 +7,7 @@ use libp2p::swarm::dial_opts::DialOpts;
 use libp2p::swarm::ToSwarm;
 use libp2p::PeerId;
 use papyrus_config::converters::{
-    deserialize_milliseconds_to_duration,
-    deserialize_seconds_to_duration,
+    deserialize_milliseconds_to_duration, deserialize_seconds_to_duration,
 };
 use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};

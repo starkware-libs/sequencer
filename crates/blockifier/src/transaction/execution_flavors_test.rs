@@ -7,12 +7,7 @@ use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::fields::{
-    Calldata,
-    Fee,
-    GasVectorComputationMode,
-    Resource,
-    TransactionSignature,
-    ValidResourceBounds,
+    Calldata, Fee, GasVectorComputationMode, Resource, TransactionSignature, ValidResourceBounds,
 };
 use starknet_api::transaction::TransactionVersion;
 use starknet_api::{felt, invoke_tx_args, nonce};
@@ -27,28 +22,16 @@ use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{
-    create_calldata,
-    create_trivial_calldata,
-    get_syscall_resources,
-    get_tx_resources,
-    CairoVersion,
-    BALANCE,
-    DEFAULT_L1_GAS_AMOUNT,
-    DEFAULT_STRK_L1_GAS_PRICE,
-    MAX_FEE,
+    create_calldata, create_trivial_calldata, get_syscall_resources, get_tx_resources,
+    CairoVersion, BALANCE, DEFAULT_L1_GAS_AMOUNT, DEFAULT_STRK_L1_GAS_PRICE, MAX_FEE,
 };
 use crate::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
 use crate::transaction::errors::{
-    TransactionExecutionError,
-    TransactionFeeError,
-    TransactionPreValidationError,
+    TransactionExecutionError, TransactionFeeError, TransactionPreValidationError,
 };
 use crate::transaction::objects::{TransactionExecutionInfo, TransactionExecutionResult};
 use crate::transaction::test_utils::{
-    default_l1_resource_bounds,
-    invoke_tx_with_default_flags,
-    l1_resource_bounds,
-    INVALID,
+    default_l1_resource_bounds, invoke_tx_with_default_flags, l1_resource_bounds, INVALID,
 };
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::ExecutableTransaction;
@@ -496,19 +479,17 @@ fn test_simulate_charge_fee_with_validation_fail_validate(
     default_l1_resource_bounds: ValidResourceBounds,
 ) {
     let validate = true;
-    assert!(
-        execute_fail_validation(
-            only_query,
-            validate,
-            charge_fee,
-            cairo_version,
-            version,
-            default_l1_resource_bounds,
-        )
-        .unwrap_err()
-        .to_string()
-        .contains("An ASSERT_EQ instruction failed: 1 != 0.")
-    );
+    assert!(execute_fail_validation(
+        only_query,
+        validate,
+        charge_fee,
+        cairo_version,
+        version,
+        default_l1_resource_bounds,
+    )
+    .unwrap_err()
+    .to_string()
+    .contains("An ASSERT_EQ instruction failed: 1 != 0."));
 }
 
 /// Test gas and fee with simulate / charge_fee flag combinations in (fallible) validation stage,
@@ -660,14 +641,12 @@ fn test_simulate_validate_charge_fee_mid_execution(
     let tx_execution_info = account_tx.execute(&mut state, &block_context).unwrap();
     assert_eq!(tx_execution_info.is_reverted(), charge_fee);
     if charge_fee {
-        assert!(
-            tx_execution_info
-                .revert_error
-                .clone()
-                .unwrap()
-                .to_string()
-                .contains("no remaining steps")
-        );
+        assert!(tx_execution_info
+            .revert_error
+            .clone()
+            .unwrap()
+            .to_string()
+            .contains("no remaining steps"));
     }
     check_gas_and_fee(
         &block_context,
@@ -715,9 +694,12 @@ fn test_simulate_validate_charge_fee_mid_execution(
         execution_flags: ExecutionFlags { only_query, charge_fee, validate },
     };
     let tx_execution_info = account_tx.execute(&mut state, &low_step_block_context).unwrap();
-    assert!(
-        tx_execution_info.revert_error.clone().unwrap().to_string().contains("no remaining steps")
-    );
+    assert!(tx_execution_info
+        .revert_error
+        .clone()
+        .unwrap()
+        .to_string()
+        .contains("no remaining steps"));
     // Complete resources used are reported as receipt.resources; but only the charged
     // final fee is shown in actual_fee. As a sanity check, verify that the fee derived directly
     // from the consumed resources is also equal to the expected fee.
@@ -869,14 +851,12 @@ fn test_simulate_validate_charge_fee_post_execution(
     assert_eq!(tx_execution_info.is_reverted(), charge_fee);
 
     if charge_fee {
-        assert!(
-            tx_execution_info
-                .revert_error
-                .clone()
-                .unwrap()
-                .to_string()
-                .contains("Insufficient fee token balance.")
-        );
+        assert!(tx_execution_info
+            .revert_error
+            .clone()
+            .unwrap()
+            .to_string()
+            .contains("Insufficient fee token balance."));
     }
     check_gas_and_fee(
         &block_context,

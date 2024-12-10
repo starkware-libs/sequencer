@@ -9,10 +9,7 @@ use futures::task::{Context, Poll};
 use futures::{select, AsyncReadExt, AsyncWriteExt, FutureExt, Stream as StreamTrait, StreamExt};
 use lazy_static::lazy_static;
 use libp2p::swarm::handler::{
-    ConnectionEvent,
-    DialUpgradeError,
-    FullyNegotiatedInbound,
-    FullyNegotiatedOutbound,
+    ConnectionEvent, DialUpgradeError, FullyNegotiatedInbound, FullyNegotiatedOutbound,
 };
 use libp2p::swarm::{ConnectionHandler, ConnectionHandlerEvent, Stream, StreamUpgradeError};
 use libp2p::{PeerId, StreamProtocol};
@@ -20,11 +17,7 @@ use libp2p::{PeerId, StreamProtocol};
 use super::super::messages::{read_message, write_message};
 use super::super::{Bytes, Config, GenericEvent, InboundSessionId, OutboundSessionId, SessionId};
 use super::{
-    Handler,
-    HandlerEvent,
-    RequestFromBehaviourEvent,
-    RequestToBehaviourEvent,
-    SessionError,
+    Handler, HandlerEvent, RequestFromBehaviourEvent, RequestToBehaviourEvent, SessionError,
 };
 use crate::sqmr::handler;
 use crate::test_utils::{dummy_data, get_connected_streams};

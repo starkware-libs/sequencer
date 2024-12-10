@@ -21,16 +21,8 @@ use starknet_api::state::{SierraContractClass as sn_api_ContractClass, ThinState
 use starknet_api::{class_hash, contract_address, felt, storage_key};
 use starknet_client::reader::objects::block::BlockPostV0_13_1;
 use starknet_client::reader::{
-    Block,
-    BlockSignatureData,
-    ContractClass,
-    DeclaredClassHashEntry,
-    DeployedContract,
-    GenericContractClass,
-    MockStarknetReader,
-    ReaderClientError,
-    ReplacedClass,
-    StateUpdate,
+    Block, BlockSignatureData, ContractClass, DeclaredClassHashEntry, DeployedContract,
+    GenericContractClass, MockStarknetReader, ReaderClientError, ReplacedClass, StateUpdate,
     StorageEntry,
 };
 use starknet_client::ClientError;

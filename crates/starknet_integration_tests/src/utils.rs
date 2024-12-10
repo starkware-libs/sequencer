@@ -20,9 +20,7 @@ use starknet_batcher::block_builder::BlockBuilderConfig;
 use starknet_batcher::config::BatcherConfig;
 use starknet_consensus_manager::config::ConsensusManagerConfig;
 use starknet_gateway::config::{
-    GatewayConfig,
-    RpcStateReaderConfig,
-    StatefulTransactionValidatorConfig,
+    GatewayConfig, RpcStateReaderConfig, StatefulTransactionValidatorConfig,
     StatelessTransactionValidatorConfig,
 };
 use starknet_http_server::config::HttpServerConfig;

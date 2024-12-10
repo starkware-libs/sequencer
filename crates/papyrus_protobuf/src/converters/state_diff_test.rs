@@ -1,12 +1,7 @@
 use papyrus_test_utils::{get_rng, GetTestInstance};
 
 use crate::sync::{
-    ContractDiff,
-    DataOrFin,
-    DeclaredClass,
-    DeprecatedDeclaredClass,
-    StateDiffChunk,
-    StateDiffQuery,
+    ContractDiff, DataOrFin, DeclaredClass, DeprecatedDeclaredClass, StateDiffChunk, StateDiffQuery,
 };
 
 #[test]

@@ -6,8 +6,7 @@ use blockifier::context::ChainInfo;
 use blockifier::test_utils::{CairoVersion, RunnableCairo1};
 use blockifier::transaction::errors::{TransactionFeeError, TransactionPreValidationError};
 use mempool_test_utils::starknet_api_test_utils::{
-    executable_invoke_tx as create_executable_invoke_tx,
-    VALID_L1_GAS_MAX_AMOUNT,
+    executable_invoke_tx as create_executable_invoke_tx, VALID_L1_GAS_MAX_AMOUNT,
     VALID_L1_GAS_MAX_PRICE_PER_UNIT,
 };
 use mockall::predicate::eq;
@@ -30,8 +29,7 @@ use crate::config::StatefulTransactionValidatorConfig;
 use crate::state_reader::{MockStateReaderFactory, StateReaderFactory};
 use crate::state_reader_test_utils::local_test_state_reader_factory;
 use crate::stateful_transaction_validator::{
-    MockStatefulTransactionValidatorTrait,
-    StatefulTransactionValidator,
+    MockStatefulTransactionValidatorTrait, StatefulTransactionValidator,
 };
 
 pub const STATEFUL_VALIDATOR_FEE_ERROR: BlockifierStatefulValidatorError =

@@ -6,13 +6,7 @@ use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::transaction::fields::{Fee, TransactionSignature, ValidResourceBounds};
 use starknet_api::{
-    class_hash,
-    compiled_class_hash,
-    contract_address,
-    felt,
-    invoke_tx_args,
-    nonce,
-    storage_key,
+    class_hash, compiled_class_hash, contract_address, felt, invoke_tx_args, nonce, storage_key,
 };
 
 use crate::context::{BlockContext, ChainInfo};
@@ -382,7 +376,7 @@ fn test_state_cache_merge(
     assert_eq!(state_cache2, StateCache::default());
     assert_eq!(StateCache::squash_state_caches(vec![&state_cache1, &state_cache2]), state_cache1);
     assert_eq!(StateCache::squash_state_caches(vec![&state_cache2, &state_cache1]), state_cache1);
-    
+
     // Get the storage updates addresses and keys from the state_cache1, to overwrite.
     let state_changes1 = state_cache1.to_state_diff();
     let mut storage_updates_keys = state_changes1.state_maps.storage.keys();

@@ -7,19 +7,9 @@ use crate::component_client::{ClientError, ClientResult, LocalComponentClient};
 use crate::component_definitions::{ComponentClient, ComponentRequestAndResponseSender};
 use crate::component_server::{ComponentServerStarter, LocalComponentServer};
 use crate::tests::{
-    test_a_b_functionality,
-    ComponentA,
-    ComponentAClientTrait,
-    ComponentARequest,
-    ComponentAResponse,
-    ComponentB,
-    ComponentBClientTrait,
-    ComponentBRequest,
-    ComponentBResponse,
-    ResultA,
-    ResultB,
-    ValueA,
-    ValueB,
+    test_a_b_functionality, ComponentA, ComponentAClientTrait, ComponentARequest,
+    ComponentAResponse, ComponentB, ComponentBClientTrait, ComponentBRequest, ComponentBResponse,
+    ResultA, ResultB, ValueA, ValueB,
 };
 
 type ComponentAClient = LocalComponentClient<ComponentARequest, ComponentAResponse>;

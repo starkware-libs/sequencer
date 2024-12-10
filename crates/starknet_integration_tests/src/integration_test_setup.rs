@@ -12,9 +12,7 @@ use tempfile::{tempdir, TempDir};
 use crate::config_utils::dump_config_file_changes;
 use crate::state_reader::{spawn_test_rpc_state_reader, StorageTestSetup};
 use crate::utils::{
-    create_chain_info,
-    create_config,
-    create_consensus_manager_configs_and_channels,
+    create_chain_info, create_config, create_consensus_manager_configs_and_channels,
 };
 
 const SEQUENCER_INDEX: usize = 0;

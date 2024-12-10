@@ -9,12 +9,7 @@ use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_types_core::felt::Felt;
 
 use crate::types::{
-    ConsensusContext,
-    ConsensusError,
-    ProposalContentId,
-    Round,
-    ValidatorId,
-    DEFAULT_VALIDATOR_ID,
+    ConsensusContext, ConsensusError, ProposalContentId, Round, ValidatorId, DEFAULT_VALIDATOR_ID,
 };
 
 /// Define a consensus block which can be used to enable auto mocking Context.

@@ -1,7 +1,6 @@
 use futures::{SinkExt, StreamExt};
 use papyrus_network::network_manager::test_utils::{
-    mock_register_broadcast_topic,
-    TestSubscriberChannels,
+    mock_register_broadcast_topic, TestSubscriberChannels,
 };
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_protobuf::consensus::ConsensusMessage;

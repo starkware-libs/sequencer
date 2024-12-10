@@ -11,11 +11,7 @@ use starknet_api::block::BlockNumber;
 use tracing::debug;
 
 use super::stream_builder::{
-    BadPeerError,
-    BlockData,
-    BlockNumberLimit,
-    DataStreamBuilder,
-    ParseDataError,
+    BadPeerError, BlockData, BlockNumberLimit, DataStreamBuilder, ParseDataError,
 };
 use super::{P2PSyncClientError, ALLOWED_SIGNATURES_LENGTH, NETWORK_DATA_TIMEOUT};
 

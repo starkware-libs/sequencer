@@ -3,14 +3,8 @@ use std::cmp::min;
 use futures::{FutureExt, StreamExt};
 use papyrus_common::pending_classes::ApiContractClass;
 use papyrus_protobuf::sync::{
-    BlockHashOrNumber,
-    ClassQuery,
-    DataOrFin,
-    DeclaredClass,
-    DeprecatedDeclaredClass,
-    Direction,
-    Query,
-    StateDiffChunk,
+    BlockHashOrNumber, ClassQuery, DataOrFin, DeclaredClass, DeprecatedDeclaredClass, Direction,
+    Query, StateDiffChunk,
 };
 use papyrus_storage::class::ClassStorageReader;
 use papyrus_test_utils::{get_rng, GetTestInstance};
@@ -22,14 +16,8 @@ use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContract
 use starknet_api::state::SierraContractClass;
 
 use super::test_utils::{
-    setup,
-    wait_for_marker,
-    DataType,
-    TestArgs,
-    CLASS_DIFF_QUERY_LENGTH,
-    HEADER_QUERY_LENGTH,
-    SLEEP_DURATION_TO_LET_SYNC_ADVANCE,
-    TIMEOUT_FOR_TEST,
+    setup, wait_for_marker, DataType, TestArgs, CLASS_DIFF_QUERY_LENGTH, HEADER_QUERY_LENGTH,
+    SLEEP_DURATION_TO_LET_SYNC_ADVANCE, TIMEOUT_FOR_TEST,
 };
 use crate::client::state_diff_test::run_state_diff_sync;
 

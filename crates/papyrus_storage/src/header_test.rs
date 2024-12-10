@@ -1,11 +1,7 @@
 use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use starknet_api::block::{
-    BlockHash,
-    BlockHeader,
-    BlockHeaderWithoutHash,
-    BlockNumber,
-    BlockSignature,
+    BlockHash, BlockHeader, BlockHeaderWithoutHash, BlockNumber, BlockSignature,
 };
 use starknet_api::felt;
 
@@ -118,14 +114,20 @@ async fn get_reverted_block_number_by_hash_returns_none() {
     let block_hash = BlockHash(felt!("0x1"));
 
     // Verify that we can get block 1 by hash before the revert.
-    assert!(
-        reader.begin_ro_txn().unwrap().get_block_number_by_hash(&block_hash).unwrap().is_some()
-    );
+    assert!(reader
+        .begin_ro_txn()
+        .unwrap()
+        .get_block_number_by_hash(&block_hash)
+        .unwrap()
+        .is_some());
 
     writer.begin_rw_txn().unwrap().revert_header(BlockNumber(1)).unwrap().0.commit().unwrap();
-    assert!(
-        reader.begin_ro_txn().unwrap().get_block_number_by_hash(&block_hash).unwrap().is_none()
-    );
+    assert!(reader
+        .begin_ro_txn()
+        .unwrap()
+        .get_block_number_by_hash(&block_hash)
+        .unwrap()
+        .is_none());
 }
 
 fn append_2_headers(writer: &mut StorageWriter) {

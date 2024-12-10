@@ -26,21 +26,14 @@ use crate::state::state_api::StateReader;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{
-    create_calldata,
-    create_trivial_calldata,
-    CairoVersion,
-    RunnableCairo1,
-    BALANCE,
+    create_calldata, create_trivial_calldata, CairoVersion, RunnableCairo1, BALANCE,
     TEST_ERC20_CONTRACT_ADDRESS2,
 };
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::objects::HasRelatedFeeType;
 use crate::transaction::test_utils::{
-    calculate_class_info_for_testing,
-    default_all_resource_bounds,
-    emit_n_events_tx,
-    invoke_tx_with_default_flags,
-    max_fee,
+    calculate_class_info_for_testing, default_all_resource_bounds, emit_n_events_tx,
+    invoke_tx_with_default_flags, max_fee,
 };
 use crate::transaction::transaction_execution::Transaction;
 

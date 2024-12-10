@@ -15,13 +15,8 @@ use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 #[cfg(not(feature = "rpc"))]
 use papyrus_config::dumping::ser_param;
 use papyrus_config::dumping::{
-    append_sub_config_name,
-    ser_optional_sub_config,
-    ser_pointer_target_param,
-    set_pointing_param_paths,
-    ConfigPointers,
-    Pointers,
-    SerializeConfig,
+    append_sub_config_name, ser_optional_sub_config, ser_pointer_target_param,
+    set_pointing_param_paths, ConfigPointers, Pointers, SerializeConfig,
 };
 use papyrus_config::loading::load_and_process_config;
 #[cfg(not(feature = "rpc"))]

@@ -21,37 +21,19 @@ use starknet_types_core::felt::Felt;
 
 use crate::execution_utils::selector_from_name;
 use crate::objects::{
-    DeclareTransactionTrace,
-    DeployAccountTransactionTrace,
-    FeeEstimation,
-    FunctionInvocationResult,
-    InvokeTransactionTrace,
-    PriceUnit,
-    TransactionSimulationOutput,
+    DeclareTransactionTrace, DeployAccountTransactionTrace, FeeEstimation,
+    FunctionInvocationResult, InvokeTransactionTrace, PriceUnit, TransactionSimulationOutput,
     TransactionTrace,
 };
 use crate::test_utils::{
-    execute_simulate_transactions,
-    prepare_storage,
-    TxsScenarioBuilder,
-    ACCOUNT_ADDRESS,
-    ACCOUNT_CLASS_HASH,
-    ACCOUNT_INITIAL_BALANCE,
-    CHAIN_ID,
-    CONTRACT_ADDRESS,
-    DEPRECATED_CONTRACT_ADDRESS,
-    GAS_PRICE,
-    NEW_ACCOUNT_ADDRESS,
-    SEQUENCER_ADDRESS,
+    execute_simulate_transactions, prepare_storage, TxsScenarioBuilder, ACCOUNT_ADDRESS,
+    ACCOUNT_CLASS_HASH, ACCOUNT_INITIAL_BALANCE, CHAIN_ID, CONTRACT_ADDRESS,
+    DEPRECATED_CONTRACT_ADDRESS, GAS_PRICE, NEW_ACCOUNT_ADDRESS, SEQUENCER_ADDRESS,
     TEST_ERC20_CONTRACT_ADDRESS,
 };
 use crate::testing_instances::get_test_execution_config;
 use crate::{
-    estimate_fee,
-    execute_call,
-    ExecutableTransactionInput,
-    ExecutionError,
-    FeeEstimationResult,
+    estimate_fee, execute_call, ExecutableTransactionInput, ExecutionError, FeeEstimationResult,
     RevertedTransaction,
 };
 

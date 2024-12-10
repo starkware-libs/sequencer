@@ -3,8 +3,7 @@ use starknet_types_core::hash::Poseidon;
 
 use super::TransactionLeafElement;
 use crate::block_hash::transaction_commitment::{
-    calculate_transaction_commitment,
-    calculate_transaction_leaf,
+    calculate_transaction_commitment, calculate_transaction_leaf,
 };
 use crate::core::TransactionCommitment;
 use crate::transaction::fields::TransactionSignature;

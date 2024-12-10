@@ -13,17 +13,10 @@ use std::sync::Arc;
 
 use cairo_lang_casm::hints::{CoreHint, CoreHintBase, Hint};
 use cairo_lang_casm::operand::{
-    BinOpOperand,
-    CellRef,
-    DerefOrImmediate,
-    Operation,
-    Register,
-    ResOperand,
+    BinOpOperand, CellRef, DerefOrImmediate, Operation, Register, ResOperand,
 };
 use cairo_lang_starknet_classes::casm_contract_class::{
-    CasmContractClass,
-    CasmContractEntryPoint,
-    CasmContractEntryPoints,
+    CasmContractClass, CasmContractEntryPoint, CasmContractEntryPoints,
 };
 use cairo_lang_starknet_classes::NestedIntList;
 use cairo_lang_utils::bigint::BigUintAsHex;
@@ -36,123 +29,47 @@ use rand_chacha::ChaCha8Rng;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{
-    Block,
-    BlockBody,
-    BlockHash,
-    BlockHeader,
-    BlockHeaderWithoutHash,
-    BlockNumber,
-    BlockSignature,
-    BlockStatus,
-    BlockTimestamp,
-    GasPrice,
-    GasPricePerToken,
-    StarknetVersion,
+    Block, BlockBody, BlockHash, BlockHeader, BlockHeaderWithoutHash, BlockNumber, BlockSignature,
+    BlockStatus, BlockTimestamp, GasPrice, GasPricePerToken, StarknetVersion,
 };
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{
-    ClassHash,
-    CompiledClassHash,
-    ContractAddress,
-    EntryPointSelector,
-    EthAddress,
-    EventCommitment,
-    GlobalRoot,
-    Nonce,
-    ReceiptCommitment,
-    SequencerContractAddress,
-    StateDiffCommitment,
+    ClassHash, CompiledClassHash, ContractAddress, EntryPointSelector, EthAddress, EventCommitment,
+    GlobalRoot, Nonce, ReceiptCommitment, SequencerContractAddress, StateDiffCommitment,
     TransactionCommitment,
 };
 use starknet_api::crypto::utils::Signature;
 use starknet_api::data_availability::{DataAvailabilityMode, L1DataAvailabilityMode};
 use starknet_api::deprecated_contract_class::{
-    ConstructorType,
-    ContractClass as DeprecatedContractClass,
-    ContractClassAbiEntry,
-    EntryPointOffset,
-    EntryPointV0 as DeprecatedEntryPoint,
-    EventAbiEntry,
-    EventType,
-    FunctionAbiEntry,
-    FunctionStateMutability,
-    FunctionType,
-    L1HandlerType,
-    Program,
-    StructAbiEntry,
-    StructMember,
-    StructType,
-    TypedParameter,
+    ConstructorType, ContractClass as DeprecatedContractClass, ContractClassAbiEntry,
+    EntryPointOffset, EntryPointV0 as DeprecatedEntryPoint, EventAbiEntry, EventType,
+    FunctionAbiEntry, FunctionStateMutability, FunctionType, L1HandlerType, Program,
+    StructAbiEntry, StructMember, StructType, TypedParameter,
 };
 use starknet_api::execution_resources::{Builtin, ExecutionResources, GasAmount, GasVector};
 use starknet_api::hash::{PoseidonHash, StarkHash};
 use starknet_api::rpc_transaction::{
-    EntryPointByType as RpcEntryPointByType,
-    EntryPointByType,
-    RpcDeclareTransaction,
-    RpcDeclareTransactionV3,
-    RpcDeployAccountTransaction,
-    RpcDeployAccountTransactionV3,
-    RpcInvokeTransaction,
-    RpcInvokeTransactionV3,
-    RpcTransaction,
+    EntryPointByType as RpcEntryPointByType, EntryPointByType, RpcDeclareTransaction,
+    RpcDeclareTransactionV3, RpcDeployAccountTransaction, RpcDeployAccountTransactionV3,
+    RpcInvokeTransaction, RpcInvokeTransactionV3, RpcTransaction,
 };
 use starknet_api::state::{
-    EntryPoint,
-    FunctionIndex,
-    SierraContractClass,
-    StateDiff,
-    StorageKey,
-    ThinStateDiff,
+    EntryPoint, FunctionIndex, SierraContractClass, StateDiff, StorageKey, ThinStateDiff,
 };
 use starknet_api::test_utils::read_json_file;
 use starknet_api::transaction::fields::{
-    AccountDeploymentData,
-    AllResourceBounds,
-    Calldata,
-    ContractAddressSalt,
-    Fee,
-    PaymasterData,
-    Resource,
-    ResourceBounds,
-    Tip,
-    TransactionSignature,
-    ValidResourceBounds,
+    AccountDeploymentData, AllResourceBounds, Calldata, ContractAddressSalt, Fee, PaymasterData,
+    Resource, ResourceBounds, Tip, TransactionSignature, ValidResourceBounds,
 };
 use starknet_api::transaction::{
-    DeclareTransaction,
-    DeclareTransactionOutput,
-    DeclareTransactionV0V1,
-    DeclareTransactionV2,
-    DeclareTransactionV3,
-    DeployAccountTransaction,
-    DeployAccountTransactionOutput,
-    DeployAccountTransactionV1,
-    DeployAccountTransactionV3,
-    DeployTransaction,
-    DeployTransactionOutput,
-    Event,
-    EventContent,
-    EventData,
-    EventIndexInTransactionOutput,
-    EventKey,
-    InvokeTransaction,
-    InvokeTransactionOutput,
-    InvokeTransactionV0,
-    InvokeTransactionV1,
-    InvokeTransactionV3,
-    L1HandlerTransaction,
-    L1HandlerTransactionOutput,
-    L1ToL2Payload,
-    L2ToL1Payload,
-    MessageToL1,
-    MessageToL2,
-    RevertedTransactionExecutionStatus,
-    Transaction,
-    TransactionExecutionStatus,
-    TransactionHash,
-    TransactionOffsetInBlock,
-    TransactionOutput,
+    DeclareTransaction, DeclareTransactionOutput, DeclareTransactionV0V1, DeclareTransactionV2,
+    DeclareTransactionV3, DeployAccountTransaction, DeployAccountTransactionOutput,
+    DeployAccountTransactionV1, DeployAccountTransactionV3, DeployTransaction,
+    DeployTransactionOutput, Event, EventContent, EventData, EventIndexInTransactionOutput,
+    EventKey, InvokeTransaction, InvokeTransactionOutput, InvokeTransactionV0, InvokeTransactionV1,
+    InvokeTransactionV3, L1HandlerTransaction, L1HandlerTransactionOutput, L1ToL2Payload,
+    L2ToL1Payload, MessageToL1, MessageToL2, RevertedTransactionExecutionStatus, Transaction,
+    TransactionExecutionStatus, TransactionHash, TransactionOffsetInBlock, TransactionOutput,
     TransactionVersion,
 };
 use starknet_api::{class_hash, tx_hash};

@@ -6,39 +6,21 @@ use starknet_types_core::felt::Felt;
 
 use crate::block::{BlockHash, BlockNumber};
 use crate::core::{
-    ChainId,
-    ClassHash,
-    CompiledClassHash,
-    ContractAddress,
-    EntryPointSelector,
-    EthAddress,
-    Nonce,
+    ChainId, ClassHash, CompiledClassHash, ContractAddress, EntryPointSelector, EthAddress, Nonce,
 };
 use crate::data_availability::DataAvailabilityMode;
 use crate::execution_resources::ExecutionResources;
 use crate::hash::StarkHash;
 use crate::transaction::fields::{
-    AccountDeploymentData,
-    Calldata,
-    ContractAddressSalt,
-    Fee,
-    PaymasterData,
-    Tip,
-    TransactionSignature,
-    ValidResourceBounds,
+    AccountDeploymentData, Calldata, ContractAddressSalt, Fee, PaymasterData, Tip,
+    TransactionSignature, ValidResourceBounds,
 };
 use crate::transaction_hash::{
-    get_declare_transaction_v0_hash,
-    get_declare_transaction_v1_hash,
-    get_declare_transaction_v2_hash,
-    get_declare_transaction_v3_hash,
-    get_deploy_account_transaction_v1_hash,
-    get_deploy_account_transaction_v3_hash,
-    get_deploy_transaction_hash,
-    get_invoke_transaction_v0_hash,
-    get_invoke_transaction_v1_hash,
-    get_invoke_transaction_v3_hash,
-    get_l1_handler_transaction_hash,
+    get_declare_transaction_v0_hash, get_declare_transaction_v1_hash,
+    get_declare_transaction_v2_hash, get_declare_transaction_v3_hash,
+    get_deploy_account_transaction_v1_hash, get_deploy_account_transaction_v3_hash,
+    get_deploy_transaction_hash, get_invoke_transaction_v0_hash, get_invoke_transaction_v1_hash,
+    get_invoke_transaction_v3_hash, get_l1_handler_transaction_hash,
 };
 use crate::{executable_transaction, StarknetApiError};
 

@@ -7,21 +7,11 @@ use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::execution_resources::GasVector;
 use starknet_api::transaction::fields::{
-    AccountDeploymentData,
-    AllResourceBounds,
-    Fee,
-    GasVectorComputationMode,
-    PaymasterData,
-    ResourceBounds,
-    Tip,
-    TransactionSignature,
-    ValidResourceBounds,
+    AccountDeploymentData, AllResourceBounds, Fee, GasVectorComputationMode, PaymasterData,
+    ResourceBounds, Tip, TransactionSignature, ValidResourceBounds,
 };
 use starknet_api::transaction::{
-    signed_tx_version,
-    TransactionHash,
-    TransactionOptions,
-    TransactionVersion,
+    signed_tx_version, TransactionHash, TransactionOptions, TransactionVersion,
 };
 
 use crate::abi::constants as abi_constants;

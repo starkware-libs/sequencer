@@ -12,13 +12,8 @@ use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ContractAddress, EntryPointSelector, GlobalRoot, SequencerPublicKey};
 use starknet_api::crypto::utils::PublicKey;
 use starknet_api::deprecated_contract_class::{
-    ConstructorType,
-    ContractClass as DeprecatedContractClass,
-    ContractClassAbiEntry,
-    EntryPointOffset,
-    EntryPointV0 as DeprecatedEntryPoint,
-    FunctionAbiEntry,
-    Program,
+    ConstructorType, ContractClass as DeprecatedContractClass, ContractClassAbiEntry,
+    EntryPointOffset, EntryPointV0 as DeprecatedEntryPoint, FunctionAbiEntry, Program,
     TypedParameter,
 };
 use starknet_api::state::{EntryPoint, FunctionIndex};
@@ -29,17 +24,9 @@ use starknet_api::{class_hash, contract_address, felt, nonce};
 use super::objects::state::StateUpdate;
 use super::objects::transaction::IntermediateDeclareTransaction;
 use super::{
-    ContractClass,
-    GenericContractClass,
-    PendingData,
-    ReaderClientError,
-    ReaderClientResult,
-    StarknetFeederGatewayClient,
-    StarknetReader,
-    BLOCK_NUMBER_QUERY,
-    CLASS_HASH_QUERY,
-    GET_BLOCK_URL,
-    GET_STATE_UPDATE_URL,
+    ContractClass, GenericContractClass, PendingData, ReaderClientError, ReaderClientResult,
+    StarknetFeederGatewayClient, StarknetReader, BLOCK_NUMBER_QUERY, CLASS_HASH_QUERY,
+    GET_BLOCK_URL, GET_STATE_UPDATE_URL,
 };
 use crate::reader::objects::block::{BlockSignatureData, BlockSignatureMessage};
 use crate::reader::Block;

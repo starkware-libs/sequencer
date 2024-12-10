@@ -9,32 +9,17 @@ use serde::{Deserialize, Serialize};
 
 use crate::contract_class::EntryPointType;
 use crate::core::{
-    calculate_contract_address,
-    ClassHash,
-    CompiledClassHash,
-    ContractAddress,
-    Nonce,
+    calculate_contract_address, ClassHash, CompiledClassHash, ContractAddress, Nonce,
 };
 use crate::data_availability::DataAvailabilityMode;
 use crate::state::{EntryPoint, SierraContractClass};
 use crate::transaction::fields::{
-    AccountDeploymentData,
-    AllResourceBounds,
-    Calldata,
-    ContractAddressSalt,
-    PaymasterData,
-    Tip,
-    TransactionSignature,
-    ValidResourceBounds,
+    AccountDeploymentData, AllResourceBounds, Calldata, ContractAddressSalt, PaymasterData, Tip,
+    TransactionSignature, ValidResourceBounds,
 };
 use crate::transaction::{
-    DeclareTransaction,
-    DeclareTransactionV3,
-    DeployAccountTransaction,
-    DeployAccountTransactionV3,
-    InvokeTransaction,
-    InvokeTransactionV3,
-    Transaction,
+    DeclareTransaction, DeclareTransactionV3, DeployAccountTransaction, DeployAccountTransactionV3,
+    InvokeTransaction, InvokeTransactionV3, Transaction,
 };
 use crate::StarknetApiError;
 

@@ -11,22 +11,14 @@ use std::time::Duration;
 
 use libp2p::core::Endpoint;
 use libp2p::swarm::{
-    ConnectionClosed,
-    ConnectionDenied,
-    ConnectionHandler,
-    ConnectionId,
-    FromSwarm,
-    NetworkBehaviour,
-    NotifyHandler,
-    ToSwarm,
+    ConnectionClosed, ConnectionDenied, ConnectionHandler, ConnectionId, FromSwarm,
+    NetworkBehaviour, NotifyHandler, ToSwarm,
 };
 use libp2p::{Multiaddr, PeerId, StreamProtocol};
 use tracing::{error, info};
 
 use super::handler::{
-    Handler,
-    RequestFromBehaviourEvent,
-    RequestToBehaviourEvent,
+    Handler, RequestFromBehaviourEvent, RequestToBehaviourEvent,
     SessionError as HandlerSessionError,
 };
 use super::{Bytes, Config, GenericEvent, InboundSessionId, OutboundSessionId, SessionId};

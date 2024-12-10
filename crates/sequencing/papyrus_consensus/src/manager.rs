@@ -21,11 +21,7 @@ use tracing::{debug, info, instrument};
 use crate::config::TimeoutsConfig;
 use crate::single_height_consensus::{ShcReturn, SingleHeightConsensus};
 use crate::types::{
-    BroadcastConsensusMessageChannel,
-    ConsensusContext,
-    ConsensusError,
-    Decision,
-    ValidatorId,
+    BroadcastConsensusMessageChannel, ConsensusContext, ConsensusError, Decision, ValidatorId,
 };
 
 // TODO(dvir): add test for this.

@@ -741,7 +741,11 @@ impl AllocatedKeys {
                 .iter()
                 .filter_map(|(k, v)| {
                     let base_value = base_storage.get(k).unwrap_or(&Felt::ZERO);
-                    if *v != Felt::ZERO && *base_value == Felt::ZERO { Some(*k) } else { None }
+                    if *v != Felt::ZERO && *base_value == Felt::ZERO {
+                        Some(*k)
+                    } else {
+                        None
+                    }
                 })
                 .collect(),
         )

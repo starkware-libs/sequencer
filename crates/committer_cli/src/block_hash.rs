@@ -1,8 +1,7 @@
 use serde::Deserialize;
 use starknet_api::block::{BlockHeaderWithoutHash, StarknetVersion};
 use starknet_api::block_hash::block_hash_calculator::{
-    BlockHeaderCommitments,
-    TransactionHashingData,
+    BlockHeaderCommitments, TransactionHashingData,
 };
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::state::ThinStateDiff;

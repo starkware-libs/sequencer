@@ -11,18 +11,8 @@ use libmdbx::{TableFlags, WriteFlags};
 use super::{DbResult, Table, TableType};
 use crate::db::serialization::{Key as KeyTrait, StorageSerde, StorageSerdeEx, ValueSerde};
 use crate::db::{
-    DbCursor,
-    DbCursorTrait,
-    DbError,
-    DbKeyType,
-    DbTransaction,
-    DbValueType,
-    DbWriter,
-    KeyAlreadyExistsError,
-    TableHandle,
-    TableIdentifier,
-    TransactionKind,
-    RW,
+    DbCursor, DbCursorTrait, DbError, DbKeyType, DbTransaction, DbValueType, DbWriter,
+    KeyAlreadyExistsError, TableHandle, TableIdentifier, TransactionKind, RW,
 };
 
 // NOTICE: If a write operation fails (insert, upsert, append, delete, append_greater_sub_key), the
@@ -154,8 +144,12 @@ impl DbWriter {
     }
 }
 
-impl<'env, K: KeyTrait + Debug, V: ValueSerde + Debug, T: DupSortTableType + DupSortUtils<K, V>>
-    Table<'env> for TableHandle<'env, K, V, T>
+impl<
+        'env,
+        K: KeyTrait + Debug,
+        V: ValueSerde + Debug,
+        T: DupSortTableType + DupSortUtils<K, V>,
+    > Table<'env> for TableHandle<'env, K, V, T>
 {
     type Key = K;
     type Value = V;
@@ -367,8 +361,12 @@ impl<'env, K: KeyTrait + Debug, V: ValueSerde + Debug, T: DupSortTableType + Dup
 
 // TODO(dvir): consider adding unchecked version of the append function.
 #[allow(private_bounds)]
-impl<'env, K: KeyTrait + Debug, V: ValueSerde + Debug, T: DupSortTableType + DupSortUtils<K, V>>
-    TableHandle<'env, K, V, T>
+impl<
+        'env,
+        K: KeyTrait + Debug,
+        V: ValueSerde + Debug,
+        T: DupSortTableType + DupSortUtils<K, V>,
+    > TableHandle<'env, K, V, T>
 {
     // Append a new value to the given key. The sub-key must be bigger than the last sub-key for the
     // given main-key, otherwise an error will be returned.
@@ -409,11 +407,11 @@ impl<'env, K: KeyTrait + Debug, V: ValueSerde + Debug, T: DupSortTableType + Dup
 }
 
 impl<
-    Mode: TransactionKind,
-    K: KeyTrait + Debug,
-    V: ValueSerde + Debug,
-    T: DupSortTableType + DupSortUtils<K, V>,
-> DbCursorTrait for DbCursor<'_, Mode, K, V, T>
+        Mode: TransactionKind,
+        K: KeyTrait + Debug,
+        V: ValueSerde + Debug,
+        T: DupSortTableType + DupSortUtils<K, V>,
+    > DbCursorTrait for DbCursor<'_, Mode, K, V, T>
 {
     type Key = K;
     type Value = V;

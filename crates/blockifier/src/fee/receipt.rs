@@ -5,10 +5,7 @@ use starknet_api::transaction::fields::Fee;
 use crate::context::TransactionContext;
 use crate::execution::call_info::ExecutionSummary;
 use crate::fee::resources::{
-    ComputationResources,
-    StarknetResources,
-    StateResources,
-    TransactionResources,
+    ComputationResources, StarknetResources, StateResources, TransactionResources,
 };
 use crate::state::cached_state::StateChanges;
 use crate::transaction::account_transaction::AccountTransaction;

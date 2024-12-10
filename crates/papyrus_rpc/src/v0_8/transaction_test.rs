@@ -1,19 +1,11 @@
 use papyrus_test_utils::{
-    auto_impl_get_test_instance,
-    get_number_of_variants,
-    get_rng,
-    GetTestInstance,
+    auto_impl_get_test_instance, get_number_of_variants, get_rng, GetTestInstance,
 };
 use pretty_assertions::assert_eq;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::transaction::fields::{
-    AccountDeploymentData,
-    Calldata,
-    ContractAddressSalt,
-    Fee,
-    PaymasterData,
-    Tip,
+    AccountDeploymentData, Calldata, ContractAddressSalt, Fee, PaymasterData, Tip,
     TransactionSignature,
 };
 use starknet_api::transaction::{L1HandlerTransaction, Transaction, TransactionVersion};
@@ -22,17 +14,9 @@ use starknet_client::writer::objects::transaction as client_transaction;
 
 use super::super::transaction::{L1HandlerMsgHash, L1L2MsgHash};
 use super::{
-    DeployAccountTransaction,
-    DeployAccountTransactionV1,
-    DeployAccountTransactionV3,
-    InvokeTransaction,
-    InvokeTransactionV0,
-    InvokeTransactionV1,
-    InvokeTransactionV3,
-    ResourceBoundsMapping,
-    TransactionVersion0,
-    TransactionVersion1,
-    TransactionVersion3,
+    DeployAccountTransaction, DeployAccountTransactionV1, DeployAccountTransactionV3,
+    InvokeTransaction, InvokeTransactionV0, InvokeTransactionV1, InvokeTransactionV3,
+    ResourceBoundsMapping, TransactionVersion0, TransactionVersion1, TransactionVersion3,
 };
 
 lazy_static::lazy_static! {

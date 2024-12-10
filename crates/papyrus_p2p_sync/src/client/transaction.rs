@@ -9,11 +9,7 @@ use starknet_api::block::{BlockBody, BlockNumber};
 use starknet_api::transaction::FullTransaction;
 
 use super::stream_builder::{
-    BadPeerError,
-    BlockData,
-    BlockNumberLimit,
-    DataStreamBuilder,
-    ParseDataError,
+    BadPeerError, BlockData, BlockNumberLimit, DataStreamBuilder, ParseDataError,
 };
 use super::{P2PSyncClientError, NETWORK_DATA_TIMEOUT};
 

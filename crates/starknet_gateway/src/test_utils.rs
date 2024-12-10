@@ -8,13 +8,8 @@ use starknet_api::test_utils::declare::{rpc_declare_tx, TEST_SENDER_ADDRESS};
 use starknet_api::test_utils::deploy_account::rpc_deploy_account_tx;
 use starknet_api::test_utils::invoke::rpc_invoke_tx;
 use starknet_api::transaction::fields::{
-    AccountDeploymentData,
-    AllResourceBounds,
-    Calldata,
-    PaymasterData,
-    ResourceBounds,
-    TransactionSignature,
-    ValidResourceBounds,
+    AccountDeploymentData, AllResourceBounds, Calldata, PaymasterData, ResourceBounds,
+    TransactionSignature, ValidResourceBounds,
 };
 use starknet_api::{declare_tx_args, deploy_account_tx_args, felt, invoke_tx_args};
 use starknet_types_core::felt::Felt;

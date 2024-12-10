@@ -1,11 +1,6 @@
 use log::warn;
 use starknet_api::block::{
-    BlockHashAndNumber,
-    BlockNumber,
-    GasPrice,
-    GasPriceVector,
-    GasPrices,
-    NonzeroGasPrice,
+    BlockHashAndNumber, BlockNumber, GasPrice, GasPriceVector, GasPrices, NonzeroGasPrice,
 };
 use starknet_api::state::StorageKey;
 
