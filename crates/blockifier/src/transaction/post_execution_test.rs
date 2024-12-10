@@ -22,20 +22,12 @@ use crate::fee::fee_checks::FeeCheckError;
 use crate::state::state_api::StateReader;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{
-    create_calldata,
-    CairoVersion,
-    BALANCE,
-    DEFAULT_STRK_L1_DATA_GAS_PRICE,
-    DEFAULT_STRK_L1_GAS_PRICE,
-    DEFAULT_STRK_L2_GAS_PRICE,
-};
+use crate::test_utils::{create_calldata, CairoVersion, BALANCE, DEFAULT_STRK_L1_GAS_PRICE};
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::{HasRelatedFeeType, TransactionInfoCreator};
 use crate::transaction::test_utils::{
     block_context,
-    create_all_resource_bounds,
     default_all_resource_bounds,
     default_l1_resource_bounds,
     invoke_tx_with_default_flags,
@@ -268,6 +260,10 @@ fn test_revert_on_resource_overuse(
     #[case] resource_to_decrement: Option<Resource>,
     #[values(CairoVersion::Cairo0)] cairo_version: CairoVersion,
 ) {
+    use starknet_api::execution_resources::GasVector;
+
+    use crate::transaction::test_utils::create_gas_amount_bounds_with_default_price;
+
     block_context.block_info.use_kzg_da = true;
     block_context.versioned_constants.allocation_cost = AllocationCost::ZERO;
     let gas_mode = resource_bounds.get_gas_vector_computation_mode();
@@ -374,14 +370,11 @@ fn test_revert_on_resource_overuse(
                     Resource::L2Gas => l2_gas.0 -= 1,
                     Resource::L1DataGas => l1_data_gas.0 -= 1,
                 }
-                create_all_resource_bounds(
+                create_gas_amount_bounds_with_default_price(GasVector {
                     l1_gas,
-                    DEFAULT_STRK_L1_GAS_PRICE.into(),
                     l2_gas,
-                    DEFAULT_STRK_L2_GAS_PRICE.into(),
                     l1_data_gas,
-                    DEFAULT_STRK_L1_DATA_GAS_PRICE.into(),
-                )
+                })
             }
         }
     };
