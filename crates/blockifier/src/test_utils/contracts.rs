@@ -392,8 +392,17 @@ impl FeatureContract {
                     .offset
             }
             #[cfg(feature = "cairo_native")]
-            RunnableCompiledClass::V1Native(_) => {
-                panic!("Not implemented for cairo native contracts")
+            RunnableCompiledClass::V1Native(class) => {
+                class
+                    .casm()
+                    .entry_points_by_type
+                    .get_entry_point(&CallEntryPoint {
+                        entry_point_type,
+                        entry_point_selector,
+                        ..Default::default()
+                    })
+                    .unwrap()
+                    .offset
             }
         }
     }
