@@ -9,7 +9,5 @@ TABLEGEN_190_PREFIX = "/usr/lib/llvm-19/"
 # https://nnethercote.github.io/perf-book/build-configuration.html#linking.
 # TODO: remove this once `rust` stabilizes `lld` as the default linker, currently only on nightly:
 # https://github.com/rust-lang/rust/issues/39915#issuecomment-618726211
-[target.x86_64-unknown-linux-gnu]
-rustflags = ["-Clink-arg=-fuse-ld=lld"]
-[target.stable-x86_64-unknown-linux-gnu]
+[target.'cfg(all(target_arch = "x86_64", target_os = "linux"))']
 rustflags = ["-Clink-arg=-fuse-ld=lld"]
