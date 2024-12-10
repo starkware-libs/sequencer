@@ -27,6 +27,10 @@ pub fn upper_case_resource_bounds_names(raw_transaction: &mut Value) {
             .expect("If tx contains l1_gas, it should contain l2_gas");
         resource_bounds.insert("L2_GAS".to_string(), l2_gas_value);
     }
+
+    if let Some(l1_data_gas_value) = resource_bounds.remove("l1_data_gas") {
+        resource_bounds.insert("L1_DATA_GAS".to_string(), l1_data_gas_value);
+    }
 }
 
 pub fn deserialize_transaction_json_to_starknet_api_tx(
