@@ -55,19 +55,6 @@ impl<'state> NativeSyscallHandler<'state> {
         }
     }
 
-    fn execute_inner_call(
-        &mut self,
-        entry_point: CallEntryPoint,
-        remaining_gas: &mut u64,
-    ) -> SyscallResult<Retdata> {
-        let raw_retdata = self
-            .base
-            .execute_inner_call(entry_point, remaining_gas)
-            .map_err(|e| self.handle_error(remaining_gas, e))?;
-
-        Ok(Retdata(raw_retdata))
-    }
-
     pub fn gas_costs(&self) -> &GasCosts {
         self.base.context.gas_costs()
     }
@@ -310,11 +297,13 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
 
         let wrapper_calldata = Calldata(Arc::new(calldata.to_vec()));
 
+        let selector = EntryPointSelector(function_selector);
+
         let entry_point = CallEntryPoint {
             class_hash: Some(class_hash),
             code_address: None,
             entry_point_type: EntryPointType::External,
-            entry_point_selector: EntryPointSelector(function_selector),
+            entry_point_selector: selector,
             calldata: wrapper_calldata,
             // The call context remains the same in a library call.
             storage_address: self.base.call.storage_address,
@@ -323,7 +312,21 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
             initial_gas: *remaining_gas,
         };
 
-        Ok(self.execute_inner_call(entry_point, remaining_gas)?.0)
+        let raw_retdata =
+            self.base.execute_inner_call(entry_point, remaining_gas).map_err(|e| {
+                self.handle_error(
+                    remaining_gas,
+                    match e {
+                        SyscallExecutionError::SyscallError { .. } => e,
+                        _ => e.as_call_contract_execution_error(
+                            class_hash,
+                            self.base.call.storage_address,
+                            selector,
+                        ),
+                    },
+                )
+            })?;
+        Ok(Retdata(raw_retdata).0)
     }
 
     fn call_contract(
@@ -337,6 +340,8 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
 
         let contract_address = ContractAddress::try_from(address)
             .map_err(|error| self.handle_error(remaining_gas, error.into()))?;
+
+        let class_hash = self.base.get_class_hash_at(contract_address).unwrap_or_default();
         if self.base.context.execution_mode == ExecutionMode::Validate
             && self.base.call.storage_address != contract_address
         {
@@ -348,20 +353,34 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
         }
 
         let wrapper_calldata = Calldata(Arc::new(calldata.to_vec()));
+        let selector = EntryPointSelector(entry_point_selector);
 
         let entry_point = CallEntryPoint {
             class_hash: None,
             code_address: Some(contract_address),
             entry_point_type: EntryPointType::External,
-            entry_point_selector: EntryPointSelector(entry_point_selector),
+            entry_point_selector: selector,
             calldata: wrapper_calldata,
             storage_address: contract_address,
             caller_address: self.base.call.caller_address,
             call_type: CallType::Call,
             initial_gas: *remaining_gas,
         };
-
-        Ok(self.execute_inner_call(entry_point, remaining_gas)?.0)
+        let raw_retdata =
+            self.base.execute_inner_call(entry_point, remaining_gas).map_err(|e| {
+                self.handle_error(
+                    remaining_gas,
+                    match e {
+                        SyscallExecutionError::SyscallError { .. } => e,
+                        _ => e.as_call_contract_execution_error(
+                            class_hash,
+                            contract_address,
+                            selector,
+                        ),
+                    },
+                )
+            })?;
+        Ok(Retdata(raw_retdata).0)
     }
 
     fn storage_read(
