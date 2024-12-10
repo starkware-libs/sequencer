@@ -1,18 +1,14 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use indexmap::IndexMap;
-use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
-use starknet_api::core::{ContractAddress, Nonce};
-use starknet_api::state::ThinStateDiff;
-use starknet_api::transaction::TransactionHash;
-use starknet_batcher_types::batcher_types::{ProposalCommitment, ProposalId};
+use starknet_batcher_types::batcher_types::ProposalId;
 use thiserror::Error;
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, instrument, Instrument};
 
-use crate::block_builder::{BlockBuilderError, BlockBuilderTrait, BlockExecutionArtifacts};
+use crate::block_builder::{BlockBuilderError, BlockBuilderTrait};
+use crate::utils::{ProposalOutput, ProposalResult, ProposalTask};
 
 #[derive(Debug, Error)]
 pub enum GenerateProposalError {
@@ -30,14 +26,6 @@ pub enum GenerateProposalError {
     NoActiveHeight,
     #[error("Proposal with id {proposal_id} already exists.")]
     ProposalAlreadyExists { proposal_id: ProposalId },
-}
-
-#[derive(Clone, Debug, Error)]
-pub enum ProposalError {
-    #[error(transparent)]
-    BlockBuilderError(Arc<BlockBuilderError>),
-    #[error("Proposal was aborted")]
-    Aborted,
 }
 
 #[async_trait]
@@ -68,12 +56,6 @@ pub trait ProposalManagerTrait: Send + Sync {
     async fn reset(&mut self);
 }
 
-// Represents a spawned task of building new block proposal.
-struct ProposalTask {
-    abort_signal_sender: tokio::sync::oneshot::Sender<()>,
-    join_handle: tokio::task::JoinHandle<()>,
-}
-
 /// Main struct for handling block proposals.
 /// Taking care of:
 /// - Proposing new blocks.
@@ -89,16 +71,6 @@ pub(crate) struct ProposalManager {
     active_proposal_task: Option<ProposalTask>,
 
     executed_proposals: Arc<Mutex<HashMap<ProposalId, ProposalResult<ProposalOutput>>>>,
-}
-
-pub type ProposalResult<T> = Result<T, ProposalError>;
-
-#[derive(Debug, Default, PartialEq)]
-pub struct ProposalOutput {
-    pub state_diff: ThinStateDiff,
-    pub commitment: ProposalCommitment,
-    pub tx_hashes: HashSet<TransactionHash>,
-    pub nonces: HashMap<ContractAddress, Nonce>,
 }
 
 #[async_trait]
@@ -125,7 +97,7 @@ impl ProposalManagerTrait for ProposalManager {
                     .build_block()
                     .await
                     .map(ProposalOutput::from)
-                    .map_err(|e| ProposalError::BlockBuilderError(Arc::new(e)));
+                    .map_err(|e| Arc::new(e));
 
                 // The proposal is done, clear the active proposal.
                 // Keep the proposal result only if it is the same as the active proposal.
@@ -175,7 +147,10 @@ impl ProposalManagerTrait for ProposalManager {
     async fn abort_proposal(&mut self, proposal_id: ProposalId) {
         if *self.active_proposal.lock().await == Some(proposal_id) {
             self.abort_active_proposal().await;
-            self.executed_proposals.lock().await.insert(proposal_id, Err(ProposalError::Aborted));
+            self.executed_proposals
+                .lock()
+                .await
+                .insert(proposal_id, Err(Arc::new(BlockBuilderError::Aborted)));
         }
     }
 
@@ -225,35 +200,5 @@ impl ProposalManager {
         if let Some(proposal_task) = self.active_proposal_task.take() {
             proposal_task.abort_signal_sender.send(()).ok();
         }
-    }
-}
-
-impl From<BlockExecutionArtifacts> for ProposalOutput {
-    fn from(artifacts: BlockExecutionArtifacts) -> Self {
-        let commitment_state_diff = artifacts.commitment_state_diff;
-        let nonces = HashMap::from_iter(
-            commitment_state_diff
-                .address_to_nonce
-                .iter()
-                .map(|(address, nonce)| (*address, *nonce)),
-        );
-
-        // TODO: Get these from the transactions.
-        let deployed_contracts = IndexMap::new();
-        let declared_classes = IndexMap::new();
-        let state_diff = ThinStateDiff {
-            deployed_contracts,
-            storage_diffs: commitment_state_diff.storage_updates,
-            declared_classes,
-            nonces: commitment_state_diff.address_to_nonce,
-            // TODO: Remove this when the structure of storage diffs changes.
-            deprecated_declared_classes: Vec::new(),
-            replaced_classes: IndexMap::new(),
-        };
-        let commitment =
-            ProposalCommitment { state_diff_commitment: calculate_state_diff_hash(&state_diff) };
-        let tx_hashes = HashSet::from_iter(artifacts.execution_infos.keys().copied());
-
-        Self { state_diff, commitment, tx_hashes, nonces }
     }
 }
