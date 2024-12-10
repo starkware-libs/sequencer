@@ -10,6 +10,8 @@ pub enum StateSyncError {
     // We put the string of the error instead.
     #[error("Unexpected storage error: {0}")]
     StorageError(String),
+    #[error("Failed to send message to P2pSyncClient")]
+    P2PSyncClientError,
 }
 
 impl From<StorageError> for StateSyncError {
