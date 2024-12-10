@@ -93,7 +93,7 @@ pub struct SequencerSetup {
     pub rpc_storage_file_handle: TempDir,
 
     // Handle of the sequencer node.
-    pub sequencer_node_handle: JoinHandle<Result<(), anyhow::Error>>,
+    pub sequencer_node_handles: Vec<JoinHandle<Result<(), anyhow::Error>>>,
 
     pub config: SequencerNodeConfig,
 }
@@ -138,7 +138,7 @@ impl SequencerSetup {
 
         // Build and run the sequencer node.
         let sequencer_node_future = run_component_servers(servers);
-        let sequencer_node_handle = task_executor.spawn_with_handle(sequencer_node_future);
+        let sequencer_node_handles = vec![task_executor.spawn_with_handle(sequencer_node_future)];
 
         // Wait for server to spin up.
         // TODO(Gilad): Replace with a persistent Client with a built-in retry to protect against CI
@@ -150,7 +150,7 @@ impl SequencerSetup {
             add_tx_http_client,
             batcher_storage_file_handle: storage_for_test.batcher_storage_handle,
             rpc_storage_file_handle: storage_for_test.rpc_storage_handle,
-            sequencer_node_handle,
+            sequencer_node_handles,
             config,
         }
     }
