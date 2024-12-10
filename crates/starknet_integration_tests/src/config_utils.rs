@@ -60,7 +60,6 @@ pub(crate) fn dump_config_file_changes(
         required_params.eth_fee_token_address,
         required_params.strk_fee_token_address,
         required_params.validator_id,
-        config.rpc_state_reader_config.json_rpc_version,
         config.rpc_state_reader_config.url,
         config.batcher_config.storage.db_config.path_prefix,
         config.http_server_config.ip,
