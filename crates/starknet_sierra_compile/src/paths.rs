@@ -19,6 +19,11 @@ pub fn binary_path(out_dir: std::path::PathBuf, binary_name: &str) -> std::path:
 }
 
 #[cfg(feature = "cairo_native")]
-pub fn output_file_path(out_dir: std::path::PathBuf) -> String {
-    out_dir.join("output.so").to_str().unwrap().into()
+pub fn compilation_output_dir(out_dir: std::path::PathBuf) -> std::path::PathBuf {
+    target_dir(out_dir).join("native_compile_outputs")
+}
+
+#[cfg(feature = "cairo_native")]
+pub fn compilation_output_file_path(out_dir: std::path::PathBuf) -> String {
+    compilation_output_dir(out_dir).join("output.so").to_str().unwrap().into()
 }
