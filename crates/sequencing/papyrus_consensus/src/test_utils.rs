@@ -75,9 +75,7 @@ mock! {
 
         async fn validate_proposal(
             &mut self,
-            height: BlockNumber,
-            round: Round,
-            proposer: ValidatorId,
+            init: ProposalInit,
             timeout: Duration,
             content: mpsc::Receiver<MockProposalPart>
         ) -> oneshot::Receiver<(ProposalContentId, ProposalFin)>;
