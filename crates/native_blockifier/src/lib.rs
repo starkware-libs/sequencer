@@ -20,6 +20,11 @@ pub mod state_readers;
 pub mod storage;
 pub mod test_utils;
 
+use blockifier::state::stateful_compression::{
+    ALIAS_COUNTER_STORAGE_KEY,
+    MAX_NON_COMPRESSED_CONTRACT_ADDRESS,
+    MIN_VALUE_FOR_ALIAS_ALLOC,
+};
 use errors::{add_py_exceptions, UndeclaredClassHashError};
 use py_block_executor::PyBlockExecutor;
 use py_objects::PyExecutionResources;
@@ -64,6 +69,12 @@ fn native_blockifier(py: Python<'_>, py_module: &PyModule) -> PyResult<()> {
         estimate_casm_hash_computation_resources_for_testing_single,
         py
     )?)?;
+    py_module.add("ALIAS_COUNTER_STORAGE_KEY", ALIAS_COUNTER_STORAGE_KEY.to_string())?;
+    py_module.add(
+        "MAX_NON_COMPRESSED_CONTRACT_ADDRESS",
+        MAX_NON_COMPRESSED_CONTRACT_ADDRESS.to_string(),
+    )?;
+    py_module.add("INITIAL_AVAILABLE_ALIAS", MIN_VALUE_FOR_ALIAS_ALLOC.to_string())?;
 
     Ok(())
 }
