@@ -18,6 +18,7 @@ const_format.workspace = true
 futures.workspace = true
 infra_utils.workspace = true
 papyrus_config.workspace = true
+papyrus_consensus.workspace = true
 papyrus_proc_macros = { workspace = true, optional = true }
 rstest.workspace = true
 serde.workspace = true
