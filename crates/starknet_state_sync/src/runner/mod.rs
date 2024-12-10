@@ -3,7 +3,7 @@ mod test;
 
 use async_trait::async_trait;
 use futures::future::BoxFuture;
-use futures::FutureExt;
+use futures::{FutureExt, StreamExt};
 use papyrus_network::network_manager::{self, NetworkError};
 use papyrus_p2p_sync::client::{P2PSyncClient, P2PSyncClientChannels, P2PSyncClientError};
 use papyrus_p2p_sync::server::{P2PSyncServer, P2PSyncServerChannels};
@@ -66,6 +66,7 @@ impl StateSyncRunner {
             storage_reader.clone(),
             storage_writer,
             p2p_sync_client_channels,
+            futures::stream::pending().boxed(),
         );
 
         let header_server_receiver = network_manager
