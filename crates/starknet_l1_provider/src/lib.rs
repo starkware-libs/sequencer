@@ -175,7 +175,6 @@ impl ProviderState {
             ProviderState::Propose => "Propose",
             ProviderState::Uninitialized => "Uninitialized",
             ProviderState::Validate => "Validate",
-            ProviderState::Uninitialized => "Validate",
         }
     }
 }
