@@ -4,13 +4,8 @@ use starknet_api::executable_transaction::Transaction;
 use starknet_batcher_types::batcher_types::ProposalId;
 
 use crate::block_builder::{BlockBuilderTrait, BlockExecutionArtifacts, MockBlockBuilderTrait};
-use crate::proposal_manager::{
-    GenerateProposalError,
-    ProposalError,
-    ProposalManager,
-    ProposalManagerTrait,
-    ProposalOutput,
-};
+use crate::proposal_manager::{GenerateProposalError, ProposalManager, ProposalManagerTrait};
+use crate::utils::{ProposalError, ProposalOutput};
 
 const BLOCK_GENERATION_TIMEOUT: tokio::time::Duration = tokio::time::Duration::from_secs(1);
 
