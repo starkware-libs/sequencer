@@ -15,7 +15,10 @@ use starknet_monitoring_endpoint::monitoring_endpoint::{
 use starknet_state_sync_types::communication::EmptyStateSyncClient;
 
 use crate::clients::SequencerNodeClients;
-use crate::config::component_execution_config::ReactiveComponentExecutionMode;
+use crate::config::component_execution_config::{
+    ActiveComponentExecutionMode,
+    ReactiveComponentExecutionMode,
+};
 use crate::config::node_config::SequencerNodeConfig;
 use crate::version::VERSION_FULL;
 
@@ -115,11 +118,11 @@ pub fn create_node_components(
     };
 
     let monitoring_endpoint = match config.components.monitoring_endpoint.execution_mode {
-        ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => Some(
-            create_monitoring_endpoint(config.monitoring_endpoint_config.clone(), VERSION_FULL),
-        ),
-        ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled => None,
-        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
+        ActiveComponentExecutionMode::Enabled => Some(create_monitoring_endpoint(
+            config.monitoring_endpoint_config.clone(),
+            VERSION_FULL,
+        )),
+        ActiveComponentExecutionMode::Disabled => None,
     };
 
     SequencerNodeComponents {

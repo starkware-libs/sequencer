@@ -115,18 +115,6 @@ impl ReactiveComponentExecutionConfig {
         }
     }
 
-    // TODO(Tsabary/Lev): There's a bug here: the monitoring endpoint component does not
-    // need a local nor a remote config. However, the validation function requires that at least
-    // one of them is set. As a workaround I've set the local one, but this should be addressed.
-    pub fn monitoring_endpoint_default_config() -> Self {
-        Self {
-            execution_mode: ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled,
-            local_server_config: Some(LocalServerConfig::default()),
-            remote_client_config: None,
-            remote_server_config: Some(RemoteServerConfig::default()),
-        }
-    }
-
     pub fn mempool_default_config() -> Self {
         Self {
             execution_mode: ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled,
