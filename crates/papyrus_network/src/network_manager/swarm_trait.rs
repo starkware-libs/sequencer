@@ -8,7 +8,7 @@ use tracing::{info, warn};
 use super::BroadcastedMessageMetadata;
 use crate::gossipsub_impl::Topic;
 use crate::mixed_behaviour;
-use crate::peer_manager::{ReputationModifier, MALICIOUS};
+use crate::peer_manager::{MALICIOUS, ReputationModifier};
 use crate::sqmr::behaviour::{PeerNotConnected, SessionIdNotFoundError};
 use crate::sqmr::{Bytes, InboundSessionId, OutboundSessionId, SessionId};
 
