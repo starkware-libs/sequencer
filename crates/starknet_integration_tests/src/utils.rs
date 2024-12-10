@@ -258,10 +258,6 @@ pub fn create_batcher_config(
     }
 }
 
-pub fn run_integration_test() -> bool {
-    std::env::var("SEQUENCER_INTEGRATION_TESTS").is_ok()
-}
-
 fn set_validator_id(consensus_manager_config: &mut ConsensusManagerConfig, sequencer_index: usize) {
     consensus_manager_config.consensus_config.validator_id = ValidatorId::try_from(
         Felt::from(consensus_manager_config.consensus_config.validator_id)
