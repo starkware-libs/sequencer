@@ -19,6 +19,7 @@ use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 use tracing::{debug, instrument};
 
+use crate::definitions::MockSystemMode;
 use crate::state_reader::{spawn_test_rpc_state_reader, StorageTestSetup};
 use crate::utils::{
     create_chain_info,
@@ -43,7 +44,10 @@ pub struct FlowTestSetup {
 
 impl FlowTestSetup {
     #[instrument(skip(tx_generator), level = "debug")]
-    pub async fn new_from_tx_generator(tx_generator: &MultiAccountTransactionGenerator) -> Self {
+    pub async fn new_from_tx_generator(
+        tx_generator: &MultiAccountTransactionGenerator,
+        mock_system_mode: MockSystemMode,
+    ) -> Self {
         let handle = Handle::current();
         let task_executor = TokioExecutor::new(handle);
         let chain_info = create_chain_info();
@@ -61,6 +65,7 @@ impl FlowTestSetup {
             chain_info.clone(),
             &task_executor,
             sequencer_0_consensus_manager_config,
+            mock_system_mode.clone(),
         )
         .await;
 
@@ -71,6 +76,7 @@ impl FlowTestSetup {
             chain_info,
             &task_executor,
             sequencer_1_consensus_manager_config,
+            mock_system_mode,
         )
         .await;
 
@@ -110,6 +116,7 @@ impl SequencerSetup {
         chain_info: ChainInfo,
         task_executor: &TokioExecutor,
         consensus_manager_config: ConsensusManagerConfig,
+        mock_system_mode: MockSystemMode,
     ) -> Self {
         let storage_for_test = StorageTestSetup::new(accounts, &chain_info);
 
@@ -127,6 +134,7 @@ impl SequencerSetup {
             rpc_server_addr,
             storage_for_test.batcher_storage_config,
             consensus_manager_config,
+            mock_system_mode,
         )
         .await;
 

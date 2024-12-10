@@ -10,6 +10,7 @@ use starknet_monitoring_endpoint::test_utils::IsAliveClient;
 use tempfile::{tempdir, TempDir};
 
 use crate::config_utils::dump_config_file_changes;
+use crate::definitions::MockSystemMode;
 use crate::state_reader::{spawn_test_rpc_state_reader, StorageTestSetup};
 use crate::utils::{
     create_chain_info,
@@ -63,6 +64,7 @@ impl IntegrationTestSetup {
             rpc_server_addr,
             storage_for_test.batcher_storage_config,
             consensus_manager_configs.pop().unwrap(),
+            MockSystemMode::Local,
         )
         .await;
 
