@@ -7,18 +7,10 @@ use starknet_api::core::{ContractAddress, EntryPointSelector, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::executable_transaction::InvokeTransaction;
 use starknet_api::transaction::fields::{
-    AccountDeploymentData,
-    Calldata,
-    Fee,
-    PaymasterData,
-    Tip,
-    TransactionSignature,
+    AccountDeploymentData, Calldata, Fee, PaymasterData, Tip, TransactionSignature,
 };
 use starknet_api::transaction::{
-    InvokeTransactionV0,
-    InvokeTransactionV1,
-    InvokeTransactionV3,
-    TransactionHash,
+    InvokeTransactionV0, InvokeTransactionV1, InvokeTransactionV3, TransactionHash,
 };
 use starknet_types_core::felt::Felt;
 

@@ -2,9 +2,7 @@ use rstest::rstest;
 
 use crate::blockifier::config::ConcurrencyConfig;
 use crate::test_utils::transfers_generator::{
-    RecipientGeneratorType,
-    TransfersGenerator,
-    TransfersGeneratorConfig,
+    RecipientGeneratorType, TransfersGenerator, TransfersGeneratorConfig,
 };
 
 #[rstest]

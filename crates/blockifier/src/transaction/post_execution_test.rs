@@ -5,12 +5,7 @@ use starknet_api::core::ContractAddress;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::{
-    AllResourceBounds,
-    Calldata,
-    Fee,
-    GasVectorComputationMode,
-    Resource,
-    ResourceBounds,
+    AllResourceBounds, Calldata, Fee, GasVectorComputationMode, Resource, ResourceBounds,
     ValidResourceBounds,
 };
 use starknet_api::transaction::TransactionVersion;
@@ -23,26 +18,16 @@ use crate::state::state_api::StateReader;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{
-    create_calldata,
-    CairoVersion,
-    BALANCE,
-    DEFAULT_STRK_L1_DATA_GAS_PRICE,
-    DEFAULT_STRK_L1_GAS_PRICE,
-    DEFAULT_STRK_L2_GAS_PRICE,
+    create_calldata, CairoVersion, BALANCE, DEFAULT_STRK_L1_DATA_GAS_PRICE,
+    DEFAULT_STRK_L1_GAS_PRICE, DEFAULT_STRK_L2_GAS_PRICE,
 };
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::{HasRelatedFeeType, TransactionInfoCreator};
 use crate::transaction::test_utils::{
-    block_context,
-    create_all_resource_bounds,
-    default_all_resource_bounds,
-    default_l1_resource_bounds,
-    invoke_tx_with_default_flags,
-    l1_resource_bounds,
-    max_fee,
-    run_invoke_tx,
-    TestInitData,
+    block_context, create_all_resource_bounds, default_all_resource_bounds,
+    default_l1_resource_bounds, invoke_tx_with_default_flags, l1_resource_bounds, max_fee,
+    run_invoke_tx, TestInitData,
 };
 use crate::transaction::transactions::ExecutableTransaction;
 use crate::versioned_constants::AllocationCost;
@@ -196,13 +181,11 @@ fn test_revert_on_overdraft(
 
     // Verify the execution was reverted (including nonce bump) with the correct error.
     assert!(execution_info.is_reverted());
-    assert!(
-        execution_info
-            .revert_error
-            .unwrap()
-            .to_string()
-            .starts_with("Insufficient fee token balance")
-    );
+    assert!(execution_info
+        .revert_error
+        .unwrap()
+        .to_string()
+        .starts_with("Insufficient fee token balance"));
     assert_eq!(state.get_nonce_at(account_address).unwrap(), nonce_manager.next(account_address));
 
     // Verify the storage key/value were not updated in the last tx.
@@ -407,14 +390,12 @@ fn test_revert_on_resource_overuse(
         &format!("Insufficient max {}", resource_to_decrement.unwrap())
     };
     if is_revertible {
-        assert!(
-            execution_info_result
-                .unwrap()
-                .revert_error
-                .unwrap()
-                .to_string()
-                .starts_with(expected_error_prefix)
-        );
+        assert!(execution_info_result
+            .unwrap()
+            .revert_error
+            .unwrap()
+            .to_string()
+            .starts_with(expected_error_prefix));
     } else {
         assert_matches!(
             execution_info_result.unwrap_err(),

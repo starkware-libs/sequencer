@@ -1,13 +1,10 @@
 use assert_matches::assert_matches;
 use mempool_test_utils::starknet_api_test_utils::{
-    declare_tx as rpc_declare_tx,
-    COMPILED_CLASS_HASH,
+    declare_tx as rpc_declare_tx, COMPILED_CLASS_HASH,
 };
 use rstest::{fixture, rstest};
 use starknet_api::rpc_transaction::{
-    RpcDeclareTransaction,
-    RpcDeclareTransactionV3,
-    RpcTransaction,
+    RpcDeclareTransaction, RpcDeclareTransactionV3, RpcTransaction,
 };
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;

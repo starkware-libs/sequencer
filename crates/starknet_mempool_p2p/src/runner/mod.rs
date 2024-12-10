@@ -5,10 +5,7 @@ use async_trait::async_trait;
 use futures::stream::FuturesUnordered;
 use futures::{pin_mut, StreamExt, TryFutureExt};
 use papyrus_network::network_manager::{
-    BroadcastTopicClient,
-    BroadcastTopicClientTrait,
-    BroadcastTopicServer,
-    NetworkManager,
+    BroadcastTopicClient, BroadcastTopicClientTrait, BroadcastTopicServer, NetworkManager,
 };
 use papyrus_protobuf::mempool::RpcTransactionWrapper;
 use starknet_gateway_types::communication::{GatewayClientError, SharedGatewayClient};

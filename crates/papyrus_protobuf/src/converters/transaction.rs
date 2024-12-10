@@ -8,43 +8,20 @@ use starknet_api::block::GasPrice;
 use starknet_api::core::{ClassHash, CompiledClassHash, EntryPointSelector, Nonce};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::{
-    AccountDeploymentData,
-    AllResourceBounds,
-    Calldata,
-    ContractAddressSalt,
-    Fee,
-    PaymasterData,
-    ResourceBounds,
-    Tip,
-    TransactionSignature,
-    ValidResourceBounds,
+    AccountDeploymentData, AllResourceBounds, Calldata, ContractAddressSalt, Fee, PaymasterData,
+    ResourceBounds, Tip, TransactionSignature, ValidResourceBounds,
 };
 use starknet_api::transaction::{
-    DeclareTransaction,
-    DeclareTransactionV0V1,
-    DeclareTransactionV2,
-    DeclareTransactionV3,
-    DeployAccountTransaction,
-    DeployAccountTransactionV1,
-    DeployAccountTransactionV3,
-    DeployTransaction,
-    FullTransaction,
-    InvokeTransaction,
-    InvokeTransactionV0,
-    InvokeTransactionV1,
-    InvokeTransactionV3,
-    L1HandlerTransaction,
-    Transaction,
-    TransactionHash,
-    TransactionOutput,
-    TransactionVersion,
+    DeclareTransaction, DeclareTransactionV0V1, DeclareTransactionV2, DeclareTransactionV3,
+    DeployAccountTransaction, DeployAccountTransactionV1, DeployAccountTransactionV3,
+    DeployTransaction, FullTransaction, InvokeTransaction, InvokeTransactionV0,
+    InvokeTransactionV1, InvokeTransactionV3, L1HandlerTransaction, Transaction, TransactionHash,
+    TransactionOutput, TransactionVersion,
 };
 use starknet_types_core::felt::Felt;
 
 use super::common::{
-    enum_int_to_volition_domain,
-    try_from_starkfelt_to_u128,
-    try_from_starkfelt_to_u32,
+    enum_int_to_volition_domain, try_from_starkfelt_to_u128, try_from_starkfelt_to_u32,
     volition_domain_to_enum_int,
 };
 use super::ProtobufConversionError;

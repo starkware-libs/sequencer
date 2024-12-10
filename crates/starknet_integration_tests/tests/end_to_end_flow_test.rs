@@ -5,11 +5,7 @@ use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerato
 use papyrus_consensus::types::ValidatorId;
 use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{
-    ProposalFin,
-    ProposalInit,
-    ProposalPart,
-    StreamMessage,
-    StreamMessageBody,
+    ProposalFin, ProposalInit, ProposalPart, StreamMessage, StreamMessageBody,
 };
 use papyrus_storage::test_utils::CHAIN_ID_FOR_TESTS;
 use pretty_assertions::assert_eq;
@@ -18,8 +14,7 @@ use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::transaction::TransactionHash;
 use starknet_integration_tests::flow_test_setup::FlowTestSetup;
 use starknet_integration_tests::utils::{
-    create_integration_test_tx_generator,
-    run_integration_test_scenario,
+    create_integration_test_tx_generator, run_integration_test_scenario,
 };
 use starknet_sequencer_infra::trace_util::configure_tracing;
 use starknet_types_core::felt::Felt;

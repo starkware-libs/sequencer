@@ -7,14 +7,8 @@ use starknet_api::{class_hash, contract_address, storage_key};
 use starknet_types_core::felt::Felt;
 
 use crate::execution::call_info::{
-    CallExecution,
-    CallInfo,
-    ChargedResources,
-    EventSummary,
-    ExecutionSummary,
-    MessageToL1,
-    OrderedEvent,
-    OrderedL2ToL1Message,
+    CallExecution, CallInfo, ChargedResources, EventSummary, ExecutionSummary, MessageToL1,
+    OrderedEvent, OrderedL2ToL1Message,
 };
 use crate::execution::entry_point::CallEntryPoint;
 use crate::transaction::objects::TransactionExecutionInfo;

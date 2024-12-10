@@ -1,11 +1,7 @@
 use std::collections::HashMap;
 
 use cairo_vm::serde::deserialize_program::{
-    deserialize_array_of_bigint_hex,
-    Attribute,
-    HintParams,
-    Identifier,
-    ReferenceManager,
+    deserialize_array_of_bigint_hex, Attribute, HintParams, Identifier, ReferenceManager,
 };
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::errors::program_errors::ProgramError;
@@ -24,17 +20,11 @@ use starknet_types_core::felt::Felt;
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::contract_class::{RunnableCompiledClass, TrackedResource};
 use crate::execution::entry_point::{
-    execute_constructor_entry_point,
-    CallEntryPoint,
-    ConstructorContext,
-    ConstructorEntryPointExecutionResult,
-    EntryPointExecutionContext,
-    EntryPointExecutionResult,
+    execute_constructor_entry_point, CallEntryPoint, ConstructorContext,
+    ConstructorEntryPointExecutionResult, EntryPointExecutionContext, EntryPointExecutionResult,
 };
 use crate::execution::errors::{
-    ConstructorEntryPointExecutionError,
-    EntryPointExecutionError,
-    PostExecutionError,
+    ConstructorEntryPointExecutionError, EntryPointExecutionError, PostExecutionError,
     PreExecutionError,
 };
 #[cfg(feature = "cairo_native")]

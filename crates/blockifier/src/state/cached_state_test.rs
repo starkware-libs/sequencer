@@ -6,13 +6,7 @@ use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::transaction::fields::{Fee, TransactionSignature, ValidResourceBounds};
 use starknet_api::{
-    class_hash,
-    compiled_class_hash,
-    contract_address,
-    felt,
-    invoke_tx_args,
-    nonce,
-    storage_key,
+    class_hash, compiled_class_hash, contract_address, felt, invoke_tx_args, nonce, storage_key,
 };
 
 use crate::context::{BlockContext, ChainInfo};

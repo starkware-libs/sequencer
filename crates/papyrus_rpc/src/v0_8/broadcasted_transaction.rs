@@ -16,11 +16,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::core::{CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::transaction::fields::{
-    AccountDeploymentData,
-    Fee,
-    PaymasterData,
-    Tip,
-    TransactionSignature,
+    AccountDeploymentData, Fee, PaymasterData, Tip, TransactionSignature,
 };
 use starknet_api::transaction::TransactionVersion;
 use starknet_client::writer::objects::transaction as client_transaction;

@@ -7,9 +7,7 @@ use starknet_api::execution_resources::GasAmount;
 use crate::execution::call_info::{CallExecution, CallInfo, ChargedResources, Retdata};
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::{
-    CallEntryPoint,
-    EntryPointExecutionContext,
-    EntryPointExecutionResult,
+    CallEntryPoint, EntryPointExecutionContext, EntryPointExecutionResult,
 };
 use crate::execution::errors::{EntryPointExecutionError, PostExecutionError};
 use crate::execution::native::contract_class::NativeCompiledClassV1;

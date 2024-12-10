@@ -14,14 +14,8 @@ use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::test_utils::get_test_storage;
 use papyrus_storage::{StorageError, StorageReader, StorageWriter};
 use starknet_api::block::{
-    Block,
-    BlockBody,
-    BlockHash,
-    BlockHashAndNumber,
-    BlockHeader,
-    BlockHeaderWithoutHash,
-    BlockNumber,
-    BlockSignature,
+    Block, BlockBody, BlockHash, BlockHashAndNumber, BlockHeader, BlockHeaderWithoutHash,
+    BlockNumber, BlockSignature,
 };
 use starknet_api::core::{ClassHash, SequencerPublicKey};
 use starknet_api::crypto::utils::PublicKey;
@@ -34,18 +28,10 @@ use tracing::{debug, error};
 use super::pending::MockPendingSourceTrait;
 use crate::sources::base_layer::{BaseLayerSourceTrait, MockBaseLayerSourceTrait};
 use crate::sources::central::{
-    BlocksStream,
-    CompiledClassesStream,
-    MockCentralSourceTrait,
-    StateUpdatesStream,
+    BlocksStream, CompiledClassesStream, MockCentralSourceTrait, StateUpdatesStream,
 };
 use crate::{
-    CentralError,
-    CentralSourceTrait,
-    GenericStateSync,
-    StateSyncError,
-    StateSyncResult,
-    SyncConfig,
+    CentralError, CentralSourceTrait, GenericStateSync, StateSyncError, StateSyncResult, SyncConfig,
 };
 
 const SYNC_SLEEP_DURATION: Duration = Duration::from_millis(100); // 100ms

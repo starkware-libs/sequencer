@@ -13,16 +13,11 @@ use serde::Deserialize;
 use starknet_api::contract_class::{ContractClass, EntryPointType};
 use starknet_api::core::EntryPointSelector;
 use starknet_api::deprecated_contract_class::{
-    ContractClass as DeprecatedContractClass,
-    EntryPointOffset,
-    EntryPointV0,
-    Program,
+    ContractClass as DeprecatedContractClass, EntryPointOffset, EntryPointV0, Program,
 };
 use starknet_api::hash::StarkHash;
 use starknet_core::types::{
-    CompressedLegacyContractClass,
-    FlattenedSierraClass,
-    LegacyContractEntryPoint,
+    CompressedLegacyContractClass, FlattenedSierraClass, LegacyContractEntryPoint,
     LegacyEntryPointsByType,
 };
 use starknet_gateway::errors::serde_err_to_state_err;

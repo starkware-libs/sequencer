@@ -1,39 +1,21 @@
 use std::sync::Arc;
 
 use starknet_batcher_types::communication::{
-    BatcherRequest,
-    BatcherResponse,
-    LocalBatcherClient,
-    RemoteBatcherClient,
-    SharedBatcherClient,
+    BatcherRequest, BatcherResponse, LocalBatcherClient, RemoteBatcherClient, SharedBatcherClient,
 };
 use starknet_gateway_types::communication::{
-    GatewayRequest,
-    GatewayResponse,
-    LocalGatewayClient,
-    RemoteGatewayClient,
-    SharedGatewayClient,
+    GatewayRequest, GatewayResponse, LocalGatewayClient, RemoteGatewayClient, SharedGatewayClient,
 };
 use starknet_mempool_p2p_types::communication::{
-    LocalMempoolP2pPropagatorClient,
-    MempoolP2pPropagatorRequest,
-    MempoolP2pPropagatorResponse,
-    RemoteMempoolP2pPropagatorClient,
-    SharedMempoolP2pPropagatorClient,
+    LocalMempoolP2pPropagatorClient, MempoolP2pPropagatorRequest, MempoolP2pPropagatorResponse,
+    RemoteMempoolP2pPropagatorClient, SharedMempoolP2pPropagatorClient,
 };
 use starknet_mempool_types::communication::{
-    LocalMempoolClient,
-    MempoolRequest,
-    MempoolResponse,
-    RemoteMempoolClient,
-    SharedMempoolClient,
+    LocalMempoolClient, MempoolRequest, MempoolResponse, RemoteMempoolClient, SharedMempoolClient,
 };
 use starknet_sequencer_infra::component_client::{Client, LocalComponentClient};
 use starknet_state_sync_types::communication::{
-    LocalStateSyncClient,
-    RemoteStateSyncClient,
-    SharedStateSyncClient,
-    StateSyncRequest,
+    LocalStateSyncClient, RemoteStateSyncClient, SharedStateSyncClient, StateSyncRequest,
     StateSyncResponse,
 };
 

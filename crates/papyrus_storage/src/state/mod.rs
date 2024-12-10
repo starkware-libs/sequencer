@@ -74,13 +74,7 @@ use crate::document_calls::{add_query, StorageQuery};
 use crate::mmap_file::LocationInFile;
 use crate::state::data::IndexedDeprecatedContractClass;
 use crate::{
-    FileHandlers,
-    MarkerKind,
-    MarkersTable,
-    OffsetKind,
-    StorageError,
-    StorageResult,
-    StorageTxn,
+    FileHandlers, MarkerKind, MarkersTable, OffsetKind, StorageError, StorageResult, StorageTxn,
 };
 
 // TODO(shahak): Move the table aliases to the crate level.

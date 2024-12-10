@@ -21,9 +21,7 @@ use tracing::{debug, instrument};
 
 use crate::state_reader::{spawn_test_rpc_state_reader, StorageTestSetup};
 use crate::utils::{
-    create_chain_info,
-    create_config,
-    create_consensus_manager_configs_and_channels,
+    create_chain_info, create_config, create_consensus_manager_configs_and_channels,
 };
 
 const SEQUENCER_0: usize = 0;

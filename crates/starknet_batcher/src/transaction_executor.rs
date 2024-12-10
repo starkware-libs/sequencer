@@ -1,7 +1,5 @@
 use blockifier::blockifier::transaction_executor::{
-    TransactionExecutor,
-    TransactionExecutorResult,
-    VisitedSegmentsMapping,
+    TransactionExecutor, TransactionExecutorResult, VisitedSegmentsMapping,
 };
 use blockifier::bouncer::BouncerWeights;
 use blockifier::state::cached_state::CommitmentStateDiff;

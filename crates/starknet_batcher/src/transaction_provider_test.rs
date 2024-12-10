@@ -9,12 +9,8 @@ use starknet_api::tx_hash;
 use starknet_mempool_types::communication::MockMempoolClient;
 
 use crate::transaction_provider::{
-    MockL1ProviderClient,
-    NextTxs,
-    ProposeTransactionProvider,
-    TransactionProvider,
-    TransactionProviderError,
-    ValidateTransactionProvider,
+    MockL1ProviderClient, NextTxs, ProposeTransactionProvider, TransactionProvider,
+    TransactionProviderError, ValidateTransactionProvider,
 };
 
 const MAX_L1_HANDLER_TXS_PER_BLOCK: usize = 15;
@@ -143,16 +139,12 @@ async fn no_more_l1_handler(mut mock_dependencies: MockDependencies) {
 
     let txs = tx_provider.get_txs(MAX_TXS_PER_FETCH).await.unwrap();
     let data = assert_matches!(txs, NextTxs::Txs(txs) if txs.len() == MAX_TXS_PER_FETCH => txs);
-    assert!(
-        data[..NUM_L1_HANDLER_TXS_IN_PROVIDER]
-            .iter()
-            .all(|tx| matches!(tx, Transaction::L1Handler(_)))
-    );
-    assert!(
-        data[NUM_L1_HANDLER_TXS_IN_PROVIDER..]
-            .iter()
-            .all(|tx| { matches!(tx, Transaction::Account(_)) })
-    );
+    assert!(data[..NUM_L1_HANDLER_TXS_IN_PROVIDER]
+        .iter()
+        .all(|tx| matches!(tx, Transaction::L1Handler(_))));
+    assert!(data[NUM_L1_HANDLER_TXS_IN_PROVIDER..]
+        .iter()
+        .all(|tx| { matches!(tx, Transaction::Account(_)) }));
 
     let txs = tx_provider.get_txs(MAX_TXS_PER_FETCH).await.unwrap();
     let data = assert_matches!(txs, NextTxs::Txs(txs) if txs.len() == MAX_TXS_PER_FETCH => txs);

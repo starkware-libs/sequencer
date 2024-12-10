@@ -11,20 +11,10 @@ use starknet_api::block::{BlockHashAndNumber, BlockNumber};
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::state::ThinStateDiff;
 use starknet_batcher_types::batcher_types::{
-    BatcherResult,
-    DecisionReachedInput,
-    GetHeightResponse,
-    GetProposalContent,
-    GetProposalContentInput,
-    GetProposalContentResponse,
-    ProposalId,
-    ProposalStatus,
-    ProposeBlockInput,
-    SendProposalContent,
-    SendProposalContentInput,
-    SendProposalContentResponse,
-    StartHeightInput,
-    ValidateBlockInput,
+    BatcherResult, DecisionReachedInput, GetHeightResponse, GetProposalContent,
+    GetProposalContentInput, GetProposalContentResponse, ProposalId, ProposalStatus,
+    ProposeBlockInput, SendProposalContent, SendProposalContentInput, SendProposalContentResponse,
+    StartHeightInput, ValidateBlockInput,
 };
 use starknet_batcher_types::errors::BatcherError;
 use starknet_mempool_types::communication::SharedMempoolClient;
@@ -33,25 +23,16 @@ use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use tracing::{debug, error, info, instrument, trace};
 
 use crate::block_builder::{
-    BlockBuilderError,
-    BlockBuilderExecutionParams,
-    BlockBuilderFactory,
-    BlockBuilderFactoryTrait,
+    BlockBuilderError, BlockBuilderExecutionParams, BlockBuilderFactory, BlockBuilderFactoryTrait,
     BlockMetadata,
 };
 use crate::config::BatcherConfig;
 use crate::proposal_manager::{
-    GenerateProposalError,
-    InternalProposalStatus,
-    ProposalError,
-    ProposalManager,
-    ProposalManagerTrait,
-    ProposalOutput,
+    GenerateProposalError, InternalProposalStatus, ProposalError, ProposalManager,
+    ProposalManagerTrait, ProposalOutput,
 };
 use crate::transaction_provider::{
-    DummyL1ProviderClient,
-    ProposeTransactionProvider,
-    ValidateTransactionProvider,
+    DummyL1ProviderClient, ProposeTransactionProvider, ValidateTransactionProvider,
 };
 
 type OutputStreamReceiver = tokio::sync::mpsc::UnboundedReceiver<Transaction>;

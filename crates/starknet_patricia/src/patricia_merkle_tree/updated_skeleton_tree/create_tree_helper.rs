@@ -4,17 +4,14 @@ use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToB
 use crate::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::{
-    OriginalSkeletonNodeMap,
-    OriginalSkeletonTree,
+    OriginalSkeletonNodeMap, OriginalSkeletonTree,
 };
 use crate::patricia_merkle_tree::original_skeleton_tree::utils::split_leaves;
 use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use crate::patricia_merkle_tree::updated_skeleton_tree::errors::UpdatedSkeletonTreeError;
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::{
-    UpdatedSkeletonNodeMap,
-    UpdatedSkeletonTreeImpl,
-    UpdatedSkeletonTreeResult,
+    UpdatedSkeletonNodeMap, UpdatedSkeletonTreeImpl, UpdatedSkeletonTreeResult,
 };
 
 #[cfg(test)]

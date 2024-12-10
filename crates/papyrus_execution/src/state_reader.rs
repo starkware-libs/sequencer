@@ -5,9 +5,7 @@ mod state_reader_test;
 use std::cell::Cell;
 
 use blockifier::execution::contract_class::{
-    CompiledClassV0,
-    CompiledClassV1,
-    RunnableCompiledClass,
+    CompiledClassV0, CompiledClassV1, RunnableCompiledClass,
 };
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};

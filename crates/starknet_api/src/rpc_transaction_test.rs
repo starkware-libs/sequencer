@@ -7,25 +7,14 @@ use crate::block::GasPrice;
 use crate::core::CompiledClassHash;
 use crate::execution_resources::GasAmount;
 use crate::rpc_transaction::{
-    DataAvailabilityMode,
-    RpcDeclareTransaction,
-    RpcDeclareTransactionV3,
-    RpcDeployAccountTransaction,
-    RpcDeployAccountTransactionV3,
-    RpcTransaction,
+    DataAvailabilityMode, RpcDeclareTransaction, RpcDeclareTransactionV3,
+    RpcDeployAccountTransaction, RpcDeployAccountTransactionV3, RpcTransaction,
 };
 use crate::state::SierraContractClass;
 use crate::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
 use crate::transaction::fields::{
-    AccountDeploymentData,
-    AllResourceBounds,
-    Calldata,
-    ContractAddressSalt,
-    PaymasterData,
-    ResourceBounds,
-    Tip,
-    TransactionSignature,
-    ValidResourceBounds,
+    AccountDeploymentData, AllResourceBounds, Calldata, ContractAddressSalt, PaymasterData,
+    ResourceBounds, Tip, TransactionSignature, ValidResourceBounds,
 };
 use crate::{calldata, class_hash, contract_address, felt, nonce};
 

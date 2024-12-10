@@ -3,13 +3,8 @@ use std::fmt::Debug;
 use serde::{Deserialize, Serialize};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::rpc_transaction::{
-    RpcDeclareTransaction,
-    RpcDeclareTransactionV3,
-    RpcDeployAccountTransaction,
-    RpcDeployAccountTransactionV3,
-    RpcInvokeTransaction,
-    RpcInvokeTransactionV3,
-    RpcTransaction,
+    RpcDeclareTransaction, RpcDeclareTransactionV3, RpcDeployAccountTransaction,
+    RpcDeployAccountTransactionV3, RpcInvokeTransaction, RpcInvokeTransactionV3, RpcTransaction,
 };
 use starknet_types_core::felt::Felt;
 

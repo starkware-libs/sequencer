@@ -3,9 +3,7 @@ use blockifier::blockifier::transaction_executor::TransactionExecutorError;
 use blockifier::bouncer::BuiltinCount;
 use blockifier::state::errors::StateError;
 use blockifier::transaction::errors::{
-    ParseError,
-    TransactionExecutionError,
-    TransactionPreValidationError,
+    ParseError, TransactionExecutionError, TransactionPreValidationError,
 };
 use blockifier::transaction::transaction_types::TransactionType;
 use cairo_vm::types::errors::program_errors::ProgramError;

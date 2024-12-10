@@ -5,12 +5,7 @@ use starknet_api::block::{FeeType, GasPrice, NonzeroGasPrice};
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::invoke_tx_args;
 use starknet_api::transaction::fields::{
-    AllResourceBounds,
-    Fee,
-    GasVectorComputationMode,
-    Resource,
-    ResourceBounds,
-    ValidResourceBounds,
+    AllResourceBounds, Fee, GasVectorComputationMode, Resource, ResourceBounds, ValidResourceBounds,
 };
 
 use crate::blockifier::block::validated_gas_prices;
@@ -21,22 +16,12 @@ use crate::fee::receipt::TransactionReceipt;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{
-    gas_vector_from_vm_usage,
-    get_vm_resource_usage,
-    CairoVersion,
-    BALANCE,
-    DEFAULT_ETH_L1_DATA_GAS_PRICE,
-    DEFAULT_ETH_L1_GAS_PRICE,
-    DEFAULT_L1_DATA_GAS_MAX_AMOUNT,
-    DEFAULT_L1_GAS_AMOUNT,
-    DEFAULT_L2_GAS_MAX_AMOUNT,
-    DEFAULT_STRK_L1_GAS_PRICE,
+    gas_vector_from_vm_usage, get_vm_resource_usage, CairoVersion, BALANCE,
+    DEFAULT_ETH_L1_DATA_GAS_PRICE, DEFAULT_ETH_L1_GAS_PRICE, DEFAULT_L1_DATA_GAS_MAX_AMOUNT,
+    DEFAULT_L1_GAS_AMOUNT, DEFAULT_L2_GAS_MAX_AMOUNT, DEFAULT_STRK_L1_GAS_PRICE,
 };
 use crate::transaction::test_utils::{
-    all_resource_bounds,
-    block_context,
-    invoke_tx_with_default_flags,
-    l1_resource_bounds,
+    all_resource_bounds, block_context, invoke_tx_with_default_flags, l1_resource_bounds,
 };
 use crate::utils::u64_from_usize;
 use crate::versioned_constants::VersionedConstants;

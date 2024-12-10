@@ -1,13 +1,8 @@
 use papyrus_test_utils::validate_load_and_dump;
 
 use super::{
-    DeclareV1Transaction,
-    DeclareV2Transaction,
-    DeclareV3Transaction,
-    DeployAccountV1Transaction,
-    DeployAccountV3Transaction,
-    InvokeV1Transaction,
-    InvokeV3Transaction,
+    DeclareV1Transaction, DeclareV2Transaction, DeclareV3Transaction, DeployAccountV1Transaction,
+    DeployAccountV3Transaction, InvokeV1Transaction, InvokeV3Transaction,
 };
 
 #[test]

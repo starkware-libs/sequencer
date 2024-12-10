@@ -7,18 +7,11 @@ use futures::StreamExt;
 use lazy_static::lazy_static;
 use papyrus_common::pending_classes::ApiContractClass;
 use papyrus_network::network_manager::test_utils::{
-    mock_register_sqmr_protocol_client,
-    MockClientResponsesManager,
+    mock_register_sqmr_protocol_client, MockClientResponsesManager,
 };
 use papyrus_network::network_manager::GenericReceiver;
 use papyrus_protobuf::sync::{
-    ClassQuery,
-    DataOrFin,
-    HeaderQuery,
-    Query,
-    SignedBlockHeader,
-    StateDiffChunk,
-    StateDiffQuery,
+    ClassQuery, DataOrFin, HeaderQuery, Query, SignedBlockHeader, StateDiffChunk, StateDiffQuery,
     TransactionQuery,
 };
 use papyrus_storage::body::BodyStorageReader;
@@ -31,11 +24,7 @@ use papyrus_test_utils::GetTestInstance;
 use rand::{Rng, RngCore};
 use rand_chacha::ChaCha8Rng;
 use starknet_api::block::{
-    BlockHash,
-    BlockHeader,
-    BlockHeaderWithoutHash,
-    BlockNumber,
-    BlockSignature,
+    BlockHash, BlockHeader, BlockHeaderWithoutHash, BlockNumber, BlockSignature,
 };
 use starknet_api::core::ClassHash;
 use starknet_api::crypto::utils::Signature;

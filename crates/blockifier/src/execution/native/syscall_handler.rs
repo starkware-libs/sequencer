@@ -5,16 +5,8 @@ use std::sync::Arc;
 use ark_ec::short_weierstrass::{Affine, Projective, SWCurveConfig};
 use ark_ff::{BigInt, PrimeField};
 use cairo_native::starknet::{
-    BlockInfo,
-    ExecutionInfo,
-    ExecutionInfoV2,
-    Secp256k1Point,
-    Secp256r1Point,
-    StarknetSyscallHandler,
-    SyscallResult,
-    TxInfo,
-    TxV2Info,
-    U256,
+    BlockInfo, ExecutionInfo, ExecutionInfoV2, Secp256k1Point, Secp256r1Point,
+    StarknetSyscallHandler, SyscallResult, TxInfo, TxV2Info, U256,
 };
 use num_bigint::BigUint;
 use starknet_api::contract_class::EntryPointType;
@@ -89,10 +81,8 @@ impl<'state> NativeSyscallHandler<'state> {
 
         if *remaining_gas < required_gas {
             // Out of gas failure.
-            return Err(vec![
-                Felt::from_hex(OUT_OF_GAS_ERROR)
-                    .expect("Failed to parse OUT_OF_GAS_ERROR hex string"),
-            ]);
+            return Err(vec![Felt::from_hex(OUT_OF_GAS_ERROR)
+                .expect("Failed to parse OUT_OF_GAS_ERROR hex string")]);
         }
 
         *remaining_gas -= required_gas;

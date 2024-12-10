@@ -8,9 +8,7 @@ use rstest::{fixture, rstest};
 use starknet_api::block::GasPrice;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::rpc_transaction::{
-    RpcDeployAccountTransaction,
-    RpcInvokeTransaction,
-    RpcTransaction,
+    RpcDeployAccountTransaction, RpcInvokeTransaction, RpcTransaction,
 };
 use starknet_api::{contract_address, nonce};
 use starknet_mempool_p2p_types::communication::MockMempoolP2pPropagatorClient;
@@ -23,8 +21,7 @@ use crate::mempool::{Mempool, MempoolConfig, TransactionReference};
 use crate::test_utils::{add_tx, add_tx_expect_error, commit_block, get_txs_and_assert_expected};
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::transaction_queue_test_utils::{
-    TransactionQueueContent,
-    TransactionQueueContentBuilder,
+    TransactionQueueContent, TransactionQueueContentBuilder,
 };
 use crate::{add_tx_input, tx};
 

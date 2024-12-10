@@ -52,8 +52,7 @@ use crate::api::get_methods_from_supported_apis;
 use crate::middleware::{deny_requests_with_unsupported_path, proxy_rpc_request};
 use crate::syncing_state::get_last_synced_block;
 pub use crate::v0_8::transaction::{
-    InvokeTransaction as InvokeTransactionRPC0_8,
-    InvokeTransactionV1 as InvokeTransactionV1RPC0_8,
+    InvokeTransaction as InvokeTransactionRPC0_8, InvokeTransactionV1 as InvokeTransactionV1RPC0_8,
     TransactionVersion1 as TransactionVersion1RPC0_8,
 };
 pub use crate::v0_8::write_api_result::AddInvokeOkResult as AddInvokeOkResultRPC0_8;

@@ -10,13 +10,8 @@ use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::{fund_account, test_state};
 use crate::test_utils::{CairoVersion, RunnableCairo1, BALANCE};
 use crate::transaction::test_utils::{
-    block_context,
-    create_account_tx_for_validate_test_nonce_0,
-    default_all_resource_bounds,
-    default_l1_resource_bounds,
-    FaultyAccountTxCreatorArgs,
-    INVALID,
-    VALID,
+    block_context, create_account_tx_for_validate_test_nonce_0, default_all_resource_bounds,
+    default_l1_resource_bounds, FaultyAccountTxCreatorArgs, INVALID, VALID,
 };
 use crate::transaction::transaction_types::TransactionType;
 

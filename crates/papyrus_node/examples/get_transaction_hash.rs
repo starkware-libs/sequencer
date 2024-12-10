@@ -247,14 +247,12 @@ fn create_map_of_transaction(
         // insert the only_query_transaction_hash into the json file.
         transaction_info.insert(
             "only_query_transaction_hash".to_string(),
-            json!(
-                get_transaction_hash(
-                    transaction,
-                    &chain_id,
-                    &TransactionOptions { only_query: true }
-                )
-                .expect("Couldn't get only query transaction hash")
-            ),
+            json!(get_transaction_hash(
+                transaction,
+                &chain_id,
+                &TransactionOptions { only_query: true }
+            )
+            .expect("Couldn't get only query transaction hash")),
         );
     }
     transaction_info

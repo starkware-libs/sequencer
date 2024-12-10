@@ -12,9 +12,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::blockifier::config::TransactionExecutorConfig;
 use crate::blockifier::transaction_executor::{
-    TransactionExecutor,
-    TransactionExecutorError,
-    BLOCK_STATE_ACCESS_ERR,
+    TransactionExecutor, TransactionExecutorError, BLOCK_STATE_ACCESS_ERR,
 };
 use crate::bouncer::{Bouncer, BouncerWeights};
 use crate::context::BlockContext;
@@ -24,22 +22,14 @@ use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::l1_handler::l1handler_tx;
 use crate::test_utils::{
-    create_calldata,
-    maybe_dummy_block_hash_and_number,
-    CairoVersion,
-    RunnableCairo1,
-    BALANCE,
+    create_calldata, maybe_dummy_block_hash_and_number, CairoVersion, RunnableCairo1, BALANCE,
     DEFAULT_STRK_L1_GAS_PRICE,
 };
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::test_utils::{
-    block_context,
-    calculate_class_info_for_testing,
-    create_test_init_data,
-    emit_n_events_tx,
-    l1_resource_bounds,
-    TestInitData,
+    block_context, calculate_class_info_for_testing, create_test_init_data, emit_n_events_tx,
+    l1_resource_bounds, TestInitData,
 };
 use crate::transaction::transaction_execution::Transaction;
 fn tx_executor_test_body<S: StateReader>(

@@ -14,8 +14,7 @@ use crate::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeleto
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::types::{NodeIndex, SubTreeHeight};
 use crate::patricia_merkle_tree::updated_skeleton_tree::hash_function::{
-    HashFunction,
-    TreeHashFunction,
+    HashFunction, TreeHashFunction,
 };
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::UpdatedSkeletonTreeImpl;

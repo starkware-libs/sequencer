@@ -11,12 +11,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::block::{BlockHash, BlockNumber};
 use crate::core::{
-    ClassHash,
-    CompiledClassHash,
-    ContractAddress,
-    EntryPointSelector,
-    GlobalRoot,
-    Nonce,
+    ClassHash, CompiledClassHash, ContractAddress, EntryPointSelector, GlobalRoot, Nonce,
     PatriciaKey,
 };
 use crate::deprecated_contract_class::ContractClass as DeprecatedContractClass;

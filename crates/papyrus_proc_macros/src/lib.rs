@@ -4,17 +4,8 @@ use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
 use syn::parse::{Parse, ParseStream, Result};
 use syn::{
-    parse_macro_input,
-    DeriveInput,
-    ExprLit,
-    Ident,
-    ItemFn,
-    ItemTrait,
-    LitBool,
-    LitStr,
-    Meta,
-    Token,
-    TraitItem,
+    parse_macro_input, DeriveInput, ExprLit, Ident, ItemFn, ItemTrait, LitBool, LitStr, Meta,
+    Token, TraitItem,
 };
 
 /// This macro is a wrapper around the "rpc" macro supplied by the jsonrpsee library that generates

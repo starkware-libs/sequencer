@@ -10,10 +10,7 @@ use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
 use starknet_api::executable_transaction::AccountTransaction as ExecutableTransaction;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::{
-    DeprecatedResourceBoundsMapping,
-    Resource,
-    ResourceBounds,
-    ValidResourceBounds,
+    DeprecatedResourceBoundsMapping, Resource, ResourceBounds, ValidResourceBounds,
 };
 use starknet_api::StarknetApiError;
 

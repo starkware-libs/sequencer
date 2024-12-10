@@ -11,11 +11,7 @@ use crate::execution::execution_utils::{felt_from_ptr, write_maybe_relocatable, 
 use crate::execution::secp::new_affine;
 use crate::execution::syscalls::hint_processor::{felt_to_bool, SyscallHintProcessor};
 use crate::execution::syscalls::{
-    SyscallExecutionError,
-    SyscallRequest,
-    SyscallResponse,
-    SyscallResult,
-    WriteResponseResult,
+    SyscallExecutionError, SyscallRequest, SyscallResponse, SyscallResult, WriteResponseResult,
 };
 
 #[derive(Debug, Default, Eq, PartialEq)]

@@ -7,9 +7,7 @@ use num_traits::Inv;
 use pretty_assertions::{assert_eq, assert_ne};
 use rstest::rstest;
 use starknet_api::abi::abi_utils::{
-    get_fee_token_var_address,
-    get_storage_var_address,
-    selector_from_name,
+    get_fee_token_var_address, get_storage_var_address, selector_from_name,
 };
 use starknet_api::block::{FeeType, GasPrice};
 use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress};
@@ -26,31 +24,15 @@ use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::constants::TRANSFER_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::{
-    AllResourceBounds,
-    Calldata,
-    ContractAddressSalt,
-    Fee,
-    GasVectorComputationMode,
-    Resource,
-    ResourceBounds,
-    ValidResourceBounds,
+    AllResourceBounds, Calldata, ContractAddressSalt, Fee, GasVectorComputationMode, Resource,
+    ResourceBounds, ValidResourceBounds,
 };
 use starknet_api::transaction::{
-    DeclareTransaction,
-    DeclareTransactionV2,
-    TransactionHash,
-    TransactionVersion,
+    DeclareTransaction, DeclareTransactionV2, TransactionHash, TransactionVersion,
 };
 use starknet_api::{
-    calldata,
-    class_hash,
-    contract_address,
-    declare_tx_args,
-    deploy_account_tx_args,
-    felt,
-    invoke_tx_args,
-    nonce,
-    storage_key,
+    calldata, class_hash, contract_address, declare_tx_args, deploy_account_tx_args, felt,
+    invoke_tx_args, nonce, storage_key,
 };
 use starknet_types_core::felt::Felt;
 
@@ -68,44 +50,21 @@ use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::{fund_account, test_state};
 use crate::test_utils::syscall::build_recurse_calldata;
 use crate::test_utils::{
-    create_calldata,
-    create_trivial_calldata,
-    get_syscall_resources,
-    get_tx_resources,
-    CairoVersion,
-    CompilerBasedVersion,
-    RunnableCairo1,
-    BALANCE,
-    DEFAULT_L1_DATA_GAS_MAX_AMOUNT,
-    DEFAULT_L1_GAS_AMOUNT,
-    DEFAULT_L2_GAS_MAX_AMOUNT,
-    DEFAULT_STRK_L1_DATA_GAS_PRICE,
-    DEFAULT_STRK_L1_GAS_PRICE,
-    DEFAULT_STRK_L2_GAS_PRICE,
-    MAX_FEE,
+    create_calldata, create_trivial_calldata, get_syscall_resources, get_tx_resources,
+    CairoVersion, CompilerBasedVersion, RunnableCairo1, BALANCE, DEFAULT_L1_DATA_GAS_MAX_AMOUNT,
+    DEFAULT_L1_GAS_AMOUNT, DEFAULT_L2_GAS_MAX_AMOUNT, DEFAULT_STRK_L1_DATA_GAS_PRICE,
+    DEFAULT_STRK_L1_GAS_PRICE, DEFAULT_STRK_L2_GAS_PRICE, MAX_FEE,
 };
 use crate::transaction::account_transaction::{
-    AccountTransaction,
-    ExecutionFlags as AccountExecutionFlags,
+    AccountTransaction, ExecutionFlags as AccountExecutionFlags,
 };
 use crate::transaction::objects::{HasRelatedFeeType, TransactionInfoCreator};
 use crate::transaction::test_utils::{
-    all_resource_bounds,
-    block_context,
-    calculate_class_info_for_testing,
-    create_account_tx_for_validate_test_nonce_0,
-    create_all_resource_bounds,
-    create_test_init_data,
-    default_all_resource_bounds,
-    default_l1_resource_bounds,
-    deploy_and_fund_account,
-    invoke_tx_with_default_flags,
-    l1_resource_bounds,
-    max_fee,
-    run_invoke_tx,
-    FaultyAccountTxCreatorArgs,
-    TestInitData,
-    INVALID,
+    all_resource_bounds, block_context, calculate_class_info_for_testing,
+    create_account_tx_for_validate_test_nonce_0, create_all_resource_bounds, create_test_init_data,
+    default_all_resource_bounds, default_l1_resource_bounds, deploy_and_fund_account,
+    invoke_tx_with_default_flags, l1_resource_bounds, max_fee, run_invoke_tx,
+    FaultyAccountTxCreatorArgs, TestInitData, INVALID,
 };
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::ExecutableTransaction;
@@ -426,13 +385,11 @@ fn test_infinite_recursion(
     if success {
         assert!(tx_execution_info.revert_error.is_none());
     } else {
-        assert!(
-            tx_execution_info
-                .revert_error
-                .unwrap()
-                .to_string()
-                .contains("RunResources has no remaining steps.")
-        );
+        assert!(tx_execution_info
+            .revert_error
+            .unwrap()
+            .to_string()
+            .contains("RunResources has no remaining steps."));
     }
 }
 
@@ -643,14 +600,12 @@ fn test_recursion_depth_exceeded(
         InvokeTxArgs { calldata, nonce: nonce_manager.next(account_address), ..invoke_args };
     let tx_execution_info = run_invoke_tx(&mut state, &block_context, invoke_args);
 
-    assert!(
-        tx_execution_info
-            .unwrap()
-            .revert_error
-            .unwrap()
-            .to_string()
-            .contains("recursion depth exceeded")
-    );
+    assert!(tx_execution_info
+        .unwrap()
+        .revert_error
+        .unwrap()
+        .to_string()
+        .contains("recursion depth exceeded"));
 }
 
 #[rstest]
@@ -1253,13 +1208,11 @@ fn test_insufficient_max_fee_reverts(
     // snapping to bounds).
     assert_eq!(tx_execution_info2.receipt.da_gas, tx_execution_info1.receipt.da_gas);
     assert_eq!(tx_execution_info2.receipt.fee, tx_execution_info1.receipt.fee);
-    assert!(
-        tx_execution_info2
-            .revert_error
-            .unwrap()
-            .to_string()
-            .contains(&format!("Insufficient max {overdraft_resource}"))
-    );
+    assert!(tx_execution_info2
+        .revert_error
+        .unwrap()
+        .to_string()
+        .contains(&format!("Insufficient max {overdraft_resource}")));
 
     // Invoke the `recurse` function with depth of 824 and the actual fee of depth 1 as max_fee.
     // This call should fail due to no remaining steps (execution steps based on max_fee are bounded
@@ -1383,7 +1336,7 @@ fn test_count_actual_storage_changes(
     let concurrency_mode = false;
     let execution_info =
         account_tx.execute_raw(&mut state, &block_context, concurrency_mode).unwrap();
-        account_tx.execute_raw(&mut state, &block_context, concurrency_mode).unwrap();
+    account_tx.execute_raw(&mut state, &block_context, concurrency_mode).unwrap();
 
     let fee_1 = execution_info.receipt.fee;
     let state_changes_1 = state.get_actual_state_changes().unwrap();
@@ -1473,7 +1426,7 @@ fn test_count_actual_storage_changes(
     });
     let execution_info =
         account_tx.execute_raw(&mut state, &block_context, concurrency_mode).unwrap();
-        account_tx.execute_raw(&mut state, &block_context, concurrency_mode).unwrap();
+    account_tx.execute_raw(&mut state, &block_context, concurrency_mode).unwrap();
 
     let fee_transfer = execution_info.receipt.fee;
     let state_changes_transfer = state.get_actual_state_changes().unwrap();
@@ -1557,7 +1510,7 @@ fn test_concurrency_execute_fee_transfer(
     let concurrency_mode = true;
     let result =
         account_tx.execute_raw(&mut transactional_state, &block_context, concurrency_mode).unwrap();
-        account_tx.execute_raw(&mut transactional_state, &block_context, concurrency_mode).unwrap();
+    account_tx.execute_raw(&mut transactional_state, &block_context, concurrency_mode).unwrap();
     assert!(!result.is_reverted());
     let transactional_cache = transactional_state.cache.borrow();
     for storage in [
@@ -1597,7 +1550,7 @@ fn test_concurrency_execute_fee_transfer(
 
     let execution_result =
         account_tx.execute_raw(&mut transactional_state, &block_context, concurrency_mode);
-        account_tx.execute_raw(&mut transactional_state, &block_context, concurrency_mode);
+    account_tx.execute_raw(&mut transactional_state, &block_context, concurrency_mode);
     let result = execution_result.unwrap();
     assert!(!result.is_reverted());
     // Check that the sequencer balance was not updated.
@@ -1655,7 +1608,7 @@ fn test_concurrent_fee_transfer_when_sender_is_sequencer(
     let concurrency_mode = true;
     let result =
         account_tx.execute_raw(&mut transactional_state, &block_context, concurrency_mode).unwrap();
-        account_tx.execute_raw(&mut transactional_state, &block_context, concurrency_mode).unwrap();
+    account_tx.execute_raw(&mut transactional_state, &block_context, concurrency_mode).unwrap();
     assert!(!result.is_reverted());
     // Check that the sequencer balance was updated (in this case, was not changed).
     for (seq_key, seq_value) in
@@ -1797,13 +1750,11 @@ fn test_revert_in_execute(
     let tx_execution_info = account_tx.execute(state, &block_context).unwrap();
 
     assert!(tx_execution_info.is_reverted());
-    assert!(
-        tx_execution_info
-            .revert_error
-            .unwrap()
-            .to_string()
-            .contains("Failed to deserialize param #1")
-    );
+    assert!(tx_execution_info
+        .revert_error
+        .unwrap()
+        .to_string()
+        .contains("Failed to deserialize param #1"));
 }
 
 #[rstest]

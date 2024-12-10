@@ -12,36 +12,20 @@ use papyrus_storage::{StorageReader, StorageWriter};
 use serde::de::DeserializeOwned;
 use starknet_api::abi::abi_utils::get_storage_var_address;
 use starknet_api::block::{
-    BlockBody,
-    BlockHash,
-    BlockHeader,
-    BlockHeaderWithoutHash,
-    BlockNumber,
-    BlockTimestamp,
-    GasPrice,
-    GasPricePerToken,
+    BlockBody, BlockHash, BlockHeader, BlockHeaderWithoutHash, BlockNumber, BlockTimestamp,
+    GasPrice, GasPricePerToken,
 };
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{
-    ChainId,
-    ClassHash,
-    CompiledClassHash,
-    ContractAddress,
-    Nonce,
-    SequencerContractAddress,
+    ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce, SequencerContractAddress,
 };
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{SierraContractClass, StateNumber, ThinStateDiff};
 use starknet_api::test_utils::read_json_file;
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::{
-    DeclareTransactionV0V1,
-    DeclareTransactionV2,
-    DeployAccountTransaction,
-    DeployAccountTransactionV1,
-    InvokeTransaction,
-    InvokeTransactionV1,
-    TransactionHash,
+    DeclareTransactionV0V1, DeclareTransactionV2, DeployAccountTransaction,
+    DeployAccountTransactionV1, InvokeTransaction, InvokeTransactionV1, TransactionHash,
 };
 use starknet_api::{calldata, class_hash, contract_address, felt, nonce};
 use starknet_types_core::felt::Felt;

@@ -18,7 +18,11 @@ fn get_valid_preinstalled_protoc_version() -> Option<(u32, u32)> {
     };
     let (major, minor) = parse_protoc_version(protoc_version_str)?;
     // Protoc versions before 3.15 are not supported.
-    if (major < 3) || (major == 3 && minor < 15) { None } else { Some((major, minor)) }
+    if (major < 3) || (major == 3 && minor < 15) {
+        None
+    } else {
+        Some((major, minor))
+    }
 }
 
 /// Return Result<(major, minor)> numbers. If the minor doesn't exist, return 0 as minor. If

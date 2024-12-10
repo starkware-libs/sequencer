@@ -8,9 +8,7 @@ use std::collections::{BTreeMap, HashMap};
 use futures::channel::mpsc;
 use futures::StreamExt;
 use papyrus_network::network_manager::{
-    BroadcastTopicClient,
-    BroadcastTopicClientTrait,
-    BroadcastTopicServer,
+    BroadcastTopicClient, BroadcastTopicClientTrait, BroadcastTopicServer,
 };
 use papyrus_network::utils::StreamHashMap;
 use papyrus_network_types::network_types::{BroadcastedMessageMetadata, OpaquePeerId};

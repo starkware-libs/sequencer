@@ -13,12 +13,7 @@ use tower::ServiceExt;
 
 use super::MonitoringEndpointConfig;
 use crate::monitoring_endpoint::{
-    create_monitoring_endpoint,
-    MonitoringEndpoint,
-    ALIVE,
-    METRICS,
-    READY,
-    VERSION,
+    create_monitoring_endpoint, MonitoringEndpoint, ALIVE, METRICS, READY, VERSION,
 };
 use crate::test_utils::build_request;
 

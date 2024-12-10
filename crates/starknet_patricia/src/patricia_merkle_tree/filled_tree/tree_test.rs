@@ -6,26 +6,18 @@ use crate::patricia_merkle_tree::filled_tree::errors::FilledTreeError;
 use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
 use crate::patricia_merkle_tree::filled_tree::tree::{FilledTree, FilledTreeImpl};
 use crate::patricia_merkle_tree::internal_test_utils::{
-    MockLeaf,
-    OriginalSkeletonMockTrieConfig,
-    TestTreeHashFunction,
+    MockLeaf, OriginalSkeletonMockTrieConfig, TestTreeHashFunction,
 };
 use crate::patricia_merkle_tree::node_data::errors::LeafError;
 use crate::patricia_merkle_tree::node_data::inner_node::{
-    BinaryData,
-    EdgeData,
-    EdgePathLength,
-    NodeData,
-    PathToBottom,
+    BinaryData, EdgeData, EdgePathLength, NodeData, PathToBottom,
 };
 use crate::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::{
-    UpdatedSkeletonNodeMap,
-    UpdatedSkeletonTree,
-    UpdatedSkeletonTreeImpl,
+    UpdatedSkeletonNodeMap, UpdatedSkeletonTree, UpdatedSkeletonTreeImpl,
 };
 use crate::storage::map_storage::MapStorage;
 
@@ -296,8 +288,8 @@ async fn test_delete_leaf_from_empty_tree() {
     assert!(root_hash == HashOutput::ROOT_OF_EMPTY_TREE);
 }
 
-fn get_small_tree_updated_skeleton_and_leaf_modifications()
--> (UpdatedSkeletonTreeImpl, LeafModifications<MockLeaf>) {
+fn get_small_tree_updated_skeleton_and_leaf_modifications(
+) -> (UpdatedSkeletonTreeImpl, LeafModifications<MockLeaf>) {
     // Set up the updated skeleton tree.
     let new_leaves = [(35, "0x1"), (36, "0x2"), (63, "0x3")];
     let nodes_in_skeleton_tree: Vec<(NodeIndex, UpdatedSkeletonNode)> = [
@@ -323,8 +315,8 @@ fn get_small_tree_updated_skeleton_and_leaf_modifications()
     (updated_skeleton_tree, modifications)
 }
 
-fn get_small_tree_expected_filled_tree_map_and_root_hash()
--> (HashMap<NodeIndex, FilledNode<MockLeaf>>, HashOutput) {
+fn get_small_tree_expected_filled_tree_map_and_root_hash(
+) -> (HashMap<NodeIndex, FilledNode<MockLeaf>>, HashOutput) {
     let expected_root_hash = HashOutput(Felt::from_hex("0x21").unwrap());
     let expected_filled_tree_map = HashMap::from([
         create_mock_binary_entry_for_testing(1, "0x21", "0xb", "0x16"),

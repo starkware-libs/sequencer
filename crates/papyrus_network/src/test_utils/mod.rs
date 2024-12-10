@@ -28,7 +28,11 @@ pub(crate) async fn get_connected_streams() -> (Stream, Stream, JoinHandle<()>) 
 
     let merged_swarm = swarm1.merge(swarm2);
     let mut filtered_swarm = merged_swarm.filter_map(|event| {
-        if let SwarmEvent::Behaviour(stream) = event { Some(stream) } else { None }
+        if let SwarmEvent::Behaviour(stream) = event {
+            Some(stream)
+        } else {
+            None
+        }
     });
     (
         filtered_swarm.next().await.unwrap(),

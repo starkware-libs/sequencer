@@ -43,10 +43,8 @@ fn block_signature_verification() {
         "0x48253ff2c3bed7af18bde0b611b083b39445959102d4947c51c4db6aa4f4e58"
     )));
 
-    assert!(
-        verify_block_signature(&sequencer_pub_key, &signature, &state_commitment, &block_hash)
-            .unwrap()
-    );
+    assert!(verify_block_signature(&sequencer_pub_key, &signature, &state_commitment, &block_hash)
+        .unwrap());
 }
 
 #[test]

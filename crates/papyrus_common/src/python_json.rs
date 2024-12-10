@@ -11,7 +11,11 @@ impl Formatter for PythonJsonFormatter {
         W: ?Sized + Write,
     {
         CompactFormatter.begin_array_value(writer, first)?;
-        if first { Ok(()) } else { writer.write_all(b" ") }
+        if first {
+            Ok(())
+        } else {
+            writer.write_all(b" ")
+        }
     }
 
     fn begin_object_key<W>(&mut self, writer: &mut W, first: bool) -> IOResult<()>
@@ -19,7 +23,11 @@ impl Formatter for PythonJsonFormatter {
         W: ?Sized + Write,
     {
         CompactFormatter.begin_object_key(writer, first)?;
-        if first { Ok(()) } else { writer.write_all(b" ") }
+        if first {
+            Ok(())
+        } else {
+            writer.write_all(b" ")
+        }
     }
 
     fn begin_object_value<W>(&mut self, writer: &mut W) -> IOResult<()>

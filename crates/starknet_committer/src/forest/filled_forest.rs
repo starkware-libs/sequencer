@@ -14,12 +14,7 @@ use crate::forest::updated_skeleton_forest::UpdatedSkeletonForest;
 use crate::hash_function::hash::ForestHashFunction;
 use crate::patricia_merkle_tree::leaf::leaf_impl::{ContractState, ContractStateInput};
 use crate::patricia_merkle_tree::types::{
-    ClassHash,
-    ClassesTrie,
-    CompiledClassHash,
-    ContractsTrie,
-    Nonce,
-    StorageTrieMap,
+    ClassHash, ClassesTrie, CompiledClassHash, ContractsTrie, Nonce, StorageTrieMap,
 };
 
 pub struct FilledForest {

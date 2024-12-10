@@ -4,16 +4,12 @@ use std::fmt::Debug;
 use ethnum::U256;
 use serde_json::json;
 use starknet_api::block_hash::block_hash_calculator::{
-    TransactionHashingData,
-    TransactionOutputForHash,
+    TransactionHashingData, TransactionOutputForHash,
 };
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionExecutionStatus;
 use starknet_committer::block_committer::input::{
-    ContractAddress,
-    StarknetStorageKey,
-    StarknetStorageValue,
-    StateDiff,
+    ContractAddress, StarknetStorageKey, StarknetStorageValue, StateDiff,
 };
 use starknet_committer::forest::filled_forest::FilledForest;
 use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
@@ -25,11 +21,7 @@ use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::external_test_utils::single_tree_flow_test;
 use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
 use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
-    BinaryData,
-    EdgeData,
-    EdgePathLength,
-    NodeData,
-    PathToBottom,
+    BinaryData, EdgeData, EdgePathLength, NodeData, PathToBottom,
 };
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_patricia::storage::db_object::DBObject;

@@ -1,8 +1,5 @@
 use crate::fee_market::{
-    calculate_next_base_gas_price,
-    GAS_PRICE_MAX_CHANGE_DENOMINATOR,
-    MAX_BLOCK_SIZE,
-    MIN_GAS_PRICE,
+    calculate_next_base_gas_price, GAS_PRICE_MAX_CHANGE_DENOMINATOR, MAX_BLOCK_SIZE, MIN_GAS_PRICE,
 };
 
 #[test]
@@ -58,5 +55,6 @@ fn test_gas_price_with_extreme_values() {
         max_u128 * GAS_PRICE_MAX_CHANGE_DENOMINATOR / (GAS_PRICE_MAX_CHANGE_DENOMINATOR + 1);
     let gas_target = MAX_BLOCK_SIZE / 2;
     let gas_used = MAX_BLOCK_SIZE;
-    calculate_next_base_gas_price(u64::try_from(price_u128).unwrap(), gas_used, gas_target); // Should not panic.
+    calculate_next_base_gas_price(u64::try_from(price_u128).unwrap(), gas_used, gas_target);
+    // Should not panic.
 }

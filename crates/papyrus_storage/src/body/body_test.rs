@@ -246,46 +246,44 @@ async fn get_reverted_body_returns_none() {
     append_2_bodies(&mut writer);
 
     // Verify that we can get block 1's transactions before the revert.
-    assert!(
-        reader.begin_ro_txn().unwrap().get_block_transactions(BlockNumber(1)).unwrap().is_some()
-    );
-    assert!(
-        reader
-            .begin_ro_txn()
-            .unwrap()
-            .get_block_transaction_hashes(BlockNumber(1))
-            .unwrap()
-            .is_some()
-    );
-    assert!(
-        reader
-            .begin_ro_txn()
-            .unwrap()
-            .get_block_transaction_outputs(BlockNumber(1))
-            .unwrap()
-            .is_some()
-    );
+    assert!(reader
+        .begin_ro_txn()
+        .unwrap()
+        .get_block_transactions(BlockNumber(1))
+        .unwrap()
+        .is_some());
+    assert!(reader
+        .begin_ro_txn()
+        .unwrap()
+        .get_block_transaction_hashes(BlockNumber(1))
+        .unwrap()
+        .is_some());
+    assert!(reader
+        .begin_ro_txn()
+        .unwrap()
+        .get_block_transaction_outputs(BlockNumber(1))
+        .unwrap()
+        .is_some());
 
     writer.begin_rw_txn().unwrap().revert_body(BlockNumber(1)).unwrap().0.commit().unwrap();
-    assert!(
-        reader.begin_ro_txn().unwrap().get_block_transactions(BlockNumber(1)).unwrap().is_none()
-    );
-    assert!(
-        reader
-            .begin_ro_txn()
-            .unwrap()
-            .get_block_transaction_hashes(BlockNumber(1))
-            .unwrap()
-            .is_none()
-    );
-    assert!(
-        reader
-            .begin_ro_txn()
-            .unwrap()
-            .get_block_transaction_outputs(BlockNumber(1))
-            .unwrap()
-            .is_none()
-    );
+    assert!(reader
+        .begin_ro_txn()
+        .unwrap()
+        .get_block_transactions(BlockNumber(1))
+        .unwrap()
+        .is_none());
+    assert!(reader
+        .begin_ro_txn()
+        .unwrap()
+        .get_block_transaction_hashes(BlockNumber(1))
+        .unwrap()
+        .is_none());
+    assert!(reader
+        .begin_ro_txn()
+        .unwrap()
+        .get_block_transaction_outputs(BlockNumber(1))
+        .unwrap()
+        .is_none());
 }
 
 #[tokio::test]
@@ -315,25 +313,24 @@ async fn revert_transactions() {
             tx_hash
         );
     }
-    assert!(
-        reader.begin_ro_txn().unwrap().get_block_transactions(BlockNumber(0)).unwrap().is_some()
-    );
-    assert!(
-        reader
-            .begin_ro_txn()
-            .unwrap()
-            .get_block_transaction_hashes(BlockNumber(0))
-            .unwrap()
-            .is_some()
-    );
-    assert!(
-        reader
-            .begin_ro_txn()
-            .unwrap()
-            .get_block_transaction_outputs(BlockNumber(0))
-            .unwrap()
-            .is_some()
-    );
+    assert!(reader
+        .begin_ro_txn()
+        .unwrap()
+        .get_block_transactions(BlockNumber(0))
+        .unwrap()
+        .is_some());
+    assert!(reader
+        .begin_ro_txn()
+        .unwrap()
+        .get_block_transaction_hashes(BlockNumber(0))
+        .unwrap()
+        .is_some());
+    assert!(reader
+        .begin_ro_txn()
+        .unwrap()
+        .get_block_transaction_outputs(BlockNumber(0))
+        .unwrap()
+        .is_some());
 
     writer.begin_rw_txn().unwrap().revert_body(BlockNumber(0)).unwrap().0.commit().unwrap();
 
@@ -343,37 +340,37 @@ async fn revert_transactions() {
 
         assert!(reader.begin_ro_txn().unwrap().get_transaction(tx_index).unwrap().is_none());
         assert!(reader.begin_ro_txn().unwrap().get_transaction_output(tx_index).unwrap().is_none());
-        assert!(
-            reader.begin_ro_txn().unwrap().get_transaction_idx_by_hash(&tx_hash).unwrap().is_none()
-        );
-        assert!(
-            reader
-                .begin_ro_txn()
-                .unwrap()
-                .get_transaction_hash_by_idx(&tx_index)
-                .unwrap()
-                .is_none()
-        );
+        assert!(reader
+            .begin_ro_txn()
+            .unwrap()
+            .get_transaction_idx_by_hash(&tx_hash)
+            .unwrap()
+            .is_none());
+        assert!(reader
+            .begin_ro_txn()
+            .unwrap()
+            .get_transaction_hash_by_idx(&tx_index)
+            .unwrap()
+            .is_none());
     }
-    assert!(
-        reader.begin_ro_txn().unwrap().get_block_transactions(BlockNumber(0)).unwrap().is_none()
-    );
-    assert!(
-        reader
-            .begin_ro_txn()
-            .unwrap()
-            .get_block_transaction_hashes(BlockNumber(0))
-            .unwrap()
-            .is_none()
-    );
-    assert!(
-        reader
-            .begin_ro_txn()
-            .unwrap()
-            .get_block_transaction_outputs(BlockNumber(0))
-            .unwrap()
-            .is_none()
-    );
+    assert!(reader
+        .begin_ro_txn()
+        .unwrap()
+        .get_block_transactions(BlockNumber(0))
+        .unwrap()
+        .is_none());
+    assert!(reader
+        .begin_ro_txn()
+        .unwrap()
+        .get_block_transaction_hashes(BlockNumber(0))
+        .unwrap()
+        .is_none());
+    assert!(reader
+        .begin_ro_txn()
+        .unwrap()
+        .get_block_transaction_outputs(BlockNumber(0))
+        .unwrap()
+        .is_none());
 }
 
 fn append_2_bodies(writer: &mut StorageWriter) {

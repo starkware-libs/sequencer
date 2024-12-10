@@ -5,15 +5,12 @@ use std::path::PathBuf;
 
 use serde_json::{json, Value};
 use starknet_sequencer_infra::component_definitions::{
-    LocalServerConfig,
-    RemoteClientConfig,
-    RemoteServerConfig,
+    LocalServerConfig, RemoteClientConfig, RemoteServerConfig,
 };
 use starknet_sequencer_infra::test_utils::get_available_socket;
 use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::component_execution_config::{
-    ActiveComponentExecutionConfig,
-    ReactiveComponentExecutionConfig,
+    ActiveComponentExecutionConfig, ReactiveComponentExecutionConfig,
     ReactiveComponentExecutionMode,
 };
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;

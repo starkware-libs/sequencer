@@ -9,14 +9,8 @@ use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::executable_transaction::AccountTransaction as Transaction;
 use starknet_api::transaction::fields::Resource::{L1DataGas, L1Gas, L2Gas};
 use starknet_api::transaction::fields::{
-    AccountDeploymentData,
-    AllResourceBounds,
-    Calldata,
-    Fee,
-    PaymasterData,
-    Tip,
-    TransactionSignature,
-    ValidResourceBounds,
+    AccountDeploymentData, AllResourceBounds, Calldata, Fee, PaymasterData, Tip,
+    TransactionSignature, ValidResourceBounds,
 };
 use starknet_api::transaction::{constants, TransactionHash, TransactionVersion};
 use starknet_types_core::felt::Felt;
@@ -26,15 +20,11 @@ use crate::execution::call_info::CallInfo;
 use crate::execution::contract_class::RunnableCompiledClass;
 use crate::execution::entry_point::{CallEntryPoint, CallType, EntryPointExecutionContext};
 use crate::execution::stack_trace::{
-    extract_trailing_cairo1_revert_trace,
-    gen_tx_execution_error_trace,
-    Cairo1RevertHeader,
+    extract_trailing_cairo1_revert_trace, gen_tx_execution_error_trace, Cairo1RevertHeader,
 };
 use crate::fee::fee_checks::{FeeCheckReportFields, PostExecutionReport};
 use crate::fee::fee_utils::{
-    get_fee_by_gas_vector,
-    get_sequencer_balance_keys,
-    verify_can_pay_committed_bounds,
+    get_fee_by_gas_vector, get_sequencer_balance_keys, verify_can_pay_committed_bounds,
 };
 use crate::fee::gas_usage::estimate_minimal_gas_vector;
 use crate::fee::receipt::TransactionReceipt;
@@ -42,27 +32,16 @@ use crate::retdata;
 use crate::state::cached_state::{StateCache, TransactionalState};
 use crate::state::state_api::{State, StateReader, UpdatableState};
 use crate::transaction::errors::{
-    TransactionExecutionError,
-    TransactionFeeError,
-    TransactionPreValidationError,
+    TransactionExecutionError, TransactionFeeError, TransactionPreValidationError,
 };
 use crate::transaction::objects::{
-    DeprecatedTransactionInfo,
-    HasRelatedFeeType,
-    RevertError,
-    TransactionExecutionInfo,
-    TransactionExecutionResult,
-    TransactionInfo,
-    TransactionInfoCreator,
-    TransactionInfoCreatorInner,
-    TransactionPreValidationResult,
+    DeprecatedTransactionInfo, HasRelatedFeeType, RevertError, TransactionExecutionInfo,
+    TransactionExecutionResult, TransactionInfo, TransactionInfoCreator,
+    TransactionInfoCreatorInner, TransactionPreValidationResult,
 };
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::{
-    enforce_fee,
-    Executable,
-    ExecutableTransaction,
-    ValidatableTransaction,
+    enforce_fee, Executable, ExecutableTransaction, ValidatableTransaction,
 };
 
 #[cfg(test)]
@@ -697,7 +676,11 @@ impl AccountTransaction {
     /// Returns 0 on non-declare transactions; for declare transactions, returns the class code
     /// size.
     pub(crate) fn declare_code_size(&self) -> usize {
-        if let Transaction::Declare(tx) = &self.tx { tx.class_info.code_size() } else { 0 }
+        if let Transaction::Declare(tx) = &self.tx {
+            tx.class_info.code_size()
+        } else {
+            0
+        }
     }
 
     fn is_non_revertible(&self, tx_info: &TransactionInfo) -> bool {

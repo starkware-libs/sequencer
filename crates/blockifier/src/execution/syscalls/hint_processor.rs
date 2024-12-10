@@ -15,10 +15,7 @@ use cairo_vm::vm::runners::cairo_runner::{ResourceTracker, RunResources};
 use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::transaction::fields::{
-    AllResourceBounds,
-    Calldata,
-    Resource,
-    ValidResourceBounds,
+    AllResourceBounds, Calldata, Resource, ValidResourceBounds,
 };
 use starknet_api::StarknetApiError;
 use starknet_types_core::felt::{Felt, FromStrError};
@@ -29,46 +26,19 @@ use crate::execution::common_hints::{ExecutionMode, HintExecutionResult};
 use crate::execution::entry_point::{CallEntryPoint, EntryPointExecutionContext};
 use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
 use crate::execution::execution_utils::{
-    felt_from_ptr,
-    felt_range_from_ptr,
-    write_maybe_relocatable,
-    ReadOnlySegment,
-    ReadOnlySegments,
+    felt_from_ptr, felt_range_from_ptr, write_maybe_relocatable, ReadOnlySegment, ReadOnlySegments,
 };
 use crate::execution::syscalls::secp::{
-    secp256k1_add,
-    secp256k1_get_point_from_x,
-    secp256k1_get_xy,
-    secp256k1_mul,
-    secp256k1_new,
-    secp256r1_add,
-    secp256r1_get_point_from_x,
-    secp256r1_get_xy,
-    secp256r1_mul,
-    secp256r1_new,
+    secp256k1_add, secp256k1_get_point_from_x, secp256k1_get_xy, secp256k1_mul, secp256k1_new,
+    secp256r1_add, secp256r1_get_point_from_x, secp256r1_get_xy, secp256r1_mul, secp256r1_new,
     SecpHintProcessor,
 };
 use crate::execution::syscalls::syscall_base::SyscallHandlerBase;
 use crate::execution::syscalls::{
-    call_contract,
-    deploy,
-    emit_event,
-    get_block_hash,
-    get_class_hash_at,
-    get_execution_info,
-    keccak,
-    library_call,
-    replace_class,
-    send_message_to_l1,
-    sha_256_process_block,
-    storage_read,
-    storage_write,
-    SyscallRequest,
-    SyscallRequestWrapper,
-    SyscallResponse,
-    SyscallResponseWrapper,
-    SyscallResult,
-    SyscallSelector,
+    call_contract, deploy, emit_event, get_block_hash, get_class_hash_at, get_execution_info,
+    keccak, library_call, replace_class, send_message_to_l1, sha_256_process_block, storage_read,
+    storage_write, SyscallRequest, SyscallRequestWrapper, SyscallResponse, SyscallResponseWrapper,
+    SyscallResult, SyscallSelector,
 };
 use crate::state::errors::StateError;
 use crate::state::state_api::State;

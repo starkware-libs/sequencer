@@ -3,52 +3,27 @@ use std::collections::HashMap;
 use papyrus_test_utils::{auto_impl_get_test_instance, get_number_of_variants, GetTestInstance};
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{
-    ClassHash,
-    CompiledClassHash,
-    ContractAddress,
-    EntryPointSelector,
-    EthAddress,
-    Nonce,
+    ClassHash, CompiledClassHash, ContractAddress, EntryPointSelector, EthAddress, Nonce,
 };
 use starknet_api::execution_resources::GasVector;
 use starknet_api::hash::StarkHash;
 use starknet_api::state::EntryPoint;
 use starknet_api::transaction::fields::{
-    AccountDeploymentData,
-    Calldata,
-    ContractAddressSalt,
-    Fee,
-    PaymasterData,
-    Tip,
-    TransactionSignature,
-    ValidResourceBounds,
+    AccountDeploymentData, Calldata, ContractAddressSalt, Fee, PaymasterData, Tip,
+    TransactionSignature, ValidResourceBounds,
 };
 use starknet_api::transaction::{
-    Event,
-    L1ToL2Payload,
-    L2ToL1Payload,
-    TransactionHash,
-    TransactionOffsetInBlock,
+    Event, L1ToL2Payload, L2ToL1Payload, TransactionHash, TransactionOffsetInBlock,
     TransactionVersion,
 };
 use starknet_types_core::felt::Felt;
 
 use crate::reader::objects::state::ContractClass;
 use crate::reader::objects::transaction::{
-    Builtin,
-    DeployTransaction,
-    ExecutionResources,
-    IntermediateDeclareTransaction,
-    IntermediateDeployAccountTransaction,
-    IntermediateInvokeTransaction,
-    L1HandlerTransaction,
-    L1ToL2Message,
-    L1ToL2Nonce,
-    L2ToL1Message,
-    ReservedDataAvailabilityMode,
-    Transaction,
-    TransactionExecutionStatus,
-    TransactionReceipt,
+    Builtin, DeployTransaction, ExecutionResources, IntermediateDeclareTransaction,
+    IntermediateDeployAccountTransaction, IntermediateInvokeTransaction, L1HandlerTransaction,
+    L1ToL2Message, L1ToL2Nonce, L2ToL1Message, ReservedDataAvailabilityMode, Transaction,
+    TransactionExecutionStatus, TransactionReceipt,
 };
 
 auto_impl_get_test_instance! {

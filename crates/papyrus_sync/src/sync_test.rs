@@ -19,10 +19,7 @@ use starknet_api::hash::StarkHash;
 use starknet_api::state::{SierraContractClass, StateDiff};
 use starknet_api::{contract_address, felt, storage_key};
 use starknet_client::reader::objects::pending_data::{
-    AcceptedOnL2ExtraData,
-    DeprecatedPendingBlock,
-    PendingBlockOrDeprecated,
-    PendingStateUpdate,
+    AcceptedOnL2ExtraData, DeprecatedPendingBlock, PendingBlockOrDeprecated, PendingStateUpdate,
 };
 use starknet_client::reader::objects::state::StateDiff as ClientStateDiff;
 use starknet_client::reader::objects::transaction::Transaction as ClientTransaction;
@@ -33,14 +30,8 @@ use crate::sources::base_layer::MockBaseLayerSourceTrait;
 use crate::sources::central::MockCentralSourceTrait;
 use crate::sources::pending::MockPendingSourceTrait;
 use crate::{
-    sort_state_diff,
-    stream_new_base_layer_block,
-    sync_pending_data,
-    GenericStateSync,
-    StateSyncError,
-    SyncConfig,
-    SyncEvent,
-    GENESIS_HASH,
+    sort_state_diff, stream_new_base_layer_block, sync_pending_data, GenericStateSync,
+    StateSyncError, SyncConfig, SyncEvent, GENESIS_HASH,
 };
 
 // TODO(anatg): Add a test to check that the sync calls the sort_state_diff function
@@ -556,8 +547,8 @@ async fn pending_sync_doesnt_stop_when_data_has_block_hash_field_with_the_same_h
 }
 
 #[tokio::test]
-async fn pending_sync_updates_when_data_has_block_hash_field_with_the_same_hash_and_more_transactions()
- {
+async fn pending_sync_updates_when_data_has_block_hash_field_with_the_same_hash_and_more_transactions(
+) {
     const FIRST_BLOCK_HASH: BlockHash = BlockHash(StarkHash::ONE);
     let genesis_hash = BlockHash(felt!(GENESIS_HASH));
     // Storage with one block header.

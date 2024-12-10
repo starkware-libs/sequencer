@@ -9,8 +9,7 @@ use starknet_api::core::ClassHash;
 use starknet_api::execution_resources::GasAmount;
 
 use crate::blockifier::transaction_executor::{
-    TransactionExecutorError,
-    TransactionExecutorResult,
+    TransactionExecutorError, TransactionExecutorResult,
 };
 use crate::execution::call_info::ExecutionSummary;
 use crate::fee::gas_usage::get_onchain_data_segment_length;

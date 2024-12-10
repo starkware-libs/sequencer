@@ -21,15 +21,10 @@ use std::time::Duration;
 use discovery::DiscoveryConfig;
 use libp2p::Multiaddr;
 use papyrus_config::converters::{
-    deserialize_optional_vec_u8,
-    deserialize_seconds_to_duration,
-    serialize_optional_vec_u8,
+    deserialize_optional_vec_u8, deserialize_seconds_to_duration, serialize_optional_vec_u8,
 };
 use papyrus_config::dumping::{
-    append_sub_config_name,
-    ser_optional_param,
-    ser_param,
-    SerializeConfig,
+    append_sub_config_name, ser_optional_param, ser_param, SerializeConfig,
 };
 use papyrus_config::validators::validate_vec_u256;
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};

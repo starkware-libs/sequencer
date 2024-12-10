@@ -20,9 +20,7 @@ use starknet_types_core::felt::Felt;
 use crate::assert_eq_state_diff;
 use crate::state_reader::errors::{ReexecutionError, ReexecutionResult};
 use crate::state_reader::offline_state_reader::{
-    OfflineConsecutiveStateReaders,
-    SerializableDataPrevBlock,
-    SerializableOfflineReexecutionData,
+    OfflineConsecutiveStateReaders, SerializableDataPrevBlock, SerializableOfflineReexecutionData,
 };
 use crate::state_reader::reexecution_state_reader::ConsecutiveReexecutionStateReaders;
 use crate::state_reader::test_state_reader::ConsecutiveTestStateReaders;

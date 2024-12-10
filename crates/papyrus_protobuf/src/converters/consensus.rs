@@ -10,16 +10,8 @@ use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_types_core::felt::Felt;
 
 use crate::consensus::{
-    ConsensusMessage,
-    Proposal,
-    ProposalFin,
-    ProposalInit,
-    ProposalPart,
-    StreamMessage,
-    StreamMessageBody,
-    TransactionBatch,
-    Vote,
-    VoteType,
+    ConsensusMessage, Proposal, ProposalFin, ProposalInit, ProposalPart, StreamMessage,
+    StreamMessageBody, TransactionBatch, Vote, VoteType,
 };
 use crate::converters::ProtobufConversionError;
 use crate::{auto_impl_into_and_try_from_vec_u8, protobuf};

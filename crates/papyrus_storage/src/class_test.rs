@@ -105,12 +105,10 @@ fn append_deprecated_class_not_in_state_diff() {
     let statetxn = txn.get_state_reader().unwrap();
 
     let state0 = StateNumber::right_after_block(BlockNumber(0)).unwrap();
-    assert!(
-        statetxn
-            .get_deprecated_class_definition_at(state0, &deprecated_class_hash)
-            .unwrap()
-            .is_none()
-    );
+    assert!(statetxn
+        .get_deprecated_class_definition_at(state0, &deprecated_class_hash)
+        .unwrap()
+        .is_none());
 
     let state1 = StateNumber::right_after_block(BlockNumber(1)).unwrap();
     assert_eq!(

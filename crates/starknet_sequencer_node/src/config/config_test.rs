@@ -13,21 +13,15 @@ use rstest::rstest;
 use starknet_batcher::block_builder::BlockBuilderConfig;
 use starknet_batcher::config::BatcherConfig;
 use starknet_sequencer_infra::component_definitions::{
-    LocalServerConfig,
-    RemoteClientConfig,
-    RemoteServerConfig,
+    LocalServerConfig, RemoteClientConfig, RemoteServerConfig,
 };
 use validator::Validate;
 
 use crate::config::component_execution_config::{
-    ReactiveComponentExecutionConfig,
-    ReactiveComponentExecutionMode,
+    ReactiveComponentExecutionConfig, ReactiveComponentExecutionMode,
 };
 use crate::config::node_config::{
-    SequencerNodeConfig,
-    CONFIG_NON_POINTERS_WHITELIST,
-    CONFIG_POINTERS,
-    DEFAULT_CONFIG_PATH,
+    SequencerNodeConfig, CONFIG_NON_POINTERS_WHITELIST, CONFIG_POINTERS, DEFAULT_CONFIG_PATH,
 };
 use crate::config::test_utils::{create_test_config_load_args, RequiredParams};
 
@@ -159,9 +153,7 @@ fn test_validate_batcher_config_failure() {
     };
 
     let error = config.validate().unwrap_err();
-    assert!(
-        error
-            .to_string()
-            .contains("input_stream_content_buffer_size must be at least tx_chunk_size")
-    );
+    assert!(error
+        .to_string()
+        .contains("input_stream_content_buffer_size must be at least tx_chunk_size"));
 }

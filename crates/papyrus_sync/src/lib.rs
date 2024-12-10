@@ -227,10 +227,10 @@ pub enum SyncEvent {
 }
 
 impl<
-    TCentralSource: CentralSourceTrait + Sync + Send + 'static,
-    TPendingSource: PendingSourceTrait + Sync + Send + 'static,
-    TBaseLayerSource: BaseLayerSourceTrait + Sync + Send,
-> GenericStateSync<TCentralSource, TPendingSource, TBaseLayerSource>
+        TCentralSource: CentralSourceTrait + Sync + Send + 'static,
+        TPendingSource: PendingSourceTrait + Sync + Send + 'static,
+        TBaseLayerSource: BaseLayerSourceTrait + Sync + Send,
+    > GenericStateSync<TCentralSource, TPendingSource, TBaseLayerSource>
 {
     pub async fn run(mut self) -> StateSyncResult {
         info!("State sync started.");
