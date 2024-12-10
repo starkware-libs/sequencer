@@ -51,7 +51,7 @@ fn block_execution_artifacts(
         execution_infos,
         commitment_state_diff: Default::default(),
         visited_segments_mapping: Default::default(),
-        bouncer_weights: BouncerWeights { gas: 100, ..BouncerWeights::empty() },
+        bouncer_weights: BouncerWeights { l1_gas: 100, ..BouncerWeights::empty() },
     }
 }
 
