@@ -30,7 +30,7 @@ pub struct ProposalCommitment {
     pub state_diff_commitment: StateDiffCommitment,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ProposeBlockInput {
     pub proposal_id: ProposalId,
     pub deadline: chrono::DateTime<Utc>,
@@ -55,7 +55,7 @@ pub enum GetProposalContent {
     Finished(ProposalCommitment),
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 // TODO(Dan): Consider unifying with BuildProposalInput as they have the same fields.
 pub struct ValidateBlockInput {
     pub proposal_id: ProposalId,
