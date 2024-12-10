@@ -1,11 +1,12 @@
 use std::cmp::min;
+use std::collections::HashMap;
 use std::time::Duration;
 
 use async_stream::stream;
 use futures::channel::mpsc::Receiver;
 use futures::future::BoxFuture;
 use futures::stream::BoxStream;
-use futures::StreamExt;
+use futures::{FutureExt, StreamExt};
 use papyrus_network::network_manager::{ClientResponsesManager, SqmrClientSender};
 use papyrus_protobuf::converters::ProtobufConversionError;
 use papyrus_protobuf::sync::{BlockHashOrNumber, DataOrFin, Direction, Query};
@@ -53,10 +54,26 @@ where
 
     fn get_start_block_number(storage_reader: &StorageReader) -> Result<BlockNumber, StorageError>;
 
+    fn load_internal_blocks(
+        internal_blocks_received: &mut HashMap<BlockNumber, Self::Output>,
+        internal_block_receiver: &mut Option<Receiver<(BlockNumber, Self::Output)>>,
+        current_block_number: &BlockNumber,
+    ) {
+        if let Some(internal_block_receiver) = internal_block_receiver {
+            while let Some((block_number, block_data)) =
+                internal_block_receiver.next().now_or_never().flatten()
+            {
+                if &block_number >= current_block_number {
+                    internal_blocks_received.insert(block_number, block_data);
+                }
+            }
+        }
+    }
+
     fn create_stream<TQuery>(
         mut sqmr_sender: SqmrClientSender<TQuery, DataOrFin<InputFromNetwork>>,
         storage_reader: StorageReader,
-        _internal_block_receiver: Option<Receiver<(BlockNumber, Self::Output)>>,
+        mut internal_block_receiver: Option<Receiver<(BlockNumber, Self::Output)>>,
         wait_period_for_new_data: Duration,
         num_blocks_per_query: u64,
         stop_sync_at_block_number: Option<BlockNumber>,
@@ -67,6 +84,7 @@ where
     {
         stream! {
             let mut current_block_number = Self::get_start_block_number(&storage_reader)?;
+            let mut internal_blocks_received = HashMap::new();
             'send_query_and_parse_responses: loop {
                 let limit = match Self::BLOCK_NUMBER_LIMIT {
                     BlockNumberLimit::Unlimited => num_blocks_per_query,
@@ -92,19 +110,29 @@ where
                     current_block_number.0,
                     end_block_number,
                 );
+                Self::load_internal_blocks(&mut internal_blocks_received, &mut internal_block_receiver, &current_block_number);
+                let mut query_start_block = current_block_number;
+                while internal_blocks_received.contains_key(&query_start_block) {
+                    query_start_block = query_start_block.unchecked_next();
+                }
                 // TODO(shahak): Use the report callback.
                 let mut client_response_manager = sqmr_sender
                     .send_new_query(
                         TQuery::from(Query {
-                            start_block: BlockHashOrNumber::Number(current_block_number),
+                            start_block: BlockHashOrNumber::Number(query_start_block),
                             direction: Direction::Forward,
                             limit,
                             step: STEP,
                         })
-                    )
-                    .await?;
-
+                    ).await?;
+                let end_block_number = min(end_block_number, stop_sync_at_block_number.map(|block_number| block_number.0).unwrap_or(end_block_number));
                 while current_block_number.0 < end_block_number {
+                    Self::load_internal_blocks(&mut internal_blocks_received, &mut internal_block_receiver, &current_block_number);
+                    if let Some(block_data) = internal_blocks_received.remove(&current_block_number) {
+                        yield Ok(Box::<dyn BlockData>::from(Box::new(block_data)));
+                        current_block_number = current_block_number.unchecked_next();
+                        continue;
+                    }
                     match Self::parse_data_for_block(
                         &mut client_response_manager, current_block_number, &storage_reader
                     ).await {
@@ -134,12 +162,12 @@ where
                     }
                     info!("Added {:?} for block {}.", Self::TYPE_DESCRIPTION, current_block_number);
                     current_block_number = current_block_number.unchecked_next();
-                    if stop_sync_at_block_number.is_some_and(|stop_sync_at_block_number| {
-                        current_block_number >= stop_sync_at_block_number
-                    }) {
-                        info!("{:?} hit the stop sync block number.", Self::TYPE_DESCRIPTION);
-                        return;
-                    }
+                }
+                if stop_sync_at_block_number.is_some_and(|stop_sync_at_block_number| {
+                    current_block_number >= stop_sync_at_block_number
+                }) {
+                    info!("{:?} hit the stop sync block number.", Self::TYPE_DESCRIPTION);
+                    return;
                 }
 
                 // Consume the None message signaling the end of the query.
