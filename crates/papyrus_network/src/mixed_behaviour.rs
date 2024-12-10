@@ -2,15 +2,15 @@
 
 use libp2p::identity::Keypair;
 use libp2p::kad::store::MemoryStore;
-use libp2p::swarm::NetworkBehaviour;
 use libp2p::swarm::behaviour::toggle::Toggle;
 use libp2p::swarm::dial_opts::DialOpts;
-use libp2p::{Multiaddr, PeerId, StreamProtocol, gossipsub, identify, kad};
+use libp2p::swarm::NetworkBehaviour;
+use libp2p::{gossipsub, identify, kad, Multiaddr, PeerId, StreamProtocol};
 use starknet_api::core::ChainId;
 
-use crate::discovery::DiscoveryConfig;
-use crate::discovery::identify_impl::{IDENTIFY_PROTOCOL_VERSION, IdentifyToOtherBehaviourEvent};
+use crate::discovery::identify_impl::{IdentifyToOtherBehaviourEvent, IDENTIFY_PROTOCOL_VERSION};
 use crate::discovery::kad_impl::KadToOtherBehaviourEvent;
+use crate::discovery::DiscoveryConfig;
 use crate::peer_manager::PeerManagerConfig;
 use crate::{discovery, gossipsub_impl, peer_manager, sqmr};
 

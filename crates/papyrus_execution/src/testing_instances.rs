@@ -1,7 +1,7 @@
 #![allow(clippy::unwrap_used)]
 //! Utilities for generating testing instances of the execution objects.
 
-use papyrus_test_utils::{GetTestInstance, auto_impl_get_test_instance, get_number_of_variants};
+use papyrus_test_utils::{auto_impl_get_test_instance, get_number_of_variants, GetTestInstance};
 /// Returns the storage key of a storage variable.
 pub use starknet_api::abi::abi_utils::get_storage_var_address;
 use starknet_api::block::GasPrice;
@@ -13,13 +13,24 @@ use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::transaction::{EventContent, MessageToL1};
 use starknet_types_core::felt::Felt;
 
-use crate::ExecutionConfig;
 use crate::objects::{
-    CallType, DeclareTransactionTrace, DeployAccountTransactionTrace, FeeEstimation, FunctionCall,
-    FunctionInvocation, FunctionInvocationResult, InvokeTransactionTrace,
-    L1HandlerTransactionTrace, OrderedEvent, OrderedL2ToL1Message, PriceUnit, Retdata,
-    RevertReason, TransactionTrace,
+    CallType,
+    DeclareTransactionTrace,
+    DeployAccountTransactionTrace,
+    FeeEstimation,
+    FunctionCall,
+    FunctionInvocation,
+    FunctionInvocationResult,
+    InvokeTransactionTrace,
+    L1HandlerTransactionTrace,
+    OrderedEvent,
+    OrderedL2ToL1Message,
+    PriceUnit,
+    Retdata,
+    RevertReason,
+    TransactionTrace,
 };
+use crate::ExecutionConfig;
 
 /// Creates ExecutionConfig for tests.
 pub fn get_test_execution_config() -> ExecutionConfig {

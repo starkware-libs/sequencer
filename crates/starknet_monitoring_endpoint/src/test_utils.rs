@@ -2,8 +2,8 @@ use std::net::{IpAddr, SocketAddr};
 
 use axum::body::Body;
 use axum::http::Request;
-use hyper::Client;
 use hyper::client::HttpConnector;
+use hyper::Client;
 use infra_utils::run_until::run_until;
 use infra_utils::tracing::{CustomLogger, TraceLevel};
 use tracing::info;

@@ -1,13 +1,15 @@
 use blockifier::execution::contract_class::{
-    CompiledClassV0, CompiledClassV1, RunnableCompiledClass,
+    CompiledClassV0,
+    CompiledClassV1,
+    RunnableCompiledClass,
 };
 use blockifier::state::errors::StateError;
 use blockifier::state::global_cache::GlobalContractCache;
 use blockifier::state::state_api::{StateReader, StateResult};
-use papyrus_storage::StorageReader;
 use papyrus_storage::compiled_class::CasmStorageReader;
 use papyrus_storage::db::RO;
 use papyrus_storage::state::StateStorageReader;
+use papyrus_storage::StorageReader;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::{StateNumber, StorageKey};

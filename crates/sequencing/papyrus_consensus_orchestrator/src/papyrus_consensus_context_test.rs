@@ -1,15 +1,22 @@
 use std::time::Duration;
 
-use futures::StreamExt;
 use futures::channel::{mpsc, oneshot};
+use futures::StreamExt;
 use papyrus_consensus::stream_handler::StreamHandler;
-use papyrus_consensus::types::{ConsensusContext, DEFAULT_VALIDATOR_ID, ValidatorId};
-use papyrus_network::network_manager::BroadcastTopicChannels;
+use papyrus_consensus::types::{ConsensusContext, ValidatorId, DEFAULT_VALIDATOR_ID};
 use papyrus_network::network_manager::test_utils::{
-    BroadcastNetworkMock, TestSubscriberChannels, mock_register_broadcast_topic,
+    mock_register_broadcast_topic,
+    BroadcastNetworkMock,
+    TestSubscriberChannels,
 };
+use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{
-    ConsensusMessage, ProposalFin, ProposalInit, ProposalPart, StreamMessage, TransactionBatch,
+    ConsensusMessage,
+    ProposalFin,
+    ProposalInit,
+    ProposalPart,
+    StreamMessage,
+    TransactionBatch,
     Vote,
 };
 use papyrus_storage::body::BodyStorageWriter;

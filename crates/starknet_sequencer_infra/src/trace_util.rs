@@ -1,7 +1,7 @@
 use tokio::sync::OnceCell;
 use tracing::metadata::LevelFilter;
 use tracing_subscriber::prelude::*;
-use tracing_subscriber::{EnvFilter, fmt};
+use tracing_subscriber::{fmt, EnvFilter};
 
 const DEFAULT_LEVEL: LevelFilter = LevelFilter::INFO;
 // Define a OnceCell to ensure the configuration is initialized only once

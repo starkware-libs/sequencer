@@ -1,15 +1,17 @@
 use std::time::Duration;
 
-use futures::SinkExt;
 use futures::channel::mpsc;
 use futures::stream::StreamExt;
-use papyrus_network::network_manager::BroadcastTopicChannels;
+use futures::SinkExt;
 use papyrus_network::network_manager::test_utils::{
-    MockBroadcastedMessagesSender, TestSubscriberChannels, mock_register_broadcast_topic,
+    mock_register_broadcast_topic,
+    MockBroadcastedMessagesSender,
+    TestSubscriberChannels,
 };
+use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_protobuf::consensus::{ConsensusMessage, Proposal, StreamMessage, StreamMessageBody};
-use papyrus_test_utils::{GetTestInstance, get_rng};
+use papyrus_test_utils::{get_rng, GetTestInstance};
 
 use super::{MessageId, StreamHandler, StreamId};
 
@@ -429,9 +431,10 @@ mod tests {
         assert_eq!(broadcasted_message.message_id, 0);
 
         // Check that internally, stream_handler holds this receiver.
-        assert_eq!(stream_handler.outbound_stream_receivers.keys().collect::<Vec<&u64>>(), vec![
-            &stream_id1
-        ]);
+        assert_eq!(
+            stream_handler.outbound_stream_receivers.keys().collect::<Vec<&u64>>(),
+            vec![&stream_id1]
+        );
         // Check that the number of messages sent on this stream is 1.
         assert_eq!(stream_handler.outbound_stream_number[&stream_id1], 1);
 
@@ -502,8 +505,9 @@ mod tests {
         let stream_handler = join_handle.await.expect("Task should succeed");
 
         // Check that the information about this stream is gone.
-        assert_eq!(stream_handler.outbound_stream_receivers.keys().collect::<Vec<&u64>>(), vec![
-            &stream_id2
-        ]);
+        assert_eq!(
+            stream_handler.outbound_stream_receivers.keys().collect::<Vec<&u64>>(),
+            vec![&stream_id2]
+        );
     }
 }

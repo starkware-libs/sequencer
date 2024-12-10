@@ -22,9 +22,9 @@ use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 use tokio::sync::RwLock;
 
-use crate::RpcConfig;
 use crate::api::JsonRpcServerTrait;
-use crate::version_config::{VERSION_PATTERN, VersionId};
+use crate::version_config::{VersionId, VERSION_PATTERN};
+use crate::RpcConfig;
 
 pub fn get_test_rpc_config() -> RpcConfig {
     RpcConfig {

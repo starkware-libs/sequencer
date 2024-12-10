@@ -5,10 +5,12 @@ use std::collections::btree_map::Entry as BTreeEntry;
 use std::collections::hash_map::Entry as HashMapEntry;
 use std::collections::{BTreeMap, HashMap};
 
-use futures::StreamExt;
 use futures::channel::mpsc;
+use futures::StreamExt;
 use papyrus_network::network_manager::{
-    BroadcastTopicClient, BroadcastTopicClientTrait, BroadcastTopicServer,
+    BroadcastTopicClient,
+    BroadcastTopicClientTrait,
+    BroadcastTopicServer,
 };
 use papyrus_network::utils::StreamHashMap;
 use papyrus_network_types::network_types::{BroadcastedMessageMetadata, OpaquePeerId};

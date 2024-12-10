@@ -3,7 +3,7 @@
 mod version_test;
 
 use crate::db::table_types::Table;
-use crate::db::{RW, TransactionKind};
+use crate::db::{TransactionKind, RW};
 use crate::{StorageError, StorageResult, StorageTxn};
 
 const VERSION_STATE_KEY: &str = "storage_version_state";

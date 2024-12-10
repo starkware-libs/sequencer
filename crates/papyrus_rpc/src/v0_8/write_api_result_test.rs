@@ -1,14 +1,17 @@
-use papyrus_test_utils::{GetTestInstance, auto_impl_get_test_instance, get_rng};
+use papyrus_test_utils::{auto_impl_get_test_instance, get_rng, GetTestInstance};
 use serde::Serialize;
 use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey};
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{class_hash, felt, tx_hash};
 use starknet_client::writer::objects::response::{
-    DeclareResponse, DeployAccountResponse, InvokeResponse, SuccessfulStarknetErrorCode,
+    DeclareResponse,
+    DeployAccountResponse,
+    InvokeResponse,
+    SuccessfulStarknetErrorCode,
 };
 
 use super::{AddDeclareOkResult, AddDeployAccountOkResult, AddInvokeOkResult};
-use crate::test_utils::{SpecFile, get_starknet_spec_api_schema_for_method_results};
+use crate::test_utils::{get_starknet_spec_api_schema_for_method_results, SpecFile};
 use crate::version_config::VERSION_0_8 as VERSION;
 
 auto_impl_get_test_instance! {

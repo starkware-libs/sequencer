@@ -4,7 +4,12 @@ use indexmap::IndexMap;
 use starknet_types_core::felt::Felt;
 
 use crate::core::{
-    ClassHash, CompiledClassHash, ContractAddress, Nonce, StateDiffCommitment, ascii_as_felt,
+    ascii_as_felt,
+    ClassHash,
+    CompiledClassHash,
+    ContractAddress,
+    Nonce,
+    StateDiffCommitment,
 };
 use crate::crypto::utils::HashChain;
 use crate::hash::PoseidonHash;

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use indexmap::{IndexMap, indexmap};
+use indexmap::{indexmap, IndexMap};
 use serde_json::json;
 
 use super::ThinStateDiff;

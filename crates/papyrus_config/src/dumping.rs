@@ -40,11 +40,18 @@ use std::io::{BufWriter, Write};
 
 use itertools::chain;
 use serde::Serialize;
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 
 use crate::{
-    ConfigError, FIELD_SEPARATOR, IS_NONE_MARK, ParamPath, ParamPrivacy, ParamPrivacyInput,
-    SerializationType, SerializedContent, SerializedParam,
+    ConfigError,
+    ParamPath,
+    ParamPrivacy,
+    ParamPrivacyInput,
+    SerializationType,
+    SerializedContent,
+    SerializedParam,
+    FIELD_SEPARATOR,
+    IS_NONE_MARK,
 };
 
 /// Type alias for a pointer parameter and its serialized representation.
@@ -372,11 +379,14 @@ pub(crate) fn combine_config_map_and_pointers(
                 config_map.get(pointing_param).ok_or(ConfigError::PointerSourceNotFound {
                     pointing_param: pointing_param.to_owned(),
                 })?;
-            config_map.insert(pointing_param.to_owned(), SerializedParam {
-                description: pointing_serialized_param.description.clone(),
-                content: SerializedContent::PointerTarget(target_param.to_owned()),
-                privacy: pointing_serialized_param.privacy.clone(),
-            });
+            config_map.insert(
+                pointing_param.to_owned(),
+                SerializedParam {
+                    description: pointing_serialized_param.description.clone(),
+                    content: SerializedContent::PointerTarget(target_param.to_owned()),
+                    privacy: pointing_serialized_param.privacy.clone(),
+                },
+            );
         }
     }
 

@@ -1,5 +1,5 @@
 use libp2p::gossipsub::TopicHash;
-use libp2p::{PeerId, gossipsub};
+use libp2p::{gossipsub, PeerId};
 use tracing::error;
 
 use crate::mixed_behaviour;

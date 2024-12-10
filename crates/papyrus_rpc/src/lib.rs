@@ -20,12 +20,12 @@ use std::sync::Arc;
 
 use jsonrpsee::core::RpcResult;
 use jsonrpsee::server::{ServerBuilder, ServerHandle};
-use jsonrpsee::types::ErrorObjectOwned;
 use jsonrpsee::types::error::ErrorCode::InternalError;
 use jsonrpsee::types::error::INTERNAL_ERROR_MSG;
+use jsonrpsee::types::ErrorObjectOwned;
 pub use latest::error;
 use papyrus_common::pending_classes::PendingClasses;
-use papyrus_config::dumping::{SerializeConfig, append_sub_config_name, ser_param};
+use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use papyrus_config::validators::validate_ascii;
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_execution::ExecutionConfig;
@@ -38,9 +38,9 @@ use rpc_metrics::MetricLogger;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHashAndNumber, BlockNumber, BlockStatus};
 use starknet_api::core::ChainId;
-use starknet_client::RetryConfig;
 use starknet_client::reader::PendingData;
 use starknet_client::writer::StarknetGatewayClient;
+use starknet_client::RetryConfig;
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, instrument};
 // Aliasing the latest version of the RPC.
@@ -52,7 +52,8 @@ use crate::api::get_methods_from_supported_apis;
 use crate::middleware::{deny_requests_with_unsupported_path, proxy_rpc_request};
 use crate::syncing_state::get_last_synced_block;
 pub use crate::v0_8::transaction::{
-    InvokeTransaction as InvokeTransactionRPC0_8, InvokeTransactionV1 as InvokeTransactionV1RPC0_8,
+    InvokeTransaction as InvokeTransactionRPC0_8,
+    InvokeTransactionV1 as InvokeTransactionV1RPC0_8,
     TransactionVersion1 as TransactionVersion1RPC0_8,
 };
 pub use crate::v0_8::write_api_result::AddInvokeOkResult as AddInvokeOkResultRPC0_8;

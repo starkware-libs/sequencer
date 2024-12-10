@@ -14,7 +14,12 @@ use crate::forest::updated_skeleton_forest::UpdatedSkeletonForest;
 use crate::hash_function::hash::ForestHashFunction;
 use crate::patricia_merkle_tree::leaf::leaf_impl::{ContractState, ContractStateInput};
 use crate::patricia_merkle_tree::types::{
-    ClassHash, ClassesTrie, CompiledClassHash, ContractsTrie, Nonce, StorageTrieMap,
+    ClassHash,
+    ClassesTrie,
+    CompiledClassHash,
+    ContractsTrie,
+    Nonce,
+    StorageTrieMap,
 };
 
 pub struct FilledForest {
@@ -131,19 +136,22 @@ impl FilledForest {
             let original_contract_state = original_contracts_trie_leaves
                 .get(&node_index)
                 .ok_or(ForestError::MissingContractCurrentState(contract_address))?;
-            leaf_index_to_leaf_input.insert(node_index, ContractStateInput {
-                leaf_index: node_index,
-                nonce: *(address_to_nonce
-                    .get(&contract_address)
-                    .unwrap_or(&original_contract_state.nonce)),
-                class_hash: *(address_to_class_hash
-                    .get(&contract_address)
-                    .unwrap_or(&original_contract_state.class_hash)),
-                updated_skeleton: contract_address_to_storage_skeleton
-                    .remove(&contract_address)
-                    .ok_or(ForestError::MissingUpdatedSkeleton(contract_address))?,
-                storage_updates,
-            });
+            leaf_index_to_leaf_input.insert(
+                node_index,
+                ContractStateInput {
+                    leaf_index: node_index,
+                    nonce: *(address_to_nonce
+                        .get(&contract_address)
+                        .unwrap_or(&original_contract_state.nonce)),
+                    class_hash: *(address_to_class_hash
+                        .get(&contract_address)
+                        .unwrap_or(&original_contract_state.class_hash)),
+                    updated_skeleton: contract_address_to_storage_skeleton
+                        .remove(&contract_address)
+                        .ok_or(ForestError::MissingUpdatedSkeleton(contract_address))?,
+                    storage_updates,
+                },
+            );
         }
         Ok(leaf_index_to_leaf_input)
     }

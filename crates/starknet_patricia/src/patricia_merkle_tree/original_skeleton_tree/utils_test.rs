@@ -1,12 +1,14 @@
-use ethnum::{U256, uint};
-use rand::Rng;
+use ethnum::{uint, U256};
 use rand::rngs::ThreadRng;
+use rand::Rng;
 use rstest::rstest;
 
 use super::split_leaves;
 use crate::patricia_merkle_tree::external_test_utils::get_random_u256;
 use crate::patricia_merkle_tree::internal_test_utils::{
-    as_fully_indexed, random, small_tree_index_to_full,
+    as_fully_indexed,
+    random,
+    small_tree_index_to_full,
 };
 use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
 

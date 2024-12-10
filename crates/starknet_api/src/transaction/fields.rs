@@ -5,11 +5,11 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use starknet_types_core::felt::Felt;
 use strum_macros::EnumIter;
 
-use crate::StarknetApiError;
 use crate::block::{GasPrice, NonzeroGasPrice};
 use crate::execution_resources::GasAmount;
 use crate::hash::StarkHash;
 use crate::serde_utils::PrefixedBytesAsHex;
+use crate::StarknetApiError;
 
 /// A fee.
 #[cfg_attr(any(test, feature = "testing"), derive(derive_more::Add, derive_more::Deref))]

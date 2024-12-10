@@ -18,29 +18,29 @@ use papyrus_consensus_orchestrator::papyrus_consensus_context::PapyrusConsensusC
 use papyrus_monitoring_gateway::MonitoringServer;
 use papyrus_network::gossipsub_impl::Topic;
 use papyrus_network::network_manager::{BroadcastTopicChannels, NetworkManager};
-use papyrus_network::{NetworkConfig, network_manager};
+use papyrus_network::{network_manager, NetworkConfig};
 use papyrus_p2p_sync::client::{P2PSyncClient, P2PSyncClientChannels};
 use papyrus_p2p_sync::server::{P2PSyncServer, P2PSyncServerChannels};
-use papyrus_p2p_sync::{BUFFER_SIZE, Protocol};
+use papyrus_p2p_sync::{Protocol, BUFFER_SIZE};
 use papyrus_protobuf::consensus::{ProposalPart, StreamMessage};
 #[cfg(feature = "rpc")]
 use papyrus_rpc::run_server;
 use papyrus_storage::storage_metrics::update_storage_metrics;
-use papyrus_storage::{StorageReader, StorageWriter, open_storage};
+use papyrus_storage::{open_storage, StorageReader, StorageWriter};
 use papyrus_sync::sources::base_layer::{BaseLayerSourceError, EthereumBaseLayerSource};
 use papyrus_sync::sources::central::{CentralError, CentralSource, CentralSourceConfig};
 use papyrus_sync::sources::pending::PendingSource;
 use papyrus_sync::{StateSync, SyncConfig};
 use starknet_api::block::{BlockHash, BlockHashAndNumber};
 use starknet_api::felt;
-use starknet_client::reader::PendingData;
 use starknet_client::reader::objects::pending_data::{PendingBlock, PendingBlockOrDeprecated};
+use starknet_client::reader::PendingData;
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
 use tracing::metadata::LevelFilter;
-use tracing::{Instrument, debug, debug_span, error, info, warn};
+use tracing::{debug, debug_span, error, info, warn, Instrument};
 use tracing_subscriber::prelude::*;
-use tracing_subscriber::{EnvFilter, fmt};
+use tracing_subscriber::{fmt, EnvFilter};
 
 use crate::config::NodeConfig;
 use crate::version::VERSION_FULL;

@@ -4,13 +4,17 @@ use assert_matches::assert_matches;
 use mockall::predicate::eq;
 use rstest::{fixture, rstest};
 use starknet_api::executable_transaction::{L1HandlerTransaction, Transaction};
-use starknet_api::test_utils::invoke::{InvokeTxArgs, executable_invoke_tx};
+use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
 use starknet_api::tx_hash;
 use starknet_mempool_types::communication::MockMempoolClient;
 
 use crate::transaction_provider::{
-    MockL1ProviderClient, NextTxs, ProposeTransactionProvider, TransactionProvider,
-    TransactionProviderError, ValidateTransactionProvider,
+    MockL1ProviderClient,
+    NextTxs,
+    ProposeTransactionProvider,
+    TransactionProvider,
+    TransactionProviderError,
+    ValidateTransactionProvider,
 };
 
 const MAX_L1_HANDLER_TXS_PER_BLOCK: usize = 15;

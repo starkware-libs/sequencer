@@ -6,24 +6,30 @@ use assert_json_diff::assert_json_eq;
 use assert_matches::assert_matches;
 use colored::Colorize;
 use infra_utils::path::resolve_project_relative_path;
-use papyrus_config::SerializedParam;
 use papyrus_config::dumping::SerializeConfig;
 use papyrus_config::validators::config_validate;
+use papyrus_config::SerializedParam;
 use rstest::rstest;
 use starknet_batcher::block_builder::BlockBuilderConfig;
 use starknet_batcher::config::BatcherConfig;
 use starknet_sequencer_infra::component_definitions::{
-    LocalServerConfig, RemoteClientConfig, RemoteServerConfig,
+    LocalServerConfig,
+    RemoteClientConfig,
+    RemoteServerConfig,
 };
 use validator::Validate;
 
 use crate::config::component_execution_config::{
-    ReactiveComponentExecutionConfig, ReactiveComponentExecutionMode,
+    ReactiveComponentExecutionConfig,
+    ReactiveComponentExecutionMode,
 };
 use crate::config::node_config::{
-    CONFIG_NON_POINTERS_WHITELIST, CONFIG_POINTERS, DEFAULT_CONFIG_PATH, SequencerNodeConfig,
+    SequencerNodeConfig,
+    CONFIG_NON_POINTERS_WHITELIST,
+    CONFIG_POINTERS,
+    DEFAULT_CONFIG_PATH,
 };
-use crate::config::test_utils::{RequiredParams, create_test_config_load_args};
+use crate::config::test_utils::{create_test_config_load_args, RequiredParams};
 
 const LOCAL_EXECUTION_MODE: ReactiveComponentExecutionMode =
     ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled;

@@ -16,7 +16,12 @@ use tracing::{debug, info, instrument, trace, warn};
 use crate::config::TimeoutsConfig;
 use crate::state_machine::{StateMachine, StateMachineEvent};
 use crate::types::{
-    ConsensusContext, ConsensusError, Decision, ProposalContentId, Round, ValidatorId,
+    ConsensusContext,
+    ConsensusError,
+    Decision,
+    ProposalContentId,
+    Round,
+    ValidatorId,
 };
 
 #[derive(Debug, PartialEq)]

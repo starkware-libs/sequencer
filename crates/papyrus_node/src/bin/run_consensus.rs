@@ -14,7 +14,7 @@ use papyrus_consensus_orchestrator::papyrus_consensus_context::PapyrusConsensusC
 use papyrus_network::gossipsub_impl::Topic;
 use papyrus_network::network_manager::NetworkManager;
 use papyrus_node::bin_utils::build_configs;
-use papyrus_node::run::{PapyrusResources, PapyrusTaskHandles, run};
+use papyrus_node::run::{run, PapyrusResources, PapyrusTaskHandles};
 use papyrus_p2p_sync::BUFFER_SIZE;
 use papyrus_storage::StorageReader;
 use starknet_api::block::BlockNumber;

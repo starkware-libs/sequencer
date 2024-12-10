@@ -2,13 +2,15 @@ pub mod config;
 pub mod runner;
 
 use async_trait::async_trait;
-use papyrus_storage::StorageReader;
 use papyrus_storage::body::BodyStorageReader;
 use papyrus_storage::state::StateStorageReader;
+use papyrus_storage::StorageReader;
 use starknet_api::block::BlockNumber;
 use starknet_sequencer_infra::component_definitions::ComponentRequestHandler;
 use starknet_state_sync_types::communication::{
-    StateSyncRequest, StateSyncResponse, StateSyncResult,
+    StateSyncRequest,
+    StateSyncResponse,
+    StateSyncResult,
 };
 use starknet_state_sync_types::state_sync_types::SyncBlock;
 

@@ -9,9 +9,9 @@ use starknet_api::state::{SierraContractClass, StateNumber, ThinStateDiff};
 use starknet_api::test_utils::read_json_file;
 
 use super::{ClassStorageReader, ClassStorageWriter};
-use crate::StorageError;
 use crate::state::{StateStorageReader, StateStorageWriter};
 use crate::test_utils::get_test_storage;
+use crate::StorageError;
 
 #[test]
 fn append_classes_writes_correct_data() {
@@ -28,16 +28,20 @@ fn append_classes_writes_correct_data() {
     writer
         .begin_rw_txn()
         .unwrap()
-        .append_state_diff(BlockNumber(0), ThinStateDiff {
-            declared_classes: indexmap! { class_hash => CompiledClassHash::default() },
-            deprecated_declared_classes: vec![deprecated_class_hash],
-            ..Default::default()
-        })
+        .append_state_diff(
+            BlockNumber(0),
+            ThinStateDiff {
+                declared_classes: indexmap! { class_hash => CompiledClassHash::default() },
+                deprecated_declared_classes: vec![deprecated_class_hash],
+                ..Default::default()
+            },
+        )
         .unwrap()
-        .append_classes(BlockNumber(0), &[(class_hash, &expected_class)], &[(
-            deprecated_class_hash,
-            &expected_deprecated_class,
-        )])
+        .append_classes(
+            BlockNumber(0),
+            &[(class_hash, &expected_class)],
+            &[(deprecated_class_hash, &expected_deprecated_class)],
+        )
         .unwrap()
         .commit()
         .unwrap();

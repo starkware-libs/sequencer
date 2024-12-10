@@ -10,7 +10,7 @@ use starknet_api::transaction::TransactionHash;
 use starknet_batcher_types::batcher_types::{ProposalCommitment, ProposalId};
 use thiserror::Error;
 use tokio::sync::Mutex;
-use tracing::{Instrument, debug, error, info, instrument};
+use tracing::{debug, error, info, instrument, Instrument};
 
 use crate::block_builder::{BlockBuilderError, BlockBuilderTrait, BlockExecutionArtifacts};
 

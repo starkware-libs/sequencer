@@ -1,13 +1,13 @@
 use core::net::Ipv4Addr;
-use std::collections::HashMap;
 use std::collections::hash_map::{Keys, ValuesMut};
+use std::collections::HashMap;
 use std::hash::Hash;
 use std::pin::Pin;
 use std::task::{Context, Poll, Waker};
 
 use futures::stream::{Stream, StreamExt};
-use libp2p::Multiaddr;
 use libp2p::core::multiaddr::Protocol;
+use libp2p::Multiaddr;
 
 // This is an implementation of `StreamMap` from tokio_stream. The reason we're implementing it
 // ourselves is that the implementation in tokio_stream requires that the values implement the

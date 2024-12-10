@@ -5,15 +5,25 @@ use papyrus_common::pending_classes::ApiContractClass;
 use papyrus_network::network_manager::{ServerQueryManager, SqmrServerReceiver};
 use papyrus_protobuf::converters::ProtobufConversionError;
 use papyrus_protobuf::sync::{
-    BlockHashOrNumber, ClassQuery, ContractDiff, DataOrFin, DeclaredClass, DeprecatedDeclaredClass,
-    EventQuery, HeaderQuery, Query, SignedBlockHeader, StateDiffChunk, StateDiffQuery,
+    BlockHashOrNumber,
+    ClassQuery,
+    ContractDiff,
+    DataOrFin,
+    DeclaredClass,
+    DeprecatedDeclaredClass,
+    EventQuery,
+    HeaderQuery,
+    Query,
+    SignedBlockHeader,
+    StateDiffChunk,
+    StateDiffQuery,
     TransactionQuery,
 };
 use papyrus_storage::body::BodyStorageReader;
 use papyrus_storage::class::ClassStorageReader;
 use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::state::StateStorageReader;
-use papyrus_storage::{StorageReader, StorageTxn, db};
+use papyrus_storage::{db, StorageReader, StorageTxn};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ClassHash;
 use starknet_api::state::ThinStateDiff;

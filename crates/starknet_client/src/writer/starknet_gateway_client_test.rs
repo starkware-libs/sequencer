@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 use std::future::Future;
 
-use mockito::{Matcher, mock};
+use mockito::{mock, Matcher};
 use serde::{Deserialize, Serialize};
 use starknet_api::test_utils::read_json_file;
 

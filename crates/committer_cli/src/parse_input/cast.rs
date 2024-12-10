@@ -1,7 +1,12 @@
 use std::collections::HashMap;
 
 use starknet_committer::block_committer::input::{
-    ConfigImpl, ContractAddress, Input, StarknetStorageKey, StarknetStorageValue, StateDiff,
+    ConfigImpl,
+    ContractAddress,
+    Input,
+    StarknetStorageKey,
+    StarknetStorageValue,
+    StateDiff,
 };
 use starknet_committer::patricia_merkle_tree::types::{ClassHash, CompiledClassHash, Nonce};
 use starknet_patricia::felt::Felt;

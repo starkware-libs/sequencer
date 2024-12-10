@@ -7,18 +7,22 @@ use tracing::warn;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
 use crate::patricia_merkle_tree::node_data::inner_node::{
-    BinaryData, EdgeData, NodeData, PathToBottom,
+    BinaryData,
+    EdgeData,
+    NodeData,
+    PathToBottom,
 };
 use crate::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
 use crate::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::{
-    OriginalSkeletonTreeImpl, OriginalSkeletonTreeResult,
+    OriginalSkeletonTreeImpl,
+    OriginalSkeletonTreeResult,
 };
 use crate::patricia_merkle_tree::original_skeleton_tree::utils::split_leaves;
 use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
 use crate::storage::errors::StorageError;
-use crate::storage::storage_trait::{StarknetPrefix, Storage, StorageKey, create_db_key};
+use crate::storage::storage_trait::{create_db_key, StarknetPrefix, Storage, StorageKey};
 
 #[cfg(test)]
 #[path = "create_tree_test.rs"]

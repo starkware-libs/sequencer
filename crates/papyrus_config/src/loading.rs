@@ -9,17 +9,22 @@ use std::fs::File;
 use std::ops::IndexMut;
 use std::path::PathBuf;
 
-use clap::Command;
 use clap::parser::Values;
+use clap::Command;
 use command::{get_command_matches, update_config_map_by_command_args};
 use itertools::any;
 use serde::Deserialize;
-use serde_json::{Map, Value, json};
+use serde_json::{json, Map, Value};
 
 use crate::validators::validate_path_exists;
 use crate::{
-    ConfigError, IS_NONE_MARK, ParamPath, SerializationType, SerializedContent, SerializedParam,
     command,
+    ConfigError,
+    ParamPath,
+    SerializationType,
+    SerializedContent,
+    SerializedParam,
+    IS_NONE_MARK,
 };
 
 /// Deserializes config from flatten JSON.

@@ -27,13 +27,17 @@ use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use blockifier::execution::call_info::CallExecution;
 use blockifier::execution::entry_point::{
-    CallEntryPoint, CallType as BlockifierCallType, EntryPointExecutionContext,
+    CallEntryPoint,
+    CallType as BlockifierCallType,
+    EntryPointExecutionContext,
 };
 use blockifier::state::cached_state::CachedState;
 use blockifier::transaction::account_transaction::ExecutionFlags;
 use blockifier::transaction::errors::TransactionExecutionError as BlockifierTransactionExecutionError;
 use blockifier::transaction::objects::{
-    DeprecatedTransactionInfo, TransactionExecutionInfo, TransactionInfo,
+    DeprecatedTransactionInfo,
+    TransactionExecutionInfo,
+    TransactionInfo,
 };
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use blockifier::transaction::transactions::ExecutableTransaction;
@@ -42,14 +46,17 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::types::builtin_name::BuiltinName;
 use execution_utils::{get_trace_constructor, induced_state_diff};
 use objects::{PriceUnit, TransactionSimulationOutput};
-use papyrus_config::dumping::{SerializeConfig, ser_param};
+use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::{StorageError, StorageReader};
 use serde::{Deserialize, Serialize};
-use starknet_api::StarknetApiError;
 use starknet_api::block::{
-    BlockHashAndNumber, BlockInfo, BlockNumber, NonzeroGasPrice, StarknetVersion,
+    BlockHashAndNumber,
+    BlockInfo,
+    BlockNumber,
+    NonzeroGasPrice,
+    StarknetVersion,
 };
 use starknet_api::contract_class::{ClassInfo, EntryPointType, SierraVersion};
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, EntryPointSelector};
@@ -58,16 +65,25 @@ use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContract
 use starknet_api::state::{StateNumber, ThinStateDiff};
 use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::transaction::{
-    DeclareTransaction, DeclareTransactionV0V1, DeclareTransactionV2, DeclareTransactionV3,
-    DeployAccountTransaction, InvokeTransaction, L1HandlerTransaction, Transaction,
-    TransactionHash, TransactionOptions, TransactionVersion,
+    DeclareTransaction,
+    DeclareTransactionV0V1,
+    DeclareTransactionV2,
+    DeclareTransactionV3,
+    DeployAccountTransaction,
+    InvokeTransaction,
+    L1HandlerTransaction,
+    Transaction,
+    TransactionHash,
+    TransactionOptions,
+    TransactionVersion,
 };
 use starknet_api::transaction_hash::get_transaction_hash;
+use starknet_api::StarknetApiError;
 use starknet_types_core::felt::Felt;
 use state_reader::ExecutionStateReader;
 use tracing::trace;
 
-use crate::objects::{FeeEstimation, PendingData, tx_execution_output_to_fee_estimation};
+use crate::objects::{tx_execution_output_to_fee_estimation, FeeEstimation, PendingData};
 
 /// The address of the STRK fee contract on Starknet.
 const STRK_FEE_CONTRACT_ADDRESS_STR: &str =

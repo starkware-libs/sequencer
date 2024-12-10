@@ -4,15 +4,27 @@ use rand::Rng;
 
 use crate::db::table_types::Table;
 use crate::test_utils::{
-    get_test_storage, get_test_storage_by_scope, get_test_storage_with_config_by_scope,
+    get_test_storage,
+    get_test_storage_by_scope,
+    get_test_storage_with_config_by_scope,
 };
 use crate::version::{
-    StorageVersionError, VERSION_BLOCKS_KEY, VERSION_STATE_KEY, Version, VersionStorageReader,
+    StorageVersionError,
+    Version,
+    VersionStorageReader,
     VersionStorageWriter,
+    VERSION_BLOCKS_KEY,
+    VERSION_STATE_KEY,
 };
 use crate::{
-    STORAGE_VERSION_BLOCKS, STORAGE_VERSION_STATE, StorageError, StorageScope, StorageWriter,
-    open_storage, set_version_if_needed, verify_storage_version,
+    open_storage,
+    set_version_if_needed,
+    verify_storage_version,
+    StorageError,
+    StorageScope,
+    StorageWriter,
+    STORAGE_VERSION_BLOCKS,
+    STORAGE_VERSION_STATE,
 };
 
 // TODO: Add this test for set_blocks_version or combine the logic.
@@ -81,14 +93,16 @@ fn version_migration() {
         get_test_storage_with_config_by_scope(StorageScope::FullArchive);
 
     // Set the storage version on a lower minor version.
-    change_storage_version(&mut writer, VERSION_STATE_KEY, &Version {
-        major: STORAGE_VERSION_STATE.major,
-        minor: 0,
-    });
-    change_storage_version(&mut writer, VERSION_BLOCKS_KEY, &Version {
-        major: STORAGE_VERSION_BLOCKS.major,
-        minor: 0,
-    });
+    change_storage_version(
+        &mut writer,
+        VERSION_STATE_KEY,
+        &Version { major: STORAGE_VERSION_STATE.major, minor: 0 },
+    );
+    change_storage_version(
+        &mut writer,
+        VERSION_BLOCKS_KEY,
+        &Version { major: STORAGE_VERSION_BLOCKS.major, minor: 0 },
+    );
     drop(reader);
     drop(writer);
 

@@ -6,11 +6,11 @@ use std::time::Duration;
 use std::vec;
 
 use deadqueue::unlimited::Queue;
-use futures::channel::mpsc::{UnboundedSender, unbounded};
+use futures::channel::mpsc::{unbounded, UnboundedSender};
 use futures::channel::oneshot;
 use futures::future::FutureExt;
 use futures::stream::Stream;
-use futures::{Future, SinkExt, StreamExt, pin_mut};
+use futures::{pin_mut, Future, SinkExt, StreamExt};
 use lazy_static::lazy_static;
 use libp2p::core::ConnectedPoint;
 use libp2p::gossipsub::{SubscriptionError, TopicHash};

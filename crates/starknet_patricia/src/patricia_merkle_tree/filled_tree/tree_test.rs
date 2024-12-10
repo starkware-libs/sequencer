@@ -6,18 +6,26 @@ use crate::patricia_merkle_tree::filled_tree::errors::FilledTreeError;
 use crate::patricia_merkle_tree::filled_tree::node::FilledNode;
 use crate::patricia_merkle_tree::filled_tree::tree::{FilledTree, FilledTreeImpl};
 use crate::patricia_merkle_tree::internal_test_utils::{
-    MockLeaf, OriginalSkeletonMockTrieConfig, TestTreeHashFunction,
+    MockLeaf,
+    OriginalSkeletonMockTrieConfig,
+    TestTreeHashFunction,
 };
 use crate::patricia_merkle_tree::node_data::errors::LeafError;
 use crate::patricia_merkle_tree::node_data::inner_node::{
-    BinaryData, EdgeData, EdgePathLength, NodeData, PathToBottom,
+    BinaryData,
+    EdgeData,
+    EdgePathLength,
+    NodeData,
+    PathToBottom,
 };
 use crate::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
 use crate::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::{
-    UpdatedSkeletonNodeMap, UpdatedSkeletonTree, UpdatedSkeletonTreeImpl,
+    UpdatedSkeletonNodeMap,
+    UpdatedSkeletonTree,
+    UpdatedSkeletonTreeImpl,
 };
 use crate::storage::map_storage::MapStorage;
 
@@ -371,13 +379,16 @@ fn create_mock_binary_entry_for_testing(
     left_hash: &str,
     right_hash: &str,
 ) -> (NodeIndex, FilledNode<MockLeaf>) {
-    (NodeIndex::from(index), FilledNode {
-        hash: HashOutput(Felt::from_hex(hash).unwrap()),
-        data: NodeData::Binary(BinaryData {
-            left_hash: HashOutput(Felt::from_hex(left_hash).unwrap()),
-            right_hash: HashOutput(Felt::from_hex(right_hash).unwrap()),
-        }),
-    })
+    (
+        NodeIndex::from(index),
+        FilledNode {
+            hash: HashOutput(Felt::from_hex(hash).unwrap()),
+            data: NodeData::Binary(BinaryData {
+                left_hash: HashOutput(Felt::from_hex(left_hash).unwrap()),
+                right_hash: HashOutput(Felt::from_hex(right_hash).unwrap()),
+            }),
+        },
+    )
 }
 
 fn create_mock_edge_entry_for_testing(
@@ -387,22 +398,31 @@ fn create_mock_edge_entry_for_testing(
     length: u8,
     bottom_hash: &str,
 ) -> (NodeIndex, FilledNode<MockLeaf>) {
-    (NodeIndex::from(index), FilledNode {
-        hash: HashOutput(Felt::from_hex(hash).unwrap()),
-        data: NodeData::Edge(EdgeData {
-            bottom_hash: HashOutput(Felt::from_hex(bottom_hash).unwrap()),
-            path_to_bottom: PathToBottom::new(path.into(), EdgePathLength::new(length).unwrap())
+    (
+        NodeIndex::from(index),
+        FilledNode {
+            hash: HashOutput(Felt::from_hex(hash).unwrap()),
+            data: NodeData::Edge(EdgeData {
+                bottom_hash: HashOutput(Felt::from_hex(bottom_hash).unwrap()),
+                path_to_bottom: PathToBottom::new(
+                    path.into(),
+                    EdgePathLength::new(length).unwrap(),
+                )
                 .unwrap(),
-        }),
-    })
+            }),
+        },
+    )
 }
 
 fn create_mock_leaf_entry_for_testing(
     index: u128,
     hash: &str,
 ) -> (NodeIndex, FilledNode<MockLeaf>) {
-    (NodeIndex::from(index), FilledNode {
-        hash: HashOutput(Felt::from_hex(hash).unwrap()),
-        data: NodeData::Leaf(MockLeaf(Felt::from_hex(hash).unwrap())),
-    })
+    (
+        NodeIndex::from(index),
+        FilledNode {
+            hash: HashOutput(Felt::from_hex(hash).unwrap()),
+            data: NodeData::Leaf(MockLeaf(Felt::from_hex(hash).unwrap())),
+        },
+    )
 }

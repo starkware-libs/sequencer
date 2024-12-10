@@ -11,9 +11,13 @@ use starknet_api::block::BlockNumber;
 use tracing::debug;
 
 use super::stream_builder::{
-    BadPeerError, BlockData, BlockNumberLimit, DataStreamBuilder, ParseDataError,
+    BadPeerError,
+    BlockData,
+    BlockNumberLimit,
+    DataStreamBuilder,
+    ParseDataError,
 };
-use super::{ALLOWED_SIGNATURES_LENGTH, NETWORK_DATA_TIMEOUT, P2PSyncClientError};
+use super::{P2PSyncClientError, ALLOWED_SIGNATURES_LENGTH, NETWORK_DATA_TIMEOUT};
 
 impl BlockData for SignedBlockHeader {
     #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.

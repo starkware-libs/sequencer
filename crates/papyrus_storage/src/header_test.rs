@@ -1,7 +1,11 @@
 use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use starknet_api::block::{
-    BlockHash, BlockHeader, BlockHeaderWithoutHash, BlockNumber, BlockSignature,
+    BlockHash,
+    BlockHeader,
+    BlockHeaderWithoutHash,
+    BlockNumber,
+    BlockSignature,
 };
 use starknet_api::felt;
 
@@ -128,15 +132,15 @@ fn append_2_headers(writer: &mut StorageWriter) {
     writer
         .begin_rw_txn()
         .unwrap()
-        .append_header(BlockNumber(0), &BlockHeader {
-            block_hash: BlockHash(felt!("0x0")),
-            ..BlockHeader::default()
-        })
+        .append_header(
+            BlockNumber(0),
+            &BlockHeader { block_hash: BlockHash(felt!("0x0")), ..BlockHeader::default() },
+        )
         .unwrap()
-        .append_header(BlockNumber(1), &BlockHeader {
-            block_hash: BlockHash(felt!("0x1")),
-            ..BlockHeader::default()
-        })
+        .append_header(
+            BlockNumber(1),
+            &BlockHeader { block_hash: BlockHash(felt!("0x1")), ..BlockHeader::default() },
+        )
         .unwrap()
         .commit()
         .unwrap();

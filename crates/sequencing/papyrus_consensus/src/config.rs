@@ -6,9 +6,10 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 
 use papyrus_config::converters::{
-    deserialize_float_seconds_to_duration, deserialize_seconds_to_duration,
+    deserialize_float_seconds_to_duration,
+    deserialize_seconds_to_duration,
 };
-use papyrus_config::dumping::{SerializeConfig, append_sub_config_name, ser_param};
+use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_network::NetworkConfig;
 use serde::{Deserialize, Serialize};

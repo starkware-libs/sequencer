@@ -13,26 +13,49 @@ use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use futures::{SinkExt, StreamExt};
 use papyrus_consensus::types::{
-    ConsensusContext, ConsensusError, DEFAULT_VALIDATOR_ID, ProposalContentId, Round, ValidatorId,
+    ConsensusContext,
+    ConsensusError,
+    ProposalContentId,
+    Round,
+    ValidatorId,
+    DEFAULT_VALIDATOR_ID,
 };
 use papyrus_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
 use papyrus_protobuf::consensus::{
-    ConsensusMessage, ProposalFin, ProposalInit, ProposalPart, TransactionBatch, Vote,
+    ConsensusMessage,
+    ProposalFin,
+    ProposalInit,
+    ProposalPart,
+    TransactionBatch,
+    Vote,
 };
 use starknet_api::block::{
-    BlockHash, BlockHashAndNumber, BlockInfo, BlockNumber, BlockTimestamp, GasPriceVector,
-    GasPrices, NonzeroGasPrice,
+    BlockHash,
+    BlockHashAndNumber,
+    BlockInfo,
+    BlockNumber,
+    BlockTimestamp,
+    GasPriceVector,
+    GasPrices,
+    NonzeroGasPrice,
 };
 use starknet_api::executable_transaction::Transaction as ExecutableTransaction;
 use starknet_batcher_types::batcher_types::{
-    DecisionReachedInput, GetProposalContent, GetProposalContentInput, ProposalId, ProposalStatus,
-    ProposeBlockInput, SendProposalContent, SendProposalContentInput, StartHeightInput,
+    DecisionReachedInput,
+    GetProposalContent,
+    GetProposalContentInput,
+    ProposalId,
+    ProposalStatus,
+    ProposeBlockInput,
+    SendProposalContent,
+    SendProposalContentInput,
+    StartHeightInput,
     ValidateBlockInput,
 };
 use starknet_batcher_types::communication::BatcherClient;
 use tokio::sync::Notify;
 use tokio::task::JoinHandle;
-use tracing::{Instrument, debug, debug_span, error, info, trace, warn};
+use tracing::{debug, debug_span, error, info, trace, warn, Instrument};
 
 // TODO(Dan, Matan): Remove this once and replace with real gas prices.
 const TEMPORARY_GAS_PRICES: GasPrices = GasPrices {

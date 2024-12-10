@@ -8,9 +8,6 @@ use cairo_lang_starknet_classes::contract_class::ContractClass;
 use cairo_native::executor::AotContractExecutor;
 use tempfile::NamedTempFile;
 
-use crate::SierraToCasmCompiler;
-#[cfg(feature = "cairo_native")]
-use crate::SierraToNativeCompiler;
 use crate::config::SierraToCasmCompilationConfig;
 use crate::constants::CAIRO_LANG_BINARY_NAME;
 #[cfg(feature = "cairo_native")]
@@ -19,6 +16,9 @@ use crate::errors::CompilationUtilError;
 use crate::paths::binary_path;
 #[cfg(feature = "cairo_native")]
 use crate::paths::output_file_path;
+use crate::SierraToCasmCompiler;
+#[cfg(feature = "cairo_native")]
+use crate::SierraToNativeCompiler;
 
 #[derive(Clone)]
 pub struct CommandLineCompiler {

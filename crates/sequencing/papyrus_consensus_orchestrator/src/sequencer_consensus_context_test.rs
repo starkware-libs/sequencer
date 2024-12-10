@@ -6,23 +6,37 @@ use futures::channel::mpsc;
 use futures::{FutureExt, SinkExt};
 use lazy_static::lazy_static;
 use papyrus_consensus::stream_handler::StreamHandler;
-use papyrus_consensus::types::{ConsensusContext, DEFAULT_VALIDATOR_ID, ValidatorId};
-use papyrus_network::network_manager::BroadcastTopicChannels;
+use papyrus_consensus::types::{ConsensusContext, ValidatorId, DEFAULT_VALIDATOR_ID};
 use papyrus_network::network_manager::test_utils::{
-    BroadcastNetworkMock, TestSubscriberChannels, mock_register_broadcast_topic,
+    mock_register_broadcast_topic,
+    BroadcastNetworkMock,
+    TestSubscriberChannels,
 };
+use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{
-    ConsensusMessage, ProposalFin, ProposalInit, ProposalPart, StreamMessage, TransactionBatch,
+    ConsensusMessage,
+    ProposalFin,
+    ProposalInit,
+    ProposalPart,
+    StreamMessage,
+    TransactionBatch,
 };
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::StateDiffCommitment;
 use starknet_api::executable_transaction::Transaction as ExecutableTransaction;
 use starknet_api::hash::PoseidonHash;
-use starknet_api::test_utils::invoke::{InvokeTxArgs, executable_invoke_tx, invoke_tx};
+use starknet_api::test_utils::invoke::{executable_invoke_tx, invoke_tx, InvokeTxArgs};
 use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_batcher_types::batcher_types::{
-    GetProposalContent, GetProposalContentResponse, ProposalCommitment, ProposalId, ProposalStatus,
-    ProposeBlockInput, SendProposalContent, SendProposalContentInput, SendProposalContentResponse,
+    GetProposalContent,
+    GetProposalContentResponse,
+    ProposalCommitment,
+    ProposalId,
+    ProposalStatus,
+    ProposeBlockInput,
+    SendProposalContent,
+    SendProposalContentInput,
+    SendProposalContentResponse,
     ValidateBlockInput,
 };
 use starknet_batcher_types::communication::MockBatcherClient;
@@ -253,10 +267,10 @@ async fn repropose() {
 
     // Re-proposal: Just asserts this is a known valid proposal.
     context
-        .repropose(BlockHash(STATE_DIFF_COMMITMENT.0.0), ProposalInit {
-            height: BlockNumber(0),
-            ..Default::default()
-        })
+        .repropose(
+            BlockHash(STATE_DIFF_COMMITMENT.0.0),
+            ProposalInit { height: BlockNumber(0), ..Default::default() },
+        )
         .await;
 }
 

@@ -1,18 +1,27 @@
 use serde::{Deserialize, Serialize};
 
-use crate::StarknetApiError;
 use crate::contract_class::{ClassInfo, ContractClass};
-use crate::core::{ChainId, ClassHash, ContractAddress, Nonce, calculate_contract_address};
+use crate::core::{calculate_contract_address, ChainId, ClassHash, ContractAddress, Nonce};
 use crate::data_availability::DataAvailabilityMode;
 use crate::rpc_transaction::{
-    RpcDeployAccountTransaction, RpcDeployAccountTransactionV3, RpcInvokeTransaction,
+    RpcDeployAccountTransaction,
+    RpcDeployAccountTransactionV3,
+    RpcInvokeTransaction,
     RpcInvokeTransactionV3,
 };
 use crate::transaction::fields::{
-    AccountDeploymentData, AllResourceBounds, Calldata, ContractAddressSalt, Fee, PaymasterData,
-    Tip, TransactionSignature, ValidResourceBounds,
+    AccountDeploymentData,
+    AllResourceBounds,
+    Calldata,
+    ContractAddressSalt,
+    Fee,
+    PaymasterData,
+    Tip,
+    TransactionSignature,
+    ValidResourceBounds,
 };
 use crate::transaction::{TransactionHash, TransactionHasher, TransactionVersion};
+use crate::StarknetApiError;
 
 macro_rules! implement_inner_tx_getter_calls {
     ($(($field:ident, $field_type:ty)),*) => {

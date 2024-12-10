@@ -12,20 +12,36 @@ use papyrus_storage::{StorageReader, StorageWriter};
 use serde::de::DeserializeOwned;
 use starknet_api::abi::abi_utils::get_storage_var_address;
 use starknet_api::block::{
-    BlockBody, BlockHash, BlockHeader, BlockHeaderWithoutHash, BlockNumber, BlockTimestamp,
-    GasPrice, GasPricePerToken,
+    BlockBody,
+    BlockHash,
+    BlockHeader,
+    BlockHeaderWithoutHash,
+    BlockNumber,
+    BlockTimestamp,
+    GasPrice,
+    GasPricePerToken,
 };
 use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{
-    ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce, SequencerContractAddress,
+    ChainId,
+    ClassHash,
+    CompiledClassHash,
+    ContractAddress,
+    Nonce,
+    SequencerContractAddress,
 };
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{SierraContractClass, StateNumber, ThinStateDiff};
 use starknet_api::test_utils::read_json_file;
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::{
-    DeclareTransactionV0V1, DeclareTransactionV2, DeployAccountTransaction,
-    DeployAccountTransactionV1, InvokeTransaction, InvokeTransactionV1, TransactionHash,
+    DeclareTransactionV0V1,
+    DeclareTransactionV2,
+    DeployAccountTransaction,
+    DeployAccountTransactionV1,
+    InvokeTransaction,
+    InvokeTransactionV1,
+    TransactionHash,
 };
 use starknet_api::{calldata, class_hash, contract_address, felt, nonce};
 use starknet_types_core::felt::Felt;
@@ -33,7 +49,7 @@ use starknet_types_core::felt::Felt;
 use crate::execution_utils::selector_from_name;
 use crate::objects::{PendingData, TransactionSimulationOutput};
 use crate::testing_instances::get_test_execution_config;
-use crate::{ExecutableTransactionInput, OnlyQuery, SierraSize, simulate_transactions};
+use crate::{simulate_transactions, ExecutableTransactionInput, OnlyQuery, SierraSize};
 
 lazy_static! {
     pub static ref CHAIN_ID: ChainId = ChainId::Other(String::from("TEST_CHAIN_ID"));
@@ -94,71 +110,84 @@ pub fn prepare_storage(mut storage_writer: StorageWriter) {
     storage_writer
         .begin_rw_txn()
         .unwrap()
-        .append_header(BlockNumber(0), &BlockHeader {
-            block_header_without_hash: BlockHeaderWithoutHash {
-                l1_gas_price: *GAS_PRICE,
-                sequencer: *SEQUENCER_ADDRESS,
-                timestamp: *BLOCK_TIMESTAMP,
+        .append_header(
+            BlockNumber(0),
+            &BlockHeader {
+                block_header_without_hash: BlockHeaderWithoutHash {
+                    l1_gas_price: *GAS_PRICE,
+                    sequencer: *SEQUENCER_ADDRESS,
+                    timestamp: *BLOCK_TIMESTAMP,
+                    ..Default::default()
+                },
                 ..Default::default()
             },
-            ..Default::default()
-        })
+        )
         .unwrap()
         .append_body(BlockNumber(0), BlockBody::default())
         .unwrap()
-        .append_state_diff(BlockNumber(0), ThinStateDiff {
-            deployed_contracts: indexmap!(
-                *TEST_ERC20_CONTRACT_ADDRESS => *TEST_ERC20_CONTRACT_CLASS_HASH,
-                *CONTRACT_ADDRESS => class_hash0,
-                *DEPRECATED_CONTRACT_ADDRESS => class_hash1,
-                *ACCOUNT_ADDRESS => *ACCOUNT_CLASS_HASH,
-            ),
-            storage_diffs: indexmap!(
-                *TEST_ERC20_CONTRACT_ADDRESS => indexmap!(
-                    // Give the accounts some balance.
-                    account_balance_key => *ACCOUNT_INITIAL_BALANCE,
-                    new_account_balance_key => *ACCOUNT_INITIAL_BALANCE,
-                    // Give the first account mint permission (what is this?).
-                    minter_var_address => *ACCOUNT_ADDRESS.0.key()
+        .append_state_diff(
+            BlockNumber(0),
+            ThinStateDiff {
+                deployed_contracts: indexmap!(
+                    *TEST_ERC20_CONTRACT_ADDRESS => *TEST_ERC20_CONTRACT_CLASS_HASH,
+                    *CONTRACT_ADDRESS => class_hash0,
+                    *DEPRECATED_CONTRACT_ADDRESS => class_hash1,
+                    *ACCOUNT_ADDRESS => *ACCOUNT_CLASS_HASH,
                 ),
-            ),
-            declared_classes: indexmap!(
-                // The class is not used in the execution, so it can be default.
-                class_hash0 => CompiledClassHash::default()
-            ),
-            deprecated_declared_classes: vec![
-                *TEST_ERC20_CONTRACT_CLASS_HASH,
-                class_hash1,
-                *ACCOUNT_CLASS_HASH,
-            ],
-            nonces: indexmap!(
-                *TEST_ERC20_CONTRACT_ADDRESS => Nonce::default(),
-                *CONTRACT_ADDRESS => Nonce::default(),
-                *DEPRECATED_CONTRACT_ADDRESS => Nonce::default(),
-                *ACCOUNT_ADDRESS => Nonce::default(),
-            ),
-            replaced_classes: indexmap!(),
-        })
+                storage_diffs: indexmap!(
+                    *TEST_ERC20_CONTRACT_ADDRESS => indexmap!(
+                        // Give the accounts some balance.
+                        account_balance_key => *ACCOUNT_INITIAL_BALANCE,
+                        new_account_balance_key => *ACCOUNT_INITIAL_BALANCE,
+                        // Give the first account mint permission (what is this?).
+                        minter_var_address => *ACCOUNT_ADDRESS.0.key()
+                    ),
+                ),
+                declared_classes: indexmap!(
+                    // The class is not used in the execution, so it can be default.
+                    class_hash0 => CompiledClassHash::default()
+                ),
+                deprecated_declared_classes: vec![
+                    *TEST_ERC20_CONTRACT_CLASS_HASH,
+                    class_hash1,
+                    *ACCOUNT_CLASS_HASH,
+                ],
+                nonces: indexmap!(
+                    *TEST_ERC20_CONTRACT_ADDRESS => Nonce::default(),
+                    *CONTRACT_ADDRESS => Nonce::default(),
+                    *DEPRECATED_CONTRACT_ADDRESS => Nonce::default(),
+                    *ACCOUNT_ADDRESS => Nonce::default(),
+                ),
+                replaced_classes: indexmap!(),
+            },
+        )
         .unwrap()
-        .append_classes(BlockNumber(0), &[(class_hash0, &SierraContractClass::default())], &[
-            (*TEST_ERC20_CONTRACT_CLASS_HASH, &get_test_erc20_fee_contract_class()),
-            (class_hash1, &get_test_deprecated_contract_class()),
-            (*ACCOUNT_CLASS_HASH, &get_test_account_class()),
-        ])
+        .append_classes(
+            BlockNumber(0),
+            &[(class_hash0, &SierraContractClass::default())],
+            &[
+                (*TEST_ERC20_CONTRACT_CLASS_HASH, &get_test_erc20_fee_contract_class()),
+                (class_hash1, &get_test_deprecated_contract_class()),
+                (*ACCOUNT_CLASS_HASH, &get_test_account_class()),
+            ],
+        )
         .unwrap()
         .append_casm(&class_hash0, &get_test_casm())
         .unwrap()
-        .append_header(BlockNumber(1), &BlockHeader {
-            block_hash: BlockHash(felt!(1_u128)),
-            block_header_without_hash: BlockHeaderWithoutHash {
-                l1_gas_price: *GAS_PRICE,
-                sequencer: *SEQUENCER_ADDRESS,
-                timestamp: *BLOCK_TIMESTAMP,
-                parent_hash: BlockHash(felt!(0_u128)),
+        .append_header(
+            BlockNumber(1),
+            &BlockHeader {
+                block_hash: BlockHash(felt!(1_u128)),
+                block_header_without_hash: BlockHeaderWithoutHash {
+                    l1_gas_price: *GAS_PRICE,
+                    sequencer: *SEQUENCER_ADDRESS,
+                    timestamp: *BLOCK_TIMESTAMP,
+                    parent_hash: BlockHash(felt!(0_u128)),
+                    ..Default::default()
+                },
                 ..Default::default()
             },
-            ..Default::default()
-        })
+        )
         .unwrap()
         .append_body(BlockNumber(1), BlockBody::default())
         .unwrap()

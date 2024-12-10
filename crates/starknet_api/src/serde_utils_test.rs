@@ -2,11 +2,17 @@ use assert_matches::assert_matches;
 use serde::Deserialize;
 
 use crate::deprecated_contract_class::{
-    ConstructorType, ContractClassAbiEntry, FunctionAbiEntry, TypedParameter,
+    ConstructorType,
+    ContractClassAbiEntry,
+    FunctionAbiEntry,
+    TypedParameter,
 };
 use crate::serde_utils::{
-    BytesAsHex, InnerDeserializationError, bytes_from_hex_str,
-    deserialize_optional_contract_class_abi_entry_vector, hex_str_from_bytes,
+    bytes_from_hex_str,
+    deserialize_optional_contract_class_abi_entry_vector,
+    hex_str_from_bytes,
+    BytesAsHex,
+    InnerDeserializationError,
 };
 
 #[test]
@@ -141,18 +147,23 @@ fn deserialize_valid_optional_contract_class_abi_entry_vector() {
     }
     "#;
     let res: DummyContractClass = serde_json::from_str(json).unwrap();
-    assert_eq!(res, DummyContractClass {
-        abi: Some(vec![ContractClassAbiEntry::Constructor(FunctionAbiEntry::<ConstructorType> {
-            name: "constructor".to_string(),
-            inputs: vec![TypedParameter {
-                name: "implementation".to_string(),
-                r#type: "felt".to_string(),
-            }],
-            outputs: vec![],
-            state_mutability: None,
-            r#type: ConstructorType::Constructor,
-        })])
-    });
+    assert_eq!(
+        res,
+        DummyContractClass {
+            abi: Some(vec![ContractClassAbiEntry::Constructor(FunctionAbiEntry::<
+                ConstructorType,
+            > {
+                name: "constructor".to_string(),
+                inputs: vec![TypedParameter {
+                    name: "implementation".to_string(),
+                    r#type: "felt".to_string(),
+                }],
+                outputs: vec![],
+                state_mutability: None,
+                r#type: ConstructorType::Constructor,
+            })])
+        }
+    );
 }
 
 #[test]

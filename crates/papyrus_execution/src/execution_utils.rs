@@ -3,7 +3,9 @@ use std::fs::File;
 use std::path::PathBuf;
 
 use blockifier::execution::contract_class::{
-    CompiledClassV0, CompiledClassV1, RunnableCompiledClass,
+    CompiledClassV0,
+    CompiledClassV1,
+    RunnableCompiledClass,
 };
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, MutRefState};
 use blockifier::state::state_api::StateReader;
@@ -12,7 +14,7 @@ use cairo_vm::types::errors::program_errors::ProgramError;
 use indexmap::IndexMap;
 use papyrus_common::state::{DeployedContract, ReplacedClass, StorageEntry};
 use papyrus_storage::compiled_class::CasmStorageReader;
-use papyrus_storage::db::{RO, TransactionKind};
+use papyrus_storage::db::{TransactionKind, RO};
 use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::{StorageError, StorageResult, StorageTxn};
 // Expose the tool for creating entry point selectors from function names.
@@ -25,7 +27,11 @@ use thiserror::Error;
 use crate::objects::TransactionTrace;
 use crate::state_reader::ExecutionStateReader;
 use crate::{
-    BlockifierError, ExecutableTransactionInput, ExecutionConfig, ExecutionError, ExecutionResult,
+    BlockifierError,
+    ExecutableTransactionInput,
+    ExecutionConfig,
+    ExecutionError,
+    ExecutionResult,
 };
 
 // An error that can occur during the use of the execution utils.

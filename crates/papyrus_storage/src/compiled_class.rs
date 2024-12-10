@@ -53,7 +53,7 @@ use starknet_api::core::ClassHash;
 
 use crate::db::serialization::VersionZeroWrapper;
 use crate::db::table_types::{SimpleTable, Table};
-use crate::db::{DbTransaction, RW, TableHandle, TransactionKind};
+use crate::db::{DbTransaction, TableHandle, TransactionKind, RW};
 use crate::mmap_file::LocationInFile;
 use crate::{FileHandlers, MarkerKind, MarkersTable, OffsetKind, StorageResult, StorageTxn};
 

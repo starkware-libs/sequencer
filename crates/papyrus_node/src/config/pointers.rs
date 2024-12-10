@@ -8,29 +8,34 @@ use std::sync::LazyLock;
 use std::time::Duration;
 use std::{env, fs, io};
 
-use clap::{Arg, ArgMatches, Command, arg, value_parser};
-use itertools::{Itertools, chain};
+use clap::{arg, value_parser, Arg, ArgMatches, Command};
+use itertools::{chain, Itertools};
 use lazy_static::lazy_static;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 #[cfg(not(feature = "rpc"))]
-use papyrus_config::ParamPrivacyInput;
-#[cfg(not(feature = "rpc"))]
 use papyrus_config::dumping::ser_param;
 use papyrus_config::dumping::{
-    ConfigPointers, Pointers, SerializeConfig, append_sub_config_name, ser_optional_sub_config,
-    ser_pointer_target_param, set_pointing_param_paths,
+    append_sub_config_name,
+    ser_optional_sub_config,
+    ser_pointer_target_param,
+    set_pointing_param_paths,
+    ConfigPointers,
+    Pointers,
+    SerializeConfig,
 };
 use papyrus_config::loading::load_and_process_config;
+#[cfg(not(feature = "rpc"))]
+use papyrus_config::ParamPrivacyInput;
 use papyrus_config::{ConfigError, ParamPath, SerializedParam};
 use papyrus_monitoring_gateway::MonitoringGatewayConfig;
 use papyrus_network::NetworkConfig;
 use papyrus_p2p_sync::client::{P2PSyncClient, P2PSyncClientConfig};
 #[cfg(feature = "rpc")]
 use papyrus_rpc::RpcConfig;
-use papyrus_storage::StorageConfig;
 use papyrus_storage::db::DbConfig;
-use papyrus_sync::SyncConfig;
+use papyrus_storage::StorageConfig;
 use papyrus_sync::sources::central::CentralSourceConfig;
+use papyrus_sync::SyncConfig;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use starknet_api::core::ChainId;

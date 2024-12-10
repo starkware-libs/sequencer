@@ -68,13 +68,19 @@ use tracing::debug;
 
 use crate::db::serialization::{NoVersionValueWrapper, VersionZeroWrapper};
 use crate::db::table_types::{CommonPrefix, DbCursorTrait, SimpleTable, Table};
-use crate::db::{DbTransaction, RW, TableHandle, TransactionKind};
+use crate::db::{DbTransaction, TableHandle, TransactionKind, RW};
 #[cfg(feature = "document_calls")]
-use crate::document_calls::{StorageQuery, add_query};
+use crate::document_calls::{add_query, StorageQuery};
 use crate::mmap_file::LocationInFile;
 use crate::state::data::IndexedDeprecatedContractClass;
 use crate::{
-    FileHandlers, MarkerKind, MarkersTable, OffsetKind, StorageError, StorageResult, StorageTxn,
+    FileHandlers,
+    MarkerKind,
+    MarkersTable,
+    OffsetKind,
+    StorageError,
+    StorageResult,
+    StorageTxn,
 };
 
 // TODO(shahak): Move the table aliases to the crate level.

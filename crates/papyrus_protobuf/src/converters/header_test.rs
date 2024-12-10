@@ -1,4 +1,4 @@
-use papyrus_test_utils::{GetTestInstance, get_rng};
+use papyrus_test_utils::{get_rng, GetTestInstance};
 
 use crate::sync::{DataOrFin, HeaderQuery, SignedBlockHeader};
 

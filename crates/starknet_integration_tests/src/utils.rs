@@ -7,9 +7,9 @@ use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{CairoVersion, RunnableCairo1};
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use papyrus_consensus::config::ConsensusConfig;
-use papyrus_consensus::types::{DEFAULT_VALIDATOR_ID, ValidatorId};
-use papyrus_network::network_manager::BroadcastTopicChannels;
+use papyrus_consensus::types::{ValidatorId, DEFAULT_VALIDATOR_ID};
 use papyrus_network::network_manager::test_utils::create_network_configs_connected_to_broadcast_channels;
+use papyrus_network::network_manager::BroadcastTopicChannels;
 use papyrus_protobuf::consensus::{ProposalPart, StreamMessage};
 use papyrus_storage::StorageConfig;
 use starknet_api::block::BlockNumber;
@@ -20,7 +20,9 @@ use starknet_batcher::block_builder::BlockBuilderConfig;
 use starknet_batcher::config::BatcherConfig;
 use starknet_consensus_manager::config::ConsensusManagerConfig;
 use starknet_gateway::config::{
-    GatewayConfig, RpcStateReaderConfig, StatefulTransactionValidatorConfig,
+    GatewayConfig,
+    RpcStateReaderConfig,
+    StatefulTransactionValidatorConfig,
     StatelessTransactionValidatorConfig,
 };
 use starknet_http_server::config::HttpServerConfig;

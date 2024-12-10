@@ -1,8 +1,8 @@
 use std::sync::Arc;
 use std::time::Instant;
 
-use jsonrpsee::Methods;
 use jsonrpsee::server::logger::{Logger, TransportProtocol};
+use jsonrpsee::Methods;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use papyrus_storage::body::BodyStorageWriter;
 use papyrus_storage::class::ClassStorageWriter;
@@ -16,12 +16,20 @@ use starknet_api::block::{BlockBody, BlockHeader, BlockNumber};
 use starknet_api::state::ThinStateDiff;
 
 use crate::rpc_metrics::{
-    FAILED_REQUESTS, ILLEGAL_METHOD, INCOMING_REQUEST, METHOD_LABEL, MetricLogger, VERSION_LABEL,
     get_method_and_version,
+    MetricLogger,
+    FAILED_REQUESTS,
+    ILLEGAL_METHOD,
+    INCOMING_REQUEST,
+    METHOD_LABEL,
+    VERSION_LABEL,
 };
 use crate::run_server;
 use crate::test_utils::{
-    get_test_highest_block, get_test_pending_classes, get_test_pending_data, get_test_rpc_config,
+    get_test_highest_block,
+    get_test_pending_classes,
+    get_test_pending_data,
+    get_test_rpc_config,
 };
 
 #[test]

@@ -1,6 +1,6 @@
 use std::str::SplitWhitespace;
 
-use serde_json::{Value as jsonVal, json};
+use serde_json::{json, Value as jsonVal};
 
 use crate::jsonrpc_request;
 

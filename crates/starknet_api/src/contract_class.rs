@@ -6,9 +6,9 @@ use derive_more::Deref;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 
-use crate::StarknetApiError;
 use crate::core::CompiledClassHash;
 use crate::deprecated_contract_class::ContractClass as DeprecatedContractClass;
+use crate::StarknetApiError;
 
 /// One Felt fits into 32 bytes.
 pub const FELT_WIDTH: usize = 32;

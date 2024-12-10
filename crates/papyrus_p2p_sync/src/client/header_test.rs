@@ -2,7 +2,12 @@ use std::collections::HashMap;
 
 use futures::{FutureExt, StreamExt};
 use papyrus_protobuf::sync::{
-    BlockHashOrNumber, DataOrFin, Direction, HeaderQuery, Query, SignedBlockHeader,
+    BlockHashOrNumber,
+    DataOrFin,
+    Direction,
+    HeaderQuery,
+    Query,
+    SignedBlockHeader,
 };
 use papyrus_storage::header::HeaderStorageReader;
 use papyrus_test_utils::get_rng;
@@ -10,10 +15,19 @@ use starknet_api::block::{BlockHeader, BlockHeaderWithoutHash, BlockNumber};
 use tokio::time::timeout;
 
 use super::test_utils::{
-    Action, DataType, HEADER_QUERY_LENGTH, SLEEP_DURATION_TO_LET_SYNC_ADVANCE,
-    TIMEOUT_FOR_NEW_QUERY_AFTER_PARTIAL_RESPONSE, TIMEOUT_FOR_TEST, TestArgs,
-    WAIT_PERIOD_FOR_NEW_DATA, create_block_hashes_and_signatures, random_header, run_test, setup,
+    create_block_hashes_and_signatures,
+    random_header,
+    run_test,
+    setup,
     wait_for_marker,
+    Action,
+    DataType,
+    TestArgs,
+    HEADER_QUERY_LENGTH,
+    SLEEP_DURATION_TO_LET_SYNC_ADVANCE,
+    TIMEOUT_FOR_NEW_QUERY_AFTER_PARTIAL_RESPONSE,
+    TIMEOUT_FOR_TEST,
+    WAIT_PERIOD_FOR_NEW_DATA,
 };
 
 #[tokio::test]
@@ -186,23 +200,26 @@ async fn sync_sends_new_header_query_if_it_got_partial_responses() {
 
 #[tokio::test]
 async fn wrong_block_number() {
-    run_test(HashMap::from([(DataType::Header, 1)]), vec![
-        // We already validate the query content in other tests.
-        Action::ReceiveQuery(Box::new(|_query| ()), DataType::Header),
-        Action::SendHeader(DataOrFin(Some(random_header(
-            &mut get_rng(),
-            BlockNumber(1),
-            None,
-            None,
-        )))),
-        Action::ValidateReportSent(DataType::Header),
-        Action::CheckStorage(Box::new(|reader| {
-            async move {
-                assert_eq!(0, reader.begin_ro_txn().unwrap().get_header_marker().unwrap().0);
-            }
-            .boxed()
-        })),
-    ])
+    run_test(
+        HashMap::from([(DataType::Header, 1)]),
+        vec![
+            // We already validate the query content in other tests.
+            Action::ReceiveQuery(Box::new(|_query| ()), DataType::Header),
+            Action::SendHeader(DataOrFin(Some(random_header(
+                &mut get_rng(),
+                BlockNumber(1),
+                None,
+                None,
+            )))),
+            Action::ValidateReportSent(DataType::Header),
+            Action::CheckStorage(Box::new(|reader| {
+                async move {
+                    assert_eq!(0, reader.begin_ro_txn().unwrap().get_header_marker().unwrap().0);
+                }
+                .boxed()
+            })),
+        ],
+    )
     .await;
 }
 

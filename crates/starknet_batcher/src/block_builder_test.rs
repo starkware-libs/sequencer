@@ -5,19 +5,24 @@ use blockifier::fee::fee_checks::FeeCheckError;
 use blockifier::state::errors::StateError;
 use blockifier::transaction::objects::{RevertError, TransactionExecutionInfo};
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
-use indexmap::{IndexMap, indexmap};
-use mockall::Sequence;
+use indexmap::{indexmap, IndexMap};
 use mockall::predicate::eq;
+use mockall::Sequence;
 use rstest::rstest;
 use starknet_api::executable_transaction::Transaction;
-use starknet_api::transaction::TransactionHash;
 use starknet_api::transaction::fields::Fee;
+use starknet_api::transaction::TransactionHash;
 use starknet_api::tx_hash;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
 use crate::block_builder::{
-    BlockBuilder, BlockBuilderError, BlockBuilderExecutionParams, BlockBuilderResult,
-    BlockBuilderTrait, BlockExecutionArtifacts, FailOnErrorCause,
+    BlockBuilder,
+    BlockBuilderError,
+    BlockBuilderExecutionParams,
+    BlockBuilderResult,
+    BlockBuilderTrait,
+    BlockExecutionArtifacts,
+    FailOnErrorCause,
 };
 use crate::test_utils::test_txs;
 use crate::transaction_executor::MockTransactionExecutorTrait;

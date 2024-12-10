@@ -5,7 +5,7 @@ use super::{Transaction, TransactionHash};
 use crate::block::NonzeroGasPrice;
 use crate::executable_transaction::Transaction as ExecutableTransaction;
 use crate::execution_resources::GasAmount;
-use crate::test_utils::{TransactionTestData, read_json_file};
+use crate::test_utils::{read_json_file, TransactionTestData};
 use crate::transaction::Fee;
 
 #[fixture]

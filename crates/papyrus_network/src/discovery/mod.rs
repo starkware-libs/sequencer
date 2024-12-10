@@ -6,23 +6,32 @@ pub mod identify_impl;
 pub mod kad_impl;
 
 use std::collections::BTreeMap;
-use std::task::{Context, Poll, ready};
+use std::task::{ready, Context, Poll};
 use std::time::Duration;
 
-use futures::future::{BoxFuture, Either, pending, select};
-use futures::{Future, FutureExt, pin_mut};
+use futures::future::{pending, select, BoxFuture, Either};
+use futures::{pin_mut, Future, FutureExt};
 use libp2p::core::Endpoint;
 use libp2p::swarm::behaviour::ConnectionEstablished;
 use libp2p::swarm::dial_opts::{DialOpts, PeerCondition};
 use libp2p::swarm::{
-    AddressChange, ConnectionClosed, ConnectionDenied, ConnectionHandler, ConnectionId,
-    DialFailure, FromSwarm, NetworkBehaviour, ToSwarm, dummy,
+    dummy,
+    AddressChange,
+    ConnectionClosed,
+    ConnectionDenied,
+    ConnectionHandler,
+    ConnectionId,
+    DialFailure,
+    FromSwarm,
+    NetworkBehaviour,
+    ToSwarm,
 };
 use libp2p::{Multiaddr, PeerId};
 use papyrus_config::converters::{
-    deserialize_milliseconds_to_duration, deserialize_seconds_to_duration,
+    deserialize_milliseconds_to_duration,
+    deserialize_seconds_to_duration,
 };
-use papyrus_config::dumping::{SerializeConfig, append_sub_config_name, ser_param};
+use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use tokio_retry::strategy::ExponentialBackoff;
