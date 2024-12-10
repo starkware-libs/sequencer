@@ -24,7 +24,7 @@ use starknet_api::state::SierraContractClass;
 use super::test_utils::{
     setup,
     wait_for_marker,
-    MarkerKind,
+    DataType,
     TestArgs,
     CLASS_DIFF_QUERY_LENGTH,
     HEADER_QUERY_LENGTH,
@@ -112,7 +112,7 @@ async fn class_basic_flow() {
                     .unwrap();
 
                 wait_for_marker(
-                    MarkerKind::Class,
+                    DataType::Class,
                     &storage_reader,
                     block_number.unchecked_next(),
                     SLEEP_DURATION_TO_LET_SYNC_ADVANCE,

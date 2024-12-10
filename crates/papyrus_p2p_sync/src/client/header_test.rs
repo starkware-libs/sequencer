@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use futures::{FutureExt, StreamExt};
 use papyrus_protobuf::sync::{
     BlockHashOrNumber,
@@ -19,7 +21,7 @@ use super::test_utils::{
     setup,
     wait_for_marker,
     Action,
-    MarkerKind,
+    DataType,
     TestArgs,
     HEADER_QUERY_LENGTH,
     SLEEP_DURATION_TO_LET_SYNC_ADVANCE,
@@ -92,7 +94,7 @@ async fn signed_headers_basic_flow() {
                 // sent.
                 let block_number = BlockNumber(i.try_into().unwrap());
                 wait_for_marker(
-                    MarkerKind::Header,
+                    DataType::Header,
                     &storage_reader,
                     block_number.unchecked_next(),
                     SLEEP_DURATION_TO_LET_SYNC_ADVANCE,
@@ -199,17 +201,17 @@ async fn sync_sends_new_header_query_if_it_got_partial_responses() {
 #[tokio::test]
 async fn wrong_block_number() {
     run_test(
-        1,
+        HashMap::from([(DataType::Header, 1)]),
         vec![
             // We already validate the query content in other tests.
-            Action::ReceiveQuery(Box::new(|_query| ())),
+            Action::ReceiveQuery(Box::new(|_query| ()), DataType::Header),
             Action::SendHeader(DataOrFin(Some(random_header(
                 &mut get_rng(),
                 BlockNumber(1),
                 None,
                 None,
             )))),
-            Action::ValidateReportSent,
+            Action::ValidateReportSent(DataType::Header),
             Action::CheckStorage(Box::new(|reader| {
                 async move {
                     assert_eq!(0, reader.begin_ro_txn().unwrap().get_header_marker().unwrap().0);
