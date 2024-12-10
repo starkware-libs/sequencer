@@ -11,7 +11,7 @@ use crate::execution::syscalls::syscall_tests::constants::REQUIRED_GAS_STORAGE_R
 use crate::retdata;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{BALANCE, CairoVersion, RunnableCairo1, trivial_external_entry_point_new};
+use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, RunnableCairo1, BALANCE};
 
 #[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native; "Native"))]
 #[test_case(RunnableCairo1::Casm; "VM")]
@@ -29,13 +29,16 @@ fn test_out_of_gas(runnable_version: RunnableCairo1) {
         ..trivial_external_entry_point_new(test_contract)
     };
     let call_info = entry_point_call.execute_directly(&mut state).unwrap();
-    assert_eq!(call_info.execution, CallExecution {
-        // 'Out of gas'
-        retdata: retdata![felt!["0x4f7574206f6620676173"]],
-        gas_consumed: REQUIRED_GAS_STORAGE_READ_WRITE_TEST - 70,
-        failed: true,
-        ..Default::default()
-    });
+    assert_eq!(
+        call_info.execution,
+        CallExecution {
+            // 'Out of gas'
+            retdata: retdata![felt!["0x4f7574206f6620676173"]],
+            gas_consumed: REQUIRED_GAS_STORAGE_READ_WRITE_TEST - 70,
+            failed: true,
+            ..Default::default()
+        }
+    );
 }
 
 #[cfg(feature = "cairo_native")]
@@ -59,11 +62,14 @@ fn test_stack_overflow() {
         ..trivial_external_entry_point_new(test_contract)
     };
     let call_info = entry_point_call.execute_directly(&mut state).unwrap();
-    assert_eq!(call_info.execution, CallExecution {
-        // 'Out of gas'
-        retdata: retdata![felt!["0x4f7574206f6620676173"]],
-        gas_consumed: MAX_POSSIBLE_SIERRA_GAS - 6590,
-        failed: true,
-        ..Default::default()
-    });
+    assert_eq!(
+        call_info.execution,
+        CallExecution {
+            // 'Out of gas'
+            retdata: retdata![felt!["0x4f7574206f6620676173"]],
+            gas_consumed: MAX_POSSIBLE_SIERRA_GAS - 6590,
+            failed: true,
+            ..Default::default()
+        }
+    );
 }

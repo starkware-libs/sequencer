@@ -2,7 +2,10 @@ use starknet_api::block::FeeType;
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::transaction::fields::Resource::{self, L1DataGas, L1Gas, L2Gas};
 use starknet_api::transaction::fields::{
-    AllResourceBounds, Fee, ResourceBounds, ValidResourceBounds,
+    AllResourceBounds,
+    Fee,
+    ResourceBounds,
+    ValidResourceBounds,
 };
 use starknet_types_core::felt::Felt;
 use thiserror::Error;
@@ -17,7 +20,9 @@ use crate::transaction::objects::{TransactionExecutionResult, TransactionInfo};
 #[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Copy, Debug, Error, PartialEq)]
 pub enum FeeCheckError {
-    #[error("Insufficient max {resource}: max amount: {max_amount}, actual used: {actual_amount}.")]
+    #[error(
+        "Insufficient max {resource}: max amount: {max_amount}, actual used: {actual_amount}."
+    )]
     MaxGasAmountExceeded { resource: Resource, max_amount: GasAmount, actual_amount: GasAmount },
     #[error("Insufficient max fee: max fee: {}, actual fee: {}.", max_fee.0, actual_fee.0)]
     MaxFeeExceeded { max_fee: Fee, actual_fee: Fee },

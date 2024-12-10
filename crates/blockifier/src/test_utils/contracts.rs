@@ -8,7 +8,8 @@ use starknet_api::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use starknet_api::contract_class::{ContractClass, EntryPointType};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::deprecated_contract_class::{
-    ContractClass as DeprecatedContractClass, EntryPointOffset,
+    ContractClass as DeprecatedContractClass,
+    EntryPointOffset,
 };
 use starknet_api::state::SierraContractClass;
 use starknet_api::{class_hash, contract_address, felt};
@@ -20,9 +21,9 @@ use crate::execution::contract_class::RunnableCompiledClass;
 use crate::execution::entry_point::CallEntryPoint;
 #[cfg(feature = "cairo_native")]
 use crate::execution::native::contract_class::NativeCompiledClassV1;
-use crate::test_utils::cairo_compile::{CompilationArtifacts, cairo0_compile, cairo1_compile};
+use crate::test_utils::cairo_compile::{cairo0_compile, cairo1_compile, CompilationArtifacts};
 use crate::test_utils::struct_impls::LoadContractFromFile;
-use crate::test_utils::{CairoVersion, RunnableCairo1, get_raw_contract_class};
+use crate::test_utils::{get_raw_contract_class, CairoVersion, RunnableCairo1};
 
 pub const CAIRO1_FEATURE_CONTRACTS_DIR: &str = "feature_contracts/cairo1";
 pub const SIERRA_CONTRACTS_SUBDIR: &str = "sierra";

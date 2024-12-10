@@ -2,14 +2,15 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
-use papyrus_config::dumping::{SerializeConfig, append_sub_config_name, ser_param};
+use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ClassHash;
 use starknet_api::execution_resources::GasAmount;
 
 use crate::blockifier::transaction_executor::{
-    TransactionExecutorError, TransactionExecutorResult,
+    TransactionExecutorError,
+    TransactionExecutorResult,
 };
 use crate::execution::call_info::ExecutionSummary;
 use crate::fee::gas_usage::get_onchain_data_segment_length;

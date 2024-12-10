@@ -2,7 +2,8 @@ use std::any::Any;
 use std::collections::{HashMap, HashSet};
 
 use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::{
-    BuiltinHintProcessor, HintProcessorData,
+    BuiltinHintProcessor,
+    HintProcessorData,
 };
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::get_ptr_from_var_name;
 use cairo_vm::hint_processor::hint_processor_definition::{HintProcessorLogic, HintReference};
@@ -16,31 +17,55 @@ use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::runners::cairo_runner::{ResourceTracker, RunResources};
 use cairo_vm::vm::vm_core::VirtualMachine;
 use num_bigint::{BigUint, TryFromBigIntError};
-use starknet_api::StarknetApiError;
 use starknet_api::block::BlockInfo;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::Calldata;
+use starknet_api::StarknetApiError;
 use starknet_types_core::felt::{Felt, FromStrError};
 use thiserror::Error;
 
 use crate::context::TransactionContext;
 use crate::execution::call_info::{CallInfo, OrderedEvent, OrderedL2ToL1Message};
 use crate::execution::common_hints::{
-    ExecutionMode, HintExecutionResult, extended_builtin_hint_processor,
+    extended_builtin_hint_processor,
+    ExecutionMode,
+    HintExecutionResult,
 };
 use crate::execution::deprecated_syscalls::{
-    DeprecatedSyscallResult, DeprecatedSyscallSelector, StorageReadResponse, StorageWriteResponse,
-    SyscallRequest, SyscallResponse, call_contract, delegate_call, delegate_l1_handler, deploy,
-    emit_event, get_block_number, get_block_timestamp, get_caller_address, get_contract_address,
-    get_sequencer_address, get_tx_info, get_tx_signature, library_call, library_call_l1_handler,
-    replace_class, send_message_to_l1, storage_read, storage_write,
+    call_contract,
+    delegate_call,
+    delegate_l1_handler,
+    deploy,
+    emit_event,
+    get_block_number,
+    get_block_timestamp,
+    get_caller_address,
+    get_contract_address,
+    get_sequencer_address,
+    get_tx_info,
+    get_tx_signature,
+    library_call,
+    library_call_l1_handler,
+    replace_class,
+    send_message_to_l1,
+    storage_read,
+    storage_write,
+    DeprecatedSyscallResult,
+    DeprecatedSyscallSelector,
+    StorageReadResponse,
+    StorageWriteResponse,
+    SyscallRequest,
+    SyscallResponse,
 };
 use crate::execution::entry_point::{CallEntryPoint, CallType, EntryPointExecutionContext};
 use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
 use crate::execution::execution_utils::{
-    ReadOnlySegment, ReadOnlySegments, felt_from_ptr, felt_range_from_ptr,
+    felt_from_ptr,
+    felt_range_from_ptr,
+    ReadOnlySegment,
+    ReadOnlySegments,
 };
 use crate::execution::hint_code;
 use crate::execution::syscalls::hint_processor::EmitEventError;

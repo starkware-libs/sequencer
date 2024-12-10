@@ -1,13 +1,13 @@
+use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TrySendError};
 use std::sync::Arc;
-use std::sync::mpsc::{Receiver, SyncSender, TrySendError, sync_channel};
 
 use log::{error, info};
 use starknet_api::core::ClassHash;
 use starknet_api::state::SierraContractClass;
-use starknet_sierra_compile::SierraToNativeCompiler;
 use starknet_sierra_compile::command_line_compiler::CommandLineCompiler;
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
 use starknet_sierra_compile::utils::into_contract_class_for_compilation;
+use starknet_sierra_compile::SierraToNativeCompiler;
 
 use crate::execution::contract_class::{CompiledClassV1, RunnableCompiledClass};
 use crate::execution::native::contract_class::NativeCompiledClassV1;

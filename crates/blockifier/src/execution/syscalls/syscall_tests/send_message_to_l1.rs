@@ -2,8 +2,8 @@ use itertools::concat;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::core::EthAddress;
 use starknet_api::felt;
-use starknet_api::transaction::L2ToL1Payload;
 use starknet_api::transaction::fields::Calldata;
+use starknet_api::transaction::L2ToL1Payload;
 use test_case::test_case;
 
 use crate::context::ChainInfo;
@@ -11,7 +11,7 @@ use crate::execution::call_info::{CallExecution, MessageToL1, OrderedL2ToL1Messa
 use crate::execution::entry_point::CallEntryPoint;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{BALANCE, CairoVersion, RunnableCairo1, trivial_external_entry_point_new};
+use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, RunnableCairo1, BALANCE};
 
 #[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native; "Native"))]
 #[test_case(RunnableCairo1::Casm; "VM")]

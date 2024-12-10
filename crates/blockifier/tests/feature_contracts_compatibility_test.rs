@@ -1,10 +1,13 @@
 use std::fs;
 
 use blockifier::test_utils::cairo_compile::{
-    CompilationArtifacts, prepare_group_tag_compiler_deps,
+    prepare_group_tag_compiler_deps,
+    CompilationArtifacts,
 };
 use blockifier::test_utils::contracts::{
-    CAIRO1_FEATURE_CONTRACTS_DIR, FeatureContract, SIERRA_CONTRACTS_SUBDIR,
+    FeatureContract,
+    CAIRO1_FEATURE_CONTRACTS_DIR,
+    SIERRA_CONTRACTS_SUBDIR,
 };
 use blockifier::test_utils::{CairoVersion, RunnableCairo1};
 use pretty_assertions::assert_eq;

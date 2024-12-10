@@ -1,17 +1,22 @@
 use std::collections::BTreeMap;
 
-use papyrus_config::dumping::{SerializeConfig, append_sub_config_name, ser_param};
+use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockInfo, FeeType, GasPriceVector};
 use starknet_api::core::{ChainId, ContractAddress};
 use starknet_api::transaction::fields::{
-    AllResourceBounds, GasVectorComputationMode, ValidResourceBounds,
+    AllResourceBounds,
+    GasVectorComputationMode,
+    ValidResourceBounds,
 };
 
 use crate::bouncer::BouncerConfig;
 use crate::transaction::objects::{
-    CurrentTransactionInfo, HasRelatedFeeType, TransactionInfo, TransactionInfoCreator,
+    CurrentTransactionInfo,
+    HasRelatedFeeType,
+    TransactionInfo,
+    TransactionInfoCreator,
 };
 use crate::versioned_constants::VersionedConstants;
 

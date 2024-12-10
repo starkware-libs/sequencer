@@ -17,11 +17,16 @@ use crate::fee::eth_gas_constants;
 use crate::fee::fee_utils::get_fee_by_gas_vector;
 use crate::fee::gas_usage::{get_da_gas_cost, get_message_segment_length};
 use crate::fee::resources::{
-    ComputationResources, StarknetResources, StateResources, TransactionResources,
+    ComputationResources,
+    StarknetResources,
+    StateResources,
+    TransactionResources,
 };
 use crate::state::cached_state::StateChangesCount;
 use crate::test_utils::{
-    DEFAULT_ETH_L1_DATA_GAS_PRICE, DEFAULT_ETH_L1_GAS_PRICE, get_vm_resource_usage,
+    get_vm_resource_usage,
+    DEFAULT_ETH_L1_DATA_GAS_PRICE,
+    DEFAULT_ETH_L1_GAS_PRICE,
 };
 use crate::transaction::test_utils::invoke_tx_with_default_flags;
 use crate::utils::u64_from_usize;

@@ -5,17 +5,28 @@ use rstest::rstest;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use starknet_api::core::{
-    ClassHash, ContractAddress, EntryPointSelector, Nonce, calculate_contract_address,
+    calculate_contract_address,
+    ClassHash,
+    ContractAddress,
+    EntryPointSelector,
+    Nonce,
 };
 use starknet_api::executable_transaction::AccountTransaction as Transaction;
-use starknet_api::transaction::TransactionVersion;
 use starknet_api::transaction::constants::{
-    DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME, EXECUTE_ENTRY_POINT_NAME, FELT_TRUE,
-    VALIDATE_DECLARE_ENTRY_POINT_NAME, VALIDATE_DEPLOY_ENTRY_POINT_NAME, VALIDATE_ENTRY_POINT_NAME,
+    DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME,
+    EXECUTE_ENTRY_POINT_NAME,
+    FELT_TRUE,
+    VALIDATE_DECLARE_ENTRY_POINT_NAME,
+    VALIDATE_DEPLOY_ENTRY_POINT_NAME,
+    VALIDATE_ENTRY_POINT_NAME,
 };
 use starknet_api::transaction::fields::{
-    ContractAddressSalt, Fee, TransactionSignature, ValidResourceBounds,
+    ContractAddressSalt,
+    Fee,
+    TransactionSignature,
+    ValidResourceBounds,
 };
+use starknet_api::transaction::TransactionVersion;
 use starknet_api::{calldata, felt, invoke_tx_args};
 use starknet_types_core::felt::Felt;
 
@@ -24,18 +35,25 @@ use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::entry_point::CallEntryPoint;
 use crate::execution::errors::EntryPointExecutionError;
 use crate::execution::stack_trace::{
-    Cairo1RevertHeader, Cairo1RevertSummary, MIN_CAIRO1_FRAME_LENGTH, TRACE_LENGTH_CAP,
     extract_trailing_cairo1_revert_trace,
+    Cairo1RevertHeader,
+    Cairo1RevertSummary,
+    MIN_CAIRO1_FRAME_LENGTH,
+    TRACE_LENGTH_CAP,
 };
 use crate::execution::syscalls::hint_processor::ENTRYPOINT_FAILED_ERROR;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::{fund_account, test_state};
-use crate::test_utils::{BALANCE, CairoVersion, RunnableCairo1, create_calldata};
+use crate::test_utils::{create_calldata, CairoVersion, RunnableCairo1, BALANCE};
 use crate::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
 use crate::transaction::test_utils::{
-    FaultyAccountTxCreatorArgs, INVALID, block_context,
-    create_account_tx_for_validate_test_nonce_0, default_all_resource_bounds,
-    invoke_tx_with_default_flags, run_invoke_tx,
+    block_context,
+    create_account_tx_for_validate_test_nonce_0,
+    default_all_resource_bounds,
+    invoke_tx_with_default_flags,
+    run_invoke_tx,
+    FaultyAccountTxCreatorArgs,
+    INVALID,
 };
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::ExecutableTransaction;
@@ -68,11 +86,15 @@ fn test_stack_trace_with_inner_error_msg(block_context: BlockContext) {
         ],
     );
 
-    let tx_execution_error = run_invoke_tx(&mut state, &block_context, invoke_tx_args! {
-        sender_address: account_address,
-        calldata,
-        version: TransactionVersion::ZERO,
-    })
+    let tx_execution_error = run_invoke_tx(
+        &mut state,
+        &block_context,
+        invoke_tx_args! {
+            sender_address: account_address,
+            calldata,
+            version: TransactionVersion::ZERO,
+        },
+    )
     .unwrap_err();
 
     // Fetch PC locations from the compiled contract to compute the expected PC locations in the
@@ -154,11 +176,15 @@ fn test_stack_trace(
         ],
     );
 
-    let tx_execution_error = run_invoke_tx(&mut state, &block_context, invoke_tx_args! {
-        sender_address: account_address,
-        calldata,
-        version: TransactionVersion::ZERO,
-    })
+    let tx_execution_error = run_invoke_tx(
+        &mut state,
+        &block_context,
+        invoke_tx_args! {
+            sender_address: account_address,
+            calldata,
+            version: TransactionVersion::ZERO,
+        },
+    )
     .unwrap_err();
 
     // Fetch PC locations from the compiled contract to compute the expected PC locations in the
@@ -278,11 +304,15 @@ fn test_trace_callchain_ends_with_regular_call(
         ],
     );
 
-    let tx_execution_error = run_invoke_tx(&mut state, &block_context, invoke_tx_args! {
-        sender_address: account_address,
-        calldata,
-        version: TransactionVersion::ZERO,
-    })
+    let tx_execution_error = run_invoke_tx(
+        &mut state,
+        &block_context,
+        invoke_tx_args! {
+            sender_address: account_address,
+            calldata,
+            version: TransactionVersion::ZERO,
+        },
+    )
     .unwrap_err();
 
     let account_entry_point_offset =
@@ -415,11 +445,15 @@ fn test_trace_call_chain_with_syscalls(
         &raw_calldata,
     );
 
-    let tx_execution_error = run_invoke_tx(&mut state, &block_context, invoke_tx_args! {
-        sender_address: account_address,
-        calldata,
-        version: TransactionVersion::ZERO,
-    })
+    let tx_execution_error = run_invoke_tx(
+        &mut state,
+        &block_context,
+        invoke_tx_args! {
+            sender_address: account_address,
+            calldata,
+            version: TransactionVersion::ZERO,
+        },
+    )
     .unwrap_err();
 
     let account_entry_point_offset =

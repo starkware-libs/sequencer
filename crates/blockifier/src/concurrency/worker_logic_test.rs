@@ -4,11 +4,11 @@ use std::sync::Mutex;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::core::{ContractAddress, Nonce};
-use starknet_api::test_utils::NonceManager;
 use starknet_api::test_utils::declare::executable_declare_tx;
-use starknet_api::transaction::TransactionVersion;
+use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::constants::DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::{ContractAddressSalt, Fee, ValidResourceBounds};
+use starknet_api::transaction::TransactionVersion;
 use starknet_api::{contract_address, declare_tx_args, felt, invoke_tx_args, nonce, storage_key};
 use starknet_types_core::felt::Felt;
 
@@ -26,14 +26,21 @@ use crate::state::state_api::StateReader;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{
-    BALANCE, CairoVersion, RunnableCairo1, TEST_ERC20_CONTRACT_ADDRESS2, create_calldata,
+    create_calldata,
     create_trivial_calldata,
+    CairoVersion,
+    RunnableCairo1,
+    BALANCE,
+    TEST_ERC20_CONTRACT_ADDRESS2,
 };
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::objects::HasRelatedFeeType;
 use crate::transaction::test_utils::{
-    calculate_class_info_for_testing, default_all_resource_bounds, emit_n_events_tx,
-    invoke_tx_with_default_flags, max_fee,
+    calculate_class_info_for_testing,
+    default_all_resource_bounds,
+    emit_n_events_tx,
+    invoke_tx_with_default_flags,
+    max_fee,
 };
 use crate::transaction::transaction_execution::Transaction;
 

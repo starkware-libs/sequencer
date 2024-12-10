@@ -9,7 +9,7 @@ use indexmap::{IndexMap, IndexSet};
 use infra_utils::compile_time_cargo_manifest_dir;
 use num_rational::Ratio;
 use num_traits::Inv;
-use papyrus_config::dumping::{SerializeConfig, ser_param};
+use papyrus_config::dumping::{ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use paste::paste;
 use semver::Version;

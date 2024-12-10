@@ -8,9 +8,11 @@
 //! Run the benchmarks using `cargo bench --bench blockifier_bench`.
 
 use blockifier::test_utils::transfers_generator::{
-    RecipientGeneratorType, TransfersGenerator, TransfersGeneratorConfig,
+    RecipientGeneratorType,
+    TransfersGenerator,
+    TransfersGeneratorConfig,
 };
-use criterion::{Criterion, criterion_group, criterion_main};
+use criterion::{criterion_group, criterion_main, Criterion};
 
 pub fn transfers_benchmark(c: &mut Criterion) {
     let transfers_generator_config = TransfersGeneratorConfig {

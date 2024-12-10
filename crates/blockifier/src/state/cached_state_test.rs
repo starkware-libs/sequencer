@@ -6,7 +6,13 @@ use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::transaction::fields::{Fee, TransactionSignature, ValidResourceBounds};
 use starknet_api::{
-    class_hash, compiled_class_hash, contract_address, felt, invoke_tx_args, nonce, storage_key,
+    class_hash,
+    compiled_class_hash,
+    contract_address,
+    felt,
+    invoke_tx_args,
+    nonce,
+    storage_key,
 };
 
 use crate::context::{BlockContext, ChainInfo};
@@ -14,8 +20,8 @@ use crate::state::cached_state::*;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{BALANCE, CairoVersion, RunnableCairo1, create_calldata};
-use crate::transaction::test_utils::{STORAGE_WRITE, default_all_resource_bounds, run_invoke_tx};
+use crate::test_utils::{create_calldata, CairoVersion, RunnableCairo1, BALANCE};
+use crate::transaction::test_utils::{default_all_resource_bounds, run_invoke_tx, STORAGE_WRITE};
 const CONTRACT_ADDRESS: &str = "0x100";
 
 fn set_initial_state_values(
@@ -530,12 +536,16 @@ fn test_write_at_validate_and_execute(
 
     let signature =
         TransactionSignature(vec![Felt::from(STORAGE_WRITE), validate_value, execute_value]);
-    let tx_execution_info = run_invoke_tx(&mut state, &block_context, invoke_tx_args! {
-        signature,
-        sender_address: contract_address,
-        resource_bounds: default_all_resource_bounds,
-        calldata: create_calldata(contract_address, "foo", &[]),
-    })
+    let tx_execution_info = run_invoke_tx(
+        &mut state,
+        &block_context,
+        invoke_tx_args! {
+            signature,
+            sender_address: contract_address,
+            resource_bounds: default_all_resource_bounds,
+            calldata: create_calldata(contract_address, "foo", &[]),
+        },
+    )
     .unwrap();
     let n_allocated_keys = tx_execution_info
         .receipt
@@ -644,12 +654,15 @@ fn test_state_changes_keys() {
     assert_eq!(keys0, keys0.difference(&empty_keys));
     assert_eq!(empty_keys, keys0.difference(&keys0));
     assert_eq!(empty_keys.count(), StateChangesCount::default());
-    assert_eq!(keys0.count(), StateChangesCount {
-        n_storage_updates: 2,
-        n_class_hash_updates: 1,
-        n_compiled_class_hash_updates: 2,
-        n_modified_contracts: 2
-    });
+    assert_eq!(
+        keys0.count(),
+        StateChangesCount {
+            n_storage_updates: 2,
+            n_class_hash_updates: 1,
+            n_compiled_class_hash_updates: 2,
+            n_modified_contracts: 2
+        }
+    );
 
     let mut keys0_copy = keys0.clone();
     let mut empty_keys_copy = empty_keys.clone();
@@ -668,39 +681,48 @@ fn test_state_changes_keys() {
         modified_contracts: HashSet::from([contract_address1, contract_address3]),
     };
 
-    assert_eq!(keys0.difference(&keys1), StateChangesKeys {
-        nonce_keys: HashSet::from([contract_address0]),
-        class_hash_keys: HashSet::new(),
-        storage_keys: HashSet::from([(contract_address2, storage_key!(0x200_u16),)]),
-        compiled_class_hash_keys: HashSet::from([class_hash1]),
-        modified_contracts: HashSet::from([contract_address2]),
-    });
-    assert_eq!(keys1.difference(&keys0), StateChangesKeys {
-        nonce_keys: HashSet::from([contract_address1]),
-        class_hash_keys: HashSet::from([contract_address2]),
-        storage_keys: HashSet::new(),
-        compiled_class_hash_keys: HashSet::new(),
-        modified_contracts: HashSet::from([contract_address3]),
-    });
+    assert_eq!(
+        keys0.difference(&keys1),
+        StateChangesKeys {
+            nonce_keys: HashSet::from([contract_address0]),
+            class_hash_keys: HashSet::new(),
+            storage_keys: HashSet::from([(contract_address2, storage_key!(0x200_u16),)]),
+            compiled_class_hash_keys: HashSet::from([class_hash1]),
+            modified_contracts: HashSet::from([contract_address2]),
+        }
+    );
+    assert_eq!(
+        keys1.difference(&keys0),
+        StateChangesKeys {
+            nonce_keys: HashSet::from([contract_address1]),
+            class_hash_keys: HashSet::from([contract_address2]),
+            storage_keys: HashSet::new(),
+            compiled_class_hash_keys: HashSet::new(),
+            modified_contracts: HashSet::from([contract_address3]),
+        }
+    );
 
     let keys1_copy = keys1.clone();
     keys1.extend(&keys0);
     keys0.extend(&keys1_copy);
     assert_eq!(keys0, keys1);
-    assert_eq!(keys0, StateChangesKeys {
-        nonce_keys: HashSet::from([contract_address0, contract_address1]),
-        class_hash_keys: HashSet::from([contract_address1, contract_address2]),
-        storage_keys: HashSet::from([
-            (contract_address2, storage_key!(0x300_u16)),
-            (contract_address2, storage_key!(0x200_u16)),
-        ]),
-        compiled_class_hash_keys: HashSet::from([class_hash0, class_hash1]),
-        modified_contracts: HashSet::from([
-            contract_address1,
-            contract_address2,
-            contract_address3
-        ]),
-    })
+    assert_eq!(
+        keys0,
+        StateChangesKeys {
+            nonce_keys: HashSet::from([contract_address0, contract_address1]),
+            class_hash_keys: HashSet::from([contract_address1, contract_address2]),
+            storage_keys: HashSet::from([
+                (contract_address2, storage_key!(0x300_u16)),
+                (contract_address2, storage_key!(0x200_u16)),
+            ]),
+            compiled_class_hash_keys: HashSet::from([class_hash0, class_hash1]),
+            modified_contracts: HashSet::from([
+                contract_address1,
+                contract_address2,
+                contract_address3
+            ]),
+        }
+    )
 }
 
 #[rstest]

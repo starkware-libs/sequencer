@@ -17,10 +17,12 @@ use crate::execution::call_info::{CallExecution, CallInfo, ChargedResources};
 use crate::execution::contract_class::{CompiledClassV0, TrackedResource};
 use crate::execution::deprecated_syscalls::hint_processor::DeprecatedSyscallHintProcessor;
 use crate::execution::entry_point::{
-    CallEntryPoint, EntryPointExecutionContext, EntryPointExecutionResult,
+    CallEntryPoint,
+    EntryPointExecutionContext,
+    EntryPointExecutionResult,
 };
 use crate::execution::errors::{PostExecutionError, PreExecutionError};
-use crate::execution::execution_utils::{Args, ReadOnlySegments, read_execution_retdata};
+use crate::execution::execution_utils::{read_execution_retdata, Args, ReadOnlySegments};
 use crate::state::state_api::State;
 
 pub struct VmExecutionContext<'a> {

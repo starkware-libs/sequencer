@@ -2,7 +2,7 @@ use ark_ec::short_weierstrass::{Affine, SWCurveConfig};
 use ark_ff::{BigInteger, PrimeField, Zero};
 use starknet_types_core::felt::Felt;
 
-use super::syscalls::hint_processor::{INVALID_ARGUMENT, SyscallExecutionError};
+use super::syscalls::hint_processor::{SyscallExecutionError, INVALID_ARGUMENT};
 
 pub fn get_point_from_x<Curve: SWCurveConfig>(
     x: num_bigint::BigUint,

@@ -13,7 +13,7 @@ use starknet_types_core::felt::Felt;
 use crate::execution::call_info::{CallInfo, Retdata};
 use crate::execution::deprecated_syscalls::hint_processor::DeprecatedSyscallExecutionError;
 use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
-use crate::execution::syscalls::hint_processor::{ENTRYPOINT_FAILED_ERROR, SyscallExecutionError};
+use crate::execution::syscalls::hint_processor::{SyscallExecutionError, ENTRYPOINT_FAILED_ERROR};
 use crate::transaction::errors::TransactionExecutionError;
 
 #[cfg(test)]
@@ -135,12 +135,16 @@ pub enum ErrorStackHeader {
 
 impl Display for ErrorStackHeader {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", match self {
-            Self::Constructor => "Contract constructor execution has failed:\n",
-            Self::Execution => "Transaction execution has failed:\n",
-            Self::Validation => "Transaction validation has failed:\n",
-            Self::None => "",
-        })
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Constructor => "Contract constructor execution has failed:\n",
+                Self::Execution => "Transaction execution has failed:\n",
+                Self::Validation => "Transaction validation has failed:\n",
+                Self::None => "",
+            }
+        )
     }
 }
 
@@ -227,10 +231,14 @@ pub enum Cairo1RevertHeader {
 
 impl Display for Cairo1RevertHeader {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", match self {
-            Self::Execution => "Execution failed. Failure reason:",
-            Self::Validation => "The `validate` entry point panicked with:",
-        })
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Execution => "Execution failed. Failure reason:",
+                Self::Validation => "The `validate` entry point panicked with:",
+            }
+        )
     }
 }
 

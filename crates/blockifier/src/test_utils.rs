@@ -20,10 +20,13 @@ use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::hash::StarkHash;
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::TransactionVersion;
 use starknet_api::transaction::fields::{
-    Calldata, ContractAddressSalt, Fee, GasVectorComputationMode,
+    Calldata,
+    ContractAddressSalt,
+    Fee,
+    GasVectorComputationMode,
 };
+use starknet_api::transaction::TransactionVersion;
 use starknet_api::{contract_address, felt};
 use starknet_types_core::felt::Felt;
 

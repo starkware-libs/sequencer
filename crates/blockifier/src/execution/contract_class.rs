@@ -4,10 +4,13 @@ use std::sync::Arc;
 
 use cairo_lang_casm;
 use cairo_lang_casm::hints::Hint;
-use cairo_lang_starknet_classes::NestedIntList;
 use cairo_lang_starknet_classes::casm_contract_class::{CasmContractClass, CasmContractEntryPoint};
+use cairo_lang_starknet_classes::NestedIntList;
 use cairo_vm::serde::deserialize_program::{
-    ApTracking, FlowTrackingData, HintParams, ReferenceManager,
+    ApTracking,
+    FlowTrackingData,
+    HintParams,
+    ReferenceManager,
 };
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::errors::program_errors::ProgramError;
@@ -21,7 +24,9 @@ use serde::{Deserialize, Deserializer, Serialize};
 use starknet_api::contract_class::{ContractClass, EntryPointType};
 use starknet_api::core::EntryPointSelector;
 use starknet_api::deprecated_contract_class::{
-    ContractClass as DeprecatedContractClass, EntryPointOffset, EntryPointV0,
+    ContractClass as DeprecatedContractClass,
+    EntryPointOffset,
+    EntryPointV0,
     Program as DeprecatedProgram,
 };
 use starknet_types_core::felt::Felt;

@@ -9,9 +9,13 @@ use starknet_types_core::felt::Felt;
 use crate::abi::sierra_types::{SierraType, SierraU256};
 use crate::execution::execution_utils::{felt_from_ptr, write_maybe_relocatable, write_u256};
 use crate::execution::secp::new_affine;
-use crate::execution::syscalls::hint_processor::{SyscallHintProcessor, felt_to_bool};
+use crate::execution::syscalls::hint_processor::{felt_to_bool, SyscallHintProcessor};
 use crate::execution::syscalls::{
-    SyscallExecutionError, SyscallRequest, SyscallResponse, SyscallResult, WriteResponseResult,
+    SyscallExecutionError,
+    SyscallRequest,
+    SyscallResponse,
+    SyscallResult,
+    WriteResponseResult,
 };
 
 #[derive(Debug, Default, Eq, PartialEq)]

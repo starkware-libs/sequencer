@@ -1,4 +1,4 @@
-use glob::{Paths, glob};
+use glob::{glob, Paths};
 use pretty_assertions::assert_eq;
 
 use super::*;

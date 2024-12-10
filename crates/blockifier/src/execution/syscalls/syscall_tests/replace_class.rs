@@ -9,7 +9,7 @@ use crate::execution::entry_point::CallEntryPoint;
 use crate::state::state_api::StateReader;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{BALANCE, CairoVersion, RunnableCairo1, trivial_external_entry_point_new};
+use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, RunnableCairo1, BALANCE};
 
 #[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native; "Native"))]
 #[test_case(RunnableCairo1::Casm; "VM")]
@@ -32,10 +32,11 @@ fn undeclared_class_hash(runnable_version: RunnableCairo1) {
 fn cairo0_class_hash(runnable_version: RunnableCairo1) {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable_version));
     let empty_contract_cairo0 = FeatureContract::Empty(CairoVersion::Cairo0);
-    let mut state = test_state(&ChainInfo::create_for_testing(), BALANCE, &[
-        (test_contract, 1),
-        (empty_contract_cairo0, 0),
-    ]);
+    let mut state = test_state(
+        &ChainInfo::create_for_testing(),
+        BALANCE,
+        &[(test_contract, 1), (empty_contract_cairo0, 0)],
+    );
 
     // Replace with Cairo 0 class hash.
     let v0_class_hash = empty_contract_cairo0.get_class_hash();
@@ -56,11 +57,11 @@ fn positive_flow(runnable_version: RunnableCairo1) {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable_version));
     let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1(runnable_version));
     let empty_contract_cairo0 = FeatureContract::Empty(CairoVersion::Cairo0);
-    let mut state = test_state(&ChainInfo::create_for_testing(), BALANCE, &[
-        (test_contract, 1),
-        (empty_contract, 0),
-        (empty_contract_cairo0, 0),
-    ]);
+    let mut state = test_state(
+        &ChainInfo::create_for_testing(),
+        BALANCE,
+        &[(test_contract, 1), (empty_contract, 0), (empty_contract_cairo0, 0)],
+    );
     let contract_address = test_contract.get_instance_address(0);
 
     let old_class_hash = test_contract.get_class_hash();
@@ -71,9 +72,9 @@ fn positive_flow(runnable_version: RunnableCairo1) {
         entry_point_selector: selector_from_name("test_replace_class"),
         ..trivial_external_entry_point_new(test_contract)
     };
-    assert_eq!(entry_point_call.execute_directly(&mut state).unwrap().execution, CallExecution {
-        gas_consumed: 5220,
-        ..Default::default()
-    });
+    assert_eq!(
+        entry_point_call.execute_directly(&mut state).unwrap().execution,
+        CallExecution { gas_consumed: 5220, ..Default::default() }
+    );
     assert_eq!(state.get_class_hash_at(contract_address).unwrap(), new_class_hash);
 }

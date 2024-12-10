@@ -1,7 +1,11 @@
 use std::collections::HashMap;
 
 use cairo_vm::serde::deserialize_program::{
-    Attribute, HintParams, Identifier, ReferenceManager, deserialize_array_of_bigint_hex,
+    deserialize_array_of_bigint_hex,
+    Attribute,
+    HintParams,
+    Identifier,
+    ReferenceManager,
 };
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::errors::program_errors::ProgramError;
@@ -20,16 +24,22 @@ use starknet_types_core::felt::Felt;
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::contract_class::{RunnableCompiledClass, TrackedResource};
 use crate::execution::entry_point::{
-    CallEntryPoint, ConstructorContext, ConstructorEntryPointExecutionResult,
-    EntryPointExecutionContext, EntryPointExecutionResult, execute_constructor_entry_point,
+    execute_constructor_entry_point,
+    CallEntryPoint,
+    ConstructorContext,
+    ConstructorEntryPointExecutionResult,
+    EntryPointExecutionContext,
+    EntryPointExecutionResult,
 };
 use crate::execution::errors::{
-    ConstructorEntryPointExecutionError, EntryPointExecutionError, PostExecutionError,
+    ConstructorEntryPointExecutionError,
+    EntryPointExecutionError,
+    PostExecutionError,
     PreExecutionError,
 };
 #[cfg(feature = "cairo_native")]
 use crate::execution::native::entry_point_execution as native_entry_point_execution;
-use crate::execution::stack_trace::{Cairo1RevertHeader, extract_trailing_cairo1_revert_trace};
+use crate::execution::stack_trace::{extract_trailing_cairo1_revert_trace, Cairo1RevertHeader};
 use crate::execution::syscalls::hint_processor::ENTRYPOINT_NOT_FOUND_ERROR;
 use crate::execution::{deprecated_entry_point_execution, entry_point_execution};
 use crate::state::errors::StateError;
