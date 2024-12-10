@@ -8,8 +8,8 @@ use blockifier::test_utils::{CairoVersion, RunnableCairo1};
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use papyrus_consensus::config::ConsensusConfig;
 use papyrus_consensus::types::ValidatorId;
-use papyrus_network::network_manager::test_utils::create_network_configs_connected_to_broadcast_channels;
 use papyrus_network::network_manager::BroadcastTopicChannels;
+use papyrus_network::network_manager::test_utils::create_network_configs_connected_to_broadcast_channels;
 use papyrus_protobuf::consensus::{ProposalPart, StreamMessage};
 use papyrus_storage::StorageConfig;
 use starknet_api::block::BlockNumber;
@@ -258,7 +258,6 @@ fn create_mempool_p2p_config(sequencer_index: usize, chain_id: ChainId) -> Mempo
     // When running multiple sequencers on the same machine, we need to make sure their ports are
     // different. Use the sequencer_index to differentiate between them.
     config.network_config.tcp_port += u16::try_from(sequencer_index).unwrap();
-    config.network_config.quic_port += u16::try_from(sequencer_index).unwrap();
     config.network_config.chain_id = chain_id;
     config
 }
