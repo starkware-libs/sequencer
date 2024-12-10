@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 
 use serde::{Deserialize, Serialize};
+use starknet_sequencer_infra::component_client::ClientError;
 use thiserror::Error;
 
 #[derive(Clone, Debug, Error, PartialEq, Eq, Serialize, Deserialize)]
@@ -25,4 +26,12 @@ impl L1ProviderError {
     pub fn unexpected_transition(from: impl ToString, to: impl ToString) -> Self {
         Self::UnexpectedProviderStateTransition { from: from.to_string(), to: to.to_string() }
     }
+}
+
+#[derive(Clone, Debug, Error)]
+pub enum L1ProviderClientError {
+    #[error(transparent)]
+    ClientError(#[from] ClientError),
+    #[error(transparent)]
+    L1ProviderError(#[from] L1ProviderError),
 }
