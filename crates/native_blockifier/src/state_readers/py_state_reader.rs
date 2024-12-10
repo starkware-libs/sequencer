@@ -5,7 +5,9 @@ use blockifier::execution::contract_class::{
 };
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader, StateResult};
+use pyo3::types::PyTuple;
 use pyo3::{FromPyObject, PyAny, PyErr, PyObject, PyResult, Python};
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
@@ -71,20 +73,32 @@ impl StateReader for PyStateReader {
     fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
         Python::with_gil(|py| -> Result<RunnableCompiledClass, PyErr> {
             let args = (PyFelt::from(class_hash),);
-            let py_raw_compiled_class: PyRawCompiledClass = self
+            let py_versioned_raw_compiled_class: &PyTuple = self
                 .state_reader_proxy
                 .as_ref(py)
-                .call_method1("get_raw_compiled_class", args)?
-                .extract()?;
+                .call_method1("get_versioned_raw_compiled_class", args)?
+                .downcast()?;
 
-            Ok(RunnableCompiledClass::try_from(py_raw_compiled_class)?)
+            // Extract the raw compiled class
+            let py_raw_compiled_class: PyRawCompiledClass =
+                py_versioned_raw_compiled_class.get_item(0)?.extract()?;
+            let runnable_compiled_class = RunnableCompiledClass::try_from(py_raw_compiled_class)?;
+
+            // Extract and process the Sierra version
+            let (minor, major, patch): (u64, u64, u64) =
+                py_versioned_raw_compiled_class.get_item(1)?.extract()?;
+            // TODO(Aviv): Return it in the next PR after the change in the StateReader API.
+            let _sierra_version = SierraVersion::new(major, minor, patch);
+            Ok(runnable_compiled_class)
         })
         .map_err(|err| {
-            if Python::with_gil(|py| err.is_instance_of::<UndeclaredClassHashError>(py)) {
-                StateError::UndeclaredClassHash(class_hash)
-            } else {
-                StateError::StateReadError(err.to_string())
-            }
+            Python::with_gil(|py| {
+                if err.is_instance_of::<UndeclaredClassHashError>(py) {
+                    StateError::UndeclaredClassHash(class_hash)
+                } else {
+                    StateError::StateReadError(err.to_string())
+                }
+            })
         })
     }
 
