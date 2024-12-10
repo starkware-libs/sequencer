@@ -304,6 +304,7 @@ async fn spawn_sync_client(
                 storage_reader,
                 storage_writer,
                 p2p_sync_client_channels,
+                futures::stream::pending().boxed(),
             );
             tokio::spawn(async move { Ok(p2p_sync.run().await?) })
         }
