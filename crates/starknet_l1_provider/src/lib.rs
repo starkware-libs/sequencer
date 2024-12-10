@@ -173,8 +173,8 @@ impl ProviderState {
         match self {
             ProviderState::Pending => "Pending",
             ProviderState::Propose => "Propose",
-            ProviderState::Uninitialized => "Uninitialized",
             ProviderState::Validate => "Validate",
+            ProviderState::Uninitialized => "Uninitialized",
         }
     }
 }
