@@ -11,7 +11,7 @@ pub struct TransactionExecutorConfig {
     pub concurrency_config: ConcurrencyConfig,
 }
 impl TransactionExecutorConfig {
-    #[cfg(any(test, feature = "testing"))]
+    #[cfg(any(test, feature = "testing", feature = "native_blockifier"))]
     pub fn create_for_testing(concurrency_enabled: bool) -> Self {
         Self { concurrency_config: ConcurrencyConfig::create_for_testing(concurrency_enabled) }
     }

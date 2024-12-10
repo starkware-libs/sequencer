@@ -379,7 +379,6 @@ impl PyBlockExecutor {
         self.storage.close();
     }
 
-    #[cfg(any(feature = "testing", test))]
     #[pyo3(signature = (concurrency_config, contract_class_manager_config, os_config, path, max_state_diff_size))]
     #[staticmethod]
     fn create_for_testing(
@@ -431,7 +430,6 @@ impl PyBlockExecutor {
         )
     }
 
-    #[cfg(any(feature = "testing", test))]
     pub fn create_for_testing_with_storage(storage: impl Storage + Send + 'static) -> Self {
         use blockifier::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
         Self {
