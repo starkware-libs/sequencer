@@ -23,6 +23,7 @@ use starknet_api::transaction::fields::GasVectorComputationMode;
 use strum::IntoEnumIterator;
 use thiserror::Error;
 
+use crate::execution::common_hints::ExecutionMode;
 use crate::execution::deprecated_syscalls::hint_processor::SyscallCounter;
 use crate::execution::execution_utils::poseidon_hash_many_cost;
 use crate::execution::syscalls::SyscallSelector;
@@ -247,6 +248,20 @@ impl VersionedConstants {
     fn sierra_gas_in_l1_gas_amount(&self) -> ResourceCost {
         Ratio::new(1, self.os_constants.gas_costs.base.step_gas_cost)
             * self.vm_resource_fee_cost().n_steps
+    }
+
+    /// Default initial gas amount when L2 gas is not provided.
+    pub fn default_initial_gas_amount(&self) -> GasAmount {
+        (self.execute_max_sierra_gas.checked_add(self.validate_max_sierra_gas))
+            .expect("The default initial gas cost should be less than the maximum gas amount.")
+    }
+
+    /// Returns the maximum gas amount according to the given mode.
+    pub fn sierra_gas_limit(&self, mode: &ExecutionMode) -> GasAmount {
+        match mode {
+            ExecutionMode::Validate => self.validate_max_sierra_gas,
+            ExecutionMode::Execute => self.execute_max_sierra_gas,
+        }
     }
 
     /// Returns the default initial gas for VM mode transactions.

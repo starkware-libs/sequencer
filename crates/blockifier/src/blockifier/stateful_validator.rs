@@ -74,7 +74,7 @@ impl<S: StateReader> StatefulValidator<S> {
 
         // `__validate__` call.
         let (_optional_call_info, actual_cost) =
-            self.validate(&tx, tx_context.initial_sierra_gas())?;
+            self.validate(&tx, tx_context.initial_sierra_gas().0)?;
 
         // Post validations.
         PostValidationReport::verify(&tx_context, &actual_cost)?;
