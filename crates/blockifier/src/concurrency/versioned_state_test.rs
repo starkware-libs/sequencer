@@ -250,7 +250,6 @@ fn test_run_parallel_txs(default_all_resource_bounds: ValidResourceBounds) {
         constructor_calldata: constructor_calldata.clone(),
     };
     let nonce_manager = &mut NonceManager::default();
-
     let tx = executable_deploy_account_tx(deploy_tx_args, nonce_manager);
     let delpoy_account_tx_2 = AccountTransaction::new_for_sequencing(tx);
 
@@ -274,7 +273,6 @@ fn test_run_parallel_txs(default_all_resource_bounds: ValidResourceBounds) {
             assert_eq!(result.is_err(), enforce_fee); // Transaction fails iff we enforced the fee charge (as the acount is not funded).
         });
         s.spawn(move || {
-            delpoy_account_tx_2.execute(&mut state_2, &block_context_2).unwrap();
             delpoy_account_tx_2.execute(&mut state_2, &block_context_2).unwrap();
             // Check that the constructor wrote ctor_arg to the storage.
             let storage_key = get_storage_var_address("ctor_arg", &[]);

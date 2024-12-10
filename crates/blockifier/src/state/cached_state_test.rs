@@ -456,8 +456,8 @@ fn test_state_cache_commit_and_merge(
     let merged_changes =
         StateCache::squash_state_diff(state_caches.iter().collect(), comprehensive_state_diff);
     if comprehensive_state_diff {
-        // The comprehensive_state_diff is needed for backward compatibility of versions before
-        // the allocated keys feature was inserted.
+        // The comprehensive_state_diff is needed for backward compatibility of versions before the
+        // allocated keys feature was inserted.
         assert_ne!(merged_changes.allocated_keys.is_empty(), charged);
     }
 
