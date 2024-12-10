@@ -64,7 +64,6 @@ mock! {
 
     #[async_trait]
     impl ConsensusContext for TestContext {
-        type ProposalChunk = u32;
         type ProposalPart = MockProposalPart;
 
         async fn build_proposal(

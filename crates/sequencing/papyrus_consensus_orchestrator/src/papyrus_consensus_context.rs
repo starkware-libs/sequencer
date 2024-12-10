@@ -82,7 +82,6 @@ impl PapyrusConsensusContext {
 
 #[async_trait]
 impl ConsensusContext for PapyrusConsensusContext {
-    type ProposalChunk = Transaction;
     type ProposalPart = ProposalPart;
 
     async fn build_proposal(
