@@ -343,7 +343,6 @@ fn test_from_state_changes_for_fee_charge(
     let fee_token_address = contract_address!("0x17");
     let state_changes =
         create_state_cache_for_test(&mut state, sender_address, fee_token_address).to_state_diff();
-    create_state_cache_for_test(&mut state, sender_address, fee_token_address).to_state_diff();
     let state_changes_count = state_changes.count_for_fee_charge(sender_address, fee_token_address);
     let n_expected_storage_updates = 1 + usize::from(sender_address.is_some());
     let expected_state_changes_count = StateChangesCountForFee {
@@ -365,7 +364,6 @@ fn test_state_cache_merge(
 ) {
     // Create a transactional state containing the `create_state_changes_for_test` logic, get the
     // state cache and then commit.
-    // state cache and then commit.
     let mut state: CachedState<DictStateReader> = CachedState::default();
     let mut transactional_state = TransactionalState::create_transactional(&mut state);
     let block_context = BlockContext::create_for_testing();
@@ -384,14 +382,7 @@ fn test_state_cache_merge(
     assert_eq!(state_cache2, StateCache::default());
     assert_eq!(StateCache::squash_state_caches(vec![&state_cache1, &state_cache2]), state_cache1);
     assert_eq!(StateCache::squash_state_caches(vec![&state_cache2, &state_cache1]), state_cache1);
-    // Make sure that the state_changes of a newly created transactional state returns null
-    // state cache and that merging null state cache with non-null state cache results in the
-    // non-null state cache, no matter the order.
-    let state_cache2 = transactional_state.borrow_updated_state_cache().unwrap().clone();
-    assert_eq!(state_cache2, StateCache::default());
-    assert_eq!(StateCache::squash_state_caches(vec![&state_cache1, &state_cache2]), state_cache1);
-    assert_eq!(StateCache::squash_state_caches(vec![&state_cache2, &state_cache1]), state_cache1);
-
+    
     // Get the storage updates addresses and keys from the state_cache1, to overwrite.
     let state_changes1 = state_cache1.to_state_diff();
     let mut storage_updates_keys = state_changes1.state_maps.storage.keys();
@@ -435,8 +426,6 @@ fn test_state_cache_merge(
 #[case(true, vec![felt!("0x7"), felt!("0x0")], false)]
 #[case(false, vec![felt!("0x7"), felt!("0x1")], false)]
 #[case(false, vec![felt!("0x0"), felt!("0x8")], false)]
-#[case(false, vec![felt!("0x7"), felt!("0x1")], false)]
-#[case(false, vec![felt!("0x0"), felt!("0x8")], false)]
 #[case(false, vec![felt!("0x0"), felt!("0x8"), felt!("0x0")], false)]
 fn test_state_cache_commit_and_merge(
     #[case] is_base_empty: bool,
@@ -452,7 +441,6 @@ fn test_state_cache_commit_and_merge(
     let non_empty_base_value = felt!("0x1");
     if !is_base_empty {
         state.set_storage_at(contract_address, storage_key, non_empty_base_value).unwrap();
-        state.set_storage_at(contract_address, storage_key, non_empty_base_value).unwrap();
     }
     let mut state_caches = vec![];
 
@@ -465,26 +453,6 @@ fn test_state_cache_commit_and_merge(
         transactional_state.commit();
     }
 
-    let merged_changes =
-        StateCache::squash_state_diff(state_caches.iter().collect(), comprehensive_state_diff);
-    if comprehensive_state_diff {
-        // The comprehensive_state_diff is needed for backward compatibility of versions before
-        // the allocated keys feature was inserted.
-        assert_ne!(merged_changes.allocated_keys.is_empty(), charged);
-    }
-
-    // Test the storage diff.
-    let base_value = if is_base_empty { Felt::ZERO } else { non_empty_base_value };
-    let last_value = storage_updates.last().unwrap();
-    let expected_storage_diff = if (&base_value == last_value) && comprehensive_state_diff {
-        None
-    } else {
-        Some(last_value)
-    };
-    assert_eq!(
-        merged_changes.state_maps.storage.get(&(contract_address, storage_key)),
-        expected_storage_diff,
-    );
     let merged_changes =
         StateCache::squash_state_diff(state_caches.iter().collect(), comprehensive_state_diff);
     if comprehensive_state_diff {

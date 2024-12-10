@@ -310,9 +310,7 @@ async fn main() {
                     .unwrap();
             }
 
-            println!(
-                "All blocks uploaded successfully to https://console.cloud.google.com/storage/browser/{BUCKET}/{files_prefix}."
-            );
+            println!("All blocks uploaded successfully to https://console.cloud.google.com/storage/browser/{BUCKET}/{files_prefix}.");
         }
 
         Command::DownloadFiles { block_numbers, directory_path } => {

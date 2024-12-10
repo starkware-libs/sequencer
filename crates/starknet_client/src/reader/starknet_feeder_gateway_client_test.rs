@@ -170,9 +170,14 @@ async fn contract_class() {
     )
     .unwrap();
     let expected_contract_class = ContractClass {
-        sierra_program: vec![felt!("0x302e312e30"), felt!("0x1c"), felt!("0x52616e6765436865636b")],
-        entry_points_by_type: HashMap::from([
-            (EntryPointType::External, vec![EntryPoint {
+        sierra_program: vec![
+            felt!("0x302e312e30"), 
+            felt!("0x1c"), 
+            felt!("0x52616e6765436865636b")
+        ],
+        entry_points_by_type: HashMap::from([(
+            EntryPointType::External, 
+            vec![EntryPoint {
                 function_idx: FunctionIndex(0),
                 selector: EntryPointSelector(felt!(
                     "0x22ff5f21f0b81b113e63f7db6da94fedef11b2119b4088b89664fb9a3cb658"

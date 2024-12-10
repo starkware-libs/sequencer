@@ -62,7 +62,7 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                 "network.chain_id",
                 "rpc.chain_id",
                 "storage.db_config.chain_id",
-            ]),
+            ])
         ),
         (
             ser_pointer_target_param(
@@ -74,7 +74,7 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                 "rpc.starknet_url",
                 "central.starknet_url",
                 "monitoring_gateway.starknet_url",
-            ]),
+            ])
         ),
         (
             ser_pointer_target_param(
@@ -85,7 +85,7 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
             set_pointing_param_paths(&[
                 "rpc.collect_metrics",
                 "monitoring_gateway.collect_metrics",
-            ]),
+            ])
         ),
     ]
 });

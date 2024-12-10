@@ -224,8 +224,6 @@ impl VersionedConstants {
 
     /// Converts from L1 gas price to L2 gas price with **upward rounding**, based on the
     /// conversion of a Cairo step from Sierra gas to L1 gas.
-    /// Converts from L1 gas price to L2 gas price with **upward rounding**, based on the
-    /// conversion of a Cairo step from Sierra gas to L1 gas.
     pub fn convert_l1_to_l2_gas_price_round_up(&self, l1_gas_price: GasPrice) -> GasPrice {
         (*(resource_cost_to_u128_ratio(self.sierra_gas_in_l1_gas_amount()) * l1_gas_price.0)
             .ceil()
@@ -329,8 +327,8 @@ impl VersionedConstants {
         Self { vm_resource_fee_cost, archival_data_gas_costs, ..latest }
     }
 
-    // TODO(Arni): Consider replacing each call to this function with `latest_with_overrides`,
-    // and squashing the functions together.
+    // TODO(Arni): Consider replacing each call to this function with `latest_with_overrides`, and
+    // squashing the functions together.
     /// Returns the latest versioned constants, applying the given overrides.
     pub fn get_versioned_constants(
         versioned_constants_overrides: VersionedConstantsOverrides,
@@ -378,8 +376,7 @@ impl VersionedConstants {
                 builtin_cost * u64_from_usize(*amount)
             })
             .sum();
-        // The minimum total cost is `syscall_base_gas_cost`, which is pre-charged by the
-        // compiler.
+        // The minimum total cost is `syscall_base_gas_cost`, which is pre-charged by the compiler.
         std::cmp::max(
             n_steps * gas_costs.base.step_gas_cost
                 + n_memory_holes * gas_costs.base.memory_hole_gas_cost

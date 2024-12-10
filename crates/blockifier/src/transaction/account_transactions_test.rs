@@ -506,7 +506,6 @@ fn test_max_fee_limit_validate(
         },
     );
     deploy_account_tx.execute(&mut state, &block_context).unwrap();
-    deploy_account_tx.execute(&mut state, &block_context).unwrap();
 
     // Invoke a function that grinds validate (any function will do); set bounds low enough to fail
     // on this grind.
@@ -802,7 +801,6 @@ fn test_fail_declare(block_context: BlockContext, max_fee: Fee) {
     let initial_balance = state
         .get_fee_token_balance(account_address, chain_info.fee_token_address(&tx_info.fee_type()))
         .unwrap();
-    declare_account_tx.execute(&mut state, &block_context).unwrap_err();
     declare_account_tx.execute(&mut state, &block_context).unwrap_err();
 
     assert_eq!(state.get_nonce_at(account_address).unwrap(), next_nonce);
@@ -1307,7 +1305,6 @@ fn test_deploy_account_constructor_storage_write(
         },
     );
     deploy_account_tx.execute(state, &block_context).unwrap();
-    deploy_account_tx.execute(state, &block_context).unwrap();
 
     // Check that the constructor wrote ctor_arg to the storage.
     let storage_key = get_storage_var_address("ctor_arg", &[]);
@@ -1383,7 +1380,6 @@ fn test_count_actual_storage_changes(
     let concurrency_mode = false;
     let execution_info =
         account_tx.execute_raw(&mut state, &block_context, concurrency_mode).unwrap();
-    account_tx.execute_raw(&mut state, &block_context, concurrency_mode).unwrap();
 
     let fee_1 = execution_info.receipt.fee;
     let state_changes_1 = state.get_actual_state_changes().unwrap();
@@ -1473,7 +1469,6 @@ fn test_count_actual_storage_changes(
     });
     let execution_info =
         account_tx.execute_raw(&mut state, &block_context, concurrency_mode).unwrap();
-    account_tx.execute_raw(&mut state, &block_context, concurrency_mode).unwrap();
 
     let fee_transfer = execution_info.receipt.fee;
     let state_changes_transfer = state.get_actual_state_changes().unwrap();
@@ -1554,10 +1549,8 @@ fn test_concurrency_execute_fee_transfer(
     // fee transfer.
     let mut transactional_state = TransactionalState::create_transactional(state);
     let concurrency_mode = true;
-    let concurrency_mode = true;
     let result =
         account_tx.execute_raw(&mut transactional_state, &block_context, concurrency_mode).unwrap();
-    account_tx.execute_raw(&mut transactional_state, &block_context, concurrency_mode).unwrap();
     assert!(!result.is_reverted());
     let transactional_cache = transactional_state.cache.borrow();
     for storage in [
@@ -1597,7 +1590,6 @@ fn test_concurrency_execute_fee_transfer(
 
     let execution_result =
         account_tx.execute_raw(&mut transactional_state, &block_context, concurrency_mode);
-    account_tx.execute_raw(&mut transactional_state, &block_context, concurrency_mode);
     let result = execution_result.unwrap();
     assert!(!result.is_reverted());
     // Check that the sequencer balance was not updated.
@@ -1655,7 +1647,6 @@ fn test_concurrent_fee_transfer_when_sender_is_sequencer(
     let concurrency_mode = true;
     let result =
         account_tx.execute_raw(&mut transactional_state, &block_context, concurrency_mode).unwrap();
-    account_tx.execute_raw(&mut transactional_state, &block_context, concurrency_mode).unwrap();
     assert!(!result.is_reverted());
     // Check that the sequencer balance was updated (in this case, was not changed).
     for (seq_key, seq_value) in

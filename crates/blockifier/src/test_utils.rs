@@ -371,7 +371,6 @@ pub fn get_tx_resources(tx_type: TransactionType) -> ExecutionResources {
         None,
         ExecutionSummary::default(),
     );
-
     versioned_constants.get_additional_os_tx_resources(tx_type, &starknet_resources, false)
 }
 

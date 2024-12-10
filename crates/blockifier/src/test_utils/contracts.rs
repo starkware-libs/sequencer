@@ -361,9 +361,9 @@ impl FeatureContract {
         }
     }
 
-    /// Fetch PC locations from the compiled contract to compute the expected PC locations in
-    /// the traceback. Computation is not robust, but as long as the cairo function
-    /// itself is not edited, this computation should be stable.
+    /// Fetch PC locations from the compiled contract to compute the expected PC locations in the
+    /// traceback. Computation is not robust, but as long as the cairo function itself is not
+    /// edited, this computation should be stable.
     fn get_offset(
         &self,
         entry_point_selector: EntryPointSelector,

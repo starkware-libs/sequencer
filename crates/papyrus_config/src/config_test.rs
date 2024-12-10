@@ -847,7 +847,7 @@ fn deeply_nested_optionals() {
             level0_value: 1,
             level1: Some(Level1 {
                 level1_value: 0,
-                level2: Some(Level2 { level2_value: Some(1) })
+                level2: Some(Level2 { level2_value: Some(1) }),
             }),
         }
     );
