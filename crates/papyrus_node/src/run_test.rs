@@ -7,7 +7,10 @@ use tempfile::TempDir;
 
 use crate::config::NodeConfig;
 use crate::run::{
-    run_threads, spawn_storage_metrics_collector, PapyrusResources, PapyrusTaskHandles,
+    run_threads,
+    spawn_storage_metrics_collector,
+    PapyrusResources,
+    PapyrusTaskHandles,
 };
 
 // The mission of this test is to ensure that if an error is returned from one of the spawned tasks,

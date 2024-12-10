@@ -65,17 +65,21 @@ fn thin_state_diff_len() {
 #[test]
 fn thin_state_diff_is_empty() {
     assert!(ThinStateDiff::default().is_empty());
-    assert!(ThinStateDiff {
-        storage_diffs: indexmap! { Default::default() => IndexMap::new() },
-        ..Default::default()
-    }
-    .is_empty());
+    assert!(
+        ThinStateDiff {
+            storage_diffs: indexmap! { Default::default() => IndexMap::new() },
+            ..Default::default()
+        }
+        .is_empty()
+    );
 
-    assert!(!ThinStateDiff {
-        deployed_contracts: indexmap! { Default::default() => Default::default() },
-        ..Default::default()
-    }
-    .is_empty());
+    assert!(
+        !ThinStateDiff {
+            deployed_contracts: indexmap! { Default::default() => Default::default() },
+            ..Default::default()
+        }
+        .is_empty()
+    );
     assert!(
         !ThinStateDiff {
             storage_diffs: indexmap! { Default::default() => indexmap! { Default::default() => Default::default() } },
@@ -83,24 +87,32 @@ fn thin_state_diff_is_empty() {
         }
         .is_empty()
     );
-    assert!(!ThinStateDiff {
-        declared_classes: indexmap! { Default::default() => Default::default() },
-        ..Default::default()
-    }
-    .is_empty());
-    assert!(!ThinStateDiff {
-        deprecated_declared_classes: vec![Default::default()],
-        ..Default::default()
-    }
-    .is_empty());
-    assert!(!ThinStateDiff {
-        nonces: indexmap! { Default::default() => Default::default() },
-        ..Default::default()
-    }
-    .is_empty());
-    assert!(!ThinStateDiff {
-        replaced_classes: indexmap! { Default::default() => Default::default() },
-        ..Default::default()
-    }
-    .is_empty());
+    assert!(
+        !ThinStateDiff {
+            declared_classes: indexmap! { Default::default() => Default::default() },
+            ..Default::default()
+        }
+        .is_empty()
+    );
+    assert!(
+        !ThinStateDiff {
+            deprecated_declared_classes: vec![Default::default()],
+            ..Default::default()
+        }
+        .is_empty()
+    );
+    assert!(
+        !ThinStateDiff {
+            nonces: indexmap! { Default::default() => Default::default() },
+            ..Default::default()
+        }
+        .is_empty()
+    );
+    assert!(
+        !ThinStateDiff {
+            replaced_classes: indexmap! { Default::default() => Default::default() },
+            ..Default::default()
+        }
+        .is_empty()
+    );
 }

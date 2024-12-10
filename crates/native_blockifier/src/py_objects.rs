@@ -13,7 +13,9 @@ use pyo3::prelude::*;
 use starknet_api::execution_resources::GasAmount;
 
 use crate::errors::{
-    InvalidNativeBlockifierInputError, NativeBlockifierError, NativeBlockifierInputError,
+    InvalidNativeBlockifierInputError,
+    NativeBlockifierError,
+    NativeBlockifierInputError,
     NativeBlockifierResult,
 };
 

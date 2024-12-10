@@ -2,7 +2,12 @@ use std::cmp::min;
 
 use futures::{FutureExt, StreamExt};
 use papyrus_protobuf::sync::{
-    BlockHashOrNumber, DataOrFin, Direction, Query, SignedBlockHeader, TransactionQuery,
+    BlockHashOrNumber,
+    DataOrFin,
+    Direction,
+    Query,
+    SignedBlockHeader,
+    TransactionQuery,
 };
 use papyrus_storage::body::BodyStorageReader;
 use papyrus_test_utils::get_test_body;
@@ -10,8 +15,13 @@ use starknet_api::block::{BlockBody, BlockHeader, BlockHeaderWithoutHash, BlockN
 use starknet_api::transaction::FullTransaction;
 
 use super::test_utils::{
-    create_block_hashes_and_signatures, setup, TestArgs, HEADER_QUERY_LENGTH,
-    SLEEP_DURATION_TO_LET_SYNC_ADVANCE, TRANSACTION_QUERY_LENGTH, WAIT_PERIOD_FOR_NEW_DATA,
+    create_block_hashes_and_signatures,
+    setup,
+    TestArgs,
+    HEADER_QUERY_LENGTH,
+    SLEEP_DURATION_TO_LET_SYNC_ADVANCE,
+    TRANSACTION_QUERY_LENGTH,
+    WAIT_PERIOD_FOR_NEW_DATA,
 };
 use crate::client::test_utils::{wait_for_marker, DataType, TIMEOUT_FOR_TEST};
 

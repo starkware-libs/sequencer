@@ -4,7 +4,9 @@ use std::convert::TryFrom;
 use blockifier::blockifier::block::validated_gas_prices;
 use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::test_utils::{
-    DEFAULT_ETH_L1_DATA_GAS_PRICE, DEFAULT_ETH_L1_GAS_PRICE, DEFAULT_STRK_L1_DATA_GAS_PRICE,
+    DEFAULT_ETH_L1_DATA_GAS_PRICE,
+    DEFAULT_ETH_L1_GAS_PRICE,
+    DEFAULT_STRK_L1_DATA_GAS_PRICE,
     DEFAULT_STRK_L1_GAS_PRICE,
 };
 use blockifier::versioned_constants::VersionedConstants;
@@ -16,7 +18,9 @@ use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::state::{StateDiff, StorageKey};
 
 use crate::errors::{
-    InvalidNativeBlockifierInputError, NativeBlockifierError, NativeBlockifierInputError,
+    InvalidNativeBlockifierInputError,
+    NativeBlockifierError,
+    NativeBlockifierInputError,
     NativeBlockifierResult,
 };
 use crate::py_utils::PyFelt;

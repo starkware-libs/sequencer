@@ -152,11 +152,7 @@ impl AllocationCost {
         AllocationCost { blob_cost: GasVector::ZERO, gas_cost: GasVector::ZERO };
 
     pub fn get_cost(&self, use_kzg_da: bool) -> &GasVector {
-        if use_kzg_da {
-            &self.blob_cost
-        } else {
-            &self.gas_cost
-        }
+        if use_kzg_da { &self.blob_cost } else { &self.gas_cost }
     }
 }
 

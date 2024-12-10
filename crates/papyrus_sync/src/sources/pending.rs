@@ -8,7 +8,10 @@ use async_trait::async_trait;
 #[cfg(test)]
 use mockall::automock;
 use starknet_client::reader::{
-    PendingData, ReaderClientError, StarknetFeederGatewayClient, StarknetReader,
+    PendingData,
+    ReaderClientError,
+    StarknetFeederGatewayClient,
+    StarknetReader,
 };
 use starknet_client::ClientCreationError;
 

@@ -12,7 +12,10 @@ use serde::Serialize;
 
 use crate::component_client::{ClientError, LocalComponentClient};
 use crate::component_definitions::{
-    ComponentClient, RemoteServerConfig, ServerError, APPLICATION_OCTET_STREAM,
+    ComponentClient,
+    RemoteServerConfig,
+    ServerError,
+    APPLICATION_OCTET_STREAM,
 };
 use crate::component_server::ComponentServerStarter;
 use crate::errors::ComponentServerError;

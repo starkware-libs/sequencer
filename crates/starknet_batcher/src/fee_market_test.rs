@@ -1,5 +1,8 @@
 use crate::fee_market::{
-    calculate_next_base_gas_price, GAS_PRICE_MAX_CHANGE_DENOMINATOR, MAX_BLOCK_SIZE, MIN_GAS_PRICE,
+    calculate_next_base_gas_price,
+    GAS_PRICE_MAX_CHANGE_DENOMINATOR,
+    MAX_BLOCK_SIZE,
+    MIN_GAS_PRICE,
 };
 
 #[test]

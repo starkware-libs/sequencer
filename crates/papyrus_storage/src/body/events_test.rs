@@ -5,7 +5,11 @@ use papyrus_test_utils::get_test_block;
 use pretty_assertions::assert_eq;
 use starknet_api::block::BlockNumber;
 use starknet_api::transaction::{
-    Event, EventContent, EventData, EventIndexInTransactionOutput, TransactionOffsetInBlock,
+    Event,
+    EventContent,
+    EventData,
+    EventIndexInTransactionOutput,
+    TransactionOffsetInBlock,
 };
 
 use crate::body::events::{get_events_from_tx, EventIndex, EventsReader};
@@ -146,13 +150,15 @@ fn revert_events() {
     );
 
     // Test iter events using the storage reader.
-    assert!(storage_reader
-        .begin_ro_txn()
-        .unwrap()
-        .iter_events(None, event_index, block_number)
-        .unwrap()
-        .last()
-        .is_some());
+    assert!(
+        storage_reader
+            .begin_ro_txn()
+            .unwrap()
+            .iter_events(None, event_index, block_number)
+            .unwrap()
+            .last()
+            .is_some()
+    );
 
     // Test events raw table.
     let txn = storage_reader.begin_ro_txn().unwrap();
@@ -178,13 +184,15 @@ fn revert_events() {
         .0
         .commit()
         .unwrap();
-    assert!(storage_reader
-        .begin_ro_txn()
-        .unwrap()
-        .iter_events(None, event_index, block_number)
-        .unwrap()
-        .last()
-        .is_none());
+    assert!(
+        storage_reader
+            .begin_ro_txn()
+            .unwrap()
+            .iter_events(None, event_index, block_number)
+            .unwrap()
+            .last()
+            .is_none()
+    );
 
     let txn = storage_reader.begin_ro_txn().unwrap();
     let events_table = txn.txn.open_table(&txn.tables.events).unwrap();
