@@ -65,6 +65,7 @@ impl StateSyncRunner {
             storage_reader.clone(),
             storage_writer,
             p2p_sync_client_channels,
+            Box::pin(futures::stream::pending()),
         );
 
         let header_server_receiver = network_manager
