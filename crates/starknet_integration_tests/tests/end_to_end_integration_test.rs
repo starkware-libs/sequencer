@@ -67,7 +67,7 @@ async fn test_end_to_end_integration(mut tx_generator: MultiAccountTransactionGe
 
     const EXPECTED_BLOCK_NUMBER: BlockNumber = BlockNumber(15);
 
-    configure_tracing();
+    configure_tracing().await;
     info!("Running integration test setup.");
 
     // Creating the storage for the test.
