@@ -102,7 +102,7 @@ async def publish_crate_and_dependencies(crate: str, dry_run: bool):
 
 async def main():
     parser = argparse.ArgumentParser(
-        description="Publish a crate and it's dependencies in the local workspace."
+        description="Publish a crate and its dependencies in the local workspace."
     )
     parser.add_argument(
         "--crate",
