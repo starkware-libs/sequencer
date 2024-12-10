@@ -10,6 +10,7 @@ use starknet_consensus_manager::config::ConsensusManagerConfig;
 use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_http_server::config::HttpServerConfig;
 use starknet_http_server::test_utils::HttpTestClient;
+use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::servers::run_component_servers;
 use starknet_sequencer_node::utils::create_node_modules;
@@ -24,6 +25,7 @@ use crate::utils::{
     create_chain_info,
     create_config,
     create_consensus_manager_configs_and_channels,
+    create_mempool_p2p_configs,
 };
 
 const SEQUENCER_0: usize = 0;
@@ -50,26 +52,31 @@ impl FlowTestSetup {
         let accounts = tx_generator.accounts();
         let (mut consensus_manager_configs, consensus_proposals_channels) =
             create_consensus_manager_configs_and_channels(SEQUENCER_INDICES.len());
+        let mut mempool_p2p_configs = create_mempool_p2p_configs(SEQUENCER_INDICES.len());
 
         // Take the first config for every sequencer node, and create nodes one after the other in
         // order to make sure the ports are not overlapping.
         let sequencer_0_consensus_manager_config = consensus_manager_configs.remove(0);
+        let sequencer_0_mempool_p2p_config = mempool_p2p_configs.remove(0);
         let sequencer_0 = SequencerSetup::new(
             accounts.clone(),
             SEQUENCER_0,
             chain_info.clone(),
             &task_executor,
             sequencer_0_consensus_manager_config,
+            sequencer_0_mempool_p2p_config,
         )
         .await;
 
         let sequencer_1_consensus_manager_config = consensus_manager_configs.remove(0);
+        let sequencer_1_mempool_p2p_config = mempool_p2p_configs.remove(0);
         let sequencer_1 = SequencerSetup::new(
             accounts,
             SEQUENCER_1,
             chain_info,
             &task_executor,
             sequencer_1_consensus_manager_config,
+            sequencer_1_mempool_p2p_config,
         )
         .await;
 
@@ -109,6 +116,7 @@ impl SequencerSetup {
         chain_info: ChainInfo,
         task_executor: &TokioExecutor,
         consensus_manager_config: ConsensusManagerConfig,
+        mempool_p2p_config: MempoolP2pConfig,
     ) -> Self {
         let storage_for_test = StorageTestSetup::new(accounts, &chain_info);
 
@@ -126,6 +134,7 @@ impl SequencerSetup {
             rpc_server_addr,
             storage_for_test.batcher_storage_config,
             consensus_manager_config,
+            mempool_p2p_config,
         )
         .await;
 

@@ -55,6 +55,8 @@ async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
     ];
 
     let sequencers = [&mock_running_system.sequencer_0, &mock_running_system.sequencer_1];
+    // We use only the first sequencer's gateway to test that the mempools are syncing.
+    let sequencer_to_add_txs = *sequencers.first().unwrap();
     let mut expected_proposer_iter = sequencers.iter().cycle();
     // We start at height 1, so we need to skip the proposer of the initial height.
     expected_proposer_iter.next().unwrap();
@@ -62,13 +64,19 @@ async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
     // Build multiple heights to ensure heights are committed.
     for (height, expected_content_id) in itertools::zip_eq(heights_to_build, expected_content_ids) {
         debug!("Starting height {}.", height);
-        let expected_proposer = expected_proposer_iter.next().unwrap();
         // Create and send transactions.
         let expected_batched_tx_hashes =
             run_integration_test_scenario(&mut tx_generator, &mut |tx| {
-                expected_proposer.assert_add_tx_success(tx)
+                sequencer_to_add_txs.assert_add_tx_success(tx)
             })
             .await;
+        let expected_validator_id = expected_proposer_iter
+            .next()
+            .unwrap()
+            .config
+            .consensus_manager_config
+            .consensus_config
+            .validator_id;
         // TODO(Dan, Itay): Consider adding a utility function that waits for something to happen.
         tokio::time::timeout(
             LISTEN_TO_BROADCAST_MESSAGES_TIMEOUT,
@@ -77,7 +85,7 @@ async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
                 &expected_batched_tx_hashes,
                 height,
                 expected_content_id,
-                expected_proposer.config.consensus_manager_config.consensus_config.validator_id,
+                expected_validator_id,
             ),
         )
         .await

@@ -14,7 +14,7 @@ use crate::state_reader::{spawn_test_rpc_state_reader, StorageTestSetup};
 use crate::utils::{
     create_chain_info,
     create_config,
-    create_consensus_manager_configs_and_channels,
+    create_consensus_manager_configs_and_channels, create_mempool_p2p_configs,
 };
 
 const SEQUENCER_INDEX: usize = 0;
@@ -55,6 +55,7 @@ impl IntegrationTestSetup {
 
         let (mut consensus_manager_configs, _consensus_proposals_channels) =
             create_consensus_manager_configs_and_channels(SEQUENCER_INDICES.len());
+        let mut mempool_p2p_configs = create_mempool_p2p_configs(SEQUENCER_INDICES.len());
 
         // Derive the configuration for the sequencer node.
         let (config, required_params) = create_config(
@@ -63,6 +64,7 @@ impl IntegrationTestSetup {
             rpc_server_addr,
             storage_for_test.batcher_storage_config,
             consensus_manager_configs.pop().unwrap(),
+            mempool_p2p_configs.pop().unwrap(),
         )
         .await;
 
