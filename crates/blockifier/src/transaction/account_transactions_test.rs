@@ -23,9 +23,6 @@ use starknet_api::state::StorageKey;
 use starknet_api::test_utils::declare::executable_declare_tx;
 use starknet_api::test_utils::deploy_account::executable_deploy_account_tx;
 use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
-use starknet_api::test_utils::declare::executable_declare_tx;
-use starknet_api::test_utils::deploy_account::executable_deploy_account_tx;
-use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::constants::TRANSFER_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::{
@@ -91,10 +88,6 @@ use crate::transaction::account_transaction::{
     AccountTransaction,
     ExecutionFlags as AccountExecutionFlags,
 };
-use crate::transaction::account_transaction::{
-    AccountTransaction,
-    ExecutionFlags as AccountExecutionFlags,
-};
 use crate::transaction::objects::{HasRelatedFeeType, TransactionInfoCreator};
 use crate::transaction::test_utils::{
     all_resource_bounds,
@@ -115,7 +108,6 @@ use crate::transaction::test_utils::{
     INVALID,
 };
 use crate::transaction::transaction_types::TransactionType;
-use crate::transaction::transactions::ExecutableTransaction;
 use crate::transaction::transactions::ExecutableTransaction;
 use crate::utils::u64_from_usize;
 
@@ -205,7 +197,6 @@ fn test_fee_enforcement(
     let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0);
     let state = &mut test_state(&block_context.chain_info, BALANCE, &[(account, 1)]);
     let tx = executable_deploy_account_tx(
-    let tx = executable_deploy_account_tx(
         deploy_account_tx_args! {
             class_hash: account.get_class_hash(),
             max_fee: Fee(if zero_bounds { 0 } else { MAX_FEE.0 }),
@@ -228,11 +219,9 @@ fn test_fee_enforcement(
         &mut NonceManager::default(),
     );
     let deploy_account_tx = AccountTransaction::new_for_sequencing(tx);
-    let deploy_account_tx = AccountTransaction::new_for_sequencing(tx);
 
     let enforce_fee = deploy_account_tx.enforce_fee();
     assert_ne!(zero_bounds, enforce_fee);
-    let result = deploy_account_tx.execute(state, &block_context);
     let result = deploy_account_tx.execute(state, &block_context);
     // Execution should fail if the fee is enforced because the account doesn't have sufficient
     // balance.
@@ -471,7 +460,6 @@ fn test_max_fee_limit_validate(
 
     // Declare the grindy-validation account.
     let tx = executable_declare_tx(
-    let tx = executable_declare_tx(
         declare_tx_args! {
             class_hash: grindy_class_hash,
             sender_address: account_address,
@@ -480,8 +468,6 @@ fn test_max_fee_limit_validate(
         },
         class_info,
     );
-    let account_tx = AccountTransaction::new_with_default_flags(tx);
-    account_tx.execute(&mut state, &block_context).unwrap();
     let account_tx = AccountTransaction::new_with_default_flags(tx);
     account_tx.execute(&mut state, &block_context).unwrap();
 
@@ -803,14 +789,9 @@ fn test_fail_declare(block_context: BlockContext, max_fee: Fee) {
     state.set_compiled_class_hash(class_hash, declare_tx_v2.compiled_class_hash).unwrap();
     let class_info = calculate_class_info_for_testing(contract_class);
     let executable_declare = ApiExecutableDeclareTransaction {
-    let executable_declare = ApiExecutableDeclareTransaction {
         tx: DeclareTransaction::V2(DeclareTransactionV2 { nonce: next_nonce, ..declare_tx_v2 }),
         tx_hash: TransactionHash::default(),
         class_info,
-    };
-    let declare_account_tx = AccountTransaction::new_with_default_flags(
-        ApiExecutableTransaction::Declare(executable_declare),
-    );
     };
     let declare_account_tx = AccountTransaction::new_with_default_flags(
         ApiExecutableTransaction::Declare(executable_declare),
@@ -1672,7 +1653,6 @@ fn test_concurrent_fee_transfer_when_sender_is_sequencer(
 
     let mut transactional_state = TransactionalState::create_transactional(state);
     let concurrency_mode = true;
-    let concurrency_mode = true;
     let result =
         account_tx.execute_raw(&mut transactional_state, &block_context, concurrency_mode).unwrap();
         account_tx.execute_raw(&mut transactional_state, &block_context, concurrency_mode).unwrap();
@@ -1721,7 +1701,6 @@ fn test_initial_gas(
         version: TransactionVersion::THREE
     });
 
-    let transaction_ex_info = account_tx.execute(state, &block_context).unwrap();
     let transaction_ex_info = account_tx.execute(state, &block_context).unwrap();
 
     let validate_call_info = &transaction_ex_info.validate_call_info.unwrap();
@@ -1810,13 +1789,8 @@ fn test_revert_in_execute(
     // Skip validate phase, as we want to test the revert in the execute phase.
     let validate = false;
     let tx = executable_invoke_tx(invoke_tx_args! {
-    let tx = executable_invoke_tx(invoke_tx_args! {
         resource_bounds: default_all_resource_bounds,
         ..tx_args
-    });
-    let execution_flags = AccountExecutionFlags { validate, ..AccountExecutionFlags::default() };
-    let account_tx = AccountTransaction { tx, execution_flags };
-    let tx_execution_info = account_tx.execute(state, &block_context).unwrap();
     });
     let execution_flags = AccountExecutionFlags { validate, ..AccountExecutionFlags::default() };
     let account_tx = AccountTransaction { tx, execution_flags };

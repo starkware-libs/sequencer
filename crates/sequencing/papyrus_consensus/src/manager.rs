@@ -166,18 +166,6 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                     let proposal_init: ProposalInit = first_part.try_into()?;
                     self.handle_proposal(context, height, &mut shc, proposal_init, content_receiver).await?
                 },
-                Some(mut content_receiver) = proposal_receiver.next() => {
-                    // Get the first message to verify the init was sent.
-                    // TODO(guyn): add a timeout and panic, since StreamHandler should only send once
-                    // the first message (message_id=0) has arrived.
-                    let Some(first_part) = content_receiver.next().await else {
-                        return Err(ConsensusError::InternalNetworkError(
-                            "Proposal receiver closed".to_string(),
-                        ));
-                    };
-                    let proposal_init: ProposalInit = first_part.try_into()?;
-                    self.handle_proposal(context, height, &mut shc, proposal_init, content_receiver).await?
-                },
                 Some(shc_event) = shc_events.next() => {
                     shc.handle_event(context, shc_event).await?
                 },
@@ -285,26 +273,6 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         }
 
         shc.handle_message(context, message).await
-    }
-
-    // Checks if a cached proposal already exists
-    // - returns the proposal if it exists and removes it from the cache.
-    // - returns None if no proposal exists.
-    // - cleans up any proposals from earlier heights.
-    fn get_current_proposal(
-        &mut self,
-        height: BlockNumber,
-    ) -> Option<(ProposalInit, mpsc::Receiver<ContextT::ProposalPart>)> {
-        loop {
-            let entry = self.cached_proposals.first_entry()?;
-            match entry.key().cmp(&height.0) {
-                std::cmp::Ordering::Greater => return None,
-                std::cmp::Ordering::Equal => return Some(entry.remove()),
-                std::cmp::Ordering::Less => {
-                    entry.remove();
-                }
-            }
-        }
     }
 
     // Checks if a cached proposal already exists

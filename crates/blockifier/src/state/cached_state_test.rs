@@ -299,11 +299,9 @@ fn cached_state_state_diff_conversion() {
 }
 
 fn create_state_cache_for_test<S: StateReader>(
-fn create_state_cache_for_test<S: StateReader>(
     state: &mut CachedState<S>,
     sender_address: Option<ContractAddress>,
     fee_token_address: ContractAddress,
-) -> StateCache {
 ) -> StateCache {
     let contract_address = contract_address!(CONTRACT_ADDRESS);
     let contract_address2 = contract_address!("0x101");
@@ -335,7 +333,6 @@ fn create_state_cache_for_test<S: StateReader>(
         state.set_storage_at(fee_token_address, sender_balance_key, felt!("0x1999")).unwrap();
     }
     state.borrow_updated_state_cache().unwrap().clone()
-    state.borrow_updated_state_cache().unwrap().clone()
 }
 
 #[rstest]
@@ -346,7 +343,7 @@ fn test_from_state_changes_for_fee_charge(
     let fee_token_address = contract_address!("0x17");
     let state_changes =
         create_state_cache_for_test(&mut state, sender_address, fee_token_address).to_state_diff();
-        create_state_cache_for_test(&mut state, sender_address, fee_token_address).to_state_diff();
+    create_state_cache_for_test(&mut state, sender_address, fee_token_address).to_state_diff();
     let state_changes_count = state_changes.count_for_fee_charge(sender_address, fee_token_address);
     let n_expected_storage_updates = 1 + usize::from(sender_address.is_some());
     let expected_state_changes_count = StateChangesCountForFee {
@@ -364,7 +361,6 @@ fn test_from_state_changes_for_fee_charge(
 
 #[rstest]
 fn test_state_cache_merge(
-fn test_state_cache_merge(
     #[values(Some(contract_address!("0x102")), None)] sender_address: Option<ContractAddress>,
 ) {
     // Create a transactional state containing the `create_state_changes_for_test` logic, get the
@@ -374,8 +370,6 @@ fn test_state_cache_merge(
     let mut transactional_state = TransactionalState::create_transactional(&mut state);
     let block_context = BlockContext::create_for_testing();
     let fee_token_address = block_context.chain_info.fee_token_addresses.eth_fee_token_address;
-    let state_cache1 =
-        create_state_cache_for_test(&mut transactional_state, sender_address, fee_token_address);
     let state_cache1 =
         create_state_cache_for_test(&mut transactional_state, sender_address, fee_token_address);
     transactional_state.commit();
@@ -400,8 +394,6 @@ fn test_state_cache_merge(
 
     // Get the storage updates addresses and keys from the state_cache1, to overwrite.
     let state_changes1 = state_cache1.to_state_diff();
-    // Get the storage updates addresses and keys from the state_cache1, to overwrite.
-    let state_changes1 = state_cache1.to_state_diff();
     let mut storage_updates_keys = state_changes1.state_maps.storage.keys();
     let &(contract_address, storage_key) = storage_updates_keys
         .find(|(contract_address, _)| contract_address == &contract_address!(CONTRACT_ADDRESS))
@@ -417,8 +409,6 @@ fn test_state_cache_merge(
     transactional_state.increment_nonce(contract_address).unwrap();
     // Get the new state cache and then commit the transactional state.
     let state_cache3 = transactional_state.borrow_updated_state_cache().unwrap().clone();
-    // Get the new state cache and then commit the transactional state.
-    let state_cache3 = transactional_state.borrow_updated_state_cache().unwrap().clone();
     transactional_state.commit();
 
     // Get the total state changes of the CachedState underlying all the temporary transactional
@@ -428,13 +418,9 @@ fn test_state_cache_merge(
     assert_eq!(
         StateCache::squash_state_caches(vec![&state_cache1, &state_cache2, &state_cache3])
             .to_state_diff(),
-        StateCache::squash_state_caches(vec![&state_cache1, &state_cache2, &state_cache3])
-            .to_state_diff(),
         state_changes_final
     );
     assert_ne!(
-        StateCache::squash_state_caches(vec![&state_cache3, &state_cache1, &state_cache2])
-            .to_state_diff(),
         StateCache::squash_state_caches(vec![&state_cache3, &state_cache1, &state_cache2])
             .to_state_diff(),
         state_changes_final
@@ -453,11 +439,9 @@ fn test_state_cache_merge(
 #[case(false, vec![felt!("0x0"), felt!("0x8")], false)]
 #[case(false, vec![felt!("0x0"), felt!("0x8"), felt!("0x0")], false)]
 fn test_state_cache_commit_and_merge(
-fn test_state_cache_commit_and_merge(
     #[case] is_base_empty: bool,
     #[case] storage_updates: Vec<Felt>,
     #[case] charged: bool,
-    #[values(true, false)] comprehensive_state_diff: bool,
     #[values(true, false)] comprehensive_state_diff: bool,
 ) {
     let contract_address = contract_address!(CONTRACT_ADDRESS);
@@ -466,16 +450,12 @@ fn test_state_cache_commit_and_merge(
     let mut state: CachedState<DictStateReader> = CachedState::default();
 
     let non_empty_base_value = felt!("0x1");
-
-    let non_empty_base_value = felt!("0x1");
     if !is_base_empty {
         state.set_storage_at(contract_address, storage_key, non_empty_base_value).unwrap();
         state.set_storage_at(contract_address, storage_key, non_empty_base_value).unwrap();
     }
     let mut state_caches = vec![];
-    let mut state_caches = vec![];
 
-    for value in storage_updates.iter() {
     for value in storage_updates.iter() {
         // In the end of the previous loop, state has moved into the transactional state.
         let mut transactional_state = TransactionalState::create_transactional(&mut state);
@@ -488,8 +468,8 @@ fn test_state_cache_commit_and_merge(
     let merged_changes =
         StateCache::squash_state_diff(state_caches.iter().collect(), comprehensive_state_diff);
     if comprehensive_state_diff {
-        // The comprehensive_state_diff is needed for backward compatibility of versions before the
-        // allocated keys feature was inserted.
+        // The comprehensive_state_diff is needed for backward compatibility of versions before
+        // the allocated keys feature was inserted.
         assert_ne!(merged_changes.allocated_keys.is_empty(), charged);
     }
 
@@ -508,8 +488,8 @@ fn test_state_cache_commit_and_merge(
     let merged_changes =
         StateCache::squash_state_diff(state_caches.iter().collect(), comprehensive_state_diff);
     if comprehensive_state_diff {
-        // The comprehensive_state_diff is needed for backward compatibility of versions before the
-        // allocated keys feature was inserted.
+        // The comprehensive_state_diff is needed for backward compatibility of versions before
+        // the allocated keys feature was inserted.
         assert_ne!(merged_changes.allocated_keys.is_empty(), charged);
     }
 

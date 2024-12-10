@@ -15,7 +15,6 @@ use papyrus_network::NetworkConfig;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ChainId;
-use starknet_api::core::ChainId;
 
 use super::types::ValidatorId;
 use crate::types::DEFAULT_VALIDATOR_ID;

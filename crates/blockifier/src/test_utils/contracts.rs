@@ -1,7 +1,5 @@
 use std::collections::HashMap;
 
-use std::collections::HashMap;
-
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_lang_starknet_classes::contract_class::ContractClass as CairoLangContractClass;
 use itertools::Itertools;
@@ -91,9 +89,6 @@ const LEGACY_CONTRACT_RUST_TOOLCHAIN: &str = "2023-07-05";
 
 const CAIRO_STEPS_TEST_CONTRACT_COMPILER_TAG: &str = "v2.7.0";
 const CAIRO_STEPS_TEST_CONTRACT_RUST_TOOLCHAIN: &str = "2024-04-29";
-
-pub type TagAndToolchain = (Option<String>, Option<String>);
-pub type TagToContractsMapping = HashMap<TagAndToolchain, Vec<FeatureContract>>;
 
 pub type TagAndToolchain = (Option<String>, Option<String>);
 pub type TagToContractsMapping = HashMap<TagAndToolchain, Vec<FeatureContract>>;
@@ -224,7 +219,6 @@ impl FeatureContract {
     /// specific (old) compiler tag. To run the (old) compiler, older rust
     /// version is required.
     pub fn fixed_tag_and_rust_toolchain(&self) -> TagAndToolchain {
-    pub fn fixed_tag_and_rust_toolchain(&self) -> TagAndToolchain {
         match self {
             Self::LegacyTestContract => (
                 Some(LEGACY_CONTRACT_COMPILER_TAG.into()),
@@ -340,7 +334,6 @@ impl FeatureContract {
     /// Compiles the feature contract and returns the compiled contract as a byte vector.
     /// Panics if the contract is ERC20, as ERC20 contract recompilation is not supported.
     pub fn compile(&self) -> CompilationArtifacts {
-    pub fn compile(&self) -> CompilationArtifacts {
         if matches!(self, Self::ERC20(_)) {
             panic!("ERC20 contract recompilation not supported.");
         }
@@ -368,9 +361,9 @@ impl FeatureContract {
         }
     }
 
-    /// Fetch PC locations from the compiled contract to compute the expected PC locations in the
-    /// traceback. Computation is not robust, but as long as the cairo function itself is not
-    /// edited, this computation should be stable.
+    /// Fetch PC locations from the compiled contract to compute the expected PC locations in
+    /// the traceback. Computation is not robust, but as long as the cairo function
+    /// itself is not edited, this computation should be stable.
     fn get_offset(
         &self,
         entry_point_selector: EntryPointSelector,
@@ -479,13 +472,6 @@ impl FeatureContract {
     pub fn all_feature_contracts() -> impl Iterator<Item = Self> {
         // ERC20 is a special case - not in the feature_contracts directory.
         Self::all_contracts().filter(|contract| !matches!(contract, Self::ERC20(_)))
-    }
-
-    pub fn cairo1_feature_contracts_by_tag() -> TagToContractsMapping {
-        Self::all_feature_contracts()
-            .filter(|contract| contract.cairo_version() != CairoVersion::Cairo0)
-            .map(|contract| (contract.fixed_tag_and_rust_toolchain(), contract))
-            .into_group_map()
     }
 
     pub fn cairo1_feature_contracts_by_tag() -> TagToContractsMapping {

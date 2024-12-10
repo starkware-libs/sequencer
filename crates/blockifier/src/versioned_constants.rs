@@ -179,12 +179,10 @@ pub struct VersionedConstants {
     pub tx_event_limits: EventLimits,
     pub invoke_tx_max_n_steps: u32,
     pub execute_max_sierra_gas: GasAmount,
-    pub execute_max_sierra_gas: GasAmount,
     pub deprecated_l2_resource_gas_costs: ArchivalDataGasCosts,
     pub archival_data_gas_costs: ArchivalDataGasCosts,
     pub max_recursion_depth: usize,
     pub validate_max_n_steps: u32,
-    pub validate_max_sierra_gas: GasAmount,
     pub validate_max_sierra_gas: GasAmount,
     pub min_compiler_version_for_sierra_gas: CompilerVersion,
     // BACKWARD COMPATIBILITY: If true, the segment_arena builtin instance counter will be
@@ -195,7 +193,6 @@ pub struct VersionedConstants {
     // Transactions settings.
     pub disable_cairo0_redeclaration: bool,
     pub enable_stateful_compression: bool,
-    pub comprehensive_state_diff: bool,
     pub comprehensive_state_diff: bool,
     pub ignore_inner_event_resources: bool,
 
@@ -231,7 +228,6 @@ impl VersionedConstants {
     /// conversion of a Cairo step from Sierra gas to L1 gas.
     pub fn convert_l1_to_l2_gas_price_round_up(&self, l1_gas_price: GasPrice) -> GasPrice {
         (*(resource_cost_to_u128_ratio(self.sierra_gas_in_l1_gas_amount()) * l1_gas_price.0)
-        (*(resource_cost_to_u128_ratio(self.sierra_gas_in_l1_gas_amount()) * l1_gas_price.0)
             .ceil()
             .numer())
         .into()
@@ -239,10 +235,7 @@ impl VersionedConstants {
 
     /// Converts L1 gas amount to Sierra (L2) gas amount with **upward rounding**.
     pub fn l1_gas_to_sierra_gas_amount_round_up(&self, l1_gas_amount: GasAmount) -> GasAmount {
-    /// Converts L1 gas amount to Sierra (L2) gas amount with **upward rounding**.
-    pub fn l1_gas_to_sierra_gas_amount_round_up(&self, l1_gas_amount: GasAmount) -> GasAmount {
         // The amount ratio is the inverse of the price ratio.
-        (*(self.sierra_gas_in_l1_gas_amount().inv() * l1_gas_amount.0).ceil().numer()).into()
         (*(self.sierra_gas_in_l1_gas_amount().inv() * l1_gas_amount.0).ceil().numer()).into()
     }
 
@@ -336,8 +329,8 @@ impl VersionedConstants {
         Self { vm_resource_fee_cost, archival_data_gas_costs, ..latest }
     }
 
-    // TODO(Arni): Consider replacing each call to this function with `latest_with_overrides`, and
-    // squashing the functions together.
+    // TODO(Arni): Consider replacing each call to this function with `latest_with_overrides`,
+    // and squashing the functions together.
     /// Returns the latest versioned constants, applying the given overrides.
     pub fn get_versioned_constants(
         versioned_constants_overrides: VersionedConstantsOverrides,
@@ -385,7 +378,8 @@ impl VersionedConstants {
                 builtin_cost * u64_from_usize(*amount)
             })
             .sum();
-        // The minimum total cost is `syscall_base_gas_cost`, which is pre-charged by the compiler.
+        // The minimum total cost is `syscall_base_gas_cost`, which is pre-charged by the
+        // compiler.
         std::cmp::max(
             n_steps * gas_costs.base.step_gas_cost
                 + n_memory_holes * gas_costs.base.memory_hole_gas_cost
@@ -658,7 +652,6 @@ pub struct BaseGasCosts {
     // retrieving its price from the table.
     pub range_check_gas_cost: u64,
     // Priced builtins.
-    pub keccak_builtin_gas_cost: u64,
     pub keccak_builtin_gas_cost: u64,
     pub pedersen_gas_cost: u64,
     pub bitwise_builtin_gas_cost: u64,

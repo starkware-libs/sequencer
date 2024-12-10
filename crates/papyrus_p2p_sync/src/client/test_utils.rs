@@ -37,16 +37,6 @@ use starknet_api::block::{
     BlockNumber,
     BlockSignature,
 };
-use papyrus_test_utils::GetTestInstance;
-use rand::{Rng, RngCore};
-use rand_chacha::ChaCha8Rng;
-use starknet_api::block::{
-    BlockHash,
-    BlockHeader,
-    BlockHeaderWithoutHash,
-    BlockNumber,
-    BlockSignature,
-};
 use starknet_api::core::ClassHash;
 use starknet_api::crypto::utils::Signature;
 use starknet_api::hash::StarkHash;

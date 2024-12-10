@@ -7,7 +7,6 @@ use rstest::{fixture, rstest};
 use starknet_api::abi::abi_utils::{get_fee_token_var_address, get_storage_var_address};
 use starknet_api::core::{calculate_contract_address, ClassHash, ContractAddress};
 use starknet_api::test_utils::deploy_account::executable_deploy_account_tx;
-use starknet_api::test_utils::deploy_account::executable_deploy_account_tx;
 use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::fields::{ContractAddressSalt, ValidResourceBounds};
 use starknet_api::{
@@ -229,7 +228,6 @@ fn test_run_parallel_txs(default_all_resource_bounds: ValidResourceBounds) {
 
     // Prepare transactions
     let tx = executable_deploy_account_tx(
-    let tx = executable_deploy_account_tx(
         deploy_account_tx_args! {
             class_hash: account_without_validation.get_class_hash(),
             resource_bounds: l1_resource_bounds(
@@ -252,8 +250,6 @@ fn test_run_parallel_txs(default_all_resource_bounds: ValidResourceBounds) {
         constructor_calldata: constructor_calldata.clone(),
     };
     let nonce_manager = &mut NonceManager::default();
-    let tx = executable_deploy_account_tx(deploy_tx_args, nonce_manager);
-    let delpoy_account_tx_2 = AccountTransaction::new_for_sequencing(tx);
 
     let tx = executable_deploy_account_tx(deploy_tx_args, nonce_manager);
     let delpoy_account_tx_2 = AccountTransaction::new_for_sequencing(tx);

@@ -21,14 +21,6 @@ use papyrus_protobuf::consensus::{
     StreamMessage,
     TransactionBatch,
 };
-use papyrus_protobuf::consensus::{
-    ConsensusMessage,
-    ProposalFin,
-    ProposalInit,
-    ProposalPart,
-    StreamMessage,
-    TransactionBatch,
-};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::StateDiffCommitment;
 use starknet_api::executable_transaction::Transaction as ExecutableTransaction;

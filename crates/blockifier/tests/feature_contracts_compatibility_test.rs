@@ -53,40 +53,6 @@ pub struct Cairo1FeatureContractMetadata {
     pub sierra_path: String,
 }
 
-pub enum FeatureContractMetadata {
-    Cairo0(Cairo0FeatureContractMetadata),
-    Cairo1(Cairo1FeatureContractMetadata),
-}
-
-impl FeatureContractMetadata {
-    pub fn compiled_path(&self) -> String {
-        match self {
-            FeatureContractMetadata::Cairo0(data) => data.compiled_path.clone(),
-            FeatureContractMetadata::Cairo1(data) => data.compiled_path.clone(),
-        }
-    }
-
-    pub fn sierra_path(&self) -> String {
-        match self {
-            FeatureContractMetadata::Cairo0(_) => panic!("No sierra path for Cairo0 contracts."),
-            FeatureContractMetadata::Cairo1(data) => data.sierra_path.clone(),
-        }
-    }
-}
-
-pub struct Cairo0FeatureContractMetadata {
-    pub source_path: String,
-    pub base_filename: String,
-    pub compiled_path: String,
-}
-
-pub struct Cairo1FeatureContractMetadata {
-    pub source_path: String,
-    pub base_filename: String,
-    pub compiled_path: String,
-    pub sierra_path: String,
-}
-
 // To fix Cairo0 feature contracts, first enter a python venv and install the requirements:
 // ```
 // python -m venv tmp_venv

@@ -10,7 +10,6 @@
     },
     "invoke_tx_max_n_steps": 10000000,
     "execute_max_sierra_gas": 10000000000,
-    "execute_max_sierra_gas": 10000000000,
     "deprecated_l2_resource_gas_costs": {
         "gas_per_data_felt": [
             128,
@@ -41,7 +40,6 @@
     },
     "disable_cairo0_redeclaration": true,
     "enable_stateful_compression": false,
-    "comprehensive_state_diff": false,
     "comprehensive_state_diff": false,
     "allocation_cost": {
         "blob_cost": {
@@ -97,7 +95,6 @@
         },
         "range_check_gas_cost": 70,
         "keccak_builtin_gas_cost": 0,
-        "keccak_builtin_gas_cost": 0,
         "pedersen_gas_cost": 0,
         "bitwise_builtin_gas_cost": 594,
         "ecop_gas_cost": 0,
@@ -113,9 +110,7 @@
         },
         "transaction_gas_cost": {
             "entry_point_initial_budget": 2,
-            "entry_point_initial_budget": 2,
             "fee_transfer_gas_cost": 1,
-            "step_gas_cost": 1100
             "step_gas_cost": 1100
         },
         "transfer_entry_point_selector": "0x83afd3f4caedc6eebf44246fe54e38c95e3179a5ec9ea81740eca5b482d12e",
@@ -614,7 +609,6 @@
         }
     },
     "validate_max_n_steps": 1000000,
-    "validate_max_sierra_gas": 10000000000,
     "validate_max_sierra_gas": 10000000000,
     "min_compiler_version_for_sierra_gas": "2.8.0",
     "vm_resource_fee_cost": {
