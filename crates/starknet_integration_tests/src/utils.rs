@@ -29,6 +29,7 @@ use starknet_http_server::config::HttpServerConfig;
 use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_sequencer_infra::test_utils::get_available_socket;
+use starknet_sequencer_node::config::component_execution_config::ActiveComponentExecutionMode;
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::config::test_utils::RequiredParams;
 use starknet_types_core::felt::Felt;
@@ -276,4 +277,16 @@ fn create_monitoring_endpoint_config(sequencer_index: usize) -> MonitoringEndpoi
     let mut config = MonitoringEndpointConfig::default();
     config.port += u16::try_from(sequencer_index).unwrap();
     config
+}
+
+pub fn get_http_server_config(configs: &[SequencerNodeConfig]) -> Option<&HttpServerConfig> {
+    configs
+        .iter()
+        .find(|config| {
+            matches!(
+                config.components.http_server.execution_mode,
+                ActiveComponentExecutionMode::Enabled
+            )
+        })
+        .map(|config| &config.http_server_config)
 }
