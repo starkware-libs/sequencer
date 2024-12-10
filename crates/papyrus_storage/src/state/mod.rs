@@ -68,9 +68,9 @@ use tracing::debug;
 
 use crate::db::serialization::{NoVersionValueWrapper, VersionZeroWrapper};
 use crate::db::table_types::{CommonPrefix, DbCursorTrait, SimpleTable, Table};
-use crate::db::{DbTransaction, TableHandle, TransactionKind, RW};
+use crate::db::{DbTransaction, RW, TableHandle, TransactionKind};
 #[cfg(feature = "document_calls")]
-use crate::document_calls::{add_query, StorageQuery};
+use crate::document_calls::{StorageQuery, add_query};
 use crate::mmap_file::LocationInFile;
 use crate::state::data::IndexedDeprecatedContractClass;
 use crate::{

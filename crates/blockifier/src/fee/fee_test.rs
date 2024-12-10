@@ -16,9 +16,9 @@ use crate::fee::receipt::TransactionReceipt;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{
-    gas_vector_from_vm_usage, get_vm_resource_usage, CairoVersion, BALANCE,
-    DEFAULT_ETH_L1_DATA_GAS_PRICE, DEFAULT_ETH_L1_GAS_PRICE, DEFAULT_L1_DATA_GAS_MAX_AMOUNT,
-    DEFAULT_L1_GAS_AMOUNT, DEFAULT_L2_GAS_MAX_AMOUNT, DEFAULT_STRK_L1_GAS_PRICE,
+    BALANCE, CairoVersion, DEFAULT_ETH_L1_DATA_GAS_PRICE, DEFAULT_ETH_L1_GAS_PRICE,
+    DEFAULT_L1_DATA_GAS_MAX_AMOUNT, DEFAULT_L1_GAS_AMOUNT, DEFAULT_L2_GAS_MAX_AMOUNT,
+    DEFAULT_STRK_L1_GAS_PRICE, gas_vector_from_vm_usage, get_vm_resource_usage,
 };
 use crate::transaction::test_utils::{
     all_resource_bounds, block_context, invoke_tx_with_default_flags, l1_resource_bounds,

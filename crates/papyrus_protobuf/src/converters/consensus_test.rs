@@ -1,4 +1,4 @@
-use papyrus_test_utils::{get_rng, GetTestInstance};
+use papyrus_test_utils::{GetTestInstance, get_rng};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::ValidResourceBounds;
 use starknet_api::transaction::{

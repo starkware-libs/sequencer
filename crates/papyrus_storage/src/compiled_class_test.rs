@@ -4,10 +4,10 @@ use pretty_assertions::assert_eq;
 use starknet_api::core::ClassHash;
 use starknet_api::test_utils::read_json_file;
 
+use crate::StorageError;
 use crate::compiled_class::{CasmStorageReader, CasmStorageWriter};
 use crate::db::{DbError, KeyAlreadyExistsError};
 use crate::test_utils::get_test_storage;
-use crate::StorageError;
 
 #[test]
 fn append_casm() {
@@ -34,25 +34,7 @@ fn casm_rewrite() {
     writer
         .begin_rw_txn()
         .unwrap()
-        .append_casm(
-            &ClassHash::default(),
-            &CasmContractClass {
-                prime: Default::default(),
-                compiler_version: Default::default(),
-                bytecode: Default::default(),
-                bytecode_segment_lengths: Default::default(),
-                hints: Default::default(),
-                pythonic_hints: Default::default(),
-                entry_points_by_type: Default::default(),
-            },
-        )
-        .unwrap()
-        .commit()
-        .unwrap();
-
-    let Err(err) = writer.begin_rw_txn().unwrap().append_casm(
-        &ClassHash::default(),
-        &CasmContractClass {
+        .append_casm(&ClassHash::default(), &CasmContractClass {
             prime: Default::default(),
             compiler_version: Default::default(),
             bytecode: Default::default(),
@@ -60,8 +42,22 @@ fn casm_rewrite() {
             hints: Default::default(),
             pythonic_hints: Default::default(),
             entry_points_by_type: Default::default(),
-        },
-    ) else {
+        })
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    let Err(err) =
+        writer.begin_rw_txn().unwrap().append_casm(&ClassHash::default(), &CasmContractClass {
+            prime: Default::default(),
+            compiler_version: Default::default(),
+            bytecode: Default::default(),
+            bytecode_segment_lengths: Default::default(),
+            hints: Default::default(),
+            pythonic_hints: Default::default(),
+            entry_points_by_type: Default::default(),
+        })
+    else {
         panic!("Unexpected Ok.");
     };
 

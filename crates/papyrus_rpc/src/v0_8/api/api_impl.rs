@@ -1,25 +1,24 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use jsonrpsee::RpcModule;
 use jsonrpsee::core::RpcResult;
 use jsonrpsee::types::ErrorObjectOwned;
-use jsonrpsee::RpcModule;
 use papyrus_common::pending_classes::{PendingClasses, PendingClassesTrait};
 use papyrus_execution::objects::{FeeEstimation, PendingData as ExecutionPendingData};
 use papyrus_execution::{
-    estimate_fee as exec_estimate_fee, execute_call, execution_utils,
-    simulate_transactions as exec_simulate_transactions, ExecutableTransactionInput,
-    ExecutionConfig,
+    ExecutableTransactionInput, ExecutionConfig, estimate_fee as exec_estimate_fee, execute_call,
+    execution_utils, simulate_transactions as exec_simulate_transactions,
 };
 use papyrus_storage::body::events::{EventIndex, EventsReader};
 use papyrus_storage::body::{BodyStorageReader, TransactionIndex};
 use papyrus_storage::compiled_class::CasmStorageReader;
-use papyrus_storage::db::{TransactionKind, RO};
+use papyrus_storage::db::{RO, TransactionKind};
 use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::{StorageError, StorageReader, StorageTxn};
 use starknet_api::block::{BlockHash, BlockHeaderWithoutHash, BlockNumber, BlockStatus};
 use starknet_api::core::{
-    ChainId, ClassHash, ContractAddress, GlobalRoot, Nonce, BLOCK_HASH_TABLE_ADDRESS,
+    BLOCK_HASH_TABLE_ADDRESS, ChainId, ClassHash, ContractAddress, GlobalRoot, Nonce,
 };
 use starknet_api::execution_utils::format_panic_data;
 use starknet_api::hash::StarkHash;
@@ -29,6 +28,8 @@ use starknet_api::transaction::{
     EventContent, EventIndexInTransactionOutput, Transaction as StarknetApiTransaction,
     TransactionHash, TransactionOffsetInBlock, TransactionVersion,
 };
+use starknet_client::ClientError;
+use starknet_client::reader::PendingData;
 use starknet_client::reader::objects::pending_data::{
     DeprecatedPendingBlock, PendingBlockOrDeprecated,
     PendingStateUpdate as ClientPendingStateUpdate,
@@ -36,33 +37,32 @@ use starknet_client::reader::objects::pending_data::{
 use starknet_client::reader::objects::transaction::{
     Transaction as ClientTransaction, TransactionReceipt as ClientTransactionReceipt,
 };
-use starknet_client::reader::PendingData;
 use starknet_client::writer::{StarknetWriter, WriterClientError};
-use starknet_client::ClientError;
 use starknet_types_core::felt::Felt;
 use tokio::sync::RwLock;
 use tracing::{instrument, trace, warn};
 
 use super::super::block::{
-    get_accepted_block_number, get_block_header_by_number, Block, BlockHeader,
-    BlockNotRevertedValidator, GeneralBlockHeader, PendingBlockHeader, ResourcePrice,
+    Block, BlockHeader, BlockNotRevertedValidator, GeneralBlockHeader, PendingBlockHeader,
+    ResourcePrice, get_accepted_block_number, get_block_header_by_number,
 };
 use super::super::broadcasted_transaction::{
     BroadcastedDeclareTransaction, BroadcastedTransaction,
 };
 use super::super::error::{
-    ContractError, JsonRpcError, TransactionExecutionError, BLOCK_NOT_FOUND, CLASS_HASH_NOT_FOUND,
-    CONTRACT_NOT_FOUND, INVALID_TRANSACTION_HASH, INVALID_TRANSACTION_INDEX, NO_BLOCKS,
+    BLOCK_NOT_FOUND, CLASS_HASH_NOT_FOUND, CONTRACT_NOT_FOUND, ContractError,
+    INVALID_TRANSACTION_HASH, INVALID_TRANSACTION_INDEX, JsonRpcError, NO_BLOCKS,
     PAGE_SIZE_TOO_BIG, TOO_MANY_KEYS_IN_FILTER, TRANSACTION_HASH_NOT_FOUND,
+    TransactionExecutionError,
 };
 use super::super::execution::TransactionTrace;
 use super::super::state::{AcceptedStateUpdate, PendingStateUpdate, StateUpdate};
 use super::super::transaction::{
-    get_block_tx_hashes_by_number, get_block_txs_by_number, Event, GeneralTransactionReceipt,
-    L1HandlerMsgHash, L1L2MsgHash, MessageFromL1, PendingTransactionFinalityStatus,
-    PendingTransactionOutput, PendingTransactionReceipt, Transaction, TransactionOutput,
-    TransactionReceipt, TransactionStatus, TransactionWithHash, TransactionWithReceipt,
-    Transactions, TypedDeployAccountTransaction, TypedInvokeTransaction,
+    Event, GeneralTransactionReceipt, L1HandlerMsgHash, L1L2MsgHash, MessageFromL1,
+    PendingTransactionFinalityStatus, PendingTransactionOutput, PendingTransactionReceipt,
+    Transaction, TransactionOutput, TransactionReceipt, TransactionStatus, TransactionWithHash,
+    TransactionWithReceipt, Transactions, TypedDeployAccountTransaction, TypedInvokeTransaction,
+    get_block_tx_hashes_by_number, get_block_txs_by_number,
 };
 use super::super::write_api_error::{
     starknet_error_to_declare_error, starknet_error_to_deploy_account_error,
@@ -72,18 +72,18 @@ use super::super::write_api_result::{
     AddDeclareOkResult, AddDeployAccountOkResult, AddInvokeOkResult,
 };
 use super::{
-    execution_error_to_error_object_owned, stored_txn_to_executable_txn, BlockHashAndNumber,
-    BlockId, CallRequest, CompiledContractClass, ContinuationToken, EventFilter, EventsChunk,
-    GatewayContractClass, JsonRpcV0_8Server as JsonRpcServer, SimulatedTransaction, SimulationFlag,
-    TransactionTraceWithHash,
+    BlockHashAndNumber, BlockId, CallRequest, CompiledContractClass, ContinuationToken,
+    EventFilter, EventsChunk, GatewayContractClass, JsonRpcV0_8Server as JsonRpcServer,
+    SimulatedTransaction, SimulationFlag, TransactionTraceWithHash,
+    execution_error_to_error_object_owned, stored_txn_to_executable_txn,
 };
 use crate::api::{BlockHashOrNumber, JsonRpcServerTrait, Tag};
 use crate::pending::client_pending_data_to_execution_pending_data;
-use crate::syncing_state::{get_last_synced_block, SyncStatus, SyncingState};
+use crate::syncing_state::{SyncStatus, SyncingState, get_last_synced_block};
 use crate::version_config::VERSION_0_8 as VERSION;
 use crate::{
-    get_block_status, get_latest_block_number, internal_server_error, verify_storage_scope,
-    ContinuationTokenAsStruct, GENESIS_HASH,
+    ContinuationTokenAsStruct, GENESIS_HASH, get_block_status, get_latest_block_number,
+    internal_server_error, verify_storage_scope,
 };
 
 const DONT_IGNORE_L1_DA_MODE: bool = false;
@@ -685,7 +685,7 @@ impl JsonRpcServer for JsonRpcServerImpl {
         // corresponding to the requested filter. If there are, we return a continuation token
         // pointing to the next relevant event. Otherwise, we return a continuation token None.
         let mut filtered_events = vec![];
-        if start_event_index.0 .0 <= latest_block_number {
+        if start_event_index.0.0 <= latest_block_number {
             for ((from_address, event_index), content) in txn
                 .iter_events(filter.address, start_event_index, to_block_number)
                 .map_err(internal_server_error)?
@@ -734,8 +734,8 @@ impl JsonRpcServer for JsonRpcServerImpl {
             let pending_block = read_pending_data(&self.pending_data, &txn).await?.block;
             let pending_transaction_receipts = pending_block.transaction_receipts();
             // Extract the first transaction offset and event offset from the starting EventIndex.
-            let (transaction_start, event_start) = if start_event_index.0 .0 > latest_block_number {
-                (start_event_index.0 .1 .0, start_event_index.1 .0)
+            let (transaction_start, event_start) = if start_event_index.0.0 > latest_block_number {
+                (start_event_index.0.1.0, start_event_index.1.0)
             } else {
                 (0, 0)
             };

@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use clap::{value_parser, Arg, ArgMatches, Command};
-use serde_json::{json, Value};
+use clap::{Arg, ArgMatches, Command, value_parser};
+use serde_json::{Value, json};
 
 use crate::loading::update_config_map;
 use crate::{ConfigError, ParamPath, SerializationType, SerializedParam};

@@ -5,8 +5,8 @@ use std::time::Duration;
 use futures::stream::FuturesUnordered;
 use futures_util::{FutureExt, StreamExt};
 use papyrus_common::pending_classes::{PendingClasses, PendingClassesTrait};
-use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::StorageReader;
+use papyrus_storage::header::HeaderStorageReader;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::ClassHash;
 use starknet_client::reader::{DeclaredClassHashEntry, PendingData};
@@ -14,9 +14,9 @@ use starknet_types_core::felt::Felt;
 use tokio::sync::RwLock;
 use tracing::{debug, trace};
 
+use crate::StateSyncError;
 use crate::sources::central::CentralSourceTrait;
 use crate::sources::pending::PendingSourceTrait;
-use crate::StateSyncError;
 
 // Update the pending data and return when a new block is discovered.
 pub(crate) async fn sync_pending_data<

@@ -1,13 +1,13 @@
 use std::time::Duration;
 
 use metrics_exporter_prometheus::PrometheusBuilder;
-use papyrus_storage::{open_storage, StorageConfig};
+use papyrus_storage::{StorageConfig, open_storage};
 use papyrus_test_utils::prometheus_is_contained;
 use tempfile::TempDir;
 
 use crate::config::NodeConfig;
 use crate::run::{
-    run_threads, spawn_storage_metrics_collector, PapyrusResources, PapyrusTaskHandles,
+    PapyrusResources, PapyrusTaskHandles, run_threads, spawn_storage_metrics_collector,
 };
 
 // The mission of this test is to ensure that if an error is returned from one of the spawned tasks,

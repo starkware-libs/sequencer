@@ -1,8 +1,8 @@
 use std::env::args;
 use std::process::exit;
 
-use papyrus_config::validators::config_validate;
 use papyrus_config::ConfigError;
+use papyrus_config::validators::config_validate;
 use starknet_sequencer_infra::trace_util::configure_tracing;
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::servers::run_component_servers;

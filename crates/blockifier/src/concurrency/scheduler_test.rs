@@ -1,13 +1,13 @@
 use std::cmp::min;
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 
+use crate::concurrency::TxIndex;
 use crate::concurrency::scheduler::{Scheduler, Task, TransactionStatus};
 use crate::concurrency::test_utils::DEFAULT_CHUNK_SIZE;
-use crate::concurrency::TxIndex;
 use crate::default_scheduler;
 
 #[rstest]

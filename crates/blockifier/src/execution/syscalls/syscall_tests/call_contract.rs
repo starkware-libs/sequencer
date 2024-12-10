@@ -20,8 +20,8 @@ use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::syscall::build_recurse_calldata;
 use crate::test_utils::{
-    create_calldata, trivial_external_entry_point_new, CairoVersion, CompilerBasedVersion,
-    RunnableCairo1, BALANCE,
+    BALANCE, CairoVersion, CompilerBasedVersion, RunnableCairo1, create_calldata,
+    trivial_external_entry_point_new,
 };
 
 #[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native; "Native"))]
@@ -84,28 +84,22 @@ fn test_call_contract(outer_contract: FeatureContract, inner_contract: FeatureCo
     let mut state = test_state(chain_info, BALANCE, &[(outer_contract, 1), (inner_contract, 1)]);
 
     let outer_entry_point_selector = selector_from_name("test_call_contract");
-    let calldata = create_calldata(
-        inner_contract.get_instance_address(0),
-        "test_storage_read_write",
-        &[
+    let calldata =
+        create_calldata(inner_contract.get_instance_address(0), "test_storage_read_write", &[
             felt!(405_u16), // Calldata: storage address.
             felt!(48_u8),   // Calldata: value.
-        ],
-    );
+        ]);
     let entry_point_call = CallEntryPoint {
         entry_point_selector: outer_entry_point_selector,
         calldata,
         ..trivial_external_entry_point_new(outer_contract)
     };
 
-    assert_eq!(
-        entry_point_call.execute_directly(&mut state).unwrap().execution,
-        CallExecution {
-            retdata: retdata![felt!(48_u8)],
-            gas_consumed: REQUIRED_GAS_CALL_CONTRACT_TEST,
-            ..CallExecution::default()
-        }
-    );
+    assert_eq!(entry_point_call.execute_directly(&mut state).unwrap().execution, CallExecution {
+        retdata: retdata![felt!(48_u8)],
+        gas_consumed: REQUIRED_GAS_CALL_CONTRACT_TEST,
+        ..CallExecution::default()
+    });
 }
 
 /// Cairo0 / Old Cairo1 / Cairo1 / Native calls to Cairo0 / Old Cairo1 / Cairo1 / Native.

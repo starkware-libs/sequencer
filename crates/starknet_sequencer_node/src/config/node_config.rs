@@ -7,14 +7,14 @@ use std::vec::Vec;
 use clap::Command;
 use infra_utils::path::resolve_project_relative_path;
 use papyrus_config::dumping::{
-    append_sub_config_name, generate_struct_pointer, ser_pointer_target_required_param,
-    set_pointing_param_paths, ConfigPointers, Pointers, SerializeConfig,
+    ConfigPointers, Pointers, SerializeConfig, append_sub_config_name, generate_struct_pointer,
+    ser_pointer_target_required_param, set_pointing_param_paths,
 };
 use papyrus_config::loading::load_and_process_config;
 use papyrus_config::{ConfigError, ParamPath, SerializationType, SerializedParam};
 use serde::{Deserialize, Serialize};
-use starknet_batcher::config::BatcherConfig;
 use starknet_batcher::VersionedConstantsOverrides;
+use starknet_batcher::config::BatcherConfig;
 use starknet_consensus_manager::config::ConsensusManagerConfig;
 use starknet_gateway::config::{GatewayConfig, RpcStateReaderConfig};
 use starknet_http_server::config::HttpServerConfig;

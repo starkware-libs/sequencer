@@ -3,7 +3,7 @@ use mockito::mock;
 use reqwest::StatusCode;
 
 use crate::starknet_error::{KnownStarknetErrorCode, StarknetError, StarknetErrorCode};
-use crate::test_utils::retry::{get_test_config, MAX_RETRIES};
+use crate::test_utils::retry::{MAX_RETRIES, get_test_config};
 use crate::{ClientError, RetryErrorCode, StarknetClient};
 
 const NODE_VERSION: &str = "NODE VERSION";

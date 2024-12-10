@@ -30,7 +30,7 @@ use std::result;
 use std::sync::Arc;
 
 use libmdbx::{DatabaseFlags, Geometry, PageSize, WriteMap};
-use papyrus_config::dumping::{ser_param, SerializeConfig};
+use papyrus_config::dumping::{SerializeConfig, ser_param};
 use papyrus_config::validators::{validate_ascii, validate_path_exists};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_proc_macros::latency_histogram;

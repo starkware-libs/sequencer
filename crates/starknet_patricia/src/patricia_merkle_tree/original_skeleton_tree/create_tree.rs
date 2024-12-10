@@ -18,7 +18,7 @@ use crate::patricia_merkle_tree::original_skeleton_tree::tree::{
 use crate::patricia_merkle_tree::original_skeleton_tree::utils::split_leaves;
 use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
 use crate::storage::errors::StorageError;
-use crate::storage::storage_trait::{create_db_key, StarknetPrefix, Storage, StorageKey};
+use crate::storage::storage_trait::{StarknetPrefix, Storage, StorageKey, create_db_key};
 
 #[cfg(test)]
 #[path = "create_tree_test.rs"]

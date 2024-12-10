@@ -13,7 +13,7 @@ use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use futures::{SinkExt, StreamExt};
 use papyrus_consensus::types::{
-    ConsensusContext, ConsensusError, ProposalContentId, Round, ValidatorId, DEFAULT_VALIDATOR_ID,
+    ConsensusContext, ConsensusError, DEFAULT_VALIDATOR_ID, ProposalContentId, Round, ValidatorId,
 };
 use papyrus_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
 use papyrus_protobuf::consensus::{
@@ -32,7 +32,7 @@ use starknet_batcher_types::batcher_types::{
 use starknet_batcher_types::communication::BatcherClient;
 use tokio::sync::Notify;
 use tokio::task::JoinHandle;
-use tracing::{debug, debug_span, error, info, trace, warn, Instrument};
+use tracing::{Instrument, debug, debug_span, error, info, trace, warn};
 
 // TODO(Dan, Matan): Remove this once and replace with real gas prices.
 const TEMPORARY_GAS_PRICES: GasPrices = GasPrices {
@@ -446,7 +446,7 @@ async fn stream_build_proposal(
                     .expect("Failed to broadcast proposal content");
             }
             GetProposalContent::Finished(id) => {
-                let proposal_content_id = BlockHash(id.state_diff_commitment.0 .0);
+                let proposal_content_id = BlockHash(id.state_diff_commitment.0.0);
                 info!(
                     "Finished building proposal {:?}: content_id = {:?}, num_txs = {:?}, height = \
                      {:?}",
@@ -542,7 +542,7 @@ async fn stream_validate_proposal(
         }
         status => panic!("Unexpected status: for {proposal_id:?}, {status:?}"),
     };
-    let batcher_block_id = BlockHash(response_id.state_diff_commitment.0 .0);
+    let batcher_block_id = BlockHash(response_id.state_diff_commitment.0.0);
     info!(
         "Finished validating proposal {:?}: network_block_id: {:?}, batcher_block_id = {:?}, \
          num_txs = {:?}, height = {:?}",

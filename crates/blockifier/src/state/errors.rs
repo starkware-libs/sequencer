@@ -1,7 +1,7 @@
 use cairo_vm::types::errors::program_errors::ProgramError;
 use num_bigint::{BigUint, TryFromBigIntError};
-use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::StarknetApiError;
+use starknet_api::core::{ClassHash, ContractAddress};
 use thiserror::Error;
 
 use crate::abi::constants;

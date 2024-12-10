@@ -11,7 +11,7 @@ use starknet_api::transaction::fields::{
     ResourceBounds, Tip, TransactionSignature, ValidResourceBounds,
 };
 use starknet_api::transaction::{
-    signed_tx_version, TransactionHash, TransactionOptions, TransactionVersion,
+    TransactionHash, TransactionOptions, TransactionVersion, signed_tx_version,
 };
 
 use crate::abi::constants as abi_constants;

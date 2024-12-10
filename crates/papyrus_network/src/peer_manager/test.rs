@@ -19,7 +19,7 @@ use crate::discovery::identify_impl::IdentifyToOtherBehaviourEvent;
 use crate::mixed_behaviour;
 use crate::mixed_behaviour::BridgedBehaviour;
 use crate::peer_manager::peer::{Peer, PeerTrait};
-use crate::peer_manager::{PeerManager, PeerManagerConfig, ReputationModifier, MALICIOUS};
+use crate::peer_manager::{MALICIOUS, PeerManager, PeerManagerConfig, ReputationModifier};
 use crate::sqmr::OutboundSessionId;
 
 impl Unpin for PeerManager {}
@@ -287,10 +287,9 @@ fn report_session_on_unknown_session_id() {
     let outbound_session_id = OutboundSessionId { value: 1 };
 
     peer_manager
-        .report_session(
-            outbound_session_id,
-            ReputationModifier::Misconduct { misconduct_score: MALICIOUS },
-        )
+        .report_session(outbound_session_id, ReputationModifier::Misconduct {
+            misconduct_score: MALICIOUS,
+        })
         .expect_err("report_session on unknown outbound_session_id should return an error");
 }
 

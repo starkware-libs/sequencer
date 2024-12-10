@@ -7,10 +7,10 @@ use std::sync::Arc;
 use async_trait::async_trait;
 #[cfg(test)]
 use mockall::automock;
+use starknet_client::ClientCreationError;
 use starknet_client::reader::{
     PendingData, ReaderClientError, StarknetFeederGatewayClient, StarknetReader,
 };
-use starknet_client::ClientCreationError;
 
 // TODO(dvir): add pending config.
 use super::central::CentralSourceConfig;

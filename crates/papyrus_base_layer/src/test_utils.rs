@@ -4,7 +4,7 @@ use std::process::Command;
 pub(crate) use alloy_primitives::Address as EthereumContractAddress;
 use ethers::utils::{Ganache, GanacheInstance};
 use tar::Archive;
-use tempfile::{tempdir, TempDir};
+use tempfile::{TempDir, tempdir};
 
 type TestEthereumNodeHandle = (GanacheInstance, TempDir);
 

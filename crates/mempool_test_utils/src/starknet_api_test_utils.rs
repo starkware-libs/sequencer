@@ -7,7 +7,7 @@ use std::sync::LazyLock;
 
 use assert_matches::assert_matches;
 use blockifier::test_utils::contracts::FeatureContract;
-use blockifier::test_utils::{create_trivial_calldata, CairoVersion, RunnableCairo1};
+use blockifier::test_utils::{CairoVersion, RunnableCairo1, create_trivial_calldata};
 use infra_utils::path::resolve_project_relative_path;
 use pretty_assertions::assert_ne;
 use starknet_api::block::GasPrice;
@@ -16,10 +16,10 @@ use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::state::SierraContractClass;
+use starknet_api::test_utils::NonceManager;
 use starknet_api::test_utils::declare::rpc_declare_tx;
 use starknet_api::test_utils::deploy_account::rpc_deploy_account_tx;
-use starknet_api::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
-use starknet_api::test_utils::NonceManager;
+use starknet_api::test_utils::invoke::{InvokeTxArgs, rpc_invoke_tx};
 use starknet_api::transaction::fields::{
     AllResourceBounds, ContractAddressSalt, ResourceBounds, Tip, TransactionSignature,
     ValidResourceBounds,

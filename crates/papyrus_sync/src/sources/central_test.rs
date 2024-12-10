@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 use assert_matches::assert_matches;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use futures_util::pin_mut;
-use indexmap::{indexmap, IndexMap};
+use indexmap::{IndexMap, indexmap};
 use lru::LruCache;
 use mockall::predicate;
 use papyrus_storage::class::ClassStorageWriter;
@@ -19,17 +19,17 @@ use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContract
 use starknet_api::hash::StarkHash;
 use starknet_api::state::{SierraContractClass as sn_api_ContractClass, ThinStateDiff};
 use starknet_api::{class_hash, contract_address, felt, storage_key};
+use starknet_client::ClientError;
 use starknet_client::reader::objects::block::BlockPostV0_13_1;
 use starknet_client::reader::{
     Block, BlockSignatureData, ContractClass, DeclaredClassHashEntry, DeployedContract,
     GenericContractClass, MockStarknetReader, ReaderClientError, ReplacedClass, StateUpdate,
     StorageEntry,
 };
-use starknet_client::ClientError;
 use tokio_stream::StreamExt;
 
-use super::state_update_stream::StateUpdateStreamConfig;
 use super::ApiContractClass;
+use super::state_update_stream::StateUpdateStreamConfig;
 use crate::sources::central::{CentralError, CentralSourceTrait, GenericCentralSource};
 
 const TEST_CONCURRENT_REQUESTS: usize = 300;
@@ -452,35 +452,29 @@ async fn stream_compiled_classes() {
     writer
         .begin_rw_txn()
         .unwrap()
-        .append_state_diff(
-            BlockNumber(0),
-            ThinStateDiff {
-                deployed_contracts: indexmap! {},
-                storage_diffs: indexmap! {},
-                declared_classes: indexmap! {
-                    class_hash!("0x0") => CompiledClassHash(felt!("0x0")),
-                    class_hash!("0x1") => CompiledClassHash(felt!("0x1")),
-                },
-                deprecated_declared_classes: vec![],
-                nonces: indexmap! {},
-                replaced_classes: indexmap! {},
+        .append_state_diff(BlockNumber(0), ThinStateDiff {
+            deployed_contracts: indexmap! {},
+            storage_diffs: indexmap! {},
+            declared_classes: indexmap! {
+                class_hash!("0x0") => CompiledClassHash(felt!("0x0")),
+                class_hash!("0x1") => CompiledClassHash(felt!("0x1")),
             },
-        )
+            deprecated_declared_classes: vec![],
+            nonces: indexmap! {},
+            replaced_classes: indexmap! {},
+        })
         .unwrap()
-        .append_state_diff(
-            BlockNumber(1),
-            ThinStateDiff {
-                deployed_contracts: indexmap! {},
-                storage_diffs: indexmap! {},
-                declared_classes: indexmap! {
-                    class_hash!("0x2") => CompiledClassHash(felt!("0x2")),
-                    class_hash!("0x3") => CompiledClassHash(felt!("0x3")),
-                },
-                deprecated_declared_classes: vec![],
-                nonces: indexmap! {},
-                replaced_classes: indexmap! {},
+        .append_state_diff(BlockNumber(1), ThinStateDiff {
+            deployed_contracts: indexmap! {},
+            storage_diffs: indexmap! {},
+            declared_classes: indexmap! {
+                class_hash!("0x2") => CompiledClassHash(felt!("0x2")),
+                class_hash!("0x3") => CompiledClassHash(felt!("0x3")),
             },
-        )
+            deprecated_declared_classes: vec![],
+            nonces: indexmap! {},
+            replaced_classes: indexmap! {},
+        })
         .unwrap()
         .append_classes(
             BlockNumber(0),

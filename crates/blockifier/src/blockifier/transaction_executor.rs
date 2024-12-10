@@ -1,5 +1,5 @@
 use std::collections::{HashMap, HashSet};
-use std::panic::{self, catch_unwind, AssertUnwindSafe};
+use std::panic::{self, AssertUnwindSafe, catch_unwind};
 use std::sync::{Arc, Mutex};
 
 use itertools::FoldWhile::{Continue, Done};

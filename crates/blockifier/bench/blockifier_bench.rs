@@ -10,7 +10,7 @@
 use blockifier::test_utils::transfers_generator::{
     RecipientGeneratorType, TransfersGenerator, TransfersGeneratorConfig,
 };
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 
 pub fn transfers_benchmark(c: &mut Criterion) {
     let transfers_generator_config = TransfersGeneratorConfig {

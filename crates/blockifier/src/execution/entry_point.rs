@@ -11,10 +11,10 @@ use starknet_api::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::state::StorageKey;
+use starknet_api::transaction::TransactionVersion;
 use starknet_api::transaction::fields::{
     AllResourceBounds, Calldata, ResourceBounds, ValidResourceBounds,
 };
-use starknet_api::transaction::TransactionVersion;
 use starknet_types_core::felt::Felt;
 
 use crate::context::{BlockContext, TransactionContext};
@@ -25,7 +25,7 @@ use crate::execution::errors::{
     ConstructorEntryPointExecutionError, EntryPointExecutionError, PreExecutionError,
 };
 use crate::execution::execution_utils::execute_entry_point_call_wrapper;
-use crate::execution::stack_trace::{extract_trailing_cairo1_revert_trace, Cairo1RevertHeader};
+use crate::execution::stack_trace::{Cairo1RevertHeader, extract_trailing_cairo1_revert_trace};
 use crate::state::state_api::{State, StateResult};
 use crate::transaction::objects::{HasRelatedFeeType, TransactionInfo};
 use crate::transaction::transaction_types::TransactionType;

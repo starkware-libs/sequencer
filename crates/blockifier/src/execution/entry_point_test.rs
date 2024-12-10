@@ -17,7 +17,7 @@ use crate::state::cached_state::CachedState;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, RunnableCairo1, BALANCE};
+use crate::test_utils::{BALANCE, CairoVersion, RunnableCairo1, trivial_external_entry_point_new};
 use crate::versioned_constants::VersionedConstants;
 
 #[test]
@@ -51,10 +51,9 @@ fn test_call_info_iteration() {
     for (i, call_info) in root.iter().enumerate() {
         // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion
         // works.
-        assert_eq!(
-            call_info.call.calldata,
-            calldata![felt!(u64::try_from(i).expect("Failed to convert usize to u64."))]
-        );
+        assert_eq!(call_info.call.calldata, calldata![felt!(
+            u64::try_from(i).expect("Failed to convert usize to u64.")
+        )]);
     }
 }
 

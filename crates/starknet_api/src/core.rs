@@ -14,7 +14,7 @@ use crate::crypto::utils::PublicKey;
 use crate::hash::{PoseidonHash, StarkHash};
 use crate::serde_utils::{BytesAsHex, PrefixedBytesAsHex};
 use crate::transaction::fields::{Calldata, ContractAddressSalt};
-use crate::{impl_from_through_intermediate, StarknetApiError};
+use crate::{StarknetApiError, impl_from_through_intermediate};
 
 /// Felt.
 pub fn ascii_as_felt(ascii_str: &str) -> Result<Felt, StarknetApiError> {
@@ -113,9 +113,9 @@ impl ContractAddress {
     /// The lower bound is above the special saved addresses and the upper bound is congruent with
     /// the storage var address upper bound.
     pub fn validate(&self) -> Result<(), StarknetApiError> {
-        let value = self.0 .0;
+        let value = self.0.0;
         let l2_address_upper_bound = Felt::from(*L2_ADDRESS_UPPER_BOUND);
-        if (value > BLOCK_HASH_TABLE_ADDRESS.0 .0) && (value < l2_address_upper_bound) {
+        if (value > BLOCK_HASH_TABLE_ADDRESS.0.0) && (value < l2_address_upper_bound) {
             return Ok(());
         }
 

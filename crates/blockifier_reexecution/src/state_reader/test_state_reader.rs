@@ -21,7 +21,7 @@ use starknet_api::state::StorageKey;
 use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_core::types::ContractClass as StarknetContractClass;
 use starknet_gateway::config::RpcStateReaderConfig;
-use starknet_gateway::errors::{serde_err_to_state_err, RPCStateReaderError};
+use starknet_gateway::errors::{RPCStateReaderError, serde_err_to_state_err};
 use starknet_gateway::rpc_objects::{
     BlockHeader, BlockId, GetBlockWithTxHashesParams, ResourcePrice,
 };
@@ -163,10 +163,10 @@ impl TestStateReader {
     /// If l2_gas_price is not present in the block header, it will be set to 1.
     pub fn get_block_info(&self) -> ReexecutionResult<BlockInfo> {
         let mut json = retry_request!(self.retry_config, || {
-            self.rpc_state_reader.send_rpc_request(
-                "starknet_getBlockWithTxHashes",
-                GetBlockWithTxHashesParams { block_id: self.rpc_state_reader.block_id },
-            )
+            self.rpc_state_reader
+                .send_rpc_request("starknet_getBlockWithTxHashes", GetBlockWithTxHashesParams {
+                    block_id: self.rpc_state_reader.block_id,
+                })
         })?;
 
         let block_header_map = json.as_object_mut().ok_or(StateError::StateReadError(
@@ -187,10 +187,10 @@ impl TestStateReader {
     pub fn get_starknet_version(&self) -> ReexecutionResult<StarknetVersion> {
         let raw_version: String = serde_json::from_value(
             retry_request!(self.retry_config, || {
-                self.rpc_state_reader.send_rpc_request(
-                    "starknet_getBlockWithTxHashes",
-                    GetBlockWithTxHashesParams { block_id: self.rpc_state_reader.block_id },
-                )
+                self.rpc_state_reader
+                    .send_rpc_request("starknet_getBlockWithTxHashes", GetBlockWithTxHashesParams {
+                        block_id: self.rpc_state_reader.block_id,
+                    })
             })?["starknet_version"]
                 .clone(),
         )?;
@@ -215,10 +215,10 @@ impl TestStateReader {
         Ok(deserialize_transaction_json_to_starknet_api_tx(retry_request!(
             self.retry_config,
             || {
-                self.rpc_state_reader.send_rpc_request(
-                    "starknet_getTransactionByHash",
-                    GetTransactionByHashParams { transaction_hash: tx_hash.to_string() },
-                )
+                self.rpc_state_reader
+                    .send_rpc_request("starknet_getTransactionByHash", GetTransactionByHashParams {
+                        transaction_hash: tx_hash.to_string(),
+                    })
             }
         )?)?)
     }
@@ -266,11 +266,11 @@ impl TestStateReader {
     }
 
     pub fn get_state_diff(&self) -> ReexecutionResult<CommitmentStateDiff> {
-        let raw_statediff =
-            &retry_request!(self.retry_config, || self.rpc_state_reader.send_rpc_request(
-                "starknet_getStateUpdate",
-                GetBlockWithTxHashesParams { block_id: self.rpc_state_reader.block_id }
-            ))?["state_diff"];
+        let raw_statediff = &retry_request!(self.retry_config, || self
+            .rpc_state_reader
+            .send_rpc_request("starknet_getStateUpdate", GetBlockWithTxHashesParams {
+                block_id: self.rpc_state_reader.block_id
+            }))?["state_diff"];
 
         let deployed_contracts = hashmap_from_raw::<ContractAddress, ClassHash>(
             raw_statediff,

@@ -41,7 +41,7 @@ async fn read_message_returns_none_when_other_stream_is_closed() {
 #[tokio::test]
 async fn read_message_is_pending_when_other_stream_didnt_send() {
     let (_stream1, mut stream2, _) = get_connected_streams().await;
-    assert!(tokio::time::timeout(Duration::from_millis(10), read_message(&mut stream2))
-        .await
-        .is_err());
+    assert!(
+        tokio::time::timeout(Duration::from_millis(10), read_message(&mut stream2)).await.is_err()
+    );
 }

@@ -5,9 +5,9 @@ use std::collections::HashSet;
 use std::net::SocketAddr;
 use std::time::Instant;
 
+use jsonrpsee::Methods;
 use jsonrpsee::server::logger::{HttpRequest, Logger, MethodKind, TransportProtocol};
 use jsonrpsee::types::Params;
-use jsonrpsee::Methods;
 use metrics::{histogram, increment_counter, register_counter, register_histogram};
 
 // Name of the metrics.

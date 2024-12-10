@@ -4,29 +4,29 @@ use std::sync::Arc;
 use assert_matches::assert_matches;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::indexmap;
-use jsonrpsee::core::Error;
 use jsonrpsee::RpcModule;
+use jsonrpsee::core::Error;
 use lazy_static::lazy_static;
 use papyrus_common::pending_classes::{ApiContractClass, PendingClasses, PendingClassesTrait};
 use papyrus_common::state::{
     DeclaredClassHashEntry, DeployedContract as CommonDeployedContract,
     StorageEntry as CommonStorageEntry,
 };
+use papyrus_execution::ExecutableTransactionInput;
 use papyrus_execution::execution_utils::selector_from_name;
 use papyrus_execution::objects::{
     CallType, FeeEstimation, FunctionCall, OrderedEvent, OrderedL2ToL1Message, PriceUnit, Retdata,
     RevertReason,
 };
 use papyrus_execution::testing_instances::get_storage_var_address;
-use papyrus_execution::ExecutableTransactionInput;
+use papyrus_storage::StorageWriter;
 use papyrus_storage::body::BodyStorageWriter;
 use papyrus_storage::class::ClassStorageWriter;
 use papyrus_storage::compiled_class::CasmStorageWriter;
 use papyrus_storage::header::HeaderStorageWriter;
 use papyrus_storage::state::StateStorageWriter;
-use papyrus_storage::StorageWriter;
 use papyrus_test_utils::{
-    auto_impl_get_test_instance, get_number_of_variants, get_rng, GetTestInstance,
+    GetTestInstance, auto_impl_get_test_instance, get_number_of_variants, get_rng,
 };
 use pretty_assertions::assert_eq;
 use starknet_api::block::{
@@ -48,6 +48,7 @@ use starknet_api::transaction::{
     L1HandlerTransaction, TransactionHash, TransactionOffsetInBlock, TransactionVersion,
 };
 use starknet_api::{calldata, class_hash, contract_address, felt, nonce, tx_hash};
+use starknet_client::reader::PendingData;
 use starknet_client::reader::objects::pending_data::{
     PendingBlock, PendingBlockOrDeprecated, PendingStateUpdate,
 };
@@ -56,18 +57,17 @@ use starknet_client::reader::objects::transaction::{
     IntermediateInvokeTransaction as ClientInvokeTransaction, Transaction as ClientTransaction,
     TransactionReceipt as ClientTransactionReceipt,
 };
-use starknet_client::reader::PendingData;
 use starknet_types_core::felt::Felt;
 use tokio::sync::RwLock;
 
 use super::api::api_impl::JsonRpcServerImpl;
 use super::api::{
-    decompress_program, SimulatedTransaction, SimulationFlag, TransactionTraceWithHash,
+    SimulatedTransaction, SimulationFlag, TransactionTraceWithHash, decompress_program,
 };
 use super::broadcasted_transaction::{
     BroadcastedDeclareTransaction, BroadcastedDeclareV1Transaction, BroadcastedTransaction,
 };
-use super::error::{TransactionExecutionError, BLOCK_NOT_FOUND, CONTRACT_NOT_FOUND};
+use super::error::{BLOCK_NOT_FOUND, CONTRACT_NOT_FOUND, TransactionExecutionError};
 use super::execution::{
     DeclareTransactionTrace, DeployAccountTransactionTrace, FunctionInvocation,
     FunctionInvocationResult, InvokeTransactionTrace, L1HandlerTransactionTrace, TransactionTrace,
@@ -82,11 +82,12 @@ use super::transaction::{
 };
 use crate::api::{BlockHashOrNumber, BlockId, CallRequest, Tag};
 use crate::test_utils::{
-    call_and_validate_schema_for_result, call_api_then_assert_and_validate_schema_for_result,
+    SpecFile, call_and_validate_schema_for_result,
+    call_api_then_assert_and_validate_schema_for_result,
     get_starknet_spec_api_schema_for_components, get_starknet_spec_api_schema_for_method_results,
     get_test_pending_classes, get_test_pending_data, get_test_rpc_config,
     get_test_rpc_server_and_storage_writer, get_test_rpc_server_and_storage_writer_from_params,
-    validate_schema, SpecFile,
+    validate_schema,
 };
 use crate::version_config::VERSION_0_8 as VERSION;
 
@@ -745,44 +746,35 @@ async fn trace_block_transactions_regular_and_pending() {
     writer
         .begin_rw_txn()
         .unwrap()
-        .append_header(
-            BlockNumber(3),
-            &BlockHeader {
-                block_hash: BlockHash(felt!("0x3")),
-                block_header_without_hash: BlockHeaderWithoutHash {
-                    l1_gas_price: *GAS_PRICE,
-                    sequencer: *SEQUENCER_ADDRESS,
-                    timestamp: *BLOCK_TIMESTAMP,
-                    parent_hash: BlockHash(felt!("0x2")),
-                    ..Default::default()
-                },
+        .append_header(BlockNumber(3), &BlockHeader {
+            block_hash: BlockHash(felt!("0x3")),
+            block_header_without_hash: BlockHeaderWithoutHash {
+                l1_gas_price: *GAS_PRICE,
+                sequencer: *SEQUENCER_ADDRESS,
+                timestamp: *BLOCK_TIMESTAMP,
+                parent_hash: BlockHash(felt!("0x2")),
                 ..Default::default()
             },
-        )
+            ..Default::default()
+        })
         .unwrap()
-        .append_body(
-            BlockNumber(3),
-            BlockBody {
-                transactions: vec![tx1, tx2],
-                transaction_outputs: vec![
-                    starknet_api::transaction::TransactionOutput::Invoke(
-                        starknet_api::transaction::InvokeTransactionOutput::default(),
-                    ),
-                    starknet_api::transaction::TransactionOutput::Invoke(
-                        starknet_api::transaction::InvokeTransactionOutput::default(),
-                    ),
-                ],
-                transaction_hashes: vec![tx_hash1, tx_hash2],
-            },
-        )
+        .append_body(BlockNumber(3), BlockBody {
+            transactions: vec![tx1, tx2],
+            transaction_outputs: vec![
+                starknet_api::transaction::TransactionOutput::Invoke(
+                    starknet_api::transaction::InvokeTransactionOutput::default(),
+                ),
+                starknet_api::transaction::TransactionOutput::Invoke(
+                    starknet_api::transaction::InvokeTransactionOutput::default(),
+                ),
+            ],
+            transaction_hashes: vec![tx_hash1, tx_hash2],
+        })
         .unwrap()
-        .append_state_diff(
-            BlockNumber(3),
-            StarknetApiStateDiff {
-                nonces: indexmap!(*ACCOUNT_ADDRESS => nonce!(2_u128)),
-                ..Default::default()
-            },
-        )
+        .append_state_diff(BlockNumber(3), StarknetApiStateDiff {
+            nonces: indexmap!(*ACCOUNT_ADDRESS => nonce!(2_u128)),
+            ..Default::default()
+        })
         .unwrap()
         .append_classes(BlockNumber(3), &[], &[])
         .unwrap()
@@ -864,10 +856,9 @@ async fn trace_block_transactions_regular_and_pending() {
     prepare_storage_for_execution(storage_writer);
 
     let res = module
-        .call::<_, Vec<TransactionTraceWithHash>>(
-            "starknet_V0_8_traceBlockTransactions",
-            [BlockId::Tag(Tag::Pending)],
-        )
+        .call::<_, Vec<TransactionTraceWithHash>>("starknet_V0_8_traceBlockTransactions", [
+            BlockId::Tag(Tag::Pending),
+        ])
         .await
         .unwrap();
 
@@ -951,45 +942,36 @@ async fn trace_block_transactions_and_trace_transaction_execution_context() {
     writer
         .begin_rw_txn()
         .unwrap()
-        .append_header(
-            BlockNumber(3),
-            &BlockHeader {
-                block_hash: BlockHash(felt!("0x3")),
-                block_header_without_hash: BlockHeaderWithoutHash {
-                    block_number: BlockNumber(3),
-                    l1_gas_price: *GAS_PRICE,
-                    sequencer: *SEQUENCER_ADDRESS,
-                    timestamp: *BLOCK_TIMESTAMP,
-                    parent_hash: BlockHash(felt!("0x2")),
-                    ..Default::default()
-                },
+        .append_header(BlockNumber(3), &BlockHeader {
+            block_hash: BlockHash(felt!("0x3")),
+            block_header_without_hash: BlockHeaderWithoutHash {
+                block_number: BlockNumber(3),
+                l1_gas_price: *GAS_PRICE,
+                sequencer: *SEQUENCER_ADDRESS,
+                timestamp: *BLOCK_TIMESTAMP,
+                parent_hash: BlockHash(felt!("0x2")),
                 ..Default::default()
             },
-        )
+            ..Default::default()
+        })
         .unwrap()
-        .append_body(
-            BlockNumber(3),
-            BlockBody {
-                transactions: vec![tx1, tx2],
-                transaction_outputs: vec![
-                    starknet_api::transaction::TransactionOutput::Invoke(
-                        starknet_api::transaction::InvokeTransactionOutput::default(),
-                    ),
-                    starknet_api::transaction::TransactionOutput::Invoke(
-                        starknet_api::transaction::InvokeTransactionOutput::default(),
-                    ),
-                ],
-                transaction_hashes: vec![tx_hash1, tx_hash2],
-            },
-        )
+        .append_body(BlockNumber(3), BlockBody {
+            transactions: vec![tx1, tx2],
+            transaction_outputs: vec![
+                starknet_api::transaction::TransactionOutput::Invoke(
+                    starknet_api::transaction::InvokeTransactionOutput::default(),
+                ),
+                starknet_api::transaction::TransactionOutput::Invoke(
+                    starknet_api::transaction::InvokeTransactionOutput::default(),
+                ),
+            ],
+            transaction_hashes: vec![tx_hash1, tx_hash2],
+        })
         .unwrap()
-        .append_state_diff(
-            BlockNumber(3),
-            StarknetApiStateDiff {
-                nonces: indexmap!(*ACCOUNT_ADDRESS => nonce!(2_u128)),
-                ..Default::default()
-            },
-        )
+        .append_state_diff(BlockNumber(3), StarknetApiStateDiff {
+            nonces: indexmap!(*ACCOUNT_ADDRESS => nonce!(2_u128)),
+            ..Default::default()
+        })
         .unwrap()
         .append_classes(BlockNumber(3), &[], &[])
         .unwrap()
@@ -1019,10 +1001,9 @@ async fn trace_block_transactions_and_trace_transaction_execution_context() {
     );
 
     let res = module
-        .call::<_, Vec<TransactionTraceWithHash>>(
-            "starknet_V0_8_traceBlockTransactions",
-            [BlockId::HashOrNumber(BlockHashOrNumber::Number(BlockNumber(3)))],
-        )
+        .call::<_, Vec<TransactionTraceWithHash>>("starknet_V0_8_traceBlockTransactions", [
+            BlockId::HashOrNumber(BlockHashOrNumber::Number(BlockNumber(3))),
+        ])
         .await
         .unwrap();
     validate_result(res[0].trace_root.clone());
@@ -1138,10 +1119,9 @@ async fn pending_trace_block_transactions_and_trace_transaction_execution_contex
     );
 
     let res = module
-        .call::<_, Vec<TransactionTraceWithHash>>(
-            "starknet_V0_8_traceBlockTransactions",
-            [BlockId::Tag(Tag::Pending)],
-        )
+        .call::<_, Vec<TransactionTraceWithHash>>("starknet_V0_8_traceBlockTransactions", [
+            BlockId::Tag(Tag::Pending),
+        ])
         .await
         .unwrap();
     validate_result(res[0].trace_root.clone());
@@ -1433,7 +1413,7 @@ fn get_calldata_for_test_execution_info(
     let entry_point_selector = selector_from_name("test_get_execution_info");
     let expected_block_number = felt!(expected_block_number.0);
     let expected_block_timestamp = felt!(expected_block_timestamp.0);
-    let expected_sequencer_address = *(expected_sequencer_address.0 .0.key());
+    let expected_sequencer_address = *(expected_sequencer_address.0.0.key());
     let expected_caller_address = *(invoke_tx.sender_address.0.key());
     let expected_contract_address = *CONTRACT_ADDRESS.0.key();
     let expected_transaction_version = override_tx_version.unwrap_or(Felt::ONE);
@@ -1623,81 +1603,68 @@ fn prepare_storage_for_execution(mut storage_writer: StorageWriter) -> StorageWr
     storage_writer
         .begin_rw_txn()
         .unwrap()
-        .append_header(
-            BlockNumber(0),
-            &BlockHeader {
-                block_header_without_hash: BlockHeaderWithoutHash {
-                    l1_gas_price: *GAS_PRICE,
-                    l1_data_gas_price: *DATA_GAS_PRICE,
-                    sequencer: *SEQUENCER_ADDRESS,
-                    timestamp: *BLOCK_TIMESTAMP,
-                    ..Default::default()
-                },
+        .append_header(BlockNumber(0), &BlockHeader {
+            block_header_without_hash: BlockHeaderWithoutHash {
+                l1_gas_price: *GAS_PRICE,
+                l1_data_gas_price: *DATA_GAS_PRICE,
+                sequencer: *SEQUENCER_ADDRESS,
+                timestamp: *BLOCK_TIMESTAMP,
                 ..Default::default()
             },
-        )
+            ..Default::default()
+        })
         .unwrap()
         .append_body(BlockNumber(0), BlockBody::default())
         .unwrap()
-        .append_state_diff(
-            BlockNumber(0),
-            StarknetApiStateDiff {
-                deployed_contracts: indexmap!(
-                    *DEPRECATED_CONTRACT_ADDRESS => class_hash1,
-                    *CONTRACT_ADDRESS => class_hash2,
-                    *ACCOUNT_ADDRESS => *ACCOUNT_CLASS_HASH,
-                    *TEST_ERC20_CONTRACT_ADDRESS => *TEST_ERC20_CONTRACT_CLASS_HASH,
+        .append_state_diff(BlockNumber(0), StarknetApiStateDiff {
+            deployed_contracts: indexmap!(
+                *DEPRECATED_CONTRACT_ADDRESS => class_hash1,
+                *CONTRACT_ADDRESS => class_hash2,
+                *ACCOUNT_ADDRESS => *ACCOUNT_CLASS_HASH,
+                *TEST_ERC20_CONTRACT_ADDRESS => *TEST_ERC20_CONTRACT_CLASS_HASH,
+            ),
+            storage_diffs: indexmap!(
+                *TEST_ERC20_CONTRACT_ADDRESS => indexmap!(
+                    // Give the accounts some balance.
+                    account_balance_key => *ACCOUNT_INITIAL_BALANCE,
+                    // Give the first account mint permission (what is this?).
+                    minter_var_address => *ACCOUNT_ADDRESS.0.key()
                 ),
-                storage_diffs: indexmap!(
-                    *TEST_ERC20_CONTRACT_ADDRESS => indexmap!(
-                        // Give the accounts some balance.
-                        account_balance_key => *ACCOUNT_INITIAL_BALANCE,
-                        // Give the first account mint permission (what is this?).
-                        minter_var_address => *ACCOUNT_ADDRESS.0.key()
-                    ),
-                ),
-                declared_classes: indexmap!(class_hash2 => compiled_class_hash),
-                deprecated_declared_classes: vec![
-                    class_hash1,
-                    *ACCOUNT_CLASS_HASH,
-                    *TEST_ERC20_CONTRACT_CLASS_HASH,
-                ],
-                nonces: indexmap!(
-                    *TEST_ERC20_CONTRACT_ADDRESS => Nonce::default(),
-                    *CONTRACT_ADDRESS => Nonce::default(),
-                    *DEPRECATED_CONTRACT_ADDRESS => Nonce::default(),
-                    *ACCOUNT_ADDRESS => Nonce::default(),
-                ),
-                replaced_classes: indexmap!(),
-            },
-        )
-        .unwrap()
-        .append_classes(
-            BlockNumber(0),
-            &[(class_hash2, &class2)],
-            &[
-                (class_hash1, &class1),
-                (*ACCOUNT_CLASS_HASH, &account_class),
-                (*TEST_ERC20_CONTRACT_CLASS_HASH, &fee_contract_class),
+            ),
+            declared_classes: indexmap!(class_hash2 => compiled_class_hash),
+            deprecated_declared_classes: vec![
+                class_hash1,
+                *ACCOUNT_CLASS_HASH,
+                *TEST_ERC20_CONTRACT_CLASS_HASH,
             ],
-        )
+            nonces: indexmap!(
+                *TEST_ERC20_CONTRACT_ADDRESS => Nonce::default(),
+                *CONTRACT_ADDRESS => Nonce::default(),
+                *DEPRECATED_CONTRACT_ADDRESS => Nonce::default(),
+                *ACCOUNT_ADDRESS => Nonce::default(),
+            ),
+            replaced_classes: indexmap!(),
+        })
+        .unwrap()
+        .append_classes(BlockNumber(0), &[(class_hash2, &class2)], &[
+            (class_hash1, &class1),
+            (*ACCOUNT_CLASS_HASH, &account_class),
+            (*TEST_ERC20_CONTRACT_CLASS_HASH, &fee_contract_class),
+        ])
         .unwrap()
         .append_casm(&class_hash2, &casm)
         .unwrap()
-        .append_header(
-            BlockNumber(1),
-            &BlockHeader {
-                block_hash: BlockHash(felt!("0x1")),
-                block_header_without_hash: BlockHeaderWithoutHash {
-                    l1_gas_price: different_gas_price,
-                    sequencer: *SEQUENCER_ADDRESS,
-                    timestamp: *BLOCK_TIMESTAMP,
-                    block_number: BlockNumber(1),
-                    ..Default::default()
-                },
+        .append_header(BlockNumber(1), &BlockHeader {
+            block_hash: BlockHash(felt!("0x1")),
+            block_header_without_hash: BlockHeaderWithoutHash {
+                l1_gas_price: different_gas_price,
+                sequencer: *SEQUENCER_ADDRESS,
+                timestamp: *BLOCK_TIMESTAMP,
+                block_number: BlockNumber(1),
                 ..Default::default()
             },
-        )
+            ..Default::default()
+        })
         .unwrap()
         .append_body(BlockNumber(1), BlockBody::default())
         .unwrap()
@@ -1705,22 +1672,19 @@ fn prepare_storage_for_execution(mut storage_writer: StorageWriter) -> StorageWr
         .unwrap()
         .append_classes(BlockNumber(1), &[], &[])
         .unwrap()
-        .append_header(
-            BlockNumber(2),
-            &BlockHeader {
-                block_hash: BlockHash(felt!("0x2")),
-                block_header_without_hash: BlockHeaderWithoutHash {
-                    l1_gas_price: *GAS_PRICE,
-                    sequencer: *SEQUENCER_ADDRESS,
-                    timestamp: *BLOCK_TIMESTAMP,
-                    // Test that l1_da_mode affects the fee.
-                    l1_da_mode: L1DataAvailabilityMode::Blob,
-                    block_number: BlockNumber(2),
-                    ..Default::default()
-                },
+        .append_header(BlockNumber(2), &BlockHeader {
+            block_hash: BlockHash(felt!("0x2")),
+            block_header_without_hash: BlockHeaderWithoutHash {
+                l1_gas_price: *GAS_PRICE,
+                sequencer: *SEQUENCER_ADDRESS,
+                timestamp: *BLOCK_TIMESTAMP,
+                // Test that l1_da_mode affects the fee.
+                l1_da_mode: L1DataAvailabilityMode::Blob,
+                block_number: BlockNumber(2),
                 ..Default::default()
             },
-        )
+            ..Default::default()
+        })
         .unwrap()
         .append_body(BlockNumber(2), BlockBody::default())
         .unwrap()
@@ -1738,19 +1702,16 @@ fn write_empty_block(mut storage_writer: StorageWriter) {
     storage_writer
         .begin_rw_txn()
         .unwrap()
-        .append_header(
-            BlockNumber(0),
-            &BlockHeader {
-                block_header_without_hash: BlockHeaderWithoutHash {
-                    l1_gas_price: *GAS_PRICE,
-                    l1_data_gas_price: *DATA_GAS_PRICE,
-                    sequencer: *SEQUENCER_ADDRESS,
-                    timestamp: *BLOCK_TIMESTAMP,
-                    ..Default::default()
-                },
+        .append_header(BlockNumber(0), &BlockHeader {
+            block_header_without_hash: BlockHeaderWithoutHash {
+                l1_gas_price: *GAS_PRICE,
+                l1_data_gas_price: *DATA_GAS_PRICE,
+                sequencer: *SEQUENCER_ADDRESS,
+                timestamp: *BLOCK_TIMESTAMP,
                 ..Default::default()
             },
-        )
+            ..Default::default()
+        })
         .unwrap()
         .append_body(BlockNumber(0), BlockBody::default())
         .unwrap()

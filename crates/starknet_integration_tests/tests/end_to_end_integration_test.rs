@@ -1,8 +1,8 @@
 use infra_utils::run_until::run_until;
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use papyrus_execution::execution_utils::get_nonce_at;
-use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::StorageReader;
+use papyrus_storage::state::StateStorageReader;
 use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ContractAddress, Nonce};

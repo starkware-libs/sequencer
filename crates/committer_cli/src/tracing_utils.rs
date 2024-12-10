@@ -1,7 +1,7 @@
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::prelude::*;
 use tracing_subscriber::reload::Handle;
-use tracing_subscriber::{filter, fmt, reload, Registry};
+use tracing_subscriber::{Registry, filter, fmt, reload};
 
 // TODO(Amos, 1/8/2024) Move all tracing instantiations in the Sequencer repo to a common location.
 pub fn configure_tracing() -> Handle<LevelFilter, Registry> {

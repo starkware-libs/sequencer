@@ -1,5 +1,5 @@
-use crate::db::table_types::test_utils::table_test;
 use crate::db::DbWriter;
+use crate::db::table_types::test_utils::table_test;
 
 #[test]
 fn simple_table_test() {

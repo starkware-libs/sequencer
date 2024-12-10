@@ -1,5 +1,5 @@
 use super::NonceManager;
-use crate::core::{calculate_contract_address, ClassHash, ContractAddress, Nonce};
+use crate::core::{ClassHash, ContractAddress, Nonce, calculate_contract_address};
 use crate::data_availability::DataAvailabilityMode;
 use crate::executable_transaction::{
     AccountTransaction, DeployAccountTransaction as ExecutableDeployAccountTransaction,

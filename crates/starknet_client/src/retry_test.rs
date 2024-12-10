@@ -28,11 +28,7 @@ impl Worker {
         let mut number_of_calls = self.number_of_calls.lock().unwrap();
         *number_of_calls += 1;
 
-        if *number_of_calls <= *self.number_of_errors {
-            Err("Some error.")
-        } else {
-            Ok(())
-        }
+        if *number_of_calls <= *self.number_of_errors { Err("Some error.") } else { Ok(()) }
     }
 }
 

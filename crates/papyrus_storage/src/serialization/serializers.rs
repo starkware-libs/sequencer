@@ -6,10 +6,10 @@ use std::sync::Arc;
 
 use byteorder::BigEndian;
 use cairo_lang_casm::hints::Hint;
+use cairo_lang_starknet_classes::NestedIntList;
 use cairo_lang_starknet_classes::casm_contract_class::{
     CasmContractClass, CasmContractEntryPoint, CasmContractEntryPoints,
 };
-use cairo_lang_starknet_classes::NestedIntList;
 use cairo_lang_utils::bigint::BigUintAsHex;
 use indexmap::IndexMap;
 use integer_encoding::*;
@@ -58,17 +58,17 @@ use starknet_api::transaction::{
 use starknet_types_core::felt::Felt;
 use tracing::warn;
 
-use crate::body::events::EventIndex;
 use crate::body::TransactionIndex;
+use crate::body::events::EventIndex;
 use crate::compression_utils::{
-    compress, decompress, decompress_from_reader, serialize_and_compress, IsCompressed,
+    IsCompressed, compress, decompress, decompress_from_reader, serialize_and_compress,
 };
 use crate::db::serialization::{StorageSerde, StorageSerdeError};
 use crate::db::table_types::NoValue;
 use crate::header::StorageBlockHeader;
 use crate::mmap_file::LocationInFile;
 #[cfg(test)]
-use crate::serialization::serializers_test::{create_storage_serde_test, StorageSerdeTest};
+use crate::serialization::serializers_test::{StorageSerdeTest, create_storage_serde_test};
 use crate::state::data::IndexedDeprecatedContractClass;
 use crate::version::Version;
 use crate::{MarkerKind, OffsetKind, TransactionMetadata};

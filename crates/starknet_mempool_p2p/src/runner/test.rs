@@ -2,17 +2,17 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
+use futures::SinkExt;
 use futures::channel::mpsc::Sender;
 use futures::stream::StreamExt;
-use futures::SinkExt;
+use papyrus_network::NetworkConfig;
 use papyrus_network::network_manager::test_utils::{
-    mock_register_broadcast_topic, BroadcastNetworkMock, TestSubscriberChannels,
+    BroadcastNetworkMock, TestSubscriberChannels, mock_register_broadcast_topic,
 };
 use papyrus_network::network_manager::{BroadcastTopicChannels, NetworkManager};
-use papyrus_network::NetworkConfig;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_protobuf::mempool::RpcTransactionWrapper;
-use papyrus_test_utils::{get_rng, GetTestInstance};
+use papyrus_test_utils::{GetTestInstance, get_rng};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::communication::{GatewayClient, GatewayClientResult};

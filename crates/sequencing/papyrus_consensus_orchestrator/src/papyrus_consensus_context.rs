@@ -16,7 +16,7 @@ use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use futures::{SinkExt, StreamExt};
 use papyrus_consensus::types::{
-    ConsensusContext, ConsensusError, ProposalContentId, Round, ValidatorId, DEFAULT_VALIDATOR_ID,
+    ConsensusContext, ConsensusError, DEFAULT_VALIDATOR_ID, ProposalContentId, Round, ValidatorId,
 };
 use papyrus_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
 use papyrus_protobuf::consensus::{
@@ -27,7 +27,7 @@ use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::{StorageError, StorageReader};
 use starknet_api::block::BlockNumber;
 use starknet_api::transaction::Transaction;
-use tracing::{debug, debug_span, info, warn, Instrument};
+use tracing::{Instrument, debug, debug_span, info, warn};
 
 // TODO: add debug messages and span to the tasks.
 

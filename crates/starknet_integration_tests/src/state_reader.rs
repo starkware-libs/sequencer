@@ -5,15 +5,15 @@ use assert_matches::assert_matches;
 use blockifier::context::ChainInfo;
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{
-    CairoVersion, RunnableCairo1, BALANCE, CURRENT_BLOCK_TIMESTAMP, DEFAULT_ETH_L1_GAS_PRICE,
-    DEFAULT_STRK_L1_GAS_PRICE, TEST_SEQUENCER_ADDRESS,
+    BALANCE, CURRENT_BLOCK_TIMESTAMP, CairoVersion, DEFAULT_ETH_L1_GAS_PRICE,
+    DEFAULT_STRK_L1_GAS_PRICE, RunnableCairo1, TEST_SEQUENCER_ADDRESS,
 };
 use blockifier::versioned_constants::VersionedConstants;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::IndexMap;
 use mempool_test_utils::starknet_api_test_utils::Contract;
 use papyrus_common::pending_classes::PendingClasses;
-use papyrus_rpc::{run_server, RpcConfig};
+use papyrus_rpc::{RpcConfig, run_server};
 use papyrus_storage::body::BodyStorageWriter;
 use papyrus_storage::class::ClassStorageWriter;
 use papyrus_storage::compiled_class::CasmStorageWriter;

@@ -3,9 +3,9 @@ use assert_matches::assert_matches;
 use super::{DupSortTableType, DupSortUtils};
 use crate::db::db_test::get_test_env;
 use crate::db::serialization::NoVersionValueWrapper;
-use crate::db::table_types::dup_sort_tables::add_one;
-use crate::db::table_types::test_utils::{random_table_test, table_test, TableKey, TableValue};
 use crate::db::table_types::Table;
+use crate::db::table_types::dup_sort_tables::add_one;
+use crate::db::table_types::test_utils::{TableKey, TableValue, random_table_test, table_test};
 use crate::db::{DbError, DbResult, DbWriter, TableIdentifier};
 
 #[test]

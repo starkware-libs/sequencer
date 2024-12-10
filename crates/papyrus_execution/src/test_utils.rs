@@ -33,7 +33,7 @@ use starknet_types_core::felt::Felt;
 use crate::execution_utils::selector_from_name;
 use crate::objects::{PendingData, TransactionSimulationOutput};
 use crate::testing_instances::get_test_execution_config;
-use crate::{simulate_transactions, ExecutableTransactionInput, OnlyQuery, SierraSize};
+use crate::{ExecutableTransactionInput, OnlyQuery, SierraSize, simulate_transactions};
 
 lazy_static! {
     pub static ref CHAIN_ID: ChainId = ChainId::Other(String::from("TEST_CHAIN_ID"));
@@ -94,84 +94,71 @@ pub fn prepare_storage(mut storage_writer: StorageWriter) {
     storage_writer
         .begin_rw_txn()
         .unwrap()
-        .append_header(
-            BlockNumber(0),
-            &BlockHeader {
-                block_header_without_hash: BlockHeaderWithoutHash {
-                    l1_gas_price: *GAS_PRICE,
-                    sequencer: *SEQUENCER_ADDRESS,
-                    timestamp: *BLOCK_TIMESTAMP,
-                    ..Default::default()
-                },
+        .append_header(BlockNumber(0), &BlockHeader {
+            block_header_without_hash: BlockHeaderWithoutHash {
+                l1_gas_price: *GAS_PRICE,
+                sequencer: *SEQUENCER_ADDRESS,
+                timestamp: *BLOCK_TIMESTAMP,
                 ..Default::default()
             },
-        )
+            ..Default::default()
+        })
         .unwrap()
         .append_body(BlockNumber(0), BlockBody::default())
         .unwrap()
-        .append_state_diff(
-            BlockNumber(0),
-            ThinStateDiff {
-                deployed_contracts: indexmap!(
-                    *TEST_ERC20_CONTRACT_ADDRESS => *TEST_ERC20_CONTRACT_CLASS_HASH,
-                    *CONTRACT_ADDRESS => class_hash0,
-                    *DEPRECATED_CONTRACT_ADDRESS => class_hash1,
-                    *ACCOUNT_ADDRESS => *ACCOUNT_CLASS_HASH,
+        .append_state_diff(BlockNumber(0), ThinStateDiff {
+            deployed_contracts: indexmap!(
+                *TEST_ERC20_CONTRACT_ADDRESS => *TEST_ERC20_CONTRACT_CLASS_HASH,
+                *CONTRACT_ADDRESS => class_hash0,
+                *DEPRECATED_CONTRACT_ADDRESS => class_hash1,
+                *ACCOUNT_ADDRESS => *ACCOUNT_CLASS_HASH,
+            ),
+            storage_diffs: indexmap!(
+                *TEST_ERC20_CONTRACT_ADDRESS => indexmap!(
+                    // Give the accounts some balance.
+                    account_balance_key => *ACCOUNT_INITIAL_BALANCE,
+                    new_account_balance_key => *ACCOUNT_INITIAL_BALANCE,
+                    // Give the first account mint permission (what is this?).
+                    minter_var_address => *ACCOUNT_ADDRESS.0.key()
                 ),
-                storage_diffs: indexmap!(
-                    *TEST_ERC20_CONTRACT_ADDRESS => indexmap!(
-                        // Give the accounts some balance.
-                        account_balance_key => *ACCOUNT_INITIAL_BALANCE,
-                        new_account_balance_key => *ACCOUNT_INITIAL_BALANCE,
-                        // Give the first account mint permission (what is this?).
-                        minter_var_address => *ACCOUNT_ADDRESS.0.key()
-                    ),
-                ),
-                declared_classes: indexmap!(
-                    // The class is not used in the execution, so it can be default.
-                    class_hash0 => CompiledClassHash::default()
-                ),
-                deprecated_declared_classes: vec![
-                    *TEST_ERC20_CONTRACT_CLASS_HASH,
-                    class_hash1,
-                    *ACCOUNT_CLASS_HASH,
-                ],
-                nonces: indexmap!(
-                    *TEST_ERC20_CONTRACT_ADDRESS => Nonce::default(),
-                    *CONTRACT_ADDRESS => Nonce::default(),
-                    *DEPRECATED_CONTRACT_ADDRESS => Nonce::default(),
-                    *ACCOUNT_ADDRESS => Nonce::default(),
-                ),
-                replaced_classes: indexmap!(),
-            },
-        )
-        .unwrap()
-        .append_classes(
-            BlockNumber(0),
-            &[(class_hash0, &SierraContractClass::default())],
-            &[
-                (*TEST_ERC20_CONTRACT_CLASS_HASH, &get_test_erc20_fee_contract_class()),
-                (class_hash1, &get_test_deprecated_contract_class()),
-                (*ACCOUNT_CLASS_HASH, &get_test_account_class()),
+            ),
+            declared_classes: indexmap!(
+                // The class is not used in the execution, so it can be default.
+                class_hash0 => CompiledClassHash::default()
+            ),
+            deprecated_declared_classes: vec![
+                *TEST_ERC20_CONTRACT_CLASS_HASH,
+                class_hash1,
+                *ACCOUNT_CLASS_HASH,
             ],
-        )
+            nonces: indexmap!(
+                *TEST_ERC20_CONTRACT_ADDRESS => Nonce::default(),
+                *CONTRACT_ADDRESS => Nonce::default(),
+                *DEPRECATED_CONTRACT_ADDRESS => Nonce::default(),
+                *ACCOUNT_ADDRESS => Nonce::default(),
+            ),
+            replaced_classes: indexmap!(),
+        })
+        .unwrap()
+        .append_classes(BlockNumber(0), &[(class_hash0, &SierraContractClass::default())], &[
+            (*TEST_ERC20_CONTRACT_CLASS_HASH, &get_test_erc20_fee_contract_class()),
+            (class_hash1, &get_test_deprecated_contract_class()),
+            (*ACCOUNT_CLASS_HASH, &get_test_account_class()),
+        ])
         .unwrap()
         .append_casm(&class_hash0, &get_test_casm())
         .unwrap()
-        .append_header(
-            BlockNumber(1),
-            &BlockHeader {
-                block_hash: BlockHash(felt!(1_u128)),
-                block_header_without_hash: BlockHeaderWithoutHash {
-                    l1_gas_price: *GAS_PRICE,
-                    sequencer: *SEQUENCER_ADDRESS,
-                    timestamp: *BLOCK_TIMESTAMP,
-                    parent_hash: BlockHash(felt!(0_u128)),
-                    ..Default::default()
-                },
+        .append_header(BlockNumber(1), &BlockHeader {
+            block_hash: BlockHash(felt!(1_u128)),
+            block_header_without_hash: BlockHeaderWithoutHash {
+                l1_gas_price: *GAS_PRICE,
+                sequencer: *SEQUENCER_ADDRESS,
+                timestamp: *BLOCK_TIMESTAMP,
+                parent_hash: BlockHash(felt!(0_u128)),
                 ..Default::default()
             },
-        )
+            ..Default::default()
+        })
         .unwrap()
         .append_body(BlockNumber(1), BlockBody::default())
         .unwrap()

@@ -20,11 +20,11 @@ use starknet_api::transaction::{
 };
 use starknet_types_core::felt::Felt;
 
+use super::ProtobufConversionError;
 use super::common::{
-    enum_int_to_volition_domain, try_from_starkfelt_to_u128, try_from_starkfelt_to_u32,
+    enum_int_to_volition_domain, try_from_starkfelt_to_u32, try_from_starkfelt_to_u128,
     volition_domain_to_enum_int,
 };
-use super::ProtobufConversionError;
 use crate::sync::{DataOrFin, Query, TransactionQuery};
 use crate::{auto_impl_into_and_try_from_vec_u8, protobuf};
 

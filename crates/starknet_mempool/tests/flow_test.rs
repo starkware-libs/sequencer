@@ -37,11 +37,10 @@ fn test_add_tx_fills_nonce_gap(mut mempool: Mempool) {
     add_tx(&mut mempool, &input_address_0_nonce_0);
 
     // Test and assert: all remaining transactions are returned.
-    get_txs_and_assert_expected(
-        &mut mempool,
-        2,
-        &[input_address_0_nonce_0.tx, input_address_0_nonce_1.tx],
-    );
+    get_txs_and_assert_expected(&mut mempool, 2, &[
+        input_address_0_nonce_0.tx,
+        input_address_0_nonce_1.tx,
+    ]);
 }
 
 #[rstest]
@@ -54,11 +53,10 @@ fn test_add_tx_rejection_for_txs_passed_to_batcher(mut mempool: Mempool) {
     get_txs_and_assert_expected(&mut mempool, 1, &[input_tx.tx]);
 
     let input_tx_duplicate_nonce = add_tx_input!(tx_hash: 1, tx_nonce: 0);
-    add_tx_expect_error(
-        &mut mempool,
-        &input_tx_duplicate_nonce,
-        MempoolError::NonceTooOld { address: contract_address!("0x0"), nonce: nonce!(0) },
-    );
+    add_tx_expect_error(&mut mempool, &input_tx_duplicate_nonce, MempoolError::NonceTooOld {
+        address: contract_address!("0x0"),
+        nonce: nonce!(0),
+    });
 }
 
 #[rstest]
@@ -78,11 +76,10 @@ fn test_add_same_nonce_tx_after_previous_not_included_in_block(mut mempool: Memp
     }
 
     // Test.
-    get_txs_and_assert_expected(
-        &mut mempool,
-        2,
-        &[tx_nonce_3_account_nonce_3.tx, tx_nonce_4_account_nonce_3.tx.clone()],
-    );
+    get_txs_and_assert_expected(&mut mempool, 2, &[
+        tx_nonce_3_account_nonce_3.tx,
+        tx_nonce_4_account_nonce_3.tx.clone(),
+    ]);
 
     let nonces = [("0x0", 4)]; // Transaction with nonce 3 was included, 4 was not.
     let tx_hashes = [1];
@@ -90,17 +87,15 @@ fn test_add_same_nonce_tx_after_previous_not_included_in_block(mut mempool: Memp
 
     let tx_nonce_4_account_nonce_4 =
         add_tx_input!(tx_hash: 4, address: "0x0", tx_nonce: 4, account_nonce: 4);
-    add_tx_expect_error(
-        &mut mempool,
-        &tx_nonce_4_account_nonce_4,
-        MempoolError::DuplicateNonce { address: contract_address!("0x0"), nonce: nonce!(4) },
-    );
+    add_tx_expect_error(&mut mempool, &tx_nonce_4_account_nonce_4, MempoolError::DuplicateNonce {
+        address: contract_address!("0x0"),
+        nonce: nonce!(4),
+    });
 
-    get_txs_and_assert_expected(
-        &mut mempool,
-        2,
-        &[tx_nonce_4_account_nonce_3.tx, tx_nonce_5_account_nonce_3.tx],
-    );
+    get_txs_and_assert_expected(&mut mempool, 2, &[
+        tx_nonce_4_account_nonce_3.tx,
+        tx_nonce_5_account_nonce_3.tx,
+    ]);
 }
 
 #[rstest]
@@ -157,32 +152,26 @@ fn test_commit_block_includes_proposed_txs_subset(mut mempool: Mempool) {
     }
 
     // Test.
-    get_txs_and_assert_expected(
-        &mut mempool,
-        2,
-        &[tx_address_2_nonce_1.tx.clone(), tx_address_1_nonce_2.tx],
-    );
-    get_txs_and_assert_expected(
-        &mut mempool,
-        4,
-        &[
-            tx_address_2_nonce_2.tx,
-            tx_address_1_nonce_3.tx.clone(),
-            tx_address_0_nonce_1.tx,
-            tx_address_1_nonce_4.tx.clone(),
-        ],
-    );
+    get_txs_and_assert_expected(&mut mempool, 2, &[
+        tx_address_2_nonce_1.tx.clone(),
+        tx_address_1_nonce_2.tx,
+    ]);
+    get_txs_and_assert_expected(&mut mempool, 4, &[
+        tx_address_2_nonce_2.tx,
+        tx_address_1_nonce_3.tx.clone(),
+        tx_address_0_nonce_1.tx,
+        tx_address_1_nonce_4.tx.clone(),
+    ]);
 
     // Address 0x0 stays as proposed, address 0x1 rewinds nonce 4, address 0x2 rewinds completely.
     let nonces = [("0x0", 2), ("0x1", 4)];
     let tx_hashes = [1, 4];
     commit_block(&mut mempool, nonces, tx_hashes);
 
-    get_txs_and_assert_expected(
-        &mut mempool,
-        2,
-        &[tx_address_2_nonce_1.tx, tx_address_1_nonce_4.tx],
-    );
+    get_txs_and_assert_expected(&mut mempool, 2, &[
+        tx_address_2_nonce_1.tx,
+        tx_address_1_nonce_4.tx,
+    ]);
 }
 
 #[rstest]
@@ -207,11 +196,10 @@ fn test_commit_block_fills_nonce_gap(mut mempool: Mempool) {
     // Assert: hole was indeed closed.
     let tx_nonce_4_account_nonce_4 =
         add_tx_input!(tx_hash: 3, address: "0x0", tx_nonce: 4, account_nonce: 4);
-    add_tx_expect_error(
-        &mut mempool,
-        &tx_nonce_4_account_nonce_4,
-        MempoolError::NonceTooOld { address: contract_address!("0x0"), nonce: nonce!(4) },
-    );
+    add_tx_expect_error(&mut mempool, &tx_nonce_4_account_nonce_4, MempoolError::NonceTooOld {
+        address: contract_address!("0x0"),
+        nonce: nonce!(4),
+    });
 
     get_txs_and_assert_expected(&mut mempool, 2, &[tx_nonce_5_account_nonce_3.tx]);
 }
@@ -234,16 +222,12 @@ fn test_commit_block_rewinds_queued_nonce(mut mempool: Mempool) {
         add_tx(&mut mempool, input);
     }
 
-    get_txs_and_assert_expected(
-        &mut mempool,
-        4,
-        &[
-            tx_address_1_nonce_2.tx.clone(),
-            tx_address_0_nonce_2.tx,
-            tx_address_1_nonce_3.tx,
-            tx_address_0_nonce_3.tx.clone(),
-        ],
-    );
+    get_txs_and_assert_expected(&mut mempool, 4, &[
+        tx_address_1_nonce_2.tx.clone(),
+        tx_address_0_nonce_2.tx,
+        tx_address_1_nonce_3.tx,
+        tx_address_0_nonce_3.tx.clone(),
+    ]);
 
     // Test.
     let nonces = [("0x0", 3)];
@@ -253,11 +237,10 @@ fn test_commit_block_rewinds_queued_nonce(mut mempool: Mempool) {
     commit_block(&mut mempool, nonces, tx_hashes);
 
     // Nonces 3 and 4 were re-enqueued correctly.
-    get_txs_and_assert_expected(
-        &mut mempool,
-        2,
-        &[tx_address_1_nonce_2.tx, tx_address_0_nonce_3.tx],
-    );
+    get_txs_and_assert_expected(&mut mempool, 2, &[
+        tx_address_1_nonce_2.tx,
+        tx_address_0_nonce_3.tx,
+    ]);
 }
 
 #[rstest]

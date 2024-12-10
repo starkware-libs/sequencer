@@ -6,8 +6,8 @@ use crate::block::{
     BlockHash, BlockHeaderWithoutHash, BlockNumber, BlockTimestamp, GasPricePerToken,
 };
 use crate::block_hash::block_hash_calculator::{
-    calculate_block_commitments, calculate_block_hash, BlockHashVersion, BlockHeaderCommitments,
-    TransactionHashingData,
+    BlockHashVersion, BlockHeaderCommitments, TransactionHashingData, calculate_block_commitments,
+    calculate_block_hash,
 };
 use crate::block_hash::test_utils::{get_state_diff, get_transaction_output};
 use crate::core::{

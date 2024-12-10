@@ -19,7 +19,7 @@ use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 use tracing::{debug, instrument};
 
-use crate::state_reader::{spawn_test_rpc_state_reader, StorageTestSetup};
+use crate::state_reader::{StorageTestSetup, spawn_test_rpc_state_reader};
 use crate::utils::{
     create_chain_info, create_config, create_consensus_manager_configs_and_channels,
 };

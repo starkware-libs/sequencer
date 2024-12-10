@@ -1,10 +1,10 @@
 use futures::{SinkExt, StreamExt};
 use papyrus_network::network_manager::test_utils::{
-    mock_register_broadcast_topic, TestSubscriberChannels,
+    TestSubscriberChannels, mock_register_broadcast_topic,
 };
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_protobuf::consensus::ConsensusMessage;
-use papyrus_test_utils::{get_rng, GetTestInstance};
+use papyrus_test_utils::{GetTestInstance, get_rng};
 use test_case::test_case;
 
 use super::NetworkReceiver;

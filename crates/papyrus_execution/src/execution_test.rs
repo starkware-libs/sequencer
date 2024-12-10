@@ -26,15 +26,15 @@ use crate::objects::{
     TransactionTrace,
 };
 use crate::test_utils::{
-    execute_simulate_transactions, prepare_storage, TxsScenarioBuilder, ACCOUNT_ADDRESS,
-    ACCOUNT_CLASS_HASH, ACCOUNT_INITIAL_BALANCE, CHAIN_ID, CONTRACT_ADDRESS,
+    ACCOUNT_ADDRESS, ACCOUNT_CLASS_HASH, ACCOUNT_INITIAL_BALANCE, CHAIN_ID, CONTRACT_ADDRESS,
     DEPRECATED_CONTRACT_ADDRESS, GAS_PRICE, NEW_ACCOUNT_ADDRESS, SEQUENCER_ADDRESS,
-    TEST_ERC20_CONTRACT_ADDRESS,
+    TEST_ERC20_CONTRACT_ADDRESS, TxsScenarioBuilder, execute_simulate_transactions,
+    prepare_storage,
 };
 use crate::testing_instances::get_test_execution_config;
 use crate::{
-    estimate_fee, execute_call, ExecutableTransactionInput, ExecutionError, FeeEstimationResult,
-    RevertedTransaction,
+    ExecutableTransactionInput, ExecutionError, FeeEstimationResult, RevertedTransaction,
+    estimate_fee, execute_call,
 };
 
 // Test calling entry points of a deprecated class.
@@ -272,38 +272,29 @@ fn simulate_invoke() {
         let TransactionTrace::Invoke(exec_only_trace) = &exec_only.transaction_trace else {
             panic!("Wrong trace type, expected InvokeTransactionTrace.")
         };
-        assert_matches!(
-            exec_only_trace,
-            InvokeTransactionTrace {
-                validate_invocation: None,
-                execute_invocation: FunctionInvocationResult::Ok(_),
-                fee_transfer_invocation: None,
-            }
-        );
+        assert_matches!(exec_only_trace, InvokeTransactionTrace {
+            validate_invocation: None,
+            execute_invocation: FunctionInvocationResult::Ok(_),
+            fee_transfer_invocation: None,
+        });
 
         let TransactionTrace::Invoke(validate_trace) = &validate.transaction_trace else {
             panic!("Wrong trace type, expected InvokeTransactionTrace.")
         };
-        assert_matches!(
-            validate_trace,
-            InvokeTransactionTrace {
-                validate_invocation: Some(_),
-                execute_invocation: FunctionInvocationResult::Ok(_),
-                fee_transfer_invocation: None,
-            }
-        );
+        assert_matches!(validate_trace, InvokeTransactionTrace {
+            validate_invocation: Some(_),
+            execute_invocation: FunctionInvocationResult::Ok(_),
+            fee_transfer_invocation: None,
+        });
 
         let TransactionTrace::Invoke(charge_fee_trace) = &charge_fee.transaction_trace else {
             panic!("Wrong trace type, expected InvokeTransactionTrace.")
         };
-        assert_matches!(
-            charge_fee_trace,
-            InvokeTransactionTrace {
-                validate_invocation: None,
-                execute_invocation: FunctionInvocationResult::Ok(_),
-                fee_transfer_invocation: Some(_),
-            }
-        );
+        assert_matches!(charge_fee_trace, InvokeTransactionTrace {
+            validate_invocation: None,
+            execute_invocation: FunctionInvocationResult::Ok(_),
+            fee_transfer_invocation: Some(_),
+        });
         assert_eq!(charge_fee.fee_estimation.l1_gas_price, GAS_PRICE.price_in_wei);
 
         assert_eq!(exec_only_trace.execute_invocation, charge_fee_trace.execute_invocation);
@@ -313,14 +304,11 @@ fn simulate_invoke() {
         else {
             panic!("Wrong trace type, expected InvokeTransactionTrace.")
         };
-        assert_matches!(
-            charge_fee_validate_trace,
-            InvokeTransactionTrace {
-                validate_invocation: Some(_),
-                execute_invocation: FunctionInvocationResult::Ok(_),
-                fee_transfer_invocation: Some(_),
-            }
-        );
+        assert_matches!(charge_fee_validate_trace, InvokeTransactionTrace {
+            validate_invocation: Some(_),
+            execute_invocation: FunctionInvocationResult::Ok(_),
+            fee_transfer_invocation: Some(_),
+        });
 
         // TODO(yair): Compare the trace to an expected trace.
     }
@@ -349,39 +337,36 @@ fn simulate_declare_deprecated() {
         let TransactionTrace::Declare(exec_only_trace) = &exec_only.transaction_trace else {
             panic!("Wrong trace type, expected DeclareTransactionTrace.")
         };
-        assert_matches!(
-            exec_only_trace,
-            DeclareTransactionTrace { validate_invocation: None, fee_transfer_invocation: None }
-        );
+        assert_matches!(exec_only_trace, DeclareTransactionTrace {
+            validate_invocation: None,
+            fee_transfer_invocation: None
+        });
 
         let TransactionTrace::Declare(validate_trace) = &validate.transaction_trace else {
             panic!("Wrong trace type, expected DeclareTransactionTrace.")
         };
-        assert_matches!(
-            validate_trace,
-            DeclareTransactionTrace { validate_invocation: Some(_), fee_transfer_invocation: None }
-        );
+        assert_matches!(validate_trace, DeclareTransactionTrace {
+            validate_invocation: Some(_),
+            fee_transfer_invocation: None
+        });
 
         let TransactionTrace::Declare(charge_fee_trace) = &charge_fee.transaction_trace else {
             panic!("Wrong trace type, expected DeclareTransactionTrace.")
         };
-        assert_matches!(
-            charge_fee_trace,
-            DeclareTransactionTrace { validate_invocation: None, fee_transfer_invocation: Some(_) }
-        );
+        assert_matches!(charge_fee_trace, DeclareTransactionTrace {
+            validate_invocation: None,
+            fee_transfer_invocation: Some(_)
+        });
 
         let TransactionTrace::Declare(charge_fee_validate_trace) =
             &charge_fee_validate.transaction_trace
         else {
             panic!("Wrong trace type, expected DeclareTransactionTrace.")
         };
-        assert_matches!(
-            charge_fee_validate_trace,
-            DeclareTransactionTrace {
-                validate_invocation: Some(_),
-                fee_transfer_invocation: Some(_),
-            }
-        );
+        assert_matches!(charge_fee_validate_trace, DeclareTransactionTrace {
+            validate_invocation: Some(_),
+            fee_transfer_invocation: Some(_),
+        });
 
         // TODO(yair): Compare the trace to an expected trace.
     }
@@ -410,39 +395,36 @@ fn simulate_declare() {
         let TransactionTrace::Declare(exec_only_trace) = &exec_only.transaction_trace else {
             panic!("Wrong trace type, expected DeclareTransactionTrace.")
         };
-        assert_matches!(
-            exec_only_trace,
-            DeclareTransactionTrace { validate_invocation: None, fee_transfer_invocation: None }
-        );
+        assert_matches!(exec_only_trace, DeclareTransactionTrace {
+            validate_invocation: None,
+            fee_transfer_invocation: None
+        });
 
         let TransactionTrace::Declare(validate_trace) = &validate.transaction_trace else {
             panic!("Wrong trace type, expected DeclareTransactionTrace.")
         };
-        assert_matches!(
-            validate_trace,
-            DeclareTransactionTrace { validate_invocation: Some(_), fee_transfer_invocation: None }
-        );
+        assert_matches!(validate_trace, DeclareTransactionTrace {
+            validate_invocation: Some(_),
+            fee_transfer_invocation: None
+        });
 
         let TransactionTrace::Declare(charge_fee_trace) = &charge_fee.transaction_trace else {
             panic!("Wrong trace type, expected DeclareTransactionTrace.")
         };
-        assert_matches!(
-            charge_fee_trace,
-            DeclareTransactionTrace { validate_invocation: None, fee_transfer_invocation: Some(_) }
-        );
+        assert_matches!(charge_fee_trace, DeclareTransactionTrace {
+            validate_invocation: None,
+            fee_transfer_invocation: Some(_)
+        });
 
         let TransactionTrace::Declare(charge_fee_validate_trace) =
             &charge_fee_validate.transaction_trace
         else {
             panic!("Wrong trace type, expected DeclareTransactionTrace.")
         };
-        assert_matches!(
-            charge_fee_validate_trace,
-            DeclareTransactionTrace {
-                validate_invocation: Some(_),
-                fee_transfer_invocation: Some(_),
-            }
-        );
+        assert_matches!(charge_fee_validate_trace, DeclareTransactionTrace {
+            validate_invocation: Some(_),
+            fee_transfer_invocation: Some(_),
+        });
 
         // TODO(yair): Compare the trace to an expected trace.
     }
@@ -471,53 +453,41 @@ fn simulate_deploy_account() {
         let TransactionTrace::DeployAccount(exec_only_trace) = &exec_only.transaction_trace else {
             panic!("Wrong trace type, expected DeployAccountTransactionTrace.")
         };
-        assert_matches!(
-            exec_only_trace,
-            DeployAccountTransactionTrace {
-                validate_invocation: None,
-                fee_transfer_invocation: None,
-                constructor_invocation: _,
-            }
-        );
+        assert_matches!(exec_only_trace, DeployAccountTransactionTrace {
+            validate_invocation: None,
+            fee_transfer_invocation: None,
+            constructor_invocation: _,
+        });
 
         let TransactionTrace::DeployAccount(validate_trace) = &validate.transaction_trace else {
             panic!("Wrong trace type, expected DeployAccountTransactionTrace.")
         };
-        assert_matches!(
-            validate_trace,
-            DeployAccountTransactionTrace {
-                validate_invocation: Some(_),
-                fee_transfer_invocation: None,
-                constructor_invocation: _
-            }
-        );
+        assert_matches!(validate_trace, DeployAccountTransactionTrace {
+            validate_invocation: Some(_),
+            fee_transfer_invocation: None,
+            constructor_invocation: _
+        });
 
         let TransactionTrace::DeployAccount(charge_fee_trace) = &charge_fee.transaction_trace
         else {
             panic!("Wrong trace type, expected DeployAccountTransactionTrace.")
         };
-        assert_matches!(
-            charge_fee_trace,
-            DeployAccountTransactionTrace {
-                validate_invocation: None,
-                fee_transfer_invocation: Some(_),
-                constructor_invocation: _
-            }
-        );
+        assert_matches!(charge_fee_trace, DeployAccountTransactionTrace {
+            validate_invocation: None,
+            fee_transfer_invocation: Some(_),
+            constructor_invocation: _
+        });
 
         let TransactionTrace::DeployAccount(charge_fee_validate_trace) =
             &charge_fee_validate.transaction_trace
         else {
             panic!("Wrong trace type, expected DeployAccountTransactionTrace.")
         };
-        assert_matches!(
-            charge_fee_validate_trace,
-            DeployAccountTransactionTrace {
-                validate_invocation: Some(_),
-                fee_transfer_invocation: Some(_),
-                constructor_invocation: _
-            }
-        );
+        assert_matches!(charge_fee_validate_trace, DeployAccountTransactionTrace {
+            validate_invocation: Some(_),
+            fee_transfer_invocation: Some(_),
+            constructor_invocation: _
+        });
 
         // TODO(yair): Compare the trace to an expected trace.
     }

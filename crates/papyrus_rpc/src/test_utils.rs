@@ -22,9 +22,9 @@ use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 use tokio::sync::RwLock;
 
-use crate::api::JsonRpcServerTrait;
-use crate::version_config::{VersionId, VERSION_PATTERN};
 use crate::RpcConfig;
+use crate::api::JsonRpcServerTrait;
+use crate::version_config::{VERSION_PATTERN, VersionId};
 
 pub fn get_test_rpc_config() -> RpcConfig {
     RpcConfig {
@@ -54,8 +54,8 @@ pub(crate) fn get_test_pending_classes() -> Arc<RwLock<PendingClasses>> {
     Arc::new(RwLock::new(PendingClasses::default()))
 }
 
-pub(crate) fn get_test_rpc_server_and_storage_writer<T: JsonRpcServerTrait>(
-) -> (RpcModule<T>, StorageWriter) {
+pub(crate) fn get_test_rpc_server_and_storage_writer<T: JsonRpcServerTrait>()
+-> (RpcModule<T>, StorageWriter) {
     get_test_rpc_server_and_storage_writer_from_params(None, None, None, None, None)
 }
 

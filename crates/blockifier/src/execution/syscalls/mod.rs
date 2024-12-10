@@ -10,14 +10,15 @@ use starknet_api::transaction::{EventContent, EventData, EventKey, L2ToL1Payload
 use starknet_types_core::felt::Felt;
 
 use self::hint_processor::{
-    create_retdata_segment, execute_inner_call, felt_to_bool, read_call_params, read_calldata,
-    read_felt_array, write_segment, EmitEventError, SyscallExecutionError, SyscallHintProcessor,
+    EmitEventError, SyscallExecutionError, SyscallHintProcessor, create_retdata_segment,
+    execute_inner_call, felt_to_bool, read_call_params, read_calldata, read_felt_array,
+    write_segment,
 };
 use crate::execution::call_info::MessageToL1;
 use crate::execution::deprecated_syscalls::DeprecatedSyscallSelector;
 use crate::execution::entry_point::{CallEntryPoint, CallType};
 use crate::execution::execution_utils::{
-    felt_from_ptr, write_felt, write_maybe_relocatable, ReadOnlySegment,
+    ReadOnlySegment, felt_from_ptr, write_felt, write_maybe_relocatable,
 };
 use crate::execution::syscalls::syscall_base::SyscallResult;
 use crate::versioned_constants::{EventLimits, VersionedConstants};

@@ -1,11 +1,11 @@
-use std::fs::{read_to_string, File};
+use std::fs::{File, read_to_string};
 use std::time::Duration;
 
 use clap::{Arg, Command};
 use papyrus_common::storage_query::StorageQuery;
+use papyrus_storage::StorageConfig;
 use papyrus_storage::db::DbConfig;
 use papyrus_storage::state::StateStorageReader;
-use papyrus_storage::StorageConfig;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ChainId;
 use statistical::median;

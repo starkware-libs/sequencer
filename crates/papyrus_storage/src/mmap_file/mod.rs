@@ -16,7 +16,7 @@ use std::result;
 use std::sync::{Arc, Mutex};
 
 use memmap2::{MmapMut, MmapOptions};
-use papyrus_config::dumping::{ser_param, SerializeConfig};
+use papyrus_config::dumping::{SerializeConfig, ser_param};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 #[cfg(test)]
 use papyrus_test_utils::GetTestInstance;
@@ -28,7 +28,7 @@ use tracing::{debug, instrument, trace};
 use validator::{Validate, ValidationError};
 
 use crate::db::serialization::{StorageSerde, StorageSerdeError, ValueSerde};
-use crate::db::{TransactionKind, RO, RW};
+use crate::db::{RO, RW, TransactionKind};
 
 type MmapFileResult<V> = result::Result<V, MMapFileError>;
 

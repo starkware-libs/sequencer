@@ -1,5 +1,5 @@
 use lazy_static::lazy_static;
-use papyrus_test_utils::{get_rng, GetTestInstance};
+use papyrus_test_utils::{GetTestInstance, get_rng};
 use starknet_api::block::GasPrice;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::{

@@ -42,11 +42,12 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::types::builtin_name::BuiltinName;
 use execution_utils::{get_trace_constructor, induced_state_diff};
 use objects::{PriceUnit, TransactionSimulationOutput};
-use papyrus_config::dumping::{ser_param, SerializeConfig};
+use papyrus_config::dumping::{SerializeConfig, ser_param};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::{StorageError, StorageReader};
 use serde::{Deserialize, Serialize};
+use starknet_api::StarknetApiError;
 use starknet_api::block::{
     BlockHashAndNumber, BlockInfo, BlockNumber, NonzeroGasPrice, StarknetVersion,
 };
@@ -62,12 +63,11 @@ use starknet_api::transaction::{
     TransactionHash, TransactionOptions, TransactionVersion,
 };
 use starknet_api::transaction_hash::get_transaction_hash;
-use starknet_api::StarknetApiError;
 use starknet_types_core::felt::Felt;
 use state_reader::ExecutionStateReader;
 use tracing::trace;
 
-use crate::objects::{tx_execution_output_to_fee_estimation, FeeEstimation, PendingData};
+use crate::objects::{FeeEstimation, PendingData, tx_execution_output_to_fee_estimation};
 
 /// The address of the STRK fee contract on Starknet.
 const STRK_FEE_CONTRACT_ADDRESS_STR: &str =

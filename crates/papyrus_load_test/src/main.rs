@@ -13,7 +13,7 @@ use std::env;
 use std::fs::File;
 
 use assert_matches::assert_matches;
-use goose::{util, GooseAttack};
+use goose::{GooseAttack, util};
 use papyrus_load_test::create_files::create_files;
 use papyrus_load_test::scenarios;
 use serde::Serialize;

@@ -2,8 +2,8 @@ use std::cmp::min;
 use std::collections::HashMap;
 
 use ethnum::U256;
-use rand::prelude::IteratorRandom;
 use rand::Rng;
+use rand::prelude::IteratorRandom;
 use rand_distr::num_traits::ToPrimitive;
 use rand_distr::{Distribution, Geometric};
 use starknet_committer::block_committer::input::{ContractAddress, StarknetStorageValue};

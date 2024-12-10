@@ -77,64 +77,54 @@ fn read_state() {
         .unwrap()
         .append_classes(BlockNumber(0), &[], &[])
         .unwrap()
-        .append_header(
-            BlockNumber(1),
-            &BlockHeader {
-                block_hash: BlockHash(felt!(1_u128)),
-                block_header_without_hash: BlockHeaderWithoutHash {
-                    block_number: BlockNumber(1),
-                    ..Default::default()
-                },
+        .append_header(BlockNumber(1), &BlockHeader {
+            block_hash: BlockHash(felt!(1_u128)),
+            block_header_without_hash: BlockHeaderWithoutHash {
+                block_number: BlockNumber(1),
                 ..Default::default()
             },
-        )
+            ..Default::default()
+        })
         .unwrap()
         .append_body(BlockNumber(1), BlockBody::default())
         .unwrap()
-        .append_state_diff(
-            BlockNumber(1),
-            ThinStateDiff {
-                deployed_contracts: indexmap!(
-                    address0 => class_hash0,
-                    address1 => class_hash1,
+        .append_state_diff(BlockNumber(1), ThinStateDiff {
+            deployed_contracts: indexmap!(
+                address0 => class_hash0,
+                address1 => class_hash1,
+            ),
+            storage_diffs: indexmap!(
+                address0 => indexmap!(
+                    storage_key0 => storage_value0,
                 ),
-                storage_diffs: indexmap!(
-                    address0 => indexmap!(
-                        storage_key0 => storage_value0,
-                    ),
-                ),
-                declared_classes: indexmap!(
-                    class_hash0 => compiled_class_hash0,
-                    class_hash5 => compiled_class_hash0,
-                ),
-                deprecated_declared_classes: vec![class_hash1],
-                nonces: indexmap!(
-                    address0 => nonce0,
-                    address1 => Nonce::default(),
-                ),
-                replaced_classes: indexmap!(),
-            },
-        )
+            ),
+            declared_classes: indexmap!(
+                class_hash0 => compiled_class_hash0,
+                class_hash5 => compiled_class_hash0,
+            ),
+            deprecated_declared_classes: vec![class_hash1],
+            nonces: indexmap!(
+                address0 => nonce0,
+                address1 => Nonce::default(),
+            ),
+            replaced_classes: indexmap!(),
+        })
         .unwrap()
-        .append_classes(
-            BlockNumber(1),
-            &[(class_hash0, &class0), (class_hash5, &class0)],
-            &[(class_hash1, &class1)],
-        )
+        .append_classes(BlockNumber(1), &[(class_hash0, &class0), (class_hash5, &class0)], &[(
+            class_hash1,
+            &class1,
+        )])
         .unwrap()
         .append_casm(&class_hash0, &casm0)
         .unwrap()
-        .append_header(
-            BlockNumber(2),
-            &BlockHeader {
-                block_hash: BlockHash(felt!(2_u128)),
-                block_header_without_hash: BlockHeaderWithoutHash {
-                    block_number: BlockNumber(2),
-                    ..Default::default()
-                },
+        .append_header(BlockNumber(2), &BlockHeader {
+            block_hash: BlockHash(felt!(2_u128)),
+            block_header_without_hash: BlockHeaderWithoutHash {
+                block_number: BlockNumber(2),
                 ..Default::default()
             },
-        )
+            ..Default::default()
+        })
         .unwrap()
         .append_body(BlockNumber(2), BlockBody::default())
         .unwrap()
@@ -240,10 +230,11 @@ fn read_state() {
 
     // Test get_class_hash_at when the class is replaced.
     if let Some(pending_data) = &mut state_reader2.maybe_pending_data {
-        pending_data.replaced_classes = vec![
-            ReplacedClass { address: address0, class_hash: class_hash3 },
-            ReplacedClass { address: address2, class_hash: class_hash3 },
-        ];
+        pending_data.replaced_classes =
+            vec![ReplacedClass { address: address0, class_hash: class_hash3 }, ReplacedClass {
+                address: address2,
+                class_hash: class_hash3,
+            }];
     }
     assert_eq!(state_reader2.get_class_hash_at(address0).unwrap(), class_hash3);
     assert_eq!(state_reader2.get_class_hash_at(address2).unwrap(), class_hash3);

@@ -8,7 +8,7 @@ use crate::context::ChainInfo;
 use crate::state::state_api::StateReader;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{CairoVersion, RunnableCairo1, BALANCE};
+use crate::test_utils::{BALANCE, CairoVersion, RunnableCairo1};
 use crate::versioned_constants::VersionedConstants;
 
 #[test]

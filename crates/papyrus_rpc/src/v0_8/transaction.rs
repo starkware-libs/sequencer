@@ -7,13 +7,13 @@ use std::num::NonZeroU64;
 use std::ops::Add;
 use std::sync::Arc;
 
-use ethers::core::abi::{encode_packed, Token};
+use ethers::core::abi::{Token, encode_packed};
 use ethers::core::utils::keccak256;
 use jsonrpsee::types::ErrorObjectOwned;
 use papyrus_execution::objects::PriceUnit;
+use papyrus_storage::StorageTxn;
 use papyrus_storage::body::BodyStorageReader;
 use papyrus_storage::db::TransactionKind;
-use papyrus_storage::StorageTxn;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use starknet_api::block::{BlockHash, BlockNumber, BlockStatus};
 use starknet_api::core::{

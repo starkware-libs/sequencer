@@ -1,12 +1,12 @@
 use std::collections::HashSet;
 use std::io;
 use std::pin::Pin;
-use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
+use std::sync::atomic::AtomicUsize;
 
 use assert_matches::assert_matches;
 use futures::task::{Context, Poll};
-use futures::{select, AsyncReadExt, AsyncWriteExt, FutureExt, Stream as StreamTrait, StreamExt};
+use futures::{AsyncReadExt, AsyncWriteExt, FutureExt, Stream as StreamTrait, StreamExt, select};
 use lazy_static::lazy_static;
 use libp2p::swarm::handler::{
     ConnectionEvent, DialUpgradeError, FullyNegotiatedInbound, FullyNegotiatedOutbound,

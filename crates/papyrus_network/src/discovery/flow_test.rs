@@ -7,7 +7,7 @@ use libp2p::identity::Keypair;
 use libp2p::kad::store::MemoryStore;
 use libp2p::swarm::behaviour::toggle::Toggle;
 use libp2p::swarm::{NetworkBehaviour, SwarmEvent};
-use libp2p::{identify, kad, Multiaddr, Swarm};
+use libp2p::{Multiaddr, Swarm, identify, kad};
 use libp2p_swarm_test::SwarmExt;
 use starknet_api::core::ChainId;
 

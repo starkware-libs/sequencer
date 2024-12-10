@@ -1,6 +1,6 @@
-use ethnum::{uint, U256};
-use rand::rngs::ThreadRng;
+use ethnum::{U256, uint};
 use rand::Rng;
+use rand::rngs::ThreadRng;
 use rstest::rstest;
 
 use super::split_leaves;

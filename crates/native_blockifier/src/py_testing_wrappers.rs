@@ -1,7 +1,7 @@
 use blockifier::execution::contract_class::estimate_casm_hash_computation_resources;
 use blockifier::transaction::errors::{TransactionExecutionError, TransactionFeeError};
 use cairo_lang_starknet_classes::NestedIntList;
-use pyo3::{pyfunction, PyResult};
+use pyo3::{PyResult, pyfunction};
 
 use crate::errors::NativeBlockifierResult;
 use crate::py_objects::PyExecutionResources;

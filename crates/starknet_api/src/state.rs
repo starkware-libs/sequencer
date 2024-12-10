@@ -17,7 +17,7 @@ use crate::core::{
 use crate::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use crate::hash::StarkHash;
 use crate::rpc_transaction::EntryPointByType;
-use crate::{impl_from_through_intermediate, StarknetApiError};
+use crate::{StarknetApiError, impl_from_through_intermediate};
 
 pub type DeclaredClasses = IndexMap<ClassHash, SierraContractClass>;
 pub type DeprecatedDeclaredClasses = IndexMap<ClassHash, DeprecatedContractClass>;

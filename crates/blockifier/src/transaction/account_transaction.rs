@@ -12,7 +12,7 @@ use starknet_api::transaction::fields::{
     AccountDeploymentData, AllResourceBounds, Calldata, Fee, PaymasterData, Tip,
     TransactionSignature, ValidResourceBounds,
 };
-use starknet_api::transaction::{constants, TransactionHash, TransactionVersion};
+use starknet_api::transaction::{TransactionHash, TransactionVersion, constants};
 use starknet_types_core::felt::Felt;
 
 use crate::context::{BlockContext, TransactionContext};
@@ -20,7 +20,7 @@ use crate::execution::call_info::CallInfo;
 use crate::execution::contract_class::RunnableCompiledClass;
 use crate::execution::entry_point::{CallEntryPoint, CallType, EntryPointExecutionContext};
 use crate::execution::stack_trace::{
-    extract_trailing_cairo1_revert_trace, gen_tx_execution_error_trace, Cairo1RevertHeader,
+    Cairo1RevertHeader, extract_trailing_cairo1_revert_trace, gen_tx_execution_error_trace,
 };
 use crate::fee::fee_checks::{FeeCheckReportFields, PostExecutionReport};
 use crate::fee::fee_utils::{
@@ -41,7 +41,7 @@ use crate::transaction::objects::{
 };
 use crate::transaction::transaction_types::TransactionType;
 use crate::transaction::transactions::{
-    enforce_fee, Executable, ExecutableTransaction, ValidatableTransaction,
+    Executable, ExecutableTransaction, ValidatableTransaction, enforce_fee,
 };
 
 #[cfg(test)]
@@ -676,11 +676,7 @@ impl AccountTransaction {
     /// Returns 0 on non-declare transactions; for declare transactions, returns the class code
     /// size.
     pub(crate) fn declare_code_size(&self) -> usize {
-        if let Transaction::Declare(tx) = &self.tx {
-            tx.class_info.code_size()
-        } else {
-            0
-        }
+        if let Transaction::Declare(tx) = &self.tx { tx.class_info.code_size() } else { 0 }
     }
 
     fn is_non_revertible(&self, tx_info: &TransactionInfo) -> bool {

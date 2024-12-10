@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use blockifier::context::ChainInfo;
 use blockifier::versioned_constants::VersionedConstantsOverrides;
-use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
+use papyrus_config::dumping::{SerializeConfig, append_sub_config_name, ser_param};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::Nonce;

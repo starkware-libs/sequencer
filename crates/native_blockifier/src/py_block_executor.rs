@@ -32,8 +32,8 @@ use crate::py_objects::{
     PyVersionedConstantsOverrides,
 };
 use crate::py_state_diff::{PyBlockInfo, PyStateDiff};
-use crate::py_transaction::{py_tx, PyClassInfo, PY_TX_PARSING_ERR};
-use crate::py_utils::{int_to_chain_id, into_block_number_hash_pair, PyFelt};
+use crate::py_transaction::{PY_TX_PARSING_ERR, PyClassInfo, py_tx};
+use crate::py_utils::{PyFelt, int_to_chain_id, into_block_number_hash_pair};
 use crate::storage::{
     PapyrusStorage, RawDeclaredClassMapping, RawDeprecatedDeclaredClassMapping, Storage,
     StorageConfig,

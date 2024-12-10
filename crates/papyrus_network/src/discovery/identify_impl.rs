@@ -1,4 +1,4 @@
-use libp2p::{identify, Multiaddr, PeerId};
+use libp2p::{Multiaddr, PeerId, identify};
 
 use crate::mixed_behaviour;
 use crate::mixed_behaviour::BridgedBehaviour;

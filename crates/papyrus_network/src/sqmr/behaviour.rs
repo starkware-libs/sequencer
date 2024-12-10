@@ -4,8 +4,8 @@ mod behaviour_test;
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::io;
-use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
+use std::sync::atomic::AtomicUsize;
 use std::task::{Context, Poll, Waker};
 use std::time::Duration;
 

@@ -6,9 +6,9 @@ use assert_json_diff::assert_json_eq;
 use assert_matches::assert_matches;
 use colored::Colorize;
 use infra_utils::path::resolve_project_relative_path;
+use papyrus_config::SerializedParam;
 use papyrus_config::dumping::SerializeConfig;
 use papyrus_config::validators::config_validate;
-use papyrus_config::SerializedParam;
 use rstest::rstest;
 use starknet_batcher::block_builder::BlockBuilderConfig;
 use starknet_batcher::config::BatcherConfig;
@@ -21,9 +21,9 @@ use crate::config::component_execution_config::{
     ReactiveComponentExecutionConfig, ReactiveComponentExecutionMode,
 };
 use crate::config::node_config::{
-    SequencerNodeConfig, CONFIG_NON_POINTERS_WHITELIST, CONFIG_POINTERS, DEFAULT_CONFIG_PATH,
+    CONFIG_NON_POINTERS_WHITELIST, CONFIG_POINTERS, DEFAULT_CONFIG_PATH, SequencerNodeConfig,
 };
-use crate::config::test_utils::{create_test_config_load_args, RequiredParams};
+use crate::config::test_utils::{RequiredParams, create_test_config_load_args};
 
 const LOCAL_EXECUTION_MODE: ReactiveComponentExecutionMode =
     ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled;
@@ -153,7 +153,9 @@ fn test_validate_batcher_config_failure() {
     };
 
     let error = config.validate().unwrap_err();
-    assert!(error
-        .to_string()
-        .contains("input_stream_content_buffer_size must be at least tx_chunk_size"));
+    assert!(
+        error
+            .to_string()
+            .contains("input_stream_content_buffer_size must be at least tx_chunk_size")
+    );
 }

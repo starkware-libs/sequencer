@@ -4,13 +4,13 @@ use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::Poseidon;
 
-use super::event_commitment::{calculate_event_commitment, EventLeafElement};
-use super::receipt_commitment::{calculate_receipt_commitment, ReceiptElement};
+use super::event_commitment::{EventLeafElement, calculate_event_commitment};
+use super::receipt_commitment::{ReceiptElement, calculate_receipt_commitment};
 use super::state_diff_hash::calculate_state_diff_hash;
-use super::transaction_commitment::{calculate_transaction_commitment, TransactionLeafElement};
+use super::transaction_commitment::{TransactionLeafElement, calculate_transaction_commitment};
 use crate::block::{BlockHash, BlockHeaderWithoutHash, GasPricePerToken, StarknetVersion};
 use crate::core::{
-    ascii_as_felt, EventCommitment, ReceiptCommitment, StateDiffCommitment, TransactionCommitment,
+    EventCommitment, ReceiptCommitment, StateDiffCommitment, TransactionCommitment, ascii_as_felt,
 };
 use crate::crypto::utils::HashChain;
 use crate::data_availability::L1DataAvailabilityMode;
@@ -122,7 +122,7 @@ pub fn calculate_block_hash(
             .chain(&header.sequencer.0)
             .chain(&header.timestamp.0.into())
             .chain(&block_commitments.concatenated_counts)
-            .chain(&block_commitments.state_diff_commitment.0 .0)
+            .chain(&block_commitments.state_diff_commitment.0.0)
             .chain(&block_commitments.transaction_commitment.0)
             .chain(&block_commitments.event_commitment.0)
             .chain(&block_commitments.receipt_commitment.0)
@@ -240,15 +240,17 @@ fn gas_prices_to_hash(
     block_hash_version: &BlockHashVersion,
 ) -> Vec<Felt> {
     if block_hash_version >= &BlockHashVersion::V0_13_4 {
-        vec![HashChain::new()
-            .chain(&STARKNET_GAS_PRICES0)
-            .chain(&l1_gas_price.price_in_wei.0.into())
-            .chain(&l1_gas_price.price_in_fri.0.into())
-            .chain(&l1_data_gas_price.price_in_wei.0.into())
-            .chain(&l1_data_gas_price.price_in_fri.0.into())
-            .chain(&l2_gas_price.price_in_wei.0.into())
-            .chain(&l2_gas_price.price_in_fri.0.into())
-            .get_poseidon_hash()]
+        vec![
+            HashChain::new()
+                .chain(&STARKNET_GAS_PRICES0)
+                .chain(&l1_gas_price.price_in_wei.0.into())
+                .chain(&l1_gas_price.price_in_fri.0.into())
+                .chain(&l1_data_gas_price.price_in_wei.0.into())
+                .chain(&l1_data_gas_price.price_in_fri.0.into())
+                .chain(&l2_gas_price.price_in_wei.0.into())
+                .chain(&l2_gas_price.price_in_fri.0.into())
+                .get_poseidon_hash(),
+        ]
     } else {
         vec![
             l1_gas_price.price_in_wei.0.into(),

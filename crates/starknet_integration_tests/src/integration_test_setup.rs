@@ -7,10 +7,10 @@ use starknet_http_server::config::HttpServerConfig;
 use starknet_http_server::test_utils::HttpTestClient;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_monitoring_endpoint::test_utils::IsAliveClient;
-use tempfile::{tempdir, TempDir};
+use tempfile::{TempDir, tempdir};
 
 use crate::config_utils::dump_config_file_changes;
-use crate::state_reader::{spawn_test_rpc_state_reader, StorageTestSetup};
+use crate::state_reader::{StorageTestSetup, spawn_test_rpc_state_reader};
 use crate::utils::{
     create_chain_info, create_config, create_consensus_manager_configs_and_channels,
 };

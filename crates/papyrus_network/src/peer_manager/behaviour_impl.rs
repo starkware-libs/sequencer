@@ -1,8 +1,8 @@
-use std::task::{ready, Poll};
+use std::task::{Poll, ready};
 
 use libp2p::swarm::behaviour::ConnectionEstablished;
 use libp2p::swarm::{
-    dummy, ConnectionClosed, ConnectionId, DialError, DialFailure, NetworkBehaviour, ToSwarm,
+    ConnectionClosed, ConnectionId, DialError, DialFailure, NetworkBehaviour, ToSwarm, dummy,
 };
 use libp2p::{Multiaddr, PeerId};
 use tracing::{debug, error, warn};
@@ -106,11 +106,7 @@ impl NetworkBehaviour for PeerManager {
                     self.session_to_peer_map
                         .iter()
                         .filter_map(|(outbound_session_id, p_id)| {
-                            if *p_id == peer_id {
-                                Some(*outbound_session_id)
-                            } else {
-                                None
-                            }
+                            if *p_id == peer_id { Some(*outbound_session_id) } else { None }
                         })
                         .collect::<Vec<_>>();
                 for outbound_session_id in queries_to_assign {

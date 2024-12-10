@@ -1,14 +1,14 @@
 use std::fmt::Debug;
 
-use futures::channel::mpsc::Sender;
 use futures::StreamExt;
+use futures::channel::mpsc::Sender;
 use lazy_static::lazy_static;
 use papyrus_common::pending_classes::ApiContractClass;
 use papyrus_common::state::create_random_state_diff;
+use papyrus_network::network_manager::ServerQueryManager;
 use papyrus_network::network_manager::test_utils::{
     create_test_server_query_manager, mock_register_sqmr_protocol_server,
 };
-use papyrus_network::network_manager::ServerQueryManager;
 use papyrus_protobuf::converters::ProtobufConversionError;
 use papyrus_protobuf::sync::{
     BlockHashOrNumber, ClassQuery, DataOrFin, Direction, EventQuery, HeaderQuery, Query,
@@ -20,7 +20,7 @@ use papyrus_storage::header::{HeaderStorageReader, HeaderStorageWriter};
 use papyrus_storage::state::StateStorageWriter;
 use papyrus_storage::test_utils::get_test_storage;
 use papyrus_storage::{StorageReader, StorageWriter};
-use papyrus_test_utils::{get_rng, get_test_body, GetTestInstance};
+use papyrus_test_utils::{GetTestInstance, get_rng, get_test_body};
 use rand::random;
 use starknet_api::block::{
     BlockBody, BlockHash, BlockHeader, BlockHeaderWithoutHash, BlockNumber, BlockSignature,
@@ -31,7 +31,7 @@ use starknet_api::transaction::{
     Event, FullTransaction, Transaction, TransactionHash, TransactionOutput,
 };
 
-use super::{split_thin_state_diff, FetchBlockDataFromDb, P2PSyncServer, P2PSyncServerChannels};
+use super::{FetchBlockDataFromDb, P2PSyncServer, P2PSyncServerChannels, split_thin_state_diff};
 use crate::server::register_query;
 const BUFFER_SIZE: usize = 10;
 const NUM_OF_BLOCKS: usize = 10;

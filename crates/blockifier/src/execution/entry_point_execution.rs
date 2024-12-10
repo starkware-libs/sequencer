@@ -20,8 +20,8 @@ use crate::execution::entry_point::{
 };
 use crate::execution::errors::{EntryPointExecutionError, PostExecutionError, PreExecutionError};
 use crate::execution::execution_utils::{
-    read_execution_retdata, write_felt, write_maybe_relocatable, Args, ReadOnlySegments,
-    SEGMENT_ARENA_BUILTIN_SIZE,
+    Args, ReadOnlySegments, SEGMENT_ARENA_BUILTIN_SIZE, read_execution_retdata, write_felt,
+    write_maybe_relocatable,
 };
 use crate::execution::syscalls::hint_processor::SyscallHintProcessor;
 use crate::state::state_api::State;

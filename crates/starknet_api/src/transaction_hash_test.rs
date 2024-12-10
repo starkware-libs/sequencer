@@ -2,8 +2,8 @@ use pretty_assertions::assert_eq;
 use sha3::{Digest, Keccak256};
 use starknet_types_core::felt::Felt;
 
-use super::{get_transaction_hash, validate_transaction_hash, CONSTRUCTOR_ENTRY_POINT_SELECTOR};
-use crate::test_utils::{read_json_file, TransactionTestData};
+use super::{CONSTRUCTOR_ENTRY_POINT_SELECTOR, get_transaction_hash, validate_transaction_hash};
+use crate::test_utils::{TransactionTestData, read_json_file};
 use crate::transaction::{Transaction, TransactionOptions};
 
 #[test]

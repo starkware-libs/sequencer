@@ -1,5 +1,5 @@
 use libp2p::PeerId;
-use papyrus_test_utils::{auto_impl_get_test_instance, GetTestInstance};
+use papyrus_test_utils::{GetTestInstance, auto_impl_get_test_instance};
 use rand_chacha::ChaCha8Rng;
 
 use crate::network_types::{BroadcastedMessageMetadata, OpaquePeerId};

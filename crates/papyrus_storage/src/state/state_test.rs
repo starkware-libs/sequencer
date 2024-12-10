@@ -1,6 +1,6 @@
 use assert_matches::assert_matches;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
-use indexmap::{indexmap, IndexMap};
+use indexmap::{IndexMap, indexmap};
 use papyrus_test_utils::get_test_state_diff;
 use pretty_assertions::assert_eq;
 use starknet_api::block::BlockNumber;
@@ -11,11 +11,11 @@ use starknet_api::state::{SierraContractClass, StateNumber, ThinStateDiff};
 use starknet_api::{class_hash, contract_address, felt, storage_key};
 use starknet_types_core::felt::Felt;
 
+use crate::StorageWriter;
 use crate::class::{ClassStorageReader, ClassStorageWriter};
 use crate::compiled_class::{CasmStorageReader, CasmStorageWriter};
 use crate::state::{StateStorageReader, StateStorageWriter};
 use crate::test_utils::get_test_storage;
-use crate::StorageWriter;
 
 #[test]
 fn get_class_definition_at() {
@@ -44,11 +44,10 @@ fn get_class_definition_at() {
     txn = txn.append_state_diff(BlockNumber(0), diff0).unwrap();
     txn = txn.append_state_diff(BlockNumber(1), diff1).unwrap();
     txn = txn
-        .append_classes(
-            BlockNumber(0),
-            &[(nc0, &new_class)],
-            &[(dc0, &dep_class), (dc1, &dep_class)],
-        )
+        .append_classes(BlockNumber(0), &[(nc0, &new_class)], &[
+            (dc0, &dep_class),
+            (dc1, &dep_class),
+        ])
         .unwrap();
     txn = txn.append_classes(BlockNumber(1), &[(nc1, &new_class)], &[(dc0, &dep_class)]).unwrap();
     txn.commit().unwrap();
@@ -272,14 +271,11 @@ fn test_get_class_after_append_thin_state_diff() {
     let mut txn = writer.begin_rw_txn().unwrap();
     // Append an empty state diff.
     txn = txn
-        .append_state_diff(
-            BlockNumber(0),
-            ThinStateDiff {
-                declared_classes: indexmap! { CLASS_HASH => CompiledClassHash::default() },
-                deprecated_declared_classes: vec![DEPRECATED_CLASS_HASH],
-                ..Default::default()
-            },
-        )
+        .append_state_diff(BlockNumber(0), ThinStateDiff {
+            declared_classes: indexmap! { CLASS_HASH => CompiledClassHash::default() },
+            deprecated_declared_classes: vec![DEPRECATED_CLASS_HASH],
+            ..Default::default()
+        })
         .unwrap();
     assert_eq!(txn.get_class_marker().unwrap(), BlockNumber(0));
 
@@ -291,10 +287,12 @@ fn test_get_class_after_append_thin_state_diff() {
         Some(BlockNumber(0))
     );
     assert!(state_reader.get_class_definition_at(state_number, &CLASS_HASH).unwrap().is_none());
-    assert!(state_reader
-        .get_deprecated_class_definition_at(state_number, &DEPRECATED_CLASS_HASH)
-        .unwrap()
-        .is_none());
+    assert!(
+        state_reader
+            .get_deprecated_class_definition_at(state_number, &DEPRECATED_CLASS_HASH)
+            .unwrap()
+            .is_none()
+    );
 }
 
 #[test]
@@ -492,11 +490,10 @@ fn revert_state() {
                 .collect::<Vec<_>>(),
         )
         .unwrap()
-        .append_classes(
-            BlockNumber(1),
-            &[(class2, &SierraContractClass::default())],
-            &[(class1, &DeprecatedContractClass::default())],
-        )
+        .append_classes(BlockNumber(1), &[(class2, &SierraContractClass::default())], &[(
+            class1,
+            &DeprecatedContractClass::default(),
+        )])
         .unwrap()
         .append_casm(&class2, &compiled_class2)
         .unwrap()
@@ -527,18 +524,15 @@ fn revert_state() {
     let expected_deleted_deprecated_classes =
         IndexMap::from([(class1, DeprecatedContractClass::default())]);
     let expected_deleted_classes = IndexMap::from([(class2, SierraContractClass::default())]);
-    let expected_deleted_compiled_classes = IndexMap::from([(
-        class2,
-        CasmContractClass {
-            prime: Default::default(),
-            compiler_version: Default::default(),
-            bytecode: Default::default(),
-            bytecode_segment_lengths: Default::default(),
-            hints: Default::default(),
-            pythonic_hints: Default::default(),
-            entry_points_by_type: Default::default(),
-        },
-    )]);
+    let expected_deleted_compiled_classes = IndexMap::from([(class2, CasmContractClass {
+        prime: Default::default(),
+        compiler_version: Default::default(),
+        bytecode: Default::default(),
+        bytecode_segment_lengths: Default::default(),
+        hints: Default::default(),
+        pythonic_hints: Default::default(),
+        entry_points_by_type: Default::default(),
+    })]);
     assert_matches!(
         deleted_data,
         Some((thin_state_diff, class_definitions, deprecated_class_definitions, compiled_classes))
@@ -726,11 +720,10 @@ fn declare_revert_declare_scenario() {
         .unwrap()
         .append_state_diff(BlockNumber(0), diff0.clone())
         .unwrap()
-        .append_classes(
-            BlockNumber(0),
-            &[(class_hash, &class)],
-            &[(deprecated_class_hash, &deprecated_class)],
-        )
+        .append_classes(BlockNumber(0), &[(class_hash, &class)], &[(
+            deprecated_class_hash,
+            &deprecated_class,
+        )])
         .unwrap()
         .commit()
         .unwrap();
@@ -740,10 +733,12 @@ fn declare_revert_declare_scenario() {
     let txn = reader.begin_ro_txn().unwrap();
     let state_reader = txn.get_state_reader().unwrap();
     assert!(state_reader.get_class_definition_at(state_number, &class_hash).unwrap().is_some());
-    assert!(state_reader
-        .get_deprecated_class_definition_at(state_number, &deprecated_class_hash)
-        .unwrap()
-        .is_some());
+    assert!(
+        state_reader
+            .get_deprecated_class_definition_at(state_number, &deprecated_class_hash)
+            .unwrap()
+            .is_some()
+    );
 
     // Revert the block and assert that the classes are no longer declared.
     let (txn, _) = writer.begin_rw_txn().unwrap().revert_state_diff(BlockNumber(0)).unwrap();
@@ -751,10 +746,12 @@ fn declare_revert_declare_scenario() {
     let txn = reader.begin_ro_txn().unwrap();
     let state_reader = txn.get_state_reader().unwrap();
     assert!(state_reader.get_class_definition_at(state_number, &class_hash).unwrap().is_none());
-    assert!(state_reader
-        .get_deprecated_class_definition_at(state_number, &deprecated_class_hash)
-        .unwrap()
-        .is_none());
+    assert!(
+        state_reader
+            .get_deprecated_class_definition_at(state_number, &deprecated_class_hash)
+            .unwrap()
+            .is_none()
+    );
 
     // Re-declaring reverted classes should be possible.
     writer
@@ -762,11 +759,10 @@ fn declare_revert_declare_scenario() {
         .unwrap()
         .append_state_diff(BlockNumber(0), diff0.clone())
         .unwrap()
-        .append_classes(
-            BlockNumber(0),
-            &[(class_hash, &class)],
-            &[(deprecated_class_hash, &deprecated_class)],
-        )
+        .append_classes(BlockNumber(0), &[(class_hash, &class)], &[(
+            deprecated_class_hash,
+            &deprecated_class,
+        )])
         .unwrap()
         .commit()
         .unwrap();
@@ -776,8 +772,10 @@ fn declare_revert_declare_scenario() {
     let txn = reader.begin_ro_txn().unwrap();
     let state_reader = txn.get_state_reader().unwrap();
     assert!(state_reader.get_class_definition_at(state_number, &class_hash).unwrap().is_some());
-    assert!(state_reader
-        .get_deprecated_class_definition_at(state_number, &deprecated_class_hash)
-        .unwrap()
-        .is_some());
+    assert!(
+        state_reader
+            .get_deprecated_class_definition_at(state_number, &deprecated_class_hash)
+            .unwrap()
+            .is_some()
+    );
 }

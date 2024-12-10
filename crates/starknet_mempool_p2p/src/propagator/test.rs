@@ -1,11 +1,11 @@
 use futures::stream::StreamExt;
-use papyrus_network::network_manager::test_utils::{
-    mock_register_broadcast_topic, BroadcastNetworkMock, TestSubscriberChannels,
-};
 use papyrus_network::network_manager::BroadcastTopicChannels;
+use papyrus_network::network_manager::test_utils::{
+    BroadcastNetworkMock, TestSubscriberChannels, mock_register_broadcast_topic,
+};
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_protobuf::mempool::RpcTransactionWrapper;
-use papyrus_test_utils::{get_rng, GetTestInstance};
+use papyrus_test_utils::{GetTestInstance, get_rng};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_mempool_p2p_types::communication::MempoolP2pPropagatorRequest;
 use starknet_sequencer_infra::component_definitions::ComponentRequestHandler;

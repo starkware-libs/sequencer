@@ -3,7 +3,7 @@ use std::{panic, vec};
 
 use assert_matches::assert_matches;
 use futures_util::future::join_all;
-use hyper::{header, Body, Request};
+use hyper::{Body, Request, header};
 use jsonrpsee::core::client::ClientT;
 use jsonrpsee::core::http_helpers::read_body;
 use jsonrpsee::core::{Error, RpcResult};
@@ -25,7 +25,7 @@ use crate::test_utils::{
     get_test_highest_block, get_test_pending_classes, get_test_pending_data, get_test_rpc_config,
 };
 use crate::version_config::VERSION_CONFIG;
-use crate::{get_block_status, run_server, SERVER_MAX_BODY_SIZE};
+use crate::{SERVER_MAX_BODY_SIZE, get_block_status, run_server};
 
 #[tokio::test]
 async fn run_server_no_blocks() {

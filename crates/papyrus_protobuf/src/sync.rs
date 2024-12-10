@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use indexmap::IndexMap;
 #[cfg(any(feature = "testing", test))]
-use papyrus_test_utils::{auto_impl_get_test_instance, get_number_of_variants, GetTestInstance};
+use papyrus_test_utils::{GetTestInstance, auto_impl_get_test_instance, get_number_of_variants};
 use starknet_api::block::{BlockHash, BlockHeader, BlockNumber, BlockSignature};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;

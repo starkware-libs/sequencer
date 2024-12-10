@@ -1,7 +1,7 @@
 use starknet_api::felt;
 use starknet_api::transaction::fields::Calldata;
 
-use crate::test_utils::{create_calldata, CompilerBasedVersion};
+use crate::test_utils::{CompilerBasedVersion, create_calldata};
 
 /// Returns the calldata for N recursive call contract syscalls, where N is the length of versions.
 /// versions determines the cairo version of the called contract in each recursive call. Final call

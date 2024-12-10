@@ -13,7 +13,7 @@ use crate::patricia_merkle_tree::external_test_utils::{
     create_unmodified_subtree_skeleton_node,
 };
 use crate::patricia_merkle_tree::internal_test_utils::{
-    small_tree_index_to_full, MockLeaf, OriginalSkeletonMockTrieConfig,
+    MockLeaf, OriginalSkeletonMockTrieConfig, small_tree_index_to_full,
 };
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePath, EdgePathLength, PathToBottom};
 use crate::patricia_merkle_tree::node_data::leaf::LeafModifications;

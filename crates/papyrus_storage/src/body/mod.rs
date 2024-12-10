@@ -56,7 +56,7 @@ use tracing::debug;
 
 use crate::db::serialization::{NoVersionValueWrapper, VersionZeroWrapper};
 use crate::db::table_types::{CommonPrefix, DbCursorTrait, NoValue, SimpleTable, Table};
-use crate::db::{DbTransaction, TableHandle, TransactionKind, RW};
+use crate::db::{DbTransaction, RW, TableHandle, TransactionKind};
 use crate::{
     FileHandlers, MarkerKind, MarkersTable, OffsetKind, StorageError, StorageResult, StorageScope,
     StorageTxn, TransactionMetadata,
@@ -446,11 +446,11 @@ fn write_transactions<'env>(
         let tx_output_location = file_handlers.append_transaction_output(tx_output);
         write_events(tx_output, txn, events_table, transaction_index)?;
         transaction_hash_to_idx_table.insert(txn, tx_hash, &transaction_index)?;
-        transaction_metadata_table.append(
-            txn,
-            &transaction_index,
-            &TransactionMetadata { tx_location, tx_output_location, tx_hash: *tx_hash },
-        )?;
+        transaction_metadata_table.append(txn, &transaction_index, &TransactionMetadata {
+            tx_location,
+            tx_output_location,
+            tx_hash: *tx_hash,
+        })?;
 
         // If this is the last iteration, update the file offset table.
         if index == block_body.transactions.len() - 1 {

@@ -13,7 +13,7 @@ use papyrus_storage::body::BodyStorageReader;
 use papyrus_storage::class::ClassStorageReader;
 use papyrus_storage::header::HeaderStorageReader;
 use papyrus_storage::state::StateStorageReader;
-use papyrus_storage::{db, StorageReader, StorageTxn};
+use papyrus_storage::{StorageReader, StorageTxn, db};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ClassHash;
 use starknet_api::state::ThinStateDiff;

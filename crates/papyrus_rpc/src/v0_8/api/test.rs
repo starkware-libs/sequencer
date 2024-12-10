@@ -7,14 +7,15 @@ use std::ops::Index;
 use assert_matches::assert_matches;
 use async_trait::async_trait;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
-use indexmap::{indexmap, IndexMap};
+use indexmap::{IndexMap, indexmap};
 use itertools::Itertools;
-use jsonrpsee::core::Error;
 use jsonrpsee::Methods;
+use jsonrpsee::core::Error;
 use jsonschema::JSONSchema;
 use lazy_static::lazy_static;
 use mockall::predicate::eq;
 use papyrus_common::pending_classes::{ApiContractClass, PendingClassesTrait};
+use papyrus_storage::StorageScope;
 use papyrus_storage::base_layer::BaseLayerStorageWriter;
 use papyrus_storage::body::events::EventIndex;
 use papyrus_storage::body::{BodyStorageWriter, TransactionIndex};
@@ -23,13 +24,12 @@ use papyrus_storage::compiled_class::CasmStorageWriter;
 use papyrus_storage::header::HeaderStorageWriter;
 use papyrus_storage::state::StateStorageWriter;
 use papyrus_storage::test_utils::get_test_storage;
-use papyrus_storage::StorageScope;
 use papyrus_test_utils::{
-    auto_impl_get_test_instance, get_number_of_variants, get_rng, get_test_block, get_test_body,
-    get_test_state_diff, send_request, GetTestInstance,
+    GetTestInstance, auto_impl_get_test_instance, get_number_of_variants, get_rng, get_test_block,
+    get_test_body, get_test_state_diff, send_request,
 };
 use pretty_assertions::assert_eq;
-use rand::{random, RngCore};
+use rand::{RngCore, random};
 use rand_chacha::ChaCha8Rng;
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
@@ -38,8 +38,8 @@ use starknet_api::block::{
     BlockNumber, BlockStatus, BlockTimestamp, GasPrice, GasPricePerToken, StarknetVersion,
 };
 use starknet_api::core::{
-    ClassHash, CompiledClassHash, ContractAddress, GlobalRoot, Nonce, SequencerContractAddress,
-    BLOCK_HASH_TABLE_ADDRESS,
+    BLOCK_HASH_TABLE_ADDRESS, ClassHash, CompiledClassHash, ContractAddress, GlobalRoot, Nonce,
+    SequencerContractAddress,
 };
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::deprecated_contract_class::{
@@ -53,6 +53,7 @@ use starknet_api::transaction::{
     TransactionOutput as StarknetApiTransactionOutput,
 };
 use starknet_api::{class_hash, contract_address, felt, storage_key, tx_hash};
+use starknet_client::ClientError;
 use starknet_client::reader::objects::pending_data::{
     DeprecatedPendingBlock, PendingBlockOrDeprecated,
     PendingStateUpdate as ClientPendingStateUpdate,
@@ -75,7 +76,6 @@ use starknet_client::writer::objects::transaction::{
     InvokeTransaction as ClientInvokeTransaction,
 };
 use starknet_client::writer::{MockStarknetWriter, WriterClientError, WriterClientResult};
-use starknet_client::ClientError;
 use starknet_types_core::felt::Felt;
 
 use super::super::api::EventsChunk;
@@ -83,9 +83,9 @@ use super::super::block::{Block, GeneralBlockHeader, PendingBlockHeader, Resourc
 use super::super::broadcasted_transaction::BroadcastedDeclareTransaction;
 use super::super::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use super::super::error::{
-    unexpected_error, JsonRpcError, BLOCK_NOT_FOUND, CLASS_HASH_NOT_FOUND, COMPILATION_FAILED,
-    CONTRACT_NOT_FOUND, DUPLICATE_TX, INVALID_CONTINUATION_TOKEN, INVALID_TRANSACTION_INDEX,
-    NO_BLOCKS, PAGE_SIZE_TOO_BIG, TOO_MANY_KEYS_IN_FILTER, TRANSACTION_HASH_NOT_FOUND,
+    BLOCK_NOT_FOUND, CLASS_HASH_NOT_FOUND, COMPILATION_FAILED, CONTRACT_NOT_FOUND, DUPLICATE_TX,
+    INVALID_CONTINUATION_TOKEN, INVALID_TRANSACTION_INDEX, JsonRpcError, NO_BLOCKS,
+    PAGE_SIZE_TOO_BIG, TOO_MANY_KEYS_IN_FILTER, TRANSACTION_HASH_NOT_FOUND, unexpected_error,
 };
 use super::super::state::{
     AcceptedStateUpdate, ClassHashes, ContractClass, ContractNonce, DeployedContract,
@@ -106,18 +106,19 @@ use super::{ContinuationToken, EventFilter, GatewayContractClass};
 use crate::api::{BlockHashOrNumber, BlockId, Tag};
 use crate::syncing_state::SyncStatus;
 use crate::test_utils::{
-    call_and_validate_schema_for_result, call_api_then_assert_and_validate_schema_for_err,
+    SpecFile, call_and_validate_schema_for_result,
+    call_api_then_assert_and_validate_schema_for_err,
     call_api_then_assert_and_validate_schema_for_result, get_method_names_from_spec,
     get_starknet_spec_api_schema_for_components, get_starknet_spec_api_schema_for_method_results,
     get_test_highest_block, get_test_pending_classes, get_test_pending_data, get_test_rpc_config,
     get_test_rpc_server_and_storage_writer, get_test_rpc_server_and_storage_writer_from_params,
-    method_name_to_spec_method_name, raw_call, validate_schema, SpecFile,
+    method_name_to_spec_method_name, raw_call, validate_schema,
 };
 use crate::v0_8::api::CompiledContractClass;
 use crate::version_config::VERSION_0_8 as VERSION;
 use crate::{
-    internal_server_error, internal_server_error_with_msg, run_server, ContinuationTokenAsStruct,
-    GENESIS_HASH,
+    ContinuationTokenAsStruct, GENESIS_HASH, internal_server_error, internal_server_error_with_msg,
+    run_server,
 };
 
 const NODE_VERSION: &str = "NODE VERSION";
@@ -345,12 +346,9 @@ async fn get_block_transaction_count() {
 
     // Get block by number.
     let res = module
-        .call::<_, usize>(
-            method_name,
-            [BlockId::HashOrNumber(BlockHashOrNumber::Number(
-                block.header.block_header_without_hash.block_number,
-            ))],
-        )
+        .call::<_, usize>(method_name, [BlockId::HashOrNumber(BlockHashOrNumber::Number(
+            block.header.block_header_without_hash.block_number,
+        ))])
         .await
         .unwrap();
     assert_eq!(res, transaction_count);
@@ -390,10 +388,9 @@ async fn get_block_transaction_count() {
 
     // Ask for an invalid block number.
     let err = module
-        .call::<_, usize>(
-            method_name,
-            [BlockId::HashOrNumber(BlockHashOrNumber::Number(BlockNumber(1)))],
-        )
+        .call::<_, usize>(method_name, [BlockId::HashOrNumber(BlockHashOrNumber::Number(
+            BlockNumber(1),
+        ))])
         .await
         .unwrap_err();
     assert_matches!(err, Error::Call(err) if err == BLOCK_NOT_FOUND.into());
@@ -460,10 +457,9 @@ async fn get_block_w_full_transactions() {
 
     // Get block by number.
     let block = module
-        .call::<_, Block>(
-            method_name,
-            [BlockId::HashOrNumber(BlockHashOrNumber::Number(expected_block_header.block_number))],
-        )
+        .call::<_, Block>(method_name, [BlockId::HashOrNumber(BlockHashOrNumber::Number(
+            expected_block_header.block_number,
+        ))])
         .await
         .unwrap();
     assert_eq!(block, expected_block);
@@ -481,32 +477,27 @@ async fn get_block_w_full_transactions() {
         .commit()
         .unwrap();
     let block = module
-        .call::<_, Block>(
-            method_name,
-            [BlockId::HashOrNumber(BlockHashOrNumber::Hash(expected_block_header.block_hash))],
-        )
+        .call::<_, Block>(method_name, [BlockId::HashOrNumber(BlockHashOrNumber::Hash(
+            expected_block_header.block_hash,
+        ))])
         .await
         .unwrap();
     assert_eq!(block.status, Some(BlockStatus::AcceptedOnL1));
 
     // Ask for an invalid block hash.
     let err = module
-        .call::<_, Block>(
-            method_name,
-            [BlockId::HashOrNumber(BlockHashOrNumber::Hash(BlockHash(felt!(
-                "0x642b629ad8ce233b55798c83bb629a59bf0a0092f67da28d6d66776680d5484"
-            ))))],
-        )
+        .call::<_, Block>(method_name, [BlockId::HashOrNumber(BlockHashOrNumber::Hash(BlockHash(
+            felt!("0x642b629ad8ce233b55798c83bb629a59bf0a0092f67da28d6d66776680d5484"),
+        )))])
         .await
         .unwrap_err();
     assert_matches!(err, Error::Call(err) if err == BLOCK_NOT_FOUND.into());
 
     // Ask for an invalid block number.
     let err = module
-        .call::<_, Block>(
-            method_name,
-            [BlockId::HashOrNumber(BlockHashOrNumber::Number(BlockNumber(1)))],
-        )
+        .call::<_, Block>(method_name, [BlockId::HashOrNumber(BlockHashOrNumber::Number(
+            BlockNumber(1),
+        ))])
         .await
         .unwrap_err();
     assert_matches!(err, Error::Call(err) if err == BLOCK_NOT_FOUND.into());
@@ -648,10 +639,9 @@ async fn get_block_w_full_transactions_and_receipts() {
 
     // Get block by number.
     let block = module
-        .call::<_, Block>(
-            method_name,
-            [BlockId::HashOrNumber(BlockHashOrNumber::Number(block_number))],
-        )
+        .call::<_, Block>(method_name, [BlockId::HashOrNumber(BlockHashOrNumber::Number(
+            block_number,
+        ))])
         .await
         .unwrap();
     assert_eq!(block.header, expected_block_header);
@@ -676,22 +666,18 @@ async fn get_block_w_full_transactions_and_receipts() {
 
     // Ask for an invalid block hash.
     let err = module
-        .call::<_, Block>(
-            method_name,
-            [BlockId::HashOrNumber(BlockHashOrNumber::Hash(BlockHash(felt!(
-                "0x642b629ad8ce233b55798c83bb629a59bf0a0092f67da28d6d66776680d5484"
-            ))))],
-        )
+        .call::<_, Block>(method_name, [BlockId::HashOrNumber(BlockHashOrNumber::Hash(BlockHash(
+            felt!("0x642b629ad8ce233b55798c83bb629a59bf0a0092f67da28d6d66776680d5484"),
+        )))])
         .await
         .unwrap_err();
     assert_matches!(err, Error::Call(err) if err == BLOCK_NOT_FOUND.into());
 
     // Ask for an invalid block number.
     let err = module
-        .call::<_, Block>(
-            method_name,
-            [BlockId::HashOrNumber(BlockHashOrNumber::Number(BlockNumber(1)))],
-        )
+        .call::<_, Block>(method_name, [BlockId::HashOrNumber(BlockHashOrNumber::Number(
+            BlockNumber(1),
+        ))])
         .await
         .unwrap_err();
     assert_matches!(err, Error::Call(err) if err == BLOCK_NOT_FOUND.into());
@@ -843,10 +829,9 @@ async fn get_block_w_transaction_hashes() {
 
     // Get block by number.
     let block = module
-        .call::<_, Block>(
-            method_name,
-            [BlockId::HashOrNumber(BlockHashOrNumber::Number(expected_block_header.block_number))],
-        )
+        .call::<_, Block>(method_name, [BlockId::HashOrNumber(BlockHashOrNumber::Number(
+            expected_block_header.block_number,
+        ))])
         .await
         .unwrap();
     assert_eq!(block, expected_block);
@@ -864,10 +849,9 @@ async fn get_block_w_transaction_hashes() {
         .commit()
         .unwrap();
     let block = module
-        .call::<_, Block>(
-            method_name,
-            [BlockId::HashOrNumber(BlockHashOrNumber::Hash(expected_block_header.block_hash))],
-        )
+        .call::<_, Block>(method_name, [BlockId::HashOrNumber(BlockHashOrNumber::Hash(
+            expected_block_header.block_hash,
+        ))])
         .await
         .unwrap();
     assert_eq!(block.status, Some(BlockStatus::AcceptedOnL1));
@@ -887,10 +871,9 @@ async fn get_block_w_transaction_hashes() {
 
     // Ask for an invalid block number.
     let err = module
-        .call::<_, Block>(
-            method_name,
-            [BlockId::HashOrNumber(BlockHashOrNumber::Number(BlockNumber(1)))],
-        )
+        .call::<_, Block>(method_name, [BlockId::HashOrNumber(BlockHashOrNumber::Number(
+            BlockNumber(1),
+        ))])
         .await
         .unwrap_err();
     assert_matches!(err, Error::Call(err) if err == BLOCK_NOT_FOUND.into());
@@ -1197,10 +1180,9 @@ async fn get_transaction_status() {
     assert_eq!(res.unwrap(), expected_status);
     assert!(validate_schema(
         &get_starknet_spec_api_schema_for_method_results(
-            &[(
-                SpecFile::StarknetApiOpenrpc,
-                &[method_name_to_spec_method_name(method_name).as_str()]
-            )],
+            &[(SpecFile::StarknetApiOpenrpc, &[
+                method_name_to_spec_method_name(method_name).as_str()
+            ])],
             &VERSION,
         ),
         &json_response["result"],
@@ -1233,20 +1215,17 @@ async fn get_transaction_status() {
         pending_block.transactions_mutable().push(client_transaction.clone());
         pending_block.transaction_receipts_mutable().push(client_transaction_receipt.clone());
     }
-    let (json_response, result) = raw_call::<_, _, TransactionStatus>(
-        &module,
-        method_name,
-        &[client_transaction_receipt.transaction_hash],
-    )
+    let (json_response, result) = raw_call::<_, _, TransactionStatus>(&module, method_name, &[
+        client_transaction_receipt.transaction_hash,
+    ])
     .await;
     assert_eq!(result.unwrap(), expected_status);
     // Validating schema again since pending has a different schema
     assert!(validate_schema(
         &get_starknet_spec_api_schema_for_method_results(
-            &[(
-                SpecFile::StarknetApiOpenrpc,
-                &[method_name_to_spec_method_name(method_name).as_str()]
-            )],
+            &[(SpecFile::StarknetApiOpenrpc, &[
+                method_name_to_spec_method_name(method_name).as_str()
+            ])],
             &VERSION,
         ),
         &json_response["result"],
@@ -1255,11 +1234,9 @@ async fn get_transaction_status() {
     // Ask for transaction status when the pending block is not up to date.
     *pending_data.write().await.block.parent_block_hash_mutable() =
         BlockHash(random::<u64>().into());
-    let (_, res) = raw_call::<_, _, TransactionStatus>(
-        &module,
-        method_name,
-        &[client_transaction_receipt.transaction_hash],
-    )
+    let (_, res) = raw_call::<_, _, TransactionStatus>(&module, method_name, &[
+        client_transaction_receipt.transaction_hash,
+    ])
     .await;
     assert_eq!(res.unwrap_err(), TRANSACTION_HASH_NOT_FOUND.into());
 
@@ -1353,12 +1330,11 @@ async fn get_transaction_receipt() {
     }
 
     let expected_result = GeneralTransactionReceipt::PendingTransactionReceipt(expected_receipt);
-    let (json_response, result) = raw_call::<_, _, PendingTransactionReceipt>(
-        &module,
-        method_name,
-        &[client_transaction_receipt.transaction_hash],
-    )
-    .await;
+    let (json_response, result) =
+        raw_call::<_, _, PendingTransactionReceipt>(&module, method_name, &[
+            client_transaction_receipt.transaction_hash,
+        ])
+        .await;
     // See above for explanation why we compare the json strings.
     assert_eq!(
         serde_json::to_value(result.unwrap()).unwrap(),
@@ -1367,10 +1343,9 @@ async fn get_transaction_receipt() {
     // Validating schema again since pending has a different schema
     assert!(validate_schema(
         &get_starknet_spec_api_schema_for_method_results(
-            &[(
-                SpecFile::StarknetApiOpenrpc,
-                &[method_name_to_spec_method_name(method_name).as_str()]
-            )],
+            &[(SpecFile::StarknetApiOpenrpc, &[
+                method_name_to_spec_method_name(method_name).as_str()
+            ])],
             &VERSION,
         ),
         &json_response["result"],
@@ -1379,11 +1354,9 @@ async fn get_transaction_receipt() {
     // Ask for transaction receipt when the pending block is not up to date.
     *pending_data.write().await.block.parent_block_hash_mutable() =
         BlockHash(random::<u64>().into());
-    let (_, res) = raw_call::<_, _, TransactionReceipt>(
-        &module,
-        method_name,
-        &[client_transaction_receipt.transaction_hash],
-    )
+    let (_, res) = raw_call::<_, _, TransactionReceipt>(&module, method_name, &[
+        client_transaction_receipt.transaction_hash,
+    ])
     .await;
     assert_eq!(res.unwrap_err(), TRANSACTION_HASH_NOT_FOUND.into());
 
@@ -2151,16 +2124,11 @@ fn generate_client_transaction_client_receipt_rpc_transaction_and_rpc_receipt(
     };
     // rpc_transaction contains no hash so no need to change it.
     *client_transaction.transaction_hash_mut() = pending_transaction_hash;
-    (
-        client_transaction,
-        client_transaction_receipt,
-        rpc_transaction,
-        PendingTransactionReceipt {
-            finality_status: PendingTransactionFinalityStatus::AcceptedOnL2,
-            transaction_hash: pending_transaction_hash,
-            output,
-        },
-    )
+    (client_transaction, client_transaction_receipt, rpc_transaction, PendingTransactionReceipt {
+        finality_status: PendingTransactionFinalityStatus::AcceptedOnL2,
+        transaction_hash: pending_transaction_hash,
+        output,
+    })
 }
 
 fn generate_client_transaction_and_rpc_transaction(
@@ -2179,10 +2147,10 @@ fn generate_client_transaction_and_rpc_transaction(
             continue;
         };
         let transaction_hash = client_transaction.transaction_hash();
-        break (
-            client_transaction,
-            TransactionWithHash { transaction: rpc_transaction, transaction_hash },
-        );
+        break (client_transaction, TransactionWithHash {
+            transaction: rpc_transaction,
+            transaction_hash,
+        });
     }
 }
 
@@ -2470,12 +2438,9 @@ async fn get_state_update() {
 
     // Get state update by block number.
     let res = module
-        .call::<_, StateUpdate>(
-            method_name,
-            [BlockId::HashOrNumber(BlockHashOrNumber::Number(
-                header.block_header_without_hash.block_number,
-            ))],
-        )
+        .call::<_, StateUpdate>(method_name, [BlockId::HashOrNumber(BlockHashOrNumber::Number(
+            header.block_header_without_hash.block_number,
+        ))])
         .await
         .unwrap();
     assert_eq!(res, expected_update);
@@ -2566,10 +2531,9 @@ async fn get_state_update() {
 
     // Ask for an invalid block number.
     let err = module
-        .call::<_, StateUpdate>(
-            method_name,
-            [BlockId::HashOrNumber(BlockHashOrNumber::Number(BlockNumber(2)))],
-        )
+        .call::<_, StateUpdate>(method_name, [BlockId::HashOrNumber(BlockHashOrNumber::Number(
+            BlockNumber(2),
+        ))])
         .await
         .unwrap_err();
     assert_matches!(err, Error::Call(err) if err == BLOCK_NOT_FOUND.into());
@@ -3400,19 +3364,16 @@ async fn serialize_returns_valid_json() {
     .unwrap();
 
     let schema = get_starknet_spec_api_schema_for_components(
-        &[(
-            SpecFile::StarknetApiOpenrpc,
-            &[
-                "BLOCK_WITH_TXS",
-                "BLOCK_WITH_TX_HASHES",
-                "STATE_UPDATE",
-                "CONTRACT_CLASS",
-                "DEPRECATED_CONTRACT_CLASS",
-                "TXN",
-                "TXN_RECEIPT",
-                "EVENTS_CHUNK",
-            ],
-        )],
+        &[(SpecFile::StarknetApiOpenrpc, &[
+            "BLOCK_WITH_TXS",
+            "BLOCK_WITH_TX_HASHES",
+            "STATE_UPDATE",
+            "CONTRACT_CLASS",
+            "DEPRECATED_CONTRACT_CLASS",
+            "TXN",
+            "TXN_RECEIPT",
+            "EVENTS_CHUNK",
+        ])],
         &VERSION,
     );
     validate_state(&state_diff, server_address, &schema).await;
@@ -3557,14 +3518,10 @@ async fn get_deprecated_class_state_mutability() {
         .unwrap()
         .append_state_diff(header.block_header_without_hash.block_number, state_diff)
         .unwrap()
-        .append_classes(
-            header.block_header_without_hash.block_number,
-            &[],
-            &[
-                (class_hash!("0x0"), &class_without_state_mutability),
-                (class_hash!("0x1"), &class_with_state_mutability),
-            ],
-        )
+        .append_classes(header.block_header_without_hash.block_number, &[], &[
+            (class_hash!("0x0"), &class_without_state_mutability),
+            (class_hash!("0x1"), &class_with_state_mutability),
+        ])
         .unwrap()
         .commit()
         .unwrap();

@@ -7,7 +7,7 @@ use test_case::test_case;
 
 use super::Round;
 use crate::state_machine::{StateMachine, StateMachineEvent};
-use crate::types::{ProposalContentId, ValidatorId, DEFAULT_VALIDATOR_ID};
+use crate::types::{DEFAULT_VALIDATOR_ID, ProposalContentId, ValidatorId};
 
 lazy_static! {
     static ref PROPOSER_ID: ValidatorId = DEFAULT_VALIDATOR_ID.into();

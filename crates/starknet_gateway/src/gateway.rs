@@ -11,7 +11,7 @@ use starknet_mempool_types::communication::{AddTransactionArgsWrapper, SharedMem
 use starknet_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_sierra_compile::config::SierraToCasmCompilationConfig;
-use tracing::{error, instrument, Span};
+use tracing::{Span, error, instrument};
 
 use crate::compilation::GatewayCompiler;
 use crate::config::{GatewayConfig, RpcStateReaderConfig};

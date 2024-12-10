@@ -19,17 +19,17 @@ use lru::LruCache;
 use mockall::automock;
 use papyrus_common::pending_classes::ApiContractClass;
 use papyrus_config::converters::{deserialize_optional_map, serialize_optional_map};
-use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig};
+use papyrus_config::dumping::{SerializeConfig, append_sub_config_name, ser_param};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::{StorageError, StorageReader};
 use serde::{Deserialize, Serialize};
+use starknet_api::StarknetApiError;
 use starknet_api::block::{Block, BlockHash, BlockHashAndNumber, BlockNumber, BlockSignature};
 use starknet_api::core::{ClassHash, CompiledClassHash, SequencerPublicKey};
 use starknet_api::crypto::utils::Signature;
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::StateDiff;
-use starknet_api::StarknetApiError;
 use starknet_client::reader::{
     BlockSignatureData, ReaderClientError, StarknetFeederGatewayClient, StarknetReader,
 };

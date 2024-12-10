@@ -4,9 +4,9 @@ use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::core::{ClassHash, ContractAddress};
 
+use crate::concurrency::TxIndex;
 use crate::concurrency::test_utils::{class_hash, contract_address};
 use crate::concurrency::versioned_storage::VersionedStorage;
-use crate::concurrency::TxIndex;
 
 // TODO(barak, 01/07/2024): Split into test_read() and test_write().
 #[test]

@@ -10,7 +10,6 @@
     },
     "invoke_tx_max_n_steps": 10000000,
     "execute_max_sierra_gas": 1000000000,
-    "execute_max_sierra_gas": 1000000000,
     "deprecated_l2_resource_gas_costs": {
         "gas_per_data_felt": [
             128,
@@ -41,7 +40,6 @@
     },
     "disable_cairo0_redeclaration": true,
     "enable_stateful_compression": true,
-    "comprehensive_state_diff": true,
     "comprehensive_state_diff": true,
     "allocation_cost": {
         "blob_cost": {
@@ -94,7 +92,6 @@
             "reserved_contract_address": 3
         },
         "range_check_gas_cost": 70,
-        "keccak_builtin_gas_cost": 136189,
         "keccak_builtin_gas_cost": 136189,
         "pedersen_gas_cost": 4050,
         "bitwise_builtin_gas_cost": 583,
@@ -615,7 +612,6 @@
         }
     },
     "validate_max_n_steps": 1000000,
-    "validate_max_sierra_gas": 100000000,
     "validate_max_sierra_gas": 100000000,
     "min_compiler_version_for_sierra_gas": "2.8.0",
     "vm_resource_fee_cost": {

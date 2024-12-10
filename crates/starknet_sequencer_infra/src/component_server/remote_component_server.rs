@@ -7,12 +7,12 @@ use hyper::body::to_bytes;
 use hyper::header::CONTENT_TYPE;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request as HyperRequest, Response as HyperResponse, Server, StatusCode};
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 
 use crate::component_client::{ClientError, LocalComponentClient};
 use crate::component_definitions::{
-    ComponentClient, RemoteServerConfig, ServerError, APPLICATION_OCTET_STREAM,
+    APPLICATION_OCTET_STREAM, ComponentClient, RemoteServerConfig, ServerError,
 };
 use crate::component_server::ComponentServerStarter;
 use crate::errors::ComponentServerError;

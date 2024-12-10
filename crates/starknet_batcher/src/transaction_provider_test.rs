@@ -4,7 +4,7 @@ use assert_matches::assert_matches;
 use mockall::predicate::eq;
 use rstest::{fixture, rstest};
 use starknet_api::executable_transaction::{L1HandlerTransaction, Transaction};
-use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
+use starknet_api::test_utils::invoke::{InvokeTxArgs, executable_invoke_tx};
 use starknet_api::tx_hash;
 use starknet_mempool_types::communication::MockMempoolClient;
 
@@ -139,12 +139,16 @@ async fn no_more_l1_handler(mut mock_dependencies: MockDependencies) {
 
     let txs = tx_provider.get_txs(MAX_TXS_PER_FETCH).await.unwrap();
     let data = assert_matches!(txs, NextTxs::Txs(txs) if txs.len() == MAX_TXS_PER_FETCH => txs);
-    assert!(data[..NUM_L1_HANDLER_TXS_IN_PROVIDER]
-        .iter()
-        .all(|tx| matches!(tx, Transaction::L1Handler(_))));
-    assert!(data[NUM_L1_HANDLER_TXS_IN_PROVIDER..]
-        .iter()
-        .all(|tx| { matches!(tx, Transaction::Account(_)) }));
+    assert!(
+        data[..NUM_L1_HANDLER_TXS_IN_PROVIDER]
+            .iter()
+            .all(|tx| matches!(tx, Transaction::L1Handler(_)))
+    );
+    assert!(
+        data[NUM_L1_HANDLER_TXS_IN_PROVIDER..]
+            .iter()
+            .all(|tx| { matches!(tx, Transaction::Account(_)) })
+    );
 
     let txs = tx_provider.get_txs(MAX_TXS_PER_FETCH).await.unwrap();
     let data = assert_matches!(txs, NextTxs::Txs(txs) if txs.len() == MAX_TXS_PER_FETCH => txs);

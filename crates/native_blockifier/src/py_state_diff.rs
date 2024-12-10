@@ -9,8 +9,8 @@ use blockifier::test_utils::{
 };
 use blockifier::versioned_constants::VersionedConstants;
 use indexmap::IndexMap;
-use pyo3::prelude::*;
 use pyo3::FromPyObject;
+use pyo3::prelude::*;
 use starknet_api::block::{BlockInfo, BlockNumber, BlockTimestamp, NonzeroGasPrice};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::state::{StateDiff, StorageKey};

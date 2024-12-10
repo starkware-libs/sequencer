@@ -1,17 +1,18 @@
 use assert_matches::assert_matches;
 use rstest::rstest;
 use starknet_api::executable_transaction::AccountTransaction as Transaction;
-use starknet_api::transaction::fields::ValidResourceBounds;
 use starknet_api::transaction::TransactionVersion;
+use starknet_api::transaction::fields::ValidResourceBounds;
 
 use crate::blockifier::stateful_validator::StatefulValidator;
 use crate::context::BlockContext;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::{fund_account, test_state};
-use crate::test_utils::{CairoVersion, RunnableCairo1, BALANCE};
+use crate::test_utils::{BALANCE, CairoVersion, RunnableCairo1};
 use crate::transaction::test_utils::{
-    block_context, create_account_tx_for_validate_test_nonce_0, default_all_resource_bounds,
-    default_l1_resource_bounds, FaultyAccountTxCreatorArgs, INVALID, VALID,
+    FaultyAccountTxCreatorArgs, INVALID, VALID, block_context,
+    create_account_tx_for_validate_test_nonce_0, default_all_resource_bounds,
+    default_l1_resource_bounds,
 };
 use crate::transaction::transaction_types::TransactionType;
 

@@ -11,7 +11,7 @@ use alloy_sol_types::sol_data;
 use alloy_transport::TransportErrorKind;
 use alloy_transport_http::{Client, Http};
 use async_trait::async_trait;
-use papyrus_config::dumping::{ser_param, ser_required_param, SerializeConfig};
+use papyrus_config::dumping::{SerializeConfig, ser_param, ser_required_param};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializationType, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockNumber};

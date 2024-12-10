@@ -2,9 +2,9 @@ use pretty_assertions::assert_eq;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::felt;
 
+use crate::BaseLayerContract;
 use crate::ethereum_base_layer_contract::{EthereumBaseLayerConfig, EthereumBaseLayerContract};
 use crate::test_utils::get_test_ethereum_node;
-use crate::BaseLayerContract;
 
 // TODO: move to global test_utils crate and use everywhere instead of relying on the
 // confusing `#[ignore]` api to mark slow tests.

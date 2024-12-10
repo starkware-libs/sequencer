@@ -17,10 +17,10 @@ use validator::Validate;
 use crate::command::{get_command_matches, update_config_map_by_command_args};
 use crate::converters::deserialize_milliseconds_to_duration;
 use crate::dumping::{
-    append_sub_config_name, combine_config_map_and_pointers, generate_struct_pointer,
-    required_param_description, ser_generated_param, ser_optional_param, ser_optional_sub_config,
-    ser_param, ser_pointer_target_param, ser_pointer_target_required_param, ser_required_param,
-    set_pointing_param_paths, SerializeConfig,
+    SerializeConfig, append_sub_config_name, combine_config_map_and_pointers,
+    generate_struct_pointer, required_param_description, ser_generated_param, ser_optional_param,
+    ser_optional_sub_config, ser_param, ser_pointer_target_param,
+    ser_pointer_target_required_param, ser_required_param, set_pointing_param_paths,
 };
 use crate::loading::{
     load, load_and_process_config, split_pointers_map, split_values_and_types,
@@ -784,10 +784,10 @@ fn deeply_nested_optionals() {
         vec!["Testing".to_owned(), "--level1.#is_none".to_owned(), "false".to_owned()],
     )
     .unwrap();
-    assert_eq!(
-        l1,
-        Level0 { level0_value: 1, level1: Some(Level1 { level1_value: 0, level2: None }) }
-    );
+    assert_eq!(l1, Level0 {
+        level0_value: 1,
+        level1: Some(Level1 { level1_value: 0, level2: None })
+    });
 
     let l2 = load_and_process_config::<Level0>(
         File::open(file_path.clone()).unwrap(),
@@ -801,13 +801,10 @@ fn deeply_nested_optionals() {
         ],
     )
     .unwrap();
-    assert_eq!(
-        l2,
-        Level0 {
-            level0_value: 1,
-            level1: Some(Level1 { level1_value: 0, level2: Some(Level2 { level2_value: None }) }),
-        }
-    );
+    assert_eq!(l2, Level0 {
+        level0_value: 1,
+        level1: Some(Level1 { level1_value: 0, level2: Some(Level2 { level2_value: None }) }),
+    });
 
     let l2_value = load_and_process_config::<Level0>(
         File::open(file_path).unwrap(),
@@ -823,14 +820,8 @@ fn deeply_nested_optionals() {
         ],
     )
     .unwrap();
-    assert_eq!(
-        l2_value,
-        Level0 {
-            level0_value: 1,
-            level1: Some(Level1 {
-                level1_value: 0,
-                level2: Some(Level2 { level2_value: Some(1) }),
-            }),
-        }
-    );
+    assert_eq!(l2_value, Level0 {
+        level0_value: 1,
+        level1: Some(Level1 { level1_value: 0, level2: Some(Level2 { level2_value: Some(1) }) }),
+    });
 }

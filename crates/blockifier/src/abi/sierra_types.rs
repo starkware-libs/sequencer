@@ -4,9 +4,9 @@ use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use num_bigint::{BigUint, ToBigUint};
 use num_traits::ToPrimitive;
+use starknet_api::StarknetApiError;
 use starknet_api::core::ContractAddress;
 use starknet_api::state::StorageKey;
-use starknet_api::StarknetApiError;
 use starknet_types_core::felt::Felt;
 use thiserror::Error;
 

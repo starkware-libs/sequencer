@@ -9,7 +9,7 @@ use crate::execution::syscalls::syscall_tests::constants::REQUIRED_GAS_GET_CLASS
 use crate::retdata;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, RunnableCairo1, BALANCE};
+use crate::test_utils::{BALANCE, CairoVersion, RunnableCairo1, trivial_external_entry_point_new};
 
 /// Tests the `get_class_hash_at` syscall, ensuring that:
 /// 1. `accessed_contract_addresses` contains `address` for a valid entry.
@@ -36,15 +36,12 @@ fn test_get_class_hash_at(runnable_version: RunnableCairo1) {
     let positive_call_info = positive_entry_point_call.execute_directly(&mut state).unwrap();
     assert!(positive_call_info.accessed_contract_addresses.contains(&address));
     assert!(positive_call_info.read_class_hash_values[0] == class_hash);
-    assert_eq!(
-        positive_call_info.execution,
-        CallExecution {
-            retdata: retdata!(),
-            gas_consumed: REQUIRED_GAS_GET_CLASS_HASH_AT_TEST,
-            failed: false,
-            ..CallExecution::default()
-        }
-    );
+    assert_eq!(positive_call_info.execution, CallExecution {
+        retdata: retdata!(),
+        gas_consumed: REQUIRED_GAS_GET_CLASS_HASH_AT_TEST,
+        failed: false,
+        ..CallExecution::default()
+    });
     // Test undeployed contract - should return class_hash = 0 and succeed.
     let non_existing_address = felt!("0x333");
     let class_hash_of_undeployed_contract = felt!("0x0");

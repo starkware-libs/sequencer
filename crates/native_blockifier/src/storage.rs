@@ -17,10 +17,10 @@ use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContract
 use starknet_api::hash::StarkHash;
 use starknet_api::state::{SierraContractClass, StateDiff, StateNumber, ThinStateDiff};
 
+use crate::PyStateDiff;
 use crate::errors::NativeBlockifierResult;
 use crate::py_state_diff::PyBlockInfo;
-use crate::py_utils::{int_to_chain_id, PyFelt};
-use crate::PyStateDiff;
+use crate::py_utils::{PyFelt, int_to_chain_id};
 
 const GENESIS_BLOCK_ID: u64 = u64::MAX;
 

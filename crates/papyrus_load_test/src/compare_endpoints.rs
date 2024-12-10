@@ -1,5 +1,5 @@
 use std::env::var;
-use std::fs::{create_dir, remove_dir_all, File};
+use std::fs::{File, create_dir, remove_dir_all};
 use std::io::Write;
 use std::path::Path;
 

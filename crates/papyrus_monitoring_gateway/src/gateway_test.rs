@@ -1,20 +1,20 @@
 use std::net::{SocketAddr, TcpListener};
 use std::sync::Arc;
 
+use axum::Router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use axum::response::Response;
-use axum::Router;
 use metrics::{absolute_counter, describe_counter, register_counter};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use papyrus_storage::{table_names, test_utils};
 use pretty_assertions::assert_eq;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use starknet_client::reader::MockStarknetReader;
 use starknet_client::writer::MockStarknetWriter;
 use tower::ServiceExt;
 
-use crate::{app, is_ready, MONITORING_PREFIX};
+use crate::{MONITORING_PREFIX, app, is_ready};
 
 const TEST_CONFIG_PRESENTATION: &str = "full_general_config_presentation";
 const PUBLIC_TEST_CONFIG_PRESENTATION: &str = "public_general_config_presentation";

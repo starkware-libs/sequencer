@@ -216,11 +216,10 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
                 });
 
                 let hash = TH::compute_node_hash(&data);
-                Self::write_to_output_map(
-                    filled_tree_output_map,
-                    index,
-                    FilledNode { hash, data },
-                )?;
+                Self::write_to_output_map(filled_tree_output_map, index, FilledNode {
+                    hash,
+                    data,
+                })?;
                 Ok(hash)
             }
             UpdatedSkeletonNode::Edge(path_to_bottom) => {
@@ -237,11 +236,10 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
                 let data =
                     NodeData::Edge(EdgeData { path_to_bottom: *path_to_bottom, bottom_hash });
                 let hash = TH::compute_node_hash(&data);
-                Self::write_to_output_map(
-                    filled_tree_output_map,
-                    index,
-                    FilledNode { hash, data },
-                )?;
+                Self::write_to_output_map(filled_tree_output_map, index, FilledNode {
+                    hash,
+                    data,
+                })?;
                 Ok(hash)
             }
             UpdatedSkeletonNode::UnmodifiedSubTree(hash_result) => Ok(*hash_result),
@@ -254,11 +252,10 @@ impl<L: Leaf + 'static> FilledTreeImpl<L> {
                 }
                 let data = NodeData::Leaf(leaf_data);
                 let hash = TH::compute_node_hash(&data);
-                Self::write_to_output_map(
-                    filled_tree_output_map,
-                    index,
-                    FilledNode { hash, data },
-                )?;
+                Self::write_to_output_map(filled_tree_output_map, index, FilledNode {
+                    hash,
+                    data,
+                })?;
                 if let Some(output) = leaf_output {
                     Self::write_to_output_map(leaf_index_to_leaf_output, index, output)?
                 };

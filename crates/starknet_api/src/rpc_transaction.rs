@@ -7,9 +7,10 @@ use std::collections::HashMap;
 use cairo_lang_starknet_classes::contract_class::ContractEntryPoints as CairoLangContractEntryPoints;
 use serde::{Deserialize, Serialize};
 
+use crate::StarknetApiError;
 use crate::contract_class::EntryPointType;
 use crate::core::{
-    calculate_contract_address, ClassHash, CompiledClassHash, ContractAddress, Nonce,
+    ClassHash, CompiledClassHash, ContractAddress, Nonce, calculate_contract_address,
 };
 use crate::data_availability::DataAvailabilityMode;
 use crate::state::{EntryPoint, SierraContractClass};
@@ -21,7 +22,6 @@ use crate::transaction::{
     DeclareTransaction, DeclareTransactionV3, DeployAccountTransaction, DeployAccountTransactionV3,
     InvokeTransaction, InvokeTransactionV3, Transaction,
 };
-use crate::StarknetApiError;
 
 /// Transactions that are ready to be broadcasted to the network through RPC and are not included in
 /// a block.

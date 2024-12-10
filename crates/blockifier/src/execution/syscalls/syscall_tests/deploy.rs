@@ -13,7 +13,7 @@ use crate::state::state_api::StateReader;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{
-    calldata_for_deploy_test, trivial_external_entry_point_new, CairoVersion, RunnableCairo1,
+    CairoVersion, RunnableCairo1, calldata_for_deploy_test, trivial_external_entry_point_new,
 };
 
 #[test_case(RunnableCairo1::Casm;"VM")]
@@ -24,11 +24,10 @@ fn no_constructor(runnable_version: RunnableCairo1) {
     let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1(runnable_version));
     let class_hash = empty_contract.get_class_hash();
 
-    let mut state = test_state(
-        &ChainInfo::create_for_testing(),
-        Fee(0),
-        &[(deployer_contract, 1), (empty_contract, 0)],
-    );
+    let mut state = test_state(&ChainInfo::create_for_testing(), Fee(0), &[
+        (deployer_contract, 1),
+        (empty_contract, 0),
+    ]);
 
     let calldata = calldata_for_deploy_test(class_hash, &[], true);
     let entry_point_call = CallEntryPoint {
@@ -38,10 +37,11 @@ fn no_constructor(runnable_version: RunnableCairo1) {
     };
 
     let deploy_call = &entry_point_call.execute_directly(&mut state).unwrap();
-    assert_eq!(
-        deploy_call.execution,
-        CallExecution { retdata: retdata![], gas_consumed: 155200, ..CallExecution::default() }
-    );
+    assert_eq!(deploy_call.execution, CallExecution {
+        retdata: retdata![],
+        gas_consumed: 155200,
+        ..CallExecution::default()
+    });
 
     let deployed_contract_address = calculate_contract_address(
         ContractAddressSalt::default(),
@@ -54,10 +54,11 @@ fn no_constructor(runnable_version: RunnableCairo1) {
     let constructor_call = &deploy_call.inner_calls[0];
 
     assert_eq!(constructor_call.call.storage_address, deployed_contract_address);
-    assert_eq!(
-        constructor_call.execution,
-        CallExecution { retdata: retdata![], gas_consumed: 0, ..CallExecution::default() }
-    );
+    assert_eq!(constructor_call.execution, CallExecution {
+        retdata: retdata![],
+        gas_consumed: 0,
+        ..CallExecution::default()
+    });
     assert_eq!(state.get_class_hash_at(deployed_contract_address).unwrap(), class_hash);
 }
 
@@ -68,11 +69,10 @@ fn no_constructor_nonempty_calldata(runnable_version: RunnableCairo1) {
     let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1(runnable_version));
     let class_hash = empty_contract.get_class_hash();
 
-    let mut state = test_state(
-        &ChainInfo::create_for_testing(),
-        Fee(0),
-        &[(deployer_contract, 1), (empty_contract, 0)],
-    );
+    let mut state = test_state(&ChainInfo::create_for_testing(), Fee(0), &[
+        (deployer_contract, 1),
+        (empty_contract, 0),
+    ]);
 
     let calldata = calldata_for_deploy_test(class_hash, &[felt!(1_u8), felt!(1_u8)], true);
 
@@ -119,24 +119,22 @@ fn with_constructor(runnable_version: RunnableCairo1) {
     .unwrap();
 
     let deploy_call = &entry_point_call.execute_directly(&mut state).unwrap();
-    assert_eq!(
-        deploy_call.execution,
-        CallExecution { retdata: retdata![], gas_consumed: 164550, ..CallExecution::default() }
-    );
+    assert_eq!(deploy_call.execution, CallExecution {
+        retdata: retdata![],
+        gas_consumed: 164550,
+        ..CallExecution::default()
+    });
 
     let constructor_call = &deploy_call.inner_calls[0];
 
     assert_eq!(constructor_call.call.storage_address, contract_address);
-    assert_eq!(
-        constructor_call.execution,
-        CallExecution {
-            // The test contract constructor returns its first argument.
-            retdata: retdata![constructor_calldata[0]],
-            // This reflects the gas cost of storage write syscall.
-            gas_consumed: 4610,
-            ..CallExecution::default()
-        }
-    );
+    assert_eq!(constructor_call.execution, CallExecution {
+        // The test contract constructor returns its first argument.
+        retdata: retdata![constructor_calldata[0]],
+        // This reflects the gas cost of storage write syscall.
+        gas_consumed: 4610,
+        ..CallExecution::default()
+    });
     assert_eq!(state.get_class_hash_at(contract_address).unwrap(), class_hash);
 }
 

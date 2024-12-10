@@ -11,7 +11,7 @@ use crate::rpc_transaction::{
     RpcDeployAccountTransaction, RpcDeployAccountTransactionV3, RpcTransaction,
 };
 use crate::state::SierraContractClass;
-use crate::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
+use crate::test_utils::invoke::{InvokeTxArgs, rpc_invoke_tx};
 use crate::transaction::fields::{
     AccountDeploymentData, AllResourceBounds, Calldata, ContractAddressSalt, PaymasterData,
     ResourceBounds, Tip, TransactionSignature, ValidResourceBounds,

@@ -2,7 +2,7 @@ use ark_ec::short_weierstrass::{Affine, SWCurveConfig};
 use ark_ff::{BigInteger, PrimeField, Zero};
 use starknet_types_core::felt::Felt;
 
-use super::syscalls::hint_processor::{SyscallExecutionError, INVALID_ARGUMENT};
+use super::syscalls::hint_processor::{INVALID_ARGUMENT, SyscallExecutionError};
 
 pub fn get_point_from_x<Curve: SWCurveConfig>(
     x: num_bigint::BigUint,
@@ -17,11 +17,7 @@ where
     let maybe_ec_point = Affine::<Curve>::get_ys_from_x_unchecked(x)
         .map(|(smaller, greater)| {
             // Return the correct y coordinate based on the parity.
-            if smaller.into_bigint().is_odd() == y_parity {
-                smaller
-            } else {
-                greater
-            }
+            if smaller.into_bigint().is_odd() == y_parity { smaller } else { greater }
         })
         .map(|y| Affine::<Curve>::new_unchecked(x, y))
         .filter(|p| p.is_in_correct_subgroup_assuming_on_curve());

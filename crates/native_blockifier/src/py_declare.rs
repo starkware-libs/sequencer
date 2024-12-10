@@ -15,7 +15,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::errors::{NativeBlockifierInputError, NativeBlockifierResult};
 use crate::py_transaction::{PyClassInfo, PyDataAvailabilityMode, PyResourceBoundsMapping};
-use crate::py_utils::{from_py_felts, py_attr, PyFelt};
+use crate::py_utils::{PyFelt, from_py_felts, py_attr};
 
 #[derive(FromPyObject)]
 struct PyDeclareTransactionV0V1 {

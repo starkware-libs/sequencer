@@ -5,8 +5,8 @@ use std::collections::btree_map::Entry as BTreeEntry;
 use std::collections::hash_map::Entry as HashMapEntry;
 use std::collections::{BTreeMap, HashMap};
 
-use futures::channel::mpsc;
 use futures::StreamExt;
+use futures::channel::mpsc;
 use papyrus_network::network_manager::{
     BroadcastTopicClient, BroadcastTopicClientTrait, BroadcastTopicServer,
 };

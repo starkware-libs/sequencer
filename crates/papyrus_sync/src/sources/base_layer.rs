@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 #[cfg(test)]
 use mockall::automock;
-use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
 use papyrus_base_layer::BaseLayerContract;
+use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
 use starknet_api::block::{BlockHash, BlockNumber};
 
 pub type EthereumBaseLayerSource = EthereumBaseLayerContract;
@@ -29,9 +29,9 @@ pub trait BaseLayerSourceTrait {
 
 #[async_trait]
 impl<
-        Error: std::error::Error + 'static + Sync + Send,
-        BaseLayerSource: BaseLayerContract<Error = Error> + Sync + Send,
-    > BaseLayerSourceTrait for BaseLayerSource
+    Error: std::error::Error + 'static + Sync + Send,
+    BaseLayerSource: BaseLayerContract<Error = Error> + Sync + Send,
+> BaseLayerSourceTrait for BaseLayerSource
 {
     async fn latest_proved_block(
         &self,

@@ -4,7 +4,7 @@ use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::state::SierraContractClass;
-use starknet_api::test_utils::declare::{rpc_declare_tx, TEST_SENDER_ADDRESS};
+use starknet_api::test_utils::declare::{TEST_SENDER_ADDRESS, rpc_declare_tx};
 use starknet_api::test_utils::deploy_account::rpc_deploy_account_tx;
 use starknet_api::test_utils::invoke::rpc_invoke_tx;
 use starknet_api::transaction::fields::{

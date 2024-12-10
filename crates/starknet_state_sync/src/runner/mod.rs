@@ -2,13 +2,13 @@
 mod test;
 
 use async_trait::async_trait;
-use futures::future::BoxFuture;
 use futures::FutureExt;
+use futures::future::BoxFuture;
 use papyrus_network::network_manager::{self, NetworkError};
 use papyrus_p2p_sync::client::{P2PSyncClient, P2PSyncClientChannels, P2PSyncClientError};
 use papyrus_p2p_sync::server::{P2PSyncServer, P2PSyncServerChannels};
-use papyrus_p2p_sync::{Protocol, BUFFER_SIZE};
-use papyrus_storage::{open_storage, StorageReader};
+use papyrus_p2p_sync::{BUFFER_SIZE, Protocol};
+use papyrus_storage::{StorageReader, open_storage};
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_sequencer_infra::errors::ComponentError;
 

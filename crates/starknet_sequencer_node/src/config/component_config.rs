@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use papyrus_config::dumping::{append_sub_config_name, SerializeConfig};
+use papyrus_config::dumping::{SerializeConfig, append_sub_config_name};
 use papyrus_config::{ParamPath, SerializedParam};
 use serde::{Deserialize, Serialize};
 use validator::Validate;

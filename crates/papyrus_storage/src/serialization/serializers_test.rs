@@ -6,7 +6,7 @@ use std::path::Path;
 
 use cairo_lang_casm::hints::CoreHintBase;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
-use papyrus_test_utils::{get_rng, GetTestInstance};
+use papyrus_test_utils::{GetTestInstance, get_rng};
 use pretty_assertions::assert_eq;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ContractAddress;

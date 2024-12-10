@@ -15,7 +15,7 @@ use starknet_api::state::{DeclaredClasses, DeprecatedDeclaredClasses};
 use super::stream_builder::{
     BadPeerError, BlockData, BlockNumberLimit, DataStreamBuilder, ParseDataError,
 };
-use super::{P2PSyncClientError, NETWORK_DATA_TIMEOUT};
+use super::{NETWORK_DATA_TIMEOUT, P2PSyncClientError};
 
 impl BlockData for (DeclaredClasses, DeprecatedDeclaredClasses, BlockNumber) {
     fn write_to_storage(

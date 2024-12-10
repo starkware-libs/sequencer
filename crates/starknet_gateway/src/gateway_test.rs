@@ -6,7 +6,7 @@ use blockifier::test_utils::{CairoVersion, RunnableCairo1};
 use mempool_test_utils::starknet_api_test_utils::{declare_tx, invoke_tx};
 use mockall::predicate::eq;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
-use papyrus_test_utils::{get_rng, GetTestInstance};
+use papyrus_test_utils::{GetTestInstance, get_rng};
 use rstest::{fixture, rstest};
 use starknet_api::core::{ChainId, CompiledClassHash, ContractAddress};
 use starknet_api::executable_transaction::{AccountTransaction, InvokeTransaction};
@@ -21,7 +21,7 @@ use crate::config::{
     GatewayConfig, StatefulTransactionValidatorConfig, StatelessTransactionValidatorConfig,
 };
 use crate::gateway::Gateway;
-use crate::state_reader_test_utils::{local_test_state_reader_factory, TestStateReaderFactory};
+use crate::state_reader_test_utils::{TestStateReaderFactory, local_test_state_reader_factory};
 
 #[fixture]
 fn config() -> GatewayConfig {

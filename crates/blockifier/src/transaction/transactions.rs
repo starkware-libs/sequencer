@@ -11,7 +11,7 @@ use starknet_api::transaction::fields::{
     AccountDeploymentData, Calldata, Fee, TransactionSignature,
 };
 use starknet_api::transaction::{
-    constants, DeclareTransactionV2, DeclareTransactionV3, TransactionVersion,
+    DeclareTransactionV2, DeclareTransactionV3, TransactionVersion, constants,
 };
 
 use crate::context::{BlockContext, TransactionContext};

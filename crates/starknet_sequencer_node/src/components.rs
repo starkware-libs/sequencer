@@ -1,15 +1,15 @@
 use std::sync::Arc;
 
-use starknet_batcher::batcher::{create_batcher, Batcher};
+use starknet_batcher::batcher::{Batcher, create_batcher};
 use starknet_consensus_manager::consensus_manager::ConsensusManager;
-use starknet_gateway::gateway::{create_gateway, Gateway};
-use starknet_http_server::http_server::{create_http_server, HttpServer};
-use starknet_mempool::communication::{create_mempool, MempoolCommunicationWrapper};
+use starknet_gateway::gateway::{Gateway, create_gateway};
+use starknet_http_server::http_server::{HttpServer, create_http_server};
+use starknet_mempool::communication::{MempoolCommunicationWrapper, create_mempool};
 use starknet_mempool_p2p::create_p2p_propagator_and_runner;
 use starknet_mempool_p2p::propagator::MempoolP2pPropagator;
 use starknet_mempool_p2p::runner::MempoolP2pRunner;
 use starknet_monitoring_endpoint::monitoring_endpoint::{
-    create_monitoring_endpoint, MonitoringEndpoint,
+    MonitoringEndpoint, create_monitoring_endpoint,
 };
 use starknet_state_sync_types::communication::EmptyStateSyncClient;
 

@@ -7,7 +7,7 @@ use papyrus_protobuf::sync::{
     Query, StateDiffChunk,
 };
 use papyrus_storage::class::ClassStorageReader;
-use papyrus_test_utils::{get_rng, GetTestInstance};
+use papyrus_test_utils::{GetTestInstance, get_rng};
 use rand::{Rng, RngCore};
 use rand_chacha::ChaCha8Rng;
 use starknet_api::block::BlockNumber;
@@ -16,8 +16,8 @@ use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContract
 use starknet_api::state::SierraContractClass;
 
 use super::test_utils::{
-    setup, wait_for_marker, DataType, TestArgs, CLASS_DIFF_QUERY_LENGTH, HEADER_QUERY_LENGTH,
-    SLEEP_DURATION_TO_LET_SYNC_ADVANCE, TIMEOUT_FOR_TEST,
+    CLASS_DIFF_QUERY_LENGTH, DataType, HEADER_QUERY_LENGTH, SLEEP_DURATION_TO_LET_SYNC_ADVANCE,
+    TIMEOUT_FOR_TEST, TestArgs, setup, wait_for_marker,
 };
 use crate::client::state_diff_test::run_state_diff_sync;
 

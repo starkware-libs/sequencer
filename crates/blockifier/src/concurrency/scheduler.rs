@@ -2,8 +2,8 @@ use std::cmp::min;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Mutex, MutexGuard, TryLockError};
 
-use crate::concurrency::utils::lock_mutex_in_array;
 use crate::concurrency::TxIndex;
+use crate::concurrency::utils::lock_mutex_in_array;
 
 #[cfg(test)]
 #[path = "scheduler_test.rs"]

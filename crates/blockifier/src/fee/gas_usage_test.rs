@@ -21,7 +21,7 @@ use crate::fee::resources::{
 };
 use crate::state::cached_state::StateChangesCount;
 use crate::test_utils::{
-    get_vm_resource_usage, DEFAULT_ETH_L1_DATA_GAS_PRICE, DEFAULT_ETH_L1_GAS_PRICE,
+    DEFAULT_ETH_L1_DATA_GAS_PRICE, DEFAULT_ETH_L1_GAS_PRICE, get_vm_resource_usage,
 };
 use crate::transaction::test_utils::invoke_tx_with_default_flags;
 use crate::utils::u64_from_usize;
@@ -124,14 +124,16 @@ fn test_get_event_gas_cost(
             events: vec![create_event_for_testing(0, 1)],
             ..Default::default()
         },
-        inner_calls: vec![CallInfo {
-            execution: CallExecution {
-                events: vec![create_event_for_testing(5, 5)],
+        inner_calls: vec![
+            CallInfo {
+                execution: CallExecution {
+                    events: vec![create_event_for_testing(5, 5)],
+                    ..Default::default()
+                },
                 ..Default::default()
-            },
-            ..Default::default()
-        }
-        .with_some_class_hash()],
+            }
+            .with_some_class_hash(),
+        ],
         ..Default::default()
     };
     let call_infos: Vec<CallInfo> = vec![call_info_1, call_info_2, call_info_3]

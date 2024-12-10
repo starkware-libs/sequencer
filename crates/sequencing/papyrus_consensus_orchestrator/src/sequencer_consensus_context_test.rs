@@ -6,11 +6,11 @@ use futures::channel::mpsc;
 use futures::{FutureExt, SinkExt};
 use lazy_static::lazy_static;
 use papyrus_consensus::stream_handler::StreamHandler;
-use papyrus_consensus::types::{ConsensusContext, ValidatorId, DEFAULT_VALIDATOR_ID};
-use papyrus_network::network_manager::test_utils::{
-    mock_register_broadcast_topic, BroadcastNetworkMock, TestSubscriberChannels,
-};
+use papyrus_consensus::types::{ConsensusContext, DEFAULT_VALIDATOR_ID, ValidatorId};
 use papyrus_network::network_manager::BroadcastTopicChannels;
+use papyrus_network::network_manager::test_utils::{
+    BroadcastNetworkMock, TestSubscriberChannels, mock_register_broadcast_topic,
+};
 use papyrus_protobuf::consensus::{
     ConsensusMessage, ProposalFin, ProposalInit, ProposalPart, StreamMessage, TransactionBatch,
 };
@@ -18,7 +18,7 @@ use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::StateDiffCommitment;
 use starknet_api::executable_transaction::Transaction as ExecutableTransaction;
 use starknet_api::hash::PoseidonHash;
-use starknet_api::test_utils::invoke::{executable_invoke_tx, invoke_tx, InvokeTxArgs};
+use starknet_api::test_utils::invoke::{InvokeTxArgs, executable_invoke_tx, invoke_tx};
 use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_batcher_types::batcher_types::{
     GetProposalContent, GetProposalContentResponse, ProposalCommitment, ProposalId, ProposalStatus,
@@ -120,7 +120,7 @@ async fn build_proposal() {
         ProposalInit { proposer: ValidatorId::from(DEFAULT_VALIDATOR_ID), ..Default::default() };
     // TODO(Asmaa): Test proposal content.
     let fin_receiver = context.build_proposal(init, TIMEOUT).await;
-    assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0 .0);
+    assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
 }
 
 #[tokio::test]
@@ -177,7 +177,7 @@ async fn validate_proposal_success() {
         .unwrap();
     content_sender
         .send(ProposalPart::Fin(ProposalFin {
-            proposal_content_id: BlockHash(STATE_DIFF_COMMITMENT.0 .0),
+            proposal_content_id: BlockHash(STATE_DIFF_COMMITMENT.0.0),
         }))
         .await
         .unwrap();
@@ -191,7 +191,7 @@ async fn validate_proposal_success() {
         )
         .await;
     content_sender.close_channel();
-    assert_eq!(fin_receiver.await.unwrap().0 .0, STATE_DIFF_COMMITMENT.0 .0);
+    assert_eq!(fin_receiver.await.unwrap().0.0, STATE_DIFF_COMMITMENT.0.0);
 }
 
 #[tokio::test]
@@ -235,7 +235,7 @@ async fn repropose() {
         .unwrap();
     content_sender
         .send(ProposalPart::Fin(ProposalFin {
-            proposal_content_id: BlockHash(STATE_DIFF_COMMITMENT.0 .0),
+            proposal_content_id: BlockHash(STATE_DIFF_COMMITMENT.0.0),
         }))
         .await
         .unwrap();
@@ -249,14 +249,14 @@ async fn repropose() {
         )
         .await;
     content_sender.close_channel();
-    assert_eq!(fin_receiver.await.unwrap().0 .0, STATE_DIFF_COMMITMENT.0 .0);
+    assert_eq!(fin_receiver.await.unwrap().0.0, STATE_DIFF_COMMITMENT.0.0);
 
     // Re-proposal: Just asserts this is a known valid proposal.
     context
-        .repropose(
-            BlockHash(STATE_DIFF_COMMITMENT.0 .0),
-            ProposalInit { height: BlockNumber(0), ..Default::default() },
-        )
+        .repropose(BlockHash(STATE_DIFF_COMMITMENT.0.0), ProposalInit {
+            height: BlockNumber(0),
+            ..Default::default()
+        })
         .await;
 }
 
@@ -307,7 +307,7 @@ async fn proposals_from_different_rounds() {
         tx_hashes: vec![TX_BATCH[0].tx_hash()],
     });
     let prop_part_fin = ProposalPart::Fin(ProposalFin {
-        proposal_content_id: BlockHash(STATE_DIFF_COMMITMENT.0 .0),
+        proposal_content_id: BlockHash(STATE_DIFF_COMMITMENT.0.0),
     });
 
     // The proposal from the past round is ignored.
@@ -339,7 +339,7 @@ async fn proposals_from_different_rounds() {
             content_receiver,
         )
         .await;
-    assert_eq!(fin_receiver_curr_round.await.unwrap().0 .0, STATE_DIFF_COMMITMENT.0 .0);
+    assert_eq!(fin_receiver_curr_round.await.unwrap().0.0, STATE_DIFF_COMMITMENT.0.0);
 
     // The proposal from the future round should not be processed.
     let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
@@ -427,7 +427,7 @@ async fn interrupt_active_proposal() {
         .unwrap();
     content_sender_1
         .send(ProposalPart::Fin(ProposalFin {
-            proposal_content_id: BlockHash(STATE_DIFF_COMMITMENT.0 .0),
+            proposal_content_id: BlockHash(STATE_DIFF_COMMITMENT.0.0),
         }))
         .await
         .unwrap();
@@ -445,5 +445,5 @@ async fn interrupt_active_proposal() {
 
     // Interrupt active proposal.
     assert!(fin_receiver_0.await.is_err());
-    assert_eq!(fin_receiver_1.await.unwrap().0 .0, STATE_DIFF_COMMITMENT.0 .0);
+    assert_eq!(fin_receiver_1.await.unwrap().0.0, STATE_DIFF_COMMITMENT.0.0);
 }

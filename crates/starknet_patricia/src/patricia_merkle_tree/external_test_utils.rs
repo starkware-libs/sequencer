@@ -17,7 +17,7 @@ use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::errors::TypesError;
 use crate::storage::map_storage::MapStorage;
-use crate::storage::storage_trait::{create_db_key, StarknetPrefix, StorageKey, StorageValue};
+use crate::storage::storage_trait::{StarknetPrefix, StorageKey, StorageValue, create_db_key};
 
 impl TryFrom<&U256> for Felt {
     type Error = TypesError<U256>;
@@ -90,13 +90,10 @@ where
         &leaf_modifications
             .iter()
             .map(|(index, data)| {
-                (
-                    *index,
-                    match data.is_empty() {
-                        true => SkeletonLeaf::Zero,
-                        false => SkeletonLeaf::NonZero,
-                    },
-                )
+                (*index, match data.is_empty() {
+                    true => SkeletonLeaf::Zero,
+                    false => SkeletonLeaf::NonZero,
+                })
             })
             .collect(),
     )

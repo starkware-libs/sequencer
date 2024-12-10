@@ -3,7 +3,7 @@ use std::io::Write;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use starknet_sequencer_infra::component_definitions::{
     LocalServerConfig, RemoteClientConfig, RemoteServerConfig,
 };

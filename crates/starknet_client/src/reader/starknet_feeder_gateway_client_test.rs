@@ -24,12 +24,12 @@ use starknet_api::{class_hash, contract_address, felt, nonce};
 use super::objects::state::StateUpdate;
 use super::objects::transaction::IntermediateDeclareTransaction;
 use super::{
-    ContractClass, GenericContractClass, PendingData, ReaderClientError, ReaderClientResult,
-    StarknetFeederGatewayClient, StarknetReader, BLOCK_NUMBER_QUERY, CLASS_HASH_QUERY,
-    GET_BLOCK_URL, GET_STATE_UPDATE_URL,
+    BLOCK_NUMBER_QUERY, CLASS_HASH_QUERY, ContractClass, GET_BLOCK_URL, GET_STATE_UPDATE_URL,
+    GenericContractClass, PendingData, ReaderClientError, ReaderClientResult,
+    StarknetFeederGatewayClient, StarknetReader,
 };
-use crate::reader::objects::block::{BlockSignatureData, BlockSignatureMessage};
 use crate::reader::Block;
+use crate::reader::objects::block::{BlockSignatureData, BlockSignatureMessage};
 use crate::test_utils::read_resource::read_resource_file;
 use crate::test_utils::retry::get_test_config;
 
@@ -157,25 +157,21 @@ async fn contract_class() {
     )
     .unwrap();
     let expected_contract_class = ContractClass {
-        sierra_program: vec![
-            felt!("0x302e312e30"),
-            felt!("0x1c"),
-            felt!("0x52616e6765436865636b"),
-        ],
-        entry_points_by_type: HashMap::from([(
-            EntryPointType::External,
-            vec! [EntryPoint {
+        sierra_program: vec![felt!("0x302e312e30"), felt!("0x1c"), felt!("0x52616e6765436865636b")],
+        entry_points_by_type: HashMap::from([
+            (EntryPointType::External, vec![EntryPoint {
                 function_idx: FunctionIndex(0),
                 selector: EntryPointSelector(felt!(
                     "0x22ff5f21f0b81b113e63f7db6da94fedef11b2119b4088b89664fb9a3cb658"
                 )),
-            }],
-        ),
-        (EntryPointType::Constructor, vec![]),
-        (EntryPointType::L1Handler, vec![]),
+            }]),
+            (EntryPointType::Constructor, vec![]),
+            (EntryPointType::L1Handler, vec![]),
         ]),
         contract_class_version: String::from("0.1.0"),
-        abi: String::from("[\n  {\n    \"type\": \"function\",\n    \"name\": \"test\",\n    \"inputs\": [\n      {\n        \"name\": \"arg\",\n        \"ty\": \"core::felt\"\n      },\n      {\n        \"name\": \"arg1\",\n        \"ty\": \"core::felt\"\n      },\n      {\n        \"name\": \"arg2\",\n        \"ty\": \"core::felt\"\n      }\n    ],\n    \"output_ty\": \"core::felt\",\n    \"state_mutability\": \"external\"\n  },\n  {\n    \"type\": \"function\",\n    \"name\": \"empty\",\n    \"inputs\": [],\n    \"output_ty\": \"()\",\n    \"state_mutability\": \"external\"\n  },\n  {\n    \"type\": \"function\",\n    \"name\": \"call_foo\",\n    \"inputs\": [\n      {\n        \"name\": \"a\",\n        \"ty\": \"core::integer::u128\"\n      }\n    ],\n    \"output_ty\": \"core::integer::u128\",\n    \"state_mutability\": \"external\"\n  }\n]"),
+        abi: String::from(
+            "[\n  {\n    \"type\": \"function\",\n    \"name\": \"test\",\n    \"inputs\": [\n      {\n        \"name\": \"arg\",\n        \"ty\": \"core::felt\"\n      },\n      {\n        \"name\": \"arg1\",\n        \"ty\": \"core::felt\"\n      },\n      {\n        \"name\": \"arg2\",\n        \"ty\": \"core::felt\"\n      }\n    ],\n    \"output_ty\": \"core::felt\",\n    \"state_mutability\": \"external\"\n  },\n  {\n    \"type\": \"function\",\n    \"name\": \"empty\",\n    \"inputs\": [],\n    \"output_ty\": \"()\",\n    \"state_mutability\": \"external\"\n  },\n  {\n    \"type\": \"function\",\n    \"name\": \"call_foo\",\n    \"inputs\": [\n      {\n        \"name\": \"a\",\n        \"ty\": \"core::integer::u128\"\n      }\n    ],\n    \"output_ty\": \"core::integer::u128\",\n    \"state_mutability\": \"external\"\n  }\n]",
+        ),
     };
 
     let mock_by_hash = mock(
@@ -244,24 +240,18 @@ async fn deprecated_contract_class() {
         },
         entry_points_by_type: HashMap::from([
             (EntryPointType::L1Handler, vec![]),
-            (
-                EntryPointType::Constructor,
-                vec![DeprecatedEntryPoint {
-                    selector: EntryPointSelector(felt!(
-                        "0x028ffe4ff0f226a9107253e17a904099aa4f63a02a5621de0576e5aa71bc5194"
-                    )),
-                    offset: EntryPointOffset(62),
-                }],
-            ),
-            (
-                EntryPointType::External,
-                vec![DeprecatedEntryPoint {
-                    selector: EntryPointSelector(felt!(
-                        "0x0000000000000000000000000000000000000000000000000000000000000000"
-                    )),
-                    offset: EntryPointOffset(86),
-                }],
-            ),
+            (EntryPointType::Constructor, vec![DeprecatedEntryPoint {
+                selector: EntryPointSelector(felt!(
+                    "0x028ffe4ff0f226a9107253e17a904099aa4f63a02a5621de0576e5aa71bc5194"
+                )),
+                offset: EntryPointOffset(62),
+            }]),
+            (EntryPointType::External, vec![DeprecatedEntryPoint {
+                selector: EntryPointSelector(felt!(
+                    "0x0000000000000000000000000000000000000000000000000000000000000000"
+                )),
+                offset: EntryPointOffset(86),
+            }]),
         ]),
     };
     let mock_by_hash = mock(

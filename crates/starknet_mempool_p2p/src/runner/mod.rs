@@ -3,7 +3,7 @@ mod test;
 
 use async_trait::async_trait;
 use futures::stream::FuturesUnordered;
-use futures::{pin_mut, StreamExt, TryFutureExt};
+use futures::{StreamExt, TryFutureExt, pin_mut};
 use papyrus_network::network_manager::{
     BroadcastTopicClient, BroadcastTopicClientTrait, BroadcastTopicServer, NetworkManager,
 };

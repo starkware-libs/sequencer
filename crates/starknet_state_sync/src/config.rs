@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use papyrus_config::dumping::{append_sub_config_name, SerializeConfig};
+use papyrus_config::dumping::{SerializeConfig, append_sub_config_name};
 use papyrus_config::{ParamPath, SerializedParam};
 use papyrus_network::NetworkConfig;
 use papyrus_p2p_sync::client::P2PSyncClientConfig;

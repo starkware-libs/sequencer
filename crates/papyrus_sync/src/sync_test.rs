@@ -10,7 +10,7 @@ use papyrus_storage::base_layer::BaseLayerStorageReader;
 use papyrus_storage::header::HeaderStorageWriter;
 use papyrus_storage::test_utils::get_test_storage;
 use papyrus_storage::{StorageReader, StorageWriter};
-use papyrus_test_utils::{get_rng, GetTestInstance};
+use papyrus_test_utils::{GetTestInstance, get_rng};
 use pretty_assertions::assert_eq;
 use starknet_api::block::{BlockHash, BlockHeader, BlockHeaderWithoutHash, BlockNumber};
 use starknet_api::core::{ClassHash, CompiledClassHash, Nonce};
@@ -30,8 +30,8 @@ use crate::sources::base_layer::MockBaseLayerSourceTrait;
 use crate::sources::central::MockCentralSourceTrait;
 use crate::sources::pending::MockPendingSourceTrait;
 use crate::{
-    sort_state_diff, stream_new_base_layer_block, sync_pending_data, GenericStateSync,
-    StateSyncError, SyncConfig, SyncEvent, GENESIS_HASH,
+    GENESIS_HASH, GenericStateSync, StateSyncError, SyncConfig, SyncEvent, sort_state_diff,
+    stream_new_base_layer_block, sync_pending_data,
 };
 
 // TODO(anatg): Add a test to check that the sync calls the sort_state_diff function
@@ -362,18 +362,15 @@ async fn pending_sync_new_data_has_more_advanced_hash_and_less_transactions() {
     writer
         .begin_rw_txn()
         .unwrap()
-        .append_header(
-            BlockNumber(0),
-            &BlockHeader {
-                block_hash: FIRST_BLOCK_HASH,
-                block_header_without_hash: BlockHeaderWithoutHash {
-                    parent_hash: genesis_hash,
-                    block_number: BlockNumber(0),
-                    ..Default::default()
-                },
+        .append_header(BlockNumber(0), &BlockHeader {
+            block_hash: FIRST_BLOCK_HASH,
+            block_header_without_hash: BlockHeaderWithoutHash {
+                parent_hash: genesis_hash,
+                block_number: BlockNumber(0),
                 ..Default::default()
             },
-        )
+            ..Default::default()
+        })
         .unwrap()
         .commit()
         .unwrap();
@@ -479,18 +476,15 @@ async fn pending_sync_doesnt_stop_when_data_has_block_hash_field_with_the_same_h
     writer
         .begin_rw_txn()
         .unwrap()
-        .append_header(
-            BlockNumber(0),
-            &BlockHeader {
-                block_hash: FIRST_BLOCK_HASH,
-                block_header_without_hash: BlockHeaderWithoutHash {
-                    parent_hash: genesis_hash,
-                    block_number: BlockNumber(0),
-                    ..Default::default()
-                },
+        .append_header(BlockNumber(0), &BlockHeader {
+            block_hash: FIRST_BLOCK_HASH,
+            block_header_without_hash: BlockHeaderWithoutHash {
+                parent_hash: genesis_hash,
+                block_number: BlockNumber(0),
                 ..Default::default()
             },
-        )
+            ..Default::default()
+        })
         .unwrap()
         .commit()
         .unwrap();
@@ -547,8 +541,8 @@ async fn pending_sync_doesnt_stop_when_data_has_block_hash_field_with_the_same_h
 }
 
 #[tokio::test]
-async fn pending_sync_updates_when_data_has_block_hash_field_with_the_same_hash_and_more_transactions(
-) {
+async fn pending_sync_updates_when_data_has_block_hash_field_with_the_same_hash_and_more_transactions()
+ {
     const FIRST_BLOCK_HASH: BlockHash = BlockHash(StarkHash::ONE);
     let genesis_hash = BlockHash(felt!(GENESIS_HASH));
     // Storage with one block header.
@@ -556,18 +550,15 @@ async fn pending_sync_updates_when_data_has_block_hash_field_with_the_same_hash_
     writer
         .begin_rw_txn()
         .unwrap()
-        .append_header(
-            BlockNumber(0),
-            &BlockHeader {
-                block_hash: FIRST_BLOCK_HASH,
-                block_header_without_hash: BlockHeaderWithoutHash {
-                    parent_hash: genesis_hash,
-                    block_number: BlockNumber(0),
-                    ..Default::default()
-                },
+        .append_header(BlockNumber(0), &BlockHeader {
+            block_hash: FIRST_BLOCK_HASH,
+            block_header_without_hash: BlockHeaderWithoutHash {
+                parent_hash: genesis_hash,
+                block_number: BlockNumber(0),
                 ..Default::default()
             },
-        )
+            ..Default::default()
+        })
         .unwrap()
         .commit()
         .unwrap();
@@ -712,18 +703,15 @@ async fn pending_sync_classes_are_cleaned_on_first_pending_data_from_latest_bloc
     writer
         .begin_rw_txn()
         .unwrap()
-        .append_header(
-            BlockNumber(0),
-            &BlockHeader {
-                block_hash: FIRST_BLOCK_HASH,
-                block_header_without_hash: BlockHeaderWithoutHash {
-                    parent_hash: genesis_hash,
-                    block_number: BlockNumber(0),
-                    ..Default::default()
-                },
+        .append_header(BlockNumber(0), &BlockHeader {
+            block_hash: FIRST_BLOCK_HASH,
+            block_header_without_hash: BlockHeaderWithoutHash {
+                parent_hash: genesis_hash,
+                block_number: BlockNumber(0),
                 ..Default::default()
             },
-        )
+            ..Default::default()
+        })
         .unwrap()
         .commit()
         .unwrap();

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use ethnum::{uint, U256};
+use ethnum::{U256, uint};
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 
@@ -8,8 +8,8 @@ use crate::felt::Felt;
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::filled_tree::tree::FilledTree;
 use crate::patricia_merkle_tree::internal_test_utils::{
-    as_fully_indexed, get_initial_updated_skeleton, small_tree_index_to_full, MockLeaf, MockTrie,
-    OriginalSkeletonMockTrieConfig, TestTreeHashFunction,
+    MockLeaf, MockTrie, OriginalSkeletonMockTrieConfig, TestTreeHashFunction, as_fully_indexed,
+    get_initial_updated_skeleton, small_tree_index_to_full,
 };
 use crate::patricia_merkle_tree::node_data::inner_node::{EdgePathLength, PathToBottom};
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
@@ -18,7 +18,7 @@ use crate::patricia_merkle_tree::original_skeleton_tree::tree::{
 };
 use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
 use crate::patricia_merkle_tree::updated_skeleton_tree::create_tree_helper::{
-    get_path_to_lca, has_leaves_on_both_sides, TempSkeletonNode,
+    TempSkeletonNode, get_path_to_lca, has_leaves_on_both_sides,
 };
 use crate::patricia_merkle_tree::updated_skeleton_tree::node::UpdatedSkeletonNode;
 use crate::patricia_merkle_tree::updated_skeleton_tree::tree::{

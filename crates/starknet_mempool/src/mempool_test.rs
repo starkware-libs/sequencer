@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use mockall::predicate;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
-use papyrus_test_utils::{get_rng, GetTestInstance};
+use papyrus_test_utils::{GetTestInstance, get_rng};
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::GasPrice;
@@ -186,14 +186,10 @@ fn add_txs_and_verify_no_replacement(
     invalid_replacement_inputs: impl IntoIterator<Item = AddTransactionArgs>,
 ) {
     for input in invalid_replacement_inputs {
-        add_tx_expect_error(
-            &mut mempool,
-            &input,
-            MempoolError::DuplicateNonce {
-                address: input.tx.contract_address(),
-                nonce: input.tx.nonce(),
-            },
-        );
+        add_tx_expect_error(&mut mempool, &input, MempoolError::DuplicateNonce {
+            address: input.tx.contract_address(),
+            nonce: input.tx.nonce(),
+        });
     }
 
     // Verify transaction was not replaced.
@@ -296,11 +292,11 @@ fn test_get_txs_replenishes_queue_only_between_chunks() {
     // Test and assert: all transactions returned.
     // Replenishment done in chunks: account 1 transaction is returned before the one of account 0,
     // although its priority is higher.
-    get_txs_and_assert_expected(
-        &mut mempool,
-        3,
-        &[tx_address_0_nonce_0, tx_address_1_nonce_0, tx_address_0_nonce_1],
-    );
+    get_txs_and_assert_expected(&mut mempool, 3, &[
+        tx_address_0_nonce_0,
+        tx_address_1_nonce_0,
+        tx_address_0_nonce_1,
+    ]);
     let expected_mempool_content = MempoolContentBuilder::new().with_priority_queue([]).build();
     expected_mempool_content.assert_eq(&mempool);
 }
@@ -391,11 +387,9 @@ fn test_add_tx_failure_on_duplicate_tx_hash(mut mempool: Mempool) {
 
     // Test.
     add_tx(&mut mempool, &input);
-    add_tx_expect_error(
-        &mut mempool,
-        &duplicate_input,
-        MempoolError::DuplicateTransaction { tx_hash: input.tx.tx_hash() },
-    );
+    add_tx_expect_error(&mut mempool, &duplicate_input, MempoolError::DuplicateTransaction {
+        tx_hash: input.tx.tx_hash(),
+    });
 
     // Assert: the original transaction remains.
     let expected_mempool_content = MempoolContentBuilder::new().with_pool([input.tx]).build();
@@ -410,18 +404,16 @@ fn test_add_tx_lower_than_queued_nonce(mut mempool: Mempool) {
 
     // Test and assert: original transaction remains.
     let invalid_input = add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 0, account_nonce: 1);
-    add_tx_expect_error(
-        &mut mempool,
-        &invalid_input,
-        MempoolError::NonceTooOld { address: contract_address!("0x0"), nonce: nonce!(0) },
-    );
+    add_tx_expect_error(&mut mempool, &invalid_input, MempoolError::NonceTooOld {
+        address: contract_address!("0x0"),
+        nonce: nonce!(0),
+    });
 
     let invalid_input = add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 1, account_nonce: 1);
-    add_tx_expect_error(
-        &mut mempool,
-        &invalid_input,
-        MempoolError::DuplicateNonce { address: contract_address!("0x0"), nonce: nonce!(1) },
-    );
+    add_tx_expect_error(&mut mempool, &invalid_input, MempoolError::DuplicateNonce {
+        address: contract_address!("0x0"),
+        nonce: nonce!(1),
+    });
 }
 
 #[rstest]

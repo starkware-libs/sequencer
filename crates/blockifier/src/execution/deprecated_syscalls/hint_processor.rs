@@ -16,32 +16,31 @@ use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::runners::cairo_runner::{ResourceTracker, RunResources};
 use cairo_vm::vm::vm_core::VirtualMachine;
 use num_bigint::{BigUint, TryFromBigIntError};
+use starknet_api::StarknetApiError;
 use starknet_api::block::BlockInfo;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::Calldata;
-use starknet_api::StarknetApiError;
 use starknet_types_core::felt::{Felt, FromStrError};
 use thiserror::Error;
 
 use crate::context::TransactionContext;
 use crate::execution::call_info::{CallInfo, OrderedEvent, OrderedL2ToL1Message};
 use crate::execution::common_hints::{
-    extended_builtin_hint_processor, ExecutionMode, HintExecutionResult,
+    ExecutionMode, HintExecutionResult, extended_builtin_hint_processor,
 };
 use crate::execution::deprecated_syscalls::{
-    call_contract, delegate_call, delegate_l1_handler, deploy, emit_event, get_block_number,
-    get_block_timestamp, get_caller_address, get_contract_address, get_sequencer_address,
-    get_tx_info, get_tx_signature, library_call, library_call_l1_handler, replace_class,
-    send_message_to_l1, storage_read, storage_write, DeprecatedSyscallResult,
-    DeprecatedSyscallSelector, StorageReadResponse, StorageWriteResponse, SyscallRequest,
-    SyscallResponse,
+    DeprecatedSyscallResult, DeprecatedSyscallSelector, StorageReadResponse, StorageWriteResponse,
+    SyscallRequest, SyscallResponse, call_contract, delegate_call, delegate_l1_handler, deploy,
+    emit_event, get_block_number, get_block_timestamp, get_caller_address, get_contract_address,
+    get_sequencer_address, get_tx_info, get_tx_signature, library_call, library_call_l1_handler,
+    replace_class, send_message_to_l1, storage_read, storage_write,
 };
 use crate::execution::entry_point::{CallEntryPoint, CallType, EntryPointExecutionContext};
 use crate::execution::errors::{ConstructorEntryPointExecutionError, EntryPointExecutionError};
 use crate::execution::execution_utils::{
-    felt_from_ptr, felt_range_from_ptr, ReadOnlySegment, ReadOnlySegments,
+    ReadOnlySegment, ReadOnlySegments, felt_from_ptr, felt_range_from_ptr,
 };
 use crate::execution::hint_code;
 use crate::execution::syscalls::hint_processor::EmitEventError;

@@ -7,7 +7,7 @@ use std::fmt::Debug;
 use std::iter::Take;
 use std::time::Duration;
 
-use papyrus_config::dumping::{ser_param, SerializeConfig};
+use papyrus_config::dumping::{SerializeConfig, ser_param};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use tokio_retry::strategy::ExponentialBackoff;

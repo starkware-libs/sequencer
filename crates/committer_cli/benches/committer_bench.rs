@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use committer_cli::commands::commit;
 use committer_cli::parse_input::read::parse_input;
 use committer_cli::tests::utils::parse_from_python::TreeFlowInput;
-use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
+use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
 use starknet_committer::block_committer::input::StarknetStorageValue;
 use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
 use starknet_committer::patricia_merkle_tree::tree::OriginalSkeletonStorageTrieConfig;

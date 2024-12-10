@@ -5,11 +5,11 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::selector_from_name;
-use starknet_api::core::{calculate_contract_address, ChainId};
+use starknet_api::core::{ChainId, calculate_contract_address};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, Fee};
 use starknet_api::transaction::{
-    EventContent, EventData, EventKey, TransactionVersion, QUERY_VERSION_BASE,
+    EventContent, EventData, EventKey, QUERY_VERSION_BASE, TransactionVersion,
 };
 use starknet_api::{calldata, felt, nonce, storage_key, tx_hash};
 use starknet_types_core::felt::Felt;
@@ -26,9 +26,9 @@ use crate::state::state_api::StateReader;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{
+    CURRENT_BLOCK_NUMBER, CURRENT_BLOCK_NUMBER_FOR_VALIDATE, CURRENT_BLOCK_TIMESTAMP,
+    CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE, CairoVersion, TEST_SEQUENCER_ADDRESS,
     calldata_for_deploy_test, get_syscall_resources, trivial_external_entry_point_new,
-    CairoVersion, CURRENT_BLOCK_NUMBER, CURRENT_BLOCK_NUMBER_FOR_VALIDATE, CURRENT_BLOCK_TIMESTAMP,
-    CURRENT_BLOCK_TIMESTAMP_FOR_VALIDATE, TEST_SEQUENCER_ADDRESS,
 };
 use crate::transaction::objects::{
     CommonAccountFields, DeprecatedTransactionInfo, TransactionInfo,
@@ -334,11 +334,10 @@ fn test_deploy(
 ) {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
     let empty_contract = FeatureContract::Empty(CairoVersion::Cairo0);
-    let mut state = test_state(
-        &ChainInfo::create_for_testing(),
-        Fee(0),
-        &[(empty_contract, 0), (test_contract, 1)],
-    );
+    let mut state = test_state(&ChainInfo::create_for_testing(), Fee(0), &[
+        (empty_contract, 0),
+        (test_contract, 1),
+    ]);
 
     let class_hash = if constructor_exists {
         test_contract.get_class_hash()
@@ -508,14 +507,11 @@ fn test_emit_event() {
         keys: keys.clone().into_iter().map(EventKey).collect(),
         data: EventData(data.clone()),
     };
-    assert_eq!(
-        call_info.execution,
-        CallExecution {
-            events: vec![OrderedEvent { order: 0, event }],
-            gas_consumed: 0, // TODO why?
-            ..Default::default()
-        }
-    );
+    assert_eq!(call_info.execution, CallExecution {
+        events: vec![OrderedEvent { order: 0, event }],
+        gas_consumed: 0, // TODO why?
+        ..Default::default()
+    });
 
     // Negative flow, the data length exceeds the limit.
     let max_event_data_length = versioned_constants.tx_event_limits.max_data_length;

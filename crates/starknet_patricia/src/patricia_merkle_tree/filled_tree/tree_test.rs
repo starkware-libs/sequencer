@@ -288,8 +288,8 @@ async fn test_delete_leaf_from_empty_tree() {
     assert!(root_hash == HashOutput::ROOT_OF_EMPTY_TREE);
 }
 
-fn get_small_tree_updated_skeleton_and_leaf_modifications(
-) -> (UpdatedSkeletonTreeImpl, LeafModifications<MockLeaf>) {
+fn get_small_tree_updated_skeleton_and_leaf_modifications()
+-> (UpdatedSkeletonTreeImpl, LeafModifications<MockLeaf>) {
     // Set up the updated skeleton tree.
     let new_leaves = [(35, "0x1"), (36, "0x2"), (63, "0x3")];
     let nodes_in_skeleton_tree: Vec<(NodeIndex, UpdatedSkeletonNode)> = [
@@ -315,8 +315,8 @@ fn get_small_tree_updated_skeleton_and_leaf_modifications(
     (updated_skeleton_tree, modifications)
 }
 
-fn get_small_tree_expected_filled_tree_map_and_root_hash(
-) -> (HashMap<NodeIndex, FilledNode<MockLeaf>>, HashOutput) {
+fn get_small_tree_expected_filled_tree_map_and_root_hash()
+-> (HashMap<NodeIndex, FilledNode<MockLeaf>>, HashOutput) {
     let expected_root_hash = HashOutput(Felt::from_hex("0x21").unwrap());
     let expected_filled_tree_map = HashMap::from([
         create_mock_binary_entry_for_testing(1, "0x21", "0xb", "0x16"),
@@ -371,16 +371,13 @@ fn create_mock_binary_entry_for_testing(
     left_hash: &str,
     right_hash: &str,
 ) -> (NodeIndex, FilledNode<MockLeaf>) {
-    (
-        NodeIndex::from(index),
-        FilledNode {
-            hash: HashOutput(Felt::from_hex(hash).unwrap()),
-            data: NodeData::Binary(BinaryData {
-                left_hash: HashOutput(Felt::from_hex(left_hash).unwrap()),
-                right_hash: HashOutput(Felt::from_hex(right_hash).unwrap()),
-            }),
-        },
-    )
+    (NodeIndex::from(index), FilledNode {
+        hash: HashOutput(Felt::from_hex(hash).unwrap()),
+        data: NodeData::Binary(BinaryData {
+            left_hash: HashOutput(Felt::from_hex(left_hash).unwrap()),
+            right_hash: HashOutput(Felt::from_hex(right_hash).unwrap()),
+        }),
+    })
 }
 
 fn create_mock_edge_entry_for_testing(
@@ -390,31 +387,22 @@ fn create_mock_edge_entry_for_testing(
     length: u8,
     bottom_hash: &str,
 ) -> (NodeIndex, FilledNode<MockLeaf>) {
-    (
-        NodeIndex::from(index),
-        FilledNode {
-            hash: HashOutput(Felt::from_hex(hash).unwrap()),
-            data: NodeData::Edge(EdgeData {
-                bottom_hash: HashOutput(Felt::from_hex(bottom_hash).unwrap()),
-                path_to_bottom: PathToBottom::new(
-                    path.into(),
-                    EdgePathLength::new(length).unwrap(),
-                )
+    (NodeIndex::from(index), FilledNode {
+        hash: HashOutput(Felt::from_hex(hash).unwrap()),
+        data: NodeData::Edge(EdgeData {
+            bottom_hash: HashOutput(Felt::from_hex(bottom_hash).unwrap()),
+            path_to_bottom: PathToBottom::new(path.into(), EdgePathLength::new(length).unwrap())
                 .unwrap(),
-            }),
-        },
-    )
+        }),
+    })
 }
 
 fn create_mock_leaf_entry_for_testing(
     index: u128,
     hash: &str,
 ) -> (NodeIndex, FilledNode<MockLeaf>) {
-    (
-        NodeIndex::from(index),
-        FilledNode {
-            hash: HashOutput(Felt::from_hex(hash).unwrap()),
-            data: NodeData::Leaf(MockLeaf(Felt::from_hex(hash).unwrap())),
-        },
-    )
+    (NodeIndex::from(index), FilledNode {
+        hash: HashOutput(Felt::from_hex(hash).unwrap()),
+        data: NodeData::Leaf(MockLeaf(Felt::from_hex(hash).unwrap())),
+    })
 }

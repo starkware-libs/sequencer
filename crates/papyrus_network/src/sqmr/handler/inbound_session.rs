@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 use std::future::Future;
 use std::io;
 use std::pin::Pin;
-use std::task::{ready, Context, Poll, Waker};
+use std::task::{Context, Poll, Waker, ready};
 
 use futures::future::BoxFuture;
 use futures::io::WriteHalf;
@@ -10,8 +10,8 @@ use futures::{AsyncWriteExt, FutureExt};
 use libp2p::swarm::Stream;
 use replace_with::replace_with_or_abort;
 
-use super::super::messages::write_message;
 use super::super::Bytes;
+use super::super::messages::write_message;
 
 pub(super) struct InboundSession {
     pending_messages: VecDeque<Bytes>,

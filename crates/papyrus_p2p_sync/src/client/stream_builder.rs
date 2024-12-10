@@ -2,10 +2,10 @@ use std::cmp::min;
 use std::time::Duration;
 
 use async_stream::stream;
+use futures::StreamExt;
 use futures::channel::mpsc::Receiver;
 use futures::future::BoxFuture;
 use futures::stream::BoxStream;
-use futures::StreamExt;
 use papyrus_network::network_manager::{ClientResponsesManager, SqmrClientSender};
 use papyrus_protobuf::converters::ProtobufConversionError;
 use papyrus_protobuf::sync::{BlockHashOrNumber, DataOrFin, Direction, Query};

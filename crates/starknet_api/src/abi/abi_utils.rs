@@ -3,7 +3,7 @@ use starknet_types_core::felt::{Felt, NonZeroFelt};
 use starknet_types_core::hash::{Pedersen, StarkHash};
 
 use crate::abi::constants;
-use crate::core::{ContractAddress, EntryPointSelector, PatriciaKey, L2_ADDRESS_UPPER_BOUND};
+use crate::core::{ContractAddress, EntryPointSelector, L2_ADDRESS_UPPER_BOUND, PatriciaKey};
 use crate::state::StorageKey;
 
 #[cfg(test)]

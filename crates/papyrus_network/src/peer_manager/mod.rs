@@ -1,15 +1,15 @@
 use std::collections::{BTreeMap, HashMap};
 use std::time::Duration;
 
-use futures::future::BoxFuture;
 use futures::FutureExt;
-use libp2p::swarm::dial_opts::DialOpts;
-use libp2p::swarm::ToSwarm;
+use futures::future::BoxFuture;
 use libp2p::PeerId;
+use libp2p::swarm::ToSwarm;
+use libp2p::swarm::dial_opts::DialOpts;
 use papyrus_config::converters::{
     deserialize_milliseconds_to_duration, deserialize_seconds_to_duration,
 };
-use papyrus_config::dumping::{ser_param, SerializeConfig};
+use papyrus_config::dumping::{SerializeConfig, ser_param};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use peer::Peer;
 use serde::{Deserialize, Serialize};

@@ -16,8 +16,8 @@ use starknet_api::core::{ChainId, ClassHash};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 
 use super::{
-    update_json_value, TEST_ERC20_CONTRACT_ADDRESS, TEST_ERC20_CONTRACT_ADDRESS2,
-    TEST_SEQUENCER_ADDRESS,
+    TEST_ERC20_CONTRACT_ADDRESS, TEST_ERC20_CONTRACT_ADDRESS2, TEST_SEQUENCER_ADDRESS,
+    update_json_value,
 };
 use crate::blockifier::block::validated_gas_prices;
 use crate::bouncer::{BouncerConfig, BouncerWeights, BuiltinCount};
@@ -33,15 +33,15 @@ use crate::execution::entry_point::{
 use crate::execution::native::contract_class::NativeCompiledClassV1;
 use crate::state::state_api::State;
 use crate::test_utils::{
-    get_raw_contract_class, CURRENT_BLOCK_NUMBER, CURRENT_BLOCK_TIMESTAMP,
-    DEFAULT_ETH_L1_DATA_GAS_PRICE, DEFAULT_ETH_L1_GAS_PRICE, DEFAULT_STRK_L1_DATA_GAS_PRICE,
-    DEFAULT_STRK_L1_GAS_PRICE,
+    CURRENT_BLOCK_NUMBER, CURRENT_BLOCK_TIMESTAMP, DEFAULT_ETH_L1_DATA_GAS_PRICE,
+    DEFAULT_ETH_L1_GAS_PRICE, DEFAULT_STRK_L1_DATA_GAS_PRICE, DEFAULT_STRK_L1_GAS_PRICE,
+    get_raw_contract_class,
 };
 use crate::transaction::objects::{
     CurrentTransactionInfo, DeprecatedTransactionInfo, TransactionInfo,
 };
 use crate::versioned_constants::{
-    GasCosts, OsConstants, VersionedConstants, VERSIONED_CONSTANTS_LATEST_JSON,
+    GasCosts, OsConstants, VERSIONED_CONSTANTS_LATEST_JSON, VersionedConstants,
 };
 
 impl CallEntryPoint {

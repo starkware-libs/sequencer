@@ -5,7 +5,7 @@ use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateRe
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::test_utils::initial_test_state::test_state;
-use blockifier::test_utils::{CairoVersion, BALANCE};
+use blockifier::test_utils::{BALANCE, CairoVersion};
 use starknet_api::block::{BlockInfo, BlockNumber};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
@@ -75,11 +75,10 @@ pub fn local_test_state_reader_factory(
     let account_contract = FeatureContract::AccountWithoutValidations(cairo_version);
     let test_contract = FeatureContract::TestContract(cairo_version);
 
-    let state_reader = test_state(
-        block_context.chain_info(),
-        account_balance,
-        &[(account_contract, 1), (test_contract, 1)],
-    );
+    let state_reader = test_state(block_context.chain_info(), account_balance, &[
+        (account_contract, 1),
+        (test_contract, 1),
+    ]);
 
     TestStateReaderFactory {
         state_reader: TestStateReader {

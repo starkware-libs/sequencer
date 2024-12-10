@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use starknet_api::contract_class::ClassInfo;
-use starknet_api::core::{calculate_contract_address, ContractAddress, Nonce};
+use starknet_api::core::{ContractAddress, Nonce, calculate_contract_address};
 use starknet_api::executable_transaction::{
     AccountTransaction as ApiExecutableTransaction, DeclareTransaction, DeployAccountTransaction,
     InvokeTransaction, L1HandlerTransaction,

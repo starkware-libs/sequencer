@@ -10,8 +10,8 @@ use starknet_api::transaction::{
 };
 use starknet_types_core::felt::Felt;
 
-use super::common::try_from_starkfelt_to_u128;
 use super::ProtobufConversionError;
+use super::common::try_from_starkfelt_to_u128;
 use crate::protobuf;
 
 impl TryFrom<protobuf::Receipt> for TransactionOutput {

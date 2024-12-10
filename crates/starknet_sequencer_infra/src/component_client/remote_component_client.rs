@@ -8,12 +8,12 @@ use async_trait::async_trait;
 use hyper::body::to_bytes;
 use hyper::header::CONTENT_TYPE;
 use hyper::{Body, Client, Request as HyperRequest, Response as HyperResponse, StatusCode, Uri};
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 
 use super::definitions::{ClientError, ClientResult};
 use crate::component_definitions::{
-    ComponentClient, RemoteClientConfig, ServerError, APPLICATION_OCTET_STREAM,
+    APPLICATION_OCTET_STREAM, ComponentClient, RemoteClientConfig, ServerError,
 };
 use crate::serde_utils::SerdeWrapper;
 

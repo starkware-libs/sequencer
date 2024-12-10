@@ -7,13 +7,13 @@ use infra_utils::path::resolve_project_relative_path;
 use mempool_test_utils::{FAULTY_ACCOUNT_CLASS_FILE, TEST_FILES_FOLDER};
 use rstest::rstest;
 
+use crate::SierraToCasmCompiler;
+#[cfg(feature = "cairo_native")]
+use crate::SierraToNativeCompiler;
 use crate::command_line_compiler::CommandLineCompiler;
 use crate::config::SierraToCasmCompilationConfig;
 use crate::errors::CompilationUtilError;
 use crate::test_utils::contract_class_from_file;
-use crate::SierraToCasmCompiler;
-#[cfg(feature = "cairo_native")]
-use crate::SierraToNativeCompiler;
 
 const SIERRA_TO_CASM_COMPILATION_CONFIG: SierraToCasmCompilationConfig =
     SierraToCasmCompilationConfig { max_bytecode_size: 81920 };

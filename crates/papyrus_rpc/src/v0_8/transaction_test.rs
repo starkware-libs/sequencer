@@ -1,5 +1,5 @@
 use papyrus_test_utils::{
-    auto_impl_get_test_instance, get_number_of_variants, get_rng, GetTestInstance,
+    GetTestInstance, auto_impl_get_test_instance, get_number_of_variants, get_rng,
 };
 use pretty_assertions::assert_eq;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, Nonce};

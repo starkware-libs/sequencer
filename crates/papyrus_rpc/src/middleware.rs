@@ -4,8 +4,8 @@ use regex::Regex;
 use tower::BoxError;
 use tracing::{debug, instrument};
 
-use crate::version_config::{VersionState, VERSION_CONFIG, VERSION_PATTERN};
 use crate::SERVER_MAX_BODY_SIZE;
+use crate::version_config::{VERSION_CONFIG, VERSION_PATTERN, VersionState};
 
 /// [`Tower`] middleware intended to proxy method requests to the right version of the API.
 /// The middleware reads the JsonRPC request body and request path
