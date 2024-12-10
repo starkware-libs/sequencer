@@ -309,15 +309,6 @@ impl Batcher {
     }
 
     #[instrument(skip(self), err)]
-    pub async fn get_height(&mut self) -> BatcherResult<GetHeightResponse> {
-        let height = self.storage_reader.height().map_err(|err| {
-            error!("Failed to get height from storage: {}", err);
-            BatcherError::InternalError
-        })?;
-        Ok(GetHeightResponse { height })
-    }
-
-    #[instrument(skip(self), err)]
     pub async fn get_proposal_content(
         &mut self,
         get_proposal_content_input: GetProposalContentInput,
