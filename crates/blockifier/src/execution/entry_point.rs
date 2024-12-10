@@ -20,6 +20,7 @@ use starknet_api::transaction::fields::{
 use starknet_api::transaction::TransactionVersion;
 use starknet_types_core::felt::Felt;
 
+use super::contract_class::RunnableCompiledClass;
 use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::CallInfo;
 use crate::execution::common_hints::ExecutionMode;
@@ -147,7 +148,7 @@ impl CallEntryPoint {
         }
         // Add class hash to the call, that will appear in the output (call info).
         self.class_hash = Some(class_hash);
-        let compiled_class = state.get_compiled_class(class_hash)?;
+        let compiled_class: RunnableCompiledClass = state.get_compiled_class(class_hash)?.into();
 
         context.revert_infos.0.push(EntryPointRevertInfo::new(
             self.storage_address,
@@ -402,9 +403,12 @@ pub fn execute_constructor_entry_point(
     remaining_gas: &mut u64,
 ) -> ConstructorEntryPointExecutionResult<CallInfo> {
     // Ensure the class is declared (by reading it).
-    let compiled_class = state.get_compiled_class(ctor_context.class_hash).map_err(|error| {
-        ConstructorEntryPointExecutionError::new(error.into(), &ctor_context, None)
-    })?;
+    let compiled_class: RunnableCompiledClass = state
+        .get_compiled_class(ctor_context.class_hash)
+        .map_err(|error| {
+            ConstructorEntryPointExecutionError::new(error.into(), &ctor_context, None)
+        })?
+        .into();
     let Some(constructor_selector) = compiled_class.constructor_selector() else {
         // Contract has no constructor.
         return handle_empty_constructor(&ctor_context, calldata, *remaining_gas)

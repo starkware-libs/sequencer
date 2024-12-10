@@ -8,7 +8,7 @@ use starknet_types_core::felt::Felt;
 use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::CallInfo;
 use crate::fee::fee_utils::get_sequencer_balance_keys;
-use crate::state::cached_state::{ContractClassMapping, StateMaps};
+use crate::state::cached_state::{StateMaps, VersionedContractClassMapping};
 use crate::state::state_api::UpdatableState;
 use crate::transaction::objects::TransactionExecutionInfo;
 
@@ -118,5 +118,5 @@ pub fn add_fee_to_sequencer_balance(
         ]),
         ..StateMaps::default()
     };
-    state.apply_writes(&writes, &ContractClassMapping::default(), &HashMap::default());
+    state.apply_writes(&writes, &VersionedContractClassMapping::default(), &HashMap::default());
 }

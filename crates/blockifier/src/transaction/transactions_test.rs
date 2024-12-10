@@ -1516,6 +1516,8 @@ fn test_declare_tx(
     #[case] empty_contract_version: CairoVersion,
     #[values(false, true)] use_kzg_da: bool,
 ) {
+    use crate::execution::contract_class::RunnableCompiledClass;
+
     let block_context = &BlockContext::create_for_account_testing_with_kzg(use_kzg_da);
     let versioned_constants = &block_context.versioned_constants;
     let empty_contract = FeatureContract::Empty(empty_contract_version);
@@ -1652,7 +1654,8 @@ fn test_declare_tx(
     );
 
     // Verify class declaration.
-    let contract_class_from_state = state.get_compiled_class(class_hash).unwrap();
+    let contract_class_from_state: RunnableCompiledClass =
+        state.get_compiled_class(class_hash).unwrap().into();
     assert_eq!(contract_class_from_state, class_info.contract_class().try_into().unwrap());
 
     // Checks that redeclaring the same contract fails.
