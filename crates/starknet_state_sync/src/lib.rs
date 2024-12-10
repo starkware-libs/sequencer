@@ -35,6 +35,9 @@ impl ComponentRequestHandler<StateSyncRequest, StateSyncResponse> for StateSync 
             StateSyncRequest::GetBlock(block_number) => {
                 StateSyncResponse::GetBlock(self.get_block(block_number))
             }
+            StateSyncRequest::AddNewInternalBlock(_sync_block, _block_number) => {
+                todo!()
+            }
         }
     }
 }

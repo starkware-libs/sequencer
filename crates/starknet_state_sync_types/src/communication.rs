@@ -28,7 +28,11 @@ pub trait StateSyncClient: Send + Sync {
     ) -> StateSyncClientResult<Option<SyncBlock>>;
 
     // Add a new block to the sync storage from another component within the same node.
-    async fn add_new_internal_block(&self, sync_block: SyncBlock) -> StateSyncClientResult<()>;
+    async fn add_new_internal_block(
+        &self,
+        sync_block: SyncBlock,
+        block_number: BlockNumber,
+    ) -> StateSyncClientResult<()>;
 
     // TODO: Add state reader methods for gateway.
 }
@@ -53,7 +57,7 @@ pub type StateSyncRequestAndResponseSender =
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum StateSyncRequest {
     GetBlock(BlockNumber),
-    AddNewInternalBlock(SyncBlock),
+    AddNewInternalBlock(SyncBlock, BlockNumber),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -73,8 +77,12 @@ impl StateSyncClient for LocalStateSyncClient {
         handle_response_variants!(StateSyncResponse, GetBlock, StateSyncClientError, StateSyncError)
     }
 
-    async fn add_new_internal_block(&self, sync_block: SyncBlock) -> StateSyncClientResult<()> {
-        let request = StateSyncRequest::AddNewInternalBlock(sync_block);
+    async fn add_new_internal_block(
+        &self,
+        sync_block: SyncBlock,
+        block_number: BlockNumber,
+    ) -> StateSyncClientResult<()> {
+        let request = StateSyncRequest::AddNewInternalBlock(sync_block, block_number);
         let response = self.send(request).await;
         handle_response_variants!(
             StateSyncResponse,
@@ -96,8 +104,12 @@ impl StateSyncClient for RemoteStateSyncClient {
         handle_response_variants!(StateSyncResponse, GetBlock, StateSyncClientError, StateSyncError)
     }
 
-    async fn add_new_internal_block(&self, sync_block: SyncBlock) -> StateSyncClientResult<()> {
-        let request = StateSyncRequest::AddNewInternalBlock(sync_block);
+    async fn add_new_internal_block(
+        &self,
+        sync_block: SyncBlock,
+        block_number: BlockNumber,
+    ) -> StateSyncClientResult<()> {
+        let request = StateSyncRequest::AddNewInternalBlock(sync_block, block_number);
         let response = self.send(request).await;
         handle_response_variants!(
             StateSyncResponse,
@@ -120,7 +132,11 @@ impl StateSyncClient for EmptyStateSyncClient {
         Ok(None)
     }
 
-    async fn add_new_internal_block(&self, _sync_block: SyncBlock) -> StateSyncClientResult<()> {
+    async fn add_new_internal_block(
+        &self,
+        _sync_block: SyncBlock,
+        _block_number: BlockNumber,
+    ) -> StateSyncClientResult<()> {
         Ok(())
     }
 }
