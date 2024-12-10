@@ -120,11 +120,7 @@ pub fn create_consensus_manager_configs_and_channels(
 pub fn test_rpc_state_reader_config(rpc_server_addr: SocketAddr) -> RpcStateReaderConfig {
     // TODO(Tsabary): get the latest version from the RPC crate.
     const RPC_SPEC_VERSION: &str = "V0_8";
-    const JSON_RPC_VERSION: &str = "2.0";
-    RpcStateReaderConfig {
-        url: format!("http://{rpc_server_addr:?}/rpc/{RPC_SPEC_VERSION}"),
-        json_rpc_version: JSON_RPC_VERSION.to_string(),
-    }
+    RpcStateReaderConfig::from_url(format!("http://{rpc_server_addr:?}/rpc/{RPC_SPEC_VERSION}"))
 }
 
 /// Creates a multi-account transaction generator for integration tests.
