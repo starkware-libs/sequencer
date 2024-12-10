@@ -81,15 +81,7 @@ impl SerializeConfig for BouncerConfig {
 }
 
 #[derive(
-    Clone,
-    Copy,
-    Debug,
-    derive_more::Add,
-    derive_more::AddAssign,
-    derive_more::Sub,
-    Deserialize,
-    PartialEq,
-    Serialize,
+    Clone, Copy, Debug, derive_more::Add, derive_more::AddAssign, Deserialize, PartialEq, Serialize,
 )]
 /// Represents the execution resources counted throughout block creation.
 pub struct BouncerWeights {
