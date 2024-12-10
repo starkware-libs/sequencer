@@ -11,7 +11,7 @@ use tracing::{error, info};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    configure_tracing();
+    configure_tracing().await;
 
     let config = SequencerNodeConfig::load_and_process(args().collect());
     if let Err(ConfigError::CommandInput(clap_err)) = config {
