@@ -188,7 +188,7 @@ where
     const BUFFER_SIZE: usize = 1000;
 
     let mut channels_configs = create_connected_network_configs(n_configs + 1);
-    let broadcast_channels = channels_configs.pop().unwrap();
+    let broadcast_channels = channels_configs.remove(0);
 
     let mut channels_network_manager = NetworkManager::new(broadcast_channels, None);
     let broadcast_channels =
