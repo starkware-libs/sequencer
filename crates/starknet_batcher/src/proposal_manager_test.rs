@@ -3,14 +3,14 @@ use rstest::{fixture, rstest};
 use starknet_api::executable_transaction::Transaction;
 use starknet_batcher_types::batcher_types::ProposalId;
 
-use crate::block_builder::{BlockBuilderTrait, BlockExecutionArtifacts, MockBlockBuilderTrait};
-use crate::proposal_manager::{
-    GenerateProposalError,
-    ProposalError,
-    ProposalManager,
-    ProposalManagerTrait,
-    ProposalOutput,
+use crate::block_builder::{
+    BlockBuilderError,
+    BlockBuilderTrait,
+    BlockExecutionArtifacts,
+    MockBlockBuilderTrait,
 };
+use crate::proposal_manager::{GenerateProposalError, ProposalManager, ProposalManagerTrait};
+use crate::utils::ProposalOutput;
 
 const BLOCK_GENERATION_TIMEOUT: tokio::time::Duration = tokio::time::Duration::from_secs(1);
 
@@ -133,8 +133,8 @@ async fn abort_active_proposal(mut proposal_manager: ProposalManager) {
     proposal_manager.abort_proposal(ProposalId(0)).await;
 
     assert_matches!(
-        proposal_manager.take_proposal_result(ProposalId(0)).await,
-        Some(Err(ProposalError::Aborted))
+        *proposal_manager.take_proposal_result(ProposalId(0)).await.unwrap().unwrap_err(),
+        BlockBuilderError::Aborted
     );
 
     // Make sure there is no active proposal.
