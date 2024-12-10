@@ -7,7 +7,7 @@ license-file.workspace = true
 description = "Starknet Rust types related to computation and execution."
 
 [features]
-testing = []
+testing = ["infra_utils"]
 
 [dependencies]
 bitvec.workspace = true
@@ -16,6 +16,7 @@ cairo-lang-starknet-classes.workspace = true
 derive_more.workspace = true
 hex.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
+infra_utils = { workspace = true, optional = true }
 itertools.workspace = true
 num-bigint.workspace = true
 pretty_assertions.workspace = true
@@ -33,7 +34,7 @@ thiserror.workspace = true
 [dev-dependencies]
 assert_matches.workspace = true
 rstest.workspace = true
-
+starknet_api = { workspace = true, features = ["testing"] }
 
 [lints]
 workspace = true
