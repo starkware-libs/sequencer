@@ -1,6 +1,7 @@
 use futures::channel::{mpsc, oneshot};
+use futures::SinkExt;
 use lazy_static::lazy_static;
-use papyrus_protobuf::consensus::{ConsensusMessage, ProposalInit};
+use papyrus_protobuf::consensus::{ConsensusMessage, ProposalFin, ProposalInit};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_types_core::felt::Felt;
 use test_case::test_case;
@@ -10,14 +11,14 @@ use super::SingleHeightConsensus;
 use crate::config::TimeoutsConfig;
 use crate::single_height_consensus::{ShcEvent, ShcReturn, ShcTask};
 use crate::state_machine::StateMachineEvent;
-use crate::test_utils::{precommit, prevote, MockTestContext, TestBlock};
-use crate::types::{ConsensusError, ValidatorId};
+use crate::test_utils::{precommit, prevote, MockProposalPart, MockTestContext, TestBlock};
+use crate::types::{ConsensusError, ValidatorId, DEFAULT_VALIDATOR_ID};
 
 lazy_static! {
-    static ref PROPOSER_ID: ValidatorId = 0_u32.into();
-    static ref VALIDATOR_ID_1: ValidatorId = 1_u32.into();
-    static ref VALIDATOR_ID_2: ValidatorId = 2_u32.into();
-    static ref VALIDATOR_ID_3: ValidatorId = 3_u32.into();
+    static ref PROPOSER_ID: ValidatorId = DEFAULT_VALIDATOR_ID.into();
+    static ref VALIDATOR_ID_1: ValidatorId = (DEFAULT_VALIDATOR_ID + 1).into();
+    static ref VALIDATOR_ID_2: ValidatorId = (DEFAULT_VALIDATOR_ID + 2).into();
+    static ref VALIDATOR_ID_3: ValidatorId = (DEFAULT_VALIDATOR_ID + 3).into();
     static ref VALIDATORS: Vec<ValidatorId> =
         vec![*PROPOSER_ID, *VALIDATOR_ID_1, *VALIDATOR_ID_2, *VALIDATOR_ID_3];
     static ref BLOCK: TestBlock = TestBlock { content: vec![1, 2, 3], id: BlockHash(Felt::ONE) };
@@ -30,9 +31,12 @@ lazy_static! {
     static ref TIMEOUTS: TimeoutsConfig = TimeoutsConfig::default();
     static ref VALIDATE_PROPOSAL_EVENT: ShcEvent = ShcEvent::ValidateProposal(
         StateMachineEvent::Proposal(Some(BLOCK.id), PROPOSAL_INIT.round, PROPOSAL_INIT.valid_round,),
-        Some(BLOCK.id),
+        Some(ProposalFin { proposal_content_id: BLOCK.id }),
     );
+    static ref PROPOSAL_FIN: ProposalFin = ProposalFin { proposal_content_id: BLOCK.id };
 }
+
+const CHANNEL_SIZE: usize = 1;
 
 fn prevote_task(block_felt: Option<Felt>, round: u32) -> ShcTask {
     ShcTask::Prevote(
@@ -64,17 +68,10 @@ async fn handle_proposal(
     context: &mut MockTestContext,
 ) -> ShcReturn {
     // Send the proposal from the peer.
-    let (fin_sender, fin_receiver) = oneshot::channel();
-    fin_sender.send(BLOCK.id).unwrap();
+    let (mut content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
+    content_sender.send(MockProposalPart(1)).await.unwrap();
 
-    shc.handle_proposal(
-        context,
-        PROPOSAL_INIT.clone(),
-        mpsc::channel(1).1, // content - ignored by SHC.
-        fin_receiver,
-    )
-    .await
-    .unwrap()
+    shc.handle_proposal(context, PROPOSAL_INIT.clone(), content_receiver).await.unwrap()
 }
 
 #[tokio::test]
@@ -83,6 +80,7 @@ async fn proposer() {
 
     let mut shc = SingleHeightConsensus::new(
         BlockNumber(0),
+        false,
         *PROPOSER_ID,
         VALIDATORS.to_vec(),
         TIMEOUTS.clone(),
@@ -94,6 +92,7 @@ async fn proposer() {
         block_sender.send(BLOCK.id).unwrap();
         block_receiver
     });
+    context.expect_set_height_and_round().returning(move |_, _| ());
     context
         .expect_broadcast()
         .times(1)
@@ -167,17 +166,19 @@ async fn validator(repeat_proposal: bool) {
     // Creation calls to `context.validators`.
     let mut shc = SingleHeightConsensus::new(
         BlockNumber(0),
+        false,
         *VALIDATOR_ID_1,
         VALIDATORS.to_vec(),
         TIMEOUTS.clone(),
     );
 
     context.expect_proposer().returning(move |_, _| *PROPOSER_ID);
-    context.expect_validate_proposal().times(1).returning(move |_, _, _| {
+    context.expect_validate_proposal().times(1).returning(move |_, _, _, _, _| {
         let (block_sender, block_receiver) = oneshot::channel();
-        block_sender.send(BLOCK.id).unwrap();
+        block_sender.send((BLOCK.id, PROPOSAL_FIN.clone())).unwrap();
         block_receiver
     });
+    context.expect_set_height_and_round().returning(move |_, _| ());
     context
         .expect_broadcast()
         .times(1)
@@ -245,17 +246,19 @@ async fn vote_twice(same_vote: bool) {
 
     let mut shc = SingleHeightConsensus::new(
         BlockNumber(0),
+        false,
         *VALIDATOR_ID_1,
         VALIDATORS.to_vec(),
         TIMEOUTS.clone(),
     );
 
     context.expect_proposer().times(1).returning(move |_, _| *PROPOSER_ID);
-    context.expect_validate_proposal().times(1).returning(move |_, _, _| {
+    context.expect_validate_proposal().times(1).returning(move |_, _, _, _, _| {
         let (block_sender, block_receiver) = oneshot::channel();
-        block_sender.send(BLOCK.id).unwrap();
+        block_sender.send((BLOCK.id, PROPOSAL_FIN.clone())).unwrap();
         block_receiver
     });
+    context.expect_set_height_and_round().returning(move |_, _| ());
     context
         .expect_broadcast()
         .times(1) // Shows the repeat vote is ignored.
@@ -313,6 +316,7 @@ async fn rebroadcast_votes() {
 
     let mut shc = SingleHeightConsensus::new(
         BlockNumber(0),
+        false,
         *PROPOSER_ID,
         VALIDATORS.to_vec(),
         TIMEOUTS.clone(),
@@ -324,6 +328,7 @@ async fn rebroadcast_votes() {
         block_sender.send(BLOCK.id).unwrap();
         block_receiver
     });
+    context.expect_set_height_and_round().returning(move |_, _| ());
     context
         .expect_broadcast()
         .times(1)
@@ -374,6 +379,7 @@ async fn repropose() {
 
     let mut shc = SingleHeightConsensus::new(
         BlockNumber(0),
+        false,
         *PROPOSER_ID,
         VALIDATORS.to_vec(),
         TIMEOUTS.clone(),
@@ -385,6 +391,7 @@ async fn repropose() {
         block_sender.send(BLOCK.id).unwrap();
         block_receiver
     });
+    context.expect_set_height_and_round().returning(move |_, _| ());
     context
         .expect_broadcast()
         .times(1)

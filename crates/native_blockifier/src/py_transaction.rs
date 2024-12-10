@@ -6,7 +6,7 @@ use blockifier::transaction::transaction_types::TransactionType;
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use starknet_api::block::GasPrice;
-use starknet_api::contract_class::{ClassInfo, ContractClass};
+use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
 use starknet_api::executable_transaction::AccountTransaction as ExecutableTransaction;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::{
@@ -30,6 +30,7 @@ pub(crate) const PY_TX_PARSING_ERR: &str = "Failed parsing Py transaction.";
 #[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub enum PyResource {
     L1Gas,
+    L1DataGas,
     L2Gas,
 }
 
@@ -37,6 +38,7 @@ impl From<PyResource> for Resource {
     fn from(py_resource: PyResource) -> Self {
         match py_resource {
             PyResource::L1Gas => Resource::L1Gas,
+            PyResource::L1DataGas => Resource::L1DataGas,
             PyResource::L2Gas => Resource::L2Gas,
         }
     }
@@ -47,6 +49,7 @@ impl FromPyObject<'_> for PyResource {
         let resource_name: &str = resource.getattr("name")?.extract()?;
         match resource_name {
             "L1_GAS" => Ok(PyResource::L1Gas),
+            "L1_DATA_GAS" => Ok(PyResource::L1DataGas),
             "L2_GAS" => Ok(PyResource::L2Gas),
             _ => Err(PyValueError::new_err(format!("Invalid resource: {resource_name}"))),
         }
@@ -138,18 +141,16 @@ pub fn py_tx(
         TransactionType::Declare => {
             let non_optional_py_class_info: PyClassInfo = optional_py_class_info
                 .expect("A class info must be passed in a Declare transaction.");
-            AccountTransaction::new(ExecutableTransaction::Declare(py_declare(
-                tx,
-                non_optional_py_class_info,
-            )?))
-            .into()
+            let tx = ExecutableTransaction::Declare(py_declare(tx, non_optional_py_class_info)?);
+            AccountTransaction::new_for_sequencing(tx).into()
         }
         TransactionType::DeployAccount => {
-            AccountTransaction::new(ExecutableTransaction::DeployAccount(py_deploy_account(tx)?))
-                .into()
+            let tx = ExecutableTransaction::DeployAccount(py_deploy_account(tx)?);
+            AccountTransaction::new_for_sequencing(tx).into()
         }
         TransactionType::InvokeFunction => {
-            AccountTransaction::new(ExecutableTransaction::Invoke(py_invoke_function(tx)?)).into()
+            let tx = ExecutableTransaction::Invoke(py_invoke_function(tx)?);
+            AccountTransaction::new_for_sequencing(tx).into()
         }
         TransactionType::L1Handler => py_l1_handler(tx)?.into(),
     })
@@ -164,6 +165,7 @@ pub struct PyClassInfo {
     raw_contract_class: String,
     sierra_program_length: usize,
     abi_length: usize,
+    sierra_version: (u64, u64, u64),
 }
 
 impl PyClassInfo {
@@ -181,10 +183,13 @@ impl PyClassInfo {
                 ContractClass::V1(serde_json::from_str(&py_class_info.raw_contract_class)?)
             }
         };
+        let (major, minor, patch) = py_class_info.sierra_version;
+
         let class_info = ClassInfo::new(
             &contract_class,
             py_class_info.sierra_program_length,
             py_class_info.abi_length,
+            SierraVersion::new(major, minor, patch),
         )?;
         Ok(class_info)
     }

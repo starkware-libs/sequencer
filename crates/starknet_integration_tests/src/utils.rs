@@ -2,24 +2,18 @@ use std::future::Future;
 use std::net::SocketAddr;
 use std::time::Duration;
 
-use axum::body::Body;
 use blockifier::context::ChainInfo;
 use blockifier::test_utils::contracts::FeatureContract;
-use blockifier::test_utils::CairoVersion;
-use mempool_test_utils::starknet_api_test_utils::{
-    rpc_tx_to_json,
-    AccountId,
-    MultiAccountTransactionGenerator,
-};
+use blockifier::test_utils::{CairoVersion, RunnableCairo1};
+use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use papyrus_consensus::config::ConsensusConfig;
-use papyrus_network::network_manager::test_utils::create_network_config_connected_to_broadcast_channels;
+use papyrus_consensus::types::{ValidatorId, DEFAULT_VALIDATOR_ID};
+use papyrus_network::network_manager::test_utils::create_network_configs_connected_to_broadcast_channels;
 use papyrus_network::network_manager::BroadcastTopicChannels;
-use papyrus_protobuf::consensus::ProposalPart;
+use papyrus_protobuf::consensus::{ProposalPart, StreamMessage};
 use papyrus_storage::StorageConfig;
-use reqwest::{Client, Response};
 use starknet_api::block::BlockNumber;
-use starknet_api::contract_address;
-use starknet_api::core::ContractAddress;
+use starknet_api::core::{ChainId, ContractAddress};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_batcher::block_builder::BlockBuilderConfig;
@@ -31,11 +25,13 @@ use starknet_gateway::config::{
     StatefulTransactionValidatorConfig,
     StatelessTransactionValidatorConfig,
 };
-use starknet_gateway_types::errors::GatewaySpecError;
 use starknet_http_server::config::HttpServerConfig;
+use starknet_mempool_p2p::config::MempoolP2pConfig;
+use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_sequencer_infra::test_utils::get_available_socket;
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::config::test_utils::RequiredParams;
+use starknet_types_core::felt::Felt;
 
 pub fn create_chain_info() -> ChainInfo {
     let mut chain_info = ChainInfo::create_for_testing();
@@ -45,18 +41,25 @@ pub fn create_chain_info() -> ChainInfo {
     chain_info
 }
 
+// TODO(yair, Tsabary): Create config presets for tests, then remove all the functions that modify
+// the config.
 pub async fn create_config(
+    sequencer_index: usize,
     chain_info: ChainInfo,
     rpc_server_addr: SocketAddr,
     batcher_storage_config: StorageConfig,
-) -> (SequencerNodeConfig, RequiredParams, BroadcastTopicChannels<ProposalPart>) {
+    mut consensus_manager_config: ConsensusManagerConfig,
+) -> (SequencerNodeConfig, RequiredParams) {
+    set_validator_id(&mut consensus_manager_config, sequencer_index);
     let fee_token_addresses = chain_info.fee_token_addresses.clone();
     let batcher_config = create_batcher_config(batcher_storage_config, chain_info.clone());
     let gateway_config = create_gateway_config(chain_info.clone()).await;
     let http_server_config = create_http_server_config().await;
     let rpc_state_reader_config = test_rpc_state_reader_config(rpc_server_addr);
-    let (consensus_manager_config, consensus_proposals_channels) =
-        create_consensus_manager_config_and_channels();
+    let mempool_p2p_config =
+        create_mempool_p2p_config(sequencer_index, chain_info.chain_id.clone());
+    let monitoring_endpoint_config = create_monitoring_endpoint_config(sequencer_index);
+
     (
         SequencerNodeConfig {
             batcher_config,
@@ -64,35 +67,54 @@ pub async fn create_config(
             gateway_config,
             http_server_config,
             rpc_state_reader_config,
-            ..SequencerNodeConfig::default()
+            mempool_p2p_config,
+            monitoring_endpoint_config,
+            ..Default::default()
         },
         RequiredParams {
             chain_id: chain_info.chain_id,
             eth_fee_token_address: fee_token_addresses.eth_fee_token_address,
             strk_fee_token_address: fee_token_addresses.strk_fee_token_address,
-            sequencer_address: ContractAddress::from(1312_u128), // Arbitrary non-zero value.
+            validator_id: ContractAddress::from(DEFAULT_VALIDATOR_ID),
         },
-        consensus_proposals_channels,
     )
 }
 
-fn create_consensus_manager_config_and_channels()
--> (ConsensusManagerConfig, BroadcastTopicChannels<ProposalPart>) {
-    let (network_config, broadcast_channels) =
-        create_network_config_connected_to_broadcast_channels(
+pub fn create_consensus_manager_configs_and_channels(
+    n_managers: usize,
+) -> (Vec<ConsensusManagerConfig>, BroadcastTopicChannels<StreamMessage<ProposalPart>>) {
+    let (network_configs, broadcast_channels) =
+        create_network_configs_connected_to_broadcast_channels(
+            n_managers,
             papyrus_network::gossipsub_impl::Topic::new(
-                starknet_consensus_manager::consensus_manager::NETWORK_TOPIC,
+                starknet_consensus_manager::consensus_manager::CONSENSUS_PROPOSALS_TOPIC,
             ),
         );
-    let consensus_manager_config = ConsensusManagerConfig {
-        consensus_config: ConsensusConfig {
-            start_height: BlockNumber(1),
-            consensus_delay: Duration::from_secs(1),
-            network_config,
-            ..Default::default()
-        },
-    };
-    (consensus_manager_config, broadcast_channels)
+    // TODO: Need to also add a channel for votes, in addition to the proposals channel.
+
+    // TODO(Matan, Dan): set reasonable default timeouts.
+    let mut timeouts = papyrus_consensus::config::TimeoutsConfig::default();
+    timeouts.precommit_timeout *= 3;
+    timeouts.prevote_timeout *= 3;
+    timeouts.proposal_timeout *= 3;
+
+    let consensus_manager_configs = network_configs
+        .into_iter()
+        // TODO(Matan): Get config from default config file.
+        .map(|network_config| ConsensusManagerConfig {
+            consensus_config: ConsensusConfig {
+                start_height: BlockNumber(1),
+		// TODO(Matan, Dan): Set the right amount
+                consensus_delay: Duration::from_secs(5),
+                network_config,
+                num_validators: u64::try_from(n_managers).unwrap(),
+                timeouts: timeouts.clone(),
+                ..Default::default()
+            },
+        })
+        .collect();
+
+    (consensus_manager_configs, broadcast_channels)
 }
 
 pub fn test_rpc_state_reader_config(rpc_server_addr: SocketAddr) -> RpcStateReaderConfig {
@@ -105,51 +127,13 @@ pub fn test_rpc_state_reader_config(rpc_server_addr: SocketAddr) -> RpcStateRead
     }
 }
 
-/// A test utility client for interacting with an http server.
-pub struct HttpTestClient {
-    socket: SocketAddr,
-    client: Client,
-}
-
-impl HttpTestClient {
-    pub fn new(socket: SocketAddr) -> Self {
-        let client = Client::new();
-        Self { socket, client }
-    }
-
-    pub async fn assert_add_tx_success(&self, rpc_tx: RpcTransaction) -> TransactionHash {
-        let response = self.add_tx(rpc_tx).await;
-        assert!(response.status().is_success());
-
-        response.json().await.unwrap()
-    }
-
-    // TODO: implement when usage eventually arises.
-    pub async fn assert_add_tx_error(&self, _tx: RpcTransaction) -> GatewaySpecError {
-        todo!()
-    }
-
-    // Prefer using assert_add_tx_success or other higher level methods of this client, to ensure
-    // tests are boilerplate and implementation-detail free.
-    pub async fn add_tx(&self, rpc_tx: RpcTransaction) -> Response {
-        let tx_json = rpc_tx_to_json(&rpc_tx);
-        self.client
-            .post(format!("http://{}/add_tx", self.socket))
-            .header("content-type", "application/json")
-            .body(Body::from(tx_json))
-            .send()
-            .await
-            .unwrap()
-    }
-}
-
 /// Creates a multi-account transaction generator for integration tests.
 pub fn create_integration_test_tx_generator() -> MultiAccountTransactionGenerator {
     let mut tx_generator: MultiAccountTransactionGenerator =
         MultiAccountTransactionGenerator::new();
 
     for account in [
-        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1),
+        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm)),
         FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0),
     ] {
         tx_generator.register_account_for_flow_test(account);
@@ -158,7 +142,7 @@ pub fn create_integration_test_tx_generator() -> MultiAccountTransactionGenerato
 }
 
 fn create_txs_for_integration_test(
-    mut tx_generator: MultiAccountTransactionGenerator,
+    tx_generator: &mut MultiAccountTransactionGenerator,
 ) -> Vec<RpcTransaction> {
     const ACCOUNT_ID_0: AccountId = 0;
     const ACCOUNT_ID_1: AccountId = 1;
@@ -201,7 +185,7 @@ where
 /// Creates and runs the integration test scenario for the sequencer integration test. Returns a
 /// list of transaction hashes, in the order they are expected to be in the mempool.
 pub async fn run_integration_test_scenario<'a, Fut>(
-    tx_generator: MultiAccountTransactionGenerator,
+    tx_generator: &mut MultiAccountTransactionGenerator,
     send_rpc_tx_fn: &'a mut dyn FnMut(RpcTransaction) -> Fut,
 ) -> Vec<TransactionHash>
 where
@@ -259,15 +243,37 @@ pub fn create_batcher_config(
     chain_info: ChainInfo,
 ) -> BatcherConfig {
     // TODO(Arni): Create BlockBuilderConfig create for testing method and use here.
-    const SEQUENCER_ADDRESS_FOR_TESTING: u128 = 1991;
-
     BatcherConfig {
         storage: batcher_storage_config,
-        block_builder_config: BlockBuilderConfig {
-            chain_info,
-            sequencer_address: contract_address!(SEQUENCER_ADDRESS_FOR_TESTING),
-            ..Default::default()
-        },
+        block_builder_config: BlockBuilderConfig { chain_info, ..Default::default() },
         ..Default::default()
     }
+}
+
+pub fn run_integration_test() -> bool {
+    std::env::var("SEQUENCER_INTEGRATION_TESTS").is_ok()
+}
+
+fn set_validator_id(consensus_manager_config: &mut ConsensusManagerConfig, sequencer_index: usize) {
+    consensus_manager_config.consensus_config.validator_id = ValidatorId::try_from(
+        Felt::from(consensus_manager_config.consensus_config.validator_id)
+            + Felt::from(sequencer_index),
+    )
+    .unwrap();
+}
+
+fn create_mempool_p2p_config(sequencer_index: usize, chain_id: ChainId) -> MempoolP2pConfig {
+    let mut config = MempoolP2pConfig::default();
+    // When running multiple sequencers on the same machine, we need to make sure their ports are
+    // different. Use the sequencer_index to differentiate between them.
+    config.network_config.tcp_port += u16::try_from(sequencer_index).unwrap();
+    config.network_config.quic_port += u16::try_from(sequencer_index).unwrap();
+    config.network_config.chain_id = chain_id;
+    config
+}
+
+fn create_monitoring_endpoint_config(sequencer_index: usize) -> MonitoringEndpointConfig {
+    let mut config = MonitoringEndpointConfig::default();
+    config.port += u16::try_from(sequencer_index).unwrap();
+    config
 }

@@ -1,7 +1,7 @@
 use blockifier::execution::contract_class::{
-    ContractClassV0,
-    ContractClassV1,
-    RunnableContractClass,
+    CompiledClassV0,
+    CompiledClassV1,
+    RunnableCompiledClass,
 };
 use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader, StateResult};
@@ -68,11 +68,8 @@ impl StateReader for PyStateReader {
         .map_err(|err| StateError::StateReadError(err.to_string()))
     }
 
-    fn get_compiled_contract_class(
-        &self,
-        class_hash: ClassHash,
-    ) -> StateResult<RunnableContractClass> {
-        Python::with_gil(|py| -> Result<RunnableContractClass, PyErr> {
+    fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
+        Python::with_gil(|py| -> Result<RunnableCompiledClass, PyErr> {
             let args = (PyFelt::from(class_hash),);
             let py_raw_compiled_class: PyRawCompiledClass = self
                 .state_reader_proxy
@@ -80,7 +77,7 @@ impl StateReader for PyStateReader {
                 .call_method1("get_raw_compiled_class", args)?
                 .extract()?;
 
-            Ok(RunnableContractClass::try_from(py_raw_compiled_class)?)
+            Ok(RunnableCompiledClass::try_from(py_raw_compiled_class)?)
         })
         .map_err(|err| {
             if Python::with_gil(|py| err.is_instance_of::<UndeclaredClassHashError>(py)) {
@@ -110,14 +107,14 @@ pub struct PyRawCompiledClass {
     pub version: usize,
 }
 
-impl TryFrom<PyRawCompiledClass> for RunnableContractClass {
+impl TryFrom<PyRawCompiledClass> for RunnableCompiledClass {
     type Error = NativeBlockifierError;
 
     fn try_from(raw_compiled_class: PyRawCompiledClass) -> NativeBlockifierResult<Self> {
         match raw_compiled_class.version {
-            0 => Ok(ContractClassV0::try_from_json_string(&raw_compiled_class.raw_compiled_class)?
+            0 => Ok(CompiledClassV0::try_from_json_string(&raw_compiled_class.raw_compiled_class)?
                 .into()),
-            1 => Ok(ContractClassV1::try_from_json_string(&raw_compiled_class.raw_compiled_class)?
+            1 => Ok(CompiledClassV1::try_from_json_string(&raw_compiled_class.raw_compiled_class)?
                 .into()),
             _ => Err(NativeBlockifierInputError::UnsupportedContractClassVersion {
                 version: raw_compiled_class.version,

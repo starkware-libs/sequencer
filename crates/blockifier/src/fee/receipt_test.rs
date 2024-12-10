@@ -23,12 +23,18 @@ use crate::fee::resources::{StarknetResources, StateResources};
 use crate::state::cached_state::StateChangesCount;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{create_calldata, create_trivial_calldata, CairoVersion, BALANCE};
+use crate::test_utils::{
+    create_calldata,
+    create_trivial_calldata,
+    CairoVersion,
+    RunnableCairo1,
+    BALANCE,
+};
 use crate::transaction::objects::HasRelatedFeeType;
 use crate::transaction::test_utils::{
-    account_invoke_tx,
     calculate_class_info_for_testing,
     create_resource_bounds,
+    invoke_tx_with_default_flags,
 };
 use crate::transaction::transactions::ExecutableTransaction;
 use crate::utils::{u64_from_usize, usize_from_u64};
@@ -68,7 +74,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(
     assert_eq!(empty_tx_gas_usage_vector, GasVector::default());
 
     // Declare.
-    for cairo_version in [CairoVersion::Cairo0, CairoVersion::Cairo1] {
+    for cairo_version in [CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm)] {
         let empty_contract = FeatureContract::Empty(cairo_version).get_class();
         let class_info = calculate_class_info_for_testing(empty_contract);
         let declare_tx_starknet_resources = StarknetResources::new(
@@ -136,7 +142,9 @@ fn test_calculate_tx_gas_usage_basic<'a>(
         GasVectorComputationMode::All => GasVector::from_l2_gas(calldata_and_signature_gas_cost),
     };
     let manual_gas_vector = manual_starknet_gas_usage_vector
-        + deploy_account_tx_starknet_resources.state.to_gas_vector(use_kzg_da);
+        + deploy_account_tx_starknet_resources
+            .state
+            .to_gas_vector(use_kzg_da, &versioned_constants.allocation_cost);
 
     let deploy_account_gas_usage_vector = deploy_account_tx_starknet_resources.to_gas_vector(
         &versioned_constants,
@@ -249,10 +257,18 @@ fn test_calculate_tx_gas_usage_basic<'a>(
             .unwrap();
     let manual_sharp_gas_usage = message_segment_length
         * eth_gas_constants::SHARP_GAS_PER_MEMORY_WORD
-        + usize_from_u64(l2_to_l1_starknet_resources.state.to_gas_vector(use_kzg_da).l1_gas.0)
-            .unwrap();
-    let manual_sharp_blob_gas_usage =
-        l2_to_l1_starknet_resources.state.to_gas_vector(use_kzg_da).l1_data_gas;
+        + usize_from_u64(
+            l2_to_l1_starknet_resources
+                .state
+                .to_gas_vector(use_kzg_da, &versioned_constants.allocation_cost)
+                .l1_gas
+                .0,
+        )
+        .unwrap();
+    let manual_sharp_blob_gas_usage = l2_to_l1_starknet_resources
+        .state
+        .to_gas_vector(use_kzg_da, &versioned_constants.allocation_cost)
+        .l1_data_gas;
     let manual_gas_computation = GasVector {
         l1_gas: u64_from_usize(manual_starknet_gas_usage + manual_sharp_gas_usage).into(),
         l1_data_gas: manual_sharp_blob_gas_usage,
@@ -288,7 +304,9 @@ fn test_calculate_tx_gas_usage_basic<'a>(
 
     // Manual calculation.
     // No L2 gas is used, so gas amount does not depend on gas vector computation mode.
-    let manual_gas_computation = storage_writes_starknet_resources.state.to_gas_vector(use_kzg_da);
+    let manual_gas_computation = storage_writes_starknet_resources
+        .state
+        .to_gas_vector(use_kzg_da, &versioned_constants.allocation_cost);
 
     assert_eq!(manual_gas_computation, storage_writings_gas_usage_vector);
 
@@ -334,7 +352,10 @@ fn test_calculate_tx_gas_usage_basic<'a>(
         // the combined calculation got it once.
         + u64_from_usize(fee_balance_discount).into(),
         // Expected blob gas usage is from data availability only.
-        l1_data_gas: combined_cases_starknet_resources.state.to_gas_vector(use_kzg_da).l1_data_gas,
+        l1_data_gas: combined_cases_starknet_resources
+            .state
+            .to_gas_vector(use_kzg_da, &versioned_constants.allocation_cost)
+            .l1_data_gas,
         l2_gas: l1_handler_gas_usage_vector.l2_gas,
     };
 
@@ -360,7 +381,7 @@ fn test_calculate_tx_gas_usage(
     let account_contract_address = account_contract.get_instance_address(0);
     let state = &mut test_state(chain_info, BALANCE, &[(account_contract, 1), (test_contract, 1)]);
 
-    let account_tx = account_invoke_tx(invoke_tx_args! {
+    let account_tx = invoke_tx_with_default_flags(invoke_tx_args! {
             sender_address: account_contract_address,
             calldata: create_trivial_calldata(test_contract.get_instance_address(0)),
             resource_bounds: max_resource_bounds,
@@ -368,7 +389,7 @@ fn test_calculate_tx_gas_usage(
     let calldata_length = account_tx.calldata_length();
     let signature_length = account_tx.signature_length();
     let fee_token_address = chain_info.fee_token_address(&account_tx.fee_type());
-    let tx_execution_info = account_tx.execute(state, block_context, true, true).unwrap();
+    let tx_execution_info = account_tx.execute(state, block_context).unwrap();
 
     let n_storage_updates = 1; // For the account balance update.
     let n_modified_contracts = 1;
@@ -378,11 +399,12 @@ fn test_calculate_tx_gas_usage(
         n_modified_contracts,
         n_compiled_class_hash_updates: 0,
     };
+    let n_allocated_keys = 0; // This tx doesn't allocate the account balance.
     let starknet_resources = StarknetResources::new(
         calldata_length,
         signature_length,
         0,
-        StateResources::new_for_testing(state_changes_count, 0),
+        StateResources::new_for_testing(state_changes_count, n_allocated_keys),
         None,
         ExecutionSummary::default(),
     );
@@ -412,7 +434,7 @@ fn test_calculate_tx_gas_usage(
         ],
     );
 
-    let account_tx = account_invoke_tx(invoke_tx_args! {
+    let account_tx = invoke_tx_with_default_flags(invoke_tx_args! {
         resource_bounds: max_resource_bounds,
         sender_address: account_contract_address,
         calldata: execute_calldata,
@@ -421,7 +443,7 @@ fn test_calculate_tx_gas_usage(
 
     let calldata_length = account_tx.calldata_length();
     let signature_length = account_tx.signature_length();
-    let tx_execution_info = account_tx.execute(state, block_context, true, true).unwrap();
+    let tx_execution_info = account_tx.execute(state, block_context).unwrap();
     // For the balance update of the sender and the recipient.
     let n_storage_updates = 2;
     // Only the account contract modification (nonce update) excluding the fee token contract.
@@ -432,6 +454,7 @@ fn test_calculate_tx_gas_usage(
         n_modified_contracts,
         n_compiled_class_hash_updates: 0,
     };
+    let n_allocated_keys = 1; // Only for the recipient.
     let execution_call_info =
         &tx_execution_info.execute_call_info.expect("Execution call info should exist.");
     let execution_summary =
@@ -440,7 +463,7 @@ fn test_calculate_tx_gas_usage(
         calldata_length,
         signature_length,
         0,
-        StateResources::new_for_testing(state_changes_count, 0),
+        StateResources::new_for_testing(state_changes_count, n_allocated_keys),
         None,
         // The transfer entrypoint emits an event - pass the call info to count its resources.
         execution_summary,

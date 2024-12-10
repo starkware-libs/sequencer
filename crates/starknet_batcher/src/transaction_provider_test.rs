@@ -3,11 +3,10 @@ use std::sync::Arc;
 use assert_matches::assert_matches;
 use mockall::predicate::eq;
 use rstest::{fixture, rstest};
-use starknet_api::executable_transaction::{AccountTransaction, L1HandlerTransaction, Transaction};
+use starknet_api::executable_transaction::{L1HandlerTransaction, Transaction};
 use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
-use starknet_api::transaction::TransactionHash;
+use starknet_api::tx_hash;
 use starknet_mempool_types::communication::MockMempoolClient;
-use starknet_types_core::felt::Felt;
 
 use crate::transaction_provider::{
     MockL1ProviderClient,
@@ -39,10 +38,7 @@ impl MockDependencies {
 
     fn expect_get_mempool_txs(&mut self, n_to_request: usize) {
         self.mempool_client.expect_get_txs().with(eq(n_to_request)).returning(move |n_requested| {
-            Ok(vec![
-                AccountTransaction::Invoke(executable_invoke_tx(InvokeTxArgs::default()));
-                n_requested
-            ])
+            Ok(vec![executable_invoke_tx(InvokeTxArgs::default()); n_requested])
         });
     }
 
@@ -95,7 +91,7 @@ fn tx_channel() -> (tokio::sync::mpsc::Sender<Transaction>, tokio::sync::mpsc::R
 }
 
 fn test_l1handler_tx() -> L1HandlerTransaction {
-    L1HandlerTransaction { tx_hash: TransactionHash(Felt::ONE), ..Default::default() }
+    L1HandlerTransaction { tx_hash: tx_hash!(1), ..Default::default() }
 }
 
 #[rstest]
@@ -171,9 +167,7 @@ async fn validate_flow(mut mock_dependencies: MockDependencies) {
     mock_dependencies
         .simulate_input_txs(vec![
             Transaction::L1Handler(test_tx),
-            Transaction::Account(AccountTransaction::Invoke(executable_invoke_tx(
-                InvokeTxArgs::default(),
-            ))),
+            Transaction::Account(executable_invoke_tx(InvokeTxArgs::default())),
         ])
         .await;
     let mut validate_tx_provider = mock_dependencies.validate_tx_provider();
@@ -193,9 +187,7 @@ async fn validate_fails(mut mock_dependencies: MockDependencies) {
     mock_dependencies
         .simulate_input_txs(vec![
             Transaction::L1Handler(test_tx),
-            Transaction::Account(AccountTransaction::Invoke(executable_invoke_tx(
-                InvokeTxArgs::default(),
-            ))),
+            Transaction::Account(executable_invoke_tx(InvokeTxArgs::default())),
         ])
         .await;
     let mut validate_tx_provider = mock_dependencies.validate_tx_provider();

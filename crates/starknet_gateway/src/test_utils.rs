@@ -2,7 +2,8 @@ use starknet_api::block::GasPrice;
 use starknet_api::core::ContractAddress;
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::execution_resources::GasAmount;
-use starknet_api::rpc_transaction::{ContractClass, RpcTransaction};
+use starknet_api::rpc_transaction::RpcTransaction;
+use starknet_api::state::SierraContractClass;
 use starknet_api::test_utils::declare::{rpc_declare_tx, TEST_SENDER_ADDRESS};
 use starknet_api::test_utils::deploy_account::rpc_deploy_account_tx;
 use starknet_api::test_utils::invoke::rpc_invoke_tx;
@@ -89,7 +90,7 @@ pub fn rpc_tx_for_testing(
     match tx_type {
         TransactionType::Declare => {
             // Minimal contract class.
-            let contract_class = ContractClass {
+            let contract_class = SierraContractClass {
                 sierra_program: vec![
                     // Sierra Version ID.
                     felt!(1_u32),

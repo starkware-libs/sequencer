@@ -6,17 +6,17 @@ use cairo_lang_starknet_classes::contract_class::{
     ContractEntryPoints as CairoLangContractEntryPoints,
 };
 use cairo_lang_utils::bigint::BigUintAsHex;
-use starknet_api::rpc_transaction::{
-    ContractClass as RpcContractClass,
-    EntryPointByType as StarknetApiEntryPointByType,
+use starknet_api::rpc_transaction::EntryPointByType as StarknetApiEntryPointByType;
+use starknet_api::state::{
+    EntryPoint as StarknetApiEntryPoint,
+    SierraContractClass as StarknetApiContractClass,
 };
-use starknet_api::state::EntryPoint as StarknetApiEntryPoint;
 use starknet_types_core::felt::Felt;
 
 /// Retruns a [`CairoLangContractClass`] struct ready for Sierra to Casm compilation. Note the `abi`
 /// field is None as it is not relevant for the compilation.
 pub fn into_contract_class_for_compilation(
-    rpc_contract_class: &RpcContractClass,
+    rpc_contract_class: &StarknetApiContractClass,
 ) -> CairoLangContractClass {
     let sierra_program =
         sierra_program_as_felts_to_big_uint_as_hex(&rpc_contract_class.sierra_program);

@@ -124,7 +124,7 @@ where
     ) -> StorageResult<Self>;
 }
 
-impl<'env, Mode: TransactionKind> ClassStorageReader for StorageTxn<'env, Mode> {
+impl<Mode: TransactionKind> ClassStorageReader for StorageTxn<'_, Mode> {
     fn get_class(&self, class_hash: &ClassHash) -> StorageResult<Option<SierraContractClass>> {
         let declared_classes_table = self.open_table(&self.tables.declared_classes)?;
         let contract_class_location = declared_classes_table.get(&self.txn, class_hash)?;
@@ -154,7 +154,7 @@ impl<'env, Mode: TransactionKind> ClassStorageReader for StorageTxn<'env, Mode> 
     }
 }
 
-impl<'env> ClassStorageWriter for StorageTxn<'env, RW> {
+impl ClassStorageWriter for StorageTxn<'_, RW> {
     #[latency_histogram("storage_append_classes_latency_seconds", false)]
     fn append_classes(
         self,

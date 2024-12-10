@@ -89,6 +89,11 @@ expression: dumped_default_config
     "value": true,
     "privacy": "TemporaryValue"
   },
+  "consensus.chain_id": {
+    "description": "The chain id of the Starknet chain.",
+    "value": "0x0",
+    "privacy": "Public"
+  },
   "consensus.consensus_delay": {
     "description": "Delay (seconds) before starting consensus to give time for network peering.",
     "value": {
@@ -238,7 +243,7 @@ expression: dumped_default_config
   },
   "consensus.validator_id": {
     "description": "The validator id of the node.",
-    "value": "0x0",
+    "value": "0x64",
     "privacy": "Public"
   },
   "monitoring_gateway.collect_metrics": {
@@ -424,9 +429,9 @@ expression: dumped_default_config
     "privacy": "TemporaryValue"
   },
   "p2p_sync.wait_period_for_new_data": {
-    "description": "Time in seconds to wait when a query returned with partial data before sending a new query",
+    "description": "Time in millisseconds to wait when a query returned with partial data before sending a new query",
     "value": {
-      "$serde_json::private::Number": "5"
+      "$serde_json::private::Number": "50"
     },
     "privacy": "Public"
   },

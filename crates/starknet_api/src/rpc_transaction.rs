@@ -4,8 +4,8 @@ mod rpc_transaction_test;
 
 use std::collections::HashMap;
 
+use cairo_lang_starknet_classes::contract_class::ContractEntryPoints as CairoLangContractEntryPoints;
 use serde::{Deserialize, Serialize};
-use starknet_types_core::felt::Felt;
 
 use crate::contract_class::EntryPointType;
 use crate::core::{
@@ -16,7 +16,7 @@ use crate::core::{
     Nonce,
 };
 use crate::data_availability::DataAvailabilityMode;
-use crate::state::EntryPoint;
+use crate::state::{EntryPoint, SierraContractClass};
 use crate::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
@@ -180,7 +180,7 @@ pub struct RpcDeclareTransactionV3 {
     pub compiled_class_hash: CompiledClassHash,
     pub signature: TransactionSignature,
     pub nonce: Nonce,
-    pub contract_class: ContractClass,
+    pub contract_class: SierraContractClass,
     pub resource_bounds: AllResourceBounds,
     pub tip: Tip,
     pub paymaster_data: PaymasterData,
@@ -272,15 +272,6 @@ impl From<RpcInvokeTransactionV3> for InvokeTransactionV3 {
     }
 }
 
-// The contract class in SN_API state doesn't have `contract_class_version`, not following the spec.
-#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, Hash)]
-pub struct ContractClass {
-    pub sierra_program: Vec<Felt>,
-    pub contract_class_version: String,
-    pub entry_points_by_type: EntryPointByType,
-    pub abi: String,
-}
-
 // TODO(Aviv): remove duplication with sequencer/crates/papyrus_rpc/src/v0_8/state.rs
 #[derive(Debug, Clone, Default, Eq, PartialEq, Deserialize, Serialize, Hash)]
 pub struct EntryPointByType {
@@ -290,6 +281,18 @@ pub struct EntryPointByType {
     pub external: Vec<EntryPoint>,
     #[serde(rename = "L1_HANDLER")]
     pub l1handler: Vec<EntryPoint>,
+}
+
+// TODO(AVIV): Consider removing this conversion and using CairoLangContractEntryPoints instead of
+// defining the EntryPointByType struct.
+impl From<CairoLangContractEntryPoints> for EntryPointByType {
+    fn from(value: CairoLangContractEntryPoints) -> Self {
+        Self {
+            constructor: value.constructor.into_iter().map(EntryPoint::from).collect(),
+            external: value.external.into_iter().map(EntryPoint::from).collect(),
+            l1handler: value.l1_handler.into_iter().map(EntryPoint::from).collect(),
+        }
+    }
 }
 
 impl EntryPointByType {

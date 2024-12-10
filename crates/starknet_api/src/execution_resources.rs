@@ -7,12 +7,12 @@ use strum_macros::EnumIter;
 use crate::block::{GasPrice, GasPriceVector, NonzeroGasPrice};
 use crate::transaction::fields::{Fee, Resource};
 
-#[cfg_attr(
-    any(test, feature = "testing"),
-    derive(derive_more::Add, derive_more::Sum, derive_more::AddAssign, derive_more::Div)
-)]
+#[cfg_attr(any(test, feature = "testing"), derive(derive_more::Sum, derive_more::Div))]
 #[derive(
     derive_more::Display,
+    derive_more::Sub,
+    derive_more::Add,
+    derive_more::AddAssign,
     Clone,
     Copy,
     Debug,
@@ -55,6 +55,10 @@ impl GasAmount {
         self.0.checked_add(rhs.0).map(Self)
     }
 
+    pub fn checked_sub(self, rhs: Self) -> Option<Self> {
+        self.0.checked_sub(rhs.0).map(Self)
+    }
+
     pub const fn nonzero_saturating_mul(self, rhs: NonzeroGasPrice) -> Fee {
         rhs.saturating_mul(self)
     }
@@ -65,6 +69,10 @@ impl GasAmount {
 
     pub fn checked_mul(self, rhs: GasPrice) -> Option<Fee> {
         rhs.checked_mul(self)
+    }
+
+    pub fn checked_factor_mul(self, factor: u64) -> Option<Self> {
+        self.0.checked_mul(factor).map(Self)
     }
 }
 
@@ -101,6 +109,19 @@ impl GasVector {
             self.l1_gas.checked_add(rhs.l1_gas),
             self.l1_data_gas.checked_add(rhs.l1_data_gas),
             self.l2_gas.checked_add(rhs.l2_gas),
+        ) {
+            (Some(l1_gas), Some(l1_data_gas), Some(l2_gas)) => {
+                Some(Self { l1_gas, l1_data_gas, l2_gas })
+            }
+            _ => None,
+        }
+    }
+
+    pub fn checked_scalar_mul(self, factor: u64) -> Option<Self> {
+        match (
+            self.l1_gas.checked_factor_mul(factor),
+            self.l1_data_gas.checked_factor_mul(factor),
+            self.l2_gas.checked_factor_mul(factor),
         ) {
             (Some(l1_gas), Some(l1_data_gas), Some(l2_gas)) => {
                 Some(Self { l1_gas, l1_data_gas, l2_gas })
@@ -146,6 +167,10 @@ impl GasVector {
     /// function does nothing.
     /// Panics on overflow.
     pub fn to_discounted_l1_gas(&self, gas_prices: &GasPriceVector) -> GasAmount {
+        if self.l2_gas.0 > 0 {
+            // TODO(Yoni, 10/12/2024): convert L2 gas as well.
+            todo!();
+        }
         let l1_data_gas_fee = self
             .l1_data_gas
             .checked_mul(gas_prices.l1_data_gas_price.into())

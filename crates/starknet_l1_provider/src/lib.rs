@@ -6,10 +6,8 @@ pub mod test_utils;
 use indexmap::{IndexMap, IndexSet};
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
-
-use crate::errors::L1ProviderError;
-
-type L1ProviderResult<T> = Result<T, L1ProviderError>;
+use starknet_l1_provider_types::errors::L1ProviderError;
+use starknet_l1_provider_types::{L1ProviderResult, ValidationStatus};
 
 #[cfg(test)]
 #[path = "l1_provider_tests.rs"]
@@ -39,6 +37,7 @@ impl L1Provider {
             ProviderState::Propose => Ok(self.tx_manager.get_txs(n_txs)),
             ProviderState::Pending => Err(L1ProviderError::GetTransactionsInPendingState),
             ProviderState::Validate => Err(L1ProviderError::GetTransactionConsensusBug),
+            ProviderState::Uninitialized => panic!("Uninitialized L1 provider"),
         }
     }
 
@@ -49,6 +48,7 @@ impl L1Provider {
             ProviderState::Validate => Ok(self.tx_manager.tx_status(tx_hash)),
             ProviderState::Propose => Err(L1ProviderError::ValidateTransactionConsensusBug),
             ProviderState::Pending => Err(L1ProviderError::ValidateInPendingState),
+            ProviderState::Uninitialized => panic!("Uninitialized L1 provider"),
         }
     }
 
@@ -140,19 +140,13 @@ impl TransactionManager {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ValidationStatus {
-    Validated,
-    AlreadyIncludedOnL2,
-    ConsumedOnL1OrUnknown,
-}
-
 /// Current state of the provider, where pending means: idle, between proposal/validation cycles.
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum ProviderState {
-    #[default]
     Pending,
     Propose,
+    #[default]
+    Uninitialized,
     Validate,
 }
 
@@ -160,20 +154,14 @@ impl ProviderState {
     fn transition_to_propose(self) -> L1ProviderResult<Self> {
         match self {
             ProviderState::Pending => Ok(ProviderState::Propose),
-            _ => Err(L1ProviderError::UnexpectedProviderStateTransition {
-                from: self,
-                to: ProviderState::Propose,
-            }),
+            _ => Err(L1ProviderError::unexpected_transition(self, ProviderState::Propose)),
         }
     }
 
     fn transition_to_validate(self) -> L1ProviderResult<Self> {
         match self {
             ProviderState::Pending => Ok(ProviderState::Validate),
-            _ => Err(L1ProviderError::UnexpectedProviderStateTransition {
-                from: self,
-                to: ProviderState::Validate,
-            }),
+            _ => Err(L1ProviderError::unexpected_transition(self, ProviderState::Validate)),
         }
     }
 
@@ -186,6 +174,7 @@ impl ProviderState {
             ProviderState::Pending => "Pending",
             ProviderState::Propose => "Propose",
             ProviderState::Validate => "Validate",
+            ProviderState::Uninitialized => "Validate",
         }
     }
 }

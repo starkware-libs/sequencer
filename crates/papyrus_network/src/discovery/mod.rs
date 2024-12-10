@@ -6,12 +6,11 @@ pub mod identify_impl;
 pub mod kad_impl;
 
 use std::collections::BTreeMap;
-use std::task::{ready, Context, Poll, Waker};
+use std::task::{ready, Context, Poll};
 use std::time::Duration;
 
-use futures::future::BoxFuture;
+use futures::future::{pending, select, BoxFuture, Either};
 use futures::{pin_mut, Future, FutureExt};
-use kad_impl::KadToOtherBehaviourEvent;
 use libp2p::core::Endpoint;
 use libp2p::swarm::behaviour::ConnectionEstablished;
 use libp2p::swarm::dial_opts::{DialOpts, PeerCondition};
@@ -42,8 +41,6 @@ use crate::mixed_behaviour::BridgedBehaviour;
 
 pub struct Behaviour {
     config: DiscoveryConfig,
-    // TODO(shahak): Consider running several queries in parallel
-    is_query_running: bool,
     bootstrap_peer_address: Multiaddr,
     bootstrap_peer_id: PeerId,
     is_dialing_to_bootstrap_peer: bool,
@@ -51,7 +48,6 @@ pub struct Behaviour {
     sleep_future_for_dialing_bootstrap_peer: Option<BoxFuture<'static, ()>>,
     is_connected_to_bootstrap_peer: bool,
     is_bootstrap_in_kad_routing_table: bool,
-    wakers_waiting_for_query_to_finish: Vec<Waker>,
     bootstrap_dial_retry_strategy: ExponentialBackoff,
     query_sleep_future: Option<BoxFuture<'static, ()>>,
 }
@@ -94,8 +90,6 @@ impl NetworkBehaviour for Behaviour {
                 self.is_dialing_to_bootstrap_peer = false;
                 // For the case that the reason for failure is consistent (e.g the bootstrap peer
                 // is down), we sleep before redialing
-                // TODO(shahak): Consider increasing the time after each failure, the same way we
-                // do in starknet client.
                 self.sleep_future_for_dialing_bootstrap_peer = Some(
                     tokio::time::sleep(self.bootstrap_dial_retry_strategy.next().expect(
                         "Dial sleep strategy ended even though it's an infinite iterator.",
@@ -118,6 +112,7 @@ impl NetworkBehaviour for Behaviour {
             }) if peer_id == self.bootstrap_peer_id && remaining_established == 0 => {
                 self.is_connected_to_bootstrap_peer = false;
                 self.is_dialing_to_bootstrap_peer = false;
+                self.is_bootstrap_in_kad_routing_table = false;
             }
             FromSwarm::AddressChange(AddressChange { peer_id, .. })
                 if peer_id == self.bootstrap_peer_id =>
@@ -141,29 +136,7 @@ impl NetworkBehaviour for Behaviour {
         cx: &mut Context<'_>,
     ) -> Poll<ToSwarm<Self::ToSwarm, <Self::ConnectionHandler as ConnectionHandler>::FromBehaviour>>
     {
-        if !self.is_dialing_to_bootstrap_peer && !self.is_connected_to_bootstrap_peer {
-            if let Some(sleep_future) = &mut self.sleep_future_for_dialing_bootstrap_peer {
-                pin_mut!(sleep_future);
-                ready!(sleep_future.poll(cx));
-            }
-            self.is_dialing_to_bootstrap_peer = true;
-            self.sleep_future_for_dialing_bootstrap_peer = None;
-            return Poll::Ready(ToSwarm::Dial {
-                opts: DialOpts::peer_id(self.bootstrap_peer_id)
-                    .addresses(vec![self.bootstrap_peer_address.clone()])
-                    // The peer manager might also be dialing to the bootstrap node.
-                    .condition(PeerCondition::DisconnectedAndNotDialing)
-                    .build(),
-            });
-        }
-
-        // If we're not connected to any node, then each Kademlia query we make will automatically
-        // return without any peers. Running queries in that mode will add unnecessary overload to
-        // the swarm.
-        if !self.is_connected_to_bootstrap_peer {
-            return Poll::Pending;
-        }
-        if !self.is_bootstrap_in_kad_routing_table {
+        if self.is_connected_to_bootstrap_peer && !self.is_bootstrap_in_kad_routing_table {
             self.is_bootstrap_in_kad_routing_table = true;
             return Poll::Ready(ToSwarm::GenerateEvent(
                 ToOtherBehaviourEvent::FoundListenAddresses {
@@ -173,19 +146,55 @@ impl NetworkBehaviour for Behaviour {
             ));
         }
 
-        if self.is_query_running {
-            self.wakers_waiting_for_query_to_finish.push(cx.waker().clone());
-            return Poll::Pending;
-        }
-        if let Some(sleep_future) = &mut self.query_sleep_future {
-            pin_mut!(sleep_future);
-            ready!(sleep_future.poll(cx));
-        }
-        self.is_query_running = true;
-        self.query_sleep_future = None;
-        Poll::Ready(ToSwarm::GenerateEvent(ToOtherBehaviourEvent::RequestKadQuery(
-            libp2p::identity::PeerId::random(),
-        )))
+        // Unpacking self so that we can create 2 futures that use different members of self
+        let Self {
+            is_dialing_to_bootstrap_peer,
+            is_connected_to_bootstrap_peer,
+            sleep_future_for_dialing_bootstrap_peer,
+            bootstrap_peer_id,
+            bootstrap_peer_address,
+            query_sleep_future,
+            config,
+            ..
+        } = self;
+
+        let bootstrap_dial_future = async move {
+            if !(*is_dialing_to_bootstrap_peer) && !(*is_connected_to_bootstrap_peer) {
+                if let Some(sleep_future) = sleep_future_for_dialing_bootstrap_peer {
+                    sleep_future.await;
+                }
+                *is_dialing_to_bootstrap_peer = true;
+                *sleep_future_for_dialing_bootstrap_peer = None;
+                return ToSwarm::Dial {
+                    opts: DialOpts::peer_id(*bootstrap_peer_id)
+                    .addresses(vec![bootstrap_peer_address.clone()])
+                    // The peer manager might also be dialing to the bootstrap node.
+                    .condition(PeerCondition::DisconnectedAndNotDialing)
+                    .build(),
+                };
+            }
+            // We're already connected to the bootstrap peer. Nothing to do
+            // TODO: register a waker here and wake it when we receive an event that we've
+            // disconnected from the bootstrap peer.
+            pending().await
+        };
+        pin_mut!(bootstrap_dial_future);
+        let kad_future = async move {
+            if let Some(sleep_future) = query_sleep_future {
+                sleep_future.await;
+            }
+            *query_sleep_future = Some(tokio::time::sleep(config.heartbeat_interval).boxed());
+            ToSwarm::GenerateEvent(ToOtherBehaviourEvent::RequestKadQuery(
+                libp2p::identity::PeerId::random(),
+            ))
+        };
+        pin_mut!(kad_future);
+
+        // polling both futures together since each of them contains sleep.
+        let select_future = select(bootstrap_dial_future, kad_future);
+        pin_mut!(select_future);
+        let (Either::Left((event, _)) | Either::Right((event, _))) = ready!(select_future.poll(cx));
+        Poll::Ready(event)
     }
 }
 
@@ -279,14 +288,12 @@ impl Behaviour {
         let bootstrap_dial_retry_strategy = config.bootstrap_dial_retry_config.strategy();
         Self {
             config,
-            is_query_running: false,
             bootstrap_peer_id,
             bootstrap_peer_address,
             is_dialing_to_bootstrap_peer: false,
             sleep_future_for_dialing_bootstrap_peer: None,
             is_connected_to_bootstrap_peer: false,
             is_bootstrap_in_kad_routing_table: false,
-            wakers_waiting_for_query_to_finish: Vec::new(),
             bootstrap_dial_retry_strategy,
             query_sleep_future: None,
         }
@@ -312,16 +319,5 @@ impl From<ToOtherBehaviourEvent> for mixed_behaviour::Event {
 }
 
 impl BridgedBehaviour for Behaviour {
-    fn on_other_behaviour_event(&mut self, event: &mixed_behaviour::ToOtherBehaviourEvent) {
-        let mixed_behaviour::ToOtherBehaviourEvent::Kad(KadToOtherBehaviourEvent::KadQueryFinished) =
-            event
-        else {
-            return;
-        };
-        for waker in self.wakers_waiting_for_query_to_finish.drain(..) {
-            waker.wake();
-        }
-        self.query_sleep_future = Some(tokio::time::sleep(self.config.heartbeat_interval).boxed());
-        self.is_query_running = false;
-    }
+    fn on_other_behaviour_event(&mut self, _event: &mixed_behaviour::ToOtherBehaviourEvent) {}
 }

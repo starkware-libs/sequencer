@@ -79,6 +79,11 @@
     "privacy": "TemporaryValue",
     "value": true
   },
+  "consensus.chain_id": {
+    "description": "The chain id of the Starknet chain.",
+    "pointer_target": "chain_id",
+    "privacy": "Public"
+  },
   "consensus.consensus_delay": {
     "description": "Delay (seconds) before starting consensus to give time for network peering.",
     "privacy": "Public",
@@ -197,7 +202,7 @@
   "consensus.validator_id": {
     "description": "The validator id of the node.",
     "privacy": "Public",
-    "value": "0x0"
+    "value": "0x64"
   },
   "monitoring_gateway.collect_metrics": {
     "description": "If true, collect and return metrics in the monitoring gateway.",
@@ -350,9 +355,9 @@
     "value": true
   },
   "p2p_sync.wait_period_for_new_data": {
-    "description": "Time in seconds to wait when a query returned with partial data before sending a new query",
+    "description": "Time in millisseconds to wait when a query returned with partial data before sending a new query",
     "privacy": "Public",
-    "value": 5
+    "value": 50
   },
   "rpc.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",

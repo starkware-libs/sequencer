@@ -17,9 +17,9 @@ use crate::state::cached_state::{CachedState, CommitmentStateDiff, Transactional
 use crate::state::errors::StateError;
 use crate::state::state_api::{StateReader, StateResult};
 use crate::transaction::errors::TransactionExecutionError;
-use crate::transaction::objects::{TransactionExecutionInfo, TransactionInfoCreator};
+use crate::transaction::objects::TransactionExecutionInfo;
 use crate::transaction::transaction_execution::Transaction;
-use crate::transaction::transactions::{ExecutableTransaction, ExecutionFlags};
+use crate::transaction::transactions::ExecutableTransaction;
 
 #[cfg(test)]
 #[path = "transaction_executor_test.rs"]
@@ -68,6 +68,7 @@ impl<S: StateReader> TransactionExecutor<S> {
             &mut block_state,
             old_block_number_and_hash,
             block_context.block_info().block_number,
+            &block_context.versioned_constants.os_constants,
         )?;
         Ok(Self::new(block_state, block_context, config))
     }
@@ -99,13 +100,11 @@ impl<S: StateReader> TransactionExecutor<S> {
         let mut transactional_state = TransactionalState::create_transactional(
             self.block_state.as_mut().expect(BLOCK_STATE_ACCESS_ERR),
         );
-        let tx_charge_fee = tx.create_tx_info().enforce_fee();
 
         // Executing a single transaction cannot be done in a concurrent mode.
-        let execution_flags =
-            ExecutionFlags { charge_fee: tx_charge_fee, validate: true, concurrency_mode: false };
+        let concurrency_mode = false;
         let tx_execution_result =
-            tx.execute_raw(&mut transactional_state, &self.block_context, execution_flags);
+            tx.execute_raw(&mut transactional_state, &self.block_context, concurrency_mode);
         match tx_execution_result {
             Ok(tx_execution_info) => {
                 let tx_state_changes_keys =
@@ -161,7 +160,7 @@ impl<S: StateReader> TransactionExecutor<S> {
                     .block_state
                     .as_ref()
                     .expect(BLOCK_STATE_ACCESS_ERR)
-                    .get_compiled_contract_class(*class_hash)?;
+                    .get_compiled_class(*class_hash)?;
                 Ok((*class_hash, contract_class.get_visited_segments(class_visited_pcs)?))
             })
             .collect::<TransactionExecutorResult<_>>()?;

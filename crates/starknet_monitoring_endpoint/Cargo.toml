@@ -5,11 +5,8 @@ edition.workspace = true
 repository.workspace = true
 license-file.workspace = true
 
-[package.metadata.cargo-udeps.ignore]
-normal = ["tokio"]
-
 [features]
-testing = ["tokio", "tower"]
+testing = ["infra_utils", "tokio", "tower"]
 
 [lints]
 workspace = true
@@ -17,6 +14,8 @@ workspace = true
 [dependencies]
 axum.workspace = true
 hyper = { workspace = true }
+infra_utils = { workspace = true, optional = true }
+metrics-exporter-prometheus.workspace = true
 papyrus_config.workspace = true
 serde.workspace = true
 starknet_sequencer_infra.workspace = true
@@ -26,6 +25,7 @@ tracing.workspace = true
 validator.workspace = true
 
 [dev-dependencies]
+metrics.workspace = true
 pretty_assertions.workspace = true
 tokio.workspace = true
 tower.workspace = true

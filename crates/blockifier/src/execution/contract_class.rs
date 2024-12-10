@@ -29,7 +29,6 @@ use starknet_api::deprecated_contract_class::{
     EntryPointV0,
     Program as DeprecatedProgram,
 };
-use starknet_api::transaction::fields::GasVectorComputationMode;
 use starknet_types_core::felt::Felt;
 
 use crate::abi::constants::{self};
@@ -37,7 +36,7 @@ use crate::execution::entry_point::CallEntryPoint;
 use crate::execution::errors::PreExecutionError;
 use crate::execution::execution_utils::{poseidon_hash_many_cost, sn_api_to_cairo_vm_program};
 #[cfg(feature = "cairo_native")]
-use crate::execution::native::contract_class::NativeContractClassV1;
+use crate::execution::native::contract_class::NativeCompiledClassV1;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::versioned_constants::CompilerVersion;
 
@@ -58,16 +57,17 @@ pub enum TrackedResource {
     SierraGas, // AKA Sierra mode.
 }
 
-/// Represents a runnable Starknet contract class (meaning, the program is runnable by the VM).
+/// Represents a runnable Starknet compiled class.
+/// Meaning, the program is runnable by the VM (or natively).
 #[derive(Clone, Debug, Eq, PartialEq, derive_more::From)]
-pub enum RunnableContractClass {
-    V0(ContractClassV0),
-    V1(ContractClassV1),
+pub enum RunnableCompiledClass {
+    V0(CompiledClassV0),
+    V1(CompiledClassV1),
     #[cfg(feature = "cairo_native")]
-    V1Native(NativeContractClassV1),
+    V1Native(NativeCompiledClassV1),
 }
 
-impl TryFrom<ContractClass> for RunnableContractClass {
+impl TryFrom<ContractClass> for RunnableCompiledClass {
     type Error = ProgramError;
 
     fn try_from(raw_contract_class: ContractClass) -> Result<Self, Self::Error> {
@@ -80,7 +80,7 @@ impl TryFrom<ContractClass> for RunnableContractClass {
     }
 }
 
-impl RunnableContractClass {
+impl RunnableCompiledClass {
     pub fn constructor_selector(&self) -> Option<EntryPointSelector> {
         match self {
             Self::V0(class) => class.constructor_selector(),
@@ -132,18 +132,20 @@ impl RunnableContractClass {
     pub fn tracked_resource(
         &self,
         min_sierra_version: &CompilerVersion,
-        gas_mode: GasVectorComputationMode,
+        last_tracked_resource: Option<&TrackedResource>,
     ) -> TrackedResource {
-        match gas_mode {
-            GasVectorComputationMode::All => match self {
-                Self::V0(_) => TrackedResource::CairoSteps,
-                Self::V1(contract_class) => contract_class.tracked_resource(min_sierra_version),
-                #[cfg(feature = "cairo_native")]
-                Self::V1Native(contract_class) => {
-                    contract_class.casm().tracked_resource(min_sierra_version)
-                }
-            },
-            GasVectorComputationMode::NoL2Gas => TrackedResource::CairoSteps,
+        let contract_tracked_resource = match self {
+            Self::V0(_) => TrackedResource::CairoSteps,
+            Self::V1(contract_class) => contract_class.tracked_resource(min_sierra_version),
+            #[cfg(feature = "cairo_native")]
+            Self::V1Native(contract_class) => {
+                contract_class.casm().tracked_resource(min_sierra_version)
+            }
+        };
+        match last_tracked_resource {
+            // Once we ran with CairoSteps, we will continue to run using it for all nested calls.
+            Some(TrackedResource::CairoSteps) => TrackedResource::CairoSteps,
+            Some(TrackedResource::SierraGas) | None => contract_tracked_resource,
         }
     }
 }
@@ -156,16 +158,16 @@ impl RunnableContractClass {
 // Note: when deserializing from a SN API class JSON string, the ABI field is ignored
 // by serde, since it is not required for execution.
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
-pub struct ContractClassV0(pub Arc<ContractClassV0Inner>);
-impl Deref for ContractClassV0 {
-    type Target = ContractClassV0Inner;
+pub struct CompiledClassV0(pub Arc<CompiledClassV0Inner>);
+impl Deref for CompiledClassV0 {
+    type Target = CompiledClassV0Inner;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-impl ContractClassV0 {
+impl CompiledClassV0 {
     fn constructor_selector(&self) -> Option<EntryPointSelector> {
         Some(self.entry_points_by_type[&EntryPointType::Constructor].first()?.selector)
     }
@@ -201,24 +203,24 @@ impl ContractClassV0 {
         TrackedResource::CairoSteps
     }
 
-    pub fn try_from_json_string(raw_contract_class: &str) -> Result<ContractClassV0, ProgramError> {
-        let contract_class: ContractClassV0Inner = serde_json::from_str(raw_contract_class)?;
-        Ok(ContractClassV0(Arc::new(contract_class)))
+    pub fn try_from_json_string(raw_contract_class: &str) -> Result<CompiledClassV0, ProgramError> {
+        let contract_class: CompiledClassV0Inner = serde_json::from_str(raw_contract_class)?;
+        Ok(CompiledClassV0(Arc::new(contract_class)))
     }
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
-pub struct ContractClassV0Inner {
+pub struct CompiledClassV0Inner {
     #[serde(deserialize_with = "deserialize_program")]
     pub program: Program,
     pub entry_points_by_type: HashMap<EntryPointType, Vec<EntryPointV0>>,
 }
 
-impl TryFrom<DeprecatedContractClass> for ContractClassV0 {
+impl TryFrom<DeprecatedContractClass> for CompiledClassV0 {
     type Error = ProgramError;
 
     fn try_from(class: DeprecatedContractClass) -> Result<Self, Self::Error> {
-        Ok(Self(Arc::new(ContractClassV0Inner {
+        Ok(Self(Arc::new(CompiledClassV0Inner {
             program: sn_api_to_cairo_vm_program(class.program)?,
             entry_points_by_type: class.entry_points_by_type,
         })))
@@ -227,12 +229,12 @@ impl TryFrom<DeprecatedContractClass> for ContractClassV0 {
 
 // V1.
 
-/// Represents a runnable Cario (Cairo 1) Starknet contract class (meaning, the program is runnable
+/// Represents a runnable Cario (Cairo 1) Starknet compiled class (meaning, the program is runnable
 /// by the VM). We wrap the actual class in an Arc to avoid cloning the program when cloning the
 /// class.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ContractClassV1(pub Arc<ContractClassV1Inner>);
-impl Deref for ContractClassV1 {
+pub struct CompiledClassV1(pub Arc<ContractClassV1Inner>);
+impl Deref for CompiledClassV1 {
     type Target = ContractClassV1Inner;
 
     fn deref(&self) -> &Self::Target {
@@ -240,7 +242,7 @@ impl Deref for ContractClassV1 {
     }
 }
 
-impl ContractClassV1 {
+impl CompiledClassV1 {
     pub fn constructor_selector(&self) -> Option<EntryPointSelector> {
         self.0.entry_points_by_type.constructor.first().map(|ep| ep.selector)
     }
@@ -286,9 +288,9 @@ impl ContractClassV1 {
         get_visited_segments(&self.bytecode_segment_lengths, &mut reversed_visited_pcs, &mut 0)
     }
 
-    pub fn try_from_json_string(raw_contract_class: &str) -> Result<ContractClassV1, ProgramError> {
+    pub fn try_from_json_string(raw_contract_class: &str) -> Result<CompiledClassV1, ProgramError> {
         let casm_contract_class: CasmContractClass = serde_json::from_str(raw_contract_class)?;
-        let contract_class = ContractClassV1::try_from(casm_contract_class)?;
+        let contract_class = CompiledClassV1::try_from(casm_contract_class)?;
 
         Ok(contract_class)
     }
@@ -413,7 +415,7 @@ impl HasSelector for EntryPointV1 {
     }
 }
 
-impl TryFrom<CasmContractClass> for ContractClassV1 {
+impl TryFrom<CasmContractClass> for CompiledClassV1 {
     type Error = ProgramError;
 
     fn try_from(class: CasmContractClass) -> Result<Self, Self::Error> {
@@ -466,7 +468,7 @@ impl TryFrom<CasmContractClass> for ContractClassV1 {
             Version::parse(&class.compiler_version)
                 .unwrap_or_else(|_| panic!("Invalid version: '{}'", class.compiler_version)),
         );
-        Ok(ContractClassV1(Arc::new(ContractClassV1Inner {
+        Ok(CompiledClassV1(Arc::new(ContractClassV1Inner {
             program,
             entry_points_by_type,
             hints: string_to_hint,

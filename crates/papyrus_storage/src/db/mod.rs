@@ -261,7 +261,7 @@ impl DbWriter {
 
 type DbWriteTransaction<'env> = DbTransaction<'env, RW>;
 
-impl<'a> DbWriteTransaction<'a> {
+impl DbWriteTransaction<'_> {
     #[latency_histogram("storage_commit_inner_db_latency_seconds", false)]
     pub(crate) fn commit(self) -> DbResult<()> {
         self.txn.commit()?;
@@ -279,7 +279,7 @@ pub(crate) struct DbTransaction<'env, Mode: TransactionKind> {
     txn: libmdbx::Transaction<'env, Mode::Internal, EnvironmentKind>,
 }
 
-impl<'a, Mode: TransactionKind> DbTransaction<'a, Mode> {
+impl<Mode: TransactionKind> DbTransaction<'_, Mode> {
     pub fn open_table<'env, K: Key + Debug, V: ValueSerde + Debug, T: TableType>(
         &'env self,
         table_id: &TableIdentifier<K, V, T>,
@@ -326,8 +326,8 @@ impl<'cursor, 'txn, Mode: TransactionKind, K: Key, V: ValueSerde, T: TableType>
     }
 }
 
-impl<'cursor, 'txn, Mode: TransactionKind, K: Key, V: ValueSerde, T: TableType> Iterator
-    for DbIter<'cursor, 'txn, Mode, K, V, T>
+impl<'txn, Mode: TransactionKind, K: Key, V: ValueSerde, T: TableType> Iterator
+    for DbIter<'_, 'txn, Mode, K, V, T>
 where
     DbCursor<'txn, Mode, K, V, T>: DbCursorTrait<Key = K, Value = V>,
 {

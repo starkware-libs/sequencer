@@ -219,7 +219,7 @@ pub fn call_contract(
         storage_address,
         caller_address: syscall_handler.storage_address,
         call_type: CallType::Call,
-        initial_gas: syscall_handler.context.gas_costs().default_initial_gas_cost,
+        initial_gas: syscall_handler.context.gas_costs().base.default_initial_gas_cost,
     };
     let retdata_segment =
         execute_inner_call(entry_point, vm, syscall_handler).map_err(|error| {
@@ -344,7 +344,7 @@ pub fn deploy(
         storage_address: deployed_contract_address,
         caller_address: deployer_address,
     };
-    let mut remaining_gas = syscall_handler.context.gas_costs().default_initial_gas_cost;
+    let mut remaining_gas = syscall_handler.context.gas_costs().base.default_initial_gas_cost;
     let call_info = execute_deployment(
         syscall_handler.state,
         syscall_handler.context,
@@ -653,7 +653,7 @@ pub fn replace_class(
     syscall_handler: &mut DeprecatedSyscallHintProcessor<'_>,
 ) -> DeprecatedSyscallResult<ReplaceClassResponse> {
     // Ensure the class is declared (by reading it).
-    syscall_handler.state.get_compiled_contract_class(request.class_hash)?;
+    syscall_handler.state.get_compiled_class(request.class_hash)?;
     syscall_handler.state.set_class_hash_at(syscall_handler.storage_address, request.class_hash)?;
 
     Ok(ReplaceClassResponse {})

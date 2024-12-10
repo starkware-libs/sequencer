@@ -22,7 +22,7 @@ use futures::channel::mpsc::SendError;
 use futures::Stream;
 use header::HeaderStreamBuilder;
 use papyrus_common::pending_classes::ApiContractClass;
-use papyrus_config::converters::deserialize_seconds_to_duration;
+use papyrus_config::converters::deserialize_milliseconds_to_duration;
 use papyrus_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use papyrus_network::network_manager::SqmrClientSender;
@@ -56,7 +56,7 @@ pub struct P2PSyncClientConfig {
     pub num_block_state_diffs_per_query: u64,
     pub num_block_transactions_per_query: u64,
     pub num_block_classes_per_query: u64,
-    #[serde(deserialize_with = "deserialize_seconds_to_duration")]
+    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
     pub wait_period_for_new_data: Duration,
     pub buffer_size: usize,
     pub stop_sync_at_block_number: Option<BlockNumber>,
@@ -92,9 +92,9 @@ impl SerializeConfig for P2PSyncClientConfig {
             ),
             ser_param(
                 "wait_period_for_new_data",
-                &self.wait_period_for_new_data.as_secs(),
-                "Time in seconds to wait when a query returned with partial data before sending a \
-                 new query",
+                &self.wait_period_for_new_data.as_millis(),
+                "Time in millisseconds to wait when a query returned with partial data before \
+                 sending a new query",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -125,7 +125,7 @@ impl Default for P2PSyncClientConfig {
             num_block_state_diffs_per_query: 100,
             num_block_transactions_per_query: 100,
             num_block_classes_per_query: 100,
-            wait_period_for_new_data: Duration::from_secs(5),
+            wait_period_for_new_data: Duration::from_millis(50),
             // TODO(eitan): split this by protocol
             buffer_size: 100000,
             stop_sync_at_block_number: None,
@@ -184,6 +184,7 @@ impl P2PSyncClientChannels {
         let header_stream = HeaderStreamBuilder::create_stream(
             self.header_sender,
             storage_reader.clone(),
+            None,
             config.wait_period_for_new_data,
             config.num_headers_per_query,
             config.stop_sync_at_block_number,
@@ -192,6 +193,7 @@ impl P2PSyncClientChannels {
         let state_diff_stream = StateDiffStreamBuilder::create_stream(
             self.state_diff_sender,
             storage_reader.clone(),
+            None,
             config.wait_period_for_new_data,
             config.num_block_state_diffs_per_query,
             config.stop_sync_at_block_number,
@@ -200,6 +202,7 @@ impl P2PSyncClientChannels {
         let transaction_stream = TransactionStreamFactory::create_stream(
             self.transaction_sender,
             storage_reader.clone(),
+            None,
             config.wait_period_for_new_data,
             config.num_block_transactions_per_query,
             config.stop_sync_at_block_number,
@@ -208,6 +211,7 @@ impl P2PSyncClientChannels {
         let class_stream = ClassStreamBuilder::create_stream(
             self.class_sender,
             storage_reader.clone(),
+            None,
             config.wait_period_for_new_data,
             config.num_block_classes_per_query,
             config.stop_sync_at_block_number,

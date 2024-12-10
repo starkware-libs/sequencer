@@ -7,15 +7,15 @@ use std::sync::LazyLock;
 
 use assert_matches::assert_matches;
 use blockifier::test_utils::contracts::FeatureContract;
-use blockifier::test_utils::{create_trivial_calldata, CairoVersion};
+use blockifier::test_utils::{create_trivial_calldata, CairoVersion, RunnableCairo1};
 use infra_utils::path::resolve_project_relative_path;
 use pretty_assertions::assert_ne;
-use serde_json::to_string_pretty;
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::execution_resources::GasAmount;
-use starknet_api::rpc_transaction::{ContractClass, RpcTransaction};
+use starknet_api::rpc_transaction::RpcTransaction;
+use starknet_api::state::SierraContractClass;
 use starknet_api::test_utils::declare::rpc_declare_tx;
 use starknet_api::test_utils::deploy_account::rpc_deploy_account_tx;
 use starknet_api::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
@@ -65,7 +65,7 @@ pub fn test_valid_resource_bounds() -> ValidResourceBounds {
 }
 
 /// Get the contract class used for testing.
-pub fn contract_class() -> ContractClass {
+pub fn contract_class() -> SierraContractClass {
     env::set_current_dir(resolve_project_relative_path(TEST_FILES_FOLDER).unwrap())
         .expect("Couldn't set working dir.");
     let json_file_path = Path::new(CONTRACT_CLASS_FILE);
@@ -79,7 +79,8 @@ pub fn declare_tx() -> RpcTransaction {
     let contract_class = contract_class();
     let compiled_class_hash = *COMPILED_CLASS_HASH;
 
-    let account_contract = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
+    let account_contract =
+        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm));
     let account_address = account_contract.get_instance_address(0);
     let mut nonce_manager = NonceManager::default();
     let nonce = nonce_manager.next(account_address);
@@ -151,11 +152,12 @@ type SharedNonceManager = Rc<RefCell<NonceManager>>;
 ///
 /// ```
 /// use blockifier::test_utils::contracts::FeatureContract;
-/// use blockifier::test_utils::CairoVersion;
+/// use blockifier::test_utils::{CairoVersion, RunnableCairo1};
 /// use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 ///
 /// let mut tx_generator = MultiAccountTransactionGenerator::new();
-/// let some_account_type = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
+/// let some_account_type =
+///     FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm));
 /// // Initialize multiple accounts, these can be any account type in `FeatureContract`.
 /// tx_generator.register_account_for_flow_test(some_account_type.clone());
 /// tx_generator.register_account_for_flow_test(some_account_type);
@@ -262,9 +264,7 @@ impl AccountTransactionGenerator {
             calldata: create_trivial_calldata(self.sender_address()),
         );
 
-        AccountTransaction::Invoke(starknet_api::test_utils::invoke::executable_invoke_tx(
-            invoke_args,
-        ))
+        starknet_api::test_utils::invoke::executable_invoke_tx(invoke_args)
     }
 
     /// Generates an `RpcTransaction` with fully custom parameters.
@@ -336,6 +336,10 @@ impl Contract {
         self.contract.cairo_version()
     }
 
+    pub fn sierra(&self) -> SierraContractClass {
+        self.contract.get_sierra()
+    }
+
     pub fn raw_class(&self) -> String {
         self.contract.get_raw_class()
     }
@@ -359,24 +363,4 @@ impl Contract {
             sender_address: deploy_account_tx.calculate_sender_address().unwrap(),
         }
     }
-}
-
-pub fn rpc_tx_to_json(tx: &RpcTransaction) -> String {
-    let mut tx_json = serde_json::to_value(tx)
-        .unwrap_or_else(|tx| panic!("Failed to serialize transaction: {tx:?}"));
-
-    // Add type and version manually
-    let type_string = match tx {
-        RpcTransaction::Declare(_) => "DECLARE",
-        RpcTransaction::DeployAccount(_) => "DEPLOY_ACCOUNT",
-        RpcTransaction::Invoke(_) => "INVOKE",
-    };
-
-    tx_json
-        .as_object_mut()
-        .unwrap()
-        .extend([("type".to_string(), type_string.into()), ("version".to_string(), "0x3".into())]);
-
-    // Serialize back to pretty JSON string
-    to_string_pretty(&tx_json).expect("Failed to serialize transaction")
 }

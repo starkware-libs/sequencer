@@ -17,13 +17,9 @@ use crate::concurrency::TxIndex;
 use crate::context::BlockContext;
 use crate::state::cached_state::{ContractClassMapping, StateMaps, TransactionalState};
 use crate::state::state_api::{StateReader, UpdatableState};
-use crate::transaction::objects::{
-    TransactionExecutionInfo,
-    TransactionExecutionResult,
-    TransactionInfoCreator,
-};
+use crate::transaction::objects::{TransactionExecutionInfo, TransactionExecutionResult};
 use crate::transaction::transaction_execution::Transaction;
-use crate::transaction::transactions::{ExecutableTransaction, ExecutionFlags};
+use crate::transaction::transactions::ExecutableTransaction;
 
 #[cfg(test)]
 #[path = "worker_logic_test.rs"]
@@ -127,13 +123,11 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
     fn execute_tx(&self, tx_index: TxIndex) {
         let mut tx_versioned_state = self.state.pin_version(tx_index);
         let tx = &self.chunk[tx_index];
-        let tx_charge_fee = tx.create_tx_info().enforce_fee();
         let mut transactional_state =
             TransactionalState::create_transactional(&mut tx_versioned_state);
-        let execution_flags =
-            ExecutionFlags { charge_fee: tx_charge_fee, validate: true, concurrency_mode: true };
+        let concurrency_mode = true;
         let execution_result =
-            tx.execute_raw(&mut transactional_state, self.block_context, execution_flags);
+            tx.execute_raw(&mut transactional_state, self.block_context, concurrency_mode);
 
         // Update the versioned state and store the transaction execution output.
         let execution_output_inner = match execution_result {
@@ -266,7 +260,7 @@ impl<'a, S: StateReader> WorkerExecutor<'a, S> {
     }
 }
 
-impl<'a, U: UpdatableState> WorkerExecutor<'a, U> {
+impl<U: UpdatableState> WorkerExecutor<'_, U> {
     pub fn commit_chunk_and_recover_block_state(
         self,
         n_committed_txs: usize,

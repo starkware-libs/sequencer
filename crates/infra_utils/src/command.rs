@@ -25,5 +25,7 @@ pub fn create_shell_command(command_name: &str) -> Command {
     env::vars().filter(|(key, _)| key.starts_with("CARGO_")).for_each(|(key, _)| {
         command.env_remove(key);
     });
+    // Filter out (the potentially set) OUT_DIR environment variable.
+    command.env_remove("OUT_DIR");
     command
 }

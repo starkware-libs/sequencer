@@ -49,7 +49,6 @@ use starknet_api::block::{
     GasPricePerToken,
     StarknetVersion,
 };
-use starknet_api::class_hash;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{
     ClassHash,
@@ -88,7 +87,6 @@ use starknet_api::deprecated_contract_class::{
 use starknet_api::execution_resources::{Builtin, ExecutionResources, GasAmount, GasVector};
 use starknet_api::hash::{PoseidonHash, StarkHash};
 use starknet_api::rpc_transaction::{
-    ContractClass as RpcContractClass,
     EntryPointByType as RpcEntryPointByType,
     EntryPointByType,
     RpcDeclareTransaction,
@@ -157,6 +155,7 @@ use starknet_api::transaction::{
     TransactionOutput,
     TransactionVersion,
 };
+use starknet_api::{class_hash, tx_hash};
 use starknet_types_core::felt::Felt;
 
 //////////////////////////////////////////////////////////////////////////
@@ -281,7 +280,7 @@ fn get_rand_test_body_with_events(
         while is_v3_transaction(&transaction) {
             transaction = Transaction::get_test_instance(rng);
         }
-        transaction_hashes.push(TransactionHash(StarkHash::from(u128::try_from(i).unwrap())));
+        transaction_hashes.push(tx_hash!(i));
         let transaction_output = get_test_transaction_output(&transaction);
         transactions.push(transaction);
         transaction_outputs.push(transaction_output);
@@ -362,7 +361,7 @@ fn set_events(tx: &mut TransactionOutput, events: Vec<Event>) {
 }
 
 //////////////////////////////////////////////////////////////////////////
-/// EXTERNAL FUNCTIONS - REMOVE DUPLICATIONS
+// EXTERNAL FUNCTIONS - REMOVE DUPLICATIONS
 //////////////////////////////////////////////////////////////////////////
 
 // Returns a test block with a variable number of transactions and events.
@@ -750,12 +749,6 @@ auto_impl_get_test_instance! {
         pub max_amount: GasAmount,
         pub max_price_per_unit: GasPrice,
     }
-    pub struct RpcContractClass {
-        pub sierra_program: Vec<Felt>,
-        pub contract_class_version: String,
-        pub entry_points_by_type: RpcEntryPointByType,
-        pub abi: String,
-    }
     pub enum RpcTransaction {
         Declare(RpcDeclareTransaction) = 0,
         DeployAccount(RpcDeployAccountTransaction) = 1,
@@ -769,7 +762,7 @@ auto_impl_get_test_instance! {
         pub tip: Tip,
         pub signature: TransactionSignature,
         pub nonce: Nonce,
-        pub contract_class: RpcContractClass,
+        pub contract_class: SierraContractClass,
         pub compiled_class_hash: CompiledClassHash,
         pub sender_address: ContractAddress,
         pub nonce_data_availability_mode: DataAvailabilityMode,

@@ -4,8 +4,11 @@ use std::process::{Command, Output};
 use std::{env, fs};
 
 use cached::proc_macro::cached;
+use infra_utils::compile_time_cargo_manifest_dir;
 use serde::{Deserialize, Serialize};
 use tempfile::NamedTempFile;
+
+use crate::test_utils::contracts::TagAndToolchain;
 
 const CAIRO0_PIP_REQUIREMENTS_FILE: &str = "tests/requirements.txt";
 const CAIRO1_REPO_RELATIVE_PATH_OVERRIDE_ENV_VAR: &str = "CAIRO1_REPO_RELATIVE_PATH";
@@ -50,6 +53,11 @@ struct CargoToml {
     workspace: WorkspaceFields,
 }
 
+pub enum CompilationArtifacts {
+    Cairo0 { casm: Vec<u8> },
+    Cairo1 { casm: Vec<u8>, sierra: Vec<u8> },
+}
+
 #[cached]
 /// Returns the version of the Cairo1 compiler defined in the root Cargo.toml (by checking the
 /// package version of one of the crates from the compiler in the dependencies).
@@ -69,7 +77,7 @@ pub fn cairo1_compiler_tag() -> String {
 /// overridden by the environment variable (otherwise, the default is used).
 fn local_cairo1_compiler_repo_path() -> PathBuf {
     // Location of blockifier's Cargo.toml.
-    let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
+    let manifest_dir = compile_time_cargo_manifest_dir!();
 
     Path::new(&manifest_dir).join(
         env::var(CAIRO1_REPO_RELATIVE_PATH_OVERRIDE_ENV_VAR)
@@ -89,7 +97,11 @@ fn run_and_verify_output(command: &mut Command) -> Output {
 }
 
 /// Compiles a Cairo0 program using the deprecated compiler.
-pub fn cairo0_compile(path: String, extra_arg: Option<String>, debug_info: bool) -> Vec<u8> {
+pub fn cairo0_compile(
+    path: String,
+    extra_arg: Option<String>,
+    debug_info: bool,
+) -> CompilationArtifacts {
     verify_cairo0_compiler_deps();
     let mut command = Command::new("starknet-compile-deprecated");
     command.arg(&path);
@@ -102,7 +114,7 @@ pub fn cairo0_compile(path: String, extra_arg: Option<String>, debug_info: bool)
     let compile_output = command.output().unwrap();
     let stderr_output = String::from_utf8(compile_output.stderr).unwrap();
     assert!(compile_output.status.success(), "{stderr_output}");
-    compile_output.stdout
+    CompilationArtifacts::Cairo0 { casm: compile_output.stdout }
 }
 
 /// Compiles a Cairo1 program using the compiler version set in the Cargo.toml.
@@ -110,7 +122,7 @@ pub fn cairo1_compile(
     path: String,
     git_tag_override: Option<String>,
     cargo_nightly_arg: Option<String>,
-) -> Vec<u8> {
+) -> CompilationArtifacts {
     let mut base_compile_args = vec![];
 
     let sierra_output =
@@ -131,7 +143,7 @@ pub fn cairo1_compile(
     ]);
     let casm_output = run_and_verify_output(&mut sierra_compile_command);
 
-    casm_output.stdout
+    CompilationArtifacts::Cairo1 { casm: casm_output.stdout, sierra: sierra_output }
 }
 
 /// Compile Cairo1 Contract into their Sierra version using the compiler version set in the
@@ -142,7 +154,7 @@ pub fn starknet_compile(
     cargo_nightly_arg: Option<String>,
     base_compile_args: &mut Vec<String>,
 ) -> Vec<u8> {
-    prepare_cairo1_compiler_deps(git_tag_override);
+    verify_cairo1_compiler_deps(git_tag_override);
 
     let cairo1_compiler_path = local_cairo1_compiler_repo_path();
 
@@ -199,15 +211,14 @@ fn verify_cairo0_compiler_deps() {
         } else {
             format!("installed version: {cairo_lang_version}")
         },
-        env::var("CARGO_MANIFEST_DIR").unwrap(),
+        compile_time_cargo_manifest_dir!(),
         CAIRO0_PIP_REQUIREMENTS_FILE
     );
 }
 
-fn prepare_cairo1_compiler_deps(git_tag_override: Option<String>) {
-    let cairo_repo_path = local_cairo1_compiler_repo_path();
+fn get_tag_and_repo_file_path(git_tag_override: Option<String>) -> (String, PathBuf) {
     let tag = git_tag_override.unwrap_or(cairo1_compiler_tag());
-
+    let cairo_repo_path = local_cairo1_compiler_repo_path();
     // Check if the path is a directory.
     assert!(
         cairo_repo_path.is_dir(),
@@ -216,13 +227,31 @@ fn prepare_cairo1_compiler_deps(git_tag_override: Option<String>) {
         cairo_repo_path.to_string_lossy(),
     );
 
+    (tag, cairo_repo_path)
+}
+
+pub fn prepare_group_tag_compiler_deps(tag_and_toolchain: &TagAndToolchain) {
+    let (optional_tag, optional_toolchain) = tag_and_toolchain;
+
     // Checkout the required version in the compiler repo.
+    let (tag, cairo_repo_path) = get_tag_and_repo_file_path(optional_tag.clone());
     run_and_verify_output(Command::new("git").args([
         "-C",
         cairo_repo_path.to_str().unwrap(),
         "checkout",
         &tag,
     ]));
+
+    // Install the toolchain, if specified.
+    if let Some(toolchain) = optional_toolchain {
+        run_and_verify_output(
+            Command::new("rustup").args(["install", &format!("nightly-{toolchain}")]),
+        );
+    }
+}
+
+fn verify_cairo1_compiler_deps(git_tag_override: Option<String>) {
+    let (tag, cairo_repo_path) = get_tag_and_repo_file_path(git_tag_override);
 
     // Verify that the checked out tag is as expected.
     run_and_verify_output(Command::new("git").args([

@@ -4,8 +4,6 @@ mod rpc_transaction_test;
 
 use prost::Message;
 use starknet_api::rpc_transaction::{
-    ContractClass,
-    EntryPointByType,
     RpcDeclareTransaction,
     RpcDeclareTransactionV3,
     RpcDeployAccountTransaction,
@@ -14,19 +12,17 @@ use starknet_api::rpc_transaction::{
     RpcInvokeTransactionV3,
     RpcTransaction,
 };
-use starknet_api::state::EntryPoint;
 use starknet_api::transaction::fields::{AllResourceBounds, ValidResourceBounds};
 use starknet_api::transaction::{
     DeclareTransactionV3,
     DeployAccountTransactionV3,
     InvokeTransactionV3,
 };
-use starknet_types_core::felt::Felt;
 
 use super::ProtobufConversionError;
 use crate::auto_impl_into_and_try_from_vec_u8;
 use crate::mempool::RpcTransactionWrapper;
-use crate::protobuf::{self, Felt252};
+use crate::protobuf::{self};
 
 auto_impl_into_and_try_from_vec_u8!(RpcTransactionWrapper, protobuf::RpcTransaction);
 
@@ -328,65 +324,5 @@ impl TryFrom<protobuf::ResourceBounds> for AllResourceBounds {
 impl From<AllResourceBounds> for protobuf::ResourceBounds {
     fn from(value: AllResourceBounds) -> Self {
         ValidResourceBounds::AllResources(value).into()
-    }
-}
-
-impl TryFrom<protobuf::Cairo1Class> for ContractClass {
-    type Error = ProtobufConversionError;
-    fn try_from(value: protobuf::Cairo1Class) -> Result<Self, Self::Error> {
-        let sierra_program =
-            value.program.into_iter().map(Felt::try_from).collect::<Result<Vec<_>, _>>()?;
-        let contract_class_version = value.contract_class_version;
-        let entry_points = value.entry_points.ok_or(ProtobufConversionError::MissingField {
-            field_description: "Cairo1Class::entry_points_by_type",
-        })?;
-        let entry_points_by_type = EntryPointByType {
-            constructor: entry_points
-                .constructors
-                .into_iter()
-                .map(EntryPoint::try_from)
-                .collect::<Result<Vec<_>, _>>()?,
-            external: entry_points
-                .externals
-                .into_iter()
-                .map(EntryPoint::try_from)
-                .collect::<Result<Vec<_>, _>>()?,
-            l1handler: entry_points
-                .l1_handlers
-                .into_iter()
-                .map(EntryPoint::try_from)
-                .collect::<Result<Vec<_>, _>>()?,
-        };
-        let abi = value.abi;
-        Ok(Self { sierra_program, contract_class_version, entry_points_by_type, abi })
-    }
-}
-
-impl From<ContractClass> for protobuf::Cairo1Class {
-    fn from(value: ContractClass) -> Self {
-        let program = value.sierra_program.into_iter().map(Felt252::from).collect();
-        let contract_class_version = value.contract_class_version;
-        let entry_points = protobuf::Cairo1EntryPoints {
-            constructors: value
-                .entry_points_by_type
-                .constructor
-                .into_iter()
-                .map(protobuf::SierraEntryPoint::from)
-                .collect(),
-            externals: value
-                .entry_points_by_type
-                .external
-                .into_iter()
-                .map(protobuf::SierraEntryPoint::from)
-                .collect(),
-            l1_handlers: value
-                .entry_points_by_type
-                .l1handler
-                .into_iter()
-                .map(protobuf::SierraEntryPoint::from)
-                .collect(),
-        };
-        let abi = value.abi;
-        Self { program, contract_class_version, entry_points: Some(entry_points), abi }
     }
 }

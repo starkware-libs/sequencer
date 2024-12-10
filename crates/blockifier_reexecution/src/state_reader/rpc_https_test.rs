@@ -13,9 +13,8 @@ use std::env;
 use std::sync::{Arc, Mutex};
 
 use assert_matches::assert_matches;
-use blockifier::blockifier::block::BlockInfo;
 use rstest::{fixture, rstest};
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockInfo, BlockNumber};
 use starknet_api::class_hash;
 use starknet_api::core::ChainId;
 use starknet_api::transaction::{
@@ -78,7 +77,7 @@ fn get_test_url() -> String {
     url
 }
 
-/// Retrieves the test block_number from the `TEST_URL` environment variable,
+/// Retrieves the test block_number from the `BLOCK_NUMBER` environment variable,
 /// falling back to the latest block if not provided.
 pub fn get_test_block_id() -> BlockId {
     match env::var("BLOCK_NUMBER") {

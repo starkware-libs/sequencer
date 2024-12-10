@@ -49,8 +49,8 @@
     "privacy": "Public",
     "value": 156250
   },
-  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.gas": {
-    "description": "An upper bound on the total gas used in a block.",
+  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.l1_gas": {
+    "description": "An upper bound on the total l1_gas used in a block.",
     "privacy": "Public",
     "value": 2500000
   },
@@ -68,6 +68,11 @@
     "description": "An upper bound on the total number of steps in a block.",
     "privacy": "Public",
     "value": 2500000
+  },
+  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.sierra_gas": {
+    "description": "An upper bound on the total sierra_gas used in a block.",
+    "privacy": "Public",
+    "value": 250000000
   },
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.state_diff_size": {
     "description": "An upper bound on the total state diff size in a block.",
@@ -104,20 +109,10 @@
     "privacy": "Public",
     "value": 0
   },
-  "batcher_config.block_builder_config.sequencer_address": {
-    "description": "The address of the sequencer.",
-    "pointer_target": "sequencer_address",
-    "privacy": "Public"
-  },
   "batcher_config.block_builder_config.tx_chunk_size": {
     "description": "The size of the transaction chunk.",
     "privacy": "Public",
     "value": 100
-  },
-  "batcher_config.block_builder_config.use_kzg_da": {
-    "description": "Indicates whether the kzg mechanism is used for data availability.",
-    "privacy": "Public",
-    "value": true
   },
   "batcher_config.block_builder_config.versioned_constants_overrides.invoke_tx_max_n_steps": {
     "description": "Maximum number of steps the invoke function is allowed to run.",
@@ -205,7 +200,7 @@
     "value": "StateOnly"
   },
   "chain_id": {
-    "description": "A required param! The chain to follow.",
+    "description": "A required param! The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
     "param_type": "String",
     "privacy": "TemporaryValue"
   },
@@ -267,17 +262,7 @@
   "components.consensus_manager.execution_mode": {
     "description": "The component execution mode.",
     "privacy": "Public",
-    "value": "LocalExecutionWithRemoteDisabled"
-  },
-  "components.consensus_manager.local_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
-  "components.consensus_manager.local_server_config.channel_buffer_size": {
-    "description": "The communication channel buffer size.",
-    "privacy": "Public",
-    "value": 32
+    "value": "Enabled"
   },
   "components.consensus_manager.remote_client_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -300,16 +285,6 @@
     "value": 3
   },
   "components.consensus_manager.remote_client_config.socket": {
-    "description": "The remote component server socket.",
-    "privacy": "Public",
-    "value": "0.0.0.0:8080"
-  },
-  "components.consensus_manager.remote_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": true
-  },
-  "components.consensus_manager.remote_server_config.socket": {
     "description": "The remote component server socket.",
     "privacy": "Public",
     "value": "0.0.0.0:8080"
@@ -367,17 +342,7 @@
   "components.http_server.execution_mode": {
     "description": "The component execution mode.",
     "privacy": "Public",
-    "value": "LocalExecutionWithRemoteEnabled"
-  },
-  "components.http_server.local_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
-  "components.http_server.local_server_config.channel_buffer_size": {
-    "description": "The communication channel buffer size.",
-    "privacy": "Public",
-    "value": 32
+    "value": "Enabled"
   },
   "components.http_server.remote_client_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -400,16 +365,6 @@
     "value": 3
   },
   "components.http_server.remote_client_config.socket": {
-    "description": "The remote component server socket.",
-    "privacy": "Public",
-    "value": "0.0.0.0:8080"
-  },
-  "components.http_server.remote_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
-  "components.http_server.remote_server_config.socket": {
     "description": "The remote component server socket.",
     "privacy": "Public",
     "value": "0.0.0.0:8080"
@@ -517,17 +472,7 @@
   "components.monitoring_endpoint.execution_mode": {
     "description": "The component execution mode.",
     "privacy": "Public",
-    "value": "LocalExecutionWithRemoteEnabled"
-  },
-  "components.monitoring_endpoint.local_server_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
-  "components.monitoring_endpoint.local_server_config.channel_buffer_size": {
-    "description": "The communication channel buffer size.",
-    "privacy": "Public",
-    "value": 32
+    "value": "Enabled"
   },
   "components.monitoring_endpoint.remote_client_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -554,15 +499,60 @@
     "privacy": "Public",
     "value": "0.0.0.0:8080"
   },
-  "components.monitoring_endpoint.remote_server_config.#is_none": {
+  "components.state_sync.execution_mode": {
+    "description": "The component execution mode.",
+    "privacy": "Public",
+    "value": "LocalExecutionWithRemoteDisabled"
+  },
+  "components.state_sync.local_server_config.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": false
   },
-  "components.monitoring_endpoint.remote_server_config.socket": {
+  "components.state_sync.local_server_config.channel_buffer_size": {
+    "description": "The communication channel buffer size.",
+    "privacy": "Public",
+    "value": 32
+  },
+  "components.state_sync.remote_client_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "components.state_sync.remote_client_config.idle_connections": {
+    "description": "The maximum number of idle connections to keep alive.",
+    "privacy": "Public",
+    "value": 18446744073709551615
+  },
+  "components.state_sync.remote_client_config.idle_timeout": {
+    "description": "The duration in seconds to keep an idle connection open before closing.",
+    "privacy": "Public",
+    "value": 90
+  },
+  "components.state_sync.remote_client_config.retries": {
+    "description": "The max number of retries for sending a message.",
+    "privacy": "Public",
+    "value": 3
+  },
+  "components.state_sync.remote_client_config.socket": {
     "description": "The remote component server socket.",
     "privacy": "Public",
     "value": "0.0.0.0:8080"
+  },
+  "components.state_sync.remote_server_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
+  "components.state_sync.remote_server_config.socket": {
+    "description": "The remote component server socket.",
+    "privacy": "Public",
+    "value": "0.0.0.0:8080"
+  },
+  "consensus_manager_config.consensus_config.chain_id": {
+    "description": "The chain id of the Starknet chain.",
+    "pointer_target": "chain_id",
+    "privacy": "Public"
   },
   "consensus_manager_config.consensus_config.consensus_delay": {
     "description": "Delay (seconds) before starting consensus to give time for network peering.",
@@ -681,8 +671,8 @@
   },
   "consensus_manager_config.consensus_config.validator_id": {
     "description": "The validator id of the node.",
-    "privacy": "Public",
-    "value": "0x0"
+    "pointer_target": "validator_id",
+    "privacy": "Public"
   },
   "eth_fee_token_address": {
     "description": "A required param! Address of the ETH fee token.",
@@ -879,6 +869,11 @@
     "privacy": "Public",
     "value": 10000
   },
+  "monitoring_endpoint_config.collect_metrics": {
+    "description": "If true, collect and return metrics in the monitoring endpoint.",
+    "privacy": "Public",
+    "value": false
+  },
   "monitoring_endpoint_config.ip": {
     "description": "The monitoring endpoint ip address.",
     "privacy": "Public",
@@ -899,13 +894,13 @@
     "privacy": "Public",
     "value": ""
   },
-  "sequencer_address": {
-    "description": "A required param! The sequencer address.",
+  "strk_fee_token_address": {
+    "description": "A required param! Address of the STRK fee token.",
     "param_type": "String",
     "privacy": "TemporaryValue"
   },
-  "strk_fee_token_address": {
-    "description": "A required param! Address of the STRK fee token.",
+  "validator_id": {
+    "description": "A required param! The ID of the validator. Also the address of this validator as a starknet contract.",
     "param_type": "String",
     "privacy": "TemporaryValue"
   },

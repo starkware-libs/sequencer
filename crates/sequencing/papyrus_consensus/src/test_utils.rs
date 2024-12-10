@@ -3,11 +3,19 @@ use std::time::Duration;
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use mockall::mock;
-use papyrus_protobuf::consensus::{ConsensusMessage, Proposal, ProposalInit, Vote, VoteType};
+use papyrus_protobuf::consensus::{ConsensusMessage, ProposalFin, ProposalInit, Vote, VoteType};
+use papyrus_protobuf::converters::ProtobufConversionError;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_types_core::felt::Felt;
 
-use crate::types::{ConsensusContext, ConsensusError, ProposalContentId, Round, ValidatorId};
+use crate::types::{
+    ConsensusContext,
+    ConsensusError,
+    ProposalContentId,
+    Round,
+    ValidatorId,
+    DEFAULT_VALIDATOR_ID,
+};
 
 /// Define a consensus block which can be used to enable auto mocking Context.
 #[derive(Debug, PartialEq, Clone)]
@@ -16,13 +24,47 @@ pub struct TestBlock {
     pub id: BlockHash,
 }
 
+#[derive(Debug, PartialEq, Clone)]
+pub struct MockProposalPart(pub u64);
+
+impl From<ProposalInit> for MockProposalPart {
+    fn from(init: ProposalInit) -> Self {
+        MockProposalPart(init.height.0)
+    }
+}
+
+impl TryFrom<MockProposalPart> for ProposalInit {
+    type Error = ProtobufConversionError;
+    fn try_from(part: MockProposalPart) -> Result<Self, Self::Error> {
+        Ok(ProposalInit {
+            height: BlockNumber(part.0),
+            proposer: DEFAULT_VALIDATOR_ID.into(),
+            ..Default::default()
+        })
+    }
+}
+
+impl From<MockProposalPart> for Vec<u8> {
+    fn from(part: MockProposalPart) -> Vec<u8> {
+        vec![u8::try_from(part.0).expect("Invalid MockProposalPart conversion")]
+    }
+}
+
+impl TryFrom<Vec<u8>> for MockProposalPart {
+    type Error = ProtobufConversionError;
+
+    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
+        Ok(MockProposalPart(value[0].into()))
+    }
+}
+
 // TODO(matan): When QSelf is supported, switch to automocking `ConsensusContext`.
 mock! {
     pub TestContext {}
 
     #[async_trait]
     impl ConsensusContext for TestContext {
-        type ProposalChunk = u32;
+        type ProposalPart = MockProposalPart;
 
         async fn build_proposal(
             &mut self,
@@ -33,9 +75,11 @@ mock! {
         async fn validate_proposal(
             &mut self,
             height: BlockNumber,
+            round: Round,
+            proposer: ValidatorId,
             timeout: Duration,
-            content: mpsc::Receiver<u32>
-        ) -> oneshot::Receiver<ProposalContentId>;
+            content: mpsc::Receiver<MockProposalPart>
+        ) -> oneshot::Receiver<(ProposalContentId, ProposalFin)>;
 
         async fn repropose(
             &mut self,
@@ -54,6 +98,8 @@ mock! {
             block: ProposalContentId,
             precommits: Vec<Vote>,
         ) -> Result<(), ConsensusError>;
+
+        async fn set_height_and_round(&mut self, height: BlockNumber, round: Round);
     }
 }
 
@@ -82,20 +128,6 @@ pub fn precommit(
         voter,
     })
 }
-
-pub fn proposal(
-    block_felt: Felt,
-    height: u64,
-    round: u32,
-    proposer: ValidatorId,
-) -> ConsensusMessage {
-    let block_hash = BlockHash(block_felt);
-    ConsensusMessage::Proposal(Proposal {
-        height,
-        block_hash,
-        round,
-        proposer,
-        transactions: Vec::new(),
-        valid_round: None,
-    })
+pub fn proposal_init(height: u64, round: u32, proposer: ValidatorId) -> ProposalInit {
+    ProposalInit { height: BlockNumber(height), round, proposer, valid_round: None }
 }

@@ -14,11 +14,13 @@ use starknet_sequencer_infra::component_definitions::{
     ComponentClient,
     ComponentRequestAndResponseSender,
 };
+use starknet_state_sync_types::state_sync_types::SyncBlock;
 use thiserror::Error;
 
 use crate::batcher_types::{
     BatcherResult,
     DecisionReachedInput,
+    GetHeightResponse,
     GetProposalContentInput,
     GetProposalContentResponse,
     ProposeBlockInput,
@@ -43,6 +45,8 @@ pub type SharedBatcherClient = Arc<dyn BatcherClient>;
 pub trait BatcherClient: Send + Sync {
     /// Starts the process of building a proposal.
     async fn propose_block(&self, input: ProposeBlockInput) -> BatcherClientResult<()>;
+    /// Gets the first height that is not written in the storage yet.
+    async fn get_height(&self) -> BatcherClientResult<GetHeightResponse>;
     /// Gets the next available content from the proposal stream (only relevant when building a
     /// proposal).
     async fn get_proposal_content(
@@ -68,6 +72,8 @@ pub trait BatcherClient: Send + Sync {
     /// Notifies the batcher that a decision has been reached.
     /// This closes the process of the given height, and the accepted proposal is committed.
     async fn decision_reached(&self, input: DecisionReachedInput) -> BatcherClientResult<()>;
+
+    async fn add_sync_block(&self, sync_block: SyncBlock) -> BatcherClientResult<()>;
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -77,17 +83,21 @@ pub enum BatcherRequest {
     ValidateBlock(ValidateBlockInput),
     SendProposalContent(SendProposalContentInput),
     StartHeight(StartHeightInput),
+    GetCurrentHeight,
     DecisionReached(DecisionReachedInput),
+    AddSyncBlock(SyncBlock),
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum BatcherResponse {
     ProposeBlock(BatcherResult<()>),
+    GetCurrentHeight(BatcherResult<GetHeightResponse>),
     GetProposalContent(BatcherResult<GetProposalContentResponse>),
     ValidateBlock(BatcherResult<()>),
     SendProposalContent(BatcherResult<SendProposalContentResponse>),
     StartHeight(BatcherResult<()>),
     DecisionReached(BatcherResult<()>),
+    AddSyncBlock(BatcherResult<()>),
 }
 
 #[derive(Clone, Debug, Error)]
@@ -149,6 +159,17 @@ where
         handle_response_variants!(BatcherResponse, StartHeight, BatcherClientError, BatcherError)
     }
 
+    async fn get_height(&self) -> BatcherClientResult<GetHeightResponse> {
+        let request = BatcherRequest::GetCurrentHeight;
+        let response = self.send(request).await;
+        handle_response_variants!(
+            BatcherResponse,
+            GetCurrentHeight,
+            BatcherClientError,
+            BatcherError
+        )
+    }
+
     async fn decision_reached(&self, input: DecisionReachedInput) -> BatcherClientResult<()> {
         let request = BatcherRequest::DecisionReached(input);
         let response = self.send(request).await;
@@ -158,5 +179,11 @@ where
             BatcherClientError,
             BatcherError
         )
+    }
+
+    async fn add_sync_block(&self, sync_block: SyncBlock) -> BatcherClientResult<()> {
+        let request = BatcherRequest::AddSyncBlock(sync_block);
+        let response = self.send(request).await;
+        handle_response_variants!(BatcherResponse, AddSyncBlock, BatcherClientError, BatcherError)
     }
 }

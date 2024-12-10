@@ -152,7 +152,7 @@ pub struct EventIterByContractAddress<'env, 'txn> {
     transaction_metadata_table: TransactionMetadataTable<'env>,
 }
 
-impl<'env, 'txn> EventIterByContractAddress<'env, 'txn> {
+impl EventIterByContractAddress<'_, '_> {
     /// Returns the next event. If there are no more events, returns None.
     ///
     /// # Errors

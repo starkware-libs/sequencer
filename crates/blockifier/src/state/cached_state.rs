@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::cell::{Ref, RefCell};
 use std::collections::{HashMap, HashSet};
 
 use indexmap::IndexMap;
@@ -8,7 +8,7 @@ use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
 use crate::context::TransactionContext;
-use crate::execution::contract_class::RunnableContractClass;
+use crate::execution::contract_class::RunnableCompiledClass;
 use crate::state::errors::StateError;
 use crate::state::state_api::{State, StateReader, StateResult, UpdatableState};
 use crate::transaction::objects::TransactionExecutionInfo;
@@ -18,7 +18,7 @@ use crate::utils::{strict_subtract_mappings, subtract_mappings};
 #[path = "cached_state_test.rs"]
 mod test;
 
-pub type ContractClassMapping = HashMap<ClassHash, RunnableContractClass>;
+pub type ContractClassMapping = HashMap<ClassHash, RunnableCompiledClass>;
 
 /// Caches read and write requests.
 ///
@@ -58,6 +58,11 @@ impl<S: StateReader> CachedState<S> {
         self.to_state_diff()
     }
 
+    pub fn borrow_updated_state_cache(&mut self) -> StateResult<Ref<'_, StateCache>> {
+        self.update_initial_values_of_write_only_access()?;
+        Ok(self.cache.borrow())
+    }
+
     pub fn update_cache(
         &mut self,
         write_updates: &StateMaps,
@@ -85,8 +90,7 @@ impl<S: StateReader> CachedState<S> {
     ///   * Nonce: read previous before incrementing.
     ///   * Class hash: Deploy: verify the address is not occupied; Replace class: verify the
     ///     contract is deployed before running any code.
-    ///   * Compiled class hash: verify the class is not declared through
-    ///     `get_compiled_contract_class`.
+    ///   * Compiled class hash: verify the class is not declared through `get_compiled_class`.
     ///
     /// TODO(Noa, 30/07/23): Consider adding DB getters in bulk (via a DB read transaction).
     fn update_initial_values_of_write_only_access(&mut self) -> StateResult<()> {
@@ -174,17 +178,14 @@ impl<S: StateReader> StateReader for CachedState<S> {
         Ok(*class_hash)
     }
 
-    fn get_compiled_contract_class(
-        &self,
-        class_hash: ClassHash,
-    ) -> StateResult<RunnableContractClass> {
+    fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
         let mut cache = self.cache.borrow_mut();
         let class_hash_to_class = &mut *self.class_hash_to_class.borrow_mut();
 
         if let std::collections::hash_map::Entry::Vacant(vacant_entry) =
             class_hash_to_class.entry(class_hash)
         {
-            match self.state.get_compiled_contract_class(class_hash) {
+            match self.state.get_compiled_class(class_hash) {
                 Err(StateError::UndeclaredClassHash(class_hash)) => {
                     cache.set_declared_contract_initial_value(class_hash, false);
                     cache.set_compiled_class_hash_initial_value(
@@ -260,7 +261,7 @@ impl<S: StateReader> State for CachedState<S> {
     fn set_contract_class(
         &mut self,
         class_hash: ClassHash,
-        contract_class: RunnableContractClass,
+        contract_class: RunnableCompiledClass,
     ) -> StateResult<()> {
         self.class_hash_to_class.get_mut().insert(class_hash, contract_class);
         let mut cache = self.cache.borrow_mut();
@@ -387,7 +388,7 @@ impl StateMaps {
 /// The tracked changes are needed for block state commitment.
 
 // Invariant: keys cannot be deleted from fields (only used internally by the cached state).
-#[derive(Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct StateCache {
     // Reader's cached information; initial values, read before any write operation (per cell).
     pub(crate) initial_reads: StateMaps,
@@ -404,6 +405,44 @@ impl StateCache {
         let allocated_keys =
             AllocatedKeys::from_storage_diff(&self.writes.storage, &self.initial_reads.storage);
         StateChanges { state_maps, allocated_keys }
+    }
+
+    /// Squashes the given state caches into a single one and returns the state diff. Note that the
+    /// order of the state caches is important.
+    pub fn squash_state_caches(state_caches: Vec<&Self>) -> Self {
+        let mut squashed_state_cache = StateCache::default();
+
+        // Gives priority to early initial reads.
+        state_caches.iter().rev().for_each(|state_cache| {
+            squashed_state_cache.initial_reads.extend(&state_cache.initial_reads)
+        });
+        // Gives priority to late writes.
+        state_caches
+            .iter()
+            .for_each(|state_cache| squashed_state_cache.writes.extend(&state_cache.writes));
+        squashed_state_cache
+    }
+
+    /// Squashes the given state caches into a single one and returns the state diff. Note that the
+    /// order of the state caches is important.
+    /// If 'comprehensive_state_diff' is false, opposite updates may not be canceled out. Used for
+    /// backward compatibility.
+    pub fn squash_state_diff(
+        state_caches: Vec<&Self>,
+        comprehensive_state_diff: bool,
+    ) -> StateChanges {
+        if comprehensive_state_diff {
+            return Self::squash_state_caches(state_caches).to_state_diff();
+        }
+
+        // Backward compatibility.
+        let mut merged_state_changes = StateChanges::default();
+        for state_cache in state_caches {
+            let state_change = state_cache.to_state_diff();
+            merged_state_changes.state_maps.extend(&state_change.state_maps);
+            merged_state_changes.allocated_keys.0.extend(&state_change.allocated_keys.0);
+        }
+        merged_state_changes
     }
 
     fn declare_contract(&mut self, class_hash: ClassHash) {
@@ -511,7 +550,7 @@ impl<'a, S: StateReader + ?Sized> MutRefState<'a, S> {
 }
 
 /// Proxies inner object to expose `State` functionality.
-impl<'a, S: StateReader + ?Sized> StateReader for MutRefState<'a, S> {
+impl<S: StateReader + ?Sized> StateReader for MutRefState<'_, S> {
     fn get_storage_at(
         &self,
         contract_address: ContractAddress,
@@ -528,11 +567,8 @@ impl<'a, S: StateReader + ?Sized> StateReader for MutRefState<'a, S> {
         self.0.get_class_hash_at(contract_address)
     }
 
-    fn get_compiled_contract_class(
-        &self,
-        class_hash: ClassHash,
-    ) -> StateResult<RunnableContractClass> {
-        self.0.get_compiled_contract_class(class_hash)
+    fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
+        self.0.get_compiled_class(class_hash)
     }
 
     fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
@@ -542,7 +578,7 @@ impl<'a, S: StateReader + ?Sized> StateReader for MutRefState<'a, S> {
 
 pub type TransactionalState<'a, U> = CachedState<MutRefState<'a, U>>;
 
-impl<'a, S: StateReader> TransactionalState<'a, S> {
+impl<S: StateReader> TransactionalState<'_, S> {
     /// Creates a transactional instance from the given updatable state.
     /// It allows performing buffered modifying actions on the given state, which
     /// will either all happen (will be updated in the state and committed)
@@ -556,7 +592,7 @@ impl<'a, S: StateReader> TransactionalState<'a, S> {
 }
 
 /// Adds the ability to perform a transactional execution.
-impl<'a, U: UpdatableState> TransactionalState<'a, U> {
+impl<U: UpdatableState> TransactionalState<'_, U> {
     /// Commits changes in the child (wrapping) state to its parent.
     pub fn commit(self) {
         let state = self.state.0;
@@ -687,18 +723,6 @@ impl StateChangesKeys {
 pub struct AllocatedKeys(HashSet<StorageEntry>);
 
 impl AllocatedKeys {
-    /// Extends the set of allocated keys with the allocated_keys of the given state changes.
-    /// Removes storage keys that are set back to zero.
-    pub fn update(&mut self, state_change: &StateChanges) {
-        self.0.extend(&state_change.allocated_keys.0);
-        // Remove keys that are set back to zero.
-        state_change.state_maps.storage.iter().for_each(|(k, v)| {
-            if v == &Felt::ZERO {
-                self.0.remove(k);
-            }
-        });
-    }
-
     pub fn len(&self) -> usize {
         self.0.len()
     }
@@ -733,17 +757,6 @@ pub struct StateChanges {
 }
 
 impl StateChanges {
-    /// Merges the given state changes into a single one. Note that the order of the state changes
-    /// is important. The state changes are merged in the order they appear in the given vector.
-    pub fn merge(state_changes: Vec<Self>) -> Self {
-        let mut merged_state_changes = Self::default();
-        for state_change in state_changes {
-            merged_state_changes.state_maps.extend(&state_change.state_maps);
-            merged_state_changes.allocated_keys.update(&state_change);
-        }
-        merged_state_changes
-    }
-
     pub fn count_for_fee_charge(
         &self,
         sender_address: Option<ContractAddress>,

@@ -81,7 +81,7 @@ pub mod class;
 pub mod compiled_class;
 #[cfg(feature = "document_calls")]
 pub mod document_calls;
-pub mod utils;
+pub mod storage_metrics;
 // TODO(yair): Make the compression_utils module pub(crate) or extract it from the crate.
 #[doc(hidden)]
 pub mod compression_utils;
@@ -150,14 +150,13 @@ use crate::db::{
 use crate::header::StorageBlockHeader;
 use crate::mmap_file::MMapFileStats;
 use crate::state::data::IndexedDeprecatedContractClass;
-pub use crate::utils::update_storage_metrics;
 use crate::version::{VersionStorageReader, VersionStorageWriter};
 
 // For more details on the storage version, see the module documentation.
 /// The current version of the storage state code.
-pub const STORAGE_VERSION_STATE: Version = Version { major: 3, minor: 0 };
+pub const STORAGE_VERSION_STATE: Version = Version { major: 4, minor: 0 };
 /// The current version of the storage blocks code.
-pub const STORAGE_VERSION_BLOCKS: Version = Version { major: 3, minor: 0 };
+pub const STORAGE_VERSION_BLOCKS: Version = Version { major: 4, minor: 0 };
 
 /// Opens a storage and returns a [`StorageReader`] and a [`StorageWriter`].
 pub fn open_storage(
@@ -472,7 +471,7 @@ pub struct StorageTxn<'env, Mode: TransactionKind> {
     scope: StorageScope,
 }
 
-impl<'env> StorageTxn<'env, RW> {
+impl StorageTxn<'_, RW> {
     /// Commits the changes made in the transaction to the storage.
     #[latency_histogram("storage_commit_latency_seconds", false)]
     pub fn commit(self) -> StorageResult<()> {
@@ -481,7 +480,7 @@ impl<'env> StorageTxn<'env, RW> {
     }
 }
 
-impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
+impl<Mode: TransactionKind> StorageTxn<'_, Mode> {
     pub(crate) fn open_table<K: Key + Debug, V: ValueSerde + Debug, T: TableType>(
         &self,
         table_id: &TableIdentifier<K, V, T>,

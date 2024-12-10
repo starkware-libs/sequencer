@@ -53,4 +53,4 @@ Your code will need to pass [CI](../.github/workflows/ci.yml) before it can be m
 - Pass all local tests and all integration tests.
 - Be formatted according to [rustfmt](https://github.com/rust-lang/rustfmt).
 - Be linted according to [clippy](https://github.com/rust-lang/rust-clippy)
-- Not include unused dependencies (Checked by [udeps](https://github.com/est31/cargo-udeps)).
+- Not include unused dependencies (Checked by [machete](https://github.com/bnjbvr/cargo-machete)).

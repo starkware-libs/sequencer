@@ -29,9 +29,16 @@ use starknet_mempool_types::communication::{
     SharedMempoolClient,
 };
 use starknet_sequencer_infra::component_client::{Client, LocalComponentClient};
+use starknet_state_sync_types::communication::{
+    LocalStateSyncClient,
+    RemoteStateSyncClient,
+    SharedStateSyncClient,
+    StateSyncRequest,
+    StateSyncResponse,
+};
 
 use crate::communication::SequencerNodeCommunication;
-use crate::config::component_execution_config::ComponentExecutionMode;
+use crate::config::component_execution_config::ReactiveComponentExecutionMode;
 use crate::config::node_config::SequencerNodeConfig;
 
 pub struct SequencerNodeClients {
@@ -41,6 +48,7 @@ pub struct SequencerNodeClients {
     // TODO (Lev): Change to Option<Box<dyn MemPoolClient>>.
     mempool_p2p_propagator_client:
         Option<Client<MempoolP2pPropagatorRequest, MempoolP2pPropagatorResponse>>,
+    state_sync_client: Option<Client<StateSyncRequest, StateSyncResponse>>,
 }
 
 /// A macro to retrieve a shared client (either local or remote) from a specified field in a struct,
@@ -148,6 +156,19 @@ impl SequencerNodeClients {
             None => None,
         }
     }
+
+    pub fn get_state_sync_shared_client(&self) -> Option<SharedStateSyncClient> {
+        get_shared_client!(self, state_sync_client)
+    }
+
+    pub fn get_state_sync_local_client(
+        &self,
+    ) -> Option<LocalComponentClient<StateSyncRequest, StateSyncResponse>> {
+        match &self.state_sync_client {
+            Some(client) => client.get_local_client(),
+            None => None,
+        }
+    }
 }
 
 /// A macro for creating a component client, determined by the component's execution mode. Returns a
@@ -157,7 +178,7 @@ impl SequencerNodeClients {
 /// # Arguments
 ///
 /// * $execution_mode - A reference to the component's execution mode, i.e., type
-///   &ComponentExecutionMode.
+///   &ReactiveComponentExecutionMode.
 /// * $local_client_type - The type for the local client to create, e.g., LocalBatcherClient. The
 ///   client type should have a function $local_client_type::new(tx: $channel_expr).
 /// * $remote_client_type - The type for the remote client to create, e.g., RemoteBatcherClient. The
@@ -175,7 +196,7 @@ impl SequencerNodeClients {
 /// # Example
 ///
 /// ```rust,ignore
-/// // Assuming ComponentExecutionMode, channels, and remote client configuration are defined, and
+/// // Assuming ReactiveComponentExecutionMode, channels, and remote client configuration are defined, and
 /// // LocalBatcherClient and RemoteBatcherClient have new methods that accept a channel and config,
 /// // respectively.
 /// let batcher_client: Option<Client<BatcherRequest, BatcherResponse>> = create_client!(
@@ -200,19 +221,19 @@ macro_rules! create_client {
         $remote_client_config:expr
     ) => {
         match *$execution_mode {
-            ComponentExecutionMode::LocalExecutionWithRemoteDisabled
-            | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
+            ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
+            | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
                 let local_client = Some(<$local_client_type>::new($channel_expr));
                 Some(Client::new(local_client, None))
             }
-            ComponentExecutionMode::Remote => match $remote_client_config {
+            ReactiveComponentExecutionMode::Remote => match $remote_client_config {
                 Some(ref config) => {
                     let remote_client = Some(<$remote_client_type>::new(config.clone()));
                     Some(Client::new(None, remote_client))
                 }
                 None => None,
             },
-            ComponentExecutionMode::Disabled => None,
+            ReactiveComponentExecutionMode::Disabled => None,
         }
     };
 }
@@ -250,10 +271,20 @@ pub fn create_node_clients(
         channels.take_mempool_p2p_propagator_tx(),
         config.components.mempool_p2p.remote_client_config
     );
+
+    let state_sync_client = create_client!(
+        &config.components.state_sync.execution_mode,
+        LocalStateSyncClient,
+        RemoteStateSyncClient,
+        channels.take_state_sync_tx(),
+        config.components.state_sync.remote_client_config
+    );
+
     SequencerNodeClients {
         batcher_client,
         mempool_client,
         gateway_client,
         mempool_p2p_propagator_client,
+        state_sync_client,
     }
 }

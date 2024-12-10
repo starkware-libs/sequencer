@@ -3,7 +3,7 @@ use blockifier::blockifier::stateful_validator::{
     StatefulValidatorResult as BlockifierStatefulValidatorResult,
 };
 use blockifier::context::ChainInfo;
-use blockifier::test_utils::CairoVersion;
+use blockifier::test_utils::{CairoVersion, RunnableCairo1};
 use blockifier::transaction::errors::{TransactionFeeError, TransactionPreValidationError};
 use mempool_test_utils::starknet_api_test_utils::{
     executable_invoke_tx as create_executable_invoke_tx,
@@ -54,11 +54,11 @@ fn stateful_validator() -> StatefulTransactionValidator {
 // TODO(Arni): consider testing declare and deploy account.
 #[rstest]
 #[case::valid_tx(
-    create_executable_invoke_tx(CairoVersion::Cairo1),
+    create_executable_invoke_tx(CairoVersion::Cairo1(RunnableCairo1::Casm)),
     Ok(())
 )]
 #[case::invalid_tx(
-    create_executable_invoke_tx(CairoVersion::Cairo1),
+    create_executable_invoke_tx(CairoVersion::Cairo1(RunnableCairo1::Casm)),
     Err(STATEFUL_VALIDATOR_FEE_ERROR)
 )]
 fn test_stateful_tx_validator(
@@ -83,7 +83,8 @@ fn test_stateful_tx_validator(
 
 #[rstest]
 fn test_instantiate_validator(stateful_validator: StatefulTransactionValidator) {
-    let state_reader_factory = local_test_state_reader_factory(CairoVersion::Cairo1, false);
+    let state_reader_factory =
+        local_test_state_reader_factory(CairoVersion::Cairo1(RunnableCairo1::Casm), false);
 
     let mut mock_state_reader_factory = MockStateReaderFactory::new();
 
@@ -109,29 +110,28 @@ fn test_instantiate_validator(stateful_validator: StatefulTransactionValidator) 
 
 #[rstest]
 #[case::should_skip_validation(
-    AccountTransaction::Invoke(executable_invoke_tx(invoke_tx_args!(nonce: nonce!(1)))),
+    executable_invoke_tx(invoke_tx_args!(nonce: nonce!(1))),
     nonce!(0),
     true
 )]
 #[case::should_not_skip_validation_nonce_over_max_nonce_for_skip(
-    AccountTransaction::Invoke(executable_invoke_tx(invoke_tx_args!(nonce: nonce!(0)))),
+    executable_invoke_tx(invoke_tx_args!(nonce: nonce!(0))),
     nonce!(0),
     false
 )]
 #[case::should_not_skip_validation_non_invoke(
-    AccountTransaction::DeployAccount(
         executable_deploy_account_tx(deploy_account_tx_args!(), &mut NonceManager::default())
-    ),
+    ,
     nonce!(0),
     false)
 ]
 #[case::should_not_skip_validation_account_nonce_1(
-    AccountTransaction::Invoke(executable_invoke_tx(
+    executable_invoke_tx(
         invoke_tx_args!(
             nonce: nonce!(1),
             sender_address: TEST_SENDER_ADDRESS.into()
         )
-    )),
+    ),
     nonce!(1),
     false
 )]

@@ -8,7 +8,7 @@ use starknet_api::transaction::{
     Transaction,
 };
 
-use crate::state_reader::test_state_reader::ReexecutionResult;
+use crate::state_reader::errors::ReexecutionResult;
 
 /// In old transaction, the resource bounds names are lowercase.
 /// need to convert to uppercase for deserialization to work.
@@ -26,6 +26,10 @@ pub fn upper_case_resource_bounds_names(raw_transaction: &mut Value) {
             .remove("l2_gas")
             .expect("If tx contains l1_gas, it should contain l2_gas");
         resource_bounds.insert("L2_GAS".to_string(), l2_gas_value);
+    }
+
+    if let Some(l1_data_gas_value) = resource_bounds.remove("l1_data_gas") {
+        resource_bounds.insert("L1_DATA_GAS".to_string(), l1_data_gas_value);
     }
 }
 

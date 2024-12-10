@@ -11,12 +11,12 @@ use crate::retdata;
 use crate::state::state_api::StateReader;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, BALANCE};
+use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, RunnableCairo1, BALANCE};
 
-#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Native; "Native"))]
-#[test_case(CairoVersion::Cairo1; "VM")]
-fn test_storage_read_write(cairo_version: CairoVersion) {
-    let test_contract = FeatureContract::TestContract(cairo_version);
+#[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native; "Native"))]
+#[test_case(RunnableCairo1::Casm; "VM")]
+fn test_storage_read_write(runnable_version: RunnableCairo1) {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable_version));
     let chain_info = &ChainInfo::create_for_testing();
     let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1)]);
 

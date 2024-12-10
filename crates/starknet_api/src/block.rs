@@ -6,8 +6,10 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Poseidon, StarkHash as CoreStarkHash};
+use strum_macros::EnumIter;
 
 use crate::core::{
+    ContractAddress,
     EventCommitment,
     GlobalRoot,
     ReceiptCommitment,
@@ -374,7 +376,7 @@ impl GasPrice {
 
 /// Utility struct representing a non-zero gas price. Useful when a gas amount must be computed by
 /// taking a fee amount and dividing by the gas price.
-#[derive(Copy, Clone, Debug, Deserialize, Serialize, derive_more::Display)]
+#[derive(Copy, Clone, Debug, Deserialize, Eq, PartialEq, Serialize, derive_more::Display)]
 pub struct NonzeroGasPrice(GasPrice);
 
 impl NonzeroGasPrice {
@@ -437,11 +439,46 @@ macro_rules! impl_try_from_uint_for_nonzero_gas_price {
 
 impl_try_from_uint_for_nonzero_gas_price!(u8, u16, u32, u64, u128);
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+// TODO(Arni): Remove derive of Default. Gas prices should always be set.
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct GasPriceVector {
     pub l1_gas_price: NonzeroGasPrice,
     pub l1_data_gas_price: NonzeroGasPrice,
     pub l2_gas_price: NonzeroGasPrice,
+}
+
+#[derive(Clone, Copy, Hash, EnumIter, Eq, PartialEq)]
+pub enum FeeType {
+    Strk,
+    Eth,
+}
+
+// TODO(Arni): Remove derive of Default. Gas prices should always be set.
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+pub struct GasPrices {
+    pub eth_gas_prices: GasPriceVector,  // In wei.
+    pub strk_gas_prices: GasPriceVector, // In fri.
+}
+
+impl GasPrices {
+    pub fn l1_gas_price(&self, fee_type: &FeeType) -> NonzeroGasPrice {
+        self.gas_price_vector(fee_type).l1_gas_price
+    }
+
+    pub fn l1_data_gas_price(&self, fee_type: &FeeType) -> NonzeroGasPrice {
+        self.gas_price_vector(fee_type).l1_data_gas_price
+    }
+
+    pub fn l2_gas_price(&self, fee_type: &FeeType) -> NonzeroGasPrice {
+        self.gas_price_vector(fee_type).l2_gas_price
+    }
+
+    pub fn gas_price_vector(&self, fee_type: &FeeType) -> &GasPriceVector {
+        match fee_type {
+            FeeType::Strk => &self.strk_gas_prices,
+            FeeType::Eth => &self.eth_gas_prices,
+        }
+    }
 }
 
 /// The timestamp of a [Block](`crate::block::Block`).
@@ -449,6 +486,17 @@ pub struct GasPriceVector {
     Debug, Default, Copy, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord,
 )]
 pub struct BlockTimestamp(pub u64);
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+pub struct BlockInfo {
+    pub block_number: BlockNumber,
+    pub block_timestamp: BlockTimestamp,
+
+    // Fee-related.
+    pub sequencer_address: ContractAddress,
+    pub gas_prices: GasPrices,
+    pub use_kzg_da: bool,
+}
 
 /// The signature of a [Block](`crate::block::Block`), signed by the sequencer. The signed message
 /// is defined as poseidon_hash(block_hash, state_diff_commitment).

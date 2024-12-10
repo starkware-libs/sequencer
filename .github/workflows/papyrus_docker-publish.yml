@@ -1,4 +1,4 @@
-name: Papyrus-Docker-Publish
+<!-- name: Papyrus-Docker-Publish
 
 on:
   workflow_dispatch:
@@ -28,6 +28,7 @@ concurrency:
 env:
   REGISTRY: ghcr.io
   REPO_NAME: ${{ github.repository }}
+  RUSTFLAGS: "-D warnings"
 
 jobs:
   docker-build-push:
@@ -81,4 +82,4 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: type=gha,mode=max -->

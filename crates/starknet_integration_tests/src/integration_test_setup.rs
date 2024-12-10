@@ -4,13 +4,21 @@ use std::path::PathBuf;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use papyrus_storage::StorageConfig;
 use starknet_http_server::config::HttpServerConfig;
+use starknet_http_server::test_utils::HttpTestClient;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_monitoring_endpoint::test_utils::IsAliveClient;
 use tempfile::{tempdir, TempDir};
 
 use crate::config_utils::dump_config_file_changes;
 use crate::state_reader::{spawn_test_rpc_state_reader, StorageTestSetup};
-use crate::utils::{create_chain_info, create_config, HttpTestClient};
+use crate::utils::{
+    create_chain_info,
+    create_config,
+    create_consensus_manager_configs_and_channels,
+};
+
+const SEQUENCER_INDEX: usize = 0;
+const SEQUENCER_INDICES: [usize; 1] = [SEQUENCER_INDEX];
 
 pub struct IntegrationTestSetup {
     // Client for adding transactions to the sequencer node.
@@ -36,8 +44,7 @@ impl IntegrationTestSetup {
     pub async fn new_from_tx_generator(tx_generator: &MultiAccountTransactionGenerator) -> Self {
         let chain_info = create_chain_info();
         // Creating the storage for the test.
-        let storage_for_test =
-            StorageTestSetup::new(tx_generator.accounts(), chain_info.chain_id.clone());
+        let storage_for_test = StorageTestSetup::new(tx_generator.accounts(), &chain_info);
 
         // Spawn a papyrus rpc server for a papyrus storage reader.
         let rpc_server_addr = spawn_test_rpc_state_reader(
@@ -46,10 +53,18 @@ impl IntegrationTestSetup {
         )
         .await;
 
+        let (mut consensus_manager_configs, _consensus_proposals_channels) =
+            create_consensus_manager_configs_and_channels(SEQUENCER_INDICES.len());
+
         // Derive the configuration for the sequencer node.
-        let (config, required_params, _) =
-            create_config(chain_info, rpc_server_addr, storage_for_test.batcher_storage_config)
-                .await;
+        let (config, required_params) = create_config(
+            SEQUENCER_INDEX,
+            chain_info,
+            rpc_server_addr,
+            storage_for_test.batcher_storage_config,
+            consensus_manager_configs.pop().unwrap(),
+        )
+        .await;
 
         let node_config_dir_handle = tempdir().unwrap();
         let node_config_path = dump_config_file_changes(
@@ -59,7 +74,7 @@ impl IntegrationTestSetup {
         );
 
         // Wait for the node to start.
-        let MonitoringEndpointConfig { ip, port } = config.monitoring_endpoint_config;
+        let MonitoringEndpointConfig { ip, port, .. } = config.monitoring_endpoint_config;
         let is_alive_test_client = IsAliveClient::new(SocketAddr::from((ip, port)));
 
         let HttpServerConfig { ip, port } = config.http_server_config;
