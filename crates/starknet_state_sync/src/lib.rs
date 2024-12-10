@@ -29,11 +29,29 @@ pub struct StateSync {
 impl ComponentRequestHandler<StateSyncRequest, StateSyncResponse> for StateSync {
     async fn handle_request(&mut self, request: StateSyncRequest) -> StateSyncResponse {
         let (response_sender, response_receiver) = oneshot::channel();
-        if self.request_sender.send((request, response_sender)).await.is_err() {
-            return StateSyncResponse::GetBlock(Err(StateSyncError::RunnerCommunicationError));
+        match request {
+            StateSyncRequest::GetBlock(_) => {
+                if self.request_sender.send((request, response_sender)).await.is_err() {
+                    return StateSyncResponse::GetBlock(Err(
+                        StateSyncError::RunnerCommunicationError,
+                    ));
+                }
+                response_receiver.await.unwrap_or_else(|_| {
+                    StateSyncResponse::GetBlock(Err(StateSyncError::RunnerCommunicationError))
+                })
+            }
+            StateSyncRequest::AddNewInternalBlock(_) => {
+                if self.request_sender.send((request, response_sender)).await.is_err() {
+                    return StateSyncResponse::AddNewInternalBlock(Err(
+                        StateSyncError::RunnerCommunicationError,
+                    ));
+                }
+                response_receiver.await.unwrap_or_else(|_| {
+                    StateSyncResponse::AddNewInternalBlock(Err(
+                        StateSyncError::RunnerCommunicationError,
+                    ))
+                })
+            }
         }
-        response_receiver.await.unwrap_or_else(|_| {
-            StateSyncResponse::GetBlock(Err(StateSyncError::RunnerCommunicationError))
-        })
     }
 }
