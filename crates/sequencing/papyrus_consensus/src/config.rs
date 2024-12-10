@@ -21,7 +21,6 @@ use validator::Validate;
 use crate::types::ValidatorId;
 
 const CONSENSUS_TCP_PORT: u16 = 10100;
-const CONSENSUS_QUIC_PORT: u16 = 10101;
 
 /// Configuration for consensus.
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
@@ -95,11 +94,7 @@ impl SerializeConfig for ConsensusConfig {
 
 impl Default for ConsensusConfig {
     fn default() -> Self {
-        let network_config = NetworkConfig {
-            tcp_port: CONSENSUS_TCP_PORT,
-            quic_port: CONSENSUS_QUIC_PORT,
-            ..Default::default()
-        };
+        let network_config = NetworkConfig { tcp_port: CONSENSUS_TCP_PORT, ..Default::default() };
         Self {
             chain_id: ChainId::Other("0x0".to_string()),
             validator_id: ValidatorId::from(DEFAULT_VALIDATOR_ID),

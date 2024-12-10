@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use futures::channel::mpsc::{Receiver, SendError, Sender};
 use futures::channel::oneshot;
-use futures::future::{ready, Ready};
+use futures::future::{Ready, ready};
 use futures::sink::With;
 use futures::stream::Map;
 use futures::{SinkExt, StreamExt};
@@ -26,9 +26,9 @@ use super::{
     SqmrServerReceiver,
     Topic,
 };
+use crate::NetworkConfig;
 use crate::network_manager::{BroadcastReceivedMessagesConverterFn, BroadcastTopicChannels};
 use crate::sqmr::Bytes;
-use crate::NetworkConfig;
 
 pub fn mock_register_sqmr_protocol_client<Query, Response>(
     buffer_size: usize,
