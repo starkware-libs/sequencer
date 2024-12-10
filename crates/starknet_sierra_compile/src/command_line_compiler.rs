@@ -7,6 +7,8 @@ use cairo_lang_starknet_classes::contract_class::ContractClass;
 #[cfg(feature = "cairo_native")]
 use cairo_native::executor::AotContractExecutor;
 use tempfile::NamedTempFile;
+#[cfg(feature = "cairo_native")]
+use tempfile::TempDir;
 
 use crate::config::SierraToCasmCompilationConfig;
 use crate::constants::CAIRO_LANG_BINARY_NAME;
@@ -14,8 +16,6 @@ use crate::constants::CAIRO_LANG_BINARY_NAME;
 use crate::constants::CAIRO_NATIVE_BINARY_NAME;
 use crate::errors::CompilationUtilError;
 use crate::paths::binary_path;
-#[cfg(feature = "cairo_native")]
-use crate::paths::output_file_path;
 use crate::SierraToCasmCompiler;
 #[cfg(feature = "cairo_native")]
 use crate::SierraToNativeCompiler;
@@ -66,8 +66,13 @@ impl SierraToNativeCompiler for CommandLineCompiler {
         contract_class: ContractClass,
     ) -> Result<AotContractExecutor, CompilationUtilError> {
         let compiler_binary_path = &self.path_to_starknet_native_compile_binary;
-        let output_file_path = output_file_path(out_dir());
-        let additional_args = [output_file_path.as_str()];
+        let output_dir =
+            TempDir::new().expect("Failed to create temporary compilation output directory.");
+        let output_file = output_dir.path().join("output.so");
+        let output_file_path = output_file.to_str().ok_or(
+            CompilationUtilError::UnexpectedError("Failed to get output file path".to_owned()),
+        )?;
+        let additional_args = [output_file_path];
 
         let _stdout = compile_with_args(compiler_binary_path, contract_class, &additional_args)?;
 
