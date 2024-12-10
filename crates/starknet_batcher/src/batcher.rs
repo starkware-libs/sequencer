@@ -302,12 +302,6 @@ impl Batcher {
         Ok(())
     }
 
-    // TODO(Arni): Implement this function.
-    #[instrument(skip(self), err)]
-    pub async fn get_height(&mut self) -> BatcherResult<GetHeightResponse> {
-        todo!("Implement this function");
-    }
-
     #[instrument(skip(self), err)]
     pub async fn get_height(&mut self) -> BatcherResult<GetHeightResponse> {
         let height = self.storage_reader.height().map_err(|err| {
