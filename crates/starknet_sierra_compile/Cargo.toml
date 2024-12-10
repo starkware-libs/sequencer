@@ -33,3 +33,4 @@ rstest.workspace = true
 
 [build-dependencies]
 infra_utils.workspace = true
+tempfile.workspace = true

@@ -1,5 +1,7 @@
 use std::process::Command;
 
+use tempfile::TempDir;
+
 include!("src/constants.rs");
 include!("src/paths.rs");
 
@@ -15,7 +17,7 @@ fn main() {
 
 const REQUIRED_CAIRO_LANG_VERSION: &str = "2.7.1";
 #[cfg(feature = "cairo_native")]
-const REQUIRED_CAIRO_NATIVE_VERSION: &str = "0.2.1-alpha.0";
+const REQUIRED_CAIRO_NATIVE_VERSION: &str = "0.2.4";
 
 /// Downloads the Cairo crate from StarkWare's release page and extracts its contents into the
 /// `target` directory. This crate includes the `starknet-sierra-compile` binary, which is used to
@@ -24,9 +26,6 @@ const REQUIRED_CAIRO_NATIVE_VERSION: &str = "0.2.1-alpha.0";
 fn install_starknet_sierra_compile() {
     let binary_name = CAIRO_LANG_BINARY_NAME;
     let required_version = REQUIRED_CAIRO_LANG_VERSION;
-
-    let cairo_lang_binary_path = binary_path(out_dir(), binary_name);
-    println!("cargo:rerun-if-changed={:?}", cairo_lang_binary_path);
 
     let cargo_install_args = &[binary_name, "--version", required_version];
     install_compiler_binary(binary_name, required_version, cargo_install_args);
@@ -40,9 +39,6 @@ fn install_starknet_sierra_compile() {
 fn install_starknet_native_compile() {
     let binary_name = CAIRO_NATIVE_BINARY_NAME;
     let required_version = REQUIRED_CAIRO_NATIVE_VERSION;
-
-    let cairo_native_binary_path = binary_path(out_dir(), binary_name);
-    println!("cargo:rerun-if-changed={:?}", cairo_native_binary_path);
 
     // Set the runtime library path. This is required for Cairo native compilation.
     let runtime_library_path = repo_root_dir()
@@ -62,6 +58,7 @@ fn install_starknet_native_compile() {
 
 fn install_compiler_binary(binary_name: &str, required_version: &str, cargo_install_args: &[&str]) {
     let binary_path = binary_path(out_dir(), binary_name);
+    println!("cargo:rerun-if-changed={:?}", binary_path);
 
     match Command::new(&binary_path).args(["--version"]).output() {
         Ok(binary_version) => {
@@ -82,16 +79,14 @@ fn install_compiler_binary(binary_name: &str, required_version: &str, cargo_inst
         }
     }
 
-    let temp_cargo_path = out_dir().join("cargo");
-    let post_install_file_path = temp_cargo_path.join("bin").join(binary_name);
+    let temp_cargo_path = TempDir::new().expect("Failed to create a temporary directory.");
+    let post_install_file_path = temp_cargo_path.path().join("bin").join(binary_name);
 
-    // Create the temporary cargo directory if it doesn't exist
-    std::fs::create_dir_all(&temp_cargo_path).expect("Failed to create cargo directory");
     let install_command_status = Command::new("cargo")
         .args([
             "install",
             "--root",
-            temp_cargo_path.to_str().expect("Failed to convert cargo_path to str"),
+            temp_cargo_path.path().to_str().expect("Failed to convert cargo_path to str"),
         ])
         .args(cargo_install_args)
         .status()
@@ -101,7 +96,7 @@ fn install_compiler_binary(binary_name: &str, required_version: &str, cargo_inst
         panic!("Failed to install {}", binary_name);
     }
 
-    // Move the 'starknet-sierra-compile' executable to a shared location
+    // Move the '{binary_name}' executable to a shared location.
     std::fs::create_dir_all(shared_folder_dir(out_dir()))
         .expect("Failed to create shared executables folder");
     let move_command_status = Command::new("mv")

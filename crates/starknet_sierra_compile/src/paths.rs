@@ -19,6 +19,15 @@ pub fn binary_path(out_dir: std::path::PathBuf, binary_name: &str) -> std::path:
 }
 
 #[cfg(feature = "cairo_native")]
-pub fn output_file_path(out_dir: std::path::PathBuf) -> String {
-    out_dir.join("output.so").to_str().unwrap().into()
+pub fn compilation_output_dir() -> std::path::PathBuf {
+    let path = std::path::PathBuf::from("/tmp").join("native_compile_outputs");
+    std::fs::create_dir_all(&path).expect("Failed to create native compilation output directory");
+
+    path
+}
+
+#[cfg(feature = "cairo_native")]
+/// Returns the path to the Sierra -> native compilation output file.
+pub fn compilation_output_file_path() -> String {
+    compilation_output_dir().join("output.so").to_str().unwrap().into()
 }
