@@ -24,6 +24,7 @@ use crate::utils::{
     create_chain_info,
     create_config,
     create_consensus_manager_configs_and_channels,
+    get_http_server_config,
 };
 
 const SEQUENCER_0: usize = 0;
@@ -95,7 +96,7 @@ pub struct SequencerSetup {
     // Handle of the sequencer node.
     pub sequencer_node_handles: Vec<JoinHandle<Result<(), anyhow::Error>>>,
 
-    pub config: SequencerNodeConfig,
+    pub configs: Vec<SequencerNodeConfig>,
 }
 
 impl SequencerSetup {
@@ -120,7 +121,7 @@ impl SequencerSetup {
         .await;
 
         // Derive the configuration for the sequencer node.
-        let (config, _required_params) = create_config(
+        let (configs, _required_params) = create_config(
             sequencer_index,
             chain_info,
             rpc_server_addr,
@@ -129,16 +130,27 @@ impl SequencerSetup {
         )
         .await;
 
-        debug!("Sequencer config: {:#?}", config);
+        debug!("Sequencer configs: {:#?}", configs);
 
-        let (_clients, servers) = create_node_modules(&config);
+        let mut sequencer_clients = vec![];
+        let mut sequencer_servers = vec![];
+        for config in configs.iter() {
+            let (clients, servers) = create_node_modules(config);
+            sequencer_clients.push(clients);
+            sequencer_servers.push(servers);
+        }
 
-        let HttpServerConfig { ip, port } = config.http_server_config;
-        let add_tx_http_client = HttpTestClient::new(SocketAddr::from((ip, port)));
+        let HttpServerConfig { ip, port } =
+            get_http_server_config(&configs).expect("No matching HttpServerConfig found");
+        let add_tx_http_client = HttpTestClient::new(SocketAddr::from((*ip, *port)));
 
         // Build and run the sequencer node.
-        let sequencer_node_future = run_component_servers(servers);
-        let sequencer_node_handles = vec![task_executor.spawn_with_handle(sequencer_node_future)];
+        let mut sequencer_node_handles = vec![];
+        for server in sequencer_servers {
+            let sequencer_node_future = run_component_servers(server);
+            let sequencer_node_handle = task_executor.spawn_with_handle(sequencer_node_future);
+            sequencer_node_handles.push(sequencer_node_handle);
+        }
 
         // Wait for server to spin up.
         // TODO(Gilad): Replace with a persistent Client with a built-in retry to protect against CI
@@ -151,7 +163,7 @@ impl SequencerSetup {
             batcher_storage_file_handle: storage_for_test.batcher_storage_handle,
             rpc_storage_file_handle: storage_for_test.rpc_storage_handle,
             sequencer_node_handles,
-            config,
+            configs,
         }
     }
 

@@ -57,7 +57,7 @@ impl IntegrationTestSetup {
             create_consensus_manager_configs_and_channels(SEQUENCER_INDICES.len());
 
         // Derive the configuration for the sequencer node.
-        let (config, required_params) = create_config(
+        let (configs, required_params) = create_config(
             SEQUENCER_INDEX,
             chain_info,
             rpc_server_addr,
@@ -66,9 +66,11 @@ impl IntegrationTestSetup {
         )
         .await;
 
+        let config = &configs[0];
+
         let node_config_dir_handle = tempdir().unwrap();
         let node_config_path = dump_config_file_changes(
-            &config,
+            config,
             required_params,
             node_config_dir_handle.path().to_path_buf(),
         );
@@ -84,7 +86,7 @@ impl IntegrationTestSetup {
             add_tx_http_client,
             is_alive_test_client,
             batcher_storage_handle: storage_for_test.batcher_storage_handle,
-            batcher_storage_config: config.batcher_config.storage,
+            batcher_storage_config: config.batcher_config.storage.clone(),
             rpc_storage_handle: storage_for_test.rpc_storage_handle,
             node_config_dir_handle,
             node_config_path,
