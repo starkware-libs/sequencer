@@ -7,6 +7,7 @@ license-file.workspace = true
 description = "A Bridge between the Rust blockifier crate and Python."
 
 [features]
+cairo_native = ["blockifier/cairo_native"]
 # Required for `cargo test` to work with Pyo3.
 # On Python, make sure to compile this with the extension-module feature enabled.
 # https://pyo3.rs/v0.19.1/faq#i-cant-run-cargo-test-or-i-cant-build-in-a-cargo-workspace-im-having-linker-issues-like-symbol-not-found-or-undefined-reference-to-_pyexc_systemerror
@@ -27,7 +28,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 # TODO(Dori, 1/1/2025): Add the "jemalloc" feature to the blockifier crate when possible.
-blockifier = { workspace = true, features = ["cairo_native", "native_blockifier"] }
+blockifier = { workspace = true, features = ["native_blockifier"] }
 cairo-lang-starknet-classes.workspace = true
 cairo-vm.workspace = true
 indexmap.workspace = true
@@ -44,7 +45,7 @@ starknet_api.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
-blockifier = { workspace = true, features = ["cairo_native", "native_blockifier", "testing"] }
+blockifier = { workspace = true, features = ["native_blockifier", "testing"] }
 cached.workspace = true
 papyrus_storage = { workspace = true, features = ["testing"] }
 pretty_assertions.workspace = true
