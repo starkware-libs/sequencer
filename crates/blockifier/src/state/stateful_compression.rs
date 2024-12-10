@@ -23,8 +23,9 @@ static ALIAS_COUNTER_STORAGE_KEY: LazyLock<StorageKey> =
     LazyLock::new(|| StorageKey(PatriciaKey::try_from(Felt::ZERO).unwrap()));
 // The maximal contract address for which aliases are not used and all keys are serialized as is,
 // without compression.
-static MAX_NON_COMPRESSED_CONTRACT_ADDRESS: LazyLock<ContractAddress> =
-    LazyLock::new(|| ContractAddress(PatriciaKey::try_from(Felt::from_hex_unchecked("0xf")).unwrap()));
+static MAX_NON_COMPRESSED_CONTRACT_ADDRESS: LazyLock<ContractAddress> = LazyLock::new(|| {
+    ContractAddress(PatriciaKey::try_from(Felt::from_hex_unchecked("0xf")).unwrap())
+});
 // The minimal value for a key to be allocated an alias. Smaller keys are serialized as is (their
 // alias is identical to the key).
 static MIN_VALUE_FOR_ALIAS_ALLOC: LazyLock<PatriciaKey> =
