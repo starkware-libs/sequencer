@@ -48,7 +48,7 @@ impl ComponentRequestHandler<StateSyncRequest, StateSyncResponse> for StateSync 
                     self.new_block_sender
                         .send((block_number, sync_block))
                         .await
-                        .map_err(|_| StateSyncError::P2PSyncClientError),
+                        .map_err(StateSyncError::from),
                 )
             }
         }
