@@ -6,10 +6,8 @@ pub mod test_utils;
 use indexmap::{IndexMap, IndexSet};
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
-
-use crate::errors::L1ProviderError;
-
-type L1ProviderResult<T> = Result<T, L1ProviderError>;
+use starknet_l1_provider_types::errors::L1ProviderError;
+use starknet_l1_provider_types::{L1ProviderResult, ValidationStatus};
 
 #[cfg(test)]
 #[path = "l1_provider_tests.rs"]
@@ -142,20 +140,13 @@ impl TransactionManager {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ValidationStatus {
-    Validated,
-    AlreadyIncludedOnL2,
-    ConsumedOnL1OrUnknown,
-}
-
 /// Current state of the provider, where pending means: idle, between proposal/validation cycles.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum ProviderState {
-    #[default]
-    Uninitialized,
     Pending,
     Propose,
+    #[default]
+    Uninitialized,
     Validate,
 }
 
@@ -163,20 +154,14 @@ impl ProviderState {
     fn transition_to_propose(self) -> L1ProviderResult<Self> {
         match self {
             ProviderState::Pending => Ok(ProviderState::Propose),
-            _ => Err(L1ProviderError::UnexpectedProviderStateTransition {
-                from: self,
-                to: ProviderState::Propose,
-            }),
+            _ => Err(L1ProviderError::unexpected_transition(self, ProviderState::Propose)),
         }
     }
 
     fn transition_to_validate(self) -> L1ProviderResult<Self> {
         match self {
             ProviderState::Pending => Ok(ProviderState::Validate),
-            _ => Err(L1ProviderError::UnexpectedProviderStateTransition {
-                from: self,
-                to: ProviderState::Validate,
-            }),
+            _ => Err(L1ProviderError::unexpected_transition(self, ProviderState::Validate)),
         }
     }
 

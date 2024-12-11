@@ -13,6 +13,7 @@ use std::path::PathBuf;
 
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use infra_utils::compile_time_cargo_manifest_dir;
 use starknet_api::abi::abi_utils::{get_fee_token_var_address, selector_from_name};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber, GasPrice, NonzeroGasPrice};
 use starknet_api::core::{ClassHash, ContractAddress};
@@ -56,14 +57,25 @@ pub const TEST_ERC20_CONTRACT_CLASS_HASH: &str = "0x1010";
 pub const ERC20_CONTRACT_PATH: &str = "./ERC20/ERC20_Cairo0/ERC20_without_some_syscalls/ERC20/\
                                        erc20_contract_without_some_syscalls_compiled.json";
 
+#[derive(Clone, Hash, PartialEq, Eq, Copy, Debug)]
+pub enum RunnableCairo1 {
+    Casm,
+    #[cfg(feature = "cairo_native")]
+    Native,
+}
+
+impl Default for RunnableCairo1 {
+    fn default() -> Self {
+        Self::Casm
+    }
+}
+
 // TODO(Aviv, 14/7/2024): Move from test utils module, and use it in ContractClassVersionMismatch
 // error.
 #[derive(Clone, Hash, PartialEq, Eq, Copy, Debug)]
 pub enum CairoVersion {
     Cairo0,
-    Cairo1,
-    #[cfg(feature = "cairo_native")]
-    Native,
+    Cairo1(RunnableCairo1),
 }
 
 impl Default for CairoVersion {
@@ -80,18 +92,16 @@ impl CairoVersion {
         if tx_version == TransactionVersion::ZERO || tx_version == TransactionVersion::ONE {
             CairoVersion::Cairo0
         } else if tx_version == TransactionVersion::TWO || tx_version == TransactionVersion::THREE {
-            CairoVersion::Cairo1
+            CairoVersion::Cairo1(RunnableCairo1::Casm)
         } else {
             panic!("Transaction version {:?} is not supported.", tx_version)
         }
     }
 
-    pub fn other(&self) -> Self {
+    pub fn is_cairo0(&self) -> bool {
         match self {
-            Self::Cairo0 => Self::Cairo1,
-            Self::Cairo1 => Self::Cairo0,
-            #[cfg(feature = "cairo_native")]
-            Self::Native => panic!("There is no other version for native"),
+            Self::Cairo0 => true,
+            Self::Cairo1(_) => false,
         }
     }
 }
@@ -117,9 +127,7 @@ impl CompilerBasedVersion {
             Self::CairoVersion(CairoVersion::Cairo0) | Self::OldCairo1 => {
                 TrackedResource::CairoSteps
             }
-            Self::CairoVersion(CairoVersion::Cairo1) => TrackedResource::SierraGas,
-            #[cfg(feature = "cairo_native")]
-            Self::CairoVersion(CairoVersion::Native) => TrackedResource::SierraGas,
+            Self::CairoVersion(CairoVersion::Cairo1(_)) => TrackedResource::SierraGas,
         }
     }
 }
@@ -195,7 +203,7 @@ pub fn pad_address_to_64(address: &str) -> String {
 }
 
 pub fn get_raw_contract_class(contract_path: &str) -> String {
-    let path: PathBuf = [env!("CARGO_MANIFEST_DIR"), contract_path].iter().collect();
+    let path: PathBuf = [compile_time_cargo_manifest_dir!(), contract_path].iter().collect();
     fs::read_to_string(path).unwrap()
 }
 
@@ -213,6 +221,7 @@ pub fn trivial_external_entry_point_with_address(
         initial_gas: VersionedConstants::create_for_testing()
             .os_constants
             .gas_costs
+            .base
             .default_initial_gas_cost,
         ..Default::default()
     }
@@ -330,19 +339,8 @@ macro_rules! check_tx_execution_error_for_invalid_scenario {
                     $validate_constructor,
                 );
             }
-            CairoVersion::Cairo1  => {
-                if let $crate::transaction::errors::TransactionExecutionError::ValidateTransactionError {
-                    error, ..
-                } = $error {
-                    assert_eq!(
-                        error.to_string(),
-                        "Execution failed. Failure reason: 0x496e76616c6964207363656e6172696f \
-                         ('Invalid scenario')."
-                    )
-                }
-            }
-            #[cfg(feature = "cairo_native")]
-            CairoVersion::Native   => {
+
+            CairoVersion::Cairo1(_) => {
                 if let $crate::transaction::errors::TransactionExecutionError::ValidateTransactionError {
                     error, ..
                 } = $error {

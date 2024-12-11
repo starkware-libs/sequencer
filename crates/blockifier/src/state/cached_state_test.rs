@@ -4,15 +4,24 @@ use assert_matches::assert_matches;
 use indexmap::indexmap;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
-use starknet_api::transaction::fields::Fee;
-use starknet_api::{class_hash, compiled_class_hash, contract_address, felt, nonce, storage_key};
+use starknet_api::transaction::fields::{Fee, TransactionSignature, ValidResourceBounds};
+use starknet_api::{
+    class_hash,
+    compiled_class_hash,
+    contract_address,
+    felt,
+    invoke_tx_args,
+    nonce,
+    storage_key,
+};
 
 use crate::context::{BlockContext, ChainInfo};
 use crate::state::cached_state::*;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::CairoVersion;
+use crate::test_utils::{create_calldata, CairoVersion, RunnableCairo1, BALANCE};
+use crate::transaction::test_utils::{default_all_resource_bounds, run_invoke_tx, STORAGE_WRITE};
 const CONTRACT_ADDRESS: &str = "0x100";
 
 fn set_initial_state_values(
@@ -468,36 +477,52 @@ fn test_state_cache_commit_and_merge(
 
 // Test that allocations in validate and execute phases are properly squashed.
 #[rstest]
-#[case(false, felt!("0x7"), felt!("0x8"), false)]
-#[case(true, felt!("0x0"), felt!("0x8"), true)]
-#[case(true, felt!("0x7"), felt!("0x7"), true)]
-#[case(false, felt!("0x0"), felt!("0x8"), false)]
-#[case(true, felt!("0x7"), felt!("0x0"), false)]
-fn test_allocated_keys_two_transactions(
+#[case::update_twice(false, felt!("0x7"), felt!("0x8"), false)]
+#[case::set_zero_and_value(true, felt!("0x0"), felt!("0x8"), true)]
+#[case::set_and_trivial_update(true, felt!("0x7"), felt!("0x7"), true)]
+#[case::remove_and_set(false, felt!("0x0"), felt!("0x8"), false)]
+#[case::set_and_remove(true, felt!("0x7"), felt!("0x0"), false)]
+fn test_write_at_validate_and_execute(
     #[case] is_base_empty: bool,
     #[case] validate_value: Felt,
     #[case] execute_value: Felt,
     #[case] charged: bool,
+    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm))]
+    cairo_version: CairoVersion,
+    default_all_resource_bounds: ValidResourceBounds,
 ) {
-    let contract_address = contract_address!(CONTRACT_ADDRESS);
-    let storage_key = StorageKey::from(0x10_u16);
-    // Set initial state
-    let mut state: CachedState<DictStateReader> = CachedState::default();
+    let block_context = BlockContext::create_for_testing();
+    let chain_info = &block_context.chain_info;
+    let faulty_account_feature_contract = FeatureContract::FaultyAccount(cairo_version);
+    let contract_address = faulty_account_feature_contract.get_instance_address(0);
+
+    // Set initial state.
+    let mut state = test_state(chain_info, BALANCE, &[(faulty_account_feature_contract, 1)]);
     if !is_base_empty {
-        state.set_storage_at(contract_address, storage_key, felt!("0x1")).unwrap();
+        state.set_storage_at(contract_address, 15_u8.into(), felt!("0x1")).unwrap();
     }
 
-    let mut first_state = TransactionalState::create_transactional(&mut state);
-    first_state.set_storage_at(contract_address, storage_key, validate_value).unwrap();
-    let first_state_changes = first_state.borrow_updated_state_cache().unwrap().clone();
-
-    let mut second_state = TransactionalState::create_transactional(&mut first_state);
-    second_state.set_storage_at(contract_address, storage_key, execute_value).unwrap();
-    let second_state_changes = second_state.borrow_updated_state_cache().unwrap().clone();
-
-    let merged_changes =
-        StateCache::squash_state_caches(vec![&first_state_changes, &second_state_changes]);
-    assert_ne!(merged_changes.to_state_diff().allocated_keys.is_empty(), charged);
+    let signature =
+        TransactionSignature(vec![Felt::from(STORAGE_WRITE), validate_value, execute_value]);
+    let tx_execution_info = run_invoke_tx(
+        &mut state,
+        &block_context,
+        invoke_tx_args! {
+            signature,
+            sender_address: contract_address,
+            resource_bounds: default_all_resource_bounds,
+            calldata: create_calldata(contract_address, "foo", &[]),
+        },
+    )
+    .unwrap();
+    let n_allocated_keys = tx_execution_info
+        .receipt
+        .resources
+        .starknet_resources
+        .state
+        .state_changes_for_fee
+        .n_allocated_keys;
+    assert_eq!(n_allocated_keys > 0, charged);
 }
 
 #[test]

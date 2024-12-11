@@ -1,5 +1,6 @@
 use std::vec::Vec; // Used by #[gen_field_names_fn].
 
+use papyrus_consensus::types::DEFAULT_VALIDATOR_ID;
 use papyrus_proc_macros::gen_field_names_and_cli_args_fn;
 use starknet_api::core::{ChainId, ContractAddress};
 
@@ -11,6 +12,7 @@ pub struct RequiredParams {
     pub chain_id: ChainId,
     pub eth_fee_token_address: ContractAddress,
     pub strk_fee_token_address: ContractAddress,
+    pub validator_id: ContractAddress,
 }
 
 impl RequiredParams {
@@ -19,6 +21,7 @@ impl RequiredParams {
             chain_id: ChainId::create_for_testing(),
             eth_fee_token_address: ContractAddress::from(2_u128),
             strk_fee_token_address: ContractAddress::from(3_u128),
+            validator_id: ContractAddress::from(DEFAULT_VALIDATOR_ID),
         }
     }
 }

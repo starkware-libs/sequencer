@@ -40,6 +40,7 @@ members = [
   "crates/starknet_http_server",
   "crates/starknet_integration_tests",
   "crates/starknet_l1_provider",
+  "crates/starknet_l1_provider_types",
   "crates/starknet_mempool",
   "crates/starknet_mempool_p2p",
   "crates/starknet_mempool_p2p_types",
@@ -65,8 +66,6 @@ license = "Apache-2.0"
 license-file = "LICENSE"
 
 [workspace.dependencies]
-# fixating the version of parity-scale-codec and parity-scale-codec-derive due to an error in udeps.
-# TODO: Remove this once udeps is fixed.
 alloy-contract = "0.3.5"
 alloy-dyn-abi = "0.8.3"
 alloy-json-rpc = "0.3.5"
@@ -179,8 +178,8 @@ papyrus_state_reader = { path = "crates/papyrus_state_reader", version = "0.0.0"
 papyrus_storage = { path = "crates/papyrus_storage", version = "0.0.0" }
 papyrus_sync = { path = "crates/papyrus_sync", version = "0.0.0" }
 papyrus_test_utils = { path = "crates/papyrus_test_utils", version = "0.0.0" }
-parity-scale-codec = "=3.6.9"
-parity-scale-codec-derive = "=3.6.9"
+parity-scale-codec = "3.6"
+parity-scale-codec-derive = "3.6"
 paste = "1.0.15"
 phf = "0.11"
 pretty_assertions = "1.4.0"
@@ -211,6 +210,7 @@ serde_yaml = "0.9.16"
 sha2 = "0.10.8"
 sha3 = "0.10.8"
 simple_logger = "4.0.0"
+stacker = "0.1.17"
 starknet-core = "0.6.0"
 starknet-crypto = "0.7.1"
 starknet-types-core = "0.1.6"
@@ -224,6 +224,7 @@ starknet_gateway = { path = "crates/starknet_gateway", version = "0.0.0" }
 starknet_gateway_types = { path = "crates/starknet_gateway_types", version = "0.0.0" }
 starknet_http_server = { path = "crates/starknet_http_server", version = "0.0.0" }
 starknet_l1_provider = { path = "crates/starknet_l1_provider", version = "0.0.0" }
+starknet_l1_provider_types = { path = "crates/starknet_l1_provider_types", version = "0.0.0" }
 starknet_mempool = { path = "crates/starknet_mempool", version = "0.0.0" }
 starknet_mempool_p2p = { path = "crates/starknet_mempool_p2p", version = "0.0.0" }
 starknet_mempool_p2p_types = { path = "crates/starknet_mempool_p2p_types", version = "0.0.0" }

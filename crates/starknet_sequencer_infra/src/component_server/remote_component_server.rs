@@ -19,7 +19,7 @@ use crate::component_definitions::{
 };
 use crate::component_server::ComponentServerStarter;
 use crate::errors::ComponentServerError;
-use crate::serde_utils::BincodeSerdeWrapper;
+use crate::serde_utils::SerdeWrapper;
 
 /// The `RemoteComponentServer` struct is a generic server that handles requests and responses for a
 /// specified component. It receives requests, processes them using the provided component, and
@@ -131,7 +131,7 @@ where
     ) -> Result<HyperResponse<Body>, hyper::Error> {
         let body_bytes = to_bytes(http_request.into_body()).await?;
 
-        let http_response = match BincodeSerdeWrapper::<Request>::from_bincode(&body_bytes)
+        let http_response = match SerdeWrapper::<Request>::wrapper_deserialize(&body_bytes)
             .map_err(|e| ClientError::ResponseDeserializationFailure(Arc::new(e)))
         {
             Ok(request) => {
@@ -141,8 +141,8 @@ where
                         .status(StatusCode::OK)
                         .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
                         .body(Body::from(
-                            BincodeSerdeWrapper::new(response)
-                                .to_bincode()
+                            SerdeWrapper::new(response)
+                                .wrapper_serialize()
                                 .expect("Response serialization should succeed"),
                         )),
                     Err(error) => {
@@ -156,8 +156,8 @@ where
             Err(error) => {
                 let server_error = ServerError::RequestDeserializationFailure(error.to_string());
                 HyperResponse::builder().status(StatusCode::BAD_REQUEST).body(Body::from(
-                    BincodeSerdeWrapper::new(server_error)
-                        .to_bincode()
+                    SerdeWrapper::new(server_error)
+                        .wrapper_serialize()
                         .expect("Server error serialization should succeed"),
                 ))
             }

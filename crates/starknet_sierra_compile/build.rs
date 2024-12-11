@@ -134,5 +134,7 @@ fn out_dir() -> std::path::PathBuf {
 
 #[cfg(feature = "cairo_native")]
 fn repo_root_dir() -> std::path::PathBuf {
-    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..").to_path_buf()
+    std::path::Path::new(infra_utils::compile_time_cargo_manifest_dir!())
+        .join("../..")
+        .to_path_buf()
 }

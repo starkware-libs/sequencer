@@ -21,6 +21,7 @@ use starknet_integration_tests::utils::{
     create_integration_test_tx_generator,
     run_integration_test_scenario,
 };
+use starknet_sequencer_infra::trace_util::configure_tracing;
 use starknet_types_core::felt::Felt;
 use tracing::debug;
 
@@ -34,9 +35,11 @@ fn tx_generator() -> MultiAccountTransactionGenerator {
 
 #[rstest]
 #[tokio::test]
-async fn end_to_end(mut tx_generator: MultiAccountTransactionGenerator) {
+async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
+    configure_tracing().await;
+
     const LISTEN_TO_BROADCAST_MESSAGES_TIMEOUT: std::time::Duration =
-        std::time::Duration::from_secs(5);
+        std::time::Duration::from_secs(50);
     // Setup.
     let mut mock_running_system = FlowTestSetup::new_from_tx_generator(&tx_generator).await;
 
@@ -44,20 +47,26 @@ async fn end_to_end(mut tx_generator: MultiAccountTransactionGenerator) {
     let heights_to_build = next_height.iter_up_to(LAST_HEIGHT.unchecked_next());
     let expected_content_ids = [
         Felt::from_hex_unchecked(
-            "0x7d62e32fd8f1a12104a5d215af26ec0f362da81af3d14c24e08e46976cdfbf5",
+            "0x457e9172b9c70fb4363bb3ff31bf778d8f83828184a9a3f9badadc497f2b954",
         ),
         Felt::from_hex_unchecked(
-            "0x259aeaad847bffe6c342998c4510e5e474577219cfbb118f5cb2f2286260d52",
+            "0x572373fe992ac8c2413d5e727036316023ed6a2e8a2256b4952e223969e0221",
         ),
     ];
 
-    // Buld multiple heights to ensure heights are committed.
+    let sequencers = [&mock_running_system.sequencer_0, &mock_running_system.sequencer_1];
+    let mut expected_proposer_iter = sequencers.iter().cycle();
+    // We start at height 1, so we need to skip the proposer of the initial height.
+    expected_proposer_iter.next().unwrap();
+
+    // Build multiple heights to ensure heights are committed.
     for (height, expected_content_id) in itertools::zip_eq(heights_to_build, expected_content_ids) {
         debug!("Starting height {}.", height);
+        let expected_proposer = expected_proposer_iter.next().unwrap();
         // Create and send transactions.
         let expected_batched_tx_hashes =
             run_integration_test_scenario(&mut tx_generator, &mut |tx| {
-                mock_running_system.assert_add_tx_success(tx)
+                expected_proposer.assert_add_tx_success(tx)
             })
             .await;
         // TODO(Dan, Itay): Consider adding a utility function that waits for something to happen.
@@ -68,6 +77,7 @@ async fn end_to_end(mut tx_generator: MultiAccountTransactionGenerator) {
                 &expected_batched_tx_hashes,
                 height,
                 expected_content_id,
+                expected_proposer.config.consensus_manager_config.consensus_config.validator_id,
             ),
         )
         .await
@@ -80,6 +90,7 @@ async fn listen_to_broadcasted_messages(
     expected_batched_tx_hashes: &[TransactionHash],
     expected_height: BlockNumber,
     expected_content_id: Felt,
+    expected_proposer_id: ValidatorId,
 ) {
     let chain_id = CHAIN_ID_FOR_TESTS.clone();
     let broadcasted_messages_receiver =
@@ -89,7 +100,7 @@ async fn listen_to_broadcasted_messages(
         height: expected_height,
         round: 0,
         valid_round: None,
-        proposer: ValidatorId::from(100_u32),
+        proposer: expected_proposer_id,
     };
     let expected_proposal_fin = ProposalFin { proposal_content_id: BlockHash(expected_content_id) };
 
@@ -99,12 +110,20 @@ async fn listen_to_broadcasted_messages(
         message_id: incoming_message_id,
     } = broadcasted_messages_receiver.next().await.unwrap().0.unwrap();
 
-    assert_eq!(incoming_message_id, 0);
+    assert_eq!(
+        incoming_message_id, 0,
+        "Expected the first message in the stream to have id 0, got {}",
+        incoming_message_id
+    );
     let StreamMessageBody::Content(ProposalPart::Init(incoming_proposal_init)) = init_message
     else {
         panic!("Expected an init message. Got: {:?}", init_message)
     };
-    assert_eq!(incoming_proposal_init, expected_proposal_init);
+    assert_eq!(
+        incoming_proposal_init, expected_proposal_init,
+        "Unexpected init message: {:?}, expected: {:?}",
+        incoming_proposal_init, expected_proposal_init
+    );
 
     let mut received_tx_hashes = HashSet::new();
     let mut got_proposal_fin = false;
@@ -112,7 +131,7 @@ async fn listen_to_broadcasted_messages(
     loop {
         let StreamMessage { message, stream_id, message_id: _ } =
             broadcasted_messages_receiver.next().await.unwrap().0.unwrap();
-        assert_eq!(stream_id, first_stream_id);
+        assert_eq!(stream_id, first_stream_id, "Expected the same stream id for all messages");
         match message {
             StreamMessageBody::Content(ProposalPart::Init(init)) => {
                 panic!("Unexpected init: {:?}", init)
@@ -126,17 +145,24 @@ async fn listen_to_broadcasted_messages(
                 );
             }
             StreamMessageBody::Content(ProposalPart::Fin(proposal_fin)) => {
-                assert_eq!(proposal_fin, expected_proposal_fin);
+                assert_eq!(
+                    proposal_fin, expected_proposal_fin,
+                    "Unexpected fin message: {:?}, expected: {:?}",
+                    proposal_fin, expected_proposal_fin
+                );
                 got_proposal_fin = true;
             }
             StreamMessageBody::Fin => {
                 got_channel_fin = true;
             }
         }
-        if got_proposal_fin
-            && got_channel_fin
-            && received_tx_hashes.len() == expected_batched_tx_hashes.len()
-        {
+        if got_proposal_fin && got_channel_fin {
+            assert!(
+                received_tx_hashes.len() == expected_batched_tx_hashes.len(),
+                "Expected {} transactions, got {}",
+                expected_batched_tx_hashes.len(),
+                received_tx_hashes.len()
+            );
             break;
         }
     }
@@ -144,6 +170,7 @@ async fn listen_to_broadcasted_messages(
     // Using HashSet to ignore the order of the transactions (broadcast can lead to reordering).
     assert_eq!(
         received_tx_hashes,
-        expected_batched_tx_hashes.iter().cloned().collect::<HashSet<_>>()
+        expected_batched_tx_hashes.iter().cloned().collect::<HashSet<_>>(),
+        "Unexpected transactions"
     );
 }

@@ -45,6 +45,11 @@ pub struct GetProposalContentInput {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct GetHeightResponse {
+    pub height: BlockNumber,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GetProposalContentResponse {
     pub content: GetProposalContent,
 }

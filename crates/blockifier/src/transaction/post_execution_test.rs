@@ -34,11 +34,11 @@ use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::{HasRelatedFeeType, TransactionInfoCreator};
 use crate::transaction::test_utils::{
-    account_invoke_tx,
     block_context,
     create_all_resource_bounds,
     default_all_resource_bounds,
     default_l1_resource_bounds,
+    invoke_tx_with_default_flags,
     l1_resource_bounds,
     max_fee,
     run_invoke_tx,
@@ -125,7 +125,7 @@ fn test_revert_on_overdraft(
         ],
     );
 
-    let approve_tx: AccountTransaction = account_invoke_tx(invoke_tx_args! {
+    let approve_tx: AccountTransaction = invoke_tx_with_default_flags(invoke_tx_args! {
         max_fee,
         sender_address: account_address,
         calldata: approve_calldata,

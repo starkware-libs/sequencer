@@ -8,7 +8,7 @@ use super::*;
 
 /// Returns all JSON files in the resources directory (should be all versioned constants files).
 fn all_jsons_in_dir() -> Paths {
-    glob(format!("{}/resources/*.json", env!("CARGO_MANIFEST_DIR")).as_str()).unwrap()
+    glob(format!("{}/resources/*.json", compile_time_cargo_manifest_dir!()).as_str()).unwrap()
 }
 
 #[test]
@@ -29,11 +29,11 @@ fn test_successful_gas_costs_parsing() {
     let os_constants: Arc<OsConstants> = Arc::new(OsConstants { gas_costs, ..Default::default() });
     let versioned_constants = VersionedConstants { os_constants, ..Default::default() };
 
-    assert_eq!(versioned_constants.os_constants.gas_costs.step_gas_cost, 2);
-    assert_eq!(versioned_constants.os_constants.gas_costs.entry_point_initial_budget, 2 * 3); // step_gas_cost * 3.
+    assert_eq!(versioned_constants.os_constants.gas_costs.base.step_gas_cost, 2);
+    assert_eq!(versioned_constants.os_constants.gas_costs.base.entry_point_initial_budget, 2 * 3); // step_gas_cost * 3.
 
     // entry_point_initial_budget * 4 + step_gas_cost * 5.
-    assert_eq!(versioned_constants.os_constants.gas_costs.transaction_gas_cost, 6 * 4 + 2 * 5);
+    assert_eq!(versioned_constants.os_constants.gas_costs.base.transaction_gas_cost, 6 * 4 + 2 * 5);
 }
 
 /// Assert versioned constants overrides are used when provided.

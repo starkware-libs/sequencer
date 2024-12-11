@@ -4,6 +4,7 @@ mod state_test;
 
 use std::fmt::Debug;
 
+use cairo_lang_starknet_classes::contract_class::ContractEntryPoint as CairoLangContractEntryPoint;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
@@ -228,11 +229,38 @@ impl Default for SierraContractClass {
     }
 }
 
+#[cfg(any(test, feature = "testing"))]
+impl From<cairo_lang_starknet_classes::contract_class::ContractClass> for SierraContractClass {
+    fn from(
+        cairo_lang_contract_class: cairo_lang_starknet_classes::contract_class::ContractClass,
+    ) -> Self {
+        Self {
+            sierra_program: cairo_lang_contract_class
+                .sierra_program
+                .into_iter()
+                .map(|big_uint_as_hex| Felt::from(big_uint_as_hex.value))
+                .collect(),
+            contract_class_version: cairo_lang_contract_class.contract_class_version,
+            entry_points_by_type: cairo_lang_contract_class.entry_points_by_type.into(),
+            abi: cairo_lang_contract_class.abi.map(|abi| abi.json()).unwrap_or_default(),
+        }
+    }
+}
+
 /// An entry point of a [ContractClass](`crate::state::ContractClass`).
 #[derive(Debug, Default, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct EntryPoint {
     pub function_idx: FunctionIndex,
     pub selector: EntryPointSelector,
+}
+
+impl From<CairoLangContractEntryPoint> for EntryPoint {
+    fn from(entry_point: CairoLangContractEntryPoint) -> Self {
+        Self {
+            function_idx: FunctionIndex(entry_point.function_idx),
+            selector: EntryPointSelector(entry_point.selector.into()),
+        }
+    }
 }
 
 #[derive(

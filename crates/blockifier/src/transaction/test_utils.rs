@@ -54,6 +54,7 @@ pub const GET_EXECUTION_INFO: u64 = 4;
 pub const GET_BLOCK_NUMBER: u64 = 5;
 pub const GET_BLOCK_TIMESTAMP: u64 = 6;
 pub const GET_SEQUENCER_ADDRESS: u64 = 7;
+pub const STORAGE_WRITE: u64 = 8;
 
 /// Test fixtures.
 
@@ -298,10 +299,9 @@ pub fn create_account_tx_for_validate_test(
     }
 }
 
-// TODO(AvivG): Consider removing this function.
-pub fn account_invoke_tx(invoke_args: InvokeTxArgs) -> AccountTransaction {
-    let execution_flags = ExecutionFlags::default();
-    AccountTransaction { tx: executable_invoke_tx(invoke_args), execution_flags }
+pub fn invoke_tx_with_default_flags(invoke_args: InvokeTxArgs) -> AccountTransaction {
+    let tx = executable_invoke_tx(invoke_args);
+    AccountTransaction::new_with_default_flags(tx)
 }
 
 pub fn run_invoke_tx(

@@ -33,9 +33,9 @@ use crate::test_utils::{
     DEFAULT_STRK_L1_GAS_PRICE,
 };
 use crate::transaction::test_utils::{
-    account_invoke_tx,
     all_resource_bounds,
     block_context,
+    invoke_tx_with_default_flags,
     l1_resource_bounds,
 };
 use crate::utils::u64_from_usize;
@@ -195,7 +195,7 @@ fn test_discounted_gas_overdraft(
 
     let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0);
     let mut state = test_state(&block_context.chain_info, BALANCE, &[(account, 1)]);
-    let tx = account_invoke_tx(invoke_tx_args! {
+    let tx = invoke_tx_with_default_flags(invoke_tx_args! {
         sender_address: account.get_instance_address(0),
         resource_bounds: l1_resource_bounds(gas_bound, (gas_price.get().0 * 10).into()),
     });
@@ -270,7 +270,7 @@ fn test_post_execution_gas_overdraft_all_resource_bounds(
 
     let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0);
     let mut state = test_state(&block_context.chain_info, BALANCE, &[(account, 1)]);
-    let tx = account_invoke_tx(invoke_tx_args! {
+    let tx = invoke_tx_with_default_flags(invoke_tx_args! {
         sender_address: account.get_instance_address(0),
         resource_bounds: all_resource_bounds,
     });
@@ -383,7 +383,7 @@ fn test_initial_sierra_gas(
             ..Default::default()
         }),
     };
-    let account_tx = account_invoke_tx(invoke_tx_args!(resource_bounds));
+    let account_tx = invoke_tx_with_default_flags(invoke_tx_args!(resource_bounds));
     let actual = block_context.to_tx_context(&account_tx).initial_sierra_gas();
     assert_eq!(actual, expected)
 }

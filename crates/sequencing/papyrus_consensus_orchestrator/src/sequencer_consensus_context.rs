@@ -18,6 +18,7 @@ use papyrus_consensus::types::{
     ProposalContentId,
     Round,
     ValidatorId,
+    DEFAULT_VALIDATOR_ID,
 };
 use papyrus_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
 use papyrus_protobuf::consensus::{
@@ -39,7 +40,6 @@ use starknet_api::block::{
     NonzeroGasPrice,
 };
 use starknet_api::executable_transaction::Transaction as ExecutableTransaction;
-use starknet_api::transaction::Transaction;
 use starknet_batcher_types::batcher_types::{
     DecisionReachedInput,
     GetProposalContent,
@@ -118,7 +118,9 @@ impl SequencerConsensusContext {
             outbound_proposal_sender,
             vote_broadcast_client,
             // TODO(Matan): Set the actual validator IDs (contract addresses).
-            validators: (100..100 + num_validators).map(ValidatorId::from).collect(),
+            validators: (0..num_validators)
+                .map(|i| ValidatorId::from(DEFAULT_VALIDATOR_ID + i))
+                .collect(),
             valid_proposals: Arc::new(Mutex::new(HeightToIdToContent::new())),
             proposal_id: 0,
             current_height: None,
@@ -131,8 +133,6 @@ impl SequencerConsensusContext {
 
 #[async_trait]
 impl ConsensusContext for SequencerConsensusContext {
-    // TODO(guyn): Switch to ProposalPart when done with the streaming integration.
-    type ProposalChunk = Vec<Transaction>;
     type ProposalPart = ProposalPart;
 
     async fn build_proposal(

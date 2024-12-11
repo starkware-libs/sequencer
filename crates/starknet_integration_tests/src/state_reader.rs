@@ -6,6 +6,7 @@ use blockifier::context::ChainInfo;
 use blockifier::test_utils::contracts::FeatureContract;
 use blockifier::test_utils::{
     CairoVersion,
+    RunnableCairo1,
     BALANCE,
     CURRENT_BLOCK_TIMESTAMP,
     DEFAULT_ETH_L1_GAS_PRICE,
@@ -37,7 +38,7 @@ use starknet_api::block::{
 };
 use starknet_api::core::{ChainId, ClassHash, ContractAddress, Nonce, SequencerContractAddress};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
-use starknet_api::state::{StorageKey, ThinStateDiff};
+use starknet_api::state::{SierraContractClass, StorageKey, ThinStateDiff};
 use starknet_api::transaction::fields::Fee;
 use starknet_api::{contract_address, felt};
 use starknet_client::reader::PendingData;
@@ -89,7 +90,7 @@ fn create_test_state(
     };
     let default_test_contracts = [
         FeatureContract::TestContract(CairoVersion::Cairo0),
-        FeatureContract::TestContract(CairoVersion::Cairo1),
+        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
     ]
     .into_iter()
     .map(into_contract)
@@ -123,6 +124,7 @@ fn initialize_papyrus_test_state(
 
     let contract_classes_to_retrieve =
         test_defined_accounts.into_iter().chain(default_test_contracts).chain([erc20_contract]);
+    let sierra_vec: Vec<_> = prepare_sierra_classes(contract_classes_to_retrieve.clone());
     let (cairo0_contract_classes, cairo1_contract_classes) =
         prepare_compiled_contract_classes(contract_classes_to_retrieve);
 
@@ -131,6 +133,7 @@ fn initialize_papyrus_test_state(
         state_diff,
         &cairo0_contract_classes,
         &cairo1_contract_classes,
+        &sierra_vec,
     )
 }
 
@@ -157,6 +160,15 @@ fn prepare_state_diff(
     state_diff_builder.inject_accounts_into_state(test_defined_accounts);
 
     state_diff_builder.build()
+}
+
+fn prepare_sierra_classes(
+    contract_classes_to_retrieve: impl Iterator<Item = Contract>,
+) -> Vec<(ClassHash, SierraContractClass)> {
+    contract_classes_to_retrieve
+        .filter(|contract| !contract.cairo_version().is_cairo0())
+        .map(|contract| (contract.class_hash(), contract.sierra()))
+        .collect()
 }
 
 fn prepare_compiled_contract_classes(
@@ -191,6 +203,7 @@ fn write_state_to_papyrus_storage(
     state_diff: ThinStateDiff,
     cairo0_contract_classes: &[(ClassHash, DeprecatedContractClass)],
     cairo1_contract_classes: &[(ClassHash, CasmContractClass)],
+    cairo1_sierra: &[(ClassHash, SierraContractClass)],
 ) {
     let block_number = BlockNumber(0);
     let block_header = test_block_header(block_number);
@@ -202,6 +215,7 @@ fn write_state_to_papyrus_storage(
     for (class_hash, casm) in cairo1_contract_classes {
         write_txn = write_txn.append_casm(class_hash, casm).unwrap();
     }
+
     write_txn
         .append_header(block_number, &block_header)
         .unwrap()
@@ -209,7 +223,14 @@ fn write_state_to_papyrus_storage(
         .unwrap()
         .append_state_diff(block_number, state_diff)
         .unwrap()
-        .append_classes(block_number, &[], &cairo0_contract_classes)
+        .append_classes(
+            block_number,
+            &(cairo1_sierra
+                .iter()
+                .map(|(class_hash, sierra)| (*class_hash, sierra))
+                .collect::<Vec<(ClassHash, &SierraContractClass)>>()),
+            &cairo0_contract_classes,
+        )
         .unwrap()
         .commit()
         .unwrap();

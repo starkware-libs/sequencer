@@ -32,8 +32,6 @@ jobs:
       # Environment setup.
       - uses: actions/checkout@v4
         with:
-          # required to clone native as a git submodule
-          submodules: recursive
           # Fetch the entire history. Required to checkout the merge target commit, so the diff can
           # be computed.
           fetch-depth: 0
@@ -74,8 +72,6 @@ jobs:
       - name: "Run clippy pull request"
         if: github.event_name == 'pull_request'
         run: ci/bin/python scripts/run_tests.py --command clippy --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
-        env:
-          RUSTFLAGS: "-D warnings"
       - name: "Run cargo doc pull request"
         if: github.event_name == 'pull_request'
         run: ci/bin/python scripts/run_tests.py --command doc --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
@@ -87,8 +83,6 @@ jobs:
       - name: "Run clippy on push"
         if: github.event_name == 'push'
         run: ci/bin/python scripts/run_tests.py --command clippy
-        env:
-          RUSTFLAGS: "-D warnings"
       - name: "Run cargo doc on push"
         if: github.event_name == 'push'
         run: ci/bin/python scripts/run_tests.py --command doc
@@ -132,7 +126,6 @@ jobs:
           ci/bin/python scripts/run_tests.py --command test --changes_only --include_dependencies --commit_id ${{ github.event.pull_request.base.sha }}
         env:
           SEED: 0
-          RUSTFLAGS: "-D warnings"
 
       - name: "Run tests on push"
         if: github.event_name == 'push'
@@ -143,7 +136,6 @@ jobs:
           ci/bin/python scripts/run_tests.py --command test
         env:
           SEED: 0
-          RUSTFLAGS: "-D warnings"
 
   codecov:
     runs-on: starkware-ubuntu-latest-large

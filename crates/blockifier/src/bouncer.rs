@@ -6,6 +6,7 @@ use papyrus_config::dumping::{append_sub_config_name, ser_param, SerializeConfig
 use papyrus_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ClassHash;
+use starknet_api::execution_resources::GasAmount;
 
 use crate::blockifier::transaction_executor::{
     TransactionExecutorError,
@@ -93,21 +94,23 @@ impl SerializeConfig for BouncerConfig {
 /// Represents the execution resources counted throughout block creation.
 pub struct BouncerWeights {
     pub builtin_count: BuiltinCount,
-    pub gas: usize,
+    pub l1_gas: usize,
     pub message_segment_length: usize,
     pub n_events: usize,
     pub n_steps: usize,
     pub state_diff_size: usize,
+    pub sierra_gas: GasAmount,
 }
 
 impl BouncerWeights {
     impl_checked_sub!(
         builtin_count,
-        gas,
+        l1_gas,
         message_segment_length,
         n_events,
         n_steps,
-        state_diff_size
+        state_diff_size,
+        sierra_gas
     );
 
     pub fn has_room(&self, other: Self) -> bool {
@@ -116,12 +119,13 @@ impl BouncerWeights {
 
     pub fn max() -> Self {
         Self {
-            gas: usize::MAX,
+            l1_gas: usize::MAX,
             n_steps: usize::MAX,
             message_segment_length: usize::MAX,
             state_diff_size: usize::MAX,
             n_events: usize::MAX,
             builtin_count: BuiltinCount::max(),
+            sierra_gas: GasAmount::MAX,
         }
     }
 
@@ -129,10 +133,11 @@ impl BouncerWeights {
         Self {
             n_events: 0,
             builtin_count: BuiltinCount::empty(),
-            gas: 0,
+            l1_gas: 0,
             message_segment_length: 0,
             n_steps: 0,
             state_diff_size: 0,
+            sierra_gas: GasAmount::ZERO,
         }
     }
 }
@@ -141,12 +146,13 @@ impl Default for BouncerWeights {
     // TODO: update the default values once the actual values are known.
     fn default() -> Self {
         Self {
-            gas: 2500000,
+            l1_gas: 2500000,
             n_steps: 2500000,
             message_segment_length: 3700,
             n_events: 5000,
             state_diff_size: 4000,
             builtin_count: BuiltinCount::default(),
+            sierra_gas: GasAmount(250000000),
         }
     }
 }
@@ -155,9 +161,9 @@ impl SerializeConfig for BouncerWeights {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let mut dump = append_sub_config_name(self.builtin_count.dump(), "builtin_count");
         dump.append(&mut BTreeMap::from([ser_param(
-            "gas",
-            &self.gas,
-            "An upper bound on the total gas used in a block.",
+            "l1_gas",
+            &self.l1_gas,
+            "An upper bound on the total l1_gas used in a block.",
             ParamPrivacyInput::Public,
         )]));
         dump.append(&mut BTreeMap::from([ser_param(
@@ -184,6 +190,12 @@ impl SerializeConfig for BouncerWeights {
             "An upper bound on the total state diff size in a block.",
             ParamPrivacyInput::Public,
         )]));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "sierra_gas",
+            &self.sierra_gas,
+            "An upper bound on the total sierra_gas used in a block.",
+            ParamPrivacyInput::Public,
+        )]));
         dump
     }
 }
@@ -192,14 +204,15 @@ impl std::fmt::Display for BouncerWeights {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "BouncerWeights {{ gas: {}, n_steps: {}, message_segment_length: {}, n_events: {}, \
-             state_diff_size: {}, builtin_count: {} }}",
-            self.gas,
+            "BouncerWeights {{ l1_gas: {}, n_steps: {}, message_segment_length: {}, n_events: {}, \
+             state_diff_size: {}, builtin_count: {}, sierra_gas: {} }}",
+            self.l1_gas,
             self.n_steps,
             self.message_segment_length,
             self.n_events,
             self.state_diff_size,
-            self.builtin_count
+            self.builtin_count,
+            self.sierra_gas
         )
     }
 }
@@ -524,7 +537,7 @@ pub fn get_tx_weights<S: StateReader>(
     state_changes_keys: &StateChangesKeys,
 ) -> TransactionExecutionResult<BouncerWeights> {
     let message_resources = &tx_resources.starknet_resources.messages;
-    let message_starknet_gas = usize_from_u64(message_resources.get_starknet_gas_cost().l1_gas.0)
+    let message_starknet_l1gas = usize_from_u64(message_resources.get_starknet_gas_cost().l1_gas.0)
         .expect("This conversion should not fail as the value is a converted usize.");
     let mut additional_os_resources =
         get_casm_hash_calculation_resources(state_reader, executed_class_hashes)?;
@@ -533,12 +546,13 @@ pub fn get_tx_weights<S: StateReader>(
     let vm_resources = &additional_os_resources + &tx_resources.computation.vm_resources;
 
     Ok(BouncerWeights {
-        gas: message_starknet_gas,
+        l1_gas: message_starknet_l1gas,
         message_segment_length: message_resources.message_segment_length,
         n_events: tx_resources.starknet_resources.archival_data.event_summary.n_events,
         n_steps: vm_resources.total_n_steps(),
         builtin_count: BuiltinCount::from(vm_resources.prover_builtins()),
         state_diff_size: get_onchain_data_segment_length(&state_changes_keys.count()),
+        sierra_gas: tx_resources.computation.sierra_gas,
     })
 }
 

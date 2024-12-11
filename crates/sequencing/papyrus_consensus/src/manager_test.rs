@@ -22,19 +22,25 @@ use papyrus_protobuf::consensus::{
 };
 use papyrus_test_utils::{get_rng, GetTestInstance};
 use starknet_api::block::{BlockHash, BlockNumber};
-use starknet_api::transaction::Transaction;
 use starknet_types_core::felt::Felt;
 
 use super::{run_consensus, MultiHeightManager};
 use crate::config::TimeoutsConfig;
 use crate::test_utils::{precommit, prevote, proposal_init};
-use crate::types::{ConsensusContext, ConsensusError, ProposalContentId, Round, ValidatorId};
+use crate::types::{
+    ConsensusContext,
+    ConsensusError,
+    ProposalContentId,
+    Round,
+    ValidatorId,
+    DEFAULT_VALIDATOR_ID,
+};
 
 lazy_static! {
-    static ref PROPOSER_ID: ValidatorId = 100_u32.into();
-    static ref VALIDATOR_ID: ValidatorId = 101_u32.into();
-    static ref VALIDATOR_ID_2: ValidatorId = 102_u32.into();
-    static ref VALIDATOR_ID_3: ValidatorId = 103_u32.into();
+    static ref PROPOSER_ID: ValidatorId = DEFAULT_VALIDATOR_ID.into();
+    static ref VALIDATOR_ID: ValidatorId = (DEFAULT_VALIDATOR_ID + 1).into();
+    static ref VALIDATOR_ID_2: ValidatorId = (DEFAULT_VALIDATOR_ID + 2).into();
+    static ref VALIDATOR_ID_3: ValidatorId = (DEFAULT_VALIDATOR_ID + 3).into();
     static ref TIMEOUTS: TimeoutsConfig = TimeoutsConfig::default();
 }
 
@@ -45,7 +51,6 @@ mock! {
 
     #[async_trait]
     impl ConsensusContext for TestContext {
-        type ProposalChunk = Transaction;
         type ProposalPart = ProposalPart;
 
         async fn build_proposal(

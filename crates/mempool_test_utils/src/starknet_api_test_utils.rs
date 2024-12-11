@@ -7,7 +7,7 @@ use std::sync::LazyLock;
 
 use assert_matches::assert_matches;
 use blockifier::test_utils::contracts::FeatureContract;
-use blockifier::test_utils::{create_trivial_calldata, CairoVersion};
+use blockifier::test_utils::{create_trivial_calldata, CairoVersion, RunnableCairo1};
 use infra_utils::path::resolve_project_relative_path;
 use pretty_assertions::assert_ne;
 use starknet_api::block::GasPrice;
@@ -79,7 +79,8 @@ pub fn declare_tx() -> RpcTransaction {
     let contract_class = contract_class();
     let compiled_class_hash = *COMPILED_CLASS_HASH;
 
-    let account_contract = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
+    let account_contract =
+        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm));
     let account_address = account_contract.get_instance_address(0);
     let mut nonce_manager = NonceManager::default();
     let nonce = nonce_manager.next(account_address);
@@ -151,11 +152,12 @@ type SharedNonceManager = Rc<RefCell<NonceManager>>;
 ///
 /// ```
 /// use blockifier::test_utils::contracts::FeatureContract;
-/// use blockifier::test_utils::CairoVersion;
+/// use blockifier::test_utils::{CairoVersion, RunnableCairo1};
 /// use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 ///
 /// let mut tx_generator = MultiAccountTransactionGenerator::new();
-/// let some_account_type = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1);
+/// let some_account_type =
+///     FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm));
 /// // Initialize multiple accounts, these can be any account type in `FeatureContract`.
 /// tx_generator.register_account_for_flow_test(some_account_type.clone());
 /// tx_generator.register_account_for_flow_test(some_account_type);
@@ -332,6 +334,10 @@ impl Contract {
 
     pub fn cairo_version(&self) -> CairoVersion {
         self.contract.cairo_version()
+    }
+
+    pub fn sierra(&self) -> SierraContractClass {
+        self.contract.get_sierra()
     }
 
     pub fn raw_class(&self) -> String {

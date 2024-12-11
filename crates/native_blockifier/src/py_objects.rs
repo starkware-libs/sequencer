@@ -10,6 +10,7 @@ use blockifier::versioned_constants::VersionedConstantsOverrides;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use pyo3::prelude::*;
+use starknet_api::execution_resources::GasAmount;
 
 use crate::errors::{
     InvalidNativeBlockifierInputError,
@@ -117,7 +118,7 @@ fn hash_map_into_builtin_count(
 fn hash_map_into_bouncer_weights(
     mut data: HashMap<String, usize>,
 ) -> NativeBlockifierResult<BouncerWeights> {
-    let gas = data.remove(constants::L1_GAS_USAGE).expect("gas_weight must be present");
+    let l1_gas = data.remove(constants::L1_GAS_USAGE).expect("gas_weight must be present");
     let n_steps = data.remove(constants::N_STEPS_RESOURCE).expect("n_steps must be present");
     let message_segment_length = data
         .remove(constants::MESSAGE_SEGMENT_LENGTH)
@@ -125,13 +126,20 @@ fn hash_map_into_bouncer_weights(
     let state_diff_size =
         data.remove(constants::STATE_DIFF_SIZE).expect("state_diff_size must be present");
     let n_events = data.remove(constants::N_EVENTS).expect("n_events must be present");
+    let sierra_gas = GasAmount(
+        data.remove(constants::SIERRA_GAS)
+            .expect("sierra_gas must be present")
+            .try_into()
+            .unwrap_or_else(|err| panic!("Failed to convert 'sierra_gas' into GasAmount: {err}.")),
+    );
     Ok(BouncerWeights {
-        gas,
+        l1_gas,
         n_steps,
         message_segment_length,
         state_diff_size,
         n_events,
         builtin_count: hash_map_into_builtin_count(data)?,
+        sierra_gas,
     })
 }
 

@@ -23,12 +23,18 @@ use crate::fee::resources::{StarknetResources, StateResources};
 use crate::state::cached_state::StateChangesCount;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{create_calldata, create_trivial_calldata, CairoVersion, BALANCE};
+use crate::test_utils::{
+    create_calldata,
+    create_trivial_calldata,
+    CairoVersion,
+    RunnableCairo1,
+    BALANCE,
+};
 use crate::transaction::objects::HasRelatedFeeType;
 use crate::transaction::test_utils::{
-    account_invoke_tx,
     calculate_class_info_for_testing,
     create_resource_bounds,
+    invoke_tx_with_default_flags,
 };
 use crate::transaction::transactions::ExecutableTransaction;
 use crate::utils::{u64_from_usize, usize_from_u64};
@@ -68,7 +74,7 @@ fn test_calculate_tx_gas_usage_basic<'a>(
     assert_eq!(empty_tx_gas_usage_vector, GasVector::default());
 
     // Declare.
-    for cairo_version in [CairoVersion::Cairo0, CairoVersion::Cairo1] {
+    for cairo_version in [CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm)] {
         let empty_contract = FeatureContract::Empty(cairo_version).get_class();
         let class_info = calculate_class_info_for_testing(empty_contract);
         let declare_tx_starknet_resources = StarknetResources::new(
@@ -375,7 +381,7 @@ fn test_calculate_tx_gas_usage(
     let account_contract_address = account_contract.get_instance_address(0);
     let state = &mut test_state(chain_info, BALANCE, &[(account_contract, 1), (test_contract, 1)]);
 
-    let account_tx = account_invoke_tx(invoke_tx_args! {
+    let account_tx = invoke_tx_with_default_flags(invoke_tx_args! {
             sender_address: account_contract_address,
             calldata: create_trivial_calldata(test_contract.get_instance_address(0)),
             resource_bounds: max_resource_bounds,
@@ -428,7 +434,7 @@ fn test_calculate_tx_gas_usage(
         ],
     );
 
-    let account_tx = account_invoke_tx(invoke_tx_args! {
+    let account_tx = invoke_tx_with_default_flags(invoke_tx_args! {
         resource_bounds: max_resource_bounds,
         sender_address: account_contract_address,
         calldata: execute_calldata,

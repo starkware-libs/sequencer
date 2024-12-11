@@ -12,8 +12,13 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 
 use super::definitions::{ClientError, ClientResult};
-use crate::component_definitions::{ComponentClient, RemoteClientConfig, APPLICATION_OCTET_STREAM};
-use crate::serde_utils::BincodeSerdeWrapper;
+use crate::component_definitions::{
+    ComponentClient,
+    RemoteClientConfig,
+    ServerError,
+    APPLICATION_OCTET_STREAM,
+};
+use crate::serde_utils::SerdeWrapper;
 
 /// The `RemoteComponentClient` struct is a generic client for sending component requests and
 /// receiving responses asynchronously through HTTP connection.
@@ -128,7 +133,9 @@ where
             StatusCode::OK => get_response_body(http_response).await,
             status_code => Err(ClientError::ResponseError(
                 status_code,
-                get_response_body(http_response).await?,
+                ServerError::RequestDeserializationFailure(
+                    "Could not deserialize server response".to_string(),
+                ),
             )),
         }
     }
@@ -143,8 +150,8 @@ where
 {
     async fn send(&self, component_request: Request) -> ClientResult<Response> {
         // Serialize the request.
-        let serialized_request = BincodeSerdeWrapper::new(component_request)
-            .to_bincode()
+        let serialized_request = SerdeWrapper::new(component_request)
+            .wrapper_serialize()
             .expect("Request serialization should succeed");
 
         // Construct the request, and send it up to 'max_retries + 1' times. Return if received a
@@ -172,7 +179,7 @@ where
         .await
         .map_err(|e| ClientError::ResponseParsingFailure(Arc::new(e)))?;
 
-    BincodeSerdeWrapper::<Response>::from_bincode(&body_bytes)
+    SerdeWrapper::<Response>::wrapper_deserialize(&body_bytes)
         .map_err(|e| ClientError::ResponseDeserializationFailure(Arc::new(e)))
 }
 

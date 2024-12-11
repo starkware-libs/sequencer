@@ -242,13 +242,12 @@ impl AccountTransaction {
         &self,
         state: &mut S,
         tx_context: &TransactionContext,
-        charge_fee: bool,
         strict_nonce_check: bool,
     ) -> TransactionPreValidationResult<()> {
         let tx_info = &tx_context.tx_info;
         Self::handle_nonce(state, tx_info, strict_nonce_check)?;
 
-        if charge_fee {
+        if self.execution_flags.charge_fee {
             self.check_fee_bounds(tx_context)?;
 
             verify_can_pay_committed_bounds(state, tx_context)?;
@@ -374,10 +373,9 @@ impl AccountTransaction {
         state: &mut dyn State,
         tx_context: Arc<TransactionContext>,
         remaining_gas: &mut u64,
-        validate: bool,
-        limit_steps_by_resources: bool,
     ) -> TransactionExecutionResult<Option<CallInfo>> {
-        if validate {
+        let limit_steps_by_resources = self.execution_flags.charge_fee;
+        if self.execution_flags.validate {
             self.validate_tx(state, tx_context, remaining_gas, limit_steps_by_resources)
         } else {
             Ok(None)
@@ -445,7 +443,7 @@ impl AccountTransaction {
         // The fee contains the cost of running this transfer, and the token contract is
         // well known to the sequencer, so there is no need to limit its run.
         let mut remaining_gas_for_fee_transfer =
-            block_context.versioned_constants.os_constants.gas_costs.default_initial_gas_cost;
+            block_context.versioned_constants.os_constants.gas_costs.base.default_initial_gas_cost;
         let fee_transfer_call = CallEntryPoint {
             class_hash: None,
             code_address: None,
@@ -519,8 +517,6 @@ impl AccountTransaction {
         state: &mut TransactionalState<'_, S>,
         tx_context: Arc<TransactionContext>,
         remaining_gas: &mut u64,
-        validate: bool,
-        charge_fee: bool,
     ) -> TransactionExecutionResult<ValidateExecuteCallInfo> {
         let validate_call_info: Option<CallInfo>;
         let execute_call_info: Option<CallInfo>;
@@ -528,26 +524,20 @@ impl AccountTransaction {
             // Handle `DeployAccount` transactions separately, due to different order of things.
             // Also, the execution context required form the `DeployAccount` execute phase is
             // validation context.
-            let mut execution_context =
-                EntryPointExecutionContext::new_validate(tx_context.clone(), charge_fee);
+            let mut execution_context = EntryPointExecutionContext::new_validate(
+                tx_context.clone(),
+                self.execution_flags.charge_fee,
+            );
             execute_call_info = self.run_execute(state, &mut execution_context, remaining_gas)?;
-            validate_call_info = self.handle_validate_tx(
-                state,
-                tx_context.clone(),
-                remaining_gas,
-                validate,
-                charge_fee,
-            )?;
+            validate_call_info =
+                self.handle_validate_tx(state, tx_context.clone(), remaining_gas)?;
         } else {
-            let mut execution_context =
-                EntryPointExecutionContext::new_invoke(tx_context.clone(), charge_fee);
-            validate_call_info = self.handle_validate_tx(
-                state,
+            let mut execution_context = EntryPointExecutionContext::new_invoke(
                 tx_context.clone(),
-                remaining_gas,
-                validate,
-                charge_fee,
-            )?;
+                self.execution_flags.charge_fee,
+            );
+            validate_call_info =
+                self.handle_validate_tx(state, tx_context.clone(), remaining_gas)?;
             execute_call_info = self.run_execute(state, &mut execution_context, remaining_gas)?;
         }
 
@@ -562,8 +552,12 @@ impl AccountTransaction {
             0,
         );
 
-        let post_execution_report =
-            PostExecutionReport::new(state, &tx_context, &tx_receipt, charge_fee)?;
+        let post_execution_report = PostExecutionReport::new(
+            state,
+            &tx_context,
+            &tx_receipt,
+            self.execution_flags.charge_fee,
+        )?;
         match post_execution_report.error() {
             Some(error) => Err(error.into()),
             None => Ok(ValidateExecuteCallInfo::new_accepted(
@@ -579,19 +573,14 @@ impl AccountTransaction {
         state: &mut TransactionalState<'_, S>,
         tx_context: Arc<TransactionContext>,
         remaining_gas: &mut u64,
-        validate: bool,
-        charge_fee: bool,
     ) -> TransactionExecutionResult<ValidateExecuteCallInfo> {
-        let mut execution_context =
-            EntryPointExecutionContext::new_invoke(tx_context.clone(), charge_fee);
-        // Run the validation, and if execution later fails, only keep the validation diff.
-        let validate_call_info = self.handle_validate_tx(
-            state,
+        let mut execution_context = EntryPointExecutionContext::new_invoke(
             tx_context.clone(),
-            remaining_gas,
-            validate,
-            charge_fee,
-        )?;
+            self.execution_flags.charge_fee,
+        );
+        // Run the validation, and if execution later fails, only keep the validation diff.
+        let validate_call_info =
+            self.handle_validate_tx(state, tx_context.clone(), remaining_gas)?;
 
         let n_allotted_execution_steps = execution_context.subtract_validation_and_overhead_steps(
             &validate_call_info,
@@ -653,7 +642,7 @@ impl AccountTransaction {
                     &mut execution_state,
                     &tx_context,
                     &tx_receipt,
-                    charge_fee,
+                    self.execution_flags.charge_fee,
                 )?;
                 match post_execution_report.error() {
                     Some(post_execution_error) => {
@@ -687,8 +676,12 @@ impl AccountTransaction {
                 let revert_receipt = get_revert_receipt();
                 // Error during execution. Revert, even if the error is sequencer-related.
                 execution_state.abort();
-                let post_execution_report =
-                    PostExecutionReport::new(state, &tx_context, &revert_receipt, charge_fee)?;
+                let post_execution_report = PostExecutionReport::new(
+                    state,
+                    &tx_context,
+                    &revert_receipt,
+                    self.execution_flags.charge_fee,
+                )?;
                 Ok(ValidateExecuteCallInfo::new_reverted(
                     validate_call_info,
                     gen_tx_execution_error_trace(&execution_error).into(),
@@ -726,14 +719,12 @@ impl AccountTransaction {
         state: &mut TransactionalState<'_, S>,
         remaining_gas: &mut u64,
         tx_context: Arc<TransactionContext>,
-        validate: bool,
-        charge_fee: bool,
     ) -> TransactionExecutionResult<ValidateExecuteCallInfo> {
         if self.is_non_revertible(&tx_context.tx_info) {
-            return self.run_non_revertible(state, tx_context, remaining_gas, validate, charge_fee);
+            return self.run_non_revertible(state, tx_context, remaining_gas);
         }
 
-        self.run_revertible(state, tx_context, remaining_gas, validate, charge_fee)
+        self.run_revertible(state, tx_context, remaining_gas)
     }
 }
 
@@ -749,13 +740,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
 
         // Nonce and fee check should be done before running user code.
         let strict_nonce_check = true;
-        self.perform_pre_validation_stage(
-            state,
-            &tx_context,
-            // TODO (AvivG): access execution_flags within func instead of passing them as args.
-            self.execution_flags.charge_fee,
-            strict_nonce_check,
-        )?;
+        self.perform_pre_validation_stage(state, &tx_context, strict_nonce_check)?;
 
         // Run validation and execution.
         let mut remaining_gas = tx_context.initial_sierra_gas();
@@ -770,14 +755,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
                     resources: final_resources,
                     gas: total_gas,
                 },
-        } = self.run_or_revert(
-            state,
-            &mut remaining_gas,
-            tx_context.clone(),
-            // TODO (AvivG): access execution_flags within func instead of passing them as args.
-            self.execution_flags.validate,
-            self.execution_flags.charge_fee,
-        )?;
+        } = self.run_or_revert(state, &mut remaining_gas, tx_context.clone())?;
         let fee_transfer_call_info = Self::handle_fee(
             state,
             tx_context,

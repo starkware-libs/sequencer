@@ -25,7 +25,10 @@ use tracing::error;
 use crate::clients::SequencerNodeClients;
 use crate::communication::SequencerNodeCommunication;
 use crate::components::SequencerNodeComponents;
-use crate::config::component_execution_config::ComponentExecutionMode;
+use crate::config::component_execution_config::{
+    ActiveComponentExecutionMode,
+    ReactiveComponentExecutionMode,
+};
 use crate::config::node_config::SequencerNodeConfig;
 
 // Component servers that can run locally.
@@ -66,7 +69,7 @@ pub struct SequencerNodeServers {
 /// # Arguments
 ///
 /// * `$execution_mode` - A reference to the component's execution mode, of type
-///   `&ComponentExecutionMode`.
+///   `&ReactiveComponentExecutionMode`.
 /// * `$local_client` - The local client to be used for the remote server initialization if the
 ///   execution mode is `Remote`.
 /// * `$config` - The configuration for the remote server.
@@ -94,7 +97,7 @@ pub struct SequencerNodeServers {
 macro_rules! create_remote_server {
     ($execution_mode:expr, $local_client:expr, $remote_server_config:expr) => {
         match *$execution_mode {
-            ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
+            ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
                 let local_client = $local_client
                     .expect("Local client should be set for inbound remote connections.");
                 let remote_server_config = $remote_server_config
@@ -106,9 +109,9 @@ macro_rules! create_remote_server {
                     remote_server_config.clone(),
                 )))
             }
-            ComponentExecutionMode::LocalExecutionWithRemoteDisabled
-            | ComponentExecutionMode::Remote
-            | ComponentExecutionMode::Disabled => None,
+            ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
+            | ReactiveComponentExecutionMode::Remote
+            | ReactiveComponentExecutionMode::Disabled => None,
         }
     };
 }
@@ -119,7 +122,7 @@ macro_rules! create_remote_server {
 /// # Arguments
 ///
 /// * $execution_mode - A reference to the component's execution mode, i.e., type
-///   &ComponentExecutionMode.
+///   &ReactiveComponentExecutionMode.
 /// * $component - The component that will be taken to initialize the server if the execution mode
 ///   is enabled(LocalExecutionWithRemoteDisabled / LocalExecutionWithRemoteEnabled).
 /// * $Receiver - receiver side for the server.
@@ -146,8 +149,8 @@ macro_rules! create_remote_server {
 macro_rules! create_local_server {
     ($execution_mode:expr, $component:expr, $receiver:expr) => {
         match *$execution_mode {
-            ComponentExecutionMode::LocalExecutionWithRemoteDisabled
-            | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
+            ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
+            | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
                 Some(Box::new(LocalComponentServer::new(
                     $component
                         .take()
@@ -155,7 +158,9 @@ macro_rules! create_local_server {
                     $receiver,
                 )))
             }
-            ComponentExecutionMode::Disabled | ComponentExecutionMode::Remote => None,
+            ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
+                None
+            }
         }
     };
 }
@@ -166,7 +171,7 @@ macro_rules! create_local_server {
 /// # Arguments
 ///
 /// * $execution_mode - A reference to the component's execution mode, i.e., type
-///   &ComponentExecutionMode.
+///   &ReactiveComponentExecutionMode.
 /// * $component - The component that will be taken to initialize the server if the execution mode
 ///   is enabled(LocalExecutionWithRemoteDisabled / LocalExecutionWithRemoteEnabled).
 ///
@@ -179,7 +184,7 @@ macro_rules! create_local_server {
 /// # Example
 ///
 /// ```rust, ignore
-/// // Assuming ComponentExecutionMode and components are defined, and WrapperServer
+/// // Assuming ReactiveComponentExecutionMode and components are defined, and WrapperServer
 /// // has a new method that accepts a component.
 /// let consensus_manager_server = create_wrapper_server!(
 ///     &config.components.consensus_manager.execution_mode,
@@ -194,15 +199,10 @@ macro_rules! create_local_server {
 macro_rules! create_wrapper_server {
     ($execution_mode:expr, $component:expr) => {
         match *$execution_mode {
-            ComponentExecutionMode::LocalExecutionWithRemoteDisabled
-            | ComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-                Some(Box::new(WrapperServer::new(
-                    $component
-                        .take()
-                        .expect(concat!(stringify!($component), " is not initialized.")),
-                )))
-            }
-            ComponentExecutionMode::Disabled | ComponentExecutionMode::Remote => None,
+            ActiveComponentExecutionMode::Enabled => Some(Box::new(WrapperServer::new(
+                $component.take().expect(concat!(stringify!($component), " is not initialized.")),
+            ))),
+            ActiveComponentExecutionMode::Disabled => None,
         }
     };
 }
@@ -298,7 +298,7 @@ fn create_wrapper_servers(
     );
 
     let mempool_p2p_runner_server = create_wrapper_server!(
-        &config.components.mempool_p2p.execution_mode,
+        &config.components.mempool_p2p.execution_mode.clone().into(),
         components.mempool_p2p_runner
     );
     WrapperServers {

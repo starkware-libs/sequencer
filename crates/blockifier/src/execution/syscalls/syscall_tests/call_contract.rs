@@ -24,21 +24,23 @@ use crate::test_utils::{
     trivial_external_entry_point_new,
     CairoVersion,
     CompilerBasedVersion,
+    RunnableCairo1,
     BALANCE,
 };
 
-#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Native; "Native"))]
-#[test_case(CairoVersion::Cairo1;"VM")]
-fn test_call_contract_that_panics(cairo_version: CairoVersion) {
-    let test_contract = FeatureContract::TestContract(cairo_version);
-    let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1);
+#[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native; "Native"))]
+#[test_case(RunnableCairo1::Casm;"VM")]
+fn test_call_contract_that_panics(runnable_version: RunnableCairo1) {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable_version));
+    let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1(runnable_version));
     let chain_info = &ChainInfo::create_for_testing();
     let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1), (empty_contract, 0)]);
 
     let new_class_hash = empty_contract.get_class_hash();
     let outer_entry_point_selector = selector_from_name("test_call_contract_revert");
     let calldata = create_calldata(
-        FeatureContract::TestContract(CairoVersion::Cairo1).get_instance_address(0),
+        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm))
+            .get_instance_address(0),
         "test_revert_helper",
         &[new_class_hash.0],
     );
@@ -71,14 +73,14 @@ fn test_call_contract_that_panics(cairo_version: CairoVersion) {
 #[cfg_attr(
     feature = "cairo_native",
     test_case(
-      FeatureContract::TestContract(CairoVersion::Native),
-      FeatureContract::TestContract(CairoVersion::Native);
+      FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native)),
+      FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native));
       "Call Contract between two contracts using Native"
     )
 )]
 #[test_case(
-    FeatureContract::TestContract(CairoVersion::Cairo1),
-    FeatureContract::TestContract(CairoVersion::Cairo1);
+    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
+    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
     "Call Contract between two contracts using VM"
 )]
 fn test_call_contract(outer_contract: FeatureContract, inner_contract: FeatureContract) {
@@ -117,15 +119,15 @@ fn test_tracked_resources(
     #[values(
         CompilerBasedVersion::CairoVersion(CairoVersion::Cairo0),
         CompilerBasedVersion::OldCairo1,
-        CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1),
-        CompilerBasedVersion::CairoVersion(CairoVersion::Native)
+        CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1(RunnableCairo1::Casm)),
+        CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1(RunnableCairo1::Native))
     )]
     outer_version: CompilerBasedVersion,
     #[values(
         CompilerBasedVersion::CairoVersion(CairoVersion::Cairo0),
         CompilerBasedVersion::OldCairo1,
-        CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1),
-        CompilerBasedVersion::CairoVersion(CairoVersion::Native)
+        CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1(RunnableCairo1::Casm)),
+        CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1(RunnableCairo1::Native))
     )]
     inner_version: CompilerBasedVersion,
 ) {
@@ -139,13 +141,13 @@ fn test_tracked_resources(
     #[values(
         CompilerBasedVersion::CairoVersion(CairoVersion::Cairo0),
         CompilerBasedVersion::OldCairo1,
-        CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1)
+        CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1(RunnableCairo1::Casm))
     )]
     outer_version: CompilerBasedVersion,
     #[values(
         CompilerBasedVersion::CairoVersion(CairoVersion::Cairo0),
         CompilerBasedVersion::OldCairo1,
-        CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1)
+        CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1(RunnableCairo1::Casm))
     )]
     inner_version: CompilerBasedVersion,
 ) {
@@ -185,15 +187,15 @@ fn test_tracked_resources_fn(
     assert_eq!(execution.inner_calls.first().unwrap().tracked_resource, expected_inner_resource);
 }
 
-#[test_case(CompilerBasedVersion::CairoVersion(CairoVersion::Cairo0), CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1); "Cairo0_and_Cairo1")]
-#[test_case(CompilerBasedVersion::OldCairo1, CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1); "OldCairo1_and_Cairo1")]
+#[test_case(CompilerBasedVersion::CairoVersion(CairoVersion::Cairo0), CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1(RunnableCairo1::Casm)); "Cairo0_and_Cairo1")]
+#[test_case(CompilerBasedVersion::OldCairo1, CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1(RunnableCairo1::Casm)); "OldCairo1_and_Cairo1")]
 #[cfg_attr(
   feature = "cairo_native",
-  test_case(CompilerBasedVersion::CairoVersion(CairoVersion::Cairo0), CompilerBasedVersion::CairoVersion(CairoVersion::Native); "Cairo0_and_Native")
+  test_case(CompilerBasedVersion::CairoVersion(CairoVersion::Cairo0), CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1(RunnableCairo1::Native)); "Cairo0_and_Native")
 )]
 #[cfg_attr(
   feature = "cairo_native",
-  test_case(CompilerBasedVersion::OldCairo1, CompilerBasedVersion::CairoVersion(CairoVersion::Native); "OldCairo1_and_Native")
+  test_case(CompilerBasedVersion::OldCairo1, CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1(RunnableCairo1::Native)); "OldCairo1_and_Native")
 )]
 fn test_tracked_resources_nested(
     cairo_steps_contract_version: CompilerBasedVersion,

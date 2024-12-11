@@ -61,6 +61,7 @@ const Configuration = {
             'starknet_http_server',
             'starknet_integration_tests',
             'starknet_l1_provider',
+            'starknet_l1_provider_types',
             'starknet_mempool',
             'starknet_mempool_p2p',
             'starknet_mempool_p2p_types',

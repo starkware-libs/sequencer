@@ -13,6 +13,7 @@ use starknet_api::state::ThinStateDiff;
 use starknet_batcher_types::batcher_types::{
     BatcherResult,
     DecisionReachedInput,
+    GetHeightResponse,
     GetProposalContent,
     GetProposalContentInput,
     GetProposalContentResponse,
@@ -41,8 +42,8 @@ use crate::block_builder::{
 use crate::config::BatcherConfig;
 use crate::proposal_manager::{
     GenerateProposalError,
-    GetProposalResultError,
     InternalProposalStatus,
+    ProposalError,
     ProposalManager,
     ProposalManagerTrait,
     ProposalOutput,
@@ -280,13 +281,13 @@ impl Batcher {
         self.close_input_transaction_stream(proposal_id)?;
 
         let response = match self.proposal_manager.await_proposal_commitment(proposal_id).await {
-            Ok(proposal_commitment) => ProposalStatus::Finished(proposal_commitment),
-            Err(GetProposalResultError::BlockBuilderError(err)) => match err.as_ref() {
+            Some(Ok(proposal_commitment)) => ProposalStatus::Finished(proposal_commitment),
+            Some(Err(ProposalError::BlockBuilderError(err))) => match err.as_ref() {
                 BlockBuilderError::FailOnError(_) => ProposalStatus::InvalidProposal,
                 _ => return Err(BatcherError::InternalError),
             },
-            Err(GetProposalResultError::ProposalDoesNotExist { proposal_id: _ })
-            | Err(GetProposalResultError::Aborted) => {
+            Some(Err(ProposalError::Aborted)) => return Err(BatcherError::ProposalAborted),
+            None => {
                 panic!("Proposal {} should exist in the proposal manager.", proposal_id)
             }
         };
@@ -299,6 +300,15 @@ impl Batcher {
             .remove(&proposal_id)
             .ok_or(BatcherError::ProposalNotFound { proposal_id })?;
         Ok(())
+    }
+
+    #[instrument(skip(self), err)]
+    pub async fn get_height(&mut self) -> BatcherResult<GetHeightResponse> {
+        let height = self.storage_reader.height().map_err(|err| {
+            error!("Failed to get height from storage: {}", err);
+            BatcherError::InternalError
+        })?;
+        Ok(GetHeightResponse { height })
     }
 
     #[instrument(skip(self), err)]
@@ -327,8 +337,11 @@ impl Batcher {
         // TODO: Consider removing the proposal from the proposal manager and keep it in the batcher
         // for decision reached.
         self.propose_tx_streams.remove(&proposal_id);
-        let proposal_commitment =
-            self.proposal_manager.await_proposal_commitment(proposal_id).await?;
+        let proposal_commitment = self
+            .proposal_manager
+            .await_proposal_commitment(proposal_id)
+            .await
+            .ok_or(BatcherError::ProposalNotFound { proposal_id })??;
         Ok(GetProposalContentResponse {
             content: GetProposalContent::Finished(proposal_commitment),
         })
@@ -337,7 +350,11 @@ impl Batcher {
     #[instrument(skip(self), err)]
     pub async fn decision_reached(&mut self, input: DecisionReachedInput) -> BatcherResult<()> {
         let proposal_id = input.proposal_id;
-        let proposal_output = self.proposal_manager.take_proposal_result(proposal_id).await?;
+        let proposal_output = self
+            .proposal_manager
+            .take_proposal_result(proposal_id)
+            .await
+            .ok_or(BatcherError::ExecutedProposalNotFound { proposal_id })??;
         let ProposalOutput { state_diff, nonces: address_to_nonce, tx_hashes, .. } =
             proposal_output;
         // TODO: Keep the height from start_height or get it from the input.
@@ -437,14 +454,11 @@ impl From<GenerateProposalError> for BatcherError {
     }
 }
 
-impl From<GetProposalResultError> for BatcherError {
-    fn from(err: GetProposalResultError) -> Self {
+impl From<ProposalError> for BatcherError {
+    fn from(err: ProposalError) -> Self {
         match err {
-            GetProposalResultError::BlockBuilderError(..) => BatcherError::InternalError,
-            GetProposalResultError::ProposalDoesNotExist { proposal_id } => {
-                BatcherError::ExecutedProposalNotFound { proposal_id }
-            }
-            GetProposalResultError::Aborted => BatcherError::ProposalAborted,
+            ProposalError::BlockBuilderError(..) => BatcherError::InternalError,
+            ProposalError::Aborted => BatcherError::ProposalAborted,
         }
     }
 }
@@ -455,7 +469,8 @@ pub fn deadline_as_instant(deadline: chrono::DateTime<Utc>) -> BatcherResult<tok
     let time_to_deadline = deadline - chrono::Utc::now();
     let as_duration =
         time_to_deadline.to_std().map_err(|_| BatcherError::TimeToDeadlineError { deadline })?;
-    Ok((std::time::Instant::now() + as_duration).into())
+    // TODO(Matan): this is a temporary solution to the timeout issue.
+    Ok((std::time::Instant::now() + (as_duration / 2)).into())
 }
 
 fn verify_block_input(

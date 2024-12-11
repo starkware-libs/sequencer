@@ -27,6 +27,7 @@ use crate::test_utils::{
     create_calldata,
     maybe_dummy_block_hash_and_number,
     CairoVersion,
+    RunnableCairo1,
     BALANCE,
     DEFAULT_STRK_L1_GAS_PRICE,
 };
@@ -92,7 +93,7 @@ fn tx_executor_test_body<S: StateReader>(
 )]
 #[case::tx_version_2(
     TransactionVersion::TWO,
-    CairoVersion::Cairo1,
+    CairoVersion::Cairo1(RunnableCairo1::Casm),
     BouncerWeights {
         state_diff_size: 4,
         message_segment_length: 0,
@@ -102,7 +103,7 @@ fn tx_executor_test_body<S: StateReader>(
 )]
 #[case::tx_version_3(
     TransactionVersion::THREE,
-    CairoVersion::Cairo1,
+    CairoVersion::Cairo1(RunnableCairo1::Casm),
     BouncerWeights {
         state_diff_size: 4,
         message_segment_length: 0,
@@ -112,7 +113,8 @@ fn tx_executor_test_body<S: StateReader>(
 )]
 fn test_declare(
     block_context: BlockContext,
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] account_cairo_version: CairoVersion,
+    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm))]
+    account_cairo_version: CairoVersion,
     #[case] tx_version: TransactionVersion,
     #[case] cairo_version: CairoVersion,
     #[case] expected_bouncer_weights: BouncerWeights,
@@ -139,7 +141,8 @@ fn test_declare(
 fn test_deploy_account(
     block_context: BlockContext,
     #[values(TransactionVersion::ONE, TransactionVersion::THREE)] version: TransactionVersion,
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
+    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm))]
+    cairo_version: CairoVersion,
 ) {
     let account_contract = FeatureContract::AccountWithoutValidations(cairo_version);
     let state = test_state(&block_context.chain_info, BALANCE, &[(account_contract, 0)]);
@@ -158,8 +161,7 @@ fn test_deploy_account(
         message_segment_length: 0,
         n_events: 0,
         ..BouncerWeights::empty()
-    }
-    .into();
+    };
     tx_executor_test_body(state, block_context, tx, expected_bouncer_weights);
 }
 
@@ -204,7 +206,8 @@ fn test_deploy_account(
 fn test_invoke(
     block_context: BlockContext,
     #[values(TransactionVersion::ONE, TransactionVersion::THREE)] version: TransactionVersion,
-    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1)] cairo_version: CairoVersion,
+    #[values(CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm))]
+    cairo_version: CairoVersion,
     #[case] entry_point_name: &str,
     #[case] entry_point_args: Vec<Felt>,
     #[case] expected_bouncer_weights: BouncerWeights,
@@ -230,7 +233,7 @@ fn test_invoke(
 
 #[rstest]
 fn test_l1_handler(block_context: BlockContext) {
-    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1);
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
     let state = test_state(&block_context.chain_info, BALANCE, &[(test_contract, 1)]);
 
     let tx = Transaction::L1Handler(l1handler_tx(
@@ -265,7 +268,10 @@ fn test_bouncing(#[case] initial_bouncer_weights: BouncerWeights, #[case] n_even
     let block_context = BlockContext::create_for_bouncer_testing(max_n_events_in_block);
 
     let TestInitData { state, account_address, contract_address, mut nonce_manager } =
-        create_test_init_data(&block_context.chain_info, CairoVersion::Cairo1);
+        create_test_init_data(
+            &block_context.chain_info,
+            CairoVersion::Cairo1(RunnableCairo1::Casm),
+        );
 
     // TODO(Yoni, 15/6/2024): turn on concurrency mode.
     let mut tx_executor =
@@ -293,8 +299,10 @@ fn test_execute_txs_bouncing(#[values(true, false)] concurrency_enabled: bool) {
     let max_n_events_in_block = 10;
     let block_context = BlockContext::create_for_bouncer_testing(max_n_events_in_block);
 
-    let TestInitData { state, account_address, contract_address, .. } =
-        create_test_init_data(&block_context.chain_info, CairoVersion::Cairo1);
+    let TestInitData { state, account_address, contract_address, .. } = create_test_init_data(
+        &block_context.chain_info,
+        CairoVersion::Cairo1(RunnableCairo1::Casm),
+    );
 
     let mut tx_executor = TransactionExecutor::new(state, block_context, config);
 

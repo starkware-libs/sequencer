@@ -196,12 +196,12 @@ fn prepare_program_extra_data(
     // Create the builtin cost segment, the builtin order should be the same as the price builtin
     // array in the os in compiled_class.cairo in load_compiled_class_facts.
     let builtin_price_array = [
-        gas_costs.pedersen_gas_cost,
-        gas_costs.bitwise_builtin_gas_cost,
-        gas_costs.ecop_gas_cost,
-        gas_costs.poseidon_gas_cost,
-        gas_costs.add_mod_gas_cost,
-        gas_costs.mul_mod_gas_cost,
+        gas_costs.base.pedersen_gas_cost,
+        gas_costs.base.bitwise_builtin_gas_cost,
+        gas_costs.base.ecop_gas_cost,
+        gas_costs.base.poseidon_gas_cost,
+        gas_costs.base.add_mod_gas_cost,
+        gas_costs.base.mul_mod_gas_cost,
     ];
 
     let data = builtin_price_array

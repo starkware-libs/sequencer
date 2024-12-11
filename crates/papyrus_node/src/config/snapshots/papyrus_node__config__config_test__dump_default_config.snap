@@ -1,7 +1,6 @@
 ---
 source: crates/papyrus_node/src/config/config_test.rs
 expression: dumped_default_config
-snapshot_kind: text
 ---
 {
   "base_layer.node_url": {
@@ -430,9 +429,9 @@ snapshot_kind: text
     "privacy": "TemporaryValue"
   },
   "p2p_sync.wait_period_for_new_data": {
-    "description": "Time in seconds to wait when a query returned with partial data before sending a new query",
+    "description": "Time in millisseconds to wait when a query returned with partial data before sending a new query",
     "value": {
-      "$serde_json::private::Number": "5"
+      "$serde_json::private::Number": "50"
     },
     "privacy": "Public"
   },

@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use infra_utils::run_until::run_until;
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use papyrus_execution::execution_utils::get_nonce_at;
@@ -10,7 +8,11 @@ use starknet_api::block::BlockNumber;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::state::StateNumber;
 use starknet_integration_tests::integration_test_setup::IntegrationTestSetup;
-use starknet_integration_tests::utils::{create_integration_test_tx_generator, send_account_txs};
+use starknet_integration_tests::utils::{
+    create_integration_test_tx_generator,
+    run_integration_test,
+    send_account_txs,
+};
 use starknet_sequencer_infra::trace_util::configure_tracing;
 use starknet_sequencer_node::test_utils::compilation::spawn_run_node;
 use starknet_types_core::felt::Felt;
@@ -59,9 +61,13 @@ async fn await_block(
 #[rstest]
 #[tokio::test]
 async fn test_end_to_end_integration(mut tx_generator: MultiAccountTransactionGenerator) {
+    if !run_integration_test() {
+        return;
+    }
+
     const EXPECTED_BLOCK_NUMBER: BlockNumber = BlockNumber(15);
 
-    configure_tracing();
+    configure_tracing().await;
     info!("Running integration test setup.");
 
     // Creating the storage for the test.
@@ -72,8 +78,7 @@ async fn test_end_to_end_integration(mut tx_generator: MultiAccountTransactionGe
     let node_run_handle = spawn_run_node(integration_test_setup.node_config_path).await;
 
     // Wait for the node to start.
-    match integration_test_setup.is_alive_test_client.await_alive(Duration::from_secs(5), 50).await
-    {
+    match integration_test_setup.is_alive_test_client.await_alive(5000, 50).await {
         Ok(_) => {}
         Err(_) => panic!("Node is not alive."),
     }
@@ -84,6 +89,7 @@ async fn test_end_to_end_integration(mut tx_generator: MultiAccountTransactionGe
         &mut |rpc_tx| integration_test_setup.add_tx_http_client.assert_add_tx_success(rpc_tx);
 
     const ACCOUNT_ID_0: AccountId = 0;
+
     let n_txs = 50;
     let sender_address = tx_generator.account_with_id(ACCOUNT_ID_0).sender_address();
     info!("Sending {n_txs} txs.");

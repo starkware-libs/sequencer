@@ -5,9 +5,14 @@ use std::{env, fs};
 #[path = "path_test.rs"]
 mod path_test;
 
-// TODO(tsabary): wrap path-related env::* invocations in the repo as utility functions
+// TODO(Tsabary): find a stable way to get access to the current crate directory at compile time.
+#[macro_export]
+macro_rules! compile_time_cargo_manifest_dir {
+    () => {
+        env!("CARGO_MANIFEST_DIR")
+    };
+}
 
-// TODO(Tsabary/ Arni): consolidate with other get_absolute_path functions.
 /// Resolves a relative path from the project root directory and returns its absolute path.
 ///
 /// # Arguments
@@ -35,4 +40,9 @@ fn path_of_project_root() -> PathBuf {
     // Ascend two directories to get to the project root. This assumes that the project root is two
     // directories above the current file.
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).ancestors().nth(2).expect("Cannot navigate up").into()
+}
+
+// TODO(Tsabary/ Arni): consider alternatives.
+pub fn current_dir() -> std::io::Result<PathBuf> {
+    std::env::current_dir()
 }

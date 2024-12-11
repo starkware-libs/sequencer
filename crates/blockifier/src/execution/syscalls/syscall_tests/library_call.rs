@@ -23,14 +23,15 @@ use crate::test_utils::{
     get_syscall_resources,
     trivial_external_entry_point_new,
     CairoVersion,
+    RunnableCairo1,
     BALANCE,
 };
 use crate::versioned_constants::VersionedConstants;
 
-#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Native; "Native"))]
-#[test_case(CairoVersion::Cairo1; "VM")]
-fn test_library_call(cairo_version: CairoVersion) {
-    let test_contract = FeatureContract::TestContract(cairo_version);
+#[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native; "Native"))]
+#[test_case(RunnableCairo1::Casm; "VM")]
+fn test_library_call(runnable_version: RunnableCairo1) {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable_version));
     let chain_info = &ChainInfo::create_for_testing();
     let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1)]);
 
@@ -60,10 +61,10 @@ fn test_library_call(cairo_version: CairoVersion) {
     );
 }
 
-#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Native; "Native"))]
-#[test_case(CairoVersion::Cairo1; "VM")]
-fn test_library_call_assert_fails(cairo_version: CairoVersion) {
-    let test_contract = FeatureContract::TestContract(cairo_version);
+#[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native; "Native"))]
+#[test_case(RunnableCairo1::Casm; "VM")]
+fn test_library_call_assert_fails(runnable_version: RunnableCairo1) {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable_version));
     let chain_info = &ChainInfo::create_for_testing();
     let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1)]);
     let inner_entry_point_selector = selector_from_name("assert_eq");
@@ -99,10 +100,10 @@ fn test_library_call_assert_fails(cairo_version: CairoVersion) {
     );
 }
 
-#[cfg_attr(feature = "cairo_native", test_case(CairoVersion::Native; "Native"))]
-#[test_case(CairoVersion::Cairo1; "VM")]
-fn test_nested_library_call(cairo_version: CairoVersion) {
-    let test_contract = FeatureContract::TestContract(cairo_version);
+#[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native; "Native"))]
+#[test_case(RunnableCairo1::Casm; "VM")]
+fn test_nested_library_call(runnable_version: RunnableCairo1) {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable_version));
     let chain_info = &ChainInfo::create_for_testing();
     let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1)]);
 
@@ -158,7 +159,7 @@ fn test_nested_library_call(cairo_version: CairoVersion) {
 
     let mut first_storage_entry_point_resources =
         ChargedResources { gas_for_fee: GasAmount(0), ..Default::default() };
-    if cairo_version == CairoVersion::Cairo1 {
+    if runnable_version == RunnableCairo1::Casm {
         first_storage_entry_point_resources.vm_resources = ExecutionResources {
             n_steps: 244,
             n_memory_holes: 0,
@@ -190,7 +191,7 @@ fn test_nested_library_call(cairo_version: CairoVersion) {
 
     let mut library_call_resources =
         ChargedResources { gas_for_fee: GasAmount(0), ..Default::default() };
-    if cairo_version == CairoVersion::Cairo1 {
+    if runnable_version == RunnableCairo1::Casm {
         library_call_resources.vm_resources = &get_syscall_resources(SyscallSelector::LibraryCall)
             + &ExecutionResources {
                 n_steps: 377,
@@ -228,7 +229,7 @@ fn test_nested_library_call(cairo_version: CairoVersion) {
 
     let mut main_call_resources =
         ChargedResources { gas_for_fee: GasAmount(0), ..Default::default() };
-    if cairo_version == CairoVersion::Cairo1 {
+    if runnable_version == RunnableCairo1::Casm {
         main_call_resources.vm_resources = &(&get_syscall_resources(SyscallSelector::LibraryCall)
             * 3)
             + &ExecutionResources {

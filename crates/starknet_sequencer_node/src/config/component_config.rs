@@ -5,42 +5,33 @@ use papyrus_config::{ParamPath, SerializedParam};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
-use crate::config::component_execution_config::ComponentExecutionConfig;
+use crate::config::component_execution_config::{
+    ActiveComponentExecutionConfig,
+    ReactiveComponentExecutionConfig,
+};
 
 /// The components configuration.
-#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
 pub struct ComponentConfig {
+    // Reactive component configs.
     #[validate]
-    pub batcher: ComponentExecutionConfig,
+    pub batcher: ReactiveComponentExecutionConfig,
     #[validate]
-    pub consensus_manager: ComponentExecutionConfig,
+    pub gateway: ReactiveComponentExecutionConfig,
     #[validate]
-    pub gateway: ComponentExecutionConfig,
+    pub mempool: ReactiveComponentExecutionConfig,
     #[validate]
-    pub http_server: ComponentExecutionConfig,
+    pub mempool_p2p: ReactiveComponentExecutionConfig,
     #[validate]
-    pub mempool: ComponentExecutionConfig,
-    #[validate]
-    pub mempool_p2p: ComponentExecutionConfig,
-    #[validate]
-    pub monitoring_endpoint: ComponentExecutionConfig,
-    #[validate]
-    pub state_sync: ComponentExecutionConfig,
-}
+    pub state_sync: ReactiveComponentExecutionConfig,
 
-impl Default for ComponentConfig {
-    fn default() -> Self {
-        Self {
-            batcher: ComponentExecutionConfig::batcher_default_config(),
-            consensus_manager: ComponentExecutionConfig::consensus_manager_default_config(),
-            gateway: ComponentExecutionConfig::gateway_default_config(),
-            http_server: ComponentExecutionConfig::http_server_default_config(),
-            mempool: ComponentExecutionConfig::mempool_default_config(),
-            mempool_p2p: ComponentExecutionConfig::mempool_p2p_default_config(),
-            monitoring_endpoint: ComponentExecutionConfig::monitoring_endpoint_default_config(),
-            state_sync: ComponentExecutionConfig::state_sync_default_config(),
-        }
-    }
+    // Active component configs.
+    #[validate]
+    pub consensus_manager: ActiveComponentExecutionConfig,
+    #[validate]
+    pub http_server: ActiveComponentExecutionConfig,
+    #[validate]
+    pub monitoring_endpoint: ActiveComponentExecutionConfig,
 }
 
 impl SerializeConfig for ComponentConfig {

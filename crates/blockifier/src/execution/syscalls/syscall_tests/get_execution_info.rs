@@ -26,6 +26,7 @@ use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{
     trivial_external_entry_point_with_address,
     CairoVersion,
+    RunnableCairo1,
     BALANCE,
     CURRENT_BLOCK_NUMBER,
     CURRENT_BLOCK_NUMBER_FOR_VALIDATE,
@@ -43,7 +44,7 @@ use crate::transaction::objects::{
 #[cfg_attr(
     feature = "cairo_native",
     test_case(
-        FeatureContract::SierraExecutionInfoV1Contract,
+        FeatureContract::SierraExecutionInfoV1Contract(RunnableCairo1::Native),
         ExecutionMode::Validate,
         TransactionVersion::ONE,
         false;
@@ -53,7 +54,7 @@ use crate::transaction::objects::{
 #[cfg_attr(
     feature = "cairo_native",
     test_case(
-        FeatureContract::SierraExecutionInfoV1Contract,
+        FeatureContract::SierraExecutionInfoV1Contract(RunnableCairo1::Native),
         ExecutionMode::Execute,
         TransactionVersion::ONE,
         false;
@@ -63,7 +64,7 @@ use crate::transaction::objects::{
 #[cfg_attr(
     feature = "cairo_native",
     test_case(
-        FeatureContract::TestContract(CairoVersion::Native),
+        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native)),
         ExecutionMode::Validate,
         TransactionVersion::ONE,
         false;
@@ -73,7 +74,7 @@ use crate::transaction::objects::{
 #[cfg_attr(
     feature = "cairo_native",
     test_case(
-        FeatureContract::TestContract(CairoVersion::Native),
+        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native)),
         ExecutionMode::Execute,
         TransactionVersion::ONE,
         false;
@@ -83,7 +84,7 @@ use crate::transaction::objects::{
 #[cfg_attr(
     feature = "cairo_native",
     test_case(
-        FeatureContract::TestContract(CairoVersion::Native),
+        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native)),
         ExecutionMode::Validate,
         TransactionVersion::THREE,
         false;
@@ -93,7 +94,7 @@ use crate::transaction::objects::{
 #[cfg_attr(
     feature = "cairo_native",
     test_case(
-        FeatureContract::TestContract(CairoVersion::Native),
+        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native)),
         ExecutionMode::Execute,
         TransactionVersion::THREE,
         false;
@@ -101,25 +102,25 @@ use crate::transaction::objects::{
     )
 )]
 #[test_case(
-    FeatureContract::TestContract(CairoVersion::Cairo1),
+    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
     ExecutionMode::Validate,
     TransactionVersion::ONE,
     false;
     "Validate execution mode: block info fields should be zeroed. Transaction V1.")]
 #[test_case(
-    FeatureContract::TestContract(CairoVersion::Cairo1),
+    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
     ExecutionMode::Execute,
     TransactionVersion::ONE,
     false;
     "Execute execution mode: block info should be as usual. Transaction V1.")]
 #[test_case(
-    FeatureContract::TestContract(CairoVersion::Cairo1),
+    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
     ExecutionMode::Validate,
     TransactionVersion::THREE,
     false;
     "Validate execution mode: block info fields should be zeroed. Transaction V3.")]
 #[test_case(
-    FeatureContract::TestContract(CairoVersion::Cairo1),
+    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
     ExecutionMode::Execute,
     TransactionVersion::THREE,
     false;
@@ -137,7 +138,7 @@ use crate::transaction::objects::{
     false;
     "Legacy contract. Execute execution mode: block info should be as usual. Transaction V3.")]
 #[test_case(
-    FeatureContract::TestContract(CairoVersion::Cairo1),
+    FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)),
     ExecutionMode::Execute,
     TransactionVersion::THREE,
     true;
@@ -180,7 +181,7 @@ fn test_get_execution_info(
             vec![]
         }
         #[cfg(feature = "cairo_native")]
-        FeatureContract::SierraExecutionInfoV1Contract => {
+        FeatureContract::SierraExecutionInfoV1Contract(RunnableCairo1::Native) => {
             vec![]
         }
         _ => {
@@ -211,7 +212,7 @@ fn test_get_execution_info(
     let expected_resource_bounds: Vec<Felt> = match (test_contract, version) {
         (FeatureContract::LegacyTestContract, _) => vec![],
         #[cfg(feature = "cairo_native")]
-        (FeatureContract::SierraExecutionInfoV1Contract, _) => vec![],
+        (FeatureContract::SierraExecutionInfoV1Contract(RunnableCairo1::Native), _) => vec![],
         (_, version) if version == TransactionVersion::ONE => vec![
             felt!(0_u16), // Length of resource bounds array.
         ],

@@ -2,9 +2,11 @@ use std::any::type_name;
 use std::net::SocketAddr;
 
 use axum::http::StatusCode;
+use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum::{async_trait, Router, Server};
 use hyper::Error;
+use metrics_exporter_prometheus::{PrometheusBuilder, PrometheusHandle};
 use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use starknet_sequencer_infra::errors::ComponentError;
 use tracing::{info, instrument};
@@ -19,15 +21,27 @@ pub(crate) const MONITORING_PREFIX: &str = "monitoring";
 pub(crate) const ALIVE: &str = "alive";
 pub(crate) const READY: &str = "ready";
 pub(crate) const VERSION: &str = "nodeVersion";
+pub(crate) const METRICS: &str = "metrics";
 
 pub struct MonitoringEndpoint {
     config: MonitoringEndpointConfig,
     version: &'static str,
+    prometheus_handle: Option<PrometheusHandle>,
 }
 
 impl MonitoringEndpoint {
     pub fn new(config: MonitoringEndpointConfig, version: &'static str) -> Self {
-        MonitoringEndpoint { config, version }
+        // TODO(Tsabary): consider error handling
+        let prometheus_handle = if config.collect_metrics {
+            Some(
+                PrometheusBuilder::new()
+                    .install_recorder()
+                    .expect("should be able to build the recorder and install it globally"),
+            )
+        } else {
+            None
+        };
+        MonitoringEndpoint { config, version, prometheus_handle }
     }
 
     #[instrument(
@@ -38,7 +52,7 @@ impl MonitoringEndpoint {
         ),
         level = "debug")]
     pub async fn run(&self) -> Result<(), Error> {
-        let MonitoringEndpointConfig { ip, port } = self.config;
+        let MonitoringEndpointConfig { ip, port, .. } = self.config;
         let endpoint_addr = SocketAddr::new(ip, port);
 
         let app = self.app();
@@ -49,6 +63,7 @@ impl MonitoringEndpoint {
 
     fn app(&self) -> Router {
         let version = self.version.to_string();
+        let prometheus_handle = self.prometheus_handle.clone();
 
         Router::new()
             .route(
@@ -62,6 +77,10 @@ impl MonitoringEndpoint {
             .route(
                 format!("/{MONITORING_PREFIX}/{VERSION}").as_str(),
                 get(move || async { version }),
+            )
+            .route(
+                format!("/{MONITORING_PREFIX}/{METRICS}").as_str(),
+                get(move || metrics(prometheus_handle)),
             )
     }
 }
@@ -78,5 +97,17 @@ impl ComponentStarter for MonitoringEndpoint {
     async fn start(&mut self) -> Result<(), ComponentError> {
         info!("Starting component {}.", type_name::<Self>());
         self.run().await.map_err(|_| ComponentError::InternalComponentError)
+    }
+}
+
+/// Returns prometheus metrics.
+/// In case the node doesn’t collect metrics returns an empty response with status code 405: method
+/// not allowed.
+#[instrument(level = "debug", ret, skip(prometheus_handle))]
+// TODO(tsabary): handle the Option setup.
+async fn metrics(prometheus_handle: Option<PrometheusHandle>) -> Response {
+    match prometheus_handle {
+        Some(handle) => handle.render().into_response(),
+        None => StatusCode::METHOD_NOT_ALLOWED.into_response(),
     }
 }

@@ -14,10 +14,6 @@ FROM builder AS utilities_builder
 # Build papyrus_load_test and copy its resources.
 RUN cargo build --target x86_64-unknown-linux-musl --release --package papyrus_load_test --bin papyrus_load_test
 
-# Build dump_declared_classes.
-RUN cargo build --target x86_64-unknown-linux-musl --release --package papyrus_storage --features "clap" \
-    --bin dump_declared_classes
-
 # Build storage_benchmark.
 RUN cargo build --target x86_64-unknown-linux-musl --release --package papyrus_storage \
     --features "clap statistical" --bin storage_benchmark
@@ -32,9 +28,6 @@ WORKDIR /app
 COPY --from=utilities_builder /app/target/x86_64-unknown-linux-musl/release/papyrus_load_test /app/target/release/papyrus_load_test
 COPY crates/papyrus_load_test/resources/ /app/crates/papyrus_load_test/resources
 
-# Copy the dump_declared_classes executable.
-COPY --from=utilities_builder /app/target/x86_64-unknown-linux-musl/release/dump_declared_classes /app/target/release/dump_declared_classes
-
 # Copy the storage_benchmark executable.
 COPY --from=utilities_builder /app/target/x86_64-unknown-linux-musl/release/storage_benchmark /app/target/release/storage_benchmark
 
@@ -45,6 +38,5 @@ ENTRYPOINT echo -e \
     "There is no default executable for this image. Run an executable using its name or path to it.\n\
     The available executables are:\n\
     - papyrus_load_test, performs a stress test on a node RPC gateway.\n\
-    - dump_declared_classes, dumps the declared_classes table from the storage to a file.\n\
     - storage_benchmark, performs a benchmark on the storage.\n\
     For example, in a docker runtime: docker run --entrypoint papyrus_load_test <image>"
