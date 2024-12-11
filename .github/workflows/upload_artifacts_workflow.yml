@@ -6,7 +6,7 @@ on:
     types: [completed]
 
 env:
-  RUSTFLAGS: "-D warnings"
+  RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
 
 jobs:
   native-blockifier-artifacts-push:

@@ -17,7 +17,7 @@ on:
         required: true
 
 env:
-  RUSTFLAGS: "-D warnings"
+  RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
 
 jobs:
   GW-integration-test-call:
