@@ -50,7 +50,7 @@ pub async fn create_config(
     rpc_server_addr: SocketAddr,
     batcher_storage_config: StorageConfig,
     mut consensus_manager_config: ConsensusManagerConfig,
-) -> (SequencerNodeConfig, RequiredParams) {
+) -> (Vec<SequencerNodeConfig>, RequiredParams) {
     set_validator_id(&mut consensus_manager_config, sequencer_index);
     let fee_token_addresses = chain_info.fee_token_addresses.clone();
     let batcher_config = create_batcher_config(batcher_storage_config, chain_info.clone());
@@ -62,7 +62,7 @@ pub async fn create_config(
     let monitoring_endpoint_config = create_monitoring_endpoint_config(sequencer_index);
 
     (
-        SequencerNodeConfig {
+        vec![SequencerNodeConfig {
             batcher_config,
             consensus_manager_config,
             gateway_config,
@@ -71,7 +71,7 @@ pub async fn create_config(
             mempool_p2p_config,
             monitoring_endpoint_config,
             ..Default::default()
-        },
+        }],
         RequiredParams {
             chain_id: chain_info.chain_id,
             eth_fee_token_address: fee_token_addresses.eth_fee_token_address,
