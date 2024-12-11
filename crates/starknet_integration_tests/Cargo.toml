@@ -48,4 +48,5 @@ futures.workspace = true
 itertools.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
+serial_test.workspace = true
 starknet_sequencer_infra.workspace = true
