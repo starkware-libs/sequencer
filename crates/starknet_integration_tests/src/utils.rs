@@ -29,10 +29,14 @@ use starknet_http_server::config::HttpServerConfig;
 use starknet_mempool_p2p::config::MempoolP2pConfig;
 use starknet_monitoring_endpoint::config::MonitoringEndpointConfig;
 use starknet_sequencer_infra::test_utils::get_available_socket;
+use starknet_sequencer_node::config::component_config::ComponentConfig;
 use starknet_sequencer_node::config::component_execution_config::ActiveComponentExecutionMode;
 use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::config::test_utils::RequiredParams;
 use starknet_types_core::felt::Felt;
+
+use crate::config_utils::get_remote_flow_test_config;
+use crate::definitions::MockSystemMode;
 
 pub fn create_chain_info() -> ChainInfo {
     let mut chain_info = ChainInfo::create_for_testing();
@@ -50,6 +54,7 @@ pub async fn create_config(
     rpc_server_addr: SocketAddr,
     batcher_storage_config: StorageConfig,
     mut consensus_manager_config: ConsensusManagerConfig,
+    mock_system_mode: MockSystemMode,
 ) -> (Vec<SequencerNodeConfig>, RequiredParams) {
     set_validator_id(&mut consensus_manager_config, sequencer_index);
     let fee_token_addresses = chain_info.fee_token_addresses.clone();
@@ -60,18 +65,28 @@ pub async fn create_config(
     let mempool_p2p_config =
         create_mempool_p2p_config(sequencer_index, chain_info.chain_id.clone());
     let monitoring_endpoint_config = create_monitoring_endpoint_config(sequencer_index);
+    let component_configs = match mock_system_mode {
+        MockSystemMode::Remote => get_remote_flow_test_config().await,
+        MockSystemMode::Local => async { vec![ComponentConfig::default()] }.await,
+    };
+
+    let sequencer_node_configs: Vec<SequencerNodeConfig> = component_configs
+        .iter()
+        .map(|component_config| SequencerNodeConfig {
+            batcher_config: batcher_config.clone(),
+            consensus_manager_config: consensus_manager_config.clone(),
+            gateway_config: gateway_config.clone(),
+            http_server_config: http_server_config.clone(),
+            rpc_state_reader_config: rpc_state_reader_config.clone(),
+            mempool_p2p_config.clone(),
+            monitoring_endpoint_config.clone(),
+            components: component_config.clone(),
+            ..SequencerNodeConfig::default()
+        })
+        .collect();
 
     (
-        vec![SequencerNodeConfig {
-            batcher_config,
-            consensus_manager_config,
-            gateway_config,
-            http_server_config,
-            rpc_state_reader_config,
-            mempool_p2p_config,
-            monitoring_endpoint_config,
-            ..Default::default()
-        }],
+        sequencer_node_configs,
         RequiredParams {
             chain_id: chain_info.chain_id,
             eth_fee_token_address: fee_token_addresses.eth_fee_token_address,

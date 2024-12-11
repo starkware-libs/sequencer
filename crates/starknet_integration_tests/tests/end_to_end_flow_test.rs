@@ -16,6 +16,7 @@ use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::transaction::TransactionHash;
+use starknet_integration_tests::definitions::MockSystemMode;
 use starknet_integration_tests::flow_test_setup::FlowTestSetup;
 use starknet_integration_tests::utils::{
     create_integration_test_tx_generator,
@@ -41,7 +42,8 @@ async fn end_to_end_flow(mut tx_generator: MultiAccountTransactionGenerator) {
     const LISTEN_TO_BROADCAST_MESSAGES_TIMEOUT: std::time::Duration =
         std::time::Duration::from_secs(50);
     // Setup.
-    let mut mock_running_system = FlowTestSetup::new_from_tx_generator(&tx_generator).await;
+    let mut mock_running_system =
+        FlowTestSetup::new_from_tx_generator(&tx_generator, MockSystemMode::Local).await;
 
     let next_height = INITIAL_HEIGHT.unchecked_next();
     let heights_to_build = next_height.iter_up_to(LAST_HEIGHT.unchecked_next());
