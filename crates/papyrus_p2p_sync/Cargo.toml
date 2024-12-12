@@ -22,6 +22,7 @@ papyrus_storage.workspace = true
 rand.workspace = true
 serde.workspace = true
 starknet_api.workspace = true
+starknet_state_sync_types.workspace = true
 starknet-types-core.workspace = true
 thiserror.workspace = true
 tokio.workspace = true

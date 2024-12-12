@@ -7575,6 +7575,7 @@ dependencies = [
  "serde",
  "starknet-types-core",
  "starknet_api",
+ "starknet_state_sync_types",
  "static_assertions",
  "thiserror",
  "tokio",
