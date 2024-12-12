@@ -40,13 +40,16 @@ fn install_starknet_native_compile() {
     let binary_name = CAIRO_NATIVE_BINARY_NAME;
     let required_version = REQUIRED_CAIRO_NATIVE_VERSION;
 
+    let repo_root_dir =
+        infra_utils::path::project_path().expect("Should be able to get the project path");
+
     // Set the runtime library path. This is required for Cairo native compilation.
-    let runtime_library_path = repo_root_dir()
+    let runtime_library_path = repo_root_dir
         .join("crates/blockifier/cairo_native/target/release/libcairo_native_runtime.a");
     println!("cargo:rustc-env=CAIRO_NATIVE_RUNTIME_LIBRARY={}", runtime_library_path.display());
     println!("cargo:rerun-if-env-changed=CAIRO_NATIVE_RUNTIME_LIBRARY");
 
-    let starknet_native_compile_crate_path = repo_root_dir().join("crates/bin").join(binary_name);
+    let starknet_native_compile_crate_path = repo_root_dir.join("crates/bin").join(binary_name);
     let starknet_native_compile_crate_path_str = starknet_native_compile_crate_path
         .to_str()
         .expect("Failed to convert the crate path to str");
@@ -125,11 +128,4 @@ fn out_dir() -> std::path::PathBuf {
     std::env::var("OUT_DIR")
         .expect("Failed to get the build time OUT_DIR environment variable")
         .into()
-}
-
-#[cfg(feature = "cairo_native")]
-fn repo_root_dir() -> std::path::PathBuf {
-    std::path::Path::new(infra_utils::compile_time_cargo_manifest_dir!())
-        .join("../..")
-        .to_path_buf()
 }
