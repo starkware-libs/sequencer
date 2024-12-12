@@ -34,7 +34,7 @@ fn test_calculate_contract_address() {
             calldata,
             entry_point_selector: selector_from_name("test_contract_address"),
             storage_address: deployer_address,
-            initial_gas: versioned_constants.default_initial_gas_cost(),
+            initial_gas: versioned_constants.inifite_gas_for_vm_mode(),
             ..Default::default()
         };
         let contract_address =
