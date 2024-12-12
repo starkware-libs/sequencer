@@ -11,6 +11,8 @@ use starknet_mempool_types::communication::{MempoolClientError, SharedMempoolCli
 use thiserror::Error;
 use tracing::warn;
 
+type TransactionProviderResult<T> = Result<T, TransactionProviderError>;
+
 #[derive(Clone, Debug, Error)]
 pub enum TransactionProviderError {
     #[error(transparent)]
@@ -28,7 +30,7 @@ pub enum NextTxs {
 #[cfg_attr(test, automock)]
 #[async_trait]
 pub trait TransactionProvider: Send {
-    async fn get_txs(&mut self, n_txs: usize) -> Result<NextTxs, TransactionProviderError>;
+    async fn get_txs(&mut self, n_txs: usize) -> TransactionProviderResult<NextTxs>;
 }
 
 #[derive(Clone)]
@@ -69,7 +71,7 @@ impl ProposeTransactionProvider {
     async fn get_mempool_txs(
         &mut self,
         n_txs: usize,
-    ) -> Result<Vec<Transaction>, TransactionProviderError> {
+    ) -> TransactionProviderResult<Vec<Transaction>> {
         Ok(self
             .mempool_client
             .get_txs(n_txs)
@@ -82,7 +84,7 @@ impl ProposeTransactionProvider {
 
 #[async_trait]
 impl TransactionProvider for ProposeTransactionProvider {
-    async fn get_txs(&mut self, n_txs: usize) -> Result<NextTxs, TransactionProviderError> {
+    async fn get_txs(&mut self, n_txs: usize) -> TransactionProviderResult<NextTxs> {
         assert!(n_txs > 0, "The number of transactions requested must be greater than zero.");
         let mut txs = vec![];
         if self.phase == TxProviderPhase::L1 {
@@ -118,7 +120,7 @@ pub struct ValidateTransactionProvider {
 
 #[async_trait]
 impl TransactionProvider for ValidateTransactionProvider {
-    async fn get_txs(&mut self, n_txs: usize) -> Result<NextTxs, TransactionProviderError> {
+    async fn get_txs(&mut self, n_txs: usize) -> TransactionProviderResult<NextTxs> {
         assert!(n_txs > 0, "The number of transactions requested must be greater than zero.");
         let mut buffer = Vec::with_capacity(n_txs);
         self.tx_receiver.recv_many(&mut buffer, n_txs).await;
