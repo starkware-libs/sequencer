@@ -43,7 +43,6 @@ class PersistentVolumeClaim:
 class Config:
     global_config: Dict[Any, Any]
     config: Dict[Any, Any]
-    mount_path: str
 
     def _merged_config(self) -> Dict[Any, Any]:
         _config = self.global_config.copy()
