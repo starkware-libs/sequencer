@@ -144,7 +144,7 @@ pub fn create_integration_test_tx_generator() -> MultiAccountTransactionGenerato
         FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm)),
         FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0),
     ] {
-        tx_generator.register_account_for_flow_test(account);
+        tx_generator.register_account(account);
     }
     tx_generator
 }
