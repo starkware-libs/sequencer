@@ -149,11 +149,11 @@ pub const MAX_L1_DATA_GAS_PRICE: NonzeroGasPrice = DEFAULT_STRK_L1_DATA_GAS_PRIC
 pub const DEFAULT_ETH_L1_GAS_PRICE: NonzeroGasPrice =
     NonzeroGasPrice::new_unchecked(GasPrice(100 * u128::pow(10, 9))); // Given in units of Wei.
 pub const DEFAULT_STRK_L1_GAS_PRICE: NonzeroGasPrice =
-    NonzeroGasPrice::new_unchecked(GasPrice(100 * u128::pow(10, 9))); // Given in units of STRK.
+    NonzeroGasPrice::new_unchecked(GasPrice(100 * u128::pow(10, 9))); // Given in units of Fri.
 pub const DEFAULT_ETH_L1_DATA_GAS_PRICE: NonzeroGasPrice =
     NonzeroGasPrice::new_unchecked(GasPrice(u128::pow(10, 6))); // Given in units of Wei.
 pub const DEFAULT_STRK_L1_DATA_GAS_PRICE: NonzeroGasPrice =
-    NonzeroGasPrice::new_unchecked(GasPrice(u128::pow(10, 9))); // Given in units of STRK.
+    NonzeroGasPrice::new_unchecked(GasPrice(u128::pow(10, 9))); // Given in units of Fri.
 pub const DEFAULT_STRK_L2_GAS_PRICE: NonzeroGasPrice =
     NonzeroGasPrice::new_unchecked(GasPrice(u128::pow(10, 9)));
 
