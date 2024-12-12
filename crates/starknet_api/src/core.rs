@@ -121,6 +121,10 @@ impl ContractAddress {
 
         Err(StarknetApiError::OutOfRange { string: format!("[0x2, {})", l2_address_upper_bound) })
     }
+
+    pub const fn new(val: Felt) -> Self {
+        Self(PatriciaKey(val))
+    }
 }
 
 impl From<ContractAddress> for Felt {
@@ -356,6 +360,10 @@ pub const PATRICIA_KEY_UPPER_BOUND: &str =
 impl PatriciaKey {
     pub fn key(&self) -> &StarkHash {
         &self.0
+    }
+
+    pub const fn new_unchecked(val: StarkHash) -> Self {
+        Self(val)
     }
 }
 
