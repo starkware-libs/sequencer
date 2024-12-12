@@ -114,15 +114,26 @@ pub fn execute_entry_point_call(
 ) -> EntryPointExecutionResult<CallInfo> {
     match compiled_class {
         RunnableCompiledClass::V0(compiled_class) => {
-            deprecated_entry_point_execution::execute_entry_point_call(
+            let pre_time = std::time::Instant::now();
+            let mut result = deprecated_entry_point_execution::execute_entry_point_call(
                 call,
                 compiled_class,
                 state,
                 context,
-            )
+            )?;
+            result.time = pre_time.elapsed();
+            Ok(result)
         }
         RunnableCompiledClass::V1(compiled_class) => {
-            entry_point_execution::execute_entry_point_call(call, compiled_class, state, context)
+            let pre_time = std::time::Instant::now();
+            let mut result = entry_point_execution::execute_entry_point_call(
+                call,
+                compiled_class,
+                state,
+                context,
+            )?;
+            result.time = pre_time.elapsed();
+            Ok(result)
         }
         #[cfg(feature = "cairo_native")]
         RunnableCompiledClass::V1Native(compiled_class) => {
@@ -136,12 +147,15 @@ pub fn execute_entry_point_call(
             //         context,
             //     )
             // } else {
-            native_entry_point_execution::execute_entry_point_call(
+            let pre_time = std::time::Instant::now();
+            let mut result = native_entry_point_execution::execute_entry_point_call(
                 call,
                 compiled_class,
                 state,
                 context,
-            )
+            )?;
+            result.time = pre_time.elapsed();
+            Ok(result)
             // }
         }
     }
