@@ -10497,12 +10497,17 @@ name = "starknet_l1_provider"
 version = "0.0.0"
 dependencies = [
  "assert_matches",
+ "async-trait",
  "indexmap 2.6.0",
  "papyrus_base_layer",
  "pretty_assertions",
+ "serde",
  "starknet_api",
  "starknet_l1_provider_types",
+ "starknet_sequencer_infra",
  "thiserror",
+ "tracing",
+ "validator",
 ]
 
 [[package]]

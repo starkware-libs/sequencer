@@ -5,12 +5,20 @@ edition.workspace = true
 repository.workspace = true
 license.workspace = true
 
+[features]
+testing = []
+
 [dependencies]
+async-trait.workspace = true
 indexmap.workspace = true
 papyrus_base_layer.workspace = true
+serde.workspace = true
 starknet_api.workspace = true
 starknet_l1_provider_types.workspace = true
+starknet_sequencer_infra.workspace = true
 thiserror.workspace = true
+tracing.workspace = true
+validator.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true
