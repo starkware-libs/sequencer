@@ -5,9 +5,21 @@ edition.workspace = true
 repository.workspace = true
 license.workspace = true
 
+[features]
+testing = ["mockall"]
+
 [dependencies]
+async-trait.workspace = true
+mockall = { workspace = true, optional = true }
+papyrus_proc_macros.workspace = true
 serde.workspace = true
+starknet_api.workspace = true
+starknet_sequencer_infra.workspace = true
 thiserror.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+mockall.workspace = true
 
 [lints]
 workspace = true
