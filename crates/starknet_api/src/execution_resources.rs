@@ -7,12 +7,18 @@ use strum_macros::EnumIter;
 use crate::block::{GasPrice, GasPriceVector, NonzeroGasPrice};
 use crate::transaction::fields::{Fee, Resource};
 
-#[cfg_attr(any(test, feature = "testing"), derive(derive_more::Sum, derive_more::Div))]
+#[cfg_attr(
+    any(test, feature = "testing"),
+    derive(
+        derive_more::Sum,
+        derive_more::Add,
+        derive_more::AddAssign,
+        derive_more::Sub,
+        derive_more::Div
+    )
+)]
 #[derive(
     derive_more::Display,
-    derive_more::Sub,
-    derive_more::Add,
-    derive_more::AddAssign,
     Clone,
     Copy,
     Debug,
