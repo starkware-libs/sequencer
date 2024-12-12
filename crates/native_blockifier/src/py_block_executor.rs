@@ -13,7 +13,6 @@ use blockifier::fee::receipt::TransactionReceipt;
 use blockifier::state::global_cache::GlobalContractCache;
 use blockifier::transaction::objects::{ExecutionResourcesTraits, TransactionExecutionInfo};
 use blockifier::transaction::transaction_execution::Transaction;
-use blockifier::utils::usize_from_u64;
 use blockifier::versioned_constants::VersionedConstants;
 use papyrus_state_reader::papyrus_state::PapyrusReader;
 use pyo3::prelude::*;
@@ -91,11 +90,10 @@ impl ThinTransactionExecutionInfo {
     }
 
     pub fn receipt_to_resources_mapping(receipt: &TransactionReceipt) -> ResourcesMapping {
-        let GasVector { l1_gas, l1_data_gas, l2_gas } = receipt.gas;
         let vm_resources = &receipt.resources.computation.vm_resources;
         let mut resources = HashMap::from([(
             abi_constants::N_STEPS_RESOURCE.to_string(),
-            vm_resources.total_n_steps(),
+            vm_resources.total_n_steps() + receipt.resources.computation.n_reverted_steps,
         )]);
         resources.extend(
             vm_resources
@@ -103,26 +101,6 @@ impl ThinTransactionExecutionInfo {
                 .iter()
                 .map(|(builtin, value)| (builtin.to_str_with_suffix().to_string(), *value)),
         );
-        // TODO(Yoni) remove these since we pass the gas vector in separate.
-        resources.extend(HashMap::from([
-            (
-                abi_constants::L1_GAS_USAGE.to_string(),
-                usize_from_u64(l1_gas.0)
-                    .expect("This conversion should not fail as the value is a converted usize."),
-            ),
-            (
-                abi_constants::BLOB_GAS_USAGE.to_string(),
-                usize_from_u64(l1_data_gas.0)
-                    .expect("This conversion should not fail as the value is a converted usize."),
-            ),
-            (
-                abi_constants::L2_GAS_USAGE.to_string(),
-                usize_from_u64(l2_gas.0)
-                    .expect("This conversion should not fail as the value is a converted usize."),
-            ),
-        ]));
-        *resources.get_mut(abi_constants::N_STEPS_RESOURCE).unwrap_or(&mut 0) +=
-            receipt.resources.computation.n_reverted_steps;
 
         ResourcesMapping(resources)
     }
