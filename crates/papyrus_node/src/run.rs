@@ -7,6 +7,7 @@ use std::process::exit;
 use std::sync::Arc;
 use std::time::Duration;
 
+use futures::StreamExt;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use papyrus_common::metrics::COLLECT_PROFILING_METRICS;
 use papyrus_common::pending_classes::PendingClasses;
@@ -304,6 +305,7 @@ async fn spawn_sync_client(
                 storage_reader,
                 storage_writer,
                 p2p_sync_client_channels,
+                futures::stream::pending().boxed(),
             );
             tokio::spawn(async move { Ok(p2p_sync.run().await?) })
         }

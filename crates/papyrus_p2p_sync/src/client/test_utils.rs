@@ -112,6 +112,7 @@ pub fn setup() -> TestArgs {
         storage_reader.clone(),
         storage_writer,
         p2p_sync_channels,
+        futures::stream::pending().boxed(),
     );
     TestArgs {
         p2p_sync,
@@ -194,6 +195,7 @@ pub async fn run_test(max_query_lengths: HashMap<DataType, u64>, actions: Vec<Ac
         storage_reader.clone(),
         storage_writer,
         p2p_sync_channels,
+        futures::stream::pending().boxed(),
     );
 
     let mut headers_current_query_responses_manager = None;
