@@ -17,7 +17,7 @@ rand.workspace = true
 reqwest.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
-starknet_api.workspace = true
+starknet_api = { workspace = true, features = ["testing"] }
 tokio.workspace = true
 
 [dev-dependencies]
