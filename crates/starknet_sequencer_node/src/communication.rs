@@ -1,5 +1,6 @@
 use starknet_batcher_types::communication::BatcherRequestAndResponseSender;
 use starknet_gateway_types::communication::GatewayRequestAndResponseSender;
+use starknet_l1_provider::communication::L1ProviderRequestAndResponseSender;
 use starknet_mempool_p2p_types::communication::MempoolP2pPropagatorRequestAndResponseSender;
 use starknet_mempool_types::communication::MempoolRequestAndResponseSender;
 use starknet_sequencer_infra::component_definitions::ComponentCommunication;
@@ -9,6 +10,7 @@ use tokio::sync::mpsc::{channel, Receiver, Sender};
 pub struct SequencerNodeCommunication {
     batcher_channel: ComponentCommunication<BatcherRequestAndResponseSender>,
     gateway_channel: ComponentCommunication<GatewayRequestAndResponseSender>,
+    l1_provider_channel: ComponentCommunication<L1ProviderRequestAndResponseSender>,
     mempool_channel: ComponentCommunication<MempoolRequestAndResponseSender>,
     mempool_p2p_propagator_channel:
         ComponentCommunication<MempoolP2pPropagatorRequestAndResponseSender>,
@@ -30,6 +32,14 @@ impl SequencerNodeCommunication {
 
     pub fn take_gateway_rx(&mut self) -> Receiver<GatewayRequestAndResponseSender> {
         self.gateway_channel.take_rx()
+    }
+
+    pub fn take_l1_provider_tx(&mut self) -> Sender<L1ProviderRequestAndResponseSender> {
+        self.l1_provider_channel.take_tx()
+    }
+
+    pub fn take_l1_provider_rx(&mut self) -> Receiver<L1ProviderRequestAndResponseSender> {
+        self.l1_provider_channel.take_rx()
     }
 
     pub fn take_mempool_p2p_propagator_tx(
@@ -68,6 +78,9 @@ pub fn create_node_channels() -> SequencerNodeCommunication {
     let (tx_gateway, rx_gateway) =
         channel::<GatewayRequestAndResponseSender>(DEFAULT_INVOCATIONS_QUEUE_SIZE);
 
+    let (tx_l1_provider, rx_l1_provider) =
+        channel::<L1ProviderRequestAndResponseSender>(DEFAULT_INVOCATIONS_QUEUE_SIZE);
+
     let (tx_mempool, rx_mempool) =
         channel::<MempoolRequestAndResponseSender>(DEFAULT_INVOCATIONS_QUEUE_SIZE);
 
@@ -80,6 +93,10 @@ pub fn create_node_channels() -> SequencerNodeCommunication {
     SequencerNodeCommunication {
         batcher_channel: ComponentCommunication::new(Some(tx_batcher), Some(rx_batcher)),
         gateway_channel: ComponentCommunication::new(Some(tx_gateway), Some(rx_gateway)),
+        l1_provider_channel: ComponentCommunication::new(
+            Some(tx_l1_provider),
+            Some(rx_l1_provider),
+        ),
         mempool_channel: ComponentCommunication::new(Some(tx_mempool), Some(rx_mempool)),
         mempool_p2p_propagator_channel: ComponentCommunication::new(
             Some(tx_mempool_p2p_propagator),
