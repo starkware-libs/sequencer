@@ -1,4 +1,5 @@
 use glob::{glob, Paths};
+use infra_utils::compile_time_cargo_manifest_dir;
 use pretty_assertions::assert_eq;
 
 use super::*;
