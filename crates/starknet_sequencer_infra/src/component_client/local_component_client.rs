@@ -1,6 +1,5 @@
-use std::any::type_name;
-
 use async_trait::async_trait;
+use infra_utils::type_name::short_type_name;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use tokio::sync::mpsc::{channel, Sender};
@@ -103,7 +102,7 @@ where
     Response: Send + Sync,
 {
     fn drop(&mut self) {
-        info!("Dropping LocalComponentClient {}.", type_name::<Self>());
+        info!("Dropping local client {}.", short_type_name::<Self>());
     }
 }
 

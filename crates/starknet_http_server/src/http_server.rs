@@ -1,10 +1,10 @@
-use std::any::type_name;
 use std::clone::Clone;
 use std::net::SocketAddr;
 
 use axum::extract::State;
 use axum::routing::post;
 use axum::{async_trait, Json, Router};
+use infra_utils::type_name::short_type_name;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use starknet_gateway_types::communication::SharedGatewayClient;
@@ -89,7 +89,7 @@ pub fn create_http_server(
 #[async_trait]
 impl ComponentStarter for HttpServer {
     async fn start(&mut self) -> Result<(), ComponentError> {
-        info!("Starting component {}.", type_name::<Self>());
+        info!("Starting component {}.", short_type_name::<Self>());
         self.run().await.map_err(|_| ComponentError::InternalComponentError)
     }
 }
