@@ -10379,6 +10379,7 @@ version = "0.0.0"
 dependencies = [
  "async-trait",
  "futures",
+ "infra_utils",
  "papyrus_config",
  "papyrus_consensus",
  "papyrus_consensus_orchestrator",
@@ -10456,6 +10457,7 @@ version = "0.0.0"
 dependencies = [
  "axum",
  "hyper 0.14.30",
+ "infra_utils",
  "papyrus_config",
  "reqwest 0.11.27",
  "serde",
@@ -10667,6 +10669,7 @@ dependencies = [
  "assert_matches",
  "async-trait",
  "hyper 0.14.30",
+ "infra_utils",
  "papyrus_config",
  "pretty_assertions",
  "rstest",
