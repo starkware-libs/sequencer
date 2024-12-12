@@ -1,4 +1,7 @@
-//! Consensus manager, see Manager struct.
+//! The Manager is responsible for running an instance of SingleHeightConsensus for each height.
+//! Once a decision is reached, it reports the result to the context and proceeds to the next
+//! height. Additionally, the Manager monitors for any heights greater than or equal to the current
+//! height that have been reached through sync and updates the current height accordingly.
 
 #[cfg(test)]
 #[path = "manager_test.rs"]

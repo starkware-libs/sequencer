@@ -1,3 +1,10 @@
+//! This module defines the interface and types related to the Consensus Context, which is
+//! responsible for managing the interaction between the consensus algorithm and the node. It
+//! includes functions for building, validating, and broadcasting proposals, managing validator
+//! information, and handling decisions related to consensus. The context facilitates non-blocking
+//! operations to ensure that the consensus algorithm can continue working while waiting for
+//! external operations.
+
 use std::fmt::Debug;
 use std::time::Duration;
 
