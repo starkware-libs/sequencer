@@ -1,3 +1,5 @@
+//! Types for interfacing between consensus and the node.
+
 use std::fmt::Debug;
 use std::time::Duration;
 

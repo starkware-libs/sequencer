@@ -1,4 +1,9 @@
-//! Consensus manager, see Manager struct.
+//! Top level of consensus, used to run multiple heights of consensus.
+//!
+//! [`run_consensus`] - This is the primary entrypoint for running the consensus component.
+//!
+//! [`MultiHeightManager`] - Run consensus repeatedly across different heights
+//! ([`run_height`](MultiHeightManager::run_height)).
 
 #[cfg(test)]
 #[path = "manager_test.rs"]
@@ -28,7 +33,26 @@ use crate::types::{
     ValidatorId,
 };
 
+/// Run consensus indefinitely.
+///
+/// If a decision is reached via consensus the context is updated. If a decision is learned via the
+/// sync protocol, consensus silently moves on to the next height.
+///
+/// Inputs:
+/// - `context`: The API for consensus to reach out to the rest of the node.
+/// - `start_active_height`: The height at which the node may participate in consensus (if it is a
+///   validator).
+/// - `start_observe_height`: The height at which the node begins to run consensus.
+/// - `validator_id`: The ID of this node.
+/// - `consensus_delay`: The delay before starting consensus. There to allow the network to connect
+///   to peers.
+/// - `timeouts`: The timeouts for the consensus algorithm.
+/// - `inbound_vote_receiver`: The channels to receive votes from the network. These are self
+///   contained messages.
+/// - `inbound_proposal_receiver`: The channel to receive proposals from the network. Proposals are
+///   represented as streams (ProposalInit, Content.*, ProposalFin).
 // TODO(dvir): add test for this.
+// TODO(Asmaa): Update documentation when we update for the real sync.
 #[instrument(skip_all, level = "info")]
 #[allow(missing_docs)]
 #[allow(clippy::too_many_arguments)]
@@ -39,8 +63,8 @@ pub async fn run_consensus<ContextT, SyncReceiverT>(
     validator_id: ValidatorId,
     consensus_delay: Duration,
     timeouts: TimeoutsConfig,
-    mut broadcast_channels: BroadcastConsensusMessageChannel,
-    mut inbound_proposal_receiver: mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
+    mut vote_receiver: BroadcastConsensusMessageChannel,
+    mut proposal_receiver: mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
     mut sync_receiver: SyncReceiverT,
 ) -> Result<(), ConsensusError>
 where
@@ -71,8 +95,8 @@ where
             &mut context,
             current_height,
             is_observer,
-            &mut broadcast_channels,
-            &mut inbound_proposal_receiver,
+            &mut vote_receiver,
+            &mut proposal_receiver,
         );
 
         // `run_height` is not cancel safe. Our implementation doesn't enable us to start and stop
@@ -105,7 +129,7 @@ struct MultiHeightManager<ContextT: ConsensusContext> {
 
 impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
     /// Create a new consensus manager.
-    pub fn new(validator_id: ValidatorId, timeouts: TimeoutsConfig) -> Self {
+    pub(crate) fn new(validator_id: ValidatorId, timeouts: TimeoutsConfig) -> Self {
         Self {
             validator_id,
             cached_messages: BTreeMap::new(),
@@ -116,10 +140,20 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
 
     /// Run the consensus algorithm for a single height.
     ///
-    /// Assumes that `height` is monotonically increasing across calls for the sake of filtering
-    /// `cached_messaged`.
+    /// A height of consensus ends either when the node learns of a decision, either by consensus
+    /// directly or via the sync protocol.
+    /// - An error implies that consensus cannot continue, not just that the current height failed.
+    ///
+    /// This is the "top level" task of consensus, which is able to multiplex across activities:
+    /// network messages and self generated events.
+    ///
+    /// Assumes that `height` is monotonically increasing across calls.
+    ///
+    /// Inputs - see [`run_consensus`].
+    /// - `is_observer`: Whether the node must observe or if it is allowed to be active (assuming it
+    ///   is in the validator set).
     #[instrument(skip(self, context, broadcast_channels), level = "info")]
-    pub async fn run_height(
+    pub(crate) async fn run_height(
         &mut self,
         context: &mut ContextT,
         height: BlockNumber,
