@@ -19,6 +19,7 @@ use std::time::Duration;
 
 use class::ClassStreamBuilder;
 use futures::channel::mpsc::SendError;
+use futures::stream::BoxStream;
 use futures::Stream;
 use header::HeaderStreamBuilder;
 use papyrus_common::pending_classes::ApiContractClass;
@@ -40,11 +41,13 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ClassHash;
 use starknet_api::transaction::FullTransaction;
+use starknet_state_sync_types::state_sync_types::SyncBlock;
 use state_diff::StateDiffStreamBuilder;
 use stream_builder::{DataStreamBuilder, DataStreamResult};
 use tokio_stream::StreamExt;
 use tracing::instrument;
 use transaction::TransactionStreamFactory;
+
 const STEP: u64 = 1;
 const ALLOWED_SIGNATURES_LENGTH: usize = 1;
 
@@ -226,6 +229,8 @@ pub struct P2PSyncClient {
     storage_reader: StorageReader,
     storage_writer: StorageWriter,
     p2p_sync_channels: P2PSyncClientChannels,
+    #[allow(dead_code)]
+    internal_blocks_receiver: BoxStream<'static, (BlockNumber, SyncBlock)>,
 }
 
 impl P2PSyncClient {
@@ -234,8 +239,9 @@ impl P2PSyncClient {
         storage_reader: StorageReader,
         storage_writer: StorageWriter,
         p2p_sync_channels: P2PSyncClientChannels,
+        internal_blocks_receiver: BoxStream<'static, (BlockNumber, SyncBlock)>,
     ) -> Self {
-        Self { config, storage_reader, storage_writer, p2p_sync_channels }
+        Self { config, storage_reader, storage_writer, p2p_sync_channels, internal_blocks_receiver }
     }
 
     #[instrument(skip(self), level = "debug", err)]
