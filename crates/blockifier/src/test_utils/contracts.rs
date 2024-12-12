@@ -393,7 +393,14 @@ impl FeatureContract {
             }
             #[cfg(feature = "cairo_native")]
             RunnableCompiledClass::V1Native(_) => {
-                panic!("Not implemented for cairo native contracts")
+                #[cfg(test)]
+                {
+                    EntryPointOffset(10000)
+                }
+                #[cfg(not(test))]
+                {
+                    panic!("Not implemented for cairo native contracts")
+                }
             }
         }
     }
