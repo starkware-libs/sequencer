@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 use std::{env, fs};
 
+use tracing::error;
+
 #[cfg(test)]
 #[path = "path_test.rs"]
 mod path_test;
@@ -21,9 +23,14 @@ macro_rules! compile_time_cargo_manifest_dir {
 /// # Returns
 /// * A `PathBuf` representing the resolved path starting from the project root.
 pub fn resolve_project_relative_path(relative_path: &str) -> Result<PathBuf, std::io::Error> {
-    let base_dir = path_of_project_root();
-    let path = base_dir.join(relative_path);
-    let absolute_path = fs::canonicalize(path)?;
+    let project_root_path = path_of_project_root();
+    let path = project_root_path.join(relative_path);
+    let absolute_path = fs::canonicalize(path).inspect_err(|err| {
+        error!(
+            "Error: {:?}, project root path {:?}, relative path {:?}",
+            err, project_root_path, relative_path
+        );
+    })?;
 
     Ok(absolute_path)
 }
