@@ -98,7 +98,7 @@ pub(crate) fn get_test_rpc_server_and_storage_writer_from_params<T: JsonRpcServe
 // `params_obj` should be serialized to the format that JSON-RPC expects, which is either an array
 // of parameters or a map from parameter name to parameter.
 //
-// For example (the parameteres of getTransactionByBlockIdAndIndex"):
+// For example (the parameters of getTransactionByBlockIdAndIndex"):
 // ["latest", 5] or {"block_id": "latest", "index": 5}.
 pub(crate) async fn raw_call<R: JsonRpcServerTrait, S: Serialize, T: for<'a> Deserialize<'a>>(
     module: &RpcModule<R>,
