@@ -18,7 +18,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  build-and-run-run-sequencer-integration-tests:
+  build-and-run-sequencer-integration-tests:
     runs-on: starkware-ubuntu-latest-large
     steps:
       - uses: actions/checkout@v4
