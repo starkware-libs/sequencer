@@ -45,7 +45,8 @@ function install_pypy() {
 }
 
 function install_rust() {
-    curl https://sh.rustup.rs -sSf | sh -s -- -y
+    # curl https://sh.rustup.rs -sSf | sh -s -- -y
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 }
 
 cd "$(dirname "$0")"
