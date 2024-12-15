@@ -127,7 +127,7 @@ use starknet_api::block::{BlockHash, BlockNumber, BlockSignature, StarknetVersio
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{SierraContractClass, StateNumber, StorageKey, ThinStateDiff};
-use starknet_api::transaction::{Transaction, TransactionHash, TransactionOutput};
+use starknet_api::transaction::{Event, Transaction, TransactionHash, TransactionOutput};
 use starknet_types_core::felt::Felt;
 use tracing::{debug, info, warn};
 use validator::Validate;
@@ -676,7 +676,7 @@ struct FileHandlers<Mode: TransactionKind> {
     contract_class: FileHandler<VersionZeroWrapper<SierraContractClass>, Mode>,
     casm: FileHandler<VersionZeroWrapper<CasmContractClass>, Mode>,
     deprecated_contract_class: FileHandler<VersionZeroWrapper<DeprecatedContractClass>, Mode>,
-    transaction_output: FileHandler<VersionZeroWrapper<TransactionOutput>, Mode>,
+    transaction_output: FileHandler<VersionZeroWrapper<(TransactionOutput, Vec<Event>)>, Mode>,
     transaction: FileHandler<VersionZeroWrapper<Transaction>, Mode>,
 }
 
@@ -706,8 +706,12 @@ impl FileHandlers<RW> {
     }
 
     // Appends a thin transaction output to the corresponding file and returns its location.
-    fn append_transaction_output(&self, transaction_output: &TransactionOutput) -> LocationInFile {
-        self.clone().transaction_output.append(transaction_output)
+    fn append_transaction_output(
+        &self,
+        transaction_output: &TransactionOutput,
+        events: Vec<Event>,
+    ) -> LocationInFile {
+        self.clone().transaction_output.append(&(transaction_output.clone(), events))
     }
 
     // Appends a transaction to the corresponding file and returns its location.
@@ -785,9 +789,12 @@ impl<Mode: TransactionKind> FileHandlers<Mode> {
         &self,
         location: LocationInFile,
     ) -> StorageResult<TransactionOutput> {
-        self.transaction_output.get(location)?.ok_or(StorageError::DBInconsistency {
+        match self.transaction_output.get(location)?.ok_or(StorageError::DBInconsistency {
             msg: format!("TransactionOutput at location {:?} not found.", location),
-        })
+        }) {
+            Ok((transaction_output, _)) => Ok(transaction_output),
+            Err(err) => Err(err),
+        }
     }
 
     // Returns the transaction at the given location or an error in case it doesn't exist.
@@ -795,6 +802,16 @@ impl<Mode: TransactionKind> FileHandlers<Mode> {
         self.transaction.get(location)?.ok_or(StorageError::DBInconsistency {
             msg: format!("Transaction at location {:?} not found.", location),
         })
+    }
+
+    // Returns the events vector at the given location or an error in case it doesn't exist.
+    fn get_events_unchecked(&self, location: LocationInFile) -> StorageResult<Vec<Event>> {
+        match self.transaction_output.get(location)?.ok_or(StorageError::DBInconsistency {
+            msg: format!("Events at location {:?} not found.", location),
+        }) {
+            Ok((_, events)) => Ok(events),
+            Err(err) => Err(err),
+        }
     }
 }
 

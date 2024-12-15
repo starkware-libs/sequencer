@@ -791,14 +791,14 @@ impl TransactionReceipt {
             TransactionType::Declare => TransactionOutput::Declare(DeclareTransactionOutput {
                 actual_fee: self.actual_fee,
                 messages_sent,
-                events: self.events,
+                // events: self.events,
                 execution_status,
                 execution_resources: self.execution_resources.into(),
             }),
             TransactionType::Deploy => TransactionOutput::Deploy(DeployTransactionOutput {
                 actual_fee: self.actual_fee,
                 messages_sent,
-                events: self.events,
+                // events: self.events,
                 contract_address: contract_address
                     .expect("Deploy transaction must have a contract address."),
                 execution_status,
@@ -808,7 +808,7 @@ impl TransactionReceipt {
                 TransactionOutput::DeployAccount(DeployAccountTransactionOutput {
                     actual_fee: self.actual_fee,
                     messages_sent,
-                    events: self.events,
+                    // events: self.events,
                     contract_address: contract_address
                         .expect("Deploy account transaction must have a contract address."),
                     execution_status,
@@ -818,7 +818,7 @@ impl TransactionReceipt {
             TransactionType::InvokeFunction => TransactionOutput::Invoke(InvokeTransactionOutput {
                 actual_fee: self.actual_fee,
                 messages_sent,
-                events: self.events,
+                // events: self.events,
                 execution_status,
                 execution_resources: self.execution_resources.into(),
             }),
@@ -826,7 +826,7 @@ impl TransactionReceipt {
                 TransactionOutput::L1Handler(L1HandlerTransactionOutput {
                     actual_fee: self.actual_fee,
                     messages_sent,
-                    events: self.events,
+                    // events: self.events,
                     execution_status,
                     execution_resources: self.execution_resources.into(),
                 })

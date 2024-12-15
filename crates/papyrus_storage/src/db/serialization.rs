@@ -2,9 +2,11 @@ use std::fmt::Debug;
 use std::io::Write;
 use std::marker::PhantomData;
 
+use starknet_api::transaction::{Event, TransactionOutput};
 use tracing::{debug, error};
 
 use crate::db::DbError;
+use crate::serialization::serializers::auto_storage_serde;
 
 /// Trait for serializing and deserializing values.
 pub(crate) trait StorageSerdeEx: StorageSerde {
@@ -102,6 +104,10 @@ impl<T: StorageSerde + Debug> ValueSerde for VersionZeroWrapper<T> {
         }
         Some(res)
     }
+}
+
+auto_storage_serde! {
+    (TransactionOutput, Vec<Event>);
 }
 
 /// Trait for migrating values from older versions.

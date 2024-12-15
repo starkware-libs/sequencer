@@ -50,6 +50,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockBody, BlockNumber};
 use starknet_api::core::ContractAddress;
 use starknet_api::transaction::{
+    Event,
     Transaction,
     TransactionHash,
     TransactionOffsetInBlock,
@@ -339,6 +340,32 @@ impl<'env, Mode: TransactionKind> StorageTxn<'env, Mode> {
             |tx_metadata, _file_handlers| Ok(tx_metadata.tx_hash),
         )
     }
+
+    fn get_block_events(
+        &self,
+        block_number: BlockNumber,
+    ) -> StorageResult<Option<Vec<(Vec<Event>, TransactionIndex)>>> {
+        if self.get_body_marker()? <= block_number {
+            return Ok(None);
+        }
+        let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
+        let mut cursor = transaction_metadata_table.cursor(&self.txn)?;
+        let mut current =
+            cursor.lower_bound(&TransactionIndex(block_number, TransactionOffsetInBlock(0)))?;
+
+        let mut res: Vec<(Vec<Event>, TransactionIndex)> = Vec::new();
+        while let Some((TransactionIndex(current_block_number, offset_in_block), tx_metadata)) =
+            current
+        {
+            if current_block_number != block_number {
+                break;
+            }
+            let events = self.file_handlers.get_events_unchecked(tx_metadata.tx_output_location)?;
+            res.push((events, TransactionIndex(block_number, offset_in_block)));
+            current = cursor.next()?;
+        }
+        Ok(Some(res))
+    }
 }
 
 impl BodyStorageWriter for StorageTxn<'_, RW> {
@@ -397,7 +424,7 @@ impl BodyStorageWriter for StorageTxn<'_, RW> {
             let transaction_metadata_table = self.open_table(&self.tables.transaction_metadata)?;
             let transaction_hash_to_idx_table =
                 self.open_table(&self.tables.transaction_hash_to_idx)?;
-            let events_table = self.open_table(&self.tables.events)?;
+            // let events_table = self.open_table(&self.tables.events)?;
 
             let transactions = self
                 .get_block_transactions(block_number)?
@@ -410,17 +437,30 @@ impl BodyStorageWriter for StorageTxn<'_, RW> {
                 .unwrap_or_else(|| panic!("Missing transaction hashes for block {block_number}."));
 
             // Delete the transactions data.
-            for (offset, (tx_hash, tx_output)) in
+            for (offset, (tx_hash, _tx_output)) in
                 transaction_hashes.iter().zip(transaction_outputs.iter()).enumerate()
             {
                 let tx_index = TransactionIndex(block_number, TransactionOffsetInBlock(offset));
 
-                for event in tx_output.events().iter() {
-                    events_table.delete(&self.txn, &(event.from_address, tx_index))?;
-                }
+                // for event in tx_output.events().iter() {
+                //     events_table.delete(&self.txn, &(event.from_address, tx_index))?;
+                // }
                 transaction_hash_to_idx_table.delete(&self.txn, tx_hash)?;
                 transaction_metadata_table.delete(&self.txn, &tx_index)?;
             }
+
+            // Delete the events data.
+            let events_table = self.open_table(&self.tables.events)?;
+            let events = self.get_block_events(block_number)?.unwrap_or_default();
+            for (tx_events, tx_index) in events {
+                for event in tx_events {
+                    events_table.delete(
+                        &self.txn,
+                        &(event.from_address, TransactionIndex(block_number, tx_index.1)),
+                    )?;
+                }
+            }
+
             Some((transactions, transaction_outputs, transaction_hashes))
         };
 
@@ -478,14 +518,14 @@ fn write_transactions<'env>(
 
 // This function assumes that the `transaction_index` is the last index used to call it.
 fn write_events<'env>(
-    tx_output: &TransactionOutput,
+    events: Vec<Event>,
     txn: &DbTransaction<'env, RW>,
     events_table: &'env EventsTable<'env>,
     transaction_index: TransactionIndex,
 ) -> StorageResult<()> {
     let mut contract_addresses_set = HashSet::new();
 
-    for event in tx_output.events().iter() {
+    for event in events {
         contract_addresses_set.insert(event.from_address);
     }
 
