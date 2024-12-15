@@ -35,13 +35,13 @@ mod tests {
     }
 
     // Check if two vectors are the same, regardless of ordering
-    fn do_vecs_match_unordered<T: PartialEq + Ord + Clone>(a: &Vec<T>, b: &Vec<T>) -> bool
+    fn do_vecs_match_unordered<T: PartialEq + Ord + Clone>(a: &[T], b: &[T]) -> bool
     where
         T: std::hash::Hash + Eq,
     {
-        let mut a = a.clone();
+        let mut a = a.to_owned();
         a.sort();
-        let mut b = b.clone();
+        let mut b = b.to_owned();
         b.sort();
         a == b
     }
