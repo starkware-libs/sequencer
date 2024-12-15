@@ -119,24 +119,3 @@ impl StateSyncClient for RemoteStateSyncClient {
         )
     }
 }
-
-// TODO(shahak): Remove this once we connect state sync to the node.
-pub struct EmptyStateSyncClient;
-
-#[async_trait]
-impl StateSyncClient for EmptyStateSyncClient {
-    async fn get_block(
-        &self,
-        _block_number: BlockNumber,
-    ) -> StateSyncClientResult<Option<SyncBlock>> {
-        Ok(None)
-    }
-
-    async fn add_new_block(
-        &self,
-        _block_number: BlockNumber,
-        _sync_block: SyncBlock,
-    ) -> StateSyncClientResult<()> {
-        Ok(())
-    }
-}
