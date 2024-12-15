@@ -246,6 +246,8 @@ impl Default for PyContractClassManagerConfig {
     }
 }
 
+
+
 impl From<PyContractClassManagerConfig> for ContractClassManagerConfig {
     fn from(py_contract_class_manager_config: PyContractClassManagerConfig) -> Self {
         ContractClassManagerConfig {
