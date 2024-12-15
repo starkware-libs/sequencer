@@ -19,6 +19,7 @@ use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContract
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::{TEST_ERC20_CONTRACT_ADDRESS, TEST_ERC20_CONTRACT_ADDRESS2};
 
+use crate::blockifier::config::{CairoNativeRunConfig, ContractClassManagerConfig};
 use crate::bouncer::{BouncerConfig, BouncerWeights, BuiltinCount};
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
@@ -33,6 +34,7 @@ use crate::execution::entry_point::{
 };
 #[cfg(feature = "cairo_native")]
 use crate::execution::native::contract_class::NativeCompiledClassV1;
+use crate::state::contract_class_manager::ContractClassManager;
 use crate::state::state_api::State;
 use crate::test_utils::{get_raw_contract_class, update_json_value};
 use crate::transaction::objects::{
@@ -182,6 +184,15 @@ impl CallExecution {
     }
 }
 
+impl ContractClassManager {
+    pub fn create_for_testing(native_config: CairoNativeRunConfig) -> Self {
+        let config = ContractClassManagerConfig {
+            cairo_native_run_config: native_config,
+            ..Default::default()
+        };
+        ContractClassManager::start(config)
+    }
+}
 // Contract loaders.
 
 // TODO(Noa): Consider using PathBuf.

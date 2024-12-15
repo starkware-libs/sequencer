@@ -31,6 +31,7 @@ impl CachedCasm {
 
 #[cfg(feature = "cairo_native")]
 #[derive(Debug, Clone)]
+#[cfg_attr(test, derive(PartialEq))]
 pub enum CachedCairoNative {
     Compiled(NativeCompiledClassV1),
     CompilationFailed,
