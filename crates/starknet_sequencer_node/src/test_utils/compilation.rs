@@ -65,12 +65,8 @@ pub async fn spawn_run_node(node_config_path: PathBuf) -> JoinHandle<()> {
 
 async fn spawn_node_child_task(node_config_path: PathBuf) -> Child {
     // TODO(Tsabary): Capture output to a log file, and present it in case of a failure.
-    info!("Compiling the node.");
-    compile_node_result().await.expect("Failed to compile the sequencer node.");
-    let node_executable = resolve_project_relative_path(NODE_EXECUTABLE_PATH)
-        .expect("Node executable should be available")
-        .to_string_lossy()
-        .to_string();
+    info!("Getting the node executable.");
+    let node_executable = get_node_executable_path();
 
     info!("Running the node from: {}", node_executable);
     create_shell_command(node_executable.as_str())
@@ -81,4 +77,19 @@ async fn spawn_node_child_task(node_config_path: PathBuf) -> Child {
         .kill_on_drop(true) // Required for stopping the node when the handle is dropped.
         .spawn()
         .expect("Failed to spawn the sequencer node.")
+}
+
+pub fn get_node_executable_path() -> String {
+    match resolve_project_relative_path(NODE_EXECUTABLE_PATH)
+        .map(|path| path.to_string_lossy().to_string())
+    {
+        Ok(path) => path,
+        Err(_) => {
+            error!(
+                "Sequencer node binary is not present. Please compile it using 'cargo build --bin \
+                 starknet_sequencer_node' command."
+            );
+            panic!("Node executable should be available");
+        }
+    }
 }
