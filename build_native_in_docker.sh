@@ -1,5 +1,6 @@
 #!/bin/env bash
 set -e
+set -x
 
 docker_image_name=sequencer-ci
 
