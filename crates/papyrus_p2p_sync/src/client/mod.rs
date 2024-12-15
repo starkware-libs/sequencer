@@ -43,7 +43,7 @@ use starknet_api::transaction::FullTransaction;
 use state_diff::StateDiffStreamBuilder;
 use stream_builder::{DataStreamBuilder, DataStreamResult};
 use tokio_stream::StreamExt;
-use tracing::instrument;
+use tracing::{info, instrument};
 use transaction::TransactionStreamFactory;
 const STEP: u64 = 1;
 const ALLOWED_SIGNATURES_LENGTH: usize = 1;
@@ -240,6 +240,7 @@ impl P2PSyncClient {
 
     #[instrument(skip(self), level = "debug", err)]
     pub async fn run(mut self) -> Result<(), P2PSyncClientError> {
+        info!("Starting P2P sync client");
         let mut data_stream =
             self.p2p_sync_channels.create_stream(self.storage_reader.clone(), self.config);
 

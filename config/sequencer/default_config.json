@@ -972,7 +972,7 @@
   "state_sync_config.network_config.tcp_port": {
     "description": "The port that the node listens on for incoming tcp connections.",
     "privacy": "Public",
-    "value": 10000
+    "value": 12345
   },
   "state_sync_config.p2p_sync_client_config.buffer_size": {
     "description": "Size of the buffer for read from the storage and for incoming responses.",
