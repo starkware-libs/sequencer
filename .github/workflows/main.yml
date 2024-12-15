@@ -35,11 +35,7 @@ jobs:
           # Fetch the entire history. Required to checkout the merge target commit, so the diff can
           # be computed.
           fetch-depth: 0
-      - uses: baptiste0928/cargo-install@v3
-        with:
-          crate: taplo-cli
-          version: '0.9.0'
-          locked: true
+
 
       # Setup pypy and link to the location expected by .cargo/config.toml.
       - uses: actions/setup-python@v5
