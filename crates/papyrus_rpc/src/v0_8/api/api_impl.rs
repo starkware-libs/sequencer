@@ -21,6 +21,7 @@ use papyrus_storage::db::{TransactionKind, RO};
 use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::{StorageError, StorageReader, StorageTxn};
 use starknet_api::block::{BlockHash, BlockHeaderWithoutHash, BlockNumber, BlockStatus};
+use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{
     ChainId,
     ClassHash,
@@ -142,6 +143,7 @@ use crate::{
     get_block_status,
     get_latest_block_number,
     internal_server_error,
+    internal_server_error_with_msg,
     verify_storage_scope,
     ContinuationTokenAsStruct,
     GENESIS_HASH,
@@ -1449,7 +1451,7 @@ impl JsonRpcServer for JsonRpcServerImpl {
         &self,
         block_id: BlockId,
         class_hash: ClassHash,
-    ) -> RpcResult<CompiledContractClass> {
+    ) -> RpcResult<(CompiledContractClass, SierraVersion)> {
         let storage_txn = self.storage_reader.begin_ro_txn().map_err(internal_server_error)?;
         let state_reader = storage_txn.get_state_reader().map_err(internal_server_error)?;
         let block_number = get_accepted_block_number(&storage_txn, block_id)?;
@@ -1462,11 +1464,17 @@ impl JsonRpcServer for JsonRpcServerImpl {
             if class_definition_block_number > block_number {
                 return Err(ErrorObjectOwned::from(CLASS_HASH_NOT_FOUND));
             }
-            let casm = storage_txn
-                .get_casm(&class_hash)
-                .map_err(internal_server_error)?
+            let (option_casm, option_sierra) = storage_txn
+                .get_casm_and_sierra(&class_hash)
+                .map_err(internal_server_error_with_msg)?;
+
+            // Check if both options are `Some`.
+            let (casm, sierra) = option_casm
+                .zip(option_sierra)
                 .ok_or_else(|| ErrorObjectOwned::from(CLASS_HASH_NOT_FOUND))?;
-            return Ok(CompiledContractClass::V1(casm));
+            let sierra_version = SierraVersion::extract_from_program(&sierra.sierra_program)
+                .map_err(internal_server_error_with_msg)?;
+            return Ok((CompiledContractClass::V1(casm), sierra_version));
         }
 
         // Check if this class exists in the Cairo0 classes table.
@@ -1476,7 +1484,10 @@ impl JsonRpcServer for JsonRpcServerImpl {
             .get_deprecated_class_definition_at(state_number, &class_hash)
             .map_err(internal_server_error)?
             .ok_or_else(|| ErrorObjectOwned::from(CLASS_HASH_NOT_FOUND))?;
-        Ok(CompiledContractClass::V0(deprecated_compiled_contract_class))
+        Ok((
+            CompiledContractClass::V0(deprecated_compiled_contract_class),
+            SierraVersion::DEPRECATED,
+        ))
     }
 }
 
