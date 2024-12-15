@@ -13,7 +13,6 @@ use papyrus_network::network_manager::test_utils::{
     create_network_configs_connected_to_broadcast_channels,
 };
 use papyrus_network::network_manager::BroadcastTopicChannels;
-use papyrus_network::NetworkConfig;
 use papyrus_protobuf::consensus::{ProposalPart, StreamMessage};
 use papyrus_storage::StorageConfig;
 use starknet_api::block::BlockNumber;
@@ -37,9 +36,6 @@ use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
 use starknet_sequencer_node::config::test_utils::RequiredParams;
 use starknet_state_sync::config::StateSyncConfig;
 use starknet_types_core::felt::Felt;
-
-// TODO(Tsabary): Get rid of this constant once we have a better way to set the port for testing.
-const STATE_SYNC_NETWORK_CONFIG_TCP_PORT_FOR_TESTING: u16 = 12345;
 
 pub fn create_chain_info() -> ChainInfo {
     let mut chain_info = ChainInfo::create_for_testing();
@@ -284,13 +280,8 @@ pub fn create_state_sync_config(
     state_sync_storage_config: StorageConfig,
     sequencer_index: usize,
 ) -> StateSyncConfig {
-    StateSyncConfig {
-        storage_config: state_sync_storage_config,
-        network_config: NetworkConfig {
-            tcp_port: STATE_SYNC_NETWORK_CONFIG_TCP_PORT_FOR_TESTING
-                + u16::try_from(sequencer_index).unwrap(),
-            ..Default::default()
-        },
-        ..Default::default()
-    }
+    let mut config =
+        StateSyncConfig { storage_config: state_sync_storage_config, ..Default::default() };
+    config.network_config.tcp_port += u16::try_from(sequencer_index).unwrap();
+    config
 }
