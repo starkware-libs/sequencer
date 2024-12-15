@@ -52,10 +52,10 @@ pub async fn compile_node_result() -> Result<(), NodeCompilationError> {
     }
 }
 
-pub async fn spawn_run_node(node_config_path: PathBuf) -> JoinHandle<()> {
+pub async fn spawn_run_node(node_config_path: PathBuf, node_executable: String) -> JoinHandle<()> {
     task::spawn(async move {
         info!("Running the node from its spawned task.");
-        let _node_run_result = spawn_node_child_task(node_config_path).
+        let _node_run_result = spawn_node_child_task(node_config_path, node_executable).
             await. // awaits the completion of spawn_node_child_task.
             wait(). // runs the node until completion -- should be running indefinitely.
             await; // awaits the completion of the node.
@@ -63,15 +63,8 @@ pub async fn spawn_run_node(node_config_path: PathBuf) -> JoinHandle<()> {
     })
 }
 
-async fn spawn_node_child_task(node_config_path: PathBuf) -> Child {
+async fn spawn_node_child_task(node_config_path: PathBuf, node_executable: String) -> Child {
     // TODO(Tsabary): Capture output to a log file, and present it in case of a failure.
-    info!("Compiling the node.");
-    compile_node_result().await.expect("Failed to compile the sequencer node.");
-    let node_executable = resolve_project_relative_path(NODE_EXECUTABLE_PATH)
-        .expect("Node executable should be available")
-        .to_string_lossy()
-        .to_string();
-
     info!("Running the node from: {}", node_executable);
     create_shell_command(node_executable.as_str())
         .arg("--config_file")
@@ -81,4 +74,11 @@ async fn spawn_node_child_task(node_config_path: PathBuf) -> Child {
         .kill_on_drop(true) // Required for stopping the node when the handle is dropped.
         .spawn()
         .expect("Failed to spawn the sequencer node.")
+}
+
+pub fn get_node_executable_path() -> Result<String, io::Error> {
+    match resolve_project_relative_path(NODE_EXECUTABLE_PATH) {
+        Ok(path) => Ok(path.to_string_lossy().to_string()),
+        Err(e) => Err(e),
+    }
 }

@@ -6,9 +6,9 @@ use papyrus_storage::StorageReader;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::state::StateNumber;
-use starknet_sequencer_node::test_utils::compilation::spawn_run_node;
+use starknet_sequencer_node::test_utils::compilation::{get_node_executable_path, spawn_run_node};
 use starknet_types_core::felt::Felt;
-use tracing::info;
+use tracing::{error, info};
 
 use crate::integration_test_setup::IntegrationTestSetup;
 use crate::utils::send_account_txs;
@@ -51,13 +51,25 @@ async fn await_block(
 pub async fn end_to_end_integration(mut tx_generator: MultiAccountTransactionGenerator) {
     const EXPECTED_BLOCK_NUMBER: BlockNumber = BlockNumber(15);
 
-    info!("Running integration test setup.");
+    info!("Checking that sequencer node executable is present.");
+    let node_executable: String = match get_node_executable_path() {
+        Ok(path) => path,
+        Err(e) => {
+            error!(
+                "Sequencer node binary is not present. Please compile it using 'cargo build --bin \
+                 starknet_sequencer_node' command."
+            );
+            panic!("Node executable should be available: {}", e);
+        }
+    };
 
+    info!("Running integration test setup.");
     // Creating the storage for the test.
     let integration_test_setup = IntegrationTestSetup::new_from_tx_generator(&tx_generator).await;
 
     info!("Running sequencer node.");
-    let node_run_handle = spawn_run_node(integration_test_setup.node_config_path).await;
+    let node_run_handle =
+        spawn_run_node(integration_test_setup.node_config_path, node_executable).await;
 
     // Wait for the node to start.
     match integration_test_setup.is_alive_test_client.await_alive(5000, 50).await {
