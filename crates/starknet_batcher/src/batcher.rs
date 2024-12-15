@@ -112,10 +112,7 @@ impl Batcher {
             });
         }
 
-        // Clear all the proposals from the previous height.
-        self.proposal_manager.reset().await;
-        self.propose_tx_streams.clear();
-        self.validate_tx_streams.clear();
+        self.clear_previous_proposals().await;
 
         info!("Starting to work on height {}.", input.height);
         self.active_height = Some(input.height);
@@ -232,6 +229,13 @@ impl Batcher {
             SendProposalContent::Finish => self.handle_finish_proposal_request(proposal_id).await,
             SendProposalContent::Abort => self.handle_abort_proposal_request(proposal_id).await,
         }
+    }
+
+    /// Clear all the proposals from the previous height.
+    async fn clear_previous_proposals(&mut self) {
+        self.proposal_manager.reset().await;
+        self.propose_tx_streams.clear();
+        self.validate_tx_streams.clear();
     }
 
     async fn handle_send_txs_request(
