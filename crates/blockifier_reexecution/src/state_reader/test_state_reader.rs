@@ -32,7 +32,10 @@ use starknet_gateway::rpc_state_reader::RpcStateReader;
 use starknet_types_core::felt::Felt;
 
 use crate::retry_request;
-use crate::state_reader::compile::{legacy_to_contract_class_v0, sierra_to_contact_class_v1};
+use crate::state_reader::compile::{
+    legacy_to_contract_class_v0,
+    sierra_to_versioned_contract_class_v1,
+};
 use crate::state_reader::errors::ReexecutionResult;
 use crate::state_reader::offline_state_reader::SerializableDataNextBlock;
 use crate::state_reader::reexecution_state_reader::{
@@ -131,7 +134,9 @@ impl StateReader for TestStateReader {
 
         match contract_class {
             StarknetContractClass::Sierra(sierra) => {
-                Ok(sierra_to_contact_class_v1(sierra).unwrap().try_into().unwrap())
+                let (casm, _) = sierra_to_versioned_contract_class_v1(sierra).unwrap();
+                let runnable_contract_class: RunnableCompiledClass = casm.try_into().unwrap();
+                Ok(runnable_contract_class.try_into().unwrap())
             }
             StarknetContractClass::Legacy(legacy) => {
                 Ok(legacy_to_contract_class_v0(legacy).unwrap().try_into().unwrap())
