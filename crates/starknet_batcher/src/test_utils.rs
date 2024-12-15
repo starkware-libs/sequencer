@@ -37,6 +37,7 @@ impl BlockExecutionArtifacts {
             },
             visited_segments_mapping: VisitedSegmentsMapping::default(),
             bouncer_weights: BouncerWeights::empty(),
+            l2_gas_used: Default::default(),
         }
     }
 }
