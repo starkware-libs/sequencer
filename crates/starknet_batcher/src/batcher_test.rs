@@ -37,6 +37,7 @@ use starknet_batcher_types::batcher_types::{
 use starknet_batcher_types::errors::BatcherError;
 use starknet_mempool_types::communication::MockMempoolClient;
 use starknet_mempool_types::mempool_types::CommitBlockArgs;
+use tokio::sync::Mutex;
 
 use crate::batcher::{Batcher, MockBatcherStorageReaderTrait, MockBatcherStorageWriterTrait};
 use crate::block_builder::{
@@ -50,7 +51,6 @@ use crate::block_builder::{
 use crate::config::BatcherConfig;
 use crate::proposal_manager::{
     GenerateProposalError,
-    InternalProposalStatus,
     ProposalError,
     ProposalManagerTrait,
     ProposalOutput,
@@ -74,6 +74,10 @@ fn proposal_commitment() -> ProposalCommitment {
     }
 }
 
+fn proposal_output() -> ProposalOutput {
+    ProposalOutput { commitment: proposal_commitment(), ..Default::default() }
+}
+
 fn deadline() -> chrono::DateTime<Utc> {
     chrono::Utc::now() + BLOCK_GENERATION_TIMEOUT
 }
@@ -94,6 +98,12 @@ fn validate_block_input() -> ValidateBlockInput {
         retrospective_block_hash: None,
         block_info: initial_block_info(),
     }
+}
+
+fn invalid_proposal_result() -> ProposalResult<ProposalOutput> {
+    Err(ProposalError::BlockBuilderError(Arc::new(BlockBuilderError::FailOnError(
+        FailOnErrorCause::BlockFull,
+    ))))
 }
 
 struct MockDependencies {
@@ -167,30 +177,57 @@ fn mock_create_builder_for_propose_block(
     block_builder_factory
 }
 
-fn mock_proposal_manager_common_expectations(
-    proposal_manager: &mut MockProposalManagerTraitWrapper,
-) {
+fn mock_start_proposal(proposal_manager: &mut MockProposalManagerTraitWrapper) {
     proposal_manager.expect_wrap_reset().times(1).return_once(|| async {}.boxed());
-    proposal_manager
-        .expect_wrap_await_proposal_commitment()
-        .times(1)
-        .with(eq(PROPOSAL_ID))
-        .return_once(move |_| { async move { Some(Ok(proposal_commitment())) } }.boxed());
-}
-
-fn mock_proposal_manager_validate_flow() -> MockProposalManagerTraitWrapper {
-    let mut proposal_manager = MockProposalManagerTraitWrapper::new();
-    mock_proposal_manager_common_expectations(&mut proposal_manager);
     proposal_manager
         .expect_wrap_spawn_proposal()
         .times(1)
         .with(eq(PROPOSAL_ID), always(), always())
         .return_once(|_, _, _| { async move { Ok(()) } }.boxed());
+}
+
+fn mock_completed_proposal(
+    proposal_manager: &mut MockProposalManagerTraitWrapper,
+    proposal_result: ProposalResult<ProposalOutput>,
+) {
+    proposal_manager.expect_wrap_get_completed_proposals().times(1).return_once(move || {
+        async move { Arc::new(Mutex::new(HashMap::from([(PROPOSAL_ID, proposal_result)]))) }.boxed()
+    });
+}
+
+async fn batcher_with_validated_proposal(
+    proposal_result: ProposalResult<ProposalOutput>,
+) -> Batcher {
+    let block_builder_factory = mock_create_builder_for_validate_block();
+    let mut proposal_manager = MockProposalManagerTraitWrapper::new();
+    mock_start_proposal(&mut proposal_manager);
+    mock_completed_proposal(&mut proposal_manager, proposal_result);
+    proposal_manager.expect_wrap_get_active_proposal().returning(|| async move { None }.boxed());
+
+    let mut batcher = create_batcher(MockDependencies {
+        proposal_manager,
+        block_builder_factory,
+        ..Default::default()
+    });
+
+    batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
+
+    batcher.validate_block(validate_block_input()).await.unwrap();
+
+    batcher
+}
+
+fn mock_proposal_manager_validate_flow() -> MockProposalManagerTraitWrapper {
+    let mut proposal_manager = MockProposalManagerTraitWrapper::new();
+    mock_start_proposal(&mut proposal_manager);
     proposal_manager
-        .expect_wrap_get_proposal_status()
+        .expect_wrap_get_active_proposal()
+        .returning(|| async move { Some(PROPOSAL_ID) }.boxed());
+    proposal_manager
+        .expect_wrap_await_active_proposal()
         .times(1)
-        .with(eq(PROPOSAL_ID))
-        .returning(move |_| async move { InternalProposalStatus::Processing }.boxed());
+        .returning(|| async move { true }.boxed());
+    mock_completed_proposal(&mut proposal_manager, Ok(proposal_output()));
     proposal_manager
 }
 
@@ -293,14 +330,8 @@ async fn validate_block_full_flow() {
 #[rstest]
 #[tokio::test]
 async fn send_content_after_proposal_already_finished() {
-    let mut proposal_manager = MockProposalManagerTraitWrapper::new();
-    proposal_manager
-        .expect_wrap_get_proposal_status()
-        .with(eq(PROPOSAL_ID))
-        .times(1)
-        .returning(|_| async move { InternalProposalStatus::Finished }.boxed());
-
-    let mut batcher = create_batcher(MockDependencies { proposal_manager, ..Default::default() });
+    let successful_proposal_result = Ok(proposal_output());
+    let mut batcher = batcher_with_validated_proposal(successful_proposal_result).await;
 
     // Send transactions after the proposal has finished.
     let send_proposal_input_txs = SendProposalContentInput {
@@ -314,14 +345,7 @@ async fn send_content_after_proposal_already_finished() {
 #[rstest]
 #[tokio::test]
 async fn send_content_to_unknown_proposal() {
-    let mut proposal_manager = MockProposalManagerTraitWrapper::new();
-    proposal_manager
-        .expect_wrap_get_proposal_status()
-        .times(1)
-        .with(eq(PROPOSAL_ID))
-        .return_once(move |_| async move { InternalProposalStatus::NotFound }.boxed());
-
-    let mut batcher = create_batcher(MockDependencies { proposal_manager, ..Default::default() });
+    let mut batcher = create_batcher(MockDependencies::default());
 
     // Send transactions to an unknown proposal.
     let send_proposal_input_txs = SendProposalContentInput {
@@ -341,14 +365,7 @@ async fn send_content_to_unknown_proposal() {
 #[rstest]
 #[tokio::test]
 async fn send_txs_to_an_invalid_proposal() {
-    let mut proposal_manager = MockProposalManagerTraitWrapper::new();
-    proposal_manager
-        .expect_wrap_get_proposal_status()
-        .times(1)
-        .with(eq(PROPOSAL_ID))
-        .return_once(move |_| async move { InternalProposalStatus::Failed }.boxed());
-
-    let mut batcher = create_batcher(MockDependencies { proposal_manager, ..Default::default() });
+    let mut batcher = batcher_with_validated_proposal(invalid_proposal_result()).await;
 
     let send_proposal_input_txs = SendProposalContentInput {
         proposal_id: PROPOSAL_ID,
@@ -361,31 +378,7 @@ async fn send_txs_to_an_invalid_proposal() {
 #[rstest]
 #[tokio::test]
 async fn send_finish_to_an_invalid_proposal() {
-    let block_builder_factory = mock_create_builder_for_validate_block();
-    let mut proposal_manager = MockProposalManagerTraitWrapper::new();
-    proposal_manager.expect_wrap_reset().times(1).return_once(|| async {}.boxed());
-    proposal_manager
-        .expect_wrap_spawn_proposal()
-        .times(1)
-        .with(eq(PROPOSAL_ID), always(), always())
-        .return_once(|_, _, _| { async move { Ok(()) } }.boxed());
-
-    let proposal_error = ProposalError::BlockBuilderError(Arc::new(
-        BlockBuilderError::FailOnError(FailOnErrorCause::BlockFull),
-    ));
-    proposal_manager
-        .expect_wrap_await_proposal_commitment()
-        .times(1)
-        .with(eq(PROPOSAL_ID))
-        .return_once(move |_| { async move { Some(Err(proposal_error)) } }.boxed());
-
-    let mut batcher = create_batcher(MockDependencies {
-        proposal_manager,
-        block_builder_factory,
-        ..Default::default()
-    });
-    batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
-    batcher.validate_block(validate_block_input()).await.unwrap();
+    let mut batcher = batcher_with_validated_proposal(invalid_proposal_result()).await;
 
     let send_proposal_input_txs =
         SendProposalContentInput { proposal_id: PROPOSAL_ID, content: SendProposalContent::Finish };
@@ -402,11 +395,8 @@ async fn propose_block_full_flow() {
 
     let block_builder_factory = mock_create_builder_for_propose_block(txs_to_stream);
     let mut proposal_manager = MockProposalManagerTraitWrapper::new();
-    mock_proposal_manager_common_expectations(&mut proposal_manager);
-    proposal_manager
-        .expect_wrap_spawn_proposal()
-        .times(1)
-        .return_once(|_, _, _| { async move { Ok(()) } }.boxed());
+    mock_start_proposal(&mut proposal_manager);
+    mock_completed_proposal(&mut proposal_manager, Ok(proposal_output()));
 
     let mut batcher = create_batcher(MockDependencies {
         proposal_manager,
@@ -484,7 +474,7 @@ async fn propose_block_without_retrospective_block_hash() {
 #[tokio::test]
 async fn get_content_from_unknown_proposal() {
     let mut proposal_manager = MockProposalManagerTraitWrapper::new();
-    proposal_manager.expect_wrap_await_proposal_commitment().times(0);
+    proposal_manager.expect_wrap_get_completed_proposals().times(0);
 
     let mut batcher = create_batcher(MockDependencies { proposal_manager, ..Default::default() });
 
@@ -577,16 +567,6 @@ trait ProposalManagerTraitWrapper: Send + Sync {
 
     fn wrap_await_active_proposal(&mut self) -> BoxFuture<'_, bool>;
 
-    fn wrap_get_proposal_status(
-        &self,
-        proposal_id: ProposalId,
-    ) -> BoxFuture<'_, InternalProposalStatus>;
-
-    fn wrap_await_proposal_commitment(
-        &self,
-        proposal_id: ProposalId,
-    ) -> BoxFuture<'_, Option<ProposalResult<ProposalCommitment>>>;
-
     fn wrap_abort_proposal(&mut self, proposal_id: ProposalId) -> BoxFuture<'_, ()>;
 
     fn wrap_reset(&mut self) -> BoxFuture<'_, ()>;
@@ -622,17 +602,6 @@ impl<T: ProposalManagerTraitWrapper> ProposalManagerTrait for T {
 
     async fn await_active_proposal(&mut self) -> bool {
         self.wrap_await_active_proposal().await
-    }
-
-    async fn get_proposal_status(&self, proposal_id: ProposalId) -> InternalProposalStatus {
-        self.wrap_get_proposal_status(proposal_id).await
-    }
-
-    async fn await_proposal_commitment(
-        &mut self,
-        proposal_id: ProposalId,
-    ) -> Option<ProposalResult<ProposalCommitment>> {
-        self.wrap_await_proposal_commitment(proposal_id).await
     }
 
     async fn abort_proposal(&mut self, proposal_id: ProposalId) {
