@@ -6,7 +6,10 @@ use papyrus_storage::StorageReader;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::state::StateNumber;
-use starknet_sequencer_node::test_utils::compilation::spawn_run_node;
+use starknet_sequencer_node::test_utils::compilation::{
+    check_node_executable_present,
+    spawn_run_node,
+};
 use starknet_types_core::felt::Felt;
 use tracing::info;
 
@@ -51,8 +54,12 @@ async fn await_block(
 pub async fn end_to_end_integration(mut tx_generator: MultiAccountTransactionGenerator) {
     const EXPECTED_BLOCK_NUMBER: BlockNumber = BlockNumber(15);
 
-    info!("Running integration test setup.");
+    info!("Checking that the sequencer node executable is present.");
+    if !check_node_executable_present() {
+        panic!("Node executable is not present.");
+    }
 
+    info!("Running integration test setup.");
     // Creating the storage for the test.
     let integration_test_setup = IntegrationTestSetup::new_from_tx_generator(&tx_generator).await;
 
