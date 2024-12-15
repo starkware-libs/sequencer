@@ -5,7 +5,7 @@ use cairo_lang_starknet_classes::contract_class::ContractClass as CairoLangContr
 use itertools::Itertools;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
-use starknet_api::contract_class::{ContractClass, EntryPointType};
+use starknet_api::contract_class::{ContractClass, EntryPointType, SierraVersion};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::deprecated_contract_class::{
     ContractClass as DeprecatedContractClass,
@@ -17,7 +17,7 @@ use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
-use crate::execution::contract_class::RunnableCompiledClass;
+use crate::execution::contract_class::{RunnableCompiledClass, VersionedRunnableCompiledClass};
 use crate::execution::entry_point::CallEntryPoint;
 #[cfg(feature = "cairo_native")]
 use crate::execution::native::contract_class::NativeCompiledClassV1;
@@ -190,6 +190,18 @@ impl FeatureContract {
         self.get_class().try_into().unwrap()
     }
 
+    #[allow(dead_code)]
+    pub fn get_versioned_runnable_class(&self) -> VersionedRunnableCompiledClass {
+        let runnable_class = self.get_runnable_class();
+        match self.cairo_version() {
+            CairoVersion::Cairo0 => VersionedRunnableCompiledClass::Cairo0(runnable_class),
+
+            CairoVersion::Cairo1(_) => {
+                VersionedRunnableCompiledClass::Cairo1((runnable_class, self.get_sierra_version()))
+            }
+        }
+    }
+
     pub fn get_raw_sierra(&self) -> String {
         if self.cairo_version() == CairoVersion::Cairo0 {
             panic!("The sierra contract is only available for Cairo1.");
@@ -203,6 +215,10 @@ impl FeatureContract {
         let cairo_contract_class: CairoLangContractClass =
             serde_json::from_str(&raw_sierra).unwrap();
         SierraContractClass::from(cairo_contract_class)
+    }
+
+    pub fn get_sierra_version(&self) -> SierraVersion {
+        SierraVersion::extract_from_program(&self.get_sierra().sierra_program).unwrap()
     }
 
     pub fn get_raw_class(&self) -> String {
