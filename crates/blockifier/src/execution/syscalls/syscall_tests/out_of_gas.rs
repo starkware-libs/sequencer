@@ -12,6 +12,8 @@ use crate::retdata;
 use crate::test_utils::contracts::FeatureContract;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{trivial_external_entry_point_new, CairoVersion, RunnableCairo1, BALANCE};
+#[cfg(feature = "cairo_native")]
+use crate::versioned_constants::VersionedConstants;
 
 #[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native; "Native"))]
 #[test_case(RunnableCairo1::Casm; "VM")]
@@ -54,6 +56,10 @@ fn test_stack_overflow() {
     let mut state = test_state(&ChainInfo::create_for_testing(), BALANCE, &[(test_contract, 1)]);
 
     let depth = felt!(1000000_u128);
+    assert!(
+        VersionedConstants::create_for_testing().initial_gas_no_user_l2_bound()
+            <= MAX_POSSIBLE_SIERRA_GAS
+    );
     let entry_point_call = CallEntryPoint {
         calldata: calldata![depth],
         entry_point_selector: selector_from_name("test_stack_overflow"),
