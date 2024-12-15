@@ -102,7 +102,7 @@ impl Batcher {
         }
 
         let storage_height =
-            self.storage_reader.height().map_err(|_| BatcherError::InternalError)?;
+            self.get_height_from_storage().map_err(|_| BatcherError::InternalError)?;
         if storage_height < input.height {
             return Err(BatcherError::StorageNotSynced {
                 storage_height,
@@ -303,12 +303,16 @@ impl Batcher {
         Ok(())
     }
 
-    #[instrument(skip(self), err)]
-    pub async fn get_height(&mut self) -> BatcherResult<GetHeightResponse> {
-        let height = self.storage_reader.height().map_err(|err| {
+    fn get_height_from_storage(&mut self) -> BatcherResult<BlockNumber> {
+        self.storage_reader.height().map_err(|err| {
             error!("Failed to get height from storage: {}", err);
             BatcherError::InternalError
-        })?;
+        })
+    }
+
+    #[instrument(skip(self), err)]
+    pub async fn get_height(&mut self) -> BatcherResult<GetHeightResponse> {
+        let height = self.get_height_from_storage()?;
         Ok(GetHeightResponse { height })
     }
 
@@ -362,10 +366,7 @@ impl Batcher {
         let ProposalOutput { state_diff, nonces: address_to_nonce, tx_hashes, .. } =
             proposal_output;
         // TODO: Keep the height from start_height or get it from the input.
-        let height = self.storage_reader.height().map_err(|err| {
-            error!("Failed to get height from storage: {}", err);
-            BatcherError::InternalError
-        })?;
+        let height = self.get_height_from_storage()?;
         info!(
             "Committing proposal {} at height {} and notifying mempool of the block.",
             proposal_id, height
