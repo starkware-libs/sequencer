@@ -26,6 +26,7 @@ use papyrus_storage::StorageReader;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHashAndNumber, BlockInfo};
 use starknet_api::executable_transaction::Transaction;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
 use tracing::{debug, error, info, trace};
@@ -68,6 +69,7 @@ pub struct BlockExecutionArtifacts {
     pub commitment_state_diff: CommitmentStateDiff,
     pub visited_segments_mapping: VisitedSegmentsMapping,
     pub bouncer_weights: BouncerWeights,
+    pub l2_gas_used: GasAmount,
 }
 
 /// The BlockBuilderTrait is responsible for building a new block from transactions provided by the
@@ -121,6 +123,7 @@ impl BlockBuilderTrait for BlockBuilder {
     async fn build_block(&mut self) -> BlockBuilderResult<BlockExecutionArtifacts> {
         let mut block_is_full = false;
         let mut execution_infos = IndexMap::new();
+        let mut l2_gas_used = GasAmount::ZERO;
         // TODO(yael 6/10/2024): delete the timeout condition once the executor has a timeout
         while !block_is_full {
             if tokio::time::Instant::now() >= self.execution_params.deadline {
@@ -157,6 +160,7 @@ impl BlockBuilderTrait for BlockBuilder {
             block_is_full = collect_execution_results_and_stream_txs(
                 next_tx_chunk,
                 results,
+                &mut l2_gas_used,
                 &mut execution_infos,
                 &self.output_content_sender,
                 self.execution_params.fail_on_err,
@@ -170,6 +174,7 @@ impl BlockBuilderTrait for BlockBuilder {
             commitment_state_diff,
             visited_segments_mapping,
             bouncer_weights,
+            l2_gas_used,
         })
     }
 }
@@ -178,6 +183,7 @@ impl BlockBuilderTrait for BlockBuilder {
 async fn collect_execution_results_and_stream_txs(
     tx_chunk: Vec<Transaction>,
     results: Vec<TransactionExecutorResult<TransactionExecutionInfo>>,
+    l2_gas_used: &mut GasAmount,
     execution_infos: &mut IndexMap<TransactionHash, TransactionExecutionInfo>,
     output_content_sender: &Option<tokio::sync::mpsc::UnboundedSender<Transaction>>,
     fail_on_err: bool,
@@ -185,6 +191,7 @@ async fn collect_execution_results_and_stream_txs(
     for (input_tx, result) in tx_chunk.into_iter().zip(results.into_iter()) {
         match result {
             Ok(tx_execution_info) => {
+                *l2_gas_used += tx_execution_info.receipt.gas.l2_gas;
                 execution_infos.insert(input_tx.tx_hash(), tx_execution_info);
                 if let Some(output_content_sender) = output_content_sender {
                     output_content_sender.send(input_tx)?;
