@@ -13,20 +13,14 @@ use futures::{Stream, StreamExt};
 use papyrus_common::metrics::{PAPYRUS_CONSENSUS_HEIGHT, PAPYRUS_CONSENSUS_SYNC_COUNT};
 use papyrus_network::network_manager::BroadcastTopicClientTrait;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
-use papyrus_protobuf::consensus::{ConsensusMessage, ProposalInit};
+use papyrus_protobuf::consensus::{ProposalInit, Vote};
 use papyrus_protobuf::converters::ProtobufConversionError;
 use starknet_api::block::BlockNumber;
 use tracing::{debug, info, instrument};
 
 use crate::config::TimeoutsConfig;
 use crate::single_height_consensus::{ShcReturn, SingleHeightConsensus};
-use crate::types::{
-    BroadcastConsensusMessageChannel,
-    ConsensusContext,
-    ConsensusError,
-    Decision,
-    ValidatorId,
-};
+use crate::types::{BroadcastVoteChannel, ConsensusContext, ConsensusError, Decision, ValidatorId};
 
 // TODO(dvir): add test for this.
 #[instrument(skip_all, level = "info")]
@@ -39,7 +33,7 @@ pub async fn run_consensus<ContextT, SyncReceiverT>(
     validator_id: ValidatorId,
     consensus_delay: Duration,
     timeouts: TimeoutsConfig,
-    mut broadcast_channels: BroadcastConsensusMessageChannel,
+    mut broadcast_channels: BroadcastVoteChannel,
     mut inbound_proposal_receiver: mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
     mut sync_receiver: SyncReceiverT,
 ) -> Result<(), ConsensusError>
@@ -105,7 +99,7 @@ pub enum RunHeightRes {
 #[derive(Debug, Default)]
 struct MultiHeightManager<ContextT: ConsensusContext> {
     validator_id: ValidatorId,
-    cached_messages: BTreeMap<u64, Vec<ConsensusMessage>>,
+    cached_messages: BTreeMap<u64, Vec<Vote>>,
     cached_proposals: BTreeMap<u64, (ProposalInit, mpsc::Receiver<ContextT::ProposalPart>)>,
     timeouts: TimeoutsConfig,
 }
@@ -131,7 +125,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         context: &mut ContextT,
         height: BlockNumber,
         is_observer: bool,
-        broadcast_channels: &mut BroadcastConsensusMessageChannel,
+        broadcast_channels: &mut BroadcastVoteChannel,
         proposal_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
         sync_receiver: &mut SyncReceiverT,
     ) -> Result<RunHeightRes, ConsensusError>
@@ -259,11 +253,8 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         context: &mut ContextT,
         height: BlockNumber,
         shc: &mut SingleHeightConsensus,
-        message: Option<(
-            Result<ConsensusMessage, ProtobufConversionError>,
-            BroadcastedMessageMetadata,
-        )>,
-        broadcast_channels: &mut BroadcastConsensusMessageChannel,
+        message: Option<(Result<Vote, ProtobufConversionError>, BroadcastedMessageMetadata)>,
+        broadcast_channels: &mut BroadcastVoteChannel,
     ) -> Result<ShcReturn, ConsensusError> {
         let message = match message {
             None => Err(ConsensusError::InternalNetworkError(
@@ -286,14 +277,13 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         // 1. Malicious - must be capped so a malicious peer can't DoS us.
         // 2. Parallel proposals - we may send/receive a proposal for (H+1, 0).
         // In general I think we will want to only cache (H+1, 0) messages.
-        if message.height() != height.0 {
+        if message.height != height.0 {
             debug!("Received a message for a different height. {:?}", message);
-            if message.height() > height.0 {
-                self.cached_messages.entry(message.height()).or_default().push(message);
+            if message.height > height.0 {
+                self.cached_messages.entry(message.height).or_default().push(message);
             }
             return Ok(ShcReturn::Tasks(Vec::new()));
         }
-
         shc.handle_message(context, message).await
     }
 
@@ -321,7 +311,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
     // - returns all of the current height messages.
     // - drops messages from earlier heights.
     // - retains future messages in the cache.
-    fn get_current_height_messages(&mut self, height: BlockNumber) -> Vec<ConsensusMessage> {
+    fn get_current_height_messages(&mut self, height: BlockNumber) -> Vec<Vote> {
         // Depends on `cached_messages` being sorted by height.
         loop {
             let Some(entry) = self.cached_messages.first_entry() else {
