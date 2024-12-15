@@ -181,9 +181,31 @@ impl FeatureContract {
     }
 
     pub fn get_casm(&self) -> CompiledClassV1 {
+<<<<<<< HEAD
         let compiled_path = self.get_casm_path();
         let contact_class = CasmContractClass::from_file(&compiled_path);
         (contact_class, self.get_sierra_version()).try_into().unwrap()
+=======
+        // Question (AvivG) : what is the desired behaviour?
+        if *self == Self::ERC20(self.cairo_version()) {
+            todo!("ERC20 cannot be tested with Native")
+        };
+        match self.cairo_version() {
+            CairoVersion::Cairo0 => {
+                panic!("Casm contracts are only available for Cairo1.");
+            }
+            CairoVersion::Cairo1(_) => {
+                let compiled_path = format!(
+                    "feature_contracts/cairo{}/{}{}.json",
+                    "1/compiled",
+                    self.get_non_erc20_base_name(),
+                    ".casm"
+                );
+                let contact_class = CasmContractClass::from_file(&compiled_path);
+                (contact_class, self.get_sierra_version()).try_into().unwrap()
+            }
+        }
+>>>>>>> d6c671353 (chore(blockifier): create unit tests for contract_class_manager)
     }
 
     pub fn get_runnable_class(&self) -> RunnableCompiledClass {
@@ -205,10 +227,13 @@ impl FeatureContract {
         get_raw_contract_class(&self.get_sierra_path())
     }
 
-    pub fn get_sierra(&self) -> SierraContractClass {
+    pub fn get_contract_class(&self) -> CairoLangContractClass {
         let raw_sierra = self.get_raw_sierra();
-        let cairo_contract_class: CairoLangContractClass =
-            serde_json::from_str(&raw_sierra).unwrap();
+        serde_json::from_str(&raw_sierra).unwrap()
+    }
+
+    pub fn get_sierra(&self) -> SierraContractClass {
+        let cairo_contract_class = self.get_contract_class();
         SierraContractClass::from(cairo_contract_class)
     }
 
