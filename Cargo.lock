@@ -10487,7 +10487,6 @@ dependencies = [
  "starknet_sequencer_infra",
  "starknet_sequencer_node",
  "starknet_state_sync",
- "starknet_task_executor",
  "strum 0.25.0",
  "tempfile",
  "tokio",
