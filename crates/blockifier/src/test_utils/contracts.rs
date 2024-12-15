@@ -17,7 +17,7 @@ use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
-use crate::execution::contract_class::RunnableCompiledClass;
+use crate::execution::contract_class::{CompiledClassV1, RunnableCompiledClass};
 use crate::execution::entry_point::CallEntryPoint;
 #[cfg(feature = "cairo_native")]
 use crate::execution::native::contract_class::NativeCompiledClassV1;
@@ -180,6 +180,28 @@ impl FeatureContract {
         }
     }
 
+    pub fn get_casm(&self) -> CompiledClassV1 {
+        // Question (AvivG) : what is the desired behaviour?
+        if *self == Self::ERC20(self.cairo_version()) {
+            todo!("ERC20 cannot be tested with Native")
+        };
+        match self.cairo_version() {
+            CairoVersion::Cairo0 => {
+                panic!("Casm contracts are only available for Cairo1.");
+            }
+            CairoVersion::Cairo1(_) => {
+                let compiled_path = format!(
+                    "feature_contracts/cairo{}/{}{}.json",
+                    "1/compiled",
+                    self.get_non_erc20_base_name(),
+                    ".casm"
+                );
+                let contact_class = CasmContractClass::from_file(&compiled_path);
+                (contact_class, self.get_sierra_version()).try_into().unwrap()
+            }
+        }
+    }
+
     pub fn get_runnable_class(&self) -> RunnableCompiledClass {
         #[cfg(feature = "cairo_native")]
         if CairoVersion::Cairo1(RunnableCairo1::Native) == self.cairo_version() {
@@ -199,10 +221,13 @@ impl FeatureContract {
         get_raw_contract_class(&self.get_sierra_path())
     }
 
-    pub fn get_sierra(&self) -> SierraContractClass {
+    pub fn get_contract_class(&self) -> CairoLangContractClass {
         let raw_sierra = self.get_raw_sierra();
-        let cairo_contract_class: CairoLangContractClass =
-            serde_json::from_str(&raw_sierra).unwrap();
+        serde_json::from_str(&raw_sierra).unwrap()
+    }
+
+    pub fn get_sierra(&self) -> SierraContractClass {
+        let cairo_contract_class = self.get_contract_class();
         SierraContractClass::from(cairo_contract_class)
     }
 
