@@ -25,5 +25,6 @@ jobs:
       - uses: ./.github/actions/bootstrap
       - run: |
           cargo build --bin e2e_integration_test
+          cargo build --bin starknet_sequencer_node
           target/debug/e2e_integration_test
 
