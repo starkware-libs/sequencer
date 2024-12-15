@@ -1,7 +1,7 @@
 FROM ubuntu:20.04
 
 ARG USERNAME=sequencer
-ARG USER_UID=1000
+ARG USER_UID=1001
 ARG USER_GID=$USER_UID
 
 RUN apt update && apt install -y sudo
