@@ -80,6 +80,7 @@ const ERC20_CAIRO0_CONTRACT_SOURCE_PATH: &str =
 const ERC20_CAIRO0_CONTRACT_PATH: &str = "./ERC20/ERC20_Cairo0/ERC20_without_some_syscalls/ERC20/\
                                           erc20_contract_without_some_syscalls_compiled.json";
 const ERC20_CAIRO1_CONTRACT_SOURCE_PATH: &str = "./ERC20/ERC20_Cairo1/ERC20.cairo";
+const ERC20_SIERRA_CONTRACT_PATH: &str = "./ERC20/ERC20_Cairo1/erc20.sierra.json";
 const ERC20_CAIRO1_CONTRACT_PATH: &str = "./ERC20/ERC20_Cairo1/erc20.casm.json";
 
 // The following contracts are compiled with a fixed version of the compiler. This compiler version
@@ -290,8 +291,12 @@ impl FeatureContract {
 
     pub fn get_sierra_path(&self) -> String {
         assert_ne!(self.cairo_version(), CairoVersion::Cairo0);
-        // TODO (Meshi 01/01/2025): add a spacial case for ERC20 when ERC20 sierra is supported.
-        assert!(!matches!(self, &Self::ERC20(CairoVersion::Cairo1(_))));
+        // This is not the compiled Sierra file of the existing ERC20 contract,
+        // but a file that was taken from the compiler repo of another ERC20 contract.
+        if matches!(self, &Self::ERC20(CairoVersion::Cairo1(_))) {
+            return ERC20_SIERRA_CONTRACT_PATH.to_string();
+        }
+
         format!(
             "{CAIRO1_FEATURE_CONTRACTS_DIR}/{SIERRA_CONTRACTS_SUBDIR}/{}.sierra.json",
             self.get_non_erc20_base_name()
