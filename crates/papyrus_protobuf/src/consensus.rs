@@ -86,7 +86,7 @@ pub struct TransactionBatch {
 #[derive(Debug, Clone, PartialEq)]
 pub struct ProposalFin {
     /// The block hash of the proposed block.
-    /// TODO(guyn): Consider changing the content ID
+    /// TODO(Matan): Consider changing the content ID
     pub proposal_content_id: BlockHash,
 }
 
