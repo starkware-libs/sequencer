@@ -77,7 +77,7 @@ pub struct ProposalInit {
 pub struct TransactionBatch {
     /// The transactions in the batch.
     pub transactions: Vec<Transaction>,
-    // TODO(guyn): remove this once we know how to get hashes as part of the compilation.
+    // TODO(Yael): remove this once we know how to get hashes as part of the compilation.
     /// The transaction's hashes.
     pub tx_hashes: Vec<TransactionHash>,
 }

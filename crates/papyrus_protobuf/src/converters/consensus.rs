@@ -227,7 +227,7 @@ impl From<ProposalInit> for protobuf::ProposalInit {
 
 auto_impl_into_and_try_from_vec_u8!(ProposalInit, protobuf::ProposalInit);
 
-// TODO(guyn): remove tx_hashes once we know how to compile the hashes
+// TODO(Yael): remove tx_hashes once we know how to compile the hashes
 // when making the executable transactions.
 impl TryFrom<protobuf::TransactionBatch> for TransactionBatch {
     type Error = ProtobufConversionError;
