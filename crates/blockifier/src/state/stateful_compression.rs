@@ -18,8 +18,6 @@ type AliasKey = StorageKey;
 // The initial alias available for allocation.
 const INITIAL_AVAILABLE_ALIAS: Felt = Felt::from_hex_unchecked("0x80");
 
-// The address of the alias contract.
-const ALIAS_CONTRACT_ADDRESS: ContractAddress = ContractAddress(PatriciaKey::TWO);
 // The storage key of the alias counter in the alias contract.
 const ALIAS_COUNTER_STORAGE_KEY: StorageKey = StorageKey(PatriciaKey::ZERO);
 // The maximal contract address for which aliases are not used and all keys are serialized as is,
@@ -37,6 +35,7 @@ static MIN_VALUE_FOR_ALIAS_ALLOC: LazyLock<PatriciaKey> =
 /// storage keys (in ascending order) and for the address itself.
 pub fn state_diff_with_alias_allocation<S: StateReader>(
     state: &mut CachedState<S>,
+    alias_contract_address: ContractAddress,
 ) -> StateResult<StateMaps> {
     let mut state_diff = state.to_state_diff()?.state_maps;
 
@@ -54,7 +53,7 @@ pub fn state_diff_with_alias_allocation<S: StateReader>(
     }
 
     // Iterate over the addresses and the storage keys and update the aliases.
-    let mut alias_updater = AliasUpdater::new(state)?;
+    let mut alias_updater = AliasUpdater::new(state, alias_contract_address)?;
     for contract_address in contract_addresses {
         if let Some(storage_keys) = contract_address_to_sorted_storage_keys.get(&contract_address) {
             for key in storage_keys {
@@ -74,23 +73,25 @@ struct AliasUpdater<'a, S: StateReader> {
     state: &'a S,
     new_aliases: HashMap<AliasKey, Alias>,
     next_free_alias: Option<Alias>,
+    alias_contract_address: ContractAddress,
 }
 
 impl<'a, S: StateReader> AliasUpdater<'a, S> {
-    fn new(state: &'a S) -> StateResult<Self> {
+    fn new(state: &'a S, alias_contract_address: ContractAddress) -> StateResult<Self> {
         let stored_counter =
-            state.get_storage_at(ALIAS_CONTRACT_ADDRESS, ALIAS_COUNTER_STORAGE_KEY)?;
+            state.get_storage_at(alias_contract_address, ALIAS_COUNTER_STORAGE_KEY)?;
         Ok(Self {
             state,
             new_aliases: HashMap::new(),
             next_free_alias: if stored_counter == Felt::ZERO { None } else { Some(stored_counter) },
+            alias_contract_address,
         })
     }
 
     /// Inserts the alias key to the updates if it's not already aliased.
     fn insert_alias(&mut self, alias_key: &AliasKey) -> StateResult<()> {
         if alias_key.0 >= *MIN_VALUE_FOR_ALIAS_ALLOC
-            && self.state.get_storage_at(ALIAS_CONTRACT_ADDRESS, *alias_key)? == Felt::ZERO
+            && self.state.get_storage_at(self.alias_contract_address, *alias_key)? == Felt::ZERO
             && !self.new_aliases.contains_key(alias_key)
         {
             let alias_to_allocate = match self.next_free_alias {
@@ -119,7 +120,7 @@ impl<'a, S: StateReader> AliasUpdater<'a, S> {
 
         self.new_aliases
             .into_iter()
-            .map(|(key, alias)| ((ALIAS_CONTRACT_ADDRESS, key), alias))
+            .map(|(key, alias)| ((self.alias_contract_address, key), alias))
             .collect()
     }
 }
