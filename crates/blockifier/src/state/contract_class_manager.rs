@@ -30,6 +30,9 @@ use crate::state::global_cache::{CachedCasm, ContractCaches};
 
 pub const DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE: usize = 1000;
 
+#[cfg(all(test, feature = "cairo_native"))]
+#[path = "contract_class_manager_test.rs"]
+mod contract_class_manager_test;
 /// Represents a request to compile a sierra contract class to a native compiled class.
 ///
 /// # Fields:
@@ -65,7 +68,6 @@ impl ContractClassManager {
     /// 2. `config.run_cairo_native` is `false`.
     /// 3. `config.wait_on_native_compilation` is `true`.
     pub fn start(config: ContractClassManagerConfig) -> ContractClassManager {
-        // TODO(Avi, 15/12/2024): Add the size of the channel to the config.
         let contract_caches = ContractCaches::new(config.contract_cache_size);
         #[cfg(not(feature = "cairo_native"))]
         return ContractClassManager { contract_caches };
