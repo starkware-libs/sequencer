@@ -730,8 +730,7 @@ impl OsConstants {
     // not used by the blockifier but included for transparency. These constanst will be ignored
     // during the creation of the struct containing the gas costs.
 
-    const ADDITIONAL_FIELDS: [&'static str; 30] = [
-        "block_hash_contract_address",
+    const ADDITIONAL_FIELDS: [&'static str; 29] = [
         "constructor_entry_point_selector",
         "default_entry_point_selector",
         "entry_point_type_constructor",
