@@ -29,6 +29,9 @@ use crate::state::global_cache::CachedCairoNative;
 use crate::state::global_cache::{CachedCasm, ContractCaches};
 pub const DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE: usize = 1000;
 
+#[cfg(all(test, feature = "cairo_native"))]
+#[path = "contract_class_manager_test.rs"]
+mod contract_class_manager_test;
 /// Represents a request to compile a sierra contract class to a native compiled class.
 ///
 /// # Fields:
