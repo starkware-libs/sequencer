@@ -23,7 +23,7 @@ pub enum CachedCasm {
 }
 
 #[cfg(feature = "cairo_native")]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum CachedCairoNative {
     Compiled(NativeCompiledClassV1),
     CompilationFailed,
