@@ -13,9 +13,11 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 use std::slice::Iter;
+use std::sync::{Arc, LazyLock, Mutex, Once};
 
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use log::{Level, Metadata, Record};
 use starknet_api::abi::abi_utils::{get_fee_token_var_address, selector_from_name};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::core::{ClassHash, ContractAddress};
@@ -158,6 +160,57 @@ impl CompilerBasedVersion {
         ];
         VERSIONS.iter()
     }
+}
+pub static TEST_LOGGER: LazyLock<TestLogger> = LazyLock::new(TestLogger::new);
+
+static INIT_LOGGER: Once = Once::new();
+
+pub fn initialize_logger() {
+    INIT_LOGGER.call_once(|| {
+        log::set_logger(&*TEST_LOGGER).unwrap();
+        log::set_max_level(log::LevelFilter::Debug);
+    });
+}
+
+pub struct TestLogger {
+    logs: Arc<Mutex<Vec<String>>>,
+}
+
+impl Default for TestLogger {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl TestLogger {
+    pub fn new() -> Self {
+        TestLogger { logs: Arc::new(Mutex::new(Vec::new())) }
+    }
+
+    pub fn contains(&self, message: &str) -> bool {
+        let logs = self.logs.lock().unwrap();
+        logs.iter().any(|log| log.contains(message))
+    }
+
+    pub fn get_logs(&self) -> Vec<String> {
+        self.logs.lock().unwrap().clone()
+    }
+}
+
+impl log::Log for TestLogger {
+    fn enabled(&self, metadata: &Metadata<'_>) -> bool {
+        metadata.level() <= Level::Debug
+    }
+
+    fn log<'a>(&self, record: &'a Record<'a>) {
+        if self.enabled(record.metadata()) {
+            let mut logs = self.logs.lock().unwrap();
+            println!("Logging: {}", record.args()); // Debug print
+            logs.push(format!("{}", record.args()));
+        }
+    }
+
+    fn flush(&self) {}
 }
 
 // Storage keys.
