@@ -4,6 +4,7 @@ use num_bigint::{BigUint, TryFromBigIntError};
 use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::state::SierraContractClass;
 use starknet_api::StarknetApiError;
+use starknet_state_sync_types::communication::StateSyncClientError;
 use thiserror::Error;
 
 use crate::abi::constants;
@@ -29,6 +30,8 @@ pub enum StateError {
     UndeclaredClassHash(ClassHash),
     #[error(transparent)]
     StarknetApiError(#[from] StarknetApiError),
+    #[error(transparent)]
+    StateSyncClientError(#[from] StateSyncClientError),
     /// Represents all unexpected errors that may occur while reading from state.
     #[error("Failed to read from state: {0}.")]
     StateReadError(String),
