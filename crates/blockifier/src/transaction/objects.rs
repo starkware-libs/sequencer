@@ -170,9 +170,8 @@ pub struct CommonAccountFields {
     pub only_query: bool,
 }
 
-#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, derive_more::Display, PartialEq)]
+#[derive(Debug, derive_more::Display, PartialEq, Clone)]
 pub enum RevertError {
     Execution(ErrorStack),
     PostExecution(FeeCheckError),
@@ -191,9 +190,8 @@ impl From<FeeCheckError> for RevertError {
 }
 
 /// Contains the information gathered by the execution of a transaction.
-#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct TransactionExecutionInfo {
     /// Transaction validation call info; [None] for `L1Handler`.
     pub validate_call_info: Option<CallInfo>,
