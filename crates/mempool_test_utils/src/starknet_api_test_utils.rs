@@ -146,6 +146,8 @@ type SharedNonceManager = Rc<RefCell<NonceManager>>;
 //    the state diff that represents the initial state so it can be used in the test).
 // 2. Execution phase - generate transactions.
 
+// TODO: Add optional StateReader and assert that the state supports each operation (e.g. nonce).
+
 /// Manages transaction generation for multiple pre-funded accounts, internally bumping nonces
 /// as needed.
 ///
@@ -323,7 +325,7 @@ impl AccountTransactionGenerator {
     }
 
     /// Retrieves the nonce for the current account, and __increments__ it internally.
-    pub fn next_nonce(&mut self) -> Nonce {
+    fn next_nonce(&mut self) -> Nonce {
         let sender_address = self.sender_address();
         self.nonce_manager.borrow_mut().next(sender_address)
     }
