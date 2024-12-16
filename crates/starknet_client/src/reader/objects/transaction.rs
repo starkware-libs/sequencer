@@ -141,6 +141,7 @@ impl Transaction {
 #[serde(deny_unknown_fields)]
 pub struct L1HandlerTransaction {
     pub transaction_hash: TransactionHash,
+    // TODO: The version field should always be set to 0.
     pub version: TransactionVersion,
     #[serde(default)]
     pub nonce: Nonce,
@@ -151,6 +152,16 @@ pub struct L1HandlerTransaction {
 
 impl From<L1HandlerTransaction> for starknet_api::transaction::L1HandlerTransaction {
     fn from(l1_handler_tx: L1HandlerTransaction) -> Self {
+        if l1_handler_tx.version != starknet_api::transaction::L1_HANDLER_VERSION {
+            error!("L1HandlerTransaction version is not supported: {:?}", l1_handler_tx.version);
+        }
+        // starknet_api::transaction::L1HandlerTransaction::new(
+        //     l1_handler_tx.nonce,
+        //     l1_handler_tx.contract_address,
+        //     l1_handler_tx.entry_point_selector,
+        //     l1_handler_tx.calldata,
+        // )
+
         starknet_api::transaction::L1HandlerTransaction {
             version: l1_handler_tx.version,
             nonce: l1_handler_tx.nonce,

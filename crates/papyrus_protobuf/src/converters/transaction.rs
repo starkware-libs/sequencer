@@ -1253,8 +1253,6 @@ impl From<DeployTransaction> for protobuf::transaction::Deploy {
 impl TryFrom<protobuf::transaction::L1HandlerV0> for L1HandlerTransaction {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::transaction::L1HandlerV0) -> Result<Self, Self::Error> {
-        let version = TransactionVersion(Felt::ZERO);
-
         let nonce = Nonce(
             value
                 .nonce
@@ -1283,7 +1281,7 @@ impl TryFrom<protobuf::transaction::L1HandlerV0> for L1HandlerTransaction {
 
         let calldata = Calldata(calldata.into());
 
-        Ok(Self { version, nonce, contract_address, entry_point_selector, calldata })
+        Ok(Self::new(nonce, contract_address, entry_point_selector, calldata))
     }
 }
 

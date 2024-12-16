@@ -54,6 +54,9 @@ pub static QUERY_VERSION_BASE: LazyLock<Felt> = LazyLock::new(|| {
     Felt::TWO.pow(QUERY_VERSION_BASE_BIT)
 });
 
+// The version is considered 0 for L1-Handler transaction hash calculation purposes.
+pub const L1_HANDLER_VERSION: TransactionVersion = TransactionVersion(Felt::ZERO);
+
 pub trait TransactionHasher {
     fn calculate_transaction_hash(
         &self,
@@ -680,6 +683,25 @@ pub struct L1HandlerTransaction {
     pub contract_address: ContractAddress,
     pub entry_point_selector: EntryPointSelector,
     pub calldata: Calldata,
+}
+
+impl L1HandlerTransaction {
+    /// A new method is implemented for this struct even though all fields are public because for a
+    /// properly formatted transaction, the transaction version is always 0.
+    pub fn new(
+        nonce: Nonce,
+        contract_address: ContractAddress,
+        entry_point_selector: EntryPointSelector,
+        calldata: Calldata,
+    ) -> Self {
+        Self {
+            version: L1_HANDLER_VERSION,
+            nonce,
+            contract_address,
+            entry_point_selector,
+            calldata,
+        }
+    }
 }
 
 impl TransactionHasher for L1HandlerTransaction {
