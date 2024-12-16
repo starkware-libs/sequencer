@@ -609,8 +609,7 @@ type StorageDiff = IndexMap<ContractAddress, IndexMap<StorageKey, Felt>>;
 
 /// Holds uncommitted changes induced on Starknet contracts.
 #[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(any(feature = "testing", test), derive(Clone))]
-#[derive(Debug, Default, Eq, PartialEq)]
+#[derive(Debug, Default, Eq, PartialEq, Clone)]
 pub struct CommitmentStateDiff {
     // Contract instance attributes (per address).
     pub address_to_class_hash: IndexMap<ContractAddress, ClassHash>,

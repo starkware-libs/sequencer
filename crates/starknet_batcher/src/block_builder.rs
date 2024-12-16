@@ -62,8 +62,7 @@ pub enum FailOnErrorCause {
     TransactionFailed(BlockifierTransactionExecutorError),
 }
 
-#[cfg_attr(test, derive(Clone))]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Default)]
 pub struct BlockExecutionArtifacts {
     pub execution_infos: IndexMap<TransactionHash, TransactionExecutionInfo>,
     pub commitment_state_diff: CommitmentStateDiff,

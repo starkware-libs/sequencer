@@ -369,6 +369,7 @@ impl Batcher {
         self.commit_proposal_and_block(state_diff, address_to_nonce, tx_hashes).await
     }
 
+    // TODO(dvir): return `BlockExecutionArtifacts`
     #[instrument(skip(self), err)]
     pub async fn decision_reached(&mut self, input: DecisionReachedInput) -> BatcherResult<()> {
         let proposal_id = input.proposal_id;
