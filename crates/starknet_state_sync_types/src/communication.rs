@@ -57,7 +57,12 @@ pub trait StateSyncClient: Send + Sync {
         class_hash: ClassHash,
     ) -> StateSyncClientResult<(ContractClass, SierraVersion)>;
 
-    // TODO: Add get_class_hash_at for StateSyncReader
+    async fn get_class_hash_at(
+        &self,
+        block_number: BlockNumber,
+        contract_address: ContractAddress,
+    ) -> StateSyncClientResult<ClassHash>;
+
     // TODO: Add get_compiled_class_hash for StateSyncReader
     // TODO: Add get_block_info for StateSyncReader
 }
@@ -86,6 +91,7 @@ pub enum StateSyncRequest {
     GetStorageAt(BlockNumber, ContractAddress, StorageKey),
     GetNonceAt(BlockNumber, ContractAddress),
     GetCompiledClass(BlockNumber, ClassHash),
+    GetClassHashAt(BlockNumber, ContractAddress),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -95,6 +101,7 @@ pub enum StateSyncResponse {
     GetStorageAt(StateSyncResult<Felt>),
     GetNonceAt(StateSyncResult<Nonce>),
     GetCompiledClass(StateSyncResult<(ContractClass, SierraVersion)>),
+    GetClassHashAt(StateSyncResult<ClassHash>),
 }
 
 #[async_trait]
@@ -168,6 +175,21 @@ impl StateSyncClient for LocalStateSyncClient {
             StateSyncError
         )
     }
+
+    async fn get_class_hash_at(
+        &self,
+        block_number: BlockNumber,
+        contract_address: ContractAddress,
+    ) -> StateSyncClientResult<ClassHash> {
+        let request = StateSyncRequest::GetClassHashAt(block_number, contract_address);
+        let response = self.send(request).await;
+        handle_response_variants!(
+            StateSyncResponse,
+            GetClassHashAt,
+            StateSyncClientError,
+            StateSyncError
+        )
+    }
 }
 
 #[async_trait]
@@ -237,6 +259,21 @@ impl StateSyncClient for RemoteStateSyncClient {
         handle_response_variants!(
             StateSyncResponse,
             GetCompiledClass,
+            StateSyncClientError,
+            StateSyncError
+        )
+    }
+
+    async fn get_class_hash_at(
+        &self,
+        block_number: BlockNumber,
+        contract_address: ContractAddress,
+    ) -> StateSyncClientResult<ClassHash> {
+        let request = StateSyncRequest::GetClassHashAt(block_number, contract_address);
+        let response = self.send(request).await;
+        handle_response_variants!(
+            StateSyncResponse,
+            GetClassHashAt,
             StateSyncClientError,
             StateSyncError
         )

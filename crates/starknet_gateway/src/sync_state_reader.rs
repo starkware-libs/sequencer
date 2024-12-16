@@ -71,8 +71,12 @@ impl BlockifierStateReader for SyncStateReader {
         }
     }
 
-    fn get_class_hash_at(&self, _contract_address: ContractAddress) -> StateResult<ClassHash> {
-        todo!()
+    fn get_class_hash_at(&self, contract_address: ContractAddress) -> StateResult<ClassHash> {
+        let res =
+            block_on(self.state_sync_client.get_class_hash_at(self.block_number, contract_address))
+                .map_err(|e| StateError::StateReadError(e.to_string()))?;
+
+        Ok(res)
     }
 
     fn get_compiled_class_hash(&self, _class_hash: ClassHash) -> StateResult<CompiledClassHash> {

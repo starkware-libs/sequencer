@@ -61,6 +61,11 @@ impl ComponentRequestHandler<StateSyncRequest, StateSyncResponse> for StateSync 
                     self.get_compiled_class(block_number, class_hash),
                 )
             }
+            StateSyncRequest::GetClassHashAt(block_number, contract_address) => {
+                StateSyncResponse::GetClassHashAt(
+                    self.get_class_hash_at(block_number, contract_address),
+                )
+            }
         }
     }
 }
@@ -158,6 +163,22 @@ impl StateSync {
             .ok_or(StateSyncError::ClassHashNotFound(class_hash))?;
 
         Ok((ContractClass::V0(deprecated_compiled_contract_class), SierraVersion::DEPRECATED))
+    }
+
+    fn get_class_hash_at(
+        &self,
+        block_number: BlockNumber,
+        contract_address: ContractAddress,
+    ) -> StateSyncResult<ClassHash> {
+        let txn = self.storage_reader.begin_ro_txn()?;
+        verify_synced_up_to(&txn, block_number)?;
+
+        let state_number = StateNumber::unchecked_right_after_block(block_number);
+        let state_reader = txn.get_state_reader()?;
+        let class_hash = state_reader
+            .get_class_hash_at(state_number, &contract_address)?
+            .ok_or(StateSyncError::ContractNotFound(contract_address))?;
+        Ok(class_hash)
     }
 }
 
