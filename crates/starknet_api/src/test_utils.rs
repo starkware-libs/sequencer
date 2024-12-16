@@ -77,6 +77,10 @@ pub struct NonceManager {
 }
 
 impl NonceManager {
+    pub fn get(&self, account_address: ContractAddress) -> Nonce {
+        Nonce(*self.next_nonce.get(&account_address).unwrap_or(&Felt::default()))
+    }
+
     pub fn next(&mut self, account_address: ContractAddress) -> Nonce {
         let next = self.next_nonce.remove(&account_address).unwrap_or_default();
         self.next_nonce.insert(account_address, next + 1);
