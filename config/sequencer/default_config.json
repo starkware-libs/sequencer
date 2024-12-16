@@ -887,7 +887,7 @@
   "rpc_state_reader_config.json_rpc_version": {
     "description": "The json rpc version.",
     "privacy": "Public",
-    "value": ""
+    "value": "2.0"
   },
   "rpc_state_reader_config.url": {
     "description": "The url of the rpc server.",
