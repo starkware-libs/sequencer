@@ -20,7 +20,7 @@ use starknet_api::executable_transaction::AccountTransaction as ApiExecutableTra
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::state::StorageKey;
 use starknet_api::test_utils::declare::executable_declare_tx;
-use starknet_api::test_utils::deploy_account::executable_deploy_account_tx;
+use starknet_api::test_utils::deploy_account::{executable_deploy_account_tx, DeployAccountTxArgs};
 use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::NonceManager;
 use starknet_api::transaction::fields::Resource::{L1DataGas, L1Gas, L2Gas};
@@ -2620,23 +2620,38 @@ fn test_balance_print() {
 }
 
 #[rstest]
-#[case::small_user_bounds(create_gas_amount_bounds_with_default_price(
-    GasVector{ l1_gas: GasAmount(1652), l2_gas: GasAmount(654321), l1_data_gas: GasAmount(0) }
-))]
-#[case::user_bounds_between_validate_and_execute(create_gas_amount_bounds_with_default_price(
-    GasVector{
-        l1_gas: GasAmount(1652),
-        l2_gas: versioned_constants.validate_max_sierra_gas + GasAmount(1234567),
-        l1_data_gas: GasAmount(0),
-    }
-))]
-#[case::large_user_bounds(default_all_resource_bounds())]
-#[case::l1_user_bounds(default_l1_resource_bounds())]
-//  TODO(Aner): Add case for deprecated tx version.
+#[case::small_user_bounds(invoke_tx_args! {
+    version: TransactionVersion::THREE,
+    resource_bounds: create_gas_amount_bounds_with_default_price(
+        GasVector{ l1_gas: GasAmount(1652), l2_gas: GasAmount(654321), l1_data_gas: GasAmount(0) }
+    ),
+})]
+#[case::user_bounds_between_validate_and_execute(invoke_tx_args! {
+    version: TransactionVersion::THREE,
+    resource_bounds: create_gas_amount_bounds_with_default_price(
+        GasVector{
+            l1_gas: GasAmount(1652),
+            l2_gas: versioned_constants.validate_max_sierra_gas + GasAmount(1234567),
+            l1_data_gas: GasAmount(0),
+        }
+    ),
+})]
+#[case::large_user_bounds(invoke_tx_args! {
+    version: TransactionVersion::THREE,
+    resource_bounds: default_all_resource_bounds(),
+})]
+#[case::l1_user_bounds(invoke_tx_args! {
+    version: TransactionVersion::THREE,
+    resource_bounds: default_l1_resource_bounds(),
+})]
+#[case::deprecated_tx_version(invoke_tx_args! {
+    version: TransactionVersion::ONE,
+    max_fee: Fee(1000000000000000),
+})]
 fn test_invoke_max_sierra_gas_validate_execute(
     block_context: BlockContext,
     versioned_constants: VersionedConstants,
-    #[case] user_resource_bounds: ValidResourceBounds,
+    #[case] tx_args: InvokeTxArgs,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm))]
     account_cairo_version: CairoVersion,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm))]
@@ -2650,11 +2665,13 @@ fn test_invoke_max_sierra_gas_validate_execute(
     let account_contract_address = account_contract.get_instance_address(0);
     let calldata = create_calldata(test_contract_address, "recurse", &[felt!(10_u8)]);
     let invoke_tx = invoke_tx_with_default_flags(invoke_tx_args! {
-        sender_address: account_contract_address,
-        calldata: Calldata(Arc::clone(&calldata.0)),
-        resource_bounds: user_resource_bounds,
+        sender_address: account_contract_address, calldata: Calldata(Arc::clone(&calldata.0)), .. tx_args
     });
-    let user_initial_gas = user_initial_gas_from_bounds(user_resource_bounds, Some(&block_context));
+    let user_initial_gas = if tx_args.version == TransactionVersion::THREE {
+        user_initial_gas_from_bounds(tx_args.resource_bounds, Some(&block_context))
+    } else {
+        initial_gas_amount_from_block_context(Some(&block_context))
+    };
 
     let actual_execution_info = invoke_tx.execute(state, &block_context).unwrap();
 
@@ -2721,25 +2738,40 @@ fn test_invoke_max_sierra_gas_validate_execute(
 }
 
 #[rstest]
-#[case::small_user_bounds(create_gas_amount_bounds_with_default_price(
-    GasVector{ l1_gas: GasAmount(2203), l1_data_gas: GasAmount(0), l2_gas: GasAmount(654321) }
-))]
-#[case::user_bounds_between_validate_and_execute(create_gas_amount_bounds_with_default_price(
-    GasVector{
-        l1_gas: GasAmount(2203),
-        l2_gas:versioned_constants.validate_max_sierra_gas + GasAmount(1234567),
-        l1_data_gas: GasAmount(0),
-    }
-))]
-#[case::large_user_bounds(default_all_resource_bounds())]
-#[case::l1_user_bounds(default_l1_resource_bounds())]
-//  TODO(Aner): Add case for deprecated tx version.
+#[case::small_user_bounds(deploy_account_tx_args! {
+    version: TransactionVersion::THREE,
+    resource_bounds: create_gas_amount_bounds_with_default_price(
+        GasVector{ l1_gas: GasAmount(2203), l2_gas: GasAmount(654321), l1_data_gas: GasAmount(0) }
+    ),
+})]
+#[case::user_bounds_between_validate_and_execute(deploy_account_tx_args! {
+    version: TransactionVersion::THREE,
+    resource_bounds: create_gas_amount_bounds_with_default_price(
+        GasVector{
+            l1_gas: GasAmount(2203),
+            l2_gas: versioned_constants.validate_max_sierra_gas + GasAmount(1234567),
+            l1_data_gas: GasAmount(0),
+        }
+    ),
+})]
+#[case::large_user_bounds(deploy_account_tx_args! {
+    version: TransactionVersion::THREE,
+    resource_bounds: default_all_resource_bounds(),
+})]
+#[case::l1_user_bounds(deploy_account_tx_args! {
+    version: TransactionVersion::THREE,
+    resource_bounds: default_l1_resource_bounds(),
+})]
+#[case::deprecated_tx_version(deploy_account_tx_args! {
+    version: TransactionVersion::ONE,
+    max_fee: Fee(1000000000000000),
+})]
 fn test_deploy_max_sierra_gas_validate_execute(
     block_context: BlockContext,
     versioned_constants: VersionedConstants,
     #[values(CairoVersion::Cairo0, CairoVersion::Cairo1(RunnableCairo1::Casm))]
     cairo_version: CairoVersion,
-    #[case] user_resource_bounds: ValidResourceBounds,
+    #[case] tx_args: DeployAccountTxArgs,
 ) {
     let chain_info = &block_context.chain_info;
     let mut nonce_manager = NonceManager::default();
@@ -2748,15 +2780,19 @@ fn test_deploy_max_sierra_gas_validate_execute(
     let state = &mut test_state(chain_info, BALANCE, &[(account, 1)]);
     let deploy_account = AccountTransaction::new_with_default_flags(executable_deploy_account_tx(
         deploy_account_tx_args! {
-            resource_bounds: user_resource_bounds,
-            class_hash: account_class_hash
+            class_hash: account_class_hash,
+            .. tx_args
         },
         &mut nonce_manager,
     ));
 
     // Extract deploy account transaction fields for testing, as it is consumed when creating an
     // account transaction.
-    let user_initial_gas = user_initial_gas_from_bounds(user_resource_bounds, Some(&block_context));
+    let user_initial_gas = if tx_args.version == TransactionVersion::THREE {
+        user_initial_gas_from_bounds(tx_args.resource_bounds, Some(&block_context))
+    } else {
+        initial_gas_amount_from_block_context(Some(&block_context))
+    };
 
     // Update the balance of the about to be deployed account contract in the erc20 contract, so it
     // can pay for the transaction execution.
