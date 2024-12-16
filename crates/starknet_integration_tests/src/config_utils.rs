@@ -3,7 +3,8 @@ use std::io::Write;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 
-use serde_json::{json, Value};
+use papyrus_config::dumping::{combine_config_map_and_pointers, SerializeConfig};
+use serde_json::{json, Map, Value};
 use starknet_sequencer_infra::component_definitions::{
     LocalServerConfig,
     RemoteClientConfig,
@@ -16,9 +17,14 @@ use starknet_sequencer_node::config::component_execution_config::{
     ReactiveComponentExecutionConfig,
     ReactiveComponentExecutionMode,
 };
-use starknet_sequencer_node::config::node_config::SequencerNodeConfig;
+use starknet_sequencer_node::config::node_config::{
+    SequencerNodeConfig,
+    CONFIG_NON_POINTERS_WHITELIST,
+    CONFIG_POINTERS,
+};
 use starknet_sequencer_node::config::test_utils::RequiredParams;
 use tracing::info;
+
 // TODO(Tsabary): Move here all config-related functions from "integration_test_utils.rs".
 
 const NODE_CONFIG_CHANGES_FILE_PATH: &str = "node_integration_test_config_changes.json";
@@ -47,7 +53,7 @@ macro_rules! config_fields_to_json {
     };
 }
 
-/// Creates a config file for the sequencer node for the end to end integration test.
+/// Creates a config file for the sequencer node for an integration test.
 pub(crate) fn dump_config_file_changes(
     config: &SequencerNodeConfig,
     required_params: RequiredParams,
@@ -55,22 +61,30 @@ pub(crate) fn dump_config_file_changes(
 ) -> PathBuf {
     // Dump config changes file for the sequencer node.
     // TODO(Tsabary): auto dump the entirety of RequiredParams fields.
-    let json_data = config_fields_to_json!(
+    let required_params_json = config_fields_to_json!(
         required_params.chain_id,
         required_params.eth_fee_token_address,
         required_params.strk_fee_token_address,
         required_params.validator_id,
-        config.rpc_state_reader_config.url,
-        config.batcher_config.storage.db_config.path_prefix,
-        config.http_server_config.ip,
-        config.http_server_config.port,
-        config.consensus_manager_config.consensus_config.start_height,
-        config.state_sync_config.storage_config.db_config.path_prefix,
-        config.state_sync_config.network_config.tcp_port,
     );
-    let node_config_path = dump_json_data(json_data, NODE_CONFIG_CHANGES_FILE_PATH, dir);
-    assert!(node_config_path.exists(), "File does not exist: {:?}", node_config_path);
 
+    // Create the entire mapping of the config and the pointers, without the required params.
+    let config_as_map = combine_config_map_and_pointers(
+        config.dump(),
+        &CONFIG_POINTERS,
+        &CONFIG_NON_POINTERS_WHITELIST,
+    )
+    .unwrap();
+
+    // Extract only the required fields from the config map.
+    let mut preset = config_to_preset(&config_as_map, "value");
+
+    // Add the required params to the preset.
+    add_required_params_to_preset(&mut preset, &required_params_json);
+
+    // Dump the preset to a file, return its path.
+    let node_config_path = dump_json_data(preset, NODE_CONFIG_CHANGES_FILE_PATH, dir);
+    assert!(node_config_path.exists(), "File does not exist: {:?}", node_config_path);
     node_config_path
 }
 
@@ -155,4 +169,37 @@ pub async fn get_remote_flow_test_config() -> Vec<ComponentConfig> {
         get_http_only_component_config(gateway_socket).await,
         get_non_http_component_config(gateway_socket).await,
     ]
+}
+
+fn config_to_preset(config_map: &Value, inner_key: &str) -> Value {
+    // Ensure the config_map is a JSON object
+    if let Value::Object(map) = config_map {
+        let mut result = Map::new();
+
+        for (key, value) in map {
+            if let Value::Object(inner_map) = value {
+                // Extract the value for the specified inner_key
+                if let Some(inner_value) = inner_map.get(inner_key) {
+                    // Add it to the result map
+                    result.insert(key.clone(), inner_value.clone());
+                }
+            }
+        }
+
+        // Return the transformed result as a JSON object
+        Value::Object(result)
+    } else {
+        // If the input is not an object, return an empty object
+        Value::Object(Map::new())
+    }
+}
+
+fn add_required_params_to_preset(preset: &mut Value, required_params: &Value) {
+    if let (Value::Object(preset_map), Value::Object(required_params_map)) =
+        (preset, required_params)
+    {
+        for (key, value) in required_params_map {
+            preset_map.insert(key.clone(), value.clone());
+        }
+    }
 }
