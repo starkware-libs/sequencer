@@ -17,7 +17,7 @@ pub struct L1HandlerTxArgs {
 impl Default for L1HandlerTxArgs {
     fn default() -> Self {
         L1HandlerTxArgs {
-            version: TransactionVersion::THREE,
+            version: TransactionVersion::ZERO,
             nonce: Nonce::default(),
             contract_address: ContractAddress::default(),
             entry_point_selector: EntryPointSelector::default(),
