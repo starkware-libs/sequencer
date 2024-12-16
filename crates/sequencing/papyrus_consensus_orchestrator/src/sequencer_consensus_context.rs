@@ -79,6 +79,8 @@ type HeightToIdToContent =
 type ValidationParams = (BlockNumber, ValidatorId, Duration, mpsc::Receiver<ProposalPart>);
 
 const CHANNEL_SIZE: usize = 100;
+// TODO(Guy): Move this to the context config.
+const BUILD_PROPOSAL_MARGIN: Duration = Duration::from_millis(100);
 
 pub struct SequencerConsensusContext {
     batcher: Arc<dyn BatcherClient>,
@@ -153,8 +155,9 @@ impl ConsensusContext for SequencerConsensusContext {
 
         let proposal_id = ProposalId(self.proposal_id);
         self.proposal_id += 1;
-        let timeout =
-            chrono::Duration::from_std(timeout).expect("Can't convert timeout to chrono::Duration");
+        assert!(timeout > BUILD_PROPOSAL_MARGIN);
+        let timeout = chrono::Duration::from_std(timeout - BUILD_PROPOSAL_MARGIN)
+            .expect("Can't convert timeout to chrono::Duration");
         let now = chrono::Utc::now();
         let build_proposal_input = ProposeBlockInput {
             proposal_id,
