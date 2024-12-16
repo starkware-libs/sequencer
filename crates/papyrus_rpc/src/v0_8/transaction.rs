@@ -1280,13 +1280,7 @@ impl From<MessageFromL1> for L1HandlerTransaction {
         let mut calldata = vec![sender_as_felt];
         calldata.extend_from_slice(&message.payload.0);
         let calldata = Calldata(Arc::new(calldata));
-        Self {
-            version: L1HandlerTransaction::VERSION,
-            contract_address: message.to_address,
-            entry_point_selector: message.entry_point_selector,
-            calldata,
-            ..Default::default()
-        }
+        Self::new(Nonce::default(), message.to_address, message.entry_point_selector, calldata)
     }
 }
 

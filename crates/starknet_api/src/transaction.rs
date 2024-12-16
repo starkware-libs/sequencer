@@ -689,6 +689,17 @@ impl L1HandlerTransaction {
     /// The transaction version is considered 0 for L1-Handler transaction for hash calculation
     /// purposes.
     pub const VERSION: TransactionVersion = TransactionVersion::ZERO;
+
+    /// A new method is implemented for this struct even though all fields are public because for a
+    /// properly formatted transaction, the transaction version is always 0.
+    pub fn new(
+        nonce: Nonce,
+        contract_address: ContractAddress,
+        entry_point_selector: EntryPointSelector,
+        calldata: Calldata,
+    ) -> Self {
+        Self { version: Self::VERSION, nonce, contract_address, entry_point_selector, calldata }
+    }
 }
 
 impl TransactionHasher for L1HandlerTransaction {
