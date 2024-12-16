@@ -27,7 +27,6 @@ use starknet_api::core::{
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::serde_utils::bytes_from_hex_str;
-use starknet_api::transaction::constants::L1_HANDLER_VERSION;
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
@@ -1281,13 +1280,7 @@ impl From<MessageFromL1> for L1HandlerTransaction {
         let mut calldata = vec![sender_as_felt];
         calldata.extend_from_slice(&message.payload.0);
         let calldata = Calldata(Arc::new(calldata));
-        Self {
-            version: L1_HANDLER_VERSION,
-            contract_address: message.to_address,
-            entry_point_selector: message.entry_point_selector,
-            calldata,
-            ..Default::default()
-        }
+        Self::new(Nonce::default(), message.to_address, message.entry_point_selector, calldata)
     }
 }
 
