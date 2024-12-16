@@ -526,6 +526,7 @@ async fn decision_reached() {
                     commitment: ProposalCommitment::default(),
                     tx_hashes: test_tx_hashes(),
                     nonces: test_contract_nonces(),
+                    block_execution_artifacts: Default::default(),
                 }))
             }
             .boxed()
