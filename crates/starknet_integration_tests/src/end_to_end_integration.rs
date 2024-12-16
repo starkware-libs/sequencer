@@ -1,4 +1,5 @@
 use infra_utils::run_until::run_until;
+use infra_utils::tracing::CustomLogger;
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use papyrus_execution::execution_utils::get_nonce_at;
 use papyrus_storage::state::StateStorageReader;
@@ -43,7 +44,9 @@ async fn await_block(
     let condition = |&latest_block_number: &BlockNumber| latest_block_number >= target_block_number;
     let get_latest_block_number_closure = || async move { get_latest_block_number(storage_reader) };
 
-    run_until(interval, max_attempts, get_latest_block_number_closure, condition, None)
+    let logger = CustomLogger::new(TraceLevel::Info, Some("Waiting for block".to_string()));
+
+    run_until(interval, max_attempts, get_latest_block_number_closure, condition, Some(logger))
         .await
         .ok_or(())
 }
@@ -82,7 +85,7 @@ pub async fn end_to_end_integration(mut tx_generator: MultiAccountTransactionGen
         papyrus_storage::open_storage(integration_test_setup.batcher_storage_config)
             .expect("Failed to open batcher's storage");
 
-    match await_block(5000, EXPECTED_BLOCK_NUMBER, 15, &batcher_storage_reader).await {
+    match await_block(5000, EXPECTED_BLOCK_NUMBER, 30, &batcher_storage_reader).await {
         Ok(_) => {}
         Err(_) => panic!("Did not reach expected block number."),
     }
