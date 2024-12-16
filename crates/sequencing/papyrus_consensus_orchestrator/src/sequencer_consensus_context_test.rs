@@ -45,7 +45,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::sequencer_consensus_context::SequencerConsensusContext;
 
-const TIMEOUT: Duration = Duration::from_millis(100);
+const TIMEOUT: Duration = Duration::from_millis(200);
 const CHANNEL_SIZE: usize = 5000;
 const NUM_VALIDATORS: u64 = 4;
 const STATE_DIFF_COMMITMENT: StateDiffCommitment = StateDiffCommitment(PoseidonHash(Felt::ZERO));
