@@ -8,12 +8,15 @@ description = "Implements the consensus context and orchestrates the node's comp
 
 [dependencies]
 async-trait.workspace = true
+blockifier.workspace = true
 chrono.workspace = true
 futures.workspace = true
+indexmap.workspace = true
 papyrus_consensus.workspace = true
 papyrus_network.workspace = true
 papyrus_protobuf.workspace = true
 papyrus_storage.workspace = true
+serde.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 starknet_batcher_types = { workspace = true, features = ["testing"] }
@@ -22,11 +25,13 @@ tokio-util.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
+infra_utils.workspace = true
 lazy_static.workspace = true
 mockall.workspace = true
 papyrus_network = { workspace = true, features = ["testing"] }
 papyrus_storage = { workspace = true, features = ["testing"] }
 papyrus_test_utils.workspace = true
+serde_json.workspace = true
 starknet_batcher_types = { workspace = true, features = ["testing"] }
 test-case.workspace = true
 
