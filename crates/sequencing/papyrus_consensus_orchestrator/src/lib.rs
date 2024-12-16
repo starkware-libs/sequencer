@@ -2,6 +2,7 @@
 //! An orchestrator for a StarkNet node.
 //! Implements the consensus context - the interface for consensus to call out to the node.
 
+mod central_communication;
 #[allow(missing_docs)]
 // TODO: this is test code, rename accordingly.
 pub mod papyrus_consensus_context;
