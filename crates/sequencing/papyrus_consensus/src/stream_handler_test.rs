@@ -35,9 +35,9 @@ mod tests {
     }
 
     // Check if two vectors are the same, regardless of ordering
-    fn do_vecs_match_unordered<T>(a: &[T], b: &[T]) -> bool
+    fn do_vecs_match_unordered<T: PartialEq + Ord + Clone>(a: &[T], b: &[T]) -> bool
     where
-        T: std::hash::Hash + Eq + PartialEq + Ord + Clone,
+        T: std::hash::Hash + Eq,
     {
         let mut a = a.to_owned();
         a.sort();
