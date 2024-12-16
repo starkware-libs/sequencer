@@ -2,31 +2,16 @@ use crate::core::{ContractAddress, EntryPointSelector, Nonce};
 use crate::executable_transaction::L1HandlerTransaction as ExecutableL1HandlerTransaction;
 use crate::transaction::constants::L1_HANDLER_VERSION;
 use crate::transaction::fields::{Calldata, Fee};
-use crate::transaction::{L1HandlerTransaction, TransactionHash, TransactionVersion};
+use crate::transaction::{L1HandlerTransaction, TransactionHash};
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct L1HandlerTxArgs {
-    pub version: TransactionVersion,
     pub nonce: Nonce,
     pub contract_address: ContractAddress,
     pub entry_point_selector: EntryPointSelector,
     pub calldata: Calldata,
     pub tx_hash: TransactionHash,
     pub paid_fee_on_l1: Fee,
-}
-
-impl Default for L1HandlerTxArgs {
-    fn default() -> Self {
-        L1HandlerTxArgs {
-            version: L1_HANDLER_VERSION,
-            nonce: Nonce::default(),
-            contract_address: ContractAddress::default(),
-            entry_point_selector: EntryPointSelector::default(),
-            calldata: Calldata::default(),
-            tx_hash: TransactionHash::default(),
-            paid_fee_on_l1: Fee::default(),
-        }
-    }
 }
 
 /// Utility macro for creating `L1HandlerTransaction` to reduce boilerplate.
@@ -51,7 +36,7 @@ pub fn executable_l1_handler_tx(
 ) -> ExecutableL1HandlerTransaction {
     ExecutableL1HandlerTransaction {
         tx: L1HandlerTransaction {
-            version: l1_handler_tx_args.version,
+            version: L1_HANDLER_VERSION,
             nonce: l1_handler_tx_args.nonce,
             contract_address: l1_handler_tx_args.contract_address,
             entry_point_selector: l1_handler_tx_args.entry_point_selector,
