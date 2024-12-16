@@ -6,6 +6,10 @@ use tokio::sync::Mutex;
 use tokio::task::{self};
 use tracing::debug;
 
+mod central_objects;
+#[cfg(test)]
+mod central_objects_test;
+
 // TODO(dvir): add tests when will have more logic.
 
 /// A chunk of all the data to write to Aersopike.
