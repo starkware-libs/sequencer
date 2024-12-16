@@ -16,7 +16,7 @@ use starknet_sequencer_infra::component_definitions::{
 use thiserror::Error;
 
 use crate::errors::StateSyncError;
-use crate::state_sync_types::SyncBlock;
+use crate::state_sync_types::{StateSyncResult, SyncBlock};
 
 #[async_trait]
 pub trait StateSyncClient: Send + Sync {
@@ -36,8 +36,6 @@ pub trait StateSyncClient: Send + Sync {
 
     // TODO: Add state reader methods for gateway.
 }
-
-pub type StateSyncResult<T> = Result<T, StateSyncError>;
 
 #[derive(Clone, Debug, Error)]
 pub enum StateSyncClientError {
