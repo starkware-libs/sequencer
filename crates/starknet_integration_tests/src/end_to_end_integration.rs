@@ -65,7 +65,7 @@ async fn await_block(
         .ok_or(())
 }
 
-pub async fn end_to_end_integration(mut tx_generator: MultiAccountTransactionGenerator) {
+pub async fn end_to_end_integration(tx_generator: MultiAccountTransactionGenerator) {
     const EXPECTED_BLOCK_NUMBER: BlockNumber = BlockNumber(15);
 
     info!("Checking that the sequencer node executable is present.");
