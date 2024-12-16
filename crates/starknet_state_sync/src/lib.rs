@@ -9,7 +9,7 @@ use papyrus_storage::db::TransactionKind;
 use papyrus_storage::state::StateStorageReader;
 use papyrus_storage::{StorageReader, StorageTxn};
 use starknet_api::block::BlockNumber;
-use starknet_api::core::{ContractAddress, BLOCK_HASH_TABLE_ADDRESS};
+use starknet_api::core::{ContractAddress, Nonce, BLOCK_HASH_TABLE_ADDRESS};
 use starknet_api::state::{StateNumber, StorageKey};
 use starknet_sequencer_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
 use starknet_sequencer_infra::component_server::{LocalComponentServer, RemoteComponentServer};
@@ -58,6 +58,9 @@ impl ComponentRequestHandler<StateSyncRequest, StateSyncResponse> for StateSync 
                     storage_key,
                 ))
             }
+            StateSyncRequest::GetNonceAt(block_number, contract_address) => {
+                StateSyncResponse::GetNonceAt(self.get_nonce_at(block_number, contract_address))
+            }
         }
     }
 }
@@ -101,6 +104,23 @@ impl StateSync {
                 .get_class_hash_at(state_number, &contract_address)?
                 .ok_or(StateSyncError::ContractNotFound(contract_address))?;
         };
+
+        Ok(res)
+    }
+
+    fn get_nonce_at(
+        &self,
+        block_number: BlockNumber,
+        contract_address: ContractAddress,
+    ) -> StateSyncResult<Nonce> {
+        let txn = self.storage_reader.begin_ro_txn()?;
+        verify_synced_up_to(&txn, block_number)?;
+
+        let state_number = StateNumber::unchecked_right_after_block(block_number);
+        let state_reader = txn.get_state_reader()?;
+        let res = state_reader
+            .get_nonce_at(state_number, &contract_address)?
+            .ok_or(StateSyncError::ContractNotFound(contract_address))?;
 
         Ok(res)
     }
