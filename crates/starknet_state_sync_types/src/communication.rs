@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use papyrus_proc_macros::handle_response_variants;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
+use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_sequencer_infra::component_client::{
@@ -56,7 +57,12 @@ pub trait StateSyncClient: Send + Sync {
         contract_address: ContractAddress,
     ) -> StateSyncClientResult<ClassHash>;
 
-    // TODO: Add get_compiled_class for StateSyncReader
+    async fn get_compiled_class(
+        &self,
+        block_number: BlockNumber,
+        class_hash: ClassHash,
+    ) -> StateSyncClientResult<(ContractClass, SierraVersion)>;
+
     // TODO: Add get_compiled_class_hash for StateSyncReader
     // TODO: Add get_block_info for StateSyncReader
 }
@@ -85,6 +91,7 @@ pub enum StateSyncRequest {
     GetStorageAt(BlockNumber, ContractAddress, StorageKey),
     GetNonceAt(BlockNumber, ContractAddress),
     GetClassHashAt(BlockNumber, ContractAddress),
+    GetCompiledClass(BlockNumber, ClassHash),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -94,6 +101,7 @@ pub enum StateSyncResponse {
     GetStorageAt(StateSyncResult<Felt>),
     GetNonceAt(StateSyncResult<Nonce>),
     GetClassHashAt(StateSyncResult<ClassHash>),
+    GetCompiledClass(StateSyncResult<(ContractClass, SierraVersion)>),
 }
 
 #[async_trait]
@@ -167,6 +175,21 @@ impl StateSyncClient for LocalStateSyncClient {
             StateSyncError
         )
     }
+
+    async fn get_compiled_class(
+        &self,
+        block_number: BlockNumber,
+        class_hash: ClassHash,
+    ) -> StateSyncClientResult<(ContractClass, SierraVersion)> {
+        let request = StateSyncRequest::GetCompiledClass(block_number, class_hash);
+        let response = self.send(request).await;
+        handle_response_variants!(
+            StateSyncResponse,
+            GetCompiledClass,
+            StateSyncClientError,
+            StateSyncError
+        )
+    }
 }
 
 #[async_trait]
@@ -236,6 +259,21 @@ impl StateSyncClient for RemoteStateSyncClient {
         handle_response_variants!(
             StateSyncResponse,
             GetClassHashAt,
+            StateSyncClientError,
+            StateSyncError
+        )
+    }
+
+    async fn get_compiled_class(
+        &self,
+        block_number: BlockNumber,
+        class_hash: ClassHash,
+    ) -> StateSyncClientResult<(ContractClass, SierraVersion)> {
+        let request = StateSyncRequest::GetCompiledClass(block_number, class_hash);
+        let response = self.send(request).await;
+        handle_response_variants!(
+            StateSyncResponse,
+            GetCompiledClass,
             StateSyncClientError,
             StateSyncError
         )
