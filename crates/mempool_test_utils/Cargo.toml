@@ -12,7 +12,6 @@ workspace = true
 assert_matches.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
 infra_utils.workspace = true
-pretty_assertions.workspace = true
 serde_json.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
