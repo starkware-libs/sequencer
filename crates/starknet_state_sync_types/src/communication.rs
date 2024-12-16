@@ -34,7 +34,12 @@ pub trait StateSyncClient: Send + Sync {
         sync_block: SyncBlock,
     ) -> StateSyncClientResult<()>;
 
-    // TODO: Add state reader methods for gateway.
+    // TODO: Add get_storage_at for StateSyncReader
+    // TODO: Add get_nonce_at for StateSyncReader
+    // TODO: Add get_compiled_class for StateSyncReader
+    // TODO: Add get_class_hash_at for StateSyncReader
+    // TODO: Add get_compiled_class_hash for StateSyncReader
+    // TODO: Add get_block_info for StateSyncReader
 }
 
 #[derive(Clone, Debug, Error)]
