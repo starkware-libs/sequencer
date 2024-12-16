@@ -29,10 +29,14 @@ pub(crate) struct ProposalOutput {
     pub commitment: ProposalCommitment,
     pub tx_hashes: HashSet<TransactionHash>,
     pub nonces: HashMap<ContractAddress, Nonce>,
+    // Needed for writing to Aerospoke.
+    pub block_execution_artifacts: BlockExecutionArtifacts,
 }
 
 impl From<BlockExecutionArtifacts> for ProposalOutput {
     fn from(artifacts: BlockExecutionArtifacts) -> Self {
+        let cloned_artifacts = artifacts.clone();
+
         let commitment_state_diff = artifacts.commitment_state_diff;
         let nonces = HashMap::from_iter(
             commitment_state_diff
@@ -57,7 +61,13 @@ impl From<BlockExecutionArtifacts> for ProposalOutput {
             ProposalCommitment { state_diff_commitment: calculate_state_diff_hash(&state_diff) };
         let tx_hashes = HashSet::from_iter(artifacts.execution_infos.keys().copied());
 
-        Self { state_diff, commitment, tx_hashes, nonces }
+        Self {
+            state_diff,
+            commitment,
+            tx_hashes,
+            nonces,
+            block_execution_artifacts: cloned_artifacts,
+        }
     }
 }
 

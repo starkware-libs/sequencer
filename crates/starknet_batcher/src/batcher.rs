@@ -394,6 +394,7 @@ impl Batcher {
         self.commit_proposal_and_block(height, state_diff, address_to_nonce, tx_hashes).await
     }
 
+    // TODO(dvir): return `BlockExecutionArtifacts`
     #[instrument(skip(self), err)]
     pub async fn decision_reached(
         &mut self,
