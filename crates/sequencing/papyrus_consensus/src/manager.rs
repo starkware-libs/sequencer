@@ -66,12 +66,12 @@ where
     loop {
         metrics::gauge!(PAPYRUS_CONSENSUS_HEIGHT, current_height.0 as f64);
 
-        let is_observer = current_height < start_active_height;
+        let must_observer = current_height < start_active_height;
         match manager
             .run_height(
                 &mut context,
                 current_height,
-                is_observer,
+                must_observer,
                 &mut broadcast_channels,
                 &mut inbound_proposal_receiver,
                 &mut sync_receiver,
@@ -133,7 +133,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         &mut self,
         context: &mut ContextT,
         height: BlockNumber,
-        is_observer: bool,
+        must_observer: bool,
         broadcast_channels: &mut BroadcastConsensusMessageChannel,
         proposal_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
         sync_receiver: &mut SyncReceiverT,
@@ -142,6 +142,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         SyncReceiverT: Stream<Item = BlockNumber> + Unpin,
     {
         let validators = context.validators(height).await;
+        let is_observer = must_observer || !validators.contains(&self.validator_id);
         info!("running consensus for height {height:?} with validator set {validators:?}");
         let mut shc = SingleHeightConsensus::new(
             height,
