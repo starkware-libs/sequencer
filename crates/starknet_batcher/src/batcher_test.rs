@@ -49,15 +49,10 @@ use crate::block_builder::{
     MockBlockBuilderTrait,
 };
 use crate::config::BatcherConfig;
-use crate::proposal_manager::{
-    GenerateProposalError,
-    ProposalError,
-    ProposalManagerTrait,
-    ProposalOutput,
-    ProposalResult,
-};
+use crate::proposal_manager::{GenerateProposalError, ProposalManagerTrait};
 use crate::test_utils::test_txs;
 use crate::transaction_provider::NextTxs;
+use crate::utils::{ProposalOutput, ProposalResult};
 
 const INITIAL_HEIGHT: BlockNumber = BlockNumber(3);
 const STREAMING_CHUNK_SIZE: usize = 3;
@@ -101,9 +96,7 @@ fn validate_block_input() -> ValidateBlockInput {
 }
 
 fn invalid_proposal_result() -> ProposalResult<ProposalOutput> {
-    Err(ProposalError::BlockBuilderError(Arc::new(BlockBuilderError::FailOnError(
-        FailOnErrorCause::BlockFull,
-    ))))
+    Err(Arc::new(BlockBuilderError::FailOnError(FailOnErrorCause::BlockFull)))
 }
 
 struct MockDependencies {
