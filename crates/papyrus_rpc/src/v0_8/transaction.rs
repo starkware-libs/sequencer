@@ -1281,6 +1281,7 @@ impl From<MessageFromL1> for L1HandlerTransaction {
         calldata.extend_from_slice(&message.payload.0);
         let calldata = Calldata(Arc::new(calldata));
         Self {
+            // TODO: This should be of transaction version 0.
             version: TransactionVersion::ONE,
             contract_address: message.to_address,
             entry_point_selector: message.entry_point_selector,
