@@ -1,4 +1,4 @@
-//! Consensus manager, see Manager struct.
+//! Consensus manager, see [`MultiHeightManager`] struct.
 
 #[cfg(test)]
 #[path = "manager_test.rs"]
@@ -105,7 +105,7 @@ type ProposalReceiverTuple<T> = (ProposalInit, mpsc::Receiver<T>);
 /// Runs Tendermint repeatedly across different heights. Handles issues which are not explicitly
 /// part of the single height consensus algorithm (e.g. messages from future heights).
 #[derive(Debug, Default)]
-struct MultiHeightManager<ContextT: ConsensusContext> {
+pub struct MultiHeightManager<ContextT: ConsensusContext> {
     validator_id: ValidatorId,
     cached_messages: BTreeMap<u64, Vec<ConsensusMessage>>,
     // Mapping: { Height : { Round : (Init, Receiver)}}
