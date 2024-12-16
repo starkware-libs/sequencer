@@ -28,9 +28,10 @@ pub fn create_p2p_propagator_and_runner(
                 mempool_p2p_config.network_buffer_size,
             )
             .expect("Failed to register broadcast topic");
+    let network_future = network_manager.run();
     let mempool_p2p_propagator = MempoolP2pPropagator::new(broadcast_topic_client.clone());
     let mempool_p2p_runner = MempoolP2pRunner::new(
-        Some(network_manager),
+        Box::pin(network_future),
         broadcasted_messages_receiver,
         broadcast_topic_client,
         gateway_client,
