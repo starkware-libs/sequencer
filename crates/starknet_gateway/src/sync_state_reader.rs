@@ -1,5 +1,7 @@
 use blockifier::execution::contract_class::RunnableCompiledClass;
+use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
+use futures::executor::block_on;
 use starknet_api::block::{BlockInfo, BlockNumber};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
@@ -32,10 +34,17 @@ impl MempoolStateReader for SyncStateReader {
 impl BlockifierStateReader for SyncStateReader {
     fn get_storage_at(
         &self,
-        _contract_address: ContractAddress,
-        _key: StorageKey,
+        contract_address: ContractAddress,
+        key: StorageKey,
     ) -> StateResult<Felt> {
-        todo!()
+        let res = block_on(self.state_sync_client.get_storage_at(
+            self.block_number,
+            contract_address,
+            key,
+        ))
+        .map_err(|e| StateError::StateReadError(e.to_string()))?;
+
+        Ok(res)
     }
 
     fn get_nonce_at(&self, _contract_address: ContractAddress) -> StateResult<Nonce> {
