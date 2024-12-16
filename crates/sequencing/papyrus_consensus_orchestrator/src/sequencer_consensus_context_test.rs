@@ -45,7 +45,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::sequencer_consensus_context::SequencerConsensusContext;
 
-const TIMEOUT: Duration = Duration::from_millis(100);
+const TIMEOUT: Duration = Duration::from_millis(200);
 const CHANNEL_SIZE: usize = 5000;
 const NUM_VALIDATORS: u64 = 4;
 const STATE_DIFF_COMMITMENT: StateDiffCommitment = StateDiffCommitment(PoseidonHash(Felt::ZERO));
@@ -132,7 +132,8 @@ async fn build_proposal() {
 
     let init = ProposalInit::default();
     // TODO(Asmaa): Test proposal content.
-    let fin_receiver = context.build_proposal(init, TIMEOUT).await;
+    // TODO(Guy): Return to default once the build margin is in the config.
+    let fin_receiver = context.build_proposal(init, Duration::from_millis(1200)).await;
     assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
 }
 
