@@ -7391,8 +7391,11 @@ name = "papyrus_consensus_orchestrator"
 version = "0.0.0"
 dependencies = [
  "async-trait",
+ "blockifier",
  "chrono",
  "futures",
+ "indexmap 2.6.0",
+ "infra_utils",
  "lazy_static",
  "mockall",
  "papyrus_consensus",
@@ -7400,6 +7403,8 @@ dependencies = [
  "papyrus_protobuf",
  "papyrus_storage",
  "papyrus_test_utils",
+ "serde",
+ "serde_json",
  "starknet-types-core",
  "starknet_api",
  "starknet_batcher_types",
