@@ -180,6 +180,11 @@ impl SequencerNodeConfig {
     ) -> Result<Self, ConfigError> {
         Self::load_and_process_config_file(args, Some(config_file_name))
     }
+
+    pub fn itay(&self) {
+        self.dump_to_file(&CONFIG_POINTERS, &CONFIG_NON_POINTERS_WHITELIST, DEFAULT_CONFIG_PATH)
+            .expect("dump to file error");
+    }
 }
 
 /// The command line interface of this node.
