@@ -3,14 +3,15 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use futures::channel::mpsc::Sender;
+use futures::future::ready;
 use futures::stream::StreamExt;
-use futures::SinkExt;
+use futures::{FutureExt, SinkExt};
 use papyrus_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
     BroadcastNetworkMock,
     TestSubscriberChannels,
 };
-use papyrus_network::network_manager::{BroadcastTopicChannels, NetworkManager};
+use papyrus_network::network_manager::{BroadcastTopicChannels, NetworkError, NetworkManager};
 use papyrus_network::NetworkConfig;
 use papyrus_network_types::network_types::BroadcastedMessageMetadata;
 use papyrus_protobuf::mempool::RpcTransactionWrapper;
@@ -23,6 +24,42 @@ use starknet_sequencer_infra::component_definitions::ComponentStarter;
 use tokio::time::sleep;
 
 use super::MempoolP2pRunner;
+
+#[test]
+fn run_returns_when_network_future_returns() {
+    let network_future = ready(Ok(()));
+    let TestSubscriberChannels { mock_network: _, subscriber_channels } =
+        mock_register_broadcast_topic().expect("Failed to create mock network");
+    let BroadcastTopicChannels { broadcasted_messages_receiver, broadcast_topic_client } =
+        subscriber_channels;
+    let gateway_client =
+        Arc::new(MockGatewayClient { add_tx_sender: futures::channel::mpsc::channel(1).0 });
+    let mut mempool_p2p_runner = MempoolP2pRunner::new(
+        Box::pin(network_future),
+        broadcasted_messages_receiver,
+        broadcast_topic_client,
+        gateway_client,
+    );
+    mempool_p2p_runner.start().now_or_never().unwrap().unwrap();
+}
+
+#[test]
+fn run_returns_error_when_network_future_returns_error() {
+    let network_future = ready(Err(NetworkError::DialError(libp2p::swarm::DialError::Aborted)));
+    let TestSubscriberChannels { mock_network: _, subscriber_channels } =
+        mock_register_broadcast_topic().expect("Failed to create mock network");
+    let BroadcastTopicChannels { broadcasted_messages_receiver, broadcast_topic_client } =
+        subscriber_channels;
+    let gateway_client =
+        Arc::new(MockGatewayClient { add_tx_sender: futures::channel::mpsc::channel(1).0 });
+    let mut mempool_p2p_runner = MempoolP2pRunner::new(
+        Box::pin(network_future),
+        broadcasted_messages_receiver,
+        broadcast_topic_client,
+        gateway_client,
+    );
+    mempool_p2p_runner.start().now_or_never().unwrap().unwrap_err();
+}
 
 // TODO(eitan): Make it an automock
 #[derive(Clone)]
@@ -50,10 +87,11 @@ async fn start_component_receive_tx_happy_flow() {
     } = mock_network;
     // Creating a placeholder network manager with default config for init of a mempool receiver
     let placeholder_network_manager = NetworkManager::new(NetworkConfig::default(), None);
+    let placeholder_network_future = placeholder_network_manager.run();
     let (add_tx_sender, mut add_tx_receiver) = futures::channel::mpsc::channel(1);
     let mock_gateway_client = Arc::new(MockGatewayClient { add_tx_sender });
     let mut mempool_p2p_runner = MempoolP2pRunner::new(
-        Some(placeholder_network_manager),
+        Box::pin(placeholder_network_future),
         broadcasted_messages_receiver,
         broadcast_topic_client,
         mock_gateway_client,
