@@ -14,7 +14,6 @@ pub fn l1handler_tx(l1_fee: Fee, contract_address: ContractAddress) -> L1Handler
     ];
 
     executable_l1_handler_tx(L1HandlerTxArgs {
-        version: starknet_api::transaction::L1HandlerTransaction::VERSION,
         contract_address,
         entry_point_selector: selector_from_name("l1_handler_set_value"),
         calldata,
