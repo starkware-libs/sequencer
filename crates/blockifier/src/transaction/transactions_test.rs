@@ -1828,7 +1828,7 @@ fn test_deploy_account_tx(
 
     // Build expected execute call info.
     let expected_execute_initial_gas = user_initial_gas
-        // Note that in the case of deploy account, the initial gas in "execute" is limited by 
+        // Note that in the case of deploy account, the initial gas in "execute" is limited by
         // max_validation_sierra_gas.
         .min(versioned_constants.validate_max_sierra_gas);
     let expected_execute_call_info = Some(CallInfo {
@@ -2463,7 +2463,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
 
     // set the storage back to 0, so the fee will also include the storage write.
     // TODO(Meshi, 15/6/2024): change the l1_handler_set_value cairo function to
-    // always uptade the storage instad.
+    // always update the storage instead.
     state.set_storage_at(contract_address, StorageKey::try_from(key).unwrap(), Felt::ZERO).unwrap();
     let tx_no_fee = l1handler_tx(Fee(0), contract_address);
     let error = tx_no_fee.execute(state, block_context).unwrap_err(); // Do not charge fee as L1Handler's resource bounds (/max fee) is 0.
