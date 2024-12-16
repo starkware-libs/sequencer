@@ -10482,6 +10482,7 @@ dependencies = [
  "itertools 0.12.1",
  "mempool_test_utils",
  "papyrus_common",
+ "papyrus_config",
  "papyrus_consensus",
  "papyrus_execution",
  "papyrus_network",
