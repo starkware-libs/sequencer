@@ -168,17 +168,8 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                     self.handle_message(
                         context, height, &mut shc, message, broadcast_channels).await?
                 },
-                Some(mut content_receiver) = proposal_receiver.next() => {
-                    // Get the first message to verify the init was sent.
-                    // TODO(guyn): add a timeout and panic, since StreamHandler should only send once
-                    // the first message (message_id=0) has arrived.
-                    let Some(first_part) = content_receiver.next().await else {
-                        return Err(ConsensusError::InternalNetworkError(
-                            "Proposal receiver closed".to_string(),
-                        ));
-                    };
-                    let proposal_init: ProposalInit = first_part.try_into()?;
-                    self.handle_proposal(context, height, &mut shc, proposal_init, content_receiver).await?
+                Some(content_receiver) = proposal_receiver.next() => {
+                    self.handle_proposal(context, height, &mut shc, content_receiver).await?
                 },
                 Some(shc_event) = shc_events.next() => {
                     shc.handle_event(context, shc_event).await?
@@ -241,9 +232,18 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         context: &mut ContextT,
         height: BlockNumber,
         shc: &mut SingleHeightConsensus,
-        proposal_init: ProposalInit,
-        content_receiver: mpsc::Receiver<ContextT::ProposalPart>,
+        mut content_receiver: mpsc::Receiver<ContextT::ProposalPart>,
     ) -> Result<ShcReturn, ConsensusError> {
+        // Get the first message to verify the init was sent.
+        // TODO(guyn): add a timeout and panic, since StreamHandler should only send once
+        // the first message (message_id=0) has arrived.
+        let Some(first_part) = content_receiver.next().await else {
+            return Err(ConsensusError::InternalNetworkError(
+                "Proposal receiver closed".to_string(),
+            ));
+        };
+        let proposal_init: ProposalInit = first_part.try_into()?;
+
         if proposal_init.height != height {
             debug!("Received a proposal for a different height or round. {:?}", proposal_init);
             if proposal_init.height > height {
