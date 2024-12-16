@@ -7,6 +7,7 @@ use prost::Message;
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ClassHash, CompiledClassHash, EntryPointSelector, Nonce};
 use starknet_api::execution_resources::GasAmount;
+use starknet_api::transaction::constants::L1_HANDLER_VERSION;
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
@@ -1253,7 +1254,7 @@ impl From<DeployTransaction> for protobuf::transaction::Deploy {
 impl TryFrom<protobuf::transaction::L1HandlerV0> for L1HandlerTransaction {
     type Error = ProtobufConversionError;
     fn try_from(value: protobuf::transaction::L1HandlerV0) -> Result<Self, Self::Error> {
-        let version = TransactionVersion(Felt::ZERO);
+        let version = L1_HANDLER_VERSION;
 
         let nonce = Nonce(
             value

@@ -64,6 +64,7 @@ use starknet_api::deprecated_contract_class::ContractClass as SN_API_DeprecatedC
 use starknet_api::hash::StarkHash;
 use starknet_api::state::{StorageKey, ThinStateDiff as StarknetApiStateDiff};
 use starknet_api::test_utils::{path_in_resources, read_json_file};
+use starknet_api::transaction::constants::L1_HANDLER_VERSION;
 use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::transaction::{
     L1HandlerTransaction,
@@ -1204,7 +1205,7 @@ async fn pending_trace_block_transactions_and_trace_transaction_execution_contex
 #[test]
 fn message_from_l1_to_l1_handler_tx() {
     let l1_handler_tx = L1HandlerTransaction::from(MESSAGE_FROM_L1.clone());
-    assert_eq!(l1_handler_tx.version, TransactionVersion::ONE);
+    assert_eq!(l1_handler_tx.version, L1_HANDLER_VERSION);
     assert_eq!(l1_handler_tx.contract_address, *CONTRACT_ADDRESS);
     assert_eq!(l1_handler_tx.entry_point_selector, selector_from_name("l1_handle"));
     // The first item of calldata is the from_address.

@@ -1,5 +1,6 @@
 use crate::core::{ContractAddress, EntryPointSelector, Nonce};
 use crate::executable_transaction::L1HandlerTransaction as ExecutableL1HandlerTransaction;
+use crate::transaction::constants::L1_HANDLER_VERSION;
 use crate::transaction::fields::{Calldata, Fee};
 use crate::transaction::{L1HandlerTransaction, TransactionHash, TransactionVersion};
 
@@ -17,7 +18,7 @@ pub struct L1HandlerTxArgs {
 impl Default for L1HandlerTxArgs {
     fn default() -> Self {
         L1HandlerTxArgs {
-            version: TransactionVersion::THREE,
+            version: L1_HANDLER_VERSION,
             nonce: Nonce::default(),
             contract_address: ContractAddress::default(),
             entry_point_selector: EntryPointSelector::default(),
