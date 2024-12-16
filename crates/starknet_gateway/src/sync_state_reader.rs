@@ -1,0 +1,71 @@
+use blockifier::execution::contract_class::RunnableCompiledClass;
+use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
+use starknet_api::block::{BlockInfo, BlockNumber};
+use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
+use starknet_api::state::StorageKey;
+use starknet_state_sync_types::communication::SharedStateSyncClient;
+use starknet_types_core::felt::Felt;
+
+use crate::state_reader::{MempoolStateReader, StateReaderFactory};
+
+#[allow(dead_code)]
+struct SyncStateReader {
+    block_number: BlockNumber,
+    shared_state_sync_client: SharedStateSyncClient,
+}
+
+impl SyncStateReader {
+    pub fn from_number(
+        shared_state_sync_client: &SharedStateSyncClient,
+        block_number: BlockNumber,
+    ) -> Self {
+        Self { shared_state_sync_client: shared_state_sync_client.clone(), block_number }
+    }
+}
+
+impl MempoolStateReader for SyncStateReader {
+    fn get_block_info(&self) -> StateResult<BlockInfo> {
+        todo!()
+    }
+}
+
+impl BlockifierStateReader for SyncStateReader {
+    fn get_storage_at(
+        &self,
+        _contract_address: ContractAddress,
+        _key: StorageKey,
+    ) -> StateResult<Felt> {
+        todo!()
+    }
+
+    fn get_nonce_at(&self, _contract_address: ContractAddress) -> StateResult<Nonce> {
+        todo!()
+    }
+
+    fn get_compiled_class(&self, _class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
+        todo!()
+    }
+
+    fn get_class_hash_at(&self, _contract_address: ContractAddress) -> StateResult<ClassHash> {
+        todo!()
+    }
+
+    fn get_compiled_class_hash(&self, _class_hash: ClassHash) -> StateResult<CompiledClassHash> {
+        todo!()
+    }
+}
+
+pub struct SyncStateReaderFactory {
+    pub shared_state_sync_client: SharedStateSyncClient,
+}
+
+impl StateReaderFactory for SyncStateReaderFactory {
+    // TODO(noamsp): Decide if we need this
+    fn get_state_reader_from_latest_block(&self) -> Box<dyn MempoolStateReader> {
+        todo!()
+    }
+
+    fn get_state_reader(&self, block_number: BlockNumber) -> Box<dyn MempoolStateReader> {
+        Box::new(SyncStateReader::from_number(&self.shared_state_sync_client, block_number))
+    }
+}

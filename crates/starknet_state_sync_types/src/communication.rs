@@ -34,7 +34,12 @@ pub trait StateSyncClient: Send + Sync {
         sync_block: SyncBlock,
     ) -> StateSyncClientResult<()>;
 
-    // TODO: Add state reader methods for gateway.
+    // TODO: add get_storage_at for BlockifierStateReader trait
+    // TODO: add get_nonce_at for BlockifierStateReader trait
+    // TODO: add get_compiled_class for BlockifierStateReader trait
+    // TODO: add get_class_hash_at for BlockifierStateReader trait
+    // TODO: add get_compiled_class_hash for BlockifierStateReader trait
+    // TODO: add get_block_info for MempoolStateReader trait
 }
 
 pub type StateSyncResult<T> = Result<T, StateSyncError>;
